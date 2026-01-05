@@ -6,7 +6,7 @@ Thank you for your interest in improving The Agency!
 
 ### 1. Report Issues
 
-Found a bug or have a suggestion? [Open an issue](https://github.com/jordandm/the-agency-starter/issues).
+Found a bug or have a suggestion? [Open an issue](https://github.com/the-agency-ai/the-agency-starter/issues).
 
 Include:
 - What you were trying to do
@@ -164,8 +164,57 @@ When creating a starter pack:
 
 ## Questions?
 
-- Open a [Discussion](https://github.com/jordandm/the-agency-starter/discussions)
+- Open a [Discussion](https://github.com/the-agency-ai/the-agency-starter/discussions)
 - Ask the housekeeping agent: `./tools/myclaude housekeeping housekeeping "How do I contribute...?"`
+
+---
+
+## Staying Up to Date
+
+After forking, you can receive updates from the upstream repository:
+
+### Initial Setup
+
+```bash
+# Add upstream remote (one time)
+git remote add upstream https://github.com/the-agency-ai/the-agency-starter.git
+```
+
+### Getting Updates
+
+```bash
+# Fetch latest changes
+git fetch upstream
+
+# See what's new
+git log HEAD..upstream/main --oneline
+
+# Merge updates (review changes first!)
+git merge upstream/main --no-commit
+
+# Resolve any conflicts, then commit
+git commit -m "chore: merge upstream v0.2.0"
+```
+
+### What Gets Updated vs. What You Customize
+
+| Category | Safe to Merge | Review Carefully |
+|----------|---------------|------------------|
+| `tools/*` | ✅ Rarely customized | |
+| `claude/docs/*` | ✅ Documentation | |
+| `CLAUDE.md` | | ⚠️ You likely customized this |
+| `claude/config.yaml` | | ⚠️ Your project settings |
+| `claude/agents/*` | | ⚠️ Your agents |
+| `claude/principals/*` | | ⚠️ Your team |
+
+### Checking the Version
+
+```bash
+cat VERSION        # Your current version
+git fetch upstream
+git show upstream/main:VERSION  # Latest version
+cat CHANGELOG.md   # What changed
+```
 
 ---
 
