@@ -1,0 +1,24 @@
+#!/bin/bash
+# Format Swift files
+# Usage: ./tools/swift-format [--check]
+
+set -e
+
+CHECK_ONLY="${1:-}"
+
+# Check if swift-format is installed
+if ! command -v swift-format &> /dev/null; then
+    echo "swift-format not found. Install with:"
+    echo "  brew install swift-format"
+    exit 1
+fi
+
+if [ "$CHECK_ONLY" == "--check" ]; then
+    echo "Checking Swift formatting..."
+    find . -name "*.swift" -not -path "./.build/*" -exec swift-format lint {} \;
+    echo "Format check complete."
+else
+    echo "Formatting Swift files..."
+    find . -name "*.swift" -not -path "./.build/*" -exec swift-format format -i {} \;
+    echo "Formatting complete."
+fi

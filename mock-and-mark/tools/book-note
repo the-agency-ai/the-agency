@@ -1,0 +1,44 @@
+#!/bin/bash
+# Book Note Tool
+# Captures insights for "The Agency" book
+#
+# Usage: ./tools/book-note "Title of Your Insight"
+#
+# Creates a working note in the-agency-book project.
+
+set -e
+
+TITLE="$1"
+
+if [ -z "$TITLE" ]; then
+    echo "Usage: ./tools/book-note \"Title of Your Insight\""
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/book-note \"Multi-platform code sharing patterns\""
+    echo "  ./tools/book-note \"SwiftUI + Claude Code workflow discovery\""
+    exit 1
+fi
+
+# Get agent context
+AGENT="${AGENTNAME:-$(basename "$(pwd)")}"
+
+# Path to ordinaryfolk-nextgen tools
+NEXTGEN_DIR="/Users/jdm/code/ordinaryfolk-nextgen"
+
+if [ ! -d "$NEXTGEN_DIR" ]; then
+    echo "Error: ordinaryfolk-nextgen not found at $NEXTGEN_DIR"
+    echo "This tool requires the parent project for working notes."
+    exit 1
+fi
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Book Note - The Agency"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  Creating working note: ${TITLE}"
+echo "  Agent: ${AGENT}"
+echo ""
+
+# Call the working-note tool
+cd "$NEXTGEN_DIR"
+AGENTNAME="$AGENT" ./tools/working-note the-agency-book "$TITLE"
