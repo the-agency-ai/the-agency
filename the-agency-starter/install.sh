@@ -75,9 +75,17 @@ echo ""
 
 # Clone the repository
 echo "Cloning The Agency Starter..."
-git clone --depth 1 https://github.com/the-agency-ai/the-agency-starter.git "$PROJECT_NAME" 2>/dev/null || {
+
+# Support authenticated clone for private repo (beta access)
+if [ -n "$AGENCY_TOKEN" ]; then
+    REPO_URL="https://${AGENCY_TOKEN}@github.com/the-agency-ai/the-agency-starter.git"
+else
+    REPO_URL="https://github.com/the-agency-ai/the-agency-starter.git"
+fi
+
+git clone --depth 1 "$REPO_URL" "$PROJECT_NAME" 2>/dev/null || {
     # Fallback to full clone if shallow fails
-    git clone https://github.com/the-agency-ai/the-agency-starter.git "$PROJECT_NAME"
+    git clone "$REPO_URL" "$PROJECT_NAME"
 }
 
 cd "$PROJECT_NAME"
