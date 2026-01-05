@@ -28,25 +28,64 @@ echo ""
 check_prereqs() {
     local missing=0
 
+    echo -e "${BLUE}Required:${NC}"
+
     if ! command -v git &> /dev/null; then
-        echo -e "${RED}✗ git not found${NC}"
+        echo -e "${RED}  ✗ git not found${NC}"
         missing=1
     else
-        echo -e "${GREEN}✓ git found${NC}"
+        echo -e "${GREEN}  ✓ git${NC}"
     fi
 
     if ! command -v claude &> /dev/null; then
-        echo -e "${YELLOW}⚠ Claude Code not found in PATH${NC}"
-        echo "  Install from: https://claude.ai/code"
-        echo "  (Continuing anyway - you'll need it to use The Agency)"
+        echo -e "${YELLOW}  ⚠ claude (Claude Code) not found${NC}"
+        echo "    Install from: https://claude.ai/code"
     else
-        echo -e "${GREEN}✓ Claude Code found${NC}"
+        echo -e "${GREEN}  ✓ claude${NC}"
     fi
 
     if [ $missing -eq 1 ]; then
         echo ""
         echo -e "${RED}Missing required prerequisites. Please install them first.${NC}"
         exit 1
+    fi
+}
+
+# Check recommended tools (non-blocking)
+check_recommended() {
+    local missing_tools=""
+
+    echo ""
+    echo -e "${BLUE}Recommended:${NC}"
+
+    # Essential recommended
+    for tool in jq gh tree; do
+        if command -v "$tool" &> /dev/null; then
+            echo -e "${GREEN}  ✓ $tool${NC}"
+        else
+            echo -e "${YELLOW}  ○ $tool${NC}"
+            missing_tools="$missing_tools $tool"
+        fi
+    done
+
+    # Nice to have
+    for tool in yq fzf bat rg; do
+        if command -v "$tool" &> /dev/null; then
+            echo -e "${GREEN}  ✓ $tool${NC}"
+        else
+            echo -e "${YELLOW}  ○ $tool${NC}"
+            missing_tools="$missing_tools $tool"
+        fi
+    done
+
+    if [ -n "$missing_tools" ]; then
+        echo ""
+        # Detect macOS and suggest brew
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            echo -e "${YELLOW}Tip: Install missing tools with:${NC}"
+            echo -e "  brew install$missing_tools"
+            echo -e "  Or run: ${BLUE}./tools/setup-mac${NC} after installation"
+        fi
     fi
 }
 
@@ -68,9 +107,10 @@ fi
 
 echo "Checking prerequisites..."
 check_prereqs
+check_recommended
 
 echo ""
-echo "Installing to: ${GREEN}$PROJECT_NAME${NC}"
+echo -e "Installing to: ${GREEN}$PROJECT_NAME${NC}"
 echo ""
 
 # Clone the repository
@@ -110,7 +150,31 @@ if [ -f "claude/config.yaml" ]; then
     rm -f claude/config.yaml.bak
 fi
 
-# Test the setup
+# macOS: Install recommended CLI tools
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo ""
+    echo "Setting up macOS tools..."
+
+    # Check/install Homebrew
+    if ! command -v brew &> /dev/null; then
+        echo -e "${YELLOW}Installing Homebrew...${NC}"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+        # Add to PATH for this session
+        if [[ -f "/opt/homebrew/bin/brew" ]]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        elif [[ -f "/usr/local/bin/brew" ]]; then
+            eval "$(/usr/local/bin/brew shellenv)"
+        fi
+    fi
+
+    # Install recommended tools via setup-mac
+    if command -v brew &> /dev/null; then
+        ./tools/setup-mac --all
+    fi
+fi
+
+# Done
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}  Installation Complete!${NC}"

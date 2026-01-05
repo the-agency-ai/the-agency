@@ -6,9 +6,34 @@ A step-by-step guide to setting up your first multi-agent development environmen
 
 ## Prerequisites
 
+**Required:**
 - [Claude Code](https://claude.ai/code) installed and working
 - Git
 - A project you want to AI-augment (or we'll create one)
+
+**Recommended CLI Tools (macOS):**
+
+The Agency works best with these tools installed:
+
+```bash
+# Essential (strongly recommended)
+brew install jq gh tree
+
+# Enhanced experience (optional)
+brew install yq fzf bat ripgrep
+```
+
+| Tool | Purpose |
+|------|---------|
+| `jq` | Parse JSON (API responses, package.json) |
+| `gh` | GitHub operations (PRs, issues, releases) |
+| `tree` | Visualize project structure |
+| `yq` | Edit YAML configs programmatically |
+| `fzf` | Fuzzy search (try: `./tools/find-tool -l \| fzf`) |
+| `bat` | Syntax-highlighted file viewing |
+| `rg` | Lightning-fast code search |
+
+Or run after installation: `./tools/setup-mac --all`
 
 ## Step 1: Fork and Clone
 
