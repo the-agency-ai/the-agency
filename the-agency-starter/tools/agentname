@@ -1,0 +1,13 @@
+#!/bin/bash
+# Get current agent name
+#
+# Usage: ./tools/agentname
+#
+# Why this exists:
+#   - Provides agent identity (separate from workstream)
+#   - Supports one-to-many workstream mapping (agents → agent-manager + agent-client)
+#   - Used for agent-specific state (backups, logs, etc.)
+#
+# Returns: agent name from $AGENTNAME environment variable, or 'unknown'
+
+echo "${AGENTNAME:-unknown}"

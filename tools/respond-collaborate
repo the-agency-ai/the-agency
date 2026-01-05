@@ -1,0 +1,139 @@
+#!/bin/bash
+# Tool: respond-collaborate
+# Purpose: Respond to an inter-agent collaboration request
+# Usage: ./tools/respond-collaborate "path/to/collaboration-file.md" "response text"
+# Example: ./tools/respond-collaborate "claude/agents/collaboration/FROM-web-web-COLLABORATE-0001-2025-12-30.md" "I reviewed the design and have some suggestions..."
+
+set -e
+
+# Find repo root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
+
+# Auto-load .env.local if it exists
+if [[ -f ".env.local" ]]; then
+  set -a
+  source .env.local
+  set +a
+fi
+
+# Validate arguments
+if [[ $# -lt 2 ]]; then
+  echo "Usage: ./tools/respond-collaborate \"path/to/collaboration-file.md\" \"response text\""
+  echo "Example: ./tools/respond-collaborate \"claude/agents/collaboration/FROM-web-web-COLLABORATE-0001-2025-12-30.md\" \"I reviewed the design and have some suggestions...\""
+  exit 1
+fi
+
+COLLAB_FILE="$1"
+RESPONSE_TEXT="$2"
+
+# Validate file exists
+if [[ ! -f "$COLLAB_FILE" ]]; then
+  echo "Error: File not found: $COLLAB_FILE"
+  exit 1
+fi
+
+# Get current timestamp
+TIMESTAMP=$("$SCRIPT_DIR/now" 2>/dev/null || date "+%Y-%m-%d %H:%M:%S %Z")
+
+# Get agent name for attribution
+RESPONDER_AGENT=$("$SCRIPT_DIR/agentname" 2>/dev/null || echo "unknown")
+RESPONDER_WORKSTREAM=$("$SCRIPT_DIR/workstream" 2>/dev/null || echo "unknown")
+COMMIT_PREFIX=$("$SCRIPT_DIR/commit-prefix" 2>/dev/null || echo "unknown/unknown:")
+
+# Extract COLLABORATE ID from filename for commit message
+COLLAB_ID=$(basename "$COLLAB_FILE" | grep -oE 'COLLABORATE-[0-9]+')
+
+# Function to handle merge conflicts
+handle_merge_conflict() {
+  echo "Merge conflict detected. Attempting to resolve..."
+  # For collaboration files, prefer remote version and fail - user needs to re-pull and retry
+  echo "Error: Remote has been updated. Please pull latest changes and retry your response."
+  git merge --abort 2>/dev/null || true
+  exit 1
+}
+
+# Step 1: Pull latest
+echo "Pulling latest changes..."
+git pull --rebase 2>/dev/null || {
+  # If rebase fails due to conflicts, abort and try regular pull
+  git rebase --abort 2>/dev/null || true
+  git pull || {
+    # If regular pull also has conflicts, handle them
+    if git diff --name-only --diff-filter=U | grep -q "$(dirname "$COLLAB_FILE")"; then
+      handle_merge_conflict
+    fi
+  }
+}
+
+# Step 2: Check if already responded
+if grep -q "## Response" "$COLLAB_FILE" && ! grep -q "(To be filled by target agent" "$COLLAB_FILE"; then
+  echo "Warning: This collaboration request already has a response."
+  echo "Adding additional response..."
+fi
+
+# Step 3: Update status to "Responded"
+sed -i '' 's/\*\*Status:\*\* Open/\*\*Status:\*\* Responded/' "$COLLAB_FILE"
+
+# Step 4: Replace the response section
+# Find line number of "## Response" section
+RESPONSE_LINE=$(grep -n "^## Response" "$COLLAB_FILE" | cut -d: -f1)
+
+if [[ -z "$RESPONSE_LINE" ]]; then
+  echo "Error: Could not find '## Response' section in file"
+  exit 1
+fi
+
+# Create temporary file with updated response
+HEAD_LINES=$((RESPONSE_LINE))
+head -n "$HEAD_LINES" "$COLLAB_FILE" > "${COLLAB_FILE}.tmp"
+
+cat >> "${COLLAB_FILE}.tmp" << EOF
+
+**Responded by:** ${RESPONDER_AGENT} (${RESPONDER_WORKSTREAM})
+**Date:** ${TIMESTAMP}
+
+${RESPONSE_TEXT}
+
+---
+
+**Note:** Use \`./tools/respond-collaborate "${COLLAB_FILE}" "additional response"\` to add more responses.
+EOF
+
+# Replace original file
+mv "${COLLAB_FILE}.tmp" "$COLLAB_FILE"
+
+echo "Updated collaboration request with response"
+
+# Step 5: Stage and commit
+git add "$COLLAB_FILE"
+COMMIT_MSG="$COMMIT_PREFIX chore: respond to ${COLLAB_ID}
+
+Response from ${RESPONDER_AGENT} (${RESPONDER_WORKSTREAM})
+
+${RESPONSE_TEXT}
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+
+git commit -m "$COMMIT_MSG
+
+[skip ci]" || {
+  echo "Nothing to commit (response may already exist)"
+  exit 0
+}
+
+# Step 6: Push using sync tool
+echo "Syncing changes..."
+"$SCRIPT_DIR/sync" || {
+  echo "Sync failed"
+  exit 1
+}
+
+echo ""
+echo "Successfully responded to collaboration request:"
+echo "  File: ${COLLAB_FILE}"
+echo "  Responder: ${RESPONDER_AGENT} (${RESPONDER_WORKSTREAM})"
+echo "  Status: Responded"

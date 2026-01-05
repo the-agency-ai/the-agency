@@ -1,0 +1,32 @@
+#!/bin/bash
+# Get current principal name
+#
+# Usage: ./tools/principal
+#
+# Returns the principal name for the current system user,
+# as configured in claude/config.yaml under principals.
+#
+# If PRINCIPAL is already set in environment, returns that.
+# Otherwise, looks up the current $USER in config.
+#
+# Why this exists:
+#   - Maps system usernames to principal names
+#   - Allows multiple people to use same machine with different principals
+#   - Configured via claude/config.yaml instead of hardcoding
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# If already set in environment, use that
+if [ -n "$PRINCIPAL" ]; then
+    echo "$PRINCIPAL"
+    exit 0
+fi
+
+# Otherwise, get from config
+if [ -x "$REPO_ROOT/tools/config" ]; then
+    "$REPO_ROOT/tools/config" get-principal
+else
+    echo "unknown"
+fi

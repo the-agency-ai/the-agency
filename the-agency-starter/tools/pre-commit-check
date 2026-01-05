@@ -1,0 +1,107 @@
+#!/bin/bash
+# Pre-commit quality gate - runs all checks before allowing commits
+#
+# Usage: ./tools/pre-commit-check
+#
+# Runs 5 quality checks in sequence:
+#   1. Format code (auto-fix)
+#   2. Lint code (auto-fix)
+#   3. Type check (blocking)
+#   4. Unit tests (blocking)
+#   5. Code review (blocking)
+#
+# Exit codes:
+#   0 = all checks passed
+#   1 = checks failed (warnings only)
+#   2 = checks failed (blocking issues)
+#
+# Requires package.json scripts:
+#   - format (prettier)
+#   - lint:fix (eslint)
+#   - typecheck (tsc --noEmit)
+#   - test (vitest)
+
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$REPO_ROOT"
+
+# Check if there are any staged changes
+if git diff --cached --quiet; then
+  echo "No staged changes to check"
+  exit 0
+fi
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Pre-Commit Quality Checks"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# Detect package manager
+if [ -f "pnpm-lock.yaml" ]; then
+  PM="pnpm"
+elif [ -f "yarn.lock" ]; then
+  PM="yarn"
+else
+  PM="npm"
+fi
+
+# Step 1: Format code (auto-fix)
+echo "→ Step 1/5: Formatting code..."
+if $PM format 2>&1 | tail -5; then
+  echo "✓ Formatting complete"
+  echo ""
+else
+  echo "⚠️ Formatting script not found or failed (skipping)"
+  echo ""
+fi
+
+# Step 2: Lint code (auto-fix)
+echo "→ Step 2/5: Linting code..."
+if $PM lint:fix 2>&1 | tail -10; then
+  echo "✓ Linting complete"
+  echo ""
+else
+  echo "⚠️ Lint script not found or failed (skipping)"
+  echo ""
+fi
+
+# Step 3: Type check (blocking)
+echo "→ Step 3/5: Type checking..."
+if $PM typecheck 2>&1; then
+  echo "✓ Type check passed"
+  echo ""
+else
+  echo ""
+  echo "❌ Type errors found"
+  echo ""
+  echo "Fix type errors before committing"
+  exit 2
+fi
+
+# Step 4: Unit tests (blocking)
+echo "→ Step 4/5: Running unit tests..."
+if ./tools/run-unit-tests; then
+  echo ""
+else
+  echo ""
+  echo "❌ Unit tests failed"
+  echo ""
+  echo "Fix failing tests before committing"
+  exit 2
+fi
+
+# Step 5: Code review (blocking)
+echo "→ Step 5/5: Running code review..."
+if ./tools/code-review; then
+  echo ""
+else
+  echo ""
+  echo "Fix blocking issues before committing"
+  exit 2
+fi
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✓ All pre-commit checks passed!"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+exit 0

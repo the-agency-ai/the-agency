@@ -1,0 +1,99 @@
+#!/bin/bash
+# Create a new epic directory
+#
+# Usage: ./tools/create-epic <number>
+#
+# Creates:
+#   claude/epics/epic{number}/
+#     - feedback/
+#   Also creates epic{number}/ in all workstreams
+
+set -e
+
+# Find repo root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
+
+NUM="$1"
+
+if [ -z "$NUM" ]; then
+  echo "Usage: ./tools/create-epic <number>"
+  echo ""
+  echo "Example: ./tools/create-epic 003"
+  exit 1
+fi
+
+# Pad to 3 digits
+EPIC=$(printf "epic%03d" "$NUM")
+DIR="claude/epics/$EPIC"
+
+# Get timezone from config or default to UTC
+TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
+TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
+
+if [ -d "$DIR" ]; then
+  echo "Error: Epic '$EPIC' already exists at $DIR"
+  exit 1
+fi
+
+echo "Creating epic: $EPIC"
+
+# Create epic directory
+mkdir -p "$DIR/feedback"
+
+cat > "$DIR/${EPIC}-plan.md" << EOF
+# $EPIC Plan
+
+**Created:** $TIMESTAMP
+**Status:** Draft
+
+## Overview
+
+[Epic description]
+
+## Goals
+
+1. [Goal 1]
+2. [Goal 2]
+
+## Scope
+
+### In Scope
+
+- [Item 1]
+
+### Out of Scope
+
+- [Item 1]
+
+## Schedule
+
+| Day | Workstream | Sprint | Task |
+|-----|------------|--------|------|
+| 1   |            |        |      |
+
+## Success Criteria
+
+- [ ] [Criterion 1]
+EOF
+
+echo "Created: $DIR/"
+echo "  - ${EPIC}-plan.md"
+echo "  - feedback/"
+
+# Create epic directory in all workstreams
+echo ""
+echo "Adding $EPIC/ to workstreams:"
+for ws in claude/workstreams/*/; do
+  if [ -d "$ws" ]; then
+    wsname=$(basename "$ws")
+    if [ ! -d "$ws$EPIC" ]; then
+      mkdir -p "$ws$EPIC"
+      echo "  - $ws$EPIC/"
+    fi
+  fi
+done
+
+echo ""
+echo "Edit plan: $DIR/${EPIC}-plan.md"

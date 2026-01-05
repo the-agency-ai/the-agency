@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "agency": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "claude/claude-desktop/agency-server/index.ts"],
+      "env": {
+        "PROJECT_ROOT": "${workspaceFolder}"
+      }
+    }
+  }
+}

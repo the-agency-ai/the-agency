@@ -1,0 +1,115 @@
+#!/bin/bash
+# Sync local commits with remote (pull --rebase + push)
+# This is the ONLY approved way to push to remote
+#
+# Usage: ./tools/sync [--check] [--dry-run]
+#   --check    Show what would be pushed without pushing
+#   --dry-run  Same as --check
+#
+# Features:
+# - Pulls with rebase first (keeps history clean)
+# - Logs all pushes for accountability
+# - Shows commit summary before pushing
+
+set -e
+
+# Configuration
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PUSH_LOG="$REPO_ROOT/claude/logs/push-log.md"
+AGENT="${AGENTNAME:-unknown}"
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S %Z')
+
+# Parse arguments
+CHECK_ONLY=false
+for arg in "$@"; do
+  case $arg in
+    --check|--dry-run)
+      CHECK_ONLY=true
+      ;;
+  esac
+done
+
+# Get current branch
+BRANCH=$(git branch --show-current)
+
+# Check if we have commits to push
+UPSTREAM="origin/$BRANCH"
+if ! git rev-parse "$UPSTREAM" >/dev/null 2>&1; then
+  # No upstream branch yet - this is a new branch
+  AHEAD=$(git rev-list HEAD --count 2>/dev/null || echo "new")
+  BEHIND=0
+else
+  AHEAD=$(git rev-list "$UPSTREAM..HEAD" --count 2>/dev/null || echo "0")
+  BEHIND=$(git rev-list "HEAD..$UPSTREAM" --count 2>/dev/null || echo "0")
+fi
+
+# Show status
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Git Sync - $BRANCH"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  Agent:    $AGENT"
+echo "  Ahead:    $AHEAD commits"
+echo "  Behind:   $BEHIND commits"
+echo ""
+
+if [[ "$AHEAD" == "0" ]]; then
+  echo "  Nothing to push."
+  echo ""
+  exit 0
+fi
+
+# Show commits to push
+echo "  Commits to push:"
+echo "  ────────────────"
+if [[ "$UPSTREAM" != "origin/$BRANCH" ]] || ! git rev-parse "$UPSTREAM" >/dev/null 2>&1; then
+  git log --oneline -10 | sed 's/^/    /'
+else
+  git log --oneline "$UPSTREAM..HEAD" | sed 's/^/    /'
+fi
+echo ""
+
+# Check for [skip ci] in commits
+SKIP_CI_COUNT=0
+if git rev-parse "$UPSTREAM" >/dev/null 2>&1; then
+  SKIP_CI_COUNT=$(git log --oneline "$UPSTREAM..HEAD" | grep -c '\[skip ci\]' || echo "0")
+fi
+SKIP_CI_STATUS="$SKIP_CI_COUNT skip-ci"
+
+if $CHECK_ONLY; then
+  echo "  --check mode: Not pushing"
+  echo ""
+  exit 0
+fi
+
+# Log BEFORE pushing (accountability even if push fails)
+mkdir -p "$(dirname "$PUSH_LOG")"
+if [[ ! -f "$PUSH_LOG" ]]; then
+  cat > "$PUSH_LOG" << 'EOF'
+# Push Log
+
+Accountability log for all remote pushes. All agents must use `./tools/sync`.
+
+| Timestamp | Agent | Commits | Skip CI | Branch |
+|-----------|-------|---------|---------|--------|
+EOF
+fi
+
+echo "| $TIMESTAMP | $AGENT | $AHEAD | $SKIP_CI_STATUS | $BRANCH |" >> "$PUSH_LOG"
+
+# Pull with rebase first
+echo "  Pulling with rebase..."
+if ! git pull --rebase origin "$BRANCH" 2>/dev/null; then
+  # Branch might not exist on remote yet
+  echo "    (No remote branch yet, skipping pull)"
+fi
+echo ""
+
+# Push
+echo "  Pushing to origin/$BRANCH..."
+git push -u origin "$BRANCH"
+echo ""
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Sync complete. $AHEAD commits pushed."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

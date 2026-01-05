@@ -1,0 +1,92 @@
+#!/bin/bash
+# Create a new sprint directory
+#
+# Usage: ./tools/create-sprint <workstream> <epic-num> <sprint-num>
+#
+# Creates:
+#   claude/workstreams/{workstream}/epic{epic}/sprint{sprint}/
+#     - sprint-plan.md
+
+set -e
+
+# Find repo root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
+
+WORKSTREAM="$1"
+EPIC_NUM="$2"
+SPRINT_NUM="$3"
+
+if [ -z "$WORKSTREAM" ] || [ -z "$EPIC_NUM" ] || [ -z "$SPRINT_NUM" ]; then
+  echo "Usage: ./tools/create-sprint <workstream> <epic-num> <sprint-num>"
+  echo ""
+  echo "Example: ./tools/create-sprint web 002 001"
+  echo "Creates: claude/workstreams/web/epic002/sprint001/"
+  exit 1
+fi
+
+# Pad numbers
+EPIC=$(printf "epic%03d" "$EPIC_NUM")
+SPRINT=$(printf "sprint%03d" "$SPRINT_NUM")
+DIR="claude/workstreams/$WORKSTREAM/$EPIC/$SPRINT"
+
+# Get timezone from config or default to UTC
+TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
+TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
+
+# Check workstream exists
+if [ ! -d "claude/workstreams/$WORKSTREAM" ]; then
+  echo "Error: Workstream '$WORKSTREAM' doesn't exist"
+  exit 1
+fi
+
+# Check epic exists in workstream
+if [ ! -d "claude/workstreams/$WORKSTREAM/$EPIC" ]; then
+  echo "Error: Epic '$EPIC' doesn't exist in workstream '$WORKSTREAM'"
+  echo ""
+  echo "Create epic first: ./tools/create-epic $EPIC_NUM"
+  exit 1
+fi
+
+if [ -d "$DIR" ]; then
+  echo "Error: Sprint already exists at $DIR"
+  exit 1
+fi
+
+echo "Creating sprint: $WORKSTREAM/$EPIC/$SPRINT"
+mkdir -p "$DIR"
+
+cat > "$DIR/sprint-plan.md" << EOF
+# $WORKSTREAM $EPIC $SPRINT Plan
+
+**Created:** $TIMESTAMP
+**Workstream:** $WORKSTREAM
+**Status:** Not Started
+
+## Objective
+
+[Sprint objective]
+
+## Scope
+
+- [ ] [Task 1]
+- [ ] [Task 2]
+
+## Estimate
+
+[X hours]
+
+## Dependencies
+
+- [Dependency 1]
+
+## Acceptance Criteria
+
+- [ ] [Criterion 1]
+EOF
+
+echo "Created: $DIR/"
+echo "  - sprint-plan.md"
+echo ""
+echo "Edit plan: $DIR/sprint-plan.md"

@@ -1,0 +1,24 @@
+{
+  "name": "the-agency-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-agent development framework for Claude Code",
+  "scripts": {
+    "dev": "pnpm --filter @agency/workbench dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

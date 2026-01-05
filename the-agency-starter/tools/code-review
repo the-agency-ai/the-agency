@@ -1,0 +1,108 @@
+#!/bin/bash
+# Automated code review using pattern-based checks
+#
+# Usage: ./tools/code-review
+#
+# Checks:
+#   1. Hardcoded secrets (blocking)
+#   2. SQL injection patterns (blocking)
+#   3. console.log in production (warning)
+#   4. TypeScript 'any' usage (warning)
+#   5. TODO without issue reference (warning)
+#
+# Exit codes:
+#   0 = passed (maybe with warnings)
+#   1 = blocking issues found
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$REPO_ROOT"
+
+# Check if there are staged changes
+if git diff --cached --quiet; then
+  echo "No staged changes to review"
+  exit 0
+fi
+
+STAGED_DIFF=$(git diff --cached)
+BLOCKING_ISSUES=0
+WARNING_COUNT=0
+
+echo "Analyzing staged changes..."
+echo ""
+
+# Check 1: No hardcoded secrets
+echo "→ Checking for hardcoded secrets..."
+SECRET_PATTERN='(api[_-]?key|secret|password|token).*=.*["'"'"'][^"'"'"']{8,}["'"'"']'
+# Exclude: test files, markdown, and env var references like ${VAR} or $VAR
+if echo "$STAGED_DIFF" | grep -iE '^\+.*'"$SECRET_PATTERN" | grep -v '\.test\.' | grep -v '\.md' | grep -v '\${\|process\.env\.' > /dev/null; then
+  echo "❌ BLOCKING: Possible hardcoded secret detected"
+  echo "   Move secrets to environment variables (.env.local)"
+  echo ""
+  BLOCKING_ISSUES=$((BLOCKING_ISSUES + 1))
+fi
+
+# Check 2: No SQL injection
+echo "→ Checking for SQL injection vulnerabilities..."
+if echo "$STAGED_DIFF" | grep -E '^\+.*(SELECT|INSERT|UPDATE|DELETE)' | grep '\${' | grep -v '\.test\.' | grep -v '\.md' > /dev/null; then
+  echo "❌ BLOCKING: Possible SQL injection vulnerability"
+  echo "   Use parameterized queries"
+  echo ""
+  BLOCKING_ISSUES=$((BLOCKING_ISSUES + 1))
+fi
+
+# Check 3: console.log in production
+echo "→ Checking for console.log in production code..."
+CONSOLE_LOGS=$(echo "$STAGED_DIFF" | grep -E '^\+.*console\.(log|debug)' | grep -v '\.test\.' | grep -v '\.md' | grep -v 'tools/' || true)
+if [ -n "$CONSOLE_LOGS" ]; then
+  WARNING_COUNT=$((WARNING_COUNT + 1))
+  echo "⚠️  WARNING: console.log detected in production code"
+  echo "$CONSOLE_LOGS" | head -3
+  echo "   Consider using proper logging or remove debug statements"
+  echo ""
+fi
+
+# Check 4: TypeScript any usage
+echo "→ Checking for TypeScript 'any' type..."
+ANY_USAGE=$(echo "$STAGED_DIFF" | grep -E '^\+.*:\s*any\s*[;,=)]' | grep -v '\.test\.' | grep -v '\.md' || true)
+if [ -n "$ANY_USAGE" ]; then
+  WARNING_COUNT=$((WARNING_COUNT + 1))
+  echo "⚠️  WARNING: New 'any' type usage detected"
+  echo "$ANY_USAGE" | head -2
+  echo "   Consider using specific types or 'unknown' with type guards"
+  echo ""
+fi
+
+# Check 5: TODO without issue reference
+echo "→ Checking for TODO comments without issue links..."
+TODO_WITHOUT_ISSUE=$(echo "$STAGED_DIFF" | grep -E '^\+.*//.*(TODO|FIXME)' | grep -v -E '(#[0-9]+|PRJ-[0-9]+|TASK-[0-9]+)' || true)
+if [ -n "$TODO_WITHOUT_ISSUE" ]; then
+  WARNING_COUNT=$((WARNING_COUNT + 1))
+  echo "⚠️  WARNING: TODO/FIXME without issue reference"
+  echo "$TODO_WITHOUT_ISSUE" | head -2
+  echo "   Link TODOs to issues (e.g., TODO: #123)"
+  echo ""
+fi
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+if [ $BLOCKING_ISSUES -gt 0 ]; then
+  echo "❌ Code review found $BLOCKING_ISSUES blocking issue(s)"
+  if [ $WARNING_COUNT -gt 0 ]; then
+    echo "   Also found $WARNING_COUNT warning(s)"
+  fi
+  echo ""
+  echo "Fix blocking issues before committing"
+  echo "Bypass with: git commit --no-verify (not recommended)"
+  exit 1
+fi
+
+if [ $WARNING_COUNT -gt 0 ]; then
+  echo "⚠️  Code review found $WARNING_COUNT warning(s)"
+  echo "   Warnings don't block commits but should be reviewed"
+  echo ""
+fi
+
+echo "✓ Code review passed"
+exit 0

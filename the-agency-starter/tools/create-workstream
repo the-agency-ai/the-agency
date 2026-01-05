@@ -1,0 +1,63 @@
+#!/bin/bash
+# Create a new workstream directory structure
+#
+# Usage: ./tools/create-workstream <name>
+#
+# Creates:
+#   claude/workstreams/{name}/
+#     - KNOWLEDGE.md
+#     - epic001/ (placeholder for past work)
+#     - epic002/ (current epic)
+
+set -e
+
+NAME="$1"
+
+if [ -z "$NAME" ]; then
+  echo "Usage: ./tools/create-workstream <name>"
+  echo ""
+  echo "Example: ./tools/create-workstream billing"
+  exit 1
+fi
+
+DIR="claude/workstreams/$NAME"
+TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
+
+if [ -d "$DIR" ]; then
+  echo "Error: Workstream '$NAME' already exists at $DIR"
+  exit 1
+fi
+
+echo "Creating workstream: $NAME"
+mkdir -p "$DIR/epic001"
+mkdir -p "$DIR/epic002"
+
+cat > "$DIR/KNOWLEDGE.md" << EOF
+# $NAME Workstream Knowledge
+
+**Created:** $TIMESTAMP
+
+## Overview
+
+[Description of what this workstream covers]
+
+## Key Concepts
+
+[Domain-specific knowledge]
+
+## Patterns
+
+[Common patterns used]
+
+## References
+
+- [Relevant documentation links]
+EOF
+
+echo "Created:"
+echo "  $DIR/"
+echo "  $DIR/KNOWLEDGE.md"
+echo "  $DIR/epic001/"
+echo "  $DIR/epic002/"
+echo ""
+echo "Next: Create an agent with ./tools/create-agent <name> $NAME"

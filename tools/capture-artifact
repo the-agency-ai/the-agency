@@ -1,0 +1,247 @@
+#!/bin/bash
+# Capture an artifact for a Principal
+#
+# Usage:
+#   capture-artifact -t "Title" [-i INSTR-####] [-T type] "Content"
+#   capture-artifact -p jordan -t "Analysis Report" --type analysis
+#
+# Options:
+#   -p, --principal    Principal name (default: $PRINCIPAL or mapped from whoami)
+#   -w, --workstream   Workstream (default: $WORKSTREAM)
+#   -a, --agent        Agent name (default: $AGENTNAME)
+#   -t, --title        Artifact title (required)
+#   -i, --instruction  Related instruction ID (e.g., INSTR-0001)
+#   -T, --type         Artifact type: analysis, report, summary, design, other (default: other)
+#   -e, --edit         Force open in editor even if content provided
+#   -h, --help         Show this help
+#
+# Examples:
+#   # From Claude session (agent provides content):
+#   capture-artifact -t "Authentication Analysis" -T analysis "Full analysis here..."
+#
+#   # Related to an instruction:
+#   capture-artifact -t "INSTR-0001 Outcome Report" -i INSTR-0001 -T report
+#
+#   # Opens editor for detailed writing:
+#   capture-artifact -t "System Design Document" -T design
+
+set -e
+
+# Find repo root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+PRINCIPALS_DIR="$REPO_ROOT/claude/principals"
+
+# Defaults from environment
+OPT_PRINCIPAL="${PRINCIPAL:-}"
+OPT_WORKSTREAM="${WORKSTREAM:-}"
+OPT_AGENT="${AGENTNAME:-}"
+OPT_TITLE=""
+OPT_INSTRUCTION=""
+OPT_TYPE="other"
+OPT_EDIT=false
+CONTENT=""
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -p|--principal)
+      OPT_PRINCIPAL="$2"
+      shift 2
+      ;;
+    -w|--workstream)
+      OPT_WORKSTREAM="$2"
+      shift 2
+      ;;
+    -a|--agent)
+      OPT_AGENT="$2"
+      shift 2
+      ;;
+    -t|--title)
+      OPT_TITLE="$2"
+      shift 2
+      ;;
+    -i|--instruction)
+      OPT_INSTRUCTION="$2"
+      shift 2
+      ;;
+    -T|--type)
+      OPT_TYPE="$2"
+      shift 2
+      ;;
+    -e|--edit)
+      OPT_EDIT=true
+      shift
+      ;;
+    -h|--help)
+      head -30 "$0" | tail -28
+      exit 0
+      ;;
+    -*)
+      echo "Unknown option: $1"
+      exit 1
+      ;;
+    *)
+      # Remaining argument is content
+      CONTENT="$1"
+      shift
+      ;;
+  esac
+done
+
+# Validate title
+if [[ -z "$OPT_TITLE" ]]; then
+  echo "Error: Title is required (-t \"Title\")"
+  echo "Usage: capture-artifact -t \"Title\" [\"Content\"]"
+  exit 1
+fi
+
+# Determine principal if not set
+if [[ -z "$OPT_PRINCIPAL" ]]; then
+  # Try to get from config
+  OPT_PRINCIPAL=$("$SCRIPT_DIR/principal" 2>/dev/null || echo "")
+
+  # Fallback to username
+  if [[ -z "$OPT_PRINCIPAL" ]] || [[ "$OPT_PRINCIPAL" == "unknown" ]]; then
+    OPT_PRINCIPAL=$(whoami)
+  fi
+fi
+
+# Validate workstream and agent (warn if not set)
+if [[ -z "$OPT_WORKSTREAM" ]]; then
+  echo "Warning: Workstream not specified. Use -w or set WORKSTREAM env var."
+  OPT_WORKSTREAM="unknown"
+fi
+
+if [[ -z "$OPT_AGENT" ]]; then
+  echo "Warning: Agent not specified. Use -a or set AGENTNAME env var."
+  OPT_AGENT="unknown"
+fi
+
+# Ensure artifacts directory exists
+PRINCIPAL_DIR="$PRINCIPALS_DIR/$OPT_PRINCIPAL"
+ARTIFACTS_DIR="$PRINCIPAL_DIR/artifacts"
+mkdir -p "$ARTIFACTS_DIR"
+
+# Get timezone from config or default to UTC
+TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
+
+# Get current date
+CURRENT_DATE=$(TZ="$TIMEZONE" date '+%Y-%m-%d')
+TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
+
+# Find next artifact number with atomic locking
+# This prevents race conditions when multiple agents run concurrently
+COUNTER_FILE="$ARTIFACTS_DIR/.artifact-counter"
+LOCK_DIR="$ARTIFACTS_DIR/.artifact-counter.lock"
+
+# Portable locking using mkdir (atomic on all POSIX systems)
+# Retry with exponential backoff
+MAX_RETRIES=10
+RETRY_COUNT=0
+while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
+    echo "Error: Could not acquire lock after $MAX_RETRIES attempts" >&2
+    exit 1
+  fi
+  sleep 0.$((RANDOM % 5 + 1))  # Random backoff 0.1-0.5s
+done
+
+# Ensure lock is released on exit (success or failure)
+trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
+
+# Read current counter (or scan if counter file doesn't exist/is corrupted)
+if [[ -f "$COUNTER_FILE" ]] && [[ -s "$COUNTER_FILE" ]]; then
+  CURRENT_NUM=$(cat "$COUNTER_FILE" 2>/dev/null | tr -d '[:space:]')
+  if ! [[ "$CURRENT_NUM" =~ ^[0-9]+$ ]]; then
+    CURRENT_NUM=0
+  fi
+else
+  # Initialize from existing files (one-time migration)
+  CURRENT_NUM=$(find "$ARTIFACTS_DIR" -name "ART-*.md" 2>/dev/null | grep -oE 'ART-[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
+  if [[ -z "$CURRENT_NUM" ]]; then
+    CURRENT_NUM=0
+  fi
+fi
+
+# Increment and save
+NEXT_NUM=$((CURRENT_NUM + 1))
+echo "$NEXT_NUM" > "$COUNTER_FILE"
+
+# Lock is automatically released by trap on EXIT
+
+NEXT_NUM_FMT=$(printf "%04d" $NEXT_NUM)
+
+# Create slug from title
+SLUG=$(echo "$OPT_TITLE" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | cut -c1-40)
+
+# Build filename
+FILENAME="ART-${NEXT_NUM_FMT}-${OPT_PRINCIPAL}-${OPT_WORKSTREAM}-${OPT_AGENT}-${CURRENT_DATE}-${SLUG}.md"
+FILEPATH="$ARTIFACTS_DIR/$FILENAME"
+
+# Format instruction reference
+if [[ -n "$OPT_INSTRUCTION" ]]; then
+  INSTR_REF="$OPT_INSTRUCTION"
+else
+  INSTR_REF="None (ad-hoc request)"
+fi
+
+# Create artifact file
+cat > "$FILEPATH" << EOF
+# ART-${NEXT_NUM_FMT}: ${OPT_TITLE}
+
+**Principal:** ${OPT_PRINCIPAL}
+**Date:** ${TIMESTAMP}
+**Workstream:** ${OPT_WORKSTREAM}
+**Agent:** ${OPT_AGENT}
+**Instruction:** ${INSTR_REF}
+**Type:** ${OPT_TYPE}
+
+---
+
+## Content
+
+${CONTENT:-[Artifact content here]}
+
+---
+
+*Generated by ${OPT_WORKSTREAM}/${OPT_AGENT} for ${OPT_PRINCIPAL}*
+EOF
+
+echo "Created artifact: $FILEPATH"
+
+# Open in editor if no content provided or --edit flag
+if [[ -z "$CONTENT" ]] || [[ "$OPT_EDIT" == true ]]; then
+  # Try to read editor preference from principal's preferences.yaml
+  PREFS_FILE="$PRINCIPAL_DIR/preferences.yaml"
+  if [[ -f "$PREFS_FILE" ]] && command -v yq &> /dev/null; then
+    EDITOR_CMD=$(yq -r '.editor // "code"' "$PREFS_FILE")
+    EDITOR_WAIT=$(yq -r '.editor_wait // "true"' "$PREFS_FILE")
+  else
+    EDITOR_CMD="${EDITOR:-code}"
+    EDITOR_WAIT="true"
+  fi
+
+  echo "Opening in editor: $EDITOR_CMD"
+
+  if [[ "$EDITOR_WAIT" == "true" ]] && [[ "$EDITOR_CMD" == "code" ]]; then
+    "$EDITOR_CMD" --wait "$FILEPATH"
+  else
+    "$EDITOR_CMD" "$FILEPATH"
+  fi
+fi
+
+echo ""
+echo "Artifact ready: ART-${NEXT_NUM_FMT}"
+echo "  File: $FILEPATH"
+echo "  Principal: $OPT_PRINCIPAL"
+echo "  By: ${OPT_WORKSTREAM}/${OPT_AGENT}"
+echo "  Type: $OPT_TYPE"
+if [[ -n "$OPT_INSTRUCTION" ]]; then
+  echo "  Instruction: $OPT_INSTRUCTION"
+fi
+
+# Update the artifacts index
+"$SCRIPT_DIR/update-artifact-index" "$OPT_PRINCIPAL" > /dev/null 2>&1 || true

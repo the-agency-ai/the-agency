@@ -1,0 +1,66 @@
+#!/bin/bash
+# Restore session - apply backed-up changes to working directory
+#
+# Usage: ./tools/restore
+#
+# Why this exists:
+#   Manually restore uncommitted and staged changes from previous session
+#   Enables session continuity after backup
+
+# Help
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  sed -n '2,8p' "$0" | sed 's/^# //' | sed 's/^#//'
+  exit 0
+fi
+
+AGENTNAME=$(./tools/agentname 2>/dev/null || echo 'unknown')
+BACKUP_DIR="claude/agents/$AGENTNAME/backups/latest"
+UNCOMMITTED_PATCH="$BACKUP_DIR/uncommitted.patch"
+STAGED_PATCH="$BACKUP_DIR/staged.patch"
+
+# Check if backup exists
+if [ ! -d "$BACKUP_DIR" ]; then
+  echo "❌ No session backup found" >&2
+  echo "   Nothing to restore." >&2
+  exit 1
+fi
+
+echo "🔄 Restoring session..." >&2
+
+# Apply uncommitted changes
+if [ -f "$UNCOMMITTED_PATCH" ]; then
+  echo "   Applying uncommitted changes..." >&2
+  if git apply "$UNCOMMITTED_PATCH" 2>/dev/null; then
+    echo "   ✅ Uncommitted changes restored" >&2
+  else
+    echo "   ⚠️  Could not apply uncommitted changes (conflicts?)" >&2
+    echo "   Patch saved at: $UNCOMMITTED_PATCH" >&2
+    echo "   You can manually apply with: git apply $UNCOMMITTED_PATCH" >&2
+  fi
+else
+  echo "   • No uncommitted changes to restore" >&2
+fi
+
+# Apply staged changes
+if [ -f "$STAGED_PATCH" ]; then
+  echo "   Applying staged changes..." >&2
+  if git apply --cached "$STAGED_PATCH" 2>/dev/null; then
+    echo "   ✅ Staged changes restored" >&2
+  else
+    echo "   ⚠️  Could not apply staged changes (conflicts?)" >&2
+    echo "   Patch saved at: $STAGED_PATCH" >&2
+    echo "   You can manually apply with: git apply --cached $STAGED_PATCH" >&2
+  fi
+else
+  echo "   • No staged changes to restore" >&2
+fi
+
+echo "" >&2
+echo "✅ Restore complete" >&2
+echo "" >&2
+
+# Show current git status
+echo "Current status:" >&2
+git status --short
+
+exit 0

@@ -1,0 +1,19 @@
+#!/bin/bash
+# Returns the current agent's workstream
+#
+# This provides a consistent, pre-approved way to check workstream identity.
+# When asked "What is your workstream?" or "Who are you?", use this script.
+#
+# Usage:
+#   ./tools/workstream
+#   WORKSTREAM=$(./tools/workstream)
+#
+# Created because agents need a standardized way to identify their workstream
+# without permission friction from checking environment variables directly.
+
+if [ -z "$WORKSTREAM" ]; then
+  echo "ERROR: \$WORKSTREAM environment variable not set" >&2
+  exit 1
+fi
+
+echo "$WORKSTREAM"

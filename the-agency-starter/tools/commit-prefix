@@ -1,0 +1,16 @@
+#!/bin/bash
+# Output the commit message prefix: {workstream}/{agentname}:
+#
+# Usage: ./tools/commit-prefix
+#        MSG="$(./tools/commit-prefix) your message here"
+#
+# Returns: {workstream}/{agentname}:
+# Example: housekeeping/housekeeping:
+#          agents/agent-manager:
+#
+# If workstream or agent unknown, uses "unknown" as fallback.
+
+WORKSTREAM=$(./tools/workstream 2>/dev/null || echo "unknown")
+AGENTNAME=$(./tools/agentname 2>/dev/null || echo "unknown")
+
+echo "${WORKSTREAM}/${AGENTNAME}:"

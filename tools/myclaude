@@ -1,0 +1,80 @@
+#!/bin/bash
+#
+# myclaude - Launch a Claude Code agent with workstream context
+#
+# Usage:
+#   ./tools/myclaude WORKSTREAM AGENTNAME [initial_prompt]
+#
+# Examples:
+#   ./tools/myclaude housekeeping housekeeping
+#   ./tools/myclaude web web "Fix the login bug"
+#   ./tools/myclaude agents agent-manager
+#
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Get project root (where this script lives)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Parse arguments
+WORKSTREAM="${1:-}"
+AGENTNAME="${2:-}"
+INITIAL_PROMPT="${3:-}"
+
+# Validate
+if [ -z "$WORKSTREAM" ] || [ -z "$AGENTNAME" ]; then
+    echo -e "${RED}Usage: ./tools/myclaude WORKSTREAM AGENTNAME [prompt]${NC}"
+    echo ""
+    echo "Available agents:"
+    for agent_dir in "$PROJECT_ROOT"/claude/agents/*/; do
+        if [ -d "$agent_dir" ] && [ -f "$agent_dir/agent.md" ]; then
+            agent=$(basename "$agent_dir")
+            echo "  - $agent"
+        fi
+    done
+    exit 1
+fi
+
+# Check agent exists
+AGENT_DIR="$PROJECT_ROOT/claude/agents/$AGENTNAME"
+if [ ! -d "$AGENT_DIR" ]; then
+    echo -e "${RED}Agent not found: $AGENTNAME${NC}"
+    echo "Create it with: ./tools/create-agent $WORKSTREAM $AGENTNAME"
+    exit 1
+fi
+
+# Set environment
+export WORKSTREAM="$WORKSTREAM"
+export AGENTNAME="$AGENTNAME"
+export PROJECT_ROOT="$PROJECT_ROOT"
+
+# Get principal from config (maps system username to principal)
+if [ -x "$PROJECT_ROOT/tools/config" ]; then
+    PRINCIPAL=$("$PROJECT_ROOT/tools/config" get-principal 2>/dev/null || echo "unknown")
+    export PRINCIPAL="$PRINCIPAL"
+fi
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}  Launching: ${GREEN}$AGENTNAME${NC} ${BLUE}on workstream: ${GREEN}$WORKSTREAM${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+
+# Build claude command
+CLAUDE_CMD="claude"
+
+# Add initial prompt if provided
+if [ -n "$INITIAL_PROMPT" ]; then
+    CLAUDE_CMD="$CLAUDE_CMD --prompt \"$INITIAL_PROMPT\""
+fi
+
+# Launch claude in project directory
+cd "$PROJECT_ROOT"
+eval "$CLAUDE_CMD"

@@ -1,0 +1,113 @@
+#!/bin/bash
+# Read configuration values from claude/config.yaml
+#
+# Usage:
+#   ./tools/config get principals.jdm        # Get value for a key path
+#   ./tools/config get-principal             # Get principal for current $USER
+#   ./tools/config get project.timezone      # Get project timezone
+#   ./tools/config list                      # Show all config
+#
+# The config file uses YAML format at claude/config.yaml
+# Keys are accessed using dot notation: section.key or section.key.subkey
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+CONFIG_FILE="$REPO_ROOT/claude/config.yaml"
+
+# Check if config exists
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  echo "Error: Config file not found at $CONFIG_FILE" >&2
+  exit 1
+fi
+
+# Parse arguments
+ACTION="${1:-help}"
+KEY_PATH="$2"
+
+case "$ACTION" in
+  get)
+    if [[ -z "$KEY_PATH" ]]; then
+      echo "Usage: ./tools/config get <key.path>" >&2
+      exit 1
+    fi
+
+    # Use Python for reliable YAML parsing
+    python3 - "$CONFIG_FILE" "$KEY_PATH" << 'PYTHON_EOF'
+import sys
+import yaml
+
+config_file = sys.argv[1]
+key_path = sys.argv[2]
+
+with open(config_file, 'r') as f:
+    config = yaml.safe_load(f)
+
+# Navigate to the key
+keys = key_path.split('.')
+value = config
+for key in keys:
+    if isinstance(value, dict) and key in value:
+        value = value[key]
+    else:
+        # Key not found, return empty
+        sys.exit(0)
+
+if value is not None:
+    print(value)
+PYTHON_EOF
+    ;;
+
+  get-principal)
+    # Get principal name for current system user
+    CURRENT_USER="${USER:-$(whoami)}"
+
+    # Try to get from config
+    PRINCIPAL=$(python3 - "$CONFIG_FILE" "$CURRENT_USER" << 'PYTHON_EOF'
+import sys
+import yaml
+
+config_file = sys.argv[1]
+username = sys.argv[2]
+
+with open(config_file, 'r') as f:
+    config = yaml.safe_load(f)
+
+principals = config.get('principals', {})
+principal = principals.get(username)
+
+if principal:
+    print(principal)
+elif 'default' in principals:
+    print(principals['default'])
+else:
+    print('unknown')
+PYTHON_EOF
+)
+    echo "$PRINCIPAL"
+    ;;
+
+  list)
+    cat "$CONFIG_FILE"
+    ;;
+
+  help|--help|-h)
+    echo "Usage: ./tools/config <action> [key]"
+    echo ""
+    echo "Actions:"
+    echo "  get <key.path>    Get a config value (dot notation)"
+    echo "  get-principal     Get principal for current \$USER"
+    echo "  list              Show all config"
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/config get principals.jdm"
+    echo "  ./tools/config get project.timezone"
+    echo "  ./tools/config get-principal"
+    ;;
+
+  *)
+    echo "Unknown action: $ACTION" >&2
+    echo "Use: ./tools/config help" >&2
+    exit 1
+    ;;
+esac

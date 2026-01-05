@@ -1,0 +1,99 @@
+#!/bin/bash
+# Agency Feedback Tool
+# Captures feedback for the-agency-starter framework
+#
+# Usage: ./tools/agency-feedback "title" "description"
+#
+# Creates a GitHub issue on the-agency-starter repo with structured feedback.
+# If GitHub access unavailable, saves locally to claude/feedback/
+
+set -e
+
+TITLE="$1"
+DESCRIPTION="$2"
+
+if [ -z "$TITLE" ]; then
+    echo "Usage: ./tools/agency-feedback \"title\" \"description\""
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/agency-feedback \"Need tool for X\" \"When doing Y, I needed Z\""
+    echo "  ./tools/agency-feedback \"Docs gap: hooks\" \"The hooks documentation doesn't cover...\""
+    exit 1
+fi
+
+# Get agent context if available
+AGENT="${AGENTNAME:-unknown}"
+WORKSTREAM_NAME="${WORKSTREAM:-unknown}"
+PROJECT_DIR="$(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+AGENCY_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Build the issue body
+BODY="## Feedback from Agent
+
+**Agent:** ${AGENT}
+**Workstream:** ${WORKSTREAM_NAME}
+**Project:** ${PROJECT_DIR}
+**Date:** $(date '+%Y-%m-%d %H:%M %Z')
+
+## Description
+
+${DESCRIPTION:-No description provided.}
+
+## Context
+
+This feedback was captured during active development using The Agency multi-agent framework.
+
+---
+*Submitted via \`./tools/agency-feedback\`*"
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Agency Feedback"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  Title: ${TITLE}"
+echo "  Agent: ${AGENT}"
+echo "  Project: ${PROJECT_DIR}"
+echo ""
+
+# Check if gh is available and authenticated
+if ! command -v gh &> /dev/null; then
+    echo "  ⚠️  GitHub CLI not installed"
+    echo "  Saving feedback locally instead..."
+
+    FEEDBACK_DIR="${AGENCY_ROOT}/claude/feedback"
+    mkdir -p "$FEEDBACK_DIR"
+
+    FEEDBACK_FILE="${FEEDBACK_DIR}/$(date '+%Y%m%d-%H%M%S')-${AGENT}.md"
+    echo "# Feedback: ${TITLE}" > "$FEEDBACK_FILE"
+    echo "" >> "$FEEDBACK_FILE"
+    echo "$BODY" >> "$FEEDBACK_FILE"
+
+    echo "  Saved to: ${FEEDBACK_FILE}"
+    exit 0
+fi
+
+# Try to create the issue
+if gh issue create --repo jordandm/the-agency-starter \
+    --title "Feedback: ${TITLE}" \
+    --body "$BODY" \
+    --label "feedback" 2>/dev/null; then
+    echo "  ✓ Issue created on the-agency-starter"
+else
+    # Fallback: save locally if repo doesn't exist or no access
+    echo "  ⚠️  Could not create GitHub issue"
+    echo "  Saving feedback locally instead..."
+
+    FEEDBACK_DIR="${AGENCY_ROOT}/claude/feedback"
+    mkdir -p "$FEEDBACK_DIR"
+
+    FEEDBACK_FILE="${FEEDBACK_DIR}/$(date '+%Y%m%d-%H%M%S')-${AGENT}.md"
+    echo "# Feedback: ${TITLE}" > "$FEEDBACK_FILE"
+    echo "" >> "$FEEDBACK_FILE"
+    echo "$BODY" >> "$FEEDBACK_FILE"
+
+    echo "  Saved to: ${FEEDBACK_FILE}"
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

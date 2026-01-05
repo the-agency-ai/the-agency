@@ -1,0 +1,31 @@
+# The Agency Configuration
+# This file maps system identifiers to Agency concepts
+
+# Map system usernames to principal names
+# Used for: commit attribution, instruction routing, preferences
+principals:
+  # Format: system_username: principal_name
+  # Example: jdm: jordan
+  # The principal_name should match a directory in claude/principals/
+  default: unknown  # Fallback if username not found
+
+# Project settings
+project:
+  name: "My Project"
+  timezone: "UTC"  # Used by ./tools/now
+
+# Agent defaults
+agents:
+  default_model: "opus"  # opus, sonnet, haiku
+
+# Collaboration settings
+collaboration:
+  auto_sync: true  # Automatically push collaboration files
+  news_expiry_days: 7  # Mark old news as READ after N days
+
+# Quality gate settings
+quality:
+  block_on_secrets: true
+  block_on_console_log: false  # Warning only
+  block_on_any_type: false     # Warning only
+  require_issue_links_in_todos: false

@@ -1,0 +1,167 @@
+#!/bin/bash
+# Create a new agent identity
+#
+# Usage: ./tools/create-agent <agentname> <workstream>
+#
+# Many-to-one mapping: Multiple agents can work on the same workstream
+# Agent name may differ from workstream name
+#
+# Creates:
+#   claude/agents/{agentname}/
+#     - agent.md, WORKLOG.md, ADHOC-WORKLOG.md
+#     - IDEAS.md, KNOWLEDGE.md, ONBOARDING.md
+#     - backups/, logs/
+
+set -e
+
+AGENTNAME="$1"
+WORKSTREAM="$2"
+
+if [ -z "$AGENTNAME" ] || [ -z "$WORKSTREAM" ]; then
+  echo "Usage: ./tools/create-agent <agentname> <workstream>"
+  echo ""
+  echo "Examples:"
+  echo "  ./tools/create-agent agent-manager agents"
+  echo "  ./tools/create-agent agent-client agents"
+  echo "  ./tools/create-agent web web"
+  echo ""
+  echo "Note: Workstream must exist first. Create with:"
+  echo "  ./tools/create-workstream <name>"
+  exit 1
+fi
+
+DIR="claude/agents/$AGENTNAME"
+WORKSTREAM_DIR="claude/workstreams/$WORKSTREAM"
+TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
+
+# Check agent doesn't exist
+if [ -d "$DIR" ]; then
+  echo "Error: Agent '$AGENTNAME' already exists at $DIR"
+  exit 1
+fi
+
+# Check workstream exists
+if [ ! -d "$WORKSTREAM_DIR" ]; then
+  echo "Error: Workstream '$WORKSTREAM' doesn't exist at $WORKSTREAM_DIR"
+  echo ""
+  echo "Create workstream first: ./tools/create-workstream $WORKSTREAM"
+  exit 1
+fi
+
+echo "Creating agent: $AGENTNAME (workstream: $WORKSTREAM)"
+mkdir -p "$DIR/backups/latest"
+mkdir -p "$DIR/backups/archive"
+mkdir -p "$DIR/logs"
+
+# agent.md
+cat > "$DIR/agent.md" << EOF
+# $AGENTNAME Agent
+
+**Created:** $TIMESTAMP
+**Workstream:** $WORKSTREAM
+**Model:** Opus 4.5 (default)
+
+## Purpose
+
+[Description of this agent's role]
+
+## Responsibilities
+
+- [Key responsibility 1]
+- [Key responsibility 2]
+
+## How to Spin Up
+
+\`\`\`bash
+./tools/myclaude $WORKSTREAM $AGENTNAME
+\`\`\`
+
+## Key Directories
+
+- \`claude/agents/$AGENTNAME/\` - Agent identity
+- \`claude/workstreams/$WORKSTREAM/\` - Work artifacts (shared with other $WORKSTREAM agents)
+EOF
+
+# WORKLOG.md
+cat > "$DIR/WORKLOG.md" << EOF
+# $AGENTNAME Work Log
+
+## Completed Sprints
+
+(None yet)
+
+## Format
+
+- ✅ epic###-sprint### - [Summary] | [Date]
+  - Iteration 01: [Description]
+EOF
+
+# ADHOC-WORKLOG.md
+AGENTNAME_UPPER=$(echo "$AGENTNAME" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+cat > "$DIR/ADHOC-WORKLOG.md" << EOF
+# $AGENTNAME Ad-Hoc Work Log
+
+## Latest
+
+(None yet)
+
+---
+
+## Format
+
+## ${AGENTNAME_UPPER}-ADHOC-#### | YYYY-MM-DD HH:MM
+
+**Task:** [Description]
+**Status:** Completed
+**Files:** [List]
+EOF
+
+# IDEAS.md
+cat > "$DIR/IDEAS.md" << EOF
+# $AGENTNAME Ideas & Observations
+
+### YYYY-MM-DD | I noticed
+
+[Observation]
+
+### YYYY-MM-DD | I have an idea
+
+[Proposal]
+**Deferred because:** [Reason]
+EOF
+
+# KNOWLEDGE.md
+cat > "$DIR/KNOWLEDGE.md" << EOF
+# $AGENTNAME Agent Knowledge
+
+## Agent-Specific Context
+
+[Knowledge specific to this agent]
+
+## See Also
+
+- \`claude/workstreams/$WORKSTREAM/KNOWLEDGE.md\` - Shared workstream knowledge
+EOF
+
+# ONBOARDING.md
+cat > "$DIR/ONBOARDING.md" << EOF
+# $AGENTNAME Onboarding
+
+1. Read \`agent.md\`
+2. Check \`ADHOC-WORKLOG.md\` for recent work
+3. Review \`WORKLOG.md\` for history
+4. See \`claude/workstreams/$WORKSTREAM/epic002/\` for current epic
+5. See \`claude/workstreams/$WORKSTREAM/KNOWLEDGE.md\` for shared knowledge
+EOF
+
+# logs/permissions.md
+cat > "$DIR/logs/permissions.md" << EOF
+# $AGENTNAME Permission Request Log
+
+| Date | Tool | Command | Reason | Outcome |
+|------|------|---------|--------|---------|
+EOF
+
+echo "Created: $DIR/"
+echo ""
+echo "Start with: ./tools/myclaude $WORKSTREAM $AGENTNAME"

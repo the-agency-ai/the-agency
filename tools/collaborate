@@ -1,0 +1,140 @@
+#!/bin/bash
+# Tool: collaborate
+# Purpose: Create inter-agent collaboration request documents
+# Usage: ./tools/collaborate "target-agent" "subject" "description"
+# Example: ./tools/collaborate "analytics" "API Design Review" "Need feedback on analytics endpoint design"
+
+set -e
+
+# Auto-load .env.local if it exists
+if [[ -f ".env.local" ]]; then
+  set -a
+  source .env.local
+  set +a
+fi
+
+COLLAB_DIR="claude/agents/collaboration"
+
+# Validate arguments
+if [[ $# -lt 3 ]]; then
+  echo "Usage: ./tools/collaborate \"target-agent\" \"subject\" \"description\""
+  echo "Example: ./tools/collaborate \"analytics\" \"API Design Review\" \"Need feedback on analytics endpoint design\""
+  exit 1
+fi
+
+TARGET_AGENT="$1"
+SUBJECT="$2"
+DESCRIPTION="$3"
+
+# Get current timestamp
+TIMESTAMP=$(./tools/now 2>/dev/null || date "+%Y-%m-%d %H:%M:%S %Z")
+DATE=$(echo "$TIMESTAMP" | cut -d' ' -f1)
+FULL_TIMESTAMP="$TIMESTAMP"
+
+# Get agent name and workstream for attribution
+SOURCE_AGENT=$(./tools/agentname 2>/dev/null || echo "unknown")
+SOURCE_WORKSTREAM=$(./tools/workstream 2>/dev/null || echo "unknown")
+COMMIT_PREFIX=$(./tools/commit-prefix 2>/dev/null || echo "unknown/unknown:")
+
+# Function to handle merge conflicts
+handle_merge_conflict() {
+  echo "Merge conflict detected. Attempting to resolve..."
+  # For collaboration files, prefer remote version and retry
+  git checkout --theirs "$COLLAB_DIR"
+  git add "$COLLAB_DIR"
+  echo "Resolved by accepting remote version. Will retry operation."
+  return 0
+}
+
+# Step 1: Pull latest
+echo "Pulling latest changes..."
+git pull --rebase 2>/dev/null || {
+  # If rebase fails due to conflicts, abort and try regular pull
+  git rebase --abort 2>/dev/null || true
+  git pull || {
+    # If regular pull also has conflicts, handle them
+    if git diff --name-only --diff-filter=U | grep -q "$COLLAB_DIR"; then
+      handle_merge_conflict
+    fi
+  }
+}
+
+# Step 2: Ensure collaboration directory exists
+mkdir -p "$COLLAB_DIR"
+
+# Step 3: Find the highest existing COLLABORATE ID for this source agent
+# Pattern: FROM-{source-workstream}-{source-agent}-COLLABORATE-####-YYYY-MM-DD.md
+PATTERN="FROM-${SOURCE_WORKSTREAM}-${SOURCE_AGENT}-COLLABORATE-"
+HIGHEST_ID=$(find "$COLLAB_DIR" -name "${PATTERN}*.md" 2>/dev/null | grep -oE 'COLLABORATE-[0-9]+' | grep -oE '[0-9]+' | sed 's/^0*//' | sort -n | tail -1)
+if [[ -z "$HIGHEST_ID" ]]; then
+  HIGHEST_ID=0
+fi
+NEW_ID=$((HIGHEST_ID + 1))
+NEW_ID_FORMATTED=$(printf "%04d" $NEW_ID)
+
+# Step 4: Create filename
+FILENAME="${COLLAB_DIR}/FROM-${SOURCE_WORKSTREAM}-${SOURCE_AGENT}-COLLABORATE-${NEW_ID_FORMATTED}-${DATE}.md"
+
+# Step 5: Create collaboration request document
+cat > "$FILENAME" << EOF
+# Collaboration Request
+
+**ID:** COLLABORATE-${NEW_ID_FORMATTED}
+**From:** ${SOURCE_AGENT} (${SOURCE_WORKSTREAM})
+**To:** ${TARGET_AGENT}
+**Date:** ${FULL_TIMESTAMP}
+**Status:** Open
+
+## Subject: ${SUBJECT}
+
+## Request
+
+${DESCRIPTION}
+
+## Response
+
+(To be filled by target agent using ./tools/respond-collaborate)
+
+---
+
+**Note:** Use \`./tools/respond-collaborate "${FILENAME}" "response"\` to respond.
+EOF
+
+echo "Created collaboration request: COLLABORATE-${NEW_ID_FORMATTED}"
+
+# Step 6: Stage and commit
+git add "$FILENAME"
+COMMIT_MSG="$COMMIT_PREFIX chore: create COLLABORATE-${NEW_ID_FORMATTED} from ${SOURCE_AGENT} to ${TARGET_AGENT}
+
+Subject: ${SUBJECT}
+
+${DESCRIPTION}
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+
+git commit -m "$COMMIT_MSG
+
+[skip ci]" || {
+  echo "Nothing to commit (file may already exist)"
+  exit 0
+}
+
+# Step 7: Push using sync tool
+echo "Syncing changes..."
+./tools/sync || {
+  echo "Sync failed"
+  exit 1
+}
+
+echo ""
+echo "Successfully created collaboration request:"
+echo "  ID: COLLABORATE-${NEW_ID_FORMATTED}"
+echo "  From: ${SOURCE_AGENT} (${SOURCE_WORKSTREAM})"
+echo "  To: ${TARGET_AGENT}"
+echo "  Subject: ${SUBJECT}"
+echo "  File: ${FILENAME}"
+echo ""
+echo "Target agent can respond using:"
+echo "  ./tools/respond-collaborate \"${FILENAME}\" \"response text\""

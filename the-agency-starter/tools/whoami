@@ -1,0 +1,14 @@
+#!/bin/bash
+# Returns the current agent's identity
+#
+# Uses AGENTNAME environment variable to determine agent identity.
+# Falls back to "unknown" if not set.
+#
+# Usage:
+#   ./tools/whoami
+#
+# Why this exists:
+#   Provides agent self-identification for scripts and prompts
+#   Part of two-variable system: AGENTNAME (who I am) + WORKSTREAM (what I work on)
+
+echo "${AGENTNAME:-unknown}"

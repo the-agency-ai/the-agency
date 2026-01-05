@@ -1,0 +1,122 @@
+#!/bin/bash
+# Regenerate the artifacts index for a principal
+#
+# Usage:
+#   update-artifact-index PRINCIPAL    # Update specific principal's index
+#   update-artifact-index              # Update all principals' indexes
+#
+# This tool scans artifacts and generates INDEX.md for each principal.
+# Called automatically by capture-artifact.
+
+set -e
+
+# Help
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  sed -n '2,9p' "$0" | sed 's/^# //' | sed 's/^#//'
+  exit 0
+fi
+
+# Find repo root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+PRINCIPALS_DIR="$REPO_ROOT/claude/principals"
+
+# Get timezone from config or default to UTC
+TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
+
+update_principal_index() {
+  local principal="$1"
+  local ARTIFACTS_DIR="$PRINCIPALS_DIR/$principal/artifacts"
+  local INDEX_FILE="$ARTIFACTS_DIR/INDEX.md"
+
+  if [[ ! -d "$ARTIFACTS_DIR" ]]; then
+    return
+  fi
+
+  # Get timestamp
+  TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
+
+  # Count artifacts
+  TOTAL_COUNT=$(find "$ARTIFACTS_DIR" -name "ART-*.md" 2>/dev/null | wc -l | tr -d ' ')
+
+  if [[ $TOTAL_COUNT -eq 0 ]]; then
+    # Create empty index
+    cat > "$INDEX_FILE" << EOF
+# Artifacts Index: $principal
+
+**Last updated:** $TIMESTAMP
+
+No artifacts yet.
+
+---
+
+*Use \`./tools/capture-artifact -p $principal -t "Title"\` to create an artifact.*
+EOF
+    return
+  fi
+
+  # Start building the index
+  cat > "$INDEX_FILE" << EOF
+# Artifacts Index: $principal
+
+**Last updated:** $TIMESTAMP
+**Total artifacts:** $TOTAL_COUNT
+
+## All Artifacts
+
+| ID | Title | Type | Agent | Date | Instruction |
+|----|-------|------|-------|------|-------------|
+EOF
+
+  # Process each artifact
+  for filepath in "$ARTIFACTS_DIR"/ART-*.md; do
+    if [[ ! -f "$filepath" ]]; then
+      continue
+    fi
+
+    FILENAME=$(basename "$filepath" .md)
+    ART_ID=$(echo "$FILENAME" | grep -oE 'ART-[0-9]+' | head -1)
+
+    # Get fields from file
+    TITLE=$(grep -m1 "^# ART-" "$filepath" 2>/dev/null | sed 's/^# ART-[0-9]*: //' || echo "Unknown")
+    TYPE=$(grep -m1 "^\*\*Type:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Type:\*\* //' || echo "other")
+    AGENT=$(grep -m1 "^\*\*Agent:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Agent:\*\* //' || echo "?")
+    DATE=$(grep -m1 "^\*\*Date:\*\*" "$filepath" 2>/dev/null | sed -E 's/.*\*\*Date:\*\* ([0-9-]+).*/\1/' || echo "?")
+    INSTRUCTION=$(grep -m1 "^\*\*Instruction:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Instruction:\*\* //' || echo "None")
+
+    # Type emoji
+    case "$TYPE" in
+      analysis) EMOJI="📊" ;;
+      report)   EMOJI="📋" ;;
+      summary)  EMOJI="📝" ;;
+      design)   EMOJI="🎨" ;;
+      *)        EMOJI="📄" ;;
+    esac
+
+    echo "| $EMOJI $ART_ID | $TITLE | $TYPE | $AGENT | $DATE | $INSTRUCTION |" >> "$INDEX_FILE"
+  done
+
+  # Add footer
+  cat >> "$INDEX_FILE" << EOF
+
+---
+
+*Use \`./tools/capture-artifact\` to create new artifacts.*
+*Use \`./tools/list-artifacts\` for filtered views.*
+EOF
+
+  echo "Updated: $INDEX_FILE ($TOTAL_COUNT artifacts)"
+}
+
+# Main logic
+if [[ -n "${1:-}" ]]; then
+  # Update specific principal
+  update_principal_index "$1"
+else
+  # Update all principals
+  for principal_dir in "$PRINCIPALS_DIR"/*/; do
+    principal=$(basename "$principal_dir")
+    update_principal_index "$principal"
+  done
+fi

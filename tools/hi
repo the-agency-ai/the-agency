@@ -1,0 +1,9 @@
+#!/bin/bash
+# Welcome back prompt for agent session startup
+# Usage: ./tools/welcomeback
+#
+# This tool provides a friendly prompt to start an agent session.
+# It triggers the agent to restore context from system reminders
+# and propose next steps.
+
+echo "It's time to get down to business..."

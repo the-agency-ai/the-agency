@@ -1,0 +1,187 @@
+#!/bin/bash
+# Tool: post-news
+# Purpose: Post a new message to the agent news/MOTD system
+# Usage: ./tools/post-news "Subject" "Message body"
+# Example: ./tools/post-news "New API Convention" "All API routes now follow /api/{service}/v{n}/{resource} pattern"
+
+set -e
+
+# Auto-load .env.local if it exists
+if [[ -f ".env.local" ]]; then
+  set -a
+  source .env.local
+  set +a
+fi
+
+NEWS_FILE="claude/agents/collaboration/NEWS.md"
+
+# Validate arguments
+if [[ $# -lt 2 ]]; then
+  echo "Usage: ./tools/post-news \"Subject\" \"Message body\""
+  echo "Example: ./tools/post-news \"New Tool Available\" \"The ./tools/post-news tool is now available for inter-agent announcements.\""
+  exit 1
+fi
+
+SUBJECT="$1"
+MESSAGE="$2"
+
+# Get current timestamp
+TIMESTAMP=$(./tools/now 2>/dev/null || date "+%Y-%m-%d %H:%M:%S %Z")
+
+# Get agent name for attribution
+AGENTNAME=$(./tools/agentname 2>/dev/null || echo "unknown")
+COMMIT_PREFIX=$(./tools/commit-prefix 2>/dev/null || echo "unknown/unknown:")
+
+# Function to handle merge conflicts
+handle_merge_conflict() {
+  echo "Merge conflict detected. Attempting to resolve..."
+  # For news file, prefer remote version and add our message on top
+  git checkout --theirs "$NEWS_FILE" 2>/dev/null || true
+  git add "$NEWS_FILE"
+  echo "Resolved by accepting remote version. Will add message on top."
+  return 0
+}
+
+# Step 1: Pull latest
+echo "Pulling latest changes..."
+git pull --rebase 2>/dev/null || {
+  # If rebase fails due to conflicts, abort and try regular pull
+  git rebase --abort 2>/dev/null || true
+  git pull || {
+    # If regular pull also has conflicts, handle them
+    if git diff --name-only --diff-filter=U | grep -q "$NEWS_FILE"; then
+      handle_merge_conflict
+    fi
+  }
+}
+
+# Step 2: Ensure the NEWS.md file exists
+if [[ ! -f "$NEWS_FILE" ]]; then
+  echo "Creating NEWS.md..."
+  mkdir -p "$(dirname "$NEWS_FILE")"
+  cat > "$NEWS_FILE" << 'INIT_EOF'
+# Agent News / MOTD
+
+Shared announcements and updates for all agents.
+
+## Instructions
+
+- New messages appear at the top
+- Use `./tools/read-news` to read and mark as read
+- Use `./tools/post-news "Subject" "Message"` to post
+- Use `./tools/fetch-news NEWS-####` to view specific message
+- ACTIVE = unread by some agents, READ = all agents have read
+
+---
+
+## Messages
+
+---
+INIT_EOF
+fi
+
+# Step 3: Find the highest existing NEWS ID
+HIGHEST_ID=$(grep -oE 'NEWS-[0-9]+' "$NEWS_FILE" 2>/dev/null | grep -oE '[0-9]+' | sed 's/^0*//' | sort -n | tail -1)
+if [[ -z "$HIGHEST_ID" ]]; then
+  HIGHEST_ID=0
+fi
+NEW_ID=$((HIGHEST_ID + 1))
+NEW_ID_FORMATTED=$(printf "%04d" $NEW_ID)
+
+# Step 4: Insert the new message using Python for reliable multiline handling
+python3 - "$NEWS_FILE" "$NEW_ID_FORMATTED" "$TIMESTAMP" "$AGENTNAME" "$SUBJECT" "$MESSAGE" << 'PYTHON_EOF'
+import sys
+
+news_file = sys.argv[1]
+news_id = sys.argv[2]
+timestamp = sys.argv[3]
+agentname = sys.argv[4]
+subject = sys.argv[5]
+message = sys.argv[6]
+
+with open(news_file, 'r') as f:
+    content = f.read()
+
+# Create the new message
+new_message = f"""### NEWS-{news_id}
+
+- **Status:** ACTIVE
+- **Posted:** {timestamp}
+- **Posted by:** {agentname}
+- **Subject:** {subject}
+
+{message}
+
+- **Read by:** {agentname}
+
+---"""
+
+# Find "## Messages" and insert after it
+lines = content.split('\n')
+output = []
+i = 0
+inserted = False
+
+while i < len(lines):
+    line = lines[i]
+    output.append(line)
+
+    if line.strip() == '## Messages' and not inserted:
+        i += 1
+        # Skip the placeholder if present
+        if i < len(lines) and lines[i].strip() == '':
+            output.append('')
+            i += 1
+        if i < len(lines) and lines[i].startswith('(No messages yet'):
+            i += 1
+            if i < len(lines) and lines[i].strip() == '':
+                i += 1
+            if i < len(lines) and lines[i].strip() == '---':
+                i += 1
+
+        # Insert the new message
+        output.append('')
+        output.append(new_message)
+        inserted = True
+        continue
+
+    i += 1
+
+with open(news_file, 'w') as f:
+    f.write('\n'.join(output))
+PYTHON_EOF
+
+echo "Posted NEWS-$NEW_ID_FORMATTED: $SUBJECT"
+
+# Step 6: Stage and commit
+git add "$NEWS_FILE"
+COMMIT_MSG="$COMMIT_PREFIX chore: post NEWS-$NEW_ID_FORMATTED
+
+Subject: $SUBJECT
+
+Posted by: $AGENTNAME
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+
+git commit -m "$COMMIT_MSG
+
+[skip ci]" || {
+  echo "Nothing to commit"
+  exit 0
+}
+
+# Step 7: Push using sync tool
+echo "Syncing changes..."
+./tools/sync || {
+  echo "Sync failed"
+  exit 1
+}
+
+echo ""
+echo "Successfully posted news:"
+echo "  ID: NEWS-$NEW_ID_FORMATTED"
+echo "  Subject: $SUBJECT"
+echo "  Posted by: $AGENTNAME"
+echo "  File: $NEWS_FILE"
