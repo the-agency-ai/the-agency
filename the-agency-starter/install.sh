@@ -3,8 +3,8 @@
 # The Agency Starter - Quick Install
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/TheAgencyAI/the-agency-starter/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/TheAgencyAI/the-agency-starter/main/install.sh | bash -s -- my-project
+#   curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash -s -- my-project
 #
 
 set -e
@@ -75,9 +75,9 @@ echo ""
 
 # Clone the repository
 echo "Cloning The Agency Starter..."
-git clone --depth 1 https://github.com/TheAgencyAI/the-agency-starter.git "$PROJECT_NAME" 2>/dev/null || {
+git clone --depth 1 https://github.com/the-agency-ai/the-agency-starter.git "$PROJECT_NAME" 2>/dev/null || {
     # Fallback to full clone if shallow fails
-    git clone https://github.com/TheAgencyAI/the-agency-starter.git "$PROJECT_NAME"
+    git clone https://github.com/the-agency-ai/the-agency-starter.git "$PROJECT_NAME"
 }
 
 cd "$PROJECT_NAME"
@@ -127,5 +127,5 @@ echo "  - CLAUDE.md - The constitution"
 echo "  - ./tools/find-tool -l - All available tools"
 echo ""
 echo "Need help? Ask your housekeeping agent or visit:"
-echo "  https://github.com/TheAgencyAI/the-agency-starter"
+echo "  https://github.com/the-agency-ai/the-agency-starter"
 echo ""
