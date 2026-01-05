@@ -150,29 +150,30 @@ if [ -f "claude/config.yaml" ]; then
     rm -f claude/config.yaml.bak
 fi
 
-# macOS: Install recommended CLI tools
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    echo ""
-    echo "Setting up macOS tools..."
+# Platform-specific setup (delegates to tools/setup-{platform})
+setup_platform() {
+    local setup_script=""
 
-    # Check/install Homebrew
-    if ! command -v brew &> /dev/null; then
-        echo -e "${YELLOW}Installing Homebrew...${NC}"
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-        # Add to PATH for this session
-        if [[ -f "/opt/homebrew/bin/brew" ]]; then
-            eval "$(/opt/homebrew/bin/brew shellenv)"
-        elif [[ -f "/usr/local/bin/brew" ]]; then
-            eval "$(/usr/local/bin/brew shellenv)"
-        fi
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        setup_script="./tools/setup-mac"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        setup_script="./tools/setup-linux"
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        setup_script="./tools/setup-windows"
     fi
 
-    # Install recommended tools via setup-mac
-    if command -v brew &> /dev/null; then
-        ./tools/setup-mac --all
+    if [[ -n "$setup_script" ]] && [[ -x "$setup_script" ]]; then
+        echo ""
+        echo "Running platform setup..."
+        "$setup_script" --all
+    elif [[ -n "$setup_script" ]]; then
+        echo ""
+        echo -e "${YELLOW}Platform setup script not found: $setup_script${NC}"
+        echo "You can create one to install recommended tools for your platform."
     fi
-fi
+}
+
+setup_platform
 
 # Done
 echo ""
