@@ -63,20 +63,26 @@ check_claude_auth() {
     echo ""
     echo -e "${BLUE}Checking Claude authentication...${NC}"
 
-    # Try to run a simple claude command to check auth
-    # claude --version doesn't require auth, so we check for config
-    if [ -f "$HOME/.claude/config.json" ] || [ -f "$HOME/.config/claude/config.json" ]; then
-        echo -e "${GREEN}  ✓ Claude configuration found${NC}"
+    # Check if Claude has been used before (has session history)
+    if [ -d "$HOME/.claude" ] && [ -f "$HOME/.claude/history.jsonl" ]; then
+        echo -e "${GREEN}  ✓ Claude has been used before${NC}"
     else
-        echo -e "${YELLOW}  ⚠ You'll need to log in to Claude${NC}"
+        echo -e "${YELLOW}  ⚠ First time using Claude Code${NC}"
         echo ""
-        echo -e "${BLUE}Opening Claude for first-time login...${NC}"
-        echo "Complete the login in your browser, then return here."
+        echo -e "${BLUE}You'll need to log in to Claude.${NC}"
+        echo "A browser window will open - complete the login there."
         echo ""
-        read -p "Press Enter to open Claude login..."
-        claude --version > /dev/null 2>&1 || claude
+        # Use /dev/tty for input when running via curl pipe
+        if [ -e /dev/tty ]; then
+            read -p "Press Enter to continue..." < /dev/tty 2>/dev/null || true
+        fi
+        claude --help > /dev/null 2>&1 || {
+            echo ""
+            echo -e "${YELLOW}Running Claude for first-time setup...${NC}"
+            claude
+        }
         echo ""
-        echo -e "${GREEN}  ✓ Login complete${NC}"
+        echo -e "${GREEN}  ✓ Claude setup complete${NC}"
     fi
 }
 
@@ -248,7 +254,14 @@ PROJECT_PATH="$(pwd)"
 # Ask if they want to launch now
 echo -e "${BLUE}Ready to meet your first agent?${NC}"
 echo ""
-read -p "Launch The Captain now? [Y/n] " launch_now
+
+# Try to read from /dev/tty (works with curl pipe), fallback to assuming yes
+if [ -e /dev/tty ] && [ -r /dev/tty ]; then
+    read -p "Launch The Captain now? [Y/n] " launch_now < /dev/tty 2>/dev/null || launch_now="Y"
+else
+    # No TTY available, auto-launch
+    launch_now="Y"
+fi
 launch_now=${launch_now:-Y}
 
 if [[ "$launch_now" =~ ^[Yy]$ ]]; then
