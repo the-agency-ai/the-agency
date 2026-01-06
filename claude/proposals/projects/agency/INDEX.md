@@ -26,6 +26,7 @@ When approved, a proposal becomes an INSTR for implementation.
 | PROP-0012 | Open Feedback Service | draft | high | Product |
 | PROP-0013 | Open Webpage Tool | draft | medium | Tools |
 | PROP-0014 | Knowledge Indexer | draft | high | Tools |
+| PROP-0015 | Capture Web Content (CDP) | draft | high | Tools |
 
 ## Priority for Jan 10 Workshop
 
