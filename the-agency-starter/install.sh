@@ -6,6 +6,9 @@
 #   curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash
 #   curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash -s -- my-project
 #
+# Workshop usage (with token):
+#   AGENCY_TOKEN=xxx curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash -s -- my-project
+#
 
 set -e
 
@@ -24,24 +27,73 @@ echo -e "${BLUE}  Multi-Agent Development Framework for Claude Code${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
+# Install Claude Code if not present
+install_claude_code() {
+    if command -v claude &> /dev/null; then
+        echo -e "${GREEN}  ✓ Claude Code already installed${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}  ⚠ Claude Code not found - installing...${NC}"
+
+    if [[ "$OSTYPE" == "darwin"* ]] || [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        curl -fsSL https://claude.ai/install.sh | bash
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        powershell -Command "irm https://claude.ai/install.ps1 | iex"
+    else
+        echo -e "${RED}Unsupported platform for automatic Claude Code install${NC}"
+        echo "Please install manually from: https://claude.ai/code"
+        exit 1
+    fi
+
+    # Reload PATH to pick up claude
+    export PATH="$HOME/.claude/bin:$PATH"
+
+    if command -v claude &> /dev/null; then
+        echo -e "${GREEN}  ✓ Claude Code installed successfully${NC}"
+    else
+        echo -e "${RED}  ✗ Claude Code installation failed${NC}"
+        echo "Please install manually from: https://claude.ai/code"
+        exit 1
+    fi
+}
+
+# Check if user is logged into Claude
+check_claude_auth() {
+    echo ""
+    echo -e "${BLUE}Checking Claude authentication...${NC}"
+
+    # Try to run a simple claude command to check auth
+    # claude --version doesn't require auth, so we check for config
+    if [ -f "$HOME/.claude/config.json" ] || [ -f "$HOME/.config/claude/config.json" ]; then
+        echo -e "${GREEN}  ✓ Claude configuration found${NC}"
+    else
+        echo -e "${YELLOW}  ⚠ You'll need to log in to Claude${NC}"
+        echo ""
+        echo -e "${BLUE}Opening Claude for first-time login...${NC}"
+        echo "Complete the login in your browser, then return here."
+        echo ""
+        read -p "Press Enter to open Claude login..."
+        claude --version > /dev/null 2>&1 || claude
+        echo ""
+        echo -e "${GREEN}  ✓ Login complete${NC}"
+    fi
+}
+
 # Check prerequisites
 check_prereqs() {
     local missing=0
 
-    echo -e "${BLUE}Required:${NC}"
+    echo -e "${BLUE}Checking prerequisites...${NC}"
+    echo ""
 
+    # Git is required
     if ! command -v git &> /dev/null; then
         echo -e "${RED}  ✗ git not found${NC}"
+        echo "    Please install git first: https://git-scm.com"
         missing=1
     else
         echo -e "${GREEN}  ✓ git${NC}"
-    fi
-
-    if ! command -v claude &> /dev/null; then
-        echo -e "${YELLOW}  ⚠ claude (Claude Code) not found${NC}"
-        echo "    Install from: https://claude.ai/code"
-    else
-        echo -e "${GREEN}  ✓ claude${NC}"
     fi
 
     if [ $missing -eq 1 ]; then
@@ -49,6 +101,12 @@ check_prereqs() {
         echo -e "${RED}Missing required prerequisites. Please install them first.${NC}"
         exit 1
     fi
+
+    # Install Claude Code if needed
+    install_claude_code
+
+    # Check authentication
+    check_claude_auth
 }
 
 # Check recommended tools (non-blocking)
@@ -175,30 +233,46 @@ setup_platform() {
 
 setup_platform
 
-# Done
+# Done with setup
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}  Installation Complete!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo "Your Agency is ready at: $(pwd)"
+echo -e "Your Agency is ready at: ${GREEN}$(pwd)${NC}"
 echo ""
-echo "Next steps:"
+
+# Store the project path for launching
+PROJECT_PATH="$(pwd)"
+
+# Ask if they want to launch now
+echo -e "${BLUE}Ready to meet your first agent?${NC}"
 echo ""
-echo "  1. Enter your project:"
-echo -e "     ${BLUE}cd $PROJECT_NAME${NC}"
-echo ""
-echo "  2. Launch the housekeeping agent (your guide):"
-echo -e "     ${BLUE}./tools/myclaude housekeeping housekeeping${NC}"
-echo ""
-echo "  3. Or run the welcome interview:"
-echo -e "     ${BLUE}claude /welcome${NC}"
-echo ""
-echo "Documentation:"
-echo "  - GETTING_STARTED.md - Step-by-step guide"
-echo "  - CLAUDE.md - The constitution"
-echo "  - ./tools/find-tool -l - All available tools"
-echo ""
-echo "Need help? Ask your housekeeping agent or visit:"
-echo "  https://github.com/the-agency-ai/the-agency-starter"
-echo ""
+read -p "Launch The Captain now? [Y/n] " launch_now
+launch_now=${launch_now:-Y}
+
+if [[ "$launch_now" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo -e "${BLUE}Launching The Captain (housekeeping agent)...${NC}"
+    echo ""
+    echo "Once inside, type: /welcome"
+    echo ""
+    sleep 2
+
+    # Launch myclaude - this will exec and replace this shell
+    exec ./tools/myclaude housekeeping housekeeping
+else
+    echo ""
+    echo "When you're ready, run:"
+    echo ""
+    echo -e "  ${BLUE}cd $PROJECT_PATH${NC}"
+    echo -e "  ${BLUE}./tools/myclaude housekeeping housekeeping${NC}"
+    echo ""
+    echo "Then type: /welcome"
+    echo ""
+    echo "Documentation:"
+    echo "  - GETTING_STARTED.md - Step-by-step guide"
+    echo "  - CLAUDE.md - The constitution"
+    echo "  - ./tools/find-tool -l - All available tools"
+    echo ""
+fi
