@@ -70,9 +70,10 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| **GitHub repo public** | 🔴 Decision needed | Currently private |
-| **Discord server** | 🔴 Not created | Credentials ready |
+| **GitHub repo public** | 🟡 Private, synced | Ready to go public Jan 23 |
+| **Discord server** | 🔴 Not created | Credentials ready in secrets |
 | **GitHub Discussions** | 🔴 Not enabled | Async support |
+| **Workshop token** | ✅ Created | Expires Jan 12, 2026 |
 
 ---
 
@@ -143,11 +144,14 @@
 
 | Item | Status |
 |------|--------|
-| the-agency-starter repo | ✅ 40+ tools, install.sh |
+| the-agency-starter repo | ✅ 40+ tools, install.sh, synced |
 | PHILOSOPHY.md | ✅ Core principles |
-| /welcome onboarding | ✅ Interview-based |
-| Workshop materials | ✅ After Fri workshop |
-| Discord/Gumroad credentials | ✅ Captured |
+| /welcome onboarding | ✅ Interview-based, tested |
+| Workshop materials | ✅ WORKSHOP.md complete |
+| Discord/Gumroad credentials | ✅ Stored in secrets |
+| Pre-work WhatsApp message | ✅ Drafted |
+| Pre-approved permissions | ✅ .claude/settings.json |
+| Workshop token | ✅ Expires Jan 12 |
 
 ### Achievable with Focus (🟡)
 
@@ -199,11 +203,13 @@ If we had to ship with minimal scope:
 
 | Priority | Task | Owner | Status |
 |----------|------|-------|--------|
-| P0 | Test install.sh end-to-end | housekeeping | 🟡 |
-| P0 | Test /welcome flow | housekeeping | 🔴 |
-| P0 | Verify AGENCY_TOKEN clone | housekeeping | 🔴 |
+| P0 | Test install.sh end-to-end | housekeeping | ✅ Verified Jan 6 |
+| P0 | Test /welcome flow | housekeeping | ✅ Verified Jan 6 |
+| P0 | Verify AGENCY_TOKEN clone | housekeeping | ✅ Working Jan 6 |
 | P0 | Workshop slides | jordan + opus | 🔴 |
-| P0 | Finalize pre-work email | jordan | 🟡 |
+| P0 | Finalize pre-work WhatsApp | jordan | ✅ Drafted Jan 6 |
+| P0 | Pre-approved permissions | housekeeping | ✅ Added Jan 6 |
+| P0 | Sync the-agency-starter repo | housekeeping | ✅ Done Jan 6 |
 | P0 | **Fri Jan 9 14:00 Workshop** | ALL | |
 
 ### Week 2: Jan 13-19 (Polish)

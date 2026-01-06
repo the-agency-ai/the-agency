@@ -8,30 +8,78 @@ This document covers running an Agency workshop — from pre-work instructions t
 
 ## Pre-Work (Send to Participants Before Workshop)
 
-### Email/Slack Template
+### WhatsApp/Email Template
 
 ```
-Subject: Pre-Work for The Agency Workshop
+🚀 The Agency Workshop — Pre-Work
 
-Hi!
+Hey! Before Friday's workshop, please complete these 3 things:
 
-Before our workshop, please complete this one step:
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**Get a Claude Account**
-1. Go to https://claude.ai
-2. Sign up for Claude Pro ($20/month) or Claude Max ($100-200/month)
-3. That's it!
+1️⃣ CLAUDE ACCOUNT (Required)
 
-Everything else happens during the workshop. We'll install all tools together.
+Sign up for Claude Pro ($20/mo) or Max ($100-200/mo):
+→ https://claude.ai
 
-See you there!
+This is what powers the AI. Without it, you can't participate hands-on.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2️⃣ GITHUB ACCOUNT (Required)
+
+If you don't have one, create a free account:
+→ https://github.com/signup
+
+We use GitHub for cloning and version control.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3️⃣ GITHUB TOKEN (Required)
+
+Create a Personal Access Token so we can clone the framework:
+
+1. Go to: https://github.com/settings/tokens?type=beta
+2. Click "Generate new token"
+3. Name it: "agency-workshop"
+4. Expiration: 7 days (or custom date after Jan 9)
+5. Repository access: "All repositories" (read-only is fine)
+6. Permissions → Repository permissions → Contents: "Read-only"
+7. Click "Generate token"
+8. COPY THE TOKEN — you won't see it again!
+
+Save it somewhere safe. You'll paste it during the workshop.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+That's it! Everything else happens live. See you Friday! 🎉
 ```
 
-### Why Just Claude Account?
+### Alternative: Facilitator-Provided Token
 
-- Claude Code requires authentication with a Claude account
-- We can't automate account creation (requires payment)
-- Everything else (Claude Code, tools, setup) is automated
+If you don't want participants creating their own tokens, use this simpler message:
+
+```
+🚀 The Agency Workshop — Pre-Work
+
+Before Friday's workshop, please complete these 2 things:
+
+1️⃣ CLAUDE ACCOUNT
+Sign up for Claude Pro ($20/mo) or Max:
+→ https://claude.ai
+
+2️⃣ GITHUB ACCOUNT
+Create a free account if you don't have one:
+→ https://github.com/signup
+
+That's it! I'll provide everything else during the workshop. See you Friday! 🎉
+```
+
+### Why These Requirements?
+
+- **Claude account:** Claude Code requires authentication (can't automate — requires payment)
+- **GitHub account:** Needed for git clone, version control
+- **GitHub token:** For private repo access (or facilitator provides workshop token)
 
 ---
 
