@@ -38,3 +38,6 @@ coverage/
 *.tmp
 *.temp
 .cache/
+
+# Principal secrets (never commit)
+claude/principals/*/resources/secrets/
