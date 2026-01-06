@@ -15,12 +15,15 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 **Current State:** User must manually add to shell profile.
 
-**Solution Needed:**
-- [ ] Post-install script that detects shell and offers to update PATH
-- [ ] Clear error message with exact fix when command not found
-- [ ] `./tools/check-path` diagnostic tool
+**Decision:** Handle in install script with proper permissions. The install script should:
+- Detect current shell (zsh for now)
+- Update PATH automatically
+- Verify the command works
 
-**Proposal:** PROP-0015
+**Solution:**
+- [ ] Install script auto-updates PATH
+- [ ] Clear error message with fix if something goes wrong
+- [ ] `./tools/check-path` diagnostic tool (fallback)
 
 ---
 
@@ -30,45 +33,57 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 **Current State:** Works in iTerm2, may not work in other terminals.
 
-**Solution Needed:**
-- [ ] Document supported terminals
-- [ ] Graceful fallback for unsupported terminals
-- [ ] Terminal detection in `./tools/myclaude`
-- [ ] Alternative: status bar instead of tab name
+**Decision:** Require iTerm2 for macOS. Either:
+- Tell them to install iTerm2 as prerequisite
+- Install it for them via Homebrew
 
-**Proposal:** (part of PROP-0004 Hello World)
+**Solution:**
+- [ ] Document iTerm2 as requirement for macOS
+- [ ] Add `brew install --cask iterm2` to install script
+- [ ] Graceful message for other terminals
 
 ---
 
-### 3. First-Run Experience
+### 3. First-Run Experience: The Captain Interview
 
 **Problem:** User clones starter but doesn't know what to do next.
 
 **Current State:** Must read documentation.
 
-**Solution Needed:**
-- [ ] `./tools/init-agency` wizard that walks through setup
-- [ ] Creates principal identity
-- [ ] Initializes first agent
-- [ ] Opens browser with Markdown Browser (PROP-0004)
+**Decision:** First-run should be **The Captain Interview** - an interactive onboarding conversation where TheCaptain:
+- Welcomes the user
+- Asks about their project/goals
+- Creates principal identity
+- Sets up first agent
+- Explains key tools
+- Opens Markdown Browser to show what they've got
 
-**Proposal:** Part of PROP-0004 (Hello World)
+**Solution:**
+- [ ] Create TheCaptain Interview skill
+- [ ] Triggered by `./tools/init-agency` or first `claude` run
+- [ ] Interactive, conversational setup
+- [ ] Uses open-webpage to show resources
+
+**Proposal:** Part of PROP-0004 (Hello World) - The Captain Interview
 
 ---
 
-### 4. Tool Discovery
+### 4. Tool Discovery via TheCaptain
 
 **Problem:** Users don't know what tools are available.
 
 **Current State:** Must explore `./tools/` directory.
 
-**Solution Needed:**
+**Existing:**
 - [x] `./tools/list-tools` - EXISTS
 - [x] `./tools/find-tool` - EXISTS
-- [ ] `./tools/how "task"` - TheCaptain integration
-- [ ] Tab completion for tool names
 
-**Proposal:** PROP-0014 (Knowledge Indexer for TheCaptain)
+**Decision:** This is also The Captain Interview. TheCaptain should know all tools and guide users to them.
+
+**Solution:**
+- [ ] `./tools/how "task"` - TheCaptain suggests tools
+- [ ] PROP-0014 Knowledge Indexer powers TheCaptain's knowledge
+- [ ] Tab completion for tool names (nice to have)
 
 ---
 
@@ -78,12 +93,12 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 **Current State:** Manual, user must know their shell.
 
-**Solution Needed:**
-- [ ] Detect current shell
-- [ ] Auto-update correct profile file
-- [ ] Support for: bash, zsh, fish
+**Decision:** Start with **zsh only**. Provide good architecture and example so community can contribute support for other shells.
 
-**Proposal:** PROP-0015
+**Solution:**
+- [ ] Support zsh in v1.0
+- [ ] Document how to add other shells
+- [ ] Accept community PRs for bash, fish, etc.
 
 ---
 
@@ -95,10 +110,16 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 **Current State:** Manual `.env` creation.
 
-**Solution Needed:**
-- [ ] `./tools/setup-credentials` wizard
-- [ ] Secure storage recommendations
-- [ ] Validation that keys are set
+**Decision:** The Captain Interview + open-webpage. TheCaptain:
+- Asks what services they'll use
+- Opens the relevant credential pages in browser
+- Guides them through pasting keys
+- Validates keys are set
+
+**Solution:**
+- [ ] TheCaptain Interview handles credentials
+- [ ] Uses `./tools/open-webpage` to open key pages
+- [ ] Validates keys work before proceeding
 
 ---
 
@@ -108,10 +129,10 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 **Current State:** May fail on first commit.
 
-**Solution Needed:**
-- [ ] Check for git user.name and user.email
+**Solution:**
+- [ ] Check for git user.name and user.email in Captain Interview
 - [ ] Prompt to configure if missing
-- [ ] Part of init-agency flow
+- [ ] Simple: `git config --global user.name "Your Name"`
 
 ---
 
@@ -121,10 +142,10 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 **Current State:** Not checked, may silently fail.
 
-**Solution Needed:**
-- [ ] Check for `gh` during init
-- [ ] Offer to install via brew/apt
-- [ ] Document as prerequisite
+**Solution:**
+- [ ] Check for `gh` during Captain Interview
+- [ ] Offer to install via `brew install gh`
+- [ ] Document as recommended (not required)
 
 ---
 
@@ -134,10 +155,10 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 **Current State:** Fails with cryptic error if wrong version.
 
-**Solution Needed:**
-- [ ] Check node version in init-agency
+**Solution:**
+- [ ] Check node version in install script
 - [ ] Clear error message with upgrade instructions
-- [ ] Consider nvm/fnm recommendations
+- [ ] Recommend nvm for version management
 
 ---
 
@@ -147,11 +168,9 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 **Problem:** User may want VS Code extension but doesn't know about it.
 
-**Current State:** Not mentioned.
-
-**Solution Needed:**
-- [ ] Document VS Code extension
-- [ ] JetBrains plugin info
+**Solution:**
+- [ ] Mention VS Code extension in Captain Interview
+- [ ] `./tools/open-webpage` to extension marketplace
 - [ ] Part of getting started guide
 
 ---
@@ -162,7 +181,7 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 **Current State:** User must configure `.claude/settings.json` manually.
 
-**Solution Needed:**
+**Solution:**
 - [ ] Default permissions template for The Agency tools
 - [ ] Part of init-agency setup
 - [ ] Safe defaults that don't expose secrets
@@ -173,12 +192,23 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 **Problem:** User doesn't know the key features.
 
-**Current State:** Must read docs.
+**Decision:** This IS The Captain Interview.
 
-**Solution Needed:**
-- [ ] Interactive tour via Claude conversation
-- [ ] "What can you do?" response with examples
-- [ ] Part of Hello World experience
+---
+
+## Summary: The Captain Interview
+
+Most gaps are solved by **The Captain Interview** - an interactive first-run experience where TheCaptain:
+
+1. Welcomes user, explains The Agency
+2. Checks prerequisites (Node.js, git, gh)
+3. Installs missing tools (iTerm2, gh)
+4. Creates principal identity
+5. Sets up credentials (opens pages, validates)
+6. Configures git if needed
+7. Creates first agent
+8. Opens Markdown Browser to show the result
+9. Explains key tools and how to get help
 
 ---
 
@@ -198,31 +228,24 @@ This document identifies gaps in The Agency setup experience that need to be fil
 
 | Proposal | Gaps Addressed |
 |----------|----------------|
-| PROP-0004 (Hello World) | First-run, terminal tabs, onboarding |
+| PROP-0004 (Hello World) | The Captain Interview, Markdown Browser |
+| PROP-0013 (Open Webpage) | Opening credential pages, docs, previews |
 | PROP-0014 (Knowledge Indexer) | Tool discovery via TheCaptain |
-| PROP-0015 (Shell Setup) | PATH, shell detection, profile updates |
 
 ---
 
 ## Priority Order
 
-1. **PATH configuration** - Blocks everything else
-2. **First-run wizard** - Critical for adoption
-3. **Terminal detection** - Core experience
-4. **Tool discovery** - Ongoing usability
-5. **Credentials setup** - Required for real usage
-6. **Git/GitHub setup** - Required for collaboration
-7. **Node.js check** - Prevents cryptic errors
-8. **IDE integration** - Nice to have
-9. **Permissions** - Convenience
-10. **Onboarding tour** - Polish
+1. **The Captain Interview** - Solves most gaps in one interactive experience
+2. **Install script** - PATH, Node.js check, iTerm2
+3. **Knowledge Indexer** - Powers TheCaptain's tool knowledge
+4. **Open Webpage** - Enables credential setup flow
 
 ---
 
 ## Action Items
 
-- [ ] Create PROP-0015 for shell/PATH setup
-- [ ] Update PROP-0004 to include first-run wizard
-- [ ] Add terminal detection to `./tools/myclaude`
-- [ ] Create `./tools/init-agency` tool
-- [ ] Document prerequisites in Getting Started
+- [ ] Update PROP-0004 to define The Captain Interview
+- [ ] Create install script that handles PATH, prerequisites
+- [ ] Implement `./tools/init-agency` that triggers Captain Interview
+- [ ] Build Knowledge Indexer (PROP-0014) to power TheCaptain
