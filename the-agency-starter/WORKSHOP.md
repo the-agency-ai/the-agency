@@ -44,9 +44,15 @@ See you there!
    - Set expiration for after workshop ends
    - This token goes in the install command
 
-2. **Prepare the one-liner:**
+2. **Prepare the one-liner** (for private repo access):
    ```bash
-   AGENCY_TOKEN=ghp_xxxYOURTOKEN curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash -s -- my-project
+   # Token goes in BOTH the curl URL AND the AGENCY_TOKEN env var
+   curl -fsSL "https://TOKEN@raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh" | AGENCY_TOKEN="TOKEN" bash -s -- my-project
+   ```
+
+   **Example with real token:**
+   ```bash
+   curl -fsSL "https://github_pat_xxx@raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh" | AGENCY_TOKEN="github_pat_xxx" bash -s -- my-project
    ```
 
 3. **Test the install** on a clean machine or VM if possible
@@ -70,8 +76,10 @@ See you there!
 **Put this on screen:**
 
 ```bash
-AGENCY_TOKEN=ghp_xxx curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash -s -- my-project
+curl -fsSL "https://TOKEN@raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh" | AGENCY_TOKEN="TOKEN" bash -s -- my-project
 ```
+
+(Replace `TOKEN` with the actual workshop token)
 
 **What happens:**
 1. Installs Claude Code (if needed)
@@ -122,10 +130,17 @@ Suggested exercises:
 For easy copy-paste, here's the workshop command with placeholder:
 
 ```bash
-AGENCY_TOKEN=__TOKEN__ curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash -s -- my-project
+curl -fsSL "https://__TOKEN__@raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh" | AGENCY_TOKEN="__TOKEN__" bash -s -- my-project
 ```
 
 Replace `__TOKEN__` with your GitHub PAT before sharing.
+
+**Jan 9 Workshop Token:**
+```bash
+curl -fsSL "https://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@raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh" | AGENCY_TOKEN="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" bash -s -- my-project
+```
+
+Token expires: Mon, Jan 12 2026
 
 ---
 
@@ -152,7 +167,15 @@ Replace `__TOKEN__` with your GitHub PAT before sharing.
 A: They can't participate in the hands-on portion. They can watch and pair with someone who has an account.
 
 **Q: What if the install fails?**
-A: Manual fallback:
+A: Manual fallback (for private repo):
+```bash
+git clone https://TOKEN@github.com/the-agency-ai/the-agency-starter.git my-project
+cd my-project
+chmod +x tools/*
+./tools/myclaude housekeeping housekeeping
+```
+
+Manual fallback (for public repo):
 ```bash
 git clone https://github.com/the-agency-ai/the-agency-starter.git my-project
 cd my-project
