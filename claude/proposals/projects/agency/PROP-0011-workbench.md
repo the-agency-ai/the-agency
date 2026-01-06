@@ -3,6 +3,7 @@
 **Status:** draft
 **Priority:** high
 **Created:** 2026-01-06
+**Updated:** 2026-01-06
 **Author:** jordan + housekeeping
 **Project:** agency
 
@@ -12,167 +13,324 @@ Managing agents, monitoring systems, and operating The Agency requires tooling b
 
 ## Proposal
 
-Workbench is the visual management layer for The Agency, with tiers matching the pricing model.
+**Workbench** is a modular shell with pluggable modules. You get the shell, then add modules based on your needs and tier.
 
-### Tier Structure
-
-```
-WORKBENCH FREE (Solo)
-├── Agent list (who's configured)
-├── Basic status
-└── Link to terminal
-
-WORKBENCH PREMIUM (Solo Premium)
-├── Everything in Free
-├── Agent Manager (configure, sessions, history)
-├── Chat Interface (browser-based agent chat)
-├── Analytics Dashboard (Pulse Beat)
-├── Feature Flags
-└── Log Viewer (local → preview → staging → prod)
-
-WORKBENCH TEAM (Multi-Principal)
-├── Everything in Premium
-├── Content Manager (team workflows)
-├── Principal/Team management
-├── Shared dashboards
-├── Admin console (users, permissions, billing)
-└── Cross-principal analytics
-```
-
----
-
-## Components
-
-### Agent Manager
-
-| Feature | Free | Premium | Team |
-|---------|:----:|:-------:|:----:|
-| List agents | ✓ | ✓ | ✓ |
-| View status | ✓ | ✓ | ✓ |
-| Configure agents | | ✓ | ✓ |
-| Session history | | ✓ | ✓ |
-| Session replay | | ✓ | ✓ |
-
-### Chat Interface
-
-Browser-based chat with agents (Premium+).
-
-- Select agent to chat with
-- Full conversation history
-- Context from current session
-- Same capabilities as terminal
-
-### Analytics Dashboard (Pulse Beat)
-
-| Feature | Free | Premium | Team |
-|---------|:----:|:-------:|:----:|
-| Basic metrics | | ✓ | ✓ |
-| Development health | | ✓ | ✓ |
-| Agent performance | | ✓ | ✓ |
-| Web performance | | ✓ | ✓ |
-| Team dashboards | | | ✓ |
-| Custom reports | | | ✓ |
-
-### Log Viewer Service
-
-**New component** - centralized log collection and viewing.
+### Architecture: Shell + Modules
 
 ```
-LOCAL LOGS          REMOTE LOGS
-───────────         ───────────
-Development    →    Preview
-                    Staging
-                    Production
-```
-
-| Feature | Free | Premium | Team |
-|---------|:----:|:-------:|:----:|
-| Local logs | ✓ | ✓ | ✓ |
-| Preview logs | | ✓ | ✓ |
-| Staging logs | | ✓ | ✓ |
-| Production logs | | ✓ | ✓ |
-| Log search | | ✓ | ✓ |
-| Log correlation | | | ✓ |
-
-### Feature Flags
-
-Manage feature toggles (Premium+).
-
-- Toggle features on/off
-- Sync with PostHog or other providers
-- Environment-specific overrides
-
-### Content Manager
-
-Team content workflows (Team only).
-
-- Catalog management
-- Content versioning
-- Approval workflows
-- Multi-principal collaboration
-
-### Admin Console
-
-Team administration (Team only).
-
-- User/Principal management
-- Permissions and roles
-- Billing and usage
-- Audit logs
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    WORKBENCH UI                          │
-│                   (Next.js App)                          │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────┐
-│                  WORKBENCH API                           │
-│                (Nitro Service)                           │
-├─────────────────────────────────────────────────────────┤
-│  Agent Manager │ Pulse Beat │ Logs │ Flags │ Content   │
-└─────────────────────────────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────┐
-│                    DATA LAYER                            │
-│  Local: SQLite/Files    Cloud: Supabase/Postgres        │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                      WORKBENCH SHELL                             │
+│  ┌───────────┬─────────────────────────────────────────────┐    │
+│  │           │                                             │    │
+│  │  SIDEBAR  │              MODULE AREA                    │    │
+│  │           │                                             │    │
+│  │  ─────────│  Loads selected module                      │    │
+│  │  📊 Pulse │                                             │    │
+│  │  💬 Feed  │  ┌─────────────────────────────────────┐    │    │
+│  │  👥 Staff │  │                                     │    │    │
+│  │  📝 Cont  │  │      [Active Module UI]             │    │    │
+│  │  📦 Cat   │  │                                     │    │    │
+│  │  🧑 Cust  │  │                                     │    │    │
+│  │  ⚙️ Set   │  └─────────────────────────────────────┘    │    │
+│  │           │                                             │    │
+│  └───────────┴─────────────────────────────────────────────┘    │
+│                                                                  │
+│  [Status Bar: Agent Status | Notifications | User]              │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Pricing Fit
+## Workbench Shell
 
-| Tier | Workbench | Price |
-|------|-----------|-------|
-| Free (Solo) | Workbench Free | $0 |
-| Solo Premium | Workbench Premium | Included in premium bundle |
-| Multi-Principal | Workbench Team | Included in team subscription |
+The shell provides:
+
+| Feature | Description |
+|---------|-------------|
+| Navigation | Sidebar with module list |
+| Authentication | User login, sessions |
+| Module Loading | Dynamic module mounting |
+| Notifications | Cross-module alerts |
+| Settings | User preferences, theming |
+| Agent Status | Quick view of running agents |
+
+### Shell Tiers
+
+| Tier | What You Get |
+|------|--------------|
+| **Free** | Shell + basic agent status |
+| **Premium** | Shell + all Solo modules |
+| **Team** | Shell + all modules + multi-principal |
+
+---
+
+## Modules
+
+### Core Modules (Free with Shell)
+
+| Module | Description |
+|--------|-------------|
+| **Agent Status** | List agents, basic status, link to terminal |
+| **Settings** | User preferences, API keys |
+
+### Premium Modules (Solo Premium)
+
+| Module | Description | Proposal |
+|--------|-------------|----------|
+| **Pulse Beat** | Analytics dashboard, metrics, logs | - |
+| **Open Feedback** | Feedback collection & analysis | PROP-0012 |
+| **Content Manager** | Content workflows, versioning | - |
+| **Catalog** | Product/service catalog (basic) | - |
+| **Customer** | Customer management (basic) | - |
+
+### Team Modules (Multi-Principal)
+
+| Module | Description |
+|--------|-------------|
+| **Staff Manager** | Principal/user management, permissions |
+| **Team Analytics** | Cross-principal dashboards |
+| **Admin Console** | Billing, audit logs, org settings |
+
+---
+
+## Module Details
+
+### Pulse Beat Module
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  PULSE BEAT                                                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  [Development Health]  [Web Performance]  [Agent Performance]   │
+│                                                                  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────┐ │
+│  │ Build Status     │  │ Core Web Vitals  │  │ Sessions/Day   │ │
+│  │ ████████░░ 80%   │  │ LCP: 2.1s        │  │ ████████ 24    │ │
+│  └──────────────────┘  │ FID: 45ms        │  └────────────────┘ │
+│                        │ CLS: 0.05        │                     │
+│  [Logs]                └──────────────────┘                     │
+│  ─────────────────────────────────────────                      │
+│  🟢 Local    │ 🟡 Preview │ 🟢 Staging │ 🟢 Production          │
+│                                                                  │
+│  [View Logs ▼]                                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Features:
+- Development health metrics
+- Web performance (Core Web Vitals)
+- Agent performance
+- **Log Viewer**: local → preview → staging → production
+
+### Open Feedback Module
+
+See PROP-0012 for full details.
+
+Integrates into Workbench as a module:
+- Feedback stream view
+- Analysis dashboard
+- Reports & issues management
+- Integration configuration
+
+### Content Manager Module
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  CONTENT MANAGER                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│  [Content] [Translations] [Media]                                │
+│                                                                  │
+│  ┌────────────────┬─────────────────────────────────────────┐   │
+│  │ Content Items  │  Edit: Homepage Hero                    │   │
+│  │ ────────────── │  ─────────────────────────              │   │
+│  │ 📄 Homepage    │  Title: [Welcome to...]                 │   │
+│  │   Hero ←       │  Body:  [Rich text editor...]           │   │
+│  │   Features     │                                         │   │
+│  │ 📄 About       │  Status: Draft → Review → Published     │   │
+│  │ 📄 Products    │                                         │   │
+│  │ 📄 FAQ         │  [Save Draft] [Submit for Review]       │   │
+│  └────────────────┴─────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Features:
+- Content CRUD
+- Rich text editing
+- Translation management
+- Media library
+- Workflow (draft → review → published)
+
+### Catalog Module (Basic)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  CATALOG                                                         │
+├─────────────────────────────────────────────────────────────────┤
+│  Products / Services / Offerings                                 │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ Name          │ Type    │ Status  │ Price   │ Actions   │   │
+│  │ ───────────── │ ─────── │ ──────  │ ─────── │ ───────── │   │
+│  │ Starter Pack  │ Product │ Active  │ $29     │ [Edit]    │   │
+│  │ Pro Bundle    │ Bundle  │ Active  │ $99     │ [Edit]    │   │
+│  │ Consulting    │ Service │ Draft   │ $200/hr │ [Edit]    │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  [+ Add Item]                                                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Features:
+- Product/service listings
+- Pricing
+- Status management
+- Basic metadata
+
+**Note:** This is a foundation. Users can extend for their domain.
+
+### Customer Module (Basic)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  CUSTOMERS                                                       │
+├─────────────────────────────────────────────────────────────────┤
+│  [All] [Active] [Trial] [Churned]                    🔍 Search  │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ Name          │ Email           │ Plan    │ Since       │   │
+│  │ ───────────── │ ─────────────── │ ─────── │ ─────────── │   │
+│  │ Acme Corp     │ admin@acme.co   │ Pro     │ 2025-06-01  │   │
+│  │ Jane Doe      │ jane@email.com  │ Starter │ 2025-11-15  │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  [+ Add Customer]                                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Features:
+- Customer list
+- Basic profile
+- Subscription/plan info
+- Activity history
+
+**Note:** Foundation for CRM-like features. Extendable.
+
+### Staff Manager Module (Team)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  STAFF MANAGER                                        [Team]    │
+├─────────────────────────────────────────────────────────────────┤
+│  [Principals] [Roles] [Permissions]                              │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ Name          │ Role      │ Agents    │ Last Active     │   │
+│  │ ───────────── │ ───────── │ ───────── │ ─────────────── │   │
+│  │ Jordan        │ Admin     │ 5         │ Just now        │   │
+│  │ Alex          │ Developer │ 3         │ 2 hours ago     │   │
+│  │ Sam           │ Viewer    │ 0         │ Yesterday       │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  [+ Invite Principal]                                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Features:
+- Principal management
+- Role-based permissions
+- Agent assignment
+- Activity tracking
+
+---
+
+## Module Availability by Tier
+
+| Module | Free | Solo Premium | Team |
+|--------|:----:|:------------:|:----:|
+| Agent Status | ✓ | ✓ | ✓ |
+| Settings | ✓ | ✓ | ✓ |
+| Pulse Beat | | ✓ | ✓ |
+| Open Feedback | | ✓ | ✓ |
+| Content Manager | | ✓ | ✓ |
+| Catalog | | ✓ | ✓ |
+| Customer | | ✓ | ✓ |
+| Staff Manager | | | ✓ |
+| Team Analytics | | | ✓ |
+| Admin Console | | | ✓ |
+
+---
+
+## Technical Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    WORKBENCH UI (Next.js)                        │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Shell                                                   │    │
+│  │  ├── Layout (sidebar, header, status bar)               │    │
+│  │  ├── Auth (login, sessions)                             │    │
+│  │  ├── Module Router (dynamic loading)                    │    │
+│  │  └── Notifications                                       │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Modules (lazy loaded)                                   │    │
+│  │  ├── pulse-beat/                                         │    │
+│  │  ├── open-feedback/                                      │    │
+│  │  ├── content-manager/                                    │    │
+│  │  ├── catalog/                                            │    │
+│  │  ├── customer/                                           │    │
+│  │  └── staff-manager/                                      │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────▼───────────────────────────────────┐
+│                    WORKBENCH API (Nitro)                         │
+│  Module-specific endpoints + shared services                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Module Interface
+
+Each module implements:
+
+```typescript
+interface WorkbenchModule {
+  id: string;
+  name: string;
+  icon: string;
+  tier: 'free' | 'premium' | 'team';
+  routes: Route[];
+  sidebarItems: SidebarItem[];
+
+  // Lifecycle
+  onLoad(): Promise<void>;
+  onUnload(): Promise<void>;
+}
+```
 
 ---
 
 ## Key Points
 
-- Scales from Solo to Team
-- Log collection is a key differentiator
-- Browser-based agent chat removes terminal requirement
-- Foundation for enterprise features
+1. **Shell + Modules** - Clean separation, extensible
+2. **Tiered access** - Free gets basic, Premium gets modules, Team gets all
+3. **Foundational modules** - Catalog/Customer are basics to build on
+4. **Open Feedback integration** - PROP-0012 becomes a module
+5. **Log collection** - Pulse Beat includes logs from local to prod
 
 ## Open Questions
 
-- [ ] Standalone app or embedded in project?
-- [ ] Electron wrapper for desktop?
-- [ ] Mobile-responsive for on-the-go monitoring?
+- [ ] Can users build custom modules?
+- [ ] Module marketplace for community contributions?
+- [ ] Mobile-responsive or native mobile apps?
+- [ ] Offline capability for local modules?
 
 ## Dependencies
 
 - Related: PROP-0010 (Pricing Model)
+- Related: PROP-0012 (Open Feedback as module)
 - Related: INSTR-0050 (TheAgency Services)
-- Integrates: Pulse Beat analytics
 
 ## When Approved
 
@@ -187,5 +345,13 @@ Team administration (Team only).
 ### 2026-01-06 - Created
 Defined tier structure matching pricing model.
 
-### 2026-01-06 - Added Log Viewer
-Jordan: "For workbench, pulse beat area is a service for collecting logs: local at first, so that an Agent can see them. We then extend that to make logs available from your preview, staging, and finally production."
+### 2026-01-06 - Refactored to Shell + Modules
+Jordan: "Let's look at what components of Workbench we want to deliver. I think we deliver workbench and then you can have modules in it."
+
+Modules identified:
+- Pulse Beat (analytics, logs)
+- Open Feedback (PROP-0012)
+- Content Manager
+- Catalog (basic)
+- Customer (basic)
+- Staff Manager (Team tier)
