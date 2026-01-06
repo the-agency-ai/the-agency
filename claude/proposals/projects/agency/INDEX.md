@@ -22,6 +22,8 @@ When approved, a proposal becomes an INSTR for implementation.
 | PROP-0008 | Markdown Manager | draft | high | Product |
 | PROP-0009 | Proposal System (meta) | draft | high | Infrastructure |
 | PROP-0010 | Pricing Model | draft | high | Business |
+| PROP-0011 | Workbench | draft | high | Product |
+| PROP-0012 | Open Feedback Service | draft | high | Product |
 
 ## Priority for Jan 10 Workshop
 
@@ -29,16 +31,35 @@ When approved, a proposal becomes an INSTR for implementation.
 - PROP-0006: Distribution Structure
 - PROP-0001: Tool Ecosystem
 
-## Products
+## Products & Pricing
 
-| Proposal | Free | Solo Premium | Multi-Principal |
-|----------|:----:|:------------:|:---------------:|
-| PROP-0004 Markdown Browser | ✓ | | |
-| PROP-0008 Markdown Manager | | ✓ | ✓ |
+| Product | Free (Solo) | Solo Premium | Multi-Principal |
+|---------|:-----------:|:------------:|:---------------:|
+| **PROP-0004** Markdown Browser | ✓ | | |
+| **PROP-0008** Markdown Manager | | ✓ | ✓ |
+| **PROP-0011** Workbench Free | ✓ | | |
+| **PROP-0011** Workbench Premium | | ✓ | |
+| **PROP-0011** Workbench Team | | | ✓ |
+| **PROP-0012** Open Feedback | | ✓ | ✓ |
 | MockAndMark | | ✓ | ✓ |
 | TheCaptain Advanced | | ✓ | ✓ |
 
 See PROP-0010 for full pricing model.
+
+## Product Summary
+
+### Core Framework (Free)
+- the-agency-starter
+- Solo-Principal, local services
+- Core tools, TheCaptain Basic
+- Markdown Browser, Workbench Free
+
+### Premium Products (Paid)
+- **Workbench Premium/Team** - Agent management, analytics, logs
+- **Markdown Manager** - Full editing, versioning, collaboration
+- **Open Feedback** - AI-powered contextual feedback platform
+- **MockAndMark** - Design tool
+- **TheCaptain Advanced** - AI-powered guidance
 
 ## Completed Proposals
 
