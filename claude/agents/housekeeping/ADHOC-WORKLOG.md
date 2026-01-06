@@ -37,6 +37,10 @@
 5. **Future Proposals**
    - PROP-0017: Narrowcast Messages (subscriptions vs broadcast)
 
+6. **Project Planning**
+   - PROJ-workshop-and-launch.md (tiered project plan)
+   - BACKLOG.md (complete backlog: 17 PROPs, workshop, book, polish items)
+
 ### Key Files Created/Modified
 
 ```
@@ -45,6 +49,8 @@ the-agency/
 │   ├── the-agency-guide-proposal_and_outline-v4.md (reviewed)
 │   ├── the-agency-guide-chapter-01-draft-v3.md (reviewed)
 │   ├── the-agency-guide-chapter-04-draft-v1.md (reviewed)
+│   ├── PROJ-workshop-and-launch.md (new)
+│   ├── BACKLOG.md (new)
 │   └── working-notes/
 │       ├── WORKING-NOTE-0001 through 0017 (consolidated)
 │       ├── WORKING-NOTE-0018.md (blockers)
@@ -79,3 +85,4 @@ the-agency/
 - Philosophy documentation (PROP-0016, PHILOSOPHY.md)
 - Philosophy deep dive (WORKING-NOTE-0021)
 - Week planning (WORKING-NOTE-0022, PROP-0017)
+- Workshop planning and complete backlog (PROJ, BACKLOG.md)
