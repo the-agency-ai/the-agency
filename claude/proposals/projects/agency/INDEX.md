@@ -24,6 +24,8 @@ When approved, a proposal becomes an INSTR for implementation.
 | PROP-0010 | Pricing Model | draft | high | Business |
 | PROP-0011 | Workbench | draft | high | Product |
 | PROP-0012 | Open Feedback Service | draft | high | Product |
+| PROP-0013 | Open Webpage Tool | draft | medium | Tools |
+| PROP-0014 | Knowledge Indexer | draft | high | Tools |
 
 ## Priority for Jan 10 Workshop
 
