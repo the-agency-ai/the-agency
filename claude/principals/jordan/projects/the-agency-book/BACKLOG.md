@@ -10,7 +10,7 @@
 | Category | Count | Status |
 |----------|-------|--------|
 | Workshop Critical | 6 | 🔴 In Progress |
-| Book Critical | 8 | 🔴 Pending |
+| Book Critical | 9 | 🟡 In Progress |
 | Framework Props | 17 | Draft |
 | Book Polish | 4 | 🟡 Reviewed |
 | Philosophy | 1 | ✅ Accepted |
@@ -41,7 +41,8 @@
 | B-5 | Verify install URLs | housekeeping | 🔴 | Ch4 review |
 | B-6 | Verify pricing | housekeeping | 🔴 | Ch4 review |
 | B-7 | GitHub Discussions | jordan | 🔴 | Appendix C |
-| B-8 | Community infrastructure | jordan | 🔴 | Outline |
+| B-8 | Community infrastructure | jordan | 🟡 | Discord bot ready, need server |
+| B-9 | Gumroad sales integration | jordan | 🟡 | API creds captured |
 
 ---
 
@@ -143,7 +144,8 @@ Book Launch
 ├── B-1: init-agency
 ├── B-5, B-6: URLs/pricing verified
 ├── B-3, B-4: Real examples
-└── B-7, B-8: Community
+├── B-7, B-8: Community (Discord 🟡)
+└── B-9: Gumroad sales (🟡)
 
 Framework Evolution
 ├── PROP-0016: Philosophy (✅)
