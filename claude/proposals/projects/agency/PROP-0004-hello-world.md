@@ -1,8 +1,9 @@
-# PROP-0004: Hello World Project
+# PROP-0004: Hello World Project - Markdown Browser
 
 **Status:** draft
 **Priority:** high
 **Created:** 2026-01-06
+**Updated:** 2026-01-06
 **Author:** jordan + housekeeping
 **Project:** agency
 
@@ -11,70 +12,95 @@
 New users need a practical first project that:
 1. Demonstrates multi-agent collaboration
 2. Creates something actually useful
-3. Shows the power of The Agency
-4. Isn't just a throwaway demo
+3. Is simple enough to complete in a workshop
+4. Produces something they'll keep using
 
 ## Proposal
 
-A guided "Hello World" that creates something users will actually use in their Agency implementation.
+Build a **Markdown Browser** - a simple read-only viewer for all markdown files in their Agency.
 
-### The Project: Markdown File Manager
+### What It Is
 
-Build a simple web app for viewing and managing .md files in their Agency.
+A local web app that:
+- Shows all .md files in the project
+- Easy navigation (tree view, search)
+- Clean rendering of markdown
+- Quick way to find documents
 
-**Why this project:**
-- They'll actually use it (managing Agency docs)
-- Demonstrates housekeeping + web agent collaboration
-- Creates visible, tangible output
-- Scales from simple to sophisticated
+### What It Is NOT
+
+- No editing (that's PROP-0008 Markdown Manager)
+- No collaboration
+- No versioning
+- No comments
+
+Just browse and view. Simple.
+
+### Why This Project
+
+| Reason | Explanation |
+|--------|-------------|
+| Actually useful | They'll use it to navigate Agency docs |
+| Completable | Can finish in 1-2 hours |
+| Multi-agent demo | housekeeping + web collaborate |
+| Foundation | Can evolve into PROP-0008 later |
 
 ### Multi-Agent Collaboration
 
-| Agent | Responsibility |
-|-------|----------------|
-| housekeeping | Project setup, structure, documentation |
-| web | UI implementation, component development |
+| Agent | Does |
+|-------|------|
+| housekeeping | Project setup, requirements, docs |
+| web | UI implementation |
 
-### Project Phases
+### Features (V1)
 
-**Phase 1: Setup (housekeeping)**
-- Create project structure
-- Define requirements
-- Set up initial docs
+```
+┌─────────────────────────────────────────┐
+│  Markdown Browser                    ─ □ ×│
+├───────────────┬─────────────────────────┤
+│ 📁 claude/    │  # PROP-0004            │
+│   📁 docs/    │                         │
+│   📁 agents/  │  **Status:** draft      │
+│   📁 proposals│  **Priority:** high     │
+│     📄 PROP-01│                         │
+│     📄 PROP-02│  ## Problem             │
+│     📄 PROP-03│  New users need...      │
+│   📄 CLAUDE.md│                         │
+│               │                         │
+├───────────────┴─────────────────────────┤
+│ 🔍 Search: [          ]                 │
+└─────────────────────────────────────────┘
+```
 
-**Phase 2: Core (web)**
-- Basic file listing UI
-- Markdown rendering
-- Simple navigation
+Features:
+- File tree navigation
+- Markdown preview
+- Full-text search
+- Keyboard navigation (j/k, enter)
 
-**Phase 3: Polish (both)**
-- housekeeping: Documentation, testing
-- web: Styling, UX improvements
+### Tech Stack
 
-### Demonstrates
-
-- PROP-0001: Using tools (framework + local)
-- PROP-0002: Work lifecycle (start-sprint, complete-sprint)
-- PROP-0003: Context management during agent handoffs
-- Multi-agent collaboration patterns
-- The Agency workflow end-to-end
+- Next.js (or simple Vite + React)
+- Tailwind for styling
+- gray-matter for frontmatter
+- marked/remark for rendering
 
 ## Key Points
 
-- Not a throwaway demo - something they keep
-- Multi-agent from the start
-- Scales to become PROP-0008 (full Markdown Manager)
-- Perfect for workshop (Jan 10)
+- Deliberately simple
+- Read-only by design
+- Perfect for workshop (completable)
+- Natural upgrade path to Markdown Manager
 
 ## Open Questions
 
-- [ ] How much do we pre-build vs let them build?
-- [ ] Should this be a `/hello-world` command?
-- [ ] Relationship to PROP-0008 (Markdown Manager product)?
+- [ ] Include file watching (auto-refresh)?
+- [ ] Dark mode?
+- [ ] Export to PDF?
 
 ## Dependencies
 
-- Related proposals: PROP-0008 (Markdown Manager)
+- Evolves into: PROP-0008 (Markdown Manager)
 - Related INSTRs: none yet
 
 ## When Approved
@@ -88,4 +114,7 @@ Build a simple web app for viewing and managing .md files in their Agency.
 ## Discussion Log
 
 ### 2026-01-06 - Created
-Evolved from "documentation site" idea to "markdown file manager" - something they'll actually use for managing Agency files.
+Initial proposal for documentation site.
+
+### 2026-01-06 - Simplified
+Jordan: "How about a markdown browser... No editing. No collaboration. Just a basic browser."
