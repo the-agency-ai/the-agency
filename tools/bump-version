@@ -1,0 +1,96 @@
+#!/bin/bash
+#
+# bump-version - Increment version and update changelog
+#
+# Usage:
+#   ./tools/bump-version [major|minor|patch]
+#   ./tools/bump-version --show
+#
+# Examples:
+#   ./tools/bump-version patch    # 0.1.0 -> 0.1.1
+#   ./tools/bump-version minor    # 0.1.1 -> 0.2.0
+#   ./tools/bump-version major    # 0.2.0 -> 1.0.0
+#   ./tools/bump-version --show   # Show current version
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+VERSION_FILE="$PROJECT_ROOT/VERSION"
+CHANGELOG_FILE="$PROJECT_ROOT/CHANGELOG.md"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Get current version
+if [ ! -f "$VERSION_FILE" ]; then
+    echo "0.0.0" > "$VERSION_FILE"
+fi
+
+CURRENT_VERSION=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+
+# Parse version components
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+MAJOR=${MAJOR:-0}
+MINOR=${MINOR:-0}
+PATCH=${PATCH:-0}
+
+# Parse arguments
+BUMP_TYPE="${1:-}"
+
+case "$BUMP_TYPE" in
+    --show|-s)
+        echo "$CURRENT_VERSION"
+        exit 0
+        ;;
+    major)
+        MAJOR=$((MAJOR + 1))
+        MINOR=0
+        PATCH=0
+        ;;
+    minor)
+        MINOR=$((MINOR + 1))
+        PATCH=0
+        ;;
+    patch)
+        PATCH=$((PATCH + 1))
+        ;;
+    "")
+        echo "Usage: ./tools/bump-version [major|minor|patch|--show]"
+        echo ""
+        echo "Current version: $CURRENT_VERSION"
+        exit 0
+        ;;
+    *)
+        echo "Unknown bump type: $BUMP_TYPE"
+        echo "Use: major, minor, or patch"
+        exit 1
+        ;;
+esac
+
+NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+
+# Update VERSION file
+echo "$NEW_VERSION" > "$VERSION_FILE"
+
+# Update CHANGELOG.md - add date to Unreleased section
+TODAY=$(date +%Y-%m-%d)
+if [ -f "$CHANGELOG_FILE" ]; then
+    # Replace [Unreleased] with [NEW_VERSION] - DATE
+    sed -i.bak "s/## \[Unreleased\]/## [Unreleased]\n\n## [$NEW_VERSION] - $TODAY/" "$CHANGELOG_FILE"
+    rm -f "$CHANGELOG_FILE.bak"
+
+    echo -e "${GREEN}Updated CHANGELOG.md${NC}"
+fi
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}Version bumped: $CURRENT_VERSION → $NEW_VERSION${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo "Next steps:"
+echo "  1. Review and update CHANGELOG.md with release notes"
+echo "  2. Commit: git add VERSION CHANGELOG.md && git commit -m 'chore: bump version to $NEW_VERSION'"
+echo "  3. Tag: git tag -a v$NEW_VERSION -m 'Release $NEW_VERSION'"
