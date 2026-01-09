@@ -16,6 +16,9 @@
 
 set -e
 
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -77,6 +80,8 @@ case "${1:-}" in
         exit 0
         ;;
     --version|-v)
+        echo "myclaude $TOOL_VERSION"
+        echo ""
         echo -e "${BLUE}Claude Code version:${NC} $(claude --version)"
         echo -e "${BLUE}The Agency version:${NC} $(cat "$PROJECT_ROOT/VERSION" 2>/dev/null || echo 'unknown')"
         exit 0
@@ -124,6 +129,14 @@ fi
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}  Launching: ${GREEN}$AGENTNAME${NC} ${BLUE}on workstream: ${GREEN}$WORKSTREAM${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# Check for unread messages
+if [ -x "$PROJECT_ROOT/tools/read-messages" ]; then
+    UNREAD=$("$PROJECT_ROOT/tools/read-messages" --count 2>/dev/null || echo "0")
+    if [ "$UNREAD" -gt 0 ]; then
+        echo -e "${YELLOW}  📬 You have $UNREAD unread message(s). Run ./tools/read-messages${NC}"
+    fi
+fi
 echo ""
 
 # Build claude command

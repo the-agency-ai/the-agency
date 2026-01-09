@@ -6,4 +6,14 @@
 # It triggers the agent to restore context from system reminders
 # and propose next steps.
 
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "welcomeback $TOOL_VERSION"
+    exit 0
+fi
+
 echo "It's time to get down to business..."

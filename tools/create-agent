@@ -14,6 +14,15 @@
 
 set -e
 
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "create-agent $TOOL_VERSION"
+    exit 0
+fi
+
 AGENTNAME="$1"
 WORKSTREAM="$2"
 
@@ -162,6 +171,20 @@ cat > "$DIR/logs/permissions.md" << EOF
 |------|------|---------|--------|---------|
 EOF
 
+# Create agent folder in all principal cloud storage locations
+echo ""
+for principal_dir in claude/principals/*/; do
+  cloud_link="${principal_dir}resources/cloud"
+  if [ -L "$cloud_link" ] && [ -d "$cloud_link" ]; then
+    agent_cloud_dir="$cloud_link/$AGENTNAME"
+    if [ ! -d "$agent_cloud_dir" ]; then
+      mkdir -p "$agent_cloud_dir"
+      echo "Created cloud folder: $agent_cloud_dir"
+    fi
+  fi
+done
+
+echo ""
 echo "Created: $DIR/"
 echo ""
 echo "Start with: ./tools/myclaude $WORKSTREAM $AGENTNAME"

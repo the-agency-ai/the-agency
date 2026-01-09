@@ -10,6 +10,16 @@
 #
 # If workstream or agent unknown, uses "unknown" as fallback.
 
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "commit-prefix $TOOL_VERSION"
+    exit 0
+fi
+
 WORKSTREAM=$(./tools/workstream 2>/dev/null || echo "unknown")
 AGENTNAME=$(./tools/agentname 2>/dev/null || echo "unknown")
 

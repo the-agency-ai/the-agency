@@ -1,0 +1,129 @@
+#!/bin/bash
+# Browser automation tool for Agency agents
+#
+# Usage:
+#   ./tools/browser fetch <url>           - Fetch page content as text
+#   ./tools/browser screenshot <url>      - Take screenshot, save to cloud storage
+#   ./tools/browser pdf <url>             - Save page as PDF to cloud storage
+#
+# First run will install playwright and browsers (~200MB)
+
+set -e
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "browser $TOOL_VERSION"
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+ACTION="$1"
+URL="$2"
+
+# Find principal cloud storage for output
+find_cloud_storage() {
+  for principal_dir in "$REPO_ROOT"/claude/principals/*/; do
+    if [ -L "${principal_dir}resources/cloud" ]; then
+      echo "${principal_dir}resources/cloud"
+      return
+    fi
+  done
+  echo ""
+}
+
+if [ -z "$ACTION" ]; then
+  echo "Usage: ./tools/browser <action> <url>"
+  echo ""
+  echo "Actions:"
+  echo "  fetch <url>       - Fetch page content as text (returns to stdout)"
+  echo "  screenshot <url>  - Take screenshot (saved to cloud/misc/)"
+  echo "  pdf <url>         - Save page as PDF (saved to cloud/misc/)"
+  echo ""
+  echo "Examples:"
+  echo "  ./tools/browser fetch https://example.com"
+  echo "  ./tools/browser screenshot https://news.ycombinator.com"
+  echo "  ./tools/browser pdf https://docs.anthropic.com"
+  echo ""
+  echo "First run installs playwright browsers (~200MB)"
+  exit 1
+fi
+
+if [ -z "$URL" ]; then
+  echo "Error: URL required"
+  exit 1
+fi
+
+# Ensure playwright is installed
+PLAYWRIGHT_DIR="$REPO_ROOT/node_modules/playwright"
+if [ ! -d "$PLAYWRIGHT_DIR" ]; then
+  echo "Installing playwright (first time only)..."
+  npm install --prefix "$REPO_ROOT" playwright
+  npx --prefix "$REPO_ROOT" playwright install chromium
+fi
+
+# Output location for files
+CLOUD_DIR=$(find_cloud_storage)
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+SAFE_URL=$(echo "$URL" | sed 's/[^a-zA-Z0-9]/_/g' | cut -c1-50)
+
+case "$ACTION" in
+  fetch)
+    node --input-type=module -e "
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage();
+await page.goto('$URL', { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.waitForTimeout(2000);
+const text = await page.evaluate(() => document.body.innerText);
+console.log(text);
+await browser.close();
+"
+    ;;
+
+  screenshot)
+    if [ -n "$CLOUD_DIR" ]; then
+      OUTPUT_FILE="$CLOUD_DIR/misc/screenshot-${TIMESTAMP}-${SAFE_URL}.png"
+    else
+      OUTPUT_FILE="$REPO_ROOT/screenshot-${TIMESTAMP}-${SAFE_URL}.png"
+    fi
+
+    node --input-type=module -e "
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+await page.goto('$URL', { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.waitForTimeout(2000);
+await page.screenshot({ path: '$OUTPUT_FILE', fullPage: true });
+await browser.close();
+console.log('Screenshot saved to: $OUTPUT_FILE');
+"
+    ;;
+
+  pdf)
+    if [ -n "$CLOUD_DIR" ]; then
+      OUTPUT_FILE="$CLOUD_DIR/misc/page-${TIMESTAMP}-${SAFE_URL}.pdf"
+    else
+      OUTPUT_FILE="$REPO_ROOT/page-${TIMESTAMP}-${SAFE_URL}.pdf"
+    fi
+
+    node --input-type=module -e "
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage();
+await page.goto('$URL', { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.waitForTimeout(2000);
+await page.pdf({ path: '$OUTPUT_FILE', format: 'A4' });
+await browser.close();
+console.log('PDF saved to: $OUTPUT_FILE');
+"
+    ;;
+
+  *)
+    echo "Unknown action: $ACTION"
+    echo "Use: ./tools/browser"
+    exit 1
+    ;;
+esac

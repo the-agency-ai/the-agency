@@ -1,0 +1,58 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-messages.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(./tools/agentname*)",
+      "Bash(./tools/commit-prefix*)",
+      "Bash(./tools/find-tool*)",
+      "Bash(./tools/hello*)",
+      "Bash(./tools/hi*)",
+      "Bash(./tools/list-artifacts*)",
+      "Bash(./tools/list-instructions*)",
+      "Bash(./tools/now*)",
+      "Bash(./tools/principal*)",
+      "Bash(./tools/read-messages*)",
+      "Bash(./tools/read-news*)",
+      "Bash(./tools/show-instructions*)",
+      "Bash(./tools/welcomeback*)",
+      "Bash(./tools/whoami*)",
+      "Bash(./tools/workstream*)",
+      "Bash(./tools/add-nit*)",
+      "Bash(./tools/backup-session*)",
+      "Bash(./tools/archive-session*)",
+      "Bash(./tools/capture-artifact*)",
+      "Bash(./tools/capture-instruction*)",
+      "Bash(./tools/capture-proposal*)",
+      "Bash(./tools/complete-instruction*)",
+      "Bash(./tools/log-adhoc*)",
+      "Bash(./tools/observe*)",
+      "Bash(./tools/post-news*)",
+      "Bash(./tools/request*)",
+      "Bash(./tools/resolve-nit*)",
+      "Bash(./tools/send-message*)",
+      "Bash(./tools/update-artifact-index*)",
+      "Bash(./tools/update-instruction-index*)",
+      "Bash(./tools/collaborate*)",
+      "Bash(./tools/respond-collaborate*)",
+      "Bash(./tools/bench*)",
+      "Bash(./tools/browser*)",
+      "Bash(./tools/bump-version*)",
+      "Bash(./tools/config*)",
+      "Bash(./tools/restore*)",
+      "Bash(./tools/code-review*)",
+      "Bash(./tools/pre-commit-check*)",
+      "Bash(./tools/run-unit-tests*)"
+    ]
+  }
+}

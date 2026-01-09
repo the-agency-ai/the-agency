@@ -8,6 +8,16 @@
 #   Enables session continuity after backup
 
 # Help
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "restore $TOOL_VERSION"
+    exit 0
+fi
+
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   sed -n '2,8p' "$0" | sed 's/^# //' | sed 's/^#//'
   exit 0

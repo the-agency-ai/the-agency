@@ -9,6 +9,15 @@
 
 set -e
 
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "agency-feedback $TOOL_VERSION"
+    exit 0
+fi
+
 TITLE="$1"
 DESCRIPTION="$2"
 

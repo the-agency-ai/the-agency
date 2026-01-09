@@ -10,4 +10,14 @@
 #
 # Returns: agent name from $AGENTNAME environment variable, or 'unknown'
 
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "agentname $TOOL_VERSION"
+    exit 0
+fi
+
 echo "${AGENTNAME:-unknown}"

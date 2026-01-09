@@ -1,0 +1,195 @@
+#!/bin/bash
+# Create a new observation document
+#
+# Usage:
+#   ./tools/observe --summary "agents directory has session backups outside backups/"
+#   ./tools/observe --summary "build is slow" --details "Noticed during CI"
+#
+# Observations are things you notice that may not need immediate action
+# but could become the basis for a request later.
+
+set -e
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "observe $TOOL_VERSION"
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+show_usage() {
+  echo "Usage: ./tools/observe --summary <summary> [options]"
+  echo ""
+  echo "Required:"
+  echo "  --summary, -s      Brief summary (used in filename and title)"
+  echo ""
+  echo "Options:"
+  echo "  --details, -d      Detailed description of the observation"
+  echo "  --principal        Override principal (defaults to PRINCIPAL env or config)"
+  echo ""
+  echo "Examples:"
+  echo "  ./tools/observe -s 'Session backups not in backups directory'"
+  echo "  ./tools/observe -s 'Build is slow' -d 'Takes 5+ minutes in CI'"
+  exit 1
+}
+
+# Determine principal
+get_principal() {
+  if [ -n "$PRINCIPAL" ]; then
+    echo "$PRINCIPAL"
+  else
+    local p=$("$REPO_ROOT/tools/principal" 2>/dev/null || echo "")
+    if [ -n "$p" ] && [ "$p" != "unknown" ]; then
+      echo "$p"
+    else
+      echo ""
+    fi
+  fi
+}
+
+# Get next observe number by scanning existing files
+get_next_number() {
+  local highest=0
+
+  # Scan all OBSERVE files in principals directory
+  shopt -s nullglob
+  for f in "$REPO_ROOT"/claude/principals/*/observations/OBSERVE-*.md; do
+    if [ -f "$f" ]; then
+      local fname=$(basename "$f")
+      local num=$(echo "$fname" | sed -n 's/OBSERVE-[^-]*-\([0-9]*\)-.*/\1/p')
+      if [ -n "$num" ]; then
+        num=$((10#$num))
+        if [ "$num" -gt "$highest" ]; then
+          highest=$num
+        fi
+      fi
+    fi
+  done
+  shopt -u nullglob
+
+  echo $((highest + 1))
+}
+
+# Convert summary to filename-safe slug
+slugify() {
+  echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-' | cut -c1-50
+}
+
+# Parse arguments
+SUMMARY=""
+DETAILS=""
+PRINCIPAL_OVERRIDE=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --summary|-s)
+      SUMMARY="$2"
+      shift 2
+      ;;
+    --details|-d)
+      DETAILS="$2"
+      shift 2
+      ;;
+    --principal)
+      PRINCIPAL_OVERRIDE="$2"
+      shift 2
+      ;;
+    --help|-h)
+      show_usage
+      ;;
+    *)
+      echo "Unknown option: $1"
+      show_usage
+      ;;
+  esac
+done
+
+# Validate required arguments
+if [ -z "$SUMMARY" ]; then
+  echo "Error: --summary is required"
+  show_usage
+fi
+
+# Determine principal
+if [ -n "$PRINCIPAL_OVERRIDE" ]; then
+  OBS_PRINCIPAL="$PRINCIPAL_OVERRIDE"
+else
+  OBS_PRINCIPAL=$(get_principal)
+fi
+
+if [ -z "$OBS_PRINCIPAL" ]; then
+  echo "Error: Cannot determine principal. Set PRINCIPAL env var or use --principal."
+  exit 1
+fi
+
+# Determine observer
+if [ -n "$AGENTNAME" ]; then
+  OBSERVED_BY="agent:$AGENTNAME (on behalf of $OBS_PRINCIPAL)"
+else
+  OBSERVED_BY="principal:$OBS_PRINCIPAL"
+fi
+
+# Get next number
+NUMBER=$(get_next_number)
+NUMBER_PADDED=$(printf "%04d" "$NUMBER")
+
+# Create filename
+SLUG=$(slugify "$SUMMARY")
+FILENAME="OBSERVE-${OBS_PRINCIPAL}-${NUMBER_PADDED}-${SLUG}.md"
+
+# Ensure observations directory exists
+OBS_DIR="$REPO_ROOT/claude/principals/$OBS_PRINCIPAL/observations"
+mkdir -p "$OBS_DIR"
+
+# Full path
+FILEPATH="$OBS_DIR/$FILENAME"
+
+# Get current date
+DATE=$(date +%Y-%m-%d)
+
+# Generate content
+CONTENT=$(cat <<EOF
+# OBSERVE-${OBS_PRINCIPAL}-${NUMBER_PADDED}-${SLUG}
+
+**Status:** Open
+**Observed By:** ${OBSERVED_BY}
+**Created:** ${DATE}
+**Updated:** ${DATE}
+
+## Summary
+
+${SUMMARY}
+
+## Observation
+
+${DETAILS:-"<!-- What did you observe? Describe what you noticed. -->"}
+
+## Context
+
+<!-- Where did you observe this? What were you doing? -->
+
+## Potential Impact
+
+<!-- Why might this matter? What could happen if not addressed? -->
+
+## Related
+
+<!-- Links to related files, requests, or observations -->
+
+---
+
+## Notes
+
+### ${DATE} - Created
+- Observation recorded by ${OBSERVED_BY}
+EOF
+)
+
+# Write file
+echo "$CONTENT" > "$FILEPATH"
+
+echo "Created: $FILEPATH"

@@ -41,3 +41,4 @@ coverage/
 
 # Principal secrets (never commit)
 claude/principals/*/resources/secrets/
+claude/apps/AgencyBench.app

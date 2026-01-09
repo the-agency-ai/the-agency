@@ -10,6 +10,15 @@
 
 set -e
 
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "update-artifact-index $TOOL_VERSION"
+    exit 0
+fi
+
 # Help
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   sed -n '2,9p' "$0" | sed 's/^# //' | sed 's/^#//'

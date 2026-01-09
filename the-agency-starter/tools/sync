@@ -13,6 +13,15 @@
 
 set -e
 
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "sync $TOOL_VERSION"
+    exit 0
+fi
+
 # Configuration
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 PUSH_LOG="$REPO_ROOT/claude/logs/push-log.md"

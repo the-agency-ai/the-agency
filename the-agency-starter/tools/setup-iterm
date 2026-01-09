@@ -1,0 +1,155 @@
+#!/bin/bash
+# Set up iTerm2 dynamic profiles for a principal
+#
+# Usage: ./tools/setup-iterm <principalname>
+#
+# Creates iTerm dynamic profiles for Agency terminal sessions with:
+#   - Color-coded profiles for different agent types
+#   - Proper working directory settings
+#   - Badge displays for agent identification
+#
+# Stores profiles in: claude/principals/{principal}/config/iterm/
+# Symlinks to: ~/Library/Application Support/iTerm2/DynamicProfiles/
+
+set -e
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "setup-iterm $TOOL_VERSION"
+    exit 0
+fi
+
+PRINCIPALNAME="$1"
+
+if [ -z "$PRINCIPALNAME" ]; then
+  echo "Usage: ./tools/setup-iterm <principalname>"
+  echo ""
+  echo "Examples:"
+  echo "  ./tools/setup-iterm jordan"
+  echo ""
+  echo "This creates iTerm dynamic profiles for Agency sessions."
+  exit 1
+fi
+
+PRINCIPAL_DIR="claude/principals/$PRINCIPALNAME"
+CONFIG_DIR="$PRINCIPAL_DIR/config"
+ITERM_CONFIG_DIR="$CONFIG_DIR/iterm"
+PROFILES_FILE="$ITERM_CONFIG_DIR/agency-profiles.json"
+ITERM_DYNAMIC_DIR="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
+
+# Check principal exists
+if [ ! -d "$PRINCIPAL_DIR" ]; then
+  echo "Error: Principal '$PRINCIPALNAME' not found at $PRINCIPAL_DIR"
+  exit 1
+fi
+
+# Create config directories
+mkdir -p "$ITERM_CONFIG_DIR"
+mkdir -p "$ITERM_DYNAMIC_DIR"
+
+# Get the repo root for working directory
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+
+# Create the profiles JSON (no parent name to avoid iTerm warnings)
+cat > "$PROFILES_FILE" << 'PROFILES_EOF'
+{
+  "Profiles": [
+    {
+      "Name": "Agency - Housekeeping",
+      "Guid": "agency-housekeeping-PRINCIPALNAME",
+      "Badge Text": "housekeeping",
+      "Working Directory": "REPO_ROOT",
+      "Custom Directory": "Yes",
+      "Background Color": {
+        "Red Component": 0.05,
+        "Green Component": 0.05,
+        "Blue Component": 0.12
+      },
+      "Foreground Color": {
+        "Red Component": 0.9,
+        "Green Component": 0.9,
+        "Blue Component": 0.95
+      },
+      "Tab Color": {
+        "Red Component": 0.2,
+        "Green Component": 0.4,
+        "Blue Component": 0.8
+      },
+      "Use Tab Color": true,
+      "Initial Text": "# Housekeeping agent session\n./tools/myclaude housekeeping housekeeping"
+    },
+    {
+      "Name": "Agency - Web",
+      "Guid": "agency-web-PRINCIPALNAME",
+      "Badge Text": "web",
+      "Working Directory": "REPO_ROOT",
+      "Custom Directory": "Yes",
+      "Background Color": {
+        "Red Component": 0.05,
+        "Green Component": 0.1,
+        "Blue Component": 0.05
+      },
+      "Tab Color": {
+        "Red Component": 0.2,
+        "Green Component": 0.7,
+        "Blue Component": 0.3
+      },
+      "Use Tab Color": true,
+      "Initial Text": "# Web agent session\n./tools/myclaude web web"
+    },
+    {
+      "Name": "Agency - Custom",
+      "Guid": "agency-custom-PRINCIPALNAME",
+      "Badge Text": "agency",
+      "Working Directory": "REPO_ROOT",
+      "Custom Directory": "Yes",
+      "Background Color": {
+        "Red Component": 0.08,
+        "Green Component": 0.05,
+        "Blue Component": 0.1
+      },
+      "Tab Color": {
+        "Red Component": 0.6,
+        "Green Component": 0.3,
+        "Blue Component": 0.7
+      },
+      "Use Tab Color": true
+    }
+  ]
+}
+PROFILES_EOF
+
+# Replace placeholders
+sed -i '' "s|PRINCIPALNAME|$PRINCIPALNAME|g" "$PROFILES_FILE"
+sed -i '' "s|REPO_ROOT|$REPO_ROOT|g" "$PROFILES_FILE"
+
+echo "Created profiles at: $PROFILES_FILE"
+
+# Create symlink in iTerm's DynamicProfiles directory
+LINK_NAME="$ITERM_DYNAMIC_DIR/agency-$PRINCIPALNAME-profiles.json"
+
+if [ -L "$LINK_NAME" ]; then
+  echo "Symlink already exists, updating..."
+  rm "$LINK_NAME"
+elif [ -f "$LINK_NAME" ]; then
+  echo "Warning: Regular file exists at $LINK_NAME"
+  echo "Please remove it manually to create symlink."
+  exit 1
+fi
+
+ln -s "$(pwd)/$PROFILES_FILE" "$LINK_NAME"
+echo "Created symlink: $LINK_NAME"
+
+echo ""
+echo "iTerm integration set up successfully!"
+echo ""
+echo "Profiles created:"
+echo "  - Agency - Housekeeping (blue tab)"
+echo "  - Agency - Web (green tab)"
+echo "  - Agency - Custom (purple tab)"
+echo ""
+echo "Open iTerm preferences > Profiles to see the new profiles."
+echo "You can also use: Cmd+O to open a new window with a specific profile."

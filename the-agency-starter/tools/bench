@@ -1,0 +1,73 @@
+#!/bin/bash
+# Launch AgencyBench desktop app
+#
+# Usage: ./tools/bench [command]
+#
+# Commands:
+#   (none)  - Run production app (default)
+#   dev     - Run in development mode with hot reload
+#   build   - Build production app
+#
+# The production app must be built first with 'build'
+
+set -e
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "bench $TOOL_VERSION"
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+BENCH_DIR="$REPO_ROOT/claude/apps/agency-bench"
+BUILD_BUNDLE="$BENCH_DIR/src-tauri/target/release/bundle/macos/AgencyBench.app"
+APP_BUNDLE="$REPO_ROOT/claude/apps/AgencyBench.app"
+
+if [ ! -d "$BENCH_DIR" ]; then
+  echo "Error: AgencyBench not found at $BENCH_DIR"
+  exit 1
+fi
+
+cd "$BENCH_DIR"
+
+case "${1:-run}" in
+  run|"")
+    if [ ! -d "$APP_BUNDLE" ]; then
+      echo "Production app not built yet. Building now..."
+      echo "(This takes a few minutes the first time)"
+      echo ""
+      npm run tauri:build 2>&1 | grep -E '(Compiling|Building|Finished|Bundling|Error|error)'
+      echo ""
+      echo "Installing to claude/apps/..."
+      rm -rf "$APP_BUNDLE"
+      cp -R "$BUILD_BUNDLE" "$APP_BUNDLE"
+    fi
+    echo "Launching AgencyBench..."
+    open "$APP_BUNDLE"
+    ;;
+  dev)
+    echo "Starting AgencyBench in development mode..."
+    npm run tauri:dev
+    ;;
+  build)
+    echo "Building AgencyBench..."
+    npm run tauri:build
+    echo ""
+    echo "Installing to claude/apps/..."
+    rm -rf "$APP_BUNDLE"
+    cp -R "$BUILD_BUNDLE" "$APP_BUNDLE"
+    echo "Installed: $APP_BUNDLE"
+    ;;
+  *)
+    echo "Usage: ./tools/bench [command]"
+    echo ""
+    echo "Commands:"
+    echo "  (none)  - Run production app (default)"
+    echo "  dev     - Run in development mode with hot reload"
+    echo "  build   - Build production app"
+    exit 1
+    ;;
+esac

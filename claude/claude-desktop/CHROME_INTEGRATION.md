@@ -2,6 +2,8 @@
 
 **Discovery:** Claude in Chrome extension already provides the browser automation we need!
 
+xxxxx
+
 ## What Claude in Chrome Does
 
 From [Claude in Chrome](https://claude.com/chrome):

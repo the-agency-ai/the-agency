@@ -8,78 +8,30 @@ This document covers running an Agency workshop — from pre-work instructions t
 
 ## Pre-Work (Send to Participants Before Workshop)
 
-### WhatsApp/Email Template
+### Email/Slack Template
 
 ```
-🚀 The Agency Workshop — Pre-Work
+Subject: Pre-Work for The Agency Workshop
 
-Hey! Before Friday's workshop, please complete these 3 things:
+Hi!
 
-━━━━━━━━━━━━━━━━━━━━━━━━━
+Before our workshop, please complete this one step:
 
-1️⃣ CLAUDE ACCOUNT (Required)
+**Get a Claude Account**
+1. Go to https://claude.ai
+2. Sign up for Claude Pro ($20/month) or Claude Max ($100-200/month)
+3. That's it!
 
-Sign up for Claude Pro ($20/mo) or Max ($100-200/mo):
-→ https://claude.ai
+Everything else happens during the workshop. We'll install all tools together.
 
-This is what powers the AI. Without it, you can't participate hands-on.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━
-
-2️⃣ GITHUB ACCOUNT (Required)
-
-If you don't have one, create a free account:
-→ https://github.com/signup
-
-We use GitHub for cloning and version control.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━
-
-3️⃣ GITHUB TOKEN (Required)
-
-Create a Personal Access Token so we can clone the framework:
-
-1. Go to: https://github.com/settings/tokens?type=beta
-2. Click "Generate new token"
-3. Name it: "agency-workshop"
-4. Expiration: 7 days (or custom date after Jan 9)
-5. Repository access: "All repositories" (read-only is fine)
-6. Permissions → Repository permissions → Contents: "Read-only"
-7. Click "Generate token"
-8. COPY THE TOKEN — you won't see it again!
-
-Save it somewhere safe. You'll paste it during the workshop.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━
-
-That's it! Everything else happens live. See you Friday! 🎉
+See you there!
 ```
 
-### Alternative: Facilitator-Provided Token
+### Why Just Claude Account?
 
-If you don't want participants creating their own tokens, use this simpler message:
-
-```
-🚀 The Agency Workshop — Pre-Work
-
-Before Friday's workshop, please complete these 2 things:
-
-1️⃣ CLAUDE ACCOUNT
-Sign up for Claude Pro ($20/mo) or Max:
-→ https://claude.ai
-
-2️⃣ GITHUB ACCOUNT
-Create a free account if you don't have one:
-→ https://github.com/signup
-
-That's it! I'll provide everything else during the workshop. See you Friday! 🎉
-```
-
-### Why These Requirements?
-
-- **Claude account:** Claude Code requires authentication (can't automate — requires payment)
-- **GitHub account:** Needed for git clone, version control
-- **GitHub token:** For private repo access (or facilitator provides workshop token)
+- Claude Code requires authentication with a Claude account
+- We can't automate account creation (requires payment)
+- Everything else (Claude Code, tools, setup) is automated
 
 ---
 
@@ -92,15 +44,9 @@ That's it! I'll provide everything else during the workshop. See you Friday! �
    - Set expiration for after workshop ends
    - This token goes in the install command
 
-2. **Prepare the one-liner** (for private repo access):
+2. **Prepare the one-liner:**
    ```bash
-   # Token goes in BOTH the curl URL AND the AGENCY_TOKEN env var
-   curl -fsSL "https://TOKEN@raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh" | AGENCY_TOKEN="TOKEN" bash -s -- my-project
-   ```
-
-   **Example with real token:**
-   ```bash
-   curl -fsSL "https://github_pat_xxx@raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh" | AGENCY_TOKEN="github_pat_xxx" bash -s -- my-project
+   AGENCY_TOKEN=ghp_xxxYOURTOKEN curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash -s -- my-project
    ```
 
 3. **Test the install** on a clean machine or VM if possible
@@ -124,10 +70,8 @@ That's it! I'll provide everything else during the workshop. See you Friday! �
 **Put this on screen:**
 
 ```bash
-curl -fsSL "https://TOKEN@raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh" | AGENCY_TOKEN="TOKEN" bash -s -- my-project
+AGENCY_TOKEN=ghp_xxx curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash -s -- my-project
 ```
-
-(Replace `TOKEN` with the actual workshop token)
 
 **What happens:**
 1. Installs Claude Code (if needed)
@@ -178,17 +122,10 @@ Suggested exercises:
 For easy copy-paste, here's the workshop command with placeholder:
 
 ```bash
-curl -fsSL "https://__TOKEN__@raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh" | AGENCY_TOKEN="__TOKEN__" bash -s -- my-project
+AGENCY_TOKEN=__TOKEN__ curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash -s -- my-project
 ```
 
 Replace `__TOKEN__` with your GitHub PAT before sharing.
-
-**Jan 9 Workshop Token:**
-```bash
-curl -fsSL "https://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@raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh" | AGENCY_TOKEN="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" bash -s -- my-project
-```
-
-Token expires: Mon, Jan 12 2026
 
 ---
 
@@ -215,15 +152,7 @@ Token expires: Mon, Jan 12 2026
 A: They can't participate in the hands-on portion. They can watch and pair with someone who has an account.
 
 **Q: What if the install fails?**
-A: Manual fallback (for private repo):
-```bash
-git clone https://TOKEN@github.com/the-agency-ai/the-agency-starter.git my-project
-cd my-project
-chmod +x tools/*
-./tools/myclaude housekeeping housekeeping
-```
-
-Manual fallback (for public repo):
+A: Manual fallback:
 ```bash
 git clone https://github.com/the-agency-ai/the-agency-starter.git my-project
 cd my-project

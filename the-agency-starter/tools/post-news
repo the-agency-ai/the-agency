@@ -6,6 +6,15 @@
 
 set -e
 
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "post-news $TOOL_VERSION"
+    exit 0
+fi
+
 # Auto-load .env.local if it exists
 if [[ -f ".env.local" ]]; then
   set -a

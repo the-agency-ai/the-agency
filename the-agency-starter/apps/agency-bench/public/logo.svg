@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <!-- Gradient for background -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#0f0f1a"/>
+    </radialGradient>
+    <!-- Glow filter for nodes -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Subtle glow for lines -->
+    <filter id="lineGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="0.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="url(#bgGrad)" stroke="#2a2a4a" stroke-width="1"/>
+
+  <!-- Connection lines (drawn first, behind nodes) -->
+  <g filter="url(#lineGlow)" opacity="0.6">
+    <!-- Principal to agents -->
+    <line x1="50" y1="45" x2="28" y2="28" stroke="#4a9eff" stroke-width="1"/>
+    <line x1="50" y1="45" x2="75" y2="32" stroke="#4a9eff" stroke-width="1"/>
+    <line x1="50" y1="45" x2="70" y2="70" stroke="#4a9eff" stroke-width="1"/>
+    <line x1="50" y1="45" x2="25" y2="65" stroke="#4a9eff" stroke-width="1"/>
+    <!-- Agent to agent connections (subtle) -->
+    <line x1="28" y1="28" x2="75" y2="32" stroke="#4a9eff" stroke-width="0.5" opacity="0.4"/>
+    <line x1="75" y1="32" x2="70" y2="70" stroke="#4a9eff" stroke-width="0.5" opacity="0.4"/>
+    <line x1="70" y1="70" x2="25" y2="65" stroke="#4a9eff" stroke-width="0.5" opacity="0.4"/>
+    <line x1="25" y1="65" x2="28" y2="28" stroke="#4a9eff" stroke-width="0.5" opacity="0.4"/>
+  </g>
+
+  <!-- Agent nodes (smaller, teal/blue) -->
+  <g filter="url(#glow)">
+    <!-- Top-left agent -->
+    <circle cx="28" cy="28" r="6" fill="#0d7377" stroke="#14ffec" stroke-width="1"/>
+    <!-- Top-right agent -->
+    <circle cx="75" cy="32" r="5" fill="#0d7377" stroke="#14ffec" stroke-width="1"/>
+    <!-- Bottom-right agent -->
+    <circle cx="70" cy="70" r="5.5" fill="#0d7377" stroke="#14ffec" stroke-width="1"/>
+    <!-- Bottom-left agent -->
+    <circle cx="25" cy="65" r="4.5" fill="#0d7377" stroke="#14ffec" stroke-width="1"/>
+  </g>
+
+  <!-- Principal node (larger, gold/amber, central) -->
+  <g filter="url(#glow)">
+    <circle cx="50" cy="45" r="10" fill="#b8860b" stroke="#ffd700" stroke-width="1.5"/>
+    <!-- Inner highlight -->
+    <circle cx="48" cy="43" r="3" fill="#ffd700" opacity="0.3"/>
+  </g>
+</svg>

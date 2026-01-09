@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-01-09-000003]
+
+## [2026-01-09-2]
+
 ### Added
 - MIT License
 - README.md

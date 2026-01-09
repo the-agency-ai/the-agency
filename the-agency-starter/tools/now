@@ -6,4 +6,14 @@
 # Each variation (date, TZ='...' date, date +%Y-%m-%d, etc.) requires separate approval.
 # This single script provides a consistent, pre-approved way to get timestamps.
 
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "now $TOOL_VERSION"
+    exit 0
+fi
+
 date "+%Y-%m-%d %H:%M:%S %Z"

@@ -1,0 +1,123 @@
+#!/bin/bash
+# Set up iCloud cloud storage integration for a project
+#
+# Usage: ./tools/setup-icloud <projectname> <principalname>
+#
+# Creates:
+#   ~/Library/Mobile Documents/com~apple~CloudDocs/claude/{projectname}/
+#     - misc/
+#     - {agent folders as they are created}
+#
+# Creates symlink:
+#   claude/principals/{principalname}/resources/cloud -> iCloud claude/{projectname}/
+
+set -e
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "setup-icloud $TOOL_VERSION"
+    exit 0
+fi
+
+PROJECTNAME="$1"
+PRINCIPALNAME="$2"
+
+if [ -z "$PROJECTNAME" ] || [ -z "$PRINCIPALNAME" ]; then
+  echo "Usage: ./tools/setup-icloud <projectname> <principalname>"
+  echo ""
+  echo "Examples:"
+  echo "  ./tools/setup-icloud the-agency jordan"
+  echo "  ./tools/setup-icloud ordinaryfolk-nextgen jordan"
+  echo ""
+  echo "This creates:"
+  echo "  1. iCloud Drive/claude/{projectname}/ folder"
+  echo "  2. Symlink from principals/{principalname}/resources/cloud to iCloud"
+  exit 1
+fi
+
+ICLOUD_BASE="$HOME/Library/Mobile Documents/com~apple~CloudDocs"
+ICLOUD_CLAUDE="$ICLOUD_BASE/claude"
+ICLOUD_PROJECT="$ICLOUD_CLAUDE/$PROJECTNAME"
+PRINCIPAL_DIR="claude/principals/$PRINCIPALNAME"
+RESOURCES_DIR="$PRINCIPAL_DIR/resources"
+CLOUD_LINK="$RESOURCES_DIR/cloud"
+
+# Check iCloud Drive exists
+if [ ! -d "$ICLOUD_BASE" ]; then
+  echo "Error: iCloud Drive not found at $ICLOUD_BASE"
+  echo "Make sure iCloud Drive is enabled on this Mac."
+  exit 1
+fi
+
+# Check principal exists
+if [ ! -d "$PRINCIPAL_DIR" ]; then
+  echo "Error: Principal '$PRINCIPALNAME' not found at $PRINCIPAL_DIR"
+  echo ""
+  echo "Create principal first or check the name."
+  exit 1
+fi
+
+# Create iCloud claude directory if needed
+if [ ! -d "$ICLOUD_CLAUDE" ]; then
+  echo "Creating iCloud claude directory..."
+  mkdir -p "$ICLOUD_CLAUDE"
+fi
+
+# Create project directory in iCloud
+if [ ! -d "$ICLOUD_PROJECT" ]; then
+  echo "Creating iCloud project directory: $ICLOUD_PROJECT"
+  mkdir -p "$ICLOUD_PROJECT/misc"
+
+  # Create folders for existing agents
+  if [ -d "claude/agents" ]; then
+    for agent_dir in claude/agents/*/; do
+      agent_name=$(basename "$agent_dir")
+      if [ "$agent_name" != "*" ]; then
+        echo "Creating agent folder: $agent_name"
+        mkdir -p "$ICLOUD_PROJECT/$agent_name"
+      fi
+    done
+  fi
+else
+  echo "iCloud project directory already exists: $ICLOUD_PROJECT"
+fi
+
+# Create resources directory if needed
+if [ ! -d "$RESOURCES_DIR" ]; then
+  echo "Creating resources directory: $RESOURCES_DIR"
+  mkdir -p "$RESOURCES_DIR"
+fi
+
+# Create or update symlink
+if [ -L "$CLOUD_LINK" ]; then
+  echo "Symlink already exists: $CLOUD_LINK"
+  echo "  Points to: $(readlink "$CLOUD_LINK")"
+  read -p "Replace symlink? [y/N] " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    rm "$CLOUD_LINK"
+  else
+    echo "Keeping existing symlink."
+    exit 0
+  fi
+elif [ -d "$CLOUD_LINK" ]; then
+  echo "Warning: $CLOUD_LINK is a directory, not a symlink."
+  echo "Please remove it manually if you want to create the symlink."
+  exit 1
+fi
+
+# Create the symlink
+echo "Creating symlink: $CLOUD_LINK -> $ICLOUD_PROJECT"
+ln -s "$ICLOUD_PROJECT" "$CLOUD_LINK"
+
+echo ""
+echo "iCloud integration set up successfully!"
+echo ""
+echo "Structure:"
+echo "  iCloud: ~/Library/Mobile Documents/com~apple~CloudDocs/claude/$PROJECTNAME/"
+echo "  Symlink: $CLOUD_LINK -> iCloud"
+echo ""
+echo "Files placed in $CLOUD_LINK will sync to iCloud."

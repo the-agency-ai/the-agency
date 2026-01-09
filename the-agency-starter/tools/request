@@ -1,0 +1,234 @@
+#!/bin/bash
+# Create a new request document
+#
+# Usage:
+#   ./tools/request --agent housekeeping --summary "fix logging"
+#   ./tools/request --agent web --summary "add dark mode" --priority High
+#   ./tools/request --agent housekeeping --summary "docs" --no-notify
+#
+# By default, sends a message to notify the assigned agent.
+# Use --no-notify to skip notification.
+
+set -e
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "request $TOOL_VERSION"
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+TEMPLATES_DIR="$REPO_ROOT/claude/templates"
+
+show_usage() {
+  echo "Usage: ./tools/request --agent <agent> --summary <summary> [options]"
+  echo ""
+  echo "Required:"
+  echo "  --agent, -a        Agent to assign this request to"
+  echo "  --summary, -s      Brief summary (used in filename and title)"
+  echo ""
+  echo "Options:"
+  echo "  --priority, -p     Priority: Low, Normal (default), High, Critical"
+  echo "  --principal        Override principal (defaults to PRINCIPAL env or config)"
+  echo "  --no-notify        Don't send notification message to agent"
+  echo "  --details, -d      Detailed description (if not provided, opens in editor)"
+  echo ""
+  echo "Examples:"
+  echo "  ./tools/request -a housekeeping -s 'Update documentation'"
+  echo "  ./tools/request -a web -s 'Add dark mode' -p High"
+  echo "  ./tools/request -a housekeeping -s 'Fix bug' --no-notify"
+  exit 1
+}
+
+# Determine principal
+get_principal() {
+  if [ -n "$PRINCIPAL" ]; then
+    echo "$PRINCIPAL"
+  else
+    local p=$("$REPO_ROOT/tools/principal" 2>/dev/null || echo "")
+    if [ -n "$p" ] && [ "$p" != "unknown" ]; then
+      echo "$p"
+    else
+      echo ""
+    fi
+  fi
+}
+
+# Get next request number by scanning existing files
+get_next_number() {
+  local highest=0
+
+  # Scan all REQUEST files in principals directory
+  shopt -s nullglob
+  for f in "$REPO_ROOT"/claude/principals/*/requests/REQUEST-*.md; do
+    if [ -f "$f" ]; then
+      # Extract number from filename: REQUEST-{PRINCIPAL}-{NUMBER}-...
+      local fname=$(basename "$f")
+      local num=$(echo "$fname" | sed -n 's/REQUEST-[^-]*-\([0-9]*\)-.*/\1/p')
+      if [ -n "$num" ]; then
+        num=$((10#$num))  # Force decimal interpretation
+        if [ "$num" -gt "$highest" ]; then
+          highest=$num
+        fi
+      fi
+    fi
+  done
+  shopt -u nullglob
+
+  echo $((highest + 1))
+}
+
+# Convert summary to filename-safe slug
+slugify() {
+  echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-' | cut -c1-50
+}
+
+# Parse arguments
+AGENT=""
+SUMMARY=""
+PRIORITY="Normal"
+PRINCIPAL_OVERRIDE=""
+NOTIFY=true
+DETAILS=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --agent|-a)
+      AGENT="$2"
+      shift 2
+      ;;
+    --summary|-s)
+      SUMMARY="$2"
+      shift 2
+      ;;
+    --priority|-p)
+      PRIORITY="$2"
+      shift 2
+      ;;
+    --principal)
+      PRINCIPAL_OVERRIDE="$2"
+      shift 2
+      ;;
+    --no-notify)
+      NOTIFY=false
+      shift
+      ;;
+    --details|-d)
+      DETAILS="$2"
+      shift 2
+      ;;
+    --help|-h)
+      show_usage
+      ;;
+    *)
+      echo "Unknown option: $1"
+      show_usage
+      ;;
+  esac
+done
+
+# Validate required arguments
+if [ -z "$AGENT" ] || [ -z "$SUMMARY" ]; then
+  echo "Error: --agent and --summary are required"
+  show_usage
+fi
+
+# Determine principal
+if [ -n "$PRINCIPAL_OVERRIDE" ]; then
+  REQ_PRINCIPAL="$PRINCIPAL_OVERRIDE"
+else
+  REQ_PRINCIPAL=$(get_principal)
+fi
+
+if [ -z "$REQ_PRINCIPAL" ]; then
+  echo "Error: Cannot determine principal. Set PRINCIPAL env var or use --principal."
+  exit 1
+fi
+
+# Determine requester (principal or agent if AGENTNAME is set)
+if [ -n "$AGENTNAME" ]; then
+  REQUESTED_BY="agent:$AGENTNAME (on behalf of $REQ_PRINCIPAL)"
+else
+  REQUESTED_BY="principal:$REQ_PRINCIPAL"
+fi
+
+# Get next number
+NUMBER=$(get_next_number)
+NUMBER_PADDED=$(printf "%04d" "$NUMBER")
+
+# Create filename
+SLUG=$(slugify "$SUMMARY")
+FILENAME="REQUEST-${REQ_PRINCIPAL}-${NUMBER_PADDED}-${AGENT}-${SLUG}.md"
+
+# Ensure requests directory exists
+REQUESTS_DIR="$REPO_ROOT/claude/principals/$REQ_PRINCIPAL/requests"
+mkdir -p "$REQUESTS_DIR"
+
+# Full path
+FILEPATH="$REQUESTS_DIR/$FILENAME"
+
+# Get current date
+DATE=$(date +%Y-%m-%d)
+
+# Generate content from template or inline
+CONTENT=$(cat <<EOF
+# REQUEST-${REQ_PRINCIPAL}-${NUMBER_PADDED}-${AGENT}-${SLUG}
+
+**Status:** Open
+**Priority:** ${PRIORITY}
+**Requested By:** ${REQUESTED_BY}
+**Assigned To:** ${AGENT}
+**Created:** ${DATE}
+**Updated:** ${DATE}
+
+## Summary
+
+${SUMMARY}
+
+## Details
+
+${DETAILS:-"<!-- Detailed description of what you're requesting -->"}
+
+## Acceptance Criteria
+
+<!-- How will we know when this is complete? -->
+- [ ] Criteria 1
+- [ ] Criteria 2
+
+## Notes
+
+<!-- Any additional context, constraints, or preferences -->
+
+---
+
+## Activity Log
+
+### ${DATE} - Created
+- Request created by ${REQUESTED_BY}
+EOF
+)
+
+# Write file
+echo "$CONTENT" > "$FILEPATH"
+
+echo "Created: $FILEPATH"
+
+# Notify agent if requested
+if [ "$NOTIFY" = true ]; then
+  if [ -f "$REPO_ROOT/tools/send-message" ]; then
+    "$REPO_ROOT/tools/send-message" --to "agent:$AGENT" --subject "New Request: $SUMMARY" \
+      "You have a new request: REQUEST-${REQ_PRINCIPAL}-${NUMBER_PADDED}
+
+Summary: $SUMMARY
+Priority: $PRIORITY
+From: $REQUESTED_BY
+
+View: claude/principals/$REQ_PRINCIPAL/requests/$FILENAME"
+    echo "Notification sent to agent:$AGENT"
+  else
+    echo "Warning: send-message tool not found, skipping notification"
+  fi
+fi

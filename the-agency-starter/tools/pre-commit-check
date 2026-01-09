@@ -21,6 +21,16 @@
 #   - typecheck (tsc --noEmit)
 #   - test (vitest)
 
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "pre-commit-check $TOOL_VERSION"
+    exit 0
+fi
+
 set -uo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

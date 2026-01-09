@@ -11,4 +11,14 @@
 #   Provides agent self-identification for scripts and prompts
 #   Part of two-variable system: AGENTNAME (who I am) + WORKSTREAM (what I work on)
 
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "whoami $TOOL_VERSION"
+    exit 0
+fi
+
 echo "${AGENTNAME:-unknown}"
