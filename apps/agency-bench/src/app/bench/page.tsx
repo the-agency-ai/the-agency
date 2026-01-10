@@ -10,6 +10,14 @@ const apps = [
     status: 'ready',
   },
   {
+    id: 'bugbench',
+    name: 'BugBench',
+    description: 'Report and track bugs across your project.',
+    href: '/bench/bugbench',
+    icon: '🐛',
+    status: 'ready',
+  },
+  {
     id: 'knowledge-indexer',
     name: 'Knowledge Indexer',
     description: 'Search and index KNOWLEDGE.md files across your project.',
@@ -91,11 +99,11 @@ export default function DashboardPage() {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="text-sm text-gray-500 mb-1">Version</div>
-          <div className="font-semibold text-gray-900">0.2.0</div>
+          <div className="font-semibold text-gray-900">1.0.0-20260110</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="text-sm text-gray-500 mb-1">AgencyBench</div>
-          <div className="font-semibold text-gray-900">0.1.0</div>
+          <div className="font-semibold text-gray-900">1.0.0-20260110</div>
         </div>
       </div>
     </div>
