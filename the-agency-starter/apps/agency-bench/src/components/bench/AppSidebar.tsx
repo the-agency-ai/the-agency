@@ -22,6 +22,13 @@ const devApps: DevApp[] = [
     icon: '📄',
   },
   {
+    id: 'bugbench',
+    name: 'BugBench',
+    href: '/bench/bugbench',
+    description: 'Report and track bugs',
+    icon: '🐛',
+  },
+  {
     id: 'knowledge-indexer',
     name: 'Knowledge Indexer',
     href: '/bench/knowledge-indexer',
@@ -219,8 +226,8 @@ export function AppSidebar() {
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-800 space-y-1">
-        <div className="text-xs text-gray-500">TheAgency v0.2.0</div>
-        <div className="text-xs text-gray-600">AgencyBench v0.1.0</div>
+        <div className="text-xs text-gray-500">TheAgency 1.0.0-20260110</div>
+        <div className="text-xs text-gray-600">AgencyBench 1.0.0-20260110</div>
       </div>
     </aside>
   );
