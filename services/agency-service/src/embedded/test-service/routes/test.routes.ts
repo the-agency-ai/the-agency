@@ -2,7 +2,7 @@
  * Test Routes
  *
  * HTTP API endpoints for test execution and history.
- * Follows the SOA pattern with singular naming (/api/test).
+ * Uses explicit operation names (not HTTP verb semantics).
  */
 
 import { Hono } from 'hono';
@@ -15,10 +15,23 @@ const logger = createServiceLogger('test-routes');
 export function createTestRoutes(testService: TestService) {
   const app = new Hono();
 
+  // Global error handler
+  app.onError((err, c) => {
+    logger.error({ error: err.message, stack: err.stack }, 'Test route error');
+    return c.json(
+      { error: 'Internal Server Error', message: 'An unexpected error occurred' },
+      500
+    );
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // Test Run Operations
+  // ─────────────────────────────────────────────────────────────
+
   /**
-   * POST /api/test/run - Start and execute a test run
+   * POST /test/run/execute - Start and execute a test run
    */
-  app.post('/run', async (c) => {
+  app.post('/run/execute', async (c) => {
     try {
       const body = await c.req.json();
       const request = createTestRunSchema.parse(body);
@@ -33,12 +46,12 @@ export function createTestRoutes(testService: TestService) {
       if (error instanceof Error && error.name === 'ZodError') {
         return c.json({ error: 'Invalid request', details: error }, 400);
       }
-      return c.json({ error: 'Failed to run tests' }, 500);
+      throw error;
     }
   });
 
   /**
-   * POST /api/test/run/start - Start a test run (without executing)
+   * POST /test/run/start - Start a test run (without executing)
    */
   app.post('/run/start', async (c) => {
     try {
@@ -53,14 +66,14 @@ export function createTestRoutes(testService: TestService) {
       if (error instanceof Error && error.name === 'ZodError') {
         return c.json({ error: 'Invalid request', details: error }, 400);
       }
-      return c.json({ error: 'Failed to start test run' }, 500);
+      throw error;
     }
   });
 
   /**
-   * POST /api/test/run/:id/execute - Execute a pending test run
+   * POST /test/run/execute/:id - Execute a pending test run
    */
-  app.post('/run/:id/execute', async (c) => {
+  app.post('/run/execute/:id', async (c) => {
     try {
       const id = c.req.param('id');
       const result = await testService.executeRun(id);
@@ -68,15 +81,14 @@ export function createTestRoutes(testService: TestService) {
       return c.json(result);
     } catch (error) {
       logger.error({ error }, 'Failed to execute test run');
-      const message = error instanceof Error ? error.message : 'Failed to execute';
-      return c.json({ error: message }, 500);
+      throw error;
     }
   });
 
   /**
-   * POST /api/test/run/:id/cancel - Cancel a running test
+   * POST /test/run/cancel/:id - Cancel a running test
    */
-  app.post('/run/:id/cancel', async (c) => {
+  app.post('/run/cancel/:id', async (c) => {
     try {
       const id = c.req.param('id');
       const cancelled = await testService.cancelRun(id);
@@ -88,14 +100,18 @@ export function createTestRoutes(testService: TestService) {
       return c.json({ cancelled: true });
     } catch (error) {
       logger.error({ error }, 'Failed to cancel test run');
-      return c.json({ error: 'Failed to cancel' }, 500);
+      throw error;
     }
   });
 
+  // ─────────────────────────────────────────────────────────────
+  // Test Run Queries
+  // ─────────────────────────────────────────────────────────────
+
   /**
-   * GET /api/test/run - List test runs
+   * GET /test/run/list - List test runs
    */
-  app.get('/run', async (c) => {
+  app.get('/run/list', async (c) => {
     try {
       const query = queryTestRunsSchema.parse({
         suite: c.req.query('suite'),
@@ -110,12 +126,12 @@ export function createTestRoutes(testService: TestService) {
       return c.json(result);
     } catch (error) {
       logger.error({ error }, 'Failed to list test runs');
-      return c.json({ error: 'Failed to list runs' }, 500);
+      throw error;
     }
   });
 
   /**
-   * GET /api/test/run/latest - Get the most recent test run
+   * GET /test/run/latest - Get the most recent test run
    */
   app.get('/run/latest', async (c) => {
     try {
@@ -129,14 +145,14 @@ export function createTestRoutes(testService: TestService) {
       return c.json(run);
     } catch (error) {
       logger.error({ error }, 'Failed to get latest run');
-      return c.json({ error: 'Failed to get latest run' }, 500);
+      throw error;
     }
   });
 
   /**
-   * GET /api/test/run/:id - Get a specific test run
+   * GET /test/run/get/:id - Get a specific test run
    */
-  app.get('/run/:id', async (c) => {
+  app.get('/run/get/:id', async (c) => {
     try {
       const id = c.req.param('id');
       const run = await testService.getRunWithResults(id);
@@ -148,14 +164,14 @@ export function createTestRoutes(testService: TestService) {
       return c.json(run);
     } catch (error) {
       logger.error({ error }, 'Failed to get test run');
-      return c.json({ error: 'Failed to get run' }, 500);
+      throw error;
     }
   });
 
   /**
-   * GET /api/test/run/:id/all - Get all results for a run
+   * GET /test/run/results/:id - Get all results for a run
    */
-  app.get('/run/:id/all', async (c) => {
+  app.get('/run/results/:id', async (c) => {
     try {
       const id = c.req.param('id');
       const run = await testService.getRunWithResults(id);
@@ -167,14 +183,14 @@ export function createTestRoutes(testService: TestService) {
       return c.json(run);
     } catch (error) {
       logger.error({ error }, 'Failed to get test results');
-      return c.json({ error: 'Failed to get results' }, 500);
+      throw error;
     }
   });
 
   /**
-   * GET /api/test/run/:id/failures - Get only failed results for a run
+   * GET /test/run/failures/:id - Get only failed results for a run
    */
-  app.get('/run/:id/failures', async (c) => {
+  app.get('/run/failures/:id', async (c) => {
     try {
       const id = c.req.param('id');
       const run = await testService.getFailedResults(id);
@@ -186,12 +202,16 @@ export function createTestRoutes(testService: TestService) {
       return c.json(run);
     } catch (error) {
       logger.error({ error }, 'Failed to get failed results');
-      return c.json({ error: 'Failed to get failures' }, 500);
+      throw error;
     }
   });
 
+  // ─────────────────────────────────────────────────────────────
+  // Statistics & Discovery
+  // ─────────────────────────────────────────────────────────────
+
   /**
-   * GET /api/test/stats - Get test statistics
+   * GET /test/stats - Get test statistics
    */
   app.get('/stats', async (c) => {
     try {
@@ -201,12 +221,12 @@ export function createTestRoutes(testService: TestService) {
       return c.json(stats);
     } catch (error) {
       logger.error({ error }, 'Failed to get test stats');
-      return c.json({ error: 'Failed to get stats' }, 500);
+      throw error;
     }
   });
 
   /**
-   * GET /api/test/flaky - Get flaky tests
+   * GET /test/flaky - Get flaky tests
    */
   app.get('/flaky', async (c) => {
     try {
@@ -216,12 +236,12 @@ export function createTestRoutes(testService: TestService) {
       return c.json({ tests: flaky });
     } catch (error) {
       logger.error({ error }, 'Failed to get flaky tests');
-      return c.json({ error: 'Failed to get flaky tests' }, 500);
+      throw error;
     }
   });
 
   /**
-   * GET /api/test/suites - Get available test suites
+   * GET /test/suites - Get available test suites
    */
   app.get('/suites', async (c) => {
     try {
@@ -230,22 +250,27 @@ export function createTestRoutes(testService: TestService) {
       return c.json({ suites });
     } catch (error) {
       logger.error({ error }, 'Failed to get suites');
-      return c.json({ error: 'Failed to get suites' }, 500);
+      throw error;
     }
   });
 
+  // ─────────────────────────────────────────────────────────────
+  // Maintenance
+  // ─────────────────────────────────────────────────────────────
+
   /**
-   * DELETE /api/test/cleanup - Clean up old test runs
+   * POST /test/cleanup - Clean up old test runs
    */
-  app.delete('/cleanup', async (c) => {
+  app.post('/cleanup', async (c) => {
     try {
-      const days = parseInt(c.req.query('days') || '30', 10);
+      const body = await c.req.json().catch(() => ({}));
+      const days = body.days || 30;
       const deleted = await testService.cleanup(days);
 
       return c.json({ deleted, message: `Deleted ${deleted} old test runs` });
     } catch (error) {
       logger.error({ error }, 'Failed to cleanup');
-      return c.json({ error: 'Failed to cleanup' }, 500);
+      throw error;
     }
   });
 

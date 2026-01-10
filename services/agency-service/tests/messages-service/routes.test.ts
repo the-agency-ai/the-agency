@@ -2,6 +2,7 @@
  * Message Routes Tests
  *
  * Tests for message HTTP API endpoints.
+ * Uses explicit operation names.
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
@@ -43,9 +44,9 @@ describe('Message Routes', () => {
     }
   });
 
-  describe('POST /api/message', () => {
+  describe('POST /api/message/send', () => {
     test('should create message', async () => {
-      const res = await app.request('/api/message', {
+      const res = await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -66,7 +67,7 @@ describe('Message Routes', () => {
     });
 
     test('should validate required fields', async () => {
-      const res = await app.request('/api/message', {
+      const res = await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -79,7 +80,7 @@ describe('Message Routes', () => {
     });
 
     test('should reject broadcast without recipients', async () => {
-      const res = await app.request('/api/message', {
+      const res = await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -96,11 +97,11 @@ describe('Message Routes', () => {
     });
   });
 
-  describe('GET /api/message', () => {
+  describe('GET /api/message/list', () => {
     beforeEach(async () => {
       // Create test messages
       for (let i = 0; i < 3; i++) {
-        await app.request('/api/message', {
+        await app.request('/api/message/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -115,7 +116,7 @@ describe('Message Routes', () => {
     });
 
     test('should list messages', async () => {
-      const res = await app.request('/api/message');
+      const res = await app.request('/api/message/list');
       expect(res.status).toBe(200);
 
       const data = await res.json();
@@ -124,7 +125,7 @@ describe('Message Routes', () => {
     });
 
     test('should paginate', async () => {
-      const res = await app.request('/api/message?limit=2&offset=0');
+      const res = await app.request('/api/message/list?limit=2&offset=0');
       expect(res.status).toBe(200);
 
       const data = await res.json();
@@ -133,9 +134,9 @@ describe('Message Routes', () => {
     });
   });
 
-  describe('GET /api/message/:id', () => {
+  describe('GET /api/message/get/:id', () => {
     test('should get message by ID', async () => {
-      const createRes = await app.request('/api/message', {
+      const createRes = await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -148,7 +149,7 @@ describe('Message Routes', () => {
       });
 
       const created = await createRes.json();
-      const res = await app.request(`/api/message/${created.id}`);
+      const res = await app.request(`/api/message/get/${created.id}`);
 
       expect(res.status).toBe(200);
       const data = await res.json();
@@ -156,19 +157,19 @@ describe('Message Routes', () => {
     });
 
     test('should return 404 for non-existent', async () => {
-      const res = await app.request('/api/message/99999');
+      const res = await app.request('/api/message/get/99999');
       expect(res.status).toBe(404);
     });
 
     test('should return 400 for invalid ID', async () => {
-      const res = await app.request('/api/message/invalid');
+      const res = await app.request('/api/message/get/invalid');
       expect(res.status).toBe(400);
     });
   });
 
   describe('GET /api/message/inbox/:recipientType/:recipientName', () => {
     test('should get inbox', async () => {
-      await app.request('/api/message', {
+      await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -189,7 +190,7 @@ describe('Message Routes', () => {
     });
 
     test('should filter unread only', async () => {
-      const createRes = await app.request('/api/message', {
+      const createRes = await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -203,7 +204,7 @@ describe('Message Routes', () => {
 
       const msg = await createRes.json();
 
-      await app.request('/api/message', {
+      await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -216,7 +217,7 @@ describe('Message Routes', () => {
       });
 
       // Mark one as read
-      await app.request(`/api/message/${msg.id}/read`, {
+      await app.request(`/api/message/mark-read/${msg.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -238,7 +239,7 @@ describe('Message Routes', () => {
 
   describe('GET /api/message/stats/:recipientType/:recipientName', () => {
     test('should get stats', async () => {
-      const msg1 = await app.request('/api/message', {
+      const msg1 = await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -251,7 +252,7 @@ describe('Message Routes', () => {
       });
       const created = await msg1.json();
 
-      await app.request('/api/message', {
+      await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -263,7 +264,7 @@ describe('Message Routes', () => {
         }),
       });
 
-      await app.request(`/api/message/${created.id}/read`, {
+      await app.request(`/api/message/mark-read/${created.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -281,9 +282,9 @@ describe('Message Routes', () => {
     });
   });
 
-  describe('POST /api/message/:id/read', () => {
+  describe('POST /api/message/mark-read/:id', () => {
     test('should mark message as read', async () => {
-      const createRes = await app.request('/api/message', {
+      const createRes = await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -296,7 +297,7 @@ describe('Message Routes', () => {
       });
       const msg = await createRes.json();
 
-      const res = await app.request(`/api/message/${msg.id}/read`, {
+      const res = await app.request(`/api/message/mark-read/${msg.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -311,10 +312,10 @@ describe('Message Routes', () => {
     });
   });
 
-  describe('POST /api/message/read-all', () => {
+  describe('POST /api/message/mark-all-read', () => {
     test('should mark all as read', async () => {
       for (let i = 0; i < 3; i++) {
-        await app.request('/api/message', {
+        await app.request('/api/message/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -327,7 +328,7 @@ describe('Message Routes', () => {
         });
       }
 
-      const res = await app.request('/api/message/read-all', {
+      const res = await app.request('/api/message/mark-all-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -343,9 +344,9 @@ describe('Message Routes', () => {
     });
   });
 
-  describe('DELETE /api/message/:id', () => {
+  describe('POST /api/message/delete/:id', () => {
     test('should delete message', async () => {
-      const createRes = await app.request('/api/message', {
+      const createRes = await app.request('/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -358,21 +359,21 @@ describe('Message Routes', () => {
       });
       const msg = await createRes.json();
 
-      const res = await app.request(`/api/message/${msg.id}`, {
-        method: 'DELETE',
+      const res = await app.request(`/api/message/delete/${msg.id}`, {
+        method: 'POST',
       });
 
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
 
-      const getRes = await app.request(`/api/message/${msg.id}`);
+      const getRes = await app.request(`/api/message/get/${msg.id}`);
       expect(getRes.status).toBe(404);
     });
 
     test('should return 404 for non-existent', async () => {
-      const res = await app.request('/api/message/99999', {
-        method: 'DELETE',
+      const res = await app.request('/api/message/delete/99999', {
+        method: 'POST',
       });
       expect(res.status).toBe(404);
     });

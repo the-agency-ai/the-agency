@@ -2,7 +2,7 @@
  * Log Routes
  *
  * HTTP API endpoints for log management.
- * Supports focused queries for tool run debugging.
+ * Uses explicit operation names (not HTTP verb semantics).
  */
 
 import { Hono } from 'hono';
@@ -20,28 +20,37 @@ import { createServiceLogger } from '../../../core/lib/logger';
 const logger = createServiceLogger('log-routes');
 
 /**
- * Create log routes
+ * Create log routes with explicit operation names
  */
 export function createLogRoutes(logService: LogService): Hono {
   const app = new Hono();
+
+  // Global error handler
+  app.onError((err, c) => {
+    logger.error({ error: err.message, stack: err.stack }, 'Log route error');
+    return c.json(
+      { error: 'Internal Server Error', message: 'An unexpected error occurred' },
+      500
+    );
+  });
 
   // ─────────────────────────────────────────────────────────────
   // Log Ingestion
   // ─────────────────────────────────────────────────────────────
 
   /**
-   * POST /log - Ingest a single log entry
+   * POST /log/ingest - Ingest a single log entry
    */
-  app.post('/', zValidator('json', createLogEntrySchema), async (c) => {
+  app.post('/ingest', zValidator('json', createLogEntrySchema), async (c) => {
     const data = c.req.valid('json');
     const entry = await logService.ingest(data);
     return c.json(entry, 201);
   });
 
   /**
-   * POST /log/batch - Ingest multiple log entries
+   * POST /log/ingest-batch - Ingest multiple log entries
    */
-  app.post('/batch', zValidator('json', batchCreateLogEntriesSchema), async (c) => {
+  app.post('/ingest-batch', zValidator('json', batchCreateLogEntriesSchema), async (c) => {
     const data = c.req.valid('json');
     const result = await logService.ingestBatch(data);
     logger.debug({ count: result.count }, 'Batch ingested');
@@ -53,21 +62,9 @@ export function createLogRoutes(logService: LogService): Hono {
   // ─────────────────────────────────────────────────────────────
 
   /**
-   * GET /log - Query logs with filters
-   *
-   * Query params:
-   *   service   - Filter by service name
-   *   level     - Filter by level (trace, debug, info, warn, error, fatal)
-   *   runId     - Filter by tool run ID
-   *   requestId - Filter by HTTP request ID
-   *   userId    - Filter by user
-   *   search    - Full-text search in message
-   *   since     - Time range start (1h, 24h, 7d, or ISO timestamp)
-   *   until     - Time range end (ISO timestamp)
-   *   limit     - Max results (default 100)
-   *   offset    - Pagination offset
+   * GET /log/query - Query logs with filters
    */
-  app.get('/', zValidator('query', queryLogsSchema), async (c) => {
+  app.get('/query', zValidator('query', queryLogsSchema), async (c) => {
     const query = c.req.valid('query');
     const result = await logService.query(query);
     return c.json(result);
@@ -116,10 +113,9 @@ export function createLogRoutes(logService: LogService): Hono {
   // ─────────────────────────────────────────────────────────────
 
   /**
-   * POST /log/run - Start a new tool run
-   * Returns run-id for logging correlation
+   * POST /log/run/start - Start a new tool run
    */
-  app.post('/run', zValidator('json', createToolRunSchema), async (c) => {
+  app.post('/run/start', zValidator('json', createToolRunSchema), async (c) => {
     const data = c.req.valid('json');
     const run = await logService.startToolRun(data);
     logger.info({ runId: run.runId, tool: data.tool }, 'Tool run started via API');
@@ -127,9 +123,9 @@ export function createLogRoutes(logService: LogService): Hono {
   });
 
   /**
-   * POST /log/run/:runId/end - End a tool run
+   * POST /log/run/end/:runId - End a tool run
    */
-  app.post('/run/:runId/end', zValidator('json', endToolRunSchema), async (c) => {
+  app.post('/run/end/:runId', zValidator('json', endToolRunSchema), async (c) => {
     const runId = c.req.param('runId');
     const data = c.req.valid('json');
     const run = await logService.endToolRun(runId, data);
@@ -143,10 +139,9 @@ export function createLogRoutes(logService: LogService): Hono {
   });
 
   /**
-   * GET /log/run/:runId - Get run details with logs
-   * Returns run info and log summary
+   * GET /log/run/get/:runId - Get run details with logs
    */
-  app.get('/run/:runId', async (c) => {
+  app.get('/run/get/:runId', async (c) => {
     const runId = c.req.param('runId');
     const details = await logService.getRunDetails(runId);
 
@@ -158,20 +153,18 @@ export function createLogRoutes(logService: LogService): Hono {
   });
 
   /**
-   * GET /log/run/:runId/all - Get ALL log lines for a run
-   * Focused query: returns just the logs, no metadata
+   * GET /log/run/logs/:runId - Get ALL log lines for a run
    */
-  app.get('/run/:runId/all', async (c) => {
+  app.get('/run/logs/:runId', async (c) => {
     const runId = c.req.param('runId');
     const logs = await logService.getRunLogs(runId, { errorsOnly: false });
     return c.json({ runId, count: logs.length, logs });
   });
 
   /**
-   * GET /log/run/:runId/errors - Get only ERROR lines for a run
-   * Focused query: returns just error/fatal logs
+   * GET /log/run/errors/:runId - Get only ERROR lines for a run
    */
-  app.get('/run/:runId/errors', async (c) => {
+  app.get('/run/errors/:runId', async (c) => {
     const runId = c.req.param('runId');
     const logs = await logService.getRunLogs(runId, { errorsOnly: true });
     return c.json({ runId, count: logs.length, logs });
