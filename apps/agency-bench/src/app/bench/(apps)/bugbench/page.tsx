@@ -36,6 +36,8 @@ export default function BugBenchPage() {
   const [selectedBug, setSelectedBug] = useState<Bug | null>(null);
   const [filter, setFilter] = useState<'all' | 'Open' | 'In Progress' | 'Fixed'>('all');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Form state
   const [newBug, setNewBug] = useState({
@@ -46,7 +48,7 @@ export default function BugBenchPage() {
     reporterName: '',
   });
 
-  const API_BASE = 'http://localhost:3456/api/bug';
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3456/api/bug';
 
   useEffect(() => {
     loadBugs();
@@ -68,9 +70,12 @@ export default function BugBenchPage() {
 
   async function createBug() {
     if (!newBug.summary.trim() || !newBug.reporterName.trim()) {
-      alert('Summary and reporter name are required');
+      setActionError('Summary and reporter name are required');
       return;
     }
+
+    setSubmitting(true);
+    setActionError(null);
 
     try {
       const response = await fetch(`${API_BASE}/create`, {
@@ -91,11 +96,16 @@ export default function BugBenchPage() {
       });
       loadBugs();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create bug');
+      setActionError(err instanceof Error ? err.message : 'Failed to create bug');
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function updateStatus(bugId: string, status: string) {
+    setSubmitting(true);
+    setActionError(null);
+
     try {
       const response = await fetch(`${API_BASE}/status/${bugId}`, {
         method: 'POST',
@@ -109,7 +119,9 @@ export default function BugBenchPage() {
         setSelectedBug({ ...selectedBug, status: status as Bug['status'] });
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update status');
+      setActionError(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setSubmitting(false);
     }
   }
 

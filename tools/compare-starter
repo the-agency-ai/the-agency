@@ -320,6 +320,17 @@ check_required_files() {
     return $missing
 }
 
+# Temp files for comparison (secure)
+TEMP_SOURCE_FILES=""
+TEMP_INSTALL_FILES=""
+
+cleanup_temp() {
+    [[ -n "$TEMP_SOURCE_FILES" && -f "$TEMP_SOURCE_FILES" ]] && rm -f "$TEMP_SOURCE_FILES"
+    [[ -n "$TEMP_INSTALL_FILES" && -f "$TEMP_INSTALL_FILES" ]] && rm -f "$TEMP_INSTALL_FILES"
+}
+
+trap cleanup_temp EXIT
+
 # Compare file lists
 compare_file_lists() {
     log_step "Comparing file lists..."
@@ -330,21 +341,23 @@ compare_file_lists() {
     source_files=$(get_file_list "$SOURCE_DIR")
     install_files=$(get_file_list "$INSTALL_DIR")
 
-    # Write to temp files for comm
-    echo "$source_files" > /tmp/compare_source_files.txt
-    echo "$install_files" > /tmp/compare_install_files.txt
+    # Write to secure temp files for comm
+    TEMP_SOURCE_FILES=$(mktemp)
+    TEMP_INSTALL_FILES=$(mktemp)
+    echo "$source_files" > "$TEMP_SOURCE_FILES"
+    echo "$install_files" > "$TEMP_INSTALL_FILES"
 
     # Find differences
     local only_in_source
     local only_in_install
 
-    only_in_source=$(comm -23 /tmp/compare_source_files.txt /tmp/compare_install_files.txt)
-    only_in_install=$(comm -13 /tmp/compare_source_files.txt /tmp/compare_install_files.txt)
+    only_in_source=$(comm -23 "$TEMP_SOURCE_FILES" "$TEMP_INSTALL_FILES")
+    only_in_install=$(comm -13 "$TEMP_SOURCE_FILES" "$TEMP_INSTALL_FILES")
 
     # Count files
     SOURCE_COUNT=$(echo "$source_files" | grep -c . || echo 0)
     INSTALL_COUNT=$(echo "$install_files" | grep -c . || echo 0)
-    COMMON_COUNT=$(comm -12 /tmp/compare_source_files.txt /tmp/compare_install_files.txt | grep -c . || echo 0)
+    COMMON_COUNT=$(comm -12 "$TEMP_SOURCE_FILES" "$TEMP_INSTALL_FILES" | grep -c . || echo 0)
 
     log_info "Source files:  $SOURCE_COUNT"
     log_info "Install files: $INSTALL_COUNT"
@@ -389,7 +402,7 @@ compare_contents() {
 
     # Get common files
     local common_files
-    common_files=$(comm -12 /tmp/compare_source_files.txt /tmp/compare_install_files.txt)
+    common_files=$(comm -12 "$TEMP_SOURCE_FILES" "$TEMP_INSTALL_FILES")
 
     while IFS= read -r file; do
         [[ -z "$file" ]] && continue
