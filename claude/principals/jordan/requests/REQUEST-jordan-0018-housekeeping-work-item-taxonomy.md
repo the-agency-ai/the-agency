@@ -158,13 +158,13 @@ Verify we're following the workflow.
 
 ### Phase 1: Document the Pattern
 - [x] Add Development Workflow to CLAUDE.md
-- [ ] Document tagging convention in CLAUDE.md
-- [ ] Create this REQUEST as the design doc
+- [x] Document tagging convention in CLAUDE.md
+- [x] Create this REQUEST as the design doc
 
 ### Phase 2: Build Core Tools
-- [ ] `tools/tag` - Tag creation helper
-- [ ] `tools/commit` - Commit creation helper
-- [ ] `tools/release` - Release automation
+- [x] `tools/tag` - Tag creation helper
+- [x] `tools/commit` - Commit creation helper
+- [x] `tools/release` - Release automation
 
 ### Phase 3: Build Validation
 - [ ] Update `tools/code-review`
@@ -173,6 +173,17 @@ Verify we're following the workflow.
 ---
 
 ## Activity Log
+
+### 2026-01-10 16:30 SST - Phase 1 & 2 Complete
+- Created `tools/tag` for stage tagging (impl, review, tests, complete)
+- Created `tools/commit` for formatted commits with work item refs
+- Created `tools/release` for release automation with changelog
+- Updated CLAUDE.md with Work Items section documenting:
+  - Work item types (REQUEST, BUG, ADHOC)
+  - REQUEST stages and tagging convention
+  - Tool usage examples
+- Historical tags left in place (pre-fix, post-fix, phase1, pre-review)
+- New tags going forward use standard stages
 
 ### 2026-01-10 15:45 SST - Created
 - Request created to establish work item taxonomy
