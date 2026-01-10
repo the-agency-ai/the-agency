@@ -23,6 +23,41 @@ Build **log-service** - a queryable log aggregation service that makes logs acce
 **Related Ideas:**
 - IDEA-jordan-00001: Context-efficient tool logging - Tools should log to log-service and return minimal output (1 line vs 231 lines), dramatically reducing context window consumption while maintaining debuggability.
 
+## Extended Scope: Tool Invocation Logging
+
+**Added 2026-01-10:** Track all tool invocations to understand agent behavior and optimize tooling.
+
+### What to Log
+- `./tools/*` invocations (myclaude, tag, commit, etc.)
+- Bash commands executed by agents
+- MCP tool calls
+- Duration, success/failure, exit codes
+
+### Goals
+- See what agents are doing
+- Identify high-frequency tool usage patterns
+- Find opportunities to reduce context/token usage
+- Make better, more effective tools
+
+### Tool Invocation Schema
+```typescript
+interface ToolInvocation {
+  id: string;
+  timestamp: Date;
+  toolType: 'agency-tool' | 'bash' | 'mcp';
+  toolName: string;           // e.g., "myclaude", "git", "Read"
+  args?: string[];
+  agentName?: string;
+  workstream?: string;
+  duration: number;           // ms
+  exitCode: number;
+  success: boolean;
+  outputSize: number;         // bytes (for context analysis)
+}
+```
+
+---
+
 ## Use Cases
 
 ### For Agents
@@ -31,6 +66,14 @@ Build **log-service** - a queryable log aggregation service that makes logs acce
 "What happened around request ID abc-123?"
 "Find all logs mentioning user jordan"
 "Show me the request/response for the failed API call"
+```
+
+### For Tool Analysis
+```
+"What tools are agents using most?"
+"Which tools produce the most output (context hogs)?"
+"What's the average duration of git operations?"
+"Show failed tool invocations in the last 24h"
 ```
 
 ### For Principals (via LogBench UI)
