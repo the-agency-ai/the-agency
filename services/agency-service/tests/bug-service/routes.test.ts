@@ -2,13 +2,13 @@
  * Bug Routes Tests
  *
  * Integration tests for bug API endpoints.
+ * Uses explicit operation names.
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { Hono } from 'hono';
 import { createSQLiteAdapter, type DatabaseAdapter } from '../../src/core/adapters/database';
 import { createBugService } from '../../src/embedded/bug-service';
-import { authMiddleware } from '../../src/core/middleware';
 import { unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 
@@ -49,9 +49,9 @@ describe('Bug Routes', () => {
     }
   });
 
-  describe('POST /api/bug', () => {
+  describe('POST /api/bug/create', () => {
     test('should create bug', async () => {
-      const res = await app.request('/api/bug', {
+      const res = await app.request('/api/bug/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -69,7 +69,7 @@ describe('Bug Routes', () => {
     });
 
     test('should return 400 for missing required fields', async () => {
-      const res = await app.request('/api/bug', {
+      const res = await app.request('/api/bug/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -84,9 +84,9 @@ describe('Bug Routes', () => {
     });
   });
 
-  describe('GET /api/bug', () => {
+  describe('GET /api/bug/list', () => {
     test('should list bugs', async () => {
-      const res = await app.request('/api/bug');
+      const res = await app.request('/api/bug/list');
 
       expect(res.status).toBe(200);
       const result = await res.json();
@@ -97,7 +97,7 @@ describe('Bug Routes', () => {
 
     test('should filter by workstream', async () => {
       // Create a bug in a specific workstream
-      await app.request('/api/bug', {
+      await app.request('/api/bug/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,7 +108,7 @@ describe('Bug Routes', () => {
         }),
       });
 
-      const res = await app.request('/api/bug?workstream=FILTER-TEST');
+      const res = await app.request('/api/bug/list?workstream=FILTER-TEST');
       expect(res.status).toBe(200);
 
       const result = await res.json();
@@ -129,10 +129,10 @@ describe('Bug Routes', () => {
     });
   });
 
-  describe('GET /api/bug/:bugId', () => {
+  describe('GET /api/bug/get/:bugId', () => {
     test('should get specific bug', async () => {
       // Create a bug first
-      const createRes = await app.request('/api/bug', {
+      const createRes = await app.request('/api/bug/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -144,7 +144,7 @@ describe('Bug Routes', () => {
       });
       const created = await createRes.json();
 
-      const res = await app.request(`/api/bug/${created.bugId}`);
+      const res = await app.request(`/api/bug/get/${created.bugId}`);
       expect(res.status).toBe(200);
 
       const bug = await res.json();
@@ -152,19 +152,19 @@ describe('Bug Routes', () => {
     });
 
     test('should return 404 for non-existent bug', async () => {
-      const res = await app.request('/api/bug/FAKE-99999');
+      const res = await app.request('/api/bug/get/FAKE-99999');
       expect(res.status).toBe(404);
     });
   });
 
-  describe('PATCH /api/bug/:bugId', () => {
+  describe('POST /api/bug/update/:bugId', () => {
     test('should update bug', async () => {
       // Create a bug first
-      const createRes = await app.request('/api/bug', {
+      const createRes = await app.request('/api/bug/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          workstream: 'patch-test',
+          workstream: 'update-test',
           summary: 'Original summary',
           reporterType: 'agent',
           reporterName: 'test',
@@ -172,8 +172,8 @@ describe('Bug Routes', () => {
       });
       const created = await createRes.json();
 
-      const res = await app.request(`/api/bug/${created.bugId}`, {
-        method: 'PATCH',
+      const res = await app.request(`/api/bug/update/${created.bugId}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           summary: 'Updated summary',
@@ -188,10 +188,10 @@ describe('Bug Routes', () => {
     });
   });
 
-  describe('PATCH /api/bug/:bugId/status', () => {
+  describe('POST /api/bug/update-status/:bugId', () => {
     test('should update status', async () => {
       // Create a bug first
-      const createRes = await app.request('/api/bug', {
+      const createRes = await app.request('/api/bug/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -203,8 +203,8 @@ describe('Bug Routes', () => {
       });
       const created = await createRes.json();
 
-      const res = await app.request(`/api/bug/${created.bugId}/status`, {
-        method: 'PATCH',
+      const res = await app.request(`/api/bug/update-status/${created.bugId}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'Fixed' }),
       });
@@ -215,7 +215,7 @@ describe('Bug Routes', () => {
     });
 
     test('should return 400 for invalid status', async () => {
-      const createRes = await app.request('/api/bug', {
+      const createRes = await app.request('/api/bug/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -227,8 +227,8 @@ describe('Bug Routes', () => {
       });
       const created = await createRes.json();
 
-      const res = await app.request(`/api/bug/${created.bugId}/status`, {
-        method: 'PATCH',
+      const res = await app.request(`/api/bug/update-status/${created.bugId}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'InvalidStatus' }),
       });
@@ -237,10 +237,10 @@ describe('Bug Routes', () => {
     });
   });
 
-  describe('PATCH /api/bug/:bugId/assign', () => {
+  describe('POST /api/bug/assign/:bugId', () => {
     test('should assign bug', async () => {
       // Create a bug first
-      const createRes = await app.request('/api/bug', {
+      const createRes = await app.request('/api/bug/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -252,8 +252,8 @@ describe('Bug Routes', () => {
       });
       const created = await createRes.json();
 
-      const res = await app.request(`/api/bug/${created.bugId}/assign`, {
-        method: 'PATCH',
+      const res = await app.request(`/api/bug/assign/${created.bugId}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assigneeName: 'housekeeping',
@@ -267,10 +267,10 @@ describe('Bug Routes', () => {
     });
   });
 
-  describe('DELETE /api/bug/:bugId', () => {
+  describe('POST /api/bug/delete/:bugId', () => {
     test('should delete bug', async () => {
       // Create a bug first
-      const createRes = await app.request('/api/bug', {
+      const createRes = await app.request('/api/bug/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -282,14 +282,14 @@ describe('Bug Routes', () => {
       });
       const created = await createRes.json();
 
-      const res = await app.request(`/api/bug/${created.bugId}`, {
-        method: 'DELETE',
+      const res = await app.request(`/api/bug/delete/${created.bugId}`, {
+        method: 'POST',
       });
 
       expect(res.status).toBe(200);
 
       // Verify it's gone
-      const getRes = await app.request(`/api/bug/${created.bugId}`);
+      const getRes = await app.request(`/api/bug/get/${created.bugId}`);
       expect(getRes.status).toBe(404);
     });
   });

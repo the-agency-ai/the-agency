@@ -111,6 +111,34 @@ Generated with [Claude Code](https://claude.com/claude-code)
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
+### API Design (Explicit Operations)
+All API endpoints use explicit operation names. Do NOT rely on HTTP verb semantics.
+
+**Pattern:**
+```
+POST /api/resource/create      # Create
+GET  /api/resource/list        # List with filters
+GET  /api/resource/get/:id     # Get single
+POST /api/resource/update/:id  # Update
+POST /api/resource/delete/:id  # Delete
+POST /api/resource/action/:id  # Specific actions (approve, archive, etc.)
+GET  /api/resource/stats       # Statistics
+```
+
+**Why explicit operations:**
+- Self-documenting URLs
+- Clear intent without needing to know HTTP semantics
+- Easier to grep/search for operations
+- Consistent across all services
+
+**Anti-patterns (do NOT use):**
+```
+POST   /api/resource           # Ambiguous - is this create?
+PATCH  /api/resource/:id       # Relies on verb semantics
+DELETE /api/resource/:id       # Relies on verb semantics
+GET    /api/resource/:id       # Ambiguous - use /get/:id
+```
+
 ### Quality Gates
 Pre-commit hooks enforce:
 1. Code formatting
@@ -118,6 +146,7 @@ Pre-commit hooks enforce:
 3. Type checking
 4. Unit tests
 5. Code review checks
+6. API design patterns
 
 ## Starter Packs
 

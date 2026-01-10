@@ -2,6 +2,7 @@
  * Bug Routes
  *
  * HTTP API endpoints for bug management.
+ * Uses explicit operation names (not HTTP verb semantics).
  */
 
 import { Hono } from 'hono';
@@ -24,7 +25,7 @@ const assignBugSchema = z.object({
 });
 
 /**
- * Create bug routes
+ * Create bug routes with explicit operation names
  */
 export function createBugRoutes(bugService: BugService): Hono {
   const app = new Hono();
@@ -33,46 +34,15 @@ export function createBugRoutes(bugService: BugService): Hono {
   app.onError((err, c) => {
     logger.error({ error: err.message, stack: err.stack }, 'Bug route error');
     return c.json(
-      { error: 'Internal Server Error', message: err.message },
+      { error: 'Internal Server Error', message: 'An unexpected error occurred' },
       500
     );
   });
 
   /**
-   * GET /bugs - List bugs
+   * POST /bug/create - Create a new bug
    */
-  app.get('/', zValidator('query', listBugsQuerySchema), async (c) => {
-    const query = c.req.valid('query');
-    const result = await bugService.listBugs(query);
-    return c.json(result);
-  });
-
-  /**
-   * GET /bugs/stats - Get bug statistics
-   */
-  app.get('/stats', async (c) => {
-    const stats = await bugService.getStats();
-    return c.json(stats);
-  });
-
-  /**
-   * GET /bugs/:bugId - Get a specific bug
-   */
-  app.get('/:bugId', async (c) => {
-    const bugId = c.req.param('bugId');
-    const bug = await bugService.getBug(bugId);
-
-    if (!bug) {
-      return c.json({ error: 'Not Found', message: `Bug ${bugId} not found` }, 404);
-    }
-
-    return c.json(bug);
-  });
-
-  /**
-   * POST /bugs - Create a new bug
-   */
-  app.post('/', zValidator('json', createBugSchema), async (c) => {
+  app.post('/create', zValidator('json', createBugSchema), async (c) => {
     const data = c.req.valid('json');
     const user = c.get('user');
 
@@ -91,9 +61,32 @@ export function createBugRoutes(bugService: BugService): Hono {
   });
 
   /**
-   * PATCH /bugs/:bugId - Update a bug
+   * GET /bug/list - List bugs with filters
    */
-  app.patch('/:bugId', zValidator('json', updateBugSchema), async (c) => {
+  app.get('/list', zValidator('query', listBugsQuerySchema), async (c) => {
+    const query = c.req.valid('query');
+    const result = await bugService.listBugs(query);
+    return c.json(result);
+  });
+
+  /**
+   * GET /bug/get/:bugId - Get a specific bug
+   */
+  app.get('/get/:bugId', async (c) => {
+    const bugId = c.req.param('bugId');
+    const bug = await bugService.getBug(bugId);
+
+    if (!bug) {
+      return c.json({ error: 'Not Found', message: `Bug ${bugId} not found` }, 404);
+    }
+
+    return c.json(bug);
+  });
+
+  /**
+   * POST /bug/update/:bugId - Update a bug
+   */
+  app.post('/update/:bugId', zValidator('json', updateBugSchema), async (c) => {
     const bugId = c.req.param('bugId');
     const data = c.req.valid('json');
 
@@ -108,9 +101,9 @@ export function createBugRoutes(bugService: BugService): Hono {
   });
 
   /**
-   * PATCH /bugs/:bugId/status - Update bug status
+   * POST /bug/update-status/:bugId - Update bug status
    */
-  app.patch('/:bugId/status', zValidator('json', updateStatusSchema), async (c) => {
+  app.post('/update-status/:bugId', zValidator('json', updateStatusSchema), async (c) => {
     const bugId = c.req.param('bugId');
     const { status } = c.req.valid('json');
 
@@ -125,9 +118,9 @@ export function createBugRoutes(bugService: BugService): Hono {
   });
 
   /**
-   * PATCH /bugs/:bugId/assign - Assign a bug
+   * POST /bug/assign/:bugId - Assign a bug
    */
-  app.patch('/:bugId/assign', zValidator('json', assignBugSchema), async (c) => {
+  app.post('/assign/:bugId', zValidator('json', assignBugSchema), async (c) => {
     const bugId = c.req.param('bugId');
     const { assigneeType, assigneeName } = c.req.valid('json');
 
@@ -142,9 +135,9 @@ export function createBugRoutes(bugService: BugService): Hono {
   });
 
   /**
-   * DELETE /bugs/:bugId - Delete a bug
+   * POST /bug/delete/:bugId - Delete a bug
    */
-  app.delete('/:bugId', async (c) => {
+  app.post('/delete/:bugId', async (c) => {
     const bugId = c.req.param('bugId');
     const deleted = await bugService.deleteBug(bugId);
 
@@ -154,6 +147,14 @@ export function createBugRoutes(bugService: BugService): Hono {
 
     logger.info({ bugId }, 'Bug deleted via API');
     return c.json({ success: true, bugId });
+  });
+
+  /**
+   * GET /bug/stats - Get bug statistics
+   */
+  app.get('/stats', async (c) => {
+    const stats = await bugService.getStats();
+    return c.json(stats);
   });
 
   return app;

@@ -154,16 +154,16 @@ export class ProductRepository {
   }
 
   async getNextPrdId(): Promise<string> {
-    const row = await this.db.get<SequenceRow>(
-      'SELECT next_id FROM product_sequences WHERE id = 1'
-    );
-
-    const nextId = row?.next_id || 1;
-
+    // Atomic increment - UPDATE first, then SELECT the previous value
     await this.db.execute(
       'UPDATE product_sequences SET next_id = next_id + 1 WHERE id = 1'
     );
 
+    const row = await this.db.get<SequenceRow>(
+      'SELECT next_id - 1 as next_id FROM product_sequences WHERE id = 1'
+    );
+
+    const nextId = row?.next_id || 1;
     return `PRD-${String(nextId).padStart(4, '0')}`;
   }
 

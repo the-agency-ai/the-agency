@@ -17,7 +17,7 @@
 set -euo pipefail
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.1.0-20260110-000001"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -91,6 +91,19 @@ if [ -n "$TODO_WITHOUT_ISSUE" ]; then
   echo "⚠️  WARNING: TODO/FIXME without issue reference"
   echo "$TODO_WITHOUT_ISSUE" | head -2
   echo "   Link TODOs to issues (e.g., TODO: #123)"
+  echo ""
+fi
+
+# Check 6: API design patterns (explicit operations)
+echo "→ Checking for API anti-patterns..."
+# Check for RESTful patterns that should be explicit (in route files)
+API_ANTIPATTERN=$(echo "$STAGED_DIFF" | grep -E '^\+.*app\.(post|patch|delete|put)\s*\(\s*['"'"'"]/:' | grep -v '/create\|/update\|/delete\|/list\|/get\|/add-\|/remove-' || true)
+if [ -n "$API_ANTIPATTERN" ]; then
+  WARNING_COUNT=$((WARNING_COUNT + 1))
+  echo "⚠️  WARNING: API route uses verb semantics instead of explicit operations"
+  echo "$API_ANTIPATTERN" | head -3
+  echo "   Use explicit operations: /create, /update/:id, /delete/:id, /get/:id"
+  echo "   See CLAUDE.md 'API Design (Explicit Operations)'"
   echo ""
 fi
 

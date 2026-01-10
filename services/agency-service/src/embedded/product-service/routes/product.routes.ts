@@ -29,7 +29,7 @@ export function createProductRoutes(productService: ProductService): Hono {
   app.onError((err, c) => {
     logger.error({ error: err.message, stack: err.stack }, 'Product route error');
     return c.json(
-      { error: 'Internal Server Error', message: err.message },
+      { error: 'Internal Server Error', message: 'An unexpected error occurred' },
       500
     );
   });
