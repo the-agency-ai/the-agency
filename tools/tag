@@ -19,7 +19,13 @@
 
 set -e
 
-TOOL_VERSION="1.0.0"
+TOOL_VERSION="1.0.1"
+
+# Source log helper for tool tracking
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -98,6 +104,12 @@ ITEM="$1"
 STAGE="$2"
 SUFFIX="${3:-}"
 
+# Start logging
+LOG_RUN_ID=""
+if type log_start &>/dev/null; then
+    LOG_RUN_ID=$(log_start "tag" "agency-tool" "$ITEM" "$STAGE" "$SUFFIX")
+fi
+
 # Determine tag format
 if [ "$ITEM" = "release" ]; then
     # Release tag
@@ -159,6 +171,10 @@ if [ "$DRY_RUN" = true ]; then
     if [ "$PUSH" = true ]; then
         echo "[DRY RUN] Would push to remote"
     fi
+    # End logging for dry run
+    if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
+        log_end "$LOG_RUN_ID" "success" "0" "0" "Dry run: $TAG_NAME"
+    fi
 else
     git tag -a "$TAG_NAME" -m "$TAG_MESSAGE"
     echo -e "${GREEN}Created tag: $TAG_NAME${NC}"
@@ -168,5 +184,10 @@ else
         echo -e "${GREEN}Pushed tag to remote${NC}"
     else
         echo -e "${YELLOW}Tip: Use --push to push to remote, or run: git push origin $TAG_NAME${NC}"
+    fi
+
+    # End logging
+    if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
+        log_end "$LOG_RUN_ID" "success" "0" "0" "Created tag: $TAG_NAME"
     fi
 fi

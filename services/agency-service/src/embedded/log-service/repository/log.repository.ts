@@ -49,6 +49,13 @@ interface ToolRunRow {
   summary: string | null;
   user_id: string | null;
   user_type: string | null;
+  // REQUEST-0012 additions
+  tool_type: string | null;
+  args: string | null;        // JSON array
+  agent_name: string | null;
+  workstream: string | null;
+  exit_code: number | null;
+  output_size: number | null;
 }
 
 /**
@@ -86,19 +93,43 @@ function rowToLogEntry(row: LogEntryRow): LogEntry {
 }
 
 /**
- * Convert database row to ToolRun entity
+ * Convert database row to ToolRun entity (Enhanced per REQUEST-0012)
  */
 function rowToToolRun(row: ToolRunRow): ToolRun {
-  return {
+  const startedAt = new Date(row.started_at);
+  const endedAt = row.ended_at ? new Date(row.ended_at) : undefined;
+
+  const run: ToolRun = {
     runId: row.run_id,
     tool: row.tool,
-    startedAt: new Date(row.started_at),
-    endedAt: row.ended_at ? new Date(row.ended_at) : undefined,
+    startedAt,
+    endedAt,
     status: row.status as ToolRun['status'],
     summary: row.summary || undefined,
     userId: row.user_id || undefined,
     userType: row.user_type as ToolRun['userType'],
   };
+
+  // REQUEST-0012 additions
+  if (row.tool_type) run.toolType = row.tool_type as ToolRun['toolType'];
+  if (row.args) {
+    try {
+      run.args = JSON.parse(row.args);
+    } catch {
+      // Ignore parse errors
+    }
+  }
+  if (row.agent_name) run.agentName = row.agent_name;
+  if (row.workstream) run.workstream = row.workstream;
+  if (row.exit_code !== null) run.exitCode = row.exit_code;
+  if (row.output_size !== null) run.outputSize = row.output_size;
+
+  // Calculate duration if we have both start and end times
+  if (endedAt) {
+    run.duration = endedAt.getTime() - startedAt.getTime();
+  }
+
+  return run;
 }
 
 export class LogRepository {
@@ -156,7 +187,7 @@ export class LogRepository {
       END
     `);
 
-    // Tool runs table
+    // Tool runs table (Enhanced per REQUEST-0012)
     await this.db.execute(`
       CREATE TABLE IF NOT EXISTS tool_runs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,9 +198,26 @@ export class LogRepository {
         status TEXT DEFAULT 'running',
         summary TEXT,
         user_id TEXT,
-        user_type TEXT
+        user_type TEXT,
+        -- REQUEST-0012 additions
+        tool_type TEXT,       -- agency-tool, bash, mcp
+        args TEXT,            -- JSON array of arguments
+        agent_name TEXT,      -- Which agent made the call
+        workstream TEXT,      -- Work context
+        exit_code INTEGER,    -- Process exit code (0-255)
+        output_size INTEGER   -- Output size in bytes
       )
     `);
+
+    // Migration: add new columns if they don't exist (for existing DBs)
+    const columns = ['tool_type', 'args', 'agent_name', 'workstream', 'exit_code', 'output_size'];
+    for (const col of columns) {
+      try {
+        await this.db.execute(`ALTER TABLE tool_runs ADD COLUMN ${col} ${col.includes('code') || col.includes('size') ? 'INTEGER' : 'TEXT'}`);
+      } catch {
+        // Column already exists, ignore
+      }
+    }
 
     // Indexes
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_log_timestamp ON log_entries(timestamp DESC)`);
@@ -385,15 +433,25 @@ export class LogRepository {
   }
 
   /**
-   * Create a tool run
+   * Create a tool run (Enhanced per REQUEST-0012)
    */
   async createToolRun(data: CreateToolRunRequest): Promise<ToolRun> {
     const runId = randomUUID();
+    const argsJson = data.args ? JSON.stringify(data.args) : null;
 
     await this.db.execute(
-      `INSERT INTO tool_runs (run_id, tool, user_id, user_type)
-       VALUES (?, ?, ?, ?)`,
-      [runId, data.tool, data.userId || null, data.userType || null]
+      `INSERT INTO tool_runs (run_id, tool, user_id, user_type, tool_type, args, agent_name, workstream)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        runId,
+        data.tool,
+        data.userId || null,
+        data.userType || null,
+        data.toolType || null,
+        argsJson,
+        data.agentName || null,
+        data.workstream || null,
+      ]
     );
 
     const row = await this.db.get<ToolRunRow>(
@@ -401,12 +459,12 @@ export class LogRepository {
       [runId]
     );
 
-    logger.debug({ runId, tool: data.tool }, 'Tool run started');
+    logger.debug({ runId, tool: data.tool, toolType: data.toolType }, 'Tool run started');
     return rowToToolRun(row!);
   }
 
   /**
-   * End a tool run
+   * End a tool run (Enhanced per REQUEST-0012)
    */
   async endToolRun(runId: string, data: EndToolRunRequest): Promise<ToolRun | null> {
     const existing = await this.db.get<ToolRunRow>(
@@ -419,9 +477,15 @@ export class LogRepository {
     }
 
     await this.db.update(
-      `UPDATE tool_runs SET ended_at = datetime('now'), status = ?, summary = ?
+      `UPDATE tool_runs SET ended_at = datetime('now'), status = ?, summary = ?, exit_code = ?, output_size = ?
        WHERE run_id = ?`,
-      [data.status, data.summary || null, runId]
+      [
+        data.status,
+        data.summary || null,
+        data.exitCode ?? null,
+        data.outputSize ?? null,
+        runId,
+      ]
     );
 
     const row = await this.db.get<ToolRunRow>(
@@ -429,7 +493,7 @@ export class LogRepository {
       [runId]
     );
 
-    logger.debug({ runId, status: data.status }, 'Tool run ended');
+    logger.debug({ runId, status: data.status, exitCode: data.exitCode, outputSize: data.outputSize }, 'Tool run ended');
     return rowToToolRun(row!);
   }
 

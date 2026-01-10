@@ -201,6 +201,22 @@ All 7 items completed:
 
 **Build Status:** Verified - TypeScript check passes
 
+### 2026-01-10 - Additional Items (housekeeping)
+
+**#8 Replace Date with Principal Name** - Updated Header.tsx to display Principal Name instead of date in the header bar. Shows "No principal set" when not configured. Applies to all AgencyBench pages (Dashboard, DocBench, BugBench, etc.) since they share the same Header component.
+
+**#9 Reorganize DocBench Toolbar** - Moved Create Document functionality from the sidebar to the content area:
+- Removed Create (+) button from directory browser sidebar header
+- Added "Create" menu to the toolbar when viewing/editing a file
+- When no file selected, content area now shows prominent Create options grid (REQUEST, OBSERVE, NOTE) instead of just "Select a file"
+- Added keyboard shortcut hint (Cmd+E) directly on the Edit/Preview toggle button
+
+**Files Modified:**
+- `apps/agency-bench/src/components/bench/Header.tsx` - Principal name display
+- `the-agency-starter/apps/agency-bench/src/app/bench/(apps)/docbench/page.tsx` - Toolbar reorganization
+
+**Build Status:** Verified - TypeScript check passes
+
 ### 2026-01-10 17:00 SST - Created
 - Request created with 7 enhancement items
 - Prioritized blockers (#6, #7) first

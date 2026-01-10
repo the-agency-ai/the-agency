@@ -54,6 +54,15 @@ function DocBenchContent() {
   const [pendingImagePath, setPendingImagePath] = useState<string | null>(null);
   const [imageAltText, setImageAltText] = useState('');
 
+  // Web link modal state
+  const [showWebLinkModal, setShowWebLinkModal] = useState(false);
+  const [webLinkUrl, setWebLinkUrl] = useState('');
+  const [webLinkText, setWebLinkText] = useState('');
+
+  // Object reference modal state
+  const [showObjectRefModal, setShowObjectRefModal] = useState<'bug' | 'request' | null>(null);
+  const [objectRefId, setObjectRefId] = useState('');
+
   // Settings modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsPrincipalName, setSettingsPrincipalName] = useState('');
@@ -63,6 +72,14 @@ function DocBenchContent() {
   const [createObservation, setCreateObservation] = useState('');
   const [createFilename, setCreateFilename] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+
+  // Template modal state
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templates] = useState([
+    { id: 'bug-report', name: 'Bug Report', description: 'Report a bug or issue' },
+    { id: 'meeting-notes', name: 'Meeting Notes', description: 'Notes from a meeting' },
+    { id: 'decision-record', name: 'Decision Record', description: 'Document a decision' },
+  ]);
 
   // Client-side Tauri detection (avoids hydration mismatch)
   const [isTauriClient, setIsTauriClient] = useState<boolean | null>(null); // null = not yet determined
@@ -568,6 +585,52 @@ function DocBenchContent() {
     }
   };
 
+  // Handle Insert > Document reference from menu
+  const handleInsertDocumentRef = async () => {
+    setShowInsertMenu(false);
+    if (!isTauriClient) {
+      alert('Document reference requires Tauri mode');
+      return;
+    }
+
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Documents', extensions: ['md', 'png', 'svg'] }],
+        defaultPath: projectRoot,
+        title: 'Select document to reference',
+      });
+
+      if (selected && typeof selected === 'string') {
+        // Make path relative to project root
+        const relativePath = selected.startsWith(projectRoot)
+          ? selected.replace(projectRoot + '/', '')
+          : selected;
+        const filename = selected.split('/').pop() || relativePath;
+        const linkMarkdown = `[${filename}](/${relativePath})`;
+
+        // Insert at cursor position
+        if (isEditing && textareaRef.current) {
+          const textarea = textareaRef.current;
+          const pos = textarea.selectionStart;
+          const newContent = editContent.substring(0, pos) + linkMarkdown + editContent.substring(pos);
+          setEditContent(newContent);
+          setHasUnsavedChanges(true);
+        } else {
+          const newContent = content + '\n' + linkMarkdown;
+          setEditContent(newContent);
+          setContent(newContent);
+          setHasUnsavedChanges(true);
+          setIsEditing(true);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to select document:', err);
+      alert(`Failed to select document: ${err}`);
+    }
+  };
+
   // Complete image insertion after alt-text is provided
   const completeImageInsertion = async () => {
     if (!pendingImagePath || !isTauriClient) return;
@@ -637,6 +700,70 @@ function DocBenchContent() {
     }
   };
 
+  // Handle Insert > Web Link from menu
+  const handleInsertWebLink = () => {
+    setShowInsertMenu(false);
+    setWebLinkUrl('');
+    setWebLinkText('');
+    setShowWebLinkModal(true);
+  };
+
+  // Complete web link insertion after URL is provided
+  const completeWebLinkInsertion = () => {
+    if (!webLinkUrl.trim()) return;
+
+    const url = webLinkUrl.trim();
+    const text = webLinkText.trim() || url;
+    const linkMarkdown = `[${text}](${url})`;
+
+    if (isEditing && textareaRef.current) {
+      const textarea = textareaRef.current;
+      const pos = textarea.selectionStart;
+      const newContent = editContent.substring(0, pos) + linkMarkdown + editContent.substring(pos);
+      setEditContent(newContent);
+      setHasUnsavedChanges(true);
+    } else {
+      const newContent = content + '\n' + linkMarkdown;
+      setEditContent(newContent);
+      setContent(newContent);
+      setHasUnsavedChanges(true);
+      setIsEditing(true);
+    }
+
+    setShowWebLinkModal(false);
+  };
+
+  // Handle Insert > Object Reference from menu
+  const handleInsertObjectRef = (type: 'bug' | 'request') => {
+    setShowInsertMenu(false);
+    setObjectRefId('');
+    setShowObjectRefModal(type);
+  };
+
+  // Complete object reference insertion after ID is provided
+  const completeObjectRefInsertion = () => {
+    if (!objectRefId.trim()) return;
+
+    const refId = objectRefId.trim().toUpperCase();
+    const refMarkdown = `[${refId}]`;
+
+    if (isEditing && textareaRef.current) {
+      const textarea = textareaRef.current;
+      const pos = textarea.selectionStart;
+      const newContent = editContent.substring(0, pos) + refMarkdown + editContent.substring(pos);
+      setEditContent(newContent);
+      setHasUnsavedChanges(true);
+    } else {
+      const newContent = content + '\n' + refMarkdown;
+      setEditContent(newContent);
+      setContent(newContent);
+      setHasUnsavedChanges(true);
+      setIsEditing(true);
+    }
+
+    setShowObjectRefModal(null);
+  };
+
   // Insert comment with the form data
   const doInsertComment = () => {
     const selData = selectionDataRef.current;
@@ -651,7 +778,8 @@ function DocBenchContent() {
     console.log('Creating comment block:', commentBlock);
 
     const baseContent = isEditing ? editContent : content;
-    const newContent = baseContent.substring(0, start) + commentBlock + baseContent.substring(end);
+    // Keep original text and insert comment block AFTER the selection
+    const newContent = baseContent.substring(0, end) + '\n' + commentBlock + baseContent.substring(end);
 
     setEditContent(newContent);
     setContent(newContent);
@@ -1060,6 +1188,163 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
     }
   };
 
+  // Create document from template
+  const handleCreateFromTemplate = async (templateId: string) => {
+    if (!principalName.trim()) {
+      alert('Please set your name in Settings first');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const principal = principalName.trim().toLowerCase();
+      const now = new Date();
+      const timestamp = formatTimestamp(now);
+      const fileTimestamp = now.toISOString().slice(0, 16).replace(/[-:T]/g, '').replace(/(\d{8})(\d{4})/, '$1-$2');
+
+      let content = '';
+      let filename = '';
+      const dirPath = `${projectRoot}/claude/principals/${principal}/notes`;
+
+      switch (templateId) {
+        case 'bug-report':
+          filename = `BUG-${fileTimestamp}.md`;
+          content = `# Bug Report
+
+**Reporter:** ${principal}
+**Created:** ${timestamp}
+**Status:** Open
+
+## Summary
+
+<!-- Brief description of the bug -->
+
+## Steps to Reproduce
+
+1. Step one
+2. Step two
+3. Step three
+
+## Expected Behavior
+
+<!-- What should happen -->
+
+## Actual Behavior
+
+<!-- What actually happens -->
+
+## Environment
+
+- OS:
+- Version:
+
+## Additional Context
+
+<!-- Screenshots, logs, etc. -->
+`;
+          break;
+
+        case 'meeting-notes':
+          filename = `meeting-${fileTimestamp}.md`;
+          content = `# Meeting Notes
+
+**Date:** ${timestamp}
+**Attendees:** ${principal}
+
+## Agenda
+
+1. Topic one
+2. Topic two
+
+## Discussion
+
+### Topic One
+
+<!-- Notes -->
+
+### Topic Two
+
+<!-- Notes -->
+
+## Action Items
+
+- [ ] Action item 1 - @owner
+- [ ] Action item 2 - @owner
+
+## Next Meeting
+
+<!-- Date/time for follow-up -->
+`;
+          break;
+
+        case 'decision-record':
+          filename = `decision-${fileTimestamp}.md`;
+          content = `# Decision Record
+
+**Author:** ${principal}
+**Date:** ${timestamp}
+**Status:** Proposed
+
+## Context
+
+<!-- What is the issue that we're seeing that motivates this decision? -->
+
+## Decision
+
+<!-- What is the change that we're proposing and/or doing? -->
+
+## Consequences
+
+<!-- What becomes easier or more difficult to do because of this change? -->
+
+## Alternatives Considered
+
+1. **Alternative A** - Why not chosen
+2. **Alternative B** - Why not chosen
+`;
+          break;
+
+        default:
+          throw new Error(`Unknown template: ${templateId}`);
+      }
+
+      const filePath = `${dirPath}/${filename}`;
+
+      if (isTauriClient) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await ensureDirectory(dirPath);
+        await invoke('write_file', { path: filePath, content });
+      }
+
+      setShowTemplateModal(false);
+
+      // Expand tree to show the new file
+      setExpandedDirs(prev => {
+        const next = new Set(prev);
+        let current = dirPath;
+        while (current.includes('/')) {
+          next.add(current);
+          current = current.substring(0, current.lastIndexOf('/'));
+        }
+        return next;
+      });
+
+      // Select the new file and switch to edit mode
+      setSelectedFile(filePath);
+      setContent(content);
+      setEditContent(content);
+      setIsEditing(true);
+
+      // Refresh file tree
+      await loadFileTree(projectRoot);
+    } catch (err) {
+      console.error('Failed to create from template:', err);
+      alert(`Failed to create: ${err}`);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   // Delete the currently selected file
   const handleDelete = async () => {
     if (!selectedFile || !isTauriClient) return;
@@ -1229,45 +1514,6 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
                   </svg>
                 </button>
               )}
-              {/* Create Button */}
-              <div className="relative" data-create-menu>
-                <button
-                  onClick={() => setShowCreateMenu(!showCreateMenu)}
-                  className="text-gray-400 hover:text-agency-600 p-1 rounded hover:bg-gray-100 transition-colors"
-                  title="Create new document"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-              {/* Create Menu Dropdown */}
-              {showCreateMenu && (
-                <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-40">
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowCreateModal('request'); }}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <span className="text-agency-600">REQUEST</span>
-                    <span className="text-gray-400 text-xs">Assign task to agent</span>
-                  </button>
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowCreateModal('observe'); }}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <span className="text-yellow-600">OBSERVE</span>
-                    <span className="text-gray-400 text-xs">Record observation</span>
-                  </button>
-                  <div className="border-t border-gray-100 my-1" />
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowCreateModal('note'); }}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <span className="text-blue-600">NOTE</span>
-                    <span className="text-gray-400 text-xs">Personal note</span>
-                  </button>
-                </div>
-              )}
-            </div>
             <button
               onClick={(e) => copyToClipboard(`${projectRoot}/${browseRoot}`, e)}
               className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors"
@@ -1437,6 +1683,56 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
                   </button>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
+                {/* Create Menu */}
+                <div className="relative" data-create-menu>
+                  <button
+                    onClick={() => setShowCreateMenu(!showCreateMenu)}
+                    className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded flex items-center gap-1"
+                    title="Create new document"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Create</span>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {showCreateMenu && (
+                    <div className="absolute left-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-40">
+                      <button
+                        onClick={() => { setShowCreateMenu(false); setShowCreateModal('request'); }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <span className="text-agency-600">REQUEST</span>
+                        <span className="text-gray-400 text-xs">Assign task to agent</span>
+                      </button>
+                      <button
+                        onClick={() => { setShowCreateMenu(false); setShowCreateModal('observe'); }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <span className="text-yellow-600">OBSERVE</span>
+                        <span className="text-gray-400 text-xs">Record observation</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        onClick={() => { setShowCreateMenu(false); setShowCreateModal('note'); }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <span className="text-blue-600">NOTE</span>
+                        <span className="text-gray-400 text-xs">Personal note</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        onClick={() => { setShowCreateMenu(false); setShowTemplateModal(true); }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <span className="text-purple-600">TEMPLATE</span>
+                        <span className="text-gray-400 text-xs">From template</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
                 {/* Insert Menu */}
                 <div className="relative" data-insert-menu>
                   <button
@@ -1485,6 +1781,50 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
                         </svg>
                         <span>Image</span>
                       </button>
+                      <button
+                        onClick={handleInsertDocumentRef}
+                        disabled={!isTauriClient}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                          isTauriClient
+                            ? 'text-gray-700 hover:bg-gray-100'
+                            : 'text-gray-400 cursor-not-allowed'
+                        }`}
+                        title="Insert reference to document"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Document</span>
+                      </button>
+                      <button
+                        onClick={handleInsertWebLink}
+                        className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 text-gray-700 hover:bg-gray-100"
+                        title="Insert web link"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        <span>Web Link</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        onClick={() => handleInsertObjectRef('bug')}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span>Bug Reference</span>
+                      </button>
+                      <button
+                        onClick={() => handleInsertObjectRef('request')}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4 text-agency-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <span>Request Reference</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1529,17 +1869,21 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
                 <button
                   onClick={handleToggleEdit}
                   disabled={!isTauriClient}
-                  className={`px-3 py-1 text-sm rounded ${
+                  className={`px-3 py-1 text-sm rounded flex items-center gap-1.5 ${
                     isEditing ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-600'
                   } ${!isTauriClient ? 'opacity-50' : ''}`}
+                  title="Toggle edit mode (Cmd+E)"
                 >
                   {isEditing ? 'Preview' : 'Edit'}
+                  <kbd className="text-[10px] bg-gray-300/50 px-1 rounded">⌘E</kbd>
                 </button>
                 </div>
               </div>
-              <div className="text-xs text-gray-400 mt-1">
-                {isEditing ? 'Editing' : 'Viewing'} | Cmd+E toggle{isEditing ? ' | Cmd+S save' : ''}
-              </div>
+              {isEditing && (
+                <div className="text-xs text-gray-400 mt-1">
+                  Editing | Cmd+S to save
+                </div>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto relative">
               {isEditing ? (
@@ -1568,9 +1912,67 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400">
-            <div className="text-center">
-              <p>Select a file from the tree</p>
+          <div className="flex-1 flex flex-col">
+            {/* Menu bar for no file selected */}
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-gray-700">Create Document</span>
+                <span className="text-xs text-gray-400">Select a file from the tree or create a new document</span>
+              </div>
+            </div>
+            {/* Create options grid */}
+            <div className="flex-1 flex items-center justify-center">
+              <div className="max-w-lg w-full p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* REQUEST */}
+                  <button
+                    onClick={() => setShowCreateModal('request')}
+                    className="p-4 bg-white border border-gray-200 rounded-xl hover:border-agency-400 hover:shadow-md transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">📋</span>
+                      <span className="font-semibold text-agency-600 group-hover:text-agency-700">REQUEST</span>
+                    </div>
+                    <p className="text-sm text-gray-500">Assign a task to an agent</p>
+                  </button>
+                  {/* OBSERVE */}
+                  <button
+                    onClick={() => setShowCreateModal('observe')}
+                    className="p-4 bg-white border border-gray-200 rounded-xl hover:border-yellow-400 hover:shadow-md transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">👁️</span>
+                      <span className="font-semibold text-yellow-600 group-hover:text-yellow-700">OBSERVE</span>
+                    </div>
+                    <p className="text-sm text-gray-500">Record an observation</p>
+                  </button>
+                  {/* NOTE */}
+                  <button
+                    onClick={() => setShowCreateModal('note')}
+                    className="p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">📝</span>
+                      <span className="font-semibold text-blue-600 group-hover:text-blue-700">NOTE</span>
+                    </div>
+                    <p className="text-sm text-gray-500">Personal note or memo</p>
+                  </button>
+                  {/* TEMPLATE */}
+                  <button
+                    onClick={() => setShowTemplateModal(true)}
+                    className="p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-400 hover:shadow-md transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">📄</span>
+                      <span className="font-semibold text-purple-600 group-hover:text-purple-700">TEMPLATE</span>
+                    </div>
+                    <p className="text-sm text-gray-500">Bug report, meeting notes, etc.</p>
+                  </button>
+                </div>
+                <p className="text-center text-xs text-gray-400 mt-6">
+                  Or select a file from the directory tree on the left
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -1869,6 +2271,104 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
         </div>
       )}
 
+      {/* Web Link Modal */}
+      {showWebLinkModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Insert Web Link</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">URL *</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-agency-500"
+                  value={webLinkUrl}
+                  onChange={(e) => setWebLinkUrl(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Link Text (optional)</label>
+                <input
+                  type="text"
+                  placeholder="Click here"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-agency-500"
+                  value={webLinkText}
+                  onChange={(e) => setWebLinkText(e.target.value)}
+                />
+                <p className="text-xs text-gray-500 mt-1">Leave empty to use the URL as link text</p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={completeWebLinkInsertion}
+                disabled={!webLinkUrl.trim()}
+                className="flex-1 px-4 py-2 bg-agency-600 text-white rounded-lg hover:bg-agency-700 disabled:opacity-50"
+              >
+                Insert Link
+              </button>
+              <button
+                onClick={() => setShowWebLinkModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Object Reference Modal */}
+      {showObjectRefModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Insert {showObjectRefModal === 'bug' ? 'Bug' : 'Request'} Reference
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {showObjectRefModal === 'bug' ? 'Bug ID' : 'Request ID'} *
+                </label>
+                <input
+                  type="text"
+                  placeholder={showObjectRefModal === 'bug' ? 'BUG-0042' : 'REQUEST-jordan-0017'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-agency-500 font-mono"
+                  value={objectRefId}
+                  onChange={(e) => setObjectRefId(e.target.value)}
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter the full ID (e.g., {showObjectRefModal === 'bug' ? 'BUG-0042' : 'REQUEST-jordan-0017'})
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-xs text-gray-500 mb-1">Will insert:</div>
+                <div className="font-mono text-sm text-gray-700">
+                  [{objectRefId.trim().toUpperCase() || (showObjectRefModal === 'bug' ? 'BUG-XXXX' : 'REQUEST-XXX-XXXX')}]
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={completeObjectRefInsertion}
+                disabled={!objectRefId.trim()}
+                className="flex-1 px-4 py-2 bg-agency-600 text-white rounded-lg hover:bg-agency-700 disabled:opacity-50"
+              >
+                Insert Reference
+              </button>
+              <button
+                onClick={() => setShowObjectRefModal(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Settings Modal */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -1925,6 +2425,36 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
                   Cancel
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Create from Template</h2>
+            <div className="space-y-2">
+              {templates.map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => handleCreateFromTemplate(template.id)}
+                  disabled={isCreating}
+                  className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:border-agency-500 hover:bg-agency-50 transition-colors disabled:opacity-50"
+                >
+                  <div className="font-medium text-gray-900">{template.name}</div>
+                  <div className="text-sm text-gray-500">{template.description}</div>
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowTemplateModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

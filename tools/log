@@ -1,0 +1,545 @@
+#!/bin/bash
+# log - CLI for The Agency Log Service
+#
+# Query logs, view statistics, and manage tool run tracking.
+#
+# Usage:
+#   ./tools/log                                     # Recent logs (all)
+#   ./tools/log --service bug-service               # Filter by service
+#   ./tools/log --level error                       # Filter by level
+#   ./tools/log --since 1h                          # Time range (1h, 24h, 7d)
+#   ./tools/log --search "failed"                   # Full-text search
+#   ./tools/log --run-id abc123                     # Filter by run ID
+#   ./tools/log stats                               # Log statistics
+#   ./tools/log services                            # List services with logs
+#   ./tools/log run start <tool> [options]          # Start tool run
+#   ./tools/log run end <runId> --status=success    # End tool run
+#   ./tools/log run get <runId>                     # Get run details
+#   ./tools/log run errors <runId>                  # Get errors for run
+
+set -e
+
+# Tool version
+TOOL_VERSION="1.0.0-20260110-000001"
+
+# Configuration
+LOG_SERVICE_PORT="${LOG_SERVICE_PORT:-3141}"
+LOG_SERVICE_HOST="${LOG_SERVICE_HOST:-127.0.0.1}"
+LOG_SERVICE_URL="http://${LOG_SERVICE_HOST}:${LOG_SERVICE_PORT}"
+
+# Find project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+GRAY='\033[0;90m'
+NC='\033[0m' # No Color
+
+# Bold variants
+BOLD_RED='\033[1;31m'
+BOLD_GREEN='\033[1;32m'
+BOLD_YELLOW='\033[1;33m'
+
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if service is running
+is_service_running() {
+    if curl -s --connect-timeout 1 "${LOG_SERVICE_URL}/health" > /dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
+# Ensure service is running before API call
+ensure_service() {
+    if ! is_service_running; then
+        log_error "Log Service not running at ${LOG_SERVICE_URL}"
+        echo "Start it with: ./tools/agency-service start"
+        exit 1
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    shift 2
+    local data="$*"
+
+    ensure_service
+
+    local curl_args=(-s -X "$method" "${LOG_SERVICE_URL}${endpoint}")
+    curl_args+=(-H "Content-Type: application/json")
+
+    if [[ -n "$data" ]]; then
+        curl_args+=(-d "$data")
+    fi
+
+    curl "${curl_args[@]}"
+}
+
+# Colorize log level
+colorize_level() {
+    local level="$1"
+    case "$level" in
+        error|ERROR)   echo -e "${BOLD_RED}ERROR${NC}" ;;
+        warn|WARN)     echo -e "${BOLD_YELLOW}WARN${NC}" ;;
+        info|INFO)     echo -e "${GREEN}INFO${NC}" ;;
+        debug|DEBUG)   echo -e "${GRAY}DEBUG${NC}" ;;
+        *)             echo "$level" ;;
+    esac
+}
+
+# Format timestamp
+format_timestamp() {
+    local ts="$1"
+    # Extract just HH:MM:SS from ISO timestamp
+    echo "$ts" | sed 's/.*T\([0-9:]*\).*/\1/' | cut -c1-8
+}
+
+# Format log entry for display
+format_log_entry() {
+    local entry="$1"
+    local timestamp service level message run_id
+
+    timestamp=$(echo "$entry" | jq -r '.timestamp // .createdAt // "unknown"')
+    service=$(echo "$entry" | jq -r '.service // "unknown"')
+    level=$(echo "$entry" | jq -r '.level // "info"')
+    message=$(echo "$entry" | jq -r '.message // ""')
+    run_id=$(echo "$entry" | jq -r '.runId // ""')
+
+    local formatted_time
+    formatted_time=$(format_timestamp "$timestamp")
+
+    local colored_level
+    colored_level=$(colorize_level "$level")
+
+    # Service color
+    local colored_service="${CYAN}${service}${NC}"
+
+    # Build output line
+    local line="${GRAY}${formatted_time}${NC} ${colored_service} ${colored_level} ${message}"
+
+    # Add run ID if present
+    if [[ -n "$run_id" && "$run_id" != "null" ]]; then
+        line="${line} ${GRAY}[${run_id}]${NC}"
+    fi
+
+    echo -e "$line"
+}
+
+# Display logs with formatting
+display_logs() {
+    local json="$1"
+    local count
+
+    count=$(echo "$json" | jq '.logs | length')
+
+    if [[ "$count" == "0" ]]; then
+        echo "No logs found."
+        return
+    fi
+
+    echo "$json" | jq -c '.logs[]' | while read -r entry; do
+        format_log_entry "$entry"
+    done
+
+    echo ""
+    echo -e "${GRAY}Showing $count log entries${NC}"
+}
+
+# Query logs
+cmd_query() {
+    local query=""
+    local raw_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --service|-s)    query="${query}service=$2&"; shift 2 ;;
+            --level|-l)      query="${query}level=$2&"; shift 2 ;;
+            --run-id|-r)     query="${query}runId=$2&"; shift 2 ;;
+            --since)         query="${query}since=$2&"; shift 2 ;;
+            --search|-q)     query="${query}search=$2&"; shift 2 ;;
+            --limit|-n)      query="${query}limit=$2&"; shift 2 ;;
+            --offset)        query="${query}offset=$2&"; shift 2 ;;
+            --raw|--json)    raw_output=true; shift ;;
+            *)               shift ;;
+        esac
+    done
+
+    local endpoint="/api/log/query"
+    if [[ -n "$query" ]]; then
+        endpoint="${endpoint}?${query%&}"
+    fi
+
+    local response
+    response=$(api_request GET "$endpoint")
+
+    if [[ "$raw_output" == "true" ]]; then
+        echo "$response" | jq .
+    else
+        display_logs "$response"
+    fi
+}
+
+# Show statistics
+cmd_stats() {
+    local response
+    response=$(api_request GET "/api/log/stats")
+
+    echo "Log Statistics"
+    echo "=============="
+    echo ""
+
+    # Total logs
+    local total
+    total=$(echo "$response" | jq -r '.totalLogs // 0')
+    echo "Total Logs: $total"
+    echo ""
+
+    # By level
+    echo "By Level:"
+    echo "$response" | jq -r '.byLevel // {} | to_entries[] | "  \(.key): \(.value)"'
+    echo ""
+
+    # By service
+    echo "By Service:"
+    echo "$response" | jq -r '.byService // {} | to_entries[] | "  \(.key): \(.value)"'
+    echo ""
+
+    # Recent errors
+    local error_count
+    error_count=$(echo "$response" | jq -r '.recentErrors // 0')
+    if [[ "$error_count" -gt 0 ]]; then
+        echo -e "${RED}Recent Errors: $error_count${NC}"
+    fi
+}
+
+# List services
+cmd_services() {
+    local response
+    response=$(api_request GET "/api/log/services")
+
+    echo "Services with Logs"
+    echo "=================="
+    echo ""
+
+    echo "$response" | jq -r '.services[] | "  - \(.name) (\(.logCount) logs)"'
+}
+
+# Start a tool run
+cmd_run_start() {
+    local tool=""
+    local tool_type="agency-tool"
+    local agent=""
+    local workstream=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --type)        tool_type="$2"; shift 2 ;;
+            --agent)       agent="$2"; shift 2 ;;
+            --workstream)  workstream="$2"; shift 2 ;;
+            -*)            shift ;;
+            *)
+                if [[ -z "$tool" ]]; then
+                    tool="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$tool" ]]; then
+        log_error "Tool name required"
+        echo "Usage: ./tools/log run start <tool> [--type=agency-tool|bash|mcp] [--agent=X] [--workstream=X]"
+        exit 1
+    fi
+
+    # Auto-detect agent from environment
+    if [[ -z "$agent" && -n "$AGENTNAME" ]]; then
+        agent="$AGENTNAME"
+    fi
+
+    if [[ -z "$workstream" && -n "$WORKSTREAM" ]]; then
+        workstream="$WORKSTREAM"
+    fi
+
+    # Build JSON
+    local json="{\"tool\":\"$tool\",\"toolType\":\"$tool_type\""
+    if [[ -n "$agent" ]]; then
+        json="$json,\"agent\":\"$agent\""
+    fi
+    if [[ -n "$workstream" ]]; then
+        json="$json,\"workstream\":\"$workstream\""
+    fi
+    json="$json}"
+
+    local response
+    response=$(api_request POST "/api/log/run/start" "$json")
+
+    # Extract run ID for easy scripting
+    local run_id
+    run_id=$(echo "$response" | jq -r '.runId // .id // ""')
+
+    if [[ -n "$run_id" && "$run_id" != "null" ]]; then
+        echo "$run_id"
+    else
+        echo "$response" | jq .
+    fi
+}
+
+# End a tool run
+cmd_run_end() {
+    local run_id=""
+    local status=""
+    local exit_code=""
+    local output_size=""
+    local error_message=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --status)        status="$2"; shift 2 ;;
+            --status=*)      status="${1#*=}"; shift ;;
+            --exit-code)     exit_code="$2"; shift 2 ;;
+            --exit-code=*)   exit_code="${1#*=}"; shift ;;
+            --output-size)   output_size="$2"; shift 2 ;;
+            --output-size=*) output_size="${1#*=}"; shift ;;
+            --error)         error_message="$2"; shift 2 ;;
+            --error=*)       error_message="${1#*=}"; shift ;;
+            -*)              shift ;;
+            *)
+                if [[ -z "$run_id" ]]; then
+                    run_id="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        echo "Usage: ./tools/log run end <runId> --status=success|failure [--exit-code=0] [--output-size=1234]"
+        exit 1
+    fi
+
+    if [[ -z "$status" ]]; then
+        log_error "--status is required (success or failure)"
+        exit 1
+    fi
+
+    # Build JSON
+    local json="{\"status\":\"$status\""
+    if [[ -n "$exit_code" ]]; then
+        json="$json,\"exitCode\":$exit_code"
+    fi
+    if [[ -n "$output_size" ]]; then
+        json="$json,\"outputSize\":$output_size"
+    fi
+    if [[ -n "$error_message" ]]; then
+        # Escape quotes in error message
+        error_message="${error_message//\"/\\\"}"
+        json="$json,\"errorMessage\":\"$error_message\""
+    fi
+    json="$json}"
+
+    api_request POST "/api/log/run/end/${run_id}" "$json" | jq .
+}
+
+# Get run details
+cmd_run_get() {
+    local run_id="$1"
+    local include_logs="${2:-true}"
+
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        echo "Usage: ./tools/log run get <runId>"
+        exit 1
+    fi
+
+    local response
+    response=$(api_request GET "/api/log/run/get/${run_id}")
+
+    echo "Tool Run: $run_id"
+    echo "===================="
+    echo ""
+
+    # Basic info
+    local tool status started ended duration
+    tool=$(echo "$response" | jq -r '.run.tool // "unknown"')
+    status=$(echo "$response" | jq -r '.run.status // "unknown"')
+    started=$(echo "$response" | jq -r '.run.startedAt // "unknown"')
+    ended=$(echo "$response" | jq -r '.run.endedAt // null')
+    duration=$(echo "$response" | jq -r '.run.durationMs // null')
+
+    echo "Tool: $tool"
+    echo -n "Status: "
+    case "$status" in
+        success)  echo -e "${GREEN}$status${NC}" ;;
+        failure)  echo -e "${RED}$status${NC}" ;;
+        running)  echo -e "${YELLOW}$status${NC}" ;;
+        *)        echo "$status" ;;
+    esac
+    echo "Started: $started"
+    if [[ "$ended" != "null" ]]; then
+        echo "Ended: $ended"
+    fi
+    if [[ "$duration" != "null" ]]; then
+        echo "Duration: ${duration}ms"
+    fi
+
+    # Agent/Workstream
+    local agent workstream
+    agent=$(echo "$response" | jq -r '.run.agent // null')
+    workstream=$(echo "$response" | jq -r '.run.workstream // null')
+    if [[ "$agent" != "null" ]]; then
+        echo "Agent: $agent"
+    fi
+    if [[ "$workstream" != "null" ]]; then
+        echo "Workstream: $workstream"
+    fi
+
+    # Logs
+    echo ""
+    echo "Logs:"
+    echo "-----"
+
+    local logs_response
+    logs_response=$(api_request GET "/api/log/run/logs/${run_id}")
+    display_logs "$logs_response"
+}
+
+# Get errors for a run
+cmd_run_errors() {
+    local run_id="$1"
+
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        echo "Usage: ./tools/log run errors <runId>"
+        exit 1
+    fi
+
+    local response
+    response=$(api_request GET "/api/log/run/errors/${run_id}")
+
+    echo "Errors for Run: $run_id"
+    echo "========================"
+    echo ""
+
+    display_logs "$response"
+}
+
+# Show help
+show_help() {
+    echo "log - CLI for The Agency Log Service"
+    echo ""
+    echo "Query Logs:"
+    echo "  ./tools/log                                     Recent logs (all)"
+    echo "  ./tools/log --service bug-service               Filter by service"
+    echo "  ./tools/log --level error                       Filter by level (error, warn, info, debug)"
+    echo "  ./tools/log --since 1h                          Time range (1h, 24h, 7d)"
+    echo "  ./tools/log --search \"failed\"                   Full-text search"
+    echo "  ./tools/log --run-id abc123                     Filter by run ID"
+    echo "  ./tools/log --limit 50                          Limit results"
+    echo "  ./tools/log --raw                               Output raw JSON"
+    echo ""
+    echo "Statistics:"
+    echo "  ./tools/log stats                               Error counts, service counts"
+    echo "  ./tools/log services                            List services with logs"
+    echo ""
+    echo "Tool Run Tracking:"
+    echo "  ./tools/log run start <tool> [options]          Start a tool run"
+    echo "    --type=agency-tool|bash|mcp                   Tool type"
+    echo "    --agent=<name>                                Agent name"
+    echo "    --workstream=<name>                           Workstream name"
+    echo ""
+    echo "  ./tools/log run end <runId> --status=<status>   End a tool run"
+    echo "    --status=success|failure                      Run status (required)"
+    echo "    --exit-code=<code>                            Process exit code"
+    echo "    --output-size=<bytes>                         Output size in bytes"
+    echo "    --error=\"<message>\"                           Error message"
+    echo ""
+    echo "  ./tools/log run get <runId>                     Get run details with logs"
+    echo "  ./tools/log run errors <runId>                  Get only errors for a run"
+    echo ""
+    echo "Options:"
+    echo "  --version, -v                                   Show version"
+    echo "  --help, -h                                      Show this help"
+    echo ""
+    echo "Environment Variables:"
+    echo "  LOG_SERVICE_PORT  Service port (default: 3141)"
+    echo "  LOG_SERVICE_HOST  Service host (default: 127.0.0.1)"
+}
+
+# Main command dispatch
+main() {
+    case "${1:-}" in
+        --version|-v)
+            echo "log $TOOL_VERSION"
+            ;;
+        --help|-h)
+            show_help
+            ;;
+        stats)
+            cmd_stats
+            ;;
+        services)
+            cmd_services
+            ;;
+        run)
+            case "${2:-}" in
+                start)
+                    shift 2
+                    cmd_run_start "$@"
+                    ;;
+                end)
+                    shift 2
+                    cmd_run_end "$@"
+                    ;;
+                get)
+                    shift 2
+                    cmd_run_get "$@"
+                    ;;
+                errors)
+                    shift 2
+                    cmd_run_errors "$@"
+                    ;;
+                *)
+                    log_error "Unknown run command: ${2:-}"
+                    echo "Usage: ./tools/log run <start|end|get|errors> ..."
+                    exit 1
+                    ;;
+            esac
+            ;;
+        "")
+            # Default: query recent logs
+            cmd_query --limit 50
+            ;;
+        -*)
+            # Flags passed directly - treat as query
+            cmd_query "$@"
+            ;;
+        *)
+            log_error "Unknown command: $1"
+            echo "Run './tools/log --help' for usage"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

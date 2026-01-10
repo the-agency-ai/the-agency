@@ -1,0 +1,193 @@
+#!/bin/bash
+#
+# _log-helper - Shared helper for tool invocation logging
+#
+# Source this file in tools to track their execution via Log Service.
+# This helper is designed to be silent and non-blocking if logging fails.
+#
+# Usage:
+#   source "$(dirname "$0")/_log-helper"
+#
+#   # Start tracking (returns run ID)
+#   RUN_ID=$(log_start "tool-name" "agency-tool" "$@")
+#
+#   # ... do work ...
+#
+#   # End tracking
+#   log_end "$RUN_ID" "success" "$EXIT_CODE" "$OUTPUT_SIZE" "Optional summary"
+#
+# Environment:
+#   LOG_SERVICE_URL - Base URL for log service (default: http://127.0.0.1:3141)
+#   AGENT_NAME      - Current agent name (optional)
+#   WORKSTREAM      - Current workstream (optional)
+#   LOG_TOOL_DEBUG  - Set to "1" for debug output
+#
+# The helper will silently skip logging if:
+#   - LOG_SERVICE_URL is explicitly set to empty string
+#   - The log service is unavailable
+#   - Any curl call fails
+#
+
+# Default log service URL
+LOG_SERVICE_URL="${LOG_SERVICE_URL:-http://127.0.0.1:3141}"
+
+# Skip logging if URL is empty
+_log_enabled() {
+    [[ -n "$LOG_SERVICE_URL" ]]
+}
+
+# Debug helper
+_log_debug() {
+    if [[ "${LOG_TOOL_DEBUG:-}" == "1" ]]; then
+        echo "[log-helper] $*" >&2
+    fi
+}
+
+# Escape a string for JSON
+_json_escape() {
+    local str="$1"
+    # Escape backslashes, quotes, and newlines
+    str="${str//\\/\\\\}"
+    str="${str//\"/\\\"}"
+    str="${str//$'\n'/\\n}"
+    str="${str//$'\r'/}"
+    str="${str//$'\t'/\\t}"
+    echo "$str"
+}
+
+# Start a tool run
+# Usage: RUN_ID=$(log_start "tool-name" "tool-type" "$@")
+# Returns: Run ID on stdout (empty if logging fails or disabled)
+log_start() {
+    local tool="$1"
+    local tool_type="${2:-agency-tool}"
+    shift 2
+    local args="$*"
+
+    if ! _log_enabled; then
+        _log_debug "Logging disabled (LOG_SERVICE_URL empty)"
+        return 0
+    fi
+
+    # Build JSON payload
+    local escaped_tool=$(_json_escape "$tool")
+    local escaped_type=$(_json_escape "$tool_type")
+    local escaped_args=$(_json_escape "$args")
+    local escaped_agent=$(_json_escape "${AGENT_NAME:-${AGENTNAME:-}}")
+    local escaped_workstream=$(_json_escape "${WORKSTREAM:-}")
+    local escaped_user=$(_json_escape "${USER:-}")
+
+    local payload="{\"tool\":\"$escaped_tool\",\"toolType\":\"$escaped_type\""
+
+    if [[ -n "$escaped_args" ]]; then
+        payload="$payload,\"args\":\"$escaped_args\""
+    fi
+
+    if [[ -n "$escaped_agent" ]]; then
+        payload="$payload,\"agentName\":\"$escaped_agent\""
+    fi
+
+    if [[ -n "$escaped_workstream" ]]; then
+        payload="$payload,\"workstream\":\"$escaped_workstream\""
+    fi
+
+    if [[ -n "$escaped_user" ]]; then
+        payload="$payload,\"userId\":\"$escaped_user\",\"userType\":\"human\""
+    fi
+
+    payload="$payload}"
+
+    _log_debug "Starting run: $payload"
+
+    # Make request with timeout, capture response
+    local response
+    response=$(curl -s --connect-timeout 1 --max-time 2 \
+        -X POST "${LOG_SERVICE_URL}/api/log/run/start" \
+        -H "Content-Type: application/json" \
+        -d "$payload" 2>/dev/null) || {
+        _log_debug "Failed to start run (curl error)"
+        return 0
+    }
+
+    # Extract runId from response
+    local run_id
+    run_id=$(echo "$response" | grep -o '"runId":"[^"]*"' | cut -d'"' -f4 2>/dev/null) || {
+        _log_debug "Failed to parse runId from response: $response"
+        return 0
+    }
+
+    _log_debug "Got run ID: $run_id"
+    echo "$run_id"
+}
+
+# End a tool run
+# Usage: log_end "$RUN_ID" "success|failure" "$EXIT_CODE" "$OUTPUT_SIZE" ["summary"]
+log_end() {
+    local run_id="$1"
+    local status="${2:-success}"
+    local exit_code="${3:-0}"
+    local output_size="${4:-0}"
+    local summary="${5:-}"
+
+    # Skip if no run ID or logging disabled
+    if [[ -z "$run_id" ]] || ! _log_enabled; then
+        _log_debug "Skipping end (no run_id or disabled)"
+        return 0
+    fi
+
+    # Validate status
+    case "$status" in
+        success|failure) ;;
+        *) status="failure" ;;
+    esac
+
+    # Build JSON payload
+    local escaped_summary=$(_json_escape "$summary")
+    local payload="{\"status\":\"$status\",\"exitCode\":$exit_code,\"outputSize\":$output_size"
+
+    if [[ -n "$escaped_summary" ]]; then
+        payload="$payload,\"summary\":\"$escaped_summary\""
+    fi
+
+    payload="$payload}"
+
+    _log_debug "Ending run $run_id: $payload"
+
+    # Make request with timeout (fire and forget)
+    curl -s --connect-timeout 1 --max-time 2 \
+        -X POST "${LOG_SERVICE_URL}/api/log/run/end/${run_id}" \
+        -H "Content-Type: application/json" \
+        -d "$payload" >/dev/null 2>&1 || {
+        _log_debug "Failed to end run (curl error)"
+    }
+
+    return 0
+}
+
+# Convenience: wrap a command with logging
+# Usage: log_wrap "tool-name" "tool-type" command arg1 arg2 ...
+log_wrap() {
+    local tool="$1"
+    local tool_type="$2"
+    shift 2
+
+    local run_id
+    run_id=$(log_start "$tool" "$tool_type" "$@")
+
+    # Run the command, capture exit code
+    local exit_code=0
+    "$@" || exit_code=$?
+
+    # End with appropriate status
+    local status="success"
+    if [[ $exit_code -ne 0 ]]; then
+        status="failure"
+    fi
+
+    log_end "$run_id" "$status" "$exit_code" "0"
+
+    return $exit_code
+}
+
+# Export functions for subshells
+export -f log_start log_end log_wrap _log_enabled _log_debug _json_escape 2>/dev/null || true

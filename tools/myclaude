@@ -17,7 +17,13 @@
 set -e
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.0.1-20260110-000001"
+
+# Source log helper for tool tracking
+SCRIPT_DIR_EARLY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR_EARLY/_log-helper" ]]; then
+    source "$SCRIPT_DIR_EARLY/_log-helper"
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -118,12 +124,27 @@ fi
 # Set environment
 export WORKSTREAM="$WORKSTREAM"
 export AGENTNAME="$AGENTNAME"
+export AGENT_NAME="$AGENTNAME"  # Also set AGENT_NAME for log helper
 export PROJECT_ROOT="$PROJECT_ROOT"
+
+# Start logging this tool run
+LOG_RUN_ID=""
+if type log_start &>/dev/null; then
+    LOG_RUN_ID=$(log_start "myclaude" "agency-tool" "$WORKSTREAM" "$AGENTNAME" "$INITIAL_PROMPT")
+fi
 
 # Get principal from config (maps system username to principal)
 if [ -x "$PROJECT_ROOT/tools/config" ]; then
     PRINCIPAL=$("$PROJECT_ROOT/tools/config" get-principal 2>/dev/null || echo "unknown")
     export PRINCIPAL="$PRINCIPAL"
+fi
+
+# Start Agency Service if not running (provides Secret Service, Log Service, etc.)
+if [ -x "$PROJECT_ROOT/tools/agency-service" ]; then
+    if ! curl -s --connect-timeout 1 "http://127.0.0.1:3141/health" > /dev/null 2>&1; then
+        echo -e "${BLUE}Starting Agency Service...${NC}"
+        "$PROJECT_ROOT/tools/agency-service" start > /dev/null 2>&1 || true
+    fi
 fi
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -149,4 +170,18 @@ fi
 
 # Launch claude in project directory
 cd "$PROJECT_ROOT"
-eval "$CLAUDE_CMD"
+
+# Run claude and capture exit code
+CLAUDE_EXIT=0
+eval "$CLAUDE_CMD" || CLAUDE_EXIT=$?
+
+# End logging
+if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
+    if [[ $CLAUDE_EXIT -eq 0 ]]; then
+        log_end "$LOG_RUN_ID" "success" "$CLAUDE_EXIT" "0" "Agent session: $AGENTNAME on $WORKSTREAM"
+    else
+        log_end "$LOG_RUN_ID" "failure" "$CLAUDE_EXIT" "0" "Agent session failed: $AGENTNAME"
+    fi
+fi
+
+exit $CLAUDE_EXIT

@@ -1514,53 +1514,6 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
                   </svg>
                 </button>
               )}
-              {/* Create Button */}
-              <div className="relative" data-create-menu>
-                <button
-                  onClick={() => setShowCreateMenu(!showCreateMenu)}
-                  className="text-gray-400 hover:text-agency-600 p-1 rounded hover:bg-gray-100 transition-colors"
-                  title="Create new document"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-              {/* Create Menu Dropdown */}
-              {showCreateMenu && (
-                <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-40">
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowCreateModal('request'); }}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <span className="text-agency-600">REQUEST</span>
-                    <span className="text-gray-400 text-xs">Assign task to agent</span>
-                  </button>
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowCreateModal('observe'); }}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <span className="text-yellow-600">OBSERVE</span>
-                    <span className="text-gray-400 text-xs">Record observation</span>
-                  </button>
-                  <div className="border-t border-gray-100 my-1" />
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowCreateModal('note'); }}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <span className="text-blue-600">NOTE</span>
-                    <span className="text-gray-400 text-xs">Personal note</span>
-                  </button>
-                  <div className="border-t border-gray-100 my-1" />
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowTemplateModal(true); }}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <span className="text-purple-600">TEMPLATE</span>
-                    <span className="text-gray-400 text-xs">From template</span>
-                  </button>
-                </div>
-              )}
-            </div>
             <button
               onClick={(e) => copyToClipboard(`${projectRoot}/${browseRoot}`, e)}
               className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors"
@@ -1730,6 +1683,56 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
                   </button>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
+                {/* Create Menu */}
+                <div className="relative" data-create-menu>
+                  <button
+                    onClick={() => setShowCreateMenu(!showCreateMenu)}
+                    className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded flex items-center gap-1"
+                    title="Create new document"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Create</span>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {showCreateMenu && (
+                    <div className="absolute left-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-40">
+                      <button
+                        onClick={() => { setShowCreateMenu(false); setShowCreateModal('request'); }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <span className="text-agency-600">REQUEST</span>
+                        <span className="text-gray-400 text-xs">Assign task to agent</span>
+                      </button>
+                      <button
+                        onClick={() => { setShowCreateMenu(false); setShowCreateModal('observe'); }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <span className="text-yellow-600">OBSERVE</span>
+                        <span className="text-gray-400 text-xs">Record observation</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        onClick={() => { setShowCreateMenu(false); setShowCreateModal('note'); }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <span className="text-blue-600">NOTE</span>
+                        <span className="text-gray-400 text-xs">Personal note</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        onClick={() => { setShowCreateMenu(false); setShowTemplateModal(true); }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <span className="text-purple-600">TEMPLATE</span>
+                        <span className="text-gray-400 text-xs">From template</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
                 {/* Insert Menu */}
                 <div className="relative" data-insert-menu>
                   <button
@@ -1866,17 +1869,21 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
                 <button
                   onClick={handleToggleEdit}
                   disabled={!isTauriClient}
-                  className={`px-3 py-1 text-sm rounded ${
+                  className={`px-3 py-1 text-sm rounded flex items-center gap-1.5 ${
                     isEditing ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-600'
                   } ${!isTauriClient ? 'opacity-50' : ''}`}
+                  title="Toggle edit mode (Cmd+E)"
                 >
                   {isEditing ? 'Preview' : 'Edit'}
+                  <kbd className="text-[10px] bg-gray-300/50 px-1 rounded">⌘E</kbd>
                 </button>
                 </div>
               </div>
-              <div className="text-xs text-gray-400 mt-1">
-                {isEditing ? 'Editing' : 'Viewing'} | Cmd+E toggle{isEditing ? ' | Cmd+S save' : ''}
-              </div>
+              {isEditing && (
+                <div className="text-xs text-gray-400 mt-1">
+                  Editing | Cmd+S to save
+                </div>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto relative">
               {isEditing ? (
@@ -1905,9 +1912,67 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400">
-            <div className="text-center">
-              <p>Select a file from the tree</p>
+          <div className="flex-1 flex flex-col">
+            {/* Menu bar for no file selected */}
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-gray-700">Create Document</span>
+                <span className="text-xs text-gray-400">Select a file from the tree or create a new document</span>
+              </div>
+            </div>
+            {/* Create options grid */}
+            <div className="flex-1 flex items-center justify-center">
+              <div className="max-w-lg w-full p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* REQUEST */}
+                  <button
+                    onClick={() => setShowCreateModal('request')}
+                    className="p-4 bg-white border border-gray-200 rounded-xl hover:border-agency-400 hover:shadow-md transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">📋</span>
+                      <span className="font-semibold text-agency-600 group-hover:text-agency-700">REQUEST</span>
+                    </div>
+                    <p className="text-sm text-gray-500">Assign a task to an agent</p>
+                  </button>
+                  {/* OBSERVE */}
+                  <button
+                    onClick={() => setShowCreateModal('observe')}
+                    className="p-4 bg-white border border-gray-200 rounded-xl hover:border-yellow-400 hover:shadow-md transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">👁️</span>
+                      <span className="font-semibold text-yellow-600 group-hover:text-yellow-700">OBSERVE</span>
+                    </div>
+                    <p className="text-sm text-gray-500">Record an observation</p>
+                  </button>
+                  {/* NOTE */}
+                  <button
+                    onClick={() => setShowCreateModal('note')}
+                    className="p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">📝</span>
+                      <span className="font-semibold text-blue-600 group-hover:text-blue-700">NOTE</span>
+                    </div>
+                    <p className="text-sm text-gray-500">Personal note or memo</p>
+                  </button>
+                  {/* TEMPLATE */}
+                  <button
+                    onClick={() => setShowTemplateModal(true)}
+                    className="p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-400 hover:shadow-md transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">📄</span>
+                      <span className="font-semibold text-purple-600 group-hover:text-purple-700">TEMPLATE</span>
+                    </div>
+                    <p className="text-sm text-gray-500">Bug report, meeting notes, etc.</p>
+                  </button>
+                </div>
+                <p className="text-center text-xs text-gray-400 mt-6">
+                  Or select a file from the directory tree on the left
+                </p>
+              </div>
             </div>
           </div>
         )}

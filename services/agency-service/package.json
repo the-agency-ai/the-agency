@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.4.0",
+    "@node-rs/argon2": "^2.0.0",
     "hono": "^4.6.0",
     "pino": "^9.0.0",
     "pino-pretty": "^11.0.0",
