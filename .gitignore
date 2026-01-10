@@ -23,13 +23,14 @@ out/
 .DS_Store
 Thumbs.db
 
-# Logs (keep structure, ignore contents)
-claude/logs/*.log
-claude/logs/*.json
-!claude/logs/.gitkeep
+# Service logs (in each service directory)
+services/*/logs/*.log
+services/*/logs/*.json
 
-# Session backups (optional - uncomment to ignore)
-# claude/logs/sessions/
+# Database files
+claude/data/*.db
+claude/data/*.db-wal
+claude/data/*.db-shm
 
 # Test coverage
 coverage/

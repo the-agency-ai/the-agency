@@ -4,7 +4,7 @@
 
 **Assigned To:** housekeeping
 
-**Status:** Open
+**Status:** Complete
 
 **Priority:** Normal
 
@@ -94,9 +94,9 @@ Sources
 
 ## Acceptance Criteria
 
-- [ ] There is an Insert Menu with two items: Comment and Image
-- [ ] Can insert a comment by selecting a block of text and selecting the Comment menu item using the convention previously implemented.
-- [ ] Can "insert" an image by embedding a reference with alt-tag describing it into a file. 
+- [x] There is an Insert Menu with two items: Comment and Image
+- [x] Can insert a comment by selecting a block of text and selecting the Comment menu item using the convention previously implemented.
+- [x] Can "insert" an image by embedding a reference with alt-tag describing it into a file. 
 
 ## Notes
 
@@ -104,7 +104,86 @@ Sources
 
 ---
 
+## Discussion & Planning
+
+### 2026-01-09 - Initial Analysis (housekeeping)
+
+**Current Comment Implementation:**
+The existing comment feature uses a popup that appears on text selection. When text is selected:
+1. A popup appears at the selection coordinates
+2. User clicks "Comment" button
+3. Form appears for entering comment text
+4. Inserts format: `[(principal) selected text]\n[(principal) comment]`
+
+**Decisions (Jordan):**
+
+1. **Menu Location**: Option A - In the header bar (alongside existing controls)
+   - Current popup doesn't work well, this is simpler
+
+2. **Image Storage**: Copy to standard location (`claude/assets/images/`)
+   - Preserves the image even if original is moved/deleted
+
+3. **File Picker Filter**: .png and .svg only
+   - Force users to use these formats for consistency
+
+4. **Image Preview**: No
+   - Not needed for MVP
+
+5. **Path Format**: Absolute from project root
+   - More reliable than relative paths
+
+**Proposed Implementation:**
+
+```
+Insert Menu (in header/toolbar)
+├── Comment (disabled if no text selected)
+│   └── Opens inline form for comment text
+│   └── Inserts: [(principal) text]\n[(principal) comment]
+└── Image
+    └── Opens file picker (filtered to images)
+    └── Prompts for alt-text description
+    └── Inserts: ![alt-text](relative-path-to-image)
+```
+
+**Technical Notes:**
+- Tauri provides `@tauri-apps/plugin-dialog` for native file picker
+- Already have `dialog` plugin in Cargo.toml
+- Will need to calculate relative path from document to image
+
+---
+
 ## Activity Log
+
+### 2026-01-09 - Implemented (housekeeping)
+
+**Changes Made:**
+- Added Insert menu to DocBench header bar (between file path and favorite button)
+- Insert menu has two items:
+  - **Comment** - Greyed out when no text is selected, enabled when text is selected
+    - Opens the existing comment form in a centered modal
+    - Uses same format: `[(principal) selected text]\n[(principal) comment]`
+  - **Image** - Opens native file picker (filtered to .png and .svg only)
+    - After selecting file, shows alt-text modal
+    - Copies image to `/claude/assets/images/` directory
+    - Generates unique filename if collision detected
+    - Inserts markdown: `![alt-text](/claude/assets/images/filename.png)`
+
+**Files Modified:**
+- `apps/agency-bench/src/app/bench/(apps)/docbench/page.tsx`
+
+**New State Variables:**
+- `showInsertMenu` - Controls Insert dropdown visibility
+- `hasTextSelection` - Tracks if text is currently selected (for Comment enable/disable)
+- `showAltTextModal` - Controls alt-text modal for image insertion
+- `pendingImagePath` - Stores selected image path during alt-text entry
+- `imageAltText` - Stores user-entered alt text
+
+**New Functions:**
+- `handleInsertCommentFromMenu()` - Opens comment form from menu
+- `handleInsertImage()` - Opens file picker for image selection
+- `completeImageInsertion()` - Copies image and inserts markdown
+
+**Build Status:** Verified - Build successful with no errors
 
 ### 2026-01-09 19:57 SST - Created
 - Request created by principal:jordan

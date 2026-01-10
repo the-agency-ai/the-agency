@@ -46,6 +46,17 @@ function DocBenchContent() {
   // Create document state
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState<'request' | 'observe' | 'note' | null>(null);
+
+  // Insert menu state
+  const [showInsertMenu, setShowInsertMenu] = useState(false);
+  const [hasTextSelection, setHasTextSelection] = useState(false);
+  const [showAltTextModal, setShowAltTextModal] = useState(false);
+  const [pendingImagePath, setPendingImagePath] = useState<string | null>(null);
+  const [imageAltText, setImageAltText] = useState('');
+
+  // Settings modal state
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsPrincipalName, setSettingsPrincipalName] = useState('');
   const [createAgentName, setCreateAgentName] = useState('');
   const [createSummary, setCreateSummary] = useState('');
   const [createPriority, setCreatePriority] = useState<'Low' | 'Normal' | 'High' | 'Critical'>('Normal');
@@ -74,10 +85,14 @@ function DocBenchContent() {
     if (storedRoot) {
       setBrowseRoot(storedRoot);
     }
-    // Load principal name
+    // Load principal name - if not set, show settings modal on first run
     const storedPrincipal = localStorage.getItem('agencybench-principal');
     if (storedPrincipal) {
       setPrincipalName(storedPrincipal);
+      setSettingsPrincipalName(storedPrincipal);
+    } else {
+      // First run - prompt for principal name
+      setShowSettingsModal(true);
     }
   }, []);
 
@@ -466,6 +481,162 @@ function DocBenchContent() {
     }, 10);
   };
 
+  // Track if there's a text selection (for Insert > Comment menu state)
+  useEffect(() => {
+    const checkSelection = () => {
+      if (isEditing && textareaRef.current) {
+        const textarea = textareaRef.current;
+        const hasSelection = textarea.selectionStart !== textarea.selectionEnd;
+        setHasTextSelection(hasSelection);
+      } else if (!isEditing) {
+        const selection = window.getSelection();
+        const hasSelection = !!(selection && selection.toString().trim());
+        setHasTextSelection(hasSelection);
+      }
+    };
+
+    document.addEventListener('selectionchange', checkSelection);
+    return () => document.removeEventListener('selectionchange', checkSelection);
+  }, [isEditing]);
+
+  // Handle Insert > Comment from menu
+  const handleInsertCommentFromMenu = () => {
+    setShowInsertMenu(false);
+    if (isEditing && textareaRef.current) {
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      if (start !== end) {
+        const selectedText = editContent.substring(start, end);
+        if (selectedText.trim()) {
+          selectionDataRef.current = { text: selectedText, start, end };
+          // Position popup in center of screen since we don't have click coordinates
+          setSelectionPopup({
+            x: window.innerWidth / 2 - 128,
+            y: window.innerHeight / 3,
+            text: selectedText,
+            start,
+            end,
+          });
+          setShowCommentForm(true);
+        }
+      }
+    } else {
+      const selection = window.getSelection();
+      const selectedText = selection?.toString().trim() || '';
+      if (selectedText) {
+        const start = content.indexOf(selectedText);
+        if (start !== -1) {
+          selectionDataRef.current = { text: selectedText, start, end: start + selectedText.length };
+          setSelectionPopup({
+            x: window.innerWidth / 2 - 128,
+            y: window.innerHeight / 3,
+            text: selectedText,
+            start,
+            end: start + selectedText.length,
+          });
+          setShowCommentForm(true);
+        }
+      }
+    }
+  };
+
+  // Handle Insert > Image from menu
+  const handleInsertImage = async () => {
+    setShowInsertMenu(false);
+    if (!isTauriClient) {
+      alert('Image insertion requires Tauri mode');
+      return;
+    }
+
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Images', extensions: ['png', 'svg'] }],
+        title: 'Select image to insert',
+      });
+
+      if (selected && typeof selected === 'string') {
+        setPendingImagePath(selected);
+        setImageAltText('');
+        setShowAltTextModal(true);
+      }
+    } catch (err) {
+      console.error('Failed to open file picker:', err);
+      alert(`Failed to open file picker: ${err}`);
+    }
+  };
+
+  // Complete image insertion after alt-text is provided
+  const completeImageInsertion = async () => {
+    if (!pendingImagePath || !isTauriClient) return;
+
+    try {
+      const { copyFile } = await import('@tauri-apps/plugin-fs');
+      const { Command } = await import('@tauri-apps/plugin-shell');
+
+      // Extract filename from path
+      const filename = pendingImagePath.split('/').pop() || 'image.png';
+
+      // Create target directory
+      const targetDir = `${projectRoot}/claude/assets/images`;
+      await Command.create('mkdir', ['-p', targetDir]).execute();
+
+      // Generate unique filename if needed
+      let targetFilename = filename;
+      let targetPath = `${targetDir}/${targetFilename}`;
+
+      // Check if file exists and generate unique name if needed
+      try {
+        const { stat } = await import('@tauri-apps/plugin-fs');
+        await stat(targetPath);
+        // File exists, add timestamp
+        const ext = filename.includes('.') ? `.${filename.split('.').pop()}` : '';
+        const base = filename.replace(ext, '');
+        const timestamp = Date.now();
+        targetFilename = `${base}-${timestamp}${ext}`;
+        targetPath = `${targetDir}/${targetFilename}`;
+      } catch {
+        // File doesn't exist, use original name
+      }
+
+      // Copy file to assets directory
+      await copyFile(pendingImagePath, targetPath);
+
+      // Create absolute path from project root
+      const absolutePath = `/claude/assets/images/${targetFilename}`;
+
+      // Build markdown image syntax
+      const altText = imageAltText.trim() || filename.replace(/\.(png|svg)$/i, '');
+      const imageMarkdown = `![${altText}](${absolutePath})`;
+
+      // Insert at cursor position (or end if no position)
+      if (isEditing && textareaRef.current) {
+        const textarea = textareaRef.current;
+        const pos = textarea.selectionStart;
+        const newContent = editContent.substring(0, pos) + imageMarkdown + editContent.substring(pos);
+        setEditContent(newContent);
+        setHasUnsavedChanges(true);
+      } else {
+        // Switch to edit mode and append
+        const newContent = content + '\n' + imageMarkdown;
+        setEditContent(newContent);
+        setContent(newContent);
+        setHasUnsavedChanges(true);
+        setIsEditing(true);
+      }
+
+      // Reset modal state
+      setShowAltTextModal(false);
+      setPendingImagePath(null);
+      setImageAltText('');
+    } catch (err) {
+      console.error('Failed to insert image:', err);
+      alert(`Failed to insert image: ${err}`);
+    }
+  };
+
   // Insert comment with the form data
   const doInsertComment = () => {
     const selData = selectionDataRef.current;
@@ -553,6 +724,26 @@ function DocBenchContent() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showCreateMenu]);
+
+  // Close insert menu when clicking outside
+  useEffect(() => {
+    if (!showInsertMenu) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-insert-menu]')) return;
+      setShowInsertMenu(false);
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showInsertMenu]);
 
   // Helper to get next number for a document type (REQUEST, OBSERVE, etc.)
   const getNextDocNumber = async (prefix: string): Promise<number> => {
@@ -1010,32 +1201,45 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
         style={{ width: sidebarWidth }}
       >
         {/* Browse Root Selector */}
-        <div className="p-3 border-b border-gray-200 flex items-center justify-between group">
-          <button
-            onClick={handleChangeRootClick}
-            className="text-left hover:bg-gray-50 transition-colors flex-1"
-            title={`${projectRoot}/${browseRoot}`}
-          >
-            <div className="text-sm font-medium text-gray-700 flex items-center gap-1">
-              {browseRoot}/
-              <span className="text-xs text-gray-400">▼</span>
-            </div>
-            <div className="text-xs text-gray-400">
-              {isTauriClient ? 'Click to change' : 'Browser mode'}
-            </div>
-          </button>
-          <div className="flex items-center gap-1">
-            {/* Create Button */}
-            <div className="relative" data-create-menu>
-              <button
-                onClick={() => setShowCreateMenu(!showCreateMenu)}
-                className="text-gray-400 hover:text-agency-600 p-1 rounded hover:bg-gray-100 transition-colors"
-                title="Create new document"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
+        <div className="p-3 border-b border-gray-200 group">
+          <div className="flex items-center justify-between gap-1">
+            <button
+              onClick={handleChangeRootClick}
+              className="text-left hover:bg-gray-50 transition-colors flex-1 min-w-0"
+              title={`${projectRoot}/${browseRoot}`}
+            >
+              <span className="text-sm font-medium text-gray-700 truncate flex items-center gap-1">
+                {browseRoot}/
+                <span className="text-xs text-gray-400">▼</span>
+              </span>
+            </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {/* Home button - reset to claude/ */}
+              {browseRoot !== 'claude' && (
+                <button
+                  onClick={() => {
+                    setBrowseRoot('claude');
+                    setExpandedDirs(new Set([`${projectRoot}/claude`]));
+                  }}
+                  className="text-gray-400 hover:text-agency-600 p-1 rounded hover:bg-gray-100 transition-colors"
+                  title="Back to claude/"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                </button>
+              )}
+              {/* Create Button */}
+              <div className="relative" data-create-menu>
+                <button
+                  onClick={() => setShowCreateMenu(!showCreateMenu)}
+                  className="text-gray-400 hover:text-agency-600 p-1 rounded hover:bg-gray-100 transition-colors"
+                  title="Create new document"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
               {/* Create Menu Dropdown */}
               {showCreateMenu && (
                 <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-40">
@@ -1066,11 +1270,15 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
             </div>
             <button
               onClick={(e) => copyToClipboard(`${projectRoot}/${browseRoot}`, e)}
-              className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-200 transition-colors"
+              className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors"
               title="Copy path"
             >
               <CopyIcon />
             </button>
+            </div>
+          </div>
+          <div className="text-xs text-gray-400 mt-1">
+            {isTauriClient ? 'Click to change' : 'Browser mode'}
           </div>
         </div>
 
@@ -1083,6 +1291,43 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
             <div className="text-center py-4 text-gray-400">No files found</div>
           )}
         </div>
+
+        {/* Quick Access - principal directories (always visible when principal is set) */}
+        {principalName && (
+          <div className="border-t border-gray-200 p-2">
+            <div className="text-xs font-medium text-gray-500 mb-1 px-1">Quick Access</div>
+            <div className="font-mono text-xs space-y-0.5">
+              {[
+                { name: `${principalName}/`, path: `${projectRoot}/claude/principals/${principalName.toLowerCase()}`, browseRoot: `claude/principals/${principalName.toLowerCase()}` },
+                { name: 'notes/', path: `${projectRoot}/claude/principals/${principalName.toLowerCase()}/notes`, browseRoot: `claude/principals/${principalName.toLowerCase()}/notes` },
+                { name: 'requests/', path: `${projectRoot}/claude/principals/${principalName.toLowerCase()}/requests`, browseRoot: `claude/principals/${principalName.toLowerCase()}/requests` },
+                { name: 'observations/', path: `${projectRoot}/claude/principals/${principalName.toLowerCase()}/observations`, browseRoot: `claude/principals/${principalName.toLowerCase()}/observations` },
+              ].map((item) => (
+                <div key={item.path} className="group flex items-center">
+                  <button
+                    onClick={() => {
+                      // Change browse root to this directory
+                      setBrowseRoot(item.browseRoot);
+                      // Expand this directory
+                      setExpandedDirs(new Set([item.path]));
+                    }}
+                    className="flex-1 text-left px-1 py-1 rounded truncate hover:bg-gray-100 text-gray-600"
+                    title={item.path}
+                  >
+                    {item.name}
+                  </button>
+                  <button
+                    onClick={(e) => copyToClipboard(item.path, e)}
+                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-200 transition-colors"
+                    title="Copy path"
+                  >
+                    <CopyIcon />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Favorites - taller to fit 6 items */}
         <div className="border-t border-gray-200 p-2">
@@ -1140,6 +1385,26 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
             )}
           </div>
         </div>
+
+        {/* Settings */}
+        <div className="border-t border-gray-200 p-2">
+          <button
+            onClick={() => {
+              setSettingsPrincipalName(principalName);
+              setShowSettingsModal(true);
+            }}
+            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>Settings</span>
+            {principalName && (
+              <span className="ml-auto text-xs text-gray-400">{principalName}</span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Resize Handle */}
@@ -1154,26 +1419,75 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
       <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col relative min-w-0">
         {selectedFile ? (
           <>
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between group">
-              <div className="min-w-0 flex-1">
-                <div
-                  className="font-mono text-sm text-gray-700 truncate"
-                  title={selectedFile}
-                >
-                  {selectedFile.replace(projectRoot + '/', '')}
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1 min-w-0 flex-1">
+                  <span
+                    className="font-mono text-sm text-gray-700 truncate"
+                    title={selectedFile}
+                  >
+                    {selectedFile.split('/').pop()}
+                  </span>
                   <button
                     onClick={(e) => copyToClipboard(selectedFile, e)}
-                    className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-200 transition-colors ml-2 inline-flex align-middle"
-                    title="Copy path"
+                    className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-200 transition-colors flex-shrink-0"
+                    title={`Copy: ${selectedFile}`}
                   >
                     <CopyIcon />
                   </button>
                 </div>
-                <div className="text-xs text-gray-400">
-                  {isEditing ? 'Editing' : 'Viewing'} | Cmd+E toggle{isEditing ? ' | Cmd+S save' : ''}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                {/* Insert Menu */}
+                <div className="relative" data-insert-menu>
+                  <button
+                    onClick={() => setShowInsertMenu(!showInsertMenu)}
+                    className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded flex items-center gap-1"
+                    title="Insert"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Insert</span>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {showInsertMenu && (
+                    <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-36">
+                      <button
+                        onClick={handleInsertCommentFromMenu}
+                        disabled={!hasTextSelection}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                          hasTextSelection
+                            ? 'text-gray-700 hover:bg-gray-100'
+                            : 'text-gray-400 cursor-not-allowed'
+                        }`}
+                        title={hasTextSelection ? 'Add comment to selected text' : 'Select text first'}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        <span>Comment</span>
+                        {!hasTextSelection && <span className="text-xs text-gray-400 ml-auto">(select text)</span>}
+                      </button>
+                      <button
+                        onClick={handleInsertImage}
+                        disabled={!isTauriClient}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                          isTauriClient
+                            ? 'text-gray-700 hover:bg-gray-100'
+                            : 'text-gray-400 cursor-not-allowed'
+                        }`}
+                        title="Insert image from file"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>Image</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="flex gap-2 flex-shrink-0">
                 <button
                   onClick={() => toggleFavorite(selectedFile)}
                   className={`px-2 py-1 text-sm ${
@@ -1221,25 +1535,36 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
                 >
                   {isEditing ? 'Preview' : 'Edit'}
                 </button>
+                </div>
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                {isEditing ? 'Editing' : 'Viewing'} | Cmd+E toggle{isEditing ? ' | Cmd+S save' : ''}
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto relative">
               {isEditing ? (
                 <textarea
                   ref={textareaRef}
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
-                  onMouseUp={handleTextSelection}
                   className="w-full h-full p-4 font-mono text-sm resize-none focus:outline-none bg-gray-50"
                   spellCheck={false}
                 />
               ) : (
-                <div className="p-4" onMouseUp={handlePreviewSelection}>
+                <div className="p-4">
                   <article className="prose prose-slate max-w-none prose-sm">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
                   </article>
                 </div>
               )}
+              {/* Floating copy button for current file path */}
+              <button
+                onClick={() => copyToClipboard(selectedFile)}
+                className="absolute bottom-4 right-4 bg-white border border-gray-200 rounded-lg shadow-md p-2 text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors"
+                title={`Copy path: ${selectedFile}`}
+              >
+                <CopyIcon />
+              </button>
             </div>
           </>
         ) : (
@@ -1486,6 +1811,120 @@ ${createObservation || '<!-- What did you observe? Describe what you noticed. --
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alt-Text Modal for Image Insertion */}
+      {showAltTextModal && pendingImagePath && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Insert Image</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Selected File</label>
+                <div className="bg-gray-50 rounded-lg p-3 font-mono text-xs text-gray-600 break-all">
+                  {pendingImagePath.split('/').pop()}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alt Text (description)</label>
+                <input
+                  type="text"
+                  placeholder="Describe the image for accessibility"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-agency-500"
+                  value={imageAltText}
+                  onChange={(e) => setImageAltText(e.target.value)}
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-1">This text will be shown if the image fails to load, and used by screen readers.</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-xs text-gray-500 mb-1">Will be saved to:</div>
+                <div className="font-mono text-xs text-gray-600 break-all">
+                  /claude/assets/images/{pendingImagePath.split('/').pop()}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={completeImageInsertion}
+                className="flex-1 px-4 py-2 bg-agency-600 text-white rounded-lg hover:bg-agency-700"
+              >
+                Insert Image
+              </button>
+              <button
+                onClick={() => {
+                  setShowAltTextModal(false);
+                  setPendingImagePath(null);
+                  setImageAltText('');
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Settings</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Your Name (Principal)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., jordan"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-agency-500"
+                  value={settingsPrincipalName}
+                  onChange={(e) => setSettingsPrincipalName(e.target.value)}
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  This will be used for comments, requests, and Quick Access directories.
+                </p>
+              </div>
+              {settingsPrincipalName && (
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-xs text-gray-500 mb-1">Quick Access directories:</div>
+                  <div className="font-mono text-xs text-gray-600 space-y-0.5">
+                    <div>principals/{settingsPrincipalName.toLowerCase()}/</div>
+                    <div>principals/{settingsPrincipalName.toLowerCase()}/notes/</div>
+                    <div>principals/{settingsPrincipalName.toLowerCase()}/requests/</div>
+                    <div>principals/{settingsPrincipalName.toLowerCase()}/observations/</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  if (settingsPrincipalName.trim()) {
+                    setPrincipalName(settingsPrincipalName.trim());
+                    setShowSettingsModal(false);
+                  }
+                }}
+                disabled={!settingsPrincipalName.trim()}
+                className="flex-1 px-4 py-2 bg-agency-600 text-white rounded-lg hover:bg-agency-700 disabled:opacity-50"
+              >
+                Save
+              </button>
+              {principalName && (
+                <button
+                  onClick={() => {
+                    setSettingsPrincipalName(principalName);
+                    setShowSettingsModal(false);
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           </div>
         </div>

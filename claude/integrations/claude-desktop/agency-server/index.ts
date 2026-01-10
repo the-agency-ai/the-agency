@@ -408,8 +408,8 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
       mimeType: "text/markdown",
     },
     {
-      uri: "agency://config.yaml",
-      name: "config.yaml",
+      uri: "agency://config/agency.yaml",
+      name: "agency.yaml",
       description: "Project configuration including principal mappings",
       mimeType: "text/yaml",
     },
@@ -452,13 +452,13 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     };
   }
 
-  if (uri === "agency://config.yaml") {
+  if (uri === "agency://config/agency.yaml") {
     return {
       contents: [
         {
           uri,
           mimeType: "text/yaml",
-          text: readFile("claude/config.yaml"),
+          text: readFile("claude/config/agency.yaml"),
         },
       ],
     };

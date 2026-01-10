@@ -1,5 +1,5 @@
 #!/bin/bash
-# Read configuration values from claude/config.yaml
+# Read configuration values from claude/config/agency.yaml
 #
 # Usage:
 #   ./tools/config get principals.jdm        # Get value for a key path
@@ -7,7 +7,7 @@
 #   ./tools/config get project.timezone      # Get project timezone
 #   ./tools/config list                      # Show all config
 #
-# The config file uses YAML format at claude/config.yaml
+# The config file uses YAML format at claude/config/agency.yaml
 # Keys are accessed using dot notation: section.key or section.key.subkey
 
 set -e
@@ -22,7 +22,7 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-CONFIG_FILE="$REPO_ROOT/claude/config.yaml"
+CONFIG_FILE="$REPO_ROOT/claude/config/agency.yaml"
 
 # Check if config exists
 if [[ ! -f "$CONFIG_FILE" ]]; then
