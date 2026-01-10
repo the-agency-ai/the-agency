@@ -21,6 +21,7 @@ import { createBugService } from './embedded/bug-service';
 import { createMessagesService } from './embedded/messages-service';
 import { createLogService } from './embedded/log-service';
 import { createTestService } from './embedded/test-service';
+import { createProductService } from './embedded/product-service';
 
 const logger = createServiceLogger('agency-service');
 
@@ -75,22 +76,26 @@ async function main() {
   const testServiceInstance = createTestService({ db, projectRoot: config.projectRoot || process.cwd() });
   await testServiceInstance.initialize();
 
+  const productServiceInstance = await createProductService(db);
+
   // Mount embedded service routes
   app.route('/api/bug', bugService.routes);
   app.route('/api/message', messagesService.routes);
   app.route('/api/log', logServiceInstance.routes);
   app.route('/api/test', testServiceInstance.routes);
+  app.route('/api/products', productServiceInstance.routes);
 
   // API info endpoint
   app.get('/api', (c) => {
     return c.json({
       name: 'The Agency Service',
-      version: '0.4.0',
+      version: '0.5.0',
       services: {
         'bug-service': '/api/bug',
         'messages-service': '/api/message',
         'log-service': '/api/log',
         'test-service': '/api/test',
+        'product-service': '/api/products',
       },
     });
   });
@@ -135,6 +140,7 @@ async function main() {
   console.log(`   Message:  http://${config.host}:${config.port}/api/message`);
   console.log(`   Log:      http://${config.host}:${config.port}/api/log`);
   console.log(`   Test:     http://${config.host}:${config.port}/api/test`);
+  console.log(`   Products: http://${config.host}:${config.port}/api/products`);
 
   return server;
 }
