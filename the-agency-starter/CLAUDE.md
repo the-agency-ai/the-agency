@@ -93,6 +93,147 @@ tools/                       # CLI tools for The Agency
 - `./tools/sync` - Push with pre-commit checks
 - `./tools/doc-commit` - Commit documentation
 
+**Secrets:**
+- `./tools/secret` - Secret management CLI (see Secrets section below)
+
+## Secrets
+
+**All secrets MUST be stored in the Secret Service.** Do not store secrets in `.env` files, config files, or anywhere else in the codebase.
+
+### Quick Start
+
+```bash
+# First time: Initialize the vault
+./tools/secret vault init
+
+# Unlock the vault (required after restart or 30-min timeout)
+./tools/secret vault unlock
+
+# Store a secret
+./tools/secret create my-api-key --type=api_key --service=GitHub
+
+# Fetch a secret (logged for audit)
+./tools/secret get my-api-key
+```
+
+### Vault Management
+
+The vault protects all secrets with a master passphrase using Argon2id key derivation and AES-256-GCM encryption.
+
+```bash
+./tools/secret vault init      # Initialize vault (first time only)
+./tools/secret vault unlock    # Unlock for session (30-min timeout)
+./tools/secret vault lock      # Lock vault immediately
+./tools/secret vault status    # Check vault status
+```
+
+### Storing Secrets
+
+```bash
+# Basic secret
+./tools/secret create my-token --type=token --service=GitHub
+
+# With description
+./tools/secret create api-key --type=api_key --service=Anthropic \
+  --description="Claude API key for production"
+
+# Secret types: api_key, token, password, certificate, ssh_key, generic
+```
+
+### Fetching Secrets
+
+```bash
+# Get secret value (logged for audit)
+./tools/secret get my-token
+
+# Show metadata only (not logged)
+./tools/secret show my-token
+
+# List all secrets
+./tools/secret list
+
+# Filter by service
+./tools/secret list --service=GitHub
+```
+
+### Integration with Tools
+
+Secrets can be tagged for use by specific tools:
+
+```bash
+# Tag secret for use by the gh CLI
+./tools/secret tag github-token --tool=gh
+
+# Tag for a local tool
+./tools/secret tag my-secret --local-tool=./tools/myclaude
+
+# Find secrets by tag
+./tools/secret list --tool=gh
+```
+
+### Access Control
+
+Secrets can be shared with specific agents or principals:
+
+```bash
+# Grant read access to an agent
+./tools/secret grant my-secret --to=agent:housekeeping --permission=read
+
+# Grant admin access to a principal
+./tools/secret grant my-secret --to=principal:jordan --permission=admin
+
+# Revoke access
+./tools/secret revoke my-secret --from=agent:housekeeping
+
+# List grants
+./tools/secret grants my-secret
+```
+
+### Environment Variable Integration
+
+```bash
+# Export for shell use
+eval $(./tools/secret env my-token MY_TOKEN)
+# Results in: export MY_TOKEN=<secret-value>
+
+# Use in scripts
+MY_TOKEN=$(./tools/secret get my-token)
+```
+
+### Audit Logging
+
+All secret access is logged for security:
+
+```bash
+# View access log for a secret
+./tools/secret audit my-token
+
+# View all access logs
+./tools/secret audit --all
+```
+
+### Migration from .env Files
+
+If you have existing secrets in `.env` files, migrate them:
+
+```bash
+./tools/migrate-secrets --dry-run  # Preview what will be migrated
+./tools/migrate-secrets            # Run the migration
+```
+
+### Service Configuration
+
+The Secret Service runs as part of agency-service on port 3141:
+
+```bash
+# Start the service
+cd services/agency-service && bun run dev
+
+# Environment variables
+SECRET_SERVICE_URL=http://localhost:3141/api/secret
+AGENCY_USER=principal:jordan  # or agent:housekeeping
+```
+
 ## Conventions
 
 ### Naming
