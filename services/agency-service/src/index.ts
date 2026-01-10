@@ -22,6 +22,7 @@ import { createMessagesService } from './embedded/messages-service';
 import { createLogService } from './embedded/log-service';
 import { createTestService } from './embedded/test-service';
 import { createProductService } from './embedded/product-service';
+import { createSecretService } from './embedded/secret-service';
 
 const logger = createServiceLogger('agency-service');
 
@@ -78,24 +79,29 @@ async function main() {
 
   const productServiceInstance = await createProductService(db);
 
+  const secretServiceInstance = createSecretService({ db });
+  await secretServiceInstance.initialize();
+
   // Mount embedded service routes
   app.route('/api/bug', bugService.routes);
   app.route('/api/message', messagesService.routes);
   app.route('/api/log', logServiceInstance.routes);
   app.route('/api/test', testServiceInstance.routes);
   app.route('/api/products', productServiceInstance.routes);
+  app.route('/api/secret', secretServiceInstance.routes);
 
   // API info endpoint
   app.get('/api', (c) => {
     return c.json({
       name: 'The Agency Service',
-      version: '0.5.0',
+      version: '0.6.0',
       services: {
         'bug-service': '/api/bug',
         'messages-service': '/api/message',
         'log-service': '/api/log',
         'test-service': '/api/test',
         'product-service': '/api/products',
+        'secret-service': '/api/secret',
       },
     });
   });
@@ -141,6 +147,7 @@ async function main() {
   console.log(`   Log:      http://${config.host}:${config.port}/api/log`);
   console.log(`   Test:     http://${config.host}:${config.port}/api/test`);
   console.log(`   Products: http://${config.host}:${config.port}/api/products`);
+  console.log(`   Secret:   http://${config.host}:${config.port}/api/secret`);
 
   return server;
 }
