@@ -10,12 +10,10 @@ const apps: Record<string, { title: string; version?: string }> = {
   '/bench': { title: 'Dashboard' },
   '/bench/docbench': { title: 'DocBench', version: `0.1.0-${BUILD_DATE}` },
   '/bench/bugbench': { title: 'BugBench', version: `0.1.0-${BUILD_DATE}` },
-  '/bench/logs': { title: 'Logs', version: `0.1.0-${BUILD_DATE}` },
   '/bench/knowledge-indexer': { title: 'Knowledge Indexer', version: `0.1.0-${BUILD_DATE}` },
   '/bench/agent-monitor': { title: 'Agent Monitor', version: `0.1.0-${BUILD_DATE}` },
   '/bench/collaboration-inbox': { title: 'Collaboration Inbox', version: `0.1.0-${BUILD_DATE}` },
   '/bench/messages': { title: 'Messages', version: `0.1.0-${BUILD_DATE}` },
-  '/bench/secrets': { title: 'Secrets', version: `0.1.0-${BUILD_DATE}` },
 };
 
 export function Header() {

@@ -29,13 +29,6 @@ const devApps: DevApp[] = [
     icon: '🐛',
   },
   {
-    id: 'logs',
-    name: 'Logs',
-    href: '/bench/logs',
-    description: 'View and search system logs',
-    icon: '📋',
-  },
-  {
     id: 'knowledge-indexer',
     name: 'Knowledge Indexer',
     href: '/bench/knowledge-indexer',
@@ -62,13 +55,6 @@ const devApps: DevApp[] = [
     href: '/bench/messages',
     description: 'View message queue and delivery status',
     icon: '📬',
-  },
-  {
-    id: 'secrets',
-    name: 'Secrets',
-    href: '/bench/secrets',
-    description: 'Manage encrypted secrets and credentials',
-    icon: '🔐',
   },
 ];
 

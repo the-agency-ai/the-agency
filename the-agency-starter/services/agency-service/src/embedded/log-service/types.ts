@@ -133,7 +133,24 @@ export interface LogStats {
 }
 
 /**
- * Tool run tracking
+ * Tool types for categorization (REQUEST-0012)
+ */
+export const ToolType = {
+  AGENCY_TOOL: 'agency-tool',  // ./tools/* commands
+  BASH: 'bash',                // Shell commands
+  MCP: 'mcp',                  // MCP tool calls
+} as const;
+
+export type ToolTypeValue = (typeof ToolType)[keyof typeof ToolType];
+
+/**
+ * Tool run tracking (Enhanced per REQUEST-0012)
+ *
+ * Captures detailed tool invocation data for:
+ * - Understanding agent behavior
+ * - Identifying high-frequency tool usage patterns
+ * - Finding opportunities to reduce context/token usage
+ * - Making better, more effective tools
  */
 export interface ToolRun {
   runId: string;
@@ -144,25 +161,44 @@ export interface ToolRun {
   summary?: string;
   userId?: string;
   userType?: UserTypeValue;
+
+  // REQUEST-0012 additions
+  toolType?: ToolTypeValue;     // agency-tool, bash, mcp
+  args?: string[];              // Command arguments
+  agentName?: string;           // Which agent made the call
+  workstream?: string;          // Work context
+  exitCode?: number;            // Process exit code (0-255)
+  outputSize?: number;          // Output size in bytes (for context analysis)
+  duration?: number;            // Duration in ms (calculated from start/end)
 }
 
 /**
- * Create tool run schema
+ * Create tool run schema (Enhanced per REQUEST-0012)
  */
 export const createToolRunSchema = z.object({
   tool: z.string().min(1),
   userId: z.string().optional(),
   userType: z.enum(['agent', 'principal', 'system']).optional(),
+
+  // REQUEST-0012 additions
+  toolType: z.enum(['agency-tool', 'bash', 'mcp']).optional(),
+  args: z.array(z.string()).optional(),
+  agentName: z.string().optional(),
+  workstream: z.string().optional(),
 });
 
 export type CreateToolRunRequest = z.infer<typeof createToolRunSchema>;
 
 /**
- * End tool run schema
+ * End tool run schema (Enhanced per REQUEST-0012)
  */
 export const endToolRunSchema = z.object({
   status: z.enum(['success', 'failure']),
   summary: z.string().optional(),
+
+  // REQUEST-0012 additions
+  exitCode: z.number().int().min(0).max(255).optional(),
+  outputSize: z.number().int().min(0).optional(),
 });
 
 export type EndToolRunRequest = z.infer<typeof endToolRunSchema>;

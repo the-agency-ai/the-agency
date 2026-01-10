@@ -13,6 +13,19 @@ This file tracks releases of the-agency-starter.
 ### Summary
 Brief description of what's in this release.
 
+## [1.0.2] - 2026-01-10
+
+**Tag:** starter-v1.0.2
+**Commit:** c76bad4
+
+### Summary
+Release 1.0.2 of the-agency-starter.
+
+### Changes
+- See history/CHANGELOG.md for details
+
+---
+
 ## [1.0.1] - 2026-01-10
 
 **Tag:** starter-v1.0.1

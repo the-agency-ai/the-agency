@@ -50,10 +50,13 @@ export class SecretService {
     }
 
     const stats = status === 'unlocked' ? await this.repository.getStats() : undefined;
+    const autoLockInMs = this.repository.getTimeUntilAutoLock();
 
     return {
       status,
       secretCount: stats?.total,
+      autoLockInMs: autoLockInMs ?? undefined,
+      autoLockTimeoutMs: status === 'unlocked' ? 30 * 60 * 1000 : undefined,
     };
   }
 

@@ -324,6 +324,50 @@ logger.info = (obj, msg) => {
 
 ## Activity Log
 
+### 2026-01-10 - Tool Invocation Schema Enhanced (housekeeping)
+Enhanced the Tool Run schema per REQUEST-0012 requirements:
+
+**Files Modified:**
+- `services/agency-service/src/embedded/log-service/types.ts` - Added ToolType enum and new fields
+- `services/agency-service/src/embedded/log-service/repository/log.repository.ts` - Updated schema and CRUD operations
+
+**New Fields Added to ToolRun:**
+- `toolType`: 'agency-tool' | 'bash' | 'mcp' - Categorizes tool invocations
+- `args`: string[] - Command arguments for analysis
+- `agentName`: string - Which agent made the call
+- `workstream`: string - Work context
+- `exitCode`: number - Process exit code (0-255)
+- `outputSize`: number - Output size in bytes (critical for context optimization)
+- `duration`: number - Calculated from start/end times
+
+**API Changes:**
+- `POST /api/log/run/start` now accepts: toolType, args, agentName, workstream
+- `POST /api/log/run/end/:runId` now accepts: exitCode, outputSize
+
+**Migration:**
+- Added automatic column migration for existing databases
+
+**Use Cases Enabled:**
+- "What tools are agents using most?"
+- "Which tools produce the most output (context hogs)?"
+- "What's the average duration of git operations?"
+- "Show failed tool invocations in the last 24h"
+
+### 2026-01-10 - AgencyBench UX Created (housekeeping)
+Created Log Service UX page in AgencyBench at `/bench/logs`:
+- Log list with timestamp, level, service, message columns
+- Color-coded by level (trace, debug, info, warn, error, fatal)
+- Filters: level, service, time range (15m, 1h, 6h, 24h, 7d), search
+- Real-time polling with Live/Paused toggle
+- Log detail panel with stack trace, metadata, structured data
+- Stats panel showing totals, errors in last hour, active services
+- runId correlation display for tool tracking
+
+**Files Created/Modified:**
+- `the-agency-starter/apps/agency-bench/src/app/bench/(apps)/logs/page.tsx` (705 lines)
+- `the-agency-starter/apps/agency-bench/src/components/bench/AppSidebar.tsx` - Added Logs entry
+- `the-agency-starter/apps/agency-bench/src/components/bench/Header.tsx` - Added /bench/logs route
+
 ### 2026-01-10 14:45 SST - Created
 - Request created based on discussion about environment observability
 - Vision: queryable logs for both agents and humans

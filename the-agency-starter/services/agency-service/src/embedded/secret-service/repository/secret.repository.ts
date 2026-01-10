@@ -28,8 +28,20 @@ import type {
   VaultStatus,
 } from '../types';
 import { createServiceLogger } from '../../../core/lib/logger';
+import { hashRaw as argon2HashRaw, verify as argon2Verify, Algorithm } from '@node-rs/argon2';
 
 const logger = createServiceLogger('secret-repository');
+
+// Argon2id configuration as per requirements
+const ARGON2_CONFIG = {
+  memoryCost: 65536,       // 64 MiB
+  timeCost: 3,             // 3 iterations
+  parallelism: 4,          // 4 parallel threads
+  outputLen: 32,           // 256-bit key
+};
+
+// Auto-lock timeout in milliseconds (30 minutes)
+const AUTO_LOCK_TIMEOUT_MS = 30 * 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Row Types (SQLite representation)
@@ -178,31 +190,47 @@ function rowToRecovery(row: RecoveryRow): RecoveryCode {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Encryption Helpers (using Web Crypto API)
+// Encryption Helpers (using Web Crypto API + Argon2id)
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
-  const encoder = new TextEncoder();
-  const passphraseKey = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(passphrase),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  );
+/**
+ * Derive a 256-bit key from passphrase using Argon2id
+ * Configuration: memoryCost=65536 (64 MiB), timeCost=3, parallelism=4
+ */
+async function deriveKeyFromPassphrase(passphrase: string, salt: Uint8Array): Promise<Uint8Array> {
+  // Use Argon2id to derive a raw key from the passphrase
+  const hashResult = await argon2HashRaw(passphrase, {
+    salt: Buffer.from(salt),
+    memoryCost: ARGON2_CONFIG.memoryCost,
+    timeCost: ARGON2_CONFIG.timeCost,
+    parallelism: ARGON2_CONFIG.parallelism,
+    outputLen: ARGON2_CONFIG.outputLen,
+    algorithm: Algorithm.Argon2id,
+  });
 
-  return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt,
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
-    passphraseKey,
+  // hashRaw returns a Buffer directly
+  return new Uint8Array(hashResult);
+}
+
+/**
+ * Import raw key bytes as a CryptoKey for AES-256-GCM operations
+ */
+async function importAesKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    'raw',
+    keyBytes,
     { name: 'AES-GCM', length: 256 },
     false,
     ['encrypt', 'decrypt']
   );
+}
+
+/**
+ * Derive an AES-256-GCM CryptoKey from passphrase using Argon2id
+ */
+async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
+  const keyBytes = await deriveKeyFromPassphrase(passphrase, salt);
+  return importAesKey(keyBytes);
 }
 
 async function encrypt(plaintext: string, key: CryptoKey): Promise<{ encrypted: Buffer; iv: Buffer }> {
@@ -253,8 +281,41 @@ async function hashRecoveryCode(code: string): Promise<string> {
 
 export class SecretRepository {
   private masterKey: CryptoKey | null = null;
+  private lastActivityTime: number = 0;
+  private autoLockTimer: NodeJS.Timeout | null = null;
 
   constructor(private db: DatabaseAdapter) {}
+
+  /**
+   * Update the last activity timestamp and reset auto-lock timer
+   */
+  private updateActivity(): void {
+    this.lastActivityTime = Date.now();
+
+    // Clear existing timer if any
+    if (this.autoLockTimer) {
+      clearTimeout(this.autoLockTimer);
+    }
+
+    // Set new auto-lock timer if vault is unlocked
+    if (this.masterKey) {
+      this.autoLockTimer = setTimeout(() => {
+        if (this.masterKey) {
+          logger.info('Vault auto-locked due to inactivity');
+          this.lockVault();
+        }
+      }, AUTO_LOCK_TIMEOUT_MS);
+    }
+  }
+
+  /**
+   * Get time until auto-lock in milliseconds, or null if locked
+   */
+  getTimeUntilAutoLock(): number | null {
+    if (!this.masterKey) return null;
+    const elapsed = Date.now() - this.lastActivityTime;
+    return Math.max(0, AUTO_LOCK_TIMEOUT_MS - elapsed);
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Schema Initialization
@@ -433,6 +494,9 @@ export class SecretRepository {
       ['encrypt', 'decrypt']
     );
 
+    // Start the auto-lock timer
+    this.updateActivity();
+
     logger.info('Vault initialized');
     return { recoveryCodes };
   }
@@ -467,6 +531,9 @@ export class SecretRepository {
         ['encrypt', 'decrypt']
       );
 
+      // Start the auto-lock timer
+      this.updateActivity();
+
       logger.info('Vault unlocked');
       return true;
     } catch (error) {
@@ -477,6 +544,13 @@ export class SecretRepository {
 
   lockVault(): void {
     this.masterKey = null;
+
+    // Clear auto-lock timer
+    if (this.autoLockTimer) {
+      clearTimeout(this.autoLockTimer);
+      this.autoLockTimer = null;
+    }
+
     logger.info('Vault locked');
   }
 
@@ -488,6 +562,8 @@ export class SecretRepository {
     if (!this.masterKey) {
       throw new Error('Vault is locked. Call unlockVault() first.');
     }
+    // Update activity on any vault operation
+    this.updateActivity();
   }
 
   // ─────────────────────────────────────────────────────────────────────────

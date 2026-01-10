@@ -16,11 +16,16 @@
 set -e
 
 # Tool version
-TOOL_VERSION="2.0.0-2"
+TOOL_VERSION="2.0.1"
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Source log helper for tool tracking
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
 
 # Parse arguments
 VERBOSE=false
@@ -82,19 +87,24 @@ log_info() { log "info" "$1" "$2"; }
 log_warn() { log "warn" "$1" "$2"; }
 log_error() { log "error" "$1" "$2"; }
 
-# Start tool run
+# Start tool run - uses log helper if available
 start_run() {
     if [[ "$VERBOSE" == "true" ]]; then
         RUN_ID=""
         return
     fi
 
-    RUN_ID=$(curl -s -X POST "http://127.0.0.1:3141/api/log/run" \
-        -H "Content-Type: application/json" \
-        -d "{\"tool\":\"sync\"}" 2>/dev/null | grep -o '"runId":"[^"]*"' | cut -d'"' -f4 || true)
+    # Use log helper if available
+    if type log_start &>/dev/null; then
+        RUN_ID=$(log_start "sync" "agency-tool" "sync")
+    else
+        RUN_ID=$(curl -s -X POST "http://127.0.0.1:3141/api/log/run" \
+            -H "Content-Type: application/json" \
+            -d "{\"tool\":\"sync\"}" 2>/dev/null | grep -o '"runId":"[^"]*"' | cut -d'"' -f4 || true)
+    fi
 }
 
-# End tool run
+# End tool run - uses log helper if available
 end_run() {
     local status="$1"
     local summary="$2"
@@ -103,7 +113,12 @@ end_run() {
         return
     fi
 
-    if [[ -n "$RUN_ID" ]]; then
+    # Use log helper if available
+    if type log_end &>/dev/null && [[ -n "$RUN_ID" ]]; then
+        local exit_code=0
+        [[ "$status" == "failure" ]] && exit_code=1
+        log_end "$RUN_ID" "$status" "$exit_code" "0" "$summary"
+    elif [[ -n "$RUN_ID" ]]; then
         curl -s -X POST "http://127.0.0.1:3141/api/log/run/${RUN_ID}/end" \
             -H "Content-Type: application/json" \
             -d "{\"status\":\"$status\",\"summary\":\"$summary\"}" > /dev/null 2>&1 || true

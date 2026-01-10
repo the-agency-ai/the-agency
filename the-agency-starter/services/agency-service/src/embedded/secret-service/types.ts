@@ -152,6 +152,8 @@ export interface VaultStatusResponse {
   secretCount?: number;
   createdAt?: Date;
   hasRecoveryCodes?: boolean;
+  autoLockInMs?: number;        // Time until auto-lock in milliseconds
+  autoLockTimeoutMs?: number;   // Total auto-lock timeout (30 minutes)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

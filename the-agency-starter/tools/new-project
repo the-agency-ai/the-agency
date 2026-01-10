@@ -135,20 +135,6 @@ git commit -m "Initial commit from The Agency Starter" --quiet
 # Make tools executable
 chmod +x tools/* 2>/dev/null || true
 
-# Install bun if not present (needed for agency-service)
-BUN_PATH="${HOME}/.bun/bin/bun"
-if [[ ! -x "$BUN_PATH" ]]; then
-    echo "Installing bun (for agency-service)..."
-    curl -fsSL https://bun.sh/install | bash
-    export PATH="$HOME/.bun/bin:$PATH"
-fi
-
-# Install agency-service dependencies
-if [[ -d "services/agency-service" ]]; then
-    echo "Installing agency-service dependencies..."
-    (cd services/agency-service && "$HOME/.bun/bin/bun" install --silent 2>/dev/null) || true
-fi
-
 # Configure principal with current user
 SYSTEM_USER=$(whoami)
 echo "Configuring for user: $SYSTEM_USER"
