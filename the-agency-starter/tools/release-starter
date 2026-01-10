@@ -130,12 +130,16 @@ sync_files() {
         "claude/workstreams"
         "tools"
         "history/CHANGELOG.md"
+        "apps/agency-bench"
+        "services/agency-service"
     )
 
     # Create necessary directories
     mkdir -p "$STARTER_DIR/claude"
     mkdir -p "$STARTER_DIR/claude/data"
     mkdir -p "$STARTER_DIR/history"
+    mkdir -p "$STARTER_DIR/apps"
+    mkdir -p "$STARTER_DIR/services"
 
     # Sync each item
     for item in "${sync_items[@]}"; do
@@ -175,10 +179,16 @@ clean_cruft() {
     find "$STARTER_DIR" -name ".claude" -type d -exec rm -rf {} + 2>/dev/null || true
 
     # Remove specific files that shouldn't be in starter
-    rm -rf "$STARTER_DIR/services" 2>/dev/null || true
-    rm -rf "$STARTER_DIR/apps" 2>/dev/null || true
     rm -f "$STARTER_DIR/history/push-log.md" 2>/dev/null || true
     rm -f "$STARTER_DIR/history/releases.md" 2>/dev/null || true
+
+    # Clean build artifacts from apps (but keep source)
+    rm -rf "$STARTER_DIR/apps/agency-bench/src-tauri/target" 2>/dev/null || true
+    rm -rf "$STARTER_DIR/apps/agency-bench/.next" 2>/dev/null || true
+    rm -rf "$STARTER_DIR/apps/agency-bench/out" 2>/dev/null || true
+
+    # Clean build artifacts from services (but keep source)
+    rm -rf "$STARTER_DIR/services/agency-service/node_modules" 2>/dev/null || true
 
     echo "  Cleaned cruft"
 }
@@ -199,6 +209,10 @@ verify_build() {
         "tools/create-workstream"
         "claude/config/agency.yaml"
         "claude/agents/housekeeping/agent.md"
+        "apps/agency-bench/package.json"
+        "apps/agency-bench/src-tauri/tauri.conf.json"
+        "services/agency-service/package.json"
+        "services/agency-service/src/index.ts"
     )
 
     for file in "${required_files[@]}"; do

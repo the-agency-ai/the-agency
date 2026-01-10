@@ -1,0 +1,192 @@
+#!/bin/bash
+# Create properly formatted commits for The Agency
+#
+# Usage:
+#   ./tools/commit "feat: add encryption" REQUEST-jordan-0017
+#   ./tools/commit "fix: handle null case" BUG-0042
+#   ./tools/commit "docs: update README"  # No work item
+#
+# Format:
+#   workstream/agent: message
+#
+#   WORK-ITEM-ID (if provided)
+#   Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+#
+# Options:
+#   --no-verify    Skip pre-commit hooks
+#   --amend        Amend the previous commit (use carefully!)
+#   --dry-run      Show what would be committed
+#   --staged       Only commit staged changes (default: stage all)
+#
+
+set -e
+
+TOOL_VERSION="1.0.0"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Defaults
+NO_VERIFY=false
+AMEND=false
+DRY_RUN=false
+STAGED_ONLY=false
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --version|-v)
+            echo "commit $TOOL_VERSION"
+            exit 0
+            ;;
+        --help|-h)
+            head -22 "$0" | tail -21 | sed 's/^# //' | sed 's/^#//'
+            exit 0
+            ;;
+        --no-verify)
+            NO_VERIFY=true
+            shift
+            ;;
+        --amend)
+            AMEND=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --staged)
+            STAGED_ONLY=true
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Get message and work item
+MESSAGE="${1:-}"
+WORK_ITEM="${2:-}"
+
+if [ -z "$MESSAGE" ]; then
+    echo -e "${RED}Error: Commit message required${NC}"
+    echo "Usage: ./tools/commit \"message\" [WORK-ITEM]"
+    exit 1
+fi
+
+# Try to detect workstream/agent from environment or current directory
+WORKSTREAM="${AGENCY_WORKSTREAM:-}"
+AGENT="${AGENCY_AGENT:-}"
+
+# If not set, try to infer from myclaude session marker
+if [ -z "$WORKSTREAM" ] || [ -z "$AGENT" ]; then
+    # Check for session file
+    SESSION_FILE="${HOME}/.claude/current-session"
+    if [ -f "$SESSION_FILE" ]; then
+        source "$SESSION_FILE" 2>/dev/null || true
+    fi
+fi
+
+# Fallback: try to get from git branch name (e.g., feature/housekeeping-secret-service)
+if [ -z "$WORKSTREAM" ] || [ -z "$AGENT" ]; then
+    BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+    # Try pattern like "workstream/agent-description"
+    if [[ "$BRANCH" =~ ^([a-z-]+)/([a-z-]+)- ]]; then
+        WORKSTREAM="${BASH_REMATCH[1]}"
+        AGENT="${BASH_REMATCH[2]}"
+    fi
+fi
+
+# Final fallback: use "housekeeping/housekeeping" as default
+WORKSTREAM="${WORKSTREAM:-housekeeping}"
+AGENT="${AGENT:-housekeeping}"
+
+# Build the commit message
+PREFIX="${WORKSTREAM}/${AGENT}"
+FULL_MESSAGE="${PREFIX}: ${MESSAGE}"
+
+# Add work item and co-author
+BODY=""
+if [ -n "$WORK_ITEM" ]; then
+    BODY="${WORK_ITEM}"$'\n'
+fi
+BODY="${BODY}Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+
+# Show what we're about to do
+echo -e "${BLUE}Commit Preview:${NC}"
+echo "---"
+echo -e "${GREEN}${FULL_MESSAGE}${NC}"
+echo ""
+echo "$BODY"
+echo "---"
+
+# Check for changes
+if [ "$AMEND" = false ]; then
+    if [ "$STAGED_ONLY" = false ]; then
+        # Check if there are any changes to commit
+        if [ -z "$(git status --porcelain)" ]; then
+            echo -e "${YELLOW}Nothing to commit, working tree clean${NC}"
+            exit 0
+        fi
+    else
+        # Check if there are staged changes
+        if [ -z "$(git diff --cached --name-only)" ]; then
+            echo -e "${YELLOW}No staged changes to commit${NC}"
+            echo "Tip: Stage files with 'git add' or use without --staged to commit all"
+            exit 0
+        fi
+    fi
+fi
+
+# Dry run - just show what would happen
+if [ "$DRY_RUN" = true ]; then
+    echo -e "${YELLOW}[DRY RUN] Would commit with above message${NC}"
+
+    if [ "$STAGED_ONLY" = false ]; then
+        echo -e "${YELLOW}[DRY RUN] Would stage all changes:${NC}"
+        git status --short
+    else
+        echo -e "${YELLOW}[DRY RUN] Would commit staged changes:${NC}"
+        git diff --cached --name-only
+    fi
+
+    if [ "$NO_VERIFY" = true ]; then
+        echo -e "${YELLOW}[DRY RUN] Would skip pre-commit hooks${NC}"
+    fi
+
+    if [ "$AMEND" = true ]; then
+        echo -e "${YELLOW}[DRY RUN] Would amend previous commit${NC}"
+    fi
+
+    exit 0
+fi
+
+# Stage changes if not staged-only mode
+if [ "$STAGED_ONLY" = false ]; then
+    git add -A
+fi
+
+# Build git commit command
+GIT_CMD="git commit"
+
+if [ "$NO_VERIFY" = true ]; then
+    GIT_CMD="$GIT_CMD --no-verify"
+fi
+
+if [ "$AMEND" = true ]; then
+    GIT_CMD="$GIT_CMD --amend"
+fi
+
+# Execute commit
+$GIT_CMD -m "$FULL_MESSAGE" -m "$BODY"
+
+echo -e "${GREEN}Commit created successfully${NC}"
+
+# Show the result
+echo ""
+git log -1 --oneline
