@@ -45,10 +45,17 @@ async function localAuth(c: Context, next: Next): Promise<Response | void> {
 
   if (userHeader) {
     // Parse user header: "type:name" e.g., "agent:housekeeping"
-    const [type, name] = userHeader.split(':');
+    const [rawType, name] = userHeader.split(':');
+
+    // Validate type is one of the allowed values
+    const validTypes: AuthUser['type'][] = ['principal', 'agent', 'system'];
+    const type: AuthUser['type'] = validTypes.includes(rawType as AuthUser['type'])
+      ? (rawType as AuthUser['type'])
+      : 'agent';
+
     user = {
-      id: `local-${type}-${name}`,
-      type: (type as AuthUser['type']) || 'agent',
+      id: `local-${type}-${name || 'unknown'}`,
+      type,
       name: name || 'unknown',
     };
   } else {

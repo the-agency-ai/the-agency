@@ -6,17 +6,37 @@
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
 import type { BugService } from '../service/bug.service';
 import { createBugSchema, updateBugSchema, listBugsQuerySchema } from '../types';
 import { createServiceLogger } from '../../../core/lib/logger';
 
 const logger = createServiceLogger('bug-routes');
 
+// Schemas for status update and assignment endpoints
+const updateStatusSchema = z.object({
+  status: z.enum(['Open', 'In Progress', 'Fixed', "Won't Fix"]),
+});
+
+const assignBugSchema = z.object({
+  assigneeType: z.enum(['agent', 'principal']).optional().default('agent'),
+  assigneeName: z.string().min(1, 'assigneeName is required'),
+});
+
 /**
  * Create bug routes
  */
 export function createBugRoutes(bugService: BugService): Hono {
   const app = new Hono();
+
+  // Global error handler
+  app.onError((err, c) => {
+    logger.error({ error: err.message, stack: err.stack }, 'Bug route error');
+    return c.json(
+      { error: 'Internal Server Error', message: err.message },
+      500
+    );
+  });
 
   /**
    * GET /bugs - List bugs
@@ -90,22 +110,9 @@ export function createBugRoutes(bugService: BugService): Hono {
   /**
    * PATCH /bugs/:bugId/status - Update bug status
    */
-  app.patch('/:bugId/status', async (c) => {
+  app.patch('/:bugId/status', zValidator('json', updateStatusSchema), async (c) => {
     const bugId = c.req.param('bugId');
-    const body = await c.req.json();
-    const status = body.status;
-
-    if (!status) {
-      return c.json({ error: 'Bad Request', message: 'status is required' }, 400);
-    }
-
-    const validStatuses = ['Open', 'In Progress', 'Fixed', "Won't Fix"];
-    if (!validStatuses.includes(status)) {
-      return c.json({
-        error: 'Bad Request',
-        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
-      }, 400);
-    }
+    const { status } = c.req.valid('json');
 
     const bug = await bugService.updateStatus(bugId, status);
 
@@ -120,25 +127,11 @@ export function createBugRoutes(bugService: BugService): Hono {
   /**
    * PATCH /bugs/:bugId/assign - Assign a bug
    */
-  app.patch('/:bugId/assign', async (c) => {
+  app.patch('/:bugId/assign', zValidator('json', assignBugSchema), async (c) => {
     const bugId = c.req.param('bugId');
-    const body = await c.req.json();
-    const { assigneeType, assigneeName } = body;
+    const { assigneeType, assigneeName } = c.req.valid('json');
 
-    if (!assigneeName) {
-      return c.json({ error: 'Bad Request', message: 'assigneeName is required' }, 400);
-    }
-
-    const validTypes = ['agent', 'principal'];
-    const type = assigneeType || 'agent';
-    if (!validTypes.includes(type)) {
-      return c.json({
-        error: 'Bad Request',
-        message: `Invalid assigneeType. Must be one of: ${validTypes.join(', ')}`,
-      }, 400);
-    }
-
-    const bug = await bugService.assignBug(bugId, type, assigneeName);
+    const bug = await bugService.assignBug(bugId, assigneeType, assigneeName);
 
     if (!bug) {
       return c.json({ error: 'Not Found', message: `Bug ${bugId} not found` }, 404);
