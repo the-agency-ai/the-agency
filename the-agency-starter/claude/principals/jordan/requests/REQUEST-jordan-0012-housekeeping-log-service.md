@@ -20,6 +20,9 @@ Build **log-service** - a queryable log aggregation service that makes logs acce
 
 **Multi-Service:** This service will aggregate logs from ALL services in the ecosystem - agency-service, future extracted services, and eventually cloud/remote services. We're in a meta situation: building The Agency with The Agency.
 
+**Related Ideas:**
+- IDEA-jordan-00001: Context-efficient tool logging - Tools should log to log-service and return minimal output (1 line vs 231 lines), dramatically reducing context window consumption while maintaining debuggability.
+
 ## Use Cases
 
 ### For Agents

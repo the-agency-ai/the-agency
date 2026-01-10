@@ -15,7 +15,7 @@
 set -e
 
 # Tool version
-TOOL_VERSION="1.0.0-20260110-000002"
+TOOL_VERSION="1.3.0-20260110-000002"
 
 # Configuration
 AGENCY_SERVICE_PORT="${AGENCY_SERVICE_PORT:-3141}"
@@ -448,6 +448,442 @@ cmd_bug_status() {
     api_request PATCH "/api/bug/${bug_id}/status" "{\"status\":\"$status\"}" | jq .
 }
 
+# Message commands
+cmd_message_list() {
+    local query=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --from) query="${query}fromName=$2&fromType=agent&"; shift 2 ;;
+            --from-type) query="${query}fromType=$2&"; shift 2 ;;
+            --limit) query="${query}limit=$2&"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    local endpoint="/api/message"
+    if [[ -n "$query" ]]; then
+        endpoint="${endpoint}?${query%&}"
+    fi
+
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_message_inbox() {
+    local recipient_type="${1:-agent}"
+    local recipient_name="$2"
+    local unread_only="${3:-false}"
+
+    if [[ -z "$recipient_name" ]]; then
+        # Try to get from whoami
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                recipient_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$recipient_name" ]]; then
+                    recipient_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$recipient_name" ]]; then
+            log_error "Usage: agency-service message inbox <type> <name> [unread-only]"
+            exit 1
+        fi
+    fi
+
+    local endpoint="/api/message/inbox/${recipient_type}/${recipient_name}"
+    if [[ "$unread_only" == "true" ]]; then
+        endpoint="${endpoint}?unreadOnly=true"
+    fi
+
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_message_stats() {
+    local recipient_type="${1:-agent}"
+    local recipient_name="$2"
+
+    if [[ -z "$recipient_name" ]]; then
+        # Try to get from whoami
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                recipient_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$recipient_name" ]]; then
+                    recipient_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$recipient_name" ]]; then
+            log_error "Usage: agency-service message stats <type> <name>"
+            exit 1
+        fi
+    fi
+
+    api_request GET "/api/message/stats/${recipient_type}/${recipient_name}" | jq .
+}
+
+cmd_message_get() {
+    local message_id="$1"
+    if [[ -z "$message_id" ]]; then
+        log_error "Message ID required"
+        exit 1
+    fi
+    api_request GET "/api/message/${message_id}" | jq .
+}
+
+cmd_message_send() {
+    local from_name=""
+    local from_type="agent"
+    local to_name=""
+    local to_type="agent"
+    local subject=""
+    local content=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --from|-f) from_name="$2"; shift 2 ;;
+            --from-type) from_type="$2"; shift 2 ;;
+            --to|-t) to_name="$2"; shift 2 ;;
+            --to-type) to_type="$2"; shift 2 ;;
+            --subject|-s) subject="$2"; shift 2 ;;
+            --content|-c) content="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    # Auto-detect sender
+    if [[ -z "$from_name" ]]; then
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                from_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$from_name" ]]; then
+                    from_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$from_name" ]]; then
+            from_name="system"
+            from_type="system"
+        fi
+    fi
+
+    if [[ -z "$to_name" ]]; then
+        log_error "--to is required"
+        exit 1
+    fi
+
+    if [[ -z "$content" ]]; then
+        log_error "--content is required"
+        exit 1
+    fi
+
+    # Build JSON
+    local json="{\"fromType\":\"$from_type\",\"fromName\":\"$from_name\",\"toType\":\"$to_type\",\"toName\":\"$to_name\",\"content\":\"$content\""
+    if [[ -n "$subject" ]]; then
+        json="$json,\"subject\":\"$subject\""
+    fi
+    json="$json}"
+
+    api_request POST "/api/message" "$json" | jq .
+}
+
+cmd_message_read() {
+    local message_id="$1"
+    local recipient_type="${2:-agent}"
+    local recipient_name="$3"
+
+    if [[ -z "$message_id" ]]; then
+        log_error "Message ID required"
+        exit 1
+    fi
+
+    if [[ -z "$recipient_name" ]]; then
+        # Try to get from whoami
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                recipient_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$recipient_name" ]]; then
+                    recipient_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$recipient_name" ]]; then
+            log_error "Usage: agency-service message read <message-id> <type> <name>"
+            exit 1
+        fi
+    fi
+
+    api_request POST "/api/message/${message_id}/read" "{\"recipientType\":\"$recipient_type\",\"recipientName\":\"$recipient_name\"}" | jq .
+}
+
+cmd_message_read_all() {
+    local recipient_type="${1:-agent}"
+    local recipient_name="$2"
+
+    if [[ -z "$recipient_name" ]]; then
+        # Try to get from whoami
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                recipient_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$recipient_name" ]]; then
+                    recipient_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$recipient_name" ]]; then
+            log_error "Usage: agency-service message read-all <type> <name>"
+            exit 1
+        fi
+    fi
+
+    api_request POST "/api/message/read-all" "{\"recipientType\":\"$recipient_type\",\"recipientName\":\"$recipient_name\"}" | jq .
+}
+
+cmd_message_delete() {
+    local message_id="$1"
+    if [[ -z "$message_id" ]]; then
+        log_error "Message ID required"
+        exit 1
+    fi
+    api_request DELETE "/api/message/${message_id}" | jq .
+}
+
+# Log commands
+cmd_log_query() {
+    local query=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --service|-s) query="${query}service=$2&"; shift 2 ;;
+            --level|-l) query="${query}level=$2&"; shift 2 ;;
+            --run-id|-r) query="${query}runId=$2&"; shift 2 ;;
+            --since) query="${query}since=$2&"; shift 2 ;;
+            --search|-q) query="${query}search=$2&"; shift 2 ;;
+            --limit) query="${query}limit=$2&"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    local endpoint="/api/log"
+    if [[ -n "$query" ]]; then
+        endpoint="${endpoint}?${query%&}"
+    fi
+
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_log_stats() {
+    api_request GET "/api/log/stats" | jq .
+}
+
+cmd_log_services() {
+    api_request GET "/api/log/services" | jq .
+}
+
+cmd_log_run() {
+    local run_id="$1"
+    local mode="${2:-all}"
+
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        exit 1
+    fi
+
+    case "$mode" in
+        all)
+            api_request GET "/api/log/run/${run_id}/all" | jq .
+            ;;
+        errors|error)
+            api_request GET "/api/log/run/${run_id}/errors" | jq .
+            ;;
+        info|details)
+            api_request GET "/api/log/run/${run_id}" | jq .
+            ;;
+        *)
+            echo "Unknown mode: $mode (use: all, errors, info)"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_log_search() {
+    local query="$1"
+    local since="${2:-24h}"
+
+    if [[ -z "$query" ]]; then
+        log_error "Search query required"
+        exit 1
+    fi
+
+    api_request GET "/api/log/search?q=${query}&since=${since}" | jq .
+}
+
+cmd_log_start_run() {
+    local tool="$1"
+    local user_type="${2:-system}"
+    local user_name="${3:-cli}"
+
+    if [[ -z "$tool" ]]; then
+        log_error "Tool name required"
+        exit 1
+    fi
+
+    api_request POST "/api/log/run" "{\"tool\":\"$tool\",\"userType\":\"$user_type\",\"userId\":\"$user_name\"}" | jq -r '.runId'
+}
+
+cmd_log_end_run() {
+    local run_id="$1"
+    local status="${2:-success}"
+    local summary="$3"
+
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        exit 1
+    fi
+
+    local json="{\"status\":\"$status\""
+    if [[ -n "$summary" ]]; then
+        json="$json,\"summary\":\"$summary\""
+    fi
+    json="$json}"
+
+    api_request POST "/api/log/run/${run_id}/end" "$json" | jq .
+}
+
+cmd_log_ingest() {
+    local service="$1"
+    local level="${2:-info}"
+    local message="$3"
+    local run_id="$4"
+
+    if [[ -z "$service" ]] || [[ -z "$message" ]]; then
+        log_error "Usage: agency-service log ingest <service> <level> <message> [run-id]"
+        exit 1
+    fi
+
+    local json="{\"service\":\"$service\",\"level\":\"$level\",\"message\":\"$message\""
+    if [[ -n "$run_id" ]]; then
+        json="$json,\"runId\":\"$run_id\""
+    fi
+    json="$json}"
+
+    api_request POST "/api/log" "$json" | jq .
+}
+
+# Test commands
+cmd_test_run() {
+    local suite="${1:-all}"
+    local triggered_by_type="${2:-system}"
+    local triggered_by_name="${3:-cli}"
+
+    # Auto-detect trigger
+    if [[ "$triggered_by_name" == "cli" ]]; then
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                triggered_by_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$triggered_by_name" ]]; then
+                    triggered_by_type="agent"
+                fi
+            fi
+        fi
+    fi
+
+    log_info "Running tests (suite: $suite)..."
+    api_request POST "/api/test/run" "{\"suite\":\"$suite\",\"triggeredByType\":\"$triggered_by_type\",\"triggeredByName\":\"$triggered_by_name\"}" | jq .
+}
+
+cmd_test_list() {
+    local query=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --suite|-s) query="${query}suite=$2&"; shift 2 ;;
+            --status) query="${query}status=$2&"; shift 2 ;;
+            --since) query="${query}since=$2&"; shift 2 ;;
+            --limit) query="${query}limit=$2&"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    local endpoint="/api/test/run"
+    if [[ -n "$query" ]]; then
+        endpoint="${endpoint}?${query%&}"
+    fi
+
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_test_get() {
+    local run_id="$1"
+    local mode="${2:-all}"
+
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        exit 1
+    fi
+
+    case "$mode" in
+        all)
+            api_request GET "/api/test/run/${run_id}/all" | jq .
+            ;;
+        failures|failed)
+            api_request GET "/api/test/run/${run_id}/failures" | jq .
+            ;;
+        *)
+            api_request GET "/api/test/run/${run_id}" | jq .
+            ;;
+    esac
+}
+
+cmd_test_latest() {
+    local suite="$1"
+    local endpoint="/api/test/run/latest"
+    if [[ -n "$suite" ]]; then
+        endpoint="${endpoint}?suite=${suite}"
+    fi
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_test_stats() {
+    local suite="$1"
+    local endpoint="/api/test/stats"
+    if [[ -n "$suite" ]]; then
+        endpoint="${endpoint}?suite=${suite}"
+    fi
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_test_flaky() {
+    local limit="${1:-10}"
+    api_request GET "/api/test/flaky?limit=${limit}" | jq .
+}
+
+cmd_test_suites() {
+    api_request GET "/api/test/suites" | jq .
+}
+
+cmd_test_cancel() {
+    local run_id="$1"
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        exit 1
+    fi
+    api_request POST "/api/test/run/${run_id}/cancel" | jq .
+}
+
+cmd_test_cleanup() {
+    local days="${1:-30}"
+    api_request DELETE "/api/test/cleanup?days=${days}" | jq .
+}
+
 # Main
 case "${1:-}" in
     install)
@@ -492,6 +928,55 @@ case "${1:-}" in
                 ;;
         esac
         ;;
+    message|msg)
+        case "${2:-list}" in
+            list) shift 2; cmd_message_list "$@" ;;
+            inbox) cmd_message_inbox "$3" "$4" "$5" ;;
+            stats) cmd_message_stats "$3" "$4" ;;
+            get) cmd_message_get "$3" ;;
+            send) shift 2; cmd_message_send "$@" ;;
+            read) cmd_message_read "$3" "$4" "$5" ;;
+            read-all) cmd_message_read_all "$3" "$4" ;;
+            delete) cmd_message_delete "$3" ;;
+            *)
+                echo "Unknown message command: $2"
+                exit 1
+                ;;
+        esac
+        ;;
+    log)
+        case "${2:-list}" in
+            list) shift 2; cmd_log_query "$@" ;;
+            stats) cmd_log_stats ;;
+            services) cmd_log_services ;;
+            run) cmd_log_run "$3" "$4" ;;
+            search) cmd_log_search "$3" "$4" ;;
+            start-run) cmd_log_start_run "$3" "$4" "$5" ;;
+            end-run) cmd_log_end_run "$3" "$4" "$5" ;;
+            ingest) cmd_log_ingest "$3" "$4" "$5" "$6" ;;
+            *)
+                echo "Unknown log command: $2"
+                exit 1
+                ;;
+        esac
+        ;;
+    test)
+        case "${2:-run}" in
+            run) cmd_test_run "$3" "$4" "$5" ;;
+            list) shift 2; cmd_test_list "$@" ;;
+            get) cmd_test_get "$3" "$4" ;;
+            latest) cmd_test_latest "$3" ;;
+            stats) cmd_test_stats "$3" ;;
+            flaky) cmd_test_flaky "$3" ;;
+            suites) cmd_test_suites ;;
+            cancel) cmd_test_cancel "$3" ;;
+            cleanup) cmd_test_cleanup "$3" ;;
+            *)
+                echo "Unknown test command: $2"
+                exit 1
+                ;;
+        esac
+        ;;
     --version|-v)
         echo "agency-service $TOOL_VERSION"
         ;;
@@ -516,6 +1001,37 @@ case "${1:-}" in
         echo "  ./tools/agency-service bug update <bug-id> --status Fixed"
         echo "  ./tools/agency-service bug assign <bug-id> <assignee> [type]"
         echo "  ./tools/agency-service bug status <bug-id> <status>"
+        echo ""
+        echo "Message Service:"
+        echo "  ./tools/agency-service message list [--from X] [--limit N]"
+        echo "  ./tools/agency-service message inbox [type] [name] [unread-only]"
+        echo "  ./tools/agency-service message stats [type] [name]"
+        echo "  ./tools/agency-service message get <message-id>  Get a specific message"
+        echo "  ./tools/agency-service message send --to X --content \"...\""
+        echo "  ./tools/agency-service message read <message-id> [type] [name]"
+        echo "  ./tools/agency-service message read-all [type] [name]"
+        echo "  ./tools/agency-service message delete <message-id>"
+        echo ""
+        echo "Log Service:"
+        echo "  ./tools/agency-service log [--service X] [--level error] [--since 1h]"
+        echo "  ./tools/agency-service log stats                 Log statistics"
+        echo "  ./tools/agency-service log services              List services with logs"
+        echo "  ./tools/agency-service log run <run-id> [all|errors|info]"
+        echo "  ./tools/agency-service log search <query> [since]"
+        echo "  ./tools/agency-service log start-run <tool>      Start a tool run, get run-id"
+        echo "  ./tools/agency-service log end-run <run-id> <status> [summary]"
+        echo "  ./tools/agency-service log ingest <service> <level> <message> [run-id]"
+        echo ""
+        echo "Test Service:"
+        echo "  ./tools/agency-service test run [suite]          Run tests (default: all)"
+        echo "  ./tools/agency-service test list [--suite X] [--status passed|failed]"
+        echo "  ./tools/agency-service test get <run-id> [all|failures]"
+        echo "  ./tools/agency-service test latest [suite]       Get most recent test run"
+        echo "  ./tools/agency-service test stats [suite]        Test statistics"
+        echo "  ./tools/agency-service test flaky [limit]        Find flaky tests"
+        echo "  ./tools/agency-service test suites               List available test suites"
+        echo "  ./tools/agency-service test cancel <run-id>      Cancel a running test"
+        echo "  ./tools/agency-service test cleanup [days]       Delete old test runs"
         echo ""
         echo "Options:"
         echo "  --version, -v  Show version"

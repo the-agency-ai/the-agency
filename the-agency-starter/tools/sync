@@ -2,99 +2,188 @@
 # Sync local commits with remote (pull --rebase + push)
 # This is the ONLY approved way to push to remote
 #
-# Usage: ./tools/sync [--check] [--dry-run]
+# Usage: ./tools/sync [options]
 #   --check    Show what would be pushed without pushing
 #   --dry-run  Same as --check
+#   --verbose  Show detailed output instead of logging
 #
 # Features:
 # - Pulls with rebase first (keeps history clean)
 # - Logs all pushes for accountability
 # - Shows commit summary before pushing
+# - Context-efficient: 1-line output, details in log-service
 
 set -e
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
-
-# Version check
-if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
-    echo "sync $TOOL_VERSION"
-    exit 0
-fi
+TOOL_VERSION="2.0.0-2"
 
 # Configuration
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-PUSH_LOG="$REPO_ROOT/history/push-log.md"
-AGENT="${AGENTNAME:-unknown}"
-TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S %Z')
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Parse arguments
+VERBOSE=false
 CHECK_ONLY=false
-for arg in "$@"; do
-  case $arg in
-    --check|--dry-run)
-      CHECK_ONLY=true
-      ;;
-  esac
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        --version)
+            echo "sync $TOOL_VERSION"
+            exit 0
+            ;;
+        --check|--dry-run)
+            CHECK_ONLY=true
+            shift
+            ;;
+        --help|-h)
+            echo "sync - Sync local commits with remote"
+            echo ""
+            echo "Usage:"
+            echo "  ./tools/sync [options]"
+            echo ""
+            echo "Options:"
+            echo "  --check, --dry-run  Show what would be pushed without pushing"
+            echo "  --verbose, -v       Show detailed output instead of logging"
+            echo "  --version           Show version"
+            echo "  --help, -h          Show this help"
+            exit 0
+            ;;
+        *)
+            shift
+            ;;
+    esac
 done
 
-# Get current branch
-BRANCH=$(git branch --show-current)
+# Logging helpers
+log() {
+    local level="$1"
+    local message="$2"
+    local data="$3"
 
-# Check if we have commits to push
-UPSTREAM="origin/$BRANCH"
-if ! git rev-parse "$UPSTREAM" >/dev/null 2>&1; then
-  # No upstream branch yet - this is a new branch
-  AHEAD=$(git rev-list HEAD --count 2>/dev/null || echo "new")
-  BEHIND=0
-else
-  AHEAD=$(git rev-list "$UPSTREAM..HEAD" --count 2>/dev/null || echo "0")
-  BEHIND=$(git rev-list "HEAD..$UPSTREAM" --count 2>/dev/null || echo "0")
-fi
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "[$level] $message"
+    elif [[ -n "$RUN_ID" ]]; then
+        local json="{\"service\":\"sync\",\"level\":\"$level\",\"message\":\"$message\",\"runId\":\"$RUN_ID\""
+        if [[ -n "$data" ]]; then
+            json="$json,\"data\":$data"
+        fi
+        json="$json}"
+        curl -s -X POST "http://127.0.0.1:3141/api/log" \
+            -H "Content-Type: application/json" \
+            -d "$json" > /dev/null 2>&1 || true
+    fi
+}
 
-# Show status
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Git Sync - $BRANCH"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "  Agent:    $AGENT"
-echo "  Ahead:    $AHEAD commits"
-echo "  Behind:   $BEHIND commits"
-echo ""
+log_info() { log "info" "$1" "$2"; }
+log_warn() { log "warn" "$1" "$2"; }
+log_error() { log "error" "$1" "$2"; }
 
-if [[ "$AHEAD" == "0" ]]; then
-  echo "  Nothing to push."
-  echo ""
-  exit 0
-fi
+# Start tool run
+start_run() {
+    if [[ "$VERBOSE" == "true" ]]; then
+        RUN_ID=""
+        return
+    fi
 
-# Show commits to push
-echo "  Commits to push:"
-echo "  ────────────────"
-if [[ "$UPSTREAM" != "origin/$BRANCH" ]] || ! git rev-parse "$UPSTREAM" >/dev/null 2>&1; then
-  git log --oneline -10 | sed 's/^/    /'
-else
-  git log --oneline "$UPSTREAM..HEAD" | sed 's/^/    /'
-fi
-echo ""
+    RUN_ID=$(curl -s -X POST "http://127.0.0.1:3141/api/log/run" \
+        -H "Content-Type: application/json" \
+        -d "{\"tool\":\"sync\"}" 2>/dev/null | grep -o '"runId":"[^"]*"' | cut -d'"' -f4 || true)
+}
 
-# Check for [skip ci] in commits
-SKIP_CI_COUNT=0
-if git rev-parse "$UPSTREAM" >/dev/null 2>&1; then
-  SKIP_CI_COUNT=$(git log --oneline "$UPSTREAM..HEAD" | grep -c '\[skip ci\]' || echo "0")
-fi
-SKIP_CI_STATUS="$SKIP_CI_COUNT skip-ci"
+# End tool run
+end_run() {
+    local status="$1"
+    local summary="$2"
 
-if $CHECK_ONLY; then
-  echo "  --check mode: Not pushing"
-  echo ""
-  exit 0
-fi
+    if [[ "$VERBOSE" == "true" ]]; then
+        return
+    fi
 
-# Log BEFORE pushing (accountability even if push fails)
-mkdir -p "$(dirname "$PUSH_LOG")"
-if [[ ! -f "$PUSH_LOG" ]]; then
-  cat > "$PUSH_LOG" << 'EOF'
+    if [[ -n "$RUN_ID" ]]; then
+        curl -s -X POST "http://127.0.0.1:3141/api/log/run/${RUN_ID}/end" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"$status\",\"summary\":\"$summary\"}" > /dev/null 2>&1 || true
+    fi
+}
+
+# Output result (single line)
+output_success() {
+    local message="$1"
+    if [[ -n "$RUN_ID" ]]; then
+        echo "SUCCESS: $message (run-id: $RUN_ID)"
+    else
+        echo "SUCCESS: $message"
+    fi
+}
+
+output_failure() {
+    local message="$1"
+    if [[ -n "$RUN_ID" ]]; then
+        echo "FAILURE: $message (run-id: $RUN_ID)"
+        echo "  Debug: ./tools/agency-service log run $RUN_ID errors"
+    else
+        echo "FAILURE: $message"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main sync logic
+# ─────────────────────────────────────────────────────────────────────────────
+
+main() {
+    start_run
+
+    REPO_ROOT="$(git rev-parse --show-toplevel)"
+    PUSH_LOG="$REPO_ROOT/history/push-log.md"
+    AGENT="${AGENTNAME:-unknown}"
+    TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S %Z')
+
+    # Get current branch
+    BRANCH=$(git branch --show-current)
+    log_info "Starting sync on branch: $BRANCH"
+
+    # Check if we have commits to push
+    UPSTREAM="origin/$BRANCH"
+    if ! git rev-parse "$UPSTREAM" >/dev/null 2>&1; then
+        AHEAD=$(git rev-list HEAD --count 2>/dev/null || echo "new")
+        BEHIND=0
+    else
+        AHEAD=$(git rev-list "$UPSTREAM..HEAD" --count 2>/dev/null || echo "0")
+        BEHIND=$(git rev-list "HEAD..$UPSTREAM" --count 2>/dev/null || echo "0")
+    fi
+
+    log_info "Ahead: $AHEAD, Behind: $BEHIND"
+
+    if [[ "$AHEAD" == "0" ]]; then
+        log_info "Nothing to push"
+        end_run "success" "Nothing to push"
+        output_success "Nothing to push on $BRANCH"
+        exit 0
+    fi
+
+    # Log commits
+    if [[ "$UPSTREAM" != "origin/$BRANCH" ]] || ! git rev-parse "$UPSTREAM" >/dev/null 2>&1; then
+        COMMITS=$(git log --oneline -10 | head -5)
+    else
+        COMMITS=$(git log --oneline "$UPSTREAM..HEAD" | head -5)
+    fi
+    log_info "Commits to push: $(echo "$COMMITS" | head -1)"
+
+    if $CHECK_ONLY; then
+        log_info "Check mode - not pushing"
+        end_run "success" "Check mode: $AHEAD commits ready"
+        output_success "Check mode: $AHEAD commits ready on $BRANCH"
+        exit 0
+    fi
+
+    # Log for accountability
+    mkdir -p "$(dirname "$PUSH_LOG")"
+    if [[ ! -f "$PUSH_LOG" ]]; then
+        cat > "$PUSH_LOG" << 'EOF'
 # Push Log
 
 Accountability log for all remote pushes. All agents must use `./tools/sync`.
@@ -102,23 +191,32 @@ Accountability log for all remote pushes. All agents must use `./tools/sync`.
 | Timestamp | Agent | Commits | Skip CI | Branch |
 |-----------|-------|---------|---------|--------|
 EOF
-fi
+    fi
 
-echo "| $TIMESTAMP | $AGENT | $AHEAD | $SKIP_CI_STATUS | $BRANCH |" >> "$PUSH_LOG"
+    SKIP_CI_COUNT=0
+    if git rev-parse "$UPSTREAM" >/dev/null 2>&1; then
+        SKIP_CI_COUNT=$(git log --oneline "$UPSTREAM..HEAD" | grep -c '\[skip ci\]' || echo "0")
+    fi
+    echo "| $TIMESTAMP | $AGENT | $AHEAD | $SKIP_CI_COUNT skip-ci | $BRANCH |" >> "$PUSH_LOG"
 
-# Pull with rebase first
-echo "  Pulling with rebase..."
-if ! git pull --rebase origin "$BRANCH" 2>/dev/null; then
-  # Branch might not exist on remote yet
-  echo "    (No remote branch yet, skipping pull)"
-fi
-echo ""
+    # Pull with rebase
+    log_info "Pulling with rebase"
+    if ! git pull --rebase origin "$BRANCH" 2>/dev/null; then
+        log_info "No remote branch yet, skipping pull"
+    fi
 
-# Push
-echo "  Pushing to origin/$BRANCH..."
-git push -u origin "$BRANCH"
-echo ""
+    # Push
+    log_info "Pushing to origin/$BRANCH"
+    if ! git push -u origin "$BRANCH" 2>&1; then
+        log_error "Push failed"
+        end_run "failure" "Push failed"
+        output_failure "Push to origin/$BRANCH failed"
+        exit 1
+    fi
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Sync complete. $AHEAD commits pushed."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log_info "Sync complete: $AHEAD commits pushed"
+    end_run "success" "$AHEAD commits pushed to $BRANCH"
+    output_success "$AHEAD commits pushed to $BRANCH"
+}
+
+main "$@"
