@@ -1,0 +1,1049 @@
+#!/bin/bash
+# agency-service - CLI for The Agency Service
+#
+# Manages the agency-service and provides CLI access to service APIs.
+#
+# Usage:
+#   ./tools/agency-service start                     # Start the service
+#   ./tools/agency-service stop                      # Stop the service
+#   ./tools/agency-service health                    # Check service health
+#   ./tools/agency-service bug list                  # List all bugs
+#   ./tools/agency-service bug create --workstream bench --summary "..."
+#   ./tools/agency-service bug get BENCH-00001       # Get specific bug
+#   ./tools/agency-service bug update BENCH-00001 --status Fixed
+
+set -e
+
+# Tool version
+TOOL_VERSION="1.3.0-20260110-000002"
+
+# Configuration
+AGENCY_SERVICE_PORT="${AGENCY_SERVICE_PORT:-3141}"
+AGENCY_SERVICE_HOST="${AGENCY_SERVICE_HOST:-127.0.0.1}"
+AGENCY_SERVICE_URL="http://${AGENCY_SERVICE_HOST}:${AGENCY_SERVICE_PORT}"
+
+# Find project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SERVICE_DIR="$PROJECT_ROOT/services/agency-service"
+
+# PID file for managing the service
+PID_FILE="$PROJECT_ROOT/claude/data/agency-service.pid"
+
+# Bun path
+BUN_PATH="${HOME}/.bun/bin/bun"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if service is running
+is_service_running() {
+    if curl -s --connect-timeout 1 "${AGENCY_SERVICE_URL}/health" > /dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
+# Start the service
+start_service() {
+    if is_service_running; then
+        log_info "Agency Service already running at ${AGENCY_SERVICE_URL}"
+        return 0
+    fi
+
+    log_info "Starting Agency Service..."
+
+    # Ensure data directory exists
+    mkdir -p "$(dirname "$PID_FILE")"
+
+    # Check if Bun is available
+    if [[ ! -x "$BUN_PATH" ]]; then
+        log_error "Bun not found at $BUN_PATH. Install with: curl -fsSL https://bun.sh/install | bash"
+        exit 1
+    fi
+
+    # Check if service directory exists
+    if [[ ! -d "$SERVICE_DIR" ]]; then
+        log_error "Service directory not found: $SERVICE_DIR"
+        exit 1
+    fi
+
+    # Start service in background
+    cd "$SERVICE_DIR"
+    AGENCY_PROJECT_ROOT="$PROJECT_ROOT" "$BUN_PATH" run src/index.ts > /dev/null 2>&1 &
+    local pid=$!
+    echo "$pid" > "$PID_FILE"
+
+    # Wait for service to be ready (up to 5 seconds)
+    for i in {1..50}; do
+        if is_service_running; then
+            log_info "Agency Service started (PID: $pid)"
+            return 0
+        fi
+        sleep 0.1
+    done
+
+    log_error "Failed to start Agency Service"
+    exit 1
+}
+
+# Stop the service
+stop_service() {
+    if [[ -f "$PID_FILE" ]]; then
+        local pid
+        pid=$(cat "$PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            log_info "Stopping Agency Service (PID: $pid)..."
+            kill "$pid"
+            rm -f "$PID_FILE"
+            log_info "Agency Service stopped"
+        else
+            log_warn "PID file exists but process not running"
+            rm -f "$PID_FILE"
+        fi
+    else
+        # Try to find and kill any running instance
+        local pids
+        pids=$(pgrep -f "bun run src/index.ts" 2>/dev/null || true)
+        if [[ -n "$pids" ]]; then
+            log_info "Found running service, stopping..."
+            echo "$pids" | xargs kill 2>/dev/null || true
+            log_info "Agency Service stopped"
+        else
+            log_info "Agency Service not running"
+        fi
+    fi
+}
+
+# Show service status
+show_status() {
+    echo "Agency Service Status"
+    echo "====================="
+    echo ""
+    echo "URL: ${AGENCY_SERVICE_URL}"
+    echo ""
+
+    if is_service_running; then
+        echo -e "Status: ${GREEN}Running${NC}"
+
+        # Show PID if available
+        if [[ -f "$PID_FILE" ]]; then
+            local pid
+            pid=$(cat "$PID_FILE")
+            if kill -0 "$pid" 2>/dev/null; then
+                echo "PID: $pid"
+            fi
+        fi
+
+        # Show health info
+        echo ""
+        echo "Health:"
+        curl -s "${AGENCY_SERVICE_URL}/health" | jq . 2>/dev/null || echo "  (could not fetch health)"
+    else
+        echo -e "Status: ${RED}Stopped${NC}"
+    fi
+}
+
+# Restart the service
+restart_service() {
+    log_info "Restarting Agency Service..."
+    stop_service
+    sleep 1
+    start_service
+}
+
+# Tail logs
+tail_logs() {
+    local lines="${1:-50}"
+    local log_dir="$PROJECT_ROOT/services/agency-service/logs"
+
+    if [[ ! -d "$log_dir" ]]; then
+        log_warn "Log directory not found: $log_dir"
+        exit 1
+    fi
+
+    # Find most recent log file
+    local latest_log
+    latest_log=$(ls -t "$log_dir"/log-*.log 2>/dev/null | head -1)
+
+    if [[ -z "$latest_log" ]]; then
+        log_warn "No log files found in $log_dir"
+        exit 1
+    fi
+
+    log_info "Tailing $latest_log"
+    echo ""
+    tail -n "$lines" -f "$latest_log"
+}
+
+# Install dependencies
+install_deps() {
+    log_info "Installing Agency Service dependencies..."
+
+    # Check for Bun
+    if [[ ! -x "$BUN_PATH" ]]; then
+        log_info "Bun not found. Installing..."
+        curl -fsSL https://bun.sh/install | bash
+        export PATH="$HOME/.bun/bin:$PATH"
+    fi
+
+    # Check Bun version
+    local bun_version
+    bun_version=$("$BUN_PATH" --version 2>/dev/null || echo "unknown")
+    log_info "Using Bun $bun_version"
+
+    # Check if service directory exists
+    if [[ ! -d "$SERVICE_DIR" ]]; then
+        log_error "Service directory not found: $SERVICE_DIR"
+        exit 1
+    fi
+
+    # Install npm dependencies
+    cd "$SERVICE_DIR"
+    log_info "Installing npm dependencies..."
+    "$BUN_PATH" install
+
+    # Create necessary directories
+    mkdir -p "$PROJECT_ROOT/claude/data"
+    mkdir -p "$PROJECT_ROOT/services/agency-service/logs"
+
+    log_info "Installation complete!"
+    echo ""
+    echo "Next steps:"
+    echo "  ./tools/agency-service start    # Start the service"
+    echo "  ./tools/agency-service status   # Check status"
+}
+
+# Run tests
+run_tests() {
+    log_info "Running Agency Service tests..."
+    cd "$SERVICE_DIR"
+    "$BUN_PATH" test
+}
+
+# Ensure service is running before API call
+ensure_service() {
+    if ! is_service_running; then
+        start_service
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    shift 2
+    local data="$*"
+
+    ensure_service
+
+    local curl_args=(-s -X "$method" "${AGENCY_SERVICE_URL}${endpoint}")
+    curl_args+=(-H "Content-Type: application/json")
+
+    # Add user header if whoami is available
+    if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+        local whoami_output
+        whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+        if [[ -n "$whoami_output" ]]; then
+            local agent_name
+            agent_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+            if [[ -n "$agent_name" ]]; then
+                curl_args+=(-H "X-Agency-User: agent:${agent_name}")
+            fi
+        fi
+    fi
+
+    if [[ -n "$data" ]]; then
+        curl_args+=(-d "$data")
+    fi
+
+    curl "${curl_args[@]}"
+}
+
+# Commands
+cmd_health() {
+    ensure_service
+    curl -s "${AGENCY_SERVICE_URL}/health" | jq .
+}
+
+cmd_api_info() {
+    ensure_service
+    curl -s "${AGENCY_SERVICE_URL}/api" | jq .
+}
+
+cmd_bug_list() {
+    local query=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --workstream) query="${query}workstream=$2&"; shift 2 ;;
+            --status) query="${query}status=$2&"; shift 2 ;;
+            --assignee) query="${query}assignee=$2&"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    local endpoint="/api/bug"
+    if [[ -n "$query" ]]; then
+        endpoint="${endpoint}?${query%&}"
+    fi
+
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_bug_stats() {
+    api_request GET "/api/bug/stats" | jq .
+}
+
+cmd_bug_get() {
+    local bug_id="$1"
+    if [[ -z "$bug_id" ]]; then
+        log_error "Bug ID required"
+        exit 1
+    fi
+    api_request GET "/api/bug/${bug_id}" | jq .
+}
+
+cmd_bug_create() {
+    local workstream=""
+    local summary=""
+    local description=""
+    local reporter_name=""
+    local reporter_type="agent"
+    local assignee_name=""
+    local assignee_type="agent"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --workstream|-w) workstream="$2"; shift 2 ;;
+            --summary|-s) summary="$2"; shift 2 ;;
+            --description|-d) description="$2"; shift 2 ;;
+            --reporter|-r) reporter_name="$2"; shift 2 ;;
+            --reporter-type) reporter_type="$2"; shift 2 ;;
+            --assignee|-a) assignee_name="$2"; shift 2 ;;
+            --assignee-type) assignee_type="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    if [[ -z "$workstream" ]]; then
+        log_error "--workstream is required"
+        exit 1
+    fi
+
+    if [[ -z "$summary" ]]; then
+        log_error "--summary is required"
+        exit 1
+    fi
+
+    # Auto-detect reporter
+    if [[ -z "$reporter_name" ]]; then
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                reporter_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$reporter_name" ]]; then
+                    reporter_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$reporter_name" ]]; then
+            reporter_name="system"
+            reporter_type="system"
+        fi
+    fi
+
+    # Build JSON
+    local json="{\"workstream\":\"$workstream\",\"summary\":\"$summary\",\"reporterName\":\"$reporter_name\",\"reporterType\":\"$reporter_type\""
+    if [[ -n "$description" ]]; then
+        json="$json,\"description\":\"$description\""
+    fi
+    if [[ -n "$assignee_name" ]]; then
+        json="$json,\"assigneeName\":\"$assignee_name\",\"assigneeType\":\"$assignee_type\""
+    fi
+    json="$json}"
+
+    api_request POST "/api/bug" "$json" | jq .
+}
+
+cmd_bug_update() {
+    local bug_id="$1"
+    shift
+
+    if [[ -z "$bug_id" ]]; then
+        log_error "Bug ID required"
+        exit 1
+    fi
+
+    local status=""
+    local summary=""
+    local description=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --status) status="$2"; shift 2 ;;
+            --summary) summary="$2"; shift 2 ;;
+            --description) description="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    local json="{"
+    local first=true
+    if [[ -n "$status" ]]; then
+        json="$json\"status\":\"$status\""
+        first=false
+    fi
+    if [[ -n "$summary" ]]; then
+        [[ "$first" == "false" ]] && json="$json,"
+        json="$json\"summary\":\"$summary\""
+        first=false
+    fi
+    if [[ -n "$description" ]]; then
+        [[ "$first" == "false" ]] && json="$json,"
+        json="$json\"description\":\"$description\""
+    fi
+    json="$json}"
+
+    api_request PATCH "/api/bug/${bug_id}" "$json" | jq .
+}
+
+cmd_bug_assign() {
+    local bug_id="$1"
+    local assignee="$2"
+    local assignee_type="${3:-agent}"
+
+    if [[ -z "$bug_id" ]] || [[ -z "$assignee" ]]; then
+        log_error "Usage: agency-service bug assign <bug-id> <assignee> [type]"
+        exit 1
+    fi
+
+    api_request PATCH "/api/bug/${bug_id}/assign" "{\"assigneeName\":\"$assignee\",\"assigneeType\":\"$assignee_type\"}" | jq .
+}
+
+cmd_bug_status() {
+    local bug_id="$1"
+    local status="$2"
+
+    if [[ -z "$bug_id" ]] || [[ -z "$status" ]]; then
+        log_error "Usage: agency-service bug status <bug-id> <status>"
+        exit 1
+    fi
+
+    api_request PATCH "/api/bug/${bug_id}/status" "{\"status\":\"$status\"}" | jq .
+}
+
+# Message commands
+cmd_message_list() {
+    local query=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --from) query="${query}fromName=$2&fromType=agent&"; shift 2 ;;
+            --from-type) query="${query}fromType=$2&"; shift 2 ;;
+            --limit) query="${query}limit=$2&"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    local endpoint="/api/message"
+    if [[ -n "$query" ]]; then
+        endpoint="${endpoint}?${query%&}"
+    fi
+
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_message_inbox() {
+    local recipient_type="${1:-agent}"
+    local recipient_name="$2"
+    local unread_only="${3:-false}"
+
+    if [[ -z "$recipient_name" ]]; then
+        # Try to get from whoami
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                recipient_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$recipient_name" ]]; then
+                    recipient_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$recipient_name" ]]; then
+            log_error "Usage: agency-service message inbox <type> <name> [unread-only]"
+            exit 1
+        fi
+    fi
+
+    local endpoint="/api/message/inbox/${recipient_type}/${recipient_name}"
+    if [[ "$unread_only" == "true" ]]; then
+        endpoint="${endpoint}?unreadOnly=true"
+    fi
+
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_message_stats() {
+    local recipient_type="${1:-agent}"
+    local recipient_name="$2"
+
+    if [[ -z "$recipient_name" ]]; then
+        # Try to get from whoami
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                recipient_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$recipient_name" ]]; then
+                    recipient_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$recipient_name" ]]; then
+            log_error "Usage: agency-service message stats <type> <name>"
+            exit 1
+        fi
+    fi
+
+    api_request GET "/api/message/stats/${recipient_type}/${recipient_name}" | jq .
+}
+
+cmd_message_get() {
+    local message_id="$1"
+    if [[ -z "$message_id" ]]; then
+        log_error "Message ID required"
+        exit 1
+    fi
+    api_request GET "/api/message/${message_id}" | jq .
+}
+
+cmd_message_send() {
+    local from_name=""
+    local from_type="agent"
+    local to_name=""
+    local to_type="agent"
+    local subject=""
+    local content=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --from|-f) from_name="$2"; shift 2 ;;
+            --from-type) from_type="$2"; shift 2 ;;
+            --to|-t) to_name="$2"; shift 2 ;;
+            --to-type) to_type="$2"; shift 2 ;;
+            --subject|-s) subject="$2"; shift 2 ;;
+            --content|-c) content="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    # Auto-detect sender
+    if [[ -z "$from_name" ]]; then
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                from_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$from_name" ]]; then
+                    from_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$from_name" ]]; then
+            from_name="system"
+            from_type="system"
+        fi
+    fi
+
+    if [[ -z "$to_name" ]]; then
+        log_error "--to is required"
+        exit 1
+    fi
+
+    if [[ -z "$content" ]]; then
+        log_error "--content is required"
+        exit 1
+    fi
+
+    # Build JSON
+    local json="{\"fromType\":\"$from_type\",\"fromName\":\"$from_name\",\"toType\":\"$to_type\",\"toName\":\"$to_name\",\"content\":\"$content\""
+    if [[ -n "$subject" ]]; then
+        json="$json,\"subject\":\"$subject\""
+    fi
+    json="$json}"
+
+    api_request POST "/api/message" "$json" | jq .
+}
+
+cmd_message_read() {
+    local message_id="$1"
+    local recipient_type="${2:-agent}"
+    local recipient_name="$3"
+
+    if [[ -z "$message_id" ]]; then
+        log_error "Message ID required"
+        exit 1
+    fi
+
+    if [[ -z "$recipient_name" ]]; then
+        # Try to get from whoami
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                recipient_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$recipient_name" ]]; then
+                    recipient_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$recipient_name" ]]; then
+            log_error "Usage: agency-service message read <message-id> <type> <name>"
+            exit 1
+        fi
+    fi
+
+    api_request POST "/api/message/${message_id}/read" "{\"recipientType\":\"$recipient_type\",\"recipientName\":\"$recipient_name\"}" | jq .
+}
+
+cmd_message_read_all() {
+    local recipient_type="${1:-agent}"
+    local recipient_name="$2"
+
+    if [[ -z "$recipient_name" ]]; then
+        # Try to get from whoami
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                recipient_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$recipient_name" ]]; then
+                    recipient_type="agent"
+                fi
+            fi
+        fi
+        if [[ -z "$recipient_name" ]]; then
+            log_error "Usage: agency-service message read-all <type> <name>"
+            exit 1
+        fi
+    fi
+
+    api_request POST "/api/message/read-all" "{\"recipientType\":\"$recipient_type\",\"recipientName\":\"$recipient_name\"}" | jq .
+}
+
+cmd_message_delete() {
+    local message_id="$1"
+    if [[ -z "$message_id" ]]; then
+        log_error "Message ID required"
+        exit 1
+    fi
+    api_request DELETE "/api/message/${message_id}" | jq .
+}
+
+# Log commands
+cmd_log_query() {
+    local query=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --service|-s) query="${query}service=$2&"; shift 2 ;;
+            --level|-l) query="${query}level=$2&"; shift 2 ;;
+            --run-id|-r) query="${query}runId=$2&"; shift 2 ;;
+            --since) query="${query}since=$2&"; shift 2 ;;
+            --search|-q) query="${query}search=$2&"; shift 2 ;;
+            --limit) query="${query}limit=$2&"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    local endpoint="/api/log"
+    if [[ -n "$query" ]]; then
+        endpoint="${endpoint}?${query%&}"
+    fi
+
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_log_stats() {
+    api_request GET "/api/log/stats" | jq .
+}
+
+cmd_log_services() {
+    api_request GET "/api/log/services" | jq .
+}
+
+cmd_log_run() {
+    local run_id="$1"
+    local mode="${2:-all}"
+
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        exit 1
+    fi
+
+    case "$mode" in
+        all)
+            api_request GET "/api/log/run/${run_id}/all" | jq .
+            ;;
+        errors|error)
+            api_request GET "/api/log/run/${run_id}/errors" | jq .
+            ;;
+        info|details)
+            api_request GET "/api/log/run/${run_id}" | jq .
+            ;;
+        *)
+            echo "Unknown mode: $mode (use: all, errors, info)"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_log_search() {
+    local query="$1"
+    local since="${2:-24h}"
+
+    if [[ -z "$query" ]]; then
+        log_error "Search query required"
+        exit 1
+    fi
+
+    api_request GET "/api/log/search?q=${query}&since=${since}" | jq .
+}
+
+cmd_log_start_run() {
+    local tool="$1"
+    local user_type="${2:-system}"
+    local user_name="${3:-cli}"
+
+    if [[ -z "$tool" ]]; then
+        log_error "Tool name required"
+        exit 1
+    fi
+
+    api_request POST "/api/log/run" "{\"tool\":\"$tool\",\"userType\":\"$user_type\",\"userId\":\"$user_name\"}" | jq -r '.runId'
+}
+
+cmd_log_end_run() {
+    local run_id="$1"
+    local status="${2:-success}"
+    local summary="$3"
+
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        exit 1
+    fi
+
+    local json="{\"status\":\"$status\""
+    if [[ -n "$summary" ]]; then
+        json="$json,\"summary\":\"$summary\""
+    fi
+    json="$json}"
+
+    api_request POST "/api/log/run/${run_id}/end" "$json" | jq .
+}
+
+cmd_log_ingest() {
+    local service="$1"
+    local level="${2:-info}"
+    local message="$3"
+    local run_id="$4"
+
+    if [[ -z "$service" ]] || [[ -z "$message" ]]; then
+        log_error "Usage: agency-service log ingest <service> <level> <message> [run-id]"
+        exit 1
+    fi
+
+    local json="{\"service\":\"$service\",\"level\":\"$level\",\"message\":\"$message\""
+    if [[ -n "$run_id" ]]; then
+        json="$json,\"runId\":\"$run_id\""
+    fi
+    json="$json}"
+
+    api_request POST "/api/log" "$json" | jq .
+}
+
+# Test commands
+cmd_test_run() {
+    local suite="${1:-all}"
+    local triggered_by_type="${2:-system}"
+    local triggered_by_name="${3:-cli}"
+
+    # Auto-detect trigger
+    if [[ "$triggered_by_name" == "cli" ]]; then
+        if [[ -x "$PROJECT_ROOT/tools/whoami" ]]; then
+            local whoami_output
+            whoami_output=$("$PROJECT_ROOT/tools/whoami" 2>/dev/null || true)
+            if [[ -n "$whoami_output" ]]; then
+                triggered_by_name=$(echo "$whoami_output" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
+                if [[ -n "$triggered_by_name" ]]; then
+                    triggered_by_type="agent"
+                fi
+            fi
+        fi
+    fi
+
+    log_info "Running tests (suite: $suite)..."
+    api_request POST "/api/test/run" "{\"suite\":\"$suite\",\"triggeredByType\":\"$triggered_by_type\",\"triggeredByName\":\"$triggered_by_name\"}" | jq .
+}
+
+cmd_test_list() {
+    local query=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --suite|-s) query="${query}suite=$2&"; shift 2 ;;
+            --status) query="${query}status=$2&"; shift 2 ;;
+            --since) query="${query}since=$2&"; shift 2 ;;
+            --limit) query="${query}limit=$2&"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    local endpoint="/api/test/run"
+    if [[ -n "$query" ]]; then
+        endpoint="${endpoint}?${query%&}"
+    fi
+
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_test_get() {
+    local run_id="$1"
+    local mode="${2:-all}"
+
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        exit 1
+    fi
+
+    case "$mode" in
+        all)
+            api_request GET "/api/test/run/${run_id}/all" | jq .
+            ;;
+        failures|failed)
+            api_request GET "/api/test/run/${run_id}/failures" | jq .
+            ;;
+        *)
+            api_request GET "/api/test/run/${run_id}" | jq .
+            ;;
+    esac
+}
+
+cmd_test_latest() {
+    local suite="$1"
+    local endpoint="/api/test/run/latest"
+    if [[ -n "$suite" ]]; then
+        endpoint="${endpoint}?suite=${suite}"
+    fi
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_test_stats() {
+    local suite="$1"
+    local endpoint="/api/test/stats"
+    if [[ -n "$suite" ]]; then
+        endpoint="${endpoint}?suite=${suite}"
+    fi
+    api_request GET "$endpoint" | jq .
+}
+
+cmd_test_flaky() {
+    local limit="${1:-10}"
+    api_request GET "/api/test/flaky?limit=${limit}" | jq .
+}
+
+cmd_test_suites() {
+    api_request GET "/api/test/suites" | jq .
+}
+
+cmd_test_cancel() {
+    local run_id="$1"
+    if [[ -z "$run_id" ]]; then
+        log_error "Run ID required"
+        exit 1
+    fi
+    api_request POST "/api/test/run/${run_id}/cancel" | jq .
+}
+
+cmd_test_cleanup() {
+    local days="${1:-30}"
+    api_request DELETE "/api/test/cleanup?days=${days}" | jq .
+}
+
+# Main
+case "${1:-}" in
+    install)
+        install_deps
+        ;;
+    start)
+        start_service
+        ;;
+    stop)
+        stop_service
+        ;;
+    restart)
+        restart_service
+        ;;
+    status)
+        show_status
+        ;;
+    health)
+        cmd_health
+        ;;
+    logs)
+        tail_logs "${2:-50}"
+        ;;
+    test)
+        run_tests
+        ;;
+    api|info)
+        cmd_api_info
+        ;;
+    bug)
+        case "${2:-list}" in
+            list) shift 2; cmd_bug_list "$@" ;;
+            stats) cmd_bug_stats ;;
+            get) cmd_bug_get "$3" ;;
+            create) shift 2; cmd_bug_create "$@" ;;
+            update) shift 2; cmd_bug_update "$@" ;;
+            assign) cmd_bug_assign "$3" "$4" "$5" ;;
+            status) cmd_bug_status "$3" "$4" ;;
+            *)
+                echo "Unknown bug command: $2"
+                exit 1
+                ;;
+        esac
+        ;;
+    message|msg)
+        case "${2:-list}" in
+            list) shift 2; cmd_message_list "$@" ;;
+            inbox) cmd_message_inbox "$3" "$4" "$5" ;;
+            stats) cmd_message_stats "$3" "$4" ;;
+            get) cmd_message_get "$3" ;;
+            send) shift 2; cmd_message_send "$@" ;;
+            read) cmd_message_read "$3" "$4" "$5" ;;
+            read-all) cmd_message_read_all "$3" "$4" ;;
+            delete) cmd_message_delete "$3" ;;
+            *)
+                echo "Unknown message command: $2"
+                exit 1
+                ;;
+        esac
+        ;;
+    log)
+        case "${2:-list}" in
+            list) shift 2; cmd_log_query "$@" ;;
+            stats) cmd_log_stats ;;
+            services) cmd_log_services ;;
+            run) cmd_log_run "$3" "$4" ;;
+            search) cmd_log_search "$3" "$4" ;;
+            start-run) cmd_log_start_run "$3" "$4" "$5" ;;
+            end-run) cmd_log_end_run "$3" "$4" "$5" ;;
+            ingest) cmd_log_ingest "$3" "$4" "$5" "$6" ;;
+            *)
+                echo "Unknown log command: $2"
+                exit 1
+                ;;
+        esac
+        ;;
+    test)
+        case "${2:-run}" in
+            run) cmd_test_run "$3" "$4" "$5" ;;
+            list) shift 2; cmd_test_list "$@" ;;
+            get) cmd_test_get "$3" "$4" ;;
+            latest) cmd_test_latest "$3" ;;
+            stats) cmd_test_stats "$3" ;;
+            flaky) cmd_test_flaky "$3" ;;
+            suites) cmd_test_suites ;;
+            cancel) cmd_test_cancel "$3" ;;
+            cleanup) cmd_test_cleanup "$3" ;;
+            *)
+                echo "Unknown test command: $2"
+                exit 1
+                ;;
+        esac
+        ;;
+    --version|-v)
+        echo "agency-service $TOOL_VERSION"
+        ;;
+    --help|-h|"")
+        echo "agency-service - CLI for The Agency Service"
+        echo ""
+        echo "Service Management:"
+        echo "  ./tools/agency-service install                   Install dependencies (Bun + npm packages)"
+        echo "  ./tools/agency-service start                     Start the service"
+        echo "  ./tools/agency-service stop                      Stop the service"
+        echo "  ./tools/agency-service restart                   Restart the service"
+        echo "  ./tools/agency-service status                    Show service status"
+        echo "  ./tools/agency-service health                    Check service health (JSON)"
+        echo "  ./tools/agency-service logs [n]                  Tail logs (default: 50 lines)"
+        echo "  ./tools/agency-service test                      Run test suite"
+        echo ""
+        echo "Bug Service:"
+        echo "  ./tools/agency-service bug list [--workstream X] [--status X]"
+        echo "  ./tools/agency-service bug stats                 Get bug statistics"
+        echo "  ./tools/agency-service bug get <bug-id>          Get a specific bug"
+        echo "  ./tools/agency-service bug create --workstream X --summary \"...\""
+        echo "  ./tools/agency-service bug update <bug-id> --status Fixed"
+        echo "  ./tools/agency-service bug assign <bug-id> <assignee> [type]"
+        echo "  ./tools/agency-service bug status <bug-id> <status>"
+        echo ""
+        echo "Message Service:"
+        echo "  ./tools/agency-service message list [--from X] [--limit N]"
+        echo "  ./tools/agency-service message inbox [type] [name] [unread-only]"
+        echo "  ./tools/agency-service message stats [type] [name]"
+        echo "  ./tools/agency-service message get <message-id>  Get a specific message"
+        echo "  ./tools/agency-service message send --to X --content \"...\""
+        echo "  ./tools/agency-service message read <message-id> [type] [name]"
+        echo "  ./tools/agency-service message read-all [type] [name]"
+        echo "  ./tools/agency-service message delete <message-id>"
+        echo ""
+        echo "Log Service:"
+        echo "  ./tools/agency-service log [--service X] [--level error] [--since 1h]"
+        echo "  ./tools/agency-service log stats                 Log statistics"
+        echo "  ./tools/agency-service log services              List services with logs"
+        echo "  ./tools/agency-service log run <run-id> [all|errors|info]"
+        echo "  ./tools/agency-service log search <query> [since]"
+        echo "  ./tools/agency-service log start-run <tool>      Start a tool run, get run-id"
+        echo "  ./tools/agency-service log end-run <run-id> <status> [summary]"
+        echo "  ./tools/agency-service log ingest <service> <level> <message> [run-id]"
+        echo ""
+        echo "Test Service:"
+        echo "  ./tools/agency-service test run [suite]          Run tests (default: all)"
+        echo "  ./tools/agency-service test list [--suite X] [--status passed|failed]"
+        echo "  ./tools/agency-service test get <run-id> [all|failures]"
+        echo "  ./tools/agency-service test latest [suite]       Get most recent test run"
+        echo "  ./tools/agency-service test stats [suite]        Test statistics"
+        echo "  ./tools/agency-service test flaky [limit]        Find flaky tests"
+        echo "  ./tools/agency-service test suites               List available test suites"
+        echo "  ./tools/agency-service test cancel <run-id>      Cancel a running test"
+        echo "  ./tools/agency-service test cleanup [days]       Delete old test runs"
+        echo ""
+        echo "Options:"
+        echo "  --version, -v  Show version"
+        echo "  --help, -h     Show this help"
+        echo ""
+        echo "Environment Variables:"
+        echo "  AGENCY_SERVICE_PORT  Service port (default: 3141)"
+        echo "  AGENCY_SERVICE_HOST  Service host (default: 127.0.0.1)"
+        ;;
+    *)
+        log_error "Unknown command: $1"
+        echo "Run './tools/agency-service --help' for usage"
+        exit 1
+        ;;
+esac

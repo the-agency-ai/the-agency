@@ -1,0 +1,29 @@
+{
+  "name": "@the-agency/agency-service",
+  "version": "0.1.0",
+  "description": "The Agency Service - API layer for The Agency",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir ./dist --target bun",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.4.0",
+    "hono": "^4.6.0",
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0",
+    "rotating-file-stream": "^3.2.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "typescript": "^5.4.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/the-agency-framework/the-agency"
+  }
+}
