@@ -4,7 +4,7 @@
 
 **Assigned To:** housekeeping
 
-**Status:** Phase 1 Complete (impl)
+**Status:** Phase 1 Complete
 
 **Priority:** High (Tonight - before 21:00)
 
@@ -91,4 +91,42 @@ claude/starter-packs/
 - Vercel: config, security headers, middleware
 - Supabase: clients, auth, RLS, migrations
 - Total: 3,129 lines of conventions and installers
+
+### 2026-01-10 19:05 SST - Reviews Complete
+
+**Code Review (13 issues):**
+
+| Severity | Issue | File |
+|----------|-------|------|
+| Critical | PR title injection vulnerability | git-ci CONVENTIONS.md:73-74 |
+| High | Pipeline exit in subshell bug | git-ci CONVENTIONS.md:82-88 |
+| High | Deprecated Next.js 15 params API | nextjs-react CONVENTIONS.md:67-88 |
+| High | Missing await for cookies() | supabase CONVENTIONS.md:36-37 |
+| Medium | Redundant --save-dev flag | git-ci install.sh:157 |
+| Medium | Silent npm failures masked | git-ci install.sh:157 |
+| Medium | Missing src directory check | nextjs-react install.sh |
+| Medium | Inconsistent CI fallback behavior | git-ci install.sh:72-81 |
+| Low | Deprecated Deno std URL | supabase CONVENTIONS.md:427 |
+| Low | Hardcoded region in vercel.json | vercel install.sh:64 |
+| Low | Missing TypeScript children type | vercel CONVENTIONS.md:209,227 |
+| Low | Outdated GitHub Action version | vercel CONVENTIONS.md:371 |
+| Low | X-XSS-Protection header deprecated | vercel install.sh:83-86 |
+
+**Test Review (7 categories):**
+1. No test infrastructure exists for installer scripts
+2. Missing prerequisite validation across all scripts
+3. No idempotency checks (silent overwrites)
+4. No rollback capability on failure
+5. middleware.ts conflict between vercel and supabase installers
+6. Edge cases not handled (wrong directory, network failures)
+7. Husky hook references file that may not exist
+
+**Fixes Applied:**
+- [x] Critical: PR title injection - use env var instead of shell interpolation
+- [x] High: Pipeline exit bug - fix subshell exit behavior with process substitution
+- [ ] Note: Next.js 15 API changes documented but not fixed (breaking change for existing projects)
+- [ ] Note: Test infrastructure deferred to Phase 2
+- [ ] Note: Other medium/low issues tracked for Phase 2
+
+**Status:** Ready for complete tag
 

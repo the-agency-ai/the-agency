@@ -4,7 +4,7 @@
 
 **Assigned To:** housekeeping
 
-**Status:** In Progress (Phase 1 Complete)
+**Status:** In Progress (Phases 1-2 Complete, services expanded)
 
 **Priority:** High
 
@@ -918,3 +918,29 @@ Discussed pattern for making the development environment introspectable for both
 **Related Requests Created:**
 - REQUEST-jordan-0012: log-service + LogBench
 - REQUEST-jordan-0013: test-service + TestBench
+
+### 2026-01-10 18:00 SST - Current State Audit
+
+**Embedded Services Implemented:**
+| Service | Routes | Repository | Service | Types | Status |
+|---------|--------|------------|---------|-------|--------|
+| bug-service | ✓ | ✓ | ✓ | ✓ | Complete |
+| messages-service | ✓ | ✓ | ✓ | ✓ | Complete |
+| log-service | ✓ | ✓ | ✓ | ✓ | Complete |
+| test-service | ✓ | ✓ | ✓ | ✓ | Complete |
+| product-service | ✓ | ✓ | ✓ | ✓ | Complete |
+| secret-service | ✓ | ✓ | ✓ | ✓ | Complete (Phase 1) |
+
+**What's Done:**
+- 6 embedded services with full structure
+- Core infrastructure (database adapter, queue adapter, config, logging)
+- Auth middleware
+- CLI tool (./tools/agency-service)
+
+**What's Remaining:**
+- Phase 3: idea-service (quick capture tool)
+- Phase 4: knowledge-service, agent-monitor-service, collaboration-service, doc-bench-service
+- Phase 5: Cloud readiness (PostgreSQL, Redis, JWT, Docker)
+- UI integration: BugBench, LogBench, etc. should call API not SQLite directly
+
+**Priority for Now:** Focus on missing UI integrations and Phase 3 idea-service

@@ -69,8 +69,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Check PR title format
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
         run: |
-          TITLE="${{ github.event.pull_request.title }}"
           if [[ ! "$TITLE" =~ ^(feat|fix|docs|chore|refactor|test)\(.+\):.*$ ]]; then
             echo "PR title must follow: type(scope): message"
             exit 1
@@ -79,13 +80,14 @@ jobs:
       - name: Check for CLAUDE.md compliance
         run: |
           # Verify commit messages follow conventions
-          git log --format="%s" origin/main..HEAD | while read msg; do
+          # Use process substitution to ensure exit status propagates
+          while read msg; do
             if [[ ! "$msg" =~ ^[a-z-]+/[a-z-]+:.*$ ]]; then
               echo "Commit message must follow: workstream/agent: message"
               echo "Got: $msg"
               exit 1
             fi
-          done
+          done < <(git log --format="%s" origin/main..HEAD)
 ```
 
 ### Release Automation (release.yml)
