@@ -4,7 +4,7 @@
 # Usage: ./tools/principal
 #
 # Returns the principal name for the current system user,
-# as configured in claude/config.yaml under principals.
+# as configured in claude/config/agency.yaml under principals.
 #
 # If PRINCIPAL is already set in environment, returns that.
 # Otherwise, looks up the current $USER in config.
@@ -12,7 +12,7 @@
 # Why this exists:
 #   - Maps system usernames to principal names
 #   - Allows multiple people to use same machine with different principals
-#   - Configured via claude/config.yaml instead of hardcoding
+#   - Configured via claude/config/agency.yaml instead of hardcoding
 
 set -e
 

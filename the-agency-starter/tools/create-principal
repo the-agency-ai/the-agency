@@ -115,4 +115,4 @@ echo "  1. Review: $DIR/README.md"
 if [ -z "$PROJECTNAME" ]; then
   echo "  2. Set up iCloud: ./tools/setup-icloud <projectname> $PRINCIPALNAME"
 fi
-echo "  3. Configure: claude/config.yaml to map your system user"
+echo "  3. Configure: claude/config/agency.yaml to map your system user"

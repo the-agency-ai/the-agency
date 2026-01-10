@@ -1,157 +1,52 @@
-# The Agency Starter
+# The Agency
 
 A multi-agent development framework for Claude Code.
 
-## What is The Agency?
+## Overview
 
-The Agency is a convention-over-configuration system for running multiple Claude Code agents that collaborate on a shared codebase. Think Ruby on Rails, but for AI-assisted development.
+The Agency is a convention-over-configuration system for running multiple Claude Code agents that collaborate on a shared codebase. Built for developers who want to scale their AI-assisted development workflows.
 
-**You get:**
-- 🤖 **Specialized Agents** - Claude instances with persistent context and memory
-- 📋 **Workstreams** - Organized areas of work with shared knowledge
-- 👤 **Principal System** - Human stakeholders direct work via instructions
-- 🤝 **Collaboration Tools** - Inter-agent communication and handoffs
-- ✅ **Quality Gates** - Enforced standards via pre-commit hooks
-- 🖥️ **Claude Desktop Integration** - MCP server for coordination
+## Key Features
 
-## Quick Start
+- **Multiple Agents** - Specialized Claude Code instances with persistent context
+- **Workstreams** - Organized areas of work with shared knowledge
+- **Collaboration** - Inter-agent communication and handoffs
+- **Quality Gates** - Enforced standards via pre-commit hooks
+- **Session Continuity** - Backup and restore agent context across sessions
+
+## Getting Started
+
+For new projects, use [The Agency Starter](https://github.com/the-agency-ai/the-agency-starter):
 
 ```bash
-# Clone this repo
-git clone https://github.com/jordandm/the-agency-starter.git my-project
-cd my-project
-
-# Make tools executable
-chmod +x tools/*
-
-# Launch the housekeeping agent (your guide)
-./tools/myclaude housekeeping housekeeping
+curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash
 ```
 
-The housekeeping agent will help you:
-- Set up your project structure
-- Create workstreams for your features
-- Spawn specialized agents
-- Apply framework-specific starter packs
+## Repository Structure
 
-## How It Works
+This is the development repository for The Agency. It contains:
 
-```
-You (Principal)
-    │
-    ├── Issue Instructions ──► Agents execute
-    │
-    └── Review Artifacts ◄── Agents deliver
+- `tools/` - CLI tools for The Agency
+- `claude/` - Agent definitions, workstreams, and documentation
+- `the-agency-starter/` - Starter template (submodule)
 
-Agents collaborate via:
-    - Collaboration requests
-    - News broadcasts
-    - Handoffs
-```
+## For Contributors
 
-## Directory Structure
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to:
+- Submit starter packs
+- Improve core tools
+- Report issues
 
-```
-CLAUDE.md                    # The constitution
-README.md                    # This file
-apps/
-  workbench/                 # Web UI for Agency management
-    src/app/
-      staff/                 # Staff Manager
-      agents/                # Agent Manager
-      content/               # Content Manager
-      pulse/                 # Pulse Beat dashboard
-      catalog/               # Agent catalog
-packages/
-  ui/                        # Shared UI components (shadcn)
-  auth/                      # Auth utilities
-claude/
-  agents/                    # Agent definitions
-    housekeeping/            # Your guide (ships ready)
-    collaboration/           # Inter-agent messages
-  workstreams/               # Work organization
-  principals/                # Human stakeholders
-  docs/                      # Guides and reference
-  claude-desktop/            # MCP integration
-tools/                       # CLI tools
-```
+## Documentation
 
-## Core Concepts
-
-### Agents
-Specialized Claude Code instances with:
-- Persistent identity and context
-- Domain-specific knowledge
-- Session restoration across conversations
-
-### Workstreams
-Areas of related work:
-- Shared knowledge base
-- Sprint-based planning
-- Multiple agents can contribute
-
-### Principals
-Human stakeholders who:
-- Direct work via instructions
-- Review artifacts (deliverables)
-- Set preferences for how they work
-
-### Collaboration
-Agents communicate via:
-- `./tools/collaborate` - Request help from another agent
-- `./tools/post-news` - Broadcast updates to all agents
-- `./tools/read-news` - Read unread news messages
-
-## Tools
-
-Run `./tools/find-tool -l` to see all available tools. Key categories:
-
-### Identity
-- `whoami`, `agentname`, `workstream` - Agent identity
-- `now` - Consistent timestamps
-
-### Scaffolding
-- `create-workstream` - Create a new workstream
-- `create-agent` - Create a new agent
-
-### Collaboration
-- `collaborate` - Create collaboration requests
-- `post-news` / `read-news` - Agent broadcasts
-
-### Git Discipline
-- `sync` - The ONLY way to push (logs all pushes)
-- `commit-prefix` - Consistent commit message formatting
-
-### Work Tracking
-- `log-adhoc` - Log unplanned work
-
-### Discovery
-- `find-tool` - Search and discover tools
-- `myclaude` - Launch agents
-
-## Starter Packs
-
-Framework-specific conventions (coming soon):
-- Next.js
-- React Native
-- Python
-- Swift/SwiftUI
-- Kotlin
-
-## Contributing
-
-We welcome:
-- Starter packs for new frameworks
-- Tool improvements
-- Documentation
-- Bug reports
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+- [CLAUDE.md](CLAUDE.md) - The constitution (main documentation)
+- [claude/docs/](claude/docs/) - Guides and references
+- [claude/docs/cookbooks/](claude/docs/cookbooks/) - Claude Cookbook patterns
 
 ## License
 
-MIT - See [LICENSE](LICENSE)
+MIT License - see [LICENSE](LICENSE)
 
 ---
 
-*Built with ❤️ by humans and Claude*
+*The Agency - Multi-agent development, done right.*

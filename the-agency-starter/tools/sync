@@ -24,7 +24,7 @@ fi
 
 # Configuration
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-PUSH_LOG="$REPO_ROOT/claude/logs/push-log.md"
+PUSH_LOG="$REPO_ROOT/history/push-log.md"
 AGENT="${AGENTNAME:-unknown}"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S %Z')
 

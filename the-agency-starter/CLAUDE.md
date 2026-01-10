@@ -48,32 +48,6 @@ Agents communicate via:
 - `./tools/post-news` / `./tools/read-news` - Broadcast updates
 - `./tools/add-nit` - Flag issues for later
 
-## Philosophy: Tools Over Instructions
-
-**Make doing it the right way, the fast way.**
-
-Every repeated decision is encoded in a tool. When you need to:
-- Know the time → `./tools/now` (don't reason about timezone)
-- Know your identity → `./tools/whoami` (don't search for config)
-- Create an instruction → `./tools/capture-instruction` (don't figure out naming)
-- Check quality → `./tools/pre-commit-check` (don't remember the steps)
-
-### Why Tools?
-1. **You don't have to think** — the tool encapsulates the decision
-2. **Consistency is guaranteed** — the tool always does it right
-3. **Speed** — one call vs. figuring it out
-
-### When to Reason Instead
-- Novel problems (no pattern yet)
-- One-time tasks (won't recur)
-- Creative work (exploration, design)
-
-### Finding Tools
-- `./tools/find-tool "keyword"` — search by keyword
-- `./tools/how "intent"` — search by what you want to do
-
-For the full philosophy, see `PHILOSOPHY.md`.
-
 ## Directory Structure
 
 ```
