@@ -153,6 +153,14 @@ export function AppSidebar() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
           </svg>
         </button>
+
+        {/* Version indicator */}
+        <div
+          className="p-2 text-center text-[10px] text-gray-600"
+          title={`AgencyBench v${process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0'}`}
+        >
+          v{process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0'}
+        </div>
       </aside>
     );
   }
@@ -225,9 +233,10 @@ export function AppSidebar() {
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-800 space-y-1">
-        <div className="text-xs text-gray-500">TheAgency 1.0.0-20260110</div>
-        <div className="text-xs text-gray-600">AgencyBench 1.0.0-20260110</div>
+      <div className="p-4 border-t border-gray-800">
+        <div className="text-xs text-gray-500">
+          AgencyBench v{process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0'}
+        </div>
       </div>
     </aside>
   );

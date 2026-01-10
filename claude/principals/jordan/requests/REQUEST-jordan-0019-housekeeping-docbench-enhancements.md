@@ -4,7 +4,7 @@
 
 **Assigned To:** housekeeping
 
-**Status:** Open
+**Status:** Complete
 
 **Priority:** High
 
@@ -174,6 +174,32 @@ Block of text that I selected
 ---
 
 ## Activity Log
+
+### 2026-01-10 - Implemented (housekeeping)
+
+All 7 items completed:
+
+**#1 Insert Comment** - Fixed comment insertion to preserve original text and insert comment block below selection. Format: `[(principal) quoted text]\n[(principal) comment]`
+
+**#2 Insert Reference to Document** - Added "Document" option to Insert menu. Opens file picker filtered to `.md`, `.png`, `.svg`. Inserts markdown link with relative path.
+
+**#3 Insert Reference to Object** - Added "Bug Reference" and "Request Reference" options to Insert menu. Modal prompts for object ID, inserts `[BUG-XXXX]` or `[REQUEST-xxx-xxxx]` format.
+
+**#4 Insert Reference to Web Page** - Added "Web Link" option to Insert menu. Modal prompts for URL and optional link text, inserts markdown link.
+
+**#5 Create Document from Template** - Added "From Template" option to Create menu. Templates available: Bug Report, Meeting Notes, Decision Record. Creates file in principal's notes directory.
+
+**#6 App Discovery Issue** - Added version indicator to AgencyBench sidebar footer. Version read from package.json at build time via `NEXT_PUBLIC_APP_VERSION` env var.
+
+**#7 the-agency-starter Sync Issue** - Ran `tools/release-starter 1.0.1` to sync. Pushed to both repos. Verified installer test passes.
+
+**Files Modified:**
+- `apps/agency-bench/src/app/bench/(apps)/docbench/page.tsx` - All DocBench features
+- `apps/agency-bench/src/components/bench/AppSidebar.tsx` - Version indicator
+- `apps/agency-bench/next.config.ts` - Version env var
+- `the-agency-starter/` - Full sync via release-starter
+
+**Build Status:** Verified - TypeScript check passes
 
 ### 2026-01-10 17:00 SST - Created
 - Request created with 7 enhancement items
