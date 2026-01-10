@@ -148,6 +148,55 @@ Pre-commit hooks enforce:
 5. Code review checks
 6. API design patterns
 
+## Development Workflow
+
+**The working tree should ALWAYS be clean.**
+
+Every feature or fix follows this workflow:
+
+### 1. Implement
+- Do the work
+- Test locally (run tests, verify functionality)
+- Commit and tag
+
+### 2. Code Review
+- Self-review + request other agent reviews
+- Consolidate findings into a single list of changes
+- Apply the changes
+- Commit and tag
+
+### 3. Test Review
+- Self-review + request other agent reviews of test coverage
+- Consolidate findings into a single list of test improvements
+- Apply the test changes
+- Commit and tag
+
+### 4. Release (if appropriate)
+- Cut a build/release
+- Push to remote with tags
+- Create GitHub release
+
+### Workflow Summary
+```
+1. Do work
+2. Test locally
+3. Commit & tag
+4. Code review (self + agents) → consolidated changes
+5. Apply changes
+6. Commit & tag
+7. Test review (self + agents) → consolidated test improvements
+8. Apply test changes
+9. Commit & tag
+10. Cut build/release (if appropriate)
+```
+
+### Key Principles
+- **Clean working tree**: Always commit before moving on
+- **Small commits**: Each commit should be a logical unit
+- **Tags for milestones**: Tag after each phase (pre-review, post-review, complete)
+- **Collaborative review**: Multiple perspectives catch more issues
+- **Consolidated changes**: Don't apply changes piecemeal - gather all feedback first
+
 ## Starter Packs
 
 Starter packs provide framework-specific conventions:
