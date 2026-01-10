@@ -4,7 +4,7 @@
 
 **Assigned To:** housekeeping
 
-**Status:** Open - URGENT
+**Status:** Phase 1-4 COMPLETE - impl stage
 
 **Priority:** Critical
 
@@ -101,25 +101,25 @@ the-agency-starter/
 
 ## Immediate Actions
 
-### Phase 1: Rebuild AgencyBench
-- [ ] Build AgencyBench with all current changes
-- [ ] Verify BugBench, DocBench, all features work
-- [ ] Update version to match project (0.6.x or 0.7.0)
+### Phase 1: Rebuild AgencyBench ✓
+- [x] Build AgencyBench with all current changes
+- [x] Verify BugBench, DocBench, all features work
+- [x] Update version to 1.0.0-20260110 format
 
-### Phase 2: Fix release-starter
-- [ ] Add apps/ to sync list
-- [ ] Add services/ to sync list
-- [ ] Test full sync
+### Phase 2: Fix release-starter ✓
+- [x] Add apps/ to sync list
+- [x] Add services/ to sync list
+- [x] Test full sync
 
-### Phase 3: Update Starter
-- [ ] Run updated release-starter
-- [ ] Verify starter has everything
-- [ ] Test fresh clone + install
+### Phase 3: Update Starter ✓
+- [x] Run updated release-starter
+- [x] Verify starter has everything (343 files)
+- [x] Test fresh clone + install (compare-starter --install PASSED)
 
-### Phase 4: Push to GitHub
-- [ ] Commit all changes
-- [ ] Push to main
-- [ ] Create release with proper notes
+### Phase 4: Push to GitHub ✓
+- [x] Commit all changes
+- [x] Push to main
+- [x] Tag: the-agency-starter-1.0.0-20260110-000002
 
 ---
 
@@ -142,4 +142,33 @@ the-agency-starter/
 - User discovered AgencyBench is at v0.1.0, missing BugBench
 - Starter missing apps/ and services/ entirely
 - Created as URGENT/Critical priority
+
+### 2026-01-10 18:00 SST - Phase 1-4 COMPLETE (impl stage)
+
+**What was done:**
+1. Created BugBench page (was completely missing)
+2. Updated version format to 1.0.0-YYYYMMDD-NNNNNN
+3. Fixed release-starter to sync apps/ and services/
+4. Removed stray messages.db from source
+5. Built AgencyBench v1.0.0-20260110
+6. Pushed to GitHub with tag
+
+**New tooling created:**
+- `tools/compare-starter` - Source vs install verification with full logging
+- `tools/verify-starter` - Initial verification tool
+- `tools/next-version` - Version increment helper
+
+**Verification:**
+- 343 files in source
+- 343 files in install
+- 0 differences (byte-for-byte identical)
+- All required files present (CLAUDE.md, BugBench, secret-service, etc.)
+
+**Tags:**
+- `the-agency-starter-1.0.0-20260110-000002`
+
+**Next steps:**
+- Code review (self + agents)
+- Test review
+- Tag -complete and cut release
 
