@@ -19,6 +19,18 @@ const modifyTagsSchema = z.object({
   tags: z.array(z.string()).min(1, 'At least one tag is required'),
 });
 
+// Schema for ideaId path parameter
+const ideaIdParamSchema = z.object({
+  ideaId: z.string().regex(/^IDEA-\d{5}$/, 'Invalid idea ID format (expected IDEA-XXXXX)'),
+});
+
+/**
+ * Helper to validate ideaId parameter
+ */
+function validateIdeaId(ideaId: string): boolean {
+  return /^IDEA-\d{5}$/.test(ideaId);
+}
+
 /**
  * Create idea routes with explicit operation names
  */
@@ -69,6 +81,10 @@ export function createIdeaRoutes(ideaService: IdeaService): Hono {
    */
   app.get('/get/:ideaId', async (c) => {
     const ideaId = c.req.param('ideaId');
+    if (!validateIdeaId(ideaId)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid idea ID format (expected IDEA-XXXXX)' }, 400);
+    }
+
     const idea = await ideaService.getIdea(ideaId);
 
     if (!idea) {
@@ -83,6 +99,9 @@ export function createIdeaRoutes(ideaService: IdeaService): Hono {
    */
   app.post('/update/:ideaId', zValidator('json', updateIdeaSchema), async (c) => {
     const ideaId = c.req.param('ideaId');
+    if (!validateIdeaId(ideaId)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid idea ID format (expected IDEA-XXXXX)' }, 400);
+    }
     const data = c.req.valid('json');
 
     const idea = await ideaService.updateIdea(ideaId, data);
@@ -100,6 +119,9 @@ export function createIdeaRoutes(ideaService: IdeaService): Hono {
    */
   app.post('/promote/:ideaId', zValidator('json', promoteIdeaSchema), async (c) => {
     const ideaId = c.req.param('ideaId');
+    if (!validateIdeaId(ideaId)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid idea ID format (expected IDEA-XXXXX)' }, 400);
+    }
     const { requestId } = c.req.valid('json');
 
     const idea = await ideaService.promoteIdea(ideaId, requestId);
@@ -117,6 +139,9 @@ export function createIdeaRoutes(ideaService: IdeaService): Hono {
    */
   app.post('/explore/:ideaId', async (c) => {
     const ideaId = c.req.param('ideaId');
+    if (!validateIdeaId(ideaId)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid idea ID format (expected IDEA-XXXXX)' }, 400);
+    }
 
     const idea = await ideaService.exploreIdea(ideaId);
 
@@ -133,6 +158,9 @@ export function createIdeaRoutes(ideaService: IdeaService): Hono {
    */
   app.post('/park/:ideaId', async (c) => {
     const ideaId = c.req.param('ideaId');
+    if (!validateIdeaId(ideaId)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid idea ID format (expected IDEA-XXXXX)' }, 400);
+    }
 
     const idea = await ideaService.parkIdea(ideaId);
 
@@ -149,6 +177,9 @@ export function createIdeaRoutes(ideaService: IdeaService): Hono {
    */
   app.post('/discard/:ideaId', async (c) => {
     const ideaId = c.req.param('ideaId');
+    if (!validateIdeaId(ideaId)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid idea ID format (expected IDEA-XXXXX)' }, 400);
+    }
 
     const idea = await ideaService.discardIdea(ideaId);
 
@@ -165,6 +196,9 @@ export function createIdeaRoutes(ideaService: IdeaService): Hono {
    */
   app.post('/add-tags/:ideaId', zValidator('json', modifyTagsSchema), async (c) => {
     const ideaId = c.req.param('ideaId');
+    if (!validateIdeaId(ideaId)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid idea ID format (expected IDEA-XXXXX)' }, 400);
+    }
     const { tags } = c.req.valid('json');
 
     const idea = await ideaService.addTags(ideaId, tags);
@@ -182,6 +216,9 @@ export function createIdeaRoutes(ideaService: IdeaService): Hono {
    */
   app.post('/remove-tags/:ideaId', zValidator('json', modifyTagsSchema), async (c) => {
     const ideaId = c.req.param('ideaId');
+    if (!validateIdeaId(ideaId)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid idea ID format (expected IDEA-XXXXX)' }, 400);
+    }
     const { tags } = c.req.valid('json');
 
     const idea = await ideaService.removeTags(ideaId, tags);
@@ -199,6 +236,9 @@ export function createIdeaRoutes(ideaService: IdeaService): Hono {
    */
   app.post('/delete/:ideaId', async (c) => {
     const ideaId = c.req.param('ideaId');
+    if (!validateIdeaId(ideaId)) {
+      return c.json({ error: 'Bad Request', message: 'Invalid idea ID format (expected IDEA-XXXXX)' }, 400);
+    }
     const deleted = await ideaService.deleteIdea(ideaId);
 
     if (!deleted) {

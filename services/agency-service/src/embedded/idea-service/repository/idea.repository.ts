@@ -186,14 +186,17 @@ export class IdeaRepository {
     }
 
     if (query.tag) {
-      // Search in JSON array
-      conditions.push("tags LIKE ?");
-      params.push(`%"${query.tag}"%`);
+      // Search in JSON array - escape LIKE special characters
+      const escapedTag = query.tag.replace(/[%_\\]/g, '\\$&');
+      conditions.push("tags LIKE ? ESCAPE '\\'");
+      params.push(`%"${escapedTag}"%`);
     }
 
     if (query.search) {
-      conditions.push('(title LIKE ? OR description LIKE ?)');
-      const searchTerm = `%${query.search}%`;
+      // Escape LIKE special characters for exact substring matching
+      const escapedSearch = query.search.replace(/[%_\\]/g, '\\$&');
+      conditions.push("(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')");
+      const searchTerm = `%${escapedSearch}%`;
       params.push(searchTerm, searchTerm);
     }
 
