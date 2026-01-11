@@ -206,6 +206,68 @@ describe('Request Repository', () => {
       const bySummary = await repo.list({ search: 'special keywords', limit: 50, offset: 0, sortBy: 'createdAt', sortOrder: 'desc' });
       expect(bySummary.total).toBe(1);
     });
+
+    test('should escape LIKE special characters in search', async () => {
+      const requestId = await repo.getNextRequestId('escape');
+      await repo.create(requestId, {
+        title: 'Request with 100% complete status',
+        summary: 'Has special_underscore in text',
+        principalName: 'escape',
+        reporterType: 'principal',
+        reporterName: 'escape',
+      });
+
+      // % and _ are SQL LIKE wildcards - should be escaped
+      const byPercent = await repo.list({ search: '100%', limit: 50, offset: 0, sortBy: 'createdAt', sortOrder: 'desc' });
+      expect(byPercent.total).toBe(1);
+
+      const byUnderscore = await repo.list({ search: 'special_underscore', limit: 50, offset: 0, sortBy: 'createdAt', sortOrder: 'desc' });
+      expect(byUnderscore.total).toBe(1);
+
+      // A single % should not match everything
+      const wildcardAttempt = await repo.list({ search: '%', limit: 50, offset: 0, sortBy: 'createdAt', sortOrder: 'desc' });
+      expect(wildcardAttempt.total).toBe(1); // Only matches if literal % in text
+    });
+
+    test('should escape LIKE special characters in tag search', async () => {
+      const requestId = await repo.getNextRequestId('tagsafe');
+      await repo.create(requestId, {
+        title: 'Tagged request',
+        summary: 'Has special tags',
+        principalName: 'tagsafe',
+        reporterType: 'principal',
+        reporterName: 'tagsafe',
+        tags: ['100%', 'special_tag'],
+      });
+
+      const byPercent = await repo.list({ tags: '100%', limit: 50, offset: 0, sortBy: 'createdAt', sortOrder: 'desc' });
+      expect(byPercent.total).toBe(1);
+
+      const byUnderscore = await repo.list({ tags: 'special_tag', limit: 50, offset: 0, sortBy: 'createdAt', sortOrder: 'desc' });
+      expect(byUnderscore.total).toBe(1);
+    });
+
+    test('should normalize invalid sort direction to ASC', async () => {
+      const requestId = await repo.getNextRequestId('sortdir');
+      await repo.create(requestId, {
+        title: 'Sort test',
+        summary: 'Testing sort direction',
+        principalName: 'sortdir',
+        reporterType: 'principal',
+        reporterName: 'sortdir',
+      });
+
+      // Invalid sort direction should default to ASC without error
+      // Filter by principal to isolate this test from beforeEach data
+      const result = await repo.list({
+        principal: 'sortdir',
+        limit: 50,
+        offset: 0,
+        sortBy: 'title',
+        sortOrder: 'INVALID; DROP TABLE requests;--' as any
+      });
+      expect(result.total).toBe(1);
+    });
   });
 
   describe('update', () => {

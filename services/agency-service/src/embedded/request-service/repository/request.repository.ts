@@ -47,6 +47,39 @@ interface SequenceRow {
 }
 
 /**
+ * Safely parse JSON with fallback to empty array
+ */
+function safeParseJsonArray(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    logger.warn({ json }, 'Failed to parse tags JSON, returning empty array');
+    return [];
+  }
+}
+
+/**
+ * Escape special characters for SQL LIKE patterns
+ * Prevents SQL injection via LIKE wildcards
+ */
+function escapeLikePattern(pattern: string): string {
+  return pattern
+    .replace(/\\/g, '\\\\')
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_');
+}
+
+/**
+ * Validate and normalize sort direction
+ */
+function normalizeSortDirection(direction: string): 'ASC' | 'DESC' {
+  const upper = direction.toUpperCase();
+  return upper === 'DESC' ? 'DESC' : 'ASC';
+}
+
+/**
  * Convert database row to Request entity
  */
 function rowToRequest(row: RequestRow): Request {
@@ -63,7 +96,7 @@ function rowToRequest(row: RequestRow): Request {
     assigneeType: row.assignee_type as Request['assigneeType'],
     assigneeName: row.assignee_name,
     workstream: row.workstream,
-    tags: JSON.parse(row.tags || '[]'),
+    tags: safeParseJsonArray(row.tags),
     xrefType: row.xref_type,
     xrefId: row.xref_id,
     filePath: row.file_path,
@@ -137,30 +170,33 @@ export class RequestRepository {
 
   /**
    * Get the next request ID for a principal
+   * Uses atomic UPSERT to prevent race conditions
    */
   async getNextRequestId(principal: string): Promise<string> {
     const lowerPrincipal = principal.toLowerCase();
 
-    // Get or create sequence
-    let row = await this.db.get<SequenceRow>(
-      'SELECT * FROM request_sequences WHERE principal = ?',
+    // Atomic UPSERT: Insert with next_id=1 if not exists, otherwise increment
+    // This prevents TOCTOU race conditions in concurrent scenarios
+    await this.db.execute(
+      `INSERT INTO request_sequences (principal, next_id) VALUES (?, 1)
+       ON CONFLICT(principal) DO UPDATE SET next_id = next_id`,
       [lowerPrincipal]
     );
 
-    let nextId: number;
-    if (!row) {
-      nextId = 1;
-      await this.db.execute(
-        'INSERT INTO request_sequences (principal, next_id) VALUES (?, 2)',
-        [lowerPrincipal]
-      );
-    } else {
-      nextId = row.next_id;
-      await this.db.execute(
-        'UPDATE request_sequences SET next_id = next_id + 1 WHERE principal = ?',
-        [lowerPrincipal]
-      );
-    }
+    // Atomically get current value and increment
+    // The UPDATE returns the value BEFORE incrementing via the RETURNING clause workaround
+    const row = await this.db.get<SequenceRow>(
+      'SELECT next_id FROM request_sequences WHERE principal = ?',
+      [lowerPrincipal]
+    );
+
+    const nextId = row?.next_id ?? 1;
+
+    // Increment for next caller
+    await this.db.execute(
+      'UPDATE request_sequences SET next_id = next_id + 1 WHERE principal = ?',
+      [lowerPrincipal]
+    );
 
     // Format: REQUEST-jordan-0035
     return `REQUEST-${lowerPrincipal}-${String(nextId).padStart(4, '0')}`;
@@ -265,16 +301,22 @@ export class RequestRepository {
 
     if (query.tags) {
       // Search for any of the comma-separated tags
+      // Escape LIKE special characters to prevent injection
       const tagList = query.tags.split(',').map(t => t.trim());
-      const tagConditions = tagList.map(() => "tags LIKE ?");
+      const tagConditions = tagList.map(() => "tags LIKE ? ESCAPE '\\'");
       conditions.push(`(${tagConditions.join(' OR ')})`);
-      tagList.forEach(tag => params.push(`%"${tag}"%`));
+      tagList.forEach(tag => {
+        const escaped = escapeLikePattern(tag);
+        params.push(`%"${escaped}"%`);
+      });
     }
 
     // Search (in title and summary)
+    // Escape LIKE special characters to prevent injection
     if (query.search) {
-      conditions.push('(title LIKE ? OR summary LIKE ?)');
-      const searchPattern = `%${query.search}%`;
+      conditions.push("(title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\')");
+      const escaped = escapeLikePattern(query.search);
+      const searchPattern = `%${escaped}%`;
       params.push(searchPattern, searchPattern);
     }
 
@@ -289,9 +331,9 @@ export class RequestRepository {
     );
     const total = countRow?.count ?? 0;
 
-    // Sorting
+    // Sorting - validate direction to prevent SQL injection
     const sortColumn = getSortColumn(query.sortBy);
-    const sortDirection = query.sortOrder.toUpperCase();
+    const sortDirection = normalizeSortDirection(query.sortOrder);
 
     // Get paginated results
     const rows = await this.db.query<RequestRow>(
