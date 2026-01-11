@@ -60,6 +60,8 @@ export default function SecretsPage() {
   const [vaultStatus, setVaultStatus] = useState<VaultStatusResponse | null>(null);
   const [secrets, setSecrets] = useState<Secret[]>([]);
   const [selectedSecret, setSelectedSecret] = useState<Secret | null>(null);
+  const [revealedValue, setRevealedValue] = useState<string | null>(null);
+  const [revealingValue, setRevealingValue] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,9 +71,29 @@ export default function SecretsPage() {
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3141/api';
 
+  // Get auth headers including principal from localStorage
+  const getHeaders = useCallback((includeJson = false): HeadersInit => {
+    const headers: HeadersInit = {};
+    const principal = typeof window !== 'undefined'
+      ? localStorage.getItem('agencybench-principal')
+      : null;
+
+    if (principal) {
+      headers['X-Agency-User'] = `principal:${principal}`;
+    }
+
+    if (includeJson) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    return headers;
+  }, []);
+
   const loadVaultStatus = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/secret/vault/status`);
+      const response = await fetch(`${API_BASE}/secret/vault/status`, {
+        headers: getHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to load vault status');
       const data = await response.json();
       setVaultStatus(data);
@@ -80,29 +102,33 @@ export default function SecretsPage() {
       setError(err instanceof Error ? err.message : 'Failed to load vault status');
       return null;
     }
-  }, [API_BASE]);
+  }, [API_BASE, getHeaders]);
 
   const loadSecrets = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/secret/list`);
+      const response = await fetch(`${API_BASE}/secret/list`, {
+        headers: getHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to load secrets');
       const data = await response.json();
       setSecrets(data.secrets || []);
     } catch (err) {
       console.error('Failed to load secrets:', err);
     }
-  }, [API_BASE]);
+  }, [API_BASE, getHeaders]);
 
   const loadAuditLogs = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/secret/audit?limit=50`);
+      const response = await fetch(`${API_BASE}/secret/audit?limit=50`, {
+        headers: getHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to load audit logs');
       const data = await response.json();
       setAuditLogs(data.logs || []);
     } catch (err) {
       console.error('Failed to load audit logs:', err);
     }
-  }, [API_BASE]);
+  }, [API_BASE, getHeaders]);
 
   useEffect(() => {
     const init = async () => {
@@ -125,7 +151,7 @@ export default function SecretsPage() {
     try {
       const response = await fetch(`${API_BASE}/secret/vault/init`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(true),
         body: JSON.stringify({ passphrase }),
       });
       if (!response.ok) {
@@ -148,7 +174,7 @@ export default function SecretsPage() {
     try {
       const response = await fetch(`${API_BASE}/secret/vault/unlock`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(true),
         body: JSON.stringify({ passphrase }),
       });
       if (!response.ok) {
@@ -167,7 +193,7 @@ export default function SecretsPage() {
 
   const lockVault = async () => {
     try {
-      await fetch(`${API_BASE}/secret/vault/lock`, { method: 'POST' });
+      await fetch(`${API_BASE}/secret/vault/lock`, { method: 'POST', headers: getHeaders() });
       setSecrets([]);
       setAuditLogs([]);
       setSelectedSecret(null);
@@ -182,14 +208,42 @@ export default function SecretsPage() {
     try {
       const response = await fetch(`${API_BASE}/secret/delete/${secretId}`, {
         method: 'POST',
+        headers: getHeaders(),
       });
       if (!response.ok) throw new Error('Failed to delete secret');
       setSelectedSecret(null);
+      setRevealedValue(null);
       await loadSecrets();
       await loadAuditLogs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete secret');
     }
+  };
+
+  const fetchSecretValue = async (secretId: string) => {
+    setRevealingValue(true);
+    try {
+      const response = await fetch(`${API_BASE}/secret/fetch/${secretId}`, {
+        headers: getHeaders(),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to fetch secret value');
+      }
+      const data = await response.json();
+      setRevealedValue(data.value);
+      // Refresh audit logs since we just fetched
+      await loadAuditLogs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch secret value');
+    } finally {
+      setRevealingValue(false);
+    }
+  };
+
+  const handleSelectSecret = (secret: Secret) => {
+    setSelectedSecret(secret);
+    setRevealedValue(null); // Clear revealed value when selecting different secret
   };
 
   const formatTime = (ts: string) => {
@@ -206,6 +260,7 @@ export default function SecretsPage() {
   const CreateSecretModal = () => {
     const [name, setName] = useState('');
     const [value, setValue] = useState('');
+    const [showValue, setShowValue] = useState(false);
     const [secretType, setSecretType] = useState<SecretType>('api_key');
     const [serviceName, setServiceName] = useState('');
     const [description, setDescription] = useState('');
@@ -217,7 +272,7 @@ export default function SecretsPage() {
       try {
         const response = await fetch(`${API_BASE}/secret/create`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getHeaders(true),
           body: JSON.stringify({
             name,
             value,
@@ -257,13 +312,25 @@ export default function SecretsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Value</label>
-              <input
-                type="password"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder="Enter secret value"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-agency-500 focus:border-agency-500"
-              />
+              <div className="relative">
+                <input
+                  type={showValue ? 'text' : 'password'}
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder="Enter secret value"
+                  autoComplete="off"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  className="w-full px-3 py-2 pr-16 border border-gray-200 rounded-lg focus:ring-agency-500 focus:border-agency-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowValue(!showValue)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 bg-gray-100 rounded"
+                >
+                  {showValue ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
@@ -437,7 +504,7 @@ export default function SecretsPage() {
                 secrets.map((secret) => (
                   <button
                     key={secret.id}
-                    onClick={() => setSelectedSecret(secret)}
+                    onClick={() => handleSelectSecret(secret)}
                     className={`w-full text-left p-3 border-b border-gray-100 hover:bg-gray-50 ${
                       selectedSecret?.id === secret.id ? 'bg-agency-50' : ''
                     }`}
@@ -517,6 +584,35 @@ export default function SecretsPage() {
                         <div className="text-gray-700">{formatTime(selectedSecret.expiresAt)}</div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Secret Value Section */}
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <div className="text-xs font-medium text-gray-500 uppercase mb-2">Secret Value</div>
+                    {revealedValue !== null ? (
+                      <div className="space-y-2">
+                        <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm text-gray-800 break-all">
+                          {revealedValue}
+                        </div>
+                        <button
+                          onClick={() => setRevealedValue(null)}
+                          className="text-sm text-gray-500 hover:text-gray-700"
+                        >
+                          Hide Value
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => fetchSecretValue(selectedSecret.id)}
+                        disabled={revealingValue}
+                        className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 text-sm font-medium disabled:opacity-50"
+                      >
+                        {revealingValue ? 'Fetching...' : 'Reveal Value'}
+                      </button>
+                    )}
+                    <p className="text-xs text-gray-400 mt-2">
+                      Note: Revealing the value will be logged in the audit trail.
+                    </p>
                   </div>
                 </div>
               </>

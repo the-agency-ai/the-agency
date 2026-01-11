@@ -19,6 +19,8 @@ const apps: Record<string, { title: string; version?: string }> = {
 export function Header() {
   const pathname = usePathname();
   const [principalName, setPrincipalName] = useState<string>('');
+  const [showPrincipalInput, setShowPrincipalInput] = useState(false);
+  const [inputValue, setInputValue] = useState('');
 
   // Load principal name from localStorage
   useEffect(() => {
@@ -37,6 +39,26 @@ export function Header() {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
+  const handleSetPrincipal = () => {
+    if (inputValue.trim()) {
+      // Normalize to lowercase for consistent matching
+      const normalizedPrincipal = inputValue.trim().toLowerCase();
+      localStorage.setItem('agencybench-principal', normalizedPrincipal);
+      setPrincipalName(normalizedPrincipal);
+      setShowPrincipalInput(false);
+      setInputValue('');
+      // Reload to apply the new principal
+      window.location.reload();
+    }
+  };
+
+  const handleClearPrincipal = () => {
+    localStorage.removeItem('agencybench-principal');
+    setPrincipalName('');
+    setShowPrincipalInput(false);
+    window.location.reload();
+  };
+
   // Find the best matching app info
   const appInfo = Object.entries(apps).reduce<{ title: string; pathLen: number; version?: string }>((acc, [path, info]) => {
     if (pathname.startsWith(path) && path.length > acc.pathLen) {
@@ -54,15 +76,56 @@ export function Header() {
             <span className="text-xs text-gray-400">v{appInfo.version}</span>
           )}
         </div>
-        <div className="flex items-center gap-4">
-          {principalName ? (
-            <span className="text-sm font-medium text-gray-700">
+        <div className="flex items-center gap-4 relative">
+          {showPrincipalInput ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSetPrincipal()}
+                placeholder="Enter principal name"
+                className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-agency-500 focus:border-agency-500"
+                autoFocus
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+              />
+              <button
+                onClick={handleSetPrincipal}
+                className="px-2 py-1 text-sm bg-agency-600 text-white rounded hover:bg-agency-700"
+              >
+                Set
+              </button>
+              <button
+                onClick={() => setShowPrincipalInput(false)}
+                className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : principalName ? (
+            <button
+              onClick={() => {
+                setInputValue(principalName);
+                setShowPrincipalInput(true);
+              }}
+              className="text-sm font-medium text-gray-700 hover:text-agency-600 flex items-center gap-1"
+              title="Click to change principal"
+            >
               {principalName}
-            </span>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           ) : (
-            <span className="text-sm text-gray-400 italic">
-              No principal set
-            </span>
+            <button
+              onClick={() => setShowPrincipalInput(true)}
+              className="text-sm text-red-500 hover:text-red-700 italic"
+            >
+              No principal set (click to set)
+            </button>
           )}
         </div>
       </div>

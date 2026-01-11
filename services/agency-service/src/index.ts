@@ -37,7 +37,7 @@ async function main() {
 
   // Global middleware
   app.use('*', cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'tauri://localhost'],
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3010', 'http://127.0.0.1:3010', 'tauri://localhost'],
     credentials: true,
   }));
   app.use('*', loggingMiddleware());
