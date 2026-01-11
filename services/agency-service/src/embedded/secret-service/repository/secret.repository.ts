@@ -40,8 +40,8 @@ const ARGON2_CONFIG = {
   outputLen: 32,           // 256-bit key
 };
 
-// Auto-lock timeout in milliseconds (30 minutes)
-const AUTO_LOCK_TIMEOUT_MS = 30 * 60 * 1000;
+// Default auto-lock timeout in milliseconds (30 minutes)
+const DEFAULT_AUTO_LOCK_TIMEOUT_MS = 30 * 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Row Types (SQLite representation)
@@ -283,11 +283,75 @@ export class SecretRepository {
   private masterKey: CryptoKey | null = null;
   private lastActivityTime: number = 0;
   private autoLockTimer: NodeJS.Timeout | null = null;
+  private currentTimeoutMs: number = DEFAULT_AUTO_LOCK_TIMEOUT_MS;
+  private sessionTokens: Map<string, { createdAt: number; name?: string }> = new Map();
 
   constructor(private db: DatabaseAdapter) {}
 
   /**
+   * Generate a session token for API access
+   * Token is valid as long as vault is unlocked
+   */
+  generateSessionToken(name?: string): string {
+    if (!this.masterKey) {
+      throw new Error('Vault must be unlocked to generate session token');
+    }
+
+    const token = crypto.randomUUID();
+    this.sessionTokens.set(token, { createdAt: Date.now(), name });
+    logger.info({ tokenName: name }, 'Session token generated');
+    return token;
+  }
+
+  /**
+   * Validate a session token and refresh vault activity
+   */
+  validateSessionToken(token: string): boolean {
+    if (!this.masterKey) {
+      return false;
+    }
+
+    if (this.sessionTokens.has(token)) {
+      this.updateActivity(); // Keep vault alive
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Revoke a session token
+   * If this was the last token, starts the auto-lock timer
+   */
+  revokeSessionToken(token: string): boolean {
+    const deleted = this.sessionTokens.delete(token);
+
+    // If we just deleted the last session token, start the auto-lock timer
+    if (deleted && !this.hasActiveSessionTokens() && this.masterKey) {
+      logger.info('Last session token revoked, starting auto-lock timer');
+      this.updateActivity();
+    }
+
+    return deleted;
+  }
+
+  /**
+   * List active session tokens (names only, not the tokens themselves)
+   */
+  listSessionTokens(): Array<{ name?: string; createdAt: number }> {
+    return Array.from(this.sessionTokens.values());
+  }
+
+  /**
+   * Check if there are active session tokens
+   */
+  hasActiveSessionTokens(): boolean {
+    return this.sessionTokens.size > 0;
+  }
+
+  /**
    * Update the last activity timestamp and reset auto-lock timer
+   * Note: Auto-lock is disabled while there are active session tokens
    */
   private updateActivity(): void {
     this.lastActivityTime = Date.now();
@@ -295,26 +359,34 @@ export class SecretRepository {
     // Clear existing timer if any
     if (this.autoLockTimer) {
       clearTimeout(this.autoLockTimer);
+      this.autoLockTimer = null;
     }
 
-    // Set new auto-lock timer if vault is unlocked
-    if (this.masterKey) {
+    // Only set auto-lock timer if vault is unlocked AND there are no active session tokens
+    // Session tokens keep the vault alive indefinitely until revoked or service restart
+    if (this.masterKey && !this.hasActiveSessionTokens()) {
       this.autoLockTimer = setTimeout(() => {
-        if (this.masterKey) {
+        if (this.masterKey && !this.hasActiveSessionTokens()) {
           logger.info('Vault auto-locked due to inactivity');
           this.lockVault();
         }
-      }, AUTO_LOCK_TIMEOUT_MS);
+      }, this.currentTimeoutMs);
     }
   }
 
   /**
-   * Get time until auto-lock in milliseconds, or null if locked
+   * Get time until auto-lock in milliseconds
+   * Returns null if vault is locked
+   * Returns -1 if auto-lock is disabled (active session tokens)
    */
   getTimeUntilAutoLock(): number | null {
     if (!this.masterKey) return null;
+
+    // Auto-lock is disabled while there are active session tokens
+    if (this.hasActiveSessionTokens()) return -1;
+
     const elapsed = Date.now() - this.lastActivityTime;
-    return Math.max(0, AUTO_LOCK_TIMEOUT_MS - elapsed);
+    return Math.max(0, this.currentTimeoutMs - elapsed);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -551,7 +623,11 @@ export class SecretRepository {
       this.autoLockTimer = null;
     }
 
-    logger.info('Vault locked');
+    // Invalidate all session tokens
+    const tokenCount = this.sessionTokens.size;
+    this.sessionTokens.clear();
+
+    logger.info({ invalidatedTokens: tokenCount }, 'Vault locked');
   }
 
   isUnlocked(): boolean {

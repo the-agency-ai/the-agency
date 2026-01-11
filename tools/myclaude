@@ -144,6 +144,30 @@ if [ -x "$PROJECT_ROOT/tools/agency-service" ]; then
     if ! curl -s --connect-timeout 1 "http://127.0.0.1:3141/health" > /dev/null 2>&1; then
         echo -e "${BLUE}Starting Agency Service...${NC}"
         "$PROJECT_ROOT/tools/agency-service" start > /dev/null 2>&1 || true
+        sleep 1  # Give service time to start
+    fi
+fi
+
+# Set up vault session token for Claude Code to access secrets
+if [ -x "$PROJECT_ROOT/tools/secret" ]; then
+    # Check vault status
+    VAULT_STATUS=$("$PROJECT_ROOT/tools/secret" vault status 2>/dev/null | grep -o 'status: [a-z]*' | cut -d' ' -f2 || echo "unknown")
+
+    if [ "$VAULT_STATUS" = "locked" ]; then
+        echo -e "${YELLOW}Vault is locked. Please unlock to enable secret access.${NC}"
+        "$PROJECT_ROOT/tools/secret" vault unlock
+        VAULT_STATUS="unlocked"
+    fi
+
+    if [ "$VAULT_STATUS" = "unlocked" ]; then
+        # Generate a session token for this Claude session
+        SESSION_TOKEN=$("$PROJECT_ROOT/tools/secret" vault session generate "$AGENTNAME-session" 2>/dev/null || echo "")
+        if [ -n "$SESSION_TOKEN" ]; then
+            export VAULT_SESSION_TOKEN="$SESSION_TOKEN"
+            echo -e "${GREEN}✓ Vault session token generated${NC}"
+        fi
+    elif [ "$VAULT_STATUS" = "uninitialized" ]; then
+        echo -e "${YELLOW}Vault not initialized. Run: ./tools/secret vault init${NC}"
     fi
 fi
 

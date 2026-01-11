@@ -44,6 +44,22 @@ function getAccessor(c: any): { type: 'principal' | 'agent' | 'system'; name: st
 export function createSecretRoutes(secretService: SecretService): Hono {
   const app = new Hono();
 
+  // Session token validation middleware
+  // If a valid session token is provided, it keeps the vault alive
+  app.use('*', async (c, next) => {
+    const sessionToken = c.req.header('X-Vault-Session-Token') ||
+                         c.req.header('Authorization')?.replace('Bearer ', '');
+
+    if (sessionToken) {
+      const valid = secretService.validateSessionToken(sessionToken);
+      if (valid) {
+        c.set('sessionTokenValid', true);
+      }
+    }
+
+    await next();
+  });
+
   // Global error handler
   app.onError((err, c) => {
     logger.error({ error: err.message, stack: err.stack }, 'Secret route error');
@@ -140,6 +156,68 @@ export function createSecretRoutes(secretService: SecretService): Hono {
 
     logger.info('Vault reset with recovery code via API');
     return c.json({ success: true, message: 'Vault reset. All previous secrets have been deleted.' });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Session Token Operations
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * POST /secret/vault/session - Generate a session token
+   * Requires vault to be unlocked. Returns a token that can be used for API access.
+   */
+  app.post('/vault/session', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const name = body.name as string | undefined;
+
+    try {
+      const token = secretService.generateSessionToken(name);
+      logger.info({ tokenName: name }, 'Session token generated via API');
+      return c.json({ token, message: 'Session token generated. Use as VAULT_SESSION_TOKEN.' }, 201);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Vault must be unlocked')) {
+        return c.json({ error: 'Locked', message: 'Vault must be unlocked to generate session token' }, 423);
+      }
+      throw error;
+    }
+  });
+
+  /**
+   * POST /secret/vault/session/validate - Validate a session token
+   */
+  app.post('/vault/session/validate', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const token = body.token as string | undefined;
+
+    if (!token) {
+      return c.json({ error: 'Bad Request', message: 'Token required' }, 400);
+    }
+
+    const valid = secretService.validateSessionToken(token);
+    return c.json({ valid });
+  });
+
+  /**
+   * POST /secret/vault/session/revoke - Revoke a session token
+   */
+  app.post('/vault/session/revoke', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const token = body.token as string | undefined;
+
+    if (!token) {
+      return c.json({ error: 'Bad Request', message: 'Token required' }, 400);
+    }
+
+    const revoked = secretService.revokeSessionToken(token);
+    return c.json({ revoked });
+  });
+
+  /**
+   * GET /secret/vault/sessions - List active session tokens (names only)
+   */
+  app.get('/vault/sessions', async (c) => {
+    const tokens = secretService.listSessionTokens();
+    return c.json({ sessions: tokens, count: tokens.length });
   });
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -51,12 +51,17 @@ export class SecretService {
 
     const stats = status === 'unlocked' ? await this.repository.getStats() : undefined;
     const autoLockInMs = this.repository.getTimeUntilAutoLock();
+    const hasActiveTokens = this.repository.hasActiveSessionTokens();
+    const sessionCount = this.repository.listSessionTokens().length;
 
     return {
       status,
       secretCount: stats?.total,
-      autoLockInMs: autoLockInMs ?? undefined,
+      // -1 means auto-lock is disabled (active session tokens)
+      autoLockInMs: autoLockInMs === -1 ? undefined : (autoLockInMs ?? undefined),
       autoLockTimeoutMs: status === 'unlocked' ? 30 * 60 * 1000 : undefined,
+      autoLockDisabled: hasActiveTokens,
+      activeSessionCount: sessionCount,
     };
   }
 
@@ -96,6 +101,26 @@ export class SecretService {
 
   async useRecoveryCode(code: string, newPassphrase: string): Promise<boolean> {
     return this.repository.useRecoveryCode(code, newPassphrase);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Session Tokens
+  // ─────────────────────────────────────────────────────────────────────────
+
+  generateSessionToken(name?: string): string {
+    return this.repository.generateSessionToken(name);
+  }
+
+  validateSessionToken(token: string): boolean {
+    return this.repository.validateSessionToken(token);
+  }
+
+  revokeSessionToken(token: string): boolean {
+    return this.repository.revokeSessionToken(token);
+  }
+
+  listSessionTokens(): Array<{ name?: string; createdAt: number }> {
+    return this.repository.listSessionTokens();
   }
 
   // ─────────────────────────────────────────────────────────────────────────

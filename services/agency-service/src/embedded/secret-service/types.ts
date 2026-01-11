@@ -154,6 +154,8 @@ export interface VaultStatusResponse {
   hasRecoveryCodes?: boolean;
   autoLockInMs?: number;        // Time until auto-lock in milliseconds
   autoLockTimeoutMs?: number;   // Total auto-lock timeout (30 minutes)
+  autoLockDisabled?: boolean;   // True if auto-lock disabled (active session tokens)
+  activeSessionCount?: number;  // Number of active session tokens
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
