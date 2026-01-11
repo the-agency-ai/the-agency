@@ -106,6 +106,16 @@ export interface ListObservationsQuery {
 }
 
 /**
+ * List response with pagination metadata
+ */
+export interface ObservationListResponse {
+  observations: Observation[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/**
  * Stats for observations
  */
 export interface ObservationStats {
@@ -161,7 +171,7 @@ export const listObservationsQuerySchema = z.object({
   search: z.string().optional(),
   sortBy: z.enum(['createdAt', 'updatedAt', 'title', 'status', 'category']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
-  limit: z.coerce.number().int().min(0).max(100).default(50),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
 

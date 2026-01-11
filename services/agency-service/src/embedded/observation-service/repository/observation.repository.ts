@@ -162,20 +162,21 @@ export class ObservationRepository {
 
   /**
    * Get the next observation ID
-   * Uses atomic UPSERT to prevent race conditions
+   * Uses atomic increment-then-read pattern to prevent race conditions
    */
   async getNextObservationId(): Promise<string> {
-    // Get current value
-    const row = await this.db.get<SequenceRow>(
-      'SELECT next_id FROM observation_sequence WHERE id = 1'
-    );
-
-    const nextId = row?.next_id ?? 1;
-
-    // Increment for next caller
+    // Atomically increment first, then read the value
+    // This prevents race conditions in concurrent scenarios
     await this.db.execute(
       'UPDATE observation_sequence SET next_id = next_id + 1 WHERE id = 1'
     );
+
+    // Read the incremented value and subtract 1 to get the ID we just reserved
+    const row = await this.db.get<SequenceRow>(
+      'SELECT next_id - 1 as next_id FROM observation_sequence WHERE id = 1'
+    );
+
+    const nextId = row?.next_id ?? 1;
 
     // Format: OBS-0001
     return `OBS-${String(nextId).padStart(4, '0')}`;

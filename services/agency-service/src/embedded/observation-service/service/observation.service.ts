@@ -13,6 +13,7 @@ import type {
   ListObservationsQuery,
   ObservationStatus,
   ObservationStats,
+  ObservationListResponse,
 } from '../types';
 import { createServiceLogger } from '../../../core/lib/logger';
 
@@ -56,8 +57,14 @@ export class ObservationService {
   /**
    * List observations with filters
    */
-  async listObservations(query: ListObservationsQuery): Promise<{ observations: Observation[]; total: number }> {
-    return this.repo.list(query);
+  async listObservations(query: ListObservationsQuery): Promise<ObservationListResponse> {
+    const { observations, total } = await this.repo.list(query);
+    return {
+      observations,
+      total,
+      limit: query.limit,
+      offset: query.offset,
+    };
   }
 
   /**
