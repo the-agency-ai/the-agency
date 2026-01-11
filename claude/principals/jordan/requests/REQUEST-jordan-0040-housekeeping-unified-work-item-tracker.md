@@ -216,7 +216,7 @@ Integrate with `/agency` slash command namespace:
 | bug-service | Yes | Partial | No | No | No |
 | idea-service | Yes | Partial | ? | ? | Yes |
 | request-service | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** |
-| observation-service | **No** | - | - | - | - |
+| observation-service | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** |
 
 ---
 
@@ -277,3 +277,20 @@ Integrate with `/agency` slash command namespace:
   - Added filter combination tests (principal AND status)
   - Added assignee and reporter filter tests
 - 60 tests passing (10 new tests added)
+
+### 2026-01-11 - Phase 2 Implementation Complete
+- **TAG**: `REQUEST-jordan-0040-phase2-impl`
+- Built observation-service following unified API pattern
+- Simpler workflow: Open, Acknowledged, Noted, Archived
+- Categories: insight, pattern, concern, improvement, note, finding
+- Context linking: contextPath, contextLine, contextRef
+- 52 tests passing (repository, service, routes)
+
+### 2026-01-11 - Phase 2 Code Review Complete
+- **TAG**: `REQUEST-jordan-0040-phase2-review`
+- Code review with 2 subagents identified issues
+- Applied fixes:
+  - CRITICAL: Atomic increment-then-read for sequence ID
+  - HIGH: Added ObservationListResponse with pagination metadata
+  - MEDIUM: Fixed limit min(0) to min(1)
+- 52 tests passing
