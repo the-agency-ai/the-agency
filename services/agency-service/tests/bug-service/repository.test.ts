@@ -364,6 +364,125 @@ describe('Bug Repository', () => {
     });
   });
 
+  describe('findById', () => {
+    test('should find by internal ID', async () => {
+      const bugId = await repo.getNextBugId('findbyid');
+      const created = await repo.create(bugId, {
+        workstream: 'findbyid',
+        summary: 'Find by internal ID',
+        reporterType: 'agent',
+        reporterName: 'test',
+      });
+
+      const found = await repo.findById(created.id);
+      expect(found).not.toBeNull();
+      expect(found!.bugId).toBe(bugId);
+    });
+
+    test('should return null for non-existent internal ID', async () => {
+      const found = await repo.findById(99999);
+      expect(found).toBeNull();
+    });
+  });
+
+  describe('security - LIKE pattern escaping', () => {
+    test('should escape _ in search', async () => {
+      const bugId = await repo.getNextBugId('underscore');
+      await repo.create(bugId, {
+        workstream: 'underscore',
+        summary: 'Bug in file_name.ts',
+        reporterType: 'agent',
+        reporterName: 'test',
+      });
+
+      // Search for literal _ - should not match single characters
+      const { bugs } = await repo.list({ limit: 50, offset: 0, search: 'file_name', workstream: 'underscore' });
+      expect(bugs.length).toBe(1);
+      expect(bugs[0].summary).toContain('file_name');
+    });
+
+    test('should escape special chars in tag filter', async () => {
+      const bugId = await repo.getNextBugId('tagsecurity');
+      await repo.create(bugId, {
+        workstream: 'tagsecurity',
+        summary: 'Bug with special tag',
+        reporterType: 'agent',
+        reporterName: 'test',
+        tags: ['100%_done'],
+      });
+
+      // Filter by tag with special chars
+      const { bugs } = await repo.list({ limit: 50, offset: 0, workstream: 'tagsecurity', tags: '100%_done' });
+      expect(bugs.length).toBe(1);
+      expect(bugs[0].tags).toContain('100%_done');
+    });
+  });
+
+  describe('security - sortBy/sortOrder validation', () => {
+    test('should default invalid sortBy to createdAt', async () => {
+      const bugId = await repo.getNextBugId('sortvalidation');
+      await repo.create(bugId, {
+        workstream: 'sortvalidation',
+        summary: 'For sorting test',
+        reporterType: 'agent',
+        reporterName: 'test',
+      });
+
+      // Attempt SQL injection via sortBy - should default to created_at safely
+      const { total } = await repo.list({
+        limit: 50,
+        offset: 0,
+        sortBy: 'status; DROP TABLE bugs--' as any,
+        sortOrder: 'desc',
+        workstream: 'sortvalidation',
+      });
+      expect(total).toBe(1);
+    });
+
+    test('should normalize malicious sortOrder', async () => {
+      const bugId = await repo.getNextBugId('ordervalidation');
+      await repo.create(bugId, {
+        workstream: 'ordervalidation',
+        summary: 'For sorting test',
+        reporterType: 'agent',
+        reporterName: 'test',
+      });
+
+      // Attempt SQL injection via sortOrder
+      const { total } = await repo.list({
+        limit: 50,
+        offset: 0,
+        sortBy: 'createdAt',
+        sortOrder: 'DESC; DROP TABLE bugs--' as any,
+        workstream: 'ordervalidation',
+      });
+      expect(total).toBe(1);
+    });
+  });
+
+  describe('edge cases', () => {
+    test('should return empty stats for empty database', async () => {
+      const stats = await repo.getStats();
+      expect(stats.total).toBe(0);
+      expect(stats.open).toBe(0);
+      expect(stats.inProgress).toBe(0);
+    });
+
+    test('should handle empty update gracefully', async () => {
+      const bugId = await repo.getNextBugId('emptyupdate');
+      const created = await repo.create(bugId, {
+        workstream: 'emptyupdate',
+        summary: 'No changes bug',
+        reporterType: 'agent',
+        reporterName: 'test',
+      });
+
+      const updated = await repo.update(bugId, {});
+      expect(updated).not.toBeNull();
+      expect(updated!.summary).toBe(created.summary);
+    });
+  });
+
   describe('getStats', () => {
     test('should return correct statistics including wontFix', async () => {
       // Create bugs with different statuses

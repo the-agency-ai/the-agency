@@ -254,6 +254,176 @@ describe('Observation Repository', () => {
     });
   });
 
+  describe('findById', () => {
+    test('should find by internal ID', async () => {
+      const observationId = await repo.getNextObservationId();
+      const created = await repo.create(observationId, {
+        title: 'Find by internal ID',
+        summary: 'Test internal ID lookup',
+        reporterType: 'agent',
+        reporterName: 'housekeeping',
+      });
+
+      const found = await repo.findById(created.id);
+      expect(found).not.toBeNull();
+      expect(found!.observationId).toBe(observationId);
+    });
+
+    test('should return null for non-existent internal ID', async () => {
+      const found = await repo.findById(99999);
+      expect(found).toBeNull();
+    });
+  });
+
+  describe('security - LIKE pattern escaping', () => {
+    test('should escape % in search', async () => {
+      const observationId = await repo.getNextObservationId();
+      await repo.create(observationId, {
+        title: 'Contains 100% match',
+        summary: 'This has a percent sign',
+        reporterType: 'agent',
+        reporterName: 'housekeeping',
+      });
+
+      // Search for literal %
+      const { total } = await repo.list({
+        search: '100%',
+        limit: 50,
+        offset: 0,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+      expect(total).toBe(1);
+    });
+
+    test('should escape _ in search', async () => {
+      const observationId = await repo.getNextObservationId();
+      await repo.create(observationId, {
+        title: 'Has under_score',
+        summary: 'Underscore in title',
+        reporterType: 'agent',
+        reporterName: 'housekeeping',
+      });
+
+      // Search for literal _
+      const { total } = await repo.list({
+        search: 'under_score',
+        limit: 50,
+        offset: 0,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+      expect(total).toBe(1);
+    });
+
+    test('should escape % in contextPath', async () => {
+      const observationId = await repo.getNextObservationId();
+      await repo.create(observationId, {
+        title: 'In weird path',
+        summary: 'Has percent in path',
+        reporterType: 'agent',
+        reporterName: 'housekeeping',
+        contextPath: 'src/100%_complete/file.ts',
+      });
+
+      // Filter by exact path prefix with special char
+      const { total } = await repo.list({
+        contextPath: 'src/100%',
+        limit: 50,
+        offset: 0,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+      expect(total).toBe(1);
+    });
+
+    test('should escape special chars in tags', async () => {
+      const observationId = await repo.getNextObservationId();
+      await repo.create(observationId, {
+        title: 'Tagged observation',
+        summary: 'Has special tag',
+        reporterType: 'agent',
+        reporterName: 'housekeeping',
+        tags: ['100%', 'under_score'],
+      });
+
+      // Filter by tag with special char
+      const { total } = await repo.list({
+        tags: '100%',
+        limit: 50,
+        offset: 0,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+      expect(total).toBe(1);
+    });
+  });
+
+  describe('security - sortBy/sortOrder validation', () => {
+    test('should default invalid sortBy to createdAt', async () => {
+      const observationId = await repo.getNextObservationId();
+      await repo.create(observationId, {
+        title: 'Test observation',
+        summary: 'For sorting test',
+        reporterType: 'agent',
+        reporterName: 'housekeeping',
+      });
+
+      // Attempt SQL injection via sortBy - should default to created_at safely
+      const { total } = await repo.list({
+        limit: 50,
+        offset: 0,
+        sortBy: 'title; DROP TABLE observations--' as any,
+        sortOrder: 'desc',
+      });
+      // If we get here without error, the injection was prevented
+      expect(total).toBe(1);
+    });
+
+    test('should normalize malicious sortOrder', async () => {
+      const observationId = await repo.getNextObservationId();
+      await repo.create(observationId, {
+        title: 'Test observation',
+        summary: 'For sorting test',
+        reporterType: 'agent',
+        reporterName: 'housekeeping',
+      });
+
+      // Attempt SQL injection via sortOrder - should normalize to ASC/DESC
+      const { total } = await repo.list({
+        limit: 50,
+        offset: 0,
+        sortBy: 'createdAt',
+        sortOrder: 'DESC; DROP TABLE observations--' as any,
+      });
+      // If we get here without error, the injection was prevented
+      expect(total).toBe(1);
+    });
+  });
+
+  describe('edge cases', () => {
+    test('should return empty stats for empty database', async () => {
+      const stats = await repo.getStats();
+      expect(stats.total).toBe(0);
+      expect(stats.open).toBe(0);
+      expect(stats.acknowledged).toBe(0);
+    });
+
+    test('should handle empty update gracefully', async () => {
+      const observationId = await repo.getNextObservationId();
+      const created = await repo.create(observationId, {
+        title: 'No changes',
+        summary: 'Will not be modified',
+        reporterType: 'agent',
+        reporterName: 'housekeeping',
+      });
+
+      const updated = await repo.update(observationId, {});
+      expect(updated).not.toBeNull();
+      expect(updated!.title).toBe(created.title);
+    });
+  });
+
   describe('getStats', () => {
     test('should return correct statistics', async () => {
       const categories = ['insight', 'pattern', 'concern', 'note'] as const;
