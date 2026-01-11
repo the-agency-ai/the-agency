@@ -298,11 +298,13 @@ export class SecretService {
   }
 
   async listSecrets(query: ListSecretsQuery, accessor: Accessor): Promise<{ secrets: Secret[]; total: number }> {
-    // For now, list returns all secrets the user has access to
-    // In a more sophisticated implementation, we'd filter by grants
+    // Get all secrets matching the query (unfiltered)
     const result = await this.repository.list(query);
 
     // Filter to only secrets the accessor can see
+    // Note: This has N+1 query performance. For production use, consider:
+    // 1. Adding SQL-level access filtering (WHERE owner_name = ? OR secret_id IN (SELECT ...))
+    // 2. Using a single batch query to check access for all secrets
     const accessibleSecrets: Secret[] = [];
     for (const secret of result.secrets) {
       const hasAccess = await this.repository.hasAccess(
@@ -316,6 +318,9 @@ export class SecretService {
       }
     }
 
+    // For accurate pagination total, we'd need to count accessible secrets at the DB level.
+    // For now, we return the filtered count which may cause pagination issues with
+    // large datasets where the accessor doesn't have access to many secrets.
     return {
       secrets: accessibleSecrets,
       total: accessibleSecrets.length,
