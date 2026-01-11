@@ -209,11 +209,53 @@ Integrate with `/agency` slash command namespace:
 
 ---
 
+## Phase 5: Final Review, Testing, and Release
+
+### 5.1 Code Review
+- [ ] Full code review of all REQUEST-0040 work (request-service, observation-service, bug-service enhancements, idea-service alignment, CLI tools, Work Items DevApp)
+- [ ] Act on findings
+- [ ] Commit and Tag: `REQUEST-jordan-0040-final-review`
+
+### 5.2 Test Review
+- [ ] Full test review of all REQUEST-0040 tests
+- [ ] Act on findings
+- [ ] Commit and Tag: `REQUEST-jordan-0040-final-tests`
+
+### 5.3 UX/E2E Tests (Playwright)
+- [ ] Set up Playwright for AgencyBench (web browser testing)
+- [ ] Set up tauri-driver for Desktop E2E testing (WebDriver protocol)
+- [ ] Create UX-level tests for Work Items DevApp
+- [ ] Tests must run against both:
+  - Web app (Next.js dev server on localhost:3010)
+  - Desktop app (Tauri via tauri-driver/WebDriver)
+- [ ] Run against web, fix issues, iterate until green
+- [ ] Commit and Tag: `REQUEST-jordan-0040-ux-tests`
+
+### 5.4 Full Test Suite
+- [ ] Run full local test suite (all services)
+- [ ] Fix any failures, iterate until green
+
+### 5.5 Desktop Build & Test
+- [ ] Build Desktop App: `cd apps/agency-bench && npm run tauri:build`
+- [ ] Run UX tests against Desktop App
+- [ ] Fix issues, iterate until green
+- [ ] Rebuild if required
+- [ ] Commit and Tag: `REQUEST-jordan-0040-desktop-verified`
+
+### 5.6 Release
+- [ ] Build .dmg installer
+- [ ] Copy .app to `the-agency/` (apps/agency-bench release location)
+- [ ] Copy .app to `the-agency-starter/`
+- [ ] Install via .dmg to `/Applications`
+- [ ] Final commit and Tag: `REQUEST-jordan-0040-complete`
+
+---
+
 ## Service Inventory (Current State)
 
 | Service | Exists | Unified Schema | Sort | Search | Tags |
 |---------|--------|----------------|------|--------|------|
-| bug-service | Yes | Partial | No | No | No |
+| bug-service | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** |
 | idea-service | Yes | Partial | ? | ? | Yes |
 | request-service | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** |
 | observation-service | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** |
@@ -294,3 +336,16 @@ Integrate with `/agency` slash command namespace:
   - HIGH: Added ObservationListResponse with pagination metadata
   - MEDIUM: Fixed limit min(0) to min(1)
 - 52 tests passing
+
+### 2026-01-11 - Phase 3 Implementation Complete
+- **TAG**: `REQUEST-jordan-0040-phase3-impl`
+- Enhanced bug-service to match unified API pattern
+- Added: sortBy, sortOrder, search, tags (filter and create/update)
+- Applied security patterns from Phase 1/2:
+  - Atomic UPSERT for sequence ID generation
+  - SQL LIKE pattern escaping
+  - Sort direction validation
+  - Safe JSON parsing
+- Added BugStats type with wontFix count
+- 56 bug-service tests passing (11 new tests)
+- 341 total tests passing across all services

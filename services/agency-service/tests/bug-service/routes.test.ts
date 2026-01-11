@@ -114,6 +114,77 @@ describe('Bug Routes', () => {
       const result = await res.json();
       expect(result.bugs.every((b: any) => b.workstream === 'FILTER-TEST')).toBe(true);
     });
+
+    test('should sort by summary ascending', async () => {
+      // Create bugs with different summaries
+      await app.request('/api/bug/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workstream: 'sort-test',
+          summary: 'Zebra bug',
+          reporterType: 'agent',
+          reporterName: 'test',
+        }),
+      });
+      await app.request('/api/bug/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workstream: 'sort-test',
+          summary: 'Apple bug',
+          reporterType: 'agent',
+          reporterName: 'test',
+        }),
+      });
+
+      const res = await app.request('/api/bug/list?workstream=sort-test&sortBy=summary&sortOrder=asc');
+      expect(res.status).toBe(200);
+
+      const result = await res.json();
+      expect(result.bugs[0].summary).toBe('Apple bug');
+    });
+
+    test('should search in summary', async () => {
+      await app.request('/api/bug/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workstream: 'search-test',
+          summary: 'Critical authentication bug',
+          reporterType: 'agent',
+          reporterName: 'test',
+        }),
+      });
+
+      const res = await app.request('/api/bug/list?workstream=search-test&search=authentication');
+      expect(res.status).toBe(200);
+
+      const result = await res.json();
+      expect(result.bugs.length).toBe(1);
+      expect(result.bugs[0].summary).toContain('authentication');
+    });
+
+    test('should filter by tags', async () => {
+      await app.request('/api/bug/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workstream: 'tags-route-test',
+          summary: 'Tagged bug',
+          reporterType: 'agent',
+          reporterName: 'test',
+          tags: ['frontend', 'urgent'],
+        }),
+      });
+
+      const res = await app.request('/api/bug/list?workstream=tags-route-test&tags=frontend');
+      expect(res.status).toBe(200);
+
+      const result = await res.json();
+      expect(result.bugs.length).toBe(1);
+      expect(result.bugs[0].tags).toContain('frontend');
+    });
   });
 
   describe('GET /api/bug/stats', () => {

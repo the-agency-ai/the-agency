@@ -75,6 +75,14 @@ The Agency uses an **embedded services architecture** where all services run as 
 - **What's Missing:** Nothing
 - **Scope to Complete:** Done
 
+[(jordan) ### Service 4: Log Service
+- **Purpose:** Aggregate and query logs from all tools and services
+- **Current State:** Complete with full test coverage
+- **What Works:** Log ingestion, querying, tool run tracking, error summaries, retention cleanup
+- **What's Missing:** Nothing
+- **Scope to Complete:** Done]
+[(jordan) Comments here….]
+
 ### Service 5: Test Service
 - **Purpose:** Execute and track test runs, discover suites, identify flaky tests
 - **Current State:** Production ready

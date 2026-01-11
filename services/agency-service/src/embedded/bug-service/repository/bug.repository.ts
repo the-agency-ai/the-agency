@@ -6,7 +6,7 @@
  */
 
 import type { DatabaseAdapter } from '../../../core/adapters/database';
-import type { Bug, BugAttachment, CreateBugRequest, UpdateBugRequest, ListBugsQuery } from '../types';
+import type { Bug, BugAttachment, CreateBugRequest, UpdateBugRequest, ListBugsQuery, BugStats } from '../types';
 import { createServiceLogger } from '../../../core/lib/logger';
 
 const logger = createServiceLogger('bug-repository');
@@ -27,6 +27,7 @@ interface BugRow {
   assignee_name: string | null;
   xref_type: string | null;
   xref_id: string | null;
+  tags: string; // JSON array
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +35,52 @@ interface BugRow {
 interface SequenceRow {
   workstream: string;
   next_id: number;
+}
+
+/**
+ * Safely parse JSON with fallback to empty array
+ */
+function safeParseJsonArray(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    logger.warn({ json }, 'Failed to parse tags JSON, returning empty array');
+    return [];
+  }
+}
+
+/**
+ * Escape special characters for SQL LIKE patterns
+ */
+function escapeLikePattern(pattern: string): string {
+  return pattern
+    .replace(/\\/g, '\\\\')
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_');
+}
+
+/**
+ * Validate and normalize sort direction
+ */
+function normalizeSortDirection(direction: string): 'ASC' | 'DESC' {
+  const upper = direction.toUpperCase();
+  return upper === 'DESC' ? 'DESC' : 'ASC';
+}
+
+/**
+ * Map sortBy field to database column
+ */
+function getSortColumn(sortBy: string): string {
+  const mapping: Record<string, string> = {
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    summary: 'summary',
+    status: 'status',
+    workstream: 'workstream',
+  };
+  return mapping[sortBy] || 'created_at';
 }
 
 /**
@@ -53,6 +100,7 @@ function rowToBug(row: BugRow): Bug {
     assigneeName: row.assignee_name,
     xrefType: row.xref_type,
     xrefId: row.xref_id,
+    tags: safeParseJsonArray(row.tags),
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
@@ -79,6 +127,7 @@ export class BugRepository {
         assignee_name TEXT,
         xref_type TEXT,
         xref_id TEXT,
+        tags TEXT DEFAULT '[]',
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
       )
@@ -107,36 +156,33 @@ export class BugRepository {
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_bugs_workstream ON bugs(workstream)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_bugs_status ON bugs(status)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_bugs_assignee ON bugs(assignee_name)`);
+    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_bugs_reporter ON bugs(reporter_name)`);
+    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_bugs_created ON bugs(created_at)`);
 
     logger.info('Bug schema initialized');
   }
 
   /**
    * Get the next bug ID for a workstream
+   * Uses atomic increment-then-read pattern to prevent race conditions
    */
   async getNextBugId(workstream: string): Promise<string> {
     const upperWorkstream = workstream.toUpperCase();
 
-    // Get or create sequence
-    let row = await this.db.get<SequenceRow>(
-      'SELECT * FROM bug_sequences WHERE workstream = ?',
+    // Use UPSERT to atomically create or increment
+    await this.db.execute(
+      `INSERT INTO bug_sequences (workstream, next_id) VALUES (?, 2)
+       ON CONFLICT(workstream) DO UPDATE SET next_id = next_id + 1`,
       [upperWorkstream]
     );
 
-    let nextId: number;
-    if (!row) {
-      nextId = 1;
-      await this.db.execute(
-        'INSERT INTO bug_sequences (workstream, next_id) VALUES (?, 2)',
-        [upperWorkstream]
-      );
-    } else {
-      nextId = row.next_id;
-      await this.db.execute(
-        'UPDATE bug_sequences SET next_id = next_id + 1 WHERE workstream = ?',
-        [upperWorkstream]
-      );
-    }
+    // Read the value we just set/incremented, subtract 1 to get the ID we reserved
+    const row = await this.db.get<SequenceRow>(
+      'SELECT next_id - 1 as next_id FROM bug_sequences WHERE workstream = ?',
+      [upperWorkstream]
+    );
+
+    const nextId = row?.next_id ?? 1;
 
     // Format: BENCH-00001
     return `${upperWorkstream}-${String(nextId).padStart(5, '0')}`;
@@ -152,8 +198,8 @@ export class BugRepository {
       `INSERT INTO bugs (
         bug_id, workstream, summary, description, status,
         reporter_type, reporter_name, assignee_type, assignee_name,
-        xref_type, xref_id
-      ) VALUES (?, ?, ?, ?, 'Open', ?, ?, ?, ?, ?, ?)`,
+        xref_type, xref_id, tags
+      ) VALUES (?, ?, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?)`,
       [
         bugId,
         upperWorkstream,
@@ -165,6 +211,7 @@ export class BugRepository {
         data.assigneeName || null,
         data.xrefType || null,
         data.xrefId || null,
+        JSON.stringify(data.tags || []),
       ]
     );
 
@@ -200,7 +247,7 @@ export class BugRepository {
   }
 
   /**
-   * List bugs with optional filtering
+   * List bugs with filtering, sorting, search, and pagination
    */
   async list(query: ListBugsQuery): Promise<{ bugs: Bug[]; total: number }> {
     const conditions: string[] = [];
@@ -226,6 +273,24 @@ export class BugRepository {
       params.push(query.reporter);
     }
 
+    if (query.tags) {
+      const tagList = query.tags.split(',').map(t => t.trim());
+      const tagConditions = tagList.map(() => "tags LIKE ? ESCAPE '\\'");
+      conditions.push(`(${tagConditions.join(' OR ')})`);
+      tagList.forEach(tag => {
+        const escaped = escapeLikePattern(tag);
+        params.push(`%"${escaped}"%`);
+      });
+    }
+
+    // Search (in summary and description)
+    if (query.search) {
+      conditions.push("(summary LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')");
+      const escaped = escapeLikePattern(query.search);
+      const searchPattern = `%${escaped}%`;
+      params.push(searchPattern, searchPattern);
+    }
+
     const whereClause = conditions.length > 0
       ? `WHERE ${conditions.join(' AND ')}`
       : '';
@@ -237,10 +302,14 @@ export class BugRepository {
     );
     const total = countRow?.count ?? 0;
 
+    // Sorting - validate direction to prevent SQL injection
+    const sortColumn = getSortColumn(query.sortBy || 'createdAt');
+    const sortDirection = normalizeSortDirection(query.sortOrder || 'desc');
+
     // Get paginated results
     const rows = await this.db.query<BugRow>(
       `SELECT * FROM bugs ${whereClause}
-       ORDER BY created_at DESC
+       ORDER BY ${sortColumn} ${sortDirection}
        LIMIT ? OFFSET ?`,
       [...params, query.limit, query.offset]
     );
@@ -283,6 +352,11 @@ export class BugRepository {
       params.push(data.assigneeName);
     }
 
+    if (data.tags !== undefined) {
+      sets.push('tags = ?');
+      params.push(JSON.stringify(data.tags));
+    }
+
     if (sets.length === 0) {
       return this.findByBugId(bugId);
     }
@@ -321,21 +395,17 @@ export class BugRepository {
   /**
    * Get stats for dashboard
    */
-  async getStats(): Promise<{
-    total: number;
-    open: number;
-    inProgress: number;
-    fixed: number;
-  }> {
+  async getStats(): Promise<BugStats> {
     const rows = await this.db.query<{ status: string; count: number }>(
       `SELECT status, COUNT(*) as count FROM bugs GROUP BY status`
     );
 
-    const stats = {
+    const stats: BugStats = {
       total: 0,
       open: 0,
       inProgress: 0,
       fixed: 0,
+      wontFix: 0,
     };
 
     for (const row of rows) {
@@ -349,6 +419,9 @@ export class BugRepository {
           break;
         case 'Fixed':
           stats.fixed = row.count;
+          break;
+        case "Won't Fix":
+          stats.wontFix = row.count;
           break;
       }
     }

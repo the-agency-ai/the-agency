@@ -5,7 +5,7 @@
  * Handles notifications, validation, and orchestration.
  */
 
-import type { Bug, CreateBugRequest, UpdateBugRequest, ListBugsQuery, BugListResponse } from '../types';
+import type { Bug, CreateBugRequest, UpdateBugRequest, ListBugsQuery, BugListResponse, BugStats } from '../types';
 import type { BugRepository } from '../repository/bug.repository';
 import type { QueueAdapter } from '../../../core/adapters/queue';
 import { createServiceLogger } from '../../../core/lib/logger';
@@ -136,12 +136,7 @@ export class BugService {
   /**
    * Get dashboard stats
    */
-  async getStats(): Promise<{
-    total: number;
-    open: number;
-    inProgress: number;
-    fixed: number;
-  }> {
+  async getStats(): Promise<BugStats> {
     return this.repository.getStats();
   }
 

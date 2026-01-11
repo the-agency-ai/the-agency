@@ -10,6 +10,8 @@
 ## Summary
 
 Request Service - API-based REQUEST management
+[(jordan) Request Service - API-based REQUEST management]
+[(jordan) ]
 
 ## Details
 
@@ -150,3 +152,8 @@ The file-based REQUESTs can continue to exist as the source of truth for detaile
 - Request created by jordan
 - Need for API-based REQUEST management identified
 - Current ./tools/requests parses files directly
+
+[(jordan) ]
+[(jordan) ]
+[(jordan) ]
+[(jordan) ]

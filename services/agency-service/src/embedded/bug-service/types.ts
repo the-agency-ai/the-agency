@@ -45,6 +45,7 @@ export interface Bug {
   assigneeName: string | null;
   xrefType: string | null;
   xrefId: string | null;
+  tags: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -74,6 +75,7 @@ export const createBugSchema = z.object({
   assigneeName: z.string().optional(),
   xrefType: z.string().optional(),
   xrefId: z.string().optional(),
+  tags: z.array(z.string()).default([]),
 });
 
 export type CreateBugRequest = z.infer<typeof createBugSchema>;
@@ -87,6 +89,7 @@ export const updateBugSchema = z.object({
   status: z.enum(['Open', 'In Progress', 'Fixed', "Won't Fix"]).optional(),
   assigneeType: z.enum(['agent', 'principal']).nullable().optional(),
   assigneeName: z.string().nullable().optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 export type UpdateBugRequest = z.infer<typeof updateBugSchema>;
@@ -99,8 +102,12 @@ export const listBugsQuerySchema = z.object({
   status: z.string().optional(),
   assignee: z.string().optional(),
   reporter: z.string().optional(),
-  limit: z.coerce.number().min(1).max(100).default(50),
-  offset: z.coerce.number().min(0).default(0),
+  tags: z.string().optional(),  // Comma-separated tags
+  search: z.string().optional(),
+  sortBy: z.enum(['createdAt', 'updatedAt', 'summary', 'status', 'workstream']).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
 });
 
 export type ListBugsQuery = z.infer<typeof listBugsQuerySchema>;
@@ -113,4 +120,15 @@ export interface BugListResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+/**
+ * Bug statistics
+ */
+export interface BugStats {
+  total: number;
+  open: number;
+  inProgress: number;
+  fixed: number;
+  wontFix: number;
 }
