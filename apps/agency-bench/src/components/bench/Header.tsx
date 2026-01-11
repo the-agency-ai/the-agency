@@ -13,6 +13,7 @@ const apps: Record<string, { title: string; version?: string }> = {
   '/bench/agent-monitor': { title: 'Agent Monitor', version: DEVAPP_VERSIONS['agent-monitor'] },
   '/bench/collaboration-inbox': { title: 'Collaboration Inbox', version: DEVAPP_VERSIONS['collaboration-inbox'] },
   '/bench/messages': { title: 'Messages', version: DEVAPP_VERSIONS.messages },
+  '/bench/secrets': { title: 'Secrets', version: DEVAPP_VERSIONS.secrets },
 };
 
 export function Header() {

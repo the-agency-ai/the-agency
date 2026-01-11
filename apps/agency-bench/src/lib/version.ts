@@ -36,4 +36,5 @@ export const DEVAPP_VERSIONS = {
   'agent-monitor': `1.0.0-${BUILD_DATE}-${BUILD_NUMBER}`,
   'collaboration-inbox': `1.0.0-${BUILD_DATE}-${BUILD_NUMBER}`,
   messages: `1.0.0-${BUILD_DATE}-${BUILD_NUMBER}`,
+  secrets: `1.0.0-${BUILD_DATE}-${BUILD_NUMBER}`,
 } as const;

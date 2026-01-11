@@ -63,6 +63,13 @@ const devApps: DevApp[] = [
     description: 'View message queue and delivery status',
     icon: '📬',
   },
+  {
+    id: 'secrets',
+    name: 'Secrets',
+    href: '/bench/secrets',
+    description: 'Manage secrets and credentials',
+    icon: '🔐',
+  },
 ];
 
 const futureApps: DevApp[] = [
