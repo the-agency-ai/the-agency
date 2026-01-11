@@ -122,6 +122,56 @@ describe('Idea Routes', () => {
       const res = await app.request('/api/idea/list?status=invalid');
       expect(res.status).toBe(400);
     });
+
+    test('should support sortBy parameter', async () => {
+      const res = await app.request('/api/idea/list?sortBy=title');
+      expect(res.status).toBe(200);
+
+      const result = await res.json();
+      expect(Array.isArray(result.ideas)).toBe(true);
+    });
+
+    test('should support sortOrder parameter', async () => {
+      const res = await app.request('/api/idea/list?sortBy=createdAt&sortOrder=asc');
+      expect(res.status).toBe(200);
+
+      const result = await res.json();
+      expect(Array.isArray(result.ideas)).toBe(true);
+    });
+
+    test('should return 400 for invalid sortBy', async () => {
+      const res = await app.request('/api/idea/list?sortBy=invalid');
+      expect(res.status).toBe(400);
+    });
+
+    test('should return 400 for invalid sortOrder', async () => {
+      const res = await app.request('/api/idea/list?sortOrder=invalid');
+      expect(res.status).toBe(400);
+    });
+
+    test('should support search parameter', async () => {
+      const res = await app.request('/api/idea/list?search=test');
+      expect(res.status).toBe(200);
+
+      const result = await res.json();
+      expect(Array.isArray(result.ideas)).toBe(true);
+    });
+
+    test('should support tags filter parameter', async () => {
+      const res = await app.request('/api/idea/list?tags=test');
+      expect(res.status).toBe(200);
+
+      const result = await res.json();
+      expect(Array.isArray(result.ideas)).toBe(true);
+    });
+
+    test('should support multiple tags filter', async () => {
+      const res = await app.request('/api/idea/list?tags=tag1,tag2');
+      expect(res.status).toBe(200);
+
+      const result = await res.json();
+      expect(Array.isArray(result.ideas)).toBe(true);
+    });
   });
 
   describe('GET /api/idea/stats', () => {

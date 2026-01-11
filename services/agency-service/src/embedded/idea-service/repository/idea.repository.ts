@@ -6,7 +6,7 @@
  */
 
 import type { DatabaseAdapter } from '../../../core/adapters/database';
-import type { Idea, CreateIdeaRequest, UpdateIdeaRequest, ListIdeasQuery } from '../types';
+import type { Idea, CreateIdeaRequest, UpdateIdeaRequest, ListIdeasQuery, IdeaStats } from '../types';
 import { createServiceLogger } from '../../../core/lib/logger';
 
 const logger = createServiceLogger('idea-repository');
@@ -33,16 +33,54 @@ interface SequenceRow {
 }
 
 /**
+ * Safely parse JSON with fallback to empty array
+ */
+function safeParseJsonArray(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    logger.warn({ json }, 'Failed to parse tags JSON, returning empty array');
+    return [];
+  }
+}
+
+/**
+ * Escape special characters for SQL LIKE patterns
+ */
+function escapeLikePattern(pattern: string): string {
+  return pattern
+    .replace(/\\/g, '\\\\')
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_');
+}
+
+/**
+ * Validate and normalize sort direction
+ */
+function normalizeSortDirection(direction: string): 'ASC' | 'DESC' {
+  const upper = direction.toUpperCase();
+  return upper === 'DESC' ? 'DESC' : 'ASC';
+}
+
+/**
+ * Map sortBy field to database column
+ */
+function getSortColumn(sortBy: string): string {
+  const mapping: Record<string, string> = {
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    title: 'title',
+    status: 'status',
+  };
+  return mapping[sortBy] || 'created_at';
+}
+
+/**
  * Convert database row to Idea entity
  */
 function rowToIdea(row: IdeaRow): Idea {
-  let tags: string[] = [];
-  try {
-    tags = JSON.parse(row.tags || '[]');
-  } catch {
-    tags = [];
-  }
-
   return {
     id: row.id,
     ideaId: row.idea_id,
@@ -51,7 +89,7 @@ function rowToIdea(row: IdeaRow): Idea {
     status: row.status as Idea['status'],
     sourceType: row.source_type as Idea['sourceType'],
     sourceName: row.source_name,
-    tags,
+    tags: safeParseJsonArray(row.tags),
     promotedTo: row.promoted_to,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
@@ -96,23 +134,27 @@ export class IdeaRepository {
     // Create indexes
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_ideas_status ON ideas(status)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_ideas_source ON ideas(source_name)`);
+    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_ideas_created ON ideas(created_at)`);
 
     logger.info('Idea schema initialized');
   }
 
   /**
    * Get the next idea ID
+   * Uses atomic increment-then-read pattern to prevent race conditions
    */
   async getNextIdeaId(): Promise<string> {
-    const row = await this.db.get<SequenceRow>(
-      'SELECT next_id FROM idea_sequence WHERE id = 1'
-    );
-
-    const nextId = row?.next_id || 1;
-
+    // Atomically increment first, then read the value
     await this.db.execute(
       'UPDATE idea_sequence SET next_id = next_id + 1 WHERE id = 1'
     );
+
+    // Read the incremented value and subtract 1 to get the ID we just reserved
+    const row = await this.db.get<SequenceRow>(
+      'SELECT next_id - 1 as next_id FROM idea_sequence WHERE id = 1'
+    );
+
+    const nextId = row?.next_id ?? 1;
 
     // Format: IDEA-00001
     return `IDEA-${String(nextId).padStart(5, '0')}`;
@@ -169,7 +211,7 @@ export class IdeaRepository {
   }
 
   /**
-   * List ideas with optional filtering
+   * List ideas with filtering, sorting, search, and pagination
    */
   async list(query: ListIdeasQuery): Promise<{ ideas: Idea[]; total: number }> {
     const conditions: string[] = [];
@@ -185,19 +227,21 @@ export class IdeaRepository {
       params.push(query.source);
     }
 
-    if (query.tag) {
-      // Search in JSON array - escape LIKE special characters
-      const escapedTag = query.tag.replace(/[%_\\]/g, '\\$&');
-      conditions.push("tags LIKE ? ESCAPE '\\'");
-      params.push(`%"${escapedTag}"%`);
+    if (query.tags) {
+      const tagList = query.tags.split(',').map(t => t.trim());
+      const tagConditions = tagList.map(() => "tags LIKE ? ESCAPE '\\'");
+      conditions.push(`(${tagConditions.join(' OR ')})`);
+      tagList.forEach(tag => {
+        const escaped = escapeLikePattern(tag);
+        params.push(`%"${escaped}"%`);
+      });
     }
 
     if (query.search) {
-      // Escape LIKE special characters for exact substring matching
-      const escapedSearch = query.search.replace(/[%_\\]/g, '\\$&');
       conditions.push("(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')");
-      const searchTerm = `%${escapedSearch}%`;
-      params.push(searchTerm, searchTerm);
+      const escaped = escapeLikePattern(query.search);
+      const searchPattern = `%${escaped}%`;
+      params.push(searchPattern, searchPattern);
     }
 
     const whereClause = conditions.length > 0
@@ -211,10 +255,14 @@ export class IdeaRepository {
     );
     const total = countRow?.count ?? 0;
 
+    // Sorting - validate direction to prevent SQL injection
+    const sortColumn = getSortColumn(query.sortBy || 'createdAt');
+    const sortDirection = normalizeSortDirection(query.sortOrder || 'desc');
+
     // Get paginated results
     const rows = await this.db.query<IdeaRow>(
       `SELECT * FROM ideas ${whereClause}
-       ORDER BY created_at DESC
+       ORDER BY ${sortColumn} ${sortDirection}
        LIMIT ? OFFSET ?`,
       [...params, query.limit, query.offset]
     );
@@ -300,19 +348,12 @@ export class IdeaRepository {
   /**
    * Get stats for dashboard
    */
-  async getStats(): Promise<{
-    total: number;
-    captured: number;
-    exploring: number;
-    promoted: number;
-    parked: number;
-    discarded: number;
-  }> {
+  async getStats(): Promise<IdeaStats> {
     const rows = await this.db.query<{ status: string; count: number }>(
       `SELECT status, COUNT(*) as count FROM ideas GROUP BY status`
     );
 
-    const stats = {
+    const stats: IdeaStats = {
       total: 0,
       captured: 0,
       exploring: 0,

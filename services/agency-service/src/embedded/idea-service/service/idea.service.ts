@@ -5,7 +5,7 @@
  * Handles validation, promotion workflow, and orchestration.
  */
 
-import type { Idea, CreateIdeaRequest, UpdateIdeaRequest, ListIdeasQuery, IdeaListResponse } from '../types';
+import type { Idea, CreateIdeaRequest, UpdateIdeaRequest, ListIdeasQuery, IdeaListResponse, IdeaStats } from '../types';
 import type { IdeaRepository } from '../repository/idea.repository';
 import { createServiceLogger } from '../../../core/lib/logger';
 
@@ -177,14 +177,7 @@ export class IdeaService {
   /**
    * Get dashboard stats
    */
-  async getStats(): Promise<{
-    total: number;
-    captured: number;
-    exploring: number;
-    promoted: number;
-    parked: number;
-    discarded: number;
-  }> {
+  async getStats(): Promise<IdeaStats> {
     return this.repository.getStats();
   }
 }

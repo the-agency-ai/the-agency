@@ -145,7 +145,7 @@ describe('Idea Repository', () => {
     });
 
     test('should filter by tag', async () => {
-      const { ideas, total } = await repo.list({ tag: 'test-tag', limit: 50, offset: 0 });
+      const { ideas, total } = await repo.list({ tags: 'test-tag', limit: 50, offset: 0 });
       expect(total).toBe(2);
       expect(ideas.every(i => i.tags.includes('test-tag'))).toBe(true);
     });
@@ -195,11 +195,11 @@ describe('Idea Repository', () => {
       });
 
       // Search for exact tag should find it
-      const { ideas: found } = await repo.list({ tag: 'tag%special', limit: 50, offset: 0 });
+      const { ideas: found } = await repo.list({ tags: 'tag%special', limit: 50, offset: 0 });
       expect(found.some(i => i.tags.includes('tag%special'))).toBe(true);
 
       // Search for partial should not match due to escaping
-      const { ideas: notFound } = await repo.list({ tag: 'tag', limit: 50, offset: 0 });
+      const { ideas: notFound } = await repo.list({ tags: 'tag', limit: 50, offset: 0 });
       expect(notFound.some(i => i.tags.includes('tag%special'))).toBe(false);
     });
   });

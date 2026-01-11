@@ -95,10 +95,12 @@ export type PromoteIdeaRequest = z.infer<typeof promoteIdeaSchema>;
 export const listIdeasQuerySchema = z.object({
   status: z.enum(['captured', 'exploring', 'promoted', 'parked', 'discarded']).optional(),
   source: z.string().optional(),
-  tag: z.string().optional(),
+  tags: z.string().optional(),  // Comma-separated tags (unified API pattern)
   search: z.string().max(200).optional(),
-  limit: z.coerce.number().min(1).max(100).default(50),
-  offset: z.coerce.number().min(0).default(0),
+  sortBy: z.enum(['createdAt', 'updatedAt', 'title', 'status']).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
 });
 
 export type ListIdeasQuery = z.infer<typeof listIdeasQuerySchema>;
@@ -111,4 +113,16 @@ export interface IdeaListResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+/**
+ * Idea statistics
+ */
+export interface IdeaStats {
+  total: number;
+  captured: number;
+  exploring: number;
+  promoted: number;
+  parked: number;
+  discarded: number;
 }
