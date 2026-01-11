@@ -187,6 +187,14 @@ This is about reducing friction for common operations. The goal is to stay in fl
 
 Key principle: **Don't break the user's flow**
 
+### Related: Safe Settings Editing
+
+Need a tool for editing `.claude/settings.json` safely:
+- Validate JSON before saving
+- Show diff of changes
+- Backup before modification
+- Could be: `/agency settings add-permission ./tools/mytool`
+
 ---
 
 ## Activity Log
