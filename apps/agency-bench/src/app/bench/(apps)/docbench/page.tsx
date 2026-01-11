@@ -532,41 +532,80 @@ function DocBenchContent() {
     return () => document.removeEventListener('selectionchange', checkSelection);
   }, [isEditing]);
 
-  // Handle Insert > Comment from menu - inserts inline marker at cursor
+  // Handle Insert > Comment from menu - adds comment block after selected text
+  // Format: keeps original text, adds quoted selection + empty marker below
   const handleInsertCommentFromMenu = () => {
     setShowInsertMenu(false);
 
     // Get principal name (use stored or default to 'user')
     const principal = principalName.trim().toLowerCase() || 'user';
-    const marker = `[(${principal}) ]`;
+    const emptyMarker = `[(${principal}) ]`;
+
+    // Check if we have selection data from Preview mode
+    const selData = selectionDataRef.current;
 
     if (isEditing && textareaRef.current) {
       const textarea = textareaRef.current;
-      const cursorPos = textarea.selectionStart;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
 
-      // Insert marker at cursor position
-      const newContent = editContent.substring(0, cursorPos) + marker + editContent.substring(cursorPos);
-      setEditContent(newContent);
-      setHasUnsavedChanges(true);
+      if (start !== end) {
+        // Has selection - insert comment block AFTER selection
+        const selectedText = editContent.substring(start, end);
+        const quotedLine = `[(${principal}) ${selectedText}]`;
+        const commentBlock = `\n${quotedLine}\n${emptyMarker}`;
+        const newContent = editContent.substring(0, end) + commentBlock + editContent.substring(end);
+        setEditContent(newContent);
+        setHasUnsavedChanges(true);
 
-      // Position cursor inside the marker (before the closing bracket)
-      setTimeout(() => {
-        textarea.focus();
-        const newPos = cursorPos + marker.length - 1; // Position before ]
-        textarea.setSelectionRange(newPos, newPos);
-      }, 0);
-    } else {
-      // Switch to edit mode and insert at end
+        // Position cursor inside the empty marker (before the ])
+        setTimeout(() => {
+          textarea.focus();
+          const newPos = end + commentBlock.length - 1;
+          textarea.setSelectionRange(newPos, newPos);
+        }, 0);
+      } else {
+        // No selection - insert empty marker at cursor
+        const newContent = editContent.substring(0, start) + emptyMarker + editContent.substring(start);
+        setEditContent(newContent);
+        setHasUnsavedChanges(true);
+
+        setTimeout(() => {
+          textarea.focus();
+          const newPos = start + emptyMarker.length - 1;
+          textarea.setSelectionRange(newPos, newPos);
+        }, 0);
+      }
+    } else if (selData && selData.text) {
+      // Preview mode with selection - insert comment block AFTER selection
+      const quotedLine = `[(${principal}) ${selData.text}]`;
+      const commentBlock = `\n${quotedLine}\n${emptyMarker}`;
+      const newContent = content.substring(0, selData.end) + commentBlock + content.substring(selData.end);
+
       setIsEditing(true);
-      const newContent = content + '\n' + marker;
       setEditContent(newContent);
       setHasUnsavedChanges(true);
+      selectionDataRef.current = null;
 
-      // Position cursor inside the marker after edit mode activates
+      // Position cursor inside the empty marker after edit mode activates
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
-          const newPos = newContent.length - 1; // Position before ]
+          const newPos = selData.end + commentBlock.length - 1;
+          textareaRef.current.setSelectionRange(newPos, newPos);
+        }
+      }, 100);
+    } else {
+      // No selection - insert at end
+      setIsEditing(true);
+      const newContent = content + '\n' + emptyMarker;
+      setEditContent(newContent);
+      setHasUnsavedChanges(true);
+
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const newPos = newContent.length - 1;
           textareaRef.current.setSelectionRange(newPos, newPos);
         }
       }, 100);

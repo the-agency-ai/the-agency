@@ -326,49 +326,75 @@ complete → All phases done, ready for release
 
 **The working tree should ALWAYS be clean.**
 
-Every feature or fix follows this workflow:
+### Breaking Work into Iterations
 
-### 1. Implement → tag `-impl`
-- Do the work
-- Test locally (run tests, verify functionality)
-- Commit and tag with `./tools/tag REQUEST-xxx impl`
+Large REQUESTs should be broken into **phases** or **iterations**. Each iteration:
+- Has a clear, testable deliverable
+- Includes tests for the new functionality
+- Goes through the full review cycle
+- Is tagged independently (e.g., `REQUEST-xxx-phase1-impl`)
 
-### 2. Code Review → tag `-review`
-- Self-review + request other agent reviews
-- Consolidate findings into a single list of changes
-- Apply the changes
-- Commit and tag with `./tools/tag REQUEST-xxx review`
+### Iteration Workflow
 
-### 3. Test Review → tag `-tests`
-- Self-review + request other agent reviews of test coverage
-- Consolidate findings into a single list of test improvements
-- Apply the test changes
-- Commit and tag with `./tools/tag REQUEST-xxx tests`
+Each iteration follows this cycle:
 
-### 4. Release → tag `-complete` + `vX.Y.Z`
+#### 1. Implement + Tests
+- Build the feature/fix
+- Write tests alongside the implementation
+- Run tests locally, iterate until **GREEN**
+- Commit and TAG: `REQUEST-xxx-phaseN-impl`
+- Document work completed and tag in the REQUEST file
+
+#### 2. Code Review
+- Conduct code review with **two subagents**
+- Consolidate review findings into a single list
+- Apply changes from the review
+- Modify and expand tests as needed
+- Run tests locally, iterate until **GREEN**
+- Commit and TAG: `REQUEST-xxx-phaseN-review`
+- Document work completed and tag in the REQUEST file
+
+#### 3. Test Review
+- Conduct test review with **two subagents**
+- Consolidate test review findings
+- Apply test improvements
+- Run tests locally, iterate until **GREEN**
+- Commit and TAG: `REQUEST-xxx-phaseN-tests`
+- Document work completed and tag in the REQUEST file
+
+#### 4. Release (Final Phase Only)
 - Tag REQUEST complete: `./tools/tag REQUEST-xxx complete`
-- Cut release: `./tools/release 0.7.0 --push --github`
+- Cut release: `./tools/release X.Y.Z --push --github`
 
 ### Workflow Summary
 ```
-1. Do work
-2. Test locally
-3. Commit & tag (REQUEST-xxx-impl)
-4. Code review (self + agents) → consolidated changes
-5. Apply changes
-6. Commit & tag (REQUEST-xxx-review)
-7. Test review (self + agents) → consolidated test improvements
-8. Apply test changes
-9. Commit & tag (REQUEST-xxx-tests)
-10. Cut build/release (REQUEST-xxx-complete + vX.Y.Z)
+For each iteration/phase:
+  1. Build feature + tests
+  2. Run tests → iterate until GREEN
+  3. Commit & TAG (REQUEST-xxx-phaseN-impl)
+  4. Document in REQUEST
+  5. Code review (2 subagents) → consolidated changes
+  6. Apply changes, expand tests
+  7. Run tests → iterate until GREEN
+  8. Commit & TAG (REQUEST-xxx-phaseN-review)
+  9. Document in REQUEST
+  10. Test review (2 subagents) → consolidated improvements
+  11. Apply test changes
+  12. Run tests → iterate until GREEN
+  13. Commit & TAG (REQUEST-xxx-phaseN-tests)
+  14. Document in REQUEST
+
+Final phase: TAG complete + release
 ```
 
 ### Key Principles
 - **Clean working tree**: Always commit before moving on
 - **Small commits**: Each commit should be a logical unit
-- **Tags for milestones**: Tag after each stage (impl, review, tests, complete)
-- **Collaborative review**: Multiple perspectives catch more issues
+- **Tags for milestones**: Tag after each stage (impl, review, tests)
+- **Collaborative review**: Two subagents provide multiple perspectives
 - **Consolidated changes**: Don't apply changes piecemeal - gather all feedback first
+- **Tests are mandatory**: Every iteration includes tests
+- **Document as you go**: Update REQUEST after each commit/tag
 
 ## Starter Packs
 
@@ -379,6 +405,39 @@ Starter packs provide framework-specific conventions:
 - `claude/starter-packs/python/` - Python projects
 
 Each pack adds opinionated patterns and enforcement for that ecosystem.
+
+## Development Dependencies
+
+Some tools require external dependencies:
+
+### AgencyBench Icon Generation
+To regenerate icons from `apps/agency-bench/public/logo.svg`:
+
+```bash
+# Install librsvg (provides rsvg-convert)
+brew install librsvg
+
+# Generate PNG icons
+cd apps/agency-bench/src-tauri/icons
+rsvg-convert -w 32 -h 32 ../../public/logo.svg > 32x32.png
+rsvg-convert -w 128 -h 128 ../../public/logo.svg > 128x128.png
+rsvg-convert -w 256 -h 256 ../../public/logo.svg > 128x128@2x.png
+
+# Create iconset and .icns for macOS
+mkdir -p icon.iconset
+rsvg-convert -w 16 -h 16 ../../public/logo.svg > icon.iconset/icon_16x16.png
+rsvg-convert -w 32 -h 32 ../../public/logo.svg > icon.iconset/icon_16x16@2x.png
+rsvg-convert -w 32 -h 32 ../../public/logo.svg > icon.iconset/icon_32x32.png
+rsvg-convert -w 64 -h 64 ../../public/logo.svg > icon.iconset/icon_32x32@2x.png
+rsvg-convert -w 128 -h 128 ../../public/logo.svg > icon.iconset/icon_128x128.png
+rsvg-convert -w 256 -h 256 ../../public/logo.svg > icon.iconset/icon_128x128@2x.png
+rsvg-convert -w 256 -h 256 ../../public/logo.svg > icon.iconset/icon_256x256.png
+rsvg-convert -w 512 -h 512 ../../public/logo.svg > icon.iconset/icon_256x256@2x.png
+rsvg-convert -w 512 -h 512 ../../public/logo.svg > icon.iconset/icon_512x512.png
+rsvg-convert -w 1024 -h 1024 ../../public/logo.svg > icon.iconset/icon_512x512@2x.png
+iconutil -c icns icon.iconset -o icon.icns
+rm -rf icon.iconset
+```
 
 ## Getting Help
 

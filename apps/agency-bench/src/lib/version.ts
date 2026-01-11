@@ -21,7 +21,7 @@ export const AGENCYBENCH_VERSION = '1.0.0';
 
 // Build metadata
 export const BUILD_DATE = '20260111';
-export const BUILD_NUMBER = '000004';
+export const BUILD_NUMBER = '000008';
 
 // Full version strings
 export const AGENCY_FULL_VERSION = `${AGENCY_VERSION}-${BUILD_DATE}-${BUILD_NUMBER}`;
