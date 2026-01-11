@@ -1,0 +1,238 @@
+#!/bin/bash
+# List and manage REQUESTs
+#
+# Usage: ./tools/requests [command] [options]
+#
+# Commands:
+#   list              List REQUESTs (default)
+#   open              List open REQUESTs
+#   completed         List completed REQUESTs
+#   show ID           Show details for a REQUEST
+#   create TITLE      Create a new REQUEST
+#
+# Options:
+#   --principal=NAME  Filter by principal (default: current)
+#   --status=STATUS   Filter by status (Open, Completed, In Progress)
+#   --priority=PRIO   Filter by priority (High, Normal, Low)
+#   --format=FORMAT   Output format (table, json, ids)
+#   --limit=N         Limit results (default: 20)
+
+set -e
+
+TOOL_VERSION="1.0.0-20260111-000001"
+
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "requests $TOOL_VERSION"
+    exit 0
+fi
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "Requests - Manage REQUESTs in The Agency"
+    echo ""
+    echo "Usage: ./tools/requests [command] [options]"
+    echo ""
+    echo "Commands:"
+    echo "  list              List REQUESTs (default)"
+    echo "  open              List open REQUESTs"
+    echo "  completed         List completed REQUESTs"
+    echo "  show ID           Show details for a REQUEST"
+    echo "  create TITLE      Create a new REQUEST"
+    echo ""
+    echo "Options:"
+    echo "  --principal=NAME  Filter by principal (default: all)"
+    echo "  --status=STATUS   Filter by status (Open, Completed, In Progress)"
+    echo "  --priority=PRIO   Filter by priority (High, Normal, Low)"
+    echo "  --format=FORMAT   Output format (table, json, ids)"
+    echo "  --limit=N         Limit results (default: 20)"
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/requests                    # List all open REQUESTs"
+    echo "  ./tools/requests open               # List open REQUESTs"
+    echo "  ./tools/requests completed          # List completed REQUESTs"
+    echo "  ./tools/requests --status=Open      # Filter by status"
+    echo "  ./tools/requests show 0035          # Show REQUEST details"
+    echo "  ./tools/requests --format=json      # JSON output"
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+REQUESTS_DIR="$REPO_ROOT/claude/principals"
+
+# Parse options
+PRINCIPAL=""
+STATUS=""
+PRIORITY=""
+FORMAT="table"
+LIMIT=20
+COMMAND="list"
+
+for arg in "$@"; do
+    case $arg in
+        --principal=*)
+            PRINCIPAL="${arg#*=}"
+            ;;
+        --status=*)
+            STATUS="${arg#*=}"
+            ;;
+        --priority=*)
+            PRIORITY="${arg#*=}"
+            ;;
+        --format=*)
+            FORMAT="${arg#*=}"
+            ;;
+        --limit=*)
+            LIMIT="${arg#*=}"
+            ;;
+        open)
+            COMMAND="open"
+            STATUS="Open"
+            ;;
+        completed)
+            COMMAND="completed"
+            STATUS="Completed"
+            ;;
+        show)
+            COMMAND="show"
+            ;;
+        create)
+            COMMAND="create"
+            ;;
+        *)
+            if [[ "$COMMAND" == "show" && -z "${REQUEST_ID:-}" ]]; then
+                REQUEST_ID="$arg"
+            elif [[ "$COMMAND" == "create" && -z "${REQUEST_TITLE:-}" ]]; then
+                REQUEST_TITLE="$arg"
+            fi
+            ;;
+    esac
+done
+
+# Find all REQUEST files
+find_requests() {
+    local pattern="REQUEST-*.md"
+    if [[ -n "$PRINCIPAL" ]]; then
+        find "$REQUESTS_DIR/$PRINCIPAL/requests" -name "$pattern" 2>/dev/null | sort -r
+    else
+        find "$REQUESTS_DIR" -path "*/requests/$pattern" 2>/dev/null | sort -r
+    fi
+}
+
+# Extract metadata from a REQUEST file
+extract_metadata() {
+    local file="$1"
+    local filename=$(basename "$file" .md)
+
+    # Extract fields
+    local status=$(grep -m1 "^\*\*Status:\*\*" "$file" 2>/dev/null | sed 's/\*\*Status:\*\* *//' || echo "Unknown")
+    local priority=$(grep -m1 "^\*\*Priority:\*\*" "$file" 2>/dev/null | sed 's/\*\*Priority:\*\* *//' || echo "Normal")
+    local summary=$(grep -m1 "^## Summary" -A1 "$file" 2>/dev/null | tail -1 | sed 's/^[[:space:]]*//' || echo "")
+    local created=$(grep -m1 "^\*\*Created:\*\*" "$file" 2>/dev/null | sed 's/\*\*Created:\*\* *//' || echo "")
+
+    # Extract ID from filename (e.g., REQUEST-jordan-0035 -> 0035)
+    local id=$(echo "$filename" | grep -oE '[0-9]{4}' | head -1)
+    local principal=$(echo "$filename" | sed 's/REQUEST-//' | cut -d'-' -f1)
+
+    echo "$id|$principal|$status|$priority|$summary|$created|$file"
+}
+
+# Filter by status
+filter_status() {
+    if [[ -z "$STATUS" ]]; then
+        cat
+    else
+        grep -i "|$STATUS|" || true
+    fi
+}
+
+# Filter by priority
+filter_priority() {
+    if [[ -z "$PRIORITY" ]]; then
+        cat
+    else
+        grep -i "|$PRIORITY|" || true
+    fi
+}
+
+# Format output
+format_output() {
+    case "$FORMAT" in
+        json)
+            echo "["
+            local first=true
+            while IFS='|' read -r id principal status priority summary created file; do
+                if [[ "$first" == "true" ]]; then
+                    first=false
+                else
+                    echo ","
+                fi
+                printf '  {"id": "%s", "principal": "%s", "status": "%s", "priority": "%s", "summary": "%s", "created": "%s"}' \
+                    "$id" "$principal" "$status" "$priority" "$summary" "$created"
+            done
+            echo ""
+            echo "]"
+            ;;
+        ids)
+            while IFS='|' read -r id principal status priority summary created file; do
+                echo "REQUEST-$principal-$id"
+            done
+            ;;
+        table|*)
+            printf "%-6s %-10s %-12s %-8s %s\n" "ID" "Principal" "Status" "Priority" "Summary"
+            printf "%-6s %-10s %-12s %-8s %s\n" "------" "----------" "------------" "--------" "----------------------------------------"
+            while IFS='|' read -r id principal status priority summary created file; do
+                # Truncate summary to 40 chars
+                summary="${summary:0:40}"
+                printf "%-6s %-10s %-12s %-8s %s\n" "$id" "$principal" "$status" "$priority" "$summary"
+            done
+            ;;
+    esac
+}
+
+case "$COMMAND" in
+    list|open|completed)
+        # Default to showing open if no status specified and command is list
+        if [[ "$COMMAND" == "list" && -z "$STATUS" ]]; then
+            STATUS="Open"
+        fi
+
+        # Build and execute pipeline
+        requests_data=""
+        while IFS= read -r file; do
+            if [[ -f "$file" ]]; then
+                metadata=$(extract_metadata "$file")
+                requests_data+="$metadata"$'\n'
+            fi
+        done < <(find_requests)
+
+        # Filter and format
+        echo "$requests_data" | filter_status | filter_priority | head -n "$LIMIT" | format_output
+        ;;
+    show)
+        if [[ -z "${REQUEST_ID:-}" ]]; then
+            echo "Error: No REQUEST ID provided"
+            echo "Usage: ./tools/requests show ID"
+            exit 1
+        fi
+
+        # Find the REQUEST file
+        file=$(find_requests | grep -E "REQUEST-[^-]+-0*${REQUEST_ID}-" | head -1)
+
+        if [[ -z "$file" || ! -f "$file" ]]; then
+            echo "Error: REQUEST $REQUEST_ID not found"
+            exit 1
+        fi
+
+        # Show the file
+        cat "$file"
+        ;;
+    create)
+        if [[ -z "${REQUEST_TITLE:-}" ]]; then
+            echo "Error: No REQUEST title provided"
+            echo "Usage: ./tools/requests create \"TITLE\""
+            exit 1
+        fi
+
+        # Use the existing request tool
+        "$REPO_ROOT/tools/request" "$REQUEST_TITLE"
+        ;;
+esac

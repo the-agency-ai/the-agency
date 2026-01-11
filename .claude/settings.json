@@ -34,6 +34,7 @@
       "Bash(./tools/principal*)",
       "Bash(./tools/read-messages*)",
       "Bash(./tools/read-news*)",
+      "Bash(./tools/requests*)",
       "Bash(./tools/run-unit-tests*)",
       "Bash(./tools/show-instructions*)",
       "Bash(./tools/verify-starter*)",
