@@ -32,15 +32,23 @@ export class RequestService {
     const requestId = await this.repository.getNextRequestId(data.principalName);
     const request = await this.repository.create(requestId, data);
 
-    // Emit event for integrations
+    // Enqueue event for integrations (optional)
     if (this.queue) {
-      await this.queue.emit('request.created', {
-        requestId: request.requestId,
-        principalName: request.principalName,
-        title: request.title,
-        priority: request.priority,
-        assignee: request.assigneeName,
-      });
+      try {
+        await this.queue.enqueue('request.events', {
+          data: {
+            event: 'request.created',
+            requestId: request.requestId,
+            principalName: request.principalName,
+            title: request.title,
+            priority: request.priority,
+            assignee: request.assigneeName,
+          },
+        });
+      } catch (error) {
+        // Queue failures should not block request creation
+        logger.warn({ error, requestId: request.requestId }, 'Failed to enqueue request.created event');
+      }
     }
 
     logger.info({ requestId: request.requestId, principal: request.principalName }, 'Request created');

@@ -25,6 +25,7 @@ import { createProductService } from './embedded/product-service';
 import { createSecretService } from './embedded/secret-service';
 import { createIdeaService } from './embedded/idea-service';
 import { createRequestService } from './embedded/request-service';
+import { createObservationService } from './embedded/observation-service';
 
 const logger = createServiceLogger('agency-service');
 
@@ -90,6 +91,9 @@ async function main() {
   const requestServiceInstance = createRequestService({ db, queue });
   await requestServiceInstance.initialize();
 
+  const observationServiceInstance = createObservationService({ db });
+  await observationServiceInstance.initialize();
+
   // Mount embedded service routes
   app.route('/api/bug', bugService.routes);
   app.route('/api/message', messagesService.routes);
@@ -99,6 +103,7 @@ async function main() {
   app.route('/api/secret', secretServiceInstance.routes);
   app.route('/api/idea', ideaServiceInstance.routes);
   app.route('/api/request', requestServiceInstance.routes);
+  app.route('/api/observation', observationServiceInstance.routes);
 
   // API info endpoint
   app.get('/api', (c) => {
@@ -114,6 +119,7 @@ async function main() {
         'secret-service': '/api/secret',
         'idea-service': '/api/idea',
         'request-service': '/api/request',
+        'observation-service': '/api/observation',
       },
     });
   });
@@ -162,6 +168,7 @@ async function main() {
   console.log(`   Secret:   http://${config.host}:${config.port}/api/secret`);
   console.log(`   Idea:     http://${config.host}:${config.port}/api/idea`);
   console.log(`   Request:  http://${config.host}:${config.port}/api/request`);
+  console.log(`   Observation: http://${config.host}:${config.port}/api/observation`);
 
   return server;
 }
