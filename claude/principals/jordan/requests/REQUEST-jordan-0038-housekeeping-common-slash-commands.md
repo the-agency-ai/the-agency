@@ -195,6 +195,24 @@ Need a tool for editing `.claude/settings.json` safely:
 - Backup before modification
 - Could be: `/agency settings add-permission ./tools/mytool`
 
+### Related: Common Operations as Tools (Token Reduction)
+
+Many operations that Claude runs as raw Bash commands should be tools:
+
+**Build Operations:**
+- `./tools/build-bench` - Build AgencyBench (instead of `cd apps/agency-bench && npm run tauri:build`)
+- `./tools/build-service` - Build agency-service
+
+**Search Operations:**
+- These already exist via Glob/Grep tools, but we should use them consistently
+- Pattern: If you're doing file search, always use the specialized tools
+
+**Key Principle:** Every repeated Bash command that takes >5 seconds or generates >100 lines of output should be a tool. This:
+- Reduces token usage
+- Allows Claude to run longer
+- Makes operations reproducible
+- Enables progress tracking
+
 ---
 
 ## Activity Log
