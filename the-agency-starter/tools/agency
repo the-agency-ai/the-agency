@@ -392,20 +392,22 @@ request_create() {
     esac
 
     local data
-    data=$(python3 -c "
-import json
-payload = {
-    'title': '''$title''',
-    'summary': '''$summary''',
-    'principalName': '$principal',
-    'priority': '$priority',
-    'reporterType': '$reporter_type',
-    'reporterName': '$reporter'
-}
-if '$workstream':
-    payload['workstream'] = '$workstream'
-print(json.dumps(payload))
-")
+    data=$(jq -n \
+        --arg title "$title" \
+        --arg summary "$summary" \
+        --arg principal "$principal" \
+        --arg priority "$priority" \
+        --arg reporter_type "$reporter_type" \
+        --arg reporter "$reporter" \
+        --arg workstream "$workstream" \
+        '{
+            title: $title,
+            summary: $summary,
+            principalName: $principal,
+            priority: $priority,
+            reporterType: $reporter_type,
+            reporterName: $reporter
+        } + (if $workstream != "" then {workstream: $workstream} else {} end)')
 
     local response
     response=$(api_request POST "/request/create" "$data")
@@ -435,15 +437,16 @@ request_update() {
     done
 
     local data
-    data=$(python3 -c "
-import json
-payload = {}
-if '$status': payload['status'] = '$status'
-if '$priority': payload['priority'] = '$priority'
-if '''$title''': payload['title'] = '''$title'''
-if '''$description''': payload['description'] = '''$description'''
-print(json.dumps(payload))
-")
+    data=$(jq -n \
+        --arg status "$status" \
+        --arg priority "$priority" \
+        --arg title "$title" \
+        --arg description "$description" \
+        '{}
+        + (if $status != "" then {status: $status} else {} end)
+        + (if $priority != "" then {priority: $priority} else {} end)
+        + (if $title != "" then {title: $title} else {} end)
+        + (if $description != "" then {summary: $description} else {} end)')
 
     local response
     response=$(api_request POST "/request/update/$request_id" "$data")
@@ -482,12 +485,8 @@ request_reject() {
     done
 
     local data
-    data=$(python3 -c "
-import json
-payload = {}
-if '''$reason''': payload['reason'] = '''$reason'''
-print(json.dumps(payload))
-")
+    data=$(jq -n --arg reason "$reason" \
+        'if $reason != "" then {reason: $reason} else {} end')
 
     local response
     response=$(api_request POST "/request/reject/$request_id" "$data")
@@ -518,7 +517,7 @@ request_assign() {
     fi
 
     local data
-    data=$(python3 -c "import json; print(json.dumps({'assignee': '$agent'}))")
+    data=$(jq -n --arg assignee "$agent" '{assigneeName: $assignee, assigneeType: "agent"}')
 
     local response
     response=$(api_request POST "/request/assign/$request_id" "$data")
@@ -641,18 +640,19 @@ bug_create() {
     fi
 
     local data
-    data=$(python3 -c "
-import json
-payload = {
-    'summary': '''$summary''',
-    'workstream': '$workstream'
-}
-if '$reporter': payload['reporter'] = '$reporter'
-if '''$description''': payload['description'] = '''$description'''
-if '$tags':
-    payload['tags'] = '$tags'.split(',')
-print(json.dumps(payload))
-")
+    data=$(jq -n \
+        --arg summary "$summary" \
+        --arg workstream "$workstream" \
+        --arg reporter "$reporter" \
+        --arg description "$description" \
+        --arg tags "$tags" \
+        '{
+            summary: $summary,
+            workstream: $workstream
+        }
+        + (if $reporter != "" then {reporterName: $reporter} else {} end)
+        + (if $description != "" then {description: $description} else {} end)
+        + (if $tags != "" then {tags: ($tags | split(",") | map(gsub("^\\s+|\\s+$"; "")))} else {} end)')
 
     local response
     response=$(api_request POST "/bug/create" "$data")
@@ -683,16 +683,18 @@ bug_update() {
     done
 
     local data
-    data=$(python3 -c "
-import json
-payload = {}
-if '$status': payload['status'] = '$status'
-if '$assignee': payload['assignee'] = '$assignee'
-if '''$summary''': payload['summary'] = '''$summary'''
-if '''$description''': payload['description'] = '''$description'''
-if '$tags': payload['tags'] = '$tags'.split(',')
-print(json.dumps(payload))
-")
+    data=$(jq -n \
+        --arg status "$status" \
+        --arg assignee "$assignee" \
+        --arg summary "$summary" \
+        --arg description "$description" \
+        --arg tags "$tags" \
+        '{}
+        + (if $status != "" then {status: $status} else {} end)
+        + (if $assignee != "" then {assigneeName: $assignee} else {} end)
+        + (if $summary != "" then {summary: $summary} else {} end)
+        + (if $description != "" then {description: $description} else {} end)
+        + (if $tags != "" then {tags: ($tags | split(",") | map(gsub("^\\s+|\\s+$"; "")))} else {} end)')
 
     local response
     response=$(api_request POST "/bug/update/$bug_id" "$data")
@@ -723,7 +725,7 @@ bug_assign() {
     fi
 
     local data
-    data=$(python3 -c "import json; print(json.dumps({'assignee': '$assignee'}))")
+    data=$(jq -n --arg assignee "$assignee" '{assigneeName: $assignee}')
 
     local response
     response=$(api_request POST "/bug/update/$bug_id" "$data")
@@ -749,12 +751,8 @@ bug_resolve() {
     done
 
     local data
-    data=$(python3 -c "
-import json
-payload = {'status': 'resolved'}
-if '''$resolution''': payload['resolution'] = '''$resolution'''
-print(json.dumps(payload))
-")
+    data=$(jq -n --arg resolution "$resolution" \
+        '{status: "Fixed"} + (if $resolution != "" then {resolution: $resolution} else {} end)')
 
     local response
     response=$(api_request POST "/bug/update/$bug_id" "$data")
@@ -866,20 +864,19 @@ idea_create() {
     fi
 
     local data
-    data=$(python3 -c "
-import json
-payload = {
-    'title': '''$title''',
-    'sourceName': '$source',
-    'sourceType': '$source_type'
-}
-if '''$description''': payload['description'] = '''$description'''
-if '$tags':
-    payload['tags'] = [t.strip() for t in '$tags'.split(',')]
-else:
-    payload['tags'] = []
-print(json.dumps(payload))
-")
+    data=$(jq -n \
+        --arg title "$title" \
+        --arg source "$source" \
+        --arg source_type "$source_type" \
+        --arg description "$description" \
+        --arg tags "$tags" \
+        '{
+            title: $title,
+            sourceName: $source,
+            sourceType: $source_type,
+            tags: (if $tags != "" then ($tags | split(",") | map(gsub("^\\s+|\\s+$"; ""))) else [] end)
+        }
+        + (if $description != "" then {description: $description} else {} end)')
 
     local response
     response=$(api_request POST "/idea/create" "$data")
@@ -909,15 +906,16 @@ idea_update() {
     done
 
     local data
-    data=$(python3 -c "
-import json
-payload = {}
-if '$status': payload['status'] = '$status'
-if '''$title''': payload['title'] = '''$title'''
-if '''$description''': payload['description'] = '''$description'''
-if '$tags': payload['tags'] = [t.strip() for t in '$tags'.split(',')]
-print(json.dumps(payload))
-")
+    data=$(jq -n \
+        --arg status "$status" \
+        --arg title "$title" \
+        --arg description "$description" \
+        --arg tags "$tags" \
+        '{}
+        + (if $status != "" then {status: $status} else {} end)
+        + (if $title != "" then {title: $title} else {} end)
+        + (if $description != "" then {description: $description} else {} end)
+        + (if $tags != "" then {tags: ($tags | split(",") | map(gsub("^\\s+|\\s+$"; "")))} else {} end)')
 
     local response
     response=$(api_request POST "/idea/update/$idea_id" "$data")
@@ -948,7 +946,7 @@ idea_promote() {
     fi
 
     local data
-    data=$(python3 -c "import json; print(json.dumps({'requestId': '$request'}))")
+    data=$(jq -n --arg request "$request" '{requestId: $request}')
 
     local response
     response=$(api_request POST "/idea/promote/$idea_id" "$data")
@@ -1111,23 +1109,25 @@ observation_create() {
     fi
 
     local data
-    data=$(python3 -c "
-import json
-payload = {
-    'title': '''$title''',
-    'summary': '''$summary''',
-    'category': '$category',
-    'reporterType': '$reporter_type',
-    'reporterName': '$reporter'
-}
-if '$context': payload['contextPath'] = '$context'
-if '$workstream': payload['workstream'] = '$workstream'
-if '$tags':
-    payload['tags'] = [t.strip() for t in '$tags'.split(',')]
-else:
-    payload['tags'] = []
-print(json.dumps(payload))
-")
+    data=$(jq -n \
+        --arg title "$title" \
+        --arg summary "$summary" \
+        --arg category "$category" \
+        --arg reporter_type "$reporter_type" \
+        --arg reporter "$reporter" \
+        --arg context "$context" \
+        --arg workstream "$workstream" \
+        --arg tags "$tags" \
+        '{
+            title: $title,
+            summary: $summary,
+            category: $category,
+            reporterType: $reporter_type,
+            reporterName: $reporter,
+            tags: (if $tags != "" then ($tags | split(",") | map(gsub("^\\s+|\\s+$"; ""))) else [] end)
+        }
+        + (if $context != "" then {contextPath: $context} else {} end)
+        + (if $workstream != "" then {workstream: $workstream} else {} end)')
 
     local response
     response=$(api_request POST "/observation/create" "$data")
@@ -1155,13 +1155,12 @@ observation_update() {
     done
 
     local data
-    data=$(python3 -c "
-import json
-payload = {}
-if '''$content''': payload['content'] = '''$content'''
-if '$tags': payload['tags'] = [t.strip() for t in '$tags'.split(',')]
-print(json.dumps(payload))
-")
+    data=$(jq -n \
+        --arg content "$content" \
+        --arg tags "$tags" \
+        '{}
+        + (if $content != "" then {summary: $content} else {} end)
+        + (if $tags != "" then {tags: ($tags | split(",") | map(gsub("^\\s+|\\s+$"; "")))} else {} end)')
 
     local response
     response=$(api_request POST "/observation/update/$observation_id" "$data")
@@ -1204,7 +1203,8 @@ observation_link() {
     fi
 
     local data
-    data=$(python3 -c "import json; print(json.dumps({'linkType': '$link_type', 'linkId': '$link_id'}))")
+    data=$(jq -n --arg link_type "$link_type" --arg link_id "$link_id" \
+        '{linkType: $link_type, linkId: $link_id}')
 
     local response
     response=$(api_request POST "/observation/link/$observation_id" "$data")

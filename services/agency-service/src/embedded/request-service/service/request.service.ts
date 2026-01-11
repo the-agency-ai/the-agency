@@ -87,22 +87,36 @@ export class RequestService {
 
     const updated = await this.repository.update(requestId, data);
 
-    // Emit event for status changes
+    // Enqueue event for status changes (optional - failures should not block update)
     if (this.queue && data.status && data.status !== existing.status) {
-      await this.queue.emit('request.status_changed', {
-        requestId,
-        previousStatus: existing.status,
-        newStatus: data.status,
-      });
+      try {
+        await this.queue.enqueue('request.events', {
+          data: {
+            event: 'request.status_changed',
+            requestId,
+            previousStatus: existing.status,
+            newStatus: data.status,
+          },
+        });
+      } catch (error) {
+        logger.warn({ error, requestId }, 'Failed to enqueue request.status_changed event');
+      }
     }
 
-    // Emit event for assignment changes
+    // Enqueue event for assignment changes (optional - failures should not block update)
     if (this.queue && data.assigneeName && data.assigneeName !== existing.assigneeName) {
-      await this.queue.emit('request.assigned', {
-        requestId,
-        previousAssignee: existing.assigneeName,
-        newAssignee: data.assigneeName,
-      });
+      try {
+        await this.queue.enqueue('request.events', {
+          data: {
+            event: 'request.assigned',
+            requestId,
+            previousAssignee: existing.assigneeName,
+            newAssignee: data.assigneeName,
+          },
+        });
+      } catch (error) {
+        logger.warn({ error, requestId }, 'Failed to enqueue request.assigned event');
+      }
     }
 
     return updated;
@@ -133,7 +147,16 @@ export class RequestService {
     const deleted = await this.repository.delete(requestId);
 
     if (deleted && this.queue) {
-      await this.queue.emit('request.deleted', { requestId });
+      try {
+        await this.queue.enqueue('request.events', {
+          data: {
+            event: 'request.deleted',
+            requestId,
+          },
+        });
+      } catch (error) {
+        logger.warn({ error, requestId }, 'Failed to enqueue request.deleted event');
+      }
     }
 
     return deleted;
