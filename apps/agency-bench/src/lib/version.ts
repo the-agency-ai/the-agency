@@ -29,6 +29,7 @@ export const AGENCYBENCH_FULL_VERSION = `${AGENCYBENCH_VERSION}-${BUILD_DATE}-${
 
 // DevApp versions (all 1.x now)
 export const DEVAPP_VERSIONS = {
+  workitems: `1.0.0-${BUILD_DATE}-${BUILD_NUMBER}`,
   docbench: `1.0.0-${BUILD_DATE}-${BUILD_NUMBER}`,
   bugbench: `1.0.0-${BUILD_DATE}-${BUILD_NUMBER}`,
   'knowledge-indexer': `1.0.0-${BUILD_DATE}-${BUILD_NUMBER}`,

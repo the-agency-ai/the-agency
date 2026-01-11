@@ -6,6 +6,7 @@ import { DEVAPP_VERSIONS } from '@/lib/version';
 
 const apps: Record<string, { title: string; version?: string }> = {
   '/bench': { title: 'Dashboard' },
+  '/bench/workitems': { title: 'Work Items', version: DEVAPP_VERSIONS.workitems },
   '/bench/docbench': { title: 'DocBench', version: DEVAPP_VERSIONS.docbench },
   '/bench/bugbench': { title: 'BugBench', version: DEVAPP_VERSIONS.bugbench },
   '/bench/knowledge-indexer': { title: 'Knowledge Indexer', version: DEVAPP_VERSIONS['knowledge-indexer'] },

@@ -15,6 +15,13 @@ interface DevApp {
 
 const devApps: DevApp[] = [
   {
+    id: 'workitems',
+    name: 'Work Items',
+    href: '/bench/workitems',
+    description: 'Unified work item tracker (requests, bugs, ideas, observations)',
+    icon: '📊',
+  },
+  {
     id: 'docbench',
     name: 'DocBench',
     href: '/bench/docbench',
