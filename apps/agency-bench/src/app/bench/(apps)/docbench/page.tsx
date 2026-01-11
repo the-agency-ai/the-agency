@@ -532,45 +532,44 @@ function DocBenchContent() {
     return () => document.removeEventListener('selectionchange', checkSelection);
   }, [isEditing]);
 
-  // Handle Insert > Comment from menu
+  // Handle Insert > Comment from menu - inserts inline marker at cursor
   const handleInsertCommentFromMenu = () => {
     setShowInsertMenu(false);
+
+    // Get principal name (use stored or default to 'user')
+    const principal = principalName.trim().toLowerCase() || 'user';
+    const marker = `[(${principal}) ]`;
+
     if (isEditing && textareaRef.current) {
       const textarea = textareaRef.current;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      if (start !== end) {
-        const selectedText = editContent.substring(start, end);
-        if (selectedText.trim()) {
-          selectionDataRef.current = { text: selectedText, start, end };
-          // Position popup in center of screen since we don't have click coordinates
-          setSelectionPopup({
-            x: window.innerWidth / 2 - 128,
-            y: window.innerHeight / 3,
-            text: selectedText,
-            start,
-            end,
-          });
-          setShowCommentForm(true);
-        }
-      }
+      const cursorPos = textarea.selectionStart;
+
+      // Insert marker at cursor position
+      const newContent = editContent.substring(0, cursorPos) + marker + editContent.substring(cursorPos);
+      setEditContent(newContent);
+      setHasUnsavedChanges(true);
+
+      // Position cursor inside the marker (before the closing bracket)
+      setTimeout(() => {
+        textarea.focus();
+        const newPos = cursorPos + marker.length - 1; // Position before ]
+        textarea.setSelectionRange(newPos, newPos);
+      }, 0);
     } else {
-      const selection = window.getSelection();
-      const selectedText = selection?.toString().trim() || '';
-      if (selectedText) {
-        const start = content.indexOf(selectedText);
-        if (start !== -1) {
-          selectionDataRef.current = { text: selectedText, start, end: start + selectedText.length };
-          setSelectionPopup({
-            x: window.innerWidth / 2 - 128,
-            y: window.innerHeight / 3,
-            text: selectedText,
-            start,
-            end: start + selectedText.length,
-          });
-          setShowCommentForm(true);
+      // Switch to edit mode and insert at end
+      setIsEditing(true);
+      const newContent = content + '\n' + marker;
+      setEditContent(newContent);
+      setHasUnsavedChanges(true);
+
+      // Position cursor inside the marker after edit mode activates
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const newPos = newContent.length - 1; // Position before ]
+          textareaRef.current.setSelectionRange(newPos, newPos);
         }
-      }
+      }, 100);
     }
   };
 
