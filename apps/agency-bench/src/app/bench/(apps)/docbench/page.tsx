@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { readFile, writeFile, getProjectRoot } from '@/lib/tauri';
+import { readFile, writeFile, getProjectRoot, getPendingOpen } from '@/lib/tauri';
 
 interface TreeNode {
   name: string;
@@ -129,6 +129,22 @@ function DocBenchContent() {
   useEffect(() => {
     localStorage.setItem('agencybench-browse-root', browseRoot);
   }, [browseRoot]);
+
+  // Check for pending file to open from CLI
+  useEffect(() => {
+    async function checkPendingOpen() {
+      try {
+        const pending = await getPendingOpen();
+        if (pending?.file) {
+          console.log('[DocBench] Opening pending file:', pending.file);
+          setSelectedFile(pending.file);
+        }
+      } catch (err) {
+        console.error('[DocBench] Error checking pending open:', err);
+      }
+    }
+    checkPendingOpen();
+  }, []);
 
   // Load and save sidebar width
   useEffect(() => {

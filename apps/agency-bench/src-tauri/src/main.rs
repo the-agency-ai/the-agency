@@ -238,6 +238,37 @@ async fn send_message(
     Ok(msg_id)
 }
 
+// Pending open file structure
+#[derive(serde::Deserialize, serde::Serialize)]
+struct PendingOpen {
+    app: Option<String>,
+    file: Option<String>,
+    action: Option<String>,
+}
+
+// Get the pending open file path
+fn get_pending_open_path() -> String {
+    let home = std::env::var("HOME").unwrap_or_default();
+    format!("{}/.local/share/the-agency/pending-open.json", home)
+}
+
+// Command to check for pending file to open
+#[tauri::command]
+async fn get_pending_open() -> Result<Option<PendingOpen>, String> {
+    let path = get_pending_open_path();
+    if !Path::new(&path).exists() {
+        return Ok(None);
+    }
+
+    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let pending: PendingOpen = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    // Clear the pending file after reading
+    let _ = std::fs::remove_file(&path);
+
+    Ok(Some(pending))
+}
+
 // Search result structure
 #[derive(serde::Serialize)]
 struct SearchMatch {
@@ -299,7 +330,8 @@ fn main() {
             list_markdown_files,
             search_files,
             list_messages,
-            send_message
+            send_message,
+            get_pending_open
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

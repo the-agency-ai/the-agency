@@ -108,3 +108,27 @@ export async function writeFile(path: string, content: string): Promise<void> {
   console.log('[Browser mode] writeFile:', path, '(content length:', content.length, ')');
   throw new Error('File writing not available in browser mode');
 }
+
+/**
+ * Pending open file structure
+ */
+export interface PendingOpen {
+  app?: string;
+  file?: string;
+  action?: string;
+}
+
+/**
+ * Check for pending file to open (from CLI tools)
+ * Returns the pending open info and clears the pending file
+ */
+export async function getPendingOpen(): Promise<PendingOpen | null> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('get_pending_open');
+  }
+
+  // Browser fallback
+  console.log('[Browser mode] getPendingOpen: no pending files');
+  return null;
+}
