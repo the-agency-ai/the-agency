@@ -22,9 +22,10 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-BENCH_DIR="$REPO_ROOT/claude/apps/agency-bench"
+BENCH_DIR="$REPO_ROOT/apps/agency-bench"
 BUILD_BUNDLE="$BENCH_DIR/src-tauri/target/release/bundle/macos/AgencyBench.app"
-APP_BUNDLE="$REPO_ROOT/claude/apps/AgencyBench.app"
+INSTALLED_APP="$HOME/.local/share/the-agency/AgencyBench.app"
+APP_BUNDLE="${INSTALLED_APP}"
 
 if [ ! -d "$BENCH_DIR" ]; then
   echo "Error: AgencyBench not found at $BENCH_DIR"
@@ -32,6 +33,12 @@ if [ ! -d "$BENCH_DIR" ]; then
 fi
 
 cd "$BENCH_DIR"
+
+install_app() {
+  mkdir -p "$(dirname "$INSTALLED_APP")"
+  rm -rf "$INSTALLED_APP"
+  cp -R "$BUILD_BUNDLE" "$INSTALLED_APP"
+}
 
 case "${1:-run}" in
   run|"")
@@ -41,9 +48,8 @@ case "${1:-run}" in
       echo ""
       npm run tauri:build 2>&1 | grep -E '(Compiling|Building|Finished|Bundling|Error|error)'
       echo ""
-      echo "Installing to claude/apps/..."
-      rm -rf "$APP_BUNDLE"
-      cp -R "$BUILD_BUNDLE" "$APP_BUNDLE"
+      echo "Installing AgencyBench..."
+      install_app
     fi
     echo "Launching AgencyBench..."
     open "$APP_BUNDLE"
@@ -56,10 +62,9 @@ case "${1:-run}" in
     echo "Building AgencyBench..."
     npm run tauri:build
     echo ""
-    echo "Installing to claude/apps/..."
-    rm -rf "$APP_BUNDLE"
-    cp -R "$BUILD_BUNDLE" "$APP_BUNDLE"
-    echo "Installed: $APP_BUNDLE"
+    echo "Installing AgencyBench..."
+    install_app
+    echo "Installed: $INSTALLED_APP"
     ;;
   *)
     echo "Usage: ./tools/bench [command]"

@@ -1,0 +1,156 @@
+#!/bin/bash
+# DocBench CLI - Document management for The Agency
+#
+# Usage: ./tools/docbench [command] [path]
+#
+# Commands:
+#   open PATH     - Open a document in DocBench
+#   PATH          - Open a document (shorthand for 'open')
+#   save-as PATH  - Save current document to new location
+#   list          - List recently opened documents
+#   (none)        - Open DocBench
+#
+# Examples:
+#   ./tools/docbench README.md
+#   ./tools/docbench open claude/agents/housekeeping/agent.md
+#   ./tools/docbench save-as ~/Documents/exported.md
+
+set -e
+
+TOOL_VERSION="1.0.0-20260111-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "docbench $TOOL_VERSION"
+    exit 0
+fi
+
+# Help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "DocBench - Document editor for The Agency"
+    echo ""
+    echo "Usage: ./tools/docbench [command] [path]"
+    echo ""
+    echo "Commands:"
+    echo "  open PATH     Open a document in DocBench"
+    echo "  PATH          Open a document (shorthand for 'open')"
+    echo "  save-as PATH  Save current document to new location"
+    echo "  list          List recently opened documents"
+    echo "  (none)        Open DocBench"
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/docbench README.md"
+    echo "  ./tools/docbench open claude/agents/housekeeping/agent.md"
+    echo "  ./tools/docbench save-as ~/Documents/exported.md"
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+DATA_DIR="$HOME/.local/share/the-agency"
+PENDING_FILE="$DATA_DIR/pending-open.json"
+RECENT_FILE="$DATA_DIR/docbench-recent.json"
+
+# Ensure data directory exists
+mkdir -p "$DATA_DIR"
+
+resolve_path() {
+    local path="$1"
+    if [[ "$path" = /* ]]; then
+        echo "$path"
+    elif [[ "$path" = ~/* ]]; then
+        echo "${HOME}${path:1}"
+    else
+        echo "$(cd "$(dirname "$path")" 2>/dev/null && pwd)/$(basename "$path")"
+    fi
+}
+
+write_pending() {
+    local file_path="$1"
+    local action="${2:-open}"
+
+    jq -n \
+        --arg app "docbench" \
+        --arg file "$file_path" \
+        --arg action "$action" \
+        '{app: $app, file: $file, action: $action}' > "$PENDING_FILE"
+}
+
+add_to_recent() {
+    local file_path="$1"
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    if [ -f "$RECENT_FILE" ]; then
+        # Add to existing, keep last 20
+        jq --arg file "$file_path" --arg ts "$timestamp" \
+            '[{file: $file, opened: $ts}] + . | unique_by(.file) | .[0:20]' \
+            "$RECENT_FILE" > "$RECENT_FILE.tmp" && mv "$RECENT_FILE.tmp" "$RECENT_FILE"
+    else
+        jq -n --arg file "$file_path" --arg ts "$timestamp" \
+            '[{file: $file, opened: $ts}]' > "$RECENT_FILE"
+    fi
+}
+
+launch_docbench() {
+    "$REPO_ROOT/tools/agency-bench" --app=docbench "$@"
+}
+
+case "${1:-}" in
+    "")
+        # No args - just open DocBench
+        launch_docbench
+        ;;
+    open)
+        if [ -z "${2:-}" ]; then
+            echo "Error: No file path provided"
+            echo "Usage: ./tools/docbench open PATH"
+            exit 1
+        fi
+        file_path=$(resolve_path "$2")
+        if [ ! -f "$file_path" ]; then
+            echo "Warning: File does not exist: $file_path"
+            echo "DocBench will create it when you save."
+        fi
+        write_pending "$file_path" "open"
+        add_to_recent "$file_path"
+        echo "Opening in DocBench: $file_path"
+        launch_docbench --file="$file_path"
+        ;;
+    save-as)
+        if [ -z "${2:-}" ]; then
+            echo "Error: No destination path provided"
+            echo "Usage: ./tools/docbench save-as PATH"
+            exit 1
+        fi
+        dest_path=$(resolve_path "$2")
+        write_pending "$dest_path" "save-as"
+        echo "DocBench will save to: $dest_path"
+        launch_docbench
+        ;;
+    list)
+        if [ -f "$RECENT_FILE" ]; then
+            echo "Recently opened documents:"
+            jq -r '.[] | "  \(.opened[0:10]) \(.file)"' "$RECENT_FILE"
+        else
+            echo "No recently opened documents"
+        fi
+        ;;
+    *)
+        # Assume it's a file path
+        file_path=$(resolve_path "$1")
+        if [ -f "$file_path" ] || [[ "$1" == *.md ]] || [[ "$1" == *.txt ]]; then
+            if [ ! -f "$file_path" ]; then
+                echo "Warning: File does not exist: $file_path"
+                echo "DocBench will create it when you save."
+            fi
+            write_pending "$file_path" "open"
+            add_to_recent "$file_path"
+            echo "Opening in DocBench: $file_path"
+            launch_docbench --file="$file_path"
+        else
+            echo "Unknown command: $1"
+            echo "Run './tools/docbench --help' for usage"
+            exit 1
+        fi
+        ;;
+esac
