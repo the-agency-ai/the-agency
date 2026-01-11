@@ -2,18 +2,16 @@
 
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-
-// Build version - based on date
-const BUILD_DATE = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+import { DEVAPP_VERSIONS } from '@/lib/version';
 
 const apps: Record<string, { title: string; version?: string }> = {
   '/bench': { title: 'Dashboard' },
-  '/bench/docbench': { title: 'DocBench', version: `0.1.0-${BUILD_DATE}` },
-  '/bench/bugbench': { title: 'BugBench', version: `0.1.0-${BUILD_DATE}` },
-  '/bench/knowledge-indexer': { title: 'Knowledge Indexer', version: `0.1.0-${BUILD_DATE}` },
-  '/bench/agent-monitor': { title: 'Agent Monitor', version: `0.1.0-${BUILD_DATE}` },
-  '/bench/collaboration-inbox': { title: 'Collaboration Inbox', version: `0.1.0-${BUILD_DATE}` },
-  '/bench/messages': { title: 'Messages', version: `0.1.0-${BUILD_DATE}` },
+  '/bench/docbench': { title: 'DocBench', version: DEVAPP_VERSIONS.docbench },
+  '/bench/bugbench': { title: 'BugBench', version: DEVAPP_VERSIONS.bugbench },
+  '/bench/knowledge-indexer': { title: 'Knowledge Indexer', version: DEVAPP_VERSIONS['knowledge-indexer'] },
+  '/bench/agent-monitor': { title: 'Agent Monitor', version: DEVAPP_VERSIONS['agent-monitor'] },
+  '/bench/collaboration-inbox': { title: 'Collaboration Inbox', version: DEVAPP_VERSIONS['collaboration-inbox'] },
+  '/bench/messages': { title: 'Messages', version: DEVAPP_VERSIONS.messages },
 };
 
 export function Header() {

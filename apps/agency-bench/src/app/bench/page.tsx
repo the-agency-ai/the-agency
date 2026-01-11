@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AGENCY_FULL_VERSION, AGENCYBENCH_FULL_VERSION } from '@/lib/version';
 
 const apps = [
   {
@@ -98,12 +99,12 @@ export default function DashboardPage() {
           <div className="font-semibold text-gray-900">The Agency</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="text-sm text-gray-500 mb-1">Version</div>
-          <div className="font-semibold text-gray-900">1.0.0-20260110</div>
+          <div className="text-sm text-gray-500 mb-1">Agency Version</div>
+          <div className="font-semibold text-gray-900">{AGENCY_FULL_VERSION}</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="text-sm text-gray-500 mb-1">AgencyBench</div>
-          <div className="font-semibold text-gray-900">1.0.0-20260110</div>
+          <div className="font-semibold text-gray-900">{AGENCYBENCH_FULL_VERSION}</div>
         </div>
       </div>
     </div>
