@@ -39,7 +39,9 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 BENCH_DIR="$REPO_ROOT/apps/agency-bench"
 VERSION_FILE="$BENCH_DIR/src/lib/version.ts"
 BUILD_BUNDLE="$BENCH_DIR/src-tauri/target/release/bundle/macos/AgencyBench.app"
+BUILD_DMG="$BENCH_DIR/src-tauri/target/release/bundle/dmg/AgencyBench*.dmg"
 INSTALLED_APP="$HOME/.local/share/the-agency/AgencyBench.app"
+DMG_OUTPUT_DIR="$REPO_ROOT/dist"
 
 if [ ! -d "$BENCH_DIR" ]; then
     echo "Error: AgencyBench source not found at $BENCH_DIR"
@@ -113,6 +115,7 @@ export const AGENCYBENCH_FULL_VERSION = \`\${AGENCYBENCH_VERSION}-\${BUILD_DATE}
 
 // DevApp versions (all 1.x now)
 export const DEVAPP_VERSIONS = {
+  workitems: \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
   docbench: \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
   bugbench: \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
   'knowledge-indexer': \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
@@ -129,6 +132,20 @@ install_app() {
     mkdir -p "$(dirname "$INSTALLED_APP")"
     rm -rf "$INSTALLED_APP"
     cp -R "$BUILD_BUNDLE" "$INSTALLED_APP"
+}
+
+copy_dmg() {
+    mkdir -p "$DMG_OUTPUT_DIR"
+    # Find the DMG file (may have version in name)
+    local dmg_file
+    dmg_file=$(ls $BUILD_DMG 2>/dev/null | head -1)
+    if [ -n "$dmg_file" ] && [ -f "$dmg_file" ]; then
+        local dest_file="$DMG_OUTPUT_DIR/AgencyBench.dmg"
+        cp "$dmg_file" "$dest_file"
+        echo "DMG copied to: $dest_file"
+    else
+        echo "Warning: No DMG file found at $BUILD_DMG"
+    fi
 }
 
 show_version() {
@@ -148,6 +165,7 @@ case "${1:-build}" in
         npm run tauri:build 2>&1 | grep -E '(Compiling|Building|Finished|Bundling|Error|error|warning:)' || true
         echo ""
         echo "Build complete: $BUILD_BUNDLE"
+        copy_dmg
         ;;
     dev)
         echo "Starting AgencyBench in development mode..."
