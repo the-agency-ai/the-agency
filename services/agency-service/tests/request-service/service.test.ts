@@ -194,6 +194,36 @@ describe('Request Service', () => {
       const updated = await service.updateStatus(created.requestId, 'In Progress');
       expect(updated!.status).toBe('In Progress');
     });
+
+    test('should return null for non-existent request', async () => {
+      const result = await service.updateStatus('REQUEST-fake-9999', 'Complete');
+      expect(result).toBeNull();
+    });
+
+    test('should transition through all valid status values', async () => {
+      const allStatuses = [
+        'Open',
+        'In Progress',
+        'Review',
+        'Testing',
+        'Complete',
+        'On Hold',
+        'Cancelled',
+      ] as const;
+
+      for (const status of allStatuses) {
+        const created = await service.createRequest({
+          title: `Status ${status}`,
+          summary: 'Testing all statuses',
+          principalName: 'jordan',
+          reporterType: 'principal',
+          reporterName: 'jordan',
+        });
+
+        const updated = await service.updateStatus(created.requestId, status);
+        expect(updated!.status).toBe(status);
+      }
+    });
   });
 
   describe('assignRequest', () => {

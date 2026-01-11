@@ -199,6 +199,15 @@ describe('Request Routes', () => {
       expect(data.title).toBe('Updated');
       expect(data.priority).toBe('High');
     });
+
+    test('should return 404 for non-existent request', async () => {
+      const res = await app.request('/request/update/REQUEST-fake-9999', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Updated' }),
+      });
+      expect(res.status).toBe(404);
+    });
   });
 
   describe('POST /request/update-status/:requestId', () => {
@@ -225,6 +234,15 @@ describe('Request Routes', () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.status).toBe('In Progress');
+    });
+
+    test('should return 404 for non-existent request', async () => {
+      const res = await app.request('/request/update-status/REQUEST-fake-9999', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Complete' }),
+      });
+      expect(res.status).toBe(404);
     });
   });
 
@@ -256,6 +274,18 @@ describe('Request Routes', () => {
       const data = await res.json();
       expect(data.assigneeName).toBe('housekeeping');
     });
+
+    test('should return 404 for non-existent request', async () => {
+      const res = await app.request('/request/assign/REQUEST-fake-9999', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assigneeType: 'agent',
+          assigneeName: 'housekeeping',
+        }),
+      });
+      expect(res.status).toBe(404);
+    });
   });
 
   describe('POST /request/delete/:requestId', () => {
@@ -281,6 +311,13 @@ describe('Request Routes', () => {
 
       const getRes = await app.request(`/request/get/${created.requestId}`);
       expect(getRes.status).toBe(404);
+    });
+
+    test('should return 404 for non-existent request', async () => {
+      const res = await app.request('/request/delete/REQUEST-fake-9999', {
+        method: 'POST',
+      });
+      expect(res.status).toBe(404);
     });
   });
 

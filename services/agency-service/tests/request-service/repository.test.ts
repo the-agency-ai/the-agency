@@ -268,6 +268,106 @@ describe('Request Repository', () => {
       });
       expect(result.total).toBe(1);
     });
+
+    test('should return empty results when offset exceeds total', async () => {
+      const result = await repo.list({
+        limit: 50,
+        offset: 1000,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+      // Total should reflect actual count, but requests should be empty
+      expect(result.requests).toHaveLength(0);
+    });
+
+    test('should handle limit of 0', async () => {
+      const requestId = await repo.getNextRequestId('limittest');
+      await repo.create(requestId, {
+        title: 'Limit test',
+        summary: 'Testing limit zero',
+        principalName: 'limittest',
+        reporterType: 'principal',
+        reporterName: 'limittest',
+      });
+
+      const result = await repo.list({
+        principal: 'limittest',
+        limit: 0,
+        offset: 0,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+      expect(result.total).toBe(1);
+      expect(result.requests).toHaveLength(0);
+    });
+
+    test('should filter by multiple criteria (principal AND status)', async () => {
+      // Create test data
+      const r1 = await repo.getNextRequestId('combo');
+      await repo.create(r1, {
+        title: 'Combo Open',
+        summary: 'Open request',
+        principalName: 'combo',
+        reporterType: 'principal',
+        reporterName: 'combo',
+      });
+
+      const r2 = await repo.getNextRequestId('combo');
+      await repo.create(r2, {
+        title: 'Combo Complete',
+        summary: 'Complete request',
+        principalName: 'combo',
+        reporterType: 'principal',
+        reporterName: 'combo',
+      });
+      await repo.update(r2, { status: 'Complete' });
+
+      // Filter by principal AND status
+      const result = await repo.list({
+        principal: 'combo',
+        status: 'Open',
+        limit: 50,
+        offset: 0,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+
+      expect(result.total).toBe(1);
+      expect(result.requests[0].status).toBe('Open');
+    });
+
+    test('should filter by assignee and reporter', async () => {
+      const requestId = await repo.getNextRequestId('filters');
+      await repo.create(requestId, {
+        title: 'Assigned request',
+        summary: 'Has assignee',
+        principalName: 'filters',
+        reporterType: 'agent',
+        reporterName: 'housekeeping',
+        assigneeType: 'agent',
+        assigneeName: 'web-agent',
+      });
+
+      const byAssignee = await repo.list({
+        assignee: 'web-agent',
+        limit: 50,
+        offset: 0,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+      expect(byAssignee.total).toBe(1);
+      expect(byAssignee.requests[0].assigneeName).toBe('web-agent');
+
+      const byReporter = await repo.list({
+        reporter: 'housekeeping',
+        limit: 50,
+        offset: 0,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+      expect(byReporter.total).toBe(1);
+      expect(byReporter.requests[0].reporterName).toBe('housekeeping');
+    });
   });
 
   describe('update', () => {
