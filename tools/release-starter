@@ -116,18 +116,21 @@ bump_version() {
 sync_files() {
     log_step "Syncing files to the-agency-starter..."
 
-    # Files/directories to sync
+    # Files/directories to sync (EXCLUDES private content)
+    # NOTE: claude/principals is NOT synced - starter has its own sanitized structure
     local sync_items=(
         "CLAUDE.md"
-        "CONTRIBUTING.md"
         "LICENSE"
         "README.md"
-        "claude/agents"
+        "claude/agents/housekeeping/agent.md"
+        "claude/agents/housekeeping/KNOWLEDGE.md"
+        "claude/agents/housekeeping/WORKLOG.md"
+        "claude/agents/housekeeping/ADHOC-WORKLOG.md"
+        "claude/agents/collaboration"
         "claude/config"
         "claude/docs"
         "claude/integrations"
         "claude/knowledge"
-        "claude/principals"
         "claude/proposals"
         "claude/templates"
         "claude/workstreams"
@@ -140,6 +143,7 @@ sync_files() {
     mkdir -p "$STARTER_DIR/claude"
     mkdir -p "$STARTER_DIR/claude/data"
     mkdir -p "$STARTER_DIR/claude/logs"
+    mkdir -p "$STARTER_DIR/claude/agents/housekeeping"
     mkdir -p "$STARTER_DIR/source/apps"
     mkdir -p "$STARTER_DIR/source/services"
 
@@ -166,6 +170,14 @@ sync_files() {
     # Create .gitkeep files for empty directories
     touch "$STARTER_DIR/claude/data/.gitkeep"
     touch "$STARTER_DIR/claude/logs/.gitkeep"
+
+    # Clean up sensitive content that might have been synced
+    log_step "Cleaning sensitive content..."
+    rm -rf "$STARTER_DIR/claude/agents/housekeeping/SESSION-"* 2>/dev/null || true
+    rm -rf "$STARTER_DIR/claude/agents/housekeeping/backups" 2>/dev/null || true
+    rm -rf "$STARTER_DIR/claude/principals/jordan" 2>/dev/null || true
+    rm -f "$STARTER_DIR/claude/principals/"*/resources/secrets/* 2>/dev/null || true
+    echo "  Cleaned sensitive content"
 }
 
 # Clean up cruft
@@ -178,6 +190,7 @@ clean_cruft() {
     find "$STARTER_DIR" -name "*.db" -delete 2>/dev/null || true
     find "$STARTER_DIR" -name "*.db-wal" -delete 2>/dev/null || true
     find "$STARTER_DIR" -name "*.db-shm" -delete 2>/dev/null || true
+    find "$STARTER_DIR" -name "*.pid" -delete 2>/dev/null || true
     find "$STARTER_DIR" -name "node_modules" -type d -exec rm -rf {} + 2>/dev/null || true
     find "$STARTER_DIR" -name ".claude" -type d -exec rm -rf {} + 2>/dev/null || true
 
@@ -192,6 +205,13 @@ clean_cruft() {
 
     # Clean build artifacts from services (but keep source)
     rm -rf "$STARTER_DIR/source/services/agency-service/node_modules" 2>/dev/null || true
+    rm -rf "$STARTER_DIR/source/services/agency-service/logs" 2>/dev/null || true
+
+    # Scrub sensitive identifiers from config if synced
+    if [[ -f "$STARTER_DIR/claude/config/agency.yaml" ]]; then
+        # Remove jdm: jordan line if present
+        sed -i '' '/jdm: jordan/d' "$STARTER_DIR/claude/config/agency.yaml" 2>/dev/null || true
+    fi
 
     echo "  Cleaned cruft"
 }
