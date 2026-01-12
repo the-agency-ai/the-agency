@@ -1,0 +1,471 @@
+#!/bin/bash
+# starter-test - Complete test suite for the-agency-starter
+#
+# Usage:
+#   ./tools/starter-test              # Run all tests
+#   ./tools/starter-test --local      # Use local starter (skip GitHub fetch)
+#   ./tools/starter-test --keep       # Don't cleanup after tests
+#   ./tools/starter-test --verbose    # Show detailed output
+#
+# Tests:
+#   1. Install via install.sh
+#   2. Create new project via new-project
+#   3. Compare installed vs source
+#   4. Compare new project vs expected structure
+#   5. Verify no sensitive content
+#   6. Test basic tools work
+
+# Don't use set -e as we want to continue on test failures
+# set -e
+
+TOOL_VERSION="1.0.0-20260112-000001"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+DIM='\033[2m'
+NC='\033[0m'
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+TEST_DIR="$PROJECT_ROOT/test/starter-test-run"
+STARTER_SOURCE="$(cd "$PROJECT_ROOT/../the-agency-starter" 2>/dev/null && pwd)"
+
+# Options
+USE_LOCAL=false
+KEEP_ARTIFACTS=false
+VERBOSE=false
+
+# Counters
+TESTS_RUN=0
+TESTS_PASSED=0
+TESTS_FAILED=0
+
+# Parse arguments
+for arg in "$@"; do
+    case $arg in
+        --version|-v)
+            echo "starter-test $TOOL_VERSION"
+            exit 0
+            ;;
+        --help|-h)
+            echo "starter-test - Complete test suite for the-agency-starter"
+            echo ""
+            echo "Usage:"
+            echo "  ./tools/starter-test              # Run all tests"
+            echo "  ./tools/starter-test --local      # Use local starter (skip GitHub)"
+            echo "  ./tools/starter-test --keep       # Don't cleanup after tests"
+            echo "  ./tools/starter-test --verbose    # Show detailed output"
+            echo ""
+            echo "Tests performed:"
+            echo "  1. Install via install.sh"
+            echo "  2. Create new project via new-project"
+            echo "  3. Compare installed vs source"
+            echo "  4. Compare new project vs expected"
+            echo "  5. Verify no sensitive content"
+            echo "  6. Test basic tools"
+            exit 0
+            ;;
+        --local|-l)
+            USE_LOCAL=true
+            ;;
+        --keep|-k)
+            KEEP_ARTIFACTS=true
+            ;;
+        --verbose|-V)
+            VERBOSE=true
+            ;;
+    esac
+done
+
+# Logging
+log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step() { echo -e "${BLUE}[TEST]${NC} $1"; }
+log_detail() { [[ "$VERBOSE" == "true" ]] && echo -e "${DIM}       $1${NC}"; }
+log_pass() { echo -e "  ${GREEN}✓${NC} $1"; ((TESTS_PASSED++)); ((TESTS_RUN++)); }
+log_fail() { echo -e "  ${RED}✗${NC} $1"; ((TESTS_FAILED++)); ((TESTS_RUN++)); }
+
+# Cleanup function
+cleanup() {
+    if [[ "$KEEP_ARTIFACTS" == "false" && -d "$TEST_DIR" ]]; then
+        log_info "Cleaning up test artifacts..."
+        rm -rf "$TEST_DIR"
+    fi
+}
+
+# Setup test directory
+setup() {
+    log_info "Setting up test environment..."
+
+    # Check starter source exists
+    if [[ -z "$STARTER_SOURCE" || ! -d "$STARTER_SOURCE" ]]; then
+        log_error "Starter source not found at expected location"
+        echo "Expected: $PROJECT_ROOT/../the-agency-starter"
+        exit 1
+    fi
+    log_detail "Starter source: $STARTER_SOURCE"
+
+    # Clean and create test directory
+    rm -rf "$TEST_DIR"
+    mkdir -p "$TEST_DIR"
+    log_detail "Test directory: $TEST_DIR"
+}
+
+# Test 1: Install via install.sh
+test_install() {
+    log_step "Test 1: Install via install.sh"
+
+    local install_dir="$TEST_DIR/installed-starter"
+
+    if [[ "$USE_LOCAL" == "true" ]]; then
+        # Run install.sh from local source
+        log_detail "Using local install.sh"
+        cd "$TEST_DIR"
+        AGENCY_INSTALL_DIR="$install_dir" bash "$STARTER_SOURCE/install.sh" > /dev/null 2>&1
+    else
+        # Try to fetch from GitHub
+        log_detail "Trying GitHub install..."
+        cd "$TEST_DIR"
+        if curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh 2>/dev/null | AGENCY_INSTALL_DIR="$install_dir" bash > /dev/null 2>&1; then
+            log_detail "GitHub install succeeded"
+        else
+            log_warn "GitHub not accessible, falling back to local"
+            AGENCY_INSTALL_DIR="$install_dir" bash "$STARTER_SOURCE/install.sh" > /dev/null 2>&1
+        fi
+    fi
+
+    # Verify installation
+    if [[ -d "$install_dir" ]]; then
+        log_pass "install.sh created directory"
+    else
+        log_fail "install.sh did not create directory"
+        return 1
+    fi
+
+    if [[ -f "$install_dir/CLAUDE.md" ]]; then
+        log_pass "CLAUDE.md exists"
+    else
+        log_fail "CLAUDE.md missing"
+    fi
+
+    if [[ -d "$install_dir/tools" ]]; then
+        log_pass "tools/ directory exists"
+    else
+        log_fail "tools/ directory missing"
+    fi
+
+    if [[ -d "$install_dir/source" ]]; then
+        log_pass "source/ directory exists"
+    else
+        log_fail "source/ directory missing"
+    fi
+
+    if [[ -x "$install_dir/tools/myclaude" ]]; then
+        log_pass "tools are executable"
+    else
+        log_fail "tools not executable"
+    fi
+}
+
+# Test 2: Create new project
+test_new_project() {
+    log_step "Test 2: Create new project via new-project"
+
+    local starter_dir="$TEST_DIR/installed-starter"
+    local project_dir="$TEST_DIR/test-project"
+
+    # Run new-project (suppress the claude launch at the end)
+    cd "$starter_dir"
+    ./tools/new-project "$project_dir" --no-launch > /dev/null 2>&1 || true
+
+    # Verify project creation
+    if [[ -d "$project_dir" ]]; then
+        log_pass "new-project created directory"
+    else
+        log_fail "new-project did not create directory"
+        return 1
+    fi
+
+    if [[ -d "$project_dir/.git" ]]; then
+        log_pass "git repository initialized"
+    else
+        log_fail "git repository not initialized"
+    fi
+
+    if [[ -f "$project_dir/CLAUDE.md" ]]; then
+        log_pass "CLAUDE.md exists in project"
+    else
+        log_fail "CLAUDE.md missing from project"
+    fi
+
+    if [[ -d "$project_dir/claude/agents/housekeeping" ]]; then
+        log_pass "housekeeping agent exists"
+    else
+        log_fail "housekeeping agent missing"
+    fi
+
+    if [[ -d "$project_dir/source/apps" ]]; then
+        log_pass "source/apps exists"
+    else
+        log_fail "source/apps missing"
+    fi
+}
+
+# Test 3: Compare installed vs source
+test_compare_install() {
+    log_step "Test 3: Compare installed starter vs source"
+
+    local installed="$TEST_DIR/installed-starter"
+    local source="$STARTER_SOURCE"
+
+    # Key files that must match
+    local key_files=(
+        "CLAUDE.md"
+        "README.md"
+        "VERSION"
+        "claude/agents/housekeeping/agent.md"
+        "claude/config/agency.yaml"
+    )
+
+    for file in "${key_files[@]}"; do
+        if [[ -f "$installed/$file" && -f "$source/$file" ]]; then
+            if diff -q "$installed/$file" "$source/$file" > /dev/null 2>&1; then
+                log_pass "$file matches source"
+            else
+                log_fail "$file differs from source"
+            fi
+        else
+            log_fail "$file missing in installed or source"
+        fi
+    done
+
+    # Count files
+    local source_count=$(find "$source" -type f -not -path '*/.git/*' | wc -l | tr -d ' ')
+    local installed_count=$(find "$installed" -type f -not -path '*/.git/*' | wc -l | tr -d ' ')
+
+    log_detail "Source files: $source_count, Installed files: $installed_count"
+
+    if [[ "$source_count" -eq "$installed_count" ]]; then
+        log_pass "File count matches ($source_count files)"
+    else
+        log_warn "File count differs (source: $source_count, installed: $installed_count)"
+    fi
+}
+
+# Test 4: Compare new project vs expected
+test_compare_project() {
+    log_step "Test 4: Compare new project structure"
+
+    local project="$TEST_DIR/test-project"
+
+    # Required directories
+    local required_dirs=(
+        "claude"
+        "claude/agents"
+        "claude/agents/housekeeping"
+        "claude/config"
+        "claude/docs"
+        "claude/principals"
+        "claude/workstreams"
+        "source"
+        "source/apps"
+        "source/services"
+        "tools"
+    )
+
+    for dir in "${required_dirs[@]}"; do
+        if [[ -d "$project/$dir" ]]; then
+            log_pass "$dir/ exists"
+        else
+            log_fail "$dir/ missing"
+        fi
+    done
+
+    # Required files
+    local required_files=(
+        "CLAUDE.md"
+        "README.md"
+        "VERSION"
+        ".gitignore"
+        "tools/myclaude"
+        "tools/create-agent"
+        "tools/create-workstream"
+    )
+
+    for file in "${required_files[@]}"; do
+        if [[ -f "$project/$file" ]]; then
+            log_pass "$file exists"
+        else
+            log_fail "$file missing"
+        fi
+    done
+}
+
+# Test 5: Verify no sensitive content
+test_sensitive_content() {
+    log_step "Test 5: Verify no sensitive content"
+
+    local installed="$TEST_DIR/installed-starter"
+    local project="$TEST_DIR/test-project"
+
+    # API key patterns that should NOT exist in any file
+    local api_patterns=(
+        "sk-ant-"
+        "ghp_"
+    )
+
+    # Check for API key patterns
+    for pattern in "${api_patterns[@]}"; do
+        if grep -r "$pattern" "$installed" --include="*.md" --include="*.yaml" --include="*.json" --include="*.env" 2>/dev/null | grep -v ".git" > /dev/null; then
+            log_fail "Found '$pattern' in installed starter"
+        else
+            log_pass "No '$pattern' in installed starter"
+        fi
+    done
+
+    # Actual secret FILES that should NOT exist
+    local secret_files=(
+        "discord.env"
+        "gumroad.env"
+        "github.env"
+    )
+
+    # Check for actual secret files
+    for file in "${secret_files[@]}"; do
+        if find "$installed" -name "$file" -type f 2>/dev/null | grep -q .; then
+            log_fail "Found actual file '$file' in installed starter"
+        else
+            log_pass "No actual '$file' file in installed starter"
+        fi
+    done
+
+    # Check for jordan directory (should not exist)
+    if [[ -d "$installed/claude/principals/jordan" ]]; then
+        log_fail "jordan/ directory exists in installed"
+    else
+        log_pass "No jordan/ directory in installed"
+    fi
+
+    # Check for SESSION files (should not exist)
+    if find "$installed" -name "SESSION-*.md" 2>/dev/null | grep -q .; then
+        log_fail "SESSION files found in installed"
+    else
+        log_pass "No SESSION files in installed"
+    fi
+
+    # Check config doesn't have jdm: jordan
+    if grep -q "jdm: jordan" "$installed/claude/config/agency.yaml" 2>/dev/null; then
+        log_fail "jdm: jordan found in config"
+    else
+        log_pass "No jdm: jordan in config"
+    fi
+}
+
+# Test 6: Test basic tools
+test_tools() {
+    log_step "Test 6: Test basic tools work"
+
+    local project="$TEST_DIR/test-project"
+    cd "$project"
+
+    # Test ./tools/now
+    if ./tools/now > /dev/null 2>&1; then
+        log_pass "./tools/now works"
+    else
+        log_fail "./tools/now failed"
+    fi
+
+    # Test ./tools/agentname (may fail without env, that's ok)
+    if ./tools/agentname 2>&1 | grep -q "AGENTNAME not set\|housekeeping\|unknown"; then
+        log_pass "./tools/agentname works"
+    else
+        log_fail "./tools/agentname failed unexpectedly"
+    fi
+
+    # Test ./tools/workstream
+    if ./tools/workstream 2>&1 | grep -q "WORKSTREAM not set\|housekeeping\|unknown"; then
+        log_pass "./tools/workstream works"
+    else
+        log_fail "./tools/workstream failed unexpectedly"
+    fi
+
+    # Test ./tools/find-tool
+    if ./tools/find-tool -l > /dev/null 2>&1; then
+        log_pass "./tools/find-tool works"
+    else
+        log_fail "./tools/find-tool failed"
+    fi
+}
+
+# Print summary
+print_summary() {
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Test Summary${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  Tests run:    $TESTS_RUN"
+    echo "  Passed:       $TESTS_PASSED"
+    echo "  Failed:       $TESTS_FAILED"
+    echo ""
+
+    if [[ "$KEEP_ARTIFACTS" == "true" ]]; then
+        echo "  Test artifacts: $TEST_DIR"
+        echo ""
+    fi
+
+    if [[ $TESTS_FAILED -eq 0 ]]; then
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${GREEN}  ALL TESTS PASSED${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        return 0
+    else
+        echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${RED}  $TESTS_FAILED TEST(S) FAILED${NC}"
+        echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        return 1
+    fi
+}
+
+# Main
+main() {
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  starter-test - The Agency Starter Test Suite${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    # Setup cleanup trap
+    if [[ "$KEEP_ARTIFACTS" == "false" ]]; then
+        trap cleanup EXIT
+    fi
+
+    setup
+    echo ""
+
+    test_install
+    echo ""
+
+    test_new_project
+    echo ""
+
+    test_compare_install
+    echo ""
+
+    test_compare_project
+    echo ""
+
+    test_sensitive_content
+    echo ""
+
+    test_tools
+
+    print_summary
+}
+
+main
