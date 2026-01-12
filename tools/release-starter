@@ -130,16 +130,16 @@ sync_files() {
         "claude/workstreams"
         "tools"
         "history/CHANGELOG.md"
-        "apps/agency-bench"
-        "services/agency-service"
+        "source/apps/agency-bench"
+        "source/services/agency-service"
     )
 
     # Create necessary directories
     mkdir -p "$STARTER_DIR/claude"
     mkdir -p "$STARTER_DIR/claude/data"
     mkdir -p "$STARTER_DIR/history"
-    mkdir -p "$STARTER_DIR/apps"
-    mkdir -p "$STARTER_DIR/services"
+    mkdir -p "$STARTER_DIR/source/apps"
+    mkdir -p "$STARTER_DIR/source/services"
 
     # Sync each item
     for item in "${sync_items[@]}"; do
@@ -183,12 +183,12 @@ clean_cruft() {
     rm -f "$STARTER_DIR/history/releases.md" 2>/dev/null || true
 
     # Clean build artifacts from apps (but keep source)
-    rm -rf "$STARTER_DIR/apps/agency-bench/src-tauri/target" 2>/dev/null || true
-    rm -rf "$STARTER_DIR/apps/agency-bench/.next" 2>/dev/null || true
-    rm -rf "$STARTER_DIR/apps/agency-bench/out" 2>/dev/null || true
+    rm -rf "$STARTER_DIR/source/apps/agency-bench/src-tauri/target" 2>/dev/null || true
+    rm -rf "$STARTER_DIR/source/apps/agency-bench/.next" 2>/dev/null || true
+    rm -rf "$STARTER_DIR/source/apps/agency-bench/out" 2>/dev/null || true
 
     # Clean build artifacts from services (but keep source)
-    rm -rf "$STARTER_DIR/services/agency-service/node_modules" 2>/dev/null || true
+    rm -rf "$STARTER_DIR/source/services/agency-service/node_modules" 2>/dev/null || true
 
     echo "  Cleaned cruft"
 }
@@ -209,10 +209,10 @@ verify_build() {
         "tools/create-workstream"
         "claude/config/agency.yaml"
         "claude/agents/housekeeping/agent.md"
-        "apps/agency-bench/package.json"
-        "apps/agency-bench/src-tauri/tauri.conf.json"
-        "services/agency-service/package.json"
-        "services/agency-service/src/index.ts"
+        "source/apps/agency-bench/package.json"
+        "source/apps/agency-bench/src-tauri/tauri.conf.json"
+        "source/services/agency-service/package.json"
+        "source/services/agency-service/src/index.ts"
     )
 
     for file in "${required_files[@]}"; do

@@ -51,7 +51,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-BENCH_DIR="$REPO_ROOT/apps/agency-bench"
+BENCH_DIR="$REPO_ROOT/source/apps/agency-bench"
 BUILD_BUNDLE="$BENCH_DIR/src-tauri/target/release/bundle/macos/AgencyBench.app"
 INSTALLED_APP="$HOME/.local/share/the-agency/AgencyBench.app"
 DATA_DIR="$HOME/.local/share/the-agency"

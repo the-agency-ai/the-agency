@@ -108,8 +108,8 @@ fi
 
 # Get test count if agency-service tests exist
 TEST_COUNT=""
-if [[ -d "$PROJECT_ROOT/services/agency-service" ]]; then
-    TEST_COUNT=$(cd "$PROJECT_ROOT/services/agency-service" && ~/.bun/bin/bun test 2>&1 | grep -oE "[0-9]+ pass" | head -1 || true)
+if [[ -d "$PROJECT_ROOT/source/services/agency-service" ]]; then
+    TEST_COUNT=$(cd "$PROJECT_ROOT/source/services/agency-service" && ~/.bun/bin/bun test 2>&1 | grep -oE "[0-9]+ pass" | head -1 || true)
 fi
 
 # Build tag message

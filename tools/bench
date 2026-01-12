@@ -22,7 +22,7 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-BENCH_DIR="$REPO_ROOT/apps/agency-bench"
+BENCH_DIR="$REPO_ROOT/source/apps/agency-bench"
 BUILD_BUNDLE="$BENCH_DIR/src-tauri/target/release/bundle/macos/AgencyBench.app"
 INSTALLED_APP="$HOME/.local/share/the-agency/AgencyBench.app"
 APP_BUNDLE="${INSTALLED_APP}"

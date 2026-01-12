@@ -134,14 +134,14 @@ REQUIRED_FILES=(
     "tools/commit"
     "tools/release"
     "claude/agents/housekeeping/agent.md"
-    "apps/agency-bench/package.json"
-    "apps/agency-bench/src-tauri/tauri.conf.json"
-    "apps/agency-bench/src/app/bench/(apps)/bugbench/page.tsx"
-    "apps/agency-bench/src/app/bench/(apps)/docbench/page.tsx"
-    "services/agency-service/package.json"
-    "services/agency-service/src/index.ts"
-    "services/agency-service/src/embedded/bug-service/index.ts"
-    "services/agency-service/src/embedded/secret-service/index.ts"
+    "source/apps/agency-bench/package.json"
+    "source/apps/agency-bench/src-tauri/tauri.conf.json"
+    "source/apps/agency-bench/src/app/bench/(apps)/bugbench/page.tsx"
+    "source/apps/agency-bench/src/app/bench/(apps)/docbench/page.tsx"
+    "source/services/agency-service/package.json"
+    "source/services/agency-service/src/index.ts"
+    "source/services/agency-service/src/embedded/bug-service/index.ts"
+    "source/services/agency-service/src/embedded/secret-service/index.ts"
 )
 
 # Cruft patterns (should not exist in source)

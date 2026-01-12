@@ -25,7 +25,7 @@ AGENCY_SERVICE_URL="http://${AGENCY_SERVICE_HOST}:${AGENCY_SERVICE_PORT}"
 # Find project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SERVICE_DIR="$PROJECT_ROOT/services/agency-service"
+SERVICE_DIR="$PROJECT_ROOT/source/services/agency-service"
 
 # PID file for managing the service
 PID_FILE="$PROJECT_ROOT/claude/data/agency-service.pid"
@@ -170,7 +170,7 @@ restart_service() {
 # Tail logs
 tail_logs() {
     local lines="${1:-50}"
-    local log_dir="$PROJECT_ROOT/services/agency-service/logs"
+    local log_dir="$PROJECT_ROOT/source/services/agency-service/logs"
 
     if [[ ! -d "$log_dir" ]]; then
         log_warn "Log directory not found: $log_dir"
@@ -220,7 +220,7 @@ install_deps() {
 
     # Create necessary directories
     mkdir -p "$PROJECT_ROOT/claude/data"
-    mkdir -p "$PROJECT_ROOT/services/agency-service/logs"
+    mkdir -p "$PROJECT_ROOT/source/services/agency-service/logs"
 
     log_info "Installation complete!"
     echo ""
