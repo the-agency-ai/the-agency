@@ -36,9 +36,13 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-STARTER_DIR="$PROJECT_ROOT/the-agency-starter"
+# Starter is now a sibling repo, not a subdirectory
+STARTER_DIR="$(cd "$PROJECT_ROOT/../the-agency-starter" 2>/dev/null && pwd)"
+if [[ -z "$STARTER_DIR" || ! -d "$STARTER_DIR" ]]; then
+    # Fallback to environment variable or error
+    STARTER_DIR="${THE_AGENCY_STARTER_DIR:-}"
+fi
 VERSION_FILE="$STARTER_DIR/VERSION"
-RELEASES_FILE="$PROJECT_ROOT/history/releases.md"
 
 # Parse arguments
 DRY_RUN=false
@@ -116,7 +120,6 @@ sync_files() {
     local sync_items=(
         "CLAUDE.md"
         "CONTRIBUTING.md"
-        "GETTING_STARTED.md"
         "LICENSE"
         "README.md"
         "claude/agents"
@@ -129,7 +132,6 @@ sync_files() {
         "claude/templates"
         "claude/workstreams"
         "tools"
-        "history/CHANGELOG.md"
         "source/apps/agency-bench"
         "source/services/agency-service"
     )
@@ -137,7 +139,7 @@ sync_files() {
     # Create necessary directories
     mkdir -p "$STARTER_DIR/claude"
     mkdir -p "$STARTER_DIR/claude/data"
-    mkdir -p "$STARTER_DIR/history"
+    mkdir -p "$STARTER_DIR/claude/logs"
     mkdir -p "$STARTER_DIR/source/apps"
     mkdir -p "$STARTER_DIR/source/services"
 
@@ -163,6 +165,7 @@ sync_files() {
 
     # Create .gitkeep files for empty directories
     touch "$STARTER_DIR/claude/data/.gitkeep"
+    touch "$STARTER_DIR/claude/logs/.gitkeep"
 }
 
 # Clean up cruft
@@ -259,81 +262,69 @@ verify_build() {
     log_info "Verification passed"
 }
 
-# Update releases.md
-update_releases() {
+# Update CHANGELOG.md in starter
+update_changelog() {
     local version="$1"
     local timestamp
     timestamp=$(date '+%Y-%m-%d')
-    local commit_hash
-    commit_hash=$(git rev-parse --short HEAD)
 
-    log_step "Updating releases.md..."
+    log_step "Updating CHANGELOG.md in starter..."
 
-    if [[ -f "$RELEASES_FILE" ]]; then
+    local changelog="$STARTER_DIR/CHANGELOG.md"
+    if [[ -f "$changelog" ]]; then
+        # Prepend release entry after the header
         local temp_file
         temp_file=$(mktemp)
 
-        # Write the new release entry to a temp file first
         cat > "$temp_file" << EOF
 ## [$version] - $timestamp
 
-**Tag:** starter-v$version
-**Commit:** $commit_hash
-
-### Summary
-Release $version of the-agency-starter.
-
-### Changes
-- See history/CHANGELOG.md for details
-
----
+- Synced from the-agency
+- See GitHub release for details
 
 EOF
 
-        # Read existing file, skip the "No releases yet" line, prepend new entry
-        local content
-        content=$(grep -v "^\*No releases yet" "$RELEASES_FILE")
-
-        # Find where to insert (after the marker comment)
+        # Keep first 2 lines (header), insert new entry, then rest
         {
-            head -n 14 "$RELEASES_FILE"  # Keep header through marker
+            head -n 2 "$changelog"
             echo ""
-            cat "$temp_file"             # New release entry
-            tail -n +16 "$RELEASES_FILE" | grep -v "^\*No releases yet"  # Rest of file
-        } > "${RELEASES_FILE}.new"
+            cat "$temp_file"
+            tail -n +3 "$changelog"
+        } > "${changelog}.new"
 
-        mv "${RELEASES_FILE}.new" "$RELEASES_FILE"
+        mv "${changelog}.new" "$changelog"
         rm -f "$temp_file"
 
-        echo "  Updated: $RELEASES_FILE"
+        echo "  Updated: CHANGELOG.md"
     fi
 }
 
-# Commit and tag
+# Commit and tag in the starter repo
 commit_and_tag() {
     local version="$1"
 
-    log_step "Committing and tagging..."
+    log_step "Committing and tagging in starter repo..."
 
-    cd "$PROJECT_ROOT"
+    cd "$STARTER_DIR"
 
-    # Stage changes
-    git add the-agency-starter/
-    git add history/releases.md
-    git add history/CHANGELOG.md
+    # Stage all changes
+    git add -A
 
     # Commit
     git commit -m "release: the-agency-starter v$version
 
-Automated release of the-agency-starter.
+Synced from the-agency and prepared for release.
 
 Generated with [Claude Code](https://claude.com/claude-code)
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
     # Tag
-    git tag -a "starter-v$version" -m "the-agency-starter v$version"
+    git tag -a "v$version" -m "the-agency-starter v$version"
 
-    echo "  Created commit and tag: starter-v$version"
+    echo "  Created commit and tag: v$version"
+
+    # Return to original directory
+    cd "$PROJECT_ROOT"
 }
 
 # Main
@@ -345,10 +336,15 @@ main() {
     echo ""
 
     # Check starter directory exists
-    if [[ ! -d "$STARTER_DIR" ]]; then
-        log_error "Starter directory not found: $STARTER_DIR"
+    if [[ -z "$STARTER_DIR" || ! -d "$STARTER_DIR" ]]; then
+        log_error "Starter directory not found"
+        echo ""
+        echo "Expected at: $(cd "$PROJECT_ROOT/.." && pwd)/the-agency-starter"
+        echo "Or set THE_AGENCY_STARTER_DIR environment variable"
         exit 1
     fi
+
+    log_info "Using starter directory: $STARTER_DIR"
 
     # Determine version
     local current_version
@@ -373,8 +369,8 @@ main() {
         log_step "Would clean cruft..."
         log_step "Would verify build..."
         log_step "Would update VERSION to $new_version..."
-        log_step "Would update releases.md..."
-        log_step "Would commit and tag as starter-v$new_version..."
+        log_step "Would update CHANGELOG.md..."
+        log_step "Would commit and tag as v$new_version..."
 
         echo ""
         log_info "Dry run complete. Run without --dry-run to execute."
@@ -397,18 +393,22 @@ main() {
     echo "  VERSION: $new_version"
     echo ""
 
-    update_releases "$new_version"
+    update_changelog "$new_version"
     echo ""
 
     commit_and_tag "$new_version"
     echo ""
 
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    log_info "Release complete: starter-v$new_version"
+    log_info "Release complete: v$new_version"
     echo ""
-    echo "Next steps:"
+    echo "Next steps (in starter repo):"
+    echo "  cd $STARTER_DIR"
     echo "  git push origin main"
-    echo "  git push origin starter-v$new_version"
+    echo "  git push origin v$new_version"
+    echo ""
+    echo "Or create GitHub release:"
+    echo "  gh release create v$new_version --generate-notes"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 

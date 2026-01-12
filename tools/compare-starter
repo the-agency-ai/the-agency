@@ -106,7 +106,11 @@ log_diff() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SOURCE_DIR="$PROJECT_ROOT/the-agency-starter"
+# Starter is now a sibling repo
+SOURCE_DIR="$(cd "$PROJECT_ROOT/../the-agency-starter" 2>/dev/null && pwd)"
+if [[ -z "$SOURCE_DIR" || ! -d "$SOURCE_DIR" ]]; then
+    SOURCE_DIR="${THE_AGENCY_STARTER_DIR:-}"
+fi
 INSTALL_DIR="$PROJECT_ROOT/test/the-agency-starter"
 
 # Options
@@ -179,10 +183,11 @@ EXAMPLES:
     ./tools/compare-starter --fix              # Clean source + compare
 
 COMPARISON:
-    SOURCE:  the-agency/the-agency-starter/
+    SOURCE:  ../the-agency-starter/ (sibling repo)
     INSTALL: the-agency/test/the-agency-starter/
 
-The tool verifies that the install is an exact copy of the source.
+The tool verifies that a test install matches the source repo.
+Set THE_AGENCY_STARTER_DIR environment variable if repos are elsewhere.
 EOF
 }
 
@@ -481,8 +486,11 @@ main() {
     echo ""
 
     # Validate directories
-    if [[ ! -d "$SOURCE_DIR" ]]; then
-        log_error "Source directory not found: $SOURCE_DIR"
+    if [[ -z "$SOURCE_DIR" || ! -d "$SOURCE_DIR" ]]; then
+        log_error "Source directory not found"
+        echo ""
+        echo "Expected at: $(cd "$PROJECT_ROOT/.." && pwd)/the-agency-starter"
+        echo "Or set THE_AGENCY_STARTER_DIR environment variable"
         exit 1
     fi
 
