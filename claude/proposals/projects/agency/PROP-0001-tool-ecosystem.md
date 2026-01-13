@@ -37,7 +37,7 @@ tools/local/        # Project-specific tools (local customizations)
 # tools/TOOLS.yaml (framework tools)
 - name: pre-commit-check
   purpose: "Run quality gates before commit"
-  usage: "./tools/pre-commit-check"
+  usage: "./tools/commit-precheck"
 
 # tools/local/TOOLS.yaml (local tools)
 - name: my-custom-tool

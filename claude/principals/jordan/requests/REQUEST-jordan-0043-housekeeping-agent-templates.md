@@ -11,7 +11,7 @@
 
 ## Summary
 
-Create an agent templates system that allows `./tools/create-agent` to scaffold specialized agent types with pre-configured knowledge, purpose, and responsibilities.
+Create an agent templates system that allows `./tools/agent-create` to scaffold specialized agent types with pre-configured knowledge, purpose, and responsibilities.
 
 ---
 
@@ -19,10 +19,10 @@ Create an agent templates system that allows `./tools/create-agent` to scaffold 
 
 ### Current State
 
-The `./tools/create-agent` tool creates generic agents with placeholder content:
+The `./tools/agent-create` tool creates generic agents with placeholder content:
 
 ```bash
-./tools/create-agent my-agent my-workstream
+./tools/agent-create my-agent my-workstream
 ```
 
 Creates:
@@ -65,12 +65,12 @@ claude/agents/templates/
 
 **New Usage:**
 ```bash
-./tools/create-agent <name> <workstream> [--type=<template>]
+./tools/agent-create <name> <workstream> [--type=<template>]
 
 # Examples:
-./tools/create-agent ui-specialist web --type=ux-dev
-./tools/create-agent backend-dev api                    # Uses generic (default)
-./tools/create-agent backend-dev api --type=generic     # Explicit default
+./tools/agent-create ui-specialist web --type=ux-dev
+./tools/agent-create backend-dev api                    # Uses generic (default)
+./tools/agent-create backend-dev api --type=generic     # Explicit default
 ```
 
 **Behavior:**
@@ -176,7 +176,7 @@ UX/UI development specialist focused on implementing designs with pixel-perfect 
 
 ## Success Criteria
 
-1. `./tools/create-agent my-ui web --type=ux-dev` creates properly configured UI specialist
+1. `./tools/agent-create my-ui web --type=ux-dev` creates properly configured UI specialist
 2. Agent KNOWLEDGE.md links to ui-development knowledge base
 3. Default behavior (no --type) unchanged
 4. Invalid type produces helpful error message

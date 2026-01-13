@@ -1,0 +1,57 @@
+#!/bin/bash
+# starter-cleanup - Clean up starter test artifacts
+#
+# Usage:
+#   ./tools/starter-cleanup           # Clean test directory
+#   ./tools/starter-cleanup --all     # Clean all test artifacts
+
+set -e
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "starter-cleanup" "agency-tool" "$@" 2>/dev/null) || true
+
+TOOL_VERSION="1.0.0-20260112-000001"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+TEST_DIR="$(dirname "$PROJECT_ROOT")/test/starter-test-run"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+case "${1:-}" in
+    --version|-v)
+        echo "starter-cleanup $TOOL_VERSION"
+        exit 0
+        ;;
+    --help|-h)
+        echo "starter-cleanup - Clean up starter test artifacts"
+        echo ""
+        echo "Usage:"
+        echo "  ./tools/starter-cleanup           # Clean test directory"
+        echo "  ./tools/starter-cleanup --all     # Clean all test artifacts"
+        exit 0
+        ;;
+    --all|-a)
+        echo -e "${BLUE}Cleaning all test artifacts...${NC}"
+        rm -rf "$PROJECT_ROOT/test/starter-test-run"
+        rm -rf "$PROJECT_ROOT/test/test-install"
+        rm -rf "$PROJECT_ROOT/test/the-agency-starter"
+        echo -e "${GREEN}Done.${NC}"
+        ;;
+    *)
+        echo -e "${BLUE}Cleaning starter-test artifacts...${NC}"
+        if [[ -d "$TEST_DIR" ]]; then
+            rm -rf "$TEST_DIR"
+            echo -e "${GREEN}Removed: $TEST_DIR${NC}"
+        else
+            echo "Nothing to clean."
+        fi
+        ;;
+esac

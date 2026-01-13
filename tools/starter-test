@@ -9,7 +9,7 @@
 #
 # Tests:
 #   1. Install via install.sh
-#   2. Create new project via new-project
+#   2. Create new project via project-new
 #   3. Compare installed vs source
 #   4. Compare new project vs expected structure
 #   5. Verify no sensitive content
@@ -30,6 +30,13 @@ NC='\033[0m'
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "starter-test" "agency-tool" "$@" 2>/dev/null) || true
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEST_DIR="$(dirname "$PROJECT_ROOT")/test/starter-test-run"
 STARTER_SOURCE="$(cd "$PROJECT_ROOT/../the-agency-starter" 2>/dev/null && pwd)"
@@ -62,7 +69,7 @@ for arg in "$@"; do
             echo ""
             echo "Tests performed:"
             echo "  1. Install via install.sh"
-            echo "  2. Create new project via new-project"
+            echo "  2. Create new project via project-new"
             echo "  3. Compare installed vs source"
             echo "  4. Compare new project vs expected"
             echo "  5. Verify no sensitive content"
@@ -174,20 +181,20 @@ test_install() {
 
 # Test 2: Create new project
 test_new_project() {
-    log_step "Test 2: Create new project via new-project"
+    log_step "Test 2: Create new project via project-new"
 
     local starter_dir="$TEST_DIR/installed-starter"
     local project_dir="$TEST_DIR/test-project"
 
-    # Run new-project (suppress the claude launch at the end)
+    # Run project-new (suppress the claude launch at the end)
     cd "$starter_dir"
-    ./tools/new-project "$project_dir" --no-launch > /dev/null 2>&1 || true
+    ./tools/project-new "$project_dir" --no-launch > /dev/null 2>&1 || true
 
     # Verify project creation
     if [[ -d "$project_dir" ]]; then
-        log_pass "new-project created directory"
+        log_pass "project-new created directory"
     else
-        log_fail "new-project did not create directory"
+        log_fail "project-new did not create directory"
         return 1
     fi
 
@@ -293,8 +300,8 @@ test_compare_project() {
         "VERSION"
         ".gitignore"
         "tools/myclaude"
-        "tools/create-agent"
-        "tools/create-workstream"
+        "tools/agent-create"
+        "tools/workstream-create"
     )
 
     for file in "${required_files[@]}"; do
@@ -394,11 +401,11 @@ test_tools() {
         log_fail "./tools/workstream failed unexpectedly"
     fi
 
-    # Test ./tools/find-tool
-    if ./tools/find-tool -l > /dev/null 2>&1; then
-        log_pass "./tools/find-tool works"
+    # Test ./tools/tool-find
+    if ./tools/tool-find -l > /dev/null 2>&1; then
+        log_pass "./tools/tool-find works"
     else
-        log_fail "./tools/find-tool failed"
+        log_fail "./tools/tool-find failed"
     fi
 }
 

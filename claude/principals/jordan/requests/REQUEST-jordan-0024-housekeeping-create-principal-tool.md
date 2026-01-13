@@ -12,7 +12,7 @@
 
 ## Summary
 
-Create `./tools/create-principal` that users run before their first Claude Code session to set up their principal identity.
+Create `./tools/principal-create` that users run before their first Claude Code session to set up their principal identity.
 
 ## Requirements
 
@@ -26,7 +26,7 @@ Create `./tools/create-principal` that users run before their first Claude Code 
 ## Usage
 
 ```bash
-./tools/create-principal
+./tools/principal-create
 # Prompts: "What is your principal name?"
 # Sets: export CLAUDE_PRINCIPAL=jordan
 # Creates: claude/principals/jordan/

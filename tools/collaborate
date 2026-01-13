@@ -114,11 +114,11 @@ ${DESCRIPTION}
 
 ## Response
 
-(To be filled by target agent using ./tools/respond-collaborate)
+(To be filled by target agent using ./tools/collaboration-respond)
 
 ---
 
-**Note:** Use \`./tools/respond-collaborate "${FILENAME}" "response"\` to respond.
+**Note:** Use \`./tools/collaboration-respond "${FILENAME}" "response"\` to respond.
 EOF
 
 echo "Created collaboration request: COLLABORATE-${NEW_ID_FORMATTED}"
@@ -162,7 +162,7 @@ echo "  Subject: ${SUBJECT}"
 echo "  File: ${FILENAME}"
 echo ""
 echo "Target agent can respond using:"
-echo "  ./tools/respond-collaborate \"${FILENAME}\" \"response text\""
+echo "  ./tools/collaboration-respond \"${FILENAME}\" \"response text\""
 
 # End logging - success
 if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then

@@ -11,6 +11,13 @@
 
 set -e
 
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "request" "agency-tool" "$@" 2>/dev/null) || true
+
 # Tool version
 TOOL_VERSION="1.0.0-20260109-000001"
 
@@ -218,8 +225,8 @@ echo "Created: $FILEPATH"
 
 # Notify agent if requested
 if [ "$NOTIFY" = true ]; then
-  if [ -f "$REPO_ROOT/tools/send-message" ]; then
-    "$REPO_ROOT/tools/send-message" --to "agent:$AGENT" --subject "New Request: $SUMMARY" \
+  if [ -f "$REPO_ROOT/tools/message-send" ]; then
+    "$REPO_ROOT/tools/message-send" --to "agent:$AGENT" --subject "New Request: $SUMMARY" \
       "You have a new request: REQUEST-${REQ_PRINCIPAL}-${NUMBER_PADDED}
 
 Summary: $SUMMARY
@@ -229,6 +236,6 @@ From: $REQUESTED_BY
 View: claude/principals/$REQ_PRINCIPAL/requests/$FILENAME"
     echo "Notification sent to agent:$AGENT"
   else
-    echo "Warning: send-message tool not found, skipping notification"
+    echo "Warning: message-send tool not found, skipping notification"
   fi
 fi

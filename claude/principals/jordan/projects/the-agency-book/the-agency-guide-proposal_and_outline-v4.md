@@ -451,10 +451,10 @@ This layered approach reinforces understanding: story → depth → context.
 **Content:**
 - **Tool philosophy:** Make the right way the easy way
 - **Categories:**
-  - Session (myclaude, welcomeback, backup-session)
-  - Scaffolding (create-workstream, create-agent, create-sprint)
-  - Collaboration (collaborate, respond-collaborate, post-news, read-news)
-  - Quality (pre-commit-check, run-unit-tests, code-review)
+  - Session (myclaude, welcomeback, session-backup)
+  - Scaffolding (workstream-create, agent-create, sprint-create)
+  - Collaboration (collaborate, collaboration-respond, news-post, news-read)
+  - Quality (commit-precheck, test-run, code-review)
   - Git (sync, commit-prefix, doc-commit)
   - Discovery (find-tool, how)
   - Identity (whoami, agentname, workstream, principal, now)

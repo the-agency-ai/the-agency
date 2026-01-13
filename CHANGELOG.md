@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CHANGELOG.md and VERSION tracking
 - `tools/recipes/` for Anthropic cookbook patterns
 - `./tools/myclaude --update`, `--rollback`, `--version` flags
-- `./tools/bump-version` for version management
+- `./tools/version-bump` for version management
 
 ## [0.2.0] - 2026-01-08
 
@@ -36,10 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial The Agency framework
-- Core tools: myclaude, create-agent, create-workstream
-- Collaboration tools: collaborate, post-news, read-news
-- Quality tools: pre-commit-check, code-review
-- Session tools: welcomeback, backup-session
+- Core tools: myclaude, agent-create, create-workstream
+- Collaboration tools: collaborate, news-post, news-read
+- Quality tools: commit-precheck, code-review
+- Session tools: welcomeback, session-backup
 - Principal/agent/workstream directory structure
 - CLAUDE.md constitution
 

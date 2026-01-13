@@ -1,0 +1,165 @@
+#!/bin/bash
+# Read messages from your inbox
+#
+# Usage:
+#   ./tools/message-read                    - Show unread messages
+#   ./tools/message-read --all              - Show all messages
+#   ./tools/message-read --count            - Just show unread count
+#   ./tools/message-read --read <id>        - Mark message as read
+#   ./tools/message-read --mark-all-read    - Mark all as read
+#
+# Identifies you by AGENT env var, or PRINCIPAL, or prompts
+
+set -e
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "message-read" "agency-tool" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "message-read $TOOL_VERSION"
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+DB="$REPO_ROOT/claude/data/messages.db"
+
+# Initialize database if needed
+init_db() {
+  if [ ! -f "$DB" ]; then
+    sqlite3 "$DB" <<'SQL'
+CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp TEXT DEFAULT (datetime('now')),
+  from_type TEXT NOT NULL,  -- 'agent' or 'principal'
+  from_name TEXT NOT NULL,
+  to_type TEXT NOT NULL,    -- 'all', 'group', 'agent', 'principal'
+  to_name TEXT,             -- null for broadcast, group/agent/principal name otherwise
+  subject TEXT,
+  content TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS recipients (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  message_id INTEGER NOT NULL,
+  recipient_type TEXT NOT NULL,  -- 'agent' or 'principal'
+  recipient_name TEXT NOT NULL,
+  read_at TEXT,
+  FOREIGN KEY (message_id) REFERENCES messages(id),
+  UNIQUE(message_id, recipient_type, recipient_name)
+);
+
+CREATE INDEX idx_recipients_lookup ON recipients(recipient_type, recipient_name, read_at);
+CREATE INDEX idx_messages_timestamp ON messages(timestamp DESC);
+SQL
+    echo "Initialized message database at $DB" >&2
+  fi
+}
+
+# Determine who I am
+get_identity() {
+  if [ -n "$AGENTNAME" ]; then
+    echo "agent:$AGENTNAME"
+  elif [ -n "$PRINCIPAL" ]; then
+    echo "principal:$PRINCIPAL"
+  else
+    # Try to get principal from config
+    local principal=$("$REPO_ROOT/tools/principal" 2>/dev/null || echo "")
+    if [ -n "$principal" ] && [ "$principal" != "unknown" ]; then
+      echo "principal:$principal"
+    else
+      echo ""
+    fi
+  fi
+}
+
+init_db
+
+IDENTITY=$(get_identity)
+if [ -z "$IDENTITY" ]; then
+  echo "Error: Cannot determine identity. Set AGENT or PRINCIPAL env var."
+  exit 1
+fi
+
+MY_TYPE="${IDENTITY%%:*}"
+MY_NAME="${IDENTITY#*:}"
+
+case "${1:-}" in
+  --count)
+    COUNT=$(sqlite3 "$DB" "SELECT COUNT(*) FROM recipients WHERE recipient_type='$MY_TYPE' AND recipient_name='$MY_NAME' AND read_at IS NULL;")
+    echo "$COUNT"
+    ;;
+
+  --all)
+    sqlite3 -header -column "$DB" <<SQL
+SELECT m.id, m.timestamp, m.from_type || ':' || m.from_name as 'from',
+       CASE WHEN r.read_at IS NULL THEN '●' ELSE ' ' END as unread,
+       m.subject, substr(m.content, 1, 50) as preview
+FROM messages m
+JOIN recipients r ON r.message_id = m.id
+WHERE r.recipient_type = '$MY_TYPE' AND r.recipient_name = '$MY_NAME'
+ORDER BY m.timestamp DESC
+LIMIT 50;
+SQL
+    ;;
+
+  --read)
+    if [ -z "$2" ]; then
+      echo "Usage: ./tools/message-read --read <message_id>"
+      exit 1
+    fi
+    sqlite3 "$DB" "UPDATE recipients SET read_at = datetime('now') WHERE message_id = $2 AND recipient_type = '$MY_TYPE' AND recipient_name = '$MY_NAME';"
+    # Show the full message
+    sqlite3 -header -column "$DB" <<SQL
+SELECT m.id, m.timestamp, m.from_type || ':' || m.from_name as 'from',
+       m.to_type || ':' || COALESCE(m.to_name, 'all') as 'to',
+       m.subject, m.content
+FROM messages m WHERE m.id = $2;
+SQL
+    ;;
+
+  --mark-all-read)
+    sqlite3 "$DB" "UPDATE recipients SET read_at = datetime('now') WHERE recipient_type = '$MY_TYPE' AND recipient_name = '$MY_NAME' AND read_at IS NULL;"
+    echo "All messages marked as read."
+    ;;
+
+  ""|--unread)
+    # Show unread messages
+    UNREAD=$(sqlite3 "$DB" "SELECT COUNT(*) FROM recipients WHERE recipient_type='$MY_TYPE' AND recipient_name='$MY_NAME' AND read_at IS NULL;")
+    if [ "$UNREAD" -eq 0 ]; then
+      echo "No unread messages."
+    else
+      echo "You have $UNREAD unread message(s):"
+      echo ""
+      sqlite3 -header -column "$DB" <<SQL
+SELECT m.id, m.timestamp, m.from_type || ':' || m.from_name as 'from',
+       m.subject, substr(m.content, 1, 60) as preview
+FROM messages m
+JOIN recipients r ON r.message_id = m.id
+WHERE r.recipient_type = '$MY_TYPE' AND r.recipient_name = '$MY_NAME' AND r.read_at IS NULL
+ORDER BY m.timestamp DESC;
+SQL
+      echo ""
+      echo "Use './tools/message-read --read <id>' to read a message."
+    fi
+    ;;
+
+  *)
+    echo "Usage: ./tools/message-read [options]"
+    echo ""
+    echo "Options:"
+    echo "  (none)            - Show unread messages"
+    echo "  --all             - Show all messages"
+    echo "  --count           - Just show unread count"
+    echo "  --read <id>       - Read and mark message as read"
+    echo "  --mark-all-read   - Mark all messages as read"
+    exit 1
+    ;;
+esac

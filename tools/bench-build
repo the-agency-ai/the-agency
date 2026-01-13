@@ -1,0 +1,201 @@
+#!/bin/bash
+# Build AgencyBench with proper version management
+#
+# Usage: ./tools/bench-build [command]
+#
+# Commands:
+#   (none)  - Build production app (default)
+#   dev     - Run in development mode
+#   install - Build and install
+#   version - Show current version
+#
+# The version format is: MAJOR.MINOR.PATCH-YYYYMMDD-BUILDNUMBER
+
+set -e
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "bench-build" "agency-tool" "$@" 2>/dev/null) || true
+
+TOOL_VERSION="1.0.0-20260111-000001"
+
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "bench-build $TOOL_VERSION"
+    exit 0
+fi
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "Build AgencyBench with proper version management"
+    echo ""
+    echo "Usage: ./tools/bench-build [command]"
+    echo ""
+    echo "Commands:"
+    echo "  (none)   Build production app (default)"
+    echo "  dev      Run in development mode"
+    echo "  install  Build and install to system"
+    echo "  version  Show current version info"
+    echo ""
+    echo "Version format: MAJOR.MINOR.PATCH-YYYYMMDD-BUILDNUMBER"
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+BENCH_DIR="$REPO_ROOT/source/apps/agency-bench"
+VERSION_FILE="$BENCH_DIR/src/lib/version.ts"
+BUILD_BUNDLE="$BENCH_DIR/src-tauri/target/release/bundle/macos/AgencyBench.app"
+BUILD_DMG="$BENCH_DIR/src-tauri/target/release/bundle/dmg/AgencyBench*.dmg"
+INSTALLED_APP="$HOME/.local/share/the-agency/AgencyBench.app"
+DMG_OUTPUT_DIR="$REPO_ROOT/dist"
+
+if [ ! -d "$BENCH_DIR" ]; then
+    echo "Error: AgencyBench source not found at $BENCH_DIR"
+    exit 1
+fi
+
+# Get Agency version from VERSION file
+get_agency_version() {
+    if [ -f "$REPO_ROOT/VERSION" ]; then
+        cat "$REPO_ROOT/VERSION"
+    else
+        echo "1.0.0"
+    fi
+}
+
+# Update version.ts with current build info
+update_version() {
+    local today
+    today=$(date +%Y%m%d)
+
+    local agency_version
+    agency_version=$(get_agency_version)
+
+    # Get current build number for today, increment it
+    local current_date
+    current_date=$(grep "BUILD_DATE = " "$VERSION_FILE" 2>/dev/null | grep -oE "[0-9]{8}" || echo "")
+
+    local current_build
+    current_build=$(grep "BUILD_NUMBER = " "$VERSION_FILE" 2>/dev/null | grep -oE "[0-9]{6}" || echo "000000")
+
+    local new_build
+    if [ "$current_date" = "$today" ]; then
+        # Same day, increment build number
+        new_build=$(printf "%06d" $((10#$current_build + 1)))
+    else
+        # New day, reset to 000001
+        new_build="000001"
+    fi
+
+    echo "Updating version: Agency=$agency_version, Date=$today, Build=$new_build"
+
+    cat > "$VERSION_FILE" << EOF
+/**
+ * AgencyBench Version Constants
+ *
+ * These values are updated by the build tool:
+ *   ./tools/bench-build
+ *
+ * Format: MAJOR.MINOR.PATCH-YYYYMMDD-BUILDNUMBER
+ *
+ * - MAJOR: Breaking changes
+ * - MINOR: New features
+ * - PATCH: Bug fixes
+ * - YYYYMMDD: Build date
+ * - BUILDNUMBER: Sequential build number for the day (000001, 000002, etc.)
+ */
+
+// Agency project version (from VERSION file)
+export const AGENCY_VERSION = '${agency_version}';
+
+// AgencyBench app version
+export const AGENCYBENCH_VERSION = '1.0.0';
+
+// Build metadata
+export const BUILD_DATE = '${today}';
+export const BUILD_NUMBER = '${new_build}';
+
+// Full version strings
+export const AGENCY_FULL_VERSION = \`\${AGENCY_VERSION}-\${BUILD_DATE}-\${BUILD_NUMBER}\`;
+export const AGENCYBENCH_FULL_VERSION = \`\${AGENCYBENCH_VERSION}-\${BUILD_DATE}-\${BUILD_NUMBER}\`;
+
+// DevApp versions (all 1.x now)
+export const DEVAPP_VERSIONS = {
+  workitems: \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
+  docbench: \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
+  bugbench: \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
+  'knowledge-indexer': \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
+  'agent-monitor': \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
+  'collaboration-inbox': \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
+  messages: \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
+  secrets: \`1.0.0-\${BUILD_DATE}-\${BUILD_NUMBER}\`,
+} as const;
+EOF
+
+    echo "Version updated: 1.0.0-$today-$new_build"
+}
+
+install_app() {
+    mkdir -p "$(dirname "$INSTALLED_APP")"
+    rm -rf "$INSTALLED_APP"
+    cp -R "$BUILD_BUNDLE" "$INSTALLED_APP"
+}
+
+copy_dmg() {
+    mkdir -p "$DMG_OUTPUT_DIR"
+    # Find the DMG file (may have version in name)
+    local dmg_file
+    dmg_file=$(ls $BUILD_DMG 2>/dev/null | head -1)
+    if [ -n "$dmg_file" ] && [ -f "$dmg_file" ]; then
+        local dest_file="$DMG_OUTPUT_DIR/AgencyBench.dmg"
+        cp "$dmg_file" "$dest_file"
+        echo "DMG copied to: $dest_file"
+    else
+        echo "Warning: No DMG file found at $BUILD_DMG"
+    fi
+}
+
+show_version() {
+    if [ -f "$VERSION_FILE" ]; then
+        echo "Current version info:"
+        grep -E "^export const (AGENCY_VERSION|AGENCYBENCH_VERSION|BUILD_DATE|BUILD_NUMBER)" "$VERSION_FILE" | sed 's/export const /  /'
+    else
+        echo "Version file not found"
+    fi
+}
+
+case "${1:-build}" in
+    build|"")
+        update_version
+        echo "Building AgencyBench..."
+        cd "$BENCH_DIR"
+        npm run tauri:build 2>&1 | grep -E '(Compiling|Building|Finished|Bundling|Error|error|warning:)' || true
+        echo ""
+        echo "Build complete: $BUILD_BUNDLE"
+        copy_dmg
+        ;;
+    dev)
+        echo "Starting AgencyBench in development mode..."
+        cd "$BENCH_DIR"
+        npm run tauri:dev
+        ;;
+    install)
+        update_version
+        echo "Building AgencyBench..."
+        cd "$BENCH_DIR"
+        npm run tauri:build 2>&1 | grep -E '(Compiling|Building|Finished|Bundling|Error|error|warning:)' || true
+        echo ""
+        echo "Installing AgencyBench..."
+        install_app
+        echo "Installed: $INSTALLED_APP"
+        ;;
+    version)
+        show_version
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run './tools/bench-build --help' for usage"
+        exit 1
+        ;;
+esac

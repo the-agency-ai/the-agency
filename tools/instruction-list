@@ -1,0 +1,117 @@
+#!/bin/bash
+# List instructions, optionally filtered by status or principal
+#
+# Usage:
+#   instruction-list              # All instructions
+#   instruction-list --active     # Only active
+#   instruction-list --completed  # Only completed
+#   instruction-list -p jordan    # Only from jordan
+
+set -e
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "instruction-list" "agency-tool" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "instruction-list $TOOL_VERSION"
+    exit 0
+fi
+
+# Find repo root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+PRINCIPALS_DIR="$REPO_ROOT/claude/principals"
+
+# Parse options
+FILTER_STATUS=""
+FILTER_PRINCIPAL=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --active|-a)
+      FILTER_STATUS="Active"
+      shift
+      ;;
+    --completed|-c)
+      FILTER_STATUS="Completed"
+      shift
+      ;;
+    -p|--principal)
+      FILTER_PRINCIPAL="$2"
+      shift 2
+      ;;
+    -h|--help)
+      echo "Usage: instruction-list [--active|--completed] [-p principal]"
+      exit 0
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Instructions"
+if [[ -n "$FILTER_STATUS" ]]; then
+  echo "  Filter: $FILTER_STATUS"
+fi
+if [[ -n "$FILTER_PRINCIPAL" ]]; then
+  echo "  Principal: $FILTER_PRINCIPAL"
+fi
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# Find all instruction files
+if [[ -n "$FILTER_PRINCIPAL" ]]; then
+  SEARCH_PATH="$PRINCIPALS_DIR/$FILTER_PRINCIPAL/instructions"
+else
+  SEARCH_PATH="$PRINCIPALS_DIR"
+fi
+
+find "$SEARCH_PATH" -name "INSTR-*.md" 2>/dev/null | sort | while read filepath; do
+  # Extract info from file
+  FILENAME=$(basename "$filepath" .md)
+
+  # Get status from file
+  STATUS=$(grep -m1 "^\*\*Status:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Status:\*\* //' || echo "Unknown")
+
+  # Apply status filter
+  if [[ -n "$FILTER_STATUS" ]] && [[ "$STATUS" != "$FILTER_STATUS" ]]; then
+    continue
+  fi
+
+  # Get title from first heading
+  TITLE=$(grep -m1 "^# INSTR-" "$filepath" 2>/dev/null | sed 's/^# INSTR-[0-9]*: //' || echo "Unknown")
+
+  # Get principal and target
+  PRINCIPAL=$(grep -m1 "^\*\*Principal:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Principal:\*\* //' || echo "?")
+  TO=$(grep -m1 "^\*\*To:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*To:\*\* //' || echo "?")
+
+  # Status emoji
+  case "$STATUS" in
+    Active)    EMOJI="🔵" ;;
+    Completed) EMOJI="✅" ;;
+    *)         EMOJI="⚪" ;;
+  esac
+
+  # Parse instruction number for display
+  INSTR_NUM=$(echo "$FILENAME" | grep -oE 'INSTR-[0-9]+' | head -1)
+
+  echo "$EMOJI $INSTR_NUM: $TITLE"
+  echo "   Principal: $PRINCIPAL → $TO | Status: $STATUS"
+  echo ""
+done
+
+COUNT=$(find "$SEARCH_PATH" -name "INSTR-*.md" 2>/dev/null | wc -l | tr -d ' ')
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Total: $COUNT instructions"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

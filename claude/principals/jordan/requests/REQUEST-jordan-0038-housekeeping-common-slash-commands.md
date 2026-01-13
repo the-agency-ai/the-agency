@@ -145,10 +145,10 @@ User noted: Every non-destructive tool in `tools/` should be pre-approved in per
 - `./tools/agency-bench` - launches app
 - `./tools/docbench` - opens documents
 - `./tools/bench` - launches app
-- `./tools/read-news` - reads news
+- `./tools/news-read` - reads news
 - `./tools/welcomeback` - session restore
 - `./tools/check-project-deps` - checks deps
-- `./tools/run-unit-tests` - runs tests (read-only)
+- `./tools/test-run` - runs tests (read-only)
 - etc.
 
 ### Destructive Tools (require confirmation):
@@ -200,7 +200,7 @@ Need a tool for editing `.claude/settings.json` safely:
 Many operations that Claude runs as raw Bash commands should be tools:
 
 **Build Operations:**
-- `./tools/build-bench` - Build AgencyBench (instead of `cd apps/agency-bench && npm run tauri:build`)
+- `./tools/bench-build` - Build AgencyBench (instead of `cd apps/agency-bench && npm run tauri:build`)
 - `./tools/build-service` - Build agency-service
 
 **Search Operations:**

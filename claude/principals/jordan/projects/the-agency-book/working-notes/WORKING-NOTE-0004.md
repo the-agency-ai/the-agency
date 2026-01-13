@@ -95,7 +95,7 @@ Enable with `/vim` or `/config`. Supports:
         "hooks": [
           {
             "type": "command",
-            "command": "./tools/pre-commit-check"
+            "command": "./tools/commit-precheck"
           }
         ]
       }

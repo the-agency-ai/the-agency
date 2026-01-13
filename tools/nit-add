@@ -1,0 +1,169 @@
+#!/bin/bash
+# Tool: nit-add
+# Purpose: Add a new nit entry to the shared workstream-agent-nits.md file
+# Usage: ./tools/nit-add "Category" "Description"
+# Example: ./tools/nit-add "Documentation Consistency" "Agents should include test coverage in completion reports"
+
+set -e
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "nit-add" "agency-tool" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "nit-add $TOOL_VERSION"
+    exit 0
+fi
+
+# Find repo root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
+
+# Auto-load .env.local if it exists
+if [[ -f ".env.local" ]]; then
+  set -a
+  source .env.local
+  set +a
+fi
+
+NITS_FILE="claude/workstream-agent-nits.md"
+
+# Validate arguments
+if [[ $# -lt 2 ]]; then
+  echo "Usage: ./tools/nit-add \"Category\" \"Description\""
+  echo "Example: ./tools/nit-add \"Tooling Gaps\" \"No tool exists for X\""
+  exit 1
+fi
+
+CATEGORY="$1"
+DESCRIPTION="$2"
+
+# Get current timestamp
+TIMESTAMP=$("$SCRIPT_DIR/now" 2>/dev/null || date "+%Y-%m-%d %H:%M:%S %Z")
+DATE=$(echo "$TIMESTAMP" | cut -d' ' -f1)
+
+# Get agent name for attribution
+AGENTNAME=$("$SCRIPT_DIR/agentname" 2>/dev/null || echo "unknown")
+COMMIT_PREFIX=$("$SCRIPT_DIR/commit-prefix" 2>/dev/null || echo "unknown/unknown:")
+
+# Function to handle merge conflicts by preserving all nits
+handle_merge_conflict() {
+  echo "Merge conflict detected. Attempting to resolve by preserving all nits..."
+
+  # Get both versions
+  git show :1:"$NITS_FILE" > /tmp/nits_base.md 2>/dev/null || true
+  git show :2:"$NITS_FILE" > /tmp/nits_ours.md 2>/dev/null || true
+  git show :3:"$NITS_FILE" > /tmp/nits_theirs.md 2>/dev/null || true
+
+  # Extract all AGENTNIT entries from both versions
+  grep -E "^\*\*AGENTNIT-[0-9]+\*\*:" /tmp/nits_ours.md 2>/dev/null | sort -u > /tmp/nits_ours_ids.txt || true
+  grep -E "^\*\*AGENTNIT-[0-9]+\*\*:" /tmp/nits_theirs.md 2>/dev/null | sort -u > /tmp/nits_theirs_ids.txt || true
+
+  # For now, prefer theirs (remote) as base, since we'll add our nit at the end anyway
+  git checkout --theirs "$NITS_FILE"
+  git add "$NITS_FILE"
+
+  echo "Resolved by accepting remote version. Will add new nit on top."
+  return 0
+}
+
+# Create nits file if it doesn't exist
+if [[ ! -f "$NITS_FILE" ]]; then
+  mkdir -p "$(dirname "$NITS_FILE")"
+  cat > "$NITS_FILE" << EOF
+# Workstream Agent Nits
+
+A shared log of small issues, improvements, and observations from agents.
+
+Use \`./tools/nit-add "Category" "Description"\` to add new nits.
+Use \`./tools/nit-resolve AGENTNIT-#### "Resolution"\` to resolve nits.
+
+---
+
+EOF
+  echo "Created nits file: $NITS_FILE"
+fi
+
+# Step 1: Pull latest
+echo "Pulling latest changes..."
+git pull --rebase 2>/dev/null || {
+  # If rebase fails due to conflicts, abort and try regular pull
+  git rebase --abort 2>/dev/null || true
+  git pull || {
+    # If regular pull also has conflicts, handle them
+    if git diff --name-only --diff-filter=U | grep -q "$NITS_FILE"; then
+      handle_merge_conflict
+    fi
+  }
+}
+
+# Step 2: Find the highest existing NIT ID
+# Use sed to strip leading zeros to avoid bash octal interpretation
+HIGHEST_ID=$(grep -oE 'AGENTNIT-[0-9]+' "$NITS_FILE" 2>/dev/null | grep -oE '[0-9]+' | sed 's/^0*//' | sort -n | tail -1)
+if [[ -z "$HIGHEST_ID" ]]; then
+  HIGHEST_ID=0
+fi
+NEW_ID=$((HIGHEST_ID + 1))
+NEW_ID_FORMATTED=$(printf "%04d" $NEW_ID)
+
+# Step 3: Check if there's already a section for today's date
+if ! grep -q "## $DATE" "$NITS_FILE"; then
+  # Add date section before appending nit
+  echo "" >> "$NITS_FILE"
+  echo "## $DATE" >> "$NITS_FILE"
+fi
+
+# Step 4: Append new nit entry
+cat >> "$NITS_FILE" << EOF
+
+### $CATEGORY
+
+**AGENTNIT-$NEW_ID_FORMATTED:** $DESCRIPTION
+
+- **Status:** Open
+- **Reported by:** $AGENTNAME
+- **Date:** $DATE
+EOF
+
+echo "Added AGENTNIT-$NEW_ID_FORMATTED: $DESCRIPTION"
+
+# Step 5: Stage and commit
+git add "$NITS_FILE"
+COMMIT_MSG="$COMMIT_PREFIX chore: add AGENTNIT-$NEW_ID_FORMATTED ($CATEGORY)
+
+$DESCRIPTION
+
+Reported by: $AGENTNAME
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+
+git commit -m "$COMMIT_MSG
+
+[skip ci]" || {
+  echo "Nothing to commit (nit may already exist)"
+  exit 0
+}
+
+# Step 6: Push using sync tool
+echo "Syncing changes..."
+"$SCRIPT_DIR/sync" || {
+  echo "Sync failed"
+  exit 1
+}
+
+echo ""
+echo "Successfully added nit:"
+echo "  ID: AGENTNIT-$NEW_ID_FORMATTED"
+echo "  Category: $CATEGORY"
+echo "  Description: $DESCRIPTION"
+echo "  File: $NITS_FILE"

@@ -117,7 +117,7 @@ fi
 AGENT_DIR="$PROJECT_ROOT/claude/agents/$AGENTNAME"
 if [ ! -d "$AGENT_DIR" ]; then
     echo -e "${RED}Agent not found: $AGENTNAME${NC}"
-    echo "Create it with: ./tools/create-agent $WORKSTREAM $AGENTNAME"
+    echo "Create it with: ./tools/agent-create $WORKSTREAM $AGENTNAME"
     exit 1
 fi
 
@@ -176,10 +176,10 @@ echo -e "${BLUE}  Launching: ${GREEN}$AGENTNAME${NC} ${BLUE}on workstream: ${GRE
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # Check for unread messages
-if [ -x "$PROJECT_ROOT/tools/read-messages" ]; then
-    UNREAD=$("$PROJECT_ROOT/tools/read-messages" --count 2>/dev/null || echo "0")
+if [ -x "$PROJECT_ROO./tools/message-read" ]; then
+    UNREAD=$("$PROJECT_ROO./tools/message-read" --count 2>/dev/null || echo "0")
     if [ "$UNREAD" -gt 0 ]; then
-        echo -e "${YELLOW}  📬 You have $UNREAD unread message(s). Run ./tools/read-messages${NC}"
+        echo -e "${YELLOW}  📬 You have $UNREAD unread message(s). Run ./tools/message-read${NC}"
     fi
 fi
 echo ""

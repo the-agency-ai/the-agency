@@ -60,6 +60,6 @@ See `KNOWLEDGE.md` for accumulated patterns and wisdom.
 I maintain context across sessions via:
 - `ADHOC-WORKLOG.md` - Recent work outside sprints
 - `WORKLOG.md` - Sprint-based work tracking
-- Session backups via `./tools/backup-session`
+- Session backups via `./tools/session-backup`
 
 When you launch me, I'll tell you what I was working on and ask what's next.

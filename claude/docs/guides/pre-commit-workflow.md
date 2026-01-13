@@ -35,8 +35,8 @@ All commits (Claude and manual) go through comprehensive pre-commit checks enfor
 
 ## Tools
 
-- `./tools/pre-commit-check` - Orchestrator (runs all 5 steps)
-- `./tools/run-unit-tests` - Unit-only test runner
+- `./tools/commit-precheck` - Orchestrator (runs all 5 steps)
+- `./tools/test-run` - Unit-only test runner
 - `./tools/code-review` - Pattern-based code review
 
 ## Bypassing Checks

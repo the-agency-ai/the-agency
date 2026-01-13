@@ -8,6 +8,13 @@
 #   - Supports one-to-many workstream mapping (agents → agent-manager + agent-client)
 #   - Used for agent-specific state (backups, logs, etc.)
 #
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "agentname" "agency-tool" "$@" 2>/dev/null) || true
 # Returns: agent name from $AGENTNAME environment variable, or 'unknown'
 
 

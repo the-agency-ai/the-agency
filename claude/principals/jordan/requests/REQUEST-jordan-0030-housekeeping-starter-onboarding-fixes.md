@@ -94,7 +94,7 @@ PRINCIPAL="${AGENCY_PRINCIPAL:?AGENCY_PRINCIPAL not set. Run ./tools/setup-agenc
    - Builds fresh
    - Uploads to GitHub release
    - Updates download links
-5. **Include AgencyBench build in `./tools/release-starter` checklist**
+5. **Include AgencyBench build in `./tools/starter-release` checklist**
 6. Upload DMG to GitHub releases for each starter version
 
 **Build Process (to follow!):**
@@ -316,8 +316,8 @@ check:
 ---
 
 **Already have setup scripts:**
-- `./tools/setup-mac` - macOS setup (uses brew)
-- `./tools/setup-linux` - Linux setup (apt/dnf/pacman)
+- `./tools/mac-setup` - macOS setup (uses brew)
+- `./tools/linux-setup` - Linux setup (apt/dnf/pacman)
 
 **What's Missing:**
 - These aren't called by installer
@@ -418,8 +418,8 @@ New users get a copy of jordan's stuff instead of a clean slate.
 
 **Marker file to identify starter:**
 - `.agency-starter` file exists ONLY in the-agency-starter repo
-- When `./tools/new-project` creates a project, it REMOVES this file
-- myclaude checks: if `.agency-starter` exists → "This is the starter template. Run ./tools/new-project to create a project."
+- When `./tools/project-new` creates a project, it REMOVES this file
+- myclaude checks: if `.agency-starter` exists → "This is the starter template. Run ./tools/project-new to create a project."
 - Prevents accidentally running setup-agency on the starter itself
 
 **B. New project created from starter (fresh project)**
@@ -478,10 +478,10 @@ FIRST LAUNCH (myclaude):
 0. Check if this is an Agency project?
    └─→ Look for .agency-project marker OR claude/config/agency.yaml
    └─→ NO: "Not an Agency project. Run this from an Agency project root
-           created with ./tools/new-project" → EXIT
+           created with ./tools/project-new" → EXIT
 
 1. Check if .agency-starter exists?
-   └─→ YES: "This is the starter template. Run ./tools/new-project first." → EXIT
+   └─→ YES: "This is the starter template. Run ./tools/project-new first." → EXIT
 
 2. Start services (FIRST!)
 
@@ -525,7 +525,7 @@ Is this an Agency project? (.agency-project OR claude/config/agency.yaml)
 └─ YES
     │
     .agency-starter exists?
-    ├─ YES → BLOCK: "Use ./tools/new-project"
+    ├─ YES → BLOCK: "Use ./tools/project-new"
     └─ NO
         │
         .agency-setup-complete exists?
@@ -657,7 +657,7 @@ _Space reserved for additional issues as they're discovered._
 - [ ] myclaude blocks if NOT an Agency project
 - [ ] Starter has `.agency-starter` marker file
 - [ ] myclaude blocks if `.agency-starter` exists (must use new-project)
-- [ ] `./tools/new-project` removes `.agency-starter` marker
+- [ ] `./tools/project-new` removes `.agency-starter` marker
 - [ ] `claude/templates/principal/` exists with template
 - [ ] `./tools/add-principal` exists for joining existing projects
 - [ ] setup-agency triggered on first myclaude run (new project)

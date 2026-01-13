@@ -5,11 +5,12 @@ Pre-defined templates for specialized agent types.
 ## Usage
 
 ```bash
-./tools/create-agent <name> <workstream> [--type=<template>]
+./tools/agent-create <name> <workstream> [--type=<template>]
 
 # Examples:
-./tools/create-agent my-ui web --type=ux-dev
-./tools/create-agent backend api                    # Uses generic (default)
+./tools/agent-create my-ui web --type=ux-dev
+./tools/agent-create ds-extractor design --type=design-system
+./tools/agent-create backend api                    # Uses generic (default)
 ```
 
 ## Available Templates
@@ -18,6 +19,12 @@ Pre-defined templates for specialized agent types.
 |----------|---------|----------------|
 | `generic` | Default general-purpose agent | None |
 | `ux-dev` | UX/UI development specialist | ui-development, design-systems |
+| `design-system` | Design system extraction specialist | design-systems, ui-development |
+| `security` | Security review, threat modeling, vulnerability assessment | security-patterns |
+| `tester` | Test strategy, coverage, test implementation | testing-patterns |
+| `reviewer` | Code review, architecture review, PR review | code-review-patterns |
+| `docs` | Technical writing, API docs, guides | documentation-patterns |
+| `services` | API design, DB schema, data modeling, service architecture | services-patterns |
 
 ## Template Structure
 
@@ -51,4 +58,4 @@ Templates use these placeholders (replaced during creation):
 ## Related
 
 - `claude/knowledge/` - Knowledge bases that templates reference
-- `./tools/create-agent` - Tool that uses these templates
+- `./tools/agent-create` - Tool that uses these templates

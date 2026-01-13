@@ -505,7 +505,7 @@ Combined foundation and first embedded service to prove the pattern.
 - [x] Implement `repository/bug.repository.ts`
 - [x] Implement `service/bug.service.ts` (with queue-based notifications)
 - [x] Implement `routes.ts` (`/api/bug/*` - singular, not /bugs)
-- [x] Keep v1 `./tools/report-bug` unchanged (v1 = direct SQLite)
+- [x] Keep v1 `./tools/bug-report` unchanged (v1 = direct SQLite)
 - [x] Create `./tools/agency-service bug create` via API (v2)
 - [x] Create `./tools/agency-service bug list` via API
 - [x] Create `./tools/agency-service bug show` via API
@@ -537,8 +537,8 @@ Spin up dedicated agents for parallel development.
 - [ ] Implement `message.repository.ts`
 - [ ] Implement `message.service.ts`
 - [ ] Implement `routes.ts` (`/api/messages/*`)
-- [ ] Refactor `./tools/send-message` to use API
-- [ ] Refactor `./tools/read-messages` to use API
+- [ ] Refactor `./tools/message-send` to use API
+- [ ] Refactor `./tools/message-read` to use API
 - [ ] Update Messages UI to call API
 - [ ] Remove message-related SQLite code from Tauri
 
@@ -724,7 +724,7 @@ AgencyBench becomes purely a UI layer consuming these services.
 - [x] `curl http://localhost:9999/api/health` returns OK
 - [x] `curl -H "Authorization: Bearer any" http://localhost:9999/api/bug` works in local mode
 - [x] `./tools/agency-service bug create/list/show` work via API (v2 path)
-- [x] v1 tools (`./tools/report-bug`) remain unchanged until v2 is production-ready
+- [x] v1 tools (`./tools/bug-report`) remain unchanged until v2 is production-ready
 - [x] Extensive test suite (71 tests passing)
 - [ ] BugBench UI works entirely through API (deferred)
 - [ ] Service auto-starts when CLI tool runs (deferred)
@@ -853,7 +853,7 @@ For database abstraction, considered:
 - `./tools/agency-service` not `./tools/agency-api`
 
 **v1/v2 Coexistence:**
-- v1 tools (direct SQLite) remain unchanged: `./tools/report-bug`
+- v1 tools (direct SQLite) remain unchanged: `./tools/bug-report`
 - v2 tools use API: `./tools/agency-service bug create`
 - Will switch fully to v2 when API is production-ready
 

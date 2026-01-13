@@ -18,7 +18,7 @@ iTerm profiles are stored here and symlinked from iTerm's dynamic profiles direc
 
 ```bash
 # Set up iTerm integration
-./tools/setup-iterm <principal>
+./tools/iterm-setup <principal>
 ```
 
 This creates profiles for common Agency tasks with proper colors and titles.

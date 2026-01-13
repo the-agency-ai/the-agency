@@ -1,0 +1,108 @@
+#!/bin/bash
+# Create a new sprint directory
+#
+# Usage: ./tools/sprint-create <workstream> <epic-num> <sprint-num>
+#
+# Creates:
+#   claude/workstreams/{workstream}/epic{epic}/sprint{sprint}/
+#     - sprint-plan.md
+
+set -e
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "sprint-create" "agency-tool" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "sprint-create $TOOL_VERSION"
+    exit 0
+fi
+
+# Find repo root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
+
+WORKSTREAM="$1"
+EPIC_NUM="$2"
+SPRINT_NUM="$3"
+
+if [ -z "$WORKSTREAM" ] || [ -z "$EPIC_NUM" ] || [ -z "$SPRINT_NUM" ]; then
+  echo "Usage: ./tools/sprint-create <workstream> <epic-num> <sprint-num>"
+  echo ""
+  echo "Example: ./tools/sprint-create web 002 001"
+  echo "Creates: claude/workstreams/web/epic002/sprint001/"
+  exit 1
+fi
+
+# Pad numbers
+EPIC=$(printf "epic%03d" "$EPIC_NUM")
+SPRINT=$(printf "sprint%03d" "$SPRINT_NUM")
+DIR="claude/workstreams/$WORKSTREAM/$EPIC/$SPRINT"
+
+# Get timezone from config or default to UTC
+TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
+TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
+
+# Check workstream exists
+if [ ! -d "claude/workstreams/$WORKSTREAM" ]; then
+  echo "Error: Workstream '$WORKSTREAM' doesn't exist"
+  exit 1
+fi
+
+# Check epic exists in workstream
+if [ ! -d "claude/workstreams/$WORKSTREAM/$EPIC" ]; then
+  echo "Error: Epic '$EPIC' doesn't exist in workstream '$WORKSTREAM'"
+  echo ""
+  echo "Create epic first: ./tools/epic-create $EPIC_NUM"
+  exit 1
+fi
+
+if [ -d "$DIR" ]; then
+  echo "Error: Sprint already exists at $DIR"
+  exit 1
+fi
+
+echo "Creating sprint: $WORKSTREAM/$EPIC/$SPRINT"
+mkdir -p "$DIR"
+
+cat > "$DIR/sprint-plan.md" << EOF
+# $WORKSTREAM $EPIC $SPRINT Plan
+
+**Created:** $TIMESTAMP
+**Workstream:** $WORKSTREAM
+**Status:** Not Started
+
+## Objective
+
+[Sprint objective]
+
+## Scope
+
+- [ ] [Task 1]
+- [ ] [Task 2]
+
+## Estimate
+
+[X hours]
+
+## Dependencies
+
+- [Dependency 1]
+
+## Acceptance Criteria
+
+- [ ] [Criterion 1]
+EOF
+
+echo "Created: $DIR/"
+echo "  - sprint-plan.md"
+echo ""
+echo "Edit plan: $DIR/sprint-plan.md"

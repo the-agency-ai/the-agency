@@ -45,8 +45,8 @@ Human stakeholders who provide direction:
 ### Collaboration
 Agents communicate via:
 - `./tools/collaborate` - Request help from another agent
-- `./tools/post-news` / `./tools/read-news` - Broadcast updates
-- `./tools/add-nit` - Flag issues for later
+- `./tools/news-post` / `./tools/news-read` - Broadcast updates
+- `./tools/nit-add` - Flag issues for later
 
 ## Directory Structure
 
@@ -70,23 +70,23 @@ tools/                       # CLI tools for The Agency
 **Session:**
 - `./tools/myclaude WORKSTREAM AGENT` - Launch an agent
 - `./tools/welcomeback` - Session restoration
-- `./tools/backup-session` - Save session context
+- `./tools/session-backup` - Save session context
 
 **Scaffolding:**
-- `./tools/create-workstream` - Add a new workstream
-- `./tools/create-agent` - Add a new agent
-- `./tools/create-epic` - Plan major work
-- `./tools/create-sprint` - Plan sprint work
+- `./tools/workstream-create` - Add a new workstream
+- `./tools/agent-create` - Add a new agent
+- `./tools/epic-create` - Plan major work
+- `./tools/sprint-create` - Plan sprint work
 
 **Collaboration:**
 - `./tools/collaborate` - Request help
-- `./tools/respond-collaborate` - Respond to requests
-- `./tools/post-news` / `./tools/read-news` - Broadcasts
+- `./tools/collaboration-respond` - Respond to requests
+- `./tools/news-post` / `./tools/news-read` - Broadcasts
 - `./tools/dispatch-collaborations` - Launch agents for pending work
 
 **Quality:**
-- `./tools/pre-commit-check` - Run quality gates
-- `./tools/run-unit-tests` - Run tests
+- `./tools/commit-precheck` - Run quality gates
+- `./tools/test-run` - Run tests
 - `./tools/code-review` - Automated code review
 
 **Git:**
@@ -217,8 +217,8 @@ All secret access is logged for security:
 If you have existing secrets in `.env` files, migrate them:
 
 ```bash
-./tools/migrate-secrets --dry-run  # Preview what will be migrated
-./tools/migrate-secrets            # Run the migration
+./tools/secret-migrate --dry-run  # Preview what will be migrated
+./tools/secret-migrate            # Run the migration
 ```
 
 ### Service Configuration

@@ -89,7 +89,7 @@ The CLI tool models the API that could later become a proper REST/IPC API:
 
 ```bash
 # Create a bug
-./tools/report-bug --workstream bench --summary "..." [--description "..."] [--reporter "..."] [--assignee "..."] [--xref "..."]
+./tools/bug-report --workstream bench --summary "..." [--description "..."] [--reporter "..."] [--assignee "..."] [--xref "..."]
 
 # List bugs
 ./tools/list-bugs [--workstream bench] [--status open] [--assignee housekeeping]
@@ -137,7 +137,7 @@ The CLI tool models the API that could later become a proper REST/IPC API:
 
 - [x] Build number implemented (v0.1.0-20260109-009)
 - [x] SQLite database at `claude/data/bugs.db` (shared between CLI and UI)
-- [x] `./tools/report-bug` CLI tool working
+- [x] `./tools/bug-report` CLI tool working
 - [x] BugBench app in AgencyBench sidebar
 - [x] Can create bugs from UI
 - [x] Can list/filter bugs
@@ -213,14 +213,14 @@ The CLI tool models the API that could later become a proper REST/IPC API:
   - Click on bug to edit it
 
 **8. CLI Tool:**
-- **Decision (Jordan):** `./tools/report-bug --workstream bench --summary "..." --description "..."`
+- **Decision (Jordan):** `./tools/bug-report --workstream bench --summary "..." --description "..."`
 - Should model/mimic the API design
 
 **9. Piping Support:**
-- **Question:** Should CLI support `echo "details" | ./tools/report-bug`?
+- **Question:** Should CLI support `echo "details" | ./tools/bug-report`?
 - **My thinking:** Could be useful for agents to pipe error output directly:
   ```bash
-  npm run build 2>&1 | ./tools/report-bug --workstream bench --summary "Build failed"
+  npm run build 2>&1 | ./tools/bug-report --workstream bench --summary "Build failed"
   ```
   The piped content becomes the description. Thoughts?
 - **Decision (Jordan):** TBD - implement basic version first, add piping later if useful
@@ -288,7 +288,7 @@ Current proposal: `claude/assets/bugs/{bug-id}/`
 
 **Changes Made:**
 
-1. **CLI Tool** - Created `./tools/report-bug` that:
+1. **CLI Tool** - Created `./tools/bug-report` that:
    - Creates bugs with auto-incrementing IDs (e.g., `BENCH-00001`)
    - Auto-detects reporter via `./tools/whoami`
    - Initializes database schema on first run
@@ -310,7 +310,7 @@ Current proposal: `claude/assets/bugs/{bug-id}/`
 **Database Location:** `claude/data/bugs.db` (shared between CLI and UI)
 
 **Files Created/Modified:**
-- `./tools/report-bug` - CLI tool (new)
+- `./tools/bug-report` - CLI tool (new)
 - `src-tauri/src/main.rs` - Added bug commands
 - `src/app/bench/(apps)/bugbench/page.tsx` - BugBench UI (new)
 - `src/components/bench/AppSidebar.tsx` - Added BugBench link
@@ -330,7 +330,7 @@ Current proposal: `claude/assets/bugs/{bug-id}/`
 
 **Implementation:**
 
-1. **CLI (`./tools/report-bug`)** - Sends message via `./tools/send-message` when `--assignee` is specified
+1. **CLI (`./tools/bug-report`)** - Sends message via `./tools/message-send` when `--assignee` is specified
    ```
    Created bug: HOUSEKEEPING-00002
      Summary: Test notification feature
@@ -362,7 +362,7 @@ View in BugBench or run: ./tools/show-bug HOUSEKEEPING-00002
 ```
 
 **Files Modified:**
-- `./tools/report-bug` - Added notification after bug creation
+- `./tools/bug-report` - Added notification after bug creation
 - `src-tauri/src/main.rs` - Added `notify_bug_assignee()`, `notify_bug_reassignment()`, `update_bug_assignee` command
 
 **Build Status:** Build 016 - Notifications working

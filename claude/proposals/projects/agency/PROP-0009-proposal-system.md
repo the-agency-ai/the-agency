@@ -53,7 +53,7 @@ claude/proposals/
 ### Tools
 
 ```bash
-./tools/capture-proposal -t "Title" [-p project] [-w workstream]
+./tools/proposal-capture -t "Title" [-p project] [-w workstream]
 ./tools/list-proposals [-p project] [-w workstream] [-s status]
 ./tools/update-proposal PROP-0001 --status discussing
 ./tools/approve-proposal PROP-0001  # Creates INSTR, links back

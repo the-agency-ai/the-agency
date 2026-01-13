@@ -94,8 +94,8 @@ src-tauri/icons/
 
 ```bash
 # Session archive
-./tools/archive-session "description"
-./tools/archive-session --from SESSION-BACKUP-XXX.md "description"
+./tools/session-archive "description"
+./tools/session-archive --from SESSION-BACKUP-XXX.md "description"
 
 # AgencyBench
 cd apps/agency-bench
@@ -104,7 +104,7 @@ npm run tauri:dev    # Desktop app (needs icons)
 npm run tauri:build  # Production build
 
 # Version management
-./tools/bump-version patch|minor|major
+./tools/version-bump patch|minor|major
 ./tools/myclaude --version
 ```
 

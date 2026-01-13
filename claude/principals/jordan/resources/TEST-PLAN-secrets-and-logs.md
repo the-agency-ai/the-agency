@@ -70,10 +70,10 @@ cd the-agency-starter/apps/agency-bench && bun run dev
 
 ```bash
 # Dry run first
-./tools/migrate-secrets --dry-run
+./tools/secret-migrate --dry-run
 
 # Run migration
-./tools/migrate-secrets
+./tools/secret-migrate
 
 # Verify secrets copied
 ./tools/secret list

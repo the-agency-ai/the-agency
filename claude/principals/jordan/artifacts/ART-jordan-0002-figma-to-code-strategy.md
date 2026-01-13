@@ -306,7 +306,7 @@ When implementing for mobile web:
 # Creates: claude/principals/jordan/requests/REQUEST-jordan-0042-landing-page.md
 
 # 3. Housekeeping creates specialized agent
-./tools/create-agent ui-dev --workstream=web
+./tools/agent-create ui-dev --workstream=web
 
 # 4. Launch ui-dev agent with context
 ./tools/myclaude web ui-dev

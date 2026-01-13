@@ -179,7 +179,7 @@ The following cookbooks have been downloaded and saved to `claude/docs/cookbooks
    - Preserve agent identity and workstream context
    - Integrate with SESSION-BACKUP
 
-2. **Tool Discovery** (`./tools/find-tool`)
+2. **Tool Discovery** (`./tools/tool-find`)
    - Semantic search across 40+ Agency tools
    - Dynamic tool loading based on task needs
    - Reduce context overhead

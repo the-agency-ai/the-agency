@@ -358,7 +358,7 @@ You don't need to memorize all 35+ tools. But these are the ones you'll use cons
 |------|--------------|
 | `./tools/myclaude [workstream] [agent]` | Launch an agent |
 | `./tools/welcomeback` | Resume after a break |
-| `./tools/backup-session` | Save session state |
+| `./tools/session-backup` | Save session state |
 
 ### Identity
 
@@ -374,14 +374,14 @@ You don't need to memorize all 35+ tools. But these are the ones you'll use cons
 | Tool | What It Does |
 |------|--------------|
 | `./tools/collaborate [agent] "subject" "request"` | Ask another agent for help |
-| `./tools/post-news "message"` | Broadcast to all agents |
-| `./tools/read-news` | Check for broadcasts |
+| `./tools/news-post "message"` | Broadcast to all agents |
+| `./tools/news-read` | Check for broadcasts |
 
 ### Quality
 
 | Tool | What It Does |
 |------|--------------|
-| `./tools/pre-commit-check` | Run all quality gates |
+| `./tools/commit-precheck` | Run all quality gates |
 | `./tools/sync` | Push with quality checks |
 
 ### Discovery
@@ -389,7 +389,7 @@ You don't need to memorize all 35+ tools. But these are the ones you'll use cons
 | Tool | What It Does |
 |------|--------------|
 | `./tools/list-tools` | See all available tools |
-| `./tools/find-tool "keyword"` | Search for a tool |
+| `./tools/tool-find "keyword"` | Search for a tool |
 
 When in doubt, ask housekeeping. It knows all the tools and when to use them.
 

@@ -17,7 +17,7 @@
 
 set -e
 
-TOOL_VERSION="1.0.0-20260113-000001"
+TOOL_VERSION="1.2.0-20260113-000001"
 
 # Colors
 RED='\033[0;31m'
@@ -39,6 +39,46 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
+
+# Helper function: Convert RGBA (0-1 range) to hex
+rgba_to_hex() {
+    local r=$1 g=$2 b=$3
+    # Convert 0-1 range to 0-255 and format as hex
+    printf "#%02X%02X%02X" \
+        $(echo "$r * 255" | bc | cut -d. -f1) \
+        $(echo "$g * 255" | bc | cut -d. -f1) \
+        $(echo "$b * 255" | bc | cut -d. -f1)
+}
+
+# Helper function: Extract unique colors from document JSON
+extract_embedded_colors() {
+    local json_file=$1
+    local output_file=$2
+
+    # Extract all SOLID color fills, convert to hex, deduplicate
+    grep -o '"type":"SOLID","color":{"r":[0-9.]*,"g":[0-9.]*,"b":[0-9.]*' "$json_file" 2>/dev/null | \
+        sed 's/.*"r":\([0-9.]*\),"g":\([0-9.]*\),"b":\([0-9.]*\)/\1 \2 \3/' | \
+        sort -u | \
+        while read r g b; do
+            # Convert to hex
+            hex=$(printf "#%02X%02X%02X" \
+                $(echo "$r * 255" | bc | cut -d. -f1) \
+                $(echo "$g * 255" | bc | cut -d. -f1) \
+                $(echo "$b * 255" | bc | cut -d. -f1))
+            echo "$hex"
+        done | sort -u > "$output_file"
+}
+
+# Helper function: Extract unique fonts from document JSON
+extract_embedded_fonts() {
+    local json_file=$1
+    local output_file=$2
+
+    # Extract fontFamily values with counts
+    grep -o '"fontFamily":"[^"]*"' "$json_file" 2>/dev/null | \
+        cut -d'"' -f4 | \
+        sort | uniq -c | sort -rn > "$output_file"
+}
 
 # Start logging
 RUN_ID=$(log_start "figma-extract" "agency-tool" "$@" 2>/dev/null) || true
@@ -70,6 +110,25 @@ show_help() {
     echo "Examples:"
     echo "  ./tools/figma-extract abc123xyz --name=acme --version=001"
     echo "  ./tools/figma-extract abc123xyz --name=myproject --version=002 --dry-run"
+    echo ""
+    echo "Hybrid Workflow (Recommended for comprehensive extraction):"
+    echo ""
+    echo "  The Figma API only returns 'published' library styles. For designs"
+    echo "  with unpublished styles, use the hybrid PDF workflow:"
+    echo ""
+    echo "  1. Run this tool to create the structure:"
+    echo "     ./tools/figma-extract abc123xyz --name=acme --version=001"
+    echo ""
+    echo "  2. In Figma, export design documentation pages as PDFs:"
+    echo "     - Select the Colors/Typography/Effects pages"
+    echo "     - File > Export frames to PDF"
+    echo "     - Save to: <design-system>/source/"
+    echo ""
+    echo "  3. Ask Claude Code to read the PDFs and populate the markdown files:"
+    echo "     'Read the PDFs in source/ and update colors.md with the values'"
+    echo ""
+    echo "  This captures the designer's organized documentation rather than"
+    echo "  just raw style data from the API."
 }
 
 # Parse arguments
@@ -175,9 +234,10 @@ TEMP_DIR=$(mktemp -d)
 FILE_DATA="$TEMP_DIR/file.json"
 STYLES_DATA="$TEMP_DIR/styles.json"
 
-# Fetch file metadata and document
+# Fetch file metadata and document (depth=3 for embedded colors/fonts)
+log_info "Fetching document with depth=3 for embedded data..."
 curl -s -H "X-Figma-Token: $FIGMA_TOKEN" \
-    "$FIGMA_API/files/$FILE_KEY" > "$FILE_DATA"
+    "$FIGMA_API/files/$FILE_KEY?depth=3" > "$FILE_DATA"
 
 # Check for API errors
 if grep -q '"err"' "$FILE_DATA" 2>/dev/null; then
@@ -203,15 +263,34 @@ if [[ "$DRY_RUN" == "true" ]]; then
     log_warn "DRY RUN - Showing what would be extracted"
     echo ""
 
-    # Count styles
+    # Count published styles
     COLOR_COUNT=$(grep -c '"style_type":"FILL"' "$STYLES_DATA" 2>/dev/null) || COLOR_COUNT=0
     TEXT_COUNT=$(grep -c '"style_type":"TEXT"' "$STYLES_DATA" 2>/dev/null) || TEXT_COUNT=0
     EFFECT_COUNT=$(grep -c '"style_type":"EFFECT"' "$STYLES_DATA" 2>/dev/null) || EFFECT_COUNT=0
 
-    echo "Would extract:"
+    # Count embedded colors/fonts from document
+    EMBEDDED_COLORS_FILE="$TEMP_DIR/embedded-colors.txt"
+    EMBEDDED_FONTS_FILE="$TEMP_DIR/embedded-fonts.txt"
+    extract_embedded_colors "$FILE_DATA" "$EMBEDDED_COLORS_FILE"
+    extract_embedded_fonts "$FILE_DATA" "$EMBEDDED_FONTS_FILE"
+    EMBEDDED_COLOR_COUNT=$(wc -l < "$EMBEDDED_COLORS_FILE" | tr -d ' ')
+    EMBEDDED_FONT_COUNT=$(wc -l < "$EMBEDDED_FONTS_FILE" | tr -d ' ')
+
+    echo "Published Styles (from Figma library):"
     echo "  - $COLOR_COUNT color styles"
     echo "  - $TEXT_COUNT text styles"
     echo "  - $EFFECT_COUNT effect styles"
+    echo ""
+    echo "Embedded Design Data (from document):"
+    echo "  - $EMBEDDED_COLOR_COUNT unique colors"
+    echo "  - $EMBEDDED_FONT_COUNT fonts"
+    if [[ $EMBEDDED_FONT_COUNT -gt 0 ]]; then
+        echo ""
+        echo "  Top fonts:"
+        head -5 "$EMBEDDED_FONTS_FILE" | while read count font; do
+            printf "    %6d uses: %s\n" "$count" "$font"
+        done
+    fi
     echo ""
     echo "Would create: $OUTPUT_DIR/"
 
@@ -232,60 +311,152 @@ cp "$STYLES_DATA" "$OUTPUT_DIR/source/figma-styles.json"
 log_step "Extracting colors..."
 COLORS_MD="$OUTPUT_DIR/colors.md"
 COLORS_JSON="$OUTPUT_DIR/source/colors.json"
+EMBEDDED_COLORS_FILE="$TEMP_DIR/embedded-colors.txt"
 
-cat > "$COLORS_MD" << 'EOF'
+# Extract embedded colors from document
+extract_embedded_colors "$FILE_DATA" "$EMBEDDED_COLORS_FILE"
+EMBEDDED_COLOR_COUNT=$(wc -l < "$EMBEDDED_COLORS_FILE" | tr -d ' ')
+
+# Count published color styles
+COLOR_COUNT=$(grep -c '"style_type":"FILL"' "$STYLES_DATA" 2>/dev/null) || COLOR_COUNT=0
+log_info "Found $COLOR_COUNT published color styles"
+log_info "Found $EMBEDDED_COLOR_COUNT unique colors in document"
+
+# Generate colors.md with extracted data
+cat > "$COLORS_MD" << EOF
 # Colors
 
 Extracted from Figma design system.
 
-## Color Palette
+## Summary
 
-| Name | Hex | Usage |
-|------|-----|-------|
+| Source | Count |
+|--------|-------|
+| Published Styles | $COLOR_COUNT |
+| Embedded (document) | $EMBEDDED_COLOR_COUNT |
+
+## Extracted Colors
+
+The following unique colors were found in the document:
+
+| Hex | Preview | Name (to assign) |
+|-----|---------|------------------|
 EOF
 
-# Parse color styles from JSON (basic extraction)
-# Note: Full parsing would require jq or a proper JSON parser
-echo "[]" > "$COLORS_JSON"
+# Add extracted colors to markdown
+while read hex; do
+    echo "| \`$hex\` | ![](https://via.placeholder.com/20/$hex/000000?text=+) | |" >> "$COLORS_MD"
+done < "$EMBEDDED_COLORS_FILE"
 
-# Count color styles (grep -c returns count, || true handles no matches)
-COLOR_COUNT=$(grep -c '"style_type":"FILL"' "$STYLES_DATA" 2>/dev/null) || COLOR_COUNT=0
-log_info "Found $COLOR_COUNT color styles"
+# Save colors as JSON
+echo "[" > "$COLORS_JSON"
+first=true
+while read hex; do
+    if [[ "$first" == "true" ]]; then
+        first=false
+    else
+        echo "," >> "$COLORS_JSON"
+    fi
+    printf '  {"hex": "%s", "name": ""}' "$hex" >> "$COLORS_JSON"
+done < "$EMBEDDED_COLORS_FILE"
+echo "" >> "$COLORS_JSON"
+echo "]" >> "$COLORS_JSON"
 
-if [[ $COLOR_COUNT -gt 0 ]]; then
-    echo "" >> "$COLORS_MD"
-    echo "*$COLOR_COUNT color styles found in Figma. See source/figma-styles.json for raw data.*" >> "$COLORS_MD"
-    echo "" >> "$COLORS_MD"
-    echo "**Note:** Color extraction requires manual mapping from Figma's RGBA format to hex." >> "$COLORS_MD"
-    echo "Review source/figma-styles.json and add colors above." >> "$COLORS_MD"
-fi
+cat >> "$COLORS_MD" << 'EOF'
+
+## Color Organization Guide
+
+Organize colors into categories:
+
+### Neutrals
+(Move black, white, gray colors here)
+
+### Brand Colors
+(Move primary brand colors here)
+
+### Semantic Colors
+(Map to: success, warning, error, info)
+
+---
+
+**Next Steps:**
+1. Assign names to each color above
+2. Organize into categories
+3. Update tailwind-config.md with named colors
+EOF
 
 # Extract and process typography
 log_step "Extracting typography..."
 TYPOGRAPHY_MD="$OUTPUT_DIR/typography.md"
+EMBEDDED_FONTS_FILE="$TEMP_DIR/embedded-fonts.txt"
 
-cat > "$TYPOGRAPHY_MD" << 'EOF'
+# Extract embedded fonts from document
+extract_embedded_fonts "$FILE_DATA" "$EMBEDDED_FONTS_FILE"
+EMBEDDED_FONT_COUNT=$(wc -l < "$EMBEDDED_FONTS_FILE" | tr -d ' ')
+
+# Count published text styles
+TEXT_COUNT=$(grep -c '"style_type":"TEXT"' "$STYLES_DATA" 2>/dev/null) || TEXT_COUNT=0
+log_info "Found $TEXT_COUNT published text styles"
+log_info "Found $EMBEDDED_FONT_COUNT fonts in document"
+
+# Generate typography.md with extracted data
+cat > "$TYPOGRAPHY_MD" << EOF
 # Typography
 
 Extracted from Figma design system.
 
-## Text Styles
+## Summary
 
-| Style | Font | Size | Weight | Line Height |
-|-------|------|------|--------|-------------|
+| Source | Count |
+|--------|-------|
+| Published Text Styles | $TEXT_COUNT |
+| Fonts in Document | $EMBEDDED_FONT_COUNT |
+
+## Font Families
+
+The following fonts are used in the document:
+
+| Font | Usage Count | Notes |
+|------|-------------|-------|
 EOF
 
-# Count text styles
-TEXT_COUNT=$(grep -c '"style_type":"TEXT"' "$STYLES_DATA" 2>/dev/null) || TEXT_COUNT=0
-log_info "Found $TEXT_COUNT text styles"
+# Add extracted fonts to markdown
+while read count font; do
+    echo "| $font | $count | |" >> "$TYPOGRAPHY_MD"
+done < "$EMBEDDED_FONTS_FILE"
 
-if [[ $TEXT_COUNT -gt 0 ]]; then
-    echo "" >> "$TYPOGRAPHY_MD"
-    echo "*$TEXT_COUNT text styles found in Figma. See source/figma-styles.json for raw data.*" >> "$TYPOGRAPHY_MD"
-    echo "" >> "$TYPOGRAPHY_MD"
-    echo "**Note:** Typography extraction requires manual mapping." >> "$TYPOGRAPHY_MD"
-    echo "Review source/figma-styles.json and add text styles above." >> "$TYPOGRAPHY_MD"
-fi
+cat >> "$TYPOGRAPHY_MD" << 'EOF'
+
+## Text Styles
+
+Define text styles based on document analysis:
+
+| Style | Font | Size | Weight | Line Height | Tailwind Class |
+|-------|------|------|--------|-------------|----------------|
+| Heading 1 | | | | | `text-heading-1` |
+| Heading 2 | | | | | `text-heading-2` |
+| Heading 3 | | | | | `text-heading-3` |
+| Body | | | | | `text-body` |
+| Body Small | | | | | `text-body-sm` |
+| Caption | | | | | `text-caption` |
+
+---
+
+**Next Steps:**
+1. Export typography page from Figma as PDF
+2. Ask Claude to read the PDF and fill in the table above
+3. Or manually inspect source/figma-file.json for fontSize/fontWeight values
+
+## Font Setup
+
+Ensure fonts are available in your project:
+
+```bash
+# For web projects, add to your CSS or HTML:
+# Google Fonts (if applicable)
+# Local font files in /public/fonts/
+```
+EOF
 
 # Extract and process effects
 log_step "Extracting effects..."
@@ -364,10 +535,10 @@ Extracted from Figma on $TIMESTAMP.
 
 | File | Contents | Status |
 |------|----------|--------|
-| [colors.md](colors.md) | Color palette | Needs mapping |
-| [typography.md](typography.md) | Text styles | Needs mapping |
+| [colors.md](colors.md) | Color palette ($EMBEDDED_COLOR_COUNT colors) | Extracted |
+| [typography.md](typography.md) | Text styles ($EMBEDDED_FONT_COUNT fonts) | Extracted |
 | [spacing.md](spacing.md) | Spacing scale | Template |
-| [effects.md](effects.md) | Shadows, borders | Needs mapping |
+| [effects.md](effects.md) | Shadows, borders | Template |
 | [assets.md](assets.md) | Logos, icons | Not extracted |
 | [tailwind-config.md](tailwind-config.md) | Tailwind theme | Template |
 
@@ -379,19 +550,25 @@ Extracted from Figma on $TIMESTAMP.
 
 ## Extraction Summary
 
-| Type | Count |
-|------|-------|
-| Color Styles | $COLOR_COUNT |
-| Text Styles | $TEXT_COUNT |
-| Effect Styles | $EFFECT_COUNT |
+| Type | Published Styles | Embedded Data |
+|------|------------------|---------------|
+| Colors | $COLOR_COUNT | $EMBEDDED_COLOR_COUNT unique |
+| Typography | $TEXT_COUNT | $EMBEDDED_FONT_COUNT fonts |
+| Effects | $EFFECT_COUNT | - |
 
 ## Next Steps
 
-1. Review \`source/figma-styles.json\` for raw style data
-2. Map colors to \`colors.md\` (convert RGBA to hex)
-3. Map typography to \`typography.md\`
-4. Update \`tailwind-config.md\` with values
+1. Review extracted colors in \`colors.md\` and assign names
+2. Review fonts in \`typography.md\` and define text styles
+3. For complete text style details, export typography page from Figma as PDF
+4. Update \`tailwind-config.md\` with named tokens
 5. Run \`./tools/designsystem-validate $OUTPUT_DIR\` to check completeness
+
+## Hybrid Workflow Tip
+
+The Figma API extracts published styles + document-embedded colors/fonts.
+For full design specs (sizes, weights, spacing), export documentation pages
+from Figma as PDFs and ask Claude to read them.
 EOF
 
 # Create GAPS.md
@@ -425,7 +602,38 @@ EOF
 cat > "$OUTPUT_DIR/GAP-RESOLUTION.md" << 'EOF'
 # Gap Resolution Guide
 
-## Resolving Color Gaps
+## Recommended: PDF Export Workflow
+
+The Figma API only returns "published" library styles, which may be sparse.
+For comprehensive extraction, export design documentation pages as PDFs:
+
+### Step 1: Export from Figma
+
+1. Open the Figma file in your browser
+2. Navigate to the Colors/Typography/Effects documentation pages
+3. Select the frame(s) containing the design specs
+4. File > Export frames to PDF
+5. Save to this directory's `source/` folder
+
+### Step 2: Let Claude Read the PDFs
+
+Ask Claude Code to read and transcribe:
+
+```
+Read the PDFs in source/ and update colors.md with the color values you find.
+Include hex codes, token names, and any usage guidelines shown.
+```
+
+Claude can read PDFs natively and extract the visual color swatches, typography
+specs, and other design values that aren't available via the API.
+
+---
+
+## Alternative: Manual API Extraction
+
+If you have published styles in Figma, you can extract from the JSON:
+
+### Resolving Color Gaps
 
 1. Open `source/figma-styles.json`
 2. Find style entries with `"styleType": "FILL"`
@@ -438,16 +646,18 @@ cat > "$OUTPUT_DIR/GAP-RESOLUTION.md" << 'EOF'
 ```
 Converts to: `#3366CC`
 
-## Resolving Typography Gaps
+### Resolving Typography Gaps
 
 1. Open `source/figma-styles.json`
 2. Find style entries with `"styleType": "TEXT"`
 3. Extract font family, size, weight, line height
 
+---
+
 ## Exporting Assets
 
 1. Open Figma file in browser
-2. Select assets to export
+2. Select assets to export (logos, icons, illustrations)
 3. Right-click > Export
 4. Choose format (SVG for icons, PNG for images)
 5. Save to `source/` directory

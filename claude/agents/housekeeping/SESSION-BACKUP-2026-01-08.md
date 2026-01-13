@@ -44,7 +44,7 @@ claude/docs/cookbooks/
 
 ### Proposed New Tools
 1. `./tools/compact-context` - Auto-summarize when context grows
-2. `./tools/find-tool` - Semantic tool discovery
+2. `./tools/tool-find` - Semantic tool discovery
 3. `./tools/batch-analyze` - 50% cheaper background jobs
 
 ---

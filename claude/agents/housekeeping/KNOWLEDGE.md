@@ -21,7 +21,7 @@ Accumulated patterns and wisdom for running The Agency effectively.
 
 ### Collaboration Is Explicit
 - Use `./tools/collaborate` for cross-agent work
-- Use `./tools/post-news` for broadcasts
+- Use `./tools/news-post` for broadcasts
 - Don't assume other agents know your context
 
 ## Patterns
@@ -38,8 +38,8 @@ Accumulated patterns and wisdom for running The Agency effectively.
 
 ### Adding a New Feature Area
 
-1. Create a workstream: `./tools/create-workstream {name}`
-2. Create an agent: `./tools/create-agent {workstream} {name}`
+1. Create a workstream: `./tools/workstream-create {name}`
+2. Create an agent: `./tools/agent-create {workstream} {name}`
 3. Plan work with epics/sprints as needed
 4. Launch the agent and start working
 
@@ -81,22 +81,22 @@ When work spans multiple agents:
 ```bash
 ./tools/myclaude {ws} {agent}  # Launch agent
 ./tools/sync                    # Push with checks
-./tools/read-news               # Check broadcasts
+./tools/news-read               # Check broadcasts
 ./tools/dispatch-collaborations # Handle pending requests
 ```
 
 ### When Stuck
 ```bash
-./tools/backup-session          # Save your context
+./tools/session-backup          # Save your context
 ./tools/collaborate {agent}     # Ask for help
-./tools/add-nit {file}          # Flag for later
+./tools/nit-add {file}          # Flag for later
 ```
 
 ### Discovery
 ```bash
-./tools/find-tool {keyword}     # Find a tool
+./tools/tool-find {keyword}     # Find a tool
 ./tools/list-tools              # See all tools
-./tools/show-instructions       # See active instructions
+./tools/instruction-show       # See active instructions
 ```
 
 ## Framework-Specific Notes

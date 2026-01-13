@@ -46,7 +46,7 @@ When the correct approach is also the fastest:
 
 **Instead of:** "Remember to run format, lint, typecheck, test, and review before committing"
 
-**We build:** `./tools/pre-commit-check` — one command, all steps, automatic
+**We build:** `./tools/commit-precheck` — one command, all steps, automatic
 
 **Result:** Quality gates are faster than remembering the steps
 
@@ -54,7 +54,7 @@ When the correct approach is also the fastest:
 
 **Instead of:** "Follow the naming convention for instructions: INSTR-XXXX-principal-workstream-agent-title"
 
-**We build:** `./tools/capture-instruction` — generates the name automatically
+**We build:** `./tools/instruction-capture` — generates the name automatically
 
 **Result:** Correct naming is faster than figuring out the format
 
@@ -129,7 +129,7 @@ What template should I use? Let me look for examples..."
 
 **With tool:**
 ```
-Agent: ./tools/capture-instruction "Title of the instruction"
+Agent: ./tools/instruction-capture "Title of the instruction"
 [Creates file with correct name, number, template, metadata]
 [100 tokens total]
 ```
@@ -145,7 +145,7 @@ When building tools and services:
 1. **Encapsulate decisions** — Don't make the agent decide what the tool should decide
 2. **Handle edge cases** — The tool should never require follow-up reasoning
 3. **Return clean output** — Minimize parsing/interpretation needed
-4. **Be discoverable** — `./tools/find-tool` so agents find tools quickly
+4. **Be discoverable** — `./tools/tool-find` so agents find tools quickly
 5. **Be documented** — Tools should explain themselves
 
 ### The Test

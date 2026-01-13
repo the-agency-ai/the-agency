@@ -167,8 +167,8 @@ Tests:
 #### 5.2 Create `starter-test-cleanup` tool
 Clean up test directory:
 ```bash
-./tools/starter-test-cleanup               # Remove test/ contents
-./tools/starter-test-cleanup --keep-logs   # Keep logs for debugging
+./tools/starter-cleanup               # Remove test/ contents
+./tools/starter-cleanup --keep-logs   # Keep logs for debugging
 ```
 
 ### Step 6: Add Onboarding to myclaude

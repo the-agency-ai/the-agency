@@ -309,7 +309,7 @@ It wasn't all smooth choreography.
 
 This became a running theme. Day 3, an agent ended a session without committing. The next agent pulled, got confused by partial changes, and spent an hour untangling. That night, I added the first "commit before you end" reminder to the session protocol.
 
-By Day 5, we had backup-session scripts. By Day 7, pre-commit hooks. By Day 8, the Captain was sending commit reminders proactively. "Commit before you leave. This is not optional. I've said this 47 times."
+By Day 5, we had session-backup scripts. By Day 7, pre-commit hooks. By Day 8, the Captain was sending commit reminders proactively. "Commit before you leave. This is not optional. I've said this 47 times."
 
 Later that day: "48 times."
 

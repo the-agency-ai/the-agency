@@ -8,6 +8,13 @@
 
 
 # Tool version
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "hello" "agency-tool" "$@" 2>/dev/null) || true
 TOOL_VERSION="1.0.0-20260109-000001"
 
 # Version check

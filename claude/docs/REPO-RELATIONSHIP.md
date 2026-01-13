@@ -17,7 +17,7 @@ Commit → Push to the-agency (private)
 ```
 End users install from the-agency-starter public repo (using install script)
        → They have a local repo
-       → They use ./tools/new-project + the-agency-starter to spin up new projects
+       → They use ./tools/project-new + the-agency-starter to spin up new projects
 ```
 
 ### Contribution Flow (Upstream from Users)
@@ -64,7 +64,7 @@ Every tool has its own version number:
 - Format: `{YYYY-MM-DD}-{BUILDNUMBER}`
 - Example: `2026-01-09-000003`
 - Stored in `VERSION` file
-- Bumped via `./tools/bump-version`
+- Bumped via `./tools/version-bump`
 
 ### Files That SHOULD Differ
 These files are intentionally different between repos:

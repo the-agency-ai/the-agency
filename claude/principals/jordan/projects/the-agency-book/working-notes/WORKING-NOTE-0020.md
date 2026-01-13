@@ -70,7 +70,7 @@ Output: 2026-01-06 15:30 SGT
 [Tool call: 50 tokens]
 ```
 
-### `./tools/capture-instruction`
+### `./tools/instruction-capture`
 
 **Without tool:**
 ```
@@ -86,12 +86,12 @@ Now I need to create the file with the right template..."
 
 **With tool:**
 ```
-Agent: !./tools/capture-instruction "Right Way Fast Way Philosophy"
+Agent: !./tools/instruction-capture "Right Way Fast Way Philosophy"
 Output: Created INSTR-0046-jordan-housekeeping-housekeeping-right-way-fast-way-philosophy.md
 [Tool call: 100 tokens, no errors possible]
 ```
 
-### `./tools/pre-commit-check`
+### `./tools/commit-precheck`
 
 **Without tool:**
 ```
@@ -107,7 +107,7 @@ Let me run each of these and check the output..."
 
 **With tool:**
 ```
-Agent: !./tools/pre-commit-check
+Agent: !./tools/commit-precheck
 [Runs all 5 steps automatically, reports pass/fail]
 [Tool call: 200 tokens, all steps guaranteed]
 ```
@@ -145,7 +145,7 @@ This belongs in the "7 Key Patterns" section:
 
 > **Pattern 6: Convention enables velocity**
 >
-> Every tool in The Agency encapsulates a decision you'd otherwise have to make. The naming convention for instructions? Encoded in `capture-instruction`. The quality checks before commit? Encoded in `pre-commit-check`. The timezone for timestamps? Encoded in `now`.
+> Every tool in The Agency encapsulates a decision you'd otherwise have to make. The naming convention for instructions? Encoded in `instruction-capture`. The quality checks before commit? Encoded in `commit-precheck`. The timezone for timestamps? Encoded in `now`.
 >
 > This isn't just convenience — it's token efficiency. Every time Claude reasons through "what's the format for X?" instead of calling a tool, that's tokens spent on process instead of product. Multiply that across hundreds of operations per session, across multiple agents, across days of development. The savings compound.
 >

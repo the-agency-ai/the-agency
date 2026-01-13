@@ -1,0 +1,176 @@
+#!/bin/bash
+# Find tools by keyword or description
+#
+# Usage:
+#   tool-find "search term"      # Search tool names and descriptions
+#   tool-find -h TOOLNAME        # Show help for specific tool
+#   tool-find -l                 # List all tools with descriptions
+#
+# Examples:
+#   tool-find commit             # Find tools related to commits
+#   tool-find -h session-backup  # Show session-backup help
+#   tool-find news               # Find news-related tools
+
+set -e
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "tool-find" "agency-tool" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.0-20260109-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "tool-find $TOOL_VERSION"
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+TOOLS_DIR="$REPO_ROOT/tools"
+
+# Parse options
+SHOW_HELP=""
+LIST_ALL=false
+SEARCH_TERM=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -h|--help-for)
+      if [[ -n "$2" ]] && [[ "$2" != -* ]]; then
+        SHOW_HELP="$2"
+        shift 2
+      else
+        # Show this script's help
+        head -15 "$0" | tail -14 | sed 's/^# //'
+        exit 0
+      fi
+      ;;
+    -l|--list)
+      LIST_ALL=true
+      shift
+      ;;
+    -*)
+      echo "Unknown option: $1"
+      exit 1
+      ;;
+    *)
+      SEARCH_TERM="$1"
+      shift
+      ;;
+  esac
+done
+
+# Function to get tool description from first comment block
+get_description() {
+  local tool="$1"
+  local filepath="$TOOLS_DIR/$tool"
+
+  if [[ ! -f "$filepath" ]]; then
+    echo "(not found)"
+    return
+  fi
+
+  # Get first non-shebang comment line
+  local desc=$(head -3 "$filepath" | grep "^#" | grep -v "^#!/" | head -1 | sed 's/^# //')
+  if [[ -z "$desc" ]]; then
+    desc="(no description)"
+  fi
+  echo "$desc"
+}
+
+# Show help for specific tool
+if [[ -n "$SHOW_HELP" ]]; then
+  TOOL_PATH="$TOOLS_DIR/$SHOW_HELP"
+
+  if [[ ! -f "$TOOL_PATH" ]]; then
+    echo "Tool not found: $SHOW_HELP"
+    echo ""
+    echo "Available tools:"
+    ls -1 "$TOOLS_DIR" | grep -v "^\." | head -20
+    exit 1
+  fi
+
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  Tool: $SHOW_HELP"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  # Try to show help
+  if "$TOOL_PATH" --help 2>/dev/null; then
+    :
+  elif "$TOOL_PATH" -h 2>/dev/null; then
+    :
+  else
+    # Show comment block at top of file
+    sed -n '2,/^[^#]/p' "$TOOL_PATH" | grep "^#" | sed 's/^# //' | head -30
+  fi
+
+  exit 0
+fi
+
+# List all tools
+if [[ "$LIST_ALL" == true ]]; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  All Available Tools"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  for tool in "$TOOLS_DIR"/*; do
+    if [[ -f "$tool" ]] && [[ -x "$tool" ]]; then
+      toolname=$(basename "$tool")
+      desc=$(get_description "$toolname")
+      printf "  %-25s %s\n" "$toolname" "$desc"
+    fi
+  done
+
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  Use: tool-find -h TOOLNAME for detailed help"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 0
+fi
+
+# Search for tools
+if [[ -z "$SEARCH_TERM" ]]; then
+  echo "Usage: tool-find \"search term\""
+  echo "       tool-find -h TOOLNAME"
+  echo "       tool-find -l"
+  exit 1
+fi
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Search: $SEARCH_TERM"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+FOUND=0
+
+for tool in "$TOOLS_DIR"/*; do
+  if [[ -f "$tool" ]] && [[ -x "$tool" ]]; then
+    toolname=$(basename "$tool")
+
+    # Search in tool name
+    if echo "$toolname" | grep -qi "$SEARCH_TERM"; then
+      desc=$(get_description "$toolname")
+      printf "  %-25s %s\n" "$toolname" "$desc"
+      FOUND=$((FOUND + 1))
+      continue
+    fi
+
+    # Search in first 20 lines (comments/description)
+    if head -20 "$tool" | grep -qi "$SEARCH_TERM"; then
+      desc=$(get_description "$toolname")
+      printf "  %-25s %s\n" "$toolname" "$desc"
+      FOUND=$((FOUND + 1))
+    fi
+  fi
+done
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Found: $FOUND tools matching '$SEARCH_TERM'"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

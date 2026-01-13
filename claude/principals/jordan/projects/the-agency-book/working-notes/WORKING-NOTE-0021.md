@@ -29,8 +29,8 @@ Without tools:
 
 With tools:
 - `./tools/now`
-- `./tools/capture-instruction "Title"`
-- `./tools/pre-commit-check`
+- `./tools/instruction-capture "Title"`
+- `./tools/commit-precheck`
 
 **The principal's cognitive load drops to near zero.** They just call the tool.
 
@@ -59,8 +59,8 @@ The tool "compiles" the knowledge into an executable form. The reasoning happene
 | Without Tool | With Tool | What's Compiled |
 |--------------|-----------|-----------------|
 | "What timezone? What format? How do I invoke date?" | `./tools/now` | Timezone convention, format string, command |
-| "What's the naming format? What's the next number? What template?" | `./tools/capture-instruction` | Naming convention, counter, template |
-| "Format, lint, typecheck, test, review... in what order?" | `./tools/pre-commit-check` | Quality gate sequence, pass/fail logic |
+| "What's the naming format? What's the next number? What template?" | `./tools/instruction-capture` | Naming convention, counter, template |
+| "Format, lint, typecheck, test, review... in what order?" | `./tools/commit-precheck` | Quality gate sequence, pass/fail logic |
 
 ---
 
@@ -90,7 +90,7 @@ If it's genuinely novel or one-time, reason through it. But be alert: "one-time"
 
 | Discovery Tool | What It Does |
 |----------------|--------------|
-| `./tools/find-tool "keyword"` | Search tools by keyword |
+| `./tools/tool-find "keyword"` | Search tools by keyword |
 | `./tools/how "what I want to do"` | Intent-based discovery |
 | `./tools/list-tools` | See all available tools |
 
@@ -120,7 +120,7 @@ For any repeated operation:
 
 ## Future Opportunity: Narrowcast vs Broadcast
 
-**Current:** `./tools/post-news` broadcasts to all agents. `./tools/read-news` shows everything.
+**Current:** `./tools/news-post` broadcasts to all agents. `./tools/news-read` shows everything.
 
 **Problem:** Agents may receive news that isn't applicable or helpful. Token waste reading irrelevant updates.
 
@@ -163,8 +163,8 @@ Every repeated decision is encoded in a tool. The principle:
 When you need to:
 - Know the time → `./tools/now` (don't reason about timezone)
 - Know your identity → `./tools/whoami` (don't search for config)
-- Create an instruction → `./tools/capture-instruction` (don't figure out naming)
-- Check quality → `./tools/pre-commit-check` (don't remember the steps)
+- Create an instruction → `./tools/instruction-capture` (don't figure out naming)
+- Check quality → `./tools/commit-precheck` (don't remember the steps)
 
 **Why tools?**
 1. You don't have to think — the tool encapsulates the decision
@@ -177,7 +177,7 @@ When you need to:
 - Creative work (exploration, design)
 
 **Finding tools:**
-- `./tools/find-tool "keyword"` — search by keyword
+- `./tools/tool-find "keyword"` — search by keyword
 - `./tools/how "intent"` — search by what you want to do
 ```
 
@@ -190,7 +190,7 @@ Add to agent template:
 
 ### Tools First
 Before reasoning through a process, check if a tool exists:
-- `./tools/find-tool "keyword"`
+- `./tools/tool-find "keyword"`
 - `./tools/how "what I want to do"`
 
 A tool call replaces thinking and doing. Use it.

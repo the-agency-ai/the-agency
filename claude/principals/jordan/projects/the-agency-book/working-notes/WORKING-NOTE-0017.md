@@ -260,12 +260,12 @@ Shows a session running: **"Reticulating... (1d 2h 47m - 2.4m tokens - thinking)
 |---|-------------------|------------|------------------|-----------|
 | A | **Principal/Agent Hierarchy** | Structured relationship, instructions flow down | Single-user, flat | Scales to teams |
 | B | **Structured Work Tracking** | WORKLOG.md, ADHOC-WORKLOG.md, instructions | Not mentioned | Audit trail, continuity |
-| C | **Agent Collaboration** | `./tools/collaborate`, `post-news`, `read-news` | Shared CLAUDE.md only | Async agent-to-agent |
-| D | **Quality Gates** | 5-step pre-commit-check | Hooks handle some | More comprehensive |
-| E | **Session Persistence** | `backup-session`, `restore`, context files | Uses --teleport | Works offline, versioned |
+| C | **Agent Collaboration** | `./tools/collaborate`, `news-post`, `news-read` | Shared CLAUDE.md only | Async agent-to-agent |
+| D | **Quality Gates** | 5-step commit-precheck | Hooks handle some | More comprehensive |
+| E | **Session Persistence** | `session-backup`, `restore`, context files | Uses --teleport | Works offline, versioned |
 | F | **Time Awareness** | `./tools/now`, SGT default | Not mentioned | Consistent timestamps |
 | G | **Identity System** | `whoami`, `agentname`, `workstream` | Not mentioned | Multi-agent clarity |
-| H | **Artifact Capture** | `capture-artifact`, `capture-instruction` | Not mentioned | Principal deliverables |
+| H | **Artifact Capture** | `capture-artifact`, `instruction-capture` | Not mentioned | Principal deliverables |
 
 ---
 

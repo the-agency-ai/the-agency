@@ -142,10 +142,10 @@ Agents communicate via explicit tools:
 | Tool | Purpose |
 |------|---------|
 | `./tools/collaborate` | Request help from another agent |
-| `./tools/respond-collaborate` | Respond to a request |
-| `./tools/post-news` | Broadcast an update |
-| `./tools/read-news` | Check for broadcasts |
-| `./tools/add-nit` | Flag an issue for later |
+| `./tools/collaboration-respond` | Respond to a request |
+| `./tools/news-post` | Broadcast an update |
+| `./tools/news-read` | Check for broadcasts |
+| `./tools/nit-add` | Flag an issue for later |
 | `./tools/dispatch-collaborations` | Launch agents for pending requests |
 
 **Collaboration files:**
@@ -206,7 +206,7 @@ Using zod for schema validation, recommend same on server.
 1. Agent A identifies need for Agent B's help
 2. Agent A creates collaboration: `./tools/collaborate {agent} "subject" "request"`
 3. Agent B is launched, reads collaboration file
-4. Agent B does work, responds: `./tools/respond-collaborate {file} "response"`
+4. Agent B does work, responds: `./tools/collaboration-respond {file} "response"`
 5. Agent A sees response, integrates work
 
 ### Instruction Flow
@@ -228,8 +228,8 @@ Pre-commit hooks enforce standards:
 5. **Code review** - Automated security/quality checks
 
 **Tools:**
-- `./tools/pre-commit-check` - Run all gates
-- `./tools/run-unit-tests` - Just tests
+- `./tools/commit-precheck` - Run all gates
+- `./tools/test-run` - Just tests
 - `./tools/code-review` - Just review
 
 ## Git Discipline

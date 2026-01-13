@@ -1,0 +1,229 @@
+#!/bin/bash
+# Pre-commit quality gate - runs all checks before allowing commits
+#
+# Usage: ./tools/commit-precheck [options]
+#   --verbose  Show detailed output instead of logging
+#
+# Runs 5 quality checks in sequence:
+#   1. Format code (auto-fix)
+#   2. Lint code (auto-fix)
+#   3. Type check (blocking)
+#   4. Unit tests (blocking)
+#   5. Code review (blocking)
+#
+# Exit codes:
+#   0 = all checks passed
+#   1 = checks failed (warnings only)
+#   2 = checks failed (blocking issues)
+#
+# Context-efficient: 1-line output, details in log-service
+
+set -uo pipefail
+
+# Tool version
+TOOL_VERSION="2.0.0-3"
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "commit-precheck" "agency-tool" "$@" 2>/dev/null) || true
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Parse arguments
+VERBOSE=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        --version)
+            echo "commit-precheck $TOOL_VERSION"
+            exit 0
+            ;;
+        --help|-h)
+            echo "commit-precheck - Run quality checks before commit"
+            echo ""
+            echo "Usage:"
+            echo "  ./tools/commit-precheck [options]"
+            echo ""
+            echo "Options:"
+            echo "  --verbose, -v  Show detailed output instead of logging"
+            echo "  --version      Show version"
+            echo "  --help, -h     Show this help"
+            exit 0
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+# Logging helpers
+log() {
+    local level="$1"
+    local message="$2"
+
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "[$level] $message"
+    elif [[ -n "$RUN_ID" ]]; then
+        curl -s -X POST "http://127.0.0.1:3141/api/log" \
+            -H "Content-Type: application/json" \
+            -d "{\"service\":\"commit-precheck\",\"level\":\"$level\",\"message\":\"$message\",\"runId\":\"$RUN_ID\"}" \
+            > /dev/null 2>&1 || true
+    fi
+}
+
+log_info() { log "info" "$1"; }
+log_warn() { log "warn" "$1"; }
+log_error() { log "error" "$1"; }
+
+# Start tool run
+start_run() {
+    if [[ "$VERBOSE" == "true" ]]; then
+        RUN_ID=""
+        return
+    fi
+
+    RUN_ID=$(curl -s -X POST "http://127.0.0.1:3141/api/log/run" \
+        -H "Content-Type: application/json" \
+        -d "{\"tool\":\"commit-precheck\"}" 2>/dev/null | grep -o '"runId":"[^"]*"' | cut -d'"' -f4 || true)
+}
+
+# End tool run
+end_run() {
+    local status="$1"
+    local summary="$2"
+
+    if [[ "$VERBOSE" == "true" ]]; then
+        return
+    fi
+
+    if [[ -n "$RUN_ID" ]]; then
+        curl -s -X POST "http://127.0.0.1:3141/api/log/run/${RUN_ID}/end" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"$status\",\"summary\":\"$summary\"}" > /dev/null 2>&1 || true
+    fi
+}
+
+# Output result (single line)
+output_success() {
+    local message="$1"
+    if [[ -n "$RUN_ID" ]]; then
+        echo "SUCCESS: $message (run-id: $RUN_ID)"
+    else
+        echo "SUCCESS: $message"
+    fi
+}
+
+output_failure() {
+    local message="$1"
+    if [[ -n "$RUN_ID" ]]; then
+        echo "FAILURE: $message (run-id: $RUN_ID)"
+        echo "  Debug: ./tools/agency-service log run $RUN_ID errors"
+    else
+        echo "FAILURE: $message"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main pre-commit logic
+# ─────────────────────────────────────────────────────────────────────────────
+
+main() {
+    start_run
+
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    cd "$REPO_ROOT"
+
+    # Check if there are any staged changes
+    if git diff --cached --quiet; then
+        log_info "No staged changes to check"
+        end_run "success" "No staged changes"
+        output_success "No staged changes to check"
+        exit 0
+    fi
+
+    log_info "Starting pre-commit checks"
+
+    # Detect package manager
+    if [ -f "pnpm-lock.yaml" ]; then
+        PM="pnpm"
+    elif [ -f "yarn.lock" ]; then
+        PM="yarn"
+    else
+        PM="npm"
+    fi
+    log_info "Using package manager: $PM"
+
+    # Track results
+    STEPS_PASSED=0
+    STEPS_TOTAL=5
+
+    # Step 1: Format code (auto-fix)
+    log_info "Step 1/5: Formatting code"
+    if $PM format 2>&1 >/dev/null; then
+        log_info "Formatting complete"
+        ((STEPS_PASSED++))
+    else
+        log_warn "Formatting script not found or failed (skipping)"
+        ((STEPS_PASSED++))
+    fi
+
+    # Step 2: Lint code (auto-fix)
+    log_info "Step 2/5: Linting code"
+    if $PM lint:fix 2>&1 >/dev/null; then
+        log_info "Linting complete"
+        ((STEPS_PASSED++))
+    else
+        log_warn "Lint script not found or failed (skipping)"
+        ((STEPS_PASSED++))
+    fi
+
+    # Step 3: Type check (blocking)
+    log_info "Step 3/5: Type checking"
+    if $PM typecheck 2>&1 >/dev/null; then
+        log_info "Type check passed"
+        ((STEPS_PASSED++))
+    else
+        log_error "Type errors found"
+        end_run "failure" "Type check failed"
+        output_failure "Type check failed"
+        exit 2
+    fi
+
+    # Step 4: Unit tests (blocking)
+    log_info "Step 4/5: Running unit tests"
+    if ./tools/test-run 2>&1 >/dev/null; then
+        log_info "Unit tests passed"
+        ((STEPS_PASSED++))
+    else
+        log_error "Unit tests failed"
+        end_run "failure" "Unit tests failed"
+        output_failure "Unit tests failed"
+        exit 2
+    fi
+
+    # Step 5: Code review (blocking)
+    log_info "Step 5/5: Running code review"
+    if ./tools/code-review 2>&1 >/dev/null; then
+        log_info "Code review passed"
+        ((STEPS_PASSED++))
+    else
+        log_error "Code review found blocking issues"
+        end_run "failure" "Code review failed"
+        output_failure "Code review found blocking issues"
+        exit 2
+    fi
+
+    log_info "All $STEPS_PASSED/$STEPS_TOTAL checks passed"
+    end_run "success" "All checks passed"
+    output_success "All pre-commit checks passed"
+}
+
+main "$@"

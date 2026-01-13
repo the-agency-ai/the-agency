@@ -25,7 +25,7 @@ Improve AgencyBench and DocBench CLI integration for seamless document workflow.
 - [x] `./tools/docbench` - CLI for DocBench operations
 - [x] `./tools/docbench open <path>` - open document
 - [x] `./tools/docbench save-as <path>` - save as
-- [x] `./tools/build-bench` - build tool with version management
+- [x] `./tools/bench-build` - build tool with version management
 - [x] App icon fixed (using logo.svg)
 - [x] Version format: MAJOR.MINOR.PATCH-YYYYMMDD-BUILDNUMBER
 - [x] All DevApps now 1.x.x versions
@@ -155,7 +155,7 @@ Integrate services into DocBench Insert menu.
 - Request created by agent:housekeeping (on behalf of jordan)
 
 ### 2026-01-11 - Phase 1 Complete
-- Created `./tools/agency-bench`, `./tools/docbench`, `./tools/build-bench`
+- Created `./tools/agency-bench`, `./tools/docbench`, `./tools/bench-build`
 - Fixed app icon using logo.svg
 - Implemented version system with build numbers
 - All DevApps updated to 1.x.x versions

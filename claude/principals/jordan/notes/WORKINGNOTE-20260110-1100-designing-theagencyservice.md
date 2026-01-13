@@ -8,7 +8,7 @@
 
 ## The Problem
 
-We built BugBench with a classic mistake: the CLI tool (`./tools/report-bug`) and the Tauri backend both directly access SQLite. This means:
+We built BugBench with a classic mistake: the CLI tool (`./tools/bug-report`) and the Tauri backend both directly access SQLite. This means:
 
 - Business logic duplicated (ID generation, notifications, validation)
 - No path to cloud deployment
@@ -188,7 +188,7 @@ We need tooling and systems that:
 - Are built by Agents
 - Serve humans
 
-TheAgencyService is exactly this. It's an API that agents call naturally - not a GUI that requires human clicks. When `./tools/report-bug` runs, it could be a human at a terminal or an agent in a workflow. The service doesn't know or care.
+TheAgencyService is exactly this. It's an API that agents call naturally - not a GUI that requires human clicks. When `./tools/bug-report` runs, it could be a human at a terminal or an agent in a workflow. The service doesn't know or care.
 
 **This is a big part of what The Agency is about.**
 

@@ -116,17 +116,17 @@ rm -rf claude/logs/  # If empty
 # OR keep for agent session logs if needed
 ```
 
-### 6. Create `./tools/release-starter`
+### 6. Create `./tools/starter-release`
 
 ```bash
 #!/bin/bash
 # release-starter - Cut a release of the-agency-starter
 #
 # Usage:
-#   ./tools/release-starter [version]
-#   ./tools/release-starter 1.0.0
-#   ./tools/release-starter patch  # Auto-increment patch
-#   ./tools/release-starter minor  # Auto-increment minor
+#   ./tools/starter-release [version]
+#   ./tools/starter-release 1.0.0
+#   ./tools/starter-release patch  # Auto-increment patch
+#   ./tools/starter-release minor  # Auto-increment minor
 
 set -e
 
@@ -190,7 +190,7 @@ STARTER_DIR="the-agency-starter"
 - [ ] Update `.gitignore` if needed
 
 ### Phase 3: Release Tool
-- [ ] Create `./tools/release-starter` script
+- [ ] Create `./tools/starter-release` script
 - [ ] Implement version management (read/bump/write)
 - [ ] Implement file sync (with exclusions)
 - [ ] Implement cruft cleaning
@@ -216,10 +216,10 @@ STARTER_DIR="the-agency-starter"
 - [ ] All tools work with new paths
 
 **Release Tool:**
-- [ ] `./tools/release-starter --help` shows usage
-- [ ] `./tools/release-starter --dry-run` shows what would happen
-- [ ] `./tools/release-starter 1.0.0` creates tagged release
-- [ ] `./tools/release-starter patch` auto-increments version
+- [ ] `./tools/starter-release --help` shows usage
+- [ ] `./tools/starter-release --dry-run` shows what would happen
+- [ ] `./tools/starter-release 1.0.0` creates tagged release
+- [ ] `./tools/starter-release patch` auto-increments version
 - [ ] Verification catches missing required files
 - [ ] `history/releases.md` is updated on release
 
@@ -260,8 +260,8 @@ STARTER_DIR="the-agency-starter"
    - Run `./tools/sync` - verify push-log updates
 
 2. **After release tool created:**
-   - Run `./tools/release-starter --dry-run` - verify output
-   - Run `./tools/release-starter 0.1.0` - cut first release
+   - Run `./tools/starter-release --dry-run` - verify output
+   - Run `./tools/starter-release 0.1.0` - cut first release
    - In the-agency-starter: run `./tools/myclaude housekeeping housekeeping "hello"`
    - Verify no cruft in starter
 

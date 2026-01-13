@@ -11,8 +11,8 @@
 ## Problem
 
 Current NEWS system is broadcast-only:
-- `./tools/post-news` broadcasts to ALL agents
-- `./tools/read-news` shows ALL messages
+- `./tools/news-post` broadcasts to ALL agents
+- `./tools/news-read` shows ALL messages
 - Agents read news that may not be relevant to them
 - Token waste reading irrelevant updates
 - Signal-to-noise ratio degrades as Agency scales
@@ -25,12 +25,12 @@ Replace broadcast with **narrowcast** — agents subscribe to relevant message s
 
 ```
 # Current (broadcast)
-./tools/post-news "Content Manager finished translation pipeline"
+./tools/news-post "Content Manager finished translation pipeline"
 
 # Proposed (narrowcast)
-./tools/post-news --to web,catalog "Translation pipeline ready for integration"
-./tools/post-news --workstream agents "Agent-Manager API updated"
-./tools/post-news --tag localization "New locale added: ja-jp"
+./tools/news-post --to web,catalog "Translation pipeline ready for integration"
+./tools/news-post --workstream agents "Agent-Manager API updated"
+./tools/news-post --tag localization "New locale added: ja-jp"
 ```
 
 ### Agent Subscriptions
@@ -56,14 +56,14 @@ subscriptions:
 
 ```bash
 # Only shows subscribed messages
-./tools/read-news
+./tools/news-read
 
 # Show all (broadcast mode, for housekeeping/coordination)
-./tools/read-news --all
+./tools/news-read --all
 
 # Filter further
-./tools/read-news --tag api
-./tools/read-news --from web
+./tools/news-read --tag api
+./tools/news-read --from web
 ```
 
 ## Benefits
@@ -78,9 +78,9 @@ subscriptions:
 ## Implementation
 
 ### Phase 1: Addressing
-- Add `--to`, `--workstream`, `--tag` flags to `post-news`
+- Add `--to`, `--workstream`, `--tag` flags to `news-post`
 - Store metadata in news file
-- `read-news` filters by current agent's subscriptions
+- `news-read` filters by current agent's subscriptions
 
 ### Phase 2: Subscriptions
 - Add subscription config to agent.md
