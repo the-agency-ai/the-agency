@@ -27,7 +27,7 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 STARTER_DIR="$PROJECT_ROOT/the-agency-starter"
-DEFAULT_TEST_DIR="$PROJECT_ROOT/test/the-agency-starter"
+DEFAULT_TEST_DIR="$(dirname "$PROJECT_ROOT")/test/the-agency-starter"
 
 # Parse arguments
 INSTALL_FRESH=false

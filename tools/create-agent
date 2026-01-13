@@ -1,10 +1,13 @@
 #!/bin/bash
 # Create a new agent identity
 #
-# Usage: ./tools/create-agent <agentname> <workstream>
+# Usage: ./tools/create-agent <agentname> <workstream> [--type=<template>]
 #
 # Many-to-one mapping: Multiple agents can work on the same workstream
 # Agent name may differ from workstream name
+#
+# Options:
+#   --type=<template>  Use a specific agent template (default: generic)
 #
 # Creates:
 #   claude/agents/{agentname}/
@@ -15,7 +18,12 @@
 set -e
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.1.0-20260113-000001"
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+TEMPLATE_DIR="$PROJECT_ROOT/claude/agents/templates"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -23,25 +31,98 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     exit 0
 fi
 
-AGENTNAME="$1"
-WORKSTREAM="$2"
+# Help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "create-agent - Create a new agent identity"
+    echo ""
+    echo "Usage: ./tools/create-agent <agentname> <workstream> [--type=<template>]"
+    echo ""
+    echo "Arguments:"
+    echo "  agentname     Name for the new agent"
+    echo "  workstream    Workstream the agent belongs to (must exist)"
+    echo ""
+    echo "Options:"
+    echo "  --type=<template>  Use a specific agent template (default: generic)"
+    echo "  --list-types       List available agent templates"
+    echo "  --version, -v      Show version"
+    echo "  --help, -h         Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/create-agent agent-manager agents"
+    echo "  ./tools/create-agent ui-specialist web --type=ux-dev"
+    echo "  ./tools/create-agent backend-dev api --type=generic"
+    echo ""
+    echo "Available templates:"
+    if [[ -d "$TEMPLATE_DIR" ]]; then
+        for dir in "$TEMPLATE_DIR"/*/; do
+            if [[ -d "$dir" ]]; then
+                type_name=$(basename "$dir")
+                echo "  - $type_name"
+            fi
+        done
+    else
+        echo "  (none - template directory not found)"
+    fi
+    exit 0
+fi
+
+# List types
+if [[ "${1:-}" == "--list-types" ]]; then
+    echo "Available agent templates:"
+    if [[ -d "$TEMPLATE_DIR" ]]; then
+        for dir in "$TEMPLATE_DIR"/*/; do
+            if [[ -d "$dir" ]]; then
+                type_name=$(basename "$dir")
+                echo "  - $type_name"
+            fi
+        done
+    else
+        echo "  (none - template directory not found)"
+    fi
+    exit 0
+fi
+
+# Parse arguments
+AGENTNAME=""
+WORKSTREAM=""
+AGENT_TYPE="generic"
+
+for arg in "$@"; do
+    case $arg in
+        --type=*)
+            AGENT_TYPE="${arg#*=}"
+            ;;
+        --*)
+            # Skip other options
+            ;;
+        *)
+            if [[ -z "$AGENTNAME" ]]; then
+                AGENTNAME="$arg"
+            elif [[ -z "$WORKSTREAM" ]]; then
+                WORKSTREAM="$arg"
+            fi
+            ;;
+    esac
+done
 
 if [ -z "$AGENTNAME" ] || [ -z "$WORKSTREAM" ]; then
-  echo "Usage: ./tools/create-agent <agentname> <workstream>"
+  echo "Usage: ./tools/create-agent <agentname> <workstream> [--type=<template>]"
   echo ""
   echo "Examples:"
   echo "  ./tools/create-agent agent-manager agents"
-  echo "  ./tools/create-agent agent-client agents"
-  echo "  ./tools/create-agent web web"
+  echo "  ./tools/create-agent ui-specialist web --type=ux-dev"
   echo ""
   echo "Note: Workstream must exist first. Create with:"
   echo "  ./tools/create-workstream <name>"
+  echo ""
+  echo "Run with --list-types to see available templates."
   exit 1
 fi
 
 DIR="claude/agents/$AGENTNAME"
 WORKSTREAM_DIR="claude/workstreams/$WORKSTREAM"
 TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
+AGENT_TEMPLATE_DIR="$TEMPLATE_DIR/$AGENT_TYPE"
 
 # Check agent doesn't exist
 if [ -d "$DIR" ]; then
@@ -57,41 +138,44 @@ if [ ! -d "$WORKSTREAM_DIR" ]; then
   exit 1
 fi
 
-echo "Creating agent: $AGENTNAME (workstream: $WORKSTREAM)"
+# Check template exists
+if [ ! -d "$AGENT_TEMPLATE_DIR" ]; then
+  echo "Error: Agent template '$AGENT_TYPE' not found at $AGENT_TEMPLATE_DIR"
+  echo ""
+  echo "Available templates:"
+  for dir in "$TEMPLATE_DIR"/*/; do
+      if [[ -d "$dir" ]]; then
+          type_name=$(basename "$dir")
+          echo "  - $type_name"
+      fi
+  done
+  exit 1
+fi
+
+echo "Creating agent: $AGENTNAME (workstream: $WORKSTREAM, type: $AGENT_TYPE)"
 mkdir -p "$DIR/backups/latest"
 mkdir -p "$DIR/backups/archive"
 mkdir -p "$DIR/logs"
 
-# agent.md
-cat > "$DIR/agent.md" << EOF
-# $AGENTNAME Agent
+# Function to replace placeholders in template
+apply_template() {
+    local template_file="$1"
+    local output_file="$2"
 
-**Created:** $TIMESTAMP
-**Workstream:** $WORKSTREAM
-**Model:** Opus 4.5 (default)
+    if [[ -f "$template_file" ]]; then
+        sed -e "s/{{AGENT_NAME}}/$AGENTNAME/g" \
+            -e "s/{{WORKSTREAM}}/$WORKSTREAM/g" \
+            -e "s/{{TIMESTAMP}}/$TIMESTAMP/g" \
+            "$template_file" > "$output_file"
+    fi
+}
 
-## Purpose
+# Apply template files
+apply_template "$AGENT_TEMPLATE_DIR/agent.md" "$DIR/agent.md"
+apply_template "$AGENT_TEMPLATE_DIR/KNOWLEDGE.md" "$DIR/KNOWLEDGE.md"
+apply_template "$AGENT_TEMPLATE_DIR/ONBOARDING.md" "$DIR/ONBOARDING.md"
 
-[Description of this agent's role]
-
-## Responsibilities
-
-- [Key responsibility 1]
-- [Key responsibility 2]
-
-## How to Spin Up
-
-\`\`\`bash
-./tools/myclaude $WORKSTREAM $AGENTNAME
-\`\`\`
-
-## Key Directories
-
-- \`claude/agents/$AGENTNAME/\` - Agent identity
-- \`claude/workstreams/$WORKSTREAM/\` - Work artifacts (shared with other $WORKSTREAM agents)
-EOF
-
-# WORKLOG.md
+# WORKLOG.md (not templated - standard format)
 cat > "$DIR/WORKLOG.md" << EOF
 # $AGENTNAME Work Log
 
@@ -101,11 +185,11 @@ cat > "$DIR/WORKLOG.md" << EOF
 
 ## Format
 
-- ✅ epic###-sprint### - [Summary] | [Date]
+- epic###-sprint### - [Summary] | [Date]
   - Iteration 01: [Description]
 EOF
 
-# ADHOC-WORKLOG.md
+# ADHOC-WORKLOG.md (not templated - standard format)
 AGENTNAME_UPPER=$(echo "$AGENTNAME" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 cat > "$DIR/ADHOC-WORKLOG.md" << EOF
 # $AGENTNAME Ad-Hoc Work Log
@@ -125,7 +209,7 @@ cat > "$DIR/ADHOC-WORKLOG.md" << EOF
 **Files:** [List]
 EOF
 
-# IDEAS.md
+# IDEAS.md (not templated - standard format)
 cat > "$DIR/IDEAS.md" << EOF
 # $AGENTNAME Ideas & Observations
 
@@ -139,31 +223,7 @@ cat > "$DIR/IDEAS.md" << EOF
 **Deferred because:** [Reason]
 EOF
 
-# KNOWLEDGE.md
-cat > "$DIR/KNOWLEDGE.md" << EOF
-# $AGENTNAME Agent Knowledge
-
-## Agent-Specific Context
-
-[Knowledge specific to this agent]
-
-## See Also
-
-- \`claude/workstreams/$WORKSTREAM/KNOWLEDGE.md\` - Shared workstream knowledge
-EOF
-
-# ONBOARDING.md
-cat > "$DIR/ONBOARDING.md" << EOF
-# $AGENTNAME Onboarding
-
-1. Read \`agent.md\`
-2. Check \`ADHOC-WORKLOG.md\` for recent work
-3. Review \`WORKLOG.md\` for history
-4. See \`claude/workstreams/$WORKSTREAM/epic002/\` for current epic
-5. See \`claude/workstreams/$WORKSTREAM/KNOWLEDGE.md\` for shared knowledge
-EOF
-
-# logs/permissions.md
+# logs/permissions.md (not templated - standard format)
 cat > "$DIR/logs/permissions.md" << EOF
 # $AGENTNAME Permission Request Log
 
@@ -186,5 +246,6 @@ done
 
 echo ""
 echo "Created: $DIR/"
+echo "  Template: $AGENT_TYPE"
 echo ""
 echo "Start with: ./tools/myclaude $WORKSTREAM $AGENTNAME"

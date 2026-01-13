@@ -31,7 +31,7 @@ NC='\033[0m'
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TEST_DIR="$PROJECT_ROOT/test/starter-test-run"
+TEST_DIR="$(dirname "$PROJECT_ROOT")/test/starter-test-run"
 STARTER_SOURCE="$(cd "$PROJECT_ROOT/../the-agency-starter" 2>/dev/null && pwd)"
 
 # Options

@@ -59,16 +59,16 @@ Implement the tools and processes needed to operationalize the Figma-to-code wor
 
 ## Requested Deliverables
 
-### Phase 1: Design System Scaffolding Tools
+### Phase 1: Design System Scaffolding Tools ✅ COMPLETE
 
-#### 1.1 `./tools/init-design-system`
+#### 1.1 `./tools/designsystem-add` ✅ COMPLETE
 
 **Purpose:** Scaffold a new design system documentation structure.
 
 **Usage:**
 ```bash
-./tools/init-design-system <brand-name> <version>
-# Example: ./tools/init-design-system acme 001
+./tools/designsystem-add <brand-name> <version>
+# Example: ./tools/designsystem-add acme 001
 # Creates: claude/knowledge/design-systems/acme-001/
 ```
 
@@ -94,14 +94,14 @@ claude/knowledge/design-systems/acme-001/
 - Validation checkboxes
 - Standard table formats
 
-#### 1.2 `./tools/validate-design-system`
+#### 1.2 `./tools/designsystem-validate` ✅ COMPLETE
 
 **Purpose:** Verify a design system is complete and ready for implementation.
 
 **Usage:**
 ```bash
-./tools/validate-design-system <path>
-# Example: ./tools/validate-design-system claude/knowledge/design-systems/acme-001
+./tools/designsystem-validate <path>
+# Example: ./tools/designsystem-validate claude/knowledge/design-systems/acme-001
 ```
 
 **Checks:**
@@ -133,9 +133,9 @@ Pass: 8/12 checks
 
 ---
 
-### Phase 2: Figma Integration Tools
+### Phase 2: Figma Integration Tools ✅ COMPLETE
 
-#### 2.1 `./tools/figma-extract`
+#### 2.1 `./tools/figma-extract` ✅ COMPLETE
 
 **Purpose:** Extract design tokens directly from Figma via API.
 
@@ -189,7 +189,7 @@ claude/knowledge/design-systems/acme-001/
 - Export images: `GET /v1/images/:file_key`
 - Requires handling pagination for large files
 
-#### 2.2 `./tools/figma-diff`
+#### 2.2 `./tools/figma-diff` ✅ COMPLETE
 
 **Purpose:** Visual comparison between Figma mockup and deployed implementation.
 
@@ -334,7 +334,7 @@ Project-specific design tokens and specifications.
 ### Creating New Design Systems
 
 ```bash
-./tools/init-design-system <brand> <version>
+./tools/designsystem-add <brand> <version>
 ```
 
 See `design-systems/_template/` for standard structure.
@@ -347,36 +347,37 @@ Add new tools to `./tools/find-tool`:
 ```bash
 ./tools/find-tool design
 # Output:
-# init-design-system    Create new design system documentation
-# validate-design-system Verify design system completeness
-# figma-extract         Extract tokens from Figma API
-# figma-diff            Compare mockup vs implementation
+# designsystem-add       Create new design system documentation
+# designsystem-validate  Verify design system completeness
+# figma-extract          Extract tokens from Figma API
+# figma-diff             Compare mockup vs implementation
 ```
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Scaffolding (Priority 1)
-1. Create `./tools/init-design-system`
-2. Create `./tools/validate-design-system`
-3. Create `claude/knowledge/design-systems/_template/`
-4. Update knowledge INDEX.md
+### Phase 1: Scaffolding (Priority 1) ✅ COMPLETE
+1. ✅ Created `./tools/designsystem-add`
+2. ✅ Created `./tools/designsystem-validate`
+3. ✅ Created `claude/knowledge/design-systems/_template/` (9 files)
+4. ✅ Created `claude/knowledge/design-systems/INDEX.md`
+5. ✅ Created `claude/knowledge/INDEX.md`
 
-**Estimated Effort:** 4-6 hours
+**Released:** v1.0.7 (the-agency-starter), tagged `design-systems-v1` (the-agency)
 
-### Phase 2: Figma Integration (Priority 2)
-1. Implement `./tools/figma-extract`
-   - Figma API client
-   - Color/typography extraction
-   - Tailwind config generation
-2. Implement `./tools/figma-diff`
-   - Browser screenshot extension
-   - Image diff integration
-   - Report generation
+### Phase 2: Figma Integration (Priority 2) ✅ COMPLETE
+1. ✅ Created `./tools/figma-extract`
+   - Figma API integration
+   - Extracts color, typography, effect styles
+   - Creates design system with source JSON
+   - Generates template files for manual mapping
+2. ✅ Created `./tools/figma-diff`
+   - Compares mockup against URL
+   - Generates comparison report with checklist
+   - Supports ImageMagick pixel diff (optional)
 
-**Estimated Effort:** 8-12 hours
-**Dependency:** Figma API token in Secret Service
+**Dependency:** Figma API token in Secret Service (required to use figma-extract)
 
 ### Phase 3: Agent Setup (Priority 3)
 1. Create `ui-dev` agent
@@ -475,6 +476,35 @@ Add new tools to `./tools/find-tool`:
 - Identified key patterns: modular structure, GAPS tracking, Tailwind config generation
 - Confirmed manual process takes ~2.5 hours, tooling would reduce to ~15 minutes
 
+**Phase 1 Implementation:**
+- Created `./tools/designsystem-add` - Scaffolds new design system from template
+- Created `./tools/designsystem-validate` - Validates completeness (5 check categories)
+- Created `claude/knowledge/design-systems/_template/` with 9 files:
+  - INDEX.md, GAPS.md, GAP-RESOLUTION.md
+  - colors.md, typography.md, spacing.md, effects.md, assets.md
+  - tailwind-config.md
+- Created `claude/knowledge/design-systems/INDEX.md`
+- Created `claude/knowledge/INDEX.md` (knowledge base root index)
+- Both tools implement `_log-helper` pattern for tool logging
+- Tool names follow `{NOUN}-{ACTION}` convention per project standards
+
+**Released:**
+- the-agency-starter v1.0.7
+- the-agency tagged `design-systems-v1`
+
+**Phase 2 Implementation:**
+- Created `./tools/figma-extract` - Extracts design tokens from Figma API
+  - Uses Figma REST API to fetch file data and styles
+  - Extracts color, typography, and effect style counts
+  - Creates design system directory with source JSON
+  - Generates template files for manual value mapping
+  - Implements `_log-helper` pattern
+- Created `./tools/figma-diff` - Visual comparison tool
+  - Compares mockup image against URL screenshot
+  - Generates markdown report with checklist
+  - Supports optional ImageMagick pixel diff
+  - Creates organized comparison directories
+
 ---
 
-**Next Step:** Awaiting principal input on priority and Figma API access.
+**Next Step:** Phase 3 - Agent setup (ui-dev agent via REQUEST-jordan-0043).
