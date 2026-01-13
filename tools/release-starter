@@ -46,12 +46,16 @@ VERSION_FILE="$STARTER_DIR/VERSION"
 
 # Parse arguments
 DRY_RUN=false
+SYNC_ONLY=false
 VERSION_ARG=""
 
 for arg in "$@"; do
     case $arg in
         --dry-run|-n)
             DRY_RUN=true
+            ;;
+        --sync-only|-s)
+            SYNC_ONLY=true
             ;;
         --version|-v)
             echo "release-starter $TOOL_VERSION"
@@ -66,12 +70,14 @@ for arg in "$@"; do
             echo "  ./tools/release-starter patch          # Auto-increment patch"
             echo "  ./tools/release-starter minor          # Auto-increment minor"
             echo "  ./tools/release-starter major          # Auto-increment major"
+            echo "  ./tools/release-starter --sync-only    # Sync files without release"
             echo "  ./tools/release-starter --dry-run      # Show what would happen"
             echo ""
             echo "Options:"
-            echo "  --dry-run, -n  Show what would happen without making changes"
-            echo "  --version, -v  Show tool version"
-            echo "  --help, -h     Show this help"
+            echo "  --sync-only, -s  Sync files only (no version, commit, or tag)"
+            echo "  --dry-run, -n    Show what would happen without making changes"
+            echo "  --version, -v    Show tool version"
+            echo "  --help, -h       Show this help"
             exit 0
             ;;
         *)
@@ -369,6 +375,31 @@ main() {
     # Determine version
     local current_version
     current_version=$(get_current_version)
+
+    # Handle sync-only mode
+    if [[ "$SYNC_ONLY" == "true" ]]; then
+        log_info "Current version: $current_version"
+        log_info "Mode: sync-only (no version change)"
+        echo ""
+
+        # Execute sync only
+        sync_files
+        echo ""
+
+        clean_cruft
+        echo ""
+
+        verify_build
+        echo ""
+
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "Sync complete (no version change)"
+        echo ""
+        echo "To cut a release, run:"
+        echo "  ./tools/release-starter patch"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        exit 0
+    fi
 
     local new_version
     if [[ -z "$VERSION_ARG" ]]; then
