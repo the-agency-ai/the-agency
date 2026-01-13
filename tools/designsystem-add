@@ -1,0 +1,191 @@
+#!/bin/bash
+# designsystem-add - Create a new design system documentation structure
+#
+# Usage:
+#   ./tools/designsystem-add <brand-name> <version>
+#   ./tools/designsystem-add acme 001
+#
+# Creates: claude/knowledge/design-systems/<brand-name>-<version>/
+
+set -e
+
+TOOL_VERSION="1.0.0-20260113-000001"
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper for tool tracking
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+
+# Start logging
+RUN_ID=$(log_start "designsystem-add" "agency-tool" "$@" 2>/dev/null) || true
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+TEMPLATE_DIR="$PROJECT_ROOT/claude/knowledge/design-systems/_template"
+DESIGN_SYSTEMS_DIR="$PROJECT_ROOT/claude/knowledge/design-systems"
+
+# Parse arguments
+show_help() {
+    echo "designsystem-add - Create a new design system documentation structure"
+    echo ""
+    echo "Usage:"
+    echo "  ./tools/designsystem-add <brand-name> <version>"
+    echo ""
+    echo "Arguments:"
+    echo "  brand-name    Name of the brand/project (lowercase, no spaces)"
+    echo "  version       Version number (e.g., 001, 002)"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h    Show this help message"
+    echo "  --version, -v Show version"
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/designsystem-add acme 001"
+    echo "  ./tools/designsystem-add my-brand 002"
+    echo ""
+    echo "Creates:"
+    echo "  claude/knowledge/design-systems/<brand-name>-<version>/"
+    echo "    ├── INDEX.md"
+    echo "    ├── GAPS.md"
+    echo "    ├── GAP-RESOLUTION.md"
+    echo "    ├── colors.md"
+    echo "    ├── typography.md"
+    echo "    ├── spacing.md"
+    echo "    ├── effects.md"
+    echo "    ├── assets.md"
+    echo "    ├── tailwind-config.md"
+    echo "    └── source/"
+}
+
+# Handle options
+for arg in "$@"; do
+    case $arg in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        --version|-v)
+            echo "designsystem-add $TOOL_VERSION"
+            exit 0
+            ;;
+    esac
+done
+
+# Validate arguments
+if [[ $# -lt 2 ]]; then
+    echo -e "${RED}Error: Missing required arguments${NC}"
+    echo ""
+    echo "Usage: ./tools/designsystem-add <brand-name> <version>"
+    echo ""
+    echo "Run with --help for more information."
+    exit 1
+fi
+
+BRAND_NAME="$1"
+VERSION="$2"
+
+# Validate brand name (lowercase, alphanumeric, hyphens only)
+if [[ ! "$BRAND_NAME" =~ ^[a-z][a-z0-9-]*$ ]]; then
+    echo -e "${RED}Error: Brand name must be lowercase, start with a letter, and contain only letters, numbers, and hyphens${NC}"
+    echo "Got: $BRAND_NAME"
+    exit 1
+fi
+
+# Validate version (numbers only, 3 digits preferred)
+if [[ ! "$VERSION" =~ ^[0-9]+$ ]]; then
+    echo -e "${RED}Error: Version must be a number (e.g., 001, 002)${NC}"
+    echo "Got: $VERSION"
+    exit 1
+fi
+
+# Build directory name
+SYSTEM_NAME="${BRAND_NAME}-${VERSION}"
+TARGET_DIR="$DESIGN_SYSTEMS_DIR/$SYSTEM_NAME"
+
+# Check if already exists
+if [[ -d "$TARGET_DIR" ]]; then
+    echo -e "${RED}Error: Design system already exists at:${NC}"
+    echo "$TARGET_DIR"
+    echo ""
+    echo "To create a new version, use a different version number."
+    exit 1
+fi
+
+# Check template exists
+if [[ ! -d "$TEMPLATE_DIR" ]]; then
+    echo -e "${RED}Error: Template directory not found at:${NC}"
+    echo "$TEMPLATE_DIR"
+    exit 1
+fi
+
+# Get current date
+DATE=$(date +%Y-%m-%d)
+
+# Get agent name (default to housekeeping)
+AGENT="${AGENTNAME:-housekeeping}"
+
+# Create the directory
+echo -e "${BLUE}Creating design system: ${SYSTEM_NAME}${NC}"
+mkdir -p "$TARGET_DIR/source"
+
+# Copy and process template files
+process_template() {
+    local src="$1"
+    local dest="$2"
+
+    # Copy file and replace placeholders
+    sed -e "s/{{BRAND_NAME}}/${BRAND_NAME}/g" \
+        -e "s/{{VERSION}}/${VERSION}/g" \
+        -e "s/{{DATE}}/${DATE}/g" \
+        -e "s/{{AGENT}}/${AGENT}/g" \
+        -e "s/{{FONT_FAMILY}}/[Font Family]/g" \
+        -e "s/{{FONT}}/[Font]/g" \
+        -e "s/{{APPLICATION}}/[Application Name]/g" \
+        "$src" > "$dest"
+}
+
+# Process each template file
+for template in "$TEMPLATE_DIR"/*.md; do
+    if [[ -f "$template" ]]; then
+        filename=$(basename "$template")
+        echo -e "  Creating ${filename}"
+        process_template "$template" "$TARGET_DIR/$filename"
+    fi
+done
+
+# Create empty source directory marker
+touch "$TARGET_DIR/source/.gitkeep"
+
+echo ""
+echo -e "${GREEN}Design system created successfully!${NC}"
+echo ""
+echo "Location: $TARGET_DIR"
+echo ""
+echo "Next steps:"
+echo "  1. Export design tokens from Figma"
+echo "  2. Save source files to: $TARGET_DIR/source/"
+echo "  3. Fill in the template files:"
+echo "     - colors.md (color palette)"
+echo "     - typography.md (text styles)"
+echo "     - spacing.md (spacing scale)"
+echo "     - tailwind-config.md (Tailwind theme)"
+echo "  4. Track unknowns in GAPS.md"
+echo "  5. Validate: ./tools/designsystem-validate $TARGET_DIR"
+echo ""
+echo "Template placeholders to replace:"
+echo "  - [Font Family] - Primary font name"
+echo "  - [Font] - Font file prefix"
+echo "  - [Application Name] - Project name"
+echo "  - #?????? - Hex color values"
+echo "  - ??px - Pixel measurements"
+
+# Log success
+log_end "$RUN_ID" "success" "0" "0" "Created $SYSTEM_NAME" 2>/dev/null || true
