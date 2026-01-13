@@ -204,9 +204,9 @@ if [[ "$DRY_RUN" == "true" ]]; then
     echo ""
 
     # Count styles
-    COLOR_COUNT=$(grep -c '"FILL"' "$STYLES_DATA" 2>/dev/null || echo "0")
-    TEXT_COUNT=$(grep -c '"TEXT"' "$STYLES_DATA" 2>/dev/null || echo "0")
-    EFFECT_COUNT=$(grep -c '"EFFECT"' "$STYLES_DATA" 2>/dev/null || echo "0")
+    COLOR_COUNT=$(grep -c '"style_type":"FILL"' "$STYLES_DATA" 2>/dev/null) || COLOR_COUNT=0
+    TEXT_COUNT=$(grep -c '"style_type":"TEXT"' "$STYLES_DATA" 2>/dev/null) || TEXT_COUNT=0
+    EFFECT_COUNT=$(grep -c '"style_type":"EFFECT"' "$STYLES_DATA" 2>/dev/null) || EFFECT_COUNT=0
 
     echo "Would extract:"
     echo "  - $COLOR_COUNT color styles"
@@ -248,11 +248,11 @@ EOF
 # Note: Full parsing would require jq or a proper JSON parser
 echo "[]" > "$COLORS_JSON"
 
-# Count color styles
-COLOR_COUNT=$(grep -c '"FILL"' "$STYLES_DATA" 2>/dev/null || echo "0")
+# Count color styles (grep -c returns count, || true handles no matches)
+COLOR_COUNT=$(grep -c '"style_type":"FILL"' "$STYLES_DATA" 2>/dev/null) || COLOR_COUNT=0
 log_info "Found $COLOR_COUNT color styles"
 
-if [[ "$COLOR_COUNT" -gt 0 ]]; then
+if [[ $COLOR_COUNT -gt 0 ]]; then
     echo "" >> "$COLORS_MD"
     echo "*$COLOR_COUNT color styles found in Figma. See source/figma-styles.json for raw data.*" >> "$COLORS_MD"
     echo "" >> "$COLORS_MD"
@@ -276,10 +276,10 @@ Extracted from Figma design system.
 EOF
 
 # Count text styles
-TEXT_COUNT=$(grep -c '"TEXT"' "$STYLES_DATA" 2>/dev/null || echo "0")
+TEXT_COUNT=$(grep -c '"style_type":"TEXT"' "$STYLES_DATA" 2>/dev/null) || TEXT_COUNT=0
 log_info "Found $TEXT_COUNT text styles"
 
-if [[ "$TEXT_COUNT" -gt 0 ]]; then
+if [[ $TEXT_COUNT -gt 0 ]]; then
     echo "" >> "$TYPOGRAPHY_MD"
     echo "*$TEXT_COUNT text styles found in Figma. See source/figma-styles.json for raw data.*" >> "$TYPOGRAPHY_MD"
     echo "" >> "$TYPOGRAPHY_MD"
@@ -303,10 +303,10 @@ Extracted from Figma design system.
 EOF
 
 # Count effect styles
-EFFECT_COUNT=$(grep -c '"EFFECT"' "$STYLES_DATA" 2>/dev/null || echo "0")
+EFFECT_COUNT=$(grep -c '"style_type":"EFFECT"' "$STYLES_DATA" 2>/dev/null) || EFFECT_COUNT=0
 log_info "Found $EFFECT_COUNT effect styles"
 
-if [[ "$EFFECT_COUNT" -gt 0 ]]; then
+if [[ $EFFECT_COUNT -gt 0 ]]; then
     echo "" >> "$EFFECTS_MD"
     echo "*$EFFECT_COUNT effect styles found in Figma. See source/figma-styles.json for raw data.*" >> "$EFFECTS_MD"
 fi
