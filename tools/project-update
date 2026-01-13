@@ -1,0 +1,515 @@
+#!/bin/bash
+#
+# project-update - Update an existing project with latest starter changes
+#
+# Usage:
+#   project-update --preview              # Preview changes without applying
+#   project-update --apply                # Apply updates
+#   project-update --status               # Show current version status
+#   project-update --init                 # Initialize tracking for existing project
+#   project-update --from=/path/to/starter --apply  # Use local starter
+#
+# Protected paths (never touched):
+#   tools/local/               Project-specific tools
+#   claude/agents/local/       Local agent customizations
+#   claude/knowledge/local/    Project-specific knowledge
+#   claude/docs/local/         Project-specific docs
+#   claude/principals/         User's principals and requests
+#   .agency/                   Local metadata
+
+set -e
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "project-update" "agency-tool" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.0-20260114-000001"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+DIM='\033[2m'
+NC='\033[0m'
+
+# Get project root (where we're running from)
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+AGENCY_DIR="$PROJECT_ROOT/.agency"
+VERSION_FILE="$AGENCY_DIR/version.json"
+
+# Default source (GitHub)
+STARTER_SOURCE=""
+GITHUB_URL="https://github.com/the-agency-ai/the-agency-starter"
+
+# Protected paths that are NEVER updated
+PROTECTED_PATHS=(
+    "tools/local/"
+    "claude/agents/local/"
+    "claude/knowledge/local/"
+    "claude/docs/local/"
+    "claude/principals/"
+    "claude/workstreams/*/sprints/"
+    "claude/agents/*/WORKLOG.md"
+    "claude/agents/*/ADHOC-WORKLOG.md"
+    ".agency/"
+    ".git/"
+)
+
+# Parse arguments
+MODE=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --version|-v)
+            echo "project-update $TOOL_VERSION"
+            exit 0
+            ;;
+        --help|-h)
+            head -20 "$0" | tail -19 | sed 's/^# //'
+            exit 0
+            ;;
+        --preview)
+            MODE="preview"
+            shift
+            ;;
+        --apply)
+            MODE="apply"
+            shift
+            ;;
+        --status)
+            MODE="status"
+            shift
+            ;;
+        --init)
+            MODE="init"
+            shift
+            ;;
+        --from=*)
+            STARTER_SOURCE="${1#*=}"
+            shift
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Require a mode
+if [[ -z "$MODE" ]]; then
+    echo -e "${RED}Error: No mode specified${NC}"
+    echo ""
+    echo "Usage:"
+    echo "  project-update --preview    Preview changes"
+    echo "  project-update --apply      Apply updates"
+    echo "  project-update --status     Show version status"
+    echo "  project-update --init       Initialize tracking"
+    exit 1
+fi
+
+# Helper: Calculate SHA256 hash of a file
+file_hash() {
+    local file="$1"
+    if [[ -f "$file" ]]; then
+        shasum -a 256 "$file" 2>/dev/null | cut -d' ' -f1
+    else
+        echo ""
+    fi
+}
+
+# Helper: Check if path is protected
+is_protected() {
+    local path="$1"
+    for pattern in "${PROTECTED_PATHS[@]}"; do
+        # Handle glob patterns
+        if [[ "$path" == $pattern* ]] || [[ "$path" == */$pattern* ]]; then
+            return 0
+        fi
+        # Handle wildcard patterns like */WORKLOG.md
+        if [[ "$pattern" == *"*"* ]]; then
+            local regex_pattern="${pattern//\*/.*}"
+            if [[ "$path" =~ $regex_pattern ]]; then
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+# Helper: Get current project version
+get_project_version() {
+    if [[ -f "$VERSION_FILE" ]]; then
+        # Use Python for reliable JSON parsing (available on macOS and most Linux)
+        python3 -c "import json; print(json.load(open('$VERSION_FILE'))['starter_version'])" 2>/dev/null || echo "unknown"
+    else
+        echo "untracked"
+    fi
+}
+
+# Helper: Get starter version from source
+get_starter_version() {
+    local source="$1"
+    if [[ -f "$source/VERSION" ]]; then
+        cat "$source/VERSION" | tr -d '[:space:]'
+    else
+        echo "unknown"
+    fi
+}
+
+# Helper: Create backup of a file
+backup_file() {
+    local file="$1"
+    local backup_name="${file}.backup-$(date +%Y%m%d-%H%M%S)"
+    cp "$file" "$backup_name"
+    echo "$backup_name"
+}
+
+# Helper: Merge CLAUDE.md preserving PROJECT section
+merge_claude_md() {
+    local source_file="$1"
+    local target_file="$2"
+
+    # If target doesn't have markers, just use source
+    if ! grep -q "<!-- PROJECT:START" "$target_file" 2>/dev/null; then
+        cp "$source_file" "$target_file"
+        return 0
+    fi
+
+    # Extract project section from target
+    local project_section=$(sed -n '/<!-- PROJECT:START/,/<!-- PROJECT:END/p' "$target_file")
+
+    # If source has markers, do a proper merge
+    if grep -q "<!-- AGENCY:END" "$source_file" 2>/dev/null; then
+        # Get everything up to and including AGENCY:END from source
+        local agency_section=$(sed -n '1,/<!-- AGENCY:END/p' "$source_file")
+
+        # Combine: agency section + project section
+        echo "$agency_section" > "$target_file"
+        echo "" >> "$target_file"
+        echo "$project_section" >> "$target_file"
+    else
+        # Source doesn't have markers, wrap it and preserve project section
+        {
+            echo "<!-- AGENCY:START - Do not edit this section -->"
+            cat "$source_file"
+            echo "<!-- AGENCY:END -->"
+            echo ""
+            echo "$project_section"
+        } > "$target_file"
+    fi
+}
+
+# Status mode: Show current version
+status_mode() {
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Project Update Status${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    local project_version=$(get_project_version)
+
+    echo -e "  Project:    ${GREEN}$(basename "$PROJECT_ROOT")${NC}"
+    echo -e "  Location:   $PROJECT_ROOT"
+    echo -e "  Version:    ${GREEN}$project_version${NC}"
+
+    if [[ -f "$VERSION_FILE" ]]; then
+        local installed_at=$(python3 -c "import json; print(json.load(open('$VERSION_FILE')).get('installed_at', 'unknown'))" 2>/dev/null)
+        local last_updated=$(python3 -c "import json; print(json.load(open('$VERSION_FILE')).get('last_updated', 'unknown'))" 2>/dev/null)
+        local source=$(python3 -c "import json; print(json.load(open('$VERSION_FILE')).get('source', 'unknown'))" 2>/dev/null)
+
+        echo -e "  Installed:  $installed_at"
+        echo -e "  Updated:    $last_updated"
+        echo -e "  Source:     $source"
+    else
+        echo ""
+        echo -e "  ${YELLOW}Version tracking not initialized.${NC}"
+        echo -e "  Run: ${BLUE}./tools/project-update --init${NC}"
+    fi
+
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# Init mode: Initialize version tracking for existing project
+init_mode() {
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Initializing Version Tracking${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    # Check if already initialized
+    if [[ -f "$VERSION_FILE" ]]; then
+        echo -e "${YELLOW}Version tracking already initialized.${NC}"
+        echo ""
+        echo -e "Current version: ${GREEN}$(get_project_version)${NC}"
+        echo ""
+        echo "To re-initialize, remove $AGENCY_DIR and run again."
+        exit 0
+    fi
+
+    # Create .agency directory
+    mkdir -p "$AGENCY_DIR"
+
+    # Determine source for version
+    local starter_version="unknown"
+    if [[ -n "$STARTER_SOURCE" ]] && [[ -f "$STARTER_SOURCE/VERSION" ]]; then
+        starter_version=$(cat "$STARTER_SOURCE/VERSION" | tr -d '[:space:]')
+    elif [[ -f "$PROJECT_ROOT/VERSION" ]]; then
+        starter_version=$(cat "$PROJECT_ROOT/VERSION" | tr -d '[:space:]')
+    fi
+
+    local source_ref="github:the-agency-ai/the-agency-starter"
+    if [[ -n "$STARTER_SOURCE" ]]; then
+        source_ref="local:$STARTER_SOURCE"
+    fi
+
+    local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Calculate hashes for updatable files
+    echo "Calculating file hashes..."
+    local files_json="{"
+    local first=true
+
+    # Find all updatable files
+    while IFS= read -r -d '' file; do
+        local rel_path="${file#$PROJECT_ROOT/}"
+
+        # Skip protected paths
+        if is_protected "$rel_path"; then
+            continue
+        fi
+
+        local hash=$(file_hash "$file")
+        if [[ -n "$hash" ]]; then
+            if [[ "$first" != true ]]; then
+                files_json+=","
+            fi
+            first=false
+            files_json+="\"$rel_path\":{\"hash\":\"$hash\",\"version\":\"$starter_version\",\"modified\":false}"
+        fi
+    done < <(find "$PROJECT_ROOT/tools" "$PROJECT_ROOT/claude" -type f -print0 2>/dev/null)
+
+    files_json+="}"
+
+    # Write version.json
+    cat > "$VERSION_FILE" << EOF
+{
+  "starter_version": "$starter_version",
+  "installed_at": "$now",
+  "last_updated": "$now",
+  "source": "$source_ref",
+  "files": $files_json
+}
+EOF
+
+    echo ""
+    echo -e "${GREEN}Version tracking initialized!${NC}"
+    echo ""
+    echo -e "  Version:  ${GREEN}$starter_version${NC}"
+    echo -e "  Source:   $source_ref"
+    echo ""
+    echo "Run ./tools/project-update --status to see details."
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# Fetch starter to temp directory
+fetch_starter() {
+    if [[ -n "$STARTER_SOURCE" ]]; then
+        # Use local source
+        if [[ ! -d "$STARTER_SOURCE" ]]; then
+            echo -e "${RED}Error: Starter source not found: $STARTER_SOURCE${NC}"
+            exit 1
+        fi
+        echo "$STARTER_SOURCE"
+    else
+        # Clone from GitHub to temp directory
+        local temp_dir=$(mktemp -d)
+        echo -e "${DIM}Fetching latest starter from GitHub...${NC}" >&2
+        if ! git clone --quiet --depth 1 "$GITHUB_URL" "$temp_dir" 2>/dev/null; then
+            echo -e "${RED}Error: Failed to fetch starter from GitHub${NC}" >&2
+            rm -rf "$temp_dir"
+            exit 1
+        fi
+        echo "$temp_dir"
+    fi
+}
+
+# Preview/Apply mode
+update_mode() {
+    local apply=$1
+
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    if [[ "$apply" == "true" ]]; then
+        echo -e "${BLUE}  Applying Updates${NC}"
+    else
+        echo -e "${BLUE}  Preview Updates${NC}"
+    fi
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    # Check version tracking
+    if [[ ! -f "$VERSION_FILE" ]]; then
+        echo -e "${YELLOW}Version tracking not initialized.${NC}"
+        echo ""
+        echo "Run first: ./tools/project-update --init"
+        exit 1
+    fi
+
+    local project_version=$(get_project_version)
+    echo -e "  Current version: ${GREEN}$project_version${NC}"
+
+    # Fetch starter
+    local starter_dir=$(fetch_starter)
+    local temp_cleanup=""
+    if [[ -z "$STARTER_SOURCE" ]]; then
+        temp_cleanup="$starter_dir"
+    fi
+
+    # Cleanup temp on exit
+    cleanup() {
+        if [[ -n "$temp_cleanup" ]] && [[ -d "$temp_cleanup" ]]; then
+            rm -rf "$temp_cleanup"
+        fi
+    }
+    trap cleanup EXIT
+
+    local starter_version=$(get_starter_version "$starter_dir")
+    echo -e "  Starter version: ${GREEN}$starter_version${NC}"
+    echo ""
+
+    # Compare versions
+    if [[ "$project_version" == "$starter_version" ]]; then
+        echo -e "${GREEN}Project is up to date!${NC}"
+        echo ""
+        exit 0
+    fi
+
+    # Find files that need updating
+    local added=0
+    local updated=0
+    local conflicts=0
+    local skipped=0
+
+    echo "Comparing files..."
+    echo ""
+
+    # Process files from starter
+    while IFS= read -r -d '' source_file; do
+        local rel_path="${source_file#$starter_dir/}"
+        local target_file="$PROJECT_ROOT/$rel_path"
+
+        # Skip hidden files and directories (except .gitignore)
+        if [[ "$rel_path" == .* ]] && [[ "$rel_path" != ".gitignore" ]]; then
+            continue
+        fi
+
+        # Skip protected paths
+        if is_protected "$rel_path"; then
+            ((skipped++))
+            continue
+        fi
+
+        local source_hash=$(file_hash "$source_file")
+        local target_hash=$(file_hash "$target_file")
+
+        if [[ ! -f "$target_file" ]]; then
+            # New file
+            echo -e "  ${GREEN}+ $rel_path${NC} (new)"
+            ((added++))
+
+            if [[ "$apply" == "true" ]]; then
+                mkdir -p "$(dirname "$target_file")"
+                cp "$source_file" "$target_file"
+            fi
+        elif [[ "$source_hash" != "$target_hash" ]]; then
+            # File differs - check if user modified it
+            local tracked_hash=$(python3 -c "import json; files=json.load(open('$VERSION_FILE')).get('files',{}); print(files.get('$rel_path',{}).get('hash',''))" 2>/dev/null)
+
+            if [[ "$target_hash" == "$tracked_hash" ]] || [[ -z "$tracked_hash" ]]; then
+                # File unchanged by user, safe to update
+                echo -e "  ${BLUE}~ $rel_path${NC} (updated)"
+                ((updated++))
+
+                if [[ "$apply" == "true" ]]; then
+                    if [[ "$rel_path" == "CLAUDE.md" ]]; then
+                        merge_claude_md "$source_file" "$target_file"
+                    else
+                        cp "$source_file" "$target_file"
+                    fi
+                fi
+            else
+                # User has modified this file - conflict
+                echo -e "  ${YELLOW}! $rel_path${NC} (conflict - user modified)"
+                ((conflicts++))
+
+                if [[ "$apply" == "true" ]]; then
+                    local backup=$(backup_file "$target_file")
+                    echo -e "    ${DIM}Backup: $backup${NC}"
+                    cp "$source_file" "$target_file"
+                fi
+            fi
+        fi
+    done < <(find "$starter_dir" -type f -print0 2>/dev/null)
+
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo "Summary:"
+    echo -e "  Added:     ${GREEN}$added${NC}"
+    echo -e "  Updated:   ${BLUE}$updated${NC}"
+    echo -e "  Conflicts: ${YELLOW}$conflicts${NC}"
+    echo -e "  Skipped:   ${DIM}$skipped (protected)${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+    if [[ "$apply" == "true" ]]; then
+        # Update version tracking
+        local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        python3 -c "
+import json
+with open('$VERSION_FILE', 'r') as f:
+    data = json.load(f)
+data['starter_version'] = '$starter_version'
+data['last_updated'] = '$now'
+with open('$VERSION_FILE', 'w') as f:
+    json.dump(data, f, indent=2)
+"
+        echo ""
+        echo -e "${GREEN}Update complete!${NC}"
+
+        if [[ $conflicts -gt 0 ]]; then
+            echo ""
+            echo -e "${YELLOW}Note: $conflicts file(s) had conflicts and were backed up.${NC}"
+            echo "Review the .backup-* files to recover any local changes."
+        fi
+    else
+        echo ""
+        echo "To apply these changes, run:"
+        echo -e "  ${BLUE}./tools/project-update --apply${NC}"
+    fi
+
+    echo ""
+}
+
+# Main dispatch
+case "$MODE" in
+    status)
+        status_mode
+        ;;
+    init)
+        init_mode
+        ;;
+    preview)
+        update_mode false
+        ;;
+    apply)
+        update_mode true
+        ;;
+esac
