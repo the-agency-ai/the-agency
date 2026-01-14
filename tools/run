@@ -1,0 +1,92 @@
+#!/bin/bash
+#
+# run - Execute external commands with telemetry
+#
+# Wraps any command to capture telemetry (success/failure, duration, exit code).
+# Useful for tracking external tool usage by agents.
+#
+# Usage:
+#   ./tools/run git status
+#   ./tools/run npm install
+#   ./tools/run -- command --with-flags
+#
+# The command runs normally - this wrapper only adds telemetry.
+# If the log service isn't running, the command still executes.
+#
+
+set -e
+
+# Tool version
+TOOL_VERSION="1.0.0-20260114-000001"
+
+# Source log helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+
+# Show help
+show_help() {
+    cat <<EOF
+run - Execute external commands with telemetry
+
+Usage:
+  ./tools/run <command> [args...]
+  ./tools/run -- <command> [args...]
+
+Examples:
+  ./tools/run git status
+  ./tools/run npm install
+  ./tools/run -- curl -s https://api.example.com
+
+Options:
+  --help, -h      Show this help
+  --version, -v   Show tool version
+
+The command executes normally. Telemetry is captured in the background
+if the log service is running. Exit code is preserved.
+
+Environment:
+  LOG_SERVICE_URL   Log service URL (default: http://127.0.0.1:3141)
+  AGENT_NAME        Current agent name (for context)
+  WORKSTREAM        Current workstream (for context)
+EOF
+}
+
+# Parse flags
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        --version|-v)
+            echo "run $TOOL_VERSION"
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Check for command
+if [[ $# -eq 0 ]]; then
+    echo "Error: No command specified" >&2
+    echo "Usage: ./tools/run <command> [args...]" >&2
+    exit 1
+fi
+
+# Get the command name (first arg)
+CMD="$1"
+
+# Use log_wrap if available, otherwise just run the command
+if type log_wrap &>/dev/null; then
+    log_wrap "$CMD" "bash" "$@"
+else
+    "$@"
+fi

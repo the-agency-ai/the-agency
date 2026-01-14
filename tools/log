@@ -12,6 +12,9 @@
 #   ./tools/log --run-id abc123                     # Filter by run ID
 #   ./tools/log stats                               # Log statistics
 #   ./tools/log services                            # List services with logs
+#   ./tools/log tools                               # Tool usage telemetry
+#   ./tools/log commands                            # External command telemetry
+#   ./tools/log failures                            # Recent tool failures
 #   ./tools/log run start <tool> [options]          # Start tool run
 #   ./tools/log run end <runId> --status=success    # End tool run
 #   ./tools/log run get <runId>                     # Get run details
@@ -27,7 +30,7 @@ fi
 RUN_ID=$(log_start "log" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260110-000001"
+TOOL_VERSION="1.1.0-20260114-000001"
 
 # Configuration
 LOG_SERVICE_PORT="${LOG_SERVICE_PORT:-3141}"
@@ -301,6 +304,66 @@ cmd_tools() {
     done
 }
 
+# External command statistics (toolType=bash)
+cmd_commands() {
+    local since="7d"
+    local cmd=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --since)   since="$2"; shift 2 ;;
+            --recent)  since="24h"; shift ;;
+            -*)        shift ;;
+            *)         cmd="$1"; shift ;;
+        esac
+    done
+
+    # Build endpoint - filter by toolType=bash (external commands)
+    local endpoint="/api/log/stats/tools?since=${since}&toolType=bash"
+    if [[ -n "$cmd" ]]; then
+        endpoint="/api/log/stats/tools/${cmd}?since=${since}&toolType=bash"
+    fi
+
+    local response
+    response=$(api_request GET "$endpoint")
+
+    echo "External Command Statistics (last $since)"
+    echo "=========================================="
+    echo ""
+
+    # Summary
+    local total_runs success_rate avg_duration
+    total_runs=$(echo "$response" | jq -r '.summary.totalRuns // 0')
+    success_rate=$(echo "$response" | jq -r '.summary.successRate // 0' | xargs printf "%.1f")
+    avg_duration=$(echo "$response" | jq -r '.summary.avgDurationMs // 0')
+
+    echo "Summary:"
+    echo "  Total Runs: $total_runs"
+    echo "  Success Rate: ${success_rate}%"
+    echo "  Avg Duration: ${avg_duration}ms"
+    echo ""
+
+    if [[ "$total_runs" == "0" ]]; then
+        echo "No external command runs recorded."
+        echo ""
+        echo "Use ./tools/run to execute commands with telemetry:"
+        echo "  ./tools/run git status"
+        echo "  ./tools/run npm install"
+        return
+    fi
+
+    # Per-command table
+    echo "By Command:"
+    printf "  %-20s %8s %8s %8s %10s\n" "COMMAND" "RUNS" "SUCCESS" "FAIL" "AVG(ms)"
+    printf "  %-20s %8s %8s %8s %10s\n" "--------------------" "--------" "--------" "--------" "----------"
+
+    echo "$response" | jq -r '.tools[] | "  \(.tool) \(.totalRuns) \(.successCount) \(.failureCount) \(.avgDurationMs)"' | \
+    while read -r line; do
+        read -r tool runs success fail avg <<< "$line"
+        printf "  %-20s %8s %8s %8s %10s\n" "$tool" "$runs" "$success" "$fail" "$avg"
+    done
+}
+
 # Recent failures
 cmd_failures() {
     local limit=20
@@ -569,6 +632,12 @@ show_help() {
     echo "  ./tools/log failures                            Recent tool failures"
     echo "  ./tools/log failures --limit 10                 Limit results"
     echo ""
+    echo "External Command Telemetry:"
+    echo "  ./tools/log commands                            External command stats (last 7d)"
+    echo "  ./tools/log commands git                        Stats for a specific command"
+    echo "  ./tools/log commands --recent                   Stats for last 24h"
+    echo "  ./tools/log commands --since 1h                 Stats for a time period"
+    echo ""
     echo "Tool Run Tracking:"
     echo "  ./tools/log run start <tool> [options]          Start a tool run"
     echo "    --type=agency-tool|bash|mcp                   Tool type"
@@ -615,6 +684,10 @@ main() {
         failures)
             shift
             cmd_failures "$@"
+            ;;
+        commands)
+            shift
+            cmd_commands "$@"
             ;;
         run)
             case "${2:-}" in
