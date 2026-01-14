@@ -3,7 +3,7 @@
 **Principal:** jordan
 **Workstream:** housekeeping
 **Agent:** housekeeping
-**Status:** Pending
+**Status:** Complete
 **Priority:** Medium
 **Created:** 2026-01-14
 
@@ -156,4 +156,37 @@ Migrate Agency framework content from ordinaryfolk-nextgen to the-agency repo. T
 - Created REQUEST based on exploration of ordinaryfolk-nextgen
 - Identified 5 categories of content to migrate
 - Documented what should stay vs migrate
+
+### 2026-01-14 (Session 2)
+
+**Book Project:**
+- Verified the-agency already has more working notes (0001-0024) than nextgen (0001-0018)
+- No migration needed - the-agency is the canonical source
+
+**Starter Packs:**
+- Created `claude/starter-packs/` directory in the-agency
+- Copied 6 packs from nextgen: github-ci, node-base, posthog-analytics, react-app, supabase-auth, vercel-deploy
+- Multi-agent comparison of overlapping packs:
+  - github-ci vs git-ci → Merged into github-ci (ported install.sh, workflows, Husky from git-ci)
+  - vercel-deploy vs vercel → Replaced vercel-deploy with comprehensive vercel pack
+- Multi-agent review of all 6 packs:
+  - github-ci: 3.5/5 - Fixed step order inconsistencies
+  - node-base: 4/5 - Documented dotenv as optional
+  - posthog-analytics: 4.5/5 - Added to Available Packs in README
+  - react-app: 4.5/5 - Fixed 'use client' syntax typo
+  - supabase-auth: 4/5 - npm for CLI is acceptable
+  - vercel: 4/5 - Changed Node 20 → 22 for consistency
+- All packs updated to use pnpm and Node 22
+
+**Instructions/Artifacts:**
+- Deferred - can be added later if needed
+
+**Commits:**
+- ffd45c8: Add starter-packs from nextgen with merges
+- 112f417: Fix starter pack review findings
+
+**Summary:**
+- 6 starter packs now in the-agency
+- Working notes already up-to-date
+- Framework instructions/artifacts deferred (lower priority)
 
