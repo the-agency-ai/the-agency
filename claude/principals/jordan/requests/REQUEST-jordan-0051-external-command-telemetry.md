@@ -48,112 +48,89 @@ Understanding these invocations helps with:
 
 ---
 
-## Implementation Options
+## Architecture: Service-First Design
 
-### Option A: Bash Wrapper
+The log service already tracks tool runs via `ToolRun`. External commands should extend this existing infrastructure rather than creating parallel systems.
 
-Create a wrapper that instruments external commands:
+### Extend Existing ToolRun
 
-```bash
-# Usage: run git status
-# Or:    run npm install
-
-run() {
-    local cmd="$1"
-    shift
-    local run_id=$(log_start "$cmd" "external-cmd" "$@")
-    local start_time=$(date +%s%3N)
-
-    "$cmd" "$@"
-    local exit_code=$?
-
-    local end_time=$(date +%s%3N)
-    local duration=$((end_time - start_time))
-
-    log_end "$run_id" "$([ $exit_code -eq 0 ] && echo success || echo failure)" "$exit_code" "$duration" ""
-    return $exit_code
-}
-```
-
-**Pros:** Simple, explicit, no magic
-**Cons:** Requires agents to use `run` prefix
-
-### Option B: Claude Code Hook
-
-Use Claude Code hooks to instrument Bash tool calls:
-
-```json
-{
-  "hooks": {
-    "Bash": {
-      "pre": "command that logs invocation start",
-      "post": "command that logs invocation end"
-    }
-  }
-}
-```
-
-**Pros:** Automatic, no code changes
-**Cons:** Depends on Claude Code hook features
-
-### Option C: Shell Trap
-
-Use bash DEBUG trap to intercept all commands:
-
-```bash
-trap 'log_command "$BASH_COMMAND"' DEBUG
-```
-
-**Pros:** Captures everything
-**Cons:** Performance overhead, may be too noisy
-
----
-
-## Recommended Approach
-
-Start with **Option A (Bash Wrapper)** as it's:
-- Explicit and predictable
-- No performance overhead on non-instrumented commands
-- Easy to understand and debug
-- Can be gradually adopted
-
-Create `./tools/run` that:
-1. Captures command and args
-2. Calls `log_start` with command info
-3. Executes the actual command
-4. Captures exit code and duration
-5. Calls `log_end` with results
-6. Returns the original exit code
-
----
-
-## Log Service Changes
-
-### New Types
+Add a `runType` field to distinguish:
+- `tool` - Agency tools in `tools/`
+- `command` - External commands (git, npm, etc.)
 
 ```typescript
-interface ExternalCommandRun {
+// Extend existing ToolRun type
+interface ToolRun {
   runId: string;
-  command: string;
-  args: string[];
+  tool: string;              // Tool name OR command name
+  runType: 'tool' | 'command';  // NEW: Distinguish tool vs external command
+  args?: string[];           // NEW: Command arguments (sanitized)
   status: 'running' | 'success' | 'failure';
   exitCode?: number;
   durationMs?: number;
   outputSize?: number;
-  agent?: string;
-  workstream?: string;
+  userId?: string;
+  userType?: string;
   startedAt: Date;
   endedAt?: Date;
+  summary?: string;
 }
 ```
 
-### New Endpoints
+### Log Service Changes
 
+**Repository (`log.repository.ts`):**
+- Update `createToolRun` to accept `runType` and `args`
+- Update `getToolStats` to filter/group by `runType`
+- Add `getCommandStats` for command-specific analytics
+
+**Routes (`log.routes.ts`):**
+- Existing `/run/start` works - just pass `runType: 'command'`
+- Add `/stats/commands` endpoint for command-specific stats
+- Add filtering by `runType` to existing endpoints
+
+**Schema (`types.ts`):**
+- Add `runType` to `CreateToolRunRequest`
+- Add `args` field (optional, sanitized)
+
+### CLI Tool: `./tools/run`
+
+Thin wrapper that:
+1. Calls `log_start` with `runType=command`
+2. Executes the command
+3. Calls `log_end` with result
+4. Returns original exit code
+
+```bash
+# Usage
+./tools/run git status
+./tools/run npm install
+./tools/run -- complex-command --with-flags
 ```
-POST /api/log/cmd/start   - Start external command run
-POST /api/log/cmd/end     - End external command run
-GET  /api/log/cmd/stats   - External command statistics
-GET  /api/log/cmd/get/:id - Get command run details
+
+### Extend `_log-helper`
+
+Add `log_cmd_start` / `log_cmd_end` functions that set `runType=command`:
+
+```bash
+log_cmd_start() {
+    local cmd="$1"
+    shift
+    # Same as log_start but with runType=command
+    curl -s -X POST "$LOG_SERVICE_URL/api/log/run/start" \
+        -H "Content-Type: application/json" \
+        -d "{\"tool\":\"$cmd\",\"runType\":\"command\",\"args\":$(printf '%s\n' "$@" | jq -R . | jq -s .)}"
+}
+```
+
+### Expose via `./tools/log`
+
+Add commands to query command telemetry:
+
+```bash
+./tools/log commands           # Command usage stats
+./tools/log commands git       # Stats for specific command
+./tools/log commands --recent  # Recent command runs
 ```
 
 ---
@@ -169,11 +146,20 @@ GET  /api/log/cmd/get/:id - Get command run details
 
 ## Success Criteria
 
-- [ ] `./tools/run` wrapper created
-- [ ] Log service endpoints added
-- [ ] Statistics exposed via `./tools/log cmds`
-- [ ] Documentation updated
-- [ ] Pattern documented in CLAUDE.md (when to use `run`)
+**Service Layer:**
+- [ ] Add `runType` and `args` to ToolRun schema
+- [ ] Update repository to handle command runs
+- [ ] Add `/stats/commands` endpoint
+- [ ] Add filtering by runType to existing endpoints
+
+**CLI Layer:**
+- [ ] Create `./tools/run` wrapper
+- [ ] Add `log_cmd_start`/`log_cmd_end` to `_log-helper`
+- [ ] Add `./tools/log commands` subcommand
+
+**Documentation:**
+- [ ] Update CLAUDE.md with `./tools/run` usage
+- [ ] Document when to instrument external commands
 
 ---
 
