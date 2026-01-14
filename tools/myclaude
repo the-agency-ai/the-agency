@@ -185,7 +185,7 @@ fi
 echo ""
 
 # Build claude command
-CLAUDE_CMD="claude"
+CLAUDE_CMD="claude --model opus"
 
 # Add initial prompt if provided
 if [ -n "$INITIAL_PROMPT" ]; then
