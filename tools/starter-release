@@ -132,6 +132,10 @@ sync_files() {
     # Files/directories to sync (EXCLUDES private content)
     # NOTE: claude/principals is NOT synced - starter has its own sanitized structure
     local sync_items=(
+        ".claude/settings.json"
+        ".claude/settings.local.json.example"
+        ".claude/hooks"
+        ".gitignore"
         "CLAUDE.md"
         "LICENSE"
         "README.md"
@@ -141,7 +145,12 @@ sync_files() {
         "claude/agents/housekeeping/ADHOC-WORKLOG.md"
         "claude/agents/collaboration"
         "claude/config"
-        "claude/docs"
+        "        "claude/docs/TERMINAL-INTEGRATION.md"
+        "claude/docs/PERMISSIONS.md"
+        "claude/docs/SECRETS.md"
+        "claude/docs/REPO-RELATIONSHIP.md"
+        "claude/docs/INDEX.md"
+        "claude/docs/cookbooks""
         "claude/integrations"
         "claude/knowledge"
         "claude/proposals"
@@ -205,7 +214,7 @@ clean_cruft() {
     find "$STARTER_DIR" -name "*.db-shm" -delete 2>/dev/null || true
     find "$STARTER_DIR" -name "*.pid" -delete 2>/dev/null || true
     find "$STARTER_DIR" -name "node_modules" -type d -exec rm -rf {} + 2>/dev/null || true
-    find "$STARTER_DIR" -name ".claude" -type d -exec rm -rf {} + 2>/dev/null || true
+    # NOTE: .claude directory is now preserved (contains settings.json and hooks)
 
     # Remove specific files that shouldn't be in starter
     rm -f "$STARTER_DIR/history/push-log.md" 2>/dev/null || true
@@ -237,12 +246,17 @@ verify_build() {
 
     # Required files
     local required_files=(
+        ".claude/settings.json"
+        ".claude/settings.local.json.example"
+        ".gitignore"
         "CLAUDE.md"
         "README.md"
         "tools/myclaude"
         "tools/welcomeback"
         "tools/agent-create"
         "tools/workstream-create"
+        "tools/tab-status"
+        "tools/session-backup"
         "claude/config/agency.yaml"
         "claude/agents/housekeeping/agent.md"
         "source/apps/agency-bench/package.json"

@@ -93,146 +93,57 @@ tools/                       # CLI tools for The Agency
 - `./tools/sync` - Push with pre-commit checks
 - `./tools/doc-commit` - Commit documentation
 
-**Secrets:**
-- `./tools/secret` - Secret management CLI (see Secrets section below)
+## Terminal Integration
+
+iTerm tab colors and status indicators update automatically via Claude Code hooks:
+- **Blue ●** Available (ready for input)
+- **Green ◐** Working (processing)
+- **Red ▲** Attention (needs user input)
+
+These are triggered automatically by hooks in `.claude/settings.json`. Do not call `./tools/tab-status` manually unless debugging.
+
+**Reference:** See `claude/docs/TERMINAL-INTEGRATION.md` for setup and troubleshooting.
+
+## Permissions
+
+The Agency uses layered permissions:
+- **`.claude/settings.json`** - Framework defaults (DO NOT EDIT - versioned with The Agency)
+- **`.claude/settings.local.json`** - Your project permissions (gitignored - edit freely)
+
+To add project-specific permissions (git, npm, domains):
+```bash
+cp .claude/settings.local.json.example .claude/settings.local.json
+# Edit to add your permissions
+```
+
+**Reference:** See `claude/docs/PERMISSIONS.md` for the full model and examples.
 
 ## Secrets
 
-**All secrets MUST be stored in the Secret Service.** Do not store secrets in `.env` files, config files, or anywhere else in the codebase.
+**CRITICAL: All secrets MUST use the Secret Service. NEVER commit secrets to the codebase.**
 
-### Quick Start
-
-```bash
-# First time: Initialize the vault
-./tools/secret vault init
-
-# Unlock the vault (required after restart or 30-min timeout)
-./tools/secret vault unlock
-
-# Store a secret
-./tools/secret create my-api-key --type=api_key --service=GitHub
-
-# Fetch a secret (logged for audit)
-./tools/secret get my-api-key
-```
-
-### Vault Management
-
-The vault protects all secrets with a master passphrase using Argon2id key derivation and AES-256-GCM encryption.
+### Essential Commands
 
 ```bash
-./tools/secret vault init      # Initialize vault (first time only)
-./tools/secret vault unlock    # Unlock for session (30-min timeout)
-./tools/secret vault lock      # Lock vault immediately
-./tools/secret vault status    # Check vault status
-```
+# Retrieve a secret (most common operation)
+./tools/secret get secret-name
 
-### Storing Secrets
+# Store a new secret
+./tools/secret create secret-name --type=api_key --service=ServiceName
 
-```bash
-# Basic secret
-./tools/secret create my-token --type=token --service=GitHub
-
-# With description
-./tools/secret create api-key --type=api_key --service=Anthropic \
-  --description="Claude API key for production"
-
-# Secret types: api_key, token, password, certificate, ssh_key, generic
-```
-
-### Fetching Secrets
-
-```bash
-# Get secret value (logged for audit)
-./tools/secret get my-token
-
-# Show metadata only (not logged)
-./tools/secret show my-token
-
-# List all secrets
+# List available secrets
 ./tools/secret list
-
-# Filter by service
-./tools/secret list --service=GitHub
 ```
 
-### Integration with Tools
+### First-Time Setup
 
-Secrets can be tagged for use by specific tools:
-
+If the vault is locked or uninitialized:
 ```bash
-# Tag secret for use by the gh CLI
-./tools/secret tag github-token --tool=gh
-
-# Tag for a local tool
-./tools/secret tag my-secret --local-tool=./tools/myclaude
-
-# Find secrets by tag
-./tools/secret list --tool=gh
+./tools/secret vault unlock    # Unlock for session
+./tools/secret vault init      # First-time initialization
 ```
 
-### Access Control
-
-Secrets can be shared with specific agents or principals:
-
-```bash
-# Grant read access to an agent
-./tools/secret grant my-secret --to=agent:housekeeping --permission=read
-
-# Grant admin access to a principal
-./tools/secret grant my-secret --to=principal:jordan --permission=admin
-
-# Revoke access
-./tools/secret revoke my-secret --from=agent:housekeeping
-
-# List grants
-./tools/secret grants my-secret
-```
-
-### Environment Variable Integration
-
-```bash
-# Export for shell use
-eval $(./tools/secret env my-token MY_TOKEN)
-# Results in: export MY_TOKEN=<secret-value>
-
-# Use in scripts
-MY_TOKEN=$(./tools/secret get my-token)
-```
-
-### Audit Logging
-
-All secret access is logged for security:
-
-```bash
-# View access log for a secret
-./tools/secret audit my-token
-
-# View all access logs
-./tools/secret audit --all
-```
-
-### Migration from .env Files
-
-If you have existing secrets in `.env` files, migrate them:
-
-```bash
-./tools/secret-migrate --dry-run  # Preview what will be migrated
-./tools/secret-migrate            # Run the migration
-```
-
-### Service Configuration
-
-The Secret Service runs as part of agency-service on port 3141:
-
-```bash
-# Start the service
-cd services/agency-service && bun run dev
-
-# Environment variables
-SECRET_SERVICE_URL=http://localhost:3141/api/secret
-AGENCY_USER=principal:jordan  # or agent:housekeeping
-```
+**Reference:** See `claude/docs/SECRETS.md` for complete reference (vault management, access control, audit logging, migration).
 
 ## Conventions
 
@@ -315,13 +226,6 @@ complete → All phases done, ready for release
 ./tools/tag release 0.6.0                 # v0.6.0
 ```
 
-### Tools
-```bash
-./tools/tag REQUEST-xxx stage   # Create stage tag
-./tools/commit "message" ID     # Create formatted commit
-./tools/release 0.7.0           # Cut a release
-```
-
 ## Development Workflow
 
 **The working tree should ALWAYS be clean.**
@@ -366,27 +270,6 @@ Each iteration follows this cycle:
 - Tag REQUEST complete: `./tools/tag REQUEST-xxx complete`
 - Cut release: `./tools/release X.Y.Z --push --github`
 
-### Workflow Summary
-```
-For each iteration/phase:
-  1. Build feature + tests
-  2. Run tests → iterate until GREEN
-  3. Commit & TAG (REQUEST-xxx-phaseN-impl)
-  4. Document in REQUEST
-  5. Code review (2 subagents) → consolidated changes
-  6. Apply changes, expand tests
-  7. Run tests → iterate until GREEN
-  8. Commit & TAG (REQUEST-xxx-phaseN-review)
-  9. Document in REQUEST
-  10. Test review (2 subagents) → consolidated improvements
-  11. Apply test changes
-  12. Run tests → iterate until GREEN
-  13. Commit & TAG (REQUEST-xxx-phaseN-tests)
-  14. Document in REQUEST
-
-Final phase: TAG complete + release
-```
-
 ### Key Principles
 - **Clean working tree**: Always commit before moving on
 - **Small commits**: Each commit should be a logical unit
@@ -406,39 +289,6 @@ Starter packs provide framework-specific conventions:
 
 Each pack adds opinionated patterns and enforcement for that ecosystem.
 
-## Development Dependencies
-
-Some tools require external dependencies:
-
-### AgencyBench Icon Generation
-To regenerate icons from `apps/agency-bench/public/logo.svg`:
-
-```bash
-# Install librsvg (provides rsvg-convert)
-brew install librsvg
-
-# Generate PNG icons
-cd apps/agency-bench/src-tauri/icons
-rsvg-convert -w 32 -h 32 ../../public/logo.svg > 32x32.png
-rsvg-convert -w 128 -h 128 ../../public/logo.svg > 128x128.png
-rsvg-convert -w 256 -h 256 ../../public/logo.svg > 128x128@2x.png
-
-# Create iconset and .icns for macOS
-mkdir -p icon.iconset
-rsvg-convert -w 16 -h 16 ../../public/logo.svg > icon.iconset/icon_16x16.png
-rsvg-convert -w 32 -h 32 ../../public/logo.svg > icon.iconset/icon_16x16@2x.png
-rsvg-convert -w 32 -h 32 ../../public/logo.svg > icon.iconset/icon_32x32.png
-rsvg-convert -w 64 -h 64 ../../public/logo.svg > icon.iconset/icon_32x32@2x.png
-rsvg-convert -w 128 -h 128 ../../public/logo.svg > icon.iconset/icon_128x128.png
-rsvg-convert -w 256 -h 256 ../../public/logo.svg > icon.iconset/icon_128x128@2x.png
-rsvg-convert -w 256 -h 256 ../../public/logo.svg > icon.iconset/icon_256x256.png
-rsvg-convert -w 512 -h 512 ../../public/logo.svg > icon.iconset/icon_256x256@2x.png
-rsvg-convert -w 512 -h 512 ../../public/logo.svg > icon.iconset/icon_512x512.png
-rsvg-convert -w 1024 -h 1024 ../../public/logo.svg > icon.iconset/icon_512x512@2x.png
-iconutil -c icns icon.iconset -o icon.icns
-rm -rf icon.iconset
-```
-
 ## Getting Help
 
 Your housekeeping agent is always available:
@@ -447,12 +297,13 @@ Your housekeeping agent is always available:
 ./tools/myclaude housekeeping housekeeping "I need help with..."
 ```
 
-## Contributing
+## Reference Documentation
 
-See `CONTRIBUTING.md` for how to:
-- Submit starter packs
-- Improve core tools
-- Report issues
+- `README.md` - User installation and getting started
+- `claude/docs/TERMINAL-INTEGRATION.md` - iTerm setup and troubleshooting
+- `claude/docs/PERMISSIONS.md` - Permissions model and examples
+- `claude/docs/SECRETS.md` - Complete secrets reference
+- `claude/docs/REPO-RELATIONSHIP.md` - How the-agency and the-agency-starter relate
 
 ---
 

@@ -44,3 +44,6 @@ coverage/
 claude/principals/*/resources/secrets/
 claude/apps/AgencyBench.app
 test/
+
+# Claude Code local settings (user customizations)
+.claude/settings.local.json
