@@ -1,24 +1,31 @@
 # REQUEST-jordan-0049-captain-rename-housekeeping-agent-to-captain-and-implement
 
-**Status:** Complete
+**Status:** Complete + Released
 **Priority:** High
 **Requested By:** agent:housekeeping (on behalf of jordan)
 **Assigned To:** captain
 **Created:** 2026-01-14
-**Updated:** 2026-01-14
+**Updated:** 2026-01-14 (Session 2)
 **Completed:** 2026-01-14
+**Released:** 2026-01-14 (v1.0.9 to the-agency-starter)
 
 ## Summary
 
-Rename housekeeping agent to captain and implement first-launch onboarding
+Rename housekeeping agent to captain, implement first-launch onboarding, and release to the-agency-starter with tool logging pattern
 
 ## Details
 
-This REQUEST encompasses three major deliverables:
+This REQUEST encompasses the following deliverables:
 
+**Session 1 (Core Implementation):**
 1. **Rename housekeeping agent to captain** - Better reflects the agent's leadership role
 2. **Fix first-launch context** - Guide the captain agent (not the principal) on their first session
 3. **Implement Captain's Tour** - Interactive `/welcome` onboarding command from REQUEST-jordan-0034
+
+**Session 2 (Release & Tooling):**
+4. **Update starter sync tools** - Update starter-release, starter-verify for captain and sibling repo
+5. **Release to the-agency-starter** - Sync all captain changes and cut v1.0.9 release
+6. **Tool logging pattern** - Implement quiet-by-default pattern with log service integration
 
 ### The Captain's Role
 
@@ -226,10 +233,121 @@ The Captain's Tour implementation fulfills REQUEST-jordan-0034 (interactive onbo
 **Implementation complete.**
 **Ready for tagging:** REQUEST-jordan-0049-impl
 
+### 2026-01-14 - Documentation & Working Note
+**Commit:** `43d218f` - housekeeping/captain: docs: Document REQUEST-jordan-0049 and create WORKING-NOTE-0024
+
+**Changes:**
+- Updated REQUEST-jordan-0049 with full activity log
+- Created `WORKING-NOTE-0024.md` for the book:
+  * Context and problem statement
+  * Three-phase transformation details
+  * Technical architecture
+  * Lessons and patterns
+  * For-the-book sections on agent identity, onboarding design, tutorial design
+  * Implementation metrics (4 hours, 45 files changed)
+
+**Files changed:** 2 files
+
+### 2026-01-14 - Starter Tools Update (Session 2)
+**Commit:** `e53574b` - housekeeping/captain: refactor: Update starter tools and docs for captain rename
+
+**Changes:**
+- Updated `tools/starter-release`:
+  * Changed sync paths from housekeeping to captain (lines 142-145)
+  * Added `.claude/commands` to sync list (line 138)
+  * Added new documentation files to sync (FIRST-LAUNCH.md, FIRST-LAUNCH-CONTEXT.jsonl, STARTER-PACK-INTEGRATION.md, tutorials)
+  * Updated mkdir paths to captain (line 168)
+  * Updated cleanup paths to captain (lines 198-199)
+  * Updated verification file check (line 261)
+- Updated `tools/starter-verify`:
+  * Fixed path to use sibling repo: `../the-agency-starter` instead of subdirectory (lines 33-42)
+  * Added fallback to environment variable
+- Updated `tools/starter-compare`:
+  * Updated documentation comment to reflect sibling repo (line 13-14)
+- Updated `claude/docs/REPO-RELATIONSHIP.md`:
+  * Changed overview to explain sibling repo structure (lines 1-12)
+  * Updated development flow to show `./tools/starter-release` process (lines 17-22)
+  * Changed "Future State" to "Current State" (lines 41-43)
+  * Completely rewrote Sync Process section with detailed instructions (lines 103-156)
+  * Updated last-modified date to 2026-01-14
+
+**Files changed:** 4 files
+
+### 2026-01-14 - Release to the-agency-starter
+**Commit in the-agency-starter:** `8e002a4` - release: the-agency-starter v1.0.9
+
+**Action:** Ran `./tools/starter-release patch`
+
+**Changes synced to the-agency-starter:**
+- 41 files changed, 3836 insertions, 257 deletions
+- New files created:
+  * `.claude/commands/tutorial.md`
+  * `.claude/commands/welcome.md`
+  * `.claude/hooks/check-messages.sh`
+  * `.claude/hooks/session-start.sh`
+  * `.claude/settings.json`
+  * `.claude/settings.local.json.example`
+  * `claude/agents/captain/` (agent.md, KNOWLEDGE.md, ADHOC-WORKLOG.md)
+  * `claude/docs/FIRST-LAUNCH-CONTEXT.jsonl`
+  * `claude/docs/FIRST-LAUNCH.md`
+  * `claude/docs/PERMISSIONS.md`
+  * `claude/docs/SECRETS.md`
+  * `claude/docs/STARTER-PACK-INTEGRATION.md`
+  * `claude/docs/TERMINAL-INTEGRATION.md`
+  * `claude/docs/tutorials/` (10 tutorial files)
+  * `tools/context-review`
+  * `tools/context-save`
+  * `tools/tab-status`
+- Modified files: All core tools updated for captain
+- Tagged: `v1.0.9`
+
+**Status:** Ready to push to GitHub
+
+### 2026-01-14 - Tool Logging Pattern
+**Commit:** `c00e8b4` - housekeeping/captain: refactor: Add verbose flag and log service integration to starter-release
+
+**Changes:**
+- Added `--verbose` flag to control output verbosity
+- Default to quiet mode (only show summary and run ID)
+- Added `log_end` calls at all exit points:
+  * On error: clears trap, calls log_end with failure status
+  * On success (sync-only): clears trap, calls log_end with success
+  * On success (dry-run): clears trap, calls log_end with success
+  * On success (release): clears trap, calls log_end with success
+- Added trap for unexpected exits
+- Show run ID for debugging: `starter-release [run: xyz]`
+- Created `verbose_echo()` function for detail output
+- Replaced detail echoes with verbose_echo calls
+
+**Impact:** Reduces context window usage while enabling debugging via log service queries
+
+**Files changed:** 1 file (tools/starter-release)
+
+### 2026-01-14 - Tool Logging Pattern Documentation
+**Commit:** `9453d56` - housekeeping/captain: docs: Add tool logging pattern guide
+
+**Changes:**
+- Created `claude/docs/TOOL-LOGGING-PATTERN.md`:
+  * Complete pattern for quiet-by-default tools
+  * Verbose flag implementation
+  * Log service integration (log_start/log_end)
+  * Run ID display and trap handling
+  * Output behavior examples (default vs verbose)
+  * Debugging instructions (query log service)
+  * Benefits list
+  * Tools to update (priority order)
+  * Reference implementation (starter-release)
+
+**Files changed:** 1 file
+
 ### Next Steps
-- [ ] Test `/welcome` command in captain session
-- [ ] Test `/tutorial` navigation commands
+- [x] Integrate into the-agency-starter (complete - v1.0.9)
+- [x] Update starter tools for captain rename
+- [x] Document sibling repo structure
+- [x] Create tool logging pattern
+- [ ] Test session restart with captain agent
 - [ ] Verify first-launch context displays correctly
-- [ ] Tag REQUEST-jordan-0049-impl after validation
-- [ ] Integrate into the-agency-starter (follow STARTER-PACK-INTEGRATION.md)
+- [ ] Verify iTerm shows "captain" badge
+- [ ] Push the-agency-starter v1.0.9 to GitHub
+- [ ] Apply logging pattern to remaining tools (use TOOL-LOGGING-PATTERN.md)
 - [ ] Update REQUEST-jordan-0034 status (completed by this work)
