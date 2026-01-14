@@ -33,7 +33,12 @@ NC='\033[0m'
 # Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-STARTER_DIR="$PROJECT_ROOT/the-agency-starter"
+# Starter is now a sibling repo, not a subdirectory
+STARTER_DIR="$(cd "$PROJECT_ROOT/../the-agency-starter" 2>/dev/null && pwd)"
+if [[ -z "$STARTER_DIR" || ! -d "$STARTER_DIR" ]]; then
+    # Fallback to environment variable
+    STARTER_DIR="${THE_AGENCY_STARTER_DIR:-}"
+fi
 DEFAULT_TEST_DIR="$(dirname "$PROJECT_ROOT")/test/the-agency-starter"
 
 # Parse arguments

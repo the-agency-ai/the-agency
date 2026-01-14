@@ -10,7 +10,7 @@
 #   ./tools/starter-compare --fix               # Remove cruft from source
 #
 # Compares:
-#   SOURCE:  the-agency/the-agency-starter/
+#   SOURCE:  ../the-agency-starter/ (sibling repo)
 #   INSTALL: the-agency/test/the-agency-starter/
 #
 # This tool verifies that install.sh produces an exact copy of the source.

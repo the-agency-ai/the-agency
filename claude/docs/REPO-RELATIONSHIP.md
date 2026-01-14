@@ -2,14 +2,22 @@
 
 ## Overview
 
-`the-agency` is the private development repo. `the-agency-starter` is a **build artifact** that lives as a directory within `the-agency` but is also published to a separate public repository.
+`the-agency` is the private development repo. `the-agency-starter` is a **separate sibling repository** that serves as the public distribution.
+
+The two repos live side-by-side:
+```
+code/
+  ├── the-agency/            # Private development repo (source of truth)
+  └── the-agency-starter/    # Public distribution repo (build target)
+```
 
 ## Repository Flow
 
 ### Development Flow (Downstream to Users)
 ```
 Commit → Push to the-agency (private)
-       → Extract from the-agency/the-agency-starter/
+       → Run ./tools/starter-release
+       → Sync files to ../the-agency-starter/ (sibling repo)
        → Push to the-agency-starter (public repo)
 ```
 
@@ -30,9 +38,9 @@ User extracts from their local project
        → We sync/merge accepted changes back into the-agency
 ```
 
-## Future State
+## Current State (as of 2026-01-14)
 
-Long-term: Remove the-agency-starter directory from the-agency repo entirely, and instead "build the artifacts" that get committed to the-agency-starter public repo.
+The-agency-starter has been extracted from the-agency repo and now lives as a separate sibling repository. The sync process uses `./tools/starter-release` to copy files from the-agency → the-agency-starter.
 
 ## Platform Support
 
@@ -94,24 +102,58 @@ These are public-facing files for end users:
 
 ## Sync Process
 
-When syncing:
-1. Make changes in the-agency (source of truth)
-2. Copy updated tools from the-agency → the-agency-starter
-3. Never copy platform-specific tools to starter if that platform isn't supported
-4. Never sync the "intentionally different" files
-5. Never sync instance-specific files
+### Using starter-release Tool
 
-### Quick Sync Command
+The recommended way to sync changes:
+
 ```bash
-# Sync all tools from main to starter (except setup-linux)
-for tool in tools/*; do
-  [ -d "$tool" ] && continue
-  [ -L "$tool" ] && continue
-  toolname=$(basename "$tool")
-  [ "$toolname" = "setup-linux" ] && continue
-  cp "$tool" "the-agency-starter/tools/$toolname"
-done
+# Sync files only (no version bump)
+./tools/starter-release --sync-only
+
+# Cut a full release (sync + version + commit + tag)
+./tools/starter-release patch    # Bump patch version (0.1.0 -> 0.1.1)
+./tools/starter-release minor    # Bump minor version (0.1.0 -> 0.2.0)
+./tools/starter-release major    # Bump major version (0.1.0 -> 1.0.0)
+./tools/starter-release 1.5.0    # Specific version
+
+# Dry run (see what would happen)
+./tools/starter-release --dry-run
 ```
 
+### What Gets Synced
+
+The starter-release tool syncs:
+- `.claude/` directory (settings, hooks, commands)
+- `CLAUDE.md`, `README.md`, `LICENSE`, `.gitignore`
+- `claude/agents/captain/` (agent files, not session state)
+- `claude/config`, `claude/docs`, `claude/knowledge`, `claude/templates`, `claude/workstreams`
+- `tools/` (all CLI tools)
+- `source/apps/agency-bench` and `source/services/agency-service`
+
+What does NOT get synced:
+- `claude/principals/` (private/instance-specific)
+- Session backups and logs
+- Agent state files (SESSION-*, backups/)
+- Platform-specific unsupported tools (e.g., setup-linux)
+- Build artifacts (node_modules, target/, .next/)
+
+### Verification Tools
+
+```bash
+# Verify the starter build
+./tools/starter-verify
+
+# Compare starter to a test install
+./tools/starter-compare
+```
+
+### Manual Sync Rules
+
+When syncing manually (not recommended, use starter-release instead):
+1. Make changes in the-agency (source of truth)
+2. Never copy platform-specific tools to starter if that platform isn't supported
+3. Never sync the "intentionally different" files
+4. Never sync instance-specific files
+
 ---
-*Last Updated: 2026-01-09*
+*Last Updated: 2026-01-14*
