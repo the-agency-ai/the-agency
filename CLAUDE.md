@@ -118,6 +118,57 @@ cp .claude/settings.local.json.example .claude/settings.local.json
 
 **Reference:** See `claude/docs/PERMISSIONS.md` for the full model and examples.
 
+## Session Context Management
+
+**CRITICAL:** Agents must save conversational context throughout the session using `./tools/context-save`.
+
+### When to Save Context
+
+Save context at these key moments:
+
+1. **Session Start** - What you're working on
+2. **After Completing Subtasks** - What was accomplished
+3. **Before Major Context Switch** - Switching tasks or focus
+4. **When Parking Work** - Issues for later
+5. **Before Long Operations** - In case session gets interrupted
+
+### Usage Examples
+
+```bash
+# Starting work
+./tools/context-save --append "Continuing REQUEST-jordan-0048 - iTerm integration"
+
+# Completing milestone
+./tools/context-save --checkpoint "Permission system redesigned - layered approach working"
+
+# Parking an issue
+./tools/context-save --park "Error handling for edge cases needs review"
+
+# Switching tasks
+./tools/context-save --checkpoint "Feature X complete, switching to bug fixes"
+```
+
+### Context Types
+
+- `--append` - General progress note
+- `--checkpoint` - Significant milestone or completion
+- `--park` - Something to revisit later (shows as ⏸ PARKED on restore)
+
+### Automatic Restoration
+
+When you start a session, the SessionStart hook automatically displays:
+
+```
+=== PREVIOUS SESSION CONTEXT ===
+✓ Permission system redesigned - layered approach working
+⏸ PARKED: Error handling for edge cases needs review
+• Working on iTerm integration tests
+⚠ You have 3 uncommitted file(s)
+=== END PREVIOUS SESSION CONTEXT ===
+```
+
+**Best Practice:** Save context proactively throughout the session, not reactively at the end.
+
 ## Secrets
 
 **CRITICAL: All secrets MUST use the Secret Service. NEVER commit secrets to the codebase.**

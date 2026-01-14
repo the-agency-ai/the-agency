@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/tools/tab-status available 2>/dev/null || true"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh"
           }
         ]
       }
@@ -84,6 +84,8 @@
       "Bash(./tools/compare-starter*)",
       "Bash(./tools/commit-prefix*)",
       "Bash(./tools/config*)",
+      "Bash(./tools/context-review*)",
+      "Bash(./tools/context-save*)",
       "Bash(./tools/docbench*)",
       "Bash(./tools/find-tool*)",
       "Bash(./tools/hello*)",

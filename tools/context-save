@@ -1,0 +1,60 @@
+#!/bin/bash
+# context-save - Save conversational context during session
+#
+# Usage:
+#   ./tools/context-save --append "text"     # Add progress note
+#   ./tools/context-save --checkpoint "text" # Mark milestone
+#   ./tools/context-save --park "text"       # Note something for later
+#   ./tools/context-save --clear             # Clear context (new session)
+#
+# Why this exists:
+#   Enables session continuity by capturing conversational context
+#   throughout the session (not just git state)
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "context-save" "agency-tool" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.0-20260114-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "context-save $TOOL_VERSION"
+    exit 0
+fi
+
+AGENTNAME=$(./tools/agentname)
+CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
+TIMESTAMP=$(./tools/now)
+
+# Ensure directory exists
+mkdir -p "$(dirname "$CONTEXT_FILE")"
+
+case "$1" in
+  --clear)
+    > "$CONTEXT_FILE"  # Truncate file
+    echo "Context cleared"
+    ;;
+  --append|--checkpoint|--park)
+    TYPE="${1#--}"
+    CONTENT="$2"
+    if [[ -z "$CONTENT" ]]; then
+      echo "Error: Content required"
+      echo "Usage: ./tools/context-save [--append|--checkpoint|--park] \"content\""
+      exit 1
+    fi
+    # Escape double quotes and backslashes in content for JSON
+    CONTENT_ESC="${CONTENT//\\/\\\\}"
+    CONTENT_ESC="${CONTENT_ESC//\"/\\\"}"
+    echo "{\"timestamp\":\"$TIMESTAMP\",\"type\":\"$TYPE\",\"content\":\"$CONTENT_ESC\"}" >> "$CONTEXT_FILE"
+    echo "Context saved: $TYPE"
+    ;;
+  *)
+    echo "Usage: ./tools/context-save [--append|--checkpoint|--park|--clear] \"content\""
+    exit 1
+    ;;
+esac

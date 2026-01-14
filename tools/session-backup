@@ -63,7 +63,13 @@ cat > "$BACKUP_DIR/session-info.json" <<EOF
 }
 EOF
 
-# 6. Archive this backup
+# 6. Archive context if exists
+CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
+if [[ -f "$CONTEXT_FILE" ]]; then
+  cp "$CONTEXT_FILE" "$ARCHIVE_DIR/context.jsonl" 2>/dev/null
+fi
+
+# 7. Archive this backup
 cp -r "$BACKUP_DIR/"* "$ARCHIVE_DIR/" 2>/dev/null
 
 # Silent success (hook context)

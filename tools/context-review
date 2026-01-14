@@ -1,0 +1,64 @@
+#!/bin/bash
+# context-review - Review saved session context
+#
+# Usage:
+#   ./tools/context-review           # Formatted view
+#   ./tools/context-review --raw     # Show raw JSONL
+#   ./tools/context-review --summary # Last checkpoint + parked items
+#
+# Why this exists:
+#   Allows users and agents to review what context has been saved
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "context-review" "agency-tool" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.0-20260114-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "context-review $TOOL_VERSION"
+    exit 0
+fi
+
+AGENTNAME=$(./tools/agentname)
+CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
+
+if [[ ! -f "$CONTEXT_FILE" ]]; then
+  echo "No context file found at $CONTEXT_FILE"
+  exit 1
+fi
+
+case "${1:-}" in
+  --raw)
+    cat "$CONTEXT_FILE"
+    ;;
+  --summary)
+    echo "Last Checkpoint:"
+    grep '"type":"checkpoint"' "$CONTEXT_FILE" | tail -1 | \
+      sed 's/.*"content":"\(.*\)"}/\1/'
+    echo ""
+    echo "Parked Items:"
+    grep '"type":"park"' "$CONTEXT_FILE" | \
+      sed 's/.*"content":"\(.*\)"}/\1/'
+    ;;
+  *)
+    # Formatted view
+    echo "=== Session Context for $AGENTNAME ==="
+    cat "$CONTEXT_FILE" | while IFS= read -r line; do
+      TYPE=$(echo "$line" | grep -o '"type":"[^"]*"' | cut -d'"' -f4)
+      TIME=$(echo "$line" | grep -o '"timestamp":"[^"]*"' | cut -d'"' -f4 | cut -d' ' -f2)
+      CONTENT=$(echo "$line" | sed 's/.*"content":"\(.*\)"}/\1/')
+
+      case "$TYPE" in
+        checkpoint) printf "[%s] ✓ %s\n" "$TIME" "$CONTENT" ;;
+        park)       printf "[%s] ⏸ %s\n" "$TIME" "$CONTENT" ;;
+        append)     printf "[%s] • %s\n" "$TIME" "$CONTENT" ;;
+      esac
+    done
+    ;;
+esac
