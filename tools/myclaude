@@ -9,7 +9,7 @@
 #   ./tools/myclaude --version          # Show Claude Code version
 #
 # Examples:
-#   ./tools/myclaude housekeeping housekeeping
+#   ./tools/myclaude housekeeping captain
 #   ./tools/myclaude web web "Fix the login bug"
 #   ./tools/myclaude agents agent-manager
 #

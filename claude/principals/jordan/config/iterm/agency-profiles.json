@@ -1,9 +1,9 @@
 {
   "Profiles": [
     {
-      "Name": "Agency - Housekeeping",
-      "Guid": "agency-housekeeping-jordan",
-      "Badge Text": "housekeeping",
+      "Name": "Agency - Captain",
+      "Guid": "agency-captain-jordan",
+      "Badge Text": "captain",
       "Working Directory": "/Users/jdm/code/the-agency",
       "Custom Directory": "Yes",
       "Background Color": {
@@ -22,7 +22,7 @@
         "Blue Component": 0.8
       },
       "Use Tab Color": true,
-      "Initial Text": "# Housekeeping agent session\n./tools/myclaude housekeeping housekeeping"
+      "Initial Text": "# Captain agent session\n./tools/myclaude housekeeping captain"
     },
     {
       "Name": "Agency - Web",

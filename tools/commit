@@ -114,9 +114,9 @@ if [ -z "$WORKSTREAM" ] || [ -z "$AGENT" ]; then
     fi
 fi
 
-# Final fallback: use "housekeeping/housekeeping" as default
+# Final fallback: use "housekeeping/captain" as default
 WORKSTREAM="${WORKSTREAM:-housekeeping}"
-AGENT="${AGENT:-housekeeping}"
+AGENT="${AGENT:-captain}"
 
 # Build the commit message
 PREFIX="${WORKSTREAM}/${AGENT}"

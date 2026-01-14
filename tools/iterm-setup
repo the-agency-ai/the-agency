@@ -65,9 +65,9 @@ cat > "$PROFILES_FILE" << 'PROFILES_EOF'
 {
   "Profiles": [
     {
-      "Name": "Agency - Housekeeping",
-      "Guid": "agency-housekeeping-PRINCIPALNAME",
-      "Badge Text": "housekeeping",
+      "Name": "Agency - Captain",
+      "Guid": "agency-captain-PRINCIPALNAME",
+      "Badge Text": "captain",
       "Working Directory": "REPO_ROOT",
       "Custom Directory": "Yes",
       "Background Color": {
@@ -86,7 +86,7 @@ cat > "$PROFILES_FILE" << 'PROFILES_EOF'
         "Blue Component": 0.8
       },
       "Use Tab Color": true,
-      "Initial Text": "# Housekeeping agent session\n./tools/myclaude housekeeping housekeeping"
+      "Initial Text": "# Captain agent session\n./tools/myclaude housekeeping captain"
     },
     {
       "Name": "Agency - Web",

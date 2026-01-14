@@ -2,7 +2,7 @@
 # SessionStart hook: Restore context from previous session
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-AGENTNAME="${AGENTNAME:-housekeeping}"
+AGENTNAME="${AGENTNAME:-captain}"
 CONTEXT_FILE="$REPO_ROOT/claude/agents/$AGENTNAME/backups/latest/context.jsonl"
 GIT_STATUS_FILE="$REPO_ROOT/claude/agents/$AGENTNAME/backups/latest/status.txt"
 
