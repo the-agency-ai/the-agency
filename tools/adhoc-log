@@ -3,8 +3,8 @@
 # adhoc-log - Log ad-hoc (out-of-plan) work to agent's ADHOC-WORKLOG.md
 #
 # Usage:
-#   ./tools/adhoc-log "Title" "Why" "What" "Impact"
-#   ./tools/adhoc-log --interactive
+#   ./tools/adhoc-log "Title" "Why" "What" "Impact" [--verbose]
+#   ./tools/adhoc-log --interactive [--verbose]
 #
 # This tool helps agents track unplanned work that occurs outside
 # the Epic → Sprint → Iteration workflow.
@@ -26,36 +26,92 @@ fi
 RUN_ID=$(log_start "adhoc-log" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.0.0-20260114-000007"
 
-# Version check
-if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
-    echo "adhoc-log $TOOL_VERSION"
-    exit 0
-fi
+# Defaults
+VERBOSE=false
 
-# Get agent name
-if [ -z "$AGENTNAME" ]; then
-    AGENTNAME=$(./tools/agentname 2>/dev/null || echo "")
-fi
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-if [ -z "$AGENTNAME" ]; then
-    echo "Error: AGENTNAME not set. Run with AGENTNAME=yourname or set environment variable." >&2
-    exit 1
-fi
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
-# Normalize to lowercase
-AGENTNAME_LOWER=$(echo "$AGENTNAME" | tr '[:upper:]' '[:lower:]')
-AGENTNAME_UPPER=$(echo "$AGENTNAME" | tr '[:lower:]' '[:upper:]')
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-# Paths
-ADHOC_FILE="claude/agents/${AGENTNAME_LOWER}/ADHOC-WORKLOG.md"
+    # Parse arguments for version/help/verbose first
+    local INTERACTIVE=false
+    local ARGS=()
 
-if [ ! -f "$ADHOC_FILE" ]; then
-    echo "Error: ADHOC-WORKLOG.md not found at $ADHOC_FILE" >&2
-    echo "Creating empty ADHOC-WORKLOG.md..." >&2
-    mkdir -p "$(dirname "$ADHOC_FILE")"
-    cat > "$ADHOC_FILE" << 'TEMPLATE'
+    for arg in "$@"; do
+        case $arg in
+            --version|-v)
+                echo "adhoc-log $TOOL_VERSION"
+                exit 0
+                ;;
+            --help|-h)
+                echo "adhoc-log - Log ad-hoc work to ADHOC-WORKLOG.md"
+                echo ""
+                echo "Usage:"
+                echo "  ./tools/adhoc-log \"Title\" \"Why\" \"What\" \"Impact\" [--verbose]"
+                echo "  ./tools/adhoc-log --interactive [--verbose]"
+                echo ""
+                echo "Options:"
+                echo "  --interactive, -i  Interactive mode (prompts for input)"
+                echo "  --verbose          Show detailed logging"
+                echo "  --version, -v      Show tool version"
+                echo "  --help, -h         Show this help"
+                exit 0
+                ;;
+            --verbose)
+                VERBOSE=true
+                ;;
+            --interactive|-i)
+                INTERACTIVE=true
+                ;;
+            *)
+                ARGS+=("$arg")
+                ;;
+        esac
+    done
+
+    verbose_echo "adhoc-log [run: ${RUN_ID:-none}]"
+
+    log_step "Getting agent name"
+    if [ -z "$AGENTNAME" ]; then
+        AGENTNAME=$(./tools/agentname 2>/dev/null || echo "")
+    fi
+
+    if [ -z "$AGENTNAME" ]; then
+        log_error "AGENTNAME not set. Run with AGENTNAME=yourname or set environment variable."
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "AGENTNAME not set"
+        exit 1
+    fi
+
+    log_step "Normalizing agent name"
+    local AGENTNAME_LOWER=$(echo "$AGENTNAME" | tr '[:upper:]' '[:lower:]')
+    local AGENTNAME_UPPER=$(echo "$AGENTNAME" | tr '[:lower:]' '[:upper:]')
+
+    local ADHOC_FILE="claude/agents/${AGENTNAME_LOWER}/ADHOC-WORKLOG.md"
+
+    log_step "Checking ADHOC-WORKLOG.md"
+    if [ ! -f "$ADHOC_FILE" ]; then
+        log_warn "ADHOC-WORKLOG.md not found at $ADHOC_FILE"
+        echo "Creating empty ADHOC-WORKLOG.md..." >&2
+        mkdir -p "$(dirname "$ADHOC_FILE")"
+        cat > "$ADHOC_FILE" << 'TEMPLATE'
 # Ad-Hoc Work Log
 
 Work done outside Epic → Sprint → Iteration workflow.
@@ -69,52 +125,57 @@ This is the primary documentation for ad-hoc work - there are no backing sprint 
 ---
 
 TEMPLATE
-fi
-
-# Get timestamp
-TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
-
-# Find next ADHOC ID by counting existing entries
-LAST_ID=$(grep -oE "${AGENTNAME_UPPER}-ADHOC-[0-9]+" "$ADHOC_FILE" 2>/dev/null | grep -oE '[0-9]+$' | sort -n | tail -1 || echo "0")
-NEXT_ID=$(printf "%04d" $((10#${LAST_ID:-0} + 1)))
-ADHOC_ID="${AGENTNAME_UPPER}-ADHOC-${NEXT_ID}"
-
-# Interactive mode
-if [ "$1" == "--interactive" ] || [ "$1" == "-i" ]; then
-    echo "=== Log Ad-Hoc Work ===" >&2
-    echo "Agent: $AGENTNAME_LOWER" >&2
-    echo "Next ID: $ADHOC_ID" >&2
-    echo "" >&2
-
-    read -p "Title: " TITLE
-    echo "" >&2
-    echo "Why (what triggered this work):" >&2
-    read -p "> " WHY
-    echo "" >&2
-    echo "What (brief summary of what was done):" >&2
-    read -p "> " WHAT
-    echo "" >&2
-    echo "Impact (what changed, who benefits):" >&2
-    read -p "> " IMPACT
-else
-    # Argument mode
-    if [ $# -lt 4 ]; then
-        echo "Usage: ./tools/adhoc-log \"Title\" \"Why\" \"What\" \"Impact\"" >&2
-        echo "   or: ./tools/adhoc-log --interactive" >&2
-        echo "" >&2
-        echo "Creates entry in: $ADHOC_FILE" >&2
-        echo "Next ID would be: $ADHOC_ID" >&2
-        exit 1
     fi
 
-    TITLE="$1"
-    WHY="$2"
-    WHAT="$3"
-    IMPACT="$4"
-fi
+    log_step "Getting timestamp"
+    local TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 
-# Build the entry
-ENTRY=$(cat << EOF
+    log_step "Finding next ADHOC ID"
+    local LAST_ID=$(grep -oE "${AGENTNAME_UPPER}-ADHOC-[0-9]+" "$ADHOC_FILE" 2>/dev/null | grep -oE '[0-9]+$' | sort -n | tail -1 || echo "0")
+    local NEXT_ID=$(printf "%04d" $((10#${LAST_ID:-0} + 1)))
+    local ADHOC_ID="${AGENTNAME_UPPER}-ADHOC-${NEXT_ID}"
+
+    local TITLE WHY WHAT IMPACT
+
+    # Interactive mode
+    if [ "$INTERACTIVE" == "true" ]; then
+        echo "=== Log Ad-Hoc Work ===" >&2
+        echo "Agent: $AGENTNAME_LOWER" >&2
+        echo "Next ID: $ADHOC_ID" >&2
+        echo "" >&2
+
+        read -p "Title: " TITLE
+        echo "" >&2
+        echo "Why (what triggered this work):" >&2
+        read -p "> " WHY
+        echo "" >&2
+        echo "What (brief summary of what was done):" >&2
+        read -p "> " WHAT
+        echo "" >&2
+        echo "Impact (what changed, who benefits):" >&2
+        read -p "> " IMPACT
+    else
+        # Argument mode
+        if [ ${#ARGS[@]} -lt 4 ]; then
+            log_error "Insufficient arguments"
+            echo "Usage: ./tools/adhoc-log \"Title\" \"Why\" \"What\" \"Impact\"" >&2
+            echo "   or: ./tools/adhoc-log --interactive" >&2
+            echo "" >&2
+            echo "Creates entry in: $ADHOC_FILE" >&2
+            echo "Next ID would be: $ADHOC_ID" >&2
+            trap - EXIT
+            log_end "$RUN_ID" "failure" 1 0 "Insufficient arguments"
+            exit 1
+        fi
+
+        TITLE="${ARGS[0]}"
+        WHY="${ARGS[1]}"
+        WHAT="${ARGS[2]}"
+        IMPACT="${ARGS[3]}"
+    fi
+
+    log_step "Building entry"
+    local ENTRY=$(cat << EOF
 
 ## ${ADHOC_ID} | ${TIMESTAMP}
 
@@ -136,30 +197,37 @@ ENTRY=$(cat << EOF
 EOF
 )
 
-# Find the line with the first "---" after the header and insert after it
-# The header ends with "---" so we insert after that
-HEADER_END=$(grep -n "^---$" "$ADHOC_FILE" | head -1 | cut -d: -f1)
+    log_step "Inserting entry into ADHOC-WORKLOG.md"
+    # Find the line with the first "---" after the header and insert after it
+    # The header ends with "---" so we insert after that
+    local HEADER_END=$(grep -n "^---$" "$ADHOC_FILE" | head -1 | cut -d: -f1)
 
-if [ -z "$HEADER_END" ]; then
-    # No header separator, append to end
-    echo "$ENTRY" >> "$ADHOC_FILE"
-else
-    # Insert after header separator (most recent first)
-    head -n "$HEADER_END" "$ADHOC_FILE" > "${ADHOC_FILE}.tmp"
-    echo "$ENTRY" >> "${ADHOC_FILE}.tmp"
-    tail -n +"$((HEADER_END + 1))" "$ADHOC_FILE" >> "${ADHOC_FILE}.tmp"
-    mv "${ADHOC_FILE}.tmp" "$ADHOC_FILE"
-fi
+    if [ -z "$HEADER_END" ]; then
+        # No header separator, append to end
+        echo "$ENTRY" >> "$ADHOC_FILE"
+    else
+        # Insert after header separator (most recent first)
+        head -n "$HEADER_END" "$ADHOC_FILE" > "${ADHOC_FILE}.tmp"
+        echo "$ENTRY" >> "${ADHOC_FILE}.tmp"
+        tail -n +"$((HEADER_END + 1))" "$ADHOC_FILE" >> "${ADHOC_FILE}.tmp"
+        mv "${ADHOC_FILE}.tmp" "$ADHOC_FILE"
+    fi
 
-echo "Created: $ADHOC_ID" >&2
-echo "File: $ADHOC_FILE" >&2
-echo "" >&2
-echo "Entry added. Remember to fill in:" >&2
-echo "  - Files Created" >&2
-echo "  - Files Modified" >&2
-echo "  - Related (if applicable)" >&2
-echo "" >&2
-echo "View with: head -60 $ADHOC_FILE" >&2
+    echo "Created: $ADHOC_ID" >&2
+    echo "File: $ADHOC_FILE" >&2
+    verbose_echo "" >&2
+    verbose_echo "Entry added. Remember to fill in:" >&2
+    verbose_echo "  - Files Created" >&2
+    verbose_echo "  - Files Modified" >&2
+    verbose_echo "  - Related (if applicable)" >&2
+    verbose_echo "" >&2
+    verbose_echo "View with: head -60 $ADHOC_FILE" >&2
 
-# Output the ID for scripting
-echo "$ADHOC_ID"
+    # Output the ID for scripting
+    echo "$ADHOC_ID"
+
+    trap - EXIT  # Clear trap
+    log_end "$RUN_ID" "success" 0 0 "ADHOC entry created: $ADHOC_ID" 2>/dev/null || true
+}
+
+main "$@"

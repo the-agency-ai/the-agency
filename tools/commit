@@ -17,17 +17,20 @@
 #   --amend        Amend the previous commit (use carefully!)
 #   --dry-run      Show what would be committed
 #   --staged       Only commit staged changes (default: stage all)
+#   --verbose      Show detailed output
 #
 
 set -e
 
-TOOL_VERSION="1.0.1"
+# Tool version
+TOOL_VERSION="1.1.0-20260114-000001"
 
 # Source log helper for tool tracking
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
     source "$SCRIPT_DIR/_log-helper"
 fi
+RUN_ID=$(log_start "commit" "agency-tool" "$@" 2>/dev/null) || true
 
 # Colors
 RED='\033[0;31m'
@@ -36,11 +39,19 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
 # Defaults
 NO_VERIFY=false
 AMEND=false
 DRY_RUN=false
 STAGED_ONLY=false
+VERBOSE=false
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -50,8 +61,12 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --help|-h)
-            head -22 "$0" | tail -21 | sed 's/^# //' | sed 's/^#//'
+            head -24 "$0" | tail -23 | sed 's/^# //' | sed 's/^#//'
             exit 0
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
             ;;
         --no-verify)
             NO_VERIFY=true
@@ -79,142 +94,152 @@ done
 MESSAGE="${1:-}"
 WORK_ITEM="${2:-}"
 
-# Start logging
-LOG_RUN_ID=""
-if type log_start &>/dev/null; then
-    LOG_RUN_ID=$(log_start "commit" "agency-tool" "$MESSAGE" "$WORK_ITEM")
-fi
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-if [ -z "$MESSAGE" ]; then
-    echo -e "${RED}Error: Commit message required${NC}"
-    echo "Usage: ./tools/commit \"message\" [WORK-ITEM]"
-    exit 1
-fi
+    echo "commit [run: ${RUN_ID:-none}]"
 
-# Try to detect workstream/agent from environment or current directory
-WORKSTREAM="${AGENCY_WORKSTREAM:-}"
-AGENT="${AGENCY_AGENT:-}"
-
-# If not set, try to infer from myclaude session marker
-if [ -z "$WORKSTREAM" ] || [ -z "$AGENT" ]; then
-    # Check for session file
-    SESSION_FILE="${HOME}/.claude/current-session"
-    if [ -f "$SESSION_FILE" ]; then
-        source "$SESSION_FILE" 2>/dev/null || true
+    if [ -z "$MESSAGE" ]; then
+        log_error "Commit message required"
+        verbose_echo "Usage: ./tools/commit \"message\" [WORK-ITEM]"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Missing commit message"
+        exit 1
     fi
-fi
 
-# Fallback: try to get from git branch name (e.g., feature/housekeeping-secret-service)
-if [ -z "$WORKSTREAM" ] || [ -z "$AGENT" ]; then
-    BRANCH=$(git branch --show-current 2>/dev/null || echo "")
-    # Try pattern like "workstream/agent-description"
-    if [[ "$BRANCH" =~ ^([a-z-]+)/([a-z-]+)- ]]; then
-        WORKSTREAM="${BASH_REMATCH[1]}"
-        AGENT="${BASH_REMATCH[2]}"
-    fi
-fi
+    # Try to detect workstream/agent from environment or current directory
+    WORKSTREAM="${AGENCY_WORKSTREAM:-}"
+    AGENT="${AGENCY_AGENT:-}"
 
-# Final fallback: use "housekeeping/captain" as default
-WORKSTREAM="${WORKSTREAM:-housekeeping}"
-AGENT="${AGENT:-captain}"
-
-# Build the commit message
-PREFIX="${WORKSTREAM}/${AGENT}"
-FULL_MESSAGE="${PREFIX}: ${MESSAGE}"
-
-# Add work item and co-author
-BODY=""
-if [ -n "$WORK_ITEM" ]; then
-    BODY="${WORK_ITEM}"$'\n'
-fi
-BODY="${BODY}Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
-
-# Show what we're about to do
-echo -e "${BLUE}Commit Preview:${NC}"
-echo "---"
-echo -e "${GREEN}${FULL_MESSAGE}${NC}"
-echo ""
-echo "$BODY"
-echo "---"
-
-# Check for changes
-if [ "$AMEND" = false ]; then
-    if [ "$STAGED_ONLY" = false ]; then
-        # Check if there are any changes to commit
-        if [ -z "$(git status --porcelain)" ]; then
-            echo -e "${YELLOW}Nothing to commit, working tree clean${NC}"
-            exit 0
-        fi
-    else
-        # Check if there are staged changes
-        if [ -z "$(git diff --cached --name-only)" ]; then
-            echo -e "${YELLOW}No staged changes to commit${NC}"
-            echo "Tip: Stage files with 'git add' or use without --staged to commit all"
-            exit 0
+    # If not set, try to infer from myclaude session marker
+    if [ -z "$WORKSTREAM" ] || [ -z "$AGENT" ]; then
+        # Check for session file
+        SESSION_FILE="${HOME}/.claude/current-session"
+        if [ -f "$SESSION_FILE" ]; then
+            source "$SESSION_FILE" 2>/dev/null || true
         fi
     fi
-fi
 
-# Dry run - just show what would happen
-if [ "$DRY_RUN" = true ]; then
-    echo -e "${YELLOW}[DRY RUN] Would commit with above message${NC}"
-
-    if [ "$STAGED_ONLY" = false ]; then
-        echo -e "${YELLOW}[DRY RUN] Would stage all changes:${NC}"
-        git status --short
-    else
-        echo -e "${YELLOW}[DRY RUN] Would commit staged changes:${NC}"
-        git diff --cached --name-only
+    # Fallback: try to get from git branch name (e.g., feature/housekeeping-secret-service)
+    if [ -z "$WORKSTREAM" ] || [ -z "$AGENT" ]; then
+        BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+        # Try pattern like "workstream/agent-description"
+        if [[ "$BRANCH" =~ ^([a-z-]+)/([a-z-]+)- ]]; then
+            WORKSTREAM="${BASH_REMATCH[1]}"
+            AGENT="${BASH_REMATCH[2]}"
+        fi
     fi
+
+    # Final fallback: use "housekeeping/captain" as default
+    WORKSTREAM="${WORKSTREAM:-housekeeping}"
+    AGENT="${AGENT:-captain}"
+
+    # Build the commit message
+    PREFIX="${WORKSTREAM}/${AGENT}"
+    FULL_MESSAGE="${PREFIX}: ${MESSAGE}"
+
+    # Add work item and co-author
+    BODY=""
+    if [ -n "$WORK_ITEM" ]; then
+        BODY="${WORK_ITEM}"$'\n'
+    fi
+    BODY="${BODY}Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+
+    # Show preview (verbose only)
+    log_step "Commit Preview"
+    verbose_echo "---"
+    verbose_echo -e "${GREEN}${FULL_MESSAGE}${NC}"
+    verbose_echo ""
+    verbose_echo "$BODY"
+    verbose_echo "---"
+
+    # Check for changes
+    if [ "$AMEND" = false ]; then
+        if [ "$STAGED_ONLY" = false ]; then
+            # Check if there are any changes to commit
+            if [ -z "$(git status --porcelain)" ]; then
+                log_warn "Nothing to commit, working tree clean"
+                trap - EXIT
+                log_end "$RUN_ID" "success" 0 0 "Nothing to commit"
+                exit 0
+            fi
+        else
+            # Check if there are staged changes
+            if [ -z "$(git diff --cached --name-only)" ]; then
+                log_warn "No staged changes to commit"
+                verbose_echo "Tip: Stage files with 'git add' or use without --staged to commit all"
+                trap - EXIT
+                log_end "$RUN_ID" "success" 0 0 "No staged changes"
+                exit 0
+            fi
+        fi
+    fi
+
+    # Dry run - just show what would happen
+    if [ "$DRY_RUN" = true ]; then
+        echo "[DRY RUN] Would commit: $FULL_MESSAGE"
+
+        if [ "$STAGED_ONLY" = false ]; then
+            verbose_echo "[DRY RUN] Would stage all changes:"
+            [[ "$VERBOSE" == "true" ]] && git status --short
+        else
+            verbose_echo "[DRY RUN] Would commit staged changes:"
+            [[ "$VERBOSE" == "true" ]] && git diff --cached --name-only
+        fi
+
+        if [ "$NO_VERIFY" = true ]; then
+            verbose_echo "[DRY RUN] Would skip pre-commit hooks"
+        fi
+
+        if [ "$AMEND" = true ]; then
+            verbose_echo "[DRY RUN] Would amend previous commit"
+        fi
+
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Dry run complete"
+        exit 0
+    fi
+
+    # Stage changes if not staged-only mode
+    if [ "$STAGED_ONLY" = false ]; then
+        log_step "Staging all changes"
+        git add -A
+    fi
+
+    # Build git commit command
+    GIT_CMD="git commit"
 
     if [ "$NO_VERIFY" = true ]; then
-        echo -e "${YELLOW}[DRY RUN] Would skip pre-commit hooks${NC}"
+        GIT_CMD="$GIT_CMD --no-verify"
     fi
 
     if [ "$AMEND" = true ]; then
-        echo -e "${YELLOW}[DRY RUN] Would amend previous commit${NC}"
+        GIT_CMD="$GIT_CMD --amend"
     fi
 
-    exit 0
-fi
-
-# Stage changes if not staged-only mode
-if [ "$STAGED_ONLY" = false ]; then
-    git add -A
-fi
-
-# Build git commit command
-GIT_CMD="git commit"
-
-if [ "$NO_VERIFY" = true ]; then
-    GIT_CMD="$GIT_CMD --no-verify"
-fi
-
-if [ "$AMEND" = true ]; then
-    GIT_CMD="$GIT_CMD --amend"
-fi
-
-# Execute commit
-if $GIT_CMD -m "$FULL_MESSAGE" -m "$BODY"; then
-    echo -e "${GREEN}Commit created successfully${NC}"
-
-    # Show the result
-    echo ""
-    git log -1 --oneline
-
-    # End logging - success
-    if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
+    # Execute commit
+    log_step "Creating commit"
+    if $GIT_CMD -m "$FULL_MESSAGE" -m "$BODY" >/dev/null 2>&1; then
         COMMIT_HASH=$(git log -1 --format='%h')
-        log_end "$LOG_RUN_ID" "success" "0" "0" "Committed: $COMMIT_HASH - $MESSAGE"
-    fi
-else
-    COMMIT_EXIT=$?
-    echo -e "${RED}Commit failed${NC}"
+        echo "Committed: $COMMIT_HASH"
 
-    # End logging - failure
-    if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
-        log_end "$LOG_RUN_ID" "failure" "$COMMIT_EXIT" "0" "Commit failed: $MESSAGE"
-    fi
+        verbose_echo ""
+        [[ "$VERBOSE" == "true" ]] && git log -1 --oneline
 
-    exit $COMMIT_EXIT
-fi
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Committed: $COMMIT_HASH - $MESSAGE"
+    else
+        # Re-run without suppressing output to show the error
+        if ! $GIT_CMD -m "$FULL_MESSAGE" -m "$BODY"; then
+            COMMIT_EXIT=$?
+            log_error "Commit failed"
+            trap - EXIT
+            log_end "$RUN_ID" "failure" "$COMMIT_EXIT" 0 "Commit failed: $MESSAGE"
+            exit $COMMIT_EXIT
+        fi
+    fi
+}
+
+main

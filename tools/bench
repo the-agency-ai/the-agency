@@ -20,13 +20,10 @@ fi
 RUN_ID=$(log_start "bench" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.0.0-20260114-000005"
 
-# Version check
-if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
-    echo "bench $TOOL_VERSION"
-    exit 0
-fi
+# Defaults
+VERBOSE=false
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 BENCH_DIR="$REPO_ROOT/source/apps/agency-bench"
@@ -34,12 +31,19 @@ BUILD_BUNDLE="$BENCH_DIR/src-tauri/target/release/bundle/macos/AgencyBench.app"
 INSTALLED_APP="$HOME/.local/share/the-agency/AgencyBench.app"
 APP_BUNDLE="${INSTALLED_APP}"
 
-if [ ! -d "$BENCH_DIR" ]; then
-  echo "Error: AgencyBench not found at $BENCH_DIR"
-  exit 1
-fi
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-cd "$BENCH_DIR"
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 install_app() {
   mkdir -p "$(dirname "$INSTALLED_APP")"
@@ -47,39 +51,86 @@ install_app() {
   cp -R "$BUILD_BUNDLE" "$INSTALLED_APP"
 }
 
-case "${1:-run}" in
-  run|"")
-    if [ ! -d "$APP_BUNDLE" ]; then
-      echo "Production app not built yet. Building now..."
-      echo "(This takes a few minutes the first time)"
-      echo ""
-      npm run tauri:build 2>&1 | grep -E '(Compiling|Building|Finished|Bundling|Error|error)'
-      echo ""
-      echo "Installing AgencyBench..."
-      install_app
+# Main
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "bench [run: ${RUN_ID:-none}]"
+
+    # Version check
+    if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+        echo "bench $TOOL_VERSION"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Version displayed" 2>/dev/null || true
+        exit 0
     fi
-    echo "Launching AgencyBench..."
-    open "$APP_BUNDLE"
-    ;;
-  dev)
-    echo "Starting AgencyBench in development mode..."
-    npm run tauri:dev
-    ;;
-  build)
-    echo "Building AgencyBench..."
-    npm run tauri:build
-    echo ""
-    echo "Installing AgencyBench..."
-    install_app
-    echo "Installed: $INSTALLED_APP"
-    ;;
-  *)
-    echo "Usage: ./tools/bench [command]"
-    echo ""
-    echo "Commands:"
-    echo "  (none)  - Run production app (default)"
-    echo "  dev     - Run in development mode with hot reload"
-    echo "  build   - Build production app"
-    exit 1
-    ;;
-esac
+
+    # Parse verbose flag
+    for arg in "$@"; do
+        case $arg in
+            --verbose)
+                VERBOSE=true
+                ;;
+        esac
+    done
+
+    if [ ! -d "$BENCH_DIR" ]; then
+      log_error "AgencyBench not found at $BENCH_DIR"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "AgencyBench not found" 2>/dev/null || true
+      exit 1
+    fi
+
+    cd "$BENCH_DIR"
+
+    case "${1:-run}" in
+      run|"")
+        if [ ! -d "$APP_BUNDLE" ]; then
+          verbose_echo "Production app not built yet. Building now..."
+          verbose_echo "(This takes a few minutes the first time)"
+          verbose_echo ""
+          npm run tauri:build 2>&1 | grep -E '(Compiling|Building|Finished|Bundling|Error|error)'
+          verbose_echo ""
+          log_step "Installing AgencyBench..."
+          install_app
+        fi
+        log_info "Launching AgencyBench..."
+        open "$APP_BUNDLE"
+        ;;
+      dev)
+        log_step "Starting AgencyBench in development mode..."
+        npm run tauri:dev
+        ;;
+      build)
+        log_step "Building AgencyBench..."
+        npm run tauri:build
+        verbose_echo ""
+        log_step "Installing AgencyBench..."
+        install_app
+        verbose_echo "Installed: $INSTALLED_APP"
+        ;;
+      --verbose)
+        VERBOSE=true
+        main "${@:2}"
+        return
+        ;;
+      *)
+        echo "Usage: ./tools/bench [command]"
+        echo ""
+        echo "Commands:"
+        echo "  (none)    Run production app (default)"
+        echo "  dev       Run in development mode with hot reload"
+        echo "  build     Build production app"
+        echo "  --verbose Show detailed output"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Help displayed" 2>/dev/null || true
+        exit 1
+        ;;
+    esac
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Completed" 2>/dev/null || true
+}
+
+main "$@"

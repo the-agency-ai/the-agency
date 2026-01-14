@@ -2,10 +2,10 @@
 # Read configuration values from claude/config/agency.yaml
 #
 # Usage:
-#   ./tools/config get principals.jdm        # Get value for a key path
-#   ./tools/config get-principal             # Get principal for current $USER
-#   ./tools/config get project.timezone      # Get project timezone
-#   ./tools/config list                      # Show all config
+#   ./tools/config get principals.jdm [--verbose]   # Get value for a key path
+#   ./tools/config get-principal [--verbose]        # Get principal for current $USER
+#   ./tools/config get project.timezone [--verbose] # Get project timezone
+#   ./tools/config list [--verbose]                 # Show all config
 #
 # The config file uses YAML format at claude/config/agency.yaml
 # Keys are accessed using dot notation: section.key or section.key.subkey
@@ -20,34 +20,111 @@ fi
 RUN_ID=$(log_start "config" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.0.0-20260114-000010"
 
-# Version check
-if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
-    echo "config $TOOL_VERSION"
-    exit 0
-fi
+# Defaults
+VERBOSE=false
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 CONFIG_FILE="$REPO_ROOT/claude/config/agency.yaml"
 
-# Check if config exists
-if [[ ! -f "$CONFIG_FILE" ]]; then
-  echo "Error: Config file not found at $CONFIG_FILE" >&2
-  exit 1
-fi
+# Main function
+main() {
+  trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-# Parse arguments
-ACTION="${1:-help}"
-KEY_PATH="$2"
+  # Parse arguments
+  ACTION=""
+  KEY_PATH=""
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --version|-v)
+        echo "config $TOOL_VERSION"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Version check" 2>/dev/null || true
+        exit 0
+        ;;
+      --verbose)
+        VERBOSE=true
+        shift
+        ;;
+      --help|-h|help)
+        echo "Usage: ./tools/config <action> [key] [--verbose]"
+        echo ""
+        echo "Actions:"
+        echo "  get <key.path>    Get a config value (dot notation)"
+        echo "  get-principal     Get principal for current \$USER"
+        echo "  list              Show all config"
+        echo ""
+        echo "Options:"
+        echo "  --verbose         Show detailed logging"
+        echo "  --version, -v     Show tool version"
+        echo "  --help, -h        Show this help"
+        echo ""
+        echo "Examples:"
+        echo "  ./tools/config get principals.jdm"
+        echo "  ./tools/config get project.timezone"
+        echo "  ./tools/config get-principal"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Help displayed" 2>/dev/null || true
+        exit 0
+        ;;
+      get|get-principal|list)
+        ACTION="$1"
+        shift
+        if [[ "$ACTION" == "get" && $# -gt 0 && "$1" != "--verbose" ]]; then
+          KEY_PATH="$1"
+          shift
+        fi
+        ;;
+      *)
+        if [[ -z "$ACTION" ]]; then
+          ACTION="$1"
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [[ -z "$ACTION" ]]; then
+    ACTION="help"
+  fi
+
+  verbose_echo "config [run: ${RUN_ID:-none}]"
+
+  log_step "Checking config file"
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    log_error "Config file not found at $CONFIG_FILE"
+    trap - EXIT
+    log_end "$RUN_ID" "failure" 1 0 "Config file not found"
+    exit 1
+  fi
 
 case "$ACTION" in
   get)
     if [[ -z "$KEY_PATH" ]]; then
+      log_error "No key path specified"
       echo "Usage: ./tools/config get <key.path>" >&2
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "No key path"
       exit 1
     fi
 
+    log_step "Getting config value for: $KEY_PATH"
     # Use Python for reliable YAML parsing
     python3 - "$CONFIG_FILE" "$KEY_PATH" << 'PYTHON_EOF'
 import sys
@@ -75,8 +152,11 @@ PYTHON_EOF
     ;;
 
   get-principal)
+    log_step "Getting principal for current user"
     # Get principal name for current system user
     CURRENT_USER="${USER:-$(whoami)}"
+
+    verbose_echo "  Current user: $CURRENT_USER"
 
     # Try to get from config
     PRINCIPAL=$(python3 - "$CONFIG_FILE" "$CURRENT_USER" << 'PYTHON_EOF'
@@ -104,16 +184,22 @@ PYTHON_EOF
     ;;
 
   list)
+    log_step "Listing all config"
     cat "$CONFIG_FILE"
     ;;
 
-  help|--help|-h)
-    echo "Usage: ./tools/config <action> [key]"
+  help)
+    echo "Usage: ./tools/config <action> [key] [--verbose]"
     echo ""
     echo "Actions:"
     echo "  get <key.path>    Get a config value (dot notation)"
     echo "  get-principal     Get principal for current \$USER"
     echo "  list              Show all config"
+    echo ""
+    echo "Options:"
+    echo "  --verbose         Show detailed logging"
+    echo "  --version, -v     Show tool version"
+    echo "  --help, -h        Show this help"
     echo ""
     echo "Examples:"
     echo "  ./tools/config get principals.jdm"
@@ -122,8 +208,16 @@ PYTHON_EOF
     ;;
 
   *)
-    echo "Unknown action: $ACTION" >&2
+    log_error "Unknown action: $ACTION"
     echo "Use: ./tools/config help" >&2
+    trap - EXIT
+    log_end "$RUN_ID" "failure" 1 0 "Unknown action"
     exit 1
     ;;
 esac
+
+  trap - EXIT
+  log_end "$RUN_ID" "success" 0 0 "Config operation complete: $ACTION" 2>/dev/null || true
+}
+
+main "$@"

@@ -2,8 +2,8 @@
 # Regenerate the artifacts index for a principal
 #
 # Usage:
-#   artifact-index-update PRINCIPAL    # Update specific principal's index
-#   artifact-index-update              # Update all principals' indexes
+#   artifact-index-update PRINCIPAL [--verbose]   # Update specific principal's index
+#   artifact-index-update [--verbose]             # Update all principals' indexes
 #
 # This tool scans artifacts and generates INDEX.md for each principal.
 # Called automatically by artifact-capture.
@@ -18,7 +18,7 @@ fi
 RUN_ID=$(log_start "artifact-index-update" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.0.0-20260114-000008"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -37,6 +37,23 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PRINCIPALS_DIR="$REPO_ROOT/claude/principals"
+
+# Defaults
+VERBOSE=false
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 # Get timezone from config or default to UTC
 TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
@@ -122,17 +139,44 @@ EOF
 *Use \`./tools/artifact-list\` for filtered views.*
 EOF
 
-  echo "Updated: $INDEX_FILE ($TOTAL_COUNT artifacts)"
+  verbose_echo "Updated: $INDEX_FILE ($TOTAL_COUNT artifacts)"
 }
 
+# Parse arguments
+PRINCIPAL_ARG=""
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --verbose)
+      VERBOSE=true
+      shift
+      ;;
+    *)
+      PRINCIPAL_ARG="$1"
+      shift
+      ;;
+  esac
+done
+
 # Main logic
-if [[ -n "${1:-}" ]]; then
-  # Update specific principal
-  update_principal_index "$1"
-else
-  # Update all principals
-  for principal_dir in "$PRINCIPALS_DIR"/*/; do
-    principal=$(basename "$principal_dir")
-    update_principal_index "$principal"
-  done
-fi
+main() {
+  # Trap unexpected exits
+  trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+  verbose_echo "artifact-index-update [run: ${RUN_ID:-none}]"
+
+  if [[ -n "$PRINCIPAL_ARG" ]]; then
+    # Update specific principal
+    update_principal_index "$PRINCIPAL_ARG"
+  else
+    # Update all principals
+    for principal_dir in "$PRINCIPALS_DIR"/*/; do
+      principal=$(basename "$principal_dir")
+      update_principal_index "$principal"
+    done
+  fi
+
+  trap - EXIT
+  log_end "$RUN_ID" "success" 0 0 "Updated artifact indexes"
+}
+
+main

@@ -14,8 +14,6 @@
 # Don't use set -e as we want to continue on check failures
 # set -e
 
-TOOL_VERSION="1.0.0-20260113-000001"
-
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -28,6 +26,9 @@ fi
 # Start logging
 RUN_ID=$(log_start "designsystem-validate" "agency-tool" "$@" 2>/dev/null) || true
 
+# Tool version
+TOOL_VERSION="1.0.0-20260114-000002"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -36,11 +37,22 @@ BLUE='\033[0;34m'
 DIM='\033[2m'
 NC='\033[0m'
 
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
 # Counters
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
 WARNINGS=0
+
+# Defaults
+VERBOSE=false
+STRICT=false
 
 # Parse arguments
 show_help() {
@@ -56,6 +68,7 @@ show_help() {
     echo "  --help, -h     Show this help message"
     echo "  --version, -v  Show version"
     echo "  --strict       Exit non-zero on warnings (default: only on errors)"
+    echo "  --verbose      Enable verbose logging"
     echo ""
     echo "Examples:"
     echo "  ./tools/designsystem-validate claude/knowledge/design-systems/acme-001"
@@ -66,8 +79,6 @@ show_help() {
     echo "  - Valid hex color format"
     echo "  - No critical gaps outstanding in GAPS.md"
 }
-
-STRICT=false
 
 for arg in "$@"; do
     case $arg in
@@ -81,6 +92,9 @@ for arg in "$@"; do
             ;;
         --strict)
             STRICT=true
+            ;;
+        --verbose)
+            VERBOSE=true
             ;;
     esac
 done
@@ -118,11 +132,16 @@ fi
 # Get design system name from path
 SYSTEM_NAME=$(basename "$DESIGN_SYSTEM_PATH")
 
-echo ""
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}  Design System Validation: ${SYSTEM_NAME}${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "designsystem-validate [run: ${RUN_ID:-none}]"
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Design System Validation: ${SYSTEM_NAME}${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
 
 # Helper functions
 check_pass() {
@@ -332,25 +351,31 @@ echo "  Failed:        $CHECKS_FAILED"
 echo "  Warnings:      $WARNINGS"
 echo ""
 
-if [[ $CHECKS_FAILED -eq 0 && $WARNINGS -eq 0 ]]; then
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}  VALID - Design system is complete${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    log_end "$RUN_ID" "success" "0" "0" "Valid: $CHECKS_PASSED/$CHECKS_RUN passed" 2>/dev/null || true
-    exit 0
-elif [[ $CHECKS_FAILED -eq 0 ]]; then
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}  VALID WITH WARNINGS - Review optional items${NC}"
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    log_end "$RUN_ID" "success" "0" "0" "Valid with $WARNINGS warnings" 2>/dev/null || true
-    if [[ "$STRICT" == "true" ]]; then
+    if [[ $CHECKS_FAILED -eq 0 && $WARNINGS -eq 0 ]]; then
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${GREEN}  VALID - Design system is complete${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        trap - EXIT  # Clear trap
+        log_end "$RUN_ID" "success" "0" "0" "Valid: $CHECKS_PASSED/$CHECKS_RUN passed" 2>/dev/null || true
+        exit 0
+    elif [[ $CHECKS_FAILED -eq 0 ]]; then
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}  VALID WITH WARNINGS - Review optional items${NC}"
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        trap - EXIT  # Clear trap
+        log_end "$RUN_ID" "success" "0" "0" "Valid with $WARNINGS warnings" 2>/dev/null || true
+        if [[ "$STRICT" == "true" ]]; then
+            exit 1
+        fi
+        exit 0
+    else
+        echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${RED}  INCOMPLETE - $CHECKS_FAILED issue(s) need resolution${NC}"
+        echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        trap - EXIT  # Clear trap
+        log_end "$RUN_ID" "failure" "1" "0" "Failed: $CHECKS_FAILED issues" 2>/dev/null || true
         exit 1
     fi
-    exit 0
-else
-    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${RED}  INCOMPLETE - $CHECKS_FAILED issue(s) need resolution${NC}"
-    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    log_end "$RUN_ID" "failure" "1" "0" "Failed: $CHECKS_FAILED issues" 2>/dev/null || true
-    exit 1
-fi
+}
+
+main

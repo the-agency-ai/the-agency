@@ -1,7 +1,7 @@
 #!/bin/bash
 # Create a new epic directory
 #
-# Usage: ./tools/epic-create <number>
+# Usage: ./tools/epic-create <number> [--verbose]
 #
 # Creates:
 #   claude/epics/epic{number}/
@@ -15,10 +15,26 @@ SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
     source "$SCRIPT_DIR/_log-helper"
 fi
-RUN_ID=$(log_start "epic-create" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.1.0-20260114-000007"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Defaults
+VERBOSE=false
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -31,10 +47,25 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
-NUM="$1"
+# Parse arguments
+NUM=""
+for arg in "$@"; do
+    case $arg in
+        --verbose)
+            VERBOSE=true
+            ;;
+        *)
+            if [[ -z "$NUM" ]]; then
+                NUM="$arg"
+            fi
+            ;;
+    esac
+done
 
 if [ -z "$NUM" ]; then
-  echo "Usage: ./tools/epic-create <number>"
+  log_error "Missing required argument"
+  echo ""
+  echo "Usage: ./tools/epic-create <number> [--verbose]"
   echo ""
   echo "Example: ./tools/epic-create 003"
   exit 1
@@ -48,17 +79,27 @@ DIR="claude/epics/$EPIC"
 TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
 TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
 
-if [ -d "$DIR" ]; then
-  echo "Error: Epic '$EPIC' already exists at $DIR"
-  exit 1
-fi
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-echo "Creating epic: $EPIC"
+    RUN_ID=$(log_start "epic-create" "agency-tool" "$@" 2>/dev/null) || true
+    echo "epic-create [run: ${RUN_ID:-none}]"
 
-# Create epic directory
-mkdir -p "$DIR/feedback"
+    if [ -d "$DIR" ]; then
+      log_error "Epic '$EPIC' already exists at $DIR"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Epic already exists"
+      exit 1
+    fi
 
-cat > "$DIR/${EPIC}-plan.md" << EOF
+    log_step "Creating epic: $EPIC"
+
+    # Create epic directory
+    mkdir -p "$DIR/feedback"
+
+    cat > "$DIR/${EPIC}-plan.md" << EOF
 # $EPIC Plan
 
 **Created:** $TIMESTAMP
@@ -94,22 +135,28 @@ cat > "$DIR/${EPIC}-plan.md" << EOF
 - [ ] [Criterion 1]
 EOF
 
-echo "Created: $DIR/"
-echo "  - ${EPIC}-plan.md"
-echo "  - feedback/"
+    echo "Created: $DIR/"
+    verbose_echo "  - ${EPIC}-plan.md"
+    verbose_echo "  - feedback/"
 
-# Create epic directory in all workstreams
-echo ""
-echo "Adding $EPIC/ to workstreams:"
-for ws in claude/workstreams/*/; do
-  if [ -d "$ws" ]; then
-    wsname=$(basename "$ws")
-    if [ ! -d "$ws$EPIC" ]; then
-      mkdir -p "$ws$EPIC"
-      echo "  - $ws$EPIC/"
-    fi
-  fi
-done
+    # Create epic directory in all workstreams
+    verbose_echo ""
+    verbose_echo "Adding $EPIC/ to workstreams:"
+    for ws in claude/workstreams/*/; do
+      if [ -d "$ws" ]; then
+        wsname=$(basename "$ws")
+        if [ ! -d "$ws$EPIC" ]; then
+          mkdir -p "$ws$EPIC"
+          verbose_echo "  - $ws$EPIC/"
+        fi
+      fi
+    done
 
-echo ""
-echo "Edit plan: $DIR/${EPIC}-plan.md"
+    echo ""
+    echo "Edit plan: $DIR/${EPIC}-plan.md"
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Epic $EPIC created"
+}
+
+main

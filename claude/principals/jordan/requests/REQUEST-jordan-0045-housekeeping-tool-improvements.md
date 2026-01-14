@@ -3,7 +3,7 @@
 **Principal:** jordan
 **Workstream:** housekeeping
 **Agent:** housekeeping
-**Status:** Implementation Complete
+**Status:** In Progress (Phase 4: Quiet-by-Default Rollout)
 **Priority:** High
 **Created:** 2026-01-13
 
@@ -247,6 +247,80 @@ These are acceptable as single-word commands:
 - `figma-diff`
 - `figma-extract`
 - `starter-test`
+
+---
+
+## Phase 4: Quiet-by-Default Rollout
+
+### Rationale
+
+Tools currently output verbose information to stdout which:
+1. Fills up context windows and spends tokens unnecessarily
+2. Makes it hard to see what actually matters (success/failure)
+3. Provides no way to retrieve details when debugging failures
+
+The quiet-by-default pattern solves this by:
+- Outputting only: success/error status + run_id
+- Logging verbose details to the Log Service
+- Allowing retrieval via `./tools/log run get <run_id>` when needed
+
+### Pattern Reference
+
+See `claude/docs/TOOL-LOGGING-PATTERN.md` for the full pattern.
+
+**Key elements:**
+1. Source `_log-helper` and call `log_start` (already done for most tools)
+2. Add `--verbose` flag for opt-in detail output
+3. Show run_id on startup: `tool-name [run: abc-123]`
+4. Use `verbose_echo`, `log_info`, `log_step` instead of raw `echo`
+5. Call `log_end` at all exit points with trap for unexpected exits
+6. Bump tool version (`TOOL_VERSION`) when modified
+
+**Reference implementation:** `tools/starter-release`
+
+### Tools Status
+
+**Already have quiet-by-default (6):**
+- [x] commit-precheck
+- [x] request-complete
+- [x] starter-compare
+- [x] starter-release
+- [x] starter-test
+- [x] sync
+
+**Priority 1 - High-traffic (need update):**
+- [ ] myclaude
+- [ ] commit
+- [ ] tag
+- [ ] release
+
+**Priority 2 - Build/verification:**
+- [ ] starter-verify
+- [ ] project-new
+- [ ] project-update
+- [ ] test-run
+
+**Priority 3 - Session/context:**
+- [ ] welcomeback
+- [ ] session-backup
+- [ ] context-save
+- [ ] context-review
+
+**Priority 4 - Collaboration:**
+- [ ] collaborate
+- [ ] collaboration-respond
+- [ ] news-post
+- [ ] news-read
+- [ ] dispatch-collaborations
+
+**Priority 5+ - Remaining tools:**
+- All other tools (~60)
+
+### Skip List (simple/special purpose)
+- `_log-helper` (the helper itself)
+- `hello`, `hi` (trivial greeting tools)
+- `tab-status` (iTerm integration, needs visible output)
+- `log` (the log CLI, needs visible output)
 
 ---
 

@@ -165,6 +165,20 @@ export class LogService {
   }
 
   /**
+   * Get tool usage statistics (telemetry)
+   */
+  async getToolStats(options?: { since?: string; tool?: string }) {
+    return this.repository.getToolStats(options);
+  }
+
+  /**
+   * Get recent tool failures
+   */
+  async getRecentFailures(limit: number = 20) {
+    return this.repository.getRecentFailures(limit);
+  }
+
+  /**
    * Clean up old logs
    */
   async cleanup(daysToKeep: number = 30): Promise<{ deleted: number }> {

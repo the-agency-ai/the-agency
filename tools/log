@@ -250,6 +250,99 @@ cmd_services() {
     echo "$response" | jq -r '.services[] | "  - \(.name) (\(.logCount) logs)"'
 }
 
+# Tool usage statistics
+cmd_tools() {
+    local since="7d"
+    local tool=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --since)  since="$2"; shift 2 ;;
+            --tool)   tool="$2"; shift 2 ;;
+            -*)       shift ;;
+            *)        tool="$1"; shift ;;
+        esac
+    done
+
+    local endpoint="/api/log/stats/tools"
+    if [[ -n "$tool" ]]; then
+        endpoint="/api/log/stats/tools/${tool}"
+    fi
+    endpoint="${endpoint}?since=${since}"
+
+    local response
+    response=$(api_request GET "$endpoint")
+
+    echo "Tool Usage Statistics (last $since)"
+    echo "===================================="
+    echo ""
+
+    # Summary
+    local total_runs success_rate avg_duration
+    total_runs=$(echo "$response" | jq -r '.summary.totalRuns // 0')
+    success_rate=$(echo "$response" | jq -r '.summary.successRate // 0' | xargs printf "%.1f")
+    avg_duration=$(echo "$response" | jq -r '.summary.avgDurationMs // 0')
+
+    echo "Summary:"
+    echo "  Total Runs: $total_runs"
+    echo "  Success Rate: ${success_rate}%"
+    echo "  Avg Duration: ${avg_duration}ms"
+    echo ""
+
+    # Per-tool table
+    echo "By Tool:"
+    printf "  %-25s %8s %8s %8s %10s\n" "TOOL" "RUNS" "SUCCESS" "FAIL" "AVG(ms)"
+    printf "  %-25s %8s %8s %8s %10s\n" "-------------------------" "--------" "--------" "--------" "----------"
+
+    echo "$response" | jq -r '.tools[] | "  \(.tool) \(.totalRuns) \(.successCount) \(.failureCount) \(.avgDurationMs)"' | \
+    while read -r line; do
+        read -r tool runs success fail avg <<< "$line"
+        printf "  %-25s %8s %8s %8s %10s\n" "$tool" "$runs" "$success" "$fail" "$avg"
+    done
+}
+
+# Recent failures
+cmd_failures() {
+    local limit=20
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --limit|-n) limit="$2"; shift 2 ;;
+            *)          shift ;;
+        esac
+    done
+
+    local response
+    response=$(api_request GET "/api/log/failures?limit=${limit}")
+
+    echo "Recent Tool Failures"
+    echo "===================="
+    echo ""
+
+    local count
+    count=$(echo "$response" | jq -r '.count')
+
+    if [[ "$count" == "0" ]]; then
+        echo -e "${GREEN}No recent failures!${NC}"
+        return
+    fi
+
+    echo "$response" | jq -c '.failures[]' | while read -r failure; do
+        local tool run_id started summary exit_code
+        tool=$(echo "$failure" | jq -r '.tool')
+        run_id=$(echo "$failure" | jq -r '.runId')
+        started=$(echo "$failure" | jq -r '.startedAt' | sed 's/T/ /' | cut -c1-19)
+        summary=$(echo "$failure" | jq -r '.summary // "No summary"')
+        exit_code=$(echo "$failure" | jq -r '.exitCode // "?"')
+
+        echo -e "${RED}✗${NC} ${tool} (exit: ${exit_code})"
+        echo "  Run: ${run_id}"
+        echo "  Time: ${started}"
+        echo "  Summary: ${summary}"
+        echo ""
+    done
+}
+
 # Start a tool run
 cmd_run_start() {
     local tool=""
@@ -469,6 +562,13 @@ show_help() {
     echo "  ./tools/log stats                               Error counts, service counts"
     echo "  ./tools/log services                            List services with logs"
     echo ""
+    echo "Tool Telemetry:"
+    echo "  ./tools/log tools                               Tool usage statistics (last 7d)"
+    echo "  ./tools/log tools <name>                        Stats for a specific tool"
+    echo "  ./tools/log tools --since 24h                   Stats for a time period"
+    echo "  ./tools/log failures                            Recent tool failures"
+    echo "  ./tools/log failures --limit 10                 Limit results"
+    echo ""
     echo "Tool Run Tracking:"
     echo "  ./tools/log run start <tool> [options]          Start a tool run"
     echo "    --type=agency-tool|bash|mcp                   Tool type"
@@ -507,6 +607,14 @@ main() {
             ;;
         services)
             cmd_services
+            ;;
+        tools)
+            shift
+            cmd_tools "$@"
+            ;;
+        failures)
+            shift
+            cmd_failures "$@"
             ;;
         run)
             case "${2:-}" in

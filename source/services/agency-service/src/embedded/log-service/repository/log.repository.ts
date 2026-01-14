@@ -509,6 +509,123 @@ export class LogRepository {
   }
 
   /**
+   * Get tool run statistics (telemetry)
+   */
+  async getToolStats(options?: { since?: string; tool?: string }): Promise<{
+    tools: Array<{
+      tool: string;
+      totalRuns: number;
+      successCount: number;
+      failureCount: number;
+      successRate: number;
+      avgDurationMs: number;
+      lastRun: string;
+    }>;
+    summary: {
+      totalRuns: number;
+      successRate: number;
+      avgDurationMs: number;
+    };
+  }> {
+    const conditions: string[] = ['status != ?']; // Exclude running
+    const params: unknown[] = ['running'];
+
+    if (options?.since) {
+      const since = this.parseSince(options.since);
+      if (since) {
+        conditions.push('started_at >= ?');
+        params.push(since.toISOString());
+      }
+    }
+
+    if (options?.tool) {
+      conditions.push('tool = ?');
+      params.push(options.tool);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Per-tool stats
+    const toolRows = await this.db.query<{
+      tool: string;
+      total_runs: number;
+      success_count: number;
+      failure_count: number;
+      avg_duration: number;
+      last_run: string;
+    }>(`
+      SELECT
+        tool,
+        COUNT(*) as total_runs,
+        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success_count,
+        SUM(CASE WHEN status = 'failure' THEN 1 ELSE 0 END) as failure_count,
+        AVG(
+          CASE WHEN ended_at IS NOT NULL
+          THEN (julianday(ended_at) - julianday(started_at)) * 86400000
+          ELSE NULL END
+        ) as avg_duration,
+        MAX(started_at) as last_run
+      FROM tool_runs
+      ${whereClause}
+      GROUP BY tool
+      ORDER BY total_runs DESC
+    `, params);
+
+    // Overall summary
+    const summaryRow = await this.db.get<{
+      total_runs: number;
+      success_count: number;
+      avg_duration: number;
+    }>(`
+      SELECT
+        COUNT(*) as total_runs,
+        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success_count,
+        AVG(
+          CASE WHEN ended_at IS NOT NULL
+          THEN (julianday(ended_at) - julianday(started_at)) * 86400000
+          ELSE NULL END
+        ) as avg_duration
+      FROM tool_runs
+      ${whereClause}
+    `, params);
+
+    const tools = toolRows.map(row => ({
+      tool: row.tool,
+      totalRuns: row.total_runs,
+      successCount: row.success_count,
+      failureCount: row.failure_count,
+      successRate: row.total_runs > 0 ? (row.success_count / row.total_runs) * 100 : 0,
+      avgDurationMs: Math.round(row.avg_duration || 0),
+      lastRun: row.last_run,
+    }));
+
+    const totalRuns = summaryRow?.total_runs ?? 0;
+    const successCount = summaryRow?.success_count ?? 0;
+
+    return {
+      tools,
+      summary: {
+        totalRuns,
+        successRate: totalRuns > 0 ? (successCount / totalRuns) * 100 : 0,
+        avgDurationMs: Math.round(summaryRow?.avg_duration || 0),
+      },
+    };
+  }
+
+  /**
+   * Get recent tool failures
+   */
+  async getRecentFailures(limit: number = 20): Promise<ToolRun[]> {
+    const rows = await this.db.query<ToolRunRow>(`
+      SELECT * FROM tool_runs
+      WHERE status = 'failure'
+      ORDER BY started_at DESC
+      LIMIT ?
+    `, [limit]);
+    return rows.map(rowToToolRun);
+  }
+
+  /**
    * Clean up old logs (retention)
    */
   async cleanup(daysToKeep: number = 30): Promise<number> {

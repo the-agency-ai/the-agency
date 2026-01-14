@@ -12,6 +12,7 @@
 #   -t, --title        Instruction title (required)
 #   -o, --origin       Origin: principal-directed (default) or agent-suggested
 #   -e, --edit         Force open in editor even if content provided
+#   --verbose          Show detailed logging
 #   -h, --help         Show this help
 #
 # If content is provided as final argument, creates instruction with that content.
@@ -34,7 +35,7 @@ fi
 RUN_ID=$(log_start "instruction-capture" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.0.0-20260114-000001"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -48,7 +49,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PRINCIPALS_DIR="$REPO_ROOT/claude/principals"
 
-# Defaults from environment
+# Defaults
+VERBOSE=false
 OPT_PRINCIPAL="${PRINCIPAL:-}"
 OPT_WORKSTREAM="${WORKSTREAM:-}"
 OPT_AGENT="${AGENTNAME:-}"
@@ -56,6 +58,20 @@ OPT_TITLE=""
 OPT_ORIGIN="principal-directed"
 OPT_EDIT=false
 CONTENT=""
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -84,12 +100,16 @@ while [[ $# -gt 0 ]]; do
       OPT_EDIT=true
       shift
       ;;
+    --verbose)
+      VERBOSE=true
+      shift
+      ;;
     -h|--help)
-      head -30 "$0" | tail -28
+      head -32 "$0" | tail -30
       exit 0
       ;;
     -*)
-      echo "Unknown option: $1"
+      log_error "Unknown option: $1"
       exit 1
       ;;
     *)
@@ -100,46 +120,55 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Validate title
-if [[ -z "$OPT_TITLE" ]]; then
-  echo "Error: Title is required (-t \"Title\")"
-  echo "Usage: instruction-capture -t \"Title\" [\"Content\"]"
-  exit 1
-fi
+# Main function
+main() {
+  # Trap unexpected exits
+  trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-# Determine principal if not set
-if [[ -z "$OPT_PRINCIPAL" ]]; then
-  # Try to get from config
-  OPT_PRINCIPAL=$("$SCRIPT_DIR/principal" 2>/dev/null || echo "")
+  echo "instruction-capture [run: ${RUN_ID:-none}]"
 
-  # Fallback to username
-  if [[ -z "$OPT_PRINCIPAL" ]] || [[ "$OPT_PRINCIPAL" == "unknown" ]]; then
-    OPT_PRINCIPAL=$(whoami)
+  # Validate title
+  if [[ -z "$OPT_TITLE" ]]; then
+    log_error "Title is required (-t \"Title\")"
+    echo "Usage: instruction-capture -t \"Title\" [\"Content\"]"
+    trap - EXIT
+    log_end "$RUN_ID" "failure" 1 0 "Missing required argument: title"
+    exit 1
   fi
-fi
 
-# Validate workstream and agent (warn if not set)
-if [[ -z "$OPT_WORKSTREAM" ]]; then
-  echo "Warning: Workstream not specified. Use -w or set WORKSTREAM env var."
-  OPT_WORKSTREAM="unknown"
-fi
+  # Determine principal if not set
+  if [[ -z "$OPT_PRINCIPAL" ]]; then
+    # Try to get from config
+    OPT_PRINCIPAL=$("$SCRIPT_DIR/principal" 2>/dev/null || echo "")
 
-if [[ -z "$OPT_AGENT" ]]; then
-  echo "Warning: Agent not specified. Use -a or set AGENTNAME env var."
-  OPT_AGENT="unknown"
-fi
+    # Fallback to username
+    if [[ -z "$OPT_PRINCIPAL" ]] || [[ "$OPT_PRINCIPAL" == "unknown" ]]; then
+      OPT_PRINCIPAL=$(whoami)
+    fi
+  fi
 
-# Ensure principal directory exists
-PRINCIPAL_DIR="$PRINCIPALS_DIR/$OPT_PRINCIPAL"
-INSTRUCTIONS_DIR="$PRINCIPAL_DIR/instructions"
-mkdir -p "$INSTRUCTIONS_DIR"
+  # Validate workstream and agent (warn if not set)
+  if [[ -z "$OPT_WORKSTREAM" ]]; then
+    log_warn "Workstream not specified. Use -w or set WORKSTREAM env var."
+    OPT_WORKSTREAM="unknown"
+  fi
 
-# Get timezone from config or default to UTC
-TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
+  if [[ -z "$OPT_AGENT" ]]; then
+    log_warn "Agent not specified. Use -a or set AGENTNAME env var."
+    OPT_AGENT="unknown"
+  fi
 
-# Create principal.md if it doesn't exist
-if [[ ! -f "$PRINCIPAL_DIR/principal.md" ]]; then
-  cat > "$PRINCIPAL_DIR/principal.md" << EOF
+  # Ensure principal directory exists
+  PRINCIPAL_DIR="$PRINCIPALS_DIR/$OPT_PRINCIPAL"
+  INSTRUCTIONS_DIR="$PRINCIPAL_DIR/instructions"
+  mkdir -p "$INSTRUCTIONS_DIR"
+
+  # Get timezone from config or default to UTC
+  TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
+
+  # Create principal.md if it doesn't exist
+  if [[ ! -f "$PRINCIPAL_DIR/principal.md" ]]; then
+    cat > "$PRINCIPAL_DIR/principal.md" << EOF
 # Principal: $OPT_PRINCIPAL
 
 **ID:** $OPT_PRINCIPAL
@@ -153,64 +182,66 @@ if [[ ! -f "$PRINCIPAL_DIR/principal.md" ]]; then
 
 See \`./instructions/\` for active and completed instructions from this principal.
 EOF
-  echo "Created principal profile: $PRINCIPAL_DIR/principal.md"
-fi
-
-# Find next instruction number with atomic locking
-# This prevents race conditions when multiple agents run concurrently
-COUNTER_FILE="$PRINCIPALS_DIR/.instruction-counter"
-LOCK_DIR="$PRINCIPALS_DIR/.instruction-counter.lock"
-
-# Portable locking using mkdir (atomic on all POSIX systems)
-# Retry with exponential backoff
-MAX_RETRIES=10
-RETRY_COUNT=0
-while ! mkdir "$LOCK_DIR" 2>/dev/null; do
-  RETRY_COUNT=$((RETRY_COUNT + 1))
-  if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
-    echo "Error: Could not acquire lock after $MAX_RETRIES attempts" >&2
-    exit 1
+    verbose_echo "Created principal profile: $PRINCIPAL_DIR/principal.md"
   fi
-  sleep 0.$((RANDOM % 5 + 1))  # Random backoff 0.1-0.5s
-done
 
-# Ensure lock is released on exit (success or failure)
-trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
+  # Find next instruction number with atomic locking
+  # This prevents race conditions when multiple agents run concurrently
+  COUNTER_FILE="$PRINCIPALS_DIR/.instruction-counter"
+  LOCK_DIR="$PRINCIPALS_DIR/.instruction-counter.lock"
 
-# Read current counter (or scan if counter file doesn't exist/is corrupted)
-if [[ -f "$COUNTER_FILE" ]] && [[ -s "$COUNTER_FILE" ]]; then
-  CURRENT_NUM=$(cat "$COUNTER_FILE" 2>/dev/null | tr -d '[:space:]')
-  if ! [[ "$CURRENT_NUM" =~ ^[0-9]+$ ]]; then
-    CURRENT_NUM=0
+  # Portable locking using mkdir (atomic on all POSIX systems)
+  # Retry with exponential backoff
+  MAX_RETRIES=10
+  RETRY_COUNT=0
+  while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
+      log_error "Could not acquire lock after $MAX_RETRIES attempts"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Failed to acquire lock"
+      exit 1
+    fi
+    sleep 0.$((RANDOM % 5 + 1))  # Random backoff 0.1-0.5s
+  done
+
+  # Ensure lock is released on exit (success or failure)
+  trap 'rmdir "$LOCK_DIR" 2>/dev/null; log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+  # Read current counter (or scan if counter file doesn't exist/is corrupted)
+  if [[ -f "$COUNTER_FILE" ]] && [[ -s "$COUNTER_FILE" ]]; then
+    CURRENT_NUM=$(cat "$COUNTER_FILE" 2>/dev/null | tr -d '[:space:]')
+    if ! [[ "$CURRENT_NUM" =~ ^[0-9]+$ ]]; then
+      CURRENT_NUM=0
+    fi
+  else
+    # Initialize from existing files (one-time migration)
+    CURRENT_NUM=$(find "$PRINCIPALS_DIR" -name "INSTR-*.md" 2>/dev/null | grep -oE 'INSTR-[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
+    if [[ -z "$CURRENT_NUM" ]]; then
+      CURRENT_NUM=0
+    fi
   fi
-else
-  # Initialize from existing files (one-time migration)
-  CURRENT_NUM=$(find "$PRINCIPALS_DIR" -name "INSTR-*.md" 2>/dev/null | grep -oE 'INSTR-[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
-  if [[ -z "$CURRENT_NUM" ]]; then
-    CURRENT_NUM=0
-  fi
-fi
 
-# Increment and save
-NEXT_NUM=$((CURRENT_NUM + 1))
-echo "$NEXT_NUM" > "$COUNTER_FILE"
+  # Increment and save
+  NEXT_NUM=$((CURRENT_NUM + 1))
+  echo "$NEXT_NUM" > "$COUNTER_FILE"
 
-# Lock is automatically released by trap on EXIT
+  # Lock is automatically released by trap on EXIT
 
-NEXT_NUM_FMT=$(printf "%04d" $NEXT_NUM)
+  NEXT_NUM_FMT=$(printf "%04d" $NEXT_NUM)
 
-# Create slug from title
-SLUG=$(echo "$OPT_TITLE" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | cut -c1-40)
+  # Create slug from title
+  SLUG=$(echo "$OPT_TITLE" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | cut -c1-40)
 
-# Build filename
-FILENAME="INSTR-${NEXT_NUM_FMT}-${OPT_PRINCIPAL}-${OPT_WORKSTREAM}-${OPT_AGENT}-${SLUG}.md"
-FILEPATH="$INSTRUCTIONS_DIR/$FILENAME"
+  # Build filename
+  FILENAME="INSTR-${NEXT_NUM_FMT}-${OPT_PRINCIPAL}-${OPT_WORKSTREAM}-${OPT_AGENT}-${SLUG}.md"
+  FILEPATH="$INSTRUCTIONS_DIR/$FILENAME"
 
-# Get timestamp
-TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
+  # Get timestamp
+  TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
 
-# Create instruction file
-cat > "$FILEPATH" << EOF
+  # Create instruction file
+  cat > "$FILEPATH" << EOF
 # INSTR-${NEXT_NUM_FMT}: ${OPT_TITLE}
 
 **Principal:** ${OPT_PRINCIPAL}
@@ -245,34 +276,40 @@ ${CONTENT:-[Describe the instruction here]}
 - (Links to PRs, files, completions)
 EOF
 
-echo "Created instruction: $FILEPATH"
+  verbose_echo "Created instruction: $FILEPATH"
 
-# Open in editor if no content provided or --edit flag
-if [[ -z "$CONTENT" ]] || [[ "$OPT_EDIT" == true ]]; then
-  # Try to read editor preference from principal's preferences.yaml
-  PREFS_FILE="$PRINCIPAL_DIR/preferences.yaml"
-  if [[ -f "$PREFS_FILE" ]] && command -v yq &> /dev/null; then
-    EDITOR_CMD=$(yq -r '.editor // "code"' "$PREFS_FILE")
-    EDITOR_WAIT=$(yq -r '.editor_wait // "true"' "$PREFS_FILE")
-  else
-    EDITOR_CMD="${EDITOR:-code}"
-    EDITOR_WAIT="true"
+  # Open in editor if no content provided or --edit flag
+  if [[ -z "$CONTENT" ]] || [[ "$OPT_EDIT" == true ]]; then
+    # Try to read editor preference from principal's preferences.yaml
+    PREFS_FILE="$PRINCIPAL_DIR/preferences.yaml"
+    if [[ -f "$PREFS_FILE" ]] && command -v yq &> /dev/null; then
+      EDITOR_CMD=$(yq -r '.editor // "code"' "$PREFS_FILE")
+      EDITOR_WAIT=$(yq -r '.editor_wait // "true"' "$PREFS_FILE")
+    else
+      EDITOR_CMD="${EDITOR:-code}"
+      EDITOR_WAIT="true"
+    fi
+
+    verbose_echo "Opening in editor: $EDITOR_CMD"
+
+    if [[ "$EDITOR_WAIT" == "true" ]] && [[ "$EDITOR_CMD" == "code" ]]; then
+      "$EDITOR_CMD" --wait "$FILEPATH"
+    else
+      "$EDITOR_CMD" "$FILEPATH"
+    fi
   fi
 
-  echo "Opening in editor: $EDITOR_CMD"
+  echo ""
+  echo "Instruction ready: INSTR-${NEXT_NUM_FMT}"
+  echo "  File: $FILEPATH"
+  echo "  Principal: $OPT_PRINCIPAL"
+  echo "  To: ${OPT_WORKSTREAM}/${OPT_AGENT}"
 
-  if [[ "$EDITOR_WAIT" == "true" ]] && [[ "$EDITOR_CMD" == "code" ]]; then
-    "$EDITOR_CMD" --wait "$FILEPATH"
-  else
-    "$EDITOR_CMD" "$FILEPATH"
-  fi
-fi
+  # Update the instructions index
+  "$SCRIPT_DIR/instruction-index-update" > /dev/null 2>&1 || true
 
-echo ""
-echo "Instruction ready: INSTR-${NEXT_NUM_FMT}"
-echo "  File: $FILEPATH"
-echo "  Principal: $OPT_PRINCIPAL"
-echo "  To: ${OPT_WORKSTREAM}/${OPT_AGENT}"
+  trap - EXIT
+  log_end "$RUN_ID" "success" 0 0 "Created INSTR-${NEXT_NUM_FMT}"
+}
 
-# Update the instructions index
-"$SCRIPT_DIR/instruction-index-update" > /dev/null 2>&1 || true
+main

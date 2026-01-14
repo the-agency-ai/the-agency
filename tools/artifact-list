@@ -18,7 +18,7 @@ fi
 RUN_ID=$(log_start "artifact-list" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.0.0-20260114-000007"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -31,6 +31,23 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PRINCIPALS_DIR="$REPO_ROOT/claude/principals"
+
+# Defaults
+VERBOSE=false
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 # Parse options
 FILTER_PRINCIPAL=""
@@ -56,8 +73,12 @@ while [[ $# -gt 0 ]]; do
       FILTER_RECENT="$2"
       shift 2
       ;;
+    --verbose)
+      VERBOSE=true
+      shift
+      ;;
     -h|--help)
-      echo "Usage: artifact-list [-p principal] [-T type] [-i INSTR-####] [--recent days]"
+      echo "Usage: artifact-list [-p principal] [-T type] [-i INSTR-####] [--recent days] [--verbose]"
       exit 0
       ;;
     *)
@@ -66,99 +87,112 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Calculate cutoff date if --recent specified
-CUTOFF_DATE=""
-if [[ -n "$FILTER_RECENT" ]]; then
-  CUTOFF_DATE=$(date -v-${FILTER_RECENT}d +%Y-%m-%d 2>/dev/null || date -d "${FILTER_RECENT} days ago" +%Y-%m-%d 2>/dev/null)
-fi
+# Main function
+main() {
+  # Trap unexpected exits
+  trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Artifacts"
-if [[ -n "$FILTER_PRINCIPAL" ]]; then
-  echo "  Principal: $FILTER_PRINCIPAL"
-fi
-if [[ -n "$FILTER_TYPE" ]]; then
-  echo "  Type: $FILTER_TYPE"
-fi
-if [[ -n "$FILTER_INSTRUCTION" ]]; then
-  echo "  Instruction: $FILTER_INSTRUCTION"
-fi
-if [[ -n "$FILTER_RECENT" ]]; then
-  echo "  Recent: $FILTER_RECENT days (since $CUTOFF_DATE)"
-fi
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
+  echo "artifact-list [run: ${RUN_ID:-none}]"
 
-COUNT=0
-
-# Determine which principals to search
-if [[ -n "$FILTER_PRINCIPAL" ]]; then
-  SEARCH_DIRS="$PRINCIPALS_DIR/$FILTER_PRINCIPAL/artifacts"
-else
-  SEARCH_DIRS="$PRINCIPALS_DIR/*/artifacts"
-fi
-
-for artifacts_dir in $SEARCH_DIRS; do
-  if [[ ! -d "$artifacts_dir" ]]; then
-    continue
+  # Calculate cutoff date if --recent specified
+  CUTOFF_DATE=""
+  if [[ -n "$FILTER_RECENT" ]]; then
+    CUTOFF_DATE=$(date -v-${FILTER_RECENT}d +%Y-%m-%d 2>/dev/null || date -d "${FILTER_RECENT} days ago" +%Y-%m-%d 2>/dev/null)
   fi
 
-  for filepath in "$artifacts_dir"/ART-*.md; do
-    if [[ ! -f "$filepath" ]]; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  Artifacts"
+  if [[ -n "$FILTER_PRINCIPAL" ]]; then
+    echo "  Principal: $FILTER_PRINCIPAL"
+  fi
+  if [[ -n "$FILTER_TYPE" ]]; then
+    echo "  Type: $FILTER_TYPE"
+  fi
+  if [[ -n "$FILTER_INSTRUCTION" ]]; then
+    echo "  Instruction: $FILTER_INSTRUCTION"
+  fi
+  if [[ -n "$FILTER_RECENT" ]]; then
+    echo "  Recent: $FILTER_RECENT days (since $CUTOFF_DATE)"
+  fi
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  COUNT=0
+
+  # Determine which principals to search
+  if [[ -n "$FILTER_PRINCIPAL" ]]; then
+    SEARCH_DIRS="$PRINCIPALS_DIR/$FILTER_PRINCIPAL/artifacts"
+  else
+    SEARCH_DIRS="$PRINCIPALS_DIR/*/artifacts"
+  fi
+
+  for artifacts_dir in $SEARCH_DIRS; do
+    if [[ ! -d "$artifacts_dir" ]]; then
       continue
     fi
 
-    # Extract info from file
-    FILENAME=$(basename "$filepath" .md)
-    ART_ID=$(echo "$FILENAME" | grep -oE 'ART-[0-9]+' | head -1)
-
-    # Get principal from path
-    PRINCIPAL=$(echo "$filepath" | sed -E 's|.*/principals/([^/]+)/.*|\1|')
-
-    # Get fields from file
-    TITLE=$(grep -m1 "^# ART-" "$filepath" 2>/dev/null | sed 's/^# ART-[0-9]*: //' || echo "Unknown")
-    TYPE=$(grep -m1 "^\*\*Type:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Type:\*\* //' || echo "other")
-    AGENT=$(grep -m1 "^\*\*Agent:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Agent:\*\* //' || echo "?")
-    DATE=$(grep -m1 "^\*\*Date:\*\*" "$filepath" 2>/dev/null | sed -E 's/.*\*\*Date:\*\* ([0-9-]+).*/\1/' || echo "?")
-    INSTRUCTION=$(grep -m1 "^\*\*Instruction:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Instruction:\*\* //' || echo "None")
-
-    # Apply type filter
-    if [[ -n "$FILTER_TYPE" ]] && [[ "$TYPE" != "$FILTER_TYPE" ]]; then
-      continue
-    fi
-
-    # Apply instruction filter
-    if [[ -n "$FILTER_INSTRUCTION" ]]; then
-      if ! echo "$INSTRUCTION" | grep -q "$FILTER_INSTRUCTION"; then
+    for filepath in "$artifacts_dir"/ART-*.md; do
+      if [[ ! -f "$filepath" ]]; then
         continue
       fi
-    fi
 
-    # Apply recent filter
-    if [[ -n "$CUTOFF_DATE" ]] && [[ "$DATE" < "$CUTOFF_DATE" ]]; then
-      continue
-    fi
+      # Extract info from file
+      FILENAME=$(basename "$filepath" .md)
+      ART_ID=$(echo "$FILENAME" | grep -oE 'ART-[0-9]+' | head -1)
 
-    # Type emoji
-    case "$TYPE" in
-      analysis) EMOJI="📊" ;;
-      report)   EMOJI="📋" ;;
-      summary)  EMOJI="📝" ;;
-      design)   EMOJI="🎨" ;;
-      *)        EMOJI="📄" ;;
-    esac
+      # Get principal from path
+      PRINCIPAL=$(echo "$filepath" | sed -E 's|.*/principals/([^/]+)/.*|\1|')
 
-    COUNT=$((COUNT + 1))
+      # Get fields from file
+      TITLE=$(grep -m1 "^# ART-" "$filepath" 2>/dev/null | sed 's/^# ART-[0-9]*: //' || echo "Unknown")
+      TYPE=$(grep -m1 "^\*\*Type:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Type:\*\* //' || echo "other")
+      AGENT=$(grep -m1 "^\*\*Agent:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Agent:\*\* //' || echo "?")
+      DATE=$(grep -m1 "^\*\*Date:\*\*" "$filepath" 2>/dev/null | sed -E 's/.*\*\*Date:\*\* ([0-9-]+).*/\1/' || echo "?")
+      INSTRUCTION=$(grep -m1 "^\*\*Instruction:\*\*" "$filepath" 2>/dev/null | sed 's/.*\*\*Instruction:\*\* //' || echo "None")
 
-    echo "$EMOJI $ART_ID: $TITLE"
-    echo "   Principal: $PRINCIPAL | Agent: $AGENT | $DATE"
-    if [[ "$INSTRUCTION" != "None (ad-hoc request)" ]]; then
-      echo "   Instruction: $INSTRUCTION"
-    fi
-    echo ""
+      # Apply type filter
+      if [[ -n "$FILTER_TYPE" ]] && [[ "$TYPE" != "$FILTER_TYPE" ]]; then
+        continue
+      fi
+
+      # Apply instruction filter
+      if [[ -n "$FILTER_INSTRUCTION" ]]; then
+        if ! echo "$INSTRUCTION" | grep -q "$FILTER_INSTRUCTION"; then
+          continue
+        fi
+      fi
+
+      # Apply recent filter
+      if [[ -n "$CUTOFF_DATE" ]] && [[ "$DATE" < "$CUTOFF_DATE" ]]; then
+        continue
+      fi
+
+      # Type emoji
+      case "$TYPE" in
+        analysis) EMOJI="📊" ;;
+        report)   EMOJI="📋" ;;
+        summary)  EMOJI="📝" ;;
+        design)   EMOJI="🎨" ;;
+        *)        EMOJI="📄" ;;
+      esac
+
+      COUNT=$((COUNT + 1))
+
+      echo "$EMOJI $ART_ID: $TITLE"
+      echo "   Principal: $PRINCIPAL | Agent: $AGENT | $DATE"
+      if [[ "$INSTRUCTION" != "None (ad-hoc request)" ]]; then
+        echo "   Instruction: $INSTRUCTION"
+      fi
+      echo ""
+    done
   done
-done
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Total: $COUNT artifacts"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  Total: $COUNT artifacts"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  trap - EXIT
+  log_end "$RUN_ID" "success" 0 0 "Listed $COUNT artifacts"
+}
+
+main

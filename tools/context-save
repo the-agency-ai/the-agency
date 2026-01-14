@@ -2,14 +2,16 @@
 # context-save - Save conversational context during session
 #
 # Usage:
-#   ./tools/context-save --append "text"     # Add progress note
-#   ./tools/context-save --checkpoint "text" # Mark milestone
-#   ./tools/context-save --park "text"       # Note something for later
-#   ./tools/context-save --clear             # Clear context (new session)
+#   ./tools/context-save --append "text" [--verbose]     # Add progress note
+#   ./tools/context-save --checkpoint "text" [--verbose] # Mark milestone
+#   ./tools/context-save --park "text" [--verbose]       # Note something for later
+#   ./tools/context-save --clear [--verbose]             # Clear context (new session)
 #
 # Why this exists:
 #   Enables session continuity by capturing conversational context
 #   throughout the session (not just git state)
+
+set -e
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
@@ -19,42 +21,120 @@ fi
 RUN_ID=$(log_start "context-save" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260114-000001"
+TOOL_VERSION="1.0.0-20260114-000004"
 
-# Version check
-if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
-    echo "context-save $TOOL_VERSION"
-    exit 0
-fi
+# Defaults
+VERBOSE=false
 
-AGENTNAME=$(./tools/agentname)
-CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
-TIMESTAMP=$(./tools/now)
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# Ensure directory exists
-mkdir -p "$(dirname "$CONTEXT_FILE")"
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
-case "$1" in
-  --clear)
-    > "$CONTEXT_FILE"  # Truncate file
-    echo "Context cleared"
-    ;;
-  --append|--checkpoint|--park)
-    TYPE="${1#--}"
-    CONTENT="$2"
-    if [[ -z "$CONTENT" ]]; then
-      echo "Error: Content required"
-      echo "Usage: ./tools/context-save [--append|--checkpoint|--park] \"content\""
-      exit 1
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    verbose_echo "context-save [run: ${RUN_ID:-none}]"
+
+    local ACTION=""
+    local CONTENT=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --version|-v)
+                echo "context-save $TOOL_VERSION"
+                exit 0
+                ;;
+            --help|-h)
+                echo "context-save - Save conversational context"
+                echo ""
+                echo "Usage:"
+                echo "  ./tools/context-save --append \"text\" [--verbose]"
+                echo "  ./tools/context-save --checkpoint \"text\" [--verbose]"
+                echo "  ./tools/context-save --park \"text\" [--verbose]"
+                echo "  ./tools/context-save --clear [--verbose]"
+                echo ""
+                echo "Options:"
+                echo "  --append      Add progress note"
+                echo "  --checkpoint  Mark milestone"
+                echo "  --park        Note something for later"
+                echo "  --clear       Clear context (new session)"
+                echo "  --verbose     Show detailed logging"
+                echo "  --version, -v Show tool version"
+                echo "  --help, -h    Show this help"
+                exit 0
+                ;;
+            --verbose)
+                VERBOSE=true
+                shift
+                ;;
+            --clear|--append|--checkpoint|--park)
+                ACTION="$1"
+                shift
+                if [[ "$ACTION" != "--clear" && $# -gt 0 && "$1" != "--verbose" ]]; then
+                    CONTENT="$1"
+                    shift
+                fi
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$ACTION" ]]; then
+        log_error "No action specified"
+        echo "Usage: ./tools/context-save [--append|--checkpoint|--park|--clear] \"content\""
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "No action specified"
+        exit 1
     fi
-    # Escape double quotes and backslashes in content for JSON
-    CONTENT_ESC="${CONTENT//\\/\\\\}"
-    CONTENT_ESC="${CONTENT_ESC//\"/\\\"}"
-    echo "{\"timestamp\":\"$TIMESTAMP\",\"type\":\"$TYPE\",\"content\":\"$CONTENT_ESC\"}" >> "$CONTEXT_FILE"
-    echo "Context saved: $TYPE"
-    ;;
-  *)
-    echo "Usage: ./tools/context-save [--append|--checkpoint|--park|--clear] \"content\""
-    exit 1
-    ;;
-esac
+
+    local AGENTNAME=$(./tools/agentname)
+    local CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
+    local TIMESTAMP=$(./tools/now)
+
+    log_step "Ensuring directory exists"
+    mkdir -p "$(dirname "$CONTEXT_FILE")"
+
+    case "$ACTION" in
+        --clear)
+            log_step "Clearing context file"
+            > "$CONTEXT_FILE"  # Truncate file
+            echo "Context cleared"
+            ;;
+        --append|--checkpoint|--park)
+            local TYPE="${ACTION#--}"
+            if [[ -z "$CONTENT" ]]; then
+                log_error "Content required for $TYPE"
+                echo "Usage: ./tools/context-save $ACTION \"content\""
+                trap - EXIT
+                log_end "$RUN_ID" "failure" 1 0 "Content required"
+                exit 1
+            fi
+            log_step "Saving $TYPE context"
+            # Escape double quotes and backslashes in content for JSON
+            local CONTENT_ESC="${CONTENT//\\/\\\\}"
+            CONTENT_ESC="${CONTENT_ESC//\"/\\\"}"
+            echo "{\"timestamp\":\"$TIMESTAMP\",\"type\":\"$TYPE\",\"content\":\"$CONTENT_ESC\"}" >> "$CONTEXT_FILE"
+            echo "Context saved: $TYPE"
+            ;;
+    esac
+
+    trap - EXIT  # Clear trap
+    log_end "$RUN_ID" "success" 0 0 "Context saved" 2>/dev/null || true
+}
+
+main "$@"

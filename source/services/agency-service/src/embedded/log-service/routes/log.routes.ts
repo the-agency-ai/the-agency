@@ -171,6 +171,39 @@ export function createLogRoutes(logService: LogService): Hono {
   });
 
   // ─────────────────────────────────────────────────────────────
+  // Tool Telemetry
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * GET /log/stats/tools - Get tool usage statistics
+   */
+  app.get('/stats/tools', async (c) => {
+    const since = c.req.query('since') || '7d';
+    const tool = c.req.query('tool');
+    const stats = await logService.getToolStats({ since, tool: tool || undefined });
+    return c.json(stats);
+  });
+
+  /**
+   * GET /log/stats/tools/:name - Get stats for a specific tool
+   */
+  app.get('/stats/tools/:name', async (c) => {
+    const toolName = c.req.param('name');
+    const since = c.req.query('since') || '7d';
+    const stats = await logService.getToolStats({ since, tool: toolName });
+    return c.json(stats);
+  });
+
+  /**
+   * GET /log/failures - Get recent tool failures
+   */
+  app.get('/failures', async (c) => {
+    const limit = parseInt(c.req.query('limit') || '20', 10);
+    const failures = await logService.getRecentFailures(limit);
+    return c.json({ count: failures.length, failures });
+  });
+
+  // ─────────────────────────────────────────────────────────────
   // Maintenance
   // ─────────────────────────────────────────────────────────────
 

@@ -14,6 +14,7 @@
 #   --request ID   Mark REQUEST as complete
 #   --dry-run      Show what would happen
 #   --changelog    Generate changelog to stdout only
+#   --verbose      Show detailed logging
 #
 # This tool:
 #   1. Validates version format
@@ -29,9 +30,8 @@ SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
     source "$SCRIPT_DIR/_log-helper"
 fi
-RUN_ID=$(log_start "release" "agency-tool" "$@" 2>/dev/null) || true
 
-TOOL_VERSION="1.0.0"
+TOOL_VERSION="1.1.0-20260114-000003"
 
 # Colors
 RED='\033[0;31m'
@@ -46,6 +46,14 @@ GITHUB=false
 DRY_RUN=false
 CHANGELOG_ONLY=false
 REQUEST_ID=""
+VERBOSE=false
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -55,7 +63,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --help|-h)
-            head -26 "$0" | tail -25 | sed 's/^# //' | sed 's/^#//'
+            head -28 "$0" | tail -27 | sed 's/^# //' | sed 's/^#//'
             exit 0
             ;;
         --push|-p)
@@ -78,6 +86,10 @@ while [[ $# -gt 0 ]]; do
             CHANGELOG_ONLY=true
             shift
             ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
         *)
             break
             ;;
@@ -87,8 +99,8 @@ done
 VERSION_ARG="${1:-}"
 
 if [ -z "$VERSION_ARG" ]; then
-    echo -e "${RED}Error: Version required${NC}"
-    echo "Usage: ./tools/release <version|patch|minor|major>"
+    log_error "Version required"
+    echo "Usage: ./tools/release <version|patch|minor|major> [--verbose]"
     exit 1
 fi
 
@@ -199,23 +211,29 @@ generate_changelog() {
 
 # Main
 main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    RUN_ID=$(log_start "release" "agency-tool" "$@" 2>/dev/null) || true
+    echo "release [run: ${RUN_ID:-none}]"
+
     # Get last release
     LAST_TAG=$(get_last_release)
     LAST_VERSION=""
 
     if [ -n "$LAST_TAG" ]; then
         LAST_VERSION=$(tag_to_version "$LAST_TAG")
-        echo -e "${BLUE}Last release:${NC} $LAST_TAG"
+        log_info "Last release: $LAST_TAG"
     else
         LAST_VERSION="0.0.0"
-        echo -e "${YELLOW}No previous release found${NC}"
+        log_warn "No previous release found"
     fi
 
     # Determine new version
     NEW_VERSION=$(bump_version "$LAST_VERSION" "$VERSION_ARG")
     NEW_TAG="v${NEW_VERSION}"
 
-    echo -e "${BLUE}New release:${NC} $NEW_TAG"
+    log_info "New release: $NEW_TAG"
     echo ""
 
     # Generate changelog
@@ -223,10 +241,12 @@ main() {
 
     if [ "$CHANGELOG_ONLY" = true ]; then
         echo "$CHANGELOG"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Changelog generated"
         exit 0
     fi
 
-    echo -e "${BLUE}Changelog Preview:${NC}"
+    log_info "Changelog Preview:"
     echo "---"
     echo "$CHANGELOG"
     echo "---"
@@ -234,33 +254,39 @@ main() {
 
     # Dry run
     if [ "$DRY_RUN" = true ]; then
-        echo -e "${YELLOW}[DRY RUN] Would create tag: $NEW_TAG${NC}"
+        log_warn "[DRY RUN] Would create tag: $NEW_TAG"
         if [ "$PUSH" = true ]; then
-            echo -e "${YELLOW}[DRY RUN] Would push tag to remote${NC}"
+            verbose_echo "[DRY RUN] Would push tag to remote"
         fi
         if [ "$GITHUB" = true ]; then
-            echo -e "${YELLOW}[DRY RUN] Would create GitHub release${NC}"
+            verbose_echo "[DRY RUN] Would create GitHub release"
         fi
         if [ -n "$REQUEST_ID" ]; then
-            echo -e "${YELLOW}[DRY RUN] Would mark $REQUEST_ID as complete${NC}"
+            verbose_echo "[DRY RUN] Would mark $REQUEST_ID as complete"
         fi
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Dry run complete"
         exit 0
     fi
 
     # Check if tag already exists
     if git tag -l "$NEW_TAG" | grep -q "$NEW_TAG"; then
-        echo -e "${RED}Error: Tag $NEW_TAG already exists${NC}"
+        log_error "Tag $NEW_TAG already exists"
         echo "Use a different version or delete the existing tag"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Tag already exists"
         exit 1
     fi
 
     # Check for uncommitted changes
     if [ -n "$(git status --porcelain)" ]; then
-        echo -e "${YELLOW}Warning: You have uncommitted changes${NC}"
+        log_warn "You have uncommitted changes"
         read -p "Continue anyway? (y/N) " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             echo "Aborted."
+            trap - EXIT
+            log_end "$RUN_ID" "failure" 0 0 "User aborted"
             exit 1
         fi
     fi
@@ -269,18 +295,18 @@ main() {
     RELEASE_MSG="Release ${NEW_TAG}"$'\n\n'"${CHANGELOG}"
 
     git tag -a "$NEW_TAG" -m "$RELEASE_MSG"
-    echo -e "${GREEN}Created tag: $NEW_TAG${NC}"
+    echo "Created tag: $NEW_TAG"
 
     # Push if requested
     if [ "$PUSH" = true ]; then
         git push origin "$NEW_TAG"
-        echo -e "${GREEN}Pushed tag to remote${NC}"
+        log_info "Pushed tag to remote"
     fi
 
     # Create GitHub release if requested
     if [ "$GITHUB" = true ]; then
         if ! command -v gh &> /dev/null; then
-            echo -e "${YELLOW}Warning: gh CLI not found, skipping GitHub release${NC}"
+            log_warn "gh CLI not found, skipping GitHub release"
         else
             # Read GH_TOKEN from settings if available
             SETTINGS_FILE="${HOME}/.claude/settings.local.json"
@@ -296,7 +322,7 @@ main() {
                 --title "$NEW_TAG" \
                 --notes "$CHANGELOG"
 
-            echo -e "${GREEN}Created GitHub release${NC}"
+            log_info "Created GitHub release"
         fi
     fi
 
@@ -305,20 +331,23 @@ main() {
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         if [ -x "$SCRIPT_DIR/tag" ]; then
             "$SCRIPT_DIR/tag" "$REQUEST_ID" complete
-            echo -e "${GREEN}Marked $REQUEST_ID as complete${NC}"
+            log_info "Marked $REQUEST_ID as complete"
         else
-            echo -e "${YELLOW}Could not find tools/tag to mark REQUEST complete${NC}"
+            log_warn "Could not find tools/tag to mark REQUEST complete"
         fi
     fi
 
     echo ""
-    echo -e "${GREEN}Release $NEW_TAG complete!${NC}"
+    echo "Release $NEW_TAG complete!"
 
     if [ "$PUSH" = false ]; then
         echo ""
-        echo -e "${YELLOW}Don't forget to push:${NC}"
+        log_warn "Don't forget to push:"
         echo "  git push origin $NEW_TAG"
     fi
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Release $NEW_TAG complete"
 }
 
 main

@@ -17,15 +17,6 @@
 
 set -e
 
-TOOL_VERSION="1.2.0-20260113-000001"
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -35,10 +26,25 @@ if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
     source "$SCRIPT_DIR/_log-helper"
 fi
 
-log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
+# Start logging
+RUN_ID=$(log_start "figma-extract" "agency-tool" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.2.0-20260114-000004"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 # Helper function: Convert RGBA (0-1 range) to hex
 rgba_to_hex() {
@@ -80,8 +86,8 @@ extract_embedded_fonts() {
         sort | uniq -c | sort -rn > "$output_file"
 }
 
-# Start logging
-RUN_ID=$(log_start "figma-extract" "agency-tool" "$@" 2>/dev/null) || true
+# Defaults
+VERBOSE=false
 
 # Help
 show_help() {
@@ -99,6 +105,7 @@ show_help() {
     echo "  --dry-run           Show what would be extracted without creating files"
     echo "  --help, -h          Show this help"
     echo "  --version, -v       Show version"
+    echo "  --verbose           Enable verbose logging"
     echo ""
     echo "Prerequisites:"
     echo "  1. Store Figma token:"
@@ -155,6 +162,9 @@ for arg in "$@"; do
             ;;
         --dry-run)
             DRY_RUN=true
+            ;;
+        --verbose)
+            VERBOSE=true
             ;;
         --*)
             log_error "Unknown option: $arg"
@@ -215,16 +225,21 @@ if [[ -d "$OUTPUT_DIR" && "$DRY_RUN" != "true" ]]; then
     exit 1
 fi
 
-echo ""
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}  Figma Design System Extraction${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-echo "  File Key:    $FILE_KEY"
-echo "  Brand:       $BRAND_NAME"
-echo "  Version:     $VERSION"
-echo "  Output:      $OUTPUT_DIR"
-echo ""
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "figma-extract [run: ${RUN_ID:-none}]"
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Figma Design System Extraction${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  File Key:    $FILE_KEY"
+    echo "  Brand:       $BRAND_NAME"
+    echo "  Version:     $VERSION"
+    echo "  Output:      $OUTPUT_DIR"
+    echo ""
 
 # Fetch file data from Figma API
 log_step "Fetching file data from Figma API..."
@@ -712,21 +727,25 @@ EOF
 # Clean up
 rm -rf "$TEMP_DIR"
 
-echo ""
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  Extraction Complete${NC}"
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-echo "Created: $OUTPUT_DIR/"
-echo ""
-echo "Files:"
-ls -la "$OUTPUT_DIR/" | grep -v "^d" | grep -v "^total" | awk '{print "  " $NF}'
-echo ""
-echo "Next steps:"
-echo "  1. Review source/figma-styles.json for raw data"
-echo "  2. Map values to colors.md, typography.md, etc."
-echo "  3. Update tailwind-config.md"
-echo "  4. Validate: ./tools/designsystem-validate $OUTPUT_DIR"
-echo ""
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}  Extraction Complete${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "Created: $OUTPUT_DIR/"
+    echo ""
+    echo "Files:"
+    ls -la "$OUTPUT_DIR/" | grep -v "^d" | grep -v "^total" | awk '{print "  " $NF}'
+    echo ""
+    echo "Next steps:"
+    echo "  1. Review source/figma-styles.json for raw data"
+    echo "  2. Map values to colors.md, typography.md, etc."
+    echo "  3. Update tailwind-config.md"
+    echo "  4. Validate: ./tools/designsystem-validate $OUTPUT_DIR"
+    echo ""
 
-log_end "$RUN_ID" "success" "0" "0" "Created $SYSTEM_NAME" 2>/dev/null || true
+    trap - EXIT  # Clear trap
+    log_end "$RUN_ID" "success" "0" "0" "Created $SYSTEM_NAME" 2>/dev/null || true
+}
+
+main

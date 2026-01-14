@@ -1,7 +1,7 @@
 #!/bin/bash
 # Create a new principal (human stakeholder)
 #
-# Usage: ./tools/principal-create <principalname> [projectname]
+# Usage: ./tools/principal-create <principalname> [projectname] [--verbose]
 #
 # Creates:
 #   claude/principals/{principalname}/
@@ -18,10 +18,26 @@ SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
     source "$SCRIPT_DIR/_log-helper"
 fi
-RUN_ID=$(log_start "principal-create" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.1.0-20260114-000008"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Defaults
+VERBOSE=false
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -29,11 +45,29 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     exit 0
 fi
 
-PRINCIPALNAME="$1"
-PROJECTNAME="$2"
+# Parse arguments
+PRINCIPALNAME=""
+PROJECTNAME=""
+
+for arg in "$@"; do
+    case $arg in
+        --verbose)
+            VERBOSE=true
+            ;;
+        *)
+            if [[ -z "$PRINCIPALNAME" ]]; then
+                PRINCIPALNAME="$arg"
+            elif [[ -z "$PROJECTNAME" ]]; then
+                PROJECTNAME="$arg"
+            fi
+            ;;
+    esac
+done
 
 if [ -z "$PRINCIPALNAME" ]; then
-  echo "Usage: ./tools/principal-create <principalname> [projectname]"
+  log_error "Missing required argument"
+  echo ""
+  echo "Usage: ./tools/principal-create <principalname> [projectname] [--verbose]"
   echo ""
   echo "Examples:"
   echo "  ./tools/principal-create jordan"
@@ -42,26 +76,37 @@ if [ -z "$PRINCIPALNAME" ]; then
   echo "Options:"
   echo "  principalname  - Name for the principal (lowercase)"
   echo "  projectname    - Optional: project name for iCloud setup"
+  echo "  --verbose      - Show detailed logging"
   exit 1
 fi
 
 DIR="claude/principals/$PRINCIPALNAME"
 TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 
-# Check principal doesn't exist
-if [ -d "$DIR" ]; then
-  echo "Error: Principal '$PRINCIPALNAME' already exists at $DIR"
-  exit 1
-fi
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-echo "Creating principal: $PRINCIPALNAME"
-mkdir -p "$DIR/projects"
-mkdir -p "$DIR/resources"
-mkdir -p "$DIR/sessions"
-mkdir -p "$DIR/config"
+    RUN_ID=$(log_start "principal-create" "agency-tool" "$@" 2>/dev/null) || true
+    echo "principal-create [run: ${RUN_ID:-none}]"
 
-# Create principal README
-cat > "$DIR/README.md" << EOF
+    # Check principal doesn't exist
+    if [ -d "$DIR" ]; then
+      log_error "Principal '$PRINCIPALNAME' already exists at $DIR"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Principal already exists"
+      exit 1
+    fi
+
+    log_step "Creating principal: $PRINCIPALNAME"
+    mkdir -p "$DIR/projects"
+    mkdir -p "$DIR/resources"
+    mkdir -p "$DIR/sessions"
+    mkdir -p "$DIR/config"
+
+    # Create principal README
+    cat > "$DIR/README.md" << EOF
 # Principal: $PRINCIPALNAME
 
 **Created:** $TIMESTAMP
@@ -87,39 +132,45 @@ Run integrations:
 \`\`\`
 EOF
 
-# Create secrets directory with .gitkeep
-mkdir -p "$DIR/resources/secrets"
-touch "$DIR/resources/secrets/.gitkeep"
+    # Create secrets directory with .gitkeep
+    mkdir -p "$DIR/resources/secrets"
+    touch "$DIR/resources/secrets/.gitkeep"
 
-echo "Created: $DIR/"
+    echo "Created: $DIR/"
 
-# Run iCloud setup if project name provided
-if [ -n "$PROJECTNAME" ]; then
-  echo ""
-  echo "Setting up iCloud integration..."
-  ./tools/icloud-setup "$PROJECTNAME" "$PRINCIPALNAME"
-fi
+    # Run iCloud setup if project name provided
+    if [ -n "$PROJECTNAME" ]; then
+      verbose_echo ""
+      log_step "Setting up iCloud integration..."
+      ./tools/icloud-setup "$PROJECTNAME" "$PRINCIPALNAME"
+    fi
 
-# Run iTerm setup
-echo ""
-echo "Setting up iTerm profiles..."
-./tools/iterm-setup "$PRINCIPALNAME"
+    # Run iTerm setup
+    verbose_echo ""
+    log_step "Setting up iTerm profiles..."
+    ./tools/iterm-setup "$PRINCIPALNAME"
 
-# Update principals index
-INDEX="claude/principals/INDEX.md"
-if [ -f "$INDEX" ]; then
-  if ! grep -q "| $PRINCIPALNAME |" "$INDEX"; then
-    echo "| $PRINCIPALNAME | $TIMESTAMP | Active |" >> "$INDEX"
-    echo "Updated: $INDEX"
-  fi
-fi
+    # Update principals index
+    INDEX="claude/principals/INDEX.md"
+    if [ -f "$INDEX" ]; then
+      if ! grep -q "| $PRINCIPALNAME |" "$INDEX"; then
+        echo "| $PRINCIPALNAME | $TIMESTAMP | Active |" >> "$INDEX"
+        verbose_echo "Updated: $INDEX"
+      fi
+    fi
 
-echo ""
-echo "Principal '$PRINCIPALNAME' created successfully!"
-echo ""
-echo "Next steps:"
-echo "  1. Review: $DIR/README.md"
-if [ -z "$PROJECTNAME" ]; then
-  echo "  2. Set up iCloud: ./tools/icloud-setup <projectname> $PRINCIPALNAME"
-fi
-echo "  3. Configure: claude/config/agency.yaml to map your system user"
+    echo ""
+    echo "Principal '$PRINCIPALNAME' created successfully!"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Review: $DIR/README.md"
+    if [ -z "$PROJECTNAME" ]; then
+      echo "  2. Set up iCloud: ./tools/icloud-setup <projectname> $PRINCIPALNAME"
+    fi
+    echo "  3. Configure: claude/config/agency.yaml to map your system user"
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Principal $PRINCIPALNAME created"
+}
+
+main

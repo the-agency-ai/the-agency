@@ -1,7 +1,7 @@
 #!/bin/bash
 # Create a new sprint directory
 #
-# Usage: ./tools/sprint-create <workstream> <epic-num> <sprint-num>
+# Usage: ./tools/sprint-create <workstream> <epic-num> <sprint-num> [--verbose]
 #
 # Creates:
 #   claude/workstreams/{workstream}/epic{epic}/sprint{sprint}/
@@ -14,10 +14,26 @@ SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
     source "$SCRIPT_DIR/_log-helper"
 fi
-RUN_ID=$(log_start "sprint-create" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.1.0-20260114-000006"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Defaults
+VERBOSE=false
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -30,12 +46,32 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
-WORKSTREAM="$1"
-EPIC_NUM="$2"
-SPRINT_NUM="$3"
+# Parse arguments
+WORKSTREAM=""
+EPIC_NUM=""
+SPRINT_NUM=""
+
+for arg in "$@"; do
+    case $arg in
+        --verbose)
+            VERBOSE=true
+            ;;
+        *)
+            if [[ -z "$WORKSTREAM" ]]; then
+                WORKSTREAM="$arg"
+            elif [[ -z "$EPIC_NUM" ]]; then
+                EPIC_NUM="$arg"
+            elif [[ -z "$SPRINT_NUM" ]]; then
+                SPRINT_NUM="$arg"
+            fi
+            ;;
+    esac
+done
 
 if [ -z "$WORKSTREAM" ] || [ -z "$EPIC_NUM" ] || [ -z "$SPRINT_NUM" ]; then
-  echo "Usage: ./tools/sprint-create <workstream> <epic-num> <sprint-num>"
+  log_error "Missing required arguments"
+  echo ""
+  echo "Usage: ./tools/sprint-create <workstream> <epic-num> <sprint-num> [--verbose]"
   echo ""
   echo "Example: ./tools/sprint-create web 002 001"
   echo "Creates: claude/workstreams/web/epic002/sprint001/"
@@ -51,29 +87,43 @@ DIR="claude/workstreams/$WORKSTREAM/$EPIC/$SPRINT"
 TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
 TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
 
-# Check workstream exists
-if [ ! -d "claude/workstreams/$WORKSTREAM" ]; then
-  echo "Error: Workstream '$WORKSTREAM' doesn't exist"
-  exit 1
-fi
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-# Check epic exists in workstream
-if [ ! -d "claude/workstreams/$WORKSTREAM/$EPIC" ]; then
-  echo "Error: Epic '$EPIC' doesn't exist in workstream '$WORKSTREAM'"
-  echo ""
-  echo "Create epic first: ./tools/epic-create $EPIC_NUM"
-  exit 1
-fi
+    RUN_ID=$(log_start "sprint-create" "agency-tool" "$@" 2>/dev/null) || true
+    echo "sprint-create [run: ${RUN_ID:-none}]"
 
-if [ -d "$DIR" ]; then
-  echo "Error: Sprint already exists at $DIR"
-  exit 1
-fi
+    # Check workstream exists
+    if [ ! -d "claude/workstreams/$WORKSTREAM" ]; then
+      log_error "Workstream '$WORKSTREAM' doesn't exist"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Workstream not found"
+      exit 1
+    fi
 
-echo "Creating sprint: $WORKSTREAM/$EPIC/$SPRINT"
-mkdir -p "$DIR"
+    # Check epic exists in workstream
+    if [ ! -d "claude/workstreams/$WORKSTREAM/$EPIC" ]; then
+      log_error "Epic '$EPIC' doesn't exist in workstream '$WORKSTREAM'"
+      echo ""
+      echo "Create epic first: ./tools/epic-create $EPIC_NUM"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Epic not found"
+      exit 1
+    fi
 
-cat > "$DIR/sprint-plan.md" << EOF
+    if [ -d "$DIR" ]; then
+      log_error "Sprint already exists at $DIR"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Sprint already exists"
+      exit 1
+    fi
+
+    log_step "Creating sprint: $WORKSTREAM/$EPIC/$SPRINT"
+    mkdir -p "$DIR"
+
+    cat > "$DIR/sprint-plan.md" << EOF
 # $WORKSTREAM $EPIC $SPRINT Plan
 
 **Created:** $TIMESTAMP
@@ -102,7 +152,13 @@ cat > "$DIR/sprint-plan.md" << EOF
 - [ ] [Criterion 1]
 EOF
 
-echo "Created: $DIR/"
-echo "  - sprint-plan.md"
-echo ""
-echo "Edit plan: $DIR/sprint-plan.md"
+    echo "Created: $DIR/"
+    verbose_echo "  - sprint-plan.md"
+    echo ""
+    echo "Edit plan: $DIR/sprint-plan.md"
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Sprint $WORKSTREAM/$EPIC/$SPRINT created"
+}
+
+main

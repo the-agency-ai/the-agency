@@ -14,7 +14,10 @@ if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
 fi
 RUN_ID=$(log_start "starter-cleanup" "agency-tool" "$@" 2>/dev/null) || true
 
-TOOL_VERSION="1.0.0-20260112-000001"
+TOOL_VERSION="1.0.0-20260114-000003"
+
+# Defaults
+VERBOSE=false
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -23,35 +26,60 @@ TEST_DIR="$(dirname "$PROJECT_ROOT")/test/starter-test-run"
 # Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m'
 
-case "${1:-}" in
-    --version|-v)
-        echo "starter-cleanup $TOOL_VERSION"
-        exit 0
-        ;;
-    --help|-h)
-        echo "starter-cleanup - Clean up starter test artifacts"
-        echo ""
-        echo "Usage:"
-        echo "  ./tools/starter-cleanup           # Clean test directory"
-        echo "  ./tools/starter-cleanup --all     # Clean all test artifacts"
-        exit 0
-        ;;
-    --all|-a)
-        echo -e "${BLUE}Cleaning all test artifacts...${NC}"
-        rm -rf "$PROJECT_ROOT/test/starter-test-run"
-        rm -rf "$PROJECT_ROOT/test/test-install"
-        rm -rf "$PROJECT_ROOT/test/the-agency-starter"
-        echo -e "${GREEN}Done.${NC}"
-        ;;
-    *)
-        echo -e "${BLUE}Cleaning starter-test artifacts...${NC}"
-        if [[ -d "$TEST_DIR" ]]; then
-            rm -rf "$TEST_DIR"
-            echo -e "${GREEN}Removed: $TEST_DIR${NC}"
-        else
-            echo "Nothing to clean."
-        fi
-        ;;
-esac
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Main
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "starter-cleanup [run: ${RUN_ID:-none}]"
+
+    case "${1:-}" in
+        --version|-v)
+            echo "starter-cleanup $TOOL_VERSION"
+            ;;
+        --help|-h)
+            echo "starter-cleanup - Clean up starter test artifacts"
+            echo ""
+            echo "Usage:"
+            echo "  ./tools/starter-cleanup           # Clean test directory"
+            echo "  ./tools/starter-cleanup --all     # Clean all test artifacts"
+            echo "  ./tools/starter-cleanup --verbose # Show detailed output"
+            ;;
+        --verbose)
+            VERBOSE=true
+            main "${@:2}"
+            return
+            ;;
+        --all|-a)
+            log_step "Cleaning all test artifacts..."
+            rm -rf "$PROJECT_ROOT/test/starter-test-run"
+            rm -rf "$PROJECT_ROOT/test/test-install"
+            rm -rf "$PROJECT_ROOT/test/the-agency-starter"
+            verbose_echo -e "${GREEN}Done.${NC}"
+            ;;
+        *)
+            log_step "Cleaning starter-test artifacts..."
+            if [[ -d "$TEST_DIR" ]]; then
+                rm -rf "$TEST_DIR"
+                verbose_echo -e "${GREEN}Removed: $TEST_DIR${NC}"
+            else
+                verbose_echo "Nothing to clean."
+            fi
+            ;;
+    esac
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Cleanup complete" 2>/dev/null || true
+}
+
+main "$@"

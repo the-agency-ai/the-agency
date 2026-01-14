@@ -8,6 +8,7 @@
 #
 # Options:
 #   --type=<template>  Use a specific agent template (default: generic)
+#   --verbose          Show detailed logging
 #
 # Creates:
 #   claude/agents/{agentname}/
@@ -22,15 +23,31 @@ SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
     source "$SCRIPT_DIR/_log-helper"
 fi
-RUN_ID=$(log_start "agent-create" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.1.0-20260113-000001"
+TOOL_VERSION="1.2.0-20260114-000004"
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMPLATE_DIR="$PROJECT_ROOT/claude/agents/templates"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Defaults
+VERBOSE=false
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -42,7 +59,7 @@ fi
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "agent-create - Create a new agent identity"
     echo ""
-    echo "Usage: ./tools/agent-create <agentname> <workstream> [--type=<template>]"
+    echo "Usage: ./tools/agent-create <agentname> <workstream> [--type=<template>] [--verbose]"
     echo ""
     echo "Arguments:"
     echo "  agentname     Name for the new agent"
@@ -51,6 +68,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "Options:"
     echo "  --type=<template>  Use a specific agent template (default: generic)"
     echo "  --list-types       List available agent templates"
+    echo "  --verbose          Show detailed logging"
     echo "  --version, -v      Show version"
     echo "  --help, -h         Show this help"
     echo ""
@@ -99,6 +117,9 @@ for arg in "$@"; do
         --type=*)
             AGENT_TYPE="${arg#*=}"
             ;;
+        --verbose)
+            VERBOSE=true
+            ;;
         --*)
             # Skip other options
             ;;
@@ -113,7 +134,9 @@ for arg in "$@"; do
 done
 
 if [ -z "$AGENTNAME" ] || [ -z "$WORKSTREAM" ]; then
-  echo "Usage: ./tools/agent-create <agentname> <workstream> [--type=<template>]"
+  log_error "Missing required arguments"
+  echo ""
+  echo "Usage: ./tools/agent-create <agentname> <workstream> [--type=<template>] [--verbose]"
   echo ""
   echo "Examples:"
   echo "  ./tools/agent-create agent-manager agents"
@@ -131,59 +154,73 @@ WORKSTREAM_DIR="claude/workstreams/$WORKSTREAM"
 TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 AGENT_TEMPLATE_DIR="$TEMPLATE_DIR/$AGENT_TYPE"
 
-# Check agent doesn't exist
-if [ -d "$DIR" ]; then
-  echo "Error: Agent '$AGENTNAME' already exists at $DIR"
-  exit 1
-fi
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-# Check workstream exists
-if [ ! -d "$WORKSTREAM_DIR" ]; then
-  echo "Error: Workstream '$WORKSTREAM' doesn't exist at $WORKSTREAM_DIR"
-  echo ""
-  echo "Create workstream first: ./tools/workstream-create $WORKSTREAM"
-  exit 1
-fi
+    RUN_ID=$(log_start "agent-create" "agency-tool" "$@" 2>/dev/null) || true
+    echo "agent-create [run: ${RUN_ID:-none}]"
 
-# Check template exists
-if [ ! -d "$AGENT_TEMPLATE_DIR" ]; then
-  echo "Error: Agent template '$AGENT_TYPE' not found at $AGENT_TEMPLATE_DIR"
-  echo ""
-  echo "Available templates:"
-  for dir in "$TEMPLATE_DIR"/*/; do
-      if [[ -d "$dir" ]]; then
-          type_name=$(basename "$dir")
-          echo "  - $type_name"
-      fi
-  done
-  exit 1
-fi
-
-echo "Creating agent: $AGENTNAME (workstream: $WORKSTREAM, type: $AGENT_TYPE)"
-mkdir -p "$DIR/backups/latest"
-mkdir -p "$DIR/backups/archive"
-mkdir -p "$DIR/logs"
-
-# Function to replace placeholders in template
-apply_template() {
-    local template_file="$1"
-    local output_file="$2"
-
-    if [[ -f "$template_file" ]]; then
-        sed -e "s/{{AGENT_NAME}}/$AGENTNAME/g" \
-            -e "s/{{WORKSTREAM}}/$WORKSTREAM/g" \
-            -e "s/{{TIMESTAMP}}/$TIMESTAMP/g" \
-            "$template_file" > "$output_file"
+    # Check agent doesn't exist
+    if [ -d "$DIR" ]; then
+      log_error "Agent '$AGENTNAME' already exists at $DIR"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Agent already exists"
+      exit 1
     fi
-}
 
-# Apply template files
-apply_template "$AGENT_TEMPLATE_DIR/agent.md" "$DIR/agent.md"
-apply_template "$AGENT_TEMPLATE_DIR/KNOWLEDGE.md" "$DIR/KNOWLEDGE.md"
-apply_template "$AGENT_TEMPLATE_DIR/ONBOARDING.md" "$DIR/ONBOARDING.md"
+    # Check workstream exists
+    if [ ! -d "$WORKSTREAM_DIR" ]; then
+      log_error "Workstream '$WORKSTREAM' doesn't exist at $WORKSTREAM_DIR"
+      echo ""
+      echo "Create workstream first: ./tools/workstream-create $WORKSTREAM"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Workstream not found"
+      exit 1
+    fi
 
-# WORKLOG.md (not templated - standard format)
-cat > "$DIR/WORKLOG.md" << EOF
+    # Check template exists
+    if [ ! -d "$AGENT_TEMPLATE_DIR" ]; then
+      log_error "Agent template '$AGENT_TYPE' not found at $AGENT_TEMPLATE_DIR"
+      echo ""
+      echo "Available templates:"
+      for dir in "$TEMPLATE_DIR"/*/; do
+          if [[ -d "$dir" ]]; then
+              type_name=$(basename "$dir")
+              echo "  - $type_name"
+          fi
+      done
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Template not found"
+      exit 1
+    fi
+
+    log_step "Creating agent: $AGENTNAME (workstream: $WORKSTREAM, type: $AGENT_TYPE)"
+    mkdir -p "$DIR/backups/latest"
+    mkdir -p "$DIR/backups/archive"
+    mkdir -p "$DIR/logs"
+
+    # Function to replace placeholders in template
+    apply_template() {
+        local template_file="$1"
+        local output_file="$2"
+
+        if [[ -f "$template_file" ]]; then
+            sed -e "s/{{AGENT_NAME}}/$AGENTNAME/g" \
+                -e "s/{{WORKSTREAM}}/$WORKSTREAM/g" \
+                -e "s/{{TIMESTAMP}}/$TIMESTAMP/g" \
+                "$template_file" > "$output_file"
+        fi
+    }
+
+    # Apply template files
+    apply_template "$AGENT_TEMPLATE_DIR/agent.md" "$DIR/agent.md"
+    apply_template "$AGENT_TEMPLATE_DIR/KNOWLEDGE.md" "$DIR/KNOWLEDGE.md"
+    apply_template "$AGENT_TEMPLATE_DIR/ONBOARDING.md" "$DIR/ONBOARDING.md"
+
+    # WORKLOG.md (not templated - standard format)
+    cat > "$DIR/WORKLOG.md" << EOF
 # $AGENTNAME Work Log
 
 ## Completed Sprints
@@ -196,9 +233,9 @@ cat > "$DIR/WORKLOG.md" << EOF
   - Iteration 01: [Description]
 EOF
 
-# ADHOC-WORKLOG.md (not templated - standard format)
-AGENTNAME_UPPER=$(echo "$AGENTNAME" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-cat > "$DIR/ADHOC-WORKLOG.md" << EOF
+    # ADHOC-WORKLOG.md (not templated - standard format)
+    AGENTNAME_UPPER=$(echo "$AGENTNAME" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+    cat > "$DIR/ADHOC-WORKLOG.md" << EOF
 # $AGENTNAME Ad-Hoc Work Log
 
 ## Latest
@@ -216,8 +253,8 @@ cat > "$DIR/ADHOC-WORKLOG.md" << EOF
 **Files:** [List]
 EOF
 
-# IDEAS.md (not templated - standard format)
-cat > "$DIR/IDEAS.md" << EOF
+    # IDEAS.md (not templated - standard format)
+    cat > "$DIR/IDEAS.md" << EOF
 # $AGENTNAME Ideas & Observations
 
 ### YYYY-MM-DD | I noticed
@@ -230,29 +267,35 @@ cat > "$DIR/IDEAS.md" << EOF
 **Deferred because:** [Reason]
 EOF
 
-# logs/permissions.md (not templated - standard format)
-cat > "$DIR/logs/permissions.md" << EOF
+    # logs/permissions.md (not templated - standard format)
+    cat > "$DIR/logs/permissions.md" << EOF
 # $AGENTNAME Permission Request Log
 
 | Date | Tool | Command | Reason | Outcome |
 |------|------|---------|--------|---------|
 EOF
 
-# Create agent folder in all principal cloud storage locations
-echo ""
-for principal_dir in claude/principals/*/; do
-  cloud_link="${principal_dir}resources/cloud"
-  if [ -L "$cloud_link" ] && [ -d "$cloud_link" ]; then
-    agent_cloud_dir="$cloud_link/$AGENTNAME"
-    if [ ! -d "$agent_cloud_dir" ]; then
-      mkdir -p "$agent_cloud_dir"
-      echo "Created cloud folder: $agent_cloud_dir"
-    fi
-  fi
-done
+    # Create agent folder in all principal cloud storage locations
+    verbose_echo ""
+    for principal_dir in claude/principals/*/; do
+      cloud_link="${principal_dir}resources/cloud"
+      if [ -L "$cloud_link" ] && [ -d "$cloud_link" ]; then
+        agent_cloud_dir="$cloud_link/$AGENTNAME"
+        if [ ! -d "$agent_cloud_dir" ]; then
+          mkdir -p "$agent_cloud_dir"
+          verbose_echo "Created cloud folder: $agent_cloud_dir"
+        fi
+      fi
+    done
 
-echo ""
-echo "Created: $DIR/"
-echo "  Template: $AGENT_TYPE"
-echo ""
-echo "Start with: ./tools/myclaude $WORKSTREAM $AGENTNAME"
+    echo ""
+    echo "Created: $DIR/"
+    log_info "Template: $AGENT_TYPE"
+    echo ""
+    echo "Start with: ./tools/myclaude $WORKSTREAM $AGENTNAME"
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Agent $AGENTNAME created"
+}
+
+main

@@ -6,16 +6,41 @@
 # Each variation (date, TZ='...' date, date +%Y-%m-%d, etc.) requires separate approval.
 # This single script provides a consistent, pre-approved way to get timestamps.
 
-
-# Tool version
-
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
     source "$SCRIPT_DIR/_log-helper"
 fi
 RUN_ID=$(log_start "now" "agency-tool" "$@" 2>/dev/null) || true
-TOOL_VERSION="1.0.0-20260109-000001"
+
+# Tool version
+TOOL_VERSION="1.0.0-20260114-000008"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Defaults
+VERBOSE=false
+
+# Parse verbose flag
+for arg in "$@"; do
+    case $arg in
+        --verbose)
+            VERBOSE=true
+            ;;
+    esac
+done
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -23,4 +48,16 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     exit 0
 fi
 
-date "+%Y-%m-%d %H:%M:%S %Z"
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    verbose_echo "now [run: ${RUN_ID:-none}]"
+
+    date "+%Y-%m-%d %H:%M:%S %Z"
+
+    trap - EXIT  # Clear trap
+    log_end "$RUN_ID" "success" 0 0 "Timestamp returned" 2>/dev/null || true
+}
+
+main

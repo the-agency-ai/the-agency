@@ -5,7 +5,7 @@
 # Usage: ./tools/tool-version-add <toolname> [version]
 #
 # Adds TOOL_VERSION and --version/-v handling to a tool.
-# Default version: 1.0.0-20260109-000001
+# Default version: 1.0.0-20260114-000001
 #
 
 set -e
@@ -17,45 +17,89 @@ if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
 fi
 RUN_ID=$(log_start "tool-version-add" "agency-tool" "$@" 2>/dev/null) || true
 
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.0.0-20260114-000007"
 
-# Version check
-if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
-    echo "tool-version-add $TOOL_VERSION"
-    exit 0
-fi
+# Defaults
+VERBOSE=false
 
 TOOLNAME="$1"
-VERSION="${2:-1.0.0-20260109-000001}"
+VERSION="${2:-1.0.0-20260114-000001}"
 
-if [ -z "$TOOLNAME" ]; then
-    echo "Usage: ./tools/tool-version-add <toolname> [version]"
-    echo ""
-    echo "Examples:"
-    echo "  ./tools/tool-version-add session-backup"
-    echo "  ./tools/tool-version-add config 1.0.0-20260109-000002"
-    exit 1
-fi
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-TOOL_PATH="tools/$TOOLNAME"
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
-if [ ! -f "$TOOL_PATH" ]; then
-    echo "Error: Tool not found: $TOOL_PATH"
-    exit 1
-fi
+# Main
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-# Check if already versioned
-if grep -q "^TOOL_VERSION=" "$TOOL_PATH"; then
-    CURRENT=$(grep "^TOOL_VERSION=" "$TOOL_PATH" | head -1)
-    echo "Already versioned: $TOOLNAME ($CURRENT)"
-    exit 0
-fi
+    echo "tool-version-add [run: ${RUN_ID:-none}]"
 
-# Create temp file
-TEMP_FILE=$(mktemp)
+    # Version check
+    if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+        echo "tool-version-add $TOOL_VERSION"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Version displayed" 2>/dev/null || true
+        exit 0
+    fi
 
-# Strategy: insert after 'set -e' line, or after header comments if no 'set -e'
-awk -v version="$VERSION" -v toolname="$TOOLNAME" '
+    # Parse verbose flag
+    for arg in "$@"; do
+        case $arg in
+            --verbose)
+                VERBOSE=true
+                ;;
+        esac
+    done
+
+    if [ -z "$TOOLNAME" ]; then
+        echo "Usage: ./tools/tool-version-add <toolname> [version]"
+        echo ""
+        echo "Options:"
+        echo "  --verbose  Show detailed output"
+        echo ""
+        echo "Examples:"
+        echo "  ./tools/tool-version-add session-backup"
+        echo "  ./tools/tool-version-add config 1.0.0-20260114-000002"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Help displayed" 2>/dev/null || true
+        exit 1
+    fi
+
+    TOOL_PATH="tools/$TOOLNAME"
+
+    if [ ! -f "$TOOL_PATH" ]; then
+        log_error "Tool not found: $TOOL_PATH"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Tool not found" 2>/dev/null || true
+        exit 1
+    fi
+
+    # Check if already versioned
+    if grep -q "^TOOL_VERSION=" "$TOOL_PATH"; then
+        CURRENT=$(grep "^TOOL_VERSION=" "$TOOL_PATH" | head -1)
+        verbose_echo "Already versioned: $TOOLNAME ($CURRENT)"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Already versioned" 2>/dev/null || true
+        exit 0
+    fi
+
+    # Create temp file
+    TEMP_FILE=$(mktemp)
+
+    # Strategy: insert after 'set -e' line, or after header comments if no 'set -e'
+    awk -v version="$VERSION" -v toolname="$TOOLNAME" '
 BEGIN {
     inserted = 0
     found_set_e = 0
@@ -100,13 +144,20 @@ BEGIN {
 }
 ' "$TOOL_PATH" > "$TEMP_FILE"
 
-# Verify and move
-if grep -q "^TOOL_VERSION=" "$TEMP_FILE"; then
-    mv "$TEMP_FILE" "$TOOL_PATH"
-    chmod +x "$TOOL_PATH"
-    echo "Added version $VERSION to $TOOLNAME"
-else
-    rm "$TEMP_FILE"
-    echo "ERROR: Failed to add version to $TOOLNAME"
-    exit 1
-fi
+    # Verify and move
+    if grep -q "^TOOL_VERSION=" "$TEMP_FILE"; then
+        mv "$TEMP_FILE" "$TOOL_PATH"
+        chmod +x "$TOOL_PATH"
+        log_info "Added version $VERSION to $TOOLNAME"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Added version to $TOOLNAME" 2>/dev/null || true
+    else
+        rm "$TEMP_FILE"
+        log_error "Failed to add version to $TOOLNAME"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Failed to add version" 2>/dev/null || true
+        exit 1
+    fi
+}
+
+main "$@"

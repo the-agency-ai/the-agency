@@ -2,12 +2,13 @@
 # Backup session state - captures git status, uncommitted changes, metadata
 #
 # Usage: Called automatically by SessionEnd hook
+#        ./tools/session-backup [--verbose]
 #
 # Why this exists:
 #   Enables session continuity - capture complete work state on exit
 #   Allows seamless restoration when resuming work
 
-
+set -e
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
@@ -15,43 +16,89 @@ if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
     source "$SCRIPT_DIR/_log-helper"
 fi
 RUN_ID=$(log_start "session-backup" "agency-tool" "$@" 2>/dev/null) || true
+
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.0.0-20260114-000002"
 
-# Version check
-if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
-    echo "session-backup $TOOL_VERSION"
-    exit 0
-fi
+# Defaults
+VERBOSE=false
 
-AGENTNAME=$(./tools/agentname 2>/dev/null || echo 'unknown')
-TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M:%S %Z')
-BACKUP_DIR="claude/agents/$AGENTNAME/backups/latest"
-ARCHIVE_DIR="claude/agents/$AGENTNAME/backups/archive/session-$(date +%s)"
+# Parse arguments
+for arg in "$@"; do
+    case $arg in
+        --version|-v)
+            echo "session-backup $TOOL_VERSION"
+            exit 0
+            ;;
+        --help|-h)
+            echo "session-backup - Backup session state"
+            echo ""
+            echo "Usage:"
+            echo "  ./tools/session-backup [--verbose]"
+            echo ""
+            echo "Options:"
+            echo "  --verbose     Show detailed logging"
+            echo "  --version, -v Show tool version"
+            echo "  --help, -h    Show this help"
+            exit 0
+            ;;
+        --verbose)
+            VERBOSE=true
+            ;;
+    esac
+done
 
-# Ensure backup directories exist
-mkdir -p "$BACKUP_DIR"
-mkdir -p "$ARCHIVE_DIR"
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# 1. Capture git status
-git status > "$BACKUP_DIR/status.txt" 2>/dev/null
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
-# 2. Capture current branch
-git branch --show-current > "$BACKUP_DIR/current-branch.txt" 2>/dev/null
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-# 3. Capture uncommitted changes (if any)
-if ! git diff --quiet 2>/dev/null; then
-  git diff > "$BACKUP_DIR/uncommitted.patch" 2>/dev/null
-fi
+    verbose_echo "session-backup [run: ${RUN_ID:-none}]"
 
-# 4. Capture staged changes (if any)
-if ! git diff --cached --quiet 2>/dev/null; then
-  git diff --cached > "$BACKUP_DIR/staged.patch" 2>/dev/null
-fi
+    local AGENTNAME=$(./tools/agentname 2>/dev/null || echo 'unknown')
+    local TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M:%S %Z')
+    local BACKUP_DIR="claude/agents/$AGENTNAME/backups/latest"
+    local ARCHIVE_DIR="claude/agents/$AGENTNAME/backups/archive/session-$(date +%s)"
 
-# 5. Capture session metadata
-WORKSTREAM=$(./tools/workstream 2>/dev/null || echo 'unknown')
-cat > "$BACKUP_DIR/session-info.json" <<EOF
+    log_step "Creating backup directories"
+    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$ARCHIVE_DIR"
+
+    log_step "Capturing git status"
+    git status > "$BACKUP_DIR/status.txt" 2>/dev/null
+
+    log_step "Capturing current branch"
+    git branch --show-current > "$BACKUP_DIR/current-branch.txt" 2>/dev/null
+
+    log_step "Checking for uncommitted changes"
+    if ! git diff --quiet 2>/dev/null; then
+        verbose_echo "  Found uncommitted changes, creating patch"
+        git diff > "$BACKUP_DIR/uncommitted.patch" 2>/dev/null
+    fi
+
+    log_step "Checking for staged changes"
+    if ! git diff --cached --quiet 2>/dev/null; then
+        verbose_echo "  Found staged changes, creating patch"
+        git diff --cached > "$BACKUP_DIR/staged.patch" 2>/dev/null
+    fi
+
+    log_step "Capturing session metadata"
+    local WORKSTREAM=$(./tools/workstream 2>/dev/null || echo 'unknown')
+    cat > "$BACKUP_DIR/session-info.json" <<EOF
 {
   "agentname": "$AGENTNAME",
   "workstream": "$WORKSTREAM",
@@ -63,14 +110,20 @@ cat > "$BACKUP_DIR/session-info.json" <<EOF
 }
 EOF
 
-# 6. Archive context if exists
-CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
-if [[ -f "$CONTEXT_FILE" ]]; then
-  cp "$CONTEXT_FILE" "$ARCHIVE_DIR/context.jsonl" 2>/dev/null
-fi
+    log_step "Archiving context if exists"
+    local CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
+    if [[ -f "$CONTEXT_FILE" ]]; then
+        cp "$CONTEXT_FILE" "$ARCHIVE_DIR/context.jsonl" 2>/dev/null
+        verbose_echo "  Archived context file"
+    fi
 
-# 7. Archive this backup
-cp -r "$BACKUP_DIR/"* "$ARCHIVE_DIR/" 2>/dev/null
+    log_step "Archiving backup"
+    cp -r "$BACKUP_DIR/"* "$ARCHIVE_DIR/" 2>/dev/null
 
-# Silent success (hook context)
-exit 0
+    log_info "Session backup complete"
+
+    trap - EXIT  # Clear trap
+    log_end "$RUN_ID" "success" 0 0 "Backup complete" 2>/dev/null || true
+}
+
+main

@@ -20,7 +20,7 @@ fi
 RUN_ID=$(log_start "instruction-complete" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.0.0-20260114-000002"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -34,60 +34,105 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PRINCIPALS_DIR="$REPO_ROOT/claude/principals"
 
-if [[ $# -lt 2 ]]; then
-  echo "Usage: instruction-complete INSTR-#### \"What was done\""
-  echo "       instruction-complete #### \"Outcome summary\""
-  exit 1
-fi
+# Defaults
+VERBOSE=false
 
-# Normalize instruction ID
-INSTR_ID="$1"
-OUTCOME="$2"
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# Strip INSTR- prefix if present
-INSTR_ID="${INSTR_ID#INSTR-}"
-# Pad to 4 digits
-INSTR_NUM=$(printf "%04d" "$INSTR_ID" 2>/dev/null || echo "$INSTR_ID")
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
-# Get agent info
-AGENT_WS="${WORKSTREAM:-unknown}"
-AGENT_NAME="${AGENTNAME:-unknown}"
-
-# Get timezone from config or default to UTC
-TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
-TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
-
-# Search for instruction file
-FOUND_FILE=""
-for principal_dir in "$PRINCIPALS_DIR"/*/; do
-  MATCH=$(find "$principal_dir/instructions" -name "INSTR-${INSTR_NUM}-*.md" 2>/dev/null | head -1)
-  if [[ -n "$MATCH" ]]; then
-    FOUND_FILE="$MATCH"
-    break
-  fi
+# Parse for --verbose flag (before positional args)
+ARGS=()
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --verbose)
+      VERBOSE=true
+      shift
+      ;;
+    *)
+      ARGS+=("$1")
+      shift
+      ;;
+  esac
 done
 
-if [[ -z "$FOUND_FILE" ]]; then
-  echo "Error: Instruction INSTR-$INSTR_NUM not found"
-  exit 1
-fi
+set -- "${ARGS[@]}"
 
-echo "Completing: INSTR-$INSTR_NUM"
-echo "  File: $FOUND_FILE"
+# Main function
+main() {
+  # Trap unexpected exits
+  trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-# Update status
-sed -i '' 's/\*\*Status:\*\* Active/\*\*Status:\*\* Completed/' "$FOUND_FILE"
+  echo "instruction-complete [run: ${RUN_ID:-none}]"
 
-# Update outcome section
-# Find the line with "**Completed:** (pending)" and replace it
-sed -i '' "s/\*\*Completed:\*\* (pending)/\*\*Completed:\*\* $TIMESTAMP/" "$FOUND_FILE"
+  if [[ $# -lt 2 ]]; then
+    log_error "Usage: instruction-complete INSTR-#### \"What was done\""
+    echo "       instruction-complete #### \"Outcome summary\""
+    trap - EXIT
+    log_end "$RUN_ID" "failure" 1 0 "Missing required arguments"
+    exit 1
+  fi
 
-# Find the line with "**By:**" and ensure it has the agent
-sed -i '' "s/\*\*By:\*\* .*/\*\*By:\*\* $AGENT_WS\/$AGENT_NAME/" "$FOUND_FILE"
+  # Normalize instruction ID
+  INSTR_ID="$1"
+  OUTCOME="$2"
 
-# Add outcome text after "(To be filled when instruction is completed)"
-# Using Python for reliable multiline handling
-python3 - "$FOUND_FILE" "$OUTCOME" << 'PYTHON_EOF'
+  # Strip INSTR- prefix if present
+  INSTR_ID="${INSTR_ID#INSTR-}"
+  # Pad to 4 digits
+  INSTR_NUM=$(printf "%04d" "$INSTR_ID" 2>/dev/null || echo "$INSTR_ID")
+
+  # Get agent info
+  AGENT_WS="${WORKSTREAM:-unknown}"
+  AGENT_NAME="${AGENTNAME:-unknown}"
+
+  # Get timezone from config or default to UTC
+  TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
+  TIMESTAMP=$(TZ="$TIMEZONE" date '+%Y-%m-%d %H:%M %Z')
+
+  # Search for instruction file
+  FOUND_FILE=""
+  for principal_dir in "$PRINCIPALS_DIR"/*/; do
+    MATCH=$(find "$principal_dir/instructions" -name "INSTR-${INSTR_NUM}-*.md" 2>/dev/null | head -1)
+    if [[ -n "$MATCH" ]]; then
+      FOUND_FILE="$MATCH"
+      break
+    fi
+  done
+
+  if [[ -z "$FOUND_FILE" ]]; then
+    log_error "Instruction INSTR-$INSTR_NUM not found"
+    trap - EXIT
+    log_end "$RUN_ID" "failure" 1 0 "Instruction not found: INSTR-$INSTR_NUM"
+    exit 1
+  fi
+
+  verbose_echo "Completing: INSTR-$INSTR_NUM"
+  verbose_echo "  File: $FOUND_FILE"
+
+  # Update status
+  sed -i '' 's/\*\*Status:\*\* Active/\*\*Status:\*\* Completed/' "$FOUND_FILE"
+
+  # Update outcome section
+  # Find the line with "**Completed:** (pending)" and replace it
+  sed -i '' "s/\*\*Completed:\*\* (pending)/\*\*Completed:\*\* $TIMESTAMP/" "$FOUND_FILE"
+
+  # Find the line with "**By:**" and ensure it has the agent
+  sed -i '' "s/\*\*By:\*\* .*/\*\*By:\*\* $AGENT_WS\/$AGENT_NAME/" "$FOUND_FILE"
+
+  # Add outcome text after "(To be filled when instruction is completed)"
+  # Using Python for reliable multiline handling
+  python3 - "$FOUND_FILE" "$OUTCOME" << 'PYTHON_EOF'
 import sys
 
 filepath = sys.argv[1]
@@ -105,12 +150,18 @@ with open(filepath, 'w') as f:
     f.write(content)
 PYTHON_EOF
 
-echo ""
-echo "✅ Instruction INSTR-$INSTR_NUM marked as Completed"
-echo "   Completed by: $AGENT_WS/$AGENT_NAME"
-echo "   Completed at: $TIMESTAMP"
-echo ""
-echo "Don't forget to update the Artifacts section with links to PRs, files, etc."
+  echo ""
+  echo "Instruction INSTR-$INSTR_NUM marked as Completed"
+  echo "   Completed by: $AGENT_WS/$AGENT_NAME"
+  echo "   Completed at: $TIMESTAMP"
+  echo ""
+  verbose_echo "Don't forget to update the Artifacts section with links to PRs, files, etc."
 
-# Update the instructions index
-"$SCRIPT_DIR/instruction-index-update" > /dev/null 2>&1 || true
+  # Update the instructions index
+  "$SCRIPT_DIR/instruction-index-update" > /dev/null 2>&1 || true
+
+  trap - EXIT
+  log_end "$RUN_ID" "success" 0 0 "Completed INSTR-$INSTR_NUM"
+}
+
+main
