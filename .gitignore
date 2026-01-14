@@ -48,7 +48,8 @@ test/
 # Claude Code local settings (user customizations)
 .claude/settings.local.json
 
-# Session backups (tracked in agent context, not main repo)
+# Session backups (ephemeral state - not versioned)
+claude/agents/*/backups/latest/
 claude/agents/*/backups/archive/
 
 # Services (local development)

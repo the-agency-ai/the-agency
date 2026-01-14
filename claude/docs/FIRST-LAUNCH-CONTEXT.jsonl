@@ -1,0 +1,8 @@
+{"timestamp":"2026-01-01 00:00:00 +00","type":"checkpoint","content":"Welcome to The Agency! Your multi-agent development environment is ready."}
+{"timestamp":"2026-01-01 00:00:01 +00","type":"checkpoint","content":"Project structure created - agents, workstreams, and tools are configured"}
+{"timestamp":"2026-01-01 00:00:02 +00","type":"checkpoint","content":"Review CLAUDE.md for the complete framework guide"}
+{"timestamp":"2026-01-01 00:00:03 +00","type":"append","content":"Next step: Configure permissions in .claude/settings.local.json (copy from .example file)"}
+{"timestamp":"2026-01-01 00:00:04 +00","type":"append","content":"Next step: Initialize secrets if needed: ./tools/secret vault init"}
+{"timestamp":"2026-01-01 00:00:05 +00","type":"append","content":"Next step: Launch housekeeping agent: ./tools/myclaude housekeeping housekeeping"}
+{"timestamp":"2026-01-01 00:00:06 +00","type":"append","content":"Quick start: Ask housekeeping agent 'Help me set up my project'"}
+{"timestamp":"2026-01-01 00:00:07 +00","type":"park","content":"This welcome context will be replaced with your actual work context as you use the system"}
