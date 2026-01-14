@@ -180,7 +180,12 @@ export function createLogRoutes(logService: LogService): Hono {
   app.get('/stats/tools', async (c) => {
     const since = c.req.query('since') || '7d';
     const tool = c.req.query('tool');
-    const stats = await logService.getToolStats({ since, tool: tool || undefined });
+    const toolType = c.req.query('toolType');
+    const stats = await logService.getToolStats({
+      since,
+      tool: tool || undefined,
+      toolType: toolType || undefined,
+    });
     return c.json(stats);
   });
 

@@ -167,7 +167,7 @@ export class LogService {
   /**
    * Get tool usage statistics (telemetry)
    */
-  async getToolStats(options?: { since?: string; tool?: string }) {
+  async getToolStats(options?: { since?: string; tool?: string; toolType?: string }) {
     return this.repository.getToolStats(options);
   }
 

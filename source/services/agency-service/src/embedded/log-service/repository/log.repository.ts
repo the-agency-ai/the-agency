@@ -511,7 +511,7 @@ export class LogRepository {
   /**
    * Get tool run statistics (telemetry)
    */
-  async getToolStats(options?: { since?: string; tool?: string }): Promise<{
+  async getToolStats(options?: { since?: string; tool?: string; toolType?: string }): Promise<{
     tools: Array<{
       tool: string;
       totalRuns: number;
@@ -541,6 +541,11 @@ export class LogRepository {
     if (options?.tool) {
       conditions.push('tool = ?');
       params.push(options.tool);
+    }
+
+    if (options?.toolType) {
+      conditions.push('tool_type = ?');
+      params.push(options.toolType);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
