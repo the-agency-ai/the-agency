@@ -29,7 +29,7 @@ export default function ServerPage() {
 }
 
 // Client Component
-('use client');
+'use client';
 export default function ClientPage() {
   const [state, setState] = useState();
   return <div>Runs in browser</div>;

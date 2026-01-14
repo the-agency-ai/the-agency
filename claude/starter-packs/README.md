@@ -11,13 +11,14 @@ Modular, composable setup guides for The Agency.
 
 ## Available Packs
 
-| Pack                              | Purpose            | Dependencies                    |
-| --------------------------------- | ------------------ | ------------------------------- |
-| [node-base](./node-base/)         | Node.js foundation | None                            |
-| [react-app](./react-app/)         | Next.js web app    | node-base                       |
-| [supabase-auth](./supabase-auth/) | Authentication     | node-base, react-app            |
-| [github-ci](./github-ci/)         | CI/CD pipeline     | node-base                       |
-| [vercel](./vercel/)               | Deployment         | node-base, react-app            |
+| Pack                                        | Purpose            | Dependencies                    |
+| ------------------------------------------- | ------------------ | ------------------------------- |
+| [node-base](./node-base/)                   | Node.js foundation | None                            |
+| [react-app](./react-app/)                   | Next.js web app    | node-base                       |
+| [supabase-auth](./supabase-auth/)           | Authentication     | node-base, react-app            |
+| [posthog-analytics](./posthog-analytics/)   | Analytics          | node-base, react-app            |
+| [github-ci](./github-ci/)                   | CI/CD pipeline     | node-base                       |
+| [vercel](./vercel/)                         | Deployment         | node-base, react-app            |
 
 ## Composition Paths
 
@@ -81,7 +82,6 @@ Future packs (not yet implemented):
 
 - nitro-api - Nitro.js API layer
 - supabase-data - Database setup
-- posthog-analytics - Analytics
 - localization - i18n support
 - react-native - Mobile apps
 - cloudflare-deploy - Alternative deployment
