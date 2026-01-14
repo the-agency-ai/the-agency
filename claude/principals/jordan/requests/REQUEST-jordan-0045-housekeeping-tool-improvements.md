@@ -3,7 +3,7 @@
 **Principal:** jordan
 **Workstream:** housekeeping
 **Agent:** housekeeping
-**Status:** In Progress (Phase 4: Quiet-by-Default Rollout)
+**Status:** Complete
 **Priority:** High
 **Created:** 2026-01-13
 
@@ -280,47 +280,18 @@ See `claude/docs/TOOL-LOGGING-PATTERN.md` for the full pattern.
 
 ### Tools Status
 
-**Already have quiet-by-default (6):**
-- [x] commit-precheck
-- [x] request-complete
-- [x] starter-compare
-- [x] starter-release
-- [x] starter-test
-- [x] sync
+**COMPLETE: 66 tools now have quiet-by-default pattern**
 
-**Priority 1 - High-traffic (need update):**
-- [ ] myclaude
-- [ ] commit
-- [ ] tag
-- [ ] release
-
-**Priority 2 - Build/verification:**
-- [ ] starter-verify
-- [ ] project-new
-- [ ] project-update
-- [ ] test-run
-
-**Priority 3 - Session/context:**
-- [ ] welcomeback
-- [ ] session-backup
-- [ ] context-save
-- [ ] context-review
-
-**Priority 4 - Collaboration:**
-- [ ] collaborate
-- [ ] collaboration-respond
-- [ ] news-post
-- [ ] news-read
-- [ ] dispatch-collaborations
-
-**Priority 5+ - Remaining tools:**
-- All other tools (~60)
+Applied via 7 parallel subagents in commit eb32fc1:
+- All tools have `VERBOSE=false` by default
+- All tools support `--verbose` flag
+- All tools show run_id in verbose mode
+- All tools use `verbose_echo` and `log_*` functions
 
 ### Skip List (simple/special purpose)
 - `_log-helper` (the helper itself)
 - `hello`, `hi` (trivial greeting tools)
 - `tab-status` (iTerm integration, needs visible output)
-- `log` (the log CLI, needs visible output)
 
 ---
 
@@ -379,6 +350,20 @@ After renaming, update:
 - Tools renamed: 44
 - Tools with logging: 78/78 (was 9/79)
 - Documentation files updated: 50+
+
+### 2026-01-14
+
+- **COMPLETED Phase 4: Quiet-by-Default Rollout**
+- Applied verbose pattern to 66 tools via 7 parallel subagents
+- Added telemetry exposure: `./tools/log tools` and `./tools/log failures`
+- Added log service endpoints: `/stats/tools`, `/stats/tools/:name`, `/failures`
+- Committed: eb32fc1
+- REQUEST marked complete
+
+**Summary:**
+- Tools with quiet-by-default: 66/66 (excluding skip list)
+- Telemetry CLI commands: 2 new
+- Service endpoints: 3 new
 
 ---
 
