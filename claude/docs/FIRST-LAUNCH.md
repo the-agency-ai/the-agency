@@ -19,7 +19,7 @@ The Agency includes a session context system that captures conversational contex
 For new projects, the-agency-starter ships with a pre-populated context file:
 
 ```
-claude/agents/housekeeping/backups/latest/context.jsonl
+claude/agents/captain/backups/latest/context.jsonl
 ```
 
 This file contains welcome messages and onboarding guidance that appear on the very first session launch.
@@ -36,8 +36,8 @@ On first launch after installation:
 ✓ Review CLAUDE.md for the complete framework guide
 • Next step: Configure permissions in .claude/settings.local.json (copy from .example file)
 • Next step: Initialize secrets if needed: ./tools/secret vault init
-• Next step: Launch housekeeping agent: ./tools/myclaude housekeeping housekeeping
-• Quick start: Ask housekeeping agent 'Help me set up my project'
+• Next step: Launch captain agent: ./tools/myclaude housekeeping captain
+• Quick start: Ask the captain 'Help me set up my project' or try '/welcome' for the interactive tour
 ⏸ PARKED: This welcome context will be replaced with your actual work context as you use the system
 
 === END PREVIOUS SESSION CONTEXT ===
@@ -77,7 +77,7 @@ Timestamps are cosmetic in first-launch context - they don't affect display. Use
 the-agency-starter/
   claude/
     agents/
-      housekeeping/
+      captain/
         backups/
           latest/
             context.jsonl    # Pre-populated first-launch context

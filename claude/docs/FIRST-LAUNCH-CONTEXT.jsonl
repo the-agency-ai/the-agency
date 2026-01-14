@@ -1,8 +1,6 @@
-{"timestamp":"2026-01-01 00:00:00 +00","type":"checkpoint","content":"Welcome to The Agency! Your multi-agent development environment is ready."}
-{"timestamp":"2026-01-01 00:00:01 +00","type":"checkpoint","content":"Project structure created - agents, workstreams, and tools are configured"}
-{"timestamp":"2026-01-01 00:00:02 +00","type":"checkpoint","content":"Review CLAUDE.md for the complete framework guide"}
-{"timestamp":"2026-01-01 00:00:03 +00","type":"append","content":"Next step: Configure permissions in .claude/settings.local.json (copy from .example file)"}
-{"timestamp":"2026-01-01 00:00:04 +00","type":"append","content":"Next step: Initialize secrets if needed: ./tools/secret vault init"}
-{"timestamp":"2026-01-01 00:00:05 +00","type":"append","content":"Next step: Launch housekeeping agent: ./tools/myclaude housekeeping housekeeping"}
-{"timestamp":"2026-01-01 00:00:06 +00","type":"append","content":"Quick start: Ask housekeeping agent 'Help me set up my project'"}
-{"timestamp":"2026-01-01 00:00:07 +00","type":"park","content":"This welcome context will be replaced with your actual work context as you use the system"}
+{"timestamp":"2026-01-01 00:00:00 +00","type":"checkpoint","content":"Captain's first session - principal just installed The Agency"}
+{"timestamp":"2026-01-01 00:00:01 +00","type":"checkpoint","content":"Your role: Guide this principal through their first steps with The Agency"}
+{"timestamp":"2026-01-01 00:00:02 +00","type":"append","content":"Greet them warmly and offer to help set up their project"}
+{"timestamp":"2026-01-01 00:00:03 +00","type":"append","content":"Key offers: Configure permissions, initialize secrets, create first workstream/agent"}
+{"timestamp":"2026-01-01 00:00:04 +00","type":"append","content":"Suggest they try '/welcome' for the interactive guided tour"}
+{"timestamp":"2026-01-01 00:00:05 +00","type":"park","content":"This context will be replaced with real session context as you work together"}

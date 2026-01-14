@@ -15,10 +15,10 @@ The Agency is a convention-over-configuration system for running multiple Claude
 ## Quick Start
 
 ```bash
-# Launch the housekeeping agent (your guide)
-./tools/myclaude housekeeping housekeeping
+# Launch the captain agent (your guide)
+./tools/myclaude housekeeping captain
 
-# Ask housekeeping to help you set up your project
+# Ask the captain to help you set up your project
 ```
 
 ## Core Concepts
@@ -54,7 +54,7 @@ Agents communicate via:
 CLAUDE.md                    # This file - the constitution
 claude/
   agents/                    # Agent definitions and context
-    housekeeping/            # Your guide agent (ships with The Agency)
+    captain/                 # The captain - your guide (ships with The Agency)
     collaboration/           # Inter-agent messages
   workstreams/               # Workstream knowledge and sprints
     housekeeping/            # Default workstream
@@ -342,10 +342,16 @@ Each pack adds opinionated patterns and enforcement for that ecosystem.
 
 ## Getting Help
 
-Your housekeeping agent is always available:
+The captain is always available to help:
 
 ```bash
-./tools/myclaude housekeeping housekeeping "I need help with..."
+./tools/myclaude housekeeping captain "I need help with..."
+```
+
+For first-time users, try the interactive tour:
+```bash
+./tools/myclaude housekeeping captain
+# Then type: /welcome
 ```
 
 ## Reference Documentation
