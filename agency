@@ -1,0 +1,17 @@
+#!/bin/bash
+#
+# The Agency Hub - Launch the Hub Agent
+#
+# This is the entry point for managing the starter and all projects created from it.
+# The Hub Agent provides commands for:
+#   - Viewing and managing projects
+#   - Checking for updates across projects
+#   - Coordinating multi-project operations
+#
+# Usage:
+#   ./agency              # Launch the Hub Agent
+#   ./agency "command"    # Launch with initial command
+#
+
+cd "$(dirname "$0")"
+exec ./tools/myclaude housekeeping hub "$@"
