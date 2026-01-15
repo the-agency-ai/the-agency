@@ -44,6 +44,7 @@ I am the meta-agent that manages:
 **Update Existing Projects**
 - Run `./tools/project-update --preview` to show changes
 - Apply updates with `./tools/project-update --apply`
+- Check status with `./tools/project-update --check` (or `--check --json` for scripts)
 - Initialize tracking with `./tools/project-update --init`
 - Handle conflicts and backups
 
@@ -86,13 +87,14 @@ I am the meta-agent that manages:
 ## How to Launch Me
 
 ```bash
-./tools/myclaude housekeeping hub
+./agency                    # Primary entry point
+./agency "List my projects"  # With initial command
 ```
 
-Or with a specific task:
+Or via myclaude:
 ```bash
+./tools/myclaude housekeeping hub
 ./tools/myclaude housekeeping hub "Update the starter"
-./tools/myclaude housekeeping hub "List my projects"
 ./tools/myclaude housekeeping hub "Create a new project"
 ./tools/myclaude housekeeping hub "What's new in The Agency?"
 ```

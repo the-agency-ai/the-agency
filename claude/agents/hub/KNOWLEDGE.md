@@ -34,12 +34,12 @@ Projects are tracked in `.agency/projects.json`:
 
 ```bash
 # View all registered projects
-cat .agency/projects.json | python3 -c "
+cat .agency/projects.json | python3 -c '
 import json, sys
 data = json.load(sys.stdin)
-for p in data.get('projects', []):
-    print(f\"{p['name']}: {p['path']} (v{p['starter_version']})\")
-"
+for p in data.get("projects", []):
+    print(f"{p[\"name\"]}: {p[\"path\"]} (v{p[\"starter_version\"]})")
+'
 ```
 
 **Fields per project:**
@@ -61,11 +61,11 @@ cat VERSION
 cat CHANGELOG.md
 
 # Compare with a project's version
-cat /path/to/project/.agency/manifest.json | python3 -c "
+cat /path/to/project/.agency/manifest.json | python3 -c '
 import json, sys
 manifest = json.load(sys.stdin)
-print(f\"Project version: {manifest['project']['starter_version']}\")
-"
+print(f"Project version: {manifest[\"project\"][\"starter_version\"]}")
+'
 ```
 
 ### Creating New Projects
@@ -141,17 +141,17 @@ git status --short
 **2. Check for local modifications**
 ```bash
 # Review manifest for modified files
-cat .agency/manifest.json | python3 -c "
+cat .agency/manifest.json | python3 -c '
 import json, sys
 manifest = json.load(sys.stdin)
-modified = [f for f, info in manifest.get('files', {}).items() if info.get('modified')]
+modified = [f for f, info in manifest.get("files", {}).items() if info.get("modified")]
 if modified:
-    print('Modified files:')
+    print("Modified files:")
     for f in modified:
-        print(f'  - {f}')
+        print(f"  - {f}")
 else:
-    print('No local modifications detected')
-"
+    print("No local modifications detected")
+'
 ```
 
 **3. Review what will change**
@@ -159,8 +159,11 @@ else:
 # Preview changes before applying
 ./tools/project-update --preview --from=/path/to/starter
 
-# Or use --check for quick status (when available)
+# Or use --check for quick status
 ./tools/project-update --check --from=/path/to/starter
+
+# For programmatic verification (scripts, CI)
+./tools/project-update --check --json --from=/path/to/starter
 ```
 
 **4. Identify breaking changes**
@@ -181,12 +184,12 @@ To update all registered projects at once:
 
 **1. Read the project registry**
 ```bash
-cat .agency/projects.json | python3 -c "
+cat .agency/projects.json | python3 -c '
 import json, sys
 data = json.load(sys.stdin)
-for p in data.get('projects', []):
-    print(p['path'])
-"
+for p in data.get("projects", []):
+    print(p["path"])
+'
 ```
 
 **2. Check each project's status**
@@ -195,67 +198,67 @@ for p in data.get('projects', []):
 STARTER_DIR=$(pwd)
 
 # Check all projects
-cat .agency/projects.json | python3 -c "
+cat .agency/projects.json | python3 -c '
 import json, sys, subprocess, os
 
 data = json.load(sys.stdin)
-starter = '$STARTER_DIR'
+starter = "'"$STARTER_DIR"'"
 
-for p in data.get('projects', []):
-    path = p['path']
-    name = p['name']
+for p in data.get("projects", []):
+    path = p["path"]
+    name = p["name"]
 
     if not os.path.exists(path):
-        print(f'{name}: PATH NOT FOUND')
+        print(f"{name}: PATH NOT FOUND")
         continue
 
     # Check git status
-    result = subprocess.run(['git', 'status', '--short'],
+    result = subprocess.run(["git", "status", "--short"],
                           cwd=path, capture_output=True, text=True)
     if result.stdout.strip():
-        print(f'{name}: DIRTY (uncommitted changes)')
+        print(f"{name}: DIRTY (uncommitted changes)")
         continue
 
-    print(f'{name}: OK (clean)')
-"
+    print(f"{name}: OK (clean)")
+'
 ```
 
 **3. Apply updates to clean projects**
 ```bash
 STARTER_DIR=$(pwd)
 
-cat .agency/projects.json | python3 -c "
+cat .agency/projects.json | python3 -c '
 import json, sys, subprocess, os
 
 data = json.load(sys.stdin)
-starter = '$STARTER_DIR'
+starter = "'"$STARTER_DIR"'"
 
-for p in data.get('projects', []):
-    path = p['path']
-    name = p['name']
+for p in data.get("projects", []):
+    path = p["path"]
+    name = p["name"]
 
     if not os.path.exists(path):
         continue
 
     # Check if clean
-    result = subprocess.run(['git', 'status', '--short'],
+    result = subprocess.run(["git", "status", "--short"],
                           cwd=path, capture_output=True, text=True)
     if result.stdout.strip():
-        print(f'{name}: Skipping (dirty)')
+        print(f"{name}: Skipping (dirty)")
         continue
 
     # Run preview first
-    print(f'{name}: Checking for updates...')
+    print(f"{name}: Checking for updates...")
     preview = subprocess.run(
-        [f'{starter}/tools/project-update', '--preview', f'--from={starter}'],
+        [f"{starter}/tools/project-update", "--preview", f"--from={starter}"],
         cwd=path, capture_output=True, text=True
     )
 
-    if 'up to date' in preview.stdout.lower():
-        print(f'{name}: Already up to date')
+    if "up to date" in preview.stdout.lower():
+        print(f"{name}: Already up to date")
     else:
-        print(f'{name}: Updates available - run --apply to update')
-"
+        print(f"{name}: Updates available - run --apply to update")
+'
 ```
 
 **4. Report summary**
