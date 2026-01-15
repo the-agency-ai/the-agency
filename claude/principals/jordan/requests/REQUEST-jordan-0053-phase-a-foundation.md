@@ -24,14 +24,14 @@ This is Phase A of REQUEST-0052 (Agency Manifest and Agent-Driven Updates). Thes
 
 ## Tasks
 
-| ID | Task | Description | Depends On | Status |
-|----|------|-------------|------------|--------|
-| A1 | Manifest Schema | Create `.agency/manifest.json` schema | - | Pending |
-| A2 | Registry Schema | Create `registry.json` schema for starter | - | Pending |
-| A3 | Project Registry | Create `.agency/projects.json` schema (local, gitignored) | - | Pending |
-| A4 | Update project-new | Generate manifest + register project on creation | A1, A3 | Pending |
-| A5 | Update project-update | Add `--init` for existing projects | A1 | Pending |
-| A6 | Service check | Add service check to `myclaude` | - | Pending |
+| ID | Task | Description | Depends On | Status | Commit |
+|----|------|-------------|------------|--------|--------|
+| A1 | Manifest Schema | Create `.agency/manifest.json` schema | - | Done | 86ba7ce |
+| A2 | Registry Schema | Create `registry.json` schema for starter | - | Done | 86ba7ce |
+| A3 | Project Registry | Create `.agency/projects.json` schema (local, gitignored) | - | Done | 86ba7ce |
+| A4 | Update project-new | Generate manifest + register project on creation | A1, A3 | In Progress | foundation-alpha |
+| A5 | Update project-update | Add `--init` for existing projects | A1 | In Progress | foundation-beta |
+| A6 | Service check | Add service check to `myclaude` | - | Done | cda8f39 |
 
 ### Parallelization
 
@@ -140,12 +140,12 @@ Location: `.agency/projects.json` (in the-agency-starter, gitignored)
 
 ## Success Criteria
 
-- [ ] Manifest schema defined and documented
-- [ ] Registry schema defined with component definitions
-- [ ] Project registry schema defined
+- [x] Manifest schema defined and documented
+- [x] Registry schema defined with component definitions
+- [x] Project registry schema defined
 - [ ] `project-new` creates manifest and registers project
 - [ ] `project-update --init` works for existing projects
-- [ ] `myclaude` checks and offers to start services
+- [x] `myclaude` checks and offers to start services
 
 ---
 
@@ -156,3 +156,25 @@ Location: `.agency/projects.json` (in the-agency-starter, gitignored)
 - Created REQUEST from REQUEST-0052 Phase A
 - Defined task breakdown and dependencies
 - Documented deliverable schemas
+
+**Wave 1 Complete:**
+- A1, A2, A3: Created JSON Schema files in `claude/docs/schemas/`
+  - `manifest.schema.json` - project manifest structure
+  - `registry.schema.json` - starter component registry
+  - `projects.schema.json` - project tracking list
+  - Also created actual `registry.json` with component definitions
+  - Commit: 86ba7ce
+- A6: Added `check_services()` to myclaude
+  - Interactive prompts for Bun, dependencies, service start
+  - Quiet-by-default pattern
+  - Commit: cda8f39
+
+**Wave 2 Started:**
+- Created foundation-alpha agent for A4
+- Created foundation-beta agent for A5
+- Created COLLABORATE-0001 and COLLABORATE-0002
+- Agents working in parallel
+
+**Issue Discovered:**
+- AGENTNIT-0001: Agents don't auto-check for pending collaborations on launch
+- Workaround: Manually prompt agents to check collaborations
