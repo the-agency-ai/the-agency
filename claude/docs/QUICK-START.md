@@ -22,24 +22,50 @@ The Agency is an SDLC-style framework that coordinates **multiple AI agents + mu
 
 ### Prerequisites
 
-- **Claude Code** - Will be installed automatically if not present
 - **macOS/Linux** - Windows support coming soon
+- Everything else is installed automatically
 
-### Quick Install
+### Step 1: Install The Agency
 
 ```bash
-# Clone the starter
-git clone https://github.com/the-agency-ai/the-agency-starter.git my-project
-cd my-project
+# Run the installer
+curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash
+```
 
-# Launch the captain (your guide)
+The installer automatically:
+- Installs Claude Code (if not present)
+- Downloads The Agency starter to `~/the-agency-starter`
+
+### Step 2: Create Your Project
+
+```bash
+# Navigate to the starter
+cd ~/the-agency-starter
+
+# Create a new project
+./tools/project-new my-awesome-project
+
+# Navigate to your project
+cd ~/my-awesome-project
+```
+
+### Step 3: Launch the Captain
+
+```bash
 ./tools/myclaude housekeeping captain
 ```
 
-That's it! On first launch, myclaude automatically:
-1. Installs Bun runtime (if needed)
-2. Installs service dependencies
-3. Starts the Agency Service
+On first launch, myclaude automatically:
+- Installs Bun runtime (if needed)
+- Installs service dependencies
+- Starts the Agency Service
+
+You'll see status for each:
+```
+✓ Bun runtime present
+✓ Dependencies present
+✓ Agency Service running
+```
 
 ## First Session
 

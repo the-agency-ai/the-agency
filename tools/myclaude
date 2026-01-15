@@ -59,8 +59,10 @@ check_services() {
     fi
 
     # 2. Check if Bun is installed - auto-install if missing
-    if [[ ! -x "$bun_path" ]]; then
-        echo -e "${BLUE}Installing Bun runtime...${NC}"
+    if [[ -x "$bun_path" ]]; then
+        echo -e "${GREEN}✓ Bun runtime present${NC}"
+    else
+        echo -e "${YELLOW}Bun runtime not found, installing...${NC}"
         curl -fsSL https://bun.sh/install | bash
         export PATH="$HOME/.bun/bin:$PATH"
         bun_path="${HOME}/.bun/bin/bun"
@@ -73,8 +75,10 @@ check_services() {
     fi
 
     # 3. Check if dependencies are installed - auto-install if missing
-    if [[ ! -d "$service_dir/node_modules" ]]; then
-        echo -e "${BLUE}Installing Agency Service dependencies...${NC}"
+    if [[ -d "$service_dir/node_modules" ]]; then
+        echo -e "${GREEN}✓ Dependencies present${NC}"
+    else
+        echo -e "${YELLOW}Dependencies not found, installing...${NC}"
         cd "$service_dir"
         "$bun_path" install --silent 2>/dev/null || "$bun_path" install
         cd "$project_root"
@@ -83,12 +87,12 @@ check_services() {
 
     # 4. Check if service is running - auto-start if not
     if curl -s --connect-timeout 1 "$service_url/health" > /dev/null 2>&1; then
-        log_info "Agency Service is running"
+        echo -e "${GREEN}✓ Agency Service running${NC}"
         return 0
     fi
 
     # Auto-start the service
-    echo -e "${BLUE}Starting Agency Service...${NC}"
+    echo -e "${YELLOW}Agency Service not running, starting...${NC}"
     if [[ -x "$project_root/tools/agency-service" ]]; then
         "$project_root/tools/agency-service" start > /dev/null 2>&1 || true
         sleep 1
