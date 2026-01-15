@@ -10,12 +10,12 @@ Worker agent for REQUEST-0053 (Phase A - Foundation). Assigned to Task A5: Add -
 
 ## Current Assignment
 
-**COLLABORATE-0004:** Create Hub Agent (Task B2):
-1. Create `claude/agents/hub/` directory structure
-2. Write agent.md with identity and capabilities
-3. Write KNOWLEDGE.md with operational procedures
+**COLLABORATE-0006:** Enhance Hub KNOWLEDGE (Tasks C3+C4):
+1. Add batch update procedure for all projects (C3)
+2. Add pre-update verification procedure (C4)
+3. Update claude/agents/hub/KNOWLEDGE.md
 
-Previous: COLLABORATE-0002 (A5) - Complete
+Previous: COLLABORATE-0004 (B2) - Complete, COLLABORATE-0002 (A5) - Complete
 
 ## Responsibilities
 

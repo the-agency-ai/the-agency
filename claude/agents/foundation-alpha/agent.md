@@ -10,12 +10,12 @@ Worker agent for REQUEST-0053 (Phase A - Foundation). Assigned to Task A4: Updat
 
 ## Current Assignment
 
-**COLLABORATE-0003:** Create `./agency` command (Task B1):
-1. Create executable bash script in repo root
-2. Launches Hub Agent via `./tools/myclaude housekeeping hub`
-3. Follow quiet-by-default pattern
+**COLLABORATE-0005:** Add `--check --json` to project-update (Task C5):
+1. Add --check mode for read-only update checking
+2. Output JSON with version, files, modifications
+3. Human-readable fallback for --check without --json
 
-Previous: COLLABORATE-0001 (A4) - Complete
+Previous: COLLABORATE-0003 (B1) - Complete, COLLABORATE-0001 (A4) - Complete
 
 ## Responsibilities
 
