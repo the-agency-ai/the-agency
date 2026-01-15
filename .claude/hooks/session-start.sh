@@ -47,4 +47,23 @@ fi
 
 echo "=== END PREVIOUS SESSION CONTEXT ==="
 
+# Check for news/messages (choreography)
+NEWS_OUTPUT=$("$REPO_ROOT/tools/news-read" --quiet 2>/dev/null)
+if [[ -n "$NEWS_OUTPUT" ]]; then
+  echo ""
+  echo "=== UNREAD NEWS ==="
+  echo "$NEWS_OUTPUT"
+  echo "=== END NEWS ==="
+fi
+
+# Check for pending collaborations
+COLLAB_OUTPUT=$("$REPO_ROOT/tools/collaboration-pending" 2>/dev/null | grep -v "^$" | head -5)
+if [[ -n "$COLLAB_OUTPUT" ]]; then
+  echo ""
+  echo "=== PENDING COLLABORATIONS ==="
+  echo "$COLLAB_OUTPUT"
+  echo "Run ./tools/collaboration-pending to see full details"
+  echo "=== END COLLABORATIONS ==="
+fi
+
 exit 0
