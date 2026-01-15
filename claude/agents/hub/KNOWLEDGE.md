@@ -127,6 +127,146 @@ cd /path/to/existing-project
 4. Detects modifications by comparing to starter
 5. Registers project in starter's `.agency/projects.json`
 
+### Pre-Update Verification
+
+Before updating any project, verify these conditions are met:
+
+**1. Git status is clean**
+```bash
+cd /path/to/project
+git status --short
+# Should return empty (no uncommitted changes)
+```
+
+**2. Check for local modifications**
+```bash
+# Review manifest for modified files
+cat .agency/manifest.json | python3 -c "
+import json, sys
+manifest = json.load(sys.stdin)
+modified = [f for f, info in manifest.get('files', {}).items() if info.get('modified')]
+if modified:
+    print('Modified files:')
+    for f in modified:
+        print(f'  - {f}')
+else:
+    print('No local modifications detected')
+"
+```
+
+**3. Review what will change**
+```bash
+# Preview changes before applying
+./tools/project-update --preview --from=/path/to/starter
+
+# Or use --check for quick status (when available)
+./tools/project-update --check --from=/path/to/starter
+```
+
+**4. Identify breaking changes**
+- Review CHANGELOG.md for breaking change markers
+- Look for major version bumps
+- Check if modified files will be affected
+
+**Verification checklist:**
+- [ ] Working tree is clean (`git status` shows nothing)
+- [ ] No untracked files in framework paths
+- [ ] Local modifications identified and noted
+- [ ] Preview reviewed for unexpected changes
+- [ ] Breaking changes understood
+
+### Batch Updating All Projects
+
+To update all registered projects at once:
+
+**1. Read the project registry**
+```bash
+cat .agency/projects.json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for p in data.get('projects', []):
+    print(p['path'])
+"
+```
+
+**2. Check each project's status**
+```bash
+# Get starter path
+STARTER_DIR=$(pwd)
+
+# Check all projects
+cat .agency/projects.json | python3 -c "
+import json, sys, subprocess, os
+
+data = json.load(sys.stdin)
+starter = '$STARTER_DIR'
+
+for p in data.get('projects', []):
+    path = p['path']
+    name = p['name']
+
+    if not os.path.exists(path):
+        print(f'{name}: PATH NOT FOUND')
+        continue
+
+    # Check git status
+    result = subprocess.run(['git', 'status', '--short'],
+                          cwd=path, capture_output=True, text=True)
+    if result.stdout.strip():
+        print(f'{name}: DIRTY (uncommitted changes)')
+        continue
+
+    print(f'{name}: OK (clean)')
+"
+```
+
+**3. Apply updates to clean projects**
+```bash
+STARTER_DIR=$(pwd)
+
+cat .agency/projects.json | python3 -c "
+import json, sys, subprocess, os
+
+data = json.load(sys.stdin)
+starter = '$STARTER_DIR'
+
+for p in data.get('projects', []):
+    path = p['path']
+    name = p['name']
+
+    if not os.path.exists(path):
+        continue
+
+    # Check if clean
+    result = subprocess.run(['git', 'status', '--short'],
+                          cwd=path, capture_output=True, text=True)
+    if result.stdout.strip():
+        print(f'{name}: Skipping (dirty)')
+        continue
+
+    # Run preview first
+    print(f'{name}: Checking for updates...')
+    preview = subprocess.run(
+        [f'{starter}/tools/project-update', '--preview', f'--from={starter}'],
+        cwd=path, capture_output=True, text=True
+    )
+
+    if 'up to date' in preview.stdout.lower():
+        print(f'{name}: Already up to date')
+    else:
+        print(f'{name}: Updates available - run --apply to update')
+"
+```
+
+**4. Report summary**
+After batch operations, summarize:
+- How many projects checked
+- How many updated
+- How many skipped (dirty)
+- How many had errors
+
+**Best Practice:** Always run in preview/check mode first before applying batch updates.
+
 ## Schema Reference
 
 ### manifest.schema.json
