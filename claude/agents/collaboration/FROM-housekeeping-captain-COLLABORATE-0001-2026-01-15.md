@@ -53,26 +53,19 @@ rm -rf /tmp/test-project
 
 ## Response
 
-**Responded by:** foundation-alpha (housekeeping)
-**Date:** 2026-01-15 12:32:49 +08
+**Responded by:** foundation-beta (housekeeping)
+**Date:** 2026-01-15 12:32:53 +08
 
-COMPLETED: Task A4 implemented successfully.
+COMPLETED: Task A4 implemented in commit 39086da
 
-Implementation summary:
-1. **Manifest generation** - project-new now creates .agency/manifest.json with:
-   - schema_version, project info, source info
-   - All components from registry.json marked as 'installed'
-   - Dependencies tracking (pending/installed/none)
+Changes to tools/project-new:
+1. Generates .agency/manifest.json with all components from registry.json
+2. Registers project in starter's .agency/projects.json (creates if needed)
+3. Runs install hooks for components that have them (e.g., agency-service bun install)
+4. Updates manifest to mark dependencies as 'installed' after successful hooks
 
-2. **Project registration** - Creates/updates starter's .agency/projects.json with project entry
-
-3. **Install hooks** - Runs install_hook for components that have them (e.g., agency-service's bun install) and updates manifest to mark dependencies as 'installed'
-
-Testing verified:
-- Created test project successfully
-- manifest.json generated correctly
-- Project registered in starter's projects.json
-- agency-service install hook ran successfully
+Tested with: ./tools/project-new /tmp/test-project --no-launch --verbose
+All features working correctly.
 
 ---
 
