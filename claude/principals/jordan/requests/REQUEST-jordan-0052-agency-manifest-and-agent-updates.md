@@ -94,6 +94,9 @@ This launches Claude Code with the **Hub Agent** - a special agent that manages 
 | "Update my-awesome-app" | Updates specific project |
 | "Launch into client-project" | Opens new terminal, runs myclaude in that project |
 | "Check for issues" | Scans projects for common problems |
+| "Contribute this improvement" | Creates PR to upstream repo |
+| "Check my PR status" | Shows status of open contributions |
+| "Address reviewer feedback" | Helps fix issues raised in PR review |
 
 #### Project Registry
 
@@ -212,6 +215,218 @@ Creating project...
 Project created at ~/clients/acme-corp
 
 Would you like me to launch into it now?
+```
+
+### 0.1 Upstream Contributions
+
+Users don't just consume The Agency - they contribute back. And they do it through agents.
+
+#### The Contribution Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CONTRIBUTION FLOW                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  USER'S PROJECT                    THE AGENCY               │
+│  ──────────────                    ──────────               │
+│                                                             │
+│  User improves                                              │
+│  tools/collaborate                                          │
+│        │                                                    │
+│        ▼                                                    │
+│  "I'd like to                                               │
+│   contribute this"                                          │
+│        │                                                    │
+│        ▼                                                    │
+│  ┌──────────────┐                  ┌──────────────┐        │
+│  │  Hub Agent   │ ──── PR ────▶   │  Reviewer    │        │
+│  │  (creates)   │                  │  Agent       │        │
+│  └──────────────┘                  └──────────────┘        │
+│                                           │                 │
+│                                           ▼                 │
+│                                    ┌──────────────┐        │
+│                                    │  Merger      │        │
+│                                    │  Agent       │        │
+│                                    └──────────────┘        │
+│                                           │                 │
+│                                           ▼                 │
+│                                    Merged to main           │
+│                                           │                 │
+│        ┌──────────────────────────────────┘                │
+│        ▼                                                    │
+│  Next release includes                                      │
+│  user's contribution                                        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### User Side: Contributing via Hub Agent
+
+**User:** "I improved tools/collaborate to handle edge cases better. Can we contribute this upstream?"
+
+**Hub Agent:**
+```
+I'll help you contribute this improvement upstream.
+
+Let me analyze your changes...
+
+Changes detected in tools/collaborate:
+  + Added retry logic for failed connections (lines 45-67)
+  + Added timeout configuration (lines 12-15)
+  + Updated help text (lines 8-10)
+
+This looks like a useful improvement! I'll create a PR.
+
+PR Title: feat(collaborate): Add retry logic and timeout configuration
+
+PR Description:
+  ## Summary
+  - Adds configurable retry logic for failed agent connections
+  - Adds --timeout flag for custom timeout values
+  - Improves error messages
+
+  ## Testing
+  - Tested with network interruption scenarios
+  - Verified backward compatibility
+
+Creating PR to the-agency-ai/the-agency-starter...
+  ✓ Forked repository (if needed)
+  ✓ Created branch: contrib/collaborate-retry-logic
+  ✓ Committed changes
+  ✓ Opened PR #142
+
+PR created: https://github.com/the-agency-ai/the-agency-starter/pull/142
+
+The maintainers will review your contribution. You'll be notified
+when it's merged or if changes are requested.
+```
+
+#### Maintainer Side: Reviewing via Agent
+
+On the-agency side, a **Reviewer Agent** evaluates incoming PRs:
+
+**Reviewer Agent (automated on PR open):**
+```
+New PR #142: feat(collaborate): Add retry logic and timeout configuration
+Contributor: @awesome-user
+
+Running automated review...
+
+Code Quality:
+  ✓ Follows coding conventions
+  ✓ No security issues detected
+  ✓ Error handling is appropriate
+  ⚠️ Missing: unit tests for retry logic
+
+Documentation:
+  ✓ Help text updated
+  ✓ PR description is clear
+  ⚠️ KNOWLEDGE.md not updated with new --timeout flag
+
+Compatibility:
+  ✓ Backward compatible
+  ✓ No breaking changes
+
+Recommendation: REQUEST CHANGES
+
+Feedback posted to PR:
+  "Great contribution! Two small items before we can merge:
+   1. Please add unit tests for the retry logic
+   2. Update tools/collaborate KNOWLEDGE.md with the new --timeout flag
+
+   Let me know when these are addressed!"
+```
+
+#### Contributor Responds (via Hub Agent)
+
+**User:** "The reviewer wants tests and docs. Can you help?"
+
+**Hub Agent:**
+```
+I see the feedback on PR #142. Let me help you address it.
+
+1. Adding unit tests for retry logic...
+   ✓ Created test/tools/collaborate.test.sh
+   ✓ Added test cases for retry scenarios
+
+2. Updating KNOWLEDGE.md...
+   ✓ Added --timeout flag documentation
+   ✓ Added retry behavior explanation
+
+Pushing updates to PR...
+  ✓ Committed: "test: Add retry logic tests"
+  ✓ Committed: "docs: Update KNOWLEDGE.md with timeout flag"
+  ✓ PR #142 updated
+
+The reviewer will be notified of your changes.
+```
+
+#### Merger Agent: Final Approval and Merge
+
+**Reviewer Agent (on update):**
+```
+PR #142 updated. Re-running review...
+
+  ✓ Unit tests added and passing
+  ✓ Documentation updated
+  ✓ All previous concerns addressed
+
+Recommendation: APPROVE
+
+Notifying Merger Agent...
+```
+
+**Merger Agent:**
+```
+PR #142 approved by Reviewer Agent.
+
+Final checks:
+  ✓ CI passing
+  ✓ No merge conflicts
+  ✓ Contributor signed CLA (or DCO)
+
+Merging PR #142...
+  ✓ Squashed and merged to main
+  ✓ Branch deleted
+  ✓ Contributor notified
+
+@awesome-user's contribution will be included in v1.2.0.
+```
+
+#### Contribution Types
+
+| Type | Example | Flow |
+|------|---------|------|
+| Tool improvement | Better error handling | PR to the-agency-starter |
+| New tool | `tools/my-new-tool` | PR with proposal first |
+| Bug fix | Fix in agency-service | PR to the-agency |
+| Documentation | Improved KNOWLEDGE.md | PR to the-agency-starter |
+| Starter pack | New `stripe-payments` pack | PR with full pack structure |
+| Agent improvement | Better Captain knowledge | PR to the-agency |
+
+#### Contributing New Components
+
+For larger contributions (new tools, starter packs), the flow includes a proposal step:
+
+**User:** "I built a Stripe payments starter pack. Want to contribute it."
+
+**Hub Agent:**
+```
+A new starter pack - great! For new components, we start with a proposal.
+
+I'll create a proposal PR first:
+
+Proposal: starter-pack/stripe-payments
+  - Description of the pack
+  - What it includes
+  - Dependencies
+  - Target users
+
+Creating proposal PR...
+  ✓ PR #143 opened (proposal)
+
+Once the proposal is approved, I'll help you submit the full implementation.
 ```
 
 ### 1. Agency Manifest (`.agency/manifest.json`)
@@ -456,6 +671,16 @@ check_services() {
 - [ ] Hub Agent: scheduled health checks across projects
 - [ ] Hub Agent: cross-project insights ("3 projects have outdated deps")
 
+### Phase 6: Contribution Flow
+- [ ] Hub Agent: detect modified framework files
+- [ ] Hub Agent: create upstream PRs (fork, branch, commit, PR)
+- [ ] Hub Agent: track open contributions
+- [ ] Hub Agent: address reviewer feedback
+- [ ] Reviewer Agent: automated PR review on the-agency
+- [ ] Reviewer Agent: code quality, tests, docs checks
+- [ ] Merger Agent: final checks and merge
+- [ ] CI integration: trigger agents on PR events
+
 ---
 
 ## Success Criteria
@@ -470,6 +695,9 @@ check_services() {
 - [ ] Agents can apply updates without user intervention
 - [ ] Install hooks run automatically (pnpm install, etc.)
 - [ ] Principal only involved for major decisions
+- [ ] Users can contribute upstream via Hub Agent
+- [ ] PRs are reviewed by Reviewer Agent
+- [ ] Approved PRs are merged by Merger Agent
 
 ---
 
@@ -481,6 +709,7 @@ check_services() {
 4. **Self-Aware System** - Manifest provides system introspection
 5. **Progressive Enhancement** - Works without manifest, better with it
 6. **One Install, All Agent** - Only the initial curl command is non-agent
+7. **Agents All The Way** - Even contributions and maintenance are agent-driven
 
 ---
 
@@ -970,10 +1199,18 @@ Recommended: Commit your changes first.
 - Defined implementation phases
 - Added comprehensive user flow documentation
 - Documented 16 edge cases with handling strategies
-- **Added Hub concept** - starter as control center for all projects
-- **Added `./agency` command** - launches Hub Agent
-- **Added project registry** - tracks all projects created from starter
-- **Updated user flow** - everything after install is agent-driven
+- Added Hub concept - starter as control center for all projects
+- Added `./agency` command - launches Hub Agent
+- Added project registry - tracks all projects created from starter
+- Updated user flow - everything after install is agent-driven
 - Added 2 more edge cases (EC-17, EC-18)
 - Updated implementation phases (now 5 phases including Hub)
 - Added "One Install, All Agent" principle
+- **Added Upstream Contribution Flow**
+  - Hub Agent creates PRs for user improvements
+  - Reviewer Agent evaluates incoming PRs
+  - Merger Agent handles final merge
+  - Full contribution lifecycle is agent-driven
+- **Added Phase 6: Contribution Flow**
+- **Added 3 contribution commands** to Hub Agent
+- **Added principle: "Agents All The Way"**
