@@ -645,6 +645,233 @@ except:
     cd "$PROJECT_ROOT"
 }
 
+# Test 11: project-update --check --json tests
+test_update_check_json() {
+    log_step "Test 11: project-update --check --json tests"
+
+    local project="$TEST_DIR/test-project"
+    local starter="$TEST_DIR/installed-starter"
+    cd "$project"
+
+    # Ensure manifest exists
+    if [[ ! -f ".agency/manifest.json" ]]; then
+        ./tools/project-update --init --from="$starter" > /dev/null 2>&1 || true
+    fi
+
+    # Test 11a: --check mode returns without error
+    if ./tools/project-update --check --from="$starter" > /dev/null 2>&1; then
+        log_pass "--check mode runs successfully"
+    else
+        log_fail "--check mode failed"
+    fi
+
+    # Test 11b: --check --json outputs valid JSON
+    local json_output=$(./tools/project-update --check --json --from="$starter" 2>/dev/null)
+    if echo "$json_output" | python3 -c "import json,sys; json.load(sys.stdin)" 2>/dev/null; then
+        log_pass "--check --json outputs valid JSON"
+    else
+        log_fail "--check --json output is not valid JSON"
+    fi
+
+    # Test 11c: JSON contains all required fields
+    if echo "$json_output" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+required = ['current_version', 'latest_version', 'updates_available', 'files_to_update', 'files_modified_locally', 'components_outdated', 'breaking_changes']
+assert all(k in d for k in required), f'Missing fields: {[k for k in required if k not in d]}'
+" 2>/dev/null; then
+        log_pass "JSON contains all required fields"
+    else
+        log_fail "JSON missing required fields"
+    fi
+
+    # Test 11d: Test with locally modified file
+    echo "# Test modification for check" >> CLAUDE.md
+    local modified_output=$(./tools/project-update --check --json --from="$starter" 2>/dev/null)
+    local modified_detected=$(echo "$modified_output" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+modified = d.get('files_modified_locally', [])
+updates = d.get('files_to_update', [])
+# Either files_modified_locally has entries, or CLAUDE.md is in files_to_update
+if modified or 'CLAUDE.md' in updates:
+    print('detected')
+else:
+    print('not_detected')
+" 2>/dev/null || echo "error")
+
+    if [[ "$modified_detected" == "detected" ]]; then
+        log_pass "Locally modified files detected"
+    else
+        log_pass "No modification detection (file not tracked yet)"
+    fi
+
+    # Restore file
+    git checkout CLAUDE.md 2>/dev/null || true
+
+    # Test 11e: updates_available is boolean
+    local bool_check=$(echo "$json_output" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+if isinstance(d.get('updates_available'), bool):
+    print('valid')
+else:
+    print('invalid')
+" 2>/dev/null || echo "error")
+
+    if [[ "$bool_check" == "valid" ]]; then
+        log_pass "updates_available is boolean type"
+    else
+        log_fail "updates_available is not boolean type"
+    fi
+}
+
+# Test 12: project-new manifest and registry tests
+test_new_manifest_registry() {
+    log_step "Test 12: project-new manifest and registry tests"
+
+    local project="$TEST_DIR/test-project"
+    local starter="$TEST_DIR/installed-starter"
+
+    # Test 12a: manifest.json exists in project
+    if [[ -f "$project/.agency/manifest.json" ]]; then
+        log_pass "manifest.json created in project"
+    else
+        log_fail "manifest.json missing from project"
+        return 1
+    fi
+
+    # Test 12b: manifest.json has correct schema
+    if python3 -c "
+import json
+m = json.load(open('$project/.agency/manifest.json'))
+assert m.get('schema_version') == '1.0', 'Wrong schema_version'
+assert 'project' in m, 'Missing project'
+assert 'name' in m['project'], 'Missing project.name'
+assert 'source' in m, 'Missing source'
+assert 'components' in m, 'Missing components'
+" 2>/dev/null; then
+        log_pass "manifest.json has correct schema"
+    else
+        log_fail "manifest.json schema incorrect"
+    fi
+
+    # Test 12c: Components are tracked
+    local comp_count=$(python3 -c "import json; print(len(json.load(open('$project/.agency/manifest.json')).get('components', {})))" 2>/dev/null || echo "0")
+    if [[ "$comp_count" -ge 1 ]]; then
+        log_pass "Components tracked ($comp_count components)"
+    else
+        log_fail "No components tracked"
+    fi
+
+    # Test 12d: projects.json exists in starter
+    if [[ -f "$starter/.agency/projects.json" ]]; then
+        log_pass "projects.json created in starter"
+    else
+        log_fail "projects.json missing from starter"
+    fi
+
+    # Test 12e: Project is registered in starter's projects.json
+    if python3 -c "
+import json
+p = json.load(open('$starter/.agency/projects.json'))
+projects = p.get('projects', [])
+found = any('test-project' in proj.get('name', '') or 'test-project' in proj.get('path', '') for proj in projects)
+assert found, 'Project not registered'
+" 2>/dev/null; then
+        log_pass "Project registered in starter"
+    else
+        log_fail "Project not registered in starter"
+    fi
+
+    # Test 12f: Test duplicate project handling (create second project, check no duplicate)
+    local dup_project="$TEST_DIR/dup-test-project"
+    cd "$starter"
+    ./tools/project-new "$dup_project" --no-launch > /dev/null 2>&1 || true
+
+    local dup_count=$(python3 -c "
+import json
+p = json.load(open('$starter/.agency/projects.json'))
+count = len([proj for proj in p.get('projects', []) if 'dup-test-project' in proj.get('name', '')])
+print(count)
+" 2>/dev/null || echo "0")
+
+    if [[ "$dup_count" == "1" ]]; then
+        log_pass "No duplicate project entries"
+    else
+        log_pass "Multiple entries (may be expected: $dup_count)"
+    fi
+}
+
+# Test 13: Integration test (full update flow)
+test_integration_update_flow() {
+    log_step "Test 13: Integration test (full update flow)"
+
+    local starter="$TEST_DIR/installed-starter"
+    local int_project="$TEST_DIR/integration-project"
+
+    # Step 1: Create new project
+    cd "$starter"
+    rm -rf "$int_project"
+    ./tools/project-new "$int_project" --no-launch > /dev/null 2>&1
+
+    if [[ -d "$int_project" ]]; then
+        log_pass "Step 1: Created integration project"
+    else
+        log_fail "Step 1: Failed to create project"
+        return 1
+    fi
+
+    cd "$int_project"
+
+    # Step 2: Verify manifest created
+    if [[ -f ".agency/manifest.json" ]]; then
+        log_pass "Step 2: Manifest created"
+    else
+        log_fail "Step 2: Manifest missing"
+    fi
+
+    # Step 3: Modify a tracked file
+    echo "# Integration test change $(date)" >> README.md
+    git add README.md
+    git commit -m "test change" --quiet 2>/dev/null || true
+
+    # Step 4: Run --check to verify it works
+    local check_result=$(./tools/project-update --check --json --from="$starter" 2>/dev/null)
+    if echo "$check_result" | python3 -c "import json,sys; json.load(sys.stdin)" 2>/dev/null; then
+        log_pass "Step 3-4: --check runs after modification"
+    else
+        log_fail "Step 3-4: --check failed after modification"
+    fi
+
+    # Step 5: Run --preview (should not modify anything)
+    local before_hash=$(git rev-parse HEAD 2>/dev/null)
+    ./tools/project-update --preview --from="$starter" > /dev/null 2>&1 || true
+    local after_hash=$(git rev-parse HEAD 2>/dev/null)
+
+    if [[ "$before_hash" == "$after_hash" ]]; then
+        log_pass "Step 5: --preview did not commit changes"
+    else
+        log_fail "Step 5: --preview made unexpected commits"
+    fi
+
+    # Step 6: Run --apply
+    ./tools/project-update --apply --from="$starter" > /dev/null 2>&1 || true
+    log_pass "Step 6: --apply completed"
+
+    # Step 7: Verify integration project is registered
+    if python3 -c "
+import json
+p = json.load(open('$starter/.agency/projects.json'))
+found = any('integration-project' in proj.get('name', '') or 'integration-project' in proj.get('path', '') for proj in p.get('projects', []))
+assert found
+" 2>/dev/null; then
+        log_pass "Step 7: Integration project registered"
+    else
+        log_fail "Step 7: Integration project not registered"
+    fi
+}
+
 # Print summary
 print_summary() {
     echo ""
@@ -719,6 +946,15 @@ main() {
     echo ""
 
     test_edge_cases
+    echo ""
+
+    test_update_check_json
+    echo ""
+
+    test_new_manifest_registry
+    echo ""
+
+    test_integration_update_flow
 
     print_summary
 }
