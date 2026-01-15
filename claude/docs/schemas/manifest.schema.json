@@ -5,6 +5,7 @@
   "description": "Tracks installed components, versions, and file states in an Agency project. Located at .agency/manifest.json in each project.",
   "type": "object",
   "required": ["schema_version", "project", "source", "components"],
+  "additionalProperties": false,
   "properties": {
     "schema_version": {
       "type": "string",
@@ -15,6 +16,7 @@
       "type": "object",
       "description": "Project metadata",
       "required": ["name", "created_at", "starter_version"],
+      "additionalProperties": false,
       "properties": {
         "name": {
           "type": "string",
@@ -27,7 +29,8 @@
         },
         "starter_version": {
           "type": "string",
-          "description": "Version of the-agency-starter used to create this project"
+          "description": "Version of the-agency-starter used to create this project",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$"
         }
       }
     },
@@ -35,6 +38,7 @@
       "type": "object",
       "description": "Source starter information",
       "required": ["type"],
+      "additionalProperties": false,
       "properties": {
         "type": {
           "type": "string",
@@ -57,10 +61,12 @@
       "additionalProperties": {
         "type": "object",
         "required": ["version", "status"],
+        "additionalProperties": false,
         "properties": {
           "version": {
             "type": "string",
-            "description": "Installed version of this component"
+            "description": "Installed version of this component",
+            "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$"
           },
           "status": {
             "type": "string",
@@ -91,14 +97,17 @@
       "additionalProperties": {
         "type": "object",
         "required": ["hash", "version"],
+        "additionalProperties": false,
         "properties": {
           "hash": {
             "type": "string",
-            "description": "SHA256 hash of file contents at install/update time"
+            "description": "SHA256 hash of file contents at install/update time",
+            "pattern": "^[a-f0-9]{64}$"
           },
           "version": {
             "type": "string",
-            "description": "Starter version when this file was installed/updated"
+            "description": "Starter version when this file was installed/updated",
+            "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$"
           },
           "modified": {
             "type": "boolean",

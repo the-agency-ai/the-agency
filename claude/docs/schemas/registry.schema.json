@@ -5,6 +5,7 @@
   "description": "Defines available components in the-agency-starter. Located at registry.json in the starter root.",
   "type": "object",
   "required": ["schema_version", "starter_version", "components"],
+  "additionalProperties": false,
   "properties": {
     "schema_version": {
       "type": "string",
@@ -13,7 +14,8 @@
     },
     "starter_version": {
       "type": "string",
-      "description": "Current version of the-agency-starter"
+      "description": "Current version of the-agency-starter",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$"
     },
     "components": {
       "type": "object",
@@ -21,10 +23,12 @@
       "additionalProperties": {
         "type": "object",
         "required": ["version", "description", "files"],
+        "additionalProperties": false,
         "properties": {
           "version": {
             "type": "string",
-            "description": "Current version of this component"
+            "description": "Current version of this component",
+            "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$"
           },
           "description": {
             "type": "string",

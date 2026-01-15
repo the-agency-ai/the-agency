@@ -1,4 +1,5 @@
 {
+  "$schema": "./claude/docs/schemas/registry.schema.json",
   "schema_version": "1.0",
   "starter_version": "1.2.0",
   "components": {
