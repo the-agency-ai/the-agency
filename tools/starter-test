@@ -138,10 +138,18 @@ test_install() {
     local install_dir="$TEST_DIR/installed-starter"
 
     if [[ "$USE_LOCAL" == "true" ]]; then
-        # Run install.sh from local source
-        log_detail "Using local install.sh"
-        cd "$TEST_DIR"
-        AGENCY_INSTALL_DIR="$install_dir" bash "$STARTER_SOURCE/install.sh" > /dev/null 2>&1
+        # Copy directly from local source (bypass install.sh which clones from GitHub)
+        log_detail "Using local source directly"
+        mkdir -p "$install_dir"
+        rsync -a \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='target' \
+            --exclude='dist' \
+            --exclude='.DS_Store' \
+            "$STARTER_SOURCE/" "$install_dir/"
+        chmod +x "$install_dir/tools/"* 2>/dev/null || true
     else
         # Try to fetch from GitHub
         log_detail "Trying GitHub install..."
@@ -469,6 +477,11 @@ test_batch_update_errors() {
 
     # Test 1: Missing projects.json
     log_detail "Testing missing projects.json..."
+    # Backup existing projects.json
+    local projects_backup=""
+    if [[ -f "$starter/.agency/projects.json" ]]; then
+        projects_backup=$(cat "$starter/.agency/projects.json")
+    fi
     rm -f "$starter/.agency/projects.json"
 
     # The batch scripts should handle missing file gracefully
@@ -523,8 +536,11 @@ for p in data.get('projects', []):
         log_fail "Non-existent path not detected"
     fi
 
-    # Cleanup
-    rm -f "$starter/.agency/projects.json"
+    # Cleanup - restore original projects.json
+    if [[ -n "$projects_backup" ]]; then
+        mkdir -p "$starter/.agency"
+        echo "$projects_backup" > "$starter/.agency/projects.json"
+    fi
 }
 
 # Test 9: Pre-Update Verification
