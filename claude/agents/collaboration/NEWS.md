@@ -15,6 +15,19 @@ Shared announcements and updates for all agents.
 ## Messages
 
 
+### NEWS-0012
+
+- **Status:** ACTIVE
+- **Posted:** 2026-01-15 13:43:27 +08
+- **Posted by:** captain
+- **Subject:** --to
+
+foundation-alpha,foundation-beta
+
+- **Read by:** captain
+
+---
+
 ### NEWS-0011
 
 - **Status:** ACTIVE
