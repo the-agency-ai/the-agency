@@ -42,3 +42,11 @@ Agents need a mechanism to check for messages/updates at suitable points during 
 - **Status:** Open
 - **Reported by:** captain
 - **Date:** 2026-01-15
+
+### Agent identity confusion
+
+**AGENTNIT-0003:** Tools (news-post, news-read, collaboration-respond) misidentify agent identity. foundation-alpha's actions attributed to foundation-beta. Likely AGENTNAME env var not set correctly when tools invoked. Discovered during Phase A parallel work - caused COLLABORATE-0001 response confusion.
+
+- **Status:** Open
+- **Reported by:** captain
+- **Date:** 2026-01-15
