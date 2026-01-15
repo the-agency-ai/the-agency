@@ -42,8 +42,8 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
 log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
 verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
-# Check if required services are ready
-# Returns: 0 if all services ready, 1 if user declined setup
+# Check if required services are ready (auto-installs everything)
+# Returns: 0 if all services ready
 check_services() {
     local project_root="$1"
     local service_dir="$project_root/source/services/agency-service"
@@ -58,69 +58,47 @@ check_services() {
         return 0
     fi
 
-    # 2. Check if Bun is installed
+    # 2. Check if Bun is installed - auto-install if missing
     if [[ ! -x "$bun_path" ]]; then
-        echo -e "${YELLOW}Bun runtime not found.${NC}"
-        echo "The Agency Service requires Bun to run."
-        echo ""
-        read -p "Install Bun now? [y/N] " -n 1 -r
-        echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Installing Bun..."
-            curl -fsSL https://bun.sh/install | bash
-            export PATH="$HOME/.bun/bin:$PATH"
-            bun_path="${HOME}/.bun/bin/bun"
+        echo -e "${BLUE}Installing Bun runtime...${NC}"
+        curl -fsSL https://bun.sh/install | bash
+        export PATH="$HOME/.bun/bin:$PATH"
+        bun_path="${HOME}/.bun/bin/bun"
+        if [[ -x "$bun_path" ]]; then
+            echo -e "${GREEN}✓ Bun installed${NC}"
         else
-            log_warn "Skipping Bun installation - some features may not work"
+            log_error "Failed to install Bun - some features may not work"
             return 0
         fi
     fi
 
-    # 3. Check if dependencies are installed
+    # 3. Check if dependencies are installed - auto-install if missing
     if [[ ! -d "$service_dir/node_modules" ]]; then
-        echo -e "${YELLOW}Agency Service dependencies not installed.${NC}"
-        echo ""
-        read -p "Install dependencies now? (pnpm install) [y/N] " -n 1 -r
-        echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Installing dependencies..."
-            cd "$service_dir"
-            "$bun_path" install
-            cd "$project_root"
-            log_info "Dependencies installed"
-        else
-            log_warn "Skipping dependency installation - some features may not work"
-            return 0
-        fi
+        echo -e "${BLUE}Installing Agency Service dependencies...${NC}"
+        cd "$service_dir"
+        "$bun_path" install --silent 2>/dev/null || "$bun_path" install
+        cd "$project_root"
+        echo -e "${GREEN}✓ Dependencies installed${NC}"
     fi
 
-    # 4. Check if service is running
+    # 4. Check if service is running - auto-start if not
     if curl -s --connect-timeout 1 "$service_url/health" > /dev/null 2>&1; then
         log_info "Agency Service is running"
         return 0
     fi
 
-    # Service not running - offer to start it
-    echo -e "${YELLOW}Agency Service is not running.${NC}"
-    echo "This service provides logging, messaging, and other features."
-    echo ""
-    read -p "Start Agency Service now? [Y/n] " -n 1 -r
-    echo ""
-    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-        log_info "Starting Agency Service..."
-        if [[ -x "$project_root/tools/agency-service" ]]; then
-            "$project_root/tools/agency-service" start > /dev/null 2>&1 || true
-            sleep 1
-            if curl -s --connect-timeout 1 "$service_url/health" > /dev/null 2>&1; then
-                log_info "Agency Service started"
-            else
-                log_warn "Failed to start Agency Service - continuing anyway"
-            fi
+    # Auto-start the service
+    echo -e "${BLUE}Starting Agency Service...${NC}"
+    if [[ -x "$project_root/tools/agency-service" ]]; then
+        "$project_root/tools/agency-service" start > /dev/null 2>&1 || true
+        sleep 1
+        if curl -s --connect-timeout 1 "$service_url/health" > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Agency Service started${NC}"
         else
-            log_warn "Agency Service tool not found"
+            log_warn "Failed to start Agency Service - continuing anyway"
         fi
     else
-        log_info "Skipping service start"
+        log_warn "Agency Service tool not found"
     fi
 
     return 0
