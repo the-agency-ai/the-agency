@@ -175,24 +175,144 @@ main() {
         rm -f claude/config/agency.yaml.bak
     fi
 
-    # Initialize version tracking
-    log_step "Initializing version tracking..."
-    mkdir -p .agency
+    # Get starter version
     STARTER_VERSION="unknown"
     if [[ -f "$STARTER_DIR/VERSION" ]]; then
         STARTER_VERSION=$(cat "$STARTER_DIR/VERSION" | tr -d '[:space:]')
     fi
     NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    cat > .agency/version.json << EOF
+
+    # Generate manifest.json
+    log_step "Generating project manifest..."
+    mkdir -p .agency
+
+    # Build components JSON from registry.json
+    COMPONENTS_JSON=""
+    if [[ -f "$STARTER_DIR/registry.json" ]]; then
+        # Extract component names and versions from registry.json
+        COMPONENTS_JSON=$(cat "$STARTER_DIR/registry.json" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+components = {}
+for name, info in data.get('components', {}).items():
+    components[name] = {
+        'version': info.get('version', 'unknown'),
+        'status': 'installed',
+        'dependencies': 'pending' if info.get('install_hook') else 'none',
+        'installed_at': '$NOW'
+    }
+print(json.dumps(components, indent=4))
+" 2>/dev/null) || COMPONENTS_JSON='{}'
+    else
+        COMPONENTS_JSON='{}'
+    fi
+
+    cat > .agency/manifest.json << EOF
 {
-  "starter_version": "$STARTER_VERSION",
-  "installed_at": "$NOW",
-  "last_updated": "$NOW",
-  "source": "local:$STARTER_DIR",
+  "schema_version": "1.0",
+  "project": {
+    "name": "$PROJECT_NAME",
+    "created_at": "$NOW",
+    "starter_version": "$STARTER_VERSION"
+  },
+  "source": {
+    "type": "local",
+    "path": "$STARTER_DIR"
+  },
+  "components": $COMPONENTS_JSON,
   "files": {}
 }
 EOF
-    verbose_echo "  Version tracking initialized: v$STARTER_VERSION"
+    verbose_echo "  Project manifest created: .agency/manifest.json"
+
+    # Register project in starter's projects.json
+    log_step "Registering project in starter..."
+    STARTER_PROJECTS_FILE="$STARTER_DIR/.agency/projects.json"
+    mkdir -p "$STARTER_DIR/.agency"
+
+    if [[ ! -f "$STARTER_PROJECTS_FILE" ]]; then
+        # Create new projects.json
+        cat > "$STARTER_PROJECTS_FILE" << EOF
+{
+  "schema_version": "1.0",
+  "projects": []
+}
+EOF
+    fi
+
+    # Add project to registry using python for safe JSON manipulation
+    python3 << EOF
+import json
+
+projects_file = "$STARTER_PROJECTS_FILE"
+with open(projects_file, 'r') as f:
+    data = json.load(f)
+
+# Add new project
+new_project = {
+    "name": "$PROJECT_NAME",
+    "path": "$PROJECT_PATH",
+    "created_at": "$NOW",
+    "starter_version": "$STARTER_VERSION",
+    "status": "current"
+}
+data['projects'].append(new_project)
+
+with open(projects_file, 'w') as f:
+    json.dump(data, f, indent=2)
+EOF
+    verbose_echo "  Project registered in starter"
+
+    # Run install hooks for components that have them
+    log_step "Running component install hooks..."
+    if [[ -f "$STARTER_DIR/registry.json" ]]; then
+        # Extract and run install hooks
+        python3 << EOF
+import json
+import subprocess
+import os
+
+with open("$STARTER_DIR/registry.json", 'r') as f:
+    data = json.load(f)
+
+project_path = "$PROJECT_PATH"
+verbose = "$VERBOSE" == "true"
+
+for name, info in data.get('components', {}).items():
+    hook = info.get('install_hook')
+    if hook:
+        if verbose:
+            print(f"  Running install hook for {name}...")
+        # Run hook in project directory
+        try:
+            result = subprocess.run(
+                hook,
+                shell=True,
+                cwd=project_path,
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                if verbose:
+                    print(f"    {name}: install hook completed")
+                # Update manifest to mark dependencies as installed
+                manifest_path = os.path.join(project_path, '.agency/manifest.json')
+                with open(manifest_path, 'r') as f:
+                    manifest = json.load(f)
+                if name in manifest.get('components', {}):
+                    manifest['components'][name]['dependencies'] = 'installed'
+                with open(manifest_path, 'w') as f:
+                    json.dump(manifest, f, indent=2)
+            else:
+                if verbose:
+                    print(f"    {name}: install hook failed (non-fatal)")
+                    print(f"    stderr: {result.stderr[:200] if result.stderr else 'none'}")
+        except Exception as e:
+            if verbose:
+                print(f"    {name}: install hook error: {e}")
+EOF
+    fi
+    verbose_echo "  Install hooks completed"
 
     # Success
     echo ""
