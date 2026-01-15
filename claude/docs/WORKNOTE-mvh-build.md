@@ -176,6 +176,20 @@ First use of multi-agent parallel work pattern:
 **Problem:** Launch new terminal tab from agent
 **Solution:** macOS + iTerm2 only (for now). AppleScript or iTerm2 Python API.
 
+### Challenge 4: Agent Message Checking (AGENTNIT-0002)
+**Problem:** Agents don't automatically check for news/messages during work
+**Current workaround:** Manual prompt to run `./tools/news-read`
+**Future solution:** Choreography service with:
+- Real-time message delivery (WebSocket or agency-service endpoint)
+- Hook integration (`news-read --quiet` on SessionStart)
+- Periodic check instruction in agent CLAUDE.md
+- Pre-commit news check
+
+### Challenge 5: Agent Task Confusion
+**Problem:** foundation-beta responded to wrong collaboration (COLLABORATE-0001 instead of 0002)
+**Cause:** Agents need clearer task identification on startup
+**Solution:** Better agent.md with explicit current assignment + auto-check collaborations
+
 *More challenges to be documented as encountered*
 
 ---
