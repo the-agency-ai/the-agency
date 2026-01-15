@@ -38,6 +38,182 @@ Desired state:
 
 ## Design
 
+### 0. The Agency Hub
+
+**Core Principle:** After the initial install, everything is done through Claude Code via agents.
+
+The starter becomes a **hub** - a central place to manage The Agency and all projects created from it.
+
+#### Installation (The Only Non-Agent Step)
+
+```bash
+curl -fsSL https://the-agency.ai/install | bash
+```
+
+This installs the starter and sets up the environment. **Everything after this is agent-driven.**
+
+#### The Hub Command
+
+```bash
+cd ~/the-agency-starter
+./agency
+```
+
+This launches Claude Code with the **Hub Agent** - a special agent that manages the starter and all projects.
+
+#### What the Hub Agent Can Do
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  The Agency Hub                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Welcome back! Here's the current state:                    │
+│                                                             │
+│  Starter: v1.0.9 (v1.1.0 available)                         │
+│                                                             │
+│  Your Projects:                                             │
+│    1. my-awesome-app    ~/code/my-awesome-app    v1.0.9     │
+│    2. client-project    ~/code/client-project    v1.0.8 ⚠️  │
+│    3. side-hustle       ~/code/side-hustle       v1.0.9     │
+│                                                             │
+│  What would you like to do?                                 │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Hub Agent Capabilities:**
+
+| Command | What Happens |
+|---------|--------------|
+| "Update the starter" | Pulls latest from GitHub, handles conflicts |
+| "What's new?" | Shows changelog, new features, breaking changes |
+| "Create a new project called X" | Runs project-new, sets up manifest |
+| "Show my projects" | Scans for projects, shows versions and status |
+| "Update all my projects" | Iterates through projects, applies updates |
+| "Update my-awesome-app" | Updates specific project |
+| "Launch into client-project" | Opens new terminal, runs myclaude in that project |
+| "Check for issues" | Scans projects for common problems |
+
+#### Project Registry
+
+The hub maintains a registry of known projects in `.agency/projects.json`:
+
+```json
+{
+  "projects": [
+    {
+      "name": "my-awesome-app",
+      "path": "/Users/me/code/my-awesome-app",
+      "created_at": "2026-01-15T10:00:00Z",
+      "starter_version": "1.0.9",
+      "last_seen": "2026-01-20T14:30:00Z"
+    },
+    {
+      "name": "client-project",
+      "path": "/Users/me/code/client-project",
+      "created_at": "2026-01-10T08:00:00Z",
+      "starter_version": "1.0.8",
+      "last_seen": "2026-01-18T09:00:00Z"
+    }
+  ]
+}
+```
+
+Projects are automatically registered when created via `project-new`. The hub can also scan for unregistered projects.
+
+#### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     THE AGENCY HUB                          │
+│                  (the-agency-starter)                       │
+│                                                             │
+│   ./agency → Hub Agent                                      │
+│     • Update starter                                        │
+│     • Create projects                                       │
+│     • Manage project registry                               │
+│     • Batch updates                                         │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│   │ my-awesome-  │  │ client-      │  │ side-        │     │
+│   │ app          │  │ project      │  │ hustle       │     │
+│   │              │  │              │  │              │     │
+│   │ ./myclaude   │  │ ./myclaude   │  │ ./myclaude   │     │
+│   │ → Captain    │  │ → Captain    │  │ → Captain    │     │
+│   │ → Other      │  │ → Other      │  │ → Other      │     │
+│   │   agents     │  │   agents     │  │   agents     │     │
+│   └──────────────┘  └──────────────┘  └──────────────┘     │
+│                                                             │
+│                      PROJECTS                               │
+│              (created from starter)                         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Example Interactions
+
+**User:** "Update everything"
+
+**Hub Agent:**
+```
+I'll update the starter and all your projects.
+
+Updating starter...
+  Fetching from GitHub...
+  Current: v1.0.9 → Latest: v1.1.0
+  ✓ Starter updated to v1.1.0
+
+Updating projects...
+  my-awesome-app (v1.0.9 → v1.1.0)
+    ✓ Core updated
+    ✓ agency-service updated
+    ✓ Dependencies installed
+
+  client-project (v1.0.8 → v1.1.0)
+    ✓ Core updated
+    ⚠️ tools/collaborate was modified - backed up
+    ✓ agency-service updated
+    ✓ Dependencies installed
+
+  side-hustle (v1.0.9 → v1.1.0)
+    ✓ Core updated
+    ✓ Already up to date on services
+
+All done! 3 projects updated.
+
+Note: client-project had a modified file that was backed up.
+You may want to review: ~/code/client-project/.agency/backups/
+```
+
+**User:** "Create a project for my new client Acme Corp"
+
+**Hub Agent:**
+```
+I'll create a new project for Acme Corp.
+
+Project name: acme-corp
+Location: ~/code/acme-corp (default) or specify another?
+```
+
+**User:** "~/clients/acme-corp"
+
+**Hub Agent:**
+```
+Creating project...
+  ✓ Files copied
+  ✓ Git initialized
+  ✓ Manifest created (v1.1.0)
+  ✓ Services installed
+  ✓ Registered in hub
+
+Project created at ~/clients/acme-corp
+
+Would you like me to launch into it now?
+```
+
 ### 1. Agency Manifest (`.agency/manifest.json`)
 
 Central source of truth for project state:
@@ -245,35 +421,50 @@ check_services() {
 ## Implementation Phases
 
 ### Phase 1: Foundation
-- [ ] Create manifest schema
-- [ ] Create registry schema
-- [ ] Create `./update` script in the-agency-starter
-- [ ] Update `project-new` to generate manifest
+- [ ] Create manifest schema (`.agency/manifest.json`)
+- [ ] Create registry schema (`registry.json` in starter)
+- [ ] Create project registry (`.agency/projects.json` in starter)
+- [ ] Update `project-new` to generate manifest and register project
 - [ ] Add `--init` to generate manifest for existing projects
 - [ ] Add service check to `myclaude`
 
-### Phase 2: Agent-Friendly Updates
+### Phase 2: The Hub
+- [ ] Create `./agency` command in the-agency-starter
+- [ ] Create Hub Agent (`claude/agents/hub/`)
+- [ ] Hub Agent: starter update capability (git pull, conflict handling)
+- [ ] Hub Agent: project listing and status
+- [ ] Hub Agent: project creation via `project-new`
+- [ ] Hub Agent: launch into project (open terminal + myclaude)
+
+### Phase 3: Agent-Friendly Updates
 - [ ] Add `--check --json` for agent consumption
 - [ ] Add `--apply --component=X` for targeted updates
 - [ ] Add install/post-install hook execution
+- [ ] Hub Agent: batch update all projects
 - [ ] Manifest auto-update on changes
 
-### Phase 3: Starter Packs Integration
+### Phase 4: Starter Packs Integration
 - [ ] Track applied packs in manifest
 - [ ] Add `--pack` command for applying packs
+- [ ] Hub Agent: recommend packs based on project type
 - [ ] Dependency resolution for packs
 
-### Phase 4: Agent Automation
-- [ ] Agent checks for updates on session start
-- [ ] Agent applies minor/patch updates automatically
-- [ ] Agent reports major updates to principal
-- [ ] Update scheduling (session end, etc.)
+### Phase 5: Full Automation
+- [ ] Captain checks for updates on session start
+- [ ] Captain applies minor/patch updates automatically
+- [ ] Captain reports major updates to principal
+- [ ] Hub Agent: scheduled health checks across projects
+- [ ] Hub Agent: cross-project insights ("3 projects have outdated deps")
 
 ---
 
 ## Success Criteria
 
-- [ ] Manifest accurately tracks installed components
+- [ ] After initial install, everything is agent-driven (no manual CLI commands)
+- [ ] `./agency` launches Hub Agent in the-agency-starter
+- [ ] Hub Agent can update starter, create projects, update projects
+- [ ] Project registry tracks all projects created from starter
+- [ ] Manifest accurately tracks installed components per project
 - [ ] `myclaude` starts required services automatically
 - [ ] Agents can check for updates via `--check --json`
 - [ ] Agents can apply updates without user intervention
@@ -285,9 +476,11 @@ check_services() {
 ## Principles Embodied
 
 1. **Agent Autonomy** - Agents do the work, principals make decisions
-2. **CLI/API First** - No GUI configuration required
-3. **Self-Aware System** - Manifest provides system introspection
-4. **Progressive Enhancement** - Works without manifest, better with it
+2. **Hub Architecture** - Starter is the control center for all projects
+3. **CLI/API First** - No GUI configuration required
+4. **Self-Aware System** - Manifest provides system introspection
+5. **Progressive Enhancement** - Works without manifest, better with it
+6. **One Install, All Agent** - Only the initial curl command is non-agent
 
 ---
 
@@ -385,91 +578,87 @@ New features:
 - New starter pack: `stripe-payments`
 - Breaking change: `tools/foo` renamed to `tools/bar`
 
-### Step 5: User Updates Their Starter
+### Step 5: User Updates via The Hub
 
 ```bash
 cd ~/the-agency-starter
-./update
+./agency
 ```
 
-**What the update script does:**
-1. Fetches latest from GitHub
-2. Shows what's new (changelog summary)
-3. Pulls changes (handles merge if needed)
-4. Updates VERSION file
-5. Shows which projects can be updated
+**User:** "Check for updates"
 
+**Hub Agent:**
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  The Agency Starter - Update                                │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Current version: 1.0.9                                     │
-│  Latest version:  1.1.0                                     │
-│                                                             │
-│  What's new in v1.1.0:                                      │
-│    • 10 new tools for workflow automation                   │
-│    • Updated Captain knowledge                              │
-│    • agency-service v1.0.1 (bug fixes)                      │
-│    • New starter pack: stripe-payments                      │
-│                                                             │
-│  ⚠️  Breaking changes:                                      │
-│    • tools/foo renamed to tools/bar                         │
-│                                                             │
-│  Updating...                                                │
-│  ✓ Updated to v1.1.0                                        │
-│                                                             │
-│  To update your projects:                                   │
-│    cd ~/my-awesome-app && ./tools/myclaude                  │
-│    (Captain will offer to apply the update)                 │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+Checking for updates...
+
+Starter: v1.0.9 → v1.1.0 available
+
+What's new in v1.1.0:
+  • 10 new tools for workflow automation
+  • Updated Captain knowledge
+  • agency-service v1.0.1 (bug fixes)
+  • New starter pack: stripe-payments
+
+⚠️ Breaking changes:
+  • tools/foo renamed to tools/bar
+
+Your projects:
+  • my-awesome-app (v1.0.9) - can be updated
+  • client-project (v1.0.8) - can be updated
+
+Would you like me to update the starter and your projects?
 ```
 
-Now their starter has v1.1.0 with all the new goodies.
+**User:** "Yes, update everything"
 
-### Step 6: User Wants to Update Their Project
+**Hub Agent:**
+```
+Updating starter...
+  Fetching from GitHub...
+  ✓ Starter updated to v1.1.0
 
-**Option A: User runs myclaude (recommended)**
+Updating projects...
+
+  my-awesome-app (v1.0.9 → v1.1.0)
+    ✓ Core updated
+    ✓ agency-service updated
+    ✓ Dependencies installed
+
+  client-project (v1.0.8 → v1.1.0)
+    ✓ Core updated
+    ⚠️ tools/collaborate was modified - backed up
+    ✓ agency-service updated
+    ✓ Dependencies installed
+
+All done! Starter and 2 projects updated to v1.1.0.
+
+Note: client-project had a modified file backed up to:
+  ~/code/client-project/.agency/backups/
+
+Would you like me to launch into one of your projects?
+```
+
+### Step 6: User Launches Into Their Project
+
+**User:** "Launch into my-awesome-app"
+
+**Hub Agent:**
+```
+Launching my-awesome-app...
+Opening new terminal at ~/code/my-awesome-app
+Starting Captain...
+```
+
+*(New terminal opens, myclaude launches)*
+
+**Alternative: User goes directly to project**
 
 ```bash
-cd ~/my-awesome-app
+cd ~/code/my-awesome-app
 ./tools/myclaude housekeeping captain
 ```
 
-**What Captain does:**
-1. Detects update available (manifest says 1.0.9, starter is 1.1.0)
-2. Shows update summary:
-   ```
-   Updates available from The Agency Starter v1.1.0:
-
-   Components:
-     core: 1.0.9 → 1.1.0 (10 new tools, updated docs)
-     agency-service: 1.0.0 → 1.0.1 (bug fixes)
-
-   New starter packs available:
-     stripe-payments
-
-   ⚠️ Breaking changes:
-     - tools/foo renamed to tools/bar
-
-   Modified files that will be backed up:
-     - tools/collaborate (you customized this)
-
-   Shall I apply these updates?
-   ```
-3. User confirms (or Captain auto-applies for minor updates)
-4. Captain runs the update, handles everything
-5. Services restarted if needed
-6. User continues working with new features
-
-**Option B: User runs update directly**
-
-```bash
-./tools/project-update --apply
-```
-
-Same result, less context about what's happening.
+Either way, Captain is ready with all the new features and updated knowledge.
 
 ### Step 7: The Magic - What Actually Happens
 
@@ -779,5 +968,12 @@ Recommended: Commit your changes first.
 - Designed manifest and registry schemas
 - Outlined agent-driven update flow
 - Defined implementation phases
-- **Added comprehensive user flow documentation**
-- **Documented 16 edge cases with handling strategies**
+- Added comprehensive user flow documentation
+- Documented 16 edge cases with handling strategies
+- **Added Hub concept** - starter as control center for all projects
+- **Added `./agency` command** - launches Hub Agent
+- **Added project registry** - tracks all projects created from starter
+- **Updated user flow** - everything after install is agent-driven
+- Added 2 more edge cases (EC-17, EC-18)
+- Updated implementation phases (now 5 phases including Hub)
+- Added "One Install, All Agent" principle
