@@ -1,9 +1,9 @@
 {
-  "agentname": "housekeeping",
+  "agentname": "captain",
   "workstream": "housekeeping",
-  "timestamp": "2026-01-13 10:25:31 +08",
+  "timestamp": "2026-01-14 20:35:32 +08",
   "branch": "main",
-  "last_commit": "21812af - feat: Add starter-test and starter-test-cleanup tools",
+  "last_commit": "7562d5e - housekeeping/captain: fix: Launch agents with Opus model",
   "has_uncommitted": true,
   "has_staged": false
 }
