@@ -122,7 +122,10 @@ The coordinator (captain) is the **only agent that updates REQUEST files**. This
 
 ### Challenges Encountered
 
-*To be filled during/after execution*
+**Challenge 1: Agents don't auto-activate on launch**
+- **Issue:** When agents launched, they greeted the user but didn't automatically check for pending collaborations
+- **Workaround:** Manually prompt each agent to check `./tools/collaboration-pending`
+- **Future fix:** AGENTNIT-0001 - Add auto-check on launch via ONBOARDING.md, myclaude hook, or dispatch-collaborations enhancement
 
 ### Lessons Learned
 
