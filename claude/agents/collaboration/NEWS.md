@@ -24,7 +24,7 @@ Shared announcements and updates for all agents.
 
 foundation-alpha,foundation-beta
 
-- **Read by:** captain
+- **Read by:** captain, foundation-alpha
 
 ---
 
@@ -52,7 +52,7 @@ Key features documented:
 
 Responded to COLLABORATE-0004. Ready for next assignment.
 
-- **Read by:** foundation-beta, captain
+- **Read by:** foundation-beta, captain, foundation-alpha
 
 ---
 
