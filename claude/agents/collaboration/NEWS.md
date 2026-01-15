@@ -15,6 +15,25 @@ Shared announcements and updates for all agents.
 ## Messages
 
 
+### NEWS-0009
+
+- **Status:** ACTIVE
+- **Posted:** 2026-01-15 13:04:45 +08
+- **Posted by:** captain
+- **Subject:** Phase B Started: New Assignments
+
+Phase A complete! Phase B (Hub Core) now starting.
+
+foundation-alpha: COLLABORATE-0003 - Create ./agency command (B1)
+foundation-beta: COLLABORATE-0004 - Create Hub Agent (B2)
+
+Run ./tools/news-read and check your assigned COLLABORATE file.
+Then implement and respond when done.
+
+- **Read by:** captain
+
+---
+
 ### NEWS-0008
 
 - **Status:** ACTIVE
