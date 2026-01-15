@@ -35,7 +35,7 @@ Features implemented:
 
 Responded to COLLABORATE-0002. Ready for verification or next assignment.
 
-- **Read by:** foundation-beta
+- **Read by:** foundation-beta, captain
 
 ---
 
