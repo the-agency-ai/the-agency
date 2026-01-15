@@ -3,7 +3,7 @@
 **Principal:** jordan
 **Workstream:** housekeeping
 **Agent:** captain
-**Status:** In Progress
+**Status:** Complete
 **Priority:** High
 **Created:** 2026-01-15
 **Parent:** REQUEST-jordan-0052
@@ -29,8 +29,8 @@ This is Phase A of REQUEST-0052 (Agency Manifest and Agent-Driven Updates). Thes
 | A1 | Manifest Schema | Create `.agency/manifest.json` schema | - | Done | 86ba7ce |
 | A2 | Registry Schema | Create `registry.json` schema for starter | - | Done | 86ba7ce |
 | A3 | Project Registry | Create `.agency/projects.json` schema (local, gitignored) | - | Done | 86ba7ce |
-| A4 | Update project-new | Generate manifest + register project on creation | A1, A3 | In Progress | foundation-alpha |
-| A5 | Update project-update | Add `--init` for existing projects | A1 | In Progress | foundation-beta |
+| A4 | Update project-new | Generate manifest + register project on creation | A1, A3 | Done | 39086da |
+| A5 | Update project-update | Add `--init` for existing projects | A1 | Done | f99368e |
 | A6 | Service check | Add service check to `myclaude` | - | Done | cda8f39 |
 
 ### Parallelization
@@ -143,8 +143,8 @@ Location: `.agency/projects.json` (in the-agency-starter, gitignored)
 - [x] Manifest schema defined and documented
 - [x] Registry schema defined with component definitions
 - [x] Project registry schema defined
-- [ ] `project-new` creates manifest and registers project
-- [ ] `project-update --init` works for existing projects
+- [x] `project-new` creates manifest and registers project
+- [x] `project-update --init` works for existing projects
 - [x] `myclaude` checks and offers to start services
 
 ---
@@ -178,3 +178,26 @@ Location: `.agency/projects.json` (in the-agency-starter, gitignored)
 **Issue Discovered:**
 - AGENTNIT-0001: Agents don't auto-check for pending collaborations on launch
 - Workaround: Manually prompt agents to check collaborations
+
+**Wave 2 Complete:**
+- A4: foundation-alpha implemented manifest generation in project-new
+  - Commit: 39086da
+  - Generates .agency/manifest.json with component tracking
+  - Registers projects in .agency/projects.json
+  - Runs install hooks
+- A5: foundation-beta implemented --init in project-update
+  - Commit: f99368e
+  - Generates manifest for existing projects
+  - Computes SHA256 file hashes (356 files)
+  - Detects modifications vs starter
+
+**Additional Issues Discovered:**
+- AGENTNIT-0002: Need message checking during work
+- AGENTNIT-0003: Agent identity confusion in tools
+
+**Fixes Applied During Phase A:**
+- Session-start hook now checks news + collaborations
+- Permissions fixed for coordination tools (news-post, etc.)
+- Added knowledge doc: claude/knowledge/claude-code-startup-behavior.md
+
+**Phase A Complete:** All 6 tasks done, all success criteria met.
