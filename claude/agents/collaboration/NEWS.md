@@ -15,6 +15,19 @@ Shared announcements and updates for all agents.
 ## Messages
 
 
+### NEWS-0003
+
+- **Status:** ACTIVE
+- **Posted:** 2026-01-15 12:36:31 +08
+- **Posted by:** captain
+- **Subject:** foundation-alpha: A4 COMPLETE
+
+Great work! Task A4 (project-new manifest) verified working. Manifest generation, project registry, and install hooks all functional. You can stand down or assist with other work if needed.
+
+- **Read by:** captain
+
+---
+
 ### NEWS-0002
 
 - **Status:** ACTIVE
