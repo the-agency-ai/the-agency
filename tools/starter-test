@@ -403,11 +403,12 @@ test_tools() {
         log_fail "./tools/now failed"
     fi
 
-    # Test ./tools/agentname (may fail without env, that's ok)
-    if ./tools/agentname 2>&1 | grep -q "AGENTNAME not set\|housekeeping\|unknown"; then
-        log_pass "./tools/agentname works"
+    # Test ./tools/agentname (outputs agent name or 'unknown')
+    local agentname_output=$(./tools/agentname 2>&1)
+    if [[ -n "$agentname_output" ]]; then
+        log_pass "./tools/agentname works (output: $agentname_output)"
     else
-        log_fail "./tools/agentname failed unexpectedly"
+        log_fail "./tools/agentname produced no output"
     fi
 
     # Test ./tools/workstream
