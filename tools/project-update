@@ -53,7 +53,6 @@ verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 # Get project root (where we're running from)
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 AGENCY_DIR="$PROJECT_ROOT/.agency"
-VERSION_FILE="$AGENCY_DIR/version.json"
 MANIFEST_FILE="$AGENCY_DIR/manifest.json"
 
 # Default source (GitHub)
@@ -161,6 +160,12 @@ if [[ -z "$MODE" ]]; then
     exit 1
 fi
 
+# Validate --json flag is only used with --check
+if [[ "$JSON_OUTPUT" == "true" ]] && [[ "$MODE" != "check" ]]; then
+    log_error "--json flag is only valid with --check mode"
+    exit 1
+fi
+
 # Helper: Calculate SHA256 hash of a file
 file_hash() {
     local file="$1"
@@ -192,9 +197,9 @@ is_protected() {
 
 # Helper: Get current project version
 get_project_version() {
-    if [[ -f "$VERSION_FILE" ]]; then
+    if [[ -f "$MANIFEST_FILE" ]]; then
         # Use Python for reliable JSON parsing (available on macOS and most Linux)
-        python3 -c "import json; print(json.load(open('$VERSION_FILE'))['starter_version'])" 2>/dev/null || echo "unknown"
+        python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('project',{}).get('starter_version','unknown'))" "$MANIFEST_FILE" 2>/dev/null || echo "unknown"
     else
         echo "untracked"
     fi
@@ -267,14 +272,12 @@ status_mode() {
     echo -e "  Location:   $PROJECT_ROOT"
     echo -e "  Version:    ${GREEN}$project_version${NC}"
 
-    if [[ -f "$VERSION_FILE" ]]; then
-        local installed_at=$(python3 -c "import json; print(json.load(open('$VERSION_FILE')).get('installed_at', 'unknown'))" 2>/dev/null)
-        local last_updated=$(python3 -c "import json; print(json.load(open('$VERSION_FILE')).get('last_updated', 'unknown'))" 2>/dev/null)
-        local source=$(python3 -c "import json; print(json.load(open('$VERSION_FILE')).get('source', 'unknown'))" 2>/dev/null)
+    if [[ -f "$MANIFEST_FILE" ]]; then
+        local installed_at=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('project',{}).get('created_at', 'unknown'))" "$MANIFEST_FILE" 2>/dev/null)
+        local source_type=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('source',{}).get('type', 'unknown'))" "$MANIFEST_FILE" 2>/dev/null)
 
         echo -e "  Installed:  $installed_at"
-        echo -e "  Updated:    $last_updated"
-        echo -e "  Source:     $source"
+        echo -e "  Source:     $source_type"
     else
         echo ""
         echo -e "  ${YELLOW}Version tracking not initialized.${NC}"
@@ -337,15 +340,18 @@ init_mode() {
     local components_json="{}"
     if [[ -n "$STARTER_SOURCE" ]] && [[ -f "$STARTER_SOURCE/registry.json" ]]; then
         echo "  Reading components from registry.json..."
-        components_json=$(python3 << EOF
+        components_json=$(python3 - "$STARTER_SOURCE/registry.json" "$PROJECT_ROOT" "$now" << 'EOF'
 import json
 import os
+import sys
 
-with open("$STARTER_SOURCE/registry.json", 'r') as f:
+registry_file = sys.argv[1]
+project_root = sys.argv[2]
+now = sys.argv[3]
+
+with open(registry_file, 'r') as f:
     data = json.load(f)
 
-project_root = "$PROJECT_ROOT"
-now = "$now"
 components = {}
 
 for name, info in data.get('components', {}).items():
@@ -374,14 +380,15 @@ EOF
 
     # Calculate file hashes
     echo "  Calculating file hashes..."
-    local files_json=$(python3 << EOF
+    local files_json=$(python3 - "$PROJECT_ROOT" "$starter_version" "$STARTER_SOURCE" << 'EOF'
 import json
 import hashlib
 import os
+import sys
 
-project_root = "$PROJECT_ROOT"
-starter_version = "$starter_version"
-starter_source = "$STARTER_SOURCE"
+project_root = sys.argv[1]
+starter_version = sys.argv[2]
+starter_source = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] else ""
 
 protected_patterns = [
     "tools/local/",
@@ -465,27 +472,36 @@ EOF
     fi
 
     # Write manifest.json
-    python3 << EOF
+    python3 - "$MANIFEST_FILE" "$project_name" "$now" "$starter_version" "$source_json" "$components_json" "$files_json" << 'EOF'
 import json
+import sys
+
+manifest_file = sys.argv[1]
+project_name = sys.argv[2]
+now = sys.argv[3]
+starter_version = sys.argv[4]
+source_json = sys.argv[5]
+components_json = sys.argv[6]
+files_json = sys.argv[7]
 
 # Parse JSON strings (they contain lowercase true/false which aren't Python literals)
-source_data = json.loads('$source_json')
-components_data = json.loads('''$components_json''')
-files_data = json.loads('''$files_json''')
+source_data = json.loads(source_json)
+components_data = json.loads(components_json)
+files_data = json.loads(files_json)
 
 manifest = {
     "schema_version": "1.0",
     "project": {
-        "name": "$project_name",
-        "created_at": "$now",
-        "starter_version": "$starter_version"
+        "name": project_name,
+        "created_at": now,
+        "starter_version": starter_version
     },
     "source": source_data,
     "components": components_data,
     "files": files_data
 }
 
-with open("$MANIFEST_FILE", 'w') as f:
+with open(manifest_file, 'w') as f:
     json.dump(manifest, f, indent=2)
 EOF
 
@@ -497,11 +513,16 @@ EOF
         local starter_projects_file="$STARTER_SOURCE/.agency/projects.json"
         mkdir -p "$STARTER_SOURCE/.agency"
 
-        python3 << EOF
+        python3 - "$starter_projects_file" "$PROJECT_ROOT" "$project_name" "$now" "$starter_version" << 'EOF'
 import json
 import os
+import sys
 
-projects_file = "$starter_projects_file"
+projects_file = sys.argv[1]
+project_path = sys.argv[2]
+project_name = sys.argv[3]
+now = sys.argv[4]
+starter_version = sys.argv[5]
 
 # Create or load projects.json
 if os.path.exists(projects_file):
@@ -511,15 +532,14 @@ else:
     data = {"schema_version": "1.0", "projects": []}
 
 # Check if project already registered
-project_path = "$PROJECT_ROOT"
 already_registered = any(p.get('path') == project_path for p in data.get('projects', []))
 
 if not already_registered:
     new_project = {
-        "name": "$project_name",
+        "name": project_name,
         "path": project_path,
-        "created_at": "$now",
-        "starter_version": "$starter_version",
+        "created_at": now,
+        "starter_version": starter_version,
         "status": "current"
     }
     data['projects'].append(new_project)
@@ -533,8 +553,8 @@ EOF
     fi
 
     # Count files and components
-    local file_count=$(python3 -c "import json; print(len(json.load(open('$MANIFEST_FILE')).get('files', {})))" 2>/dev/null || echo "0")
-    local component_count=$(python3 -c "import json; print(len(json.load(open('$MANIFEST_FILE')).get('components', {})))" 2>/dev/null || echo "0")
+    local file_count=$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1])).get('files', {})))" "$MANIFEST_FILE" 2>/dev/null || echo "0")
+    local component_count=$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1])).get('components', {})))" "$MANIFEST_FILE" 2>/dev/null || echo "0")
 
     echo ""
     echo -e "${GREEN}Manifest initialized!${NC}"
@@ -585,7 +605,7 @@ check_mode() {
     trap cleanup EXIT
 
     # Get version info
-    local current_version=$(python3 -c "import json; print(json.load(open('$MANIFEST_FILE')).get('project', {}).get('starter_version', 'unknown'))" 2>/dev/null || echo "unknown")
+    local current_version=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('project', {}).get('starter_version', 'unknown'))" "$MANIFEST_FILE" 2>/dev/null || echo "unknown")
     local latest_version=$(get_starter_version "$starter_dir")
 
     # Check for breaking changes in CHANGELOG
@@ -598,15 +618,15 @@ check_mode() {
     fi
 
     # Analyze files using Python
-    local result=$(python3 << EOF
+    local result=$(python3 - "$PROJECT_ROOT" "$starter_dir" "$MANIFEST_FILE" << 'EOF'
 import json
 import hashlib
 import os
 import sys
 
-project_root = "$PROJECT_ROOT"
-starter_dir = "$starter_dir"
-manifest_file = "$MANIFEST_FILE"
+project_root = sys.argv[1]
+starter_dir = sys.argv[2]
+manifest_file = sys.argv[3]
 
 # Load manifest
 with open(manifest_file, 'r') as f:
@@ -696,8 +716,8 @@ for root, dirs, filenames in os.walk(starter_dir):
 starter_components = starter_registry.get('components', {})
 for comp_name, comp_info in manifest_components.items():
     installed_version = comp_info.get('version', '')
-    starter_version = starter_components.get(comp_name, {}).get('version', '')
-    if starter_version and installed_version != starter_version:
+    starter_version_val = starter_components.get(comp_name, {}).get('version', '')
+    if starter_version_val and installed_version != starter_version_val:
         components_outdated.add(comp_name)
 
 result = {
@@ -726,17 +746,28 @@ EOF
 
     if [[ "$JSON_OUTPUT" == "true" ]]; then
         # JSON output
-        python3 << EOF
+        local updates_bool=$([[ "$updates_available" == "true" ]] && echo "true" || echo "false")
+        local breaking_bool=$([[ "$breaking_changes" == "true" ]] && echo "true" || echo "false")
+        python3 - "$current_version" "$latest_version" "$updates_bool" "$breaking_bool" "$files_to_update" "$files_modified_locally" "$components_outdated" << 'EOF'
 import json
+import sys
+
+current_version = sys.argv[1]
+latest_version = sys.argv[2]
+updates_available = sys.argv[3] == "true"
+breaking_changes = sys.argv[4] == "true"
+files_to_update = json.loads(sys.argv[5])
+files_modified_locally = json.loads(sys.argv[6])
+components_outdated = json.loads(sys.argv[7])
 
 output = {
-    "current_version": "$current_version",
-    "latest_version": "$latest_version",
-    "updates_available": $([[ "$updates_available" == "true" ]] && echo "True" || echo "False"),
-    "files_to_update": $files_to_update,
-    "files_modified_locally": $files_modified_locally,
-    "components_outdated": $components_outdated,
-    "breaking_changes": $([[ "$breaking_changes" == "true" ]] && echo "True" || echo "False")
+    "current_version": current_version,
+    "latest_version": latest_version,
+    "updates_available": updates_available,
+    "files_to_update": files_to_update,
+    "files_modified_locally": files_modified_locally,
+    "components_outdated": components_outdated,
+    "breaking_changes": breaking_changes
 }
 print(json.dumps(output, indent=2))
 EOF
@@ -823,7 +854,7 @@ update_mode() {
     echo ""
 
     # Check version tracking
-    if [[ ! -f "$VERSION_FILE" ]]; then
+    if [[ ! -f "$MANIFEST_FILE" ]]; then
         echo -e "${YELLOW}Version tracking not initialized.${NC}"
         echo ""
         echo "Run first: ./tools/project-update --init"
@@ -898,7 +929,7 @@ update_mode() {
             fi
         elif [[ "$source_hash" != "$target_hash" ]]; then
             # File differs - check if user modified it
-            local tracked_hash=$(python3 -c "import json; files=json.load(open('$VERSION_FILE')).get('files',{}); print(files.get('$rel_path',{}).get('hash',''))" 2>/dev/null)
+            local tracked_hash=$(python3 -c "import json,sys; files=json.load(open(sys.argv[1])).get('files',{}); print(files.get(sys.argv[2],{}).get('hash',''))" "$MANIFEST_FILE" "$rel_path" 2>/dev/null)
 
             if [[ "$target_hash" == "$tracked_hash" ]] || [[ -z "$tracked_hash" ]]; then
                 # File unchanged by user, safe to update
@@ -940,13 +971,17 @@ update_mode() {
         local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
         python3 -c "
 import json
-with open('$VERSION_FILE', 'r') as f:
+import sys
+manifest_file = sys.argv[1]
+new_version = sys.argv[2]
+with open(manifest_file, 'r') as f:
     data = json.load(f)
-data['starter_version'] = '$starter_version'
-data['last_updated'] = '$now'
-with open('$VERSION_FILE', 'w') as f:
+if 'project' not in data:
+    data['project'] = {}
+data['project']['starter_version'] = new_version
+with open(manifest_file, 'w') as f:
     json.dump(data, f, indent=2)
-"
+" "$MANIFEST_FILE" "$starter_version"
         echo ""
         echo -e "${GREEN}Update complete!${NC}"
 
