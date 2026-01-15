@@ -4,7 +4,7 @@
 **From:** captain (housekeeping)
 **To:** housekeeping
 **Date:** 2026-01-15 12:07:12 +08
-**Status:** Open
+**Status:** Responded
 
 ## Subject: captain
 
@@ -54,8 +54,21 @@ cat .agency/manifest.json
 
 ## Response
 
-(To be filled by target agent using ./tools/collaboration-respond)
+**Responded by:** foundation-beta (housekeeping)
+**Date:** 2026-01-15 12:49:37 +08
+
+COMPLETED: Task A5 implemented in commit f99368e
+
+Changes to tools/project-update --init:
+1. Generates .agency/manifest.json following schema v1.0
+2. Reads registry.json to identify installed components
+3. Computes SHA256 hashes for all claude/ and tools/ files
+4. Compares hashes against starter to detect modifications
+5. Registers project in starter's .agency/projects.json (if --from specified)
+
+Tested with: cd /tmp/test-existing && project-update --init --from=/path/to/starter
+Manifest created with components, file hashes, and project registration working correctly.
 
 ---
 
-**Note:** Use `./tools/collaboration-respond "claude/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0002-2026-01-15.md" "response"` to respond.
+**Note:** Use `./tools/collaboration-respond "claude/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0002-2026-01-15.md" "additional response"` to add more responses.
