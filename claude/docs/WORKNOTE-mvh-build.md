@@ -89,7 +89,16 @@ First use of multi-agent parallel work pattern:
 
 ### Phase B: Hub Core
 
-*Not yet started*
+**Started:** 2026-01-15
+
+#### Tasks In Progress
+- B1: ./agency command (foundation-alpha) - COLLABORATE-0003
+- B2: Hub Agent creation (foundation-beta) - COLLABORATE-0004
+
+#### Pending (after B1+B2)
+- B3: Update starter capability
+- B4: List projects capability
+- B5: What's new capability
 
 ### Phase C: Project Operations
 

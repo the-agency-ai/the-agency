@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Agency Hub (MVH)** - Agent-driven project management
+  - `./agency` command to launch Hub Agent
+  - Hub Agent for managing starter and all projects
+  - Project manifest system (`.agency/manifest.json`)
+  - Component registry (`registry.json`)
+  - Project registry (`.agency/projects.json`)
+- **Manifest Generation**
+  - `project-new` now generates manifest on project creation
+  - `project-update --init` generates manifest for existing projects
+  - SHA256 file hashing for modification detection
+- **Service Check** - `myclaude` now offers to start services on launch
+- **Session Start Improvements**
+  - Auto-check for news on session start
+  - Auto-check for pending collaborations
+- **Knowledge Base**
+  - Claude Code startup behavior documentation
+  - Periodic message check mechanisms
+
+### Fixed
+- Coordination tool permissions (news-post, collaboration-respond, etc.)
+
 ## [2026-01-09-000003]
 
 ## [2026-01-09-2]
