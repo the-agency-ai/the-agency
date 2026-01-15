@@ -10,10 +10,12 @@ Worker agent for REQUEST-0053 (Phase A - Foundation). Assigned to Task A4: Updat
 
 ## Current Assignment
 
-**COLLABORATE-0001:** Update `tools/project-new` to:
-1. Generate `.agency/manifest.json` when creating a project
-2. Register the project in the starter's `.agency/projects.json`
-3. Run install hooks for components with dependencies
+**COLLABORATE-0003:** Create `./agency` command (Task B1):
+1. Create executable bash script in repo root
+2. Launches Hub Agent via `./tools/myclaude housekeeping hub`
+3. Follow quiet-by-default pattern
+
+Previous: COLLABORATE-0001 (A4) - Complete
 
 ## Responsibilities
 

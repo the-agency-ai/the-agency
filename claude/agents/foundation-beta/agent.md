@@ -10,10 +10,12 @@ Worker agent for REQUEST-0053 (Phase A - Foundation). Assigned to Task A5: Add -
 
 ## Current Assignment
 
-**COLLABORATE-0002:** Update `tools/project-update` to support `--init` flag that:
-1. Generates manifest for existing projects that don't have one
-2. Computes file hashes for modification detection
-3. Registers project in starter's project registry
+**COLLABORATE-0004:** Create Hub Agent (Task B2):
+1. Create `claude/agents/hub/` directory structure
+2. Write agent.md with identity and capabilities
+3. Write KNOWLEDGE.md with operational procedures
+
+Previous: COLLABORATE-0002 (A5) - Complete
 
 ## Responsibilities
 

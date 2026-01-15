@@ -3,7 +3,7 @@
 **Principal:** jordan
 **Workstream:** housekeeping
 **Agent:** captain
-**Status:** Pending
+**Status:** In Progress
 **Priority:** High
 **Created:** 2026-01-15
 **Parent:** REQUEST-jordan-0052
