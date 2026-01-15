@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-agency.ai/schemas/projects.json",
+  "title": "Agency Project Registry",
+  "description": "Tracks all projects created from this starter. Located at .agency/projects.json in the-agency-starter (gitignored).",
+  "type": "object",
+  "required": ["schema_version", "projects"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of this schema format",
+      "const": "1.0"
+    },
+    "projects": {
+      "type": "array",
+      "description": "List of projects created from this starter",
+      "items": {
+        "type": "object",
+        "required": ["name", "path", "created_at", "starter_version"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Project name"
+          },
+          "path": {
+            "type": "string",
+            "description": "Absolute path to the project directory"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the project was created"
+          },
+          "starter_version": {
+            "type": "string",
+            "description": "Starter version used to create the project"
+          },
+          "last_updated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the project was last updated from starter"
+          },
+          "last_checked": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the project was last checked for updates"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["current", "outdated", "modified", "unknown"],
+            "description": "Current update status relative to starter"
+          }
+        }
+      }
+    }
+  }
+}

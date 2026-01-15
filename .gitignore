@@ -54,3 +54,6 @@ claude/agents/*/backups/archive/
 
 # Services (local development)
 services/
+
+# Agency local data (not versioned)
+.agency/projects.json

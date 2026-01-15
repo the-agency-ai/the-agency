@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-agency.ai/schemas/registry.json",
+  "title": "Agency Starter Registry",
+  "description": "Defines available components in the-agency-starter. Located at registry.json in the starter root.",
+  "type": "object",
+  "required": ["schema_version", "starter_version", "components"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of this schema format",
+      "const": "1.0"
+    },
+    "starter_version": {
+      "type": "string",
+      "description": "Current version of the-agency-starter"
+    },
+    "components": {
+      "type": "object",
+      "description": "Available components that can be installed/updated",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["version", "description", "files"],
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "Current version of this component"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of the component"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Glob patterns for files included in this component"
+          },
+          "install_hook": {
+            "type": "string",
+            "description": "Command to run after installing this component (e.g., 'pnpm install')"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Other components this one depends on"
+          },
+          "protected_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Paths within this component that should never be overwritten"
+          }
+        }
+      }
+    }
+  }
+}

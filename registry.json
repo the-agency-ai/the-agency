@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "starter_version": "1.2.0",
+  "components": {
+    "core": {
+      "version": "1.2.0",
+      "description": "Core Agency framework - CLAUDE.md, basic structure, conventions",
+      "files": [
+        "CLAUDE.md",
+        "claude/docs/**/*",
+        "claude/config/**/*",
+        "claude/agents/templates/**/*"
+      ],
+      "protected_paths": [
+        "claude/principals/**/*",
+        "claude/agents/*/WORKLOG.md",
+        "claude/agents/*/ADHOC-WORKLOG.md"
+      ]
+    },
+    "tools": {
+      "version": "1.2.0",
+      "description": "Agency CLI tools - myclaude, collaboration, scaffolding",
+      "files": [
+        "tools/*"
+      ],
+      "protected_paths": [
+        "tools/local/**/*"
+      ],
+      "dependencies": ["core"]
+    },
+    "captain": {
+      "version": "1.2.0",
+      "description": "The Captain agent - your guide to The Agency",
+      "files": [
+        "claude/agents/captain/**/*"
+      ],
+      "protected_paths": [
+        "claude/agents/captain/WORKLOG.md",
+        "claude/agents/captain/ADHOC-WORKLOG.md",
+        "claude/agents/captain/backups/**/*"
+      ],
+      "dependencies": ["core"]
+    },
+    "housekeeping": {
+      "version": "1.2.0",
+      "description": "The housekeeping workstream - default workspace",
+      "files": [
+        "claude/workstreams/housekeeping/**/*"
+      ],
+      "protected_paths": [
+        "claude/workstreams/housekeeping/sprints/**/*"
+      ],
+      "dependencies": ["core"]
+    },
+    "agency-service": {
+      "version": "1.0.0",
+      "description": "Backend service for logging, secrets, and messaging",
+      "files": [
+        "source/services/agency-service/**/*"
+      ],
+      "install_hook": "cd source/services/agency-service && bun install",
+      "dependencies": ["core"]
+    },
+    "starter-packs": {
+      "version": "1.0.0",
+      "description": "Framework-specific conventions (Next.js, React Native, Python, etc.)",
+      "files": [
+        "claude/starter-packs/**/*"
+      ],
+      "dependencies": ["core"]
+    },
+    "skills": {
+      "version": "1.0.0",
+      "description": "Agent skills - welcome, tutorial, commit, etc.",
+      "files": [
+        "claude/skills/**/*"
+      ],
+      "dependencies": ["core"]
+    }
+  }
+}

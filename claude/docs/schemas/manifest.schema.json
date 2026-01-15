@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-agency.ai/schemas/manifest.json",
+  "title": "Agency Project Manifest",
+  "description": "Tracks installed components, versions, and file states in an Agency project. Located at .agency/manifest.json in each project.",
+  "type": "object",
+  "required": ["schema_version", "project", "source", "components"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of this schema format",
+      "const": "1.0"
+    },
+    "project": {
+      "type": "object",
+      "description": "Project metadata",
+      "required": ["name", "created_at", "starter_version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Project name (directory name)"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO8601 timestamp of project creation"
+        },
+        "starter_version": {
+          "type": "string",
+          "description": "Version of the-agency-starter used to create this project"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "description": "Source starter information",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["local", "github"],
+          "description": "Whether starter was local path or GitHub clone"
+        },
+        "path": {
+          "type": "string",
+          "description": "Absolute path to local starter (if type=local)"
+        },
+        "repo": {
+          "type": "string",
+          "description": "GitHub repository (if type=github)"
+        }
+      }
+    },
+    "components": {
+      "type": "object",
+      "description": "Installed components and their states",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["version", "status"],
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "Installed version of this component"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["installed", "available", "modified", "outdated"],
+            "description": "Current status of the component"
+          },
+          "dependencies": {
+            "type": "string",
+            "enum": ["installed", "pending", "none"],
+            "description": "State of component dependencies (e.g., node_modules)"
+          },
+          "installed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this component was installed"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this component was last updated"
+          }
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "description": "Individual file tracking for modification detection",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["hash", "version"],
+        "properties": {
+          "hash": {
+            "type": "string",
+            "description": "SHA256 hash of file contents at install/update time"
+          },
+          "version": {
+            "type": "string",
+            "description": "Starter version when this file was installed/updated"
+          },
+          "modified": {
+            "type": "boolean",
+            "description": "Whether file has been locally modified since install",
+            "default": false
+          }
+        }
+      }
+    }
+  }
+}
