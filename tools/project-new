@@ -18,7 +18,7 @@ if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
 fi
 
 # Tool version
-TOOL_VERSION="1.1.0-20260114-000009"
+TOOL_VERSION="1.2.0-20260114-000001"
 
 # Colors
 RED='\033[0;31m'
@@ -174,6 +174,25 @@ main() {
         sed -i '' "s/your_username: YourName/$SYSTEM_USER: $SYSTEM_USER/" claude/config/agency.yaml
         rm -f claude/config/agency.yaml.bak
     fi
+
+    # Initialize version tracking
+    log_step "Initializing version tracking..."
+    mkdir -p .agency
+    STARTER_VERSION="unknown"
+    if [[ -f "$STARTER_DIR/VERSION" ]]; then
+        STARTER_VERSION=$(cat "$STARTER_DIR/VERSION" | tr -d '[:space:]')
+    fi
+    NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    cat > .agency/version.json << EOF
+{
+  "starter_version": "$STARTER_VERSION",
+  "installed_at": "$NOW",
+  "last_updated": "$NOW",
+  "source": "local:$STARTER_DIR",
+  "files": {}
+}
+EOF
+    verbose_echo "  Version tracking initialized: v$STARTER_VERSION"
 
     # Success
     echo ""
