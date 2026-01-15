@@ -354,7 +354,7 @@ export const revokeAccessSchema = z.object({
 });
 
 export const initVaultSchema = z.object({
-  passphrase: z.string().min(8).max(256),
+  passphrase: z.string().min(12).max(256), // 12 chars minimum for security
 });
 
 export const unlockVaultSchema = z.object({
@@ -363,7 +363,8 @@ export const unlockVaultSchema = z.object({
 
 export const useRecoveryCodeSchema = z.object({
   recoveryCode: z.string().min(1),
-  newPassphrase: z.string().min(8).max(256),
+  newPassphrase: z.string().min(12).max(256), // 12 chars minimum for security
+  confirmDataLoss: z.boolean(), // Must explicitly confirm data loss
 });
 
 export const listAuditLogsQuerySchema = z.object({

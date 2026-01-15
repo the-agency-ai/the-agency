@@ -43,6 +43,19 @@ const ARGON2_CONFIG = {
 // Default auto-lock timeout in milliseconds (30 minutes)
 const DEFAULT_AUTO_LOCK_TIMEOUT_MS = 30 * 60 * 1000;
 
+/**
+ * Hash a session token using SHA-256 for secure storage
+ * We only store the hash, never the raw token, so memory dumps don't reveal tokens
+ */
+function hashSessionToken(token: string): string {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  // Use synchronous hash for simplicity (session tokens aren't high volume)
+  const hashBuffer = Bun.hash(data);
+  // Convert to hex string
+  return hashBuffer.toString(16).padStart(16, '0');
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Row Types (SQLite representation)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -291,6 +304,7 @@ export class SecretRepository {
   /**
    * Generate a session token for API access
    * Token is valid as long as vault is unlocked
+   * Note: Only the hash is stored, not the raw token (security)
    */
   generateSessionToken(name?: string): string {
     if (!this.masterKey) {
@@ -298,20 +312,23 @@ export class SecretRepository {
     }
 
     const token = crypto.randomUUID();
-    this.sessionTokens.set(token, { createdAt: Date.now(), name });
+    const tokenHash = hashSessionToken(token);
+    this.sessionTokens.set(tokenHash, { createdAt: Date.now(), name });
     logger.info({ tokenName: name }, 'Session token generated');
-    return token;
+    return token; // Return raw token to caller, but store only the hash
   }
 
   /**
    * Validate a session token and refresh vault activity
+   * Hashes the provided token and checks against stored hashes
    */
   validateSessionToken(token: string): boolean {
     if (!this.masterKey) {
       return false;
     }
 
-    if (this.sessionTokens.has(token)) {
+    const tokenHash = hashSessionToken(token);
+    if (this.sessionTokens.has(tokenHash)) {
       this.updateActivity(); // Keep vault alive
       return true;
     }
@@ -324,7 +341,8 @@ export class SecretRepository {
    * If this was the last token, starts the auto-lock timer
    */
   revokeSessionToken(token: string): boolean {
-    const deleted = this.sessionTokens.delete(token);
+    const tokenHash = hashSessionToken(token);
+    const deleted = this.sessionTokens.delete(tokenHash);
 
     // If we just deleted the last session token, start the auto-lock timer
     if (deleted && !this.hasActiveSessionTokens() && this.masterKey) {

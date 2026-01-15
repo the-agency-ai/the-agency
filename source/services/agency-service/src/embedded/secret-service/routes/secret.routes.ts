@@ -144,9 +144,18 @@ export function createSecretRoutes(secretService: SecretService): Hono {
 
   /**
    * POST /secret/vault/recovery/use - Use recovery code to reset vault
+   * WARNING: This will DELETE ALL SECRETS. Requires confirmDataLoss: true.
    */
   app.post('/vault/recovery/use', zValidator('json', useRecoveryCodeSchema), async (c) => {
-    const { recoveryCode, newPassphrase } = c.req.valid('json');
+    const { recoveryCode, newPassphrase, confirmDataLoss } = c.req.valid('json');
+
+    // Require explicit confirmation of data loss
+    if (confirmDataLoss !== true) {
+      return c.json({
+        error: 'Confirmation Required',
+        message: 'Using a recovery code will DELETE ALL SECRETS. Set confirmDataLoss: true to proceed.',
+      }, 400);
+    }
 
     const success = await secretService.useRecoveryCode(recoveryCode, newPassphrase);
 
@@ -154,7 +163,7 @@ export function createSecretRoutes(secretService: SecretService): Hono {
       return c.json({ error: 'Bad Request', message: 'Invalid or already used recovery code' }, 400);
     }
 
-    logger.info('Vault reset with recovery code via API');
+    logger.warn('Vault reset with recovery code - all secrets deleted');
     return c.json({ success: true, message: 'Vault reset. All previous secrets have been deleted.' });
   });
 
