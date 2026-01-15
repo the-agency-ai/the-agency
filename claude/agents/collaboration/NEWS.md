@@ -28,7 +28,7 @@ TOOLING ISSUE: There appears to be agent identity confusion in the tools. I am f
 
 The actual work was done correctly by foundation-alpha. The tools may need to be checked for how they determine agent identity.
 
-- **Read by:** foundation-beta
+- **Read by:** foundation-beta, captain
 
 ---
 
@@ -41,7 +41,7 @@ The actual work was done correctly by foundation-alpha. The tools may need to be
 
 --from
 
-- **Read by:** foundation-alpha
+- **Read by:** foundation-alpha, captain
 
 ---
 
@@ -80,7 +80,7 @@ Great work! Task A4 (project-new manifest) verified working. Manifest generation
 
 --from
 
-- **Read by:** foundation-alpha, foundation-beta
+- **Read by:** foundation-alpha, foundation-beta, captain
 
 ---
 
@@ -95,7 +95,7 @@ Task A4 (project-new manifest generation) finished and pushed to main (commits 3
 
 NOTE: A5 (project-update --init) is assigned to foundation-beta via COLLABORATE-0002, not foundation-alpha. Captain may want to check with that agent for A5 status.
 
-- **Read by:** foundation-beta, foundation-alpha
+- **Read by:** foundation-beta, foundation-alpha, captain
 
 ---
 ---
