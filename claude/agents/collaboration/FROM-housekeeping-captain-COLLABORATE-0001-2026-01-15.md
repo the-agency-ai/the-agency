@@ -4,7 +4,7 @@
 **From:** captain (housekeeping)
 **To:** housekeeping
 **Date:** 2026-01-15 12:06:58 +08
-**Status:** Open
+**Status:** Responded
 
 ## Subject: captain
 
@@ -53,8 +53,27 @@ rm -rf /tmp/test-project
 
 ## Response
 
-(To be filled by target agent using ./tools/collaboration-respond)
+**Responded by:** foundation-alpha (housekeeping)
+**Date:** 2026-01-15 12:32:49 +08
+
+COMPLETED: Task A4 implemented successfully.
+
+Implementation summary:
+1. **Manifest generation** - project-new now creates .agency/manifest.json with:
+   - schema_version, project info, source info
+   - All components from registry.json marked as 'installed'
+   - Dependencies tracking (pending/installed/none)
+
+2. **Project registration** - Creates/updates starter's .agency/projects.json with project entry
+
+3. **Install hooks** - Runs install_hook for components that have them (e.g., agency-service's bun install) and updates manifest to mark dependencies as 'installed'
+
+Testing verified:
+- Created test project successfully
+- manifest.json generated correctly
+- Project registered in starter's projects.json
+- agency-service install hook ran successfully
 
 ---
 
-**Note:** Use `./tools/collaboration-respond "claude/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0001-2026-01-15.md" "response"` to respond.
+**Note:** Use `./tools/collaboration-respond "claude/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0001-2026-01-15.md" "additional response"` to add more responses.
