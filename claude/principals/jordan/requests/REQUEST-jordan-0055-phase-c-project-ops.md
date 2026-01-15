@@ -3,7 +3,7 @@
 **Principal:** jordan
 **Workstream:** housekeeping
 **Agent:** captain
-**Status:** In Progress
+**Status:** Complete
 **Priority:** High
 **Created:** 2026-01-15
 **Parent:** REQUEST-jordan-0052
@@ -25,13 +25,13 @@ This is Phase C of REQUEST-0052. With the Hub core in place, we add the ability 
 
 ## Tasks
 
-| ID | Task | Description | Depends On | Status | Agent |
-|----|------|-------------|------------|--------|-------|
-| C1 | Create project | Hub runs project-new, registers result | B2, A4 | Done | In Hub KNOWLEDGE |
-| C2 | Update project | Hub updates single project | B2, A5 | Done | In Hub KNOWLEDGE |
-| C3 | Batch update | Hub updates all registered projects | C2 | In Progress | foundation-beta |
-| C4 | Pre-update verify | Check git status, flag modified files | C2 | In Progress | foundation-beta |
-| C5 | --check --json | Machine-readable update check for agents | A1 | In Progress | foundation-alpha |
+| ID | Task | Description | Depends On | Status | Agent | Commit |
+|----|------|-------------|------------|--------|-------|--------|
+| C1 | Create project | Hub runs project-new, registers result | B2, A4 | Done | In Hub KNOWLEDGE | - |
+| C2 | Update project | Hub updates single project | B2, A5 | Done | In Hub KNOWLEDGE | - |
+| C3 | Batch update | Hub updates all registered projects | C2 | Done | foundation-beta | 89b3a5f |
+| C4 | Pre-update verify | Check git status, flag modified files | C2 | Done | foundation-beta | 89b3a5f |
+| C5 | --check --json | Machine-readable update check for agents | A1 | Done | foundation-alpha | f0de5b2 |
 
 ---
 
@@ -90,11 +90,11 @@ Output:
 
 ## Success Criteria
 
-- [ ] Hub can create projects via natural language
-- [ ] Hub can update individual projects
-- [ ] Hub can batch update all projects
-- [ ] Pre-update verification catches issues
-- [ ] `--check --json` provides agent-consumable output
+- [x] Hub can create projects via natural language
+- [x] Hub can update individual projects
+- [x] Hub can batch update all projects
+- [x] Pre-update verification catches issues
+- [x] `--check --json` provides agent-consumable output
 
 ---
 
@@ -110,3 +110,15 @@ Output:
 - Created COLLABORATE-0005 for C5 (--check --json) → foundation-alpha
 - Created COLLABORATE-0006 for C3+C4 (Hub KNOWLEDGE batch/verify) → foundation-beta
 - Posted NEWS-0012 notifying agents of Phase C assignments
+
+**C3+C4 Complete:** foundation-beta enhanced Hub KNOWLEDGE.md
+- Commit: 89b3a5f
+- Added Pre-Update Verification procedure with checklist
+- Added Batch Updating All Projects procedure with Python scripts
+
+**C5 Complete:** foundation-alpha added --check --json to project-update
+- Commit: f0de5b2
+- --check mode for read-only update checking
+- --json flag for machine-readable output
+
+**Phase C Complete:** All success criteria met
