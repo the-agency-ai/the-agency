@@ -1,0 +1,90 @@
+#!/bin/bash
+# launch-project - Launch into a project in a new iTerm2 tab
+#
+# Usage:
+#   ./tools/launch-project /path/to/project
+#   ./tools/launch-project my-project  # Looks up in projects.json
+#
+# Requires: macOS + iTerm2
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STARTER_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# Help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || -z "${1:-}" ]]; then
+    echo "launch-project - Launch into a project in a new iTerm2 tab"
+    echo ""
+    echo "Usage:"
+    echo "  ./tools/launch-project /path/to/project"
+    echo "  ./tools/launch-project my-project  # Looks up in projects.json"
+    echo ""
+    echo "Requires: macOS + iTerm2"
+    exit 0
+fi
+
+PROJECT_INPUT="$1"
+PROJECT_PATH=""
+PROJECT_NAME=""
+
+# Check if it's an absolute path
+if [[ "$PROJECT_INPUT" == /* ]]; then
+    PROJECT_PATH="$PROJECT_INPUT"
+    PROJECT_NAME=$(basename "$PROJECT_PATH")
+elif [[ -d "$PROJECT_INPUT" ]]; then
+    PROJECT_PATH="$(cd "$PROJECT_INPUT" && pwd)"
+    PROJECT_NAME=$(basename "$PROJECT_PATH")
+else
+    # Look up in projects.json
+    PROJECTS_FILE="$STARTER_DIR/.agency/projects.json"
+    if [[ -f "$PROJECTS_FILE" ]]; then
+        PROJECT_PATH=$(python3 -c "
+import json, sys
+with open('$PROJECTS_FILE') as f:
+    data = json.load(f)
+for p in data.get('projects', []):
+    if p['name'] == '$PROJECT_INPUT':
+        print(p['path'])
+        sys.exit(0)
+sys.exit(1)
+" 2>/dev/null) || true
+        PROJECT_NAME="$PROJECT_INPUT"
+    fi
+fi
+
+if [[ -z "$PROJECT_PATH" || ! -d "$PROJECT_PATH" ]]; then
+    echo -e "${RED}Error:${NC} Project not found: $PROJECT_INPUT"
+    echo "Provide a path or a project name registered in .agency/projects.json"
+    exit 1
+fi
+
+# Check for iTerm2
+if ! osascript -e 'tell application "iTerm2" to name' &>/dev/null; then
+    echo -e "${RED}Error:${NC} iTerm2 not found or not running"
+    exit 1
+fi
+
+echo -e "${GREEN}Launching:${NC} $PROJECT_NAME"
+echo -e "${GREEN}Path:${NC} $PROJECT_PATH"
+
+# Launch in new iTerm2 tab with proper title
+osascript <<APPLESCRIPT
+tell application "iTerm2"
+    tell current window
+        create tab with default profile
+        tell current session
+            set name to "Agency: $PROJECT_NAME"
+            write text "cd '$PROJECT_PATH' && ./tools/myclaude housekeeping captain"
+        end tell
+    end tell
+    activate
+end tell
+APPLESCRIPT
+
+echo -e "${GREEN}Done!${NC} Tab opened for $PROJECT_NAME"

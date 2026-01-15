@@ -5,7 +5,7 @@ All notable changes to The Agency will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-01-15
 
 ### Added
 - **Agency Hub (MVH)** - Agent-driven project management
@@ -17,17 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Manifest Generation**
   - `project-new` now generates manifest on project creation
   - `project-update --init` generates manifest for existing projects
+  - `project-update --check --json` for machine-readable status
   - SHA256 file hashing for modification detection
+- **Terminal Integration** (macOS + iTerm2)
+  - `./tools/launch-project` - Open project in new iTerm2 tab
+  - Automatic tab naming ("Agency: project-name")
 - **Service Check** - `myclaude` now offers to start services on launch
 - **Session Start Improvements**
   - Auto-check for news on session start
   - Auto-check for pending collaborations
-- **Knowledge Base**
-  - Claude Code startup behavior documentation
-  - Periodic message check mechanisms
+- **Test Suite** - 76 tests covering MVH functionality
 
 ### Fixed
 - Coordination tool permissions (news-post, collaboration-respond, etc.)
+- Schema validation improvements (version patterns, hash formats)
+
+## [Unreleased]
 
 ## [2026-01-09-000003]
 

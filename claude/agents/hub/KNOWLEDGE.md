@@ -68,6 +68,26 @@ print(f"Project version: {manifest[\"project\"][\"starter_version\"]}")
 '
 ```
 
+### Launching Into Projects (iTerm2)
+
+Open a project in a new iTerm2 tab:
+
+```bash
+# By path
+./tools/launch-project /path/to/my-project
+
+# By registered name
+./tools/launch-project my-project
+```
+
+**What happens:**
+1. Opens new iTerm2 tab
+2. Sets tab title to "Agency: project-name"
+3. Changes to project directory
+4. Launches myclaude with captain agent
+
+**Requirements:** macOS + iTerm2
+
 ### Creating New Projects
 
 Use `project-new` to create a project from the starter:
