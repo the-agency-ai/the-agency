@@ -16,14 +16,14 @@ This WORKNOTE documents a case study of parallel agent execution in The Agency. 
 
 ### Task Breakdown (REQUEST-0053: Phase A)
 
-| Task | Description | Dependencies | Assigned To |
-|------|-------------|--------------|-------------|
-| A1 | Manifest schema | - | captain |
-| A2 | Registry schema | - | captain |
-| A3 | Project registry schema | - | captain |
-| A4 | Update project-new | A1, A3 | Agent (TBD) |
-| A5 | Update project-update --init | A1 | Agent (TBD) |
-| A6 | myclaude service check | - | Agent (TBD) |
+| Task | Description | Dependencies | Assigned To | Status |
+|------|-------------|--------------|-------------|--------|
+| A1 | Manifest schema | - | captain | DONE |
+| A2 | Registry schema | - | captain | DONE |
+| A3 | Project registry schema | - | captain | DONE |
+| A4 | Update project-new | A1, A3 | COLLABORATE-0001 | PENDING |
+| A5 | Update project-update --init | A1 | COLLABORATE-0002 | PENDING |
+| A6 | myclaude service check | - | subagent | DONE |
 
 ### Parallelization Strategy
 
@@ -81,22 +81,36 @@ The coordinator (captain) is the **only agent that updates REQUEST files**. This
 
 ### Wave 1: Setup
 
-**Timestamp:** 2026-01-15 [START]
+**Timestamp:** 2026-01-15
 
-- [ ] Captain begins schema design (A1, A2, A3)
-- [ ] Agent launched for A6 (myclaude service check)
+- [x] Captain begins schema design (A1, A2, A3)
+- [x] Subagent launched for A6 (myclaude service check)
 
 ### Wave 1: Completion
 
-*To be filled as work completes*
+**A6 (subagent):** Completed - added `check_services()` function to myclaude
+- Interactive prompts for Bun install, dependency install, service start
+- Follows quiet-by-default pattern
+- Commit: cda8f39
+
+**A1, A2, A3 (captain):** Completed - created all schemas
+- `claude/docs/schemas/manifest.schema.json`
+- `claude/docs/schemas/registry.schema.json`
+- `claude/docs/schemas/projects.schema.json`
+- `registry.json` (actual component registry)
+- Commit: 86ba7ce
 
 ### Wave 2: Setup
 
-*To be filled when Wave 1 completes*
+**Timestamp:** 2026-01-15
+
+- [x] COLLABORATE-0001 created for A4 (project-new updates)
+- [x] COLLABORATE-0002 created for A5 (project-update --init)
+- [ ] Agents launched via `./tools/dispatch-collaborations`
 
 ### Wave 2: Completion
 
-*To be filled as work completes*
+*Waiting for agents to complete tasks*
 
 ---
 
