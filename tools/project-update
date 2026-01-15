@@ -51,6 +51,7 @@ verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 AGENCY_DIR="$PROJECT_ROOT/.agency"
 VERSION_FILE="$AGENCY_DIR/version.json"
+MANIFEST_FILE="$AGENCY_DIR/manifest.json"
 
 # Default source (GitHub)
 STARTER_SOURCE=""
@@ -269,22 +270,29 @@ status_mode() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
-# Init mode: Initialize version tracking for existing project
+# Init mode: Initialize manifest for existing project
 init_mode() {
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}  Initializing Version Tracking${NC}"
+    echo -e "${BLUE}  Initializing Project Manifest${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
     # Check if already initialized
-    if [[ -f "$VERSION_FILE" ]]; then
-        echo -e "${YELLOW}Version tracking already initialized.${NC}"
+    if [[ -f "$MANIFEST_FILE" ]]; then
+        echo -e "${YELLOW}Manifest already exists.${NC}"
         echo ""
         echo -e "Current version: ${GREEN}$(get_project_version)${NC}"
         echo ""
-        echo "To re-initialize, remove $AGENCY_DIR and run again."
+        echo "To re-initialize, remove $MANIFEST_FILE and run again."
         exit 0
+    fi
+
+    # Require --from for init mode (need starter to read registry.json)
+    if [[ -z "$STARTER_SOURCE" ]]; then
+        echo -e "${YELLOW}Warning: No starter source specified.${NC}"
+        echo "For full manifest with components, use: --init --from=/path/to/starter"
+        echo ""
     fi
 
     # Create .agency directory
@@ -298,55 +306,228 @@ init_mode() {
         starter_version=$(cat "$PROJECT_ROOT/VERSION" | tr -d '[:space:]')
     fi
 
-    local source_ref="github:the-agency-ai/the-agency-starter"
-    if [[ -n "$STARTER_SOURCE" ]]; then
-        source_ref="local:$STARTER_SOURCE"
+    local source_type="local"
+    local source_path="$STARTER_SOURCE"
+    if [[ -z "$STARTER_SOURCE" ]]; then
+        source_type="github"
+        source_path=""
     fi
 
     local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local project_name=$(basename "$PROJECT_ROOT")
 
-    # Calculate hashes for updatable files
-    echo "Calculating file hashes..."
-    local files_json="{"
-    local first=true
+    echo "Building manifest..."
 
-    # Find all updatable files
-    while IFS= read -r -d '' file; do
-        local rel_path="${file#$PROJECT_ROOT/}"
+    # Build components JSON from registry.json if available
+    local components_json="{}"
+    if [[ -n "$STARTER_SOURCE" ]] && [[ -f "$STARTER_SOURCE/registry.json" ]]; then
+        echo "  Reading components from registry.json..."
+        components_json=$(python3 << EOF
+import json
+import os
+
+with open("$STARTER_SOURCE/registry.json", 'r') as f:
+    data = json.load(f)
+
+project_root = "$PROJECT_ROOT"
+now = "$now"
+components = {}
+
+for name, info in data.get('components', {}).items():
+    # Check if component files exist in the project
+    files = info.get('files', [])
+    exists = False
+    for pattern in files:
+        # Simple existence check (not full glob)
+        base_path = pattern.split('*')[0].rstrip('/')
+        if os.path.exists(os.path.join(project_root, base_path)):
+            exists = True
+            break
+
+    if exists:
+        components[name] = {
+            'version': info.get('version', 'unknown'),
+            'status': 'installed',
+            'dependencies': 'pending' if info.get('install_hook') else 'none',
+            'installed_at': now
+        }
+
+print(json.dumps(components, indent=4))
+EOF
+)
+    fi
+
+    # Calculate file hashes
+    echo "  Calculating file hashes..."
+    local files_json=$(python3 << EOF
+import json
+import hashlib
+import os
+
+project_root = "$PROJECT_ROOT"
+starter_version = "$starter_version"
+starter_source = "$STARTER_SOURCE"
+
+protected_patterns = [
+    "tools/local/",
+    "claude/agents/local/",
+    "claude/knowledge/local/",
+    "claude/docs/local/",
+    "claude/principals/",
+    "claude/workstreams/*/sprints/",
+    ".agency/",
+    ".git/"
+]
+
+def is_protected(path):
+    for pattern in protected_patterns:
+        if pattern.endswith('/'):
+            if path.startswith(pattern) or ('/' + pattern) in ('/' + path):
+                return True
+        elif '*' in pattern:
+            import fnmatch
+            if fnmatch.fnmatch(path, pattern):
+                return True
+        elif path == pattern or path.endswith('/' + pattern):
+            return True
+    return False
+
+def file_hash(filepath):
+    try:
+        with open(filepath, 'rb') as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except:
+        return None
+
+def get_starter_hash(rel_path):
+    if not starter_source:
+        return None
+    starter_file = os.path.join(starter_source, rel_path)
+    if os.path.exists(starter_file):
+        return file_hash(starter_file)
+    return None
+
+files = {}
+for root, dirs, filenames in os.walk(project_root):
+    # Skip .git and node_modules
+    dirs[:] = [d for d in dirs if d not in ['.git', 'node_modules', '.next', 'target', 'dist']]
+
+    for filename in filenames:
+        filepath = os.path.join(root, filename)
+        rel_path = os.path.relpath(filepath, project_root)
 
         # Skip protected paths
-        if is_protected "$rel_path"; then
+        if is_protected(rel_path):
             continue
-        fi
 
-        local hash=$(file_hash "$file")
-        if [[ -n "$hash" ]]; then
-            if [[ "$first" != true ]]; then
-                files_json+=","
-            fi
-            first=false
-            files_json+="\"$rel_path\":{\"hash\":\"$hash\",\"version\":\"$starter_version\",\"modified\":false}"
-        fi
-    done < <(find "$PROJECT_ROOT/tools" "$PROJECT_ROOT/claude" -type f -print0 2>/dev/null)
+        # Only track claude/ and tools/ directories
+        if not (rel_path.startswith('claude/') or rel_path.startswith('tools/')):
+            continue
 
-    files_json+="}"
+        current_hash = file_hash(filepath)
+        if current_hash:
+            starter_hash = get_starter_hash(rel_path)
+            modified = False
+            if starter_hash and starter_hash != current_hash:
+                modified = True
 
-    # Write version.json
-    cat > "$VERSION_FILE" << EOF
-{
-  "starter_version": "$starter_version",
-  "installed_at": "$now",
-  "last_updated": "$now",
-  "source": "$source_ref",
-  "files": $files_json
+            files[rel_path] = {
+                'hash': current_hash,
+                'version': starter_version,
+                'modified': modified
+            }
+
+print(json.dumps(files, indent=4, sort_keys=True))
+EOF
+)
+
+    # Build source JSON
+    local source_json=""
+    if [[ "$source_type" == "local" ]]; then
+        source_json="{\"type\": \"local\", \"path\": \"$source_path\"}"
+    else
+        source_json="{\"type\": \"github\", \"repo\": \"the-agency-ai/the-agency-starter\"}"
+    fi
+
+    # Write manifest.json
+    python3 << EOF
+import json
+
+# Parse JSON strings (they contain lowercase true/false which aren't Python literals)
+source_data = json.loads('$source_json')
+components_data = json.loads('''$components_json''')
+files_data = json.loads('''$files_json''')
+
+manifest = {
+    "schema_version": "1.0",
+    "project": {
+        "name": "$project_name",
+        "created_at": "$now",
+        "starter_version": "$starter_version"
+    },
+    "source": source_data,
+    "components": components_data,
+    "files": files_data
 }
+
+with open("$MANIFEST_FILE", 'w') as f:
+    json.dump(manifest, f, indent=2)
 EOF
 
+    echo "  Manifest created: $MANIFEST_FILE"
+
+    # Register in starter's projects.json if --from specified
+    if [[ -n "$STARTER_SOURCE" ]]; then
+        echo "  Registering project in starter..."
+        local starter_projects_file="$STARTER_SOURCE/.agency/projects.json"
+        mkdir -p "$STARTER_SOURCE/.agency"
+
+        python3 << EOF
+import json
+import os
+
+projects_file = "$starter_projects_file"
+
+# Create or load projects.json
+if os.path.exists(projects_file):
+    with open(projects_file, 'r') as f:
+        data = json.load(f)
+else:
+    data = {"schema_version": "1.0", "projects": []}
+
+# Check if project already registered
+project_path = "$PROJECT_ROOT"
+already_registered = any(p.get('path') == project_path for p in data.get('projects', []))
+
+if not already_registered:
+    new_project = {
+        "name": "$project_name",
+        "path": project_path,
+        "created_at": "$now",
+        "starter_version": "$starter_version",
+        "status": "current"
+    }
+    data['projects'].append(new_project)
+
+    with open(projects_file, 'w') as f:
+        json.dump(data, f, indent=2)
+    print("  Project registered in starter")
+else:
+    print("  Project already registered in starter")
+EOF
+    fi
+
+    # Count files and components
+    local file_count=$(python3 -c "import json; print(len(json.load(open('$MANIFEST_FILE')).get('files', {})))" 2>/dev/null || echo "0")
+    local component_count=$(python3 -c "import json; print(len(json.load(open('$MANIFEST_FILE')).get('components', {})))" 2>/dev/null || echo "0")
+
     echo ""
-    echo -e "${GREEN}Version tracking initialized!${NC}"
+    echo -e "${GREEN}Manifest initialized!${NC}"
     echo ""
-    echo -e "  Version:  ${GREEN}$starter_version${NC}"
-    echo -e "  Source:   $source_ref"
+    echo -e "  Project:    ${GREEN}$project_name${NC}"
+    echo -e "  Version:    ${GREEN}$starter_version${NC}"
+    echo -e "  Components: ${GREEN}$component_count${NC}"
+    echo -e "  Files:      ${GREEN}$file_count${NC}"
     echo ""
     echo "Run ./tools/project-update --status to see details."
     echo ""
