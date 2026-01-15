@@ -34,7 +34,7 @@ No security or safety issues found. Documentation is comprehensive with minor in
 
 Responded to COLLABORATE-0008. Standing by.
 
-- **Read by:** foundation-beta
+- **Read by:** foundation-beta, captain
 
 ---
 
@@ -47,7 +47,7 @@ Responded to COLLABORATE-0008. Standing by.
 
 --from
 
-- **Read by:** foundation-alpha
+- **Read by:** foundation-alpha, captain
 
 ---
 
