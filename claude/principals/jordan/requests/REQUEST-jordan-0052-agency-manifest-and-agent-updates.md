@@ -635,51 +635,200 @@ check_services() {
 
 ## Implementation Phases
 
-### Phase 1: Foundation
-- [ ] Create manifest schema (`.agency/manifest.json`)
-- [ ] Create registry schema (`registry.json` in starter)
-- [ ] Create project registry (`.agency/projects.json` in starter)
-- [ ] Update `project-new` to generate manifest and register project
-- [ ] Add `--init` to generate manifest for existing projects
-- [ ] Add service check to `myclaude`
+### Design Decisions (Resolved)
 
-### Phase 2: The Hub
-- [ ] Create `./agency` command in the-agency-starter
-- [ ] Create Hub Agent (`claude/agents/hub/`)
-- [ ] Hub Agent: starter update capability (git pull, conflict handling)
-- [ ] Hub Agent: project listing and status
-- [ ] Hub Agent: project creation via `project-new`
-- [ ] Hub Agent: launch into project (open terminal + myclaude)
+| Question | Decision |
+|----------|----------|
+| Terminal launching | macOS + iTerm2 only (for now) |
+| Manifest trust | Trust but verify; pre-update alerts for issues |
+| Project discovery | Only registered projects (local registry, .gitignored) |
+| GitHub integration | Use `anthropics/claude-code-action` official action |
 
-### Phase 3: Agent-Friendly Updates
-- [ ] Add `--check --json` for agent consumption
-- [ ] Add `--apply --component=X` for targeted updates
-- [ ] Add install/post-install hook execution
-- [ ] Hub Agent: batch update all projects
-- [ ] Manifest auto-update on changes
+### Phase A: Foundation ⚡ (Parallelizable)
 
-### Phase 4: Starter Packs Integration
-- [ ] Track applied packs in manifest
-- [ ] Add `--pack` command for applying packs
-- [ ] Hub Agent: recommend packs based on project type
-- [ ] Dependency resolution for packs
+Core infrastructure that everything else builds on.
 
-### Phase 5: Full Automation
-- [ ] Captain checks for updates on session start
-- [ ] Captain applies minor/patch updates automatically
-- [ ] Captain reports major updates to principal
-- [ ] Hub Agent: scheduled health checks across projects
-- [ ] Hub Agent: cross-project insights ("3 projects have outdated deps")
+| Task | Description | Parallel? |
+|------|-------------|-----------|
+| A1 | Create manifest schema (`.agency/manifest.json`) | ✓ |
+| A2 | Create registry schema (`registry.json` in starter) | ✓ |
+| A3 | Create project registry (`.agency/projects.json`, local, gitignored) | ✓ |
+| A4 | Update `project-new` to generate manifest + register project | After A1, A3 |
+| A5 | Add `--init` to project-update for existing projects | After A1 |
+| A6 | Add service check to `myclaude` | ✓ |
 
-### Phase 6: Contribution Flow
-- [ ] Hub Agent: detect modified framework files
-- [ ] Hub Agent: create upstream PRs (fork, branch, commit, PR)
-- [ ] Hub Agent: track open contributions
-- [ ] Hub Agent: address reviewer feedback
-- [ ] Reviewer Agent: automated PR review on the-agency
-- [ ] Reviewer Agent: code quality, tests, docs checks
-- [ ] Merger Agent: final checks and merge
-- [ ] CI integration: trigger agents on PR events
+**Parallelization:** A1, A2, A3, A6 can be done simultaneously by multiple agents.
+
+### Phase B: Hub Core
+
+The Hub Agent - centerpiece of the system.
+
+| Task | Description | Depends On |
+|------|-------------|------------|
+| B1 | Create `./agency` command | - |
+| B2 | Create Hub Agent (`claude/agents/hub/agent.md`, `KNOWLEDGE.md`) | - |
+| B3 | Hub: update starter (git fetch/pull, conflict handling) | B1, B2 |
+| B4 | Hub: list projects + show status | B1, B2, A3 |
+| B5 | Hub: "what's new" (read CHANGELOG, show updates) | B1, B2 |
+
+**Parallelization:** B1 and B2 can be done in parallel.
+
+### Phase C: Project Operations
+
+Creating and updating projects through the Hub.
+
+| Task | Description | Depends On |
+|------|-------------|------------|
+| C1 | Hub: create project (runs project-new, registers) | B2, A4 |
+| C2 | Hub: update single project | B2, A5 |
+| C3 | Hub: batch update all projects | C2 |
+| C4 | Pre-update verification (check git status, flag modified files) | C2 |
+| C5 | `--check --json` for agent consumption | A1 |
+
+**Parallelization:** C5 can be done alongside C1-C4.
+
+### Phase D: Terminal Integration
+
+macOS + iTerm2 specific.
+
+| Task | Description | Depends On |
+|------|-------------|------------|
+| D1 | Hub: "launch into project" (open iTerm tab, cd, myclaude) | B2 |
+| D2 | Tab naming/coloring for launched projects | D1 |
+
+### Phase E: Contributor Flow (MVCF)
+
+Minimally Viable Contributor Flow using Claude Code GitHub Actions.
+
+| Task | Description | Depends On |
+|------|-------------|------------|
+| E1 | Add `anthropics/claude-code-action` to the-agency repo | - |
+| E2 | Create Reviewer Agent workflow (triggered on PR) | E1 |
+| E3 | Hub: detect modified framework files | B2, A1 |
+| E4 | Hub: create upstream PR (fork, branch, commit, PR via `gh`) | E3 |
+| E5 | Hub: check PR status | E4 |
+| E6 | Merger Agent workflow (triggered on approval) | E1 |
+
+**Note:** E1 and E2 can start immediately (independent of Hub).
+
+### Phase F: Enhancements (Future)
+
+Not in MVH scope, but documented for later.
+
+| Task | Description |
+|------|-------------|
+| F1 | Captain auto-checks for updates on session start |
+| F2 | Captain auto-applies minor/patch updates |
+| F3 | Starter pack tracking in manifest |
+| F4 | Hub: recommend starter packs |
+| F5 | Cross-project health insights |
+| F6 | Linux/Windows terminal support |
+
+---
+
+## Parallelization Strategy
+
+```
+                    ┌─────────────────────────────────────────┐
+                    │           PHASE A (Foundation)          │
+                    │                                         │
+  Agent 1:          │  A1: Manifest Schema                    │
+  Agent 2:          │  A2: Registry Schema                    │
+  Agent 3:          │  A3: Project Registry                   │
+  Agent 4:          │  A6: myclaude Service Check             │
+                    │                                         │
+                    │        ↓ (A1, A3 complete)              │
+                    │                                         │
+  Agent 1:          │  A4: Update project-new                 │
+  Agent 2:          │  A5: Add --init to project-update       │
+                    └─────────────────────────────────────────┘
+                                      │
+                                      ▼
+                    ┌─────────────────────────────────────────┐
+                    │           PHASE B (Hub Core)            │
+                    │                                         │
+  Agent 1:          │  B1: ./agency command                   │
+  Agent 2:          │  B2: Hub Agent creation                 │
+                    │                                         │
+                    │        ↓ (B1, B2 complete)              │
+                    │                                         │
+  Agent 1:          │  B3: Update starter                     │
+  Agent 2:          │  B4: List projects                      │
+  Agent 3:          │  B5: What's new                         │
+                    └─────────────────────────────────────────┘
+                                      │
+                    ┌─────────────────┴─────────────────┐
+                    │                                   │
+                    ▼                                   ▼
+  ┌─────────────────────────────┐     ┌─────────────────────────────┐
+  │    PHASE C (Projects)       │     │    PHASE E (Contributor)    │
+  │                             │     │                             │
+  │  C1: Create project         │     │  E1: GitHub Action setup    │
+  │  C2: Update project         │     │  E2: Reviewer workflow      │
+  │  C3: Batch update           │     │  (can start early!)         │
+  │  C4: Pre-update verify      │     │                             │
+  └─────────────────────────────┘     └─────────────────────────────┘
+                    │                                   │
+                    ▼                                   ▼
+  ┌─────────────────────────────┐     ┌─────────────────────────────┐
+  │    PHASE D (Terminal)       │     │  E3-E6: Hub PR creation     │
+  │                             │     │                             │
+  │  D1: Launch into project    │     │                             │
+  │  D2: Tab naming             │     │                             │
+  └─────────────────────────────┘     └─────────────────────────────┘
+```
+
+**Key Insight:** Phase E (E1, E2) can start in parallel with Phase B since it's independent infrastructure work on the-agency repo.
+
+---
+
+## GitHub Actions Integration
+
+Claude Code has official GitHub Actions support via `anthropics/claude-code-action`:
+
+**Setup:**
+```yaml
+name: Claude Code
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  claude:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Capabilities:**
+- @claude mentions in PRs/issues trigger Claude
+- Can analyze code, suggest improvements, implement fixes
+- Can create commits and push changes
+- Respects CLAUDE.md in repository root
+
+**For Reviewer Agent:**
+- Trigger on `pull_request: [opened, synchronize]`
+- Claude reviews changes, posts feedback
+- Can request changes or approve
+
+**For Merger Agent:**
+- Trigger on `pull_request_review: [submitted]` where review is approval
+- Run final checks, merge if passing
+
+**Documentation:**
+- [Official Docs](https://code.claude.com/docs/en/github-actions)
+- [GitHub Repo](https://github.com/anthropics/claude-code-action)
+- [Marketplace](https://github.com/marketplace/actions/claude-code-action-official)
 
 ---
 
@@ -1377,11 +1526,22 @@ Advanced features (launch into project, contributions) can come later.
 - Added 2 more edge cases (EC-17, EC-18)
 - Updated implementation phases (now 5 phases including Hub)
 - Added "One Install, All Agent" principle
-- **Added Upstream Contribution Flow**
+- Added Upstream Contribution Flow
   - Hub Agent creates PRs for user improvements
   - Reviewer Agent evaluates incoming PRs
   - Merger Agent handles final merge
   - Full contribution lifecycle is agent-driven
-- **Added Phase 6: Contribution Flow**
-- **Added 3 contribution commands** to Hub Agent
-- **Added principle: "Agents All The Way"**
+- Added Phase 6: Contribution Flow
+- Added 3 contribution commands to Hub Agent
+- Added principle: "Agents All The Way"
+- **Restructured into Phases A-F** with clear dependencies
+- **Added parallelization strategy** with diagram
+- **Resolved design decisions:**
+  - macOS + iTerm2 only (for now)
+  - Trust but verify manifest
+  - Only registered projects
+  - Use `anthropics/claude-code-action`
+- **Added GitHub Actions integration docs**
+- **Identified parallel work opportunities:**
+  - Phase A: 4 tasks can run in parallel
+  - Phase E (E1, E2) can start alongside Phase B
