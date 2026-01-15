@@ -17,3 +17,11 @@ Use `./tools/nit-resolve AGENTNIT-#### "Resolution"` to resolve nits.
 - **Status:** Open
 - **Reported by:** captain
 - **Date:** 2026-01-15
+
+### Agents need a mechanism to check for messages/updates at suitable points during work. Options: (1) Periodic check every N tool calls, (2) Check before committing, (3) news-read integration, (4) Polling loop. Related to AGENTNIT-0001.
+
+**AGENTNIT-0002:** --tag
+
+- **Status:** Open
+- **Reported by:** captain
+- **Date:** 2026-01-15
