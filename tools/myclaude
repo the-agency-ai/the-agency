@@ -17,7 +17,7 @@
 set -e
 
 # Tool version
-TOOL_VERSION="1.1.0-20260114-000001"
+TOOL_VERSION="1.2.0-20260115-000001"
 
 # Source log helper for tool tracking
 SCRIPT_DIR_EARLY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,6 +41,90 @@ log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || 
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
 log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
 verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Check if required services are ready
+# Returns: 0 if all services ready, 1 if user declined setup
+check_services() {
+    local project_root="$1"
+    local service_dir="$project_root/source/services/agency-service"
+    local bun_path="${HOME}/.bun/bin/bun"
+    local service_url="http://127.0.0.1:3141"
+
+    log_step "Checking Agency Service..."
+
+    # 1. Check if service directory exists
+    if [[ ! -d "$service_dir" ]]; then
+        log_info "Agency Service directory not found - skipping service check"
+        return 0
+    fi
+
+    # 2. Check if Bun is installed
+    if [[ ! -x "$bun_path" ]]; then
+        echo -e "${YELLOW}Bun runtime not found.${NC}"
+        echo "The Agency Service requires Bun to run."
+        echo ""
+        read -p "Install Bun now? [y/N] " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Installing Bun..."
+            curl -fsSL https://bun.sh/install | bash
+            export PATH="$HOME/.bun/bin:$PATH"
+            bun_path="${HOME}/.bun/bin/bun"
+        else
+            log_warn "Skipping Bun installation - some features may not work"
+            return 0
+        fi
+    fi
+
+    # 3. Check if dependencies are installed
+    if [[ ! -d "$service_dir/node_modules" ]]; then
+        echo -e "${YELLOW}Agency Service dependencies not installed.${NC}"
+        echo ""
+        read -p "Install dependencies now? (pnpm install) [y/N] " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Installing dependencies..."
+            cd "$service_dir"
+            "$bun_path" install
+            cd "$project_root"
+            log_info "Dependencies installed"
+        else
+            log_warn "Skipping dependency installation - some features may not work"
+            return 0
+        fi
+    fi
+
+    # 4. Check if service is running
+    if curl -s --connect-timeout 1 "$service_url/health" > /dev/null 2>&1; then
+        log_info "Agency Service is running"
+        return 0
+    fi
+
+    # Service not running - offer to start it
+    echo -e "${YELLOW}Agency Service is not running.${NC}"
+    echo "This service provides logging, messaging, and other features."
+    echo ""
+    read -p "Start Agency Service now? [Y/n] " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        log_info "Starting Agency Service..."
+        if [[ -x "$project_root/tools/agency-service" ]]; then
+            "$project_root/tools/agency-service" start > /dev/null 2>&1 || true
+            sleep 1
+            if curl -s --connect-timeout 1 "$service_url/health" > /dev/null 2>&1; then
+                log_info "Agency Service started"
+            else
+                log_warn "Failed to start Agency Service - continuing anyway"
+            fi
+        else
+            log_warn "Agency Service tool not found"
+        fi
+    else
+        log_info "Skipping service start"
+    fi
+
+    return 0
+}
 
 # Get project root (where this script lives)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -174,14 +258,8 @@ main() {
         export PRINCIPAL="$PRINCIPAL"
     fi
 
-    # Start Agency Service if not running (provides Secret Service, Log Service, etc.)
-    if [ -x "$PROJECT_ROOT/tools/agency-service" ]; then
-        if ! curl -s --connect-timeout 1 "http://127.0.0.1:3141/health" > /dev/null 2>&1; then
-            log_info "Starting Agency Service..."
-            "$PROJECT_ROOT/tools/agency-service" start > /dev/null 2>&1 || true
-            sleep 1  # Give service time to start
-        fi
-    fi
+    # Check and start required services (Agency Service provides Secret Service, Log Service, etc.)
+    check_services "$PROJECT_ROOT"
 
     # Set up vault session token for Claude Code to access secrets
     if [ -x "$PROJECT_ROOT/tools/secret" ]; then
