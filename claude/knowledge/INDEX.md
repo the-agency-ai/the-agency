@@ -12,11 +12,20 @@ The knowledge base contains reusable patterns, guidelines, and reference materia
 
 ## Contents
 
-| Directory | Purpose | When to Use |
-|-----------|---------|-------------|
+| Directory/File | Purpose | When to Use |
+|----------------|---------|-------------|
 | `claude-code/` | Claude Code patterns and conventions | Working with Claude Code features |
 | `ui-development/` | UI implementation patterns | Implementing user interfaces |
 | `design-systems/` | Design system documentation | Working with design tokens and specs |
+
+### Claude Code Agent Integration
+
+| File | Purpose |
+|------|---------|
+| `claude-code-startup-behavior.md` | SessionStart hook limitations, why agents can't auto-respond |
+| `claude-code-periodic-message-checks.md` | How to coordinate multiple Claude Code instances via messages |
+
+These documents capture research on Claude Code limitations and workarounds for multi-agent coordination.
 
 ---
 
