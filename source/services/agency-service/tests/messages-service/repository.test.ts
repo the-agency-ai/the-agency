@@ -341,4 +341,186 @@ describe('Message Repository', () => {
       expect(stats.today).toBe(3);
     });
   });
+
+  // Security Tests
+  describe('Security - SQL Injection Prevention', () => {
+    test('should handle SQL injection in fromName', async () => {
+      const maliciousName = "'; DROP TABLE messages;--";
+      const message = await repo.create({
+        fromType: 'agent',
+        fromName: maliciousName,
+        toType: 'agent',
+        toName: 'receiver',
+        content: 'Test content',
+      });
+
+      // Message should be created successfully with the literal string
+      expect(message.fromName).toBe(maliciousName);
+
+      // Database should still work
+      const found = await repo.findById(message.id);
+      expect(found).not.toBeNull();
+    });
+
+    test('should handle SQL injection in toName', async () => {
+      const maliciousName = "receiver' OR '1'='1";
+      const message = await repo.create({
+        fromType: 'agent',
+        fromName: 'sender',
+        toType: 'agent',
+        toName: maliciousName,
+        content: 'Test content',
+      });
+
+      expect(message.recipients[0].recipientName).toBe(maliciousName);
+    });
+
+    test('should handle SQL injection in content', async () => {
+      const maliciousContent = "Content'); DELETE FROM messages WHERE 1=1;--";
+      const message = await repo.create({
+        fromType: 'agent',
+        fromName: 'sender',
+        toType: 'agent',
+        toName: 'receiver',
+        content: maliciousContent,
+      });
+
+      expect(message.content).toBe(maliciousContent);
+
+      // Verify no data was deleted
+      const { total } = await repo.list({ limit: 50, offset: 0 });
+      expect(total).toBeGreaterThan(0);
+    });
+
+    test('should handle SQL injection in subject', async () => {
+      const maliciousSubject = "Subject' UNION SELECT * FROM users--";
+      const message = await repo.create({
+        fromType: 'agent',
+        fromName: 'sender',
+        toType: 'agent',
+        toName: 'receiver',
+        subject: maliciousSubject,
+        content: 'Test content',
+      });
+
+      expect(message.subject).toBe(maliciousSubject);
+    });
+
+    test('should handle SQL injection in list filters', async () => {
+      // Create a legitimate message first
+      await repo.create({
+        fromType: 'agent',
+        fromName: 'sender',
+        toType: 'agent',
+        toName: 'receiver',
+        content: 'Legitimate content',
+      });
+
+      // Try SQL injection in filter parameters
+      const result = await repo.list({
+        fromName: "' OR 1=1--",
+        limit: 50,
+        offset: 0,
+      });
+
+      // Should NOT return all messages due to injection
+      // Should either return 0 (exact match) or handle safely
+      expect(result.total).toBe(0);
+    });
+
+    test('should handle SQL injection in recipientName filter', async () => {
+      await repo.create({
+        fromType: 'agent',
+        fromName: 'sender',
+        toType: 'agent',
+        toName: 'receiver',
+        content: 'Test',
+      });
+
+      const result = await repo.list({
+        recipientName: "receiver' OR '1'='1",
+        recipientType: 'agent',
+        limit: 50,
+        offset: 0,
+      });
+
+      // Should NOT expose all messages
+      expect(result.total).toBe(0);
+    });
+
+    test('should handle SQL injection in getStats', async () => {
+      // This should not crash or expose data
+      const stats = await repo.getStats('agent', "test' OR '1'='1");
+      expect(stats.total).toBe(0);
+    });
+
+    test('should handle SQL injection in getInbox', async () => {
+      await repo.create({
+        fromType: 'agent',
+        fromName: 'sender',
+        toType: 'agent',
+        toName: 'receiver',
+        content: 'Test',
+      });
+
+      const inbox = await repo.getInbox('agent', "receiver' OR '1'='1");
+      // Should NOT return messages meant for 'receiver'
+      expect(inbox.length).toBe(0);
+    });
+  });
+
+  describe('Security - Edge Cases', () => {
+    test('should handle empty strings', async () => {
+      // Empty content should still work
+      const message = await repo.create({
+        fromType: 'agent',
+        fromName: 'sender',
+        toType: 'agent',
+        toName: 'receiver',
+        content: '',
+      });
+
+      expect(message.content).toBe('');
+    });
+
+    test('should handle very long content', async () => {
+      const longContent = 'x'.repeat(10000);
+      const message = await repo.create({
+        fromType: 'agent',
+        fromName: 'sender',
+        toType: 'agent',
+        toName: 'receiver',
+        content: longContent,
+      });
+
+      expect(message.content.length).toBe(10000);
+    });
+
+    test('should handle unicode characters', async () => {
+      const unicodeContent = '日本語 🎉 émoji تجربة';
+      const message = await repo.create({
+        fromType: 'agent',
+        fromName: 'sender',
+        toType: 'agent',
+        toName: 'receiver',
+        content: unicodeContent,
+      });
+
+      expect(message.content).toBe(unicodeContent);
+    });
+
+    test('should handle null bytes in content', async () => {
+      const contentWithNull = 'Before\x00After';
+      const message = await repo.create({
+        fromType: 'agent',
+        fromName: 'sender',
+        toType: 'agent',
+        toName: 'receiver',
+        content: contentWithNull,
+      });
+
+      // Should handle null bytes safely
+      expect(message.id).toBeGreaterThan(0);
+    });
+  });
 });

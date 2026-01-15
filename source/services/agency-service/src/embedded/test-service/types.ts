@@ -93,10 +93,19 @@ export interface TestResult {
 }
 
 /**
+ * Safe suite name pattern: alphanumeric, hyphens, underscores only
+ * Prevents path traversal and shell injection
+ */
+const safeSuitePattern = /^[a-zA-Z0-9_-]+$/;
+
+/**
  * Create test run request schema
  */
 export const createTestRunSchema = z.object({
-  suite: z.string().default('all'),
+  suite: z.string().default('all').refine(
+    (val) => safeSuitePattern.test(val) && !val.includes('..'),
+    { message: 'Suite name must be alphanumeric with hyphens/underscores only' }
+  ),
   triggeredByType: z.enum(['principal', 'agent', 'system', 'ci']).default('system'),
   triggeredByName: z.string().default('cli'),
   gitBranch: z.string().optional(),

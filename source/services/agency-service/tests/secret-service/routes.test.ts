@@ -680,12 +680,36 @@ describe('Secret Routes', () => {
         body: JSON.stringify({
           recoveryCode: codes[0],
           newPassphrase: 'new-passphrase-123',
+          confirmDataLoss: true, // Required to acknowledge data loss
         }),
       });
 
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.success).toBe(true);
+    });
+
+    test('POST /vault/recovery/use - should require confirmDataLoss', async () => {
+      const initRes = await app.request('/secret/vault/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passphrase: testPassphrase }),
+      });
+
+      const { codes } = await initRes.json();
+
+      const res = await app.request('/secret/vault/recovery/use', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recoveryCode: codes[0],
+          newPassphrase: 'new-passphrase-123',
+          // Missing confirmDataLoss - should be rejected by Zod validation
+        }),
+      });
+
+      // Should be rejected - either 400 from Zod validation (missing required field)
+      expect(res.status).toBe(400);
     });
 
     test('POST /vault/recovery/use - should reject invalid code', async () => {
@@ -701,6 +725,7 @@ describe('Secret Routes', () => {
         body: JSON.stringify({
           recoveryCode: 'FAKE-CODE-1234-5678',
           newPassphrase: 'new-passphrase-123',
+          confirmDataLoss: true,
         }),
       });
 
