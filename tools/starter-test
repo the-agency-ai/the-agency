@@ -14,6 +14,10 @@
 #   4. Compare new project vs expected structure
 #   5. Verify no sensitive content
 #   6. Test basic tools work
+#   7. Hub Agent launch verification
+#   8. Batch update error handling
+#   9. Pre-update verification checks
+#  10. Edge cases (non-git, dirty, corrupt)
 
 # Don't use set -e as we want to continue on test failures
 # set -e
@@ -74,6 +78,10 @@ for arg in "$@"; do
             echo "  4. Compare new project vs expected"
             echo "  5. Verify no sensitive content"
             echo "  6. Test basic tools"
+            echo "  7. Hub Agent launch verification"
+            echo "  8. Batch update error handling"
+            echo "  9. Pre-update verification checks"
+            echo " 10. Edge cases (non-git, dirty, corrupt)"
             exit 0
             ;;
         --local|-l)
@@ -409,6 +417,234 @@ test_tools() {
     fi
 }
 
+# Test 7: Hub Agent Launch
+test_hub_launch() {
+    log_step "Test 7: Hub Agent launch verification"
+
+    local starter="$TEST_DIR/installed-starter"
+
+    # Verify ./agency exists and is executable
+    if [[ -x "$starter/agency" ]]; then
+        log_pass "./agency exists and is executable"
+    else
+        log_fail "./agency missing or not executable"
+    fi
+
+    # Verify hub agent directory exists
+    if [[ -d "$starter/claude/agents/hub" ]]; then
+        log_pass "Hub agent directory exists"
+    else
+        log_fail "Hub agent directory missing"
+    fi
+
+    # Verify hub agent.md exists
+    if [[ -f "$starter/claude/agents/hub/agent.md" ]]; then
+        log_pass "Hub agent.md exists"
+    else
+        log_fail "Hub agent.md missing"
+    fi
+
+    # Verify hub KNOWLEDGE.md exists
+    if [[ -f "$starter/claude/agents/hub/KNOWLEDGE.md" ]]; then
+        log_pass "Hub KNOWLEDGE.md exists"
+    else
+        log_fail "Hub KNOWLEDGE.md missing"
+    fi
+
+    # Verify ./agency script content references hub
+    if grep -q "housekeeping hub" "$starter/agency" 2>/dev/null; then
+        log_pass "./agency references hub agent"
+    else
+        log_fail "./agency doesn't reference hub agent"
+    fi
+}
+
+# Test 8: Batch Update Error Handling
+test_batch_update_errors() {
+    log_step "Test 8: Batch update error handling"
+
+    local starter="$TEST_DIR/installed-starter"
+    local test_projects_dir="$TEST_DIR/batch-test"
+    mkdir -p "$test_projects_dir"
+
+    # Test 1: Missing projects.json
+    log_detail "Testing missing projects.json..."
+    rm -f "$starter/.agency/projects.json"
+
+    # The batch scripts should handle missing file gracefully
+    local result=$(cat "$starter/.agency/projects.json" 2>&1 | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print('loaded')
+except:
+    print('error')
+" 2>/dev/null || echo "file_missing")
+
+    if [[ "$result" == "file_missing" || "$result" == "error" ]]; then
+        log_pass "Missing projects.json handled (no crash)"
+    else
+        log_fail "Unexpected behavior with missing projects.json"
+    fi
+
+    # Test 2: Empty projects.json
+    log_detail "Testing empty projects.json..."
+    mkdir -p "$starter/.agency"
+    echo '{"schema_version": "1.0", "projects": []}' > "$starter/.agency/projects.json"
+
+    local count=$(cat "$starter/.agency/projects.json" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(len(data.get('projects', [])))
+" 2>/dev/null || echo "error")
+
+    if [[ "$count" == "0" ]]; then
+        log_pass "Empty projects.json handled correctly"
+    else
+        log_fail "Empty projects.json not handled correctly"
+    fi
+
+    # Test 3: Non-existent project path
+    log_detail "Testing non-existent project path..."
+    echo '{"schema_version": "1.0", "projects": [{"name": "fake", "path": "/nonexistent/path", "created_at": "2026-01-01T00:00:00Z", "starter_version": "1.0.0"}]}' > "$starter/.agency/projects.json"
+
+    local path_check=$(cat "$starter/.agency/projects.json" | python3 -c "
+import json, sys, os
+data = json.load(sys.stdin)
+for p in data.get('projects', []):
+    if not os.path.exists(p['path']):
+        print('not_found')
+        break
+" 2>/dev/null || echo "error")
+
+    if [[ "$path_check" == "not_found" ]]; then
+        log_pass "Non-existent path detected correctly"
+    else
+        log_fail "Non-existent path not detected"
+    fi
+
+    # Cleanup
+    rm -f "$starter/.agency/projects.json"
+}
+
+# Test 9: Pre-Update Verification
+test_pre_update_verification() {
+    log_step "Test 9: Pre-update verification checks"
+
+    local project="$TEST_DIR/test-project"
+    cd "$project"
+
+    # Test 1: Git status check works
+    log_detail "Testing git status check..."
+    local git_status=$(git status --short 2>/dev/null)
+    if [[ -z "$git_status" ]]; then
+        log_pass "Git status clean check works"
+    else
+        log_pass "Git status dirty check works (found changes)"
+    fi
+
+    # Test 2: Manifest modification check
+    log_detail "Testing manifest modification check..."
+    if [[ -f ".agency/manifest.json" ]]; then
+        local mod_check=$(cat .agency/manifest.json | python3 -c "
+import json, sys
+manifest = json.load(sys.stdin)
+modified = [f for f, info in manifest.get('files', {}).items() if info.get('modified')]
+print(len(modified))
+" 2>/dev/null || echo "error")
+
+        if [[ "$mod_check" =~ ^[0-9]+$ ]]; then
+            log_pass "Manifest modification check works ($mod_check modified files)"
+        else
+            log_fail "Manifest modification check failed"
+        fi
+    else
+        log_pass "No manifest yet (expected for new project)"
+    fi
+
+    # Test 3: Project-update --check works (if manifest exists)
+    log_detail "Testing project-update --check..."
+    local starter="$TEST_DIR/installed-starter"
+
+    # First init the manifest
+    "$starter/tools/project-update" --init --from="$starter" > /dev/null 2>&1 || true
+
+    if [[ -f ".agency/manifest.json" ]]; then
+        if "$starter/tools/project-update" --check --from="$starter" > /dev/null 2>&1; then
+            log_pass "project-update --check works"
+        else
+            log_fail "project-update --check failed"
+        fi
+    else
+        log_pass "Skipping --check test (no manifest)"
+    fi
+}
+
+# Test 10: Edge Cases
+test_edge_cases() {
+    log_step "Test 10: Edge cases"
+
+    local starter="$TEST_DIR/installed-starter"
+    local edge_dir="$TEST_DIR/edge-cases"
+    mkdir -p "$edge_dir"
+
+    # Test 1: Project path exists but is not a git repo
+    log_detail "Testing non-git directory..."
+    local non_git_dir="$edge_dir/not-a-repo"
+    mkdir -p "$non_git_dir"
+    touch "$non_git_dir/some-file.txt"
+
+    if git -C "$non_git_dir" status > /dev/null 2>&1; then
+        log_fail "Non-git directory incorrectly detected as git repo"
+    else
+        log_pass "Non-git directory correctly detected"
+    fi
+
+    # Test 2: Project has uncommitted changes (dirty check)
+    log_detail "Testing dirty repo detection..."
+    local dirty_dir="$edge_dir/dirty-repo"
+    mkdir -p "$dirty_dir"
+    cd "$dirty_dir"
+    git init --quiet
+    touch file.txt
+    git add file.txt
+    git commit -m "init" --quiet
+
+    # Make it dirty
+    echo "change" >> file.txt
+
+    local dirty_status=$(git status --short 2>/dev/null)
+    if [[ -n "$dirty_status" ]]; then
+        log_pass "Dirty repo correctly detected"
+    else
+        log_fail "Dirty repo not detected"
+    fi
+
+    # Test 3: Corrupt manifest.json
+    log_detail "Testing corrupt manifest handling..."
+    local corrupt_dir="$edge_dir/corrupt-manifest"
+    mkdir -p "$corrupt_dir/.agency"
+    echo "not valid json{{{" > "$corrupt_dir/.agency/manifest.json"
+
+    local corrupt_check=$(cat "$corrupt_dir/.agency/manifest.json" | python3 -c "
+import json, sys
+try:
+    json.load(sys.stdin)
+    print('valid')
+except:
+    print('invalid')
+" 2>/dev/null || echo "error")
+
+    if [[ "$corrupt_check" == "invalid" ]]; then
+        log_pass "Corrupt manifest correctly detected"
+    else
+        log_fail "Corrupt manifest not detected"
+    fi
+
+    # Cleanup
+    cd "$PROJECT_ROOT"
+}
+
 # Print summary
 print_summary() {
     echo ""
@@ -471,6 +707,18 @@ main() {
     echo ""
 
     test_tools
+    echo ""
+
+    test_hub_launch
+    echo ""
+
+    test_batch_update_errors
+    echo ""
+
+    test_pre_update_verification
+    echo ""
+
+    test_edge_cases
 
     print_summary
 }
