@@ -247,6 +247,7 @@ check_services() {
 ### Phase 1: Foundation
 - [ ] Create manifest schema
 - [ ] Create registry schema
+- [ ] Create `./update` script in the-agency-starter
 - [ ] Update `project-new` to generate manifest
 - [ ] Add `--init` to generate manifest for existing projects
 - [ ] Add service check to `myclaude`
@@ -292,16 +293,29 @@ check_services() {
 
 ## User Flow: The Happy Path
 
-### Step 1: User Downloads the-agency-starter
+### Step 1: User Installs The Agency Starter
 
+```bash
+curl -fsSL https://the-agency.ai/install | bash
+```
+
+Or manually:
 ```bash
 git clone https://github.com/the-agency-ai/the-agency-starter.git
 cd the-agency-starter
+./install
 ```
 
-**What exists:**
+**What the installer does:**
+1. Clones the repo (if using curl)
+2. Checks prerequisites (Node.js, pnpm, Claude Code)
+3. Sets up the starter environment
+4. Configures shell aliases (optional)
+
+**What exists after install:**
 - `registry.json` - defines available components
 - `VERSION` - current starter version (e.g., "1.0.9")
+- `./update` - script to update the starter itself
 - All framework files, tools, services
 
 ### Step 2: User Creates Their Project
@@ -375,7 +389,41 @@ New features:
 
 ```bash
 cd ~/the-agency-starter
-git pull
+./update
+```
+
+**What the update script does:**
+1. Fetches latest from GitHub
+2. Shows what's new (changelog summary)
+3. Pulls changes (handles merge if needed)
+4. Updates VERSION file
+5. Shows which projects can be updated
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  The Agency Starter - Update                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Current version: 1.0.9                                     │
+│  Latest version:  1.1.0                                     │
+│                                                             │
+│  What's new in v1.1.0:                                      │
+│    • 10 new tools for workflow automation                   │
+│    • Updated Captain knowledge                              │
+│    • agency-service v1.0.1 (bug fixes)                      │
+│    • New starter pack: stripe-payments                      │
+│                                                             │
+│  ⚠️  Breaking changes:                                      │
+│    • tools/foo renamed to tools/bar                         │
+│                                                             │
+│  Updating...                                                │
+│  ✓ Updated to v1.1.0                                        │
+│                                                             │
+│  To update your projects:                                   │
+│    cd ~/my-awesome-app && ./tools/myclaude                  │
+│    (Captain will offer to apply the update)                 │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 Now their starter has v1.1.0 with all the new goodies.
@@ -660,6 +708,50 @@ Recommended: Commit your changes first.
 1. Registry defines conflicts: `"vercel": { "conflicts": ["cloudflare-deploy"] }`
 2. Tool detects conflict
 3. Prompts: "vercel conflicts with cloudflare-deploy. Remove cloudflare-deploy first?"
+
+### EC-17: Starter Update Fails
+
+**Scenario:** User runs `./update` but git pull fails (merge conflict, no network).
+
+**Handling:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  The Agency Starter - Update                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ❌ Update failed: merge conflict                           │
+│                                                             │
+│  You have local changes that conflict with upstream.        │
+│                                                             │
+│  Options:                                                   │
+│    1. Reset to upstream (discard local changes):            │
+│       ./update --reset                                      │
+│                                                             │
+│    2. Keep local changes and skip update:                   │
+│       (no action needed)                                    │
+│                                                             │
+│    3. Manually resolve:                                     │
+│       git status                                            │
+│       git merge --abort  (or resolve conflicts)             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### EC-18: User Has No Starter Locally
+
+**Scenario:** User deleted their starter, or cloned project from elsewhere.
+
+**Handling:**
+1. `project-update` checks manifest for source
+2. If source was GitHub, offer to clone fresh:
+   ```
+   No local starter found at /Users/me/the-agency-starter
+
+   Options:
+     1. Clone fresh: ./tools/project-update --clone-starter
+     2. Specify path: ./tools/project-update --from=/other/path
+     3. Use GitHub directly: ./tools/project-update --github
+   ```
 
 ---
 
