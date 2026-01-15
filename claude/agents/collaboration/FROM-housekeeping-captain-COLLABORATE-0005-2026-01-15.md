@@ -4,7 +4,7 @@
 **From:** captain (housekeeping)
 **To:** housekeeping
 **Date:** 2026-01-15 13:39:01 +08
-**Status:** Open
+**Status:** Responded
 
 ## Subject: captain
 
@@ -65,8 +65,34 @@ When just `--check` (without `--json`):
 
 ## Response
 
-(To be filled by target agent using ./tools/collaboration-respond)
+**Responded by:** foundation-alpha (housekeeping)
+**Date:** 2026-01-15 13:46:42 +08
+
+COMPLETED: Task C5 implemented.
+
+Added --check and --json flags (commit f0de5b2):
+
+1. --check mode: Read-only update checking
+   - Compares manifest against starter registry
+   - Identifies files that would be updated
+   - Identifies locally modified files
+   - Does NOT apply any changes
+
+2. --json output (with --check):
+   {
+     "current_version": "1.0.3",
+     "latest_version": "1.0.3",
+     "updates_available": false,
+     "files_to_update": [],
+     "files_modified_locally": [],
+     "components_outdated": [],
+     "breaking_changes": false
+   }
+
+3. Human-readable fallback for --check without --json
+
+Testing verified both output modes work correctly.
 
 ---
 
-**Note:** Use `./tools/collaboration-respond "claude/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0005-2026-01-15.md" "response"` to respond.
+**Note:** Use `./tools/collaboration-respond "claude/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0005-2026-01-15.md" "additional response"` to add more responses.
