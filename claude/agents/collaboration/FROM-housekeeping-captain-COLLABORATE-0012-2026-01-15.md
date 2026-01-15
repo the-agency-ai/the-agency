@@ -4,7 +4,7 @@
 **From:** captain (housekeeping)
 **To:** foundation-beta
 **Date:** 2026-01-15 16:19:20 +08
-**Status:** Open
+**Status:** Responded
 
 ## Subject: WRITE MVH Tests (Hub)
 
@@ -34,8 +34,35 @@ Based on your code review findings, please WRITE the tests you identified.
 
 ## Response
 
-(To be filled by target agent using ./tools/collaboration-respond)
+**Responded by:** foundation-beta (housekeeping)
+**Date:** 2026-01-15 16:23:54 +08
+
+COMPLETED: MVH Hub Tests implemented in commit 99e4946
+
+Added 4 new test groups to tools/starter-test:
+
+**Test 7: Hub Agent Launch**
+- ./agency exists and is executable
+- Hub agent directory/files exist
+- ./agency references hub agent
+
+**Test 8: Batch Update Error Handling**
+- Missing projects.json handling
+- Empty projects.json handling
+- Non-existent project path detection
+
+**Test 9: Pre-Update Verification**
+- Git status clean/dirty check
+- Manifest modification detection
+- project-update --check functionality
+
+**Test 10: Edge Cases**
+- Non-git directory detection
+- Dirty repo detection
+- Corrupt manifest.json handling
+
+Run with: ./tools/starter-test --local --verbose
 
 ---
 
-**Note:** Use `./tools/collaboration-respond "claude/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0012-2026-01-15.md" "response"` to respond.
+**Note:** Use `./tools/collaboration-respond "claude/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0012-2026-01-15.md" "additional response"` to add more responses.
