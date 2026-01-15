@@ -52,8 +52,8 @@ test/
 claude/agents/*/backups/latest/
 claude/agents/*/backups/archive/
 
-# Services (local development)
-services/
+# Services (local development - root level only, not source/services)
+/services/
 
 # Agency local data (not versioned)
 .agency/projects.json

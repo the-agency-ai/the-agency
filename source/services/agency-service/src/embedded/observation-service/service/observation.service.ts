@@ -34,14 +34,22 @@ export class ObservationService {
 
     logger.info({ observationId, reporter: data.reporterName }, 'Observation created');
 
-    // Emit event if queue is available
+    // Queue event if queue is available
     if (this.queue) {
-      await this.queue.emit('observation.created', {
-        observationId,
-        title: observation.title,
-        category: observation.category,
-        contextPath: observation.contextPath,
-      });
+      try {
+        await this.queue.enqueue('observation.events', {
+          data: {
+            event: 'observation.created',
+            observationId,
+            title: observation.title,
+            category: observation.category,
+            contextPath: observation.contextPath,
+          },
+        });
+      } catch (error) {
+        // Queue failures should not block observation creation
+        logger.warn({ error, observationId }, 'Failed to enqueue observation.created event');
+      }
     }
 
     return observation;
@@ -78,13 +86,20 @@ export class ObservationService {
 
     const updated = await this.repo.update(observationId, data);
 
-    // Emit status change event if status changed
+    // Queue status change event if status changed
     if (this.queue && data.status && data.status !== existing.status) {
-      await this.queue.emit('observation.status_changed', {
-        observationId,
-        previousStatus: existing.status,
-        newStatus: data.status,
-      });
+      try {
+        await this.queue.enqueue('observation.events', {
+          data: {
+            event: 'observation.status_changed',
+            observationId,
+            previousStatus: existing.status,
+            newStatus: data.status,
+          },
+        });
+      } catch (error) {
+        logger.warn({ error, observationId }, 'Failed to enqueue observation.status_changed event');
+      }
     }
 
     return updated;
@@ -102,11 +117,18 @@ export class ObservationService {
     const updated = await this.repo.update(observationId, { status });
 
     if (this.queue && status !== existing.status) {
-      await this.queue.emit('observation.status_changed', {
-        observationId,
-        previousStatus: existing.status,
-        newStatus: status,
-      });
+      try {
+        await this.queue.enqueue('observation.events', {
+          data: {
+            event: 'observation.status_changed',
+            observationId,
+            previousStatus: existing.status,
+            newStatus: status,
+          },
+        });
+      } catch (error) {
+        logger.warn({ error, observationId }, 'Failed to enqueue observation.status_changed event');
+      }
     }
 
     return updated;
@@ -133,7 +155,16 @@ export class ObservationService {
     const deleted = await this.repo.delete(observationId);
 
     if (deleted && this.queue) {
-      await this.queue.emit('observation.deleted', { observationId });
+      try {
+        await this.queue.enqueue('observation.events', {
+          data: {
+            event: 'observation.deleted',
+            observationId,
+          },
+        });
+      } catch (error) {
+        logger.warn({ error, observationId }, 'Failed to enqueue observation.deleted event');
+      }
     }
 
     return deleted;
