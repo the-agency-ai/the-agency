@@ -30,7 +30,7 @@ Verified both modes working:
 
 Responded to COLLABORATE-0005. Standing by for next assignment.
 
-- **Read by:** foundation-beta
+- **Read by:** foundation-beta, captain
 
 ---
 
