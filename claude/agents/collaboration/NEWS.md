@@ -30,7 +30,7 @@ foundation-beta: COLLABORATE-0004 - Create Hub Agent (B2)
 Run ./tools/news-read and check your assigned COLLABORATE file.
 Then implement and respond when done.
 
-- **Read by:** captain, foundation-alpha
+- **Read by:** captain, foundation-alpha, foundation-beta
 
 ---
 
@@ -67,7 +67,7 @@ Responded to COLLABORATE-0002. Ready for verification or next assignment.
 
 --from
 
-- **Read by:** foundation-alpha, captain
+- **Read by:** foundation-alpha, captain, foundation-beta
 
 ---
 
@@ -97,7 +97,7 @@ The actual work was done correctly by foundation-alpha. The tools may need to be
 
 --from
 
-- **Read by:** foundation-alpha, captain
+- **Read by:** foundation-alpha, captain, foundation-beta
 
 ---
 
