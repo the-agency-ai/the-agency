@@ -1189,6 +1189,177 @@ Recommended: Commit your changes first.
 
 ---
 
+## Design Analysis
+
+### What We're Actually Building
+
+This REQUEST defines a fundamental shift in how The Agency operates:
+
+**From:** Users run CLI commands to manage their projects
+**To:** Users talk to agents who do everything for them
+
+The centerpiece is **The Agency Hub** - the starter becomes a control center where a Hub Agent manages:
+- The starter itself (updates, maintenance)
+- All projects created from it (creation, updates, health)
+- Contributions back upstream (PRs, reviews, merges)
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           THE AGENCY ECOSYSTEM                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    THE AGENCY HUB                                │   │
+│  │                 (the-agency-starter)                             │   │
+│  │                                                                  │   │
+│  │   ./agency → Hub Agent                                           │   │
+│  │                                                                  │   │
+│  │   Capabilities:                                                  │   │
+│  │   • Update starter (git pull, conflict resolution)               │   │
+│  │   • Create projects (project-new + manifest)                     │   │
+│  │   • Update projects (project-update across all)                  │   │
+│  │   • Launch into projects (open terminal + myclaude)              │   │
+│  │   • Contribute upstream (create PRs)                             │   │
+│  │                                                                  │   │
+│  │   Data:                                                          │   │
+│  │   • registry.json (available components)                         │   │
+│  │   • .agency/projects.json (known projects)                       │   │
+│  │   • VERSION (current starter version)                            │   │
+│  │   • CHANGELOG.md (what's new)                                    │   │
+│  │                                                                  │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                              │                                          │
+│                              │ manages                                  │
+│                              ▼                                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                  │
+│  │  Project A   │  │  Project B   │  │  Project C   │                  │
+│  │              │  │              │  │              │                  │
+│  │ .agency/     │  │ .agency/     │  │ .agency/     │                  │
+│  │ manifest.json│  │ manifest.json│  │ manifest.json│                  │
+│  │              │  │              │  │              │                  │
+│  │ ./myclaude   │  │ ./myclaude   │  │ ./myclaude   │                  │
+│  │ → Captain    │  │ → Captain    │  │ → Captain    │                  │
+│  └──────────────┘  └──────────────┘  └──────────────┘                  │
+│                                                                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    THE AGENCY (upstream)                         │   │
+│  │                                                                  │   │
+│  │   Reviewer Agent (triggered by PR)                               │   │
+│  │   • Code quality checks                                          │   │
+│  │   • Test coverage                                                │   │
+│  │   • Documentation                                                │   │
+│  │   • Posts feedback                                               │   │
+│  │                                                                  │   │
+│  │   Merger Agent (triggered by approval)                           │   │
+│  │   • Final checks                                                 │   │
+│  │   • Merge to main                                                │   │
+│  │   • Tag releases                                                 │   │
+│  │                                                                  │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Technical Challenges
+
+#### 1. Cross-Project Operations
+The Hub Agent operates on multiple projects, each with its own:
+- Git state (clean? uncommitted changes?)
+- Running services (agency-service up?)
+- Version state (which starter version?)
+
+**Challenge:** How does Hub Agent gather state from all projects efficiently?
+**Approach:** Project registry + manifest reading + lightweight status checks
+
+#### 2. Terminal/Process Management
+"Launch into project" requires opening a new terminal with myclaude.
+
+**Challenge:** OS-specific (iTerm on macOS, different on Linux/Windows)
+**Approach:**
+- Phase 1: Print instructions ("run: cd ~/project && ./tools/myclaude")
+- Phase 2: OS detection + appropriate terminal launch
+- Phase 3: iTerm/tmux integration for tab management
+
+#### 3. GitHub Integration for Contributions
+Creating PRs, reviewing, merging requires GitHub API access.
+
+**Challenge:** Authentication, rate limits, webhook triggers
+**Approach:**
+- Use `gh` CLI (already authenticated if user has it)
+- GitHub Actions for triggering Reviewer/Merger agents
+- Graceful degradation if gh not available
+
+#### 4. State Synchronization
+Manifest must reflect actual project state.
+
+**Challenge:** User might manually modify files, install fails midway
+**Approach:**
+- Hash verification before updates
+- Atomic operations (stage to temp, then move)
+- Recovery/rollback capabilities
+- "Repair" command to resync manifest with reality
+
+#### 5. Agent Context and Memory
+Hub Agent needs to understand all projects without loading everything into context.
+
+**Challenge:** 10 projects × full context = context overflow
+**Approach:**
+- Lightweight status checks (just read manifest)
+- Deep dive only when operating on specific project
+- Project summaries in registry
+
+### Implementation Complexity Assessment
+
+| Phase | Complexity | Dependencies | Effort |
+|-------|------------|--------------|--------|
+| 1. Foundation | Medium | None | Core schemas, tool updates |
+| 2. The Hub | High | Phase 1 | New agent, cross-project ops |
+| 3. Agent Updates | Medium | Phase 1-2 | Tool enhancements |
+| 4. Starter Packs | Medium | Phase 1 | Dependency resolution |
+| 5. Full Automation | High | Phase 1-4 | Policy engine, scheduling |
+| 6. Contribution | Very High | Phase 1-2, GitHub | CI integration, webhooks |
+
+### Minimum Viable Hub (MVH)
+
+For initial release, the Hub Agent needs:
+
+1. **Update Starter** - `git fetch && git pull` with conflict detection
+2. **List Projects** - Read `.agency/projects.json`, check each manifest
+3. **Create Project** - Run `project-new`, register in projects.json
+4. **Update Project** - Run `project-update` for one or all projects
+5. **Show Status** - Starter version, project versions, available updates
+
+Advanced features (launch into project, contributions) can come later.
+
+### Open Questions
+
+1. **Where does Hub Agent live?**
+   - In the-agency-starter (user-facing) ✓
+   - Synced from the-agency during releases
+   - Has its own KNOWLEDGE.md about hub operations
+
+2. **How do we handle "launch into project"?**
+   - Option A: Print instructions (simple, cross-platform)
+   - Option B: Open new terminal (OS-specific)
+   - Option C: tmux/iTerm integration (power users)
+   - **Recommendation:** Start with A, add B/C as enhancements
+
+3. **What triggers Reviewer/Merger agents?**
+   - GitHub Actions on PR events
+   - Runs Claude Code in CI environment
+   - Needs API key management for CI
+
+4. **How do we test this?**
+   - Test project fixtures
+   - Mock GitHub API for contribution tests
+   - Integration tests with real starter/projects
+
+---
+
 ## Work Log
 
 ### 2026-01-15
