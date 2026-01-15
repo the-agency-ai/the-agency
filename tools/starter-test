@@ -659,10 +659,11 @@ test_update_check_json() {
     fi
 
     # Test 11a: --check mode returns without error
-    if ./tools/project-update --check --from="$starter" > /dev/null 2>&1; then
+    local check_output
+    if check_output=$(./tools/project-update --check --from="$starter" 2>&1); then
         log_pass "--check mode runs successfully"
     else
-        log_fail "--check mode failed"
+        log_fail "--check mode failed: $check_output"
     fi
 
     # Test 11b: --check --json outputs valid JSON
@@ -702,8 +703,10 @@ else:
 
     if [[ "$modified_detected" == "detected" ]]; then
         log_pass "Locally modified files detected"
+    elif [[ "$modified_detected" == "not_detected" ]]; then
+        log_warn "Modification not detected (file may not be tracked yet)"
     else
-        log_pass "No modification detection (file not tracked yet)"
+        log_fail "Modification detection failed: $modified_detected"
     fi
 
     # Restore file
