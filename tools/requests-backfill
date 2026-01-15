@@ -1,0 +1,302 @@
+#!/bin/bash
+# requests-backfill - Import existing REQUEST files into the service database
+#
+# Usage: ./tools/requests-backfill [options]
+#
+# Options:
+#   --dry-run     Show what would be imported without importing
+#   --verbose     Show detailed output
+#   --help        Show this help
+
+set -e
+
+TOOL_VERSION="1.0.0-20260115-000001"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+DB_PATH="${REPO_ROOT}/claude/data/agency.db"
+REQUESTS_DIR="${REPO_ROOT}/claude/principals"
+
+# Defaults
+DRY_RUN=false
+VERBOSE=false
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "requests-backfill - Import existing REQUEST files into the service database"
+    echo ""
+    echo "Usage: ./tools/requests-backfill [options]"
+    echo ""
+    echo "Options:"
+    echo "  --dry-run     Show what would be imported without importing"
+    echo "  --verbose     Show detailed output"
+    echo "  --help        Show this help"
+    echo ""
+    echo "This tool scans all REQUEST-*.md files and imports them into the"
+    echo "agency-service database, preserving their original REQUEST IDs."
+    exit 0
+fi
+
+if [[ "${1:-}" == "--version" ]]; then
+    echo "requests-backfill $TOOL_VERSION"
+    exit 0
+fi
+
+# Parse arguments
+for arg in "$@"; do
+    case $arg in
+        --dry-run)
+            DRY_RUN=true
+            ;;
+        --verbose)
+            VERBOSE=true
+            ;;
+    esac
+done
+
+# Check database exists
+if [[ ! -f "$DB_PATH" ]]; then
+    log_error "Database not found at $DB_PATH"
+    echo "Make sure the agency-service has been started at least once."
+    exit 1
+fi
+
+# Normalize status to canonical values
+normalize_status() {
+    local raw_status="$1"
+    local lower_status=$(echo "$raw_status" | tr '[:upper:]' '[:lower:]')
+
+    case "$lower_status" in
+        *complete*|*done*|*finished*)
+            echo "Complete"
+            ;;
+        *progress*|*working*|*active*)
+            echo "In Progress"
+            ;;
+        *review*)
+            echo "Review"
+            ;;
+        *test*)
+            echo "Testing"
+            ;;
+        *hold*|*blocked*|*waiting*)
+            echo "On Hold"
+            ;;
+        *cancel*|*reject*|*abandon*)
+            echo "Cancelled"
+            ;;
+        *pending*)
+            echo "Open"
+            ;;
+        *)
+            echo "Open"
+            ;;
+    esac
+}
+
+# Normalize priority to canonical values
+normalize_priority() {
+    local raw_priority="$1"
+    local lower_priority=$(echo "$raw_priority" | tr '[:upper:]' '[:lower:]')
+
+    case "$lower_priority" in
+        *critical*|*urgent*|*blocker*)
+            echo "Critical"
+            ;;
+        *high*)
+            echo "High"
+            ;;
+        *low*)
+            echo "Low"
+            ;;
+        *)
+            echo "Medium"
+            ;;
+    esac
+}
+
+# Escape for safe SQL insertion
+# Handles single quotes AND removes shell-dangerous characters
+escape_sql() {
+    # Remove backticks, $(), ${}, and other shell expansion triggers
+    # Then escape single quotes for SQL
+    echo "$1" | tr -d '\`' | sed 's/\$([^)]*)//g; s/\${[^}]*}//g; s/\$[A-Za-z_][A-Za-z0-9_]*//g' | sed "s/'/''/g"
+}
+
+# Extract metadata from a REQUEST file
+extract_and_import() {
+    local file="$1"
+    local filename=$(basename "$file" .md)
+
+    # Extract request ID from filename
+    # Handle both: REQUEST-jordan-0035-title.md and REQUEST-jordan-0035.md
+    local request_id=$(echo "$filename" | grep -oE 'REQUEST-[a-z]+-[0-9]+' | head -1)
+
+    if [[ -z "$request_id" ]]; then
+        log_warn "Could not extract request ID from $filename, skipping"
+        return
+    fi
+
+    # Extract principal from request ID and validate
+    local principal=$(echo "$request_id" | sed 's/REQUEST-//' | cut -d'-' -f1)
+
+    # Validate principal name (only lowercase letters allowed)
+    if [[ ! "$principal" =~ ^[a-z]+$ ]]; then
+        log_warn "Invalid principal name '$principal' in $filename, skipping"
+        return
+    fi
+
+    # Extract fields from file
+    local raw_status=$(grep -m1 "^\*\*Status:\*\*" "$file" 2>/dev/null | sed 's/\*\*Status:\*\* *//' || echo "Open")
+    local raw_priority=$(grep -m1 "^\*\*Priority:\*\*" "$file" 2>/dev/null | sed 's/\*\*Priority:\*\* *//' || echo "Normal")
+    local title=$(head -5 "$file" | grep -E "^#" | head -1 | sed 's/^#* *//' | head -c 200 || echo "$request_id")
+    local workstream=$(grep -m1 "^\*\*Workstream:\*\*" "$file" 2>/dev/null | sed 's/\*\*Workstream:\*\* *//' || echo "")
+    local assignee=$(grep -m1 "^\*\*Agent:\*\*\|^\*\*Assigned To:\*\*" "$file" 2>/dev/null | sed 's/\*\*[^*]*\*\* *//' || echo "")
+    local created=$(grep -m1 "^\*\*Created:\*\*" "$file" 2>/dev/null | sed 's/\*\*Created:\*\* *//' || echo "")
+
+    # Extract summary (content after ## Summary header)
+    local summary=$(awk '/^## Summary/{found=1; next} /^## /{found=0} found' "$file" | head -10 | tr '\n' ' ' | sed 's/^[[:space:]]*//' | head -c 500)
+    if [[ -z "$summary" ]]; then
+        summary="$title"
+    fi
+
+    # Normalize values
+    local status=$(normalize_status "$raw_status")
+    local priority=$(normalize_priority "$raw_priority")
+
+    # Escape for SQL
+    local escaped_title=$(escape_sql "$title")
+    local escaped_summary=$(escape_sql "$summary")
+    local escaped_workstream=$(escape_sql "$workstream")
+    local escaped_assignee=$(escape_sql "$assignee")
+    local escaped_file=$(escape_sql "$file")
+
+    # Determine assignee type
+    local assignee_type=""
+    if [[ -n "$assignee" ]]; then
+        assignee_type="agent"
+    fi
+
+    # Format created date
+    local created_date=""
+    if [[ -n "$created" ]]; then
+        created_date="$created"
+    else
+        created_date=$(date -r "$file" "+%Y-%m-%d" 2>/dev/null || date "+%Y-%m-%d")
+    fi
+
+    if [[ "$VERBOSE" == "true" || "$DRY_RUN" == "true" ]]; then
+        echo "  $request_id"
+        echo "    Title: ${title:0:50}..."
+        echo "    Status: $raw_status -> $status"
+        echo "    Priority: $raw_priority -> $priority"
+        [[ -n "$workstream" ]] && echo "    Workstream: $workstream"
+        [[ -n "$assignee" ]] && echo "    Assignee: $assignee"
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        return
+    fi
+
+    # Insert or replace in database
+    sqlite3 "$DB_PATH" <<EOF
+INSERT OR REPLACE INTO requests (
+    request_id, title, summary, status, priority,
+    principal_name, reporter_type, reporter_name,
+    assignee_type, assignee_name, workstream, tags,
+    file_path, created_at, updated_at
+) VALUES (
+    '$request_id',
+    '$escaped_title',
+    '$escaped_summary',
+    '$status',
+    '$priority',
+    '$principal',
+    'principal',
+    '$principal',
+    $([ -n "$assignee_type" ] && echo "'$assignee_type'" || echo "NULL"),
+    $([ -n "$escaped_assignee" ] && echo "'$escaped_assignee'" || echo "NULL"),
+    $([ -n "$escaped_workstream" ] && echo "'$escaped_workstream'" || echo "NULL"),
+    '[]',
+    '$escaped_file',
+    '$created_date',
+    datetime('now')
+);
+EOF
+}
+
+# Update sequence to be after highest ID
+update_sequence() {
+    local principal="$1"
+    local max_id="$2"
+    local next_id=$((max_id + 1))
+
+    log_info "Setting $principal sequence to $next_id"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        return
+    fi
+
+    sqlite3 "$DB_PATH" <<EOF
+INSERT OR REPLACE INTO request_sequences (principal, next_id)
+VALUES ('$principal', $next_id);
+EOF
+}
+
+# Main
+main() {
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "DRY RUN - no changes will be made"
+    fi
+
+    log_step "Scanning REQUEST files..."
+
+    local count=0
+    local max_jordan_id=0
+
+    # Find and process all REQUEST files
+    while IFS= read -r file; do
+        if [[ -f "$file" ]]; then
+            extract_and_import "$file"
+            ((count++))
+
+            # Track max ID for jordan principal
+            local req_id=$(basename "$file" .md | grep -oE 'REQUEST-[a-z]+-[0-9]+' | head -1)
+            local principal=$(echo "$req_id" | sed 's/REQUEST-//' | cut -d'-' -f1)
+            local num=$(echo "$req_id" | grep -oE '[0-9]+$' | sed 's/^0*//')
+
+            if [[ "$principal" == "jordan" && -n "$num" ]]; then
+                if (( num > max_jordan_id )); then
+                    max_jordan_id=$num
+                fi
+            fi
+        fi
+    done < <(find "$REQUESTS_DIR" -path "*/requests/REQUEST-*.md" 2>/dev/null | sort)
+
+    # Update sequence for jordan
+    log_step "Updating sequences..."
+    if (( max_jordan_id > 0 )); then
+        update_sequence "jordan" "$max_jordan_id"
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "Would have imported $count requests"
+    else
+        log_info "Imported $count requests"
+
+        # Show stats
+        echo ""
+        ./tools/requests stats
+    fi
+}
+
+main

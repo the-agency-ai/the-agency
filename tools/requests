@@ -8,12 +8,13 @@
 #   open              List open REQUESTs
 #   completed         List completed REQUESTs
 #   show ID           Show details for a REQUEST
+#   stats             Show request statistics
 #   create TITLE      Create a new REQUEST
 #
 # Options:
 #   --principal=NAME  Filter by principal (default: current)
-#   --status=STATUS   Filter by status (Open, Completed, In Progress)
-#   --priority=PRIO   Filter by priority (High, Normal, Low)
+#   --status=STATUS   Filter by status (Open, Complete, In Progress)
+#   --priority=PRIO   Filter by priority (High, Medium, Low)
 #   --format=FORMAT   Output format (table, json, ids)
 #   --limit=N         Limit results (default: 20)
 
@@ -26,7 +27,12 @@ if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
 fi
 RUN_ID=$(log_start "requests" "agency-tool" "$@" 2>/dev/null) || true
 
-TOOL_VERSION="1.0.0-20260114-000001"
+TOOL_VERSION="2.0.0-20260115-000001"
+
+# Configuration
+AGENCY_SERVICE_URL="${AGENCY_SERVICE_URL:-http://localhost:3141}"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+REQUESTS_DIR="$REPO_ROOT/claude/principals"
 
 # Defaults
 VERBOSE=false
@@ -60,12 +66,13 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "  open              List open REQUESTs"
     echo "  completed         List completed REQUESTs"
     echo "  show ID           Show details for a REQUEST"
+    echo "  stats             Show request statistics"
     echo "  create TITLE      Create a new REQUEST"
     echo ""
     echo "Options:"
     echo "  --principal=NAME  Filter by principal (default: all)"
-    echo "  --status=STATUS   Filter by status (Open, Completed, In Progress)"
-    echo "  --priority=PRIO   Filter by priority (High, Normal, Low)"
+    echo "  --status=STATUS   Filter by status (Open, Complete, In Progress)"
+    echo "  --priority=PRIO   Filter by priority (High, Medium, Low, Critical)"
     echo "  --format=FORMAT   Output format (table, json, ids)"
     echo "  --limit=N         Limit results (default: 20)"
     echo "  --verbose         Show detailed output"
@@ -74,14 +81,12 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "  ./tools/requests                    # List all open REQUESTs"
     echo "  ./tools/requests open               # List open REQUESTs"
     echo "  ./tools/requests completed          # List completed REQUESTs"
+    echo "  ./tools/requests stats              # Show statistics"
     echo "  ./tools/requests --status=Open      # Filter by status"
     echo "  ./tools/requests show 0035          # Show REQUEST details"
     echo "  ./tools/requests --format=json      # JSON output"
     exit 0
 fi
-
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-REQUESTS_DIR="$REPO_ROOT/claude/principals"
 
 # Parse options
 PRINCIPAL=""
@@ -90,6 +95,8 @@ PRIORITY=""
 FORMAT="table"
 LIMIT=20
 COMMAND="list"
+REQUEST_ID=""
+REQUEST_TITLE=""
 
 for arg in "$@"; do
     case $arg in
@@ -117,7 +124,10 @@ for arg in "$@"; do
             ;;
         completed)
             COMMAND="completed"
-            STATUS="Completed"
+            STATUS="Complete"
+            ;;
+        stats)
+            COMMAND="stats"
             ;;
         show)
             COMMAND="show"
@@ -126,94 +136,58 @@ for arg in "$@"; do
             COMMAND="create"
             ;;
         *)
-            if [[ "$COMMAND" == "show" && -z "${REQUEST_ID:-}" ]]; then
+            if [[ "$COMMAND" == "show" && -z "$REQUEST_ID" ]]; then
                 REQUEST_ID="$arg"
-            elif [[ "$COMMAND" == "create" && -z "${REQUEST_TITLE:-}" ]]; then
+            elif [[ "$COMMAND" == "create" && -z "$REQUEST_TITLE" ]]; then
                 REQUEST_TITLE="$arg"
             fi
             ;;
     esac
 done
 
-# Find all REQUEST files
-find_requests() {
-    local pattern="REQUEST-*.md"
-    if [[ -n "$PRINCIPAL" ]]; then
-        find "$REQUESTS_DIR/$PRINCIPAL/requests" -name "$pattern" 2>/dev/null | sort -r
-    else
-        find "$REQUESTS_DIR" -path "*/requests/$pattern" 2>/dev/null | sort -r
-    fi
+# Check if service is available
+check_service() {
+    curl -s --connect-timeout 2 "${AGENCY_SERVICE_URL}/health" >/dev/null 2>&1
 }
 
-# Extract metadata from a REQUEST file
-extract_metadata() {
-    local file="$1"
-    local filename=$(basename "$file" .md)
-
-    # Extract fields
-    local status=$(grep -m1 "^\*\*Status:\*\*" "$file" 2>/dev/null | sed 's/\*\*Status:\*\* *//' || echo "Unknown")
-    local priority=$(grep -m1 "^\*\*Priority:\*\*" "$file" 2>/dev/null | sed 's/\*\*Priority:\*\* *//' || echo "Normal")
-    local summary=$(grep -m1 "^## Summary" -A1 "$file" 2>/dev/null | tail -1 | sed 's/^[[:space:]]*//' || echo "")
-    local created=$(grep -m1 "^\*\*Created:\*\*" "$file" 2>/dev/null | sed 's/\*\*Created:\*\* *//' || echo "")
-
-    # Extract ID from filename (e.g., REQUEST-jordan-0035 -> 0035)
-    local id=$(echo "$filename" | grep -oE '[0-9]{4}' | head -1)
-    local principal=$(echo "$filename" | sed 's/REQUEST-//' | cut -d'-' -f1)
-
-    echo "$id|$principal|$status|$priority|$summary|$created|$file"
+# Build query string for list endpoint
+build_query_string() {
+    local query="limit=${LIMIT}"
+    [[ -n "$STATUS" ]] && query="${query}&status=${STATUS}"
+    [[ -n "$PRIORITY" ]] && query="${query}&priority=${PRIORITY}"
+    [[ -n "$PRINCIPAL" ]] && query="${query}&principal=${PRINCIPAL}"
+    echo "$query"
 }
 
-# Filter by status
-filter_status() {
-    if [[ -z "$STATUS" ]]; then
-        cat
-    else
-        grep -i "|$STATUS|" || true
-    fi
-}
+# Format list output from JSON
+format_list_output() {
+    local json="$1"
 
-# Filter by priority
-filter_priority() {
-    if [[ -z "$PRIORITY" ]]; then
-        cat
-    else
-        grep -i "|$PRIORITY|" || true
-    fi
-}
-
-# Format output
-format_output() {
     case "$FORMAT" in
         json)
-            echo "["
-            local first=true
-            while IFS='|' read -r id principal status priority summary created file; do
-                if [[ "$first" == "true" ]]; then
-                    first=false
-                else
-                    echo ","
-                fi
-                printf '  {"id": "%s", "principal": "%s", "status": "%s", "priority": "%s", "summary": "%s", "created": "%s"}' \
-                    "$id" "$principal" "$status" "$priority" "$summary" "$created"
-            done
-            echo ""
-            echo "]"
+            echo "$json" | jq '.requests'
             ;;
         ids)
-            while IFS='|' read -r id principal status priority summary created file; do
-                echo "REQUEST-$principal-$id"
-            done
+            echo "$json" | jq -r '.requests[].requestId'
             ;;
         table|*)
-            printf "%-6s %-10s %-12s %-8s %s\n" "ID" "Principal" "Status" "Priority" "Summary"
+            printf "%-6s %-10s %-12s %-8s %s\n" "ID" "Principal" "Status" "Priority" "Title"
             printf "%-6s %-10s %-12s %-8s %s\n" "------" "----------" "------------" "--------" "----------------------------------------"
-            while IFS='|' read -r id principal status priority summary created file; do
-                # Truncate summary to 40 chars
-                summary="${summary:0:40}"
-                printf "%-6s %-10s %-12s %-8s %s\n" "$id" "$principal" "$status" "$priority" "$summary"
+            echo "$json" | jq -r '.requests[] | "\(.requestId)|\(.principalName)|\(.status)|\(.priority)|\(.title)"' | while IFS='|' read -r reqId principal status priority title; do
+                # Extract numeric ID from requestId (e.g., REQUEST-jordan-0035 -> 0035)
+                id=$(echo "$reqId" | grep -oE '[0-9]{4}$' || echo "$reqId")
+                # Truncate title to 40 chars
+                title="${title:0:40}"
+                printf "%-6s %-10s %-12s %-8s %s\n" "$id" "$principal" "$status" "$priority" "$title"
             done
             ;;
     esac
+}
+
+# Fallback: Find REQUEST files directly
+find_request_file() {
+    local id="$1"
+    find "$REQUESTS_DIR" -name "REQUEST-*-${id}*.md" -o -name "REQUEST-*-0${id}*.md" 2>/dev/null | head -1
 }
 
 # Main
@@ -230,20 +204,52 @@ main() {
                 STATUS="Open"
             fi
 
-            # Build and execute pipeline
-            requests_data=""
-            while IFS= read -r file; do
-                if [[ -f "$file" ]]; then
-                    metadata=$(extract_metadata "$file")
-                    requests_data+="$metadata"$'\n'
-                fi
-            done < <(find_requests)
+            if check_service; then
+                log_info "Querying service..."
+                local query=$(build_query_string)
+                local response=$(curl -s "${AGENCY_SERVICE_URL}/api/request/list?${query}")
 
-            # Filter and format
-            echo "$requests_data" | filter_status | filter_priority | head -n "$LIMIT" | format_output
+                # Check for success using jq (proper JSON error detection)
+                if [[ -n "$response" ]] && ! echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+                    format_list_output "$response"
+                else
+                    log_error "Service returned error: $response"
+                    echo "Try: ./tools/requests --verbose for details"
+                    trap - EXIT
+                    log_end "$RUN_ID" "failure" 1 0 "Service error" 2>/dev/null || true
+                    exit 1
+                fi
+            else
+                log_warn "Service not available, falling back to file scan"
+                echo "Note: Service not running. Results may be incomplete."
+                echo "Start service: cd source/services/agency-service && bun run dev"
+                echo ""
+                # Fallback to file-based scanning (legacy behavior)
+                printf "%-6s %-10s %-12s %-8s %s\n" "ID" "Principal" "Status" "Priority" "Summary"
+                printf "%-6s %-10s %-12s %-8s %s\n" "------" "----------" "------------" "--------" "----------------------------------------"
+                for file in $(find "$REQUESTS_DIR" -path "*/requests/REQUEST-*.md" 2>/dev/null | sort -r | head -n "$LIMIT"); do
+                    if [[ -f "$file" ]]; then
+                        local filename=$(basename "$file" .md)
+                        local file_status=$(grep -m1 "^\*\*Status:\*\*" "$file" 2>/dev/null | sed 's/\*\*Status:\*\* *//' || echo "Unknown")
+                        local file_priority=$(grep -m1 "^\*\*Priority:\*\*" "$file" 2>/dev/null | sed 's/\*\*Priority:\*\* *//' || echo "Normal")
+                        local file_summary=$(grep -m1 "^## Summary" -A2 "$file" 2>/dev/null | tail -1 | sed 's/^[[:space:]]*//' | head -c 40 || echo "")
+                        local id=$(echo "$filename" | grep -oE '[0-9]{4}' | head -1)
+                        local principal=$(echo "$filename" | sed 's/REQUEST-//' | cut -d'-' -f1)
+
+                        # Filter by status if specified
+                        if [[ -n "$STATUS" ]]; then
+                            if [[ "${file_status,,}" != *"${STATUS,,}"* ]]; then
+                                continue
+                            fi
+                        fi
+
+                        printf "%-6s %-10s %-12s %-8s %s\n" "$id" "$principal" "${file_status:0:12}" "${file_priority:0:8}" "$file_summary"
+                    fi
+                done
+            fi
             ;;
         show)
-            if [[ -z "${REQUEST_ID:-}" ]]; then
+            if [[ -z "$REQUEST_ID" ]]; then
                 log_error "No REQUEST ID provided"
                 echo "Usage: ./tools/requests show ID"
                 trap - EXIT
@@ -251,21 +257,63 @@ main() {
                 exit 1
             fi
 
-            # Find the REQUEST file
-            file=$(find_requests | grep -E "REQUEST-[^-]+-0*${REQUEST_ID}-" | head -1)
+            # Normalize ID to full format if just number provided
+            if [[ "$REQUEST_ID" =~ ^[0-9]+$ ]]; then
+                REQUEST_ID=$(printf "REQUEST-jordan-%04d" "$REQUEST_ID")
+            fi
 
-            if [[ -z "$file" || ! -f "$file" ]]; then
+            if check_service; then
+                log_info "Querying service for $REQUEST_ID..."
+                local response=$(curl -s "${AGENCY_SERVICE_URL}/api/request/get/${REQUEST_ID}")
+
+                # Check for success using jq (proper JSON error detection)
+                if [[ -n "$response" ]] && ! echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+                    if [[ "$FORMAT" == "json" ]]; then
+                        echo "$response" | jq .
+                    else
+                        echo "$response" | jq -r '"REQUEST: \(.requestId)\nTitle: \(.title)\nStatus: \(.status)\nPriority: \(.priority)\nPrincipal: \(.principalName)\nAssignee: \(.assigneeName // "Unassigned")\nWorkstream: \(.workstream // "None")\nCreated: \(.createdAt)\nUpdated: \(.updatedAt)\n\nSummary:\n\(.summary)"'
+                    fi
+                    trap - EXIT
+                    log_end "$RUN_ID" "success" 0 0 "Completed" 2>/dev/null || true
+                    exit 0
+                fi
+            fi
+
+            # Fallback to file
+            log_info "Falling back to file lookup..."
+            local file=$(find_request_file "${REQUEST_ID##*-}")
+
+            if [[ -n "$file" && -f "$file" ]]; then
+                cat "$file"
+            else
                 log_error "REQUEST $REQUEST_ID not found"
                 trap - EXIT
                 log_end "$RUN_ID" "failure" 1 0 "REQUEST not found" 2>/dev/null || true
                 exit 1
             fi
+            ;;
+        stats)
+            if check_service; then
+                log_info "Fetching stats from service..."
+                local response=$(curl -s "${AGENCY_SERVICE_URL}/api/request/stats")
 
-            # Show the file
-            cat "$file"
+                if [[ "$FORMAT" == "json" ]]; then
+                    echo "$response" | jq .
+                else
+                    echo "REQUEST Statistics"
+                    echo "=================="
+                    echo "$response" | jq -r '"Total: \(.total)\n\nBy Status:\n  Open: \(.open)\n  In Progress: \(.inProgress)\n  Review: \(.review)\n  Testing: \(.testing)\n  Complete: \(.complete)\n  On Hold: \(.onHold)\n  Cancelled: \(.cancelled)\n\nBy Priority:\n  Critical: \(.byPriority.critical)\n  High: \(.byPriority.high)\n  Medium: \(.byPriority.medium)\n  Low: \(.byPriority.low)"'
+                fi
+            else
+                log_error "Service not available. Stats require the service to be running."
+                echo "Start service: cd source/services/agency-service && bun run dev"
+                trap - EXIT
+                log_end "$RUN_ID" "failure" 1 0 "Service unavailable" 2>/dev/null || true
+                exit 1
+            fi
             ;;
         create)
-            if [[ -z "${REQUEST_TITLE:-}" ]]; then
+            if [[ -z "$REQUEST_TITLE" ]]; then
                 log_error "No REQUEST title provided"
                 echo "Usage: ./tools/requests create \"TITLE\""
                 trap - EXIT

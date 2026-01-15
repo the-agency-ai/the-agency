@@ -17,11 +17,12 @@ fi
 RUN_ID=$(log_start "request-complete" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-4"
+TOOL_VERSION="1.1.0-1"
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+AGENCY_SERVICE_URL="${AGENCY_SERVICE_URL:-http://localhost:3141}"
 
 # Parse arguments
 VERBOSE=false
@@ -101,6 +102,35 @@ if git -C "$PROJECT_ROOT" tag -l "$TAG_NAME" | grep -q .; then
     echo "Error: Tag $TAG_NAME already exists"
     echo "Use 'git tag -d $TAG_NAME' to delete it first if needed"
     exit 1
+fi
+
+# Update status via service API (authoritative source of truth)
+SERVICE_RESPONSE=$(curl -s -X POST "${AGENCY_SERVICE_URL}/api/request/update-status/${REQUEST_ID}" \
+    -H "Content-Type: application/json" \
+    -d '{"status": "Complete"}' 2>/dev/null || echo "")
+
+# Check for success using jq (proper JSON error detection)
+if [[ -n "$SERVICE_RESPONSE" ]] && ! echo "$SERVICE_RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
+    [[ "$VERBOSE" == "true" ]] && echo "Updated status in service: Complete"
+else
+    echo "Warning: Could not update service (service may not be running)"
+    echo "Continuing with file update and tag creation..."
+fi
+
+# Update status in request file (human-readable sync)
+if [[ -n "$REQUEST_FILE" && -f "$REQUEST_FILE" ]]; then
+    # Update Status field to Complete
+    if grep -q "^\*\*Status:\*\*" "$REQUEST_FILE"; then
+        # Portable sed -i (macOS vs Linux)
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' 's/^\*\*Status:\*\* .*/\*\*Status:\*\* Complete/' "$REQUEST_FILE"
+        else
+            sed -i 's/^\*\*Status:\*\* .*/\*\*Status:\*\* Complete/' "$REQUEST_FILE"
+        fi
+        [[ "$VERBOSE" == "true" ]] && echo "Updated status in file: Complete"
+    fi
+    # Stage the file for commit
+    git -C "$PROJECT_ROOT" add "$REQUEST_FILE"
 fi
 
 # Get recent commits since last request tag (or last 20)

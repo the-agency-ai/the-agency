@@ -293,12 +293,48 @@ verify_build() {
         fi
     done
 
-    # Check for secrets (basic check)
-    if grep -r "ANTHROPIC_API_KEY\|sk-ant-\|password\s*=" "$STARTER_DIR" --include="*.yaml" --include="*.json" --include="*.env" 2>/dev/null; then
-        log_error "Potential secrets found in starter!"
+    # Check for secrets using comprehensive scanner
+    log_step "Scanning for secrets..."
+    if [[ -x "$STARTER_DIR/tools/secrets-scan" ]]; then
+        if ! "$STARTER_DIR/tools/secrets-scan" 2>/dev/null; then
+            log_error "Secrets detected in starter!"
+            ((errors++))
+        else
+            echo "  ✓ No secrets detected"
+        fi
+    else
+        # Fallback to comprehensive grep patterns if scanner not available
+        local secret_patterns=(
+            "GUMROAD_[A-Z_]*=[A-Za-z0-9_-]\\{20,\\}"
+            "sk-ant-[A-Za-z0-9_-]\\{20,\\}"
+            "ghp_[A-Za-z0-9]\\{36\\}"
+            "gho_[A-Za-z0-9]\\{36\\}"
+            "ANTHROPIC_API_KEY"
+            "OPENAI_API_KEY"
+            "client_secret.*=.*[A-Za-z0-9_-]\\{20,\\}"
+            "access_token.*=.*[A-Za-z0-9_-]\\{20,\\}"
+            "-----BEGIN.*PRIVATE KEY-----"
+        )
+        local found_secrets=false
+        for pattern in "${secret_patterns[@]}"; do
+            if grep -rE "$pattern" "$STARTER_DIR" --include="*.yaml" --include="*.json" --include="*.env" --include="*.ts" --include="*.sh" 2>/dev/null; then
+                found_secrets=true
+            fi
+        done
+        if [[ "$found_secrets" == "true" ]]; then
+            log_error "Potential secrets found in starter!"
+            ((errors++))
+        else
+            echo "  ✓ No obvious secrets"
+        fi
+    fi
+
+    # Check for jordan principal directory (should never be in starter)
+    if [[ -d "$STARTER_DIR/claude/principals/jordan" ]]; then
+        log_error "jordan principal found in starter! This should NOT be synced."
         ((errors++))
     else
-        echo "  ✓ No obvious secrets"
+        echo "  ✓ No private principals"
     fi
 
     # Check for large files (>1MB)
