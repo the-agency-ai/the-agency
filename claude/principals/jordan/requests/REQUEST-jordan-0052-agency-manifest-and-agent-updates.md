@@ -3,9 +3,19 @@
 **Principal:** jordan
 **Workstream:** housekeeping
 **Agent:** captain
-**Status:** Design
+**Status:** Design Complete
 **Priority:** High
 **Created:** 2026-01-15
+
+### Child REQUESTs
+
+| REQUEST | Phase | Status |
+|---------|-------|--------|
+| REQUEST-jordan-0053 | Phase A: Foundation | In Progress |
+| REQUEST-jordan-0054 | Phase B: Hub Core | Pending |
+| REQUEST-jordan-0055 | Phase C: Project Operations | Pending |
+| REQUEST-jordan-0056 | Phase D: Terminal Integration | Pending |
+| REQUEST-jordan-0057 | Phase E: Contributor Flow | Pending |
 
 ---
 
