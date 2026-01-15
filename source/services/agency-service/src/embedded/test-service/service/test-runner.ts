@@ -5,10 +5,45 @@
  */
 
 import { spawn } from 'child_process';
+import { resolve, relative } from 'path';
 import { createServiceLogger } from '../../../core/lib/logger';
 import type { BunTestOutput, BunTestResult } from '../types';
 
 const logger = createServiceLogger('test-runner');
+
+/**
+ * Validate suite name to prevent path traversal
+ * Only allows alphanumeric characters, hyphens, and underscores
+ */
+function validateSuiteName(suite: string): boolean {
+  // Suite must be alphanumeric with hyphens/underscores only
+  const safePattern = /^[a-zA-Z0-9_-]+$/;
+  return safePattern.test(suite) && !suite.includes('..');
+}
+
+/**
+ * Validate test file path to prevent path traversal
+ * Ensures the resolved path is within the project root
+ */
+function validateTestFilePath(testFile: string, projectRoot: string): string | null {
+  // Resolve the path relative to project root
+  const resolvedPath = resolve(projectRoot, testFile);
+  const relativePath = relative(projectRoot, resolvedPath);
+
+  // Check if path escapes project root (would start with '..' or be absolute)
+  if (relativePath.startsWith('..') || resolve(relativePath) === relativePath) {
+    logger.warn({ testFile, resolvedPath }, 'Path traversal attempt detected');
+    return null;
+  }
+
+  // Ensure it's a test file
+  if (!relativePath.endsWith('.test.ts') && !relativePath.endsWith('.spec.ts')) {
+    logger.warn({ testFile }, 'Not a valid test file extension');
+    return null;
+  }
+
+  return relativePath;
+}
 
 export interface TestRunnerOptions {
   projectRoot: string;
@@ -119,11 +154,40 @@ export async function runTests(options: TestRunnerOptions): Promise<BunTestOutpu
 
   const args = ['test'];
 
-  // Add specific test file or pattern
+  // Add specific test file or pattern (with path traversal protection)
   if (testFile) {
-    args.push(testFile);
+    const validatedPath = validateTestFilePath(testFile, projectRoot);
+    if (!validatedPath) {
+      logger.error({ testFile }, 'Invalid test file path - possible path traversal');
+      return {
+        success: false,
+        results: [{
+          name: 'validation-error',
+          file: '',
+          status: 'fail',
+          duration: 0,
+          error: { message: 'Invalid test file path' },
+        }],
+        summary: { pass: 0, fail: 1, skip: 0, total: 1, duration: 0 },
+      };
+    }
+    args.push(validatedPath);
   } else if (suite && suite !== 'all') {
-    // Map suite to test pattern
+    if (!validateSuiteName(suite)) {
+      logger.error({ suite }, 'Invalid suite name - possible path traversal');
+      return {
+        success: false,
+        results: [{
+          name: 'validation-error',
+          file: '',
+          status: 'fail',
+          duration: 0,
+          error: { message: 'Invalid suite name' },
+        }],
+        summary: { pass: 0, fail: 1, skip: 0, total: 1, duration: 0 },
+      };
+    }
+    // Map suite to test pattern (safe after validation)
     args.push(`tests/${suite}/**/*.test.ts`);
   }
 

@@ -63,6 +63,32 @@ SQL
   fi
 }
 
+# Escape string for safe SQL insertion (prevent SQL injection)
+escape_sql() {
+  # Replace single quotes with two single quotes
+  echo "$1" | sed "s/'/''/g"
+}
+
+# Validate that a value is a positive integer (for message IDs)
+validate_int() {
+  local val="$1"
+  if [[ "$val" =~ ^[0-9]+$ ]]; then
+    echo "$val"
+  else
+    echo ""
+  fi
+}
+
+# Validate identifier (alphanumeric, hyphens, underscores only)
+validate_identifier() {
+  local val="$1"
+  if [[ "$val" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "$val"
+  else
+    echo ""
+  fi
+}
+
 # Determine who I am
 get_identity() {
   if [ -n "$AGENTNAME" ]; then
@@ -91,9 +117,22 @@ fi
 MY_TYPE="${IDENTITY%%:*}"
 MY_NAME="${IDENTITY#*:}"
 
+# Validate and escape identity values (prevent SQL injection)
+MY_TYPE=$(validate_identifier "$MY_TYPE")
+MY_NAME=$(validate_identifier "$MY_NAME")
+
+if [ -z "$MY_TYPE" ] || [ -z "$MY_NAME" ]; then
+  echo "Error: Invalid identity format."
+  exit 1
+fi
+
+# Escape for SQL (additional safety)
+MY_TYPE_ESC=$(escape_sql "$MY_TYPE")
+MY_NAME_ESC=$(escape_sql "$MY_NAME")
+
 case "${1:-}" in
   --count)
-    COUNT=$(sqlite3 "$DB" "SELECT COUNT(*) FROM recipients WHERE recipient_type='$MY_TYPE' AND recipient_name='$MY_NAME' AND read_at IS NULL;")
+    COUNT=$(sqlite3 "$DB" "SELECT COUNT(*) FROM recipients WHERE recipient_type='$MY_TYPE_ESC' AND recipient_name='$MY_NAME_ESC' AND read_at IS NULL;")
     echo "$COUNT"
     ;;
 
@@ -104,7 +143,7 @@ SELECT m.id, m.timestamp, m.from_type || ':' || m.from_name as 'from',
        m.subject, substr(m.content, 1, 50) as preview
 FROM messages m
 JOIN recipients r ON r.message_id = m.id
-WHERE r.recipient_type = '$MY_TYPE' AND r.recipient_name = '$MY_NAME'
+WHERE r.recipient_type = '$MY_TYPE_ESC' AND r.recipient_name = '$MY_NAME_ESC'
 ORDER BY m.timestamp DESC
 LIMIT 50;
 SQL
@@ -115,24 +154,30 @@ SQL
       echo "Usage: ./tools/message-read --read <message_id>"
       exit 1
     fi
-    sqlite3 "$DB" "UPDATE recipients SET read_at = datetime('now') WHERE message_id = $2 AND recipient_type = '$MY_TYPE' AND recipient_name = '$MY_NAME';"
+    # Validate message ID is an integer (prevent SQL injection)
+    MSG_ID=$(validate_int "$2")
+    if [ -z "$MSG_ID" ]; then
+      echo "Error: Invalid message ID. Must be a number."
+      exit 1
+    fi
+    sqlite3 "$DB" "UPDATE recipients SET read_at = datetime('now') WHERE message_id = $MSG_ID AND recipient_type = '$MY_TYPE_ESC' AND recipient_name = '$MY_NAME_ESC';"
     # Show the full message
     sqlite3 -header -column "$DB" <<SQL
 SELECT m.id, m.timestamp, m.from_type || ':' || m.from_name as 'from',
        m.to_type || ':' || COALESCE(m.to_name, 'all') as 'to',
        m.subject, m.content
-FROM messages m WHERE m.id = $2;
+FROM messages m WHERE m.id = $MSG_ID;
 SQL
     ;;
 
   --mark-all-read)
-    sqlite3 "$DB" "UPDATE recipients SET read_at = datetime('now') WHERE recipient_type = '$MY_TYPE' AND recipient_name = '$MY_NAME' AND read_at IS NULL;"
+    sqlite3 "$DB" "UPDATE recipients SET read_at = datetime('now') WHERE recipient_type = '$MY_TYPE_ESC' AND recipient_name = '$MY_NAME_ESC' AND read_at IS NULL;"
     echo "All messages marked as read."
     ;;
 
   ""|--unread)
     # Show unread messages
-    UNREAD=$(sqlite3 "$DB" "SELECT COUNT(*) FROM recipients WHERE recipient_type='$MY_TYPE' AND recipient_name='$MY_NAME' AND read_at IS NULL;")
+    UNREAD=$(sqlite3 "$DB" "SELECT COUNT(*) FROM recipients WHERE recipient_type='$MY_TYPE_ESC' AND recipient_name='$MY_NAME_ESC' AND read_at IS NULL;")
     if [ "$UNREAD" -eq 0 ]; then
       echo "No unread messages."
     else
@@ -143,7 +188,7 @@ SELECT m.id, m.timestamp, m.from_type || ':' || m.from_name as 'from',
        m.subject, substr(m.content, 1, 60) as preview
 FROM messages m
 JOIN recipients r ON r.message_id = m.id
-WHERE r.recipient_type = '$MY_TYPE' AND r.recipient_name = '$MY_NAME' AND r.read_at IS NULL
+WHERE r.recipient_type = '$MY_TYPE_ESC' AND r.recipient_name = '$MY_NAME_ESC' AND r.read_at IS NULL
 ORDER BY m.timestamp DESC;
 SQL
       echo ""

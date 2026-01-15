@@ -63,6 +63,22 @@ SQL
   fi
 }
 
+# Escape string for safe SQL insertion (prevent SQL injection)
+escape_sql() {
+  # Replace single quotes with two single quotes
+  echo "$1" | sed "s/'/''/g"
+}
+
+# Validate identifier (alphanumeric, hyphens, underscores only)
+validate_identifier() {
+  local val="$1"
+  if [[ "$val" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "$val"
+  else
+    echo ""
+  fi
+}
+
 # Determine who I am
 get_identity() {
   if [ -n "$AGENTNAME" ]; then
@@ -178,22 +194,43 @@ fi
 FROM_TYPE="${IDENTITY%%:*}"
 FROM_NAME="${IDENTITY#*:}"
 
-# Escape single quotes for SQL
-MESSAGE_ESCAPED="${MESSAGE//\'/\'\'}"
-SUBJECT_ESCAPED="${SUBJECT//\'/\'\'}"
+# Validate and escape identity values (prevent SQL injection)
+FROM_TYPE=$(validate_identifier "$FROM_TYPE")
+FROM_NAME=$(validate_identifier "$FROM_NAME")
+
+if [ -z "$FROM_TYPE" ] || [ -z "$FROM_NAME" ]; then
+  echo "Error: Invalid sender identity format."
+  exit 1
+fi
+
+# Escape all values for SQL
+FROM_TYPE_ESC=$(escape_sql "$FROM_TYPE")
+FROM_NAME_ESC=$(escape_sql "$FROM_NAME")
+MESSAGE_ESCAPED=$(escape_sql "$MESSAGE")
+SUBJECT_ESCAPED=$(escape_sql "$SUBJECT")
+TO_ESCAPED=$(escape_sql "$TO")
 
 # Insert message
 if [ -n "$SUBJECT" ]; then
-  MSG_ID=$(sqlite3 "$DB" "INSERT INTO messages (from_type, from_name, to_type, to_name, subject, content) VALUES ('$FROM_TYPE', '$FROM_NAME', 'custom', '$TO', '$SUBJECT_ESCAPED', '$MESSAGE_ESCAPED'); SELECT last_insert_rowid();")
+  MSG_ID=$(sqlite3 "$DB" "INSERT INTO messages (from_type, from_name, to_type, to_name, subject, content) VALUES ('$FROM_TYPE_ESC', '$FROM_NAME_ESC', 'custom', '$TO_ESCAPED', '$SUBJECT_ESCAPED', '$MESSAGE_ESCAPED'); SELECT last_insert_rowid();")
 else
-  MSG_ID=$(sqlite3 "$DB" "INSERT INTO messages (from_type, from_name, to_type, to_name, content) VALUES ('$FROM_TYPE', '$FROM_NAME', 'custom', '$TO', '$MESSAGE_ESCAPED'); SELECT last_insert_rowid();")
+  MSG_ID=$(sqlite3 "$DB" "INSERT INTO messages (from_type, from_name, to_type, to_name, content) VALUES ('$FROM_TYPE_ESC', '$FROM_NAME_ESC', 'custom', '$TO_ESCAPED', '$MESSAGE_ESCAPED'); SELECT last_insert_rowid();")
 fi
 
 # Add recipients based on TO format
 add_recipient() {
   local rtype="$1"
   local rname="$2"
-  sqlite3 "$DB" "INSERT OR IGNORE INTO recipients (message_id, recipient_type, recipient_name) VALUES ($MSG_ID, '$rtype', '$rname');"
+  # Validate recipient identifiers
+  local rtype_valid=$(validate_identifier "$rtype")
+  local rname_valid=$(validate_identifier "$rname")
+  if [ -z "$rtype_valid" ] || [ -z "$rname_valid" ]; then
+    echo "Warning: Invalid recipient '$rtype:$rname', skipping"
+    return
+  fi
+  local rtype_esc=$(escape_sql "$rtype_valid")
+  local rname_esc=$(escape_sql "$rname_valid")
+  sqlite3 "$DB" "INSERT OR IGNORE INTO recipients (message_id, recipient_type, recipient_name) VALUES ($MSG_ID, '$rtype_esc', '$rname_esc');"
 }
 
 RECIPIENT_COUNT=0
