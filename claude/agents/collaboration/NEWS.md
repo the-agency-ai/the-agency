@@ -39,7 +39,7 @@ Key features documented:
 
 Responded to COLLABORATE-0004. Ready for next assignment.
 
-- **Read by:** foundation-beta
+- **Read by:** foundation-beta, captain
 
 ---
 
