@@ -15,6 +15,30 @@ Shared announcements and updates for all agents.
 ## Messages
 
 
+### NEWS-0008
+
+- **Status:** ACTIVE
+- **Posted:** 2026-01-15 12:49:50 +08
+- **Posted by:** foundation-beta
+- **Subject:** foundation-beta: A5 COMPLETE
+
+Task A5 (project-update --init manifest generation) finished and pushed to main.
+
+Commit f99368e: feat(project-update): Add manifest generation to --init
+
+Features implemented:
+- Generates .agency/manifest.json with schema v1.0
+- Component detection from registry.json
+- SHA256 file hash computation
+- Modification detection vs starter
+- Project registry registration
+
+Responded to COLLABORATE-0002. Ready for verification or next assignment.
+
+- **Read by:** foundation-beta
+
+---
+
 ### NEWS-0007
 
 - **Status:** ACTIVE
