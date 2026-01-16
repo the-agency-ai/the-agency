@@ -134,6 +134,16 @@ function DocBenchContent() {
   useEffect(() => {
     async function checkPendingOpen() {
       try {
+        // First check sessionStorage (set by BenchLayout when navigating)
+        const sessionFile = sessionStorage.getItem('pendingOpenFile');
+        if (sessionFile) {
+          console.log('[DocBench] Opening file from session:', sessionFile);
+          sessionStorage.removeItem('pendingOpenFile');
+          setSelectedFile(sessionFile);
+          return;
+        }
+
+        // Then check Tauri pending-open.json (direct launch to docbench)
         const pending = await getPendingOpen();
         if (pending?.file) {
           console.log('[DocBench] Opening pending file:', pending.file);

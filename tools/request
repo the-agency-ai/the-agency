@@ -188,12 +188,9 @@ main() {
     exit 1
   fi
 
-  # Determine requester (principal or agent if AGENTNAME is set)
-  if [ -n "$AGENTNAME" ]; then
-    REQUESTED_BY="agent:$AGENTNAME (on behalf of $REQ_PRINCIPAL)"
-  else
-    REQUESTED_BY="principal:$REQ_PRINCIPAL"
-  fi
+  # Determine requester - always attribute to principal
+  # AGENTNAME context is informational but shouldn't change attribution
+  REQUESTED_BY="$REQ_PRINCIPAL"
 
   # Get next number
   NUMBER=$(get_next_number)
@@ -215,7 +212,7 @@ main() {
 
   # Generate content from template or inline
   CONTENT=$(cat <<EOF
-# REQUEST-${REQ_PRINCIPAL}-${NUMBER_PADDED}-${AGENT}-${SLUG}
+# REQUEST-${REQ_PRINCIPAL}-${NUMBER_PADDED}: ${SUMMARY}
 
 **Status:** Open
 **Priority:** ${PRIORITY}
@@ -234,13 +231,12 @@ ${DETAILS:-"<!-- Detailed description of what you're requesting -->"}
 
 ## Acceptance Criteria
 
-<!-- How will we know when this is complete? -->
 - [ ] Criteria 1
 - [ ] Criteria 2
 
-## Notes
+## Work Completed
 
-<!-- Any additional context, constraints, or preferences -->
+<!-- Document completed work here -->
 
 ---
 
