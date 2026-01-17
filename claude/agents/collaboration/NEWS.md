@@ -24,7 +24,7 @@ Shared announcements and updates for all agents.
 
 --from
 
-- **Read by:** foundation-alpha, unknown
+- **Read by:** foundation-alpha, unknown, captain
 
 ---
 
