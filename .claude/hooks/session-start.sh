@@ -1,6 +1,11 @@
 #!/bin/bash
 # SessionStart hook: Restore context from previous session
 
+# Enable trace mode if DEBUG_HOOKS is set
+if [[ -n "${DEBUG_HOOKS}" ]]; then
+    set -x
+fi
+
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 AGENTNAME="${AGENTNAME:-captain}"
 CONTEXT_FILE="$REPO_ROOT/claude/agents/$AGENTNAME/backups/latest/context.jsonl"

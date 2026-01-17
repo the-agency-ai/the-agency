@@ -118,6 +118,11 @@ case "${1:-}" in
         VERBOSE=true
         shift
         ;;
+    --debug)
+        VERBOSE=true
+        export DEBUG_HOOKS=1
+        shift
+        ;;
     --update)
         log_info "Updating Claude Code..."
         npm install -g @anthropic-ai/claude-code@latest
@@ -245,13 +250,27 @@ main() {
 
     # Set up vault session token for Claude Code to access secrets
     if [ -x "$PROJECT_ROOT/tools/secret" ]; then
-        # Check vault status
-        VAULT_STATUS=$("$PROJECT_ROOT/tools/secret" vault status 2>/dev/null | grep -o 'status: [a-z]*' | cut -d' ' -f2 || echo "unknown")
+        log_step "Checking vault status..."
+        # Wait for secret service to be fully ready (max 3 seconds)
+        for i in {1..6}; do
+            VAULT_STATUS=$("$PROJECT_ROOT/tools/secret" vault status 2>/dev/null | grep -o 'status: [a-z]*' | cut -d' ' -f2 || echo "unknown")
+            if [ "$VAULT_STATUS" != "unknown" ]; then
+                break
+            fi
+            sleep 0.5
+        done
+        log_step "Vault status: $VAULT_STATUS"
 
         if [ "$VAULT_STATUS" = "locked" ]; then
-            log_warn "Vault is locked. Please unlock to enable secret access."
+            echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${YELLOW}🔒 Secret Vault is locked${NC}"
+            echo ""
+            echo -e "The Agency uses a secure vault to store API keys and credentials."
+            echo -e "Please enter your vault passphrase to unlock it for this session."
+            echo ""
             "$PROJECT_ROOT/tools/secret" vault unlock
             VAULT_STATUS="unlocked"
+            echo ""
         fi
 
         if [ "$VAULT_STATUS" = "unlocked" ]; then
@@ -259,10 +278,34 @@ main() {
             SESSION_TOKEN=$("$PROJECT_ROOT/tools/secret" vault session generate "$AGENTNAME-session" 2>/dev/null || echo "")
             if [ -n "$SESSION_TOKEN" ]; then
                 export VAULT_SESSION_TOKEN="$SESSION_TOKEN"
-                log_info "✓ Vault session token generated"
+                echo -e "${GREEN}✓ Vault session token generated${NC}"
             fi
         elif [ "$VAULT_STATUS" = "uninitialized" ]; then
-            log_warn "Vault not initialized. Run: ./tools/secret vault init"
+            echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${YELLOW}🔐 Secret Vault is not initialized${NC}"
+            echo ""
+            echo -e "The Agency uses a secure vault to store API keys and credentials."
+            echo -e "Would you like to initialize it now? (recommended)"
+            echo ""
+            read -p "Initialize vault? [Y/n]: " -n 1 -r
+            echo ""
+            if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+                echo ""
+                echo -e "Please choose a strong passphrase for your vault."
+                echo -e "You'll need this passphrase each time you start an agent."
+                echo ""
+                "$PROJECT_ROOT/tools/secret" vault init
+                VAULT_STATUS="unlocked"
+                echo ""
+            else
+                echo ""
+                echo -e "${YELLOW}⚠ Skipping vault initialization. Secrets will not be available.${NC}"
+                echo -e "${YELLOW}  You can initialize later with: ./tools/secret vault init${NC}"
+                echo ""
+            fi
+        elif [ "$VAULT_STATUS" = "unknown" ]; then
+            echo -e "${YELLOW}⚠ Secret service not responding. Secrets may not be available.${NC}"
+            echo ""
         fi
     fi
 
