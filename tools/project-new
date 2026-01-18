@@ -157,6 +157,9 @@ main() {
 
     cd "$PROJECT_PATH"
 
+    # Remove starter marker (this is now a project, not the template)
+    rm -f .agency-starter
+
     # Initialize fresh git repo
     log_step "Initializing git repository..."
     git init --quiet

@@ -330,6 +330,58 @@ main() {
     # Trap unexpected exits
     trap 'log_end "$LOG_RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
+    # Check if this is the starter template (should use project-new first)
+    if [[ -f "$PROJECT_ROOT/.agency-starter" ]]; then
+        log_error "This is The Agency Starter template."
+        echo ""
+        echo "Create a project first:"
+        echo ""
+        echo "  ./tools/project-new my-project"
+        echo "  cd my-project"
+        echo "  ./tools/myclaude housekeeping captain"
+        echo ""
+        exit 1
+    fi
+
+    # Check if first-time setup is needed
+    if [[ ! -f "$PROJECT_ROOT/.agency-setup-complete" ]]; then
+        echo ""
+        echo -e "${BLUE}First-time setup required.${NC}"
+        echo ""
+        if [[ -x "$PROJECT_ROOT/tools/setup-agency" ]]; then
+            # Run setup-agency interactively
+            "$PROJECT_ROOT/tools/setup-agency"
+            # Reload environment after setup
+            if [[ -n "${AGENCY_PRINCIPAL:-}" ]]; then
+                export PRINCIPAL="$AGENCY_PRINCIPAL"
+            fi
+        else
+            log_warn "setup-agency tool not found. Continuing without setup..."
+        fi
+    fi
+
+    # Check if principal identity is configured
+    if [[ -z "${AGENCY_PRINCIPAL:-}" ]]; then
+        # Try to get from config
+        if [[ -x "$PROJECT_ROOT/tools/config" ]]; then
+            AGENCY_PRINCIPAL=$("$PROJECT_ROOT/tools/config" get-principal 2>/dev/null || echo "")
+        fi
+    fi
+
+    # If still no principal and principal directory doesn't exist, prompt to add
+    if [[ -z "${AGENCY_PRINCIPAL:-}" ]] || [[ ! -d "$PROJECT_ROOT/claude/principals/${AGENCY_PRINCIPAL:-none}" ]]; then
+        if [[ -x "$PROJECT_ROOT/tools/add-principal" ]]; then
+            echo ""
+            echo -e "${BLUE}Principal identity not configured.${NC}"
+            echo ""
+            "$PROJECT_ROOT/tools/add-principal"
+            # Reload environment
+            if [[ -z "${AGENCY_PRINCIPAL:-}" ]]; then
+                AGENCY_PRINCIPAL=$(whoami)
+            fi
+        fi
+    fi
+
     echo "myclaude [run: ${LOG_RUN_ID:-none}]"
     [[ "$DEBUG" == "true" ]] && echo -e "${BLUE}[DEBUG MODE ENABLED]${NC}"
     echo ""
