@@ -51,7 +51,7 @@
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/tools/log-tool-use-debug 2>/dev/null || true"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/tools/log-tool-use 2>/dev/null || true"
           }
         ]
       }

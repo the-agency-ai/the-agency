@@ -34,19 +34,90 @@ if [ -z "$TOOL_NAME" ]; then
     exit 0
 fi
 
-# Only log Bash commands for now (can expand later)
-if [ "$TOOL_NAME" != "Bash" ]; then
-    exit 0
-fi
-
-# Extract Bash-specific data
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
-DESCRIPTION=$(echo "$INPUT" | jq -r '.tool_input.description // empty' 2>/dev/null)
-EXIT_CODE=$(echo "$INPUT" | jq -r '.tool_response.exitCode // 0' 2>/dev/null)
+# Extract common fields
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
 
+# Handle different tool types
+case "$TOOL_NAME" in
+    Bash)
+        COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
+        DESCRIPTION=$(echo "$INPUT" | jq -r '.tool_input.description // empty' 2>/dev/null)
+        EXIT_CODE=$(echo "$INPUT" | jq -r '.tool_response.exitCode // 0' 2>/dev/null)
+        SUMMARY="$DESCRIPTION"
+        ;;
+    Read)
+        COMMAND=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+        DESCRIPTION="Read file"
+        EXIT_CODE=0
+        SUMMARY="$COMMAND"
+        ;;
+    Write)
+        COMMAND=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+        DESCRIPTION="Write file"
+        EXIT_CODE=0
+        SUMMARY="$COMMAND"
+        ;;
+    Edit)
+        COMMAND=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+        DESCRIPTION="Edit file"
+        EXIT_CODE=0
+        SUMMARY="$COMMAND"
+        ;;
+    Glob|Grep)
+        COMMAND=$(echo "$INPUT" | jq -r '.tool_input.pattern // empty' 2>/dev/null)
+        DESCRIPTION="Search: $COMMAND"
+        EXIT_CODE=0
+        SUMMARY="$COMMAND"
+        ;;
+    Task)
+        COMMAND=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // empty' 2>/dev/null)
+        PROMPT=$(echo "$INPUT" | jq -r '.tool_input.prompt // empty' 2>/dev/null | head -c 100)
+        DESCRIPTION="Spawn $COMMAND subagent"
+        EXIT_CODE=0
+        SUMMARY="$COMMAND: ${PROMPT}..."
+        ;;
+    WebFetch)
+        COMMAND=$(echo "$INPUT" | jq -r '.tool_input.url // empty' 2>/dev/null)
+        DESCRIPTION="Fetch URL"
+        EXIT_CODE=0
+        SUMMARY="$COMMAND"
+        ;;
+    WebSearch)
+        COMMAND=$(echo "$INPUT" | jq -r '.tool_input.query // empty' 2>/dev/null)
+        DESCRIPTION="Web search"
+        EXIT_CODE=0
+        SUMMARY="$COMMAND"
+        ;;
+    TodoWrite)
+        TODO_COUNT=$(echo "$INPUT" | jq -r '.tool_input.todos | length // 0' 2>/dev/null)
+        COMMAND="$TODO_COUNT todos"
+        DESCRIPTION="Update todos"
+        EXIT_CODE=0
+        SUMMARY="$TODO_COUNT items"
+        ;;
+    NotebookEdit)
+        COMMAND=$(echo "$INPUT" | jq -r '.tool_input.notebook_path // empty' 2>/dev/null)
+        DESCRIPTION="Edit notebook"
+        EXIT_CODE=0
+        SUMMARY="$COMMAND"
+        ;;
+    AskUserQuestion)
+        QUESTION=$(echo "$INPUT" | jq -r '.tool_input.questions[0].question // empty' 2>/dev/null | head -c 100)
+        COMMAND="question"
+        DESCRIPTION="Ask user"
+        EXIT_CODE=0
+        SUMMARY="${QUESTION}..."
+        ;;
+    *)
+        # Log other tools with basic info
+        COMMAND="$TOOL_NAME"
+        DESCRIPTION="Tool use"
+        EXIT_CODE=0
+        SUMMARY="$TOOL_NAME executed"
+        ;;
+esac
+
 # Sanitize command - remove potential secrets
-# Hash commands that might contain secrets
 SANITIZED_COMMAND="$COMMAND"
 if echo "$COMMAND" | grep -qiE "(password|secret|token|key|api_key|bearer|auth)" 2>/dev/null; then
     SANITIZED_COMMAND="[REDACTED - may contain secrets]"
@@ -59,19 +130,18 @@ fi
 
 # Determine status
 STATUS="success"
-if [ "$EXIT_CODE" != "0" ]; then
+if [ "$EXIT_CODE" != "0" ] && [ "$EXIT_CODE" != "" ]; then
     STATUS="failure"
 fi
 
 # Log to agency-service
-# Using the tool_runs table schema
+# Using the tool_runs table schema - toolType must be agency-tool|bash|mcp, args must be array
 JSON_PAYLOAD=$(jq -n \
-    --arg tool "Bash" \
-    --arg toolType "claude-code" \
-    --arg args "$SANITIZED_COMMAND" \
+    --arg tool "$TOOL_NAME" \
+    --arg toolType "bash" \
+    --argjson args "[\"$SANITIZED_COMMAND\"]" \
     --arg sessionId "$SESSION_ID" \
-    --arg desc "$DESCRIPTION" \
-    '{tool: $tool, toolType: $toolType, args: $args, sessionId: $sessionId, description: $desc}' 2>/dev/null)
+    '{tool: $tool, toolType: $toolType, args: $args, sessionId: $sessionId}' 2>/dev/null)
 
 if [ -n "$JSON_PAYLOAD" ]; then
     # Start the run
@@ -84,10 +154,16 @@ if [ -n "$JSON_PAYLOAD" ]; then
 
     if [ -n "$RUN_ID" ]; then
         # End the run immediately with status
+        # Ensure exit code is a number
+        EXIT_CODE_NUM="${EXIT_CODE:-0}"
+        if ! [[ "$EXIT_CODE_NUM" =~ ^[0-9]+$ ]]; then
+            EXIT_CODE_NUM=0
+        fi
+
         END_PAYLOAD=$(jq -n \
             --arg status "$STATUS" \
-            --argjson exitCode "$EXIT_CODE" \
-            --arg summary "$DESCRIPTION" \
+            --argjson exitCode "$EXIT_CODE_NUM" \
+            --arg summary "$SUMMARY" \
             '{status: $status, exitCode: $exitCode, summary: $summary}' 2>/dev/null)
 
         curl -s --connect-timeout 1 --max-time 2 \
