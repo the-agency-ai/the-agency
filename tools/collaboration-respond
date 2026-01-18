@@ -59,6 +59,15 @@ if [[ -f ".env.local" ]]; then
   set +a
 fi
 
+# Cross-platform sed -i (macOS vs Linux)
+sed_i() {
+  if [[ "$(uname)" == "Darwin" ]]; then
+    sed -i '' "$@"
+  else
+    sed -i "$@"
+  fi
+}
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -147,7 +156,7 @@ main() {
 
     # Step 3: Update status to "Responded"
     log_step "Updating collaboration status..."
-    sed -i '' 's/\*\*Status:\*\* Open/\*\*Status:\*\* Responded/' "$COLLAB_FILE"
+    sed_i 's/\*\*Status:\*\* Open/\*\*Status:\*\* Responded/' "$COLLAB_FILE"
 
     # Step 4: Replace the response section
     # Find line number of "## Response" section

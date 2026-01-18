@@ -264,19 +264,28 @@ export class MessageRepository {
       [...params, query.limit, query.offset]
     );
 
-    // Get recipients for each message
-    const messages: MessageWithRecipients[] = [];
-    for (const row of rows) {
-      const recipientRows = await this.db.query<RecipientRow>(
-        'SELECT * FROM recipients WHERE message_id = ?',
-        [row.id]
-      );
+    // Batch fetch all recipients for the messages to avoid N+1 queries
+    const messageIds = rows.map(r => r.id);
+    const recipientRows = messageIds.length > 0
+      ? await this.db.query<RecipientRow>(
+          `SELECT * FROM recipients WHERE message_id IN (${messageIds.map(() => '?').join(',')})`,
+          messageIds
+        )
+      : [];
 
-      messages.push({
-        ...rowToMessage(row),
-        recipients: recipientRows.map(rowToRecipient),
-      });
+    // Group recipients by message_id
+    const recipientsByMessageId = new Map<number, RecipientRow[]>();
+    for (const row of recipientRows) {
+      const existing = recipientsByMessageId.get(row.message_id) || [];
+      existing.push(row);
+      recipientsByMessageId.set(row.message_id, existing);
     }
+
+    // Build message objects with their recipients
+    const messages: MessageWithRecipients[] = rows.map(row => ({
+      ...rowToMessage(row),
+      recipients: (recipientsByMessageId.get(row.id) || []).map(rowToRecipient),
+    }));
 
     return { messages, total };
   }

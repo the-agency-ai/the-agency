@@ -170,31 +170,21 @@ export class RequestRepository {
 
   /**
    * Get the next request ID for a principal
-   * Uses atomic increment-then-read pattern to prevent race conditions
+   * Uses atomic UPSERT with RETURNING to prevent race conditions
    */
   async getNextRequestId(principal: string): Promise<string> {
     const lowerPrincipal = principal.toLowerCase();
 
-    // Ensure sequence exists for this principal
-    await this.db.execute(
-      `INSERT OR IGNORE INTO request_sequences (principal, next_id) VALUES (?, 1)`,
+    // Use UPSERT with RETURNING to atomically create/increment and get the reserved ID
+    // INSERT starts at 2 (reserving 1), UPDATE increments and RETURNING gets pre-increment value
+    const row = await this.db.get<{ reserved_id: number }>(
+      `INSERT INTO request_sequences (principal, next_id) VALUES (?, 2)
+       ON CONFLICT(principal) DO UPDATE SET next_id = next_id + 1
+       RETURNING next_id - 1 as reserved_id`,
       [lowerPrincipal]
     );
 
-    // Atomic increment-then-read: increment first, then read the value we just reserved
-    // This prevents TOCTOU race conditions - each caller gets a unique ID
-    await this.db.execute(
-      'UPDATE request_sequences SET next_id = next_id + 1 WHERE principal = ?',
-      [lowerPrincipal]
-    );
-
-    // Read the incremented value and subtract 1 to get the ID we reserved
-    const row = await this.db.get<SequenceRow>(
-      'SELECT next_id - 1 as next_id FROM request_sequences WHERE principal = ?',
-      [lowerPrincipal]
-    );
-
-    const nextId = row?.next_id ?? 1;
+    const nextId = row?.reserved_id ?? 1;
 
     // Format: REQUEST-jordan-0035
     return `REQUEST-${lowerPrincipal}-${String(nextId).padStart(4, '0')}`;

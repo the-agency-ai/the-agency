@@ -164,25 +164,21 @@ export class BugRepository {
 
   /**
    * Get the next bug ID for a workstream
-   * Uses atomic increment-then-read pattern to prevent race conditions
+   * Uses atomic UPSERT with RETURNING to prevent race conditions
    */
   async getNextBugId(workstream: string): Promise<string> {
     const upperWorkstream = workstream.toUpperCase();
 
-    // Use UPSERT to atomically create or increment
-    await this.db.execute(
+    // Use UPSERT with RETURNING to atomically create/increment and get the reserved ID
+    // The INSERT sets next_id to 2 (reserving 1), UPDATE increments and we read pre-increment value
+    const row = await this.db.get<{ reserved_id: number }>(
       `INSERT INTO bug_sequences (workstream, next_id) VALUES (?, 2)
-       ON CONFLICT(workstream) DO UPDATE SET next_id = next_id + 1`,
+       ON CONFLICT(workstream) DO UPDATE SET next_id = next_id + 1
+       RETURNING next_id - 1 as reserved_id`,
       [upperWorkstream]
     );
 
-    // Read the value we just set/incremented, subtract 1 to get the ID we reserved
-    const row = await this.db.get<SequenceRow>(
-      'SELECT next_id - 1 as next_id FROM bug_sequences WHERE workstream = ?',
-      [upperWorkstream]
-    );
-
-    const nextId = row?.next_id ?? 1;
+    const nextId = row?.reserved_id ?? 1;
 
     // Format: BENCH-00001
     return `${upperWorkstream}-${String(nextId).padStart(5, '0')}`;

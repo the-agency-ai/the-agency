@@ -109,9 +109,13 @@ start_service() {
         exit 1
     fi
 
-    # Start service in background
+    # Start service in background (log to file for debugging)
+    local LOG_DIR="$PROJECT_ROOT/claude/logs"
+    local LOG_FILE="$LOG_DIR/agency-service.log"
+    mkdir -p "$LOG_DIR"
+
     cd "$SERVICE_DIR"
-    AGENCY_PROJECT_ROOT="$PROJECT_ROOT" "$BUN_PATH" run src/index.ts > /dev/null 2>&1 &
+    AGENCY_PROJECT_ROOT="$PROJECT_ROOT" "$BUN_PATH" run src/index.ts >> "$LOG_FILE" 2>&1 &
     local pid=$!
     echo "$pid" > "$PID_FILE"
 
