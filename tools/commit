@@ -71,6 +71,7 @@ WORK_ITEM=""
 STAGE=""
 BODY=""
 PRINCIPAL_OVERRIDE=""
+MESSAGE=""
 
 # Parse options
 while [[ $# -gt 0 ]]; do

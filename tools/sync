@@ -83,9 +83,9 @@ log() {
     fi
 }
 
-log_info() { log "info" "$1" "$2"; }
-log_warn() { log "warn" "$1" "$2"; }
-log_error() { log "error" "$1" "$2"; }
+log_info() { log "info" "$1" "${2:-}"; }
+log_warn() { log "warn" "$1" "${2:-}"; }
+log_error() { log "error" "$1" "${2:-}"; }
 
 # Start tool run - uses log helper if available
 start_run() {
