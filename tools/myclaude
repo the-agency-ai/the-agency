@@ -322,12 +322,12 @@ main() {
     fi
     echo ""
 
-    # Build claude command
-    CLAUDE_CMD="claude --model opus"
+    # Build claude command arguments (array-based to avoid eval)
+    CLAUDE_ARGS=("--model" "opus")
 
     # Add initial prompt if provided
     if [ -n "$INITIAL_PROMPT" ]; then
-        CLAUDE_CMD="$CLAUDE_CMD --prompt \"$INITIAL_PROMPT\""
+        CLAUDE_ARGS+=("--prompt" "$INITIAL_PROMPT")
     fi
 
     # Launch claude in project directory
@@ -335,7 +335,7 @@ main() {
 
     # Run claude and capture exit code
     CLAUDE_EXIT=0
-    eval "$CLAUDE_CMD" || CLAUDE_EXIT=$?
+    claude "${CLAUDE_ARGS[@]}" || CLAUDE_EXIT=$?
 
     # End logging
     trap - EXIT  # Clear trap

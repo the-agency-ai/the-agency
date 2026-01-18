@@ -22,10 +22,13 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
+import { fileURLToPath } from "url";
 
-// Get project root from env or current directory
-const PROJECT_ROOT = process.env.PROJECT_ROOT || process.cwd();
+// Detect project root from script location (claude/integrations/claude-desktop/agency-server/index.ts)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROJECT_ROOT = path.resolve(__dirname, "../../../..");
 
 // Create server
 const server = new Server(
@@ -41,11 +44,24 @@ const server = new Server(
   }
 );
 
-// Helper: Run a tool and return output
+// Allowed tools that can be executed via MCP
+const ALLOWED_TOOLS = ["list-instructions", "news-read", "news-post", "collaborate"] as const;
+
+// Helper: Validate name contains only safe characters (alphanumeric, hyphen, underscore)
+function isValidName(name: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(name);
+}
+
+// Helper: Run a tool and return output (uses execFileSync to prevent command injection)
 function runTool(tool: string, args: string[] = []): string {
+  // Validate tool is in allowlist
+  if (!ALLOWED_TOOLS.includes(tool as typeof ALLOWED_TOOLS[number])) {
+    return `Error: Unknown tool '${tool}'`;
+  }
   const toolPath = path.join(PROJECT_ROOT, "tools", tool);
   try {
-    const result = execSync(`"${toolPath}" ${args.map((a) => `"${a}"`).join(" ")}`, {
+    // Use execFileSync instead of execSync to prevent shell injection
+    const result = execFileSync(toolPath, args, {
       cwd: PROJECT_ROOT,
       encoding: "utf-8",
       env: { ...process.env, PROJECT_ROOT },
@@ -53,13 +69,19 @@ function runTool(tool: string, args: string[] = []): string {
     return result.trim();
   } catch (error: unknown) {
     const e = error as { stderr?: string; message?: string };
-    return `Error: ${e.stderr || e.message}`;
+    // Don't expose internal error details to clients
+    console.error(`Tool execution error: ${e.stderr || e.message}`);
+    return `Error: Tool execution failed`;
   }
 }
 
-// Helper: Read file safely
+// Helper: Read file safely with path traversal protection
 function readFile(relativePath: string): string {
-  const fullPath = path.join(PROJECT_ROOT, relativePath);
+  const fullPath = path.resolve(PROJECT_ROOT, relativePath);
+  // Prevent path traversal - ensure resolved path is within PROJECT_ROOT
+  if (!fullPath.startsWith(PROJECT_ROOT + path.sep) && fullPath !== PROJECT_ROOT) {
+    return `Error: Invalid path`;
+  }
   try {
     return fs.readFileSync(fullPath, "utf-8");
   } catch {
@@ -79,9 +101,21 @@ function getCollaborations(): string[] {
   }
 }
 
-// Helper: Get agent status
+// Helper: Get agent status with path traversal protection
 function getAgentStatus(agentName: string): Record<string, unknown> {
-  const agentDir = path.join(PROJECT_ROOT, "claude/agents", agentName);
+  // Validate agent name to prevent path traversal
+  if (!isValidName(agentName)) {
+    return { name: agentName, exists: false, error: "Invalid agent name" };
+  }
+
+  const agentsDir = path.resolve(PROJECT_ROOT, "claude/agents");
+  const agentDir = path.resolve(agentsDir, agentName);
+
+  // Ensure resolved path is within agents directory
+  if (!agentDir.startsWith(agentsDir + path.sep)) {
+    return { name: agentName, exists: false, error: "Invalid agent path" };
+  }
+
   const status: Record<string, unknown> = {
     name: agentName,
     exists: fs.existsSync(agentDir),
@@ -227,7 +261,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (name) {
     case "get_workstream_context": {
       const workstream = args?.workstream as string;
-      const wsDir = path.join(PROJECT_ROOT, "claude/workstreams", workstream);
+
+      // Validate workstream name to prevent path traversal
+      if (!isValidName(workstream)) {
+        return { content: [{ type: "text", text: `Invalid workstream name: ${workstream}` }] };
+      }
+
+      const workstreamsDir = path.resolve(PROJECT_ROOT, "claude/workstreams");
+      const wsDir = path.resolve(workstreamsDir, workstream);
+
+      // Ensure resolved path is within workstreams directory
+      if (!wsDir.startsWith(workstreamsDir + path.sep)) {
+        return { content: [{ type: "text", text: `Invalid workstream path` }] };
+      }
 
       if (!fs.existsSync(wsDir)) {
         return { content: [{ type: "text", text: `Workstream '${workstream}' not found` }] };
@@ -468,6 +514,15 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     const match = uri.match(/agency:\/\/agents\/(.+)\/(.+)/);
     if (match) {
       const [, agent, file] = match;
+
+      // Validate agent and file names to prevent path traversal
+      if (!isValidName(agent) || !/^[a-zA-Z0-9_-]+\.(md|json|yaml)$/.test(file)) {
+        return {
+          contents: [{ uri, mimeType: "text/plain", text: "Invalid resource path" }],
+        };
+      }
+
+      // Additional path traversal protection via readFile's built-in check
       return {
         contents: [
           {

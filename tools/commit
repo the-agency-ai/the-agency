@@ -2,22 +2,37 @@
 # Create properly formatted commits for The Agency
 #
 # Usage:
-#   ./tools/commit "feat: add encryption" REQUEST-jordan-0017
-#   ./tools/commit "fix: handle null case" BUG-0042
-#   ./tools/commit "docs: update README"  # No work item
+#   ./tools/commit "short summary" --work-item REQUEST-jordan-0065 --stage impl
+#   ./tools/commit "fix null handling" --work-item BUG-0042 --stage review
+#   ./tools/commit "update README"  # No work item (simple commit)
 #
-# Format:
-#   workstream/agent: message
+# Format (with work item):
+#   {WORK-ITEM} - {WORKSTREAM}/{AGENT} for {PRINCIPAL}: {SHORT SUMMARY}
 #
-#   WORK-ITEM-ID (if provided)
-#   Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+#   {body}
+#
+#   Stage: {stage}
+#   Generated-With: Claude Code
+#   Co-Authored-By: Claude <noreply@anthropic.com>
+#
+# Format (without work item):
+#   {WORKSTREAM}/{AGENT}: {SHORT SUMMARY}
+#
+#   {body}
+#
+#   Generated-With: Claude Code
+#   Co-Authored-By: Claude <noreply@anthropic.com>
 #
 # Options:
-#   --no-verify    Skip pre-commit hooks
-#   --amend        Amend the previous commit (use carefully!)
-#   --dry-run      Show what would be committed
-#   --staged       Only commit staged changes (default: stage all)
-#   --verbose      Show detailed output
+#   --work-item, -w   Work item ID (REQUEST-jordan-0065, SPRINT-web-2026w03, etc.)
+#   --stage, -s       Stage: impl, review, tests (required if work-item provided)
+#   --body, -b        Detailed commit body
+#   --principal, -p   Override principal (default: from config or work item)
+#   --no-verify       Skip pre-commit hooks
+#   --amend           Amend the previous commit (use carefully!)
+#   --dry-run         Show what would be committed
+#   --staged          Only commit staged changes (default: stage all)
+#   --verbose         Show detailed output
 #
 
 set -e
@@ -52,6 +67,10 @@ AMEND=false
 DRY_RUN=false
 STAGED_ONLY=false
 VERBOSE=false
+WORK_ITEM=""
+STAGE=""
+BODY=""
+PRINCIPAL_OVERRIDE=""
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -61,7 +80,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --help|-h)
-            head -24 "$0" | tail -23 | sed 's/^# //' | sed 's/^#//'
+            head -36 "$0" | tail -35 | sed 's/^# //' | sed 's/^#//'
             exit 0
             ;;
         --verbose)
@@ -84,15 +103,38 @@ while [[ $# -gt 0 ]]; do
             STAGED_ONLY=true
             shift
             ;;
+        --work-item|-w)
+            WORK_ITEM="$2"
+            shift 2
+            ;;
+        --stage|-s)
+            STAGE="$2"
+            shift 2
+            ;;
+        --body|-b)
+            BODY="$2"
+            shift 2
+            ;;
+        --principal|-p)
+            PRINCIPAL_OVERRIDE="$2"
+            shift 2
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            exit 1
+            ;;
         *)
-            break
+            # Capture positional argument (message) and continue parsing
+            if [ -z "$MESSAGE" ]; then
+                MESSAGE="$1"
+                shift
+            else
+                log_error "Unexpected argument: $1"
+                exit 1
+            fi
             ;;
     esac
 done
-
-# Get message and work item
-MESSAGE="${1:-}"
-WORK_ITEM="${2:-}"
 
 # Main function
 main() {
@@ -103,10 +145,31 @@ main() {
 
     if [ -z "$MESSAGE" ]; then
         log_error "Commit message required"
-        verbose_echo "Usage: ./tools/commit \"message\" [WORK-ITEM]"
+        verbose_echo "Usage: ./tools/commit \"message\" --work-item WORK-ITEM --stage impl"
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "Missing commit message"
         exit 1
+    fi
+
+    # Validate: if work item provided, stage is required
+    if [ -n "$WORK_ITEM" ] && [ -z "$STAGE" ]; then
+        log_error "Stage required when work item is provided (--stage impl|review|tests)"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Missing stage"
+        exit 1
+    fi
+
+    # Validate stage value
+    if [ -n "$STAGE" ]; then
+        case "$STAGE" in
+            impl|review|tests) ;;
+            *)
+                log_error "Invalid stage: $STAGE (must be impl, review, or tests)"
+                trap - EXIT
+                log_end "$RUN_ID" "failure" 1 0 "Invalid stage"
+                exit 1
+                ;;
+        esac
     fi
 
     # Try to detect workstream/agent from environment or current directory
@@ -136,23 +199,47 @@ main() {
     WORKSTREAM="${WORKSTREAM:-housekeeping}"
     AGENT="${AGENT:-captain}"
 
-    # Build the commit message
-    PREFIX="${WORKSTREAM}/${AGENT}"
-    FULL_MESSAGE="${PREFIX}: ${MESSAGE}"
-
-    # Add work item and co-author
-    BODY=""
-    if [ -n "$WORK_ITEM" ]; then
-        BODY="${WORK_ITEM}"$'\n'
+    # Determine principal
+    PRINCIPAL=""
+    if [ -n "$PRINCIPAL_OVERRIDE" ]; then
+        PRINCIPAL="$PRINCIPAL_OVERRIDE"
+    elif [ -n "$WORK_ITEM" ]; then
+        # Try to extract principal from work item (e.g., REQUEST-jordan-0065 -> jordan)
+        if [[ "$WORK_ITEM" =~ ^[A-Z]+-([a-z]+)- ]]; then
+            PRINCIPAL="${BASH_REMATCH[1]}"
+        fi
     fi
-    BODY="${BODY}Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+    # Fallback: try environment or config
+    if [ -z "$PRINCIPAL" ]; then
+        PRINCIPAL="${AGENCY_PRINCIPAL:-${PRINCIPAL:-unknown}}"
+    fi
+
+    # Build the commit message
+    # Format with work item: {WORK-ITEM} - {WORKSTREAM}/{AGENT} for {PRINCIPAL}: {MESSAGE}
+    # Format without: {WORKSTREAM}/{AGENT}: {MESSAGE}
+    if [ -n "$WORK_ITEM" ]; then
+        FULL_MESSAGE="${WORK_ITEM} - ${WORKSTREAM}/${AGENT} for ${PRINCIPAL}: ${MESSAGE}"
+    else
+        FULL_MESSAGE="${WORKSTREAM}/${AGENT}: ${MESSAGE}"
+    fi
+
+    # Build the commit body with trailers
+    COMMIT_BODY=""
+    if [ -n "$BODY" ]; then
+        COMMIT_BODY="${BODY}"$'\n\n'
+    fi
+    if [ -n "$STAGE" ]; then
+        COMMIT_BODY="${COMMIT_BODY}Stage: ${STAGE}"$'\n'
+    fi
+    COMMIT_BODY="${COMMIT_BODY}Generated-With: Claude Code"$'\n'
+    COMMIT_BODY="${COMMIT_BODY}Co-Authored-By: Claude <noreply@anthropic.com>"
 
     # Show preview (verbose only)
     log_step "Commit Preview"
     verbose_echo "---"
     verbose_echo -e "${GREEN}${FULL_MESSAGE}${NC}"
     verbose_echo ""
-    verbose_echo "$BODY"
+    verbose_echo "$COMMIT_BODY"
     verbose_echo "---"
 
     # Check for changes
@@ -221,7 +308,7 @@ main() {
 
     # Execute commit
     log_step "Creating commit"
-    if $GIT_CMD -m "$FULL_MESSAGE" -m "$BODY" >/dev/null 2>&1; then
+    if $GIT_CMD -m "$FULL_MESSAGE" -m "$COMMIT_BODY" >/dev/null 2>&1; then
         COMMIT_HASH=$(git log -1 --format='%h')
         echo "Committed: $COMMIT_HASH"
 
@@ -232,7 +319,7 @@ main() {
         log_end "$RUN_ID" "success" 0 0 "Committed: $COMMIT_HASH - $MESSAGE"
     else
         # Re-run without suppressing output to show the error
-        if ! $GIT_CMD -m "$FULL_MESSAGE" -m "$BODY"; then
+        if ! $GIT_CMD -m "$FULL_MESSAGE" -m "$COMMIT_BODY"; then
             COMMIT_EXIT=$?
             log_error "Commit failed"
             trap - EXIT

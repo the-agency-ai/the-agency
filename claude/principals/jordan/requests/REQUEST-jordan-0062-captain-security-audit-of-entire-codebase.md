@@ -1,8 +1,8 @@
-# REQUEST-unknown-0062: Security audit of entire codebase
+# REQUEST-jordan-0062: Security audit of entire codebase
 
 **Status:** In Progress (Findings Ready)
 **Priority:** High
-**Requested By:** unknown
+**Requested By:** jordan
 **Assigned To:** captain
 **Created:** 2026-01-18
 **Updated:** 2026-01-18
@@ -38,9 +38,9 @@ Conduct a comprehensive security audit of the entire codebase.
 
 - [x] Security audit completed with 3 parallel subagents
 - [x] Findings consolidated into prioritized list
-- [ ] Critical findings remediated
-- [ ] High findings remediated
-- [ ] Git history cleaned of exposed tokens
+- [x] Critical findings remediated
+- [x] High findings remediated
+- [ ] Git history cleaned of exposed tokens (requires user action)
 
 ## Work Completed
 
@@ -73,9 +73,39 @@ Conduct a comprehensive security audit of the entire codebase.
 - `/private/tmp/claude/-Users-jdm-code-the-agency/tasks/a50a20c.output` (JS/TS)
 - `/private/tmp/claude/-Users-jdm-code-the-agency/tasks/ab5b7f8.output` (config/secrets)
 
+### 2026-01-18 - Remediation Applied
+
+**Fixes Applied (CRITICAL & HIGH severity):**
+
+| Issue | Fix | Files |
+|-------|-----|-------|
+| Command injection (execSync) | Changed to execFileSync | agency-server/index.ts |
+| myclaude eval | Replaced with array-based execution | tools/myclaude |
+| browser tool injection | URL passed via env vars instead of interpolation | tools/browser |
+| Path traversal in agency-server | Added isValidName() and path resolution checks | agency-server/index.ts |
+| Unsafe rm -rf (starter-compare) | Added safety checks for test directories | tools/starter-compare |
+| Unsafe rm -rf (starter-cleanup) | Added safety checks for test directories | tools/starter-cleanup |
+| Unsafe rm -rf (starter-verify) | Added safety checks for test directories | tools/starter-verify |
+| eval in starter-compare | Replaced with array-based find args | tools/starter-compare |
+
+**Not Fixed (by design):**
+
+| Issue | Status | Reason |
+|-------|--------|--------|
+| JWT bypass in auth.middleware.ts | Documented intentional | Design decision for trusted proxy environments |
+| secrets-scan excludes *.md | Intentional | Reduces false positives in documentation |
+| Tokens in git history | Requires user action | Need BFG or git filter-branch - rotated tokens already invalidated |
+
+**Tests:** 76/76 passing
+
 ---
 
 ## Activity Log
 
 ### 2026-01-18 - Created
-- Request created by unknown
+- Request created by jordan
+
+### 2026-01-18 - Remediation Applied
+- Fixed all CRITICAL and HIGH severity code issues
+- JWT bypass documented as intentional design
+- Git history cleaning requires user action (tokens already rotated)

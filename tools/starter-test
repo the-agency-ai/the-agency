@@ -226,10 +226,10 @@ test_new_project() {
         log_fail "CLAUDE.md missing from project"
     fi
 
-    if [[ -d "$project_dir/claude/agents/housekeeping" ]]; then
-        log_pass "housekeeping agent exists"
+    if [[ -d "$project_dir/claude/agents/captain" ]]; then
+        log_pass "captain agent exists"
     else
-        log_fail "housekeeping agent missing"
+        log_fail "captain agent missing"
     fi
 
     if [[ -d "$project_dir/source/apps" ]]; then
@@ -251,7 +251,7 @@ test_compare_install() {
         "CLAUDE.md"
         "README.md"
         "VERSION"
-        "claude/agents/housekeeping/agent.md"
+        "claude/agents/captain/agent.md"
         "claude/config/agency.yaml"
     )
 
@@ -290,7 +290,7 @@ test_compare_project() {
     local required_dirs=(
         "claude"
         "claude/agents"
-        "claude/agents/housekeeping"
+        "claude/agents/captain"
         "claude/config"
         "claude/docs"
         "claude/principals"

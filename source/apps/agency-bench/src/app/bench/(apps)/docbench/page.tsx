@@ -131,29 +131,53 @@ function DocBenchContent() {
   }, [browseRoot]);
 
   // Check for pending file to open from CLI
-  useEffect(() => {
-    async function checkPendingOpen() {
-      try {
-        // First check sessionStorage (set by BenchLayout when navigating)
-        const sessionFile = sessionStorage.getItem('pendingOpenFile');
-        if (sessionFile) {
-          console.log('[DocBench] Opening file from session:', sessionFile);
-          sessionStorage.removeItem('pendingOpenFile');
-          setSelectedFile(sessionFile);
-          return;
-        }
-
-        // Then check Tauri pending-open.json (direct launch to docbench)
-        const pending = await getPendingOpen();
-        if (pending?.file) {
-          console.log('[DocBench] Opening pending file:', pending.file);
-          setSelectedFile(pending.file);
-        }
-      } catch (err) {
-        console.error('[DocBench] Error checking pending open:', err);
+  const checkPendingOpen = useCallback(async () => {
+    try {
+      // First check sessionStorage (set by BenchLayout when navigating)
+      const sessionFile = sessionStorage.getItem('pendingOpenFile');
+      if (sessionFile) {
+        console.log('[DocBench] Opening file from session:', sessionFile);
+        sessionStorage.removeItem('pendingOpenFile');
+        setSelectedFile(sessionFile);
+        return;
       }
+
+      // Then check Tauri pending-open.json (direct launch to docbench)
+      const pending = await getPendingOpen();
+      if (pending?.file) {
+        console.log('[DocBench] Opening pending file:', pending.file);
+        setSelectedFile(pending.file);
+      }
+    } catch (err) {
+      console.error('[DocBench] Error checking pending open:', err);
     }
+  }, []);
+
+  // Check on mount
+  useEffect(() => {
     checkPendingOpen();
+  }, [checkPendingOpen]);
+
+  // Hot-reload: listen for storage events (from BenchLayout)
+  useEffect(() => {
+    const handleStorage = () => {
+      const sessionFile = sessionStorage.getItem('pendingOpenFile');
+      if (sessionFile) {
+        console.log('[DocBench] Hot-reload: opening file from session:', sessionFile);
+        sessionStorage.removeItem('pendingOpenFile');
+        setSelectedFile(sessionFile);
+      }
+    };
+
+    // Check periodically since storage events don't fire for same-window changes
+    const interval = setInterval(() => {
+      const sessionFile = sessionStorage.getItem('pendingOpenFile');
+      if (sessionFile) {
+        handleStorage();
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Load and save sidebar width

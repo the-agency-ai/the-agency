@@ -28,7 +28,7 @@ Accumulated patterns and wisdom for running The Agency effectively.
 
 ### Starting a New Project
 
-1. Launch housekeeping: `./tools/myclaude housekeeping housekeeping`
+1. Launch captain: `./tools/myclaude housekeeping captain`
 2. Describe your project and tech stack
 3. I'll help you:
    - Choose/create appropriate starter pack

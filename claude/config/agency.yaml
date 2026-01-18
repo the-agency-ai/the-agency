@@ -5,8 +5,8 @@
 # Used for: commit attribution, instruction routing, preferences
 principals:
   # Format: system_username: principal_name
-  # Example: jdm: jordan
   # The principal_name should match a directory in claude/principals/
+  jdm: jordan
   default: unknown  # Fallback if username not found
 
 # Project settings

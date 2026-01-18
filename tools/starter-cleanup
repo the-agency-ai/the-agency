@@ -62,13 +62,23 @@ main() {
             ;;
         --all|-a)
             log_step "Cleaning all test artifacts..."
-            rm -rf "$PROJECT_ROOT/test/starter-test-run"
-            rm -rf "$PROJECT_ROOT/test/test-install"
-            rm -rf "$PROJECT_ROOT/test/the-agency-starter"
+            # Only remove directories that are clearly test artifacts
+            for dir in "starter-test-run" "test-install" "the-agency-starter"; do
+                local target="$PROJECT_ROOT/test/$dir"
+                if [[ -d "$target" ]]; then
+                    rm -rf "$target"
+                    verbose_echo "  Removed: $target"
+                fi
+            done
             verbose_echo -e "${GREEN}Done.${NC}"
             ;;
         *)
             log_step "Cleaning starter-test artifacts..."
+            # Safety check: ensure TEST_DIR is within expected boundaries
+            if [[ -z "$TEST_DIR" || "$TEST_DIR" != *"/test/"* ]]; then
+                log_error "Refusing to remove non-test directory: $TEST_DIR"
+                exit 1
+            fi
             if [[ -d "$TEST_DIR" ]]; then
                 rm -rf "$TEST_DIR"
                 verbose_echo -e "${GREEN}Removed: $TEST_DIR${NC}"

@@ -102,3 +102,9 @@ Accountability log for all remote pushes. All agents must use `./tools/sync`.
 0 skip-ci | main |
 | 2026-01-15 18:45:51 +08 | captain | 1 | 0
 0 skip-ci | main |
+| 2026-01-16 00:06:08 +08 | foundation-alpha | 5 | 0
+0 skip-ci | main |
+| 2026-01-17 12:26:02 +08 | unknown | 11 | 0
+0 skip-ci | main |
+| 2026-01-17 12:26:28 +08 | captain | 12 | 0
+0 skip-ci | main |

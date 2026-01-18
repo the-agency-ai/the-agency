@@ -108,6 +108,18 @@ main() {
 if [[ "$INSTALL_FRESH" == "true" ]]; then
     echo -e "${BLUE}Installing fresh copy to test directory...${NC}"
 
+    # Safety check: prevent dangerous paths
+    if [[ -z "$TEST_DIR" || "$TEST_DIR" == "/" || "$TEST_DIR" == "/usr" || "$TEST_DIR" == "/etc" || "$TEST_DIR" == "$HOME" ]]; then
+        log_error "Refusing to use dangerous path: $TEST_DIR"
+        exit 1
+    fi
+
+    # Safety check: ensure it's a test directory
+    if [[ "$TEST_DIR" != *"/test/"* && "$TEST_DIR" != *"/test-"* ]]; then
+        log_error "Refusing to remove non-test directory: $TEST_DIR"
+        exit 1
+    fi
+
     # Create test directory
     mkdir -p "$(dirname "$TEST_DIR")"
 
@@ -315,5 +327,13 @@ else
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${RED}  VERIFICATION FAILED${NC}"
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    trap - EXIT
+    log_end "$RUN_ID" "failure" 1 0 "Verification failed" 2>/dev/null || true
     exit 1
 fi
+
+trap - EXIT
+log_end "$RUN_ID" "success" 0 0 "Verification passed" 2>/dev/null || true
+}
+
+main "$@"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { AppSidebar } from './AppSidebar';
 import { Header } from './Header';
@@ -22,44 +22,69 @@ const APP_ROUTES: Record<string, string> = {
   workitems: '/bench/workitems',
 };
 
+// Polling interval for hot-reload (in ms)
+const PENDING_CHECK_INTERVAL = 2000;
+
 export function BenchLayout({ children }: BenchLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [pendingFile, setPendingFile] = useState<string | null>(null);
 
-  // Check for pending open on mount - runs once at app startup
-  useEffect(() => {
-    async function checkPendingOpen() {
-      try {
-        const pending = await getPendingOpen();
-        if (!pending) return;
+  // Check for pending open files
+  const checkPendingOpen = useCallback(async () => {
+    try {
+      const pending = await getPendingOpen();
+      if (!pending) return;
 
-        console.log('[BenchLayout] Pending open:', pending);
+      console.log('[BenchLayout] Pending open:', pending);
 
-        // If there's a file, navigate to docbench
-        if (pending.file) {
-          setPendingFile(pending.file);
-          if (!pathname.includes('/docbench')) {
-            console.log('[BenchLayout] Navigating to docbench for file:', pending.file);
-            router.push('/bench/docbench');
-          }
-          return;
+      // If there's a file, navigate to docbench
+      if (pending.file) {
+        setPendingFile(pending.file);
+        if (!pathname.includes('/docbench')) {
+          console.log('[BenchLayout] Navigating to docbench for file:', pending.file);
+          router.push('/bench/docbench');
         }
-
-        // If there's an app specified, navigate to it
-        if (pending.app) {
-          const route = APP_ROUTES[pending.app];
-          if (route && !pathname.includes(route)) {
-            console.log('[BenchLayout] Navigating to app:', pending.app);
-            router.push(route);
-          }
-        }
-      } catch (err) {
-        console.error('[BenchLayout] Error checking pending open:', err);
+        return;
       }
+
+      // If there's an app specified, navigate to it
+      if (pending.app) {
+        const route = APP_ROUTES[pending.app];
+        if (route && !pathname.includes(route)) {
+          console.log('[BenchLayout] Navigating to app:', pending.app);
+          router.push(route);
+        }
+      }
+    } catch (err) {
+      console.error('[BenchLayout] Error checking pending open:', err);
     }
-    checkPendingOpen();
   }, [router, pathname]);
+
+  // Check on mount
+  useEffect(() => {
+    checkPendingOpen();
+  }, [checkPendingOpen]);
+
+  // Hot-reload: check when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('[BenchLayout] Window focused, checking for pending files');
+      checkPendingOpen();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [checkPendingOpen]);
+
+  // Hot-reload: periodic polling for pending files
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkPendingOpen();
+    }, PENDING_CHECK_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [checkPendingOpen]);
 
   // Store pending file for docbench to pick up
   useEffect(() => {

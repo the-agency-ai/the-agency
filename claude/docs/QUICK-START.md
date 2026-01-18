@@ -22,7 +22,7 @@ The Agency is an SDLC-style framework that coordinates **multiple AI agents + mu
 
 ### Prerequisites
 
-- **macOS/Linux** - Windows support coming soon
+- **macOS** - The Agency currently supports macOS only
 - Everything else is installed automatically
 
 ### Step 1: Install The Agency

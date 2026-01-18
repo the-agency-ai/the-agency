@@ -73,8 +73,8 @@ export async function listMarkdownFiles(): Promise<{ path: string; name: string 
     { path: `${root}/CLAUDE.md`, name: 'CLAUDE.md' },
     { path: `${root}/README.md`, name: 'README.md' },
     { path: `${root}/CHANGELOG.md`, name: 'CHANGELOG.md' },
-    { path: `${root}/claude/agents/housekeeping/agent.md`, name: 'claude/agents/housekeeping/agent.md' },
-    { path: `${root}/claude/agents/housekeeping/KNOWLEDGE.md`, name: 'claude/agents/housekeeping/KNOWLEDGE.md' },
+    { path: `${root}/claude/agents/captain/agent.md`, name: 'claude/agents/captain/agent.md' },
+    { path: `${root}/claude/agents/captain/KNOWLEDGE.md`, name: 'claude/agents/captain/KNOWLEDGE.md' },
   ];
 }
 

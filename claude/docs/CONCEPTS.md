@@ -320,7 +320,7 @@ Every Agency project has a `housekeeping` agent:
 - **Always available**: Your guide when you're unsure
 - **Dogfooding**: Uses Agency patterns to maintain Agency
 
-Launch: `./tools/myclaude housekeeping housekeeping`
+Launch: `./tools/myclaude housekeeping captain`
 
 ---
 

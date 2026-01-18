@@ -88,8 +88,12 @@ tools/                       # CLI tools for The Agency
 - `./tools/commit-precheck` - Run quality gates
 - `./tools/test-run` - Run tests
 - `./tools/code-review` - Automated code review
+- `./tools/review-spawn` - Generate review subagent prompts
+- `./tools/install-hooks` - Install git pre-commit hooks
 
 **Git:**
+- `./tools/commit` - Create properly formatted commits
+- `./tools/tag` - Tag work item stages (verifies tests pass)
 - `./tools/sync` - Push with pre-commit checks
 - `./tools/doc-commit` - Commit documentation
 
@@ -205,13 +209,44 @@ If the vault is locked or uninitialized:
 - Artifacts: `ART-XXXX-principal-workstream-agent-date-title.md`
 
 ### Git Commits
+
+**With Work Item (preferred):**
 ```
-workstream/agent: type(scope): message
+{WORK-ITEM} - {WORKSTREAM}/{AGENT} for {PRINCIPAL}: {SHORT SUMMARY}
 
-[body]
+{body}
 
-Generated with [Claude Code](https://claude.com/claude-code)
+Stage: {impl | review | tests}
+Generated-With: Claude Code
 Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Without Work Item (simple commits):**
+```
+{WORKSTREAM}/{AGENT}: {SHORT SUMMARY}
+
+{body}
+
+Generated-With: Claude Code
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Examples:**
+```
+REQUEST-jordan-0065 - housekeeping/captain for jordan: add Red-Green workflow docs
+
+REQUEST-jordan-0066 - housekeeping/captain for jordan: fix path traversal vulnerability
+
+housekeeping/captain: update README formatting
+```
+
+**Using ./tools/commit:**
+```bash
+# With work item
+./tools/commit "add Red-Green workflow docs" --work-item REQUEST-jordan-0065 --stage impl
+
+# Simple commit (no work item)
+./tools/commit "update README formatting"
 ```
 
 ### API Design (Explicit Operations)
@@ -289,46 +324,106 @@ Large REQUESTs should be broken into **phases** or **iterations**. Each iteratio
 - Goes through the full review cycle
 - Is tagged independently (e.g., `REQUEST-xxx-phase1-impl`)
 
-### Iteration Workflow
+### Development Cycle (Red-Green Model)
 
-Each iteration follows this cycle:
+**CRITICAL: Never commit on RED. Every commit must have passing tests (GREEN).**
+
+This cycle applies to completing any work item: REQUEST, Phase, Task, Iteration, or Sprint.
 
 #### 1. Implement + Tests
 - Build the feature/fix
 - Write tests alongside the implementation
-- Run tests locally, iterate until **GREEN**
-- Commit and TAG: `REQUEST-xxx-phaseN-impl`
-- Document work completed and tag in the REQUEST file
+- Run tests locally → **GREEN**
+- **COMMIT + TAG**: `{WORK-ITEM}-impl`
+- Document work completed and tag in the work item file
 
-#### 2. Code Review
-- Conduct code review with **two subagents**
-- Consolidate review findings into a single list
-- Apply changes from the review
-- Modify and expand tests as needed
-- Run tests locally, iterate until **GREEN**
-- Commit and TAG: `REQUEST-xxx-phaseN-review`
-- Document work completed and tag in the REQUEST file
+#### 2. Code Review + Security Review
+- Spawn **2+ code review subagents** (parallel)
+- Spawn **1+ security review subagent**
+- Wait for all subagents to complete
+- **Consolidate** all findings into a single modification list
+- Apply all code changes (do NOT apply piecemeal)
+- Run tests locally → **GREEN**
+- **COMMIT + TAG**: `{WORK-ITEM}-review`
+- Document work completed and tag in the work item file
 
-#### 3. Test Review
-- Conduct test review with **two subagents**
-- Consolidate test review findings
-- Apply test improvements
-- Run tests locally, iterate until **GREEN**
-- Commit and TAG: `REQUEST-xxx-phaseN-tests`
-- Document work completed and tag in the REQUEST file
+#### 3. Test Review (including Security Tests)
+- Spawn **2+ test review subagents** (parallel)
+- Reviews should identify:
+  - Missing test cases
+  - Edge cases not covered
+  - Security-related tests needed
+- **Consolidate** all findings into a single modification list
+- Apply all test changes
+- Run tests locally → **GREEN**
+- **COMMIT + TAG**: `{WORK-ITEM}-tests`
+- Document work completed and tag in the work item file
 
-#### 4. Release (Final Phase Only)
-- Tag REQUEST complete: `./tools/tag REQUEST-xxx complete`
-- Cut release: `./tools/release X.Y.Z --push --github`
+#### 4. Complete
+- **TAG**: `{WORK-ITEM}-complete`
+- Cut release if applicable: `./tools/release X.Y.Z --push --github`
+
+### Commit/Tag Summary
+
+This workflow applies to any work item: REQUEST, Phase, Task, Iteration, or Sprint.
+
+| Stage | Commit? | Tag Pattern |
+|-------|---------|-------------|
+| Implementation complete | YES | `{WORK-ITEM}-impl` |
+| Code/Security review complete | YES | `{WORK-ITEM}-review` |
+| Test review complete | YES | `{WORK-ITEM}-tests` |
+| Work item complete | NO | `{WORK-ITEM}-complete` |
+
+**Tag Examples:**
+```bash
+./tools/tag REQUEST-jordan-0065 impl       # REQUEST-jordan-0065-impl
+./tools/tag SPRINT-web-2026w03 review      # SPRINT-web-2026w03-review
+./tools/tag ITERATION-hub-mvh-1 tests      # ITERATION-hub-mvh-1-tests
+./tools/tag PHASE-hub-A complete           # PHASE-hub-A-complete
+./tools/tag TASK-auth-refactor impl        # TASK-auth-refactor-impl
+```
 
 ### Key Principles
+- **Red-Green model**: Never commit on RED - iterate until GREEN
 - **Clean working tree**: Always commit before moving on
-- **Small commits**: Each commit should be a logical unit
-- **Tags for milestones**: Tag after each stage (impl, review, tests)
-- **Collaborative review**: Two subagents provide multiple perspectives
-- **Consolidated changes**: Don't apply changes piecemeal - gather all feedback first
-- **Tests are mandatory**: Every iteration includes tests
-- **Document as you go**: Update REQUEST after each commit/tag
+- **Small commits**: Each commit is a logical unit with passing tests
+- **Tags for milestones**: Tag after each stage (impl, review, tests, complete)
+- **Multi-agent review**: 2+ code reviewers, 1+ security reviewer, 2+ test reviewers
+- **Consolidate first**: Gather ALL feedback before applying ANY changes
+- **Security throughout**: Security review in code phase, security tests in test phase
+- **Document as you go**: Update work item file after each commit/tag
+
+### Code Review Process
+
+**Important:** `./tools/code-review` is an **automated pattern checker** (secrets, SQL injection, console.log). It runs as a pre-commit hook but is NOT the subagent-based review described above.
+
+The multi-subagent code review is performed by the lead agent:
+1. Run `./tools/review-spawn {WORK-ITEM} code` to get prompts
+2. Spawn 2+ Task subagents with code review prompts (parallel)
+3. Spawn 1+ Task subagent with security review prompt
+4. Wait for all to complete
+5. Use `claude/templates/prompts/consolidation.md` to merge findings
+6. Apply changes systematically
+
+**Test Review Process:**
+1. Run `./tools/review-spawn {WORK-ITEM} test` to get prompts
+2. Spawn 2+ Task subagents with test review prompts (parallel)
+3. Wait for all to complete
+4. Consolidate findings and apply test changes
+
+**Available Templates:**
+- `claude/templates/prompts/code-review.md` - Code reviewer prompt
+- `claude/templates/prompts/security-review.md` - Security reviewer prompt
+- `claude/templates/prompts/test-review.md` - Test reviewer prompt
+- `claude/templates/prompts/consolidation.md` - Findings consolidation format
+
+### Quality Enforcement
+
+**Pre-commit Hook:**
+Run `./tools/install-hooks` to install the pre-commit hook. This runs `./tools/commit-precheck` before every commit, blocking on failures.
+
+**Tag Verification:**
+`./tools/tag` verifies tests pass (GREEN) before allowing tags for impl, review, and tests stages. Use `--skip-tests` to bypass (sparingly).
 
 ## Starter Packs
 
@@ -339,6 +434,30 @@ Starter packs provide framework-specific conventions:
 - `claude/starter-packs/python/` - Python projects
 
 Each pack adds opinionated patterns and enforcement for that ecosystem.
+
+## Starter Releases
+
+**CRITICAL: When releasing updates to the-agency-starter, you MUST follow the documented release process.**
+
+Before any starter release:
+```bash
+# 1. Run full test suite
+./tools/starter-test --local
+
+# 2. Verify installation
+./tools/starter-verify --install
+
+# 3. Compare files
+./tools/starter-compare --install
+```
+
+All tests must pass and no unexpected differences before proceeding.
+
+See `claude/docs/STARTER-RELEASE-PROCESS.md` for the complete workflow including:
+- Pre-release checks
+- Cutting releases with `./tools/starter-release`
+- Post-release verification
+- What gets synced and cleaned
 
 ## Getting Help
 
@@ -361,6 +480,7 @@ For first-time users, try the interactive tour:
 - `claude/docs/PERMISSIONS.md` - Permissions model and examples
 - `claude/docs/SECRETS.md` - Complete secrets reference
 - `claude/docs/REPO-RELATIONSHIP.md` - How the-agency and the-agency-starter relate
+- `claude/docs/STARTER-RELEASE-PROCESS.md` - Starter release workflow and tools
 
 ---
 

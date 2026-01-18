@@ -1,0 +1,7 @@
+# starter-compare log - Sun 18 Jan 2026 07:52:04 +08
+# Source: /Users/jdm/code/the-agency-starter
+# Install: /Users/jdm/code/the-agency/test/the-agency-starter
+
+[2026-01-18 07:52:04] [INFO] Starting comparison
+[2026-01-18 07:52:04] [INFO] Options: install=false fix=false verbose=false
+[2026-01-18 07:52:04] [ERROR] Install directory not found: /Users/jdm/code/the-agency/test/the-agency-starter

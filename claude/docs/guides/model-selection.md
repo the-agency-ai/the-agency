@@ -8,7 +8,7 @@ All agents run as **Opus 4.5** by default. Opus acts as the "conductor" - coordi
 
 ```bash
 # Launch with myclaude
-./tools/myclaude housekeeping housekeeping
+./tools/myclaude housekeeping captain
 ./tools/myclaude {workstream} {agent}
 ```
 

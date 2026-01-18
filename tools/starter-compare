@@ -238,33 +238,38 @@ parse_args() {
 # Functions
 # ============================================================================
 
-# Build find exclusion arguments
-build_find_excludes() {
-    local excludes=""
-    for pattern in "${EXCLUDE_PATTERNS[@]}"; do
-        excludes="$excludes -not -path '*/$pattern/*' -not -name '$pattern'"
-    done
-    echo "$excludes"
-}
-
-# Get file list from directory
+# Get file list from directory (using array to avoid eval)
 get_file_list() {
     local dir="$1"
-    local excludes
-    excludes=$(build_find_excludes)
+    local -a find_args=()
 
-    (cd "$dir" && eval "find . -type f $excludes" 2>/dev/null | sort)
+    # Build exclusion arguments safely using array
+    for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+        find_args+=(-not -path "*/$pattern/*" -not -name "$pattern")
+    done
+
+    (cd "$dir" && find . -type f "${find_args[@]}" 2>/dev/null | sort)
 }
 
 # Create fresh install
 create_install() {
     log_step "Creating fresh install..."
 
+    # Safety check: prevent deletion of dangerous paths
+    if [[ -z "$INSTALL_DIR" || "$INSTALL_DIR" == "/" || "$INSTALL_DIR" == "/usr" || "$INSTALL_DIR" == "/etc" || "$INSTALL_DIR" == "/var" || "$INSTALL_DIR" == "/home" || "$INSTALL_DIR" == "$HOME" ]]; then
+        log_error "Refusing to use dangerous path: $INSTALL_DIR"
+        exit 1
+    fi
+
     # Create parent directory
     mkdir -p "$(dirname "$INSTALL_DIR")"
 
-    # Remove existing
+    # Remove existing (with safety check for test directory pattern)
     if [[ -d "$INSTALL_DIR" ]]; then
+        if [[ "$INSTALL_DIR" != *"/test/"* && "$INSTALL_DIR" != *"/test-"* ]]; then
+            log_error "Refusing to remove non-test directory: $INSTALL_DIR"
+            exit 1
+        fi
         log_detail "Removing existing: $INSTALL_DIR"
         rm -rf "$INSTALL_DIR"
     fi

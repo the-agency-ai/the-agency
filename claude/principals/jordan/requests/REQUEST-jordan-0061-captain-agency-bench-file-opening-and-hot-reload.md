@@ -1,6 +1,6 @@
 # REQUEST-jordan-0061: Agency-bench file opening and hot-reload
 
-**Status:** Open
+**Status:** Complete
 **Priority:** Normal
 **Requested By:** jordan
 **Assigned To:** captain
@@ -15,31 +15,42 @@ Agency-bench file opening and hot-reload
 
 ### Background
 When launching agency-bench with --file parameter, the app needs to:
-1. Auto-navigate to DocBench (fixed in this session)
-2. Open the specified file (fixed in this session)
-3. Work when app is already running (NOT YET IMPLEMENTED)
-
-### Work Completed
-- Updated BenchLayout.tsx to check pending-open.json on startup
-- Updated docbench/page.tsx to check sessionStorage fallback
-- Rebuilt and installed app
-
-### Remaining Work
-- Add mechanism for already-running app to detect new file requests
-- Options: file watcher, deep links, IPC
+1. Auto-navigate to DocBench (fixed)
+2. Open the specified file (fixed)
+3. Work when app is already running (IMPLEMENTED)
 
 ### Files Changed
 - source/apps/agency-bench/src/components/bench/BenchLayout.tsx
 - source/apps/agency-bench/src/app/bench/(apps)/docbench/page.tsx
+- source/apps/agency-bench/src/lib/tauri.ts
 
 ## Acceptance Criteria
 
-- [ ] Criteria 1
-- [ ] Criteria 2
+- [x] Auto-navigate to DocBench on file open
+- [x] Open specified file from CLI
+- [x] Hot-reload for already-running app
 
 ## Work Completed
 
-<!-- Document completed work here -->
+### 2026-01-18 - Hot-reload Implementation
+
+**BenchLayout.tsx:**
+- Added window focus listener to check for pending files
+- Added periodic polling (every 2 seconds) for pending files
+- Refactored `checkPendingOpen` as reusable callback
+
+**docbench/page.tsx:**
+- Added periodic check for sessionStorage changes (every 500ms)
+- Detects files added by BenchLayout and opens them
+
+**tauri.ts:**
+- Fixed browser fallback to reference captain instead of housekeeping
+
+**How it works:**
+1. CLI tool writes to pending-open.json
+2. BenchLayout polls for pending files every 2s (also on window focus)
+3. If file found, stores in sessionStorage and navigates to docbench
+4. DocBench polls sessionStorage every 500ms and opens new files
 
 ---
 
@@ -47,3 +58,8 @@ When launching agency-bench with --file parameter, the app needs to:
 
 ### 2026-01-16 - Created
 - Request created by jordan
+
+### 2026-01-18 - Complete
+- Implemented hot-reload for already-running app
+- Uses polling + window focus events
+- Updated housekeeping references to captain

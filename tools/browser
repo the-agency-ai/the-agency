@@ -114,11 +114,12 @@ main() {
 
 case "$ACTION" in
   fetch)
-    node --input-type=module -e "
+    TARGET_URL="$URL" node --input-type=module -e "
 import { chromium } from 'playwright';
+const url = process.env.TARGET_URL;
 const browser = await chromium.launch();
 const page = await browser.newPage();
-await page.goto('$URL', { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 await page.waitForTimeout(2000);
 const text = await page.evaluate(() => document.body.innerText);
 console.log(text);
@@ -133,15 +134,17 @@ await browser.close();
       OUTPUT_FILE="$REPO_ROOT/screenshot-${TIMESTAMP}-${SAFE_URL}.png"
     fi
 
-    node --input-type=module -e "
+    TARGET_URL="$URL" TARGET_OUTPUT="$OUTPUT_FILE" node --input-type=module -e "
 import { chromium } from 'playwright';
+const url = process.env.TARGET_URL;
+const outputFile = process.env.TARGET_OUTPUT;
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-await page.goto('$URL', { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 await page.waitForTimeout(2000);
-await page.screenshot({ path: '$OUTPUT_FILE', fullPage: true });
+await page.screenshot({ path: outputFile, fullPage: true });
 await browser.close();
-console.log('Screenshot saved to: $OUTPUT_FILE');
+console.log('Screenshot saved to: ' + outputFile);
 "
     ;;
 
@@ -152,15 +155,17 @@ console.log('Screenshot saved to: $OUTPUT_FILE');
       OUTPUT_FILE="$REPO_ROOT/page-${TIMESTAMP}-${SAFE_URL}.pdf"
     fi
 
-    node --input-type=module -e "
+    TARGET_URL="$URL" TARGET_OUTPUT="$OUTPUT_FILE" node --input-type=module -e "
 import { chromium } from 'playwright';
+const url = process.env.TARGET_URL;
+const outputFile = process.env.TARGET_OUTPUT;
 const browser = await chromium.launch();
 const page = await browser.newPage();
-await page.goto('$URL', { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 await page.waitForTimeout(2000);
-await page.pdf({ path: '$OUTPUT_FILE', format: 'A4' });
+await page.pdf({ path: outputFile, format: 'A4' });
 await browser.close();
-console.log('PDF saved to: $OUTPUT_FILE');
+console.log('PDF saved to: ' + outputFile);
 "
     ;;
 

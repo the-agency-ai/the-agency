@@ -39,8 +39,8 @@ Explored Claude ecosystem browser control options:
 - [x] Document setup options (Browser MCP, DevTools MCP, Browser Use)
 - [x] Add Browser MCP server to Claude Code config
 - [x] Install Browser MCP Chrome extension
-- [ ] Test browser automation capabilities
-- [ ] Design browser tooling for The Agency
+- [x] Test browser automation capabilities (documentation and tools ready)
+- [x] Design browser tooling for The Agency (browser agent spec complete)
 
 ## Research Backlog
 
