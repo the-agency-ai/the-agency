@@ -4,7 +4,7 @@
 # Usage: ./tools/nit-add "Category" "Description"
 # Example: ./tools/nit-add "Documentation Consistency" "Agents should include test coverage in completion reports"
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

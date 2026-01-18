@@ -10,7 +10,7 @@
 # The config file uses YAML format at claude/config/agency.yaml
 # Keys are accessed using dot notation: section.key or section.key.subkey
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

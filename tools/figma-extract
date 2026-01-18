@@ -15,7 +15,7 @@
 #   3. Creates design system in claude/knowledge/design-systems/<name>-<version>/
 #   4. Generates Tailwind config
 
-set -e
+set -euo pipefail
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

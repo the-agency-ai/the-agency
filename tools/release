@@ -23,7 +23,7 @@
 #   4. Optionally creates GitHub release
 #   5. Optionally marks REQUEST as complete
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
@@ -310,8 +310,16 @@ main() {
         else
             # Read GH_TOKEN from settings if available
             SETTINGS_FILE="${HOME}/.claude/settings.local.json"
-            if [ -f "$SETTINGS_FILE" ] && [ -z "$GH_TOKEN" ]; then
-                EXTRACTED_TOKEN=$(grep -o 'GH_TOKEN=[^"]*' "$SETTINGS_FILE" 2>/dev/null | head -1 | cut -d'=' -f2)
+            if [ -f "$SETTINGS_FILE" ] && [ -z "${GH_TOKEN:-}" ]; then
+                EXTRACTED_TOKEN=""
+                # Try jq first for proper JSON parsing
+                if command -v jq &> /dev/null; then
+                    EXTRACTED_TOKEN=$(jq -r '.env.GH_TOKEN // empty' "$SETTINGS_FILE" 2>/dev/null || true)
+                fi
+                # Fallback to grep for legacy GH_TOKEN=value format
+                if [ -z "$EXTRACTED_TOKEN" ]; then
+                    EXTRACTED_TOKEN=$(grep -oE 'GH_TOKEN=[^"[:space:]]+' "$SETTINGS_FILE" 2>/dev/null | head -1 | cut -d'=' -f2 || true)
+                fi
                 if [ -n "$EXTRACTED_TOKEN" ]; then
                     export GH_TOKEN="$EXTRACTED_TOKEN"
                 fi

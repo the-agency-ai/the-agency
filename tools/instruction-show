@@ -10,7 +10,7 @@
 #   WORKSTREAM - Current workstream
 #   AGENTNAME  - Current agent name
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

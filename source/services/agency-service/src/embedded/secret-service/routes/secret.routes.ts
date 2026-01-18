@@ -5,7 +5,7 @@
  * Uses explicit operation names (not HTTP verb semantics).
  */
 
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import type { SecretService } from '../service/secret.service';
 import {
@@ -30,7 +30,7 @@ const logger = createServiceLogger('secret-routes');
 /**
  * Get accessor from request context
  */
-function getAccessor(c: any): { type: 'principal' | 'agent' | 'system'; name: string } {
+function getAccessor(c: Context): { type: 'principal' | 'agent' | 'system'; name: string } {
   const user = c.get('user');
   if (user) {
     return { type: user.type, name: user.name };

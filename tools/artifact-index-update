@@ -8,7 +8,7 @@
 # This tool scans artifacts and generates INDEX.md for each principal.
 # Called automatically by artifact-capture.
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

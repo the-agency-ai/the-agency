@@ -11,7 +11,7 @@
 #   3. Generates a visual comparison report
 #   4. Outputs side-by-side comparison
 
-set -e
+set -euo pipefail
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

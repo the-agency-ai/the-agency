@@ -10,7 +10,7 @@
 # - Fills in the Outcome section
 # - Adds completion date and agent
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

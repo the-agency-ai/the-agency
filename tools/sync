@@ -13,7 +13,7 @@
 # - Shows commit summary before pushing
 # - Context-efficient: 1-line output, details in log-service
 
-set -e
+set -euo pipefail
 
 # Tool version
 TOOL_VERSION="2.0.1"

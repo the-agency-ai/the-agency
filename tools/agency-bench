@@ -15,7 +15,7 @@
 #   --app=NAME  - Open specific app (docbench, bugbench, etc.)
 #   --file=PATH - Open specific file in DocBench
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

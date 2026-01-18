@@ -7,7 +7,7 @@
 # Creates a GitHub issue on the-agency-starter repo with structured feedback.
 # If GitHub access unavailable, saves locally to claude/feedback/
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

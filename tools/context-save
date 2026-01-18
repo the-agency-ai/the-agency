@@ -11,7 +11,7 @@
 #   Enables session continuity by capturing conversational context
 #   throughout the session (not just git state)
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

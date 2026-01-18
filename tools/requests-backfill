@@ -8,7 +8,7 @@
 #   --verbose     Show detailed output
 #   --help        Show this help
 
-set -e
+set -euo pipefail
 
 TOOL_VERSION="1.0.0-20260115-000001"
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

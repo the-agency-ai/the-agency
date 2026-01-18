@@ -5,7 +5,7 @@
 #   ./tools/starter-cleanup           # Clean test directory
 #   ./tools/starter-cleanup --all     # Clean all test artifacts
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

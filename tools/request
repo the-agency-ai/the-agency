@@ -9,7 +9,7 @@
 # By default, sends a message to notify the assigned agent.
 # Use --no-notify to skip notification.
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

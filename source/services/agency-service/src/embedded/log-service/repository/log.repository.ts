@@ -79,8 +79,8 @@ function rowToLogEntry(row: LogEntryRow): LogEntry {
   if (row.data) {
     try {
       entry.data = JSON.parse(row.data);
-    } catch {
-      // Ignore parse errors
+    } catch (e) {
+      logger.warn({ error: e, data: row.data?.substring(0, 100), id: row.id }, 'Failed to parse JSON data field');
     }
   }
   if (row.error_name) {
@@ -117,8 +117,8 @@ function rowToToolRun(row: ToolRunRow): ToolRun {
   if (row.args) {
     try {
       run.args = JSON.parse(row.args);
-    } catch {
-      // Ignore parse errors
+    } catch (e) {
+      logger.warn({ error: e, args: row.args?.substring(0, 100), runId: row.run_id }, 'Failed to parse args JSON');
     }
   }
   if (row.agent_name) run.agentName = row.agent_name;
@@ -217,10 +217,18 @@ export class LogRepository {
     `);
 
     // Migration: add new columns if they don't exist (for existing DBs)
-    const columns = ['tool_type', 'args', 'agent_name', 'workstream', 'exit_code', 'output_size', 'output'];
-    for (const col of columns) {
+    const columnTypes: Record<string, string> = {
+      tool_type: 'TEXT',
+      args: 'TEXT',
+      agent_name: 'TEXT',
+      workstream: 'TEXT',
+      exit_code: 'INTEGER',
+      output_size: 'INTEGER',
+      output: 'TEXT',
+    };
+    for (const [col, colType] of Object.entries(columnTypes)) {
       try {
-        await this.db.execute(`ALTER TABLE tool_runs ADD COLUMN ${col} ${col.includes('code') || col.includes('size') ? 'INTEGER' : 'TEXT'}`);
+        await this.db.execute(`ALTER TABLE tool_runs ADD COLUMN ${col} ${colType}`);
       } catch {
         // Column already exists, ignore
       }
@@ -268,7 +276,10 @@ export class LogRepository {
       'SELECT * FROM log_entries WHERE id = last_insert_rowid()'
     );
 
-    return rowToLogEntry(row!);
+    if (!row) {
+      throw new Error('Failed to retrieve created log entry');
+    }
+    return rowToLogEntry(row);
   }
 
   /**
@@ -469,8 +480,11 @@ export class LogRepository {
       [runId]
     );
 
+    if (!row) {
+      throw new Error(`Failed to retrieve created tool run: ${runId}`);
+    }
     logger.debug({ runId, tool: data.tool, toolType: data.toolType }, 'Tool run started');
-    return rowToToolRun(row!);
+    return rowToToolRun(row);
   }
 
   /**
@@ -504,8 +518,11 @@ export class LogRepository {
       [runId]
     );
 
+    if (!row) {
+      throw new Error(`Failed to retrieve updated tool run: ${runId}`);
+    }
     logger.debug({ runId, status: data.status, exitCode: data.exitCode, outputSize: data.outputSize }, 'Tool run ended');
-    return rowToToolRun(row!);
+    return rowToToolRun(row);
   }
 
   /**

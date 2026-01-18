@@ -6,9 +6,16 @@
  */
 
 import { Hono } from 'hono';
+import { z, ZodError } from 'zod';
+import { zValidator } from '@hono/zod-validator';
 import { TestService } from '../service/test.service';
 import { createTestRunSchema, queryTestRunsSchema } from '../types';
 import { createServiceLogger } from '../../../core/lib/logger';
+
+// Cleanup request schema
+const cleanupSchema = z.object({
+  days: z.coerce.number().int().min(1).max(365).default(30),
+});
 
 const logger = createServiceLogger('test-routes');
 
@@ -43,7 +50,7 @@ export function createTestRoutes(testService: TestService) {
       return c.json(result, 201);
     } catch (error) {
       logger.error({ error }, 'Failed to run tests');
-      if (error instanceof Error && error.name === 'ZodError') {
+      if (error instanceof ZodError) {
         return c.json({ error: 'Invalid request', details: error }, 400);
       }
       throw error;
@@ -63,7 +70,7 @@ export function createTestRoutes(testService: TestService) {
       return c.json(run, 201);
     } catch (error) {
       logger.error({ error }, 'Failed to start test run');
-      if (error instanceof Error && error.name === 'ZodError') {
+      if (error instanceof ZodError) {
         return c.json({ error: 'Invalid request', details: error }, 400);
       }
       throw error;
@@ -261,10 +268,9 @@ export function createTestRoutes(testService: TestService) {
   /**
    * POST /test/cleanup - Clean up old test runs
    */
-  app.post('/cleanup', async (c) => {
+  app.post('/cleanup', zValidator('json', cleanupSchema), async (c) => {
     try {
-      const body = await c.req.json().catch(() => ({}));
-      const days = body.days || 30;
+      const { days } = c.req.valid('json');
       const deleted = await testService.cleanup(days);
 
       return c.json({ deleted, message: `Deleted ${deleted} old test runs` });

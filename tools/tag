@@ -27,7 +27,7 @@
 #
 # Note: For impl, review, and tests stages, tests must pass (GREEN) before tagging.
 
-set -e
+set -euo pipefail
 
 TOOL_VERSION="1.1.0-20260114-000002"
 

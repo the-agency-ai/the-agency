@@ -35,9 +35,11 @@ async function main() {
 
   logger.info({ config: { port: config.port, host: config.host, authMode: config.authMode } }, 'Starting Agency Service');
 
-  // Global middleware
+  // Global middleware - CORS origins configurable via AGENCY_CORS_ORIGINS env var
+  const defaultOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3010', 'http://127.0.0.1:3010', 'tauri://localhost'];
+  const corsOrigins = process.env.AGENCY_CORS_ORIGINS?.split(',').map(s => s.trim()) || defaultOrigins;
   app.use('*', cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3010', 'http://127.0.0.1:3010', 'tauri://localhost'],
+    origin: corsOrigins,
     credentials: true,
   }));
   app.use('*', loggingMiddleware());

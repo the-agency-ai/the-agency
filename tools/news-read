@@ -4,7 +4,7 @@
 # Usage: ./tools/news-read
 # Returns: All ACTIVE messages not yet read by current agent
 
-set -e
+set -euo pipefail
 
 # Tool version
 TOOL_VERSION="1.0.1-20260114-000004"

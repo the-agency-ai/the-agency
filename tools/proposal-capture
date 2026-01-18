@@ -3,7 +3,7 @@
 # Purpose: Create a new proposal for discussion/definition
 # Usage: ./tools/proposal-capture -t "Title" [-p project] [-w workstream]
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

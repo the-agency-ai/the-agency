@@ -18,7 +18,7 @@
 #   --count N     Override reviewer count (default: 2 for code/test, 1 for security)
 #   --verbose     Show detailed output
 
-set -e
+set -euo pipefail
 
 TOOL_VERSION="1.0.0-20260118-000001"
 

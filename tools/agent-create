@@ -16,7 +16,7 @@
 #     - IDEAS.md, KNOWLEDGE.md, ONBOARDING.md
 #     - backups/, logs/
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
@@ -48,6 +48,11 @@ log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || 
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
 log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
 verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Escape sed special characters to prevent injection
+escape_sed() {
+    printf '%s\n' "$1" | sed 's/[&/\]/\\&/g'
+}
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -207,9 +212,15 @@ main() {
         local output_file="$2"
 
         if [[ -f "$template_file" ]]; then
-            sed -e "s/{{AGENT_NAME}}/$AGENTNAME/g" \
-                -e "s/{{WORKSTREAM}}/$WORKSTREAM/g" \
-                -e "s/{{TIMESTAMP}}/$TIMESTAMP/g" \
+            # Escape sed special characters to prevent injection
+            local agent_escaped workstream_escaped timestamp_escaped
+            agent_escaped=$(escape_sed "$AGENTNAME")
+            workstream_escaped=$(escape_sed "$WORKSTREAM")
+            timestamp_escaped=$(escape_sed "$TIMESTAMP")
+
+            sed -e "s/{{AGENT_NAME}}/$agent_escaped/g" \
+                -e "s/{{WORKSTREAM}}/$workstream_escaped/g" \
+                -e "s/{{TIMESTAMP}}/$timestamp_escaped/g" \
                 "$template_file" > "$output_file"
         fi
     }

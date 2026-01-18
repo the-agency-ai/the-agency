@@ -12,7 +12,7 @@
 #   ./tools/session-archive "agencybench-setup"
 #   ./tools/session-archive --from SESSION-BACKUP-2026-01-08.md "cookbooks-research"
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

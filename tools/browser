@@ -8,7 +8,7 @@
 #
 # First run will install playwright and browsers (~200MB)
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
@@ -90,6 +90,12 @@ fi
 
 if [ -z "$URL" ]; then
   echo "Error: URL required"
+  exit 1
+fi
+
+# Validate URL format
+if [[ ! "$URL" =~ ^https?:// ]]; then
+  log_error "Invalid URL: must start with http:// or https://"
   exit 1
 fi
 

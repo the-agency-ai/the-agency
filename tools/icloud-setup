@@ -11,7 +11,7 @@
 # Creates symlink:
 #   claude/principals/{principalname}/resources/cloud -> iCloud claude/{projectname}/
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
@@ -98,6 +98,14 @@ main() {
         echo "  ./tools/icloud-setup ordinaryfolk-nextgen jordan"
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "Missing arguments"
+        exit 1
+    fi
+
+    # Validate names to prevent path traversal
+    if [[ "$PROJECTNAME" =~ [/.] ]] || [[ "$PRINCIPALNAME" =~ [/.] ]]; then
+        log_error "Invalid name: names cannot contain / or ."
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Invalid name"
         exit 1
     fi
 

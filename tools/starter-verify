@@ -12,7 +12,7 @@
 #   3. Reports any differences
 #   4. Verifies required files exist
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

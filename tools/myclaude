@@ -18,7 +18,7 @@
 #   ./tools/myclaude housekeeping captain --debug
 #
 
-set -e
+set -euo pipefail
 
 # Tool version
 TOOL_VERSION="1.2.0-20260115-000001"

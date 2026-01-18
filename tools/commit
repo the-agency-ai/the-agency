@@ -35,7 +35,7 @@
 #   --verbose         Show detailed output
 #
 
-set -e
+set -euo pipefail
 
 # Tool version
 TOOL_VERSION="1.1.0-20260114-000001"

@@ -9,7 +9,7 @@
 #
 # To bypass hooks (use sparingly): git commit --no-verify
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -36,7 +36,7 @@ cat > "$HOOKS_DIR/pre-commit" << 'EOF'
 #
 # To bypass (use sparingly): git commit --no-verify
 
-set -e
+set -euo pipefail
 
 # Colors
 RED='\033[0;31m'

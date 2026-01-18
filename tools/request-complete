@@ -7,7 +7,7 @@
 # Creates a git tag: REQUEST-jordan-0013-complete
 # with metadata about what was accomplished.
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
@@ -64,7 +64,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-REQUEST_ID="$1"
+REQUEST_ID="${1:-}"
 SUMMARY="${2:-}"
 
 if [[ -z "$REQUEST_ID" ]]; then

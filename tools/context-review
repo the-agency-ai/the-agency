@@ -9,7 +9,7 @@
 # Why this exists:
 #   Allows users and agents to review what context has been saved
 
-set -e
+set -euo pipefail
 
 # Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"

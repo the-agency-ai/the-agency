@@ -4,7 +4,7 @@
 # Usage: ./tools/news-post "Subject" "Message body"
 # Example: ./tools/news-post "New API Convention" "All API routes now follow /api/{service}/v{n}/{resource} pattern"
 
-set -e
+set -euo pipefail
 
 # Tool version
 TOOL_VERSION="1.0.1-20260114-000003"

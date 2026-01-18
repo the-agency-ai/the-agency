@@ -12,7 +12,7 @@
 #   ./tools/agency-service bug get BENCH-00001       # Get specific bug
 #   ./tools/agency-service bug update BENCH-00001 --status Fixed
 
-set -e
+set -euo pipefail
 
 # Tool version
 TOOL_VERSION="1.3.0-20260110-000002"
@@ -49,6 +49,32 @@ log_warn() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Escape a string for JSON (handles quotes, newlines, etc.)
+json_escape() {
+    printf '%s' "$1" | jq -Rs .
+}
+
+# Build JSON object from key=value pairs (values are properly escaped)
+# Usage: build_json "key1" "value1" "key2" "value2" ...
+build_json() {
+    local json="{"
+    local first=true
+    while [[ $# -gt 1 ]]; do
+        local key="$1"
+        local value="$2"
+        shift 2
+        if [[ -n "$value" ]]; then
+            if [[ "$first" == "false" ]]; then
+                json="$json,"
+            fi
+            json="$json\"$key\":$(json_escape "$value")"
+            first=false
+        fi
+    done
+    json="$json}"
+    printf '%s' "$json"
 }
 
 # Check if service is running
@@ -368,15 +394,16 @@ cmd_bug_create() {
         fi
     fi
 
-    # Build JSON
-    local json="{\"workstream\":\"$workstream\",\"summary\":\"$summary\",\"reporterName\":\"$reporter_name\",\"reporterType\":\"$reporter_type\""
-    if [[ -n "$description" ]]; then
-        json="$json,\"description\":\"$description\""
-    fi
-    if [[ -n "$assignee_name" ]]; then
-        json="$json,\"assigneeName\":\"$assignee_name\",\"assigneeType\":\"$assignee_type\""
-    fi
-    json="$json}"
+    # Build JSON using helper (properly escapes all values)
+    local json
+    json=$(build_json \
+        "workstream" "$workstream" \
+        "summary" "$summary" \
+        "reporterName" "$reporter_name" \
+        "reporterType" "$reporter_type" \
+        "description" "$description" \
+        "assigneeName" "$assignee_name" \
+        "assigneeType" "$assignee_type")
 
     api_request POST "/api/bug" "$json" | jq .
 }
@@ -403,22 +430,9 @@ cmd_bug_update() {
         esac
     done
 
-    local json="{"
-    local first=true
-    if [[ -n "$status" ]]; then
-        json="$json\"status\":\"$status\""
-        first=false
-    fi
-    if [[ -n "$summary" ]]; then
-        [[ "$first" == "false" ]] && json="$json,"
-        json="$json\"summary\":\"$summary\""
-        first=false
-    fi
-    if [[ -n "$description" ]]; then
-        [[ "$first" == "false" ]] && json="$json,"
-        json="$json\"description\":\"$description\""
-    fi
-    json="$json}"
+    # Build JSON using helper (properly escapes all values)
+    local json
+    json=$(build_json "status" "$status" "summary" "$summary" "description" "$description")
 
     api_request PATCH "/api/bug/${bug_id}" "$json" | jq .
 }
@@ -433,7 +447,9 @@ cmd_bug_assign() {
         exit 1
     fi
 
-    api_request PATCH "/api/bug/${bug_id}/assign" "{\"assigneeName\":\"$assignee\",\"assigneeType\":\"$assignee_type\"}" | jq .
+    local json
+    json=$(build_json "assigneeName" "$assignee" "assigneeType" "$assignee_type")
+    api_request PATCH "/api/bug/${bug_id}/assign" "$json" | jq .
 }
 
 cmd_bug_status() {
@@ -445,7 +461,9 @@ cmd_bug_status() {
         exit 1
     fi
 
-    api_request PATCH "/api/bug/${bug_id}/status" "{\"status\":\"$status\"}" | jq .
+    local json
+    json=$(build_json "status" "$status")
+    api_request PATCH "/api/bug/${bug_id}/status" "$json" | jq .
 }
 
 # Message commands
@@ -581,12 +599,15 @@ cmd_message_send() {
         exit 1
     fi
 
-    # Build JSON
-    local json="{\"fromType\":\"$from_type\",\"fromName\":\"$from_name\",\"toType\":\"$to_type\",\"toName\":\"$to_name\",\"content\":\"$content\""
-    if [[ -n "$subject" ]]; then
-        json="$json,\"subject\":\"$subject\""
-    fi
-    json="$json}"
+    # Build JSON using helper (properly escapes all values)
+    local json
+    json=$(build_json \
+        "fromType" "$from_type" \
+        "fromName" "$from_name" \
+        "toType" "$to_type" \
+        "toName" "$to_name" \
+        "content" "$content" \
+        "subject" "$subject")
 
     api_request POST "/api/message" "$json" | jq .
 }
@@ -619,7 +640,9 @@ cmd_message_read() {
         fi
     fi
 
-    api_request POST "/api/message/${message_id}/read" "{\"recipientType\":\"$recipient_type\",\"recipientName\":\"$recipient_name\"}" | jq .
+    local json
+    json=$(build_json "recipientType" "$recipient_type" "recipientName" "$recipient_name")
+    api_request POST "/api/message/${message_id}/read" "$json" | jq .
 }
 
 cmd_message_read_all() {
@@ -644,7 +667,9 @@ cmd_message_read_all() {
         fi
     fi
 
-    api_request POST "/api/message/read-all" "{\"recipientType\":\"$recipient_type\",\"recipientName\":\"$recipient_name\"}" | jq .
+    local json
+    json=$(build_json "recipientType" "$recipient_type" "recipientName" "$recipient_name")
+    api_request POST "/api/message/read-all" "$json" | jq .
 }
 
 cmd_message_delete() {
@@ -735,7 +760,9 @@ cmd_log_start_run() {
         exit 1
     fi
 
-    api_request POST "/api/log/run" "{\"tool\":\"$tool\",\"userType\":\"$user_type\",\"userId\":\"$user_name\"}" | jq -r '.runId'
+    local json
+    json=$(build_json "tool" "$tool" "userType" "$user_type" "userId" "$user_name")
+    api_request POST "/api/log/run" "$json" | jq -r '.runId'
 }
 
 cmd_log_end_run() {
@@ -748,12 +775,8 @@ cmd_log_end_run() {
         exit 1
     fi
 
-    local json="{\"status\":\"$status\""
-    if [[ -n "$summary" ]]; then
-        json="$json,\"summary\":\"$summary\""
-    fi
-    json="$json}"
-
+    local json
+    json=$(build_json "status" "$status" "summary" "$summary")
     api_request POST "/api/log/run/${run_id}/end" "$json" | jq .
 }
 
@@ -768,12 +791,8 @@ cmd_log_ingest() {
         exit 1
     fi
 
-    local json="{\"service\":\"$service\",\"level\":\"$level\",\"message\":\"$message\""
-    if [[ -n "$run_id" ]]; then
-        json="$json,\"runId\":\"$run_id\""
-    fi
-    json="$json}"
-
+    local json
+    json=$(build_json "service" "$service" "level" "$level" "message" "$message" "runId" "$run_id")
     api_request POST "/api/log" "$json" | jq .
 }
 
@@ -798,7 +817,9 @@ cmd_test_run() {
     fi
 
     log_info "Running tests (suite: $suite)..."
-    api_request POST "/api/test/run" "{\"suite\":\"$suite\",\"triggeredByType\":\"$triggered_by_type\",\"triggeredByName\":\"$triggered_by_name\"}" | jq .
+    local json
+    json=$(build_json "suite" "$suite" "triggeredByType" "$triggered_by_type" "triggeredByName" "$triggered_by_name")
+    api_request POST "/api/test/run" "$json" | jq .
 }
 
 cmd_test_list() {
