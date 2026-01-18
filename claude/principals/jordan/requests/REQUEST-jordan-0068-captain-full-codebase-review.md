@@ -159,6 +159,50 @@ This analysis may generate additional REQUESTs for new tool development.
 
 ## Activity Log
 
+### 2026-01-18 - Phase 2: Test Review Complete
+
+**Test Review Agents:**
+- Agent a195d63: Tools tests (bats + TypeScript)
+- Agent a06314a: agency-service tests
+
+**Critical Findings:**
+1. **log-service has ZERO tests** - New REQUEST-0067 service with FTS5, tool runs, analytics completely untested
+2. **product-service has ZERO tests**
+3. ~95 tools exist but only 5 have any tests (2 bats, 3 TypeScript)
+
+**High Priority Findings:**
+1. Hardcoded ports (3198, 3199) in mock server tests - can cause port conflicts
+2. `opportunities.bats` uses weak assertions - checks absence of error text, not exit codes
+3. `log-helper.bats` only tests disabled logging mode (LOG_SERVICE_URL="")
+4. `requests.test.ts` ID normalization tests pass on either success or specific error messages
+
+**Medium Priority Findings:**
+1. No concurrent access tests for request sequence number generation
+2. No boundary condition tests (long strings, large batches)
+3. Test isolation could use unique paths with timestamps/UUIDs
+4. requests-backfill.test.ts uses fixed 30s timeout that could be flaky in CI
+
+**Fix Plan:**
+1. Create log-service tests (repository, service, routes)
+2. Strengthen opportunities.bats assertions
+3. Add enabled-logging tests to log-helper.bats
+4. Document as future work: port randomization, concurrent tests
+
+### 2026-01-18 - Phase 1: Implementation + Security Review Complete
+
+**Security Fixes Applied:**
+1. `log-tool-use`: Fixed jq command injection (--argjson → --arg)
+2. `log.repository.ts`: Fixed FTS5 MATCH injection with quote escaping
+3. `log.routes.ts`: Added safeParseInt helper with bounds checking
+
+**Findings Summary:**
+- 1 Critical (JWT bypass - documented as intentional for local use)
+- 0 High
+- 11 Medium (3 fixed, 8 documented as acceptable or future work)
+- 32 Low (documentation, minor improvements)
+
+**Tagged:** `fbef274` (pre-tag commit)
+
 ### 2026-01-18 - Created
 - Request created to formalize full codebase review
 - Cross-references REQUEST-0067 for context on recent changes
