@@ -1,0 +1,5 @@
+#!/bin/bash
+# Debug version - log what we receive to a file
+INPUT=$(cat)
+echo "$(date): $INPUT" >> /tmp/claude-hook-debug.log
+exit 0

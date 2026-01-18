@@ -1,0 +1,100 @@
+#!/bin/bash
+# Log tool use from Claude Code PostToolUse hook
+#
+# This script receives JSON via stdin from Claude Code's PostToolUse hook
+# and logs the execution to the agency-service database.
+#
+# Usage: Called automatically by PostToolUse hook
+#
+# Input (via stdin):
+#   {
+#     "session_id": "...",
+#     "tool_name": "Bash",
+#     "tool_input": { "command": "...", "description": "..." },
+#     "tool_response": { "exitCode": 0, "stdout": "...", "stderr": "..." }
+#   }
+
+# Fail silently - don't break Claude Code if logging fails
+set +e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_SERVICE_URL="${LOG_SERVICE_URL:-http://127.0.0.1:3141}"
+
+# Read JSON from stdin
+INPUT=$(cat)
+
+# Check if input is empty
+if [ -z "$INPUT" ]; then
+    exit 0
+fi
+
+# Extract fields using jq (silently fail if not available)
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
+if [ -z "$TOOL_NAME" ]; then
+    exit 0
+fi
+
+# Only log Bash commands for now (can expand later)
+if [ "$TOOL_NAME" != "Bash" ]; then
+    exit 0
+fi
+
+# Extract Bash-specific data
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
+DESCRIPTION=$(echo "$INPUT" | jq -r '.tool_input.description // empty' 2>/dev/null)
+EXIT_CODE=$(echo "$INPUT" | jq -r '.tool_response.exitCode // 0' 2>/dev/null)
+SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+
+# Sanitize command - remove potential secrets
+# Hash commands that might contain secrets
+SANITIZED_COMMAND="$COMMAND"
+if echo "$COMMAND" | grep -qiE "(password|secret|token|key|api_key|bearer|auth)" 2>/dev/null; then
+    SANITIZED_COMMAND="[REDACTED - may contain secrets]"
+fi
+
+# Truncate long commands
+if [ ${#SANITIZED_COMMAND} -gt 500 ]; then
+    SANITIZED_COMMAND="${SANITIZED_COMMAND:0:500}..."
+fi
+
+# Determine status
+STATUS="success"
+if [ "$EXIT_CODE" != "0" ]; then
+    STATUS="failure"
+fi
+
+# Log to agency-service
+# Using the tool_runs table schema
+JSON_PAYLOAD=$(jq -n \
+    --arg tool "Bash" \
+    --arg toolType "claude-code" \
+    --arg args "$SANITIZED_COMMAND" \
+    --arg sessionId "$SESSION_ID" \
+    --arg desc "$DESCRIPTION" \
+    '{tool: $tool, toolType: $toolType, args: $args, sessionId: $sessionId, description: $desc}' 2>/dev/null)
+
+if [ -n "$JSON_PAYLOAD" ]; then
+    # Start the run
+    RESPONSE=$(curl -s --connect-timeout 1 --max-time 2 \
+        -X POST "${LOG_SERVICE_URL}/api/log/run/start" \
+        -H "Content-Type: application/json" \
+        -d "$JSON_PAYLOAD" 2>/dev/null) || exit 0
+
+    RUN_ID=$(echo "$RESPONSE" | jq -r '.runId // empty' 2>/dev/null)
+
+    if [ -n "$RUN_ID" ]; then
+        # End the run immediately with status
+        END_PAYLOAD=$(jq -n \
+            --arg status "$STATUS" \
+            --argjson exitCode "$EXIT_CODE" \
+            --arg summary "$DESCRIPTION" \
+            '{status: $status, exitCode: $exitCode, summary: $summary}' 2>/dev/null)
+
+        curl -s --connect-timeout 1 --max-time 2 \
+            -X POST "${LOG_SERVICE_URL}/api/log/run/end/${RUN_ID}" \
+            -H "Content-Type: application/json" \
+            -d "$END_PAYLOAD" >/dev/null 2>&1
+    fi
+fi
+
+exit 0
