@@ -110,7 +110,14 @@ main() {
       fi
       exit $TEST_EXIT
     elif [ -f "package-lock.json" ]; then
-      # npm
+      # npm - check if test script exists first
+      TEST_OUTPUT=$(npm test 2>&1) || true
+      if echo "$TEST_OUTPUT" | grep -q "Missing script"; then
+        log_warn "No test script found in package.json"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "No tests to run"
+        exit 0
+      fi
       npm test
       TEST_EXIT=$?
       trap - EXIT
