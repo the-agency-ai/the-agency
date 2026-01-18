@@ -63,6 +63,22 @@ describe('Bug Repository', () => {
       expect(idB1).toBe('BETA-00001');
       expect(idA2).toBe('ALPHA-00002');
     });
+
+    test('should generate unique IDs under concurrent load', async () => {
+      // Generate 10 IDs concurrently for the same workstream
+      const concurrentPromises = Array.from({ length: 10 }, () =>
+        repo.getNextBugId('concurrent')
+      );
+      const ids = await Promise.all(concurrentPromises);
+
+      // All IDs should be unique
+      const uniqueIds = new Set(ids);
+      expect(uniqueIds.size).toBe(10);
+
+      // IDs should cover 1-10 (in any order)
+      const numbers = ids.map(id => parseInt(id.split('-')[1], 10)).sort((a, b) => a - b);
+      expect(numbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    });
   });
 
   describe('create', () => {

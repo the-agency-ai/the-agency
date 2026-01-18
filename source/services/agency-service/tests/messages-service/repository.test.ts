@@ -176,6 +176,35 @@ describe('Message Repository', () => {
       expect(page1.messages.length).toBe(2);
       expect(page2.messages.length).toBe(1);
     });
+
+    test('should batch fetch recipients for all messages', async () => {
+      // Create multiple messages with broadcast recipients
+      for (let i = 0; i < 5; i++) {
+        await repo.create({
+          fromType: 'agent',
+          fromName: 'sender',
+          toType: 'broadcast',
+          content: `Broadcast message ${i}`,
+          recipients: [
+            { recipientType: 'agent', recipientName: 'agent1' },
+            { recipientType: 'agent', recipientName: 'agent2' },
+            { recipientType: 'agent', recipientName: 'agent3' },
+          ],
+        });
+      }
+
+      // List all messages - should include recipients for each
+      const { messages, total } = await repo.list({ limit: 50, offset: 0 });
+      expect(total).toBe(8); // 3 from beforeEach + 5 new
+
+      // Verify each broadcast message has 3 recipients
+      const broadcastMessages = messages.filter(m => m.toType === 'broadcast');
+      expect(broadcastMessages.length).toBe(5);
+      for (const msg of broadcastMessages) {
+        expect(msg.recipients).toHaveLength(3);
+        expect(msg.recipients.map(r => r.recipientName).sort()).toEqual(['agent1', 'agent2', 'agent3']);
+      }
+    });
   });
 
   describe('getInbox', () => {
