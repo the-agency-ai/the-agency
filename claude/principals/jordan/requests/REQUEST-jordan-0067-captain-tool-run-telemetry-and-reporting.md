@@ -22,10 +22,45 @@ Currently:
 
 ## Goals
 
+### Primary Goal: Tool Efficiency Optimization
+
+**Identify opportunities to create `./tools/` wrappers that reduce context and token usage.**
+
+Every raw Bash/Read/Write/Grep call consumes context window. By analyzing tool run patterns, we can:
+
+1. **Identify repetitive sequences** - "Claude always runs X then Y then Z" → create `./tools/xyz`
+2. **Find verbose operations** - Commands that return too much output → create focused tools
+3. **Detect common workflows** - Multi-step patterns → single tool with concise output
+4. **Reduce token waste** - Replace chatty commands with efficient alternatives
+
+**Example opportunities:**
+- `git status && git diff && git log` → `./tools/git-summary` (one concise output)
+- Multiple `grep` calls → `./tools/search-code` (structured results)
+- `find + cat + grep` chains → `./tools/find-in-files` (direct answers)
+- Repeated file reads → `./tools/context-gather` (batched, summarized)
+
+### Secondary Goals
+
 1. **Fix local logging** - Every tool run should be captured
 2. **Rich execution data** - Args, duration, exit codes, errors
-3. **Opt-in remote reporting** - Adopters can share anonymized data
-4. **Analytics** - Identify patterns, failures, improvement opportunities
+3. **Pattern detection** - What sequences appear frequently?
+4. **Error analysis** - What fails, why, how to prevent?
+5. **Opt-in remote reporting** - Adopters can share anonymized data
+6. **Continuous improvement** - Learn from agent behavior to improve CLAUDE.md, prompts, and workflows
+
+### Learning from Agent Behavior
+
+Every tool call is a decision Claude made. By capturing all runs, we build a dataset of:
+- What Claude tries (successful patterns)
+- What fails (anti-patterns to document)
+- What's inefficient (optimization opportunities)
+- How agents actually work (vs. how we think they work)
+
+This feeds back into:
+- **CLAUDE.md updates** - Add rules based on observed mistakes
+- **Prompt improvements** - Better guidance based on real behavior
+- **Training examples** - Real-world effective vs. ineffective tool use
+- **Framework improvements** - The Agency gets better from usage data
 
 ## Investigation: Why Logging Isn't Working
 
@@ -83,35 +118,68 @@ ALTER TABLE tool_runs ADD COLUMN cwd_hash TEXT;  -- Hash for privacy
 ALTER TABLE tool_runs ADD COLUMN error_message TEXT;
 ```
 
-### Phase C: Local Analytics
+### Phase C: Local Analytics & Tool Opportunity Detection
 
-**Goal:** Tools to analyze local tool usage.
+**Goal:** Analyze tool usage to identify wrapper tool opportunities.
 
 **Deliverables:**
-- [ ] `./tools/agency-service log stats` enhanced
-- [ ] `./tools/agency-service log failures` - Show recent failures
-- [ ] `./tools/agency-service log slow` - Show slow executions
-- [ ] `./tools/agency-service log trends` - Usage over time
+- [ ] `./tools/agency-service log stats` - Basic statistics
+- [ ] `./tools/agency-service log sequences` - **Detect repeated command sequences**
+- [ ] `./tools/agency-service log verbose` - **Find high-output commands**
+- [ ] `./tools/agency-service log opportunities` - **Suggest new tools to create**
 
-**Example output:**
+**Key Analysis: Sequence Detection**
 ```
-Tool Run Statistics (Last 7 days)
+Common Sequences (Last 7 days)
 ═══════════════════════════════════════════════════
-Total runs: 847
-  Success: 812 (95.9%)
-  Failure: 35 (4.1%)
+Sequence: git status → git diff → git log -5
+  Occurrences: 47
+  Avg tokens: ~2,400
+  Suggestion: ./tools/git-summary
 
-By Tool:
-  commit          312 runs  (98.4% success)  avg: 1.2s
-  tag             156 runs  (100% success)   avg: 0.3s
-  test-run        134 runs  (89.6% success)  avg: 18.4s
-  commit-precheck 128 runs  (94.5% success)  avg: 22.1s
-  code-review     117 runs  (97.4% success)  avg: 3.2s
+Sequence: grep -r "pattern" → Read file → Read file → Read file
+  Occurrences: 31
+  Avg tokens: ~5,200
+  Suggestion: ./tools/search-and-read
 
-Top Failures:
-  1. test-run (14) - "npm test failed"
-  2. commit-precheck (7) - "Type check failed"
-  3. code-review (4) - "Blocking issues found"
+Sequence: ls → cat package.json → cat tsconfig.json
+  Occurrences: 28
+  Avg tokens: ~1,800
+  Suggestion: ./tools/project-info
+```
+
+**Key Analysis: Verbose Command Detection**
+```
+High-Output Commands (Last 7 days)
+═══════════════════════════════════════════════════
+Command: npm test (avg 15,000 chars output)
+  Suggestion: ./tools/test-run --summary (already exists!)
+
+Command: git log (avg 8,000 chars output)
+  Suggestion: ./tools/git-recent --concise
+
+Command: find . -name "*.ts" (avg 3,000 chars output)
+  Suggestion: ./tools/find-files --format=compact
+```
+
+**Key Analysis: Tool Opportunity Report**
+```
+Tool Opportunities
+═══════════════════════════════════════════════════
+Priority 1: ./tools/git-summary
+  - Combines: git status, git diff --stat, git log -5 --oneline
+  - Estimated savings: 1,500 tokens/use × 47 uses = 70,500 tokens
+  - Implementation: Simple bash wrapper
+
+Priority 2: ./tools/search-and-read
+  - Combines: grep search + targeted file reads
+  - Estimated savings: 3,000 tokens/use × 31 uses = 93,000 tokens
+  - Implementation: Returns only matching lines with context
+
+Priority 3: ./tools/project-context
+  - Combines: package.json, tsconfig.json, key config reads
+  - Estimated savings: 800 tokens/use × 28 uses = 22,400 tokens
+  - Implementation: Single structured output
 ```
 
 ### Phase D: Opt-In Remote Reporting
