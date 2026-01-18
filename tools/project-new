@@ -327,7 +327,7 @@ EOF
         echo "To get started:"
         echo ""
         echo -e "  ${BLUE}cd $PROJECT_PATH${NC}"
-        echo -e "  ${BLUE}./tools/myclaude housekeeping housekeeping${NC}"
+        echo -e "  ${BLUE}./tools/myclaude housekeeping captain${NC}"
         echo ""
         echo "Then type: /welcome"
         echo ""
@@ -353,13 +353,13 @@ EOF
             log_end "$RUN_ID" "success" 0 0 "Project $PROJECT_NAME created, launching agent"
 
             # Launch myclaude
-            exec ./tools/myclaude housekeeping housekeeping
+            exec ./tools/myclaude housekeeping captain
         else
             echo ""
             echo "When you're ready:"
             echo ""
             echo -e "  ${BLUE}cd $PROJECT_PATH${NC}"
-            echo -e "  ${BLUE}./tools/myclaude housekeeping housekeeping${NC}"
+            echo -e "  ${BLUE}./tools/myclaude housekeeping captain${NC}"
             echo ""
             echo "Then type: /welcome"
             echo ""
