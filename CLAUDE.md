@@ -350,6 +350,32 @@ Work in The Agency is tracked through REQUEST files. Each REQUEST goes through d
 - `BUG-XXXX` - Bug fixes (can be addressed individually or via REQUEST)
 - `ADHOC-` - Agent-initiated work (logged in ADHOC-WORKLOG.md)
 
+### Managing Work Items
+
+**ALWAYS use the request service tools - never manually edit status:**
+
+```bash
+# List open requests
+./tools/requests
+
+# Create a new request
+./tools/request --agent captain --summary "Add feature X"
+
+# Mark request complete (creates git tag + updates service)
+./tools/request-complete REQUEST-jordan-0017 "Feature implemented"
+
+# Sync request files to service (after manual file changes)
+./tools/requests-backfill
+```
+
+The request service tracks all work items in a database. Use the API for status updates:
+```bash
+# Update request status via API
+curl -X POST "http://127.0.0.1:3141/api/request/update/REQUEST-jordan-0017" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "Complete"}'
+```
+
 ### REQUEST Stages
 ```
 impl     → Implementation complete, tested locally
