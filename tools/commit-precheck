@@ -111,24 +111,18 @@ end_run() {
     fi
 }
 
-# Output result (single line)
+# Output result (standard format)
 output_success() {
     local message="$1"
-    if [[ -n "$RUN_ID" ]]; then
-        echo "SUCCESS: $message (run-id: $RUN_ID)"
-    else
-        echo "SUCCESS: $message"
-    fi
+    echo "$message"
+    echo "✓"
 }
 
 output_failure() {
     local message="$1"
-    if [[ -n "$RUN_ID" ]]; then
-        echo "FAILURE: $message (run-id: $RUN_ID)"
-        echo "  Debug: ./tools/agency-service log run $RUN_ID errors"
-    else
-        echo "FAILURE: $message"
-    fi
+    echo "$message"
+    echo "✗"
+    # Verbose output available via run ID
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -137,6 +131,7 @@ output_failure() {
 
 main() {
     start_run
+    echo "commit-precheck [run: ${RUN_ID:-none}]"
 
     REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
     cd "$REPO_ROOT"

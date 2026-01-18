@@ -266,26 +266,11 @@ main() {
 
     # Dry run - just show what would happen
     if [ "$DRY_RUN" = true ]; then
-        echo "[DRY RUN] Would commit: $FULL_MESSAGE"
-
-        if [ "$STAGED_ONLY" = false ]; then
-            verbose_echo "[DRY RUN] Would stage all changes:"
-            [[ "$VERBOSE" == "true" ]] && git status --short
-        else
-            verbose_echo "[DRY RUN] Would commit staged changes:"
-            [[ "$VERBOSE" == "true" ]] && git diff --cached --name-only
-        fi
-
-        if [ "$NO_VERIFY" = true ]; then
-            verbose_echo "[DRY RUN] Would skip pre-commit hooks"
-        fi
-
-        if [ "$AMEND" = true ]; then
-            verbose_echo "[DRY RUN] Would amend previous commit"
-        fi
+        echo "[dry-run]"
+        echo "✓"
 
         trap - EXIT
-        log_end "$RUN_ID" "success" 0 0 "Dry run complete"
+        log_end "$RUN_ID" "success" 0 0 "Dry run: $FULL_MESSAGE"
         exit 0
     fi
 
@@ -308,24 +293,27 @@ main() {
 
     # Execute commit
     log_step "Creating commit"
-    if $GIT_CMD -m "$FULL_MESSAGE" -m "$COMMIT_BODY" >/dev/null 2>&1; then
+    COMMIT_OUTPUT=$($GIT_CMD -m "$FULL_MESSAGE" -m "$COMMIT_BODY" 2>&1)
+    COMMIT_EXIT=$?
+
+    if [ $COMMIT_EXIT -eq 0 ]; then
         COMMIT_HASH=$(git log -1 --format='%h')
         echo "Committed: $COMMIT_HASH"
+        echo "✓"
 
         verbose_echo ""
         [[ "$VERBOSE" == "true" ]] && git log -1 --oneline
 
         trap - EXIT
-        log_end "$RUN_ID" "success" 0 0 "Committed: $COMMIT_HASH - $MESSAGE"
+        log_end "$RUN_ID" "success" 0 ${#COMMIT_OUTPUT} "Committed: $COMMIT_HASH - $MESSAGE"
     else
-        # Re-run without suppressing output to show the error
-        if ! $GIT_CMD -m "$FULL_MESSAGE" -m "$COMMIT_BODY"; then
-            COMMIT_EXIT=$?
-            log_error "Commit failed"
-            trap - EXIT
-            log_end "$RUN_ID" "failure" "$COMMIT_EXIT" 0 "Commit failed: $MESSAGE"
-            exit $COMMIT_EXIT
-        fi
+        echo "✗"
+        trap - EXIT
+        # Log verbose output to database for investigation
+        log_end "$RUN_ID" "failure" "$COMMIT_EXIT" ${#COMMIT_OUTPUT} "Commit failed: $MESSAGE"
+        # Only show error in verbose mode
+        [[ "$VERBOSE" == "true" ]] && echo "$COMMIT_OUTPUT"
+        exit $COMMIT_EXIT
     fi
 }
 

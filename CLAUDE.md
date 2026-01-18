@@ -97,6 +97,61 @@ tools/                       # CLI tools for The Agency
 - `./tools/sync` - Push with pre-commit checks
 - `./tools/doc-commit` - Commit documentation
 
+## Tool Output Standard
+
+**All `./tools/*` must follow this output format to minimize context window usage.**
+
+### stdout Format (What Claude Sees)
+
+```
+{tool-name} [run: {run-id}]
+{essential-result-if-needed}
+{status}
+```
+
+- **Line 1:** Tool name and run ID (for tracing to verbose logs)
+- **Line 2:** Essential result only if needed (commit hash, file path, count)
+- **Line 3:** Status indicator: `✓` (success) or `✗` (failure)
+
+### Examples
+
+```bash
+# Success with essential result
+commit [run: a1b2c3d4]
+Committed: 9cbb97e
+✓
+
+# Success, no result needed
+test-run [run: e5f6g7h8]
+✓
+
+# Failure
+test-run [run: i9j0k1l2]
+✗
+```
+
+### Verbose Output (Database)
+
+Full output is captured in the database via `_log-helper`:
+- stdout/stderr content
+- Duration
+- Exit code
+- Arguments
+
+**Investigate failures:**
+```bash
+./tools/agency-service log run {run-id}
+```
+
+### Why This Matters
+
+| Location | Content | Token Impact |
+|----------|---------|--------------|
+| stdout (context) | 10-20 tokens | Minimal |
+| Database | Full verbose output | Zero (not in context) |
+
+Every token in stdout consumes context window. Verbose output is available when needed but doesn't waste tokens on successful runs.
+
 ## Terminal Integration
 
 iTerm tab colors and status indicators update automatically via Claude Code hooks:

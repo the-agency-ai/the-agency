@@ -237,20 +237,25 @@ main() {
             log_end "$LOG_RUN_ID" "success" "0" "0" "Dry run: $TAG_NAME"
         fi
     else
-        git tag -a "$TAG_NAME" -m "$TAG_MESSAGE"
-        echo "Created tag: $TAG_NAME"
+        if git tag -a "$TAG_NAME" -m "$TAG_MESSAGE" 2>/dev/null; then
+            echo "Created: $TAG_NAME"
 
-        if [ "$PUSH" = true ]; then
-            git push origin "$TAG_NAME"
-            log_info "Pushed tag to remote"
+            if [ "$PUSH" = true ]; then
+                git push origin "$TAG_NAME" >/dev/null 2>&1
+            fi
+
+            echo "✓"
+            trap - EXIT
+            if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
+                log_end "$LOG_RUN_ID" "success" "0" "0" "Created tag: $TAG_NAME"
+            fi
         else
-            log_warn "Tip: Use --push to push to remote, or run: git push origin $TAG_NAME"
-        fi
-
-        # End logging
-        trap - EXIT
-        if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
-            log_end "$LOG_RUN_ID" "success" "0" "0" "Created tag: $TAG_NAME"
+            echo "✗"
+            trap - EXIT
+            if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
+                log_end "$LOG_RUN_ID" "failure" "1" "0" "Failed to create tag: $TAG_NAME"
+            fi
+            exit 1
         fi
     fi
 }

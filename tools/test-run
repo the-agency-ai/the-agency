@@ -112,19 +112,24 @@ main() {
     elif [ -f "package-lock.json" ]; then
       # npm - check if test script exists first
       TEST_OUTPUT=$(npm test 2>&1) || true
+      TEST_EXIT=$?
+
       if echo "$TEST_OUTPUT" | grep -q "Missing script"; then
-        log_warn "No test script found in package.json"
+        echo "No tests configured"
+        echo "✓"
         trap - EXIT
         log_end "$RUN_ID" "success" 0 0 "No tests to run"
         exit 0
       fi
-      npm test
-      TEST_EXIT=$?
+
       trap - EXIT
       if [ $TEST_EXIT -eq 0 ]; then
-        log_end "$RUN_ID" "success" 0 0 "All unit tests passed"
+        echo "✓"
+        log_end "$RUN_ID" "success" 0 ${#TEST_OUTPUT} "All unit tests passed"
       else
-        log_end "$RUN_ID" "failure" $TEST_EXIT 0 "Tests failed"
+        echo "✗"
+        log_end "$RUN_ID" "failure" $TEST_EXIT ${#TEST_OUTPUT} "Tests failed"
+        # Verbose output available via: ./tools/agency-service log run $RUN_ID
       fi
       exit $TEST_EXIT
     else
