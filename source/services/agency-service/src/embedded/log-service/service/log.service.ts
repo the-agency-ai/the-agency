@@ -185,4 +185,43 @@ export class LogService {
     const deleted = await this.repository.cleanup(daysToKeep);
     return { deleted };
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // REQUEST-0067: Opportunity Detection
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Get tools with high output sizes (context optimization candidates)
+   */
+  async getHighOutputTools(options?: { since?: string; minOutputSize?: number; limit?: number }) {
+    return this.repository.getHighOutputTools(options);
+  }
+
+  /**
+   * Get tools with large input sizes (verbose command candidates)
+   */
+  async getLargeInputTools(options?: { since?: string; minInputSize?: number; limit?: number }) {
+    return this.repository.getLargeInputTools(options);
+  }
+
+  /**
+   * Get frequently used tool patterns (wrapper candidates)
+   */
+  async getFrequentPatterns(options?: { since?: string; minCount?: number; limit?: number }) {
+    return this.repository.getFrequentPatterns(options);
+  }
+
+  /**
+   * Get failure patterns for analysis
+   */
+  async getFailurePatterns(options?: { since?: string; limit?: number }) {
+    return this.repository.getFailurePatterns(options);
+  }
+
+  /**
+   * Get opportunity summary with recommendations
+   */
+  async getOpportunitySummary(options?: { since?: string }) {
+    return this.repository.getOpportunitySummary(options);
+  }
 }

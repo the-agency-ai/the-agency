@@ -144,7 +144,7 @@ export const ToolType = {
 export type ToolTypeValue = (typeof ToolType)[keyof typeof ToolType];
 
 /**
- * Tool run tracking (Enhanced per REQUEST-0012)
+ * Tool run tracking (Enhanced per REQUEST-0012 and REQUEST-0067)
  *
  * Captures detailed tool invocation data for:
  * - Understanding agent behavior
@@ -170,6 +170,9 @@ export interface ToolRun {
   exitCode?: number;            // Process exit code (0-255)
   outputSize?: number;          // Output size in bytes (for context analysis)
   duration?: number;            // Duration in ms (calculated from start/end)
+
+  // REQUEST-0067: Verbose output capture
+  output?: string;              // Full stdout/stderr (stored, not in context)
 }
 
 /**
@@ -190,7 +193,7 @@ export const createToolRunSchema = z.object({
 export type CreateToolRunRequest = z.infer<typeof createToolRunSchema>;
 
 /**
- * End tool run schema (Enhanced per REQUEST-0012)
+ * End tool run schema (Enhanced per REQUEST-0012 and REQUEST-0067)
  */
 export const endToolRunSchema = z.object({
   status: z.enum(['success', 'failure']),
@@ -199,6 +202,9 @@ export const endToolRunSchema = z.object({
   // REQUEST-0012 additions
   exitCode: z.number().int().min(0).max(255).optional(),
   outputSize: z.number().int().min(0).optional(),
+
+  // REQUEST-0067: Verbose output capture
+  output: z.string().optional(),  // Full stdout/stderr content
 });
 
 export type EndToolRunRequest = z.infer<typeof endToolRunSchema>;

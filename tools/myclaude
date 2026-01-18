@@ -3,15 +3,19 @@
 # myclaude - Launch a Claude Code agent with workstream context
 #
 # Usage:
-#   ./tools/myclaude WORKSTREAM AGENTNAME [initial_prompt]
+#   ./tools/myclaude WORKSTREAM AGENTNAME [initial_prompt] [OPTIONS]
 #   ./tools/myclaude --update           # Update Claude Code to latest
 #   ./tools/myclaude --rollback         # Rollback to previous version
 #   ./tools/myclaude --version          # Show Claude Code version
 #
+# Options:
+#   --verbose     Show info and step messages
+#   --debug       Show all debug output (very verbose)
+#
 # Examples:
 #   ./tools/myclaude housekeeping captain
 #   ./tools/myclaude web web "Fix the login bug"
-#   ./tools/myclaude agents agent-manager
+#   ./tools/myclaude housekeeping captain --debug
 #
 
 set -e
@@ -34,75 +38,160 @@ NC='\033[0m'
 
 # Defaults
 VERBOSE=false
+DEBUG=false
 
-# Logging functions (quiet by default)
-log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
-log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+# Logging functions
+# Debug logs everything, Verbose logs steps and info, default logs only errors
+log_debug() { [[ "$DEBUG" == "true" ]] && echo -e "${BLUE}[DEBUG]${NC} $1" || true; }
+log_info() { [[ "$VERBOSE" == "true" || "$DEBUG" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }  # Always show warnings
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
-log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
-verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+log_step() { [[ "$VERBOSE" == "true" || "$DEBUG" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" || "$DEBUG" == "true" ]] && echo "$@" || true; }
+
+# Helper: Run command with optional debug output
+# Usage: run_cmd "description" command args...
+run_cmd() {
+    local desc="$1"
+    shift
+    log_debug "Running: $desc"
+    log_debug "Command: $*"
+    if [[ "$DEBUG" == "true" ]]; then
+        "$@" 2>&1 | while IFS= read -r line; do
+            echo -e "${BLUE}  > ${NC}$line"
+        done
+        return "${PIPESTATUS[0]}"
+    else
+        "$@"
+    fi
+}
+
+# Helper: Wait for service with retries
+# Usage: wait_for_service "url" "name" timeout_seconds
+wait_for_service() {
+    local url="$1"
+    local name="$2"
+    local timeout="${3:-30}"
+    local start_time=$(date +%s)
+    local attempt=0
+
+    log_debug "Waiting for $name at $url (timeout: ${timeout}s)"
+
+    while true; do
+        attempt=$((attempt + 1))
+        local response
+        response=$(curl -sf --connect-timeout 2 --max-time 5 "$url" 2>&1)
+        local curl_exit=$?
+
+        if [[ $curl_exit -eq 0 ]]; then
+            log_debug "$name is ready (attempt $attempt)"
+            [[ "$DEBUG" == "true" ]] && log_debug "Health response: $response"
+            return 0
+        fi
+
+        local elapsed=$(($(date +%s) - start_time))
+        if [[ $elapsed -ge $timeout ]]; then
+            log_error "$name failed to respond within ${timeout}s (curl exit: $curl_exit)"
+            [[ "$DEBUG" == "true" ]] && log_debug "Last response: $response"
+            return 1
+        fi
+
+        log_debug "Waiting for $name... (attempt $attempt, ${elapsed}s elapsed)"
+        sleep 1
+    done
+}
 
 # Check if required services are ready (auto-installs everything)
-# Returns: 0 if all services ready
+# Returns: 0 if all services ready, 1 if failed
 check_services() {
     local project_root="$1"
     local service_dir="$project_root/source/services/agency-service"
     local bun_path="${HOME}/.bun/bin/bun"
     local service_url="http://127.0.0.1:3141"
+    local service_timeout="${SERVICE_TIMEOUT:-30}"
 
     log_step "Checking Agency Service..."
+    log_debug "Service directory: $service_dir"
+    log_debug "Bun path: $bun_path"
+    log_debug "Service URL: $service_url"
+    log_debug "Service timeout: ${service_timeout}s"
 
     # 1. Check if service directory exists
     if [[ ! -d "$service_dir" ]]; then
         log_info "Agency Service directory not found - skipping service check"
+        log_debug "Path checked: $service_dir"
         return 0
     fi
+    log_debug "Service directory exists"
 
     # 2. Check if Bun is installed - auto-install if missing
     if [[ -x "$bun_path" ]]; then
+        log_debug "Bun found at $bun_path"
         echo -e "${GREEN}✓ Bun runtime present${NC}"
     else
         echo -e "${YELLOW}Bun runtime not found, installing...${NC}"
-        curl -fsSL https://bun.sh/install | bash
+        if [[ "$DEBUG" == "true" ]]; then
+            curl -fsSL https://bun.sh/install | bash
+        else
+            curl -fsSL https://bun.sh/install | bash 2>/dev/null
+        fi
         export PATH="$HOME/.bun/bin:$PATH"
         bun_path="${HOME}/.bun/bin/bun"
         if [[ -x "$bun_path" ]]; then
             echo -e "${GREEN}✓ Bun installed${NC}"
+            log_debug "Bun installed successfully at $bun_path"
         else
             log_error "Failed to install Bun - some features may not work"
-            return 0
+            return 1
         fi
     fi
 
     # 3. Check if dependencies are installed - auto-install if missing
     if [[ -d "$service_dir/node_modules" ]]; then
+        log_debug "node_modules found"
         echo -e "${GREEN}✓ Dependencies present${NC}"
     else
         echo -e "${YELLOW}Dependencies not found, installing...${NC}"
+        log_debug "Installing dependencies in $service_dir"
         cd "$service_dir"
-        "$bun_path" install --silent 2>/dev/null || "$bun_path" install
+        if [[ "$DEBUG" == "true" ]]; then
+            "$bun_path" install
+        else
+            "$bun_path" install --silent 2>/dev/null || "$bun_path" install
+        fi
         cd "$project_root"
         echo -e "${GREEN}✓ Dependencies installed${NC}"
     fi
 
     # 4. Check if service is running - auto-start if not
-    if curl -s --connect-timeout 1 "$service_url/health" > /dev/null 2>&1; then
+    log_debug "Checking if service is already running..."
+    if curl -sf --connect-timeout 2 "$service_url/health" > /dev/null 2>&1; then
         echo -e "${GREEN}✓ Agency Service running${NC}"
+        log_debug "Service already running"
         return 0
     fi
 
     # Auto-start the service
     echo -e "${YELLOW}Agency Service not running, starting...${NC}"
     if [[ -x "$project_root/tools/agency-service" ]]; then
-        "$project_root/tools/agency-service" start > /dev/null 2>&1 || true
-        sleep 1
-        if curl -s --connect-timeout 1 "$service_url/health" > /dev/null 2>&1; then
+        log_debug "Starting agency-service..."
+        if [[ "$DEBUG" == "true" ]]; then
+            "$project_root/tools/agency-service" start
+        else
+            "$project_root/tools/agency-service" start > /dev/null 2>&1 || true
+        fi
+
+        # Wait for service to be ready with proper retry logic
+        if wait_for_service "$service_url/health" "Agency Service" "$service_timeout"; then
             echo -e "${GREEN}✓ Agency Service started${NC}"
         else
-            log_warn "Failed to start Agency Service - continuing anyway"
+            log_error "Agency Service failed to start within ${service_timeout}s"
+            log_warn "Some features may not work without the service"
+            return 1
         fi
     else
-        log_warn "Agency Service tool not found"
+        log_warn "Agency Service tool not found at $project_root/tools/agency-service"
+        return 1
     fi
 
     return 0
@@ -119,8 +208,11 @@ case "${1:-}" in
         shift
         ;;
     --debug)
+        DEBUG=true
         VERBOSE=true
         export DEBUG_HOOKS=1
+        export VERBOSE=true
+        export DEBUG_MYCLAUDE=1
         shift
         ;;
     --update)
@@ -186,6 +278,14 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        --debug)
+            DEBUG=true
+            VERBOSE=true
+            export DEBUG_HOOKS=1
+            export VERBOSE=true
+            export DEBUG_MYCLAUDE=1
+            shift
+            ;;
         *)
             break
             ;;
@@ -231,29 +331,61 @@ main() {
     trap 'log_end "$LOG_RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
     echo "myclaude [run: ${LOG_RUN_ID:-none}]"
+    [[ "$DEBUG" == "true" ]] && echo -e "${BLUE}[DEBUG MODE ENABLED]${NC}"
     echo ""
+
+    # Debug: Show configuration
+    log_debug "=== myclaude Configuration ==="
+    log_debug "WORKSTREAM: $WORKSTREAM"
+    log_debug "AGENTNAME: $AGENTNAME"
+    log_debug "INITIAL_PROMPT: ${INITIAL_PROMPT:-<none>}"
+    log_debug "PROJECT_ROOT: $PROJECT_ROOT"
+    log_debug "VERBOSE: $VERBOSE"
+    log_debug "DEBUG: $DEBUG"
+    log_debug "============================="
 
     # Start logging this tool run
     LOG_RUN_ID=""
     if type log_start &>/dev/null; then
+        log_debug "Starting tool run logging..."
         LOG_RUN_ID=$(log_start "myclaude" "agency-tool" "$WORKSTREAM" "$AGENTNAME" "$INITIAL_PROMPT")
+        log_debug "LOG_RUN_ID: $LOG_RUN_ID"
+    else
+        log_debug "log_start function not available"
     fi
 
     # Get principal from config (maps system username to principal)
+    log_debug "Looking up principal..."
     if [ -x "$PROJECT_ROOT/tools/config" ]; then
         PRINCIPAL=$("$PROJECT_ROOT/tools/config" get-principal 2>/dev/null || echo "unknown")
         export PRINCIPAL="$PRINCIPAL"
+        log_debug "PRINCIPAL: $PRINCIPAL"
+    else
+        log_debug "Config tool not found at $PROJECT_ROOT/tools/config"
     fi
 
     # Check and start required services (Agency Service provides Secret Service, Log Service, etc.)
-    check_services "$PROJECT_ROOT"
+    log_debug "=== Service Check ==="
+    if ! check_services "$PROJECT_ROOT"; then
+        log_warn "Service check failed - some features may not be available"
+    fi
+    log_debug "=== Service Check Complete ==="
 
     # Set up vault session token for Claude Code to access secrets
+    log_debug "=== Vault Setup ==="
     if [ -x "$PROJECT_ROOT/tools/secret" ]; then
         log_step "Checking vault status..."
-        # Wait for secret service to be fully ready (max 3 seconds)
-        for i in {1..6}; do
-            VAULT_STATUS=$("$PROJECT_ROOT/tools/secret" vault status 2>/dev/null | grep -o 'status: [a-z]*' | cut -d' ' -f2 || echo "unknown")
+        log_debug "Secret tool: $PROJECT_ROOT/tools/secret"
+
+        # Wait for secret service to be fully ready (max 5 seconds)
+        VAULT_STATUS="unknown"
+        for i in {1..10}; do
+            log_debug "Vault status check attempt $i..."
+            local raw_status
+            raw_status=$("$PROJECT_ROOT/tools/secret" vault status 2>&1)
+            log_debug "Raw vault status output: $raw_status"
+            VAULT_STATUS=$(echo "$raw_status" | grep -o 'status: [a-z]*' | cut -d' ' -f2 || echo "unknown")
+            log_debug "Parsed vault status: $VAULT_STATUS"
             if [ "$VAULT_STATUS" != "unknown" ]; then
                 break
             fi
@@ -275,10 +407,14 @@ main() {
 
         if [ "$VAULT_STATUS" = "unlocked" ]; then
             # Generate a session token for this Claude session
+            log_debug "Generating vault session token..."
             SESSION_TOKEN=$("$PROJECT_ROOT/tools/secret" vault session generate "$AGENTNAME-session" 2>/dev/null || echo "")
+            log_debug "Session token generated: ${SESSION_TOKEN:0:20}... (truncated)"
             if [ -n "$SESSION_TOKEN" ]; then
                 export VAULT_SESSION_TOKEN="$SESSION_TOKEN"
                 echo -e "${GREEN}✓ Vault session token generated${NC}"
+            else
+                log_warn "Failed to generate vault session token"
             fi
         elif [ "$VAULT_STATUS" = "uninitialized" ]; then
             echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -322,6 +458,8 @@ main() {
     fi
     echo ""
 
+    log_debug "=== Vault Setup Complete ==="
+
     # Build claude command arguments (array-based to avoid eval)
     CLAUDE_ARGS=("--model" "opus")
 
@@ -330,12 +468,24 @@ main() {
         CLAUDE_ARGS+=("--prompt" "$INITIAL_PROMPT")
     fi
 
+    log_debug "=== Launching Claude ==="
+    log_debug "Claude args: ${CLAUDE_ARGS[*]}"
+    log_debug "Working directory: $PROJECT_ROOT"
+    log_debug "Environment variables:"
+    log_debug "  WORKSTREAM=$WORKSTREAM"
+    log_debug "  AGENTNAME=$AGENTNAME"
+    log_debug "  PRINCIPAL=$PRINCIPAL"
+    log_debug "  VAULT_SESSION_TOKEN=${VAULT_SESSION_TOKEN:+<set>}"
+    log_debug "  DEBUG_HOOKS=${DEBUG_HOOKS:-<not set>}"
+
     # Launch claude in project directory
     cd "$PROJECT_ROOT"
 
     # Run claude and capture exit code
+    log_debug "Executing: claude ${CLAUDE_ARGS[*]}"
     CLAUDE_EXIT=0
     claude "${CLAUDE_ARGS[@]}" || CLAUDE_EXIT=$?
+    log_debug "Claude exited with code: $CLAUDE_EXIT"
 
     # End logging
     trap - EXIT  # Clear trap

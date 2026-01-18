@@ -20,6 +20,19 @@ import { createServiceLogger } from '../../../core/lib/logger';
 const logger = createServiceLogger('log-routes');
 
 /**
+ * REQUEST-0068: Safe parseInt with validation and bounds
+ * Returns default value if input is invalid or out of bounds
+ */
+function safeParseInt(value: string | undefined, defaultValue: number, min: number = 1, max: number = 10000): number {
+  if (!value) return defaultValue;
+  const parsed = parseInt(value, 10);
+  if (isNaN(parsed) || parsed < min || parsed > max) {
+    return defaultValue;
+  }
+  return parsed;
+}
+
+/**
  * Create log routes with explicit operation names
  */
 export function createLogRoutes(logService: LogService): Hono {
@@ -203,9 +216,65 @@ export function createLogRoutes(logService: LogService): Hono {
    * GET /log/failures - Get recent tool failures
    */
   app.get('/failures', async (c) => {
-    const limit = parseInt(c.req.query('limit') || '20', 10);
+    const limit = safeParseInt(c.req.query('limit'), 20, 1, 1000);
     const failures = await logService.getRecentFailures(limit);
     return c.json({ count: failures.length, failures });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // REQUEST-0067: Opportunity Detection
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * GET /log/opportunities - Get tool optimization opportunities summary
+   */
+  app.get('/opportunities', async (c) => {
+    const since = c.req.query('since') || '7d';
+    const summary = await logService.getOpportunitySummary({ since });
+    return c.json(summary);
+  });
+
+  /**
+   * GET /log/opportunities/high-output - Get tools with high output sizes
+   */
+  app.get('/opportunities/high-output', async (c) => {
+    const since = c.req.query('since') || '7d';
+    const minOutputSize = safeParseInt(c.req.query('minSize'), 1000, 1, 10000000);
+    const limit = safeParseInt(c.req.query('limit'), 20, 1, 1000);
+    const tools = await logService.getHighOutputTools({ since, minOutputSize, limit });
+    return c.json({ count: tools.length, tools });
+  });
+
+  /**
+   * GET /log/opportunities/large-input - Get tools with large input sizes
+   */
+  app.get('/opportunities/large-input', async (c) => {
+    const since = c.req.query('since') || '7d';
+    const minInputSize = safeParseInt(c.req.query('minSize'), 100, 1, 10000000);
+    const limit = safeParseInt(c.req.query('limit'), 20, 1, 1000);
+    const tools = await logService.getLargeInputTools({ since, minInputSize, limit });
+    return c.json({ count: tools.length, tools });
+  });
+
+  /**
+   * GET /log/opportunities/patterns - Get frequently used tool patterns
+   */
+  app.get('/opportunities/patterns', async (c) => {
+    const since = c.req.query('since') || '7d';
+    const minCount = safeParseInt(c.req.query('minCount'), 3, 1, 1000);
+    const limit = safeParseInt(c.req.query('limit'), 50, 1, 1000);
+    const patterns = await logService.getFrequentPatterns({ since, minCount, limit });
+    return c.json({ count: patterns.length, patterns });
+  });
+
+  /**
+   * GET /log/opportunities/failures - Get failure patterns for analysis
+   */
+  app.get('/opportunities/failures', async (c) => {
+    const since = c.req.query('since') || '7d';
+    const limit = safeParseInt(c.req.query('limit'), 20, 1, 1000);
+    const patterns = await logService.getFailurePatterns({ since, limit });
+    return c.json({ count: patterns.length, patterns });
   });
 
   // ─────────────────────────────────────────────────────────────

@@ -62,7 +62,6 @@ log_start() {
     local tool="$1"
     local tool_type="${2:-agency-tool}"
     shift 2
-    local args="$*"
 
     if ! _log_enabled; then
         _log_debug "Logging disabled (LOG_SERVICE_URL empty)"
@@ -72,15 +71,27 @@ log_start() {
     # Build JSON payload
     local escaped_tool=$(_json_escape "$tool")
     local escaped_type=$(_json_escape "$tool_type")
-    local escaped_args=$(_json_escape "$args")
     local escaped_agent=$(_json_escape "${AGENT_NAME:-${AGENTNAME:-}}")
     local escaped_workstream=$(_json_escape "${WORKSTREAM:-}")
     local escaped_user=$(_json_escape "${USER:-}")
 
     local payload="{\"tool\":\"$escaped_tool\",\"toolType\":\"$escaped_type\""
 
-    if [[ -n "$escaped_args" ]]; then
-        payload="$payload,\"args\":\"$escaped_args\""
+    # Build args as JSON array
+    if [[ $# -gt 0 ]]; then
+        local args_json="["
+        local first=true
+        for arg in "$@"; do
+            local escaped_arg=$(_json_escape "$arg")
+            if [[ "$first" == "true" ]]; then
+                args_json="$args_json\"$escaped_arg\""
+                first=false
+            else
+                args_json="$args_json,\"$escaped_arg\""
+            fi
+        done
+        args_json="$args_json]"
+        payload="$payload,\"args\":$args_json"
     fi
 
     if [[ -n "$escaped_agent" ]]; then
@@ -92,7 +103,7 @@ log_start() {
     fi
 
     if [[ -n "$escaped_user" ]]; then
-        payload="$payload,\"userId\":\"$escaped_user\",\"userType\":\"human\""
+        payload="$payload,\"userId\":\"$escaped_user\",\"userType\":\"principal\""
     fi
 
     payload="$payload}"
@@ -121,13 +132,15 @@ log_start() {
 }
 
 # End a tool run
-# Usage: log_end "$RUN_ID" "success|failure" "$EXIT_CODE" "$OUTPUT_SIZE" ["summary"]
+# Usage: log_end "$RUN_ID" "success|failure" "$EXIT_CODE" "$OUTPUT_SIZE" ["summary"] ["output"]
+# The output parameter stores verbose output in the database (REQUEST-0067)
 log_end() {
     local run_id="$1"
     local status="${2:-success}"
     local exit_code="${3:-0}"
     local output_size="${4:-0}"
     local summary="${5:-}"
+    local output="${6:-}"
 
     # Skip if no run ID or logging disabled
     if [[ -z "$run_id" ]] || ! _log_enabled; then
@@ -147,6 +160,12 @@ log_end() {
 
     if [[ -n "$escaped_summary" ]]; then
         payload="$payload,\"summary\":\"$escaped_summary\""
+    fi
+
+    # Add verbose output if provided (REQUEST-0067)
+    if [[ -n "$output" ]]; then
+        local escaped_output=$(_json_escape "$output")
+        payload="$payload,\"output\":\"$escaped_output\""
     fi
 
     payload="$payload}"

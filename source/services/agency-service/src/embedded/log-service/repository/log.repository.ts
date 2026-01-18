@@ -56,6 +56,8 @@ interface ToolRunRow {
   workstream: string | null;
   exit_code: number | null;
   output_size: number | null;
+  // REQUEST-0067: Verbose output capture
+  output: string | null;
 }
 
 /**
@@ -124,6 +126,9 @@ function rowToToolRun(row: ToolRunRow): ToolRun {
   if (row.exit_code !== null) run.exitCode = row.exit_code;
   if (row.output_size !== null) run.outputSize = row.output_size;
 
+  // REQUEST-0067: Verbose output capture
+  if (row.output) run.output = row.output;
+
   // Calculate duration if we have both start and end times
   if (endedAt) {
     run.duration = endedAt.getTime() - startedAt.getTime();
@@ -187,7 +192,7 @@ export class LogRepository {
       END
     `);
 
-    // Tool runs table (Enhanced per REQUEST-0012)
+    // Tool runs table (Enhanced per REQUEST-0012 and REQUEST-0067)
     await this.db.execute(`
       CREATE TABLE IF NOT EXISTS tool_runs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -205,12 +210,14 @@ export class LogRepository {
         agent_name TEXT,      -- Which agent made the call
         workstream TEXT,      -- Work context
         exit_code INTEGER,    -- Process exit code (0-255)
-        output_size INTEGER   -- Output size in bytes
+        output_size INTEGER,  -- Output size in bytes
+        -- REQUEST-0067: Verbose output capture
+        output TEXT           -- Full stdout/stderr content
       )
     `);
 
     // Migration: add new columns if they don't exist (for existing DBs)
-    const columns = ['tool_type', 'args', 'agent_name', 'workstream', 'exit_code', 'output_size'];
+    const columns = ['tool_type', 'args', 'agent_name', 'workstream', 'exit_code', 'output_size', 'output'];
     for (const col of columns) {
       try {
         await this.db.execute(`ALTER TABLE tool_runs ADD COLUMN ${col} ${col.includes('code') || col.includes('size') ? 'INTEGER' : 'TEXT'}`);
@@ -341,7 +348,10 @@ export class LogRepository {
         ${whereClause}${whereClause ? ' AND' : 'WHERE'} log_entries_fts MATCH ?
       `;
       countQuery = `SELECT COUNT(*) as count ${baseQuery}`;
-      queryParams.push(params.search);
+      // REQUEST-0068: Escape FTS5 special characters to prevent injection
+      // Wrap in double quotes for phrase query and escape internal quotes
+      const escapedSearch = `"${params.search.replace(/"/g, '""')}"`;
+      queryParams.push(escapedSearch);
     } else {
       baseQuery = `FROM log_entries e ${whereClause}`;
       countQuery = `SELECT COUNT(*) as count ${baseQuery}`;
@@ -464,7 +474,7 @@ export class LogRepository {
   }
 
   /**
-   * End a tool run (Enhanced per REQUEST-0012)
+   * End a tool run (Enhanced per REQUEST-0012 and REQUEST-0067)
    */
   async endToolRun(runId: string, data: EndToolRunRequest): Promise<ToolRun | null> {
     const existing = await this.db.get<ToolRunRow>(
@@ -477,13 +487,14 @@ export class LogRepository {
     }
 
     await this.db.update(
-      `UPDATE tool_runs SET ended_at = datetime('now'), status = ?, summary = ?, exit_code = ?, output_size = ?
+      `UPDATE tool_runs SET ended_at = datetime('now'), status = ?, summary = ?, exit_code = ?, output_size = ?, output = ?
        WHERE run_id = ?`,
       [
         data.status,
         data.summary || null,
         data.exitCode ?? null,
         data.outputSize ?? null,
+        data.output || null,
         runId,
       ]
     );
@@ -651,6 +662,297 @@ export class LogRepository {
     }
 
     return count;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // REQUEST-0067: Opportunity Detection Analytics
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Hook-only tools to exclude from opportunity analytics (they don't consume tokens)
+   */
+  private static readonly HOOK_TOOLS = ['tab-status', 'log-tool-use', 'context-save'];
+
+  /**
+   * Build exclusion clause for hook tools
+   */
+  private getHookExclusion(): { clause: string; params: string[] } {
+    const placeholders = LogRepository.HOOK_TOOLS.map(() => '?').join(', ');
+    return {
+      clause: `tool NOT IN (${placeholders})`,
+      params: [...LogRepository.HOOK_TOOLS],
+    };
+  }
+
+  /**
+   * Get tools with highest output sizes (context hogs)
+   * These are candidates for wrapper tools that summarize output
+   */
+  async getHighOutputTools(options?: { since?: string; minOutputSize?: number; limit?: number }): Promise<Array<{
+    tool: string;
+    avgOutputSize: number;
+    maxOutputSize: number;
+    totalRuns: number;
+    sampleOutput?: string;
+  }>> {
+    const hookExclusion = this.getHookExclusion();
+    const conditions: string[] = ['status = ?', 'output_size > ?', hookExclusion.clause];
+    const params: unknown[] = ['success', options?.minOutputSize || 1000, ...hookExclusion.params];
+
+    if (options?.since) {
+      const since = this.parseSince(options.since);
+      if (since) {
+        conditions.push('started_at >= ?');
+        params.push(since.toISOString());
+      }
+    }
+
+    const rows = await this.db.query<{
+      tool: string;
+      avg_output_size: number;
+      max_output_size: number;
+      total_runs: number;
+      sample_output: string | null;
+    }>(`
+      SELECT
+        tool,
+        CAST(AVG(output_size) AS INTEGER) as avg_output_size,
+        MAX(output_size) as max_output_size,
+        COUNT(*) as total_runs,
+        (SELECT output FROM tool_runs t2 WHERE t2.tool = tool_runs.tool AND output IS NOT NULL LIMIT 1) as sample_output
+      FROM tool_runs
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY tool
+      ORDER BY avg_output_size DESC
+      LIMIT ?
+    `, [...params, options?.limit || 20]);
+
+    return rows.map(r => ({
+      tool: r.tool,
+      avgOutputSize: r.avg_output_size,
+      maxOutputSize: r.max_output_size,
+      totalRuns: r.total_runs,
+      sampleOutput: r.sample_output ? r.sample_output.substring(0, 500) : undefined,
+    }));
+  }
+
+  /**
+   * Get tools with large input sizes (verbose commands)
+   * These are candidates for wrapper tools that accept simpler inputs
+   */
+  async getLargeInputTools(options?: { since?: string; minInputSize?: number; limit?: number }): Promise<Array<{
+    tool: string;
+    avgInputSize: number;
+    maxInputSize: number;
+    totalRuns: number;
+    sampleArgs?: string;
+  }>> {
+    const hookExclusion = this.getHookExclusion();
+    const conditions: string[] = ['status = ?', 'args IS NOT NULL', hookExclusion.clause];
+    const params: unknown[] = ['success', ...hookExclusion.params];
+
+    if (options?.since) {
+      const since = this.parseSince(options.since);
+      if (since) {
+        conditions.push('started_at >= ?');
+        params.push(since.toISOString());
+      }
+    }
+
+    const minSize = options?.minInputSize || 100;
+
+    const rows = await this.db.query<{
+      tool: string;
+      avg_input_size: number;
+      max_input_size: number;
+      total_runs: number;
+      sample_args: string | null;
+    }>(`
+      SELECT
+        tool,
+        CAST(AVG(LENGTH(args)) AS INTEGER) as avg_input_size,
+        MAX(LENGTH(args)) as max_input_size,
+        COUNT(*) as total_runs,
+        (SELECT args FROM tool_runs t2 WHERE t2.tool = tool_runs.tool AND args IS NOT NULL ORDER BY LENGTH(args) DESC LIMIT 1) as sample_args
+      FROM tool_runs
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY tool
+      HAVING AVG(LENGTH(args)) >= ?
+      ORDER BY avg_input_size DESC
+      LIMIT ?
+    `, [...params, minSize, options?.limit || 20]);
+
+    return rows.map(r => ({
+      tool: r.tool,
+      avgInputSize: r.avg_input_size,
+      maxInputSize: r.max_input_size,
+      totalRuns: r.total_runs,
+      sampleArgs: r.sample_args ? r.sample_args.substring(0, 500) : undefined,
+    }));
+  }
+
+  /**
+   * Get frequently used tool patterns (args patterns)
+   * These are candidates for predefined wrapper tools
+   */
+  async getFrequentPatterns(options?: { since?: string; minCount?: number; limit?: number }): Promise<Array<{
+    tool: string;
+    argsPattern: string;
+    count: number;
+    lastUsed: string;
+  }>> {
+    const hookExclusion = this.getHookExclusion();
+    const conditions: string[] = ['args IS NOT NULL', hookExclusion.clause];
+    const params: unknown[] = [...hookExclusion.params];
+
+    if (options?.since) {
+      const since = this.parseSince(options.since);
+      if (since) {
+        conditions.push('started_at >= ?');
+        params.push(since.toISOString());
+      }
+    }
+
+    const rows = await this.db.query<{
+      tool: string;
+      args: string;
+      count: number;
+      last_used: string;
+    }>(`
+      SELECT
+        tool,
+        args,
+        COUNT(*) as count,
+        MAX(started_at) as last_used
+      FROM tool_runs
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY tool, args
+      HAVING COUNT(*) >= ?
+      ORDER BY count DESC
+      LIMIT ?
+    `, [...params, options?.minCount || 3, options?.limit || 50]);
+
+    return rows.map(r => ({
+      tool: r.tool,
+      argsPattern: r.args,
+      count: r.count,
+      lastUsed: r.last_used,
+    }));
+  }
+
+  /**
+   * Get tool failure patterns
+   * Common failures that could be auto-fixed
+   */
+  async getFailurePatterns(options?: { since?: string; limit?: number }): Promise<Array<{
+    tool: string;
+    argsPattern: string | null;
+    failureCount: number;
+    lastSummary: string | null;
+    lastOutput: string | null;
+  }>> {
+    const hookExclusion = this.getHookExclusion();
+    const conditions: string[] = ['status = ?', hookExclusion.clause];
+    const params: unknown[] = ['failure', ...hookExclusion.params];
+
+    if (options?.since) {
+      const since = this.parseSince(options.since);
+      if (since) {
+        conditions.push('started_at >= ?');
+        params.push(since.toISOString());
+      }
+    }
+
+    const rows = await this.db.query<{
+      tool: string;
+      args: string | null;
+      failure_count: number;
+      last_summary: string | null;
+      last_output: string | null;
+    }>(`
+      SELECT
+        tool,
+        args,
+        COUNT(*) as failure_count,
+        (SELECT summary FROM tool_runs t2 WHERE t2.tool = tool_runs.tool AND t2.status = 'failure' ORDER BY started_at DESC LIMIT 1) as last_summary,
+        (SELECT output FROM tool_runs t2 WHERE t2.tool = tool_runs.tool AND t2.status = 'failure' ORDER BY started_at DESC LIMIT 1) as last_output
+      FROM tool_runs
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY tool, args
+      ORDER BY failure_count DESC
+      LIMIT ?
+    `, [...params, options?.limit || 20]);
+
+    return rows.map(r => ({
+      tool: r.tool,
+      argsPattern: r.args,
+      failureCount: r.failure_count,
+      lastSummary: r.last_summary,
+      lastOutput: r.last_output ? r.last_output.substring(0, 500) : null,
+    }));
+  }
+
+  /**
+   * Get opportunity summary
+   * High-level overview of tool optimization opportunities
+   */
+  async getOpportunitySummary(options?: { since?: string }): Promise<{
+    highOutputTools: number;
+    largeInputTools: number;
+    frequentPatterns: number;
+    failurePatterns: number;
+    recommendations: string[];
+  }> {
+    const highOutput = await this.getHighOutputTools({ ...options, limit: 100 });
+    const largeInput = await this.getLargeInputTools({ ...options, limit: 100 });
+    const frequent = await this.getFrequentPatterns({ ...options, limit: 100 });
+    const failures = await this.getFailurePatterns({ ...options, limit: 100 });
+
+    const recommendations: string[] = [];
+
+    // Analyze high output tools
+    for (const tool of highOutput.slice(0, 3)) {
+      if (tool.avgOutputSize > 5000) {
+        recommendations.push(
+          `Tool "${tool.tool}" has avg output of ${tool.avgOutputSize} bytes - consider creating a summarizing wrapper`
+        );
+      }
+    }
+
+    // Analyze large input tools
+    for (const tool of largeInput.slice(0, 3)) {
+      if (tool.avgInputSize > 500) {
+        recommendations.push(
+          `Tool "${tool.tool}" has avg input of ${tool.avgInputSize} bytes - consider creating a simpler wrapper`
+        );
+      }
+    }
+
+    // Analyze frequent patterns
+    for (const pattern of frequent.slice(0, 3)) {
+      if (pattern.count >= 10) {
+        recommendations.push(
+          `Pattern "${pattern.tool} ${pattern.argsPattern}" used ${pattern.count} times - consider creating a dedicated tool`
+        );
+      }
+    }
+
+    // Analyze failures
+    for (const failure of failures.slice(0, 3)) {
+      if (failure.failureCount >= 5) {
+        recommendations.push(
+          `Tool "${failure.tool}" failed ${failure.failureCount} times - investigate common failure mode`
+        );
+      }
+    }
+
+    return {
+      highOutputTools: highOutput.length,
+      largeInputTools: largeInput.length,
+      frequentPatterns: frequent.length,
+      failurePatterns: failures.length,
+      recommendations,
+    };
   }
 
   /**

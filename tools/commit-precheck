@@ -83,19 +83,7 @@ log_info() { log "info" "$1"; }
 log_warn() { log "warn" "$1"; }
 log_error() { log "error" "$1"; }
 
-# Start tool run
-start_run() {
-    if [[ "$VERBOSE" == "true" ]]; then
-        RUN_ID=""
-        return
-    fi
-
-    RUN_ID=$(curl -s -X POST "http://127.0.0.1:3141/api/log/run" \
-        -H "Content-Type: application/json" \
-        -d "{\"tool\":\"commit-precheck\"}" 2>/dev/null | grep -o '"runId":"[^"]*"' | cut -d'"' -f4 || true)
-}
-
-# End tool run
+# End tool run (wrapper for log_end from _log-helper)
 end_run() {
     local status="$1"
     local summary="$2"
@@ -104,11 +92,8 @@ end_run() {
         return
     fi
 
-    if [[ -n "$RUN_ID" ]]; then
-        curl -s -X POST "http://127.0.0.1:3141/api/log/run/${RUN_ID}/end" \
-            -H "Content-Type: application/json" \
-            -d "{\"status\":\"$status\",\"summary\":\"$summary\"}" > /dev/null 2>&1 || true
-    fi
+    # Use log_end from _log-helper
+    log_end "$RUN_ID" "$status" "0" "0" "$summary"
 }
 
 # Output result (standard format)
@@ -130,7 +115,6 @@ output_failure() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 main() {
-    start_run
     echo "commit-precheck [run: ${RUN_ID:-none}]"
 
     REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

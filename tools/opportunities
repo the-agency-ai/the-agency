@@ -1,0 +1,153 @@
+#!/bin/bash
+# Tool Optimization Opportunities (REQUEST-0067)
+#
+# Analyze tool usage patterns to identify optimization opportunities:
+# - High output tools (context hogs)
+# - Frequent patterns (wrapper candidates)
+# - Failure patterns (auto-fix candidates)
+#
+# Usage:
+#   ./tools/opportunities              # Summary
+#   ./tools/opportunities --patterns   # Frequent patterns
+#   ./tools/opportunities --output     # High output tools
+#   ./tools/opportunities --failures   # Failure patterns
+#   ./tools/opportunities --all        # All details
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+API_URL="${LOG_SERVICE_URL:-http://127.0.0.1:3141}"
+SINCE="${SINCE:-7d}"
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Parse arguments
+MODE="summary"
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --version|-v)
+            echo "opportunities $TOOL_VERSION"
+            exit 0
+            ;;
+        --help|-h)
+            head -15 "$0" | tail -14 | sed 's/^# //' | sed 's/^#//'
+            exit 0
+            ;;
+        --patterns|-p)
+            MODE="patterns"
+            shift
+            ;;
+        --output|-o)
+            MODE="output"
+            shift
+            ;;
+        --input|-i)
+            MODE="input"
+            shift
+            ;;
+        --failures|-f)
+            MODE="failures"
+            shift
+            ;;
+        --all|-a)
+            MODE="all"
+            shift
+            ;;
+        --since|-s)
+            SINCE="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Fetch and display data
+case "$MODE" in
+    summary)
+        echo -e "${BLUE}=== Tool Optimization Opportunities ===${NC}"
+        echo ""
+        RESULT=$(curl -s "${API_URL}/api/log/opportunities?since=${SINCE}")
+
+        HIGH_OUTPUT=$(echo "$RESULT" | jq -r '.highOutputTools')
+        LARGE_INPUT=$(echo "$RESULT" | jq -r '.largeInputTools')
+        PATTERNS=$(echo "$RESULT" | jq -r '.frequentPatterns')
+        FAILURES=$(echo "$RESULT" | jq -r '.failurePatterns')
+
+        echo "High Output Tools:    $HIGH_OUTPUT"
+        echo "Large Input Tools:    $LARGE_INPUT"
+        echo "Frequent Patterns:    $PATTERNS"
+        echo "Failure Patterns:     $FAILURES"
+        echo ""
+
+        echo -e "${YELLOW}Recommendations:${NC}"
+        echo "$RESULT" | jq -r '.recommendations[]' | while read -r rec; do
+            echo "  • $rec"
+        done
+        ;;
+
+    patterns)
+        echo -e "${BLUE}=== Frequent Tool Patterns ===${NC}"
+        echo ""
+        curl -s "${API_URL}/api/log/opportunities/patterns?since=${SINCE}&minCount=3" | \
+            jq -r '.patterns[] | "  \(.count)x  \(.tool) \(.argsPattern)"'
+        ;;
+
+    output)
+        echo -e "${BLUE}=== High Output Tools ===${NC}"
+        echo ""
+        curl -s "${API_URL}/api/log/opportunities/high-output?since=${SINCE}&minSize=100" | \
+            jq -r '.tools[] | "  \(.tool): avg=\(.avgOutputSize)B, max=\(.maxOutputSize)B (\(.totalRuns) runs)"'
+        ;;
+
+    input)
+        echo -e "${BLUE}=== Large Input Tools ===${NC}"
+        echo ""
+        curl -s "${API_URL}/api/log/opportunities/large-input?since=${SINCE}&minSize=50" | \
+            jq -r '.tools[] | "  \(.tool): avg=\(.avgInputSize)B, max=\(.maxInputSize)B (\(.totalRuns) runs)"'
+        ;;
+
+    failures)
+        echo -e "${BLUE}=== Failure Patterns ===${NC}"
+        echo ""
+        curl -s "${API_URL}/api/log/opportunities/failures?since=${SINCE}" | \
+            jq -r '.patterns[] | "  \(.failureCount)x  \(.tool) - \(.lastSummary // "no summary")"'
+        ;;
+
+    all)
+        echo -e "${BLUE}=== All Tool Opportunities (since ${SINCE}) ===${NC}"
+        echo ""
+
+        echo -e "${GREEN}--- Summary ---${NC}"
+        RESULT=$(curl -s "${API_URL}/api/log/opportunities?since=${SINCE}")
+        echo "$RESULT" | jq -r '.recommendations[]' | while read -r rec; do
+            echo "  • $rec"
+        done
+        echo ""
+
+        echo -e "${GREEN}--- Frequent Patterns ---${NC}"
+        curl -s "${API_URL}/api/log/opportunities/patterns?since=${SINCE}&minCount=3" | \
+            jq -r '.patterns[] | "  \(.count)x  \(.tool) \(.argsPattern)"'
+        echo ""
+
+        echo -e "${GREEN}--- High Output Tools ---${NC}"
+        curl -s "${API_URL}/api/log/opportunities/high-output?since=${SINCE}&minSize=100" | \
+            jq -r '.tools[] | "  \(.tool): avg=\(.avgOutputSize)B, max=\(.maxOutputSize)B (\(.totalRuns) runs)"'
+        echo ""
+
+        echo -e "${GREEN}--- Large Input Tools ---${NC}"
+        curl -s "${API_URL}/api/log/opportunities/large-input?since=${SINCE}&minSize=50" | \
+            jq -r '.tools[] | "  \(.tool): avg=\(.avgInputSize)B, max=\(.maxInputSize)B (\(.totalRuns) runs)"'
+        echo ""
+
+        echo -e "${GREEN}--- Failure Patterns ---${NC}"
+        curl -s "${API_URL}/api/log/opportunities/failures?since=${SINCE}" | \
+            jq -r '.patterns[] | "  \(.failureCount)x  \(.tool) - \(.lastSummary // "no summary")"'
+        ;;
+esac

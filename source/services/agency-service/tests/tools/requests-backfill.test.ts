@@ -70,24 +70,30 @@ describe('requests-backfill CLI tool', () => {
   });
 
   describe('--dry-run flag', () => {
+    // This test runs against real repo and can take a while with many REQUEST files
     test('should accept --dry-run option', async () => {
       const proc = Bun.spawn(['bash', BACKFILL_TOOL, '--dry-run'], {
         stdout: 'pipe',
         stderr: 'pipe',
         cwd: REPO_ROOT,
       });
-      const output = await new Response(proc.stdout).text();
-      const exitCode = await proc.exited;
+
+      // Read stdout and wait for exit in parallel to avoid deadlock
+      const [output, exitCode] = await Promise.all([
+        new Response(proc.stdout).text(),
+        proc.exited,
+      ]);
 
       // If database exists, should run in dry-run mode
       // If database doesn't exist, should error
       if (exitCode === 0) {
         expect(output).toContain('DRY RUN');
-        expect(output).toContain('Would have imported');
+        // With many REQUEST files, check that it reached completion
+        expect(output).toMatch(/Would have imported \d+ requests/);
       } else {
         expect(output).toContain('Database not found');
       }
-    });
+    }, { timeout: 30000 }); // Allow up to 30 seconds for large repos
   });
 
   describe('database requirement', () => {

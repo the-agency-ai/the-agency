@@ -136,16 +136,16 @@ SUFFIX="${3:-}"
 
 # Main function
 main() {
-    # Trap unexpected exits
-    trap 'log_end "$LOG_RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
-
-    echo "tag [run: ${LOG_RUN_ID:-none}]"
-
-    # Start logging
+    # Start logging first
     LOG_RUN_ID=""
     if type log_start &>/dev/null; then
         LOG_RUN_ID=$(log_start "tag" "agency-tool" "$ITEM" "$STAGE" "$SUFFIX")
     fi
+
+    # Trap unexpected exits
+    trap 'log_end "$LOG_RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "tag [run: ${LOG_RUN_ID:-none}]"
 
     # Determine tag format
     if [ "$ITEM" = "release" ]; then

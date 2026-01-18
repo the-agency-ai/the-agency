@@ -136,12 +136,13 @@ fi
 
 # Log to agency-service
 # Using the tool_runs table schema - toolType must be agency-tool|bash|mcp, args must be array
+# REQUEST-0068: Use --arg to safely handle special characters in SANITIZED_COMMAND
 JSON_PAYLOAD=$(jq -n \
     --arg tool "$TOOL_NAME" \
     --arg toolType "bash" \
-    --argjson args "[\"$SANITIZED_COMMAND\"]" \
+    --arg cmd "$SANITIZED_COMMAND" \
     --arg sessionId "$SESSION_ID" \
-    '{tool: $tool, toolType: $toolType, args: $args, sessionId: $sessionId}' 2>/dev/null)
+    '{tool: $tool, toolType: $toolType, args: [$cmd], sessionId: $sessionId}' 2>/dev/null)
 
 if [ -n "$JSON_PAYLOAD" ]; then
     # Start the run
