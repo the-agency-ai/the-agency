@@ -1,0 +1,134 @@
+# Agency Dependencies
+#
+# These are required to run The Agency framework.
+# Checked at: install, update-agency
+# All dependencies are REQUIRED.
+#
+# Format:
+#   name: Command name to check
+#   min_version: Minimum required version (optional)
+#   check: Command to verify installation
+#   version_cmd: Command to get version (for version checking)
+#   install:
+#     darwin: macOS install command
+#     linux: Linux install command (apt-based)
+#     all: Platform-agnostic install command
+#   breaks: What functionality breaks without this
+
+dependencies:
+  # Core tools
+  - name: git
+    min_version: "2.0"
+    check: "command -v git"
+    version_cmd: "git --version | grep -oE '[0-9]+\\.[0-9]+'"
+    install:
+      darwin: "xcode-select --install"
+      linux: "sudo apt-get install -y git"
+    breaks: "version control, all git operations"
+
+  - name: curl
+    check: "command -v curl"
+    install:
+      darwin: "brew install curl"
+      linux: "sudo apt-get install -y curl"
+    breaks: "fetching resources, API calls"
+
+  - name: jq
+    min_version: "1.6"
+    check: "command -v jq"
+    version_cmd: "jq --version | grep -oE '[0-9]+\\.[0-9]+'"
+    install:
+      darwin: "brew install jq"
+      linux: "sudo apt-get install -y jq"
+    breaks: "JSON processing in tools"
+
+  # Claude Code
+  - name: claude
+    check: "command -v claude"
+    install:
+      all: "curl -fsSL https://claude.ai/install.sh | sh"
+    breaks: "Claude Code CLI - core functionality"
+
+  # JavaScript runtime
+  - name: bun
+    min_version: "1.0"
+    check: "command -v bun"
+    version_cmd: "bun --version | grep -oE '[0-9]+\\.[0-9]+'"
+    install:
+      all: "curl -fsSL https://bun.sh/install | bash"
+    breaks: "agency-service, all embedded services"
+
+  - name: node
+    min_version: "18.0"
+    check: "command -v node"
+    version_cmd: "node --version | grep -oE '[0-9]+\\.[0-9]+'"
+    install:
+      darwin: "brew install node"
+      linux: "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs"
+    breaks: "AgencyBench build, npm packages"
+
+  # GitHub CLI
+  - name: gh
+    min_version: "2.0"
+    check: "command -v gh"
+    version_cmd: "gh --version | head -1 | grep -oE '[0-9]+\\.[0-9]+'"
+    install:
+      darwin: "brew install gh"
+      linux: "sudo apt-get install -y gh"
+    breaks: "GitHub PRs, releases, issue management"
+
+  # File utilities
+  - name: tree
+    check: "command -v tree"
+    install:
+      darwin: "brew install tree"
+      linux: "sudo apt-get install -y tree"
+    breaks: "directory visualization"
+
+  - name: rsync
+    check: "command -v rsync"
+    install:
+      darwin: "brew install rsync"
+      linux: "sudo apt-get install -y rsync"
+    breaks: "file syncing, starter releases"
+
+  # YAML/JSON processing
+  - name: yq
+    min_version: "4.0"
+    check: "command -v yq"
+    version_cmd: "yq --version | grep -oE '[0-9]+\\.[0-9]+'"
+    install:
+      darwin: "brew install yq"
+      linux: "sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && sudo chmod +x /usr/local/bin/yq"
+    breaks: "YAML processing in tools"
+
+  # Enhanced CLI tools
+  - name: fzf
+    check: "command -v fzf"
+    install:
+      darwin: "brew install fzf"
+      linux: "sudo apt-get install -y fzf"
+    breaks: "fuzzy finder in interactive tools"
+
+  - name: bat
+    check: "command -v bat"
+    install:
+      darwin: "brew install bat"
+      linux: "sudo apt-get install -y bat"
+    breaks: "syntax-highlighted file viewing"
+
+  - name: rg
+    check: "command -v rg"
+    install:
+      darwin: "brew install ripgrep"
+      linux: "sudo apt-get install -y ripgrep"
+    breaks: "fast code search"
+
+  # Rust (for Tauri/AgencyBench builds)
+  - name: cargo
+    min_version: "1.70"
+    check: "command -v cargo"
+    version_cmd: "cargo --version | grep -oE '[0-9]+\\.[0-9]+'"
+    install:
+      all: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+    breaks: "AgencyBench (Tauri) builds"
