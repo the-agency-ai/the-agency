@@ -466,15 +466,26 @@ main() {
             echo -e "The Agency uses a secure vault to store API keys and credentials."
             echo -e "Please enter your vault passphrase to unlock it for this session."
             echo ""
-            "$PROJECT_ROOT/tools/secret" vault unlock
+            # Run unlock interactively - it will output the session token
+            # Use a temp file to capture the token since we need interactive input
+            UNLOCK_TOKEN_FILE=$(mktemp)
+            "$PROJECT_ROOT/tools/secret" vault unlock | tee "$UNLOCK_TOKEN_FILE"
+            # Extract session token (UUID on its own line)
+            SESSION_TOKEN=$(grep -E "^[a-f0-9-]{36}$" "$UNLOCK_TOKEN_FILE" | head -1 || echo "")
+            rm -f "$UNLOCK_TOKEN_FILE"
+            log_debug "Extracted session token from unlock: ${SESSION_TOKEN:0:20}..."
+            if [ -n "$SESSION_TOKEN" ]; then
+                export VAULT_SESSION_TOKEN="$SESSION_TOKEN"
+                log_debug "VAULT_SESSION_TOKEN exported"
+            fi
             VAULT_STATUS="unlocked"
             echo ""
         fi
 
-        if [ "$VAULT_STATUS" = "unlocked" ]; then
-            # Generate a session token for this Claude session
+        if [ "$VAULT_STATUS" = "unlocked" ] && [ -z "${VAULT_SESSION_TOKEN:-}" ]; then
+            # Generate a session token if we don't have one yet (vault was already unlocked)
             log_debug "Generating vault session token..."
-            SESSION_TOKEN=$("$PROJECT_ROOT/tools/secret" vault session generate "$AGENTNAME-session" 2>/dev/null || echo "")
+            SESSION_TOKEN=$("$PROJECT_ROOT/tools/secret" vault session generate "$AGENTNAME-session" 2>/dev/null | grep -E "^[a-f0-9-]{36}$" | head -1 || echo "")
             log_debug "Session token generated: ${SESSION_TOKEN:0:20}... (truncated)"
             if [ -n "$SESSION_TOKEN" ]; then
                 export VAULT_SESSION_TOKEN="$SESSION_TOKEN"
