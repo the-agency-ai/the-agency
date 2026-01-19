@@ -37,6 +37,32 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     exit 0
 fi
 
+# Diagnostic mode
+if [[ "${1:-}" == "--diagnose" ]]; then
+    echo "Terminal Indicator Diagnostics"
+    echo "=============================="
+    echo "TERM: ${TERM:-<not set>}"
+    echo "TERM_PROGRAM: ${TERM_PROGRAM:-<not set>}"
+    echo "AGENTNAME: ${AGENTNAME:-<not set>}"
+    echo "TTY writable: $([ -w /dev/tty ] && echo "yes" || echo "no")"
+    echo ""
+    echo "Testing escape sequences..."
+    if [ -w /dev/tty ]; then
+        printf '\033]0;Test Title\007' > /dev/tty
+        echo "✓ Set tab title to 'Test Title'"
+        printf '\033]6;1;bg;red;brightness;100\a' > /dev/tty
+        printf '\033]6;1;bg;green;brightness;100\a' > /dev/tty
+        printf '\033]6;1;bg;blue;brightness;255\a' > /dev/tty
+        echo "✓ Attempted to set tab color (blue)"
+        sleep 2
+        printf '\033]6;1;bg;*;default\a' > /dev/tty
+        echo "✓ Reset tab color"
+    else
+        echo "✗ Cannot write to /dev/tty"
+    fi
+    exit 0
+fi
+
 # Help check
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat << 'HELP'
@@ -55,6 +81,9 @@ Examples:
   ./tools/tab-status available
   ./tools/tab-status working
   ./tools/tab-status attention
+
+Diagnostics:
+  ./tools/tab-status --diagnose    # Test terminal capabilities
 
 Notes:
   - Uses shapes for accessibility (colorblind-friendly)

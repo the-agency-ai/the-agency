@@ -265,6 +265,58 @@ source/
 3. **Create an agent:** `./tools/agent-create my-feature my-agent`
 4. **Start working:** `./tools/myclaude my-feature my-agent "Build feature X"`
 
+## Troubleshooting
+
+### /welcome Command Not Working
+
+If `/welcome` doesn't work after installation:
+
+1. **Always use myclaude to launch Claude:**
+   ```bash
+   ./tools/myclaude housekeeping captain
+   ```
+   Don't run `claude` directly - myclaude ensures proper directory context.
+
+2. **Verify commands exist:**
+   ```bash
+   ls .claude/commands/
+   # Should show: welcome.md  tutorial.md
+   ```
+
+3. **Restart Claude from project directory:**
+   ```bash
+   cd ~/your-project
+   ./tools/myclaude housekeeping captain
+   ```
+
+### Dependencies Missing
+
+If you see "command not found" errors:
+
+```bash
+# Check all dependencies
+./tools/dependencies-check --verbose
+
+# Install missing dependencies
+./tools/dependencies-check --fix
+```
+
+### Services Not Starting
+
+If agency-service fails to start:
+
+```bash
+# Check service status
+./tools/agency-service status
+
+# Restart the service
+./tools/agency-service stop
+./tools/agency-service start
+
+# Check logs
+./tools/log recent
+```
+
 ## Getting Help
 
 The captain is always available:

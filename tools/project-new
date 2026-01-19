@@ -228,6 +228,10 @@ print(json.dumps(components, indent=4))
 EOF
     verbose_echo "  Project manifest created: .agency/manifest.json"
 
+    # Create .agency-version for update tracking
+    echo "$STARTER_VERSION" > .agency-version
+    verbose_echo "  Version tracking created: .agency-version ($STARTER_VERSION)"
+
     # Register project in starter's projects.json
     log_step "Registering project in starter..."
     STARTER_PROJECTS_FILE="$STARTER_DIR/.agency/projects.json"

@@ -330,6 +330,20 @@ main() {
     # Trap unexpected exits
     trap 'log_end "$LOG_RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
+    # Check if this is an Agency project
+    if [[ ! -f "$PROJECT_ROOT/claude/config/agency.yaml" ]] && [[ ! -f "$PROJECT_ROOT/.agency-starter" ]]; then
+        log_error "Not an Agency project."
+        echo ""
+        echo "This directory doesn't contain an Agency project."
+        echo ""
+        echo "To create a new project:"
+        echo "  ./tools/project-new my-project"
+        echo ""
+        echo "Or run this from an Agency project root."
+        echo ""
+        exit 1
+    fi
+
     # Check if this is the starter template (should use project-new first)
     if [[ -f "$PROJECT_ROOT/.agency-starter" ]]; then
         log_error "This is The Agency Starter template."
