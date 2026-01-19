@@ -242,6 +242,17 @@ sync_files() {
             fi
         fi
     done
+
+    # Remove project-specific design systems (keep only _template)
+    for ds_dir in "$STARTER_DIR/claude/knowledge/design-systems"/*; do
+        if [[ -d "$ds_dir" ]]; then
+            local ds_name=$(basename "$ds_dir")
+            if [[ "$ds_name" != "_template" ]]; then
+                rm -rf "$ds_dir"
+                verbose_echo "  Removed project-specific design system: $ds_name"
+            fi
+        fi
+    done
     verbose_echo "  Cleaned sensitive content"
 }
 
