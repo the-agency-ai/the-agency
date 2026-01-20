@@ -117,10 +117,12 @@ if [[ -f "$PROJECT_ROOT/.agency-starter" ]]; then
 fi
 
 main() {
-    # Trap unexpected exits
-    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
-
+    # Initialize RUN_ID before trap to avoid referencing undefined variable
     RUN_ID=$(log_start "setup-agency" "agency-tool" "$@" 2>/dev/null) || true
+
+    # Trap unexpected exits
+    trap 'log_end "${RUN_ID:-}" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
     echo "setup-agency [run: ${RUN_ID:-none}]"
 
     # Banner

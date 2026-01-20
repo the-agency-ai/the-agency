@@ -28,6 +28,8 @@
 
 <!-- Follow the Red-Green model. Never commit on RED. -->
 
+**Required for code changes:** If this REQUEST involves code modifications, ALL stages (1-4) must be completed before marking complete. Stages 2-3 (Code/Security Review + Test Review) are mandatory for any code work.
+
 ### 1. Implementation
 - [ ] Code complete
 - [ ] Tests written

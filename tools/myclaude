@@ -383,7 +383,8 @@ main() {
     fi
 
     # If still no principal and principal directory doesn't exist, prompt to add
-    if [[ -z "${AGENCY_PRINCIPAL:-}" ]] || [[ ! -d "$PROJECT_ROOT/claude/principals/${AGENCY_PRINCIPAL:-none}" ]]; then
+    # Note: Don't use ${AGENCY_PRINCIPAL:-none} as fallback - if empty, first condition short-circuits
+    if [[ -z "${AGENCY_PRINCIPAL:-}" ]] || [[ ! -d "$PROJECT_ROOT/claude/principals/$AGENCY_PRINCIPAL" ]]; then
         if [[ -x "$PROJECT_ROOT/tools/add-principal" ]]; then
             echo ""
             echo -e "${BLUE}Principal identity not configured.${NC}"

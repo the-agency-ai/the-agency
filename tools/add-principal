@@ -103,10 +103,12 @@ if [[ ! -f "$PROJECT_ROOT/claude/config/agency.yaml" ]]; then
 fi
 
 main() {
-    # Trap unexpected exits
-    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
-
+    # Initialize RUN_ID before trap to avoid referencing undefined variable
     RUN_ID=$(log_start "add-principal" "agency-tool" "$@" 2>/dev/null) || true
+
+    # Trap unexpected exits
+    trap 'log_end "${RUN_ID:-}" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
     echo "add-principal [run: ${RUN_ID:-none}]"
 
     echo ""
@@ -144,6 +146,8 @@ main() {
             echo "Setting as current principal..."
         else
             echo "No changes needed."
+            trap - EXIT
+            log_end "$RUN_ID" "success" 0 0 "Principal $PRINCIPAL_NAME already exists, no changes" 2>/dev/null || true
             exit 0
         fi
     else

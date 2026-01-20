@@ -39,11 +39,28 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
 log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
 verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
-# Version check
-if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
-    echo "principal-create $TOOL_VERSION"
-    exit 0
-fi
+# Usage function
+usage() {
+    cat << EOF
+Usage: principal-create <principalname> [projectname] [--verbose]
+
+Create a new principal directory structure.
+
+Arguments:
+  principalname  - Name for the principal (must start with letter, alphanumeric/hyphens/underscores only)
+  projectname    - Optional: project name for iCloud setup
+
+Options:
+  --verbose      - Show detailed logging
+  -v, --version  - Show version
+  -h, --help     - Show this help
+
+Examples:
+  ./tools/principal-create jordan
+  ./tools/principal-create jordan the-agency
+  ./tools/principal-create alice --verbose
+EOF
+}
 
 # Parse arguments
 PRINCIPALNAME=""
@@ -51,6 +68,14 @@ PROJECTNAME=""
 
 for arg in "$@"; do
     case $arg in
+        -v|--version)
+            echo "principal-create $TOOL_VERSION"
+            exit 0
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
         --verbose)
             VERBOSE=true
             ;;
@@ -67,28 +92,31 @@ done
 if [ -z "$PRINCIPALNAME" ]; then
   log_error "Missing required argument"
   echo ""
-  echo "Usage: ./tools/principal-create <principalname> [projectname] [--verbose]"
-  echo ""
-  echo "Examples:"
-  echo "  ./tools/principal-create jordan"
-  echo "  ./tools/principal-create jordan the-agency"
-  echo ""
-  echo "Options:"
-  echo "  principalname  - Name for the principal (lowercase)"
-  echo "  projectname    - Optional: project name for iCloud setup"
-  echo "  --verbose      - Show detailed logging"
+  usage
   exit 1
 fi
+
+# Validate principal name format
+if [[ ! "$PRINCIPALNAME" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+    log_error "Invalid principal name: $PRINCIPALNAME"
+    echo "Name must start with a letter and contain only letters, numbers, hyphens, underscores."
+    exit 1
+fi
+
+# Convert to lowercase
+PRINCIPALNAME=$(echo "$PRINCIPALNAME" | tr '[:upper:]' '[:lower:]')
 
 DIR="claude/principals/$PRINCIPALNAME"
 TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 
 # Main function
 main() {
-    # Trap unexpected exits
-    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
-
+    # Initialize RUN_ID before trap to avoid referencing undefined variable
     RUN_ID=$(log_start "principal-create" "agency-tool" "$@" 2>/dev/null) || true
+
+    # Trap unexpected exits
+    trap 'log_end "${RUN_ID:-}" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
     echo "principal-create [run: ${RUN_ID:-none}]"
 
     # Check principal doesn't exist
