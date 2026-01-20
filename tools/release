@@ -297,6 +297,20 @@ main() {
     git tag -a "$NEW_TAG" -m "$RELEASE_MSG"
     echo "Created tag: $NEW_TAG"
 
+    # Update history/releases.md
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    RELEASES_FILE="$REPO_ROOT/history/releases.md"
+    if [ -f "$RELEASES_FILE" ]; then
+        RELEASE_DATE=$(date +%Y-%m-%d)
+        # Prepend new release to the file (after header)
+        {
+            head -8 "$RELEASES_FILE"
+            echo "| $NEW_TAG | $RELEASE_DATE | |"
+            tail -n +9 "$RELEASES_FILE"
+        } > "${RELEASES_FILE}.tmp" && mv "${RELEASES_FILE}.tmp" "$RELEASES_FILE"
+        log_info "Updated history/releases.md"
+    fi
+
     # Push if requested
     if [ "$PUSH" = true ]; then
         git push origin "$NEW_TAG"
@@ -308,20 +322,15 @@ main() {
         if ! command -v gh &> /dev/null; then
             log_warn "gh CLI not found, skipping GitHub release"
         else
-            # Read GH_TOKEN from settings if available
-            SETTINGS_FILE="${HOME}/.claude/settings.local.json"
-            if [ -f "$SETTINGS_FILE" ] && [ -z "${GH_TOKEN:-}" ]; then
-                EXTRACTED_TOKEN=""
-                # Try jq first for proper JSON parsing
-                if command -v jq &> /dev/null; then
-                    EXTRACTED_TOKEN=$(jq -r '.env.GH_TOKEN // empty' "$SETTINGS_FILE" 2>/dev/null || true)
-                fi
-                # Fallback to grep for legacy GH_TOKEN=value format
-                if [ -z "$EXTRACTED_TOKEN" ]; then
-                    EXTRACTED_TOKEN=$(grep -oE 'GH_TOKEN=[^"[:space:]]+' "$SETTINGS_FILE" 2>/dev/null | head -1 | cut -d'=' -f2 || true)
-                fi
-                if [ -n "$EXTRACTED_TOKEN" ]; then
-                    export GH_TOKEN="$EXTRACTED_TOKEN"
+            # Get GitHub token from secret-service if not already set
+            if [ -z "${GH_TOKEN:-}" ]; then
+                SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+                if [ -x "$SCRIPT_DIR/secret" ]; then
+                    EXTRACTED_TOKEN=$("$SCRIPT_DIR/secret" get github-admin-token 2>/dev/null || true)
+                    if [ -n "$EXTRACTED_TOKEN" ]; then
+                        export GH_TOKEN="$EXTRACTED_TOKEN"
+                        log_info "Using GitHub token from secret-service"
+                    fi
                 fi
             fi
 
