@@ -14,7 +14,7 @@ fi
 RUN_ID=$(log_start "nit-resolve" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.1.0-20260120-000001"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -181,3 +181,6 @@ echo "  ID: $NIT_ID"
 echo "  Resolution: $RESOLUTION"
 echo "  Resolved by: $AGENTNAME"
 echo "  File: $NITS_FILE"
+
+# Log completion
+log_end "$RUN_ID" "success" 0 0 "Resolved $NIT_ID" 2>/dev/null || true

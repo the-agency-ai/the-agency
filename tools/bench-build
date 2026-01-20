@@ -20,7 +20,7 @@ if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
 fi
 RUN_ID=$(log_start "bench-build" "agency-tool" "$@" 2>/dev/null) || true
 
-TOOL_VERSION="1.0.0-20260111-000001"
+TOOL_VERSION="1.1.0-20260120-000001"
 
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     echo "bench-build $TOOL_VERSION"
@@ -199,3 +199,6 @@ case "${1:-build}" in
         exit 1
         ;;
 esac
+
+# Log completion
+log_end "$RUN_ID" "success" 0 0 "bench-build command: ${1:-build}" 2>/dev/null || true

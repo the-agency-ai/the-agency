@@ -14,7 +14,7 @@ fi
 RUN_ID=$(log_start "nit-add" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.1.0-20260120-000001"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -167,3 +167,6 @@ echo "  ID: AGENTNIT-$NEW_ID_FORMATTED"
 echo "  Category: $CATEGORY"
 echo "  Description: $DESCRIPTION"
 echo "  File: $NITS_FILE"
+
+# Log completion
+log_end "$RUN_ID" "success" 0 0 "Added AGENTNIT-$NEW_ID_FORMATTED" 2>/dev/null || true

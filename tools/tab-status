@@ -160,3 +160,6 @@ printf '\033]1337;SetUserVar=%s=%s\007' "agentStatus" "$STATUS_B64" > /dev/tty
 
 AGENT_B64=$(echo -n "$AGENT" | base64)
 printf '\033]1337;SetUserVar=%s=%s\007' "agentName" "$AGENT_B64" > /dev/tty
+
+# Log completion (silent - no stdout for hook performance)
+log_end "$RUN_ID" "success" 0 0 "Set status: $STATUS" 2>/dev/null || true

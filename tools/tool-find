@@ -21,7 +21,7 @@ fi
 RUN_ID=$(log_start "tool-find" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.1.0-20260120-000001"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -174,3 +174,6 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Found: $FOUND tools matching '$SEARCH_TERM'"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Log completion
+log_end "$RUN_ID" "success" 0 0 "Found $FOUND tools for: $SEARCH_TERM" 2>/dev/null || true

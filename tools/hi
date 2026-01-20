@@ -15,7 +15,7 @@ if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
     source "$SCRIPT_DIR/_log-helper"
 fi
 RUN_ID=$(log_start "hi" "agency-tool" "$@" 2>/dev/null) || true
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.1.0-20260120-000001"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -24,3 +24,6 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
 fi
 
 echo "It's time to get down to business..."
+
+# Log completion
+log_end "$RUN_ID" "success" 0 0 "Session start" 2>/dev/null || true

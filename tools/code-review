@@ -13,6 +13,10 @@
 # Exit codes:
 #   0 = passed (maybe with warnings)
 #   1 = blocking issues found
+#
+# Output follows tool output standard (CLAUDE.md):
+#   stdout: minimal status (tool name, run ID, result)
+#   verbose: stored in log service, view with: ./tools/agency-service log run {run-id}
 
 set -euo pipefail
 
@@ -24,7 +28,7 @@ fi
 RUN_ID=$(log_start "code-review" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.1.0-20260110-000001"
+TOOL_VERSION="1.2.0-20260120-000001"
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -32,106 +36,138 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     exit 0
 fi
 
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-cd "$REPO_ROOT"
+# Run the actual review, capturing output
+run_review() {
+    local REPO_ROOT
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    cd "$REPO_ROOT"
 
-# Check if there are staged changes
-if git diff --cached --quiet; then
-  echo "No staged changes to review"
-  exit 0
+    # Check if there are staged changes
+    if git diff --cached --quiet; then
+        echo "No staged changes to review"
+        return 0
+    fi
+
+    local STAGED_DIFF
+    STAGED_DIFF=$(git diff --cached)
+    local BLOCKING_ISSUES=0
+    local WARNING_COUNT=0
+
+    echo "Analyzing staged changes..."
+    echo ""
+
+    # Check 1: No hardcoded secrets
+    echo "→ Checking for hardcoded secrets..."
+    local SECRET_PATTERN='(api[_-]?key|secret|password|token).*=.*["'"'"'][^"'"'"']{8,}["'"'"']'
+    # Exclude: test files, markdown, and env var references like ${VAR} or $VAR
+    if echo "$STAGED_DIFF" | grep -iE '^\+.*'"$SECRET_PATTERN" | grep -v '\.test\.' | grep -v '\.md' | grep -v '\${\|process\.env\.' > /dev/null; then
+        echo "❌ BLOCKING: Possible hardcoded secret detected"
+        echo "   Move secrets to environment variables (.env.local)"
+        echo ""
+        BLOCKING_ISSUES=$((BLOCKING_ISSUES + 1))
+    fi
+
+    # Check 2: No SQL injection
+    echo "→ Checking for SQL injection vulnerabilities..."
+    if echo "$STAGED_DIFF" | grep -E '^\+.*(SELECT|INSERT|UPDATE|DELETE)' | grep '\${' | grep -v '\.test\.' | grep -v '\.md' > /dev/null; then
+        echo "❌ BLOCKING: Possible SQL injection vulnerability"
+        echo "   Use parameterized queries"
+        echo ""
+        BLOCKING_ISSUES=$((BLOCKING_ISSUES + 1))
+    fi
+
+    # Check 3: console.log in production
+    echo "→ Checking for console.log in production code..."
+    local CONSOLE_LOGS
+    CONSOLE_LOGS=$(echo "$STAGED_DIFF" | grep -E '^\+.*console\.(log|debug)' | grep -v '\.test\.' | grep -v '\.md' | grep -v 'tools/' || true)
+    if [ -n "$CONSOLE_LOGS" ]; then
+        WARNING_COUNT=$((WARNING_COUNT + 1))
+        echo "⚠️  WARNING: console.log detected in production code"
+        echo "$CONSOLE_LOGS" | head -3
+        echo "   Consider using proper logging or remove debug statements"
+        echo ""
+    fi
+
+    # Check 4: TypeScript any usage
+    echo "→ Checking for TypeScript 'any' type..."
+    local ANY_USAGE
+    ANY_USAGE=$(echo "$STAGED_DIFF" | grep -E '^\+.*:\s*any\s*[;,=)]' | grep -v '\.test\.' | grep -v '\.md' || true)
+    if [ -n "$ANY_USAGE" ]; then
+        WARNING_COUNT=$((WARNING_COUNT + 1))
+        echo "⚠️  WARNING: New 'any' type usage detected"
+        echo "$ANY_USAGE" | head -2
+        echo "   Consider using specific types or 'unknown' with type guards"
+        echo ""
+    fi
+
+    # Check 5: TODO without issue reference
+    echo "→ Checking for TODO comments without issue links..."
+    local TODO_WITHOUT_ISSUE
+    TODO_WITHOUT_ISSUE=$(echo "$STAGED_DIFF" | grep -E '^\+.*//.*(TODO|FIXME)' | grep -v -E '(#[0-9]+|PRJ-[0-9]+|TASK-[0-9]+)' || true)
+    if [ -n "$TODO_WITHOUT_ISSUE" ]; then
+        WARNING_COUNT=$((WARNING_COUNT + 1))
+        echo "⚠️  WARNING: TODO/FIXME without issue reference"
+        echo "$TODO_WITHOUT_ISSUE" | head -2
+        echo "   Link TODOs to issues (e.g., TODO: #123)"
+        echo ""
+    fi
+
+    # Check 6: API design patterns (explicit operations)
+    echo "→ Checking for API anti-patterns..."
+    local API_ANTIPATTERN
+    API_ANTIPATTERN=$(echo "$STAGED_DIFF" | grep -E '^\+.*app\.(post|patch|delete|put)\s*\(\s*['"'"'"]/:' | grep -v '/create\|/update\|/delete\|/list\|/get\|/add-\|/remove-' || true)
+    if [ -n "$API_ANTIPATTERN" ]; then
+        WARNING_COUNT=$((WARNING_COUNT + 1))
+        echo "⚠️  WARNING: API route uses verb semantics instead of explicit operations"
+        echo "$API_ANTIPATTERN" | head -3
+        echo "   Use explicit operations: /create, /update/:id, /delete/:id, /get/:id"
+        echo "   See CLAUDE.md 'API Design (Explicit Operations)'"
+        echo ""
+    fi
+
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    if [ $BLOCKING_ISSUES -gt 0 ]; then
+        echo "❌ Code review found $BLOCKING_ISSUES blocking issue(s)"
+        if [ $WARNING_COUNT -gt 0 ]; then
+            echo "   Also found $WARNING_COUNT warning(s)"
+        fi
+        echo ""
+        echo "Fix blocking issues before committing"
+        echo "Bypass with: git commit --no-verify (not recommended)"
+        return 1
+    fi
+
+    if [ $WARNING_COUNT -gt 0 ]; then
+        echo "⚠️  Code review found $WARNING_COUNT warning(s)"
+        echo "   Warnings don't block commits but should be reviewed"
+        echo ""
+    fi
+
+    echo "✓ Code review passed"
+    return 0
+}
+
+# Main: capture output and report minimal status
+VERBOSE_OUTPUT=$(run_review 2>&1) || EXIT_CODE=$?
+EXIT_CODE=${EXIT_CODE:-0}
+
+# Minimal stdout (tool output standard)
+echo "code-review [run: ${RUN_ID:-none}]"
+
+if [[ $EXIT_CODE -eq 0 ]]; then
+    # Check if there were warnings in the output
+    if echo "$VERBOSE_OUTPUT" | grep -q "WARNING"; then
+        WARNING_COUNT=$(echo "$VERBOSE_OUTPUT" | grep -c "WARNING" || true)
+        echo "$WARNING_COUNT warning(s)"
+    fi
+    echo "✓"
+    log_end "$RUN_ID" "success" "$EXIT_CODE" "${#VERBOSE_OUTPUT}" "Code review passed" "$VERBOSE_OUTPUT" 2>/dev/null || true
+else
+    BLOCKING_COUNT=$(echo "$VERBOSE_OUTPUT" | grep -c "BLOCKING" || true)
+    echo "Code review found blocking issues"
+    echo "✗"
+    log_end "$RUN_ID" "failure" "$EXIT_CODE" "${#VERBOSE_OUTPUT}" "Code review found $BLOCKING_COUNT blocking issue(s)" "$VERBOSE_OUTPUT" 2>/dev/null || true
 fi
 
-STAGED_DIFF=$(git diff --cached)
-BLOCKING_ISSUES=0
-WARNING_COUNT=0
-
-echo "Analyzing staged changes..."
-echo ""
-
-# Check 1: No hardcoded secrets
-echo "→ Checking for hardcoded secrets..."
-SECRET_PATTERN='(api[_-]?key|secret|password|token).*=.*["'"'"'][^"'"'"']{8,}["'"'"']'
-# Exclude: test files, markdown, and env var references like ${VAR} or $VAR
-if echo "$STAGED_DIFF" | grep -iE '^\+.*'"$SECRET_PATTERN" | grep -v '\.test\.' | grep -v '\.md' | grep -v '\${\|process\.env\.' > /dev/null; then
-  echo "❌ BLOCKING: Possible hardcoded secret detected"
-  echo "   Move secrets to environment variables (.env.local)"
-  echo ""
-  BLOCKING_ISSUES=$((BLOCKING_ISSUES + 1))
-fi
-
-# Check 2: No SQL injection
-echo "→ Checking for SQL injection vulnerabilities..."
-if echo "$STAGED_DIFF" | grep -E '^\+.*(SELECT|INSERT|UPDATE|DELETE)' | grep '\${' | grep -v '\.test\.' | grep -v '\.md' > /dev/null; then
-  echo "❌ BLOCKING: Possible SQL injection vulnerability"
-  echo "   Use parameterized queries"
-  echo ""
-  BLOCKING_ISSUES=$((BLOCKING_ISSUES + 1))
-fi
-
-# Check 3: console.log in production
-echo "→ Checking for console.log in production code..."
-CONSOLE_LOGS=$(echo "$STAGED_DIFF" | grep -E '^\+.*console\.(log|debug)' | grep -v '\.test\.' | grep -v '\.md' | grep -v 'tools/' || true)
-if [ -n "$CONSOLE_LOGS" ]; then
-  WARNING_COUNT=$((WARNING_COUNT + 1))
-  echo "⚠️  WARNING: console.log detected in production code"
-  echo "$CONSOLE_LOGS" | head -3
-  echo "   Consider using proper logging or remove debug statements"
-  echo ""
-fi
-
-# Check 4: TypeScript any usage
-echo "→ Checking for TypeScript 'any' type..."
-ANY_USAGE=$(echo "$STAGED_DIFF" | grep -E '^\+.*:\s*any\s*[;,=)]' | grep -v '\.test\.' | grep -v '\.md' || true)
-if [ -n "$ANY_USAGE" ]; then
-  WARNING_COUNT=$((WARNING_COUNT + 1))
-  echo "⚠️  WARNING: New 'any' type usage detected"
-  echo "$ANY_USAGE" | head -2
-  echo "   Consider using specific types or 'unknown' with type guards"
-  echo ""
-fi
-
-# Check 5: TODO without issue reference
-echo "→ Checking for TODO comments without issue links..."
-TODO_WITHOUT_ISSUE=$(echo "$STAGED_DIFF" | grep -E '^\+.*//.*(TODO|FIXME)' | grep -v -E '(#[0-9]+|PRJ-[0-9]+|TASK-[0-9]+)' || true)
-if [ -n "$TODO_WITHOUT_ISSUE" ]; then
-  WARNING_COUNT=$((WARNING_COUNT + 1))
-  echo "⚠️  WARNING: TODO/FIXME without issue reference"
-  echo "$TODO_WITHOUT_ISSUE" | head -2
-  echo "   Link TODOs to issues (e.g., TODO: #123)"
-  echo ""
-fi
-
-# Check 6: API design patterns (explicit operations)
-echo "→ Checking for API anti-patterns..."
-# Check for RESTful patterns that should be explicit (in route files)
-API_ANTIPATTERN=$(echo "$STAGED_DIFF" | grep -E '^\+.*app\.(post|patch|delete|put)\s*\(\s*['"'"'"]/:' | grep -v '/create\|/update\|/delete\|/list\|/get\|/add-\|/remove-' || true)
-if [ -n "$API_ANTIPATTERN" ]; then
-  WARNING_COUNT=$((WARNING_COUNT + 1))
-  echo "⚠️  WARNING: API route uses verb semantics instead of explicit operations"
-  echo "$API_ANTIPATTERN" | head -3
-  echo "   Use explicit operations: /create, /update/:id, /delete/:id, /get/:id"
-  echo "   See CLAUDE.md 'API Design (Explicit Operations)'"
-  echo ""
-fi
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-if [ $BLOCKING_ISSUES -gt 0 ]; then
-  echo "❌ Code review found $BLOCKING_ISSUES blocking issue(s)"
-  if [ $WARNING_COUNT -gt 0 ]; then
-    echo "   Also found $WARNING_COUNT warning(s)"
-  fi
-  echo ""
-  echo "Fix blocking issues before committing"
-  echo "Bypass with: git commit --no-verify (not recommended)"
-  exit 1
-fi
-
-if [ $WARNING_COUNT -gt 0 ]; then
-  echo "⚠️  Code review found $WARNING_COUNT warning(s)"
-  echo "   Warnings don't block commits but should be reviewed"
-  echo ""
-fi
-
-echo "✓ Code review passed"
-exit 0
+exit $EXIT_CODE

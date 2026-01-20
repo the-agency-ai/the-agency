@@ -27,7 +27,7 @@ fi
 RUN_ID=$(log_start "bug-report" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260109-000001"
+TOOL_VERSION="1.1.0-20260120-000001"
 
 # Find project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -284,3 +284,12 @@ View in BugBench or run: ./tools/show-bug $BUG_ID"
             echo "  Warning: Failed to notify assignee"
     fi
 fi
+
+# Minimal output (tool output standard)
+echo ""
+echo "bug-report [run: ${RUN_ID:-none}]"
+echo "Created: $BUG_ID"
+echo "✓"
+
+# Log completion
+log_end "$RUN_ID" "success" 0 0 "Created bug $BUG_ID: $SUMMARY" 2>/dev/null || true

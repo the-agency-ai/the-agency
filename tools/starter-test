@@ -22,7 +22,7 @@
 # Don't use set -e as we want to continue on test failures
 # set -e
 
-TOOL_VERSION="1.0.0-20260112-000001"
+TOOL_VERSION="1.1.0-20260120-000001"
 
 # Colors
 RED='\033[0;31m'
@@ -977,6 +977,28 @@ main() {
     test_integration_update_flow
 
     print_summary
+    return $?
 }
 
-main
+# Main: capture output and report minimal status
+VERBOSE_OUTPUT=$(main 2>&1) || EXIT_CODE=$?
+EXIT_CODE=${EXIT_CODE:-0}
+
+# Extract test counts from output
+PASSED=$(echo "$VERBOSE_OUTPUT" | grep -oE "Passed:\s+[0-9]+" | grep -oE "[0-9]+" || echo "0")
+FAILED=$(echo "$VERBOSE_OUTPUT" | grep -oE "Failed:\s+[0-9]+" | grep -oE "[0-9]+" || echo "0")
+
+# Minimal stdout (tool output standard)
+echo "starter-test [run: ${RUN_ID:-none}]"
+
+if [[ $EXIT_CODE -eq 0 ]]; then
+    echo "$PASSED tests passed"
+    echo "✓"
+    log_end "$RUN_ID" "success" "$EXIT_CODE" "${#VERBOSE_OUTPUT}" "All $PASSED tests passed" "$VERBOSE_OUTPUT" 2>/dev/null || true
+else
+    echo "$FAILED tests failed"
+    echo "✗"
+    log_end "$RUN_ID" "failure" "$EXIT_CODE" "${#VERBOSE_OUTPUT}" "$FAILED test(s) failed" "$VERBOSE_OUTPUT" 2>/dev/null || true
+fi
+
+exit $EXIT_CODE

@@ -6,6 +6,10 @@
 #
 # Creates a git tag: REQUEST-jordan-0013-complete
 # with metadata about what was accomplished.
+#
+# Output follows tool output standard (CLAUDE.md):
+#   stdout: minimal status (tool name, run ID, result)
+#   verbose: stored in log service, view with: ./tools/agency-service log run {run-id}
 
 set -euo pipefail
 
@@ -17,15 +21,15 @@ fi
 RUN_ID=$(log_start "request-complete" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.1.0-1"
+TOOL_VERSION="1.2.0-20260120-000001"
 
 # Configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 AGENCY_SERVICE_URL="${AGENCY_SERVICE_URL:-http://localhost:3141}"
 
 # Parse arguments
 VERBOSE=false
+ARGS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
         --verbose|-v)
@@ -59,98 +63,101 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
         *)
-            break
+            ARGS+=("$1")
+            shift
             ;;
     esac
 done
 
-REQUEST_ID="${1:-}"
-SUMMARY="${2:-}"
+REQUEST_ID="${ARGS[0]:-}"
+SUMMARY="${ARGS[1]:-}"
 
-if [[ -z "$REQUEST_ID" ]]; then
-    echo "Usage: ./tools/request-complete <request-id> \"<summary>\""
-    echo ""
-    echo "Example: ./tools/request-complete REQUEST-jordan-0013 \"Added test-service\""
-    exit 1
-fi
-
-# Validate request ID format
-if [[ ! "$REQUEST_ID" =~ ^REQUEST-[a-z]+-[0-9]+$ ]]; then
-    echo "Error: Invalid request ID format"
-    echo "Expected: REQUEST-<principal>-<number> (e.g., REQUEST-jordan-0013)"
-    exit 1
-fi
-
-# Check if request file exists
-REQUEST_FILE=$(find "$PROJECT_ROOT/claude/principals" -name "${REQUEST_ID}*.md" 2>/dev/null | head -1)
-if [[ -z "$REQUEST_FILE" ]]; then
-    echo "Warning: Request file not found for $REQUEST_ID"
-    echo "Continuing anyway..."
-fi
-
-# Extract info from request file if it exists
-REQUEST_TITLE=""
-if [[ -n "$REQUEST_FILE" && -f "$REQUEST_FILE" ]]; then
-    REQUEST_TITLE=$(head -5 "$REQUEST_FILE" | grep -E "^#" | head -1 | sed 's/^#* *//')
-fi
-
-# Build tag name
-TAG_NAME="${REQUEST_ID}-complete"
-
-# Check if tag already exists
-if git -C "$PROJECT_ROOT" tag -l "$TAG_NAME" | grep -q .; then
-    echo "Error: Tag $TAG_NAME already exists"
-    echo "Use 'git tag -d $TAG_NAME' to delete it first if needed"
-    exit 1
-fi
-
-# Update status via service API (authoritative source of truth)
-SERVICE_RESPONSE=$(curl -s -X POST "${AGENCY_SERVICE_URL}/api/request/update-status/${REQUEST_ID}" \
-    -H "Content-Type: application/json" \
-    -d '{"status": "Complete"}' 2>/dev/null || echo "")
-
-# Check for success using jq (proper JSON error detection)
-if [[ -n "$SERVICE_RESPONSE" ]] && ! echo "$SERVICE_RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
-    [[ "$VERBOSE" == "true" ]] && echo "Updated status in service: Complete"
-else
-    echo "Warning: Could not update service (service may not be running)"
-    echo "Continuing with file update and tag creation..."
-fi
-
-# Update status in request file (human-readable sync)
-if [[ -n "$REQUEST_FILE" && -f "$REQUEST_FILE" ]]; then
-    # Update Status field to Complete
-    if grep -q "^\*\*Status:\*\*" "$REQUEST_FILE"; then
-        # Portable sed -i (macOS vs Linux)
-        if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' 's/^\*\*Status:\*\* .*/\*\*Status:\*\* Complete/' "$REQUEST_FILE"
-        else
-            sed -i 's/^\*\*Status:\*\* .*/\*\*Status:\*\* Complete/' "$REQUEST_FILE"
-        fi
-        [[ "$VERBOSE" == "true" ]] && echo "Updated status in file: Complete"
+# Run the actual completion logic, capturing output
+run_complete() {
+    if [[ -z "$REQUEST_ID" ]]; then
+        echo "Usage: ./tools/request-complete <request-id> \"<summary>\""
+        echo ""
+        echo "Example: ./tools/request-complete REQUEST-jordan-0013 \"Added test-service\""
+        return 1
     fi
-    # Stage the file for commit
-    git -C "$PROJECT_ROOT" add "$REQUEST_FILE"
-fi
 
-# Get recent commits since last request tag (or last 20)
-LAST_REQUEST_TAG=$(git -C "$PROJECT_ROOT" tag -l "REQUEST-*-complete" --sort=-creatordate | head -1)
-if [[ -n "$LAST_REQUEST_TAG" ]]; then
-    COMMIT_COUNT=$(git -C "$PROJECT_ROOT" rev-list "$LAST_REQUEST_TAG"..HEAD --count)
-    COMMITS=$(git -C "$PROJECT_ROOT" log --oneline "$LAST_REQUEST_TAG"..HEAD | head -10)
-else
-    COMMIT_COUNT=$(git -C "$PROJECT_ROOT" rev-list HEAD --count)
-    COMMITS=$(git -C "$PROJECT_ROOT" log --oneline -10)
-fi
+    # Validate request ID format
+    if [[ ! "$REQUEST_ID" =~ ^REQUEST-[a-z]+-[0-9]+$ ]]; then
+        echo "Error: Invalid request ID format"
+        echo "Expected: REQUEST-<principal>-<number> (e.g., REQUEST-jordan-0013)"
+        return 1
+    fi
 
-# Get test count if agency-service tests exist
-TEST_COUNT=""
-if [[ -d "$PROJECT_ROOT/source/services/agency-service" ]]; then
-    TEST_COUNT=$(cd "$PROJECT_ROOT/source/services/agency-service" && ~/.bun/bin/bun test 2>&1 | grep -oE "[0-9]+ pass" | head -1 || true)
-fi
+    # Check if request file exists
+    REQUEST_FILE=$(find "$PROJECT_ROOT/claude/principals" -name "${REQUEST_ID}*.md" 2>/dev/null | head -1)
+    if [[ -z "$REQUEST_FILE" ]]; then
+        echo "Warning: Request file not found for $REQUEST_ID"
+        echo "Continuing anyway..."
+    fi
 
-# Build tag message
-TAG_MESSAGE="$REQUEST_ID: ${REQUEST_TITLE:-$SUMMARY}
+    # Extract info from request file if it exists
+    REQUEST_TITLE=""
+    if [[ -n "$REQUEST_FILE" && -f "$REQUEST_FILE" ]]; then
+        REQUEST_TITLE=$(head -5 "$REQUEST_FILE" | grep -E "^#" | head -1 | sed 's/^#* *//')
+    fi
+
+    # Build tag name
+    TAG_NAME="${REQUEST_ID}-complete"
+
+    # Check if tag already exists
+    if git -C "$PROJECT_ROOT" tag -l "$TAG_NAME" | grep -q .; then
+        echo "Error: Tag $TAG_NAME already exists"
+        echo "Use 'git tag -d $TAG_NAME' to delete it first if needed"
+        return 1
+    fi
+
+    # Update status via service API (authoritative source of truth)
+    SERVICE_RESPONSE=$(curl -s -X POST "${AGENCY_SERVICE_URL}/api/request/update-status/${REQUEST_ID}" \
+        -H "Content-Type: application/json" \
+        -d '{"status": "Complete"}' 2>/dev/null || echo "")
+
+    # Check for success using jq (proper JSON error detection)
+    if [[ -n "$SERVICE_RESPONSE" ]] && ! echo "$SERVICE_RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
+        echo "Updated status in service: Complete"
+    else
+        echo "Warning: Could not update service (service may not be running)"
+        echo "Continuing with file update and tag creation..."
+    fi
+
+    # Update status in request file (human-readable sync)
+    if [[ -n "$REQUEST_FILE" && -f "$REQUEST_FILE" ]]; then
+        # Update Status field to Complete
+        if grep -q "^\*\*Status:\*\*" "$REQUEST_FILE"; then
+            # Portable sed -i (macOS vs Linux)
+            if [[ "$(uname)" == "Darwin" ]]; then
+                sed -i '' 's/^\*\*Status:\*\* .*/\*\*Status:\*\* Complete/' "$REQUEST_FILE"
+            else
+                sed -i 's/^\*\*Status:\*\* .*/\*\*Status:\*\* Complete/' "$REQUEST_FILE"
+            fi
+            echo "Updated status in file: Complete"
+        fi
+        # Stage the file for commit
+        git -C "$PROJECT_ROOT" add "$REQUEST_FILE"
+    fi
+
+    # Get recent commits since last request tag (or last 20)
+    LAST_REQUEST_TAG=$(git -C "$PROJECT_ROOT" tag -l "REQUEST-*-complete" --sort=-creatordate | head -1)
+    if [[ -n "$LAST_REQUEST_TAG" ]]; then
+        COMMIT_COUNT=$(git -C "$PROJECT_ROOT" rev-list "$LAST_REQUEST_TAG"..HEAD --count)
+        COMMITS=$(git -C "$PROJECT_ROOT" log --oneline "$LAST_REQUEST_TAG"..HEAD | head -10)
+    else
+        COMMIT_COUNT=$(git -C "$PROJECT_ROOT" rev-list HEAD --count)
+        COMMITS=$(git -C "$PROJECT_ROOT" log --oneline -10)
+    fi
+
+    # Get test count if agency-service tests exist
+    TEST_COUNT=""
+    if [[ -d "$PROJECT_ROOT/source/services/agency-service" ]]; then
+        TEST_COUNT=$(cd "$PROJECT_ROOT/source/services/agency-service" && ~/.bun/bin/bun test 2>&1 | grep -oE "[0-9]+ pass" | head -1 || true)
+    fi
+
+    # Build tag message
+    TAG_MESSAGE="$REQUEST_ID: ${REQUEST_TITLE:-$SUMMARY}
 
 ${SUMMARY:-No summary provided}
 
@@ -160,18 +167,38 @@ ${TEST_COUNT:+Tests: $TEST_COUNT}
 Recent changes:
 $COMMITS"
 
-# Create the tag
-if [[ "$VERBOSE" == "true" ]]; then
     echo "Creating tag: $TAG_NAME"
     echo ""
     echo "Message:"
     echo "$TAG_MESSAGE"
     echo ""
+
+    git -C "$PROJECT_ROOT" tag -a "$TAG_NAME" -m "$TAG_MESSAGE"
+
+    echo "SUCCESS: Created tag $TAG_NAME"
+    echo ""
+    echo "View with: git show $TAG_NAME"
+    echo "Push with: git push origin $TAG_NAME"
+
+    return 0
+}
+
+# Main: capture output and report minimal status
+VERBOSE_OUTPUT=$(run_complete 2>&1) || EXIT_CODE=$?
+EXIT_CODE=${EXIT_CODE:-0}
+
+# Minimal stdout (tool output standard)
+echo "request-complete [run: ${RUN_ID:-none}]"
+
+if [[ $EXIT_CODE -eq 0 ]]; then
+    TAG_NAME="${REQUEST_ID}-complete"
+    echo "Created: $TAG_NAME"
+    echo "✓"
+    log_end "$RUN_ID" "success" "$EXIT_CODE" "${#VERBOSE_OUTPUT}" "Created tag $TAG_NAME" "$VERBOSE_OUTPUT" 2>/dev/null || true
+else
+    echo "Failed to complete request"
+    echo "✗"
+    log_end "$RUN_ID" "failure" "$EXIT_CODE" "${#VERBOSE_OUTPUT}" "Failed to complete $REQUEST_ID" "$VERBOSE_OUTPUT" 2>/dev/null || true
 fi
 
-git -C "$PROJECT_ROOT" tag -a "$TAG_NAME" -m "$TAG_MESSAGE"
-
-echo "SUCCESS: Created tag $TAG_NAME"
-echo ""
-echo "View with: git show $TAG_NAME"
-echo "Push with: git push origin $TAG_NAME"
+exit $EXIT_CODE

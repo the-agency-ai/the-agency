@@ -82,7 +82,9 @@ describe('request-complete CLI tool', () => {
       const exitCode = await proc.exited;
 
       expect(exitCode).toBe(1);
-      expect(output).toContain('Usage:');
+      // Tool output standard: minimal output on failure
+      expect(output).toContain('request-complete');
+      expect(output).toContain('Failed');
     });
 
     test('should error on invalid request ID format', async () => {
@@ -94,8 +96,9 @@ describe('request-complete CLI tool', () => {
       const exitCode = await proc.exited;
 
       expect(exitCode).toBe(1);
-      expect(output).toContain('Invalid request ID format');
-      expect(output).toContain('REQUEST-<principal>-<number>');
+      // Tool output standard: minimal output on failure
+      expect(output).toContain('request-complete');
+      expect(output).toContain('Failed');
     });
 
     test('should error on request ID without number', async () => {
@@ -107,7 +110,9 @@ describe('request-complete CLI tool', () => {
       const exitCode = await proc.exited;
 
       expect(exitCode).toBe(1);
-      expect(output).toContain('Invalid request ID format');
+      // Tool output standard: minimal output on failure
+      expect(output).toContain('request-complete');
+      expect(output).toContain('Failed');
     });
 
     test('should error on request ID with uppercase principal', async () => {
@@ -119,7 +124,9 @@ describe('request-complete CLI tool', () => {
       const exitCode = await proc.exited;
 
       expect(exitCode).toBe(1);
-      expect(output).toContain('Invalid request ID format');
+      // Tool output standard: minimal output on failure
+      expect(output).toContain('request-complete');
+      expect(output).toContain('Failed');
     });
 
     test('should validate request ID format accepts lowercase principal', async () => {

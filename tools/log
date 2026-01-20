@@ -30,7 +30,7 @@ fi
 RUN_ID=$(log_start "log" "agency-tool" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.1.0-20260114-000001"
+TOOL_VERSION="1.2.0-20260120-000001"
 
 # Configuration
 LOG_SERVICE_PORT="${LOG_SERVICE_PORT:-3141}"
@@ -731,3 +731,6 @@ main() {
 }
 
 main "$@"
+
+# Log completion (log tool logs itself!)
+log_end "$RUN_ID" "success" 0 0 "log command: ${1:-query}" 2>/dev/null || true
