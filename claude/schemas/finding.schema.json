@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-agency.ai/schemas/finding.schema.json",
+  "title": "Review Finding",
+  "description": "A single finding from a code, security, or test review",
+  "type": "object",
+  "required": ["schema_version", "work_item", "stage", "review_type", "reviewer", "timestamp", "findings"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version for backwards compatibility",
+      "const": "1.0"
+    },
+    "work_item": {
+      "type": "string",
+      "description": "Work item ID (e.g., REQUEST-jordan-0065)",
+      "pattern": "^[A-Z]+-[a-z]+-[0-9]+$"
+    },
+    "stage": {
+      "type": "string",
+      "description": "Development stage when review was performed",
+      "enum": ["impl", "review", "tests"]
+    },
+    "review_type": {
+      "type": "string",
+      "description": "Type of review performed",
+      "enum": ["code", "security", "test"]
+    },
+    "reviewer": {
+      "type": "object",
+      "description": "Information about the reviewer subagent",
+      "required": ["subagent_id"],
+      "properties": {
+        "subagent_id": {
+          "type": "string",
+          "description": "Unique identifier for the subagent task"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model used for the review (e.g., claude-sonnet-4-20250514)"
+        },
+        "prompt_hash": {
+          "type": "string",
+          "description": "SHA256 hash of the review prompt for versioning"
+        }
+      }
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when review was performed"
+    },
+    "findings": {
+      "type": "array",
+      "description": "List of findings from the review",
+      "items": {
+        "$ref": "#/$defs/finding_item"
+      }
+    }
+  },
+  "$defs": {
+    "finding_item": {
+      "type": "object",
+      "required": ["id", "severity", "category", "issue", "recommendation"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Finding ID within this review (e.g., F001)",
+          "pattern": "^F[0-9]+$"
+        },
+        "severity": {
+          "type": "string",
+          "description": "Severity level of the finding",
+          "enum": ["critical", "high", "medium", "low", "info"]
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the finding",
+          "enum": ["security", "quality", "architecture", "testing", "documentation", "performance"]
+        },
+        "file": {
+          "type": "string",
+          "description": "File path where the issue was found"
+        },
+        "line_start": {
+          "type": "integer",
+          "description": "Starting line number",
+          "minimum": 1
+        },
+        "line_end": {
+          "type": "integer",
+          "description": "Ending line number",
+          "minimum": 1
+        },
+        "issue": {
+          "type": "string",
+          "description": "Description of the issue found"
+        },
+        "recommendation": {
+          "type": "string",
+          "description": "Recommended fix or improvement"
+        },
+        "code_snippet": {
+          "type": "string",
+          "description": "Relevant code snippet"
+        },
+        "cwe": {
+          "type": "string",
+          "description": "CWE identifier for security findings (e.g., CWE-78)",
+          "pattern": "^CWE-[0-9]+$"
+        },
+        "owasp": {
+          "type": "string",
+          "description": "OWASP identifier (e.g., A03:2021)"
+        }
+      }
+    }
+  }
+}

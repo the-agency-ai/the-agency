@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.0",
+  "work_item": "REQUEST-jordan-0072",
+  "stage": "impl",
+  "consolidated_by": "captain",
+  "timestamp": "2026-01-20T15:00:00Z",
+  "source_reviews": [
+    "code-review-1.json",
+    "code-review-2.json",
+    "security-review-1.json"
+  ],
+  "findings": [
+    {
+      "id": "C001",
+      "source_ids": ["F001"],
+      "status": "valid",
+      "severity": "medium",
+      "category": "quality",
+      "file": "tools/gh",
+      "line_start": 28,
+      "line_end": 40,
+      "issue": "No fallback when _log-helper is missing",
+      "recommendation": "Define no-op log_end function when helper missing",
+      "resolution": "Added no-op fallback: log_end() { :; }",
+      "commit": "0da4833"
+    },
+    {
+      "id": "C002",
+      "source_ids": ["F002", "F005"],
+      "status": "valid",
+      "severity": "medium",
+      "category": "quality",
+      "file": "tools/gh",
+      "line_start": 107,
+      "line_end": 124,
+      "issue": "Token extraction error handling and hardcoded secret name",
+      "recommendation": "Add GH_SECRET_NAME support and show errors",
+      "resolution": "Added GH_SECRET_NAME env var, improved error messages",
+      "commit": "0da4833",
+      "notes": "Merged two related findings about token handling"
+    },
+    {
+      "id": "C003",
+      "source_ids": ["F003"],
+      "status": "valid",
+      "severity": "medium",
+      "category": "quality",
+      "file": "tools/gh",
+      "line_start": 154,
+      "line_end": 154,
+      "issue": "Trap quoting issue with temp files",
+      "recommendation": "Use double quotes in trap",
+      "resolution": "Changed to double quotes for variable expansion",
+      "commit": "0da4833"
+    },
+    {
+      "id": "C004",
+      "source_ids": ["F004"],
+      "status": "valid",
+      "severity": "low",
+      "category": "quality",
+      "file": "tools/gh",
+      "line_start": 170,
+      "line_end": 170,
+      "issue": "Literal \\n in combined output string",
+      "recommendation": "Use $'\\n' for actual newlines",
+      "resolution": "Changed to $'\\n' syntax",
+      "commit": "0da4833"
+    },
+    {
+      "id": "C005",
+      "source_ids": ["security-F001"],
+      "status": "valid",
+      "severity": "medium",
+      "category": "security",
+      "file": "tools/gh",
+      "line_start": 78,
+      "line_end": 80,
+      "issue": "Command arguments logged may contain sensitive data",
+      "recommendation": "Document this behavior in help text",
+      "resolution": "Added Security note in help and header comments",
+      "commit": "0da4833",
+      "cwe": "CWE-532"
+    }
+  ],
+  "stats": {
+    "total_findings": 8,
+    "valid": 5,
+    "invalid": 0,
+    "duplicate": 3
+  }
+}

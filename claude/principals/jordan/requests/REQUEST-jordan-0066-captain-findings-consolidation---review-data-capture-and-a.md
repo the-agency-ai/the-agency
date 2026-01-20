@@ -200,10 +200,10 @@ Suggested CLAUDE.md Rules:
 ## Acceptance Criteria
 
 ### Phase A: Schema & File Storage
-- [ ] JSON schema defined for subagent findings
-- [ ] JSON schema defined for consolidated findings
-- [ ] Directory structure documented
-- [ ] Example files created
+- [x] JSON schema defined for subagent findings
+- [x] JSON schema defined for consolidated findings
+- [x] Directory structure documented
+- [x] Example files created
 
 ### Phase B: Capture Tooling
 - [ ] `./tools/findings-save` implemented
@@ -267,11 +267,25 @@ Suggested CLAUDE.md Rules:
 
 ## Work Completed
 
-<!-- Document completed work here -->
+### Phase A: Schema & File Storage
+- Created `claude/schemas/finding.schema.json` - JSON schema for individual review findings
+- Created `claude/schemas/consolidated-findings.schema.json` - JSON schema for consolidated findings
+- Created `claude/schemas/README.md` - Documentation with examples and usage
+- Created `claude/logs/reviews/` directory structure
+- Created example files from REQUEST-jordan-0072 review:
+  - `claude/logs/reviews/REQUEST-jordan-0072/code-review-1.json`
+  - `claude/logs/reviews/REQUEST-jordan-0072/security-review-1.json`
+  - `claude/logs/reviews/REQUEST-jordan-0072/consolidated.json`
 
 ---
 
 ## Activity Log
+
+### 2026-01-20 - Phase A Complete
+- Implemented JSON schemas for findings capture
+- Created directory structure for review logs
+- Added example files from actual REQUEST-0072 reviews
+- Documented schema in README.md
 
 ### 2026-01-18 - Created
 - Request created by jordan

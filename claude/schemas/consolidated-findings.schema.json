@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-agency.ai/schemas/consolidated-findings.schema.json",
+  "title": "Consolidated Findings",
+  "description": "Consolidated and validated findings from multiple reviews",
+  "type": "object",
+  "required": ["schema_version", "work_item", "stage", "consolidated_by", "timestamp", "source_reviews", "findings", "stats"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version for backwards compatibility",
+      "const": "1.0"
+    },
+    "work_item": {
+      "type": "string",
+      "description": "Work item ID (e.g., REQUEST-jordan-0065)",
+      "pattern": "^[A-Z]+-[a-z]+-[0-9]+$"
+    },
+    "stage": {
+      "type": "string",
+      "description": "Development stage when consolidation was performed",
+      "enum": ["impl", "review", "tests"]
+    },
+    "consolidated_by": {
+      "type": "string",
+      "description": "Agent that performed the consolidation"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when consolidation was performed"
+    },
+    "source_reviews": {
+      "type": "array",
+      "description": "List of source review files that were consolidated",
+      "items": {
+        "type": "string"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "description": "Consolidated list of findings",
+      "items": {
+        "$ref": "#/$defs/consolidated_finding"
+      }
+    },
+    "stats": {
+      "type": "object",
+      "description": "Statistics about the consolidation",
+      "required": ["total_findings", "valid", "invalid", "duplicate"],
+      "properties": {
+        "total_findings": {
+          "type": "integer",
+          "description": "Total number of findings before consolidation",
+          "minimum": 0
+        },
+        "valid": {
+          "type": "integer",
+          "description": "Number of valid findings",
+          "minimum": 0
+        },
+        "invalid": {
+          "type": "integer",
+          "description": "Number of invalid findings (false positives)",
+          "minimum": 0
+        },
+        "duplicate": {
+          "type": "integer",
+          "description": "Number of duplicate findings merged",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "$defs": {
+    "consolidated_finding": {
+      "type": "object",
+      "required": ["id", "source_ids", "status", "severity", "issue"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Consolidated finding ID (e.g., C001)",
+          "pattern": "^C[0-9]+$"
+        },
+        "source_ids": {
+          "type": "array",
+          "description": "Original finding IDs that were merged into this",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "description": "Validation status of the finding",
+          "enum": ["valid", "invalid", "duplicate"]
+        },
+        "severity": {
+          "type": "string",
+          "description": "Final severity after consolidation",
+          "enum": ["critical", "high", "medium", "low", "info"]
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the finding",
+          "enum": ["security", "quality", "architecture", "testing", "documentation", "performance"]
+        },
+        "file": {
+          "type": "string",
+          "description": "File path where the issue was found"
+        },
+        "line_start": {
+          "type": "integer",
+          "description": "Starting line number",
+          "minimum": 1
+        },
+        "line_end": {
+          "type": "integer",
+          "description": "Ending line number",
+          "minimum": 1
+        },
+        "issue": {
+          "type": "string",
+          "description": "Description of the issue"
+        },
+        "recommendation": {
+          "type": "string",
+          "description": "Recommended fix"
+        },
+        "resolution": {
+          "type": "string",
+          "description": "How the issue was resolved"
+        },
+        "commit": {
+          "type": "string",
+          "description": "Commit hash that fixed the issue"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional notes from consolidation"
+        },
+        "cwe": {
+          "type": "string",
+          "description": "CWE identifier for security findings",
+          "pattern": "^CWE-[0-9]+$"
+        },
+        "owasp": {
+          "type": "string",
+          "description": "OWASP identifier"
+        }
+      }
+    }
+  }
+}

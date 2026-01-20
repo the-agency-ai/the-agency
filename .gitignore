@@ -38,8 +38,9 @@ claude/data/instances/
 # Service PID files (runtime)
 claude/data/*.pid
 
-# Agency service logs
-claude/logs/
+# Agency service logs (but keep reviews for findings history)
+claude/logs/*
+!claude/logs/reviews/
 
 # Test coverage
 coverage/

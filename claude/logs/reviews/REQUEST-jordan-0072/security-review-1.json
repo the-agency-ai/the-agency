@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "work_item": "REQUEST-jordan-0072",
+  "stage": "impl",
+  "review_type": "security",
+  "reviewer": {
+    "subagent_id": "a84ea82",
+    "model": "claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-01-20T14:55:00Z",
+  "findings": [
+    {
+      "id": "F001",
+      "severity": "medium",
+      "category": "security",
+      "file": "tools/gh",
+      "line_start": 110,
+      "line_end": 110,
+      "issue": "Command argument logging may expose sensitive data in PR bodies or API payloads",
+      "recommendation": "Consider redacting known sensitive argument patterns before logging",
+      "cwe": "CWE-532"
+    },
+    {
+      "id": "F002",
+      "severity": "low",
+      "category": "security",
+      "file": "tools/gh",
+      "line_start": 118,
+      "line_end": 118,
+      "issue": "Dry-run output exposes arguments that may contain secrets",
+      "recommendation": "Add warning that secrets may be displayed in dry-run mode",
+      "cwe": "CWE-200"
+    },
+    {
+      "id": "F003",
+      "severity": "info",
+      "category": "security",
+      "file": "tools/gh",
+      "line_start": 98,
+      "line_end": 98,
+      "issue": "Token stored in environment variable - accessible via /proc on Linux",
+      "recommendation": "Document that token is passed via environment variable for transparency",
+      "cwe": "CWE-214"
+    }
+  ]
+}
