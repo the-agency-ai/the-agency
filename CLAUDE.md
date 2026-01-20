@@ -228,6 +228,18 @@ When you start a session, the SessionStart hook automatically displays:
 
 **Best Practice:** Save context proactively throughout the session, not reactively at the end.
 
+### Greeting with Context
+
+**When session context is restored, lead with it.** Don't give a generic greeting - acknowledge where you left off.
+
+**Good:**
+> "Welcome back! Last session we fixed the principal detection bug (committed 049f26e). You were testing the fix. How did it go?"
+
+**Bad:**
+> "Hi! I'm the captain agent. How can I help you today?"
+
+The restored context tells you what the user was working on. Use it to provide continuity.
+
 ## Secrets
 
 **CRITICAL: All secrets MUST use the Secret Service. NEVER commit secrets to the codebase.**
