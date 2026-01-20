@@ -57,6 +57,8 @@ DRY_RUN=false
 SYNC_ONLY=false
 VERBOSE=false
 BUILD_BENCH=false
+PUSH=false
+GITHUB_RELEASE=false
 VERSION_ARG=""
 
 for arg in "$@"; do
@@ -72,6 +74,12 @@ for arg in "$@"; do
             ;;
         --build-bench)
             BUILD_BENCH=true
+            ;;
+        --push)
+            PUSH=true
+            ;;
+        --github)
+            GITHUB_RELEASE=true
             ;;
         --version|-v)
             echo "starter-release $TOOL_VERSION"
@@ -93,6 +101,8 @@ for arg in "$@"; do
             echo "Options:"
             echo "  --sync-only, -s  Sync files only (no version, commit, or tag)"
             echo "  --build-bench    Build AgencyBench and include DMG in release"
+            echo "  --push           Push to remote after release"
+            echo "  --github         Create GitHub release (requires gh CLI)"
             echo "  --dry-run, -n    Show what would happen without making changes"
             echo "  --verbose        Show detailed output"
             echo "  --version, -v    Show tool version"
@@ -214,6 +224,18 @@ sync_files() {
     touch "$STARTER_DIR/claude/data/.gitkeep"
     touch "$STARTER_DIR/claude/logs/.gitkeep"
 
+    # Sync GitHub workflows (copy starter-*.yml as *.yml)
+    log_step "Syncing GitHub workflows..."
+    mkdir -p "$STARTER_DIR/.github/workflows"
+    for workflow in "$PROJECT_ROOT/.github/workflows/starter-"*.yml; do
+        if [[ -f "$workflow" ]]; then
+            local basename
+            basename=$(basename "$workflow" | sed 's/^starter-//')
+            cp "$workflow" "$STARTER_DIR/.github/workflows/$basename"
+            verbose_echo "  Synced workflow: $basename"
+        fi
+    done
+
     # Clean up sensitive content that might have been synced
     log_step "Cleaning sensitive content..."
     rm -rf "$STARTER_DIR/claude/agents/captain/SESSION-"* 2>/dev/null || true
@@ -329,6 +351,8 @@ verify_build() {
     local required_files=(
         ".claude/settings.json"
         ".claude/settings.local.json.example"
+        ".github/workflows/release.yml"
+        ".github/workflows/verify.yml"
         ".gitignore"
         "CLAUDE.md"
         "README.md"
@@ -510,6 +534,61 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
     cd "$PROJECT_ROOT"
 }
 
+# Push to remote
+push_release() {
+    local version="$1"
+
+    log_step "Pushing to remote..."
+
+    cd "$STARTER_DIR"
+
+    # Push main branch
+    if git push origin main; then
+        echo "  Pushed: main"
+    else
+        log_error "Failed to push main branch"
+        cd "$PROJECT_ROOT"
+        return 1
+    fi
+
+    # Push tag
+    if git push origin "v$version"; then
+        echo "  Pushed: v$version"
+    else
+        log_error "Failed to push tag v$version"
+        cd "$PROJECT_ROOT"
+        return 1
+    fi
+
+    cd "$PROJECT_ROOT"
+}
+
+# Create GitHub release
+create_github_release() {
+    local version="$1"
+
+    log_step "Creating GitHub release..."
+
+    # Check if gh CLI is available
+    if ! command -v gh &> /dev/null; then
+        log_error "GitHub CLI (gh) not found. Install with: brew install gh"
+        return 1
+    fi
+
+    cd "$STARTER_DIR"
+
+    # Create release with auto-generated notes
+    if gh release create "v$version" --generate-notes --title "v$version"; then
+        echo "  Created GitHub release: v$version"
+    else
+        log_error "Failed to create GitHub release"
+        cd "$PROJECT_ROOT"
+        return 1
+    fi
+
+    cd "$PROJECT_ROOT"
+}
+
 # Main
 main() {
     # Trap unexpected exits
@@ -591,6 +670,12 @@ main() {
         log_step "Would update VERSION to $new_version..."
         log_step "Would update CHANGELOG.md..."
         log_step "Would commit and tag as v$new_version..."
+        if [[ "$PUSH" == "true" ]]; then
+            log_step "Would push to origin (main + v$new_version)..."
+        fi
+        if [[ "$GITHUB_RELEASE" == "true" ]]; then
+            log_step "Would create GitHub release v$new_version..."
+        fi
 
         echo ""
         log_info "Dry run complete. Run without --dry-run to execute."
@@ -627,16 +712,37 @@ main() {
     commit_and_tag "$new_version"
     echo ""
 
+    # Push if requested
+    if [[ "$PUSH" == "true" ]]; then
+        push_release "$new_version"
+        echo ""
+    fi
+
+    # Create GitHub release if requested
+    if [[ "$GITHUB_RELEASE" == "true" ]]; then
+        create_github_release "$new_version"
+        echo ""
+    fi
+
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     log_info "Release complete: v$new_version"
     echo ""
-    echo "Next steps (in starter repo):"
-    echo "  cd $STARTER_DIR"
-    echo "  git push origin main"
-    echo "  git push origin v$new_version"
-    echo ""
-    echo "Or create GitHub release:"
-    echo "  gh release create v$new_version --generate-notes"
+
+    if [[ "$PUSH" == "true" && "$GITHUB_RELEASE" == "true" ]]; then
+        echo "Release published to GitHub!"
+        echo "  https://github.com/the-agency-ai/the-agency-starter/releases/tag/v$new_version"
+    elif [[ "$PUSH" == "true" ]]; then
+        echo "Pushed to remote. Create GitHub release with:"
+        echo "  gh release create v$new_version --generate-notes"
+    else
+        echo "Next steps (in starter repo):"
+        echo "  cd $STARTER_DIR"
+        echo "  git push origin main"
+        echo "  git push origin v$new_version"
+        echo ""
+        echo "Or use --push --github to automate:"
+        echo "  ./tools/starter-release $VERSION_ARG --push --github"
+    fi
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     trap - EXIT  # Clear trap

@@ -1,0 +1,71 @@
+# This workflow is for the-agency-starter repo
+# It gets synced via ./tools/starter-release
+#
+# Verifies the starter template works correctly
+
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Verify required files exist
+        run: |
+          echo "Checking required files..."
+          required_files=(
+            "CLAUDE.md"
+            "README.md"
+            "LICENSE"
+            ".claude/settings.json"
+            "claude/agents/captain/agent.md"
+            "claude/config/agency.yaml"
+            "tools/myclaude"
+          )
+
+          missing=0
+          for f in "${required_files[@]}"; do
+            if [ ! -e "$f" ]; then
+              echo "❌ Missing: $f"
+              missing=1
+            else
+              echo "✓ Found: $f"
+            fi
+          done
+
+          if [ $missing -eq 1 ]; then
+            exit 1
+          fi
+
+      - name: Verify tools are executable
+        run: |
+          echo "Checking tool permissions..."
+          for tool in tools/*; do
+            if [ -f "$tool" ] && [ ! -x "$tool" ]; then
+              echo "❌ Not executable: $tool"
+              exit 1
+            fi
+          done
+          echo "✓ All tools are executable"
+
+      - name: Install agency-service dependencies
+        working-directory: source/services/agency-service
+        run: bun install
+
+      - name: Run agency-service tests
+        working-directory: source/services/agency-service
+        run: bun test
