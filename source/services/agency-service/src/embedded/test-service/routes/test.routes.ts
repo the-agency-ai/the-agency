@@ -262,6 +262,133 @@ export function createTestRoutes(testService: TestService) {
   });
 
   // ─────────────────────────────────────────────────────────────
+  // Configuration & Discovery
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * GET /test/config/get - Get test configuration
+   */
+  app.get('/config/get', async (c) => {
+    try {
+      const config = testService.getConfig();
+      return c.json(config);
+    } catch (error) {
+      logger.error({ error }, 'Failed to get config');
+      throw error;
+    }
+  });
+
+  /**
+   * POST /test/config/reload - Reload configuration from disk
+   */
+  app.post('/config/reload', async (c) => {
+    try {
+      const config = await testService.reloadConfig();
+      return c.json(config);
+    } catch (error) {
+      logger.error({ error }, 'Failed to reload config');
+      throw error;
+    }
+  });
+
+  /**
+   * GET /test/discover - Discover test suites
+   */
+  app.get('/discover', async (c) => {
+    try {
+      const targetId = c.req.query('target');
+      const discovered = targetId
+        ? await testService.discoverSuitesInTarget(targetId)
+        : await testService.discoverSuites();
+
+      return c.json({ suites: discovered });
+    } catch (error) {
+      logger.error({ error }, 'Failed to discover suites');
+      throw error;
+    }
+  });
+
+  /**
+   * POST /test/suite/register - Register a discovered suite
+   */
+  app.post('/suite/register', async (c) => {
+    try {
+      const body = await c.req.json();
+
+      // Validate required fields
+      const schema = z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        target: z.string().min(1),
+        path: z.string().min(1),
+        tags: z.array(z.string()).optional(),
+      });
+
+      const data = schema.parse(body);
+      const suite = await testService.registerSuite(data);
+
+      return c.json(suite, 201);
+    } catch (error) {
+      logger.error({ error }, 'Failed to register suite');
+      if (error instanceof ZodError) {
+        return c.json({ error: 'Invalid request', details: error }, 400);
+      }
+      throw error;
+    }
+  });
+
+  /**
+   * POST /test/suite/unregister - Unregister a suite
+   */
+  app.post('/suite/unregister', async (c) => {
+    try {
+      const body = await c.req.json();
+      const { id } = body;
+
+      if (!id) {
+        return c.json({ error: 'Suite ID is required' }, 400);
+      }
+
+      const removed = await testService.unregisterSuite(id);
+
+      if (!removed) {
+        return c.json({ error: 'Suite not found' }, 404);
+      }
+
+      return c.json({ removed: true });
+    } catch (error) {
+      logger.error({ error }, 'Failed to unregister suite');
+      throw error;
+    }
+  });
+
+  /**
+   * GET /test/target/list - List configured targets
+   */
+  app.get('/target/list', async (c) => {
+    try {
+      const targets = testService.getTargets();
+      return c.json({ targets });
+    } catch (error) {
+      logger.error({ error }, 'Failed to get targets');
+      throw error;
+    }
+  });
+
+  /**
+   * GET /test/runner/list - List configured runners
+   */
+  app.get('/runner/list', async (c) => {
+    try {
+      const runners = testService.getRunners();
+      return c.json({ runners });
+    } catch (error) {
+      logger.error({ error }, 'Failed to get runners');
+      throw error;
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────
   // Maintenance
   // ─────────────────────────────────────────────────────────────
 

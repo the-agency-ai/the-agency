@@ -57,6 +57,7 @@ export interface TestSuite {
 export interface TestRun {
   id: string;
   suite: string;
+  target: string;
   status: TestRunStatusType;
   triggeredByType: TriggerTypeValue;
   triggeredByName: string;
@@ -105,6 +106,10 @@ export const createTestRunSchema = z.object({
   suite: z.string().default('all').refine(
     (val) => safeSuitePattern.test(val) && !val.includes('..'),
     { message: 'Suite name must be alphanumeric with hyphens/underscores only' }
+  ),
+  target: z.string().default('default').refine(
+    (val) => safeSuitePattern.test(val) && !val.includes('..'),
+    { message: 'Target name must be alphanumeric with hyphens/underscores only' }
   ),
   triggeredByType: z.enum(['principal', 'agent', 'system', 'ci']).default('system'),
   triggeredByName: z.string().default('cli'),

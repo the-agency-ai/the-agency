@@ -23,6 +23,41 @@ jobs:
         working-directory: source/services/agency-service
         run: bun install
 
-      - name: Run tests
-        working-directory: source/services/agency-service
-        run: bun test
+      - name: Start agency-service
+        run: |
+          ./tools/agency-service start
+          # Wait for service to be ready
+          for i in {1..30}; do
+            if curl -sf http://127.0.0.1:3141/health > /dev/null; then
+              echo "Service is healthy"
+              break
+            fi
+            echo "Waiting for service... ($i/30)"
+            sleep 1
+          done
+          # Verify service is running
+          curl -sf http://127.0.0.1:3141/health || exit 1
+
+      - name: Run tests via test-service
+        run: |
+          # Run tests with CI trigger
+          ./tools/agency-service test run all ci github-actions
+
+          # Get exit code from test results
+          RESULT=$(./tools/agency-service test latest | jq -r '.status')
+          if [ "$RESULT" = "failed" ]; then
+            echo "Tests failed!"
+            ./tools/agency-service test latest | jq .
+            exit 1
+          fi
+          echo "Tests passed!"
+
+      - name: Show test results
+        if: always()
+        run: |
+          ./tools/agency-service test latest | jq . || true
+          ./tools/agency-service test stats || true
+
+      - name: Stop agency-service
+        if: always()
+        run: ./tools/agency-service stop || true

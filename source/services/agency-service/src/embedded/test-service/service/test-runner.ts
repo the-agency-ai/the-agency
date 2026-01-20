@@ -5,9 +5,10 @@
  */
 
 import { spawn } from 'child_process';
-import { resolve, relative } from 'path';
+import { resolve, relative, join } from 'path';
 import { createServiceLogger } from '../../../core/lib/logger';
 import type { BunTestOutput, BunTestResult } from '../types';
+import type { TestRunner, TestTarget } from '../config/test-config.types';
 
 const logger = createServiceLogger('test-runner');
 
@@ -270,11 +271,145 @@ export async function runTests(options: TestRunnerOptions): Promise<BunTestOutpu
 }
 
 /**
+ * Configuration-based test runner options
+ */
+export interface ConfigurableRunnerOptions {
+  projectRoot: string;
+  suite: string;
+  suitePath?: string;
+  target: TestTarget;
+  runner: TestRunner;
+  timeout?: number;
+}
+
+/**
+ * Run tests using configuration-based runner
+ */
+export async function runTestsWithConfig(options: ConfigurableRunnerOptions): Promise<BunTestOutput> {
+  const { projectRoot, suite, suitePath, target, runner, timeout = 120000 } = options;
+
+  // Resolve the working directory from target path
+  const cwd = join(projectRoot, target.path);
+
+  logger.info({
+    projectRoot,
+    suite,
+    target: target.id,
+    runner: runner.id,
+    cwd,
+    suitePath,
+  }, 'Running tests with config');
+
+  // Build command args from runner config
+  const args = [...runner.command.slice(1)]; // Skip the command itself, keep args
+
+  // Add test path if suite is not 'all'
+  if (suite !== 'all' && suitePath) {
+    // Validate the path
+    if (!validateSuiteName(suite)) {
+      logger.error({ suite }, 'Invalid suite name');
+      return {
+        success: false,
+        results: [{
+          name: 'validation-error',
+          file: '',
+          status: 'fail',
+          duration: 0,
+          error: { message: 'Invalid suite name' },
+        }],
+        summary: { pass: 0, fail: 1, skip: 0, total: 1, duration: 0 },
+      };
+    }
+    args.push(`${suitePath}/**/*.test.ts`);
+  }
+
+  // Add reporter flags for parseable output
+  args.push('--reporter', 'default');
+
+  return new Promise((resolvePromise) => {
+    let stdout = '';
+    let stderr = '';
+
+    const command = runner.command[0];
+    const proc = spawn(command, args, {
+      cwd,
+      env: {
+        ...process.env,
+        FORCE_COLOR: '0',
+      },
+    });
+
+    const timer = setTimeout(() => {
+      proc.kill('SIGTERM');
+      resolvePromise({
+        success: false,
+        results: [],
+        summary: {
+          pass: 0,
+          fail: 0,
+          skip: 0,
+          total: 0,
+          duration: timeout,
+        },
+      });
+    }, timeout);
+
+    proc.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on('close', (code) => {
+      clearTimeout(timer);
+
+      logger.debug({
+        code,
+        stdout: stdout.slice(0, 500),
+        stderr: stderr.slice(0, 500),
+      }, 'Test process completed');
+
+      const output = parseBunOutput(stdout, stderr);
+
+      if (output.summary.total === 0 && code !== null) {
+        output.success = code === 0;
+      }
+
+      resolvePromise(output);
+    });
+
+    proc.on('error', (err) => {
+      clearTimeout(timer);
+      logger.error({ err }, 'Failed to spawn test process');
+
+      resolvePromise({
+        success: false,
+        results: [{
+          name: 'spawn-error',
+          file: '',
+          status: 'fail',
+          duration: 0,
+          error: { message: err.message },
+        }],
+        summary: {
+          pass: 0,
+          fail: 1,
+          skip: 0,
+          total: 1,
+          duration: 0,
+        },
+      });
+    });
+  });
+}
+
+/**
  * Discover available test suites
  */
 export async function discoverSuites(projectRoot: string): Promise<string[]> {
   const { readdir } = await import('fs/promises');
-  const { join } = await import('path');
 
   try {
     const testsDir = join(projectRoot, 'tests');

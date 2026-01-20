@@ -560,6 +560,7 @@ For first-time users, try the interactive tour:
 - `claude/docs/TERMINAL-INTEGRATION.md` - iTerm setup and troubleshooting
 - `claude/docs/PERMISSIONS.md` - Permissions model and examples
 - `claude/docs/SECRETS.md` - Complete secrets reference
+- `claude/docs/TESTING.md` - Test service configuration and usage
 - `claude/docs/REPO-RELATIONSHIP.md` - How the-agency and the-agency-starter relate
 - `claude/docs/STARTER-RELEASE-PROCESS.md` - Starter release workflow and tools
 - `claude/docs/CI-TROUBLESHOOTING.md` - CI failure investigation and fixes

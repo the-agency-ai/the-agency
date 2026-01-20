@@ -1,0 +1,82 @@
+version: "1.0"
+
+runners:
+  - id: bun
+    command:
+      - bun
+      - test
+    outputFormat: bun
+
+targets:
+  - id: agency-service
+    path: source/services/agency-service
+    runner: bun
+    description: Main agency service tests
+
+  - id: starter
+    path: test/the-agency-starter/source/services/agency-service
+    runner: bun
+    description: Starter kit tests
+
+suites:
+  - id: all
+    name: All Tests
+    target: agency-service
+    path: tests
+    tags:
+      - all
+    enabled: true
+
+  - id: core
+    name: Core Tests
+    target: agency-service
+    path: tests/core
+    tags:
+      - unit
+      - fast
+    enabled: true
+
+  - id: log-service
+    name: Log Service Tests
+    target: agency-service
+    path: tests/log-service
+    tags:
+      - unit
+      - log
+    enabled: true
+
+  - id: test-service
+    name: Test Service Tests
+    target: agency-service
+    path: tests/test-service
+    tags:
+      - unit
+      - test
+    enabled: true
+
+  - id: bug-service
+    name: Bug Service Tests
+    target: agency-service
+    path: tests/bug-service
+    tags:
+      - unit
+      - bug
+    enabled: true
+
+  - id: message-service
+    name: Message Service Tests
+    target: agency-service
+    path: tests/message-service
+    tags:
+      - unit
+      - message
+    enabled: true
+
+  - id: request-service
+    name: Request Service Tests
+    target: agency-service
+    path: tests/request-service
+    tags:
+      - unit
+      - request
+    enabled: true

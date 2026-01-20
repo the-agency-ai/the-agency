@@ -922,6 +922,43 @@ cmd_test_cleanup() {
     api_request DELETE "/api/test/cleanup?days=${days}" | jq .
 }
 
+cmd_test_config() {
+    api_request GET "/api/test/config/get" | jq .
+}
+
+cmd_test_targets() {
+    api_request GET "/api/test/target/list" | jq '.targets'
+}
+
+cmd_test_runners() {
+    api_request GET "/api/test/runner/list" | jq '.runners'
+}
+
+cmd_test_discover() {
+    local target="$1"
+    local endpoint="/api/test/discover"
+    if [[ -n "$target" ]]; then
+        endpoint="${endpoint}?target=${target}"
+    fi
+    api_request GET "$endpoint" | jq '.suites'
+}
+
+cmd_test_register() {
+    local id="$1"
+    local name="$2"
+    local target="$3"
+    local path="$4"
+
+    if [[ -z "$id" || -z "$name" || -z "$target" || -z "$path" ]]; then
+        log_error "Usage: test register <id> <name> <target> <path>"
+        exit 1
+    fi
+
+    local json
+    json=$(build_json "id" "$id" "name" "$name" "target" "$target" "path" "$path")
+    api_request POST "/api/test/suite/register" "$json" | jq .
+}
+
 # Main
 case "${1:-}" in
     install)
@@ -1014,6 +1051,11 @@ case "${1:-}" in
             suites) cmd_test_suites ;;
             cancel) cmd_test_cancel "$3" ;;
             cleanup) cmd_test_cleanup "$3" ;;
+            config) cmd_test_config ;;
+            targets) cmd_test_targets ;;
+            runners) cmd_test_runners ;;
+            discover) cmd_test_discover "$3" ;;
+            register) cmd_test_register "$3" "$4" "$5" "$6" ;;
             logs) shift 2; cmd_log_query --service test-service "$@" ;;
             *)
                 echo "Unknown test command: $2"
@@ -1079,6 +1121,11 @@ case "${1:-}" in
         echo "  ./tools/agency-service test suites               List available test suites"
         echo "  ./tools/agency-service test cancel <run-id>      Cancel a running test"
         echo "  ./tools/agency-service test cleanup [days]       Delete old test runs"
+        echo "  ./tools/agency-service test config               Show test configuration"
+        echo "  ./tools/agency-service test targets              List configured targets"
+        echo "  ./tools/agency-service test runners              List configured runners"
+        echo "  ./tools/agency-service test discover [target]    Discover test suites"
+        echo "  ./tools/agency-service test register <id> <name> <target> <path>"
         echo "  ./tools/agency-service test logs [--level X]     Query logs for test-service"
         echo ""
         echo "Options:"

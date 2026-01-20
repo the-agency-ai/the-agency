@@ -25,6 +25,7 @@ const logger = createServiceLogger('test-repository');
 interface TestRunRow {
   id: string;
   suite: string;
+  target: string;
   status: string;
   triggered_by_type: string;
   triggered_by_name: string;
@@ -60,6 +61,7 @@ function rowToTestRun(row: TestRunRow): TestRun {
   return {
     id: row.id,
     suite: row.suite,
+    target: row.target || 'default',
     status: row.status as TestRunStatusType,
     triggeredByType: row.triggered_by_type as TestRun['triggeredByType'],
     triggeredByName: row.triggered_by_name,
@@ -105,6 +107,7 @@ export class TestRunRepository {
       CREATE TABLE IF NOT EXISTS test_runs (
         id TEXT PRIMARY KEY,
         suite TEXT NOT NULL,
+        target TEXT NOT NULL DEFAULT 'default',
         status TEXT NOT NULL DEFAULT 'pending',
         triggered_by_type TEXT NOT NULL,
         triggered_by_name TEXT NOT NULL,
@@ -141,10 +144,37 @@ export class TestRunRepository {
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_runs_suite ON test_runs(suite)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_runs_status ON test_runs(status)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_runs_started_at ON test_runs(started_at)`);
+    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_runs_target ON test_runs(target)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_results_run_id ON test_results(run_id)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_results_test_name ON test_results(test_name)`);
 
+    // Migration: add target column if missing (for existing databases)
+    await this.migrateAddTargetColumn();
+
     logger.info('Test schema initialized');
+  }
+
+  /**
+   * Migration: add target column to existing databases
+   */
+  private async migrateAddTargetColumn(): Promise<void> {
+    try {
+      // Check if column exists by querying table info
+      const columns = await this.db.query<{ name: string }>(
+        `PRAGMA table_info(test_runs)`
+      );
+      const hasTarget = columns.some((c) => c.name === 'target');
+
+      if (!hasTarget) {
+        await this.db.execute(
+          `ALTER TABLE test_runs ADD COLUMN target TEXT DEFAULT 'default'`
+        );
+        logger.info('Migrated test_runs table: added target column');
+      }
+    } catch (error) {
+      // Table might not exist yet, which is fine
+      logger.debug({ error }, 'Migration check skipped');
+    }
   }
 
   /**
@@ -153,6 +183,7 @@ export class TestRunRepository {
   async createRun(data: {
     id: string;
     suite: string;
+    target?: string;
     triggeredByType: string;
     triggeredByName: string;
     gitBranch?: string;
@@ -160,12 +191,13 @@ export class TestRunRepository {
   }): Promise<TestRun> {
     await this.db.execute(
       `INSERT INTO test_runs (
-        id, suite, status, triggered_by_type, triggered_by_name,
+        id, suite, target, status, triggered_by_type, triggered_by_name,
         git_branch, git_commit
-      ) VALUES (?, ?, 'pending', ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?)`,
       [
         data.id,
         data.suite,
+        data.target || 'default',
         data.triggeredByType,
         data.triggeredByName,
         data.gitBranch || null,
@@ -178,7 +210,7 @@ export class TestRunRepository {
       throw new Error(`Failed to create test run ${data.id}`);
     }
 
-    logger.info({ runId: data.id }, 'Test run created');
+    logger.info({ runId: data.id, target: data.target }, 'Test run created');
     return run;
   }
 

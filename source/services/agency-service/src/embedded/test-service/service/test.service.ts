@@ -7,7 +7,9 @@
 import { randomUUID } from 'crypto';
 import type { DatabaseAdapter } from '../../../core/adapters/database';
 import { TestRunRepository } from '../repository/test-run.repository';
-import { runTests, discoverSuites } from './test-runner';
+import { runTests, runTestsWithConfig, discoverSuites } from './test-runner';
+import { TestConfigService } from '../config/test-config.service';
+import { TestDiscoveryService } from './discovery.service';
 import type {
   TestRun,
   TestRunWithResults,
@@ -17,6 +19,13 @@ import type {
   FlakyTest,
   TestSuite,
 } from '../types';
+import type {
+  TestConfig,
+  TestRunner,
+  TestTarget,
+  TestSuiteConfig,
+  DiscoveredSuite,
+} from '../config/test-config.types';
 import { createServiceLogger } from '../../../core/lib/logger';
 
 const logger = createServiceLogger('test-service');
@@ -24,10 +33,14 @@ const logger = createServiceLogger('test-service');
 export class TestService {
   private repository: TestRunRepository;
   private projectRoot: string;
+  private configService: TestConfigService;
+  private discoveryService: TestDiscoveryService;
 
   constructor(db: DatabaseAdapter, projectRoot: string) {
     this.repository = new TestRunRepository(db);
     this.projectRoot = projectRoot;
+    this.configService = new TestConfigService(projectRoot);
+    this.discoveryService = new TestDiscoveryService(this.configService);
   }
 
   /**
@@ -35,6 +48,7 @@ export class TestService {
    */
   async initialize(): Promise<void> {
     await this.repository.initialize();
+    await this.configService.load();
     logger.info('Test service initialized');
   }
 
@@ -44,16 +58,30 @@ export class TestService {
   async startRun(request: CreateTestRunRequest): Promise<TestRun> {
     const id = randomUUID();
 
+    // Resolve target from suite config if not specified
+    let target = request.target;
+    if (target === 'default') {
+      const suiteConfig = this.configService.getSuite(request.suite);
+      if (suiteConfig) {
+        target = suiteConfig.target;
+      } else {
+        // Default to first target if no suite config
+        const targets = this.configService.getTargets();
+        target = targets.length > 0 ? targets[0].id : 'default';
+      }
+    }
+
     const run = await this.repository.createRun({
       id,
       suite: request.suite,
+      target,
       triggeredByType: request.triggeredByType,
       triggeredByName: request.triggeredByName,
       gitBranch: request.gitBranch,
       gitCommit: request.gitCommit,
     });
 
-    logger.info({ runId: id, suite: request.suite }, 'Test run started');
+    logger.info({ runId: id, suite: request.suite, target }, 'Test run started');
     return run;
   }
 
@@ -69,13 +97,32 @@ export class TestService {
     // Mark as running
     await this.repository.markRunning(runId);
 
-    logger.info({ runId, suite: run.suite }, 'Executing tests');
+    logger.info({ runId, suite: run.suite, target: run.target }, 'Executing tests');
 
-    // Run tests
-    const output = await runTests({
-      projectRoot: this.projectRoot,
-      suite: run.suite,
-    });
+    // Get configuration for this run
+    const suiteConfig = this.configService.getSuite(run.suite);
+    const targetConfig = this.configService.getTarget(run.target);
+    const runnerConfig = targetConfig
+      ? this.configService.getRunner(targetConfig.runner)
+      : null;
+
+    // Run tests using configuration if available, otherwise fallback to legacy
+    let output;
+    if (targetConfig && runnerConfig) {
+      output = await runTestsWithConfig({
+        projectRoot: this.projectRoot,
+        suite: run.suite,
+        suitePath: suiteConfig?.path,
+        target: targetConfig,
+        runner: runnerConfig,
+      });
+    } else {
+      // Fallback to legacy runner
+      output = await runTests({
+        projectRoot: this.projectRoot,
+        suite: run.suite,
+      });
+    }
 
     // Record results
     for (const result of output.results) {
@@ -237,5 +284,96 @@ export class TestService {
     cutoff.setDate(cutoff.getDate() - olderThanDays);
 
     return this.repository.deleteOldRuns(cutoff);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Configuration & Discovery
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Get the test configuration
+   */
+  getConfig(): TestConfig {
+    return this.configService.getConfig();
+  }
+
+  /**
+   * Get all configured runners
+   */
+  getRunners(): TestRunner[] {
+    return this.configService.getRunners();
+  }
+
+  /**
+   * Get all configured targets
+   */
+  getTargets(): TestTarget[] {
+    return this.configService.getTargets();
+  }
+
+  /**
+   * Get all configured suites
+   */
+  getConfiguredSuites(): TestSuiteConfig[] {
+    return this.configService.getSuites();
+  }
+
+  /**
+   * Discover test suites in all targets
+   */
+  async discoverSuites(): Promise<DiscoveredSuite[]> {
+    return this.discoveryService.discoverAll();
+  }
+
+  /**
+   * Discover test suites in a specific target
+   */
+  async discoverSuitesInTarget(targetId: string): Promise<DiscoveredSuite[]> {
+    return this.discoveryService.discoverInTarget(targetId);
+  }
+
+  /**
+   * Register a discovered suite
+   */
+  async registerSuite(suite: {
+    id: string;
+    name: string;
+    target: string;
+    path: string;
+    tags?: string[];
+  }): Promise<TestSuiteConfig> {
+    const suiteConfig: TestSuiteConfig = {
+      id: suite.id,
+      name: suite.name,
+      target: suite.target,
+      path: suite.path,
+      tags: suite.tags || [],
+      enabled: true,
+    };
+
+    this.configService.addSuite(suiteConfig);
+    await this.configService.save();
+
+    logger.info({ suiteId: suite.id }, 'Suite registered');
+    return suiteConfig;
+  }
+
+  /**
+   * Unregister a suite
+   */
+  async unregisterSuite(suiteId: string): Promise<boolean> {
+    const removed = this.configService.removeSuite(suiteId);
+    if (removed) {
+      await this.configService.save();
+      logger.info({ suiteId }, 'Suite unregistered');
+    }
+    return removed;
+  }
+
+  /**
+   * Reload configuration from disk
+   */
+  async reloadConfig(): Promise<TestConfig> {
+    return this.configService.load();
   }
 }
