@@ -140,8 +140,14 @@ if [ ! -w /dev/tty ]; then
   exit 0
 fi
 
-# Set tab title via OSC 0 (works everywhere)
+# Set tab title via OSC sequences
+# OSC 0 - Sets both icon name (tab) and window title
+# OSC 1 - Sets icon name (what shows in tab) explicitly
+# OSC 2 - Sets window title explicitly
+# Using all three for maximum compatibility
 printf '\033]0;%s\007' "$TITLE" > /dev/tty
+printf '\033]1;%s\007' "$TITLE" > /dev/tty
+printf '\033]2;%s\007' "$TITLE" > /dev/tty
 
 # iTerm2 tab color - always try it (TERM_PROGRAM may not be set in hooks)
 # These escape sequences are harmless on non-iTerm terminals
@@ -154,12 +160,28 @@ else
   printf '\033]6;1;bg;*;default\a' > /dev/tty
 fi
 
-# iTerm2 user variables (for badge/status bar)
+# iTerm2 user variables
 STATUS_B64=$(echo -n "$STATUS" | base64)
 printf '\033]1337;SetUserVar=%s=%s\007' "agentStatus" "$STATUS_B64" > /dev/tty
 
 AGENT_B64=$(echo -n "$AGENT" | base64)
 printf '\033]1337;SetUserVar=%s=%s\007' "agentName" "$AGENT_B64" > /dev/tty
+
+INDICATOR_B64=$(echo -n "$INDICATOR" | base64)
+printf '\033]1337;SetUserVar=%s=%s\007' "agentIndicator" "$INDICATOR_B64" > /dev/tty
+
+# Combined title for easy use: "● captain"
+TITLE_B64=$(echo -n "$TITLE" | base64)
+printf '\033]1337;SetUserVar=%s=%s\007' "agentTitle" "$TITLE_B64" > /dev/tty
+
+# iTerm2 badge - overlay that shows shape indicator (not overridden by title changes)
+if [ -n "$INDICATOR" ]; then
+  BADGE_B64=$(echo -n "$INDICATOR" | base64)
+  printf '\033]1337;SetBadgeFormat=%s\007' "$BADGE_B64" > /dev/tty
+else
+  # Clear badge
+  printf '\033]1337;SetBadgeFormat=\007' > /dev/tty
+fi
 
 # Log completion (silent - no stdout for hook performance)
 log_end "$RUN_ID" "success" 0 0 "Set status: $STATUS" 2>/dev/null || true
