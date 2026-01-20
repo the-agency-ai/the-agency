@@ -122,7 +122,7 @@ All acceptance criteria verified:
 - Each type will need to follow this same Red-Green workflow
 - Templates will be needed for each type (similar to REQUEST.md)
 - The `./tools/tag` tool already supports arbitrary prefixes
-- Consider whether review stages should be mandatory or optional based on scope
+- Review stages (code/security review + test review) are MANDATORY for all work item types
 
 ---
 
