@@ -7,7 +7,7 @@
 import { randomUUID } from 'crypto';
 import type { DatabaseAdapter } from '../../../core/adapters/database';
 import { TestRunRepository } from '../repository/test-run.repository';
-import { runTests, runTestsWithConfig, discoverSuites } from './test-runner';
+import { runTests, runTestsWithConfig } from './test-runner';
 import { TestConfigService } from '../config/test-config.service';
 import { TestDiscoveryService } from './discovery.service';
 import type {
@@ -158,10 +158,13 @@ export class TestService {
 
     // Return the completed run with results
     const completedRun = await this.repository.findRunById(runId);
+    if (!completedRun) {
+      throw new Error(`Test run ${runId} not found after completion`);
+    }
     const results = await this.repository.getResultsForRun(runId);
 
     return {
-      ...completedRun!,
+      ...completedRun,
       results,
     };
   }
@@ -246,12 +249,22 @@ export class TestService {
    * Discover available test suites
    */
   async getSuites(): Promise<TestSuite[]> {
-    const suiteNames = await discoverSuites(this.projectRoot);
+    // Use configured suites if available
+    const configuredSuites = this.configService.getSuites();
+    if (configuredSuites.length > 0) {
+      return configuredSuites.map((suite) => ({
+        name: suite.name,
+        path: suite.path,
+        testCount: 0,
+      }));
+    }
 
-    return suiteNames.map((name) => ({
-      name,
-      path: name === 'all' ? 'tests/' : `tests/${name}/`,
-      testCount: 0, // We don't count files here
+    // Fallback: discover from filesystem
+    const discovered = await this.discoveryService.discoverAll();
+    return discovered.map((suite) => ({
+      name: suite.name,
+      path: suite.path,
+      testCount: suite.testFileCount,
     }));
   }
 

@@ -165,14 +165,12 @@ describe('Test Service', () => {
   });
 
   describe('getSuites', () => {
-    test('should discover test suites from project', async () => {
+    test('should return configured suites (or default if no config)', async () => {
       const suites = await service.getSuites();
 
-      // Should include 'all', 'unit', 'integration'
-      expect(suites.length).toBeGreaterThanOrEqual(3);
-      expect(suites.some(s => s.name === 'all')).toBe(true);
-      expect(suites.some(s => s.name === 'unit')).toBe(true);
-      expect(suites.some(s => s.name === 'integration')).toBe(true);
+      // Default config has one suite: 'All Tests'
+      expect(suites.length).toBeGreaterThanOrEqual(1);
+      expect(suites.some(s => s.name === 'All Tests')).toBe(true);
     });
   });
 

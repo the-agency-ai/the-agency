@@ -5,7 +5,7 @@
  */
 
 import { spawn } from 'child_process';
-import { resolve, relative, join } from 'path';
+import { resolve, join } from 'path';
 import { createServiceLogger } from '../../../core/lib/logger';
 import type { BunTestOutput, BunTestResult } from '../types';
 import type { TestRunner, TestTarget } from '../config/test-config.types';
@@ -195,7 +195,7 @@ export async function runTests(options: TestRunnerOptions): Promise<BunTestOutpu
   // Add reporter flags for parseable output
   args.push('--reporter', 'default');
 
-  return new Promise((resolve) => {
+  return new Promise((resolvePromise) => {
     let stdout = '';
     let stderr = '';
 
@@ -209,7 +209,7 @@ export async function runTests(options: TestRunnerOptions): Promise<BunTestOutpu
 
     const timer = setTimeout(() => {
       proc.kill('SIGTERM');
-      resolve({
+      resolvePromise({
         success: false,
         results: [],
         summary: {
@@ -242,14 +242,14 @@ export async function runTests(options: TestRunnerOptions): Promise<BunTestOutpu
         output.success = code === 0;
       }
 
-      resolve(output);
+      resolvePromise(output);
     });
 
     proc.on('error', (err) => {
       clearTimeout(timer);
       logger.error({ err }, 'Failed to spawn test process');
 
-      resolve({
+      resolvePromise({
         success: false,
         results: [{
           name: 'spawn-error',
@@ -405,21 +405,3 @@ export async function runTestsWithConfig(options: ConfigurableRunnerOptions): Pr
   });
 }
 
-/**
- * Discover available test suites
- */
-export async function discoverSuites(projectRoot: string): Promise<string[]> {
-  const { readdir } = await import('fs/promises');
-
-  try {
-    const testsDir = join(projectRoot, 'tests');
-    const entries = await readdir(testsDir, { withFileTypes: true });
-    const suites = entries
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name);
-
-    return ['all', ...suites];
-  } catch {
-    return ['all'];
-  }
-}

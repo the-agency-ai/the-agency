@@ -176,25 +176,6 @@ export function createTestRoutes(testService: TestService) {
   });
 
   /**
-   * GET /test/run/results/:id - Get all results for a run
-   */
-  app.get('/run/results/:id', async (c) => {
-    try {
-      const id = c.req.param('id');
-      const run = await testService.getRunWithResults(id);
-
-      if (!run) {
-        return c.json({ error: 'Test run not found' }, 404);
-      }
-
-      return c.json(run);
-    } catch (error) {
-      logger.error({ error }, 'Failed to get test results');
-      throw error;
-    }
-  });
-
-  /**
    * GET /test/run/failures/:id - Get only failed results for a run
    */
   app.get('/run/failures/:id', async (c) => {
@@ -237,7 +218,9 @@ export function createTestRoutes(testService: TestService) {
    */
   app.get('/flaky', async (c) => {
     try {
-      const limit = parseInt(c.req.query('limit') || '10', 10);
+      const rawLimit = parseInt(c.req.query('limit') || '10', 10);
+      // Bounds check: limit must be between 1 and 100
+      const limit = Math.min(Math.max(rawLimit, 1), 100);
       const flaky = await testService.getFlakyTests(limit);
 
       return c.json({ tests: flaky });
@@ -315,11 +298,12 @@ export function createTestRoutes(testService: TestService) {
     try {
       const body = await c.req.json();
 
-      // Validate required fields
+      // Validate required fields with safe ID pattern to prevent injection
+      const safeIdPattern = /^[a-zA-Z0-9_-]+$/;
       const schema = z.object({
-        id: z.string().min(1),
+        id: z.string().regex(safeIdPattern, 'ID must be alphanumeric with hyphens/underscores'),
         name: z.string().min(1),
-        target: z.string().min(1),
+        target: z.string().regex(safeIdPattern, 'Target must be alphanumeric with hyphens/underscores'),
         path: z.string().min(1),
         tags: z.array(z.string()).optional(),
       });

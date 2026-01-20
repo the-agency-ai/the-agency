@@ -836,7 +836,7 @@ cmd_test_run() {
     log_info "Running tests (suite: $suite)..."
     local json
     json=$(build_json "suite" "$suite" "triggeredByType" "$triggered_by_type" "triggeredByName" "$triggered_by_name")
-    api_request POST "/api/test/run" "$json" | jq .
+    api_request POST "/api/test/run/execute" "$json" | jq .
 }
 
 cmd_test_list() {
@@ -851,7 +851,7 @@ cmd_test_list() {
         esac
     done
 
-    local endpoint="/api/test/run"
+    local endpoint="/api/test/run/list"
     if [[ -n "$query" ]]; then
         endpoint="${endpoint}?${query%&}"
     fi
@@ -870,13 +870,13 @@ cmd_test_get() {
 
     case "$mode" in
         all)
-            api_request GET "/api/test/run/${run_id}/all" | jq .
+            api_request GET "/api/test/run/get/${run_id}" | jq .
             ;;
         failures|failed)
-            api_request GET "/api/test/run/${run_id}/failures" | jq .
+            api_request GET "/api/test/run/failures/${run_id}" | jq .
             ;;
         *)
-            api_request GET "/api/test/run/${run_id}" | jq .
+            api_request GET "/api/test/run/get/${run_id}" | jq .
             ;;
     esac
 }
@@ -914,12 +914,13 @@ cmd_test_cancel() {
         log_error "Run ID required"
         exit 1
     fi
-    api_request POST "/api/test/run/${run_id}/cancel" | jq .
+    api_request POST "/api/test/run/cancel/${run_id}" | jq .
 }
 
 cmd_test_cleanup() {
     local days="${1:-30}"
-    api_request DELETE "/api/test/cleanup?days=${days}" | jq .
+    local json="{\"days\": $days}"
+    api_request POST "/api/test/cleanup" "$json" | jq .
 }
 
 cmd_test_config() {

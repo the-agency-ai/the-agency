@@ -172,8 +172,14 @@ export class TestRunRepository {
         logger.info('Migrated test_runs table: added target column');
       }
     } catch (error) {
-      // Table might not exist yet, which is fine
-      logger.debug({ error }, 'Migration check skipped');
+      // Check if error is "no such table" which is expected during initial setup
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('no such table')) {
+        logger.debug({ error: errorMessage }, 'Migration check skipped - table not yet created');
+      } else {
+        // Log unexpected errors at warning level
+        logger.warn({ error: errorMessage }, 'Migration check encountered unexpected error');
+      }
     }
   }
 

@@ -5,7 +5,7 @@
  */
 
 import { readFile, writeFile, mkdir } from 'fs/promises';
-import { join, dirname } from 'path';
+import { join, dirname, resolve, relative } from 'path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { createServiceLogger } from '../../../core/lib/logger';
 import {
@@ -16,6 +16,22 @@ import {
   type TestSuiteConfig,
   type ConfigValidationResult,
 } from './test-config.types';
+
+/**
+ * Allowed runner commands (first element of command array)
+ * Only these executables are permitted for security
+ */
+const ALLOWED_RUNNER_COMMANDS = new Set([
+  'bun',
+  'npm',
+  'npx',
+  'node',
+  'jest',
+  'vitest',
+  'mocha',
+  'pnpm',
+  'yarn',
+]);
 
 const logger = createServiceLogger('test-config');
 
@@ -64,8 +80,17 @@ export class TestConfigService {
   private projectRoot: string;
 
   constructor(projectRoot: string, configPath?: string) {
-    this.projectRoot = projectRoot;
-    this.configPath = configPath || join(projectRoot, DEFAULT_CONFIG_PATH);
+    this.projectRoot = resolve(projectRoot);
+    const proposedPath = configPath || join(projectRoot, DEFAULT_CONFIG_PATH);
+
+    // Security: Ensure config path is within project root
+    const resolvedConfigPath = resolve(proposedPath);
+    const relativePath = relative(this.projectRoot, resolvedConfigPath);
+    if (relativePath.startsWith('..') || resolve(relativePath) === relativePath) {
+      throw new Error('Config path must be within project root');
+    }
+
+    this.configPath = resolvedConfigPath;
   }
 
   /**
@@ -181,6 +206,14 @@ export class TestConfigService {
     const errors: string[] = [];
     const runnerIds = new Set(this.config.runners.map((r) => r.id));
     const targetIds = new Set(this.config.targets.map((t) => t.id));
+
+    // Security: Check runner commands are from allowlist
+    for (const runner of this.config.runners) {
+      const command = runner.command[0];
+      if (!ALLOWED_RUNNER_COMMANDS.has(command)) {
+        errors.push(`Runner '${runner.id}' uses disallowed command '${command}'. Allowed: ${[...ALLOWED_RUNNER_COMMANDS].join(', ')}`);
+      }
+    }
 
     // Check targets reference valid runners
     for (const target of this.config.targets) {
