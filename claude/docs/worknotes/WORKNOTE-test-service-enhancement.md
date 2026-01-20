@@ -2,8 +2,8 @@
 
 **Date:** 2026-01-20
 **REQUEST:** REQUEST-jordan-0013
-**Status:** Complete (impl stage)
-**Tag:** REQUEST-jordan-0013-impl
+**Status:** Complete (all stages)
+**Tags:** REQUEST-jordan-0013-impl, REQUEST-jordan-0013-review, REQUEST-jordan-0013-tests, REQUEST-jordan-0013-complete
 
 ---
 
@@ -206,12 +206,13 @@ GitHub Actions workflow now:
 | Metric | Value |
 |--------|-------|
 | Lines added | ~2,100 |
-| New tests | 41 |
-| Total tests | 760 |
+| New tests | 52 (41 impl + 11 security) |
+| Total tests | 771 |
 | New endpoints | 7 |
 | New CLI commands | 5 |
-| Phases completed | 9 |
-| Implementation time | Single session |
+| Phases completed | 9 (impl) + review + tests |
+| Code review findings fixed | 8 |
+| Security review findings fixed | 3 |
 
 ---
 
@@ -284,9 +285,32 @@ This work demonstrates:
 
 ---
 
+## Review Workflow
+
+### Code Review Fixes (2 code reviewers + 1 security reviewer)
+- Remove duplicate route (/run/results/:id)
+- Remove unused import (relative from path)
+- Fix variable shadowing (resolve → resolvePromise)
+- Fix non-null assertion with proper null check
+- Remove duplicate discoverSuites function
+- Add bounds checking for limit parameter
+- Add safeIdPattern validation to suite registration
+- Fix CLI endpoints to match route definitions
+
+### Security Review Fixes
+- Add runner command allowlist (bun, npm, npx, node, jest, vitest, mocha, pnpm, yarn)
+- Add path validation for config path (must be within project root)
+- Improve migration error handling with proper warning logging
+
+### Test Review Additions (2 test reviewers)
+- Add path traversal prevention tests (5 tests)
+- Add runner command allowlist tests (6 tests)
+
+---
+
 ## References
 
 - REQUEST-jordan-0013: Implementation plan
 - claude/docs/TESTING.md: User documentation
 - .agency/test-config.yaml: Configuration example
-- Tag: REQUEST-jordan-0013-impl
+- Tags: REQUEST-jordan-0013-impl, REQUEST-jordan-0013-review, REQUEST-jordan-0013-tests, REQUEST-jordan-0013-complete
