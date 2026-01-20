@@ -13,8 +13,8 @@
     },
     "work_item": {
       "type": "string",
-      "description": "Work item ID (e.g., REQUEST-jordan-0065)",
-      "pattern": "^[A-Z]+-[a-z]+-[0-9]+$"
+      "description": "Work item ID (e.g., REQUEST-jordan-0065, BUG-0001, SPRINT-web-2026w03)",
+      "pattern": "^[A-Z]+-[a-zA-Z0-9-]+-[0-9]+$"
     },
     "stage": {
       "type": "string",
@@ -102,7 +102,7 @@
         },
         "code_snippet": {
           "type": "string",
-          "description": "Relevant code snippet"
+          "description": "Relevant code snippet. WARNING: Sanitize to remove secrets, credentials, or PII before storing"
         },
         "cwe": {
           "type": "string",

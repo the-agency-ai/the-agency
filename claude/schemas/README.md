@@ -96,7 +96,19 @@ claude/logs/reviews/
 | invalid | False positive, not an issue |
 | duplicate | Merged with another finding |
 
+### Review Types
+
+| Type | Description |
+|------|-------------|
+| code | Code quality review - readability, maintainability, best practices |
+| security | Security review - vulnerabilities, CWE, OWASP issues |
+| test | Test review - coverage gaps, edge cases, test quality |
+
 ## Usage
+
+**Note:** The tools below are planned for Phase B/C. Phase A only implements schemas and storage.
+
+
 
 ### Creating a Finding File
 

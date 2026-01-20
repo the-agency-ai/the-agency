@@ -6,7 +6,6 @@
   "timestamp": "2026-01-20T15:00:00Z",
   "source_reviews": [
     "code-review-1.json",
-    "code-review-2.json",
     "security-review-1.json"
   ],
   "findings": [
@@ -69,11 +68,12 @@
     },
     {
       "id": "C005",
-      "source_ids": ["security-F001"],
+      "source_ids": ["F001"],
       "status": "valid",
       "severity": "medium",
       "category": "security",
       "file": "tools/gh",
+      "notes": "From security-review-1.json (disambiguate from code-review F001)",
       "line_start": 78,
       "line_end": 80,
       "issue": "Command arguments logged may contain sensitive data",

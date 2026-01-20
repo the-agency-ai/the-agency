@@ -47,7 +47,8 @@
       "line_start": 147,
       "line_end": 147,
       "issue": "Literal \\n in variable assignment creates backslash-n, not newline",
-      "recommendation": "Use $'\\n' syntax for actual newlines"
+      "recommendation": "Use $'\\n' syntax for actual newlines",
+      "code_snippet": "NEWLINE=\"\\n\""
     },
     {
       "id": "F005",

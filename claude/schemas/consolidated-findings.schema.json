@@ -13,8 +13,8 @@
     },
     "work_item": {
       "type": "string",
-      "description": "Work item ID (e.g., REQUEST-jordan-0065)",
-      "pattern": "^[A-Z]+-[a-z]+-[0-9]+$"
+      "description": "Work item ID (e.g., REQUEST-jordan-0065, BUG-0001, SPRINT-web-2026w03)",
+      "pattern": "^[A-Z]+-[a-zA-Z0-9-]+-[0-9]+$"
     },
     "stage": {
       "type": "string",
@@ -84,10 +84,11 @@
         },
         "source_ids": {
           "type": "array",
-          "description": "Original finding IDs that were merged into this",
+          "description": "Original finding IDs that were merged into this (format: F001 or review-type-F001)",
           "items": {
             "type": "string"
-          }
+          },
+          "minItems": 1
         },
         "status": {
           "type": "string",
