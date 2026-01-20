@@ -114,6 +114,16 @@ main() {
     exit 1
   fi
 
+  # Check for pyyaml dependency (needed for YAML parsing)
+  if ! python3 -c "import yaml" 2>/dev/null; then
+    log_error "pyyaml not installed. Run: pip3 install pyyaml"
+    echo "Missing dependency: pyyaml" >&2
+    echo "Install with: pip3 install -r requirements.txt" >&2
+    trap - EXIT
+    log_end "$RUN_ID" "failure" 1 0 "Missing pyyaml dependency"
+    exit 1
+  fi
+
 case "$ACTION" in
   get)
     if [[ -z "$KEY_PATH" ]]; then

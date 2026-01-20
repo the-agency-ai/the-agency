@@ -341,6 +341,48 @@ Pre-commit hooks enforce:
 5. Code review checks
 6. API design patterns
 
+### Dependencies
+
+**CRITICAL: All dependencies MUST be tracked. Never add a dependency without documenting it.**
+
+When adding a dependency:
+1. **Python** - Add to `requirements.txt` in project root
+2. **Node.js** - Add to `package.json` (use `npm install --save` or `--save-dev`)
+3. **System tools** - Document in README.md Prerequisites section
+4. **Shell utilities** - Check availability with fallbacks or clear error messages
+
+**Before using a dependency in code:**
+- Verify it's already tracked, OR
+- Add it to the appropriate manifest file first
+
+**Error handling for optional dependencies:**
+```bash
+# Good - check and provide helpful error
+if ! python3 -c "import yaml" 2>/dev/null; then
+    echo "Error: pyyaml not installed. Run: pip3 install pyyaml" >&2
+    exit 1
+fi
+
+# Bad - let it fail cryptically
+python3 -c "import yaml; ..."  # User sees "ModuleNotFoundError"
+```
+
+### Bug Fix Policy
+
+**Fix bugs when encountered.** Don't defer bugs to "later" - they accumulate and cause confusion.
+
+When you encounter a bug:
+1. Fix it immediately if it's blocking or quick
+2. Create a BUG-XXXX item if it requires significant work
+3. Document the fix in the relevant KNOWLEDGE.md
+4. Add tests to prevent regression
+
+**Never ignore:**
+- Cryptic error messages (improve them)
+- Missing dependencies (track them)
+- Test pollution (clean it up)
+- Dirty working trees (commit or stash)
+
 ## Work Items
 
 Work in The Agency is tracked through REQUEST files. Each REQUEST goes through defined stages.

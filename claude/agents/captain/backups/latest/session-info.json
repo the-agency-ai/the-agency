@@ -1,9 +1,0 @@
-{
-  "agentname": "captain",
-  "workstream": "housekeeping",
-  "timestamp": "2026-01-18 11:20:45 +08",
-  "branch": "main",
-  "last_commit": "2c23d34 - housekeeping/captain: docs: security audit findings (REQUEST-0062)",
-  "has_uncommitted": true,
-  "has_staged": false
-}

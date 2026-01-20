@@ -35,6 +35,12 @@ claude/data/*.db-shm
 # Instance tracking (ephemeral runtime state)
 claude/data/instances/
 
+# Service PID files (runtime)
+claude/data/*.pid
+
+# Agency service logs
+claude/logs/
+
 # Test coverage
 coverage/
 

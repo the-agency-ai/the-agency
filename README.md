@@ -14,6 +14,18 @@ The Agency is a convention-over-configuration system for running multiple Claude
 - **Quality Gates** - Enforced standards via pre-commit hooks
 - **Session Continuity** - Backup and restore agent context across sessions
 
+## Prerequisites
+
+- **Bash** 4.0+ (macOS ships with 3.2, install via `brew install bash`)
+- **Python 3** with pip
+- **Node.js** 18+ (for agency-service)
+- **Git** 2.0+
+
+Install Python dependencies:
+```bash
+pip3 install -r requirements.txt
+```
+
 ## Getting Started
 
 For new projects, use [The Agency Starter](https://github.com/the-agency-ai/the-agency-starter):

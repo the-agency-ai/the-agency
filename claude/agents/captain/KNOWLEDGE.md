@@ -99,6 +99,22 @@ When work spans multiple agents:
 ./tools/instruction-show       # See active instructions
 ```
 
+## Agency Service
+
+The agency-service runs on port 3141 and provides the API layer for all embedded services.
+
+### Key Endpoints
+- `/health` - Health check (no auth required, for monitoring/load balancers)
+- `/api` - Service index (lists all available service routes)
+- `/api/*` - All service routes (require auth)
+
+**Note:** The health endpoint is at `/health`, NOT `/api/health`. This is intentional - health checks must be accessible without authentication.
+
+### Checking Service Status
+```bash
+curl http://127.0.0.1:3141/health
+```
+
 ## Framework-Specific Notes
 
 _This section grows as you add starter packs._
@@ -112,6 +128,15 @@ _This section grows as you add starter packs._
 
 ### Python
 - See `claude/starter-packs/python/` when available
+
+## Known Issues
+
+### Test Pollution: principals/INDEX.md
+Tests in `tests/tools/principal.bats` create test principals using `principal-create`. The cleanup removes directories but not the INDEX.md entries that `principal-create` appends. This causes test pollution in `claude/principals/INDEX.md`.
+
+**Workaround:** Manually clean up INDEX.md after running tests.
+
+**Fix needed:** Tests should remove their INDEX.md entries in cleanup, or use a test-specific INDEX.md.
 
 ## Learnings Log
 

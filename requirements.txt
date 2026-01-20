@@ -1,0 +1,5 @@
+# The Agency Python Dependencies
+# Install with: pip3 install -r requirements.txt
+
+# YAML parsing for configuration files (used by tools/config)
+pyyaml>=6.0
