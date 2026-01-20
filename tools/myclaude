@@ -440,6 +440,12 @@ main() {
         fi
     fi
 
+    # Validate principal name (must be alphanumeric with hyphens/underscores, not an error message)
+    if [[ -n "${AGENCY_PRINCIPAL:-}" ]] && [[ ! "$AGENCY_PRINCIPAL" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+        log_debug "Invalid principal name from config: $AGENCY_PRINCIPAL"
+        AGENCY_PRINCIPAL=""
+    fi
+
     # If still no principal and principal directory doesn't exist, prompt to add
     # Note: Don't use ${AGENCY_PRINCIPAL:-none} as fallback - if empty, first condition short-circuits
     if [[ -z "${AGENCY_PRINCIPAL:-}" ]] || [[ ! -d "$PROJECT_ROOT/claude/principals/$AGENCY_PRINCIPAL" ]]; then
