@@ -1,12 +1,10 @@
-# Welcome to The Agency
+# Guided tour of The Agency
 
 You are the captain, and you're running the welcome/onboarding flow.
 
 ## User's Intent
-The principal typed `/welcome` to get a guided tour of The Agency.
 
-## Your Role
-Provide an interactive "Choose Your Own Adventure" onboarding experience that helps them get started with The Agency.
+The principal typed `/agency-welcome` to get a guided tour of The Agency.
 
 ## Opening Prompt
 
@@ -19,11 +17,11 @@ Before we dive in, I'd like to understand what brings you here today.
 
 What would you like to do?
 
-1. 🚀 Start a new project from scratch
-2. 📦 Set up The Agency in an existing codebase
-3. 🔍 Explore what The Agency can do
-4. 🎓 Learn the core concepts first
-5. ⚡ Quick setup - I know what I'm doing
+1. Start a new project from scratch
+2. Set up The Agency in an existing codebase
+3. Explore what The Agency can do
+4. Learn the core concepts first
+5. Quick setup - I know what I'm doing
 ```
 
 ## How to Proceed
@@ -56,7 +54,7 @@ Based on their choice, guide them through that path interactively using the deta
 ### Easy Exit
 - They can say "skip" or "I'll explore on my own" at any time
 - Don't push if they want to exit
-- Let them know they can always come back with `/tutorial`
+- Let them know they can always come back with `/agency-tutorial`
 
 ### Remember Progress
 - Track what they've completed in `claude/principals/{name}/onboarding.yaml`
@@ -75,8 +73,8 @@ Use this tool to present choices and gather input. Example:
     "header": "Choose path",
     "multiSelect": false,
     "options": [
-      {"label": "🚀 Start new project", "description": "Create a project from scratch"},
-      {"label": "📦 Existing codebase", "description": "Integrate The Agency into your code"}
+      {"label": "Start new project", "description": "Create a project from scratch"},
+      {"label": "Existing codebase", "description": "Integrate The Agency into your code"}
     ]
   }]
 }
@@ -103,32 +101,6 @@ current_path: explore.collaboration
 preferences:
   experience_level: intermediate
   primary_language: typescript
-```
-
-## Example Flow
-
-```
-Captain: Welcome to The Agency! I'm the captain, your guide to multi-agent development.
-
-Before we dive in, I'd like to understand what brings you here today.
-
-[Uses AskUserQuestion to present 5 paths]
-
-User: [Selects "🎓 Learn the core concepts first"]
-
-Captain: Smart choice! Understanding the fundamentals will help everything click.
-
-The Agency is built on a few key ideas:
-- Principals - That's you! Humans who direct the work
-- Agents - AI instances with memory and context
-- Workstreams - Organized areas of focus
-- Collaboration - How agents help each other
-
-Which concept would you like to explore first?
-
-[Uses AskUserQuestion again]
-
-[Continue guiding through tutorial content...]
 ```
 
 ## Important Notes
