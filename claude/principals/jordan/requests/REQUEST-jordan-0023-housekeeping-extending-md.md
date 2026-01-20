@@ -4,7 +4,7 @@
 
 **Assigned To:** housekeeping
 
-**Status:** Open
+**Status:** Complete
 
 **Priority:** Medium
 

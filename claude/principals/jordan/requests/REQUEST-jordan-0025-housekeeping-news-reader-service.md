@@ -4,7 +4,7 @@
 
 **Assigned To:** housekeeping
 
-**Status:** Open
+**Status:** Cancelled
 
 **Priority:** Low
 
@@ -37,6 +37,9 @@ Service that fetches news from configured sources, triggered on agent launch and
 - (Extensible via starter kits)
 
 ## Activity Log
+
+### 2026-01-20 - Cancelled
+- Closed as low priority backlog cleanup
 
 ### 2026-01-10 17:45 SST - Created
 - Stub created as part of omnibus breakdown

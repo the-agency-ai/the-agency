@@ -1,6 +1,6 @@
 # REQUEST-jordan-0034-housekeeping-captain-onboarding-context-for-first-run
 
-**Status:** Open
+**Status:** Complete
 **Priority:** High
 **Requested By:** agent:housekeeping (on behalf of jordan)
 **Assigned To:** housekeeping

@@ -4,7 +4,7 @@
 
 **Assigned To:** housekeeping
 
-**Status:** Open
+**Status:** Complete
 
 **Priority:** High (blocking other work)
 
@@ -284,6 +284,16 @@ None - this is foundational cleanup.
 ---
 
 ## Activity Log
+
+### 2026-01-20 - Completed
+- Verified history/ directory with push-log.md
+- Created history/releases.md and history/CHANGELOG.md
+- Verified claude/config/ with agency.yaml, agency-dependencies.yaml
+- Verified claude/integrations/ with claude-desktop
+- Verified starter-release tool exists and works
+- Updated ./tools/release to auto-update history/releases.md on release
+- Cleaned up old comparison logs from claude/logs/
+- Note: agency-service.log remains in claude/logs/ (working location)
 
 ### 2026-01-10 15:30 SST - Created
 - Request created based on directory cleanup discussion

@@ -1,7 +1,7 @@
 # REQUEST-jordan-0036-housekeeping-project-handoff-mechanism
 
-**Status:** Open
-**Priority:** Normal
+**Status:** Open - Deferred
+**Priority:** Low
 **Requested By:** agent:housekeeping (on behalf of jordan)
 **Assigned To:** housekeeping
 **Created:** 2026-01-11
@@ -76,6 +76,11 @@ This is important for:
 ---
 
 ## Activity Log
+
+### 2026-01-20 - Deferred
+- Reviewed with principal jordan
+- Valid feature but not urgent - more relevant when multiple users need project handoffs
+- Keeping open at low priority for when demand emerges
 
 ### 2026-01-11 - Created
 - Request created by agent:housekeeping (on behalf of jordan)

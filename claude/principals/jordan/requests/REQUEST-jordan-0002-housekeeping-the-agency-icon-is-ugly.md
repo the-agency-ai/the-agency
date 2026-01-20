@@ -1,6 +1,6 @@
 # REQUEST-jordan-0002-housekeeping-the-agency-icon-is-ugly
 
-**Status:** Open
+**Status:** Complete
 **Priority:** Normal
 **Requested By:** principal:jordan
 **Assigned To:** housekeeping
@@ -28,6 +28,9 @@ The Agency Icon is ugly
 ---
 
 ## Activity Log
+
+### 2026-01-20 - Completed
+- Icon work completed (see REQUEST-0001)
 
 ### 2026-01-09 - Created
 - Request created by principal:jordan

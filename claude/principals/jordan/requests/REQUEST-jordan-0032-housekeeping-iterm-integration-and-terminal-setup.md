@@ -1,6 +1,6 @@
 # REQUEST-jordan-0032-housekeeping-iterm-integration-and-terminal-setup
 
-**Status:** Open
+**Status:** Complete
 **Priority:** Normal
 **Requested By:** agent:housekeeping (on behalf of jordan)
 **Assigned To:** housekeeping
@@ -28,6 +28,11 @@ Configure iTerm for optimal Agency experience: color indicators, icons, status l
 ---
 
 ## Activity Log
+
+### 2026-01-20 - Completed
+- Merged into REQUEST-0048 (iTerm Tab Status)
+- Colors working via hooks
+- Shapes investigation tracked in BUG HOUSEKEEPING-00007
 
 ### 2026-01-11 - Created
 - Request created by agent:housekeeping (on behalf of jordan)
