@@ -41,8 +41,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
 log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
 verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
-# Configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Configuration (SCRIPT_DIR already set above for log helper)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Starter is now a sibling repo, not a subdirectory
 STARTER_DIR="$(cd "$PROJECT_ROOT/../the-agency-starter" 2>/dev/null && pwd)"
@@ -145,6 +144,16 @@ bump_version() {
             echo "$type"  # Assume it's a specific version
             ;;
     esac
+}
+
+# Validate version string format
+validate_version() {
+    local version="$1"
+    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log_error "Invalid version format: $version (expected X.Y.Z)"
+        return 1
+    fi
+    return 0
 }
 
 # Sync files from the-agency to starter
@@ -307,8 +316,9 @@ clean_cruft() {
 
     # Scrub sensitive identifiers from config if synced
     if [[ -f "$STARTER_DIR/claude/config/agency.yaml" ]]; then
-        # Remove jdm: jordan line if present
-        sed -i '' '/jdm: jordan/d' "$STARTER_DIR/claude/config/agency.yaml" 2>/dev/null || true
+        # Remove jdm: jordan line if present (cross-platform sed)
+        local config_file="$STARTER_DIR/claude/config/agency.yaml"
+        grep -v 'jdm: jordan' "$config_file" > "${config_file}.tmp" 2>/dev/null && mv "${config_file}.tmp" "$config_file" || true
     fi
 
     echo "  Cleaned cruft"
@@ -400,14 +410,14 @@ verify_build() {
     else
         # Fallback to comprehensive grep patterns if scanner not available
         local secret_patterns=(
-            "GUMROAD_[A-Z_]*=[A-Za-z0-9_-]\\{20,\\}"
-            "sk-ant-[A-Za-z0-9_-]\\{20,\\}"
-            "ghp_[A-Za-z0-9]\\{36\\}"
-            "gho_[A-Za-z0-9]\\{36\\}"
+            "GUMROAD_[A-Z_]*=[A-Za-z0-9_-]{20,}"
+            "sk-ant-[A-Za-z0-9_-]{20,}"
+            "ghp_[A-Za-z0-9]{36}"
+            "gho_[A-Za-z0-9]{36}"
             "ANTHROPIC_API_KEY"
             "OPENAI_API_KEY"
-            "client_secret.*=.*[A-Za-z0-9_-]\\{20,\\}"
-            "access_token.*=.*[A-Za-z0-9_-]\\{20,\\}"
+            "client_secret.*=.*[A-Za-z0-9_-]{20,}"
+            "access_token.*=.*[A-Za-z0-9_-]{20,}"
             "-----BEGIN.*PRIVATE KEY-----"
         )
         local found_secrets=false
@@ -651,6 +661,13 @@ main() {
         new_version=$(bump_version "$current_version" "patch")
     else
         new_version=$(bump_version "$current_version" "$VERSION_ARG")
+    fi
+
+    # Validate version format
+    if ! validate_version "$new_version"; then
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Invalid version format"
+        exit 1
     fi
 
     log_info "Current version: $current_version"
