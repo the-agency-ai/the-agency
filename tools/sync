@@ -152,6 +152,16 @@ output_failure() {
 main() {
     start_run
 
+    # Check for uncommitted changes
+    if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+        log_warn "Uncommitted changes detected"
+        if [[ "$CHECK_ONLY" == "true" ]]; then
+            end_run "failure" "Uncommitted changes"
+            output_failure "Uncommitted changes in working tree"
+            exit 1
+        fi
+    fi
+
     REPO_ROOT="$(git rev-parse --show-toplevel)"
     PUSH_LOG="$REPO_ROOT/history/push-log.md"
     AGENT="${AGENTNAME:-unknown}"
