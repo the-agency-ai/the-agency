@@ -41,7 +41,7 @@
 set -euo pipefail
 
 # Tool version
-TOOL_VERSION="2.0.0-20260120-000001"
+TOOL_VERSION="2.0.0-20260120-000002"
 
 # Source log helper for tool tracking
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -116,18 +116,34 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --work-item|-w)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                log_error "--work-item requires a value"
+                exit 1
+            fi
             WORK_ITEM="$2"
             shift 2
             ;;
         --stage|-s)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                log_error "--stage requires a value"
+                exit 1
+            fi
             STAGE="$2"
             shift 2
             ;;
         --body|-b)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                log_error "--body requires a value"
+                exit 1
+            fi
             BODY="$2"
             shift 2
             ;;
         --principal|-p)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                log_error "--principal requires a value"
+                exit 1
+            fi
             PRINCIPAL_OVERRIDE="$2"
             shift 2
             ;;
@@ -217,10 +233,16 @@ main() {
 
     # If not set, try to infer from myclaude session marker
     if [ -z "$WORKSTREAM" ] || [ -z "$AGENT" ]; then
-        # Check for session file
+        # Check for session file (safely parse, don't source arbitrary code)
         SESSION_FILE="${HOME}/.claude/current-session"
         if [ -f "$SESSION_FILE" ]; then
-            source "$SESSION_FILE" 2>/dev/null || true
+            # Only extract expected variable assignments
+            while IFS='=' read -r key value; do
+                case "$key" in
+                    AGENCY_WORKSTREAM) WORKSTREAM="${value//[^a-zA-Z0-9_-]/}" ;;
+                    AGENCY_AGENT) AGENT="${value//[^a-zA-Z0-9_-]/}" ;;
+                esac
+            done < "$SESSION_FILE" 2>/dev/null || true
         fi
     fi
 
@@ -243,14 +265,15 @@ main() {
     if [ -n "$PRINCIPAL_OVERRIDE" ]; then
         PRINCIPAL="$PRINCIPAL_OVERRIDE"
     elif [ -n "$WORK_ITEM" ]; then
-        # Try to extract principal from work item (e.g., REQUEST-jordan-0065 -> jordan)
-        if [[ "$WORK_ITEM" =~ ^[A-Z]+-([a-z]+)- ]]; then
+        # Try to extract principal from REQUEST work items (e.g., REQUEST-jordan-0065 -> jordan)
+        # Only REQUEST type has principal in the ID; others (SPRINT, PHASE, etc.) do not
+        if [[ "$WORK_ITEM" =~ ^REQUEST-([a-z]+)-[0-9]+ ]]; then
             PRINCIPAL="${BASH_REMATCH[1]}"
         fi
     fi
     # Fallback: try environment or config
     if [ -z "$PRINCIPAL" ]; then
-        PRINCIPAL="${AGENCY_PRINCIPAL:-${PRINCIPAL:-unknown}}"
+        PRINCIPAL="${AGENCY_PRINCIPAL:-unknown}"
     fi
 
     # Build the commit message
@@ -342,15 +365,22 @@ main() {
         # Log to ADHOC-WORKLOG.md if --adhoc was used
         if [ "$ADHOC" = true ]; then
             REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-            ADHOC_LOG="$REPO_ROOT/claude/agents/${AGENT}/ADHOC-WORKLOG.md"
-            if [ -f "$ADHOC_LOG" ]; then
-                DATE_NOW=$(date +%Y-%m-%d)
-                TIME_NOW=$(date +%H:%M)
-                echo "" >> "$ADHOC_LOG"
-                echo "### $DATE_NOW $TIME_NOW - Ad-hoc: $MESSAGE" >> "$ADHOC_LOG"
-                echo "- Commit: $COMMIT_HASH" >> "$ADHOC_LOG"
-                echo "- Agent: ${WORKSTREAM}/${AGENT}" >> "$ADHOC_LOG"
-                verbose_echo "Logged to ADHOC-WORKLOG.md"
+            # Validate AGENT to prevent path traversal
+            if [[ ! "$AGENT" =~ ^[a-z][a-z0-9-]*$ ]]; then
+                log_warn "Invalid agent name for adhoc log: $AGENT"
+            else
+                ADHOC_LOG="$REPO_ROOT/claude/agents/${AGENT}/ADHOC-WORKLOG.md"
+                if [ -f "$ADHOC_LOG" ]; then
+                    DATE_NOW=$(date +%Y-%m-%d)
+                    TIME_NOW=$(date +%H:%M)
+                    echo "" >> "$ADHOC_LOG"
+                    echo "### $DATE_NOW $TIME_NOW - Ad-hoc: $MESSAGE" >> "$ADHOC_LOG"
+                    echo "- Commit: $COMMIT_HASH" >> "$ADHOC_LOG"
+                    echo "- Agent: ${WORKSTREAM}/${AGENT}" >> "$ADHOC_LOG"
+                    verbose_echo "Logged to ADHOC-WORKLOG.md"
+                else
+                    log_warn "ADHOC-WORKLOG.md not found at $ADHOC_LOG"
+                fi
             fi
         fi
 

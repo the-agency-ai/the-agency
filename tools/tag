@@ -21,6 +21,7 @@
 #   --message, -m Custom tag message
 #   --dry-run     Show what would be done without doing it
 #   --list        List tags for a work item
+#   --force, -f   Force recreate existing tag without prompting
 #   --skip-tests  Skip test verification (use sparingly!)
 #   --skip-order  Skip stage order verification (use sparingly!)
 #
@@ -30,7 +31,7 @@
 
 set -euo pipefail
 
-TOOL_VERSION="2.0.0-20260120-000001"
+TOOL_VERSION="2.0.0-20260120-000002"
 
 # Source log helper for tool tracking
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -64,6 +65,7 @@ DRY_RUN=false
 LIST=false
 SKIP_TESTS=false
 SKIP_ORDER=false
+FORCE=false
 MESSAGE=""
 
 while [[ $# -gt 0 ]]; do
@@ -92,11 +94,19 @@ while [[ $# -gt 0 ]]; do
             SKIP_ORDER=true
             shift
             ;;
+        --force|-f)
+            FORCE=true
+            shift
+            ;;
         --list)
             LIST=true
             shift
             ;;
         --message|-m)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                echo "Error: --message requires a value" >&2
+                exit 1
+            fi
             MESSAGE="$2"
             shift 2
             ;;
@@ -245,11 +255,25 @@ main() {
     # Check if tag already exists
     if git tag -l "$TAG_NAME" | grep -q "$TAG_NAME"; then
         log_warn "Tag '$TAG_NAME' already exists"
-        read -p "Delete and recreate? (y/N) " -n 1 -r
-        echo
+
+        if [ "$FORCE" = true ]; then
+            # Force mode - recreate without prompting
+            REPLY="y"
+        elif [[ -t 0 ]]; then
+            # Interactive - prompt user
+            read -p "Delete and recreate? (y/N) " -n 1 -r
+            echo
+        else
+            # Non-interactive without --force - fail
+            log_error "Tag exists and no TTY available. Use --force to recreate."
+            trap - EXIT
+            log_end "$LOG_RUN_ID" "failure" "1" "0" "Tag exists, non-interactive"
+            exit 1
+        fi
+
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             if [ "$DRY_RUN" = true ]; then
-                verbose_echo "[DRY RUN] Would delete tag: $TAG_NAME"
+                echo "[DRY RUN] Would delete tag: $TAG_NAME"
             else
                 git tag -d "$TAG_NAME"
                 if [ "$PUSH" = true ]; then
@@ -259,17 +283,17 @@ main() {
         else
             echo "Aborted."
             trap - EXIT
-            log_end "$LOG_RUN_ID" "failure" "0" "0" "User aborted"
-            exit 1
+            log_end "$LOG_RUN_ID" "success" "0" "0" "User aborted"
+            exit 0
         fi
     fi
 
     # Create the tag
     if [ "$DRY_RUN" = true ]; then
-        verbose_echo "[DRY RUN] Would create tag: $TAG_NAME"
-        verbose_echo "[DRY RUN] Message: $TAG_MESSAGE"
+        echo "[DRY RUN] Would create tag: $TAG_NAME"
+        echo "[DRY RUN] Message: $TAG_MESSAGE"
         if [ "$PUSH" = true ]; then
-            verbose_echo "[DRY RUN] Would push to remote"
+            echo "[DRY RUN] Would push to remote"
         fi
         # End logging for dry run
         trap - EXIT
@@ -281,7 +305,9 @@ main() {
             echo "Created: $TAG_NAME"
 
             if [ "$PUSH" = true ]; then
-                git push origin "$TAG_NAME" >/dev/null 2>&1
+                if ! git push origin "$TAG_NAME" 2>&1; then
+                    log_warn "Failed to push tag to remote"
+                fi
             fi
 
             echo "✓"
