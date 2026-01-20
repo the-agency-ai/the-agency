@@ -1,0 +1,59 @@
+#!/bin/bash
+# GitHub PR operations wrapper
+#
+# Usage:
+#   ./tools/gh-pr list
+#   ./tools/gh-pr create --title "My PR" --body "Description"
+#   ./tools/gh-pr view 123
+#   ./tools/gh-pr merge 123
+#
+# This is a convenience wrapper around ./tools/gh pr
+# All operations are logged via the base gh wrapper.
+#
+# Related: REQUEST-jordan-0072
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Tool version
+TOOL_VERSION="1.0.0-20260120-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "gh-pr $TOOL_VERSION"
+    exit 0
+fi
+
+# Help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] || [[ $# -eq 0 ]]; then
+    cat << 'EOF'
+gh-pr - GitHub PR operations
+
+Usage:
+  ./tools/gh-pr <command> [arguments...]
+
+Commands:
+  list              List PRs
+  create            Create a PR
+  view <number>     View a PR
+  merge <number>    Merge a PR
+  close <number>    Close a PR
+  checkout <number> Checkout a PR locally
+  diff <number>     View PR diff
+  checks <number>   View PR checks status
+  comments <number> View PR comments
+
+Examples:
+  ./tools/gh-pr list --state open
+  ./tools/gh-pr create --title "Add feature" --body "Description"
+  ./tools/gh-pr view 123
+  ./tools/gh-pr merge 123 --squash
+
+All operations use ./tools/gh for token injection and logging.
+EOF
+    exit 0
+fi
+
+# Pass through to gh pr
+exec "$SCRIPT_DIR/gh" pr "$@"

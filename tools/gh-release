@@ -1,0 +1,61 @@
+#!/bin/bash
+# GitHub Release operations wrapper
+#
+# Usage:
+#   ./tools/gh-release list
+#   ./tools/gh-release create v1.0.0 --notes "Release notes"
+#   ./tools/gh-release view v1.0.0
+#
+# This is a convenience wrapper around ./tools/gh release
+# All operations are logged via the base gh wrapper.
+#
+# Note: For full release workflow (tagging, changelog, etc.),
+# use ./tools/release instead. This is for direct gh release operations.
+#
+# Related: REQUEST-jordan-0072
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Tool version
+TOOL_VERSION="1.0.0-20260120-000001"
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "gh-release $TOOL_VERSION"
+    exit 0
+fi
+
+# Help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] || [[ $# -eq 0 ]]; then
+    cat << 'EOF'
+gh-release - GitHub Release operations
+
+Usage:
+  ./tools/gh-release <command> [arguments...]
+
+Commands:
+  list                    List releases
+  create <tag>            Create a release
+  view <tag>              View a release
+  delete <tag>            Delete a release
+  download <tag>          Download release assets
+  upload <tag> <files>    Upload assets to a release
+
+Examples:
+  ./tools/gh-release list --limit 5
+  ./tools/gh-release create v1.0.0 --title "Version 1.0" --notes "First release"
+  ./tools/gh-release view v1.0.0
+  ./tools/gh-release delete v1.0.0-beta --yes
+
+Note: For full release workflow with changelog and tagging,
+use ./tools/release instead.
+
+All operations use ./tools/gh for token injection and logging.
+EOF
+    exit 0
+fi
+
+# Pass through to gh release
+exec "$SCRIPT_DIR/gh" release "$@"

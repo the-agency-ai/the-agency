@@ -1,0 +1,156 @@
+#!/bin/bash
+# GitHub CLI wrapper with automatic token injection and logging
+#
+# Usage:
+#   ./tools/gh pr list
+#   ./tools/gh release create v1.0.0
+#   ./tools/gh api /repos/{owner}/{repo}/pulls
+#
+# Features:
+#   - Automatic token injection from secret-service (github-admin-token)
+#   - All operations logged to log-service
+#   - Transparent pass-through to gh CLI
+#
+# Environment:
+#   GH_TOKEN - If set, uses this token instead of secret-service
+#
+# Related: REQUEST-jordan-0072
+
+set -euo pipefail
+
+# Tool version
+TOOL_VERSION="1.0.0-20260120-000001"
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper for tool tracking
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "gh" "agency-tool" "$@" 2>/dev/null) || true
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "gh (agency wrapper) $TOOL_VERSION"
+    echo "Wraps: $(command -v gh 2>/dev/null || echo 'gh not found')"
+    command gh --version 2>/dev/null || true
+    exit 0
+fi
+
+# Help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] && [[ $# -eq 1 ]]; then
+    cat << 'EOF'
+gh - GitHub CLI wrapper with token injection and logging
+
+Usage:
+  ./tools/gh <gh-command> [arguments...]
+
+Examples:
+  ./tools/gh pr list
+  ./tools/gh pr create --title "My PR" --body "Description"
+  ./tools/gh release create v1.0.0 --notes "Release notes"
+  ./tools/gh api /repos/{owner}/{repo}/pulls
+
+Features:
+  - Automatic GH_TOKEN injection from secret-service
+  - All operations logged for audit trail
+  - Transparent pass-through to gh CLI
+
+Options:
+  --version, -v    Show wrapper and gh versions
+  --help, -h       Show this help (use 'gh --help' for gh help)
+  --dry-run        Show what would be executed without running
+
+Environment:
+  GH_TOKEN         If set, uses this instead of secret-service
+
+See also:
+  ./tools/gh-pr      PR-specific operations
+  ./tools/gh-release Release-specific operations
+  ./tools/gh-api     API-specific operations
+EOF
+    exit 0
+fi
+
+# Dry run mode
+DRY_RUN=false
+if [[ "${1:-}" == "--dry-run" ]]; then
+    DRY_RUN=true
+    shift
+fi
+
+# Check if gh CLI is installed
+if ! command -v gh &> /dev/null; then
+    echo "gh [run: ${RUN_ID:-none}]" >&2
+    echo "Error: gh CLI not installed" >&2
+    echo "Install: https://cli.github.com/" >&2
+    echo "✗" >&2
+    log_end "$RUN_ID" "failure" "1" "0" "gh CLI not installed" "" 2>/dev/null || true
+    exit 1
+fi
+
+# Get GitHub token from secret-service if not already set
+if [[ -z "${GH_TOKEN:-}" ]]; then
+    if [[ -x "$SCRIPT_DIR/secret" ]]; then
+        EXTRACTED_TOKEN=$("$SCRIPT_DIR/secret" get github-admin-token 2>/dev/null || true)
+        if [[ -n "$EXTRACTED_TOKEN" ]]; then
+            export GH_TOKEN="$EXTRACTED_TOKEN"
+        fi
+    fi
+fi
+
+# Warn if no token available
+if [[ -z "${GH_TOKEN:-}" ]]; then
+    echo "Warning: No GitHub token available. Some operations may fail." >&2
+    echo "Set up with: ./tools/secret create github-admin-token --type=api_key --service=GitHub" >&2
+fi
+
+# Build command description for logging
+CMD_DESC="gh $*"
+if [[ ${#CMD_DESC} -gt 100 ]]; then
+    CMD_DESC="${CMD_DESC:0:97}..."
+fi
+
+# Dry run - show what would be executed
+if [[ "$DRY_RUN" == true ]]; then
+    echo "gh [run: ${RUN_ID:-none}]"
+    echo "Would execute: gh $*"
+    if [[ -n "${GH_TOKEN:-}" ]]; then
+        echo "GH_TOKEN: [set]"
+    else
+        echo "GH_TOKEN: [not set]"
+    fi
+    echo "✓ (dry-run)"
+    exit 0
+fi
+
+# Execute gh command and capture output
+OUTPUT_FILE=$(mktemp)
+ERROR_FILE=$(mktemp)
+trap "rm -f '$OUTPUT_FILE' '$ERROR_FILE'" EXIT
+
+set +e
+gh "$@" > "$OUTPUT_FILE" 2> "$ERROR_FILE"
+EXIT_CODE=$?
+set -e
+
+# Output results
+cat "$OUTPUT_FILE"
+cat "$ERROR_FILE" >&2
+
+# Log the operation
+STDOUT_CONTENT=$(cat "$OUTPUT_FILE")
+STDERR_CONTENT=$(cat "$ERROR_FILE")
+COMBINED_OUTPUT="$STDOUT_CONTENT"
+if [[ -n "$STDERR_CONTENT" ]]; then
+    COMBINED_OUTPUT="$COMBINED_OUTPUT\n--- stderr ---\n$STDERR_CONTENT"
+fi
+
+if [[ $EXIT_CODE -eq 0 ]]; then
+    log_end "$RUN_ID" "success" "$EXIT_CODE" "${#COMBINED_OUTPUT}" "$CMD_DESC" "$COMBINED_OUTPUT" 2>/dev/null || true
+else
+    log_end "$RUN_ID" "failure" "$EXIT_CODE" "${#COMBINED_OUTPUT}" "$CMD_DESC failed" "$COMBINED_OUTPUT" 2>/dev/null || true
+fi
+
+exit $EXIT_CODE
