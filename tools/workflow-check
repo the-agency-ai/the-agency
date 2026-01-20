@@ -1,0 +1,184 @@
+#!/bin/bash
+# Check workflow stage status for a work item
+#
+# Usage:
+#   ./tools/workflow-check REQUEST-jordan-0018
+#   ./tools/workflow-check SPRINT-web-2026w03
+#
+# Shows:
+#   - Which stages are complete (have tags)
+#   - What the next stage is
+#   - Commits since last tag
+#
+# Output:
+#   REQUEST-jordan-0018 workflow status:
+#     [x] impl     (2026-01-15)
+#     [x] review   (2026-01-16)
+#     [ ] tests    <- next
+#     [ ] complete
+#
+# Options:
+#   --quiet, -q   Just show next stage (for scripting)
+#   --verbose     Show additional details
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0-20260120-000001"
+
+# Source log helper for tool tracking
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Defaults
+QUIET=false
+VERBOSE=false
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --version|-v)
+            echo "workflow-check $TOOL_VERSION"
+            exit 0
+            ;;
+        --help|-h)
+            head -22 "$0" | tail -21 | sed 's/^# //' | sed 's/^#//'
+            exit 0
+            ;;
+        --quiet|-q)
+            QUIET=true
+            shift
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+WORK_ITEM="${1:-}"
+
+if [ -z "$WORK_ITEM" ]; then
+    echo "Usage: ./tools/workflow-check <work-item>"
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/workflow-check REQUEST-jordan-0018"
+    echo "  ./tools/workflow-check SPRINT-web-2026w03"
+    exit 1
+fi
+
+# Workflow stages in order
+STAGES=("impl" "review" "tests" "complete")
+
+# Check each stage
+check_stage() {
+    local item="$1"
+    local stage="$2"
+    local tag="${item}-${stage}"
+
+    if git tag -l "$tag" | grep -q "$tag"; then
+        # Get tag date
+        local tag_date
+        tag_date=$(git log -1 --format='%as' "$tag" 2>/dev/null || echo "unknown")
+        echo "done:$tag_date"
+    else
+        echo "pending"
+    fi
+}
+
+# Main
+RUN_ID=$(log_start "workflow-check" "agency-tool" "$WORK_ITEM" 2>/dev/null) || true
+
+if [ "$QUIET" = false ]; then
+    echo "workflow-check [run: ${RUN_ID:-none}]"
+    echo ""
+fi
+
+# Check all stages
+NEXT_STAGE=""
+STAGE_STATUS=()
+
+for stage in "${STAGES[@]}"; do
+    status=$(check_stage "$WORK_ITEM" "$stage")
+    STAGE_STATUS+=("$stage:$status")
+
+    if [ -z "$NEXT_STAGE" ] && [[ "$status" == "pending" ]]; then
+        NEXT_STAGE="$stage"
+    fi
+done
+
+# Quiet mode - just output next stage
+if [ "$QUIET" = true ]; then
+    if [ -n "$NEXT_STAGE" ]; then
+        echo "$NEXT_STAGE"
+    else
+        echo "complete"
+    fi
+    log_end "$RUN_ID" "success" 0 0 "Next: ${NEXT_STAGE:-complete}" 2>/dev/null || true
+    exit 0
+fi
+
+# Normal output
+echo -e "${BLUE}$WORK_ITEM${NC} workflow status:"
+echo ""
+
+for entry in "${STAGE_STATUS[@]}"; do
+    stage="${entry%%:*}"
+    status="${entry#*:}"
+
+    if [[ "$status" == done:* ]]; then
+        date="${status#done:}"
+        echo -e "  ${GREEN}[x]${NC} $stage     ($date)"
+    elif [ "$stage" = "$NEXT_STAGE" ]; then
+        echo -e "  ${YELLOW}[ ]${NC} $stage     ${YELLOW}<- next${NC}"
+    else
+        echo -e "  [ ] $stage"
+    fi
+done
+
+echo ""
+
+# Show commits since last tag (verbose mode)
+if [ "$VERBOSE" = true ]; then
+    # Find the most recent stage tag
+    LAST_TAG=""
+    for stage in "${STAGES[@]}"; do
+        tag="${WORK_ITEM}-${stage}"
+        if git tag -l "$tag" | grep -q "$tag"; then
+            LAST_TAG="$tag"
+        fi
+    done
+
+    if [ -n "$LAST_TAG" ]; then
+        COMMITS_SINCE=$(git log --oneline "${LAST_TAG}..HEAD" 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$COMMITS_SINCE" -gt 0 ]; then
+            echo -e "${BLUE}Commits since $LAST_TAG:${NC} $COMMITS_SINCE"
+            git log --oneline "${LAST_TAG}..HEAD" 2>/dev/null | head -5
+            if [ "$COMMITS_SINCE" -gt 5 ]; then
+                echo "  ... and $((COMMITS_SINCE - 5)) more"
+            fi
+            echo ""
+        fi
+    fi
+fi
+
+# Summary
+if [ -z "$NEXT_STAGE" ]; then
+    echo -e "${GREEN}All stages complete!${NC}"
+else
+    echo -e "Next: ${YELLOW}./tools/tag $WORK_ITEM $NEXT_STAGE${NC}"
+fi
+
+echo "✓"
+log_end "$RUN_ID" "success" 0 0 "Next: ${NEXT_STAGE:-complete}" 2>/dev/null || true

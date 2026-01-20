@@ -4,7 +4,9 @@
 # Usage:
 #   ./tools/commit "short summary" --work-item REQUEST-jordan-0065 --stage impl
 #   ./tools/commit "fix null handling" --work-item BUG-0042 --stage review
-#   ./tools/commit "update README"  # No work item (simple commit)
+#   ./tools/commit "quick doc fix" --adhoc  # Escape hatch for ad-hoc work
+#
+# IMPORTANT: Work item OR --adhoc is REQUIRED. Commits without either are blocked.
 #
 # Format (with work item):
 #   {WORK-ITEM} - {WORKSTREAM}/{AGENT} for {PRINCIPAL}: {SHORT SUMMARY}
@@ -26,6 +28,7 @@
 # Options:
 #   --work-item, -w   Work item ID (REQUEST-jordan-0065, SPRINT-web-2026w03, etc.)
 #   --stage, -s       Stage: impl, review, tests (required if work-item provided)
+#   --adhoc           Escape hatch for ad-hoc work (logs to ADHOC-WORKLOG.md)
 #   --body, -b        Detailed commit body
 #   --principal, -p   Override principal (default: from config or work item)
 #   --no-verify       Skip pre-commit hooks
@@ -38,7 +41,7 @@
 set -euo pipefail
 
 # Tool version
-TOOL_VERSION="1.1.0-20260114-000001"
+TOOL_VERSION="2.0.0-20260120-000001"
 
 # Source log helper for tool tracking
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -67,11 +70,15 @@ AMEND=false
 DRY_RUN=false
 STAGED_ONLY=false
 VERBOSE=false
+ADHOC=false
 WORK_ITEM=""
 STAGE=""
 BODY=""
 PRINCIPAL_OVERRIDE=""
 MESSAGE=""
+
+# Valid work item patterns (extensible for future types)
+WORK_ITEM_PATTERN='^(REQUEST|BUG|TASK|PHASE|ITERATION|SPRINT)-[a-zA-Z0-9-]+$'
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -102,6 +109,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --staged)
             STAGED_ONLY=true
+            shift
+            ;;
+        --adhoc)
+            ADHOC=true
             shift
             ;;
         --work-item|-w)
@@ -150,6 +161,33 @@ main() {
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "Missing commit message"
         exit 1
+    fi
+
+    # ENFORCEMENT: Require work item OR --adhoc
+    if [ -z "$WORK_ITEM" ] && [ "$ADHOC" = false ]; then
+        log_error "Work item required"
+        echo ""
+        echo "Every commit must reference a work item:"
+        echo "  ./tools/commit \"message\" --work-item REQUEST-jordan-XXXX --stage impl"
+        echo ""
+        echo "For ad-hoc work (escape hatch):"
+        echo "  ./tools/commit \"message\" --adhoc"
+        echo ""
+        echo "Valid work item types: REQUEST, BUG, TASK, PHASE, ITERATION, SPRINT"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Missing work item"
+        exit 1
+    fi
+
+    # Validate work item format if provided
+    if [ -n "$WORK_ITEM" ]; then
+        if ! [[ "$WORK_ITEM" =~ $WORK_ITEM_PATTERN ]]; then
+            log_error "Invalid work item format: $WORK_ITEM"
+            echo "Expected: REQUEST-principal-XXXX, BUG-workstream-XXXXX, TASK-id, etc."
+            trap - EXIT
+            log_end "$RUN_ID" "failure" 1 0 "Invalid work item format"
+            exit 1
+        fi
     fi
 
     # Validate: if work item provided, stage is required
@@ -300,6 +338,22 @@ main() {
     if [ $COMMIT_EXIT -eq 0 ]; then
         COMMIT_HASH=$(git log -1 --format='%h')
         echo "Committed: $COMMIT_HASH"
+
+        # Log to ADHOC-WORKLOG.md if --adhoc was used
+        if [ "$ADHOC" = true ]; then
+            REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+            ADHOC_LOG="$REPO_ROOT/claude/agents/${AGENT}/ADHOC-WORKLOG.md"
+            if [ -f "$ADHOC_LOG" ]; then
+                DATE_NOW=$(date +%Y-%m-%d)
+                TIME_NOW=$(date +%H:%M)
+                echo "" >> "$ADHOC_LOG"
+                echo "### $DATE_NOW $TIME_NOW - Ad-hoc: $MESSAGE" >> "$ADHOC_LOG"
+                echo "- Commit: $COMMIT_HASH" >> "$ADHOC_LOG"
+                echo "- Agent: ${WORKSTREAM}/${AGENT}" >> "$ADHOC_LOG"
+                verbose_echo "Logged to ADHOC-WORKLOG.md"
+            fi
+        fi
+
         echo "✓"
 
         verbose_echo ""

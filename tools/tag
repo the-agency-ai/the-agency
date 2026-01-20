@@ -22,6 +22,7 @@
 #   --dry-run     Show what would be done without doing it
 #   --list        List tags for a work item
 #   --skip-tests  Skip test verification (use sparingly!)
+#   --skip-order  Skip stage order verification (use sparingly!)
 #
 # Valid stages: impl, review, tests, complete
 #
@@ -29,7 +30,7 @@
 
 set -euo pipefail
 
-TOOL_VERSION="1.1.0-20260114-000002"
+TOOL_VERSION="2.0.0-20260120-000001"
 
 # Source log helper for tool tracking
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -62,6 +63,7 @@ PUSH=false
 DRY_RUN=false
 LIST=false
 SKIP_TESTS=false
+SKIP_ORDER=false
 MESSAGE=""
 
 while [[ $# -gt 0 ]]; do
@@ -84,6 +86,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-tests)
             SKIP_TESTS=true
+            shift
+            ;;
+        --skip-order)
+            SKIP_ORDER=true
             shift
             ;;
         --list)
@@ -180,6 +186,40 @@ main() {
 
         TAG_NAME="${ITEM}-${STAGE}"
         DEFAULT_MESSAGE="${ITEM} - ${STAGE} phase complete"
+
+        # Enforce stage order: impl → review → tests → complete
+        if [ "$SKIP_ORDER" = false ]; then
+            PREREQ_TAG=""
+            case "$STAGE" in
+                review)
+                    PREREQ_TAG="${ITEM}-impl"
+                    ;;
+                tests)
+                    PREREQ_TAG="${ITEM}-review"
+                    ;;
+                complete)
+                    PREREQ_TAG="${ITEM}-tests"
+                    ;;
+            esac
+
+            if [ -n "$PREREQ_TAG" ]; then
+                if ! git tag -l "$PREREQ_TAG" | grep -q "$PREREQ_TAG"; then
+                    log_error "Stage order violation: '$STAGE' requires '$PREREQ_TAG' to exist first"
+                    echo ""
+                    echo "Workflow stages must be completed in order:"
+                    echo "  impl → review → tests → complete"
+                    echo ""
+                    echo "Current tags for $ITEM:"
+                    git tag -l "${ITEM}-*" | sort -V || echo "  (none)"
+                    echo ""
+                    echo "Use --skip-order to bypass (not recommended)"
+                    trap - EXIT
+                    log_end "$LOG_RUN_ID" "failure" "1" "0" "Stage order violation"
+                    exit 1
+                fi
+                verbose_echo "✓ Prerequisite tag exists: $PREREQ_TAG"
+            fi
+        fi
 
         # Verify tests pass for impl, review, tests stages (not complete)
         if [ "$STAGE" != "complete" ] && [ "$SKIP_TESTS" = false ]; then
