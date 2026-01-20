@@ -66,7 +66,7 @@ Establish a permissions architecture that allows:
 - [x] SessionEnd hook creates backups automatically
 - [x] `tools/starter-release` syncs `.claude/settings.json`
 - [x] Documentation added to `CLAUDE.md`
-- [x] Tested in actual iTerm session (colors work, shapes in badge only - see BUG-0001)
+- [x] Tested in actual iTerm session (colors work, shapes in badge only - see HOUSEKEEPING-00009)
 
 **Layered Permissions:**
 - [x] `.gitignore` updated to exclude `.claude/settings.local.json`
@@ -173,6 +173,6 @@ Refactored to 311 lines (43% reduction) focusing on agent-essential content:
 ### 2026-01-20 - Complete
 - Marked complete with known limitation
 - Tab colors work correctly
-- Tab shapes appear in badge only (not tab title) - filed as BUG-0001
+- Tab shapes appear in badge only (not tab title) - filed as HOUSEKEEPING-00009
 - Layered permissions model fully functional
 - Investigation documented in `claude/docs/investigations/ITERM-TAB-SHAPES.md`
