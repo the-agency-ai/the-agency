@@ -1,5 +1,9 @@
 #!/bin/bash
-# SessionStart hook: Restore context from previous session
+# SessionStart hook: Restore context and register instance
+#
+# This hook runs when a Claude Code session starts. It:
+# 1. Registers this instance for tracking (for graceful shutdown)
+# 2. Restores context from previous session
 
 # Enable trace mode if DEBUG_HOOKS is set
 if [[ -n "${DEBUG_HOOKS}" ]]; then
@@ -10,6 +14,12 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 AGENTNAME="${AGENTNAME:-captain}"
 CONTEXT_FILE="$REPO_ROOT/claude/agents/$AGENTNAME/backups/latest/context.jsonl"
 GIT_STATUS_FILE="$REPO_ROOT/claude/agents/$AGENTNAME/backups/latest/status.txt"
+INSTANCES_DIR="$REPO_ROOT/claude/data/instances"
+
+# Register this instance
+mkdir -p "$INSTANCES_DIR"
+INSTANCE_ID="${CLAUDE_SESSION_ID:-$$}"
+echo "$$" > "$INSTANCES_DIR/$INSTANCE_ID"
 
 # Set tab status
 "$REPO_ROOT/tools/tab-status" available 2>/dev/null || true

@@ -32,6 +32,9 @@ claude/data/*.db
 claude/data/*.db-wal
 claude/data/*.db-shm
 
+# Instance tracking (ephemeral runtime state)
+claude/data/instances/
+
 # Test coverage
 coverage/
 
