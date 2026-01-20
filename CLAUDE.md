@@ -345,6 +345,12 @@ Pre-commit hooks enforce:
 
 **CRITICAL: All dependencies MUST be tracked. Never add a dependency without documenting it.**
 
+**Turnkey Installation:** The combination of `install.sh` and `myclaude` provides a turnkey installation experience. When run, all dependencies should be auto-installed and the user should be ready to work immediately. This means:
+- `myclaude` auto-installs Python dependencies (from `requirements.txt`) if missing
+- `myclaude` auto-installs Bun runtime if missing
+- `myclaude` auto-installs Node.js dependencies if missing
+- `myclaude` auto-starts the agency-service if not running
+
 When adding a dependency:
 1. **Python** - Add to `requirements.txt` in project root
 2. **Node.js** - Add to `package.json` (use `npm install --save` or `--save-dev`)

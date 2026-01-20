@@ -101,6 +101,54 @@ wait_for_service() {
     done
 }
 
+# Check Python dependencies (auto-installs if missing)
+# Returns: 0 if dependencies ready, 1 if failed
+check_python_deps() {
+    local project_root="$1"
+    local requirements_file="$project_root/requirements.txt"
+
+    log_step "Checking Python dependencies..."
+
+    # 1. Check if Python 3 is available
+    if ! command -v python3 &> /dev/null; then
+        log_error "Python 3 not found. Please install Python 3."
+        return 1
+    fi
+    log_debug "Python 3 found: $(which python3)"
+
+    # 2. Check if requirements.txt exists
+    if [[ ! -f "$requirements_file" ]]; then
+        log_debug "No requirements.txt found - skipping Python dependency check"
+        return 0
+    fi
+
+    # 3. Check if pyyaml is installed (critical dependency for config)
+    if python3 -c "import yaml" 2>/dev/null; then
+        log_debug "pyyaml is installed"
+        echo -e "${GREEN}✓ Python dependencies present${NC}"
+        return 0
+    fi
+
+    # 4. Auto-install missing dependencies
+    echo -e "${YELLOW}Python dependencies missing, installing...${NC}"
+    log_debug "Installing from $requirements_file"
+
+    if pip3 install -r "$requirements_file" -q 2>/dev/null; then
+        echo -e "${GREEN}✓ Python dependencies installed${NC}"
+        return 0
+    else
+        # Try with --user flag if default fails
+        if pip3 install -r "$requirements_file" --user -q 2>/dev/null; then
+            echo -e "${GREEN}✓ Python dependencies installed (user)${NC}"
+            return 0
+        fi
+    fi
+
+    log_error "Failed to install Python dependencies"
+    echo "Please run: pip3 install -r requirements.txt" >&2
+    return 1
+}
+
 # Check if required services are ready (auto-installs everything)
 # Returns: 0 if all services ready, 1 if failed
 check_services() {
@@ -327,8 +375,11 @@ export PROJECT_ROOT="$PROJECT_ROOT"
 
 # Main function
 main() {
+    # Initialize LOG_RUN_ID early (set properly later, but needed for trap)
+    LOG_RUN_ID=""
+
     # Trap unexpected exits
-    trap 'log_end "$LOG_RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+    trap 'log_end "${LOG_RUN_ID:-}" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
     # Check if this is an Agency project
     if [[ ! -f "$PROJECT_ROOT/claude/config/agency.yaml" ]] && [[ ! -f "$PROJECT_ROOT/.agency-starter" ]]; then
@@ -373,6 +424,13 @@ main() {
             log_warn "setup-agency tool not found. Continuing without setup..."
         fi
     fi
+
+    # Check Python dependencies (needed for tools/config which parses YAML)
+    log_debug "=== Python Dependency Check ==="
+    if ! check_python_deps "$PROJECT_ROOT"; then
+        log_warn "Python dependency check failed - config lookup may not work"
+    fi
+    log_debug "=== Python Dependency Check Complete ==="
 
     # Check if principal identity is configured
     if [[ -z "${AGENCY_PRINCIPAL:-}" ]]; then
