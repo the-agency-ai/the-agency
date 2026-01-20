@@ -1,11 +1,11 @@
 # REQUEST-jordan-0048-housekeeping-iterm-tab-status-and-layered-permissions-model
 
-**Status:** Open
+**Status:** Complete
 **Priority:** Normal
 **Requested By:** principal:jordan
 **Assigned To:** housekeeping
 **Created:** 2026-01-14
-**Updated:** 2026-01-14
+**Updated:** 2026-01-20
 
 ## Summary
 
@@ -66,7 +66,7 @@ Establish a permissions architecture that allows:
 - [x] SessionEnd hook creates backups automatically
 - [x] `tools/starter-release` syncs `.claude/settings.json`
 - [x] Documentation added to `CLAUDE.md`
-- [ ] Tested in actual iTerm session
+- [x] Tested in actual iTerm session (colors work, shapes in badge only - see BUG-0001)
 
 **Layered Permissions:**
 - [x] `.gitignore` updated to exclude `.claude/settings.local.json`
@@ -75,7 +75,7 @@ Establish a permissions architecture that allows:
 - [x] Documentation explains the layered model
 - [x] `tools/starter-release` verified to handle both files correctly
 - [x] `.gitignore` synced to starter (includes settings.local.json exclusion)
-- [ ] Tested in actual installation workflow
+- [x] Tested in actual installation workflow
 
 **Distribution:**
 - [x] `the-agency-starter` receives both settings files (via starter-release)
@@ -169,3 +169,10 @@ Refactored to 311 lines (43% reduction) focusing on agent-essential content:
 - `claude/docs/SECRETS.md` - Created
 - `tools/starter-release` - Updated to sync new docs
 - `CLAUDE-old.md` - Backup of original (can be deleted after review)
+
+### 2026-01-20 - Complete
+- Marked complete with known limitation
+- Tab colors work correctly
+- Tab shapes appear in badge only (not tab title) - filed as BUG-0001
+- Layered permissions model fully functional
+- Investigation documented in `claude/docs/investigations/ITERM-TAB-SHAPES.md`
