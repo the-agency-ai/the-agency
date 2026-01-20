@@ -97,6 +97,12 @@ tools/                       # CLI tools for The Agency
 - `./tools/sync` - Push with pre-commit checks
 - `./tools/doc-commit` - Commit documentation
 
+**GitHub:**
+- `./tools/gh` - GitHub CLI wrapper (auto token injection + logging)
+- `./tools/gh-pr` - PR operations (list, create, merge, etc.)
+- `./tools/gh-release` - Release operations (list, create, view)
+- `./tools/gh-api` - API operations (REST and GraphQL)
+
 ## Tool Output Standard
 
 **All `./tools/*` must follow this output format to minimize context window usage.**
