@@ -368,6 +368,34 @@ Created Log Service UX page in AgencyBench at `/bench/logs`:
 - `the-agency-starter/apps/agency-bench/src/components/bench/AppSidebar.tsx` - Added Logs entry
 - `the-agency-starter/apps/agency-bench/src/components/bench/Header.tsx` - Added /bench/logs route
 
+### 2026-01-20 - Tool Output Standard Implementation (housekeeping/captain)
+Fixed 17 tools missing `log_end` calls to complete the logging lifecycle:
+
+**Problem Identified:**
+- 17 tools had `log_start` but NO `log_end`
+- Tool runs were started but never completed in log service
+- Verbose output went to stdout instead of being captured to database
+
+**Tools Updated:**
+- agency-bench, bench-build, bug-report, code-review
+- hello, hi, log, message-read, message-send
+- nit-add, nit-resolve, request-complete
+- starter-compare, starter-test, tab-status
+- tool-find, version-next
+
+**Changes Made:**
+1. Added `log_end` calls to all 17 tools
+2. Updated `code-review` to capture verbose output and show minimal status
+3. Updated `request-complete` to use minimal output pattern
+4. Updated tests to expect minimal output format
+
+**Result:**
+- Tools now output minimal status to stdout (3 lines max)
+- Verbose output stored in log service database
+- View verbose output with: `./tools/agency-service log run {run-id}`
+
+**Commit:** REQUEST-jordan-0012-impl tagged
+
 ### 2026-01-10 14:45 SST - Created
 - Request created based on discussion about environment observability
 - Vision: queryable logs for both agents and humans
