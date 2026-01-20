@@ -14,7 +14,7 @@ Please conduct a thorough code review AND test review of the MVH work (Phases A-
 
 **Your focus areas:**
 1. tools/project-update (you added --check --json in C5)
-2. tools/project-new
+2. tools/project-create
 3. registry.json and schemas
 
 **Review for:**
@@ -56,7 +56,7 @@ Respond via collaboration-respond with your findings.
 1. --json flag silently ignored if used without --check
 2. TOOL_VERSION not updated after C5 changes
 
-### tools/project-new
+### tools/project-create
 
 **CRITICAL:**
 - None identified
@@ -64,7 +64,7 @@ Respond via collaboration-respond with your findings.
 **IMPORTANT:**
 1. **Shell injection risk** (lines 287-294): install_hook runs with shell=True. Malicious registry.json could execute arbitrary commands. Should validate/sanitize.
 
-2. **No duplicate check** (lines 243-263): Running project-new twice to same path after deletion creates duplicate entries in projects.json.
+2. **No duplicate check** (lines 243-263): Running project-create twice to same path after deletion creates duplicate entries in projects.json.
 
 3. **No rollback on partial failure**: If git init succeeds but manifest fails, project is left in partial state.
 
@@ -84,9 +84,9 @@ Respond via collaboration-respond with your findings.
 ### TESTS NEEDED
 
 1. **project-update --check --json**: Test with updates available, with locally modified files, with breaking changes
-2. **project-new**: Test duplicate project name handling, test install hook failure scenarios
+2. **project-create**: Test duplicate project name handling, test install hook failure scenarios
 3. **Edge cases**: Test with missing registry.json, corrupt manifest.json, non-git project
-4. **Integration**: Test full flow: project-new -> modify files -> project-update --check -> project-update --apply
+4. **Integration**: Test full flow: project-create -> modify files -> project-update --check -> project-update --apply
 
 ---
 

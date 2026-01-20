@@ -98,7 +98,7 @@ This launches Claude Code with the **Hub Agent** - a special agent that manages 
 |---------|--------------|
 | "Update the starter" | Pulls latest from GitHub, handles conflicts |
 | "What's new?" | Shows changelog, new features, breaking changes |
-| "Create a new project called X" | Runs project-new, sets up manifest |
+| "Create a new project called X" | Runs project-create, sets up manifest |
 | "Show my projects" | Scans for projects, shows versions and status |
 | "Update all my projects" | Iterates through projects, applies updates |
 | "Update my-awesome-app" | Updates specific project |
@@ -133,7 +133,7 @@ The hub maintains a registry of known projects in `.agency/projects.json`:
 }
 ```
 
-Projects are automatically registered when created via `project-new`. The hub can also scan for unregistered projects.
+Projects are automatically registered when created via `project-create`. The hub can also scan for unregistered projects.
 
 #### Architecture
 
@@ -663,7 +663,7 @@ Core infrastructure that everything else builds on.
 | A1 | Create manifest schema (`.agency/manifest.json`) | ✓ |
 | A2 | Create registry schema (`registry.json` in starter) | ✓ |
 | A3 | Create project registry (`.agency/projects.json`, local, gitignored) | ✓ |
-| A4 | Update `project-new` to generate manifest + register project | After A1, A3 |
+| A4 | Update `project-create` to generate manifest + register project | After A1, A3 |
 | A5 | Add `--init` to project-update for existing projects | After A1 |
 | A6 | Add service check to `myclaude` | ✓ |
 
@@ -689,7 +689,7 @@ Creating and updating projects through the Hub.
 
 | Task | Description | Depends On |
 |------|-------------|------------|
-| C1 | Hub: create project (runs project-new, registers) | B2, A4 |
+| C1 | Hub: create project (runs project-create, registers) | B2, A4 |
 | C2 | Hub: update single project | B2, A5 |
 | C3 | Hub: batch update all projects | C2 |
 | C4 | Pre-update verification (check git status, flag modified files) | C2 |
@@ -749,7 +749,7 @@ Not in MVH scope, but documented for later.
                     │                                         │
                     │        ↓ (A1, A3 complete)              │
                     │                                         │
-  Agent 1:          │  A4: Update project-new                 │
+  Agent 1:          │  A4: Update project-create                 │
   Agent 2:          │  A5: Add --init to project-update       │
                     └─────────────────────────────────────────┘
                                       │
@@ -902,7 +902,7 @@ cd the-agency-starter
 ### Step 2: User Creates Their Project
 
 ```bash
-./tools/project-new my-awesome-app
+./tools/project-create my-awesome-app
 ```
 
 **What happens:**
@@ -1377,7 +1377,7 @@ The centerpiece is **The Agency Hub** - the starter becomes a control center whe
 │  │                                                                  │   │
 │  │   Capabilities:                                                  │   │
 │  │   • Update starter (git pull, conflict resolution)               │   │
-│  │   • Create projects (project-new + manifest)                     │   │
+│  │   • Create projects (project-create + manifest)                     │   │
 │  │   • Update projects (project-update across all)                  │   │
 │  │   • Launch into projects (open terminal + myclaude)              │   │
 │  │   • Contribute upstream (create PRs)                             │   │
@@ -1488,7 +1488,7 @@ For initial release, the Hub Agent needs:
 
 1. **Update Starter** - `git fetch && git pull` with conflict detection
 2. **List Projects** - Read `.agency/projects.json`, check each manifest
-3. **Create Project** - Run `project-new`, register in projects.json
+3. **Create Project** - Run `project-create`, register in projects.json
 4. **Update Project** - Run `project-update` for one or all projects
 5. **Show Status** - Starter version, project versions, available updates
 

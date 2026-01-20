@@ -9,7 +9,7 @@
 #
 # Tests:
 #   1. Install via install.sh
-#   2. Create new project via project-new
+#   2. Create new project via project-create
 #   3. Compare installed vs source
 #   4. Compare new project vs expected structure
 #   5. Verify no sensitive content
@@ -73,7 +73,7 @@ for arg in "$@"; do
             echo ""
             echo "Tests performed:"
             echo "  1. Install via install.sh"
-            echo "  2. Create new project via project-new"
+            echo "  2. Create new project via project-create"
             echo "  3. Compare installed vs source"
             echo "  4. Compare new project vs expected"
             echo "  5. Verify no sensitive content"
@@ -197,20 +197,20 @@ test_install() {
 
 # Test 2: Create new project
 test_new_project() {
-    log_step "Test 2: Create new project via project-new"
+    log_step "Test 2: Create new project via project-create"
 
     local starter_dir="$TEST_DIR/installed-starter"
     local project_dir="$TEST_DIR/test-project"
 
-    # Run project-new (suppress the claude launch at the end)
+    # Run project-create (suppress the claude launch at the end)
     cd "$starter_dir"
-    ./tools/project-new "$project_dir" --no-launch > /dev/null 2>&1 || true
+    ./tools/project-create "$project_dir" --no-launch > /dev/null 2>&1 || true
 
     # Verify project creation
     if [[ -d "$project_dir" ]]; then
-        log_pass "project-new created directory"
+        log_pass "project-create created directory"
     else
-        log_fail "project-new did not create directory"
+        log_fail "project-create did not create directory"
         return 1
     fi
 
@@ -746,9 +746,9 @@ else:
     fi
 }
 
-# Test 12: project-new manifest and registry tests
+# Test 12: project-create manifest and registry tests
 test_new_manifest_registry() {
-    log_step "Test 12: project-new manifest and registry tests"
+    log_step "Test 12: project-create manifest and registry tests"
 
     local project="$TEST_DIR/test-project"
     local starter="$TEST_DIR/installed-starter"
@@ -807,7 +807,7 @@ assert found, 'Project not registered'
     # Test 12f: Test duplicate project handling (create second project, check no duplicate)
     local dup_project="$TEST_DIR/dup-test-project"
     cd "$starter"
-    ./tools/project-new "$dup_project" --no-launch > /dev/null 2>&1 || true
+    ./tools/project-create "$dup_project" --no-launch > /dev/null 2>&1 || true
 
     local dup_count=$(python3 -c "
 import json
@@ -833,7 +833,7 @@ test_integration_update_flow() {
     # Step 1: Create new project
     cd "$starter"
     rm -rf "$int_project"
-    ./tools/project-new "$int_project" --no-launch > /dev/null 2>&1
+    ./tools/project-create "$int_project" --no-launch > /dev/null 2>&1
 
     if [[ -d "$int_project" ]]; then
         log_pass "Step 1: Created integration project"

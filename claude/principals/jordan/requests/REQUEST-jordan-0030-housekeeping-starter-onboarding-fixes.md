@@ -4,7 +4,7 @@
 **Workstream:** housekeeping
 **Agent:** housekeeping
 **Created:** 2026-01-10
-**Status:** open
+**Status:** Complete
 
 ## Summary
 
@@ -418,8 +418,8 @@ New users get a copy of jordan's stuff instead of a clean slate.
 
 **Marker file to identify starter:**
 - `.agency-starter` file exists ONLY in the-agency-starter repo
-- When `./tools/project-new` creates a project, it REMOVES this file
-- myclaude checks: if `.agency-starter` exists → "This is the starter template. Run ./tools/project-new to create a project."
+- When `./tools/project-create` creates a project, it REMOVES this file
+- myclaude checks: if `.agency-starter` exists → "This is the starter template. Run ./tools/project-create to create a project."
 - Prevents accidentally running setup-agency on the starter itself
 
 **B. New project created from starter (fresh project)**
@@ -478,10 +478,10 @@ FIRST LAUNCH (myclaude):
 0. Check if this is an Agency project?
    └─→ Look for .agency-project marker OR claude/config/agency.yaml
    └─→ NO: "Not an Agency project. Run this from an Agency project root
-           created with ./tools/project-new" → EXIT
+           created with ./tools/project-create" → EXIT
 
 1. Check if .agency-starter exists?
-   └─→ YES: "This is the starter template. Run ./tools/project-new first." → EXIT
+   └─→ YES: "This is the starter template. Run ./tools/project-create first." → EXIT
 
 2. Start services (FIRST!)
 
@@ -525,7 +525,7 @@ Is this an Agency project? (.agency-project OR claude/config/agency.yaml)
 └─ YES
     │
     .agency-starter exists?
-    ├─ YES → BLOCK: "Use ./tools/project-new"
+    ├─ YES → BLOCK: "Use ./tools/project-create"
     └─ NO
         │
         .agency-setup-complete exists?
@@ -657,7 +657,7 @@ _Space reserved for additional issues as they're discovered._
 - [ ] myclaude blocks if NOT an Agency project
 - [ ] Starter has `.agency-starter` marker file
 - [ ] myclaude blocks if `.agency-starter` exists (must use new-project)
-- [ ] `./tools/project-new` removes `.agency-starter` marker
+- [ ] `./tools/project-create` removes `.agency-starter` marker
 - [ ] `claude/templates/principal/` exists with template
 - [ ] `./tools/add-principal` exists for joining existing projects
 - [ ] setup-agency triggered on first myclaude run (new project)

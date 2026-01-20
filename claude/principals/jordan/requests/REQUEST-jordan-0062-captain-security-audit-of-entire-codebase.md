@@ -63,7 +63,7 @@ Conduct a comprehensive security audit of the entire codebase.
 **Priority Remediation Order:**
 1. Clean tokens from git history (already rotated, need history rewrite)
 2. Fix JWT verification bypass in auth.middleware.ts
-3. Fix command injection: browser tool, project-new, myclaude
+3. Fix command injection: browser tool, project-create, myclaude
 4. Update secrets-scan to include markdown files
 5. Replace eval with arrays in myclaude
 6. Add path validation to agency-server

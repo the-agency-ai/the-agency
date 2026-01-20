@@ -90,20 +90,20 @@ Open a project in a new iTerm2 tab:
 
 ### Creating New Projects
 
-Use `project-new` to create a project from the starter:
+Use `project-create` to create a project from the starter:
 
 ```bash
 # Basic usage
-./tools/project-new my-project
+./tools/project-create my-project
 
 # Create at specific path
-./tools/project-new ~/code/my-project
+./tools/project-create ~/code/my-project
 
 # Create without launching agent
-./tools/project-new my-project --no-launch
+./tools/project-create my-project --no-launch
 
 # Verbose output
-./tools/project-new my-project --verbose
+./tools/project-create my-project --verbose
 ```
 
 **What happens:**

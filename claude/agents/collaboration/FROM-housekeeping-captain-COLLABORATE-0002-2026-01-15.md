@@ -29,7 +29,7 @@ Update `tools/project-update` to support `--init` flag that:
 ## Implementation Notes
 1. Add `--init` mode to project-update:
    - Check if `.agency/manifest.json` exists - if so, warn and exit (or offer to regenerate)
-   - Create manifest similar to project-new but for existing project
+   - Create manifest similar to project-create but for existing project
    - Scan files and compute SHA256 hashes
    - Mark components as installed based on what exists
 

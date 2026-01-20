@@ -1,246 +1,51 @@
 #!/bin/bash
 #
-# agency-update - Update Agency project from starter or GitHub
+# agency-update - DEPRECATED: Use project-update instead
 #
-# Usage:
-#   agency-update                       # Update from local starter
-#   agency-update --from github         # Update from GitHub
-#   agency-update --from ~/starter      # Update from specific path
-#   agency-update --dry-run             # Show what would change
+# This tool has been deprecated and replaced by project-update.
 #
-
-set -euo pipefail
-
-# Source log helper for telemetry
-SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
-    source "$SCRIPT_DIR/_log-helper"
-fi
-
-# Tool version
-TOOL_VERSION="1.0.0-20260118-000001"
 
 # Colors
 RED='\033[0;31m'
-GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# Defaults
-VERBOSE=false
-DRY_RUN=false
-FROM_SOURCE=""
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Tool version
+TOOL_VERSION="2.0.0-deprecated"
 
-# Logging functions
-log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
-verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+# Handle --version
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "agency-update $TOOL_VERSION (deprecated)"
+    exit 0
+fi
 
-usage() {
-    cat << EOF
-Usage: agency-update [options]
-
-Update Agency project from starter or GitHub.
-
-Options:
-  --from PATH      Source to update from (default: local starter from manifest)
-  --from github    Update directly from GitHub
-  --dry-run        Show what would change without applying
-  --verbose        Show detailed output
-  -v, --version    Show version
-  -h, --help       Show this help
-
-What Gets Updated:
-  - tools/          All CLI tools
-  - claude/templates/   Template files
-  - claude/config/      Default configurations
-  - claude/docs/        Documentation
-
-What is Preserved:
-  - claude/principals/  Your principals
-  - claude/agents/*/KNOWLEDGE.md    Agent knowledge
-  - claude/agents/*/WORKLOG.md      Work history
-  - claude/workstreams/             Workstream content
-  - .agency-config                  Local settings
-
-Examples:
-  agency-update                     # From local starter
-  agency-update --from github       # From GitHub
-  agency-update --dry-run           # Preview changes
-EOF
-}
-
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --from)
-            FROM_SOURCE="$2"
-            shift 2
-            ;;
-        --dry-run)
-            DRY_RUN=true
-            shift
-            ;;
-        --verbose)
-            VERBOSE=true
-            shift
-            ;;
-        -v|--version)
-            echo "agency-update $TOOL_VERSION"
-            exit 0
-            ;;
-        -h|--help)
-            usage
-            exit 0
-            ;;
-        *)
-            log_error "Unknown option: $1"
-            usage
-            exit 1
-            ;;
-    esac
-done
-
-# Determine source
-get_source_path() {
-    if [[ -n "$FROM_SOURCE" ]]; then
-        if [[ "$FROM_SOURCE" == "github" ]]; then
-            echo "github"
-        else
-            echo "$FROM_SOURCE"
-        fi
-    elif [[ -f "$PROJECT_ROOT/.agency/manifest.json" ]]; then
-        # Get source from manifest
-        local source_path=$(jq -r '.source.path // ""' "$PROJECT_ROOT/.agency/manifest.json" 2>/dev/null)
-        if [[ -n "$source_path" ]] && [[ -d "$source_path" ]]; then
-            echo "$source_path"
-        else
-            echo "github"
-        fi
-    else
-        echo "github"
-    fi
-}
-
-# Update from local starter
-update_from_local() {
-    local source_path="$1"
-
-    if [[ ! -d "$source_path" ]]; then
-        log_error "Source not found: $source_path"
-        exit 1
-    fi
-
-    log_step "Updating from: $source_path"
-
-    # Items to sync
-    local sync_items=(
-        "tools"
-        "claude/templates"
-        "claude/config"
-        "claude/docs"
-        ".claude/settings.json"
-    )
-
-    for item in "${sync_items[@]}"; do
-        local src="$source_path/$item"
-        local dst="$PROJECT_ROOT/$item"
-
-        if [[ -e "$src" ]]; then
-            if [[ "$DRY_RUN" == "true" ]]; then
-                echo "  Would sync: $item"
-                if [[ -d "$src" ]]; then
-                    rsync -avn --delete "$src/" "$dst/" 2>/dev/null | grep -E "^(deleting|>)" | head -10 || true
-                fi
-            else
-                verbose_echo "  Syncing: $item"
-                if [[ -d "$src" ]]; then
-                    rsync -a --delete "$src/" "$dst/"
-                else
-                    cp "$src" "$dst"
-                fi
-                echo -e "  ${GREEN}✓${NC} $item"
-            fi
-        fi
-    done
-
-    # Make tools executable
-    if [[ "$DRY_RUN" != "true" ]]; then
-        chmod +x "$PROJECT_ROOT/tools/"* 2>/dev/null || true
-    fi
-}
-
-# Update from GitHub
-update_from_github() {
-    log_step "Updating from GitHub..."
-
-    local temp_dir=$(mktemp -d)
-    trap "rm -rf $temp_dir" EXIT
-
-    # Clone starter
-    echo "  Cloning the-agency-starter..."
-    if ! git clone --depth 1 https://github.com/jmagar/the-agency-starter.git "$temp_dir" 2>/dev/null; then
-        log_error "Failed to clone starter from GitHub"
-        exit 1
-    fi
-
-    # Use local update
-    update_from_local "$temp_dir"
-}
-
-main() {
-    RUN_ID=$(log_start "agency-update" "agency-tool" "$@" 2>/dev/null) || true
-    echo "agency-update [run: ${RUN_ID:-none}]"
-
-    # Check we're in an Agency project
-    if [[ ! -f "$PROJECT_ROOT/claude/config/agency.yaml" ]]; then
-        log_error "Not in an Agency project"
-        exit 1
-    fi
-
-    local source=$(get_source_path)
-
+# Handle --help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "agency-update - DEPRECATED"
     echo ""
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    if [[ "$DRY_RUN" == "true" ]]; then
-        echo -e "${BLUE}  Agency Update (DRY RUN)${NC}"
-    else
-        echo -e "${BLUE}  Agency Update${NC}"
-    fi
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo "This tool has been replaced by project-update."
     echo ""
+    echo "Use instead:"
+    echo "  ./tools/project-update --check    # Check for updates"
+    echo "  ./tools/project-update --preview  # Preview changes"
+    echo "  ./tools/project-update --apply    # Apply updates"
+    echo "  ./tools/project-update --status   # Show version status"
+    exit 0
+fi
 
-    if [[ "$source" == "github" ]]; then
-        update_from_github
-    else
-        update_from_local "$source"
-    fi
-
-    # Check dependencies after update
-    if [[ "$DRY_RUN" != "true" ]]; then
-        echo ""
-        log_step "Checking dependencies..."
-        if [[ -x "$PROJECT_ROOT/tools/dependencies-check" ]]; then
-            "$PROJECT_ROOT/tools/dependencies-check" || true
-        fi
-    fi
-
-    echo ""
-    if [[ "$DRY_RUN" == "true" ]]; then
-        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${YELLOW}  Dry run complete - no changes made${NC}"
-        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    else
-        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${GREEN}  Update Complete!${NC}"
-        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    fi
-
-    log_end "$RUN_ID" "success" 0 0 "Update complete" 2>/dev/null || true
-}
-
-main "$@"
+# Show deprecation notice and exit
+echo ""
+echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${RED}  DEPRECATED: agency-update has been removed${NC}"
+echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo "  This tool has been replaced by project-update."
+echo ""
+echo "  Please use instead:"
+echo -e "    ${BLUE}./tools/project-update --check${NC}    # Check for updates"
+echo -e "    ${BLUE}./tools/project-update --preview${NC}  # Preview changes"
+echo -e "    ${BLUE}./tools/project-update --apply${NC}    # Apply updates"
+echo -e "    ${BLUE}./tools/project-update --status${NC}   # Show version status"
+echo ""
+exit 1

@@ -122,7 +122,7 @@ Use section markers to enable safe merging:
 
 ### Files to Modify
 
-1. `tools/project-new` - Initialize version tracking
+1. `tools/project-create` - Initialize version tracking
 2. `CLAUDE.md` (starter) - Add section markers
 
 ---
@@ -135,7 +135,7 @@ Use section markers to enable safe merging:
 - [x] Modified files are backed up before replacement
 - [x] CLAUDE.md project sections are preserved
 - [x] Works with both GitHub source and local path
-- [x] `project-new` initializes version tracking
+- [x] `project-create` initializes version tracking
 
 ---
 
@@ -161,7 +161,7 @@ Use section markers to enable safe merging:
   - SHA256 hashes for file modification detection
   - Automatic backup of modified files before replacement
 
-- Updated `tools/project-new` (v1.2.0)
+- Updated `tools/project-create` (v1.2.0)
   - Added version tracking initialization
   - Creates `.agency/version.json` on project creation
   - Records starter version from VERSION file

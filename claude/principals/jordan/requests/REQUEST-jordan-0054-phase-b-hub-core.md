@@ -58,7 +58,7 @@ Capabilities:
 - Understand the registry and manifest schemas
 - Know how to update the starter (git operations)
 - Know how to read/update project registry
-- Know how to invoke project-new and project-update
+- Know how to invoke project-create and project-update
 
 ### B3-B5: Hub Operations
 

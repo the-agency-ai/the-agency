@@ -24,7 +24,7 @@ Comprehensive implementation, security, and test review of the full codebase wit
 ### Tools (`./tools/`)
 - 93+ bash tools
 - Focus areas: tools modified in REQUEST-0067 (`_log-helper`, `commit-precheck`, `tag`, `opportunities`, `log-tool-use`)
-- High-risk tools: `secret`, `commit`, `sync`, `myclaude`, `project-new`
+- High-risk tools: `secret`, `commit`, `sync`, `myclaude`, `project-create`
 
 ### Services (`source/services/agency-service/`)
 - TypeScript agency-service

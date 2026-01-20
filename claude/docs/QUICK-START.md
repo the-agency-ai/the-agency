@@ -43,7 +43,7 @@ The installer automatically:
 cd ~/the-agency-starter
 
 # Create a new project
-./tools/project-new my-awesome-project
+./tools/project-create my-awesome-project
 
 # Navigate to your project
 cd ~/my-awesome-project

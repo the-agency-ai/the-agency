@@ -27,7 +27,7 @@ This is Phase C of REQUEST-0052. With the Hub core in place, we add the ability 
 
 | ID | Task | Description | Depends On | Status | Agent | Commit |
 |----|------|-------------|------------|--------|-------|--------|
-| C1 | Create project | Hub runs project-new, registers result | B2, A4 | Done | In Hub KNOWLEDGE | - |
+| C1 | Create project | Hub runs project-create, registers result | B2, A4 | Done | In Hub KNOWLEDGE | - |
 | C2 | Update project | Hub updates single project | B2, A5 | Done | In Hub KNOWLEDGE | - |
 | C3 | Batch update | Hub updates all registered projects | C2 | Done | foundation-beta | 89b3a5f |
 | C4 | Pre-update verify | Check git status, flag modified files | C2 | Done | foundation-beta | 89b3a5f |
@@ -104,7 +104,7 @@ Output:
 
 - Created REQUEST from REQUEST-0052 Phase C
 - **C1, C2 Complete:** Already documented in Hub Agent's KNOWLEDGE.md during Phase B
-  - Create project: Uses `./tools/project-new`
+  - Create project: Uses `./tools/project-create`
   - Update project: Uses `./tools/project-update`
 - Started Phase C execution after Phase B completion
 - Created COLLABORATE-0005 for C5 (--check --json) → foundation-alpha

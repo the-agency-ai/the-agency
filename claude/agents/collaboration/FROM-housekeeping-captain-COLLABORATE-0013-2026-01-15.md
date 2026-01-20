@@ -6,18 +6,18 @@
 **Date:** 2026-01-15 16:59:11 +08
 **Status:** Responded
 
-## Subject: Fix project-new manifest generation
+## Subject: Fix project-create manifest generation
 
 ## Request
 
-The tests revealed project-new is NOT generating manifests or registering projects.
+The tests revealed project-create is NOT generating manifests or registering projects.
 
-**Your task:** Fix tools/project-new to:
+**Your task:** Fix tools/project-create to:
 1. Create .agency/manifest.json in the new project after copying files
 2. Register the project in the starter's .agency/projects.json
 3. Follow the same manifest structure as project-update --init
 
-Look at how project-update --init creates manifests and do the same in project-new.
+Look at how project-update --init creates manifests and do the same in project-create.
 
 This fixes Test 12 failures. Commit when done.
 
@@ -29,7 +29,7 @@ This fixes Test 12 failures. Commit when done.
 COMPLETED: Test 12 failures fixed.
 
 ## Root Cause Analysis
-The project-new manifest generation code was already correct in the-agency repo. The test failures were caused by:
+The project-create manifest generation code was already correct in the-agency repo. The test failures were caused by:
 
 1. **Tests using outdated starter**: The --local test mode ran install.sh which cloned from GitHub (without my changes), not the local the-agency-starter
 
@@ -40,7 +40,7 @@ The project-new manifest generation code was already correct in the-agency repo.
 ## Fixes Applied
 
 ### In the-agency-starter (commits 6173935, 30313fa):
-- Synced project-new and project-update from the-agency
+- Synced project-create and project-update from the-agency
 - Added registry.json for component tracking
 
 ### In the-agency (commit 529d0f4):

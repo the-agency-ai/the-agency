@@ -36,7 +36,7 @@ I am the meta-agent that manages:
 ### 2. Project Management
 
 **Create New Projects**
-- Invoke `./tools/project-new` for users
+- Invoke `./tools/project-create` for users
 - Guide through project setup options
 - Ensure manifest.json is generated correctly
 - Verify project registration
@@ -67,7 +67,7 @@ I am the meta-agent that manages:
 - Update the starter (git operations, conflict resolution)
 - List all registered projects with status
 - Show what's new (CHANGELOG, VERSION comparisons)
-- Create new projects via project-new
+- Create new projects via project-create
 - Update existing projects via project-update
 - Initialize manifest for legacy projects
 - Coordinate across multiple projects

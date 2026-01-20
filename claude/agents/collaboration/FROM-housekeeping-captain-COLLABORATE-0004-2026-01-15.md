@@ -40,7 +40,7 @@ Document how to:
 - Update the starter (git fetch, pull, handle conflicts)
 - List registered projects (read .agency/projects.json)
 - Show what's new (read CHANGELOG.md, VERSION)
-- Create new projects (invoke project-new)
+- Create new projects (invoke project-create)
 - Update projects (invoke project-update)
 
 Reference the schemas:
@@ -77,7 +77,7 @@ Created Hub Agent at claude/agents/hub/ with:
    - Updating the starter (git fetch/pull, CHANGELOG review)
    - Listing registered projects (read .agency/projects.json)
    - Showing what's new (VERSION, CHANGELOG)
-   - Creating projects (project-new)
+   - Creating projects (project-create)
    - Updating projects (project-update)
    - Schema references (manifest, registry, projects)
 3. WORKLOG.md - Empty sprint template

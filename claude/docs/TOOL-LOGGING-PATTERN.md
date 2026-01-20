@@ -134,7 +134,7 @@ curl -s "http://127.0.0.1:3141/api/log/run/errors/abc-123-def" | jq
 
 Priority order:
 1. High-traffic tools (myclaude, commit, sync, tag, release)
-2. Build tools (starter-release, starter-verify, project-new)
+2. Build tools (starter-release, starter-verify, project-create)
 3. Utility tools (all others)
 
 ## Reference Implementation

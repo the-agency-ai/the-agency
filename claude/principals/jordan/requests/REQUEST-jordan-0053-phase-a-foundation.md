@@ -29,7 +29,7 @@ This is Phase A of REQUEST-0052 (Agency Manifest and Agent-Driven Updates). Thes
 | A1 | Manifest Schema | Create `.agency/manifest.json` schema | - | Done | 86ba7ce |
 | A2 | Registry Schema | Create `registry.json` schema for starter | - | Done | 86ba7ce |
 | A3 | Project Registry | Create `.agency/projects.json` schema (local, gitignored) | - | Done | 86ba7ce |
-| A4 | Update project-new | Generate manifest + register project on creation | A1, A3 | Done | 39086da |
+| A4 | Update project-create | Generate manifest + register project on creation | A1, A3 | Done | 39086da |
 | A5 | Update project-update | Add `--init` for existing projects | A1 | Done | f99368e |
 | A6 | Service check | Add service check to `myclaude` | - | Done | cda8f39 |
 
@@ -118,7 +118,7 @@ Location: `.agency/projects.json` (in the-agency-starter, gitignored)
 }
 ```
 
-### A4: project-new Updates
+### A4: project-create Updates
 
 - Generate `.agency/manifest.json` on project creation
 - Register project in starter's `.agency/projects.json`
@@ -143,7 +143,7 @@ Location: `.agency/projects.json` (in the-agency-starter, gitignored)
 - [x] Manifest schema defined and documented
 - [x] Registry schema defined with component definitions
 - [x] Project registry schema defined
-- [x] `project-new` creates manifest and registers project
+- [x] `project-create` creates manifest and registers project
 - [x] `project-update --init` works for existing projects
 - [x] `myclaude` checks and offers to start services
 
@@ -180,7 +180,7 @@ Location: `.agency/projects.json` (in the-agency-starter, gitignored)
 - Workaround: Manually prompt agents to check collaborations
 
 **Wave 2 Complete:**
-- A4: foundation-alpha implemented manifest generation in project-new
+- A4: foundation-alpha implemented manifest generation in project-create
   - Commit: 39086da
   - Generates .agency/manifest.json with component tracking
   - Registers projects in .agency/projects.json

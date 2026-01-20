@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# project-new - Create a new project from The Agency Starter
+# project-create - Create a new project from The Agency Starter
 #
 # Usage:
-#   project-new my-app                    # Creates ./my-app
-#   project-new ~/code/my-app             # Creates at specific path
-#   project-new my-app --no-launch        # Don't launch housekeeping after
-#   project-new my-app --verbose          # Show detailed logging
+#   project-create my-app                    # Creates ./my-app
+#   project-create ~/code/my-app             # Creates at specific path
+#   project-create my-app --no-launch        # Don't launch housekeeping after
+#   project-create my-app --verbose          # Show detailed logging
 #
 
 set -euo pipefail
@@ -40,7 +40,7 @@ verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
-    echo "project-new $TOOL_VERSION"
+    echo "project-create $TOOL_VERSION"
     exit 0
 fi
 
@@ -62,7 +62,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "Usage: project-new <project-name-or-path> [options]"
+            echo "Usage: project-create <project-name-or-path> [options]"
             echo ""
             echo "Options:"
             echo "  --no-launch    Don't launch housekeeping after creation"
@@ -70,9 +70,9 @@ while [[ $# -gt 0 ]]; do
             echo "  -h, --help     Show this help"
             echo ""
             echo "Examples:"
-            echo "  project-new my-app              # Creates ./my-app"
-            echo "  project-new ~/code/my-app       # Creates at ~/code/my-app"
-            echo "  project-new my-app --no-launch  # Create without launching"
+            echo "  project-create my-app              # Creates ./my-app"
+            echo "  project-create ~/code/my-app       # Creates at ~/code/my-app"
+            echo "  project-create my-app --no-launch  # Create without launching"
             exit 0
             ;;
         *)
@@ -91,11 +91,11 @@ done
 if [ -z "$PROJECT_PATH" ]; then
     log_error "Project name or path required"
     echo ""
-    echo "Usage: project-new <project-name-or-path> [--verbose]"
+    echo "Usage: project-create <project-name-or-path> [--verbose]"
     echo ""
     echo "Examples:"
-    echo "  project-new my-app"
-    echo "  project-new ~/code/my-app"
+    echo "  project-create my-app"
+    echo "  project-create ~/code/my-app"
     exit 1
 fi
 
@@ -125,8 +125,8 @@ main() {
     # Trap unexpected exits
     trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-    RUN_ID=$(log_start "project-new" "agency-tool" "$@" 2>/dev/null) || true
-    echo "project-new [run: ${RUN_ID:-none}]"
+    RUN_ID=$(log_start "project-create" "agency-tool" "$@" 2>/dev/null) || true
+    echo "project-create [run: ${RUN_ID:-none}]"
 
     # Banner
     echo ""

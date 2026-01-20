@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Component registry (`registry.json`)
   - Project registry (`.agency/projects.json`)
 - **Manifest Generation**
-  - `project-new` now generates manifest on project creation
+  - `project-create` now generates manifest on project creation
   - `project-update --init` generates manifest for existing projects
   - `project-update --check --json` for machine-readable status
   - SHA256 file hashing for modification detection
@@ -33,6 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Schema validation improvements (version patterns, hash formats)
 
 ## [Unreleased]
+
+### Changed
+- Renamed `project-new` to `project-create` for consistency with other create tools (agent-create, workstream-create, etc.)
+- Deprecated `agency-update` - use `project-update` instead (shows runtime warning)
+
+### Security
+- Added path traversal validation to `agency-update` manifest source path
 
 ## [2026-01-09-000003]
 

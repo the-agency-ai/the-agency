@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Worker agent for REQUEST-0053 (Phase A - Foundation). Assigned to Task A4: Update project-new to generate manifest and register projects.
+Worker agent for REQUEST-0053 (Phase A - Foundation). Assigned to Task A4: Update project-create to generate manifest and register projects.
 
 ## Current Assignment
 
@@ -26,7 +26,7 @@ Previous: COLLABORATE-0003 (B1) - Complete, COLLABORATE-0001 (A4) - Complete
 ## Coordination Protocol
 
 - **Single writer rule:** Only captain updates REQUEST files
-- You update: Code files (tools/project-new)
+- You update: Code files (tools/project-create)
 - Captain updates: REQUEST-0053 status
 
 ## How to Spin Up

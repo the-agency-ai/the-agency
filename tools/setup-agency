@@ -111,7 +111,7 @@ fi
 if [[ -f "$PROJECT_ROOT/.agency-starter" ]]; then
     log_error "This is the starter template. Create a project first:"
     echo ""
-    echo "  ./tools/project-new my-project"
+    echo "  ./tools/project-create my-project"
     echo ""
     exit 1
 fi

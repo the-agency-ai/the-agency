@@ -10,13 +10,13 @@
 
 ## Request
 
-REQUEST-0053 Task A4: Update project-new to generate manifest
+REQUEST-0053 Task A4: Update project-create to generate manifest
 
 ## Context
 You're implementing Task A4 of REQUEST-0053 (Phase A Foundation).
 
 ## Goal
-Update `tools/project-new` to:
+Update `tools/project-create` to:
 1. Generate `.agency/manifest.json` when creating a project
 2. Register the project in the starter's `.agency/projects.json`
 
@@ -46,7 +46,7 @@ Update `tools/project-new` to:
 ## Test
 After implementing, test with:
 ```bash
-./tools/project-new /tmp/test-project --no-launch
+./tools/project-create /tmp/test-project --no-launch
 cat /tmp/test-project/.agency/manifest.json
 rm -rf /tmp/test-project
 ```
@@ -58,13 +58,13 @@ rm -rf /tmp/test-project
 
 COMPLETED: Task A4 implemented in commit 39086da
 
-Changes to tools/project-new:
+Changes to tools/project-create:
 1. Generates .agency/manifest.json with all components from registry.json
 2. Registers project in starter's .agency/projects.json (creates if needed)
 3. Runs install hooks for components that have them (e.g., agency-service bun install)
 4. Updates manifest to mark dependencies as 'installed' after successful hooks
 
-Tested with: ./tools/project-new /tmp/test-project --no-launch --verbose
+Tested with: ./tools/project-create /tmp/test-project --no-launch --verbose
 All features working correctly.
 
 ---

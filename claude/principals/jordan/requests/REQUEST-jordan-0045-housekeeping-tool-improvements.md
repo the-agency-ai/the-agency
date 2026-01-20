@@ -71,7 +71,7 @@ list-artifacts → artifact-list
 list-instructions → instruction-list
 log-adhoc → adhoc-log
 migrate-secrets → secret-migrate
-new-project → project-new
+new-project → project-create
 new-tool → tool-new
 next-version → version-next
 post-news → news-post
@@ -205,7 +205,7 @@ GET /api/log/stats/agents         # Usage by agent
 | `list-instructions` | `instruction-list` | |
 | `log-adhoc` | `adhoc-log` | |
 | `migrate-secrets` | `secret-migrate` | |
-| `new-project` | `project-new` | |
+| `new-project` | `project-create` | |
 | `new-tool` | `tool-new` | |
 | `next-version` | `version-next` | |
 | `post-news` | `news-post` | |

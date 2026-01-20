@@ -21,7 +21,7 @@ This WORKNOTE documents a case study of parallel agent execution in The Agency. 
 | A1 | Manifest schema | - | captain | DONE |
 | A2 | Registry schema | - | captain | DONE |
 | A3 | Project registry schema | - | captain | DONE |
-| A4 | Update project-new | A1, A3 | COLLABORATE-0001 | PENDING |
+| A4 | Update project-create | A1, A3 | COLLABORATE-0001 | PENDING |
 | A5 | Update project-update --init | A1 | COLLABORATE-0002 | PENDING |
 | A6 | myclaude service check | - | subagent | DONE |
 
@@ -104,7 +104,7 @@ The coordinator (captain) is the **only agent that updates REQUEST files**. This
 
 **Timestamp:** 2026-01-15
 
-- [x] COLLABORATE-0001 created for A4 (project-new updates)
+- [x] COLLABORATE-0001 created for A4 (project-create updates)
 - [x] COLLABORATE-0002 created for A5 (project-update --init)
 - [ ] Agents launched via `./tools/dispatch-collaborations`
 

@@ -71,7 +71,7 @@ User installs starter → ./agency → Hub Agent manages everything
 - Prompts user with sensible defaults
 - Commit: cda8f39
 
-**A4: project-new manifest (foundation-alpha)**
+**A4: project-create manifest (foundation-alpha)**
 - Status: In Progress
 - Agent: foundation-alpha
 - Collaboration: COLLABORATE-0001

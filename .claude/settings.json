@@ -138,7 +138,7 @@
       "Bash(./tools/opportunities*)",
       "Bash(./tools/principal *)",
       "Bash(./tools/principal-create*)",
-      "Bash(./tools/project-new*)",
+      "Bash(./tools/project-create*)",
       "Bash(./tools/project-update*)",
       "Bash(./tools/proposal-capture*)",
       "Bash(./tools/recipes*)",

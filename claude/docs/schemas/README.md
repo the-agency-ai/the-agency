@@ -9,7 +9,7 @@ This directory contains JSON Schema definitions for The Agency's data structures
 **Location in projects:** `.agency/manifest.json`
 
 Tracks installed components, versions, and file states in each Agency project. Used by:
-- `project-new` - creates initial manifest
+- `project-create` - creates initial manifest
 - `project-update` - checks for updates, tracks modifications
 - Agents - understand what's installed
 
@@ -18,7 +18,7 @@ Tracks installed components, versions, and file states in each Agency project. U
 **Location in starter:** `registry.json` (root)
 
 Defines available components in the-agency-starter. Used by:
-- `project-new` - knows what to install
+- `project-create` - knows what to install
 - `project-update` - knows what can be updated
 - Hub Agent - understands available components
 
@@ -28,7 +28,7 @@ Defines available components in the-agency-starter. Used by:
 
 Tracks all projects created from this starter instance. Used by:
 - Hub Agent - lists and manages projects
-- `project-new` - registers new projects
+- `project-create` - registers new projects
 - Batch update operations
 
 ## Usage
@@ -41,7 +41,7 @@ These schemas are used for:
 ## Example: Creating a Manifest
 
 ```bash
-# In project-new, after copying files:
+# In project-create, after copying files:
 cat > .agency/manifest.json << EOF
 {
   "schema_version": "1.0",

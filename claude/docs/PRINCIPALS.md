@@ -230,7 +230,7 @@ The environment variable is set but the directory is missing:
 You're trying to set up directly in the-agency-starter. Create a project first:
 
 ```bash
-./tools/project-new my-project
+./tools/project-create my-project
 cd ../my-project
 ./tools/setup-agency
 ```

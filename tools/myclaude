@@ -388,20 +388,20 @@ main() {
         echo "This directory doesn't contain an Agency project."
         echo ""
         echo "To create a new project:"
-        echo "  ./tools/project-new my-project"
+        echo "  ./tools/project-create my-project"
         echo ""
         echo "Or run this from an Agency project root."
         echo ""
         exit 1
     fi
 
-    # Check if this is the starter template (should use project-new first)
+    # Check if this is the starter template (should use project-create first)
     if [[ -f "$PROJECT_ROOT/.agency-starter" ]]; then
         log_error "This is The Agency Starter template."
         echo ""
         echo "Create a project first:"
         echo ""
-        echo "  ./tools/project-new my-project"
+        echo "  ./tools/project-create my-project"
         echo "  cd my-project"
         echo "  ./tools/myclaude housekeeping captain"
         echo ""

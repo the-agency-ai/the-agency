@@ -15,7 +15,7 @@ SEPARATE from your code review - please do a TEST REVIEW:
 1. Read tools/starter-test to understand existing test coverage
 2. Identify test gaps for MVH work:
    - tools/project-update (--check, --json, --init, --preview, --apply)
-   - tools/project-new (manifest generation)
+   - tools/project-create (manifest generation)
    - Schema validation
 
 **Deliverable:** List of specific tests that SHOULD exist with:
@@ -33,7 +33,7 @@ This is about test COVERAGE, not code quality.
 ## Test Coverage Review
 
 ### Current Coverage (tools/starter-test)
-Existing tests cover: install.sh, project-new basic creation, file comparison, structure validation, sensitive content checks, basic tools.
+Existing tests cover: install.sh, project-create basic creation, file comparison, structure validation, sensitive content checks, basic tools.
 
 ### Test Gaps Identified
 
@@ -54,7 +54,7 @@ Existing tests cover: install.sh, project-new basic creation, file comparison, s
 | test_update_missing_manifest | Graceful error when manifest missing | Important |
 | test_update_corrupt_manifest | Handles corrupt JSON gracefully | Nice-to-have |
 
-#### project-new Tests (CRITICAL)
+#### project-create Tests (CRITICAL)
 
 | Test | What it validates | Priority |
 |------|------------------|----------|
@@ -78,7 +78,7 @@ Existing tests cover: install.sh, project-new basic creation, file comparison, s
 
 | Test | What it validates | Priority |
 |------|------------------|----------|
-| test_full_update_flow | project-new -> modify -> --check -> --apply | Critical |
+| test_full_update_flow | project-create -> modify -> --check -> --apply | Critical |
 | test_multi_project_registry | Multiple projects registered correctly | Important |
 | test_update_after_starter_change | Detects changes after starter update | Important |
 

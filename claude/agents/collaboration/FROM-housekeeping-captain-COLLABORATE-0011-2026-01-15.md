@@ -19,7 +19,7 @@ Based on your code review findings, please WRITE the tests you identified.
    - Test with locally modified files
    - Test with breaking changes flag
 
-2. **project-new tests:**
+2. **project-create tests:**
    - Test duplicate project name handling
    - Test install hook failure scenarios
 
@@ -29,7 +29,7 @@ Based on your code review findings, please WRITE the tests you identified.
    - Non-git project directory
 
 4. **Integration test:**
-   - Full flow: project-new -> modify files -> project-update --check -> project-update --apply
+   - Full flow: project-create -> modify files -> project-update --check -> project-update --apply
 
 **Deliverable:** Working test code committed to the repo. Follow the pattern in tools/starter-test.
 
@@ -49,7 +49,7 @@ Added tests 11-13 to tools/starter-test:
 - 11d: Locally modified files detected
 - 11e: updates_available is boolean type
 
-## Test 12: project-new manifest and registry tests
+## Test 12: project-create manifest and registry tests
 - 12a: manifest.json created in project
 - 12b: manifest.json has correct schema (schema_version, project, source, components)
 - 12c: Components are tracked
