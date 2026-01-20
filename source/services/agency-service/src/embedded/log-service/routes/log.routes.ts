@@ -14,6 +14,7 @@ import {
   queryLogsSchema,
   createToolRunSchema,
   endToolRunSchema,
+  cleanupSchema,
 } from '../types';
 import { createServiceLogger } from '../../../core/lib/logger';
 
@@ -105,7 +106,7 @@ export function createLogRoutes(logService: LogService): Hono {
   app.get('/search', async (c) => {
     const query = c.req.query('q');
     const since = c.req.query('since') || '24h';
-    const limit = parseInt(c.req.query('limit') || '100', 10);
+    const limit = safeParseInt(c.req.query('limit'), 100, 1, 1000);
 
     if (!query) {
       return c.json({ error: 'Bad Request', message: 'q parameter required' }, 400);
@@ -284,9 +285,8 @@ export function createLogRoutes(logService: LogService): Hono {
   /**
    * POST /log/cleanup - Clean up old logs
    */
-  app.post('/cleanup', async (c) => {
-    const body = await c.req.json().catch(() => ({}));
-    const daysToKeep = body.daysToKeep || 30;
+  app.post('/cleanup', zValidator('json', cleanupSchema), async (c) => {
+    const { daysToKeep } = c.req.valid('json');
     const result = await logService.cleanup(daysToKeep);
     logger.info({ deleted: result.deleted, daysToKeep }, 'Log cleanup via API');
     return c.json(result);

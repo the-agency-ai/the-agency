@@ -10,6 +10,7 @@
 
 import pino from 'pino';
 import { createStream } from 'rotating-file-stream';
+import { Writable } from 'stream';
 import { getConfig } from '../config';
 import fs from 'fs';
 import path from 'path';
@@ -49,14 +50,6 @@ function createLogger() {
     compress: 'gzip', // Compress rotated files
     maxFiles: 30,     // Keep 30 days
   });
-
-  // Targets for multi-destination logging
-  const targets: pino.TransportTargetOptions[] = [];
-
-  // Always log to rotating files
-  if (config.logDir) {
-    // We'll use pino.multistream for file + console
-  }
 
   // In development, also log pretty to console
   const streams: pino.StreamEntry[] = [
@@ -108,8 +101,6 @@ function createLogger() {
  * Create a writable stream that forwards logs to the log service
  */
 function createLogServiceStream(): NodeJS.WritableStream {
-  const { Writable } = require('stream');
-
   return new Writable({
     objectMode: true,
     write(chunk: Buffer | string, encoding: string, callback: () => void) {

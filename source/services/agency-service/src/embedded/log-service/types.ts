@@ -208,3 +208,12 @@ export const endToolRunSchema = z.object({
 });
 
 export type EndToolRunRequest = z.infer<typeof endToolRunSchema>;
+
+/**
+ * Cleanup request schema
+ */
+export const cleanupSchema = z.object({
+  daysToKeep: z.number().int().min(1).max(365).default(30),
+});
+
+export type CleanupRequest = z.infer<typeof cleanupSchema>;
