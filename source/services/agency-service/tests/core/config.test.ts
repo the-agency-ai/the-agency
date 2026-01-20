@@ -68,4 +68,58 @@ describe('Config', () => {
 
     expect(config.logDir).toContain('services/agency-service/logs');
   });
+
+  describe('logRetentionDays', () => {
+    test('should have default value of 30', () => {
+      const config = getConfig();
+      expect(config.logRetentionDays).toBe(30);
+    });
+
+    test('should accept environment override', () => {
+      process.env.AGENCY_LOG_RETENTION_DAYS = '60';
+      resetConfig();
+
+      const config = getConfig();
+      expect(config.logRetentionDays).toBe(60);
+
+      // Cleanup
+      delete process.env.AGENCY_LOG_RETENTION_DAYS;
+    });
+
+    test('should handle minimum valid value (1)', () => {
+      process.env.AGENCY_LOG_RETENTION_DAYS = '1';
+      resetConfig();
+
+      const config = getConfig();
+      expect(config.logRetentionDays).toBe(1);
+
+      // Cleanup
+      delete process.env.AGENCY_LOG_RETENTION_DAYS;
+    });
+
+    test('should handle maximum valid value (365)', () => {
+      process.env.AGENCY_LOG_RETENTION_DAYS = '365';
+      resetConfig();
+
+      const config = getConfig();
+      expect(config.logRetentionDays).toBe(365);
+
+      // Cleanup
+      delete process.env.AGENCY_LOG_RETENTION_DAYS;
+    });
+
+    test('should throw for invalid string value', () => {
+      process.env.AGENCY_LOG_RETENTION_DAYS = 'invalid';
+
+      // Invalid string parsed as NaN, which fails Zod validation
+      expect(() => {
+        resetConfig();
+        getConfig();
+      }).toThrow();
+
+      // Cleanup
+      delete process.env.AGENCY_LOG_RETENTION_DAYS;
+      resetConfig();
+    });
+  });
 });
