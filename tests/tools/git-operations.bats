@@ -80,6 +80,56 @@ load 'test_helper'
     [[ ! "$output" =~ "unknown" ]]
 }
 
+@test "commit: requires work item OR --adhoc flag" {
+    run_tool commit "Test message"
+    assert_failure
+    assert_output_contains "Work item required" || assert_output_contains "--adhoc"
+}
+
+@test "commit: --adhoc flag accepted as escape hatch" {
+    run_tool commit "Test message" --adhoc
+    # Will fail (no git context) but flag should be recognized
+    [[ ! "$output" =~ "unknown" ]] && [[ ! "$output" =~ "Work item required" ]]
+}
+
+@test "commit: validates work item format - accepts REQUEST" {
+    run_tool commit "Test" --work-item REQUEST-jordan-0001 --stage impl
+    [[ ! "$output" =~ "Invalid work item" ]]
+}
+
+@test "commit: validates work item format - accepts BUG" {
+    run_tool commit "Test" --work-item BUG-housekeeping-00001 --stage impl
+    [[ ! "$output" =~ "Invalid work item" ]]
+}
+
+@test "commit: validates work item format - accepts TASK" {
+    run_tool commit "Test" --work-item TASK-auth-refactor --stage impl
+    [[ ! "$output" =~ "Invalid work item" ]]
+}
+
+@test "commit: validates work item format - rejects invalid" {
+    run_tool commit "Test" --work-item INVALID-test --stage impl
+    assert_failure
+    assert_output_contains "Invalid work item"
+}
+
+@test "commit: validates work item format - rejects empty" {
+    run_tool commit "Test" --work-item "" --stage impl
+    assert_failure
+}
+
+@test "commit: --work-item requires value" {
+    run_tool commit "Test" --work-item --stage impl
+    assert_failure
+    assert_output_contains "requires a value"
+}
+
+@test "commit: --stage requires value" {
+    run_tool commit "Test" --work-item REQUEST-test-0001 --stage
+    assert_failure
+    assert_output_contains "requires a value"
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Tag Tool Tests
 # ─────────────────────────────────────────────────────────────────────────────
@@ -130,6 +180,54 @@ load 'test_helper'
     [[ ! "$output" =~ "unknown flag" ]]
 }
 
+@test "tag: --skip-order flag is recognized" {
+    run_tool tag REQUEST-test-0001 review --skip-order --skip-tests
+    [[ ! "$output" =~ "unknown flag" ]]
+}
+
+@test "tag: --force flag is recognized" {
+    run_tool tag REQUEST-test-0001 impl --force --skip-tests
+    [[ ! "$output" =~ "unknown flag" ]]
+}
+
+@test "tag: --message requires value" {
+    # Flags must come before positional args
+    run_tool tag --message
+    assert_failure
+    assert_output_contains "requires a value"
+}
+
+@test "tag: stage order enforcement - review requires impl" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+
+    # Try to tag review without impl - should fail
+    run "${TOOLS_DIR}/tag" REQUEST-test-0001 review --skip-tests
+    assert_failure
+    assert_output_contains "stage order" || assert_output_contains "impl"
+}
+
+@test "tag: stage order enforcement - impl has no prerequisite" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+
+    # Tag impl should work without prerequisites
+    run "${TOOLS_DIR}/tag" REQUEST-test-0001 impl --skip-tests
+    assert_success
+}
+
+@test "tag: --skip-order bypasses stage order check" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+
+    # Tag review without impl - should work with --skip-order
+    run "${TOOLS_DIR}/tag" --skip-order --skip-tests REQUEST-test-0001 review
+    assert_success
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Sync Tool Tests
 # ─────────────────────────────────────────────────────────────────────────────
@@ -165,6 +263,73 @@ load 'test_helper'
 @test "sync: --verbose flag is recognized" {
     run_tool sync --verbose
     [[ ! "$output" =~ "unknown" ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Workflow-check Tool Tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "workflow-check: --version shows version" {
+    run_tool workflow-check --version
+    assert_success
+    assert_output_contains "workflow-check"
+}
+
+@test "workflow-check: --help shows usage" {
+    run_tool workflow-check --help
+    assert_success
+    assert_output_contains "Usage:"
+}
+
+@test "workflow-check: -h shows usage" {
+    run_tool workflow-check -h
+    assert_success
+    assert_output_contains "Usage:"
+}
+
+@test "workflow-check: requires work item argument" {
+    run_tool workflow-check
+    assert_failure
+    assert_output_contains "Usage:" || assert_output_contains "work-item"
+}
+
+@test "workflow-check: --quiet flag is recognized" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+
+    run "${TOOLS_DIR}/workflow-check" --quiet REQUEST-test-0001
+    assert_success
+    # Should output just the stage name
+    [[ "$output" =~ "impl" ]]
+}
+
+@test "workflow-check: shows workflow status" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+
+    run "${TOOLS_DIR}/workflow-check" REQUEST-test-0001
+    assert_success
+    # Should show all stages
+    assert_output_contains "impl"
+    assert_output_contains "review"
+    assert_output_contains "tests"
+    assert_output_contains "complete"
+}
+
+@test "workflow-check: identifies next stage correctly" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+
+    # Tag impl
+    git tag -a REQUEST-test-0001-impl -m "impl"
+
+    run "${TOOLS_DIR}/workflow-check" REQUEST-test-0001
+    assert_success
+    # Should show review as next
+    assert_output_contains "review" && assert_output_contains "next"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
