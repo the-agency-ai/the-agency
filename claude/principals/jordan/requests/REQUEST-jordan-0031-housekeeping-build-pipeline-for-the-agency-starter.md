@@ -1,6 +1,6 @@
 # REQUEST-jordan-0031-housekeeping-build-pipeline-for-the-agency-starter
 
-**Status:** Open
+**Status:** Complete
 **Priority:** High
 **Requested By:** agent:housekeeping (on behalf of jordan)
 **Assigned To:** housekeeping
@@ -25,14 +25,14 @@ Define and implement a solid build process for the-agency-starter, including Age
 - [x] Secrets scanning during release
 - [x] File sync between repos
 
-### CI/CD (Pending)
-- [ ] GitHub Actions workflow for PR testing
-- [ ] GitHub Actions workflow for release automation
-- [ ] Automated version tagging on release
+### CI/CD (Complete)
+- [x] GitHub Actions workflow for PR testing (test.yml)
+- [x] GitHub Actions workflow for release automation (starter-release.yml, starter-verify.yml)
+- [x] Automated version tagging on release (--push --github flags)
 
-### Documentation (Pending)
-- [ ] CI/CD workflow documentation
-- [ ] Release automation guide
+### Documentation (Complete)
+- [x] CI/CD workflow documentation (inline in workflow files)
+- [x] Release automation guide (--help updated)
 
 ## Notes
 
@@ -43,6 +43,13 @@ Related: REQUEST-jordan-0030 covered onboarding and setup-agency tooling.
 ---
 
 ## Activity Log
+
+### 2026-01-20 - Complete
+- Added CI/CD workflows: test.yml, starter-release.yml, starter-verify.yml
+- Enhanced starter-release with --push and --github flags
+- Workflows synced to starter during release (renamed without starter- prefix)
+- All acceptance criteria met
+- Tagged: REQUEST-jordan-0031-impl
 
 ### 2026-01-20 - Status Review
 - Reviewed current implementation status
