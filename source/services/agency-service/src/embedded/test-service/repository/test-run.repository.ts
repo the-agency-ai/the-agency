@@ -140,16 +140,18 @@ export class TestRunRepository {
       )
     `);
 
-    // Create indexes
+    // Create indexes (except target - created after migration)
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_runs_suite ON test_runs(suite)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_runs_status ON test_runs(status)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_runs_started_at ON test_runs(started_at)`);
-    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_runs_target ON test_runs(target)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_results_run_id ON test_results(run_id)`);
     await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_results_test_name ON test_results(test_name)`);
 
     // Migration: add target column if missing (for existing databases)
     await this.migrateAddTargetColumn();
+
+    // Create target index after migration ensures column exists
+    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_test_runs_target ON test_runs(target)`);
 
     logger.info('Test schema initialized');
   }
