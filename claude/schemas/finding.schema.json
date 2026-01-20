@@ -14,7 +14,7 @@
     "work_item": {
       "type": "string",
       "description": "Work item ID (e.g., REQUEST-jordan-0065, BUG-0001, SPRINT-web-2026w03)",
-      "pattern": "^[A-Z]+-[a-zA-Z0-9-]+-[0-9]+$"
+      "pattern": "^[A-Z]+-[a-zA-Z0-9-]+-[a-zA-Z0-9]+$"
     },
     "stage": {
       "type": "string",
