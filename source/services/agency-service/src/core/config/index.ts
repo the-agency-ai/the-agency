@@ -31,6 +31,7 @@ const configSchema = z.object({
   // Logging
   logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   logDir: z.string().optional(),
+  logRetentionDays: z.number().min(1).max(365).default(30), // Log retention in days
 
   // Paths
   projectRoot: z.string(),
@@ -78,6 +79,7 @@ function loadConfig(): Config {
     redisUrl: process.env.AGENCY_REDIS_URL,
     logLevel: process.env.AGENCY_LOG_LEVEL || 'info',
     logDir: process.env.AGENCY_LOG_DIR || path.join(projectRoot, 'services/agency-service/logs'),
+    logRetentionDays: parseInt(process.env.AGENCY_LOG_RETENTION_DAYS || '30', 10),
     projectRoot,
   };
 

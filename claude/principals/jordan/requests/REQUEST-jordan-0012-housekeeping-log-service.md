@@ -252,11 +252,11 @@ Current pino logger writes to rotating files. Options:
 - [x] Implement `log.repository.ts` with SQLite + FTS5
 - [x] Implement `log.service.ts` with query methods
 - [x] Implement routes (`/api/log/*`)
-- [ ] Integrate with existing pino logger (dual write) - currently using tool-level logging via `_log-helper`
+- [x] Integrate with existing pino logger (dual write)
 - [x] Add CLI commands (`./tools/agency-service log`)
 
 ### Phase 2: Sub-service integration
-- [ ] Add `./tools/agency-service <service> logs` shorthand
+- [x] Add `./tools/agency-service <service> logs` shorthand
 - [x] Add log stats endpoint (`/api/log/stats`)
 - [x] Add request ID correlation (runId in logs)
 
@@ -269,7 +269,7 @@ Current pino logger writes to rotating files. Options:
 ### Phase 4: Cloud Readiness
 - [ ] PostgreSQL adapter for log storage
 - [ ] Multi-environment support
-- [ ] Retention policies
+- [x] Retention policies (configurable via AGENCY_LOG_RETENTION_DAYS)
 - [ ] Log shipping from remote services
 
 ## Acceptance Criteria
@@ -283,7 +283,7 @@ Current pino logger writes to rotating files. Options:
 **Overall:**
 - [x] Agents can query logs via API
 - [x] LogBench UI provides human-friendly log viewing
-- [ ] Logs are retained for configurable period
+- [x] Logs are retained for configurable period (AGENCY_LOG_RETENTION_DAYS, default 30)
 - [x] Performance impact on main service is minimal
 
 ## Dependencies
@@ -414,6 +414,34 @@ Fixed two bugs in the log CLI commands:
 - `./tools/agency-service log search "error" 1h`
 
 **Phase 1 Status:** All acceptance criteria now complete. Updated checkboxes.
+
+### 2026-01-20 - Phases 1-3 Complete (housekeeping/captain)
+Completed the remaining items to finish Phases 1, 2, and 3:
+
+**1. Pino Logger Dual-Write Integration:**
+- Added custom Pino stream in `src/core/lib/logger.ts` that writes to log-service
+- `enableLogServiceDualWrite(logService)` called after log-service initialization
+- All Pino logs from agency-service now stored in queryable database
+
+**2. Service Logs Shorthand:**
+- Added `logs` subcommand to bug, message, and test service cases
+- `./tools/agency-service bug logs --level error` → queries bug-service logs
+- `./tools/agency-service test logs --limit 3` → queries test-service logs
+- Removed duplicate `test)` case that was blocking subcommand parsing
+
+**3. Configurable Retention Policies:**
+- Added `logRetentionDays` config (AGENCY_LOG_RETENTION_DAYS env var, default 30)
+- Log-service runs cleanup on initialization based on retention config
+- CLI: `./tools/agency-service log cleanup [days]` for manual cleanup
+
+**Files Modified:**
+- `src/core/lib/logger.ts` - Dual-write stream + enableLogServiceDualWrite()
+- `src/core/config/index.ts` - Added logRetentionDays config
+- `src/embedded/log-service/index.ts` - Accept retentionDays, cleanup on init
+- `src/index.ts` - Pass retention config to log-service
+- `tools/agency-service` - Service logs shortcuts, cleanup command, help text
+
+**Status:** Phases 1-3 complete. Only Phase 4 (Cloud Readiness) remains.
 
 ### 2026-01-10 14:45 SST - Created
 - Request created based on discussion about environment observability

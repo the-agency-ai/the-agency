@@ -13,7 +13,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { getConfig } from './core/config';
-import { getLogger, createServiceLogger } from './core/lib/logger';
+import { getLogger, createServiceLogger, enableLogServiceDualWrite } from './core/lib/logger';
 import { getDatabase, closeDatabase } from './core/adapters/database';
 import { getQueue, closeQueue } from './core/adapters/queue';
 import { authMiddleware, loggingMiddleware } from './core/middleware';
@@ -76,8 +76,14 @@ async function main() {
   const messagesService = createMessagesService({ db, queue });
   await messagesService.initialize();
 
-  const logServiceInstance = createLogService({ db });
+  const logServiceInstance = createLogService({
+    db,
+    retentionDays: config.logRetentionDays,
+  });
   await logServiceInstance.initialize();
+
+  // Enable dual-write: Pino logs now also go to log-service database
+  enableLogServiceDualWrite(logServiceInstance.service);
 
   const testServiceInstance = createTestService({ db, projectRoot: config.projectRoot || process.cwd() });
   await testServiceInstance.initialize();

@@ -800,6 +800,19 @@ cmd_log_ingest() {
     api_request POST "/api/log" "$json" | jq .
 }
 
+cmd_log_cleanup() {
+    local days="${1:-30}"
+
+    if ! [[ "$days" =~ ^[0-9]+$ ]] || [[ "$days" -lt 1 ]] || [[ "$days" -gt 365 ]]; then
+        log_error "Days must be between 1 and 365"
+        exit 1
+    fi
+
+    local json="{\"daysToKeep\": $days}"
+    log_info "Cleaning up logs older than $days days..."
+    api_request POST "/api/log/cleanup" "$json" | jq .
+}
+
 # Test commands
 cmd_test_run() {
     local suite="${1:-all}"
@@ -932,9 +945,6 @@ case "${1:-}" in
     logs)
         tail_logs "${2:-50}"
         ;;
-    test)
-        run_tests
-        ;;
     api|info)
         cmd_api_info
         ;;
@@ -947,6 +957,7 @@ case "${1:-}" in
             update) shift 2; cmd_bug_update "$@" ;;
             assign) cmd_bug_assign "$3" "$4" "$5" ;;
             status) cmd_bug_status "$3" "$4" ;;
+            logs) shift 2; cmd_log_query --service bug-service "$@" ;;
             *)
                 echo "Unknown bug command: $2"
                 exit 1
@@ -963,6 +974,7 @@ case "${1:-}" in
             read) cmd_message_read "$3" "$4" "$5" ;;
             read-all) cmd_message_read_all "$3" "$4" ;;
             delete) cmd_message_delete "$3" ;;
+            logs) shift 2; cmd_log_query --service messages-service "$@" ;;
             *)
                 echo "Unknown message command: $2"
                 exit 1
@@ -983,6 +995,7 @@ case "${1:-}" in
                 start-run) cmd_log_start_run "$3" "$4" "$5" ;;
                 end-run) cmd_log_end_run "$3" "$4" "$5" ;;
                 ingest) cmd_log_ingest "$3" "$4" "$5" "$6" ;;
+                cleanup) cmd_log_cleanup "$3" ;;
                 *)
                     echo "Unknown log command: $2"
                     exit 1
@@ -1001,6 +1014,7 @@ case "${1:-}" in
             suites) cmd_test_suites ;;
             cancel) cmd_test_cancel "$3" ;;
             cleanup) cmd_test_cleanup "$3" ;;
+            logs) shift 2; cmd_log_query --service test-service "$@" ;;
             *)
                 echo "Unknown test command: $2"
                 exit 1
@@ -1031,6 +1045,7 @@ case "${1:-}" in
         echo "  ./tools/agency-service bug update <bug-id> --status Fixed"
         echo "  ./tools/agency-service bug assign <bug-id> <assignee> [type]"
         echo "  ./tools/agency-service bug status <bug-id> <status>"
+        echo "  ./tools/agency-service bug logs [--level X]      Query logs for bug-service"
         echo ""
         echo "Message Service:"
         echo "  ./tools/agency-service message list [--from X] [--limit N]"
@@ -1041,6 +1056,7 @@ case "${1:-}" in
         echo "  ./tools/agency-service message read <message-id> [type] [name]"
         echo "  ./tools/agency-service message read-all [type] [name]"
         echo "  ./tools/agency-service message delete <message-id>"
+        echo "  ./tools/agency-service message logs [--level X]  Query logs for messages-service"
         echo ""
         echo "Log Service:"
         echo "  ./tools/agency-service log [--service X] [--level error] [--since 1h]"
@@ -1051,6 +1067,7 @@ case "${1:-}" in
         echo "  ./tools/agency-service log start-run <tool>      Start a tool run, get run-id"
         echo "  ./tools/agency-service log end-run <run-id> <status> [summary]"
         echo "  ./tools/agency-service log ingest <service> <level> <message> [run-id]"
+        echo "  ./tools/agency-service log cleanup [days]        Delete logs older than N days (default: 30)"
         echo ""
         echo "Test Service:"
         echo "  ./tools/agency-service test run [suite]          Run tests (default: all)"
@@ -1062,6 +1079,7 @@ case "${1:-}" in
         echo "  ./tools/agency-service test suites               List available test suites"
         echo "  ./tools/agency-service test cancel <run-id>      Cancel a running test"
         echo "  ./tools/agency-service test cleanup [days]       Delete old test runs"
+        echo "  ./tools/agency-service test logs [--level X]     Query logs for test-service"
         echo ""
         echo "Options:"
         echo "  --version, -v  Show version"
