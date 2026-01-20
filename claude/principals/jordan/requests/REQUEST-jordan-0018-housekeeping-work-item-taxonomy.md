@@ -4,7 +4,7 @@
 
 **Assigned To:** housekeeping
 
-**Status:** Open - Design Discussion
+**Status:** Complete
 
 **Priority:** High
 
@@ -167,12 +167,32 @@ Verify we're following the workflow.
 - [x] `tools/release` - Release automation
 
 ### Phase 3: Build Validation
-- [ ] Update `tools/code-review`
-- [ ] `tools/workflow-check`
+- [x] Update `tools/commit` - work item OR --adhoc required
+- [x] Update `tools/tag` - stage order enforcement
+- [x] `tools/workflow-check` - show work item stage status
 
 ---
 
 ## Activity Log
+
+### 2026-01-20 - Phase 3 Complete (Workflow Enforcement)
+- Updated `tools/commit` to require work item OR --adhoc flag
+  - Added flag argument validation
+  - Added work item format validation (REQUEST, BUG, TASK, PHASE, ITERATION, SPRINT)
+  - Fixed session file sourcing security (parse instead of source)
+  - Added ADHOC-WORKLOG.md logging with path traversal protection
+- Updated `tools/tag` to enforce stage order
+  - impl → review → tests → complete
+  - Added --force flag for non-interactive environments
+  - Added --skip-order escape hatch
+  - Fixed dry-run output visibility
+  - Fixed tag push error handling
+- Created `tools/workflow-check` to show work item stage status
+  - Color-coded output
+  - --quiet mode for scripting
+  - --verbose mode shows commits since last tag
+- Added comprehensive tests in tests/tools/git-operations.bats
+- Full workflow: impl → code/security review → review → test review → tests → complete
 
 ### 2026-01-10 16:30 SST - Phase 1 & 2 Complete
 - Created `tools/tag` for stage tagging (impl, review, tests, complete)
