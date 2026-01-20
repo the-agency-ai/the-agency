@@ -700,7 +700,7 @@ cmd_log_query() {
         esac
     done
 
-    local endpoint="/api/log"
+    local endpoint="/api/log/query"
     if [[ -n "$query" ]]; then
         endpoint="${endpoint}?${query%&}"
     fi
@@ -970,20 +970,25 @@ case "${1:-}" in
         esac
         ;;
     log)
-        case "${2:-list}" in
-            list) shift 2; cmd_log_query "$@" ;;
-            stats) cmd_log_stats ;;
-            services) cmd_log_services ;;
-            run) cmd_log_run "$3" "$4" ;;
-            search) cmd_log_search "$3" "$4" ;;
-            start-run) cmd_log_start_run "$3" "$4" "$5" ;;
-            end-run) cmd_log_end_run "$3" "$4" "$5" ;;
-            ingest) cmd_log_ingest "$3" "$4" "$5" "$6" ;;
-            *)
-                echo "Unknown log command: $2"
-                exit 1
-                ;;
-        esac
+        # Handle flags directly after 'log' as query filters
+        if [[ "${2:-}" == --* || "${2:-}" == -* || -z "${2:-}" ]]; then
+            shift 1; cmd_log_query "$@"
+        else
+            case "$2" in
+                list) shift 2; cmd_log_query "$@" ;;
+                stats) cmd_log_stats ;;
+                services) cmd_log_services ;;
+                run) cmd_log_run "$3" "$4" ;;
+                search) cmd_log_search "$3" "$4" ;;
+                start-run) cmd_log_start_run "$3" "$4" "$5" ;;
+                end-run) cmd_log_end_run "$3" "$4" "$5" ;;
+                ingest) cmd_log_ingest "$3" "$4" "$5" "$6" ;;
+                *)
+                    echo "Unknown log command: $2"
+                    exit 1
+                    ;;
+            esac
+        fi
         ;;
     test)
         case "${2:-run}" in
