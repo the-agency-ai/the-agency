@@ -191,7 +191,12 @@ extract_and_import() {
     if [[ -n "$created" ]]; then
         created_date="$created"
     else
-        created_date=$(date -r "$file" "+%Y-%m-%d" 2>/dev/null || date "+%Y-%m-%d")
+        # Cross-platform: macOS uses date -r FILE, Linux uses stat
+        if [[ "$(uname)" == "Darwin" ]]; then
+            created_date=$(date -r "$file" "+%Y-%m-%d" 2>/dev/null || date "+%Y-%m-%d")
+        else
+            created_date=$(stat -c %y "$file" 2>/dev/null | cut -d' ' -f1 || date "+%Y-%m-%d")
+        fi
     fi
 
     if [[ "$VERBOSE" == "true" || "$DRY_RUN" == "true" ]]; then
@@ -267,7 +272,7 @@ main() {
     while IFS= read -r file; do
         if [[ -f "$file" ]]; then
             extract_and_import "$file"
-            ((count++))
+            ((++count))
 
             # Track max ID for jordan principal
             local req_id=$(basename "$file" .md | grep -oE 'REQUEST-[a-z]+-[0-9]+' | head -1)
