@@ -2,7 +2,7 @@
 
 **ID:** COLLABORATE-0047
 **From:** captain (housekeeping)
-**To:** browser
+**To:** research
 **Date:** 2026-01-21 13:12:00 +08
 **Status:** Open
 
