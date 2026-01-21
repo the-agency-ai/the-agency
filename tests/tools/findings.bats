@@ -254,3 +254,101 @@ EOF
     [[ "$output" =~ "Would save to:" ]]
     [[ "$output" =~ "consolidated.json" ]]
 }
+
+# ============================================================================
+# INTEGRATION TESTS (added from test review)
+# ============================================================================
+
+@test "findings-save: writes file and preserves content" {
+    # Create test finding with actual content
+    cat > "${BATS_TEST_TMPDIR}/finding.json" << 'EOF'
+{
+  "schema_version": "1.0",
+  "work_item": "TEST-integration-0001",
+  "stage": "impl",
+  "review_type": "code",
+  "reviewer": { "subagent_id": "test-reviewer-abc" },
+  "timestamp": "2026-01-20T10:00:00Z",
+  "findings": [
+    {
+      "id": "F001",
+      "severity": "medium",
+      "category": "quality",
+      "file": "src/test.ts",
+      "line_start": 42,
+      "line_end": 45,
+      "issue": "Missing error handling",
+      "recommendation": "Add try-catch block"
+    }
+  ]
+}
+EOF
+
+    # Create temp reviews directory with overridden paths
+    TEST_REVIEWS="${BATS_TEST_TMPDIR}/reviews"
+    mkdir -p "$TEST_REVIEWS"
+
+    TOOL_SCRIPT="${BATS_TEST_TMPDIR}/findings-save-test"
+    sed -e "s|REVIEWS_DIR=.*|REVIEWS_DIR=\"$TEST_REVIEWS\"|" \
+        -e "s|SCHEMAS_DIR=.*|SCHEMAS_DIR=\"${REPO_ROOT}/claude/schemas\"|" \
+        "${TOOLS_DIR}/findings-save" > "$TOOL_SCRIPT"
+    chmod +x "$TOOL_SCRIPT"
+
+    # Run the tool to actually write
+    run bash -c "cat '${BATS_TEST_TMPDIR}/finding.json' | '$TOOL_SCRIPT' TEST-integration-0001 impl code"
+    assert_success
+
+    # Verify file exists
+    OUTPUT_FILE="$TEST_REVIEWS/TEST-integration-0001/code-review-1.json"
+    [[ -f "$OUTPUT_FILE" ]]
+
+    # Verify content is preserved (check for key data)
+    [[ "$(cat "$OUTPUT_FILE")" =~ "test-reviewer-abc" ]]
+    [[ "$(cat "$OUTPUT_FILE")" =~ "Missing error handling" ]]
+    [[ "$(cat "$OUTPUT_FILE")" =~ "line_start" ]]
+}
+
+@test "findings-save: creates separate files for different review types" {
+    TEST_REVIEWS="${BATS_TEST_TMPDIR}/reviews"
+    mkdir -p "$TEST_REVIEWS"
+
+    TOOL_SCRIPT="${BATS_TEST_TMPDIR}/findings-save-test"
+    sed -e "s|REVIEWS_DIR=.*|REVIEWS_DIR=\"$TEST_REVIEWS\"|" \
+        -e "s|SCHEMAS_DIR=.*|SCHEMAS_DIR=\"${REPO_ROOT}/claude/schemas\"|" \
+        "${TOOLS_DIR}/findings-save" > "$TOOL_SCRIPT"
+    chmod +x "$TOOL_SCRIPT"
+
+    # Save a code review
+    cat > "${BATS_TEST_TMPDIR}/code.json" << 'EOF'
+{
+  "schema_version": "1.0",
+  "work_item": "TEST-multi-0001",
+  "stage": "impl",
+  "review_type": "code",
+  "reviewer": { "subagent_id": "code-reviewer" },
+  "timestamp": "2026-01-20T10:00:00Z",
+  "findings": []
+}
+EOF
+    run bash -c "cat '${BATS_TEST_TMPDIR}/code.json' | '$TOOL_SCRIPT' TEST-multi-0001 impl code"
+    assert_success
+
+    # Save a security review
+    cat > "${BATS_TEST_TMPDIR}/security.json" << 'EOF'
+{
+  "schema_version": "1.0",
+  "work_item": "TEST-multi-0001",
+  "stage": "impl",
+  "review_type": "security",
+  "reviewer": { "subagent_id": "security-reviewer" },
+  "timestamp": "2026-01-20T11:00:00Z",
+  "findings": []
+}
+EOF
+    run bash -c "cat '${BATS_TEST_TMPDIR}/security.json' | '$TOOL_SCRIPT' TEST-multi-0001 impl security"
+    assert_success
+
+    # Verify both files exist
+    [[ -f "$TEST_REVIEWS/TEST-multi-0001/code-review-1.json" ]]
+    [[ -f "$TEST_REVIEWS/TEST-multi-0001/security-review-1.json" ]]
+}
