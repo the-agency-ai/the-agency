@@ -206,10 +206,10 @@ Suggested CLAUDE.md Rules:
 - [x] Example files created
 
 ### Phase B: Capture Tooling
-- [ ] `./tools/findings-save` implemented
-- [ ] `./tools/findings-consolidate` implemented
-- [ ] Review prompts output structured JSON
-- [ ] Integration documented in DEVELOPMENT-WORKFLOW.md
+- [x] `./tools/findings-save` implemented
+- [x] `./tools/findings-consolidate` implemented
+- [ ] Review prompts output structured JSON (deferred to Phase C)
+- [ ] Integration documented in DEVELOPMENT-WORKFLOW.md (deferred to Phase C)
 
 ### Phase C: Analysis Tooling
 - [ ] `./tools/findings-analyze` implemented
@@ -291,6 +291,19 @@ Suggested CLAUDE.md Rules:
 ---
 
 ## Activity Log
+
+### 2026-01-21 - Phase B Complete
+- Implemented `./tools/findings-save`:
+  - Reads JSON from stdin, validates against schema
+  - Saves to claude/logs/reviews/{WORK-ITEM}/{type}-review-{N}.json
+  - Auto-increments file number, validates work item format
+- Implemented `./tools/findings-consolidate`:
+  - Lists review files for work item
+  - Validates consolidated JSON against schema
+  - Saves to claude/logs/reviews/{WORK-ITEM}/consolidated.json
+- Security: Added path traversal prevention and work item format validation
+- Tests: 25 tests including integration tests
+- Tagged: REQUEST-jordan-0066-phaseB-impl, -review, -tests, -complete
 
 ### 2026-01-20 - Phase A Complete
 - Implemented JSON schemas for findings capture
