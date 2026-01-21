@@ -103,34 +103,76 @@ To sync files without cutting a release:
 
 This updates the starter with latest changes but doesn't bump the version or create a commit.
 
+## Turnkey Principle
+
+**CRITICAL: The starter MUST be a complete, turnkey experience.**
+
+There are NO "advanced" or "optional" features that get excluded. Unless explicitly documented as internal-only (private principal data, work notes, extraction plans), ALL features, documentation, and agents ship with the starter.
+
+When adding new features to the-agency:
+1. **Add to sync list** - Update `tools/starter-release` immediately
+2. **Ensure turnkey** - Feature must work out-of-the-box
+3. **Include docs** - All related documentation must be synced
+
+**Anti-pattern:** Excluding features because they "seem advanced"
+**Correct approach:** Include everything; let users choose what to use
+
 ## What Gets Synced
 
 The following are synced from the-agency to the-agency-starter:
 
-- `.claude/settings.json` and hooks
-- `CLAUDE.md`, `README.md`, `LICENSE`
-- `claude/agents/captain/` (agent.md, KNOWLEDGE.md, worklogs)
+**Core Files:**
+- `.claude/settings.json`, `.claude/settings.local.json.example`, hooks, commands
+- `CLAUDE.md`, `README.md`, `LICENSE`, `.gitignore`
+
+**Agents:**
+- `claude/agents/captain/` - The guide agent
+- `claude/agents/browser/` - Browser automation agent
+- `claude/agents/collaboration/` - Cleaned (only .gitkeep)
+
+**Documentation (ALL docs except internal notes):**
+- `claude/docs/*.md` - All feature documentation
+- `claude/docs/cookbooks/` - How-to guides
+- `claude/docs/guides/` - Reference guides
+- `claude/docs/tutorials/` - Step-by-step tutorials
+
+**Configuration & Templates:**
 - `claude/config/`
-- `claude/docs/` (selected documentation)
 - `claude/integrations/`
 - `claude/knowledge/`
 - `claude/templates/`
 - `claude/workstreams/`
-- `tools/`
+
+**Tools & Services:**
+- `tools/` - All CLI tools
+- `tests/tools/` - Tool tests
 - `source/apps/agency-bench/`
 - `source/services/agency-service/`
+
+**GitHub Workflows:**
+- `.github/workflows/starter-*.yml` → `.github/workflows/*.yml`
 
 ## What Gets Cleaned
 
 The following are automatically removed during release:
 
+**Build Artifacts (regenerated on install):**
 - `.DS_Store` files
 - `*.log`, `*.db`, `*.pid` files
 - `node_modules/` directories
-- Build artifacts (`.next/`, `target/`, `out/`)
-- Session files (`SESSION-*.md`)
-- Private principals (`jordan/`)
-- Push logs and release history
+- Build outputs (`.next/`, `target/`, `out/`)
+
+**Private/Internal Content:**
+- Session files (`SESSION-*.md`) - User-specific
+- Private principals (`jordan/`) - Maintainer-specific
+- Push logs and release history - Internal tracking
+- `WORKNOTE-*.md` files - Internal work notes
+- `EXTRACTION_PLAN.md` - Internal planning
+- `claude/proposals/` - Development proposals
+
+**Project-Specific Agents (removed, only core agents kept):**
+- `apple/`, `discord/`, `gumroad/`, `hub/`, etc. - Project-specific agents
+- Only `captain/`, `browser/`, `collaboration/` are shipped
 
 ## Security Checks
 

@@ -586,6 +586,20 @@ Each pack adds opinionated patterns and enforcement for that ecosystem.
 
 **CRITICAL: When releasing updates to the-agency-starter, you MUST follow the documented release process.**
 
+### Turnkey Principle
+
+**The starter MUST be a complete, turnkey experience.** There are NO "advanced" or "optional" features that get excluded from the starter. Unless explicitly documented as internal-only (e.g., private principal data, work notes), ALL features, documentation, and agents ship with the starter.
+
+When adding new features to the-agency:
+1. Add the feature to `tools/starter-release` sync list
+2. Ensure the feature works out-of-the-box
+3. Include all necessary documentation
+
+**Anti-pattern:** Excluding features because they "seem advanced" or "require extra setup"
+**Correct approach:** Include everything; let users choose what to use
+
+### Release Checklist
+
 Before any starter release:
 ```bash
 # 1. Run full test suite

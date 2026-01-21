@@ -178,18 +178,28 @@ sync_files() {
         "claude/agents/captain/WORKLOG.md"
         "claude/agents/captain/ADHOC-WORKLOG.md"
         "claude/config"
-        "claude/docs/TERMINAL-INTEGRATION.md"
-        "claude/docs/PERMISSIONS.md"
-        "claude/docs/SECRETS.md"
-        "claude/docs/REPO-RELATIONSHIP.md"
+        "claude/docs/AGENT-SDK.md"
+        "claude/docs/BROWSER-MCP.md"
+        "claude/docs/CI-TROUBLESHOOTING.md"
+        "claude/docs/CONCEPTS.md"
+        "claude/docs/DEVELOPMENT-WORKFLOW.md"
         "claude/docs/FIRST-LAUNCH.md"
         "claude/docs/FIRST-LAUNCH-CONTEXT.jsonl"
+        "claude/docs/INDEX.md"
+        "claude/docs/PERMISSIONS.md"
+        "claude/docs/PRINCIPALS.md"
+        "claude/docs/QUICK-START.md"
+        "claude/docs/REPO-RELATIONSHIP.md"
+        "claude/docs/SECRETS.md"
         "claude/docs/STARTER-PACK-INTEGRATION.md"
         "claude/docs/STARTER-RELEASE-PROCESS.md"
-        "claude/docs/QUICK-START.md"
-        "claude/docs/INDEX.md"
+        "claude/docs/TERMINAL-INTEGRATION.md"
+        "claude/docs/TESTING.md"
+        "claude/docs/TOOL-LOGGING-PATTERN.md"
         "claude/docs/cookbooks"
+        "claude/docs/guides"
         "claude/docs/tutorials"
+        "claude/agents/browser"
         "claude/integrations"
         "claude/knowledge"
         "claude/templates"
@@ -262,12 +272,12 @@ sync_files() {
     # Remove proposals if they exist (development-only content)
     rm -rf "$STARTER_DIR/claude/proposals" 2>/dev/null || true
 
-    # Remove project-specific agent directories (only captain should be in starter)
-    # Keep captain, collaboration, remove any others
+    # Remove project-specific agent directories
+    # Keep: captain, collaboration, browser (shipped with starter)
     for agent_dir in "$STARTER_DIR/claude/agents"/*; do
         if [[ -d "$agent_dir" ]]; then
             local agent_name=$(basename "$agent_dir")
-            if [[ "$agent_name" != "captain" && "$agent_name" != "collaboration" ]]; then
+            if [[ "$agent_name" != "captain" && "$agent_name" != "collaboration" && "$agent_name" != "browser" ]]; then
                 rm -rf "$agent_dir"
                 verbose_echo "  Removed project-specific agent: $agent_name"
             fi
@@ -304,6 +314,10 @@ clean_cruft() {
     # Remove specific files that shouldn't be in starter
     rm -f "$STARTER_DIR/history/push-log.md" 2>/dev/null || true
     rm -f "$STARTER_DIR/history/releases.md" 2>/dev/null || true
+
+    # Remove internal planning/work note docs
+    rm -f "$STARTER_DIR/claude/docs/EXTRACTION_PLAN.md" 2>/dev/null || true
+    rm -f "$STARTER_DIR/claude/docs/WORKNOTE-"*.md 2>/dev/null || true
 
     # Clean build artifacts from apps (but keep source)
     rm -rf "$STARTER_DIR/source/apps/agency-bench/src-tauri/target" 2>/dev/null || true
