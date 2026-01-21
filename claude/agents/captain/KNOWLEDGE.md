@@ -138,10 +138,58 @@ Tests in `tests/tools/principal.bats` create test principals using `principal-cr
 
 **Fix needed:** Tests should remove their INDEX.md entries in cleanup, or use a test-specific INDEX.md.
 
+## Claude Code Extensibility: Hybrid Model
+
+Research conducted 2026-01-21 into Claude Code's native extensibility features.
+
+**Key Finding:** Adopt a hybrid model - preserve Agency's organizational structure while selectively adding native features.
+
+### Agents vs Subagents
+
+| Type | Purpose | Principal Access | Persistence |
+|------|---------|------------------|-------------|
+| **Agency Agent** | Entity with identity | Yes | WORKLOG, KNOWLEDGE |
+| **Native Subagent** | Ephemeral worker | No | None |
+
+**Pattern:** Agents spawn subagents for tasks, then consolidate results.
+
+```
+Principal → Agent (captain) → Subagents (reviewers) → Agent consolidates → Principal
+```
+
+### Skills Wrap Tools
+
+- **Skills** provide discovery and context (`/commit`)
+- **Tools** provide enforcement and logging (`./tools/commit`)
+- Skills guide, tools enforce
+
+### Quick Wins Identified
+
+1. **Prompt-based Stop hook** - LLM verifies completion before stopping
+2. **Path-specific rules** - `.claude/rules/` with path globs
+3. **Worker subagents** - code-reviewer, test-runner in `.claude/agents/`
+
+### What We Keep
+
+- Organizational model (workstreams, principals, REQUESTs)
+- Persistent agent identity (WORKLOG, KNOWLEDGE)
+- Tool enforcement + logging infrastructure
+- AIADLC framework
+
+**Full research:** `claude/docs/claude-code-extensibility/FINDINGS-CLAUDE-CODE-EXTENSIBILITY.md`
+
 ## Learnings Log
 
 _Add significant learnings here as you work._
 
+### 2026-01-21: Parallel Research Value
+
+Two agents (captain + research) independently researched Claude Code extensibility. Different contexts produced different emphases:
+- Research agent (fresh eyes): Focused on compatibility, incremental adoption
+- Captain (deep context): Focused on trade-offs, what we'd lose
+
+Synthesis was stronger than either alone. Consider parallel research for future investigations.
+
 ---
 
-*Last updated: Session start*
+*Last updated: 2026-01-21*
