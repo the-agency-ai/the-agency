@@ -193,7 +193,7 @@ The SDK shares MCP servers with Claude Code:
 options = ClaudeAgentOptions(
     mcp_servers={
         "playwright": {"command": "npx", "args": ["@playwright/mcp@latest"]},
-        "browser-mcp": {"command": "npx", "args": ["@anthropic-ai/browser-mcp"]}
+        "browser-mcp": {"command": "npx", "args": ["@browsermcp/mcp"]}
     }
 )
 ```

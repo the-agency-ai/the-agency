@@ -68,7 +68,7 @@ When Browser MCP is configured, the agent gains additional capabilities:
 claude mcp list
 
 # Add Browser MCP (one-time setup)
-claude mcp add browser-mcp npx @anthropic-ai/browser-mcp
+claude mcp add browser-mcp npx @browsermcp/mcp
 ```
 
 ## Security Boundaries

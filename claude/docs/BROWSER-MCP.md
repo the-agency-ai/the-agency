@@ -23,7 +23,7 @@ Privacy-preserving local browser control using your real Chrome profile.
 
 **Add MCP Server:**
 ```bash
-claude mcp add browser-mcp npx @anthropic-ai/browser-mcp
+claude mcp add browser-mcp npx @browsermcp/mcp
 ```
 
 **Features:**
@@ -104,7 +104,7 @@ Claude: Fill the search form on example.com with "test query" and submit
 
 # Restart the MCP server
 claude mcp remove browser-mcp
-claude mcp add browser-mcp npx @anthropic-ai/browser-mcp
+claude mcp add browser-mcp npx @browsermcp/mcp
 ```
 
 ### Extension Not Communicating

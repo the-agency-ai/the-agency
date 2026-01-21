@@ -66,7 +66,7 @@ Explored Claude ecosystem browser control options:
 ### 2026-01-16 - Setup Complete
 - Created `claude/docs/BROWSER-MCP.md` with setup instructions
 - Documented three MCP options: Browser MCP, Chrome DevTools, Browser Use
-- Added Browser MCP to Claude Code: `claude mcp add browser-mcp npx @anthropic-ai/browser-mcp`
+- Added Browser MCP to Claude Code: `claude mcp add browser-mcp npx @browsermcp/mcp`
 - Chrome extension installed
 - Created `claude/agents/browser/agent.md` spec
 
