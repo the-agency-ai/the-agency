@@ -603,7 +603,7 @@ main() {
     log_debug "=== Vault Setup Complete ==="
 
     # Build claude command arguments (array-based to avoid eval)
-    CLAUDE_ARGS=("--model" "opus")
+    CLAUDE_ARGS=("--model" "opus" "--chrome")
 
     # Add initial prompt if provided
     if [ -n "$INITIAL_PROMPT" ]; then
