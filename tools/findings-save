@@ -97,6 +97,24 @@ WORK_ITEM="$1"
 STAGE="$2"
 REVIEW_TYPE="$3"
 
+# Validate work item (prevent path traversal and invalid formats)
+if [[ "$WORK_ITEM" =~ \.\.|/ ]]; then
+    echo "findings-save [run: $RUN_ID]" >&2
+    echo "Invalid work item: $WORK_ITEM (cannot contain '..' or '/')" >&2
+    echo "✗" >&2
+    log_end "$RUN_ID" 1 "" "Invalid work item: path traversal"
+    exit 1
+fi
+
+if [[ ! "$WORK_ITEM" =~ ^[A-Z]+-[a-zA-Z0-9-]+-[a-zA-Z0-9]+$ ]]; then
+    echo "findings-save [run: $RUN_ID]" >&2
+    echo "Invalid work item format: $WORK_ITEM" >&2
+    echo "Expected format: TYPE-name-id (e.g., REQUEST-jordan-0065)" >&2
+    echo "✗" >&2
+    log_end "$RUN_ID" 1 "" "Invalid work item format"
+    exit 1
+fi
+
 # Validate stage
 if [[ ! "$STAGE" =~ ^(impl|review|tests)$ ]]; then
     echo "findings-save [run: $RUN_ID]" >&2
@@ -120,6 +138,15 @@ TEMP_INPUT=$(mktemp)
 trap "rm -f '$TEMP_INPUT'" EXIT
 
 cat > "$TEMP_INPUT"
+
+# Check for empty input
+if [[ ! -s "$TEMP_INPUT" ]]; then
+    echo "findings-save [run: $RUN_ID]" >&2
+    echo "Empty input - no data provided on stdin" >&2
+    echo "✗" >&2
+    log_end "$RUN_ID" 1 "" "Empty input"
+    exit 1
+fi
 
 # Check if input is valid JSON
 if ! python3 -c "import json; json.load(open('$TEMP_INPUT'))" 2>/dev/null; then
@@ -173,7 +200,13 @@ fi
 # Create output directory
 OUTPUT_DIR="$REVIEWS_DIR/$WORK_ITEM"
 if [[ "$DRY_RUN" == "false" ]]; then
-    mkdir -p "$OUTPUT_DIR"
+    if ! mkdir -p "$OUTPUT_DIR"; then
+        echo "findings-save [run: $RUN_ID]" >&2
+        echo "Failed to create directory: $OUTPUT_DIR" >&2
+        echo "✗" >&2
+        log_end "$RUN_ID" 1 "" "Failed to create directory"
+        exit 1
+    fi
 fi
 
 # Find next available file number
@@ -193,14 +226,29 @@ if [[ "$DRY_RUN" == "true" ]]; then
 fi
 
 # Write output file with pretty formatting
-python3 -c "
+if ! python3 -c "
 import json
-with open('$TEMP_INPUT') as f:
-    data = json.load(f)
-with open('$OUTPUT_FILE', 'w') as f:
-    json.dump(data, f, indent=2)
-    f.write('\n')
-"
+import sys
+
+temp_input = sys.argv[1]
+output_file = sys.argv[2]
+
+try:
+    with open(temp_input) as f:
+        data = json.load(f)
+    with open(output_file, 'w') as f:
+        json.dump(data, f, indent=2)
+        f.write('\n')
+except Exception as e:
+    print(f'Write error: {e}', file=sys.stderr)
+    sys.exit(1)
+" "$TEMP_INPUT" "$OUTPUT_FILE"; then
+    echo "findings-save [run: $RUN_ID]" >&2
+    echo "Failed to write output file" >&2
+    echo "✗" >&2
+    log_end "$RUN_ID" 1 "" "Write failed"
+    exit 1
+fi
 
 # Output
 echo "findings-save [run: $RUN_ID]"

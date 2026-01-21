@@ -41,6 +41,24 @@ load 'test_helper'
     [[ "$output" =~ "Invalid JSON" ]]
 }
 
+@test "findings-save: fails with empty stdin" {
+    run bash -c "echo -n '' | '${TOOLS_DIR}/findings-save' TEST-test-0001 impl code"
+    assert_failure
+    [[ "$output" =~ "Empty input" ]]
+}
+
+@test "findings-save: rejects path traversal in work item" {
+    run bash -c "echo '{}' | '${TOOLS_DIR}/findings-save' '../etc/passwd' impl code"
+    assert_failure
+    [[ "$output" =~ "Invalid work item" ]]
+}
+
+@test "findings-save: rejects invalid work item format" {
+    run bash -c "echo '{}' | '${TOOLS_DIR}/findings-save' 'invalid' impl code"
+    assert_failure
+    [[ "$output" =~ "Invalid work item format" ]]
+}
+
 @test "findings-save: dry-run shows output path" {
     cat > "${BATS_TEST_TMPDIR}/finding.json" << 'EOF'
 {
@@ -166,6 +184,18 @@ EOF
     run_tool findings-consolidate TEST-test-0001 deploy
     assert_failure
     [[ "$output" =~ "Invalid stage" ]]
+}
+
+@test "findings-consolidate: rejects path traversal in work item" {
+    run_tool findings-consolidate '../etc/passwd' impl --list
+    assert_failure
+    [[ "$output" =~ "Invalid work item" ]]
+}
+
+@test "findings-consolidate: rejects invalid work item format" {
+    run_tool findings-consolidate 'invalid' impl --list
+    assert_failure
+    [[ "$output" =~ "Invalid work item format" ]]
 }
 
 @test "findings-consolidate: --list shows review files" {
