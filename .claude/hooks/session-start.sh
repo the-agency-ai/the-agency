@@ -72,13 +72,14 @@ if [[ -n "$NEWS_OUTPUT" ]]; then
 fi
 
 # Check for pending collaborations
-COLLAB_OUTPUT=$("$REPO_ROOT/tools/collaboration-pending" 2>/dev/null | grep -v "^$" | head -5)
-if [[ -n "$COLLAB_OUTPUT" ]]; then
-  echo ""
-  echo "=== PENDING COLLABORATIONS ==="
-  echo "$COLLAB_OUTPUT"
-  echo "Run ./tools/collaboration-pending to see full details"
-  echo "=== END COLLABORATIONS ==="
-fi
+# NOTE: collaboration-pending tool not yet implemented - commented out for now
+# COLLAB_OUTPUT=$("$REPO_ROOT/tools/collaboration-pending" 2>/dev/null | grep -v "^$" | head -5)
+# if [[ -n "$COLLAB_OUTPUT" ]]; then
+#   echo ""
+#   echo "=== PENDING COLLABORATIONS ==="
+#   echo "$COLLAB_OUTPUT"
+#   echo "Run ./tools/collaboration-pending to see full details"
+#   echo "=== END COLLABORATIONS ==="
+# fi
 
 exit 0

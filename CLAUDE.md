@@ -82,7 +82,6 @@ tools/                       # CLI tools for The Agency
 - `./tools/collaborate` - Request help
 - `./tools/collaboration-respond` - Respond to requests
 - `./tools/news-post` / `./tools/news-read` - Broadcasts
-- `./tools/dispatch-collaborations` - Launch agents for pending work
 
 **Quality:**
 - `./tools/commit-precheck` - Run quality gates
@@ -95,7 +94,6 @@ tools/                       # CLI tools for The Agency
 - `./tools/commit` - Create properly formatted commits
 - `./tools/tag` - Tag work item stages (verifies tests pass)
 - `./tools/sync` - Push with pre-commit checks
-- `./tools/doc-commit` - Commit documentation
 
 **GitHub:**
 - `./tools/gh` - GitHub CLI wrapper (auto token injection + logging)
@@ -576,9 +574,12 @@ Run `./tools/install-hooks` to install the pre-commit hook. This runs `./tools/c
 
 Starter packs provide framework-specific conventions:
 
-- `claude/starter-packs/nextjs/` - Next.js projects
-- `claude/starter-packs/react-native/` - React Native apps
-- `claude/starter-packs/python/` - Python projects
+- `claude/starter-packs/github-ci/` - GitHub CI/CD workflows
+- `claude/starter-packs/node-base/` - Node.js base projects
+- `claude/starter-packs/posthog-analytics/` - PostHog analytics integration
+- `claude/starter-packs/react-app/` - React applications
+- `claude/starter-packs/supabase-auth/` - Supabase authentication
+- `claude/starter-packs/vercel/` - Vercel deployments
 
 Each pack adds opinionated patterns and enforcement for that ecosystem.
 
@@ -631,7 +632,7 @@ The captain is always available to help:
 For first-time users, try the interactive tour:
 ```bash
 ./tools/myclaude housekeeping captain
-# Then type: /welcome
+# Then type: /agency-welcome
 ```
 
 ## Reference Documentation

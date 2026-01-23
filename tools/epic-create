@@ -42,6 +42,28 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     exit 0
 fi
 
+# Help check
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "Usage: ./tools/epic-create <number> [--verbose]"
+    echo ""
+    echo "Create a new epic directory structure."
+    echo ""
+    echo "Arguments:"
+    echo "  number      Epic number (e.g., 1 creates epic001)"
+    echo ""
+    echo "Options:"
+    echo "  --verbose   Enable verbose logging"
+    echo ""
+    echo "Creates:"
+    echo "  claude/epics/epic{number}/"
+    echo "    - {epic}-plan.md"
+    echo "    - feedback/"
+    echo "  Also creates epic{number}/ in all workstreams"
+    echo ""
+    echo "Example: ./tools/epic-create 3"
+    exit 0
+fi
+
 # Find repo root
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

@@ -41,5 +41,5 @@ Description: <first 60 chars of description>...
 ## Notes
 
 - Keep it fast - don't ask unnecessary questions
-- Nits go to `claude/workstream-agent-nits.md`
+- Nits go to `claude/workstream-agent-nits.md` (shared file for all agents)
 - Use for minor issues that don't warrant a full BUG or REQUEST

@@ -41,6 +41,29 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     exit 0
 fi
 
+# Help check
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "Usage: ./tools/sprint-create <workstream> <epic-num> <sprint-num> [--verbose]"
+    echo ""
+    echo "Create a new sprint directory within a workstream's epic."
+    echo ""
+    echo "Arguments:"
+    echo "  workstream   Workstream name (e.g., web, agents)"
+    echo "  epic-num     Epic number (e.g., 2 for epic002)"
+    echo "  sprint-num   Sprint number (e.g., 1 for sprint001)"
+    echo ""
+    echo "Options:"
+    echo "  --verbose    Enable verbose logging"
+    echo ""
+    echo "Creates:"
+    echo "  claude/workstreams/{workstream}/epic{epic}/sprint{sprint}/"
+    echo "    - sprint-plan.md"
+    echo ""
+    echo "Example: ./tools/sprint-create web 2 1"
+    echo "Creates: claude/workstreams/web/epic002/sprint001/"
+    exit 0
+fi
+
 # Find repo root
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

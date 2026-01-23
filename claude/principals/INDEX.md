@@ -1,6 +1,6 @@
 # Principals Index
 
-Principals are human stakeholders who direct agent work via instructions.
+Principals are human stakeholders who direct agent work via requests.
 
 ## Registered Principals
 
@@ -13,33 +13,35 @@ _Add principals here as they join the project._
 ## Adding a Principal
 
 ```bash
-mkdir -p claude/principals/{name}/instructions
-mkdir -p claude/principals/{name}/artifacts
-touch claude/principals/{name}/preferences.yaml
+./tools/principal-create {name}
 ```
 
-Or use the housekeeping agent:
+Or manually:
 ```bash
-./tools/myclaude housekeeping housekeeping "Add a principal named {name}"
+mkdir -p claude/principals/{name}/requests
+mkdir -p claude/principals/{name}/artifacts
+mkdir -p claude/principals/{name}/resources
+mkdir -p claude/principals/{name}/config
 ```
 
 ## Principal Directory Structure
 
 ```
 claude/principals/{name}/
-  preferences.yaml      # How they like to work
-  instructions/         # INSTR-XXXX files they've issued
+  README.md             # Principal overview and instructions
+  requests/             # REQUEST-{name}-XXXX files they've issued
   artifacts/            # Deliverables produced for them
   resources/            # Reference materials they've provided
+  config/               # Application-specific configurations
 ```
 
-## Instruction Naming
+## Request Naming
 
 ```
-INSTR-XXXX-{principal}-{workstream}-{agent}-{title}.md
+REQUEST-{principal}-XXXX-workstream-title.md
 ```
 
-Example: `INSTR-0001-jordan-web-web-implement-dark-mode.md`
+Example: `REQUEST-jordan-0001-web-implement-dark-mode.md`
 
 ## Artifact Naming
 
@@ -48,7 +50,3 @@ ART-XXXX-{principal}-{workstream}-{agent}-{date}-{title}.md
 ```
 
 Example: `ART-0001-jordan-web-web-2026-01-01-dark-mode-implementation.md`
-| testprincipal | 2026-01-20 21:55:27 +08 | Active |
-| uppercasetest | 2026-01-20 21:55:29 +08 | Active |
-| batsstructtest | 2026-01-20 21:55:30 +08 | Active |
-| batsreadmetest | 2026-01-20 21:55:30 +08 | Active |

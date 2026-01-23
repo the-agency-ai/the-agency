@@ -224,7 +224,7 @@ The Secret Service runs as part of `agency-service` on port 3141.
 ### Starting the Service
 
 ```bash
-cd services/agency-service
+cd source/services/agency-service
 bun run dev
 ```
 
@@ -268,7 +268,7 @@ AGENCY_USER=principal:jordan  # or agent:housekeeping
 
 - All secret access is logged with timestamp, actor, and operation
 - Logs are append-only (cannot be modified after creation)
-- Stored in SQLite database at `services/agency-service/data/secrets.db`
+- Stored in SQLite database at `source/services/agency-service/data/secrets.db`
 
 ## Best Practices
 
@@ -314,7 +314,7 @@ AGENCY_USER=principal:jordan  # or agent:housekeeping
 
 **Solution:**
 ```bash
-cd services/agency-service
+cd source/services/agency-service
 bun run dev
 ```
 
@@ -374,4 +374,4 @@ For programmatic access, use the provided `./tools/secret` CLI rather than calli
 
 - `CLAUDE.md` - Essential commands for agents
 - `claude/docs/PERMISSIONS.md` - How to grant tool permissions
-- `services/agency-service/README.md` - Service architecture
+- `source/services/agency-service/README.md` - Service architecture

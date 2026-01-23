@@ -85,3 +85,7 @@ the-agency/
 - Philosophy deep dive (WORKING-NOTE-0021)
 - Week planning (WORKING-NOTE-0022, PROP-0017)
 - Workshop planning and complete backlog (PROJ, BACKLOG.md)
+
+### 2026-01-23 13:59 - Ad-hoc: create REQUEST-jordan-0074 for starter quality cleanup
+- Commit: 595ddad
+- Agent: housekeeping/captain

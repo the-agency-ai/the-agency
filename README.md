@@ -17,14 +17,8 @@ The Agency is a convention-over-configuration system for running multiple Claude
 ## Prerequisites
 
 - **Bash** 4.0+ (macOS ships with 3.2, install via `brew install bash`)
-- **Python 3** with pip
 - **Node.js** 18+ (for agency-service)
 - **Git** 2.0+
-
-Install Python dependencies:
-```bash
-pip3 install -r requirements.txt
-```
 
 ## Getting Started
 
@@ -36,11 +30,8 @@ curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/ma
 
 ## Repository Structure
 
-This is the development repository for The Agency. It contains:
-
 - `tools/` - CLI tools for The Agency
 - `claude/` - Agent definitions, workstreams, and documentation
-- `the-agency-starter/` - Starter template (submodule)
 
 ## For Contributors
 

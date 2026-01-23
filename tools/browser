@@ -45,6 +45,29 @@ fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
+# Help check (before accessing positional args)
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "Usage: ./tools/browser <action> <url> [--verbose]"
+    echo ""
+    echo "Browser automation tool for Agency agents."
+    echo ""
+    echo "Actions:"
+    echo "  fetch <url>       - Fetch page content as text (returns to stdout)"
+    echo "  screenshot <url>  - Take screenshot (saved to cloud/misc/)"
+    echo "  pdf <url>         - Save page as PDF (saved to cloud/misc/)"
+    echo ""
+    echo "Options:"
+    echo "  --verbose         Enable verbose logging"
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/browser fetch https://example.com"
+    echo "  ./tools/browser screenshot https://news.ycombinator.com"
+    echo "  ./tools/browser pdf https://docs.anthropic.com"
+    echo ""
+    echo "First run installs playwright browsers (~200MB)"
+    exit 0
+fi
+
 # Parse verbose flag first
 for arg in "$@"; do
     case $arg in
@@ -54,8 +77,8 @@ for arg in "$@"; do
     esac
 done
 
-ACTION="$1"
-URL="$2"
+ACTION="${1:-}"
+URL="${2:-}"
 
 # Find principal cloud storage for output
 find_cloud_storage() {
@@ -69,22 +92,11 @@ find_cloud_storage() {
 }
 
 if [ -z "$ACTION" ]; then
+  echo "Error: Missing action"
+  echo ""
   echo "Usage: ./tools/browser <action> <url>"
   echo ""
-  echo "Actions:"
-  echo "  fetch <url>       - Fetch page content as text (returns to stdout)"
-  echo "  screenshot <url>  - Take screenshot (saved to cloud/misc/)"
-  echo "  pdf <url>         - Save page as PDF (saved to cloud/misc/)"
-  echo ""
-  echo "Options:"
-  echo "  --verbose         Enable verbose logging"
-  echo ""
-  echo "Examples:"
-  echo "  ./tools/browser fetch https://example.com"
-  echo "  ./tools/browser screenshot https://news.ycombinator.com"
-  echo "  ./tools/browser pdf https://docs.anthropic.com"
-  echo ""
-  echo "First run installs playwright browsers (~200MB)"
+  echo "Run ./tools/browser --help for more information"
   exit 1
 fi
 

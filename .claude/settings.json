@@ -1,7 +1,7 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/statusline.sh",
+    "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/statusline.sh",
     "padding": 0
   },
   "hooks": {
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-messages.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/messages-check.sh"
           }
         ]
       }
@@ -126,6 +126,8 @@
       "Bash(./tools/epic-create*)",
       "Bash(./tools/figma-diff*)",
       "Bash(./tools/figma-extract*)",
+      "Bash(./tools/findings-consolidate*)",
+      "Bash(./tools/findings-save*)",
       "Bash(./tools/hello*)",
       "Bash(./tools/hi*)",
       "Bash(./tools/instruction-capture*)",
@@ -136,6 +138,7 @@
       "Bash(./tools/launch-project*)",
       "Bash(./tools/log *)",
       "Bash(./tools/log-tool-use*)",
+      "Bash(./tools/log-tool-use-debug*)",
       "Bash(./tools/message-read*)",
       "Bash(./tools/message-send*)",
       "Bash(./tools/myclaude*)",
@@ -180,6 +183,7 @@
       "Bash(./tools/version-next*)",
       "Bash(./tools/welcomeback*)",
       "Bash(./tools/whoami*)",
+      "Bash(./tools/workflow-check*)",
       "Bash(./tools/workstream *)",
       "Bash(./tools/workstream-create*)"
     ]
