@@ -16,6 +16,32 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Files that change every session and shouldn't block stopping
+# Patterns support exact matches and glob-style wildcards
+EXCLUDE_PATTERNS = [
+    "claude/data/messages.db",      # Tool run logs database
+    "claude/data/*.db",             # Any database in data dir
+    "history/push-log.md",          # Push accountability log
+    "*.pyc",                        # Python bytecode
+    "__pycache__/*",                # Python cache
+]
+
+
+def should_exclude(filepath: str) -> bool:
+    """Check if a file should be excluded from uncommitted changes check."""
+    import fnmatch
+    # Strip git status prefix (e.g., " M ", "?? ", etc.)
+    clean_path = filepath.strip()
+    if len(clean_path) >= 3 and clean_path[1] == ' ':
+        clean_path = clean_path[2:].strip()
+    elif len(clean_path) >= 2 and clean_path[0] in 'MADRCU?' and clean_path[1] == ' ':
+        clean_path = clean_path[2:].strip()
+
+    for pattern in EXCLUDE_PATTERNS:
+        if fnmatch.fnmatch(clean_path, pattern):
+            return True
+    return False
+
 
 def get_git_status() -> dict:
     """Check for uncommitted changes."""
@@ -32,7 +58,8 @@ def get_git_status() -> dict:
         # Filter out things we don't care about
         significant_changes = [
             c for c in changes
-            if c and not c.strip().startswith('??')  # Ignore untracked for now
+            if c and not c.strip().startswith('??')  # Ignore untracked
+            and not should_exclude(c)  # Ignore excluded patterns
         ]
 
         return {
