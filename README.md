@@ -22,12 +22,6 @@ TheAgency is an opinionated convention-over-configuration system for running mul
 - **Quality Gates** - Enforced standards via pre-commit hooks
 - **Session Continuity** - Backup and restore agent context across sessions
 
-## Prerequisites
-
-- **Claude Code** - [Install Claude Code](https://docs.anthropic.com/en/docs/claude-code)
-
-All other dependencies are automatically installed by the installer.
-
 ## Getting Started
 
 For new projects, use [TheAgency Starter](https://github.com/the-agency-ai/the-agency-starter):
