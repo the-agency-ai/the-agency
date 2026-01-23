@@ -129,20 +129,36 @@ All fixes must be made in **the-agency** (source), then a clean build released t
 
 ## Acceptance Criteria
 
-- [ ] All documentation references correct tool names (noun-verb)
-- [ ] No references to non-existent tools
-- [ ] All `/welcome` → `/agency-welcome`
-- [ ] All starter pack paths correct
-- [ ] `epic-create --help` works (exit 0)
-- [ ] `browser --help` works (exit 0)
-- [ ] Hook renamed to `messages-check.sh`
-- [ ] 4 non-destructive tools added to permissions
-- [ ] Fresh install works without errors
+- [x] All documentation references correct tool names (noun-verb)
+- [x] No references to non-existent tools
+- [x] All `/welcome` → `/agency-welcome`
+- [x] All starter pack paths correct
+- [x] `epic-create --help` works (exit 0)
+- [x] `browser --help` works (exit 0) → removed, replaced with research agent
+- [x] Hook renamed to `messages-check.sh`
+- [x] 4 non-destructive tools added to permissions
+- [x] Fresh install works without errors (tested v1.3.3)
 - [ ] All files pass lint/format checks
 
 ## Work Completed
 
-<!-- Document completed work here -->
+### WI-1 through WI-5 (commit 2985c3a)
+- Fixed all documentation issues (CLAUDE.md, README.md, SECRETS.md, CONTRIBUTING.md)
+- Renamed check-messages.sh → messages-check.sh
+- Fixed epic-create, browser, sprint-create --help crashes
+- Added 4 non-destructive tools to permissions
+- Added missing agent files for browser/research agent
+- Fixed principal structure
+
+### Browser → Research Rename (commits 5593873, 0ae5c83)
+- Renamed browser agent to research agent
+- Updated agent.md with research capabilities
+- Research agent now handles web research, content analysis, knowledge production
+
+### Releases
+- v1.3.1 - Initial fixes
+- v1.3.2 - Browser agent files
+- v1.3.3 - Browser → Research rename
 
 ---
 
@@ -152,3 +168,18 @@ All fixes must be made in **the-agency** (source), then a clean build released t
 - Request created based on 5-agent review
 - Identified 47 issues across documentation, tools, config, consistency
 - Organized into 6 work items for parallel execution
+
+### 2026-01-23 - WI-1 through WI-5 Complete
+- 5 Task agents completed WI-1 through WI-5 in parallel
+- Committed 2985c3a with all fixes
+- Released v1.3.1, v1.3.2, v1.3.3
+
+### 2026-01-23 - Browser → Research Agent
+- Clarified browser agent was renamed to research agent
+- Research agent for deep technical research and knowledge production
+- Released v1.3.3 with final rename
+
+### 2026-01-23 - WI-6 Verification
+- Fresh install tested and verified
+- VERSION: 1.3.3
+- Research agent present with all files
