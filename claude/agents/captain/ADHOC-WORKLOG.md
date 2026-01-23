@@ -89,3 +89,7 @@ the-agency/
 ### 2026-01-23 13:59 - Ad-hoc: create REQUEST-jordan-0074 for starter quality cleanup
 - Commit: 595ddad
 - Agent: housekeeping/captain
+
+### 2026-01-23 15:12 - Ad-hoc: untrack messages.db (should be gitignored)
+- Commit: 76d7fcc
+- Agent: housekeeping/captain
