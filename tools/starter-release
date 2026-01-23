@@ -199,7 +199,7 @@ sync_files() {
         "claude/docs/cookbooks"
         "claude/docs/guides"
         "claude/docs/tutorials"
-        "claude/agents/browser"
+        "claude/agents/research"
         "claude/integrations"
         "claude/knowledge"
         "claude/templates"
@@ -259,6 +259,7 @@ sync_files() {
     log_step "Cleaning sensitive content..."
     rm -rf "$STARTER_DIR/claude/agents/captain/SESSION-"* 2>/dev/null || true
     rm -rf "$STARTER_DIR/claude/agents/captain/backups" 2>/dev/null || true
+    rm -rf "$STARTER_DIR/claude/agents/research/backups" 2>/dev/null || true
     rm -rf "$STARTER_DIR/claude/principals/jordan" 2>/dev/null || true
     rm -f "$STARTER_DIR/claude/principals/"*/resources/secrets/* 2>/dev/null || true
 
