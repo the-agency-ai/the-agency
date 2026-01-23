@@ -1,9 +1,10 @@
 #!/bin/bash
-# SessionEnd hook: Unregister instance and stop agency-service if last one
+# SessionEnd hook: Save context, unregister instance, stop agency-service if last one
 #
 # This hook runs when a Claude Code session ends. It:
-# 1. Removes this instance's registration
-# 2. If no other instances remain, stops the agency-service
+# 1. Auto-saves session context
+# 2. Removes this instance's registration
+# 3. If no other instances remain, stops the agency-service
 
 # Enable trace mode if DEBUG_HOOKS is set
 if [[ -n "${DEBUG_HOOKS}" ]]; then
@@ -11,6 +12,11 @@ if [[ -n "${DEBUG_HOOKS}" ]]; then
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# Auto-save context on exit
+if [[ -x "$REPO_ROOT/tools/context-save" ]]; then
+    "$REPO_ROOT/tools/context-save" --checkpoint "Session ended" 2>/dev/null || true
+fi
 INSTANCES_DIR="$REPO_ROOT/claude/data/instances"
 
 # Get this instance's ID (use CLAUDE_SESSION_ID if available, otherwise use parent PID)

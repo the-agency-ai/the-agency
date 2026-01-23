@@ -1,4 +1,9 @@
 {
+  "statusLine": {
+    "type": "command",
+    "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/statusline.sh",
+    "padding": 0
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -74,6 +79,11 @@
     "Stop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-check.py",
+            "timeout": 10
+          },
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/tools/tab-status available 2>/dev/null || true"
