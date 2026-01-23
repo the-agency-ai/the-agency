@@ -30,7 +30,7 @@ Product Vision
     └── Epic (feature/feature collection delivering usable customer value)
             └── Sprint (usable increment of customer value)
                     └── Iteration (verifiable increment toward Sprint completion)
-                            └── Tasks
+                            └── Work Item (discrete assignable unit)
 ```
 
 #### Artifacts
@@ -40,7 +40,7 @@ Product Vision
 | Product | Product Vision | Principals + Agents (partnership) |
 | Epic | Epic Plan | Principals + Agents (mapped together) |
 | Sprint | Sprint Plan | Agent (reviewed by Principals + Agents) |
-| Iteration | Iteration Plan | Agent (can include task breakdown) |
+| Iteration | Iteration Plan | Agent (can include work item breakdown) |
 
 #### Completion Reports
 
@@ -66,21 +66,76 @@ Reports flow upward and inform planning of subsequent Sprints, Epics, etc.
 
 - Projects have a goal defined by a Principal
 - Projects are defined by a set of Requests
-- Requests can have phases or tasks; phases can have tasks
+- Requests can have phases or work items; phases can have work items
 
 ```
 Project (goal defined by Principal)
     └── Requests (Principal or Agent initiated)
             └── Phases (optional)
-                    └── Tasks
+                    └── Work Item (discrete assignable unit)
 ```
 
 **Key distinction:** Requests do not have to belong to a Project.
 
-#### Ownership
+---
 
-- **Project goal**: Defined by Principal
-- **Request breakdown**: Agent in collaboration with Principal
+### Work Items
+
+**Work Items** are the fundamental unit of assignable work in The Agency. They appear at the bottom of both tracks and represent discrete, verifiable pieces of work.
+
+#### Key Characteristics
+
+| Property | Description |
+|----------|-------------|
+| **Cross-instance** | Work Items span multiple Claude Code instances |
+| **Cross-session** | Work Items persist across sessions (unlike CC Tasks) |
+| **Cross-agent** | Work Items can be assigned to and picked up by different agents |
+| **Persisted** | Stored in Agency database, tracked through completion |
+
+#### Work Item Properties
+
+Inspired by Claude Code's native task system, Work Items support:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | string | Unique identifier (e.g., `WI-0073-1`) |
+| `subject` | string | Brief title describing the work |
+| `description` | string | Detailed description with acceptance criteria |
+| `status` | enum | `open` → `in_progress` → `completed` |
+| `owner` | string | Agent assigned to work on this item |
+| `blockedBy` | array | Work Item IDs that must complete first |
+| `blocks` | array | Work Item IDs waiting on this one |
+| `parentType` | string | `request`, `iteration`, `phase` |
+| `parentId` | string | ID of parent work item |
+
+#### Work Item vs Claude Code Task
+
+| Aspect | Work Item (Agency) | Claude Code Task |
+|--------|-------------------|------------------|
+| **Scope** | Cross-instance, cross-session, cross-agent | Within a single CC session |
+| **Persistence** | Database + files | Memory only (ephemeral) |
+| **Visibility** | Agency tools, AgencyBench UI | Terminal spinner, CC UI |
+| **Dependencies** | Yes (blockedBy/blocks) | Yes (blockedBy/blocks) |
+| **Assignment** | Yes (to agents) | Yes (owner field) |
+| **Purpose** | Planning & tracking across sessions | Real-time progress within session |
+
+#### Workflow Integration
+
+When an agent picks up a Work Item:
+
+1. **Claim Work Item** - Agent marks Work Item as `in_progress` with themselves as owner
+2. **Create CC Tasks** - Agent breaks Work Item into Claude Code Tasks for within-session tracking
+3. **Execute** - CC Tasks show real-time progress in terminal
+4. **Complete** - When CC Tasks done, agent marks Work Item as `completed`
+
+```
+Work Item: WI-0073-2 "Implement exclude patterns"     ← Agency (persisted)
+    │
+    └── [Claude Code Session]
+            ├── #1 [completed] Parse git status       ← CC Task (ephemeral)
+            ├── #2 [completed] Add fnmatch logic      ← CC Task (ephemeral)
+            └── #3 [completed] Test patterns          ← CC Task (ephemeral)
+```
 
 ---
 
@@ -119,6 +174,7 @@ Potential additions:
 - `iteration-create`
 - `completion-report` (per level)
 - `project-create`
+- `work-item` (create, list, claim, complete)
 
 ### 7. Service Implications
 Options:
@@ -129,6 +185,12 @@ Options:
 ### 8. Guided vs Autonomous Iterations
 - What triggers which mode?
 - How is this specified in the Iteration Plan?
+
+### 9. Work Item Service
+- New `work-item-service` or extend `request-service`?
+- How do Work Items relate to the existing unified tracker (Bug, Idea, Request, Observation)?
+- Should Work Items be a new type in the unified tracker, or a separate concept?
+- ID format: `WI-{parent}-{seq}` vs `WORKITEM-{seq}` vs other?
 
 ---
 
@@ -142,6 +204,17 @@ Options:
 ---
 
 ## Activity Log
+
+### 2026-01-23 - Work Item Concept Added
+- Replaced "Tasks" with "Work Item" throughout taxonomy
+- Added comprehensive Work Item section:
+  - Key characteristics (cross-instance, cross-session, cross-agent, persisted)
+  - Work Item properties (inspired by Claude Code Tasks)
+  - Work Item vs Claude Code Task comparison
+  - Workflow integration showing how agents use both
+- Added Open Question #9 about Work Item service design
+- Context: Claude Code 2.1.17 introduced native task system (TaskCreate, TaskUpdate, TaskList, TaskGet)
+- Decision: Work Items for Agency-level tracking, Claude Code Tasks for within-session progress
 
 ### 2026-01-15 - Created
 - Captured taxonomy proposal from Principal jordan
