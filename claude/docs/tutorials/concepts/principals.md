@@ -81,7 +81,7 @@ Agents work on their assigned REQUESTs.
 For complex work, principals write detailed instructions:
 
 ```
-claude/principals/{you}/instructions/INSTR-XXXX-{topic}.md
+claude/principals/{you}/requests/REQUEST-{you}-XXXX-{topic}.md
 ```
 
 These provide:

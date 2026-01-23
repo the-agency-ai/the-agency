@@ -70,23 +70,23 @@ A **principal** is a human stakeholder:
 ```
 claude/principals/{principal}/
   preferences.yaml           # How they like to work
-  instructions/              # INSTR-XXXX files they've issued
+  requests/                  # REQUEST-principal-XXXX files they've issued
   artifacts/                 # Deliverables produced for them
   resources/                 # Reference materials they've provided
 ```
 
 **Key properties:**
-- **Direction**: Issues instructions that agents execute
+- **Direction**: Issues requests that agents execute
 - **Review**: Receives artifacts for approval
 - **Preferences**: Agents adapt to their working style
 - **HITL**: Maintains human-in-the-loop control
 
-### 4. Instructions (INSTR)
+### 4. Requests (REQUEST)
 
-An **instruction** is a directed task from a principal:
+A **request** is a directed task from a principal:
 
 ```markdown
-# INSTR-0001: Implement Dark Mode
+# REQUEST-jordan-0001: Implement Dark Mode
 
 **Principal:** jordan
 **Date:** 2026-01-01
@@ -109,7 +109,7 @@ Users have requested this feature...
 (Filled when complete)
 ```
 
-**Naming:** `INSTR-XXXX-{principal}-{workstream}-{agent}-{title}.md`
+**Naming:** `REQUEST-{principal}-XXXX-{agent}-{summary}.md`
 
 ### 5. Artifacts (ART)
 
@@ -122,7 +122,7 @@ An **artifact** is a deliverable for a principal:
 **Date:** 2026-01-01
 **Workstream:** web
 **Agent:** web
-**Instruction:** INSTR-0001
+**Request:** REQUEST-jordan-0001
 **Type:** report
 
 ---
@@ -164,7 +164,7 @@ A **handoff** transfers work context between agents or sessions:
 **Date:** 2026-01-01
 **From:** web/web
 **To:** agents/agent-manager
-**Context:** INSTR-0005
+**Context:** REQUEST-jordan-0005
 
 ## What Was Done
 - Implemented UI components
@@ -305,7 +305,7 @@ Each pack adds:
 |--------|---------|---------|
 | Agent | lowercase-hyphen | `agent-manager` |
 | Workstream | lowercase | `agents` |
-| Instruction | `INSTR-XXXX-...` | `INSTR-0001-jordan-web-web-dark-mode.md` |
+| Request | `REQUEST-principal-XXXX-...` | `REQUEST-jordan-0001-web-dark-mode.md` |
 | Artifact | `ART-XXXX-...` | `ART-0001-jordan-web-web-2026-01-01-report.md` |
 | Collaboration | `COLLABORATE-XXXX` | `FROM-web-web-COLLABORATE-0001-2026-01-01.md` |
 | Sprint | `sprint###` | `sprint001` |

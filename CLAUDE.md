@@ -29,7 +29,7 @@ Workstreams organize related work:
 
 ### Principals
 Human stakeholders who provide direction:
-- Instructions (`INSTR-XXXX`) - Directed tasks
+- Requests (`REQUEST-principal-XXXX`) - Directed tasks
 - Artifacts - Deliverables produced for principals
 - Preferences - How they like to work
 
@@ -267,7 +267,7 @@ If the vault is locked or uninitialized:
 ### Naming
 - Agents: lowercase, hyphenated (`agent-manager`, `web`)
 - Workstreams: lowercase (`agents`, `web`, `analytics`)
-- Instructions: `INSTR-XXXX-principal-workstream-agent-title.md`
+- Requests: `REQUEST-principal-XXXX-agent-summary.md`
 - Artifacts: `ART-XXXX-principal-workstream-agent-date-title.md`
 
 ### Git Commits

@@ -20,7 +20,7 @@ claude/
 │           └── sprint001-iteration001-{ws}-completion.md
 ├── principals/{principal}/       # Principal directives
 │   ├── preferences.yaml          # Editor, timezone, etc.
-│   ├── instructions/             # INSTR-####-*.md files
+│   ├── requests/                 # REQUEST-principal-####-*.md files
 │   └── artifacts/                # ART-####-*.md files
 └── docs/                         # Guides and reference
 ```
@@ -37,11 +37,11 @@ claude/
 | Iteration plan       | `sprint001-iteration001-{workstream}-plan.md`       |
 | Iteration completion | `sprint001-iteration001-{workstream}-completion.md` |
 
-## Instruction Naming
+## Request Naming
 
-**Format:** `INSTR-{seq}-{principal}-{workstream}-{agent}-{slug}.md`
+**Format:** `REQUEST-{principal}-{seq}-{agent}-{slug}.md`
 
-Example: `INSTR-0001-jordan-web-web-implement-dark-mode.md`
+Example: `REQUEST-jordan-0001-web-implement-dark-mode.md`
 
 ## Artifact Naming
 

@@ -53,7 +53,7 @@ When work spans multiple agents:
 
 ### Code Review Workflow
 
-1. Create instruction: `INSTR-XXXX-principal-workstream-agent-code-review.md`
+1. Create request: `REQUEST-principal-XXXX-agent-code-review.md`
 2. Housekeeping spawns review subagents in parallel
 3. Findings distributed via collaboration requests
 4. Agents address issues, respond when done

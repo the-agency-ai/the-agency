@@ -119,7 +119,7 @@ Organize related work:
 ### Principals
 
 Human stakeholders who provide direction:
-- Instructions (`INSTR-XXXX`) - Directed tasks
+- Requests (`REQUEST-principal-XXXX`) - Directed tasks
 - Artifacts - Deliverables produced for principals
 
 ## Agent Collaboration
