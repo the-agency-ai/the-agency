@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="source/apps/agency-bench/src-tauri/icons/512x512.png" alt="TheAgency Logo" width="128" height="128">
+</p>
+
 # TheAgency
 
 An opinionated multi-agent development framework for Claude Code.
