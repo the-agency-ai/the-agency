@@ -1,10 +1,14 @@
-# The Agency
+# TheAgency
 
-A multi-agent development framework for Claude Code.
+An opinionated multi-agent development framework for Claude Code.
 
 ## Overview
 
-The Agency is a convention-over-configuration system for running multiple Claude Code agents that collaborate on a shared codebase. Built for developers who want to scale their AI-assisted development workflows.
+TheAgency is an opinionated convention-over-configuration system for running multiple Claude Code agents that collaborate on a shared codebase alongside one or more humans (Principals). Built for developers who want to scale their AI-assisted development workflows.
+
+## 📋 Join the Community
+
+[**Register for TheAgency Community**](https://docs.google.com/forms/d/e/1FAIpQLSfkH2bE1LB39u5iU-BamxbVC6jHmyDEE0TB6G2yw7xODdS-1A/viewform?usp=header) - Add yourself to TheAgency community!
 
 ## Key Features
 
@@ -22,15 +26,17 @@ The Agency is a convention-over-configuration system for running multiple Claude
 
 ## Getting Started
 
-For new projects, use [The Agency Starter](https://github.com/the-agency-ai/the-agency-starter):
+For new projects, use [TheAgency Starter](https://github.com/the-agency-ai/the-agency-starter):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash
 ```
 
+See the [Quick Start Guide](claude/docs/QUICK-START.md) for detailed setup instructions.
+
 ## Repository Structure
 
-- `tools/` - CLI tools for The Agency
+- `tools/` - CLI tools for TheAgency
 - `claude/` - Agent definitions, workstreams, and documentation
 
 ## For Contributors
@@ -52,4 +58,4 @@ MIT License - see [LICENSE](LICENSE)
 
 ---
 
-*The Agency - Multi-agent development, done right.*
+*TheAgency - Multi-agent development, done right.*

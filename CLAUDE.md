@@ -12,15 +12,6 @@ The Agency is a convention-over-configuration system for running multiple Claude
 - **Collaboration** - Inter-agent communication and handoffs
 - **Quality Gates** - Enforced standards via pre-commit hooks
 
-## Quick Start
-
-```bash
-# Launch the captain agent (your guide)
-./tools/myclaude housekeeping captain
-
-# Ask the captain to help you set up your project
-```
-
 ## Core Concepts
 
 ### Agents
