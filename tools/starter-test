@@ -14,8 +14,7 @@
 #   4. Compare new project vs expected structure
 #   5. Verify no sensitive content
 #   6. Test basic tools work
-#   7. Hub Agent launch verification
-#   8. Batch update error handling
+#   7. Batch update error handling
 #   9. Pre-update verification checks
 #  10. Edge cases (non-git, dirty, corrupt)
 
@@ -78,10 +77,11 @@ for arg in "$@"; do
             echo "  4. Compare new project vs expected"
             echo "  5. Verify no sensitive content"
             echo "  6. Test basic tools"
-            echo "  7. Hub Agent launch verification"
-            echo "  8. Batch update error handling"
-            echo "  9. Pre-update verification checks"
-            echo " 10. Edge cases (non-git, dirty, corrupt)"
+            echo "  7. Batch update error handling"
+            echo "  8. Pre-update verification checks"
+            echo "  9. Edge cases (non-git, dirty, corrupt)"
+            echo " 10. project-update --check --json tests"
+            echo " 11. project-create manifest and registry tests"
             exit 0
             ;;
         --local|-l)
@@ -426,51 +426,9 @@ test_tools() {
     fi
 }
 
-# Test 7: Hub Agent Launch
-test_hub_launch() {
-    log_step "Test 7: Hub Agent launch verification"
-
-    local starter="$TEST_DIR/installed-starter"
-
-    # Verify ./agency exists and is executable
-    if [[ -x "$starter/agency" ]]; then
-        log_pass "./agency exists and is executable"
-    else
-        log_fail "./agency missing or not executable"
-    fi
-
-    # Verify hub agent directory exists
-    if [[ -d "$starter/claude/agents/hub" ]]; then
-        log_pass "Hub agent directory exists"
-    else
-        log_fail "Hub agent directory missing"
-    fi
-
-    # Verify hub agent.md exists
-    if [[ -f "$starter/claude/agents/hub/agent.md" ]]; then
-        log_pass "Hub agent.md exists"
-    else
-        log_fail "Hub agent.md missing"
-    fi
-
-    # Verify hub KNOWLEDGE.md exists
-    if [[ -f "$starter/claude/agents/hub/KNOWLEDGE.md" ]]; then
-        log_pass "Hub KNOWLEDGE.md exists"
-    else
-        log_fail "Hub KNOWLEDGE.md missing"
-    fi
-
-    # Verify ./agency script content references hub
-    if grep -q "housekeeping hub" "$starter/agency" 2>/dev/null; then
-        log_pass "./agency references hub agent"
-    else
-        log_fail "./agency doesn't reference hub agent"
-    fi
-}
-
-# Test 8: Batch Update Error Handling
+# Test 7: Batch Update Error Handling
 test_batch_update_errors() {
-    log_step "Test 8: Batch update error handling"
+    log_step "Test 7: Batch update error handling"
 
     local starter="$TEST_DIR/installed-starter"
     local test_projects_dir="$TEST_DIR/batch-test"
@@ -544,9 +502,9 @@ for p in data.get('projects', []):
     fi
 }
 
-# Test 9: Pre-Update Verification
+# Test 8: Pre-Update Verification
 test_pre_update_verification() {
-    log_step "Test 9: Pre-update verification checks"
+    log_step "Test 8: Pre-update verification checks"
 
     local project="$TEST_DIR/test-project"
     cd "$project"
@@ -597,9 +555,9 @@ print(len(modified))
     fi
 }
 
-# Test 10: Edge Cases
+# Test 9: Edge Cases
 test_edge_cases() {
-    log_step "Test 10: Edge cases"
+    log_step "Test 9: Edge cases"
 
     local starter="$TEST_DIR/installed-starter"
     local edge_dir="$TEST_DIR/edge-cases"
@@ -662,9 +620,9 @@ except:
     cd "$PROJECT_ROOT"
 }
 
-# Test 11: project-update --check --json tests
+# Test 10: project-update --check --json tests
 test_update_check_json() {
-    log_step "Test 11: project-update --check --json tests"
+    log_step "Test 10: project-update --check --json tests"
 
     local project="$TEST_DIR/test-project"
     local starter="$TEST_DIR/installed-starter"
@@ -675,7 +633,7 @@ test_update_check_json() {
         ./tools/project-update --init --from="$starter" > /dev/null 2>&1 || true
     fi
 
-    # Test 11a: --check mode returns without error
+    # Test 10a: --check mode returns without error
     local check_output
     if check_output=$(./tools/project-update --check --from="$starter" 2>&1); then
         log_pass "--check mode runs successfully"
@@ -683,7 +641,7 @@ test_update_check_json() {
         log_fail "--check mode failed: $check_output"
     fi
 
-    # Test 11b: --check --json outputs valid JSON
+    # Test 10b: --check --json outputs valid JSON
     local json_output=$(./tools/project-update --check --json --from="$starter" 2>/dev/null)
     if echo "$json_output" | python3 -c "import json,sys; json.load(sys.stdin)" 2>/dev/null; then
         log_pass "--check --json outputs valid JSON"
@@ -691,7 +649,7 @@ test_update_check_json() {
         log_fail "--check --json output is not valid JSON"
     fi
 
-    # Test 11c: JSON contains all required fields
+    # Test 10c: JSON contains all required fields
     if echo "$json_output" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
@@ -703,7 +661,7 @@ assert all(k in d for k in required), f'Missing fields: {[k for k in required if
         log_fail "JSON missing required fields"
     fi
 
-    # Test 11d: Test with locally modified file
+    # Test 10d: Test with locally modified file
     echo "# Test modification for check" >> CLAUDE.md
     local modified_output=$(./tools/project-update --check --json --from="$starter" 2>/dev/null)
     local modified_detected=$(echo "$modified_output" | python3 -c "
@@ -729,7 +687,7 @@ else:
     # Restore file
     git checkout CLAUDE.md 2>/dev/null || true
 
-    # Test 11e: updates_available is boolean
+    # Test 10e: updates_available is boolean
     local bool_check=$(echo "$json_output" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
@@ -746,14 +704,14 @@ else:
     fi
 }
 
-# Test 12: project-create manifest and registry tests
+# Test 11: project-create manifest and registry tests
 test_new_manifest_registry() {
-    log_step "Test 12: project-create manifest and registry tests"
+    log_step "Test 11: project-create manifest and registry tests"
 
     local project="$TEST_DIR/test-project"
     local starter="$TEST_DIR/installed-starter"
 
-    # Test 12a: manifest.json exists in project
+    # Test 11a: manifest.json exists in project
     if [[ -f "$project/.agency/manifest.json" ]]; then
         log_pass "manifest.json created in project"
     else
@@ -761,7 +719,7 @@ test_new_manifest_registry() {
         return 1
     fi
 
-    # Test 12b: manifest.json has correct schema
+    # Test 11b: manifest.json has correct schema
     if python3 -c "
 import json
 m = json.load(open('$project/.agency/manifest.json'))
@@ -776,7 +734,7 @@ assert 'components' in m, 'Missing components'
         log_fail "manifest.json schema incorrect"
     fi
 
-    # Test 12c: Components are tracked
+    # Test 11c: Components are tracked
     local comp_count=$(python3 -c "import json; print(len(json.load(open('$project/.agency/manifest.json')).get('components', {})))" 2>/dev/null || echo "0")
     if [[ "$comp_count" -ge 1 ]]; then
         log_pass "Components tracked ($comp_count components)"
@@ -784,14 +742,14 @@ assert 'components' in m, 'Missing components'
         log_fail "No components tracked"
     fi
 
-    # Test 12d: projects.json exists in starter
+    # Test 11d: projects.json exists in starter
     if [[ -f "$starter/.agency/projects.json" ]]; then
         log_pass "projects.json created in starter"
     else
         log_fail "projects.json missing from starter"
     fi
 
-    # Test 12e: Project is registered in starter's projects.json
+    # Test 11e: Project is registered in starter's projects.json
     if python3 -c "
 import json
 p = json.load(open('$starter/.agency/projects.json'))
@@ -804,7 +762,7 @@ assert found, 'Project not registered'
         log_fail "Project not registered in starter"
     fi
 
-    # Test 12f: Test duplicate project handling (create second project, check no duplicate)
+    # Test 11f: Test duplicate project handling (create second project, check no duplicate)
     local dup_project="$TEST_DIR/dup-test-project"
     cd "$starter"
     ./tools/project-create "$dup_project" --no-launch > /dev/null 2>&1 || true
@@ -954,9 +912,6 @@ main() {
     echo ""
 
     test_tools
-    echo ""
-
-    test_hub_launch
     echo ""
 
     test_batch_update_errors

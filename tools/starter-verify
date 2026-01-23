@@ -168,7 +168,7 @@ REQUIRED_FILES=(
     "tools/commit"
     "tools/release"
     "claude/config/agency.yaml"
-    "claude/agents/housekeeping/agent.md"
+    "claude/agents/captain/agent.md"
     "source/apps/agency-bench/package.json"
     "source/apps/agency-bench/src-tauri/tauri.conf.json"
     "source/apps/agency-bench/src/app/bench/(apps)/bugbench/page.tsx"
