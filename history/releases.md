@@ -6,6 +6,7 @@ This file tracks releases of The Agency framework.
 
 | Version | Date | Notes |
 |---------|------|-------|
+| v108.0.0 | 2026-01-23 | |
 | v107.0.0 | 2026-01-20 | |
 | v106.1.0 | 2026-01-20 | |
 | v106.0.1 | 2026-01-20 | |
