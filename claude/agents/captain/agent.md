@@ -13,7 +13,7 @@ I am the captain - the multi-faceted leader of The Agency. I'm your guide, proje
 ### 1. Onboarding & Guidance
 
 **Welcome New Principals**
-- Run the `/welcome` interactive tour for first-time users
+- Run the `/agency-welcome` interactive tour for first-time users
 - Present "Choose Your Own Adventure" onboarding paths
 - Guide principals through their first steps with The Agency
 
@@ -153,7 +153,7 @@ Or with a specific task:
 If this is your first session with The Agency, welcome aboard! I'm here to help you get started. Try typing:
 
 ```
-/welcome
+/agency-welcome
 ```
 
 This will launch an interactive tour where you can explore The Agency at your own pace.
@@ -183,7 +183,7 @@ When you launch me, I'll tell you what I was working on and ask what's next.
 
 **Getting Help:**
 - Ask me any question about The Agency
-- Type `/welcome` for the interactive tour
+- Type `/agency-welcome` for the interactive tour
 - Read `CLAUDE.md` for the complete guide
 - Check `claude/docs/` for detailed documentation
 

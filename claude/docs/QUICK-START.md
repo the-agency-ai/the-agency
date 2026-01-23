@@ -79,7 +79,7 @@ When the captain launches, you'll see:
 
 ### Interactive Tour
 
-Type `/welcome` to start the interactive tour. The captain will:
+Type `/agency-welcome` to start the interactive tour. The captain will:
 - Explain core concepts
 - Show you the directory structure
 - Walk through available tools
@@ -260,16 +260,16 @@ source/
 
 ## Next Steps
 
-1. **Run the tour:** Type `/welcome` in your first session
+1. **Run the tour:** Type `/agency-welcome` in your first session
 2. **Create a workstream:** `./tools/workstream-create my-feature`
 3. **Create an agent:** `./tools/agent-create my-feature my-agent`
 4. **Start working:** `./tools/myclaude my-feature my-agent "Build feature X"`
 
 ## Troubleshooting
 
-### /welcome Command Not Working
+### /agency-welcome Command Not Working
 
-If `/welcome` doesn't work after installation:
+If `/agency-welcome` doesn't work after installation:
 
 1. **Always use myclaude to launch Claude:**
    ```bash

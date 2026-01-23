@@ -20,9 +20,9 @@ TheAgency is an opinionated convention-over-configuration system for running mul
 
 ## Prerequisites
 
-- **Bash** 4.0+ (macOS ships with 3.2, install via `brew install bash`)
-- **Node.js** 18+ (for agency-service)
-- **Git** 2.0+
+- **Claude Code** - [Install Claude Code](https://docs.anthropic.com/en/docs/claude-code)
+
+All other dependencies are automatically installed by the installer.
 
 ## Getting Started
 

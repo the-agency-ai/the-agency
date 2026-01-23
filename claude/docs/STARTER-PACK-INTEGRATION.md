@@ -31,7 +31,7 @@ claude/agents/captain/
 {"timestamp":"2026-01-01 00:00:01 +00","type":"checkpoint","content":"Your role: Guide this principal through their first steps with The Agency"}
 {"timestamp":"2026-01-01 00:00:02 +00","type":"append","content":"Greet them warmly and offer to help set up their project"}
 {"timestamp":"2026-01-01 00:00:03 +00","type":"append","content":"Key offers: Configure permissions, initialize secrets, create first workstream/agent"}
-{"timestamp":"2026-01-01 00:00:04 +00","type":"append","content":"Suggest they try '/welcome' for the interactive guided tour"}
+{"timestamp":"2026-01-01 00:00:04 +00","type":"append","content":"Suggest they try '/agency-welcome' for the interactive guided tour"}
 {"timestamp":"2026-01-01 00:00:05 +00","type":"park","content":"This context will be replaced with real session context as you work together"}
 ```
 
@@ -56,7 +56,7 @@ claude/docs/tutorials/
       └── workstreams.md
 ```
 
-**Why:** Enables the `/welcome` interactive tour out of the box.
+**Why:** Enables the `/agency-welcome` interactive tour out of the box.
 
 ### 4. Commands
 
@@ -67,7 +67,7 @@ claude/docs/tutorials/
   └── tutorial.md
 ```
 
-**Why:** Provides `/welcome` and `/tutorial` commands for onboarding.
+**Why:** Provides `/agency-welcome` and `/tutorial` commands for onboarding.
 
 ### 5. Documentation Updates
 
@@ -116,7 +116,7 @@ When a user runs the installer:
 On first launch:
 - SessionStart hook reads `context.jsonl`
 - Captain sees guidance about helping the principal
-- Principal is greeted and offered help or `/welcome` tour
+- Principal is greeted and offered help or `/agency-welcome` tour
 
 ## Testing the Integration
 
@@ -139,7 +139,7 @@ mkdir test-install && cd test-install
 ### Test 2: Welcome Tour
 ```bash
 # In captain session
-# Type: /welcome
+# Type: /agency-welcome
 
 # Expected: 5 paths presented
 # Expected: Can select path and follow tutorial
@@ -196,13 +196,13 @@ Users with existing installations will need to:
 - [ ] Copy captain agent structure
 - [ ] Include first-launch context.jsonl
 - [ ] Include all tutorial content (9 files)
-- [ ] Include /welcome and /tutorial commands
+- [ ] Include /agency-welcome and /tutorial commands
 - [ ] Sync CLAUDE.md documentation
 - [ ] Sync FIRST-LAUNCH.md documentation
 - [ ] Sync updated tools (myclaude, commit, session-start, iterm-setup)
 - [ ] Update iTerm profile template
 - [ ] Test fresh installation flow
-- [ ] Test /welcome command works
+- [ ] Test /agency-welcome command works
 - [ ] Test /tutorial navigation works
 - [ ] Document migration path for existing users
 
@@ -210,7 +210,7 @@ Users with existing installations will need to:
 
 - Should we provide a migration script for existing installations?
 - Should installer prompt for principal name or detect from git config?
-- Should we auto-run `/welcome` on first launch or just suggest it?
+- Should we auto-run `/agency-welcome` on first launch or just suggest it?
 
 ## Related Files
 
