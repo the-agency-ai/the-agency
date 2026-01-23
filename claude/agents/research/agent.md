@@ -1,10 +1,9 @@
 # Research Agent
 
 **Created:** 2026-01-16
-**Updated:** 2026-01-21
+**Updated:** 2026-01-23
 **Workstream:** housekeeping
 **Model:** Sonnet (for speed) or Opus 4.5 (for complex research)
-**REQUEST:** REQUEST-jordan-0064
 
 ## Purpose
 

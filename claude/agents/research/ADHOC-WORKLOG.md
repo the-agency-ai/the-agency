@@ -1,4 +1,4 @@
-# Browser Agent ADHOC-WORKLOG
+# Research Agent ADHOC-WORKLOG
 
 Work performed outside of sprints.
 
