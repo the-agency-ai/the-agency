@@ -187,6 +187,7 @@ sync_files() {
         "claude/docs/FIRST-LAUNCH-CONTEXT.jsonl"
         "claude/docs/INDEX.md"
         "claude/docs/PERMISSIONS.md"
+        "claude/docs/PRINCIPAL-GUIDE.md"
         "claude/docs/PRINCIPALS.md"
         "claude/docs/QUICK-START.md"
         "claude/docs/REPO-RELATIONSHIP.md"
