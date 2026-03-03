@@ -307,7 +307,7 @@ Plans are stored in `claude/plans/` with naming: `PLAN-XXXX-short-slug.md`
 **Agent:** {agent}
 **Principal:** {principal}
 **Status:** Draft | Approved | Implemented
-**Related:** REQUEST-xxx (if applicable)
+**Related:** REQUEST-jordan-XXXX (if driven by a request; comma-separated for multiple)
 
 ## Prompt Context
 > {The user prompt(s) that triggered plan mode, quoted verbatim}
@@ -319,15 +319,34 @@ Plans are stored in `claude/plans/` with naming: `PLAN-XXXX-short-slug.md`
 {Filled in after implementation — what actually happened, commit hashes, etc.}
 ```
 
+### REQUEST Linkage
+
+Plans are often driven by REQUESTs. A single REQUEST may produce multiple plans (phases, iterations, alternatives).
+
+- **Always include the REQUEST ID** in the `Related` field when a plan implements part or all of a REQUEST
+- The `TaskCompleted` hook auto-detects REQUEST references in the transcript and session context
+- Use `N/A` only when the plan is ad-hoc (not driven by a REQUEST)
+
+### Auto-Capture
+
+The `TaskCompleted` hook (`.claude/hooks/plan-capture.py`) automatically:
+1. Detects plan mode completions (`permission_mode: "plan"`)
+2. Extracts plan content and user prompts from the transcript
+3. Scans for REQUEST references in transcript, task subject, and session context
+4. Creates the `PLAN-XXXX` artifact with all metadata populated
+5. Skips if the agent already manually created a plan file (2-minute window)
+
+If auto-capture doesn't fire, create the plan file manually following the structure above.
+
 ### Workflow
 
 1. **Enter plan mode** — user requests or agent proposes planning
 2. **Capture prompt** — quote the user's prompt(s) that triggered planning
 3. **Write plan** — develop the plan through exploration and analysis
-4. **Save artifact** — write `claude/plans/PLAN-XXXX-short-slug.md` with status `Draft`
+4. **Save artifact** — `TaskCompleted` hook auto-creates `claude/plans/PLAN-XXXX-short-slug.md` with status `Draft`, or agent creates manually
 5. **Get approval** — exit plan mode for user review
 6. **Implement** — update status to `Approved`, then `Implemented` after completion
-7. **Record outcome** — fill in the Outcome section with results
+7. **Record outcome** — fill in the Outcome section with commit hashes and results
 
 ### Sequence Numbers
 
