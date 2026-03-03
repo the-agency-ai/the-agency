@@ -161,6 +161,7 @@ The restored context tells you what the user was working on. Use it to provide c
 - Workstreams: lowercase (`agents`, `web`, `analytics`)
 - Requests: `REQUEST-principal-XXXX-agent-summary.md`
 - Artifacts: `ART-XXXX-principal-workstream-agent-date-title.md`
+- Plans: `PLAN-XXXX-short-slug.md` in `claude/plans/`
 
 ### Git Commits
 
@@ -287,6 +288,53 @@ When you encounter a bug:
 - Missing dependencies (track them)
 - Test pollution (clean it up)
 - Dirty working trees (commit or stash)
+
+## Plans
+
+**When entering plan mode, capture the prompt and final plan as a plan artifact.**
+
+### Location & Naming
+
+Plans are stored in `claude/plans/` with naming: `PLAN-XXXX-short-slug.md`
+
+### Plan File Structure
+
+```markdown
+# Plan: {Title}
+
+**Plan ID:** PLAN-{XXXX}
+**Date:** {date}
+**Agent:** {agent}
+**Principal:** {principal}
+**Status:** Draft | Approved | Implemented
+**Related:** REQUEST-xxx (if applicable)
+
+## Prompt Context
+> {The user prompt(s) that triggered plan mode, quoted verbatim}
+
+## Plan
+{The approved plan content}
+
+## Outcome
+{Filled in after implementation — what actually happened, commit hashes, etc.}
+```
+
+### Workflow
+
+1. **Enter plan mode** — user requests or agent proposes planning
+2. **Capture prompt** — quote the user's prompt(s) that triggered planning
+3. **Write plan** — develop the plan through exploration and analysis
+4. **Save artifact** — write `claude/plans/PLAN-XXXX-short-slug.md` with status `Draft`
+5. **Get approval** — exit plan mode for user review
+6. **Implement** — update status to `Approved`, then `Implemented` after completion
+7. **Record outcome** — fill in the Outcome section with results
+
+### Sequence Numbers
+
+Use the next available number. Check existing plans:
+```bash
+ls claude/plans/PLAN-*.md | tail -1
+```
 
 ## Work Items
 

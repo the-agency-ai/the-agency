@@ -106,6 +106,17 @@
         ]
       }
     ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/plan-capture.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
