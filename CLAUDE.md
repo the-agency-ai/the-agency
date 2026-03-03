@@ -8,7 +8,9 @@ For an overview of the system, directory structure, and getting started, see `cl
 
 **Session:** `myclaude`, `welcomeback`, `session-backup`
 **Scaffolding:** `workstream-create`, `agent-create`, `epic-create`, `sprint-create`
-**Collaboration:** `collaborate`, `collaboration-respond`, `news-post`, `news-read`
+**Messaging:** `msg` (send, broadcast, read, thread, ack)
+**Dispatch:** `dispatch` (enqueue, claim, complete, fail, status), `dispatch-request`
+**Collaboration (deprecated):** `collaborate`, `collaboration-respond`, `news-post`, `news-read`
 **Quality:** `commit-precheck`, `test-run`, `code-review`, `review-spawn`, `install-hooks`
 **Git:** `commit`, `tag`, `sync`
 **GitHub:** `gh`, `gh-pr`, `gh-release`, `gh-api`

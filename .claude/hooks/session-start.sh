@@ -62,24 +62,45 @@ fi
 
 echo "=== END PREVIOUS SESSION CONTEXT ==="
 
-# Check for news/messages (choreography)
-NEWS_OUTPUT=$("$REPO_ROOT/tools/news-read" --quiet 2>/dev/null)
-if [[ -n "$NEWS_OUTPUT" ]]; then
-  echo ""
-  echo "=== UNREAD NEWS ==="
-  echo "$NEWS_OUTPUT"
-  echo "=== END NEWS ==="
-fi
+# Register with dispatch service (fire-and-forget)
+AGENCY_SERVICE_URL="${AGENCY_SERVICE_URL:-http://localhost:3141}"
+if curl -s --connect-timeout 1 "${AGENCY_SERVICE_URL}/health" >/dev/null 2>&1; then
+  curl -s --connect-timeout 1 -X POST "${AGENCY_SERVICE_URL}/api/dispatch/instance/register" \
+    -H "Content-Type: application/json" \
+    -d "{\"id\": \"$INSTANCE_ID\", \"agentName\": \"$AGENTNAME\", \"workstream\": \"${WORKSTREAM:-}\", \"pid\": $$}" \
+    >/dev/null 2>&1 || true
 
-# Check for pending collaborations
-# NOTE: collaboration-pending tool not yet implemented - commented out for now
-# COLLAB_OUTPUT=$("$REPO_ROOT/tools/collaboration-pending" 2>/dev/null | grep -v "^$" | head -5)
-# if [[ -n "$COLLAB_OUTPUT" ]]; then
-#   echo ""
-#   echo "=== PENDING COLLABORATIONS ==="
-#   echo "$COLLAB_OUTPUT"
-#   echo "Run ./tools/collaboration-pending to see full details"
-#   echo "=== END COLLABORATIONS ==="
-# fi
+  # Check for unread messages
+  UNREAD=$(curl -s --connect-timeout 1 "${AGENCY_SERVICE_URL}/api/message/unread/${AGENTNAME}" 2>/dev/null)
+  UNREAD_COUNT=$(echo "$UNREAD" | jq -r '.unreadCount // 0' 2>/dev/null || echo 0)
+  if [[ "$UNREAD_COUNT" -gt 0 ]]; then
+    echo ""
+    echo "=== UNREAD MESSAGES ($UNREAD_COUNT) ==="
+    echo "$UNREAD" | jq -r '.messages[] | "  [\(if .type == "direct" then "DM" else "BC" end)] \(.fromAgent): \(.subject)"' 2>/dev/null || true
+    echo "=== END MESSAGES ==="
+  fi
+
+  # Check dispatch queue
+  NEXT_ITEM=$(curl -s --connect-timeout 1 "${AGENCY_SERVICE_URL}/api/dispatch/next/${AGENTNAME}" 2>/dev/null)
+  ITEM_TITLE=$(echo "$NEXT_ITEM" | jq -r '.item.title // empty' 2>/dev/null)
+  if [[ -n "$ITEM_TITLE" ]]; then
+    ITEM_QUEUE=$(echo "$NEXT_ITEM" | jq -r '.item.queueType // "agent"' 2>/dev/null)
+    ITEM_PRI=$(echo "$NEXT_ITEM" | jq -r '.item.priority // 0' 2>/dev/null)
+    echo ""
+    echo "=== QUEUED WORK ==="
+    echo "  [$ITEM_QUEUE] $ITEM_TITLE (priority: $ITEM_PRI)"
+    echo "  Claim with: ./tools/dispatch claim"
+    echo "=== END QUEUED WORK ==="
+  fi
+else
+  # Fallback to legacy news-read
+  NEWS_OUTPUT=$("$REPO_ROOT/tools/news-read" --quiet 2>/dev/null)
+  if [[ -n "$NEWS_OUTPUT" ]]; then
+    echo ""
+    echo "=== UNREAD NEWS ==="
+    echo "$NEWS_OUTPUT"
+    echo "=== END NEWS ==="
+  fi
+fi
 
 exit 0

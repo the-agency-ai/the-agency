@@ -1,16 +1,18 @@
 /**
- * Message Service
+ * Unified Message Service
  *
- * Business logic layer for messaging.
- * Handles validation, orchestration, and notifications.
+ * Business logic layer for the unified messaging system.
+ * Handles direct messages and broadcasts.
  */
 
 import type {
   Message,
-  MessageWithRecipients,
-  CreateMessageRequest,
+  SendMessageInput,
+  BroadcastMessageInput,
   ListMessagesQuery,
   MessageListResponse,
+  UnreadResponse,
+  ThreadResponse,
   MessageStats,
 } from '../types';
 import type { MessageRepository } from '../repository/message.repository';
@@ -26,28 +28,43 @@ export class MessageService {
   ) {}
 
   /**
-   * Send a new message
+   * Send a direct message
    */
-  async sendMessage(data: CreateMessageRequest): Promise<MessageWithRecipients> {
-    // Validate broadcast messages
-    if (data.toType === 'broadcast' && !data.recipients?.length) {
-      throw new Error('Broadcast messages require at least one recipient');
-    }
-
-    // Validate direct messages
-    if (data.toType !== 'broadcast' && !data.toName && !data.recipients?.length) {
-      throw new Error('Direct messages require a recipient');
-    }
-
-    // Create the message
-    const message = await this.repository.create(data);
+  async sendMessage(data: SendMessageInput): Promise<Message> {
+    const message = await this.repository.createDirect(data);
 
     logger.info({
       messageId: message.id,
-      from: `${data.fromType}:${data.fromName}`,
-      to: data.toType === 'broadcast' ? 'broadcast' : `${data.toType}:${data.toName}`,
-      recipients: message.recipients.length,
-    }, 'Message sent');
+      from: data.fromAgent,
+      to: data.toAgent,
+    }, 'Direct message sent');
+
+    // Emit queue event (non-blocking)
+    this.emitEvent('message.sent', {
+      messageId: message.id,
+      type: 'direct',
+      from: data.fromAgent,
+      to: data.toAgent,
+    });
+
+    return message;
+  }
+
+  /**
+   * Send a broadcast message
+   */
+  async broadcastMessage(data: BroadcastMessageInput): Promise<Message> {
+    const message = await this.repository.createBroadcast(data);
+
+    logger.info({
+      messageId: message.id,
+      from: data.fromAgent,
+    }, 'Broadcast message sent');
+
+    this.emitEvent('message.broadcast', {
+      messageId: message.id,
+      from: data.fromAgent,
+    });
 
     return message;
   }
@@ -55,19 +72,15 @@ export class MessageService {
   /**
    * Get a message by ID
    */
-  async getMessage(id: number): Promise<MessageWithRecipients | null> {
+  async getMessage(id: string): Promise<Message | null> {
     return this.repository.findById(id);
   }
 
   /**
-   * Get inbox for an entity
+   * Mark a message as read by an agent
    */
-  async getInbox(
-    recipientType: 'agent' | 'principal',
-    recipientName: string,
-    unreadOnly: boolean = false
-  ): Promise<MessageWithRecipients[]> {
-    return this.repository.getInbox(recipientType, recipientName, unreadOnly);
+  async markAsRead(id: string, agentName: string): Promise<boolean> {
+    return this.repository.markAsRead(id, agentName);
   }
 
   /**
@@ -85,54 +98,35 @@ export class MessageService {
   }
 
   /**
-   * Mark a message as read
+   * Get unread messages for an agent
    */
-  async markAsRead(
-    messageId: number,
-    recipientType: 'agent' | 'principal',
-    recipientName: string
-  ): Promise<boolean> {
-    const result = await this.repository.markAsRead(messageId, recipientType, recipientName);
+  async getUnread(agentName: string): Promise<UnreadResponse> {
+    const { count, messages } = await this.repository.getUnread(agentName);
 
-    if (result) {
-      logger.debug({
-        messageId,
-        reader: `${recipientType}:${recipientName}`,
-      }, 'Message marked as read');
-    }
-
-    return result;
+    return {
+      agentName,
+      unreadCount: count,
+      messages,
+    };
   }
 
   /**
-   * Mark all messages as read for an entity
+   * Get a message thread
    */
-  async markAllAsRead(
-    recipientType: 'agent' | 'principal',
-    recipientName: string
-  ): Promise<number> {
-    const inbox = await this.getInbox(recipientType, recipientName, true);
-    let count = 0;
+  async getThread(id: string): Promise<ThreadResponse> {
+    const { root, replies } = await this.repository.getThread(id);
 
-    for (const message of inbox) {
-      const marked = await this.repository.markAsRead(message.id, recipientType, recipientName);
-      if (marked) {
-        count++;
-      }
+    if (!root) {
+      throw new Error(`Message ${id} not found`);
     }
 
-    logger.info({
-      reader: `${recipientType}:${recipientName}`,
-      count,
-    }, 'Marked all messages as read');
-
-    return count;
+    return { root, replies };
   }
 
   /**
    * Delete a message
    */
-  async deleteMessage(id: number): Promise<boolean> {
+  async deleteMessage(id: string): Promise<boolean> {
     const deleted = await this.repository.delete(id);
     if (deleted) {
       logger.info({ messageId: id }, 'Message deleted');
@@ -141,12 +135,22 @@ export class MessageService {
   }
 
   /**
-   * Get stats for an entity
+   * Get message statistics
    */
-  async getStats(
-    recipientType: 'agent' | 'principal',
-    recipientName: string
-  ): Promise<MessageStats> {
-    return this.repository.getStats(recipientType, recipientName);
+  async getStats(): Promise<MessageStats> {
+    return this.repository.getStats();
+  }
+
+  /**
+   * Emit a queue event (fire and forget)
+   */
+  private emitEvent(event: string, data: Record<string, unknown>): void {
+    if (!this.queue) return;
+
+    try {
+      this.queue.enqueue('message.events', { data: { event, ...data } });
+    } catch (error) {
+      logger.warn({ error, event }, 'Failed to emit message event');
+    }
   }
 }

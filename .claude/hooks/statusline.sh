@@ -42,5 +42,14 @@ RESET="\033[0m"
 GREEN="\033[32m"
 RED="\033[31m"
 
+# Heartbeat to dispatch service (fire-and-forget, background)
+if [ -n "$AGENTNAME" ]; then
+    INSTANCE_ID="${CLAUDE_SESSION_ID:-$$}"
+    AGENCY_SERVICE_URL="${AGENCY_SERVICE_URL:-http://localhost:3141}"
+    curl -s --connect-timeout 1 --max-time 1 -X POST \
+        "${AGENCY_SERVICE_URL}/api/dispatch/instance/heartbeat/${INSTANCE_ID}" \
+        >/dev/null 2>&1 &
+fi
+
 # Output single line
 echo -e "$VERSION$AGENCY_INFO | $PROJECT_NAME | $CURRENT_NAME | $GIT_BRANCH | ${GREEN}+${LINES_ADDED}${RESET}/${RED}-${LINES_REMOVED}${RESET} | ${CONTEXT_COLOR}${CONTEXT_USED}%${RESET}"

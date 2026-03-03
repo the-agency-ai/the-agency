@@ -52,6 +52,17 @@ remaining_instances() {
     echo "$count"
 }
 
+# Deregister from dispatch service and release claims (fire-and-forget)
+AGENCY_SERVICE_URL="${AGENCY_SERVICE_URL:-http://localhost:3141}"
+if curl -s --connect-timeout 1 "${AGENCY_SERVICE_URL}/health" >/dev/null 2>&1; then
+    curl -s --connect-timeout 1 -X POST \
+        "${AGENCY_SERVICE_URL}/api/dispatch/instance/release-all/${INSTANCE_ID}" \
+        >/dev/null 2>&1 || true
+    curl -s --connect-timeout 1 -X POST \
+        "${AGENCY_SERVICE_URL}/api/dispatch/instance/deregister/${INSTANCE_ID}" \
+        >/dev/null 2>&1 || true
+fi
+
 # Check if we should stop the agency-service
 remaining=$(remaining_instances)
 if [[ "$remaining" -eq 0 ]]; then

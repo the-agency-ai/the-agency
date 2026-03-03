@@ -1,8 +1,8 @@
 /**
- * Messages Service
+ * Unified Message Service
  *
- * Embedded service for inter-entity messaging.
- * Can be extracted to standalone service later.
+ * Embedded service for unified messaging (direct + broadcast).
+ * Replaces collaboration files, NEWS.md, and old messages.db.
  */
 
 import { Hono } from 'hono';
@@ -27,7 +27,7 @@ export interface MessagesServiceInstance {
 }
 
 /**
- * Create the messages-service embedded service
+ * Create the unified messages-service
  */
 export function createMessagesService(options: MessagesServiceOptions): MessagesServiceInstance {
   const repository = new MessageRepository(options.db);
@@ -39,7 +39,7 @@ export function createMessagesService(options: MessagesServiceOptions): Messages
     service,
     async initialize() {
       await repository.initialize();
-      logger.info('Messages Service initialized');
+      logger.info('Unified Message Service initialized');
     },
   };
 }

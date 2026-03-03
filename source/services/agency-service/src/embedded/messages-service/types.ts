@@ -1,100 +1,92 @@
 /**
- * Messages Service Types
+ * Unified Message Service Types
  *
- * Domain models for inter-entity messaging.
+ * Domain models for the unified messaging system.
+ * Replaces collaboration files, NEWS.md, and old messages.db.
+ *
+ * Two message types:
+ * - direct: agent-to-agent communication
+ * - broadcast: agent-to-all announcements
  */
 
 import { z } from 'zod';
 
 /**
- * Entity types (sender, recipient)
+ * Message type values
  */
-export const EntityType = {
-  AGENT: 'agent',
-  PRINCIPAL: 'principal',
-  SYSTEM: 'system',
+export const MessageType = {
+  DIRECT: 'direct',
   BROADCAST: 'broadcast',
 } as const;
 
-export type EntityTypeValue = (typeof EntityType)[keyof typeof EntityType];
+export type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
 
 /**
  * Message entity
  */
 export interface Message {
-  id: number;
-  timestamp: Date;
-  fromType: EntityTypeValue;
-  fromName: string;
-  toType: EntityTypeValue;
-  toName: string | null; // null for broadcasts
-  subject: string | null;
-  content: string;
+  id: string;           // UUID
+  type: MessageTypeValue;
+  fromAgent: string;
+  toAgent: string | null; // null for broadcast
+  subject: string;
+  body: string;
+  referenceId: string | null;
+  tags: string[];       // JSON array
+  readBy: string[];     // JSON array of agent names
+  createdAt: string;    // ISO timestamp
+  metadata: Record<string, unknown>;
 }
 
 /**
- * Recipient tracking (for delivery/read status)
+ * Send direct message schema
  */
-export interface Recipient {
-  id: number;
-  messageId: number;
-  recipientType: EntityTypeValue;
-  recipientName: string;
-  readAt: Date | null;
-}
-
-/**
- * Message with recipients
- */
-export interface MessageWithRecipients extends Message {
-  recipients: Recipient[];
-}
-
-/**
- * Create message request schema
- */
-export const createMessageSchema = z.object({
-  fromType: z.enum(['agent', 'principal', 'system']).default('agent'),
-  fromName: z.string().min(1, 'Sender name is required'),
-  toType: z.enum(['agent', 'principal', 'system', 'broadcast']),
-  toName: z.string().optional(), // Optional for broadcasts
-  subject: z.string().optional(),
-  content: z.string().min(1, 'Content is required'),
-  recipients: z.array(z.object({
-    recipientType: z.enum(['agent', 'principal']),
-    recipientName: z.string().min(1),
-  })).optional(), // For multi-recipient messages
+export const sendMessageSchema = z.object({
+  fromAgent: z.string().min(1, 'Sender agent name is required'),
+  toAgent: z.string().min(1, 'Recipient agent name is required'),
+  subject: z.string().min(1, 'Subject is required'),
+  body: z.string().min(1, 'Body is required'),
+  referenceId: z.string().nullable().optional(),
+  tags: z.array(z.string()).default([]),
+  metadata: z.record(z.unknown()).default({}),
 });
 
-export type CreateMessageRequest = z.infer<typeof createMessageSchema>;
+export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 
 /**
- * Mark message as read request
+ * Broadcast message schema
+ */
+export const broadcastMessageSchema = z.object({
+  fromAgent: z.string().min(1, 'Sender agent name is required'),
+  subject: z.string().min(1, 'Subject is required'),
+  body: z.string().min(1, 'Body is required'),
+  referenceId: z.string().nullable().optional(),
+  tags: z.array(z.string()).default([]),
+  metadata: z.record(z.unknown()).default({}),
+});
+
+export type BroadcastMessageInput = z.infer<typeof broadcastMessageSchema>;
+
+/**
+ * Mark as read schema
  */
 export const markReadSchema = z.object({
-  recipientType: z.enum(['agent', 'principal']),
-  recipientName: z.string().min(1),
+  agentName: z.string().min(1, 'Agent name is required'),
 });
 
-export type MarkReadRequest = z.infer<typeof markReadSchema>;
+export type MarkReadInput = z.infer<typeof markReadSchema>;
 
 /**
  * List messages query parameters
  */
 export const listMessagesQuerySchema = z.object({
-  // Inbox filters
-  recipientType: z.enum(['agent', 'principal']).optional(),
-  recipientName: z.string().optional(),
-  unreadOnly: z.coerce.boolean().default(false),
-
-  // Outbox filters
-  fromType: z.enum(['agent', 'principal', 'system']).optional(),
-  fromName: z.string().optional(),
-
-  // General filters
-  since: z.string().optional(), // ISO timestamp or relative like "1h", "24h"
-
-  // Pagination
+  type: z.enum(['direct', 'broadcast']).optional(),
+  agent: z.string().optional(),       // Filter by toAgent or fromAgent
+  fromAgent: z.string().optional(),
+  toAgent: z.string().optional(),
+  unread: z.string().optional(),      // Agent name — show messages not read by this agent
+  tags: z.string().optional(),        // Comma-separated
+  since: z.string().optional(),       // ISO timestamp or relative like "1h", "24h"
   limit: z.coerce.number().min(1).max(100).default(50),
   offset: z.coerce.number().min(0).default(0),
 });
@@ -105,10 +97,27 @@ export type ListMessagesQuery = z.infer<typeof listMessagesQuerySchema>;
  * Message list response
  */
 export interface MessageListResponse {
-  messages: MessageWithRecipients[];
+  messages: Message[];
   total: number;
   limit: number;
   offset: number;
+}
+
+/**
+ * Unread response
+ */
+export interface UnreadResponse {
+  agentName: string;
+  unreadCount: number;
+  messages: Message[];
+}
+
+/**
+ * Thread response
+ */
+export interface ThreadResponse {
+  root: Message;
+  replies: Message[];
 }
 
 /**
@@ -116,6 +125,7 @@ export interface MessageListResponse {
  */
 export interface MessageStats {
   total: number;
-  unread: number;
+  direct: number;
+  broadcast: number;
   today: number;
 }
