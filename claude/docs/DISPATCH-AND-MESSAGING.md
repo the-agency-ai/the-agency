@@ -11,6 +11,26 @@ Two complementary services built into agency-service:
 
 Both are embedded services within `agency-service` at port 3141.
 
+### Per-Service Database Isolation
+
+Each embedded service has its own SQLite database file in `claude/data/`:
+
+| Service | DB File | Tables |
+|---------|---------|--------|
+| messages | `messages.db` | `messages` |
+| dispatch | `dispatch.db` | `dispatch_items`, `dispatch_instances` |
+| request | `request.db` | `requests`, `request_sequences` |
+| log | `log.db` | `log_entries`, `log_entries_fts`, `tool_runs` |
+| bug | `bug.db` | `bugs`, `bug_sequences`, `bug_attachments` |
+| secret | `secret.db` | `secrets`, `secret_tags`, `secret_grants`, `secret_access_log`, `vault_config`, `vault_recovery` |
+| test | `test.db` | `test_runs`, `test_results` |
+| idea | `idea.db` | `ideas`, `idea_sequence` |
+| observation | `observation.db` | `observations`, `observation_sequence` |
+| product | `product.db` | `products`, `product_contributors`, `product_sequences` |
+| queue | `queue.db` | Queue adapter (separate) |
+
+Per-service env var override: `AGENCY_DB_PATH_{SERVICE}` (e.g., `AGENCY_DB_PATH_MESSAGES=/custom/path.db`).
+
 ## Unified Messaging
 
 ### Message Types

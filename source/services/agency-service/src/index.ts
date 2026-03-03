@@ -8,13 +8,14 @@
  * - Fast cold start (~5ms) for CLI auto-launch
  * - Interface/adapter pattern for vendor neutrality
  * - Embedded services that can be extracted later
+ * - Per-service database isolation (each service gets its own .db file)
  */
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { getConfig } from './core/config';
 import { getLogger, createServiceLogger, enableLogServiceDualWrite } from './core/lib/logger';
-import { getDatabase, closeDatabase } from './core/adapters/database';
+import { createDatabaseRegistry } from './core/adapters/database';
 import { getQueue, closeQueue } from './core/adapters/queue';
 import { authMiddleware, loggingMiddleware } from './core/middleware';
 import { createBugService } from './embedded/bug-service';
@@ -46,23 +47,29 @@ async function main() {
   app.use('*', loggingMiddleware());
   app.use('/api/*', authMiddleware());
 
+  // Per-service database isolation
+  const registry = createDatabaseRegistry([
+    'messages', 'dispatch', 'request', 'log', 'bug',
+    'secret', 'test', 'idea', 'observation', 'product',
+  ]);
+  await registry.initializeAll();
+
   // Health check (no auth required)
   app.get('/health', async (c) => {
-    const db = await getDatabase();
-    const dbHealthy = await db.healthCheck();
+    const dbHealth = await registry.healthCheckAll();
+    const allHealthy = Object.values(dbHealth).every(Boolean);
 
     return c.json({
-      status: dbHealthy ? 'healthy' : 'unhealthy',
+      status: allHealthy ? 'healthy' : 'unhealthy',
       version: '0.1.0',
       timestamp: new Date().toISOString(),
       services: {
-        database: dbHealthy,
+        databases: dbHealth,
       },
     });
   });
 
-  // Initialize infrastructure
-  const db = await getDatabase();
+  // Initialize queue
   let queue;
   try {
     queue = await getQueue();
@@ -70,15 +77,15 @@ async function main() {
     logger.warn({ error }, 'Queue not available, proceeding without it');
   }
 
-  // Initialize embedded services
-  const bugService = createBugService({ db, queue });
+  // Initialize embedded services (each gets its own database)
+  const bugService = createBugService({ db: registry.adapters.get('bug')!, queue });
   await bugService.initialize();
 
-  const messagesService = createMessagesService({ db, queue });
+  const messagesService = createMessagesService({ db: registry.adapters.get('messages')!, queue });
   await messagesService.initialize();
 
   const logServiceInstance = createLogService({
-    db,
+    db: registry.adapters.get('log')!,
     retentionDays: config.logRetentionDays,
   });
   await logServiceInstance.initialize();
@@ -86,24 +93,24 @@ async function main() {
   // Enable dual-write: Pino logs now also go to log-service database
   enableLogServiceDualWrite(logServiceInstance.service);
 
-  const testServiceInstance = createTestService({ db, projectRoot: config.projectRoot || process.cwd() });
+  const testServiceInstance = createTestService({ db: registry.adapters.get('test')!, projectRoot: config.projectRoot || process.cwd() });
   await testServiceInstance.initialize();
 
-  const productServiceInstance = await createProductService(db);
+  const productServiceInstance = await createProductService(registry.adapters.get('product')!);
 
-  const secretServiceInstance = createSecretService({ db });
+  const secretServiceInstance = createSecretService({ db: registry.adapters.get('secret')! });
   await secretServiceInstance.initialize();
 
-  const ideaServiceInstance = createIdeaService({ db });
+  const ideaServiceInstance = createIdeaService({ db: registry.adapters.get('idea')! });
   await ideaServiceInstance.initialize();
 
-  const requestServiceInstance = createRequestService({ db, queue });
+  const requestServiceInstance = createRequestService({ db: registry.adapters.get('request')!, queue });
   await requestServiceInstance.initialize();
 
-  const observationServiceInstance = createObservationService({ db });
+  const observationServiceInstance = createObservationService({ db: registry.adapters.get('observation')! });
   await observationServiceInstance.initialize();
 
-  const dispatchServiceInstance = createDispatchService({ db, queue });
+  const dispatchServiceInstance = createDispatchService({ db: registry.adapters.get('dispatch')!, queue });
   await dispatchServiceInstance.initialize();
 
   // Mount embedded service routes
@@ -156,7 +163,7 @@ async function main() {
   const shutdown = async () => {
     logger.info('Shutting down...');
     await closeQueue();
-    await closeDatabase();
+    await registry.closeAll();
     process.exit(0);
   };
 
