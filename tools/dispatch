@@ -1,0 +1,367 @@
+#!/bin/bash
+# Dispatch queue management tool
+#
+# Usage: ./tools/dispatch <command> [options]
+#
+# Commands:
+#   claim                                Claim next work item
+#   complete [item-id]                   Complete current/specified item
+#   fail [item-id] "reason"              Fail item with reason
+#   enqueue --agent <name> "title" "prompt"  Add to agent queue
+#   enqueue --shared "title" "prompt"    Add to shared queue
+#   enqueue --request <id> [--agent <name>]  Enqueue a REQUEST
+#   list [--agent NAME] [--status pending]   List items
+#   status                               Queue depth + active items
+#   instances                            List active instances
+#   cancel <item-id>                     Cancel pending item
+#
+# Options:
+#   --priority N      Priority (0=normal, 10=high, 20=critical)
+#   --agent <name>    Override agent identity
+#   --format json     Output as JSON
+
+set -euo pipefail
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "dispatch" "agency-tool" "$@" 2>/dev/null) || true
+
+# Configuration
+AGENCY_SERVICE_URL="${AGENCY_SERVICE_URL:-http://localhost:3141}"
+AGENT_NAME_DEFAULT="${AGENTNAME:-${AGENT_NAME:-captain}}"
+INSTANCE_ID="${CLAUDE_SESSION_ID:-$$}"
+
+# Parse command
+COMMAND="${1:-status}"
+shift 2>/dev/null || true
+
+# Check service availability
+check_service() {
+    curl -s --connect-timeout 2 "${AGENCY_SERVICE_URL}/health" >/dev/null 2>&1
+}
+
+main() {
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "dispatch [run: ${RUN_ID:-none}]"
+
+    if ! check_service; then
+        echo "Service not available at $AGENCY_SERVICE_URL"
+        echo "Start service: ./tools/agency-service start"
+        echo "✗"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Service unavailable" 2>/dev/null || true
+        exit 1
+    fi
+
+    case "$COMMAND" in
+        claim)      cmd_claim "$@" ;;
+        complete)   cmd_complete "$@" ;;
+        fail)       cmd_fail "$@" ;;
+        enqueue)    cmd_enqueue "$@" ;;
+        list)       cmd_list "$@" ;;
+        status)     cmd_status "$@" ;;
+        instances)  cmd_instances "$@" ;;
+        cancel)     cmd_cancel "$@" ;;
+        *)
+            echo "Unknown command: $COMMAND"
+            echo "Usage: ./tools/dispatch {claim|complete|fail|enqueue|list|status|instances|cancel}"
+            echo "✗"
+            trap - EXIT
+            log_end "$RUN_ID" "failure" 1 0 "Unknown command" 2>/dev/null || true
+            exit 1
+            ;;
+    esac
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Completed" 2>/dev/null || true
+}
+
+cmd_claim() {
+    local agent="${AGENT_NAME_DEFAULT}"
+    local ttl=5
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --agent) agent="$2"; shift 2 ;;
+            --ttl) ttl="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    local response
+    response=$(curl -s -X POST "${AGENCY_SERVICE_URL}/api/dispatch/claim" \
+        -H "Content-Type: application/json" \
+        -d "{\"agentName\": \"$agent\", \"instanceId\": \"$INSTANCE_ID\", \"ttlMinutes\": $ttl}")
+
+    local item_id
+    item_id=$(echo "$response" | jq -r '.item.id // empty' 2>/dev/null)
+
+    if [[ -n "$item_id" ]]; then
+        local title
+        title=$(echo "$response" | jq -r '.item.title')
+        echo "Claimed: $title (${item_id:0:8}...)"
+        echo "✓"
+    else
+        echo "No work available"
+        echo "✓"
+    fi
+}
+
+cmd_complete() {
+    local item_id="${1:-}"
+    local result=""
+
+    shift 2>/dev/null || true
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --result) result="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    if [[ -z "$item_id" ]]; then
+        echo "Usage: ./tools/dispatch complete <item-id> [--result \"description\"]"
+        echo "✗"
+        exit 1
+    fi
+
+    local payload
+    payload=$(jq -n --arg result "$result" '{result: $result}')
+
+    local response
+    response=$(curl -s -X POST "${AGENCY_SERVICE_URL}/api/dispatch/complete/${item_id}" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
+
+    if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+        echo "Completed: ${item_id:0:8}..."
+        echo "✓"
+    else
+        local err
+        err=$(echo "$response" | jq -r '.message // "Unknown error"')
+        echo "Failed: $err"
+        echo "✗"
+        exit 1
+    fi
+}
+
+cmd_fail() {
+    local item_id="${1:-}"
+    local error_msg="${2:-}"
+
+    if [[ -z "$item_id" || -z "$error_msg" ]]; then
+        echo "Usage: ./tools/dispatch fail <item-id> \"reason\""
+        echo "✗"
+        exit 1
+    fi
+
+    local response
+    response=$(curl -s -X POST "${AGENCY_SERVICE_URL}/api/dispatch/fail/${item_id}" \
+        -H "Content-Type: application/json" \
+        -d "{\"error\": $(echo "$error_msg" | jq -R .)}")
+
+    if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+        echo "Failed: ${item_id:0:8}..."
+        echo "✓"
+    else
+        local err
+        err=$(echo "$response" | jq -r '.message // "Unknown error"')
+        echo "Error: $err"
+        echo "✗"
+        exit 1
+    fi
+}
+
+cmd_enqueue() {
+    local agent=""
+    local shared=false
+    local title=""
+    local prompt=""
+    local description=""
+    local priority=0
+    local work_type="custom"
+    local work_id=""
+    local request_id=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --agent) agent="$2"; shift 2 ;;
+            --shared) shared=true; shift ;;
+            --priority) priority="$2"; shift 2 ;;
+            --request) request_id="$2"; work_type="request"; shift 2 ;;
+            --work-type) work_type="$2"; shift 2 ;;
+            --description) description="$2"; shift 2 ;;
+            *)
+                if [[ -z "$title" ]]; then
+                    title="$1"
+                elif [[ -z "$prompt" ]]; then
+                    prompt="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Handle --request shorthand
+    if [[ -n "$request_id" ]]; then
+        work_id="$request_id"
+        if [[ -z "$title" ]]; then
+            title="Process $request_id"
+        fi
+    fi
+
+    if [[ -z "$title" ]]; then
+        echo "Usage: ./tools/dispatch enqueue --agent <name> \"title\" [\"prompt\"]"
+        echo "       ./tools/dispatch enqueue --shared \"title\" [\"prompt\"]"
+        echo "       ./tools/dispatch enqueue --request REQUEST-xxx [--agent <name>]"
+        echo "✗"
+        exit 1
+    fi
+
+    local queue_type="agent"
+    if [[ "$shared" == "true" ]]; then
+        queue_type="shared"
+        agent=""
+    elif [[ -z "$agent" ]]; then
+        agent="$AGENT_NAME_DEFAULT"
+    fi
+
+    local payload
+    payload=$(jq -n \
+        --arg queueType "$queue_type" \
+        --arg agentName "$agent" \
+        --arg workType "$work_type" \
+        --arg workId "$work_id" \
+        --arg title "$title" \
+        --arg description "$description" \
+        --arg prompt "$prompt" \
+        --argjson priority "$priority" \
+        '{
+            queueType: $queueType,
+            workType: $workType,
+            title: $title,
+            priority: $priority
+        }
+        + (if $agentName != "" then {agentName: $agentName} else {} end)
+        + (if $workId != "" then {workId: $workId} else {} end)
+        + (if $description != "" then {description: $description} else {} end)
+        + (if $prompt != "" then {prompt: $prompt} else {} end)')
+
+    local response
+    response=$(curl -s -X POST "${AGENCY_SERVICE_URL}/api/dispatch/enqueue" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
+
+    if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+        local id
+        id=$(echo "$response" | jq -r '.id')
+        local target="$queue_type"
+        [[ -n "$agent" ]] && target="$agent"
+        echo "Enqueued for $target: $title (${id:0:8}...)"
+        echo "✓"
+    else
+        local err
+        err=$(echo "$response" | jq -r '.message // "Unknown error"')
+        echo "Failed: $err"
+        echo "✗"
+        exit 1
+    fi
+}
+
+cmd_list() {
+    local agent=""
+    local status=""
+    local format="table"
+    local queue_type=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --agent) agent="$2"; shift 2 ;;
+            --status) status="$2"; shift 2 ;;
+            --queue) queue_type="$2"; shift 2 ;;
+            --format) format="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    local query="limit=50"
+    [[ -n "$agent" ]] && query="${query}&agentName=${agent}"
+    [[ -n "$status" ]] && query="${query}&status=${status}"
+    [[ -n "$queue_type" ]] && query="${query}&queueType=${queue_type}"
+
+    local response
+    response=$(curl -s "${AGENCY_SERVICE_URL}/api/dispatch/list?${query}")
+
+    if [[ "$format" == "json" ]]; then
+        echo "$response" | jq '.items'
+    else
+        local count
+        count=$(echo "$response" | jq '.total // 0')
+        echo "Items ($count):"
+        printf "%-10s %-8s %-10s %-8s %-6s %s\n" "ID" "Queue" "Agent" "Status" "Pri" "Title"
+        printf "%-10s %-8s %-10s %-8s %-6s %s\n" "----------" "--------" "----------" "--------" "------" "----------------------------------------"
+        echo "$response" | jq -r '.items[] | "\(.id | .[0:8])..|\(.queueType)|\(.agentName // "-")|\(.status)|\(.priority)|\(.title | .[0:40])"' | while IFS='|' read -r id queue ag st pri title; do
+            printf "%-10s %-8s %-10s %-8s %-6s %s\n" "$id" "$queue" "$ag" "$st" "$pri" "$title"
+        done
+    fi
+    echo "✓"
+}
+
+cmd_status() {
+    local response
+    response=$(curl -s "${AGENCY_SERVICE_URL}/api/dispatch/stats")
+
+    echo "Queue Status:"
+    echo "$response" | jq -r '"  Pending:    \(.pending)\n  Claimed:    \(.claimed)\n  Active:     \(.active)\n  Completed:  \(.completed)\n  Failed:     \(.failed)\n  Instances:  \(.activeInstances)"'
+    echo "✓"
+}
+
+cmd_instances() {
+    local response
+    response=$(curl -s "${AGENCY_SERVICE_URL}/api/dispatch/instance/list")
+
+    local count
+    count=$(echo "$response" | jq '.instances | length')
+
+    if [[ "$count" == "0" ]]; then
+        echo "No active instances"
+    else
+        echo "Active instances ($count):"
+        printf "%-12s %-12s %-12s %-8s %s\n" "ID" "Agent" "Workstream" "Status" "Heartbeat"
+        echo "$response" | jq -r '.instances[] | "\(.id | .[0:10]).|\(.agentName)|\(.workstream // "-")|\(.status)|\(.lastHeartbeat)"' | while IFS='|' read -r id ag ws st hb; do
+            printf "%-12s %-12s %-12s %-8s %s\n" "$id" "$ag" "$ws" "$st" "$hb"
+        done
+    fi
+    echo "✓"
+}
+
+cmd_cancel() {
+    local item_id="${1:-}"
+
+    if [[ -z "$item_id" ]]; then
+        echo "Usage: ./tools/dispatch cancel <item-id>"
+        echo "✗"
+        exit 1
+    fi
+
+    local response
+    response=$(curl -s -X POST "${AGENCY_SERVICE_URL}/api/dispatch/cancel/${item_id}" \
+        -H "Content-Type: application/json")
+
+    if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+        echo "Cancelled: ${item_id:0:8}..."
+        echo "✓"
+    else
+        local err
+        err=$(echo "$response" | jq -r '.message // "Unknown error"')
+        echo "Failed: $err"
+        echo "✗"
+        exit 1
+    fi
+}
+
+main "$@"

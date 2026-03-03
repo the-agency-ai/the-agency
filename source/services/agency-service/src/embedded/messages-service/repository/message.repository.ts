@@ -1,16 +1,16 @@
 /**
- * Message Repository
+ * Unified Message Repository
  *
- * Data access layer for messages. Uses the database adapter interface.
- * Business logic stays in the service layer.
+ * Data access layer for the unified messaging system.
+ * Replaces the old two-table (messages + recipients) model with
+ * a single messages table using JSON arrays for read tracking.
  */
 
 import type { DatabaseAdapter } from '../../../core/adapters/database';
 import type {
   Message,
-  Recipient,
-  MessageWithRecipients,
-  CreateMessageRequest,
+  SendMessageInput,
+  BroadcastMessageInput,
   ListMessagesQuery,
 } from '../types';
 import { createServiceLogger } from '../../../core/lib/logger';
@@ -18,25 +18,20 @@ import { createServiceLogger } from '../../../core/lib/logger';
 const logger = createServiceLogger('message-repository');
 
 /**
- * Database row types (snake_case as stored in SQLite)
+ * Database row type (snake_case as stored in SQLite)
  */
 interface MessageRow {
-  id: number;
-  timestamp: string;
-  from_type: string;
-  from_name: string;
-  to_type: string;
-  to_name: string | null;
-  subject: string | null;
-  content: string;
-}
-
-interface RecipientRow {
-  id: number;
-  message_id: number;
-  recipient_type: string;
-  recipient_name: string;
-  read_at: string | null;
+  id: string;
+  type: string;
+  from_agent: string;
+  to_agent: string | null;
+  subject: string;
+  body: string;
+  reference_id: string | null;
+  tags: string;       // JSON array
+  read_by: string;    // JSON array
+  created_at: string;
+  metadata: string;   // JSON object
 }
 
 /**
@@ -45,26 +40,16 @@ interface RecipientRow {
 function rowToMessage(row: MessageRow): Message {
   return {
     id: row.id,
-    timestamp: new Date(row.timestamp),
-    fromType: row.from_type as Message['fromType'],
-    fromName: row.from_name,
-    toType: row.to_type as Message['toType'],
-    toName: row.to_name,
+    type: row.type as Message['type'],
+    fromAgent: row.from_agent,
+    toAgent: row.to_agent,
     subject: row.subject,
-    content: row.content,
-  };
-}
-
-/**
- * Convert database row to Recipient entity
- */
-function rowToRecipient(row: RecipientRow): Recipient {
-  return {
-    id: row.id,
-    messageId: row.message_id,
-    recipientType: row.recipient_type as Recipient['recipientType'],
-    recipientName: row.recipient_name,
-    readAt: row.read_at ? new Date(row.read_at) : null,
+    body: row.body,
+    referenceId: row.reference_id,
+    tags: JSON.parse(row.tags || '[]'),
+    readBy: JSON.parse(row.read_by || '[]'),
+    createdAt: row.created_at,
+    metadata: JSON.parse(row.metadata || '{}'),
   };
 }
 
@@ -72,171 +57,237 @@ export class MessageRepository {
   constructor(private db: DatabaseAdapter) {}
 
   /**
-   * Initialize the messages schema
+   * Initialize the unified messages schema
    */
   async initialize(): Promise<void> {
+    // Check if old schema exists and needs migration
+    const hasOldTable = await this.db.get<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='messages'"
+    );
+
+    if (hasOldTable) {
+      // Check if it's the old schema (has from_type column) or new schema (has type column)
+      const hasOldColumn = await this.db.get<{ name: string }>(
+        "SELECT name FROM pragma_table_info('messages') WHERE name='from_type'"
+      );
+
+      if (hasOldColumn) {
+        // Old schema exists — rename it to preserve data
+        logger.info('Migrating old messages schema...');
+        await this.db.execute('ALTER TABLE messages RENAME TO messages_legacy');
+        // Also rename recipients if it exists
+        const hasRecipients = await this.db.get<{ name: string }>(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='recipients'"
+        );
+        if (hasRecipients) {
+          await this.db.execute('ALTER TABLE recipients RENAME TO recipients_legacy');
+        }
+        logger.info('Old messages tables renamed to *_legacy');
+      }
+    }
+
+    // Create new unified schema
     await this.db.execute(`
       CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT DEFAULT (datetime('now')),
-        from_type TEXT NOT NULL,
-        from_name TEXT NOT NULL,
-        to_type TEXT NOT NULL,
-        to_name TEXT,
-        subject TEXT,
-        content TEXT NOT NULL
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        from_agent TEXT NOT NULL,
+        to_agent TEXT,
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        reference_id TEXT,
+        tags TEXT DEFAULT '[]',
+        read_by TEXT DEFAULT '[]',
+        created_at TEXT DEFAULT (datetime('now')),
+        metadata TEXT DEFAULT '{}'
       )
     `);
 
     await this.db.execute(`
-      CREATE TABLE IF NOT EXISTS recipients (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        message_id INTEGER NOT NULL,
-        recipient_type TEXT NOT NULL,
-        recipient_name TEXT NOT NULL,
-        read_at TEXT,
-        FOREIGN KEY (message_id) REFERENCES messages(id)
-      )
+      CREATE INDEX IF NOT EXISTS idx_messages_direct
+        ON messages(to_agent, created_at DESC)
+        WHERE type = 'direct'
     `);
 
-    // Create indexes
-    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_messages_from ON messages(from_type, from_name)`);
-    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_type, to_name)`);
-    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC)`);
-    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_recipients_message ON recipients(message_id)`);
-    await this.db.execute(`CREATE INDEX IF NOT EXISTS idx_recipients_recipient ON recipients(recipient_type, recipient_name)`);
+    await this.db.execute(`
+      CREATE INDEX IF NOT EXISTS idx_messages_broadcast
+        ON messages(created_at DESC)
+        WHERE type = 'broadcast'
+    `);
 
-    logger.info('Message schema initialized');
+    await this.db.execute(`
+      CREATE INDEX IF NOT EXISTS idx_messages_reference
+        ON messages(reference_id)
+        WHERE reference_id IS NOT NULL
+    `);
+
+    await this.db.execute(`
+      CREATE INDEX IF NOT EXISTS idx_messages_from
+        ON messages(from_agent, created_at DESC)
+    `);
+
+    logger.info('Unified message schema initialized');
   }
 
   /**
-   * Create a new message
+   * Generate a UUID
    */
-  async create(data: CreateMessageRequest): Promise<MessageWithRecipients> {
-    // Insert message
+  private generateId(): string {
+    return crypto.randomUUID();
+  }
+
+  /**
+   * Create a direct message
+   */
+  async createDirect(data: SendMessageInput): Promise<Message> {
+    const id = this.generateId();
+
     await this.db.execute(
-      `INSERT INTO messages (from_type, from_name, to_type, to_name, subject, content)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO messages (id, type, from_agent, to_agent, subject, body, reference_id, tags, metadata)
+       VALUES (?, 'direct', ?, ?, ?, ?, ?, ?, ?)`,
       [
-        data.fromType,
-        data.fromName,
-        data.toType,
-        data.toName || null,
-        data.subject || null,
-        data.content,
+        id,
+        data.fromAgent,
+        data.toAgent,
+        data.subject,
+        data.body,
+        data.referenceId || null,
+        JSON.stringify(data.tags || []),
+        JSON.stringify(data.metadata || {}),
       ]
     );
 
-    // Get the inserted message ID
-    const lastRow = await this.db.get<{ id: number }>(
-      'SELECT last_insert_rowid() as id'
-    );
-    const messageId = lastRow!.id;
-
-    // Insert recipients
-    const recipients: Recipient[] = [];
-
-    // If explicit recipients provided
-    if (data.recipients && data.recipients.length > 0) {
-      for (const r of data.recipients) {
-        await this.db.execute(
-          `INSERT INTO recipients (message_id, recipient_type, recipient_name)
-           VALUES (?, ?, ?)`,
-          [messageId, r.recipientType, r.recipientName]
-        );
-        const recipientRow = await this.db.get<RecipientRow>(
-          'SELECT * FROM recipients WHERE id = last_insert_rowid()'
-        );
-        if (recipientRow) {
-          recipients.push(rowToRecipient(recipientRow));
-        }
-      }
-    } else if (data.toType !== 'broadcast' && data.toName) {
-      // Single recipient from to fields
-      await this.db.execute(
-        `INSERT INTO recipients (message_id, recipient_type, recipient_name)
-         VALUES (?, ?, ?)`,
-        [messageId, data.toType, data.toName]
-      );
-      const recipientRow = await this.db.get<RecipientRow>(
-        'SELECT * FROM recipients WHERE id = last_insert_rowid()'
-      );
-      if (recipientRow) {
-        recipients.push(rowToRecipient(recipientRow));
-      }
-    }
-
-    const message = await this.findById(messageId);
+    const message = await this.findById(id);
     if (!message) {
-      throw new Error(`Failed to create message`);
+      throw new Error('Failed to create message');
     }
 
-    logger.info({ messageId, recipients: recipients.length }, 'Message created');
-    return { ...message, recipients };
+    logger.info({ messageId: id, to: data.toAgent }, 'Direct message created');
+    return message;
   }
 
   /**
-   * Find a message by its ID
+   * Create a broadcast message
    */
-  async findById(id: number): Promise<MessageWithRecipients | null> {
+  async createBroadcast(data: BroadcastMessageInput): Promise<Message> {
+    const id = this.generateId();
+
+    await this.db.execute(
+      `INSERT INTO messages (id, type, from_agent, to_agent, subject, body, reference_id, tags, metadata)
+       VALUES (?, 'broadcast', ?, NULL, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        data.fromAgent,
+        data.subject,
+        data.body,
+        data.referenceId || null,
+        JSON.stringify(data.tags || []),
+        JSON.stringify(data.metadata || {}),
+      ]
+    );
+
+    const message = await this.findById(id);
+    if (!message) {
+      throw new Error('Failed to create broadcast');
+    }
+
+    logger.info({ messageId: id }, 'Broadcast message created');
+    return message;
+  }
+
+  /**
+   * Find a message by ID
+   */
+  async findById(id: string): Promise<Message | null> {
     const row = await this.db.get<MessageRow>(
       'SELECT * FROM messages WHERE id = ?',
       [id]
     );
 
-    if (!row) {
-      return null;
-    }
-
-    const recipientRows = await this.db.query<RecipientRow>(
-      'SELECT * FROM recipients WHERE message_id = ?',
-      [id]
-    );
-
-    return {
-      ...rowToMessage(row),
-      recipients: recipientRows.map(rowToRecipient),
-    };
+    return row ? rowToMessage(row) : null;
   }
 
   /**
-   * List messages (inbox or outbox based on query)
+   * Mark a message as read by an agent
    */
-  async list(query: ListMessagesQuery): Promise<{ messages: MessageWithRecipients[]; total: number }> {
+  async markAsRead(id: string, agentName: string): Promise<boolean> {
+    // Atomic update: add agentName to read_by JSON array if not already present
+    const changes = await this.db.update(
+      `UPDATE messages
+       SET read_by = json_insert(read_by, '$[#]', ?)
+       WHERE id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM json_each(messages.read_by) WHERE value = ?
+         )`,
+      [agentName, id, agentName]
+    );
+
+    if (changes > 0) {
+      logger.debug({ messageId: id, agent: agentName }, 'Message marked as read');
+    }
+
+    return changes > 0;
+  }
+
+  /**
+   * List messages with filtering
+   */
+  async list(query: ListMessagesQuery): Promise<{ messages: Message[]; total: number }> {
     const conditions: string[] = [];
     const params: unknown[] = [];
-    let fromRecipients = false;
 
-    // Inbox query: filter by recipient
-    if (query.recipientType && query.recipientName) {
-      fromRecipients = true;
-      conditions.push('r.recipient_type = ?');
-      params.push(query.recipientType);
-      conditions.push('r.recipient_name = ?');
-      params.push(query.recipientName);
+    // Filter by type
+    if (query.type) {
+      conditions.push('type = ?');
+      params.push(query.type);
+    }
 
-      if (query.unreadOnly) {
-        conditions.push('r.read_at IS NULL');
+    // Filter by agent (matches toAgent OR fromAgent)
+    if (query.agent) {
+      conditions.push('(to_agent = ? OR from_agent = ?)');
+      params.push(query.agent, query.agent);
+    }
+
+    // Filter by fromAgent
+    if (query.fromAgent) {
+      conditions.push('from_agent = ?');
+      params.push(query.fromAgent);
+    }
+
+    // Filter by toAgent
+    if (query.toAgent) {
+      conditions.push('to_agent = ?');
+      params.push(query.toAgent);
+    }
+
+    // Filter unread for a specific agent
+    if (query.unread) {
+      conditions.push(
+        `NOT EXISTS (SELECT 1 FROM json_each(read_by) WHERE value = ?)`
+      );
+      params.push(query.unread);
+      // For unread, show direct messages to this agent + all broadcasts
+      conditions.push(`(to_agent = ? OR type = 'broadcast')`);
+      params.push(query.unread);
+    }
+
+    // Filter by tags
+    if (query.tags) {
+      const tagList = query.tags.split(',').map(t => t.trim());
+      for (const tag of tagList) {
+        conditions.push(
+          `EXISTS (SELECT 1 FROM json_each(tags) WHERE value = ?)`
+        );
+        params.push(tag);
       }
-    }
-
-    // Outbox query: filter by sender
-    if (query.fromType) {
-      conditions.push('m.from_type = ?');
-      params.push(query.fromType);
-    }
-
-    if (query.fromName) {
-      conditions.push('m.from_name = ?');
-      params.push(query.fromName);
     }
 
     // Time filter
     if (query.since) {
       const since = this.parseSince(query.since);
       if (since) {
-        conditions.push('m.timestamp >= ?');
-        params.push(since.toISOString());
+        conditions.push('created_at >= ?');
+        params.push(since);
       }
     }
 
@@ -244,99 +295,64 @@ export class MessageRepository {
       ? `WHERE ${conditions.join(' AND ')}`
       : '';
 
-    // Build query with optional recipient join
-    const baseQuery = fromRecipients
-      ? `FROM messages m JOIN recipients r ON m.id = r.message_id ${whereClause}`
-      : `FROM messages m ${whereClause}`;
-
     // Get total count
-    const countRow = await this.db.get<{ count: number }>(
-      `SELECT COUNT(DISTINCT m.id) as count ${baseQuery}`,
-      params
-    );
+    const countSql = 'SELECT COUNT(*) as count FROM messages ' + whereClause;
+    const countRow = await this.db.get<{ count: number }>(countSql, params);
     const total = countRow?.count ?? 0;
 
     // Get paginated results
+    const listSql = 'SELECT * FROM messages ' + whereClause +
+      ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     const rows = await this.db.query<MessageRow>(
-      `SELECT DISTINCT m.* ${baseQuery}
-       ORDER BY m.timestamp DESC
-       LIMIT ? OFFSET ?`,
+      listSql,
       [...params, query.limit, query.offset]
     );
 
-    // Batch fetch all recipients for the messages to avoid N+1 queries
-    const messageIds = rows.map(r => r.id);
-    const recipientRows = messageIds.length > 0
-      ? await this.db.query<RecipientRow>(
-          `SELECT * FROM recipients WHERE message_id IN (${messageIds.map(() => '?').join(',')})`,
-          messageIds
-        )
-      : [];
-
-    // Group recipients by message_id
-    const recipientsByMessageId = new Map<number, RecipientRow[]>();
-    for (const row of recipientRows) {
-      const existing = recipientsByMessageId.get(row.message_id) || [];
-      existing.push(row);
-      recipientsByMessageId.set(row.message_id, existing);
-    }
-
-    // Build message objects with their recipients
-    const messages: MessageWithRecipients[] = rows.map(row => ({
-      ...rowToMessage(row),
-      recipients: (recipientsByMessageId.get(row.id) || []).map(rowToRecipient),
-    }));
-
-    return { messages, total };
+    return {
+      messages: rows.map(rowToMessage),
+      total,
+    };
   }
 
   /**
-   * Get inbox messages for an entity
+   * Get unread messages for an agent
    */
-  async getInbox(
-    recipientType: string,
-    recipientName: string,
-    unreadOnly: boolean = false
-  ): Promise<MessageWithRecipients[]> {
-    const { messages } = await this.list({
-      recipientType: recipientType as 'agent' | 'principal',
-      recipientName,
-      unreadOnly,
-      limit: 100,
-      offset: 0,
-    });
-    return messages;
-  }
-
-  /**
-   * Mark a message as read for a recipient
-   */
-  async markAsRead(
-    messageId: number,
-    recipientType: string,
-    recipientName: string
-  ): Promise<boolean> {
-    const changes = await this.db.update(
-      `UPDATE recipients
-       SET read_at = datetime('now')
-       WHERE message_id = ? AND recipient_type = ? AND recipient_name = ? AND read_at IS NULL`,
-      [messageId, recipientType, recipientName]
+  async getUnread(agentName: string): Promise<{ count: number; messages: Message[] }> {
+    const rows = await this.db.query<MessageRow>(
+      `SELECT * FROM messages
+       WHERE (to_agent = ? OR type = 'broadcast')
+         AND NOT EXISTS (SELECT 1 FROM json_each(read_by) WHERE value = ?)
+       ORDER BY created_at DESC`,
+      [agentName, agentName]
     );
 
-    if (changes > 0) {
-      logger.debug({ messageId, recipient: `${recipientType}:${recipientName}` }, 'Message marked as read');
-    }
+    return {
+      count: rows.length,
+      messages: rows.map(rowToMessage),
+    };
+  }
 
-    return changes > 0;
+  /**
+   * Get message thread (root + all replies referencing it)
+   */
+  async getThread(id: string): Promise<{ root: Message | null; replies: Message[] }> {
+    const root = await this.findById(id);
+
+    const replyRows = await this.db.query<MessageRow>(
+      `SELECT * FROM messages WHERE reference_id = ? ORDER BY created_at ASC`,
+      [id]
+    );
+
+    return {
+      root,
+      replies: replyRows.map(rowToMessage),
+    };
   }
 
   /**
    * Delete a message
    */
-  async delete(id: number): Promise<boolean> {
-    // Delete recipients first
-    await this.db.execute('DELETE FROM recipients WHERE message_id = ?', [id]);
-
+  async delete(id: string): Promise<boolean> {
     const changes = await this.db.delete(
       'DELETE FROM messages WHERE id = ?',
       [id]
@@ -350,39 +366,44 @@ export class MessageRepository {
   }
 
   /**
-   * Get stats for an entity
+   * Get message statistics
    */
-  async getStats(recipientType: string, recipientName: string): Promise<{
+  async getStats(): Promise<{
     total: number;
-    unread: number;
+    direct: number;
+    broadcast: number;
     today: number;
   }> {
-    const statsRow = await this.db.get<{ total: number; unread: number; today: number }>(
+    const row = await this.db.get<{
+      total: number;
+      direct: number;
+      broadcast: number;
+      today: number;
+    }>(
       `SELECT
          COUNT(*) as total,
-         SUM(CASE WHEN r.read_at IS NULL THEN 1 ELSE 0 END) as unread,
-         SUM(CASE WHEN m.timestamp >= date('now') THEN 1 ELSE 0 END) as today
-       FROM recipients r
-       JOIN messages m ON r.message_id = m.id
-       WHERE r.recipient_type = ? AND r.recipient_name = ?`,
-      [recipientType, recipientName]
+         SUM(CASE WHEN type = 'direct' THEN 1 ELSE 0 END) as direct,
+         SUM(CASE WHEN type = 'broadcast' THEN 1 ELSE 0 END) as broadcast,
+         SUM(CASE WHEN created_at >= date('now') THEN 1 ELSE 0 END) as today
+       FROM messages`
     );
 
     return {
-      total: statsRow?.total ?? 0,
-      unread: statsRow?.unread ?? 0,
-      today: statsRow?.today ?? 0,
+      total: row?.total ?? 0,
+      direct: row?.direct ?? 0,
+      broadcast: row?.broadcast ?? 0,
+      today: row?.today ?? 0,
     };
   }
 
   /**
    * Parse relative time strings like "1h", "24h", "7d"
    */
-  private parseSince(since: string): Date | null {
+  private parseSince(since: string): string | null {
     // Check if it's already an ISO timestamp
     if (since.includes('T') || since.includes('-')) {
       const date = new Date(since);
-      return isNaN(date.getTime()) ? null : date;
+      return isNaN(date.getTime()) ? null : date.toISOString();
     }
 
     // Parse relative time
@@ -393,17 +414,18 @@ export class MessageRepository {
 
     const [, amount, unit] = match;
     const now = new Date();
-    const ms = {
+    const ms: Record<string, number> = {
       m: 60 * 1000,
       h: 60 * 60 * 1000,
       d: 24 * 60 * 60 * 1000,
       w: 7 * 24 * 60 * 60 * 1000,
-    }[unit];
+    };
 
-    if (!ms) {
+    const multiplier = ms[unit];
+    if (!multiplier) {
       return null;
     }
 
-    return new Date(now.getTime() - parseInt(amount, 10) * ms);
+    return new Date(now.getTime() - parseInt(amount, 10) * multiplier).toISOString();
   }
 }

@@ -1,0 +1,28 @@
+#!/bin/bash
+# Enqueue a REQUEST as a dispatch item
+#
+# Usage: ./tools/dispatch-request <request-id> [--agent <name>] [--priority N]
+#
+# Shortcut for: ./tools/dispatch enqueue --request <id> --agent <name>
+
+set -euo pipefail
+
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "dispatch-request" "agency-tool" "$@" 2>/dev/null) || true
+
+REQUEST_ID="${1:-}"
+shift 2>/dev/null || true
+
+if [[ -z "$REQUEST_ID" ]]; then
+    echo "dispatch-request [run: ${RUN_ID:-none}]"
+    echo "Usage: ./tools/dispatch-request <request-id> [--agent <name>] [--priority N]"
+    echo "✗"
+    log_end "$RUN_ID" "failure" 1 0 "No request ID" 2>/dev/null || true
+    exit 1
+fi
+
+# Pass through to dispatch enqueue
+"$SCRIPT_DIR/dispatch" enqueue --request "$REQUEST_ID" "$@"
