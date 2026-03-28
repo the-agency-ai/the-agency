@@ -11,6 +11,14 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/branch-freshness.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/session-handoff.sh"
           }
         ]
       }
@@ -48,6 +56,24 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/tools/tab-status working 2>/dev/null || true"
           }
         ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ref-injector.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/plan-capture.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -61,6 +87,10 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/tools/log-tool-use 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/tool-telemetry.sh"
           }
         ]
       }
@@ -86,11 +116,18 @@
           },
           {
             "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/quality-check.sh"
+          },
+          {
+            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/tools/tab-status available 2>/dev/null || true"
           }
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "hookify@claude-plugins-official": true
   },
   "permissions": {
     "allow": [
@@ -185,7 +222,11 @@
       "Bash(./tools/whoami*)",
       "Bash(./tools/workflow-check*)",
       "Bash(./tools/workstream *)",
-      "Bash(./tools/workstream-create*)"
+      "Bash(./tools/workstream-create*)",
+      "Bash(./tools/worktree-create*)",
+      "Bash(./tools/worktree-list*)",
+      "Bash(./tools/worktree-delete*)",
+      "Bash(./tools/_path-resolve*)"
     ]
   }
 }

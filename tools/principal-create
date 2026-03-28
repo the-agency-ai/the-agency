@@ -106,7 +106,8 @@ fi
 # Convert to lowercase
 PRINCIPALNAME=$(echo "$PRINCIPALNAME" | tr '[:upper:]' '[:lower:]')
 
-DIR="claude/principals/$PRINCIPALNAME"
+DIR="usr/$PRINCIPALNAME"
+LEGACY_DIR="claude/principals/$PRINCIPALNAME"
 TIMESTAMP=$(./tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 
 # Main function
@@ -119,50 +120,60 @@ main() {
 
     echo "principal-create [run: ${RUN_ID:-none}]"
 
-    # Check principal doesn't exist
-    if [ -d "$DIR" ]; then
-      log_error "Principal '$PRINCIPALNAME' already exists at $DIR"
+    # Check principal doesn't exist (check both v2 and legacy locations)
+    if [ -d "$DIR" ] || [ -d "$LEGACY_DIR" ]; then
+      local existing="$DIR"
+      [ -d "$LEGACY_DIR" ] && existing="$LEGACY_DIR"
+      log_error "Principal '$PRINCIPALNAME' already exists at $existing"
       trap - EXIT
       log_end "$RUN_ID" "failure" 1 0 "Principal already exists"
       exit 1
     fi
 
     log_step "Creating principal: $PRINCIPALNAME"
-    mkdir -p "$DIR/projects"
-    mkdir -p "$DIR/resources"
-    mkdir -p "$DIR/sessions"
-    mkdir -p "$DIR/config"
 
-    # Create principal README
-    cat > "$DIR/README.md" << EOF
+    # Use v2 template if available, otherwise create minimal v2 structure
+    TEMPLATE_V2="claude/templates/principal-v2"
+    if [[ -d "$TEMPLATE_V2" ]]; then
+        log_info "Creating principal from v2 template (usr/{principal}/)..."
+        mkdir -p "$DIR"
+        cp -r "$TEMPLATE_V2/"* "$DIR/" 2>/dev/null || true
+
+        # Replace template placeholders in all markdown files
+        while IFS= read -r -d '' file; do
+            if [[ "$(uname)" == "Darwin" ]]; then
+                sed -i '' "s/{{PRINCIPAL_NAME}}/$PRINCIPALNAME/g" "$file"
+            else
+                sed -i "s/{{PRINCIPAL_NAME}}/$PRINCIPALNAME/g" "$file"
+            fi
+        done < <(find "$DIR" -name "*.md" -print0 2>/dev/null)
+    else
+        # Minimal v2 structure
+        mkdir -p "$DIR"/claude/{commands,hookify,hooks,agents,refs}
+        mkdir -p "$DIR"/scripts
+
+        # Create principal README
+        cat > "$DIR/README.md" << EOF
 # Principal: $PRINCIPALNAME
 
 **Created:** $TIMESTAMP
 
 ## Structure
 
-- \`projects/\` - Project-specific instructions and artifacts
-- \`resources/\` - Files and resources for this principal
-  - \`cloud/\` - Symlink to iCloud storage (if set up)
-  - \`secrets/\` - Credentials and keys (gitignored)
-- \`sessions/\` - Session archives
-- \`config/\` - App configurations (iTerm, etc.)
+- \`claude/\` - Claude Code config (commands, hookify, hooks, agents, refs)
+- \`scripts/\` - Cross-cutting scripts
+- \`{project}/\` - One directory per project
 
-## Setup
+## File Naming Convention
 
-Run integrations:
-\`\`\`bash
-# iCloud storage
-./tools/icloud-setup <projectname> $PRINCIPALNAME
+All project artifacts follow: \`{project}-{artifact}-YYYYMMDD.md\`
 
-# iTerm profiles
-./tools/iterm-setup $PRINCIPALNAME
-\`\`\`
+## Getting Started
+
+1. Create a project: \`mkdir -p usr/$PRINCIPALNAME/my-project/{transcripts,code-reviews,history}\`
+2. Configure: \`claude/config/agency.yaml\` to map your system user
 EOF
-
-    # Create secrets directory with .gitkeep
-    mkdir -p "$DIR/resources/secrets"
-    touch "$DIR/resources/secrets/.gitkeep"
+    fi
 
     echo "Created: $DIR/"
 
@@ -192,10 +203,8 @@ EOF
     echo ""
     echo "Next steps:"
     echo "  1. Review: $DIR/README.md"
-    if [ -z "$PROJECTNAME" ]; then
-      echo "  2. Set up iCloud: ./tools/icloud-setup <projectname> $PRINCIPALNAME"
-    fi
-    echo "  3. Configure: claude/config/agency.yaml to map your system user"
+    echo "  2. Configure: claude/config/agency.yaml to map your system user"
+    echo "  3. Create your first project: mkdir -p $DIR/my-project/{transcripts,code-reviews,history}"
 
     trap - EXIT
     log_end "$RUN_ID" "success" 0 0 "Principal $PRINCIPALNAME created"
