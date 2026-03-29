@@ -199,6 +199,42 @@ Additionally, `/rename` does not persist in tabs — `tab-status` is called on e
 
 ---
 
+### ISS-011: Tab status indicators wrong for Ghostty (RESOLVED)
+
+**Severity:** Medium (UX)
+**Found by:** captain
+**Status:** Resolved (commits 7cffc9a through 109a9e7)
+
+`tools/tab-status` used iTerm-style indicators (`●` filled circle, `▲` triangle) which are incorrect for Ghostty. The correct Ghostty indicators are `○` (available), `◑` (working), `⚠` (attention). Additionally, `tab-status` was being called from both `ghostty-status.sh` AND `settings.json` hooks, causing double-setting and slowness.
+
+**Fix:** Removed all `tab-status` calls from `settings.json` hooks and `ghostty-status.sh`. Registered `ghostty-status.sh` directly for SessionStart, SessionEnd, PostToolUse, Stop, and Notification events. Removed AppleScript `set_tab_title` which targeted the focused tab (causing cross-tab name pollution in multi-session setups). Made session name cache per-session using `session_id`.
+
+---
+
+### ISS-012: Worktrees created in two different locations (OPEN)
+
+**Severity:** Medium (operational confusion)
+**Found by:** captain
+**Status:** Open
+
+Worktrees are being created in two different locations:
+- `.worktrees/` — created by `./tools/worktree-create` (e.g., `.worktrees/markdown-pal/`)
+- `.claude/worktrees/` — created by Claude Code's built-in `EnterWorktree` tool (e.g., `.claude/worktrees/mock-and-mark/`)
+
+This causes confusion when navigating between agents, and tools that look for worktrees in one location won't find ones created in the other.
+
+**Current state:**
+```
+git worktree list
+/Users/jdm/code/the-agency                                  main
+/Users/jdm/code/the-agency/.claude/worktrees/mock-and-mark  worktree-mock-and-mark
+/Users/jdm/code/the-agency/.worktrees/markdown-pal          markdown-pal
+```
+
+**Action:** Standardize on one location. Either update `tools/worktree-create` to use `.claude/worktrees/` (aligning with Claude Code's convention) or configure Claude Code to use `.worktrees/`. Both locations should be in `.gitignore`.
+
+---
+
 ## Summary
 
 | Issue | Severity | Status | Tool Fix Needed |
@@ -212,4 +248,6 @@ Additionally, `/rename` does not persist in tabs — `tab-status` is called on e
 | ISS-007 | Medium | Open | agent-create must register in settings.json |
 | ISS-008 | High | Open | Dependabot: 3 high, 9 moderate vulnerabilities |
 | ISS-009 | Low | Open | Status line: redundant worktree naming |
-| ISS-010 | Medium | Open | Agent name not appearing in terminal tabs |
+| ISS-010 | Medium | Resolved | Agent name not appearing in terminal tabs |
+| ISS-011 | Medium | Resolved | Tab status indicators wrong for Ghostty |
+| ISS-012 | Medium | Open | Worktrees in two different locations |
