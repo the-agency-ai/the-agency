@@ -61,10 +61,6 @@ elif [[ -n "${AGENTNAME:-}" ]]; then
     session_name="$AGENTNAME"
 elif [[ -f "$CACHE_FILE" ]]; then
     session_name=$(cat "$CACHE_FILE")
-elif [[ -f "/tmp/ghostty-session-name-${session_id}" ]]; then
-    # Status line writes session_name here (hooks don't get it in JSON)
-    session_name=$(cat "/tmp/ghostty-session-name-${session_id}")
-    echo "$session_name" > "$CACHE_FILE"
 else
     # Last resort — try git branch
     if command -v git > /dev/null 2>&1; then
