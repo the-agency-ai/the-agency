@@ -5,6 +5,41 @@ All notable changes to The Agency will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Agency 2.0 Contribution (2026-03-29)
+
+**Source:** Ported from monofolk production monorepo. Lineage: NextGen → Agency 1.0 → Monofolk → Agency 2.0.
+
+### Added
+- **Development methodology** — AIADLC process: Seed → Discussion → PVR → A&D → Plan, Phase.Iteration numbering, living documents
+- **Quality gate protocol** — 10-step QG with parallel review agents, red-green cycle, QGR format
+- **8 agents** — project-manager (PM), 5 reviewer agents (code, design, scorer, security, test), CoS (Chief of Staff), captain (merged with PR lifecycle)
+- **6 hooks** — ref-injector, session-handoff, quality-check, plan-capture, branch-freshness, tool-telemetry
+- **Worktree management** — tools/worktree-create, worktree-list, worktree-delete as first-class primitives
+- **Path abstraction** — tools/_path-resolve for principal-aware path resolution
+- **15 hookify rules** — behavioral guardrails (block force-push, no-verify bypass, system installs; warn on secrets, env files, compound bash, etc.)
+- **/discuss skill** — structured 1B1 (one-by-one) discussion protocol
+- **CLAUDE templates** — CLAUDE-USER.md and CLAUDE-PROJECT.md for agency init
+- **Principal v2** — usr/{principal}/ directory convention replaces claude/principals/
+- **Reference docs** — QUALITY-GATE, DEVELOPMENT-METHODOLOGY, CODE-REVIEW-LIFECYCLE, FEEDBACK-FORMAT, PR-LIFECYCLE, TELEMETRY
+- **Provider abstraction** — secrets.provider in agency.yaml, pluggable infrastructure slots
+- **Hookify plugin** — enabled in settings.json
+
+### Changed
+- **add-principal** — scaffolds to usr/{principal}/ (v2), backward-compat with claude/principals/
+- **principal-create** — scaffolds to usr/{principal}/ (v2), uses principal-v2 template
+- **Captain agent** — merged PR lifecycle, dispatch, review tools, coordination conventions
+- **agency.yaml** — extended with methodology, sandbox, worktrees, secrets, telemetry sections
+- **registry.json** — 3 new components: methodology, worktree-management, reviewer-agents
+- **settings.json** — hookify enabled, new hooks wired, worktree tool permissions
+- **SECRETS.md** — added pluggable provider interface header
+
+### Design Decisions
+- Worktree isolation is a first-class primitive (enables parallel agents)
+- Plugin slots for infrastructure (secrets, testing, CI), fixed conventions for methodology
+- usr/{principal}/ replaces claude/principals/ — v2 principal directory convention
+- Handoff.md is additive to existing JSONL context restoration
+- "No pre-commit code reviews" — review before PR, not after
+
 ## [1.1.0] - 2026-01-15
 
 ### Added
