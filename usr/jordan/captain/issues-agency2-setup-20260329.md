@@ -177,6 +177,23 @@ markdown-pal [wt: worktree-markdown-pal] | ctx: 76% | $0.89 · 8m
 
 ---
 
+### ISS-010: Agent name not appearing in terminal tabs (OPEN)
+
+**Severity:** Medium (UX — can't identify agents across tabs)
+**Found by:** captain
+**Status:** Open
+
+When agents are launched via `claude --agent`, the agent name does not appear in the Ghostty/iTerm tab title. With multiple agent sessions open in separate tabs, there's no way to tell which tab is which agent without switching to each one.
+
+Previously `myclaude` set the tab name. With the move away from `myclaude`, tab naming needs to be handled by either:
+1. The `ghostty-status.sh` hook — detect `--agent` flag or `CLAUDE_AGENT` env var and include agent name in tab title
+2. The `tab-status` tool — accept agent name as context
+3. Claude Code's `--name` flag — e.g., `claude --agent markdown-pal --name markdown-pal`
+
+**Action:** Update tab/status hooks to detect and display the agent name. Consider whether `--name` should be automatically set to match `--agent` when not explicitly provided.
+
+---
+
 ## Summary
 
 | Issue | Severity | Status | Tool Fix Needed |
@@ -190,3 +207,4 @@ markdown-pal [wt: worktree-markdown-pal] | ctx: 76% | $0.89 · 8m
 | ISS-007 | Medium | Open | agent-create must register in settings.json |
 | ISS-008 | High | Open | Dependabot: 3 high, 9 moderate vulnerabilities |
 | ISS-009 | Low | Open | Status line: redundant worktree naming |
+| ISS-010 | Medium | Open | Agent name not appearing in terminal tabs |
