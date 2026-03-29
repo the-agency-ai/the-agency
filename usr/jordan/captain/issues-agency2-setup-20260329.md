@@ -185,12 +185,17 @@ markdown-pal [wt: worktree-markdown-pal] | ctx: 76% | $0.89 · 8m
 
 When agents are launched via `claude --agent`, the agent name does not appear in the Ghostty/iTerm tab title. With multiple agent sessions open in separate tabs, there's no way to tell which tab is which agent without switching to each one.
 
-Previously `myclaude` set the tab name. With the move away from `myclaude`, tab naming needs to be handled by either:
-1. The `ghostty-status.sh` hook — detect `--agent` flag or `CLAUDE_AGENT` env var and include agent name in tab title
-2. The `tab-status` tool — accept agent name as context
-3. Claude Code's `--name` flag — e.g., `claude --agent markdown-pal --name markdown-pal`
+**Root cause:** `tools/tab-status` line 98 reads `AGENT="${AGENTNAME:-agent}"`. The `$AGENTNAME` env var was set by `myclaude`, which is being retired. With `claude --agent`, this env var is not set, so it falls back to "agent".
 
-**Action:** Update tab/status hooks to detect and display the agent name. Consider whether `--name` should be automatically set to match `--agent` when not explicitly provided.
+Additionally, `/rename` does not persist in tabs — `tab-status` is called on every PreToolUse, PostToolUse, and Stop hook, overwriting whatever `/rename` set because it reads from `$AGENTNAME` (which is still unset).
+
+**Fix:** `tab-status` needs a new source for agent identity. Options:
+1. Read from `$CLAUDE_AGENT` env var (if Claude Code exposes the `--agent` value)
+2. Read from the session name via Claude Code API
+3. Accept agent name as a parameter from the hooks
+4. Fall back chain: `$CLAUDE_AGENT` → `$AGENTNAME` → session name → "agent"
+
+**Action:** Update `tab-status` to detect agent name from Claude Code's `--agent` session. Check what env vars Claude Code exposes for agent identity.
 
 ---
 
