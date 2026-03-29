@@ -43,8 +43,7 @@ esac
 if [ -n "$REF_FILE" ] && [ -f "$REF_FILE" ]; then
   CONTENT=$(cat "$REF_FILE")
   printf '{"systemMessage":%s}' "$(printf '%s' "$CONTENT" | jq -Rs '.')"
-else
-  printf '{}'
 fi
+# No output when no ref matches — avoids empty system message in context
 
 exit 0

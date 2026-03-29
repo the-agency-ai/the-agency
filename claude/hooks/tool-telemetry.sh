@@ -73,5 +73,5 @@ LINE=$(jq -n -c \
 
 printf '%s\n' "$LINE" >> "$TELEMETRY_DIR/$DATE.jsonl"
 
-printf '%s\n' '{}'
+# No stdout — empty output avoids creating a system message in context
 exit 0

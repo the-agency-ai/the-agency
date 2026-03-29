@@ -62,6 +62,7 @@
         "hooks": [
           {
             "type": "command",
+            "if": "Skill(*iteration-complete*)|Skill(*phase-complete*)|Skill(*plan-complete*)|Skill(*quality-gate*)|Skill(*pre-phase-review*)|Skill(*captain-review*)|Skill(*code-review*)|Skill(*review-pr*)|Skill(*feedback*)",
             "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ref-injector.sh"
           }
         ]
