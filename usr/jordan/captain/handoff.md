@@ -1,73 +1,55 @@
-# Captain Handoff — the-agency
+# Captain Handoff
 
-**Date:** 2026-03-29
-**Branch:** `agency-2.0/monofolk-contribution`
-**Context:** First Agency 2.0 contribution from monofolk. CoS session on monofolk prepared this.
+**Agent:** captain (housekeeping)
+**Principal:** jordan
+**Updated:** 2026-03-29
 
-## What Was Done (from monofolk CoS session)
+## This Session
 
-### Agency 2.0 Contribution PR (committed, not yet pushed)
-69 files on branch `agency-2.0/monofolk-contribution`:
-- 8 agents (PM, 5 reviewers, CoS, captain merged)
-- 6 hooks (ref-injector, session-handoff, quality-check, plan-capture, branch-freshness, tool-telemetry)
-- 4 tools (worktree-create/list/delete, _path-resolve)
-- 2 tools updated (add-principal, principal-create → usr/{principal}/ v2)
-- 8 reference docs (QUALITY-GATE, DEVELOPMENT-METHODOLOGY, CODE-REVIEW-LIFECYCLE, FEEDBACK-FORMAT, PR-LIFECYCLE, TELEMETRY, CLAUDE-COVERAGE-CHECKLIST)
-- 15 hookify behavioral rules
-- /discuss skill, CLAUDE templates, principal-v2 template
-- agency.yaml extended, registry.json updated, settings.json wired
-- Hookify plugin enabled
+### Ghostty Terminal Config (Recurring Issue)
+- Text was unreadable — bare hex color values (`background = 282828`) were overriding the theme without `#` prefixes, causing Ghostty to render wrong colors
+- **Fix:** Removed redundant `background`/`foreground` overrides, let `theme` handle colors
+- Switched theme from **Gruvbox Dark** to **GitHub Light Default**
+- Changed font from SF Mono 13 to **JetBrains Mono 14**
+- Changed `window-theme` from `dark` to `light`
+- Ran `tools/ghostty-setup` which appended Agency integration config (shell-integration, clipboard, confirm-close, mouse-hide)
+- Saved a feedback memory (`feedback_ghostty_colors.md`) to prevent this from recurring
+- **Config location:** `~/.config/ghostty/config`
+- **User needs to restart Ghostty** to see changes
 
-### Principal Setup
-- `usr/jordan/` scaffolded as first v2 principal
-- `usr/jordan/conference/` — AIADLC papers, workshop materials, book research, transcripts
-- `usr/jordan/markdown-pal/` — seed + analysis + original materials (chatlog, CLI spec, prompt)
-- `usr/jordan/mock-and-mark/` — seed + analysis + original materials (chatlog, design doc)
+### Session Resume
+- User mentioned they will start using session resume (Claude Code `--resume` flag)
 
-### QG Fixes (second commit)
-- 2 hookify rules fixed (wrong frontmatter schema → event/action)
+## Prior State (from previous handoff)
 
-## Push Blocked
-`jordan-of` GitHub account doesn't have push access to `the-agency-ai/the-agency`. Need either:
-- Push from `jordandm` account
-- Or add `jordan-of` as collaborator on the-agency-ai org
+### Infrastructure
+- 6 hooks wired in settings.json: ref-injector, session-handoff, quality-check, plan-capture, branch-freshness, tool-telemetry
+- 15 hookify rules in `claude/hookify/` — behavioral guardrails
+- Worktree tools — worktree-create, worktree-list, worktree-delete
+- `_path-resolve` — principal-aware path resolution
+- `/discuss` skill — structured 1B1 discussion protocol
 
-## What's Next for the-agency Captain
+### Directory Layout
+- Principal v2: `usr/jordan/` (replaces `claude/principals/`)
+- Agent dirs: `usr/jordan/captain/`, `usr/jordan/markdown-pal/`, `usr/jordan/mock-and-mark/`
 
-### Immediate
-1. Push the branch and create the PR
-2. Review the contribution with a fresh eye — the captain knows this repo better than the monofolk CoS
+### Recent Completed Work
+- Per-service DB isolation (commit 23e75a8) — 28,909 rows migrated, all 10 services healthy
+- Plan artifact convention with TaskCompleted hook and REQUEST linkage
+- Inline status line replacing statusline.sh
+- Agency 2.0 merged into main (hooks, hookify rules, worktree tools, new agents)
 
-### Tools Unification Review (Step 1)
-The captain should audit the-agency's own tool set:
-- How many of the 106+ tools fully follow the framework pattern?
-- Which are the best examples?
-- What gaps exist?
-- This informs framework formalization (step 2)
+## Pending / Next Steps
+1. **Restart Ghostty** to apply GitHub Light Default theme + JetBrains Mono 14
+2. **MarkdownPal PVR/A&D session** — use `/discuss` with seeds at `usr/jordan/markdown-pal/`
+3. **MockAndMark PVR/A&D session** — use `/discuss` with seeds at `usr/jordan/mock-and-mark/`
+4. **CoS setup** — optional, for fleet management across agents
+5. Untracked files in working tree (changelogs, docs, reviews) — need cleanup or commit
 
-### Principal Migration
-- `claude/principals/jordan/` (v1) still exists alongside new `usr/jordan/` (v2)
-- Build `tools/principal-migrate` to move existing principals
-- Update any references in CLAUDE.md, agent files, tools
-
-### MarkdownPal + MockAndMark
-- Seeds and analysis are in `usr/jordan/markdown-pal/` and `usr/jordan/mock-and-mark/`
-- Jordan wants to kick off PVR/A&D definition sessions for both
-- These are companion tools for the-agency — they live here
-
-### Decisions Made (monofolk CoS session, 2026-03-29)
-- `usr/{principal}/` replaces `claude/principals/` (v2 convention)
-- Worktree isolation is a first-class primitive
-- Plugin slots for infrastructure, fixed conventions for methodology
-- `/secret` skill: interface over providers (secret-vault, secret-doppler)
-- `tools/secret` → `tools/secret-vault` (rename for clean separation)
-- Starter packs evolve into executable setup skills
-- Tools unification: 7-step plan (review → formalize → gap analysis → update existing → fill gaps → port next-gen → leave legacy)
-- Secret scan becomes part of QG at all three levels (iteration, phase, PR prep)
-
-## Reminders for Jordan
-1. Fix GitHub push access (jordandm or org permission)
-2. `doppler login` on the-agency laptop if needed
-3. MarkdownPal + MockAndMark PVR sessions
-4. Monofolk Demo plan — EOB Tuesday deadline
-5. Call for papers — AIADLC + Adoption Case Study
+## Untracked Files
+- `claude/CHANGELOG-2026-02-28-2.1.17-2.1.63.md`
+- `claude/CHANGELOG-2026-03-05-2.1.64-2.1.69.md`
+- `claude/CHANGELOG-2026-03-08-2.1.70-2.1.71.md`
+- `claude/CHANGELOG-2026-03-17-2.1.60-2.1.77.md`
+- `claude/docs/UNUSED-CLAUDE-CODE-FEATURES.md`
+- `claude/reviews/`
