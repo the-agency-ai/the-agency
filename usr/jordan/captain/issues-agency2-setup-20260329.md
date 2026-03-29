@@ -111,6 +111,40 @@ Two systems exist side by side:
 
 ---
 
+### ISS-008: Dependabot vulnerabilities (12 open alerts) (OPEN)
+
+**Severity:** High (3 high, 9 moderate)
+**Found by:** GitHub Dependabot
+**Status:** Open
+
+12 open Dependabot alerts on the-agency default branch:
+
+| Alert | Package | Severity | Summary |
+|-------|---------|----------|---------|
+| #12 | time (Rust) | Medium | Stack exhaustion DoS |
+| #11 | bytes (Rust) | Medium | Integer overflow in BytesMut::reserve |
+| #10 | glib (Rust) | Medium | Unsoundness in Iterator impls for VariantStrIter |
+| #9 | picomatch | Medium | Method injection in POSIX character classes |
+| #8 | picomatch | Medium | Method injection in POSIX character classes (duplicate) |
+| #7 | picomatch | High | ReDoS via extglob quantifiers |
+| #6 | picomatch | High | ReDoS via extglob quantifiers (duplicate) |
+| #5 | next | Medium | Unbounded image disk cache growth |
+| #4 | next | Medium | HTTP request smuggling in rewrites |
+| #3 | next | High | HTTP request deserialization DoS via insecure RSC |
+| #2 | next | Medium | DoS via Image Optimizer remotePatterns |
+| #1 | esbuild | Medium | Dev server allows arbitrary requests from any website |
+
+**Notes:**
+- Rust crates (time, bytes, glib) — likely transitive deps from a Rust project in the repo
+- picomatch — JS glob library, likely transitive via bundler/test tooling
+- next — Next.js framework, likely from a web project
+- esbuild — bundler dev server vulnerability (dev-only risk)
+- Alerts #6/#7 and #8/#9 appear to be duplicates across different lockfiles
+
+**Action:** Triage and update affected dependencies. High-severity items (picomatch ReDoS, Next.js RSC DoS) should be prioritized.
+
+---
+
 ## Summary
 
 | Issue | Severity | Status | Tool Fix Needed |
@@ -122,3 +156,4 @@ Two systems exist side by side:
 | ISS-005 | Low | Resolved (manual) | agent-create could accept --seeds flag |
 | ISS-006 | Medium | Resolved | Process: include all referenced files in PR |
 | ISS-007 | Medium | Open | agent-create must register in settings.json |
+| ISS-008 | High | Open | Dependabot: 3 high, 9 moderate vulnerabilities |
