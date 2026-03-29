@@ -146,35 +146,38 @@ main() {
 
     # Step 1: Format code (auto-fix)
     log_info "Step 1/5: Formatting code"
-    if $PM format 2>&1 >/dev/null; then
-        log_info "Formatting complete"
+    if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.format ? 0 : 1)" 2>/dev/null; then
+        if $PM run format 2>&1 >/dev/null; then
+            log_info "Formatting complete"
+        else
+            log_warn "Formatting failed (continuing)"
+        fi
         ((STEPS_PASSED++))
     else
-        log_warn "Formatting script not found or failed (skipping)"
+        log_warn "Format script not found (skipping)"
         ((STEPS_PASSED++))
     fi
 
     # Step 2: Lint code (auto-fix)
     log_info "Step 2/5: Linting code"
-    if $PM lint:fix 2>&1 >/dev/null; then
-        log_info "Linting complete"
+    if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['lint:fix'] ? 0 : 1)" 2>/dev/null; then
+        if $PM run lint:fix 2>&1 >/dev/null; then
+            log_info "Linting complete"
+        else
+            log_warn "Linting failed (continuing)"
+        fi
         ((STEPS_PASSED++))
     else
-        log_warn "Lint script not found or failed (skipping)"
+        log_warn "Lint script not found (skipping)"
         ((STEPS_PASSED++))
     fi
 
     # Step 3: Type check (blocking if script exists)
     log_info "Step 3/5: Type checking"
-    # Try to run typecheck - if script doesn't exist, skip gracefully
-    if $PM run typecheck 2>&1 >/dev/null; then
-        log_info "Type check passed"
-        ((STEPS_PASSED++))
-    else
-        # Check if failure was due to missing script
-        TYPE_OUTPUT=$($PM run typecheck 2>&1 || true)
-        if echo "$TYPE_OUTPUT" | grep -q "Missing script\|not found\|ERR_PNPM_NO_SCRIPT"; then
-            log_warn "Type check script not found (skipping)"
+    # Check if the typecheck script exists in package.json before running
+    if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.typecheck ? 0 : 1)" 2>/dev/null; then
+        if $PM run typecheck 2>&1 >/dev/null; then
+            log_info "Type check passed"
             ((STEPS_PASSED++))
         else
             log_error "Type errors found"
@@ -182,6 +185,9 @@ main() {
             output_failure "Type check failed"
             exit 2
         fi
+    else
+        log_warn "Type check script not found (skipping)"
+        ((STEPS_PASSED++))
     fi
 
     # Step 4: Unit tests (blocking if tool exists)
