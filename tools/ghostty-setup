@@ -1,0 +1,213 @@
+#!/bin/bash
+# Set up Ghostty terminal integration for Agency
+#
+# Usage: ./tools/ghostty-setup [--verbose]
+#
+# Performs one-time setup:
+#   1. Verifies Ghostty is installed
+#   2. Creates/appends Agency config fragment to ~/.config/ghostty/config
+#   3. Installs Claude Code hook for tab status updates
+#   4. Adds shell integration source line to ~/.zshrc
+#
+# Safe to re-run — idempotent.
+
+set -euo pipefail
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
+    source "$SCRIPT_DIR/_log-helper"
+fi
+RUN_ID=$(log_start "ghostty-setup" "agency-tool" "$@" 2>/dev/null) || true
+
+# Source path resolver for principal awareness
+if [[ -f "$SCRIPT_DIR/_path-resolve" ]]; then
+    source "$SCRIPT_DIR/_path-resolve"
+fi
+
+# Tool version
+TOOL_VERSION="1.0.0-20260329-000001"
+
+# Defaults
+VERBOSE=false
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Parse arguments
+for arg in "$@"; do
+    case $arg in
+        --version|-v)
+            echo "ghostty-setup $TOOL_VERSION"
+            exit 0
+            ;;
+        --verbose)
+            VERBOSE=true
+            ;;
+        --help|-h)
+            echo "ghostty-setup - Set up Ghostty terminal integration for Agency"
+            echo ""
+            echo "Usage: ./tools/ghostty-setup [--verbose]"
+            echo ""
+            echo "Performs one-time setup:"
+            echo "  1. Verifies Ghostty is installed"
+            echo "  2. Creates/appends Agency config to ~/.config/ghostty/config"
+            echo "  3. Installs Claude Code hook for tab status updates"
+            echo "  4. Adds shell integration source line to ~/.zshrc"
+            echo ""
+            echo "Safe to re-run — idempotent."
+            echo ""
+            echo "Options:"
+            echo "  --verbose      Show verbose output"
+            echo "  --version, -v  Show tool version"
+            echo "  --help, -h     Show this help"
+            exit 0
+            ;;
+    esac
+done
+
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "ghostty-setup [run: ${RUN_ID:-none}]"
+
+    # --- Step 1: Verify Ghostty is installed ---
+    log_step "Checking for Ghostty installation"
+    GHOSTTY_FOUND=false
+    if [[ -d "/Applications/Ghostty.app" ]]; then
+        GHOSTTY_FOUND=true
+        verbose_echo "Found Ghostty at /Applications/Ghostty.app"
+    elif command -v ghostty >/dev/null 2>&1; then
+        GHOSTTY_FOUND=true
+        verbose_echo "Found ghostty in PATH"
+    fi
+
+    if [[ "$GHOSTTY_FOUND" != "true" ]]; then
+        log_error "Ghostty not found. Install from https://ghostty.org"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Ghostty not installed" 2>/dev/null || true
+        exit 1
+    fi
+
+    # Resolve paths
+    REPO_ROOT="${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+    GHOSTTY_CONFIG_DIR="$HOME/.config/ghostty"
+    GHOSTTY_CONFIG_FILE="$GHOSTTY_CONFIG_DIR/config"
+    HOOK_SRC="$REPO_ROOT/claude/hooks/ghostty-status.sh"
+    INTEGRATION_SRC="$REPO_ROOT/claude/hooks/ghostty-status.sh"
+
+    # --- Step 2: Create/append Ghostty config fragment ---
+    log_step "Setting up Ghostty config"
+    mkdir -p "$GHOSTTY_CONFIG_DIR"
+
+    # The Agency config fragment — appended if not already present
+    AGENCY_MARKER="# --- Agency terminal integration ---"
+
+    if [[ -f "$GHOSTTY_CONFIG_FILE" ]] && grep -qF "$AGENCY_MARKER" "$GHOSTTY_CONFIG_FILE" 2>/dev/null; then
+        verbose_echo "Agency config fragment already present in $GHOSTTY_CONFIG_FILE"
+    else
+        log_step "Appending Agency config fragment"
+        cat >> "$GHOSTTY_CONFIG_FILE" << 'CONFIG_EOF'
+
+# --- Agency terminal integration ---
+# Managed by tools/ghostty-setup — do not edit this section manually.
+
+# Disable Ghostty's built-in title management so Agency hooks control it
+# via OSC 2. Keep cursor and sudo integration active.
+shell-integration-features = cursor,sudo,no-title
+
+# Clipboard (needed for agent workflows)
+clipboard-read = allow
+clipboard-write = allow
+
+# Window behavior
+confirm-close-surface = false
+mouse-hide-while-typing = true
+CONFIG_EOF
+        verbose_echo "Appended Agency config to $GHOSTTY_CONFIG_FILE"
+    fi
+
+    # --- Step 3: Verify hook script exists ---
+    log_step "Verifying Claude Code hook"
+    if [[ ! -f "$HOOK_SRC" ]]; then
+        log_error "Hook script not found at $HOOK_SRC"
+        log_error "Expected claude/hooks/ghostty-status.sh in the repo"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Hook script missing" 2>/dev/null || true
+        exit 1
+    fi
+
+    # Ensure hook is executable
+    if [[ ! -x "$HOOK_SRC" ]]; then
+        chmod +x "$HOOK_SRC"
+        verbose_echo "Made hook executable: $HOOK_SRC"
+    fi
+
+    # --- Step 4: Add shell integration to .zshrc ---
+    log_step "Checking shell integration"
+    ZSHRC="$HOME/.zshrc"
+
+    # The shell integration source line points to the hook — functions are
+    # exported so they're available in plain shells too. We source a small
+    # integration snippet that sets up the precmd hook.
+    INTEGRATION_MARKER="ghostty-status.sh"
+
+    if [[ -f "$ZSHRC" ]] && grep -qF "$INTEGRATION_MARKER" "$ZSHRC" 2>/dev/null; then
+        verbose_echo "Shell integration already in $ZSHRC"
+    else
+        # Also check .bashrc
+        BASHRC="$HOME/.bashrc"
+
+        log_step "Adding shell integration to $ZSHRC"
+        cat >> "$ZSHRC" << SHELL_EOF
+
+# Agency Ghostty integration — tab title + background color hints
+# Added by tools/ghostty-setup
+if [[ "\$TERM_PROGRAM" == "ghostty" ]]; then
+    _agency_ghostty_precmd() {
+        # If Claude Code is running, its hooks manage the title
+        if [[ -n "\${CLAUDE_CODE_SESSION:-}" ]]; then
+            return
+        fi
+        printf '\e]2;%s\a' "– zsh \${PWD##*/}"
+    }
+    if (( ! \${precmd_functions[(Ie)_agency_ghostty_precmd]} )) 2>/dev/null; then
+        precmd_functions+=(_agency_ghostty_precmd)
+    fi
+fi
+SHELL_EOF
+        verbose_echo "Added integration to $ZSHRC"
+    fi
+
+    # --- Done ---
+    echo ""
+    echo "Ghostty integration set up successfully!"
+    echo ""
+    echo "What was configured:"
+    echo "  - Config fragment appended to $GHOSTTY_CONFIG_FILE"
+    echo "  - Hook script at claude/hooks/ghostty-status.sh"
+    echo "  - Shell integration added to $ZSHRC"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Wire the hook in .claude/settings.json (or via hookify):"
+    echo "     PreToolUse, PostToolUse, Stop, Notification, SessionStart, SessionEnd"
+    echo "  2. Restart your shell (source ~/.zshrc or open a new tab)"
+    echo "  3. Start Claude Code — tab should update with status indicators"
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Ghostty integration complete" 2>/dev/null || true
+}
+
+main
