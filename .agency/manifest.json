@@ -1713,7 +1713,7 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "tools/secret": {
+    "tools/secret-vault": {
       "hash": "35737d7ba1f7259004906348f537a769cc72280b1af5333be55c3f35c079143b",
       "modified": false,
       "version": "1.0.3"

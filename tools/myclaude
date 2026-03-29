@@ -504,16 +504,16 @@ main() {
 
     # Set up vault session token for Claude Code to access secrets
     log_debug "=== Vault Setup ==="
-    if [ -x "$PROJECT_ROOT/tools/secret" ]; then
+    if [ -x "$PROJECT_ROOT/tools/secret-vault" ]; then
         log_step "Checking vault status..."
-        log_debug "Secret tool: $PROJECT_ROOT/tools/secret"
+        log_debug "Secret tool: $PROJECT_ROOT/tools/secret-vault"
 
         # Wait for secret service to be fully ready (max 5 seconds)
         VAULT_STATUS="unknown"
         for i in {1..10}; do
             log_debug "Vault status check attempt $i..."
             local raw_status
-            raw_status=$("$PROJECT_ROOT/tools/secret" vault status 2>&1)
+            raw_status=$("$PROJECT_ROOT/tools/secret-vault" vault status 2>&1)
             log_debug "Raw vault status output: $raw_status"
             VAULT_STATUS=$(echo "$raw_status" | grep -o 'status: [a-z]*' | cut -d' ' -f2 || echo "unknown")
             log_debug "Parsed vault status: $VAULT_STATUS"
@@ -534,7 +534,7 @@ main() {
             # Run unlock interactively - it will output the session token
             # Use a temp file to capture the token since we need interactive input
             UNLOCK_TOKEN_FILE=$(mktemp)
-            "$PROJECT_ROOT/tools/secret" vault unlock | tee "$UNLOCK_TOKEN_FILE"
+            "$PROJECT_ROOT/tools/secret-vault" vault unlock | tee "$UNLOCK_TOKEN_FILE"
             # Extract session token (UUID on its own line)
             SESSION_TOKEN=$(grep -E "^[a-f0-9-]{36}$" "$UNLOCK_TOKEN_FILE" | head -1 || echo "")
             rm -f "$UNLOCK_TOKEN_FILE"
@@ -550,7 +550,7 @@ main() {
         if [ "$VAULT_STATUS" = "unlocked" ] && [ -z "${VAULT_SESSION_TOKEN:-}" ]; then
             # Generate a session token if we don't have one yet (vault was already unlocked)
             log_debug "Generating vault session token..."
-            SESSION_TOKEN=$("$PROJECT_ROOT/tools/secret" vault session generate "$AGENTNAME-session" 2>/dev/null | grep -E "^[a-f0-9-]{36}$" | head -1 || echo "")
+            SESSION_TOKEN=$("$PROJECT_ROOT/tools/secret-vault" vault session generate "$AGENTNAME-session" 2>/dev/null | grep -E "^[a-f0-9-]{36}$" | head -1 || echo "")
             log_debug "Session token generated: ${SESSION_TOKEN:0:20}... (truncated)"
             if [ -n "$SESSION_TOKEN" ]; then
                 export VAULT_SESSION_TOKEN="$SESSION_TOKEN"
@@ -572,13 +572,13 @@ main() {
                 echo -e "Please choose a strong passphrase for your vault."
                 echo -e "You'll need this passphrase each time you start an agent."
                 echo ""
-                "$PROJECT_ROOT/tools/secret" vault init
+                "$PROJECT_ROOT/tools/secret-vault" vault init
                 VAULT_STATUS="unlocked"
                 echo ""
             else
                 echo ""
                 echo -e "${YELLOW}⚠ Skipping vault initialization. Secrets will not be available.${NC}"
-                echo -e "${YELLOW}  You can initialize later with: ./tools/secret vault init${NC}"
+                echo -e "${YELLOW}  You can initialize later with: ./tools/secret-vault vault init${NC}"
                 echo ""
             fi
         elif [ "$VAULT_STATUS" = "unknown" ]; then

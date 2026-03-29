@@ -84,7 +84,7 @@ Use this tool to present choices and gather input. Example:
 You can run tools during the tutorial:
 - `./tools/workstream-create` - Create a workstream
 - `./tools/agent-create` - Create an agent
-- `./tools/secret vault init` - Initialize secrets
+- `./tools/secret-vault vault init` - Initialize secrets
 - And any other Agency tools
 
 ### Onboarding State
