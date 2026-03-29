@@ -77,8 +77,8 @@ Claude Code is Anthropic's official agentic coding tool that operates directly i
 
 ## Supported Models
 
-- Claude Opus 4.5 (highest capability)
-- Claude Sonnet 4.5 (default, balanced)
+- Claude Opus 4.6 (highest capability)
+- Claude Sonnet 4.6 (default, balanced)
 - Claude Haiku 4.5 (fastest, cheapest)
 
 Enterprise users can deploy via Amazon Bedrock or Google Cloud Vertex AI.

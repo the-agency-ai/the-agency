@@ -4,7 +4,7 @@
 
 ## Opus as Conductor Pattern (Default)
 
-All agents run as **Opus 4.5** by default. Opus acts as the "conductor" - coordinating work, making architectural decisions, and spawning subagents (Sonnet/Haiku) for parallel execution.
+All agents run as **Opus 4.6** by default. Opus acts as the "conductor" - coordinating work, making architectural decisions, and spawning subagents (Sonnet/Haiku) for parallel execution.
 
 ```bash
 # Launch with myclaude

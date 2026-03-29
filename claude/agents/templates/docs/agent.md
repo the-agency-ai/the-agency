@@ -2,7 +2,7 @@
 
 **Created:** {{TIMESTAMP}}
 **Workstream:** {{WORKSTREAM}}
-**Model:** Opus 4.5 (default)
+**Model:** Opus 4.6 (default)
 **Type:** docs
 
 ## Purpose
