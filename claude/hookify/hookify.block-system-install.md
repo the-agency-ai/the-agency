@@ -1,8 +1,9 @@
 ---
-name: Block System Package Installation
-description: Blocks agents from running brew, sudo, apt-get, or other system-level package managers
-type: block
-match: Bash
+name: block-system-install
+enabled: true
+event: bash
+pattern: 'brew\s+(install|upgrade)|sudo\s|apt-get\s+install|apt\s+install|yum\s+install|dnf\s+install|pacman\s+-S|port\s+install'
+action: block
 ---
 
 # Block System Package Installation

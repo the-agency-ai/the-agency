@@ -1,8 +1,9 @@
 ---
-name: 1B1 Output Discipline
-description: Warns when agent presents multiple discussion items in a single response instead of following the 1B1 (one-by-one) protocol
-type: warn
-match: assistant_response
+name: warn-multi-item-response
+enabled: true
+event: stop
+pattern: 'Item \d+.*Item \d+'
+action: warn
 ---
 
 # 1B1 Output Discipline
