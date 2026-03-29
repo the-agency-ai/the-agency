@@ -1,14 +1,16 @@
 #!/bin/bash
 # Create a new agent identity
 #
-# Usage: ./tools/agent-create <agentname> <workstream> [--type=<template>]
+# Usage: ./tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>]
 #
 # Many-to-one mapping: Multiple agents can work on the same workstream
 # Agent name may differ from workstream name
 #
 # Options:
-#   --type=<template>  Use a specific agent template (default: generic)
-#   --verbose          Show detailed logging
+#   --type=<template>       Use a specific agent template (default: generic)
+#   --description=<text>    Description for the agent (used in agent.md and Claude Code registration)
+#   --seeds=<path>          Path to seed files directory (added as reference in agent.md)
+#   --verbose               Show detailed logging
 #
 # Creates:
 #   claude/agents/{agentname}/
@@ -64,23 +66,26 @@ fi
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "agent-create - Create a new agent identity"
     echo ""
-    echo "Usage: ./tools/agent-create <agentname> <workstream> [--type=<template>] [--verbose]"
+    echo "Usage: ./tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>] [--verbose]"
     echo ""
     echo "Arguments:"
     echo "  agentname     Name for the new agent"
     echo "  workstream    Workstream the agent belongs to (must exist)"
     echo ""
     echo "Options:"
-    echo "  --type=<template>  Use a specific agent template (default: generic)"
-    echo "  --list-types       List available agent templates"
-    echo "  --verbose          Show detailed logging"
-    echo "  --version, -v      Show version"
-    echo "  --help, -h         Show this help"
+    echo "  --type=<template>       Use a specific agent template (default: generic)"
+    echo "  --description=<text>    Description for the agent (used in agent.md and Claude Code agent)"
+    echo "  --seeds=<path>          Path to seed files directory (added as reference in agent.md)"
+    echo "  --list-types            List available agent templates"
+    echo "  --verbose               Show detailed logging"
+    echo "  --version, -v           Show version"
+    echo "  --help, -h              Show this help"
     echo ""
     echo "Examples:"
     echo "  ./tools/agent-create agent-manager agents"
     echo "  ./tools/agent-create ui-specialist web --type=ux-dev"
-    echo "  ./tools/agent-create backend-dev api --type=generic"
+    echo "  ./tools/agent-create backend-dev api --type=generic --description='Backend development specialist'"
+    echo "  ./tools/agent-create researcher research --seeds=usr/jordan/researcher/"
     echo ""
     echo "Available templates:"
     if [[ -d "$TEMPLATE_DIR" ]]; then
@@ -116,11 +121,19 @@ fi
 AGENTNAME=""
 WORKSTREAM=""
 AGENT_TYPE="generic"
+DESCRIPTION=""
+SEEDS_PATH=""
 
 for arg in "$@"; do
     case $arg in
         --type=*)
             AGENT_TYPE="${arg#*=}"
+            ;;
+        --description=*)
+            DESCRIPTION="${arg#*=}"
+            ;;
+        --seeds=*)
+            SEEDS_PATH="${arg#*=}"
             ;;
         --verbose)
             VERBOSE=true
@@ -141,7 +154,7 @@ done
 if [ -z "$AGENTNAME" ] || [ -z "$WORKSTREAM" ]; then
   log_error "Missing required arguments"
   echo ""
-  echo "Usage: ./tools/agent-create <agentname> <workstream> [--type=<template>] [--verbose]"
+  echo "Usage: ./tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>] [--verbose]"
   echo ""
   echo "Examples:"
   echo "  ./tools/agent-create agent-manager agents"
@@ -230,6 +243,13 @@ main() {
     apply_template "$AGENT_TEMPLATE_DIR/KNOWLEDGE.md" "$DIR/KNOWLEDGE.md"
     apply_template "$AGENT_TEMPLATE_DIR/ONBOARDING.md" "$DIR/ONBOARDING.md"
 
+    # Replace placeholder description in agent.md if --description was provided
+    if [[ -n "$DESCRIPTION" && -f "$DIR/agent.md" ]]; then
+        local desc_escaped
+        desc_escaped=$(escape_sed "$DESCRIPTION")
+        sed -i '' "s/\[Description of this agent's role\]/$desc_escaped/" "$DIR/agent.md"
+    fi
+
     # WORKLOG.md (not templated - standard format)
     cat > "$DIR/WORKLOG.md" << EOF
 # $AGENTNAME Work Log
@@ -285,6 +305,55 @@ EOF
 | Date | Tool | Command | Reason | Outcome |
 |------|------|---------|--------|---------|
 EOF
+
+    # Auto-detect seed files from principal directories
+    if [[ -z "$SEEDS_PATH" ]]; then
+        for principal_dir in claude/principals/*/; do
+            principal_name=$(basename "$principal_dir")
+            candidate="usr/${principal_name}/${AGENTNAME}/"
+            if [[ -d "$candidate" ]]; then
+                SEEDS_PATH="$candidate"
+                log_info "Auto-detected seed files at $SEEDS_PATH"
+                break
+            fi
+        done
+    fi
+
+    # Append Seed Files section to agent.md if seeds path is set
+    if [[ -n "$SEEDS_PATH" ]]; then
+        cat >> "$DIR/agent.md" << SEEDEOF
+
+## Seed Files
+
+- \`${SEEDS_PATH}\` - Seed files and reference material for this agent
+SEEDEOF
+        verbose_echo "Added seed files reference: $SEEDS_PATH"
+    fi
+
+    # Register with Claude Code if .claude/ directory exists
+    CLAUDE_AGENTS_DIR=".claude/agents"
+    if [[ -d ".claude" ]]; then
+        mkdir -p "$CLAUDE_AGENTS_DIR"
+
+        # Determine description for Claude Code agent
+        if [[ -n "$DESCRIPTION" ]]; then
+            CC_DESCRIPTION="$DESCRIPTION"
+        else
+            CC_DESCRIPTION="Agency agent for the ${WORKSTREAM} workstream"
+        fi
+
+        cat > "$CLAUDE_AGENTS_DIR/${AGENTNAME}.md" << CCEOF
+---
+name: ${AGENTNAME}
+description: "${CC_DESCRIPTION}"
+model: opus
+---
+
+Read your identity and responsibilities from \`claude/agents/${AGENTNAME}/agent.md\`.
+Read your project knowledge from \`claude/workstreams/${WORKSTREAM}/KNOWLEDGE.md\`.
+CCEOF
+        verbose_echo "Registered Claude Code agent: $CLAUDE_AGENTS_DIR/${AGENTNAME}.md"
+    fi
 
     # Create agent folder in all principal cloud storage locations
     verbose_echo ""

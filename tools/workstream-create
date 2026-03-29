@@ -1,7 +1,7 @@
 #!/bin/bash
 # Create a new workstream directory structure
 #
-# Usage: ./tools/workstream-create <name> [--verbose]
+# Usage: ./tools/workstream-create <name> [--description=<text>] [--verbose]
 #
 # Creates:
 #   claude/workstreams/{name}/
@@ -43,12 +43,40 @@ if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     exit 0
 fi
 
+# Help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "workstream-create - Create a new workstream directory structure"
+    echo ""
+    echo "Usage: ./tools/workstream-create <name> [--description=<text>] [--verbose]"
+    echo ""
+    echo "Arguments:"
+    echo "  name    Name for the new workstream"
+    echo ""
+    echo "Options:"
+    echo "  --description=<text>  Description for the workstream KNOWLEDGE.md"
+    echo "  --verbose             Show detailed logging"
+    echo "  --version, -v         Show version"
+    echo "  --help, -h            Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/workstream-create billing"
+    echo "  ./tools/workstream-create billing --description='Payment processing and invoicing'"
+    exit 0
+fi
+
 # Parse arguments
 NAME=""
+DESCRIPTION=""
 for arg in "$@"; do
     case $arg in
         --verbose)
             VERBOSE=true
+            ;;
+        --description=*)
+            DESCRIPTION="${arg#*=}"
+            ;;
+        --*)
+            # Skip other options
             ;;
         *)
             if [[ -z "$NAME" ]]; then
@@ -61,7 +89,7 @@ done
 if [ -z "$NAME" ]; then
   log_error "Missing required argument"
   echo ""
-  echo "Usage: ./tools/workstream-create <name> [--verbose]"
+  echo "Usage: ./tools/workstream-create <name> [--description=<text>] [--verbose]"
   echo ""
   echo "Example: ./tools/workstream-create billing"
   exit 1
@@ -89,6 +117,13 @@ main() {
     mkdir -p "$DIR/epic001"
     mkdir -p "$DIR/epic002"
 
+    # Set description text
+    if [[ -n "$DESCRIPTION" ]]; then
+        OVERVIEW_TEXT="$DESCRIPTION"
+    else
+        OVERVIEW_TEXT="TODO: describe this workstream"
+    fi
+
     cat > "$DIR/KNOWLEDGE.md" << EOF
 # $NAME Workstream Knowledge
 
@@ -96,19 +131,19 @@ main() {
 
 ## Overview
 
-[Description of what this workstream covers]
+$OVERVIEW_TEXT
 
 ## Key Concepts
 
-[Domain-specific knowledge]
+TODO: add domain-specific knowledge
 
 ## Patterns
 
-[Common patterns used]
+TODO: document common patterns used
 
 ## References
 
-- [Relevant documentation links]
+- TODO: add relevant documentation links
 EOF
 
     echo "Created:"
