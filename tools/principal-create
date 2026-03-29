@@ -9,7 +9,6 @@
 #
 # Optional integrations (if projectname provided):
 #   - iCloud cloud storage setup
-#   - iTerm profile setup
 
 set -euo pipefail
 
@@ -183,11 +182,6 @@ EOF
       log_step "Setting up iCloud integration..."
       ./tools/icloud-setup "$PROJECTNAME" "$PRINCIPALNAME"
     fi
-
-    # Run iTerm setup
-    verbose_echo ""
-    log_step "Setting up iTerm profiles..."
-    ./tools/iterm-setup "$PRINCIPALNAME"
 
     # Update principals index
     INDEX="claude/principals/INDEX.md"

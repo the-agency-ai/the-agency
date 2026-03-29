@@ -161,7 +161,6 @@ claude/principals/{name}/
 │   ├── cloud/          # Symlink to iCloud (if set up)
 │   └── secrets/        # Credentials (gitignored)
 └── config/             # App configurations
-    └── iterm/          # iTerm2 profiles
 ```
 
 ## Configuration Mapping
@@ -298,5 +297,5 @@ Options:
 ## See Also
 
 - [SECRETS.md](SECRETS.md) - Vault and secrets management
-- [TERMINAL-INTEGRATION.md](TERMINAL-INTEGRATION.md) - iTerm setup
+- [TERMINAL-INTEGRATION.md](TERMINAL-INTEGRATION.md) - Ghostty terminal integration
 - `claude/templates/principal/` - Principal directory template

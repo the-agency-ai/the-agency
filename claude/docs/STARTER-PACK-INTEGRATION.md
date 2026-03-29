@@ -82,25 +82,12 @@ claude/docs/tutorials/
 - `tools/myclaude` - Updated example usage (line 12)
 - `tools/commit` - Updated default agent (line 119)
 - `.claude/hooks/session-start.sh` - Updated default AGENTNAME (line 5)
-- `tools/iterm-setup` - Updated profile name, GUID, badge (lines 68-89)
 
 ### 7. Configuration Template
 
 **File:** `.claude/settings.local.json.example`
 
 No changes needed - already generic.
-
-**File:** `claude/principals/TEMPLATE/config/iterm/agency-profiles.json`
-
-Update the housekeeping profile to captain:
-```json
-{
-  "Name": "Agency - Captain",
-  "Guid": "agency-captain-PRINCIPALNAME",
-  "Badge Text": "captain",
-  "Initial Text": "# Captain agent session\n./tools/myclaude housekeeping captain"
-}
-```
 
 ## Installation Flow
 
@@ -182,7 +169,6 @@ Users with existing installations will need to:
 
 4. **Update local config:**
    - Update `.claude/settings.local.json` if it references housekeeping
-   - Update iTerm profiles
 
 ### Backward Compatibility
 
@@ -199,8 +185,7 @@ Users with existing installations will need to:
 - [ ] Include /agency-welcome and /tutorial commands
 - [ ] Sync CLAUDE.md documentation
 - [ ] Sync FIRST-LAUNCH.md documentation
-- [ ] Sync updated tools (myclaude, commit, session-start, iterm-setup)
-- [ ] Update iTerm profile template
+- [ ] Sync updated tools (myclaude, commit, session-start)
 - [ ] Test fresh installation flow
 - [ ] Test /agency-welcome command works
 - [ ] Test /tutorial navigation works

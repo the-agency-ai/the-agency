@@ -386,7 +386,6 @@ verify_build() {
         "tools/welcomeback"
         "tools/agent-create"
         "tools/workstream-create"
-        "tools/tab-status"
         "tools/session-backup"
         "claude/config/agency.yaml"
         "claude/agents/captain/agent.md"

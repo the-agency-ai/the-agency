@@ -103,9 +103,8 @@ load 'test_helper'
 @test "principal-create: --verbose flag is recognized" {
     run_tool principal-create testprincipal --verbose || true
     [[ ! "$output" =~ "unknown option" ]] && [[ ! "$output" =~ "invalid flag" ]]
-    # Clean up if created (including iTerm profile)
+    # Clean up if created
     rm -rf "claude/principals/testprincipal" 2>/dev/null || true
-    rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/agency-testprincipal-profiles.json" 2>/dev/null || true
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -203,9 +202,8 @@ load 'test_helper'
 @test "add-principal: --name flag is recognized" {
     run_tool add-principal --name testuser || true
     [[ ! "$output" =~ "unknown option" ]] && [[ ! "$output" =~ "Unknown option" ]]
-    # Clean up if created (including iTerm profile)
+    # Clean up if created
     rm -rf "claude/principals/testuser" 2>/dev/null || true
-    rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/agency-testuser-profiles.json" 2>/dev/null || true
 }
 
 @test "add-principal: --verbose flag is recognized" {
@@ -386,9 +384,8 @@ load 'test_helper'
     run_tool principal-create "$test_name" || true
     # Check if directory was created with lowercase name
     if [[ -d "claude/principals/uppercasetest" ]]; then
-        # Clean up (including iTerm profile)
+        # Clean up
         rm -rf "claude/principals/uppercasetest"
-        rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/agency-uppercasetest-profiles.json" 2>/dev/null || true
         return 0
     fi
     # If already exists or validation failed, that's also fine
@@ -409,9 +406,8 @@ load 'test_helper'
     [[ -d "claude/principals/$test_name/resources" ]]
     [[ -d "claude/principals/$test_name/config" ]]
 
-    # Clean up (including iTerm profile)
+    # Clean up
     rm -rf "claude/principals/$test_name"
-    rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/agency-$test_name-profiles.json" 2>/dev/null || true
 }
 
 @test "principal-create: creates README.md" {
@@ -426,9 +422,8 @@ load 'test_helper'
     # Verify README.md created
     [[ -f "claude/principals/$test_name/README.md" ]]
 
-    # Clean up (including iTerm profile)
+    # Clean up
     rm -rf "claude/principals/$test_name"
-    rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/agency-$test_name-profiles.json" 2>/dev/null || true
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

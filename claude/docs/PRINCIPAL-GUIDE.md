@@ -98,12 +98,12 @@ tools/                       # CLI tools for The Agency
 
 ## Terminal Integration
 
-iTerm tab colors and status indicators update automatically via Claude Code hooks:
-- **Blue ●** Available (ready for input)
-- **Green ◐** Working (processing)
-- **Red ▲** Attention (needs user input)
+Ghostty tab titles and background color tints update automatically via Claude Code hooks:
+- **○ Circle** Available (ready for input, blue tint)
+- **◑ Half-circle** Working (processing, green tint)
+- **⚠ Triangle** Attention (needs user input, red tint)
 
-These are triggered automatically by hooks in `.claude/settings.json`. Do not call `./tools/tab-status` manually unless debugging.
+These are triggered automatically by the `ghostty-status.sh` hook in `.claude/settings.json`.
 
 See `TERMINAL-INTEGRATION.md` for setup and troubleshooting.
 
@@ -201,7 +201,7 @@ For first-time users, try the interactive tour:
 - `README.md` - User installation and getting started
 - `QUICK-START.md` - Quick start guide
 - `CONCEPTS.md` - Detailed concept explanations
-- `TERMINAL-INTEGRATION.md` - iTerm setup and troubleshooting
+- `TERMINAL-INTEGRATION.md` - Ghostty terminal integration
 - `PERMISSIONS.md` - Permissions model and examples
 - `SECRETS.md` - Complete secrets reference
 - `TESTING.md` - Test service configuration and usage

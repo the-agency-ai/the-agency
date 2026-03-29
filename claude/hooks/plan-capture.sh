@@ -140,11 +140,11 @@ DATE_COMPACT=$(date +%Y%m%d)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 BRANCH=$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null || echo "")
 
-# Detect worktree (if cwd is under .worktrees/, extract prototype name)
+# Detect worktree (if cwd is under .claude/worktrees/ or legacy .worktrees/)
 WORKTREE=""
 case "$PROJECT_DIR" in
-  */.worktrees/*)
-    WORKTREE=$(echo "$PROJECT_DIR" | sed 's|.*/.worktrees/||' | cut -d/ -f1)
+  */.claude/worktrees/*|*/.worktrees/*)
+    WORKTREE=$(echo "$PROJECT_DIR" | sed -E 's|.*/\.(claude/)?worktrees/||' | cut -d/ -f1)
     ;;
 esac
 

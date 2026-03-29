@@ -11,7 +11,7 @@ You are about to push to a remote. Pushing is a deliberate, user-initiated actio
 Before proceeding, confirm:
 
 1. The principal explicitly asked for this push
-2. You are NOT pushing to master (use PRs instead)
+2. You are NOT pushing to main or master (use PRs instead)
 3. You are using `/sync` (the only command authorized to push) or have explicit permission
 
 If any of these are not true, stop and ask the principal.

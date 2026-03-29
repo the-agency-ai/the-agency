@@ -10,7 +10,7 @@ The Agency uses a layered permissions model for Claude Code that separates frame
 
 **Contains:**
 - Agency tool permissions (`Bash(./tools/*)`)
-- Framework hooks (tab-status, session-backup, check-messages)
+- Framework hooks (ghostty-status, session-backup, check-messages)
 - Standard terminal operations
 
 **DO NOT EDIT DIRECTLY:** This file is synced from the-agency to the-agency-starter and will be overwritten when you update The Agency.

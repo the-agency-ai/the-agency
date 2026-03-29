@@ -58,6 +58,10 @@ test/
 # Claude Code local settings (user customizations)
 .claude/settings.local.json
 
+# Worktrees (parallel agent sessions — ephemeral, not versioned)
+.claude/worktrees/
+.worktrees/
+
 # Session backups (ephemeral state - not versioned)
 claude/agents/*/backups/latest/
 claude/agents/*/backups/archive/

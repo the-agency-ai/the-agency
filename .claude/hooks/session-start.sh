@@ -21,9 +21,6 @@ mkdir -p "$INSTANCES_DIR"
 INSTANCE_ID="${CLAUDE_SESSION_ID:-$$}"
 echo "$$" > "$INSTANCES_DIR/$INSTANCE_ID"
 
-# Set tab status
-"$REPO_ROOT/tools/tab-status" available 2>/dev/null || true
-
 # Check if context exists
 if [[ ! -f "$CONTEXT_FILE" ]] || [[ ! -s "$CONTEXT_FILE" ]]; then
   echo "No previous session context found. Starting fresh."

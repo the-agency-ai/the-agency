@@ -221,7 +221,6 @@
       "Bash(./tools/starter-compare*)",
       "Bash(./tools/starter-test*)",
       "Bash(./tools/starter-verify*)",
-      "Bash(./tools/tab-status*)",
       "Bash(./tools/tag*)",
       "Bash(./tools/test-run*)",
       "Bash(./tools/tool-find*)",
