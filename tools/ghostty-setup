@@ -150,9 +150,6 @@ clipboard-read = allow
 clipboard-write = allow
 copy-on-select = clipboard
 
-# Scrollback
-scrollback-limit = 10000
-
 # Behavior
 confirm-close-surface = false
 mouse-hide-while-typing = true
