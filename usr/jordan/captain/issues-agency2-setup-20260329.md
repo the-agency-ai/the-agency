@@ -93,6 +93,24 @@ The CoS session briefing files (`guide-cos-session-briefing-20260329.md`, `devex
 
 ---
 
+### ISS-007: `agent-create` does not register agents with Claude Code (OPEN)
+
+**Severity:** Medium (agents can't be launched via `claude --agent`)
+**Found by:** captain
+**Status:** Open
+
+`./tools/agent-create` creates Agency-level agent directories (`claude/agents/{name}/agent.md`, KNOWLEDGE.md, etc.) but does not register the agent in `.claude/settings.json` under the `"agents"` key. This means `claude --agent markdown-pal` doesn't work — Claude Code doesn't know about Agency agents.
+
+Two systems exist side by side:
+- **Agency agents** — `claude/agents/{name}/agent.md` (identity, responsibilities, seed files)
+- **Claude Code agents** — `settings.json` `"agents"` key or `--agents` CLI flag (what `claude --agent` resolves)
+
+`agent-create` should bridge these by generating a Claude Code agent entry in settings.json that references the Agency agent definition. The agent's `prompt` field should instruct Claude to read its `agent.md` and relevant seed files.
+
+**Action:** Update `tools/agent-create` to also register agents in `.claude/settings.json` under the `"agents"` key, with a prompt that bootstraps from `agent.md`.
+
+---
+
 ## Summary
 
 | Issue | Severity | Status | Tool Fix Needed |
@@ -103,3 +121,4 @@ The CoS session briefing files (`guide-cos-session-briefing-20260329.md`, `devex
 | ISS-004 | Low | Resolved (manual) | workstream-create could accept description |
 | ISS-005 | Low | Resolved (manual) | agent-create could accept --seeds flag |
 | ISS-006 | Medium | Resolved | Process: include all referenced files in PR |
+| ISS-007 | Medium | Open | agent-create must register in settings.json |
