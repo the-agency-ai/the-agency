@@ -6,14 +6,11 @@ pattern: git commit
 action: warn
 ---
 
-**You are about to commit.** Before proceeding, verify:
+**Use `./tools/commit` instead of bare `git commit`.**
 
-1. You are NOT on the `main` or `master` branch — all changes go through PR branches
-2. You are using `./tools/commit` — not bare `git commit`
+The commit tool enforces conventions (message format, work-item linking, stage tagging).
 
-If you are on main/master, create a branch first:
+Also verify you are NOT on `main` or `master` — all changes go through PR branches. If you are on main/master, create a branch first:
 ```bash
 git checkout -b {workstream}/{description}
 ```
-
-Then commit on the branch and create a PR.
