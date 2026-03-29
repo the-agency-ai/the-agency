@@ -1413,11 +1413,6 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "tools/agency-bench": {
-      "hash": "5212743071af4a67a73365a316e173fafd8cde0f00d1ac7d19041d80a7613691",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "tools/agency-feedback": {
       "hash": "12ba2d32359f9ead9b112d84f779a2ed545af6251aafde5feaccea1b133eb8c0",
       "modified": false,
@@ -1450,16 +1445,6 @@
     },
     "tools/artifact-list": {
       "hash": "732beb65ddeb51b6895e0520cbb03629cad2079c1b02e8a0ff58286fd8d1ae2c",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "tools/bench": {
-      "hash": "3fdd3f6f80bf84ae4e201d6bb58a2dba6a7acf2310ff7661ea81772d67b7fbba",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "tools/bench-build": {
-      "hash": "a238346a9e47279dd178f709fe023bae6893890b02b1579e33214bf6ede9807d",
       "modified": false,
       "version": "1.0.3"
     },
@@ -1525,11 +1510,6 @@
     },
     "tools/designsystem-validate": {
       "hash": "9da812e1edad72027a35ca6120f57622d63ca67332b255a4440c7b7b86aed19b",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "tools/docbench": {
-      "hash": "616bb271ae5b21dc2388a6d64d9360017c108a9e5ed33f161cdba40cc2237aeb",
       "modified": false,
       "version": "1.0.3"
     },
