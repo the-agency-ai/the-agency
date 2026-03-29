@@ -136,9 +136,12 @@ main() {
     # Convert to lowercase
     PRINCIPAL_NAME=$(echo "$PRINCIPAL_NAME" | tr '[:upper:]' '[:lower:]')
 
-    # Check if principal already exists
-    PRINCIPAL_DIR="$PROJECT_ROOT/claude/principals/$PRINCIPAL_NAME"
-    if [[ -d "$PRINCIPAL_DIR" ]]; then
+    # Check if principal already exists (check both v2 and v1 locations)
+    PRINCIPAL_DIR="$PROJECT_ROOT/usr/$PRINCIPAL_NAME"
+    LEGACY_DIR="$PROJECT_ROOT/claude/principals/$PRINCIPAL_NAME"
+    if [[ -d "$PRINCIPAL_DIR" ]] || [[ -d "$LEGACY_DIR" ]]; then
+        # Prefer v2 location, fall back to legacy
+        [[ -d "$PRINCIPAL_DIR" ]] || PRINCIPAL_DIR="$LEGACY_DIR"
         log_warn "Principal already exists: $PRINCIPAL_NAME"
         echo ""
 
@@ -153,14 +156,29 @@ main() {
     else
         log_step "Creating principal: $PRINCIPAL_NAME"
 
-        # Create principal from template
-        TEMPLATE_DIR="$PROJECT_ROOT/claude/templates/principal"
-        if [[ -d "$TEMPLATE_DIR" ]]; then
-            log_info "Creating principal from template..."
+        # Create principal from template (prefer v2 template)
+        TEMPLATE_V2="$PROJECT_ROOT/claude/templates/principal-v2"
+        TEMPLATE_V1="$PROJECT_ROOT/claude/templates/principal"
+        if [[ -d "$TEMPLATE_V2" ]]; then
+            log_info "Creating principal from v2 template (usr/{principal}/)..."
             mkdir -p "$PRINCIPAL_DIR"
-            cp -r "$TEMPLATE_DIR/"* "$PRINCIPAL_DIR/" 2>/dev/null || true
+            cp -r "$TEMPLATE_V2/"* "$PRINCIPAL_DIR/" 2>/dev/null || true
 
-            # Replace template placeholders
+            # Replace template placeholders in all files
+            while IFS= read -r -d '' file; do
+                if [[ "$(uname)" == "Darwin" ]]; then
+                    sed -i '' "s/{{PRINCIPAL_NAME}}/$PRINCIPAL_NAME/g" "$file"
+                else
+                    sed -i "s/{{PRINCIPAL_NAME}}/$PRINCIPAL_NAME/g" "$file"
+                fi
+            done < <(find "$PRINCIPAL_DIR" -name "*.md" -print0 2>/dev/null)
+
+            verbose_echo "  Principal directory created: $PRINCIPAL_DIR"
+        elif [[ -d "$TEMPLATE_V1" ]]; then
+            log_info "Creating principal from v1 template..."
+            mkdir -p "$PRINCIPAL_DIR"
+            cp -r "$TEMPLATE_V1/"* "$PRINCIPAL_DIR/" 2>/dev/null || true
+
             if [[ -f "$PRINCIPAL_DIR/README.md" ]]; then
                 if [[ "$(uname)" == "Darwin" ]]; then
                     sed -i '' "s/{{PRINCIPAL_NAME}}/$PRINCIPAL_NAME/g" "$PRINCIPAL_DIR/README.md"
@@ -171,16 +189,13 @@ main() {
 
             verbose_echo "  Principal directory created: $PRINCIPAL_DIR"
         else
-            # No template, create minimal structure
+            # No template, create minimal v2 structure
             log_info "Creating minimal principal structure..."
-            mkdir -p "$PRINCIPAL_DIR"/{requests,artifacts,resources,config}
-            touch "$PRINCIPAL_DIR/requests/.gitkeep"
-            touch "$PRINCIPAL_DIR/artifacts/.gitkeep"
-            touch "$PRINCIPAL_DIR/resources/.gitkeep"
-            touch "$PRINCIPAL_DIR/config/.gitkeep"
+            mkdir -p "$PRINCIPAL_DIR"/claude/{commands,hookify,hooks,agents,refs}
+            mkdir -p "$PRINCIPAL_DIR"/scripts
         fi
 
-        echo -e "  ${GREEN}✓${NC} Created claude/principals/$PRINCIPAL_NAME/"
+        echo -e "  ${GREEN}✓${NC} Created usr/$PRINCIPAL_NAME/"
     fi
 
     # Set as current principal
@@ -230,7 +245,7 @@ main() {
     echo ""
     echo -e "Welcome to the team, ${GREEN}$PRINCIPAL_NAME${NC}!"
     echo ""
-    echo "Your principal directory: claude/principals/$PRINCIPAL_NAME/"
+    echo "Your principal directory: usr/$PRINCIPAL_NAME/"
     echo ""
     echo "Get started with:"
     echo ""

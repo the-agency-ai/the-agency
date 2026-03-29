@@ -13,6 +13,7 @@
         "claude/agents/templates/**/*"
       ],
       "protected_paths": [
+        "usr/**/*",
         "claude/principals/**/*",
         "claude/agents/*/WORKLOG.md",
         "claude/agents/*/ADHOC-WORKLOG.md"
@@ -75,6 +76,41 @@
       "description": "Agent skills - welcome, tutorial, commit, etc.",
       "files": [
         "claude/skills/**/*"
+      ],
+      "dependencies": ["core"]
+    },
+    "methodology": {
+      "version": "2.0.0",
+      "description": "Development methodology - quality gates, work patterns, 1B1 protocol",
+      "files": [
+        "claude/docs/QUALITY-GATE.md",
+        "claude/docs/DEVELOPMENT-METHODOLOGY.md",
+        "claude/docs/CODE-REVIEW-LIFECYCLE.md",
+        "claude/docs/FEEDBACK-FORMAT.md",
+        ".claude/commands/discuss.md"
+      ],
+      "dependencies": ["core"]
+    },
+    "worktree-management": {
+      "version": "2.0.0",
+      "description": "Worktree isolation for parallel agent sessions",
+      "files": [
+        "tools/worktree-create",
+        "tools/worktree-list",
+        "tools/worktree-delete"
+      ],
+      "dependencies": ["core", "tools"]
+    },
+    "reviewer-agents": {
+      "version": "2.0.0",
+      "description": "Code review agents - code, design, scorer, security, test",
+      "files": [
+        "claude/agents/reviewer-code/**/*",
+        "claude/agents/reviewer-design/**/*",
+        "claude/agents/reviewer-scorer/**/*",
+        "claude/agents/reviewer-security/**/*",
+        "claude/agents/reviewer-test/**/*",
+        "claude/agents/project-manager/**/*"
       ],
       "dependencies": ["core"]
     }

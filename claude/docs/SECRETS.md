@@ -2,7 +2,19 @@
 
 **CRITICAL: All secrets MUST be stored in the Secret Service. NEVER commit secrets to the codebase.**
 
-The Agency provides a secure Secret Service for managing API keys, tokens, certificates, and other sensitive data.
+The Agency provides a pluggable secrets interface. The default provider is `vault` (Agency's built-in). Override via `agency.yaml`:
+
+```yaml
+secrets:
+  provider: "vault"  # Options: vault, doppler, env, custom
+```
+
+| Provider | Description | Setup |
+|----------|-------------|-------|
+| `vault` | Agency built-in (default) | `./tools/secret vault init` |
+| `doppler` | Doppler.com integration | Install Doppler CLI, configure project |
+| `env` | Environment variables | Create `.env` in project root |
+| `custom` | Custom via starter pack | See `claude/starter-packs/` |
 
 ## Quick Reference
 
