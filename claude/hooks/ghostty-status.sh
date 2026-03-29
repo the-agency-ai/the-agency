@@ -84,18 +84,11 @@ set_bg() {
     printf '\e]11;%s\a' "$1" > /dev/tty
 }
 
-# --- Tab title via OSC 2 (universal) and Ghostty AppleScript (persistent) ---
+# --- Tab title via OSC 2 ---
 set_title() {
     local title="$1"
-    # OSC 2 — immediate, but Claude Code may overwrite
+    # OSC 2 — sets title for THIS terminal via /dev/tty
     printf '\e]2;%s\a' "$title" > /dev/tty
-
-    # Ghostty AppleScript API — persistent, survives OSC 2 overwrites
-    # Run async so it doesn't slow down the hook
-    if [[ "$(uname)" == "Darwin" ]]; then
-        osascript -e "tell application \"Ghostty\" to perform action \"set_tab_title:${title}\" on focused terminal of selected tab of front window" 2>/dev/null &
-        disown 2>/dev/null
-    fi
 }
 
 # --- Map event to state ---
