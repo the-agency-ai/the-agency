@@ -145,6 +145,38 @@ Two systems exist side by side:
 
 ---
 
+### ISS-009: Worktree status line shows redundant naming (OPEN)
+
+**Severity:** Low (cosmetic/readability)
+**Found by:** captain
+**Status:** Open
+
+When agents launch in worktrees, the status line shows redundant information:
+
+```
+markdown-pal [wt: markdown-pal @ worktree-markdown-pal]
+mock-and-mark [wt: mock-and-mark @ worktree-mock-and-mark] "mock-and-mark"
+```
+
+Issues:
+1. The agent name appears twice — once as the session name, once inside `[wt: ...]`
+2. The worktree branch name `worktree-markdown-pal` is just `worktree-` prefixed to the agent name — redundant
+3. mock-and-mark has an extra trailing `"mock-and-mark"` string that markdown-pal doesn't — inconsistent
+
+A cleaner format would be something like:
+```
+markdown-pal [wt] | ctx: 76% | $0.89 · 8m
+```
+
+Or if the branch name matters:
+```
+markdown-pal [wt: worktree-markdown-pal] | ctx: 76% | $0.89 · 8m
+```
+
+**Action:** Review the status line generation for worktree sessions. Deduplicate the agent name and make the format consistent across agents.
+
+---
+
 ## Summary
 
 | Issue | Severity | Status | Tool Fix Needed |
@@ -157,3 +189,4 @@ Two systems exist side by side:
 | ISS-006 | Medium | Resolved | Process: include all referenced files in PR |
 | ISS-007 | Medium | Open | agent-create must register in settings.json |
 | ISS-008 | High | Open | Dependabot: 3 high, 9 moderate vulnerabilities |
+| ISS-009 | Low | Open | Status line: redundant worktree naming |
