@@ -18,6 +18,10 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/session-handoff.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
           }
         ]
       }
@@ -32,6 +36,10 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-end.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
           }
         ]
       }
@@ -47,15 +55,6 @@
       }
     ],
     "PreToolUse": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/tools/tab-status working 2>/dev/null || true"
-          }
-        ]
-      },
       {
         "matcher": "Skill",
         "hooks": [
@@ -81,29 +80,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/tools/tab-status working 2>/dev/null || true"
-          },
-          {
-            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/tools/log-tool-use 2>/dev/null || true"
           },
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/tool-telemetry.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
           }
         ]
       }
     ],
     "PermissionRequest": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/tools/tab-status attention 2>/dev/null || true"
-          }
-        ]
-      }
     ],
     "TaskCompleted": [
       {
@@ -130,7 +120,17 @@
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/tools/tab-status available 2>/dev/null || true"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
           }
         ]
       }

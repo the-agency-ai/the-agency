@@ -98,9 +98,6 @@ set_title() {
     fi
 }
 
-# --- Also update tab-status if available (for iTerm user vars, badges) ---
-TAB_STATUS="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}/../../tools/tab-status"
-
 # --- Map event to state ---
 case "${event:-}" in
     # Session ended — restore plain shell appearance
@@ -114,27 +111,18 @@ case "${event:-}" in
     "Stop")
         set_title "○ ${session_name}"
         set_bg "$BG_IDLE"
-        if [[ -x "$TAB_STATUS" ]]; then
-            "$TAB_STATUS" available 2>/dev/null || true
-        fi
         ;;
 
     # Needs attention — permission prompt or waiting for input
     "Notification")
         set_title "⚠ ${session_name}"
         set_bg "$BG_INPUT"
-        if [[ -x "$TAB_STATUS" ]]; then
-            "$TAB_STATUS" attention 2>/dev/null || true
-        fi
         ;;
 
     # Agent is actively working
     "PreToolUse"|"PostToolUse"|"PreCompact")
         set_title "◑ ${session_name}"
         set_bg "$BG_WORKING"
-        if [[ -x "$TAB_STATUS" ]]; then
-            "$TAB_STATUS" working 2>/dev/null || true
-        fi
         ;;
 
     # Session just started — available
@@ -143,9 +131,6 @@ case "${event:-}" in
         echo "$session_name" > "$CACHE_FILE"
         set_title "○ ${session_name}"
         set_bg "$BG_IDLE"
-        if [[ -x "$TAB_STATUS" ]]; then
-            "$TAB_STATUS" available 2>/dev/null || true
-        fi
         ;;
 
     # Default — treat as available
