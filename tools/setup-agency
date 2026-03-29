@@ -243,19 +243,19 @@ main() {
     # Initialize vault (optional)
     if [[ "$SKIP_VAULT" != "true" ]]; then
         log_step "Initializing secret vault..."
-        if [[ -x "$PROJECT_ROOT/tools/secret" ]]; then
+        if [[ -x "$PROJECT_ROOT/tools/secret-vault" ]]; then
             echo ""
             echo "The Agency uses an encrypted vault for secrets."
             echo "Set a passphrase to protect your vault."
             echo ""
 
             # Check if vault already exists
-            if "$PROJECT_ROOT/tools/secret" vault status > /dev/null 2>&1; then
+            if "$PROJECT_ROOT/tools/secret-vault" vault status > /dev/null 2>&1; then
                 verbose_echo "  Vault already initialized"
             else
                 # Try to init vault - this may need interactive input
-                if ! "$PROJECT_ROOT/tools/secret" vault init 2>/dev/null; then
-                    log_warn "Vault initialization skipped (can be done later with: ./tools/secret vault init)"
+                if ! "$PROJECT_ROOT/tools/secret-vault" vault init 2>/dev/null; then
+                    log_warn "Vault initialization skipped (can be done later with: ./tools/secret-vault vault init)"
                 fi
             fi
         else
