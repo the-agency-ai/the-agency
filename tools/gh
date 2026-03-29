@@ -126,7 +126,7 @@ fi
 # Warn if no token available
 if [[ -z "${GH_TOKEN:-}" ]]; then
     echo "Warning: No GitHub token available. Some operations may fail." >&2
-    echo "Set up with: ./tools/secret create github-admin-token --type=api_key --service=GitHub" >&2
+    echo "Set up with: ./tools/secret-vault create github-admin-token --type=api_key --service=GitHub" >&2
 fi
 
 # Build command description for logging (redact potentially sensitive args)

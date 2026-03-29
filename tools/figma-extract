@@ -6,7 +6,7 @@
 #   ./tools/figma-extract abc123xyz --name=acme --version=001
 #
 # Prerequisites:
-#   1. Store Figma token: ./tools/secret create figma-token --type=api_key --service=Figma
+#   1. Store Figma token: ./tools/secret-vault create figma-token --type=api_key --service=Figma
 #   2. Get file key from Figma URL: figma.com/file/FILE_KEY/...
 #
 # This tool:
@@ -109,7 +109,7 @@ show_help() {
     echo ""
     echo "Prerequisites:"
     echo "  1. Store Figma token:"
-    echo "     ./tools/secret create figma-token --type=api_key --service=Figma"
+    echo "     ./tools/secret-vault create figma-token --type=api_key --service=Figma"
     echo ""
     echo "  2. Get file key from Figma URL:"
     echo "     https://www.figma.com/file/FILE_KEY/Project-Name"
@@ -198,7 +198,7 @@ fi
 
 # Get Figma token from secret service
 log_step "Fetching Figma API token..."
-FIGMA_TOKEN=$("$PROJECT_ROOT/tools/secret" get figma-token 2>/dev/null) || true
+FIGMA_TOKEN=$("$PROJECT_ROOT/tools/secret-vault" get figma-token 2>/dev/null) || true
 
 if [[ -z "$FIGMA_TOKEN" ]]; then
     log_error "Figma token not found in Secret Service"
@@ -206,7 +206,7 @@ if [[ -z "$FIGMA_TOKEN" ]]; then
     echo "To set up Figma API access:"
     echo "  1. Go to Figma > Account Settings > Personal Access Tokens"
     echo "  2. Generate a new token"
-    echo "  3. Store it: ./tools/secret create figma-token --type=api_key --service=Figma"
+    echo "  3. Store it: ./tools/secret-vault create figma-token --type=api_key --service=Figma"
     log_end "$RUN_ID" "failure" "1" "0" "No Figma token" 2>/dev/null || true
     exit 1
 fi

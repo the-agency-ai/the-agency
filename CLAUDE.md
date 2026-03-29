@@ -141,13 +141,13 @@ The restored context tells you what the user was working on. Use it to provide c
 
 ```bash
 # Retrieve a secret (most common operation)
-./tools/secret get secret-name
+./tools/secret-vault get secret-name
 
 # Store a new secret
-./tools/secret create secret-name --type=api_key --service=ServiceName
+./tools/secret-vault create secret-name --type=api_key --service=ServiceName
 
 # List available secrets
-./tools/secret list
+./tools/secret-vault list
 ```
 
 **Reference:** See `claude/docs/SECRETS.md` for complete reference (vault management, access control, audit logging, migration).

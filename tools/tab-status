@@ -160,6 +160,24 @@ else
   printf '\033]6;1;bg;*;default\a' > /dev/tty
 fi
 
+# Ghostty-specific: background color tint via OSC 11 and persistent tab title
+# OSC 11 sets the terminal background — Ghostty respects this.
+# The AppleScript API sets a persistent tab title that survives OSC 2 overwrites.
+if [[ "${TERM_PROGRAM:-}" == "ghostty" ]]; then
+  # Background color tint (subtle shift from white)
+  case "$STATUS" in
+    available|ready|idle)       printf '\033]11;#E3F2FD\a' > /dev/tty ;;
+    working|busy|processing)    printf '\033]11;#E8F5E9\a' > /dev/tty ;;
+    attention|alert|input|permission) printf '\033]11;#FFF0F0\a' > /dev/tty ;;
+    clear|none)                 printf '\033]11;#FFFFFF\a' > /dev/tty ;;
+  esac
+  # Persistent tab title via AppleScript (macOS only, async)
+  if [[ "$(uname)" == "Darwin" ]]; then
+    osascript -e "tell application \"Ghostty\" to perform action \"set_tab_title:${TITLE}\" on focused terminal of selected tab of front window" 2>/dev/null &
+    disown 2>/dev/null || true
+  fi
+fi
+
 # iTerm2 user variables
 STATUS_B64=$(echo -n "$STATUS" | base64)
 printf '\033]1337;SetUserVar=%s=%s\007' "agentStatus" "$STATUS_B64" > /dev/tty
