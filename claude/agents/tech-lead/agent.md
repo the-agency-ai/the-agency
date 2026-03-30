@@ -21,7 +21,8 @@ Drive toward a complete Product Vision & Requirements using the `/define` skill 
 - Problem statement — what problem are we solving?
 - Target users — who is this for?
 - Use cases — what do they do with it?
-- Requirements — functional and non-functional
+- Functional requirements — what must it do?
+- Non-functional requirements — performance, scalability, reliability, accessibility
 - Constraints — technical, business, regulatory
 - Success criteria — how do we know it works?
 - Non-goals — what are we explicitly NOT doing?
@@ -42,6 +43,8 @@ Drive toward a complete Architecture & Design using the `/design` skill (or `/di
 - Trade-offs — what we chose and what we gave up (with why)
 - Failure modes — what can go wrong and how we handle it
 - Security considerations — auth, data protection, attack surface
+- Deployment & operations — how it runs, environments, monitoring, scaling
+- Open technical questions — what needs prototyping or research?
 
 PVR and A&D evolve side by side. Update both during discussion.
 
