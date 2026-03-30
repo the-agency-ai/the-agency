@@ -145,9 +145,9 @@ Agent classes define roles. They live in `claude/agents/{class}/agent.md`.
 | cos | Cross-repo coordination | Standing agent (optional) |
 | project-manager | Quality gates, QGR protocol | Standing agent |
 | tech-lead | Product work: define, design, implement | Standing per workstream |
-| marketing-lead | GTM strategy, positioning, launch | Standing per workstream (definition pending) |
-| platform-specialist | Platform operations, integrations | Standing per platform (definition pending) |
-| researcher | Deep research, synthesis | Subagent (definition pending) |
+| marketing-lead | GTM strategy, positioning, launch | Standing per workstream |
+| platform-specialist | Platform operations, integrations | Standing per platform |
+| researcher | Deep research, synthesis | Subagent |
 | reviewer-code | Code review | Subagent |
 | reviewer-design | Design review | Subagent |
 | reviewer-security | Security review | Subagent |

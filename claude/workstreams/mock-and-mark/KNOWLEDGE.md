@@ -23,7 +23,14 @@ Core concept: no AI in the app. The intelligence lives in Claude Code. Mock and 
 - `usr/jordan/mock-and-mark/mock-and-mark-analysis-20260329.md` — CoS session analysis
 - `usr/jordan/mock-and-mark/mock-and-mark-chatlog-20250310.md` — original chatlog
 
+## Current Focus
+
+- Run PVR and A&D discussions via `/discuss` using the seed files
+- Define the export packet schema (JSON structure for components)
+- Resolve open questions: Claude Code target, distribution, offline-first, collaboration phasing, accessibility, flow diagrams timing
+
 ## References
 
-- `claude/agents/mock-and-mark/agent.md` — agent definition
-- Open questions: Claude Code target, distribution, offline-first, collaboration phasing, accessibility, flow diagrams timing
+- Agent class: `claude/agents/tech-lead/agent.md`
+- Registration: `.claude/agents/mock-and-mark.md`
+- Open questions documented in seed files

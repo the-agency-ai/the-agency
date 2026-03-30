@@ -148,11 +148,7 @@ Agents communicate via explicit tools:
 | `./tools/nit-add` | Flag an issue for later |
 | `./tools/dispatch-collaborations` | Launch agents for pending requests |
 
-**Collaboration files:**
-```
-claude/agents/collaboration/
-  FROM-{source}-COLLABORATE-{id}-{date}.md
-```
+**Collaboration files** (legacy — v1 collaboration inbox has been removed).
 
 ### 7. Handoffs
 
