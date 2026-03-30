@@ -131,7 +131,7 @@ All tools emit minimal stdout to conserve context. Currently in `./tools/`, futu
 ✓
 ```
 
-Verbose output goes to the log service. Investigate with: `./tools/agency-service log run {run-id}`
+Verbose output goes to `.claude/logs/tool-runs.jsonl`. Investigate with: `./tools/tool-log {run-id}`
 
 ## Agents
 
