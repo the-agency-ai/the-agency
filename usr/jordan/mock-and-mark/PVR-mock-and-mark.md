@@ -4,7 +4,7 @@
 **Agent:** mock-and-mark
 **Principal:** jordan
 **Status:** In Progress
-**Transcript:** `PVR-transcript-20260329.md`
+**Transcript:** `transcripts/PVR-transcript-20260329.md`
 
 ---
 
