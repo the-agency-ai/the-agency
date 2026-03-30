@@ -42,7 +42,7 @@ sandbox:
 # Worktree management — enables parallel agent sessions
 worktrees:
   enabled: true
-  base_dir: ".claude/worktrees"  # Aligns with Claude Code's EnterWorktree convention
+  base_dir: ".claude/worktrees"  # Same path as EnterWorktree, but managed by Agency tools
 
 # Secrets management
 secrets:

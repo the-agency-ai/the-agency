@@ -121,7 +121,7 @@ platform:
 
 ## Tool Output Standard
 
-All `claude/tools/*` emit minimal stdout to conserve context:
+All `./tools/*` emit minimal stdout to conserve context (future: `claude/tools/*`):
 
 ```
 {tool-name} [run: {run-id}]
@@ -142,10 +142,10 @@ Agent classes define roles. They live in `claude/agents/{class}/agent.md`.
 | captain | Coordination, dispatch, PR lifecycle | Standing agent |
 | cos | Cross-repo coordination | Standing agent (optional) |
 | project-manager | Quality gates, QGR protocol | Standing agent |
-| tech-lead | Product work: define, design, implement | Standing per workstream |
-| marketing-lead | GTM strategy, positioning, launch | Standing per workstream |
-| platform-specialist | Platform operations, integrations | Standing per platform |
-| researcher | Deep research, synthesis | Subagent (can be standing) |
+| tech-lead | Product work: define, design, implement | Standing per workstream (definition pending) |
+| marketing-lead | GTM strategy, positioning, launch | Standing per workstream (definition pending) |
+| platform-specialist | Platform operations, integrations | Standing per platform (definition pending) |
+| researcher | Deep research, synthesis | Subagent (definition pending) |
 | reviewer-code | Code review | Subagent |
 | reviewer-design | Design review | Subagent |
 | reviewer-security | Security review | Subagent |
@@ -158,7 +158,7 @@ Agents are defined in two places:
 - **Class definition:** `claude/agents/{class}/agent.md` — role, responsibilities, knowledge
 - **Claude Code registration:** `.claude/agents/{name}.md` — frontmatter + bootstrap prompt pointing to class + workstream
 
-`agent-define` creates a new class. `agent-create` creates an instance.
+`agent-define` creates a new class (planned — not yet built). `agent-create` creates an instance and writes the `.claude/agents/{name}.md` registration file.
 
 Launch agents with: `claude --agent {name} --name {name}`
 
