@@ -19,9 +19,9 @@ Core concept: no AI in the app. The intelligence lives in Claude Code. Mock and 
 
 ## Seed Files
 
-- `usr/jordan/mock-and-mark/mock-and-mark-seed-20260329.md` — full design doc (v1.1)
-- `usr/jordan/mock-and-mark/mock-and-mark-analysis-20260329.md` — CoS session analysis
-- `usr/jordan/mock-and-mark/mock-and-mark-chatlog-20250310.md` — original chatlog
+- `claude/workstreams/mock-and-mark/seeds/mock-and-mark-seed-20260329.md` — full design doc (v1.1)
+- `claude/workstreams/mock-and-mark/seeds/mock-and-mark-analysis-20260329.md` — CoS session analysis
+- `claude/workstreams/mock-and-mark/seeds/mock-and-mark-chatlog-20250310.md` — original chatlog
 
 ## Current Focus
 

@@ -4,7 +4,7 @@
 **Principal:** jordan
 **Agent:** markdown-pal
 **Status:** In Progress
-**Transcript:** PVR-transcript-20260329.md
+**Transcript:** transcripts/PVR-transcript-20260329.md
 
 ## Item 1: Core Value Proposition — ✓ RESOLVED
 

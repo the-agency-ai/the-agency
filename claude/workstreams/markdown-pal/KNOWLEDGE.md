@@ -19,11 +19,11 @@ Core concept: the document IS the review artifact. Comments, decisions, and revi
 
 ## Seed Files
 
-- `usr/jordan/markdown-pal/markdown-pal-seed-20260329.md` — full design doc (v0001.0003)
-- `usr/jordan/markdown-pal/markdown-pal-analysis-20260329.md` — CoS session analysis
-- `usr/jordan/markdown-pal/markdown-pal-chatlog-20250310.md` — original chatlog
-- `usr/jordan/markdown-pal/markdown-pal-cli-spec-20250310.md` — CLI specification
-- `usr/jordan/markdown-pal/markdown-pal-prompt-20250310.md` — original prompt
+- `claude/workstreams/markdown-pal/seeds/markdown-pal-seed-20260329.md` — full design doc (v0001.0003)
+- `claude/workstreams/markdown-pal/seeds/markdown-pal-analysis-20260329.md` — CoS session analysis
+- `claude/workstreams/markdown-pal/seeds/markdown-pal-chatlog-20250310.md` — original chatlog
+- `claude/workstreams/markdown-pal/seeds/markdown-pal-cli-spec-20250310.md` — CLI specification
+- `claude/workstreams/markdown-pal/seeds/markdown-pal-prompt-20250310.md` — original prompt
 
 ## Current Focus
 
