@@ -11,7 +11,7 @@
 
 This PR (`fix/claudemd-v2-and-fixes`) delivers the Agency 2.0 CLAUDE.md — the project-level instructions that every agent reads. It was developed through a multi-session 1B1 design review covering project structure, file organization, tool audit, agent class model, artifact lifecycle, and skills model.
 
-**Three companion dispatches are included in this PR. Act on them.**
+**Three companion dispatches are in `usr/jordan/captain/dispatches/`. Act on them.**
 
 1. `dispatch-iscp-design-20260330.md` — Design intra-session communication protocol
 2. `dispatch-browser-protocol-20260330.md` — Design agent browsing protocol

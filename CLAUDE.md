@@ -123,7 +123,7 @@ platform:
 
 ## Tool Output Standard
 
-All `./tools/*` emit minimal stdout to conserve context (future: `claude/tools/*`):
+All tools emit minimal stdout to conserve context. Currently in `./tools/`, future: `claude/tools/`.
 
 ```
 {tool-name} [run: {run-id}]
@@ -256,9 +256,10 @@ Inner loop: Present > Get Feedback > Confirm Understanding (reflective listening
 
 Before any discussion or artifact work:
 1. Read `handoff.md` for your project/role
-2. Check for new `guide-*.md` and `dispatch-*.md` files in your scope
-3. If you are a workstream agent: enter your worktree (create one if needed) BEFORE starting `/discuss` or writing files
-4. If a skill invocation is interrupted (e.g., redirected to a worktree), re-invoke the skill from the new context — do not manually replicate its output
+2. Check for new `dispatch-*.md` files in your scope (directives from other agents)
+3. Check for new `guide-*.md` files — these are instructions written for the principal (human), but reading them gives you context on what the principal is working on
+4. If you are a workstream agent: enter your worktree (create one if needed) BEFORE starting `/discuss` or writing files
+5. If a skill invocation is interrupted (e.g., redirected to a worktree), re-invoke the skill from the new context — do not manually replicate its output
 
 ## Handoff Discipline
 
@@ -285,7 +286,7 @@ Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete, plan-compl
 - Agent instances: lowercase, hyphenated (`markdown-pal`, `mock-and-mark`)
 - Workstreams: lowercase (`markdown-pal`, `gtm`)
 - Tools: noun-verb convention (`agent-create`, `tool-find`). Migration in progress for git tools (`commit` → `git-commit`).
-- Tool providers: `{noun}-{provider}` (`secret-doppler`, `terminal-setup-ghostty`)
+- Tool providers: `{noun}-{provider}` (`secret-doppler`, `secret-vault`)
 - Files: `{project}-{artifact}-YYYYMMDD.md`
 - Guides: `guide-{project}-{slug}-YYYYMMDD.md` (for principals/humans, not agents)
 - Dispatches: `dispatch-{slug}-YYYYMMDD.md` (broadcast directives)
