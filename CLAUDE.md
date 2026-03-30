@@ -316,6 +316,25 @@ secrets:
 
 The `/secret` skill is the interactive front-end (set, get, list, delete, rotate, scan). `secrets-scan` integrates into the quality gate at iteration/phase/PR boundaries.
 
+## Web Content Retrieval
+
+When you need to fetch web content, follow this escalation ladder:
+
+1. **WebFetch** — try first. Fast, cheap, no browser needed. Fails on JS-heavy sites and bot detection.
+2. **Playwright MCP snapshot** — if WebFetch fails or returns garbage. Renders JS, returns structured accessibility tree. Use `browser_snapshot` over `browser_take_screenshot` for text content (structured, token-efficient).
+3. **Playwright MCP screenshot** — when visual context is needed (layout, design, errors).
+4. **Playwright MCP run_code** — for extracting specific content from large pages (`page.$('article').innerText()`).
+
+**For sites that block unauthenticated access (X/Twitter, LinkedIn):**
+- Use Nitter mirrors (e.g., `nitter.poast.org/{user}/status/{id}`) for X/Twitter — no login required, full thread visible.
+- If Nitter fails, navigate with Playwright MCP to the real site (may require the principal to log in first).
+
+**Principles:**
+- Extract what you need, don't dump the whole page into context.
+- Summarize content, don't paste raw HTML.
+- For threads/articles, capture the full content then produce a structured summary.
+- Don't try WebFetch once and give up — escalate through the ladder.
+
 ## Testing & Quality
 
 **We fix things. We don't work around them. There are no small bugs — just fix it.**
