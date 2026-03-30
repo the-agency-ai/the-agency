@@ -13,8 +13,17 @@ Go To Market strategy and planning for The Agency, launching with Agency 2.0. Co
 - **PVR** — Product Vision Review. First step in defining the GTM strategy.
 - **A&D** — Architecture & Design. In GTM context: the structure of the launch plan itself.
 
+## Current Focus
+
+- Define positioning and messaging for Agency 2.0 launch
+- Identify target audience and distribution channels
+- Develop launch timeline and success metrics
+- Run PVR and A&D discussions via `/discuss`
+
 ## References
 
+- Agent class: `claude/agents/marketing-lead/agent.md`
+- Registration: `.claude/agents/gtm.md`
 - `claude/docs/DEVELOPMENT-METHODOLOGY.md` — Agency 2.0 methodology (informs positioning)
 - `claude/docs/QUALITY-GATE.md` — Quality gate protocol (differentiator)
 - `CHANGELOG.md` — Agency 2.0 feature list

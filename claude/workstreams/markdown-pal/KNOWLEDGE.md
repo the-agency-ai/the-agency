@@ -25,7 +25,15 @@ Core concept: the document IS the review artifact. Comments, decisions, and revi
 - `usr/jordan/markdown-pal/markdown-pal-cli-spec-20250310.md` — CLI specification
 - `usr/jordan/markdown-pal/markdown-pal-prompt-20250310.md` — original prompt
 
+## Current Focus
+
+- Run PVR and A&D discussions via `/discuss` using the seed files
+- Resolve the 9 research comments (r001-r009) in the seed document
+- Define CLI/LSP interface for Claude Code integration
+- Determine platform priority (macOS CLI vs native app first)
+
 ## References
 
-- `claude/agents/markdown-pal/agent.md` — agent definition
+- Agent class: `claude/agents/tech-lead/agent.md`
+- Registration: `.claude/agents/markdown-pal.md`
 - 9 open research comments (r001-r009) in the seed document
