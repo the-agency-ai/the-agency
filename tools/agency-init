@@ -282,6 +282,12 @@ worktrees:
 secrets:
   provider: "vault"
 
+terminal:
+  provider: "ghostty"
+
+platform:
+  provider: "auto"
+
 telemetry:
   providers: ["jsonl"]
 YAML_EOF
@@ -330,7 +336,7 @@ YAML_EOF
     log_step "Installing tools"
 
     mkdir -p "$TARGET_DIR/tools"
-    for tool in _log-helper _path-resolve worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux agency-verify tool-new; do
+    for tool in _log-helper _path-resolve worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux agency-verify tool-new secret-vault; do
         [[ -f "$AGENCY_SOURCE/tools/$tool" ]] && cp "$AGENCY_SOURCE/tools/$tool" "$TARGET_DIR/tools/"
     done
     chmod +x "$TARGET_DIR/tools/"* 2>/dev/null || true

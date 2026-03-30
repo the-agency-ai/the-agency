@@ -140,15 +140,6 @@ main() {
         exit 1
     fi
 
-    # Check if tool already exists
-    local tool_file="$TOOLS_DIR/$tool_name"
-    if [[ -f "$tool_file" ]]; then
-        log_error "Tool already exists: $tool_file"
-        trap - EXIT
-        log_end "$RUN_ID" "failure" 1 0 "Tool already exists" 2>/dev/null || true
-        exit 1
-    fi
-
     # Provider mode: remap tool name and select provider template
     local actual_template="$TEMPLATE_FILE"
     local dispatcher_name=""
@@ -180,15 +171,15 @@ main() {
                 exit 1
                 ;;
         esac
-        tool_file="$TOOLS_DIR/$tool_name"
+    fi
 
-        # Re-check existence with new name
-        if [[ -f "$tool_file" ]]; then
-            log_error "Tool already exists: $tool_file"
-            trap - EXIT
-            log_end "$RUN_ID" "failure" 1 0 "Tool already exists" 2>/dev/null || true
-            exit 1
-        fi
+    # Check if tool already exists (after provider remapping)
+    local tool_file="$TOOLS_DIR/$tool_name"
+    if [[ -f "$tool_file" ]]; then
+        log_error "Tool already exists: $tool_file"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Tool already exists" 2>/dev/null || true
+        exit 1
     fi
 
     # Check template exists
