@@ -17,8 +17,8 @@ claude/
   hookify/                  — behavioral rules (shared, team-wide)
   templates/                — scaffolding templates
   starter-packs/            — framework-specific conventions
-  tools/                    — Agency framework tools (shipped via agency-init)
-    lib/                    — sourced helpers (_log-helper, _path-resolve)
+  tools/                    — Agency framework tools (planned: migrate from repo root tools/)
+    lib/                    — sourced helpers (planned: migrate from tools/_log-helper, _path-resolve)
   workstreams/{workstream}/ — shared workstream artifacts
     KNOWLEDGE.md            — what this workstream is (README)
     seeds/                  — input materials (specs, chatlogs, prompts)
@@ -65,7 +65,7 @@ usr/{principal}/captain/
   settings.json             — hooks, permissions, plugins
   agents/                   — Claude Code agent registrations ({name}.md)
   worktrees/                — worktree working copies (gitignored)
-tools/                      — repo-specific dev tooling (not distributed)
+tools/                      — Agency tools (current location; planned migration to claude/tools/)
 source/                     — application source code (optional, organization is workstream's business)
 ```
 
@@ -77,33 +77,33 @@ Seeds go directly to `claude/workstreams/{workstream}/seeds/` — they're input,
 
 ## Tools
 
-Agency framework tools live in `claude/tools/`. They are token-conserving wrappers — minimal stdout to context, verbose to log service. Sourced helpers live in `claude/tools/lib/`.
+All tools are in `./tools/`. Run with `./tools/<name>`. They are token-conserving wrappers — minimal stdout to context, verbose to log service. Sourced helpers (`_log-helper`, `_path-resolve`) are in `./tools/` with underscore prefix.
 
-Repo-specific tooling lives in `tools/` (not distributed by `agency-init`).
+> **Migration planned:** Tools will move to `claude/tools/` and adopt noun-verb naming (e.g., `commit` → `git-commit`). See dispatch-plugin-framework-20260330.md. Until migration completes, use the current names below.
 
 ### Framework Setup
-`agency-init`, `agency-update`, `agency-verify`, `terminal-setup` (pluggable providers)
+`agency-init`, `agency-update`, `ghostty-setup`
 
 ### Scaffolding
-`principal-create`, `agent-define` (creates class), `agent-create` (creates instance), `workstream-create`, `worktree-create`, `worktree-list`, `worktree-delete`
+`principal-create`, `agent-create`, `workstream-create`, `worktree-create`, `worktree-list`, `worktree-delete`
 
 ### Git
-`git-commit`, `git-tag`, `git-push`
+`commit`, `tag`, `sync`
 
 ### Quality
-`test-run` — quality gates are skills (`/quality-gate`, `/iteration-complete`, `/phase-complete`), not tools. Reviewers are subagents.
+`test-run`, `commit-precheck`, `code-review`, `review-spawn`
 
 ### Secrets (pluggable)
-`secret-vault` (bundled default), `secret-doppler`, future providers. `/secret` skill dispatches to configured provider. `secrets-scan` runs as part of QG.
+`secret-vault` (bundled default), `secret-doppler`. `/secret` skill dispatches to configured provider.
 
 ### GitHub
-`gh-pr`, `gh-release`, `gh-api`
+`gh`, `gh-pr`, `gh-release`, `gh-api`
 
 ### Context
-`handoff` — first-class Agency primitive. Reads, writes, and bootstraps context. Hook-driven (SessionStart, SessionEnd, PreCompact) + manual. Not just session continuity — it's how you inject context into any session for any reason: agent-to-agent, cold start, project setup, compaction survival.
+Handoff is a first-class Agency primitive. Hook-driven (SessionStart, SessionEnd, PreCompact) + manual. Not just session continuity — it's how you inject context into any session for any reason: agent-to-agent, cold start, project setup, compaction survival.
 
 ### Utilities
-`agency-whoami`, `tool-find`, `tool-create`, `now`, `dependency-check`, `dependency-install`
+`whoami`, `tool-find`, `tool-new`, `now`, `dependencies-check`, `dependencies-install`
 
 ### Plugin Provider Pattern
 
@@ -254,7 +254,7 @@ Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete, plan-compl
 - **Never commit directly to main.** Create a branch, PR it, get it merged.
 - **Never push to any remote without explicit permission.** Pushing is always deliberate.
 - **Never `reset --hard` without confirming work is preserved.** A diverged branch may have new commits.
-- Use `claude/tools/git-commit` — never bare `git commit`.
+- Use `./tools/commit` — never bare `git commit`. (Future: `claude/tools/git-commit`)
 - Lead commit messages with Phase-Iteration slug when in a plan: `Phase 1.3: feat: summary`.
 - **Fix, don't ask.** When you find bugs or quality problems, fix them. Findings are the work order.
 - **Read, don't guess.** Read actual documentation before guessing at APIs, flags, or schemas.
@@ -264,7 +264,7 @@ Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete, plan-compl
 - Agent classes: lowercase, hyphenated (`tech-lead`, `platform-specialist`)
 - Agent instances: lowercase, hyphenated (`markdown-pal`, `mock-and-mark`)
 - Workstreams: lowercase (`markdown-pal`, `gtm`)
-- Tools: noun-verb (`git-commit`, `agent-create`, `tool-find`)
+- Tools: noun-verb convention (`agent-create`, `tool-find`). Migration in progress for git tools (`commit` → `git-commit`).
 - Tool providers: `{noun}-{provider}` (`secret-doppler`, `terminal-setup-ghostty`)
 - Files: `{project}-{artifact}-YYYYMMDD.md`
 - Guides: `guide-{project}-{slug}-YYYYMMDD.md` (for principals/humans, not agents)
@@ -276,9 +276,9 @@ Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete, plan-compl
 Worktrees enable parallel agent sessions. Created at `.claude/worktrees/{name}/`.
 
 ```bash
-claude/tools/worktree-create {name}    # Create (installs deps, custom branch name)
-claude/tools/worktree-list             # Status (clean/dirty, branch, HEAD)
-claude/tools/worktree-delete {name}    # Remove (checks for uncommitted work)
+./tools/worktree-create {name}    # Create (installs deps, custom branch name)
+./tools/worktree-list             # Status (clean/dirty, branch, HEAD)
+./tools/worktree-delete {name}    # Remove (checks for uncommitted work)
 ```
 
 **Do NOT use Claude Code's built-in `EnterWorktree`.** It creates `worktree-`-prefixed branches, installs no dependencies, and may auto-delete worktrees with your work. Use the Agency tools instead.
@@ -336,8 +336,8 @@ Single, simple commands — no `&&`, `||`, `;`, pipes, subshells, or `$(...)` su
 - Don't file work in `claude/principals/` — use `usr/{principal}/`
 - Don't commit or push directly to main — use PR branches
 - Don't skip quality gates — even for doc-only changes
-- Don't use bare `git commit` — use `claude/tools/git-commit`
-- Don't use Claude Code's `EnterWorktree` — use `claude/tools/worktree-create`
+- Don't use bare `git commit` — use `./tools/commit` (future: `claude/tools/git-commit`)
+- Don't use Claude Code's `EnterWorktree` — use `./tools/worktree-create`
 - Don't give generic greetings — lead with handoff context
 - Don't guess at APIs or flags — read the docs first
 - Don't address multiple items at once — use 1B1 protocol
