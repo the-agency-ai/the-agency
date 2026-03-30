@@ -316,6 +316,11 @@ YAML_EOF
     [[ -d "$AGENCY_SOURCE/claude/templates/principal-v2" ]] && cp -r "$AGENCY_SOURCE/claude/templates/principal-v2" "$TARGET_DIR/claude/templates/"
     [[ -f "$AGENCY_SOURCE/claude/templates/CLAUDE-USER.md" ]] && cp "$AGENCY_SOURCE/claude/templates/CLAUDE-USER.md" "$TARGET_DIR/claude/templates/"
     [[ -f "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" ]] && cp "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/claude/templates/"
+    [[ -f "$AGENCY_SOURCE/claude/templates/PROVIDER.sh" ]] && cp "$AGENCY_SOURCE/claude/templates/PROVIDER.sh" "$TARGET_DIR/claude/templates/"
+
+    # Shipped libs
+    mkdir -p "$TARGET_DIR/claude/tools/lib"
+    [[ -f "$AGENCY_SOURCE/claude/tools/lib/_provider-resolve" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/_provider-resolve" "$TARGET_DIR/claude/tools/lib/"
 
     log_info "Copied agents, hooks, hookify, docs, templates"
 
@@ -325,7 +330,7 @@ YAML_EOF
     log_step "Installing tools"
 
     mkdir -p "$TARGET_DIR/tools"
-    for tool in _log-helper _path-resolve worktree-create worktree-list worktree-delete ghostty-setup; do
+    for tool in _log-helper _path-resolve worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux agency-verify tool-new; do
         [[ -f "$AGENCY_SOURCE/tools/$tool" ]] && cp "$AGENCY_SOURCE/tools/$tool" "$TARGET_DIR/tools/"
     done
     chmod +x "$TARGET_DIR/tools/"* 2>/dev/null || true
@@ -388,10 +393,11 @@ Agency 2.0 initialized via agency-init. Includes:
 - 15 hookify behavioral rules
 - /discuss skill for structured 1B1 discussions
 - Worktree tools (create, list, delete)
+- Plugin provider framework (_provider-resolve, dispatchers, providers)
 - Reference docs (quality gate, methodology, code review, feedback,
   PR lifecycle, telemetry)
 - usr/$PRINCIPAL/ principal directory (v2)
-- Core tools (_log-helper, _path-resolve, ghostty-setup)
+- Core tools (_log-helper, _path-resolve, agency-verify, tool-new)
 
 Source: the-agency $(cd "$AGENCY_SOURCE" && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 " || {

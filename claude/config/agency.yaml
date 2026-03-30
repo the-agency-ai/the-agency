@@ -44,9 +44,26 @@ worktrees:
   enabled: true
   base_dir: ".claude/worktrees"  # Same path as EnterWorktree, but managed by Agency tools
 
+# --- Plugin Providers ---
+# Each section selects the active provider tool.
+# Convention: {section}-{provider} or {section}-setup-{provider}
+# Bundled defaults ship with every installation.
+
 # Secrets management
 secrets:
-  provider: "vault"  # Default: vault. Override with starter pack (e.g., doppler)
+  provider: "vault"  # Default: vault. Alternatives: doppler, aws, 1password
+
+# Terminal integration
+terminal:
+  provider: "ghostty"  # Default: ghostty. Alternatives: kitty, wezterm
+
+# Platform setup (CLI tools, dependencies)
+platform:
+  provider: "auto"  # Auto-detect from OS. Override: macos, linux, windows
+
+# Design system integration
+design:
+  provider: "figma"  # Default: figma. Alternatives: sketch, adobe
 
 # Telemetry providers
 telemetry:

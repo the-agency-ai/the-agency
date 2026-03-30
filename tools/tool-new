@@ -29,8 +29,14 @@ VERBOSE=false
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMPLATE_FILE="$PROJECT_ROOT/claude/templates/TOOL.sh"
+PROVIDER_TEMPLATE_FILE="$PROJECT_ROOT/claude/templates/PROVIDER.sh"
 TOOLS_DIR="$PROJECT_ROOT/tools"
 BUILD_FILE="$PROJECT_ROOT/claude/data/tool-build-number"
+
+# Provider pattern naming conventions (section -> tool prefix)
+# Usage: tool-new --provider=secrets my-backend "My secrets backend"
+#   → creates tools/secret-my-backend from PROVIDER.sh template
+PROVIDER_PATTERN=""
 
 # Colors
 RED='\033[0;31m'
@@ -74,8 +80,16 @@ main() {
 
     echo "tool-new [run: ${RUN_ID:-none}]"
 
-    local tool_name="$1"
-    local tool_description="${2:-A new tool}"
+    # Extract positional args (skip flags)
+    local positional=()
+    for arg in "$@"; do
+        case "$arg" in
+            --*) ;; # skip flags
+            *) positional+=("$arg") ;;
+        esac
+    done
+    local tool_name="${positional[0]:-}"
+    local tool_description="${positional[1]:-A new tool}"
 
     # Handle --version
     if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
@@ -85,11 +99,14 @@ main() {
         exit 0
     fi
 
-    # Handle --verbose
+    # Handle flags
     for arg in "$@"; do
         case $arg in
             --verbose)
                 VERBOSE=true
+                ;;
+            --provider=*)
+                PROVIDER_PATTERN="${arg#--provider=}"
                 ;;
         esac
     done
@@ -100,12 +117,16 @@ main() {
         echo ""
         echo "Usage:"
         echo "  ./tools/tool-new <name> \"<description>\""
+        echo "  ./tools/tool-new --provider=<pattern> <name> \"<description>\""
         echo ""
         echo "Options:"
-        echo "  --verbose  Show detailed output"
+        echo "  --provider=<pattern>  Create a provider tool (secrets, terminal, platform, design)"
+        echo "  --verbose             Show detailed output"
         echo ""
-        echo "Example:"
+        echo "Examples:"
         echo "  ./tools/tool-new sync-data \"Sync data between environments\""
+        echo "  ./tools/tool-new --provider=secrets aws \"AWS Secrets Manager provider\""
+        echo "    → creates tools/secret-aws"
         trap - EXIT
         log_end "$RUN_ID" "success" 0 0 "Help displayed" 2>/dev/null || true
         exit 1
@@ -128,9 +149,51 @@ main() {
         exit 1
     fi
 
+    # Provider mode: remap tool name and select provider template
+    local actual_template="$TEMPLATE_FILE"
+    local dispatcher_name=""
+    if [[ -n "$PROVIDER_PATTERN" ]]; then
+        actual_template="$PROVIDER_TEMPLATE_FILE"
+        # Map pattern to tool name prefix and dispatcher
+        case "$PROVIDER_PATTERN" in
+            secrets)
+                tool_name="secret-${tool_name}"
+                dispatcher_name="secret"
+                ;;
+            terminal)
+                tool_name="terminal-setup-${tool_name}"
+                dispatcher_name="terminal-setup"
+                ;;
+            platform)
+                tool_name="platform-setup-${tool_name}"
+                dispatcher_name="platform-setup"
+                ;;
+            design)
+                tool_name="design-${tool_name}"
+                dispatcher_name="design"
+                ;;
+            *)
+                log_error "Unknown provider pattern: $PROVIDER_PATTERN"
+                log_error "Valid patterns: secrets, terminal, platform, design"
+                trap - EXIT
+                log_end "$RUN_ID" "failure" 1 0 "Invalid pattern" 2>/dev/null || true
+                exit 1
+                ;;
+        esac
+        tool_file="$TOOLS_DIR/$tool_name"
+
+        # Re-check existence with new name
+        if [[ -f "$tool_file" ]]; then
+            log_error "Tool already exists: $tool_file"
+            trap - EXIT
+            log_end "$RUN_ID" "failure" 1 0 "Tool already exists" 2>/dev/null || true
+            exit 1
+        fi
+    fi
+
     # Check template exists
-    if [[ ! -f "$TEMPLATE_FILE" ]]; then
-        log_error "Template not found: $TEMPLATE_FILE"
+    if [[ ! -f "$actual_template" ]]; then
+        log_error "Template not found: $actual_template"
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "Template not found" 2>/dev/null || true
         exit 1
@@ -149,15 +212,21 @@ main() {
     local tool_name_escaped
     local tool_description_escaped
     local build_number_escaped
+    local provider_pattern_escaped
+    local dispatcher_name_escaped
     tool_name_escaped=$(escape_sed "$tool_name")
     tool_description_escaped=$(escape_sed "$tool_description")
     build_number_escaped=$(escape_sed "$build_number")
+    provider_pattern_escaped=$(escape_sed "${PROVIDER_PATTERN:-}")
+    dispatcher_name_escaped=$(escape_sed "${dispatcher_name:-}")
 
     sed \
         -e "s/{{TOOL_NAME}}/$tool_name_escaped/g" \
         -e "s/{{TOOL_DESCRIPTION}}/$tool_description_escaped/g" \
         -e "s/{{BUILD_NUMBER}}/$build_number_escaped/g" \
-        "$TEMPLATE_FILE" > "$tool_file"
+        -e "s/{{PROVIDER_PATTERN}}/$provider_pattern_escaped/g" \
+        -e "s/{{DISPATCHER_NAME}}/$dispatcher_name_escaped/g" \
+        "$actual_template" > "$tool_file"
 
     chmod +x "$tool_file"
 
