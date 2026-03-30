@@ -77,9 +77,11 @@ Seeds go directly to `claude/workstreams/{workstream}/seeds/` — they're input,
 
 ## Tools
 
-All tools are in `./tools/`. Run with `./tools/<name>`. They are token-conserving wrappers — minimal stdout to context, verbose to log service. Sourced helpers (`_log-helper`, `_path-resolve`) are in `./tools/` with underscore prefix.
+Agency framework tools live in `claude/tools/` (shipped via `agency-init`). Sourced helpers live in `claude/tools/lib/`.
 
-> **Migration planned:** Tools will move to `claude/tools/` and adopt noun-verb naming (e.g., `commit` → `git-commit`). See dispatch-plugin-framework-20260330.md. Until migration completes, use the current names below.
+> **Current state:** Tools are currently in `./tools/` at repo root, pending migration to `claude/tools/`. Tool names will adopt noun-verb convention (e.g., `commit` → `git-commit`). Until migration completes, use the current names and paths below. Run with `./tools/<name>`.
+
+All tools are token-conserving wrappers — minimal stdout to context, verbose to log service.
 
 ### Framework Setup
 `agency-init`, `agency-update`, `ghostty-setup`
@@ -142,7 +144,7 @@ Agent classes define roles. They live in `claude/agents/{class}/agent.md`.
 | captain | Coordination, dispatch, PR lifecycle | Standing agent |
 | cos | Cross-repo coordination | Standing agent (optional) |
 | project-manager | Quality gates, QGR protocol | Standing agent |
-| tech-lead | Product work: define, design, implement | Standing per workstream (definition pending) |
+| tech-lead | Product work: define, design, implement | Standing per workstream |
 | marketing-lead | GTM strategy, positioning, launch | Standing per workstream (definition pending) |
 | platform-specialist | Platform operations, integrations | Standing per platform (definition pending) |
 | researcher | Deep research, synthesis | Subagent (definition pending) |
@@ -161,6 +163,24 @@ Agents are defined in two places:
 `agent-define` creates a new class (planned — not yet built). `agent-create` creates an instance and writes the `.claude/agents/{name}.md` registration file.
 
 Launch agents with: `claude --agent {name} --name {name}`
+
+### Registration Format
+
+`.claude/agents/{name}.md` frontmatter + bootstrap:
+
+```yaml
+---
+name: markdown-pal
+description: "Define, design, and build Markdown Pal"
+model: opus
+---
+
+Read your role and responsibilities from `claude/agents/tech-lead/agent.md`.
+Read your project knowledge from `claude/workstreams/markdown-pal/KNOWLEDGE.md`.
+Read seed materials from `claude/workstreams/markdown-pal/seeds/`.
+```
+
+The registration points to the **class** (role definition) and **workstream** (project knowledge). The class defines behavior; the workstream provides context.
 
 ## The Work Pattern
 
