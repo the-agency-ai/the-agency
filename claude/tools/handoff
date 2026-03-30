@@ -59,11 +59,15 @@ resolve_path() {
     fi
 
     local branch
-    branch=$(git -C "$project_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    branch=$(git -C "$project_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    if [ -z "$branch" ] || [ "$branch" = "HEAD" ]; then
+        echo "" # git failed or detached HEAD — cannot resolve handoff path
+        return
+    fi
     local slug
-    slug=$(echo "$branch" | sed 's|.*/||')
+    slug="${branch##*/}"
     # Strip worktree- prefix
-    slug=$(echo "$slug" | sed 's|^worktree-||')
+    slug="${slug#worktree-}"
     # master/main -> captain
     if [ "$slug" = "master" ] || [ "$slug" = "main" ]; then
         slug="captain"
@@ -74,6 +78,9 @@ resolve_path() {
     if [ -d "$project_dir/usr/${USER:-}" ]; then
         principal="$USER"
     else
+        local _old_nullglob
+        _old_nullglob=$(shopt -p nullglob 2>/dev/null || true)
+        shopt -s nullglob
         for dir in "$project_dir"/usr/*/; do
             [ -d "$dir" ] || continue
             local name
@@ -82,6 +89,7 @@ resolve_path() {
             principal="$name"
             break
         done
+        eval "$_old_nullglob" 2>/dev/null || true
     fi
 
     if [ -z "$principal" ]; then
@@ -121,13 +129,24 @@ TRIGGER=""
 LIGHTWEIGHT=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --trigger) [[ -n "${2:-}" ]] || { echo "Error: --trigger requires a value" >&2; exit 1; }; TRIGGER="$2"; shift 2 ;;
+        --trigger)
+            [[ -n "${2:-}" ]] || { echo "Error: --trigger requires a value" >&2; exit 1; }
+            # Sanitize trigger to alphanumeric, hyphens, underscores only
+            TRIGGER=$(printf '%s' "$2" | tr -cd 'A-Za-z0-9_-')
+            shift 2
+            ;;
         --lightweight) LIGHTWEIGHT=true; shift ;;
         *) shift ;;
     esac
 done
 
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
+
+# --- Start logging at top level (consistent with agent-define pattern) ---
+RUN_ID=""
+if type log_start &>/dev/null; then
+    RUN_ID=$(log_start "handoff" "$COMMAND --trigger ${TRIGGER:-manual}")
+fi
 
 # --- Helper: archive existing handoff ---
 _do_archive() {
@@ -142,28 +161,24 @@ _do_archive() {
 
 case "$COMMAND" in
     write)
-        RUN_ID=""
-        if type log_start &>/dev/null; then
-            RUN_ID=$(log_start "handoff" "write --trigger ${TRIGGER:-manual}")
-        fi
-
         if [ "$LIGHTWEIGHT" = true ]; then
             # Lightweight mode: append/update status line, no archive
             if [ -f "$HANDOFF_PATH" ]; then
-                local_line="Last sync: ${TIMESTAMP} (via ${TRIGGER:-manual})"
+                sync_line="Last sync: ${TIMESTAMP} (via ${TRIGGER:-manual})"
                 if grep -q "^Last sync:" "$HANDOFF_PATH" 2>/dev/null; then
-                    tmp=$(mktemp)
-                    if sed "s|^Last sync:.*|${local_line}|" "$HANDOFF_PATH" > "$tmp"; then
+                    tmp=$(mktemp "$(dirname "$HANDOFF_PATH")/handoff.XXXXXX")
+                    trap 'rm -f "$tmp"' EXIT
+                    if sed "s|^Last sync:.*|${sync_line}|" "$HANDOFF_PATH" > "$tmp"; then
                         mv "$tmp" "$HANDOFF_PATH"
                     else
                         rm -f "$tmp"
                     fi
+                    trap - EXIT
                 else
-                    printf '\n%s\n' "$local_line" >> "$HANDOFF_PATH"
+                    printf '\n%s\n' "$sync_line" >> "$HANDOFF_PATH"
                 fi
             fi
             if [ -n "$RUN_ID" ]; then
-                log_end "$RUN_ID" "success" 0 0 "lightweight sync"
                 tool_output "handoff" "$RUN_ID" "Sync: ${HANDOFF_PATH##*/usr/}"
             else
                 echo "handoff"
@@ -192,44 +207,50 @@ case "$COMMAND" in
                     echo "✓"
                 fi
             fi
+        fi
 
-            if [ -n "$RUN_ID" ]; then
-                log_end "$RUN_ID" "success" 0 0 "write triggered"
-            fi
+        # log_end unconditionally — covers both hook and non-hook paths
+        if [ -n "$RUN_ID" ]; then
+            log_end "$RUN_ID" "success" 0 0 "write triggered (${TRIGGER:-manual})"
         fi
         ;;
 
     read)
         if [ -f "$HANDOFF_PATH" ]; then
             cat "$HANDOFF_PATH"
+            if [ -n "$RUN_ID" ]; then
+                log_end "$RUN_ID" "success" 0 0 "read handoff"
+            fi
         else
             echo "No handoff found at ${HANDOFF_PATH##*/usr/}"
+            if [ -n "$RUN_ID" ]; then
+                log_end "$RUN_ID" "failure" 1 0 "no handoff found"
+            fi
             exit 1
         fi
         ;;
 
     path)
         echo "$HANDOFF_PATH"
+        if [ -n "$RUN_ID" ]; then
+            log_end "$RUN_ID" "success" 0 0 "path resolved"
+        fi
         ;;
 
     archive)
         if [ ! -f "$HANDOFF_PATH" ]; then
             echo "No handoff to archive at ${HANDOFF_PATH##*/usr/}"
+            if [ -n "$RUN_ID" ]; then
+                log_end "$RUN_ID" "failure" 1 0 "no handoff to archive"
+            fi
             exit 1
         fi
 
-        HISTORY_DIR="$(dirname "$HANDOFF_PATH")/history"
-        mkdir -p "$HISTORY_DIR"
+        _do_archive
         ARCHIVE_NAME="handoff-$(date '+%Y%m%d-%H%M%S').md"
-        cp "$HANDOFF_PATH" "$HISTORY_DIR/$ARCHIVE_NAME"
-
-        RUN_ID=""
-        if type log_start &>/dev/null; then
-            RUN_ID=$(log_start "handoff" "archive")
-        fi
 
         if [ -n "$RUN_ID" ]; then
-            log_end "$RUN_ID" "success" 0 0 "archived to history/$ARCHIVE_NAME"
+            log_end "$RUN_ID" "success" 0 0 "archived to history/"
             tool_output "handoff" "$RUN_ID" "Archived: history/$ARCHIVE_NAME"
         else
             echo "handoff"

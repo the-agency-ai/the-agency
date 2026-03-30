@@ -174,14 +174,18 @@ write_plan() {
     fi
 
     local plan_path
-    plan_path=$(echo "$plan_file" | sed "s|^$PROJECT_DIR/||")
+    plan_path="${plan_file#"$PROJECT_DIR/"}"
 
     local needs_rename=false
     [ "$slug" = "draft" ] && needs_rename=true
 
+    # Escape double quotes in title for valid YAML
+    local safe_title="${title:-$slug}"
+    safe_title="${safe_title//\"/\\\"}"
+
     {
         echo "---"
-        echo "title: \"${title:-$slug}\""
+        echo "title: \"${safe_title}\""
         echo "slug: $slug"
         echo "path: $plan_path"
         echo "date: $date_fmt"
@@ -214,8 +218,8 @@ case "${1:-}" in
         exit 0
         ;;
     --from-hook)
-        # ERR trap: never block plan mode exit
-        trap 'exit 0' ERR
+        # ERR trap: emit warning on unexpected failure so agent knows capture failed
+        trap 'echo "{\"systemMessage\":\"Plan capture encountered an unexpected error. Run: bash claude/tools/plan-capture --manual '\''title'\'' to capture manually.\"}"; exit 0' ERR
 
         INPUT=$(cat)
 
@@ -225,6 +229,13 @@ case "${1:-}" in
         # Fallback: parse transcript
         if [ -z "$PLAN_CONTENT" ]; then
             TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
+            # Validate transcript path is within expected directories
+            if [ -n "$TRANSCRIPT_PATH" ]; then
+                case "$TRANSCRIPT_PATH" in
+                    "$HOME/.claude/"*|"${CLAUDE_PROJECT_DIR:-__none__}/"*) ;; # allowed prefixes
+                    *) TRANSCRIPT_PATH="" ;; # reject unexpected paths
+                esac
+            fi
             if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
                 # No plan content found — emit warning
                 echo '{"systemMessage":"Plan mode exited but no plan content was captured. Run: bash claude/tools/plan-capture --manual '\''title'\''  to capture manually."}'
@@ -296,12 +307,34 @@ case "${1:-}" in
             echo "No plans directory at docs/plans/"
             exit 0
         fi
-        echo "Recent plans:"
-        ls -1t "$PLAN_DIR"/*.md 2>/dev/null | head -"$COUNT" | while read -r f; do
+
+        LIST_RUN_ID=""
+        if type log_start &>/dev/null; then
+            LIST_RUN_ID=$(log_start "plan-capture" "--list $COUNT")
+        fi
+
+        LISTING=""
+        _old_nullglob=$(shopt -p nullglob 2>/dev/null || true)
+        shopt -s nullglob
+        for f in "${PLAN_DIR}"/*.md; do
+            [ -f "$f" ] || continue
             name=$(basename "$f")
             title=$(grep -m1 '^title:' "$f" 2>/dev/null | sed 's/^title: *//' | tr -d '"')
-            printf "  %s  %s\n" "$name" "${title:-(no title)}"
-        done || true
+            LISTING="${LISTING}  ${name}  ${title:-(no title)}"$'\n'
+        done
+        eval "$_old_nullglob" 2>/dev/null || true
+
+        # Sort by name descending (date prefix) and limit
+        LISTING=$(printf '%s' "$LISTING" | sort -r | head -"$COUNT")
+
+        if [ -n "$LIST_RUN_ID" ]; then
+            log_end "$LIST_RUN_ID" "success" 0 0 "listed plans"
+            tool_output "plan-capture" "$LIST_RUN_ID" "$LISTING"
+        else
+            echo "plan-capture"
+            echo "$LISTING"
+            echo "✓"
+        fi
         ;;
     "")
         show_help

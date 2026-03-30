@@ -20,14 +20,19 @@ _LOG_FILE="${_LOG_DIR}/tool-runs.jsonl"
 # Generate UUID7 (time-ordered, globally unique)
 # 48-bit ms timestamp + version 7 + random
 _uuid7() {
-    python3 -c "
+    local result
+    result=$(python3 -c "
 import time, os, struct
 t = int(time.time() * 1000)
 r = os.urandom(10)
 b = struct.pack('>Q', t)[-6:] + bytes([0x70 | (r[0] & 0x0f)]) + r[1:2] + bytes([0x80 | (r[2] & 0x3f)]) + r[3:10]
 h = b.hex()
 print(f'{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}')
-" 2>/dev/null
+" 2>/dev/null) || true
+    if [[ -z "$result" ]]; then
+        echo "_log-helper: python3 unavailable, logging disabled" >&2
+    fi
+    echo "$result"
 }
 
 # Short form of run ID for display (first 8 chars)
@@ -59,16 +64,17 @@ log_start() {
     local agent_name="${CLAUDE_SESSION_NAME:-${AGENTNAME:-unknown}}"
     local principal_name="${AGENCY_PRINCIPAL:-${USER:-unknown}}"
 
-    printf '{"run":"%s","tool":"%s","event":"start","ts":"%s","agency":"%s","principal":"%s","agent":"%s","session":"%s","branch":"%s","args":"%s"}\n' \
-        "$run_id" \
-        "$tool_name" \
-        "$ts" \
-        "$agency_name" \
-        "$principal_name" \
-        "$agent_name" \
-        "${CLAUDE_SESSION_ID:-}" \
-        "$(git branch --show-current 2>/dev/null || echo '')" \
-        "$(echo "$args" | head -c 200)" \
+    jq -n -c \
+        --arg run "$run_id" \
+        --arg tool "$tool_name" \
+        --arg ts "$ts" \
+        --arg agency "$agency_name" \
+        --arg principal "$principal_name" \
+        --arg agent "$agent_name" \
+        --arg session "${CLAUDE_SESSION_ID:-}" \
+        --arg branch "$(git branch --show-current 2>/dev/null || echo '')" \
+        --arg args "$(printf '%s' "$args" | head -c 200)" \
+        '{run: $run, tool: $tool, event: "start", ts: $ts, agency: $agency, principal: $principal, agent: $agent, session: $session, branch: $branch, args: $args}' \
         >> "$_LOG_FILE" 2>/dev/null
 
     echo "$run_id"
@@ -85,13 +91,14 @@ log_end() {
     local ts
     ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-    printf '{"run":"%s","event":"end","ts":"%s","outcome":"%s","exit":%s,"duration_ms":%s,"summary":"%s"}\n' \
-        "$run_id" \
-        "$ts" \
-        "$outcome" \
-        "$exit_code" \
-        "$duration_ms" \
-        "$(echo "$summary" | head -c 500 | tr '"' "'")" \
+    jq -n -c \
+        --arg run "$run_id" \
+        --arg ts "$ts" \
+        --arg outcome "$outcome" \
+        --argjson exit "${exit_code}" \
+        --argjson duration_ms "${duration_ms}" \
+        --arg summary "$(echo "$summary" | head -c 500)" \
+        '{run: $run, event: "end", ts: $ts, outcome: $outcome, exit: $exit, duration_ms: $duration_ms, summary: $summary}' \
         >> "$_LOG_FILE" 2>/dev/null
 }
 
@@ -105,11 +112,12 @@ log_detail() {
     local ts
     ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-    printf '{"run":"%s","event":"detail","ts":"%s","channel":"%s","content":"%s"}\n' \
-        "$run_id" \
-        "$ts" \
-        "$channel" \
-        "$(echo "$content" | head -c 5000 | tr '"' "'" | tr '\n' ' ')" \
+    jq -n -c \
+        --arg run "$run_id" \
+        --arg ts "$ts" \
+        --arg channel "$channel" \
+        --arg content "$(echo "$content" | head -c 5000)" \
+        '{run: $run, event: "detail", ts: $ts, channel: $channel, content: $content}' \
         >> "$_LOG_FILE" 2>/dev/null
 }
 
