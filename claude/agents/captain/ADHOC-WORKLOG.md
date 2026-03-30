@@ -101,3 +101,7 @@ the-agency/
 ### 2026-03-30 19:49 - Ad-hoc: chore: update captain adhoc worklog
 - Commit: 3e2e82a
 - Agent: housekeeping/captain
+
+### 2026-03-30 20:12 - Ad-hoc: chore: captain handoff — session 6 end, dispatches 1-2 + bootstrap complete
+- Commit: eea9079
+- Agent: housekeeping/captain
