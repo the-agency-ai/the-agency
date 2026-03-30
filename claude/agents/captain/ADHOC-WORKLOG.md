@@ -97,3 +97,7 @@ the-agency/
 ### 2026-03-30 19:48 - Ad-hoc: fix(bootstrap): QG fixes — stale refs, researcher bootstrapping, platform-specialist seeds
 - Commit: 0dce184
 - Agent: housekeeping/captain
+
+### 2026-03-30 19:49 - Ad-hoc: chore: update captain adhoc worklog
+- Commit: 3e2e82a
+- Agent: housekeeping/captain
