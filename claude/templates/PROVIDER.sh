@@ -62,7 +62,8 @@ for arg in "$@"; do
 done
 
 VERB="${ARGS[0]:-}"
-shift_args=("${ARGS[@]:1}")
+shift_args=()
+(( ${#ARGS[@]} > 1 )) && shift_args=("${ARGS[@]:1}")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Provider implementation
@@ -109,10 +110,10 @@ cmd_delete() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 case "$VERB" in
-    set)    cmd_set "${shift_args[@]}" ;;
-    get)    cmd_get "${shift_args[@]}" ;;
+    set)    cmd_set ${shift_args[@]+"${shift_args[@]}"} ;;
+    get)    cmd_get ${shift_args[@]+"${shift_args[@]}"} ;;
     list)   cmd_list ;;
-    delete) cmd_delete "${shift_args[@]}" ;;
+    delete) cmd_delete ${shift_args[@]+"${shift_args[@]}"} ;;
     "")
         echo "{{TOOL_NAME}} [run: ${RUN_ID:-none}]"
         echo "No verb specified. Use --help for usage."

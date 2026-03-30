@@ -50,16 +50,16 @@ verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 for arg in "$@"; do
     case $arg in
         --version|-v)
-            echo "ghostty-setup $TOOL_VERSION"
+            echo "terminal-setup-ghostty $TOOL_VERSION"
             exit 0
             ;;
         --verbose)
             VERBOSE=true
             ;;
         --help|-h)
-            echo "ghostty-setup - Set up Ghostty terminal integration for Agency"
+            echo "terminal-setup-ghostty - Set up Ghostty terminal integration for Agency"
             echo ""
-            echo "Usage: ./tools/ghostty-setup [--verbose]"
+            echo "Usage: ./tools/terminal-setup-ghostty [--verbose]"
             echo ""
             echo "Performs one-time setup:"
             echo "  1. Verifies Ghostty is installed"
@@ -82,7 +82,7 @@ main() {
     # Trap unexpected exits
     trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-    echo "ghostty-setup [run: ${RUN_ID:-none}]"
+    echo "terminal-setup-ghostty [run: ${RUN_ID:-none}]"
 
     # --- Step 1: Verify Ghostty is installed ---
     log_step "Checking for Ghostty installation"
@@ -123,7 +123,7 @@ main() {
         cat >> "$GHOSTTY_CONFIG_FILE" << 'CONFIG_EOF'
 
 # --- Agency terminal integration ---
-# Managed by tools/ghostty-setup — do not edit this section manually.
+# Managed by tools/terminal-setup-ghostty — do not edit this section manually.
 
 # Theme
 theme = GitHub Light Default
@@ -193,7 +193,7 @@ CONFIG_EOF
         cat >> "$ZSHRC" << SHELL_EOF
 
 # Agency Ghostty integration — tab title + background color hints
-# Added by tools/ghostty-setup
+# Added by tools/terminal-setup-ghostty
 if [[ "\$TERM_PROGRAM" == "ghostty" ]]; then
     _agency_ghostty_precmd() {
         # If Claude Code is running, its hooks manage the title

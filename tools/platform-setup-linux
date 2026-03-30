@@ -42,7 +42,7 @@ verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 for arg in "$@"; do
     case $arg in
         --version|-v)
-            echo "linux-setup $TOOL_VERSION"
+            echo "platform-setup-linux $TOOL_VERSION"
             exit 0
             ;;
         --verbose)
@@ -52,9 +52,9 @@ for arg in "$@"; do
             INSTALL_ALL=true
             ;;
         --help|-h)
-            echo "linux-setup - Setup CLI tools for The Agency on Linux"
+            echo "platform-setup-linux - Setup CLI tools for The Agency on Linux"
             echo ""
-            echo "Usage: ./tools/linux-setup [--all]"
+            echo "Usage: ./tools/platform-setup-linux [--all]"
             echo ""
             echo "Options:"
             echo "  --all          Install all recommended tools (default: essential only)"
@@ -84,7 +84,7 @@ main() {
     # Trap unexpected exits
     trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-    echo "linux-setup [run: ${RUN_ID:-none}]"
+    echo "platform-setup-linux [run: ${RUN_ID:-none}]"
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -179,7 +179,7 @@ main() {
 
     if [[ "$INSTALL_ALL" != "true" ]]; then
         echo "Run with --all to install enhanced tools:"
-        echo -e "  ${BLUE}./tools/linux-setup --all${NC}"
+        echo -e "  ${BLUE}./tools/platform-setup-linux --all${NC}"
         echo ""
     fi
 
