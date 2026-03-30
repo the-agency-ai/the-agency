@@ -1,0 +1,121 @@
+#!/bin/bash
+#
+# _provider-resolve - Shared helper for plugin provider resolution
+#
+# Source this file in tools to resolve the configured provider for a service.
+# Follows the same pattern as _path-resolve: sourced, silent, non-blocking.
+#
+# Usage:
+#   source "$PROJECT_ROOT/claude/tools/lib/_provider-resolve"
+#
+#   # Resolve a provider:
+#   TOOL_PATH=$(resolve_provider "secrets")
+#   # Returns full path: /path/to/project/tools/secret-vault
+#
+#   # For design (needs verb):
+#   TOOL_PATH=$(resolve_provider "design" "diff")
+#   # Returns: /path/to/project/tools/design-diff-figma
+#
+# Resolution:
+#   1. Read {section}.provider from agency.yaml
+#   2. Map section + provider to tool name via naming convention
+#   3. Validate tool exists at $AGENCY_PROJECT_ROOT/tools/{tool-name}
+#   4. Return full path on stdout; exit 1 if not found
+#
+# Requires _path-resolve to be sourceable (for AGENCY_PROJECT_ROOT and _pr_yaml_get).
+#
+
+# Source _path-resolve if not already loaded
+if [[ -z "${AGENCY_PROJECT_ROOT:-}" ]]; then
+    _pr_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    _pr_tools_dir="$_pr_lib_dir/../../../tools"
+    if [[ -f "$_pr_tools_dir/_path-resolve" ]]; then
+        source "$_pr_tools_dir/_path-resolve"
+    else
+        # Fallback: try CLAUDE_PROJECT_DIR
+        if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]] && [[ -f "$CLAUDE_PROJECT_DIR/tools/_path-resolve" ]]; then
+            source "$CLAUDE_PROJECT_DIR/tools/_path-resolve"
+        else
+            echo "_provider-resolve: cannot find _path-resolve" >&2
+            return 1 2>/dev/null || exit 1
+        fi
+    fi
+fi
+
+# Map section + provider to tool name
+# Bash 3 safe — no associative arrays
+_provider_tool_name() {
+    local section="$1"
+    local provider="$2"
+    local verb="${3:-}"
+
+    case "$section" in
+        secrets)  echo "secret-${provider}" ;;
+        terminal) echo "terminal-setup-${provider}" ;;
+        platform) echo "platform-setup-${provider}" ;;
+        design)
+            if [[ -z "$verb" ]]; then
+                echo "_provider-resolve: design section requires a verb (e.g., 'diff', 'extract')" >&2
+                return 1
+            fi
+            echo "design-${verb}-${provider}"
+            ;;
+        *)        echo "${section}-${provider}" ;;
+    esac
+}
+
+# Read provider name from agency.yaml for a given section
+get_provider_name() {
+    local section="$1"
+    local yaml="${AGENCY_PROJECT_ROOT}/claude/config/agency.yaml"
+
+    if [[ ! -f "$yaml" ]]; then
+        echo "_provider-resolve: agency.yaml not found at $yaml" >&2
+        return 1
+    fi
+
+    local provider
+    provider="$(_pr_yaml_get "$section" "provider" "$yaml" 2>/dev/null)" || {
+        echo "_provider-resolve: no provider configured for section '$section'" >&2
+        return 1
+    }
+    # Clean up: strip any residual quotes, spaces, CR
+    provider="${provider//\"/}"
+    provider="${provider//\'/}"
+    provider="${provider// /}"
+    provider="${provider//$'\r'/}"
+    echo "$provider"
+}
+
+# Main resolution function
+# Usage: resolve_provider "secrets" [verb]
+# Returns full tool path on stdout; exits 1 on failure
+resolve_provider() {
+    local section="$1"
+    local verb="${2:-}"
+
+    local provider
+    provider="$(get_provider_name "$section")" || return 1
+
+    local tool_name
+    tool_name="$(_provider_tool_name "$section" "$provider" "$verb")" || return 1
+
+    local tool_path="${AGENCY_PROJECT_ROOT}/tools/${tool_name}"
+
+    if [[ ! -f "$tool_path" ]]; then
+        echo "_provider-resolve: provider tool not found: $tool_path" >&2
+        return 1
+    fi
+
+    if [[ ! -x "$tool_path" ]]; then
+        echo "_provider-resolve: provider tool not executable: $tool_path" >&2
+        return 1
+    fi
+
+    # Export for downstream use
+    AGENCY_PROVIDER="$provider"
+    AGENCY_PROVIDER_TOOL="$tool_path"
+    export AGENCY_PROVIDER AGENCY_PROVIDER_TOOL 2>/dev/null || true
+
+    echo "$tool_path"
+}
