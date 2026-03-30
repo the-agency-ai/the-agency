@@ -43,7 +43,7 @@ verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 for arg in "$@"; do
     case $arg in
         --version|-v)
-            echo "mac-setup $TOOL_VERSION"
+            echo "platform-setup-macos $TOOL_VERSION"
             exit 0
             ;;
         --verbose)
@@ -53,9 +53,9 @@ for arg in "$@"; do
             INSTALL_ALL=true
             ;;
         --help|-h)
-            echo "mac-setup - Setup CLI tools for The Agency on macOS"
+            echo "platform-setup-macos - Setup CLI tools for The Agency on macOS"
             echo ""
-            echo "Usage: ./tools/mac-setup [--all]"
+            echo "Usage: ./tools/platform-setup-macos [--all]"
             echo ""
             echo "Options:"
             echo "  --all          Install all recommended tools (default: essential only)"
@@ -84,7 +84,7 @@ main() {
     # Trap unexpected exits
     trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-    echo "mac-setup [run: ${RUN_ID:-none}]"
+    echo "platform-setup-macos [run: ${RUN_ID:-none}]"
 
     # Check we're on macOS
     if [[ "$OSTYPE" != "darwin"* ]]; then
@@ -149,7 +149,7 @@ main() {
 
     if [[ "$INSTALL_ALL" != "true" ]]; then
         echo "Run with --all to install enhanced tools:"
-        echo -e "  ${BLUE}./tools/mac-setup --all${NC}"
+        echo -e "  ${BLUE}./tools/platform-setup-macos --all${NC}"
         echo ""
     fi
 
