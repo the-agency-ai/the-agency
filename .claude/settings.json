@@ -143,6 +143,7 @@
     "allow": [
       "Bash(./tools/_log-helper*)",
       "Bash(./tools/add-principal*)",
+      "Bash(./tools/agency-verify*)",
       "Bash(./tools/adhoc-log*)",
       "Bash(./tools/agency-feedback*)",
       "Bash(./tools/agency-service*)",
@@ -203,6 +204,7 @@
       "Bash(./tools/now*)",
       "Bash(./tools/observe*)",
       "Bash(./tools/opportunities*)",
+      "Bash(./tools/platform-setup*)",
       "Bash(./tools/principal *)",
       "Bash(./tools/principal-create*)",
       "Bash(./tools/project-create*)",
@@ -231,6 +233,7 @@
       "Bash(./tools/starter-verify*)",
       "Bash(./tools/sync*)",
       "Bash(./tools/tag*)",
+      "Bash(./tools/terminal-setup*)",
       "Bash(./tools/test-run*)",
       "Bash(./tools/tool-find*)",
       "Bash(./tools/tool-new*)",
