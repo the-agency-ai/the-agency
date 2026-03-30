@@ -2,30 +2,24 @@
 
 **Agent:** captain (housekeeping)
 **Principal:** jordan
-**Updated:** 2026-03-30 (session 6)
+**Updated:** 2026-03-31 (session 7)
 
 ## Current State
 
 On main, working tree clean. 4-dispatch queue from CoS — first 2 done, workstream bootstrap merged, 2 remaining.
 
-## Completed This Session
+## Session 7: Computer Use MCP Setup (incomplete)
 
-### Dispatch 2: Agency 2.0 Bootstrap — MERGED (PR #14)
+Attempted to set up the new Computer Use MCP server to browse documentation. Hit macOS permission wall:
 
-- Killed 7 dead agents + 2 test artifacts (~284 files, -3960 lines)
-- Built 3 agent class definitions: marketing-lead, platform-specialist, researcher
-- Re-pointed gtm → marketing-lead class, merged instance content to KNOWLEDGE.md
-- Removed instance dirs from class space (markdown-pal, mock-and-mark, gtm)
-- Updated CLAUDE.md agent class table
-- QG fixes: stale collaboration/ refs, researcher bootstrapping section, platform-specialist seeds step
+1. MCP server requires both **Accessibility** and **Screen Recording** macOS permissions
+2. No clear error messaging about which process needs permissions
+3. Traced process tree: Ghostty -> login -> zsh -> claude
+4. Added Ghostty + claude binary (`~/.local/share/claude/versions/2.1.87`) to both permission lists
+5. Permissions didn't take effect — macOS caches at process launch, requires Ghostty restart
+6. **Critical UX issue:** Claude binary path is version-pinned — every update breaks permissions
 
-### Workstream Bootstrap — MERGED (PR #15)
-
-- Moved seed files from `usr/jordan/{agent}/` to `claude/workstreams/{ws}/seeds/`
-- Created handoffs for markdown-pal and mock-and-mark
-- Organized transcripts into `transcripts/` subdirectory
-- Cleaned stale worktrees (wrong location, wrong branch prefix)
-- Updated all references (KNOWLEDGE.md, PVRs)
+**Status:** Need to restart Ghostty and retry `request_access` for Safari.
 
 ## Dispatch Queue
 
@@ -39,8 +33,10 @@ On main, working tree clean. 4-dispatch queue from CoS — first 2 done, workstr
 
 ## Next Session
 
-1. **Dispatch 3: ISCP** — `/discuss` session to define and design intra-session communication protocol
-2. **Dispatch 4: Browser Protocol** — `/discuss` session to define and design agent browsing escalation ladder
+1. **Restart Ghostty** to pick up macOS permission grants
+2. **Retry Computer Use MCP** — `request_access` for Safari, navigate to docs
+3. **Read Computer Use documentation** and assess implications for Dispatch 4 (Browser Protocol)
+4. Then resume dispatch queue: Dispatch 3 (ISCP), Dispatch 4 (Browser Protocol)
 
 ## Open Issues
 
@@ -55,3 +51,4 @@ On main, working tree clean. 4-dispatch queue from CoS — first 2 done, workstr
 
 - Branch: main (clean)
 - All PRs merged
+- Claude Code version: 2.1.87
