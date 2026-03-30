@@ -1,0 +1,167 @@
+#!/bin/bash
+#
+# agent-define — Create a new agent class definition
+#
+# Usage: agent-define <class-name> [--description "role description"]
+#
+# Creates a class definition at claude/agents/<class-name>/agent.md
+# with the standard template. The class defines the role — instances
+# are created separately with agent-create.
+#
+# This is a framework tool. Classes are shared across all principals.
+
+set -euo pipefail
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper if available
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+    RUN_ID=$(log_start "agent-define" "$@")
+fi
+
+# --- Flags ---
+show_help() {
+    echo "Usage: agent-define <class-name> [--description \"role description\"]"
+    echo ""
+    echo "Creates a new agent class definition at claude/agents/<class-name>/agent.md"
+    echo ""
+    echo "Options:"
+    echo "  --description, -d   One-line role description"
+    echo "  --version           Show version"
+    echo "  --help              Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  agent-define tech-lead -d \"Product work: define, design, implement\""
+    echo "  agent-define marketing-lead -d \"GTM strategy, positioning, launch\""
+    echo "  agent-define researcher -d \"Deep research, synthesis\""
+}
+
+CLASS_NAME=""
+DESCRIPTION=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version|-v) echo "agent-define $VERSION"; exit 0 ;;
+        --help|-h) show_help; exit 0 ;;
+        --description|-d) [[ -n "${2:-}" ]] || { echo "Error: --description requires a value" >&2; exit 1; }; DESCRIPTION="$2"; shift 2 ;;
+        -*) echo "Unknown option: $1" >&2; exit 1 ;;
+        *) CLASS_NAME="$1"; shift ;;
+    esac
+done
+
+if [[ -z "$CLASS_NAME" ]]; then
+    echo "Error: class name is required" >&2
+    show_help >&2
+    exit 1
+fi
+
+# Validate name (lowercase, hyphenated)
+if ! [[ "$CLASS_NAME" =~ ^[a-z][a-z0-9-]*$ ]]; then
+    echo "Error: class name must be lowercase with hyphens only (e.g., tech-lead)" >&2
+    exit 1
+fi
+
+# Find project root
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+CLASS_DIR="$PROJECT_ROOT/claude/agents/$CLASS_NAME"
+
+# Check if class already exists
+if [[ -d "$CLASS_DIR" ]]; then
+    echo "Error: agent class '$CLASS_NAME' already exists at claude/agents/$CLASS_NAME/" >&2
+    exit 1
+fi
+
+# Format class name for display (capitalize, replace hyphens with spaces)
+DISPLAY_NAME=$(echo "$CLASS_NAME" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1')
+
+# Default description if not provided
+if [[ -z "$DESCRIPTION" ]]; then
+    DESCRIPTION="[Describe this agent class's role and responsibilities]"
+fi
+
+# Create class directory
+mkdir -p "$CLASS_DIR"
+
+# Generate agent.md
+cat > "$CLASS_DIR/agent.md" << AGENTEOF
+# $DISPLAY_NAME
+
+## Identity
+
+I am a $CLASS_NAME — $DESCRIPTION
+
+## Class
+
+This is an agent **class definition**. Instances are created per-principal per-workstream:
+- Class: \`claude/agents/$CLASS_NAME/agent.md\` (this file)
+- Instance registration: \`.claude/agents/{name}.md\`
+- Instance workspace: \`usr/{principal}/{agent}/\`
+
+## Core Responsibilities
+
+### 1. [Primary Responsibility]
+
+[Describe the primary function of this agent class]
+
+### 2. [Secondary Responsibility]
+
+[Describe the secondary function]
+
+### 3. Quality
+
+- Run quality gates without being asked. Never skip, never ask "should I?"
+- Fix what you find. Findings are the work order.
+- Never suppress failures — the blocker IS the work.
+
+## Startup Protocol
+
+Before any work:
+1. Read \`handoff.md\` in your instance directory (\`usr/{principal}/{agent}/\`)
+2. Check for \`guide-*.md\` and \`dispatch-*.md\` files in your scope
+3. Enter your worktree (create one if needed) BEFORE starting \`/discuss\` or writing files
+4. Read your workstream KNOWLEDGE.md at \`claude/workstreams/{workstream}/KNOWLEDGE.md\`
+5. Read any seeds at \`claude/workstreams/{workstream}/seeds/\`
+
+## Artifact Lifecycle
+
+**During discussion (pre-implementation):**
+- Seeds are in \`claude/workstreams/{workstream}/seeds/\`
+- Transcripts go to \`usr/{principal}/{agent}/transcripts/\`
+- PVR and A&D drafts evolve in the agent instance space
+
+**At implementation launch:**
+- PVR, A&D, and Plan move to \`claude/workstreams/{workstream}/\`
+- They become shared artifacts
+
+**During implementation:**
+- QGRs filed in \`claude/workstreams/{workstream}/reviews/\`
+- Plan updated after every commit
+- Handoff written at every session boundary
+
+## Handoff
+
+Write a handoff at EVERY session boundary. This is a blocker, not a suggestion.
+
+Location: \`usr/{principal}/{agent}/handoff.md\`
+Archives to: \`usr/{principal}/{agent}/history/\`
+Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete
+
+## Key Directories
+
+- \`claude/agents/$CLASS_NAME/\` — this class definition
+- \`claude/workstreams/{workstream}/\` — shared workstream artifacts
+- \`usr/{principal}/{agent}/\` — your instance workspace
+- \`.claude/agents/{name}.md\` — your Claude Code registration
+AGENTEOF
+
+# Output (token-conserving)
+if [[ -n "${RUN_ID:-}" ]]; then
+    log_end "$RUN_ID" "success" 0 0 "Created class: $CLASS_NAME"
+    tool_output "agent-define" "$RUN_ID" "Created: claude/agents/$CLASS_NAME/agent.md"
+else
+    echo "agent-define"
+    echo "Created: claude/agents/$CLASS_NAME/agent.md"
+    echo "✓"
+fi

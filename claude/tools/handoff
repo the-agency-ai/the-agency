@@ -1,0 +1,248 @@
+#!/bin/bash
+#
+# handoff — First-class Agency primitive for context bootstrapping
+#
+# Usage:
+#   handoff write [--trigger <name>]           — auto-archive + signal agent to write
+#   handoff write --lightweight [--trigger <name>] — append status line (no archive)
+#   handoff read                                — output current handoff content
+#   handoff path                                — output handoff file path
+#   handoff archive                             — archive current handoff to history/
+#   handoff --version                           — show version
+#   handoff --help                              — show help
+#
+# Handoffs are not just session continuity — they bootstrap context for any
+# purpose: agent-to-agent, cold start, project setup, compaction survival.
+#
+# The tool handles infrastructure (path resolution, archival, signaling).
+# The agent writes the actual content.
+
+set -euo pipefail
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper if available
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# --- PATH resolution ---
+[ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
+[ -d "$HOME/.asdf/shims" ] && export PATH="$HOME/.asdf/shims:$PATH"
+
+# --- Help ---
+show_help() {
+    echo "Usage: handoff <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  write [--trigger <name>]           Auto-archive + signal agent to write"
+    echo "  write --lightweight [--trigger <name>]  Append status line (no archive)"
+    echo "  read                                Output current handoff content"
+    echo "  path                                Output handoff file path"
+    echo "  archive                             Archive current handoff to history/"
+    echo ""
+    echo "Options:"
+    echo "  --version                  Show version"
+    echo "  --help                     Show this help"
+    echo ""
+    echo "Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete, plan-complete"
+}
+
+# --- Resolve handoff path ---
+resolve_path() {
+    local project_dir
+    if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+        project_dir="$CLAUDE_PROJECT_DIR"
+    else
+        project_dir=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    fi
+
+    local branch
+    branch=$(git -C "$project_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    local slug
+    slug=$(echo "$branch" | sed 's|.*/||')
+    # Strip worktree- prefix
+    slug=$(echo "$slug" | sed 's|^worktree-||')
+    # master/main -> captain
+    if [ "$slug" = "master" ] || [ "$slug" = "main" ]; then
+        slug="captain"
+    fi
+
+    # Find principal — prefer $USER match, fall back to first found
+    local principal=""
+    if [ -d "$project_dir/usr/${USER:-}" ]; then
+        principal="$USER"
+    else
+        for dir in "$project_dir"/usr/*/; do
+            [ -d "$dir" ] || continue
+            local name
+            name=$(basename "$dir")
+            [ "$name" = "README.md" ] && continue
+            principal="$name"
+            break
+        done
+    fi
+
+    if [ -z "$principal" ]; then
+        echo ""
+        return
+    fi
+
+    echo "$project_dir/usr/$principal/$slug/handoff.md"
+}
+
+# --- Parse args ---
+COMMAND="${1:-}"
+shift 2>/dev/null || true
+
+case "$COMMAND" in
+    --version|-v)
+        echo "handoff $VERSION"
+        exit 0
+        ;;
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+    "")
+        show_help
+        exit 1
+        ;;
+esac
+
+HANDOFF_PATH=$(resolve_path)
+if [ -z "$HANDOFF_PATH" ]; then
+    echo "Error: no principal sandbox found in usr/" >&2
+    exit 1
+fi
+
+TRIGGER=""
+LIGHTWEIGHT=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --trigger) [[ -n "${2:-}" ]] || { echo "Error: --trigger requires a value" >&2; exit 1; }; TRIGGER="$2"; shift 2 ;;
+        --lightweight) LIGHTWEIGHT=true; shift ;;
+        *) shift ;;
+    esac
+done
+
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
+
+# --- Helper: archive existing handoff ---
+_do_archive() {
+    if [ -f "$HANDOFF_PATH" ]; then
+        local history_dir
+        history_dir="$(dirname "$HANDOFF_PATH")/history"
+        mkdir -p "$history_dir"
+        local archive_name="handoff-$(date '+%Y%m%d-%H%M%S').md"
+        cp "$HANDOFF_PATH" "$history_dir/$archive_name"
+    fi
+}
+
+case "$COMMAND" in
+    write)
+        RUN_ID=""
+        if type log_start &>/dev/null; then
+            RUN_ID=$(log_start "handoff" "write --trigger ${TRIGGER:-manual}")
+        fi
+
+        if [ "$LIGHTWEIGHT" = true ]; then
+            # Lightweight mode: append/update status line, no archive
+            if [ -f "$HANDOFF_PATH" ]; then
+                local_line="Last sync: ${TIMESTAMP} (via ${TRIGGER:-manual})"
+                if grep -q "^Last sync:" "$HANDOFF_PATH" 2>/dev/null; then
+                    tmp=$(mktemp)
+                    if sed "s|^Last sync:.*|${local_line}|" "$HANDOFF_PATH" > "$tmp"; then
+                        mv "$tmp" "$HANDOFF_PATH"
+                    else
+                        rm -f "$tmp"
+                    fi
+                else
+                    printf '\n%s\n' "$local_line" >> "$HANDOFF_PATH"
+                fi
+            fi
+            if [ -n "$RUN_ID" ]; then
+                log_end "$RUN_ID" "success" 0 0 "lightweight sync"
+                tool_output "handoff" "$RUN_ID" "Sync: ${HANDOFF_PATH##*/usr/}"
+            else
+                echo "handoff"
+                echo "Sync: ${HANDOFF_PATH##*/usr/}"
+                echo "✓"
+            fi
+        else
+            # Full write: auto-archive existing, then signal agent
+            _do_archive
+
+            # For hook triggers, output JSON systemMessage
+            if [ "$TRIGGER" = "SessionEnd" ] || [ "$TRIGGER" = "PreCompact" ]; then
+                MSG="Handoff trigger: ${TRIGGER} at ${TIMESTAMP}. Update ${HANDOFF_PATH##*/usr/} with current session state before the session ends."
+                command -v jq >/dev/null 2>&1 && {
+                    printf '{"systemMessage":%s}' "$(printf '%s' "$MSG" | jq -Rs '.')"
+                } || {
+                    printf '{"systemMessage":"%s"}' "$MSG"
+                }
+            else
+                # For manual/command triggers, plain output
+                if [ -n "$RUN_ID" ]; then
+                    tool_output "handoff" "$RUN_ID" "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual})"
+                else
+                    echo "handoff"
+                    echo "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual})"
+                    echo "✓"
+                fi
+            fi
+
+            if [ -n "$RUN_ID" ]; then
+                log_end "$RUN_ID" "success" 0 0 "write triggered"
+            fi
+        fi
+        ;;
+
+    read)
+        if [ -f "$HANDOFF_PATH" ]; then
+            cat "$HANDOFF_PATH"
+        else
+            echo "No handoff found at ${HANDOFF_PATH##*/usr/}"
+            exit 1
+        fi
+        ;;
+
+    path)
+        echo "$HANDOFF_PATH"
+        ;;
+
+    archive)
+        if [ ! -f "$HANDOFF_PATH" ]; then
+            echo "No handoff to archive at ${HANDOFF_PATH##*/usr/}"
+            exit 1
+        fi
+
+        HISTORY_DIR="$(dirname "$HANDOFF_PATH")/history"
+        mkdir -p "$HISTORY_DIR"
+        ARCHIVE_NAME="handoff-$(date '+%Y%m%d-%H%M%S').md"
+        cp "$HANDOFF_PATH" "$HISTORY_DIR/$ARCHIVE_NAME"
+
+        RUN_ID=""
+        if type log_start &>/dev/null; then
+            RUN_ID=$(log_start "handoff" "archive")
+        fi
+
+        if [ -n "$RUN_ID" ]; then
+            log_end "$RUN_ID" "success" 0 0 "archived to history/$ARCHIVE_NAME"
+            tool_output "handoff" "$RUN_ID" "Archived: history/$ARCHIVE_NAME"
+        else
+            echo "handoff"
+            echo "Archived: history/$ARCHIVE_NAME"
+            echo "✓"
+        fi
+        ;;
+
+    *)
+        echo "Error: unknown command '$COMMAND'" >&2
+        show_help >&2
+        exit 1
+        ;;
+esac
+
+exit 0

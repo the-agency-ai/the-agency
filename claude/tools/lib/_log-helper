@@ -1,0 +1,129 @@
+#!/bin/bash
+#
+# _log-helper — Sourced helper for tool logging with UUID7 run IDs
+#
+# Source this in any tool:
+#   source "$(dirname "${BASH_SOURCE[0]}")/_log-helper"
+#
+# Usage:
+#   RUN_ID=$(log_start "tool-name" "$@")
+#   # ... do work ...
+#   log_end "$RUN_ID" "success" "$exit_code" "$duration_ms" "result summary"
+#   log_detail "$RUN_ID" "stdout" "$captured_output"
+#
+# Writes to: .claude/logs/tool-runs.jsonl (append-only)
+# Read with: ./tools/tool-log or usr/jordan/scripts/tool-log
+
+_LOG_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/logs"
+_LOG_FILE="${_LOG_DIR}/tool-runs.jsonl"
+
+# Generate UUID7 (time-ordered, globally unique)
+# 48-bit ms timestamp + version 7 + random
+_uuid7() {
+    python3 -c "
+import time, os, struct
+t = int(time.time() * 1000)
+r = os.urandom(10)
+b = struct.pack('>Q', t)[-6:] + bytes([0x70 | (r[0] & 0x0f)]) + r[1:2] + bytes([0x80 | (r[2] & 0x3f)]) + r[3:10]
+h = b.hex()
+print(f'{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}')
+" 2>/dev/null
+}
+
+# Short form of run ID for display (first 8 chars)
+_run_short() {
+    echo "${1%%-*}"
+}
+
+# log_start <tool-name> [args...]
+# Returns: run ID (capture with $())
+log_start() {
+    local tool_name="$1"
+    shift
+    local args="$*"
+    local run_id
+    run_id=$(_uuid7)
+
+    if [[ -z "$run_id" ]]; then
+        echo ""
+        return
+    fi
+
+    mkdir -p "$_LOG_DIR"
+
+    local ts
+    ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+    local agency_name
+    agency_name=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
+    local agent_name="${CLAUDE_SESSION_NAME:-${AGENTNAME:-unknown}}"
+    local principal_name="${AGENCY_PRINCIPAL:-${USER:-unknown}}"
+
+    printf '{"run":"%s","tool":"%s","event":"start","ts":"%s","agency":"%s","principal":"%s","agent":"%s","session":"%s","branch":"%s","args":"%s"}\n' \
+        "$run_id" \
+        "$tool_name" \
+        "$ts" \
+        "$agency_name" \
+        "$principal_name" \
+        "$agent_name" \
+        "${CLAUDE_SESSION_ID:-}" \
+        "$(git branch --show-current 2>/dev/null || echo '')" \
+        "$(echo "$args" | head -c 200)" \
+        >> "$_LOG_FILE" 2>/dev/null
+
+    echo "$run_id"
+}
+
+# log_end <run-id> <outcome> <exit-code> <duration-ms> <summary>
+log_end() {
+    local run_id="$1"
+    local outcome="$2"
+    local exit_code="${3:-0}"
+    local duration_ms="${4:-0}"
+    local summary="${5:-}"
+
+    local ts
+    ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+    printf '{"run":"%s","event":"end","ts":"%s","outcome":"%s","exit":%s,"duration_ms":%s,"summary":"%s"}\n' \
+        "$run_id" \
+        "$ts" \
+        "$outcome" \
+        "$exit_code" \
+        "$duration_ms" \
+        "$(echo "$summary" | head -c 500 | tr '"' "'")" \
+        >> "$_LOG_FILE" 2>/dev/null
+}
+
+# log_detail <run-id> <channel> <content>
+# For capturing verbose output (stdout, stderr, etc.)
+log_detail() {
+    local run_id="$1"
+    local channel="$2"
+    local content="$3"
+
+    local ts
+    ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+    printf '{"run":"%s","event":"detail","ts":"%s","channel":"%s","content":"%s"}\n' \
+        "$run_id" \
+        "$ts" \
+        "$channel" \
+        "$(echo "$content" | head -c 5000 | tr '"' "'" | tr '\n' ' ')" \
+        >> "$_LOG_FILE" 2>/dev/null
+}
+
+# tool_output <tool-name> <run-id> <result> <icon>
+# Prints the standard 3-line token-conserving output
+tool_output() {
+    local tool_name="$1"
+    local run_id="$2"
+    local result="${3:-}"
+    local icon="${4:-✓}"
+
+    echo "$tool_name [run: $(_run_short "$run_id")]"
+    if [[ -n "$result" ]]; then
+        echo "$result"
+    fi
+    echo "$icon"
+}
