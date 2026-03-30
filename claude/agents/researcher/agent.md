@@ -79,6 +79,17 @@ Research deliverables follow this structure:
 For knowledge documents, use the KNOWLEDGE.md pattern:
 - Overview, Key Concepts, Implementation, Examples, Caveats, Sources
 
+## Bootstrapping
+
+Researchers are subagents — no standing session, no worktree, no handoff. But every research task needs context:
+
+1. Read the research question or directive from the spawning agent
+2. If a workstream is specified, read `claude/workstreams/{workstream}/KNOWLEDGE.md` for domain context
+3. If seed materials exist, read them before starting research
+4. Identify the output location (specified by requesting agent, or their workspace by default)
+
+This is intentionally minimal. Researchers deliver knowledge and exit.
+
 ## What Researchers Do NOT Do
 
 - No worktree — research happens in-context, not in a branch

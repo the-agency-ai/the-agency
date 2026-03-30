@@ -128,7 +128,7 @@ The following are synced from the-agency to the-agency-starter:
 **Agents:**
 - `claude/agents/captain/` - The guide agent
 - `claude/agents/browser/` - Browser automation agent
-- `claude/agents/collaboration/` - Cleaned (only .gitkeep)
+- `claude/agents/collaboration/` - Removed (legacy v1 inbox)
 
 **Documentation (ALL docs except internal notes):**
 - `claude/docs/*.md` - All feature documentation
@@ -172,7 +172,7 @@ The following are automatically removed during release:
 
 **Project-Specific Agents (removed, only core agents kept):**
 - `apple/`, `discord/`, `gumroad/`, `hub/`, etc. - Project-specific agents
-- Only `captain/`, `browser/`, `collaboration/` are shipped
+- Only `captain/`, `browser/` are shipped (collaboration/ removed in Agency 2.0)
 
 ## Security Checks
 
