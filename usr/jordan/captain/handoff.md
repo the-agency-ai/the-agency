@@ -1,86 +1,70 @@
-# CoS Session Handoff
+# Captain Handoff
 
 **Agent:** captain (housekeeping)
 **Principal:** jordan
-**Updated:** 2026-03-29 (session 4)
+**Updated:** 2026-03-30 (session 5)
 
-## Summary
+## Current State
 
-Continued Ghostty tab status work from session 3. Fixed multi-session issues, documented new issues, and archived session transcripts.
+On branch `feat/plugin-framework` with 7 commits ready for PR. Dispatch 1 of 4 complete.
 
-## PR Contents (4 commits)
+### Dispatch 1: Plugin Provider Framework — DONE
 
-1. **Removed last `tab-status` call from Stop hook** in settings.json (session 3 edit had failed on JSON syntax)
-2. **Registered `ghostty-status.sh`** in settings.json for SessionStart, SessionEnd, PostToolUse, Stop, Notification
-3. **Session name bridge** — status line writes `session_name` to `/tmp/ghostty-agency-session-{session_id}` so hooks can read it (hook JSON doesn't include session_name)
-4. **Per-session cache** — fixed global `/tmp/ghostty-session-name` file that caused all parallel sessions to show the same name
-5. **Removed AppleScript `set_tab_title`** — it targeted "focused terminal of front window" causing cross-tab name pollution in multi-session setups
-6. **Copied fixed hooks/settings to worktrees** — worktrees had old code with `tab-status` calls
-7. **Recreated worktrees** — both markdown-pal and mock-and-mark worktrees were missing, recreated
-8. **Documented ISS-011** (tab indicators, resolved) and **ISS-012** (dual worktree locations, open)
-9. **Created dispatch** for captain to review/clean up ghostty integration
-10. **Archived session transcripts** — 7 sessions zipped to `usr/jordan/session-transcripts.zip`
+**Branch:** `feat/plugin-framework` (7 commits, not yet pushed/PR'd)
 
-### Commits (this session)
+Built:
+1. `claude/tools/lib/_provider-resolve` — sourceable bash lib, reads agency.yaml, resolves provider tool paths
+2. `.claude/commands/secret.md` — `/secret` skill dispatcher (6 verbs → `secret-{provider}`)
+3. `tools/terminal-setup` — dispatcher (auto-detects from `$TERM_PROGRAM`)
+4. `tools/terminal-setup-ghostty` — renamed from `ghostty-setup`
+5. `tools/platform-setup` — dispatcher (auto-detects from `uname -s`, supports `"auto"` config)
+6. `tools/platform-setup-macos` — renamed from `mac-setup`
+7. `tools/platform-setup-linux` — renamed from `linux-setup`
+8. `claude/templates/PROVIDER.sh` — provider tool template with verb interface
+9. `tools/tool-new` — added `--provider=<pattern>` flag
+10. `tools/agency-verify` — validates all configured providers (9/11 passing, 2 design warnings deferred)
+11. `tools/agency-init` — updated to ship all new files
+12. `.claude/settings.json` — added permissions for new tools
+13. `claude/config/agency.yaml` — added terminal, platform, design provider sections
+14. Old names (`ghostty-setup`, `mac-setup`, `linux-setup`) → 5-line deprecation shims
 
-- `bcc31b9` — fix session name in ghostty tab status
-- `84c8f54` — update handoff for session 3
-- `14a5613` — make ghostty session name per-session
-- `280bed6` — add dispatch for ghostty cleanup review
-- `d7d477a` — fix stale cache overriding session name
-- `109a9e7` — remove AppleScript tab title (cross-tab pollution)
-- `d27bc63` — add ISS-011, ISS-012 and update resolved status
-- `8802335` — add session transcripts archive
+**Deferred:** Design providers (Figma MCP overlap needs evaluation), new providers, verb normalization.
 
-### Known Limitation
+### Immediate Next Steps
 
-OSC 2 tab titles may get overwritten by Claude Code's own title setting. Without the AppleScript (removed due to cross-tab pollution), the title relies on hook frequency to stay current. Works well during active use; may revert to Claude Code's default during idle.
+1. **Push `feat/plugin-framework` and create PR** — ready to merge
+2. **Dispatch 2: Agency 2.0 Bootstrap** (`feat/agency2-bootstrap`)
+   - Kill 7 dead agents: foundation-alpha, foundation-beta, collaboration, unknown, hub, mission-control, research (instance)
+   - Build 3 remaining agent classes: marketing-lead, platform-specialist, researcher
+   - Re-point live agents to class definitions
+3. **After dispatch 1 & 2 merge:** Fix worktree/workstream setup, update agent handoffs, bootstrap agents
+4. **Dispatch 3: ISCP** — `/discuss` session to define and design
+5. **Dispatch 4: Browser Protocol** — `/discuss` session to define and design
 
-### Open Issues (from issues-agency2-setup-20260329.md)
+### Key Technical Decisions (this session)
 
-| Issue | Severity | Status |
-|-------|----------|--------|
-| ISS-007 | Medium | Open — agent-create must register in .claude/settings.json |
-| ISS-008 | High | PR #7 merged — Dependabot alerts may still need triage |
-| ISS-009 | Low | Open — status line redundant worktree naming |
-| ISS-010 | Medium | Resolved |
-| ISS-011 | Medium | Resolved |
-| ISS-012 | Medium | Open — worktrees in two locations (.worktrees/ vs .claude/worktrees/) |
+- `_provider-resolve` sources `_path-resolve` internally, reuses `_pr_yaml_get`
+- Naming: `secret-{provider}`, `terminal-setup-{provider}`, `platform-setup-{provider}`, `design-{verb}-{provider}`
+- Platform `"auto"` detects OS at runtime
+- Dispatchers are bash tools; `/secret` is a skill (conversational)
+- Deprecation shims (not symlinks) for old tool names
+- `_pr_yaml_get` has a quote-stripping bug — `_provider-resolve` cleans residual quotes itself
 
-### Dispatches Pending
+### Open Issues
 
-- `usr/jordan/captain/dispatch-ghostty-cleanup-20260329.md` — review ghostty integration, clean dead code, verify edge cases
+| Issue | Status |
+|-------|--------|
+| ISS-007 | Open — agent-create must register in settings.json |
+| ISS-008 | Open — Dependabot triage |
+| ISS-009 | Open — status line redundant worktree naming |
+| ISS-012 | Open — worktrees in two locations |
 
-### Worktrees
+### Transcripts
 
-Both recreated and active:
-- `.worktrees/markdown-pal/` (branch: `markdown-pal`, commit `6e7ca9c`)
-- `.claude/worktrees/mock-and-mark/` (branch: `worktree-mock-and-mark`, commit `97666cf`)
-
-Note: two different locations — see ISS-012.
+- `usr/jordan/captain/transcripts/transcript-dispatch-execution-20260330.md` — full execution log
 
 ### Git State
 
-- Branch: `main`
+- Branch: `feat/plugin-framework` (7 commits ahead of main)
 - Working tree: clean
-- All pushed to origin
-- Last commit: `8802335`
-
-## Pending / Next Steps
-
-1. **ISS-012** — standardize worktree location
-2. **ISS-007** — agent-create should register in settings.json
-3. **ISS-009** — status line redundant worktree naming
-4. **Dependabot triage** — address remaining alerts
-5. **Tools unification step 2** — extract + formalize the framework spec
-6. **Migrate principals** — `claude/principals/jordan/` → `usr/jordan/`
-7. **Agency init/update design** — 7 scenarios, needs 1B1 session
-8. **GTM agent** — ready to launch when scope is defined
-
-## Key Files
-
-- `usr/jordan/captain/issues-agency2-setup-20260329.md` — all issues (ISS-001 through ISS-012)
-- `usr/jordan/captain/dispatch-ghostty-cleanup-20260329.md` — pending cleanup dispatch
-- `usr/jordan/session-transcripts.zip` — all 7 session transcripts from today
-- `claude/hooks/ghostty-status.sh` — Ghostty tab status hook
-- `.claude/settings.json` — hook registrations
+- Not yet pushed to origin
