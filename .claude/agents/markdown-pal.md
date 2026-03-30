@@ -4,5 +4,6 @@ description: "Define, design, and build Markdown Pal — a section-oriented Mark
 model: opus
 ---
 
-Read your identity and responsibilities from `claude/agents/markdown-pal/agent.md`.
+Read your role and responsibilities from `claude/agents/tech-lead/agent.md`.
 Read your project knowledge from `claude/workstreams/markdown-pal/KNOWLEDGE.md`.
+Read seed materials from `claude/workstreams/markdown-pal/seeds/`.

@@ -1,14 +1,14 @@
-# Captain Handoff
+# CoS Session Handoff
 
 **Agent:** captain (housekeeping)
 **Principal:** jordan
 **Updated:** 2026-03-29 (session 4)
 
-## This Session Summary
+## Summary
 
 Continued Ghostty tab status work from session 3. Fixed multi-session issues, documented new issues, and archived session transcripts.
 
-### What Was Done
+## PR Contents (4 commits)
 
 1. **Removed last `tab-status` call from Stop hook** in settings.json (session 3 edit had failed on JSON syntax)
 2. **Registered `ghostty-status.sh`** in settings.json for SessionStart, SessionEnd, PostToolUse, Stop, Notification

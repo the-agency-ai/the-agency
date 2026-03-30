@@ -4,7 +4,7 @@
 #
 # Usage: worktree-delete <name> [--force]
 #
-# Removes the worktree at .worktrees/<name>/ and optionally the branch.
+# Removes the worktree at .claude/worktrees/<name>/ and optionally the branch.
 
 set -euo pipefail
 
@@ -35,7 +35,7 @@ if [[ -z "$NAME" ]]; then
 fi
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-WORKTREE_DIR="$PROJECT_ROOT/.worktrees/$NAME"
+WORKTREE_DIR="$PROJECT_ROOT/.claude/worktrees/$NAME"
 
 if [[ ! -d "$WORKTREE_DIR" ]]; then
     echo "Error: worktree '$NAME' not found at $WORKTREE_DIR" >&2

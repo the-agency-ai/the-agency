@@ -93,11 +93,11 @@ The CoS session briefing files (`guide-cos-session-briefing-20260329.md`, `devex
 
 ---
 
-### ISS-007: `agent-create` does not register agents with Claude Code (OPEN)
+### ISS-007: `agent-create` does not register agents with Claude Code (RESOLVED)
 
 **Severity:** Medium (agents can't be launched via `claude --agent`)
 **Found by:** captain
-**Status:** Open
+**Status:** Resolved (PR #6 added `.claude/agents/{name}.md` generation to agent-create)
 
 `./tools/agent-create` creates Agency-level agent directories (`claude/agents/{name}/agent.md`, KNOWLEDGE.md, etc.) but does not register the agent in `.claude/settings.json` under the `"agents"` key. This means `claude --agent markdown-pal` doesn't work — Claude Code doesn't know about Agency agents.
 
@@ -211,11 +211,11 @@ Additionally, `/rename` does not persist in tabs — `tab-status` is called on e
 
 ---
 
-### ISS-012: Worktrees created in two different locations (OPEN)
+### ISS-012: Worktrees created in two different locations (RESOLVED)
 
 **Severity:** Medium (operational confusion)
 **Found by:** captain
-**Status:** Open
+**Status:** Resolved (worktree tools updated to use `.claude/worktrees/`, aligning with Claude Code convention)
 
 Worktrees are being created in two different locations:
 - `.worktrees/` — created by `./tools/worktree-create` (e.g., `.worktrees/markdown-pal/`)
@@ -245,9 +245,9 @@ git worktree list
 | ISS-004 | Low | Resolved (manual) | workstream-create could accept description |
 | ISS-005 | Low | Resolved (manual) | agent-create could accept --seeds flag |
 | ISS-006 | Medium | Resolved | Process: include all referenced files in PR |
-| ISS-007 | Medium | Open | agent-create must register in settings.json |
+| ISS-007 | Medium | Resolved | agent-create generates .claude/agents/{name}.md |
 | ISS-008 | High | Open | Dependabot: 3 high, 9 moderate vulnerabilities |
 | ISS-009 | Low | Open | Status line: redundant worktree naming |
 | ISS-010 | Medium | Resolved | Agent name not appearing in terminal tabs |
 | ISS-011 | Medium | Resolved | Tab status indicators wrong for Ghostty |
-| ISS-012 | Medium | Open | Worktrees in two different locations |
+| ISS-012 | Medium | Resolved | Worktree tools use .claude/worktrees/ |

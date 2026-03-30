@@ -4,7 +4,8 @@
 #
 # Usage: worktree-create <name> [--branch <branch>]
 #
-# Creates a worktree at .worktrees/<name>/ on branch <name> (or --branch).
+# Creates a worktree at .claude/worktrees/<name>/ on branch <name> (or --branch).
+# Aligns with Claude Code's built-in EnterWorktree convention.
 # Sets up dev environment if dependencies are detected.
 #
 # This is a FIRST-CLASS PRIMITIVE in Agency 2.0 — worktree isolation
@@ -27,7 +28,7 @@ fi
 show_help() {
     echo "Usage: worktree-create <name> [--branch <branch>]"
     echo ""
-    echo "Creates a git worktree at .worktrees/<name>/"
+    echo "Creates a git worktree at .claude/worktrees/<name>/"
     echo ""
     echo "Options:"
     echo "  --branch <name>   Branch name (default: same as worktree name)"
@@ -62,7 +63,7 @@ fi
 
 BRANCH="${BRANCH:-$NAME}"
 PROJECT_ROOT="${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-WORKTREE_DIR="$PROJECT_ROOT/.worktrees/$NAME"
+WORKTREE_DIR="$PROJECT_ROOT/.claude/worktrees/$NAME"
 
 # Check if worktree already exists
 if [[ -d "$WORKTREE_DIR" ]]; then
@@ -73,9 +74,9 @@ fi
 # Create worktree
 echo "Creating worktree: $NAME"
 echo "  Branch: $BRANCH"
-echo "  Path: .worktrees/$NAME/"
+echo "  Path: .claude/worktrees/$NAME/"
 
-mkdir -p "$PROJECT_ROOT/.worktrees"
+mkdir -p "$PROJECT_ROOT/.claude/worktrees"
 
 # Create branch + worktree (from current HEAD)
 if git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/heads/$BRANCH" 2>/dev/null; then

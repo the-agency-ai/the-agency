@@ -103,9 +103,8 @@ load 'test_helper'
 @test "principal-create: --verbose flag is recognized" {
     run_tool principal-create testprincipal --verbose || true
     [[ ! "$output" =~ "unknown option" ]] && [[ ! "$output" =~ "invalid flag" ]]
-    # Clean up if created (including iTerm profile)
-    rm -rf "claude/principals/testprincipal" 2>/dev/null || true
-    rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/agency-testprincipal-profiles.json" 2>/dev/null || true
+    # Clean up if created
+    rm -rf "usr/testprincipal" "claude/principals/testprincipal" 2>/dev/null || true
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -203,9 +202,8 @@ load 'test_helper'
 @test "add-principal: --name flag is recognized" {
     run_tool add-principal --name testuser || true
     [[ ! "$output" =~ "unknown option" ]] && [[ ! "$output" =~ "Unknown option" ]]
-    # Clean up if created (including iTerm profile)
-    rm -rf "claude/principals/testuser" 2>/dev/null || true
-    rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/agency-testuser-profiles.json" 2>/dev/null || true
+    # Clean up if created
+    rm -rf "usr/testuser" "claude/principals/testuser" 2>/dev/null || true
 }
 
 @test "add-principal: --verbose flag is recognized" {
@@ -384,11 +382,12 @@ load 'test_helper'
 @test "principal-create: converts uppercase to lowercase" {
     local test_name="UPPERCASETEST"
     run_tool principal-create "$test_name" || true
-    # Check if directory was created with lowercase name
-    if [[ -d "claude/principals/uppercasetest" ]]; then
-        # Clean up (including iTerm profile)
-        rm -rf "claude/principals/uppercasetest"
-        rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/agency-uppercasetest-profiles.json" 2>/dev/null || true
+    # Check if directory was created with lowercase name (v2 path)
+    if [[ -d "usr/uppercasetest" ]]; then
+        # Verify NOT created at legacy path
+        [[ ! -d "claude/principals/uppercasetest" ]]
+        # Clean up
+        rm -rf "usr/uppercasetest"
         return 0
     fi
     # If already exists or validation failed, that's also fine
@@ -397,38 +396,37 @@ load 'test_helper'
 
 @test "principal-create: creates directory structure" {
     local test_name="batsstructtest"
-    # Skip if already exists
-    if [[ -d "claude/principals/$test_name" ]]; then
+    # Skip if already exists (v2 path)
+    if [[ -d "usr/$test_name" ]]; then
         skip "Test principal already exists"
     fi
 
     run_tool principal-create "$test_name"
 
-    # Verify subdirectories created
-    [[ -d "claude/principals/$test_name/projects" ]] || [[ -d "claude/principals/$test_name/requests" ]]
-    [[ -d "claude/principals/$test_name/resources" ]]
-    [[ -d "claude/principals/$test_name/config" ]]
+    # Verify v2 directory structure created
+    [[ -d "usr/$test_name" ]]
+    [[ -d "usr/$test_name/claude" ]] || [[ -d "usr/$test_name/scripts" ]]
+    # Verify NOT created at legacy path
+    [[ ! -d "claude/principals/$test_name" ]]
 
-    # Clean up (including iTerm profile)
-    rm -rf "claude/principals/$test_name"
-    rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/agency-$test_name-profiles.json" 2>/dev/null || true
+    # Clean up
+    rm -rf "usr/$test_name"
 }
 
 @test "principal-create: creates README.md" {
     local test_name="batsreadmetest"
-    # Skip if already exists
-    if [[ -d "claude/principals/$test_name" ]]; then
+    # Skip if already exists (v2 path)
+    if [[ -d "usr/$test_name" ]]; then
         skip "Test principal already exists"
     fi
 
     run_tool principal-create "$test_name"
 
-    # Verify README.md created
-    [[ -f "claude/principals/$test_name/README.md" ]]
+    # Verify README.md created in v2 location
+    [[ -f "usr/$test_name/README.md" ]]
 
-    # Clean up (including iTerm profile)
-    rm -rf "claude/principals/$test_name"
-    rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/agency-$test_name-profiles.json" 2>/dev/null || true
+    # Clean up
+    rm -rf "usr/$test_name"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

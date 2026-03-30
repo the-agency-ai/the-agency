@@ -47,7 +47,6 @@ The-agency-starter has been extracted from the-agency repo and now lives as a se
 **Current Release**: macOS only
 - `setup-mac` - Installs CLI tools via Homebrew
 - `setup-icloud` - iCloud Drive integration
-- `setup-iterm` - iTerm2 dynamic profiles
 
 **Future**: Linux and Windows support planned
 - `setup-linux` - Exists in the-agency but NOT in the-agency-starter (not yet supported)

@@ -2,9 +2,7 @@
 # ghostty-status.sh — Claude Code hook for Ghostty tab title + background color
 #
 # Updates Ghostty tab title with status indicator and sets a subtle background
-# color tint based on agent state. Uses OSC escape sequences for portability
-# and Ghostty's AppleScript API for persistent tab titles (survives Claude
-# Code's continuous OSC 2 overwrites on macOS).
+# color tint based on agent state. Uses OSC escape sequences for portability.
 #
 # Hook events:
 #   PreToolUse, PostToolUse, PreCompact  -> working (green tint)

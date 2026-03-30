@@ -1,11 +1,11 @@
 #!/bin/bash
-# launch-project - Launch into a project in a new iTerm2 tab
+# launch-project - Launch into a project in a new Ghostty tab
 #
 # Usage:
 #   ./tools/launch-project /path/to/project
 #   ./tools/launch-project my-project  # Looks up in projects.json
 #
-# Requires: macOS + iTerm2
+# Requires: macOS + Ghostty
 
 set -euo pipefail
 
@@ -19,13 +19,13 @@ NC='\033[0m'
 
 # Help
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || -z "${1:-}" ]]; then
-    echo "launch-project - Launch into a project in a new iTerm2 tab"
+    echo "launch-project - Launch into a project in a new Ghostty tab"
     echo ""
     echo "Usage:"
     echo "  ./tools/launch-project /path/to/project"
     echo "  ./tools/launch-project my-project  # Looks up in projects.json"
     echo ""
-    echo "Requires: macOS + iTerm2"
+    echo "Requires: macOS + Ghostty"
     exit 0
 fi
 
@@ -64,27 +64,18 @@ if [[ -z "$PROJECT_PATH" || ! -d "$PROJECT_PATH" ]]; then
     exit 1
 fi
 
-# Check for iTerm2
-if ! osascript -e 'tell application "iTerm2" to name' &>/dev/null; then
-    echo -e "${RED}Error:${NC} iTerm2 not found or not running"
+# Check for Ghostty
+if ! command -v ghostty &>/dev/null && [[ ! -d "/Applications/Ghostty.app" ]]; then
+    echo -e "${RED}Error:${NC} Ghostty not found"
     exit 1
 fi
 
 echo -e "${GREEN}Launching:${NC} $PROJECT_NAME"
 echo -e "${GREEN}Path:${NC} $PROJECT_PATH"
 
-# Launch in new iTerm2 tab with proper title
-osascript <<APPLESCRIPT
-tell application "iTerm2"
-    tell current window
-        create tab with default profile
-        tell current session
-            set name to "Agency: $PROJECT_NAME"
-            write text "cd '$PROJECT_PATH' && ./tools/myclaude housekeeping captain"
-        end tell
-    end tell
-    activate
-end tell
-APPLESCRIPT
+# Open new Ghostty window/tab via the CLI
+# ghostty +new-window spawns a new window; redirect stdin so it detaches cleanly
+ghostty --working-directory="$PROJECT_PATH" --command="bash -c 'exec ./tools/myclaude housekeeping captain'" 2>/dev/null &
+disown 2>/dev/null || true
 
-echo -e "${GREEN}Done!${NC} Tab opened for $PROJECT_NAME"
+echo -e "${GREEN}Done!${NC} Ghostty window opened for $PROJECT_NAME"

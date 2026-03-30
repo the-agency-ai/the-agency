@@ -2,524 +2,365 @@
 
 A multi-agent development framework for Claude Code.
 
-For an overview of the system, directory structure, and getting started, see `claude/docs/PRINCIPAL-GUIDE.md`.
+## Project Structure
+
+The repo has three distinct hierarchies.
+
+### Framework (shared, cross-principal)
+
+```
+claude/
+  config/agency.yaml        — principal mapping, project config, provider settings
+  agents/{class}/            — agent class definitions (agent.md, KNOWLEDGE.md, ONBOARDING.md)
+  docs/                     — reference docs (quality gate, methodology, code review, etc.)
+  hooks/                    — Claude Code hooks
+  hookify/                  — behavioral rules (shared, team-wide)
+  templates/                — scaffolding templates
+  starter-packs/            — framework-specific conventions
+  tools/                    — Agency framework tools (planned: migrate from repo root tools/)
+    lib/                    — sourced helpers (planned: migrate from tools/_log-helper, _path-resolve)
+  workstreams/{workstream}/ — shared workstream artifacts
+    KNOWLEDGE.md            — what this workstream is (README)
+    seeds/                  — input materials (specs, chatlogs, prompts)
+    {workstream}-pvr-YYYYMMDD.md
+    {workstream}-ad-YYYYMMDD.md
+    {workstream}-plan-YYYYMMDD.md
+    {workstream}-ref-YYYYMMDD.md
+    reviews/                — QGRs, code/design/test reviews
+    history/                — archived artifact versions
+```
+
+### Agent instances (per-principal)
+
+```
+usr/{principal}/
+  claude/                   — personal Claude Code config
+    hookify/                — sandbox behavioral rules (per-principal)
+  scripts/                  — cross-cutting scripts
+  {agent}/                  — one directory per agent instance
+    handoff.md
+    transcripts/            — discussion transcripts
+    history/                — archived handoffs
+```
+
+`claude/agents/{class}/` is the **class** — what the role IS (e.g., tech-lead, captain, researcher). `usr/{principal}/{agent}/` is the **instance** — a principal's deployment of that class on a workstream.
+
+### Captain (coordination)
+
+The captain is a special agent. Its instance directory includes dispatches:
+
+```
+usr/{principal}/captain/
+  handoff.md
+  dispatches/               — broadcast directives to other agents
+  transcripts/
+  history/
+```
+
+### Tooling and config
+
+```
+.claude/
+  commands/                 — slash commands (/discuss, etc.)
+  settings.json             — hooks, permissions, plugins
+  agents/                   — Claude Code agent registrations ({name}.md)
+  worktrees/                — worktree working copies (gitignored)
+tools/                      — Agency tools (current location; planned migration to claude/tools/)
+source/                     — application source code (optional, organization is workstream's business)
+```
+
+### Lifecycle
+
+Seeds go directly to `claude/workstreams/{workstream}/seeds/` — they're input, not sandbox work. During discussion, the agent works in `usr/{principal}/{agent}/` (transcripts, handoffs). When implementation launches, PVR, A&D, and Plan move to `claude/workstreams/{workstream}/` where they become shared artifacts. Artifact versioning is tooling-enforced.
+
+**IMPORTANT:** `claude/principals/` is the LEGACY (v1) location. Do NOT file new work there.
 
 ## Tools
 
-**Session:** `myclaude`, `welcomeback`, `session-backup`
-**Scaffolding:** `workstream-create`, `agent-create`, `epic-create`, `sprint-create`
-**Messaging:** `msg` (send, broadcast, read, thread, ack)
-**Dispatch:** `dispatch` (enqueue, claim, complete, fail, status), `dispatch-request`
-**Collaboration (deprecated):** `collaborate`, `collaboration-respond`, `news-post`, `news-read`
-**Quality:** `commit-precheck`, `test-run`, `code-review`, `review-spawn`, `install-hooks`
-**Git:** `commit`, `tag`, `sync`
-**GitHub:** `gh`, `gh-pr`, `gh-release`, `gh-api`
+Agency framework tools live in `claude/tools/` (shipped via `agency-init`). Sourced helpers live in `claude/tools/lib/`.
 
-All tools are in `./tools/`. Run with `./tools/<name>`.
+> **Current state:** Tools are currently in `./tools/` at repo root, pending migration to `claude/tools/`. Tool names will adopt noun-verb convention (e.g., `commit` → `git-commit`). Until migration completes, use the current names and paths below. Run with `./tools/<name>`.
+
+All tools are token-conserving wrappers — minimal stdout to context, verbose to log service.
+
+### Framework Setup
+`agency-init`, `agency-update`, `ghostty-setup`
+
+### Scaffolding
+`principal-create`, `agent-create`, `workstream-create`, `worktree-create`, `worktree-list`, `worktree-delete`
+
+### Git
+`commit`, `tag`, `sync`
+
+### Quality
+`test-run`, `commit-precheck`, `code-review`, `review-spawn`
+
+### Secrets (pluggable)
+`secret-vault` (bundled default), `secret-doppler`. `/secret` skill dispatches to configured provider.
+
+### GitHub
+`gh`, `gh-pr`, `gh-release`, `gh-api`
+
+### Context
+Handoff is a first-class Agency primitive. Hook-driven (SessionStart, SessionEnd, PreCompact) + manual. Not just session continuity — it's how you inject context into any session for any reason: agent-to-agent, cold start, project setup, compaction survival.
+
+### Utilities
+`whoami`, `tool-find`, `tool-new`, `now`, `dependencies-check`, `dependencies-install`
+
+### Plugin Provider Pattern
+
+External service integrations follow a pluggable model: a dispatcher reads config from `agency.yaml` and delegates to a `{noun}-{provider}` tool. Bundled defaults ship with every installation.
+
+```yaml
+# agency.yaml
+secrets:
+  provider: vault
+terminal:
+  provider: ghostty
+platform:
+  provider: macos
+```
 
 ## Tool Output Standard
 
-**All `./tools/*` must follow this output format to minimize context window usage.**
-
-### stdout Format (What Claude Sees)
+All tools emit minimal stdout to conserve context. Currently in `./tools/`, future: `claude/tools/`.
 
 ```
 {tool-name} [run: {run-id}]
-{essential-result-if-needed}
-{status}
-```
-
-- **Line 1:** Tool name and run ID (for tracing to verbose logs)
-- **Line 2:** Essential result only if needed (commit hash, file path, count)
-- **Line 3:** Status indicator: `✓` (success) or `✗` (failure)
-
-### Examples
-
-```bash
-# Success with essential result
-commit [run: a1b2c3d4]
-Committed: 9cbb97e
+{essential-result}
 ✓
-
-# Success, no result needed
-test-run [run: e5f6g7h8]
-✓
-
-# Failure
-test-run [run: i9j0k1l2]
-✗
 ```
 
-### Verbose Output (Database)
+Verbose output goes to the log service. Investigate with: `./tools/agency-service log run {run-id}`
 
-Full output is captured in the database via `_log-helper`:
-- stdout/stderr content
-- Duration
-- Exit code
-- Arguments
+## Agents
 
-**Investigate failures:**
+### Agent Classes
+
+Agent classes define roles. They live in `claude/agents/{class}/agent.md`.
+
+| Class | Purpose | Default Usage |
+|-------|---------|---------------|
+| captain | Coordination, dispatch, PR lifecycle | Standing agent |
+| cos | Cross-repo coordination | Standing agent (optional) |
+| project-manager | Quality gates, QGR protocol | Standing agent |
+| tech-lead | Product work: define, design, implement | Standing per workstream |
+| marketing-lead | GTM strategy, positioning, launch | Standing per workstream (definition pending) |
+| platform-specialist | Platform operations, integrations | Standing per platform (definition pending) |
+| researcher | Deep research, synthesis | Subagent (definition pending) |
+| reviewer-code | Code review | Subagent |
+| reviewer-design | Design review | Subagent |
+| reviewer-security | Security review | Subagent |
+| reviewer-test | Test review | Subagent |
+| reviewer-scorer | Confidence scoring | Subagent |
+
+### Agent Registration
+
+Agents are defined in two places:
+- **Class definition:** `claude/agents/{class}/agent.md` — role, responsibilities, knowledge
+- **Claude Code registration:** `.claude/agents/{name}.md` — frontmatter + bootstrap prompt pointing to class + workstream
+
+`agent-define` creates a new class (planned — not yet built). `agent-create` creates an instance and writes the `.claude/agents/{name}.md` registration file.
+
+Launch agents with: `claude --agent {name} --name {name}`
+
+### Registration Format
+
+`.claude/agents/{name}.md` frontmatter + bootstrap:
+
+```yaml
+---
+name: markdown-pal
+description: "Define, design, and build Markdown Pal"
+model: opus
+---
+
+Read your role and responsibilities from `claude/agents/tech-lead/agent.md`.
+Read your project knowledge from `claude/workstreams/markdown-pal/KNOWLEDGE.md`.
+Read seed materials from `claude/workstreams/markdown-pal/seeds/`.
+```
+
+The registration points to the **class** (role definition) and **workstream** (project knowledge). The class defines behavior; the workstream provides context.
+
+## The Work Pattern
+
+Discuss > Plan Mode (explore + design) > Review Plan > Revise > Review > Finalize > Implement. "Plan Mode" is Claude Code's planning feature — read-only exploration and design before writing code.
+
+## Development Methodology
+
+Documented in detail at `claude/docs/DEVELOPMENT-METHODOLOGY.md`. Injected automatically when relevant skills are invoked.
+
+### The Flow
+
+```
+Seed > Discussion (1B1) > PVR (evolving) > A&D (evolving) > Plan (phases x iterations)
+```
+
+1. **Seed** — a starting point (document, idea, spec). Goes to `claude/workstreams/{workstream}/seeds/`.
+2. **Discussion** — using the 1B1 protocol. Explore requirements, constraints, trade-offs. No jumping to implementation.
+3. **PVR (Product Vision & Requirements)** — the what and why. Evolves through implementation.
+4. **A&D (Architecture & Design)** — the how and why. Technical decisions, patterns, system design.
+5. **Plan** — phases comprised of iterations. Updated after every commit.
+
+### Skills for Definition and Design
+
+- `/discuss` — the 1B1 protocol. Structured conversation on any topic. Always produces a transcript.
+- `/define` — drives toward a complete PVR with a completeness checklist. Uses `/discuss` internally.
+- `/design` — drives toward a complete A&D with a completeness checklist. Uses `/discuss` internally.
+
+`/discuss` is the interaction protocol. `/define` and `/design` bring the agenda — they know what topics to cover and what "done" looks like.
+
+### Execution
+
+- **Phases** are whole numbers: Phase 1, Phase 2, Phase 3.
+- **Iterations** are Phase.Iteration: 1.1, 1.2, 2.1. No letters — only numbers.
+- **Every phase and iteration carries a slug** (e.g., "Phase 2: Provider Abstraction"). Renumber freely — the slug is the stable identifier.
+- Commit at iteration and phase boundaries.
+
+### Artifacts
+
+| Artifact | Abbrev | Content | Lifecycle |
+|----------|--------|---------|-----------|
+| Product Vision & Requirements | PVR | What and why | Evolves through discussion + implementation |
+| Architecture & Design | A&D | How and why (technical) | Evolves through implementation |
+| Plan | Plan | Phases, iterations, boundary transitions | Updated after every commit |
+| Quality Gate Reports | QGR | Tables + summary | Separate files in workstream reviews/ |
+| Reference | Ref | Final documentation | Produced at plan completion |
+
+QGRs are **separate from the Plan**. The Plan documents boundary transitions (phase complete, committed, date). The QGR is the receipt filed in `reviews/`.
+
+### Living Documents
+
+PVR, A&D, and Plan evolve together during active work. Update architecture decisions as you learn — don't wait until the end.
+
+## Quality Gate (QG)
+
+Quality gates run at every commit boundary. The PM agent (`project-manager`) owns the full protocol — see `claude/docs/QUALITY-GATE.md`.
+
+**Code review** follows the lifecycle at `claude/docs/CODE-REVIEW-LIFECYCLE.md`. The captain manages code review dispatch. Three review scopes: iteration (scoped QG), phase (deep QG, full codebase), and PR prep (everything).
+
+## Discussion Protocol (1B1)
+
+**Applies to ALL multi-item work** — not just `/discuss` sessions. When there are multiple issues, bugs, tasks, or items: work one at a time. This is non-negotiable.
+
+- **Break the list into discrete threads.** Address each item one at a time, not all at once.
+- **Resolve each item before moving to the next.** Don't mix concerns across items.
+- **Number the items explicitly** so the user can reference them by number.
+- **Capture decisions as they're made** — don't wait until the end to summarize.
+
+Inner loop: Present > Get Feedback > Confirm Understanding (reflective listening) > Revise > Iterate > Resolve > Confirm Resolution > Next Item.
+
+**During /discuss:** Write to both the PVR and the transcript after each item resolves. Do not batch artifact writes to the end. Transcripts are separate files in `usr/{principal}/{agent}/transcripts/`.
+
+## Agent Startup Protocol
+
+Before any discussion or artifact work:
+1. Read `handoff.md` for your project/role
+2. Check for new `dispatch-*.md` files in your scope (directives from other agents)
+3. Check for new `guide-*.md` files — these are instructions written for the principal (human), but reading them gives you context on what the principal is working on
+4. If you are a workstream agent: enter your worktree (create one if needed) BEFORE starting `/discuss` or writing files
+5. If a skill invocation is interrupted (e.g., redirected to a worktree), re-invoke the skill from the new context — do not manually replicate its output
+
+## Handoff Discipline
+
+Handoffs are a first-class Agency primitive — not just session continuity, but context bootstrapping for any purpose.
+
+Write a handoff at EVERY session boundary — this is a blocker, not a suggestion. Handoffs live at `usr/{principal}/{agent}/handoff.md` (or `usr/{principal}/captain/handoff.md` for the captain). Each write archives the previous version to `history/`.
+
+Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete, plan-complete.
+
+## Git & Remote Discipline
+
+- **Remote main is read-only.** All changes reach remote through PRs. No exceptions.
+- **Never commit directly to main.** Create a branch, PR it, get it merged.
+- **Never push to any remote without explicit permission.** Pushing is always deliberate.
+- **Never `reset --hard` without confirming work is preserved.** A diverged branch may have new commits.
+- Use `./tools/commit` — never bare `git commit`. (Future: `claude/tools/git-commit`)
+- Lead commit messages with Phase-Iteration slug when in a plan: `Phase 1.3: feat: summary`.
+- **Fix, don't ask.** When you find bugs or quality problems, fix them. Findings are the work order.
+- **Read, don't guess.** Read actual documentation before guessing at APIs, flags, or schemas.
+
+## Naming Conventions
+
+- Agent classes: lowercase, hyphenated (`tech-lead`, `platform-specialist`)
+- Agent instances: lowercase, hyphenated (`markdown-pal`, `mock-and-mark`)
+- Workstreams: lowercase (`markdown-pal`, `gtm`)
+- Tools: noun-verb convention (`agent-create`, `tool-find`). Migration in progress for git tools (`commit` → `git-commit`).
+- Tool providers: `{noun}-{provider}` (`secret-doppler`, `secret-vault`)
+- Files: `{project}-{artifact}-YYYYMMDD.md`
+- Guides: `guide-{project}-{slug}-YYYYMMDD.md` (for principals/humans, not agents)
+- Dispatches: `dispatch-{slug}-YYYYMMDD.md` (broadcast directives)
+- API endpoints: explicit operations (`POST /api/resource/create` not `POST /api/resource`)
+
+## Worktrees
+
+Worktrees enable parallel agent sessions. Created at `.claude/worktrees/{name}/`.
+
 ```bash
-./tools/agency-service log run {run-id}
+./tools/worktree-create {name}    # Create (installs deps, custom branch name)
+./tools/worktree-list             # Status (clean/dirty, branch, HEAD)
+./tools/worktree-delete {name}    # Remove (checks for uncommitted work)
 ```
 
-### Why This Matters
-
-| Location | Content | Token Impact |
-|----------|---------|--------------|
-| stdout (context) | 10-20 tokens | Minimal |
-| Database | Full verbose output | Zero (not in context) |
-
-Every token in stdout consumes context window. Verbose output is available when needed but doesn't waste tokens on successful runs.
-
-## Session Context Management
-
-**CRITICAL:** Agents must save conversational context throughout the session using `./tools/context-save`.
-
-### When to Save Context
-
-Save context at these key moments:
-
-1. **Session Start** - What you're working on
-2. **After Completing Subtasks** - What was accomplished
-3. **Before Major Context Switch** - Switching tasks or focus
-4. **When Parking Work** - Issues for later
-5. **Before Long Operations** - In case session gets interrupted
-
-### Usage Examples
-
-```bash
-# Starting work
-./tools/context-save --append "Continuing REQUEST-jordan-0048 - iTerm integration"
-
-# Completing milestone
-./tools/context-save --checkpoint "Permission system redesigned - layered approach working"
-
-# Parking an issue
-./tools/context-save --park "Error handling for edge cases needs review"
-
-# Switching tasks
-./tools/context-save --checkpoint "Feature X complete, switching to bug fixes"
-```
-
-### Context Types
-
-- `--append` - General progress note
-- `--checkpoint` - Significant milestone or completion
-- `--park` - Something to revisit later (shows as ⏸ PARKED on restore)
-
-### Automatic Restoration
-
-When you start a session, the SessionStart hook automatically displays:
-
-```
-=== PREVIOUS SESSION CONTEXT ===
-✓ Permission system redesigned - layered approach working
-⏸ PARKED: Error handling for edge cases needs review
-• Working on iTerm integration tests
-⚠ You have 3 uncommitted file(s)
-=== END PREVIOUS SESSION CONTEXT ===
-```
-
-**Best Practice:** Save context proactively throughout the session, not reactively at the end.
-
-### Greeting with Context
-
-**When session context is restored, lead with it.** Don't give a generic greeting - acknowledge where you left off.
-
-**Good:**
-> "Welcome back! Last session we fixed the principal detection bug (committed 049f26e). You were testing the fix. How did it go?"
-
-**Bad:**
-> "Hi! I'm the captain agent. How can I help you today?"
-
-The restored context tells you what the user was working on. Use it to provide continuity.
+**Do NOT use Claude Code's built-in `EnterWorktree`.** It creates `worktree-`-prefixed branches, installs no dependencies, and may auto-delete worktrees with your work. Use the Agency tools instead.
 
 ## Secrets
 
-**CRITICAL: All secrets MUST use the Secret Service. NEVER commit secrets to the codebase.**
+Pluggable provider model. Default: `secret-vault` (bundled, zero external deps).
 
-### Essential Commands
-
-```bash
-# Retrieve a secret (most common operation)
-./tools/secret-vault get secret-name
-
-# Store a new secret
-./tools/secret-vault create secret-name --type=api_key --service=ServiceName
-
-# List available secrets
-./tools/secret-vault list
+```yaml
+# agency.yaml
+secrets:
+  provider: vault    # or: doppler, aws, 1password
 ```
 
-**Reference:** See `claude/docs/SECRETS.md` for complete reference (vault management, access control, audit logging, migration).
-
-## Conventions
-
-### Naming
-- Agents: lowercase, hyphenated (`agent-manager`, `web`)
-- Workstreams: lowercase (`agents`, `web`, `analytics`)
-- Requests: `REQUEST-principal-XXXX-agent-summary.md`
-- Artifacts: `ART-XXXX-principal-workstream-agent-date-title.md`
-- Plans: `PLAN-XXXX-short-slug.md` in `claude/plans/`
-
-### Git Commits
-
-**With Work Item (preferred):**
-```
-{WORK-ITEM} - {WORKSTREAM}/{AGENT} for {PRINCIPAL}: {SHORT SUMMARY}
-
-{body}
-
-Stage: {impl | review | tests}
-Generated-With: Claude Code
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Without Work Item (simple commits):**
-```
-{WORKSTREAM}/{AGENT}: {SHORT SUMMARY}
-
-{body}
-
-Generated-With: Claude Code
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Examples:**
-```
-REQUEST-jordan-0065 - housekeeping/captain for jordan: add Red-Green workflow docs
-
-REQUEST-jordan-0066 - housekeeping/captain for jordan: fix path traversal vulnerability
-
-housekeeping/captain: update README formatting
-```
-
-**Using ./tools/commit:**
-```bash
-# With work item
-./tools/commit "add Red-Green workflow docs" --work-item REQUEST-jordan-0065 --stage impl
-
-# Simple commit (no work item)
-./tools/commit "update README formatting"
-```
-
-### API Design (Explicit Operations)
-All API endpoints use explicit operation names. Do NOT rely on HTTP verb semantics.
-
-**Pattern:**
-```
-POST /api/resource/create      # Create
-GET  /api/resource/list        # List with filters
-GET  /api/resource/get/:id     # Get single
-POST /api/resource/update/:id  # Update
-POST /api/resource/delete/:id  # Delete
-POST /api/resource/action/:id  # Specific actions (approve, archive, etc.)
-GET  /api/resource/stats       # Statistics
-```
-
-**Why explicit operations:**
-- Self-documenting URLs
-- Clear intent without needing to know HTTP semantics
-- Easier to grep/search for operations
-- Consistent across all services
-
-**Anti-patterns (do NOT use):**
-```
-POST   /api/resource           # Ambiguous - is this create?
-PATCH  /api/resource/:id       # Relies on verb semantics
-DELETE /api/resource/:id       # Relies on verb semantics
-GET    /api/resource/:id       # Ambiguous - use /get/:id
-```
-
-### Quality Gates
-Pre-commit hooks enforce:
-1. Code formatting
-2. Linting
-3. Type checking
-4. Unit tests
-5. Code review checks
-6. API design patterns
-
-### Dependencies
-
-**CRITICAL: All dependencies MUST be tracked. Never add a dependency without documenting it.**
-
-**Turnkey Installation:** The combination of `install.sh` and `myclaude` provides a turnkey installation experience. When run, all dependencies should be auto-installed and the user should be ready to work immediately. This means:
-- `myclaude` auto-installs Python dependencies (from `requirements.txt`) if missing
-- `myclaude` auto-installs Bun runtime if missing
-- `myclaude` auto-installs Node.js dependencies if missing
-- `myclaude` auto-starts the agency-service if not running
-
-When adding a dependency:
-1. **Python** - Add to `requirements.txt` in project root
-2. **Node.js** - Add to `package.json` (use `npm install --save` or `--save-dev`)
-3. **System tools** - Document in README.md Prerequisites section
-4. **Shell utilities** - Check availability with fallbacks or clear error messages
-
-**Before using a dependency in code:**
-- Verify it's already tracked, OR
-- Add it to the appropriate manifest file first
-
-**Error handling for optional dependencies:**
-```bash
-# Good - check and provide helpful error
-if ! python3 -c "import yaml" 2>/dev/null; then
-    echo "Error: pyyaml not installed. Run: pip3 install pyyaml" >&2
-    exit 1
-fi
-
-# Bad - let it fail cryptically
-python3 -c "import yaml; ..."  # User sees "ModuleNotFoundError"
-```
-
-### Bug Fix Policy
-
-**Fix bugs when encountered.** Don't defer bugs to "later" - they accumulate and cause confusion.
-
-When you encounter a bug:
-1. Fix it immediately if it's blocking or quick
-2. Create a BUG-XXXX item if it requires significant work
-3. Document the fix in the relevant KNOWLEDGE.md
-4. Add tests to prevent regression
-
-**Never ignore:**
-- Cryptic error messages (improve them)
-- Missing dependencies (track them)
-- Test pollution (clean it up)
-- Dirty working trees (commit or stash)
-
-## Plans
-
-**When entering plan mode, capture the prompt and final plan as a plan artifact.**
-
-### Location & Naming
-
-Plans are stored in `claude/plans/` with naming: `PLAN-XXXX-short-slug.md`
-
-### Plan File Structure
-
-```markdown
-# Plan: {Title}
-
-**Plan ID:** PLAN-{XXXX}
-**Date:** {date}
-**Agent:** {agent}
-**Principal:** {principal}
-**Status:** Draft | Approved | Implemented
-**Related:** REQUEST-jordan-XXXX (if driven by a request; comma-separated for multiple)
-
-## Prompt Context
-> {The user prompt(s) that triggered plan mode, quoted verbatim}
-
-## Plan
-{The approved plan content}
-
-## Outcome
-{Filled in after implementation — what actually happened, commit hashes, etc.}
-```
-
-### REQUEST Linkage
-
-Plans are often driven by REQUESTs. A single REQUEST may produce multiple plans (phases, iterations, alternatives).
-
-- **Always include the REQUEST ID** in the `Related` field when a plan implements part or all of a REQUEST
-- The `TaskCompleted` hook auto-detects REQUEST references in the transcript and session context
-- Use `N/A` only when the plan is ad-hoc (not driven by a REQUEST)
-
-### Auto-Capture
-
-The `TaskCompleted` hook (`.claude/hooks/plan-capture.py`) automatically:
-1. Detects plan mode completions (`permission_mode: "plan"`)
-2. Extracts plan content and user prompts from the transcript
-3. Scans for REQUEST references in transcript, task subject, and session context
-4. Creates the `PLAN-XXXX` artifact with all metadata populated
-5. Skips if the agent already manually created a plan file (2-minute window)
-
-If auto-capture doesn't fire, create the plan file manually following the structure above.
-
-### Workflow
-
-1. **Enter plan mode** — user requests or agent proposes planning
-2. **Capture prompt** — quote the user's prompt(s) that triggered planning
-3. **Write plan** — develop the plan through exploration and analysis
-4. **Save artifact** — `TaskCompleted` hook auto-creates `claude/plans/PLAN-XXXX-short-slug.md` with status `Draft`, or agent creates manually
-5. **Get approval** — exit plan mode for user review
-6. **Implement** — update status to `Approved`, then `Implemented` after completion
-7. **Record outcome** — fill in the Outcome section with commit hashes and results
-
-### Sequence Numbers
-
-Use the next available number. Check existing plans:
-```bash
-ls claude/plans/PLAN-*.md | tail -1
-```
-
-## Work Items
-
-Work in The Agency is tracked through REQUEST files. Each REQUEST goes through defined stages.
-
-### Work Item Types
-- `REQUEST-principal-XXXX` - Work requested by a principal
-- `BUG-XXXX` - Bug fixes (can be addressed individually or via REQUEST)
-- `ADHOC-` - Agent-initiated work (logged in ADHOC-WORKLOG.md)
-
-### Managing Work Items
-
-**ALWAYS use the request service tools - never manually edit status:**
-
-```bash
-# List open requests
-./tools/requests
-
-# Create a new request
-./tools/request --agent captain --summary "Add feature X"
-
-# Mark request complete (creates git tag + updates service)
-./tools/request-complete REQUEST-jordan-0017 "Feature implemented"
-
-# Sync request files to service (after manual file changes)
-./tools/requests-backfill
-```
-
-The request service tracks all work items in a database. Use the API for status updates:
-```bash
-# Update request status via API
-curl -X POST "http://127.0.0.1:3141/api/request/update/REQUEST-jordan-0017" \
-  -H "Content-Type: application/json" \
-  -d '{"status": "Complete"}'
-```
-
-### REQUEST Stages
-```
-impl     → Implementation complete, tested locally
-review   → Code review complete, fixes applied
-tests    → Test review complete, improvements applied
-complete → All phases done, ready for release
-```
-
-### Tagging Convention
-```bash
-./tools/tag REQUEST-jordan-0017 impl      # REQUEST-jordan-0017-impl
-./tools/tag REQUEST-jordan-0017 review    # REQUEST-jordan-0017-review
-./tools/tag REQUEST-jordan-0017 tests     # REQUEST-jordan-0017-tests
-./tools/tag REQUEST-jordan-0017 complete  # REQUEST-jordan-0017-complete
-./tools/tag release 0.6.0                 # v0.6.0
-```
-
-## Development Workflow
-
-**The working tree should ALWAYS be clean.**
-
-### Breaking Work into Iterations
-
-Large REQUESTs should be broken into **phases** or **iterations**. Each iteration:
-- Has a clear, testable deliverable
-- Includes tests for the new functionality
-- Goes through the full review cycle
-- Is tagged independently (e.g., `REQUEST-xxx-phase1-impl`)
-
-### Development Cycle (Red-Green Model)
-
-**CRITICAL: Never commit on RED. Every commit must have passing tests (GREEN).**
-
-This cycle applies to completing any work item: REQUEST, Phase, Task, Iteration, or Sprint.
-
-#### 1. Implement + Tests
-- Build the feature/fix
-- Write tests alongside the implementation
-- Run tests locally → **GREEN**
-- **COMMIT + TAG**: `{WORK-ITEM}-impl`
-- Document work completed and tag in the work item file
-
-#### 2. Code Review + Security Review
-- Spawn **2+ code review subagents** (parallel)
-- Spawn **1+ security review subagent**
-- Wait for all subagents to complete
-- **Consolidate** all findings into a single modification list
-- Apply all code changes (do NOT apply piecemeal)
-- Run tests locally → **GREEN**
-- **COMMIT + TAG**: `{WORK-ITEM}-review`
-- Document work completed and tag in the work item file
-
-#### 3. Test Review (including Security Tests)
-- Spawn **2+ test review subagents** (parallel)
-- Reviews should identify:
-  - Missing test cases
-  - Edge cases not covered
-  - Security-related tests needed
-- **Consolidate** all findings into a single modification list
-- Apply all test changes
-- Run tests locally → **GREEN**
-- **COMMIT + TAG**: `{WORK-ITEM}-tests`
-- Document work completed and tag in the work item file
-
-#### 4. Complete
-- **TAG**: `{WORK-ITEM}-complete`
-- Cut release if applicable: `./tools/release X.Y.Z --push --github`
-
-### Commit/Tag Summary
-
-This workflow applies to any work item: REQUEST, Phase, Task, Iteration, or Sprint.
-
-| Stage | Commit? | Tag Pattern |
-|-------|---------|-------------|
-| Implementation complete | YES | `{WORK-ITEM}-impl` |
-| Code/Security review complete | YES | `{WORK-ITEM}-review` |
-| Test review complete | YES | `{WORK-ITEM}-tests` |
-| Work item complete | NO | `{WORK-ITEM}-complete` |
-
-**Tag Examples:**
-```bash
-./tools/tag REQUEST-jordan-0065 impl       # REQUEST-jordan-0065-impl
-./tools/tag SPRINT-web-2026w03 review      # SPRINT-web-2026w03-review
-./tools/tag ITERATION-hub-mvh-1 tests      # ITERATION-hub-mvh-1-tests
-./tools/tag PHASE-hub-A complete           # PHASE-hub-A-complete
-./tools/tag TASK-auth-refactor impl        # TASK-auth-refactor-impl
-```
-
-### Key Principles
-- **Red-Green model**: Never commit on RED - iterate until GREEN
-- **Clean working tree**: Always commit before moving on
-- **Small commits**: Each commit is a logical unit with passing tests
-- **Tags for milestones**: Tag after each stage (impl, review, tests, complete)
-- **Multi-agent review**: 2+ code reviewers, 1+ security reviewer, 2+ test reviewers
-- **Consolidate first**: Gather ALL feedback before applying ANY changes
-- **Security throughout**: Security review in code phase, security tests in test phase
-- **Document as you go**: Update work item file after each commit/tag
-
-### Code Review Process
-
-**Important:** `./tools/code-review` is an **automated pattern checker** (secrets, SQL injection, console.log). It runs as a pre-commit hook but is NOT the subagent-based review described above.
-
-The multi-subagent code review is performed by the lead agent:
-1. Run `./tools/review-spawn {WORK-ITEM} code` to get prompts
-2. Spawn 2+ Task subagents with code review prompts (parallel)
-3. Spawn 1+ Task subagent with security review prompt
-4. Wait for all to complete
-5. Use `claude/templates/prompts/consolidation.md` to merge findings
-6. Apply changes systematically
-
-**Test Review Process:**
-1. Run `./tools/review-spawn {WORK-ITEM} test` to get prompts
-2. Spawn 2+ Task subagents with test review prompts (parallel)
-3. Wait for all to complete
-4. Consolidate findings and apply test changes
-
-**Available Templates:**
-- `claude/templates/prompts/code-review.md` - Code reviewer prompt
-- `claude/templates/prompts/security-review.md` - Security reviewer prompt
-- `claude/templates/prompts/test-review.md` - Test reviewer prompt
-- `claude/templates/prompts/consolidation.md` - Findings consolidation format
-
-### Quality Enforcement
-
-**Pre-commit Hook:**
-Run `./tools/install-hooks` to install the pre-commit hook. This runs `./tools/commit-precheck` before every commit, blocking on failures.
-
-**Tag Verification:**
-`./tools/tag` verifies tests pass (GREEN) before allowing tags for impl, review, and tests stages. Use `--skip-tests` to bypass (sparingly).
-
----
-
-*The Agency - Multi-agent development, done right.*
+The `/secret` skill is the interactive front-end (set, get, list, delete, rotate, scan). `secrets-scan` integrates into the quality gate at iteration/phase/PR boundaries.
+
+## Testing & Quality
+
+**We fix things. We don't work around them. There are no small bugs — just fix it.**
+
+- No unactionable noise — every warning triggers action or gets fixed at the source.
+- Fix what you find — don't defer nits. The cost now is low.
+- No silent failures — fail loudly or handle explicitly.
+- Verify, don't assume — read the docs, check the data, debug with evidence.
+- Enforce conventions mechanically — hooks and rules, not prose.
+- No stale artifacts — dead code, unused config, orphaned files — delete or update them.
+- Re-read files after lint/format runs. Always read before write.
+- Never suppress failures. The blocker IS the work.
+- Never propose `--no-verify`, `eslint-disable`, `@ts-ignore`, or "we can fix this later."
+- Consult before acting on failures. Diagnose first, propose a fix second, act only with approval.
+
+## Bash Tool Usage
+
+Single, simple commands — no `&&`, `||`, `;`, pipes, subshells, or `$(...)` substitutions. Use separate Bash tool calls (parallel when independent, sequential when dependent). Use dedicated tools: Grep not grep, Glob not find, Read not cat, Write not echo, Edit not sed.
+
+## Sandbox Principle
+
+**Everything sandboxed. Zero impact to the team. Completely opt-in.**
+
+- All personal work lives in `usr/{principal}/`
+- Framework tools live in `claude/tools/` — there if you want them
+- Nothing forces changes on other team members
+- Symlinks activate sandbox items — local, never committed
+
+### Hookify Rules
+
+| Location | Scope | Git Status |
+|----------|-------|------------|
+| `claude/hookify/` | Shared (team-wide) | Committed |
+| `usr/{principal}/claude/hookify/` | Sandbox (per-principal) | Committed |
+| `.claude/hookify.foo.user.local.md` | Personal (user-only) | Gitignored |
+
+## What NOT to Do
+
+- Don't file work in `claude/principals/` — use `usr/{principal}/`
+- Don't commit or push directly to main — use PR branches
+- Don't skip quality gates — even for doc-only changes
+- Don't use bare `git commit` — use `./tools/commit` (future: `claude/tools/git-commit`)
+- Don't use Claude Code's `EnterWorktree` — use `./tools/worktree-create`
+- Don't give generic greetings — lead with handoff context
+- Don't guess at APIs or flags — read the docs first
+- Don't address multiple items at once — use 1B1 protocol
+- Don't manually replicate a skill's output — invoke the skill
+- After editing JSON files, verify the result is valid JSON
