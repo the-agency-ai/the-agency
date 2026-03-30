@@ -86,22 +86,27 @@ fi
 usage_info=""
 
 # Format reset timestamp to human-readable ETA
+# Supports both macOS (date -r) and Linux (date -d @)
 format_reset() {
     local reset_ts="$1"
     if [ -z "$reset_ts" ]; then
         return
     fi
-    local now_ts
-    now_ts=$(date +%s)
-    local reset_date
     local now_date
-    # Same day? Show HH:MM. Different day? Show Day HH:MM.
-    reset_date=$(date -r "$reset_ts" +%Y-%m-%d 2>/dev/null) || return
     now_date=$(date +%Y-%m-%d)
+
+    # Try macOS first, then Linux
+    local reset_date
+    reset_date=$(date -r "$reset_ts" +%Y-%m-%d 2>/dev/null) \
+        || reset_date=$(date -d "@$reset_ts" +%Y-%m-%d 2>/dev/null) \
+        || return
+
     if [ "$reset_date" = "$now_date" ]; then
-        date -r "$reset_ts" +%H:%M 2>/dev/null
+        date -r "$reset_ts" +%H:%M 2>/dev/null \
+            || date -d "@$reset_ts" +%H:%M 2>/dev/null
     else
-        date -r "$reset_ts" +"%a %H:%M" 2>/dev/null
+        date -r "$reset_ts" +"%a %H:%M" 2>/dev/null \
+            || date -d "@$reset_ts" +"%a %H:%M" 2>/dev/null
     fi
 }
 
@@ -112,15 +117,21 @@ if [ -n "$five_h_pct" ]; then
     if [ -n "$five_h_eta" ]; then
         h5="${h5} → ${five_h_eta}"
     fi
+    usage_info="${h5}"
+fi
 
+if [ -n "$seven_d_pct" ]; then
     seven_d_int=${seven_d_pct%.*}
     d7="7d: ${seven_d_int}%"
     seven_d_eta=$(format_reset "$seven_d_reset")
     if [ -n "$seven_d_eta" ]; then
         d7="${d7} → ${seven_d_eta}"
     fi
-
-    usage_info="${h5} ${d7}"
+    if [ -n "$usage_info" ]; then
+        usage_info="${usage_info} ${d7}"
+    else
+        usage_info="${d7}"
+    fi
 fi
 
 # --- Cost + duration ---
