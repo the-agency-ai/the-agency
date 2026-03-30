@@ -93,3 +93,7 @@ the-agency/
 ### 2026-01-23 15:12 - Ad-hoc: untrack messages.db (should be gitignored)
 - Commit: 76d7fcc
 - Agent: housekeeping/captain
+
+### 2026-03-30 19:48 - Ad-hoc: fix(bootstrap): QG fixes — stale refs, researcher bootstrapping, platform-specialist seeds
+- Commit: 0dce184
+- Agent: housekeeping/captain
