@@ -49,7 +49,8 @@ run_review() {
     fi
 
     local STAGED_DIFF
-    STAGED_DIFF=$(git diff --cached)
+    # Exclude markdown files from code review — they contain code examples that trigger false positives
+    STAGED_DIFF=$(git diff --cached -- ':!*.md')
     local BLOCKING_ISSUES=0
     local WARNING_COUNT=0
 
