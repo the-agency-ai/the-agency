@@ -1,5 +1,0 @@
-#!/bin/bash
-# DEPRECATED: Use ./tools/platform-setup or ./tools/platform-setup-linux
-echo "linux-setup is now platform-setup-linux" >&2
-echo "Use: ./tools/platform-setup (auto-detects) or ./tools/platform-setup-linux" >&2
-exec "$(dirname "$0")/platform-setup-linux" "$@"

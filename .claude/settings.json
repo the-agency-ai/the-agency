@@ -44,16 +44,7 @@
         ]
       }
     ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/messages-check.sh"
-          }
-        ]
-      }
-    ],
+    "UserPromptSubmit": [],
     "PreToolUse": [
       {
         "matcher": "Skill",
@@ -78,10 +69,6 @@
       {
         "matcher": "*",
         "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/tools/log-tool-use 2>/dev/null || true"
-          },
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/tool-telemetry.sh"
@@ -145,7 +132,6 @@
       "Bash(./tools/agency-verify*)",
       "Bash(./tools/adhoc-log*)",
       "Bash(./tools/agency-feedback*)",
-      "Bash(./tools/agency-service*)",
       "Bash(./tools/agency-init*)",
       "Bash(./tools/agency-update*)",
       "Bash(./tools/agent-create*)",
@@ -156,8 +142,6 @@
       "Bash(./tools/browser*)",
       "Bash(./tools/bug-report*)",
       "Bash(./tools/code-review*)",
-      "Bash(./tools/collaborate*)",
-      "Bash(./tools/collaboration-respond*)",
       "Bash(./tools/commit*)",
       "Bash(./tools/commit-precheck*)",
       "Bash(./tools/commit-prefix*)",
@@ -165,8 +149,6 @@
       "Bash(./tools/context-review*)",
       "Bash(./tools/context-save*)",
       "Bash(./tools/dependencies-check*)",
-      "Bash(./tools/dispatch*)",
-      "Bash(./tools/dispatch-request*)",
       "Bash(./tools/dependencies-install*)",
       "Bash(./tools/designsystem-add*)",
       "Bash(./tools/designsystem-validate*)",
@@ -178,7 +160,6 @@
       "Bash(./tools/gh-api*)",
       "Bash(./tools/gh-pr*)",
       "Bash(./tools/gh-release*)",
-      "Bash(./tools/ghostty-setup*)",
       "Bash(./tools/findings-save*)",
       "Bash(./tools/hello*)",
       "Bash(./tools/hi*)",
@@ -189,15 +170,7 @@
       "Bash(./tools/instruction-show*)",
       "Bash(./tools/launch-project*)",
       "Bash(./tools/log *)",
-      "Bash(./tools/log-tool-use*)",
-      "Bash(./tools/log-tool-use-debug*)",
-      "Bash(./tools/message-read*)",
-      "Bash(./tools/message-send*)",
-      "Bash(./tools/msg *)",
-      "Bash(./tools/msg)",
       "Bash(./tools/myclaude*)",
-      "Bash(./tools/news-post*)",
-      "Bash(./tools/news-read*)",
       "Bash(./tools/nit-add*)",
       "Bash(./tools/nit-resolve*)",
       "Bash(./tools/now*)",
@@ -213,7 +186,6 @@
       "Bash(./tools/request *)",
       "Bash(./tools/request-complete*)",
       "Bash(./tools/requests*)",
-      "Bash(./tools/requests-backfill*)",
       "Bash(./tools/release*)",
       "Bash(./tools/restore*)",
       "Bash(./tools/review-spawn*)",
@@ -224,7 +196,6 @@
       "Bash(./tools/secrets-scan*)",
       "Bash(./tools/session-archive*)",
       "Bash(./tools/session-backup*)",
-      "Bash(./tools/setup-agency*)",
       "Bash(./tools/sprint-create*)",
       "Bash(./tools/starter-cleanup*)",
       "Bash(./tools/starter-compare*)",

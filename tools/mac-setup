@@ -1,5 +1,0 @@
-#!/bin/bash
-# DEPRECATED: Use ./tools/platform-setup or ./tools/platform-setup-macos
-echo "mac-setup is now platform-setup-macos" >&2
-echo "Use: ./tools/platform-setup (auto-detects) or ./tools/platform-setup-macos" >&2
-exec "$(dirname "$0")/platform-setup-macos" "$@"

@@ -1,0 +1,2 @@
+{"run":"019d4018-e0d8-792a-a1e3-80ee600074fa","tool":"handoff","event":"start","ts":"2026-03-30T18:54:25Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"main","args":"path --trigger manual"}
+{"run":"019d4018-e0d8-792a-a1e3-80ee600074fa","event":"end","ts":"2026-03-30T18:54:25Z","outcome":"success","exit":0,"duration_ms":0,"summary":"path resolved"}
