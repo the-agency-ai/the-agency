@@ -87,22 +87,42 @@ load 'test_helper'
 }
 
 @test "commit: --adhoc flag accepted as escape hatch" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+    echo "change" >> README.md
+    git add README.md
     run_tool git-commit "Test message" --adhoc
-    # Will fail (no git context) but flag should be recognized
+    # Flag should be recognized (no "Work item required" error)
     [[ ! "$output" =~ "unknown" ]] && [[ ! "$output" =~ "Work item required" ]]
 }
 
 @test "commit: validates work item format - accepts REQUEST" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+    echo "change" >> README.md
+    git add README.md
     run_tool git-commit "Test" --work-item REQUEST-jordan-0001 --stage impl
     [[ ! "$output" =~ "Invalid work item" ]]
 }
 
 @test "commit: validates work item format - accepts BUG" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+    echo "change" >> README.md
+    git add README.md
     run_tool git-commit "Test" --work-item BUG-housekeeping-00001 --stage impl
     [[ ! "$output" =~ "Invalid work item" ]]
 }
 
 @test "commit: validates work item format - accepts TASK" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+    echo "change" >> README.md
+    git add README.md
     run_tool git-commit "Test" --work-item TASK-auth-refactor --stage impl
     [[ ! "$output" =~ "Invalid work item" ]]
 }
