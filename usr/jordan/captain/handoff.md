@@ -27,9 +27,36 @@ Full redesign of agency-init and agency-update. rsync + manifest model for insta
 - Dispatch: `usr/jordan/captain/dispatches/dispatch-agency-init-design-20260331.md`
 - Transcript: `usr/jordan/captain/transcripts/transcript-agency-init-review-20260331.md`
 
-### ADHOC-WORKLOG Fix (COMPLETE — in PR #20)
+### ADHOC-WORKLOG Full Purge (NEXT — session 11)
 
-Removed ADHOC-WORKLOG.md append from `claude/tools/git-commit`. The `--adhoc` flag still works (no work-item required) but no longer writes to a worklog file. Telemetry captures this via `log_end`.
+Session 10 removed the append from `git-commit`. Principal confirmed: the entire ADHOC-WORKLOG pattern is dead. Full purge needed.
+
+**Files to delete:**
+- `claude/agents/captain/ADHOC-WORKLOG.md`
+- `claude/agents/gumroad/ADHOC-WORKLOG.md`
+- `claude/agents/discord/ADHOC-WORKLOG.md`
+- `claude/agents/apple/ADHOC-WORKLOG.md`
+- `claude/tools/adhoc-log`
+- `test/test-agency-project/claude/agents/housekeeping/ADHOC-WORKLOG.md`
+- `test/the-agency-starter/claude/agents/captain/ADHOC-WORKLOG.md`
+- `test/the-agency-starter/claude/agents/housekeeping/ADHOC-WORKLOG.md`
+- `test/the-agency-starter/claude/agents/hub/ADHOC-WORKLOG.md`
+
+**References to remove from (33 files total):**
+- `claude/tools/git-commit` — `--adhoc` flag and help text
+- `claude/tools/starter-release`, `project-update`, `agent-create` — any ADHOC-WORKLOG scaffolding
+- `claude/docs/STARTER-PACK-INTEGRATION.md`, `PRINCIPAL-GUIDE.md`, `CONCEPTS.md` — doc refs
+- `claude/agents/templates/generic/ONBOARDING.md` — template refs
+- `claude/agents/captain/KNOWLEDGE.md` — knowledge refs
+- `.agency/manifest.json`, `registry.json` — manifest entries
+- `claude/integrations/claude-desktop/agency-server/index.ts` — integration refs
+- Various `claude/principals/jordan/requests/REQUEST-*.md` — historical refs (leave or annotate as deprecated)
+- `claude/docs/tutorials/` — tutorial refs
+- `claude/principals/jordan/projects/the-agency-book/` — book refs
+
+**Decisions needed:**
+- `--adhoc` flag on git-commit: remove entirely or keep as "no work-item required" without any worklog?
+- Historical REQUEST files: purge refs or leave as-is (they're historical records)?
 
 ## Dispatch Queue
 
