@@ -1,0 +1,73 @@
+#!/bin/bash
+# terminal-setup — Dispatcher for terminal integration providers
+#
+# Usage: ./claude/tools/terminal-setup [--verbose] [provider-args...]
+#
+# Reads terminal.provider from agency.yaml and delegates to the
+# appropriate provider tool (e.g., terminal-setup-ghostty).
+# Auto-detects from $TERM_PROGRAM if no provider configured.
+
+set -euo pipefail
+
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source helpers
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "terminal-setup" "dispatcher-tool" "$@" 2>/dev/null) || true
+
+# Version
+TOOL_VERSION="1.0.0"
+
+# Handle --version and --help
+for arg in "$@"; do
+    case "$arg" in
+        --version) echo "terminal-setup $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            echo "terminal-setup — Set up terminal integration for Agency"
+            echo ""
+            echo "Usage: ./claude/tools/terminal-setup [--verbose]"
+            echo ""
+            echo "Reads terminal.provider from agency.yaml."
+            echo "Auto-detects from \$TERM_PROGRAM if not configured."
+            echo ""
+            echo "Providers: ghostty, kitty, wezterm"
+            exit 0
+            ;;
+    esac
+done
+
+# Resolve provider
+PROVIDER_TOOL=""
+if [[ -f "$PROJECT_ROOT/claude/tools/lib/_provider-resolve" ]]; then
+    source "$PROJECT_ROOT/claude/tools/lib/_provider-resolve"
+    PROVIDER_TOOL=$(resolve_provider "terminal" 2>/dev/null) || true
+fi
+
+# Auto-detect fallback from TERM_PROGRAM
+if [[ -z "$PROVIDER_TOOL" ]]; then
+    case "${TERM_PROGRAM:-}" in
+        ghostty)
+            PROVIDER_TOOL="$SCRIPT_DIR/terminal-setup-ghostty"
+            ;;
+        *)
+            echo "terminal-setup [run: ${RUN_ID:-none}]"
+            echo "No terminal provider configured and could not auto-detect from \$TERM_PROGRAM=${TERM_PROGRAM:-unset}"
+            echo "Set terminal.provider in claude/config/agency.yaml"
+            log_end "$RUN_ID" "failure" 1 0 "No provider" 2>/dev/null || true
+            exit 1
+            ;;
+    esac
+fi
+
+if [[ ! -x "$PROVIDER_TOOL" ]]; then
+    echo "terminal-setup [run: ${RUN_ID:-none}]"
+    echo "Provider tool not found or not executable: $PROVIDER_TOOL"
+    log_end "$RUN_ID" "failure" 1 0 "Provider missing" 2>/dev/null || true
+    exit 1
+fi
+
+log_end "$RUN_ID" "success" 0 0 "Dispatching to $(basename "$PROVIDER_TOOL")" 2>/dev/null || true
+exec "$PROVIDER_TOOL" "$@"

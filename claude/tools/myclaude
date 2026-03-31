@@ -1,0 +1,646 @@
+#!/bin/bash
+#
+# myclaude - Launch a Claude Code agent with workstream context
+#
+# Usage:
+#   ./claude/tools/myclaude WORKSTREAM AGENTNAME [initial_prompt] [OPTIONS]
+#   ./claude/tools/myclaude --update           # Update Claude Code to latest
+#   ./claude/tools/myclaude --rollback         # Rollback to previous version
+#   ./claude/tools/myclaude --version          # Show Claude Code version
+#
+# Options:
+#   --verbose     Show info and step messages
+#   --debug       Show all debug output (very verbose)
+#
+# Examples:
+#   ./claude/tools/myclaude housekeeping captain
+#   ./claude/tools/myclaude web web "Fix the login bug"
+#   ./claude/tools/myclaude housekeeping captain --debug
+#
+
+set -euo pipefail
+
+# Tool version
+TOOL_VERSION="1.2.0-20260115-000001"
+
+# Source log helper for tool tracking
+SCRIPT_DIR_EARLY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR_EARLY/_log-helper" ]]; then
+    source "$SCRIPT_DIR_EARLY/_log-helper"
+fi
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Defaults
+VERBOSE=false
+DEBUG=false
+
+# Logging functions
+# Debug logs everything, Verbose logs steps and info, default logs only errors
+log_debug() { [[ "$DEBUG" == "true" ]] && echo -e "${BLUE}[DEBUG]${NC} $1" || true; }
+log_info() { [[ "$VERBOSE" == "true" || "$DEBUG" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }  # Always show warnings
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" || "$DEBUG" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" || "$DEBUG" == "true" ]] && echo "$@" || true; }
+
+# Helper: Run command with optional debug output
+# Usage: run_cmd "description" command args...
+run_cmd() {
+    local desc="$1"
+    shift
+    log_debug "Running: $desc"
+    log_debug "Command: $*"
+    if [[ "$DEBUG" == "true" ]]; then
+        "$@" 2>&1 | while IFS= read -r line; do
+            echo -e "${BLUE}  > ${NC}$line"
+        done
+        return "${PIPESTATUS[0]}"
+    else
+        "$@"
+    fi
+}
+
+# Helper: Wait for service with retries
+# Usage: wait_for_service "url" "name" timeout_seconds
+wait_for_service() {
+    local url="$1"
+    local name="$2"
+    local timeout="${3:-30}"
+    local start_time=$(date +%s)
+    local attempt=0
+
+    log_debug "Waiting for $name at $url (timeout: ${timeout}s)"
+
+    while true; do
+        attempt=$((attempt + 1))
+        local response
+        response=$(curl -sf --connect-timeout 2 --max-time 5 "$url" 2>&1)
+        local curl_exit=$?
+
+        if [[ $curl_exit -eq 0 ]]; then
+            log_debug "$name is ready (attempt $attempt)"
+            [[ "$DEBUG" == "true" ]] && log_debug "Health response: $response"
+            return 0
+        fi
+
+        local elapsed=$(($(date +%s) - start_time))
+        if [[ $elapsed -ge $timeout ]]; then
+            log_error "$name failed to respond within ${timeout}s (curl exit: $curl_exit)"
+            [[ "$DEBUG" == "true" ]] && log_debug "Last response: $response"
+            return 1
+        fi
+
+        log_debug "Waiting for $name... (attempt $attempt, ${elapsed}s elapsed)"
+        sleep 1
+    done
+}
+
+# Check Python dependencies (auto-installs if missing)
+# Returns: 0 if dependencies ready, 1 if failed
+check_python_deps() {
+    local project_root="$1"
+    local requirements_file="$project_root/requirements.txt"
+
+    log_step "Checking Python dependencies..."
+
+    # 1. Check if Python 3 is available
+    if ! command -v python3 &> /dev/null; then
+        log_error "Python 3 not found. Please install Python 3."
+        return 1
+    fi
+    log_debug "Python 3 found: $(which python3)"
+
+    # 2. Check if requirements.txt exists
+    if [[ ! -f "$requirements_file" ]]; then
+        log_debug "No requirements.txt found - skipping Python dependency check"
+        return 0
+    fi
+
+    # 3. Check if pyyaml is installed (critical dependency for config)
+    if python3 -c "import yaml" 2>/dev/null; then
+        log_debug "pyyaml is installed"
+        echo -e "${GREEN}✓ Python dependencies present${NC}"
+        return 0
+    fi
+
+    # 4. Auto-install missing dependencies
+    echo -e "${YELLOW}Python dependencies missing, installing...${NC}"
+    log_debug "Installing from $requirements_file"
+
+    if pip3 install -r "$requirements_file" -q 2>/dev/null; then
+        echo -e "${GREEN}✓ Python dependencies installed${NC}"
+        return 0
+    else
+        # Try with --user flag if default fails
+        if pip3 install -r "$requirements_file" --user -q 2>/dev/null; then
+            echo -e "${GREEN}✓ Python dependencies installed (user)${NC}"
+            return 0
+        fi
+    fi
+
+    log_error "Failed to install Python dependencies"
+    echo "Please run: pip3 install -r requirements.txt" >&2
+    return 1
+}
+
+# Check if required services are ready (auto-installs everything)
+# Returns: 0 if all services ready, 1 if failed
+check_services() {
+    local project_root="$1"
+    local service_dir="$project_root/source/services/agency-service"
+    local bun_path="${HOME}/.bun/bin/bun"
+    local service_url="http://127.0.0.1:3141"
+    local service_timeout="${SERVICE_TIMEOUT:-30}"
+
+    log_step "Checking Agency Service..."
+    log_debug "Service directory: $service_dir"
+    log_debug "Bun path: $bun_path"
+    log_debug "Service URL: $service_url"
+    log_debug "Service timeout: ${service_timeout}s"
+
+    # 1. Check if service directory exists
+    if [[ ! -d "$service_dir" ]]; then
+        log_info "Agency Service directory not found - skipping service check"
+        log_debug "Path checked: $service_dir"
+        return 0
+    fi
+    log_debug "Service directory exists"
+
+    # 2. Check if Bun is installed - auto-install if missing
+    if [[ -x "$bun_path" ]]; then
+        log_debug "Bun found at $bun_path"
+        echo -e "${GREEN}✓ Bun runtime present${NC}"
+    else
+        echo -e "${YELLOW}Bun runtime not found, installing...${NC}"
+        if [[ "$DEBUG" == "true" ]]; then
+            curl -fsSL https://bun.sh/install | bash
+        else
+            curl -fsSL https://bun.sh/install | bash 2>/dev/null
+        fi
+        export PATH="$HOME/.bun/bin:$PATH"
+        bun_path="${HOME}/.bun/bin/bun"
+        if [[ -x "$bun_path" ]]; then
+            echo -e "${GREEN}✓ Bun installed${NC}"
+            log_debug "Bun installed successfully at $bun_path"
+        else
+            log_error "Failed to install Bun - some features may not work"
+            return 1
+        fi
+    fi
+
+    # 3. Check if dependencies are installed - auto-install if missing
+    if [[ -d "$service_dir/node_modules" ]]; then
+        log_debug "node_modules found"
+        echo -e "${GREEN}✓ Dependencies present${NC}"
+    else
+        echo -e "${YELLOW}Dependencies not found, installing...${NC}"
+        log_debug "Installing dependencies in $service_dir"
+        cd "$service_dir"
+        if [[ "$DEBUG" == "true" ]]; then
+            "$bun_path" install
+        else
+            "$bun_path" install --silent 2>/dev/null || "$bun_path" install
+        fi
+        cd "$project_root"
+        echo -e "${GREEN}✓ Dependencies installed${NC}"
+    fi
+
+    # 4. Check if service is running - auto-start if not
+    log_debug "Checking if service is already running..."
+    if curl -sf --connect-timeout 2 "$service_url/health" > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Agency Service running${NC}"
+        log_debug "Service already running"
+        return 0
+    fi
+
+    # Auto-start the service
+    echo -e "${YELLOW}Agency Service not running, starting...${NC}"
+    if [[ -x "$project_root/tools/agency-service" ]]; then
+        log_debug "Starting agency-service..."
+        if [[ "$DEBUG" == "true" ]]; then
+            "$project_root/tools/agency-service" start
+        else
+            "$project_root/tools/agency-service" start > /dev/null 2>&1 || true
+        fi
+
+        # Wait for service to be ready with proper retry logic
+        if wait_for_service "$service_url/health" "Agency Service" "$service_timeout"; then
+            echo -e "${GREEN}✓ Agency Service started${NC}"
+        else
+            log_error "Agency Service failed to start within ${service_timeout}s"
+            log_warn "Some features may not work without the service"
+            return 1
+        fi
+    else
+        log_warn "Agency Service tool not found at $project_root/tools/agency-service"
+        return 1
+    fi
+
+    return 0
+}
+
+# Get project root (where this script lives)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Handle special flags first
+case "${1:-}" in
+    --verbose)
+        VERBOSE=true
+        shift
+        ;;
+    --debug)
+        DEBUG=true
+        VERBOSE=true
+        export DEBUG_HOOKS=1
+        export VERBOSE=true
+        export DEBUG_MYCLAUDE=1
+        shift
+        ;;
+    --update)
+        log_info "Updating Claude Code..."
+        npm install -g @anthropic-ai/claude-code@latest
+        log_info "Claude Code updated to: $(claude --version)"
+        exit 0
+        ;;
+    --rollback)
+        VERSIONS_DIR="$HOME/.local/share/claude/versions"
+        if [ ! -d "$VERSIONS_DIR" ]; then
+            log_error "No versions directory found"
+            exit 1
+        fi
+
+        log_info "Available versions:"
+        VERSIONS=($(ls -1 "$VERSIONS_DIR" | sort -V))
+        CURRENT=$(claude --version 2>/dev/null || echo "unknown")
+
+        for i in "${!VERSIONS[@]}"; do
+            v="${VERSIONS[$i]}"
+            if [ "$v" = "$CURRENT" ]; then
+                echo "  $((i+1)). $v (current)"
+            else
+                echo "  $((i+1)). $v"
+            fi
+        done
+
+        echo ""
+        read -p "Select version to rollback to (1-${#VERSIONS[@]}): " choice
+
+        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#VERSIONS[@]}" ]; then
+            SELECTED="${VERSIONS[$((choice-1))]}"
+            SYMLINK="$HOME/.local/bin/claude"
+            TARGET="$VERSIONS_DIR/$SELECTED"
+
+            if [ -f "$TARGET" ]; then
+                ln -sf "$TARGET" "$SYMLINK"
+                log_info "Rolled back to: $SELECTED"
+            else
+                log_error "Version file not found: $TARGET"
+                exit 1
+            fi
+        else
+            log_error "Invalid selection"
+            exit 1
+        fi
+        exit 0
+        ;;
+    --version|-v)
+        echo "myclaude $TOOL_VERSION"
+        echo ""
+        echo -e "${BLUE}Claude Code version:${NC} $(claude --version)"
+        echo -e "${BLUE}The Agency version:${NC} $(cat "$PROJECT_ROOT/VERSION" 2>/dev/null || echo 'unknown')"
+        exit 0
+        ;;
+esac
+
+# Parse additional flags
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --debug)
+            DEBUG=true
+            VERBOSE=true
+            export DEBUG_HOOKS=1
+            export VERBOSE=true
+            export DEBUG_MYCLAUDE=1
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Parse arguments
+WORKSTREAM="${1:-}"
+AGENTNAME="${2:-}"
+INITIAL_PROMPT="${3:-}"
+
+# Validate
+if [ -z "$WORKSTREAM" ] || [ -z "$AGENTNAME" ]; then
+    log_error "Usage: ./claude/tools/myclaude WORKSTREAM AGENTNAME [prompt] [--verbose]"
+    echo ""
+    echo "Available agents:"
+    for agent_dir in "$PROJECT_ROOT"/claude/agents/*/; do
+        if [ -d "$agent_dir" ] && [ -f "$agent_dir/agent.md" ]; then
+            agent=$(basename "$agent_dir")
+            echo "  - $agent"
+        fi
+    done
+    exit 1
+fi
+
+# Check agent exists
+AGENT_DIR="$PROJECT_ROOT/claude/agents/$AGENTNAME"
+if [ ! -d "$AGENT_DIR" ]; then
+    log_error "Agent not found: $AGENTNAME"
+    echo "Create it with: ./claude/tools/agent-create $WORKSTREAM $AGENTNAME"
+    exit 1
+fi
+
+# Set environment
+export WORKSTREAM="$WORKSTREAM"
+export AGENTNAME="$AGENTNAME"
+export AGENT_NAME="$AGENTNAME"  # Also set AGENT_NAME for log helper
+export PROJECT_ROOT="$PROJECT_ROOT"
+
+# Main function
+main() {
+    # Initialize LOG_RUN_ID early (set properly later, but needed for trap)
+    LOG_RUN_ID=""
+
+    # Trap unexpected exits
+    trap 'log_end "${LOG_RUN_ID:-}" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    # Check if this is an Agency project
+    if [[ ! -f "$PROJECT_ROOT/claude/config/agency.yaml" ]] && [[ ! -f "$PROJECT_ROOT/.agency-starter" ]]; then
+        log_error "Not an Agency project."
+        echo ""
+        echo "This directory doesn't contain an Agency project."
+        echo ""
+        echo "To create a new project:"
+        echo "  ./claude/tools/project-create my-project"
+        echo ""
+        echo "Or run this from an Agency project root."
+        echo ""
+        exit 1
+    fi
+
+    # Check if this is the starter template (should use project-create first)
+    if [[ -f "$PROJECT_ROOT/.agency-starter" ]]; then
+        log_error "This is The Agency Starter template."
+        echo ""
+        echo "Create a project first:"
+        echo ""
+        echo "  ./claude/tools/project-create my-project"
+        echo "  cd my-project"
+        echo "  ./claude/tools/myclaude housekeeping captain"
+        echo ""
+        exit 1
+    fi
+
+    # Check if first-time setup is needed
+    if [[ ! -f "$PROJECT_ROOT/.agency-setup-complete" ]]; then
+        echo ""
+        echo -e "${BLUE}First-time setup required.${NC}"
+        echo ""
+        if [[ -x "$PROJECT_ROOT/claude/tools/setup-agency" ]]; then
+            # Run setup-agency interactively
+            "$PROJECT_ROOT/claude/tools/setup-agency"
+            # Reload environment after setup
+            if [[ -n "${AGENCY_PRINCIPAL:-}" ]]; then
+                export PRINCIPAL="$AGENCY_PRINCIPAL"
+            fi
+        else
+            log_warn "setup-agency tool not found. Continuing without setup..."
+        fi
+    fi
+
+    # Check Python dependencies (needed for tools/config which parses YAML)
+    log_debug "=== Python Dependency Check ==="
+    if ! check_python_deps "$PROJECT_ROOT"; then
+        log_warn "Python dependency check failed - config lookup may not work"
+    fi
+    log_debug "=== Python Dependency Check Complete ==="
+
+    # Check if principal identity is configured
+    if [[ -z "${AGENCY_PRINCIPAL:-}" ]]; then
+        # Try to get from config
+        if [[ -x "$PROJECT_ROOT/claude/tools/config" ]]; then
+            AGENCY_PRINCIPAL=$("$PROJECT_ROOT/claude/tools/config" get-principal 2>/dev/null || echo "")
+        fi
+    fi
+
+    # Validate principal name (must be alphanumeric with hyphens/underscores, not an error message)
+    if [[ -n "${AGENCY_PRINCIPAL:-}" ]] && [[ ! "$AGENCY_PRINCIPAL" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+        log_debug "Invalid principal name from config: $AGENCY_PRINCIPAL"
+        AGENCY_PRINCIPAL=""
+    fi
+
+    # If still no principal and principal directory doesn't exist, prompt to add
+    # Note: Don't use ${AGENCY_PRINCIPAL:-none} as fallback - if empty, first condition short-circuits
+    if [[ -z "${AGENCY_PRINCIPAL:-}" ]] || [[ ! -d "$PROJECT_ROOT/claude/principals/$AGENCY_PRINCIPAL" ]]; then
+        if [[ -x "$PROJECT_ROOT/claude/tools/add-principal" ]]; then
+            echo ""
+            echo -e "${BLUE}Principal identity not configured.${NC}"
+            echo ""
+            "$PROJECT_ROOT/claude/tools/add-principal"
+            # Reload environment
+            if [[ -z "${AGENCY_PRINCIPAL:-}" ]]; then
+                AGENCY_PRINCIPAL=$(whoami)
+            fi
+        fi
+    fi
+
+    echo "myclaude [run: ${LOG_RUN_ID:-none}]"
+    [[ "$DEBUG" == "true" ]] && echo -e "${BLUE}[DEBUG MODE ENABLED]${NC}"
+    echo ""
+
+    # Debug: Show configuration
+    log_debug "=== myclaude Configuration ==="
+    log_debug "WORKSTREAM: $WORKSTREAM"
+    log_debug "AGENTNAME: $AGENTNAME"
+    log_debug "INITIAL_PROMPT: ${INITIAL_PROMPT:-<none>}"
+    log_debug "PROJECT_ROOT: $PROJECT_ROOT"
+    log_debug "VERBOSE: $VERBOSE"
+    log_debug "DEBUG: $DEBUG"
+    log_debug "============================="
+
+    # Start logging this tool run
+    LOG_RUN_ID=""
+    if type log_start &>/dev/null; then
+        log_debug "Starting tool run logging..."
+        LOG_RUN_ID=$(log_start "myclaude" "$WORKSTREAM" "$AGENTNAME" "$INITIAL_PROMPT")
+        log_debug "LOG_RUN_ID: $LOG_RUN_ID"
+    else
+        log_debug "log_start function not available"
+    fi
+
+    # Get principal from config (maps system username to principal)
+    log_debug "Looking up principal..."
+    if [ -x "$PROJECT_ROOT/claude/tools/config" ]; then
+        PRINCIPAL=$("$PROJECT_ROOT/claude/tools/config" get-principal 2>/dev/null || echo "unknown")
+        export PRINCIPAL="$PRINCIPAL"
+        log_debug "PRINCIPAL: $PRINCIPAL"
+    else
+        log_debug "Config tool not found at $PROJECT_ROOT/claude/tools/config"
+    fi
+
+    # Check and start required services (Agency Service provides Secret Service, Log Service, etc.)
+    log_debug "=== Service Check ==="
+    if ! check_services "$PROJECT_ROOT"; then
+        log_warn "Service check failed - some features may not be available"
+    fi
+    log_debug "=== Service Check Complete ==="
+
+    # Set up vault session token for Claude Code to access secrets
+    log_debug "=== Vault Setup ==="
+    if [ -x "$PROJECT_ROOT/claude/tools/secret-vault" ]; then
+        log_step "Checking vault status..."
+        log_debug "Secret tool: $PROJECT_ROOT/claude/tools/secret-vault"
+
+        # Wait for secret service to be fully ready (max 5 seconds)
+        VAULT_STATUS="unknown"
+        for i in {1..10}; do
+            log_debug "Vault status check attempt $i..."
+            local raw_status
+            raw_status=$("$PROJECT_ROOT/claude/tools/secret-vault" vault status 2>&1)
+            log_debug "Raw vault status output: $raw_status"
+            VAULT_STATUS=$(echo "$raw_status" | grep -o 'status: [a-z]*' | cut -d' ' -f2 || echo "unknown")
+            log_debug "Parsed vault status: $VAULT_STATUS"
+            if [ "$VAULT_STATUS" != "unknown" ]; then
+                break
+            fi
+            sleep 0.5
+        done
+        log_step "Vault status: $VAULT_STATUS"
+
+        if [ "$VAULT_STATUS" = "locked" ]; then
+            echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${YELLOW}🔒 Secret Vault is locked${NC}"
+            echo ""
+            echo -e "The Agency uses a secure vault to store API keys and credentials."
+            echo -e "Please enter your vault passphrase to unlock it for this session."
+            echo ""
+            # Run unlock interactively - it will output the session token
+            # Use a temp file to capture the token since we need interactive input
+            UNLOCK_TOKEN_FILE=$(mktemp)
+            "$PROJECT_ROOT/claude/tools/secret-vault" vault unlock | tee "$UNLOCK_TOKEN_FILE"
+            # Extract session token (UUID on its own line)
+            SESSION_TOKEN=$(grep -E "^[a-f0-9-]{36}$" "$UNLOCK_TOKEN_FILE" | head -1 || echo "")
+            rm -f "$UNLOCK_TOKEN_FILE"
+            log_debug "Extracted session token from unlock: ${SESSION_TOKEN:0:20}..."
+            if [ -n "$SESSION_TOKEN" ]; then
+                export VAULT_SESSION_TOKEN="$SESSION_TOKEN"
+                log_debug "VAULT_SESSION_TOKEN exported"
+            fi
+            VAULT_STATUS="unlocked"
+            echo ""
+        fi
+
+        if [ "$VAULT_STATUS" = "unlocked" ] && [ -z "${VAULT_SESSION_TOKEN:-}" ]; then
+            # Generate a session token if we don't have one yet (vault was already unlocked)
+            log_debug "Generating vault session token..."
+            SESSION_TOKEN=$("$PROJECT_ROOT/claude/tools/secret-vault" vault session generate "$AGENTNAME-session" 2>/dev/null | grep -E "^[a-f0-9-]{36}$" | head -1 || echo "")
+            log_debug "Session token generated: ${SESSION_TOKEN:0:20}... (truncated)"
+            if [ -n "$SESSION_TOKEN" ]; then
+                export VAULT_SESSION_TOKEN="$SESSION_TOKEN"
+                echo -e "${GREEN}✓ Vault session token generated${NC}"
+            else
+                log_warn "Failed to generate vault session token"
+            fi
+        elif [ "$VAULT_STATUS" = "uninitialized" ]; then
+            echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${YELLOW}🔐 Secret Vault is not initialized${NC}"
+            echo ""
+            echo -e "The Agency uses a secure vault to store API keys and credentials."
+            echo -e "Would you like to initialize it now? (recommended)"
+            echo ""
+            read -p "Initialize vault? [Y/n]: " -n 1 -r
+            echo ""
+            if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+                echo ""
+                echo -e "Please choose a strong passphrase for your vault."
+                echo -e "You'll need this passphrase each time you start an agent."
+                echo ""
+                "$PROJECT_ROOT/claude/tools/secret-vault" vault init
+                VAULT_STATUS="unlocked"
+                echo ""
+            else
+                echo ""
+                echo -e "${YELLOW}⚠ Skipping vault initialization. Secrets will not be available.${NC}"
+                echo -e "${YELLOW}  You can initialize later with: ./claude/tools/secret-vault vault init${NC}"
+                echo ""
+            fi
+        elif [ "$VAULT_STATUS" = "unknown" ]; then
+            echo -e "${YELLOW}⚠ Secret service not responding. Secrets may not be available.${NC}"
+            echo ""
+        fi
+    fi
+
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Launching: ${GREEN}$AGENTNAME${NC} ${BLUE}on workstream: ${GREEN}$WORKSTREAM${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+    # Check for unread messages
+    if [ -x "$PROJECT_ROOT/claude/tools/message-read" ]; then
+        UNREAD=$("$PROJECT_ROOT/claude/tools/message-read" --count 2>/dev/null | grep -o '[0-9]*' | head -1)
+        UNREAD="${UNREAD:-0}"
+        if [ "$UNREAD" -gt 0 ]; then
+            echo -e "${YELLOW}  📬 You have $UNREAD unread message(s). Run ./claude/tools/message-read${NC}"
+        fi
+    fi
+    echo ""
+
+    log_debug "=== Vault Setup Complete ==="
+
+    # Build claude command arguments (array-based to avoid eval)
+    CLAUDE_ARGS=("--model" "opus" "--chrome")
+
+    # Add initial prompt if provided
+    if [ -n "$INITIAL_PROMPT" ]; then
+        CLAUDE_ARGS+=("--prompt" "$INITIAL_PROMPT")
+    fi
+
+    log_debug "=== Launching Claude ==="
+    log_debug "Claude args: ${CLAUDE_ARGS[*]}"
+    log_debug "Working directory: $PROJECT_ROOT"
+    log_debug "Environment variables:"
+    log_debug "  WORKSTREAM=$WORKSTREAM"
+    log_debug "  AGENTNAME=$AGENTNAME"
+    log_debug "  PRINCIPAL=$PRINCIPAL"
+    log_debug "  VAULT_SESSION_TOKEN=${VAULT_SESSION_TOKEN:+<set>}"
+    log_debug "  DEBUG_HOOKS=${DEBUG_HOOKS:-<not set>}"
+
+    # Launch claude in project directory
+    cd "$PROJECT_ROOT"
+
+    # Run claude and capture exit code
+    log_debug "Executing: claude ${CLAUDE_ARGS[*]}"
+    CLAUDE_EXIT=0
+    claude "${CLAUDE_ARGS[@]}" || CLAUDE_EXIT=$?
+    log_debug "Claude exited with code: $CLAUDE_EXIT"
+
+    # End logging
+    trap - EXIT  # Clear trap
+    if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
+        if [[ $CLAUDE_EXIT -eq 0 ]]; then
+            log_end "$LOG_RUN_ID" "success" "$CLAUDE_EXIT" "0" "Agent session: $AGENTNAME on $WORKSTREAM"
+        else
+            log_end "$LOG_RUN_ID" "failure" "$CLAUDE_EXIT" "0" "Agent session failed: $AGENTNAME"
+        fi
+    fi
+
+    exit $CLAUDE_EXIT
+}
+
+main
