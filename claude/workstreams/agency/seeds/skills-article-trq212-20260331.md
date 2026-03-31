@@ -1,6 +1,6 @@
 # Lessons from Building Claude Code: How We Use Skills
 
-**Source:** @bcherny on X/Twitter — `https://x.com/bcherny/status/2038454336355999749`
+**Source:** @trq212 on X/Twitter — `https://x.com/trq212/status/2033949937936085378`
 **Captured:** 2026-03-31
 **Type:** Anthropic internal practices shared publicly
 
