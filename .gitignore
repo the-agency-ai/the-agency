@@ -42,6 +42,9 @@ claude/data/*.pid
 claude/logs/*
 !claude/logs/reviews/
 
+# Tool telemetry (local runtime logs)
+.claude/logs/
+
 # Test coverage
 coverage/
 
