@@ -28,7 +28,7 @@
 # Options:
 #   --work-item, -w   Work item ID (REQUEST-jordan-0065, SPRINT-web-2026w03, etc.)
 #   --stage, -s       Stage: impl, review, tests (required if work-item provided)
-#   --adhoc           Escape hatch for ad-hoc work (logs to ADHOC-WORKLOG.md)
+#   --adhoc           Escape hatch for ad-hoc work (no work-item required)
 #   --body, -b        Detailed commit body
 #   --principal, -p   Override principal (default: from config or work item)
 #   --no-verify       Skip pre-commit hooks
@@ -362,27 +362,7 @@ main() {
         COMMIT_HASH=$(git log -1 --format='%h')
         echo "Committed: $COMMIT_HASH"
 
-        # Log to ADHOC-WORKLOG.md if --adhoc was used
-        if [ "$ADHOC" = true ]; then
-            REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-            # Validate AGENT to prevent path traversal
-            if [[ ! "$AGENT" =~ ^[a-z][a-z0-9-]*$ ]]; then
-                log_warn "Invalid agent name for adhoc log: $AGENT"
-            else
-                ADHOC_LOG="$REPO_ROOT/claude/agents/${AGENT}/ADHOC-WORKLOG.md"
-                if [ -f "$ADHOC_LOG" ]; then
-                    DATE_NOW=$(date +%Y-%m-%d)
-                    TIME_NOW=$(date +%H:%M)
-                    echo "" >> "$ADHOC_LOG"
-                    echo "### $DATE_NOW $TIME_NOW - Ad-hoc: $MESSAGE" >> "$ADHOC_LOG"
-                    echo "- Commit: $COMMIT_HASH" >> "$ADHOC_LOG"
-                    echo "- Agent: ${WORKSTREAM}/${AGENT}" >> "$ADHOC_LOG"
-                    verbose_echo "Logged to ADHOC-WORKLOG.md"
-                else
-                    log_warn "ADHOC-WORKLOG.md not found at $ADHOC_LOG"
-                fi
-            fi
-        fi
+        # ADHOC-WORKLOG.md append removed — telemetry captures this via log_end
 
         echo "✓"
 
