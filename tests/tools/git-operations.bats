@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for git operation tools: commit, tag, sync
+# Tests for git operation tools: git-commit, git-tag, git-sync
 #
 # Tests CLI argument parsing, validation, and git state handling.
 #
@@ -12,26 +12,26 @@ load 'test_helper'
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "commit: --version shows version" {
-    run_tool commit --version
+    run_tool git-commit --version
     assert_success
     assert_output_contains "commit"
 }
 
 @test "commit: --help shows usage" {
-    run_tool commit --help
+    run_tool git-commit --help
     assert_success
     assert_output_contains "Usage:"
     assert_output_contains "summary"
 }
 
 @test "commit: -h shows usage" {
-    run_tool commit -h
+    run_tool git-commit -h
     assert_success
     assert_output_contains "Usage:"
 }
 
 @test "commit: requires message argument" {
-    run_tool commit
+    run_tool git-commit
     assert_failure
     # Should indicate message is required
     assert_output_contains "message" || assert_output_contains "required"
@@ -39,93 +39,93 @@ load 'test_helper'
 
 @test "commit: accepts -m flag for message" {
     # Will fail (no git context) but validates flag is recognized
-    run_tool commit -m "Test message"
+    run_tool git-commit -m "Test message"
     # Should not complain about unknown flag
     [[ ! "$output" =~ "unknown" ]] && [[ ! "$output" =~ "invalid" ]]
 }
 
 @test "commit: accepts --message flag" {
-    run_tool commit --message "Test message"
+    run_tool git-commit --message "Test message"
     [[ ! "$output" =~ "unknown" ]] && [[ ! "$output" =~ "invalid" ]]
 }
 
 @test "commit: accepts work item with -w flag" {
-    run_tool commit -m "Test" -w REQUEST-test-0001
+    run_tool git-commit -m "Test" -w REQUEST-test-0001
     [[ ! "$output" =~ "invalid flag" ]]
 }
 
 @test "commit: accepts --work-item flag" {
-    run_tool commit -m "Test" --work-item REQUEST-test-0001
+    run_tool git-commit -m "Test" --work-item REQUEST-test-0001
     [[ ! "$output" =~ "invalid flag" ]]
 }
 
 @test "commit: accepts stage with -s flag" {
-    run_tool commit -m "Test" -s impl
+    run_tool git-commit -m "Test" -s impl
     [[ ! "$output" =~ "invalid flag" ]]
 }
 
 @test "commit: accepts --stage flag" {
-    run_tool commit -m "Test" --stage impl
+    run_tool git-commit -m "Test" --stage impl
     [[ ! "$output" =~ "invalid flag" ]]
 }
 
 @test "commit: validates stage values" {
-    run_tool commit -m "Test" --stage invalid
+    run_tool git-commit -m "Test" --stage invalid
     # Invalid stage should be rejected
     [[ "$status" -ne 0 ]] || [[ "$output" =~ "invalid" ]] || [[ "$output" =~ "stage" ]]
 }
 
 @test "commit: --dry-run flag is recognized" {
-    run_tool commit -m "Test" --dry-run
+    run_tool git-commit -m "Test" --dry-run
     [[ ! "$output" =~ "unknown" ]]
 }
 
 @test "commit: requires work item OR --adhoc flag" {
-    run_tool commit "Test message"
+    run_tool git-commit "Test message"
     assert_failure
     assert_output_contains "Work item required" || assert_output_contains "--adhoc"
 }
 
 @test "commit: --adhoc flag accepted as escape hatch" {
-    run_tool commit "Test message" --adhoc
+    run_tool git-commit "Test message" --adhoc
     # Will fail (no git context) but flag should be recognized
     [[ ! "$output" =~ "unknown" ]] && [[ ! "$output" =~ "Work item required" ]]
 }
 
 @test "commit: validates work item format - accepts REQUEST" {
-    run_tool commit "Test" --work-item REQUEST-jordan-0001 --stage impl
+    run_tool git-commit "Test" --work-item REQUEST-jordan-0001 --stage impl
     [[ ! "$output" =~ "Invalid work item" ]]
 }
 
 @test "commit: validates work item format - accepts BUG" {
-    run_tool commit "Test" --work-item BUG-housekeeping-00001 --stage impl
+    run_tool git-commit "Test" --work-item BUG-housekeeping-00001 --stage impl
     [[ ! "$output" =~ "Invalid work item" ]]
 }
 
 @test "commit: validates work item format - accepts TASK" {
-    run_tool commit "Test" --work-item TASK-auth-refactor --stage impl
+    run_tool git-commit "Test" --work-item TASK-auth-refactor --stage impl
     [[ ! "$output" =~ "Invalid work item" ]]
 }
 
 @test "commit: validates work item format - rejects invalid" {
-    run_tool commit "Test" --work-item INVALID-test --stage impl
+    run_tool git-commit "Test" --work-item INVALID-test --stage impl
     assert_failure
     assert_output_contains "Invalid work item"
 }
 
 @test "commit: validates work item format - rejects empty" {
-    run_tool commit "Test" --work-item "" --stage impl
+    run_tool git-commit "Test" --work-item "" --stage impl
     assert_failure
 }
 
 @test "commit: --work-item requires value" {
-    run_tool commit "Test" --work-item --stage impl
+    run_tool git-commit "Test" --work-item --stage impl
     assert_failure
     assert_output_contains "requires a value"
 }
 
 @test "commit: --stage requires value" {
-    run_tool commit "Test" --work-item REQUEST-test-0001 --stage
+    run_tool git-commit "Test" --work-item REQUEST-test-0001 --stage
     assert_failure
     assert_output_contains "requires a value"
 }
@@ -135,13 +135,13 @@ load 'test_helper'
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "tag: --version shows version" {
-    run_tool tag --version
+    run_tool git-tag --version
     assert_success
     assert_output_contains "tag"
 }
 
 @test "tag: --help shows usage" {
-    run_tool tag --help
+    run_tool git-tag --help
     assert_success
     assert_output_contains "Usage:"
 }
@@ -153,46 +153,46 @@ load 'test_helper'
 }
 
 @test "tag: accepts work-item and stage" {
-    run_tool tag REQUEST-test-0001 impl
+    run_tool git-tag REQUEST-test-0001 impl
     # Will fail (not in git repo with tests) but validates args parsed
     [[ ! "$output" =~ "invalid argument" ]]
 }
 
 @test "tag: validates stage format" {
-    run_tool tag REQUEST-test-0001 invalidstage
+    run_tool git-tag REQUEST-test-0001 invalidstage
     assert_failure
     assert_output_contains "Invalid stage" || assert_output_contains "impl" || assert_output_contains "review"
 }
 
 @test "tag: accepts release type" {
-    run_tool tag release 0.1.0
+    run_tool git-tag release 0.1.0
     # Will fail (not in proper context) but validates args
     [[ ! "$output" =~ "invalid" ]]
 }
 
 @test "tag: --skip-tests flag is recognized" {
-    run_tool tag REQUEST-test-0001 impl --skip-tests
+    run_tool git-tag REQUEST-test-0001 impl --skip-tests
     [[ ! "$output" =~ "unknown flag" ]]
 }
 
 @test "tag: --push flag is recognized" {
-    run_tool tag REQUEST-test-0001 impl --push
+    run_tool git-tag REQUEST-test-0001 impl --push
     [[ ! "$output" =~ "unknown flag" ]]
 }
 
 @test "tag: --skip-order flag is recognized" {
-    run_tool tag REQUEST-test-0001 review --skip-order --skip-tests
+    run_tool git-tag REQUEST-test-0001 review --skip-order --skip-tests
     [[ ! "$output" =~ "unknown flag" ]]
 }
 
 @test "tag: --force flag is recognized" {
-    run_tool tag REQUEST-test-0001 impl --force --skip-tests
+    run_tool git-tag REQUEST-test-0001 impl --force --skip-tests
     [[ ! "$output" =~ "unknown flag" ]]
 }
 
 @test "tag: --message requires value" {
     # Flags must come before positional args
-    run_tool tag --message
+    run_tool git-tag --message
     assert_failure
     assert_output_contains "requires a value"
 }
@@ -233,35 +233,35 @@ load 'test_helper'
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "sync: --version shows version" {
-    run_tool sync --version
+    run_tool git-sync --version
     assert_success
     assert_output_contains "sync"
 }
 
 @test "sync: --help shows usage" {
-    run_tool sync --help
+    run_tool git-sync --help
     assert_success
     assert_output_contains "Usage:"
 }
 
 @test "sync: -h shows usage" {
-    run_tool sync -h
+    run_tool git-sync -h
     assert_success
 }
 
 @test "sync: --check flag is recognized" {
-    run_tool sync --check
+    run_tool git-sync --check
     # Will fail (no git context) but flag should be recognized
     [[ ! "$output" =~ "unknown" ]]
 }
 
 @test "sync: --force flag is recognized" {
-    run_tool sync --force
+    run_tool git-sync --force
     [[ ! "$output" =~ "unknown" ]]
 }
 
 @test "sync: --verbose flag is recognized" {
-    run_tool sync --verbose
+    run_tool git-sync --verbose
     [[ ! "$output" =~ "unknown" ]]
 }
 

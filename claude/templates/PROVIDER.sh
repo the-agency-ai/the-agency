@@ -2,10 +2,10 @@
 # {{TOOL_NAME}} — {{TOOL_DESCRIPTION}}
 #
 # Provider for the {{PROVIDER_PATTERN}} plugin pattern.
-# Dispatched via: ./tools/{{DISPATCHER_NAME}}
+# Dispatched via: ./claude/tools/{{DISPATCHER_NAME}}
 #
 # Usage:
-#   ./tools/{{TOOL_NAME}} <verb> [args...]
+#   ./claude/tools/{{TOOL_NAME}} <verb> [args...]
 #
 # Standard verbs:
 #   set <name> [value]   Store/create an item
@@ -15,8 +15,7 @@
 #
 # This tool follows the Agency token-conservation pattern:
 #   - Minimal stdout (tool name, result, checkmark)
-#   - Verbose output to log service
-#   - Use --verbose for immediate detailed output
+#   - Verbose output to .claude/logs/tool-runs.jsonl
 
 set -euo pipefail
 
@@ -25,13 +24,16 @@ TOOL_VERSION="1.0.0-{{BUILD_NUMBER}}"
 
 # Configuration
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Source helpers
-if [[ -f "$SCRIPT_DIR/_log-helper" ]]; then
-    source "$SCRIPT_DIR/_log-helper"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
 fi
-RUN_ID=$(log_start "{{TOOL_NAME}}" "provider-tool" "$@" 2>/dev/null) || true
+RUN_ID=""
+if type log_start &>/dev/null; then
+    RUN_ID=$(log_start "{{TOOL_NAME}}" "$@")
+fi
 
 # Parse global flags
 VERBOSE=false
@@ -43,7 +45,7 @@ for arg in "$@"; do
         --help|-h)
             echo "{{TOOL_NAME}} — {{TOOL_DESCRIPTION}}"
             echo ""
-            echo "Usage: ./tools/{{TOOL_NAME}} <verb> [args...]"
+            echo "Usage: ./claude/tools/{{TOOL_NAME}} <verb> [args...]"
             echo ""
             echo "Verbs:"
             echo "  set <name> [value]   Store/create an item"

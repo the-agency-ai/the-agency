@@ -2,22 +2,30 @@
 # {{TOOL_NAME}} - {{TOOL_DESCRIPTION}}
 #
 # Usage:
-#   ./tools/{{TOOL_NAME}} [options]
+#   ./claude/tools/{{TOOL_NAME}} [options]
 #
 # This tool uses context-efficient logging:
-# - Logs details to log-service
+# - Logs details to .claude/logs/tool-runs.jsonl
 # - Returns single-line output
 # - Use --verbose for immediate output
-# - On failure: ./tools/agency-service log run <run-id> errors
 
-set -e
+set -euo pipefail
 
 # Tool version (semver-build, build is monotonically increasing)
 TOOL_VERSION="1.0.0-{{BUILD_NUMBER}}"
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source log helper for telemetry
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=""
+if type log_start &>/dev/null; then
+    RUN_ID=$(log_start "{{TOOL_NAME}}" "$@")
+fi
 
 # Parse arguments
 VERBOSE=false
@@ -35,7 +43,7 @@ while [[ $# -gt 0 ]]; do
             echo "{{TOOL_NAME}} - {{TOOL_DESCRIPTION}}"
             echo ""
             echo "Usage:"
-            echo "  ./tools/{{TOOL_NAME}} [options]"
+            echo "  ./claude/tools/{{TOOL_NAME}} [options]"
             echo ""
             echo "Options:"
             echo "  --verbose, -v  Show detailed output instead of logging"
@@ -49,102 +57,22 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Logging helpers
-log() {
-    local level="$1"
-    local message="$2"
-    local data="$3"
-
-    if [[ "$VERBOSE" == "true" ]]; then
-        echo "[$level] $message"
-    elif [[ -n "$RUN_ID" ]]; then
-        local json="{\"service\":\"{{TOOL_NAME}}\",\"level\":\"$level\",\"message\":\"$message\",\"runId\":\"$RUN_ID\""
-        if [[ -n "$data" ]]; then
-            json="$json,\"data\":$data"
-        fi
-        json="$json}"
-        curl -s -X POST "http://127.0.0.1:3141/api/log" \
-            -H "Content-Type: application/json" \
-            -d "$json" > /dev/null 2>&1 || true
-    fi
-}
-
-log_info() { log "info" "$1" "$2"; }
-log_warn() { log "warn" "$1" "$2"; }
-log_error() { log "error" "$1" "$2"; }
-
-# Start tool run (returns run-id for logging)
-start_run() {
-    if [[ "$VERBOSE" == "true" ]]; then
-        RUN_ID=""
-        return
-    fi
-
-    RUN_ID=$(curl -s -X POST "http://127.0.0.1:3141/api/log/run" \
-        -H "Content-Type: application/json" \
-        -d "{\"tool\":\"{{TOOL_NAME}}\"}" 2>/dev/null | grep -o '"runId":"[^"]*"' | cut -d'"' -f4 || true)
-}
-
-# End tool run
-end_run() {
-    local status="$1"
-    local summary="$2"
-
-    if [[ "$VERBOSE" == "true" ]]; then
-        return
-    fi
-
-    if [[ -n "$RUN_ID" ]]; then
-        curl -s -X POST "http://127.0.0.1:3141/api/log/run/${RUN_ID}/end" \
-            -H "Content-Type: application/json" \
-            -d "{\"status\":\"$status\",\"summary\":\"$summary\"}" > /dev/null 2>&1 || true
-    fi
-}
-
-# Output result (single line)
-output_success() {
-    local message="$1"
-    if [[ -n "$RUN_ID" ]]; then
-        echo "SUCCESS: $message (run-id: $RUN_ID)"
-    else
-        echo "SUCCESS: $message"
-    fi
-}
-
-output_failure() {
-    local message="$1"
-    if [[ -n "$RUN_ID" ]]; then
-        echo "FAILURE: $message (run-id: $RUN_ID)"
-        echo "  Debug: ./tools/agency-service log run $RUN_ID errors"
-    else
-        echo "FAILURE: $message"
-    fi
-}
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Main tool logic
 # ─────────────────────────────────────────────────────────────────────────────
 
 main() {
-    # Start logging run
-    start_run
-
-    log_info "Starting {{TOOL_NAME}}"
-
     # TODO: Add your tool logic here
-    # Example:
-    # log_info "Processing step 1"
-    # if ! do_step_1; then
-    #     log_error "Step 1 failed"
-    #     end_run "failure" "Step 1 failed"
-    #     output_failure "Step 1 failed"
-    #     exit 1
-    # fi
 
-    # Success
-    log_info "{{TOOL_NAME}} completed successfully"
-    end_run "success" "Completed"
-    output_success "{{TOOL_NAME}} completed"
+    # Success output (tool output standard)
+    if [[ -n "$RUN_ID" ]]; then
+        log_end "$RUN_ID" "success" 0 0 "Completed"
+        tool_output "{{TOOL_NAME}}" "$RUN_ID" "{{TOOL_NAME}} completed"
+    else
+        echo "{{TOOL_NAME}}"
+        echo "{{TOOL_NAME}} completed"
+        echo "✓"
+    fi
 }
 
 main "$@"

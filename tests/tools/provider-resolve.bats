@@ -18,11 +18,10 @@ setup_provider_fixture() {
     export FIXTURE_DIR="${BATS_TEST_TMPDIR}/project"
     mkdir -p "$FIXTURE_DIR/claude/config"
     mkdir -p "$FIXTURE_DIR/claude/tools/lib"
-    mkdir -p "$FIXTURE_DIR/tools"
 
     # Copy real helpers
-    cp "${TOOLS_DIR}/_path-resolve" "$FIXTURE_DIR/tools/"
-    cp "${TOOLS_DIR}/_log-helper" "$FIXTURE_DIR/tools/" 2>/dev/null || true
+    cp "${TOOLS_DIR}/lib/_path-resolve" "$FIXTURE_DIR/claude/tools/lib/"
+    cp "${TOOLS_DIR}/lib/_log-helper" "$FIXTURE_DIR/claude/tools/lib/" 2>/dev/null || true
     cp "$PROVIDER_LIB" "$FIXTURE_DIR/claude/tools/lib/"
 
     # Default agency.yaml
@@ -46,8 +45,8 @@ EOF
 
     # Create mock provider tools
     for tool in secret-vault terminal-setup-ghostty platform-setup-macos platform-setup-linux design-diff-figma; do
-        printf '#!/bin/bash\necho "mock %s"\n' "$tool" > "$FIXTURE_DIR/tools/$tool"
-        chmod +x "$FIXTURE_DIR/tools/$tool"
+        printf '#!/bin/bash\necho "mock %s"\n' "$tool" > "$FIXTURE_DIR/claude/tools/$tool"
+        chmod +x "$FIXTURE_DIR/claude/tools/$tool"
     done
 }
 
@@ -229,21 +228,21 @@ EOF
     setup_provider_fixture
     run bash -c "CLAUDE_PROJECT_DIR='$FIXTURE_DIR' source '$FIXTURE_DIR/claude/tools/lib/_provider-resolve' && resolve_provider secrets"
     assert_success
-    [[ "$output" == "$FIXTURE_DIR/tools/secret-vault" ]]
+    [[ "$output" == "$FIXTURE_DIR/claude/tools/secret-vault" ]]
 }
 
 @test "resolve_provider: returns full path for terminal" {
     setup_provider_fixture
     run bash -c "CLAUDE_PROJECT_DIR='$FIXTURE_DIR' source '$FIXTURE_DIR/claude/tools/lib/_provider-resolve' && resolve_provider terminal"
     assert_success
-    [[ "$output" == "$FIXTURE_DIR/tools/terminal-setup-ghostty" ]]
+    [[ "$output" == "$FIXTURE_DIR/claude/tools/terminal-setup-ghostty" ]]
 }
 
 @test "resolve_provider: returns full path for design with verb" {
     setup_provider_fixture
     run bash -c "CLAUDE_PROJECT_DIR='$FIXTURE_DIR' source '$FIXTURE_DIR/claude/tools/lib/_provider-resolve' && resolve_provider design diff"
     assert_success
-    [[ "$output" == "$FIXTURE_DIR/tools/design-diff-figma" ]]
+    [[ "$output" == "$FIXTURE_DIR/claude/tools/design-diff-figma" ]]
 }
 
 @test "resolve_provider: exports AGENCY_PROVIDER" {
@@ -257,12 +256,12 @@ EOF
     setup_provider_fixture
     run bash -c "CLAUDE_PROJECT_DIR='$FIXTURE_DIR' source '$FIXTURE_DIR/claude/tools/lib/_provider-resolve' && resolve_provider secrets >/dev/null && echo \"\$AGENCY_PROVIDER_TOOL\""
     assert_success
-    [[ "$output" == "$FIXTURE_DIR/tools/secret-vault" ]]
+    [[ "$output" == "$FIXTURE_DIR/claude/tools/secret-vault" ]]
 }
 
 @test "resolve_provider: fails when tool not found" {
     setup_provider_fixture
-    rm "$FIXTURE_DIR/tools/secret-vault"
+    rm "$FIXTURE_DIR/claude/tools/secret-vault"
     run bash -c "CLAUDE_PROJECT_DIR='$FIXTURE_DIR' source '$FIXTURE_DIR/claude/tools/lib/_provider-resolve' && resolve_provider secrets 2>&1"
     assert_failure
     assert_output_contains "provider tool not found"
@@ -270,7 +269,7 @@ EOF
 
 @test "resolve_provider: fails when tool not executable" {
     setup_provider_fixture
-    chmod -x "$FIXTURE_DIR/tools/secret-vault"
+    chmod -x "$FIXTURE_DIR/claude/tools/secret-vault"
     run bash -c "CLAUDE_PROJECT_DIR='$FIXTURE_DIR' source '$FIXTURE_DIR/claude/tools/lib/_provider-resolve' && resolve_provider secrets 2>&1"
     assert_failure
     assert_output_contains "provider tool not executable"
