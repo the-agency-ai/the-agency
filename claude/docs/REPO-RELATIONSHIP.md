@@ -94,7 +94,6 @@ These are public-facing files for end users:
 
 ### Files Only in the-agency (Instance-Specific)
 - Session backups
-- Adhoc worklogs
 - Agent-specific state
 - Principal-specific data
 - `setup-linux` (until Linux is supported)

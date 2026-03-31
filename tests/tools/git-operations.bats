@@ -80,21 +80,32 @@ load 'test_helper'
     [[ ! "$output" =~ "unknown" ]]
 }
 
-@test "commit: requires work item OR --adhoc flag" {
+@test "commit: requires work item OR --no-work-item flag" {
     run_tool git-commit "Test message"
     assert_failure
-    assert_output_contains "Work item required" || assert_output_contains "--adhoc"
+    assert_output_contains "Work item required" || assert_output_contains "--no-work-item"
 }
 
-@test "commit: --adhoc flag accepted as escape hatch" {
+@test "commit: --no-work-item flag accepted as escape hatch" {
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+    echo "change" >> README.md
+    git add README.md
+    run_tool git-commit "Test message" --no-work-item
+    # Flag should be recognized (no "Work item required" error)
+    [[ ! "$output" =~ "unknown" ]] && [[ ! "$output" =~ "Work item required" ]]
+}
+
+@test "commit: --adhoc flag rejected as unknown" {
     local repo_dir
     repo_dir=$(create_mock_git_repo)
     cd "$repo_dir"
     echo "change" >> README.md
     git add README.md
     run_tool git-commit "Test message" --adhoc
-    # Flag should be recognized (no "Work item required" error)
-    [[ ! "$output" =~ "unknown" ]] && [[ ! "$output" =~ "Work item required" ]]
+    # Should still require work item — --adhoc is no longer recognized
+    assert_failure
 }
 
 @test "commit: validates work item format - accepts REQUEST" {
