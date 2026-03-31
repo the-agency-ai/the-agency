@@ -124,6 +124,14 @@ dependencies:
       linux: "sudo apt-get install -y ripgrep"
     breaks: "fast code search"
 
+  # PDF processing
+  - name: pdftotext
+    check: "command -v pdftotext"
+    install:
+      darwin: "brew install poppler"
+      linux: "sudo apt-get install -y poppler-utils"
+    breaks: "PDF reading in Claude Code (Read tool)"
+
   # Rust (for Tauri/AgencyBench builds)
   - name: cargo
     min_version: "1.70"

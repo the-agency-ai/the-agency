@@ -2,53 +2,45 @@
 
 **Agent:** captain (housekeeping)
 **Principal:** jordan
-**Updated:** 2026-03-31 (session 8, post-compact)
+**Updated:** 2026-03-31 (session 9, post-filing)
 
 ## Current State
 
-On `feat/tool-refactor` branch. 7 commits ahead of main (including merge of origin/main). All quality gates passing. Ready for PR.
+On `main` branch. Clean working tree. Tool refactor PR #18 merged.
 
-## Session 8 Work
+## Session 9 Work
 
-### Dispatch 5: Tool Refactor (COMPLETE — 5 commits + merge)
+### Browser Access Investigation (COMPLETE — bugs filed, not fixed)
 
-1. **489ddb6** — Delete 24 deprecated tools, clean agency-service refs
-2. **9dee22b** — Move ~95 tools `tools/` → `claude/tools/`, rename (git-commit, git-tag, git-sync, agency-whoami, tool-create), new tools (git-fetch, telemetry), standardize JSONL logging, fix code-review false positive
-3. **d6e7a6b** — Update TOOL.sh/PROVIDER.sh templates, CLAUDE.md, all test files, add missing permissions
-4. **f67e11b** — Update all docs (17 files), agent templates (12 files), commands (3 files), hookify rules (3 files), agency-init shipped tool list + permissions, captain agent.md
-5. **eddd5b2** — Clean stale tool refs from agent templates (collaborate, doc-commit, test-coverage)
+Relaunched with `--debug`. Findings:
 
-Also merged origin/main which brought in two new dispatches.
+1. **Browser MCP (`@browsermcp/mcp`)** — third-party package, needs its own Chrome extension which is NOT installed. The "Claude (MCP)" tab is served by the npm server, not a Chrome extension. User rightfully won't install untrusted third-party extensions.
+2. **Claude in Chrome (v1.0.49)** — Anthropic's extension, but has CSP errors blocking its own inline scripts. Non-functional. Does NOT expose `mcp__Claude_in_Chrome__*` tools to Claude Code.
+3. **Computer Use MCP** — tier guidance references `mcp__Claude_in_Chrome__*` tools that don't exist.
+4. **`/feedback` command** — fails with HTTP 413 (payload too large). Bundles entire conversation context. Misleading "try again" UX — retry appears to succeed but silently drops.
+5. **`claude mcp list`** — reports stale "Connected" after server crash.
+6. **browser-mcp crashed again** during this session (tools deregistered mid-conversation).
 
-### Dispatch 6: QG Hardening (COMPLETE)
-Verified all 17 QG fixes from PR #16.
+### GitHub Issues Filed (7 total)
 
-### Computer Use MCP Feedback (COMPLETE)
-Filed 3 issues via `/feedback`.
+| Issue | Title |
+|-------|-------|
+| anthropics/claude-code#41363 | `/feedback` fails with HTTP 413 — oversized context, silent drop |
+| anthropics/claude-code#41367 | `claude mcp list` stale "Connected" after server crash |
+| anthropics/claude-code#41370 | Computer Use tier references nonexistent `mcp__Claude_in_Chrome__*` tools |
+| anthropics/claude-code#41371 | Claude in Chrome CSP errors block inline scripts |
+| anthropics/claude-code#41099 | `request_access` lacks binary path and actionable guidance |
+| anthropics/claude-code#41101 | Permissions reset on every CLI update (version-pinned binary) |
+| anthropics/claude-code#41104 | No Safari browser automation support |
 
-### Token Economics (PARTIAL — from new dispatch)
-- Refined `warn-compound-bash` hookify rule: added `exclude_pattern` for heredoc commits, `PATH=... bash -c`, stderr redirects, head/tail pipes
-- Remaining items: hook output audit, context-budget tool, CLAUDE.md size reduction
+All cross-referenced. Thread: **zero working paths to autonomous browser interaction from CLI**.
 
-## New Dispatches (from origin)
+## Blocked Items
 
-Two dispatches fetched and merged:
-
-1. **Code Survey / Incremental Capture** (`dispatch-agency-code-survey-tool-20260331.md`)
-   - Problem: review/explorer agents exhaust context on large codebases
-   - Proposed: incremental capture pattern (write findings as you go)
-   - Recommended: Option B (document-as-you-go) → Option C (multi-session chain)
-   - Status: READ, needs `/discuss` + plan
-
-2. **Token Economics Tools** (`dispatch-agency-token-economics-tools-20260331.md`)
-   - 5 items: /git-commit skill, compound bash refinement, hook output minimization, system reminder compression, context budget estimation
-   - Status: Item 2 (compound bash) DONE. Rest needs `/discuss` + plan
-
-## Next Steps
-
-1. **Create PR** for `feat/tool-refactor` → `main` — run through QG first
-2. **`/discuss` the new dispatches** — both are for discussion then planning
-3. **Remaining dispatch queue**: 3 (ISCP Design), 4 (Browser Protocol)
+**Two X/Twitter posts** — blocked on browser access (no working path):
+- `https://x.com/trq212/status/2033949937936085378`
+- `https://x.com/bcherny/status/2038454336355999749`
+- Workaround: principal pastes content manually
 
 ## Dispatch Queue
 
@@ -58,13 +50,13 @@ Two dispatches fetched and merged:
 | 2 | Agency 2.0 Bootstrap | MERGED |
 | — | Workstream Bootstrap | MERGED |
 | 3 | ISCP Design | NOT STARTED |
-| 4 | Browser Protocol | NOT STARTED |
-| 5 | Tool Refactor | DONE (needs PR) |
+| 4 | Browser Protocol | BLOCKED (bugs filed, no working browser path) |
+| 5 | Tool Refactor | DONE (PR #18 merged) |
 | 6 | QG Hardening | DONE |
 | 7 | Code Survey / Incremental Capture | READ (needs /discuss) |
 | 8 | Token Economics Tools | PARTIAL (needs /discuss) |
 
-## Open Issues
+## Open Issues (Internal)
 
 | Issue | Status |
 |-------|--------|
@@ -73,8 +65,14 @@ Two dispatches fetched and merged:
 | ISS-009 | Open — status line redundant worktree naming |
 | ISS-012 | Open — worktrees in two locations |
 
+## Parked Topics
+
+- **Status line for agent activity** — needs `/discuss` with principal
+- **Token Economics** — compound bash rule done, 4 items remain
+- **Weekly/Session limit discrepancies** — Team vs Personal Max20, mentioned in #41363, needs separate investigation
+
 ## Git State
 
-- Branch: `feat/tool-refactor` (7 commits ahead of main)
-- HEAD: eddd5b2
+- Branch: `main`
+- HEAD: d12025f
 - Working tree: clean (except handoff)
