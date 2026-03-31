@@ -74,3 +74,29 @@
 {"run":"019d424e-7a69-744b-901e-cc4883639cb1","tool":"code-review","event":"start","ts":"2026-03-31T05:12:12Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
 {"run":"019d424e-7a69-744b-901e-cc4883639cb1","event":"end","ts":"2026-03-31T05:12:12Z","outcome":"success","exit":0,"duration_ms":354,"summary":"Code review passed"}
 {"run":"019d424e-7899-7885-9547-397568e3533c","event":"end","ts":"2026-03-31T05:12:12Z","outcome":"success","exit":0,"duration_ms":0,"summary":"All checks passed"}
+{"run":"019d424e-a789-7b8f-a290-1a2ba444a3c3","tool":"commit-precheck","event":"start","ts":"2026-03-31T05:12:24Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d424e-a898-7aa6-b50d-e50c1374b6c4","tool":"test-run","event":"start","ts":"2026-03-31T05:12:24Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d424e-a898-7aa6-b50d-e50c1374b6c4","event":"end","ts":"2026-03-31T05:12:24Z","outcome":"success","exit":0,"duration_ms":0,"summary":"No tests to run"}
+{"run":"019d424e-a950-7dab-a752-6076436d8098","tool":"code-review","event":"start","ts":"2026-03-31T05:12:24Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d424e-a950-7dab-a752-6076436d8098","event":"end","ts":"2026-03-31T05:12:24Z","outcome":"success","exit":0,"duration_ms":354,"summary":"Code review passed"}
+{"run":"019d424e-a789-7b8f-a290-1a2ba444a3c3","event":"end","ts":"2026-03-31T05:12:24Z","outcome":"success","exit":0,"duration_ms":0,"summary":"All checks passed"}
+{"run":"019d425e-0f36-779c-b70f-e3633fb5dc19","tool":"session-backup","event":"start","ts":"2026-03-31T05:29:13Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d425e-124d-7de5-a3e7-09d56a661f5d","tool":"whoami","event":"start","ts":"2026-03-31T05:29:14Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d425e-124d-7de5-a3e7-09d56a661f5d","event":"end","ts":"2026-03-31T05:29:14Z","outcome":"success","exit":0,"duration_ms":0,"summary":"Agent name returned"}
+{"run":"019d425e-1423-7736-8228-3d7751bfd2e5","tool":"now","event":"start","ts":"2026-03-31T05:29:15Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d425e-1423-7736-8228-3d7751bfd2e5","event":"end","ts":"2026-03-31T05:29:15Z","outcome":"success","exit":0,"duration_ms":0,"summary":"Timestamp returned"}
+{"run":"019d425e-6e7d-7977-b563-5ece2d7fa61c","tool":"session-backup","event":"start","ts":"2026-03-31T05:29:38Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d425e-6eb2-7b02-9857-29c2b8d9d423","tool":"whoami","event":"start","ts":"2026-03-31T05:29:38Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d425e-6eb2-7b02-9857-29c2b8d9d423","event":"end","ts":"2026-03-31T05:29:38Z","outcome":"success","exit":0,"duration_ms":0,"summary":"Agent name returned"}
+{"run":"019d425e-6eef-7a19-85a2-5b25b61f422e","tool":"now","event":"start","ts":"2026-03-31T05:29:38Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d425e-6eef-7a19-85a2-5b25b61f422e","event":"end","ts":"2026-03-31T05:29:38Z","outcome":"success","exit":0,"duration_ms":0,"summary":"Timestamp returned"}
+{"run":"019d425e-6f71-7084-b6a6-0e6719ba0729","tool":"workstream","event":"start","ts":"2026-03-31T05:29:38Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d425e-6f71-7084-b6a6-0e6719ba0729","event":"end","ts":"2026-03-31T05:29:38Z","outcome":"failure","exit":1,"duration_ms":0,"summary":"WORKSTREAM not set"}
+{"run":"019d425e-6e7d-7977-b563-5ece2d7fa61c","event":"end","ts":"2026-03-31T05:29:38Z","outcome":"success","exit":0,"duration_ms":0,"summary":"Backup complete"}
+{"run":"019d425f-81bb-7ce6-9ac6-a2f60e9b72ae","tool":"commit-precheck","event":"start","ts":"2026-03-31T05:30:48Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d425f-81bb-7ce6-9ac6-a2f60e9b72ae","event":"end","ts":"2026-03-31T05:30:48Z","outcome":"success","exit":0,"duration_ms":0,"summary":"No staged changes"}
+{"run":"019d425f-91ee-7b09-b54b-8925e8837ae2","tool":"code-review","event":"start","ts":"2026-03-31T05:30:52Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":"--base main"}
+{"run":"019d425f-91ee-7b09-b54b-8925e8837ae2","event":"end","ts":"2026-03-31T05:30:52Z","outcome":"success","exit":0,"duration_ms":27,"summary":"Code review passed"}
+{"run":"019d4260-2757-77a3-87bf-513f0271e07d","tool":"commit","event":"start","ts":"2026-03-31T05:31:31Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":"tool-runs.jsonl"}
+{"run":"019d4260-2757-77a3-87bf-513f0271e07d","event":"end","ts":"2026-03-31T05:31:31Z","outcome":"failure","exit":1,"duration_ms":0,"summary":"Missing work item"}
+{"run":"019d4260-3587-70ab-ae3b-e3d2b158f00f","tool":"commit","event":"start","ts":"2026-03-31T05:31:34Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":"housekeeping/captain: chore: update tool telemetry log --adhoc"}
