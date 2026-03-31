@@ -27,7 +27,7 @@ Implementation → Code Review + Security Review → Test Review → Complete
 # Output: All tests passed
 
 # 3. Commit using the commit tool
-./claude/tools/commit "add Red-Green development cycle docs" \
+./claude/tools/git-commit "add Red-Green development cycle docs" \
   --work-item REQUEST-jordan-0065 \
   --stage impl \
   --body "Updated CLAUDE.md with explicit workflow documentation including:
@@ -36,7 +36,7 @@ Implementation → Code Review + Security Review → Test Review → Complete
 - Code review process clarification"
 
 # 4. Tag implementation complete
-./claude/tools/tag REQUEST-jordan-0065 impl
+./claude/tools/git-tag REQUEST-jordan-0065 impl
 ```
 
 ### Phase 2: Code Review + Security Review
@@ -86,7 +86,7 @@ Return findings with severity (Critical/High/Medium/Low) and CWE IDs."
 ./claude/tools/test-run
 
 # 7. Commit using the commit tool
-./claude/tools/commit "apply code review findings" \
+./claude/tools/git-commit "apply code review findings" \
   --work-item REQUEST-jordan-0065 \
   --stage review \
   --body "Applied consolidated review findings:
@@ -95,7 +95,7 @@ Return findings with severity (Critical/High/Medium/Low) and CWE IDs."
 - Security fix: description"
 
 # 8. Tag review complete
-./claude/tools/tag REQUEST-jordan-0065 review
+./claude/tools/git-tag REQUEST-jordan-0065 review
 ```
 
 ### Phase 3: Test Review
@@ -133,7 +133,7 @@ Return a list of test improvements needed."
 ./claude/tools/test-run
 
 # 6. Commit using the commit tool
-./claude/tools/commit "add tests from review findings" \
+./claude/tools/git-commit "add tests from review findings" \
   --work-item REQUEST-jordan-0065 \
   --stage tests \
   --body "Added tests from consolidated test review:
@@ -142,14 +142,14 @@ Return a list of test improvements needed."
 - Test 3: edge case coverage"
 
 # 7. Tag tests complete
-./claude/tools/tag REQUEST-jordan-0065 tests
+./claude/tools/git-tag REQUEST-jordan-0065 tests
 ```
 
 ### Phase 4: Complete
 
 ```bash
 # Tag work item complete (no commit needed)
-./claude/tools/tag REQUEST-jordan-0065 complete
+./claude/tools/git-tag REQUEST-jordan-0065 complete
 
 # If this is a release point:
 ./claude/tools/release 1.3.0 --push --github
@@ -185,17 +185,17 @@ SPRINT-web-2026w03 - web/frontend for jordan: complete sprint deliverables
 housekeeping/captain: update README formatting
 ```
 
-**Using ./claude/tools/commit:**
+**Using ./claude/tools/git-commit:**
 ```bash
 # With work item
-./claude/tools/commit "add Red-Green workflow docs" --work-item REQUEST-jordan-0065 --stage impl
+./claude/tools/git-commit "add Red-Green workflow docs" --work-item REQUEST-jordan-0065 --stage impl
 
 # With body
-./claude/tools/commit "fix path traversal" --work-item BUG-0042 --stage review \
+./claude/tools/git-commit "fix path traversal" --work-item BUG-0042 --stage review \
   --body "Sanitized user input before file operations"
 
 # Simple commit (no work item)
-./claude/tools/commit "update README formatting"
+./claude/tools/git-commit "update README formatting"
 ```
 
 ## Key Rules

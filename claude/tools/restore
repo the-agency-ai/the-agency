@@ -72,7 +72,7 @@ main() {
 
     verbose_echo "restore [run: ${RUN_ID:-none}]"
 
-    local AGENTNAME=$(./claude/tools/agentname 2>/dev/null || echo 'unknown')
+    local AGENTNAME=$(./claude/tools/agency-whoami 2>/dev/null || echo 'unknown')
     local BACKUP_DIR="claude/agents/$AGENTNAME/backups/latest"
     local UNCOMMITTED_PATCH="$BACKUP_DIR/uncommitted.patch"
     local STAGED_PATCH="$BACKUP_DIR/staged.patch"

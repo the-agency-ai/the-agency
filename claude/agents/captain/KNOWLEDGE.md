@@ -79,22 +79,20 @@ When work spans multiple agents:
 
 ### Essential Daily Tools
 ```bash
-./tools/myclaude {ws} {agent}  # Launch agent
-./tools/sync                    # Push with checks
-./tools/news-read               # Check broadcasts
-./tools/dispatch-collaborations # Handle pending requests
+./claude/tools/myclaude {ws} {agent}  # Launch agent
+./claude/tools/git-sync               # Push with checks
+./claude/tools/tool-find {keyword}    # Find a tool
 ```
 
 ### When Stuck
 ```bash
-./tools/session-backup          # Save your context
-./tools/collaborate {agent}     # Ask for help
-./tools/nit-add {file}          # Flag for later
+./claude/tools/session-backup         # Save your context
+./claude/tools/nit-add {file}         # Flag for later
 ```
 
 ### Discovery
 ```bash
-./tools/tool-find {keyword}     # Find a tool
+./claude/tools/tool-find {keyword}    # Find a tool
 ./tools/list-tools              # See all tools
 ./tools/instruction-show       # See active instructions
 ```

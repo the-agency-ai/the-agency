@@ -2,9 +2,9 @@
 # Create properly formatted commits for The Agency
 #
 # Usage:
-#   ./claude/tools/commit "short summary" --work-item REQUEST-jordan-0065 --stage impl
-#   ./claude/tools/commit "fix null handling" --work-item BUG-0042 --stage review
-#   ./claude/tools/commit "quick doc fix" --adhoc  # Escape hatch for ad-hoc work
+#   ./claude/tools/git-commit "short summary" --work-item REQUEST-jordan-0065 --stage impl
+#   ./claude/tools/git-commit "fix null handling" --work-item BUG-0042 --stage review
+#   ./claude/tools/git-commit "quick doc fix" --adhoc  # Escape hatch for ad-hoc work
 #
 # IMPORTANT: Work item OR --adhoc is REQUIRED. Commits without either are blocked.
 #
@@ -173,7 +173,7 @@ main() {
 
     if [ -z "$MESSAGE" ]; then
         log_error "Commit message required"
-        verbose_echo "Usage: ./claude/tools/commit \"message\" --work-item WORK-ITEM --stage impl"
+        verbose_echo "Usage: ./claude/tools/git-commit \"message\" --work-item WORK-ITEM --stage impl"
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "Missing commit message"
         exit 1
@@ -184,10 +184,10 @@ main() {
         log_error "Work item required"
         echo ""
         echo "Every commit must reference a work item:"
-        echo "  ./claude/tools/commit \"message\" --work-item REQUEST-jordan-XXXX --stage impl"
+        echo "  ./claude/tools/git-commit \"message\" --work-item REQUEST-jordan-XXXX --stage impl"
         echo ""
         echo "For ad-hoc work (escape hatch):"
-        echo "  ./claude/tools/commit \"message\" --adhoc"
+        echo "  ./claude/tools/git-commit \"message\" --adhoc"
         echo ""
         echo "Valid work item types: REQUEST, BUG, TASK, PHASE, ITERATION, SPRINT"
         trap - EXIT

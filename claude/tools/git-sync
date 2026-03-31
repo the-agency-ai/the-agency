@@ -2,7 +2,7 @@
 # Sync local commits with remote (pull --rebase + push)
 # This is the ONLY approved way to push to remote
 #
-# Usage: ./claude/tools/sync [options]
+# Usage: ./claude/tools/git-sync [options]
 #   --check    Show what would be pushed without pushing
 #   --dry-run  Same as --check
 #   --verbose  Show detailed output instead of logging
@@ -48,7 +48,7 @@ while [[ $# -gt 0 ]]; do
             echo "sync - Sync local commits with remote"
             echo ""
             echo "Usage:"
-            echo "  ./claude/tools/sync [options]"
+            echo "  ./claude/tools/git-sync [options]"
             echo ""
             echo "Options:"
             echo "  --check, --dry-run  Show what would be pushed without pushing"
@@ -139,7 +139,7 @@ output_failure() {
     local message="$1"
     if [[ -n "$RUN_ID" ]]; then
         echo "FAILURE: $message (run-id: $RUN_ID)"
-        echo "  Debug: ./claude/tools/agency-service log run $RUN_ID errors"
+        echo "  Debug: ./claude/tools/telemetry --run $RUN_ID errors"
     else
         echo "FAILURE: $message"
     fi
@@ -211,7 +211,7 @@ main() {
         cat > "$PUSH_LOG" << 'EOF'
 # Push Log
 
-Accountability log for all remote pushes. All agents must use `./claude/tools/sync`.
+Accountability log for all remote pushes. All agents must use `./claude/tools/git-sync`.
 
 | Timestamp | Agent | Commits | Skip CI | Branch |
 |-----------|-------|---------|---------|--------|

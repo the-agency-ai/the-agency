@@ -147,7 +147,7 @@ load 'test_helper'
 }
 
 @test "tag: requires arguments" {
-    run_tool tag
+    run_tool git-tag
     assert_failure
     # Should show usage or error about missing args
 }
@@ -203,7 +203,7 @@ load 'test_helper'
     cd "$repo_dir"
 
     # Try to tag review without impl - should fail
-    run "${TOOLS_DIR}/tag" REQUEST-test-0001 review --skip-tests
+    run "${TOOLS_DIR}/git-tag" REQUEST-test-0001 review --skip-tests
     assert_failure
     assert_output_contains "stage order" || assert_output_contains "impl"
 }
@@ -214,7 +214,7 @@ load 'test_helper'
     cd "$repo_dir"
 
     # Tag impl should work without prerequisites
-    run "${TOOLS_DIR}/tag" REQUEST-test-0001 impl --skip-tests
+    run "${TOOLS_DIR}/git-tag" REQUEST-test-0001 impl --skip-tests
     assert_success
 }
 
@@ -224,7 +224,7 @@ load 'test_helper'
     cd "$repo_dir"
 
     # Tag review without impl - should work with --skip-order
-    run "${TOOLS_DIR}/tag" --skip-order --skip-tests REQUEST-test-0001 review
+    run "${TOOLS_DIR}/git-tag" --skip-order --skip-tests REQUEST-test-0001 review
     assert_success
 }
 
@@ -338,7 +338,7 @@ load 'test_helper'
 
 @test "commit: detects non-git directory" {
     cd "${BATS_TEST_TMPDIR}"
-    run "${TOOLS_DIR}/commit" -m "Test"
+    run "${TOOLS_DIR}/git-commit" -m "Test"
     assert_failure
     # Should indicate git issue
     [[ "$output" =~ "git" ]] || [[ "$output" =~ "repository" ]] || [[ "$status" -ne 0 ]]
@@ -350,7 +350,7 @@ load 'test_helper'
     cd "$repo_dir"
 
     # Try to tag - should fail on tests but parse args correctly
-    run "${TOOLS_DIR}/tag" REQUEST-test-0001 impl --skip-tests
+    run "${TOOLS_DIR}/git-tag" REQUEST-test-0001 impl --skip-tests
     # Either succeeds or fails on something other than arg parsing
     [[ ! "$output" =~ "invalid argument" ]]
 }
@@ -361,13 +361,13 @@ load 'test_helper'
     cd "$repo_dir"
 
     # Clean tree
-    run "${TOOLS_DIR}/sync" --check
+    run "${TOOLS_DIR}/git-sync" --check
     # Should not error on working tree
     [[ ! "$output" =~ "uncommitted" ]] || [[ "$status" -eq 0 ]]
 
     # Make dirty
     echo "change" >> README.md
-    run "${TOOLS_DIR}/sync" --check
+    run "${TOOLS_DIR}/git-sync" --check
     # Should detect uncommitted changes
     [[ "$output" =~ "uncommitted" ]] || [[ "$output" =~ "changed" ]] || [[ "$status" -ne 0 ]]
 }

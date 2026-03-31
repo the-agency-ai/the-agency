@@ -9,7 +9,7 @@
 #
 # Output follows tool output standard (CLAUDE.md):
 #   stdout: minimal status (tool name, run ID, result)
-#   verbose: stored in log service, view with: ./claude/tools/agency-service log run {run-id}
+#   verbose: stored in log service, view with: ./claude/tools/telemetry --run {run-id}
 
 set -euo pipefail
 

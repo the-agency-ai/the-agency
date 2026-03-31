@@ -403,12 +403,12 @@ test_tools() {
         log_fail "./claude/tools/now failed"
     fi
 
-    # Test ./claude/tools/agentname (outputs agent name or 'unknown')
-    local agentname_output=$(./claude/tools/agentname 2>&1)
+    # Test ./claude/tools/agency-whoami (outputs agent name or 'unknown')
+    local agentname_output=$(./claude/tools/agency-whoami 2>&1)
     if [[ -n "$agentname_output" ]]; then
-        log_pass "./claude/tools/agentname works (output: $agentname_output)"
+        log_pass "./claude/tools/agency-whoami works (output: $agentname_output)"
     else
-        log_fail "./claude/tools/agentname produced no output"
+        log_fail "./claude/tools/agency-whoami produced no output"
     fi
 
     # Test ./claude/tools/workstream

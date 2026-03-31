@@ -80,7 +80,7 @@ is_service_running() {
 ensure_service() {
     if ! is_service_running; then
         log_error "Log Service not running at ${LOG_SERVICE_URL}"
-        echo "Start it with: ./claude/tools/agency-service start"
+        echo "Start it with: ./claude/tools/telemetry --recent"
         exit 1
     fi
 }

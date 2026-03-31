@@ -102,7 +102,7 @@ main() {
         exit 1
     fi
 
-    local AGENTNAME=$(./claude/tools/agentname)
+    local AGENTNAME=$(./claude/tools/agency-whoami)
     local CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
     local TIMESTAMP=$(./claude/tools/now)
 

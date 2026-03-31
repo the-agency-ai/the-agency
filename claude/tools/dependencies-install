@@ -27,7 +27,7 @@ NC='\033[0m'
 
 # Defaults
 VERBOSE=false
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DEPS_FILE="$PROJECT_ROOT/claude/config/agency-dependencies.yaml"
 
 # Logging functions

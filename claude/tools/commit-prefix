@@ -67,7 +67,7 @@ main() {
     verbose_echo "commit-prefix [run: ${RUN_ID:-none}]"
 
     WORKSTREAM=$(./claude/tools/workstream 2>/dev/null || echo "unknown")
-    AGENTNAME=$(./claude/tools/agentname 2>/dev/null || echo "unknown")
+    AGENTNAME=$(./claude/tools/agency-whoami 2>/dev/null || echo "unknown")
 
     verbose_echo "Workstream: $WORKSTREAM, Agent: $AGENTNAME"
 

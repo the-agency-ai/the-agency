@@ -129,7 +129,7 @@ main() {
       else
         echo "✗"
         log_end "$RUN_ID" "failure" $TEST_EXIT ${#TEST_OUTPUT} "Tests failed"
-        # Verbose output available via: ./claude/tools/agency-service log run $RUN_ID
+        # Verbose output available via: ./claude/tools/telemetry --run $RUN_ID
       fi
       exit $TEST_EXIT
     else

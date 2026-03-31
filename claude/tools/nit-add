@@ -51,7 +51,7 @@ TIMESTAMP=$("$SCRIPT_DIR/now" 2>/dev/null || date "+%Y-%m-%d %H:%M:%S %Z")
 DATE=$(echo "$TIMESTAMP" | cut -d' ' -f1)
 
 # Get agent name for attribution
-AGENTNAME=$("$SCRIPT_DIR/agentname" 2>/dev/null || echo "unknown")
+AGENTNAME=$("$SCRIPT_DIR/agency-whoami" 2>/dev/null || echo "unknown")
 COMMIT_PREFIX=$("$SCRIPT_DIR/commit-prefix" 2>/dev/null || echo "unknown/unknown:")
 
 # Function to handle merge conflicts by preserving all nits
@@ -156,7 +156,7 @@ git commit -m "$COMMIT_MSG
 
 # Step 6: Push using sync tool
 echo "Syncing changes..."
-"$SCRIPT_DIR/sync" || {
+"$SCRIPT_DIR/git-sync" || {
   echo "Sync failed"
   exit 1
 }

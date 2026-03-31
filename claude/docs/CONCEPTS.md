@@ -230,7 +230,7 @@ Pre-commit hooks enforce standards:
 
 ## Git Discipline
 
-- **Push via:** `./claude/tools/sync` only (runs quality gates)
+- **Push via:** `./claude/tools/git-sync` only (runs quality gates)
 - **Stay on HEAD:** `git fetch && git pull --rebase` at session start
 - **Push frequently:** Other agents need your work
 - **Commit format:**

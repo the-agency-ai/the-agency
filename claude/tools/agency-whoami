@@ -5,7 +5,7 @@
 # Falls back to "unknown" if not set.
 #
 # Usage:
-#   ./claude/tools/whoami
+#   ./claude/tools/agency-whoami
 #
 # Why this exists:
 #   Provides agent self-identification for scripts and prompts
@@ -16,7 +16,7 @@ SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
     source "$SCRIPT_DIR/lib/_log-helper"
 fi
-RUN_ID=$(log_start "whoami" "$@" 2>/dev/null) || true
+RUN_ID=$(log_start "agency-whoami" "$@" 2>/dev/null) || true
 
 # Tool version
 TOOL_VERSION="1.0.0-20260114-000009"

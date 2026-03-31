@@ -346,11 +346,11 @@ main() {
     # Mark REQUEST as complete if specified
     if [ -n "$REQUEST_ID" ]; then
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        if [ -x "$SCRIPT_DIR/tag" ]; then
-            "$SCRIPT_DIR/tag" "$REQUEST_ID" complete
+        if [ -x "$SCRIPT_DIR/git-tag" ]; then
+            "$SCRIPT_DIR/git-tag" "$REQUEST_ID" complete
             log_info "Marked $REQUEST_ID as complete"
         else
-            log_warn "Could not find tools/tag to mark REQUEST complete"
+            log_warn "Could not find git-tag to mark REQUEST complete"
         fi
     fi
 

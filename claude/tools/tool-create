@@ -30,7 +30,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TEMPLATE_FILE="$PROJECT_ROOT/claude/templates/TOOL.sh"
 PROVIDER_TEMPLATE_FILE="$PROJECT_ROOT/claude/templates/PROVIDER.sh"
-TOOLS_DIR="$PROJECT_ROOT/tools"
+TOOLS_DIR="$PROJECT_ROOT/claude/tools"
 BUILD_FILE="$PROJECT_ROOT/claude/data/tool-build-number"
 
 # Provider pattern naming conventions (section -> tool prefix)

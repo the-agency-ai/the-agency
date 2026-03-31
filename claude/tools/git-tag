@@ -2,19 +2,19 @@
 # Create properly formatted tags for work items and releases
 #
 # Usage:
-#   ./claude/tools/tag {WORK-ITEM} {stage}           # {WORK-ITEM}-{stage}
-#   ./claude/tools/tag release {version} [suffix]    # v{version}[-suffix]
+#   ./claude/tools/git-tag {WORK-ITEM} {stage}           # {WORK-ITEM}-{stage}
+#   ./claude/tools/git-tag release {version} [suffix]    # v{version}[-suffix]
 #
 # Work Item Examples:
-#   ./claude/tools/tag REQUEST-jordan-0017 impl      # REQUEST-jordan-0017-impl
-#   ./claude/tools/tag SPRINT-web-2026w03 review     # SPRINT-web-2026w03-review
-#   ./claude/tools/tag ITERATION-hub-mvh-1 tests     # ITERATION-hub-mvh-1-tests
-#   ./claude/tools/tag PHASE-hub-A complete          # PHASE-hub-A-complete
-#   ./claude/tools/tag TASK-auth-refactor impl       # TASK-auth-refactor-impl
+#   ./claude/tools/git-tag REQUEST-jordan-0017 impl      # REQUEST-jordan-0017-impl
+#   ./claude/tools/git-tag SPRINT-web-2026w03 review     # SPRINT-web-2026w03-review
+#   ./claude/tools/git-tag ITERATION-hub-mvh-1 tests     # ITERATION-hub-mvh-1-tests
+#   ./claude/tools/git-tag PHASE-hub-A complete          # PHASE-hub-A-complete
+#   ./claude/tools/git-tag TASK-auth-refactor impl       # TASK-auth-refactor-impl
 #
 # Release Examples:
-#   ./claude/tools/tag release 0.6.0                 # v0.6.0
-#   ./claude/tools/tag release 0.6.0 rc1             # v0.6.0-rc1
+#   ./claude/tools/git-tag release 0.6.0                 # v0.6.0
+#   ./claude/tools/git-tag release 0.6.0 rc1             # v0.6.0-rc1
 #
 # Options:
 #   --push, -p    Push tag to remote after creating
@@ -125,7 +125,7 @@ if [ "$LIST" = true ]; then
     PATTERN="${1:-}"
     if [ -z "$PATTERN" ]; then
         log_error "Provide a work item pattern to list tags"
-        echo "Usage: ./claude/tools/tag --list REQUEST-jordan-0017"
+        echo "Usage: ./claude/tools/git-tag --list REQUEST-jordan-0017"
         exit 1
     fi
     echo "Tags matching $PATTERN:"
@@ -136,13 +136,13 @@ fi
 # Require at least 2 arguments
 if [ $# -lt 2 ]; then
     log_error "Missing arguments"
-    echo "Usage: ./claude/tools/tag <work-item> <stage> [--verbose]"
-    echo "       ./claude/tools/tag release <version> [suffix] [--verbose]"
+    echo "Usage: ./claude/tools/git-tag <work-item> <stage> [--verbose]"
+    echo "       ./claude/tools/git-tag release <version> [suffix] [--verbose]"
     echo ""
     echo "Examples:"
-    echo "  ./claude/tools/tag REQUEST-jordan-0017 impl"
-    echo "  ./claude/tools/tag release 0.6.0"
-    echo "  ./claude/tools/tag release 0.6.0 rc1"
+    echo "  ./claude/tools/git-tag REQUEST-jordan-0017 impl"
+    echo "  ./claude/tools/git-tag release 0.6.0"
+    echo "  ./claude/tools/git-tag release 0.6.0 rc1"
     exit 1
 fi
 

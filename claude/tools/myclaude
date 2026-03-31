@@ -25,8 +25,8 @@ TOOL_VERSION="1.2.0-20260115-000001"
 
 # Source log helper for tool tracking
 SCRIPT_DIR_EARLY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$SCRIPT_DIR_EARLY/_log-helper" ]]; then
-    source "$SCRIPT_DIR_EARLY/_log-helper"
+if [[ -f "$SCRIPT_DIR_EARLY/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR_EARLY/lib/_log-helper"
 fi
 
 # Colors
@@ -247,7 +247,7 @@ check_services() {
 
 # Get project root (where this script lives)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Handle special flags first
 case "${1:-}" in
