@@ -10022,3 +10022,11 @@
 {"run":"019d428a-3a60-7e52-977d-29bba9b009f1","event":"end","ts":"2026-03-31T06:17:29Z","outcome":"success","exit":0,"duration_ms":0,"summary":"All checks passed"}
 {"run":"019d428a-39d5-78a8-91b7-fe2956e132d9","event":"end","ts":"2026-03-31T06:17:29Z","outcome":"success","exit":0,"duration_ms":305,"summary":"Committed: 3ba1795 - housekeeping/captain: chore: update tool telemetry log"}
 {"run":"019d428d-9298-7f22-832f-2046814bb679","tool":"commit","event":"start","ts":"2026-03-31T06:21:07Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":"housekeeping/captain: chore: update tool telemetry log --adhoc"}
+{"run":"019d428d-9321-737f-b57f-876d06b1e273","tool":"commit-precheck","event":"start","ts":"2026-03-31T06:21:07Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d428d-9439-731c-bb46-7878382e9bc0","tool":"test-run","event":"start","ts":"2026-03-31T06:21:08Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d428d-9439-731c-bb46-7878382e9bc0","event":"end","ts":"2026-03-31T06:21:08Z","outcome":"success","exit":0,"duration_ms":0,"summary":"No tests to run"}
+{"run":"019d428d-94f8-7879-9328-26ec574f61db","tool":"code-review","event":"start","ts":"2026-03-31T06:21:08Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d428d-94f8-7879-9328-26ec574f61db","event":"end","ts":"2026-03-31T06:21:08Z","outcome":"success","exit":0,"duration_ms":354,"summary":"Code review passed"}
+{"run":"019d428d-9321-737f-b57f-876d06b1e273","event":"end","ts":"2026-03-31T06:21:08Z","outcome":"success","exit":0,"duration_ms":0,"summary":"All checks passed"}
+{"run":"019d428d-9298-7f22-832f-2046814bb679","event":"end","ts":"2026-03-31T06:21:08Z","outcome":"success","exit":0,"duration_ms":303,"summary":"Committed: e9fb513 - housekeeping/captain: chore: update tool telemetry log"}
+{"run":"019d4291-4c54-7db7-8ae8-df498b18eb7f","tool":"commit","event":"start","ts":"2026-03-31T06:25:11Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":"housekeeping/captain: chore: update tool telemetry log --adhoc"}
