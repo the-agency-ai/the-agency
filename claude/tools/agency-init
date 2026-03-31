@@ -232,6 +232,20 @@ main() {
   },
   "permissions": {
     "allow": [
+      "Bash(./claude/tools/agency-verify*)",
+      "Bash(./claude/tools/agency-whoami*)",
+      "Bash(./claude/tools/code-review*)",
+      "Bash(./claude/tools/commit-precheck*)",
+      "Bash(./claude/tools/git-commit*)",
+      "Bash(./claude/tools/git-fetch*)",
+      "Bash(./claude/tools/git-sync*)",
+      "Bash(./claude/tools/git-tag*)",
+      "Bash(./claude/tools/handoff*)",
+      "Bash(./claude/tools/now*)",
+      "Bash(./claude/tools/secret-vault*)",
+      "Bash(./claude/tools/terminal-setup*)",
+      "Bash(./claude/tools/test-run*)",
+      "Bash(./claude/tools/tool-create*)",
       "Bash(./claude/tools/worktree-create*)",
       "Bash(./claude/tools/worktree-list*)",
       "Bash(./claude/tools/worktree-delete*)"
@@ -341,7 +355,7 @@ YAML_EOF
         [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
     done
     # Copy core tools
-    for tool in worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux agency-verify tool-create secret-vault git-commit git-tag git-sync git-fetch agency-whoami; do
+    for tool in worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux agency-verify tool-create secret-vault git-commit git-tag git-sync git-fetch agency-whoami handoff test-run commit-precheck code-review now; do
         [[ -f "$AGENCY_SOURCE/claude/tools/$tool" ]] && cp "$AGENCY_SOURCE/claude/tools/$tool" "$TARGET_DIR/claude/tools/"
     done
     chmod +x "$TARGET_DIR/claude/tools/"* 2>/dev/null || true
@@ -408,7 +422,8 @@ Agency 2.0 initialized via agency-init. Includes:
 - Reference docs (quality gate, methodology, code review, feedback,
   PR lifecycle, telemetry)
 - usr/$PRINCIPAL/ principal directory (v2)
-- Core tools (_log-helper, _path-resolve, agency-verify, tool-new)
+- Core tools (_log-helper, _path-resolve, agency-verify, tool-create,
+  git-commit, git-tag, git-sync, git-fetch, agency-whoami)
 
 Source: the-agency $(cd "$AGENCY_SOURCE" && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 " || {

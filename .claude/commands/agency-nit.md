@@ -18,7 +18,7 @@ The user typed: `/agency-nit $ARGUMENTS`
    - If it looks like `"Category" "Description"` (two quoted strings), use those
    - Otherwise, use "General" as category and the full argument as description
 
-3. Call the nit-add tool: `./tools/nit-add "<category>" "<description>"`
+3. Call the nit-add tool: `./claude/tools/nit-add "<category>" "<description>"`
 
 4. Confirm creation
 
@@ -26,7 +26,7 @@ The user typed: `/agency-nit $ARGUMENTS`
 
 Run the tool:
 ```bash
-./tools/nit-add "<category>" "<description>"
+./claude/tools/nit-add "<category>" "<description>"
 ```
 
 ## Output Format

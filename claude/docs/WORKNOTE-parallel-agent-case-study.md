@@ -57,10 +57,10 @@ The coordinator (captain) is the **only agent that updates REQUEST files**. This
        └───────────────────────────────────┘
 ```
 
-1. **Captain creates task** via `./tools/collaborate`
+1. **Captain creates task** via `./claude/tools/collaborate`
 2. **Agent works independently** on assigned task
 3. **Agent commits code** directly (no conflicts - separate files)
-4. **Agent reports completion** via `./tools/collaboration-respond`
+4. **Agent reports completion** via `./claude/tools/collaboration-respond`
 5. **Captain updates REQUEST** with consolidated status
 
 ### What Agents Can Update Directly
@@ -106,7 +106,7 @@ The coordinator (captain) is the **only agent that updates REQUEST files**. This
 
 - [x] COLLABORATE-0001 created for A4 (project-create updates)
 - [x] COLLABORATE-0002 created for A5 (project-update --init)
-- [ ] Agents launched via `./tools/dispatch-collaborations`
+- [ ] Agents launched via `./claude/tools/dispatch-collaborations`
 
 ### Wave 2: Completion
 
@@ -124,7 +124,7 @@ The coordinator (captain) is the **only agent that updates REQUEST files**. This
 
 **Challenge 1: Agents don't auto-activate on launch**
 - **Issue:** When agents launched, they greeted the user but didn't automatically check for pending collaborations
-- **Workaround:** Manually prompt each agent to check `./tools/collaboration-pending`
+- **Workaround:** Manually prompt each agent to check `./claude/tools/collaboration-pending`
 - **Future fix:** AGENTNIT-0001 - Add auto-check on launch via ONBOARDING.md, myclaude hook, or dispatch-collaborations enhancement
 
 ### Lessons Learned

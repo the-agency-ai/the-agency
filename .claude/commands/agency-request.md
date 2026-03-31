@@ -15,7 +15,7 @@ The user typed: `/agency-request $ARGUMENTS`
    Then stop - do not prompt for input.
 
 2. If `$ARGUMENTS` is provided, use it as the request summary
-3. Determine the principal (use `./tools/config get principal` or default to "jordan")
+3. Determine the principal (use `./claude/tools/config get principal` or default to "jordan")
 4. Get the next request number
 5. Create the REQUEST file from template
 6. Confirm creation with next steps
@@ -24,7 +24,7 @@ The user typed: `/agency-request $ARGUMENTS`
 
 1. Get principal:
    ```bash
-   ./tools/config get principal 2>/dev/null || echo "jordan"
+   ./claude/tools/config get principal 2>/dev/null || echo "jordan"
    ```
 
 2. Count existing requests to find next number:

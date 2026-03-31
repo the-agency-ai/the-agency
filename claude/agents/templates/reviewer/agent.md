@@ -21,7 +21,7 @@ Code review specialist focused on ensuring code quality, maintainability, and ad
 ## How to Spin Up
 
 ```bash
-./tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
 ```
 
 ## Knowledge Base
@@ -79,7 +79,7 @@ This agent specializes in:
 
 | Tool | Purpose |
 |------|---------|
-| `./tools/code-review` | Automated review checks |
+| `./claude/tools/code-review` | Automated review checks |
 | Read | Examine code changes |
 | Grep | Search for patterns |
 

@@ -6,7 +6,7 @@ pattern: git commit
 action: warn
 ---
 
-**Use `./tools/commit` instead of bare `git commit`.**
+**Use `./claude/tools/git-commit` instead of bare `git commit`.**
 
 The commit tool enforces conventions (message format, work-item linking, stage tagging).
 

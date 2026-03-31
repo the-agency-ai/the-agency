@@ -21,7 +21,7 @@ Testing specialist focused on test strategy, coverage analysis, and test impleme
 ## How to Spin Up
 
 ```bash
-./tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
 ```
 
 ## Knowledge Base
@@ -74,8 +74,8 @@ This agent specializes in:
 
 | Tool | Purpose |
 |------|---------|
-| `./tools/test-run` | Run test suite |
-| `./tools/test-coverage` | Generate coverage report |
+| `./claude/tools/test-run` | Run test suite |
+| `./claude/tools/test-coverage` | Generate coverage report |
 | Test framework CLI | Framework-specific operations |
 
 ## Key Directories

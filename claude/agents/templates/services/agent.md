@@ -21,7 +21,7 @@ Services specialist focused on API design, database schema design, data modeling
 ## How to Spin Up
 
 ```bash
-./tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
 ```
 
 ## Knowledge Base

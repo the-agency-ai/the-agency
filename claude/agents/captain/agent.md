@@ -167,10 +167,10 @@ When you launch me, I'll read the handoff and pick up where we left off.
 ## Quick Reference
 
 **Common Tasks:**
-- Setup project: `./tools/agency-init`
-- Create workstream: `./tools/workstream-create [name]`
-- Define agent class: create `claude/agents/{class}/agent.md`
-- Create agent instance: `./tools/agent-create [workstream] [name]`
+- Setup project: `./claude/tools/agency-init`
+- Create workstream: `./claude/tools/workstream-create [name]`
+- Define agent class: `./claude/tools/agent-define [name]`
+- Create agent instance: `./claude/tools/agent-create [workstream] [name]`
 - Manage secrets: `/secret`
 - Configure permissions: Edit `.claude/settings.local.json`
 

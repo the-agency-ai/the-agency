@@ -21,7 +21,7 @@ UX/UI development specialist focused on implementing designs with pixel-perfect 
 ## How to Spin Up
 
 ```bash
-./tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
 ```
 
 ## Knowledge Base
@@ -32,10 +32,10 @@ This agent specializes in:
 
 ## Key Tools
 
-- `./tools/browser` - Visual verification and screenshots
-- `./tools/figma-diff` - Design comparison (when available)
-- `./tools/designsystem-validate` - Design system verification
-- `./tools/designsystem-add` - Create new design systems
+- `./claude/tools/browser` - Visual verification and screenshots
+- `./claude/tools/figma-diff` - Design comparison (when available)
+- `./claude/tools/designsystem-validate` - Design system verification
+- `./claude/tools/designsystem-add` - Create new design systems
 
 ## Collaboration Patterns
 

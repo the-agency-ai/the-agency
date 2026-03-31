@@ -50,3 +50,9 @@
 {"run":"019d4230-eb9d-7658-bc74-dfeb719e4cf5","tool":"code-review","event":"start","ts":"2026-03-31T04:39:55Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
 {"run":"019d4230-eb9d-7658-bc74-dfeb719e4cf5","event":"end","ts":"2026-03-31T04:39:55Z","outcome":"success","exit":0,"duration_ms":354,"summary":"Code review passed"}
 {"run":"019d4230-e9d1-7e50-97bd-f73176bf5234","event":"end","ts":"2026-03-31T04:39:55Z","outcome":"success","exit":0,"duration_ms":0,"summary":"All checks passed"}
+{"run":"019d4234-18f5-7e3b-9fc5-9e259a7a5dcf","tool":"commit-precheck","event":"start","ts":"2026-03-31T04:43:23Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d4234-1a08-7bda-98c4-a82723d2cce7","tool":"test-run","event":"start","ts":"2026-03-31T04:43:24Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d4234-1a08-7bda-98c4-a82723d2cce7","event":"end","ts":"2026-03-31T04:43:24Z","outcome":"success","exit":0,"duration_ms":0,"summary":"No tests to run"}
+{"run":"019d4234-1adc-7ac8-8cbd-123b6acd4f21","tool":"code-review","event":"start","ts":"2026-03-31T04:43:24Z","agency":"the-agency","principal":"testuser","agent":"unknown","session":"","branch":"feat/tool-refactor","args":""}
+{"run":"019d4234-1adc-7ac8-8cbd-123b6acd4f21","event":"end","ts":"2026-03-31T04:43:24Z","outcome":"success","exit":0,"duration_ms":354,"summary":"Code review passed"}
+{"run":"019d4234-18f5-7e3b-9fc5-9e259a7a5dcf","event":"end","ts":"2026-03-31T04:43:24Z","outcome":"success","exit":0,"duration_ms":0,"summary":"All checks passed"}

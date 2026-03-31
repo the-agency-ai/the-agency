@@ -82,9 +82,9 @@ Use this tool to present choices and gather input. Example:
 
 ### Agency Tools
 You can run tools during the tutorial:
-- `./tools/workstream-create` - Create a workstream
-- `./tools/agent-create` - Create an agent
-- `./tools/secret-vault vault init` - Initialize secrets
+- `./claude/tools/workstream-create` - Create a workstream
+- `./claude/tools/agent-create` - Create an agent
+- `./claude/tools/secret-vault vault init` - Initialize secrets
 - And any other Agency tools
 
 ### Onboarding State

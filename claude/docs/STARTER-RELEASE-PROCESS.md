@@ -10,11 +10,11 @@ The Agency Starter is maintained as a sibling repository to the-agency. Releases
 
 | Tool | Purpose |
 |------|---------|
-| `./tools/starter-release` | Cut a release (sync, clean, verify, tag) |
-| `./tools/starter-verify` | Verify starter against test installation |
-| `./tools/starter-compare` | Compare source vs installed files |
-| `./tools/starter-test` | Run full test suite |
-| `./tools/starter-cleanup` | Clean test artifacts |
+| `./claude/tools/starter-release` | Cut a release (sync, clean, verify, tag) |
+| `./claude/tools/starter-verify` | Verify starter against test installation |
+| `./claude/tools/starter-compare` | Compare source vs installed files |
+| `./claude/tools/starter-test` | Run full test suite |
+| `./claude/tools/starter-cleanup` | Clean test artifacts |
 
 ## Release Workflow
 
@@ -24,13 +24,13 @@ Before cutting a release, ensure:
 
 ```bash
 # Run tests
-./tools/starter-test --local
+./claude/tools/starter-test --local
 
 # Verify current state
-./tools/starter-verify --install
+./claude/tools/starter-verify --install
 
 # Compare files
-./tools/starter-compare --install
+./claude/tools/starter-compare --install
 ```
 
 All tests should pass and no unexpected differences should be found.
@@ -39,19 +39,19 @@ All tests should pass and no unexpected differences should be found.
 
 ```bash
 # Patch release (0.1.0 -> 0.1.1)
-./tools/starter-release patch
+./claude/tools/starter-release patch
 
 # Minor release (0.1.0 -> 0.2.0)
-./tools/starter-release minor
+./claude/tools/starter-release minor
 
 # Major release (0.1.0 -> 1.0.0)
-./tools/starter-release major
+./claude/tools/starter-release major
 
 # Specific version
-./tools/starter-release 1.2.3
+./claude/tools/starter-release 1.2.3
 
 # Dry run first
-./tools/starter-release patch --dry-run
+./claude/tools/starter-release patch --dry-run
 ```
 
 The release tool:
@@ -87,10 +87,10 @@ gh release create v1.2.3 --generate-notes
 cd /path/to/the-agency
 
 # Run tests against the released version
-./tools/starter-test
+./claude/tools/starter-test
 
 # Verify compare still passes
-./tools/starter-compare
+./claude/tools/starter-compare
 ```
 
 ## Sync-Only Mode
@@ -98,7 +98,7 @@ cd /path/to/the-agency
 To sync files without cutting a release:
 
 ```bash
-./tools/starter-release --sync-only
+./claude/tools/starter-release --sync-only
 ```
 
 This updates the starter with latest changes but doesn't bump the version or create a commit.
@@ -179,7 +179,7 @@ The following are automatically removed during release:
 The release process includes:
 
 1. **Required files check** - Verifies essential files exist
-2. **Secrets scan** - Uses `./tools/secrets-scan` or fallback patterns
+2. **Secrets scan** - Uses `./claude/tools/secrets-scan` or fallback patterns
 3. **No private principals** - Ensures `jordan/` is not synced
 4. **Large file warning** - Flags files >1MB
 
@@ -191,7 +191,7 @@ Set the environment variable or ensure repos are siblings:
 
 ```bash
 export THE_AGENCY_STARTER_DIR=/path/to/the-agency-starter
-./tools/starter-release patch
+./claude/tools/starter-release patch
 ```
 
 ### "Secrets detected in starter"
@@ -206,7 +206,7 @@ Review the flagged content and either:
 Run verbose tests to debug:
 
 ```bash
-./tools/starter-test --local --verbose --keep
+./claude/tools/starter-test --local --verbose --keep
 ```
 
 The `--keep` flag preserves test artifacts for inspection.

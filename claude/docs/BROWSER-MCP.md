@@ -123,7 +123,7 @@ claude mcp add browser-mcp npx @browsermcp/mcp
 The `browser` agent (`claude/agents/browser/agent.md`) is configured to use Browser MCP when available:
 
 ```bash
-./tools/myclaude housekeeping browser
+./claude/tools/myclaude housekeeping browser
 ```
 
 ### Collaboration Requests
@@ -131,7 +131,7 @@ The `browser` agent (`claude/agents/browser/agent.md`) is configured to use Brow
 Other agents can request browser work:
 
 ```bash
-./tools/collaborate browser "Fetch the API documentation from..."
+./claude/tools/collaborate browser "Fetch the API documentation from..."
 ```
 
 ## References

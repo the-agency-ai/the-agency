@@ -187,7 +187,7 @@ First use of multi-agent parallel work pattern:
 
 ### Challenge 4: Agent Message Checking (AGENTNIT-0002)
 **Problem:** Agents don't automatically check for news/messages during work
-**Current workaround:** Manual prompt to run `./tools/news-read`
+**Current workaround:** Manual prompt to run `./claude/tools/news-read`
 **Future solution:** Choreography service with:
 - Real-time message delivery (WebSocket or agency-service endpoint)
 - Hook integration (`news-read --quiet` on SessionStart)

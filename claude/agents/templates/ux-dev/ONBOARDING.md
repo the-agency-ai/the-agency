@@ -4,7 +4,7 @@
 
 1. Launch the agent:
    ```bash
-   ./tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+   ./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
    ```
 
 2. Familiarize with knowledge bases:
@@ -25,7 +25,7 @@
 
 ### 2. Review Design System
 ```bash
-./tools/designsystem-validate claude/knowledge/design-systems/acme-001
+./claude/tools/designsystem-validate claude/knowledge/design-systems/acme-001
 ```
 
 ### 3. Implement Component
@@ -48,16 +48,16 @@
 
 ```bash
 # Validate design system
-./tools/designsystem-validate <path>
+./claude/tools/designsystem-validate <path>
 
 # Create new design system
-./tools/designsystem-add <brand> <version>
+./claude/tools/designsystem-add <brand> <version>
 
 # Visual capture (when available)
-./tools/browser screenshot <url> --viewport=1440x900
+./claude/tools/browser screenshot <url> --viewport=1440x900
 
 # Request collaboration
-./tools/collaborate <workstream> <agent> "message"
+./claude/tools/collaborate <workstream> <agent> "message"
 ```
 
 ## Resources
@@ -70,5 +70,5 @@
 ## Getting Help
 
 ```bash
-./tools/collaborate housekeeping housekeeping "I need help with UI implementation"
+./claude/tools/collaborate housekeeping housekeeping "I need help with UI implementation"
 ```

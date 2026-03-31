@@ -17,10 +17,10 @@ Principals direct work by creating requests and receiving artifacts from agents.
 
 | Task | Command |
 |------|---------|
-| First-time setup | `./tools/setup-agency` |
-| Add yourself to existing project | `./tools/add-principal` |
-| Create principal programmatically | `./tools/principal-create <name>` |
-| Get current principal | `./tools/principal` |
+| First-time setup | `./claude/tools/setup-agency` |
+| Add yourself to existing project | `./claude/tools/add-principal` |
+| Create principal programmatically | `./claude/tools/principal-create <name>` |
+| Get current principal | `./claude/tools/principal` |
 | Check principal env var | `echo $AGENCY_PRINCIPAL` |
 
 ## First-Time Setup
@@ -28,7 +28,7 @@ Principals direct work by creating requests and receiving artifacts from agents.
 When you create a new Agency project, run `setup-agency` before your first Claude Code session:
 
 ```bash
-./tools/setup-agency
+./claude/tools/setup-agency
 ```
 
 This interactive tool:
@@ -41,7 +41,7 @@ This interactive tool:
 
 **Example session:**
 ```
-$ ./tools/setup-agency
+$ ./claude/tools/setup-agency
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   The Agency - First Time Setup
@@ -71,7 +71,7 @@ Welcome, alice!
 For automation, pass the principal name directly:
 
 ```bash
-./tools/setup-agency --principal alice --skip-vault
+./claude/tools/setup-agency --principal alice --skip-vault
 ```
 
 ## Joining an Existing Project
@@ -79,7 +79,7 @@ For automation, pass the principal name directly:
 When you clone an existing Agency project, use `add-principal` to add yourself:
 
 ```bash
-./tools/add-principal
+./claude/tools/add-principal
 ```
 
 This tool:
@@ -91,7 +91,7 @@ This tool:
 ### Non-Interactive Mode
 
 ```bash
-./tools/add-principal --name bob
+./claude/tools/add-principal --name bob
 ```
 
 ## Creating Principals Programmatically
@@ -99,7 +99,7 @@ This tool:
 For scripts or automation, use `principal-create`:
 
 ```bash
-./tools/principal-create alice [projectname] [--verbose]
+./claude/tools/principal-create alice [projectname] [--verbose]
 ```
 
 Arguments:
@@ -119,18 +119,18 @@ Use `setup-agency` or `add-principal` for interactive setup.
 The `principal` tool returns the current principal name:
 
 ```bash
-./tools/principal
+./claude/tools/principal
 # Output: alice
 ```
 
 It checks (in order):
 1. `PRINCIPAL` environment variable
-2. Config lookup via `./tools/config get-principal`
+2. Config lookup via `./claude/tools/config get-principal`
 
 ### In Scripts
 
 ```bash
-PRINCIPAL=$(./tools/principal)
+PRINCIPAL=$(./claude/tools/principal)
 echo "Current principal: $PRINCIPAL"
 ```
 
@@ -209,7 +209,7 @@ echo $AGENCY_PRINCIPAL
 
 # If empty, either:
 # 1. Re-run setup
-./tools/setup-agency
+./claude/tools/setup-agency
 
 # 2. Or manually add to your profile
 echo 'export AGENCY_PRINCIPAL="yourname"' >> ~/.zshrc
@@ -221,7 +221,7 @@ source ~/.zshrc
 The environment variable is set but the directory is missing:
 
 ```bash
-./tools/add-principal --name $AGENCY_PRINCIPAL
+./claude/tools/add-principal --name $AGENCY_PRINCIPAL
 ```
 
 ### "This is the starter template"
@@ -229,9 +229,9 @@ The environment variable is set but the directory is missing:
 You're trying to set up directly in the-agency-starter. Create a project first:
 
 ```bash
-./tools/project-create my-project
+./claude/tools/project-create my-project
 cd ../my-project
-./tools/setup-agency
+./claude/tools/setup-agency
 ```
 
 ## Tool Reference
