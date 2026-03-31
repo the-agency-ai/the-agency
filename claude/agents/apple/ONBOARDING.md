@@ -9,7 +9,7 @@
 
 2. Review current work:
    - Check `WORKLOG.md` for sprint progress
-   - Check `ADHOC-WORKLOG.md` for ad-hoc tasks
+   - Read `handoff.md` for session context
 
 3. Read agent identity:
    - Review `agent.md` for purpose and responsibilities

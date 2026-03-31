@@ -13,7 +13,6 @@ This document describes what needs to be integrated into `the-agency-starter` af
 claude/agents/captain/
   ├── agent.md              # From this repo
   ├── KNOWLEDGE.md          # Empty or minimal starter content
-  ├── ADHOC-WORKLOG.md      # Empty
   ├── WORKLOG.md            # Empty
   ├── backups/
   │   └── latest/

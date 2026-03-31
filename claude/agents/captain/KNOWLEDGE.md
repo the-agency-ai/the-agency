@@ -63,7 +63,7 @@ When work spans multiple agents:
 
 ### Don't
 - Skip session restoration - you'll lose context
-- Work without logging - use ADHOC-WORKLOG for out-of-plan work
+- Work without context — always write handoffs at session boundaries
 - Assume shared knowledge - use collaboration tools
 - Bypass quality gates - they exist for good reasons
 - Create agents without purpose - each agent needs a clear role

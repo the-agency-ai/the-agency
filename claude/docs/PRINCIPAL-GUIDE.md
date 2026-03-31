@@ -23,7 +23,6 @@ Each agent has:
 - `agent.md` - Identity, purpose, and capabilities
 - `KNOWLEDGE.md` - Accumulated wisdom and patterns
 - `WORKLOG.md` - Sprint-based work tracking
-- `ADHOC-WORKLOG.md` - Out-of-plan work tracking
 
 ### Workstreams
 Workstreams organize related work:

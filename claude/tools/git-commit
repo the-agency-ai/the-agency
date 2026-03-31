@@ -4,9 +4,9 @@
 # Usage:
 #   ./claude/tools/git-commit "short summary" --work-item REQUEST-jordan-0065 --stage impl
 #   ./claude/tools/git-commit "fix null handling" --work-item BUG-0042 --stage review
-#   ./claude/tools/git-commit "quick doc fix" --adhoc  # Escape hatch for ad-hoc work
+#   ./claude/tools/git-commit "quick doc fix" --no-work-item  # Escape hatch when no work item applies
 #
-# IMPORTANT: Work item OR --adhoc is REQUIRED. Commits without either are blocked.
+# IMPORTANT: Work item OR --no-work-item is REQUIRED. Commits without either are blocked.
 #
 # Format (with work item):
 #   {WORK-ITEM} - {WORKSTREAM}/{AGENT} for {PRINCIPAL}: {SHORT SUMMARY}
@@ -28,7 +28,7 @@
 # Options:
 #   --work-item, -w   Work item ID (REQUEST-jordan-0065, SPRINT-web-2026w03, etc.)
 #   --stage, -s       Stage: impl, review, tests (required if work-item provided)
-#   --adhoc           Escape hatch for ad-hoc work (no work-item required)
+#   --no-work-item    Escape hatch when no work item applies (skip work-item requirement)
 #   --body, -b        Detailed commit body
 #   --principal, -p   Override principal (default: from config or work item)
 #   --no-verify       Skip pre-commit hooks
@@ -70,7 +70,7 @@ AMEND=false
 DRY_RUN=false
 STAGED_ONLY=false
 VERBOSE=false
-ADHOC=false
+NO_WORK_ITEM=false
 WORK_ITEM=""
 STAGE=""
 BODY=""
@@ -111,8 +111,8 @@ while [[ $# -gt 0 ]]; do
             STAGED_ONLY=true
             shift
             ;;
-        --adhoc)
-            ADHOC=true
+        --no-work-item)
+            NO_WORK_ITEM=true
             shift
             ;;
         --work-item|-w)
@@ -179,15 +179,15 @@ main() {
         exit 1
     fi
 
-    # ENFORCEMENT: Require work item OR --adhoc
-    if [ -z "$WORK_ITEM" ] && [ "$ADHOC" = false ]; then
+    # ENFORCEMENT: Require work item OR --no-work-item
+    if [ -z "$WORK_ITEM" ] && [ "$NO_WORK_ITEM" = false ]; then
         log_error "Work item required"
         echo ""
         echo "Every commit must reference a work item:"
         echo "  ./claude/tools/git-commit \"message\" --work-item REQUEST-jordan-XXXX --stage impl"
         echo ""
-        echo "For ad-hoc work (escape hatch):"
-        echo "  ./claude/tools/git-commit \"message\" --adhoc"
+        echo "To skip (escape hatch):"
+        echo "  ./claude/tools/git-commit \"message\" --no-work-item"
         echo ""
         echo "Valid work item types: REQUEST, BUG, TASK, PHASE, ITERATION, SPRINT"
         trap - EXIT
@@ -362,7 +362,7 @@ main() {
         COMMIT_HASH=$(git log -1 --format='%h')
         echo "Committed: $COMMIT_HASH"
 
-        # ADHOC-WORKLOG.md append removed — telemetry captures this via log_end
+        # Telemetry captures commit via log_end
 
         echo "✓"
 

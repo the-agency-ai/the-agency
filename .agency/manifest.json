@@ -53,11 +53,6 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/ADHOC-WORKLOG.md": {
-      "hash": "7df0cb5f1f6a146327e7010b4451d9081fb119f2a068eccf03beebeaaf8b3653",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/agents/captain/KNOWLEDGE.md": {
       "hash": "58b9f8bc6747b5560acc7ef1d273c9205ac70b6d85bb595afbe9b18c056e8388",
       "modified": false,
@@ -308,11 +303,6 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-alpha/ADHOC-WORKLOG.md": {
-      "hash": "962e74dac3bac01b9d904535fd9cae6acfbcc32bacb87eac5487da0425d04c5f",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/agents/foundation-alpha/IDEAS.md": {
       "hash": "b6efe2c5cae719e8820a644682edeaf4fc3ec44bd92455fe8fea36478c717531",
       "modified": false,
@@ -340,11 +330,6 @@
     },
     "claude/agents/foundation-alpha/logs/permissions.md": {
       "hash": "24aa5ff22463313adb285821affc745a4e1079b11b0996ae4587647759bbf3a3",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "claude/agents/foundation-beta/ADHOC-WORKLOG.md": {
-      "hash": "d803442ea06f5cd08d88f1d96a0206842c38760de95a1a1887c7819f37147abf",
       "modified": false,
       "version": "1.0.3"
     },
@@ -1405,11 +1390,6 @@
     },
     "tools/_log-helper": {
       "hash": "d9bc4f8871bee8d78358f5a61ac4eb6f7cab00737655e1b148a3a9b461c10100",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "tools/adhoc-log": {
-      "hash": "a636e6d3c971025d00efbeec591225bd3e864f093120b4af47416b05b7edb1f1",
       "modified": false,
       "version": "1.0.3"
     },

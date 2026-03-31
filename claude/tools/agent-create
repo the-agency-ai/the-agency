@@ -14,8 +14,8 @@
 #
 # Creates:
 #   claude/agents/{agentname}/
-#     - agent.md, WORKLOG.md, ADHOC-WORKLOG.md
-#     - IDEAS.md, KNOWLEDGE.md, ONBOARDING.md
+#     - agent.md, WORKLOG.md, IDEAS.md
+#     - KNOWLEDGE.md, ONBOARDING.md
 #     - backups/, logs/
 
 set -euo pipefail

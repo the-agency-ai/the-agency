@@ -128,7 +128,6 @@
   "permissions": {
     "allow": [
       "Bash(./claude/tools/add-principal*)",
-      "Bash(./claude/tools/adhoc-log*)",
       "Bash(./claude/tools/agency-feedback*)",
       "Bash(./claude/tools/agency-init*)",
       "Bash(./claude/tools/agency-update*)",

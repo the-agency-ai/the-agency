@@ -24,7 +24,6 @@ Explain what they'll see:
 - `agent.md` - Agent's identity and role
 - `KNOWLEDGE.md` - Accumulated learnings
 - `WORKLOG.md` - Sprint-based work tracking
-- `ADHOC-WORKLOG.md` - Quick notes and ad-hoc work
 
 ## Creating an Agent
 

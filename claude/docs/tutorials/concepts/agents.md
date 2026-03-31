@@ -31,7 +31,7 @@ Each agent has:
 
 ### 3. Work Logs
 - `WORKLOG.md` - Sprint-based work
-- `ADHOC-WORKLOG.md` - Quick tasks
+- `handoff.md` - Session context and continuity
 - Session backups - State snapshots
 
 ### 4. Context
@@ -52,7 +52,6 @@ claude/agents/{name}/
   ├── agent.md
   ├── KNOWLEDGE.md
   ├── WORKLOG.md
-  ├── ADHOC-WORKLOG.md
   ├── backups/
   ├── logs/
   └── notes/

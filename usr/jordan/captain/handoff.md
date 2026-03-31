@@ -2,61 +2,51 @@
 
 **Agent:** captain (housekeeping)
 **Principal:** jordan
-**Updated:** 2026-03-31 (session 10)
+**Updated:** 2026-03-31 (session 11)
 
 ## Current State
 
-On `main` branch. Clean working tree. PR #20 merged (agency-init design).
+On `main` branch. Clean working tree. **In plan mode** — executing Monofolk Dispatch Incorporation plan.
 
-## Session 10 Work
+## Session 11 Work
 
-### Agency-Init Design (COMPLETE — PR #20 merged)
+### Monofolk Dispatch Incorporation (IN PROGRESS — plan mode)
 
-Full redesign of agency-init and agency-update. rsync + manifest model for installing and maintaining the Agency framework in any git repo.
+**Plan file:** `/Users/jdm/.claude/plans/transient-questing-meerkat.md`
+**Dispatch:** `dispatch-claudemd-template-finalized-20260331.md`
 
-**Multi-agent review:** 3 reviewers (design, code, security) — 18 findings (3C, 7M, 8m). All addressed.
+6-phase plan to port monofolk work into the-agency framework:
+- Phase 1: ADHOC purge (kill all files, refs, --adhoc flag → --no-work-item)
+- Phase 2: Licensing (MIT + RSL), project docs, align paths to template target state
+- Phase 3: Port 33 skills to `.claude/skills/`, update 2 commands in place
+- Phase 4: Update git-commit tool, PM agent, wire skills into ref-injector
+- Phase 5: Post-init enhancements (pluggable ref skills, workstream-create, settings-merge)
+- Phase 6: Update agency-init/update, starter packs, skill validation tests, final sweep
 
-**Key decisions (via /discuss 1B1):**
-1. Single namespace — everything under `claude/` (usr/, workstreams/, tools, agents)
-2. Trust source for v1 — signed checksums post-v1 (public release)
-3. Git is the rollback — `--dry-run` flag, no custom staging
-4. Settings merge — `settings-template.json` (framework) + `settings-merge` tool
+**Review status:** Two multi-agent review passes completed (4 reviewers each: design, code, test, security). First pass: 52 findings, 13 fixes. Second pass: 65 findings, 12 fixes applied. Plan revised and ready for ExitPlanMode.
 
-**Artifacts:**
-- Design: `claude/workstreams/agency/seeds/agency-init-design-20260331.md`
-- Dispatch: `usr/jordan/captain/dispatches/dispatch-agency-init-design-20260331.md`
-- Transcript: `usr/jordan/captain/transcripts/transcript-agency-init-review-20260331.md`
+**Key decisions made:**
+1. Skills vs Commands — 33 new skills, 2 commands updated in place, 13 prototype skills OUT OF SCOPE
+2. Runtime parameterization via `agency-whoami` + `agency.yaml`, not install-time templating
+3. Skills call framework tools (existing architecture) — no new wrapper pattern needed
+4. Stage-hash stays TypeScript, bash wrapper at `claude/tools/stage-hash`
+5. --adhoc killed entirely, replaced with --no-work-item
+6. Licensing: MIT root, RSL per app workstream directory
+7. ops/ vs housekeeping/ — template uses ops/ as example, repos use their own names
+8. One PR per phase
+9. Ref-injector must use exact match (not substring) — security fix
 
-### ADHOC-WORKLOG Full Purge (NEXT — session 11)
+**Decisions from principal (session 10-11):**
+- ADHOC is dead. Salt the earth.
+- Build to the future — templates describe target state, plan implements it
+- Project CLAUDE.md is small (agent-facing), README is a paragraph, GETTINGSTARTED is "run agency-init"
+- No "fix later" — fix it now or file a bug
 
-Session 10 removed the append from `git-commit`. Principal confirmed: the entire ADHOC-WORKLOG pattern is dead. Full purge needed.
+## Next Steps
 
-**Files to delete:**
-- `claude/agents/captain/ADHOC-WORKLOG.md`
-- `claude/agents/gumroad/ADHOC-WORKLOG.md`
-- `claude/agents/discord/ADHOC-WORKLOG.md`
-- `claude/agents/apple/ADHOC-WORKLOG.md`
-- `claude/tools/adhoc-log`
-- `test/test-agency-project/claude/agents/housekeeping/ADHOC-WORKLOG.md`
-- `test/the-agency-starter/claude/agents/captain/ADHOC-WORKLOG.md`
-- `test/the-agency-starter/claude/agents/housekeeping/ADHOC-WORKLOG.md`
-- `test/the-agency-starter/claude/agents/hub/ADHOC-WORKLOG.md`
-
-**References to remove from (33 files total):**
-- `claude/tools/git-commit` — `--adhoc` flag and help text
-- `claude/tools/starter-release`, `project-update`, `agent-create` — any ADHOC-WORKLOG scaffolding
-- `claude/docs/STARTER-PACK-INTEGRATION.md`, `PRINCIPAL-GUIDE.md`, `CONCEPTS.md` — doc refs
-- `claude/agents/templates/generic/ONBOARDING.md` — template refs
-- `claude/agents/captain/KNOWLEDGE.md` — knowledge refs
-- `.agency/manifest.json`, `registry.json` — manifest entries
-- `claude/integrations/claude-desktop/agency-server/index.ts` — integration refs
-- Various `claude/principals/jordan/requests/REQUEST-*.md` — historical refs (leave or annotate as deprecated)
-- `claude/docs/tutorials/` — tutorial refs
-- `claude/principals/jordan/projects/the-agency-book/` — book refs
-
-**Decisions needed:**
-- `--adhoc` flag on git-commit: remove entirely or keep as "no work-item required" without any worklog?
-- Historical REQUEST files: purge refs or leave as-is (they're historical records)?
+1. **ExitPlanMode** — plan is reviewed and revised
+2. **Execute Phase 1** — ADHOC purge (one PR)
+3. **Execute Phases 2-6** — one PR per phase
 
 ## Dispatch Queue
 
@@ -72,14 +62,11 @@ Session 10 removed the append from `git-commit`. Principal confirmed: the entire
 | 7 | Code Survey / Incremental Capture | Needs /discuss |
 | 8 | Token Economics Tools | PARTIAL — needs /discuss |
 | 9 | Agency-Init Design | DONE (PR #20 merged) |
+| 10 | CLAUDE.md Template & Monofolk Incorporation | IN PROGRESS (plan reviewed, ready to execute) |
 
 ## Blocked Items
 
 **@bcherny tweet** (`x.com/bcherny/status/2038454336355999749`) — blocked on browser access. Principal needs to paste content.
-
-**Two X/Twitter posts from session 9** — still blocked:
-- `https://x.com/trq212/status/2033949937936085378` — CAPTURED (skills article seed)
-- `https://x.com/bcherny/status/2038454336355999749` — PENDING
 
 ## Open Issues (Internal)
 
@@ -117,10 +104,11 @@ Fix actions specified in agency-init design document.
 - **Status line for agent activity** — needs /discuss
 - **Token Economics** — compound bash rule done, 4 items remain
 - **ISCP** — dispatch #3, not started
+- **Generalized Prototype Model** — revisit after dispatch incorporation (13 prototype skills)
 
 ## Git State
 
 - Branch: `main`
-- HEAD: 7020cf9
+- HEAD: 14b8f3e
 - Working tree: clean (except handoff)
 - Origin: in sync

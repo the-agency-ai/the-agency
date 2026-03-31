@@ -15,8 +15,7 @@
       "protected_paths": [
         "usr/**/*",
         "claude/principals/**/*",
-        "claude/agents/*/WORKLOG.md",
-        "claude/agents/*/ADHOC-WORKLOG.md"
+        "claude/agents/*/WORKLOG.md"
       ]
     },
     "tools": {
@@ -38,7 +37,6 @@
       ],
       "protected_paths": [
         "claude/agents/captain/WORKLOG.md",
-        "claude/agents/captain/ADHOC-WORKLOG.md",
         "claude/agents/captain/backups/**/*"
       ],
       "dependencies": ["core"]

@@ -122,14 +122,14 @@ function getAgentStatus(agentName: string): Record<string, unknown> {
   };
 
   if (status.exists) {
-    const worklogPath = path.join(agentDir, "ADHOC-WORKLOG.md");
-    if (fs.existsSync(worklogPath)) {
-      const worklog = fs.readFileSync(worklogPath, "utf-8");
-      const lastEntry = worklog
-        .split("\n## ")
-        .filter((s) => s.trim())
-        .pop();
-      status.lastWork = lastEntry ? lastEntry.split("\n")[0] : "None";
+    const handoffPath = path.join(agentDir, "handoff.md");
+    if (fs.existsSync(handoffPath)) {
+      const handoff = fs.readFileSync(handoffPath, "utf-8");
+      const firstLine = handoff
+        .split("\n")
+        .filter((s) => s.trim() && !s.startsWith("#"))
+        .shift();
+      status.lastWork = firstLine || "None";
     }
 
     const backupDir = path.join(agentDir, "backups/latest");

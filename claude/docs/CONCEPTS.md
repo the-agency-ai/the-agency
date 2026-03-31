@@ -31,7 +31,6 @@ claude/agents/{agentname}/
   agent.md           # Identity, purpose, capabilities
   KNOWLEDGE.md       # Accumulated wisdom and patterns
   WORKLOG.md         # Sprint-based work tracking
-  ADHOC-WORKLOG.md   # Out-of-plan work log
   IDEAS.md           # Future possibilities
   ONBOARDING.md      # How to onboard to this agent
 ```
