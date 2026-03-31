@@ -29,8 +29,6 @@ An **agent** is a Claude Code instance with:
 ```
 claude/agents/{agentname}/
   agent.md           # Identity, purpose, capabilities
-  KNOWLEDGE.md       # Accumulated wisdom and patterns
-  WORKLOG.md         # Sprint-based work tracking
   IDEAS.md           # Future possibilities
   ONBOARDING.md      # How to onboard to this agent
 ```
@@ -47,7 +45,6 @@ A **workstream** organizes related work:
 
 ```
 claude/workstreams/{workstream}/
-  KNOWLEDGE.md              # Shared knowledge for this area
   epic001/                  # Major initiative
     sprint001/              # Time-boxed work
       plan.md
@@ -58,7 +55,7 @@ claude/workstreams/{workstream}/
 
 **Key properties:**
 - **Scope**: Defines a coherent area of work
-- **Shared knowledge**: All agents in workstream access same KNOWLEDGE.md
+- **Shared knowledge**: All agents in workstream access shared context
 - **Planning structure**: Epics for major initiatives, sprints for execution
 - **Multiple agents**: Different agents can work on same workstream
 

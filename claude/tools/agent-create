@@ -14,8 +14,7 @@
 #
 # Creates:
 #   claude/agents/{agentname}/
-#     - agent.md, WORKLOG.md, IDEAS.md
-#     - KNOWLEDGE.md, ONBOARDING.md
+#     - agent.md, IDEAS.md, ONBOARDING.md
 #     - backups/, logs/
 
 set -euo pipefail
@@ -240,7 +239,6 @@ main() {
 
     # Apply template files
     apply_template "$AGENT_TEMPLATE_DIR/agent.md" "$DIR/agent.md"
-    apply_template "$AGENT_TEMPLATE_DIR/KNOWLEDGE.md" "$DIR/KNOWLEDGE.md"
     apply_template "$AGENT_TEMPLATE_DIR/ONBOARDING.md" "$DIR/ONBOARDING.md"
 
     # Replace placeholder description in agent.md if --description was provided
@@ -249,40 +247,6 @@ main() {
         desc_escaped=$(escape_sed "$DESCRIPTION")
         sed -i '' "s/\[Description of this agent's role\]/$desc_escaped/" "$DIR/agent.md"
     fi
-
-    # WORKLOG.md (not templated - standard format)
-    cat > "$DIR/WORKLOG.md" << EOF
-# $AGENTNAME Work Log
-
-## Completed Sprints
-
-(None yet)
-
-## Format
-
-- epic###-sprint### - [Summary] | [Date]
-  - Iteration 01: [Description]
-EOF
-
-    # ADHOC-WORKLOG.md (not templated - standard format)
-    AGENTNAME_UPPER=$(echo "$AGENTNAME" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-    cat > "$DIR/ADHOC-WORKLOG.md" << EOF
-# $AGENTNAME Ad-Hoc Work Log
-
-## Latest
-
-(None yet)
-
----
-
-## Format
-
-## ${AGENTNAME_UPPER}-ADHOC-#### | YYYY-MM-DD HH:MM
-
-**Task:** [Description]
-**Status:** Completed
-**Files:** [List]
-EOF
 
     # IDEAS.md (not templated - standard format)
     cat > "$DIR/IDEAS.md" << EOF
@@ -350,7 +314,7 @@ model: opus
 ---
 
 Read your identity and responsibilities from \`claude/agents/${AGENTNAME}/agent.md\`.
-Read your project knowledge from \`claude/workstreams/${WORKSTREAM}/KNOWLEDGE.md\`.
+Read seed materials from \`claude/workstreams/${WORKSTREAM}/seeds/\`.
 CCEOF
         verbose_echo "Registered Claude Code agent: $CLAUDE_AGENTS_DIR/${AGENTNAME}.md"
     fi

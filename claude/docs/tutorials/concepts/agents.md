@@ -23,18 +23,12 @@ Each agent has:
 - Capabilities
 - Personality
 
-### 2. Knowledge (`KNOWLEDGE.md`)
-- Patterns learned
-- Best practices
-- Common pitfalls
-- Solutions to recurring problems
+### 2. Handoffs (`handoff.md`)
+- Session context and continuity
+- What was done, what remains
+- Key decisions and blockers
 
-### 3. Work Logs
-- `WORKLOG.md` - Sprint-based work
-- `handoff.md` - Session context and continuity
-- Session backups - State snapshots
-
-### 4. Context
+### 3. Context
 - Workstream knowledge (shared)
 - Principal instructions
 - Past conversations
@@ -50,8 +44,6 @@ This creates:
 ```
 claude/agents/{name}/
   ├── agent.md
-  ├── KNOWLEDGE.md
-  ├── WORKLOG.md
   ├── backups/
   ├── logs/
   └── notes/
@@ -72,7 +64,7 @@ claude/agents/{name}/
 **3. Knowledge Growth**
 - Patterns emerge
 - Best practices documented
-- KNOWLEDGE.md expands
+- Handoffs capture learnings
 
 **4. Collaboration**
 - Request help from other agents
@@ -102,10 +94,9 @@ Agents specialize through:
 
 Agents remember through:
 
-1. **Worklogs** - What they worked on
-2. **KNOWLEDGE.md** - Lessons learned
-3. **Session backups** - Recent context
-4. **Workstream knowledge** - Shared learning
+1. **Handoffs** - What they worked on, what remains
+2. **Session backups** - Recent context
+3. **Workstream knowledge** - Shared learning
 
 When you launch an agent, they pick up where they left off.
 
@@ -114,7 +105,7 @@ When you launch an agent, they pick up where they left off.
 **DO:**
 - Give agents clear, focused roles
 - Let them specialize over time
-- Document learnings in KNOWLEDGE.md
+- Document learnings in handoffs
 - Use multiple agents for large projects
 
 **DON'T:**

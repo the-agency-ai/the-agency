@@ -56,8 +56,7 @@ pack-name/
 ├── PREREQUISITES.md    # Required packs/tools
 ├── SETUP.md            # Step-by-step instructions
 ├── VERIFY.md           # Verification checklist
-├── INTEGRATE.md        # Integration with other packs
-└── KNOWLEDGE.md        # Agent context
+└── INTEGRATE.md        # Integration with other packs
 ```
 
 ## Using Packs
@@ -66,15 +65,6 @@ pack-name/
 2. Follow `SETUP.md` - step by step
 3. Run `VERIFY.md` - confirm it works
 4. Read `INTEGRATE.md` - prepare for next pack
-
-## For Agents
-
-The `KNOWLEDGE.md` file in each pack provides:
-
-- Tech stack details
-- Common patterns
-- Agent-specific instructions
-- Troubleshooting guide
 
 ## Backlog
 

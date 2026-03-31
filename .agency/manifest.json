@@ -53,11 +53,6 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/KNOWLEDGE.md": {
-      "hash": "58b9f8bc6747b5560acc7ef1d273c9205ac70b6d85bb595afbe9b18c056e8388",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/agents/captain/SESSION-2026-01-09-sync.md": {
       "hash": "44cab5d98ea1859b584e9e10fb1fa6cf2327bb1deaa1c05dbc8182de35ec6a90",
       "modified": false,
@@ -308,18 +303,8 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-alpha/KNOWLEDGE.md": {
-      "hash": "6c05f95d0b3f4589474e42b620864497f504a4b0d60d22dffaa7517ae3cecf3e",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/agents/foundation-alpha/ONBOARDING.md": {
       "hash": "3f522f32e6a09896deac0cb380a70e37e96c51e0589e3ae5900dfec6f08d3398",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "claude/agents/foundation-alpha/WORKLOG.md": {
-      "hash": "de15ef5ec404c3eb98e387b5af71aa751e3ff85f499d53086129fd2971b4d4eb",
       "modified": false,
       "version": "1.0.3"
     },
@@ -338,18 +323,8 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-beta/KNOWLEDGE.md": {
-      "hash": "d5c098b62ef185994522135387189cc3f6cbba970a5461c1e7499890d2d101e6",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/agents/foundation-beta/ONBOARDING.md": {
       "hash": "1f37d43b06eeacc58ec301a9a2f33928df0581c4a9460da15f68aa4f371ee36f",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "claude/agents/foundation-beta/WORKLOG.md": {
-      "hash": "75edd8b7604be59a8fb230d9feb9e128ce9a1c0f75b8240818744dab46eb7a45",
       "modified": false,
       "version": "1.0.3"
     },
@@ -468,28 +443,13 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/design-system/KNOWLEDGE.md": {
-      "hash": "59e7501caf0dfae178ad398eb96a89efa677f4f80bf0268c29809d98dc7157fd",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/agents/templates/design-system/agent.md": {
       "hash": "ef331f25b5eaf94620ada7f08c356cb2b6215d6389730d0afd813475ae2a8b16",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/docs/KNOWLEDGE.md": {
-      "hash": "88a6b7324707aeb342c12d423e1304ca522686d59c835e082b33eacaf89a4999",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/agents/templates/docs/agent.md": {
       "hash": "fdb3f8ce0e18107ae9b797a6cbabdd4f83887f80f5fe9d8a15dba0e16132e579",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "claude/agents/templates/generic/KNOWLEDGE.md": {
-      "hash": "44149b30fc4b431166da3bb007fd69bf3a99e9d3e928572d0f3bf4f1b36a3af1",
       "modified": false,
       "version": "1.0.3"
     },
@@ -503,18 +463,8 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/reviewer/KNOWLEDGE.md": {
-      "hash": "a82e89988d9f2562a59050dabb9dba5071b0013cbe8d8f7d3698f0cbfb338a06",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/agents/templates/reviewer/agent.md": {
       "hash": "21ef1d2a588f90e12d786c93f3e2b9ef66fdbcb7bc1aad09db321aada3a03997",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "claude/agents/templates/security/KNOWLEDGE.md": {
-      "hash": "8f176d32cda46b70819c0e0d664474a37d8c84802c80b7ac96ffd2e844d190b2",
       "modified": false,
       "version": "1.0.3"
     },
@@ -523,28 +473,13 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/services/KNOWLEDGE.md": {
-      "hash": "8c0132a31046828520708f47be865f5155a3b4ba985977860bc744d9f8acd7bd",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/agents/templates/services/agent.md": {
       "hash": "d3dfa47a358076bfd267e02f66189b1ce8e7a79b42685ade12df25fa17b0cbe9",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/tester/KNOWLEDGE.md": {
-      "hash": "344021b8ec6ca3f02935d28d96f64651e7b82df4c51135dbdec1507fe99ee46f",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/agents/templates/tester/agent.md": {
       "hash": "0a6598a0ce8d087b997887fb88d308e77e76c0f7fa918b57564f65ba70c001a8",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "claude/agents/templates/ux-dev/KNOWLEDGE.md": {
-      "hash": "a9c226b070430706559da81edc3358448a69936f16b52f3852ce4cbde0adf41d",
       "modified": false,
       "version": "1.0.3"
     },
@@ -1188,11 +1123,6 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/starter-packs/github-ci/KNOWLEDGE.md": {
-      "hash": "cd4361c0c2564e1758be521a12cb7dd89454e0945f7ab800d8312c1dd4715ba5",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/starter-packs/github-ci/README.md": {
       "hash": "185d68dda908f51895a1fc380f36ce7873486baa761bafeb34e40476ae92f9b0",
       "modified": false,
@@ -1215,11 +1145,6 @@
     },
     "claude/starter-packs/node-base/INTEGRATE.md": {
       "hash": "a095ed7f7ca92f44506ede7950f11eae9b4f58041a33dffc1b54649f058cdbff",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "claude/starter-packs/node-base/KNOWLEDGE.md": {
-      "hash": "7e9dfe9664645844d9b12bdedc5df9f0b8ba3fa76260d35d86eb067493f13bcc",
       "modified": false,
       "version": "1.0.3"
     },
@@ -1248,11 +1173,6 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/starter-packs/posthog-analytics/KNOWLEDGE.md": {
-      "hash": "ac4be63d74cede06c6900a1acf6d9c03c142b274e9e8ea41847c4ee0763a9cfc",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/starter-packs/posthog-analytics/PREREQUISITES.md": {
       "hash": "a94ae922dd700e70583efcfee66673f780eb2be1d7b7ee006e500d462d5604c5",
       "modified": false,
@@ -1278,11 +1198,6 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/starter-packs/react-app/KNOWLEDGE.md": {
-      "hash": "7667612e16e70e553727ded55ddf5f9c714ae7e02062643bffaeea7e36f323b1",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/starter-packs/react-app/PREREQUISITES.md": {
       "hash": "d7acc4560c3fafc97a70030deb02ea4afa8af83e68c79cbd4456234bd306da05",
       "modified": false,
@@ -1303,11 +1218,6 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/starter-packs/supabase-auth/KNOWLEDGE.md": {
-      "hash": "756695a8ca7160bac6225a1be850ddf49441debd4b241ec85a1ac1ceb99845f3",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "claude/starter-packs/supabase-auth/README.md": {
       "hash": "2b4fec8dc30b71435c5faaf388b2605d472e2367a07597f9787e7c0b8f4fa59b",
       "modified": false,
@@ -1325,11 +1235,6 @@
     },
     "claude/starter-packs/vercel/INTEGRATE.md": {
       "hash": "11b028ffcbadfc4a9dcb97b0a9ebd8c47273c18c8e3f9a6642537160351d1953",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "claude/starter-packs/vercel/KNOWLEDGE.md": {
-      "hash": "9ac756586b9f748a3379b70b0dc1f6880495b4a8fdb981977ad668f9ad2583ef",
       "modified": false,
       "version": "1.0.3"
     },
@@ -1628,11 +1533,6 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "tools/project-update": {
-      "hash": "3c4458158ec4d502c8b45b989586879907d099ee0f6e105ee7e0f68170b15cb1",
-      "modified": false,
-      "version": "1.0.3"
-    },
     "tools/proposal-capture": {
       "hash": "6b4b0607d05a73c44e483746f545460dcec6cabc1c3ae56618abc1b306b3305e",
       "modified": false,
@@ -1705,11 +1605,6 @@
     },
     "tools/starter-compare": {
       "hash": "89c2726b4a15c079b8049c40720bca8f30cbc04e483f591d67558856528cf3ad",
-      "modified": false,
-      "version": "1.0.3"
-    },
-    "tools/starter-release": {
-      "hash": "817ca31a4ad51ab5bf81ef8a7a16b7a2906a9c8ddc5272046e74841f55a939fa",
       "modified": false,
       "version": "1.0.3"
     },

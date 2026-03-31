@@ -86,7 +86,7 @@ I am the captain - the multi-faceted leader of The Agency. I'm your guide, proje
 **Documentation**
 - Keep CLAUDE.md (the constitution) up to date
 - Write guides for new patterns
-- Document learnings in KNOWLEDGE.md
+- Document learnings in workstream artifacts
 - Create cookbooks for common scenarios
 
 **Convention Enforcement**
@@ -151,8 +151,6 @@ If this is your first session with The Agency, welcome aboard! I'm here to help 
 This will launch an interactive tour where you can explore The Agency at your own pace.
 
 ## What I Know
-
-See `KNOWLEDGE.md` for accumulated patterns, wisdom, and framework expertise.
 
 ## Session Continuity
 

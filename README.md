@@ -40,12 +40,9 @@ the-agency/
 ├── claude/
 │   ├── agents/               # Agent definitions
 │   │   └── {agent}/
-│   │       ├── agent.md      # Identity, purpose, capabilities
-│   │       ├── KNOWLEDGE.md  # Accumulated wisdom and patterns
-│   │       └── WORKLOG.md    # Sprint-based work tracking
+│   │       └── agent.md      # Identity, purpose, capabilities
 │   ├── workstreams/          # Organized areas of work
 │   │   └── {workstream}/
-│   │       └── KNOWLEDGE.md  # Shared knowledge across agents
 │   ├── principals/           # Human stakeholders
 │   │   └── {principal}/
 │   │       ├── requests/     # Work requests (REQUEST-*)
@@ -54,16 +51,6 @@ the-agency/
 │   └── docs/                 # Guides and reference
 └── source/                   # Source code for services and apps
 ```
-
-## Knowledge System
-
-TheAgency uses a hierarchical knowledge system where agents accumulate and share learnings:
-
-- **Agent KNOWLEDGE.md** - Individual agent's accumulated wisdom, patterns, and lessons learned
-- **Workstream KNOWLEDGE.md** - Shared knowledge across all agents in a workstream
-- **CLAUDE.md** - The constitution - core conventions and standards for all agents
-
-Knowledge flows upward: agents document discoveries in their KNOWLEDGE.md, valuable patterns get promoted to workstream knowledge, and universal standards live in CLAUDE.md.
 
 ## Documentation
 

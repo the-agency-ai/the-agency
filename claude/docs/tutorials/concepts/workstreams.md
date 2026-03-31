@@ -19,39 +19,12 @@ Each workstream has:
 
 ```
 claude/workstreams/{name}/
-  ├── KNOWLEDGE.md           # Shared knowledge
   ├── sprints/              # Planned work
   │   ├── 2026-01/
   │   ├── 2026-02/
   │   └── ...
   └── epics/                # Major initiatives
 ```
-
-### Shared Knowledge
-
-The `KNOWLEDGE.md` in a workstream is shared by all agents working in that stream.
-
-Example for `web` workstream:
-```markdown
-# Web Workstream Knowledge
-
-## Component Patterns
-- Use shadcn/ui for base components
-- Follow atomic design principles
-- Co-locate styles with components
-
-## State Management
-- Use Zustand for global state
-- React Context for feature state
-- URL state for shareable views
-
-## Testing
-- Vitest for unit tests
-- Playwright for E2E
-- Aim for 80% coverage
-```
-
-All agents in `web` workstream see and use this knowledge.
 
 ## Workstream Patterns
 
@@ -162,12 +135,12 @@ Knowledge flows:
 
 **Agent → Workstream:**
 - Agent learns pattern
-- Documents in workstream KNOWLEDGE.md
+- Documents in workstream artifacts
 - All agents benefit
 
 **Workstream → Agent:**
 - New agent created
-- Reads workstream KNOWLEDGE.md
+- Reads workstream context
 - Starts with accumulated wisdom
 
 ## Key Takeaways

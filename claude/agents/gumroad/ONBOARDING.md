@@ -8,7 +8,6 @@
    ```
 
 2. Review current work:
-   - Check `WORKLOG.md` for sprint progress
    - Read `handoff.md` for session context
 
 3. Read agent identity:
@@ -18,8 +17,6 @@
 
 - Agent directory: `claude/agents/gumroad/`
 - Workstream: `claude/workstreams/gtm/`
-- Knowledge: `KNOWLEDGE.md` in this directory
-
 ## Getting Help
 
 ```bash

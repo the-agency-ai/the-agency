@@ -22,8 +22,6 @@ ls -la claude/agents/captain/
 
 Explain what they'll see:
 - `agent.md` - Agent's identity and role
-- `KNOWLEDGE.md` - Accumulated learnings
-- `WORKLOG.md` - Sprint-based work tracking
 
 ## Creating an Agent
 
@@ -55,7 +53,7 @@ Or with an initial prompt:
 
 Explain how sessions work:
 - Each launch starts a new session
-- Context is preserved via worklogs
+- Context is preserved via handoffs
 - Session backups capture state
 - Agents resume where they left off
 

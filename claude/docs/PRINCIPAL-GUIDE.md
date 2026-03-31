@@ -21,12 +21,9 @@ For detailed concept explanations, see `CONCEPTS.md`.
 ### Agents
 Each agent has:
 - `agent.md` - Identity, purpose, and capabilities
-- `KNOWLEDGE.md` - Accumulated wisdom and patterns
-- `WORKLOG.md` - Sprint-based work tracking
 
 ### Workstreams
 Workstreams organize related work:
-- Shared `KNOWLEDGE.md` across agents in the workstream
 - Sprint directories for planned work
 - Multiple agents can work on the same workstream
 

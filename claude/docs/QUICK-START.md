@@ -106,8 +106,6 @@ Type `/agency-welcome` to start the interactive tour. The captain will:
 
 Each agent has its own identity and context:
 - `agent.md` - Identity, purpose, capabilities
-- `KNOWLEDGE.md` - Accumulated wisdom and patterns
-- `WORKLOG.md` - Sprint-based work tracking
 
 ### Workstreams
 

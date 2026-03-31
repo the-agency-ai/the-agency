@@ -20,7 +20,7 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 |--------|-------------------|-----------|
 | AI role | Assists one developer | Multiple agents are developers |
 | Coordination | Human meetings, Jira | Agent tools (handoff, dispatch, sync) |
-| Context | Google Docs, tickets | CLAUDE.md, handoffs, KNOWLEDGE.md |
+| Context | Google Docs, tickets | CLAUDE.md, handoffs, workstream seeds |
 | Review | AI auto-comments on PRs | Multi-agent parallel review with scoring |
 | Throughput | 30% faster | Parallel agents (multiplicative) |
 | Quality | Human-gated | Mechanical quality gates at every boundary |
@@ -43,7 +43,7 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 ### Agent Definitions
 - **Class/instance model** — `claude/agents/{class}/agent.md` defines roles; `claude/usr/{principal}/{agent}/` is the working instance
 - **Standard classes** — captain, tech-lead, marketing-lead, platform-specialist, researcher
-- **Workstream model** — agents work on workstreams with shared artifacts (KNOWLEDGE.md, seeds, PVR, A&D, Plan)
+- **Workstream model** — agents work on workstreams with shared artifacts (seeds, PVR, A&D, Plan)
 
 ### Operational Conventions
 - **Sandbox principle** — per-principal workspace (`claude/usr/{principal}/`), zero team impact, opt-in adoption
@@ -446,7 +446,7 @@ YYYYMMDD-HHMM timestamps ensure uniqueness for multiple reviews per day. These f
 
 - **Class/instance model** — `claude/agents/{class}/agent.md` defines the role; `claude/usr/{principal}/{agent}/` is the working instance with handoff, project artifacts, and session state.
 - **Standard classes** — captain (coordination), tech-lead (architecture), marketing-lead (content), platform-specialist (infrastructure), researcher (investigation)
-- **Workstream model** — agents work on workstreams with shared artifacts (KNOWLEDGE.md, seeds, PVR, A&D, Plan)
+- **Workstream model** — agents work on workstreams with shared artifacts (seeds, PVR, A&D, Plan)
 
 ### TheAgency Default Structure
 

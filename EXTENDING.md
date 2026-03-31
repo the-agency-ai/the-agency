@@ -17,8 +17,6 @@ Agents are specialized Claude Code instances with context and memory.
 
 Creates:
 - `claude/agents/frontend/agent.md` - Identity and capabilities
-- `claude/agents/frontend/KNOWLEDGE.md` - Accumulated wisdom
-- `claude/agents/frontend/WORKLOG.md` - Work tracking
 
 **Agent spec (`agent.md`) should include:**
 - Purpose and role
@@ -40,7 +38,7 @@ Workstreams organize related work areas.
 ```
 
 Creates:
-- `claude/workstreams/analytics/KNOWLEDGE.md` - Shared knowledge
+- `claude/workstreams/analytics/` - Workstream directory
 - Sprint directories for planned work
 
 ## Building Tools
@@ -415,7 +413,7 @@ See existing commands in `.claude/commands/agency*.md` for examples.
 ## Best Practices
 
 1. **Follow conventions** - Match existing patterns
-2. **Document as you go** - Update KNOWLEDGE.md files
+2. **Document as you go** - Update relevant documentation
 3. **Test your extensions** - Verify they work across sessions
 4. **Keep it simple** - Minimal complexity for the task
 

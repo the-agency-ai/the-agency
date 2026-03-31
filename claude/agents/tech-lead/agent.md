@@ -71,8 +71,7 @@ Before any work:
 1. Read `handoff.md` in your instance directory (`usr/{principal}/{agent}/`)
 2. Check for `guide-*.md` and `dispatch-*.md` files in your scope
 3. Enter your worktree (create one if needed) BEFORE starting `/discuss` or writing files
-4. Read your workstream KNOWLEDGE.md at `claude/workstreams/{workstream}/KNOWLEDGE.md`
-5. Read any seeds at `claude/workstreams/{workstream}/seeds/`
+4. Read any seeds at `claude/workstreams/{workstream}/seeds/`
 
 ## Artifact Lifecycle
 

@@ -7,8 +7,7 @@
 ```
 claude/
 ├── agents/{agentname}/           # Agent identity & state
-├── workstreams/{workstream}/     # Work artifacts & shared knowledge
-│   ├── KNOWLEDGE.md              # Shared domain knowledge
+├── workstreams/{workstream}/     # Work artifacts
 │   ├── epic001/                  # Past epic work
 │   │   └── sprint001/
 │   └── epic002/                  # Current epic

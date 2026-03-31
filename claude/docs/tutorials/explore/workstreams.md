@@ -21,9 +21,7 @@ ls -la claude/workstreams/housekeeping/
 ```
 
 Explain what they'll see:
-- `KNOWLEDGE.md` - Shared knowledge across agents in this workstream
 - `sprints/` - Planned work organized by sprint
-- Agents in this workstream share this knowledge
 
 ## Creating a Workstream
 
@@ -61,7 +59,7 @@ ls -la claude/workstreams/demo/
 Relationship:
 - Multiple agents can work on one workstream
 - Each agent belongs to one workstream
-- Agents share the workstream's KNOWLEDGE.md
+- Agents share the workstream's context
 
 Example:
 ```

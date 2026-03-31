@@ -33,7 +33,6 @@ Each template directory contains:
 ```
 templates/<type>/
 ├── agent.md          # Agent identity and purpose
-├── KNOWLEDGE.md      # Imported knowledge and patterns
 └── ONBOARDING.md     # Quick start guide (optional)
 ```
 
@@ -51,8 +50,7 @@ Templates use these placeholders (replaced during creation):
 
 1. Create directory: `claude/agents/templates/<type>/`
 2. Add `agent.md` with placeholders
-3. Add `KNOWLEDGE.md` linking to relevant knowledge bases
-4. Optionally add `ONBOARDING.md`
+3. Optionally add `ONBOARDING.md`
 5. Update this INDEX.md
 
 ## Related

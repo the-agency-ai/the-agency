@@ -8,7 +8,6 @@
    ```
 
 2. Review current work:
-   - Check `WORKLOG.md` for sprint progress
    - Read `handoff.md` for session context
 
 3. Read agent identity:
@@ -18,8 +17,6 @@
 
 - Agent directory: `claude/agents/{{AGENT_NAME}}/`
 - Workstream: `claude/workstreams/{{WORKSTREAM}}/`
-- Knowledge: `KNOWLEDGE.md` in this directory
-
 ## Getting Help
 
 Write a dispatch to the captain agent for cross-workstream coordination.

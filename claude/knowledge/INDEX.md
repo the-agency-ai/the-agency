@@ -92,7 +92,6 @@ Each knowledge area should have:
 ## Related
 
 - `claude/docs/` - Guides and reference documentation
-- `claude/agents/*/KNOWLEDGE.md` - Agent-specific knowledge
 
 ---
 

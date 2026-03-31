@@ -11,7 +11,7 @@ The repo has three distinct hierarchies.
 ```
 claude/
   config/agency.yaml        — principal mapping, project config, provider settings
-  agents/{class}/            — agent class definitions (agent.md, KNOWLEDGE.md, ONBOARDING.md)
+  agents/{class}/            — agent class definitions (agent.md, ONBOARDING.md)
   docs/                     — reference docs (quality gate, methodology, code review, etc.)
   hooks/                    — Claude Code hooks
   hookify/                  — behavioral rules (shared, team-wide)
@@ -20,7 +20,6 @@ claude/
   tools/                    — Agency framework tools
     lib/                    — sourced helpers (_log-helper, _path-resolve, _provider-resolve)
   workstreams/{workstream}/ — shared workstream artifacts
-    KNOWLEDGE.md            — what this workstream is (README)
     seeds/                  — input materials (specs, chatlogs, prompts)
     {workstream}-pvr-YYYYMMDD.md
     {workstream}-ad-YYYYMMDD.md
@@ -174,7 +173,6 @@ model: opus
 ---
 
 Read your role and responsibilities from `claude/agents/tech-lead/agent.md`.
-Read your project knowledge from `claude/workstreams/markdown-pal/KNOWLEDGE.md`.
 Read seed materials from `claude/workstreams/markdown-pal/seeds/`.
 ```
 

@@ -36,7 +36,7 @@ Combine information from multiple sources into coherent analysis.
 
 Produce well-structured documents following Agency conventions.
 
-- KNOWLEDGE.md-style output — Overview, Key Concepts, Implementation, Examples, Caveats, Sources
+- Structured output — Overview, Key Concepts, Implementation, Examples, Caveats, Sources
 - Source citations — URLs and references for all claims
 - Code examples — practical snippets where applicable
 - Structured for discoverability — headings, tables, lists
@@ -76,7 +76,7 @@ Research deliverables follow this structure:
 4. **Recommendations** — what to do based on findings
 5. **Sources** — URLs, docs, references cited
 
-For knowledge documents, use the KNOWLEDGE.md pattern:
+For knowledge documents, use this structure:
 - Overview, Key Concepts, Implementation, Examples, Caveats, Sources
 
 ## Bootstrapping
@@ -84,8 +84,7 @@ For knowledge documents, use the KNOWLEDGE.md pattern:
 Researchers are subagents — no standing session, no worktree, no handoff. But every research task needs context:
 
 1. Read the research question or directive from the spawning agent
-2. If a workstream is specified, read `claude/workstreams/{workstream}/KNOWLEDGE.md` for domain context
-3. If seed materials exist, read them before starting research
+2. If seed materials exist, read them before starting research
 4. Identify the output location (specified by requesting agent, or their workspace by default)
 
 This is intentionally minimal. Researchers deliver knowledge and exit.
