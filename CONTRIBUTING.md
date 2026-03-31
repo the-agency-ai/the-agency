@@ -7,7 +7,7 @@ Thank you for your interest in contributing to The Agency!
 1. Fork the repository
 2. Clone your fork
 3. Run `./install.sh` to set up dependencies
-4. Run `./tools/myclaude housekeeping captain` to launch the captain
+4. Run `./claude/tools/myclaude housekeeping captain` to launch the captain
 
 ## Development Workflow
 
@@ -34,12 +34,12 @@ Generated-With: Claude Code
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
-Use `./tools/commit` to create properly formatted commits.
+Use `./claude/tools/git-commit` to create properly formatted commits.
 
 ## Code Standards
 
 - Follow existing patterns in the codebase
-- Run `./tools/commit-precheck` before committing
+- Run `./claude/tools/commit-precheck` before committing
 - Add tests for new functionality
 - Update documentation as needed
 
@@ -53,7 +53,7 @@ Use `./tools/commit` to create properly formatted commits.
 ## What Can You Contribute?
 
 - **Bug fixes** - Fix issues you encounter
-- **Tools** - Add new tools to `tools/`
+- **Tools** - Add new tools to `claude/tools/`
 - **Agents** - Create specialized agents
 - **Starter Packs** - Framework-specific conventions
 - **Documentation** - Improve guides and examples
@@ -62,7 +62,7 @@ Use `./tools/commit` to create properly formatted commits.
 
 Launch the captain and ask:
 ```bash
-./tools/myclaude housekeeping captain "How do I contribute X?"
+./claude/tools/myclaude housekeeping captain "How do I contribute X?"
 ```
 
 ---

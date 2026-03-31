@@ -14,10 +14,10 @@
 
 ```bash
 # Store Figma token (one-time)
-./tools/secret create figma-token --type=api_key --service=Figma
+./claude/tools/secret create figma-token --type=api_key --service=Figma
 
 # Extract from Figma file
-./tools/figma-extract <file-key> --name=<brand> --version=001
+./claude/tools/figma-extract <file-key> --name=<brand> --version=001
 ```
 
 **What you get:**
@@ -44,7 +44,7 @@ Read source/colors.pdf and update colors.md with:
 
 - Match PDF token names to API hex values
 - Generate Tailwind config with final tokens
-- Run `./tools/designsystem-validate`
+- Run `./claude/tools/designsystem-validate`
 
 ---
 

@@ -1,5 +1,0 @@
-#!/bin/bash
-# DEPRECATED: Use ./tools/terminal-setup or ./tools/terminal-setup-ghostty
-echo "ghostty-setup is now terminal-setup-ghostty" >&2
-echo "Use: ./tools/terminal-setup (auto-detects) or ./tools/terminal-setup-ghostty" >&2
-exec "$(dirname "$0")/terminal-setup-ghostty" "$@"

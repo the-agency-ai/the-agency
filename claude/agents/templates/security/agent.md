@@ -22,7 +22,7 @@ Security specialist focused on identifying vulnerabilities, reviewing code for s
 ## How to Spin Up
 
 ```bash
-./tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
 ```
 
 ## Knowledge Base

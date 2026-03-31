@@ -1,0 +1,194 @@
+#!/bin/bash
+#
+# session-archive - Archive current session to principal's session history
+#
+# Usage:
+#   ./claude/tools/session-archive "short description" [--verbose]
+#   ./claude/tools/session-archive --from FILE "short description" [--verbose]
+#
+# Creates: principals/{PRINCIPAL}/sessions/{AGENTNAME}/YYYYMMDD-HHMM-{WORKSTREAM}-{AGENT}-{DESC}.md
+#
+# Examples:
+#   ./claude/tools/session-archive "agencybench-setup"
+#   ./claude/tools/session-archive --from SESSION-BACKUP-2026-01-08.md "cookbooks-research"
+
+set -euo pipefail
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "session-archive" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.0-20260114-000003"
+
+# Defaults
+VERBOSE=false
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Parse arguments
+parse_args() {
+    SOURCE_FILE=""
+    DESCRIPTION=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --version|-v)
+                echo "session-archive $TOOL_VERSION"
+                exit 0
+                ;;
+            --help|-h)
+                echo "session-archive - Archive session to principal history"
+                echo ""
+                echo "Usage:"
+                echo "  ./claude/tools/session-archive \"description\" [--verbose]"
+                echo "  ./claude/tools/session-archive --from FILE \"description\" [--verbose]"
+                echo ""
+                echo "Options:"
+                echo "  --from FILE   Archive from specific file"
+                echo "  --verbose     Show detailed logging"
+                echo "  --version, -v Show tool version"
+                echo "  --help, -h    Show this help"
+                exit 0
+                ;;
+            --from|-f)
+                SOURCE_FILE="$2"
+                shift 2
+                ;;
+            --verbose)
+                VERBOSE=true
+                shift
+                ;;
+            *)
+                DESCRIPTION="$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$DESCRIPTION" ]; then
+        echo "Usage: ./claude/tools/session-archive \"short-description\""
+        echo "       ./claude/tools/session-archive --from FILE \"short-description\""
+        exit 1
+    fi
+}
+
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    verbose_echo "session-archive [run: ${RUN_ID:-none}]"
+
+    parse_args "$@"
+
+    # Get context
+    local WORKSTREAM="${WORKSTREAM:-housekeeping}"
+    local AGENTNAME="${AGENTNAME:-housekeeping}"
+    local PRINCIPAL="${PRINCIPAL:-jordan}"
+
+    log_step "Sanitizing description for filename"
+    local SAFE_DESC=$(echo "$DESCRIPTION" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-')
+
+    log_step "Generating timestamp"
+    local TIMESTAMP=$(date +%Y%m%d-%H%M)
+
+    log_step "Building filename"
+    local FILENAME="${TIMESTAMP}-${WORKSTREAM}-${AGENTNAME}-${SAFE_DESC}.md"
+
+    log_step "Creating sessions directory"
+    local SESSIONS_DIR="$PROJECT_ROOT/claude/principals/$PRINCIPAL/sessions/$AGENTNAME"
+    mkdir -p "$SESSIONS_DIR"
+
+    local ARCHIVE_PATH="$SESSIONS_DIR/$FILENAME"
+
+    # Determine source content
+    if [ -n "$SOURCE_FILE" ]; then
+        log_step "Archiving from source file"
+        # Check if it's a full path or relative to agent dir
+        if [ -f "$SOURCE_FILE" ]; then
+            SOURCE_PATH="$SOURCE_FILE"
+        elif [ -f "$PROJECT_ROOT/claude/agents/$AGENTNAME/$SOURCE_FILE" ]; then
+            SOURCE_PATH="$PROJECT_ROOT/claude/agents/$AGENTNAME/$SOURCE_FILE"
+        else
+            log_error "Source file not found: $SOURCE_FILE"
+            trap - EXIT
+            log_end "$RUN_ID" "failure" 1 0 "Source file not found"
+            exit 1
+        fi
+
+        # Copy with header
+        cat > "$ARCHIVE_PATH" << EOF
+---
+archived: $(date +%Y-%m-%d\ %H:%M)
+workstream: $WORKSTREAM
+agent: $AGENTNAME
+principal: $PRINCIPAL
+source: $SOURCE_FILE
+---
+
+EOF
+        cat "$SOURCE_PATH" >> "$ARCHIVE_PATH"
+    else
+        log_step "Creating new session archive from template"
+        # Create new session archive from template
+        cat > "$ARCHIVE_PATH" << EOF
+---
+archived: $(date +%Y-%m-%d\ %H:%M)
+workstream: $WORKSTREAM
+agent: $AGENTNAME
+principal: $PRINCIPAL
+---
+
+# Session Archive: $DESCRIPTION
+
+## Summary
+
+[Brief summary of what was accomplished]
+
+## Key Decisions
+
+-
+
+## Files Changed
+
+-
+
+## Next Steps
+
+-
+
+---
+
+*Archived $(date +%Y-%m-%d\ %H:%M)*
+EOF
+    fi
+
+    echo -e "${GREEN}Session archived:${NC}"
+    echo -e "${BLUE}  $ARCHIVE_PATH${NC}"
+    verbose_echo ""
+    verbose_echo "Structure: principals/{principal}/sessions/{agent}/YYYYMMDD-HHMM-{workstream}-{agent}-{desc}.md"
+
+    trap - EXIT  # Clear trap
+    log_end "$RUN_ID" "success" 0 0 "Session archived" 2>/dev/null || true
+}
+
+main "$@"

@@ -1,10 +1,7 @@
 #!/bin/bash
-# SessionEnd hook: Save context, unregister instance, stop agency-service if last one
+# SessionEnd hook: Clean up instance registration
 #
-# This hook runs when a Claude Code session ends. It:
-# 1. Auto-saves session context
-# 2. Removes this instance's registration
-# 3. If no other instances remain, stops the agency-service
+# This hook runs when a Claude Code session ends.
 
 # Enable trace mode if DEBUG_HOOKS is set
 if [[ -n "${DEBUG_HOOKS}" ]]; then
@@ -13,10 +10,6 @@ fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
-# Auto-save context on exit
-if [[ -x "$REPO_ROOT/tools/context-save" ]]; then
-    "$REPO_ROOT/tools/context-save" --checkpoint "Session ended" 2>/dev/null || true
-fi
 INSTANCES_DIR="$REPO_ROOT/claude/data/instances"
 
 # Get this instance's ID (use CLAUDE_SESSION_ID if available, otherwise use parent PID)
@@ -26,50 +19,6 @@ INSTANCE_FILE="$INSTANCES_DIR/$INSTANCE_ID"
 # Remove this instance's registration
 if [[ -f "$INSTANCE_FILE" ]]; then
     rm -f "$INSTANCE_FILE"
-fi
-
-# Count remaining instances
-remaining_instances() {
-    if [[ ! -d "$INSTANCES_DIR" ]]; then
-        echo 0
-        return
-    fi
-
-    local count=0
-    for file in "$INSTANCES_DIR"/*; do
-        if [[ -f "$file" ]]; then
-            # Check if the registered process is still running
-            local pid
-            pid=$(cat "$file" 2>/dev/null)
-            if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-                count=$((count + 1))
-            else
-                # Stale instance file, remove it
-                rm -f "$file"
-            fi
-        fi
-    done
-    echo "$count"
-}
-
-# Deregister from dispatch service and release claims (fire-and-forget)
-AGENCY_SERVICE_URL="${AGENCY_SERVICE_URL:-http://localhost:3141}"
-if curl -s --connect-timeout 1 "${AGENCY_SERVICE_URL}/health" >/dev/null 2>&1; then
-    curl -s --connect-timeout 1 -X POST \
-        "${AGENCY_SERVICE_URL}/api/dispatch/instance/release-all/${INSTANCE_ID}" \
-        >/dev/null 2>&1 || true
-    curl -s --connect-timeout 1 -X POST \
-        "${AGENCY_SERVICE_URL}/api/dispatch/instance/deregister/${INSTANCE_ID}" \
-        >/dev/null 2>&1 || true
-fi
-
-# Check if we should stop the agency-service
-remaining=$(remaining_instances)
-if [[ "$remaining" -eq 0 ]]; then
-    # No more instances, stop the agency-service
-    if [[ -x "$REPO_ROOT/tools/agency-service" ]]; then
-        "$REPO_ROOT/tools/agency-service" stop 2>/dev/null || true
-    fi
 fi
 
 exit 0

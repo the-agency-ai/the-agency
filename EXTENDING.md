@@ -45,17 +45,17 @@ Creates:
 
 ## Building Tools
 
-Tools are shell scripts in the `tools/` directory that follow specific patterns for consistency and observability.
+Tools are shell scripts in the `claude/tools/` directory that follow specific patterns for consistency and observability.
 
 ### Creating a New Tool
 
 ```bash
-./tools/tool-new <tool-name> "<description>"
+./claude/tools/tool-create <tool-name> "<description>"
 ```
 
 This generates a tool from the template at `claude/templates/TOOL.sh` with:
 - Argument parsing (--help, --version, --verbose)
-- Log service integration
+- JSONL logging integration
 - Run ID tracking
 - Context-efficient output
 

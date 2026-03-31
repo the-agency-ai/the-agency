@@ -27,8 +27,8 @@
 trap 'exit 0' ERR
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../tools/_path-resolve
-source "$SCRIPT_DIR/../tools/_path-resolve" 2>/dev/null || true
+# shellcheck source=../tools/lib/_path-resolve
+source "$SCRIPT_DIR/../tools/lib/_path-resolve" 2>/dev/null || true
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 # Resolve through symlink to find the real hook directory

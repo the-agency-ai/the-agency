@@ -64,28 +64,28 @@ POST /api/message/delete/:id        — Delete message
 GET  /api/message/stats             — Statistics
 ```
 
-### CLI Tool: `./tools/msg`
+### CLI Tool: `./claude/tools/msg`
 
 ```bash
-./tools/msg send research "Review needed" "Please check the PR"
-./tools/msg send captain "Re: Review" "Looks good" --ref <msg-id>
-./tools/msg broadcast "Convention change" "Use explicit operations"
-./tools/msg read                    # Unread messages
-./tools/msg read --all              # All messages
-./tools/msg thread <msg-id>         # Message chain
-./tools/msg ack <msg-id>            # Mark as read
+./claude/tools/msg send research "Review needed" "Please check the PR"
+./claude/tools/msg send captain "Re: Review" "Looks good" --ref <msg-id>
+./claude/tools/msg broadcast "Convention change" "Use explicit operations"
+./claude/tools/msg read                    # Unread messages
+./claude/tools/msg read --all              # All messages
+./claude/tools/msg thread <msg-id>         # Message chain
+./claude/tools/msg ack <msg-id>            # Mark as read
 ```
 
 ### Migration from Old Systems
 
 | Old System | New Equivalent | Notes |
 |------------|----------------|-------|
-| `./tools/collaborate` | `./tools/msg send <agent> "subject" "body"` | Wrapper delegates to msg |
-| `./tools/collaboration-respond` | `./tools/msg send <agent> "Re: subject" "body" --ref <id>` | Old file format retired |
-| `./tools/news-post` | `./tools/msg broadcast "subject" "body"` | Wrapper delegates to msg |
-| `./tools/news-read` | `./tools/msg read` | Falls back to legacy if service down |
-| `./tools/message-send` | `./tools/msg send` | Wrapper delegates to msg |
-| `./tools/message-read` | `./tools/msg read` | Wrapper delegates to msg |
+| `./claude/tools/collaborate` | `./claude/tools/msg send <agent> "subject" "body"` | Wrapper delegates to msg |
+| `./claude/tools/collaboration-respond` | `./claude/tools/msg send <agent> "Re: subject" "body" --ref <id>` | Old file format retired |
+| `./claude/tools/news-post` | `./claude/tools/msg broadcast "subject" "body"` | Wrapper delegates to msg |
+| `./claude/tools/news-read` | `./claude/tools/msg read` | Falls back to legacy if service down |
+| `./claude/tools/message-send` | `./claude/tools/msg send` | Wrapper delegates to msg |
+| `./claude/tools/message-read` | `./claude/tools/msg read` | Wrapper delegates to msg |
 
 Old tools are preserved as `*.legacy` files. Wrappers maintain backward compatibility.
 
@@ -143,21 +143,21 @@ POST /api/dispatch/instance/release-all/:id  — Release all claims
 GET  /api/dispatch/instance/list             — List instances
 ```
 
-### CLI Tool: `./tools/dispatch`
+### CLI Tool: `./claude/tools/dispatch`
 
 ```bash
-./tools/dispatch enqueue --agent captain "Fix bug" "Investigate the crash"
-./tools/dispatch enqueue --shared "Review PR" "Check PR #42" --priority 10
-./tools/dispatch enqueue --request REQUEST-jordan-0065 --agent captain
-./tools/dispatch claim                    # Claim next item
-./tools/dispatch complete <item-id>       # Mark done
-./tools/dispatch fail <item-id> "reason"  # Mark failed
-./tools/dispatch status                   # Queue depth
-./tools/dispatch list --status pending    # List items
-./tools/dispatch instances                # Active instances
+./claude/tools/dispatch enqueue --agent captain "Fix bug" "Investigate the crash"
+./claude/tools/dispatch enqueue --shared "Review PR" "Check PR #42" --priority 10
+./claude/tools/dispatch enqueue --request REQUEST-jordan-0065 --agent captain
+./claude/tools/dispatch claim                    # Claim next item
+./claude/tools/dispatch complete <item-id>       # Mark done
+./claude/tools/dispatch fail <item-id> "reason"  # Mark failed
+./claude/tools/dispatch status                   # Queue depth
+./claude/tools/dispatch list --status pending    # List items
+./claude/tools/dispatch instances                # Active instances
 ```
 
-Shortcut: `./tools/dispatch-request REQUEST-jordan-0065 [--agent captain]`
+Shortcut: `./claude/tools/dispatch-request REQUEST-jordan-0065 [--agent captain]`
 
 ## Hook Integration
 

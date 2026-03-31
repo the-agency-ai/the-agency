@@ -154,23 +154,6 @@ def main():
             names = [t.get("content", "?")[:40] for t in incomplete]
             issues.append(f"Incomplete TODOs ({todo_status['incomplete_count']}): {', '.join(names)}")
 
-    # Check 3: Pending dispatch queue work
-    try:
-        import urllib.request
-        service_url = os.environ.get("AGENCY_SERVICE_URL", "http://localhost:3141")
-        agent_name = os.environ.get("AGENTNAME", os.environ.get("AGENT_NAME", "captain"))
-        req = urllib.request.Request(f"{service_url}/api/dispatch/next/{agent_name}", method="GET")
-        req.add_header("Content-Type", "application/json")
-        with urllib.request.urlopen(req, timeout=2) as resp:
-            data = json.loads(resp.read().decode())
-            item = data.get("item")
-            if item:
-                title = item.get("title", "Unknown")
-                queue = item.get("queueType", "agent")
-                issues.append(f"Pending queue work: [{queue}] {title}")
-    except Exception:
-        pass  # Service unavailable — don't block
-
     # Decision
     if issues:
         output = {

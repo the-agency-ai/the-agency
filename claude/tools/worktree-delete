@@ -1,0 +1,77 @@
+#!/bin/bash
+#
+# worktree-delete — Remove a git worktree
+#
+# Usage: worktree-delete <name> [--force]
+#
+# Removes the worktree at .claude/worktrees/<name>/ and optionally the branch.
+
+set -euo pipefail
+
+VERSION="2.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# --- Flags ---
+NAME=""
+FORCE=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version|-v) echo "worktree-delete $VERSION"; exit 0 ;;
+        --help|-h) echo "Usage: worktree-delete <name> [--force]"; exit 0 ;;
+        --force|-f) FORCE=true; shift ;;
+        -*) echo "Unknown option: $1" >&2; exit 1 ;;
+        *) NAME="$1"; shift ;;
+    esac
+done
+
+if [[ -z "$NAME" ]]; then
+    echo "Error: worktree name is required" >&2
+    exit 1
+fi
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+WORKTREE_DIR="$PROJECT_ROOT/.claude/worktrees/$NAME"
+
+if [[ ! -d "$WORKTREE_DIR" ]]; then
+    echo "Error: worktree '$NAME' not found at $WORKTREE_DIR" >&2
+    exit 1
+fi
+
+# Check for uncommitted work
+DIRTY=$(git -C "$WORKTREE_DIR" status --porcelain 2>/dev/null | head -1)
+if [[ -n "$DIRTY" ]] && [[ "$FORCE" != "true" ]]; then
+    echo "Error: worktree '$NAME' has uncommitted changes. Use --force to remove anyway." >&2
+    echo "Uncommitted files:" >&2
+    git -C "$WORKTREE_DIR" status --short >&2
+    exit 1
+fi
+
+# Get the branch name before removing
+BRANCH=$(git -C "$WORKTREE_DIR" branch --show-current 2>/dev/null || echo "")
+
+echo "Removing worktree: $NAME"
+
+# Remove the worktree
+if [[ "$FORCE" == "true" ]]; then
+    git -C "$PROJECT_ROOT" worktree remove --force "$WORKTREE_DIR" 2>/dev/null || {
+        # Fallback: manual cleanup
+        rm -rf "$WORKTREE_DIR"
+        git -C "$PROJECT_ROOT" worktree prune
+    }
+else
+    git -C "$PROJECT_ROOT" worktree remove "$WORKTREE_DIR"
+fi
+
+echo "Worktree '$NAME' removed."
+
+# Offer to delete the branch
+if [[ -n "$BRANCH" ]] && [[ "$BRANCH" != "main" ]] && [[ "$BRANCH" != "master" ]]; then
+    echo ""
+    echo "Branch '$BRANCH' still exists. To delete it:"
+    echo "  git branch -d $BRANCH"
+fi

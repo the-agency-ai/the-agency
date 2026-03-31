@@ -2,55 +2,69 @@
 
 **Agent:** captain (housekeeping)
 **Principal:** jordan
-**Updated:** 2026-03-30 (session 5)
+**Updated:** 2026-03-31 (session 8, post-compact)
 
 ## Current State
 
-On branch `feat/plugin-framework` with 7 commits ready for PR. Dispatch 1 of 4 complete.
+On `feat/tool-refactor` branch. 7 commits ahead of main (including merge of origin/main). All quality gates passing. Ready for PR.
 
-### Dispatch 1: Plugin Provider Framework — DONE
+## Session 8 Work
 
-**Branch:** `feat/plugin-framework` (7 commits, not yet pushed/PR'd)
+### Dispatch 5: Tool Refactor (COMPLETE — 5 commits + merge)
 
-Built:
-1. `claude/tools/lib/_provider-resolve` — sourceable bash lib, reads agency.yaml, resolves provider tool paths
-2. `.claude/commands/secret.md` — `/secret` skill dispatcher (6 verbs → `secret-{provider}`)
-3. `tools/terminal-setup` — dispatcher (auto-detects from `$TERM_PROGRAM`)
-4. `tools/terminal-setup-ghostty` — renamed from `ghostty-setup`
-5. `tools/platform-setup` — dispatcher (auto-detects from `uname -s`, supports `"auto"` config)
-6. `tools/platform-setup-macos` — renamed from `mac-setup`
-7. `tools/platform-setup-linux` — renamed from `linux-setup`
-8. `claude/templates/PROVIDER.sh` — provider tool template with verb interface
-9. `tools/tool-new` — added `--provider=<pattern>` flag
-10. `tools/agency-verify` — validates all configured providers (9/11 passing, 2 design warnings deferred)
-11. `tools/agency-init` — updated to ship all new files
-12. `.claude/settings.json` — added permissions for new tools
-13. `claude/config/agency.yaml` — added terminal, platform, design provider sections
-14. Old names (`ghostty-setup`, `mac-setup`, `linux-setup`) → 5-line deprecation shims
+1. **489ddb6** — Delete 24 deprecated tools, clean agency-service refs
+2. **9dee22b** — Move ~95 tools `tools/` → `claude/tools/`, rename (git-commit, git-tag, git-sync, agency-whoami, tool-create), new tools (git-fetch, telemetry), standardize JSONL logging, fix code-review false positive
+3. **d6e7a6b** — Update TOOL.sh/PROVIDER.sh templates, CLAUDE.md, all test files, add missing permissions
+4. **f67e11b** — Update all docs (17 files), agent templates (12 files), commands (3 files), hookify rules (3 files), agency-init shipped tool list + permissions, captain agent.md
+5. **eddd5b2** — Clean stale tool refs from agent templates (collaborate, doc-commit, test-coverage)
 
-**Deferred:** Design providers (Figma MCP overlap needs evaluation), new providers, verb normalization.
+Also merged origin/main which brought in two new dispatches.
 
-### Immediate Next Steps
+### Dispatch 6: QG Hardening (COMPLETE)
+Verified all 17 QG fixes from PR #16.
 
-1. **Push `feat/plugin-framework` and create PR** — ready to merge
-2. **Dispatch 2: Agency 2.0 Bootstrap** (`feat/agency2-bootstrap`)
-   - Kill 7 dead agents: foundation-alpha, foundation-beta, collaboration, unknown, hub, mission-control, research (instance)
-   - Build 3 remaining agent classes: marketing-lead, platform-specialist, researcher
-   - Re-point live agents to class definitions
-3. **After dispatch 1 & 2 merge:** Fix worktree/workstream setup, update agent handoffs, bootstrap agents
-4. **Dispatch 3: ISCP** — `/discuss` session to define and design
-5. **Dispatch 4: Browser Protocol** — `/discuss` session to define and design
+### Computer Use MCP Feedback (COMPLETE)
+Filed 3 issues via `/feedback`.
 
-### Key Technical Decisions (this session)
+### Token Economics (PARTIAL — from new dispatch)
+- Refined `warn-compound-bash` hookify rule: added `exclude_pattern` for heredoc commits, `PATH=... bash -c`, stderr redirects, head/tail pipes
+- Remaining items: hook output audit, context-budget tool, CLAUDE.md size reduction
 
-- `_provider-resolve` sources `_path-resolve` internally, reuses `_pr_yaml_get`
-- Naming: `secret-{provider}`, `terminal-setup-{provider}`, `platform-setup-{provider}`, `design-{verb}-{provider}`
-- Platform `"auto"` detects OS at runtime
-- Dispatchers are bash tools; `/secret` is a skill (conversational)
-- Deprecation shims (not symlinks) for old tool names
-- `_pr_yaml_get` has a quote-stripping bug — `_provider-resolve` cleans residual quotes itself
+## New Dispatches (from origin)
 
-### Open Issues
+Two dispatches fetched and merged:
+
+1. **Code Survey / Incremental Capture** (`dispatch-agency-code-survey-tool-20260331.md`)
+   - Problem: review/explorer agents exhaust context on large codebases
+   - Proposed: incremental capture pattern (write findings as you go)
+   - Recommended: Option B (document-as-you-go) → Option C (multi-session chain)
+   - Status: READ, needs `/discuss` + plan
+
+2. **Token Economics Tools** (`dispatch-agency-token-economics-tools-20260331.md`)
+   - 5 items: /git-commit skill, compound bash refinement, hook output minimization, system reminder compression, context budget estimation
+   - Status: Item 2 (compound bash) DONE. Rest needs `/discuss` + plan
+
+## Next Steps
+
+1. **Create PR** for `feat/tool-refactor` → `main` — run through QG first
+2. **`/discuss` the new dispatches** — both are for discussion then planning
+3. **Remaining dispatch queue**: 3 (ISCP Design), 4 (Browser Protocol)
+
+## Dispatch Queue
+
+| # | Dispatch | Status |
+|---|----------|--------|
+| 1 | Plugin Provider Framework | MERGED |
+| 2 | Agency 2.0 Bootstrap | MERGED |
+| — | Workstream Bootstrap | MERGED |
+| 3 | ISCP Design | NOT STARTED |
+| 4 | Browser Protocol | NOT STARTED |
+| 5 | Tool Refactor | DONE (needs PR) |
+| 6 | QG Hardening | DONE |
+| 7 | Code Survey / Incremental Capture | READ (needs /discuss) |
+| 8 | Token Economics Tools | PARTIAL (needs /discuss) |
+
+## Open Issues
 
 | Issue | Status |
 |-------|--------|
@@ -59,12 +73,8 @@ Built:
 | ISS-009 | Open — status line redundant worktree naming |
 | ISS-012 | Open — worktrees in two locations |
 
-### Transcripts
+## Git State
 
-- `usr/jordan/captain/transcripts/transcript-dispatch-execution-20260330.md` — full execution log
-
-### Git State
-
-- Branch: `feat/plugin-framework` (7 commits ahead of main)
-- Working tree: clean
-- Not yet pushed to origin
+- Branch: `feat/tool-refactor` (7 commits ahead of main)
+- HEAD: eddd5b2
+- Working tree: clean (except handoff)

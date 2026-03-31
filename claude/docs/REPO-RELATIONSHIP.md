@@ -16,7 +16,7 @@ code/
 ### Development Flow (Downstream to Users)
 ```
 Commit → Push to the-agency (private)
-       → Run ./tools/starter-release
+       → Run ./claude/tools/starter-release
        → Sync files to ../the-agency-starter/ (sibling repo)
        → Push to the-agency-starter (public repo)
 ```
@@ -25,7 +25,7 @@ Commit → Push to the-agency (private)
 ```
 End users install from the-agency-starter public repo (using install script)
        → They have a local repo
-       → They use ./tools/project-create + the-agency-starter to spin up new projects
+       → They use ./claude/tools/project-create + the-agency-starter to spin up new projects
 ```
 
 ### Contribution Flow (Upstream from Users)
@@ -40,7 +40,7 @@ User extracts from their local project
 
 ## Current State (as of 2026-01-14)
 
-The-agency-starter has been extracted from the-agency repo and now lives as a separate sibling repository. The sync process uses `./tools/starter-release` to copy files from the-agency → the-agency-starter.
+The-agency-starter has been extracted from the-agency repo and now lives as a separate sibling repository. The sync process uses `./claude/tools/starter-release` to copy files from the-agency → the-agency-starter.
 
 ## Platform Support
 
@@ -71,7 +71,7 @@ Every tool has its own version number:
 - Format: `{YYYY-MM-DD}-{BUILDNUMBER}`
 - Example: `2026-01-09-000003`
 - Stored in `VERSION` file
-- Bumped via `./tools/version-bump`
+- Bumped via `./claude/tools/version-bump`
 
 ### Files That SHOULD Differ
 These files are intentionally different between repos:
@@ -107,16 +107,16 @@ The recommended way to sync changes:
 
 ```bash
 # Sync files only (no version bump)
-./tools/starter-release --sync-only
+./claude/tools/starter-release --sync-only
 
 # Cut a full release (sync + version + commit + tag)
-./tools/starter-release patch    # Bump patch version (0.1.0 -> 0.1.1)
-./tools/starter-release minor    # Bump minor version (0.1.0 -> 0.2.0)
-./tools/starter-release major    # Bump major version (0.1.0 -> 1.0.0)
-./tools/starter-release 1.5.0    # Specific version
+./claude/tools/starter-release patch    # Bump patch version (0.1.0 -> 0.1.1)
+./claude/tools/starter-release minor    # Bump minor version (0.1.0 -> 0.2.0)
+./claude/tools/starter-release major    # Bump major version (0.1.0 -> 1.0.0)
+./claude/tools/starter-release 1.5.0    # Specific version
 
 # Dry run (see what would happen)
-./tools/starter-release --dry-run
+./claude/tools/starter-release --dry-run
 ```
 
 ### What Gets Synced
@@ -140,10 +140,10 @@ What does NOT get synced:
 
 ```bash
 # Verify the starter build
-./tools/starter-verify
+./claude/tools/starter-verify
 
 # Compare starter to a test install
-./tools/starter-compare
+./claude/tools/starter-compare
 ```
 
 ### Manual Sync Rules

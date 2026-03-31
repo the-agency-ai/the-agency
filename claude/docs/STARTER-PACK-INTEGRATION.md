@@ -98,7 +98,7 @@ When a user runs the installer:
 3. **Create principal directory** for the user
 4. **Copy captain agent structure** to `claude/agents/captain/`
 5. **Preserve first-launch context** in `backups/latest/context.jsonl`
-6. **Launch first session:** `./tools/myclaude housekeeping captain`
+6. **Launch first session:** `./claude/tools/myclaude housekeeping captain`
 
 On first launch:
 - SessionStart hook reads `context.jsonl`
@@ -117,7 +117,7 @@ mkdir test-install && cd test-install
 # ...
 
 # Launch captain
-./tools/myclaude housekeeping captain
+./claude/tools/myclaude housekeeping captain
 
 # Expected: See first-launch context display
 # Expected: Captain greets and offers help

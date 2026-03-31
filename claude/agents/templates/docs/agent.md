@@ -21,7 +21,7 @@ Documentation specialist focused on creating clear, comprehensive, and maintaina
 ## How to Spin Up
 
 ```bash
-./tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
 ```
 
 ## Knowledge Base
@@ -77,7 +77,7 @@ This agent specializes in:
 |------|---------|
 | Read | Review code for documentation |
 | Write | Create/update documentation |
-| `./tools/doc-commit` | Commit documentation changes |
+| `./claude/tools/git-commit` | Commit documentation changes |
 
 ## Key Directories
 

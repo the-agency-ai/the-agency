@@ -10,16 +10,16 @@
 #
 #   # Resolve a provider:
 #   TOOL_PATH=$(resolve_provider "secrets")
-#   # Returns full path: /path/to/project/tools/secret-vault
+#   # Returns full path: /path/to/project/claude/tools/secret-vault
 #
 #   # For design (needs verb):
 #   TOOL_PATH=$(resolve_provider "design" "diff")
-#   # Returns: /path/to/project/tools/design-diff-figma
+#   # Returns: /path/to/project/claude/tools/design-diff-figma
 #
 # Resolution:
 #   1. Read {section}.provider from agency.yaml
 #   2. Map section + provider to tool name via naming convention
-#   3. Validate tool exists at $AGENCY_PROJECT_ROOT/tools/{tool-name}
+#   3. Validate tool exists at $AGENCY_PROJECT_ROOT/claude/tools/{tool-name}
 #   4. Return full path on stdout; exit 1 if not found
 #
 # Requires _path-resolve to be sourceable (for AGENCY_PROJECT_ROOT and _pr_yaml_get).
@@ -28,17 +28,11 @@
 # Source _path-resolve if not already loaded
 if [[ -z "${AGENCY_PROJECT_ROOT:-}" ]]; then
     _pr_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    _pr_tools_dir="$_pr_lib_dir/../../../tools"
-    if [[ -f "$_pr_tools_dir/_path-resolve" ]]; then
-        source "$_pr_tools_dir/_path-resolve"
+    if [[ -f "$_pr_lib_dir/_path-resolve" ]]; then
+        source "$_pr_lib_dir/_path-resolve"
     else
-        # Fallback: try CLAUDE_PROJECT_DIR
-        if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]] && [[ -f "$CLAUDE_PROJECT_DIR/tools/_path-resolve" ]]; then
-            source "$CLAUDE_PROJECT_DIR/tools/_path-resolve"
-        else
-            echo "_provider-resolve: cannot find _path-resolve" >&2
-            return 1 2>/dev/null || exit 1
-        fi
+        echo "_provider-resolve: cannot find _path-resolve" >&2
+        return 1 2>/dev/null || exit 1
     fi
 fi
 
@@ -107,7 +101,7 @@ resolve_provider() {
     local tool_name
     tool_name="$(_provider_tool_name "$section" "$provider" "$verb")" || return 1
 
-    local tool_path="${AGENCY_PROJECT_ROOT}/tools/${tool_name}"
+    local tool_path="${AGENCY_PROJECT_ROOT}/claude/tools/${tool_name}"
 
     if [[ ! -f "$tool_path" ]]; then
         echo "_provider-resolve: provider tool not found: $tool_path" >&2

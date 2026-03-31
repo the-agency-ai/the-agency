@@ -144,10 +144,10 @@ load 'test_helper'
     assert_output_contains "create"
 }
 
-@test "gh-release: --help mentions ./tools/release" {
+@test "gh-release: --help mentions ./claude/tools/release" {
     run_tool gh-release --help
     assert_success
-    assert_output_contains "./tools/release"
+    assert_output_contains "./claude/tools/release"
 }
 
 @test "gh-release: no args shows help" {
@@ -185,17 +185,17 @@ load 'test_helper'
 
 @test "gh-pr: delegates to gh wrapper" {
     # Verify gh-pr uses exec to ./tools/gh
-    run grep -q 'exec.*gh.*pr' tools/gh-pr
+    run grep -q 'exec.*gh.*pr' claude/tools/gh-pr
     assert_success
 }
 
 @test "gh-release: delegates to gh wrapper" {
-    run grep -q 'exec.*gh.*release' tools/gh-release
+    run grep -q 'exec.*gh.*release' claude/tools/gh-release
     assert_success
 }
 
 @test "gh-api: delegates to gh wrapper" {
-    run grep -q 'exec.*gh.*api' tools/gh-api
+    run grep -q 'exec.*gh.*api' claude/tools/gh-api
     assert_success
 }
 
@@ -205,6 +205,6 @@ load 'test_helper'
 
 @test "gh: defines log_end fallback when helper missing" {
     # Check that the script defines a no-op log_end fallback
-    run grep -q 'log_end.*{.*:.*}' tools/gh
+    run grep -q 'log_end.*{.*:.*}' claude/tools/gh
     assert_success
 }

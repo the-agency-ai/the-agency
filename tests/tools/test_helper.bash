@@ -13,7 +13,7 @@
 
 # Get the repo root
 export REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
-export TOOLS_DIR="${REPO_ROOT}/tools"
+export TOOLS_DIR="${REPO_ROOT}/claude/tools"
 
 # Add tools to PATH
 export PATH="${TOOLS_DIR}:${PATH}"

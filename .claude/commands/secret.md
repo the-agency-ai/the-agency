@@ -23,13 +23,13 @@ Manage secrets through the configured provider.
 
 1. Read the secrets provider from `claude/config/agency.yaml` under `secrets.provider`
 2. Determine the provider tool:
-   - `vault` → `./tools/secret-vault`
-   - `doppler` → `./tools/secret-doppler`
-   - Pattern: `./tools/secret-{provider}`
+   - `vault` → `./claude/tools/secret-vault`
+   - `doppler` → `./claude/tools/secret-doppler`
+   - Pattern: `./claude/tools/secret-{provider}`
 3. Map the verb to the provider's command:
    - For **vault** provider: `set` maps to `create`, all others pass through directly
    - For **doppler** provider: all verbs pass through directly
-4. Execute: `./tools/secret-{provider} {mapped-verb} {args}`
+4. Execute: `./claude/tools/secret-{provider} {mapped-verb} {args}`
 
 ## Provider Detection
 

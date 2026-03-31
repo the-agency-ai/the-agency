@@ -6,13 +6,13 @@ Guide for investigating and fixing CI failures in The Agency.
 
 ```bash
 # Check recent CI runs
-GH_TOKEN=$(./tools/secret get github-admin-token) gh run list --limit 10
+GH_TOKEN=$(./claude/tools/secret get github-admin-token) gh run list --limit 10
 
 # View specific run logs
-GH_TOKEN=$(./tools/secret get github-admin-token) gh run view RUN_ID --log
+GH_TOKEN=$(./claude/tools/secret get github-admin-token) gh run view RUN_ID --log
 
 # View just the failures
-GH_TOKEN=$(./tools/secret get github-admin-token) gh run view RUN_ID --log 2>&1 | grep -A 20 "fail)"
+GH_TOKEN=$(./claude/tools/secret get github-admin-token) gh run view RUN_ID --log 2>&1 | grep -A 20 "fail)"
 ```
 
 ## Investigation Workflow
@@ -21,10 +21,10 @@ GH_TOKEN=$(./tools/secret get github-admin-token) gh run view RUN_ID --log 2>&1 
 
 ```bash
 # List recent runs with status
-GH_TOKEN=$(./tools/secret get github-admin-token) gh run list --limit 5
+GH_TOKEN=$(./claude/tools/secret get github-admin-token) gh run list --limit 5
 
 # Get detailed failure output
-GH_TOKEN=$(./tools/secret get github-admin-token) gh run view RUN_ID --log 2>&1 | tail -150
+GH_TOKEN=$(./claude/tools/secret get github-admin-token) gh run view RUN_ID --log 2>&1 | tail -150
 ```
 
 ### 2. Reproduce Locally
@@ -44,7 +44,7 @@ bun test
 1. Make the fix locally
 2. Run affected tests: `bun test path/to/test.ts`
 3. Commit and push
-4. Monitor CI: `GH_TOKEN=$(./tools/secret get github-admin-token) gh run list --limit 1`
+4. Monitor CI: `GH_TOKEN=$(./claude/tools/secret get github-admin-token) gh run list --limit 1`
 5. If still failing, get logs and iterate
 
 ## Common macOS vs Linux Issues
@@ -127,10 +127,10 @@ The Agency has two CI workflows:
 
 ```bash
 # Search for expect failures
-GH_TOKEN=$(./tools/secret get github-admin-token) gh run view RUN_ID --log 2>&1 | grep -B 5 -A 10 "Expected:"
+GH_TOKEN=$(./claude/tools/secret get github-admin-token) gh run view RUN_ID --log 2>&1 | grep -B 5 -A 10 "Expected:"
 
 # Search for specific test
-GH_TOKEN=$(./tools/secret get github-admin-token) gh run view RUN_ID --log 2>&1 | grep -A 20 "test name here"
+GH_TOKEN=$(./claude/tools/secret get github-admin-token) gh run view RUN_ID --log 2>&1 | grep -A 20 "test name here"
 ```
 
 ### Check Environment Differences

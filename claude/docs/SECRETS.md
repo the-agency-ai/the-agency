@@ -11,7 +11,7 @@ secrets:
 
 | Provider | Description | Setup |
 |----------|-------------|-------|
-| `vault` | Agency built-in (default) | `./tools/secret vault init` |
+| `vault` | Agency built-in (default) | `./claude/tools/secret vault init` |
 | `doppler` | Doppler.com integration | Install Doppler CLI, configure project |
 | `env` | Environment variables | Create `.env` in project root |
 | `custom` | Custom via starter pack | See `claude/starter-packs/` |
@@ -22,16 +22,16 @@ secrets:
 
 ```bash
 # Retrieve a secret (for use in scripts/tools)
-./tools/secret get secret-name
+./claude/tools/secret get secret-name
 
 # Store a new secret
-./tools/secret create my-secret --type=api_key --service=GitHub
+./claude/tools/secret create my-secret --type=api_key --service=GitHub
 
 # List available secrets
-./tools/secret list
+./claude/tools/secret list
 
 # Unlock the vault (if locked)
-./tools/secret vault unlock
+./claude/tools/secret vault unlock
 ```
 
 ## Vault Management
@@ -41,7 +41,7 @@ The vault protects all secrets with a master passphrase using Argon2id key deriv
 ### Initialization (First Time)
 
 ```bash
-./tools/secret vault init
+./claude/tools/secret vault init
 ```
 
 You'll be prompted to create a master passphrase. This passphrase encrypts all secrets in the vault.
@@ -49,23 +49,23 @@ You'll be prompted to create a master passphrase. This passphrase encrypts all s
 ### Unlocking the Vault
 
 ```bash
-./tools/secret vault unlock    # Unlock for session (30-min timeout)
-./tools/secret vault lock      # Lock vault immediately
-./tools/secret vault status    # Check vault status
+./claude/tools/secret vault unlock    # Unlock for session (30-min timeout)
+./claude/tools/secret vault lock      # Lock vault immediately
+./claude/tools/secret vault status    # Check vault status
 ```
 
 The vault automatically locks after 30 minutes of inactivity for security.
 
 ### Session Tokens
 
-When you launch an agent via `./tools/myclaude`, a session token is generated automatically if the vault is unlocked. This keeps the vault accessible during your Claude Code session without repeated unlocking.
+When you launch an agent via `./claude/tools/myclaude`, a session token is generated automatically if the vault is unlocked. This keeps the vault accessible during your Claude Code session without repeated unlocking.
 
 ## Creating Secrets
 
 ### Basic Usage
 
 ```bash
-./tools/secret create secret-name --type=TYPE --service=SERVICE
+./claude/tools/secret create secret-name --type=TYPE --service=SERVICE
 ```
 
 You'll be prompted to enter the secret value securely (input is hidden).
@@ -82,7 +82,7 @@ You'll be prompted to enter the secret value securely (input is hidden).
 ### With Description
 
 ```bash
-./tools/secret create api-key \
+./claude/tools/secret create api-key \
   --type=api_key \
   --service=Anthropic \
   --description="Claude API key for production"
@@ -91,7 +91,7 @@ You'll be prompted to enter the secret value securely (input is hidden).
 ### From File
 
 ```bash
-./tools/secret create cert --type=certificate --service=AWS --file=./cert.pem
+./claude/tools/secret create cert --type=certificate --service=AWS --file=./cert.pem
 ```
 
 ## Retrieving Secrets
@@ -99,7 +99,7 @@ You'll be prompted to enter the secret value securely (input is hidden).
 ### Get Secret Value
 
 ```bash
-./tools/secret get secret-name
+./claude/tools/secret get secret-name
 ```
 
 **NOTE:** This operation is logged in the audit log for security tracking.
@@ -107,7 +107,7 @@ You'll be prompted to enter the secret value securely (input is hidden).
 ### Show Metadata Only
 
 ```bash
-./tools/secret show secret-name
+./claude/tools/secret show secret-name
 ```
 
 Shows metadata (type, service, description) without revealing the secret value. Not logged.
@@ -115,9 +115,9 @@ Shows metadata (type, service, description) without revealing the secret value. 
 ### List Secrets
 
 ```bash
-./tools/secret list                      # List all secrets
-./tools/secret list --service=GitHub     # Filter by service
-./tools/secret list --type=api_key       # Filter by type
+./claude/tools/secret list                      # List all secrets
+./claude/tools/secret list --service=GitHub     # Filter by service
+./claude/tools/secret list --type=api_key       # Filter by type
 ```
 
 ## Integration with Tools
@@ -128,13 +128,13 @@ Tag secrets for use by specific tools:
 
 ```bash
 # Tag for GitHub CLI
-./tools/secret tag github-token --tool=gh
+./claude/tools/secret tag github-token --tool=gh
 
 # Tag for local Agency tool
-./tools/secret tag my-secret --local-tool=./tools/myclaude
+./claude/tools/secret tag my-secret --local-tool=./claude/tools/myclaude
 
 # Find secrets by tag
-./tools/secret list --tool=gh
+./claude/tools/secret list --tool=gh
 ```
 
 ### Environment Variables
@@ -143,11 +143,11 @@ Export secrets as environment variables for scripts:
 
 ```bash
 # Export for current shell
-eval $(./tools/secret env my-token MY_TOKEN)
+eval $(./claude/tools/secret env my-token MY_TOKEN)
 # Results in: export MY_TOKEN=<secret-value>
 
 # Use in scripts
-MY_TOKEN=$(./tools/secret get my-token)
+MY_TOKEN=$(./claude/tools/secret get my-token)
 ```
 
 ## Access Control
@@ -158,10 +158,10 @@ Share secrets with specific agents or principals:
 
 ```bash
 # Grant read access to an agent
-./tools/secret grant my-secret --to=agent:housekeeping --permission=read
+./claude/tools/secret grant my-secret --to=agent:housekeeping --permission=read
 
 # Grant admin access to a principal
-./tools/secret grant my-secret --to=principal:jordan --permission=admin
+./claude/tools/secret grant my-secret --to=principal:jordan --permission=admin
 ```
 
 **Permission Levels:**
@@ -172,13 +172,13 @@ Share secrets with specific agents or principals:
 ### Revoking Access
 
 ```bash
-./tools/secret revoke my-secret --from=agent:housekeeping
+./claude/tools/secret revoke my-secret --from=agent:housekeeping
 ```
 
 ### Listing Grants
 
 ```bash
-./tools/secret grants my-secret
+./claude/tools/secret grants my-secret
 ```
 
 ## Audit Logging
@@ -189,14 +189,14 @@ All secret access is logged for security compliance.
 
 ```bash
 # View access log for a specific secret
-./tools/secret audit my-token
+./claude/tools/secret audit my-token
 
 # View all access logs
-./tools/secret audit --all
+./claude/tools/secret audit --all
 
 # Filter by date range
-./tools/secret audit --since=2026-01-01
-./tools/secret audit --since=2026-01-01 --until=2026-01-31
+./claude/tools/secret audit --since=2026-01-01
+./claude/tools/secret audit --since=2026-01-01 --until=2026-01-31
 ```
 
 **Logged Operations:**
@@ -218,13 +218,13 @@ If you have existing secrets in `.env` files:
 
 ```bash
 # Preview what will be migrated
-./tools/secret-migrate --dry-run
+./claude/tools/secret-migrate --dry-run
 
 # Run the migration
-./tools/secret-migrate
+./claude/tools/secret-migrate
 
 # Verify migration
-./tools/secret list
+./claude/tools/secret list
 ```
 
 **IMPORTANT:** After migration, remove the `.env` file and ensure it's in `.gitignore`.
@@ -308,7 +308,7 @@ AGENCY_USER=principal:jordan  # or agent:housekeeping
 
 **Solution:**
 ```bash
-./tools/secret vault unlock
+./claude/tools/secret vault unlock
 ```
 
 ### Vault Uninitialized
@@ -317,7 +317,7 @@ AGENCY_USER=principal:jordan  # or agent:housekeeping
 
 **Solution:**
 ```bash
-./tools/secret vault init
+./claude/tools/secret vault init
 ```
 
 ### Service Not Running
@@ -335,7 +335,7 @@ bun run dev
 **Error:** "Permission denied for secret: xyz"
 
 **Solution:**
-- Verify you have access via `./tools/secret grants xyz`
+- Verify you have access via `./claude/tools/secret grants xyz`
 - Request access from secret owner
 - Check `AGENCY_USER` environment variable is set correctly
 
@@ -352,16 +352,16 @@ bun run dev
 For teams transitioning from `.env` files or other secret management:
 
 1. **Audit existing secrets:** Identify all secrets in `.env`, config files, scripts
-2. **Initialize vault:** `./tools/secret vault init`
-3. **Migrate secrets:** `./tools/secret-migrate` or manually create
-4. **Update tools:** Replace hardcoded secrets with `./tools/secret get`
+2. **Initialize vault:** `./claude/tools/secret vault init`
+3. **Migrate secrets:** `./claude/tools/secret-migrate` or manually create
+4. **Update tools:** Replace hardcoded secrets with `./claude/tools/secret get`
 5. **Remove old files:** Delete `.env` files, add to `.gitignore`
 6. **Verify:** Test all tools/scripts work with new secret retrieval
 7. **Document:** Update team docs with new secret management process
 
 ## API Reference
 
-The Secret Service provides a REST API (used by `./tools/secret`):
+The Secret Service provides a REST API (used by `./claude/tools/secret`):
 
 ```
 POST   /api/secret/create      # Create secret
@@ -380,7 +380,7 @@ POST   /api/secret/vault/lock  # Lock vault
 GET    /api/secret/vault/status # Vault status
 ```
 
-For programmatic access, use the provided `./tools/secret` CLI rather than calling the API directly.
+For programmatic access, use the provided `./claude/tools/secret` CLI rather than calling the API directly.
 
 ## Related Documentation
 

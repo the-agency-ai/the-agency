@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for tools/_log-helper
+# Tests for claude/tools/lib/_log-helper (JSONL-based logger)
 #
 # Run with: bats tests/tools/log-helper.bats
 #
@@ -8,122 +8,117 @@
 load 'test_helper'
 
 setup() {
+    # Create temp log directory
+    export CLAUDE_PROJECT_DIR="${BATS_TEST_TMPDIR}"
+    mkdir -p "${BATS_TEST_TMPDIR}/.claude/logs"
+
     # Source the log helper
-    source "${TOOLS_DIR}/_log-helper"
-
-    # Disable actual logging
-    export LOG_SERVICE_URL=""
+    source "${TOOLS_DIR}/lib/_log-helper"
 }
 
 # ─────────────────────────────────────────────────────────────
-# _json_escape tests
+# _uuid7 tests
 # ─────────────────────────────────────────────────────────────
 
-@test "_json_escape: escapes double quotes" {
-    result=$(_json_escape 'hello "world"')
-    [[ "$result" == 'hello \"world\"' ]]
+@test "_uuid7: generates a UUID" {
+    result=$(_uuid7)
+    [[ -n "$result" ]]
 }
 
-@test "_json_escape: escapes backslashes" {
-    result=$(_json_escape 'path\to\file')
-    [[ "$result" == 'path\\to\\file' ]]
+@test "_uuid7: matches UUID format (8-4-4-4-12)" {
+    result=$(_uuid7)
+    [[ "$result" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]
 }
 
-@test "_json_escape: escapes newlines" {
-    result=$(_json_escape $'line1\nline2')
-    [[ "$result" == 'line1\nline2' ]]
-}
-
-@test "_json_escape: escapes tabs" {
-    result=$(_json_escape $'col1\tcol2')
-    [[ "$result" == 'col1\tcol2' ]]
-}
-
-@test "_json_escape: handles empty string" {
-    result=$(_json_escape '')
-    [[ "$result" == '' ]]
-}
-
-@test "_json_escape: handles special characters together" {
-    result=$(_json_escape $'say "hello"\npath\\to\\file')
-    [[ "$result" == 'say \"hello\"\npath\\to\\file' ]]
+@test "_uuid7: generates unique IDs" {
+    id1=$(_uuid7)
+    id2=$(_uuid7)
+    [[ "$id1" != "$id2" ]]
 }
 
 # ─────────────────────────────────────────────────────────────
-# _log_enabled tests
+# log_start tests
 # ─────────────────────────────────────────────────────────────
 
-@test "_log_enabled: returns false when LOG_SERVICE_URL is empty" {
-    export LOG_SERVICE_URL=""
-    run _log_enabled
-    assert_failure
+@test "log_start: returns a run ID" {
+    result=$(log_start "test-tool" "arg1" "arg2")
+    [[ -n "$result" ]]
+    [[ "$result" =~ ^[0-9a-f]{8}-[0-9a-f]{4} ]]
 }
 
-@test "_log_enabled: returns true when LOG_SERVICE_URL is set" {
-    export LOG_SERVICE_URL="http://localhost:3141"
-    run _log_enabled
-    assert_success
+@test "log_start: writes start event to JSONL" {
+    run_id=$(log_start "test-tool" "arg1")
+    # Check the log file exists and has a start event
+    last_line=$(tail -1 "${BATS_TEST_TMPDIR}/.claude/logs/tool-runs.jsonl")
+    echo "$last_line" | jq -e '.event == "start"'
+    echo "$last_line" | jq -e '.tool == "test-tool"'
+    echo "$last_line" | jq -e ".run == \"$run_id\""
 }
 
-# ─────────────────────────────────────────────────────────────
-# log_start tests (with logging disabled)
-# ─────────────────────────────────────────────────────────────
-
-@test "log_start: returns empty when logging disabled" {
-    export LOG_SERVICE_URL=""
-    result=$(log_start "test-tool" "agency-tool" "arg1" "arg2")
-    [[ -z "$result" ]]
-}
-
-@test "log_start: accepts tool name and type" {
-    export LOG_SERVICE_URL=""
-    # Should not error even with args
-    run log_start "my-tool" "bash" "arg1" "arg2" "arg3"
-    assert_success
+@test "log_start: records args" {
+    run_id=$(log_start "test-tool" "--verbose" "file.txt")
+    last_line=$(tail -1 "${BATS_TEST_TMPDIR}/.claude/logs/tool-runs.jsonl")
+    echo "$last_line" | jq -e '.args | test("--verbose")'
 }
 
 # ─────────────────────────────────────────────────────────────
-# log_end tests (with logging disabled)
+# log_end tests
 # ─────────────────────────────────────────────────────────────
+
+@test "log_end: writes end event to JSONL" {
+    run_id=$(log_start "test-tool")
+    log_end "$run_id" "success" "0" "100" "completed ok"
+    last_line=$(tail -1 "${BATS_TEST_TMPDIR}/.claude/logs/tool-runs.jsonl")
+    echo "$last_line" | jq -e '.event == "end"'
+    echo "$last_line" | jq -e '.outcome == "success"'
+    echo "$last_line" | jq -e ".run == \"$run_id\""
+}
+
+@test "log_end: records exit code and duration" {
+    run_id=$(log_start "test-tool")
+    log_end "$run_id" "failure" "1" "250" "something failed"
+    last_line=$(tail -1 "${BATS_TEST_TMPDIR}/.claude/logs/tool-runs.jsonl")
+    echo "$last_line" | jq -e '.exit == 1'
+    echo "$last_line" | jq -e '.duration_ms == 250'
+}
 
 @test "log_end: handles empty run_id gracefully" {
-    export LOG_SERVICE_URL=""
-    run log_end "" "success" "0" "100" "summary"
-    assert_success
-}
-
-@test "log_end: accepts all parameters" {
-    export LOG_SERVICE_URL=""
-    run log_end "abc123" "success" "0" "100" "summary" "output content"
-    assert_success
-}
-
-@test "log_end: normalizes invalid status to failure" {
-    export LOG_SERVICE_URL=""
-    # Should handle invalid status without error
-    run log_end "abc123" "invalid" "0" "0" ""
+    run log_end "" "success" "0" "0" "summary"
     assert_success
 }
 
 # ─────────────────────────────────────────────────────────────
-# log_wrap tests
+# log_detail tests
 # ─────────────────────────────────────────────────────────────
 
-@test "log_wrap: runs command and returns exit code" {
-    export LOG_SERVICE_URL=""
-    run log_wrap "test" "bash" true
-    assert_success
+@test "log_detail: writes detail event to JSONL" {
+    run_id=$(log_start "test-tool")
+    log_detail "$run_id" "stdout" "hello world output"
+    last_line=$(tail -1 "${BATS_TEST_TMPDIR}/.claude/logs/tool-runs.jsonl")
+    echo "$last_line" | jq -e '.event == "detail"'
+    echo "$last_line" | jq -e '.channel == "stdout"'
+    echo "$last_line" | jq -e '.content | test("hello world")'
 }
 
-@test "log_wrap: propagates failure exit code" {
-    export LOG_SERVICE_URL=""
-    run log_wrap "test" "bash" false
-    assert_failure
+# ─────────────────────────────────────────────────────────────
+# tool_output tests
+# ─────────────────────────────────────────────────────────────
+
+@test "tool_output: prints standard 3-line format" {
+    run tool_output "my-tool" "019d1234-abcd-7000-8000-123456789abc" "done"
+    assert_success
+    assert_output_contains "my-tool"
+    assert_output_contains "done"
+    assert_output_contains "✓"
 }
 
-@test "log_wrap: passes arguments to command" {
-    export LOG_SERVICE_URL=""
-    run log_wrap "test" "bash" echo "hello world"
+@test "tool_output: uses custom icon" {
+    run tool_output "my-tool" "019d1234-abcd-7000-8000-123456789abc" "done" "✗"
     assert_success
-    assert_output_contains "hello world"
+    assert_output_contains "✗"
+}
+
+@test "tool_output: shows short run ID" {
+    run tool_output "my-tool" "019d1234-abcd-7000-8000-123456789abc" "done"
+    assert_output_contains "019d1234"
 }

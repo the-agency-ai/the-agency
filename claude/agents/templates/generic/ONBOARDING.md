@@ -4,7 +4,7 @@
 
 1. Launch the agent:
    ```bash
-   ./tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+   ./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
    ```
 
 2. Review current work:
@@ -22,6 +22,4 @@
 
 ## Getting Help
 
-```bash
-./tools/collaborate housekeeping housekeeping "I need help with..."
-```
+Write a dispatch to the captain agent for cross-workstream coordination.

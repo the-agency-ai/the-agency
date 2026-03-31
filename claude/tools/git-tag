@@ -1,0 +1,329 @@
+#!/bin/bash
+# Create properly formatted tags for work items and releases
+#
+# Usage:
+#   ./claude/tools/git-tag {WORK-ITEM} {stage}           # {WORK-ITEM}-{stage}
+#   ./claude/tools/git-tag release {version} [suffix]    # v{version}[-suffix]
+#
+# Work Item Examples:
+#   ./claude/tools/git-tag REQUEST-jordan-0017 impl      # REQUEST-jordan-0017-impl
+#   ./claude/tools/git-tag SPRINT-web-2026w03 review     # SPRINT-web-2026w03-review
+#   ./claude/tools/git-tag ITERATION-hub-mvh-1 tests     # ITERATION-hub-mvh-1-tests
+#   ./claude/tools/git-tag PHASE-hub-A complete          # PHASE-hub-A-complete
+#   ./claude/tools/git-tag TASK-auth-refactor impl       # TASK-auth-refactor-impl
+#
+# Release Examples:
+#   ./claude/tools/git-tag release 0.6.0                 # v0.6.0
+#   ./claude/tools/git-tag release 0.6.0 rc1             # v0.6.0-rc1
+#
+# Options:
+#   --push, -p    Push tag to remote after creating
+#   --message, -m Custom tag message
+#   --dry-run     Show what would be done without doing it
+#   --list        List tags for a work item
+#   --force, -f   Force recreate existing tag without prompting
+#   --skip-tests  Skip test verification (use sparingly!)
+#   --skip-order  Skip stage order verification (use sparingly!)
+#
+# Valid stages: impl, review, tests, complete
+#
+# Note: For impl, review, and tests stages, tests must pass (GREEN) before tagging.
+
+set -euo pipefail
+
+TOOL_VERSION="2.0.0-20260120-000002"
+
+# Source log helper for tool tracking
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Defaults
+VERBOSE=false
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Valid stages for work items
+VALID_STAGES="impl review tests complete"
+
+# Parse options
+PUSH=false
+DRY_RUN=false
+LIST=false
+SKIP_TESTS=false
+SKIP_ORDER=false
+FORCE=false
+MESSAGE=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --version|-v)
+            echo "tag $TOOL_VERSION"
+            exit 0
+            ;;
+        --help|-h)
+            head -20 "$0" | tail -19 | sed 's/^# //' | sed 's/^#//'
+            exit 0
+            ;;
+        --push|-p)
+            PUSH=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --skip-tests)
+            SKIP_TESTS=true
+            shift
+            ;;
+        --skip-order)
+            SKIP_ORDER=true
+            shift
+            ;;
+        --force|-f)
+            FORCE=true
+            shift
+            ;;
+        --list)
+            LIST=true
+            shift
+            ;;
+        --message|-m)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                echo "Error: --message requires a value" >&2
+                exit 1
+            fi
+            MESSAGE="$2"
+            shift 2
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# List mode
+if [ "$LIST" = true ]; then
+    PATTERN="${1:-}"
+    if [ -z "$PATTERN" ]; then
+        log_error "Provide a work item pattern to list tags"
+        echo "Usage: ./claude/tools/git-tag --list REQUEST-jordan-0017"
+        exit 1
+    fi
+    echo "Tags matching $PATTERN:"
+    git tag -l "${PATTERN}*" | sort -V
+    exit 0
+fi
+
+# Require at least 2 arguments
+if [ $# -lt 2 ]; then
+    log_error "Missing arguments"
+    echo "Usage: ./claude/tools/git-tag <work-item> <stage> [--verbose]"
+    echo "       ./claude/tools/git-tag release <version> [suffix] [--verbose]"
+    echo ""
+    echo "Examples:"
+    echo "  ./claude/tools/git-tag REQUEST-jordan-0017 impl"
+    echo "  ./claude/tools/git-tag release 0.6.0"
+    echo "  ./claude/tools/git-tag release 0.6.0 rc1"
+    exit 1
+fi
+
+ITEM="$1"
+STAGE="$2"
+SUFFIX="${3:-}"
+
+# Main function
+main() {
+    # Start logging first
+    LOG_RUN_ID=""
+    if type log_start &>/dev/null; then
+        LOG_RUN_ID=$(log_start "tag" "$ITEM" "$STAGE" "$SUFFIX")
+    fi
+
+    # Trap unexpected exits
+    trap 'log_end "$LOG_RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "tag [run: ${LOG_RUN_ID:-none}]"
+
+    # Determine tag format
+    if [ "$ITEM" = "release" ]; then
+        # Release tag
+        VERSION="$STAGE"
+        if [ -n "$SUFFIX" ]; then
+            TAG_NAME="v${VERSION}-${SUFFIX}"
+        else
+            TAG_NAME="v${VERSION}"
+        fi
+
+        # Validate version format (semver)
+        if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            log_error "Invalid version format. Use semver (e.g., 0.6.0)"
+            trap - EXIT
+            log_end "$LOG_RUN_ID" "failure" "1" "0" "Invalid version format"
+            exit 1
+        fi
+
+        DEFAULT_MESSAGE="Release ${TAG_NAME}"
+    else
+        # Work item tag (REQUEST, BUG, etc.)
+
+        # Validate stage
+        if ! echo "$VALID_STAGES" | grep -qw "$STAGE"; then
+            log_error "Invalid stage '$STAGE'"
+            echo "Valid stages: $VALID_STAGES"
+            trap - EXIT
+            log_end "$LOG_RUN_ID" "failure" "1" "0" "Invalid stage"
+            exit 1
+        fi
+
+        TAG_NAME="${ITEM}-${STAGE}"
+        DEFAULT_MESSAGE="${ITEM} - ${STAGE} phase complete"
+
+        # Enforce stage order: impl → review → tests → complete
+        if [ "$SKIP_ORDER" = false ]; then
+            PREREQ_TAG=""
+            case "$STAGE" in
+                review)
+                    PREREQ_TAG="${ITEM}-impl"
+                    ;;
+                tests)
+                    PREREQ_TAG="${ITEM}-review"
+                    ;;
+                complete)
+                    PREREQ_TAG="${ITEM}-tests"
+                    ;;
+            esac
+
+            if [ -n "$PREREQ_TAG" ]; then
+                if ! git tag -l "$PREREQ_TAG" | grep -q "$PREREQ_TAG"; then
+                    log_error "Stage order violation: '$STAGE' requires '$PREREQ_TAG' to exist first"
+                    echo ""
+                    echo "Workflow stages must be completed in order:"
+                    echo "  impl → review → tests → complete"
+                    echo ""
+                    echo "Current tags for $ITEM:"
+                    git tag -l "${ITEM}-*" | sort -V || echo "  (none)"
+                    echo ""
+                    echo "Use --skip-order to bypass (not recommended)"
+                    trap - EXIT
+                    log_end "$LOG_RUN_ID" "failure" "1" "0" "Stage order violation"
+                    exit 1
+                fi
+                verbose_echo "✓ Prerequisite tag exists: $PREREQ_TAG"
+            fi
+        fi
+
+        # Verify tests pass for impl, review, tests stages (not complete)
+        if [ "$STAGE" != "complete" ] && [ "$SKIP_TESTS" = false ]; then
+            echo -e "${BLUE}Verifying tests pass (GREEN)...${NC}"
+            if [ -x "./claude/tools/test-run" ]; then
+                if ! ./claude/tools/test-run --quiet 2>/dev/null; then
+                    log_error "Tests failed - cannot tag on RED"
+                    echo -e "${YELLOW}Fix failing tests or use --skip-tests to bypass${NC}"
+                    trap - EXIT
+                    log_end "$LOG_RUN_ID" "failure" "1" "0" "Tests failed"
+                    exit 1
+                fi
+                echo -e "${GREEN}✓ Tests passed (GREEN)${NC}"
+            else
+                log_warn "No ./claude/tools/test-run found - skipping test verification"
+            fi
+        fi
+    fi
+
+    # Use custom message or default
+    TAG_MESSAGE="${MESSAGE:-$DEFAULT_MESSAGE}"
+
+    # Check if tag already exists
+    if git tag -l "$TAG_NAME" | grep -q "$TAG_NAME"; then
+        log_warn "Tag '$TAG_NAME' already exists"
+
+        if [ "$FORCE" = true ]; then
+            # Force mode - recreate without prompting
+            REPLY="y"
+        elif [[ -t 0 ]]; then
+            # Interactive - prompt user
+            read -p "Delete and recreate? (y/N) " -n 1 -r
+            echo
+        else
+            # Non-interactive without --force - fail
+            log_error "Tag exists and no TTY available. Use --force to recreate."
+            trap - EXIT
+            log_end "$LOG_RUN_ID" "failure" "1" "0" "Tag exists, non-interactive"
+            exit 1
+        fi
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if [ "$DRY_RUN" = true ]; then
+                echo "[DRY RUN] Would delete tag: $TAG_NAME"
+            else
+                git tag -d "$TAG_NAME"
+                if [ "$PUSH" = true ]; then
+                    git push origin ":refs/tags/$TAG_NAME" 2>/dev/null || true
+                fi
+            fi
+        else
+            echo "Aborted."
+            trap - EXIT
+            log_end "$LOG_RUN_ID" "success" "0" "0" "User aborted"
+            exit 0
+        fi
+    fi
+
+    # Create the tag
+    if [ "$DRY_RUN" = true ]; then
+        echo "[DRY RUN] Would create tag: $TAG_NAME"
+        echo "[DRY RUN] Message: $TAG_MESSAGE"
+        if [ "$PUSH" = true ]; then
+            echo "[DRY RUN] Would push to remote"
+        fi
+        # End logging for dry run
+        trap - EXIT
+        if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
+            log_end "$LOG_RUN_ID" "success" "0" "0" "Dry run: $TAG_NAME"
+        fi
+    else
+        if git tag -a "$TAG_NAME" -m "$TAG_MESSAGE" 2>/dev/null; then
+            echo "Created: $TAG_NAME"
+
+            if [ "$PUSH" = true ]; then
+                if ! git push origin "$TAG_NAME" 2>&1; then
+                    log_warn "Failed to push tag to remote"
+                fi
+            fi
+
+            echo "✓"
+            trap - EXIT
+            if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
+                log_end "$LOG_RUN_ID" "success" "0" "0" "Created tag: $TAG_NAME"
+            fi
+        else
+            echo "✗"
+            trap - EXIT
+            if type log_end &>/dev/null && [[ -n "$LOG_RUN_ID" ]]; then
+                log_end "$LOG_RUN_ID" "failure" "1" "0" "Failed to create tag: $TAG_NAME"
+            fi
+            exit 1
+        fi
+    fi
+}
+
+main
