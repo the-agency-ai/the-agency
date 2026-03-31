@@ -77,7 +77,7 @@ This agent specializes in:
 |------|---------|
 | Read | Review code for documentation |
 | Write | Create/update documentation |
-| `./claude/tools/doc-commit` | Commit documentation changes |
+| `./claude/tools/git-commit` | Commit documentation changes |
 
 ## Key Directories
 

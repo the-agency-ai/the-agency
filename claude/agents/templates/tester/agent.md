@@ -75,7 +75,7 @@ This agent specializes in:
 | Tool | Purpose |
 |------|---------|
 | `./claude/tools/test-run` | Run test suite |
-| `./claude/tools/test-coverage` | Generate coverage report |
+| Test framework CLI | Generate coverage report |
 | Test framework CLI | Framework-specific operations |
 
 ## Key Directories

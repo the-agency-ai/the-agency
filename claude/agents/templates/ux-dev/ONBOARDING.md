@@ -56,8 +56,7 @@
 # Visual capture (when available)
 ./claude/tools/browser screenshot <url> --viewport=1440x900
 
-# Request collaboration
-./claude/tools/collaborate <workstream> <agent> "message"
+# Request collaboration (use dispatch or handoff patterns)
 ```
 
 ## Resources
@@ -69,6 +68,4 @@
 
 ## Getting Help
 
-```bash
-./claude/tools/collaborate housekeeping housekeeping "I need help with UI implementation"
-```
+Write a dispatch to the captain agent for cross-workstream coordination.

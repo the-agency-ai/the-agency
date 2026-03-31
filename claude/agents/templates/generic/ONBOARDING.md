@@ -22,6 +22,4 @@
 
 ## Getting Help
 
-```bash
-./claude/tools/collaborate housekeeping housekeeping "I need help with..."
-```
+Write a dispatch to the captain agent for cross-workstream coordination.
