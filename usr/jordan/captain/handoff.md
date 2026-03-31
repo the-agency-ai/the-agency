@@ -2,41 +2,46 @@
 
 **Agent:** captain (housekeeping)
 **Principal:** jordan
-**Updated:** 2026-03-31 (session 7)
+**Updated:** 2026-03-31 (session 8)
 
 ## Current State
 
-On main, working tree clean. 4-dispatch queue from CoS — first 2 done, workstream bootstrap merged, 2 remaining.
+On `feat/tool-refactor` branch. All 3 commits landed, quality gates passing. Branch ready for PR.
 
-## Session 7: Computer Use MCP Setup (incomplete)
+## Session 8: Tool Refactor + QG Hardening + Computer Use Feedback
 
-Attempted to set up the new Computer Use MCP server to browse documentation. Hit macOS permission wall:
+### Dispatch 5: Tool Refactor (COMPLETE)
 
-1. MCP server requires both **Accessibility** and **Screen Recording** macOS permissions
-2. No clear error messaging about which process needs permissions
-3. Traced process tree: Ghostty -> login -> zsh -> claude
-4. Added Ghostty + claude binary (`~/.local/share/claude/versions/2.1.87`) to both permission lists
-5. Permissions didn't take effect — macOS caches at process launch, requires Ghostty restart
-6. **Critical UX issue:** Claude binary path is version-pinned — every update breaks permissions
+Three commits on `feat/tool-refactor`:
 
-**Status:** Need to restart Ghostty and retry `request_access` for Safari.
+1. **489ddb6** — Delete 24 deprecated tools, clean agency-service refs from hooks/settings
+2. **9dee22b** — Move ~95 tools from `tools/` → `claude/tools/`, rename (git-commit, git-tag, git-sync, agency-whoami, tool-create), new tools (git-fetch, telemetry), standardize JSONL logging, fix all paths/refs, fix code-review false positive on subshell secret assignments
+3. **d6e7a6b** — Update TOOL.sh/PROVIDER.sh templates, CLAUDE.md, all test files, add missing permissions (agent-define, handoff, icloud-setup, plan-capture, starter-release, starter-update)
+
+### Dispatch 6: QG Hardening (COMPLETE)
+Verified all 17 QG fixes from PR #16 are integrated.
+
+### Computer Use MCP (COMPLETE)
+Filed 3 feedback issues with Anthropic about permissions UX, version-pinned binary paths, and Safari browser restrictions.
+
+## Next Steps
+
+1. **Create PR** for `feat/tool-refactor` → `main`
+2. **Fetch new dispatch from origin** — user said "pull from origin. You have a dispatch. It is for us to /discuss and then you to plan."
+3. **Remaining dispatches**: 3 (ISCP Design, /discuss) and 4 (Browser Protocol, /discuss)
 
 ## Dispatch Queue
 
 | # | Dispatch | Status | Branch/PR |
 |---|----------|--------|-----------|
-| 1 | Plugin Provider Framework | MERGED | PR #9 + PR #12 (tests) |
+| 1 | Plugin Provider Framework | MERGED | PR #9 + PR #12 |
 | 2 | Agency 2.0 Bootstrap | MERGED | PR #14 |
 | — | Workstream Bootstrap | MERGED | PR #15 |
 | 3 | ISCP Design | NOT STARTED | `/discuss` session |
 | 4 | Browser Protocol | NOT STARTED | `/discuss` session |
-
-## Next Session
-
-1. **Restart Ghostty** to pick up macOS permission grants
-2. **Retry Computer Use MCP** — `request_access` for Safari, navigate to docs
-3. **Read Computer Use documentation** and assess implications for Dispatch 4 (Browser Protocol)
-4. Then resume dispatch queue: Dispatch 3 (ISCP), Dispatch 4 (Browser Protocol)
+| 5 | Tool Refactor | DONE | `feat/tool-refactor` (needs PR) |
+| 6 | QG Hardening | DONE | Verified |
+| NEW | (on origin) | NOT FETCHED | `/discuss` + plan |
 
 ## Open Issues
 
@@ -49,6 +54,6 @@ Attempted to set up the new Computer Use MCP server to browse documentation. Hit
 
 ## Git State
 
-- Branch: main (clean)
-- All PRs merged
-- Claude Code version: 2.1.87
+- Branch: `feat/tool-refactor` (3 commits ahead of main)
+- HEAD: d6e7a6b
+- Working tree: clean (except handoff)
