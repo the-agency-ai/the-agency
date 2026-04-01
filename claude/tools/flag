@@ -1,0 +1,172 @@
+#!/bin/bash
+#
+# flag — Quick-capture tool for observations during work
+#
+# Usage:
+#   flag <message>           — append to queue
+#   flag list                — show queue
+#   flag clear               — clear queue (after processing)
+#   flag count               — count items
+#   flag discuss             — output queue as /discuss agenda, then clear
+#   flag --version           — show version
+#   flag --help              — show help
+
+set -euo pipefail
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper if available
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# --- PATH resolution ---
+[ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
+[ -d "$HOME/.asdf/shims" ] && export PATH="$HOME/.asdf/shims:$PATH"
+
+# --- Require jq ---
+if ! command -v jq &>/dev/null; then
+    echo "flag: jq is required but not installed" >&2
+    exit 1
+fi
+
+# --- Help ---
+show_help() {
+    echo "Usage: flag <message> | list | clear | count | discuss"
+    echo ""
+    echo "Quick-capture observations during work. Zero friction."
+    echo ""
+    echo "Commands:"
+    echo "  <message>    Append a flagged item to the queue"
+    echo "  list         Show all items in the queue"
+    echo "  clear        Clear the queue"
+    echo "  count        Count items in the queue"
+    echo "  discuss      Output queue as /discuss agenda, then clear"
+    echo ""
+    echo "Options:"
+    echo "  --version    Show version"
+    echo "  --help       Show this help"
+}
+
+# --- Resolve queue file path ---
+# Queue lives in main checkout, not worktree
+MAIN_CHECKOUT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
+if [[ -z "$MAIN_CHECKOUT" ]] || [[ ! -d "$MAIN_CHECKOUT" ]]; then
+    echo "flag: cannot determine main checkout" >&2
+    exit 1
+fi
+
+# Resolve principal from agency.yaml or fall back to $USER
+AGENCY_YAML="$MAIN_CHECKOUT/claude/config/agency.yaml"
+PRINCIPAL=""
+if [[ -f "$AGENCY_YAML" ]]; then
+    PRINCIPAL=$(grep -E '^\s*principal:' "$AGENCY_YAML" 2>/dev/null | head -1 | sed 's/.*principal:\s*//' | tr -d '"' | tr -d "'" | tr -d ' ')
+fi
+PRINCIPAL="${PRINCIPAL:-${USER:-unknown}}"
+
+QUEUE_FILE="$MAIN_CHECKOUT/claude/usr/$PRINCIPAL/flag-queue.jsonl"
+
+# --- Parse command ---
+if [[ $# -eq 0 ]]; then
+    show_help
+    exit 0
+fi
+
+CMD="$1"
+shift
+
+case "$CMD" in
+    --version)
+        echo "flag $VERSION"
+        exit 0
+        ;;
+    --help)
+        show_help
+        exit 0
+        ;;
+    list)
+        if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
+            echo "flag: queue is empty"
+            exit 0
+        fi
+        echo "Flag Queue:"
+        echo ""
+        N=0
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            N=$((N + 1))
+            TS=$(echo "$line" | jq -r '.ts // "?"' 2>/dev/null)
+            MSG=$(echo "$line" | jq -r '.message // "?"' 2>/dev/null)
+            BRANCH=$(echo "$line" | jq -r '.branch // ""' 2>/dev/null)
+            if [[ -n "$BRANCH" ]]; then
+                echo "  $N. [$TS] ($BRANCH) $MSG"
+            else
+                echo "  $N. [$TS] $MSG"
+            fi
+        done < "$QUEUE_FILE"
+        echo ""
+        echo "$N item(s)"
+        ;;
+    count)
+        if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
+            echo "0"
+            exit 0
+        fi
+        grep -c . "$QUEUE_FILE" || echo "0"
+        ;;
+    clear)
+        if [[ -f "$QUEUE_FILE" ]]; then
+            rm "$QUEUE_FILE"
+            echo "flag: queue cleared"
+        else
+            echo "flag: queue already empty"
+        fi
+        ;;
+    discuss)
+        if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
+            echo "flag: queue is empty — nothing to discuss"
+            exit 0
+        fi
+        echo "Discussion agenda from flag queue:"
+        echo ""
+        N=0
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            N=$((N + 1))
+            MSG=$(echo "$line" | jq -r '.message // "?"' 2>/dev/null)
+            TS=$(echo "$line" | jq -r '.ts // "?"' 2>/dev/null)
+            echo "$N. $MSG (flagged: $TS)"
+        done < "$QUEUE_FILE"
+        echo ""
+        echo "$N item(s) — run /discuss with this agenda"
+        # Clear after outputting
+        rm "$QUEUE_FILE"
+        ;;
+    *)
+        # Treat everything as a message to append
+        MESSAGE="$CMD $*"
+        MESSAGE=$(echo "$MESSAGE" | sed 's/[[:space:]]*$//')
+
+        TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+        SESSION="${CLAUDE_SESSION_ID:-}"
+
+        # Ensure directory exists
+        mkdir -p "$(dirname "$QUEUE_FILE")"
+
+        # Append JSONL
+        jq -n -c \
+            --arg ts "$TS" \
+            --arg message "$MESSAGE" \
+            --arg principal "$PRINCIPAL" \
+            --arg branch "$BRANCH" \
+            --arg session "$SESSION" \
+            '{ts: $ts, message: $message, principal: $principal, branch: $branch, session: $session}' \
+            >> "$QUEUE_FILE"
+
+        # Count
+        COUNT=$(grep -c . "$QUEUE_FILE" || echo 1)
+        echo "Flagged. $COUNT item(s) in queue."
+        ;;
+esac
