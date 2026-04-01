@@ -14,50 +14,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.1"
-
-      - name: Install dependencies
-        working-directory: source/services/agency-service
-        run: bun install
-
-      - name: Start agency-service
+      - name: Install BATS
         run: |
-          ./tools/agency-service start
-          # Wait for service to be ready
-          for i in {1..30}; do
-            if curl -sf http://127.0.0.1:3141/health > /dev/null; then
-              echo "Service is healthy"
-              break
+          sudo apt-get update
+          sudo apt-get install -y bats
+
+      - name: Run skill validation tests
+        run: bats tests/skills/skill-validation.bats
+
+      - name: Run tool tests
+        run: bats tests/tools/git-operations.bats
+
+      - name: Validate JSON configs
+        run: |
+          jq . .claude/settings.json > /dev/null
+          jq . claude/config/manifest.json > /dev/null
+          jq . registry.json > /dev/null
+
+      - name: Validate shell tools
+        run: |
+          for tool in claude/tools/*; do
+            if [ -f "$tool" ] && head -1 "$tool" | grep -q '^#!/.*bash'; then
+              bash -n "$tool" || { echo "Syntax error in $tool"; exit 1; }
             fi
-            echo "Waiting for service... ($i/30)"
-            sleep 1
           done
-          # Verify service is running
-          curl -sf http://127.0.0.1:3141/health || exit 1
-
-      - name: Run tests via test-service
-        run: |
-          # Run tests with CI trigger
-          ./tools/agency-service test run all ci github-actions
-
-          # Get exit code from test results
-          RESULT=$(./tools/agency-service test latest | jq -r '.status')
-          if [ "$RESULT" = "failed" ]; then
-            echo "Tests failed!"
-            ./tools/agency-service test latest | jq .
-            exit 1
-          fi
-          echo "Tests passed!"
-
-      - name: Show test results
-        if: always()
-        run: |
-          ./tools/agency-service test latest | jq . || true
-          ./tools/agency-service test stats || true
-
-      - name: Stop agency-service
-        if: always()
-        run: ./tools/agency-service stop || true
+          echo "All shell tools pass syntax check"
