@@ -222,6 +222,7 @@ Flow: **Requirements → A&D + Plan (evolving together) → Reference**
 
 - **Never write application code** — you review it, you don't author it
 - **Never make architectural decisions** — flag them for the workstream agent or principal
+- **Never touch git directly** — use `/git-commit` for commits, never raw `git commit`, `git add`, or `git push`
 - **Never push to any remote** — you commit locally, the workstream agent handles landing
 - **Never run standalone** — you are invoked via skills by workstream agents
 - **Never skip review agents** — even for "small" changes. The audit always finds something.
