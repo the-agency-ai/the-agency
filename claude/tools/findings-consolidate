@@ -167,7 +167,7 @@ if [[ "$LIST_ONLY" == "true" ]]; then
         echo "  - $f"
     done
     echo "✓"
-    log_end "$RUN_ID" 0 "Listed ${#REVIEW_FILES[@]} files" ""
+    log_end "$RUN_ID" "success" 0 0 "Listed ${#REVIEW_FILES[@]} files"
     exit 0
 fi
 
@@ -251,7 +251,7 @@ if [[ "$DRY_RUN" == "true" ]]; then
     echo "findings-consolidate [run: $RUN_ID]"
     echo "Would save to: $OUTPUT_FILE"
     echo "[dry-run]"
-    log_end "$RUN_ID" 0 "[dry-run]" ""
+    log_end "$RUN_ID" "success" 0 0 "[dry-run]"
     exit 0
 fi
 
@@ -285,4 +285,4 @@ echo "findings-consolidate [run: $RUN_ID]"
 echo "Saved: $OUTPUT_FILE"
 echo "✓"
 
-log_end "$RUN_ID" 0 "Saved: $OUTPUT_FILE" ""
+log_end "$RUN_ID" "success" 0 0 "Saved: $OUTPUT_FILE"

@@ -153,8 +153,8 @@ for key in keys:
     if isinstance(value, dict) and key in value:
         value = value[key]
     else:
-        # Key not found, return empty
-        sys.exit(0)
+        print(f"not found: {key_path}", file=sys.stderr)
+        sys.exit(1)
 
 if value is not None:
     print(value)

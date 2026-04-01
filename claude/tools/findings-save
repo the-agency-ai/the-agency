@@ -221,7 +221,7 @@ if [[ "$DRY_RUN" == "true" ]]; then
     echo "findings-save [run: $RUN_ID]"
     echo "Would save to: $OUTPUT_FILE"
     echo "[dry-run]"
-    log_end "$RUN_ID" 0 "[dry-run]" ""
+    log_end "$RUN_ID" "success" 0 0 "[dry-run]"
     exit 0
 fi
 
@@ -255,4 +255,4 @@ echo "findings-save [run: $RUN_ID]"
 echo "Saved: $OUTPUT_FILE"
 echo "✓"
 
-log_end "$RUN_ID" 0 "Saved: $OUTPUT_FILE" ""
+log_end "$RUN_ID" "success" 0 0 "Saved: $OUTPUT_FILE"
