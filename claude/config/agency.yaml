@@ -14,6 +14,13 @@ project:
   name: "My Project"
   timezone: "UTC"  # Used by ./tools/now
 
+# Framework version tracking
+framework:
+  version: "2.0.0"
+  installed_at: "2026-01-15T04:54:46+00:00"
+  updated_at: "2026-04-01T00:00:00+00:00"
+  source_commit: "self"
+
 # Agent defaults
 agents:
   default_model: "opus"  # opus, sonnet, haiku

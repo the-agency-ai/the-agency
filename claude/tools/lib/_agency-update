@@ -1,0 +1,43 @@
+# _agency-update — Sync framework to latest (stub)
+#
+# Sourced by: agency update
+# Arguments via: AGENCY_ARGS array
+# Inherits: set -euo pipefail, AGENCY_DIR, _log-helper, colors
+#
+# TODO: Full implementation in Phase 3 of starter-sunset plan.
+# This stub provides the interface and help text.
+
+RUN_ID=$(log_start "agency-update" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/dev/null) || true
+
+for arg in "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}"; do
+    case "$arg" in
+        --help|-h)
+            echo "agency update — Sync framework to latest"
+            echo ""
+            echo "Usage: agency update"
+            echo ""
+            echo "Syncs framework files from the-agency source repo."
+            echo "Merges settings via settings-merge (array union)."
+            echo "Archives existing handoff, writes update handoff."
+            echo ""
+            echo "Source detection (in order):"
+            echo "  1. \$AGENCY_SOURCE environment variable"
+            echo "  2. ../the-agency/ (sibling directory)"
+            echo ""
+            echo "This command is not yet implemented."
+            exit 0
+            ;;
+    esac
+done
+
+echo "agency update [run: ${RUN_ID:-none}]"
+echo ""
+echo -e "${YELLOW}[WARN]${NC} agency update is not yet implemented."
+echo "Full implementation coming in Phase 3 of the starter-sunset plan."
+echo ""
+echo "For now, to update manually:"
+echo "  1. git pull in your the-agency clone"
+echo "  2. Run agency init again (or copy files manually)"
+echo ""
+
+log_end "$RUN_ID" "success" 0 0 "Stub — not implemented" 2>/dev/null || true

@@ -128,11 +128,8 @@
   "permissions": {
     "allow": [
       "Bash(./claude/tools/add-principal*)",
-      "Bash(./claude/tools/agency-feedback*)",
-      "Bash(./claude/tools/agency-init*)",
-      "Bash(./claude/tools/agency-update*)",
-      "Bash(./claude/tools/agency-verify*)",
-      "Bash(./claude/tools/agency-whoami*)",
+      "Bash(./claude/tools/agency)",
+      "Bash(./claude/tools/agency *)",
       "Bash(./claude/tools/agent-create*)",
       "Bash(./claude/tools/agent-define*)",
       "Bash(./claude/tools/artifact-capture*)",

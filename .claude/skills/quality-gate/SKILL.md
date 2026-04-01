@@ -148,7 +148,7 @@ usr/{principal}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM
 ```
 
 Where:
-- `{principal}` — detected via `./claude/tools/agency-whoami` or glob `usr/*/`
+- `{principal}` — detected via `./claude/tools/agency whoami` or glob `usr/*/`
 - `{project}` — the agent/project directory name
 - `{boundary}` — one of: `iteration-complete`, `phase-complete`, `plan-complete`, `pr-prep`
 - `{phase-iter}` — phase and iteration numbers (e.g., `1-2` for Phase 1, Iteration 2; `2` for Phase 2; omit for `pr-prep`)
