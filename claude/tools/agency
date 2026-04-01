@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+#
+# agency — The Agency CLI
+#
+# Usage: agency <command> [options]
+#
+# Commands:
+#   init [--principal name] [--project name] [--timezone tz]  Initialize new project
+#   update                                                     Sync to latest framework
+#   verify [--verbose]                                         Health check
+#   whoami                                                     Show principal
+#   feedback "title" "description"                             Submit feedback
+#   version                                                    Show version info
+#   help                                                       Show this help
+#
+# The Agency CLI replaces individual agency-* tools with a single entry point.
+# Subcommand logic lives in claude/tools/lib/_agency-* files.
+
+set -euo pipefail
+
+# Resolve AGENCY_DIR using BASH_SOURCE (symlink-safe)
+AGENCY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export AGENCY_DIR
+
+# Source log helper (optional — may not exist in target project yet)
+if [[ -f "$AGENCY_DIR/tools/lib/_log-helper" ]]; then
+    source "$AGENCY_DIR/tools/lib/_log-helper"
+fi
+
+# --- Common helpers available to all subcommands ---
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+_agency_help() {
+    cat << 'EOF'
+agency — The Agency CLI
+
+Usage: agency <command> [options]
+
+Commands:
+  init [--principal name]   Initialize Agency in a git repo
+  update                    Sync framework to latest
+  verify [--verbose]        Validate configuration
+  whoami                    Show current principal
+  feedback "title" "desc"  Submit feedback
+  version                   Show version info
+  help                      Show this help
+
+Run 'agency <command> --help' for command-specific help.
+EOF
+}
+
+_agency_version() {
+    local project_root
+    project_root="$(cd "$AGENCY_DIR/.." && pwd)"
+    local yaml="$project_root/claude/config/agency.yaml"
+
+    if [[ -f "$yaml" ]]; then
+        # Read version and source_commit from agency.yaml
+        local version source_commit
+        version=$(grep '^  version:' "$yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//')
+        source_commit=$(grep '^  source_commit:' "$yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//')
+        echo "agency ${version:-unknown} (${source_commit:-no commit})"
+    else
+        echo "agency (not initialized — no agency.yaml found)"
+    fi
+}
+
+# --- Subcommand dispatch ---
+# Arguments are captured in AGENCY_ARGS array for sourced files to read.
+# set -euo pipefail is inherited — all _agency-* files must be aware.
+
+case "${1:-}" in
+    init)
+        shift; AGENCY_ARGS=("$@")
+        source "$AGENCY_DIR/tools/lib/_agency-init"
+        ;;
+    update)
+        shift; AGENCY_ARGS=("$@")
+        source "$AGENCY_DIR/tools/lib/_agency-update"
+        ;;
+    verify)
+        shift; AGENCY_ARGS=("$@")
+        source "$AGENCY_DIR/tools/lib/_agency-verify"
+        ;;
+    whoami)
+        shift; AGENCY_ARGS=("$@")
+        source "$AGENCY_DIR/tools/lib/_agency-whoami"
+        ;;
+    feedback)
+        shift; AGENCY_ARGS=("$@")
+        source "$AGENCY_DIR/tools/lib/_agency-feedback"
+        ;;
+    version)
+        _agency_version
+        ;;
+    help|"")
+        _agency_help
+        ;;
+    *)
+        echo "Unknown command: $1" >&2
+        _agency_help >&2
+        exit 1
+        ;;
+esac

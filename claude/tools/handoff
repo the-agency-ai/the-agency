@@ -3,13 +3,18 @@
 # handoff — First-class Agency primitive for context bootstrapping
 #
 # Usage:
-#   handoff write [--trigger <name>]           — auto-archive + signal agent to write
-#   handoff write --lightweight [--trigger <name>] — append status line (no archive)
-#   handoff read                                — output current handoff content
-#   handoff path                                — output handoff file path
-#   handoff archive                             — archive current handoff to history/
-#   handoff --version                           — show version
-#   handoff --help                              — show help
+#   handoff write [--trigger <name>] [--type <type>]  — auto-archive + signal agent to write
+#   handoff write --lightweight [--trigger <name>]    — append status line (no archive)
+#   handoff read                                      — output current handoff content
+#   handoff path                                      — output handoff file path
+#   handoff archive                                   — archive current handoff to history/
+#   handoff --version                                 — show version
+#   handoff --help                                    — show help
+#
+# Types (--type):
+#   session          — normal session handoff (default)
+#   agency-bootstrap — written by agency init, triggers onboarding
+#   agency-update    — written by agency update, triggers verification
 #
 # Handoffs are not just session continuity — they bootstrap context for any
 # purpose: agent-to-agent, cold start, project setup, compaction survival.
@@ -19,7 +24,7 @@
 
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="2.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source log helper if available
@@ -36,8 +41,8 @@ show_help() {
     echo "Usage: handoff <command> [options]"
     echo ""
     echo "Commands:"
-    echo "  write [--trigger <name>]           Auto-archive + signal agent to write"
-    echo "  write --lightweight [--trigger <name>]  Append status line (no archive)"
+    echo "  write [--trigger <name>] [--type <type>]  Auto-archive + signal agent to write"
+    echo "  write --lightweight [--trigger <name>]       Append status line (no archive)"
     echo "  read                                Output current handoff content"
     echo "  path                                Output handoff file path"
     echo "  archive                             Archive current handoff to history/"
@@ -45,6 +50,8 @@ show_help() {
     echo "Options:"
     echo "  --version                  Show version"
     echo "  --help                     Show this help"
+    echo ""
+    echo "Types: session (default), agency-bootstrap, agency-update"
     echo ""
     echo "Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete, plan-complete"
 }
@@ -127,12 +134,18 @@ fi
 
 TRIGGER=""
 LIGHTWEIGHT=false
+HANDOFF_TYPE="session"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --trigger)
             [[ -n "${2:-}" ]] || { echo "Error: --trigger requires a value" >&2; exit 1; }
             # Sanitize trigger to alphanumeric, hyphens, underscores only
             TRIGGER=$(printf '%s' "$2" | tr -cd 'A-Za-z0-9_-')
+            shift 2
+            ;;
+        --type)
+            [[ -n "${2:-}" ]] || { echo "Error: --type requires a value" >&2; exit 1; }
+            HANDOFF_TYPE="$2"
             shift 2
             ;;
         --lightweight) LIGHTWEIGHT=true; shift ;;
@@ -191,7 +204,7 @@ case "$COMMAND" in
 
             # For hook triggers, output JSON systemMessage
             if [ "$TRIGGER" = "SessionEnd" ] || [ "$TRIGGER" = "PreCompact" ]; then
-                MSG="Handoff trigger: ${TRIGGER} at ${TIMESTAMP}. Update ${HANDOFF_PATH##*/usr/} with current session state before the session ends."
+                MSG="Handoff trigger: ${TRIGGER} at ${TIMESTAMP}. Update ${HANDOFF_PATH##*/usr/} with current session state before the session ends. Use type: ${HANDOFF_TYPE} in YAML frontmatter."
                 command -v jq >/dev/null 2>&1 && {
                     printf '{"systemMessage":%s}' "$(printf '%s' "$MSG" | jq -Rs '.')"
                 } || {
@@ -200,10 +213,10 @@ case "$COMMAND" in
             else
                 # For manual/command triggers, plain output
                 if [ -n "$RUN_ID" ]; then
-                    tool_output "handoff" "$RUN_ID" "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual})"
+                    tool_output "handoff" "$RUN_ID" "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual}, type: ${HANDOFF_TYPE})"
                 else
                     echo "handoff"
-                    echo "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual})"
+                    echo "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual}, type: ${HANDOFF_TYPE})"
                     echo "✓"
                 fi
             fi

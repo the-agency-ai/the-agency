@@ -71,7 +71,31 @@ RECAP_FILE="$PROJECT_DIR/.claude-session-recap.md"
 CONTEXT=""
 
 if [ -n "$HANDOFF_FILE" ]; then
-  CONTEXT=$(cat "$HANDOFF_FILE")
+  # Parse type from YAML frontmatter (default: session)
+  # Forgiving on read: missing type, malformed frontmatter, or parse failure all default to "session"
+  HANDOFF_TYPE=$(sed -n '/^---$/,/^---$/{ /^type:/{ s/^type: *//; p; } }' "$HANDOFF_FILE" 2>/dev/null || true)
+  HANDOFF_TYPE="${HANDOFF_TYPE:-session}"
+
+  # Type-aware context prefix
+  case "$HANDOFF_TYPE" in
+    agency-bootstrap)
+      CONTEXT="This is a fresh Agency installation. The bootstrap handoff below was written by agency init. Help the user get oriented — verify the install, walk through first steps. The user can break out at any time.
+
+---
+
+$(cat "$HANDOFF_FILE")"
+      ;;
+    agency-update)
+      CONTEXT="The Agency framework was just updated. The handoff below contains the update summary and previous session context. Review what changed, verify nothing broke, then continue normal work.
+
+---
+
+$(cat "$HANDOFF_FILE")"
+      ;;
+    *)
+      CONTEXT=$(cat "$HANDOFF_FILE")
+      ;;
+  esac
 fi
 
 if [ -f "$RECAP_FILE" ]; then

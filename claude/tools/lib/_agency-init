@@ -1,108 +1,105 @@
-#!/bin/bash
+# _agency-init — Initialize Agency 2.0 in a git repo
 #
-# agency-init — Initialize Agency 2.0 in a git repo
+# Sourced by: agency init [options]
+# Arguments via: AGENCY_ARGS array
 #
-# Usage:
-#   agency-init [target-dir]              # Initialize target directory (default: cwd)
-#   agency-init --principal <name>        # Override principal name
-#   agency-init --project <name>          # Set project name
-#   agency-init --timezone <tz>           # Set timezone (default: UTC)
+# Inherits: set -euo pipefail, AGENCY_DIR, _log-helper, colors
 #
-# What it does:
-#   1. Validates target is a git repo
-#   2. Copies Agency 2.0 framework files (agents, hooks, tools, docs, hookify, templates)
-#   3. Creates CLAUDE.md from template
-#   4. Creates .claude/ config (settings, commands)
-#   5. Configures agency.yaml for this project
-#   6. Scaffolds usr/{principal}/ directory
-#   7. Makes an initial commit
-#
-# Requires: the-agency repo as source (AGENCY_SOURCE or auto-detect)
+# Preconditions enforced:
+#   1. .git/ exists (run git init first)
+#   2. .claude/ exists (run claude init first)
+#   3. On main/master branch (bootstrap handoff needs captain path)
+#   4. Not already initialized (agency.yaml doesn't exist)
 
-set -euo pipefail
+RUN_ID=$(log_start "agency-init" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/dev/null) || true
 
-# Tool version
-TOOL_VERSION="2.0.0-20260329-000001"
-
-# Source log helper
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AGENCY_SOURCE="${AGENCY_SOURCE:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
-if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
-    source "$SCRIPT_DIR/lib/_log-helper"
-fi
-RUN_ID=$(log_start "agency-init" "$@" 2>/dev/null) || true
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-# Defaults
+# --- Defaults ---
 VERBOSE=false
 TARGET_DIR=""
 PRINCIPAL=""
 PROJECT_NAME=""
 TIMEZONE="UTC"
 
-# Logging
+_init_help() {
+    cat << 'EOF'
+agency init — Initialize Agency 2.0 in a git repo
+
+Usage:
+  agency init [target-dir]              Initialize target (default: cwd)
+  agency init --principal <name>        Override principal name
+  agency init --project <name>          Set project name
+  agency init --timezone <tz>           Set timezone (default: UTC)
+
+Options:
+  --verbose        Show detailed output
+  --help, -h       Show this help
+
+Examples:
+  cd ~/code/my-project && agency init
+  agency init ~/code/my-project --principal jordan --project my-project
+EOF
+}
+
+# --- Parse AGENCY_ARGS ---
+set -- "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) _init_help; exit 0 ;;
+        --verbose) VERBOSE=true; shift ;;
+        --principal) PRINCIPAL="$2"; shift 2 ;;
+        --project) PROJECT_NAME="$2"; shift 2 ;;
+        --timezone) TIMEZONE="$2"; shift 2 ;;
+        -*) echo "Unknown option: $1" >&2; _init_help; exit 1 ;;
+        *) TARGET_DIR="$1"; shift ;;
+    esac
+done
+
 log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 
-show_help() {
-    cat << 'EOF'
-agency-init — Initialize Agency 2.0 in a git repo
-
-Usage:
-  agency-init [target-dir]              Initialize target (default: cwd)
-  agency-init --principal <name>        Override principal name
-  agency-init --project <name>          Set project name
-  agency-init --timezone <tz>           Set timezone (default: UTC)
-
-Options:
-  --verbose        Show detailed output
-  --version, -v    Show version
-  --help, -h       Show this help
-
-Examples:
-  cd ~/code/my-project && agency-init
-  agency-init ~/code/my-project --principal jordan --project my-project
-EOF
-}
-
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --version|-v) echo "agency-init $TOOL_VERSION"; exit 0 ;;
-        --help|-h) show_help; exit 0 ;;
-        --verbose) VERBOSE=true; shift ;;
-        --principal) PRINCIPAL="$2"; shift 2 ;;
-        --project) PROJECT_NAME="$2"; shift 2 ;;
-        --timezone) TIMEZONE="$2"; shift 2 ;;
-        -*) log_error "Unknown option: $1"; show_help; exit 1 ;;
-        *) TARGET_DIR="$1"; shift ;;
-    esac
-done
-
-main() {
+_init_main() {
     trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
-    echo "agency-init [run: ${RUN_ID:-none}]"
+    echo "agency init [run: ${RUN_ID:-none}]"
 
-    # --- Resolve target ---
+    # --- Resolve paths ---
     TARGET_DIR="${TARGET_DIR:-$(pwd)}"
     TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd)" || {
         log_error "Target directory does not exist: $TARGET_DIR"
         exit 1
     }
 
-    # --- Validate git repo ---
+    AGENCY_SOURCE="${AGENCY_SOURCE:-$(cd "$AGENCY_DIR/.." && pwd)}"
+
+    # --- Precondition 1: git repo ---
     if [[ ! -d "$TARGET_DIR/.git" ]]; then
         log_error "Not a git repo: $TARGET_DIR"
         echo "Run 'git init' first."
+        exit 1
+    fi
+
+    # --- Precondition 2: .claude/ exists ---
+    if [[ ! -d "$TARGET_DIR/.claude" ]]; then
+        log_error "No .claude/ directory found."
+        echo "Run 'claude init' first (creates .claude/ and settings.json)."
+        exit 1
+    fi
+
+    # --- Precondition 3: on main/master ---
+    local current_branch
+    current_branch=$(git -C "$TARGET_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    if [[ "$current_branch" != "main" && "$current_branch" != "master" ]]; then
+        log_error "Must be on main or master branch (currently on: ${current_branch:-detached HEAD})"
+        echo "Switch to main/master before running agency init."
+        exit 1
+    fi
+
+    # --- Precondition 4: not already initialized ---
+    if [[ -f "$TARGET_DIR/claude/config/agency.yaml" ]]; then
+        log_warn "Agency already initialized in $TARGET_DIR"
+        echo "Use 'agency update' to update an existing installation."
         exit 1
     fi
 
@@ -113,17 +110,18 @@ main() {
         exit 1
     fi
 
-    # --- Check not already initialized ---
-    if [[ -f "$TARGET_DIR/claude/config/agency.yaml" ]]; then
-        log_warn "Agency already initialized in $TARGET_DIR"
-        echo "Use 'agency-update' to update an existing installation."
-        exit 1
-    fi
-
     # --- Resolve defaults ---
     PRINCIPAL="${PRINCIPAL:-$(whoami)}"
     PRINCIPAL=$(echo "$PRINCIPAL" | tr '[:upper:]' '[:lower:]')
     PROJECT_NAME="${PROJECT_NAME:-$(basename "$TARGET_DIR")}"
+
+    # --- Source commit for version tracking ---
+    local source_commit
+    source_commit=$(git -C "$AGENCY_SOURCE" rev-parse HEAD 2>/dev/null || echo "unknown")
+    local framework_version
+    # Read version from the source agency.yaml framework section
+    framework_version=$(grep '^  version:' "$AGENCY_SOURCE/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "2.0.0")
+    framework_version="${framework_version:-2.0.0}"
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -134,7 +132,7 @@ main() {
     echo "  Project:   $PROJECT_NAME"
     echo "  Principal: $PRINCIPAL"
     echo "  Timezone:  $TIMEZONE"
-    echo "  Source:    $AGENCY_SOURCE"
+    echo "  Source:    $AGENCY_SOURCE (${source_commit:0:8})"
     echo ""
 
     # =====================================================================
@@ -148,7 +146,6 @@ main() {
         echo "@claude/CLAUDE-THEAGENCY.md" >> "$TARGET_DIR/CLAUDE.md"
     else
         cp "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/CLAUDE.md"
-        # Replace placeholder project name
         if [[ "$(uname)" == "Darwin" ]]; then
             sed -i '' "s/{{PROJECT_NAME}}/$PROJECT_NAME/" "$TARGET_DIR/CLAUDE.md"
         else
@@ -165,7 +162,7 @@ main() {
 
     mkdir -p "$TARGET_DIR/.claude/commands"
 
-    # Settings — start from a clean template, not the-agency's full settings
+    # Settings — use settings-merge if available, else write clean template
     cat > "$TARGET_DIR/.claude/settings.json" << 'SETTINGS_EOF'
 {
   "hooks": {
@@ -231,8 +228,8 @@ main() {
   },
   "permissions": {
     "allow": [
-      "Bash(./claude/tools/agency-verify*)",
-      "Bash(./claude/tools/agency-whoami*)",
+      "Bash(./claude/tools/agency)",
+      "Bash(./claude/tools/agency *)",
       "Bash(./claude/tools/code-review*)",
       "Bash(./claude/tools/commit-precheck*)",
       "Bash(./claude/tools/git-commit*)",
@@ -263,8 +260,8 @@ main() {
 SETTINGS_EOF
 
     # Commands
-    cp "$AGENCY_SOURCE/.claude/commands/discuss.md" "$TARGET_DIR/.claude/commands/"
-    for cmd in secret.md agency.md agency-help.md agency-welcome.md agency-tutorial.md agency-bug.md agency-nit.md agency-request.md changelog.md; do
+    cp "$AGENCY_SOURCE/.claude/commands/discuss.md" "$TARGET_DIR/.claude/commands/" 2>/dev/null || true
+    for cmd in secret.md agency-help.md agency-welcome.md agency-tutorial.md agency-bug.md agency-nit.md agency-request.md changelog.md; do
         [[ -f "$AGENCY_SOURCE/.claude/commands/$cmd" ]] && cp "$AGENCY_SOURCE/.claude/commands/$cmd" "$TARGET_DIR/.claude/commands/"
     done
 
@@ -272,6 +269,7 @@ SETTINGS_EOF
     if [[ -d "$AGENCY_SOURCE/.claude/skills" ]]; then
         mkdir -p "$TARGET_DIR/.claude/skills"
         for skill_dir in "$AGENCY_SOURCE/.claude/skills"/*/; do
+            local skill_name
             skill_name=$(basename "$skill_dir")
             mkdir -p "$TARGET_DIR/.claude/skills/$skill_name"
             cp "$skill_dir/SKILL.md" "$TARGET_DIR/.claude/skills/$skill_name/"
@@ -285,7 +283,7 @@ SETTINGS_EOF
     # =====================================================================
     log_step "Copying Agency framework"
 
-    # Methodology docs (imported by CLAUDE.md via @claude/CLAUDE-THEAGENCY.md)
+    mkdir -p "$TARGET_DIR/claude"
     [[ -f "$AGENCY_SOURCE/claude/CLAUDE-THEAGENCY.md" ]] && cp "$AGENCY_SOURCE/claude/CLAUDE-THEAGENCY.md" "$TARGET_DIR/claude/"
     [[ -f "$AGENCY_SOURCE/claude/README-THEAGENCY.md" ]] && cp "$AGENCY_SOURCE/claude/README-THEAGENCY.md" "$TARGET_DIR/claude/"
     [[ -f "$AGENCY_SOURCE/claude/README-GETTINGSTARTED.md" ]] && cp "$AGENCY_SOURCE/claude/README-GETTINGSTARTED.md" "$TARGET_DIR/claude/"
@@ -296,14 +294,18 @@ SETTINGS_EOF
 # Agency Configuration for $PROJECT_NAME
 
 principals:
-  # Map system usernames to principal names
-  # The principal_name should match a directory in usr/{principal_name}/
   $PRINCIPAL: $PRINCIPAL
   default: unknown
 
 project:
   name: "$PROJECT_NAME"
   timezone: "$TIMEZONE"
+
+framework:
+  version: "$framework_version"
+  installed_at: "$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+  updated_at: "$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+  source_commit: "$source_commit"
 
 agents:
   default_model: "opus"
@@ -364,10 +366,6 @@ YAML_EOF
     [[ -f "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" ]] && cp "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/claude/templates/"
     [[ -f "$AGENCY_SOURCE/claude/templates/PROVIDER.sh" ]] && cp "$AGENCY_SOURCE/claude/templates/PROVIDER.sh" "$TARGET_DIR/claude/templates/"
 
-    # Shipped libs
-    mkdir -p "$TARGET_DIR/claude/tools/lib"
-    [[ -f "$AGENCY_SOURCE/claude/tools/lib/_provider-resolve" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/_provider-resolve" "$TARGET_DIR/claude/tools/lib/"
-
     log_info "Copied agents, hooks, hookify, docs, templates"
 
     # =====================================================================
@@ -380,8 +378,14 @@ YAML_EOF
     for lib in _log-helper _path-resolve _provider-resolve; do
         [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
     done
+    # Copy the agency CLI itself
+    [[ -f "$AGENCY_SOURCE/claude/tools/agency" ]] && cp "$AGENCY_SOURCE/claude/tools/agency" "$TARGET_DIR/claude/tools/"
+    # Copy agency subcommand libs
+    for lib in _agency-init _agency-update _agency-verify _agency-whoami _agency-feedback; do
+        [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
+    done
     # Copy core tools
-    for tool in worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux agency-verify tool-create secret-vault git-commit git-tag git-sync git-fetch agency-whoami handoff test-run commit-precheck code-review now stage-hash dispatch-create dispatch settings-merge sandbox-sync ghostty-claude-hook ghostty-config ghostty-integration ghostty-setup ghostty-debug-hook; do
+    for tool in worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux tool-create secret-vault git-commit git-tag git-sync git-fetch handoff test-run commit-precheck code-review now stage-hash dispatch-create dispatch settings-merge sandbox-sync ghostty-claude-hook ghostty-config ghostty-integration ghostty-setup ghostty-debug-hook; do
         [[ -f "$AGENCY_SOURCE/claude/tools/$tool" ]] && cp "$AGENCY_SOURCE/claude/tools/$tool" "$TARGET_DIR/claude/tools/"
     done
     chmod +x "$TARGET_DIR/claude/tools/"* 2>/dev/null || true
@@ -407,21 +411,66 @@ USR_EOF
     log_info "Scaffolded usr/$PRINCIPAL/"
 
     # =====================================================================
-    # Step 6: Plans directory
+    # Step 6: Bootstrap handoff
+    # =====================================================================
+    log_step "Writing bootstrap handoff"
+
+    # Compute counts dynamically
+    local skill_count command_count agent_count hook_count
+    skill_count=$(find "$TARGET_DIR/.claude/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+    command_count=$(find "$TARGET_DIR/.claude/commands" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+    agent_count=$(find "$TARGET_DIR/claude/agents" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+    hook_count=$(find "$TARGET_DIR/claude/hooks" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
+
+    cat > "$TARGET_DIR/usr/$PRINCIPAL/captain/handoff.md" << HANDOFF_EOF
+---
+type: agency-bootstrap
+date: $(date '+%Y-%m-%d %H:%M')
+principal: $PRINCIPAL
+---
+
+## Welcome to The Agency
+
+This project was just initialized with The Agency framework (v${framework_version}).
+
+### What's installed
+- ${skill_count} skills, ${command_count} commands, ${agent_count} agent classes, ${hook_count} hooks
+- Quality gate protocol, code review lifecycle, development methodology
+- Principal sandbox at usr/${PRINCIPAL}/captain/
+
+### First steps
+1. Verify the installation: \`agency verify\`
+2. Explore available skills: type \`/\` to see skill list
+3. Start a discussion about your project: \`/discuss\`
+4. When ready to build: \`/define\` to create a PVR
+
+### Your environment
+- Principal: ${PRINCIPAL}
+- Project: ${PROJECT_NAME}
+- Config: claude/config/agency.yaml
+
+### How to get help
+- \`/agency-help\` — quick reference
+- \`/agency-welcome\` — guided tour
+- \`/agency-tutorial\` — interactive walkthrough
+- \`claude/README-THEAGENCY.md\` — full documentation
+HANDOFF_EOF
+
+    log_info "Bootstrap handoff written"
+
+    # =====================================================================
+    # Step 7: Plans directory and .gitignore
     # =====================================================================
     mkdir -p "$TARGET_DIR/docs/plans"
 
-    # =====================================================================
-    # Step 7: .gitignore additions
-    # =====================================================================
     log_step "Updating .gitignore"
 
-    GITIGNORE="$TARGET_DIR/.gitignore"
-    touch "$GITIGNORE"
+    local gitignore="$TARGET_DIR/.gitignore"
+    touch "$gitignore"
 
     for pattern in ".claude/settings.local.json" ".claude/*.user.local.md" ".worktrees/" "*.DS_Store"; do
-        if ! grep -qF "$pattern" "$GITIGNORE" 2>/dev/null; then
-            echo "$pattern" >> "$GITIGNORE"
+        if ! grep -qF "$pattern" "$gitignore" 2>/dev/null; then
+            echo "$pattern" >> "$gitignore"
         fi
     done
 
@@ -436,22 +485,18 @@ USR_EOF
     git add -A
     git commit -m "feat: initialize Agency 2.0 framework
 
-Agency 2.0 initialized via agency-init. Includes:
+Agency 2.0 initialized via agency init. Includes:
 - CLAUDE.md with @claude/CLAUDE-THEAGENCY.md import (methodology)
-- 34 skills (quality gates, git lifecycle, code review, sandbox,
-  session, worktree, discussion, define/design)
-- 8 agents (PM, 5 reviewers, CoS, captain)
-- 7 hooks (ref-injector, session-handoff, quality-check, plan-capture,
+- ${skill_count} skills, ${command_count} commands, ${agent_count} agent classes
+- ${hook_count} hooks (ref-injector, session-handoff, quality-check, plan-capture,
   branch-freshness, tool-telemetry, ghostty-status)
-- 15 hookify behavioral rules
-- 9 commands (discuss, secret, agency-*, changelog)
-- Reference docs (quality gate, methodology, code review, feedback,
-  PR lifecycle, telemetry)
-- usr/$PRINCIPAL/ principal directory (v2)
-- Core tools (git-commit, git-sync, worktree-*, handoff, stage-hash,
-  dispatch-create, settings-merge, and more)
+- Hookify behavioral rules
+- Reference docs (quality gate, methodology, code review, feedback)
+- usr/$PRINCIPAL/ principal directory
+- Core tools (agency, git-commit, handoff, stage-hash, dispatch, and more)
+- Bootstrap handoff at usr/$PRINCIPAL/captain/handoff.md
 
-Source: the-agency $(cd "$AGENCY_SOURCE" && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+Source: the-agency ${source_commit:0:8}
 " || {
         log_warn "Commit failed — you may need to commit manually"
     }
@@ -470,23 +515,14 @@ Source: the-agency $(cd "$AGENCY_SOURCE" && git rev-parse --short HEAD 2>/dev/nu
     echo ""
     echo "Next steps:"
     echo ""
-    echo "  1. Run Ghostty setup (if using Ghostty):"
-    echo "     ./claude/tools/terminal-setup-ghostty"
-    echo ""
-    echo "  2. Launch Claude Code:"
+    echo "  1. Launch Claude Code:"
     echo "     claude"
     echo ""
-    echo "  3. Bootstrap the captain with this prompt:"
-    echo ""
-    echo "     You are the captain of $PROJECT_NAME — a new Agency 2.0 project."
-    echo "     Read CLAUDE.md, claude/docs/DEVELOPMENT-METHODOLOGY.md, and"
-    echo "     claude/config/agency.yaml. Verify hooks fired on startup."
-    echo "     Write your first handoff at usr/$PRINCIPAL/captain/handoff.md."
-    echo "     Tell me you're ready and ask what we're building."
+    echo "  2. The bootstrap handoff will trigger onboarding automatically."
     echo ""
 
     trap - EXIT
     log_end "$RUN_ID" "success" 0 0 "Initialized $PROJECT_NAME for $PRINCIPAL" 2>/dev/null || true
 }
 
-main
+_init_main

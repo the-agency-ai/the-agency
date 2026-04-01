@@ -25,7 +25,7 @@ jobs:
             "claude/agents/captain/agent.md"
             "claude/config/agency.yaml"
             "claude/CLAUDE-THEAGENCY.md"
-            "claude/tools/agency-init"
+            "claude/tools/agency"
             "claude/tools/handoff"
             "claude/tools/git-commit"
             "claude/hooks/ref-injector.sh"
