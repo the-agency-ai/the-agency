@@ -46,9 +46,9 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --help|-h) _init_help; exit 0 ;;
         --verbose) VERBOSE=true; shift ;;
-        --principal) PRINCIPAL="$2"; shift 2 ;;
-        --project) PROJECT_NAME="$2"; shift 2 ;;
-        --timezone) TIMEZONE="$2"; shift 2 ;;
+        --principal) [[ -n "${2:-}" ]] || { echo "Error: --principal requires a value" >&2; exit 1; }; PRINCIPAL="$2"; shift 2 ;;
+        --project) [[ -n "${2:-}" ]] || { echo "Error: --project requires a value" >&2; exit 1; }; PROJECT_NAME="$2"; shift 2 ;;
+        --timezone) [[ -n "${2:-}" ]] || { echo "Error: --timezone requires a value" >&2; exit 1; }; TIMEZONE="$2"; shift 2 ;;
         -*) echo "Unknown option: $1" >&2; _init_help; exit 1 ;;
         *) TARGET_DIR="$1"; shift ;;
     esac
@@ -146,10 +146,11 @@ _init_main() {
         echo "@claude/CLAUDE-THEAGENCY.md" >> "$TARGET_DIR/CLAUDE.md"
     else
         cp "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/CLAUDE.md"
+        # Use | as delimiter to avoid issues with / in project names
         if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' "s/{{PROJECT_NAME}}/$PROJECT_NAME/" "$TARGET_DIR/CLAUDE.md"
+            sed -i '' "s|{{PROJECT_NAME}}|$PROJECT_NAME|" "$TARGET_DIR/CLAUDE.md"
         else
-            sed -i "s/{{PROJECT_NAME}}/$PROJECT_NAME/" "$TARGET_DIR/CLAUDE.md"
+            sed -i "s|{{PROJECT_NAME}}|$PROJECT_NAME|" "$TARGET_DIR/CLAUDE.md"
         fi
     fi
 
@@ -482,7 +483,8 @@ HANDOFF_EOF
     log_step "Creating initial commit"
 
     cd "$TARGET_DIR"
-    git add -A
+    # Stage only Agency-created paths (not user files that may already exist)
+    git add CLAUDE.md .claude/ claude/ usr/ docs/plans/ .gitignore
     git commit -m "feat: initialize Agency 2.0 framework
 
 Agency 2.0 initialized via agency init. Includes:
