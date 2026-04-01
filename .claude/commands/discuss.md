@@ -1,5 +1,5 @@
 ---
-allowed-tools: Read, Write, Edit, Glob, Bash(date *), Bash(git branch *)
+allowed-tools: Read, Write, Edit, Glob, Bash(date *), Bash(git branch *), Skill
 description: Structured 1B1 (one-by-one) discussion — resolve each item before moving to the next
 ---
 

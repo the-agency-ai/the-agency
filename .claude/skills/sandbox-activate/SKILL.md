@@ -1,0 +1,35 @@
+---
+allowed-tools: Bash(ln:*), Bash(ls:*), Bash(readlink:*), Bash(git rev-parse:*), Bash(git config:*), Glob, Read
+description: Activate a sandbox item by symlinking it to the Claude Code discovery location
+---
+
+# Sandbox Activate
+
+Wire up a sandbox item so Claude Code discovers and uses it.
+
+## Arguments
+
+`$ARGUMENTS` is `<name>` — the item name (without extension).
+
+## Steps
+
+1. **Detect engineer** from `usr/*/` directories.
+
+2. **Find the item** by searching `usr/<engineer>/` for files matching `<name>`:
+   - `usr/<engineer>/claude/commands/<name>.md` → command
+   - `usr/<engineer>/claude/hooks/<name>.sh` → hook
+   - `usr/<engineer>/claude/hookify/<name>.md` → hookify
+   - `usr/<engineer>/tools/<name>.*` → tool
+   - `usr/<engineer>/scripts/<name>.*` → script
+
+3. **Check for existing symlink.** If one exists, show target and ask to replace.
+
+4. **Create symlink** based on type:
+   - command: `ln -sf ../../usr/<engineer>/claude/commands/<name>.md .claude/commands/usr-<engineer>.<name>.md`
+   - hookify: `ln -sf ../usr/<engineer>/claude/hookify/<name>.md .claude/hookify.usr-<engineer>.<name>.local.md`
+   - hook: create symlink + print the settings.local.json entry needed for manual wiring
+   - tool/script: print PATH instruction
+
+5. **Verify** the symlink resolves.
+
+6. **Print confirmation.**
