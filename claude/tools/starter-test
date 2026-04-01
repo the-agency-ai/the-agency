@@ -520,8 +520,8 @@ test_pre_update_verification() {
 
     # Test 2: Manifest modification check
     log_detail "Testing manifest modification check..."
-    if [[ -f ".agency/manifest.json" ]]; then
-        local mod_check=$(cat .agency/manifest.json | python3 -c "
+    if [[ -f "claude/config/manifest.json" ]]; then
+        local mod_check=$(cat claude/config/manifest.json | python3 -c "
 import json, sys
 manifest = json.load(sys.stdin)
 modified = [f for f, info in manifest.get('files', {}).items() if info.get('modified')]
@@ -544,7 +544,7 @@ print(len(modified))
     # First init the manifest
     "$starter/tools/project-update" --init --from="$starter" > /dev/null 2>&1 || true
 
-    if [[ -f ".agency/manifest.json" ]]; then
+    if [[ -f "claude/config/manifest.json" ]]; then
         if "$starter/tools/project-update" --check --from="$starter" > /dev/null 2>&1; then
             log_pass "project-update --check works"
         else
@@ -599,9 +599,9 @@ test_edge_cases() {
     log_detail "Testing corrupt manifest handling..."
     local corrupt_dir="$edge_dir/corrupt-manifest"
     mkdir -p "$corrupt_dir/.agency"
-    echo "not valid json{{{" > "$corrupt_dir/.agency/manifest.json"
+    echo "not valid json{{{" > "$corrupt_dir/claude/config/manifest.json"
 
-    local corrupt_check=$(cat "$corrupt_dir/.agency/manifest.json" | python3 -c "
+    local corrupt_check=$(cat "$corrupt_dir/claude/config/manifest.json" | python3 -c "
 import json, sys
 try:
     json.load(sys.stdin)
@@ -629,7 +629,7 @@ test_update_check_json() {
     cd "$project"
 
     # Ensure manifest exists
-    if [[ ! -f ".agency/manifest.json" ]]; then
+    if [[ ! -f "claude/config/manifest.json" ]]; then
         ./claude/tools/project-update --init --from="$starter" > /dev/null 2>&1 || true
     fi
 
@@ -712,7 +712,7 @@ test_new_manifest_registry() {
     local starter="$TEST_DIR/installed-starter"
 
     # Test 11a: manifest.json exists in project
-    if [[ -f "$project/.agency/manifest.json" ]]; then
+    if [[ -f "$project/claude/config/manifest.json" ]]; then
         log_pass "manifest.json created in project"
     else
         log_fail "manifest.json missing from project"
@@ -722,7 +722,7 @@ test_new_manifest_registry() {
     # Test 11b: manifest.json has correct schema
     if python3 -c "
 import json
-m = json.load(open('$project/.agency/manifest.json'))
+m = json.load(open('$project/claude/config/manifest.json'))
 assert m.get('schema_version') == '1.0', 'Wrong schema_version'
 assert 'project' in m, 'Missing project'
 assert 'name' in m['project'], 'Missing project.name'
@@ -735,7 +735,7 @@ assert 'components' in m, 'Missing components'
     fi
 
     # Test 11c: Components are tracked
-    local comp_count=$(python3 -c "import json; print(len(json.load(open('$project/.agency/manifest.json')).get('components', {})))" 2>/dev/null || echo "0")
+    local comp_count=$(python3 -c "import json; print(len(json.load(open('$project/claude/config/manifest.json')).get('components', {})))" 2>/dev/null || echo "0")
     if [[ "$comp_count" -ge 1 ]]; then
         log_pass "Components tracked ($comp_count components)"
     else
@@ -803,7 +803,7 @@ test_integration_update_flow() {
     cd "$int_project"
 
     # Step 2: Verify manifest created
-    if [[ -f ".agency/manifest.json" ]]; then
+    if [[ -f "claude/config/manifest.json" ]]; then
         log_pass "Step 2: Manifest created"
     else
         log_fail "Step 2: Manifest missing"

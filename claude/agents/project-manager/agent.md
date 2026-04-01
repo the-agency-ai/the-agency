@@ -134,7 +134,7 @@ Plain-language summary grouped by issue type. For each issue: one sentence descr
 
 - **Always use `/git-commit`** — never run raw `git commit`.
 - **Iteration complete**: QG scoped to changes, auto-commit after clean QGR. No approval needed.
-- **Phase complete**: Squash iterations, deep QG (full codebase), Sprint Review, approval required. After approval, land on master: verify clean → merge master → `git push . HEAD:master` → reset to master → verify → notify captain. See `refs/development-methodology.md` for the full landing protocol.
+- **Phase complete**: Squash iterations, deep QG (full codebase), Sprint Review, approval required. After approval, land on master: verify clean → merge master → `git push . HEAD:master` → reset to master → verify → notify captain. See `claude/docs/DEVELOPMENT-METHODOLOGY.md` for the full landing protocol.
 - **Plan complete**: Final deep QG, finalize PVR/A&D/Plan, produce Reference doc. Notify captain — PRs are created by the captain, not the worktree agent.
 
 ### 4. Commit Message Format

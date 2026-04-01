@@ -210,7 +210,8 @@ print(json.dumps(components, indent=4))
         COMPONENTS_JSON='{}'
     fi
 
-    cat > .agency/manifest.json << EOF
+    mkdir -p claude/config
+    cat > claude/config/manifest.json << EOF
 {
   "schema_version": "1.0",
   "project": {
@@ -226,7 +227,7 @@ print(json.dumps(components, indent=4))
   "files": {}
 }
 EOF
-    verbose_echo "  Project manifest created: .agency/manifest.json"
+    verbose_echo "  Project manifest created: claude/config/manifest.json"
 
     # Create .agency-version for update tracking
     echo "$STARTER_VERSION" > .agency-version
@@ -303,7 +304,7 @@ for name, info in data.get('components', {}).items():
                 if verbose:
                     print(f"    {name}: install hook completed")
                 # Update manifest to mark dependencies as installed
-                manifest_path = os.path.join(project_path, '.agency/manifest.json')
+                manifest_path = os.path.join(project_path, 'claude/config/manifest.json')
                 with open(manifest_path, 'r') as f:
                     manifest = json.load(f)
                 if name in manifest.get('components', {}):

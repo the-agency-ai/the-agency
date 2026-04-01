@@ -12,7 +12,6 @@ usr/{{PRINCIPAL_NAME}}/
     hookify/           — Behavioral rules (*.local.md)
     hooks/             — Shell hooks
     agents/            — Agent definitions
-    refs/              — Reference documents (injected on-demand)
   scripts/             — Cross-cutting scripts
   {project}/           — One directory per project
     handoff.md         — Current session handoff

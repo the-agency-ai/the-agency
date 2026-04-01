@@ -26,16 +26,16 @@ SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // empty' 2>/dev/null)
 # Map skills to reference files
 REF_FILE=""
 case "$SKILL" in
-  *iteration-complete*|*phase-complete*|*plan-complete*|*quality-gate*)
+  iteration-complete|phase-complete|plan-complete|quality-gate|pr-prep|git-commit|ship)
     REF_FILE="$DOCS_DIR/QUALITY-GATE.md"
     ;;
-  *pre-phase-review*)
+  pre-phase-review|define|design)
     REF_FILE="$DOCS_DIR/DEVELOPMENT-METHODOLOGY.md"
     ;;
-  *captain-review*|*code-review*|*review-pr*)
+  captain-review|code-review|review-pr|pr-respond|diff-summary)
     REF_FILE="$DOCS_DIR/CODE-REVIEW-LIFECYCLE.md"
     ;;
-  *feedback*)
+  feedback)
     REF_FILE="$DOCS_DIR/FEEDBACK-FORMAT.md"
     ;;
 esac

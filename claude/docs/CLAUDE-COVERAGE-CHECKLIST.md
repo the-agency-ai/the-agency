@@ -5,9 +5,9 @@ Maps every section of the original CLAUDE.md to its new location(s). No substant
 | Original Section | Lines | New Location | Status |
 |---|---|---|---|
 | Source of truth preamble | 1-5 | CLAUDE-USER-DRAFT.md §0 | Covered |
-| **QG Protocol — 10 Steps** | 7-31 | PM agent §1, refs/quality-gate.md | Covered |
+| **QG Protocol — 10 Steps** | 7-31 | PM agent §1, claude/docs/QUALITY-GATE.md | Covered |
 | **QG — Commit Discipline** | 33-39 | PM agent §3, CLAUDE-USER-DRAFT.md §QG (pointer) | Covered |
-| **QGR Format — Full template** | 41-135 | PM agent §2, refs/quality-gate.md | Covered |
+| **QGR Format — Full template** | 41-135 | PM agent §2, claude/docs/QUALITY-GATE.md | Covered |
 | **QGR — Issue types/Via/Tests legend** | 52-54 | PM agent §2 (added in enrichment) | Covered |
 | **QGR — "Failing MUST be 0"** | 60 | PM agent §2 (added in enrichment) | Covered |
 | **QGR — "Zeros are visible"** | 72 | PM agent §2 (added in enrichment) | Covered |
@@ -19,19 +19,19 @@ Maps every section of the original CLAUDE.md to its new location(s). No substant
 | **QG Tooling inventory** | 233-256 | REMOVED (implementation status, not instruction) | Intentional |
 | **Dev Methodology — The Flow** | 258-272 | CLAUDE-USER-DRAFT.md §Methodology | Covered |
 | **Dev Methodology — Execution** | 274-283 | CLAUDE-USER-DRAFT.md §Execution | Covered |
-| **Dev Methodology — Quality Gates** | 285-291 | CLAUDE-USER-DRAFT.md §QG (iteration/phase distinction), refs/development-methodology.md | Covered |
-| **Phase Completion procedure** | 292-316 | /phase-complete skill, refs/development-methodology.md, PM agent §3 (landing steps added) | Covered |
-| **Pre-Phase Review procedure** | 318-327 | /pre-phase-review skill, PM agent §5, refs/development-methodology.md | Covered |
+| **Dev Methodology — Quality Gates** | 285-291 | CLAUDE-USER-DRAFT.md §QG (iteration/phase distinction), claude/docs/DEVELOPMENT-METHODOLOGY.md | Covered |
+| **Phase Completion procedure** | 292-316 | /phase-complete skill, claude/docs/DEVELOPMENT-METHODOLOGY.md, PM agent §3 (landing steps added) | Covered |
+| **Pre-Phase Review procedure** | 318-327 | /pre-phase-review skill, PM agent §5, claude/docs/DEVELOPMENT-METHODOLOGY.md | Covered |
 | **Plan Completion procedure** | 329-336 | /plan-complete skill, PM agent §3 ("notify captain" added) | Covered |
 | **Artifacts table** | 338-346 | CLAUDE-USER-DRAFT.md §Artifacts | Covered |
 | **File Organization** | 348-375 | CLAUDE-USER-DRAFT.md §File Organization (updated tree) | Covered |
 | **Session Handoff — convention** | 377-382 | CLAUDE-USER-DRAFT.md §Session Handoff (Agency 2.0 convention) | Covered |
-| **Session Handoff — trigger table** | 384-398 | Triggers encoded in boundary skills + hooks. Captain agent has trigger list. Full table in refs/development-methodology.md | Covered |
+| **Session Handoff — trigger table** | 384-398 | Triggers encoded in boundary skills + hooks. Captain agent has trigger list. Full table in claude/docs/DEVELOPMENT-METHODOLOGY.md | Covered |
 | **Session Handoff — what to include** | 400-408 | Encoded in handoff-write.sh hook + boundary skills | Covered |
 | **Discussion Protocol** | 410-420 | CLAUDE-USER-DRAFT.md §Discussion Protocol (full 1B1 + inner loop) | Covered |
-| **Feedback — Header/Identity** | 422-435 | refs/feedback-format.md, CLAUDE-USER-DRAFT.md §Feedback (pointer) | Covered |
-| **Feedback — Structure** | 437-446 | refs/feedback-format.md | Covered |
-| **Feedback — Principles** | 448-453 | refs/feedback-format.md | Covered |
+| **Feedback — Header/Identity** | 422-435 | claude/docs/FEEDBACK-FORMAT.md, CLAUDE-USER-DRAFT.md §Feedback (pointer) | Covered |
+| **Feedback — Structure** | 437-446 | claude/docs/FEEDBACK-FORMAT.md | Covered |
+| **Feedback — Principles** | 448-453 | claude/docs/FEEDBACK-FORMAT.md | Covered |
 | **Testing & Quality — Values** | 455-466 | CLAUDE-USER-DRAFT.md §Testing & Quality | Covered |
 | **Testing & Quality — Enforcement** | 468-478 | CLAUDE-USER-DRAFT.md §Testing & Quality (key rules kept: suppress, no-verify, consult) | Covered |
 | **Bash Tool Usage** | 480-494 | CLAUDE-USER-DRAFT.md §Bash Tool Usage (slimmed) | Covered |
@@ -48,11 +48,11 @@ Maps every section of the original CLAUDE.md to its new location(s). No substant
 | **Sandbox Principle** | 509-520 | CLAUDE-USER-DRAFT.md §Sandbox | Covered |
 | **Sandbox Activation** | 522-527 | CLAUDE-USER-DRAFT.md §Sandbox (commands listed) | Covered |
 | **Hookify Rules table** | 529-537 | CLAUDE-USER-DRAFT.md §Hookify Rules (3-row table) | Covered |
-| **Three Review Tools table** | 539-549 | Captain agent §Three Review Tools, refs/code-review-lifecycle.md | Covered |
+| **Three Review Tools table** | 539-549 | Captain agent §Three Review Tools, claude/docs/CODE-REVIEW-LIFECYCLE.md | Covered |
 | **Captain PR Lifecycle** | 551-567 | Captain agent §PR Lifecycle (8-step flow added) | Covered |
 | **Code Review Dispatch** | 569-584 | Captain agent §Code Review Dispatch (added) | Covered |
-| **Worktree Dispatch Handling** | 586-618 | Captain agent (pointer to ref), refs/code-review-lifecycle.md | Covered |
-| **Review File Convention** | 620-629 | refs/code-review-lifecycle.md | Covered |
+| **Worktree Dispatch Handling** | 586-618 | Captain agent (pointer to ref), claude/docs/CODE-REVIEW-LIFECYCLE.md | Covered |
+| **Review File Convention** | 620-629 | claude/docs/CODE-REVIEW-LIFECYCLE.md | Covered |
 | **Why Local Review** | 631-633 | Captain agent §Why Local Review (added) | Covered |
 
 ## Summary

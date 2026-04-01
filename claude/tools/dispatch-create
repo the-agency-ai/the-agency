@@ -1,0 +1,76 @@
+#!/bin/bash
+#
+# dispatch-create — Create a new dispatch file with auto-stamped datetime
+#
+# Usage:
+#   ./claude/tools/dispatch-create <slug> [principal]
+#
+# Creates: usr/{principal}/captain/dispatches/dispatch-{slug}-YYYYMMDD-HHMM.md
+# Default principal: detected via agency-whoami or git config user.name
+#
+# Example:
+#   ./claude/tools/dispatch-create code-review-findings
+#   → usr/jordan/captain/dispatches/dispatch-code-review-findings-20260401-1430.md
+#
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# shellcheck source=lib/_log-helper
+source "$SCRIPT_DIR/lib/_log-helper"
+
+RUN_ID=$(log_start "dispatch-create" "$@")
+
+SLUG="${1:-}"
+PRINCIPAL="${2:-}"
+
+if [[ -z "$SLUG" ]]; then
+  log_end "$RUN_ID" "error" "1" "0" "missing slug"
+  echo "dispatch-create: usage: dispatch-create <slug> [principal]" >&2
+  exit 1
+fi
+
+# Resolve principal
+if [[ -z "$PRINCIPAL" ]]; then
+  if command -v "$SCRIPT_DIR/agency-whoami" >/dev/null 2>&1; then
+    PRINCIPAL=$("$SCRIPT_DIR/agency-whoami" 2>/dev/null || true)
+  fi
+  if [[ -z "$PRINCIPAL" ]]; then
+    PRINCIPAL=$(git config user.name 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr ' ' '-' || echo "unknown")
+  fi
+fi
+
+TIMESTAMP=$(date +%Y%m%d-%H%M)
+FILENAME="dispatch-${SLUG}-${TIMESTAMP}.md"
+DISPATCH_DIR="$PROJECT_ROOT/usr/${PRINCIPAL}/captain/dispatches"
+
+mkdir -p "$DISPATCH_DIR"
+
+FILEPATH="$DISPATCH_DIR/$FILENAME"
+
+cat > "$FILEPATH" << EOF
+# Dispatch: ${SLUG}
+
+**Date:** $(date +%Y-%m-%d)
+**From:** ${PRINCIPAL}/captain
+**To:** <!-- target agent(s) -->
+
+## Context
+
+<!-- Why this dispatch exists -->
+
+## Directive
+
+<!-- What the receiving agent should do -->
+
+## Acceptance Criteria
+
+- [ ] <!-- criterion 1 -->
+EOF
+
+log_end "$RUN_ID" "success" "0" "0" "created $FILENAME"
+
+echo "dispatch-create [run: $RUN_ID]"
+echo "$FILEPATH"
+echo "✓"

@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ref-injector.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(./claude/tools/*:*)",
+      "Read(claude/**)",
+      "Read(.claude/**)",
+      "Glob(claude/**)",
+      "Glob(.claude/**)"
+    ]
+  }
+}
