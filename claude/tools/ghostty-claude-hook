@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# ghostty-claude-hook.sh — Claude Code hook for Ghostty tab title + background
+#
+# Uses Ghostty's AppleScript API (set_tab_title) for persistent tab titles
+# that survive Claude Code's continuous OSC 2 overwrites.
+# Uses OSC 11 for background color tints.
+#
+# Does NOT touch Claude Code's statusline.sh — completely independent concern.
+
+# --- Guard: only run inside Ghostty ---
+if [[ "$TERM_PROGRAM" != "ghostty" ]]; then
+  exit 0
+fi
+
+# --- Guard: /dev/tty must be writable ---
+if [[ ! -w /dev/tty ]]; then
+  exit 0
+fi
+
+# --- Read event from stdin ---
+input=$(cat)
+
+# --- Require jq ---
+if ! command -v jq > /dev/null 2>&1; then
+  exit 0
+fi
+
+# --- Extract event name ---
+event=$(echo "$input" | jq -r '.hook_event_name // .event // ""' 2>/dev/null)
+
+# --- Determine session name ---
+# Cache file persists the name across hook invocations within a session.
+# SessionStart writes it; subsequent hooks read it.
+# Use session_id from stdin JSON as stable key across hook invocations
+SESSION_KEY=$(echo "$input" | jq -r '.session_id // "unknown"' 2>/dev/null)
+CACHE_FILE="/tmp/ghostty-session-name-${SESSION_KEY}"
+
+# Resolve branch from the correct directory (worktree, not main checkout)
+_get_branch() {
+  local dir="${CLAUDE_PROJECT_DIR:-.}"
+  git -C "$dir" branch --show-current 2>/dev/null || echo "Claude"
+}
+
+if [[ -n "${CLAUDE_SESSION_NAME:-}" ]]; then
+  session_name="$CLAUDE_SESSION_NAME"
+  echo "$session_name" > "$CACHE_FILE"
+elif [[ "$event" == "SessionStart" ]]; then
+  session_name=$(_get_branch)
+  echo "$session_name" > "$CACHE_FILE"
+elif [[ -f "$CACHE_FILE" ]]; then
+  session_name=$(cat "$CACHE_FILE")
+else
+  session_name=$(_get_branch)
+  echo "$session_name" > "$CACHE_FILE"
+fi
+
+# --- Color definitions (on light background) ---
+# Blue = available/idle, Green = working, Red = needs attention, White = no Claude
+BG_DEFAULT="#FFFFFF"      # pure white — plain shell (no Claude session)
+BG_IDLE="#E3F2FD"        # blue — available, idle, ready
+BG_WORKING="#E8F5E9"     # green — agent is working
+BG_INPUT="#FFF0F0"       # red — needs your attention
+
+# --- OSC helper for background (write to /dev/tty) ---
+set_bg() { printf '\e]11;%s\a' "$1" > /dev/tty; }
+
+# --- Tab title via OSC 2 (session-scoped via /dev/tty) ---
+# Writing to /dev/tty ensures each session sets its OWN tab title,
+# not whichever tab happens to be focused. AppleScript was abandoned
+# because it targets "focused terminal" or matches by cwd which
+# cross-contaminates tabs in multi-session setups.
+set_title() { printf '\e]2;%s\a' "$1" > /dev/tty; }
+
+# --- Map event to state ---
+case "$event" in
+  # Session ended — restore plain shell appearance
+  "SessionEnd")
+    set_title "– zsh"
+    set_bg "$BG_DEFAULT"
+    rm -f "$CACHE_FILE"
+    ;;
+
+  # Claude finished responding — available, your turn if you want
+  "Stop")
+    set_title "○ ${session_name}"
+    set_bg "$BG_IDLE"
+    ;;
+
+  # Needs attention — permission prompt or truly waiting
+  "Notification")
+    set_title "⚠ ${session_name}"
+    set_bg "$BG_INPUT"
+    ;;
+
+  # Agent is actively working
+  "PreToolUse"|"PostToolUse"|"PreCompact")
+    set_title "◑ ${session_name}"
+    set_bg "$BG_WORKING"
+    ;;
+
+  # Session just started — available
+  "SessionStart")
+    set_title "○ ${session_name}"
+    set_bg "$BG_IDLE"
+    ;;
+
+  # Default — available
+  *)
+    set_title "○ ${session_name}"
+    set_bg "$BG_IDLE"
+    ;;
+esac
