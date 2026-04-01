@@ -9,3 +9,5 @@ action: block
 **Skipping hooks is not allowed.**
 
 The `--no-verify` flag bypasses pre-commit hooks. If a hook fails, investigate and fix the underlying issue instead of skipping it.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

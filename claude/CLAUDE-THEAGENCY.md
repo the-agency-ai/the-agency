@@ -285,3 +285,7 @@ The captain manages the full PR lifecycle: `/sync-all` → rebuild PR branches �
 **If you receive a dispatch:** Merge master, read the dispatch file at `claude/usr/{{principal}}/{project}/code-reviews/`, evaluate findings, fix with red→green cycle, append a resolution table, run `/iteration-complete`. The full dispatch handling protocol is in `claude/docs/CODE-REVIEW-LIFECYCLE.md` — injected when relevant skills run.
 
 **Review files:** `claude/usr/{{principal}}/{project}/code-reviews/{project}-{review|dispatch}-YYYYMMDD-HHMM.md`. Committed to the repo as the audit trail.
+
+---
+
+*AND REMEMBER: OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

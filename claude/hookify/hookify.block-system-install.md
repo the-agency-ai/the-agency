@@ -27,3 +27,5 @@ If a system dependency is missing:
 3. If multiple deps are missing, generate a `setup.sh` script the principal can run once
 
 Project-level dependencies (pnpm install, prisma generate, doppler setup) are fine — those are handled by the agent automatically.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
