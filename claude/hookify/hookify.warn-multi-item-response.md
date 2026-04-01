@@ -19,3 +19,5 @@ If you find yourself writing "Item 1:" followed by "Item 2:" in the same respons
 The inner loop: Present → Get Feedback → Confirm Understanding → Revise → Iterate → Resolve → Confirm Resolution → Next Item.
 
 Use `/discuss` to manage structured multi-item conversations.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

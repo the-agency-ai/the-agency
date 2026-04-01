@@ -13,3 +13,5 @@ This command can discard uncommitted work. Before proceeding:
 - Verify this is what the user explicitly requested
 - Consider if there is a safer alternative
 - Check for in-progress work that might be lost
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

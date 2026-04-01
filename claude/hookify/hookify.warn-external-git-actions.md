@@ -9,3 +9,5 @@ action: warn
 **External action detected: this command affects GitHub or a remote.**
 
 Do not push branches, create PRs, comment on PRs, close PRs, create issues, or create releases unless the user explicitly asked. These are visible to others and hard to reverse.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

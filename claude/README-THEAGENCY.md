@@ -653,3 +653,7 @@ Claude Code's architecture is a working model of an agent-native development lif
 - [ ] Add `/workstream-create` skill (gap identified during review)
 - [ ] Consider adding a "Kata Symphony" reference — headless orchestrator with Linear integration
 - [ ] Consider adding a "Swamp" reference — AI-native automation runtime (adopted for Mycroft)
+
+---
+
+*AND REMEMBER: OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

@@ -7,3 +7,5 @@ action: block
 ---
 
 Do not push to origin/main or origin/master. All changes reach remote through PRs on GitHub.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

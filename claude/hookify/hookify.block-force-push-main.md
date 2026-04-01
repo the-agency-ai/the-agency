@@ -9,3 +9,5 @@ action: block
 **Force push to main/master is blocked.**
 
 Force pushing to the main branch can overwrite upstream work. Use a feature branch or `--force-with-lease` on non-main branches instead.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

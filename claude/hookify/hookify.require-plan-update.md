@@ -17,3 +17,5 @@ If not, you likely forgot to:
 3. Record what was done and what the quality gate found
 
 The plan is the living record. It must always reflect reality. Update it before or as part of this commit.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

@@ -15,3 +15,5 @@ Before proceeding, confirm:
 3. You are using `/sync` (the only command authorized to push) or have explicit permission
 
 If any of these are not true, stop and ask the principal.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

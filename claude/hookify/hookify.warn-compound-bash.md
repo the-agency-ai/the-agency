@@ -21,3 +21,5 @@ Allowed patterns (not flagged):
 - `| head -N` / `| tail -N` — output limiting
 
 Run each shell command as a **single, simple command**. If you need to chain steps, use separate Bash tool calls (parallel when independent, sequential when dependent).
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
