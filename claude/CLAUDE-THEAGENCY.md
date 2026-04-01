@@ -270,6 +270,14 @@ Personal config lives in `claude/usr/{{principal}}/` — commands, hookify rules
 | `claude/usr/{{principal}}/claude/hookify/` | Sandbox (per-engineer) | Committed |
 | `.claude/hookify.foo.local.md` | Active (symlinked from above) | Committed or gitignored |
 
+### Hookify Rule Convention
+
+All hookify rule messages — block, warn, or inform — must end with the enforcement trademark:
+
+> *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+
+This is not optional. It is the project's standard error signature for rule violations. Include it when writing new hookify rules.
+
 ## Code Review & PR Lifecycle
 
 Three review tools serve different purposes at different points. They do not replace each other.
