@@ -1,0 +1,260 @@
+#!/bin/bash
+#
+# upstream-port — Port files from monofolk to the-agency
+#
+# Usage:
+#   upstream-port <source> [--target <path>] [--message <msg>] [--auto-merge]
+#   upstream-port --version
+#   upstream-port --help
+#
+# Default: creates PR and stops. Use --auto-merge to squash-merge immediately.
+
+set -euo pipefail
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper if available
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# --- PATH resolution ---
+[ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
+[ -d "$HOME/.asdf/shims" ] && export PATH="$HOME/.asdf/shims:$PATH"
+
+# --- Constants ---
+AGENCY_REPO="$HOME/code/the-agency"
+MONOFOLK_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "")"
+
+# --- Args ---
+SOURCE=""
+TARGET=""
+MESSAGE=""
+AUTO_MERGE=false
+
+show_help() {
+    echo "Usage: upstream-port <source> [--target <path>] [--message <msg>] [--auto-merge]"
+    echo ""
+    echo "Port files from monofolk to the-agency. Creates a PR."
+    echo ""
+    echo "Arguments:"
+    echo "  <source>              File or directory to port (relative to repo root)"
+    echo "  --target <path>       Override target path in the-agency (auto-mapped by default)"
+    echo "  --message <msg>       Custom commit message"
+    echo "  --auto-merge          Squash-merge the PR immediately (default: create PR only)"
+    echo ""
+    echo "Path mapping (auto):"
+    echo "  claude/tools/X                    → claude/tools/X"
+    echo "  claude/tools/tests/X              → claude/tools/tests/X"
+    echo "  claude/usr/*/commands/X.md        → .claude/skills/X/SKILL.md (mkdir)"
+    echo "  claude/hookify/X                  → claude/hookify/X"
+    echo "  claude/usr/*/hookify/X            → claude/hookify/X"
+    echo "  claude/agents/X                   → claude/agents/X"
+    echo "  claude/docs/X                     → claude/docs/X"
+    echo "  claude/config/X                   → claude/config/X"
+    echo ""
+    echo "Options:"
+    echo "  --version    Show version"
+    echo "  --help       Show this help"
+}
+
+# Parse args
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version) echo "upstream-port $VERSION"; exit 0 ;;
+        --help) show_help; exit 0 ;;
+        --target) TARGET="$2"; shift 2 ;;
+        --message) MESSAGE="$2"; shift 2 ;;
+        --auto-merge) AUTO_MERGE=true; shift ;;
+        -*) echo "upstream-port: unknown option '$1'" >&2; exit 1 ;;
+        *)
+            if [[ -z "$SOURCE" ]]; then
+                SOURCE="$1"
+            else
+                echo "upstream-port: unexpected argument '$1'" >&2
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$SOURCE" ]]; then
+    echo "upstream-port: no source file specified" >&2
+    show_help
+    exit 1
+fi
+
+# --- Validate ---
+if [[ -z "$MONOFOLK_ROOT" ]]; then
+    echo "upstream-port: not in a git repository" >&2
+    exit 1
+fi
+
+if [[ ! -d "$AGENCY_REPO" ]]; then
+    echo "upstream-port: the-agency repo not found at $AGENCY_REPO" >&2
+    exit 1
+fi
+
+# Resolve source to absolute path
+if [[ "$SOURCE" = /* ]]; then
+    SOURCE_ABS="$SOURCE"
+else
+    SOURCE_ABS="$MONOFOLK_ROOT/$SOURCE"
+fi
+
+if [[ ! -e "$SOURCE_ABS" ]]; then
+    echo "upstream-port: source not found: $SOURCE" >&2
+    exit 1
+fi
+
+# --- Require gh ---
+if ! command -v gh &>/dev/null; then
+    echo "upstream-port: gh CLI is required but not installed" >&2
+    exit 1
+fi
+
+# --- Path mapping ---
+resolve_target() {
+    local src="$1"
+
+    # Strip repo root prefix to get relative path
+    local rel="${src#$MONOFOLK_ROOT/}"
+
+    case "$rel" in
+        claude/tools/tests/*)
+            echo "claude/tools/tests/$(basename "$rel")"
+            ;;
+        claude/tools/*)
+            echo "claude/tools/$(basename "$rel")"
+            ;;
+        claude/usr/*/commands/*.md)
+            # commands/X.md → .claude/skills/X/SKILL.md
+            local name=$(basename "$rel" .md)
+            echo ".claude/skills/$name/SKILL.md"
+            ;;
+        claude/hookify/*)
+            echo "claude/hookify/$(basename "$rel")"
+            ;;
+        claude/usr/*/hookify/*)
+            # Sandbox hookify → shared framework hookify
+            local name=$(basename "$rel")
+            # Strip .local from name if present
+            name="${name%.local.md}.md"
+            echo "claude/hookify/$name"
+            ;;
+        claude/agents/*)
+            echo "$rel"
+            ;;
+        claude/docs/*)
+            echo "$rel"
+            ;;
+        claude/config/*)
+            echo "$rel"
+            ;;
+        *)
+            # Unmapped — require --target
+            echo ""
+            ;;
+    esac
+}
+
+if [[ -n "$TARGET" ]]; then
+    TARGET_REL="$TARGET"
+else
+    TARGET_REL=$(resolve_target "$SOURCE_ABS")
+    if [[ -z "$TARGET_REL" ]]; then
+        echo "upstream-port: no auto-mapping for '$SOURCE' — use --target to specify" >&2
+        exit 1
+    fi
+fi
+
+TARGET_ABS="$AGENCY_REPO/$TARGET_REL"
+
+# --- Start logging ---
+RUN_ID=""
+if type log_start &>/dev/null; then
+    RUN_ID=$(log_start "upstream-port" "$SOURCE → $TARGET_REL")
+fi
+
+echo "upstream-port: $SOURCE → $TARGET_REL"
+
+# --- Prepare the-agency ---
+ORIG_DIR="$(pwd)"
+cd "$AGENCY_REPO"
+
+# Ensure on main and up to date
+git checkout main --quiet 2>/dev/null
+git pull --ff-only origin main --quiet 2>/dev/null || {
+    echo "upstream-port: failed to pull the-agency main" >&2
+    cd "$ORIG_DIR"
+    exit 1
+}
+
+# Create branch
+SLUG=$(echo "$TARGET_REL" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | head -c 50)
+BRANCH="contrib/$SLUG"
+git checkout -b "$BRANCH" --quiet 2>/dev/null
+
+# --- Copy files ---
+mkdir -p "$(dirname "$TARGET_ABS")"
+
+if [[ -d "$SOURCE_ABS" ]]; then
+    cp -r "$SOURCE_ABS" "$TARGET_ABS"
+else
+    cp "$SOURCE_ABS" "$TARGET_ABS"
+fi
+
+# Make executable if source was executable
+if [[ -x "$SOURCE_ABS" ]]; then
+    chmod +x "$TARGET_ABS"
+fi
+
+# --- Commit ---
+if [[ -z "$MESSAGE" ]]; then
+    MESSAGE="feat: port $(basename "$SOURCE") from monofolk
+
+Contributed from monofolk: $SOURCE → $TARGET_REL
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+fi
+
+git add -A
+git commit -m "$MESSAGE" --quiet
+
+# --- Push + PR ---
+git push -u origin "$BRANCH" --quiet 2>/dev/null
+
+PR_URL=$(gh pr create --title "feat: port $(basename "$SOURCE") from monofolk" --body "$(cat <<EOF
+## Source
+\`$SOURCE\` → \`$TARGET_REL\`
+
+Contributed from monofolk.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)" 2>&1)
+
+echo "upstream-port: PR created: $PR_URL"
+
+# --- Auto-merge if requested ---
+if [[ "$AUTO_MERGE" == true ]]; then
+    if gh pr merge --squash --delete-branch 2>/dev/null; then
+        echo "upstream-port: merged and branch deleted"
+        git checkout main --quiet 2>/dev/null
+    else
+        echo "upstream-port: auto-merge failed — PR remains open at $PR_URL" >&2
+    fi
+else
+    git checkout main --quiet 2>/dev/null
+fi
+
+# --- Return ---
+cd "$ORIG_DIR"
+
+if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
+    log_end "$RUN_ID" "success" 0 0 "$SOURCE → $TARGET_REL"
+fi
+
+echo "upstream-port: done"
