@@ -1,0 +1,15 @@
+#!/bin/bash
+# Debug hook — dump everything to a file so we can see what's available
+# Only runs when GHOSTTY_DEBUG_HOOK=1 is set explicitly
+[[ -z "$GHOSTTY_DEBUG_HOOK" ]] && exit 0
+input=$(cat)
+{
+  echo "=== $(date) ==="
+  echo "STDIN: $input"
+  echo "CLAUDE_PROJECT_DIR: ${CLAUDE_PROJECT_DIR:-UNSET}"
+  echo "CLAUDE_SESSION_NAME: ${CLAUDE_SESSION_NAME:-UNSET}"
+  echo "CLAUDE_SESSION_ID: ${CLAUDE_SESSION_ID:-UNSET}"
+  echo "PWD: $(pwd)"
+  echo "GIT_BRANCH: $(git branch --show-current 2>/dev/null || echo NONE)"
+  echo ""
+} >> /tmp/ghostty-hook-debug.log

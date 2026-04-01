@@ -1,0 +1,39 @@
+# Ghostty terminal configuration
+# Install: copy or symlink to ~/.config/ghostty/config
+#
+# Source of truth: claude/tools/ghostty-config in the repo.
+# To activate: ln -sf <repo>/claude/tools/ghostty-config ~/.config/ghostty/config
+
+# --- Theme ---
+theme = GitHub Light Default
+
+# --- Font ---
+font-family = JetBrains Mono
+font-size = 14
+
+# --- Window ---
+window-padding-x = 8
+window-padding-y = 4
+window-decoration = true
+macos-titlebar-style = tabs
+
+# --- Shell integration ---
+# Disable Ghostty's built-in title management so our scripts control it
+# via OSC 2. Keep cursor and sudo integration active.
+shell-integration-features = cursor,sudo,no-title
+
+# --- Cursor ---
+cursor-style = bar
+cursor-style-blink = true
+
+# --- Clipboard ---
+clipboard-read = allow
+clipboard-write = allow
+copy-on-select = clipboard
+
+# --- Scrollback ---
+scrollback-limit = 4294967295
+
+# --- Behavior ---
+confirm-close-surface = false
+mouse-hide-while-typing = true

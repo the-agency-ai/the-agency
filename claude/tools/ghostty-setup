@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# ghostty-setup.sh — One-time setup for Ghostty terminal integration
+#
+# Creates ~/.config/ghostty/ and symlinks the config from the monorepo.
+# Adds the zsh integration source line to ~/.zshrc if not already present.
+#
+# Safe to re-run — idempotent.
+#
+# Usage: bash claude/tools/ghostty-setup
+
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+GHOSTTY_CONFIG_DIR="$HOME/.config/ghostty"
+GHOSTTY_CONFIG_SRC="$REPO_DIR/claude/tools/ghostty-config"
+GHOSTTY_CONFIG_DST="$GHOSTTY_CONFIG_DIR/config"
+ZSH_INTEGRATION_SRC="$REPO_DIR/claude/tools/ghostty-integration"
+ZSHRC="$HOME/.zshrc"
+
+echo "=== Ghostty Setup ==="
+echo ""
+
+# --- Step 1: Create config directory ---
+if [[ ! -d "$GHOSTTY_CONFIG_DIR" ]]; then
+  echo "Creating $GHOSTTY_CONFIG_DIR"
+  mkdir -p "$GHOSTTY_CONFIG_DIR"
+else
+  echo "Config directory exists: $GHOSTTY_CONFIG_DIR"
+fi
+
+# --- Step 2: Symlink config ---
+if [[ -L "$GHOSTTY_CONFIG_DST" ]]; then
+  existing=$(readlink "$GHOSTTY_CONFIG_DST")
+  if [[ "$existing" == "$GHOSTTY_CONFIG_SRC" ]]; then
+    echo "Config symlink already correct: $GHOSTTY_CONFIG_DST -> $GHOSTTY_CONFIG_SRC"
+  else
+    echo "Updating config symlink (was: $existing)"
+    ln -sf "$GHOSTTY_CONFIG_SRC" "$GHOSTTY_CONFIG_DST"
+    echo "Symlinked: $GHOSTTY_CONFIG_DST -> $GHOSTTY_CONFIG_SRC"
+  fi
+elif [[ -f "$GHOSTTY_CONFIG_DST" ]]; then
+  echo "WARNING: $GHOSTTY_CONFIG_DST exists as a regular file."
+  echo "  Back it up and remove it, then re-run this script."
+  echo "  Backup: cp $GHOSTTY_CONFIG_DST ${GHOSTTY_CONFIG_DST}.bak"
+  exit 1
+else
+  ln -sf "$GHOSTTY_CONFIG_SRC" "$GHOSTTY_CONFIG_DST"
+  echo "Symlinked: $GHOSTTY_CONFIG_DST -> $GHOSTTY_CONFIG_SRC"
+fi
+
+# --- Step 3: Add zsh integration to .zshrc ---
+INTEGRATION_LINE="source \"$ZSH_INTEGRATION_SRC\""
+
+if grep -qF "$ZSH_INTEGRATION_SRC" "$ZSHRC" 2>/dev/null; then
+  echo "zsh integration already in $ZSHRC"
+else
+  echo "" >> "$ZSHRC"
+  echo "# Ghostty terminal integration (tab titles + background color hints)" >> "$ZSHRC"
+  echo "$INTEGRATION_LINE" >> "$ZSHRC"
+  echo "Added to $ZSHRC:"
+  echo "  $INTEGRATION_LINE"
+fi
+
+echo ""
+echo "=== Done ==="
+echo ""
+echo "Next steps:"
+echo "  1. Open Ghostty (/Applications/Ghostty.app)"
+echo "  2. The config will be loaded automatically"
+echo "  3. Start a new zsh session — tab should show '- zsh <dir>'"
+echo "  4. Start Claude Code — tab should show 'o <session>' with blue tint"
+echo ""
+echo "To modify the theme or font, edit:"
+echo "  $GHOSTTY_CONFIG_SRC"
+echo ""
