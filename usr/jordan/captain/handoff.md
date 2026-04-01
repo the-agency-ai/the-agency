@@ -1,114 +1,86 @@
+---
+type: session
+date: 2026-04-02 01:50
+branch: main
+trigger: manual-precompact
+---
+
 # Captain Handoff
 
 **Agent:** captain (housekeeping)
 **Principal:** jordan
-**Updated:** 2026-03-31 (session 11)
+**Updated:** 2026-04-02 (session 12)
 
 ## Current State
 
-On `main` branch. Clean working tree. **In plan mode** — executing Monofolk Dispatch Incorporation plan.
+On `main` branch. Executing **Monofolk Dispatch Incorporation** plan.
 
-## Session 11 Work
+## Session 12 Work
 
-### Monofolk Dispatch Incorporation (IN PROGRESS — plan mode)
+### Starter Sunset — COMPLETE (PR #25 merged)
+
+5 phases executed with QGRs between each:
+- Phase 1+2: Agency CLI consolidation + handoff type system
+- Phase 1.4+3: Registry refactor + agency update implementation
+- Phase 4: Starter sunset (tools, docs, test repo removed)
+- Phase 5: Verification tests (20 new BATS tests)
+
+Also fixed 6 pre-existing BATS failures:
+- `config get` returning exit 0 for missing keys (now returns 1 + "not found")
+- `findings-save` / `findings-consolidate` wrong `log_end` arg order causing exit 2
+
+### Monofolk Dispatch Incorporation — IN PROGRESS
 
 **Plan file:** `/Users/jdm/.claude/plans/transient-questing-meerkat.md`
-**Dispatch:** `dispatch-claudemd-template-finalized-20260331.md`
 
-6-phase plan to port monofolk work into the-agency framework:
-- Phase 1: ADHOC purge (kill all files, refs, --adhoc flag → --no-work-item)
-- Phase 2: Licensing (MIT + RSL), project docs, align paths to template target state
-- Phase 3: Port 33 skills to `.claude/skills/`, update 2 commands in place
-- Phase 4: Update git-commit tool, PM agent, wire skills into ref-injector
-- Phase 5: Post-init enhancements (pluggable ref skills, workstream-create, settings-merge)
-- Phase 6: Update agency-init/update, starter packs, skill validation tests, final sweep
+| Phase | Status | Commit | Notes |
+|-------|--------|--------|-------|
+| 1: ADHOC Purge | COMPLETE | aa2313e | Already done in starter-sunset |
+| 2: Licensing/Infra | COMPLETE | aa2313e | Already done in prior sessions |
+| 3: Skills Port | COMPLETE | 8666e59 | All 33 skills present, zero monofolk residue |
+| 4: Tool/Agent Updates | COMPLETE | e04b884 | ref-injector multi-ref fix for ship/git-commit |
+| 5: Post-Init Enhancements | **IN PROGRESS** | — | Starting 5.1 |
+| 6: Cleanup/Verification | NOT STARTED | — | |
 
-**Review status:** Two multi-agent review passes completed (4 reviewers each: design, code, test, security). First pass: 52 findings, 13 fixes. Second pass: 65 findings, 12 fixes applied. Plan revised and ready for ExitPlanMode.
+**QGRs committed:**
+- `qgr-monofolk-phase1-aa2313e-20260402-0130.md`
+- `qgr-monofolk-phase2-aa2313e-20260402-0135.md`
+- `qgr-monofolk-phase3-8666e59-20260402-0140.md`
+- `qgr-monofolk-phase4-8666e59-20260402-0145.md`
 
-**Key decisions made:**
-1. Skills vs Commands — 33 new skills, 2 commands updated in place, 13 prototype skills OUT OF SCOPE
-2. Runtime parameterization via `agency-whoami` + `agency.yaml`, not install-time templating
-3. Skills call framework tools (existing architecture) — no new wrapper pattern needed
-4. Stage-hash stays TypeScript, bash wrapper at `claude/tools/stage-hash`
-5. --adhoc killed entirely, replaced with --no-work-item
-6. Licensing: MIT root, RSL per app workstream directory
-7. ops/ vs housekeeping/ — template uses ops/ as example, repos use their own names
-8. One PR per phase
-9. Ref-injector must use exact match (not substring) — security fix
+### Phase 5 Status (where we stopped)
 
-**Decisions from principal (session 10-11):**
-- ADHOC is dead. Salt the earth.
-- Build to the future — templates describe target state, plan implements it
-- Project CLAUDE.md is small (agent-facing), README is a paragraph, GETTINGSTARTED is "run agency-init"
-- No "fix later" — fix it now or file a bug
+Checked sub-items:
+- **5.1: Pluggable ref skills** — preview, deploy, crawl-sites skills do NOT exist yet. Need to create with provider-dispatch pattern.
+- **5.2: workstream-create** — skill already EXISTS
+- **5.3: Boundary skill verification** — NOT STARTED
+- **5.4: settings-merge** — tool already EXISTS
+- **5.5: Web content retrieval tools** — NOT STARTED
 
-## Next Steps
+## What's Next
 
-1. **ExitPlanMode** — plan is reviewed and revised
-2. **Execute Phase 1** — ADHOC purge (one PR)
-3. **Execute Phases 2-6** — one PR per phase
+1. **Implement Phase 5** — create preview/deploy/crawl-sites skills (provider-dispatch), build boundary verification, web content tools
+2. **QGR for Phase 5** — must produce QGR before committing
+3. **Phase 6: Cleanup/Verification** — agency-init skills install, agency-update, starter pack/fixture integration, skill validation tests, final sweep
+4. **QGR for Phase 6**
+5. **PR + push + merge** — when all phases done
 
-## Dispatch Queue
+## Key Constraint
 
-| # | Dispatch | Status |
-|---|----------|--------|
-| 1 | Plugin Provider Framework | MERGED |
-| 2 | Agency 2.0 Bootstrap | MERGED |
-| — | Workstream Bootstrap | MERGED |
-| 3 | ISCP Design | NOT STARTED — needs /discuss |
-| 4 | Browser Protocol | BLOCKED (bugs filed, no working browser path) |
-| 5 | Tool Refactor | DONE (PR #18 merged) |
-| 6 | QG Hardening | DONE |
-| 7 | Code Survey / Incremental Capture | Needs /discuss |
-| 8 | Token Economics Tools | PARTIAL — needs /discuss |
-| 9 | Agency-Init Design | DONE (PR #20 merged) |
-| 10 | CLAUDE.md Template & Monofolk Incorporation | IN PROGRESS (plan reviewed, ready to execute) |
-
-## Blocked Items
-
-**@bcherny tweet** (`x.com/bcherny/status/2038454336355999749`) — blocked on browser access. Principal needs to paste content.
-
-## Open Issues (Internal)
-
-| Issue | Status |
-|-------|--------|
-| ISS-007 | Open — agent-create must register in settings.json |
-| ISS-008 | Open — Dependabot triage |
-| ISS-009 | Open — status line redundant worktree naming |
-| ISS-012 | Open — worktrees in two locations (noted in agency-init design) |
-
-## Open Issues (GitHub — anthropics/claude-code)
-
-| Issue | Title |
-|-------|-------|
-| #41363 | `/feedback` fails with HTTP 413 — oversized context, silent drop |
-| #41367 | `claude mcp list` stale "Connected" after server crash |
-| #41370 | Computer Use tier references nonexistent `mcp__Claude_in_Chrome__*` tools |
-| #41371 | Claude in Chrome CSP errors block inline scripts |
-| #41099 | `request_access` lacks binary path and actionable guidance |
-| #41101 | Permissions reset on every CLI update (version-pinned binary) |
-| #41104 | No Safari browser automation support |
-
-Unfiled: Read tool pdftoppm PATH bug (poppler at /opt/homebrew/bin/ not in subprocess PATH).
-
-## CI
-
-Both workflows broken (agency-service deprecation):
-- `.github/workflows/test.yml` — references deleted `./tools/agency-service`
-- `.github/workflows/starter-verify.yml` — references `tools/myclaude`, `source/services/agency-service`
-
-Fix actions specified in agency-init design document.
-
-## Parked Topics
-
-- **Status line for agent activity** — needs /discuss
-- **Token Economics** — compound bash rule done, 4 items remain
-- **ISCP** — dispatch #3, not started
-- **Generalized Prototype Model** — revisit after dispatch incorporation (13 prototype skills)
+Principal requires QGR between every phase. "If I do not see QGRs, I will feed you to the attack kittens."
 
 ## Git State
 
 - Branch: `main`
-- HEAD: 14b8f3e
-- Working tree: clean (except handoff)
-- Origin: in sync
+- HEAD: e04b884
+- Working tree: clean (except handoff + untracked test artifacts)
+- Origin: behind by ~4 commits (need to push)
+- Untracked test artifacts: `.claude/agents/test$agent.md`, `testname.md`, `claude/workstreams/test; rm -rf /` (from security testing — safe to ignore)
+
+## Commits Since Last Push
+
+```
+e04b884 Monofolk Phase 3+4: skills verified + ref-injector multi-ref fix
+8666e59 Monofolk Phase 1+2 QG: ADHOC purge + licensing/infra verified complete
+aa2313e fix: config get returns not-found for missing keys, fix log_end arg order
+```
