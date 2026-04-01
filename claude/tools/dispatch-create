@@ -10,7 +10,7 @@
 #
 # Example:
 #   ./claude/tools/dispatch-create code-review-findings
-#   → usr/jordan/captain/dispatches/dispatch-code-review-findings-20260401-1430.md
+#   → usr/{principal}/captain/dispatches/dispatch-code-review-findings-20260401-1430.md
 #
 
 set -euo pipefail

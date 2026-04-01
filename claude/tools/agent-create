@@ -84,7 +84,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "  ./claude/tools/agent-create agent-manager agents"
     echo "  ./claude/tools/agent-create ui-specialist web --type=ux-dev"
     echo "  ./claude/tools/agent-create backend-dev api --type=generic --description='Backend development specialist'"
-    echo "  ./claude/tools/agent-create researcher research --seeds=usr/jordan/researcher/"
+    echo "  ./claude/tools/agent-create researcher research --seeds=usr/{principal}/researcher/"
     echo ""
     echo "Available templates:"
     if [[ -d "$TEMPLATE_DIR" ]]; then
