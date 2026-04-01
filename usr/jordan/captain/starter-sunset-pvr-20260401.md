@@ -135,12 +135,12 @@ Starter packs evolve into platform knowledge that feeds a generalized `/environm
 ## 7. Success Criteria
 
 - `agency init` on a bare `git init` + `claude init` repo produces a working Agency project
-- `agency update` syncs to latest, prepends to handoff, first session runs verification
+- `agency update` syncs to latest, writes update handoff, first session runs verification
 - Zero references to `the-agency-starter` in framework code (historical records excluded)
 - Starter packs evolved into platform knowledge for `/environment-setup`
 - Starter-specific tools, docs, workflows, and tests removed
 - Single `agency` script replaces all `agency-*` tools
-- Onboarding skill triggers automatically on first launch post-init
+- Onboarding triggers automatically on first launch post-init (via bootstrap handoff + session hook type awareness)
 - All BATS tests pass
 - Platform setup work from DevEx agent integrated
 
