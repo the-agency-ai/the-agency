@@ -1,52 +1,46 @@
 {
   "$schema": "./claude/docs/schemas/registry.schema.json",
-  "schema_version": "1.0",
-  "starter_version": "1.2.0",
+  "schema_version": "2.0",
+  "protected_paths": [
+    "usr/**/*",
+    "claude/principals/**/*",
+    "tools/local/**/*",
+    "claude/agents/captain/backups/**/*",
+    "claude/workstreams/housekeeping/sprints/**/*"
+  ],
   "components": {
     "core": {
-      "version": "1.2.0",
+      "version": "2.0.0",
       "description": "Core Agency framework - CLAUDE.md, basic structure, conventions",
       "files": [
         "CLAUDE.md",
         "claude/docs/**/*",
         "claude/config/**/*",
         "claude/agents/templates/**/*"
-      ],
-      "protected_paths": [
-        "usr/**/*",
-        "claude/principals/**/*"
       ]
     },
     "tools": {
-      "version": "1.2.0",
-      "description": "Agency CLI tools - myclaude, collaboration, scaffolding",
+      "version": "2.0.0",
+      "description": "Agency CLI and tools",
       "files": [
-        "tools/*"
-      ],
-      "protected_paths": [
-        "tools/local/**/*"
+        "claude/tools/*",
+        "claude/tools/lib/*"
       ],
       "dependencies": ["core"]
     },
     "captain": {
-      "version": "1.2.0",
+      "version": "2.0.0",
       "description": "The Captain agent - your guide to The Agency",
       "files": [
         "claude/agents/captain/**/*"
       ],
-      "protected_paths": [
-        "claude/agents/captain/backups/**/*"
-      ],
       "dependencies": ["core"]
     },
     "housekeeping": {
-      "version": "1.2.0",
+      "version": "2.0.0",
       "description": "The housekeeping workstream - default workspace",
       "files": [
         "claude/workstreams/housekeeping/**/*"
-      ],
-      "protected_paths": [
-        "claude/workstreams/housekeeping/sprints/**/*"
       ],
       "dependencies": ["core"]
     },
@@ -56,7 +50,6 @@
       "files": [
         "source/services/agency-service/**/*"
       ],
-      "install_hook": "cd source/services/agency-service && bun install",
       "dependencies": ["core"]
     },
     "starter-packs": {
@@ -91,9 +84,9 @@
       "version": "2.0.0",
       "description": "Worktree isolation for parallel agent sessions",
       "files": [
-        "tools/worktree-create",
-        "tools/worktree-list",
-        "tools/worktree-delete"
+        "claude/tools/worktree-create",
+        "claude/tools/worktree-list",
+        "claude/tools/worktree-delete"
       ],
       "dependencies": ["core", "tools"]
     },

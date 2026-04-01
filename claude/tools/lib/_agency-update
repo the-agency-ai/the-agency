@@ -1,43 +1,339 @@
-# _agency-update — Sync framework to latest (stub)
+# _agency-update — Sync framework to latest from source
 #
 # Sourced by: agency update
 # Arguments via: AGENCY_ARGS array
 # Inherits: set -euo pipefail, AGENCY_DIR, _log-helper, colors
 #
-# TODO: Full implementation in Phase 3 of starter-sunset plan.
-# This stub provides the interface and help text.
+# Source detection (in order):
+#   1. $AGENCY_SOURCE environment variable
+#   2. ../the-agency/ (sibling directory)
+#
+# Protected paths from registry.json top-level array are never overwritten.
+# Settings merged via settings-merge tool (array union, not overwrite).
 
 RUN_ID=$(log_start "agency-update" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/dev/null) || true
 
-for arg in "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}"; do
-    case "$arg" in
-        --help|-h)
-            echo "agency update — Sync framework to latest"
-            echo ""
-            echo "Usage: agency update"
-            echo ""
-            echo "Syncs framework files from the-agency source repo."
-            echo "Merges settings via settings-merge (array union)."
-            echo "Archives existing handoff, writes update handoff."
-            echo ""
-            echo "Source detection (in order):"
-            echo "  1. \$AGENCY_SOURCE environment variable"
-            echo "  2. ../the-agency/ (sibling directory)"
-            echo ""
-            echo "This command is not yet implemented."
-            exit 0
-            ;;
+# --- Defaults ---
+VERBOSE=false
+DRY_RUN=false
+TARGET_DIR=""
+
+_update_help() {
+    cat << 'EOF'
+agency update — Sync framework to latest
+
+Usage:
+  agency update [target-dir]         Update target (default: cwd)
+  agency update --dry-run            Show what would change, don't apply
+
+Options:
+  --verbose        Show detailed output
+  --dry-run        Preview changes without applying
+  --help, -h       Show this help
+
+Source detection (in order):
+  1. $AGENCY_SOURCE environment variable
+  2. ../the-agency/ (sibling directory)
+
+Protected paths (from registry.json) are never overwritten.
+Settings merged via array union (new permissions added, existing kept).
+EOF
+}
+
+# --- Parse AGENCY_ARGS ---
+set -- "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) _update_help; exit 0 ;;
+        --verbose) VERBOSE=true; shift ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        -*) echo "Unknown option: $1" >&2; _update_help; exit 1 ;;
+        *) TARGET_DIR="$1"; shift ;;
     esac
 done
 
-echo "agency update [run: ${RUN_ID:-none}]"
-echo ""
-echo -e "${YELLOW}[WARN]${NC} agency update is not yet implemented."
-echo "Full implementation coming in Phase 3 of the starter-sunset plan."
-echo ""
-echo "For now, to update manually:"
-echo "  1. git pull in your the-agency clone"
-echo "  2. Run agency init again (or copy files manually)"
-echo ""
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 
-log_end "$RUN_ID" "success" 0 0 "Stub — not implemented" 2>/dev/null || true
+_update_main() {
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "agency update [run: ${RUN_ID:-none}]"
+
+    # --- Resolve target ---
+    TARGET_DIR="${TARGET_DIR:-$(pwd)}"
+    TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd)" || {
+        log_error "Target directory does not exist: $TARGET_DIR"
+        exit 1
+    }
+
+    # --- Precondition: initialized ---
+    if [[ ! -f "$TARGET_DIR/claude/config/agency.yaml" ]]; then
+        log_error "Agency not initialized in $TARGET_DIR"
+        echo "Run 'agency init' first."
+        exit 1
+    fi
+
+    # --- Source detection ---
+    local SOURCE_DIR=""
+    if [[ -n "${AGENCY_SOURCE:-}" ]]; then
+        SOURCE_DIR="$AGENCY_SOURCE"
+    elif [[ -f "$TARGET_DIR/../the-agency/claude/config/agency.yaml" ]]; then
+        SOURCE_DIR="$(cd "$TARGET_DIR/../the-agency" && pwd)"
+    elif [[ -f "$AGENCY_DIR/../claude/config/agency.yaml" ]]; then
+        # Running from the framework itself — AGENCY_DIR points to claude/
+        SOURCE_DIR="$(cd "$AGENCY_DIR/.." && pwd)"
+    fi
+
+    if [[ -z "$SOURCE_DIR" ]] || [[ ! -f "$SOURCE_DIR/claude/config/agency.yaml" ]]; then
+        log_error "Agency source not found."
+        echo ""
+        echo "Set AGENCY_SOURCE to the path of your the-agency clone:"
+        echo "  export AGENCY_SOURCE=~/code/the-agency"
+        echo "  agency update"
+        echo ""
+        echo "Or place the-agency repo as a sibling directory:"
+        echo "  ~/code/the-agency/    (source)"
+        echo "  ~/code/your-project/  (target)"
+        exit 1
+    fi
+
+    # --- Resolve versions ---
+    local from_commit to_commit from_version to_version
+    from_commit=$(grep '^  source_commit:' "$TARGET_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
+    from_version=$(grep '^  version:' "$TARGET_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
+    to_commit=$(git -C "$SOURCE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
+    to_version=$(grep '^  version:' "$SOURCE_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "2.0.0")
+    to_version="${to_version:-2.0.0}"
+
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Agency Update${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  Target:  $TARGET_DIR"
+    echo "  Source:  $SOURCE_DIR"
+    echo "  From:    ${from_version} (${from_commit:0:8})"
+    echo "  To:      ${to_version} (${to_commit:0:8})"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "  Mode:    ${YELLOW}dry-run${NC}"
+    fi
+    echo ""
+
+    # --- Load protected paths from registry ---
+    local protected_paths=()
+    if [[ -f "$TARGET_DIR/registry.json" ]] && command -v jq >/dev/null 2>&1; then
+        while IFS= read -r path; do
+            protected_paths+=("$path")
+        done < <(jq -r '.protected_paths[]? // empty' "$TARGET_DIR/registry.json" 2>/dev/null)
+    fi
+    log_info "Protected paths: ${protected_paths[*]:-none}"
+
+    # --- Build rsync exclude list ---
+    local rsync_excludes=()
+    # Always protect project-specific config
+    rsync_excludes+=("--exclude" "config/agency.yaml")
+    # Protected paths from registry
+    for pp in "${protected_paths[@]+"${protected_paths[@]}"}"; do
+        rsync_excludes+=("--exclude" "$pp")
+    done
+
+    # --- Counters ---
+    local added=0 updated=0 removed=0
+
+    # =====================================================================
+    # Step 1: Sync claude/ framework directory
+    # =====================================================================
+    log_step "Syncing framework files"
+
+    # Use rsync in dry-run or real mode
+    local rsync_flags=("-rlpt" "--delete")
+    [[ "$VERBOSE" == "true" ]] && rsync_flags+=("-v")
+    [[ "$DRY_RUN" == "true" ]] && rsync_flags+=("--dry-run")
+
+    # Sync claude/ (excluding agency.yaml, protected paths, and workstreams)
+    local rsync_output
+    rsync_output=$(rsync "${rsync_flags[@]}" \
+        "${rsync_excludes[@]+"${rsync_excludes[@]}"}" \
+        --exclude "workstreams/" \
+        --exclude "usr/" \
+        --itemize-changes \
+        "$SOURCE_DIR/claude/" "$TARGET_DIR/claude/" 2>&1) || true
+
+    # Count changes from itemize output
+    if [[ -n "$rsync_output" ]]; then
+        added=$(echo "$rsync_output" | grep -c '^>f+++' || true)
+        updated=$(echo "$rsync_output" | grep -c '^>f\.\.' || true)
+        removed=$(echo "$rsync_output" | grep -c '^\*deleting' || true)
+        [[ "$VERBOSE" == "true" ]] && echo "$rsync_output"
+    fi
+
+    log_info "claude/ sync: +$added ~$updated -$removed"
+
+    # =====================================================================
+    # Step 2: Sync .claude/ discovery files
+    # =====================================================================
+    log_step "Syncing .claude/ discovery files"
+
+    # Skills
+    if [[ -d "$SOURCE_DIR/.claude/skills" ]]; then
+        mkdir -p "$TARGET_DIR/.claude/skills"
+        local skill_output
+        skill_output=$(rsync "${rsync_flags[@]}" \
+            --itemize-changes \
+            "$SOURCE_DIR/.claude/skills/" "$TARGET_DIR/.claude/skills/" 2>&1) || true
+        if [[ -n "$skill_output" ]] && [[ "$VERBOSE" == "true" ]]; then
+            echo "$skill_output"
+        fi
+        local skill_added
+        skill_added=$(echo "${skill_output:-}" | grep -c '^>f+++' || true)
+        added=$((added + skill_added))
+    fi
+
+    # Commands
+    if [[ -d "$SOURCE_DIR/.claude/commands" ]]; then
+        mkdir -p "$TARGET_DIR/.claude/commands"
+        local cmd_output
+        cmd_output=$(rsync "${rsync_flags[@]}" \
+            --itemize-changes \
+            "$SOURCE_DIR/.claude/commands/" "$TARGET_DIR/.claude/commands/" 2>&1) || true
+        if [[ -n "$cmd_output" ]] && [[ "$VERBOSE" == "true" ]]; then
+            echo "$cmd_output"
+        fi
+    fi
+
+    # =====================================================================
+    # Step 3: Settings merge
+    # =====================================================================
+    log_step "Merging settings"
+
+    if [[ -f "$TARGET_DIR/claude/tools/settings-merge" ]]; then
+        if [[ "$DRY_RUN" == "true" ]]; then
+            bash "$TARGET_DIR/claude/tools/settings-merge" --dry-run 2>/dev/null || true
+        else
+            bash "$TARGET_DIR/claude/tools/settings-merge" 2>/dev/null || log_warn "settings-merge failed — settings.json unchanged"
+        fi
+    else
+        log_warn "settings-merge tool not found — skipping settings merge"
+    fi
+
+    # =====================================================================
+    # Step 4: Update agency.yaml framework section
+    # =====================================================================
+    log_step "Updating agency.yaml"
+
+    if [[ "$DRY_RUN" == "false" ]]; then
+        local yaml_file="$TARGET_DIR/claude/config/agency.yaml"
+        local updated_at
+        updated_at=$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')
+
+        # Update version, updated_at, source_commit in the framework section
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' "s|^  version: .*|  version: \"$to_version\"|" "$yaml_file"
+            sed -i '' "s|^  updated_at: .*|  updated_at: \"$updated_at\"|" "$yaml_file"
+            sed -i '' "s|^  source_commit: .*|  source_commit: \"$to_commit\"|" "$yaml_file"
+        else
+            sed -i "s|^  version: .*|  version: \"$to_version\"|" "$yaml_file"
+            sed -i "s|^  updated_at: .*|  updated_at: \"$updated_at\"|" "$yaml_file"
+            sed -i "s|^  source_commit: .*|  source_commit: \"$to_commit\"|" "$yaml_file"
+        fi
+    fi
+
+    log_info "Updated framework section in agency.yaml"
+
+    # =====================================================================
+    # Step 5: Update manifest
+    # =====================================================================
+    log_step "Updating manifest"
+
+    if [[ "$DRY_RUN" == "false" ]] && [[ -f "$TARGET_DIR/claude/config/manifest.json" ]] && command -v jq >/dev/null 2>&1; then
+        local tmp_manifest
+        tmp_manifest=$(mktemp)
+        jq --arg ver "$to_version" --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            '.project.framework_version = $ver | .project.updated_at = $ts' \
+            "$TARGET_DIR/claude/config/manifest.json" > "$tmp_manifest" 2>/dev/null && \
+            mv "$tmp_manifest" "$TARGET_DIR/claude/config/manifest.json"
+    fi
+
+    log_info "Manifest updated"
+
+    # =====================================================================
+    # Step 6: Write update handoff
+    # =====================================================================
+    log_step "Writing update handoff"
+
+    if [[ "$DRY_RUN" == "false" ]]; then
+        # Read previous handoff summary before archiving
+        local prev_summary=""
+        local handoff_path
+        handoff_path=$(bash "$TARGET_DIR/claude/tools/handoff" path 2>/dev/null || echo "")
+        if [[ -n "$handoff_path" ]] && [[ -f "$handoff_path" ]]; then
+            # Get first 20 lines of content (after frontmatter) for summary
+            prev_summary=$(sed '1,/^---$/d; 1,/^---$/d' "$handoff_path" 2>/dev/null | head -20 || true)
+        fi
+
+        # Archive existing handoff
+        bash "$TARGET_DIR/claude/tools/handoff" archive 2>/dev/null || true
+
+        # Write update handoff directly (handoff write signals the agent,
+        # but we want to write the content ourselves)
+        if [[ -n "$handoff_path" ]]; then
+            cat > "$handoff_path" << UPDATE_EOF
+---
+type: agency-update
+date: $(date '+%Y-%m-%d %H:%M')
+from_commit: ${from_commit:0:8}
+to_commit: ${to_commit:0:8}
+---
+
+## Agency Update
+
+Updated framework from ${from_version} (${from_commit:0:8}) to ${to_version} (${to_commit:0:8}).
+
+### Changes
+- $added files added, $updated files updated, $removed files removed
+- Settings merged via array union
+- Framework section in agency.yaml updated
+
+### Verify the update
+Run \`agency verify\` to confirm everything is in order.
+
+### Previous session state
+${prev_summary:-No previous session state.}
+UPDATE_EOF
+        fi
+    fi
+
+    log_info "Update handoff written"
+
+    # =====================================================================
+    # Done
+    # =====================================================================
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "${YELLOW}  Agency Update — Dry Run Complete${NC}"
+    else
+        echo -e "${GREEN}  Agency Updated!${NC}"
+    fi
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  From:    ${from_version} (${from_commit:0:8})"
+    echo "  To:      ${to_version} (${to_commit:0:8})"
+    echo "  Changes: +$added ~$updated -$removed"
+    echo ""
+    if [[ "$DRY_RUN" == "false" ]]; then
+        echo "Next steps:"
+        echo "  1. Run 'agency verify' to confirm"
+        echo "  2. Review changes with 'git diff'"
+        echo "  3. Commit when satisfied"
+    fi
+    echo ""
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Updated from ${from_commit:0:8} to ${to_commit:0:8}" 2>/dev/null || true
+}
+
+_update_main
