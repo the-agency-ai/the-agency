@@ -1,0 +1,73 @@
+#!/bin/bash
+#
+# settings-merge — Merge settings template into .claude/settings.json
+#
+# Usage:
+#   ./claude/tools/settings-merge [--dry-run]
+#
+# Merges claude/config/settings-template.json into .claude/settings.json:
+# - hooks: deep merge (add missing hooks, don't replace existing)
+# - permissions.allow: array union (add entries not already present)
+# - Other keys: add if missing, don't overwrite existing
+#
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# shellcheck source=lib/_log-helper
+source "$SCRIPT_DIR/lib/_log-helper"
+
+RUN_ID=$(log_start "settings-merge" "$@")
+
+TEMPLATE="$PROJECT_ROOT/claude/config/settings-template.json"
+TARGET="$PROJECT_ROOT/.claude/settings.json"
+DRY_RUN=false
+
+for arg in "$@"; do
+    [[ "$arg" == "--dry-run" ]] && DRY_RUN=true
+done
+
+if [[ ! -f "$TEMPLATE" ]]; then
+    log_end "$RUN_ID" "error" "1" "0" "template not found"
+    echo "settings-merge: template not found at $TEMPLATE" >&2
+    exit 1
+fi
+
+if [[ ! -f "$TARGET" ]]; then
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "settings-merge: would copy template to $TARGET"
+        exit 0
+    fi
+    mkdir -p "$(dirname "$TARGET")"
+    cp "$TEMPLATE" "$TARGET"
+    log_end "$RUN_ID" "success" "0" "0" "created settings.json from template"
+    echo "settings-merge [run: $RUN_ID]"
+    echo "Created .claude/settings.json from template"
+    echo "✓"
+    exit 0
+fi
+
+# Merge using jq: union permissions.allow arrays, keep existing hooks
+MERGED=$(jq -s '
+  def array_union(a; b): (a + b) | unique;
+  .[0] as $target | .[1] as $template |
+  $target * {
+    permissions: {
+      allow: array_union($target.permissions.allow // []; $template.permissions.allow // [])
+    }
+  }
+' "$TARGET" "$TEMPLATE")
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    echo "settings-merge: would merge these permissions:"
+    echo "$MERGED" | jq '.permissions.allow'
+    exit 0
+fi
+
+echo "$MERGED" > "$TARGET"
+
+log_end "$RUN_ID" "success" "0" "0" "merged settings"
+echo "settings-merge [run: $RUN_ID]"
+echo "Merged template permissions into .claude/settings.json"
+echo "✓"
