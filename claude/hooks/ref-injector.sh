@@ -23,25 +23,35 @@ DOCS_DIR="${AGENCY_PROJECT_ROOT:-.}/claude/docs"
 INPUT=$(cat)
 SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // empty' 2>/dev/null)
 
-# Map skills to reference files
-REF_FILE=""
+# Map skills to reference files (exact match only — no substring/glob)
+REF_FILES=()
 case "$SKILL" in
-  iteration-complete|phase-complete|plan-complete|quality-gate|pr-prep|git-commit|ship)
-    REF_FILE="$DOCS_DIR/QUALITY-GATE.md"
+  iteration-complete|phase-complete|plan-complete|quality-gate|pr-prep)
+    REF_FILES+=("$DOCS_DIR/QUALITY-GATE.md")
+    ;;
+  git-commit|ship)
+    REF_FILES+=("$DOCS_DIR/QUALITY-GATE.md")
+    REF_FILES+=("$DOCS_DIR/CODE-REVIEW-LIFECYCLE.md")
     ;;
   pre-phase-review|define|design)
-    REF_FILE="$DOCS_DIR/DEVELOPMENT-METHODOLOGY.md"
+    REF_FILES+=("$DOCS_DIR/DEVELOPMENT-METHODOLOGY.md")
     ;;
   captain-review|code-review|review-pr|pr-respond|diff-summary)
-    REF_FILE="$DOCS_DIR/CODE-REVIEW-LIFECYCLE.md"
+    REF_FILES+=("$DOCS_DIR/CODE-REVIEW-LIFECYCLE.md")
     ;;
   feedback)
-    REF_FILE="$DOCS_DIR/FEEDBACK-FORMAT.md"
+    REF_FILES+=("$DOCS_DIR/FEEDBACK-FORMAT.md")
     ;;
 esac
 
-if [ -n "$REF_FILE" ] && [ -f "$REF_FILE" ]; then
-  CONTENT=$(cat "$REF_FILE")
+CONTENT=""
+for REF_FILE in "${REF_FILES[@]+"${REF_FILES[@]}"}"; do
+  if [ -f "$REF_FILE" ]; then
+    CONTENT="${CONTENT}$(cat "$REF_FILE")"$'\n'
+  fi
+done
+
+if [ -n "$CONTENT" ]; then
   printf '{"systemMessage":%s}' "$(printf '%s' "$CONTENT" | jq -Rs '.')"
 fi
 # No output when no ref matches — avoids empty system message in context
