@@ -64,7 +64,7 @@ See `projects/mockandmark/README.md` for details.
 
 | Product | Description | Status |
 |---------|-------------|--------|
-| **the-agency-starter** | Open source multi-agent framework | Active |
+| **the-agency** | Open source multi-agent framework | Active |
 | **Workbench** | Internal developer tools | In development |
 | **MockAndMark** | Screenshot annotation app | Starting |
 

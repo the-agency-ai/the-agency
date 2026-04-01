@@ -490,7 +490,7 @@ my-project/
     │   ├── stage-hash           — deterministic staging area hash
     │   ├── git-commit           — QG-aware commit wrapper
     │   ├── settings-merge       — merge settings template into current
-    │   └── ...                  — (agency-init, agency-update, worktree-*, etc.)
+    │   └── ...                  — (worktree-*, etc.)
     ├── usr/                     — agent INSTANCES (per-principal sandboxes)
     │   └── {principal}/
     │       └── {project}/       — one directory per project
@@ -549,7 +549,7 @@ The project `CLAUDE.md` owns the project context — what this repo is, how to b
 
 This separation means:
 - **The project team** maintains `CLAUDE.md` with project-specific content. They don't touch the Agency file.
-- **TheAgency framework** maintains `claude/CLAUDE-THEAGENCY.md` with methodology. It's the same across repos (installed by `agency-init`).
+- **TheAgency framework** maintains `claude/CLAUDE-THEAGENCY.md` with methodology. It's the same across repos (installed by `agency init`).
 - **Updates to the methodology** propagate to all projects by updating `claude/CLAUDE-THEAGENCY.md` — no changes to individual project CLAUDE.md files needed.
 - **`claude/usr/{principal}/claude/CLAUDE.md` (the personal user-level file) goes to zero** — everything it contained is now in either the project CLAUDE.md or the Agency template.
 

@@ -20,13 +20,15 @@ TheAgency is an opinionated convention-over-configuration system for running mul
 
 ## Getting Started
 
-The installer handles everything - including Claude Code - to get you up and running:
+Initialize Agency in any git repo:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-starter/main/install.sh | bash
+cd your-project
+git init && claude init
+agency init
 ```
 
-See the [Quick Start Guide](claude/docs/QUICK-START.md) for detailed setup instructions.
+See `claude/README-GETTINGSTARTED.md` for detailed setup instructions.
 
 ## Repository Structure
 

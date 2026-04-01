@@ -320,17 +320,17 @@ Insights about multi-agent development, patterns that work, or lessons learned s
 - Conversations that clarify product vision
 - Time savings or productivity insights
 
-### Agency Starter Feedback
+### Agency Framework Feedback
 
-Found something that could improve the-agency-starter framework? Capture it:
+Found something that could improve The Agency framework? Capture it:
 
 ```bash
-./tools/agency-feedback "Brief title" "Detailed feedback"
+agency feedback "Brief title" "Detailed feedback"
 ```
 
 **What to report:**
 - Missing tools that would help
 - Documentation gaps
-- Patterns that should be in the starter template
+- Patterns that should be in the framework
 - Onboarding friction points
 - Ideas for new agent types

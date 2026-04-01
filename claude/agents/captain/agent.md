@@ -165,7 +165,7 @@ When you launch me, I'll read the handoff and pick up where we left off.
 ## Quick Reference
 
 **Common Tasks:**
-- Setup project: `./claude/tools/agency-init`
+- Setup project: `agency init`
 - Create workstream: `./claude/tools/workstream-create [name]`
 - Define agent class: `./claude/tools/agent-define [name]`
 - Create agent instance: `./claude/tools/agent-create [workstream] [name]`

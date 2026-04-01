@@ -3,7 +3,9 @@
 ## Install
 
 ```bash
-agency-init <your-repo-path>
+cd your-project
+git init && claude init
+agency init
 ```
 
 This installs the framework into any git repo: tools, skills, agent templates, methodology, and configuration.
@@ -11,7 +13,7 @@ This installs the framework into any git repo: tools, skills, agent templates, m
 ## Update
 
 ```bash
-agency-update
+agency update
 ```
 
 Updates framework files to the latest version. Your project-specific files are preserved.
@@ -25,9 +27,10 @@ Updates framework files to the latest version. Your project-specific files are p
 
 ## Next Steps
 
-1. Create a principal: `./claude/tools/principal-create <name>`
-2. Create an agent: `./claude/tools/agent-create <workstream> <name>`
-3. Launch: `claude --agent <name>`
+1. Run `agency verify` to confirm installation
+2. Explore skills: type `/` to see the skill list
+3. Start a discussion: `/discuss`
+4. When ready to build: `/define` to create a PVR
 
 ## House Rules
 

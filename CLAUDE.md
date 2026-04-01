@@ -1,12 +1,12 @@
 # The Agency
 
-This is the **framework development repo** — TheAgency itself. You are building the tools, methodology, agent classes, and skills that `agency-init` ships to other projects.
+This is the **framework development repo** — TheAgency itself. You are building the tools, methodology, agent classes, and skills that `agency init` ships to other projects.
 
 ## This Repo
 
 - **Framework code:** `claude/` (tools, agents, docs, hooks, skills, templates, starter packs)
 - **App workstreams:** `claude/workstreams/markdown-pal/`, `claude/workstreams/mock-and-mark/` (Reference Source License)
-- **Test fixtures:** `test/test-agency-project/`, `test/the-agency-starter/` (embedded git repos — commit inside them separately)
+- **Test fixtures:** `test/test-agency-project/` (embedded git repo — commit inside it separately)
 - **Principal sandbox:** `usr/jordan/` (captain instance, dispatches, transcripts)
 
 ## Licensing

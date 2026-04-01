@@ -13,10 +13,6 @@ targets:
     runner: bun
     description: Main agency service tests
 
-  - id: starter
-    path: test/the-agency-starter/source/services/agency-service
-    runner: bun
-    description: Starter kit tests
 
 suites:
   - id: all
