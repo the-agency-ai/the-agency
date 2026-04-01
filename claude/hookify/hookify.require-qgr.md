@@ -19,3 +19,5 @@ If this is an iteration commit: QGR must be clean, no approval needed.
 If this is a phase commit: QGR must be clean AND principal must have approved.
 
 If any of these are not true, stop and complete the Quality Gate before committing.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

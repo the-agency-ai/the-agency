@@ -28,3 +28,11 @@ Updates framework files to the latest version. Your project-specific files are p
 1. Create a principal: `./claude/tools/principal-create <name>`
 2. Create an agent: `./claude/tools/agent-create <workstream> <name>`
 3. Launch: `claude --agent <name>`
+
+## House Rules
+
+TheAgency has rules. We enforce them mechanically — hooks, hookify rules, quality gates. Not suggestions. Not guidelines. Rules.
+
+Why? Because agents forget prose. Humans forget prose. Mechanical enforcement doesn't forget.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

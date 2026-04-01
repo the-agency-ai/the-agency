@@ -14,3 +14,5 @@ Also verify you are NOT on `main` or `master` — all changes go through PR bran
 ```bash
 git checkout -b {workstream}/{description}
 ```
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
