@@ -201,6 +201,19 @@ When drafting feedback or bug reports **for Anthropic / Claude Code** (via `/fee
 - **No unactionable noise** — every warning must trigger action or get fixed at the source.
 - **Verify, don't assume** — read the docs, check the data, debug with evidence. Don't cargo-cult patterns.
 - **Enforce conventions mechanically** — hooks and rules, not prose. Prose gets forgotten.
+
+### The Enforcement Triangle
+
+Every capability follows the same three-part pattern:
+
+| Layer | What | Why |
+|-------|------|-----|
+| **Tool** (bash, `claude/tools/`) | Does the work. Pre-approved in `settings.json`. | Permissions. No prompts for approved operations. |
+| **Skill** (markdown, `.claude/commands/` or `.claude/skills/`) | Tells the agent when and how to use the tool. | Discovery. Agents find it via `/` autocomplete. |
+| **Hookify rule** (`claude/hookify/`) | Blocks the raw alternative. Points to the skill. | Compliance. Can't bypass. |
+
+When building a new capability: build the tool, wrap it in a skill, block the raw alternative with a hookify rule. All three. Not one, not two. The tool handles permissions, the skill handles discovery, the hookify rule handles compliance. *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+
 - **No stale artifacts** — unused config, orphaned files, outdated docs — delete or update. Version control remembers.
 
 **When something fails:**
