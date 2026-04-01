@@ -45,20 +45,22 @@ jobs:
             exit 1
           fi
 
-      - name: Verify tools are executable
+      - name: Verify tools with shebangs are executable
         run: |
           echo "Checking tool permissions..."
           fail=0
           for tool in claude/tools/*; do
-            if [ -f "$tool" ] && [ ! -x "$tool" ]; then
-              echo "Not executable: $tool"
-              fail=1
+            if [ -f "$tool" ] && head -1 "$tool" | grep -q '^#!'; then
+              if [ ! -x "$tool" ]; then
+                echo "Not executable: $tool"
+                fail=1
+              fi
             fi
           done
           if [ $fail -eq 1 ]; then
             exit 1
           fi
-          echo "All tools are executable"
+          echo "All shebang tools are executable"
 
       - name: Verify hooks are executable
         run: |
