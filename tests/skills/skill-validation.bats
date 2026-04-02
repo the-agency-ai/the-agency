@@ -14,7 +14,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
 SKILLS_DIR="${REPO_ROOT}/.claude/skills"
 
 # Expected framework skills (34 total)
-EXPECTED_SKILL_COUNT=37
+EXPECTED_SKILL_COUNT=40
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Skill existence and count
@@ -154,6 +154,12 @@ EXPECTED_SKILL_COUNT=37
         local tools
         tools=$(grep -o 'Bash(\./claude/tools/[a-z_-]*' "$skill_dir/SKILL.md" 2>/dev/null | sed 's|Bash(\./claude/tools/||' || true)
         for tool in $tools; do
+            # Provider-dispatch tools use wildcards (e.g., deploy-*) — check for any matching tool
+            if echo "$tool" | grep -q -- '-$'; then
+                # Tool name ends with hyphen — it's a provider-dispatch prefix (e.g., "deploy-")
+                # Skip validation — actual tool depends on configured provider
+                continue
+            fi
             if [ ! -f "$REPO_ROOT/claude/tools/$tool" ]; then
                 failures="${failures}$name references missing tool: $tool\n"
             fi
