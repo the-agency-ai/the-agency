@@ -73,7 +73,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to:
 This repository uses an **open core** model:
 
 - **Framework** (tools, agents, docs, methodology) — [MIT License](LICENSE)
-- **App workstreams** (Markdown Pal, Mock and Mark, future apps/services) — [Reference Source License](claude/workstreams/markdown-pal/LICENSE) (view, contribute, no commercial redistribution)
+- **App workstreams** (Markdown Pal, Mock and Mark, future apps/services) — [Reference Source License](claude/workstreams/mdpal/LICENSE) (view, contribute, no commercial redistribution)
 
 Each app workstream directory contains its own LICENSE file.
 

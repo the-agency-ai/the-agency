@@ -5,7 +5,7 @@ This is the **framework development repo** — TheAgency itself. You are buildin
 ## This Repo
 
 - **Framework code:** `claude/` (tools, agents, docs, hooks, skills, templates, starter packs)
-- **App workstreams:** `claude/workstreams/markdown-pal/`, `claude/workstreams/mock-and-mark/` (Reference Source License)
+- **App workstreams:** `claude/workstreams/mdpal/`, `claude/workstreams/mock-and-mark/` (Reference Source License)
 - **Test fixtures:** `test/test-agency-project/` (embedded git repo — commit inside it separately)
 - **Principal sandbox:** `usr/jordan/` (captain instance, dispatches, transcripts)
 
@@ -13,7 +13,7 @@ This is the **framework development repo** — TheAgency itself. You are buildin
 
 Open core model:
 - **Framework** (everything except app workstreams) — MIT License (`LICENSE`)
-- **App workstreams** (markdown-pal, mock-and-mark) — Reference Source License (per-directory `LICENSE`)
+- **App workstreams** (mdpal, mock-and-mark) — Reference Source License (per-directory `LICENSE`)
 
 ## Testing
 
