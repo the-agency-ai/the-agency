@@ -44,7 +44,7 @@ Artifacts that are **executable code, framework methodology, or configuration th
 | Artifact | Examples |
 |----------|---------|
 | Tools | `claude/tools/*` (bash scripts) |
-| Skills | `.claude/skills/*/SKILL.md`, `claude/usr/*/commands/*.md` |
+| Skills | `.claude/skills/*/SKILL.md`, `usr/*/commands/*.md` |
 | Hookify rules | `claude/hookify/*.md` |
 | Agent class definitions | `claude/agents/*/agent.md` |
 | Framework methodology | `claude/CLAUDE-THEAGENCY.md` changes |

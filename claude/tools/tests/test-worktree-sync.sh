@@ -73,7 +73,7 @@ setup_repo() {
     # Don't copy log helper — it uses python3 for UUID generation which can hang in temp repos
     # The tool handles missing _log-helper gracefully (logging is optional)
 
-    # Don't copy sandbox-sync — temp repo doesn't have claude/usr/ structure
+    # Don't copy sandbox-sync — temp repo doesn't have usr/ structure
     # The tool handles missing sandbox-sync gracefully
 
     git add -A
@@ -279,8 +279,8 @@ echo ""
 echo "Test: dispatch detection"
 setup_repo
 cd "$TMPBASE/main"
-mkdir -p claude/usr/jordan/captain/dispatches
-echo "dispatch content" > claude/usr/jordan/captain/dispatches/dispatch-test-20260401.md
+mkdir -p usr/jordan/captain/dispatches
+echo "dispatch content" > usr/jordan/captain/dispatches/dispatch-test-20260401.md
 git add -A
 git commit -m "add dispatch" --quiet
 cd "$TMPBASE/worktree"

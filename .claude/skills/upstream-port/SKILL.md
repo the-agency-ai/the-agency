@@ -25,7 +25,7 @@ Common patterns:
 bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port claude/tools/flag
 
 # Port a skill (auto-maps commands/X.md → .claude/skills/X/SKILL.md)
-bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port claude/usr/jordan/commands/flag.md
+bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port usr/jordan/commands/flag.md
 
 # Port with auto-merge
 bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port claude/tools/flag --auto-merge

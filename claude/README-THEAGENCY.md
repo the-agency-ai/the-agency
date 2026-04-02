@@ -41,12 +41,12 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 - **Review agents** — code-reviewer, security-reviewer, design-reviewer, test-reviewer, scorer
 
 ### Agent Definitions
-- **Class/instance model** — `claude/agents/{class}/agent.md` defines roles; `claude/usr/{principal}/{agent}/` is the working instance
+- **Class/instance model** — `claude/agents/{class}/agent.md` defines roles; `usr/{principal}/{agent}/` is the working instance
 - **Standard classes** — captain, tech-lead, marketing-lead, platform-specialist, researcher
 - **Workstream model** — agents work on workstreams with shared artifacts (seeds, PVR, A&D, Plan)
 
 ### Operational Conventions
-- **Sandbox principle** — per-principal workspace (`claude/usr/{principal}/`), zero team impact, opt-in adoption
+- **Sandbox principle** — per-principal workspace (`usr/{principal}/`), zero team impact, opt-in adoption
 - **Git discipline** — remote master read-only, never push without permission, mechanical enforcement via hookify
 - **Code review lifecycle** — three tools (/code-review, /review-pr, /phase-complete) for different purposes
 - **Dispatch model** — narrow, broadcast communications between agents and workstreams
@@ -124,7 +124,7 @@ Tests: 334 passing (21 new: 8 bug-exposing, 13 coverage), 0 failing
 Each gate writes a standalone receipt file:
 
 ```
-claude/usr/{principal}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md
+usr/{principal}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md
 ```
 
 The stage hash is a deterministic 7-character hash computed from the git staging area. `/git-commit` computes the same hash and globs for a matching receipt — if none exists, it warns that no QG was run.
@@ -186,7 +186,7 @@ Handoff files are a first-class Agency primitive. They serve multiple purposes b
 
 ### How It Works
 
-Handoff files live at `claude/usr/{principal}/{project}/handoff.md`. The `claude/tools/handoff` tool manages the lifecycle:
+Handoff files live at `usr/{principal}/{project}/handoff.md`. The `claude/tools/handoff` tool manages the lifecycle:
 
 - **`handoff write`** — auto-archives the existing handoff to `history/handoff-YYYYMMDD-HHMMSS.md`, then signals the agent to write new content
 - **`handoff write --lightweight`** — appends/updates a status line without archiving (for `/sync-all`)
@@ -214,7 +214,7 @@ The 1B1 (one-by-one) protocol is how agents present information to principals. I
 
 The core idea: when there are multiple items to discuss, address each one individually. Present → get feedback → confirm understanding (reflective listening) → revise → iterate → resolve → confirm resolution → next item. Never skip the "confirm understanding" step — it's the one agents skip most, and skipping it leads to wasted revision cycles.
 
-The `/discuss` skill implements the full 8-step cycle and auto-starts a `/transcript` to capture decisions as they're made. The discussion IS the record. Transcripts live at `claude/usr/{principal}/{project}/transcripts/` and persist decisions, rationale, and context that would otherwise be lost when the conversation scrolls off-screen or the session ends.
+The `/discuss` skill implements the full 8-step cycle and auto-starts a `/transcript` to capture decisions as they're made. The discussion IS the record. Transcripts live at `usr/{principal}/{project}/transcripts/` and persist decisions, rationale, and context that would otherwise be lost when the conversation scrolls off-screen or the session ends.
 
 The 1B1 protocol applies to ALL structured discussions, not just when `/discuss` is explicitly invoked. It is the default way agents present information to principals.
 
@@ -340,7 +340,7 @@ Five hookify rules enforce git discipline:
 
 **Everything sandboxed. Zero impact to the team. Completely opt-in.**
 
-Every engineer's personal Claude Code configuration — commands, hookify rules, hooks, settings, project artifacts, plans, data — lives under `claude/usr/{principal}/`. Nothing in this directory forces changes on other team members. The only shared changes are additive code (new modules, new tools) and the minimum wiring to make them work.
+Every engineer's personal Claude Code configuration — commands, hookify rules, hooks, settings, project artifacts, plans, data — lives under `usr/{principal}/`. Nothing in this directory forces changes on other team members. The only shared changes are additive code (new modules, new tools) and the minimum wiring to make them work.
 
 This means multiple engineers can experiment with different workflows, rules, and tools on the same repo without stepping on each other. Your experiments are committed (so they're version controlled and portable), but they're not activated for anyone else unless they opt in.
 
@@ -348,7 +348,7 @@ This means multiple engineers can experiment with different workflows, rules, an
 
 Claude Code discovers commands in `.claude/commands/`, hookify rules in `.claude/hookify.*.local.md`, and settings in `.claude/settings.local.json`. These are the "discovery locations."
 
-Sandbox items live in `claude/usr/{principal}/claude/` (the source). To activate them, you symlink from the discovery location to the source:
+Sandbox items live in `usr/{principal}/claude/` (the source). To activate them, you symlink from the discovery location to the source:
 
 ```
 .claude/commands/usr-jordan.quality-gate.md → ../../usr/jordan/claude/commands/quality-gate.md
@@ -359,7 +359,7 @@ The symlinks are gitignored — they exist only on your machine. This is the key
 
 ### The Lifecycle: Sandbox → Shared → Team
 
-1. **Sandbox** — engineer creates an experiment in `claude/usr/{principal}/claude/`. Activates locally via `/sandbox-activate`. Tests it in their own sessions. Other engineers don't see it unless they opt in via `/sandbox-try`.
+1. **Sandbox** — engineer creates an experiment in `usr/{principal}/claude/`. Activates locally via `/sandbox-activate`. Tests it in their own sessions. Other engineers don't see it unless they opt in via `/sandbox-try`.
 
 2. **Shared** — if the experiment proves valuable, `/sandbox-adopt` moves it from the sandbox to `.claude/` (the shared location). Now it's committed and active for everyone. The sandbox source can be cleaned up or kept as reference.
 
@@ -371,7 +371,7 @@ Hookify rules have three tiers, each with different visibility:
 
 | Location | Scope | Git Status | Who sees it |
 |----------|-------|------------|-------------|
-| `claude/usr/{principal}/claude/hookify/` | Sandbox | Committed | Only the engineer who activates it |
+| `usr/{principal}/claude/hookify/` | Sandbox | Committed | Only the engineer who activates it |
 | `.claude/hookify.foo.local.md` | Shared (adopted) | Committed | Everyone |
 | `.claude/hookify.foo.user.local.md` | Personal | Gitignored | Only one machine |
 
@@ -430,7 +430,7 @@ Agents use their judgment — a dispatch is review input, not an action list. Fi
 ### Review File Convention
 
 ```
-claude/usr/{principal}/{project}/
+usr/{principal}/{project}/
   code-reviews/
     {project}-review-YYYYMMDD-HHMM.md     — full review output
     {project}-dispatch-YYYYMMDD-HHMM.md    — actionable findings
@@ -444,7 +444,7 @@ YYYYMMDD-HHMM timestamps ensure uniqueness for multiple reviews per day. These f
 
 ### Agent Definitions
 
-- **Class/instance model** — `claude/agents/{class}/agent.md` defines the role; `claude/usr/{principal}/{agent}/` is the working instance with handoff, project artifacts, and session state.
+- **Class/instance model** — `claude/agents/{class}/agent.md` defines the role; `usr/{principal}/{agent}/` is the working instance with handoff, project artifacts, and session state.
 - **Standard classes** — captain (coordination), tech-lead (architecture), marketing-lead (content), platform-specialist (infrastructure), researcher (investigation)
 - **Workstream model** — agents work on workstreams with shared artifacts (seeds, PVR, A&D, Plan)
 
@@ -520,7 +520,7 @@ my-project/
 - **`claude/`** is the single Agency namespace. Everything Agency-related lives here. Good neighbor in someone else's repo.
 - **`.claude/`** is Claude Code's discovery location. Mix of framework files and personal symlinks.
 - **`claude/tools/`** is all tools — language-agnostic. No separate `scripts/` or `tools/` at repo root.
-- **`claude/usr/{principal}/`** is the sandbox. Per-engineer. Committed but only activated locally via symlinks.
+- **`usr/{principal}/`** is the sandbox. Per-engineer. Committed but only activated locally via symlinks.
 - **Git is the rollback.** Updates don't auto-commit. `git checkout -- claude/` undoes any botched update.
 - **Your project's directories** (`apps/`, `packages/`, `docs/`, etc.) are untouched. TheAgency is additive.
 
@@ -551,7 +551,7 @@ This separation means:
 - **The project team** maintains `CLAUDE.md` with project-specific content. They don't touch the Agency file.
 - **TheAgency framework** maintains `claude/CLAUDE-THEAGENCY.md` with methodology. It's the same across repos (installed by `agency init`).
 - **Updates to the methodology** propagate to all projects by updating `claude/CLAUDE-THEAGENCY.md` — no changes to individual project CLAUDE.md files needed.
-- **`claude/usr/{principal}/claude/CLAUDE.md` (the personal user-level file) goes to zero** — everything it contained is now in either the project CLAUDE.md or the Agency template.
+- **`usr/{principal}/claude/CLAUDE.md` (the personal user-level file) goes to zero** — everything it contained is now in either the project CLAUDE.md or the Agency template.
 
 ## How Our Principals Work
 

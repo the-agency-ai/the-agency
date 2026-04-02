@@ -6,58 +6,60 @@ This file is imported via `@claude/CLAUDE-THEAGENCY.md` from the project's root 
 
 ## TheAgency Repo Structure
 
-TheAgency lives under `claude/` — a single namespace alongside your project's directories. Everything Agency-related is here.
+TheAgency uses two top-level directories: `claude/` for framework code and `usr/` for per-principal sandboxes.
 
 ```
-claude/
-  CLAUDE-THEAGENCY.md    — this file (Agency methodology, imported by root CLAUDE.md)
-  README-THEAGENCY.md    — orientation for humans
+claude/                    — framework (tools, agents, docs, hooks, config)
+  CLAUDE-THEAGENCY.md      — this file (Agency methodology, imported by root CLAUDE.md)
+  README-THEAGENCY.md      — orientation for humans
   README-GETTINGSTARTED.md — onboarding guide
   config/
-    agency.yaml          — project-specific Agency config
-    manifest.json        — tracks installed files and versions
+    agency.yaml            — project-specific Agency config
+    manifest.json          — tracks installed files and versions
     settings-template.json — canonical permissions/hooks template
-  agents/                — agent CLASS definitions
-    {class}/agent.md     — role, responsibilities, model, tools
-  docs/                  — reference docs (injected on demand by hooks)
-    QUALITY-GATE.md      — QGR format, protocol, commit message spec
-    FEEDBACK-FORMAT.md   — bug report / feature request template
+  agents/                  — agent CLASS definitions
+    {class}/agent.md       — role, responsibilities, model, tools
+  docs/                    — reference docs (injected on demand by hooks)
+    QUALITY-GATE.md        — QGR format, protocol, commit message spec
+    FEEDBACK-FORMAT.md     — bug report / feature request template
     CODE-REVIEW-LIFECYCLE.md — dispatch handling protocol
     DEVELOPMENT-METHODOLOGY.md — full Seed→Reference lifecycle
-  hooks/                 — session hooks (ref-injector, tool-telemetry, session-handoff)
-  hookify/               — shipped behavioral rules
-  tools/                 — all tools (bash, python, rust, compiled)
-    lib/                 — tool libraries (_log-helper, _path-resolve, etc.)
-    handoff              — context bootstrap (read/write/archive)
-    stage-hash           — deterministic staging area hash
-    git-commit           — QG-aware commit wrapper
-    settings-merge       — merge settings template into current settings
-  templates/             — scaffolding templates
-  usr/                   — agent INSTANCES (per-principal sandboxes)
-    {principal}/
-      {project}/         — one directory per project
-        handoff.md       — current session state
-        {project}-pvr-*.md — Product Vision & Requirements
-        {project}-architecture-*.md — Architecture & Design
-        {project}-plan-*.md — The Plan
-        code-reviews/    — captain review and dispatch files
-        dispatches/      — incoming dispatches
-        transcripts/     — discussion transcripts
-        history/         — archived handoffs and artifacts
-  workstreams/           — bodies of work
-    ops/                 — default workstream
-  src/                   — --dev only (source code, tests)
-.claude/                 — Claude Code discovery location
-  commands/              — active skills (symlinks from claude/usr/ + shared)
-  skills/                — skill definitions
-  settings.json          — Claude Code settings (scaffold — never overwritten by updates)
-  hookify.*.local.md     — active hookify rules (symlinks)
+  hooks/                   — session hooks (ref-injector, tool-telemetry, session-handoff)
+  hookify/                 — shipped behavioral rules
+  tools/                   — all tools (bash, python, rust, compiled)
+    lib/                   — tool libraries (_log-helper, _path-resolve, etc.)
+    handoff                — context bootstrap (read/write/archive)
+    stage-hash             — deterministic staging area hash
+    git-commit             — QG-aware commit wrapper
+    settings-merge         — merge settings template into current settings
+  templates/               — scaffolding templates
+  workstreams/             — bodies of work
+    ops/                   — default workstream
+  src/                     — --dev only (source code, tests)
+usr/                       — agent INSTANCES (per-principal sandboxes, at PROJECT ROOT)
+  {principal}/
+    {project}/             — one directory per project
+      handoff.md           — current session state
+      {project}-pvr-*.md   — Product Vision & Requirements
+      {project}-architecture-*.md — Architecture & Design
+      {project}-plan-*.md  — The Plan
+      code-reviews/        — captain review and dispatch files
+      dispatches/          — incoming dispatches
+      transcripts/         — discussion transcripts
+      history/             — archived handoffs and artifacts
+.claude/                   — Claude Code discovery location
+  commands/                — active skills (symlinks from usr/ + shared)
+  skills/                  — skill definitions
+  settings.json            — Claude Code settings (scaffold — never overwritten by updates)
+  hookify.*.local.md       — active hookify rules (symlinks)
 ```
+
+**IMPORTANT:** `usr/` is at the **project root**, NOT under `claude/`. The path is `usr/{principal}/`, not `claude/usr/{principal}/`.
 
 Your project's own directories (`apps/`, `packages/`, `docs/`, `scripts/`, etc.) are documented in the project-specific section of this CLAUDE.md.
 
 - **One plan per project.** Date stamp bumps only on a new day. Same file all day.
-- **No nesting** — `claude/usr/{{principal}}/folio/`, not `claude/usr/{{principal}}/docs/projects/folio/`.
+- **No nesting** — `usr/{{principal}}/folio/`, not `usr/{{principal}}/docs/projects/folio/`.
 - **Code** stays in project directories (`apps/`, `src/`, etc.) — not in sandbox project dirs.
 
 ## Agent & Principal Addressing
@@ -217,7 +219,7 @@ Quality gates run at every commit boundary — iteration, phase, plan completion
 | Pre-PR | `/pr-prep` | Full diff vs origin/master | — |
 | Pre-phase | `/pre-phase-review` | PVR + A&D + Plan review | Principal required |
 
-**QGR receipt files:** Each gate produces a standalone receipt at `claude/usr/{{principal}}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md`. The stage hash is a deterministic hash of the staged changes (computed by `claude/tools/stage-hash`). `/git-commit` checks for a matching receipt before committing — no receipt means no QG was run.
+**QGR receipt files:** Each gate produces a standalone receipt at `usr/{{principal}}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md`. The stage hash is a deterministic hash of the staged changes (computed by `claude/tools/stage-hash`). `/git-commit` checks for a matching receipt before committing — no receipt means no QG was run.
 
 **After every commit:** Update the plan file with iteration/phase status, QG findings, and append the full QGR. The plan is the living record. The QGR receipt file is committed alongside the work as the permanent audit trail.
 
@@ -268,7 +270,7 @@ Three living documents (PVR, A&D, Plan) evolve together. The flow: **Requirement
 
 ### File Organization
 
-Project artifacts live in `claude/usr/{{principal}}/{project}/` — see the Repo Structure section above for the full directory tree and naming conventions.
+Project artifacts live in `usr/{{principal}}/{project}/` — see the Repo Structure section above for the full directory tree and naming conventions.
 
 ## Worktrees & Master
 
@@ -300,7 +302,7 @@ Worktree agents implement features on isolated branches. They build, test, and l
 
 ## Session Handoff
 
-Handoff files are a first-class Agency primitive for context bootstrapping. They live at `claude/usr/{{principal}}/{project}/handoff.md`, are version controlled, and auto-rotate (each write archives the previous to `history/` with timestamp via `claude/tools/handoff`).
+Handoff files are a first-class Agency primitive for context bootstrapping. They live at `usr/{{principal}}/{project}/handoff.md`, are version controlled, and auto-rotate (each write archives the previous to `history/` with timestamp via `claude/tools/handoff`).
 
 Handoffs are not just session continuity — they bootstrap context for any purpose: agent-to-agent transfer, cold start, project setup, compaction survival, or spinning up a new agent into a desired state. The tool handles infrastructure; the agent writes the content.
 
@@ -404,7 +406,7 @@ Extract what you need — don't dump whole pages into context. Summarize, don't 
 
 **Everything sandboxed. Zero impact to the team. Completely opt-in.**
 
-Personal config lives in `claude/usr/{{principal}}/` — commands, hookify rules, hooks, settings. Activated by symlinking into `.claude/` — symlinks are gitignored, so activation is local.
+Personal config lives in `usr/{{principal}}/` — commands, hookify rules, hooks, settings. Activated by symlinking into `.claude/` — symlinks are gitignored, so activation is local.
 
 - `/sandbox-activate` — symlink a sandbox item to the discovery location
 - `/sandbox-try` — try another engineer's experiment
@@ -415,7 +417,7 @@ Personal config lives in `claude/usr/{{principal}}/` — commands, hookify rules
 | Location | Scope | Git Status |
 |----------|-------|------------|
 | `claude/hookify/` | Framework (shipped rules) | Committed |
-| `claude/usr/{{principal}}/claude/hookify/` | Sandbox (per-engineer) | Committed |
+| `usr/{{principal}}/claude/hookify/` | Sandbox (per-engineer) | Committed |
 | `.claude/hookify.foo.local.md` | Active (symlinked from above) | Committed or gitignored |
 
 ### Hookify Rule Convention
@@ -438,9 +440,9 @@ Three review tools serve different purposes at different points. They do not rep
 
 The captain manages the full PR lifecycle: `/sync-all` → rebuild PR branches → `/captain-review` → dispatch findings → worktree agents fix → rebuild → push → draft PR → human review → merge. Run `/pr-prep` before pushing a PR branch (full diff QG against origin/master). Reviews run **locally** before PRs are created. The full protocol is in the captain agent definition and `claude/docs/CODE-REVIEW-LIFECYCLE.md`.
 
-**If you receive a dispatch:** Merge master, read the dispatch file at `claude/usr/{{principal}}/{project}/code-reviews/`, evaluate findings, fix with red→green cycle, append a resolution table, run `/iteration-complete`. The full dispatch handling protocol is in `claude/docs/CODE-REVIEW-LIFECYCLE.md` — injected when relevant skills run.
+**If you receive a dispatch:** Merge master, read the dispatch file at `usr/{{principal}}/{project}/code-reviews/`, evaluate findings, fix with red→green cycle, append a resolution table, run `/iteration-complete`. The full dispatch handling protocol is in `claude/docs/CODE-REVIEW-LIFECYCLE.md` — injected when relevant skills run.
 
-**Review files:** `claude/usr/{{principal}}/{project}/code-reviews/{project}-{review|dispatch}-YYYYMMDD-HHMM.md`. Committed to the repo as the audit trail.
+**Review files:** `usr/{{principal}}/{project}/code-reviews/{project}-{review|dispatch}-YYYYMMDD-HHMM.md`. Committed to the repo as the audit trail.
 
 ---
 

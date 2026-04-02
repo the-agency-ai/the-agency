@@ -301,7 +301,7 @@ If the same `/preview local` handles all three via topology + bindings + service
 ## Dependencies
 
 - Existing Docker Compose files (`docker-compose.dev.yml`) — starting point for docker-provider
-- Existing `/preview` command (`claude/usr/jordan/commands/preview.md`) — to be replaced by the new skill
+- Existing `/preview` command (`usr/jordan/commands/preview.md`) — to be replaced by the new skill
 - First-deploy findings (`devex-first-deploy-findings-20260326.md`) — informs cloud provider implementations
 - Doppler project `sg_dev_noah` — secrets management
 - Agency 1.0 starter packs (`~/code/the-agency/claude/starter-packs/`) — reference for provider-setup skills
