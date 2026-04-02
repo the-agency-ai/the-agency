@@ -68,6 +68,19 @@ terminal:
 platform:
   provider: "auto"  # Auto-detect from OS. Override: macos, linux, windows
 
+# Preview (local/remote previews)
+preview:
+  provider: "docker-compose"  # Default: docker-compose. Alternatives: fly, vercel, cloudflare
+
+# Deploy (platform deployment)
+deploy:
+  provider: "fly"  # Default: fly. Alternatives: aws, vercel, cloudflare, railway
+
+# Crawl (site content extraction)
+crawl:
+  provider: "webfetch"  # Default: webfetch (built-in). Alternatives: playwright, wget, scrapy
+  sites: []  # Configure per-project: [{name, url, patterns}]
+
 # Design system integration
 design:
   provider: "figma"  # Default: figma. Alternatives: sketch, adobe

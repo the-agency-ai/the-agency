@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(./claude/tools/stage-hash:*), Bash(./claude/tools/test-run:*), Bash(./claude/tools/commit-precheck:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Read, Glob, Grep, Edit, Write, Agent, Skill
+allowed-tools: Bash(./claude/tools/stage-hash:*), Bash(./claude/tools/test-run:*), Bash(./claude/tools/commit-precheck:*), Bash(./claude/tools/skill-verify:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Read, Glob, Grep, Edit, Write, Agent, Skill
 description: Run the quality gate — parallel agent review, fix cycle, test, report. Composable — called by /iteration-complete and /phase-complete.
 ---
 
@@ -20,8 +20,9 @@ The gate applies to **any artifact type** — code, commands, config, documentat
 ## Step 0: Preconditions
 
 1. If `$ARGUMENTS` is empty, stop and ask what was completed before proceeding.
-2. Run `git diff --stat HEAD` and `git status`. If no changed files, report "Nothing to gate — no changes since last commit" and stop.
-3. Collect the list of changed files (staged + unstaged + untracked). This is the review scope.
+2. Run `./claude/tools/skill-verify --quiet`. If it fails, report the missing/invalid skills and stop — the framework is incomplete.
+3. Run `git diff --stat HEAD` and `git status`. If no changed files, report "Nothing to gate — no changes since last commit" and stop.
+4. Collect the list of changed files (staged + unstaged + untracked). This is the review scope.
 
 ## Step 1: Parallel review — Formal agents + own review
 

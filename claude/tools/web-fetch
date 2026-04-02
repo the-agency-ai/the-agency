@@ -1,0 +1,130 @@
+#!/bin/bash
+#
+# web-fetch — Fetch web content with automatic fallback
+#
+# Escalation ladder:
+#   1. curl (fast, no JS)
+#   2. Exit with instructions for agent to use WebFetch/Playwright MCP
+#
+# This tool handles the simple case (static content). For JS-heavy sites,
+# it exits with a non-zero code and a message telling the agent to use
+# the Playwright MCP tools (browser_snapshot, browser_screenshot).
+#
+# Usage:
+#   ./claude/tools/web-fetch <url> [--extract <selector>] [--raw]
+#
+# Options:
+#   --extract <sel>  CSS-like content hint (informational — curl can't use it)
+#   --raw            Output raw HTML instead of text extraction
+#   --timeout <sec>  Timeout in seconds (default: 15)
+#
+# Exit codes:
+#   0 — content fetched successfully
+#   1 — fetch failed (network error, timeout)
+#   2 — JS-heavy site detected (agent should use Playwright MCP)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/_log-helper" 2>/dev/null || true
+
+URL=""
+RAW=false
+TIMEOUT=15
+EXTRACT=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --raw) RAW=true; shift ;;
+    --timeout) TIMEOUT="$2"; shift 2 ;;
+    --extract) EXTRACT="$2"; shift 2 ;;
+    --help|-h)
+      echo "Usage: web-fetch <url> [--extract <selector>] [--raw] [--timeout <sec>]"
+      echo ""
+      echo "Fetch web content. Falls back to suggesting Playwright MCP for JS-heavy sites."
+      echo ""
+      echo "Options:"
+      echo "  --extract <sel>  Content hint (informational for fallback)"
+      echo "  --raw            Output raw HTML"
+      echo "  --timeout <sec>  Timeout (default: 15)"
+      exit 0
+      ;;
+    -*) echo "Unknown flag: $1" >&2; exit 1 ;;
+    *) URL="$1"; shift ;;
+  esac
+done
+
+if [ -z "$URL" ]; then
+  echo "Error: URL required" >&2
+  echo "Usage: web-fetch <url> [--raw] [--timeout <sec>]" >&2
+  exit 1
+fi
+
+RUN_ID=""
+if type log_start &>/dev/null; then
+  RUN_ID=$(log_start "web-fetch" "$URL")
+fi
+
+# Try curl first
+TMPFILE=$(mktemp)
+trap "rm -f '$TMPFILE'" EXIT
+
+HTTP_CODE=$(curl -sL -o "$TMPFILE" -w '%{http_code}' \
+  --max-time "$TIMEOUT" \
+  -H "User-Agent: Mozilla/5.0 (compatible; AgencyBot/1.0)" \
+  "$URL" 2>/dev/null) || {
+  echo "FETCH_FAILED: Could not reach $URL (network error or timeout)" >&2
+  echo "" >&2
+  echo "Fallback: Use the WebFetch tool directly, or for JS-heavy sites:" >&2
+  echo "  1. mcp__browser-mcp__browser_navigate to $URL" >&2
+  echo "  2. mcp__browser-mcp__browser_snapshot for structured content" >&2
+  if [ -n "$RUN_ID" ] && type log_end &>/dev/null; then
+    log_end "$RUN_ID" "failure" 1 0 "network error"
+  fi
+  exit 1
+}
+
+if [ "$HTTP_CODE" -ge 400 ]; then
+  echo "HTTP_ERROR: $HTTP_CODE for $URL" >&2
+  if [ -n "$RUN_ID" ] && type log_end &>/dev/null; then
+    log_end "$RUN_ID" "failure" 1 0 "HTTP $HTTP_CODE"
+  fi
+  exit 1
+fi
+
+# Check if content looks JS-heavy (minimal content, lots of script tags)
+CONTENT_SIZE=$(wc -c < "$TMPFILE")
+SCRIPT_COUNT=$(grep -c '<script' "$TMPFILE" 2>/dev/null || echo 0)
+TEXT_CONTENT=$(sed 's/<[^>]*>//g' "$TMPFILE" 2>/dev/null | tr -s '[:space:]' ' ' | wc -w)
+
+# Heuristic: if mostly scripts and very little text, suggest Playwright
+if [ "$SCRIPT_COUNT" -gt 5 ] && [ "$TEXT_CONTENT" -lt 50 ]; then
+  echo "JS_HEAVY: Page at $URL appears to require JavaScript rendering." >&2
+  echo "" >&2
+  echo "Fallback — use Playwright MCP:" >&2
+  echo "  1. mcp__browser-mcp__browser_navigate to $URL" >&2
+  echo "  2. mcp__browser-mcp__browser_snapshot for structured content" >&2
+  echo "  3. mcp__browser-mcp__browser_screenshot for visual content" >&2
+  if [ -n "$EXTRACT" ]; then
+    echo "  4. mcp__browser-mcp__browser_click to extract: $EXTRACT" >&2
+  fi
+  if [ -n "$RUN_ID" ] && type log_end &>/dev/null; then
+    log_end "$RUN_ID" "failure" 2 0 "JS-heavy site"
+  fi
+  exit 2
+fi
+
+# Output content
+if [ "$RAW" = true ]; then
+  cat "$TMPFILE"
+else
+  # Strip HTML tags, collapse whitespace
+  sed 's/<style[^>]*>.*<\/style>//g; s/<script[^>]*>.*<\/script>//g; s/<[^>]*>//g' "$TMPFILE" \
+    | tr -s '[:space:]' '\n' \
+    | sed '/^$/d' \
+    | head -500
+fi
+
+if [ -n "$RUN_ID" ] && type log_end &>/dev/null; then
+  log_end "$RUN_ID" "success" 0 0 "fetched $CONTENT_SIZE bytes"
+fi

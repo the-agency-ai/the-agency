@@ -1,0 +1,107 @@
+#!/bin/bash
+#
+# skill-verify — Verify all expected framework skills exist
+#
+# Checks that every skill referenced in the framework's skill registry
+# has a valid SKILL.md file. Used by boundary skills to catch missing skills
+# before they cause downstream failures.
+#
+# Usage:
+#   ./claude/tools/skill-verify [--quiet]
+#
+# Exit codes:
+#   0 — all skills present and valid
+#   1 — missing or invalid skills found
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/_log-helper" 2>/dev/null || true
+source "$SCRIPT_DIR/lib/_path-resolve" 2>/dev/null || true
+
+PROJECT_ROOT="${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+SKILLS_DIR="$PROJECT_ROOT/.claude/skills"
+QUIET=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --quiet|-q) QUIET=true ;;
+    --help|-h)
+      echo "Usage: skill-verify [--quiet]"
+      echo "  Verify all framework skills have valid SKILL.md files."
+      echo "  --quiet   Only output on failure"
+      exit 0
+      ;;
+  esac
+done
+
+RUN_ID=""
+if type log_start &>/dev/null; then
+  RUN_ID=$(log_start "skill-verify" "$@")
+fi
+
+ERRORS=0
+CHECKED=0
+MISSING=()
+INVALID=()
+
+# Check each skill directory has a non-empty SKILL.md with allowed-tools
+if [ -d "$SKILLS_DIR" ]; then
+  for skill_dir in "$SKILLS_DIR"/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name=$(basename "$skill_dir")
+    skill_file="$skill_dir/SKILL.md"
+    CHECKED=$((CHECKED + 1))
+
+    if [ ! -f "$skill_file" ]; then
+      MISSING+=("$skill_name")
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
+
+    if [ ! -s "$skill_file" ]; then
+      INVALID+=("$skill_name (empty)")
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
+
+    # Check for allowed-tools frontmatter
+    if ! head -5 "$skill_file" | grep -q "allowed-tools:"; then
+      INVALID+=("$skill_name (missing allowed-tools)")
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
+  done
+else
+  if [ "$QUIET" = false ]; then
+    echo "WARNING: No skills directory at $SKILLS_DIR"
+  fi
+fi
+
+# Report
+if [ "$ERRORS" -gt 0 ]; then
+  echo "FAIL: $ERRORS issue(s) found in $CHECKED skills"
+  if [ ${#MISSING[@]} -gt 0 ]; then
+    echo "  Missing SKILL.md:"
+    for m in "${MISSING[@]}"; do
+      echo "    - $m"
+    done
+  fi
+  if [ ${#INVALID[@]} -gt 0 ]; then
+    echo "  Invalid:"
+    for i in "${INVALID[@]}"; do
+      echo "    - $i"
+    done
+  fi
+  if [ -n "$RUN_ID" ] && type log_end &>/dev/null; then
+    log_end "$RUN_ID" "failure" 1 0 "$ERRORS issues in $CHECKED skills"
+  fi
+  exit 1
+elif [ "$QUIET" = false ]; then
+  echo "OK: $CHECKED skills verified"
+fi
+
+if [ -n "$RUN_ID" ] && type log_end &>/dev/null; then
+  log_end "$RUN_ID" "success" 0 0 "$CHECKED skills verified"
+fi
+exit 0
