@@ -1,65 +1,57 @@
 ---
 type: session
-date: 2026-04-02 17:30
+date: 2026-04-02 21:00
 branch: main
-trigger: principal-requested compact
+trigger: principal-requested exit
 ---
 
 # Captain Handoff
 
 **Agent:** the-agency/jordan/captain
 **Principal:** jordan
-**Updated:** 2026-04-02 (session 15)
+**Updated:** 2026-04-02 (session 16)
 
 ## Current State
 
-On `main` branch. Two commits ahead of origin. Working on agency-update v2 design + bootstrap optimization.
+On `main` branch. In sync with origin. About to build `/workstream-create` and launch mdpal workstream.
 
-## Session 15 Work
+## Session 16 Work
 
-### Bootstrap Transcript Analysis — COMPLETE
-- Pulled and analyzed presence-detect bootstrap transcript (session c419fd29, 115.6s, $0.37)
-- Pulled and analyzed test-bed-02 bootstrap transcript (session b5c9f856, 104.2s)
-- Root causes: Explore agent overkill, thin bootstrap handoff, path confusion (claude/usr/ vs usr/)
-- Both sessions triggered 2 unnecessary permission prompts
+### test-bed-03 Bootstrap Audit — COMPLETE
+- Analyzed transcript (session ca7e0142, 40 lines)
+- **Permission prompts: ZERO.** Fix from session 15 worked.
+- But agent created dirs at `claude/usr/jordan/` (wrong) instead of finding `usr/jordan/` (correct)
+- Root cause: CLAUDE-THEAGENCY.md repo structure diagram showed `usr/` indented under `claude/`
 
-### Fix Bootstrap Permission Prompts — COMPLETE (6dc6df1)
-- `_agency-init`: writes nested principals format (`jdm: {name: jordan}`) using $USER as YAML key
-- `_path-resolve`: `_pr_yaml_get` now handles both flat and nested agency.yaml formats
-- Eliminates Edit prompt (no need to "upgrade" principals) and Bash mkdir prompt (init scaffolds dirs)
-- All tests pass: 12/12 agency-init, 52/52 git-operations
+### Fix usr/ Path in Docs — COMPLETE (56ea7ac, pushed)
+- CLAUDE-THEAGENCY.md: moved `usr/` out of `claude/` tree, added bold warning, fixed 8 path references
+- README-THEAGENCY.md: fixed all 12 `claude/usr/` → `usr/` references
+- Also fixed: test-worktree-sync.sh, upstream-port SKILL.md, design doc, commit protocol dispatch
+- Tests: 12/12 init, 52/52 git-operations
 
-### A&D MAR Findings Incorporated — COMPLETE (539eea3)
-- YAML detection scoped to principals section (not global grep)
-- Cross-platform checksum (sha256sum fallback)
-- Migration safety: backup before migration, restore on failure
-- `default:` entry handling in flat→nested migration
-- `_agency-update` budget: 600 lines (up from 450)
-- 3 new risks: _address-parse SPOF, bash 3.2 YAML limits, manifest corruption
+### Hookify Plugin Disabled — COMPLETE (0364f30, pushed)
+- `hookify@claude-plugins-official` marketplace plugin causing errors on every stop + UserPromptSubmit
+- Ported from monofolk in dispatch incorporation Phase 5, install broken (version "unknown")
+- Disabled in `.claude/settings.json`, removed from `~/.claude/plugins/installed_plugins.json`
+- Dispatch sent to monofolk: `dispatch-monofolk-disable-hookify-plugin-20260402.md`
 
-### A&D Dispatched to Monofolk — COMPLETE (539eea3)
-- `dispatch-agency-update-ad-review-20260402.md` sent to monofolk/jordan/captain
-- 5 review questions: addressing design, hooks replacement, migration formats, architecture, operational experience
-
-### test-bed-03 Init — IN PROGRESS
-- User running `agency init --principal jordan` on test-bed-03 (passed, 145 files)
-- Agency.yaml correctly shows nested format: `jdm: {name: jordan}`
-- User launching claude to test bootstrap — waiting for results
-
-### License Files TODO — NOTED
-- Saved to memory: LICENSE files not yet created (MIT root, RSL in app workstreams)
-- Phase 2.1 in plan, no blockers
+### Workstream Discussion — COMPLETE
+- `/discuss` 4 items resolved for `/workstream-create` design and mdpal launch
+- Decisions:
+  1. Value stream (repo) → workstreams (standalone deployable units) → 1+ agents
+  2. 1 worktree : N agents (current model, don't close door on 1:1)
+  3. `/workstream-create name --agent name[,class] --agent name[,class]`
+  4. Rename `markdown-pal` → `mdpal` everywhere. Agents: `mdpal-cli` (engine+CLI), `mdpal-app` (macOS native app)
 
 ## What's Next
 
-1. **test-bed-03 bootstrap results** — did permission prompts disappear?
-2. **Push to origin** — 2 commits ahead (6dc6df1 + 539eea3)
-3. **Wait for monofolk A&D review** — dispatched, pending
-4. **Write the Plan** — after A&D approved
-5. **License files** — Phase 2.1, needs doing before public release
-6. **Monofolk addressing findings F1-F6** — queued
+1. **Build `/workstream-create`** — skill + tool, based on discussion decisions
+2. **Launch mdpal workstream** — `/workstream-create mdpal --agent mdpal-cli,tech-lead --agent mdpal-app,tech-lead`
+3. **Rename `claude/workstreams/markdown-pal/` → `claude/workstreams/mdpal/`**
+4. **Wait for monofolk A&D review** — dispatched, pending
+5. **Write the agency-update Plan** — after A&D approved
+6. **License files** — Phase 2.1, needs doing before public release
 7. **Cross-repo commit protocol → CLAUDE-THEAGENCY.md** — approved, not yet added
-8. **Update docs for new init flow** — `git init → agency init → claude`
 
 ## Pending Items
 - Bootstrap handoff content still too thin (Risk 5 in A&D) — needs directive prefix
@@ -69,5 +61,5 @@ On `main` branch. Two commits ahead of origin. Working on agency-update v2 desig
 ## Git State
 
 - Branch: `main`
-- HEAD: `539eea3` (2 commits ahead of origin)
-- Working tree: clean (except untracked test artifacts, PDF, A&D dispatch)
+- HEAD: `0364f30` (in sync with origin)
+- Working tree: clean (except untracked test artifacts, PDF, handoff history)
