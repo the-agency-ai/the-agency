@@ -402,13 +402,15 @@ YAML_EOF
 
     mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/claude"/{commands,hookify,hooks,agents,refs}
     mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/scripts"
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{transcripts,code-reviews,history}
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{transcripts,code-reviews,dispatches,history}
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME"/{code-reviews,dispatches,transcripts,history}
 
     cat > "$TARGET_DIR/usr/$PRINCIPAL/README.md" << USR_EOF
 # Principal: $PRINCIPAL
 
 ## Projects
 - \`captain/\` — captain coordination
+- \`$PROJECT_NAME/\` — project work
 USR_EOF
 
     log_info "Scaffolded usr/$PRINCIPAL/"
