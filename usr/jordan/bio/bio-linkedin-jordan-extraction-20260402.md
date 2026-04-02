@@ -113,7 +113,7 @@
 
 ## Contact
 
-- Email: jdm@devopspm.com
+- Email: jdm@devopspm.com, jordan@ordinaryfolk.health
 - Twitter/X: @jordandm (personal), @agencygroupai (TheAgency)
 - GitHub: @jordan-of (OrdinaryFolk), @jordandm (personal), @the-agency-ai (TheAgency)
 - LinkedIn: linkedin.com/in/jordandeamattson
