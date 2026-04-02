@@ -128,19 +128,19 @@ case "$CMD" in
             echo "flag: queue is empty — nothing to discuss"
             exit 0
         fi
-        echo "Discussion agenda from flag queue:"
-        echo ""
+        # Build output first, then clear (atomic — don't lose items on output failure)
+        AGENDA="Discussion agenda from flag queue:"$'\n'$'\n'
         N=0
         while IFS= read -r line; do
             [[ -z "$line" ]] && continue
             N=$((N + 1))
             MSG=$(echo "$line" | jq -r '.message // "?"' 2>/dev/null)
             TS=$(echo "$line" | jq -r '.ts // "?"' 2>/dev/null)
-            echo "$N. $MSG (flagged: $TS)"
+            AGENDA="$AGENDA$N. $MSG (flagged: $TS)"$'\n'
         done < "$QUEUE_FILE"
-        echo ""
-        echo "$N item(s) — run /discuss with this agenda"
-        # Clear after outputting
+        AGENDA="$AGENDA"$'\n'"$N item(s) — run /discuss with this agenda"
+        # Output succeeded — now clear
+        echo "$AGENDA"
         rm "$QUEUE_FILE"
         ;;
     *)
