@@ -113,8 +113,13 @@ _init_main() {
     fi
 
     # --- Resolve defaults ---
-    PRINCIPAL="${PRINCIPAL:-$(whoami)}"
+    local SYSTEM_USER
+    SYSTEM_USER="$(whoami)"
+    PRINCIPAL="${PRINCIPAL:-$SYSTEM_USER}"
     PRINCIPAL=$(echo "$PRINCIPAL" | tr '[:upper:]' '[:lower:]')
+    # YAML key is the system username (for $USER lookup), value is the principal slug
+    local PRINCIPAL_KEY
+    PRINCIPAL_KEY=$(echo "$SYSTEM_USER" | tr '[:upper:]' '[:lower:]')
     PROJECT_NAME="${PROJECT_NAME:-$(basename "$TARGET_DIR")}"
 
     # --- Source commit for version tracking ---
@@ -297,8 +302,10 @@ SETTINGS_EOF
 # Agency Configuration for $PROJECT_NAME
 
 principals:
-  $PRINCIPAL: $PRINCIPAL
-  default: unknown
+  $PRINCIPAL_KEY:
+    name: $PRINCIPAL
+  default:
+    name: unknown
 
 project:
   name: "$PROJECT_NAME"

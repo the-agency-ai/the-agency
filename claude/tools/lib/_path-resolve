@@ -52,14 +52,17 @@ _pr_yaml_get() {
     local yaml_file="$3"
 
     local in_section=false
+    local found_key=false
     while IFS= read -r line; do
         # Detect section header (no leading whitespace)
         if [[ "$line" =~ ^[a-zA-Z] ]]; then
             if [[ "$line" =~ ^${section}: ]]; then
                 in_section=true
             else
+                # If we found the key but are in nested mode, we never got a name field
                 in_section=false
             fi
+            found_key=false
             continue
         fi
         # In section, look for key
@@ -67,7 +70,28 @@ _pr_yaml_get() {
             # Skip comments and blank lines
             [[ "$line" =~ ^[[:space:]]*# ]] && continue
             [[ "$line" =~ ^[[:space:]]*$ ]] && continue
-            # Match "  key: value"
+
+            # If we previously found a nested key, look for "    name: value"
+            if [[ "$found_key" == "true" ]]; then
+                if [[ "$line" =~ ^[[:space:]]{4,}name:[[:space:]]+(.+) ]]; then
+                    local value="${BASH_REMATCH[1]}"
+                    value="${value%%#*}"
+                    value="${value## }"
+                    value="${value%% }"
+                    value="${value#\"}"
+                    value="${value%\"}"
+                    value="${value#\'}"
+                    value="${value%\'}"
+                    echo "$value"
+                    return 0
+                fi
+                # If we hit another 2-space key, the nested block ended without a name
+                if [[ "$line" =~ ^[[:space:]]{2}[a-zA-Z] && ! "$line" =~ ^[[:space:]]{4} ]]; then
+                    found_key=false
+                fi
+            fi
+
+            # Match "  key: value" (flat format)
             if [[ "$line" =~ ^[[:space:]]+${key}:[[:space:]]+(.+) ]]; then
                 local value="${BASH_REMATCH[1]}"
                 # Strip quotes and trailing comments
@@ -80,6 +104,10 @@ _pr_yaml_get() {
                 value="${value%\'}"
                 echo "$value"
                 return 0
+            fi
+            # Match "  key:" (nested format — value is on subsequent lines)
+            if [[ "$line" =~ ^[[:space:]]+${key}:[[:space:]]*$ ]]; then
+                found_key=true
             fi
         fi
     done < "$yaml_file"
