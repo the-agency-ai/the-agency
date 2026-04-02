@@ -40,14 +40,15 @@ After completing steps 1-8, present a Quality Gate Report (QGR) in this format:
 
 ### Issues Found
 
-| ID | Type | Summary | Status | Via | Tests Added |
-|----|------|---------|--------|-----|-------------|
-| 1 | bug/config/design/ux/security/performance | Description | Fixed / Rejected: reason | Inspection/Test/Static Check | `test name` (purpose, type, count) or N/A |
+| ID | Type | Summary | Status | Via | Tests Added | Bug-Exposing Fix |
+|----|------|---------|--------|-----|-------------|-----------------|
+| 1 | bug/config/design/ux/security/performance | Description | Fixed / Rejected: reason | Inspection/Test/Static Check | `test name` (purpose, type, count) or N/A | `abc1234` or N/A (not testable: reason) |
 
 Issue types: bug, config, design, ux, security, performance
 Status: **Fixed** (valid finding, resolved) or **Rejected** (invalid finding, with reasoning). No other status. No "Won't Fix," no "Deferred." Severity (critical/high/medium/low) may be used to order the fix sequence — fix critical issues first — but severity never means "don't fix." Every valid finding gets fixed.
 Via: Inspection (review agents + own review), Test (found by running tests), Static Check (lint/typecheck)
 Tests Added format: `test name` (bug-exposing|coverage, unit|integration|e2e-cli|e2e-browser|api|performance, count)
+Bug-Exposing Fix: The commit SHA where the fix landed (short hash, e.g., `abc1234`). For issues that cannot be tested programmatically (documentation, config, design decisions), write `N/A (not testable: reason)`. This creates an auditable link from finding → test → fix.
 
 ### Quality Gate Accountability
 
