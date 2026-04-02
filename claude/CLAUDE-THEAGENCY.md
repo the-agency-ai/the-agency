@@ -69,7 +69,7 @@ Quality gates run at every commit boundary — iteration, phase, plan completion
 - Failing row in the QGR MUST be 0. No exceptions. Pre-existing failures are your problem too.
 - Red-green cycle for every bug-exposing test. No valid test = no valid fix.
 - Never skip review agents — even for "small" or "trivial" changes. The audit always finds something.
-- Fix every finding. No "Won't Fix" — fix it or dispute with reasoning.
+- Fix every finding. Every valid finding gets fixed — no "Won't Fix," no "Deferred," no severity-based skip. Severity orders the fix sequence, never the fix decision. Reject invalid findings with reasoning.
 - Always use `/git-commit` — never raw `git commit`. It verifies a QGR receipt exists for the staged changes.
 
 **Boundary skills** (invoke these, never commit manually):

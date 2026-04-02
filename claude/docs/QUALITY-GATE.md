@@ -12,7 +12,7 @@ Commits happen at iteration, phase, and plan completion — not in between. Do n
    - **Code reviewers** (2+ code-reviewer agents) — each reviews independently for bugs, logic errors, security, performance, code quality, convention adherence. Give each reviewer a different focus area (e.g., correctness/logic vs. performance/security) to maximize coverage.
    - **Test reviewers** (2+ code-reviewer agents, test-focused prompts) — each reviews independently for test coverage gaps, missing edge cases, test quality, test/implementation consistency. Give each reviewer a different focus (e.g., edge cases/error paths vs. breadth/integration coverage).
    - **Your own review** — Read the code yourself and conduct your own independent review while agents are running. You may catch things agents miss (architectural issues, subtle interactions, domain-specific concerns).
-2. **Consolidate findings** — Merge and deduplicate results from all reviewers (agents + your own) into a single prioritized list of issues.
+2. **Consolidate findings** — Merge and deduplicate results from all reviewers (agents + your own). Evaluate each finding: **Valid** (will fix) or **Rejected** (with reasoning). Every valid finding gets fixed — no severity tiers, no "nits," no deferrals. A finding is either wrong or it gets fixed.
 3. **Write tests for issues** — For each code issue found, write a test that exposes the bug. **Run it and confirm it fails (red).** If the test passes, it doesn't actually expose the bug — rewrite it until it fails. Tests for config/doc issues that can't be tested programmatically are marked N/A in the report.
 4. **Fix issues** — Fix each issue. **Re-run the exposing test and confirm it now passes (green).** Red → green is the proof the fix works. If you can't demonstrate the red → green cycle, you don't have a valid bug-exposing test.
 5. **Review test coverage** — Using the test reviewer's findings, decide what additional tests are needed (edge cases, breadth, depth, performance).
@@ -38,13 +38,14 @@ After completing steps 1-8, present a Quality Gate Report (QGR) in this format:
 ```
 ## Quality Gate Report
 
-### Issues Found and Fixed
+### Issues Found
 
-| ID | Type | Summary | Via | Tests Added |
-|----|------|---------|-----|-------------|
-| 1 | bug/config/design/ux/security/performance | Description | Inspection/Test/Static Check | `test name` (purpose, type, count) or N/A |
+| ID | Type | Summary | Status | Via | Tests Added |
+|----|------|---------|--------|-----|-------------|
+| 1 | bug/config/design/ux/security/performance | Description | Fixed / Rejected: reason | Inspection/Test/Static Check | `test name` (purpose, type, count) or N/A |
 
 Issue types: bug, config, design, ux, security, performance
+Status: **Fixed** (valid finding, resolved) or **Rejected** (invalid finding, with reasoning). No other status. No "Won't Fix," no "Deferred." Severity (critical/high/medium/low) may be used to order the fix sequence — fix critical issues first — but severity never means "don't fix." Every valid finding gets fixed.
 Via: Inspection (review agents + own review), Test (found by running tests), Static Check (lint/typecheck)
 Tests Added format: `test name` (bug-exposing|coverage, unit|integration|e2e-cli|e2e-browser|api|performance, count)
 
@@ -94,6 +95,8 @@ For each stage, describe what was actually done:
 
 **Stage 2 - Consolidate**
 - N issues identified, deduplicated from N reviewers
+- Each finding evaluated: Valid (will fix) or Rejected (with reasoning)
+- N valid, N rejected
 - Breakdown by type
 
 **Stage 3 - Bug-Exposing Tests**
