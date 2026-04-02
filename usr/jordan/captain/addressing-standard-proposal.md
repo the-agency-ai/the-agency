@@ -2,11 +2,11 @@
 type: proposal
 date: 2026-04-02
 subject: Agent Addressing Standard
-status: revision 2 — post-MAR, all findings addressed
-mar_findings: 40 (4 reviewers)
+status: revision 3 — MAR round 2 findings addressed (12 more)
+mar_findings: 52 total (40 round 1 + 12 round 2)
 ---
 
-# Agent Addressing Standard — Proposal (Rev 2)
+# Agent Addressing Standard — Proposal (Rev 3)
 
 ## 1. Proposed CLAUDE-THEAGENCY.md Section
 
@@ -35,7 +35,9 @@ principals:
     platforms:
       github:
         - username: tanaka-taro
-          org: the-agency-ai
+          repos:
+            - org: the-agency-ai
+              repo: the-agency
 ```
 
 Defaults: if `address.informal` is omitted, use `display_name`. If `address.formal` is omitted, use `display_name`. Most principals only need `display_name` — the address fields are for when the principal has a preference:
@@ -49,12 +51,22 @@ Defaults: if `address.informal` is omitted, use `display_name`. If `address.form
     platforms:
       github:
         - username: jordandm
-          org: the-agency-ai
+          repos:
+            - org: the-agency-ai
+              repo: the-agency
         - username: jordan-of
-          org: OrdinaryFolk
+          repos:
+            - org: OrdinaryFolk
+              repo: monofolk
+            - org: the-agency-ai
+              repo: the-agency
 ```
 
-**Reserved names** (cannot be used as principal names): `_`, `system`, `shared`, `all`. These are reserved for future shared-agent and broadcast addressing.
+**Reserved names** (cannot be used as principal names): `_` (shared agents), `system`, `shared`, `all` (broadcast addressing), `default` (fallback principal in `_path-resolve`). These are reserved for future use.
+
+**Display name safety:** `display_name` and `address.*` fields are freeform Unicode but must be double-quoted when written to YAML output. They are NEVER used in filesystem paths, address strings, or machine-parseable identifiers. Tools that emit them into markdown must ensure they cannot produce a bare `---` line (which breaks frontmatter boundaries).
+
+**Agents use `address.informal`** when addressing the principal in conversation. Use `address.formal` in dispatch headers and formal communications. These are the consumers — they guide how the AI talks to the human.
 
 ### Address Hierarchy
 
@@ -86,7 +98,9 @@ Repo short names are the leaf name only — no org prefix, no nested group paths
 | Fully qualified | `monofolk/jordan/captain` | No resolution needed |
 | Org-qualified | `OrdinaryFolk/monofolk/jordan/captain` | No resolution needed (rare — repo name collision across orgs) |
 
-Tools parse input by segment count: 1 = bare, 2 = principal/agent, 3 = repo/principal/agent, 4 = org/repo/principal/agent. No ambiguity — the fully qualified form is always 3 segments for cross-repo.
+Tools parse input by segment count: 1 = bare, 2 = principal/agent, 3 = repo/principal/agent, 4 = org/repo/principal/agent. Three segments is ALWAYS `repo/principal/agent` — never `org/repo/principal`. If you need org qualification, use all 4 segments. If the first segment of a 3-segment address matches a known org name, tools should warn that the user may have intended 4 segments.
+
+**Principal resolution:** To resolve the current principal, find the `principals` entry in `agency.yaml` whose key matches `$USER`, then use its `name` field as the principal slug. Example: `$USER=jdm` → key `jdm` → `name: jordan` → principal is `jordan`.
 
 ### Principal Identity Across Repos
 
@@ -151,11 +165,15 @@ Functions:
 - `address_parse <addr>` — split into components, return `ADDR_ORG`, `ADDR_REPO`, `ADDR_PRINCIPAL`, `ADDR_AGENT`
 - `address_resolve <addr>` — resolve short forms using local context (git remote, agency.yaml)
 - `address_format <repo> <principal> <agent>` — produce fully qualified form
-- `address_validate_component <name>` — reject anything outside `[a-z0-9][a-z0-9_-]*`, reject reserved names, reject path traversal (`..`, `/`), max 32 chars
+- `address_validate_component <name> [--level org|repo|principal|agent]` — reject path traversal (`..`, `/`, null bytes). For org level: `[A-Za-z0-9-]+` (case-preserved). For all other levels: `[a-z0-9][a-z0-9_-]*` (lowercase only). Reject reserved names (`_`, `system`, `shared`, `all`, `default`). Max 32 chars per component.
 
 ### Update: `claude/tools/lib/_path-resolve`
 
 **Add `_validate_name()`.** Reject any name component containing `/`, `..`, null bytes, or characters outside `[a-z0-9_-]`. Apply in every function that constructs filesystem paths from names. This fixes the existing path traversal vulnerability.
+
+**Add precondition to `_pr_yaml_get`:** Assert that the `key` parameter matches `^[a-z0-9][a-z0-9_-]*$` before using it in a regex. Defense in depth — do not rely on callers to pre-validate.
+
+**Rewrite `_pr_yaml_get` for nested YAML.** The current parser only handles flat `key: value` pairs under a section. The new `principals` structure is nested (key → object with `name`, `display_name`, `platforms`). Either rewrite `_pr_yaml_get` to handle nested structures, or have `_address-parse` handle all principal resolution and deprecate direct `_pr_yaml_get` calls for principal lookups.
 
 ### Update: `claude/tools/dispatch-create`
 
@@ -207,9 +225,15 @@ principals:
     platforms:
       github:
         - username: jordandm
-          org: the-agency-ai
+          repos:
+            - org: the-agency-ai
+              repo: the-agency
         - username: jordan-of
-          org: OrdinaryFolk
+          repos:
+            - org: OrdinaryFolk
+              repo: monofolk
+            - org: the-agency-ai
+              repo: the-agency
 ```
 
 The principal name (`jordan`) is the stable identity across machines and repos. System usernames and platform handles are per-machine, per-org plumbing. A different machine with a different system user maps to the same principal:
@@ -219,10 +243,17 @@ The principal name (`jordan`) is the stable identity across machines and repos. 
 principals:
   jdm-of:
     name: jordan
+    display_name: "Jordan Dea-Mattson"
+    address:
+      informal: "Jordan"
     platforms:
       github:
         - username: jordan-of
-          org: OrdinaryFolk
+          repos:
+            - org: OrdinaryFolk
+              repo: monofolk
+            - org: the-agency-ai
+              repo: the-agency
 ```
 
 **Add `remotes` section** for cross-repo address resolution (only for repos not in git remotes):
@@ -321,4 +352,8 @@ Addressing defines identity. ISCP defines local delivery. IACP defines cross-rep
 
 **Modifying `remotes` in agency.yaml is a privilege-sensitive operation** — changes should be reviewed in PRs, not auto-merged.
 
-**Platform identity (`github` field in principals) is intentionally public** for open-source repos. For private repos, consider whether this belongs in a gitignored local config.
+**Platform identity is intentionally public** for open-source repos. For private repos, platform identity can be split into a local override file at `claude/config/agency.local.yaml` (gitignored). Merge precedence: local overrides committed. Tools check local first, fall back to committed. Implementation deferred — define the file path and merge rule now so the schema supports it.
+
+### Future: Enforcement Triangle
+
+The addressing standard does not yet have a hookify rule to enforce address construction via `_address-parse`. When tools stabilize, consider adding `hookify.block-raw-address-construction` to prevent agents from hardcoding addresses instead of using the library. Noted as a future enforcement item.
