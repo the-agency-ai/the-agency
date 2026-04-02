@@ -2,97 +2,167 @@
 type: proposal
 date: 2026-04-02
 subject: Agent Addressing Standard
-status: draft — pending MAR
+status: revision 2 — post-MAR, all findings addressed
+mar_findings: 40 (4 reviewers)
 ---
 
-# Agent Addressing Standard — Proposal
+# Agent Addressing Standard — Proposal (Rev 2)
 
 ## 1. Proposed CLAUDE-THEAGENCY.md Section
 
-Insert after "Session Handoff" section, before "Discussion Protocol (1B1)":
+Insert after "TheAgency Repo Structure" section, before "Quality Gate (QG) Protocol":
 
 ---
 
 ## Agent & Principal Addressing
 
-### Concepts
+### Principals and Agents
 
-A **principal** is a human who directs agent work. Principals are identified by a short name (lowercase, no spaces) mapped from their system username via `agency.yaml`.
+A **principal** is a human who directs agent work. An **agent** is an AI instance running under a principal's direction. Every agent belongs to exactly one principal.
 
-An **agent** is an AI instance running under a principal's direction. Agent instances are registered in `.claude/agents/{name}.md` and belong to exactly one principal. (Future: shared agents that serve a repo or value stream without a specific principal.)
+Identify principals and agents by **name** — a lowercase ASCII slug (`[a-z0-9][a-z0-9_-]*`, max 32 characters). Names are machine identifiers for paths, addresses, and code. They are NOT human names.
+
+For human-readable display, set `display_name` in `agency.yaml` — a single freeform Unicode string. Do not parse it, split it into fields, or restrict its characters. People's names contain apostrophes (O'Brien), hyphens (Dea-Mattson), diacritics (José), CJK characters (田中太郎), spaces, and more. The display name accepts whatever the human says their name is. (See: [Falsehoods Programmers Believe About Names](https://www.kalzumeus.com/2010/06/17/falsehoods-programmers-believe-about-names/).)
+
+```yaml
+principals:
+  tanaka:                       # system username on this machine
+    name: tanaka                # principal slug (machine identifier)
+    display_name: "田中太郎"       # human display (freeform Unicode)
+    address:
+      informal: "太郎"           # how to address in conversation (default: display_name)
+      formal: "田中さん"          # formal address (default: display_name)
+    platforms:
+      github:
+        - username: tanaka-taro
+          org: the-agency-ai
+```
+
+Defaults: if `address.informal` is omitted, use `display_name`. If `address.formal` is omitted, use `display_name`. Most principals only need `display_name` — the address fields are for when the principal has a preference:
+
+```yaml
+  jdm:
+    name: jordan
+    display_name: "Jordan Dea-Mattson"
+    address:
+      informal: "Jordan"        # "Hey Jordan" not "Hey Jordan Dea-Mattson"
+    platforms:
+      github:
+        - username: jordandm
+          org: the-agency-ai
+        - username: jordan-of
+          org: OrdinaryFolk
+```
+
+**Reserved names** (cannot be used as principal names): `_`, `system`, `shared`, `all`. These are reserved for future shared-agent and broadcast addressing.
 
 ### Address Hierarchy
+
+Four levels, broadest to narrowest:
 
 ```
 {org}/{repo}/{principal}/{agent}
 ```
 
-Four levels, from broadest to narrowest:
+| Level | What | Constraint | Example |
+|-------|------|-----------|---------|
+| Org | Hosting namespace (GitHub org, GitLab group) | Case-preserved, `[A-Za-z0-9-]+` | `the-agency-ai`, `OrdinaryFolk` |
+| Repo | Repository short name | `[a-z0-9][a-z0-9_-]*`, no slashes | `the-agency`, `monofolk` |
+| Principal | Human directing the agent | `[a-z0-9][a-z0-9_-]*` | `jordan`, `peter`, `tanaka` |
+| Agent | Agent instance name | `[a-z0-9][a-z0-9_-]*` | `captain`, `devex` |
 
-| Level | What | Example |
-|-------|------|---------|
-| Org | Hosting namespace (GitHub org, GitLab group) | `the-agency-ai`, `OrdinaryFolk` |
-| Repo | Repository name | `the-agency`, `monofolk` |
-| Principal | Human directing the agent | `jordan`, `peter` |
-| Agent | Agent instance name | `captain`, `devex` |
+Repo short names are the leaf name only — no org prefix, no nested group paths. For GitLab nested groups (`org/subgroup/repo`), the short name is `repo`. The `remotes` registry handles full path resolution.
 
-### Address Forms
+### What Tools Write vs. What Tools Accept
 
-Use the shortest unambiguous form for the context. Use fully qualified in all written records.
+**Always write fully qualified** — `{repo}/{principal}/{agent}`. Every tool, every dispatch, every handoff, every written record. No exceptions. The written record must be unambiguous regardless of future context changes.
 
-| Form | Pattern | When |
-|------|---------|------|
-| Bare | `captain` | Same repo, same principal — conversation and code |
-| Principal-scoped | `jordan/captain` | Same repo, multi-principal — conversation and code |
-| Cross-repo, single-principal | `monofolk/captain` | Different repo, only one principal — conversation only |
-| Fully qualified | `monofolk/jordan/captain` | Different repo — dispatches, handoffs, all written records |
-| Org-qualified | `OrdinaryFolk/monofolk/jordan/captain` | Repo name collision across orgs |
+**Accept short forms as input** and resolve them using local context:
 
-**Rule: Dispatches and handoffs always use fully qualified form** (`{repo}/{principal}/{agent}`). Short forms are for conversation and code comments. The written record must be unambiguous regardless of future context changes (new principals, repo forks, etc.).
+| Input form | Pattern | Resolution |
+|------------|---------|------------|
+| Bare | `captain` | Resolve repo from git, principal from agency.yaml |
+| Principal-scoped | `jordan/captain` | Resolve repo from git |
+| Fully qualified | `monofolk/jordan/captain` | No resolution needed |
+| Org-qualified | `OrdinaryFolk/monofolk/jordan/captain` | No resolution needed (rare — repo name collision across orgs) |
+
+Tools parse input by segment count: 1 = bare, 2 = principal/agent, 3 = repo/principal/agent, 4 = org/repo/principal/agent. No ambiguity — the fully qualified form is always 3 segments for cross-repo.
 
 ### Principal Identity Across Repos
 
-A principal may have different identities on different platforms:
+A principal may have different platform identities in different orgs:
 
 | Repo | Local name | GitHub identity | Org |
 |------|-----------|----------------|-----|
 | the-agency | `jordan` | `jordandm` | `the-agency-ai` |
 | monofolk | `jordan` | `jordan-of` | `OrdinaryFolk` |
 
-The local name is repo-scoped (mapped in `agency.yaml`). The platform identity is org-scoped. The physical person may be the same, but the framework treats each `{repo}/{principal}` as a distinct context — different role, different permissions, different sandbox.
+The framework treats each `{repo}/{principal}` as a distinct context — different role, different permissions, different sandbox. The physical person may be the same, but the addressing system does not assume this.
 
-### Resolution
+### Address Resolution
 
-Addresses are resolved, not routed directly. The `remotes` section in `agency.yaml` maps short repo names to their hosting location:
+Addresses resolve via local context, not global lookup.
+
+**Local repo identity:** Auto-detected from `git remote -v` (parse origin URL for org and repo name). Override in `agency.yaml` only when auto-detection fails:
+
+```yaml
+repo:
+  name: monofolk          # override auto-detected name
+  org: OrdinaryFolk       # override auto-detected org
+```
+
+**Cross-repo resolution:** The `remotes` section maps repo short names to hosting locations for repos that are NOT the current repo's git remotes:
 
 ```yaml
 remotes:
   monofolk:
-    url: github.com/OrdinaryFolk/monofolk
-  the-agency:
-    url: github.com/the-agency-ai/the-agency
+    url: https://github.com/OrdinaryFolk/monofolk
 ```
 
-This is the "DNS" layer — it maps logical names to physical locations. The transport (git push/pull, future IACP) is separate from addressing.
+The transport layer (git push/pull, future IACP) is separate from addressing. Addresses identify; transport delivers.
+
+**Resolution errors:** Unknown repo = hard fail with actionable message. Unknown principal = hard fail. Unknown agent = warn (agent may not be registered yet in a fresh worktree).
+
+### Commit Messages
+
+Commit message agent prefixes (`housekeeping/captain: ...`) stay bare-form. They are repo-local context and do not need qualification.
 
 ### Future: Shared Agents
 
-A shared agent serves a repo or value stream rather than a specific principal. Addressing TBD — likely `{repo}/_/{agent}` or `{repo}/{agent}` with a reserved principal name. Not implemented yet.
+A shared agent serves a repo or value stream rather than a specific principal — e.g., a captain that coordinates across all principals. Addressed as `{repo}/_/{agent}` using the reserved `_` principal name. Not implemented yet.
+
+### Future: Groups and Broadcast
+
+Role-based addressing (`*/jordan/*`, `monofolk/*/captain`) and broadcast targeting are anticipated but out of scope. The current address format does not preclude them — the wildcard `*` is not a valid name character, so it can be introduced later without collision.
+
+### Future: Delegation and Ephemeral Agents
+
+When a captain delegates to a worktree agent, the worktree agent is ephemeral — it has no stable address. For dispatch purposes, ephemeral agents reply through their captain's address. A derived address form (e.g., `the-agency/jordan/captain:wt-devex`) is anticipated but not implemented.
 
 ---
 
 ## 2. Tooling Impact
 
-### dispatch-create tool
+### New: `claude/tools/lib/_address-parse`
 
-**Current:** `From: ${PRINCIPAL}/captain` — missing repo, uses bare form.
-**Change:** `From: {repo}/{principal}/{agent}` — fully qualified.
+**Create a canonical address parsing library.** All tools source this instead of reimplementing parsing.
 
-The tool needs:
-- Auto-detect repo name (basename of git root, or from agency.yaml)
-- Accept `--from` and `--to` flags with full addresses
-- Default `--from` to `{repo}/{principal}/captain`
-- Frontmatter should use structured fields, not inline markdown
+Functions:
+- `address_parse <addr>` — split into components, return `ADDR_ORG`, `ADDR_REPO`, `ADDR_PRINCIPAL`, `ADDR_AGENT`
+- `address_resolve <addr>` — resolve short forms using local context (git remote, agency.yaml)
+- `address_format <repo> <principal> <agent>` — produce fully qualified form
+- `address_validate_component <name>` — reject anything outside `[a-z0-9][a-z0-9_-]*`, reject reserved names, reject path traversal (`..`, `/`), max 32 chars
+
+### Update: `claude/tools/lib/_path-resolve`
+
+**Add `_validate_name()`.** Reject any name component containing `/`, `..`, null bytes, or characters outside `[a-z0-9_-]`. Apply in every function that constructs filesystem paths from names. This fixes the existing path traversal vulnerability.
+
+### Update: `claude/tools/dispatch-create`
+
+**Current:** `From: ${PRINCIPAL}/captain` — missing repo, bare form, hardcodes `captain`.
+**Change:** Compute `from:` automatically — repo from git, principal from agency.yaml, agent from context (default: `captain`, detect from session if possible).
+
+No `--from` flag. The sender's identity is computed from trusted sources, not self-asserted. Accept `--to` for the recipient address.
 
 **New frontmatter format:**
 ```yaml
@@ -103,18 +173,15 @@ from: the-agency/jordan/captain
 to: monofolk/jordan/captain
 priority: normal
 subject: "..."
-in_reply_to: "..."
+in_reply_to: "dispatch-code-review-findings-20260401-1430.md"
 ---
 ```
 
-### dispatch skill
+The `in_reply_to` field is the originating dispatch filename (without path).
 
-**Change:** When invoking dispatch-create, pass fully qualified `--from` and `--to`.
+### Update: `claude/tools/handoff`
 
-### handoff tool
-
-**Current:** No agent identity in frontmatter — just `type`, `date`, `branch`, `trigger`.
-**Change:** Add `agent` field with fully qualified address.
+**Add `agent` field** to frontmatter. Computed from local context (not self-asserted).
 
 ```yaml
 ---
@@ -126,60 +193,132 @@ trigger: monofolk-plan-complete
 ---
 ```
 
-### agency.yaml
+Existing handoffs without the `agent` field remain valid — backward compatible.
 
-**Add `remotes` section** for address resolution:
+### Update: `claude/config/agency.yaml`
+
+**Restructure `principals` section** to include platform identity (merge `identity` into `principals` — one place for all principal metadata):
+
+```yaml
+principals:
+  jdm:                          # system username on THIS machine
+    name: jordan                # principal name (the stable slug)
+    display_name: "Jordan Dea-Mattson"
+    platforms:
+      github:
+        - username: jordandm
+          org: the-agency-ai
+        - username: jordan-of
+          org: OrdinaryFolk
+```
+
+The principal name (`jordan`) is the stable identity across machines and repos. System usernames and platform handles are per-machine, per-org plumbing. A different machine with a different system user maps to the same principal:
+
+```yaml
+# On a different machine (e.g., monofolk laptop)
+principals:
+  jdm-of:
+    name: jordan
+    platforms:
+      github:
+        - username: jordan-of
+          org: OrdinaryFolk
+```
+
+**Add `remotes` section** for cross-repo address resolution (only for repos not in git remotes):
 
 ```yaml
 remotes:
   monofolk:
-    url: github.com/OrdinaryFolk/monofolk
+    url: https://github.com/OrdinaryFolk/monofolk
 ```
 
-**Add `identity` section** to capture the local principal's platform mapping:
+**Add optional `repo` section** for overriding auto-detected repo identity:
 
 ```yaml
-identity:
-  jordan:
-    github: jordandm
-    # Could add: gitlab, email, etc.
+repo:
+  name: the-agency
+  org: the-agency-ai
 ```
+
+### Agent registration (`.claude/agents/{name}.md`)
+
+**No `address` field.** The fully qualified address is always computable at runtime from repo + principal + agent name. Storing it creates stale-data risk.
 
 ### Commit messages
 
-**Current:** `housekeeping/captain: ...` — bare agent name with workstream prefix.
-**No change needed.** Commit messages are repo-local context. Bare form is correct here.
+**No change.** Bare-form agent prefixes (`housekeeping/captain: ...`) are correct for repo-local context.
 
-### Agent registration (.claude/agents/{name}.md)
+## 3. Tests Required
 
-**Add optional `address` field** to frontmatter:
+### New: `tests/tools/dispatch-create.bats`
 
-```yaml
----
-name: captain
-description: "..."
-model: opus
-address: the-agency/jordan/captain
----
-```
+Baseline tests BEFORE making changes:
+- Creates file at correct path
+- Correct filename format (slug + timestamp)
+- Frontmatter fields present
 
-Auto-populated by agency-init. Used by tools to determine the agent's fully qualified address.
+Then add:
+- `from:` field is fully qualified (`{repo}/{principal}/{agent}`)
+- `from:` is auto-computed, not user-supplied
+- `to:` field is validated
+- `in_reply_to` field format is filename-only
 
-## 3. Migration
+### New: `tests/tools/address-parse.bats`
 
-- Update dispatch-create tool to use new frontmatter format
-- Update handoff tool to include `agent` field
-- Add `remotes` section to agency.yaml (and to agency-init template)
-- Add `identity` section to agency.yaml
-- Add `address` field to agent registrations
-- Existing dispatches and handoffs are NOT retroactively updated — they're historical records
-- New dispatches from this point forward use fully qualified addressing
+- Parse all 4 input forms (1, 2, 3, 4 segments)
+- Resolve bare → fully qualified
+- Resolve principal-scoped → fully qualified
+- Reject: empty, slashes in components, `..`, reserved names (`_`, `system`, `shared`, `all`)
+- Reject: non-ASCII, too-long names (>32 chars), uppercase in non-org position
+- Org names preserve case
 
-## 4. Relationship to ISCP / IACP
+### Update: `tests/tools/handoff-types.bats`
+
+- `agent` field present in new handoffs
+- `agent` field is fully qualified
+- Missing `agent` field still parses (backward compat)
+
+### Update: `tests/tools/principal.bats`
+
+- Reject `_`, `system`, `shared`, `all` as principal names
+- Reject path traversal in principal names
+
+### Update: `tests/skills/skill-validation.bats`
+
+- Monofolk references in example text within `.claude/skills/` are OK if in comments/examples — update grep to exclude example blocks, OR keep example repo names out of skills entirely
+
+## 4. Migration
+
+1. Create `claude/tools/lib/_address-parse` with validation, parsing, resolution
+2. Add `_validate_name()` to `claude/tools/lib/_path-resolve`
+3. Update `dispatch-create` — computed `from:`, YAML frontmatter, `--to` flag
+4. Update `handoff` tool — add `agent` field
+5. Restructure `principals` in agency.yaml template (merge identity)
+6. Add `remotes` section to agency.yaml template
+7. Update `agency-init` to scaffold new agency.yaml structure and prompt for org/repo (or auto-detect from `git remote -v`)
+8. Create all test files listed in section 3
+9. Update prior dispatch resolution to note that addressing standard evolved past `{repo}/{agent}` form
+10. Existing dispatches and handoffs are NOT retroactively updated — historical records
+
+## 5. Relationship to ISCP / IACP
 
 This addressing standard is a prerequisite for both protocols:
 
-- **ISCP (Inter-Session Communication Protocol):** Same agent, across sessions. Address is implicit (it's always you). But handoffs now carry the agent's address for auditability.
-- **IACP (Inter-Agency Communication Protocol):** Different agents, potentially cross-repo. Fully qualified addresses are the envelope. Resolution via `remotes` in agency.yaml is the routing layer. Transport (git push/pull today, dedicated protocol later) is separate.
+- **ISCP (Inter-Session Communication Protocol):** Same agent, across sessions. Handoffs now carry the agent's fully qualified address for auditability. Local delivery — transport is the filesystem.
+- **IACP (Inter-Agency Communication Protocol):** Different agents, potentially cross-repo. Fully qualified addresses are the envelope. Resolution via `remotes` + git remotes. Transport is git push/pull today, pluggable later.
 
-The addressing standard defines the "email address." ISCP defines local delivery. IACP defines internet mail. The transport is SMTP-equivalent — pluggable, not part of the address.
+Addressing defines identity. ISCP defines local delivery. IACP defines cross-repo delivery. Transport is pluggable — separate from all three.
+
+## 6. Trust Model
+
+**Current trust boundary:** Anyone who can commit to the repo can create dispatches. The `from:` field is computed by tooling but not cryptographically verified. This is acceptable for single-principal and trusted-team repos.
+
+**For multi-principal and cross-repo:** Before implementing IACP, define:
+- Dispatch signing via commit signatures (`git verify-commit`)
+- Receiving repo validates `from:` against configured `remotes`
+- Transport mechanism documented as part of IACP, not deferred
+
+**Modifying `remotes` in agency.yaml is a privilege-sensitive operation** — changes should be reviewed in PRs, not auto-merged.
+
+**Platform identity (`github` field in principals) is intentionally public** for open-source repos. For private repos, consider whether this belongs in a gitignored local config.
