@@ -1,85 +1,72 @@
 ---
 type: session
-date: 2026-04-02 01:50
+date: 2026-04-02 09:05
 branch: main
-trigger: manual-precompact
+trigger: monofolk-plan-complete
 ---
 
 # Captain Handoff
 
 **Agent:** captain (housekeeping)
 **Principal:** jordan
-**Updated:** 2026-04-02 (session 12)
+**Updated:** 2026-04-02 (session 13)
 
 ## Current State
 
-On `main` branch. Executing **Monofolk Dispatch Incorporation** plan.
+On `main` branch. **Monofolk Dispatch Incorporation — COMPLETE.** All 6 phases done with QGRs.
 
-## Session 12 Work
+## Session 13 Work
 
-### Starter Sunset — COMPLETE (PR #25 merged)
-
-5 phases executed with QGRs between each:
-- Phase 1+2: Agency CLI consolidation + handoff type system
-- Phase 1.4+3: Registry refactor + agency update implementation
-- Phase 4: Starter sunset (tools, docs, test repo removed)
-- Phase 5: Verification tests (20 new BATS tests)
-
-Also fixed 6 pre-existing BATS failures:
-- `config get` returning exit 0 for missing keys (now returns 1 + "not found")
-- `findings-save` / `findings-consolidate` wrong `log_end` arg order causing exit 2
-
-### Monofolk Dispatch Incorporation — IN PROGRESS
-
-**Plan file:** `/Users/jdm/.claude/plans/transient-questing-meerkat.md`
+### Monofolk Dispatch Incorporation — COMPLETE
 
 | Phase | Status | Commit | Notes |
 |-------|--------|--------|-------|
-| 1: ADHOC Purge | COMPLETE | aa2313e | Already done in starter-sunset |
-| 2: Licensing/Infra | COMPLETE | aa2313e | Already done in prior sessions |
-| 3: Skills Port | COMPLETE | 8666e59 | All 33 skills present, zero monofolk residue |
-| 4: Tool/Agent Updates | COMPLETE | e04b884 | ref-injector multi-ref fix for ship/git-commit |
-| 5: Post-Init Enhancements | **IN PROGRESS** | — | Starting 5.1 |
-| 6: Cleanup/Verification | NOT STARTED | — | |
+| 1: ADHOC Purge | COMPLETE | aa2313e | Done in starter-sunset |
+| 2: Licensing/Infra | COMPLETE | aa2313e | Done in prior sessions |
+| 3: Skills Port | COMPLETE | 8666e59 | 33 skills, zero monofolk residue |
+| 4: Tool/Agent Updates | COMPLETE | e04b884 | ref-injector multi-ref fix |
+| 5: Post-Init Enhancements | COMPLETE | 38c5281 | 3 provider-dispatch skills, skill-verify, web-fetch |
+| 6: Cleanup/Verification | COMPLETE | 0d5c13c | Skill tests updated, full sweep clean |
 
-**QGRs committed:**
+**QGRs committed (6 total for monofolk):**
 - `qgr-monofolk-phase1-aa2313e-20260402-0130.md`
 - `qgr-monofolk-phase2-aa2313e-20260402-0135.md`
 - `qgr-monofolk-phase3-8666e59-20260402-0140.md`
 - `qgr-monofolk-phase4-8666e59-20260402-0145.md`
+- `qgr-monofolk-phase5-3eb29fb-20260402-0856.md`
+- `qgr-monofolk-phase6-0b31ca3-20260402-0902.md`
 
-### Phase 5 Status (where we stopped)
+### Phase 5 Details
+- Created 3 provider-dispatch skills: `preview`, `deploy`, `crawl-sites`
+- Created `skill-verify` tool — validates all 40 skills have valid SKILL.md
+- Wired skill-verify into quality-gate Step 0.2 as precondition
+- Created `web-fetch` tool — curl with JS-detection + Playwright fallback
+- Added provider sections to agency.yaml (preview, deploy, crawl)
+- Added permissions to settings.json
 
-Checked sub-items:
-- **5.1: Pluggable ref skills** — preview, deploy, crawl-sites skills do NOT exist yet. Need to create with provider-dispatch pattern.
-- **5.2: workstream-create** — skill already EXISTS
-- **5.3: Boundary skill verification** — NOT STARTED
-- **5.4: settings-merge** — tool already EXISTS
-- **5.5: Web content retrieval tools** — NOT STARTED
+### Phase 6 Details
+- Updated skill-validation.bats: count 37→40, provider-dispatch wildcard handling
+- Full final sweep: zero residue, all JSON valid, all tools syntax-clean, all tests pass
 
 ## What's Next
 
-1. **Implement Phase 5** — create preview/deploy/crawl-sites skills (provider-dispatch), build boundary verification, web content tools
-2. **QGR for Phase 5** — must produce QGR before committing
-3. **Phase 6: Cleanup/Verification** — agency-init skills install, agency-update, starter pack/fixture integration, skill validation tests, final sweep
-4. **QGR for Phase 6**
-5. **PR + push + merge** — when all phases done
-
-## Key Constraint
-
-Principal requires QGR between every phase. "If I do not see QGRs, I will feed you to the attack kittens."
+1. **Push to origin** — 7 commits ahead of origin
+2. **PR + merge** for monofolk dispatch work
+3. **agency-update redesign** — PVR, A&D, Plan. Get monofolk/captain review on PVR and A&D.
 
 ## Git State
 
 - Branch: `main`
-- HEAD: e04b884
-- Working tree: clean (except handoff + untracked test artifacts)
-- Origin: behind by ~4 commits (need to push)
-- Untracked test artifacts: `.claude/agents/test$agent.md`, `testname.md`, `claude/workstreams/test; rm -rf /` (from security testing — safe to ignore)
+- HEAD: 0d5c13c
+- Working tree: clean (except untracked test artifacts and PDF)
+- Origin: ~7 commits behind
 
 ## Commits Since Last Push
 
 ```
+0d5c13c Monofolk Phase 6: cleanup/verification — skill tests updated, final sweep clean
+38c5281 Monofolk Phase 5: post-init enhancements — provider-dispatch skills + boundary verification
+8c978bb housekeeping/captain: session 12 handoff — monofolk Phase 5 in progress
 e04b884 Monofolk Phase 3+4: skills verified + ref-injector multi-ref fix
 8666e59 Monofolk Phase 1+2 QG: ADHOC purge + licensing/infra verified complete
 aa2313e fix: config get returns not-found for missing keys, fix log_end arg order
