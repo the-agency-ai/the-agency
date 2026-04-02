@@ -1,7 +1,7 @@
 # Agency Update v2 — Product Vision & Requirements
 
 **Date:** 2026-04-02
-**Status:** Draft — MAR round 1 complete (15 findings, all fixed)
+**Status:** Approved — MAR round 1 (15 findings fixed) + monofolk review (7 findings fixed)
 **Author:** the-agency/jordan/captain
 **Predecessor:** `starter-sunset-pvr-20260401.md` (agency-update v1 — basic rsync + settings-merge)
 
@@ -82,7 +82,8 @@ Implement the tier model from the starter-sunset A&D. **This replaces v1's uncon
 **Tier classification rules (per-file, with directory defaults):**
 - `framework` (always overwrite) — agents/, docs/, hookify/, templates/, tools/lib/*, CLAUDE-THEAGENCY.md, README-THEAGENCY.md
 - `config` (preserve if modified) — hooks/, tools/ (top-level executables). Individual files may be overridden to `framework` tier in the manifest if they should never be customized (e.g., `tools/lib/_log-helper`).
-- `scaffold` (never overwrite, may migrate) — usr/, workstreams/, agency.yaml, settings.json
+- `scaffold` (never overwrite, may migrate) — usr/, workstreams/, agency.yaml
+- `settings.json` is a **special case** — not purely any tier. It requires section-level merge: hooks section is framework-managed (update with framework), permissions section is user-managed (preserve), plugins section is user-managed (preserve). Handled by `settings-merge`, not by the tier system directly.
 
 **Manifest migration:** When `agency update` v2 encounters a v1 manifest (entries without `tier` field), it infers tier from the path-based classification rules above and writes the enriched manifest. This is a one-time inference on the first v2 update.
 
@@ -103,15 +104,24 @@ On every `agency update`:
    - **File in manifest but not in source** → file removed upstream → warn, don't delete. `agency update --prune` deletes these files. Default is warn-only for safety.
 4. Update manifest with new checksums after sync
 
+**Manifest bootstrap (no prior manifest):** When `agency update` runs against a target with no manifest (or a v1 manifest without checksums), it must be **conservative**: treat all config-tier files as user-modified (skip, don't overwrite). Only framework-tier files are safe to overwrite without baseline. This prevents the first v2 update from silently clobbering customized hooks. The bootstrap computes checksums for all existing files and writes the manifest — subsequent updates have a baseline.
+
 ### 4.3 Agency.yaml Migration
 
-`agency.yaml` is scaffold tier (never overwritten) but subject to schema migration. Detect old `principals` format (flat `key: value`) vs. new (nested with `name`, `display_name`, `platforms`). If old format detected:
+`agency.yaml` is scaffold tier (never overwritten) but subject to schema migration. Detect old format and migrate. Three known formats in the wild:
 
-1. Migrate each entry: `jdm: jordan` → `jdm: { name: jordan, display_name: "Jordan" }`
-2. Default `display_name` to titlecase of `name` (e.g., `jordan` → `"Jordan"`)
-3. Default `address.informal` to `display_name`
-4. Leave `platforms.github` empty — user fills in post-migration
-5. Preserve all other agency.yaml sections untouched
+1. **Flat** (the-agency original): `principals: { jdm: jordan }`
+2. **Root-level singular** (monofolk current): `principal: jordan` + `principal_name: "..."` + `principal_email: "..."` + `principal_github: "..."`
+3. **Nested** (target): `principals: { jdm: { name: jordan, display_name: "Jordan Dea-Mattson", ... } }`
+
+Migration steps:
+1. Detect format by structural markers (presence of `principals:` vs `principal:` vs nested object)
+2. For flat: `jdm: jordan` → `jdm: { name: jordan, display_name: "Jordan" }`
+3. For root-level: extract `principal`, `principal_name`, `principal_email`, `principal_github` → build nested structure under `principals:` keyed by `$USER`
+4. Default `display_name` to titlecase of `name` if not derivable from source format
+5. Default `address.informal` to `display_name`
+6. Leave `platforms.github` empty unless derivable from `principal_github` field
+7. Preserve all other agency.yaml sections untouched
 
 **Non-interactive.** No prompts during migration. Defaults are applied, and the update report lists what was defaulted so the user can refine. The tool architecture (bash scripts invoked by Claude Code) does not support interactive stdin.
 
@@ -129,19 +139,21 @@ Before making any changes:
 
 **No version compatibility check.** The "always forward" constraint (from starter-sunset PVR) means compatibility is implicit — every update moves to the current source version. If a breaking change requires migration, the migration is bundled in the update (see 4.3).
 
-### 4.5 Post-Update Session Context
+### 4.5 Post-Update Actions
 
-1. `agency update` writes handoff with `type: agency-update`
-2. `session-handoff.sh` detects the type and injects update context
-3. The injected context instructs the agent to run `agency verify --verbose` as first action
-4. This is best-effort — hooks inject system messages, not tool calls. The agent reads the context and decides actions.
+1. `agency update` runs `sandbox-sync` as a final step — new skills and hookify rules from the update are symlinked into `.claude/` immediately, not deferred to next session
+2. `agency update` writes handoff with `type: agency-update`
+3. `session-handoff.sh` detects the type and injects update context
+4. The injected context instructs the agent to run `agency verify --verbose` as first action
+5. This is best-effort — hooks inject system messages, not tool calls. The agent reads the context and decides actions.
+6. **Worktree staleness:** After update, worktree copies of settings.json are stale until next `/session-resume` (which runs worktree-sync). Document this explicitly — it's a known window.
 
 ### 4.6 Update Reporting
 
-After update, generate a summary at `usr/{principal}/captain/update-report-YYYYMMDD-HHMM.md`. Principal resolved via `agency whoami` (reading from agency.yaml). If principal cannot be resolved (corrupt agency.yaml), the report is written to `claude/config/last-update-report.md` as fallback.
+After update, generate a summary at `usr/{principal}/{agent}/update-report-YYYYMMDD-HHMM.md`. Agent name resolved from context (not hardcoded to `captain`). Principal resolved via `agency whoami` (reading from agency.yaml). If principal cannot be resolved (corrupt agency.yaml), the report is written to `claude/config/last-update-report.md` as fallback.
 
 Contents:
-- Source version → target version
+- Source version → target version (if no `framework:` block in agency.yaml, report "version unknown → {new version}")
 - Files added, updated, skipped (with reasons for skips)
 - Config files preserved (user-modified, with paths)
 - Agency.yaml migrations applied (with defaults used)
