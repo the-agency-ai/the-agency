@@ -87,10 +87,12 @@ _init_main() {
         exit 1
     fi
 
-    # --- Precondition 3: on main/master ---
+    # --- Precondition 3: on main/master (or fresh repo with no commits) ---
     local current_branch
     current_branch=$(git -C "$TARGET_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-    if [[ "$current_branch" != "main" && "$current_branch" != "master" ]]; then
+    # Fresh git init has no commits — HEAD is unborn, rev-parse returns "HEAD"
+    # Accept: main, master, or unborn HEAD (fresh repo, no commits yet)
+    if [[ "$current_branch" != "main" && "$current_branch" != "master" && "$current_branch" != "HEAD" ]]; then
         log_error "Must be on main or master branch (currently on: ${current_branch:-detached HEAD})"
         echo "Switch to main/master before running agency init."
         exit 1
