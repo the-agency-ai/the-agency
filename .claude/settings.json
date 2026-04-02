@@ -123,7 +123,7 @@
     ]
   },
   "enabledPlugins": {
-    "hookify@claude-plugins-official": true
+    "hookify@claude-plugins-official": false
   },
   "permissions": {
     "allow": [
