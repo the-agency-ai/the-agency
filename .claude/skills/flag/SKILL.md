@@ -18,7 +18,7 @@ Zero-friction capture of observations during work. Flag something now, discuss i
 If `$ARGUMENTS` is a message (not a subcommand):
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/flag $ARGUMENTS
+bash $CLAUDE_PROJECT_DIR/claude/tools/flag "$ARGUMENTS"
 ```
 
 Confirm: "Flagged. N items in queue."
