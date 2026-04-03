@@ -58,6 +58,12 @@ escape_sed() {
     printf '%s\n' "$1" | sed 's/[&/\]/\\&/g'
 }
 
+# Sanitize interpolation values for YAML frontmatter (MAR S1)
+# Strips newlines and bare --- sequences that break frontmatter boundaries
+sanitize_interpolation() {
+    printf '%s' "$1" | tr '\n' ' ' | sed 's/---//g'
+}
+
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     echo "agent-create $TOOL_VERSION"
@@ -340,6 +346,62 @@ Read your identity and responsibilities from \`claude/agents/${AGENTNAME}/agent.
 Read seed materials from \`claude/workstreams/${WORKSTREAM}/seeds/\`.
 CCEOF
         verbose_echo "Registered Claude Code agent: $CLAUDE_AGENTS_DIR/${AGENTNAME}.md"
+    fi
+
+    # Scaffold workspace directories in principal sandbox
+    local SANDBOX_DIR="usr/$PRINCIPAL/$WORKSTREAM"
+    if [[ -d "usr/$PRINCIPAL" ]]; then
+        mkdir -p "$SANDBOX_DIR"/{tools,tmp}
+        # tmp/ is scratch space — gitignore its contents
+        if [[ ! -f "$SANDBOX_DIR/tmp/.gitignore" ]]; then
+            echo '*' > "$SANDBOX_DIR/tmp/.gitignore"
+            echo '!.gitignore' >> "$SANDBOX_DIR/tmp/.gitignore"
+        fi
+        verbose_echo "Scaffolded workspace: $SANDBOX_DIR/{tools,tmp}"
+
+        # Write bootstrap handoff template with TODO placeholders
+        local HANDOFF_FILE="$SANDBOX_DIR/${AGENTNAME}-handoff.md"
+        if [[ ! -f "$HANDOFF_FILE" ]]; then
+            # Sanitize all interpolated values (MAR S1)
+            local safe_agent safe_principal safe_workstream safe_repo
+            safe_agent=$(sanitize_interpolation "$AGENTNAME")
+            safe_principal=$(sanitize_interpolation "$PRINCIPAL")
+            safe_workstream=$(sanitize_interpolation "$WORKSTREAM")
+            safe_repo=$(basename "$PROJECT_ROOT")
+
+            cat > "$HANDOFF_FILE" << HANDOFF_EOF
+# Handoff: ${safe_agent} — Bootstrap
+
+---
+type: agency-bootstrap
+date: $(date '+%Y-%m-%d %H:%M')
+principal: ${safe_principal}
+agent: ${safe_repo}/${safe_principal}/${safe_agent}
+workstream: ${safe_workstream}
+---
+
+## Who You Are
+
+TODO: What this agent owns and is responsible for.
+
+## Your Workstream Peers
+
+TODO: Who else works in this workstream, what they own.
+
+## Current State
+
+TODO: What's been done, what remains.
+
+## Key Files
+
+TODO: PVR, A&D, seeds, knowledge.
+
+## Next Action
+
+TODO: What to do first.
+HANDOFF_EOF
+            verbose_echo "Wrote bootstrap handoff: $HANDOFF_FILE"
+        fi
     fi
 
     echo ""
