@@ -110,6 +110,36 @@ EOF
     [[ "$parsed" == "session" ]]
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Agent address in handoff output
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "handoff: write output includes agent address" {
+    run "${TOOLS_DIR}/handoff" write --trigger test-agent-field
+    assert_success
+    assert_output_contains "agent:"
+    # Agent address should be fully qualified (repo/principal/agent)
+    # Check for the pattern: at least two slashes in the agent value
+    [[ "$output" =~ agent:\ [^\ ]+/[^\ ]+/[^\ ]+ ]]
+}
+
+@test "handoff: agent address is fully qualified (3 segments)" {
+    run "${TOOLS_DIR}/handoff" write --trigger test-fq
+    assert_success
+    # Extract agent address from output
+    local agent_addr
+    agent_addr=$(echo "$output" | grep -o 'agent: [^ )]*' | sed 's/agent: //')
+    if [[ -n "$agent_addr" ]]; then
+        local slash_count
+        slash_count=$(echo "$agent_addr" | tr -cd '/' | wc -c | tr -d ' ')
+        [[ "$slash_count" -eq 2 ]]
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Backward compatibility
+# ─────────────────────────────────────────────────────────────────────────────
+
 @test "type-parse: handles type with extra whitespace" {
     local tmpfile="${BATS_TEST_TMPDIR}/handoff.md"
     cat > "$tmpfile" << 'EOF'

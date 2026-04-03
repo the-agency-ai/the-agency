@@ -32,6 +32,11 @@ if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
     source "$SCRIPT_DIR/lib/_log-helper"
 fi
 
+# Source address-parse for fully qualified agent address
+if [[ -f "$SCRIPT_DIR/lib/_address-parse" ]]; then
+    source "$SCRIPT_DIR/lib/_address-parse"
+fi
+
 # --- PATH resolution ---
 [ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
 [ -d "$HOME/.asdf/shims" ] && export PATH="$HOME/.asdf/shims:$PATH"
@@ -132,6 +137,23 @@ if [ -z "$HANDOFF_PATH" ]; then
     exit 1
 fi
 
+# --- Compute fully qualified agent address ---
+AGENT_ADDRESS=""
+if type address_resolve &>/dev/null; then
+    # Derive agent name from branch (same logic as resolve_path)
+    _agent_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    _agent_slug="${_agent_branch##*/}"
+    _agent_slug="${_agent_slug#worktree-}"
+    case "$_agent_slug" in
+        main|master) _agent_slug="captain" ;;
+    esac
+    # Use CLAUDE_AGENT_NAME if available (future: Claude Code may expose this)
+    _agent_name="${CLAUDE_AGENT_NAME:-$_agent_slug}"
+    if address_resolve "$_agent_name" 2>/dev/null; then
+        AGENT_ADDRESS=$(address_format 2>/dev/null) || true
+    fi
+fi
+
 TRIGGER=""
 LIGHTWEIGHT=false
 HANDOFF_TYPE="session"
@@ -204,7 +226,11 @@ case "$COMMAND" in
 
             # For hook triggers, output JSON systemMessage
             if [ "$TRIGGER" = "SessionEnd" ] || [ "$TRIGGER" = "PreCompact" ]; then
-                MSG="Handoff trigger: ${TRIGGER} at ${TIMESTAMP}. Update ${HANDOFF_PATH##*/usr/} with current session state before the session ends. Use type: ${HANDOFF_TYPE} in YAML frontmatter."
+                AGENT_MSG=""
+                if [ -n "$AGENT_ADDRESS" ]; then
+                    AGENT_MSG=" Include agent: ${AGENT_ADDRESS} in YAML frontmatter."
+                fi
+                MSG="Handoff trigger: ${TRIGGER} at ${TIMESTAMP}. Update ${HANDOFF_PATH##*/usr/} with current session state before the session ends. Use type: ${HANDOFF_TYPE} in YAML frontmatter.${AGENT_MSG}"
                 command -v jq >/dev/null 2>&1 && {
                     printf '{"systemMessage":%s}' "$(printf '%s' "$MSG" | jq -Rs '.')"
                 } || {
@@ -212,11 +238,15 @@ case "$COMMAND" in
                 }
             else
                 # For manual/command triggers, plain output
+                AGENT_INFO=""
+                if [ -n "$AGENT_ADDRESS" ]; then
+                    AGENT_INFO=", agent: ${AGENT_ADDRESS}"
+                fi
                 if [ -n "$RUN_ID" ]; then
-                    tool_output "handoff" "$RUN_ID" "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual}, type: ${HANDOFF_TYPE})"
+                    tool_output "handoff" "$RUN_ID" "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual}, type: ${HANDOFF_TYPE}${AGENT_INFO})"
                 else
-                    echo "handoff"
-                    echo "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual}, type: ${HANDOFF_TYPE})"
+                    echo "handoff [run: ${RUN_ID:-none}]"
+                    echo "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual}, type: ${HANDOFF_TYPE}${AGENT_INFO})"
                     echo "✓"
                 fi
             fi

@@ -1,60 +1,176 @@
 #!/bin/bash
 #
-# dispatch-create — Create a new dispatch file with auto-stamped datetime
+# dispatch-create — Create a new dispatch file with structured frontmatter
 #
 # Usage:
-#   ./claude/tools/dispatch-create <slug> [principal]
+#   ./claude/tools/dispatch-create --to <address> --subject <text> [options]
 #
-# Creates: usr/{principal}/captain/dispatches/dispatch-{slug}-YYYYMMDD-HHMM.md
-# Default principal: detected via agency-whoami or git config user.name
+# Required:
+#   --to <address>         Target agent (validated, any address form)
+#   --subject <text>       Dispatch subject line
 #
-# Example:
-#   ./claude/tools/dispatch-create code-review-findings
-#   → usr/{principal}/captain/dispatches/dispatch-code-review-findings-20260401-1430.md
+# Optional:
+#   --reply-to <filename>  Set in_reply_to (for replies to existing dispatches)
+#   --priority <level>     normal (default), high, low
+#   --project <name>       Override project directory (default: captain)
+#
+# Creates: usr/{principal}/{project}/dispatches/dispatch-{slug}-YYYYMMDD-HHMM.md
+#
+# The sender (created_by) is auto-computed from git remote + agency.yaml.
+# No --from flag — sender identity is computed, not self-asserted (DD-7).
 #
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-# shellcheck source=lib/_log-helper
+
+# Source helpers
 source "$SCRIPT_DIR/lib/_log-helper"
+source "$SCRIPT_DIR/lib/_address-parse"
 
 RUN_ID=$(log_start "dispatch-create" "$@")
 
-SLUG="${1:-}"
-PRINCIPAL="${2:-}"
+# --- Defaults ---
+TO_ADDR=""
+SUBJECT=""
+REPLY_TO=""
+PRIORITY="normal"
+PROJECT="captain"
 
+# --- Parse args ---
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --to)
+            [[ -n "${2:-}" ]] || { echo "Error: --to requires an address" >&2; exit 1; }
+            TO_ADDR="$2"; shift 2 ;;
+        --subject)
+            [[ -n "${2:-}" ]] || { echo "Error: --subject requires text" >&2; exit 1; }
+            SUBJECT="$2"; shift 2 ;;
+        --reply-to)
+            [[ -n "${2:-}" ]] || { echo "Error: --reply-to requires a filename" >&2; exit 1; }
+            REPLY_TO="$2"; shift 2 ;;
+        --priority)
+            [[ -n "${2:-}" ]] || { echo "Error: --priority requires a level" >&2; exit 1; }
+            PRIORITY="$2"; shift 2 ;;
+        --project)
+            [[ -n "${2:-}" ]] || { echo "Error: --project requires a name" >&2; exit 1; }
+            PROJECT="$2"; shift 2 ;;
+        --help|-h)
+            echo "Usage: dispatch-create --to <address> --subject <text> [--reply-to <file>] [--priority normal|high|low] [--project <name>]"
+            exit 0 ;;
+        *)
+            echo "Unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
+# --- Validate required args ---
+if [[ -z "$TO_ADDR" ]]; then
+    log_end "$RUN_ID" "error" "1" "0" "missing --to"
+    echo "Error: --to <address> is required" >&2
+    exit 1
+fi
+if [[ -z "$SUBJECT" ]]; then
+    log_end "$RUN_ID" "error" "1" "0" "missing --subject"
+    echo "Error: --subject <text> is required" >&2
+    exit 1
+fi
+
+# --- Validate priority ---
+case "$PRIORITY" in
+    normal|high|low) ;;
+    *) echo "Error: --priority must be normal, high, or low" >&2; exit 1 ;;
+esac
+
+# --- Resolve sender (created_by) — auto-computed, not self-asserted ---
+# Detect agent name from branch (main/master → captain, worktree → branch slug)
+AGENT_NAME="${CLAUDE_AGENT_NAME:-}"
+if [[ -z "$AGENT_NAME" ]]; then
+    local_branch=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    local_branch="${local_branch##*/}"
+    local_branch="${local_branch#worktree-}"
+    case "$local_branch" in
+        main|master) AGENT_NAME="captain" ;;
+        *) AGENT_NAME="$local_branch" ;;
+    esac
+fi
+
+address_resolve "$AGENT_NAME" || {
+    log_end "$RUN_ID" "error" "1" "0" "cannot resolve sender address"
+    echo "Error: cannot resolve sender address for '$AGENT_NAME'" >&2
+    exit 1
+}
+CREATED_BY=$(address_format)
+
+# --- Validate --to address ---
+# Parse and resolve the target address
+address_resolve "$TO_ADDR" 2>/dev/null || {
+    # If resolution fails (unknown repo/principal), still validate the components
+    address_parse "$TO_ADDR" || {
+        log_end "$RUN_ID" "error" "1" "0" "invalid --to address"
+        echo "Error: invalid --to address: $TO_ADDR" >&2
+        exit 1
+    }
+}
+# Validate each non-empty component
+if [[ -n "$ADDR_ORG" ]]; then
+    address_validate_component "$ADDR_ORG" --level org || {
+        echo "Error: invalid org in --to address: $ADDR_ORG" >&2; exit 1; }
+fi
+if [[ -n "$ADDR_REPO" ]]; then
+    address_validate_component "$ADDR_REPO" --level repo || {
+        echo "Error: invalid repo in --to address: $ADDR_REPO" >&2; exit 1; }
+fi
+if [[ -n "$ADDR_PRINCIPAL" ]]; then
+    address_validate_component "$ADDR_PRINCIPAL" --level principal || {
+        echo "Error: invalid principal in --to address: $ADDR_PRINCIPAL" >&2; exit 1; }
+fi
+if [[ -n "$ADDR_AGENT" ]]; then
+    address_validate_component "$ADDR_AGENT" --level agent || {
+        echo "Error: invalid agent in --to address: $ADDR_AGENT" >&2; exit 1; }
+fi
+
+# Format the validated --to address for output
+TO_FORMATTED="$TO_ADDR"
+if [[ -n "$ADDR_REPO" && -n "$ADDR_PRINCIPAL" && -n "$ADDR_AGENT" ]]; then
+    TO_FORMATTED=$(address_format "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT")
+fi
+
+# --- Generate slug from subject ---
+SLUG=$(printf '%s' "$SUBJECT" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//' | cut -c1-50)
 if [[ -z "$SLUG" ]]; then
-  log_end "$RUN_ID" "error" "1" "0" "missing slug"
-  echo "dispatch-create: usage: dispatch-create <slug> [principal]" >&2
-  exit 1
+    SLUG="dispatch"
 fi
 
-# Resolve principal
-if [[ -z "$PRINCIPAL" ]]; then
-  if command -v "$SCRIPT_DIR/agency-whoami" >/dev/null 2>&1; then
-    PRINCIPAL=$("$SCRIPT_DIR/agency-whoami" 2>/dev/null || true)
-  fi
-  if [[ -z "$PRINCIPAL" ]]; then
-    PRINCIPAL=$(git config user.name 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr ' ' '-' || echo "unknown")
-  fi
-fi
-
+# --- Build file path ---
 TIMESTAMP=$(date +%Y%m%d-%H%M)
+DATE_FULL=$(date -u +%Y-%m-%dT%H:%M)
 FILENAME="dispatch-${SLUG}-${TIMESTAMP}.md"
-DISPATCH_DIR="$PROJECT_ROOT/usr/${PRINCIPAL}/captain/dispatches"
+
+# Resolve principal for dispatch directory
+_address_detect_principal >/dev/null 2>&1 || true
+DISPATCH_PRINCIPAL="${AGENCY_PRINCIPAL:-${USER:-unknown}}"
+DISPATCH_DIR="$PROJECT_ROOT/usr/${DISPATCH_PRINCIPAL}/${PROJECT}/dispatches"
 
 mkdir -p "$DISPATCH_DIR"
-
 FILEPATH="$DISPATCH_DIR/$FILENAME"
 
-cat > "$FILEPATH" << EOF
-# Dispatch: ${SLUG}
+# --- Write dispatch ---
+cat > "$FILEPATH" << DISPATCH_EOF
+---
+status: created
+created: ${DATE_FULL}
+created_by: ${CREATED_BY}
+to: ${TO_FORMATTED}
+priority: ${PRIORITY}
+subject: "${SUBJECT}"
+in_reply_to: ${REPLY_TO:-null}
+read_by: null
+read_at: null
+resolved_at: null
+---
 
-**Date:** $(date +%Y-%m-%d)
-**From:** ${PRINCIPAL}/captain
-**To:** <!-- target agent(s) -->
+# ${SUBJECT}
 
 ## Context
 
@@ -67,10 +183,12 @@ cat > "$FILEPATH" << EOF
 ## Acceptance Criteria
 
 - [ ] <!-- criterion 1 -->
-EOF
+DISPATCH_EOF
 
 log_end "$RUN_ID" "success" "0" "0" "created $FILENAME"
 
 echo "dispatch-create [run: $RUN_ID]"
-echo "$FILEPATH"
+echo "Created: $FILEPATH"
+echo "  From: $CREATED_BY"
+echo "  To:   $TO_FORMATTED"
 echo "✓"
