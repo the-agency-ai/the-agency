@@ -57,15 +57,13 @@ if [[ -z "$MAIN_CHECKOUT" ]] || [[ ! -d "$MAIN_CHECKOUT" ]]; then
     exit 1
 fi
 
-# Resolve principal from agency.yaml or fall back to $USER
-AGENCY_YAML="$MAIN_CHECKOUT/claude/config/agency.yaml"
-PRINCIPAL=""
-if [[ -f "$AGENCY_YAML" ]]; then
-    PRINCIPAL=$(grep -E '^\s*principal:' "$AGENCY_YAML" 2>/dev/null | head -1 | sed 's/.*principal:\s*//' | tr -d '"' | tr -d "'" | tr -d ' ')
+# Resolve principal via _path-resolve
+if [[ -f "$SCRIPT_DIR/lib/_path-resolve" ]]; then
+    source "$SCRIPT_DIR/lib/_path-resolve"
 fi
-PRINCIPAL="${PRINCIPAL:-${USER:-unknown}}"
+PRINCIPAL="${AGENCY_PRINCIPAL:-${USER:-unknown}}"
 
-QUEUE_FILE="$MAIN_CHECKOUT/claude/usr/$PRINCIPAL/flag-queue.jsonl"
+QUEUE_FILE="$MAIN_CHECKOUT/usr/$PRINCIPAL/flag-queue.jsonl"
 
 # --- Parse command ---
 if [[ $# -eq 0 ]]; then
