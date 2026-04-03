@@ -18,6 +18,9 @@
       "Glob(.claude/**)",
       "Glob(claude/**)",
       "Glob(usr/**)",
+      "Bash(./claude/tools/safe-extract*)",
+      "Bash(./claude/tools/worktree-sync*)",
+      "Bash(unzip -d usr/*:*)",
       "Read(.claude/**)",
       "Read(claude/**)",
       "Read(usr/**)"

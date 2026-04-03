@@ -223,6 +223,9 @@
       "Bash(./claude/tools/worktree-create*)",
       "Bash(./claude/tools/worktree-delete*)",
       "Bash(./claude/tools/worktree-list*)",
+      "Bash(./claude/tools/safe-extract*)",
+      "Bash(./claude/tools/worktree-sync*)",
+      "Bash(unzip -d usr/*:*)",
       "Read(.claude/**)",
       "Read(claude/**)",
       "Read(usr/**)"

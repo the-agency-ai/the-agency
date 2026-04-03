@@ -23,11 +23,16 @@ SESSION=$(printf '%s\n' "$INPUT" | jq -r '.session_id // "unknown"')
 PROJECT=$(printf '%s\n' "$INPUT" | jq -r '.workspace // ""')
 
 # Extract a safe input summary based on tool type
+AGENT_SCRIPT_PATH=""
 case "$TOOL" in
   Bash)
     # Log only the binary name (first token) to avoid leaking secrets from doppler run --, env vars, etc.
     FULL_CMD=$(printf '%s\n' "$INPUT" | jq -r '.tool_input.command // ""')
     SUMMARY=$(printf '%s\n' "$FULL_CMD" | head -1 | cut -d' ' -f1)
+    # Detect agent scripts run from usr/*/tools/ (Phase 3.2 — script discipline telemetry)
+    if printf '%s\n' "$FULL_CMD" | grep -qE '(^|/)usr/[^/]+/[^/]+/tools/'; then
+        AGENT_SCRIPT_PATH=$(printf '%s\n' "$FULL_CMD" | grep -oE 'usr/[^/]+/[^/]+/tools/[^ ]+' | head -1)
+    fi
     ;;
   Edit|Write|Read|MultiEdit)
     SUMMARY=$(printf '%s\n' "$INPUT" | jq -r '.tool_input.file_path // ""')
@@ -74,6 +79,11 @@ LINE=$(jq -n -c \
   --arg summary "$SUMMARY" \
   --arg branch "$BRANCH" \
   '{ts: $ts, agency: $agency, principal: $principal, agent: $agent, session: $session, project: $project, tool: $tool, input_summary: $summary, branch: $branch}')
+
+# Merge agent-script source if detected
+if [[ -n "$AGENT_SCRIPT_PATH" ]]; then
+    LINE=$(printf '%s\n' "$LINE" | jq -c --arg src "agent-script" --arg sp "$AGENT_SCRIPT_PATH" '. + {source: $src, script_path: $sp}' 2>/dev/null || echo "$LINE")
+fi
 
 printf '%s\n' "$LINE" >> "$TELEMETRY_DIR/$DATE.jsonl"
 
