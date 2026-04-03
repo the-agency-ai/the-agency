@@ -53,7 +53,7 @@ MERGED=$(jq -s '
   def array_union(a; b): (a + b) | unique;
   .[0] as $target | .[1] as $template |
   $target * {
-    permissions: {
+    permissions: ($target.permissions // {}) * {
       allow: array_union($target.permissions.allow // []; $template.permissions.allow // [])
     }
   }
