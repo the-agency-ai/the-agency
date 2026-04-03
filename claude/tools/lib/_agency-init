@@ -441,8 +441,16 @@ YAML_EOF
 
     mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/claude"/{commands,hookify,hooks,agents,refs}
     mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/scripts"
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{transcripts,code-reviews,dispatches,history}
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME"/{code-reviews,dispatches,transcripts,history}
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{transcripts,code-reviews,dispatches,history,tools,tmp}
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME"/{code-reviews,dispatches,transcripts,history,tools,tmp}
+
+    # tmp/ is scratch space — gitignore its contents
+    for tmp_dir in "$TARGET_DIR/usr/$PRINCIPAL/captain/tmp" "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME/tmp"; do
+        if [[ ! -f "$tmp_dir/.gitignore" ]]; then
+            echo '*' > "$tmp_dir/.gitignore"
+            echo '!.gitignore' >> "$tmp_dir/.gitignore"
+        fi
+    done
 
     cat > "$TARGET_DIR/usr/$PRINCIPAL/README.md" << USR_EOF
 # Principal: $PRINCIPAL

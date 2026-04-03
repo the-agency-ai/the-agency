@@ -381,9 +381,10 @@ Every script — whether part of a plan or written ad hoc — must follow two ru
 # Why did I write this script: I needed to scan all BATS test files for
 # duplicate test names, because the test runner silently shadows duplicates
 # and we were getting false green results.
+# Written: 2026-04-03 during Phase 1.3 (address-parse tests)
 ```
 
-The "why" framing is intentional. It forces intent, not description. "What it does" is readable from the code. "Why it exists" is not.
+The "why" framing is intentional. It forces intent, not description. "What it does" is readable from the code. "Why it exists" is not. The "Written:" line gives traceability — you can find the session and plan context where the script was born.
 
 **2. Persist and reuse.** Scripts live in two places depending on scope:
 
@@ -395,7 +396,9 @@ The "why" framing is intentional. It forces intent, not description. "What it do
 
 **The workflow for ad hoc scripts:**
 1. You realize you need a script (parsing, scanning, transforming, testing).
-2. Write it to `usr/{principal}/{project}/tools/` with a `# Why did I write this script:` comment.
+2. Write it to `usr/{principal}/{project}/tools/` with a header comment:
+   - `# Why did I write this script:` — the purpose and context
+   - `# Written: YYYY-MM-DD during <phase/task>` — traceability back to the work
 3. Run it from there.
 4. If you need it again later in the session, it's already there — don't rewrite it.
 5. If it proves broadly useful, propose moving it to `claude/tools/`.
