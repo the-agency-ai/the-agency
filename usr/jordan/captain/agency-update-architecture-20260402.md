@@ -1,7 +1,7 @@
 # Agency Update v2 + Addressing Tooling — Architecture & Design
 
 **Date:** 2026-04-02
-**Status:** Draft (MAR findings incorporated 2026-04-02)
+**Status:** Draft (MAR findings incorporated 2026-04-02, monofolk review findings incorporated 2026-04-03)
 **Author:** the-agency/jordan/captain
 **PVR:** `agency-update-pvr-20260402.md`
 
@@ -171,35 +171,23 @@ _validate_name() {
     [[ ${#name} -gt 32 ]] && { echo "Name exceeds 32 characters" >&2; return 1; }
     # Pattern check
     [[ "$name" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo "Name must match [a-z0-9][a-z0-9_-]*" >&2; return 1; }
-    # Reject reserved
+    # Reject reserved (note: _ already rejected by regex above)
     case "$name" in
-        _|system|shared|all|default) echo "Name '$name' is reserved" >&2; return 1 ;;
+        system|shared|all|default) echo "Name '$name' is reserved" >&2; return 1 ;;
     esac
     return 0
 }
 ```
 
-Applied in every function that constructs filesystem paths from names.
+Applied in every function that constructs filesystem paths from names. Leading digits are allowed by design (e.g., `3d-renderer`). (Monofolk review F13.)
 
-**Update `_pr_yaml_get` for nested principals:** The current parser handles flat `key: value` under a section. For the new nested `principals:` structure, add a nested-aware parser:
+**Enforcement:** `_validate_name()` MUST be called on `PRINCIPAL`, `PRINCIPAL_KEY`, and `PROJECT_NAME` immediately after resolution, before any filesystem operation. This is the single gate that prevents path traversal (F6) and sed/YAML injection (F4, F9). (Monofolk review F6.)
 
-```bash
-# For principals section: key is system username, value is nested object
-# Returns the 'name' field from the nested object
-_pr_yaml_get_principal_name() {
-    local username="$1"
-    local yaml_file="$2"
-    # Try nested format first: "  username:\n    name: value"
-    local name
-    name=$(sed -n "/^  ${username}:/,/^  [a-z]/{ /^    name:/{ s/^    name: *//; s/ *$//; p; } }" "$yaml_file")
-    if [[ -n "$name" ]]; then
-        echo "$name"
-        return 0
-    fi
-    # Fall back to flat format: "  username: value"
-    _pr_yaml_get "principals" "$username" "$yaml_file"
-}
-```
+**Freeform data safety:** `display_name`, `address.*`, `principal_github`, and other human-supplied values are never validated for content. They are always double-quoted when written to YAML. They never touch sed regexes, filesystem paths, or shell interpolation. On migration, preserve raw values as-is in quoted YAML; flag for manual review if they don't fit the new schema structure. (Monofolk review F7.)
+
+**Timezone validation:** `$TIMEZONE` is not a name — it uses its own regex: `^[A-Za-z0-9/_+-]{1,64}$`. (Monofolk review F10.)
+
+**Update `_pr_yaml_get` for nested principals:** The existing `_pr_yaml_get` already handles nested format (lines 74-90). Fix edge cases there if needed rather than adding a new function. `_address-parse` sources `_path-resolve` and calls `_pr_yaml_get` for all YAML primitives — one implementation, one place to fix bugs. (Monofolk review F11.)
 
 ### 2.6 `_agency-update` v2 Rewrite
 
@@ -262,18 +250,38 @@ _pr_yaml_get_principal_name() {
 **Checksum function (cross-platform):**
 ```bash
 _compute_checksum() {
-    if command -v shasum >/dev/null 2>&1; then
-        shasum -a 256 "$1" 2>/dev/null | cut -d' ' -f1
-    elif command -v sha256sum >/dev/null 2>&1; then
-        sha256sum "$1" 2>/dev/null | cut -d' ' -f1
+    [[ -f "$1" ]] || { echo "ERROR: File not found: $1" >&2; return 1; }
+    if shasum -a 256 /dev/null >/dev/null 2>&1; then
+        shasum -a 256 "$1" | cut -d' ' -f1
+    elif sha256sum /dev/null >/dev/null 2>&1; then
+        sha256sum "$1" | cut -d' ' -f1
     else
         echo "ERROR: No SHA-256 tool available" >&2
         return 1
     fi
 }
 ```
+File existence guard and capability probe (not just `command -v`). (Monofolk review F5.)
+```
 
-**Manifest bootstrap conservatism:** When no prior manifest exists, treat config-tier files as user-modified (skip). Only framework-tier files are safe to overwrite without baseline. This prevents the first v2 update from clobbering customized hooks.
+**Path-to-tier rules (explicit):**
+
+| Path pattern | Tier | Rationale |
+|---|---|---|
+| `claude/tools/`, `claude/tools/lib/` | framework | Core tooling, must stay in sync |
+| `claude/docs/` | framework | Reference docs |
+| `claude/hookify/` | framework | Shipped rules (project rules coexist — see below) |
+| `.claude/skills/*/SKILL.md` | framework | Shipped skills |
+| `.claude/commands/*.md` | framework | Shipped commands |
+| `claude/config/settings-template.json` | framework | Template is ours |
+| `claude/hooks/` | config | Project may customize |
+| `.claude/settings.json` | config | User's live settings |
+| `claude/config/agency.yaml` | config | User's project config |
+| `.claude/agents/*.md` | config | User's agent registrations |
+
+**Framework and project coexistence:** Framework and project rules coexist in the same directories (e.g., `claude/hookify/`). The manifest is the ownership boundary — `agency update` manages what it tracks, ignores what it doesn't. No separate project tier directory needed. (Monofolk review F12, hookify sync Q4.)
+
+**Manifest bootstrap conservatism:** When no prior manifest exists, treat config-tier files as user-modified (skip). Only framework-tier files are safe to overwrite without baseline. This prevents the first v2 update from clobbering customized hooks. Add `--force-config` flag to override (explicit opt-in to overwrite config-tier files). Log clear warning listing every skipped file. (Monofolk review F12.)
 
 ### 2.7 `settings-merge` Upgrade
 
@@ -285,24 +293,27 @@ _compute_checksum() {
 
 | Section | Strategy | Rationale |
 |---------|----------|-----------|
-| `hooks` | **Framework-managed** — replace from template | Hooks must stay in sync with framework. New hooks, updated commands. |
-| `permissions.allow` | **User-managed** — array union (add new, keep existing) | Permissions accumulate per-session. Never wipe. |
+| `hooks` | **Key-based merge** by matcher+type — replace framework hooks, preserve project hooks | Projects add their own hooks beyond what the framework ships. Wholesale replacement destroys them. (Monofolk review F1.) |
+| `permissions` | **Preserve full object** — array union on `allow` only | Permissions accumulate per-session. Never wipe. Preserve `deny` and all other sub-keys. (Monofolk review F2 — live bug fixed at `ea528fe`.) |
 | `enabledPlugins` | **User-managed** — preserve | User choice. |
 | Everything else | **Shallow merge** — add missing keys, don't overwrite | Safe default. |
 
+**Hooks merge algorithm:** For each hook entry in the template, match against target by `matcher` + event type. If a match exists, replace it (framework owns that hook). If the target has hooks the template doesn't match, preserve them (project-specific). The manifest tracks which hook matchers are framework-owned.
+
 ```bash
 MERGED=$(jq -s '
+  def array_union(a; b): (a + b) | unique;
   .[0] as $target | .[1] as $template |
   $target * {
-    hooks: $template.hooks,
-    permissions: {
-      allow: (($target.permissions.allow // []) + ($template.permissions.allow // []) | unique)
+    permissions: ($target.permissions // {}) * {
+      allow: array_union($target.permissions.allow // []; $template.permissions.allow // [])
     }
   }
+  # Hook merge: key-based by matcher+type (implementation uses jq reduce over template hooks)
 ' "$TARGET" "$TEMPLATE")
 ```
 
-The key change: `hooks: $template.hooks` replaces instead of merging. This ensures new hooks from framework updates are picked up, and removed hooks are cleaned out.
+This ensures framework hooks stay in sync while project hooks survive updates. The manifest is the ownership boundary — if it's tracked, it's framework-owned.
 
 ### 2.8 `agency-init` Updates
 
@@ -357,7 +368,7 @@ _detect_yaml_format() {
     fi
     # Extract principals block (from "principals:" to next top-level key)
     local block
-    block=$(sed -n '/^principals:/,/^[a-z]/{/^principals:/d;/^[a-z]/d;p;}' "$yaml")
+    block=$(sed -n '/^principals:/,/^[^[:space:]#]/{/^principals:/d;/^[^[:space:]#]/d;p;}' "$yaml")
     # Check for nested (target format) — has "    name:" within principals block
     if echo "$block" | grep -q "^    name:"; then
         echo "nested"
@@ -407,7 +418,11 @@ Agency.yaml migration uses sensible defaults, not prompts. `display_name` defaul
 
 `dispatch-create` has no `--from` flag. The `created_by:` field is computed from `_address-parse` (repo from git, principal from agency.yaml, agent from context). This is a trust model decision — dispatches are signed by their origin, not by what the sender claims to be.
 
-### DD-8: Cross-repo commit protocol
+### DD-8: Hookify message format
+
+Hookify rule messages are one line + a `#` section reference to the authoritative doc + `FEAR THE KITTENS!`. Example: `Use /secret instead of raw doppler commands. See CLAUDE-THEAGENCY.md#testing-quality-discipline — FEAR THE KITTENS!` The detail lives in the referenced doc; the agent reads it if it needs context. No full explanations inline.
+
+### DD-9: Cross-repo commit protocol
 
 Formalized per monofolk dispatch: communication artifacts (dispatches, handoffs, session state) push to main. Executable code (tools, skills, hooks, agents) requires PR. The bright-line test: "Does this change how an agent behaves? PR. Communication? Push to main." To be added to CLAUDE-THEAGENCY.md.
 
@@ -423,6 +438,7 @@ Formalized per monofolk dispatch: communication artifacts (dispatches, handoffs,
 - Detect principal from nested agency.yaml
 - Detect principal from flat agency.yaml (backward compat)
 - 3-segment ambiguity warning when first segment matches known org
+- `address_resolve` from a git worktree context (shares parent remotes) (Monofolk review F14)
 
 ### New: `tests/tools/dispatch-create.bats`
 
