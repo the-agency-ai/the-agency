@@ -67,14 +67,11 @@ case "$ARCHIVE" in
             exit 1
         fi
 
-        # Pre-extract validation: check for symlinks (attribute starts with 'l')
-        if unzip -l "$ARCHIVE" 2>/dev/null | awk 'NR>3 && !/^-/ && NF>=4 {print $0}' | grep -qE '^\s*0.*\s[0-9]{2}:[0-9]{2}\s'; then
-            # Use unzip -Z (zipinfo mode) for more reliable symlink detection
-            if unzip -Z "$ARCHIVE" 2>/dev/null | grep -q '^l'; then
-                echo "safe-extract: REJECTED — archive contains symlink entries" >&2
-                log_end "$RUN_ID" "failure" 1 0 "symlink detected" 2>/dev/null || true
-                exit 1
-            fi
+        # Pre-extract validation: check for symlinks via zipinfo (attribute starts with 'l')
+        if unzip -Z "$ARCHIVE" 2>/dev/null | grep -q '^l'; then
+            echo "safe-extract: REJECTED — archive contains symlink entries" >&2
+            log_end "$RUN_ID" "failure" 1 0 "symlink detected" 2>/dev/null || true
+            exit 1
         fi
 
         # Extract

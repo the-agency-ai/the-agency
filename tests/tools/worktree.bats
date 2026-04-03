@@ -109,3 +109,27 @@ load 'test_helper'
     assert_success
     assert_output_contains "Usage:"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# worktree-sync - Version, Help, and Existence (Plan 5.6)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "worktree-sync: tool exists and is executable" {
+    [[ -x "${TOOLS_DIR}/worktree-sync" ]]
+}
+
+@test "worktree-sync: --version shows version" {
+    run_tool worktree-sync --version
+    assert_success
+    assert_output_contains "worktree-sync"
+}
+
+@test "worktree-sync: --help shows usage" {
+    run_tool worktree-sync --help
+    assert_success
+    assert_output_contains "Usage:"
+}
+
+@test "worktree-sync: skill file mentions dispatch check" {
+    grep -q "dispatch" "${REPO_ROOT}/.claude/skills/worktree-sync/SKILL.md"
+}

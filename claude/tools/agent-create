@@ -181,9 +181,11 @@ TIMESTAMP=$(./claude/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 AGENT_TEMPLATE_DIR="$TEMPLATE_DIR/$AGENT_TYPE"
 
 # Resolve principal from agency.yaml (not raw $USER)
+# _pr_resolve sets AGENCY_PRINCIPAL env var, does not print to stdout
 PRINCIPAL=""
 if type _pr_resolve &>/dev/null; then
-    PRINCIPAL=$(_pr_resolve 2>/dev/null | head -1) || true
+    _pr_resolve 2>/dev/null || true
+    PRINCIPAL="${AGENCY_PRINCIPAL:-}"
 fi
 PRINCIPAL="${PRINCIPAL:-$(whoami | tr '[:upper:]' '[:lower:]')}"
 
