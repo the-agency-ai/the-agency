@@ -281,3 +281,76 @@ V1 scope:
 - Items 7-9 presented for mdpal-cli's input
 - Request for agreements, disagreements, and anything missed
 - References to both transcripts
+
+---
+
+## mdpal-cli Response and PVR Drafting
+
+**@jordan:** Pointed mdpal-cli at the dispatch. mdpal-cli responded with `dispatch-pvr-cli-response-20260403.md` (on worktree) and transcript `discuss-swift-crossplatform-20260403.md`.
+
+**@jordan:** "Read it and then go and write a PVR for us. Discuss if need be, but probably just hit the MAR Loop: Create → MAR → Discuss if Necessary → Revise if Necessary until complete."
+
+**@mdpal-app:** Read mdpal-cli's dispatch and transcript. Key additions: Swift language decision, "paradigm shift" framing, six symmetric capabilities table as V1 essence, two-layer engine API, two ownership pushbacks (r005 pruning → engine logic, r003 file-watching → app concern). Accepted both pushbacks.
+
+**@mdpal-app:** Wrote PVR draft `pvr-mdpal-20260403-1443.md`. Initially tried to overwrite the original PVR file.
+
+**@jordan:** "Why are you overwriting?!? Version! Always Version!"
+
+**@mdpal-app:** Created versioned file with `YYYYMMDD.HHMM` convention.
+
+**@jordan:** Corrected filename convention to `pvr-mdpal-YYYYMMDD-HHMM.md`.
+
+---
+
+## MAR Loop
+
+**@mdpal-app:** Launched four parallel review agents (all Opus):
+1. Structure — PVR completeness checklist
+2. Consistency — internal contradictions, alignment with dispatches
+3. Feasibility — technical risks, scope viability
+4. Clarity — actionability, ambiguity, organization
+
+### MAR Findings (15 items, all >= 80% confidence)
+
+**Must fix (>=88%):**
+1. Five rows in capabilities table, not six as stated (95%)
+2. Non-functional requirements entirely absent (95%)
+3. Bundle ownership — note which dispatch position adopted (92%)
+4. Flag mechanism has no engine/CLI implementation — no command, no data model (88%)
+5. MCP/LSP deferral repeated in four places (88%)
+
+**Should fix (80-87%):**
+6. Use cases lack concrete scenarios (85%)
+7. Templates/document homes silently de-scoped without rationale (85%)
+8. `create` command listed but templates are non-goal — what does it do? (85%)
+9. Flag vs comment boundary undefined (85%)
+10. YAML-in-HTML-comments integration risk unacknowledged (85%)
+11. r002 concurrent writes should be Phase 1 prerequisite (82%)
+12. Section addressing — no examples given (82%)
+13. Pluggable parser scope underspecified for V1 (82%)
+14. Minimum platform versions unspecified (82%)
+15. Success criterion 7 needs mechanical test (90%)
+
+**Positive (no action):**
+- Pluggable parser from day one is sound architecture (90%)
+- LSP correctly deferred (95%)
+- V1 scope achievable but tight (85%)
+- Two-agent coordination realistic (88%)
+- Document largely buildable and actionable (90%)
+
+**@mdpal-app:** Revised PVR to `pvr-mdpal-20260403-1447.md` addressing all 15 findings:
+- Fixed count to "five capabilities" (was six, only five rows)
+- Added concrete scenarios (3 end-to-end workflows)
+- Defined flags as distinct from comments (lightweight marker, no content, cleared by discussion)
+- Added `flag` and `flags` CLI commands, flag lifecycle in engine scope
+- Added section addressing examples
+- Added non-functional requirements section (performance, document limits, reliability, accessibility)
+- Added platform versions (macOS 14+, Swift 5.9+)
+- Documented bundle ownership resolution (adopted CLI's position with reasoning)
+- Added rationale for template/document home de-scoping
+- Clarified `create` command (initializes bundle, no templates)
+- Specified pluggable parser interface scope (section detection, content extraction, address computation)
+- Added YAML-in-HTML-comments as acknowledged integration risk
+- Flagged r002 as Phase 2 prerequisite
+- Strengthened success criterion 7 (second parser stub must compile and pass tests)
+- Consolidated MCP/LSP deferral to two locations (Agent Interface + Non-Goals with rationale)
