@@ -48,13 +48,12 @@ if [[ ! -f "$TARGET" ]]; then
     exit 0
 fi
 
-# Merge using jq:
-# - hooks: key-based merge by event_type + matcher
-#   Framework hooks (present in template): replaced with template version
-#   Project hooks (not in template): preserved
-# - permissions.allow: array union (add entries not already present)
-# - permissions.deny + other sub-keys: preserved from target
-# - Other top-level keys: template fills gaps, target wins on conflict
+# Why did I write this: agency update needs to push new framework hooks into
+# .claude/settings.json without destroying project-specific hooks. The old
+# merge did wholesale replacement — every update wiped custom hooks (monofolk
+# F1). This jq script uses composite keys (event_type:matcher) to distinguish
+# framework hooks (in template → replace) from project hooks (not in template
+# → preserve). permissions.deny and other keys are also preserved.
 MERGED=$(jq -s '
   def array_union(a; b): (a + b) | unique;
 
