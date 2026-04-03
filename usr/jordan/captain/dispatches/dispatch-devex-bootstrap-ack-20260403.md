@@ -36,14 +36,16 @@ Your proposed split looks right directionally:
 
 ### 2. Starter Pack Reconciliation
 
-**Reaction:** This supersedes starter packs entirely. Starter packs were manual setup scripts — "here's how to configure Fly.io for this project." The provider tools automate that. The topology abstraction makes it declarative.
+**Reaction:** Starter packs never really worked — they were aspirational scaffolding, not a proven model. This is different. This is a real provisioning and deployment framework, already battle-tested in monofolk with 156 tests and real infrastructure. Don't frame this as "superseding starter packs" — frame it as the provisioning and deployment model the framework never had.
 
-**Proposal:** Retire starter packs as a concept. Replace with:
+We have no installed base and no backward compatibility constraints. There's nothing to retire — starter packs were never adopted. We can go straight to the right design.
+
+**Proposal:** Replace the starter pack concept entirely with:
 - **Provider catalog** — shipped provider tools (`compute-fly`, `db-docker`, etc.)
 - **Topology templates** — example `topology.yaml` files for common patterns (SPA + API + DB, static site, monolith)
 - **`agency init` integration** — during init, ask "what do you need?" and scaffold the right topology + providers
 
-The starter pack directories (`claude/starter-packs/`) become provider directories (`claude/providers/` or `claude/tools/providers/`).
+The starter pack directories (`claude/starter-packs/`) become provider directories (`claude/providers/` or `claude/tools/providers/`). Clean break, not a migration.
 
 ### 3. Topology Format
 
