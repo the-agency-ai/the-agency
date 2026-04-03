@@ -1,0 +1,5 @@
+{"ts":"2026-04-03T18:54:30Z","message":"Command audit: review all / commands for relevance — do we still need all of them?","principal":"jordan","branch":"main","session":"recovered-session-17"}
+{"ts":"2026-04-03T18:54:30Z","message":"Multi-agent handoff: each agent needs {agent}-handoff.md. Handoff tool hardcoded to handoff.md — must support per-agent files. workstream-create must scaffold these.","principal":"jordan","branch":"main","session":"recovered-session-17"}
+{"ts":"2026-04-03T18:54:30Z","message":"Worktree merge-main tool: agents need pre-approved git merge main to self-update from main checkout. Currently manual.","principal":"jordan","branch":"main","session":"recovered-session-17"}
+{"ts":"2026-04-03T18:54:30Z","message":"Review mdpal bootstrap transcripts to learn what worked/didn't in agent bootstrap (self-orient, read handoffs, follow Next Action)","principal":"jordan","branch":"main","session":"recovered-session-17"}
+{"ts":"2026-04-03T18:54:30Z","message":"Flag tool persistence: flags must survive session boundaries — git add on write, warn on SessionStart if unprocessed","principal":"jordan","branch":"main","session":"recovered-session-17"}

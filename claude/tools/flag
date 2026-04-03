@@ -163,6 +163,9 @@ case "$CMD" in
             '{ts: $ts, message: $message, principal: $principal, branch: $branch, session: $session}' \
             >> "$QUEUE_FILE"
 
+        # Stage the queue file so it survives session boundaries
+        git -C "$MAIN_CHECKOUT" add "$QUEUE_FILE" 2>/dev/null || true
+
         # Count
         COUNT=$(grep -c . "$QUEUE_FILE" || echo 1)
         echo "Flagged. $COUNT item(s) in queue."

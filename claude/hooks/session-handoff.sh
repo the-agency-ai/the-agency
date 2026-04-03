@@ -96,6 +96,18 @@ if [ -f "$RECAP_FILE" ]; then
   CONTEXT="${CONTEXT}$(cat "$RECAP_FILE")"
 fi
 
+# Check for unprocessed flag queue
+FLAG_QUEUE="$PRINCIPAL_DIR/flag-queue.jsonl"
+if [ -f "$FLAG_QUEUE" ] && [ -s "$FLAG_QUEUE" ]; then
+  FLAG_COUNT=$(grep -c . "$FLAG_QUEUE" 2>/dev/null || echo 0)
+  if [ "$FLAG_COUNT" -gt 0 ]; then
+    FLAG_WARNING="
+
+⚠ **$FLAG_COUNT unprocessed flag(s)** in queue. Run \`./claude/tools/flag list\` to review, or \`./claude/tools/flag discuss\` to start a /discuss."
+    CONTEXT="${CONTEXT}${FLAG_WARNING}"
+  fi
+fi
+
 # Output context if found, otherwise empty JSON (hook runner expects JSON on stdout)
 if [ -n "$CONTEXT" ]; then
   printf '{"systemMessage":%s}' "$(printf '%s' "$CONTEXT" | jq -Rs '.')"
