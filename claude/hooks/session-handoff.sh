@@ -42,22 +42,9 @@ BRANCH_SLUG=$(echo "$BRANCH" | sed 's|.*/||')
 # Strip worktree- prefix: worktree-mycroft -> mycroft
 BRANCH_SLUG=$(echo "$BRANCH_SLUG" | sed 's|^worktree-||')
 
-# Special case: master branch -> captain project, but ask first
-if [ "$BRANCH_SLUG" = "master" ]; then
-  CAPTAIN_HANDOFF="$PRINCIPAL_DIR/captain/handoff.md"
-  CAPTAIN_REL=$(echo "$CAPTAIN_HANDOFF" | sed "s|^$PROJECT_DIR/||")
-  RECAP_FILE="$PROJECT_DIR/.claude-session-recap.md"
-  CONTEXT="Is this a captain session? The captain handoff is available at ${CAPTAIN_REL}. If this is a captain session, read it now."
-  if [ -f "$RECAP_FILE" ]; then
-    RECAP_CONTENT=$(cat "$RECAP_FILE")
-    CONTEXT="${CONTEXT}
-
----
-
-${RECAP_CONTENT}"
-  fi
-  printf '{"systemMessage":%s}' "$(printf '%s' "$CONTEXT" | jq -Rs '.')"
-  exit 0
+# main/master branch -> captain project directory
+if [ "$BRANCH_SLUG" = "main" ] || [ "$BRANCH_SLUG" = "master" ]; then
+  BRANCH_SLUG="captain"
 fi
 
 # Look for handoff file in principal directory
