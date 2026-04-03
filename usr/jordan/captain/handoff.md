@@ -1,65 +1,109 @@
 ---
 type: session
-date: 2026-04-02 21:00
+date: 2026-04-04 00:05
 branch: main
-trigger: principal-requested exit
+trigger: session-end — plan complete, dispatch sent, morning kickoff plan
+agent: the-agency/jordan/captain
 ---
 
 # Captain Handoff
 
 **Agent:** the-agency/jordan/captain
 **Principal:** jordan
-**Updated:** 2026-04-02 (session 16)
+**Updated:** 2026-04-04 (session 17)
 
-## Current State
+## Session 17 Summary
 
-On `main` branch. In sync with origin. About to build `/workstream-create` and launch mdpal workstream.
+Massive session. Completed the entire **Agent Workspace & Bootstrap Quality** plan (5 phases, 17 iterations) plus handled monofolk dispatch and mdpal bootstrap.
 
-## Session 16 Work
+### Agent Workspace & Bootstrap Quality Plan — COMPLETE
 
-### test-bed-03 Bootstrap Audit — COMPLETE
-- Analyzed transcript (session ca7e0142, 40 lines)
-- **Permission prompts: ZERO.** Fix from session 15 worked.
-- But agent created dirs at `claude/usr/jordan/` (wrong) instead of finding `usr/jordan/` (correct)
-- Root cause: CLAUDE-THEAGENCY.md repo structure diagram showed `usr/` indented under `claude/`
+| Phase | Commits | What |
+|-------|---------|------|
+| 1 (1.1-1.3) | f19a510, baa542e, 89fb757 | agent-create modernization: stale paths, principal resolution, workspace scaffolding (tools/, tmp/, bootstrap handoff), registration template with startup directives + TODO guard |
+| 2 (2.1-2.2) | 075f637 | workstream-create two-phase skill: Phase A deterministic scaffold, Phase B captain instruction output, --worktree/--scaffold-only flags, agent-create as single write path |
+| 3+4 | f07229b | Hookify script persistence rule, tool-telemetry agent-script detection, safe-extract tool (unzip with path traversal + symlink validation), scoped permissions (unzip, worktree-sync, safe-extract), worktree-sync skill dispatch check |
+| 5 | d05db3e | 37 new BATS tests across 5 files. Found + fixed 2 bugs: agent-create _pr_resolve was capturing stdout (sets env vars instead), safe-extract symlink detection had wrong gating condition |
 
-### Fix usr/ Path in Docs — COMPLETE (56ea7ac, pushed)
-- CLAUDE-THEAGENCY.md: moved `usr/` out of `claude/` tree, added bold warning, fixed 8 path references
-- README-THEAGENCY.md: fixed all 12 `claude/usr/` → `usr/` references
-- Also fixed: test-worktree-sync.sh, upstream-port SKILL.md, design doc, commit protocol dispatch
-- Tests: 12/12 init, 52/52 git-operations
+**Artifacts:** PVR, A&D, Plan all in `usr/jordan/captain/` with `agent-workspace-` prefix, dated 20260403.
 
-### Hookify Plugin Disabled — COMPLETE (0364f30, pushed)
-- `hookify@claude-plugins-official` marketplace plugin causing errors on every stop + UserPromptSubmit
-- Ported from monofolk in dispatch incorporation Phase 5, install broken (version "unknown")
-- Disabled in `.claude/settings.json`, removed from `~/.claude/plugins/installed_plugins.json`
-- Dispatch sent to monofolk: `dispatch-monofolk-disable-hookify-plugin-20260402.md`
+### mdpal Bootstrap
 
-### Workstream Discussion — COMPLETE
-- `/discuss` 4 items resolved for `/workstream-create` design and mdpal launch
-- Decisions:
-  1. Value stream (repo) → workstreams (standalone deployable units) → 1+ agents
-  2. 1 worktree : N agents (current model, don't close door on 1:1)
-  3. `/workstream-create name --agent name[,class] --agent name[,class]`
-  4. Rename `markdown-pal` → `mdpal` everywhere. Agents: `mdpal-cli` (engine+CLI), `mdpal-app` (macOS native app)
+- Created mdpal worktree with per-agent handoffs (mdpal-cli, mdpal-app)
+- Fixed session-handoff hook (main→captain mapping was missing)
+- Fixed agency-init settings (replaced 95-line hardcoded heredoc with cp from settings-template.json)
+- Added Read/Glob permissions for usr/**, claude/**, .claude/**
+- Updated agent registrations with startup directives + "act on startup"
 
-## What's Next
+### DevEx Dispatch from Monofolk — RECEIVED + RESPONDED
 
-1. **Build `/workstream-create`** — skill + tool, based on discussion decisions
-2. **Launch mdpal workstream** — `/workstream-create mdpal --agent mdpal-cli,tech-lead --agent mdpal-app,tech-lead`
-3. **Rename `claude/workstreams/markdown-pal/` → `claude/workstreams/mdpal/`**
-4. **Wait for monofolk A&D review** — dispatched, pending
-5. **Write the agency-update Plan** — after A&D approved
-6. **License files** — Phase 2.1, needs doing before public release
-7. **Cross-repo commit protocol → CLAUDE-THEAGENCY.md** — approved, not yet added
+Dispatch: `dispatch-devex-bootstrap-20260403.md` — 12 provider tools, topology-driven provisioning, 156 tests. This is where starter packs are going (starter packs never worked — this is the real provisioning model).
 
-## Pending Items
-- Bootstrap handoff content still too thin (Risk 5 in A&D) — needs directive prefix
-- BATS path-resolve tests reference old path (claude/tools/_path-resolve) — pre-existing
-- Monofolk addressing findings F1-F6 queued
+Responded with initial reactions on all 6 items: `dispatch-devex-bootstrap-ack-20260403.md`. Key positions:
+- Starter packs never worked, clean break to provider catalog model
+- Provider interface should be formalized as PROVIDER-SPEC.md
+- Topology template variable collision risk (`{{...}}` also used in CLAUDE.md)
+- No backward compat needed — no installed base
+- Port window: 4-6 weeks after interface + format stable
+
+**MISTAKE:** Pushed dispatch directly to main instead of via PR. Monofolk has no visible notification. Lesson saved to memory — cross-repo dispatches must go through PRs.
+
+**NOTE:** Monofolk sent dispatch to OLD path (`claude/principals/jordan/projects/captain/dispatches/`). Told them to update to `usr/jordan/captain/dispatches/`.
+
+### Discussion Decisions (DD1-DD3)
+
+- **DD1:** Agent identity drives all disambiguation. Agent knows who it is → derives workstream → self-selects handoffs via naming convention. Tools enforce. No hook magic.
+- **DD2:** workstream-create and agent-create are guided captain skills. Scaffold structure + TODO template, captain fills substance via /discuss.
+- **DD3:** merge-main merges freely. Defense in depth: QG+MAR on main AND before PR. Principal in loop by exception via MAR escalation.
+
+## Morning Kickoff Plan (2026-04-04)
+
+### 1. Pull in mdpal worktree work
+- Merge mdpal worktree into main (or sync-all)
+- Review what the mdpal agents have done since bootstrap
+
+### 2. Transcript mining — the-agency
+- Mine captain session transcripts in `usr/jordan/captain/` for patterns, decisions, and knowledge that should be captured
+- Look for recurring friction points, process improvements, tool gaps
+
+### 3. Transcript mining — presence project
+- Mine transcripts from `code/presence*/` (separate project directory)
+- Extract patterns and learnings applicable to the-agency framework
+
+### 4. DevEx /discuss (when ready)
+- 6-item discussion queued from monofolk dispatch
+- Wait for monofolk's response to our initial reactions first
 
 ## Git State
 
-- Branch: `main`
-- HEAD: `0364f30` (in sync with origin)
-- Working tree: clean (except untracked test artifacts, PDF, handoff history)
+- **Branch:** `main`
+- **HEAD:** `805380c` (in sync with origin after push)
+- **Working tree:** clean (untracked: PDF, test artifacts cleaned)
+- **Ahead of origin:** 0 commits (just pushed)
+
+## Flag Queue
+
+11 items from session 17 (run `./claude/tools/flag list` to see). Includes:
+- Dispatch read/list tools across worktrees
+- Transcript review automation
+- Test isolation bug (BATS tests polluting INDEX.md and releases.md)
+- Command audit
+- Various tooling gaps
+
+## Key Files Modified This Session
+
+| File | Change |
+|------|--------|
+| `claude/tools/agent-create` | v2.0.0 — full rewrite (paths, scaffolding, registration, principal resolution fix) |
+| `.claude/skills/workstream-create/SKILL.md` | Two-phase skill (scaffold + guided discussion) |
+| `claude/hookify/hookify.warn-script-persistence.md` | NEW — script discipline nudge |
+| `claude/hooks/tool-telemetry.sh` | Agent-script detection from usr/*/tools/ |
+| `claude/tools/safe-extract` | NEW — unzip with path traversal + symlink validation |
+| `claude/config/settings-template.json` | Added safe-extract, worktree-sync, scoped unzip, Read/Glob permissions |
+| `.claude/settings.json` | Same permission additions |
+| `.claude/skills/worktree-sync/SKILL.md` | Enhanced with dispatch check guidance |
+| `tests/tools/agent-create.bats` | NEW — 13 tests |
+| `tests/tools/session-handoff.bats` | NEW — 6 tests |
+| `tests/tools/safe-extract.bats` | NEW — 10 tests |
+| `tests/tools/settings-merge.bats` | Extended — 4 new tests (permissions, idempotency) |
+| `tests/tools/worktree.bats` | Extended — 4 new tests (worktree-sync) |
