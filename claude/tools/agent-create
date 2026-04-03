@@ -342,8 +342,16 @@ description: "${CC_DESCRIPTION}"
 model: opus
 ---
 
-Read your identity and responsibilities from \`claude/agents/${AGENTNAME}/agent.md\`.
-Read seed materials from \`claude/workstreams/${WORKSTREAM}/seeds/\`.
+**On startup, immediately read these files in order:**
+
+1. \`usr/${PRINCIPAL}/${WORKSTREAM}/${AGENTNAME}-handoff.md\` — your bootstrap handoff (who you are, current state, next action)
+2. \`claude/agents/${AGENTNAME}/agent.md\` — your role and responsibilities
+3. \`claude/workstreams/${WORKSTREAM}/KNOWLEDGE.md\` — workstream knowledge
+
+**If your handoff contains TODO: placeholders,** report to the captain:
+> "Bootstrap handoff incomplete for ${AGENTNAME} — needs captain to run /discuss for workstream ${WORKSTREAM}."
+
+Then follow the "Next Action" in your handoff. Do not wait for a prompt — act on startup.
 CCEOF
         verbose_echo "Registered Claude Code agent: $CLAUDE_AGENTS_DIR/${AGENTNAME}.md"
     fi
