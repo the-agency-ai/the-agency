@@ -7,7 +7,7 @@
 #
 # Preconditions enforced:
 #   1. .git/ exists (run git init first)
-#   2. .claude/ exists (run claude init first)
+#   2. .claude/ exists (created if missing)
 #   3. On main/master branch (bootstrap handoff needs captain path)
 #   4. Not already initialized (agency.yaml doesn't exist)
 
@@ -80,11 +80,10 @@ _init_main() {
         exit 1
     fi
 
-    # --- Precondition 2: .claude/ exists ---
+    # --- Precondition 2: .claude/ exists (create if missing) ---
     if [[ ! -d "$TARGET_DIR/.claude" ]]; then
-        log_error "No .claude/ directory found."
-        echo "Run 'claude init' first (creates .claude/ and settings.json)."
-        exit 1
+        mkdir -p "$TARGET_DIR/.claude"
+        log_info "Created .claude/ directory"
     fi
 
     # --- Precondition 3: on main/master (or fresh repo with no commits) ---
