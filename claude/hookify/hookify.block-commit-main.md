@@ -6,13 +6,4 @@ pattern: git commit
 action: warn
 ---
 
-**Use `./claude/tools/git-commit` instead of bare `git commit`.**
-
-The commit tool enforces conventions (message format, work-item linking, stage tagging).
-
-Also verify you are NOT on `main` or `master` — all changes go through PR branches. If you are on main/master, create a branch first:
-```bash
-git checkout -b {workstream}/{description}
-```
-
-*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+Use `/git-commit` instead of bare `git commit`. See CLAUDE-THEAGENCY.md#quality-gate-protocol — FEAR THE KITTENS!

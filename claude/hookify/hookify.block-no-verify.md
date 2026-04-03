@@ -6,8 +6,4 @@ pattern: --no-verify
 action: block
 ---
 
-**Skipping hooks is not allowed.**
-
-The `--no-verify` flag bypasses pre-commit hooks. If a hook fails, investigate and fix the underlying issue instead of skipping it.
-
-*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+`--no-verify` is blocked. Fix the hook failure, don't skip it. See CLAUDE-THEAGENCY.md#testing--quality-discipline — FEAR THE KITTENS!
