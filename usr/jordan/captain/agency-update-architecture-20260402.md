@@ -398,9 +398,9 @@ Build `_address-parse` first. All other tools depend on it. dispatch-create and 
 
 The three-tier strategy requires per-file decisions (check tier, compare checksum, decide action). rsync operates on directories and can't make per-file tier decisions. The replacement is a bash loop over the source manifest, calling `_compute_checksum` and comparing against the target manifest. Performance impact is negligible — file counts are in the hundreds, not thousands.
 
-### DD-3: Settings.json hooks replacement
+### DD-3: Settings.json hooks — key-based merge
 
-Hooks section in settings.json is framework-managed — `settings-merge` replaces it wholesale from the template. This is the monofolk F1 finding: hooks must stay in sync with the framework. Permissions are user-managed — array union, never wipe. This split resolves the settings.json tier problem without inventing a new tier.
+Hooks in settings.json use key-based merge by matcher + event type. Framework hooks (matched in template by matcher+event) are replaced with the template version. Project-specific hooks (not in template) are preserved. This is the monofolk F1 finding resolution: framework hooks stay in sync, project hooks survive updates. Permissions are user-managed — array union, never wipe. This split resolves the settings.json tier problem without inventing a new tier.
 
 ### DD-4: Conservative manifest bootstrap
 
