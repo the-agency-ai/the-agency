@@ -48,11 +48,49 @@ if [[ ! -f "$TARGET" ]]; then
     exit 0
 fi
 
-# Merge using jq: union permissions.allow arrays, keep existing hooks
+# Merge using jq:
+# - hooks: key-based merge by event_type + matcher
+#   Framework hooks (present in template): replaced with template version
+#   Project hooks (not in template): preserved
+# - permissions.allow: array union (add entries not already present)
+# - permissions.deny + other sub-keys: preserved from target
+# - Other top-level keys: template fills gaps, target wins on conflict
 MERGED=$(jq -s '
   def array_union(a; b): (a + b) | unique;
+
+  # Build a composite key for a hook group: "event_type:matcher"
+  def hook_key(event_type): event_type + ":" + (.matcher // "");
+
+  # Merge hooks for a single event type
+  # For each group in template: replace matching target group (by matcher)
+  # For each group in target not matched by template: preserve
+  def merge_hook_groups(target_groups; template_groups; event_type):
+    # Build set of template matchers
+    (template_groups | map(.matcher // "") | unique) as $template_matchers |
+    # Keep target groups whose matcher is NOT in template (project hooks)
+    (target_groups | map(select((.matcher // "") as $m | ($template_matchers | index($m)) == null))) as $project_hooks |
+    # Template hooks replace framework hooks
+    template_groups + $project_hooks;
+
   .[0] as $target | .[1] as $template |
+
+  # Merge hooks across all event types
+  (($target.hooks // {}) | keys) + (($template.hooks // {}) | keys) | unique |
+  reduce .[] as $event_type (
+    {};
+    . + {
+      ($event_type): merge_hook_groups(
+        $target.hooks[$event_type] // [];
+        $template.hooks[$event_type] // [];
+        $event_type
+      )
+    }
+  ) |
+  . as $merged_hooks |
+
+  # Build final result
   $target * {
+    hooks: $merged_hooks,
     permissions: ($target.permissions // {}) * {
       allow: array_union($target.permissions.allow // []; $template.permissions.allow // [])
     }
