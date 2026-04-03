@@ -114,6 +114,51 @@ _pr_yaml_get() {
     return 1
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# _validate_name <name> [level]
+#
+# Validate a machine identifier (principal, agent, repo name).
+# level: principal (default), agent, repo
+# Pattern: [a-z0-9][a-z0-9_-]*, max 32 chars
+# Leading digits allowed by design (e.g., "3d-renderer").
+# Reserved names (principal/agent): system, shared, all, default
+# Note: _ is already rejected by the regex (must start with [a-z0-9]).
+# ─────────────────────────────────────────────────────────────────────────────
+_validate_name() {
+    local name="$1"
+    local level="${2:-principal}"
+
+    # Reject empty
+    [[ -z "$name" ]] && { echo "Name cannot be empty" >&2; return 1; }
+    # Reject path traversal
+    [[ "$name" == *".."* || "$name" == *"/"* ]] && { echo "Name contains path traversal" >&2; return 1; }
+    # Reject too long
+    [[ ${#name} -gt 32 ]] && { echo "Name exceeds 32 characters" >&2; return 1; }
+    # Pattern check
+    [[ "$name" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo "Name must match [a-z0-9][a-z0-9_-]*" >&2; return 1; }
+    # Reject reserved (principal and agent levels)
+    if [[ "$level" == "principal" || "$level" == "agent" ]]; then
+        case "$name" in
+            system|shared|all|default) echo "Name '$name' is reserved" >&2; return 1 ;;
+        esac
+    fi
+    return 0
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _validate_timezone <tz>
+#
+# Validate a timezone string (e.g., "America/New_York", "UTC", "US/Pacific").
+# Pattern: [A-Za-z0-9/_+-]{1,64}
+# ─────────────────────────────────────────────────────────────────────────────
+_validate_timezone() {
+    local tz="$1"
+    [[ -z "$tz" ]] && { echo "Timezone cannot be empty" >&2; return 1; }
+    [[ ${#tz} -gt 64 ]] && { echo "Timezone exceeds 64 characters" >&2; return 1; }
+    [[ "$tz" =~ ^[A-Za-z0-9/_+-]+$ ]] || { echo "Timezone must match [A-Za-z0-9/_+-]+" >&2; return 1; }
+    return 0
+}
+
 # Main resolution
 _pr_resolve() {
     # Find project root

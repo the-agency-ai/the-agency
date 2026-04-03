@@ -121,6 +121,39 @@ _init_main() {
     PRINCIPAL_KEY=$(echo "$SYSTEM_USER" | tr '[:upper:]' '[:lower:]')
     PROJECT_NAME="${PROJECT_NAME:-$(basename "$TARGET_DIR")}"
 
+    # --- Validate names before any filesystem operations ---
+    # Source _path-resolve for _validate_name (required — hard fail if missing)
+    if ! type _validate_name &>/dev/null; then
+        local _lib_dir
+        _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if [[ -f "$_lib_dir/_path-resolve" ]]; then
+            source "$_lib_dir/_path-resolve"
+        fi
+    fi
+
+    type _validate_name &>/dev/null || {
+        log_error "Cannot load _validate_name from _path-resolve — abort"
+        exit 1
+    }
+
+    _validate_name "$PRINCIPAL" "principal" || {
+        log_error "Invalid principal name: $PRINCIPAL"
+        exit 1
+    }
+    _validate_name "$PRINCIPAL_KEY" "principal" || {
+        log_error "Invalid principal key: $PRINCIPAL_KEY"
+        exit 1
+    }
+    # PROJECT_NAME uses repo-level validation (no reserved name check)
+    _validate_name "$PROJECT_NAME" "repo" || {
+        log_error "Invalid project name: $PROJECT_NAME"
+        exit 1
+    }
+    _validate_timezone "$TIMEZONE" || {
+        log_error "Invalid timezone: $TIMEZONE"
+        exit 1
+    }
+
     # --- Source commit for version tracking ---
     local source_commit
     source_commit=$(git -C "$AGENCY_SOURCE" rev-parse HEAD 2>/dev/null || echo "unknown")

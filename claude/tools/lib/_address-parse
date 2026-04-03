@@ -1,0 +1,495 @@
+#!/bin/bash
+#
+# _address-parse - Canonical address parsing library for TheAgency
+#
+# Source this file in tools to parse, resolve, format, and validate
+# agent addresses. Follows the same pattern as _log-helper and
+# _path-resolve: sourced, sets up functions, no side effects.
+#
+# Usage:
+#   source "$(dirname "$0")/lib/_address-parse"
+#
+#   # Parse any address form into components
+#   address_parse "the-agency/jordan/captain"
+#   echo "$ADDR_REPO $ADDR_PRINCIPAL $ADDR_AGENT"
+#
+#   # Resolve bare name to fully qualified
+#   address_resolve "captain"
+#   echo "$ADDR_REPO/$ADDR_PRINCIPAL/$ADDR_AGENT"
+#
+#   # Format components into address string
+#   address_format "the-agency" "jordan" "captain"
+#
+#   # Validate a single component
+#   address_validate_component "jordan" --level principal
+#
+# Address forms (by segment count):
+#   1 = bare:              "captain"
+#   2 = principal/agent:   "jordan/captain"
+#   3 = repo/principal/agent: "the-agency/jordan/captain"
+#   4 = org/repo/principal/agent: "OrdinaryFolk/monofolk/jordan/captain"
+#
+
+# Source _path-resolve for YAML primitives and project root
+_ADDR_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$_ADDR_SCRIPT_DIR/_path-resolve" ]]; then
+    # Only source if not already loaded (avoid re-resolution)
+    if [[ -z "${AGENCY_PROJECT_ROOT:-}" ]]; then
+        source "$_ADDR_SCRIPT_DIR/_path-resolve"
+    fi
+fi
+
+# Global address components (set by address_parse and address_resolve)
+ADDR_ORG=""
+ADDR_REPO=""
+ADDR_PRINCIPAL=""
+ADDR_AGENT=""
+
+# Reserved names that cannot be used as principal or agent names
+_ADDR_RESERVED_NAMES="system shared all default"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# address_parse <addr>
+#
+# Parse an address string into components by segment count.
+# Sets: ADDR_ORG, ADDR_REPO, ADDR_PRINCIPAL, ADDR_AGENT
+# Returns 1 on invalid input.
+# ─────────────────────────────────────────────────────────────────────────────
+address_parse() {
+    local addr="$1"
+
+    # Reset
+    ADDR_ORG=""
+    ADDR_REPO=""
+    ADDR_PRINCIPAL=""
+    ADDR_AGENT=""
+
+    # Reject empty
+    if [[ -z "$addr" ]]; then
+        echo "Address cannot be empty" >&2
+        return 1
+    fi
+
+    # Reject path traversal
+    if [[ "$addr" == *".."* ]]; then
+        echo "Address contains path traversal" >&2
+        return 1
+    fi
+
+    # Note: null byte check omitted — bash strings are C strings and cannot
+    # contain null bytes. The shell truncates at \0 before we ever see it.
+
+    # Reject leading/trailing slashes
+    if [[ "$addr" == /* || "$addr" == */ ]]; then
+        echo "Address cannot start or end with /" >&2
+        return 1
+    fi
+
+    # Reject double slashes
+    if [[ "$addr" == *//* ]]; then
+        echo "Address contains empty segment" >&2
+        return 1
+    fi
+
+    # Count segments (disable globbing to prevent * ? [ expansion)
+    local _old_opts
+    _old_opts="$(set +o)"; set -f
+    local IFS='/'
+    local segments=($addr)
+    local count=${#segments[@]}
+    eval "$_old_opts"
+
+    case "$count" in
+        1)
+            # Bare: just agent name
+            ADDR_AGENT="${segments[0]}"
+            ;;
+        2)
+            # principal/agent
+            ADDR_PRINCIPAL="${segments[0]}"
+            ADDR_AGENT="${segments[1]}"
+            ;;
+        3)
+            # repo/principal/agent
+            ADDR_REPO="${segments[0]}"
+            ADDR_PRINCIPAL="${segments[1]}"
+            ADDR_AGENT="${segments[2]}"
+            ;;
+        4)
+            # org/repo/principal/agent
+            ADDR_ORG="${segments[0]}"
+            ADDR_REPO="${segments[1]}"
+            ADDR_PRINCIPAL="${segments[2]}"
+            ADDR_AGENT="${segments[3]}"
+            ;;
+        *)
+            echo "Address has too many segments ($count): $addr" >&2
+            return 1
+            ;;
+    esac
+
+    return 0
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# address_resolve <addr>
+#
+# Resolve a short-form address to fully qualified (repo/principal/agent).
+# Uses local git context and agency.yaml for missing components.
+# Sets: ADDR_ORG, ADDR_REPO, ADDR_PRINCIPAL, ADDR_AGENT (all resolved).
+# Returns 1 on resolution failure.
+# ─────────────────────────────────────────────────────────────────────────────
+address_resolve() {
+    local addr="$1"
+
+    # Parse first
+    address_parse "$addr" || return 1
+
+    # Resolve repo if missing
+    if [[ -z "$ADDR_REPO" ]]; then
+        local detected_repo
+        detected_repo="$(_address_detect_repo)" || {
+            echo "Cannot detect repo from git remote. Set repo.name in agency.yaml." >&2
+            return 1
+        }
+        ADDR_REPO="$detected_repo"
+    fi
+
+    # Resolve principal if missing
+    if [[ -z "$ADDR_PRINCIPAL" ]]; then
+        local detected_principal
+        detected_principal="$(_address_detect_principal)" || {
+            echo "No principals entry for ${USER:-\$USER} in agency.yaml. Run agency init." >&2
+            return 1
+        }
+        ADDR_PRINCIPAL="$detected_principal"
+    fi
+
+    # Agent must always be provided
+    if [[ -z "$ADDR_AGENT" ]]; then
+        echo "Address must include an agent name" >&2
+        return 1
+    fi
+
+    # 3-segment ambiguity warning: if original was 3 segments, check if
+    # first segment matches a known org name
+    local IFS='/'
+    local segments=($addr)
+    if [[ ${#segments[@]} -eq 3 ]]; then
+        local first="${segments[0]}"
+        if _address_is_known_org "$first" 2>/dev/null; then
+            echo "Warning: 3-segment address '$addr' interpreted as repo/principal/agent, but '$first' matches a known org. Use 4 segments (org/repo/principal/agent) if org-qualification is intended." >&2
+        fi
+    fi
+
+    return 0
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# address_format <repo> <principal> <agent>
+#
+# Produce a fully qualified address string: "repo/principal/agent"
+# ─────────────────────────────────────────────────────────────────────────────
+address_format() {
+    local repo="${1:-$ADDR_REPO}"
+    local principal="${2:-$ADDR_PRINCIPAL}"
+    local agent="${3:-$ADDR_AGENT}"
+
+    if [[ -z "$repo" || -z "$principal" || -z "$agent" ]]; then
+        echo "address_format requires repo, principal, and agent" >&2
+        return 1
+    fi
+
+    echo "${repo}/${principal}/${agent}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# address_validate_component <name> [--level org|repo|principal|agent]
+#
+# Validate a single address component.
+# org level: [A-Za-z0-9-]+ (case-preserved)
+# repo|principal|agent: [a-z0-9][a-z0-9_-]* (lowercase, max 32 chars)
+# Reserved names checked for principal and agent levels.
+# ─────────────────────────────────────────────────────────────────────────────
+address_validate_component() {
+    local name="$1"
+    local level="principal"  # default
+
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --level) level="$2"; shift 2 ;;
+            *) echo "Unknown option: $1" >&2; return 1 ;;
+        esac
+    done
+
+    # Reject empty
+    if [[ -z "$name" ]]; then
+        echo "Component cannot be empty" >&2
+        return 1
+    fi
+
+    # Reject path traversal
+    if [[ "$name" == *".."* || "$name" == *"/"* ]]; then
+        echo "Component contains path traversal" >&2
+        return 1
+    fi
+
+    # Note: null byte check omitted — bash strings cannot contain null bytes.
+
+    # Reject too long
+    if [[ ${#name} -gt 32 ]]; then
+        echo "Component exceeds 32 characters" >&2
+        return 1
+    fi
+
+    case "$level" in
+        org)
+            # Org names: case-preserved, alphanumeric + hyphens
+            if [[ ! "$name" =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]]; then
+                echo "Org name must match [A-Za-z0-9][A-Za-z0-9-]*" >&2
+                return 1
+            fi
+            ;;
+        repo|principal|agent)
+            # Lowercase, alphanumeric + underscore + hyphen
+            if [[ ! "$name" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+                echo "Name must match [a-z0-9][a-z0-9_-]* (lowercase)" >&2
+                return 1
+            fi
+            # Check reserved names for principal and agent
+            if [[ "$level" == "principal" || "$level" == "agent" ]]; then
+                local reserved
+                for reserved in $_ADDR_RESERVED_NAMES; do
+                    if [[ "$name" == "$reserved" ]]; then
+                        echo "Name '$name' is reserved" >&2
+                        return 1
+                    fi
+                done
+            fi
+            ;;
+        *)
+            echo "Unknown level: $level (use org, repo, principal, or agent)" >&2
+            return 1
+            ;;
+    esac
+
+    return 0
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _address_detect_repo
+#
+# Parse git remote -v for origin URL, extract repo short name.
+# Handles GitHub SSH, GitHub HTTPS, GitLab nested groups (leaf name only).
+# Uses git -C for worktree safety.
+# Falls back to agency.yaml repo.name override.
+# ─────────────────────────────────────────────────────────────────────────────
+_address_detect_repo() {
+    local project_root="${AGENCY_PROJECT_ROOT:-.}"
+    local yaml="$project_root/claude/config/agency.yaml"
+
+    # Check agency.yaml override first
+    if [[ -f "$yaml" ]]; then
+        local override
+        override="$(_pr_yaml_get "repo" "name" "$yaml" 2>/dev/null)" && {
+            if [[ -n "$override" ]]; then
+                echo "$override"
+                return 0
+            fi
+        }
+    fi
+
+    # Parse git remote
+    local remote_url
+    remote_url="$(git -C "$project_root" remote get-url origin 2>/dev/null)" || {
+        return 1
+    }
+
+    _address_parse_repo_url "$remote_url"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _address_parse_repo_url <url>
+#
+# Extract repo short name from a git remote URL.
+# Handles:
+#   git@github.com:org/repo.git      → repo
+#   https://github.com/org/repo.git  → repo
+#   https://github.com/org/repo      → repo
+#   git@gitlab.com:org/sub/repo.git  → repo (leaf name)
+# ─────────────────────────────────────────────────────────────────────────────
+_address_parse_repo_url() {
+    local url="$1"
+    local repo_name=""
+
+    # Strip trailing .git
+    url="${url%.git}"
+
+    # SSH format: git@host:path
+    if [[ "$url" =~ ^git@[^:]+:(.+)$ ]]; then
+        local path="${BASH_REMATCH[1]}"
+        # Take leaf name (last segment after /)
+        repo_name="${path##*/}"
+    # HTTPS format: https://host/path
+    elif [[ "$url" =~ ^https?://[^/]+/(.+)$ ]]; then
+        local path="${BASH_REMATCH[1]}"
+        repo_name="${path##*/}"
+    else
+        return 1
+    fi
+
+    if [[ -z "$repo_name" ]]; then
+        return 1
+    fi
+
+    echo "$repo_name"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _address_detect_org
+#
+# Extract org from git remote URL.
+# ─────────────────────────────────────────────────────────────────────────────
+_address_detect_org() {
+    local project_root="${AGENCY_PROJECT_ROOT:-.}"
+    local yaml="$project_root/claude/config/agency.yaml"
+
+    # Check agency.yaml override first
+    if [[ -f "$yaml" ]]; then
+        local override
+        override="$(_pr_yaml_get "repo" "org" "$yaml" 2>/dev/null)" && {
+            if [[ -n "$override" ]]; then
+                echo "$override"
+                return 0
+            fi
+        }
+    fi
+
+    # Parse git remote
+    local remote_url
+    remote_url="$(git -C "$project_root" remote get-url origin 2>/dev/null)" || {
+        return 1
+    }
+
+    _address_parse_org_url "$remote_url"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _address_parse_org_url <url>
+#
+# Extract org name from a git remote URL.
+# For GitHub: the org/user segment
+# For GitLab nested groups: first segment after host
+# ─────────────────────────────────────────────────────────────────────────────
+_address_parse_org_url() {
+    local url="$1"
+
+    # Strip trailing .git
+    url="${url%.git}"
+
+    # SSH format: git@host:org/repo or git@host:org/sub/repo
+    if [[ "$url" =~ ^git@[^:]+:([^/]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+        return 0
+    fi
+
+    # HTTPS format: https://host/org/repo
+    if [[ "$url" =~ ^https?://[^/]+/([^/]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+        return 0
+    fi
+
+    return 1
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _address_detect_principal
+#
+# Find $USER in agency.yaml principals section, return principal name.
+# Handles flat (jdm: jordan) and nested (jdm: { name: jordan }) formats.
+# Falls back to default key.
+# ─────────────────────────────────────────────────────────────────────────────
+_address_detect_principal() {
+    local project_root="${AGENCY_PROJECT_ROOT:-.}"
+    local yaml="$project_root/claude/config/agency.yaml"
+
+    if [[ ! -f "$yaml" ]]; then
+        return 1
+    fi
+
+    # If AGENCY_PRINCIPAL is already resolved, use it
+    if [[ -n "${AGENCY_PRINCIPAL:-}" && "${AGENCY_PRINCIPAL}" != "unknown" ]]; then
+        echo "$AGENCY_PRINCIPAL"
+        return 0
+    fi
+
+    # Try mapping current $USER via _pr_yaml_get
+    local principal
+    principal="$(_pr_yaml_get "principals" "${USER:-}" "$yaml" 2>/dev/null)" && {
+        if [[ -n "$principal" ]]; then
+            echo "$principal"
+            return 0
+        fi
+    }
+
+    # Fall back to default
+    principal="$(_pr_yaml_get "principals" "default" "$yaml" 2>/dev/null)" && {
+        if [[ -n "$principal" && "$principal" != "unknown" ]]; then
+            echo "$principal"
+            return 0
+        fi
+    }
+
+    return 1
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _address_is_known_org <name>
+#
+# Check if a name matches a known org (from remotes section or git remote).
+# Used for the 3-segment ambiguity warning.
+# ─────────────────────────────────────────────────────────────────────────────
+_address_is_known_org() {
+    local name="$1"
+    local project_root="${AGENCY_PROJECT_ROOT:-.}"
+
+    # Check git remote origin org
+    local origin_org
+    origin_org="$(_address_detect_org 2>/dev/null)" && {
+        if [[ "$name" == "$origin_org" ]]; then
+            return 0
+        fi
+    }
+
+    # Check remotes section in agency.yaml for URL-embedded org names
+    local yaml="$project_root/claude/config/agency.yaml"
+    if [[ -f "$yaml" ]]; then
+        # Look for remotes section URLs containing the name as an org
+        local in_remotes=false
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^remotes: ]]; then
+                in_remotes=true
+                continue
+            fi
+            if [[ "$in_remotes" == "true" && "$line" =~ ^[a-zA-Z] ]]; then
+                break
+            fi
+            if [[ "$in_remotes" == "true" && "$line" =~ url: ]]; then
+                local url_org
+                url_org="$(_address_parse_org_url "${line#*url:}" 2>/dev/null)" && {
+                    # Trim whitespace
+                    url_org="${url_org## }"
+                    url_org="${url_org%% }"
+                    url_org="${url_org#\"}"
+                    url_org="${url_org%\"}"
+                    if [[ "$name" == "$url_org" ]]; then
+                        return 0
+                    fi
+                }
+            fi
+        done < "$yaml"
+    fi
+
+    return 1
+}

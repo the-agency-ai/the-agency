@@ -18,20 +18,20 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPT_DIR/lib/_log-helper"
 
 RUN_ID=$(log_start "stage-hash" "$@")
-START_MS=$(date +%s%3N 2>/dev/null || date +%s000)
+START_MS=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s000)
 
 cd "$PROJECT_ROOT"
 
 OUTPUT=$(tsx tools/stage-hash.ts "$@" 2>&1) || {
   EXIT_CODE=$?
-  END_MS=$(date +%s%3N 2>/dev/null || date +%s000)
+  END_MS=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s000)
   DURATION=$(( END_MS - START_MS ))
   log_end "$RUN_ID" "error" "$EXIT_CODE" "$DURATION" "$OUTPUT"
   echo "$OUTPUT" >&2
   exit $EXIT_CODE
 }
 
-END_MS=$(date +%s%3N 2>/dev/null || date +%s000)
+END_MS=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s000)
 DURATION=$(( END_MS - START_MS ))
 log_end "$RUN_ID" "success" "0" "$DURATION" "stage-hash computed"
 
