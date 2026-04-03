@@ -47,6 +47,8 @@ usr/                       — agent INSTANCES (per-principal sandboxes, at PROJ
       dispatches/          — incoming dispatches
       transcripts/         — discussion transcripts
       history/             — archived handoffs and artifacts
+      tools/               — agent-written scripts (persisted, reusable)
+      tmp/                 — scratch space (ephemeral, gitignored)
 .claude/                   — Claude Code discovery location
   commands/                — active skills (symlinks from usr/ + shared)
   skills/                  — skill definitions
@@ -368,6 +370,37 @@ When building a new capability: build the tool, wrap it in a skill, block the ra
 Run each shell command as a **single, simple command** — no `&&`, `||`, `;`, pipes, subshells, or `$(…)` substitutions. These bypass the allowed-tools list, triggering extra permission prompts. Use separate Bash tool calls (parallel when independent, sequential when dependent). Use dedicated tools: Grep not `grep`, Glob not `find`, Read not `cat`, Write not `echo`, `/git-commit` not `git commit`.
 
 **Before writing bash, check if a tool already exists.** Tools in `claude/tools/` have built-in logging, telemetry, and structured output — they're more token-efficient and observable than inline bash. See `claude/README-THEAGENCY.md` for the full alternatives table and the tool ecosystem.
+
+### Script Discipline
+
+Every script — whether part of a plan or written ad hoc — must follow two rules:
+
+**1. Comment the why.** Every script starts with a comment explaining why it exists:
+
+```bash
+# Why did I write this script: I needed to scan all BATS test files for
+# duplicate test names, because the test runner silently shadows duplicates
+# and we were getting false green results.
+```
+
+The "why" framing is intentional. It forces intent, not description. "What it does" is readable from the code. "Why it exists" is not.
+
+**2. Persist and reuse.** Scripts live in two places depending on scope:
+
+| Scope | Location | Lifecycle |
+|-------|----------|-----------|
+| **Framework tool** (plan work, shipped to all projects) | `claude/tools/` | Committed, reviewed, permanent |
+| **Agent script** (ad hoc, session work, one-off automation) | `usr/{principal}/{project}/tools/` | Committed, reusable across sessions |
+| **Scratch** (truly ephemeral, intermediate output) | `usr/{principal}/{project}/tmp/` | Gitignored, disposable |
+
+**The workflow for ad hoc scripts:**
+1. You realize you need a script (parsing, scanning, transforming, testing).
+2. Write it to `usr/{principal}/{project}/tools/` with a `# Why did I write this script:` comment.
+3. Run it from there.
+4. If you need it again later in the session, it's already there — don't rewrite it.
+5. If it proves broadly useful, propose moving it to `claude/tools/`.
+
+**Never write the same script twice.** If you wrote it once, it should be in `tools/` and runnable from there. Rewriting the same script multiple times in a session wastes tokens and context window — and signals that the script should have been persisted on first write.
 
 ## Web Content Retrieval
 
