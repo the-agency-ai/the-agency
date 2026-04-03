@@ -15,10 +15,12 @@
   "permissions": {
     "allow": [
       "Bash(./claude/tools/*:*)",
-      "Read(claude/**)",
-      "Read(.claude/**)",
+      "Glob(.claude/**)",
       "Glob(claude/**)",
-      "Glob(.claude/**)"
+      "Glob(usr/**)",
+      "Read(.claude/**)",
+      "Read(claude/**)",
+      "Read(usr/**)"
     ]
   }
 }
