@@ -1,17 +1,19 @@
 ---
-allowed-tools: Read, Write, Edit, Bash(mkdir:*), Bash(mv:*), Bash(git rev-parse:*), Bash(git config:*), Glob, Grep
-description: Create a new workstream with scaffolded artifacts and optional worktree
+allowed-tools: Read, Write, Edit, Bash(mkdir:*), Bash(mv:*), Bash(git rev-parse:*), Bash(git config:*), Bash(./claude/tools/agent-create:*), Glob, Grep
+description: Create a new workstream with scaffolded artifacts, agent registrations, and optional worktree
 ---
 
 # Workstream Create
 
-Create a new workstream with directory structure, shared project sandbox, and per-agent instance registrations.
+Create a new workstream with directory structure, shared project sandbox, and per-agent registrations. This is a captain skill — guides the principal through substance after scaffolding.
 
 ## Arguments
 
 - $ARGUMENTS: `<name>` — workstream name in kebab-case. Followed by:
   - `--agent name[,class]` — agent name and optional class (default: tech-lead). **Repeatable** — one flag per agent.
   - `--description <text>` — one-line description of the workstream
+  - `--worktree` — also create a git worktree for this workstream
+  - `--scaffold-only` — skip the Phase B guided discussion instruction
 
 If no `--agent` flags provided, create a single agent with the workstream name and tech-lead class.
 
@@ -20,7 +22,8 @@ If no `--agent` flags provided, create a single agent with the workstream name a
 ```
 /workstream-create mdpal --agent mdpal-cli,tech-lead --agent mdpal-app,tech-lead
 /workstream-create ops --agent ops-lead
-/workstream-create folio
+/workstream-create folio --worktree
+/workstream-create ci-tools --scaffold-only
 ```
 
 ## Model
@@ -31,16 +34,16 @@ Value stream (repo) → workstreams (standalone deployable units) → 1+ agents 
 
 One workstream = one PVR, one A&D, one Plan, one shared project sandbox, 1+ agents.
 
-## Steps
+## Phase A: Deterministic Scaffold
 
 ### Step 1: Parse and validate
 
 1. Parse workstream name from first positional arg.
 2. Parse all `--agent name[,class]` flags. Split on comma: first part is agent name, second (optional) is class (default: `tech-lead`).
-3. Parse `--description` if present.
+3. Parse `--description`, `--worktree`, `--scaffold-only` if present.
 4. If `$ARGUMENTS` is empty, ask for a workstream name.
-5. Validate workstream name: must match `^[a-z0-9-]+$`.
-6. Validate each agent name: must match `^[a-z0-9-]+$`.
+5. Validate workstream name: must match `^[a-z0-9][a-z0-9_-]*$`, max 32 chars.
+6. Validate each agent name: same regex.
 7. Validate each agent class: check `claude/agents/<class>/agent.md` exists.
 8. Check `claude/workstreams/<name>/` doesn't already exist.
 
@@ -76,30 +79,40 @@ claude/workstreams/<name>/
 
 ```
 usr/<principal>/<name>/
-  handoffs/                 — per-agent handoff files (not captain's handoff.md)
   dispatches/               — incoming dispatches
   code-reviews/             — review and dispatch files
   transcripts/              — discussion transcripts
   history/                  — archived artifacts
+  seeds/                    — principal-scoped seed materials
+  tools/                    — agent-written scripts (persisted, reusable)
+  tmp/                      — scratch space (gitignored)
 ```
 
-### Step 5: Create per-agent instance registrations
+Create `tmp/.gitignore` with `*` and `!.gitignore`.
 
-For each `--agent name,class` flag, create `.claude/agents/<agent-name>.md`:
+**Note:** No `handoffs/` directory. Per-agent handoffs are flat files: `{agent}-handoff.md` in the project directory. Written by agent-create in Step 5.
 
-```markdown
----
-name: <agent-name>
-description: "<description or 'Define, design, and build <workstream-name>'>"
-model: opus
----
+### Step 5: Create per-agent registrations via agent-create
 
-Read your role and responsibilities from `claude/agents/<class>/agent.md`.
-Read workstream knowledge from `claude/workstreams/<workstream-name>/KNOWLEDGE.md`.
-Read seed materials from `claude/workstreams/<workstream-name>/seeds/`.
+For each `--agent name,class` flag, call the agent-create tool:
+
+```bash
+./claude/tools/agent-create <agent-name> <workstream> --type=<class> --description="<description>"
 ```
 
-### Step 6: Report
+**agent-create is the single write path** for `.claude/agents/` registrations, workspace scaffolding (tools/, tmp/), and bootstrap handoff templates. Do NOT write registrations inline — always delegate to agent-create.
+
+### Step 6: Create worktree (optional)
+
+If `--worktree` was passed:
+
+```bash
+./claude/tools/worktree-create <name>
+```
+
+### Step 7: Report + Phase B instruction
+
+Output the scaffold summary:
 
 ```
 Workstream created: <name>
@@ -108,15 +121,34 @@ Workstream created: <name>
   usr/<principal>/<name>/             — shared project sandbox
   .claude/agents/<agent-1>.md         — agent registration (<class>)
   .claude/agents/<agent-2>.md         — agent registration (<class>)
+```
 
+If `--scaffold-only` was NOT passed, append the Phase B instruction:
+
+```
+Bootstrap handoffs contain TODO placeholders. Run /discuss with these items:
+  1. What is this workstream?
+  2. What does <agent-1> own?
+  3. What does <agent-2> own?
+  4. What seeds do we have?
+  5. What's the first action for each agent?
+
+Then update each handoff with the resolved content:
+  - usr/<principal>/<name>/<agent-1>-handoff.md
+  - usr/<principal>/<name>/<agent-2>-handoff.md
+```
+
+If `--scaffold-only` was passed, append:
+
+```
 Next steps:
   1. Add seed materials to claude/workstreams/<name>/seeds/
-  2. Launch an agent: claude --agent <agent-name>
-  3. Start with /define to build the PVR
+  2. Fill in bootstrap handoffs at usr/<principal>/<name>/<agent>-handoff.md
+  3. Launch an agent: claude --agent <agent-name>
 ```
 
 ## What this does NOT do
 
-- **Create worktrees** — separate step via `/worktree-create`
+- **Write handoff substance** — the captain fills in handoffs via Phase B guided discussion
 - **Write PVR/A&D** — part of the methodology flow, done by the launched agent
 - **Drop seed material** — user responsibility
