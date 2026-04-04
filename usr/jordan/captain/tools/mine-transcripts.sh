@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Why did I write this script: Mining session transcripts for patterns, bugs,
-# friction points, and decisions is a recurring task that was done inline
-# multiple times (session 17 mining, mdpal mining, presence-detect mining).
-# Each time it required a subagent spending 20+ tool calls reading JSONL chunks.
-# This script extracts the raw user messages from a session JSONL file so an
-# agent can analyze them without the chunked-reading overhead.
+# What Problem: I need to mine session transcripts for patterns, bugs, friction
+# points, and decisions across multiple projects. This was being done inline by
+# subagents every time — session 17 mining, mdpal mining, presence-detect mining —
+# each costing 20+ tool calls to read JSONL chunks.
+#
+# How & Why: Extract user messages from JSONL session files and output as readable
+# markdown for agent analysis. Chose grep+jq streaming over full JSON parsing
+# because session files are 50MB+ and line-by-line is the only approach that
+# doesn't blow memory. Shell script because it needs to run in any repo without
+# dependencies. The output format is markdown so agents can analyze it directly.
 #
 # Written: 2026-04-04 during captain session 18 (ISCP workstream creation)
 

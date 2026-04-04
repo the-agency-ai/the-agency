@@ -371,20 +371,52 @@ Run each shell command as a **single, simple command** — no `&&`, `||`, `;`, p
 
 **Before writing bash, check if a tool already exists.** Tools in `claude/tools/` have built-in logging, telemetry, and structured output — they're more token-efficient and observable than inline bash. See `claude/README-THEAGENCY.md` for the full alternatives table and the tool ecosystem.
 
+### Provenance Headers
+
+Every piece of code — scripts, tools, modules, classes, methods, functions — carries a provenance header. This is how we learn from our own work. The header has two parts:
+
+**What Problem:** What problem are you solving? Not what the code does — what need drove its creation.
+
+**How & Why:** How are you solving it, what led you to this approach, and why you adopted it over alternatives.
+
+```bash
+# What Problem: I need to mine session transcripts for patterns, bugs, and
+# decisions across multiple projects. This was being done inline by subagents
+# every time, costing 20+ tool calls per mining run.
+#
+# How & Why: Extract user messages from JSONL session files and output as
+# readable markdown for agent analysis. Chose grep+jq over full JSON parsing
+# because session files are 50MB+ and streaming line-by-line is the only
+# approach that doesn't blow memory. Written as a shell script because it
+# needs to run in any repo without dependencies.
+#
+# Written: 2026-04-04 during captain session 18 (ISCP workstream creation)
+```
+
+The **What Problem** forces intent articulation. "What it does" is readable from the code. "What problem it solves" is not — and it's the thing that tells a future reader whether this code is still relevant.
+
+The **How & Why** captures the reasoning chain. When someone needs to change this code, they need to know not just what it does but why it does it *this way*. What alternatives were considered? What constraints drove the choice? This is the context that gets lost when code outlives the session that created it.
+
+The **Written** line gives traceability — you can find the session and plan context where the code was born.
+
+**This applies at every level:**
+
+| Scope | Where the header goes |
+|-------|----------------------|
+| **Script / tool** | Top of file, as comments |
+| **Module / package** | Module docstring or header comment |
+| **Class** | Class docstring or header comment |
+| **Method / function** | Function docstring or header comment (for non-trivial functions) |
+
+For trivial functions (getters, simple transforms, obvious wrappers), the header is overkill. Use judgment — if someone reading the code would ask "why does this exist?", it needs a header.
+
+This is part of **Continual Learning & Improvement** — provenance headers feed transcript mining, telemetry analysis, and pattern discovery. They are the written record of how we think, not just what we build.
+
 ### Script Discipline
 
 Every script — whether part of a plan or written ad hoc — must follow two rules:
 
-**1. Comment the why.** Every script starts with a comment explaining why it exists:
-
-```bash
-# Why did I write this script: I needed to scan all BATS test files for
-# duplicate test names, because the test runner silently shadows duplicates
-# and we were getting false green results.
-# Written: 2026-04-03 during Phase 1.3 (address-parse tests)
-```
-
-The "why" framing is intentional. It forces intent, not description. "What it does" is readable from the code. "Why it exists" is not. The "Written:" line gives traceability — you can find the session and plan context where the script was born.
+**1. Provenance header.** Every script starts with a provenance header (What Problem / How & Why / Written — see above).
 
 **2. Persist and reuse.** Scripts live in two places depending on scope:
 
@@ -396,9 +428,7 @@ The "why" framing is intentional. It forces intent, not description. "What it do
 
 **The workflow for ad hoc scripts:**
 1. You realize you need a script (parsing, scanning, transforming, testing).
-2. Write it to `usr/{principal}/{project}/tools/` with a header comment:
-   - `# Why did I write this script:` — the purpose and context
-   - `# Written: YYYY-MM-DD during <phase/task>` — traceability back to the work
+2. Write it to `usr/{principal}/{project}/tools/` with a provenance header.
 3. Run it from there.
 4. If you need it again later in the session, it's already there — don't rewrite it.
 5. If it proves broadly useful, propose moving it to `claude/tools/`.
