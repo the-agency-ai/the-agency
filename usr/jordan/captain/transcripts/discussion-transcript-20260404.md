@@ -23,3 +23,15 @@
 
 ---
 
+## Item 4: Addressing scheme for flag/dispatch
+
+**Decision:** Two target types:
+- **Agent:** `{repo}/{principal}/{agent}` → payload at `usr/{principal}/{agent-project}/dispatches/`
+- **Workstream:** `{repo}/{workstream}` → payload at `claude/workstreams/{workstream}/dispatches/`. Repo-level, no principal scoping — matches `claude/workstreams/{name}/` hierarchy.
+- **Flag:** DB-only, same addressing, no payload location.
+- Bare forms resolve from context; disambiguate by checking workstream dir first, then agent registration.
+
+**Action:** Dispatch this to the ISCP agent as foundational input for /define.
+
+---
+
