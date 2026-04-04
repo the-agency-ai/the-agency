@@ -74,3 +74,9 @@
 
 ---
 
+## Item 12: Handoff typed frontmatter
+
+**Decision:** Add type: field to handoff frontmatter (session-restore, agency-bootstrap, agent-bootstrap). Tools and SessionStart hook adjust behavior based on type. Small change, big leverage.
+
+---
+
