@@ -54,7 +54,7 @@ All three. Not one, not two. If you ship a tool without the other two legs, you'
 
 Every one of our enforcement rules ends with the same line: *"OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!"*
 
-It's a joke. It's also a signal. When an agent sees that line, it knows this isn't a suggestion — it's a mechanical boundary. The kittens are well-fed in our project. That's how we know the rules are working.
+It's a joke. It's also a signal. When an agent sees that line, it knows this isn't a suggestion — it's a mechanical boundary. The kittens are starving in our project — or so we hope. Because if they're well-fed, we're failing.
 
 ---
 
