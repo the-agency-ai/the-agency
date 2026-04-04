@@ -92,3 +92,15 @@
 
 ---
 
+## Item 15: Kill /agency dispatcher
+
+**Decision:** Document what it was, why it was built, why it failed — capture patterns and anti-patterns before deleting. Inform future design decisions. Then delete.
+
+---
+
+## 1B1 Paused at Item 15
+
+Items 1-15 resolved. Items 16-29 pending. Resume next session.
+
+---
+
