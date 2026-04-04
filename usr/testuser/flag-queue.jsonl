@@ -1,0 +1,1 @@
+{"ts":"2026-04-04T05:39:59Z","message":"BATS test env leak keeps recreating usr/testuser/flag-queue.jsonl — AGENCY_PRINCIPAL=testuser leaks from test suite into shell env. Need test isolation fix: unset AGENCY_PRINCIPAL in teardown or use subshell isolation. This is the second time this session we've had to clean it up.","principal":"testuser","branch":"main","session":""}
