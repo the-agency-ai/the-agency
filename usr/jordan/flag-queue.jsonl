@@ -40,3 +40,4 @@
 {"ts":"2026-04-04T02:47:21Z","message":"agent-create creates extra files (IDEAS.md, ONBOARDING.md, logs/permissions.md) not specified in workstream-create","principal":"jordan","branch":"main","session":""}
 {"ts":"2026-04-04T02:47:51Z","message":"All non-destructive tools (flag, dispatch read/list/fetch, transcript) must have pre-approved permissions in settings.json — zero prompts for read/write operations on agent's own files","principal":"jordan","branch":"main","session":""}
 {"ts":"2026-04-04T03:05:17Z","message":"Adopt the vouch model into the-agency. Look at Ghostty's CONTRIBUTING and AI-POLICY as starting points for our own.","principal":"jordan","branch":"main","session":""}
+{"ts":"2026-04-04T03:05:43Z","message":"Reach out to everyone following/starred the-agency-starter repo and retarget them to the-agency.","principal":"jordan","branch":"main","session":""}
