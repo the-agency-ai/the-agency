@@ -32,3 +32,4 @@
 {"ts":"2026-04-04T00:26:39Z","message":"Convention: worktree naming in status line redundant — name shown 3 times","principal":"jordan","branch":"main","session":"mined-session-17"}
 {"ts":"2026-04-04T00:26:39Z","message":"Convention: Explore agent on bootstrap made 22 tool calls (/bin/zsh.37) for lightweight orientation — overkill","principal":"jordan","branch":"main","session":"mined-session-17"}
 {"ts":"2026-04-04T00:26:39Z","message":"Convention: inline script without why-comment and without saving to tools/ — the pattern that motivated the discipline rule","principal":"jordan","branch":"main","session":"mined-session-17"}
+{"ts":"2026-04-04T00:27:06Z","message":"Capture why you wrote that script at the top and add it to your tools/ directory.","principal":"testuser","branch":"main","session":""}
