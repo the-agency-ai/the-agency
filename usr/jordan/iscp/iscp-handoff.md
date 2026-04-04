@@ -1,7 +1,7 @@
 ---
 type: session-handoff
 date: 2026-04-04
-trigger: SessionEnd — PVR and A&D complete with QG
+trigger: SessionEnd — PVR, A&D, Plan complete
 agent: the-agency/jordan/iscp
 workstream: iscp
 ---
@@ -10,59 +10,52 @@ workstream: iscp
 
 **Agent:** the-agency/jordan/iscp
 **Branch:** iscp (worktree at `.claude/worktrees/iscp/`)
-**Last commit:** `a24c9fa` Phase 1.1: ISCP PVR and A&D — first pass with QG
+**Last commit:** `ef7cef0` Phase 1.1: ISCP plan — 7 phases, 22 iterations
 
-## What Was Done
+## Current State
 
-1. **PVR completed** via /define — 8-item 1B1 discussion with principal:
-   - DB path: `~/.agency/{repo-name}/iscp.db` (outside git, centralized)
-   - Hook triggers: SessionStart + UserPromptSubmit (cheap check, silent when empty)
-   - Dispatch types: 6-type formal enum (directive, request, review, notification, question, response)
-   - Success criteria: 7 items including SC-7 (enforcement triangle on payload routing)
-   - Non-goals: 6 items (no chat, no pub/sub, no GUI, no cross-machine v1)
-   - Dropbox: in ISCP scope as universal intake at `~/.agency/{repo}/dropbox/{principal}/{agent}/`
-   - Transcripts: always-on (Granola model), dialogue-only, agent-driven capture with hookify enforcement
-   - Notification subscriptions: agents register for events, checked on hook fire
+PVR, A&D, and Plan are complete. QG passed (42 findings, all fixed). Dispatches sent to captain and mdpal for review. Ready to implement.
 
-2. **A&D drafted** — 6 tables, 8 tools, 7 hookify rules, 6 trade-offs, review-resolution lifecycle
+**Phase 1, Iteration 1.1 (design) is done.** Next: Iteration 1.2 (`_iscp-db` library).
 
-3. **Quality gate run** — 4 parallel review agents found 42 findings (3 critical, all fixed):
-   - F1: `$CLAUDE_AGENT_NAME` doesn't exist → created `agent-identity` tool
-   - F2: Transcript capture gap → two-layer hook+hookify approach
-   - F3: sqlite3 `?` params don't work → named parameters via `.param set`
+## Key Decisions (all resolved with principal)
 
-4. **Captain + mdpal consumer reviews** — dispatched and findings incorporated:
-   - Review-resolution lifecycle documented (6-step audit trail)
-   - Outbox tracking added (`dispatch list --from`)
-   - SessionStart hookify rule (act now, not later)
-   - Transcript fidelity ("actual response, not summary")
-   - `AGENCY_PRINCIPAL` explicitly deprecated
+1. **DB location:** `~/.agency/{repo-name}/iscp.db` — outside git, centralized under home dir
+2. **Hook triggers:** SessionStart + UserPromptSubmit — cheap check, silent when empty, one-line "you got mail" when not
+3. **Dispatch types:** 7-type formal enum — directive, request, review, notification, question, response, escalation
+4. **Dropbox:** Universal intake at `~/.agency/{repo}/dropbox/{principal}/{agent}/` — outside git, goal state empty, `dropbox forward` for captain rerouting
+5. **Transcripts:** Always-on Granola model — hook captures user input, hookify enforces agent self-reporting (actual response, NOT summary), staleness warning at 5 turns, all transcript tool output silent to principal
+6. **Subscriptions:** Principal-scoped with captain repo-wide exception. Escalations auto-notify principal.
+7. **Transcript size:** One file per session, no rotation. ~200KB is nothing.
 
-5. **Dispatches sent** to captain and mdpal for review (in git, awaiting their sessions)
+## Next Action
 
-## What's Next
+Start **Phase 1, Iteration 1.2: `_iscp-db` library**
 
-1. **Discuss remaining items with principal** (5 items from QG):
-   - Escalation dispatch type (add or defer?)
-   - Dropbox forwarding (`dropbox forward --to <agent>`)
-   - Subscription scope for captain (cross-principal visibility)
-   - Transcript staleness threshold (5 turns?)
-   - Open tech questions: transcript rotation, performance test methodology
+1. Create `claude/tools/lib/_iscp-db`
+2. DB path resolution with repo name sanitization
+3. Schema creation (all 6 tables, idempotent)
+4. Named parameter handling via `.param set`
+5. BATS tests
 
-2. **Build the Plan** — phases and iterations after A&D discussion resolves
-
-3. **Await dispatch responses** from captain and mdpal agents
+See plan: `claude/workstreams/iscp/iscp-plan-20260404.md`
 
 ## Key Files
 
-- PVR: `claude/workstreams/iscp/iscp-pvr-20260404.md`
-- A&D: `claude/workstreams/iscp/iscp-ad-20260404.md`
-- QGR: `usr/jordan/iscp/qgr-iteration-complete-1-1-3c35ba7-20260404-2020.md`
-- Captain dispatch: `usr/jordan/captain/dispatches/dispatch-iscp-pvr-ad-review-20260404-2012.md`
-- mdpal dispatch: `usr/jordan/mdpal/dispatches/dispatch-iscp-pvr-ad-review-20260404-2013.md`
+| File | What |
+|------|------|
+| `claude/workstreams/iscp/iscp-pvr-20260404.md` | PVR — 13 UCs, 11 FRs, 7 NFRs |
+| `claude/workstreams/iscp/iscp-ad-20260404.md` | A&D — 6 tables, 8 tools, 7 hookify rules |
+| `claude/workstreams/iscp/iscp-plan-20260404.md` | Plan — 7 phases, 22 iterations |
+| `usr/jordan/iscp/qgr-iteration-complete-1-1-3c35ba7-20260404-2020.md` | QGR for design phase |
+
+## Pending Dispatches (awaiting responses)
+
+- `usr/jordan/captain/dispatches/dispatch-iscp-pvr-ad-review-20260404-2012.md` — captain review
+- `usr/jordan/mdpal/dispatches/dispatch-iscp-pvr-ad-review-20260404-2013.md` — mdpal consumer review
 
 ## Known Issues
 
-- `dispatch-create` tool has the `AGENCY_PRINCIPAL` env leak bug — resolved to `testuser` instead of `jordan`. Had to create dispatches manually. Fix is ISCP Phase 1 prerequisite.
-- Worktree path confusion: wrote PVR/A&D to main checkout initially instead of worktree. Had to copy. Exactly the problem ISCP solves.
-- PVR also exists at main checkout path (`/Users/jdm/code/the-agency/claude/workstreams/iscp/`) — stale copy from before worktree copy. The canonical version is on the iscp branch.
+- `dispatch-create` tool has `AGENCY_PRINCIPAL` env leak bug — resolves to `testuser`. Fix is Phase 1 prerequisite (Iteration 1.3 patches `_address-parse`).
+- `handoff` tool has the same env leak — wrote to wrong path. Manual handoff this session.
+- Main checkout has stale copies of PVR/A&D from before worktree copy. Canonical versions are on the iscp branch.
