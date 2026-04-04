@@ -62,3 +62,9 @@
 
 ---
 
+## Item 10: Dispatch auto-read
+
+**Decision:** Abstraction layer now — clean interface ("mark as read" / "get unread"), file-rename implementation behind it. When ISCP delivers SQLite, swap implementation, callers don't change. Dispatch the requirement to ISCP so they design for it. Burns context and tokens every session — high urgency for short-term hack.
+
+---
+
