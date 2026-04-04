@@ -6,46 +6,40 @@ date: 2026-04-04
 topic: Enforcement Triangle
 ---
 
-**Why do AI agents keep breaking their own rules?**
+My current passion is AI Augmented Development — seeing how far we can take things with Claude Code and defining an AIADLC (AI Augmented Development Life Cycle).
 
-We build multi-agent systems for software development at The Agency. Our agents have a simple rule: never push code directly to main — always go through a PR.
+I spend my days working with a group of Claude Code Agents. Together — me and the Agents — we build the framework, the tooling, and the workflows. We call it The Agency.
 
-We documented it. We added warnings. They violated it three times anyway.
+To make this work, we have clear rules for Principals (the humans) and the Agents working together. Rules like: never push directly to main, always go through a PR, whatever removes friction and makes things safer, more effective, and more efficient.
 
-The problem wasn't the agents. It was us. We gave them two legs of a three-legged stool.
+We documented them. We added warnings. And our Agents just ignored them. (Much like many of the software engineers I've worked with over the years — wonder where the Agents learned that.)
 
-We now enforce every agent capability with what we call the **Enforcement Triangle**:
+Not because they're dumb. Because we only gave them two legs of a three-legged stool.
 
-🔧 **Tool** — does the work, with pre-approved permissions and logging built in
-📋 **Skill** — tells the agent when and how to use the tool, discoverable through autocomplete
-🚫 **Hookify Rule** — blocks the raw alternative and redirects to the skill
+We now enforce every capability with what we call the **Enforcement Triangle**:
 
-Miss any leg and compliance collapses:
+**The Tool** — does the work, with pre-approved permissions, logging, and telemetry built in.
 
-→ Tool + Skill, no Rule? The agent knows the right way but still takes shortcuts under pressure.
-→ Tool + Rule, no Skill? The agent hits a wall with no guidance on what to do instead.
-→ Skill + Rule, no Tool? Every invocation triggers a permission prompt. The agent learns to avoid it.
+**The Skill** — tells the agent when and how to use the tool. Discoverable through autocomplete, context injection, the natural flow of work. The right path is the easy path.
 
-Here's what one looks like — a real rule from our project that catches a test environment leak:
+**The Hookify Rule** — blocks the raw alternative and redirects to the skill. Mechanical enforcement, not honor system.
 
-```
-STOP. You are writing to `usr/testuser/` — this means
-AGENCY_PRINCIPAL=testuser leaked from the BATS test suite.
-Run `unset AGENCY_PRINCIPAL` and retry.
+Miss any leg and compliance collapses. Agents under pressure behave exactly like engineers under pressure — they take shortcuts.
 
-See claude/CLAUDE-THEAGENCY.md § "Agent & Principal Addressing"
+Here's what a real enforcement rule looks like:
 
-OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!
-```
+> STOP. You are writing to `usr/testuser/` — this means AGENCY_PRINCIPAL=testuser leaked from the BATS test suite. Run `unset AGENCY_PRINCIPAL` and retry.
+>
+> See claude/CLAUDE-THEAGENCY.md § "Agent & Principal Addressing"
+>
+> OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!
 
-One markdown file. The frontmatter says when it fires. The body is the message. The agent gets: what's wrong, how to fix it, and where to read why.
+Direct. Actionable. Token efficient. The agent gets: what's wrong, how to fix it, and where to read why.
 
-The real insight: **documentation doesn't change agent behavior. Mechanical enforcement does.**
+The real insight: **documentation doesn't change agent behavior. Mechanical enforcement does.** Context gets compressed. Instructions get summarized. Nuance disappears. But a rule that fires on every `git push` and blocks it? That survives compression. That works at 3am when the Agent — or the Principal — is deep in a complex task and just wants to ship.
 
-Project instructions get compressed. Context windows fill up. Nuance disappears. But a rule that fires on every `git push` and blocks it? That survives compression. That works when the agent is deep in a complex task and just wants to ship.
+The kittens are starving in our project — or so we hope. Because if they're well-fed, we're failing.
 
-Every one of our enforcement rules ends with: *"OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!"* The kittens are starving in our project — or so we hope. Because if they're well-fed, we're failing.
+We're building this as part of The Agency — an open-source framework for multi-agent and multi-principal software development: https://github.com/the-agency-ai/the-agency
 
-We're building this as part of The Agency (https://github.com/the-agency-ai/the-agency), an open-source framework for multi-agent software development.
-
-#AIAgents #SoftwareEngineering #ClaudeCode #DeveloperTools #OpenSource
+#AIAgents #AIDevelopment #ClaudeCode #DeveloperTools #OpenSource #AIADLC
