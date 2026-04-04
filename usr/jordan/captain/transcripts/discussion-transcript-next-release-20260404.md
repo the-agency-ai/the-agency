@@ -98,9 +98,93 @@
 
 ---
 
-## 1B1 Paused at Item 15
+## Item 16: the-agency-starter sunset
 
-Items 1-15 resolved. Items 16-29 pending. Resume next session.
+**Decision:** Mine starter repo for uncaptured content. Reach out to 8 stargazers, 1 follower, 1 fork — notify them of transition to the-agency. Update README with redirect + migration guidance. Pin transition issue. Archive once agency-update (Item 2) proves the migration path. Also review/update the-agency's own README.
+
+---
+
+## Item 17: Vouch model
+
+**Decision:** Ghostty-style vouch model (CONTRIBUTING.md) — apply via GitHub Discussion, human vouches, agent pre-screens. AI-POLICY.md grounded in Anthropic's 4Ds (Delegation, Description, Discernment, Diligence). Transparent about agent-built/principal-directed workflow. Jordan's Ghostty vouch submission (ghostty-org/ghostty#12093) as the template. Both docs needed before public launch.
+
+---
+
+## Item 18: the-agency-content repo
+
+**Decision:** Create the-agency-ai/the-agency-content (private). Migrate all content from the-agency (voice guide, article queue, workshop materials, book). Agency repo with content workstreams (articles, book, workshops, presentations). Captain oversees as CoS across repos. Add to sync loop. Both jordandm and jordan-of access.
+
+---
+
+## Item 19: X/Twitter integration
+
+**Decision:** Custom X MCP server/tool (not third-party). Pay-per-use tier — expected under $10/mo for our volume ($0.01/post write, $0.005/post read). Jordan TODO: developer account at developer.x.com with @AgencyGroupAI. Curated follow/watch list for intelligence gathering (Boris, Anthropic, Claude AI, targeted list). Purpose: information into knowledge base, not social engagement.
+
+---
+
+## Item 20: Provenance header enforcement
+
+**Decision:** Hookify rule on Write to code files — check for `What Problem:` and `How & Why:` with non-empty content after each marker. Block if missing. Full Enforcement Triangle: hookify rule (block) + skill (part of QG) + telemetry for compliance tracking. Standard kittens trademark.
+
+---
+
+## Item 21: MAR in CLAUDE-THEAGENCY.md
+
+**Decision:** Define MAR (Multi-Agent Review) as a formal pattern in CLAUDE-THEAGENCY.md. Four parts: (1) concept + acronym definition, (2) the review loop — create → MAR → findings → discuss with principal if needed → revise → repeat until clean, (3) composition per quality gate — iteration QG, phase QG, plan-end QG, pre-push/PR, PVR review, A&D review, plan review, reference review — each with generic review agents + named domain agents (e.g., captain reviews ISCP, sibling agents cross-review) + principal in the loop, (4) red-green discipline — every code finding gets a bug-exposing test first (red), then fix (green), no exceptions for nits. Enforcement Triangle for test-before-fix ordering. Quality compounds through consistent discipline, loop after loop.
+
+---
+
+## Item 22: PROVIDER-SPEC.md
+
+**Decision:** Yes, formalize PROVIDER-SPEC.md. Create DevEx workstream + agent in the-agency to own it. Bootstrap with context transfer from monofolk's DevEx agent — especially provider work and starter pack migration decisions. Use collaboration-monofolk repo as coordination channel. The-agency DevEx scope: great developer experience for both agents and principals.
+
+---
+
+## Item 23: ISCP — Dropbox
+
+**Decision:** Dropbox sits outside the repo (not claude/dropbox/). ISCP owns design and implementation. No ducking.
+
+---
+
+## Item 24: ISCP — Flag SQLite
+
+**Decision:** ISCP owns. Database sits outside the repo.
+
+---
+
+## Item 25: ISCP — Dispatch lifecycle
+
+**Decision:** ISCP owns. Database sits outside the repo. Same principle as dropbox and flags: don't bloat repos with operational data.
+
+---
+
+## Item 26: ISCP — Cross-repo delivery
+
+**Decision:** ISCP owns eventually. Priority order: (1) intra-agency communication first (current ISCP work), (2) inter-agency same repo, (3) cross-repo same value stream (collab repos via GitHub as bridge), (4) cross-repo different value streams. ISCP grows into each layer as the previous one stabilizes.
+
+---
+
+## Item 27: Seeds location
+
+**Decision:** Seeds live in claude/workstreams/{name}/seeds/. They belong to the workstream, not the agent. Input material that predates agent assignment, persists regardless of who works on them.
+
+---
+
+## Item 28: agency-init ordering
+
+**Decision:** Already settled: git init → agency init → claude (just run Claude Code). Not reopened.
+
+---
+
+## Item 29: Ghostty-only terminal integration
+
+**Decision:** Ghostty-only for terminal integration — covers macOS and Linux. Not anti-iTerm, but we don't maintain other terminals. Community contributes via vouch/contribution model. IDE targets: VS Code and Zed. No Cursor (uses model but not Claude Code). Four supported surfaces: Ghostty, VS Code, Zed, CLI. Community adds others.
+
+---
+
+## 1B1 Complete
+
+All 29 items resolved across two sessions (2026-04-04 and 2026-04-05).
 
 ---
 
