@@ -50,6 +50,32 @@ For every new capability in our framework:
 
 All three. Not one, not two. If you ship a tool without the other two legs, you're relying on the agent's good judgment under pressure. And agents under pressure behave exactly like engineers under pressure — they take shortcuts.
 
+## What It Looks Like
+
+Here's an actual hookify rule from our project. Our test suite leaks an environment variable that causes tools to write files to the wrong user directory. Instead of hoping agents notice, we block it mechanically:
+
+```markdown
+---
+name: block-testuser-paths
+enabled: true
+event: bash
+pattern: usr/testuser
+action: block
+---
+
+STOP. You are writing to `usr/testuser/` — this means
+`AGENCY_PRINCIPAL=testuser` leaked from the BATS test suite
+into your shell environment. Run `unset AGENCY_PRINCIPAL`
+and retry.
+
+See `claude/CLAUDE-THEAGENCY.md` § "Agent & Principal Addressing"
+— principal resolution uses `agency.yaml`, not raw env vars.
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+```
+
+The frontmatter defines *when* it fires. The markdown body *is* the message. One file, human-readable — the rule and the enforcement together. The agent gets: what's wrong, how to fix it, and where to read why.
+
 ## The Kittens Clause
 
 Every one of our enforcement rules ends with the same line: *"OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!"*
