@@ -86,3 +86,9 @@
 
 ---
 
+## Item 14: Kill agency-service
+
+**Decision:** Delete all code, remove all references. Salt the earth. Same treatment as ADHOC. ISCP + dispatches + skills replace everything it was trying to do.
+
+---
+
