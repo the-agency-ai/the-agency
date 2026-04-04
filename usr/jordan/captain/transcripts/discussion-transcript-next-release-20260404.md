@@ -68,3 +68,9 @@
 
 ---
 
+## Item 11: Hookify rules terse
+
+**Decision:** Adopt as the standard pattern for all hookify messages, current and future. One-liner + doc cross-reference + kittens. Audit remaining verbose rules and tighten. Token-efficient, agents parse fast, doc pointer gives depth when needed.
+
+---
+
