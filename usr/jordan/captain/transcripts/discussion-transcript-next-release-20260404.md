@@ -50,3 +50,15 @@
 
 ---
 
+## Item 8: Handoff tool multi-agent
+
+**Decision:** Support {agent}-handoff.md per agent. Agent name from --agent flag or agent registration. workstream-create scaffolds per-agent handoff files during agent assignment. Straightforward fix.
+
+---
+
+## Item 9: Transcript mining tool
+
+**Decision:** Formalize mine-transcripts.sh and ship to claude/tools/. Mine and analyze for now. Downstream: agentic pipeline for automated friction detection and usage pattern analysis. Feeds into permissions discovery (Item 4) and continual improvement loop.
+
+---
+
