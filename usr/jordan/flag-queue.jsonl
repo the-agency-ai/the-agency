@@ -47,3 +47,4 @@
 {"ts":"2026-04-04T04:04:04Z","message":"agency-init does not ship flag and handoff tools to target repos — Enforcement Triangle broken (skills exist without backing tools)","principal":"jordan","branch":"main","session":""}
 {"ts":"2026-04-04T04:04:04Z","message":"Need SessionStart validation hook: verify principal resolves, usr/ dir exists, required tools present, agency.yaml well-formed","principal":"jordan","branch":"main","session":""}
 {"ts":"2026-04-04T04:04:04Z","message":"MAR acronym not in CLAUDE-THEAGENCY.md — agents don't recognize it when principal uses it","principal":"jordan","branch":"main","session":""}
+{"ts":"2026-04-04T04:16:09Z","message":"Enforcement tooling for provenance headers: hookify rule to warn when code is written without What Problem / How & Why header. Telemetry to track compliance. Part of Enforcement Triangle.","principal":"jordan","branch":"main","session":""}
