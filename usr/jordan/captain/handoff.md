@@ -14,7 +14,7 @@ agent: the-agency/jordan/captain
 
 ## Current State
 
-Release scoping 1B1 in progress — 15 of 29 items resolved. Three agents running on worktrees (ISCP, mdpal-cli, mdpal-app).
+Release scoping 1B1 **complete** — 29/29 items resolved. Three agents running on worktrees (ISCP, mdpal-cli, mdpal-app).
 
 ## Session 18 (continued) Summary
 
@@ -56,17 +56,24 @@ Release scoping 1B1 in progress — 15 of 29 items resolved. Three agents runnin
 | 14 | Kill agency-service | Salt the earth. ISCP + dispatches replace it. |
 | 15 | Kill /agency dispatcher | Document patterns/anti-patterns first, then delete. Pass learnings to ISCP. |
 
-### Items 16-29 Pending
+### Release Scoping Decisions (Items 16-29)
 
-16. the-agency-starter sunset
-17. Vouch model
-18. the-agency-content repo (NEW — private, articles/book/workshops, jordandm + jordan-of)
-19. X/Twitter integration
-20. Provenance header enforcement
-21. MAR in CLAUDE-THEAGENCY.md
-22. PROVIDER-SPEC.md
-23-26. ISCP owns (dropbox, flag SQLite, dispatch lifecycle, cross-repo)
-27-29. Decisions (seeds location, agency-init ordering, Ghostty-only)
+| # | Item | Decision |
+|---|------|----------|
+| 16 | starter sunset | Mine, notify 8 stargazers/1 fork/1 follower, update README, pin issue, archive after agency-update works. |
+| 17 | Vouch model | Ghostty-style CONTRIBUTING.md + 4D-aligned AI-POLICY.md. Agent pre-screens, human vouches. |
+| 18 | the-agency-content | Private repo. Migrate all content. Workstreams: articles, book, workshops, presentations. Captain as CoS. |
+| 19 | X/Twitter | Custom MCP, pay-per-use (~$10/mo). Jordan TODO: developer account @AgencyGroupAI. Curated follow list. |
+| 20 | Provenance headers | Hookify rule: block Write without `What Problem:` + `How & Why:`. Full triangle. |
+| 21 | MAR | Formal pattern: concept + review loop + composition per QG + red-green discipline. Named agents + generic reviewers. |
+| 22 | PROVIDER-SPEC.md | DevEx workstream + agent in the-agency. Bootstrap from monofolk DevEx context transfer. |
+| 23 | Dropbox | ISCP owns. Sits outside repo. |
+| 24 | Flag SQLite | ISCP owns. DB outside repo. |
+| 25 | Dispatch lifecycle | ISCP owns. DB outside repo. |
+| 26 | Cross-repo | ISCP owns eventually. Priority: intra → inter same repo → cross same value stream → cross different. |
+| 27 | Seeds location | claude/workstreams/{name}/seeds/. Belongs to workstream, not agent. |
+| 28 | agency-init ordering | Already settled: git init → agency init → claude. |
+| 29 | Ghostty-only | Ghostty + VS Code + Zed + CLI. Community contributes others. No Cursor. |
 
 ## Active Agents
 
