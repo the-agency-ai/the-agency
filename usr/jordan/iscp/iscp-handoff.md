@@ -49,6 +49,8 @@ You are building the messaging layer for The Agency — how agents communicate a
 6. Cross-repo delivery mechanism — git-based? API? Filesystem?
 7. Addressing scheme formalization for flag/dispatch (captain will dispatch this to you)
 8. Transcript location and commit discipline — transcripts must get to master ASAP and be accessible to any workstream
+9. Dropbox folder naming convention — what structure under `claude/dropbox/{principal}/{agent}/`?
+10. Dropbox push/fetch mechanics — cherry-pick? Direct file copy? How to handle conflicts?
 
 ## Seed Materials
 

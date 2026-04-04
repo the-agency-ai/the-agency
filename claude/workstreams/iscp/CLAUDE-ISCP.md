@@ -8,6 +8,7 @@ The ISCP workstream builds the messaging layer for The Agency:
 - **Flag** — agent-addressable quick-capture queue, SQLite-backed outside repo
 - **Dispatch** — structured agent-to-agent/workstream messages, notification in DB + payload in git
 - **ISCP v1 hook** — "you got mail" notification on defined events, checks DB for unread items
+- **Dropbox** — file staging area at `claude/dropbox/{principal}/{agent}/` on master. `dropbox push` sends from worktree→master, `dropbox fetch` pulls master→worktree. Handles all branch mechanics. Tied into ISCP dispatch notifications.
 - **Addressing** — agent (`{repo}/{principal}/{agent}`) and workstream (`{repo}/{workstream}`) targeting
 - **DB pattern** — SQLite with abstraction layer, outside repo at `../{repo}/{TBD}/{database}`
 - **Cross-repo/cross-agency dispatch** — monofolk ↔ the-agency ↔ ghostty fork
