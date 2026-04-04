@@ -1,41 +1,50 @@
 #!/usr/bin/env bash
-# ghostty-claude-hook.sh — Claude Code hook for Ghostty tab title + background
+# ghostty-claude-hook — Claude Code hook for Ghostty tab state indicators
 #
-# Uses Ghostty's AppleScript API (set_tab_title) for persistent tab titles
-# that survive Claude Code's continuous OSC 2 overwrites.
-# Uses OSC 11 for background color tints.
+# State model (3 active states + ended):
+#   Working (◑ green)       — agent is thinking or using tools
+#   Available (○ blue)      — agent stopped, your turn
+#   Needs Attention (⚠ red) — permission prompt or elicitation dialog
+#   No Session (– white)    — session ended
 #
-# Does NOT touch Claude Code's statusline.sh — completely independent concern.
+# Event → State mapping:
+#   UserPromptSubmit              → Working
+#   PreToolUse (Bash|Edit|Write|MultiEdit) → Working (no-op if already)
+#   Stop                          → Available
+#   Notification(idle_prompt)     → Available (no-op if already)
+#   Notification(permission_prompt) → Needs Attention
+#   Notification(elicitation_dialog) → Needs Attention
+#   PermissionRequest             → Needs Attention
+#   Elicitation                   → Needs Attention
+#   SessionStart                  → Available
+#   SessionEnd                    → No Session
+#
+# State debounce: writes to /tmp/ghostty-session-state-{key} and only
+# emits OSC sequences when the state actually changes. This eliminates
+# the scrollback corruption from rapid PreToolUse/PostToolUse firing.
 
 # --- Guard: only run inside Ghostty ---
-if [[ "$TERM_PROGRAM" != "ghostty" ]]; then
-  exit 0
-fi
+[[ "$TERM_PROGRAM" != "ghostty" ]] && exit 0
 
 # --- Guard: /dev/tty must be writable ---
-if [[ ! -w /dev/tty ]]; then
-  exit 0
-fi
+[[ ! -w /dev/tty ]] && exit 0
 
 # --- Read event from stdin ---
 input=$(cat)
 
 # --- Require jq ---
-if ! command -v jq > /dev/null 2>&1; then
-  exit 0
-fi
+command -v jq > /dev/null 2>&1 || exit 0
 
-# --- Extract event name ---
+# --- Extract event name + notification type ---
 event=$(echo "$input" | jq -r '.hook_event_name // .event // ""' 2>/dev/null)
+notification_type=$(echo "$input" | jq -r '.notification_type // ""' 2>/dev/null)
 
-# --- Determine session name ---
-# Cache file persists the name across hook invocations within a session.
-# SessionStart writes it; subsequent hooks read it.
-# Use session_id from stdin JSON as stable key across hook invocations
-SESSION_KEY=$(echo "$input" | jq -r '.session_id // "unknown"' 2>/dev/null)
-CACHE_FILE="/tmp/ghostty-session-name-${SESSION_KEY}"
+# --- Session key and cache files ---
+SESSION_KEY=$(echo "$input" | jq -r '.session_id // "unknown"' 2>/dev/null | tr -cd 'A-Za-z0-9_-')
+NAME_CACHE="/tmp/ghostty-session-name-${SESSION_KEY}"
+STATE_CACHE="/tmp/ghostty-session-state-${SESSION_KEY}"
 
-# Resolve branch from the correct directory (worktree, not main checkout)
+# --- Resolve session name ---
 _get_branch() {
   local dir="${CLAUDE_PROJECT_DIR:-.}"
   git -C "$dir" branch --show-current 2>/dev/null || echo "Claude"
@@ -43,70 +52,100 @@ _get_branch() {
 
 if [[ -n "${CLAUDE_SESSION_NAME:-}" ]]; then
   session_name="$CLAUDE_SESSION_NAME"
-  echo "$session_name" > "$CACHE_FILE"
+  echo "$session_name" > "$NAME_CACHE"
 elif [[ "$event" == "SessionStart" ]]; then
   session_name=$(_get_branch)
-  echo "$session_name" > "$CACHE_FILE"
-elif [[ -f "$CACHE_FILE" ]]; then
-  session_name=$(cat "$CACHE_FILE")
+  echo "$session_name" > "$NAME_CACHE"
+elif [[ -f "$NAME_CACHE" ]] && [[ ! -L "$NAME_CACHE" ]]; then
+  session_name=$(cat "$NAME_CACHE")
 else
   session_name=$(_get_branch)
-  echo "$session_name" > "$CACHE_FILE"
+  echo "$session_name" > "$NAME_CACHE"
 fi
 
-# --- Color definitions (on light background) ---
-# Blue = available/idle, Green = working, Red = needs attention, White = no Claude
-BG_DEFAULT="#FFFFFF"      # pure white — plain shell (no Claude session)
-BG_IDLE="#E3F2FD"        # blue — available, idle, ready
-BG_WORKING="#E8F5E9"     # green — agent is working
-BG_INPUT="#FFF0F0"       # red — needs your attention
+# Strip control characters (defense against cache poisoning)
+session_name=$(printf '%s' "$session_name" | tr -d '\000-\037\177')
 
-# --- OSC helper for background (write to /dev/tty) ---
-set_bg() { printf '\e]11;%s\a' "$1" > /dev/tty; }
+# --- Color definitions (light background) ---
+BG_DEFAULT="#FFFFFF"      # white  — no session
+BG_AVAILABLE="#E3F2FD"    # blue   — available, idle
+BG_WORKING="#E8F5E9"      # green  — agent working
+BG_ATTENTION="#FFF0F0"    # red    — needs your attention
 
-# --- Tab title via OSC 2 (session-scoped via /dev/tty) ---
-# Writing to /dev/tty ensures each session sets its OWN tab title,
-# not whichever tab happens to be focused. AppleScript was abandoned
-# because it targets "focused terminal" or matches by cwd which
-# cross-contaminates tabs in multi-session setups.
-set_title() { printf '\e]2;%s\a' "$1" > /dev/tty; }
+# --- OSC helpers (safe writes to /dev/tty) ---
+set_bg() { { printf '\e]11;%s\a' "$1" > /dev/tty; } 2>/dev/null || true; }
+set_title() { { printf '\e]2;%s\a' "$1" > /dev/tty; } 2>/dev/null || true; }
+
+# --- State debounce ---
+# Only emit OSC when state changes. Reads/writes STATE_CACHE.
+_apply_state() {
+  local new_state="$1"
+  local icon="$2"
+  local bg="$3"
+
+  # Read current state
+  local current_state=""
+  if [[ -f "$STATE_CACHE" ]] && [[ ! -L "$STATE_CACHE" ]]; then
+    current_state=$(cat "$STATE_CACHE")
+  fi
+
+  # Skip if already in this state
+  [[ "$current_state" == "$new_state" ]] && return 0
+
+  # Write new state and emit OSC
+  echo "$new_state" > "$STATE_CACHE"
+  set_title "${icon} ${session_name}"
+  set_bg "$bg"
+}
 
 # --- Map event to state ---
 case "$event" in
-  # Session ended — restore plain shell appearance
   "SessionEnd")
     set_title "– zsh"
     set_bg "$BG_DEFAULT"
-    rm -f "$CACHE_FILE"
+    rm -f "$NAME_CACHE" "$STATE_CACHE"
     ;;
 
-  # Claude finished responding — available, your turn if you want
-  "Stop")
-    set_title "○ ${session_name}"
-    set_bg "$BG_IDLE"
+  "UserPromptSubmit")
+    _apply_state "working" "◑" "$BG_WORKING"
     ;;
 
-  # Needs attention — permission prompt or truly waiting
-  "Notification")
-    set_title "⚠ ${session_name}"
-    set_bg "$BG_INPUT"
-    ;;
-
-  # Agent is actively working
   "PreToolUse"|"PostToolUse"|"PreCompact")
-    set_title "◑ ${session_name}"
-    set_bg "$BG_WORKING"
+    _apply_state "working" "◑" "$BG_WORKING"
     ;;
 
-  # Session just started — available
+  "Stop")
+    _apply_state "available" "○" "$BG_AVAILABLE"
+    # Re-write after delay to survive Claude Code's post-Stop title clobber
+    sleep 0.5
+    set_title "○ ${session_name}"
+    set_bg "$BG_AVAILABLE"
+    ;;
+
+  "Notification")
+    case "$notification_type" in
+      "permission_prompt"|"elicitation_dialog")
+        _apply_state "attention" "⚠" "$BG_ATTENTION"
+        ;;
+      "idle_prompt"|*)
+        # idle_prompt = available (no-op if already)
+        _apply_state "available" "○" "$BG_AVAILABLE"
+        ;;
+    esac
+    ;;
+
+  "PermissionRequest"|"Elicitation")
+    _apply_state "attention" "⚠" "$BG_ATTENTION"
+    ;;
+
   "SessionStart")
+    # Fresh state — always write (no debounce check)
+    echo "available" > "$STATE_CACHE"
     set_title "○ ${session_name}"
-    set_bg "$BG_IDLE"
+    set_bg "$BG_AVAILABLE"
     ;;
 
-  # Default — available
   *)
-    set_title "○ ${session_name}"
-    set_bg "$BG_IDLE"
+    # Unknown event — don't change state
     ;;
 esac
