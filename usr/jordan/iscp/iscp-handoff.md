@@ -1,70 +1,68 @@
 ---
-type: agent-bootstrap
+type: session-handoff
 date: 2026-04-04
+trigger: SessionEnd — PVR and A&D complete with QG
 agent: the-agency/jordan/iscp
 workstream: iscp
 ---
 
-# ISCP Bootstrap Handoff
+# ISCP Session Handoff
 
 **Agent:** the-agency/jordan/iscp
-**Principal:** Jordan
-**Workstream:** iscp (Inter-Session Communication Protocol)
+**Branch:** iscp (worktree at `.claude/worktrees/iscp/`)
+**Last commit:** `a24c9fa` Phase 1.1: ISCP PVR and A&D — first pass with QG
 
-## What This Is
+## What Was Done
 
-You are building the messaging layer for The Agency — how agents communicate across sessions, worktrees, and repos. Three primitives unified under one protocol:
+1. **PVR completed** via /define — 8-item 1B1 discussion with principal:
+   - DB path: `~/.agency/{repo-name}/iscp.db` (outside git, centralized)
+   - Hook triggers: SessionStart + UserPromptSubmit (cheap check, silent when empty)
+   - Dispatch types: 6-type formal enum (directive, request, review, notification, question, response)
+   - Success criteria: 7 items including SC-7 (enforcement triangle on payload routing)
+   - Non-goals: 6 items (no chat, no pub/sub, no GUI, no cross-machine v1)
+   - Dropbox: in ISCP scope as universal intake at `~/.agency/{repo}/dropbox/{principal}/{agent}/`
+   - Transcripts: always-on (Granola model), dialogue-only, agent-driven capture with hookify enforcement
+   - Notification subscriptions: agents register for events, checked on hook fire
 
-1. **Flag** — agent-addressable quick-capture queue. Observations for later 1B1 discussion.
-2. **Dispatch** — agent→agent or principal→agent structured messages with payloads.
-3. **ISCP v1** — the notification hook that tells agents "you got mail."
+2. **A&D drafted** — 6 tables, 8 tools, 7 hookify rules, 6 trade-offs, review-resolution lifecycle
 
-## Key Decisions (from captain discussion 2026-04-04)
+3. **Quality gate run** — 4 parallel review agents found 42 findings (3 critical, all fixed):
+   - F1: `$CLAUDE_AGENT_NAME` doesn't exist → created `agent-identity` tool
+   - F2: Transcript capture gap → two-layer hook+hookify approach
+   - F3: sqlite3 `?` params don't work → named parameters via `.param set`
 
-- **Flag** becomes agent-addressable: `/flag TEXT` (local agent), `/flag agent TEXT` (specific agent), future `/flag agency/agent TEXT` (cross-agency)
-- **Persistence** moves to SQLite with a DB abstraction layer, stored **outside the repo** to avoid git pollution. Pattern: `../{repo}/{TBD}/{database}` — same pattern used for service DBs
-- **Dispatch** = notification (in DB) + payload (in git at specified location). Full lifecycle: create→commit to master→propagate to worktrees→fetch→notify
-- **Code reviews are just a dispatch type**, not a separate system. Deprecate the separate code-review concept.
-- **ISCP v1** = a hook that fires on defined events, checks DB for unread items addressed to this agent, surfaces "you got mail" with pointer to the flag message or dispatch payload
-- **Addressing** uses the Agency hierarchy: `{org}/{repo}/{principal}/{agent}`. Both agent-based and workstream-based addressing needed. Only dispatches have git payloads; flags are DB-only.
-- **Cross-repo support** needed: monofolk ↔ the-agency ↔ ghostty fork
+4. **Captain + mdpal consumer reviews** — dispatched and findings incorporated:
+   - Review-resolution lifecycle documented (6-step audit trail)
+   - Outbox tracking added (`dispatch list --from`)
+   - SessionStart hookify rule (act now, not later)
+   - Transcript fidelity ("actual response, not summary")
+   - `AGENCY_PRINCIPAL` explicitly deprecated
 
-## What Exists Today
+5. **Dispatches sent** to captain and mdpal for review (in git, awaiting their sessions)
 
-- `claude/tools/flag` — current flag tool (JSONL file, principal-scoped, just patched for git persistence but moving to SQLite)
-- `claude/tools/dispatch-create` — creates dispatch files
-- `.claude/skills/dispatch/SKILL.md` — dispatch management skill
-- `usr/jordan/captain/dispatches/` — existing dispatch files (markdown)
-- `claude/config/agency.yaml` — principal mapping, used by `_path-resolve`
-- `claude/tools/lib/_path-resolve` — address resolution library (has bugs — env leak from test suite)
-- CLAUDE-THEAGENCY.md § "Agent & Principal Addressing" — the addressing hierarchy definition
+## What's Next
 
-## Open Questions (drive through /define)
+1. **Discuss remaining items with principal** (5 items from QG):
+   - Escalation dispatch type (add or defer?)
+   - Dropbox forwarding (`dropbox forward --to <agent>`)
+   - Subscription scope for captain (cross-principal visibility)
+   - Transcript staleness threshold (5 turns?)
+   - Open tech questions: transcript rotation, performance test methodology
 
-1. The `{TBD}` in the DB path pattern — what goes there?
-2. Which hook events trigger ISCP v1 notifications? (SessionStart? PreToolUse? Both?)
-3. Dispatch type taxonomy — what types beyond code-review?
-4. DB schema for flags and dispatch notifications
-5. Agent vs workstream payload locations in git
-6. Cross-repo delivery mechanism — git-based? API? Filesystem?
-7. Addressing scheme formalization for flag/dispatch (captain will dispatch this to you)
-8. Transcript location and commit discipline — transcripts must get to master ASAP and be accessible to any workstream
-9. Dropbox folder naming convention — what structure under `claude/dropbox/{principal}/{agent}/`?
-10. Dropbox push/fetch mechanics — cherry-pick? Direct file copy? How to handle conflicts?
+2. **Build the Plan** — phases and iterations after A&D discussion resolves
 
-## Seed Materials
+3. **Await dispatch responses** from captain and mdpal agents
 
-- `usr/jordan/captain/transcripts/discussion-transcript-20260404.md` — the discussion that produced these decisions
-- `usr/jordan/captain/dispatches/dispatch-iscp-design-20260330.md` — earlier ISCP design thinking
-- `usr/jordan/flag-queue.jsonl` — 35 flags currently in queue (the system you're replacing)
+## Key Files
 
-## Next Action
+- PVR: `claude/workstreams/iscp/iscp-pvr-20260404.md`
+- A&D: `claude/workstreams/iscp/iscp-ad-20260404.md`
+- QGR: `usr/jordan/iscp/qgr-iteration-complete-1-1-3c35ba7-20260404-2020.md`
+- Captain dispatch: `usr/jordan/captain/dispatches/dispatch-iscp-pvr-ad-review-20260404-2012.md`
+- mdpal dispatch: `usr/jordan/mdpal/dispatches/dispatch-iscp-pvr-ad-review-20260404-2013.md`
 
-1. Read your agent definition at `claude/agents/iscp/agent.md`
-2. Read `claude/workstreams/iscp/KNOWLEDGE.md`
-3. Read the seed materials listed above
-4. Run `/define` to drive toward a complete PVR for the ISCP workstream
-5. Then `/design` for A&D
-6. Then build the plan
+## Known Issues
 
-You will receive an addressing scheme dispatch from captain once Item 4 of today's discussion resolves.
+- `dispatch-create` tool has the `AGENCY_PRINCIPAL` env leak bug — resolved to `testuser` instead of `jordan`. Had to create dispatches manually. Fix is ISCP Phase 1 prerequisite.
+- Worktree path confusion: wrote PVR/A&D to main checkout initially instead of worktree. Had to copy. Exactly the problem ISCP solves.
+- PVR also exists at main checkout path (`/Users/jdm/code/the-agency/claude/workstreams/iscp/`) — stale copy from before worktree copy. The canonical version is on the iscp branch.
