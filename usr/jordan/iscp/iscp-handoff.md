@@ -15,7 +15,7 @@ workstream: iscp
 
 You are building the messaging layer for The Agency — how agents communicate across sessions, worktrees, and repos. Three primitives unified under one protocol:
 
-1. **Flag** — principal→agent dispatch queue. Quick-capture observations for later 1B1 discussion.
+1. **Flag** — agent-addressable quick-capture queue. Observations for later 1B1 discussion.
 2. **Dispatch** — agent→agent or principal→agent structured messages with payloads.
 3. **ISCP v1** — the notification hook that tells agents "you got mail."
 

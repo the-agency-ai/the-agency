@@ -35,3 +35,21 @@
 
 ---
 
+## Item 3: mdpal bootstrap transcript mining findings
+
+Mining results from mdpal-cli (session ac938883) and mdpal-app (session 41066ba7), plus presence-detect sessions. Key findings:
+
+1. **Worktree/master path confusion is systemic** — mdpal-app used master paths 66 times vs worktree paths 13 times. #1 friction source.
+2. **"Act on startup" doesn't work** — mdpal-cli said "Ready." and waited. Passive directives not treated as imperative.
+3. **Principal resolution bug** — dispatch-create and handoff tools resolved to testuser in both sessions.
+4. **Bootstrap chicken-and-egg** — agent registrations didn't reference handoffs, handoffs weren't on worktree yet.
+5. **1B1 and transcript discipline broke repeatedly** — both agents blasted through items, summarized instead of capturing.
+6. **No versioning convention communicated** — agent tried to overwrite PVR in-place.
+7. **agency-init broken in the field** (presence-detect) — wrong principal mapping, tools not shipped, permissions not pre-approved.
+
+Full findings written to `usr/jordan/iscp/seeds/mdpal-bootstrap-mining-20260404.md` as ISCP seed.
+
+**Decision:** Findings inform ISCP design directly. Worktree/master path confusion is what ISCP+dropbox solves. Bootstrap issues feed back into agency-init improvements.
+
+---
+

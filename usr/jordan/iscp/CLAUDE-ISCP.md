@@ -33,7 +33,7 @@ Do not wait for a prompt. Act on startup.
 
 - All artifacts in `usr/jordan/iscp/` — PVR, A&D, Plan, transcripts, tools
 - Workstream knowledge in `claude/workstreams/iscp/KNOWLEDGE.md` — update as you learn
-- Scripts go to `usr/jordan/iscp/tools/` with a why-comment header
+- Scripts go to `usr/jordan/iscp/tools/` with a provenance header (What Problem / How & Why)
 - Scratch in `usr/jordan/iscp/tmp/` (gitignored)
 - **Never overwrite artifacts.** Version with `YYYYMMDD-HHMM` suffix.
 

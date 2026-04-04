@@ -51,7 +51,7 @@ fi
 
 # Find JSONL files in directories matching the pattern
 FOUND=0
-for jsonl in $(find "$SESSIONS_DIR" -path "*${PATTERN}*" -name "*.jsonl" -type f 2>/dev/null | sort); do
+while IFS= read -r -d '' jsonl; do
     # Skip subagent files
     [[ "$jsonl" == *"/subagents/"* ]] && continue
 
@@ -96,7 +96,7 @@ for jsonl in $(find "$SESSIONS_DIR" -path "*${PATTERN}*" -name "*.jsonl" -type f
     echo "---"
     echo ""
     FOUND=$((FOUND + 1))
-done
+done < <(find "$SESSIONS_DIR" -path "*${PATTERN}*" -name "*.jsonl" -type f -print0 2>/dev/null | sort -z)
 
 if [[ "$FOUND" -eq 0 ]]; then
     echo "No sessions found matching pattern: $PATTERN" >&2

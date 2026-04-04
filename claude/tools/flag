@@ -164,7 +164,9 @@ case "$CMD" in
             >> "$QUEUE_FILE"
 
         # Stage the queue file so it survives session boundaries
-        git -C "$MAIN_CHECKOUT" add "$QUEUE_FILE" 2>/dev/null || true
+        if ! git -C "$MAIN_CHECKOUT" add "$QUEUE_FILE" 2>/dev/null; then
+            echo "flag: warning: could not stage queue file (git add failed)" >&2
+        fi
 
         # Count
         COUNT=$(grep -c . "$QUEUE_FILE" || echo 1)

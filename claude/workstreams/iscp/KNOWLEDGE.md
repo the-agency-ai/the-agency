@@ -13,5 +13,6 @@ Inter-Session Communication Protocol: flag, dispatch, and agent-to-agent messagi
 - ISCP v1 = hook on defined events, checks DB for unread items, "you got mail" notification
 - Code reviews are just a dispatch type, not a separate system
 - DB pattern: SQLite with abstraction layer, outside git at `../{repo}/{TBD}/{database}`
+- Dropbox = file staging area at `claude/dropbox/{principal}/{agent}/` on master; push from worktree→master, fetch from master→worktree
 - Cross-repo/cross-agency dispatch support planned (monofolk ↔ the-agency ↔ ghostty)
 - Addressing: agent-based and workstream-based, using Agency addressing hierarchy

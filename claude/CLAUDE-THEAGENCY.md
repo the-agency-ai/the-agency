@@ -228,7 +228,7 @@ remotes:
     url: https://github.com/OrdinaryFolk/monofolk
 ```
 
-The transport layer (git push/pull, future IACP) is separate from addressing. Addresses identify; transport delivers.
+The transport layer (git push/pull, future ISCP) is separate from addressing. Addresses identify; transport delivers.
 
 **Resolution errors:** Unknown repo = hard fail with actionable message. Unknown principal = hard fail. Unknown agent = warn (agent may not be registered yet in a fresh worktree).
 
@@ -238,12 +238,14 @@ Addresses resolve to physical locations for dispatch payloads:
 
 | Target type | Address pattern | Dispatch payload location |
 |-------------|----------------|--------------------------|
-| Agent | `{repo}/{principal}/{agent}` | `usr/{principal}/{agent-project}/dispatches/` |
+| Agent | `{repo}/{principal}/{agent}` | `usr/{principal}/{project}/dispatches/` |
 | Workstream | `{repo}/{workstream}` | `claude/workstreams/{workstream}/dispatches/` |
 
-**Dispatch** = notification (in DB) + payload (in git at the resolved location above). Dispatch payloads are immutable once written. Named `{type}-{YYYYMMDD-HHMM}.md`.
+A **dispatch** is a structured message between agents or from principal to agent. It consists of a notification pointing to a payload file in git at the resolved location above. Dispatch payloads are immutable once written. Named `{type}-{YYYYMMDD-HHMM}.md`.
 
-**Flag** = DB-only (notification + content in SQLite). Same addressing scheme, no git payload. Flags are agent-addressable: `/flag TEXT` (local agent), `/flag agent TEXT` (specific agent).
+A **flag** is a quick-capture observation for later discussion. Flags use the same addressing scheme but have no git payload — the content lives in the notification itself. Flags are agent-addressable: `/flag TEXT` (current agent), `/flag agent TEXT` (specific agent).
+
+Both dispatch notifications and flags will be persisted in a local database outside the repo (see the ISCP workstream for the design). Until that is implemented, dispatches are markdown files in git and flags are JSONL files staged on write.
 
 ### Commit Messages
 

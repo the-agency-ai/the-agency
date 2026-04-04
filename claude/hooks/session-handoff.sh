@@ -97,7 +97,10 @@ if [ -f "$RECAP_FILE" ]; then
 fi
 
 # Check for unprocessed flag queue
-FLAG_QUEUE="$PRINCIPAL_DIR/flag-queue.jsonl"
+# Use AGENCY_PRINCIPAL (resolved via agency.yaml by _path-resolve) not raw $USER,
+# since the flag tool writes to usr/$AGENCY_PRINCIPAL/ not usr/$USER/
+FLAG_PRINCIPAL="${AGENCY_PRINCIPAL:-${USER:-unknown}}"
+FLAG_QUEUE="$PROJECT_DIR/usr/$FLAG_PRINCIPAL/flag-queue.jsonl"
 if [ -f "$FLAG_QUEUE" ] && [ -s "$FLAG_QUEUE" ]; then
   FLAG_COUNT=$(grep -c . "$FLAG_QUEUE" 2>/dev/null || echo 0)
   if [ "$FLAG_COUNT" -gt 0 ]; then
