@@ -34,12 +34,19 @@ claude/                    — framework (tools, agents, docs, hooks, config)
     settings-merge         — merge settings template into current settings
   templates/               — scaffolding templates
   workstreams/             — bodies of work
-    ops/                   — default workstream
+    {workstream}/
+      CLAUDE-{WORKSTREAM}.md — workstream-scoped instructions
+      KNOWLEDGE.md         — patterns, conventions, key decisions
+      seeds/               — input materials
+      dispatches/          — workstream-targeted dispatches
+      reviews/             — QGRs and review files
+      history/             — archived artifact versions
   src/                     — --dev only (source code, tests)
 usr/                       — agent INSTANCES (per-principal sandboxes, at PROJECT ROOT)
   {principal}/
     {project}/             — one directory per project
-      handoff.md           — current session state
+      CLAUDE-{AGENT}.md    — agent-scoped instructions
+      {agent}-handoff.md   — per-agent session state (one per agent in project)
       {project}-pvr-*.md   — Product Vision & Requirements
       {project}-architecture-*.md — Architecture & Design
       {project}-plan-*.md  — The Plan
@@ -59,6 +66,25 @@ usr/                       — agent INSTANCES (per-principal sandboxes, at PROJ
 **IMPORTANT:** `usr/` is at the **project root**, NOT under `claude/`. The path is `usr/{principal}/`, not `claude/usr/{principal}/`.
 
 Your project's own directories (`apps/`, `packages/`, `docs/`, `scripts/`, etc.) are documented in the project-specific section of this CLAUDE.md.
+
+### Scoped CLAUDE.md Files
+
+Every workstream and every agent gets a scoped CLAUDE.md file. These are fully qualified by path — the file name uses the workstream or agent name, and the path provides the namespace:
+
+| Scope | Location | Content |
+|-------|----------|---------|
+| **Framework** | `claude/CLAUDE-THEAGENCY.md` | Agency methodology (this file) |
+| **Workstream** | `claude/workstreams/{name}/CLAUDE-{WORKSTREAM}.md` | Scope, boundaries, conventions, review discipline |
+| **Agent** | `usr/{principal}/{project}/CLAUDE-{AGENT}.md` | Identity, startup sequence, coordination, file discipline |
+
+Agent registrations (`.claude/agents/{name}.md`) import both via `@` directives:
+
+```markdown
+@usr/{principal}/{project}/CLAUDE-{AGENT}.md
+@claude/workstreams/{workstream}/CLAUDE-{WORKSTREAM}.md
+```
+
+`/workstream-create` scaffolds the workstream CLAUDE.md. `/agent-create` (via `workstream-create`) scaffolds the agent CLAUDE.md. Both are part of the standard creation workflow.
 
 - **One plan per project.** Date stamp bumps only on a new day. Same file all day.
 - **No nesting** — `usr/{{principal}}/folio/`, not `usr/{{principal}}/docs/projects/folio/`.
@@ -122,7 +148,9 @@ Defaults: if `address.informal` is omitted, use `display_name`. If `address.form
 
 ### Address Hierarchy
 
-Four levels, broadest to narrowest:
+Two addressing targets: **agents** (principal-scoped) and **workstreams** (repo-scoped).
+
+**Agent addressing** — four levels, broadest to narrowest:
 
 ```
 {org}/{repo}/{principal}/{agent}
@@ -134,6 +162,21 @@ Four levels, broadest to narrowest:
 | Repo | Repository short name | `[a-z0-9][a-z0-9_-]*`, no slashes | `the-agency`, `monofolk` |
 | Principal | Human directing the agent | `[a-z0-9][a-z0-9_-]*` | `jordan`, `peter`, `tanaka` |
 | Agent | Agent instance name | `[a-z0-9][a-z0-9_-]*` | `captain`, `devex` |
+
+**Workstream addressing** — two levels, repo-scoped (no principal):
+
+```
+{repo}/{workstream}
+```
+
+| Level | What | Constraint | Example |
+|-------|------|-----------|---------|
+| Repo | Repository short name | Same as agent addressing | `the-agency`, `monofolk` |
+| Workstream | Workstream name | `[a-z0-9][a-z0-9_-]*` | `iscp`, `mdpal`, `mock-and-mark` |
+
+Workstreams are repo-level concepts — they match `claude/workstreams/{name}/`. No principal scoping.
+
+**Disambiguation:** A bare name (e.g., `iscp`) could be an agent or a workstream. Resolution order: (1) check `claude/workstreams/{name}/` — if exists, it's a workstream; (2) check agent registrations — if exists, it's an agent; (3) fail with actionable error.
 
 Repo short names are the leaf name only — no org prefix, no nested group paths. For GitLab nested groups (`org/subgroup/repo`), the short name is `repo`. The `remotes` registry handles full path resolution.
 
@@ -188,6 +231,19 @@ remotes:
 The transport layer (git push/pull, future IACP) is separate from addressing. Addresses identify; transport delivers.
 
 **Resolution errors:** Unknown repo = hard fail with actionable message. Unknown principal = hard fail. Unknown agent = warn (agent may not be registered yet in a fresh worktree).
+
+### Dispatch & Flag Payload Locations
+
+Addresses resolve to physical locations for dispatch payloads:
+
+| Target type | Address pattern | Dispatch payload location |
+|-------------|----------------|--------------------------|
+| Agent | `{repo}/{principal}/{agent}` | `usr/{principal}/{agent-project}/dispatches/` |
+| Workstream | `{repo}/{workstream}` | `claude/workstreams/{workstream}/dispatches/` |
+
+**Dispatch** = notification (in DB) + payload (in git at the resolved location above). Dispatch payloads are immutable once written. Named `{type}-{YYYYMMDD-HHMM}.md`.
+
+**Flag** = DB-only (notification + content in SQLite). Same addressing scheme, no git payload. Flags are agent-addressable: `/flag TEXT` (local agent), `/flag agent TEXT` (specific agent).
 
 ### Commit Messages
 
