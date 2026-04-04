@@ -34,3 +34,7 @@
 {"ts":"2026-04-04T00:26:39Z","message":"Convention: inline script without why-comment and without saving to tools/ — the pattern that motivated the discipline rule","principal":"jordan","branch":"main","session":"mined-session-17"}
 {"ts":"2026-04-04T00:27:06Z","message":"Capture why you wrote that script at the top and add it to your tools/ directory.","principal":"testuser","branch":"main","session":""}
 {"ts":"2026-04-04T02:46:43Z","message":"Transcripts must get to master ASAP and be accessible to any workstream. Formalize transcript location and commit discipline.","principal":"jordan","branch":"main","session":""}
+{"ts":"2026-04-04T02:47:21Z","message":"agent-create does not create bootstrap handoff — skill says it's the single write path but it doesn't write one","principal":"jordan","branch":"main","session":""}
+{"ts":"2026-04-04T02:47:21Z","message":"No tech-lead template in agent-create — primary agent class has no template, only generic/docs/tester/etc","principal":"jordan","branch":"main","session":""}
+{"ts":"2026-04-04T02:47:21Z","message":"agent-create generates placeholder agent.md with [Key responsibility] and wrong myclaude command","principal":"jordan","branch":"main","session":""}
+{"ts":"2026-04-04T02:47:21Z","message":"agent-create creates extra files (IDEAS.md, ONBOARDING.md, logs/permissions.md) not specified in workstream-create","principal":"jordan","branch":"main","session":""}
