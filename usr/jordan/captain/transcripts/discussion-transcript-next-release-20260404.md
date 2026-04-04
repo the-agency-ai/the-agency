@@ -80,3 +80,9 @@
 
 ---
 
+## Item 13: Transcript commit discipline
+
+**Decision:** Transcript tool dual-writes: current worktree (local access) AND master checkout (shared access). Agents don't think about it — tooling handles accessibility automatically.
+
+---
+
