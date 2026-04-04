@@ -20,16 +20,19 @@
 set -euo pipefail
 
 # Source log helper for telemetry
-SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
     source "$SCRIPT_DIR/lib/_log-helper"
 fi
+# Source _path-resolve for principal resolution and name validation
+if [[ -f "$SCRIPT_DIR/lib/_path-resolve" ]]; then
+    source "$SCRIPT_DIR/lib/_path-resolve"
+fi
 
 # Tool version
-TOOL_VERSION="1.2.0-20260114-000004"
+TOOL_VERSION="2.0.0"
 
 # Configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TEMPLATE_DIR="$PROJECT_ROOT/claude/agents/templates"
 
@@ -53,6 +56,12 @@ verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 # Escape sed special characters to prevent injection
 escape_sed() {
     printf '%s\n' "$1" | sed 's/[&/\]/\\&/g'
+}
+
+# Sanitize interpolation values for YAML frontmatter (MAR S1)
+# Strips newlines and bare --- sequences that break frontmatter boundaries
+sanitize_interpolation() {
+    printf '%s' "$1" | tr '\n' ' ' | sed 's/---//g'
 }
 
 # Version check
@@ -171,6 +180,15 @@ WORKSTREAM_DIR="claude/workstreams/$WORKSTREAM"
 TIMESTAMP=$(./claude/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 AGENT_TEMPLATE_DIR="$TEMPLATE_DIR/$AGENT_TYPE"
 
+# Resolve principal from agency.yaml (not raw $USER)
+# _pr_resolve sets AGENCY_PRINCIPAL env var, does not print to stdout
+PRINCIPAL=""
+if type _pr_resolve &>/dev/null; then
+    _pr_resolve 2>/dev/null || true
+    PRINCIPAL="${AGENCY_PRINCIPAL:-}"
+fi
+PRINCIPAL="${PRINCIPAL:-$(whoami | tr '[:upper:]' '[:lower:]')}"
+
 # Main function
 main() {
     # Trap unexpected exits
@@ -178,6 +196,19 @@ main() {
 
     RUN_ID=$(log_start "agent-create" "$@" 2>/dev/null) || true
     echo "agent-create [run: ${RUN_ID:-none}]"
+
+    # Validate agent name (MAR S2 — path traversal prevention)
+    if type _validate_name &>/dev/null; then
+        _validate_name "$AGENTNAME" "agent" || {
+            log_error "Invalid agent name: $AGENTNAME (must match [a-z0-9][a-z0-9_-]*, max 32 chars)"
+            trap - EXIT
+            exit 1
+        }
+    elif [[ ! "$AGENTNAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || [[ ${#AGENTNAME} -gt 32 ]]; then
+        log_error "Invalid agent name: $AGENTNAME"
+        trap - EXIT
+        exit 1
+    fi
 
     # Check agent doesn't exist
     if [ -d "$DIR" ]; then
@@ -270,11 +301,11 @@ EOF
 |------|------|---------|--------|---------|
 EOF
 
-    # Auto-detect seed files from principal directories
+    # Auto-detect seed files from principal sandbox
     if [[ -z "$SEEDS_PATH" ]]; then
-        for principal_dir in claude/principals/*/; do
-            principal_name=$(basename "$principal_dir")
-            candidate="usr/${principal_name}/${AGENTNAME}/"
+        for principal_dir in usr/*/; do
+            [[ -d "$principal_dir" ]] || continue
+            candidate="${principal_dir}${WORKSTREAM}/seeds/"
             if [[ -d "$candidate" ]]; then
                 SEEDS_PATH="$candidate"
                 log_info "Auto-detected seed files at $SEEDS_PATH"
@@ -313,30 +344,81 @@ description: "${CC_DESCRIPTION}"
 model: opus
 ---
 
-Read your identity and responsibilities from \`claude/agents/${AGENTNAME}/agent.md\`.
-Read seed materials from \`claude/workstreams/${WORKSTREAM}/seeds/\`.
+**On startup, immediately read these files in order:**
+
+1. \`usr/${PRINCIPAL}/${WORKSTREAM}/${AGENTNAME}-handoff.md\` — your bootstrap handoff (who you are, current state, next action)
+2. \`claude/agents/${AGENTNAME}/agent.md\` — your role and responsibilities
+3. \`claude/workstreams/${WORKSTREAM}/KNOWLEDGE.md\` — workstream knowledge
+
+**If your handoff contains TODO: placeholders,** report to the captain:
+> "Bootstrap handoff incomplete for ${AGENTNAME} — needs captain to run /discuss for workstream ${WORKSTREAM}."
+
+Then follow the "Next Action" in your handoff. Do not wait for a prompt — act on startup.
 CCEOF
         verbose_echo "Registered Claude Code agent: $CLAUDE_AGENTS_DIR/${AGENTNAME}.md"
     fi
 
-    # Create agent folder in all principal cloud storage locations
-    verbose_echo ""
-    for principal_dir in claude/principals/*/; do
-      cloud_link="${principal_dir}resources/cloud"
-      if [ -L "$cloud_link" ] && [ -d "$cloud_link" ]; then
-        agent_cloud_dir="$cloud_link/$AGENTNAME"
-        if [ ! -d "$agent_cloud_dir" ]; then
-          mkdir -p "$agent_cloud_dir"
-          verbose_echo "Created cloud folder: $agent_cloud_dir"
+    # Scaffold workspace directories in principal sandbox
+    local SANDBOX_DIR="usr/$PRINCIPAL/$WORKSTREAM"
+    if [[ -d "usr/$PRINCIPAL" ]]; then
+        mkdir -p "$SANDBOX_DIR"/{tools,tmp}
+        # tmp/ is scratch space — gitignore its contents
+        if [[ ! -f "$SANDBOX_DIR/tmp/.gitignore" ]]; then
+            echo '*' > "$SANDBOX_DIR/tmp/.gitignore"
+            echo '!.gitignore' >> "$SANDBOX_DIR/tmp/.gitignore"
         fi
-      fi
-    done
+        verbose_echo "Scaffolded workspace: $SANDBOX_DIR/{tools,tmp}"
+
+        # Write bootstrap handoff template with TODO placeholders
+        local HANDOFF_FILE="$SANDBOX_DIR/${AGENTNAME}-handoff.md"
+        if [[ ! -f "$HANDOFF_FILE" ]]; then
+            # Sanitize all interpolated values (MAR S1)
+            local safe_agent safe_principal safe_workstream safe_repo
+            safe_agent=$(sanitize_interpolation "$AGENTNAME")
+            safe_principal=$(sanitize_interpolation "$PRINCIPAL")
+            safe_workstream=$(sanitize_interpolation "$WORKSTREAM")
+            safe_repo=$(basename "$PROJECT_ROOT")
+
+            cat > "$HANDOFF_FILE" << HANDOFF_EOF
+# Handoff: ${safe_agent} — Bootstrap
+
+---
+type: agency-bootstrap
+date: $(date '+%Y-%m-%d %H:%M')
+principal: ${safe_principal}
+agent: ${safe_repo}/${safe_principal}/${safe_agent}
+workstream: ${safe_workstream}
+---
+
+## Who You Are
+
+TODO: What this agent owns and is responsible for.
+
+## Your Workstream Peers
+
+TODO: Who else works in this workstream, what they own.
+
+## Current State
+
+TODO: What's been done, what remains.
+
+## Key Files
+
+TODO: PVR, A&D, seeds, knowledge.
+
+## Next Action
+
+TODO: What to do first.
+HANDOFF_EOF
+            verbose_echo "Wrote bootstrap handoff: $HANDOFF_FILE"
+        fi
+    fi
 
     echo ""
     echo "Created: $DIR/"
     log_info "Template: $AGENT_TYPE"
     echo ""
-    echo "Start with: ./claude/tools/myclaude $WORKSTREAM $AGENTNAME"
+    echo "Start with: claude --agent $AGENTNAME"
 
     trap - EXIT
     log_end "$RUN_ID" "success" 0 0 "Agent $AGENTNAME created"

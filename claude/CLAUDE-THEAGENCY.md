@@ -34,12 +34,19 @@ claude/                    — framework (tools, agents, docs, hooks, config)
     settings-merge         — merge settings template into current settings
   templates/               — scaffolding templates
   workstreams/             — bodies of work
-    ops/                   — default workstream
+    {workstream}/
+      CLAUDE-{WORKSTREAM}.md — workstream-scoped instructions
+      KNOWLEDGE.md         — patterns, conventions, key decisions
+      seeds/               — input materials
+      dispatches/          — workstream-targeted dispatches
+      reviews/             — QGRs and review files
+      history/             — archived artifact versions
   src/                     — --dev only (source code, tests)
 usr/                       — agent INSTANCES (per-principal sandboxes, at PROJECT ROOT)
   {principal}/
     {project}/             — one directory per project
-      handoff.md           — current session state
+      CLAUDE-{AGENT}.md    — agent-scoped instructions
+      {agent}-handoff.md   — per-agent session state (one per agent in project)
       {project}-pvr-*.md   — Product Vision & Requirements
       {project}-architecture-*.md — Architecture & Design
       {project}-plan-*.md  — The Plan
@@ -59,6 +66,25 @@ usr/                       — agent INSTANCES (per-principal sandboxes, at PROJ
 **IMPORTANT:** `usr/` is at the **project root**, NOT under `claude/`. The path is `usr/{principal}/`, not `claude/usr/{principal}/`.
 
 Your project's own directories (`apps/`, `packages/`, `docs/`, `scripts/`, etc.) are documented in the project-specific section of this CLAUDE.md.
+
+### Scoped CLAUDE.md Files
+
+Every workstream and every agent gets a scoped CLAUDE.md file. These are fully qualified by path — the file name uses the workstream or agent name, and the path provides the namespace:
+
+| Scope | Location | Content |
+|-------|----------|---------|
+| **Framework** | `claude/CLAUDE-THEAGENCY.md` | Agency methodology (this file) |
+| **Workstream** | `claude/workstreams/{name}/CLAUDE-{WORKSTREAM}.md` | Scope, boundaries, conventions, review discipline |
+| **Agent** | `usr/{principal}/{project}/CLAUDE-{AGENT}.md` | Identity, startup sequence, coordination, file discipline |
+
+Agent registrations (`.claude/agents/{name}.md`) import both via `@` directives:
+
+```markdown
+@usr/{principal}/{project}/CLAUDE-{AGENT}.md
+@claude/workstreams/{workstream}/CLAUDE-{WORKSTREAM}.md
+```
+
+`/workstream-create` scaffolds the workstream CLAUDE.md. `/agent-create` (via `workstream-create`) scaffolds the agent CLAUDE.md. Both are part of the standard creation workflow.
 
 - **One plan per project.** Date stamp bumps only on a new day. Same file all day.
 - **No nesting** — `usr/{{principal}}/folio/`, not `usr/{{principal}}/docs/projects/folio/`.
@@ -122,7 +148,9 @@ Defaults: if `address.informal` is omitted, use `display_name`. If `address.form
 
 ### Address Hierarchy
 
-Four levels, broadest to narrowest:
+Two addressing targets: **agents** (principal-scoped) and **workstreams** (repo-scoped).
+
+**Agent addressing** — four levels, broadest to narrowest:
 
 ```
 {org}/{repo}/{principal}/{agent}
@@ -134,6 +162,21 @@ Four levels, broadest to narrowest:
 | Repo | Repository short name | `[a-z0-9][a-z0-9_-]*`, no slashes | `the-agency`, `monofolk` |
 | Principal | Human directing the agent | `[a-z0-9][a-z0-9_-]*` | `jordan`, `peter`, `tanaka` |
 | Agent | Agent instance name | `[a-z0-9][a-z0-9_-]*` | `captain`, `devex` |
+
+**Workstream addressing** — two levels, repo-scoped (no principal):
+
+```
+{repo}/{workstream}
+```
+
+| Level | What | Constraint | Example |
+|-------|------|-----------|---------|
+| Repo | Repository short name | Same as agent addressing | `the-agency`, `monofolk` |
+| Workstream | Workstream name | `[a-z0-9][a-z0-9_-]*` | `iscp`, `mdpal`, `mock-and-mark` |
+
+Workstreams are repo-level concepts — they match `claude/workstreams/{name}/`. No principal scoping.
+
+**Disambiguation:** A bare name (e.g., `iscp`) could be an agent or a workstream. Resolution order: (1) check `claude/workstreams/{name}/` — if exists, it's a workstream; (2) check agent registrations — if exists, it's an agent; (3) fail with actionable error.
 
 Repo short names are the leaf name only — no org prefix, no nested group paths. For GitLab nested groups (`org/subgroup/repo`), the short name is `repo`. The `remotes` registry handles full path resolution.
 
@@ -185,9 +228,24 @@ remotes:
     url: https://github.com/OrdinaryFolk/monofolk
 ```
 
-The transport layer (git push/pull, future IACP) is separate from addressing. Addresses identify; transport delivers.
+The transport layer (git push/pull, future ISCP) is separate from addressing. Addresses identify; transport delivers.
 
 **Resolution errors:** Unknown repo = hard fail with actionable message. Unknown principal = hard fail. Unknown agent = warn (agent may not be registered yet in a fresh worktree).
+
+### Dispatch & Flag Payload Locations
+
+Addresses resolve to physical locations for dispatch payloads:
+
+| Target type | Address pattern | Dispatch payload location |
+|-------------|----------------|--------------------------|
+| Agent | `{repo}/{principal}/{agent}` | `usr/{principal}/{project}/dispatches/` |
+| Workstream | `{repo}/{workstream}` | `claude/workstreams/{workstream}/dispatches/` |
+
+A **dispatch** is a structured message between agents or from principal to agent. It consists of a notification pointing to a payload file in git at the resolved location above. Dispatch payloads are immutable once written. Named `{type}-{YYYYMMDD-HHMM}.md`.
+
+A **flag** is a quick-capture observation for later discussion. Flags use the same addressing scheme but have no git payload — the content lives in the notification itself. Flags are agent-addressable: `/flag TEXT` (current agent), `/flag agent TEXT` (specific agent).
+
+Both dispatch notifications and flags will be persisted in a local database outside the repo (see the ISCP workstream for the design). Until that is implemented, dispatches are markdown files in git and flags are JSONL files staged on write.
 
 ### Commit Messages
 
@@ -371,20 +429,52 @@ Run each shell command as a **single, simple command** — no `&&`, `||`, `;`, p
 
 **Before writing bash, check if a tool already exists.** Tools in `claude/tools/` have built-in logging, telemetry, and structured output — they're more token-efficient and observable than inline bash. See `claude/README-THEAGENCY.md` for the full alternatives table and the tool ecosystem.
 
+### Provenance Headers
+
+Every piece of code — scripts, tools, modules, classes, methods, functions — carries a provenance header. This is how we learn from our own work. The header has two parts:
+
+**What Problem:** What problem are you solving? Not what the code does — what need drove its creation.
+
+**How & Why:** How are you solving it, what led you to this approach, and why you adopted it over alternatives.
+
+```bash
+# What Problem: I need to mine session transcripts for patterns, bugs, and
+# decisions across multiple projects. This was being done inline by subagents
+# every time, costing 20+ tool calls per mining run.
+#
+# How & Why: Extract user messages from JSONL session files and output as
+# readable markdown for agent analysis. Chose grep+jq over full JSON parsing
+# because session files are 50MB+ and streaming line-by-line is the only
+# approach that doesn't blow memory. Written as a shell script because it
+# needs to run in any repo without dependencies.
+#
+# Written: 2026-04-04 during captain session 18 (ISCP workstream creation)
+```
+
+The **What Problem** forces intent articulation. "What it does" is readable from the code. "What problem it solves" is not — and it's the thing that tells a future reader whether this code is still relevant.
+
+The **How & Why** captures the reasoning chain. When someone needs to change this code, they need to know not just what it does but why it does it *this way*. What alternatives were considered? What constraints drove the choice? This is the context that gets lost when code outlives the session that created it.
+
+The **Written** line gives traceability — you can find the session and plan context where the code was born.
+
+**This applies at every level:**
+
+| Scope | Where the header goes |
+|-------|----------------------|
+| **Script / tool** | Top of file, as comments |
+| **Module / package** | Module docstring or header comment |
+| **Class** | Class docstring or header comment |
+| **Method / function** | Function docstring or header comment (for non-trivial functions) |
+
+For trivial functions (getters, simple transforms, obvious wrappers), the header is overkill. Use judgment — if someone reading the code would ask "why does this exist?", it needs a header.
+
+This is part of **Continual Learning & Improvement** — provenance headers feed transcript mining, telemetry analysis, and pattern discovery. They are the written record of how we think, not just what we build.
+
 ### Script Discipline
 
 Every script — whether part of a plan or written ad hoc — must follow two rules:
 
-**1. Comment the why.** Every script starts with a comment explaining why it exists:
-
-```bash
-# Why did I write this script: I needed to scan all BATS test files for
-# duplicate test names, because the test runner silently shadows duplicates
-# and we were getting false green results.
-# Written: 2026-04-03 during Phase 1.3 (address-parse tests)
-```
-
-The "why" framing is intentional. It forces intent, not description. "What it does" is readable from the code. "Why it exists" is not. The "Written:" line gives traceability — you can find the session and plan context where the script was born.
+**1. Provenance header.** Every script starts with a provenance header (What Problem / How & Why / Written — see above).
 
 **2. Persist and reuse.** Scripts live in two places depending on scope:
 
@@ -396,9 +486,7 @@ The "why" framing is intentional. It forces intent, not description. "What it do
 
 **The workflow for ad hoc scripts:**
 1. You realize you need a script (parsing, scanning, transforming, testing).
-2. Write it to `usr/{principal}/{project}/tools/` with a header comment:
-   - `# Why did I write this script:` — the purpose and context
-   - `# Written: YYYY-MM-DD during <phase/task>` — traceability back to the work
+2. Write it to `usr/{principal}/{project}/tools/` with a provenance header.
 3. Run it from there.
 4. If you need it again later in the session, it's already there — don't rewrite it.
 5. If it proves broadly useful, propose moving it to `claude/tools/`.

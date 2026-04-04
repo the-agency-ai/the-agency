@@ -202,102 +202,13 @@ _init_main() {
 
     mkdir -p "$TARGET_DIR/.claude/commands"
 
-    # Settings — use settings-merge if available, else write clean template
-    cat > "$TARGET_DIR/.claude/settings.json" << 'SETTINGS_EOF'
-{
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/branch-freshness.sh"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/session-handoff.sh"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Skill",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ref-injector.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "ExitPlanMode",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/plan-capture.sh"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash|Edit|Write|MultiEdit|Agent|Skill",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/tool-telemetry.sh"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/quality-check.sh",
-            "timeout": 120
-          }
-        ]
-      }
-    ]
-  },
-  "enabledPlugins": {
-    "hookify@claude-plugins-official": true
-  },
-  "permissions": {
-    "allow": [
-      "Bash(./claude/tools/agency)",
-      "Bash(./claude/tools/agency *)",
-      "Bash(./claude/tools/code-review*)",
-      "Bash(./claude/tools/commit-precheck*)",
-      "Bash(./claude/tools/git-commit*)",
-      "Bash(./claude/tools/git-fetch*)",
-      "Bash(./claude/tools/git-sync*)",
-      "Bash(./claude/tools/git-tag*)",
-      "Bash(./claude/tools/handoff*)",
-      "Bash(./claude/tools/now*)",
-      "Bash(./claude/tools/secret-vault*)",
-      "Bash(./claude/tools/terminal-setup*)",
-      "Bash(./claude/tools/test-run*)",
-      "Bash(./claude/tools/tool-create*)",
-      "Bash(./claude/tools/worktree-create*)",
-      "Bash(./claude/tools/worktree-list*)",
-      "Bash(./claude/tools/worktree-delete*)",
-      "Bash(./claude/tools/stage-hash*)",
-      "Bash(./claude/tools/dispatch-create*)",
-      "Bash(./claude/tools/dispatch *)",
-      "Bash(./claude/tools/settings-merge*)",
-      "Bash(./claude/tools/sandbox-sync*)",
-      "Bash(./claude/tools/ghostty-claude-hook*)",
-      "Bash(./claude/tools/ghostty-config*)",
-      "Bash(./claude/tools/ghostty-integration*)",
-      "Bash(./claude/tools/ghostty-setup*)"
-    ]
-  }
-}
-SETTINGS_EOF
+    # Settings — copy from settings template (single source of truth)
+    if [[ -f "$AGENCY_SOURCE/claude/config/settings-template.json" ]]; then
+        cp "$AGENCY_SOURCE/claude/config/settings-template.json" "$TARGET_DIR/.claude/settings.json"
+    else
+        log_error "Settings template not found at $AGENCY_SOURCE/claude/config/settings-template.json"
+        exit 1
+    fi
 
     # Commands
     cp "$AGENCY_SOURCE/.claude/commands/discuss.md" "$TARGET_DIR/.claude/commands/" 2>/dev/null || true
@@ -417,7 +328,7 @@ YAML_EOF
 
     mkdir -p "$TARGET_DIR/claude/tools/lib"
     # Copy shared libs
-    for lib in _log-helper _path-resolve _provider-resolve; do
+    for lib in _log-helper _path-resolve _provider-resolve _address-parse; do
         [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
     done
     # Copy the agency CLI itself

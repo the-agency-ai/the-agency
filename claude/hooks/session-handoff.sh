@@ -42,22 +42,9 @@ BRANCH_SLUG=$(echo "$BRANCH" | sed 's|.*/||')
 # Strip worktree- prefix: worktree-mycroft -> mycroft
 BRANCH_SLUG=$(echo "$BRANCH_SLUG" | sed 's|^worktree-||')
 
-# Special case: master branch -> captain project, but ask first
-if [ "$BRANCH_SLUG" = "master" ]; then
-  CAPTAIN_HANDOFF="$PRINCIPAL_DIR/captain/handoff.md"
-  CAPTAIN_REL=$(echo "$CAPTAIN_HANDOFF" | sed "s|^$PROJECT_DIR/||")
-  RECAP_FILE="$PROJECT_DIR/.claude-session-recap.md"
-  CONTEXT="Is this a captain session? The captain handoff is available at ${CAPTAIN_REL}. If this is a captain session, read it now."
-  if [ -f "$RECAP_FILE" ]; then
-    RECAP_CONTENT=$(cat "$RECAP_FILE")
-    CONTEXT="${CONTEXT}
-
----
-
-${RECAP_CONTENT}"
-  fi
-  printf '{"systemMessage":%s}' "$(printf '%s' "$CONTEXT" | jq -Rs '.')"
-  exit 0
+# main/master branch -> captain project directory
+if [ "$BRANCH_SLUG" = "main" ] || [ "$BRANCH_SLUG" = "master" ]; then
+  BRANCH_SLUG="captain"
 fi
 
 # Look for handoff file in principal directory
@@ -107,6 +94,21 @@ if [ -f "$RECAP_FILE" ]; then
 "
   fi
   CONTEXT="${CONTEXT}$(cat "$RECAP_FILE")"
+fi
+
+# Check for unprocessed flag queue
+# Use AGENCY_PRINCIPAL (resolved via agency.yaml by _path-resolve) not raw $USER,
+# since the flag tool writes to usr/$AGENCY_PRINCIPAL/ not usr/$USER/
+FLAG_PRINCIPAL="${AGENCY_PRINCIPAL:-${USER:-unknown}}"
+FLAG_QUEUE="$PROJECT_DIR/usr/$FLAG_PRINCIPAL/flag-queue.jsonl"
+if [ -f "$FLAG_QUEUE" ] && [ -s "$FLAG_QUEUE" ]; then
+  FLAG_COUNT=$(grep -c . "$FLAG_QUEUE" 2>/dev/null || echo 0)
+  if [ "$FLAG_COUNT" -gt 0 ]; then
+    FLAG_WARNING="
+
+⚠ **$FLAG_COUNT unprocessed flag(s)** in queue. Run \`./claude/tools/flag list\` to review, or \`./claude/tools/flag discuss\` to start a /discuss."
+    CONTEXT="${CONTEXT}${FLAG_WARNING}"
+  fi
 fi
 
 # Output context if found, otherwise empty JSON (hook runner expects JSON on stdout)

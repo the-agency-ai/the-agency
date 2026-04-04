@@ -1,0 +1,95 @@
+#!/bin/bash
+# safe-extract — Extract archives safely to usr/ paths only
+#
+# Usage: ./claude/tools/safe-extract <archive> <destination>
+#
+# Validates archives before extraction:
+#   - Rejects entries containing ../  (path traversal / zip slip)
+#   - Rejects symlink entries
+#   - Only extracts to usr/ paths
+#
+# Currently supports: zip (unzip)
+# Tar support deferred — symlink attacks need separate validation (MAR S3)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+VERSION="1.0.0"
+
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "safe-extract $VERSION"
+    exit 0
+fi
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || $# -lt 2 ]]; then
+    echo "safe-extract — Extract archives safely to usr/ paths"
+    echo ""
+    echo "Usage: ./claude/tools/safe-extract <archive> <destination>"
+    echo ""
+    echo "Supports: .zip files"
+    echo "Validates: no ../ paths, no symlinks, destination must be under usr/"
+    echo ""
+    echo "Examples:"
+    echo "  ./claude/tools/safe-extract usr/jordan/mdpal/tmp/seeds.zip usr/jordan/mdpal/seeds/"
+    exit 0
+fi
+
+ARCHIVE="$1"
+DEST="$2"
+
+RUN_ID=$(log_start "safe-extract" "$@" 2>/dev/null) || true
+
+# Validate archive exists
+if [[ ! -f "$ARCHIVE" ]]; then
+    echo "safe-extract: archive not found: $ARCHIVE" >&2
+    log_end "$RUN_ID" "failure" 1 0 "archive not found" 2>/dev/null || true
+    exit 1
+fi
+
+# Validate destination is under usr/
+if [[ ! "$DEST" =~ ^usr/ ]]; then
+    echo "safe-extract: destination must be under usr/ — got: $DEST" >&2
+    log_end "$RUN_ID" "failure" 1 0 "destination outside usr/" 2>/dev/null || true
+    exit 1
+fi
+
+# Detect archive type
+case "$ARCHIVE" in
+    *.zip)
+        # Pre-extract validation: check for path traversal
+        if unzip -l "$ARCHIVE" 2>/dev/null | awk 'NR>3 && !/^-/ && NF>=4 {print $NF}' | grep -q '\.\.'; then
+            echo "safe-extract: REJECTED — archive contains ../ path traversal entries" >&2
+            log_end "$RUN_ID" "failure" 1 0 "path traversal detected" 2>/dev/null || true
+            exit 1
+        fi
+
+        # Pre-extract validation: check for symlinks via zipinfo (attribute starts with 'l')
+        if unzip -Z "$ARCHIVE" 2>/dev/null | grep -q '^l'; then
+            echo "safe-extract: REJECTED — archive contains symlink entries" >&2
+            log_end "$RUN_ID" "failure" 1 0 "symlink detected" 2>/dev/null || true
+            exit 1
+        fi
+
+        # Extract
+        mkdir -p "$DEST"
+        unzip -o -d "$DEST" "$ARCHIVE"
+        ;;
+    *.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tar.xz)
+        echo "safe-extract: tar archives not yet supported (symlink attack validation pending — MAR S3)" >&2
+        log_end "$RUN_ID" "failure" 1 0 "tar not supported" 2>/dev/null || true
+        exit 1
+        ;;
+    *)
+        echo "safe-extract: unsupported archive format: $ARCHIVE" >&2
+        log_end "$RUN_ID" "failure" 1 0 "unsupported format" 2>/dev/null || true
+        exit 1
+        ;;
+esac
+
+echo "safe-extract: extracted to $DEST"
+log_end "$RUN_ID" "success" 0 0 "extracted to $DEST" 2>/dev/null || true
+exit 0

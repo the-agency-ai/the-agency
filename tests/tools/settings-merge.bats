@@ -249,6 +249,98 @@ JSON
     [[ "$before" == "$after" ]]
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Permission assertions (Plan 5.4)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "settings-merge: scoped unzip permission present after merge" {
+    cat > .claude/settings.json << 'JSON'
+{
+  "hooks": {},
+  "permissions": {"allow": []}
+}
+JSON
+    cat > claude/config/settings-template.json << 'JSON'
+{
+  "hooks": {},
+  "permissions": {"allow": ["Bash(unzip -d usr/*:*)", "Bash(./claude/tools/*:*)"]}
+}
+JSON
+
+    run ./claude/tools/settings-merge
+    assert_success
+    jq -e '.permissions.allow | index("Bash(unzip -d usr/*:*)")' .claude/settings.json > /dev/null
+}
+
+@test "settings-merge: unzip wildcard NOT present" {
+    cat > .claude/settings.json << 'JSON'
+{
+  "hooks": {},
+  "permissions": {"allow": ["Bash(unzip:*)"]}
+}
+JSON
+    cat > claude/config/settings-template.json << 'JSON'
+{
+  "hooks": {},
+  "permissions": {"allow": ["Bash(unzip -d usr/*:*)"]}
+}
+JSON
+
+    run ./claude/tools/settings-merge
+    assert_success
+    # The wildcard should survive (union), but it should NOT be in the template
+    ! jq -e '.permissions.allow | index("Bash(unzip:*)")' claude/config/settings-template.json > /dev/null
+}
+
+@test "settings-merge: Read(usr/**) permission present" {
+    cat > .claude/settings.json << 'JSON'
+{
+  "hooks": {},
+  "permissions": {"allow": []}
+}
+JSON
+    cat > claude/config/settings-template.json << 'JSON'
+{
+  "hooks": {},
+  "permissions": {"allow": ["Read(usr/**)", "Glob(usr/**)"]}
+}
+JSON
+
+    run ./claude/tools/settings-merge
+    assert_success
+    jq -e '.permissions.allow | index("Read(usr/**)")' .claude/settings.json > /dev/null
+    jq -e '.permissions.allow | index("Glob(usr/**)")' .claude/settings.json > /dev/null
+}
+
+@test "settings-merge: idempotent — merge twice, no duplicates" {
+    cat > .claude/settings.json << 'JSON'
+{
+  "hooks": {},
+  "permissions": {"allow": []}
+}
+JSON
+    cat > claude/config/settings-template.json << 'JSON'
+{
+  "hooks": {},
+  "permissions": {"allow": ["Bash(unzip -d usr/*:*)", "Bash(./claude/tools/*:*)"]}
+}
+JSON
+
+    run ./claude/tools/settings-merge
+    assert_success
+    run ./claude/tools/settings-merge
+    assert_success
+
+    # Count occurrences of unzip permission — should be exactly 1
+    local count
+    count=$(jq '[.permissions.allow[] | select(. == "Bash(unzip -d usr/*:*)")] | length' .claude/settings.json)
+    [[ "$count" -eq 1 ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Edge cases (continued)
+# ─────────────────────────────────────────────────────────────────────────────
+
 @test "settings-merge: hook with no matcher uses empty string as key" {
     cat > .claude/settings.json << 'JSON'
 {
