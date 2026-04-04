@@ -38,3 +38,4 @@
 {"ts":"2026-04-04T02:47:21Z","message":"No tech-lead template in agent-create — primary agent class has no template, only generic/docs/tester/etc","principal":"jordan","branch":"main","session":""}
 {"ts":"2026-04-04T02:47:21Z","message":"agent-create generates placeholder agent.md with [Key responsibility] and wrong myclaude command","principal":"jordan","branch":"main","session":""}
 {"ts":"2026-04-04T02:47:21Z","message":"agent-create creates extra files (IDEAS.md, ONBOARDING.md, logs/permissions.md) not specified in workstream-create","principal":"jordan","branch":"main","session":""}
+{"ts":"2026-04-04T02:47:51Z","message":"All non-destructive tools (flag, dispatch read/list/fetch, transcript) must have pre-approved permissions in settings.json — zero prompts for read/write operations on agent's own files","principal":"jordan","branch":"main","session":""}
