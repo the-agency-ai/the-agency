@@ -116,12 +116,30 @@ _resolve_legacy_address() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 migrate_flags() {
-    local jsonl_path="$PROJECT_ROOT/usr/jordan/flag-queue.jsonl"
+    # Scan all principals for flag-queue.jsonl files (not just jordan)
+    local jsonl_files=()
+    while IFS= read -r -d '' f; do
+        jsonl_files+=("$f")
+    done < <(find "$PROJECT_ROOT/usr" -maxdepth 2 -name "flag-queue.jsonl" -print0 2>/dev/null)
 
-    if [[ ! -f "$jsonl_path" ]]; then
+    if [[ ${#jsonl_files[@]} -eq 0 ]]; then
         echo "flag migration: no flag-queue.jsonl found — skipping"
         return 0
     fi
+
+    local total_count=0
+    local total_errors=0
+
+    for jsonl_path in "${jsonl_files[@]}"; do
+    _migrate_one_flag_file "$jsonl_path"
+    done
+
+    echo "flag migration: $total_count flags imported ($total_errors errors) across ${#jsonl_files[@]} file(s)"
+    return 0
+}
+
+_migrate_one_flag_file() {
+    local jsonl_path="$1"
 
     if ! command -v jq &>/dev/null; then
         echo "flag migration: ERROR — jq required but not found" >&2
@@ -134,6 +152,10 @@ migrate_flags() {
     local errors=0
     local my_agent
     my_agent=$(_my_identity) || return 1
+
+    # Derive principal's default agent from the file path (usr/{principal}/flag-queue.jsonl)
+    local _flag_principal
+    _flag_principal=$(echo "$jsonl_path" | sed "s|$PROJECT_ROOT/usr/||; s|/flag-queue.jsonl||")
 
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
@@ -189,11 +211,13 @@ SQL
         count=$((count + 1))
     done < "$jsonl_path"
 
-    echo "flag migration: $count flags imported ($errors errors)"
+    echo "flag migration: $count flags imported from $(basename "$(dirname "$jsonl_path")") ($errors errors)"
+    total_count=$((total_count + count))
+    total_errors=$((total_errors + errors))
 
     # Rename to .migrated
     mv "$jsonl_path" "${jsonl_path}.migrated"
-    echo "flag migration: renamed to flag-queue.jsonl.migrated"
+    echo "flag migration: renamed to $(basename "$jsonl_path").migrated"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -303,23 +327,29 @@ migrate_dispatches() {
             continue
         }
 
+        # INSERT OR IGNORE + SELECT changes() in same session to detect skips
         local rc=0
-        sqlite3 "$db_path" << SQL 2>/dev/null || rc=$?
+        local changes=""
+        changes=$(sqlite3 "$db_path" << MIGRATION_SQL 2>/dev/null
 ${preamble}
 ${params}
 INSERT OR IGNORE INTO dispatches (created_at, from_agent, to_agent, type, priority, subject, payload_path, status)
 VALUES (:created_at, :from_agent, :to_agent, :type, :priority, :subject, :payload_path, :status);
+SELECT changes();
 .param clear
-SQL
+MIGRATION_SQL
+        ) || rc=$?
 
-        if [[ $rc -eq 0 ]]; then
-            count=$((count + 1))
-        else
+        if [[ $rc -ne 0 ]]; then
             errors=$((errors + 1))
+        elif [[ "${changes:-0}" -eq 0 ]]; then
+            skipped=$((skipped + 1))
+        else
+            count=$((count + 1))
         fi
     done
 
-    echo "dispatch migration: $count dispatches imported ($errors errors, $skipped skipped)"
+    echo "dispatch migration: $count imported, $skipped skipped (duplicate), $errors errors"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

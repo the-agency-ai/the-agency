@@ -160,7 +160,8 @@ FULL_ADDRESS=$(address_format)
 # Write cache (best-effort — don't fail if we can't cache)
 if [[ -n "$_cache_file" ]]; then
     mkdir -p "$_cache_dir" 2>/dev/null || true
-    echo "$FULL_ADDRESS" > "$_cache_file" 2>/dev/null || true
+    # Restrictive permissions — identity cache is sensitive (agent impersonation)
+    (umask 077 && echo "$FULL_ADDRESS" > "$_cache_file") 2>/dev/null || true
 fi
 
 # --- Output ---

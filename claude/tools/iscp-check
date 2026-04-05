@@ -98,9 +98,11 @@ actions=()
 action_hint=$(IFS=", "; echo "${actions[*]}")
 
 # Output as JSON systemMessage for hook consumption
-if command -v jq >/dev/null 2>&1; then
-    jq -n --arg msg "You have $summary. Run: $action_hint" '{"systemMessage":$msg}'
-else
-    # Fallback: manual JSON (summary is safe — built from integers + literals)
-    printf '{"systemMessage":"You have %s. Run: %s"}\n' "$summary" "$action_hint"
+# Always use jq — it handles JSON escaping correctly. jq is a framework
+# dependency (required by existing tools), so if it's missing we have
+# bigger problems. Fail hard rather than emit malformed JSON.
+if ! command -v jq >/dev/null 2>&1; then
+    echo "iscp-check: ERROR — jq not found (required for JSON output)" >&2
+    exit 0  # Still exit 0 — never block the agent
 fi
+jq -n --arg msg "You have $summary. Run: $action_hint" '{"systemMessage":$msg}'
