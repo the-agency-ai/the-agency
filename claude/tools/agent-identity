@@ -32,7 +32,9 @@ set -euo pipefail
 TOOL_VERSION="1.0.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# PROJECT_ROOT: use CLAUDE_PROJECT_DIR (set by Claude Code, points to worktree)
+# or AGENCY_PROJECT_ROOT, falling back to deriving from SCRIPT_DIR (main checkout).
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-${AGENCY_PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}}"
 
 # Source helpers — _path-resolve MUST be sourced explicitly before _address-parse.
 # If AGENCY_PROJECT_ROOT is already set, _address-parse skips sourcing _path-resolve,
@@ -85,8 +87,18 @@ done
 RUN_ID=$(log_start "agent-identity" "$OUTPUT_MODE")
 
 # --- Detect agent name ---
-# Priority: env var > branch detection
+# Priority: env var > .agency-agent file > branch detection
 AGENT_NAME="${CLAUDE_AGENT_NAME:-}"
+
+# Check for .agency-agent file in project root (worktree-local identity)
+# This file is created by worktree-create or manually to bind a worktree to an agent.
+if [[ -z "$AGENT_NAME" && -f "$PROJECT_ROOT/.agency-agent" ]]; then
+    _file_agent=$(head -1 "$PROJECT_ROOT/.agency-agent" | tr -d '[:space:]')
+    if [[ "$_file_agent" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+        AGENT_NAME="$_file_agent"
+    fi
+fi
+
 if [[ -z "$AGENT_NAME" ]]; then
     local_branch=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
     # Strip any path prefix (e.g., worktree-iscp → iscp, feat/foo → foo)
