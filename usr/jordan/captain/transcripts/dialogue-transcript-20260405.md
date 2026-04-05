@@ -301,3 +301,18 @@ Jordan: "We need to spin up our own devex workstream with a the-agency/devex age
 ## ISCP Review Dispatch
 
 Captain dispatched `review-iscp-v1-code-review-20260405.md` to ISCP agent with all findings and acceptance criteria. Also noted M4 (agent-identity principal resolution broken — returns `testuser` instead of `jordan`).
+
+---
+
+## the-agency-group Repo Created
+
+Jordan: "We also need to move all of the book stuff. It might be in the ordinaryfolk-nextgen repo." Found 27 book files at `claude/principals/jordan/projects/the-agency-book/` in ordinaryfolk-nextgen (chapter drafts, 18 working notes, outline, resources).
+
+Jordan: "And we need to talk about the structure."
+
+**Action:** Created `the-agency-ai/the-agency-group` (private) on GitHub. Ran `agency init --principal jordan`. Pushed. Ready for structure 1B1.
+
+Materials to migrate:
+- Book content from ordinaryfolk-nextgen (27 files)
+- Content strategy, Pragmatic Engineer research, Jamon reference from the-agency
+- GTM, Gumroad, Discord agent context from the-agency
