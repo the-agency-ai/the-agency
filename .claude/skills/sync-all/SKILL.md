@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(git fetch:*), Bash(git rebase:*), Bash(git merge:*), Bash(git status:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git worktree:*), Bash(git tag:*), Bash(git reset:*), Bash(git -C:*), Read, Write, Glob, Grep, Edit
+allowed-tools: Bash(git fetch:*), Bash(git rebase:*), Bash(git merge:*), Bash(git status:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git worktree:*), Bash(git tag:*), Bash(git reset:*), Bash(git -C:*), Bash(./claude/tools/dispatch*), Read, Write, Glob, Grep, Edit
 description: Fetch, rebase master, merge worktree work into master, sync all worktrees. NEVER pushes.
 ---
 
@@ -44,6 +44,17 @@ For each worktree with commits ahead of master:
 - Show the commits
 - Ask the user if they should be merged
 - If yes: `git merge {branch} --no-ff`
+
+### Step 5b: Dispatch main-updated
+
+If any worktree work was merged in Step 5, dispatch `main-updated` to all agents that have worktrees:
+
+For each worktree agent that was synced:
+```
+./claude/tools/dispatch create --type main-updated --to {repo}/{principal}/{agent} --subject "Main updated — new work merged"
+```
+
+This notifies agents that main has new content. They'll see it on their next `iscp-check`.
 
 ### Step 6: Sync worktrees to master
 
