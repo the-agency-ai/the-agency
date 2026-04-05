@@ -217,20 +217,20 @@ teardown() {
     assert_failure
 }
 
-@test "dispatches accepts all 7 valid types" {
+@test "dispatches accepts all 8 valid types" {
     iscp_db_init
     local db
     db=$(iscp_db_path)
 
     local i=1
-    for dtype in directive request review notification question response escalation; do
+    for dtype in directive seed review review-response commit master-updated escalation dispatch; do
         sqlite3 "$db" "INSERT INTO dispatches (created_at, from_agent, to_agent, type, subject, payload_path) VALUES ('2026-01-01', 'a', 'b', '$dtype', 'test', '/test/$i');"
         ((i++))
     done
 
     local count
     count=$(sqlite3 "$db" "SELECT count(*) FROM dispatches;")
-    [[ "$count" == "7" ]]
+    [[ "$count" == "8" ]]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -411,7 +411,7 @@ teardown() {
     local db
     db=$(iscp_db_path)
 
-    sqlite3 "$db" "INSERT INTO dispatches (created_at, from_agent, to_agent, type, subject, payload_path) VALUES ('2026-01-01', 'a', 'b', 'request', 'test', '/path/one');"
+    sqlite3 "$db" "INSERT INTO dispatches (created_at, from_agent, to_agent, type, subject, payload_path) VALUES ('2026-01-01', 'a', 'b', 'directive', 'test', '/path/one');"
 
     run sqlite3 "$db" "INSERT INTO dispatches (created_at, from_agent, to_agent, type, subject, payload_path) VALUES ('2026-01-02', 'c', 'd', 'review', 'test2', '/path/one');"
     assert_failure
