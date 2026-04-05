@@ -61,8 +61,7 @@ A **section-oriented tool for structured documents** — enabling both humans an
 ## Next Action
 
 ### Immediate:
-1. **Commit the scaffold** — `apps/mdpal-app/` is new, needs to be committed
-2. **Re-establish dispatch loop** — `*/5 * * * *` for `/dispatch-read` (session-only, needs re-creation)
+1. **Re-establish dispatch loop** — `*/5 * * * *` for `/dispatch-read` (session-only, needs re-creation each session)
 
 ### Waiting on mdpal-cli:
 1. **Revised A&D** with all 8 decisions incorporated
