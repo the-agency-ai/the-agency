@@ -301,3 +301,96 @@ Jordan: "We need to spin up our own devex workstream with a the-agency/devex age
 ## ISCP Review Dispatch
 
 Captain dispatched `review-iscp-v1-code-review-20260405.md` to ISCP agent with all findings and acceptance criteria. Also noted M4 (agent-identity principal resolution broken — returns `testuser` instead of `jordan`).
+
+---
+
+## the-agency-group Repo Created
+
+Jordan: "We also need to move all of the book stuff. It might be in the ordinaryfolk-nextgen repo." Found 27 book files at `claude/principals/jordan/projects/the-agency-book/` in ordinaryfolk-nextgen (chapter drafts, 18 working notes, outline, resources).
+
+Jordan: "And we need to talk about the structure."
+
+**Action:** Created `the-agency-ai/the-agency-group` (private) on GitHub. Ran `agency init --principal jordan`. Pushed. Ready for structure 1B1.
+
+Materials to migrate:
+- Book content from ordinaryfolk-nextgen (27 files)
+- Content strategy, Pragmatic Engineer research, Jamon reference from the-agency
+- GTM, Gumroad, Discord agent context from the-agency
+
+---
+
+## 1B1: the-agency-group Structure
+
+### Item 1: What is the-agency-group?
+
+Jordan: "The Agency Group is the entity through which we are going to make TheAgency known and monetize it. If the-agency is the platform, the-agency-group is the organization which makes it a reality in the world. By and large we won't be writing code there, but we will be building product and operations and content. You will operate above both repos."
+
+**Decision:** the-agency-group = business entity. Captain spans both repos.
+
+Jordan corrected: "We may build some code. This is where we will build the web platform (website + blog + whatever). This is where we will build our multi-channel content publishing platform."
+
+**Decision:** the-agency-group is a code repo too — product/business code, not framework code.
+
+### Item 2: Workstreams
+
+Evolved through discussion. Jordan: "book" → "the-agency-book" (specific book, future books get own workstreams). "platforms" → "distribution" (apple, google, medium, substack, etc. are distribution channels). Publisher and web are separate. CRM needed.
+
+**Decision:** 7 workstreams:
+
+| Workstream | What | Code? |
+|------------|------|-------|
+| `the-agency-book` | AIADLC book | No |
+| `content` | Articles, social posts, newsletter | No |
+| `gtm` | Strategy, positioning, launch, monetization | No |
+| `distribution` | Channel management — agents per channel | Light |
+| `web` | Website + blog (Vercel) | Yes |
+| `publisher` | Multi-channel content distribution engine | Yes |
+| `crm` | Contact/relationship management | Yes |
+
+### Item 3: Agents
+
+Jordan: "Do we have other agents we would move out of the-agency?"
+
+**Decision:** Move gtm, gumroad, discord, apple agents from the-agency to the-agency-group. All are business agents, not framework agents.
+
+Jordan: "We will need new agent and sub-agent classes."
+
+Discussion of new classes: editor, writer, channel-manager, analyst. Plus existing classes that carry over (captain, researcher, reviewer-*).
+
+**Decision:** Build a plan in the-agency-group to define workstreams, agents, and classes properly. Plan at `the-agency-group/usr/jordan/captain/`.
+
+---
+
+## Provider-Spec Pattern & Testing
+
+Jordan: "Why???? Testing info is in root CLAUDE.md, not CLAUDE-THEAGENCY.md."
+
+Discussion led to identifying the provider-spec pattern: project-specific capabilities (testing, secrets, terminal, etc.) belong in `agency.yaml`, not CLAUDE.md. CLAUDE-THEAGENCY.md describes the *pattern*; agency.yaml holds the *config*.
+
+**Decision:** Added `testing:` section to agency.yaml. Rewrote `claude/tools/test-run` v2 to read suites from agency.yaml. Falls back to package manager detection for backward compat.
+
+**Action:** test-run v2 staged but commit blocked by pre-commit (commit-precheck runs full BATS, reports failure despite exit 0).
+
+---
+
+## CLAUDE-WRITING.md Concept
+
+Jordan: "I have a significant body of content written with Claude Desktop along with what it has learned about me."
+
+**Decision:** Create `CLAUDE-WRITING.md` — instructions file for writing agents, capturing Jordan's voice/style/tone. Same pattern as CLAUDE-THEAGENCY.md but for writing rather than development methodology. Sources: Claude Desktop project knowledge, jordans-voice.md, published articles, book drafts.
+
+---
+
+## ISCP Live Testing
+
+Captain and ISCP exchanged live dispatches. Identity resolution working after cache clear. Dispatch lifecycle functional: create → notify → read → resolve.
+
+Jordan: "She is testing it live!" (re: ISCP agent running tests)
+
+---
+
+## Session Close
+
+Jordan: "I think we need to do a handoff followed by a compact shortly."
+
+**Action:** Handoff written. Session 19 ending with 3 staged files uncommitted (test-run v2 block), 7+ commits ahead of origin, ISCP live, the-agency-group seed written.

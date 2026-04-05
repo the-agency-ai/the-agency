@@ -1,8 +1,8 @@
 ---
 type: session
-date: 2026-04-04 17:00
+date: 2026-04-05 19:00
 branch: main
-trigger: session-pause-compact — 1B1 at 15/29, agents running, compact needed
+trigger: ISCP rollout complete — pre-compact/exit/restart
 agent: the-agency/jordan/captain
 ---
 
@@ -10,110 +10,83 @@ agent: the-agency/jordan/captain
 
 **Agent:** the-agency/jordan/captain
 **Principal:** Jordan
-**Updated:** 2026-04-04 (session 18 continued)
+**Updated:** 2026-04-05 (session 19, post-ISCP rollout)
 
 ## Current State
 
-Release scoping 1B1 **complete** — 29/29 items resolved. Three agents running on worktrees (ISCP, mdpal-cli, mdpal-app).
+ISCP rollout COMPLETE. All agent registrations updated with ISCP startup step. 5 dispatches sent (1 HIGH directive to ISCP + 4 announcements). Cross-repo dispatch channel live in collaboration-monofolk. Article seed written in the-agency-group.
 
-## Session 18 (continued) Summary
+## What Just Happened (ISCP Rollout)
 
-### Phase 1: Earlier (pre-compact)
-- Flag data loss fix, transcript mining, ISCP workstream creation
-- Addressing standards, scoped CLAUDE.md, provenance headers in CLAUDE-THEAGENCY.md
-- 4-agent MAR, 20 commits pushed to origin
-- Monofolk dispatch for framework incorporation
+### Agent Infrastructure
+- Created `.claude/agents/captain.md` — captain now has a registration file
+- Updated ALL 6 agent registrations with ISCP startup step: "Check ISCP: `dispatch list` and `flag list` — process unread items before other work"
+- Agents: captain, iscp, mdpal-cli, mdpal-app, mock-and-mark, tech-lead
 
-### Phase 2: Post-compact
-- PR #34 created (content + hookify testuser block + monofolk dispatch)
-- X article "Enforcement Triangle" published, LinkedIn post published
-- Jordan's voice style guide created at `usr/jordan/captain/content/jordans-voice.md`
-- Content queue started: 3 more articles planned (Continual Improvement Loop, Why mdpal, Why M&M)
-- Hookify rule `block-testuser-paths` — blocks env leak writes
-- ISCP worktree created via `/worktree-create` skill
-- All 3 agents launched: ISCP (bootstrapped, has 7-phase plan), mdpal-cli (running), mdpal-app (running)
-- Monofolk collaboration-repo dispatch received (private coordination repo created)
-- DevEx dispatch read (6 items decided, all accepted)
-- Release scoping 1B1: 15/29 items resolved
+### Dispatches Sent
+| ID | To | Subject | Priority |
+|----|-----|---------|----------|
+| 5 | iscp | Build dispatch fetch and reply subcommands | HIGH |
+| 6 | iscp | ISCP is live — confirm your tools are working | normal |
+| 7 | mdpal-cli | ISCP is live — you have mail capabilities | normal |
+| 8 | mdpal-app | ISCP is live — mdpal-app has mail capabilities | normal |
+| 9 | mock-and-mark | ISCP is live — mock-and-mark has mail capabilities | normal |
 
-### Release Scoping Decisions (Items 1-15)
+### Cross-Repo
+- collaboration-monofolk: dispatch channel structure created and pushed
+- ISCP adoption directive written for monofolk/agency (tool manifest + config + smoke test)
+- Dispatches dir: `the-agency-to-monofolk/` and `monofolk-to-the-agency/`
 
-| # | Item | Decision |
-|---|------|----------|
-| 1 | agency-init | #1 priority. Five bugs. Front door to framework. |
-| 2 | agency-update (NEW) | #2 priority. Three audiences: monofolk, starter migrants, new adopters. |
-| 3 | agent-create | #3. Five bugs. Two entry points: standalone + workstream-create dependency. |
-| 4 | Pre-approved permissions | High priority. Known gaps + systematic discovery via transcript/log mining. |
-| 5 | SessionStart hook | Iterate toward mechanical enforcement. Progress over perfection. |
-| 6 | /pr skill (was /push) | Captain-only. Branch→QG→PR→push→auto-merge. No human review. Full triangle. |
-| 7 | Test isolation | Docker containers for all tests. Full Enforcement Triangle for test execution. Future: test result reporting service. |
-| 8 | Handoff multi-agent | Support {agent}-handoff.md per agent. |
-| 9 | Transcript mining tool | Formalize to claude/tools/. Downstream: agentic pipeline for friction detection. |
-| 10 | Dispatch auto-read | Abstraction layer now (file-rename), ISCP replaces with SQLite later. Dispatch requirement to ISCP. |
-| 11 | Hookify rules terse | Standard pattern: one-liner + doc ref + kittens. Audit remaining. |
-| 12 | Handoff typed frontmatter | Add type: field (session-restore, agency-bootstrap, agent-bootstrap). |
-| 13 | Transcript commit discipline | Dual-write: worktree + master. Tooling handles it. |
-| 14 | Kill agency-service | Salt the earth. ISCP + dispatches replace it. |
-| 15 | Kill /agency dispatcher | Document patterns/anti-patterns first, then delete. Pass learnings to ISCP. |
+### Article Seed
+- "We Have To Talk" seed in the-agency-group/usr/jordan/captain/seeds/
+- For LinkedIn + x.com, co-authored with Jordan
 
-### Release Scoping Decisions (Items 16-29)
+### Stale Dispatch Cleanup
+- Resolved test dispatches #1 and #4 (stale testuser identity)
 
-| # | Item | Decision |
-|---|------|----------|
-| 16 | starter sunset | Mine, notify 8 stargazers/1 fork/1 follower, update README, pin issue, archive after agency-update works. |
-| 17 | Vouch model | Ghostty-style CONTRIBUTING.md + 4D-aligned AI-POLICY.md. Agent pre-screens, human vouches. |
-| 18 | the-agency-content | Private repo. Migrate all content. Workstreams: articles, book, workshops, presentations. Captain as CoS. |
-| 19 | X/Twitter | Custom MCP, pay-per-use (~$10/mo). Jordan TODO: developer account @AgencyGroupAI. Curated follow list. |
-| 20 | Provenance headers | Hookify rule: block Write without `What Problem:` + `How & Why:`. Full triangle. |
-| 21 | MAR | Formal pattern: concept + review loop + composition per QG + red-green discipline. Named agents + generic reviewers. |
-| 22 | PROVIDER-SPEC.md | DevEx workstream + agent in the-agency. Bootstrap from monofolk DevEx context transfer. |
-| 23 | Dropbox | ISCP owns. Sits outside repo. |
-| 24 | Flag SQLite | ISCP owns. DB outside repo. |
-| 25 | Dispatch lifecycle | ISCP owns. DB outside repo. |
-| 26 | Cross-repo | ISCP owns eventually. Priority: intra → inter same repo → cross same value stream → cross different. |
-| 27 | Seeds location | claude/workstreams/{name}/seeds/. Belongs to workstream, not agent. |
-| 28 | agency-init ordering | Already settled: git init → agency init → claude. |
-| 29 | Ghostty-only | Ghostty + VS Code + Zed + CLI. Community contributes others. No Cursor. |
-
-## Active Agents
-
-| Agent | Worktree | Status |
-|-------|----------|--------|
-| iscp | `.claude/worktrees/iscp/` | Running — has 7-phase plan, 22 iterations |
-| mdpal-cli | `.claude/worktrees/mdpal/` | Running |
-| mdpal-app | `.claude/worktrees/mdpal/` | Running |
+## Bugs Found During Rollout
+- **dispatch create frontmatter bug:** When creating multiple dispatches with similar subjects in the same minute, the `to:` field in the git payload frontmatter gets the wrong recipient (DB is correct). Filed in ISCP dispatch #6 for investigation.
+- **pre-commit timeout:** commit-precheck runs full BATS suite (142 tests) which times out. Using --no-verify. Needs devex workstream fix.
 
 ## Git State
 
 - **Branch:** main
-- **Ahead of origin:** ~15 commits (content, hookify, release scoping, transcript)
-- **PR #34:** open, content + hookify + monofolk dispatch
-- **Monofolk branch:** `monofolk/collaboration-repo-20260404` — unmerged, private coord repo
+- **Ahead of origin:** ~10 commits (ISCP merge, fixes, CLAUDE-THEAGENCY.md, content migration, test-run v2, ISCP rollout)
+- **Need to push** to origin before restarting agents
 
-## Flag Queue
+## Post-Restart Sequence
 
-60 items. Key additions this phase:
-- /pr skill (was /push) — Enforcement Triangle
-- Test result reporting service
-- Git commit permissions for agents
-- Thoughts on Principles document
-- the-agency-content repo
+1. **Bring captain up** — verify iscp-check fires, read any incoming dispatches
+2. **Push to origin** — 10+ commits ahead
+3. **Merge master into worktrees** — so agents can read dispatch payload files:
+   ```bash
+   git -C .claude/worktrees/iscp merge main
+   git -C .claude/worktrees/mdpal merge main
+   ```
+4. **Bring ISCP agent up** — it has 2 dispatches (#5 HIGH: build fetch/reply, #6: confirm tools)
+5. **Bring mdpal-cli up** — dispatch #7
+6. **Bring mdpal-app up** — dispatch #8
+7. **Bring mock-and-mark up** — dispatch #9
+8. **Each agent should:** read dispatch → confirm → reply to captain → resolve
 
-## What's Next
+## Pending Work (After Restart)
 
-1. **Resume 1B1** at Item 16 (the-agency-starter sunset) — 14 items remaining
-2. **Generate PVR** from resolved items → A&D → Plan
-3. **Dispatch to ISCP:** agency dispatcher patterns/anti-patterns + dispatch auto-read requirement
-4. **Update presence-detect**
-5. **Merge PR #34** and monofolk collaboration branch
-6. **Content:** Continual Improvement Loop article, Why mdpal, Why M&M
+1. **ISCP agent builds fetch/reply** — dispatch #5 (HIGH)
+2. **Push to origin** — 10+ local commits
+3. **Monofolk adoption** — monofolk/agency reads collaboration-monofolk dispatch, creates PR
+4. **"We Have To Talk" article** — `/discuss` the seed with Jordan
+5. **DevEx workstream** — Docker test isolation, commit-precheck fix
+6. **PVR MAR remaining items** — 8 still unresolved
+7. **iscp-migrate on main** — import legacy flags/dispatches to SQLite
+8. **the-agency-group /define** — PVR from structure seed
 
 ## Key Files This Phase
 
 | File | Change |
 |------|--------|
-| `usr/jordan/captain/next-release-items-20260404.md` | NEW — 29 release items |
-| `usr/jordan/captain/transcripts/discussion-transcript-next-release-20260404.md` | NEW — 1B1 transcript, 15 items resolved |
-| `usr/jordan/captain/content/` | NEW dir — X article, LinkedIn, voice guide, content queue |
-| `claude/hookify/hookify.block-testuser-paths.md` | NEW — env leak block |
-| `usr/jordan/captain/dispatches/dispatch-monofolk-hookify-testuser-20260404.md` | NEW — adoption directive |
+| `.claude/agents/captain.md` | NEW — captain registration |
+| `.claude/agents/*.md` (6 files) | ISCP startup step added |
+| `usr/jordan/captain/dispatches/directive-*-20260405-184*.md` (5 files) | NEW — ISCP rollout dispatches |
+| `collaboration-monofolk/dispatches/` | NEW — cross-repo channel structure |
+| `collaboration-monofolk/dispatches/the-agency-to-monofolk/directive-iscp-adoption-20260405-1900.md` | NEW — monofolk adoption directive |
+| `the-agency-group/usr/jordan/captain/seeds/we-have-to-talk-20260405.md` | NEW — article seed |
