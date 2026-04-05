@@ -39,7 +39,7 @@ else
     PRINCIPAL="jordan"
 fi
 
-USR_DIR="claude/usr/$PRINCIPAL"
+USR_DIR="usr/$PRINCIPAL"
 
 # Current project — derive from branch name or worktree directory
 detect_project() {
