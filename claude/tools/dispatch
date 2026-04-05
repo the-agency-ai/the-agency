@@ -18,7 +18,7 @@
 # Written: 2026-04-05 during ISCP Iteration 1.4
 #
 # Usage:
-#   dispatch create --to <addr> --subject <text> [--type <type>] [--priority <p>]
+#   dispatch create --to <addr> --subject <text> [--body <text>] [--type <type>] [--priority <p>]
 #   dispatch list [--all] [--status <s>] [--type <t>]
 #   dispatch read <id>
 #   dispatch fetch <id>
@@ -65,6 +65,62 @@ _main_checkout() {
     git worktree list 2>/dev/null | head -1 | awk '{print $1}'
 }
 
+# Resolve payload file — branch/worktree transparent
+# What Problem: Dispatch payloads are written by one agent on one branch but
+# read by another agent on a different branch or worktree. A worktree agent
+# must be able to read a payload that captain committed on main, or that
+# another agent wrote on a feature branch, without manual merging.
+# How & Why: Multi-strategy resolution ladder. Each strategy is tried in
+# order — the first one that finds the file wins. This makes dispatch read
+# "just work" regardless of which branch or worktree the reader is on.
+# Written: 2026-04-06 — branch/worktree transparency fix
+_resolve_payload() {
+    local payload_path="$1"
+
+    # Strategy 1: Local working directory (current worktree)
+    if [[ -f "$PROJECT_ROOT/$payload_path" ]]; then
+        cat "$PROJECT_ROOT/$payload_path"
+        return 0
+    fi
+
+    # Strategy 2: Main checkout working directory (uncommitted files on main)
+    local main_checkout
+    main_checkout=$(_main_checkout)
+    if [[ "$main_checkout" != "$PROJECT_ROOT" && -f "$main_checkout/$payload_path" ]]; then
+        cat "$main_checkout/$payload_path"
+        return 0
+    fi
+
+    # Strategy 3: git show from default branch, then all local branches
+    local _branch
+    _branch=$(_default_branch)
+    if git -C "$PROJECT_ROOT" show "${_branch}:${payload_path}" 2>/dev/null; then
+        return 0
+    fi
+    # Try all other local branches
+    local branch_name
+    while IFS= read -r branch_name; do
+        [[ "$branch_name" == "$_branch" ]] && continue  # already tried
+        if git -C "$PROJECT_ROOT" show "${branch_name}:${payload_path}" 2>/dev/null; then
+            return 0
+        fi
+    done < <(git -C "$PROJECT_ROOT" for-each-ref --format='%(refname:short)' refs/heads/ 2>/dev/null)
+
+    # Strategy 4: Scan all worktree working directories (uncommitted in any worktree)
+    local wt_path
+    while IFS= read -r wt_path; do
+        wt_path=$(echo "$wt_path" | awk '{print $1}')
+        [[ "$wt_path" == "$PROJECT_ROOT" ]] && continue  # already tried
+        [[ "$wt_path" == "$main_checkout" ]] && continue  # already tried
+        if [[ -f "$wt_path/$payload_path" ]]; then
+            cat "$wt_path/$payload_path"
+            return 0
+        fi
+    done < <(git worktree list 2>/dev/null)
+
+    return 1
+}
+
 # Detect the default branch for the repo (for git show in worktrees)
 # What Problem: Hardcoded master/main fallback in git show fails in repos
 # using other default branch names (develop, trunk, etc.)
@@ -97,7 +153,7 @@ _validate_type() {
 # create — Create dispatch (DB record + git payload file)
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_create() {
-    local to_addr="" subject="" reply_to="" priority="normal" dtype="dispatch" project=""
+    local to_addr="" subject="" reply_to="" priority="normal" dtype="dispatch" project="" body=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -107,6 +163,9 @@ cmd_create() {
             --subject)
                 [[ -n "${2:-}" ]] || { echo "Error: --subject requires text" >&2; return 1; }
                 subject="$2"; shift 2 ;;
+            --body)
+                [[ -n "${2:-}" ]] || { echo "Error: --body requires text" >&2; return 1; }
+                body="$2"; shift 2 ;;
             --type)
                 [[ -n "${2:-}" ]] || { echo "Error: --type requires a type" >&2; return 1; }
                 dtype="$2"; shift 2 ;;
@@ -202,8 +261,26 @@ cmd_create() {
     # Initialize DB (idempotent)
     iscp_db_init
 
-    # Write payload file
-    cat > "$filepath" << DISPATCH_EOF
+    # Write payload file — use --body content if provided, otherwise template
+    if [[ -n "$body" ]]; then
+        cat > "$filepath" << DISPATCH_EOF
+---
+type: ${dtype}
+from: ${from_agent}
+to: ${to_formatted}
+date: ${date_full}
+status: created
+priority: ${priority}
+subject: "${subject}"
+in_reply_to: ${reply_to:-null}
+---
+
+# ${subject}
+
+${body}
+DISPATCH_EOF
+    else
+        cat > "$filepath" << DISPATCH_EOF
 ---
 type: ${dtype}
 from: ${from_agent}
@@ -229,6 +306,7 @@ in_reply_to: ${reply_to:-null}
 
 - [ ] <!-- criterion 1 -->
 DISPATCH_EOF
+    fi
 
     # Insert into DB — reply_to bound as named parameter (never interpolated into SQL)
     # Use CASE expression to convert empty string to NULL for the FK
@@ -382,20 +460,18 @@ _display_dispatch() {
     echo "───────────────────────"
     echo ""
 
-    # Read payload file
-    local main_checkout
-    main_checkout=$(_main_checkout)
-    local full_path="$main_checkout/$_DISP_PAYLOAD"
-
-    if [[ -f "$full_path" ]]; then
-        cat "$full_path"
-    else
-        # Use dynamic default branch detection instead of hardcoded master/main
-        local _branch
-        _branch=$(_default_branch)
-        git show "${_branch}:${_DISP_PAYLOAD}" 2>/dev/null || {
-            echo "(payload file not found at $_DISP_PAYLOAD)"
-        }
+    # Read payload file — branch/worktree transparent resolution
+    # What Problem: Payloads are written by one agent (often captain on main)
+    # but read by another agent on a different branch or worktree. The reader
+    # must find the payload regardless of where it was written.
+    # How & Why: Multi-strategy resolution ladder:
+    #   1. Local working directory (current worktree — covers same-branch case)
+    #   2. Main checkout working directory (covers uncommitted files on main)
+    #   3. git show from every known branch (covers committed-anywhere case)
+    #   4. Scan all worktree working directories (covers uncommitted in any worktree)
+    # Written: 2026-04-06 — branch/worktree transparency fix
+    if ! _resolve_payload "$_DISP_PAYLOAD"; then
+        echo "(payload file not found at $_DISP_PAYLOAD — searched local, main checkout, all branches, all worktrees)"
     fi
 }
 
@@ -715,7 +791,7 @@ cmd_help() {
 dispatch — ISCP dispatch lifecycle tool (v2)
 
 Usage:
-  dispatch create --to <addr> --subject <text> [--type <type>] [--priority <p>]
+  dispatch create --to <addr> --subject <text> [--body <text>] [--type <type>] [--priority <p>]
   dispatch list [--all] [--status <s>] [--type <t>]
   dispatch read <id>
   dispatch fetch <id>          — read-only peek (no status change)
