@@ -169,19 +169,21 @@ _pr_resolve() {
 
     local yaml="$AGENCY_PROJECT_ROOT/claude/config/agency.yaml"
 
-    # Resolve principal name
-    if [[ -z "${AGENCY_PRINCIPAL:-}" ]]; then
-        if [[ -f "$yaml" ]]; then
-            # Try mapping current $USER
-            AGENCY_PRINCIPAL="$(_pr_yaml_get "principals" "${USER:-}" "$yaml" 2>/dev/null)" || {
-                # Fall back to "default" mapping
-                AGENCY_PRINCIPAL="$(_pr_yaml_get "principals" "default" "$yaml" 2>/dev/null)" || {
-                    AGENCY_PRINCIPAL="${USER:-unknown}"
-                }
+    # ALWAYS resolve principal from agency.yaml via $USER.
+    # Never trust a pre-set AGENCY_PRINCIPAL — it leaks from test suites,
+    # shell profiles (add-principal wrote it to .zshrc), and old tool runs.
+    # AGENCY_PRINCIPAL is effectively deprecated as an input; we still set it
+    # as an output for backward compatibility with tools that read it.
+    if [[ -f "$yaml" ]]; then
+        # Try mapping current $USER
+        AGENCY_PRINCIPAL="$(_pr_yaml_get "principals" "${USER:-}" "$yaml" 2>/dev/null)" || {
+            # Fall back to "default" mapping
+            AGENCY_PRINCIPAL="$(_pr_yaml_get "principals" "default" "$yaml" 2>/dev/null)" || {
+                AGENCY_PRINCIPAL="${USER:-unknown}"
             }
-        else
-            AGENCY_PRINCIPAL="${USER:-unknown}"
-        fi
+        }
+    else
+        AGENCY_PRINCIPAL="${USER:-unknown}"
     fi
 
     # Set derived paths

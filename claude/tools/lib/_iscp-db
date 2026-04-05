@@ -270,7 +270,8 @@ _iscp_escape_param() {
     val="${val//$'\r'/\\r}"
     # Escape tabs
     val="${val//$'\t'/\\t}"
-    echo "$val"
+    # Use printf '%s' not echo — echo strips trailing newlines (M2 fix)
+    printf '%s' "$val"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

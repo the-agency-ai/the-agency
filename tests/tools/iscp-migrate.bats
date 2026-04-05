@@ -391,7 +391,7 @@ MD
     run "$MIGRATE"
     assert_success
     assert_output_contains "1 flags imported"
-    assert_output_contains "1 dispatches imported"
+    assert_output_contains "1 imported"
     assert_output_contains "Migration complete"
 }
 

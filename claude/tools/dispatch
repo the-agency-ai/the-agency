@@ -135,16 +135,21 @@ cmd_create() {
     local from_agent
     from_agent=$(_resolve_identity) || return 1
 
-    # Validate and resolve --to address
+    # Validate and resolve --to address — must resolve to fully qualified
     address_resolve "$to_addr" 2>/dev/null || {
         address_parse "$to_addr" || {
             echo "Error: invalid --to address: $to_addr" >&2; return 1
         }
     }
-    local to_formatted="$to_addr"
-    if [[ -n "$ADDR_REPO" && -n "$ADDR_PRINCIPAL" && -n "$ADDR_AGENT" ]]; then
-        to_formatted=$(address_format "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT")
+    # M3 fix: require fully qualified address — bare/partial addresses become
+    # invisible to iscp-check (which queries by fully qualified address)
+    if [[ -z "$ADDR_REPO" || -z "$ADDR_PRINCIPAL" || -z "$ADDR_AGENT" ]]; then
+        echo "Error: --to address '$to_addr' could not be fully resolved (got repo='${ADDR_REPO:-}' principal='${ADDR_PRINCIPAL:-}' agent='${ADDR_AGENT:-}')" >&2
+        echo "Use fully qualified form: repo/principal/agent" >&2
+        return 1
     fi
+    local to_formatted
+    to_formatted=$(address_format "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT")
 
     # Determine project directory for payload
     if [[ -z "$project" ]]; then
@@ -172,10 +177,11 @@ cmd_create() {
     local payload_path="${filepath#$PROJECT_ROOT/}"
 
     # Handle reply-to: accept integer ID or filename
-    local reply_to_sql="NULL"
+    # reply_to_val is "" (no reply) or an integer string (validated)
+    local reply_to_val=""
     if [[ -n "$reply_to" ]]; then
         if [[ "$reply_to" =~ ^[0-9]+$ ]]; then
-            reply_to_sql="$reply_to"
+            reply_to_val="$reply_to"
         fi
         # If it's a filename, we store it as-is in frontmatter but don't set FK
     fi
@@ -211,23 +217,37 @@ in_reply_to: ${reply_to:-null}
 - [ ] <!-- criterion 1 -->
 DISPATCH_EOF
 
-    # Insert into DB
+    # Insert into DB — reply_to bound as named parameter (never interpolated into SQL)
+    # Use CASE expression to convert empty string to NULL for the FK
     local insert_sql="INSERT INTO dispatches (created_at, from_agent, to_agent, type, priority, subject, payload_path, in_reply_to, status)
-        VALUES (:created_at, :from_agent, :to_agent, :type, :priority, :subject, :payload_path, ${reply_to_sql}, 'unread')"
+        VALUES (:created_at, :from_agent, :to_agent, :type, :priority, :subject, :payload_path, CASE WHEN :reply_to = '' THEN NULL ELSE CAST(:reply_to AS INTEGER) END, 'unread')"
 
-    local dispatch_id
-    dispatch_id=$(iscp_db_exec "$insert_sql" \
+    # Execute INSERT and retrieve last_insert_rowid in the SAME sqlite3 session
+    # to avoid race condition in concurrent WAL mode (M1 fix)
+    local db_path
+    db_path=$(iscp_db_path) || return 1
+    local preamble
+    preamble=$(_iscp_pragma_preamble_light)
+    local params
+    params=$(_iscp_build_params \
         ":created_at" "$date_full" \
         ":from_agent" "$from_agent" \
         ":to_agent" "$to_formatted" \
         ":type" "$dtype" \
         ":priority" "$priority" \
         ":subject" "$subject" \
-        ":payload_path" "$payload_path")
+        ":payload_path" "$payload_path" \
+        ":reply_to" "$reply_to_val") || return 1
 
-    # Get the actual ID (last_insert_rowid)
     local db_id
-    db_id=$(iscp_db_query "SELECT last_insert_rowid()")
+    db_id=$(sqlite3 "$db_path" << SQL
+${preamble}
+${params}
+${insert_sql};
+SELECT last_insert_rowid();
+.param clear
+SQL
+    )
 
     echo "dispatch [create]"
     echo "  ID:   $db_id"

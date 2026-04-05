@@ -58,11 +58,17 @@ cmd_flag() {
     # Parse --to if present
     if [[ "${1:-}" == "--to" ]]; then
         [[ -n "${2:-}" ]] || { echo "Error: --to requires an agent address" >&2; return 1; }
-        # Resolve the target address
+        # Resolve the target address — must resolve to fully qualified
         address_resolve "$2" 2>/dev/null || address_parse "$2" 2>/dev/null || {
             echo "Error: invalid --to address: $2" >&2; return 1
         }
-        to_agent=$(address_format "${ADDR_REPO:-}" "${ADDR_PRINCIPAL:-}" "${ADDR_AGENT:-}" 2>/dev/null) || to_agent="$2"
+        # M3 fix: require fully qualified — bare addresses become invisible to iscp-check
+        if [[ -z "${ADDR_REPO:-}" || -z "${ADDR_PRINCIPAL:-}" || -z "${ADDR_AGENT:-}" ]]; then
+            echo "Error: --to address '$2' could not be fully resolved" >&2
+            echo "Use fully qualified form: repo/principal/agent" >&2
+            return 1
+        fi
+        to_agent=$(address_format "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT")
         shift 2
     fi
 
