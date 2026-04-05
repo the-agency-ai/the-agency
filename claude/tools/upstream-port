@@ -47,9 +47,11 @@ show_help() {
     echo "Path mapping (auto):"
     echo "  claude/tools/X                    → claude/tools/X"
     echo "  claude/tools/tests/X              → claude/tools/tests/X"
-    echo "  claude/usr/*/commands/X.md        → .claude/skills/X/SKILL.md (mkdir)"
+    echo "  usr/*/commands/X.md               → .claude/skills/X/SKILL.md (mkdir)"
+    echo "  claude/usr/*/commands/X.md        → .claude/skills/X/SKILL.md (mkdir, legacy path)"
     echo "  claude/hookify/X                  → claude/hookify/X"
-    echo "  claude/usr/*/hookify/X            → claude/hookify/X"
+    echo "  usr/*/hookify/X                   → claude/hookify/X"
+    echo "  claude/usr/*/hookify/X            → claude/hookify/X (legacy path)"
     echo "  claude/agents/X                   → claude/agents/X"
     echo "  claude/docs/X                     → claude/docs/X"
     echo "  claude/config/X                   → claude/config/X"
@@ -129,7 +131,7 @@ resolve_target() {
         claude/tools/*)
             echo "claude/tools/$(basename "$rel")"
             ;;
-        claude/usr/*/commands/*.md)
+        usr/*/commands/*.md|claude/usr/*/commands/*.md)
             # commands/X.md → .claude/skills/X/SKILL.md
             local name=$(basename "$rel" .md)
             echo ".claude/skills/$name/SKILL.md"
@@ -137,7 +139,7 @@ resolve_target() {
         claude/hookify/*)
             echo "claude/hookify/$(basename "$rel")"
             ;;
-        claude/usr/*/hookify/*)
+        usr/*/hookify/*|claude/usr/*/hookify/*)
             # Sandbox hookify → shared framework hookify
             local name=$(basename "$rel")
             # Strip .local from name if present

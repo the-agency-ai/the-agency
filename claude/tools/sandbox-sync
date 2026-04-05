@@ -22,10 +22,10 @@ shopt -s nullglob
 
 # Detect engineer — prefer $USER match, fall back to first found
 ENGINEER=""
-if [ -d "$ROOT/claude/usr/${USER:-}" ]; then
+if [ -d "$ROOT/usr/${USER:-}" ]; then
   ENGINEER="$USER"
 else
-  for dir in "$ROOT"/claude/usr/*/; do
+  for dir in "$ROOT"/usr/*/; do
     [ -d "$dir" ] || continue
     name="$(basename "$dir")"
     [ "$name" = "README.md" ] && continue
@@ -35,7 +35,7 @@ else
 fi
 
 if [ -z "$ENGINEER" ]; then
-  echo "error: no engineer sandbox found in claude/usr/" >&2
+  echo "error: no engineer sandbox found in usr/" >&2
   exit 1
 fi
 
@@ -45,7 +45,7 @@ if ! printf '%s' "$ENGINEER" | grep -qE '^[a-zA-Z0-9_-]+$'; then
   exit 1
 fi
 
-SANDBOX="$ROOT/claude/usr/$ENGINEER"
+SANDBOX="$ROOT/usr/$ENGINEER"
 CREATED=0
 EXISTING=0
 UPDATED=0
@@ -63,7 +63,7 @@ if [ -d "$COMMANDS_SRC" ]; then
     [ "$name" = ".gitkeep" ] && continue
 
     target="$COMMANDS_DST/usr-${ENGINEER}.${name}"
-    relative="../../claude/usr/$ENGINEER/commands/$name"
+    relative="../../usr/$ENGINEER/commands/$name"
 
     if [ -L "$target" ]; then
       current="$(readlink "$target")"
@@ -95,7 +95,7 @@ if [ -d "$HOOKIFY_SRC" ]; then
     clean_name="${name#hookify.}"
     target="$HOOKIFY_DST/hookify.usr-${ENGINEER}.${clean_name}"
     # .claude/ is one level deep from root, so relative path needs ../
-    relative="../claude/usr/$ENGINEER/hookify/$name"
+    relative="../usr/$ENGINEER/hookify/$name"
 
     if [ -L "$target" ]; then
       current="$(readlink "$target")"
@@ -125,7 +125,7 @@ if [ -d "$HOOKS_SRC" ]; then
     [ "$name" = ".gitkeep" ] && continue
 
     target="$HOOKS_DST/usr-${ENGINEER}.${name}"
-    relative="../../claude/usr/$ENGINEER/hooks/$name"
+    relative="../../usr/$ENGINEER/hooks/$name"
 
     if [ -L "$target" ]; then
       current="$(readlink "$target")"
@@ -154,7 +154,7 @@ if [ -d "$AGENTS_SRC" ]; then
     agent_name="$(basename "$agent_dir")"
 
     target_dir="$AGENTS_DST/usr-${ENGINEER}.${agent_name}"
-    relative_dir="../../claude/usr/$ENGINEER/agents/$agent_name"
+    relative_dir="../../usr/$ENGINEER/agents/$agent_name"
 
     if [ -L "$target_dir" ]; then
       current="$(readlink "$target_dir")"
@@ -175,7 +175,7 @@ fi
 # settings.local.json is gitignored — it only exists in the main checkout.
 # In worktrees, we symlink to the main checkout's copy using an absolute path.
 MAIN_CHECKOUT=$(git worktree list | head -1 | awk '{print $1}')
-SETTINGS_SRC_MAIN="$MAIN_CHECKOUT/claude/usr/$ENGINEER/settings.local.json"
+SETTINGS_SRC_MAIN="$MAIN_CHECKOUT/usr/$ENGINEER/settings.local.json"
 SETTINGS_DST="$ROOT/.claude/settings.local.json"
 
 if [ -f "$SETTINGS_SRC_MAIN" ]; then

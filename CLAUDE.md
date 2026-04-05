@@ -18,6 +18,7 @@ Open core model:
 ## Testing
 
 - BATS for tool tests: `bats tests/tools/`
+- ISCP tools: `bats tests/tools/iscp-db.bats tests/tools/agent-identity.bats tests/tools/dispatch-create.bats tests/tools/dispatch.bats tests/tools/flag.bats tests/tools/iscp-check.bats tests/tools/iscp-migrate.bats` (142 tests)
 - Vitest for TypeScript: `npx vitest run`
 - Test fixtures are embedded git repos with their own `.git/` — changes inside them require commits inside the fixture, then a submodule-reference update in the outer repo
 

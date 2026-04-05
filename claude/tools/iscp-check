@@ -1,0 +1,108 @@
+#!/bin/bash
+#
+# iscp-check — ISCP notification hook ("You got mail")
+#
+# What Problem: Agents need to know about unread dispatches, flags, dropbox
+# items, and notifications without manually checking. Without automatic
+# notification, dispatches sit unread across session boundaries. This tool
+# runs on SessionStart and UserPromptSubmit hooks — silent when nothing
+# is waiting, a JSON systemMessage when something is.
+#
+# How & Why: Single-pass query via iscp_db_count_unread (one SQL statement
+# reading four COUNT subqueries). Uses agent-identity for "who am I" — the
+# cached path avoids a fork on warm runs. Silent exit (no stdout, exit 0)
+# when empty so hooks don't inject noise. JSON output via jq when non-zero
+# because Claude Code hooks expect {"systemMessage": "..."} format. Every
+# failure path exits silently (exit 0) — a broken notification must never
+# block an agent's work.
+#
+# Performance: Target <200ms (PVR NFR-3). The hot path is: read cache file
+# (~1ms) + one sqlite3 fork with 4 COUNT subqueries (~10-30ms) + jq (~5ms).
+# Cold path adds agent-identity resolution (~50ms) and DB init (~20ms).
+#
+# Written: 2026-04-05 during ISCP Iteration 2.1
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source helpers
+source "$SCRIPT_DIR/lib/_path-resolve"
+source "$SCRIPT_DIR/lib/_iscp-db"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main — every failure path exits 0 silently (never block the agent)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Handle flags
+case "${1:-}" in
+    --version) echo "iscp-check $TOOL_VERSION"; exit 0 ;;
+    --help|-h)
+        cat <<'HELP'
+iscp-check — ISCP notification hook
+
+Usage: iscp-check [--version|--help]
+
+Checks for unread ISCP items (dispatches, flags, dropbox, notifications)
+and outputs a JSON systemMessage if any are found. Silent when empty.
+
+Designed for hook consumption (SessionStart, UserPromptSubmit, Stop).
+Every failure path exits silently — never blocks the agent.
+HELP
+        exit 0 ;;
+esac
+
+# Graceful: no DB = silent (fresh install, no ISCP activity yet)
+db_path=$(iscp_db_path 2>/dev/null) || exit 0
+if [[ ! -f "$db_path" ]]; then
+    exit 0
+fi
+
+# Init DB (idempotent — sets pragmas, creates tables if needed)
+iscp_db_init 2>/dev/null || exit 0
+
+# Resolve identity via agent-identity tool (uses cache on warm path)
+my_agent=$("$SCRIPT_DIR/agent-identity" 2>/dev/null) || exit 0
+if [[ -z "$my_agent" ]]; then
+    exit 0
+fi
+
+# Single-pass count of all unread items
+counts=$(iscp_db_count_unread "$my_agent" 2>/dev/null) || exit 0
+
+IFS='|' read -r flags dispatches dropbox notifications <<< "$counts"
+
+# Silent when all zeros
+total=$(( flags + dispatches + dropbox + notifications ))
+if [[ "$total" -eq 0 ]]; then
+    exit 0
+fi
+
+# Build human-readable summary parts
+parts=()
+[[ "$dispatches" -gt 0 ]] && parts+=("$dispatches dispatch(es)")
+[[ "$flags" -gt 0 ]] && parts+=("$flags flag(s)")
+[[ "$dropbox" -gt 0 ]] && parts+=("$dropbox dropbox item(s)")
+[[ "$notifications" -gt 0 ]] && parts+=("$notifications notification(s)")
+
+summary=$(IFS=", "; echo "${parts[*]}")
+
+# Build action hints based on what's waiting
+actions=()
+[[ "$dispatches" -gt 0 ]] && actions+=("dispatch list")
+[[ "$flags" -gt 0 ]] && actions+=("flag list")
+[[ "$dropbox" -gt 0 ]] && actions+=("dropbox list")
+action_hint=$(IFS=", "; echo "${actions[*]}")
+
+# Output as JSON systemMessage for hook consumption
+# Always use jq — it handles JSON escaping correctly. jq is a framework
+# dependency (required by existing tools), so if it's missing we have
+# bigger problems. Fail hard rather than emit malformed JSON.
+if ! command -v jq >/dev/null 2>&1; then
+    echo "iscp-check: ERROR — jq not found (required for JSON output)" >&2
+    exit 0  # Still exit 0 — never block the agent
+fi
+jq -n --arg msg "You have $summary. Run: $action_hint" '{"systemMessage":$msg}'

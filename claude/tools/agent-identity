@@ -1,0 +1,187 @@
+#!/bin/bash
+#
+# agent-identity — Resolve the current agent's fully qualified ISCP address
+#
+# What Problem: Every ISCP tool needs to know "who am I?" — the agent's
+# fully qualified address (repo/principal/agent). Previously, each tool
+# reinvented this detection inline (dispatch-create lines 87-96, dispatch
+# lines 153-174). The results were inconsistent and there was no caching.
+# This tool unifies identity resolution behind one interface.
+#
+# How & Why: Resolution chain: (1) CLAUDE_AGENT_NAME env var override,
+# (2) git branch detection (main/master → captain, worktree branch → slug),
+# (3) address_resolve() for full qualification. Cache keyed by branch hash
+# to prevent worktree agents from reading each other's cached identity.
+# Written as a standalone tool (not library function) so it gets its own
+# permission entry, can be called from skills, and has clean tool_output.
+#
+# Written: 2026-04-05 during ISCP Iteration 1.3
+#
+# Usage:
+#   agent-identity                  # outputs: repo/principal/agent
+#   agent-identity --agent          # outputs: agent (bare name)
+#   agent-identity --principal      # outputs: principal (bare name)
+#   agent-identity --repo           # outputs: repo (bare name)
+#   agent-identity --json           # outputs: {"repo":"...","principal":"...","agent":"..."}
+#   agent-identity --help           # show usage
+#   agent-identity --version        # show version
+#
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source helpers — _path-resolve MUST be sourced explicitly before _address-parse.
+# If AGENCY_PROJECT_ROOT is already set, _address-parse skips sourcing _path-resolve,
+# which means _pr_yaml_get is undefined and principal mapping fails silently.
+source "$SCRIPT_DIR/lib/_log-helper"
+source "$SCRIPT_DIR/lib/_path-resolve"
+source "$SCRIPT_DIR/lib/_address-parse"
+
+# --- Parse args ---
+OUTPUT_MODE="full"  # full, agent, principal, repo, json
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --agent)     OUTPUT_MODE="agent"; shift ;;
+        --principal) OUTPUT_MODE="principal"; shift ;;
+        --repo)      OUTPUT_MODE="repo"; shift ;;
+        --json)      OUTPUT_MODE="json"; shift ;;
+        --help|-h)
+            cat <<'USAGE'
+Usage: agent-identity [--agent|--principal|--repo|--json]
+
+Resolve the current agent's fully qualified ISCP address.
+
+Options:
+  --agent       Output bare agent name only
+  --principal   Output bare principal name only
+  --repo        Output bare repo name only
+  --json        Output all components as JSON
+  --help        Show this help
+  --version     Show version
+
+Resolution order:
+  1. CLAUDE_AGENT_NAME env var (if set)
+  2. Git branch detection (main/master → captain, worktree → branch slug)
+  3. address_resolve() for full qualification via agency.yaml + git remote
+
+Cache: Results cached at ~/.agency/{repo}/.agent-identity-{branch-hash}
+USAGE
+            exit 0 ;;
+        --version)
+            echo "agent-identity $TOOL_VERSION"
+            exit 0 ;;
+        *)
+            echo "Error: unknown option: $1" >&2
+            echo "Run: agent-identity --help" >&2
+            exit 1 ;;
+    esac
+done
+
+RUN_ID=$(log_start "agent-identity" "$OUTPUT_MODE")
+
+# --- Detect agent name ---
+# Priority: env var > branch detection
+AGENT_NAME="${CLAUDE_AGENT_NAME:-}"
+if [[ -z "$AGENT_NAME" ]]; then
+    local_branch=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    # Strip any path prefix (e.g., worktree-iscp → iscp, feat/foo → foo)
+    local_branch="${local_branch##*/}"
+    # Strip worktree- prefix if present
+    local_branch="${local_branch#worktree-}"
+    case "$local_branch" in
+        main|master) AGENT_NAME="captain" ;;
+        *) AGENT_NAME="$local_branch" ;;
+    esac
+fi
+
+# --- Resolve to fully qualified address ---
+# Check cache first
+_cache_dir=""
+_cache_file=""
+
+# Resolve repo name for cache path (best-effort, don't fail if we can't cache)
+_repo_name=""
+if _repo_name="$(_address_detect_repo 2>/dev/null)"; then
+    _cache_dir="$HOME/.agency/$_repo_name"
+    # Cache key includes branch to prevent worktree collision (MAR F-4)
+    _branch_key=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    _branch_hash=$(printf '%s' "$_branch_key" | cksum | cut -d' ' -f1)
+    _cache_file="$_cache_dir/.agent-identity-$_branch_hash"
+fi
+
+# Try reading from cache
+if [[ -n "$_cache_file" && -f "$_cache_file" ]]; then
+    _cached=$(cat "$_cache_file")
+    # Parse the cached address
+    if address_parse "$_cached" 2>/dev/null; then
+        # Verify agent name matches (cache could be stale if CLAUDE_AGENT_NAME changed)
+        if [[ "$ADDR_AGENT" == "$AGENT_NAME" ]]; then
+            # Cache hit — use it
+            case "$OUTPUT_MODE" in
+                full)
+                    echo "$_cached"
+                    ;;
+                agent)
+                    echo "$ADDR_AGENT"
+                    ;;
+                principal)
+                    echo "$ADDR_PRINCIPAL"
+                    ;;
+                repo)
+                    echo "$ADDR_REPO"
+                    ;;
+                json)
+                    # Use printf for JSON safety (no jq dependency for this tool)
+                    printf '{"repo":"%s","principal":"%s","agent":"%s"}\n' \
+                        "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT"
+                    ;;
+            esac
+            log_end "$RUN_ID" "success" "0" "0" "cache hit: $_cached"
+            exit 0
+        fi
+    fi
+fi
+
+# Cache miss — resolve fresh
+address_resolve "$AGENT_NAME" || {
+    log_end "$RUN_ID" "error" "1" "0" "cannot resolve identity for '$AGENT_NAME'"
+    echo "Error: cannot resolve agent identity for '$AGENT_NAME'" >&2
+    echo "Check: agency.yaml principals section, git remote" >&2
+    exit 1
+}
+
+FULL_ADDRESS=$(address_format)
+
+# Write cache (best-effort — don't fail if we can't cache)
+if [[ -n "$_cache_file" ]]; then
+    mkdir -p "$_cache_dir" 2>/dev/null || true
+    # Restrictive permissions — identity cache is sensitive (agent impersonation)
+    (umask 077 && echo "$FULL_ADDRESS" > "$_cache_file") 2>/dev/null || true
+fi
+
+# --- Output ---
+case "$OUTPUT_MODE" in
+    full)
+        echo "$FULL_ADDRESS"
+        ;;
+    agent)
+        echo "$ADDR_AGENT"
+        ;;
+    principal)
+        echo "$ADDR_PRINCIPAL"
+        ;;
+    repo)
+        echo "$ADDR_REPO"
+        ;;
+    json)
+        printf '{"repo":"%s","principal":"%s","agent":"%s"}\n' \
+            "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT"
+        ;;
+esac
+
+log_end "$RUN_ID" "success" "0" "0" "$FULL_ADDRESS"

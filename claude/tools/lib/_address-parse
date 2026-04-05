@@ -418,11 +418,10 @@ _address_detect_principal() {
         return 1
     fi
 
-    # If AGENCY_PRINCIPAL is already resolved, use it
-    if [[ -n "${AGENCY_PRINCIPAL:-}" && "${AGENCY_PRINCIPAL}" != "unknown" ]]; then
-        echo "$AGENCY_PRINCIPAL"
-        return 0
-    fi
+    # AGENCY_PRINCIPAL is DEPRECATED — never trust it.
+    # It leaks from test suites, shell profiles, and old add-principal runs.
+    # Always resolve from agency.yaml via $USER. See: iscp-reference-20260405.md,
+    # hookify.block-testuser-paths.md, and the test-leakage dispatch.
 
     # Try mapping current $USER via _pr_yaml_get
     local principal

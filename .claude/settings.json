@@ -21,6 +21,10 @@
           },
           {
             "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
+          },
+          {
+            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
           }
         ]
@@ -44,7 +48,16 @@
         ]
       }
     ],
-    "UserPromptSubmit": [],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Skill",
@@ -106,6 +119,10 @@
           },
           {
             "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
+          },
+          {
+            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
           }
         ]
@@ -149,6 +166,7 @@
       "Bash(./claude/tools/deploy-*:*)",
       "Bash(./claude/tools/designsystem-add*)",
       "Bash(./claude/tools/designsystem-validate*)",
+      "Bash(./claude/tools/dispatch)",
       "Bash(./claude/tools/dispatch *)",
       "Bash(./claude/tools/dispatch-create*)",
       "Bash(./claude/tools/epic-create*)",
@@ -168,6 +186,11 @@
       "Bash(./claude/tools/hello*)",
       "Bash(./claude/tools/hi*)",
       "Bash(./claude/tools/icloud-setup*)",
+      "Bash(./claude/tools/agent-identity*)",
+      "Bash(./claude/tools/iscp-check*)",
+      "Bash(./claude/tools/iscp-migrate*)",
+      "Bash(./claude/tools/flag *)",
+      "Bash(./claude/tools/flag)",
       "Bash(./claude/tools/instruction-capture*)",
       "Bash(./claude/tools/instruction-complete*)",
       "Bash(./claude/tools/instruction-index-update*)",
@@ -226,6 +249,23 @@
       "Bash(./claude/tools/safe-extract*)",
       "Bash(./claude/tools/worktree-sync*)",
       "Bash(unzip -d usr/*:*)",
+      "Bash(git show *:*)",
+      "Bash(git worktree *)",
+      "Bash(git -C * merge *)",
+      "Bash(git -C * log *)",
+      "Bash(git -C * status *)",
+      "Bash(git -C * diff *)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git status *)",
+      "Bash(git branch *)",
+      "Bash(git merge *)",
+      "Bash(git rev-parse *)",
+      "Bash(git remote *)",
+      "Bash(git symbolic-ref *)",
+      "Bash(sqlite3 */.agency/*/iscp.db *)",
+      "Bash(ls */.agency/*)",
+      "Bash(bats tests/*)",
       "Read(.claude/**)",
       "Read(claude/**)",
       "Read(usr/**)"
