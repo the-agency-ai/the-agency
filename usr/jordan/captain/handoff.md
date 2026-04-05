@@ -1,8 +1,8 @@
 ---
 type: session
-date: 2026-04-04 17:00
+date: 2026-04-05 18:00
 branch: main
-trigger: session-pause-compact — 1B1 at 15/29, agents running, compact needed
+trigger: pre-compact — session 19 end
 agent: the-agency/jordan/captain
 ---
 
@@ -10,110 +10,108 @@ agent: the-agency/jordan/captain
 
 **Agent:** the-agency/jordan/captain
 **Principal:** Jordan
-**Updated:** 2026-04-04 (session 18 continued)
+**Updated:** 2026-04-05 (session 19)
 
 ## Current State
 
-Release scoping 1B1 **complete** — 29/29 items resolved. Three agents running on worktrees (ISCP, mdpal-cli, mdpal-app).
+Session 19 — major progress on ISCP v1 merge/deployment, the-agency-group bifurcation, CLAUDE-THEAGENCY.md ISCP integration, provider-spec pattern (testing), and content migration. ISCP is live and working (dispatches sent/received between captain and ISCP agent).
 
-## Session 18 (continued) Summary
+## Session 19 Summary
 
-### Phase 1: Earlier (pre-compact)
-- Flag data loss fix, transcript mining, ISCP workstream creation
-- Addressing standards, scoped CLAUDE.md, provenance headers in CLAUDE-THEAGENCY.md
-- 4-agent MAR, 20 commits pushed to origin
-- Monofolk dispatch for framework incorporation
+### ISCP v1 Merge & Deployment
+- Merged ISCP worktree branch to main (resolved 3 merge conflicts: dispatch tool, PVR, A&D)
+- Read all ISCP dispatches, ran multi-agent review
+- Found 4 HIGH/MEDIUM issues: SQL injection in reply_to, last_insert_rowid() race, echo strips newlines, bare address fallback stores unqualified names
+- Found identity bug: agent-identity returned `testuser` instead of `jordan` (M4)
+- Dispatched all findings to ISCP agent for fixes
+- ISCP agent fixed all 9 findings (4 HIGH/MEDIUM + 5 LOW), 142 tests green
+- Merged ISCP fixes back to main
+- Updated CLAUDE-THEAGENCY.md with full ISCP integration:
+  - 5 ISCP tools in repo structure
+  - Updated transport layer (future ISCP → current ISCP)
+  - New dispatch/flag descriptions (DB-backed, 8-type enum, integer IDs)
+  - New "## ISCP" section with tools table and "when you have mail" guidance
+  - Updated worktree dispatch handling for iscp-check auto-notification
+- ISCP notifications working live — dispatches sent and received between captain ↔ ISCP
 
-### Phase 2: Post-compact
-- PR #34 created (content + hookify testuser block + monofolk dispatch)
-- X article "Enforcement Triangle" published, LinkedIn post published
-- Jordan's voice style guide created at `usr/jordan/captain/content/jordans-voice.md`
-- Content queue started: 3 more articles planned (Continual Improvement Loop, Why mdpal, Why M&M)
-- Hookify rule `block-testuser-paths` — blocks env leak writes
-- ISCP worktree created via `/worktree-create` skill
-- All 3 agents launched: ISCP (bootstrapped, has 7-phase plan), mdpal-cli (running), mdpal-app (running)
-- Monofolk collaboration-repo dispatch received (private coordination repo created)
-- DevEx dispatch read (6 items decided, all accepted)
-- Release scoping 1B1: 15/29 items resolved
+### the-agency-group Bifurcation
+- Distinction: the-agency = platform/framework, the-agency-group = business entity
+- Created the-agency-group repo under the-agency-ai org via `agency init`
+- Designed structure via 1B1: 7 workstreams (the-agency-book, content, gtm, distribution, web, publisher, crm)
+- 4 agents moving from the-agency: gtm, gumroad, discord, apple
+- New agent classes needed: editor, writer, channel-manager, analyst
+- Content monetization model documented (credibility-first, Pragmatic Engineer reference)
+- CLAUDE-WRITING.md concept: writing instructions for content agents (Jordan's voice/style)
+- Seed document written: `the-agency-group/usr/jordan/captain/seeds/the-agency-group-structure-20260405.md`
+- Migrated content files from the-agency to the-agency-group:
+  - content-strategy, pragmatic-engineer reference, jamonholmgren reference
+  - jordans-voice.md, linkedin article, x article, content-queue
+- Removed `.claude/agents/gtm.md` from the-agency (moved to the-agency-group)
 
-### Release Scoping Decisions (Items 1-15)
+### Provider-Spec Pattern (Testing)
+- Identified testing configuration belongs in agency.yaml, not CLAUDE.md
+- Added `testing:` section to agency.yaml with `provider: "multi"` and suites config
+- Rewrote `claude/tools/test-run` v2: reads suites from agency.yaml, falls back to package manager detection
+- Removed vitest suite (agency-service uses bun:test, not vitest)
+- **BLOCKED: test-run v2 commit failing** — pre-commit runs full BATS suite, reports "Unit tests failed ✗"
 
-| # | Item | Decision |
-|---|------|----------|
-| 1 | agency-init | #1 priority. Five bugs. Front door to framework. |
-| 2 | agency-update (NEW) | #2 priority. Three audiences: monofolk, starter migrants, new adopters. |
-| 3 | agent-create | #3. Five bugs. Two entry points: standalone + workstream-create dependency. |
-| 4 | Pre-approved permissions | High priority. Known gaps + systematic discovery via transcript/log mining. |
-| 5 | SessionStart hook | Iterate toward mechanical enforcement. Progress over perfection. |
-| 6 | /pr skill (was /push) | Captain-only. Branch→QG→PR→push→auto-merge. No human review. Full triangle. |
-| 7 | Test isolation | Docker containers for all tests. Full Enforcement Triangle for test execution. Future: test result reporting service. |
-| 8 | Handoff multi-agent | Support {agent}-handoff.md per agent. |
-| 9 | Transcript mining tool | Formalize to claude/tools/. Downstream: agentic pipeline for friction detection. |
-| 10 | Dispatch auto-read | Abstraction layer now (file-rename), ISCP replaces with SQLite later. Dispatch requirement to ISCP. |
-| 11 | Hookify rules terse | Standard pattern: one-liner + doc ref + kittens. Audit remaining. |
-| 12 | Handoff typed frontmatter | Add type: field (session-restore, agency-bootstrap, agent-bootstrap). |
-| 13 | Transcript commit discipline | Dual-write: worktree + master. Tooling handles it. |
-| 14 | Kill agency-service | Salt the earth. ISCP + dispatches replace it. |
-| 15 | Kill /agency dispatcher | Document patterns/anti-patterns first, then delete. Pass learnings to ISCP. |
+### DevEx Workstream
+- Decision: create the-agency/devex workstream + agent for Docker test isolation
+- Not yet created — pending session bandwidth
 
-### Release Scoping Decisions (Items 16-29)
+## Blocked Work
 
-| # | Item | Decision |
-|---|------|----------|
-| 16 | starter sunset | Mine, notify 8 stargazers/1 fork/1 follower, update README, pin issue, archive after agency-update works. |
-| 17 | Vouch model | Ghostty-style CONTRIBUTING.md + 4D-aligned AI-POLICY.md. Agent pre-screens, human vouches. |
-| 18 | the-agency-content | Private repo. Migrate all content. Workstreams: articles, book, workshops, presentations. Captain as CoS. |
-| 19 | X/Twitter | Custom MCP, pay-per-use (~$10/mo). Jordan TODO: developer account @AgencyGroupAI. Curated follow list. |
-| 20 | Provenance headers | Hookify rule: block Write without `What Problem:` + `How & Why:`. Full triangle. |
-| 21 | MAR | Formal pattern: concept + review loop + composition per QG + red-green discipline. Named agents + generic reviewers. |
-| 22 | PROVIDER-SPEC.md | DevEx workstream + agent in the-agency. Bootstrap from monofolk DevEx context transfer. |
-| 23 | Dropbox | ISCP owns. Sits outside repo. |
-| 24 | Flag SQLite | ISCP owns. DB outside repo. |
-| 25 | Dispatch lifecycle | ISCP owns. DB outside repo. |
-| 26 | Cross-repo | ISCP owns eventually. Priority: intra → inter same repo → cross same value stream → cross different. |
-| 27 | Seeds location | claude/workstreams/{name}/seeds/. Belongs to workstream, not agent. |
-| 28 | agency-init ordering | Already settled: git init → agency init → claude. |
-| 29 | Ghostty-only | Ghostty + VS Code + Zed + CLI. Community contributes others. No Cursor. |
+### test-run v2 Commit (IMMEDIATE)
+Three files staged but uncommitted:
+- `claude/config/agency.yaml` (testing section)
+- `claude/tools/test-run` (v2 rewrite)
+- `usr/jordan/captain/dispatches/dispatch-testing-iscp-dispatch-please-reply-20260405-1645.md`
+
+Pre-commit hook runs `commit-precheck` → `./claude/tools/test-run` → `bats tests/tools/`. BATS produces BW01 warnings but should exit 0. `commit-precheck` reports "Unit tests failed ✗". Root cause unclear — likely commit-precheck checks output content not just exit code, or test-run v2's eval pipeline loses exit code.
+
+**Options:** (1) investigate commit-precheck's test failure detection, (2) defer test-run v2 to devex workstream, (3) temporarily bypass.
+
+## Git State
+
+- **Branch:** main
+- **Ahead of origin:** ~7 commits (ISCP merge, ISCP fixes merge, CLAUDE-THEAGENCY.md updates, content removal/migration)
+- **Staged uncommitted:** 3 files (test-run v2 + agency.yaml + dispatch)
+- **Unstaged modified:** `history/push-log.md`
+- **Untracked:** ISCP AD/PVR dispatches, Twitter article PDF, handoff files
+
+## Pending Tasks (Priority Order)
+
+1. **Fix test-run v2 commit block** — investigate commit-precheck, get staged files committed
+2. **Push to origin** — 7+ local commits need pushing
+3. **Run `iscp-migrate`** on main to import legacy flags/dispatches into SQLite
+4. **Create devex workstream + agent** for Docker test isolation
+5. **Resolve remaining PVR MAR items** (8 remaining: multi-principal, CI/headless, error recovery, versioning, R16 mechanism, priority tiers, dependency edges, agency-doctor, launch criteria)
+6. **the-agency-group `/define`** — PVR from seed document, 8 open questions
+7. **Move book content** from ordinaryfolk-nextgen (27 files)
+8. **CLAUDE-WRITING.md** — capture Jordan's voice/style from Claude Desktop
+9. **PR to monofolk** for ISCP after more internal usage
+10. **Sync worktrees** after all merges
 
 ## Active Agents
 
 | Agent | Worktree | Status |
 |-------|----------|--------|
-| iscp | `.claude/worktrees/iscp/` | Running — has 7-phase plan, 22 iterations |
+| iscp | `.claude/worktrees/iscp/` | Active — all 9 review findings fixed, 142 tests green |
 | mdpal-cli | `.claude/worktrees/mdpal/` | Running |
 | mdpal-app | `.claude/worktrees/mdpal/` | Running |
 
-## Git State
-
-- **Branch:** main
-- **Ahead of origin:** ~15 commits (content, hookify, release scoping, transcript)
-- **PR #34:** open, content + hookify + monofolk dispatch
-- **Monofolk branch:** `monofolk/collaboration-repo-20260404` — unmerged, private coord repo
-
-## Flag Queue
-
-60 items. Key additions this phase:
-- /pr skill (was /push) — Enforcement Triangle
-- Test result reporting service
-- Git commit permissions for agents
-- Thoughts on Principles document
-- the-agency-content repo
-
-## What's Next
-
-1. **Resume 1B1** at Item 16 (the-agency-starter sunset) — 14 items remaining
-2. **Generate PVR** from resolved items → A&D → Plan
-3. **Dispatch to ISCP:** agency dispatcher patterns/anti-patterns + dispatch auto-read requirement
-4. **Update presence-detect**
-5. **Merge PR #34** and monofolk collaboration branch
-6. **Content:** Continual Improvement Loop article, Why mdpal, Why M&M
-
-## Key Files This Phase
+## Key Files This Session
 
 | File | Change |
 |------|--------|
-| `usr/jordan/captain/next-release-items-20260404.md` | NEW — 29 release items |
-| `usr/jordan/captain/transcripts/discussion-transcript-next-release-20260404.md` | NEW — 1B1 transcript, 15 items resolved |
-| `usr/jordan/captain/content/` | NEW dir — X article, LinkedIn, voice guide, content queue |
-| `claude/hookify/hookify.block-testuser-paths.md` | NEW — env leak block |
-| `usr/jordan/captain/dispatches/dispatch-monofolk-hookify-testuser-20260404.md` | NEW — adoption directive |
+| `claude/CLAUDE-THEAGENCY.md` | ISCP integration — tools, transport, dispatch/flag v2, new ISCP section |
+| `claude/config/agency.yaml` | Added testing provider section (staged, uncommitted) |
+| `claude/tools/test-run` | v2 rewrite — agency.yaml driven (staged, uncommitted) |
+| `usr/jordan/captain/dispatches/review-iscp-v1-code-review-20260405.md` | Code review dispatch to ISCP |
+| `usr/jordan/captain/transcripts/dialogue-transcript-20260405.md` | Session 19 transcript |
+| `the-agency-group/usr/jordan/captain/seeds/the-agency-group-structure-20260405.md` | Seed for the-agency-group structure |
+| `.claude/settings.json` | Added bare dispatch permission |
+
+## Flag Queue
+
+62 items (2 added this session: always-on transcription gap, +1 from session).

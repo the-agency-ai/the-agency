@@ -81,6 +81,15 @@ crawl:
   provider: "webfetch"  # Default: webfetch (built-in). Alternatives: playwright, wget, scrapy
   sites: []  # Configure per-project: [{name, url, patterns}]
 
+# Testing — declares test suites and how to run them
+# test-run reads this section. Each suite has a name, command, and optional scope.
+testing:
+  provider: "multi"  # multi = run all configured suites
+  suites:
+    tools:
+      command: "bats tests/tools/"
+      description: "BATS tool tests (framework tools, ISCP)"
+
 # Design system integration
 design:
   provider: "figma"  # Default: figma. Alternatives: sketch, adobe
