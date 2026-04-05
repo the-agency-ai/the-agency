@@ -1,7 +1,7 @@
 ---
 type: session-handoff
 date: 2026-04-05
-trigger: iteration-complete 1.2 — _iscp-db library committed
+trigger: ISCP v1 complete — Phases 1 and 2 shipped
 agent: the-agency/jordan/iscp
 workstream: iscp
 ---
@@ -10,66 +10,59 @@ workstream: iscp
 
 **Agent:** the-agency/jordan/iscp
 **Branch:** iscp (worktree at `.claude/worktrees/iscp/`)
-**Last commit:** `9956644` Phase 1.2: _iscp-db library — shared SQLite abstraction for ISCP
+**Last commit:** `b711ada` Phase 2.2: iscp-migrate + hookify rules
 
 ## Current State
 
-Phase 1, Iterations 1.1 (design) and 1.2 (_iscp-db library) complete. QG passed (12 findings, all fixed — key: newline injection, param name validation, file permissions, test coverage). 51 BATS tests all green.
+**ISCP v1 is complete.** Both phases shipped. 142 BATS tests all green.
 
-**Next: Iteration 1.3 (agent-identity tool).**
+### Phase 1: Identity + Dispatch + Flag ✅
+- 1.1 Design (PVR + A&D)
+- 1.2 `_iscp-db` library (51 tests) — commit `9956644`
+- 1.3 `agent-identity` tool (15 tests) — commit `86a4f9d`
+- 1.4 `dispatch create` subcommand (17 tests) — commit `7721754`
+- 1.5 `dispatch` lifecycle (18 tests) — commit `d50dbff`
+- 1.6 `flag` v2 (14 tests) — commit `3b187e5`
 
-## Key Decisions
+### Phase 2: Hook + Migration + Enforcement ✅
+- 2.1 `iscp-check` + hook wiring (13 tests) — commit `4d2fb88`
+- 2.2 `iscp-migrate` + hookify rules (14 tests) — commit `b711ada`
 
-1. **DB location:** `~/.agency/{repo-name}/iscp.db` — outside git
-2. **Hook triggers:** SessionStart + UserPromptSubmit
-3. **Dispatch types:** 7-type enum + pending 8th (`commit` — agent→captain, per principal request)
-4. **Dropbox:** `~/.agency/{repo}/dropbox/{principal}/{agent}/` — outside git
-5. **Transcripts:** Always-on Granola model
-6. **Subscriptions:** Principal-scoped, captain repo-wide exception
-7. **subscriptions.filter:** Changed to `NOT NULL DEFAULT ''` (SQLite NULL uniqueness issue)
-8. **Parameter safety:** `.param set` with double-quote escaping, newline/CR/tab handled, strict name regex
+## What's Operational
 
-## Pending: New Dispatch Type `commit`
-
-Principal requested adding `commit` as an 8th dispatch type — sent from agent to captain when a git commit is made. Needs:
-- PVR update (new dispatch type)
-- A&D update (schema CHECK constraint)
-- Schema update in `_iscp-db` (add 'commit' to dispatches type CHECK)
-
-Incorporate before Phase 2 (Dispatch implementation).
+- **Dispatches:** create, list, read, check, resolve, status — DB + git payload
+- **Flags:** capture, list, count, discuss, clear — DB-only, agent-addressable
+- **Notifications:** iscp-check fires on SessionStart, UserPromptSubmit, Stop — silent when empty, JSON systemMessage when items waiting
+- **Migration:** iscp-migrate imports legacy JSONL flags and markdown dispatches
+- **Enforcement:** 5 hookify rules (dispatch-manual, flag-manual, directive-authority, review-authority, session-start-mail)
 
 ## Next Action
 
-Start **Phase 1, Iteration 1.3: `agent-identity` tool**
+**Land on main.** ISCP v1 is feature-complete. The branch needs:
+1. Merge from main (pick up any recent changes)
+2. Phase-complete QG (deep review)
+3. Land on main via `/phase-complete` or captain coordination
+4. Captain runs `/sync-all` to distribute to all worktrees
 
-1. Create `claude/tools/agent-identity`
-2. Resolution chain: git branch → agency.yaml → git remote
-3. Ignore `AGENCY_PRINCIPAL` entirely (deprecated)
-4. Output fully qualified address: `{repo}/{principal}/{agent}`
-5. Cache to `~/.agency/{repo}/.agent-identity`
-6. Patch `_address-parse` to remove `AGENCY_PRINCIPAL` dependency
-7. BATS tests
-
-See plan: `claude/workstreams/iscp/iscp-plan-20260404.md`
+**Then: deferred phases** (dropbox, transcripts, subscriptions, integration) — these ship after the core is operational and proven.
 
 ## Key Files
 
 | File | What |
 |------|------|
-| `claude/workstreams/iscp/iscp-pvr-20260404.md` | PVR — 13 UCs, 11 FRs, 7 NFRs |
-| `claude/workstreams/iscp/iscp-ad-20260404.md` | A&D — 6 tables, 8 tools, 7 hookify rules |
-| `claude/workstreams/iscp/iscp-plan-20260404.md` | Plan — 7 phases, 22 iterations |
-| `claude/tools/lib/_iscp-db` | Shared SQLite library (Phase 1.2) |
-| `tests/tools/iscp-db.bats` | 51 BATS tests for _iscp-db |
-
-## Pending Dispatches (awaiting responses)
-
-- `usr/jordan/captain/dispatches/dispatch-iscp-pvr-ad-review-20260404-2012.md` — captain review
-- `usr/jordan/mdpal/dispatches/dispatch-iscp-pvr-ad-review-20260404-2013.md` — mdpal consumer review
+| `claude/tools/agent-identity` | Unified "who am I" with branch-scoped cache |
+| `claude/tools/dispatch` | Full dispatch lifecycle (create/list/read/check/resolve/status) |
+| `claude/tools/dispatch-create` | Thin wrapper → `dispatch create` |
+| `claude/tools/flag` | SQLite-backed flags, agent-addressable |
+| `claude/tools/iscp-check` | "You got mail" hook — silent or JSON systemMessage |
+| `claude/tools/iscp-migrate` | Legacy data migration (JSONL flags + markdown dispatches) |
+| `claude/tools/lib/_iscp-db` | Shared SQLite library |
+| `.claude/settings.json` | Hook wiring + permissions |
+| `claude/hookify/hookify.*.md` | 5 enforcement rules |
+| `claude/workstreams/iscp/iscp-plan-20260404.md` | Plan (living document) |
 
 ## Known Issues
 
-- `dispatch-create` tool has `AGENCY_PRINCIPAL` env leak bug — Iteration 1.3 patches `_address-parse`
-- `handoff` tool has same env leak — manual handoff until fixed
-- Main checkout has stale PVR/A&D copies — canonical versions on iscp branch
-- Pre-commit `code-review` tool flags `UPDATE $table` as SQL injection (false positive) — avoided by using `$table` without braces
+- Skill updates (dispatch, flag, session-resume) noted in plan but not yet done — skills still reference v1 interface
+- Main checkout has stale copies of PVR/A&D — canonical versions on iscp branch
+- `handoff` tool principal resolution may still have AGENCY_PRINCIPAL leak (not patched in handoff tool itself)
