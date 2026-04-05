@@ -239,6 +239,275 @@ DISPATCH_EOF
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# list — List dispatches from DB
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_list() {
+    local show_all=false filter_status="" filter_type=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --all)    show_all=true; shift ;;
+            --status) filter_status="$2"; shift 2 ;;
+            --type)   filter_type="$2"; shift 2 ;;
+            --help|-h)
+                echo "Usage: dispatch list [--all] [--status <s>] [--type <t>]"
+                return 0 ;;
+            *) echo "Error: unknown option for list: $1" >&2; return 1 ;;
+        esac
+    done
+
+    iscp_db_init
+
+    local my_agent=""
+    if [[ "$show_all" != "true" ]]; then
+        my_agent=$(_resolve_identity) || return 1
+    fi
+
+    # Build query
+    local where_clauses=()
+    local params=()
+    if [[ -n "$my_agent" ]]; then
+        where_clauses+=("to_agent = :agent")
+        params+=(":agent" "$my_agent")
+    fi
+    if [[ -n "$filter_status" ]]; then
+        where_clauses+=("status = :status")
+        params+=(":status" "$filter_status")
+    fi
+    if [[ -n "$filter_type" ]]; then
+        where_clauses+=("type = :type")
+        params+=(":type" "$filter_type")
+    fi
+
+    local where=""
+    if [[ ${#where_clauses[@]} -gt 0 ]]; then
+        # Join with AND
+        local joined=""
+        for clause in "${where_clauses[@]}"; do
+            if [[ -n "$joined" ]]; then
+                joined="$joined AND $clause"
+            else
+                joined="$clause"
+            fi
+        done
+        where="WHERE $joined"
+    fi
+
+    local sql="SELECT id, type, priority, status, subject, from_agent, created_at FROM dispatches $where ORDER BY created_at DESC"
+
+    local result
+    # ${params[@]+...} handles empty array with set -u
+    result=$(iscp_db_query "$sql" ${params[@]+"${params[@]}"})
+
+    if [[ -z "$result" ]]; then
+        echo "No dispatches found."
+        return 0
+    fi
+
+    # Format as table
+    printf "%-4s %-18s %-8s %-10s %-40s %s\n" "ID" "TYPE" "PRI" "STATUS" "SUBJECT" "FROM"
+    printf "%s\n" "──────────────────────────────────────────────────────────────────────────────────────────────────"
+
+    while IFS='|' read -r id dtype pri status subj from_ag created; do
+        # Truncate subject to 40 chars
+        [[ ${#subj} -gt 40 ]] && subj="${subj:0:37}..."
+        printf "%-4s %-18s %-8s %-10s %-40s %s\n" "$id" "$dtype" "$pri" "$status" "$subj" "$from_ag"
+    done <<< "$result"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# read — Display dispatch payload and mark as read
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_read() {
+    local dispatch_id="${1:-}"
+    if [[ -z "$dispatch_id" || ! "$dispatch_id" =~ ^[0-9]+$ ]]; then
+        echo "Error: dispatch read requires an integer ID" >&2
+        return 1
+    fi
+
+    iscp_db_init
+
+    # Get dispatch record
+    local record
+    record=$(iscp_db_query "SELECT payload_path, from_agent, to_agent, type, priority, subject, status, created_at FROM dispatches WHERE id = :id" ":id" "$dispatch_id")
+
+    if [[ -z "$record" ]]; then
+        echo "Error: dispatch ID $dispatch_id not found" >&2
+        return 1
+    fi
+
+    IFS='|' read -r payload_path from_ag to_ag dtype pri subj status created <<< "$record"
+
+    # Display metadata
+    echo "─── Dispatch #$dispatch_id ───"
+    echo "  Subject:  $subj"
+    echo "  Type:     $dtype"
+    echo "  Priority: $pri"
+    echo "  From:     $from_ag"
+    echo "  To:       $to_ag"
+    echo "  Created:  $created"
+    echo "  Status:   $status"
+    echo "───────────────────────"
+    echo ""
+
+    # Read payload file
+    local main_checkout
+    main_checkout=$(_main_checkout)
+    local full_path="$main_checkout/$payload_path"
+
+    if [[ -f "$full_path" ]]; then
+        cat "$full_path"
+    else
+        # Try git show for worktree access
+        git show "master:$payload_path" 2>/dev/null || git show "main:$payload_path" 2>/dev/null || {
+            echo "(payload file not found at $payload_path)"
+        }
+    fi
+
+    # Mark as read if currently unread
+    if [[ "$status" == "unread" ]]; then
+        local my_agent
+        my_agent=$(_resolve_identity 2>/dev/null) || my_agent="unknown"
+        local now
+        now=$(date -u +%Y-%m-%dT%H:%M)
+        iscp_db_exec "UPDATE dispatches SET status = 'read', read_at = :now, read_by = :agent WHERE id = :id" \
+            ":now" "$now" ":agent" "$my_agent" ":id" "$dispatch_id"
+        echo ""
+        echo "dispatch: marked as read by $my_agent"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# check — Quick count for hook use (silent when empty)
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_check() {
+    # Graceful: no DB = silent
+    local db_path
+    db_path=$(iscp_db_path 2>/dev/null) || return 0
+    if [[ ! -f "$db_path" ]]; then
+        return 0
+    fi
+
+    iscp_db_init 2>/dev/null || return 0
+
+    local my_agent
+    my_agent=$(_resolve_identity 2>/dev/null) || return 0
+
+    local counts
+    counts=$(iscp_db_count_unread "$my_agent" 2>/dev/null) || return 0
+
+    IFS='|' read -r flags dispatches dropbox notifications <<< "$counts"
+
+    # Silent when all zeros
+    local total=$(( flags + dispatches + dropbox + notifications ))
+    if [[ "$total" -eq 0 ]]; then
+        return 0
+    fi
+
+    # Build summary
+    local parts=()
+    [[ "$dispatches" -gt 0 ]] && parts+=("$dispatches dispatch(es)")
+    [[ "$flags" -gt 0 ]] && parts+=("$flags flag(s)")
+    [[ "$dropbox" -gt 0 ]] && parts+=("$dropbox dropbox item(s)")
+    [[ "$notifications" -gt 0 ]] && parts+=("$notifications notification(s)")
+
+    local summary
+    summary=$(IFS=", "; echo "${parts[*]}")
+
+    # Output as JSON for hook consumption
+    if command -v jq >/dev/null 2>&1; then
+        jq -n --arg msg "You have $summary. Run: dispatch list, flag list" '{"systemMessage":$msg}'
+    else
+        printf '{"systemMessage":"You have %s. Run: dispatch list, flag list"}\n' "$summary"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# resolve — Mark dispatch as resolved
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_resolve() {
+    local dispatch_id="" response_id=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --response)
+                [[ -n "${2:-}" ]] || { echo "Error: --response requires a dispatch ID" >&2; return 1; }
+                response_id="$2"; shift 2 ;;
+            *)
+                if [[ -z "$dispatch_id" && "$1" =~ ^[0-9]+$ ]]; then
+                    dispatch_id="$1"; shift
+                else
+                    echo "Error: dispatch resolve requires an integer ID" >&2; return 1
+                fi ;;
+        esac
+    done
+
+    if [[ -z "$dispatch_id" ]]; then
+        echo "Error: usage: dispatch resolve <id> [--response <id>]" >&2
+        return 1
+    fi
+
+    iscp_db_init
+
+    # Verify dispatch exists
+    local exists
+    exists=$(iscp_db_query "SELECT count(*) FROM dispatches WHERE id = :id" ":id" "$dispatch_id")
+    if [[ "$exists" -eq 0 ]]; then
+        echo "Error: dispatch ID $dispatch_id not found" >&2
+        return 1
+    fi
+
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M)
+
+    iscp_db_exec "UPDATE dispatches SET status = 'resolved', resolved_at = :now WHERE id = :id" \
+        ":now" "$now" ":id" "$dispatch_id"
+
+    echo "dispatch: #$dispatch_id marked as resolved at $now"
+
+    # Link response dispatch if provided
+    if [[ -n "$response_id" ]]; then
+        echo "dispatch: linked response dispatch #$response_id"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# status — Show full record for a dispatch
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_status() {
+    local dispatch_id="${1:-}"
+    if [[ -z "$dispatch_id" || ! "$dispatch_id" =~ ^[0-9]+$ ]]; then
+        echo "Error: dispatch status requires an integer ID" >&2
+        return 1
+    fi
+
+    iscp_db_init
+
+    local record
+    record=$(iscp_db_query "SELECT id, created_at, from_agent, to_agent, type, priority, subject, payload_path, in_reply_to, status, read_at, read_by, resolved_at FROM dispatches WHERE id = :id" ":id" "$dispatch_id")
+
+    if [[ -z "$record" ]]; then
+        echo "Error: dispatch ID $dispatch_id not found" >&2
+        return 1
+    fi
+
+    IFS='|' read -r id created from_ag to_ag dtype pri subj path reply_to status read_at read_by resolved_at <<< "$record"
+
+    echo "Dispatch #$id"
+    echo "  Subject:     $subj"
+    echo "  Type:        $dtype"
+    echo "  Priority:    $pri"
+    echo "  From:        $from_ag"
+    echo "  To:          $to_ag"
+    echo "  Created:     $created"
+    echo "  Status:      $status"
+    echo "  Payload:     $path"
+    [[ -n "${reply_to:-}" ]] && echo "  In-reply-to: #$reply_to" || true
+    [[ -n "${read_at:-}" ]] && echo "  Read at:     $read_at (by ${read_by:-unknown})" || true
+    [[ -n "${resolved_at:-}" ]] && echo "  Resolved at: $resolved_at" || true
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main dispatch — route subcommands
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -272,6 +541,26 @@ case "$subcmd" in
     create)
         shift; cmd_create "$@"
         log_end "$RUN_ID" "success" "0" "0" "dispatch create"
+        ;;
+    list)
+        shift; cmd_list "$@"
+        log_end "$RUN_ID" "success" "0" "0" "dispatch list"
+        ;;
+    read)
+        shift; cmd_read "$@"
+        log_end "$RUN_ID" "success" "0" "0" "dispatch read"
+        ;;
+    check)
+        cmd_check
+        log_end "$RUN_ID" "success" "0" "0" "dispatch check"
+        ;;
+    resolve)
+        shift; cmd_resolve "$@"
+        log_end "$RUN_ID" "success" "0" "0" "dispatch resolve"
+        ;;
+    status)
+        shift; cmd_status "$@"
+        log_end "$RUN_ID" "success" "0" "0" "dispatch status"
         ;;
     --version) echo "dispatch $TOOL_VERSION" ;;
     --help|-h) cmd_help ;;
