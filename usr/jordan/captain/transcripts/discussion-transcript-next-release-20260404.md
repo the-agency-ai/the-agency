@@ -182,9 +182,51 @@
 
 ---
 
-## 1B1 Complete
+## 1B1 Complete (Release Scoping)
 
 All 29 items resolved across two sessions (2026-04-04 and 2026-04-05).
+
+---
+
+## Monofolk Tools Port — 1B1
+
+Follow-on discussion: which unported monofolk tools should be generalized into the framework.
+
+### Items 1-13: Prototype family
+
+**Decision:** Port the pattern generalized. The lifecycle (create/up/down/health/preview/promote/merge/archive) is framework-level. Worktree isolation + promote/archive discipline ships with the framework. Implementation (Docker, Prisma, NestJS, Next.js) delegates to providers via PROVIDER-SPEC.md. PROVIDER-SPEC consumer.
+
+---
+
+### Item 14: Secret management
+
+**Decision:** Port as `/secret` skill with provider-based backend. Rewrite vault as standalone age-based tool — no service dependency, local encrypted file storage, zero cost. Age vault is the default provider. Doppler is an alternative. PROVIDER-SPEC consumer. Vault structure lives outside the repo (~/.agency/vault/). Old secret-service dependency is dead — same architecture we killed with agency-service.
+
+---
+
+### Item 15: Project Manager agent
+
+**Decision:** Already exists at claude/agents/project-manager/agent.md. Diff against monofolk version and update if needed.
+
+---
+
+### PROVIDER-SPEC consumers identified
+
+Four consumers of PROVIDER-SPEC.md:
+
+| Consumer | Default provider | Alternatives |
+|----------|-----------------|-------------|
+| Prototype | Docker compose | Vercel, bare process |
+| Secret | age vault (local, free) | Doppler, 1Password CLI |
+| Deploy/Preview | Provider-based | Vercel, Fly, etc. |
+
+The pattern is the same: skill layer → provider contract → swappable implementation.
+
+---
+
+## All Port Items Complete
+
+15 items resolved. 2026-04-05.
 
 ---
 
