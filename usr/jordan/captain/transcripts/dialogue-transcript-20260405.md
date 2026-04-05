@@ -249,3 +249,13 @@ All three in ISCP's SQLite. Agent queries for what it needs on bootstrap. Token-
 **Decision:** Spec this separately from ISCP. ISCP is storage, Context Manager is intelligence. Seed written to `claude/workstreams/iscp/seeds/context-manager-20260405.md`.
 
 ---
+
+## Session 19 Continued (Post-Compaction)
+
+Session recovered after context compaction. Resuming with 1B1 through open items.
+
+---
+
+## 1B1: PVR MAR Remaining Items (5-13)
+
+Starting from the top of the open items list, working down.
