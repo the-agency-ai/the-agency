@@ -316,3 +316,45 @@ Materials to migrate:
 - Book content from ordinaryfolk-nextgen (27 files)
 - Content strategy, Pragmatic Engineer research, Jamon reference from the-agency
 - GTM, Gumroad, Discord agent context from the-agency
+
+---
+
+## 1B1: the-agency-group Structure
+
+### Item 1: What is the-agency-group?
+
+Jordan: "The Agency Group is the entity through which we are going to make TheAgency known and monetize it. If the-agency is the platform, the-agency-group is the organization which makes it a reality in the world. By and large we won't be writing code there, but we will be building product and operations and content. You will operate above both repos."
+
+**Decision:** the-agency-group = business entity. Captain spans both repos.
+
+Jordan corrected: "We may build some code. This is where we will build the web platform (website + blog + whatever). This is where we will build our multi-channel content publishing platform."
+
+**Decision:** the-agency-group is a code repo too — product/business code, not framework code.
+
+### Item 2: Workstreams
+
+Evolved through discussion. Jordan: "book" → "the-agency-book" (specific book, future books get own workstreams). "platforms" → "distribution" (apple, google, medium, substack, etc. are distribution channels). Publisher and web are separate. CRM needed.
+
+**Decision:** 7 workstreams:
+
+| Workstream | What | Code? |
+|------------|------|-------|
+| `the-agency-book` | AIADLC book | No |
+| `content` | Articles, social posts, newsletter | No |
+| `gtm` | Strategy, positioning, launch, monetization | No |
+| `distribution` | Channel management — agents per channel | Light |
+| `web` | Website + blog (Vercel) | Yes |
+| `publisher` | Multi-channel content distribution engine | Yes |
+| `crm` | Contact/relationship management | Yes |
+
+### Item 3: Agents
+
+Jordan: "Do we have other agents we would move out of the-agency?"
+
+**Decision:** Move gtm, gumroad, discord, apple agents from the-agency to the-agency-group. All are business agents, not framework agents.
+
+Jordan: "We will need new agent and sub-agent classes."
+
+Discussion of new classes: editor, writer, channel-manager, analyst. Plus existing classes that carry over (captain, researcher, reviewer-*).
+
+**Decision:** Build a plan in the-agency-group to define workstreams, agents, and classes properly. Plan at `the-agency-group/usr/jordan/captain/`.
