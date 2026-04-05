@@ -1,175 +1,244 @@
 #!/bin/bash
 #
-# flag — Quick-capture tool for observations during work
+# flag — ISCP flag tool (v2) — Quick-capture observations, agent-addressable
+#
+# What Problem: Agents need zero-friction capture of observations during work.
+# v1 used JSONL files on master, requiring git staging and jq. v2 uses the
+# ISCP SQLite DB — instant capture from any worktree, no git involvement,
+# agent-addressable routing.
+#
+# How & Why: DB-backed flags with three-state lifecycle (unread → read →
+# processed). Default to_agent = self (personal observation queue per PVR).
+# --to routes to a specific agent. list marks as read (Slack-style seen).
+# discuss formats as numbered agenda and marks processed.
+#
+# Written: 2026-04-05 during ISCP Iteration 1.6
 #
 # Usage:
-#   flag <message>           — append to queue
-#   flag list                — show queue
-#   flag clear               — clear queue (after processing)
-#   flag count               — count items
-#   flag discuss             — output queue as /discuss agenda, then clear
-#   flag --version           — show version
-#   flag --help              — show help
+#   flag <message>                   — flag to self
+#   flag --to <agent> <message>      — flag to specific agent
+#   flag list                        — show flags, mark as read
+#   flag count                       — count unread flags
+#   flag discuss                     — output as /discuss agenda, mark processed
+#   flag clear                       — mark all as processed
+#   flag --version                   — show version
+#   flag --help                      — show help
 
 set -euo pipefail
 
-VERSION="1.0.0"
+TOOL_VERSION="2.0.0"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Source log helper if available
-if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
-    source "$SCRIPT_DIR/lib/_log-helper"
-fi
+# Source helpers
+source "$SCRIPT_DIR/lib/_log-helper"
+source "$SCRIPT_DIR/lib/_path-resolve"
+source "$SCRIPT_DIR/lib/_address-parse"
+source "$SCRIPT_DIR/lib/_iscp-db"
 
-# --- PATH resolution ---
-[ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
-[ -d "$HOME/.asdf/shims" ] && export PATH="$HOME/.asdf/shims:$PATH"
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
 
-# --- Require jq ---
-if ! command -v jq &>/dev/null; then
-    echo "flag: jq is required but not installed" >&2
-    exit 1
-fi
-
-# --- Help ---
-show_help() {
-    echo "Usage: flag <message> | list | clear | count | discuss"
-    echo ""
-    echo "Quick-capture observations during work. Zero friction."
-    echo ""
-    echo "Commands:"
-    echo "  <message>    Append a flagged item to the queue"
-    echo "  list         Show all items in the queue"
-    echo "  clear        Clear the queue"
-    echo "  count        Count items in the queue"
-    echo "  discuss      Output queue as /discuss agenda, then clear"
-    echo ""
-    echo "Options:"
-    echo "  --version    Show version"
-    echo "  --help       Show this help"
+_my_identity() {
+    "$SCRIPT_DIR/agent-identity" 2>/dev/null || {
+        echo "Error: cannot resolve agent identity" >&2
+        return 1
+    }
 }
 
-# --- Resolve queue file path ---
-# Queue lives in main checkout, not worktree
-MAIN_CHECKOUT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
-if [[ -z "$MAIN_CHECKOUT" ]] || [[ ! -d "$MAIN_CHECKOUT" ]]; then
-    echo "flag: cannot determine main checkout" >&2
-    exit 1
-fi
+# ─────────────────────────────────────────────────────────────────────────────
+# Commands
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Resolve principal via _path-resolve
-if [[ -f "$SCRIPT_DIR/lib/_path-resolve" ]]; then
-    source "$SCRIPT_DIR/lib/_path-resolve"
-fi
-PRINCIPAL="${AGENCY_PRINCIPAL:-${USER:-unknown}}"
+cmd_flag() {
+    local to_agent="" message=""
 
-QUEUE_FILE="$MAIN_CHECKOUT/usr/$PRINCIPAL/flag-queue.jsonl"
+    # Parse --to if present
+    if [[ "${1:-}" == "--to" ]]; then
+        [[ -n "${2:-}" ]] || { echo "Error: --to requires an agent address" >&2; return 1; }
+        # Resolve the target address
+        address_resolve "$2" 2>/dev/null || address_parse "$2" 2>/dev/null || {
+            echo "Error: invalid --to address: $2" >&2; return 1
+        }
+        to_agent=$(address_format "${ADDR_REPO:-}" "${ADDR_PRINCIPAL:-}" "${ADDR_AGENT:-}" 2>/dev/null) || to_agent="$2"
+        shift 2
+    fi
 
-# --- Parse command ---
+    # Rest is the message
+    message="$*"
+    if [[ -z "$message" ]]; then
+        echo "Error: message is required" >&2
+        return 1
+    fi
+
+    local from_agent
+    from_agent=$(_my_identity) || return 1
+
+    # Default to_agent = self
+    if [[ -z "$to_agent" ]]; then
+        to_agent="$from_agent"
+    fi
+
+    iscp_db_init
+
+    local session="${CLAUDE_SESSION_ID:-}"
+    local branch
+    branch=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+    iscp_db_insert_flag "$from_agent" "$to_agent" "$message" "$session" "$branch"
+
+    # Count unread for this agent
+    local counts
+    counts=$(iscp_db_count_unread "$to_agent" 2>/dev/null) || counts="0|0|0|0"
+    local flag_count
+    IFS='|' read -r flag_count _ _ _ <<< "$counts"
+
+    echo "Flagged. $flag_count unread flag(s) for $(echo "$to_agent" | rev | cut -d/ -f1 | rev)."
+}
+
+cmd_list() {
+    iscp_db_init
+
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    local result
+    result=$(iscp_db_query "SELECT id, created_at, from_agent, message, status FROM flags WHERE to_agent = :agent ORDER BY created_at" ":agent" "$my_agent")
+
+    if [[ -z "$result" ]]; then
+        echo "flag: no flags"
+        return 0
+    fi
+
+    echo "Flag Queue:"
+    echo ""
+    local n=0
+    while IFS='|' read -r id created from_ag msg status; do
+        n=$((n + 1))
+        local marker=""
+        [[ "$status" == "unread" ]] && marker=" [NEW]"
+        echo "  $n. [$created] $msg${marker}"
+    done <<< "$result"
+    echo ""
+    echo "$n item(s)"
+
+    # Mark all unread as read (Slack-style seen)
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M)
+    iscp_db_exec "UPDATE flags SET status = 'read', read_at = :now WHERE to_agent = :agent AND status = 'unread'" \
+        ":now" "$now" ":agent" "$my_agent"
+}
+
+cmd_count() {
+    iscp_db_init
+
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    local counts
+    counts=$(iscp_db_count_unread "$my_agent" 2>/dev/null) || counts="0|0|0|0"
+    local flag_count
+    IFS='|' read -r flag_count _ _ _ <<< "$counts"
+
+    echo "$flag_count"
+}
+
+cmd_discuss() {
+    iscp_db_init
+
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    local result
+    result=$(iscp_db_query "SELECT id, created_at, message FROM flags WHERE to_agent = :agent AND status IN ('unread', 'read') ORDER BY created_at" ":agent" "$my_agent")
+
+    if [[ -z "$result" ]]; then
+        echo "flag: no flags to discuss"
+        return 0
+    fi
+
+    echo "Discussion agenda from flag queue:"
+    echo ""
+    local n=0
+    while IFS='|' read -r id created msg; do
+        n=$((n + 1))
+        echo "$n. $msg (flagged: $created)"
+    done <<< "$result"
+    echo ""
+    echo "$n item(s) — run /discuss with this agenda"
+
+    # Mark all as processed
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M)
+    iscp_db_exec "UPDATE flags SET status = 'processed', processed_at = :now WHERE to_agent = :agent AND status IN ('unread', 'read')" \
+        ":now" "$now" ":agent" "$my_agent"
+}
+
+cmd_clear() {
+    iscp_db_init
+
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M)
+
+    local affected
+    affected=$(iscp_db_query "SELECT count(*) FROM flags WHERE to_agent = :agent AND status IN ('unread', 'read')" ":agent" "$my_agent")
+
+    if [[ "$affected" -eq 0 ]]; then
+        echo "flag: nothing to clear"
+        return 0
+    fi
+
+    iscp_db_exec "UPDATE flags SET status = 'processed', processed_at = :now WHERE to_agent = :agent AND status IN ('unread', 'read')" \
+        ":now" "$now" ":agent" "$my_agent"
+
+    echo "flag: $affected item(s) marked as processed"
+}
+
+cmd_help() {
+    cat <<'HELP'
+flag — ISCP flag tool (v2) — Quick-capture observations
+
+Usage:
+  flag <message>                Flag to self
+  flag --to <agent> <message>   Flag to specific agent
+  flag list                     Show flags, mark as read
+  flag count                    Count unread flags
+  flag discuss                  Output as /discuss agenda, mark processed
+  flag clear                    Mark all as processed
+  flag --version                Show version
+  flag --help                   Show help
+
+Flags are DB-only — no git payload, instant capture from any worktree.
+Three-state lifecycle: unread → read (on list) → processed (on discuss/clear).
+HELP
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────────────────────
+
 if [[ $# -eq 0 ]]; then
-    show_help
+    cmd_help
     exit 0
 fi
 
-CMD="$1"
-shift
+RUN_ID=$(log_start "flag" "$@")
 
-case "$CMD" in
-    --version)
-        echo "flag $VERSION"
-        exit 0
-        ;;
-    --help)
-        show_help
-        exit 0
-        ;;
-    list)
-        if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
-            echo "flag: queue is empty"
-            exit 0
-        fi
-        echo "Flag Queue:"
-        echo ""
-        N=0
-        while IFS= read -r line; do
-            [[ -z "$line" ]] && continue
-            N=$((N + 1))
-            TS=$(echo "$line" | jq -r '.ts // "?"' 2>/dev/null)
-            MSG=$(echo "$line" | jq -r '.message // "?"' 2>/dev/null)
-            BRANCH=$(echo "$line" | jq -r '.branch // ""' 2>/dev/null)
-            if [[ -n "$BRANCH" ]]; then
-                echo "  $N. [$TS] ($BRANCH) $MSG"
-            else
-                echo "  $N. [$TS] $MSG"
-            fi
-        done < "$QUEUE_FILE"
-        echo ""
-        echo "$N item(s)"
-        ;;
-    count)
-        if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
-            echo "0"
-            exit 0
-        fi
-        grep -c . "$QUEUE_FILE" || echo "0"
-        ;;
-    clear)
-        if [[ -f "$QUEUE_FILE" ]]; then
-            rm "$QUEUE_FILE"
-            echo "flag: queue cleared"
-        else
-            echo "flag: queue already empty"
-        fi
-        ;;
-    discuss)
-        if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
-            echo "flag: queue is empty — nothing to discuss"
-            exit 0
-        fi
-        # Build output first, then clear (atomic — don't lose items on output failure)
-        AGENDA="Discussion agenda from flag queue:"$'\n'$'\n'
-        N=0
-        while IFS= read -r line; do
-            [[ -z "$line" ]] && continue
-            N=$((N + 1))
-            MSG=$(echo "$line" | jq -r '.message // "?"' 2>/dev/null)
-            TS=$(echo "$line" | jq -r '.ts // "?"' 2>/dev/null)
-            AGENDA="$AGENDA$N. $MSG (flagged: $TS)"$'\n'
-        done < "$QUEUE_FILE"
-        AGENDA="$AGENDA"$'\n'"$N item(s) — run /discuss with this agenda"
-        # Output succeeded — now clear
-        echo "$AGENDA"
-        rm "$QUEUE_FILE"
-        ;;
+case "$1" in
+    list)    cmd_list; log_end "$RUN_ID" "success" "0" "0" "flag list" ;;
+    count)   cmd_count; log_end "$RUN_ID" "success" "0" "0" "flag count" ;;
+    discuss) cmd_discuss; log_end "$RUN_ID" "success" "0" "0" "flag discuss" ;;
+    clear)   cmd_clear; log_end "$RUN_ID" "success" "0" "0" "flag clear" ;;
+    --version) echo "flag $TOOL_VERSION" ;;
+    --help|-h) cmd_help ;;
     *)
-        # Treat everything as a message to append
-        MESSAGE="$CMD $*"
-        MESSAGE=$(echo "$MESSAGE" | sed 's/[[:space:]]*$//')
-
-        TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-        BRANCH=$(git branch --show-current 2>/dev/null || echo "")
-        SESSION="${CLAUDE_SESSION_ID:-}"
-
-        # Ensure directory exists
-        mkdir -p "$(dirname "$QUEUE_FILE")"
-
-        # Append JSONL
-        jq -n -c \
-            --arg ts "$TS" \
-            --arg message "$MESSAGE" \
-            --arg principal "$PRINCIPAL" \
-            --arg branch "$BRANCH" \
-            --arg session "$SESSION" \
-            '{ts: $ts, message: $message, principal: $principal, branch: $branch, session: $session}' \
-            >> "$QUEUE_FILE"
-
-        # Stage the queue file so it survives session boundaries
-        if ! git -C "$MAIN_CHECKOUT" add "$QUEUE_FILE" 2>/dev/null; then
-            echo "flag: warning: could not stage queue file (git add failed)" >&2
-        fi
-
-        # Count
-        COUNT=$(grep -c . "$QUEUE_FILE" || echo 1)
-        echo "Flagged. $COUNT item(s) in queue."
+        # Everything else is a message (possibly with --to prefix)
+        cmd_flag "$@"
+        log_end "$RUN_ID" "success" "0" "0" "flag capture"
         ;;
 esac

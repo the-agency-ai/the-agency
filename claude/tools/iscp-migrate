@@ -1,0 +1,379 @@
+#!/bin/bash
+#
+# iscp-migrate — One-shot migration of legacy ISCP data into the SQLite DB
+#
+# What Problem: Pre-DB flags live in usr/jordan/flag-queue.jsonl (JSONL).
+# Pre-DB dispatches live as markdown files in usr/*/*/dispatches/ (some with
+# YAML frontmatter, some with just markdown headers). Until these are
+# migrated into the ISCP DB, v2 tools can't see them. This tool brings
+# legacy data into the DB so iscp-check, dispatch list, and flag list
+# show the full history.
+#
+# How & Why: Two migration paths — flags (parse JSONL with jq, insert into
+# flags table as 'read' status) and dispatches (parse YAML frontmatter or
+# fall back to markdown header extraction, insert into dispatches table).
+# Idempotent via UNIQUE index on dispatches.payload_path — duplicate inserts
+# are silently ignored. Flag migration renames the file to .migrated so it
+# runs exactly once. Scans both dispatches/ AND code-reviews/ directories
+# per MAR finding F-1.
+#
+# Written: 2026-04-05 during ISCP Iteration 2.2
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source helpers
+source "$SCRIPT_DIR/lib/_log-helper"
+source "$SCRIPT_DIR/lib/_path-resolve"
+source "$SCRIPT_DIR/lib/_address-parse"
+source "$SCRIPT_DIR/lib/_iscp-db"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+_my_identity() {
+    "$SCRIPT_DIR/agent-identity" 2>/dev/null || {
+        echo "Error: cannot resolve agent identity" >&2
+        return 1
+    }
+}
+
+# Extract a YAML frontmatter field value (simple single-line fields only)
+# Usage: _yaml_field "$content" "field_name"
+_yaml_field() {
+    local content="$1"
+    local field="$2"
+    # grep returns 1 when no match — must guard with || true for set -eo pipefail
+    local match
+    match=$(echo "$content" | sed -n '/^---$/,/^---$/p' | grep "^${field}:" | head -1) || true
+    if [[ -n "$match" ]]; then
+        echo "$match" | sed "s/^${field}:[[:space:]]*//" | sed 's/^"//; s/"$//' | sed "s/^'//; s/'$//"
+    fi
+}
+
+# Extract a markdown header field value (e.g., **From:** value)
+# Usage: _md_field "$content" "From"
+_md_field() {
+    local content="$1"
+    local field="$2"
+    local match
+    match=$(echo "$content" | grep -m1 "^\*\*${field}:\*\*") || true
+    if [[ -n "$match" ]]; then
+        echo "$match" | sed "s/^\*\*${field}:\*\*[[:space:]]*//"
+    fi
+}
+
+# Map legacy status to DB status
+_map_status() {
+    case "${1:-}" in
+        created|pending|unread|"") echo "unread" ;;
+        read|in-progress) echo "read" ;;
+        resolved|done|complete) echo "resolved" ;;
+        *) echo "unread" ;;
+    esac
+}
+
+# Map legacy type to valid DB type
+_map_type() {
+    local raw="${1:-dispatch}"
+    raw=$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed 's/[[:space:]]//g')
+    case "$raw" in
+        directive|seed|review|review-response|commit|master-updated|escalation|dispatch)
+            echo "$raw" ;;
+        review-request) echo "review" ;;
+        review-feedback) echo "review-response" ;;
+        code-review) echo "review" ;;
+        *)
+            echo "dispatch" ;;  # Default for unknown types
+    esac
+}
+
+# Resolve a legacy address to fully qualified form (best-effort)
+# Legacy dispatches use forms like "Captain (the-agency)", "CoS (monofolk)", etc.
+_resolve_legacy_address() {
+    local raw="$1"
+    # Already fully qualified (has two slashes)?
+    if [[ "$raw" == *"/"*"/"* ]]; then
+        echo "$raw"
+        return 0
+    fi
+    # Try to parse as a known pattern
+    # Strip parenthetical like "Captain (the-agency)" → just use as-is with warning
+    local clean
+    clean=$(echo "$raw" | sed 's/[[:space:]]*(.*)//; s/^[[:space:]]*//; s/[[:space:]]*$//')
+    clean=$(echo "$clean" | tr '[:upper:]' '[:lower:]')
+    # Return as-is — migration doesn't need perfect addresses
+    echo "$clean"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Flag migration
+# ─────────────────────────────────────────────────────────────────────────────
+
+migrate_flags() {
+    local jsonl_path="$PROJECT_ROOT/usr/jordan/flag-queue.jsonl"
+
+    if [[ ! -f "$jsonl_path" ]]; then
+        echo "flag migration: no flag-queue.jsonl found — skipping"
+        return 0
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        echo "flag migration: ERROR — jq required but not found" >&2
+        return 1
+    fi
+
+    echo "flag migration: reading $jsonl_path"
+
+    local count=0
+    local errors=0
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+
+        local message ts principal branch session from_field
+        message=$(echo "$line" | jq -r '.message // .text // ""' 2>/dev/null) || continue
+        ts=$(echo "$line" | jq -r '.ts // ""' 2>/dev/null) || ts=""
+        principal=$(echo "$line" | jq -r '.principal // ""' 2>/dev/null) || principal=""
+        branch=$(echo "$line" | jq -r '.branch // ""' 2>/dev/null) || branch=""
+        session=$(echo "$line" | jq -r '.session // ""' 2>/dev/null) || session=""
+        from_field=$(echo "$line" | jq -r '.from // ""' 2>/dev/null) || from_field=""
+
+        if [[ -z "$message" ]]; then
+            errors=$((errors + 1))
+            continue
+        fi
+
+        # Determine from_agent — use .from field if present, else build from principal
+        local from_agent="$my_agent"
+        if [[ -n "$from_field" ]]; then
+            from_agent="$from_field"
+        fi
+
+        # Use ts if available, else now
+        local created_at="${ts:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+
+        # Insert as 'read' — these are pre-DB era, already seen by principal
+        local db_path
+        db_path=$(iscp_db_path) || return 1
+        local preamble
+        preamble=$(_iscp_pragma_preamble_light)
+        local params
+        params=$(_iscp_build_params \
+            ":from_agent" "$from_agent" \
+            ":to_agent" "$my_agent" \
+            ":message" "$message" \
+            ":session_id" "$session" \
+            ":branch" "$branch" \
+            ":now" "$created_at" \
+            ":read_at" "$created_at") || {
+            errors=$((errors + 1))
+            continue
+        }
+
+        sqlite3 "$db_path" << SQL 2>/dev/null || { errors=$((errors + 1)); continue; }
+${preamble}
+${params}
+INSERT INTO flags (created_at, from_agent, to_agent, message, status, read_at, session_id, branch)
+VALUES (:now, :from_agent, :to_agent, :message, 'read', :read_at, :session_id, :branch);
+.param clear
+SQL
+
+        count=$((count + 1))
+    done < "$jsonl_path"
+
+    echo "flag migration: $count flags imported ($errors errors)"
+
+    # Rename to .migrated
+    mv "$jsonl_path" "${jsonl_path}.migrated"
+    echo "flag migration: renamed to flag-queue.jsonl.migrated"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dispatch migration
+# ─────────────────────────────────────────────────────────────────────────────
+
+migrate_dispatches() {
+    echo "dispatch migration: scanning usr/*/*/dispatches/ and usr/*/*/code-reviews/"
+
+    local count=0
+    local errors=0
+    local skipped=0
+
+    # Find all dispatch files in both directories
+    local files=()
+    while IFS= read -r -d '' f; do
+        files+=("$f")
+    done < <(find "$PROJECT_ROOT/usr" -path "*/dispatches/*.md" -print0 2>/dev/null)
+    while IFS= read -r -d '' f; do
+        files+=("$f")
+    done < <(find "$PROJECT_ROOT/usr" -path "*/code-reviews/*.md" -print0 2>/dev/null)
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo "dispatch migration: no dispatch files found — skipping"
+        return 0
+    fi
+
+    echo "dispatch migration: found ${#files[@]} files"
+
+    for filepath in "${files[@]}"; do
+        local content
+        content=$(cat "$filepath") || { errors=$((errors + 1)); continue; }
+
+        # Compute relative payload_path (from project root)
+        local payload_path="${filepath#$PROJECT_ROOT/}"
+
+        # Try YAML frontmatter first
+        local has_frontmatter=false
+        if echo "$content" | head -1 | grep -q '^---$'; then
+            has_frontmatter=true
+        fi
+
+        local dtype from_agent to_agent date_val status_val subject priority
+
+        if [[ "$has_frontmatter" == "true" ]]; then
+            dtype=$(_yaml_field "$content" "type")
+            from_agent=$(_yaml_field "$content" "from")
+            to_agent=$(_yaml_field "$content" "to")
+            date_val=$(_yaml_field "$content" "date")
+            status_val=$(_yaml_field "$content" "status")
+            subject=$(_yaml_field "$content" "subject")
+            priority=$(_yaml_field "$content" "priority")
+        fi
+
+        # Fallback: markdown headers for older dispatches
+        if [[ -z "$from_agent" ]]; then
+            from_agent=$(_md_field "$content" "From")
+            from_agent=$(_resolve_legacy_address "$from_agent")
+        fi
+        if [[ -z "$to_agent" ]]; then
+            to_agent=$(_md_field "$content" "To")
+            to_agent=$(_resolve_legacy_address "$to_agent")
+        fi
+        if [[ -z "$date_val" ]]; then
+            date_val=$(_md_field "$content" "Date")
+        fi
+        if [[ -z "$subject" ]]; then
+            # Try first markdown heading
+            subject=$(echo "$content" | grep -m1 '^# ' | sed 's/^# //')
+        fi
+        if [[ -z "$priority" ]]; then
+            local raw_priority
+            raw_priority=$(_md_field "$content" "Priority")
+            # Extract priority word (e.g., "High — this is the roadmap" → "high")
+            priority=$(echo "$raw_priority" | awk '{print tolower($1)}')
+        fi
+
+        # Apply defaults and mappings
+        dtype=$(_map_type "${dtype:-dispatch}")
+        status_val=$(_map_status "${status_val:-}")
+        priority="${priority:-normal}"
+        case "$priority" in
+            low|normal|high) ;;
+            *) priority="normal" ;;
+        esac
+        from_agent="${from_agent:-unknown}"
+        to_agent="${to_agent:-unknown}"
+        date_val="${date_val:-$(date -u +%Y-%m-%dT%H:%M)}"
+        subject="${subject:-$(basename "$filepath" .md)}"
+
+        # Insert into DB (UNIQUE on payload_path handles idempotency)
+        local db_path
+        db_path=$(iscp_db_path) || return 1
+        local preamble
+        preamble=$(_iscp_pragma_preamble_light)
+        local params
+        params=$(_iscp_build_params \
+            ":created_at" "$date_val" \
+            ":from_agent" "$from_agent" \
+            ":to_agent" "$to_agent" \
+            ":type" "$dtype" \
+            ":priority" "$priority" \
+            ":subject" "$subject" \
+            ":payload_path" "$payload_path" \
+            ":status" "$status_val") || {
+            errors=$((errors + 1))
+            continue
+        }
+
+        local rc=0
+        sqlite3 "$db_path" << SQL 2>/dev/null || rc=$?
+${preamble}
+${params}
+INSERT OR IGNORE INTO dispatches (created_at, from_agent, to_agent, type, priority, subject, payload_path, status)
+VALUES (:created_at, :from_agent, :to_agent, :type, :priority, :subject, :payload_path, :status);
+.param clear
+SQL
+
+        if [[ $rc -eq 0 ]]; then
+            count=$((count + 1))
+        else
+            errors=$((errors + 1))
+        fi
+    done
+
+    echo "dispatch migration: $count dispatches imported ($errors errors, $skipped skipped)"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────────────────────
+
+case "${1:-}" in
+    --version) echo "iscp-migrate $TOOL_VERSION"; exit 0 ;;
+    --help|-h)
+        cat <<'HELP'
+iscp-migrate — One-shot migration of legacy ISCP data into SQLite DB
+
+Usage:
+  iscp-migrate              Run full migration (flags + dispatches)
+  iscp-migrate flags        Migrate flags only
+  iscp-migrate dispatches   Migrate dispatches only
+  iscp-migrate --version    Show version
+  iscp-migrate --help       Show help
+
+Flags are migrated from usr/jordan/flag-queue.jsonl (JSONL → DB, status=read).
+Dispatches are migrated from usr/*/*/dispatches/*.md and usr/*/*/code-reviews/*.md.
+
+Idempotent: dispatches use UNIQUE on payload_path. Flags rename source to .migrated.
+HELP
+        exit 0 ;;
+esac
+
+RUN_ID=$(log_start "iscp-migrate" "${1:-all}")
+
+# Initialize DB
+iscp_db_init || {
+    echo "Error: could not initialize ISCP database" >&2
+    exit 1
+}
+
+case "${1:-all}" in
+    flags)
+        migrate_flags
+        ;;
+    dispatches)
+        migrate_dispatches
+        ;;
+    all|"")
+        migrate_flags
+        echo ""
+        migrate_dispatches
+        ;;
+    *)
+        echo "Error: unknown migration target '$1'" >&2
+        echo "Run: iscp-migrate --help" >&2
+        exit 1
+        ;;
+esac
+
+log_end "$RUN_ID" "success" "0" "0" "migration complete"
+echo ""
+echo "Migration complete."

@@ -1,0 +1,259 @@
+#!/usr/bin/env bats
+#
+# What Problem: dispatch lifecycle subcommands (list, read, check, resolve,
+# status) must correctly query and update the ISCP DB. If list misses
+# dispatches, read fails to mark as read, or check is noisy when empty,
+# the whole notification system breaks.
+#
+# How & Why: Isolated tests with HOME override. Each test creates dispatches
+# via the create subcommand, then exercises lifecycle operations and asserts
+# DB state changes. Tests cover: list filtering, read with mark-as-read,
+# check silent/noisy behavior, resolve lifecycle, status display.
+#
+# Written: 2026-04-05 during ISCP Iteration 1.5
+
+load 'test_helper'
+
+setup() {
+    export BATS_TEST_TMPDIR="$(mktemp -d)"
+    export HOME="$BATS_TEST_TMPDIR/fakehome"
+    mkdir -p "$HOME"
+
+    export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
+    mkdir -p "$MOCK_REPO/claude/tools/lib" "$MOCK_REPO/claude/config"
+
+    for tool in dispatch dispatch-create agent-identity; do
+        cp "$REPO_ROOT/claude/tools/$tool" "$MOCK_REPO/claude/tools/"
+        chmod +x "$MOCK_REPO/claude/tools/$tool"
+    done
+    for lib in _iscp-db _address-parse _path-resolve _log-helper; do
+        cp "$REPO_ROOT/claude/tools/lib/$lib" "$MOCK_REPO/claude/tools/lib/"
+    done
+
+    cd "$MOCK_REPO"
+    git init --quiet
+    git config user.email "test@example.com"
+    git config user.name "Test User"
+
+    cat > "$MOCK_REPO/claude/config/agency.yaml" <<'YAML'
+principals:
+  testuser: testprincipal
+YAML
+
+    git add -A
+    git commit -m "init" --quiet
+    git remote add origin https://github.com/test-org/test-repo.git 2>/dev/null || true
+
+    export CLAUDE_PROJECT_DIR="$MOCK_REPO"
+    unset AGENCY_PROJECT_ROOT
+    unset AGENCY_PRINCIPAL
+    export USER="testuser"
+    unset CLAUDE_AGENT_NAME
+
+    # Alias for readability
+    DISPATCH="$MOCK_REPO/claude/tools/dispatch"
+}
+
+teardown() {
+    if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
+        rm -rf "${BATS_TEST_TMPDIR}"
+    fi
+}
+
+_db_path() { echo "$HOME/.agency/test-repo/iscp.db"; }
+_db_query() { sqlite3 "$(_db_path)" "$1"; }
+
+# Helper: create a test dispatch and return silently
+_create_dispatch() {
+    "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "${1:-Test}" --type "${2:-dispatch}" > /dev/null 2>&1
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# list
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch list: shows no dispatches when empty" {
+    # Need to init DB first via a noop
+    run "$DISPATCH" list
+    assert_success
+    assert_output_contains "No dispatches"
+}
+
+@test "dispatch list: shows dispatches for current agent" {
+    _create_dispatch "List test one"
+    _create_dispatch "List test two"
+
+    run "$DISPATCH" list
+    assert_success
+    assert_output_contains "List test one"
+    assert_output_contains "List test two"
+    assert_output_contains "ID"
+}
+
+@test "dispatch list: --status filters by status" {
+    _create_dispatch "Unread one"
+    _create_dispatch "Unread two"
+    # Mark first as read
+    _db_query "UPDATE dispatches SET status = 'read' WHERE id = 1"
+
+    run "$DISPATCH" list --status unread
+    assert_success
+    assert_output_contains "Unread two"
+    # Should NOT show the read dispatch
+    ! echo "$output" | grep -q "Unread one"
+}
+
+@test "dispatch list: --type filters by type" {
+    _create_dispatch "A directive" "directive"
+    _create_dispatch "A review" "review"
+
+    run "$DISPATCH" list --type review
+    assert_success
+    assert_output_contains "A review"
+    ! echo "$output" | grep -q "A directive"
+}
+
+@test "dispatch list: --all shows dispatches for all agents" {
+    _create_dispatch "Mine"
+    # Insert one for a different agent directly
+    _db_query "INSERT INTO dispatches (created_at, from_agent, to_agent, type, priority, subject, payload_path, status) VALUES ('2026-01-01', 'a/b/c', 'other/agent/name', 'dispatch', 'normal', 'Not mine', 'path/to/file.md', 'unread')"
+
+    run "$DISPATCH" list --all
+    assert_success
+    assert_output_contains "Mine"
+    assert_output_contains "Not mine"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# read
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch read: shows dispatch and marks as read" {
+    _create_dispatch "Read me"
+
+    run "$DISPATCH" read 1
+    assert_success
+    assert_output_contains "Read me"
+    assert_output_contains "marked as read"
+
+    # DB should show read status
+    local status
+    status=$(_db_query "SELECT status FROM dispatches WHERE id=1")
+    [[ "$status" == "read" ]]
+}
+
+@test "dispatch read: sets read_by and read_at" {
+    _create_dispatch "Track reader"
+
+    "$DISPATCH" read 1 > /dev/null
+
+    local read_by read_at
+    read_by=$(_db_query "SELECT read_by FROM dispatches WHERE id=1")
+    read_at=$(_db_query "SELECT read_at FROM dispatches WHERE id=1")
+
+    [[ -n "$read_by" ]]
+    [[ -n "$read_at" ]]
+}
+
+@test "dispatch read: does not re-mark already-read dispatch" {
+    _create_dispatch "Already read"
+    "$DISPATCH" read 1 > /dev/null
+
+    # Read again — should NOT say "marked as read" again
+    run "$DISPATCH" read 1
+    assert_success
+    ! echo "$output" | grep -q "marked as read"
+}
+
+@test "dispatch read: fails for nonexistent ID" {
+    run "$DISPATCH" read 999
+    assert_failure
+    assert_output_contains "not found"
+}
+
+@test "dispatch read: requires integer ID" {
+    run "$DISPATCH" read "not-a-number"
+    assert_failure
+    assert_output_contains "integer ID"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# check
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch check: silent when no unread" {
+    run "$DISPATCH" check
+    assert_success
+    [[ -z "$output" ]]
+}
+
+@test "dispatch check: silent when no DB exists" {
+    run "$DISPATCH" check
+    assert_success
+    [[ -z "$output" ]]
+}
+
+@test "dispatch check: reports unread dispatches as JSON" {
+    _create_dispatch "Pending one"
+    _create_dispatch "Pending two"
+
+    run "$DISPATCH" check
+    assert_success
+    # Should output JSON with systemMessage
+    echo "$output" | jq -e '.systemMessage' > /dev/null
+    assert_output_contains "2 dispatch"
+}
+
+@test "dispatch check: silent after all dispatches read" {
+    _create_dispatch "Will be read"
+    "$DISPATCH" read 1 > /dev/null
+
+    run "$DISPATCH" check
+    assert_success
+    [[ -z "$output" ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# resolve
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch resolve: marks as resolved" {
+    _create_dispatch "To resolve"
+
+    run "$DISPATCH" resolve 1
+    assert_success
+    assert_output_contains "resolved"
+
+    local status resolved_at
+    status=$(_db_query "SELECT status FROM dispatches WHERE id=1")
+    resolved_at=$(_db_query "SELECT resolved_at FROM dispatches WHERE id=1")
+    [[ "$status" == "resolved" ]]
+    [[ -n "$resolved_at" ]]
+}
+
+@test "dispatch resolve: fails for nonexistent ID" {
+    run "$DISPATCH" resolve 999
+    assert_failure
+    assert_output_contains "not found"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# status
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch status: shows full record" {
+    _create_dispatch "Status check" "directive"
+
+    run "$DISPATCH" status 1
+    assert_success
+    assert_output_contains "Status check"
+    assert_output_contains "directive"
+    assert_output_contains "unread"
+    assert_output_contains "test-repo/testprincipal/captain"
+}
+
+@test "dispatch status: fails for nonexistent ID" {
+    run "$DISPATCH" status 999
+    assert_failure
+    assert_output_contains "not found"
+}

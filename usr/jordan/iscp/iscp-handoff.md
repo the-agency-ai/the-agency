@@ -1,70 +1,68 @@
 ---
-type: agent-bootstrap
-date: 2026-04-04
+type: session-handoff
+date: 2026-04-05
+trigger: ISCP v1 complete — Phases 1 and 2 shipped
 agent: the-agency/jordan/iscp
 workstream: iscp
 ---
 
-# ISCP Bootstrap Handoff
+# ISCP Session Handoff
 
 **Agent:** the-agency/jordan/iscp
-**Principal:** Jordan
-**Workstream:** iscp (Inter-Session Communication Protocol)
+**Branch:** iscp (worktree at `.claude/worktrees/iscp/`)
+**Last commit:** `b711ada` Phase 2.2: iscp-migrate + hookify rules
 
-## What This Is
+## Current State
 
-You are building the messaging layer for The Agency — how agents communicate across sessions, worktrees, and repos. Three primitives unified under one protocol:
+**ISCP v1 is complete.** Both phases shipped. 142 BATS tests all green.
 
-1. **Flag** — agent-addressable quick-capture queue. Observations for later 1B1 discussion.
-2. **Dispatch** — agent→agent or principal→agent structured messages with payloads.
-3. **ISCP v1** — the notification hook that tells agents "you got mail."
+### Phase 1: Identity + Dispatch + Flag ✅
+- 1.1 Design (PVR + A&D)
+- 1.2 `_iscp-db` library (51 tests) — commit `9956644`
+- 1.3 `agent-identity` tool (15 tests) — commit `86a4f9d`
+- 1.4 `dispatch create` subcommand (17 tests) — commit `7721754`
+- 1.5 `dispatch` lifecycle (18 tests) — commit `d50dbff`
+- 1.6 `flag` v2 (14 tests) — commit `3b187e5`
 
-## Key Decisions (from captain discussion 2026-04-04)
+### Phase 2: Hook + Migration + Enforcement ✅
+- 2.1 `iscp-check` + hook wiring (13 tests) — commit `4d2fb88`
+- 2.2 `iscp-migrate` + hookify rules (14 tests) — commit `b711ada`
 
-- **Flag** becomes agent-addressable: `/flag TEXT` (local agent), `/flag agent TEXT` (specific agent), future `/flag agency/agent TEXT` (cross-agency)
-- **Persistence** moves to SQLite with a DB abstraction layer, stored **outside the repo** to avoid git pollution. Pattern: `../{repo}/{TBD}/{database}` — same pattern used for service DBs
-- **Dispatch** = notification (in DB) + payload (in git at specified location). Full lifecycle: create→commit to master→propagate to worktrees→fetch→notify
-- **Code reviews are just a dispatch type**, not a separate system. Deprecate the separate code-review concept.
-- **ISCP v1** = a hook that fires on defined events, checks DB for unread items addressed to this agent, surfaces "you got mail" with pointer to the flag message or dispatch payload
-- **Addressing** uses the Agency hierarchy: `{org}/{repo}/{principal}/{agent}`. Both agent-based and workstream-based addressing needed. Only dispatches have git payloads; flags are DB-only.
-- **Cross-repo support** needed: monofolk ↔ the-agency ↔ ghostty fork
+## What's Operational
 
-## What Exists Today
-
-- `claude/tools/flag` — current flag tool (JSONL file, principal-scoped, just patched for git persistence but moving to SQLite)
-- `claude/tools/dispatch-create` — creates dispatch files
-- `.claude/skills/dispatch/SKILL.md` — dispatch management skill
-- `usr/jordan/captain/dispatches/` — existing dispatch files (markdown)
-- `claude/config/agency.yaml` — principal mapping, used by `_path-resolve`
-- `claude/tools/lib/_path-resolve` — address resolution library (has bugs — env leak from test suite)
-- CLAUDE-THEAGENCY.md § "Agent & Principal Addressing" — the addressing hierarchy definition
-
-## Open Questions (drive through /define)
-
-1. The `{TBD}` in the DB path pattern — what goes there?
-2. Which hook events trigger ISCP v1 notifications? (SessionStart? PreToolUse? Both?)
-3. Dispatch type taxonomy — what types beyond code-review?
-4. DB schema for flags and dispatch notifications
-5. Agent vs workstream payload locations in git
-6. Cross-repo delivery mechanism — git-based? API? Filesystem?
-7. Addressing scheme formalization for flag/dispatch (captain will dispatch this to you)
-8. Transcript location and commit discipline — transcripts must get to master ASAP and be accessible to any workstream
-9. Dropbox folder naming convention — what structure under `claude/dropbox/{principal}/{agent}/`?
-10. Dropbox push/fetch mechanics — cherry-pick? Direct file copy? How to handle conflicts?
-
-## Seed Materials
-
-- `usr/jordan/captain/transcripts/discussion-transcript-20260404.md` — the discussion that produced these decisions
-- `usr/jordan/captain/dispatches/dispatch-iscp-design-20260330.md` — earlier ISCP design thinking
-- `usr/jordan/flag-queue.jsonl` — 35 flags currently in queue (the system you're replacing)
+- **Dispatches:** create, list, read, check, resolve, status — DB + git payload
+- **Flags:** capture, list, count, discuss, clear — DB-only, agent-addressable
+- **Notifications:** iscp-check fires on SessionStart, UserPromptSubmit, Stop — silent when empty, JSON systemMessage when items waiting
+- **Migration:** iscp-migrate imports legacy JSONL flags and markdown dispatches
+- **Enforcement:** 5 hookify rules (dispatch-manual, flag-manual, directive-authority, review-authority, session-start-mail)
 
 ## Next Action
 
-1. Read your agent definition at `claude/agents/iscp/agent.md`
-2. Read `claude/workstreams/iscp/KNOWLEDGE.md`
-3. Read the seed materials listed above
-4. Run `/define` to drive toward a complete PVR for the ISCP workstream
-5. Then `/design` for A&D
-6. Then build the plan
+**Land on main.** ISCP v1 is feature-complete. The branch needs:
+1. Merge from main (pick up any recent changes)
+2. Phase-complete QG (deep review)
+3. Land on main via `/phase-complete` or captain coordination
+4. Captain runs `/sync-all` to distribute to all worktrees
 
-You will receive an addressing scheme dispatch from captain once Item 4 of today's discussion resolves.
+**Then: deferred phases** (dropbox, transcripts, subscriptions, integration) — these ship after the core is operational and proven.
+
+## Key Files
+
+| File | What |
+|------|------|
+| `claude/tools/agent-identity` | Unified "who am I" with branch-scoped cache |
+| `claude/tools/dispatch` | Full dispatch lifecycle (create/list/read/check/resolve/status) |
+| `claude/tools/dispatch-create` | Thin wrapper → `dispatch create` |
+| `claude/tools/flag` | SQLite-backed flags, agent-addressable |
+| `claude/tools/iscp-check` | "You got mail" hook — silent or JSON systemMessage |
+| `claude/tools/iscp-migrate` | Legacy data migration (JSONL flags + markdown dispatches) |
+| `claude/tools/lib/_iscp-db` | Shared SQLite library |
+| `.claude/settings.json` | Hook wiring + permissions |
+| `claude/hookify/hookify.*.md` | 5 enforcement rules |
+| `claude/workstreams/iscp/iscp-plan-20260404.md` | Plan (living document) |
+
+## Known Issues
+
+- Skill updates (dispatch, flag, session-resume) noted in plan but not yet done — skills still reference v1 interface
+- Main checkout has stale copies of PVR/A&D — canonical versions on iscp branch
+- `handoff` tool principal resolution may still have AGENCY_PRINCIPAL leak (not patched in handoff tool itself)
