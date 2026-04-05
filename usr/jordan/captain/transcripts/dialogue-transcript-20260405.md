@@ -358,3 +358,39 @@ Jordan: "We will need new agent and sub-agent classes."
 Discussion of new classes: editor, writer, channel-manager, analyst. Plus existing classes that carry over (captain, researcher, reviewer-*).
 
 **Decision:** Build a plan in the-agency-group to define workstreams, agents, and classes properly. Plan at `the-agency-group/usr/jordan/captain/`.
+
+---
+
+## Provider-Spec Pattern & Testing
+
+Jordan: "Why???? Testing info is in root CLAUDE.md, not CLAUDE-THEAGENCY.md."
+
+Discussion led to identifying the provider-spec pattern: project-specific capabilities (testing, secrets, terminal, etc.) belong in `agency.yaml`, not CLAUDE.md. CLAUDE-THEAGENCY.md describes the *pattern*; agency.yaml holds the *config*.
+
+**Decision:** Added `testing:` section to agency.yaml. Rewrote `claude/tools/test-run` v2 to read suites from agency.yaml. Falls back to package manager detection for backward compat.
+
+**Action:** test-run v2 staged but commit blocked by pre-commit (commit-precheck runs full BATS, reports failure despite exit 0).
+
+---
+
+## CLAUDE-WRITING.md Concept
+
+Jordan: "I have a significant body of content written with Claude Desktop along with what it has learned about me."
+
+**Decision:** Create `CLAUDE-WRITING.md` — instructions file for writing agents, capturing Jordan's voice/style/tone. Same pattern as CLAUDE-THEAGENCY.md but for writing rather than development methodology. Sources: Claude Desktop project knowledge, jordans-voice.md, published articles, book drafts.
+
+---
+
+## ISCP Live Testing
+
+Captain and ISCP exchanged live dispatches. Identity resolution working after cache clear. Dispatch lifecycle functional: create → notify → read → resolve.
+
+Jordan: "She is testing it live!" (re: ISCP agent running tests)
+
+---
+
+## Session Close
+
+Jordan: "I think we need to do a handoff followed by a compact shortly."
+
+**Action:** Handoff written. Session 19 ending with 3 staged files uncommitted (test-run v2 block), 7+ commits ahead of origin, ISCP live, the-agency-group seed written.

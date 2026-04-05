@@ -50,3 +50,7 @@ ART-XXXX-{principal}-{workstream}-{agent}-{date}-{title}.md
 ```
 
 Example: `ART-0001-jordan-web-web-2026-01-01-dark-mode-implementation.md`
+| testprincipal | 2026-04-05 16:45:01 +08 | Active |
+| uppercasetest | 2026-04-05 16:45:03 +08 | Active |
+| batsstructtest | 2026-04-05 16:45:03 +08 | Active |
+| batsreadmetest | 2026-04-05 16:45:03 +08 | Active |
