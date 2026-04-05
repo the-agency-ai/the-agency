@@ -108,3 +108,24 @@ run_agency() {
     assert_failure
     assert_output_contains "Unknown command"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Path integrity — prevent stale claude/usr/ references (usr/ is at project root)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "path integrity: no claude/usr/ references in live tools" {
+    # usr/ lives at project root, not under claude/
+    # Legacy patterns in upstream-port (for backward compat with old upstream repos) are excluded
+    local stale
+    stale=$(grep -rn 'claude/usr/' "${TOOLS_DIR}/" \
+        --include='*' \
+        | grep -v 'upstream-port:.*legacy path' \
+        | grep -v 'upstream-port:.*claude/usr/\*/' \
+        || true)
+
+    if [[ -n "$stale" ]]; then
+        echo "ERROR: Stale claude/usr/ references found in tools (usr/ is at project root):"
+        echo "$stale"
+        return 1
+    fi
+}
