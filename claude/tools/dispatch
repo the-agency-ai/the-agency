@@ -21,6 +21,8 @@
 #   dispatch create --to <addr> --subject <text> [--type <type>] [--priority <p>]
 #   dispatch list [--all] [--status <s>] [--type <t>]
 #   dispatch read <id>
+#   dispatch fetch <id>
+#   dispatch reply <id> "message"
 #   dispatch check
 #   dispatch resolve <id> [--response <id>]
 #   dispatch status <id>
@@ -61,6 +63,17 @@ _resolve_identity() {
 # Resolve main checkout path (for reading payload files from worktrees)
 _main_checkout() {
     git worktree list 2>/dev/null | head -1 | awk '{print $1}'
+}
+
+# Detect the default branch for the repo (for git show in worktrees)
+# What Problem: Hardcoded master/main fallback in git show fails in repos
+# using other default branch names (develop, trunk, etc.)
+# How & Why: Use symbolic-ref to detect origin's HEAD, fall back to main.
+# Written: 2026-04-05 during dispatch fetch/reply implementation
+_default_branch() {
+    local branch
+    branch=$(git -C "$PROJECT_ROOT" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+    echo "${branch:-main}"
 }
 
 # Generate slug from subject
@@ -336,6 +349,57 @@ cmd_list() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# _display_dispatch — Shared display logic for read/fetch
+# What Problem: read and fetch both display dispatch metadata + payload.
+# Factoring the display logic avoids duplication.
+# How & Why: Extracts the DB query + display + payload resolution into a
+# reusable function. Returns the record fields via nameref variables.
+# Written: 2026-04-05 during dispatch fetch/reply implementation
+# ─────────────────────────────────────────────────────────────────────────────
+_display_dispatch() {
+    local dispatch_id="$1"
+
+    # Get dispatch record
+    local record
+    record=$(iscp_db_query "SELECT payload_path, from_agent, to_agent, type, priority, subject, status, created_at FROM dispatches WHERE id = :id" ":id" "$dispatch_id")
+
+    if [[ -z "$record" ]]; then
+        echo "Error: dispatch ID $dispatch_id not found" >&2
+        return 1
+    fi
+
+    IFS='|' read -r _DISP_PAYLOAD _DISP_FROM _DISP_TO _DISP_TYPE _DISP_PRI _DISP_SUBJECT _DISP_STATUS _DISP_CREATED <<< "$record"
+
+    # Display metadata
+    echo "─── Dispatch #$dispatch_id ───"
+    echo "  Subject:  $_DISP_SUBJECT"
+    echo "  Type:     $_DISP_TYPE"
+    echo "  Priority: $_DISP_PRI"
+    echo "  From:     $_DISP_FROM"
+    echo "  To:       $_DISP_TO"
+    echo "  Created:  $_DISP_CREATED"
+    echo "  Status:   $_DISP_STATUS"
+    echo "───────────────────────"
+    echo ""
+
+    # Read payload file
+    local main_checkout
+    main_checkout=$(_main_checkout)
+    local full_path="$main_checkout/$_DISP_PAYLOAD"
+
+    if [[ -f "$full_path" ]]; then
+        cat "$full_path"
+    else
+        # Use dynamic default branch detection instead of hardcoded master/main
+        local _branch
+        _branch=$(_default_branch)
+        git show "${_branch}:${_DISP_PAYLOAD}" 2>/dev/null || {
+            echo "(payload file not found at $_DISP_PAYLOAD)"
+        }
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # read — Display dispatch payload and mark as read
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_read() {
@@ -347,45 +411,10 @@ cmd_read() {
 
     iscp_db_init
 
-    # Get dispatch record
-    local record
-    record=$(iscp_db_query "SELECT payload_path, from_agent, to_agent, type, priority, subject, status, created_at FROM dispatches WHERE id = :id" ":id" "$dispatch_id")
-
-    if [[ -z "$record" ]]; then
-        echo "Error: dispatch ID $dispatch_id not found" >&2
-        return 1
-    fi
-
-    IFS='|' read -r payload_path from_ag to_ag dtype pri subj status created <<< "$record"
-
-    # Display metadata
-    echo "─── Dispatch #$dispatch_id ───"
-    echo "  Subject:  $subj"
-    echo "  Type:     $dtype"
-    echo "  Priority: $pri"
-    echo "  From:     $from_ag"
-    echo "  To:       $to_ag"
-    echo "  Created:  $created"
-    echo "  Status:   $status"
-    echo "───────────────────────"
-    echo ""
-
-    # Read payload file
-    local main_checkout
-    main_checkout=$(_main_checkout)
-    local full_path="$main_checkout/$payload_path"
-
-    if [[ -f "$full_path" ]]; then
-        cat "$full_path"
-    else
-        # Try git show for worktree access
-        git show "master:$payload_path" 2>/dev/null || git show "main:$payload_path" 2>/dev/null || {
-            echo "(payload file not found at $payload_path)"
-        }
-    fi
+    _display_dispatch "$dispatch_id" || return 1
 
     # Mark as read if currently unread
-    if [[ "$status" == "unread" ]]; then
+    if [[ "$_DISP_STATUS" == "unread" ]]; then
         local my_agent
         my_agent=$(_resolve_identity 2>/dev/null) || my_agent="unknown"
         local now
@@ -395,6 +424,156 @@ cmd_read() {
         echo ""
         echo "dispatch: marked as read by $my_agent"
     fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# fetch — Read-only peek at dispatch (no status change)
+# What Problem: `dispatch read` marks items as read, preventing agents from
+# peeking at a dispatch before committing to process it. Agents need a
+# non-destructive way to inspect dispatch contents.
+# How & Why: Same display logic as read, but skips the status update.
+# Written: 2026-04-05 during dispatch fetch/reply implementation
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_fetch() {
+    local dispatch_id="${1:-}"
+    if [[ -z "$dispatch_id" || ! "$dispatch_id" =~ ^[0-9]+$ ]]; then
+        echo "Error: dispatch fetch requires an integer ID" >&2
+        return 1
+    fi
+
+    iscp_db_init
+
+    _display_dispatch "$dispatch_id" || return 1
+    # No status update — read-only peek
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# reply — Quick response to a dispatch
+# What Problem: Replying to a dispatch requires manually looking up the
+# sender's address, constructing a --to and --reply-to, and prefixing the
+# subject with "Re:". This is tedious and error-prone.
+# How & Why: Syntactic sugar over `dispatch create`. Auto-resolves the
+# recipient from the original dispatch's from_agent, sets reply-to FK,
+# and prefixes subject. The reply message becomes the payload body.
+# Written: 2026-04-05 during dispatch fetch/reply implementation
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_reply() {
+    local dispatch_id="${1:-}"
+    local message="${2:-}"
+
+    if [[ -z "$dispatch_id" || ! "$dispatch_id" =~ ^[0-9]+$ ]]; then
+        echo "Error: dispatch reply requires an integer ID" >&2
+        echo "Usage: dispatch reply <id> \"message\"" >&2
+        return 1
+    fi
+    if [[ -z "$message" ]]; then
+        echo "Error: dispatch reply requires a message" >&2
+        echo "Usage: dispatch reply <id> \"message\"" >&2
+        return 1
+    fi
+
+    iscp_db_init
+
+    # Look up the original dispatch
+    local record
+    record=$(iscp_db_query "SELECT from_agent, subject FROM dispatches WHERE id = :id" ":id" "$dispatch_id")
+
+    if [[ -z "$record" ]]; then
+        echo "Error: dispatch ID $dispatch_id not found" >&2
+        return 1
+    fi
+
+    IFS='|' read -r orig_from orig_subject <<< "$record"
+
+    # Build reply subject — prefix with "Re:" if not already
+    local reply_subject
+    if [[ "$orig_subject" == Re:* ]]; then
+        reply_subject="$orig_subject"
+    else
+        reply_subject="Re: $orig_subject"
+    fi
+
+    # Resolve sender identity
+    local from_agent
+    from_agent=$(_resolve_identity) || return 1
+
+    # Resolve sender's project for dispatch directory
+    address_parse "$from_agent" 2>/dev/null || true
+    local project="${ADDR_AGENT:-captain}"
+
+    # Generate payload file — include reply-to ID to avoid slug collision
+    # when reply subject matches original (e.g., "Re: Already a reply")
+    local slug timestamp date_full filename
+    slug=$(_slugify "$reply_subject")
+    [[ -z "$slug" ]] && slug="reply"
+    timestamp=$(date +%Y%m%d-%H%M)
+    date_full=$(date -u +%Y-%m-%dT%H:%M)
+    filename="dispatch-${slug}-re${dispatch_id}-${timestamp}.md"
+
+    # Resolve dispatch directory from sender's principal
+    address_parse "$from_agent" 2>/dev/null || true
+    local dispatch_principal="${ADDR_PRINCIPAL:-${AGENCY_PRINCIPAL:-${USER:-unknown}}}"
+    local dispatch_dir="$PROJECT_ROOT/usr/${dispatch_principal}/${project}/dispatches"
+    mkdir -p "$dispatch_dir"
+
+    local filepath="$dispatch_dir/$filename"
+    local payload_path="${filepath#$PROJECT_ROOT/}"
+
+    # Write payload file with the reply message as body
+    cat > "$filepath" << REPLY_EOF
+---
+type: dispatch
+from: ${from_agent}
+to: ${orig_from}
+date: ${date_full}
+status: created
+priority: normal
+subject: "${reply_subject}"
+in_reply_to: ${dispatch_id}
+---
+
+# ${reply_subject}
+
+${message}
+REPLY_EOF
+
+    # Insert into DB
+    local db_path
+    db_path=$(iscp_db_path) || return 1
+    local preamble
+    preamble=$(_iscp_pragma_preamble_light)
+    local params
+    params=$(_iscp_build_params \
+        ":created_at" "$date_full" \
+        ":from_agent" "$from_agent" \
+        ":to_agent" "$orig_from" \
+        ":type" "dispatch" \
+        ":priority" "normal" \
+        ":subject" "$reply_subject" \
+        ":payload_path" "$payload_path" \
+        ":reply_to" "$dispatch_id") || return 1
+
+    local insert_sql="INSERT INTO dispatches (created_at, from_agent, to_agent, type, priority, subject, payload_path, in_reply_to, status)
+        VALUES (:created_at, :from_agent, :to_agent, :type, :priority, :subject, :payload_path, CASE WHEN :reply_to = '' THEN NULL ELSE CAST(:reply_to AS INTEGER) END, 'unread')"
+
+    local db_id
+    db_id=$(sqlite3 "$db_path" << SQL
+${preamble}
+${params}
+${insert_sql};
+SELECT last_insert_rowid();
+.param clear
+SQL
+    )
+
+    echo "dispatch [reply]"
+    echo "  ID:       $db_id"
+    echo "  File:     $payload_path"
+    echo "  From:     $from_agent"
+    echo "  To:       $orig_from"
+    echo "  Reply-to: #$dispatch_id"
+    echo "  Subject:  $reply_subject"
+    echo "✓"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -539,6 +718,8 @@ Usage:
   dispatch create --to <addr> --subject <text> [--type <type>] [--priority <p>]
   dispatch list [--all] [--status <s>] [--type <t>]
   dispatch read <id>
+  dispatch fetch <id>          — read-only peek (no status change)
+  dispatch reply <id> "msg"    — quick response to a dispatch
   dispatch check
   dispatch resolve <id> [--response <id>]
   dispatch status <id>
@@ -569,6 +750,14 @@ case "$subcmd" in
     read)
         shift; cmd_read "$@"
         log_end "$RUN_ID" "success" "0" "0" "dispatch read"
+        ;;
+    fetch)
+        shift; cmd_fetch "$@"
+        log_end "$RUN_ID" "success" "0" "0" "dispatch fetch"
+        ;;
+    reply)
+        shift; cmd_reply "$@"
+        log_end "$RUN_ID" "success" "0" "0" "dispatch reply"
         ;;
     check)
         cmd_check

@@ -257,3 +257,142 @@ _create_dispatch() {
     assert_failure
     assert_output_contains "not found"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# fetch — read-only peek
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch fetch: displays dispatch without changing status" {
+    _create_dispatch "Peek at me"
+
+    # Verify starts as unread
+    local status_before
+    status_before=$(_db_query "SELECT status FROM dispatches WHERE id=1")
+    [[ "$status_before" == "unread" ]]
+
+    run "$DISPATCH" fetch 1
+    assert_success
+    assert_output_contains "Peek at me"
+
+    # Status should still be unread
+    local status_after
+    status_after=$(_db_query "SELECT status FROM dispatches WHERE id=1")
+    [[ "$status_after" == "unread" ]]
+}
+
+@test "dispatch fetch: does not say 'marked as read'" {
+    _create_dispatch "No marking"
+
+    run "$DISPATCH" fetch 1
+    assert_success
+    ! echo "$output" | grep -q "marked as read"
+}
+
+@test "dispatch fetch: fails for nonexistent ID" {
+    run "$DISPATCH" fetch 999
+    assert_failure
+    assert_output_contains "not found"
+}
+
+@test "dispatch fetch: requires integer ID" {
+    run "$DISPATCH" fetch "not-a-number"
+    assert_failure
+    assert_output_contains "integer ID"
+}
+
+@test "dispatch fetch: works on already-read dispatch" {
+    _create_dispatch "Already read dispatch"
+    "$DISPATCH" read 1 > /dev/null  # mark as read
+
+    run "$DISPATCH" fetch 1
+    assert_success
+    assert_output_contains "Already read dispatch"
+
+    # Status should still be read (not reverted to something else)
+    local status
+    status=$(_db_query "SELECT status FROM dispatches WHERE id=1")
+    [[ "$status" == "read" ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# reply — quick response
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch reply: creates reply addressed to original sender" {
+    _create_dispatch "Original message"
+
+    run "$DISPATCH" reply 1 "Got it, thanks"
+    assert_success
+    assert_output_contains "reply"
+    assert_output_contains "Re: Original message"
+    assert_output_contains "Reply-to: #1"
+
+    # Verify the reply dispatch exists in DB
+    local to_agent
+    to_agent=$(_db_query "SELECT to_agent FROM dispatches WHERE id=2")
+    # Reply should be addressed to original sender (test-repo/testprincipal/iscp — our identity)
+    [[ -n "$to_agent" ]]
+}
+
+@test "dispatch reply: sets in_reply_to FK" {
+    _create_dispatch "Parent dispatch"
+
+    "$DISPATCH" reply 1 "Reply message" > /dev/null
+
+    local reply_to
+    reply_to=$(_db_query "SELECT in_reply_to FROM dispatches WHERE id=2")
+    [[ "$reply_to" == "1" ]]
+}
+
+@test "dispatch reply: prefixes subject with Re:" {
+    _create_dispatch "Important topic"
+
+    run "$DISPATCH" reply 1 "My response"
+    assert_success
+    assert_output_contains "Re: Important topic"
+}
+
+@test "dispatch reply: does not double-prefix Re:" {
+    # Create a dispatch that already has Re: in subject
+    "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "Re: Already a reply" --type dispatch > /dev/null 2>&1
+
+    run "$DISPATCH" reply 1 "Follow-up"
+    assert_success
+    assert_output_contains "Re: Already a reply"
+    # Should NOT contain "Re: Re:"
+    ! echo "$output" | grep -q "Re: Re:"
+}
+
+@test "dispatch reply: fails for nonexistent ID" {
+    run "$DISPATCH" reply 999 "Hello"
+    assert_failure
+    assert_output_contains "not found"
+}
+
+@test "dispatch reply: requires message" {
+    _create_dispatch "Need reply"
+
+    run "$DISPATCH" reply 1 ""
+    assert_failure
+    assert_output_contains "requires a message"
+}
+
+@test "dispatch reply: requires integer ID" {
+    run "$DISPATCH" reply "abc" "hello"
+    assert_failure
+    assert_output_contains "integer ID"
+}
+
+@test "dispatch reply: writes payload file with message body" {
+    _create_dispatch "Payload test"
+
+    "$DISPATCH" reply 1 "This is the reply content" > /dev/null
+
+    # Find the reply payload file
+    local payload_path
+    payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=2")
+    [[ -f "$MOCK_REPO/$payload_path" ]]
+
+    # Verify the message is in the payload
+    grep -q "This is the reply content" "$MOCK_REPO/$payload_path"
+}
