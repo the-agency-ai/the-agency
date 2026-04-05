@@ -166,6 +166,7 @@
       "Bash(./claude/tools/deploy-*:*)",
       "Bash(./claude/tools/designsystem-add*)",
       "Bash(./claude/tools/designsystem-validate*)",
+      "Bash(./claude/tools/dispatch)",
       "Bash(./claude/tools/dispatch *)",
       "Bash(./claude/tools/dispatch-create*)",
       "Bash(./claude/tools/epic-create*)",

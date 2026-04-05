@@ -32,6 +32,11 @@ claude/                    — framework (tools, agents, docs, hooks, config)
     stage-hash             — deterministic staging area hash
     git-commit             — QG-aware commit wrapper
     settings-merge         — merge settings template into current settings
+    agent-identity         — "who am I" identity resolution
+    dispatch               — dispatch lifecycle (create/list/read/check/resolve/status)
+    flag                   — agent-addressable flag capture and processing
+    iscp-check             — "you got mail" notification hook
+    iscp-migrate           — legacy flag/dispatch migration (one-shot)
   templates/               — scaffolding templates
   workstreams/             — bodies of work
     {workstream}/
@@ -228,7 +233,7 @@ remotes:
     url: https://github.com/OrdinaryFolk/monofolk
 ```
 
-The transport layer (git push/pull, future ISCP) is separate from addressing. Addresses identify; transport delivers.
+The transport layer (git push/pull, ISCP) is separate from addressing. Addresses identify; transport delivers. ISCP v1 uses the local filesystem (SQLite DB + git payloads) — cross-machine transport is a future extension.
 
 **Resolution errors:** Unknown repo = hard fail with actionable message. Unknown principal = hard fail. Unknown agent = warn (agent may not be registered yet in a fresh worktree).
 
@@ -241,11 +246,13 @@ Addresses resolve to physical locations for dispatch payloads:
 | Agent | `{repo}/{principal}/{agent}` | `usr/{principal}/{project}/dispatches/` |
 | Workstream | `{repo}/{workstream}` | `claude/workstreams/{workstream}/dispatches/` |
 
-A **dispatch** is a structured message between agents or from principal to agent. It consists of a notification pointing to a payload file in git at the resolved location above. Dispatch payloads are immutable once written. Named `{type}-{YYYYMMDD-HHMM}.md`.
+A **dispatch** is a structured message between agents or from principal to agent. It consists of a notification pointing to a payload file in git at the resolved location above. Dispatch payloads are immutable once written. Named `{type}-{slug}-{YYYYMMDD-HHMM}.md`.
 
-A **flag** is a quick-capture observation for later discussion. Flags use the same addressing scheme but have no git payload — the content lives in the notification itself. Flags are agent-addressable: `/flag TEXT` (current agent), `/flag agent TEXT` (specific agent).
+Dispatches are managed by the `dispatch` tool — never created manually. The tool creates both the DB record and the git payload atomically. Dispatch types are validated against an 8-type enum: `directive`, `seed`, `review`, `review-response`, `commit`, `master-updated`, `escalation`, `dispatch`. Integer IDs (from the DB) are used to reference dispatches, not file paths.
 
-Both dispatch notifications and flags will be persisted in a local database outside the repo (see the ISCP workstream for the design). Until that is implemented, dispatches are markdown files in git and flags are JSONL files staged on write.
+A **flag** is a quick-capture observation for later discussion. Flags are DB-only — no git payload, instant capture from any worktree. Agent-addressable: `flag <message>` (self), `flag --to <agent> <message>` (specific agent). Three-state lifecycle: unread → read (on `flag list`) → processed (on `flag discuss` or `flag clear`).
+
+Both dispatch notifications and flags are persisted in a SQLite database at `~/.agency/{repo-name}/iscp.db` (outside git). The DB stores notification metadata and mutable state (read/unread, timestamps). Dispatch payloads remain as immutable markdown files in git. Flags are DB-only (no git payload). See the ISCP reference: `claude/workstreams/iscp/iscp-reference-20260405.md`.
 
 ### Commit Messages
 
@@ -352,13 +359,14 @@ Worktree agents implement features on isolated branches. They build, test, and l
 - Work on your branch. Commit at iteration boundaries via `/iteration-complete`.
 - Land on master at phase boundaries via `/phase-complete` (squash, deep QG, approval, push to local master).
 - Merge master regularly (`git merge master`) to pick up dispatches, CLAUDE.md updates, and other agents' work.
+- The `iscp-check` hook automatically notifies you of unread dispatches on SessionStart — you don't need to merge master to know about them. However, you still need to merge master to access dispatch payload files (the DB notification tells you the file exists; the payload lives on master).
 - Never push to origin directly — the captain manages PR branches and pushes.
 
 ### When to Create a Worktree
 
 - **New prototype or feature** — always a worktree. Use `/workstream-create` or `/prototype-create`.
 - **Bug fix or small change** — can work on master if it's a quick fix that doesn't need isolation.
-- **Dispatch handling** — worktree agent picks up the dispatch after merging master.
+- **Dispatch handling** — `iscp-check` notifies the worktree agent automatically. The agent runs `dispatch read <id>` to see the payload. If the payload file is on master, merge master first to access it.
 
 ## Session Handoff
 
@@ -371,6 +379,37 @@ Handoffs are not just session continuity — they bootstrap context for any purp
 **When to write:** At boundary commands (`/iteration-complete`, `/phase-complete`, `/plan-complete`, `/pre-phase-review`), automatically on `PreCompact` and `SessionEnd` hooks, after `/sync-all` (lightweight), and at discussion milestones (PVR draft, key A&D decision, plan revision).
 
 **What to include:** Current phase/iteration status, what was just done, what's next, key decisions or context for a fresh session, open items or blockers.
+
+## ISCP (Inter-Session Communication Protocol)
+
+ISCP is the notification and messaging backbone. Every agent has automatic mail.
+
+### How It Works
+
+The `iscp-check` hook fires on SessionStart, UserPromptSubmit, and Stop. It queries the SQLite DB at `~/.agency/{repo-name}/iscp.db` for unread items addressed to the current agent. Silent when empty (zero tokens). One-line JSON summary when items are waiting.
+
+### Tools
+
+| Tool | What |
+|------|------|
+| `flag <message>` | Quick-capture to self (DB-only, instant) |
+| `flag --to <agent> <message>` | Quick-capture to specific agent |
+| `flag list` / `flag discuss` / `flag clear` | Process flags |
+| `dispatch create --to <addr> --subject <text>` | Send a dispatch (DB + git payload) |
+| `dispatch list` | See dispatches for current agent |
+| `dispatch read <id>` | Read payload, mark as read |
+| `dispatch resolve <id>` | Mark dispatch resolved |
+| `agent-identity` | Resolve "who am I" (repo/principal/agent) |
+
+### When You Have Mail
+
+- **SessionStart:** Process unread items FIRST before other work (hookify enforced)
+- **Mid-session:** Act on mail at a natural break, not immediately
+- **Dispatch types:** directive (do this), review (fix these), seed (input material), escalation (urgent)
+
+### Reference
+
+Full details: `claude/workstreams/iscp/iscp-reference-20260405.md`
 
 ## Discussion Protocol (1B1)
 
@@ -564,7 +603,7 @@ Three review tools serve different purposes at different points. They do not rep
 
 The captain manages the full PR lifecycle: `/sync-all` → rebuild PR branches → `/captain-review` → dispatch findings → worktree agents fix → rebuild → push → draft PR → human review → merge. Run `/pr-prep` before pushing a PR branch (full diff QG against origin/master). Reviews run **locally** before PRs are created. The full protocol is in the captain agent definition and `claude/docs/CODE-REVIEW-LIFECYCLE.md`.
 
-**If you receive a dispatch:** Merge master, read the dispatch file at `usr/{{principal}}/{project}/code-reviews/`, evaluate findings, fix with red→green cycle, append a resolution table, run `/iteration-complete`. The full dispatch handling protocol is in `claude/docs/CODE-REVIEW-LIFECYCLE.md` — injected when relevant skills run.
+**If you receive a dispatch:** Run `dispatch list` to see pending dispatches with their integer IDs. Run `dispatch read <id>` to read the payload and mark it as read. Evaluate findings, fix with red→green cycle, append a resolution table, run `/iteration-complete`. When done, `dispatch resolve <id>` marks it resolved. For review dispatches, send a `review-response` dispatch with `--reply-to <id>`. The full dispatch handling protocol is in `claude/docs/CODE-REVIEW-LIFECYCLE.md` — injected when relevant skills run.
 
 **Review files:** `usr/{{principal}}/{project}/code-reviews/{project}-{review|dispatch}-YYYYMMDD-HHMM.md`. Committed to the repo as the audit trail.
 
