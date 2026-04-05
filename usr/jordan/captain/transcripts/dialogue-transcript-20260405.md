@@ -259,3 +259,45 @@ Session recovered after context compaction. Resuming with 1B1 through open items
 ## 1B1: PVR MAR Remaining Items (5-13)
 
 Starting from the top of the open items list, working down.
+
+### Item 3: Multi-Principal Story
+
+Captain proposed adding multi-principal as an Open Question rather than P0 requirement. Jordan: "We need to work this out. I have some ideas." Discussion deferred — Jordan asked to merge ISCP first.
+
+---
+
+## ISCP v1 Merge and Review
+
+Jordan: "ISCP v1 is finished and ready for your review and deployment and use. Please merge the commit and go through it."
+
+Merged 24 commits from `iscp` branch. 3 conflicts resolved (dispatch tool v2 replaced v1, PVR/A&D evolved). 142 BATS tests all green.
+
+Captain ran full review: code review of all 7 tools, read all dispatches, reviewed hookify rules and settings.json wiring.
+
+**Findings:** 1 HIGH (SQL interpolation in dispatch), 4 MEDIUM (last_insert_rowid race, echo trailing newlines, bare address fallback, agent-identity principal mapping broken), 5 LOW.
+
+Jordan: "So, who should do what?"
+
+**Decision:** ISCP agent fixes their own bugs (HIGH + MEDIUMs). Captain handles framework integration (CLAUDE-THEAGENCY.md updates, settings.json, iscp-migrate).
+
+---
+
+## the-agency-group — Business vs Platform Bifurcation
+
+Jordan: "I want to make a distinction, we need to bifurcate the-agency platform from the-agency-group (the business which is built around the content). So that content repo should be renamed to the-agency-group and all discussion around content, the business, etc. should be held there."
+
+**Decision:** `the-agency` = framework platform. `the-agency-group` = business entity, content, monetization. Content strategy files currently in `usr/jordan/captain/content/` should move to the-agency-group repo. PVR R25 needs updating from `the-agency-content` to `the-agency-group`.
+
+---
+
+## DevEx Workstream
+
+Jordan: "We need to spin up our own devex workstream with a the-agency/devex agent and we need to have them tackle test isolation in docker containers. We continue to see issues here."
+
+**Decision:** Create `the-agency/devex` workstream + agent. First priority: Docker test isolation (R6 from PVR). Maps to R19 (DevEx workstream) from Agency 2.0 PVR.
+
+---
+
+## ISCP Review Dispatch
+
+Captain dispatched `review-iscp-v1-code-review-20260405.md` to ISCP agent with all findings and acceptance criteria. Also noted M4 (agent-identity principal resolution broken — returns `testuser` instead of `jordan`).
