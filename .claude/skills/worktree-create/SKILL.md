@@ -1,5 +1,5 @@
 ---
-allowed-tools: Read, Bash(git worktree:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(git show-ref:*), Bash(./claude/tools/dependencies-install:*), Glob
+allowed-tools: Read, Write, Bash(git worktree:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(git show-ref:*), Bash(./claude/tools/dependencies-install:*), Glob
 description: Create a new git worktree with dedicated branch and bootstrapped dev environment
 ---
 
@@ -20,6 +20,7 @@ If `$ARGUMENTS` is empty, ask for a name.
 Parse:
 - First positional arg is the **name**
 - If `--from <branch>` is present, record as **base ref**
+- If `--agent <agent-name>` is present, record as **agent name** (for identity binding)
 
 ### Step 1: Validate the name
 
@@ -37,6 +38,19 @@ If `--from <branch>` was specified: `git rev-parse --verify <branch>` — abort 
 ```
 git worktree add .claude/worktrees/<name> -b <name> [<base-ref>]
 ```
+
+### Step 3b: Write .agency-agent identity file
+
+Write the agent name to `.claude/worktrees/<name>/.agency-agent` so `agent-identity` resolves correctly in this worktree.
+
+- If `--agent <agent-name>` was provided, use that
+- Otherwise, use the worktree `<name>` as the agent name
+
+```
+echo "<agent-name>" > .claude/worktrees/<name>/.agency-agent
+```
+
+This file is gitignored (worktrees are local state) but critical for ISCP — without it, the worktree agent resolves as captain.
 
 ### Step 4: Bootstrap the worktree
 
