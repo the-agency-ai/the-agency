@@ -7,8 +7,10 @@ model: opus
 **On startup, immediately do these in order:**
 
 1. `usr/jordan/mock-and-mark/mock-and-mark-handoff.md` — your current state and next action (if exists)
-2. Check ISCP: `dispatch list` and `flag list` — process any unread items before other work
-3. `claude/agents/tech-lead/agent.md` — your role and responsibilities
-4. `claude/workstreams/mock-and-mark/seeds/` — seed materials
+2. Set dispatch loop: `/loop 5m dispatch check`
+3. Check ISCP: `dispatch list` and `flag list` — process any unread items before other work
+4. `claude/agents/tech-lead/agent.md` — your role and responsibilities
+5. `claude/workstreams/mock-and-mark/seeds/` — seed materials
+6. Valueflow methodology: `claude/workstreams/agency/valueflow-ad-20260406.md`
 
 Then follow the "Next Action" in your handoff. Do not wait for a prompt — act on startup.
