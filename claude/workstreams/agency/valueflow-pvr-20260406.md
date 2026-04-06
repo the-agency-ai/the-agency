@@ -3,7 +3,7 @@ type: pvr
 project: valueflow
 workstream: agency
 date: 2026-04-06
-status: draft — pending MAR
+status: MAR round 1 complete (4 research reviewers) — agent reviews pending
 author: the-agency/jordan/captain
 seeds:
   - claude/workstreams/agency/seeds/seed-valueflow-20260406.md
@@ -22,7 +22,7 @@ transcripts:
 
 Software development has mature methodologies — Waterfall, Agile, Lean, SAFe — but none designed for teams where AI agents are the primary builders. As multi-agent development becomes real, no defined methodology exists for how a thought becomes a requirement, a requirement becomes a design, a design becomes a plan, and a plan becomes shipped software. Valueflow fills this gap.
 
-Rooted in Lean thinking: everything before delivery is waste. A seed is potential. Only delivery creates value.
+Rooted in Lean thinking: every step must demonstrably reduce rework or increase delivery probability. Steps that do not are waste. A seed is potential. Only delivery creates value.
 
 ## The Problem
 
