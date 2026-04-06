@@ -74,3 +74,9 @@ claude/agents/*/backups/archive/
 
 # Agency local data (not versioned)
 .agency/projects.json
+
+# Agent identity marker (runtime state — set per-worktree, not versioned)
+.agency-agent
+
+# Scheduled tasks lock (runtime state)
+.claude/scheduled_tasks.lock
