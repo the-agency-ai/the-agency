@@ -2,8 +2,8 @@
 type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
-date: 2026-04-06
-trigger: reboot
+date: 2026-04-07
+trigger: MAR review dispatch #96 completed
 ---
 
 ## Identity
@@ -12,46 +12,51 @@ the-agency/jordan/devex — tech-lead on the devex workstream. I own test infras
 
 ## Current State
 
-New workstream, Day 1. Bootstrapped, reviewed Valueflow PVR and A&D, sent scope proposal. No implementation started. No DevEx PVR written yet — scope proposal (dispatch #47) was pre-PVR alignment.
+Completed MAR review of Valueflow V2 implementation plan (dispatch #96). Sent review-response dispatch #99 to captain with 14 findings. No implementation started. No DevEx PVR written yet.
 
 ## Valueflow Context
 
 - PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
 - A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-- MAR dispositions: `claude/workstreams/agency/reviews/`
+- Plan: `claude/workstreams/agency/valueflow-plan-20260407.md`
+- My review: dispatch #99 (review-response to #96)
 
-Read the A&D on startup — it assigns work to DevEx: §4 enforcement ladder, §6 quality gates, §9 context budget linter.
+Read the A&D on startup — it assigns work to DevEx: section 4 enforcement ladder, section 6 quality gates, section 9 context budget linter.
 
 ## Active Work
 
-Nothing in progress. Seed at `claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md`. Scope proposal at dispatch #47. Captain received it but priority was Valueflow PVR/A&D. Now that those are done, DevEx work begins.
+MAR review complete. Awaiting captain's triage of my 14 findings and principal approval of the plan. Once approved, captain dispatches seed with my assigned phases (Phase 3, Phase 5 partial).
+
+Key findings from my review:
+- Phase 3 scope is correct, well-sequenced
+- "Scope brief" artifact type needs definition (finding #2)
+- Co-ship 3.4 + Phase 1 M4 is workable but needs M1-M3 on master for testing (finding #3)
+- Phase 5.0 handoff schema contract needs concrete example, not just field names (finding #4)
+- Several acceptance criteria need tightening (findings #5, #8, #9, #10)
+- BATS .git/config corruption is an unacknowledged pre-existing blocker (finding #13)
 
 ## Key Decisions
 
-- T1 gate: stage-hash + compile + format + fast tests, **60s budget** (Valueflow A&D §6)
+- T1 gate: stage-hash + compile + format + fast tests, **60s budget** (Valueflow A&D section 6)
 - Convention-based test scoping (path mirroring) as default, package-level fallback
-- Enforcement registry: `claude/config/enforcement.yaml` + audit tool. **No registry without auditor — you build both.**
+- Enforcement registry: `claude/config/enforcement.yaml` + audit tool. **No registry without auditor.**
 - Context budget linter: **Ships with CLAUDE-THEAGENCY.md decomposition or neither ships.**
-- Hooks you implement: `WorktreeCreate`, `PostCompact`, `PermissionDenied`, conditional `if:`
-- Permission model: settings-template audit, zero-prompt for safe ops — you own
+- Hooks I implement: `WorktreeCreate`, `PostCompact`
+- Permission model: settings-template audit, zero-prompt for safe ops — I own
 
 ## Open Items
 
 - Seeds to process: #29 (test management boundaries), #31 (test reporting service), #36 (permission model overhaul)
 - Dispatch #76 (polling tip from ISCP)
-- Write DevEx PVR — use `/define` with the seed
+- Write DevEx PVR — use `/define` with the seed (after plan approval)
 - The burning problem: `claude/tools/commit-precheck` runs all 155 tests on every commit. Rewrite with smart scoping.
 - BATS tests corrupt `.git/config` — happened 4+ times in Day 30 session
-
-## Need Help?
-
-If you're stuck or have a question, send a dispatch to captain: `dispatch create --to captain --subject "Question: ..." --body "..."`
+- 4 flags in queue (SMS dispatches, captain's log, friction toolification, release notes)
 
 ## Startup Actions
 
 1. Set dispatch loop: `/loop 5m dispatch check`
 2. Process unread dispatches: `dispatch list`
 3. Process unread flags: `flag list`
-4. Read the valueflow A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-5. Read your seed: `claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md`
-6. Start `/define` to write the DevEx PVR
+4. Check if captain has triaged review findings and plan is approved
+5. If approved: read seed dispatch, begin Phase 3.1 (QG tier definitions)
