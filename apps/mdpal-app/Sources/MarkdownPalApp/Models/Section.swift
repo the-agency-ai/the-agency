@@ -7,35 +7,63 @@
 // the stable identifier (computed by the engine from headings). Version
 // hashes enable optimistic concurrency on edits.
 //
+// Phase 1A alignment: SectionInfo replaced by recursive SectionTreeNode
+// to match CLI spec. SectionsResponse wraps the tree with metadata.
+// Section (read response) drops children, adds versionId.
+// All CodingKeys removed — CLI JSON is camelCase, matches Swift names.
+//
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
+// Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
 
 import Foundation
 
-/// Summary info for a section (from `mdpal sections` output).
-/// Drives the sidebar list view.
-public struct SectionInfo: Identifiable, Codable, Hashable {
+/// Recursive tree node for `mdpal sections` response.
+/// Drives the sidebar list view after flattening in the service layer.
+public struct SectionTreeNode: Identifiable, Codable, Hashable {
     public let slug: String
     public let heading: String
     public let level: Int
     public let versionHash: String
-    public let childCount: Int
+    public let children: [SectionTreeNode]
 
     public var id: String { slug }
 
-    public init(slug: String, heading: String, level: Int, versionHash: String, childCount: Int) {
+    public init(slug: String, heading: String, level: Int,
+                versionHash: String, children: [SectionTreeNode] = []) {
         self.slug = slug
         self.heading = heading
         self.level = level
         self.versionHash = versionHash
-        self.childCount = childCount
+        self.children = children
+    }
+}
+
+/// Wrapper for `mdpal sections` response.
+/// Contains the recursive tree, count, and versionId.
+/// Flattening happens here (once, in service layer), not per-render in views.
+public struct SectionsResponse: Codable {
+    public let sections: [SectionTreeNode]
+    public let count: Int
+    public let versionId: String
+
+    public init(sections: [SectionTreeNode], count: Int, versionId: String) {
+        self.sections = sections
+        self.count = count
+        self.versionId = versionId
     }
 
-    enum CodingKeys: String, CodingKey {
-        case slug
-        case heading
-        case level
-        case versionHash = "version_hash"
-        case childCount = "child_count"
+    /// Depth-first flattening of the section tree.
+    /// Called once in the service layer when unwrapping the response.
+    public func flattened() -> [SectionTreeNode] {
+        var result: [SectionTreeNode] = []
+        func walk(_ nodes: [SectionTreeNode]) {
+            for node in nodes {
+                result.append(node)
+                walk(node.children)
+            }
+        }
+        walk(sections)
+        return result
     }
 }
 
@@ -47,26 +75,17 @@ public struct Section: Identifiable, Codable, Hashable {
     public let level: Int
     public let content: String
     public let versionHash: String
-    public let children: [SectionInfo]
+    public let versionId: String
 
     public var id: String { slug }
 
     public init(slug: String, heading: String, level: Int, content: String,
-                versionHash: String, children: [SectionInfo]) {
+                versionHash: String, versionId: String) {
         self.slug = slug
         self.heading = heading
         self.level = level
         self.content = content
         self.versionHash = versionHash
-        self.children = children
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case slug
-        case heading
-        case level
-        case content
-        case versionHash = "version_hash"
-        case children
+        self.versionId = versionId
     }
 }

@@ -1,13 +1,17 @@
 // What Problem: The detail pane needs to display a section's content with
-// its heading, metadata (version hash, child count), and associated comments
-// and flags. This is the primary reading/review surface.
+// its heading, metadata (version hash), and associated comments and flags.
+// This is the primary reading/review surface.
 //
 // How & Why: Vertical ScrollView with the section heading, content body,
 // flag banner (if flagged), and comment thread. Content is plain text for
 // Phase 1 — Markdown rendering comes later. Comments show type, author,
-// staleness indicator, and resolution state.
+// and resolution state. Phase 1A alignment: children summary removed
+// (Section no longer has children). CommentType icons/colors updated for
+// .issue/.todo. Resolution uses .by instead of .resolvedBy. Context is
+// optional (String?).
 //
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
+// Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
 
 import SwiftUI
 
@@ -41,11 +45,6 @@ public struct SectionReaderView: View {
                     .font(.body)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Children summary
-                if !section.children.isEmpty {
-                    childrenSummary
-                }
 
                 // Comments
                 if !comments.isEmpty {
@@ -114,32 +113,6 @@ public struct SectionReaderView: View {
         )
     }
 
-    // MARK: - Children Summary
-
-    private var childrenSummary: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Subsections")
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-
-            ForEach(section.children) { child in
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.turn.down.right")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                    Text(child.heading)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(.quaternary.opacity(0.5))
-        )
-    }
-
     // MARK: - Comments Section
 
     private var commentsSection: some View {
@@ -156,10 +129,7 @@ public struct SectionReaderView: View {
             }
 
             ForEach(comments) { comment in
-                CommentView(
-                    comment: comment,
-                    isStale: comment.isStale(currentSectionHash: section.versionHash)
-                )
+                CommentView(comment: comment)
             }
         }
     }
@@ -168,7 +138,6 @@ public struct SectionReaderView: View {
 /// A single comment in the thread.
 struct CommentView: View {
     let comment: Comment
-    let isStale: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -192,13 +161,6 @@ struct CommentView: View {
                         .help("High priority")
                 }
 
-                if isStale {
-                    Label("Stale", systemImage: "clock.arrow.circlepath")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                        .help("Section has changed since this comment was written")
-                }
-
                 Spacer()
 
                 Text(comment.timestamp.formatted(.relative(presentation: .named)))
@@ -211,9 +173,9 @@ struct CommentView: View {
                 .font(.body)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Context (collapsed by default in future; shown for now)
-            if !comment.context.isEmpty {
-                Text(comment.context)
+            // Context (optional — may be absent)
+            if let context = comment.context, !context.isEmpty {
+                Text(context)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(8)
@@ -229,7 +191,7 @@ struct CommentView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                         .font(.caption)
-                    Text("Resolved by \(resolution.resolvedBy):")
+                    Text("Resolved by \(resolution.by):")
                         .font(.caption.bold())
                         .foregroundStyle(.green)
                 }
@@ -256,8 +218,8 @@ struct CommentView: View {
         case .question: return "questionmark.circle"
         case .suggestion: return "lightbulb"
         case .note: return "note.text"
-        case .directive: return "arrow.right.circle"
-        case .decision: return "checkmark.seal"
+        case .issue: return "exclamationmark.circle"
+        case .todo: return "checklist"
         }
     }
 
@@ -266,8 +228,8 @@ struct CommentView: View {
         case .question: return .purple
         case .suggestion: return .blue
         case .note: return .gray
-        case .directive: return .orange
-        case .decision: return .green
+        case .issue: return .orange
+        case .todo: return .green
         }
     }
 }
