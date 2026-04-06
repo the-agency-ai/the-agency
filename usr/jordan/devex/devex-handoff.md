@@ -3,7 +3,7 @@ type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
 date: 2026-04-07
-trigger: MAR review dispatch #96 completed
+trigger: SessionEnd — stop hook
 ---
 
 ## Identity
@@ -12,51 +12,43 @@ the-agency/jordan/devex — tech-lead on the devex workstream. I own test infras
 
 ## Current State
 
-Completed MAR review of Valueflow V2 implementation plan (dispatch #96). Sent review-response dispatch #99 to captain with 14 findings. No implementation started. No DevEx PVR written yet.
+Short session — startup + PVR review. Found existing PVR draft at `usr/jordan/devex/devex-pvr-20260406.md`. Assessed completeness: 8.5/9. Three items flagged for principal review before proceeding to A&D. No implementation started.
+
+## PVR Status
+
+The DevEx PVR exists and is comprehensive (10 FRs, 5 NFRs, 4 constraints, 8 success criteria, 5 non-goals, 3 open questions). Draft status — awaiting principal review.
+
+Three items flagged for discussion:
+1. Should PVR explicitly require a "friction capture" mechanism (flag #3 from queue), or is that captain-scope process?
+2. Use cases gap — FRs cover the ground but no explicit workflow narratives. Worth adding?
+3. OQ3 (PermissionDenied hook) — depends on Claude Code support. Keep aspirational or move to Non-Goals?
 
 ## Valueflow Context
 
 - PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
 - A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-- Plan: `claude/workstreams/agency/valueflow-plan-20260407.md`
-- My review: dispatch #99 (review-response to #96)
+- My MAR review of Valueflow plan: dispatch #99
 
-Read the A&D on startup — it assigns work to DevEx: section 4 enforcement ladder, section 6 quality gates, section 9 context budget linter.
-
-## Active Work
-
-MAR review complete. Awaiting captain's triage of my 14 findings and principal approval of the plan. Once approved, captain dispatches seed with my assigned phases (Phase 3, Phase 5 partial).
-
-Key findings from my review:
-- Phase 3 scope is correct, well-sequenced
-- "Scope brief" artifact type needs definition (finding #2)
-- Co-ship 3.4 + Phase 1 M4 is workable but needs M1-M3 on master for testing (finding #3)
-- Phase 5.0 handoff schema contract needs concrete example, not just field names (finding #4)
-- Several acceptance criteria need tightening (findings #5, #8, #9, #10)
-- BATS .git/config corruption is an unacknowledged pre-existing blocker (finding #13)
+Read the A&D on startup — it assigns work to DevEx: §4 enforcement ladder, §6 quality gates, §9 context budget linter.
 
 ## Key Decisions
 
-- T1 gate: stage-hash + compile + format + fast tests, **60s budget** (Valueflow A&D section 6)
+- T1 gate: stage-hash + compile + format + fast tests, **60s budget** (Valueflow A&D §6)
 - Convention-based test scoping (path mirroring) as default, package-level fallback
 - Enforcement registry: `claude/config/enforcement.yaml` + audit tool. **No registry without auditor.**
 - Context budget linter: **Ships with CLAUDE-THEAGENCY.md decomposition or neither ships.**
-- Hooks I implement: `WorktreeCreate`, `PostCompact`
-- Permission model: settings-template audit, zero-prompt for safe ops — I own
 
 ## Open Items
 
-- Seeds to process: #29 (test management boundaries), #31 (test reporting service), #36 (permission model overhaul)
+- 4 flags in queue (SMS dispatches, captain's log, friction→toolification, release notes)
+- Seeds to process: #29, #31, #36
 - Dispatch #76 (polling tip from ISCP)
-- Write DevEx PVR — use `/define` with the seed (after plan approval)
-- The burning problem: `claude/tools/commit-precheck` runs all 155 tests on every commit. Rewrite with smart scoping.
-- BATS tests corrupt `.git/config` — happened 4+ times in Day 30 session
-- 4 flags in queue (SMS dispatches, captain's log, friction toolification, release notes)
+- BATS tests corrupt `.git/config` — known pre-existing blocker
 
 ## Startup Actions
 
 1. Set dispatch loop: `/loop 5m dispatch check`
-2. Process unread dispatches: `dispatch list`
-3. Process unread flags: `flag list`
-4. Check if captain has triaged review findings and plan is approved
-5. If approved: read seed dispatch, begin Phase 3.1 (QG tier definitions)
+2. Process unread dispatches and flags
+3. Get principal feedback on the 3 PVR discussion items
+4. If PVR approved: start `/design` for DevEx A&D
+5. If plan approved by captain: begin Phase 3 implementation
