@@ -87,27 +87,37 @@ done
 RUN_ID=$(log_start "agent-identity" "$OUTPUT_MODE")
 
 # --- Detect agent name ---
+# What Problem: PR branches (captain/valueflow-pvr-20260406) get branch slug
+# as agent name instead of captain. Causes wrong from_agent, wrong payload
+# directory, garbage directories in usr/.
+# How & Why: Resolution chain: (1) env var, (2) .agency-agent file (worktrees
+# AND main checkout), (3) branch detection with captain-prefix awareness.
+# .agency-agent is the definitive source — branch detection is fallback only.
+# Written: 2026-04-06 — PR branch identity fix (escalation #63)
+#
 # Priority: env var > .agency-agent file > branch detection
 AGENT_NAME="${CLAUDE_AGENT_NAME:-}"
 
-# Check for .agency-agent file in project root (worktree-local identity)
-# This file is created by worktree-create or manually to bind a worktree to an agent.
+# Check .agency-agent file (definitive identity marker)
 if [[ -z "$AGENT_NAME" && -f "$PROJECT_ROOT/.agency-agent" ]]; then
-    _file_agent=$(head -1 "$PROJECT_ROOT/.agency-agent" | tr -d '[:space:]')
-    if [[ "$_file_agent" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
-        AGENT_NAME="$_file_agent"
-    fi
+    AGENT_NAME=$(cat "$PROJECT_ROOT/.agency-agent" 2>/dev/null | tr -d '[:space:]')
 fi
 
+# Fallback: branch detection with improved patterns
 if [[ -z "$AGENT_NAME" ]]; then
     local_branch=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
-    # Strip any path prefix (e.g., worktree-iscp → iscp, feat/foo → foo)
-    local_branch="${local_branch##*/}"
-    # Strip worktree- prefix if present
-    local_branch="${local_branch#worktree-}"
     case "$local_branch" in
+        # Main/master branches → captain
         main|master) AGENT_NAME="captain" ;;
-        *) AGENT_NAME="$local_branch" ;;
+        # PR branches created by captain (captain/*, pr/*, release/*)
+        captain/*|pr/*|release/*) AGENT_NAME="captain" ;;
+        *)
+            # Strip any path prefix (e.g., worktree-iscp → iscp, feat/foo → foo)
+            local_branch="${local_branch##*/}"
+            # Strip worktree- prefix if present
+            local_branch="${local_branch#worktree-}"
+            AGENT_NAME="$local_branch"
+            ;;
     esac
 fi
 

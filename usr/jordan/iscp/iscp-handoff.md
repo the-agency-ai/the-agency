@@ -1,7 +1,7 @@
 ---
 type: session-handoff
-date: 2026-04-05
-trigger: Dispatch #5 complete — fetch, reply, default branch shipped
+date: 2026-04-06
+trigger: session-end — escalations fixed, PVR reviewed, dispatch hardened
 agent: the-agency/jordan/iscp
 workstream: iscp
 ---
@@ -10,79 +10,79 @@ workstream: iscp
 
 **Agent:** the-agency/jordan/iscp
 **Branch:** iscp (worktree at `.claude/worktrees/iscp/`)
-**Last session work:** Implemented `dispatch fetch`, `dispatch reply`, and default branch detection per captain directive #5
+**Last session work:** Fixed two escalations (empty templates, PR branch identity), hardened dispatch create, reviewed Valueflow PVR, built flag triage
 
 ## Current State
 
-**ISCP v1 is complete + fetch/reply extensions shipped.** All captain directives resolved. 155 BATS tests green. Awaiting captain to re-merge to main.
+**ISCP v1 complete + hardened.** 169 BATS tests green. Three commits this session on iscp branch. Awaiting captain merge to main + worktree sync.
 
-### Phase 1: Identity + Dispatch + Flag ✅
-- 1.1 Design (PVR + A&D)
-- 1.2 `_iscp-db` library (51 tests)
-- 1.3 `agent-identity` (15 tests)
-- 1.4 `dispatch create` (17 tests)
-- 1.5 `dispatch` lifecycle (18 → 31 tests)
-- 1.6 `flag` v2 (14 tests)
+### This Session (4 commits)
 
-### Phase 2: Hook + Migration + Enforcement ✅
-- 2.1 `iscp-check` + hooks (13 tests)
-- 2.2 `iscp-migrate` + hookify (14 tests)
+1. **`3243ac6`** — `flag resolve <id>` per-flag resolution + flag-triage skill
+2. **`85d874d`** — `dispatch create` requires `--body` or `--template` (escalation #53 fix)
+3. **`f05e3d0`** — PR branch identity fix: captain/*, pr/*, release/* + .agency-agent file (escalation #63 fix)
+4. Prior session: fetch, reply, branch-transparent payloads, test isolation, skills v2
 
-### Post-review fixes ✅
-- `AGENCY_PRINCIPAL` env var deprecated
-- H1/M1/M2/M3 + L1-L5 code review fixes
-
-### Extensions (this session) ✅
-- `dispatch fetch <id>` — read-only peek (5 new tests)
-- `dispatch reply <id> "msg"` — quick response with auto-addressing (8 new tests)
-- `_default_branch()` — dynamic branch detection replacing hardcoded master/main
-- `_display_dispatch()` — DRY refactor for read/fetch shared logic
-
-## Dispatches This Session
-
-| # | To | Subject | Type |
-|---|-----|---------|------|
-| 10 | captain | ISCP tools confirmed operational | dispatch |
-| 12 | captain | Re: Build dispatch fetch and reply subcommands | dispatch (reply to #5) |
-| 13 | captain | Dispatch #5 complete — fetch, reply, default branch shipped | dispatch |
-
-## Dispatch Status
-
-- #5 (HIGH directive: build fetch+reply) — **resolved** with response #13
-- #6 (normal directive: confirm tools) — **resolved**
-
-## Bug Investigation: Frontmatter `to:` Field
-
-Captain reported wrong `to:` in payload frontmatter. Investigated: code is correct — `to_formatted` captured as local before `address_parse` overwrites globals. Created test dispatch, verified frontmatter is accurate. Bug was likely transient, pre-M3 fix.
-
-## Test Count: 155
+### Test Count: 169
 
 | Test file | Count |
 |-----------|-------|
 | `iscp-db.bats` | 51 |
-| `agent-identity.bats` | 15 |
+| `agent-identity.bats` | 21 (+6 new: PR branch, .agency-agent) |
 | `dispatch-create.bats` | 17 |
-| `dispatch.bats` | 31 |
-| `flag.bats` | 14 |
+| `dispatch.bats` | 35 (+4 new: --body/--template) |
+| `flag.bats` | 18 (+4 new: flag resolve) |
 | `iscp-check.bats` | 13 |
 | `iscp-migrate.bats` | 14 |
 
+## Dispatches Sent This Session
+
+| # | To | Subject | Type |
+|---|-----|---------|------|
+| 60 | captain | MAR Round 2: ISCP raw findings on Valueflow PVR | review-response |
+| 69 | captain | Re: ESCALATION — both empty templates + PR branch identity fixed | dispatch |
+
+## Dispatches Resolved
+
+- #53 (escalation: empty template payloads) — fixed in commit `85d874d`
+- #54 (review: Valueflow PVR MAR Round 2) — responded with dispatch #60
+- #63 (escalation: PR branch identity) — fixed in commit `f05e3d0`
+
+## Key Decisions
+
+- `dispatch create` now REQUIRES `--body` content. `--template` is explicit opt-in. No more silent empty payloads.
+- `agent-identity` checks `.agency-agent` file before branch detection. Captain needs `echo "captain" > .agency-agent` on main checkout.
+- Payloads-outside-git architectural question flagged for Valueflow A&D discussion (not acted on yet).
+
+## Backlog
+
+1. ~~Skill updates~~ (done — dispatch, flag, dispatch-read, session-resume all v2)
+2. ~~Flag triage skill~~ (done — three-bucket structured review)
+3. **Dropbox primitive** — file staging between worktrees (awaiting prioritization)
+4. **Dispatch-on-commit hook** — auto-dispatch to captain on commit (identified in MAR review)
+5. **Transcript primitive** — storage/indexing layer
+6. **Subscription primitive** — not yet discussed
+
 ## Next Action
 
-**Wait for captain to re-merge and roll out.** Captain needs to:
-1. Re-merge `iscp` to main (includes fetch/reply extensions)
-2. Update dispatch skill to document `fetch` and `reply` subcommands
-3. Run `iscp-migrate` on main
-4. Sync worktrees
+**Wait for captain merge + sync.** Captain needs to:
+1. Merge iscp → main (12+ commits ahead)
+2. Create `.agency-agent` file on main: `echo "captain" > .agency-agent`
+3. Sync all worktrees to distribute escalation fixes
+4. Process MAR Round 2 response (#60)
+
+## Uncommitted
+
+- `history/releases.md` — mechanical release tracking entries, not ours. Leave for captain.
 
 ## Key Files
 
-| File | What |
-|------|------|
-| `claude/tools/dispatch` | Full lifecycle: create, list, read, fetch, reply, check, resolve, status |
-| `claude/tools/agent-identity` | Identity resolution with branch-scoped cache |
-| `claude/tools/flag` | SQLite-backed flags |
-| `claude/tools/iscp-check` | "You got mail" hook |
-| `claude/tools/iscp-migrate` | Legacy data migration |
-| `claude/tools/lib/_iscp-db` | Shared SQLite library |
-| `tests/tools/dispatch.bats` | 31 tests (13 new for fetch+reply) |
+| File | What changed this session |
+|------|--------------------------|
+| `claude/tools/dispatch` | --body required, --template opt-in |
+| `claude/tools/agent-identity` | .agency-agent file check, PR branch patterns |
+| `claude/tools/flag` | cmd_resolve per-ID |
+| `.claude/skills/flag-triage/SKILL.md` | NEW — three-bucket structured review |
+| `tests/tools/dispatch.bats` | 35 tests (+4 --body/--template) |
+| `tests/tools/agent-identity.bats` | 21 tests (+6 PR branch/.agency-agent) |
+| `tests/tools/flag.bats` | 18 tests (+4 flag resolve) |
