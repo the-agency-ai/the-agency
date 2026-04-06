@@ -48,6 +48,10 @@ You reviewed both PVR (rounds 1 + 2) and A&D (rounds 1 + 2). Your A&D verdict: "
 
 mdpal-cli owns the core engine, CLI, and LSP server. Read their handoff at `usr/jordan/mdpal/mdpal-cli-handoff.md`. Coordinate via dispatches — you are now on separate worktrees.
 
+## Need Help?
+
+If you're stuck or have a question, send a dispatch to captain: `dispatch create --to captain --subject "Question: ..." --body "..."`
+
 ## Startup Actions
 
 1. Set dispatch loop: `/loop 5m dispatch check`

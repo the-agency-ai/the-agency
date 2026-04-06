@@ -52,6 +52,11 @@ Untracked: ~20 dispatch payload files in `usr/jordan/iscp/dispatches/`, history 
 3. **Dispatch retention** — archive resolved dispatches after 30 days. Not started.
 4. **Dropbox primitive** — file staging between worktrees. Not started.
 5. **BUG 2** — `dispatch list --all` shows other agents' unread mail. Acknowledged, not fixed. Design question: should --all filter by principal?
+6. **SMS-style dispatches** — short string stored in DB, no payload file. Like flag but agent-addressable with dispatch lifecycle (unread/read/resolved). `dispatch create --sms "quick message"`. Most dispatches today were short enough for this. Principal requested.
+
+## Need Help?
+
+If you're stuck or have a question, send a dispatch to captain: `dispatch create --to captain --subject "Question: ..." --body "..."`
 
 ## Startup Actions
 

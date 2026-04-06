@@ -43,6 +43,10 @@ Nothing in progress. Seed at `claude/workstreams/devex/seeds/seed-devex-kickoff-
 - The burning problem: `claude/tools/commit-precheck` runs all 155 tests on every commit. Rewrite with smart scoping.
 - BATS tests corrupt `.git/config` — happened 4+ times in Day 30 session
 
+## Need Help?
+
+If you're stuck or have a question, send a dispatch to captain: `dispatch create --to captain --subject "Question: ..." --body "..."`
+
 ## Startup Actions
 
 1. Set dispatch loop: `/loop 5m dispatch check`
