@@ -5,22 +5,25 @@
 //
 // How & Why: SwiftUI List with selection binding. Indentation based on
 // section level. Badges for unresolved comment counts. Flag icons for
-// flagged sections. The list is flat (not tree-based) because the engine
-// returns sections in document order with level info — visual hierarchy
-// via indentation is simpler than nested OutlineGroup for V1.
+// flagged sections. The list is flat (not tree-based) because the service
+// layer flattens the tree — visual hierarchy via indentation is simpler
+// than nested OutlineGroup for V1.
+//
+// Phase 1A alignment: SectionInfo → SectionTreeNode. Flag uses .slug.
 //
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
+// Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
 
 import SwiftUI
 
 /// Sidebar view showing all sections in document order.
 public struct SectionListView: View {
-    let sections: [SectionInfo]
+    let sections: [SectionTreeNode]
     let flags: [Flag]
     let commentCounts: [String: Int]
     @Binding var selectedSlug: String?
 
-    public init(sections: [SectionInfo], flags: [Flag],
+    public init(sections: [SectionTreeNode], flags: [Flag],
                 commentCounts: [String: Int], selectedSlug: Binding<String?>) {
         self.sections = sections
         self.flags = flags
@@ -42,20 +45,19 @@ public struct SectionListView: View {
     }
 
     private var flaggedSlugs: Set<String> {
-        Set(flags.map(\.sectionSlug))
+        Set(flags.map(\.slug))
     }
 }
 
 /// A single row in the section list.
 public struct SectionRowView: View {
-    let section: SectionInfo
+    let section: SectionTreeNode
     let isFlagged: Bool
     let unresolvedCount: Int
 
     public var body: some View {
         HStack(spacing: 6) {
             // Indentation based on heading level
-            // Level 1 = no indent, Level 2 = 1 indent, etc.
             if section.level > 1 {
                 Spacer()
                     .frame(width: CGFloat((section.level - 1) * 16))
@@ -67,7 +69,6 @@ public struct SectionRowView: View {
                     .font(fontForLevel(section.level))
                     .lineLimit(1)
 
-                // Version hash as subtle metadata
                 Text(section.versionHash)
                     .font(.caption2)
                     .foregroundStyle(.secondary)

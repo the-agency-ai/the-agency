@@ -7,7 +7,10 @@
 // content (SectionReaderView). Selection state drives navigation. Comments
 // and flags are displayed inline in the reader pane.
 //
+// Phase 1A alignment: comment.slug (was comment.sectionSlug).
+//
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
+// Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
 
 import SwiftUI
 
@@ -64,7 +67,7 @@ public struct ContentView: View {
     private var commentCountsBySection: [String: Int] {
         var counts: [String: Int] = [:]
         for comment in document.comments where !comment.isResolved {
-            counts[comment.sectionSlug, default: 0] += 1
+            counts[comment.slug, default: 0] += 1
         }
         return counts
     }

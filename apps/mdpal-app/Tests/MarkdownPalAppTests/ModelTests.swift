@@ -3,12 +3,21 @@
 // Swift command line tools.
 //
 // How & Why: Standalone test functions with assert(). Each test function
-// throws on failure. The test target is a regular Swift source file compiled
-// by SPM's test target — but since XCTest isn't available, we use a
-// lightweight approach. When full Xcode is available, these can be migrated
-// to XCTest or Swift Testing.
+// throws on failure. Phase 1A alignment: tests validate against CLI JSON
+// spec shapes (camelCase, no custom CodingKeys). All JSON fixtures use
+// shared decoder with .iso8601 date strategy. ~27 tests covering:
+// - SectionTreeNode (leaf, 2-level, 3-level tree)
+// - SectionsResponse (wrapper + flattened())
+// - Section (read response with versionId)
+// - Comment (new fields: commentId, slug, resolved, context optional)
+// - Resolution (new fields: by, timestamp)
+// - Flag (slug not section_slug)
+// - Response types (EditResult, ResolveResult, FlagResult, ClearFlagResult)
+// - Error types (CLIErrorResponse, CLIErrorDetails)
+// - Mock service (new methods: addComment, resolveComment, flagSection, clearFlag)
 //
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
+// Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
 
 import Foundation
 @testable import MarkdownPalAppLib
@@ -65,6 +74,16 @@ func expectNil<T>(
     }
 }
 
+func expectNotNil<T>(
+    _ value: T?,
+    _ message: String = "",
+    file: String = #file, line: Int = #line
+) throws {
+    guard value != nil else {
+        throw TestFailure(message: "Expected non-nil. \(message)", file: file, line: line)
+    }
+}
+
 func expectThrows<E: Error>(
     _ type: E.Type,
     _ block: () async throws -> Void,
@@ -80,28 +99,167 @@ func expectThrows<E: Error>(
     }
 }
 
-// MARK: - Section Model Tests
+/// Shared ISO 8601 decoder for all JSON fixtures.
+func makeDecoder() -> JSONDecoder {
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    return decoder
+}
 
-func testSectionInfoDecodesFromCLIJSON() throws {
+// MARK: - SectionTreeNode Tests
+
+func testSectionTreeNodeDecodesFromCLIJSON() throws {
+    let json = """
+    {
+        "slug": "overview",
+        "heading": "Overview",
+        "level": 1,
+        "versionHash": "a3f2b1",
+        "children": []
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let node = try JSONDecoder().decode(SectionTreeNode.self, from: data)
+
+    try expect(node.slug, equals: "overview")
+    try expect(node.heading, equals: "Overview")
+    try expect(node.level, equals: 1)
+    try expect(node.versionHash, equals: "a3f2b1")
+    try expectTrue(node.children.isEmpty)
+    try expect(node.id, equals: "overview")
+}
+
+func testSectionTreeNodeDecodes2LevelTree() throws {
     let json = """
     {
         "slug": "authentication",
         "heading": "Authentication",
         "level": 1,
-        "version_hash": "c7d4e9",
-        "child_count": 2
+        "versionHash": "c7d4e9",
+        "children": [
+            {
+                "slug": "authentication/oauth",
+                "heading": "OAuth Flow",
+                "level": 2,
+                "versionHash": "f1a2b3",
+                "children": []
+            },
+            {
+                "slug": "authentication/tokens",
+                "heading": "Token Management",
+                "level": 2,
+                "versionHash": "b5c6d7",
+                "children": []
+            }
+        ]
     }
     """
     let data = json.data(using: .utf8)!
-    let section = try JSONDecoder().decode(SectionInfo.self, from: data)
+    let node = try JSONDecoder().decode(SectionTreeNode.self, from: data)
 
-    try expect(section.slug, equals: "authentication")
-    try expect(section.heading, equals: "Authentication")
-    try expect(section.level, equals: 1)
-    try expect(section.versionHash, equals: "c7d4e9")
-    try expect(section.childCount, equals: 2)
-    try expect(section.id, equals: "authentication")
+    try expect(node.slug, equals: "authentication")
+    try expect(node.children.count, equals: 2)
+    try expect(node.children[0].slug, equals: "authentication/oauth")
+    try expect(node.children[1].slug, equals: "authentication/tokens")
 }
+
+func testSectionTreeNodeDecodes3LevelTree() throws {
+    let json = """
+    {
+        "slug": "root",
+        "heading": "Root",
+        "level": 1,
+        "versionHash": "aaa",
+        "children": [
+            {
+                "slug": "root/child",
+                "heading": "Child",
+                "level": 2,
+                "versionHash": "bbb",
+                "children": [
+                    {
+                        "slug": "root/child/grandchild",
+                        "heading": "Grandchild",
+                        "level": 3,
+                        "versionHash": "ccc",
+                        "children": []
+                    }
+                ]
+            }
+        ]
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let node = try JSONDecoder().decode(SectionTreeNode.self, from: data)
+
+    try expect(node.children.count, equals: 1)
+    try expect(node.children[0].children.count, equals: 1)
+    try expect(node.children[0].children[0].slug, equals: "root/child/grandchild")
+    try expect(node.children[0].children[0].level, equals: 3)
+}
+
+// MARK: - SectionsResponse Tests
+
+func testSectionsResponseDecodesFromCLIJSON() throws {
+    let json = """
+    {
+        "sections": [
+            {
+                "slug": "overview",
+                "heading": "Overview",
+                "level": 1,
+                "versionHash": "a3f2b1",
+                "children": []
+            }
+        ],
+        "count": 1,
+        "versionId": "v1-20260406"
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let response = try JSONDecoder().decode(SectionsResponse.self, from: data)
+
+    try expect(response.sections.count, equals: 1)
+    try expect(response.count, equals: 1)
+    try expect(response.versionId, equals: "v1-20260406")
+}
+
+func testFlattenedReturnsDepthFirstOrder() throws {
+    let tree = SectionsResponse(
+        sections: [
+            SectionTreeNode(slug: "a", heading: "A", level: 1, versionHash: "1", children: [
+                SectionTreeNode(slug: "a/b", heading: "B", level: 2, versionHash: "2"),
+                SectionTreeNode(slug: "a/c", heading: "C", level: 2, versionHash: "3"),
+            ]),
+            SectionTreeNode(slug: "d", heading: "D", level: 1, versionHash: "4"),
+        ],
+        count: 4,
+        versionId: "v1"
+    )
+
+    let flat = tree.flattened()
+    try expect(flat.count, equals: 4)
+    try expect(flat[0].slug, equals: "a")
+    try expect(flat[1].slug, equals: "a/b")
+    try expect(flat[2].slug, equals: "a/c")
+    try expect(flat[3].slug, equals: "d")
+}
+
+func testFlattenedOnLeafReturnsJustSelf() throws {
+    let tree = SectionsResponse(
+        sections: [
+            SectionTreeNode(slug: "leaf", heading: "Leaf", level: 1, versionHash: "x"),
+        ],
+        count: 1,
+        versionId: "v1"
+    )
+
+    let flat = tree.flattened()
+    try expect(flat.count, equals: 1)
+    try expect(flat[0].slug, equals: "leaf")
+}
+
+// MARK: - Section (Read Response) Tests
 
 func testSectionDecodesFromCLIJSON() throws {
     let json = """
@@ -110,8 +268,8 @@ func testSectionDecodesFromCLIJSON() throws {
         "heading": "Overview",
         "level": 1,
         "content": "This is the overview.",
-        "version_hash": "a3f2b1",
-        "children": []
+        "versionHash": "a3f2b1",
+        "versionId": "v1-20260406"
     }
     """
     let data = json.data(using: .utf8)!
@@ -119,65 +277,25 @@ func testSectionDecodesFromCLIJSON() throws {
 
     try expect(section.slug, equals: "overview")
     try expect(section.content, equals: "This is the overview.")
-    try expectTrue(section.children.isEmpty)
-}
-
-func testSectionWithChildrenDecodesCorrectly() throws {
-    let json = """
-    {
-        "slug": "authentication",
-        "heading": "Authentication",
-        "level": 1,
-        "content": "Auth content.",
-        "version_hash": "c7d4e9",
-        "children": [
-            {
-                "slug": "authentication/oauth",
-                "heading": "OAuth Flow",
-                "level": 2,
-                "version_hash": "f1a2b3",
-                "child_count": 0
-            }
-        ]
-    }
-    """
-    let data = json.data(using: .utf8)!
-    let section = try JSONDecoder().decode(Section.self, from: data)
-
-    try expect(section.children.count, equals: 1)
-    try expect(section.children[0].slug, equals: "authentication/oauth")
+    try expect(section.versionHash, equals: "a3f2b1")
+    try expect(section.versionId, equals: "v1-20260406")
 }
 
 // MARK: - Comment Model Tests
 
-func testCommentStalenessDetection() throws {
-    let comment = Comment(
-        id: "c001", type: .question, author: "claude",
-        sectionSlug: "auth", versionHash: "abc123",
-        timestamp: Date(), context: "context", text: "question?",
-        resolution: nil
-    )
-
-    try expectFalse(comment.isStale(currentSectionHash: "abc123"))
-    try expectTrue(comment.isStale(currentSectionHash: "def456"))
-}
-
 func testResolvedCommentDetection() throws {
     let unresolved = Comment(
-        id: "c001", type: .question, author: "claude",
-        sectionSlug: "auth", versionHash: "abc123",
-        timestamp: Date(), context: "ctx", text: "q?",
-        resolution: nil
+        commentId: "c001", type: .question, author: "claude",
+        slug: "auth", timestamp: Date(),
+        context: "ctx", text: "q?", resolved: false
     )
 
     let resolved = Comment(
-        id: "c002", type: .suggestion, author: "jordan",
-        sectionSlug: "data", versionHash: "def456",
-        timestamp: Date(), context: "ctx", text: "suggestion",
+        commentId: "c002", type: .suggestion, author: "jordan",
+        slug: "data", timestamp: Date(),
+        context: "ctx", text: "suggestion", resolved: true,
         resolution: Resolution(
-            response: "agreed",
-            resolvedDate: Date(),
-            resolvedBy: "jordan"
+            response: "agreed", by: "jordan", timestamp: Date()
         )
     )
 
@@ -188,29 +306,85 @@ func testResolvedCommentDetection() throws {
 func testCommentDecodesFromCLIJSON() throws {
     let json = """
     {
-        "id": "c001",
+        "commentId": "c001",
         "type": "question",
         "author": "claude",
-        "section_slug": "authentication",
-        "version_hash": "c7d4e9",
+        "slug": "authentication",
         "timestamp": "2026-03-10T14:00:00Z",
         "context": "OAuth2 bearer token",
         "text": "Does this handle refresh?",
+        "resolved": false,
         "resolution": null,
         "priority": "high",
         "tags": []
     }
     """
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
+    let decoder = makeDecoder()
     let data = json.data(using: .utf8)!
     let comment = try decoder.decode(Comment.self, from: data)
 
+    try expect(comment.commentId, equals: "c001")
     try expect(comment.id, equals: "c001")
     try expect(comment.type, equals: .question)
-    try expect(comment.sectionSlug, equals: "authentication")
+    try expect(comment.slug, equals: "authentication")
     try expect(comment.priority, equals: .high)
     try expectFalse(comment.isResolved)
+    try expectFalse(comment.resolved)
+}
+
+func testCommentWithResolutionDecodesFromCLIJSON() throws {
+    let json = """
+    {
+        "commentId": "c002",
+        "type": "suggestion",
+        "author": "jordan",
+        "slug": "data-model",
+        "timestamp": "2026-03-09T10:30:00Z",
+        "context": "PostgreSQL with JSONB columns",
+        "text": "Consider SQLite for local case.",
+        "resolved": true,
+        "resolution": {
+            "response": "Agreed. SQLite for local.",
+            "by": "jordan",
+            "timestamp": "2026-03-10T09:00:00Z"
+        },
+        "priority": "normal",
+        "tags": ["storage"]
+    }
+    """
+    let decoder = makeDecoder()
+    let data = json.data(using: .utf8)!
+    let comment = try decoder.decode(Comment.self, from: data)
+
+    try expectTrue(comment.isResolved)
+    try expectTrue(comment.resolved)
+    try expectNotNil(comment.resolution)
+    try expect(comment.resolution!.response, equals: "Agreed. SQLite for local.")
+    try expect(comment.resolution!.by, equals: "jordan")
+    try expect(comment.tags, equals: ["storage"])
+}
+
+func testCommentWithNilContextDecodes() throws {
+    let json = """
+    {
+        "commentId": "c005",
+        "type": "note",
+        "author": "claude",
+        "slug": "overview",
+        "timestamp": "2026-03-11T17:00:00Z",
+        "context": null,
+        "text": "A note without context.",
+        "resolved": false,
+        "resolution": null,
+        "priority": "normal",
+        "tags": []
+    }
+    """
+    let decoder = makeDecoder()
+    let data = json.data(using: .utf8)!
+    let comment = try decoder.decode(Comment.self, from: data)
+
+    try expectNil(comment.context)
 }
 
 // MARK: - Flag Model Tests
@@ -218,18 +392,17 @@ func testCommentDecodesFromCLIJSON() throws {
 func testFlagDecodesFromCLIJSON() throws {
     let json = """
     {
-        "section_slug": "authentication/oauth",
+        "slug": "authentication/oauth",
         "note": "Discuss OAuth flow",
         "author": "jordan",
         "timestamp": "2026-03-10T14:00:00Z"
     }
     """
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
+    let decoder = makeDecoder()
     let data = json.data(using: .utf8)!
     let flag = try decoder.decode(Flag.self, from: data)
 
-    try expect(flag.sectionSlug, equals: "authentication/oauth")
+    try expect(flag.slug, equals: "authentication/oauth")
     try expect(flag.note, equals: "Discuss OAuth flow")
     try expect(flag.id, equals: "authentication/oauth")
 }
@@ -237,45 +410,171 @@ func testFlagDecodesFromCLIJSON() throws {
 func testFlagWithNilNoteDecodesCorrectly() throws {
     let json = """
     {
-        "section_slug": "open-questions",
+        "slug": "open-questions",
         "note": null,
         "author": "claude",
         "timestamp": "2026-03-11T17:30:00Z"
     }
     """
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
+    let decoder = makeDecoder()
     let data = json.data(using: .utf8)!
     let flag = try decoder.decode(Flag.self, from: data)
 
     try expectNil(flag.note)
+    try expect(flag.slug, equals: "open-questions")
+}
+
+// MARK: - Response Type Tests
+
+func testEditResultDecodesFromCLIJSON() throws {
+    let json = """
+    {
+        "slug": "overview",
+        "versionHash": "new123",
+        "versionId": "v2-20260406",
+        "bytesWritten": 1024
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let result = try JSONDecoder().decode(EditResult.self, from: data)
+
+    try expect(result.slug, equals: "overview")
+    try expect(result.versionHash, equals: "new123")
+    try expect(result.versionId, equals: "v2-20260406")
+    try expect(result.bytesWritten, equals: 1024)
+}
+
+func testResolveResultDecodesFromCLIJSON() throws {
+    let json = """
+    {
+        "commentId": "c001",
+        "resolved": true,
+        "resolution": {
+            "response": "Fixed in v2.",
+            "by": "jordan",
+            "timestamp": "2026-04-06T01:00:00Z"
+        }
+    }
+    """
+    let decoder = makeDecoder()
+    let data = json.data(using: .utf8)!
+    let result = try decoder.decode(ResolveResult.self, from: data)
+
+    try expect(result.commentId, equals: "c001")
+    try expectTrue(result.resolved)
+    try expect(result.resolution.response, equals: "Fixed in v2.")
+    try expect(result.resolution.by, equals: "jordan")
+}
+
+func testFlagResultDecodesFromCLIJSON() throws {
+    let json = """
+    {
+        "slug": "overview",
+        "flagged": true,
+        "author": "jordan",
+        "note": "Needs review",
+        "timestamp": "2026-04-06T01:00:00Z"
+    }
+    """
+    let decoder = makeDecoder()
+    let data = json.data(using: .utf8)!
+    let result = try decoder.decode(FlagResult.self, from: data)
+
+    try expect(result.slug, equals: "overview")
+    try expectTrue(result.flagged)
+    try expect(result.author, equals: "jordan")
+    try expect(result.note, equals: "Needs review")
+}
+
+func testClearFlagResultDecodesFromCLIJSON() throws {
+    let json = """
+    {
+        "slug": "overview",
+        "flagged": false
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let result = try JSONDecoder().decode(ClearFlagResult.self, from: data)
+
+    try expect(result.slug, equals: "overview")
+    try expectFalse(result.flagged)
+}
+
+// MARK: - Error Type Tests
+
+func testCLIErrorResponseDecodesFromJSON() throws {
+    let json = """
+    {
+        "error": "SECTION_NOT_FOUND",
+        "message": "Section 'nonexistent' not found"
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+
+    try expect(error.error, equals: "SECTION_NOT_FOUND")
+    try expect(error.message, equals: "Section 'nonexistent' not found")
+    try expectNil(error.details)
+}
+
+func testCLIErrorWithDetailsDecodesFromJSON() throws {
+    let json = """
+    {
+        "error": "VERSION_CONFLICT",
+        "message": "Section was modified",
+        "details": {
+            "type": "versionConflict",
+            "slug": "overview",
+            "expectedHash": "abc",
+            "currentHash": "def",
+            "currentContent": "new content here",
+            "versionId": "v2"
+        }
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+
+    try expect(error.error, equals: "VERSION_CONFLICT")
+    try expectNotNil(error.details)
+
+    if case .versionConflict(let slug, let expected, let current, _, let versionId) = error.details! {
+        try expect(slug, equals: "overview")
+        try expect(expected, equals: "abc")
+        try expect(current, equals: "def")
+        try expect(versionId, equals: "v2")
+    } else {
+        throw TestFailure(message: "Expected versionConflict details", file: #file, line: #line)
+    }
 }
 
 // MARK: - Mock CLI Service Tests
 
-func testListSectionsReturnsMockData() async throws {
+func testListSectionsReturnsFlattenedMockData() async throws {
     let service = MockCLIService()
-    let sections = try await service.listSections(content: "")
+    let sections = try await service.listSections(bundle: BundlePath(""))
 
     try expect(sections.count, equals: 8)
     try expect(sections[0].slug, equals: "overview")
     try expect(sections[1].slug, equals: "authentication")
-    try expect(sections[1].childCount, equals: 2)
+    // Children appear after parent in depth-first order
+    try expect(sections[2].slug, equals: "authentication/oauth")
+    try expect(sections[3].slug, equals: "authentication/tokens")
 }
 
 func testReadSectionReturnsContentForValidSlug() async throws {
     let service = MockCLIService()
-    let section = try await service.readSection(slug: "authentication", content: "")
+    let section = try await service.readSection(slug: "authentication", bundle: BundlePath(""))
 
     try expect(section.heading, equals: "Authentication")
-    try expect(section.children.count, equals: 2)
+    try expect(section.versionId, equals: "v1-20260406")
     try expectFalse(section.content.isEmpty)
 }
 
 func testReadSectionThrowsForInvalidSlug() async throws {
     try await expectThrows(CLIServiceError.self) {
         let service = MockCLIService()
-        _ = try await service.readSection(slug: "nonexistent", content: "")
+        _ = try await service.readSection(slug: "nonexistent", bundle: BundlePath(""))
     }
 }
 
@@ -283,21 +582,72 @@ func testEditSectionEnforcesVersionHash() async throws {
     try await expectThrows(CLIServiceError.self) {
         let service = MockCLIService()
         _ = try await service.editSection(
-            slug: "overview", newContent: "new content",
-            versionHash: "wrong_hash", documentContent: ""
+            slug: "overview", content: "new content",
+            versionHash: "wrong_hash", bundle: BundlePath("")
         )
     }
 }
 
-func testEditSectionSucceedsWithCorrectHash() async throws {
+func testEditSectionReturnsEditResult() async throws {
     let service = MockCLIService()
-    let updated = try await service.editSection(
-        slug: "overview", newContent: "Updated overview content.",
-        versionHash: "a3f2b1", documentContent: ""
+    let result = try await service.editSection(
+        slug: "overview", content: "Updated overview content.",
+        versionHash: "a3f2b1", bundle: BundlePath("")
     )
 
-    try expect(updated.content, equals: "Updated overview content.")
-    try expectFalse(updated.versionHash == "a3f2b1", "hash should change")
+    try expect(result.slug, equals: "overview")
+    try expectFalse(result.versionHash == "a3f2b1", "hash should change")
+    try expectTrue(result.bytesWritten > 0)
+}
+
+func testAddCommentReturnsMockComment() async throws {
+    let service = MockCLIService()
+    let comment = try await service.addComment(
+        slug: "overview", bundle: BundlePath(""),
+        type: .question, author: "claude",
+        text: "Test question", context: "Some context",
+        priority: .normal, tags: []
+    )
+
+    try expect(comment.type, equals: .question)
+    try expect(comment.author, equals: "claude")
+    try expect(comment.slug, equals: "overview")
+    try expect(comment.text, equals: "Test question")
+    try expectFalse(comment.resolved)
+}
+
+func testResolveCommentReturnsMockResult() async throws {
+    let service = MockCLIService()
+    let result = try await service.resolveComment(
+        commentId: "c001", bundle: BundlePath(""),
+        response: "Fixed", by: "jordan"
+    )
+
+    try expect(result.commentId, equals: "c001")
+    try expectTrue(result.resolved)
+    try expect(result.resolution.by, equals: "jordan")
+}
+
+func testFlagSectionReturnsMockResult() async throws {
+    let service = MockCLIService()
+    let result = try await service.flagSection(
+        slug: "overview", bundle: BundlePath(""),
+        author: "jordan", note: "Needs review"
+    )
+
+    try expect(result.slug, equals: "overview")
+    try expectTrue(result.flagged)
+    try expect(result.author, equals: "jordan")
+}
+
+func testClearFlagReturnsMockResult() async throws {
+    let service = MockCLIService()
+    let result = try await service.clearFlag(
+        slug: "overview", bundle: BundlePath("")
+    )
+
+    try expect(result.slug, equals: "overview")
+    try expectFalse(result.flagged)
 }
 
 // MARK: - Runner
@@ -311,10 +661,10 @@ struct TestRunner {
         func run(_ name: String, _ test: () throws -> Void) {
             do {
                 try test()
-                print("  ✓ \(name)")
+                print("  \u{2713} \(name)")
                 passed += 1
             } catch {
-                print("  ✗ \(name): \(error)")
+                print("  \u{2717} \(name): \(error)")
                 failed += 1
             }
         }
@@ -322,36 +672,59 @@ struct TestRunner {
         func runAsync(_ name: String, _ test: () async throws -> Void) async {
             do {
                 try await test()
-                print("  ✓ \(name)")
+                print("  \u{2713} \(name)")
                 passed += 1
             } catch {
-                print("  ✗ \(name): \(error)")
+                print("  \u{2717} \(name): \(error)")
                 failed += 1
             }
         }
 
         print("Running MarkdownPalApp tests...\n")
 
-        print("Section Model:")
-        run("SectionInfo decodes from CLI JSON", testSectionInfoDecodesFromCLIJSON)
+        print("SectionTreeNode:")
+        run("SectionTreeNode decodes from CLI JSON", testSectionTreeNodeDecodesFromCLIJSON)
+        run("SectionTreeNode decodes 2-level tree", testSectionTreeNodeDecodes2LevelTree)
+        run("SectionTreeNode decodes 3-level tree", testSectionTreeNodeDecodes3LevelTree)
+
+        print("\nSectionsResponse:")
+        run("SectionsResponse decodes from CLI JSON", testSectionsResponseDecodesFromCLIJSON)
+        run("flattened() returns depth-first order", testFlattenedReturnsDepthFirstOrder)
+        run("flattened() on leaf returns just self", testFlattenedOnLeafReturnsJustSelf)
+
+        print("\nSection (Read Response):")
         run("Section decodes from CLI JSON", testSectionDecodesFromCLIJSON)
-        run("Section with children decodes correctly", testSectionWithChildrenDecodesCorrectly)
 
         print("\nComment Model:")
-        run("Comment staleness detection", testCommentStalenessDetection)
         run("Resolved comment detection", testResolvedCommentDetection)
         run("Comment decodes from CLI JSON", testCommentDecodesFromCLIJSON)
+        run("Comment with resolution decodes from CLI JSON", testCommentWithResolutionDecodesFromCLIJSON)
+        run("Comment with nil context decodes", testCommentWithNilContextDecodes)
 
         print("\nFlag Model:")
         run("Flag decodes from CLI JSON", testFlagDecodesFromCLIJSON)
         run("Flag with nil note decodes correctly", testFlagWithNilNoteDecodesCorrectly)
 
+        print("\nResponse Types:")
+        run("EditResult decodes from CLI JSON", testEditResultDecodesFromCLIJSON)
+        run("ResolveResult decodes from CLI JSON", testResolveResultDecodesFromCLIJSON)
+        run("FlagResult decodes from CLI JSON", testFlagResultDecodesFromCLIJSON)
+        run("ClearFlagResult decodes from CLI JSON", testClearFlagResultDecodesFromCLIJSON)
+
+        print("\nError Types:")
+        run("CLIErrorResponse decodes from JSON", testCLIErrorResponseDecodesFromJSON)
+        run("CLIError with details decodes from JSON", testCLIErrorWithDetailsDecodesFromJSON)
+
         print("\nMock CLI Service:")
-        await runAsync("listSections returns mock data", testListSectionsReturnsMockData)
+        await runAsync("listSections returns flattened mock data", testListSectionsReturnsFlattenedMockData)
         await runAsync("readSection returns content for valid slug", testReadSectionReturnsContentForValidSlug)
         await runAsync("readSection throws for invalid slug", testReadSectionThrowsForInvalidSlug)
         await runAsync("editSection enforces version hash", testEditSectionEnforcesVersionHash)
-        await runAsync("editSection succeeds with correct hash", testEditSectionSucceedsWithCorrectHash)
+        await runAsync("editSection returns EditResult", testEditSectionReturnsEditResult)
+        await runAsync("addComment returns mock comment", testAddCommentReturnsMockComment)
+        await runAsync("resolveComment returns mock result", testResolveCommentReturnsMockResult)
+        await runAsync("flagSection returns mock result", testFlagSectionReturnsMockResult)
+        await runAsync("clearFlag returns mock result", testClearFlagReturnsMockResult)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 
