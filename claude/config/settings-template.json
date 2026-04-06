@@ -1,5 +1,25 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Skill",
@@ -10,11 +30,34 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
+          }
+        ]
+      }
     ]
   },
   "permissions": {
     "allow": [
       "Bash(./claude/tools/*:*)",
+      "Bash(bash ./claude/tools/*)",
+      "Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/*)",
+      "Bash(./claude/tools/dispatch)",
+      "Bash(./claude/tools/dispatch *)",
+      "Bash(./claude/tools/dispatch-create*)",
+      "Bash(./claude/tools/flag)",
+      "Bash(./claude/tools/flag *)",
+      "Bash(./claude/tools/agent-identity*)",
+      "Bash(./claude/tools/iscp-check*)",
+      "Bash(./claude/tools/iscp-migrate*)",
+      "Bash(./claude/tools/handoff*)",
+      "Bash(./claude/tools/git-commit*)",
+      "Bash(./claude/tools/stage-hash*)",
       "Glob(.claude/**)",
       "Glob(claude/**)",
       "Glob(usr/**)",

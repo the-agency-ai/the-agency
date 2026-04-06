@@ -252,5 +252,5 @@ _db_query() {
     run "$MOCK_REPO/claude/tools/dispatch" --version
     assert_success
     assert_output_contains "dispatch"
-    assert_output_contains "2.0.0"
+    assert_output_contains "2.0.1"
 }

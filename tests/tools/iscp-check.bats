@@ -239,5 +239,5 @@ _create_dispatch() {
 @test "iscp-check: --version shows version" {
     run "$ISCP_CHECK" --version
     assert_success
-    assert_output_contains "1.0.0"
+    assert_output_contains "1.0.1"
 }
