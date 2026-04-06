@@ -33,10 +33,17 @@
 
 set -euo pipefail
 
-TOOL_VERSION="2.0.0"
+TOOL_VERSION="2.0.1"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# CLAUDE_PROJECT_DIR is authoritative — worktree agents may cd to main but
+# their identity is rooted in the worktree, not where the tool binary lives.
+# See escalation #90: agent-identity and dispatch both must use this.
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
 
 # Source helpers
 source "$SCRIPT_DIR/lib/_log-helper"
@@ -66,17 +73,70 @@ _main_checkout() {
     git worktree list 2>/dev/null | head -1 | awk '{print $1}'
 }
 
-# Resolve payload file — branch/worktree transparent
 # What Problem: Dispatch payloads are written by one agent on one branch but
-# read by another agent on a different branch or worktree. A worktree agent
-# must be able to read a payload that captain committed on main, or that
-# another agent wrote on a feature branch, without manual merging.
-# How & Why: Multi-strategy resolution ladder. Each strategy is tried in
-# order — the first one that finds the file wins. This makes dispatch read
-# "just work" regardless of which branch or worktree the reader is on.
-# Written: 2026-04-06 — branch/worktree transparency fix
+# read by another agent on a different branch or worktree. The original
+# 4-strategy resolution ladder (local → main → git show → all worktrees)
+# was complex and still required git commands.
+# How & Why: Symlink-based resolution. On dispatch create, a symlink in
+# ~/.agency/{repo}/dispatches/ points to the absolute filesystem path of
+# the payload. Reading follows the symlink — OS resolves it transparently.
+# Falls back to the old ladder for pre-symlink dispatches.
+# Written: 2026-04-06 — symlink payload architecture (directive #71)
+
+# Resolve the symlink directory for dispatch payloads
+_dispatch_symlink_dir() {
+    local db_path
+    db_path=$(iscp_db_path) || return 1
+    local db_dir
+    db_dir=$(dirname "$db_path")
+    echo "$db_dir/dispatches"
+}
+
+# Create a symlink for a dispatch payload
+# Args: dispatch_id, absolute_filesystem_path
+_create_payload_symlink() {
+    local dispatch_id="$1"
+    local abs_path="$2"
+
+    local symlink_dir
+    symlink_dir=$(_dispatch_symlink_dir) || return 1
+    mkdir -p "$symlink_dir" 2>/dev/null || true
+
+    local symlink_path="$symlink_dir/dispatch-${dispatch_id}.md"
+    # Remove any existing symlink (idempotent)
+    rm -f "$symlink_path" 2>/dev/null
+    ln -s "$abs_path" "$symlink_path" 2>/dev/null || {
+        echo "Warning: could not create payload symlink at $symlink_path" >&2
+        return 1
+    }
+}
+
+# Resolve payload file — symlink first, then fallback strategies
 _resolve_payload() {
     local payload_path="$1"
+    local dispatch_id="${2:-}"
+
+    # Strategy 0: Symlink resolution (preferred — instant, branch-transparent)
+    if [[ -n "$dispatch_id" ]]; then
+        local symlink_dir
+        symlink_dir=$(_dispatch_symlink_dir 2>/dev/null) || true
+        local symlink_path="$symlink_dir/dispatch-${dispatch_id}.md"
+        if [[ -L "$symlink_path" ]]; then
+            # Symlink exists — check if target is readable
+            if [[ -f "$symlink_path" ]]; then
+                cat "$symlink_path"
+                return 0
+            else
+                # Dangling symlink — worktree may have been removed
+                local target
+                target=$(readlink "$symlink_path" 2>/dev/null || echo "unknown")
+                echo "(payload unavailable — symlink target not found: $target)"
+                echo "(worktree may have been removed or payload moved)"
+                return 1
+            fi
+        fi
+        # No symlink — fall through to legacy strategies
+    fi
 
     # Strategy 1: Local working directory (current worktree)
     if [[ -f "$PROJECT_ROOT/$payload_path" ]]; then
@@ -101,18 +161,18 @@ _resolve_payload() {
     # Try all other local branches
     local branch_name
     while IFS= read -r branch_name; do
-        [[ "$branch_name" == "$_branch" ]] && continue  # already tried
+        [[ "$branch_name" == "$_branch" ]] && continue
         if git -C "$PROJECT_ROOT" show "${branch_name}:${payload_path}" 2>/dev/null; then
             return 0
         fi
     done < <(git -C "$PROJECT_ROOT" for-each-ref --format='%(refname:short)' refs/heads/ 2>/dev/null)
 
-    # Strategy 4: Scan all worktree working directories (uncommitted in any worktree)
+    # Strategy 4: Scan all worktree working directories
     local wt_path
     while IFS= read -r wt_path; do
         wt_path=$(echo "$wt_path" | awk '{print $1}')
-        [[ "$wt_path" == "$PROJECT_ROOT" ]] && continue  # already tried
-        [[ "$wt_path" == "$main_checkout" ]] && continue  # already tried
+        [[ "$wt_path" == "$PROJECT_ROOT" ]] && continue
+        [[ "$wt_path" == "$main_checkout" ]] && continue
         if [[ -f "$wt_path/$payload_path" ]]; then
             cat "$wt_path/$payload_path"
             return 0
@@ -357,6 +417,9 @@ SELECT last_insert_rowid();
 SQL
     )
 
+    # Create symlink for branch-transparent payload access (directive #71)
+    _create_payload_symlink "$db_id" "$filepath" 2>/dev/null || true
+
     echo "dispatch [create]"
     echo "  ID:   $db_id"
     echo "  File: $payload_path"
@@ -486,18 +549,9 @@ _display_dispatch() {
     echo "───────────────────────"
     echo ""
 
-    # Read payload file — branch/worktree transparent resolution
-    # What Problem: Payloads are written by one agent (often captain on main)
-    # but read by another agent on a different branch or worktree. The reader
-    # must find the payload regardless of where it was written.
-    # How & Why: Multi-strategy resolution ladder:
-    #   1. Local working directory (current worktree — covers same-branch case)
-    #   2. Main checkout working directory (covers uncommitted files on main)
-    #   3. git show from every known branch (covers committed-anywhere case)
-    #   4. Scan all worktree working directories (covers uncommitted in any worktree)
-    # Written: 2026-04-06 — branch/worktree transparency fix
-    if ! _resolve_payload "$_DISP_PAYLOAD"; then
-        echo "(payload file not found at $_DISP_PAYLOAD — searched local, main checkout, all branches, all worktrees)"
+    # Read payload — symlink first, then legacy fallback strategies
+    if ! _resolve_payload "$_DISP_PAYLOAD" "$dispatch_id"; then
+        echo "(payload file not found at $_DISP_PAYLOAD — searched symlink, local, main checkout, all branches, all worktrees)"
     fi
 }
 
@@ -667,6 +721,9 @@ SELECT last_insert_rowid();
 .param clear
 SQL
     )
+
+    # Create symlink for branch-transparent payload access
+    _create_payload_symlink "$db_id" "$filepath" 2>/dev/null || true
 
     echo "dispatch [reply]"
     echo "  ID:       $db_id"
