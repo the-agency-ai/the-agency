@@ -19,8 +19,7 @@ load 'test_helper'
 
 setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
-    export HOME="$BATS_TEST_TMPDIR/fakehome"
-    mkdir -p "$HOME"
+    iscp_test_isolation_setup
 
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
     mkdir -p "$MOCK_REPO/claude/tools/lib" "$MOCK_REPO/claude/config"
@@ -60,12 +59,13 @@ YAML
 }
 
 teardown() {
+    iscp_test_isolation_teardown
     if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
         rm -rf "${BATS_TEST_TMPDIR}"
     fi
 }
 
-_db_path() { echo "$HOME/.agency/test-repo/iscp.db"; }
+_db_path() { echo "$ISCP_DB_PATH"; }
 _db_query() { sqlite3 "$(_db_path)" "$1"; }
 
 # ─────────────────────────────────────────────────────────────────────────────

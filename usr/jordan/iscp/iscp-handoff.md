@@ -1,7 +1,7 @@
 ---
 type: session-handoff
 date: 2026-04-05
-trigger: ISCP v1 complete — Phases 1 and 2 shipped
+trigger: Dispatch #5 complete — fetch, reply, default branch shipped
 agent: the-agency/jordan/iscp
 workstream: iscp
 ---
@@ -10,59 +10,79 @@ workstream: iscp
 
 **Agent:** the-agency/jordan/iscp
 **Branch:** iscp (worktree at `.claude/worktrees/iscp/`)
-**Last commit:** `b711ada` Phase 2.2: iscp-migrate + hookify rules
+**Last session work:** Implemented `dispatch fetch`, `dispatch reply`, and default branch detection per captain directive #5
 
 ## Current State
 
-**ISCP v1 is complete.** Both phases shipped. 142 BATS tests all green.
+**ISCP v1 is complete + fetch/reply extensions shipped.** All captain directives resolved. 155 BATS tests green. Awaiting captain to re-merge to main.
 
 ### Phase 1: Identity + Dispatch + Flag ✅
 - 1.1 Design (PVR + A&D)
-- 1.2 `_iscp-db` library (51 tests) — commit `9956644`
-- 1.3 `agent-identity` tool (15 tests) — commit `86a4f9d`
-- 1.4 `dispatch create` subcommand (17 tests) — commit `7721754`
-- 1.5 `dispatch` lifecycle (18 tests) — commit `d50dbff`
-- 1.6 `flag` v2 (14 tests) — commit `3b187e5`
+- 1.2 `_iscp-db` library (51 tests)
+- 1.3 `agent-identity` (15 tests)
+- 1.4 `dispatch create` (17 tests)
+- 1.5 `dispatch` lifecycle (18 → 31 tests)
+- 1.6 `flag` v2 (14 tests)
 
 ### Phase 2: Hook + Migration + Enforcement ✅
-- 2.1 `iscp-check` + hook wiring (13 tests) — commit `4d2fb88`
-- 2.2 `iscp-migrate` + hookify rules (14 tests) — commit `b711ada`
+- 2.1 `iscp-check` + hooks (13 tests)
+- 2.2 `iscp-migrate` + hookify (14 tests)
 
-## What's Operational
+### Post-review fixes ✅
+- `AGENCY_PRINCIPAL` env var deprecated
+- H1/M1/M2/M3 + L1-L5 code review fixes
 
-- **Dispatches:** create, list, read, check, resolve, status — DB + git payload
-- **Flags:** capture, list, count, discuss, clear — DB-only, agent-addressable
-- **Notifications:** iscp-check fires on SessionStart, UserPromptSubmit, Stop — silent when empty, JSON systemMessage when items waiting
-- **Migration:** iscp-migrate imports legacy JSONL flags and markdown dispatches
-- **Enforcement:** 5 hookify rules (dispatch-manual, flag-manual, directive-authority, review-authority, session-start-mail)
+### Extensions (this session) ✅
+- `dispatch fetch <id>` — read-only peek (5 new tests)
+- `dispatch reply <id> "msg"` — quick response with auto-addressing (8 new tests)
+- `_default_branch()` — dynamic branch detection replacing hardcoded master/main
+- `_display_dispatch()` — DRY refactor for read/fetch shared logic
+
+## Dispatches This Session
+
+| # | To | Subject | Type |
+|---|-----|---------|------|
+| 10 | captain | ISCP tools confirmed operational | dispatch |
+| 12 | captain | Re: Build dispatch fetch and reply subcommands | dispatch (reply to #5) |
+| 13 | captain | Dispatch #5 complete — fetch, reply, default branch shipped | dispatch |
+
+## Dispatch Status
+
+- #5 (HIGH directive: build fetch+reply) — **resolved** with response #13
+- #6 (normal directive: confirm tools) — **resolved**
+
+## Bug Investigation: Frontmatter `to:` Field
+
+Captain reported wrong `to:` in payload frontmatter. Investigated: code is correct — `to_formatted` captured as local before `address_parse` overwrites globals. Created test dispatch, verified frontmatter is accurate. Bug was likely transient, pre-M3 fix.
+
+## Test Count: 155
+
+| Test file | Count |
+|-----------|-------|
+| `iscp-db.bats` | 51 |
+| `agent-identity.bats` | 15 |
+| `dispatch-create.bats` | 17 |
+| `dispatch.bats` | 31 |
+| `flag.bats` | 14 |
+| `iscp-check.bats` | 13 |
+| `iscp-migrate.bats` | 14 |
 
 ## Next Action
 
-**Land on main.** ISCP v1 is feature-complete. The branch needs:
-1. Merge from main (pick up any recent changes)
-2. Phase-complete QG (deep review)
-3. Land on main via `/phase-complete` or captain coordination
-4. Captain runs `/sync-all` to distribute to all worktrees
-
-**Then: deferred phases** (dropbox, transcripts, subscriptions, integration) — these ship after the core is operational and proven.
+**Wait for captain to re-merge and roll out.** Captain needs to:
+1. Re-merge `iscp` to main (includes fetch/reply extensions)
+2. Update dispatch skill to document `fetch` and `reply` subcommands
+3. Run `iscp-migrate` on main
+4. Sync worktrees
 
 ## Key Files
 
 | File | What |
 |------|------|
-| `claude/tools/agent-identity` | Unified "who am I" with branch-scoped cache |
-| `claude/tools/dispatch` | Full dispatch lifecycle (create/list/read/check/resolve/status) |
-| `claude/tools/dispatch-create` | Thin wrapper → `dispatch create` |
-| `claude/tools/flag` | SQLite-backed flags, agent-addressable |
-| `claude/tools/iscp-check` | "You got mail" hook — silent or JSON systemMessage |
-| `claude/tools/iscp-migrate` | Legacy data migration (JSONL flags + markdown dispatches) |
+| `claude/tools/dispatch` | Full lifecycle: create, list, read, fetch, reply, check, resolve, status |
+| `claude/tools/agent-identity` | Identity resolution with branch-scoped cache |
+| `claude/tools/flag` | SQLite-backed flags |
+| `claude/tools/iscp-check` | "You got mail" hook |
+| `claude/tools/iscp-migrate` | Legacy data migration |
 | `claude/tools/lib/_iscp-db` | Shared SQLite library |
-| `.claude/settings.json` | Hook wiring + permissions |
-| `claude/hookify/hookify.*.md` | 5 enforcement rules |
-| `claude/workstreams/iscp/iscp-plan-20260404.md` | Plan (living document) |
-
-## Known Issues
-
-- Skill updates (dispatch, flag, session-resume) noted in plan but not yet done — skills still reference v1 interface
-- Main checkout has stale copies of PVR/A&D — canonical versions on iscp branch
-- `handoff` tool principal resolution may still have AGENCY_PRINCIPAL leak (not patched in handoff tool itself)
+| `tests/tools/dispatch.bats` | 31 tests (13 new for fetch+reply) |

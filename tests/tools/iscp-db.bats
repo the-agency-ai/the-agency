@@ -17,8 +17,12 @@ load 'test_helper'
 # Override HOME so we don't touch the real ~/.agency/
 setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
-    export HOME="$BATS_TEST_TMPDIR/fakehome"
-    mkdir -p "$HOME"
+    iscp_test_isolation_setup
+
+    # iscp-db.bats tests the library's path resolution logic directly.
+    # ISCP_DB_PATH override would bypass that — unset it so we test the
+    # real resolution (HOME override is sufficient for DB isolation here).
+    unset ISCP_DB_PATH
 
     # Create a minimal git repo so repo name resolution works
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
@@ -40,6 +44,7 @@ setup() {
 }
 
 teardown() {
+    iscp_test_isolation_teardown
     if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
         rm -rf "${BATS_TEST_TMPDIR}"
     fi

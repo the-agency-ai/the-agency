@@ -108,3 +108,52 @@ create_mock_git_repo() {
     git commit -m "Initial commit" --quiet
     echo "$dir"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ISCP Test Isolation Helpers
+# What Problem: BATS tests leaked into the live ISCP DB (~62 flags) and
+# corrupted the live .git/config (bare=true, user=Test User). Tests MUST be
+# hermetically isolated from the live environment.
+# How & Why: Provides setup/teardown helpers that every ISCP test file calls.
+# Belt-and-suspenders: env var overrides PLUS guards that fail loudly.
+# Written: 2026-04-06 — test isolation fix (dispatches #16, #17)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Call this in setup() of every ISCP test file AFTER creating BATS_TEST_TMPDIR.
+# Sets up complete isolation: fake HOME, explicit DB path, git config isolation.
+iscp_test_isolation_setup() {
+    # 1. Isolate HOME (DB path, cache, etc.)
+    export HOME="${BATS_TEST_TMPDIR}/fakehome"
+    mkdir -p "$HOME"
+
+    # 2. Explicit ISCP DB path — belt-and-suspenders on top of HOME override
+    export ISCP_DB_PATH="${BATS_TEST_TMPDIR}/test-iscp.db"
+
+    # 3. Git config isolation — prevent any writes to live .git/config
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_SYSTEM=/dev/null
+
+    # 4. Snapshot live .git/config checksum for guard validation
+    if [[ -f "$REPO_ROOT/.git/config" ]]; then
+        _ISCP_TEST_GIT_CONFIG_HASH=$(md5 -q "$REPO_ROOT/.git/config" 2>/dev/null || md5sum "$REPO_ROOT/.git/config" 2>/dev/null | awk '{print $1}')
+    fi
+}
+
+# Call this in teardown() of every ISCP test file BEFORE cleanup.
+# Fails loudly if the live .git/config was modified during the test.
+iscp_test_isolation_teardown() {
+    # Guard: verify live .git/config wasn't modified
+    if [[ -n "${_ISCP_TEST_GIT_CONFIG_HASH:-}" && -f "$REPO_ROOT/.git/config" ]]; then
+        local current_hash
+        current_hash=$(md5 -q "$REPO_ROOT/.git/config" 2>/dev/null || md5sum "$REPO_ROOT/.git/config" 2>/dev/null | awk '{print $1}')
+        if [[ "$current_hash" != "$_ISCP_TEST_GIT_CONFIG_HASH" ]]; then
+            echo "CRITICAL: BATS test modified live .git/config! Hash before=$_ISCP_TEST_GIT_CONFIG_HASH after=$current_hash" >&2
+            return 1
+        fi
+    fi
+
+    # Guard: verify live ISCP DB wasn't touched
+    local live_db="$HOME/.agency/the-agency/iscp.db"
+    # (HOME was overridden, so this checks the FAKE home — if somehow the real
+    # home's DB was touched, the ISCP_DB_PATH override prevented it)
+}
