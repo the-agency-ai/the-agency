@@ -78,25 +78,30 @@ reviewers:
 
 | ID | Source | Finding | Question for Principal |
 |----|--------|---------|----------------------|
-| C1 | mdpal-app #3 | T1 should include fast unit tests, not just lint | Three views on T1 baseline. mdpal-app: include tests if fast. mdpal-cli: stage-hash + compile. ISCP: current tiers correct. **What should T1 include?** |
-| C2 | monofolk #3 | Autonomous stages + principal review in §2 contradict | §2 says "present triage to principal" but autonomous stages skip principal. **For autonomous stages, does the agent triage and act without presenting? Principal informed after the fact?** |
-| C3 | monofolk #9 | Commit processing: additive to /phase-complete or replacement? | dispatch-on-commit for every iteration commit (captain notified). /phase-complete for phase boundary (squash, deep QG, PR). **Additive, not replacement. Correct?** |
-| C4 | mdpal-cli #4 | Captain explicitly session-scoped for V2 — conflicts with "always-on" | mdpal-cli: "state explicitly that captain is session-scoped, no daemon." But principal said captain is always-on, not running = holiday. **Is captain session-scoped or always-on? Or: always-on within sessions, no between-session automation in V2?** |
-| C5 | mdpal-cli #6 | `effort:` levels — what do they actually control? | Does effort: low mean skip MAR? Use sonnet? Reduce turns? **What is the intent for effort levels?** |
-| C6 | ISCP #3 | Per-workstream enforcement transition: who decides level changes? | Who moves iscp from level 3 to level 5? **Principal decision informed by audit tool, or automatic?** |
-| C7 | monofolk OQ8 | Compaction at 80%: auto or manual? | monofolk says auto-trigger at 80%. **Do we control when compaction happens, or just handle it gracefully?** |
-| C8 | ISCP #7 + mdpal-app #8 | PostCompact injection scope: minimal or full? | ISCP: inject CLAUDE.md too. mdpal-app: large handoffs consume context. **How much do we inject? Minimal (identity + state + next action) or full (+ CLAUDE.md + working set)?** |
+| C1 | mdpal-app #3 | T1 should include fast unit tests, not just lint | **RESOLVED:** T1 = stage-hash + build/compile + format + relevant fast tests, **60 second budget**. Format runs on save AND at T1 (belt and suspenders). 60s is generous for iteration complete — agents don't get impatient. If tests exceed 60s, test scoping needs improvement. |
+| C2 | monofolk #3 | Autonomous stages + principal review in §2 contradict | **RESOLVED:** Autonomous stages: agent triages MAR feedback and acts without presenting to principal. Sends informational dispatch with bucket disposition — "here's what came in, here's what I did." Principal sees it on next check-in (MDPal panel). Scope-definition stages (PVR, A&D, master plan): full present-and-discuss flow. |
+| C3 | monofolk #9 | Commit processing: additive to /phase-complete or replacement? | **RESOLVED:** Additive, not replacement. Defense in depth. Dispatch-on-commit fires on every iteration commit (captain notified, merges, syncs). /phase-complete handles phase boundary (squash merge, deep QG, PR). Two mechanisms for two boundaries. Multiple layers catch what individual layers miss. |
+| C4 | mdpal-cli #4 | Captain explicitly session-scoped for V2 — conflicts with "always-on" | **RESOLVED:** Captain is always-on by design — first up, last down. If any agent is running, captain is running. Principal brings captain up first, puts captain to bed last, then principal goes to bed. V2 mechanism is interactive sessions. V3 adds headless daemon (`--bare -p`). Between sessions dispatches queue — no work lost. Not session-scoped — always-on in intent, session-based in V2 mechanism. |
+| C5 | mdpal-cli #6 | `effort:` levels — what do they actually control? | **RESOLVED:** Effort is Anthropic's abstraction over token budget — it tunes model behavior, context usage, depth of reasoning behind the scenes. We don't control the levers individually, we set the dial per skill. Low = fast and cheap. High = deep and thorough. `/dispatch-read` = low, `/quality-gate` = high. Don't define internals — Anthropic manages that. |
+| C6 | ISCP #3 | Per-workstream enforcement transition: who decides level changes? | **RESOLVED:** Principal decides. DRI is the principal. Audit tool informs, agents recommend, captain presents — but the principal makes the call. For TheAgency framework itself, Jordan is the DRI. Other principals decide for their own repos. No automatic transitions. |
+| C7 | monofolk OQ8 | Compaction at 80%: auto or manual? | **RESOLVED:** We don't control compaction timing — Claude Code fires it around 80% context used (20% remaining). We control recovery. PostCompact hook re-injects handoff. Transcripts provide depth. Multi-part handoffs provide structure. Intra-session handoffs are insurance checkpoints. The better the handoff, the less compaction matters. |
+| C8 | ISCP #7 + mdpal-app #8 | PostCompact injection scope: minimal or full? | **RESOLVED:** PostCompact injects the handoff only. CLAUDE.md survives compaction — it's system-level context that Claude Code preserves. The handoff provides session-specific context that was compressed. Keep handoffs tight, CLAUDE.md light. The decomposition of CLAUDE-THEAGENCY.md into composable chunks saves context budget for handoff injection and actual work. |
 
 ## Reviewer Summary
 
-| Reviewer | Findings | Agree (positive) | Disagree (by me) | Autonomous | Collaborative |
-|----------|----------|-------------------|-------------------|------------|---------------|
-| mdpal-app | 11 | 6 | 0 | 5 (A1-A5) | 1 (C1) |
-| ISCP | 12 + 4 Q&A | 1 | 1 (D1) | 11 (A6-A13, A27-A28) | 2 (C6, C8) |
-| monofolk | 18 + 8 OQ answers | 5 | 2 (D3, D4) | 7 (A14-A20) | 3 (C2, C3, C7) |
-| mdpal-cli | 9 | 4 | 1 (D2) | 5 (A21-A26) | 2 (C4, C5) |
+| Reviewer | Findings | Agree (positive) | Disagree (by me) | Autonomous | Collaborative → Resolved |
+|----------|----------|-------------------|-------------------|------------|--------------------------|
+| mdpal-app | 11 | 6 | 0 | 5 (A1-A5) | 1 (C1) → resolved |
+| ISCP | 12 + 4 Q&A | 1 | 1 (D1) | 11 (A6-A13, A27-A28) | 2 (C6, C8) → resolved |
+| monofolk | 18 + 8 OQ answers | 5 | 2 (D3, D4) | 7 (A14-A20) | 3 (C2, C3, C7) → resolved |
+| mdpal-cli | 9 | 4 | 1 (D2) | 5 (A21-A26) | 2 (C4, C5) → resolved |
 | DevEx | — | — | — | — | NOT RECEIVED |
-| **Totals** | **50 + 12** | **16** | **4** | **28** | **8** |
+| **Totals** | **50 + 12** | **16** | **4** | **28** | **8 → all resolved** |
+
+## Collaborative Resolution Transcript
+
+Decisions made via 1B1 with principal (Jordan) during captain session 20.
+Full transcript: `usr/jordan/captain/transcripts/session20-continued-20260406-0730.md`
 
 ## Not Received
 
