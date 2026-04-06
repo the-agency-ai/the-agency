@@ -36,6 +36,7 @@ All dispatches resolved:
 - #36 — Permission model seed. Captured in Phase 3.1 + backlog.
 - #31 — Test reporting service seed. Captured in backlog.
 - #29 — Test boundary definitions seed. Already covered in A&D gate tiers. Resolved.
+- #103 — Escalation: restart for fresh permissions. Resolved — restart imminent.
 
 ## Flags
 
