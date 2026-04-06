@@ -3,10 +3,11 @@ type: ad
 project: valueflow
 workstream: agency
 date: 2026-04-06
-status: revised — MAR round 1 incorporated, pending round 2
+status: revised — MAR rounds 1+2 (research) incorporated, agent round 2 pending
 author: the-agency/jordan/captain
 pvr: claude/workstreams/agency/valueflow-pvr-20260406.md
 mar-round-1: claude/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md
+mar-round-2-research: 4 subagents (methodology-critic, practitioner, adopter-advocate, lean-analyst)
 ---
 
 # Valueflow — Architecture & Design
@@ -40,16 +41,15 @@ Stage {
 
 | Stage | Inputs | Outputs | Gate | Autonomy |
 |-------|--------|---------|------|----------|
-| Seed | Gleam (observation, transcript, flag) | Seed document | None — capture is frictionless | Principal-driven |
-| Research (MARFI) | Seed + research questions (principal-reviewed) | MARFI brief | Principal reviews questions before agents spin up | Collaborative |
-| Define | Seed + MARFI brief | PVR | MAR + principal sign-off | Collaborative |
+| Seed | Gleam — a thought, observation, transcript, flag; as little as a gleam in someone's eye | Seed document | None — capture is frictionless | Principal-driven |
+| Define | Seed + MARFI brief (if research conducted) | PVR | MAR + principal sign-off | Collaborative |
 | Design | PVR + MARFI (technical approach) | A&D | MAR + principal sign-off | Collaborative |
 | Plan | PVR + A&D + MAP input (if cross-cutting) | Master plan + phase plans | MAR (autonomous for phase plans unless flagged) | Autonomous (phases) |
 | Implement | Phase plan | Code + QGRs + commits | QG per iteration, QG per phase | Autonomous |
 | Ship | Commits + QGRs | PRs merged to origin | Pre-PR QG | Captain-managed |
-| Value | Shipped product | Customer feedback → new seeds (V3) | Customer adoption | — |
+| Value | Shipped product | Customer feedback → new seeds | Customer adoption | V3 — feedback loop not in V2 scope |
 
-**MARFI can trigger at any stage** — not just at the beginning. Mid-flow research is valid: during A&D when a technical question arises, during planning when a dependency is discovered. The driving agent decides when research input is needed.
+**MARFI is a sub-protocol, not a stage.** It can trigger at any stage — not just at the beginning. Mid-flow research is valid: during A&D when a technical question arises, during planning when a dependency is discovered. The driving agent decides when research input is needed.
 
 ### Artifact Types
 
@@ -94,7 +94,7 @@ When an agent receives feedback (from MAR, QG, or any review):
 
 1. **Collect** — receive raw findings from all reviewers
 2. **Triage** — author categorizes each finding:
-   - **Disagree** — finding rejected with reasoning
+   - **Disagree** — finding rejected with reasoning. Reject when: the finding is based on incorrect premises, conflicts with a principal decision, is superseded by other work, or proposes a change that would violate a constraint. Always state the reasoning.
    - **Autonomous** — finding accepted, author incorporates independently
    - **Collaborative** — finding requires principal input
 3. **Present** — for scope-definition artifacts, author presents full triage to principal:
@@ -129,6 +129,14 @@ Body contains three tables (disagree, autonomous, collaborative) with finding ID
 
 ## 3. Multi-Agent Groups
 
+### Overview
+
+| Group | Purpose | When | V2 Mechanism |
+|-------|---------|------|-------------|
+| **MARFI** | Research input — cross-cutting questions answerable with web search + docs | Before any artifact authoring, or mid-flow when research question arises | Subagents (ephemeral, sonnet) |
+| **MAR** | Review of artifacts — many eyes, all bugs are shallow | After every artifact, always, never skipped | Subagents (research) + dispatches (agents) |
+| **MAP** | Planning input from multiple workstreams | Cross-cutting complex projects only | Captain dispatches RFI to relevant agents |
+
 ### MARFI (Multi-Agent Request for Information)
 
 **Purpose:** Research input before authoring an artifact.
@@ -152,7 +160,7 @@ Body contains three tables (disagree, autonomous, collaborative) with finding ID
 
 **Purpose:** Review of artifacts at every transition with three-bucket disposition.
 
-**When:** After every artifact (PVR, A&D, Plan, QGR at phase boundary). Always. MAR is never skipped.
+**When:** After every artifact (PVR, A&D, Plan, QGR at phase boundary). Always. MAR is never skipped — it is the equivalent of pair programming. Many eyes, all bugs are shallow (Linus's Law). With AI agents, the cost of review is seconds, not hours. There is no reason not to review everything. Captain scales the reviewer group to match artifact significance — a trivial revision gets 1-2 subagents (seconds), a major artifact gets the full research + agent review.
 
 **Protocol:**
 1. Author declares artifact ready for review
@@ -160,7 +168,7 @@ Body contains three tables (disagree, autonomous, collaborative) with finding ID
 3. **Review dispatch includes reviewer focus:** "Review from perspective of: {focus area}" — tells the reviewer what angle to evaluate from
 4. Review instructions (in every MAR dispatch): "Give raw findings — concerns, gaps, questions, what works. Do NOT sort into buckets. The author triages — not you."
 5. Reviewers respond via dispatch (review-response type)
-6. **24-hour timeout:** if a reviewer hasn't responded in 24 hours, auto-proceed with available reviews. Flag missing reviewers for information. Do not block indefinitely on dormant agents.
+6. **Timeouts:** Subagent reviewers (within-session): complete in seconds to minutes — if a subagent errors, proceed without it. Dispatched agent reviewers (cross-session): 24-hour timeout, auto-proceed with available reviews. Flag missing reviewers. Do not block indefinitely on dormant agents.
 7. Author collects all findings, triages into three buckets
 8. For scope-definition artifacts: present full triage to principal. For autonomous stages: triage and act, inform principal via dispatch.
 9. Revise, re-review if needed. MAR disposition is versioned — paired to the artifact version it reviewed.
@@ -303,7 +311,7 @@ On restart (after "holiday" or crash):
 
 Dispatch-on-commit is **additive** to `/phase-complete`. Defense in depth — multiple layers, each catches what the one before missed.
 
-**Iteration commits (dispatch-on-commit):**
+**Iteration commits (dispatch-on-commit) — coordination path:**
 1. Agent commits via `/iteration-complete`
 2. `git-commit` tool auto-dispatches to captain (commit type)
 3. Commit dispatch carries structured YAML: `commit_hash`, `stage_hash`, `branch`, `phase`, `iteration`, `files_changed`
@@ -312,8 +320,13 @@ Dispatch-on-commit is **additive** to `/phase-complete`. Defense in depth — mu
 6. Batch: don't sync worktrees until all pending commits processed
 7. Sync all worktrees after batch complete
 
-**Phase commits (`/phase-complete`):**
-8. At phase boundary: squash merge, deep QG, build PR branch, pre-PR QG, push to origin
+**Phase commits (`/phase-complete`) — quality + shipping path (separate mechanism):**
+1. Agent completes phase via `/phase-complete`
+2. Deep QG (T3) — full test suite, MAR on phase artifacts
+3. Squash merge to main
+4. Build PR branch, pre-PR QG (T4), push to origin
+
+These are two different mechanisms at two different boundaries serving different purposes. Dispatch-on-commit is coordination (captain knows, merges, syncs). Phase-complete is quality and shipping (deep gate, PR, origin). Both verify stage-hash, but for different reasons at different scopes.
 
 ---
 
@@ -344,7 +357,7 @@ Gates are tiered by commit boundary type:
 
 ### Stage-Hash Delta Tolerance
 
-If the delta between QGR hash and current staged hash is a **single markdown file** → allow with warning. Any other change → re-run QG. Simpler and less ambiguous than "non-code files changed" (is `package.json` code?).
+If the delta between QGR hash and current staged hash is **exclusively markdown files** (all changed files are `.md`) → allow with warning. Any non-markdown file in the delta → re-run QG. If the commit contains both a markdown change and a code change, re-run. Simpler and less ambiguous than "non-code files changed" (is `package.json` code? Yes — re-run).
 
 ### Test Hermiticity
 
@@ -358,6 +371,7 @@ Enforced via:
 - `GIT_CONFIG_GLOBAL=/dev/null` + `GIT_CONFIG_SYSTEM=/dev/null` (existing)
 - Teardown guard: hash `.git/config` before/after, fail if changed (existing)
 - Docker runner for full-suite (existing, needs extension to all test files)
+- **T3 Docker fallback:** if Docker is not running, T3 falls back to in-process test execution with full isolation helpers. Warn that Docker is preferred. Do not block or skip — degraded is better than absent.
 
 ---
 
@@ -366,7 +380,7 @@ Enforced via:
 ### Three Handoff Classes
 
 1. **Session handoff** — between sessions. Current state, next action, working set. Written on SessionEnd, PreCompact, at boundary commands.
-2. **Agent bootstrap handoff** — captain creates a new agent on a workstream. Everything the agent needs to start working: identity, role, seeds, first action.
+2. **Agent bootstrap handoff** — triggered when captain creates a new agent on a workstream (via `/workstream-create` or `/worktree-create`). V2: `WorktreeCreate` hook (Claude Code feature, detailed in PVR MARFI) auto-triggers bootstrap. Everything the agent needs to start working: identity, role, seeds, first action.
 3. **Agent project bootstrap handoff** — captain assigns a project to an existing agent. A "sit rep": everything they need to succeed. Links to transcripts, documents, and relevant context.
 
 ### Multi-Part Handoff Structure
@@ -509,11 +523,13 @@ Decompose CLAUDE-THEAGENCY.md into focused documents, each `@`-importable:
 
 CLAUDE-THEAGENCY.md becomes a thin wrapper that `@` imports all of the above. Skills import only what they need.
 
+**Minimum viable adoption (start here):** Flow stages (§1) + three-bucket protocol (§2) + MAR at level 1 (docs only, manual review) + session handoffs. No tooling required. Read the docs, follow the conventions manually. This is enforcement ladder step 1 — everything else builds from here.
+
 ### Context Budget
 
 Budget per **skill injection** (4000 tokens total), not per document. A doc can be 3000 tokens if the skill adds only 1000 tokens of its own instructions. The goal: no skill exceeds 4000 tokens of methodology + instructions.
 
-**Context budget linter is a V2 deliverable** — ships alongside the decomposition. Measures `@` import chain token counts. Warns when a skill exceeds budget. DevEx builds this.
+**Context budget linter is a V2 deliverable** — ships alongside the decomposition. Measures `@` import chain token counts. Warns when a skill exceeds budget. DevEx builds this. **Risk:** if the linter slips, the decomposition loses its enforcement mechanism. Linter and decomposition must ship together or neither ships.
 
 ### Fragment Registry (V3)
 
