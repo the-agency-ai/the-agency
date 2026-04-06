@@ -145,7 +145,7 @@ Dispatch-on-commit queues in ISCP DB. Captain processes when running — no assu
 
 | ID | Requirement |
 |----|-------------|
-| NFR1 | **Platform-agnostic** — methodology works across any Claude Code deployment: CLI, desktop, remote. No dependency on specific delivery vehicles. |
+| NFR1 | **Platform support** — Claude Code CLI (primary), Claude Desktop code tab, remote connections (mobile, iPad, laptop). MDPal tray for principal notification outside the terminal stream — MDPal is an Agency application, not a third-party dependency. |
 | NFR2 | **Progressive adoption** — enforcement ladder is the adoption path, not all-or-nothing. Coexists with non-Agency contributors. |
 | NFR3 | **Autonomous by default** — human checkpoints at scope-definition boundaries only, not during execution. Explicit escalation hook point for agents to break out of autonomous loop when needed — mechanism defined in A&D. |
 | NFR4 | **Context resilience** — survives session boundaries, compaction, restarts via multi-part handoffs (identity, state, active context, next action, working set), PostCompact hooks, ISCP notifications. Stage-aware resume: agent verifies open dispatches, current stage, artifact state before resuming. |
@@ -223,7 +223,7 @@ Key revisions from MAR:
 - Three-bucket pattern: clarified that reviewers give raw feedback, authors triage
 - MARFI scope: cross-cutting research only, domain-specific is agent's normal work
 - MAP trigger: complex cross-cutting projects only, single-workstream plans drafted by agent
-- MDPal tray removed from NFR1 — methodology is platform-agnostic
+- MDPal tray restored in NFR1 — MDPal is an Agency application, not a third-party tool. Principal overruled agent feedback.
 - Captain: always-on + interactive, not running = holiday
 - Dispatch-on-commit: queues in ISCP DB, captain processes when running
 - Non-Agency contributors: valueflow gates don't block external PRs
