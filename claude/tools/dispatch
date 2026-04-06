@@ -346,6 +346,19 @@ SQL
     echo "  From: $from_agent"
     echo "  To:   $to_formatted"
     echo "  Type: $dtype"
+
+    # Warn if payload still contains template placeholders
+    # What Problem: Captain committed empty template payloads (#14, #16, #17)
+    # because dispatch create writes placeholders and nothing warned.
+    # How & Why: Check for HTML comments (<!-- -->) in the payload after
+    # writing. Warn but don't block — the sender may intend to edit later.
+    # Written: 2026-04-06 — empty payload warning (dispatch #20)
+    if [[ -z "$body" ]] && grep -q '<!-- ' "$filepath" 2>/dev/null; then
+        echo ""
+        echo "⚠ WARNING: Payload contains template placeholders (<!-- -->)."
+        echo "  Edit the file before committing: $payload_path"
+    fi
+
     echo "✓"
 }
 
