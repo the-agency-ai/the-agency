@@ -84,13 +84,13 @@ _db_query() {
 }
 
 @test "dispatch create: fails without --to" {
-    run "$MOCK_REPO/claude/tools/dispatch" create --subject "test"
+    run "$MOCK_REPO/claude/tools/dispatch" create --subject "test" --body "content"
     assert_failure
     assert_output_contains "--to"
 }
 
 @test "dispatch create: fails without --subject" {
-    run "$MOCK_REPO/claude/tools/dispatch" create --to "jordan/captain"
+    run "$MOCK_REPO/claude/tools/dispatch" create --to "jordan/captain" --body "content"
     assert_failure
     assert_output_contains "--subject"
 }
@@ -100,7 +100,7 @@ _db_query() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "dispatch create: creates file and DB record" {
-    run "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Test dispatch"
+    run "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Test dispatch" --body "Test content"
     assert_success
     assert_output_contains "ID:"
     assert_output_contains "File:"
@@ -114,7 +114,7 @@ _db_query() {
 }
 
 @test "dispatch create: DB record has correct fields" {
-    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Field check" --type directive --priority high
+    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Field check" --body "Directive content" --type directive --priority high
 
     local from_agent to_agent dtype priority subject status
     from_agent=$(_db_query "SELECT from_agent FROM dispatches WHERE id=1")
@@ -133,7 +133,7 @@ _db_query() {
 }
 
 @test "dispatch create: payload file exists with correct frontmatter" {
-    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Frontmatter test"
+    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Frontmatter test" --body "Frontmatter test content"
 
     local payload_path
     payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=1")
@@ -147,7 +147,7 @@ _db_query() {
 }
 
 @test "dispatch create: default type is dispatch" {
-    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Default type"
+    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Default type" --body "Default type content"
 
     local dtype
     dtype=$(_db_query "SELECT type FROM dispatches WHERE id=1")
@@ -155,7 +155,7 @@ _db_query() {
 }
 
 @test "dispatch create: slug in filename comes from subject" {
-    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Code Review Findings"
+    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Code Review Findings" --body "Review content"
 
     local payload_path
     payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=1")
@@ -163,7 +163,7 @@ _db_query() {
 }
 
 @test "dispatch create: type prefix in filename" {
-    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Fix this" --type review
+    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Fix this" --body "Fix content" --type review
 
     local payload_path
     payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=1")
@@ -175,14 +175,14 @@ _db_query() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "dispatch create: validates type against enum" {
-    run "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Bad" --type invalid
+    run "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Bad" --body "content" --type invalid
     assert_failure
     assert_output_contains "invalid dispatch type"
 }
 
 @test "dispatch create: accepts all valid types" {
     for dtype in directive seed review review-response commit master-updated escalation dispatch; do
-        run "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Type $dtype" --type "$dtype"
+        run "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Type $dtype" --body "Content for $dtype" --type "$dtype"
         assert_success
     done
 
@@ -192,7 +192,7 @@ _db_query() {
 }
 
 @test "dispatch create: rejects invalid priority" {
-    run "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Bad" --priority critical
+    run "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Bad" --body "content" --priority critical
     assert_failure
     assert_output_contains "normal, high, or low"
 }
@@ -203,10 +203,10 @@ _db_query() {
 
 @test "dispatch create: --reply-to with integer sets in_reply_to FK" {
     # Create original dispatch
-    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Original"
+    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Original" --body "Original content"
 
     # Create reply
-    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Reply" --reply-to 1 --type review-response
+    "$MOCK_REPO/claude/tools/dispatch" create --to "test-repo/testprincipal/captain" --subject "Reply" --body "Reply content" --reply-to 1 --type review-response
 
     local reply_to
     reply_to=$(_db_query "SELECT in_reply_to FROM dispatches WHERE id=2")
@@ -218,7 +218,7 @@ _db_query() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "dispatch-create wrapper: works as before" {
-    run "$MOCK_REPO/claude/tools/dispatch-create" --to "test-repo/testprincipal/captain" --subject "Wrapper test"
+    run "$MOCK_REPO/claude/tools/dispatch-create" --to "test-repo/testprincipal/captain" --subject "Wrapper test" --body "Wrapper content"
     assert_success
     assert_output_contains "ID:"
     assert_output_contains "File:"

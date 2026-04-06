@@ -18,7 +18,8 @@
 # Written: 2026-04-05 during ISCP Iteration 1.4
 #
 # Usage:
-#   dispatch create --to <addr> --subject <text> [--body <text>] [--type <type>] [--priority <p>]
+#   dispatch create --to <addr> --subject <text> --body <text> [--type <type>] [--priority <p>]
+#   dispatch create --to <addr> --subject <text> --template [--type <type>] [--priority <p>]
 #   dispatch list [--all] [--status <s>] [--type <t>]
 #   dispatch read <id>
 #   dispatch fetch <id>
@@ -153,7 +154,7 @@ _validate_type() {
 # create — Create dispatch (DB record + git payload file)
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_create() {
-    local to_addr="" subject="" reply_to="" priority="normal" dtype="dispatch" project="" body=""
+    local to_addr="" subject="" reply_to="" priority="normal" dtype="dispatch" project="" body="" use_template=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -166,6 +167,8 @@ cmd_create() {
             --body)
                 [[ -n "${2:-}" ]] || { echo "Error: --body requires text" >&2; return 1; }
                 body="$2"; shift 2 ;;
+            --template)
+                use_template=true; shift ;;
             --type)
                 [[ -n "${2:-}" ]] || { echo "Error: --type requires a type" >&2; return 1; }
                 dtype="$2"; shift 2 ;;
@@ -179,7 +182,8 @@ cmd_create() {
                 [[ -n "${2:-}" ]] || { echo "Error: --project requires a name" >&2; return 1; }
                 project="$2"; shift 2 ;;
             --help|-h)
-                echo "Usage: dispatch create --to <addr> --subject <text> [--type <type>] [--priority <p>] [--reply-to <id>] [--project <name>]"
+                echo "Usage: dispatch create --to <addr> --subject <text> --body <text> [--type <type>] [--priority <p>] [--reply-to <id>] [--project <name>]"
+                echo "       dispatch create --to <addr> --subject <text> --template [--type <type>]"
                 return 0 ;;
             *)
                 echo "Error: unknown option for create: $1" >&2; return 1 ;;
@@ -192,6 +196,19 @@ cmd_create() {
     fi
     if [[ -z "$subject" ]]; then
         echo "Error: --subject <text> is required" >&2; return 1
+    fi
+
+    # What Problem: Agents create dispatches without --body, get template
+    # placeholders, commit them thinking content was sent. Data loss bug.
+    # Dispatches #14, #16, #17, #46, #52 all arrived as empty templates.
+    # How & Why: Require --body (content) or --template (explicit opt-in).
+    # No content = no dispatch. Fail loud.
+    # Written: 2026-04-06 — escalation #53
+    if [[ -z "$body" ]] && [[ "$use_template" != "true" ]]; then
+        echo "Error: --body <text> is required (or use --template for placeholder file)" >&2
+        echo "  dispatch create --to <addr> --subject <text> --body \"your content here\"" >&2
+        echo "  dispatch create --to <addr> --subject <text> --template" >&2
+        return 1
     fi
 
     # Validate type
@@ -347,16 +364,12 @@ SQL
     echo "  To:   $to_formatted"
     echo "  Type: $dtype"
 
-    # Warn if payload still contains template placeholders
-    # What Problem: Captain committed empty template payloads (#14, #16, #17)
-    # because dispatch create writes placeholders and nothing warned.
-    # How & Why: Check for HTML comments (<!-- -->) in the payload after
-    # writing. Warn but don't block — the sender may intend to edit later.
-    # Written: 2026-04-06 — empty payload warning (dispatch #20)
-    if [[ -z "$body" ]] && grep -q '<!-- ' "$filepath" 2>/dev/null; then
+    # Warn strongly for --template mode — the payload is placeholder-only
+    if [[ "$use_template" == "true" ]]; then
         echo ""
-        echo "⚠ WARNING: Payload contains template placeholders (<!-- -->)."
-        echo "  Edit the file before committing: $payload_path"
+        echo "⚠ TEMPLATE MODE: Payload contains placeholders only."
+        echo "  You MUST edit the file before committing: $payload_path"
+        echo "  The recipient will see template placeholders, not content."
     fi
 
     echo "✓"

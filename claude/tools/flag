@@ -21,6 +21,7 @@
 #   flag count                       — count unread flags
 #   flag discuss                     — output as /discuss agenda, mark processed
 #   flag clear                       — mark all as processed
+#   flag resolve <id> [<id>...]      — mark specific flag(s) as processed
 #   flag --version                   — show version
 #   flag --help                      — show help
 
@@ -205,6 +206,51 @@ cmd_clear() {
     echo "flag: $affected item(s) marked as processed"
 }
 
+# What Problem: Flag triage needs per-flag resolution — bulk clear is too
+# coarse when you want to resolve Bucket 1 items individually while keeping
+# Bucket 2 and 3 items in the queue.
+# How & Why: Accept one or more integer IDs, mark each as processed.
+# Written: 2026-04-06 — flag triage support
+cmd_resolve() {
+    if [[ $# -eq 0 ]]; then
+        echo "Error: flag resolve requires one or more flag IDs" >&2
+        echo "Usage: flag resolve <id> [<id>...]" >&2
+        return 1
+    fi
+
+    iscp_db_init
+
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    local now resolved=0 not_found=0
+    now=$(date -u +%Y-%m-%dT%H:%M)
+
+    for flag_id in "$@"; do
+        if [[ ! "$flag_id" =~ ^[0-9]+$ ]]; then
+            echo "Error: '$flag_id' is not a valid flag ID" >&2
+            not_found=$((not_found + 1))
+            continue
+        fi
+
+        # Verify flag exists and belongs to this agent
+        local exists
+        exists=$(iscp_db_query "SELECT count(*) FROM flags WHERE id = :id AND to_agent = :agent" ":id" "$flag_id" ":agent" "$my_agent")
+
+        if [[ "$exists" -eq 0 ]]; then
+            echo "flag: #$flag_id not found or not yours"
+            not_found=$((not_found + 1))
+            continue
+        fi
+
+        iscp_db_exec "UPDATE flags SET status = 'processed', processed_at = :now WHERE id = :id" \
+            ":now" "$now" ":id" "$flag_id"
+        resolved=$((resolved + 1))
+    done
+
+    echo "flag: $resolved resolved${not_found:+, $not_found not found}"
+}
+
 cmd_help() {
     cat <<'HELP'
 flag — ISCP flag tool (v2) — Quick-capture observations
@@ -216,6 +262,7 @@ Usage:
   flag count                    Count unread flags
   flag discuss                  Output as /discuss agenda, mark processed
   flag clear                    Mark all as processed
+  flag resolve <id> [<id>...]   Mark specific flag(s) as processed
   flag --version                Show version
   flag --help                   Show help
 
@@ -240,6 +287,7 @@ case "$1" in
     count)   cmd_count; log_end "$RUN_ID" "success" "0" "0" "flag count" ;;
     discuss) cmd_discuss; log_end "$RUN_ID" "success" "0" "0" "flag discuss" ;;
     clear)   cmd_clear; log_end "$RUN_ID" "success" "0" "0" "flag clear" ;;
+    resolve) shift; cmd_resolve "$@"; log_end "$RUN_ID" "success" "0" "0" "flag resolve" ;;
     --version) echo "flag $TOOL_VERSION" ;;
     --help|-h) cmd_help ;;
     *)

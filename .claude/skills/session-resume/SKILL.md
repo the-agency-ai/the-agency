@@ -37,7 +37,7 @@ Display the handoff contents. This is your context for what was happening before
 bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch check
 ```
 
-Surface any unread dispatches. If found, read them with `/dispatch read <file>`.
+Surface any unread dispatches. If found, list them with `dispatch list` and read with `dispatch read <id>`.
 
 ### Step 4: Report session state
 

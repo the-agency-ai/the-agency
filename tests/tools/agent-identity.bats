@@ -210,3 +210,61 @@ teardown() {
     assert_failure
     assert_output_contains "unknown option"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PR branch identity fix (escalation #63)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "captain/ prefix branch resolves to captain" {
+    cd "$MOCK_REPO"
+    git checkout -b captain/valueflow-pvr-20260406 --quiet
+    run "$MOCK_REPO/claude/tools/agent-identity"
+    assert_success
+    assert_output_contains "test-repo/testprincipal/captain"
+}
+
+@test "pr/ prefix branch resolves to captain" {
+    cd "$MOCK_REPO"
+    git checkout -b pr/fix-something --quiet
+    run "$MOCK_REPO/claude/tools/agent-identity"
+    assert_success
+    assert_output_contains "test-repo/testprincipal/captain"
+}
+
+@test "release/ prefix branch resolves to captain" {
+    cd "$MOCK_REPO"
+    git checkout -b release/v2.0 --quiet
+    run "$MOCK_REPO/claude/tools/agent-identity"
+    assert_success
+    assert_output_contains "test-repo/testprincipal/captain"
+}
+
+@test ".agency-agent file takes priority over branch detection" {
+    cd "$MOCK_REPO"
+    git checkout -b captain/some-pr --quiet
+    echo "captain" > "$MOCK_REPO/.agency-agent"
+    run "$MOCK_REPO/claude/tools/agent-identity"
+    assert_success
+    assert_output_contains "test-repo/testprincipal/captain"
+    rm -f "$MOCK_REPO/.agency-agent"
+}
+
+@test ".agency-agent file overrides branch name" {
+    cd "$MOCK_REPO"
+    git checkout -b random-branch --quiet
+    echo "devex" > "$MOCK_REPO/.agency-agent"
+    run "$MOCK_REPO/claude/tools/agent-identity"
+    assert_success
+    assert_output_contains "test-repo/testprincipal/devex"
+    rm -f "$MOCK_REPO/.agency-agent"
+}
+
+@test "CLAUDE_AGENT_NAME overrides .agency-agent file" {
+    cd "$MOCK_REPO"
+    echo "devex" > "$MOCK_REPO/.agency-agent"
+    export CLAUDE_AGENT_NAME="override-agent"
+    run "$MOCK_REPO/claude/tools/agent-identity"
+    assert_success
+    assert_output_contains "test-repo/testprincipal/override-agent"
+    rm -f "$MOCK_REPO/.agency-agent"
+}

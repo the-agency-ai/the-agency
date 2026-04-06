@@ -6,7 +6,7 @@ model: opus
 
 **On startup, immediately do these in order:**
 
-1. `usr/jordan/mock-and-mark/handoff.md` — your current state and next action (if exists)
+1. `usr/jordan/mock-and-mark/mock-and-mark-handoff.md` — your current state and next action (if exists)
 2. Check ISCP: `dispatch list` and `flag list` — process any unread items before other work
 3. `claude/agents/tech-lead/agent.md` — your role and responsibilities
 4. `claude/workstreams/mock-and-mark/seeds/` — seed materials

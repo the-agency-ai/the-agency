@@ -1,50 +1,93 @@
 ---
-allowed-tools: Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch *), Bash(bash claude/tools/dispatch *), Read, Write
-description: Manage dispatches — list, read, create, resolve
+allowed-tools: Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch *), Bash(bash claude/tools/dispatch *), Bash(./claude/tools/dispatch *), Read, Write
+description: Manage dispatches — list, read, fetch, reply, create, resolve
 ---
 
 # Dispatch Management
 
-Manage dispatch files for inter-agent communication (code review findings, task assignments).
+Manage ISCP dispatches for inter-agent communication. Dispatches are indexed in the ISCP SQLite DB with payload files in git. All operations use integer dispatch IDs, not file paths.
 
 ## Arguments
 
 - `$ARGUMENTS`: Subcommand and arguments. One of:
-  - `list` — list dispatches for the current project
-  - `list --all` — list all dispatches across projects
-  - `read <file>` — read a dispatch and mark as read
-  - `create <project> <slug>` — create a new dispatch
-  - `resolve <file>` — mark a dispatch as resolved
-  - `check` — check for unread dispatches
-  - `status <file>` — show dispatch lifecycle status
+  - `list` — list dispatches addressed to current agent
+  - `list --all` — list all dispatches across agents
+  - `list --status <s>` — filter by status (unread, read, resolved)
+  - `list --type <t>` — filter by type
+  - `read <id>` — display dispatch payload and mark as read
+  - `fetch <id>` — read-only peek (no status change)
+  - `reply <id> "message"` — quick response to a dispatch
+  - `create --to <addr> --subject <text>` — create a new dispatch
+  - `create --to <addr> --subject <text> --body <text>` — create with inline content
+  - `resolve <id>` — mark a dispatch as resolved
+  - `check` — silent check for unread items (hook use)
+  - `status <id>` — show full dispatch record
 
 If empty, defaults to `list`.
 
 ## Instructions
 
-### list / list --all
+### list
 
-Run `bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch $ARGUMENTS` and display results.
+Run `bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch list $ARGUMENTS` and display results.
 
-### read
+### read / fetch
 
-1. Run `bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch read <file>` to display and mark as read.
-2. Summarize the findings for the user.
+- `read <id>` — displays the dispatch and marks it as read. Use when you're committing to process it.
+- `fetch <id>` — displays the dispatch without changing status. Use to peek before deciding.
+
+Run `bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch read <id>` or `fetch <id>`.
+Summarize the content for the user.
+
+### reply
+
+Quick response to an existing dispatch. Auto-resolves the recipient from the original sender, prefixes subject with "Re:", and sets the in_reply_to FK.
+
+```
+bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch reply <id> "Your response message"
+```
 
 ### create
 
-1. Run `bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch create <project> <slug>` to scaffold a new dispatch.
-2. Report the created file path so the user or agent can fill in the content.
+Create a new dispatch. The `--to` address must be fully qualified (`repo/principal/agent`).
+
+```
+bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch create --to <addr> --subject <text> [--body <text>] [--type <type>] [--priority <p>]
+```
+
+- Without `--body`: writes a template payload (warns about placeholders — edit before committing)
+- With `--body`: writes the message as payload content (no template)
+- Types: directive, seed, review, review-response, commit, master-updated, escalation, dispatch
+- Priority: normal (default), high, low
 
 ### resolve
 
-1. Run `bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch resolve <file>` to mark as resolved.
-2. Confirm resolution status.
+Mark a dispatch as resolved, optionally linking a response dispatch:
+
+```
+bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch resolve <id> [--response <id>]
+```
 
 ### check
 
-Run `bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch check` and report any unread dispatches.
+Silent check for unread items. Returns JSON `{"systemMessage": "..."}` when items are waiting, silent exit 0 when empty. Used by the `iscp-check` hook.
 
 ### status
 
-Run `bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch status <file>` and display the lifecycle state.
+Show the full record for a dispatch including timestamps, read_by, and payload path:
+
+```
+bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch status <id>
+```
+
+## Dispatch Workflow
+
+1. **Receive:** `dispatch list` → see what's waiting
+2. **Peek:** `dispatch fetch <id>` → inspect without committing
+3. **Read:** `dispatch read <id>` → commit to processing, marks as read
+4. **Reply:** `dispatch reply <id> "message"` → quick acknowledgment or response
+5. **Resolve:** `dispatch resolve <id>` → mark as done
+
+## Payload Resolution
+
+Dispatch payloads are resolved transparently across branches and worktrees. The resolution ladder: local worktree → main checkout → git show all branches → scan all worktree directories. You don't need to merge main to read a dispatch — just `dispatch read <id>`.

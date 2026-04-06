@@ -96,20 +96,9 @@ if [ -f "$RECAP_FILE" ]; then
   CONTEXT="${CONTEXT}$(cat "$RECAP_FILE")"
 fi
 
-# Check for unprocessed flag queue
-# Use AGENCY_PRINCIPAL (resolved via agency.yaml by _path-resolve) not raw $USER,
-# since the flag tool writes to usr/$AGENCY_PRINCIPAL/ not usr/$USER/
-FLAG_PRINCIPAL="${AGENCY_PRINCIPAL:-${USER:-unknown}}"
-FLAG_QUEUE="$PROJECT_DIR/usr/$FLAG_PRINCIPAL/flag-queue.jsonl"
-if [ -f "$FLAG_QUEUE" ] && [ -s "$FLAG_QUEUE" ]; then
-  FLAG_COUNT=$(grep -c . "$FLAG_QUEUE" 2>/dev/null || echo 0)
-  if [ "$FLAG_COUNT" -gt 0 ]; then
-    FLAG_WARNING="
-
-⚠ **$FLAG_COUNT unprocessed flag(s)** in queue. Run \`./claude/tools/flag list\` to review, or \`./claude/tools/flag discuss\` to start a /discuss."
-    CONTEXT="${CONTEXT}${FLAG_WARNING}"
-  fi
-fi
+# Legacy flag queue check removed — flags are now in ISCP DB (iscp-check handles notifications).
+# Legacy flag-queue.jsonl migrated to usr/jordan/captain/legacy-flags-migrated-20260406.md
+# and archived to usr/jordan/captain/history/flag-queue-legacy-20260406.jsonl.
 
 # Output context if found, otherwise empty JSON (hook runner expects JSON on stdout)
 if [ -n "$CONTEXT" ]; then
