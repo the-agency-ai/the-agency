@@ -1,88 +1,68 @@
 ---
-type: session-handoff
-date: 2026-04-06
-trigger: session-end — escalations fixed, PVR reviewed, dispatch hardened
+type: handoff
 agent: the-agency/jordan/iscp
 workstream: iscp
+date: 2026-04-06
+trigger: reboot
 ---
 
-# ISCP Session Handoff
+## Identity
 
-**Agent:** the-agency/jordan/iscp
-**Branch:** iscp (worktree at `.claude/worktrees/iscp/`)
-**Last session work:** Fixed two escalations (empty templates, PR branch identity), hardened dispatch create, reviewed Valueflow PVR, built flag triage
+`the-agency/jordan/iscp` — ISCP workstream agent. I build and maintain the Inter-Session Communication Protocol: the notification, dispatch, and flag infrastructure that connects all agents.
 
 ## Current State
 
-**ISCP v1 complete + hardened.** 169 BATS tests green. Three commits this session on iscp branch. Awaiting captain merge to main + worktree sync.
+ISCP v1 is complete and hardened. 174 BATS tests green. Branch `iscp` is ~15 commits ahead of main. Captain has merged earlier work into main but this session's commits (a4f7f2b, 41fb5cf) are not yet merged.
 
-### This Session (4 commits)
+Last two commits this session:
+- `a4f7f2b` — settings-template: ISCP hooks + permissions + version test fixes
+- `41fb5cf` — structured commit dispatch payloads (commit_hash, branch, files_changed, stage_hash in body)
 
-1. **`3243ac6`** — `flag resolve <id>` per-flag resolution + flag-triage skill
-2. **`85d874d`** — `dispatch create` requires `--body` or `--template` (escalation #53 fix)
-3. **`f05e3d0`** — PR branch identity fix: captain/*, pr/*, release/* + .agency-agent file (escalation #63 fix)
-4. Prior session: fetch, reply, branch-transparent payloads, test isolation, skills v2
+Full tool suite operational: `agent-identity`, `dispatch` (create/list/read/check/resolve/status/reply), `flag` (capture/list/count/discuss/clear/resolve), `iscp-check` (hook notification), `iscp-migrate` (legacy migration).
 
-### Test Count: 169
+## Valueflow Context
 
-| Test file | Count |
-|-----------|-------|
-| `iscp-db.bats` | 51 |
-| `agent-identity.bats` | 21 (+6 new: PR branch, .agency-agent) |
-| `dispatch-create.bats` | 17 |
-| `dispatch.bats` | 35 (+4 new: --body/--template) |
-| `flag.bats` | 18 (+4 new: flag resolve) |
-| `iscp-check.bats` | 13 |
-| `iscp-migrate.bats` | 14 |
+- PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
+- A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
+- MAR dispositions: `claude/workstreams/agency/reviews/`
 
-## Dispatches Sent This Session
+Read the A&D on startup — it defines how ISCP tools work and the architectural decisions behind them.
 
-| # | To | Subject | Type |
-|---|-----|---------|------|
-| 60 | captain | MAR Round 2: ISCP raw findings on Valueflow PVR | review-response |
-| 69 | captain | Re: ESCALATION — both empty templates + PR branch identity fixed | dispatch |
+## Active Work
 
-## Dispatches Resolved
+Was working the backlog when reboot was called. Two items completed this session:
+1. Settings-template updated with ISCP hooks (SessionStart/UserPromptSubmit/Stop) and tool permissions
+2. Dispatch-on-commit enhanced with structured YAML metadata body
 
-- #53 (escalation: empty template payloads) — fixed in commit `85d874d`
-- #54 (review: Valueflow PVR MAR Round 2) — responded with dispatch #60
-- #63 (escalation: PR branch identity) — fixed in commit `f05e3d0`
+Uncommitted file: `claude/tools/git-commit` (structured commit dispatch) — already committed as `41fb5cf`.
+Untracked: ~20 dispatch payload files in `usr/jordan/iscp/dispatches/`, history archives.
 
 ## Key Decisions
 
-- `dispatch create` now REQUIRES `--body` content. `--template` is explicit opt-in. No more silent empty payloads.
-- `agent-identity` checks `.agency-agent` file before branch detection. Captain needs `echo "captain" > .agency-agent` on main checkout.
-- Payloads-outside-git architectural question flagged for Valueflow A&D discussion (not acted on yet).
+- `dispatch create` requires `--body` or explicit `--template`. No silent empty payloads.
+- `agent-identity` checks `.agency-agent` file before branch detection. PR branches (`captain/*`, `pr/*`, `release/*`) resolve to captain.
+- `CLAUDE_PROJECT_DIR` is authoritative over `SCRIPT_DIR` for project root in all ISCP tools — fixes identity when agents cd to main checkout.
+- Symlink-based dispatch payload resolution: `~/.agency/{repo}/dispatches/dispatch-{id}.md` symlinks to absolute filesystem paths. Falls back to legacy 4-strategy ladder.
+- Commit dispatches carry structured metadata: commit_hash, branch, files_changed, stage_hash, work_item.
 
-## Backlog
+## Open Items
 
-1. ~~Skill updates~~ (done — dispatch, flag, dispatch-read, session-resume all v2)
-2. ~~Flag triage skill~~ (done — three-bucket structured review)
-3. **Dropbox primitive** — file staging between worktrees (awaiting prioritization)
-4. **Dispatch-on-commit hook** — auto-dispatch to captain on commit (identified in MAR review)
-5. **Transcript primitive** — storage/indexing layer
-6. **Subscription primitive** — not yet discussed
+1. **DB schema versioning** — version column exists (PRAGMA user_version), but no migration framework for schema changes. Next item in backlog.
+2. **Flag categories** (`--friction`, `--idea`, `--bug`) — A&D Section 10. Not started.
+3. **Dispatch retention** — archive resolved dispatches after 30 days. Not started.
+4. **Dropbox primitive** — file staging between worktrees. Not started.
+5. **BUG 2** — `dispatch list --all` shows other agents' unread mail. Acknowledged, not fixed. Design question: should --all filter by principal?
+6. **SMS-style dispatches** — short string stored in DB, no payload file. Like flag but agent-addressable with dispatch lifecycle (unread/read/resolved). `dispatch create --sms "quick message"`. Most dispatches today were short enough for this. Principal requested.
 
-## Next Action
+## Need Help?
 
-**Wait for captain merge + sync.** Captain needs to:
-1. Merge iscp → main (12+ commits ahead)
-2. Create `.agency-agent` file on main: `echo "captain" > .agency-agent`
-3. Sync all worktrees to distribute escalation fixes
-4. Process MAR Round 2 response (#60)
+If you're stuck or have a question, send a dispatch to captain: `dispatch create --to captain --subject "Question: ..." --body "..."`
 
-## Uncommitted
+## Startup Actions
 
-- `history/releases.md` — mechanical release tracking entries, not ours. Leave for captain.
-
-## Key Files
-
-| File | What changed this session |
-|------|--------------------------|
-| `claude/tools/dispatch` | --body required, --template opt-in |
-| `claude/tools/agent-identity` | .agency-agent file check, PR branch patterns |
-| `claude/tools/flag` | cmd_resolve per-ID |
-| `.claude/skills/flag-triage/SKILL.md` | NEW — three-bucket structured review |
-| `tests/tools/dispatch.bats` | 35 tests (+4 --body/--template) |
-| `tests/tools/agent-identity.bats` | 21 tests (+6 PR branch/.agency-agent) |
-| `tests/tools/flag.bats` | 18 tests (+4 flag resolve) |
+1. Set dispatch loop: `/loop 5m dispatch check`
+2. Process unread dispatches: `dispatch list`
+3. Process unread flags: `flag list`
+4. Read the valueflow A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
+5. Merge main to pick up any cross-agent changes: `git merge main`
+6. Resume backlog: DB schema versioning, then flag categories
