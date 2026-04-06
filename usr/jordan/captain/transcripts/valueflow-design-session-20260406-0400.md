@@ -96,14 +96,69 @@ Appears in: MAR disposition, flag triage, dispatch handling, plan review.
 | Flag triage skill | Dispatched to ISCP (#33), acknowledged (#35) | ISCP |
 | QGR stage-hash enforcement | Part of valueflow commit flow | Captain + DevEx |
 
+## MARFI Run
+
+First MARFI: 4 research agents (sonnet) on valueflow PVR input.
+
+**Process learning:** Captain drafted research questions, spun up agents. Jordan caught a gap — added "Claude Code underused features" question. **MARFI process must include principal review of questions before agents spin up.**
+
+### MARFI Findings → 1B1 Triage (14 items)
+
+| # | Feature | Version | Disposition |
+|---|---------|---------|-------------|
+| 1 | `WorktreeCreate` hook | V2 | DevEx builds — auto-register agents on worktree spawn |
+| 2 | `PostCompact` hook | V2 | Re-inject handoff after compaction. Highest impact. Multi-part handoffs. |
+| 3 | `--bare -p` headless | V3 | Captain loop automation. Document now, build later. |
+| 4 | `effort:` frontmatter | V2 | Quick win — set on all skills now. Make part of practices. |
+| 5 | Plugin packaging | GTM | Right distribution model. Defer to public release. |
+| 6 | Named subagents + SendMessage | V3 | Target architecture for MAR. Capture in MAR A&D. |
+| 7 | `FileChanged` hook | Needs thinking | Main vs worktree asymmetry. Part of captain loop design. |
+| 8 | `--json-schema` | V3 | Pairs with `--bare -p`. Same timeline. |
+| 9 | `PermissionDenied` hook | V2 | Permission fatigue fix. DevEx + permission model overhaul. |
+| 10 | `--fork-session` | V3 | Parallel review branches for MAR. |
+| 11 | `--session-id` | V3 | Deterministic sessions for dispatch follow-up. |
+| 12 | `disableSkillShellExecution` | GTM | Security for third-party skills. |
+| 13 | `stream-json` I/O | V3 | Plumbing for always-on captain. |
+| 14 | Conditional `if:` on hooks | V2 | Quick optimization — reduce hook overhead. |
+
+### Version Framing
+
+- **V2** — building now. Foundation, docs, skills, enforcement ladder.
+- **V3** — automation, headless, advanced MAR. After V2 proven.
+- **GTM** — public release, plugin packaging, security hardening.
+
+### Permission Model Mandate
+
+Jordan: "95% of permission prompts are not needed. Getting prompted when not needed, not asked when should be. I want to be prompted when human judgment is needed."
+
+Three work items dispatched to DevEx (#36):
+1. Audit all tools → correct permissions in settings-template
+2. Mine transcripts for common tool usage → build tools + set permissions
+3. Wire PermissionDenied hook for known safe patterns
+
+### Enforcement Ladder (5-stage, progressive tightening)
+
+1. **Document** — CLAUDE-THEAGENCY.md + README-THEAGENCY.md. "This is the standard."
+2. **Skills** — working from docs. No hard enforcement yet.
+3. **Hookify warn** — kittens warnings. Sprinkle where no tooling yet.
+4. **Tools + refined skills** — tighten mechanics.
+5. **Hookify block** — hard enforcement.
+
+Strip kittens warnings when tooling + enforcement sufficient. Each layer addresses the bypass discovered in the previous.
+
+Pattern from MARFI (compliance insight): **gate on artifact existence, not quality.** "Did you produce a QGR?" is mechanical. "Is it good?" is human judgment.
+
 ## Open Items
 
 - When do projects get their own home? (Jordan: "when we get to projects, they will have their own home and all materials captured there")
-- MARFI design — what agents compose the research group, how invoked
-- MAR reviewer profiles per artifact type
-- `/seed` skill design
+- MARFI design — what agents compose the research group, how invoked. Principal reviews questions before agents spin up.
+- MAR reviewer profiles per artifact type — named subagents as target architecture (V3)
+- `/seed` skill design — step before `/define`
 - `/project-create` tool (deferred — convention for now)
-- CLAUDE-THEAGENCY.md decomposition plan
+- CLAUDE-THEAGENCY.md decomposition into composable chunks (skills `@` import relevant pieces)
+- Multi-part handoffs for PostCompact re-injection
+- `FileChanged` hook — main vs worktree asymmetry needs design
+- Circuit breaker concept (from Shape Up) — what happens when a phase isn't converging?
 
 ## Resolved During Session
 
@@ -118,3 +173,9 @@ Appears in: MAR disposition, flag triage, dispatch handling, plan review.
 - Valueflow seed written
 - Agency GTM seed written
 - Flag triage seed written and dispatched to ISCP
+- MARFI brief written (4 research streams)
+- MARFI findings triaged 1B1 (14 items → V2/V3/GTM)
+- Permission model overhaul dispatched to DevEx (#36)
+- Valueflow mapped to pending work (6 items resolved)
+- Development Workflow seed merged into valueflow
+- Granola transcript convention established (summary + raw in transcripts/)
