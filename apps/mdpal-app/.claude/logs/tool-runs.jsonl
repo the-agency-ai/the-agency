@@ -1,0 +1,4 @@
+{"run":"019d5ce1-d22f-7247-8c5e-79b77dd34231","tool":"handoff","event":"start","ts":"2026-04-05T09:03:16Z","agency":"mdpal","principal":"testuser","agent":"unknown","session":"","branch":"mdpal","args":"write --trigger pre-compact"}
+{"run":"019d5ce1-d22f-7247-8c5e-79b77dd34231","event":"end","ts":"2026-04-05T09:03:16Z","outcome":"success","exit":0,"duration_ms":0,"summary":"write triggered (pre-compact)"}
+{"run":"019d5cf2-a6a5-7d6f-a9e5-2c04e44321a7","tool":"handoff","event":"start","ts":"2026-04-05T09:21:39Z","agency":"mdpal","principal":"testuser","agent":"unknown","session":"","branch":"mdpal","args":"write --trigger pre-compact"}
+{"run":"019d5cf2-a6a5-7d6f-a9e5-2c04e44321a7","event":"end","ts":"2026-04-05T09:21:39Z","outcome":"success","exit":0,"duration_ms":0,"summary":"write triggered (pre-compact)"}

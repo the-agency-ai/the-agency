@@ -268,3 +268,40 @@ teardown() {
     assert_output_contains "test-repo/testprincipal/override-agent"
     rm -f "$MOCK_REPO/.agency-agent"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLAUDE_PROJECT_DIR override (escalation #90)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "CLAUDE_PROJECT_DIR overrides SCRIPT_DIR-derived project root" {
+    # Create a second mock repo simulating main checkout
+    local MAIN_REPO="$BATS_TEST_TMPDIR/main-repo"
+    mkdir -p "$MAIN_REPO/claude/tools/lib" "$MAIN_REPO/claude/config"
+    cp "$REPO_ROOT/claude/tools/agent-identity" "$MAIN_REPO/claude/tools/"
+    chmod +x "$MAIN_REPO/claude/tools/agent-identity"
+    cp "$REPO_ROOT/claude/tools/lib/_address-parse" "$MAIN_REPO/claude/tools/lib/"
+    cp "$REPO_ROOT/claude/tools/lib/_path-resolve" "$MAIN_REPO/claude/tools/lib/"
+    cp "$REPO_ROOT/claude/tools/lib/_log-helper" "$MAIN_REPO/claude/tools/lib/"
+    cd "$MAIN_REPO"
+    git init --quiet
+    git config user.email "test@example.com"
+    git config user.name "Test User"
+    cp "$MOCK_REPO/claude/config/agency.yaml" "$MAIN_REPO/claude/config/"
+    git add -A && git commit -m "init" --quiet
+    git remote add origin https://github.com/test-org/test-repo.git 2>/dev/null || true
+
+    # Agent cds to main (MAIN_REPO) but CLAUDE_PROJECT_DIR points to worktree (MOCK_REPO)
+    # MOCK_REPO is on a branch named iscp
+    cd "$MOCK_REPO"
+    git checkout -b iscp --quiet
+    echo "iscp" > "$MOCK_REPO/.agency-agent"
+
+    # Run from main checkout but with CLAUDE_PROJECT_DIR pointing to worktree
+    export CLAUDE_PROJECT_DIR="$MOCK_REPO"
+    cd "$MAIN_REPO"
+    run "$MAIN_REPO/claude/tools/agent-identity"
+    assert_success
+    # Should resolve as iscp (from worktree), NOT captain (from main)
+    assert_output_contains "test-repo/testprincipal/iscp"
+    rm -f "$MOCK_REPO/.agency-agent"
+}

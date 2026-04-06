@@ -27,10 +27,15 @@
 
 set -euo pipefail
 
-TOOL_VERSION="2.0.0"
+TOOL_VERSION="2.0.1"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# CLAUDE_PROJECT_DIR is authoritative — see escalation #90
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
 
 # Source helpers
 source "$SCRIPT_DIR/lib/_log-helper"

@@ -363,10 +363,21 @@ main() {
         echo "Committed: $COMMIT_HASH"
 
         # Dispatch "committed" notification to captain
-        # Only dispatch if: (a) not on main/master, (b) dispatch tool exists, (c) agent-identity resolves
+        #
+        # What Problem: Captain needs structured commit metadata for coordination —
+        # commit hash, branch, files changed, stage hash — not just a subject line.
+        # Without structured payloads, captain has to git-log each worktree manually.
+        #
+        # How & Why: Build a markdown body with YAML metadata block. Only dispatch
+        # if not on main/master, dispatch tool exists, and identity resolves. Never
+        # dispatch to self. Failures are silent — commit dispatch is best-effort,
+        # never blocks the commit itself.
+        #
+        # Written: 2026-04-06 during ISCP backlog work (dispatch-on-commit hook)
         CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
         DISPATCH_TOOL="$SCRIPT_DIR/dispatch"
         IDENTITY_TOOL="$SCRIPT_DIR/agent-identity"
+        STAGE_HASH_TOOL="$SCRIPT_DIR/stage-hash"
         if [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]] \
            && [[ -x "$DISPATCH_TOOL" ]] \
            && [[ -x "$IDENTITY_TOOL" ]]; then
@@ -379,10 +390,40 @@ main() {
                 # Don't dispatch to self if we ARE captain
                 AGENT_PART=$(echo "$MY_IDENTITY" | cut -d/ -f3)
                 if [[ "$AGENT_PART" != "captain" ]]; then
+                    # Build structured commit body
+                    local files_changed
+                    files_changed=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | head -20)
+                    local files_count
+                    files_count=$(echo "$files_changed" | wc -l | tr -d ' ')
+                    local commit_stage_hash=""
+                    if [[ -x "$STAGE_HASH_TOOL" ]]; then
+                        commit_stage_hash=$("$STAGE_HASH_TOOL" 2>/dev/null || echo "")
+                    fi
+                    local commit_body
+                    commit_body="## Commit: ${COMMIT_HASH}
+
+**Branch:** ${CURRENT_BRANCH}
+**Agent:** ${MY_IDENTITY}
+**Message:** ${FULL_MESSAGE}
+
+### Metadata
+- commit_hash: ${COMMIT_HASH}
+- branch: ${CURRENT_BRANCH}
+- files_changed: ${files_count}
+- stage: ${STAGE:-none}
+- stage_hash: ${commit_stage_hash:-none}
+- work_item: ${WORK_ITEM:-none}
+
+### Files Changed
+\`\`\`
+${files_changed}
+\`\`\`"
+
                     "$DISPATCH_TOOL" create \
                         --type commit \
                         --to "$CAPTAIN_ADDR" \
                         --subject "Committed ${COMMIT_HASH} on ${CURRENT_BRANCH}: ${MESSAGE}" \
+                        --body "$commit_body" \
                         2>/dev/null || true
                     log_info "Dispatched commit notification to $CAPTAIN_ADDR"
                 fi

@@ -441,3 +441,69 @@ _create_dispatch() {
     # Should not contain template placeholders because --body was provided
     ! grep -q '<!-- ' "$MOCK_REPO/$payload_path"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Symlink payload resolution (directive #71)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch create: creates symlink in dispatches dir" {
+    _create_dispatch "Symlink test"
+
+    local db_dir
+    db_dir=$(dirname "$ISCP_DB_PATH")
+    local symlink="$db_dir/dispatches/dispatch-1.md"
+
+    # Symlink should exist
+    [[ -L "$symlink" ]]
+    # And resolve to a readable file
+    [[ -f "$symlink" ]]
+}
+
+@test "dispatch read: resolves payload via symlink" {
+    _create_dispatch "Read via symlink"
+
+    # Delete the local copy — force symlink resolution
+    local payload_path
+    payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=1")
+    local original_file="$MOCK_REPO/$payload_path"
+    local db_dir
+    db_dir=$(dirname "$ISCP_DB_PATH")
+    local symlink="$db_dir/dispatches/dispatch-1.md"
+
+    # Verify symlink points to the right file
+    [[ -L "$symlink" ]]
+    local target
+    target=$(readlink "$symlink")
+    [[ "$target" == "$original_file" ]]
+
+    # Read should work via symlink
+    run "$DISPATCH" read 1
+    assert_success
+    assert_output_contains "Read via symlink"
+}
+
+@test "dispatch read: reports dangling symlink" {
+    _create_dispatch "Will be deleted"
+
+    # Delete the payload file to create a dangling symlink
+    local payload_path
+    payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=1")
+    rm -f "$MOCK_REPO/$payload_path"
+
+    run "$DISPATCH" read 1
+    assert_success
+    # Should report the dangling symlink
+    assert_output_contains "unavailable"
+}
+
+@test "dispatch reply: creates symlink for reply" {
+    _create_dispatch "Original"
+    "$DISPATCH" reply 1 "Reply content" > /dev/null
+
+    local db_dir
+    db_dir=$(dirname "$ISCP_DB_PATH")
+    local symlink="$db_dir/dispatches/dispatch-2.md"
+
+    [[ -L "$symlink" ]]
+    [[ -f "$symlink" ]]
+}

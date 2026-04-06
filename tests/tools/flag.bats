@@ -262,5 +262,5 @@ _db_query() { sqlite3 "$(_db_path)" "$1"; }
 @test "flag --version shows version" {
     run "$FLAG" --version
     assert_success
-    assert_output_contains "2.0.0"
+    assert_output_contains "2.0.1"
 }
