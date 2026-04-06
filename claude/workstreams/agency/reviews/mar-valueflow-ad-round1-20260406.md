@@ -100,9 +100,38 @@ reviewers:
 
 ## Collaborative Resolution Transcript
 
-Decisions made via 1B1 with principal (Jordan) during captain session 20.
+Decisions made via 1B1 with principal (Jordan) during captain session 20 (Day 30).
 Full transcript: `usr/jordan/captain/transcripts/session20-continued-20260406-0730.md`
+
+## Additional Design Decisions from Session (post-MAR)
+
+These emerged during the 1B1 triage and are captured here for completeness:
+
+| Decision | Context |
+|----------|---------|
+| **Day counting convention** | Count days with commits per repo and per workstream. Day 30 for the-agency. "Day 12 of valueflow for mdpal." Proposed as Agency model. |
+| **Dispatch check loop: 5 minutes** | All agents set `/loop 5m dispatch check` on startup. `dispatch check` (not `dispatch list`) — silent when empty. |
+| **ISCP tip: `dispatch check`** | Use for silent polling, `dispatch list` for interactive inspection. From ISCP dispatch #75. |
+| **Captain order: first up, last down** | Principal wakes → captain up → agents up → work → agents down → captain down → principal sleeps. |
+| **CLAUDE.md three-level hierarchy** | CLAUDE-THEAGENCY.md (methodology) → CLAUDE-{WORKSTREAM}.md (workstream) → CLAUDE-{APP}.md (application/service). V3: fragment registry + autonomous generation tooling. |
+| **Dispatch payload symlinks** | `~/.agency/{repo}/dispatches/` holds symlinks to git artifacts. ISCP implemented in 1e610fd (dispatch #74). Merge pending. |
+| **AI Augmented Development framing** | "About building, not coding." Content seed for X/LinkedIn articles. Four MARFI papers → short + long articles. |
+| **Format on save AND at T1** | Belt and suspenders. Format on write prevents dirty diffs, T1 confirms at commit. Both cheap. |
+| **Defense in depth** | Multiple layers of gates (iteration, phase, PR). Each catches what the previous missed. Additive, not replacement. Reference: Jordan's 2007 lightning talk at Google Quality Conference, London. |
+
+## Resolution Dispatches Sent
+
+| Agent | Dispatch ID | Status |
+|-------|-------------|--------|
+| ISCP | #82 | Sent |
+| mdpal-app | #83 | Sent |
+| mdpal-cli | #84 | Sent |
+| monofolk/captain | collaboration-monofolk PR #6 | Pending merge |
 
 ## Not Received
 
 DevEx (dispatch #66, nudged #80) — no A&D review delivered. Will incorporate when/if received. Not blocking revision.
+
+## Status
+
+**MAR round 1: COMPLETE.** All findings dispositioned. All collaborative items resolved. A&D revision pending (action 2). Will be followed by MAR round 2 with both research subagents and agent dispatches.
