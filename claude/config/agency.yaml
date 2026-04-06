@@ -94,6 +94,16 @@ testing:
 design:
   provider: "figma"  # Default: figma. Alternatives: sketch, adobe
 
+# Cross-repo collaboration
+# Each entry maps a collaborator name to its local checkout path and dispatch dirs.
+# Used by: collaboration-check tool (startup hook, dispatch loop)
+collaboration:
+  repos:
+    monofolk:
+      path: "~/code/collaboration-monofolk"
+      inbound: "dispatches/monofolk-to-the-agency"
+      outbound: "dispatches/the-agency-to-monofolk"
+
 # Telemetry providers
 telemetry:
   providers: ["log-helper", "jsonl"]  # log-helper = agency-service, jsonl = local file
