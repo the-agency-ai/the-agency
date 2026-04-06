@@ -8,7 +8,7 @@ model: opus
 
 **On startup, immediately read these files in order:**
 
-1. `usr/jordan/captain/handoff.md` — your current state and next action
+1. `usr/jordan/captain/captain-handoff.md` — your current state and next action
 2. Check ISCP: `dispatch list` and `flag list` — process any unread items before other work
 3. `claude/agents/captain/agent.md` — your role and responsibilities
 

@@ -15,8 +15,7 @@ load 'test_helper'
 
 setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
-    export HOME="$BATS_TEST_TMPDIR/fakehome"
-    mkdir -p "$HOME"
+    iscp_test_isolation_setup
 
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
     mkdir -p "$MOCK_REPO/claude/tools/lib" "$MOCK_REPO/claude/config"
@@ -53,12 +52,13 @@ YAML
 }
 
 teardown() {
+    iscp_test_isolation_teardown
     if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
         rm -rf "${BATS_TEST_TMPDIR}"
     fi
 }
 
-_db_path() { echo "$HOME/.agency/test-repo/iscp.db"; }
+_db_path() { echo "$ISCP_DB_PATH"; }
 _db_query() { sqlite3 "$(_db_path)" "$1"; }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -200,6 +200,53 @@ _db_query() { sqlite3 "$(_db_path)" "$1"; }
     run "$FLAG" clear
     assert_success
     assert_output_contains "nothing to clear"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Resolve (per-flag)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "flag resolve: marks specific flag as processed" {
+    "$FLAG" "keep this" > /dev/null
+    "$FLAG" "resolve this" > /dev/null
+
+    run "$FLAG" resolve 2
+    assert_success
+    assert_output_contains "1 resolved"
+
+    # Flag 2 should be processed, flag 1 should still be unread
+    local status1 status2
+    status1=$(_db_query "SELECT status FROM flags WHERE id=1")
+    status2=$(_db_query "SELECT status FROM flags WHERE id=2")
+    [[ "$status1" == "unread" ]]
+    [[ "$status2" == "processed" ]]
+}
+
+@test "flag resolve: handles multiple IDs" {
+    "$FLAG" "one" > /dev/null
+    "$FLAG" "two" > /dev/null
+    "$FLAG" "three" > /dev/null
+
+    run "$FLAG" resolve 1 3
+    assert_success
+    assert_output_contains "2 resolved"
+
+    # 1 and 3 processed, 2 still unread
+    local s2
+    s2=$(_db_query "SELECT status FROM flags WHERE id=2")
+    [[ "$s2" == "unread" ]]
+}
+
+@test "flag resolve: fails for nonexistent ID" {
+    run "$FLAG" resolve 999
+    assert_success
+    assert_output_contains "not found"
+}
+
+@test "flag resolve: requires at least one ID" {
+    run "$FLAG" resolve
+    assert_failure
+    assert_output_contains "requires"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

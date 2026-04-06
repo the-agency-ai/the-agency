@@ -362,6 +362,33 @@ main() {
         COMMIT_HASH=$(git log -1 --format='%h')
         echo "Committed: $COMMIT_HASH"
 
+        # Dispatch "committed" notification to captain
+        # Only dispatch if: (a) not on main/master, (b) dispatch tool exists, (c) agent-identity resolves
+        CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        DISPATCH_TOOL="$SCRIPT_DIR/dispatch"
+        IDENTITY_TOOL="$SCRIPT_DIR/agent-identity"
+        if [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]] \
+           && [[ -x "$DISPATCH_TOOL" ]] \
+           && [[ -x "$IDENTITY_TOOL" ]]; then
+            MY_IDENTITY=$("$IDENTITY_TOOL" 2>/dev/null || echo "")
+            if [[ -n "$MY_IDENTITY" ]]; then
+                # Resolve captain address: same repo/principal, agent=captain
+                REPO_PART=$(echo "$MY_IDENTITY" | cut -d/ -f1)
+                PRINCIPAL_PART=$(echo "$MY_IDENTITY" | cut -d/ -f2)
+                CAPTAIN_ADDR="${REPO_PART}/${PRINCIPAL_PART}/captain"
+                # Don't dispatch to self if we ARE captain
+                AGENT_PART=$(echo "$MY_IDENTITY" | cut -d/ -f3)
+                if [[ "$AGENT_PART" != "captain" ]]; then
+                    "$DISPATCH_TOOL" create \
+                        --type commit \
+                        --to "$CAPTAIN_ADDR" \
+                        --subject "Committed ${COMMIT_HASH} on ${CURRENT_BRANCH}: ${MESSAGE}" \
+                        2>/dev/null || true
+                    log_info "Dispatched commit notification to $CAPTAIN_ADDR"
+                fi
+            fi
+        fi
+
         # Telemetry captures commit via log_end
 
         echo "✓"
