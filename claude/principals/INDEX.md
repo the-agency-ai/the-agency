@@ -54,3 +54,4 @@ Example: `ART-0001-jordan-web-web-2026-01-01-dark-mode-implementation.md`
 | uppercasetest | 2026-04-05 16:45:03 +08 | Active |
 | batsstructtest | 2026-04-05 16:45:03 +08 | Active |
 | batsreadmetest | 2026-04-05 16:45:03 +08 | Active |
+| test | 2026-04-05 23:48:30 +08 | Active |

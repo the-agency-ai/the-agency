@@ -16,8 +16,7 @@ load 'test_helper'
 # Override test_helper's setup for isolated ISCP testing
 setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
-    export HOME="$BATS_TEST_TMPDIR/fakehome"
-    mkdir -p "$HOME"
+    iscp_test_isolation_setup
 
     # Create a mock git repo with agency.yaml and all required tool files
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
@@ -57,6 +56,7 @@ YAML
 }
 
 teardown() {
+    iscp_test_isolation_teardown
     if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
         rm -rf "${BATS_TEST_TMPDIR}"
     fi
@@ -64,7 +64,7 @@ teardown() {
 
 # Helper: get DB path for assertions
 _db_path() {
-    echo "$HOME/.agency/test-repo/iscp.db"
+    echo "$ISCP_DB_PATH"
 }
 
 # Helper: query the DB
