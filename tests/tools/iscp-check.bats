@@ -78,7 +78,7 @@ _init_db() {
 
 # Helper: create a dispatch for the current agent
 _create_dispatch() {
-    "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "${1:-Test}" --type "${2:-dispatch}" > /dev/null 2>&1
+    "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "${1:-Test}" --body "Test content for: ${1:-Test}" --type "${2:-dispatch}" > /dev/null 2>&1
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

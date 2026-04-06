@@ -65,7 +65,7 @@ _db_query() { sqlite3 "$(_db_path)" "$1"; }
 
 # Helper: create a test dispatch and return silently
 _create_dispatch() {
-    "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "${1:-Test}" --type "${2:-dispatch}" > /dev/null 2>&1
+    "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "${1:-Test}" --body "Test content for: ${1:-Test}" --type "${2:-dispatch}" > /dev/null 2>&1
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -354,7 +354,7 @@ _create_dispatch() {
 
 @test "dispatch reply: does not double-prefix Re:" {
     # Create a dispatch that already has Re: in subject
-    "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "Re: Already a reply" --type dispatch > /dev/null 2>&1
+    "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "Re: Already a reply" --body "Follow-up content" --type dispatch > /dev/null 2>&1
 
     run "$DISPATCH" reply 1 "Follow-up"
     assert_success
@@ -395,4 +395,49 @@ _create_dispatch() {
 
     # Verify the message is in the payload
     grep -q "This is the reply content" "$MOCK_REPO/$payload_path"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# --body required / --template opt-in (escalation #53)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch create: fails without --body or --template" {
+    run "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "No content"
+    assert_failure
+    assert_output_contains "--body"
+    assert_output_contains "--template"
+}
+
+@test "dispatch create: succeeds with --body" {
+    run "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "With body" --body "Real content here"
+    assert_success
+    assert_output_contains "ID:"
+
+    local payload_path
+    payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=1")
+    grep -q "Real content here" "$MOCK_REPO/$payload_path"
+    # Should not contain template placeholders
+    ! grep -q '<!-- ' "$MOCK_REPO/$payload_path"
+}
+
+@test "dispatch create: --template writes placeholder file" {
+    run "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "Template mode" --template
+    assert_success
+    assert_output_contains "TEMPLATE MODE"
+    assert_output_contains "placeholders"
+
+    local payload_path
+    payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=1")
+    grep -q '<!-- ' "$MOCK_REPO/$payload_path"
+}
+
+@test "dispatch create: --body and --template together uses body" {
+    run "$DISPATCH" create --to "test-repo/testprincipal/captain" --subject "Both" --body "Actual content" --template
+    assert_success
+
+    local payload_path
+    payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=1")
+    grep -q "Actual content" "$MOCK_REPO/$payload_path"
+    # Should not contain template placeholders because --body was provided
+    ! grep -q '<!-- ' "$MOCK_REPO/$payload_path"
 }
