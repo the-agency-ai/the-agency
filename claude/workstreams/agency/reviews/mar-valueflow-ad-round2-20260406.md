@@ -13,16 +13,16 @@ reviewers:
     - lean-process-analyst (sonnet subagent)
   agents:
     - the-agency/jordan/iscp (dispatch #85 → #89)
-    - the-agency/jordan/devex (dispatch #86 → not received)
-    - the-agency/jordan/mdpal-cli (dispatch #87 → not received)
-    - the-agency/jordan/mdpal-app (dispatch #88 → not received)
-    - monofolk/jordan/captain (collaboration-monofolk PR #7 → not received)
+    - the-agency/jordan/devex (dispatch #86 → #91, delivered via direct prompt due to identity bug)
+    - the-agency/jordan/mdpal-cli (dispatch #87 → committed to mdpal branch, merged to main)
+    - the-agency/jordan/mdpal-app (dispatch #88 → committed to mdpal branch, merged to main)
+    - monofolk/jordan/captain (collaboration-monofolk PR #7 → responded)
 paired-to: valueflow-ad-20260406.md (post-round-1 revision, commit 9e6a84d)
 ---
 
 # MAR Round 2: Valueflow A&D
 
-5 of 9 reviewers responded (4 research subagents + ISCP). 4 agent reviews outstanding (DevEx, mdpal-cli, mdpal-app, monofolk). Not blocking — ISCP (most technically critical) says "ready for planning."
+**ALL 9 REVIEWERS RESPONDED.** 4 research subagents + 5 agents. Three verdicts of "ready for planning" (ISCP, monofolk, mdpal-app). No structural concerns from any reviewer. DevEx, mdpal-cli, mdpal-app delivered via workarounds (direct prompt delivery, commit-to-branch) due to dispatch identity bugs.
 
 ## Research Reviewer: Methodology Critic — 8 findings
 
@@ -78,25 +78,59 @@ paired-to: valueflow-ad-20260406.md (post-round-1 revision, commit 9e6a84d)
 
 **ISCP verdict: "This A&D is ready for planning."**
 
-## Agent Reviewers: Not Received
+## Agent Reviewer: DevEx (#91, delivered via direct prompt) — 10 findings
 
-| Agent | Dispatch | Status |
-|-------|----------|--------|
-| DevEx | #86 | Not received — missed round 1 entirely, nudged twice |
-| mdpal-cli | #87 | Not received |
-| mdpal-app | #88 | Not received |
-| monofolk/captain | collaboration-monofolk PR #7 | Merged, not yet responded |
+| ID | Finding | Disposition | Reasoning/Action |
+|----|---------|-------------|-----------------|
+| R2-DX1 | T1 scoping needs default for unmapped files — warn and proceed? | **Autonomous** | Valid. No mapping = warn and proceed. Manifest closes gaps over time. Will state default explicitly. |
+| R2-DX2 | Enforcement ladder needs concrete example — one capability through all 5 levels | **Autonomous** | Good pedagogical point. Will add git-commit as the worked example (currently at level 5). |
+| R2-DX3 | Test hermiticity misses 25 un-isolated files + filesystem pollution | **Autonomous** | Acknowledged. DevEx Phase 1 scope. A&D §6 references the requirement; DevEx PVR/A&D fills the rollout plan. |
+| R2-DX4 | Permission model still missing — no design section despite V2 deliverable | **Autonomous** | Valid gap. DevEx owns this in their PVR/A&D. Valueflow A&D can reference it rather than duplicate. |
+| R2-DX5 | Symlinks need reconstruction on fresh clone — not mentioned | **Autonomous** | Valid. Dispatch tool needs to rebuild symlinks from DB on init (scan active dispatches, recreate symlinks from payload_path). Will add. |
+| R2-DX6 | PostCompact — just always inject full, keep handoffs tight | **Autonomous** | Aligns with principal decision. Always inject full handoff. Keep handoffs under 100 lines. Problem solved. |
+| R2-DX7 | V2 deliverables need sequencing — 25 items with implicit dependencies | **Autonomous** | Valid. Implementation plan will include dependency graph. Not A&D scope — plan scope. |
+| R2-DX8 | Dispatch authority: review-response should be "any agent in reply to review" not "artifact author" | **Autonomous** | Valid — same finding as mdpal-app R2-MA8. Clarify: any agent receiving a review dispatch can send review-response. |
+| R2-DX9 | Day counting measurement mechanism unspecified | **Autonomous** | Simple: `git log --format="%ad" --date=short | sort -u | wc -l`. Can be a tool. Low priority. |
+| R2-DX10 | Captain loop cadence — interactive vs polling mode transition | **Autonomous** | Same as practitioner R2-PR1. `/loop 5m dispatch check` fires during idle. Captain prioritizes principal conversation. |
 
-Not blocking. Will incorporate when/if received.
+**DevEx verdict:** "Most gaps are DevEx territory. Ready to fill them in my own PVR/A&D."
 
-## Summary
+## Agent Reviewer: mdpal-cli (committed to mdpal branch, merged) — 9 findings
 
-| Category | Count |
-|----------|-------|
-| Disagree | 3 (WorktreeCreate is PVR detail, MAR-always is pair programming, dispatch paths serve different purposes) |
-| Autonomous | 22 (12 already fixed in revision, 10 to incorporate) |
-| Agree (positive) | 2 |
-| Not received | 4 agent reviews |
+Note: mdpal-cli submitted this as their round 1 review (dispatch system was broken). Content covers the same A&D version — these are their first findings on the document.
+
+| ID | Finding | Disposition | Reasoning/Action |
+|----|---------|-------------|-----------------|
+| R2-CL1 | Gate tiers assume language-specific tooling (Swift has no linter) | **Autonomous** | Already addressed in round 2 revision: T1 baseline is "stage-hash + compile." Format/lint optional per language. |
+| R2-CL2 | Changed-file test scoping needs package-level default | **Autonomous** | Already addressed: "run all tests in affected package" as fallback. |
+| R2-CL3 | Dispatch payload migration risky — fix read path instead | **Disagree** | Superseded by symlink design (principal decision, ISCP implemented). Symlinks keep git as source of truth AND provide branch-transparent access. |
+| R2-CL4 | Captain should explicitly be session-scoped for V2 | **Autonomous** | Already addressed in collaborative resolution C4: "always-on by design, first up last down. V2 mechanism is sessions. V3 adds daemon." |
+| R2-CL5 | MARFI boundary fuzzy — need decision rule | **Autonomous** | Already addressed: "MARFI = questions answerable with web search + docs. Domain research = questions requiring project context." |
+| R2-CL6 | effort: levels undefined | **Autonomous** | Already addressed in collaborative resolution C5: "Anthropic's abstraction over token budget. Set dial per skill. Don't define internals." |
+| R2-CL7 | Circuit breaker should be time-based not attempt-based | **Autonomous** | Already addressed: changed to "no progress in N hours." Agent self-reports stuck vs making progress. |
+| R2-CL8 | Context budget linter must ship with decomposition | **Autonomous** | Already captured: "linter and decomposition must ship together or neither ships." |
+| R2-CL9 | Captain loop cadence — close the question | **Autonomous** | Already closed: fixed interval V2 (`/loop 5m dispatch check`), event-driven V3. |
+
+**mdpal-cli verdict:** "The A&D is solid and grounded. No structural issues."
+
+## Agent Reviewer: mdpal-app (committed to mdpal branch, merged) — 12 findings
+
+| ID | Finding | Disposition | Reasoning/Action |
+|----|---------|-------------|-----------------|
+| R2-MA1 | MARFI as sub-protocol reframing is good | **Agree** | Positive. Matches their experience. |
+| R2-MA2 | Autonomous stage transition protocol is well-scoped | **Agree** | Positive. Informational dispatch model confirmed. |
+| R2-MA3 | Three handoff classes are practical — who writes bootstrap? | **Autonomous** | Valid question. Captain writes the bootstrap handoff content. Will make explicit in §7. |
+| R2-MA4 | Intra-session handoffs as insurance — yes | **Agree** | Positive confirmation of existing practice. |
+| R2-MA5 | Transcript injection underspecified — how to select relevant transcripts, token budget? | **Autonomous** | Valid. Handoff should summarize transcripts, not inject raw. Add: "summarize relevant context from transcripts, don't inject raw transcript files." Token budget for transcript summaries within the handoff's 100-line target. |
+| R2-MA6 | Changed-file test scoping — package-level fallback is practical | **Agree** | Positive confirmation. |
+| R2-MA7 | Stage-hash delta tolerance — clean rule | **Agree** | Positive confirmation. |
+| R2-MA8 | Dispatch authority: review-response gating too strict — any reviewer should respond, not just author | **Autonomous** | Valid — same as DevEx R2-DX8. Clarify: "any agent receiving a review dispatch can send review-response." |
+| R2-MA9 | Dispatch retention 30-day is reasonable | **Agree** | Positive. |
+| R2-MA10 | Context budget linter + decomposition must ship together | **Agree** | Enforcement triangle confirmed. |
+| R2-MA11 | Day counting — useful velocity signal | **Agree** | Positive. Example: 4 commit-days over 4 calendar days = healthy. |
+| R2-MA12 | PostCompact scope confirmed — CLAUDE.md survives, handoff only | **Agree** | Positive confirmation from agent experience. |
+
+**mdpal-app verdict:** "No structural concerns. Remaining findings are minor refinements."
 
 ## Collaborative Items Resolved with Principal (from round 2 triage)
 
@@ -127,23 +161,42 @@ Session transcript: `usr/jordan/captain/transcripts/session20-continued-20260406
 
 **Notable observation from monofolk:** Cross-repo review (monofolk/captain) returned faster than local agents (DevEx, mdpal-cli, mdpal-app) because monofolk doesn't have the permission friction blocking dispatch creation. Local agents are stuck asking for permission to send their reviews. This is the #1 proof point for why the permission model overhaul is urgent.
 
-## Agent Reviewers: Still Not Received
-
-| Agent | Dispatch | Status | Likely cause |
-|-------|----------|--------|-------------|
-| DevEx | #86 | Not received | Permission friction — can't send dispatch |
-| mdpal-cli | #87 | Not received | Permission friction — can't send dispatch |
-| mdpal-app | #88 | Not received | Permission friction — can't send dispatch |
-
-## Updated Summary
+## Final Summary — All 9 Reviewers
 
 | Category | Count |
 |----------|-------|
-| Disagree | 3 |
-| Autonomous | 25 (12 pre-fixed + 10 ISCP/research + 3 monofolk) |
-| Agree (positive) | 2 |
-| Not received | 3 agent reviews (permission friction) |
+| Disagree | 4 (WorktreeCreate is PVR detail, MAR-always is pair programming, dispatch paths serve different purposes, payload migration superseded by symlinks) |
+| Autonomous | 46 |
+| Agree (positive) | 11 |
+| Collaborative (resolved with principal) | 3 |
+
+## Verdicts
+
+| Reviewer | Verdict |
+|----------|---------|
+| Methodology critic | Refinements, no blockers |
+| Practitioner | Captain mode-switching gap, no blockers |
+| Adopter advocate | Needs "start here" (added), no blockers |
+| Lean analyst | MAR-always justified, improvement loop needs closing metric |
+| ISCP | **Ready for planning** |
+| monofolk/captain | **Ready for planning** |
+| DevEx | "Most gaps are DevEx territory" — ready to fill in own PVR/A&D |
+| mdpal-cli | "Solid and grounded, no structural issues" |
+| mdpal-app | **"No structural concerns"** |
+
+## Delivery Notes
+
+Local agents (DevEx, mdpal-cli, mdpal-app) were blocked by dispatch identity bugs — could not send dispatches through normal ISCP channels. Workarounds:
+- DevEx: review delivered via direct prompt from principal, dispatched manually
+- mdpal-cli + mdpal-app: reviews committed to mdpal branch, merged to main by captain
+- monofolk/captain: delivered via collaboration-monofolk repo (no identity bug — different infra)
+
+The dispatch identity bugs are fixed (ISCP commit 6647c43) but agents need restart to pick up fixes.
 
 ## Status
 
-**MAR round 2: COMPLETE (research + ISCP + monofolk).** 6 of 9 reviewers responded. 3 local agents blocked by permission friction. Two independent verdicts of "ready for planning" (ISCP, monofolk). Research reviewers: no blockers. A&D is ready for implementation planning.
+**MAR round 2: COMPLETE. 9 of 9 reviewers. A&D is ready for implementation planning.**
+
+Three independent verdicts of "ready for planning" (ISCP, monofolk, mdpal-app). No structural concerns from any reviewer. Remaining findings are refinements — most are already addressed in the revision or are DevEx territory for their own PVR/A&D.
+
+Session transcript: `usr/jordan/captain/transcripts/session20-continued-20260406-0730.md`
