@@ -3,7 +3,7 @@ type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
 date: 2026-04-07
-trigger: SessionEnd — stop hook
+trigger: principal-requested pause
 ---
 
 ## Identity
@@ -12,43 +12,52 @@ the-agency/jordan/devex — tech-lead on the devex workstream. I own test infras
 
 ## Current State
 
-Short session — startup + PVR review. Found existing PVR draft at `usr/jordan/devex/devex-pvr-20260406.md`. Assessed completeness: 8.5/9. Three items flagged for principal review before proceeding to A&D. No implementation started.
+PVR approved (implicit). A&D written and approved — all 4 design decisions resolved. Plan written — 3 phases, 10 iterations. About to start Phase 1.1 (Universal Test Isolation). No implementation started yet.
 
-## PVR Status
+## Artifacts
 
-The DevEx PVR exists and is comprehensive (10 FRs, 5 NFRs, 4 constraints, 8 success criteria, 5 non-goals, 3 open questions). Draft status — awaiting principal review.
+- **PVR:** `usr/jordan/devex/devex-pvr-20260406.md` (approved)
+- **A&D:** `claude/workstreams/devex/devex-ad-20260407.md` (approved)
+- **Plan:** `claude/workstreams/devex/devex-plan-20260407.md` (active)
+- **Valueflow A&D:** `claude/workstreams/agency/valueflow-ad-20260406.md` (§4, §6, §9 assigned to DevEx)
 
-Three items flagged for discussion:
-1. Should PVR explicitly require a "friction capture" mechanism (flag #3 from queue), or is that captain-scope process?
-2. Use cases gap — FRs cover the ground but no explicit workflow narratives. Worth adding?
-3. OQ3 (PermissionDenied hook) — depends on Claude Code support. Keep aspirational or move to Non-Goals?
+## Key Decisions (A&D)
 
-## Valueflow Context
+1. Universal test isolation with opt-out (`SKIP_ISOLATION=1`) — safety as default
+2. `wc -w` token approximation for context budget linter — zero deps, V2
+3. Warn-only QGR check at pre-commit — `git-commit` tool does hard enforcement
+4. Blocklist for stage classification — known code extensions trigger, rest skips
 
-- PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
-- A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-- My MAR review of Valueflow plan: dispatch #99
+## Dispatches
 
-Read the A&D on startup — it assigns work to DevEx: §4 enforcement ladder, §6 quality gates, §9 context budget linter.
+All dispatches resolved:
+- #96 — MAR review of Valueflow V2 Plan. Sent review-response dispatch #101 with 13 findings.
+- #76 — Polling tip. Resolved (use `dispatch check` not `dispatch list --status unread`).
+- #36 — Permission model seed. Captured in Phase 3.1 + backlog.
+- #31 — Test reporting service seed. Captured in backlog.
+- #29 — Test boundary definitions seed. Already covered in A&D gate tiers. Resolved.
 
-## Key Decisions
+## Flags
 
-- T1 gate: stage-hash + compile + format + fast tests, **60s budget** (Valueflow A&D §6)
-- Convention-based test scoping (path mirroring) as default, package-level fallback
-- Enforcement registry: `claude/config/enforcement.yaml` + audit tool. **No registry without auditor.**
-- Context budget linter: **Ships with CLAUDE-THEAGENCY.md decomposition or neither ships.**
+4 flags in queue (SMS dispatches, captain's log, friction→toolification, release notes). Not blockers — seed material.
 
-## Open Items
+## Principal Feedback
 
-- 4 flags in queue (SMS dispatches, captain's log, friction→toolification, release notes)
-- Seeds to process: #29, #31, #36
-- Dispatch #76 (polling tip from ISCP)
-- BATS tests corrupt `.git/config` — known pre-existing blocker
+**USE THE TOOLS AND SKILLS.** Principal was frustrated by hand-rolling bash commands and writing files directly instead of using dispatch skill, handoff tool, and agents. This is a pattern — fix it. Always use skills for dispatch ops, handoff tool for handoffs, agents for complex multi-step work.
+
+## Next Action
+
+Start Phase 1.1: Universal Test Isolation.
+1. Read the 25 unprotected BATS files to understand what they need
+2. Refactor `iscp_test_isolation_setup/teardown` into universal `test_isolation_setup/teardown`
+3. Make `setup()` call isolation by default
+4. Update all 25 files
+5. Run all 32 BATS files to verify
 
 ## Startup Actions
 
 1. Set dispatch loop: `/loop 5m dispatch check`
-2. Process unread dispatches and flags
-3. Get principal feedback on the 3 PVR discussion items
-4. If PVR approved: start `/design` for DevEx A&D
-5. If plan approved by captain: begin Phase 3 implementation
+2. Check dispatches: `/dispatch check`
+3. Check flags: `flag list`
+4. Read plan: `claude/workstreams/devex/devex-plan-20260407.md`
+5. Begin Phase 1.1 implementation
