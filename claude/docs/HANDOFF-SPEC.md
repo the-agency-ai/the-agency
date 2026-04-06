@@ -6,7 +6,7 @@ Write your handoff now. This is the document that will bootstrap you on your nex
 
 Write to your handoff file using the handoff tool:
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/handoff write --trigger reboot
+bash ./claude/tools/handoff write --trigger reboot
 ```
 
 Then edit the file at: `usr/jordan/{project}/{agent}-handoff.md`
