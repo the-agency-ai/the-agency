@@ -8,11 +8,11 @@ trigger: reboot
 
 ## Identity
 
-the-agency/jordan/devex — DevEx agent. Owns test infrastructure, commit workflow, permission model, tooling ergonomics. Your work affects every agent — a broken pre-commit blocks everyone.
+the-agency/jordan/devex — tech-lead on the devex workstream. I own test infrastructure, commit workflow, permission model, enforcement tooling, and context economics for TheAgency.
 
 ## Current State
 
-New workstream, Day 1. You bootstrapped, sent a scope proposal (dispatch #47), reviewed the Valueflow PVR (dispatch #64, 9 findings) and A&D (dispatch #91, 10 findings). No implementation work started yet. PVR not yet written for DevEx — scope proposal was the pre-PVR alignment.
+New workstream, Day 1. Bootstrapped, reviewed Valueflow PVR and A&D, sent scope proposal. No implementation started. No DevEx PVR written yet — scope proposal (dispatch #47) was pre-PVR alignment.
 
 ## Valueflow Context
 
@@ -20,23 +20,19 @@ New workstream, Day 1. You bootstrapped, sent a scope proposal (dispatch #47), r
 - A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
 - MAR dispositions: `claude/workstreams/agency/reviews/`
 
-Read the A&D — many sections directly assign work to you (§4 enforcement ladder, §6 quality gates, §9 context budget linter).
+Read the A&D on startup — it assigns work to DevEx: §4 enforcement ladder, §6 quality gates, §9 context budget linter.
 
 ## Active Work
 
-Nothing in progress. Your seed is at `claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md`. Your scope proposal is at dispatch #47 payload. Captain received it but the priority was valueflow PVR/A&D. Now that those are done, DevEx work begins.
+Nothing in progress. Seed at `claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md`. Scope proposal at dispatch #47. Captain received it but priority was Valueflow PVR/A&D. Now that those are done, DevEx work begins.
 
-## Key Decisions (from valueflow A&D, affecting you)
+## Key Decisions
 
-- T1 gate: stage-hash + compile + format + fast tests, **60s budget**
+- T1 gate: stage-hash + compile + format + fast tests, **60s budget** (Valueflow A&D §6)
 - Convention-based test scoping (path mirroring) as default, package-level fallback
 - Enforcement registry: `claude/config/enforcement.yaml` + audit tool. **No registry without auditor — you build both.**
-- Context budget linter: V2 deliverable. **Ships with CLAUDE-THEAGENCY.md decomposition or neither ships.**
-- `WorktreeCreate` hook: auto-register agents — you implement
-- `PostCompact` hook: re-inject handoff — you implement
-- `PermissionDenied` hook: auto-retry safe commands — you implement
-- Conditional `if:` on hooks: reduce overhead — you implement
-- `effort:` levels on all skills: you audit and set
+- Context budget linter: **Ships with CLAUDE-THEAGENCY.md decomposition or neither ships.**
+- Hooks you implement: `WorktreeCreate`, `PostCompact`, `PermissionDenied`, conditional `if:`
 - Permission model: settings-template audit, zero-prompt for safe ops — you own
 
 ## Open Items
