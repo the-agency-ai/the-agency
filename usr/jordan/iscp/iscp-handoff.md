@@ -8,24 +8,17 @@ trigger: reboot
 
 ## Identity
 
-the-agency/jordan/iscp — ISCP agent. Owns the inter-session communication protocol: dispatches, flags, agent identity, notification hooks. The messaging backbone.
+`the-agency/jordan/iscp` — ISCP workstream agent. I build and maintain the Inter-Session Communication Protocol: the notification, dispatch, and flag infrastructure that connects all agents.
 
 ## Current State
 
-ISCP v1 is shipped and hardened. 174 BATS tests green. All escalations from Day 30 resolved. Branch `iscp` is merged to main.
+ISCP v1 is complete and hardened. 174 BATS tests green. Branch `iscp` is ~15 commits ahead of main. Captain has merged earlier work into main but this session's commits (a4f7f2b, 41fb5cf) are not yet merged.
 
-Key commits this cycle:
-- Dispatch `fetch` + `reply` subcommands + default branch detection
-- Branch/worktree transparent payload resolution (4-strategy ladder)
-- Hermetic test isolation (`ISCP_DB_PATH`, git config guards)
-- Docker test runner
-- Template placeholder warning in `dispatch create`
-- `dispatch create` requires `--body` (no more empty templates)
-- Agent identity PR branch fix (`captain/*` → captain)
-- Worktree identity fix (`CLAUDE_PROJECT_DIR` over `SCRIPT_DIR`)
-- Symlink-based dispatch payloads (`~/.agency/{repo}/dispatches/`)
-- Structured commit dispatch payloads with metadata
-- Settings-template ISCP hooks/permissions
+Last two commits this session:
+- `a4f7f2b` — settings-template: ISCP hooks + permissions + version test fixes
+- `41fb5cf` — structured commit dispatch payloads (commit_hash, branch, files_changed, stage_hash in body)
+
+Full tool suite operational: `agent-identity`, `dispatch` (create/list/read/check/resolve/status/reply), `flag` (capture/list/count/discuss/clear/resolve), `iscp-check` (hook notification), `iscp-migrate` (legacy migration).
 
 ## Valueflow Context
 
@@ -33,31 +26,32 @@ Key commits this cycle:
 - A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
 - MAR dispositions: `claude/workstreams/agency/reviews/`
 
-You reviewed both PVR and A&D. Your verdict: "ready for planning." Read the A&D on startup — it defines how you work.
+Read the A&D on startup — it defines how ISCP tools work and the architectural decisions behind them.
 
 ## Active Work
 
-No active implementation work. Awaiting V2 plan with your assignments. Known backlog:
-- Dropbox primitive (deferred — file staging between worktrees)
-- Transcript primitive (storage/indexing layer)
-- Flag triage skill (seed received, `claude/workstreams/iscp/seeds/seed-flag-triage-workflow-20260406.md`)
-- Subscription primitive (not yet discussed)
-- DB schema versioning strategy (A&D §8 references)
-- Dispatch retention policy (30-day archive mechanism)
-- Symlink reconstruction on fresh clone
+Was working the backlog when reboot was called. Two items completed this session:
+1. Settings-template updated with ISCP hooks (SessionStart/UserPromptSubmit/Stop) and tool permissions
+2. Dispatch-on-commit enhanced with structured YAML metadata body
+
+Uncommitted file: `claude/tools/git-commit` (structured commit dispatch) — already committed as `41fb5cf`.
+Untracked: ~20 dispatch payload files in `usr/jordan/iscp/dispatches/`, history archives.
 
 ## Key Decisions
 
-- Dispatch payloads: symlinks in `~/.agency/{repo}/dispatches/` pointing to git artifacts (principal decision)
-- MAR triage: free-form V2, structured schema V3. YAML frontmatter for metrics.
-- MARFI: subagents V2, dispatches V3. Output to seeds/ for durability.
-- Commit dispatch: structured YAML (commit_hash, stage_hash, branch, phase, iteration, files_changed)
-- Flag categories: `--friction`, `--idea`, `--bug` as optional enrichment. Bare `flag "msg"` remains default.
+- `dispatch create` requires `--body` or explicit `--template`. No silent empty payloads.
+- `agent-identity` checks `.agency-agent` file before branch detection. PR branches (`captain/*`, `pr/*`, `release/*`) resolve to captain.
+- `CLAUDE_PROJECT_DIR` is authoritative over `SCRIPT_DIR` for project root in all ISCP tools — fixes identity when agents cd to main checkout.
+- Symlink-based dispatch payload resolution: `~/.agency/{repo}/dispatches/dispatch-{id}.md` symlinks to absolute filesystem paths. Falls back to legacy 4-strategy ladder.
+- Commit dispatches carry structured metadata: commit_hash, branch, files_changed, stage_hash, work_item.
 
 ## Open Items
 
-- Seeds to process: #29 (test management), #31 (test reporting), #36 (permission model) — addressed to devex, not you
-- Unread dispatches: check `dispatch list` on startup
+1. **DB schema versioning** — version column exists (PRAGMA user_version), but no migration framework for schema changes. Next item in backlog.
+2. **Flag categories** (`--friction`, `--idea`, `--bug`) — A&D Section 10. Not started.
+3. **Dispatch retention** — archive resolved dispatches after 30 days. Not started.
+4. **Dropbox primitive** — file staging between worktrees. Not started.
+5. **BUG 2** — `dispatch list --all` shows other agents' unread mail. Acknowledged, not fixed. Design question: should --all filter by principal?
 
 ## Startup Actions
 
@@ -65,4 +59,5 @@ No active implementation work. Awaiting V2 plan with your assignments. Known bac
 2. Process unread dispatches: `dispatch list`
 3. Process unread flags: `flag list`
 4. Read the valueflow A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-5. Await V2 plan assignments from captain
+5. Merge main to pick up any cross-agent changes: `git merge main`
+6. Resume backlog: DB schema versioning, then flag categories
