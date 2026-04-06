@@ -337,6 +337,17 @@ iscp_db_check_sqlite() {
 # Output the absolute path to the ISCP database file.
 # Does NOT create the file or directory — use iscp_db_init for that.
 iscp_db_path() {
+    # ISCP_DB_PATH override — explicit path takes precedence over all resolution.
+    # What Problem: Tests need guaranteed isolation from the live DB. Even with
+    # HOME override, edge cases (wrong CWD, tool re-sourcing) can leak.
+    # How & Why: Single env var check at the chokepoint — every DB operation
+    # goes through iscp_db_path(), so overriding here isolates everything.
+    # Written: 2026-04-06 — test isolation fix (dispatch #16)
+    if [[ -n "${ISCP_DB_PATH:-}" ]]; then
+        echo "$ISCP_DB_PATH"
+        return 0
+    fi
+
     local repo_name
     repo_name=$(_iscp_resolve_repo_name) || return 1
 
