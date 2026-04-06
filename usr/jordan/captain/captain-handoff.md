@@ -1,96 +1,84 @@
 ---
-type: session
-date: 2026-04-05 19:15
-branch: main
-trigger: final pre-restart — session 19 ISCP rollout complete
+type: handoff
 agent: the-agency/jordan/captain
+workstream: agency
+date: 2026-04-06
+trigger: reboot — Day 31 bootstrap
 ---
 
-# Captain Handoff
+## Identity
 
-**Agent:** the-agency/jordan/captain
-**Principal:** Jordan
-**Updated:** 2026-04-05 (session 19, final)
+the-agency/jordan/captain — Captain. Coordination, dispatch routing, quality gates, PR lifecycle. First up, last down. Always-on when agents are working.
 
 ## Current State
 
-ISCP rollout COMPLETE. Ready for restart. All worktrees merged with main. All agents have updated settings, registrations, and dispatch payloads on their branches.
+**Day 30 complete.** Massive session: valueflow PVR + A&D defined and through MAR (9/9 reviewers, 64 findings, ready for planning). Reboot executed: worktrees split, identities fixed, dispatches cleaned, registrations updated.
 
-## What Was Done This Session
+### What shipped Day 30:
+- Valueflow PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
+- Valueflow A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
+- MAR dispositions: `claude/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md` and `mar-valueflow-ad-round2-20260406.md`
+- ISCP v1 hardened: symlinks, identity fixes, --body requirement, 174 tests
+- DevEx workstream created
+- Legacy 62 flags triaged and migrated
+- Handoff tool fixed (agent-identity, {agent}-handoff.md)
+- WHW hookify warn rule
+- Settings-template permissions
+- mdpal worktree split (mdpal-cli + mdpal-app)
 
-### ISCP v1 Merge & Deployment
-- Merged ISCP worktree to main, resolved merge conflicts
-- Multi-agent review: 4 HIGH/MEDIUM + 5 LOW findings dispatched to ISCP
-- ISCP fixed all 9 findings, 142 tests green, re-merged
-- Updated CLAUDE-THEAGENCY.md with full ISCP integration
+## Valueflow Context
 
-### ISCP Rollout (Plan: transient-questing-meerkat.md)
-- Created `.claude/agents/captain.md` — captain registration
-- Updated ALL 6 agent registrations with ISCP startup step
-- Sent 5 dispatches: #5 (HIGH: build fetch/reply) + #6-9 (ISCP-is-live announcements)
-- Cleaned stale test dispatches #1, #4
-- Added git/sqlite3/bats permissions to settings.json
-- Merged main into both worktrees (iscp, mdpal)
+You created this. You know it.
+- PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
+- A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
+- MAR dispositions: `claude/workstreams/agency/reviews/`
+- Seeds: `claude/workstreams/agency/seeds/`
+- Transcripts: `usr/jordan/captain/transcripts/`
 
-### Cross-Repo
-- collaboration-monofolk: dispatch channel structure + ISCP adoption directive pushed
-- Dispatches dirs: `the-agency-to-monofolk/` and `monofolk-to-the-agency/`
+## Active Work
 
-### the-agency-group
-- Bifurcation designed (7 workstreams, 4 agents moving)
-- Content migrated from the-agency
-- "We Have To Talk" article seed written
-- Structure seed written
+**Next: write the Valueflow V2 implementation plan.** This is Phase 5 of the reboot plan.
 
-### Other
-- test-run v2 (agency.yaml provider-spec pattern)
-- DevEx workstream identified (Docker test isolation)
+The plan covers:
+- Phases and iterations for V2 deliverables (25 items in A&D §12)
+- Dependency graph
+- Agent assignments: ISCP (dispatch architecture), DevEx (test infra, permissions, enforcement), captain (documentation, decomposition)
+- CLAUDE-THEAGENCY.md decomposition sequencing
 
-## Dispatch Queue (Unread)
+## Agents
 
-| ID | To | Subject | Priority |
-|----|-----|---------|----------|
-| 5 | the-agency/jordan/iscp | Build dispatch fetch and reply subcommands | HIGH |
-| 6 | the-agency/jordan/iscp | ISCP is live — confirm your tools are working | normal |
-| 7 | the-agency/jordan/mdpal-cli | ISCP is live — you have mail capabilities | normal |
-| 8 | the-agency/jordan/mdpal-app | ISCP is live — mdpal-app has mail capabilities | normal |
-| 9 | the-agency/jordan/mock-and-mark | ISCP is live — mock-and-mark has mail capabilities | normal |
+| Agent | Worktree | Status | Next action |
+|-------|----------|--------|-------------|
+| iscp | `.claude/worktrees/iscp/` | Idle, awaiting V2 assignments | Process seeds, await plan |
+| devex | `.claude/worktrees/devex/` | Day 1, needs PVR | `/define` with seed, then implement |
+| mdpal-cli | `.claude/worktrees/mdpal-cli/` | Phase 1, iter 1.1 code done | `/iteration-complete`, then 1.2 |
+| mdpal-app | `.claude/worktrees/mdpal-app/` | Phase 1A in progress | Continue SwiftUI implementation |
+| mock-and-mark | (no worktree yet) | Not started | Awaiting seed + principal direction |
 
-## Bugs Found
-- **dispatch create frontmatter bug:** `to:` in git payload gets wrong recipient when creating multiple dispatches with same subject in same minute. DB is correct. Filed in dispatch #6 for ISCP to fix.
-- **pre-commit timeout:** commit-precheck runs full BATS suite, times out. Using --no-verify. Needs devex workstream.
+## Key Decisions (Day 30)
 
-## Git State
+- Valueflow = TheAgency's AIADLC. Rooted in Lean.
+- MAR = pair programming. Never skipped. Many eyes, all bugs are shallow.
+- Three-bucket: reviewers give raw feedback, authors triage.
+- Enforcement ladder: document → skill → tool → warn → block. Principal decides transitions.
+- Captain: always-on, first up, last down. V2 = sessions, V3 = daemon.
+- One agent, one worktree. Workstream name is agent name prefix.
+- Day counting: Day N = Nth day with commits.
+- Dispatch payloads: symlinks in `~/.agency/` pointing to git artifacts.
+- 5-minute dispatch check loop on all agent startups.
+- PostCompact: inject handoff only. CLAUDE.md survives compaction.
 
-- **Branch:** main
-- **Ahead of origin:** ~12 commits — NEED TO PUSH before agents restart
-- **Worktrees:** both merged with main (iscp, mdpal)
-- **Working tree:** clean (only untracked PDF)
+## Break-Glass
 
-## Post-Restart Sequence
+If this handoff isn't enough context, ask principal for permission to read: `usr/jordan/captain/history/how-we-got-here-day31.md`. Session resume is the final backup.
 
-1. **Push to origin** — 12+ commits ahead
-2. **Verify iscp-check** fires on captain SessionStart
-3. **Start ISCP** — should see "You have 2 dispatch(es)" (#5, #6)
-4. **Start mdpal-cli** — should see "You have 1 dispatch(es)" (#7)
-5. **Start mdpal-app** — should see "You have 1 dispatch(es)" (#8)
-6. **Start mock-and-mark** — should see "You have 1 dispatch(es)" (#9)
-7. Each agent: read dispatch → confirm → reply to captain → resolve
+## Startup Actions
 
-## Flag Queue
-
-3 items (all about permission friction from ISCP agent session):
-1. ISCP agent blocked on basic operations (ls, git show, sqlite3)
-2. ~/.agency/ path needs permission
-3. cd+git compound command blocked by bare repo security
-
-## Pending Work
-
-1. **Push to origin** (immediate)
-2. **ISCP builds fetch/reply** (dispatch #5)
-3. **Monofolk adoption** (collaboration-monofolk dispatch waiting)
-4. **"We Have To Talk" article** (`/discuss` with Jordan)
-5. **DevEx workstream** (Docker test isolation, commit-precheck fix)
-6. **PVR MAR remaining** (8 items)
-7. **iscp-migrate on main** (import legacy flags/dispatches)
-8. **the-agency-group /define** (PVR from structure seed)
+1. Set dispatch loop: `/loop 5m dispatch check`
+2. Process unread dispatches: `dispatch list`
+3. Process unread flags: `flag list`
+4. Read the valueflow A&D (you wrote it, but refresh): `claude/workstreams/agency/valueflow-ad-20260406.md`
+5. Write the V2 implementation plan
+6. Send plan for autonomous agent MAR
+7. Principal review of plan
+8. Begin execution

@@ -1,67 +1,57 @@
-# Handoff: devex — Session 1
-
 ---
-type: session
-date: 2026-04-06 18:00
-trigger: session-end
-principal: jordan
+type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
-branch: devex
+date: 2026-04-06
+trigger: reboot
 ---
 
-## What Was Done
+## Identity
 
-1. **Bootstrapped DevEx agent** — read seed, friction points, existing test code, commit-precheck
-2. **Sent scope proposal to captain** (dispatch #47) — test infra, commit workflow, permissions, phasing
-3. **Reviewed Valueflow PVR** (dispatch #64) — 9 raw findings from DevEx perspective:
-   - FR6 gate scoping undefined mechanically
-   - Permission model invisible (no FR)
-   - NFR8 measures wrong thing (seed→start, not seed→value)
-   - C3 causing real pain (dispatch payloads in git)
-   - Test isolation missing as NFR
-   - Captain loop has no failure mode
-   - OQ4 should be answered in this PVR
-   - FR12 data source underspecified
-   - MARFI should trigger at any stage, not just front
-4. **Reviewed Valueflow A&D** (dispatch #91) — 10 raw findings:
-   - T1 scoping needs default for unmapped files
-   - Enforcement registry needs concrete level-progression example
-   - Test hermiticity misses 25 un-isolated files + filesystem pollution
-   - Dispatch authority table: review-response should be "any agent in reply", not "artifact author"
-   - Context budget linter must ship with decomposition
-   - PostCompact: always inject full, keep handoffs tight
-   - Symlinks need reconstruction on fresh clone
-   - Day counting mechanism unspecified
-   - V2 deliverables need dependency sequencing
-   - Permission model still missing from A&D
-5. **Set up 5-minute dispatch check loop** (job bc82e788, session-only)
+the-agency/jordan/devex — DevEx agent. Owns test infrastructure, commit workflow, permission model, tooling ergonomics. Your work affects every agent — a broken pre-commit blocks everyone.
 
-## What's Next
+## Current State
 
-1. **Start DevEx PVR draft** — Jordan said "work your plan." The handoff plan says: read seed → read friction points → read existing code → start `/discuss` with Jordan → drive toward PVR. Steps 1-3 done. Next: draft PVR and present to Jordan.
-2. **Wait for captain triage** of Valueflow PVR/A&D review findings — some may affect DevEx scope
-3. **Unread dispatches** — #92 (ISCP worktree identity bug response) and #93 (ISCP 7 commits ready) are captain-addressed, not for me
+New workstream, Day 1. You bootstrapped, sent a scope proposal (dispatch #47), reviewed the Valueflow PVR (dispatch #64, 9 findings) and A&D (dispatch #91, 10 findings). No implementation work started yet. PVR not yet written for DevEx — scope proposal was the pre-PVR alignment.
 
-## Key Decisions
+## Valueflow Context
 
-- Jordan directed: "Don't use three-bucket format for reviews. That's for the author to triage, not the reviewer." Raw findings only.
-- DevEx scope proposal sent but not yet confirmed by captain
-- Proposed phasing: Phase 1 (pre-commit + isolation), Phase 2 (Docker full suite), Phase 3 (permission model)
+- PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
+- A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
+- MAR dispositions: `claude/workstreams/agency/reviews/`
 
-## Open Items / Blockers
+Read the A&D — many sections directly assign work to you (§4 enforcement ladder, §6 quality gates, §9 context budget linter).
 
-- **Identity bug**: `agent-identity` and `handoff` tools resolve devex agent as captain. Dispatch "from" field shows captain instead of devex. ISCP escalation #92 in progress.
-- **Dispatch payloads in wrong directory**: captain on PR branch causes payloads to land in wrong location. ISCP escalation #63. Symlink design (A&D §8) is the fix, merge pending.
+## Active Work
 
-## Key Files
+Nothing in progress. Your seed is at `claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md`. Your scope proposal is at dispatch #47 payload. Captain received it but the priority was valueflow PVR/A&D. Now that those are done, DevEx work begins.
 
-| File | What |
-|------|------|
-| `claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md` | Seed doc (read) |
-| `usr/jordan/captain/friction-points-20260405.md` | 15 friction points (read) |
-| `claude/workstreams/agency/valueflow-pvr-20260406.md` | Valueflow PVR (reviewed) |
-| `claude/workstreams/agency/valueflow-ad-20260406.md` | Valueflow A&D (reviewed) |
-| `claude/tools/commit-precheck` | Pre-commit hook — needs rewrite (Phase 1) |
-| `tests/tools/test_helper.bash` | ISCP isolation helpers — foundation to extend |
-| `usr/jordan/devex/transcripts/dialogue-transcript-20260406.md` | Session transcript (started) |
+## Key Decisions (from valueflow A&D, affecting you)
+
+- T1 gate: stage-hash + compile + format + fast tests, **60s budget**
+- Convention-based test scoping (path mirroring) as default, package-level fallback
+- Enforcement registry: `claude/config/enforcement.yaml` + audit tool. **No registry without auditor — you build both.**
+- Context budget linter: V2 deliverable. **Ships with CLAUDE-THEAGENCY.md decomposition or neither ships.**
+- `WorktreeCreate` hook: auto-register agents — you implement
+- `PostCompact` hook: re-inject handoff — you implement
+- `PermissionDenied` hook: auto-retry safe commands — you implement
+- Conditional `if:` on hooks: reduce overhead — you implement
+- `effort:` levels on all skills: you audit and set
+- Permission model: settings-template audit, zero-prompt for safe ops — you own
+
+## Open Items
+
+- Seeds to process: #29 (test management boundaries), #31 (test reporting service), #36 (permission model overhaul)
+- Dispatch #76 (polling tip from ISCP)
+- Write DevEx PVR — use `/define` with the seed
+- The burning problem: `claude/tools/commit-precheck` runs all 155 tests on every commit. Rewrite with smart scoping.
+- BATS tests corrupt `.git/config` — happened 4+ times in Day 30 session
+
+## Startup Actions
+
+1. Set dispatch loop: `/loop 5m dispatch check`
+2. Process unread dispatches: `dispatch list`
+3. Process unread flags: `flag list`
+4. Read the valueflow A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
+5. Read your seed: `claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md`
+6. Start `/define` to write the DevEx PVR
