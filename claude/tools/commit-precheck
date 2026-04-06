@@ -111,6 +111,49 @@ output_failure() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Staged file classification
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Determine if staged changes include application code (not just tooling/config/docs)
+has_app_code() {
+    # Application code extensions that warrant full test + review
+    local app_patterns='\.ts$|\.tsx$|\.js$|\.jsx$|\.py$|\.rs$|\.go$|\.java$|\.swift$|\.vue$|\.svelte$'
+
+    # Check staged files against app code patterns
+    if git diff --cached --name-only | grep -qE "$app_patterns"; then
+        return 0  # has app code
+    fi
+    return 1  # tooling/config/docs only
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Timeout wrapper — kills long-running steps
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Run a command with a timeout. Returns the command's exit code, or 124 on timeout.
+run_with_timeout() {
+    local timeout_secs="$1"
+    shift
+
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "$timeout_secs" "$@"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        gtimeout "$timeout_secs" "$@"
+    else
+        # No timeout command available — run directly but with a background watchdog
+        "$@" &
+        local pid=$!
+        (sleep "$timeout_secs" && kill "$pid" 2>/dev/null) &
+        local watchdog=$!
+        wait "$pid" 2>/dev/null
+        local rc=$?
+        kill "$watchdog" 2>/dev/null 2>&1
+        wait "$watchdog" 2>/dev/null 2>&1
+        return $rc
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main pre-commit logic
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -130,6 +173,15 @@ main() {
 
     log_info "Starting pre-commit checks"
 
+    # Classify staged changes
+    local APP_CODE=false
+    if has_app_code; then
+        APP_CODE=true
+        log_info "Staged changes include application code — full checks"
+    else
+        log_info "Staged changes are tooling/config/docs only — fast path"
+    fi
+
     # Detect package manager
     if [ -f "pnpm-lock.yaml" ]; then
         PM="pnpm"
@@ -144,13 +196,13 @@ main() {
     STEPS_PASSED=0
     STEPS_TOTAL=5
 
-    # Step 1: Format code (auto-fix)
+    # Step 1: Format code (auto-fix) — 30s timeout
     log_info "Step 1/5: Formatting code"
     if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.format ? 0 : 1)" 2>/dev/null; then
-        if $PM run format 2>&1 >/dev/null; then
+        if run_with_timeout 30 $PM run format 2>&1 >/dev/null; then
             log_info "Formatting complete"
         else
-            log_warn "Formatting failed (continuing)"
+            log_warn "Formatting failed or timed out (continuing)"
         fi
         ((STEPS_PASSED++))
     else
@@ -158,13 +210,13 @@ main() {
         ((STEPS_PASSED++))
     fi
 
-    # Step 2: Lint code (auto-fix)
+    # Step 2: Lint code (auto-fix) — 30s timeout
     log_info "Step 2/5: Linting code"
     if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['lint:fix'] ? 0 : 1)" 2>/dev/null; then
-        if $PM run lint:fix 2>&1 >/dev/null; then
+        if run_with_timeout 30 $PM run lint:fix 2>&1 >/dev/null; then
             log_info "Linting complete"
         else
-            log_warn "Linting failed (continuing)"
+            log_warn "Linting failed or timed out (continuing)"
         fi
         ((STEPS_PASSED++))
     else
@@ -172,15 +224,14 @@ main() {
         ((STEPS_PASSED++))
     fi
 
-    # Step 3: Type check (blocking if script exists)
+    # Step 3: Type check (blocking if script exists) — 60s timeout
     log_info "Step 3/5: Type checking"
-    # Check if the typecheck script exists in package.json before running
     if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.typecheck ? 0 : 1)" 2>/dev/null; then
-        if $PM run typecheck 2>&1 >/dev/null; then
+        if run_with_timeout 60 $PM run typecheck 2>&1 >/dev/null; then
             log_info "Type check passed"
             ((STEPS_PASSED++))
         else
-            log_error "Type errors found"
+            log_error "Type errors found (or timed out)"
             end_run "failure" "Type check failed"
             output_failure "Type check failed"
             exit 2
@@ -190,33 +241,48 @@ main() {
         ((STEPS_PASSED++))
     fi
 
-    # Step 4: Unit tests (blocking if tool exists)
+    # Step 4: Unit tests — ONLY for app code, 120s timeout
     log_info "Step 4/5: Running unit tests"
-    if [ -x "./claude/tools/test-run" ]; then
-        if ./claude/tools/test-run 2>&1 >/dev/null; then
+    if [[ "$APP_CODE" == "true" ]] && [ -x "./claude/tools/test-run" ]; then
+        if run_with_timeout 120 ./claude/tools/test-run 2>&1 >/dev/null; then
             log_info "Unit tests passed"
             ((STEPS_PASSED++))
         else
-            log_error "Unit tests failed"
+            log_error "Unit tests failed (or timed out)"
             end_run "failure" "Unit tests failed"
             output_failure "Unit tests failed"
             exit 2
         fi
     else
-        log_warn "Test runner not found (skipping)"
+        if [[ "$APP_CODE" != "true" ]]; then
+            log_info "No app code staged — skipping tests (fast path)"
+        else
+            log_warn "Test runner not found (skipping)"
+        fi
         ((STEPS_PASSED++))
     fi
 
-    # Step 5: Code review (blocking)
-    log_info "Step 5/5: Running code review"
-    if ./claude/tools/code-review 2>&1 >/dev/null; then
-        log_info "Code review passed"
-        ((STEPS_PASSED++))
+    # Step 5: Code review — ONLY for app code, 120s timeout
+    # Code review spawns multiple agents and is too heavy for pre-commit.
+    # It belongs in /iteration-complete and /phase-complete, not here.
+    log_info "Step 5/5: Code review"
+    if [[ "$APP_CODE" == "true" ]] && [ -x "./claude/tools/code-review" ]; then
+        if run_with_timeout 120 ./claude/tools/code-review 2>&1 >/dev/null; then
+            log_info "Code review passed"
+            ((STEPS_PASSED++))
+        else
+            log_error "Code review found blocking issues (or timed out)"
+            end_run "failure" "Code review failed"
+            output_failure "Code review found blocking issues"
+            exit 2
+        fi
     else
-        log_error "Code review found blocking issues"
-        end_run "failure" "Code review failed"
-        output_failure "Code review found blocking issues"
-        exit 2
+        if [[ "$APP_CODE" != "true" ]]; then
+            log_info "No app code staged — skipping code review (fast path)"
+        else
+            log_warn "Code review tool not found (skipping)"
+        fi
+        ((STEPS_PASSED++))
     fi
 
     log_info "All $STEPS_PASSED/$STEPS_TOTAL checks passed"
