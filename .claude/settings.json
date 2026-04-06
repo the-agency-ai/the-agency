@@ -266,6 +266,8 @@
       "Bash(sqlite3 */.agency/*/iscp.db *)",
       "Bash(ls */.agency/*)",
       "Bash(bats tests/*)",
+      "Bash(cd * && ./claude/tools/*)",
+      "Bash(cd * && ./claude/tools/* *)",
       "Read(.claude/**)",
       "Read(claude/**)",
       "Read(usr/**)"
