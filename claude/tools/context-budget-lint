@@ -56,7 +56,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-verbose() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+verbose() { [[ "$VERBOSE" == "true" ]] && echo "$@" >&2 || true; }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Import chain resolution

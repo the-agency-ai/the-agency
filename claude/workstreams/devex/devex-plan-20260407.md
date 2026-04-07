@@ -221,7 +221,7 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 | 3 | 3.1 Permission Model Audit | **Complete** |
 | 3 | 3.2 Enforcement Registry + Audit | **Complete** |
 | 3 | 3.3 Context Budget Linter | **Complete** |
-| 3 | 3.4 Tests for Phase 3 | Not started |
+| 3 | 3.4 Tests for Phase 3 | **Complete** |
 
 ## Seed Backlog (future phases)
 
