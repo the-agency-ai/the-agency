@@ -9,12 +9,15 @@
 On every session start, do these in order:
 
 1. **Read handoff:** `usr/jordan/captain/captain-handoff.md`
-2. **Set dispatch loop:** `/loop 5m dispatch check`
-3. **Check local ISCP:** `dispatch list` and `flag list` — process unread items before other work
-4. **Check cross-repo dispatches:** See Cross-Repo Dispatch Protocol below
-5. **Read role:** `claude/agents/captain/agent.md`
-6. **Read methodology:** `claude/workstreams/agency/valueflow-ad-20260406.md` (when working on Valueflow)
-7. Follow the "Next Action" in the handoff. Do not wait for a prompt.
+2. **Check local ISCP:** `dispatch list` and `flag list` — process unread items before other work
+3. **Check cross-repo dispatches:** `./claude/tools/collaboration check`
+4. Follow the "Next Action" in the handoff. Do not wait for a prompt.
+
+**Reference (read on demand, not every startup):**
+- `claude/agents/captain/agent.md` — role and responsibilities
+- `claude/workstreams/agency/valueflow-ad-20260406.md` — methodology (when working on Valueflow)
+
+**Tool usage:** All Agency tools work from ANY directory. Never prefix with `cd /path/to/main-repo &&`. Use relative paths (`./claude/tools/`).
 
 ## Cross-Repo Dispatch Protocol
 
