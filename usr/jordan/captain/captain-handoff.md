@@ -3,7 +3,7 @@ type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
 date: 2026-04-07
-trigger: Day 31 session — collaboration tooling shipped
+trigger: day-32-end-of-session
 ---
 
 ## Identity
@@ -12,62 +12,135 @@ the-agency/jordan/captain — Captain. Coordination, dispatch routing, quality g
 
 ## Current State
 
-**Day 31.** Session focused on cross-repo collaboration tooling and commit-precheck bug fix. All shipped and pushed to origin. Monofolk notified via collaboration repo dispatches.
+**Day 32 complete.** Two PRs shipped. Multi-agent infrastructure rebuilt. Methodology documented. First real Day-PR Release Pattern day.
 
-### What shipped Day 31:
-- `claude/tools/collaboration` (v2.0.0) — cross-repo dispatch lifecycle tool (check, list, read, resolve, reply, push)
-- `/collaborate` skill — captain-only
-- `hookify.warn-external-paths.md` — blocks raw bash touching collaboration repos
-- `agency.yaml` collaboration.repos config section
-- SessionStart hook fires `collaboration check`
-- `CLAUDE-CAPTAIN.md` — agent-scoped instructions with cross-repo protocol
-- Captain startup sequence updated (step 4: cross-repo check)
-- `commit-precheck` fix — fast path for non-app-code commits, timeouts on all steps
-- Monofolk dispatches: replied to ISCP setup guidance + Synthoid proposal, sent release notes
+### Day 32 - Release 1 (PR #46) — MERGED
+12 commits. Multi-agent infrastructure fixes + Valueflow V2 plan + Phase 1 M1/M2 + docs accuracy pass.
 
-### commit-precheck fix (affects all agents):
-Bug: test-run and code-review ran on every commit including tooling-only changes, hanging indefinitely. Fix: `has_app_code()` classifies staged files — non-app-code skips steps 4+5. All steps have timeouts (30-120s).
+- **Permissions overhaul:** `Bash(*)`, `Read(**)`, `Edit(**)`, `Write(**)` replaces 100+ narrow patterns
+- **Agent identity fix:** `agent-identity` PWD-based worktree detection (de73c9c)
+- **`$CLAUDE_PROJECT_DIR` fix:** Variable empty in agent Bash calls. All skills/docs use `./claude/tools/`
+- **Hookify blocks:** `block-cd-to-main` (cd + absolute paths), `block-raw-handoff` (forces /handoff skill)
+- **All agents to `opus[1m]`:** 1M context window
+- **Startup trimmed:** 9-10 steps → 3 (handoff, dispatch check, work)
+- **`.agency-agent` gitignored**
+- **Friction analysis:** `usr/jordan/captain/transcripts/agent-session-friction-20260407.md` — 30-40% overhead identified
+- **Valueflow V2 master plan:** `claude/workstreams/agency/valueflow-plan-20260407.md` — 6 phases, 3 workstreams, MAR'd
+- **Phase 1 M1:** QUALITY-GATE.md tier definitions (T1-T4)
+- **Phase 1 M2:** New `claude/docs/ISCP-PROTOCOL.md`
+- **Docs accuracy passes (2 rounds of 4 reviewers each):** CLAUDE-THEAGENCY.md, README-THEAGENCY.md, README-GETTINGSTARTED.md
+- **NEW: `claude/README-ENFORCEMENT.md`** — comprehensive 5-layer enforcement model + all 33 hookify rules
+- **Bug fix:** `master-updated` dispatch type (was wrong in some docs)
+- **Bug fix:** Handoff path `{agent}-handoff.md` (was wrong)
 
-## Valueflow Context
+### Day 32 - Release 2 (PR #48) — MERGED
+6 commits. New capabilities and patterns built on top of R1.
 
-Unchanged from Day 30. V2 implementation plan is the next major deliverable.
-- PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
-- A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-- MAR dispositions: `claude/workstreams/agency/reviews/`
+- **`/captain-log` tool + skill** — narrative thread daily log, categories (decision/friction/learning/milestone/observation/build). Resolves flag #2.
+- **`/secret` skill (SPEC-PROVIDER)** — converted from command, third example of SPEC-PROVIDER pattern. Resolves flag #5.
+- **Day-PR Release Pattern documented** in README-THEAGENCY.md
+- **Agency init template refactor** — `_agency-init` now uses `HANDOFF-BOOTSTRAP.md` template + sed
+- **Per-agent commit attribution** — `/git-commit` builds `Co-Authored-By: {agent} <{username}+{agent}.{repo}.{org}@users.noreply.github.com>`. Verified with real test commits. Discussion record at `usr/jordan/captain/transcripts/agent-attribution-model-20260407.md`. Resolves flag #39, captures #40.
+- **Coordination artifacts:** 8 dispatches sent to devex, 1 to iscp, 6 review-responses approving plans, flag triage record (16 cleared)
 
-## Active Work
+## Active Agents (background)
 
-**Next: write the Valueflow V2 implementation plan.** Same as Day 30 handoff — deferred by the collaboration tooling work today.
+| Agent | Worktree | Plan Status | Next Work |
+|-------|----------|------------|-----------|
+| iscp | `.claude/worktrees/iscp/` | Phase 2.0 (schema migrations) committed `dfa9f2f`. Plan #121 (per-agent inboxes) approved. Ready for 2.6 + remaining iterations. | Iteration 2.1+ |
+| devex | `.claude/worktrees/devex/` | 5 plans approved (#109/110/114/118/122). Sequence: #109 → #118 → #110+#114 merged → #122. | Implementation, plan mode for each |
+| mdpal-cli | `.claude/worktrees/mdpal-cli/` | Plan #97 (consuming workstream review) responded via #105 (forwarded by ISCP as #131). Continuing iteration 1.1. | Their own work |
 
-## Agents
+## Outstanding (background, no captain action)
 
-| Agent | Worktree | Status | Next action |
-|-------|----------|--------|-------------|
-| iscp | `.claude/worktrees/iscp/` | Idle, awaiting V2 assignments | Process seeds, await plan |
-| devex | `.claude/worktrees/devex/` | Day 1, needs PVR | `/define` with seed, then implement |
-| mdpal-cli | `.claude/worktrees/mdpal-cli/` | Phase 1, iter 1.1 code done | `/iteration-complete`, then 1.2 |
-| mdpal-app | `.claude/worktrees/mdpal-app/` | Phase 1A in progress | Continue SwiftUI implementation |
-| mock-and-mark | (no worktree yet) | Not started | Awaiting seed + principal direction |
+- **DevEx queue:** 5 implementation plans approved. Working through them in plan mode.
+- **ISCP queue:** Per-agent inbox plan approved as Iteration 2.6 in Phase 2 sequence.
+- **Doppler verification dispatch** sent to monofolk/devex (`./claude/tools/secret-doppler` smoke test).
 
-## Flags (3 pending)
+## Active Flags
 
-1. SMS-style dispatches — short DB-only dispatches without payload files (from Day 30)
-2. Friction→toolification process — formalize the pattern of recognizing session friction and building tools/skills/hookify in-session
-3. Release notes dispatch process — every push to origin gets a release-notes dispatch to collaboration repos, integrated into /sync or /ship
+| ID | Flag | Status |
+|----|------|--------|
+| 34 | SECURITY: Bash(*) too broad pre-GTM | TODO (kept active per principal decision) |
 
-## Cross-Repo Collaboration
+That's it. All other flags either cleared, captured as seeds, or dispatched to agents.
 
-Collaboration repos configured in `agency.yaml`. Tool: `./claude/tools/collaboration`. Monofolk has 3 pending dispatches from us (2 replies + release notes).
+## Next Action
 
-### Monofolk inbound (resolved):
-- ISCP setup guidance request — replied, full guidance dispatch still owed
-- Synthoid proposal — replied, routing decision pending principal input
+1. **Restart terminal agents** (iscp, devex, mdpal-cli) — they're running with stale settings/code from before Day 32 merges. Pull latest in each worktree and restart sessions.
+2. **Process whatever new dispatches arrive** from devex/iscp implementation work
+3. **Day 33 setup** — when day starts, create `day33-release-1` branch from origin/main as draft PR
 
-## Startup Actions
+## Artifacts Created Today
 
-1. Read this handoff
-2. Set dispatch loop: `/loop 5m dispatch check`
-3. Check ISCP: `dispatch list` and `flag list`
-4. Check cross-repo: `./claude/tools/collaboration check`
-5. Read role: `claude/agents/captain/agent.md`
-6. Write the V2 implementation plan
+### Methodology / Docs
+- `claude/README-ENFORCEMENT.md` (NEW)
+- `claude/docs/ISCP-PROTOCOL.md` (NEW)
+- `claude/CLAUDE-THEAGENCY.md` (revised — Triangle/Ladder, MARFI/MAP, three-bucket, full Valueflow flow)
+- `claude/README-THEAGENCY.md` (revised — Valueflow section, SPEC-PROVIDER pattern, Day-PR pattern, Per-Agent Commit Attribution)
+- `claude/README-GETTINGSTARTED.md` (rewritten — agency init/update/verify, Key Concepts, narrative First Session)
+- `claude/docs/QUALITY-GATE.md` (added tier definitions T1-T4)
+
+### Tools / Skills
+- `claude/tools/captain-log` (NEW)
+- `.claude/skills/captain-log/SKILL.md` (NEW)
+- `.claude/skills/secret/SKILL.md` (NEW — converted from command)
+- `claude/tools/git-commit` (per-agent attribution)
+- `claude/tools/lib/_agency-init` (template refactor)
+
+### Hookify Rules
+- `claude/hookify/hookify.block-cd-to-main.md` (catches cd + absolute paths)
+- `claude/hookify/hookify.block-raw-handoff.md` (forces /handoff skill)
+
+### Templates
+- `claude/templates/HANDOFF-BOOTSTRAP.md` (NEW — used by agency init)
+- `claude/templates/CLAUDE-PROJECT.md` (revised — First time? callout)
+
+### Workstream Artifacts
+- `claude/workstreams/agency/valueflow-plan-20260407.md` (master plan, MAR'd)
+- `claude/workstreams/agency/seeds/seed-granola-workflow-20260407.md` (NEW)
+- `claude/workstreams/gtm/seeds/seed-agent-mail-service-20260407.md` (NEW)
+
+### Discussion Records
+- `usr/jordan/captain/transcripts/agent-session-friction-20260407.md` (friction analysis)
+- `usr/jordan/captain/transcripts/agent-attribution-model-20260407.md` (attribution discussion)
+- `usr/jordan/captain/transcripts/flag-triage-20260407.md` (16 flags resolved)
+- `usr/jordan/captain/logs/captains-log-20260407.md` (first captain's log entry)
+
+## Key Decisions
+
+1. **Day-PR Release Pattern is canonical** — every release goes through `day{N}-release-{M}` branch + draft PR. Today shipped 2 PRs (R1 + R2).
+2. **Permission model = broad + hookify** — `Bash(*)` etc. is fine for trusted environments. Hookify rules are the behavioral enforcement layer. Pre-GTM security review still pending (flag #34).
+3. **Agent attribution = GitHub user noreply with plus-tag** — `{username}+{agent}.{repo}.{org}@users.noreply.github.com`. Verified with real test commits. Distinct contributor entries, principal author profile-linked, agents are gray avatars but uniquely attributed.
+4. **One agent per worktree** — confirmed and implemented. mdpal-cli + mdpal-app are separate worktrees.
+5. **Plan mode required for all dispatched work** — directive #111 enforces this for devex.
+6. **`/secret` is now a skill** (was a command) — third SPEC-PROVIDER example.
+7. **Captain's log is a real first-class primitive** — narrative thread alongside handoffs/transcripts/flags.
+
+## Cross-Repo Status
+
+### Monofolk
+- Day 32 Release 1 dispatch sent (PR #46)
+- Permissions migration guide dispatch sent
+- Identity bug fix dispatch sent (their bug report → our fix)
+- Day 32 doppler verification request sent
+- Inbound: 2 dispatches resolved earlier today (hookify naming, identity bug)
+
+## Discussion Queue (carried forward)
+
+These came up but weren't acted on, parked for future:
+
+- **Hookify naming convention** — verb-noun (current) vs noun-verb (monofolk's proposal). Captured for 1B1 with principal.
+- **History rewrite for devex branch** — fix Test User attribution via rebase before merge to main. Approved in #115 reply, devex to execute.
+- **`/define`, `/design`, `/seed`, `/marfi`, `/map`** — formal skills planned for Phase 4 of Valueflow V2. Not yet built.
+- **MAR.md + VALUEFLOW.md decomposition** — Phase 1 M3/M4 of Valueflow V2 plan. Deferred to a separate PR.
+
+## House Rules Reminders
+
+- Use `/handoff` skill, never raw handoff tool
+- Use `/git-commit` skill, never raw `git commit`
+- Never `cd` to main repo from worktree (block-cd-to-main rule)
+- All tools work from any directory — use `./claude/tools/`
+- Day-PR pattern: branch from origin/main as `day{N}-release-{M}`, draft first, merge through PR
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
