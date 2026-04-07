@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/handoff *), Read, Write
+allowed-tools: Bash(bash ./claude/tools/handoff *), Read, Write
 description: Write a session handoff using the handoff tool — archive, write, verify
 ---
 
@@ -18,7 +18,7 @@ Write a handoff file for session continuity. **Always use the handoff tool** —
 Run the handoff tool to archive the current handoff and prepare for a new one:
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/handoff write --trigger $ARGUMENTS
+bash ./claude/tools/handoff write --trigger $ARGUMENTS
 ```
 
 If `$ARGUMENTS` is empty, use `--trigger manual`.
@@ -36,4 +36,4 @@ Write the handoff file at the path the tool reported. Include:
 
 ### Step 3: Verify
 
-Run `bash $CLAUDE_PROJECT_DIR/claude/tools/handoff read` to verify the handoff was written correctly.
+Run `bash ./claude/tools/handoff read` to verify the handoff was written correctly.
