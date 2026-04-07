@@ -90,6 +90,27 @@ Both need plan-mode + dispatch + approval before implementation.
 - **Backup branch `devex-pre-rewrite`** — keep until devex merges to main. Captain instruction.
 - **Dispatch loop cron `b92e29d8`** — running every 5 minutes, auto-expires in 7 days from session start. May or may not survive into next session depending on Claude Code session behavior.
 
+## Late-session dispatches (resolved before exit)
+
+Three dispatches arrived right before session-end and were resolved:
+
+- **#157** (P0 escalation) — "git-commit wipes worktree index" — turned out to be a false alarm. The 1280 "deleted" files in mdpal-app's worktree are normal sparse-checkout steady state, NOT an actual index wipe. P0 lifted by captain in #162.
+- **#160** (captain hypothesis) — investigated mdpal worktree creation. Disregarded after #162.
+- **#162** (downgrade) — confirmed not P0. Item 1 can resume. **One residual P1 still real:** git-commit silently exits 1 from mdpal-app's worktree with zero diagnostic output ("commit [run: <uuid>]" only). Not blocking — workaround is raw git commit + disabled hooks. Add to queue after Item 1.
+
+## Two side issues mdpal-app surfaced (worth folding into Item 4 or a new Item 5)
+
+1. **Sparse-worktree convention is undocumented.** New agents in split worktrees panic at the 1280 "D" files. Worth one line in CLAUDE-THEAGENCY.md or worktree-create skill.
+2. **mdpal-cli BATS pre-commit** — already addressed in this session via the gh.bats hang fix and run_with_timeout improvements (commit `aa8d6b6`). mdpal-cli will get the fixes when they merge devex.
+
+## Next session — updated pickup order
+
+1. **Resume Item 1 formal phase-complete** — implementation + QG fixes are committed. Just need QGR receipt + sprint review approval, OR dispatch directly to captain that Item 1 is done since the work is in git already.
+2. **Item 2** — Valueflow Phase 3 (read `claude/workstreams/agency/valueflow-plan-20260407.md`, identify devex iterations, plan, execute)
+3. **Item 4** — Hookify rules (loop reminder + push auth) — possibly fold in:
+   - git-commit silent-fail diagnostic improvement (residual from #162)
+   - Sparse-worktree onboarding doc
+
 ## Principal feedback (CRITICAL — read every session)
 
 **USE THE TOOLS AND SKILLS.** Don't hand-roll bash, don't `cd` to main repo, run from worktree CWD with relative paths. The new `block-cd-outside-worktree` hookify will catch the cd; use `/handoff`, `/dispatch`, `/git-commit`, `/iteration-complete`, `/phase-complete` skills for all boundary work.
