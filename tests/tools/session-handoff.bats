@@ -9,6 +9,7 @@ load 'test_helper'
 
 setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
+    test_isolation_setup
 
     # Create minimal project structure
     cd "${BATS_TEST_TMPDIR}"
@@ -47,6 +48,7 @@ YAML
 }
 
 teardown() {
+    test_isolation_teardown
     if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
         rm -rf "${BATS_TEST_TMPDIR}"
     fi

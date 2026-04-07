@@ -221,6 +221,41 @@ _do_archive() {
     fi
 }
 
+# Detect uncommitted implementation files at handoff write time.
+# Returns a multi-line message describing the dirty state, or empty string if clean.
+# Used to warn the agent (via the write signal) that the handoff is being written
+# while real code is uncommitted — preventing the P7 friction (handoff claims
+# 'complete' for work that doesn't exist in git).
+_dirty_impl_warning() {
+    # Only check if we're inside a git repo
+    git rev-parse --show-toplevel >/dev/null 2>&1 || return 0
+
+    # Use the same categorization as stop-check.py — match impl extensions and paths
+    # We only care about staged + unstaged modifications, NOT untracked files
+    # (untracked are usually scratch/temp; modified is "I touched real code").
+    local impl_files
+    impl_files=$(git status --porcelain 2>/dev/null \
+        | grep -vE '^\?\?' \
+        | sed 's/^...//' \
+        | grep -E '\.(ts|tsx|js|jsx|py|rs|go|java|swift|kt|sh|bash|bats)$|^claude/tools/[^/]+$|^claude/tools/lib/|^\.claude/hooks/' \
+        || true)
+
+    if [[ -z "$impl_files" ]]; then
+        return 0
+    fi
+
+    local count
+    count=$(echo "$impl_files" | wc -l | tr -d ' ')
+    echo "WARNING: ${count} uncommitted implementation file(s) at handoff time:"
+    echo "$impl_files" | head -5 | sed 's/^/  - /'
+    if [[ "$count" -gt 5 ]]; then
+        echo "  ... and $((count - 5)) more"
+    fi
+    echo ""
+    echo "Include this WARNING block in the handoff Current State section."
+    echo "Do NOT claim 'complete' for uncommitted work."
+}
+
 case "$COMMAND" in
     write)
         if [ "$LIGHTWEIGHT" = true ]; then
@@ -251,6 +286,9 @@ case "$COMMAND" in
             # Full write: auto-archive existing, then signal agent
             _do_archive
 
+            # Detect uncommitted impl files and build warning if any
+            DIRTY_WARNING=$(_dirty_impl_warning)
+
             # For hook triggers, output JSON systemMessage
             if [ "$TRIGGER" = "SessionEnd" ] || [ "$TRIGGER" = "PreCompact" ]; then
                 AGENT_MSG=""
@@ -258,6 +296,9 @@ case "$COMMAND" in
                     AGENT_MSG=" Include agent: ${AGENT_ADDRESS} in YAML frontmatter."
                 fi
                 MSG="Handoff trigger: ${TRIGGER} at ${TIMESTAMP}. Update ${HANDOFF_PATH##*/usr/} with current session state before the session ends. Use type: ${HANDOFF_TYPE} in YAML frontmatter.${AGENT_MSG}"
+                if [ -n "$DIRTY_WARNING" ]; then
+                    MSG="${MSG}"$'\n\n'"${DIRTY_WARNING}"
+                fi
                 command -v jq >/dev/null 2>&1 && {
                     printf '{"systemMessage":%s}' "$(printf '%s' "$MSG" | jq -Rs '.')"
                 } || {
@@ -275,6 +316,11 @@ case "$COMMAND" in
                     echo "handoff [run: ${RUN_ID:-none}]"
                     echo "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual}, type: ${HANDOFF_TYPE}${AGENT_INFO})"
                     echo "✓"
+                fi
+                # Print dirty warning to stderr so the agent sees it
+                if [ -n "$DIRTY_WARNING" ]; then
+                    echo "" >&2
+                    echo "$DIRTY_WARNING" >&2
                 fi
             fi
         fi

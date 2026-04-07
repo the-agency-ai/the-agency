@@ -170,12 +170,22 @@ preview-docker-compose logs     # stream recent logs
 
 ### Capabilities Using SPEC-PROVIDER
 
-| Capability | Invocation | Type | Spec key | Provider naming |
-|-----------|------------|------|----------|----------------|
-| Preview | `/preview` | Skill | `preview.provider` | `preview-{provider}` |
-| Deploy | `/deploy` | Skill | `deploy.provider` | `deploy-{provider}` |
-| Security/Secrets | `/secret` | Command *(skill conversion planned)* | `secrets.provider` | `secret-{provider}` |
+| Capability | Skill | Tool wrapper | Spec key | Provider naming |
+|-----------|-------|--------------|----------|----------------|
+| Preview | `/preview` | *(planned)* | `preview.provider` | `preview-{provider}` |
+| Deploy | `/deploy` | *(planned)* | `deploy.provider` | `deploy-{provider}` |
+| Security/Secrets | `/secret` | `claude/tools/secret` ✅ | `secrets.provider` | `secret-{provider}` |
 | Prototype scaffolding | `/prototype-create` | *(planned)* | `prototype.providers` | `prototype-{provider}` |
+
+### The Three-Layer Triangle for SPEC-PROVIDER
+
+Each SPEC-PROVIDER capability has three layers:
+
+1. **Skill** (`.claude/skills/{name}/SKILL.md`) — agent invocation via `/`. Reads `agency.yaml`, dispatches to the provider tool. The discovery + agent-context layer.
+2. **Tool wrapper** (`claude/tools/{name}`) — CLI dispatcher for non-agent contexts (shell scripts, CI, dev tools). Same logic as the skill: reads `agency.yaml`, execs the provider tool. The mechanical layer.
+3. **Provider tool** (`claude/tools/{name}-{provider}`) — actual implementation for a specific backend (vault, doppler, vercel, etc.). The implementation layer.
+
+The first capability with all three layers complete is `/secret` (in R3). `/preview`, `/deploy`, and `/prototype-create` currently have only the skill + provider layers; the tool wrapper for each is planned. **The structural question of how to organize providers × environments × services is being explored** (see captain's discussion thread with monofolk/devex).
 
 ### Provider Contract
 
@@ -349,6 +359,17 @@ The tool resolves paths automatically from the worktree branch and principal dir
 
 **Always invoke via the `/handoff` skill** — never write handoff files directly, never run the raw tool with `cd /path/to/main &&` (that breaks identity resolution and writes to the wrong agent's file). The `block-raw-handoff` hookify rule enforces this.
 
+### Handoff Integrity Warnings
+
+The `handoff` tool detects uncommitted **implementation files** (not docs, not the handoff itself) and emits a warning header in the handoff body. The next session reading the handoff sees exactly what was left dirty — no false "complete" claims for uncommitted work. This is the integrity rule that prevents the failure mode where one session writes "iteration 1.1 complete" and the next session discovers the code was never committed.
+
+The companion `stop-check.py` hook categorizes uncommitted files at session stop:
+- **Implementation files dirty** → blocks the stop, force the agent to commit or explicitly mark in progress
+- **Handoff file dirty only** → silent (the agent just wrote it)
+- **Documentation files dirty only** → warns but allows stop
+
+This pairs with the "no false complete" rule: handoff content claims must match git reality, and the tooling enforces it mechanically.
+
 ### Trigger Points
 
 | Trigger | Type | Notes |
@@ -489,7 +510,7 @@ Git discipline is enforced by hookify rules. The git-related rules:
 | `block-cd-to-main` | BLOCK | Prevents worktree agents from cd-ing to main repo |
 | `block-raw-git-merge-master` | BLOCK | Forces use of `/sync-all` instead of raw merge |
 
-For the complete enforcement model — Triangle, Ladder, lifecycle hooks, all 33 hookify rules, quality gate tiers, and the permission model — see `claude/README-ENFORCEMENT.md`.
+For the complete enforcement model — Triangle, Ladder, lifecycle hooks, all 36 hookify rules, quality gate tiers, and the permission model — see `claude/README-ENFORCEMENT.md`.
 
 ### Per-Agent Commit Attribution
 
@@ -671,6 +692,8 @@ TheAgency releases use a **Day N - Release M** pattern. Each working day produce
 - **Release dispatch goes to consumer repos** via the collaboration tool — same content as the PR description, formatted for cross-repo consumption
 - **Never push directly to main** — every change reaches origin through a PR
 - **The PR is the release record** — the audit trail of what shipped that day, with full diff and commit history
+
+**Optional: Day/Phase prefix enforcement** — projects can opt in to mechanical enforcement of the convention by setting `commits.require_day_prefix: true` in `agency.yaml`. When enabled, `/git-commit` validates that every commit message lead-line matches `^(Day \d+|Phase \d+(\.\d+|\.M\d+)?|Merge|Revert)`. The validator is provider-agnostic (no Python dependency, awk-based). A `commit-msg` git hook is also installed by `agency init` for defense-in-depth against raw `git commit` invocations. Defaults to off — opt in when your project is consistent enough that the convention can be enforced without false positives.
 
 **Why this pattern:**
 

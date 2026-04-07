@@ -102,7 +102,7 @@ The framework ships with broad permissions:
 **Why so broad?** The security model is layered:
 
 1. **Project boundary** — agents can read/write within the project, nothing outside it. The project root is the security perimeter.
-2. **Hookify rules** — behavioral enforcement happens at the rule layer, not the permission layer. Rules block raw `git commit`, prevent `cd` to the main repo, force the use of skills over raw tools, enforce QGR receipts, etc. See `claude/README-HOOKIFY.md` for the full list (33 rules).
+2. **Hookify rules** — behavioral enforcement happens at the rule layer, not the permission layer. Rules block raw `git commit`, prevent `cd` outside your worktree, force the use of skills over raw tools, enforce QGR receipts, etc. See `claude/README-ENFORCEMENT.md` for the full list (36 rules) and the complete enforcement model.
 3. **Git** — version control is the audit trail. Anything an agent does is reviewable.
 
 Narrow permission patterns (the old approach) created friction — every new command triggered a prompt, blocked legitimate work, and didn't actually improve security. Hookify rules enforce intent; permissions enforce scope.

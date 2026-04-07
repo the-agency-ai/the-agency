@@ -52,7 +52,7 @@ Claude Code fires hooks at well-defined lifecycle events. TheAgency uses these t
 
 | Event | What's Wired |
 |-------|--------------|
-| `SessionStart` | `iscp-check` (mail check), `collaboration check` (cross-repo) |
+| `SessionStart` | `iscp-check` (mail check), `collaboration check` (cross-repo), `worktree-cwd-check` (verify agent is in expected worktree) |
 | `UserPromptSubmit` | `iscp-check` (mail reminder) |
 | `PreToolUse` (Skill) | `ref-injector.sh` (loads referenced docs) |
 | `Stop` | `iscp-check` |
@@ -70,6 +70,20 @@ The shipped template is intentionally minimal. Projects extend it for their own 
 | `ref-injector.sh` | Inject `@`-referenced docs when a skill is invoked |
 | `session-handoff.sh` | Inject the agent's handoff on `SessionStart` |
 | `tool-telemetry.sh` | Log every tool invocation to `~/.claude/telemetry/{date}.jsonl` |
+
+**Available tools used by hooks** (called from settings.json hook commands):
+
+| Tool | Purpose |
+|------|---------|
+| `claude/tools/iscp-check` | "You got mail" notification — fires on SessionStart, UserPromptSubmit, Stop |
+| `claude/tools/collaboration check` | Pull cross-repo dispatches and surface unread items |
+| `claude/tools/worktree-cwd-check` | Verify the agent's CWD matches their worktree at session start (Layer 1 of cd-stays-in-worktree) |
+
+**Git hook templates:**
+
+| Hook | Purpose | Where |
+|------|---------|-------|
+| `commit-msg` | Validate commit message against the Day/Phase prefix convention when `commits.require_day_prefix` is enabled in `agency.yaml` | Installed by `agency init` (or `agency update`) into `.git/hooks/commit-msg` |
 
 **Important:** `$CLAUDE_PROJECT_DIR` is **only set inside hook execution**, not in agent Bash tool calls. Agents must use `./claude/tools/` (relative paths) when invoking tools — never `$CLAUDE_PROJECT_DIR/claude/tools/...` from a Bash command.
 
@@ -94,9 +108,12 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 |------|------|-------------|-------------|
 | `block-git-commit` | Block | Blocks raw `git commit` | `/git-commit` skill or `./claude/tools/git-commit` |
 | `block-cd-to-main` | Block | Blocks `cd /Users/...` and absolute paths to tools | `./claude/tools/{name}` (relative paths from worktree) |
+| `block-cd-outside-worktree` | Block | Blocks any `cd` that takes the agent outside their worktree | Stay in worktree, use absolute paths via Read/Write tools |
+| `block-git-add-and-commit` | Block | Blocks the compound `git add ... && git commit` form | `/git-commit` skill (separate Bash calls if you must) |
 | `block-raw-handoff` | Block | Blocks raw `claude/tools/handoff` invocations | `/handoff` skill |
 | `block-no-verify` | Block | Blocks `git commit --no-verify` and similar bypasses | Fix the underlying issue |
 | `block-force-push-main` | Block | Blocks `git push --force` to main | Don't force-push main, ever |
+| `block-raw-git-config-user-in-tests` | Block | Blocks bare `git config user.*` in BATS tests | Use `test_isolation_setup` from `test_helper.bash` |
 | `require-qgr` | Block *(planned)* | Will block commits without a matching QGR receipt — not yet wired | Run `/iteration-complete` or `/phase-complete` |
 | `require-plan-update` | Warn | Warns when committing without updating the plan file | Update `usr/{principal}/{project}/{project}-plan-*.md` |
 | `directive-authority` | Block | Only captain can create `--type directive` dispatches | Use a different dispatch type |
@@ -109,9 +126,12 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 | Rule | What It Blocks | Use Instead |
 |------|---------------|-------------|
 | `block-cd-to-main` | `cd /Users/.../the-agency &&` and absolute paths to `claude/tools/` | `./claude/tools/{name}` |
+| `block-cd-outside-worktree` | Any `cd` that resolves to a path outside the agent's worktree | Stay in worktree; use absolute paths to Read/Write outside |
 | `block-force-push-main` | `git push --force` to main/master | Don't force-push main |
+| `block-git-add-and-commit` | The compound `git add ... && git commit ...` pattern | `/git-commit` skill (or separate Bash calls if you must) |
 | `block-git-commit` | Raw `git commit` | `/git-commit` skill |
 | `block-no-verify` | `--no-verify`, `--no-gpg-sign`, etc. | Fix the underlying issue |
+| `block-raw-git-config-user-in-tests` | Bare `git config user.name`/`user.email` in BATS test files | Use `test_isolation_setup` from `test_helper.bash` |
 | `block-raw-git-merge-master` | Raw `git merge master` | `/sync-all` skill |
 | `block-raw-handoff` | Raw `claude/tools/handoff` | `/handoff` skill |
 | `block-system-install` | `brew install`, `apt install`, etc. | Ask principal first |

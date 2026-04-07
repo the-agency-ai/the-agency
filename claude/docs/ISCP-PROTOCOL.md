@@ -80,3 +80,17 @@ Four states: **unread** → **read** (on `dispatch read`) → **resolved** (on `
 When an agent commits via `/iteration-complete`, the `git-commit` tool auto-creates a commit dispatch to captain with structured YAML: `commit_hash`, `stage_hash`, `branch`, `phase`, `iteration`, `files_changed`. Captain verifies QGR receipt via stage-hash match, merges, and syncs worktrees.
 
 Dispatch-on-commit is fire-and-forget from the committing agent's perspective — if captain is not running, dispatches queue in the DB. No blocking.
+
+### Schema Versioning (V2 Phase 2.0)
+
+The ISCP DB uses SQLite's `PRAGMA user_version` for schema versioning. The framework ships migration code via `_iscp_run_migrations` and per-version functions named `_iscp_migration_v<N>`. The runner walks from `current_version+1` to `ISCP_SCHEMA_VERSION`, wrapping each migration in `BEGIN EXCLUSIVE`/`COMMIT` for concurrency safety (multiple agents share one DB).
+
+**How to add a new migration:**
+
+1. Bump `ISCP_SCHEMA_VERSION` constant in `claude/tools/lib/_iscp-db`
+2. Define `_iscp_migration_v<N>()` returning the SQL (heredoc)
+3. The runner picks it up automatically on next `iscp_db_init` call
+
+**Coordination requirement:** Schema bumps are multi-worktree events. All worktrees on the machine share the DB. If one worktree bumps to v2 but another worktree's tools still expect v1, the v1 tools will refuse to run (`FATAL: DB schema version 2 is newer than expected 1`). Schema changes must be planned as coordinated deploys: all worktrees pull the new tools first, THEN the version bump lands. Tools support runtime column detection (`PRAGMA table_info`) where possible, allowing the schema to be ahead of any individual worktree's expected version without breaking.
+
+**Currently shipped:** v1 schema (initial). Migration framework lands in R3. The first column-add migration (flag categories) is queued for a future release once the multi-worktree coordination is in place.
