@@ -24,7 +24,7 @@ claude/                    — framework (tools, agents, docs, hooks, config)
     FEEDBACK-FORMAT.md     — bug report / feature request template
     CODE-REVIEW-LIFECYCLE.md — dispatch handling protocol
     DEVELOPMENT-METHODOLOGY.md — full Seed→Reference lifecycle
-  hooks/                   — session hooks (ref-injector, tool-telemetry, session-handoff, branch-freshness, quality-check, plan-capture)
+  hooks/                   — session hooks (ref-injector for skills; project-local hooks added per project)
   hookify/                 — shipped behavioral rules
   tools/                   — all tools (bash, python, rust, compiled)
     lib/                   — tool libraries (_log-helper, _path-resolve, etc.)
@@ -387,9 +387,11 @@ Worktree agents implement features on isolated branches. They build, test, and l
 - The `iscp-check` hook automatically notifies you of unread dispatches on SessionStart — you don't need to merge master to know about them. However, you still need to merge master to access dispatch payload files (the DB notification tells you the file exists; the payload lives on master).
 - Never push to origin directly — the captain manages PR branches and pushes.
 
+**Critical: never `cd` to the main checkout from a worktree.** Agent identity resolution uses the current working directory's git branch. When a worktree agent `cd`s to the main repo, `agent-identity` resolves the branch as `main` → identity becomes `captain` → handoffs and dispatches go to the wrong agent. The `block-cd-to-main` hookify rule blocks this pattern (and absolute paths to tools in the main repo). **Always use relative paths from your worktree:** `./claude/tools/dispatch list`, never `cd /path/to/main && ./claude/tools/dispatch list` or `/Users/.../the-agency/claude/tools/dispatch list`.
+
 ### When to Create a Worktree
 
-- **New prototype or feature** — always a worktree. Use `/workstream-create` or `/prototype-create`.
+- **New prototype or feature** — always a worktree. Use `/workstream-create` or `/prototype-create` (planned via SPEC-PROVIDER pattern).
 - **Bug fix or small change** — can work on master if it's a quick fix that doesn't need isolation.
 - **Dispatch handling** — `iscp-check` notifies the worktree agent automatically. The agent runs `dispatch read <id>` to see the payload. If the payload file is on master, merge master first to access it.
 
@@ -435,9 +437,36 @@ The `iscp-check` hook fires on SessionStart, UserPromptSubmit, and Stop. It quer
 - **Mid-session:** Act on mail at a natural break, not immediately
 - **Dispatch types:** directive (do this), review (fix these), seed (input material), escalation (urgent)
 
+### Cross-Repo Communication
+
+ISCP is local to each repo (the SQLite DB lives at `~/.agency/{repo-name}/iscp.db`). Cross-repo dispatches use **collaboration repos** — git-file-based messaging since the two repos don't share a DB.
+
+**The collaboration tool** (`claude/tools/collaboration`) is captain-only. It manages cross-repo dispatch lifecycle: pull, check, read, reply, resolve, push.
+
+```bash
+collaboration check                    # Pull all repos, scan for unread
+collaboration list                     # List configured repos
+collaboration read <repo> <file>       # Read and mark as read
+collaboration reply <repo> --to <file> --subject <text> --body <text>
+collaboration resolve <repo> <file>    # Mark resolved
+collaboration push <repo>              # Commit and push status updates + replies
+```
+
+**Configuration** in `claude/config/agency.yaml`:
+```yaml
+collaboration:
+  repos:
+    monofolk:
+      path: "~/code/collaboration-monofolk"
+      inbound: "dispatches/monofolk-to-the-agency"
+      outbound: "dispatches/the-agency-to-monofolk"
+```
+
+Use the `/collaborate` skill — never invoke the raw tool directly.
+
 ### Reference
 
-Full details: `claude/workstreams/iscp/iscp-reference-20260405.md`
+Full details: `claude/workstreams/iscp/iscp-reference-20260405.md` and `claude/docs/ISCP-PROTOCOL.md`
 
 ## Discussion Protocol (1B1)
 

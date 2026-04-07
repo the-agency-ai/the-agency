@@ -29,7 +29,7 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 
 ### Methodology
 - **Quality gates** — multi-agent parallel review (4+ specialized agents: code, security, design, test), red→green test cycle, QGR (Quality Gate Report) receipts at every commit boundary. The QGR is both the report format (3 tables + narrative) and a standalone receipt file tied to the exact staged content via a deterministic stage hash. `/git-commit` verifies a receipt exists before committing — no QG means no commit.
-- **Development flow** — Seed → Discussion → PVR → A&D → Plan → Implement. Living documents evolve through implementation; Reference produced at plan completion.
+- **Development flow (Valueflow)** — Gleam → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value. Living documents evolve through implementation; Reference produced at plan completion. Full description in the Valueflow section below.
 - **Discussion protocol** — 1B1 (one-by-one) for structured decision-making. Resolve each item before moving to the next.
 - **Commit discipline** — five boundary types (iteration-complete, phase-complete, plan-complete, pr-prep, pre-phase-review), never partial work, never raw `git commit`
 - **Session handoff** — context bootstrap for any purpose (agent-to-agent, cold start, compaction survival)
@@ -232,6 +232,12 @@ Three tables + checks + narrative:
 - **Quality Phases** — dedicated phases focused on inspection, test development, and issue remediation. Like a HIP sprint. Still get a QG and QGR.
 - **PR QG** — full diff against origin/master before PR creation. Run via `/pr-prep`.
 
+### Day Counting Convention
+
+Working day commits lead with `Day N:` where N counts working days per repo (or per workstream for workstream-scoped work). Day 1 is the first day of active work on the repo. "Day 32: foo" means the 32nd day of active work. Compare to calendar days for velocity signal.
+
+Day counting and Phase-Iteration slugs are complementary — coordination commits use `Day N:` (e.g., infrastructure fixes, friction analysis), feature commits use `Phase X.Y:` (e.g., implementation work).
+
 ### Commit Message Format
 
 Boundary commits lead with the Phase-Iteration slug:
@@ -315,7 +321,7 @@ captain builds PR branch → /captain-review → dispatch findings (if any) → 
 
 ### When to Use a Worktree
 
-- **New prototype or feature** — always. Use `/workstream-create` or `/prototype-create`.
+- **New prototype or feature** — always. Use `/workstream-create` or `/prototype-create` (planned via SPEC-PROVIDER pattern).
 - **Quick fix on master** — small, isolated changes that don't need a branch.
 - **Dispatch handling** — the worktree agent merges master to pick up the dispatch, fixes issues, lands via `/iteration-complete`.
 
