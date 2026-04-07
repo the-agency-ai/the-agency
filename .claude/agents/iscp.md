@@ -1,7 +1,7 @@
 ---
 name: iscp
 description: "ISCP agent — flag, dispatch, and inter-session communication protocol"
-model: opus
+model: opus[1m]
 ---
 
 @usr/jordan/iscp/CLAUDE-ISCP.md

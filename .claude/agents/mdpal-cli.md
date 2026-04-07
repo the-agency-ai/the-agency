@@ -1,7 +1,7 @@
 ---
 name: mdpal-cli
 description: "Define, design, and build Markdown Pal CLI — the section-oriented Markdown engine and CLI tool"
-model: opus
+model: opus[1m]
 ---
 
 **On startup, immediately do these in order:**
