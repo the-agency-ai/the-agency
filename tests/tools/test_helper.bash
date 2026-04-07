@@ -39,6 +39,16 @@ test_isolation_setup() {
         return 0
     fi
 
+    # 0. Clean leaked git env vars (CRITICAL when running inside a pre-commit hook).
+    # Without this, BATS tests inherit GIT_DIR/GIT_INDEX_FILE/GIT_WORK_TREE from
+    # the parent commit operation. Calls to `git config user.email/name` then
+    # write to the OUTER repo's local config, polluting it with [user] section
+    # and corrupting commit attribution. This bug authored every commit in the
+    # devex session as "Test User <test@test.com>" before the fix.
+    unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+    unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE
+    unset GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE
+
     # 1. Isolate HOME (DB path, cache, dotfiles, etc.)
     export ORIGINAL_HOME="${HOME}"
     export HOME="${BATS_TEST_TMPDIR}/fakehome"
@@ -80,6 +90,12 @@ test_isolation_teardown() {
         current_hash=$(md5 -q "$REPO_ROOT/.git/config" 2>/dev/null || md5sum "$REPO_ROOT/.git/config" 2>/dev/null | awk '{print $1}')
         if [[ "$current_hash" != "$_TEST_GIT_CONFIG_HASH" ]]; then
             echo "CRITICAL: BATS test modified live .git/config! Hash before=$_TEST_GIT_CONFIG_HASH after=$current_hash" >&2
+            # Specific check: did a [user] section get added? This is the most common
+            # pollution vector — tests calling 'git config user.email/name' inside a
+            # pre-commit hook context where GIT_DIR points to the outer repo.
+            if grep -q "^\[user\]" "$REPO_ROOT/.git/config" 2>/dev/null; then
+                echo "  → [user] section found in live .git/config — test polluted commit attribution" >&2
+            fi
             return 1
         fi
     fi
