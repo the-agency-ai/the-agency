@@ -216,8 +216,8 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 | 1 | 1.2 Test Scoper | **Complete** |
 | 1 | 1.3 Commit-Precheck Rewrite | **Complete** |
 | 1 | 1.4 Tests for Pre-Commit | **Complete** |
-| 2 | 2.1 Docker Runner Extension | Not started |
-| 2 | 2.2 T3 Integration + Fallback | Not started |
+| 2 | 2.1 Docker Runner Extension | **Complete** |
+| 2 | 2.2 T3 Integration + Fallback | **Complete** |
 | 3 | 3.1 Permission Model Audit | Not started |
 | 3 | 3.2 Enforcement Registry + Audit | Not started |
 | 3 | 3.3 Context Budget Linter | Not started |
