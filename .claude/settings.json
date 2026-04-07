@@ -181,15 +181,9 @@
       "Bash(npx vitest *)",
       "Bash(npm *)",
       "Bash(gh *)",
-      "Read(.claude/**)",
-      "Read(claude/**)",
-      "Read(usr/**)",
-      "Edit(.claude/**)",
-      "Edit(claude/**)",
-      "Edit(usr/**)",
-      "Write(.claude/**)",
-      "Write(claude/**)",
-      "Write(usr/**)",
+      "Read(**)",
+      "Edit(**)",
+      "Write(**)",
       "Bash(sed *)"
     ]
   }
