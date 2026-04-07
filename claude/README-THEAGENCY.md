@@ -63,7 +63,7 @@ Valueflow is TheAgency's methodology — the complete path from an idea to value
 Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
 ```
 
-**Seed.** An idea — a thought, conversation, observation, flag. Capture it. Route it to a workstream.
+**Seed.** An idea — a thought, conversation, observation, flag. That gleam in someone's eye, captured. Route it to a workstream.
 
 **Research (MARFI).** Multi-Agent Request for Information. Before defining, gather input. Research agents explore competitors, prior art, implementation approaches in parallel. Cross-cutting research only — domain-specific exploration is the agent's normal work.
 
@@ -336,14 +336,16 @@ Handoff files are a first-class Agency primitive. They serve multiple purposes b
 
 ### How It Works
 
-Handoff files live at `usr/{principal}/{project}/handoff.md`. The `claude/tools/handoff` tool manages the lifecycle:
+Handoff files live at `usr/{principal}/{project}/{agent}-handoff.md` — one per agent (e.g., `captain-handoff.md`, `iscp-handoff.md`, `devex-handoff.md`). The `claude/tools/handoff` tool manages the lifecycle and uses `agent-identity` to resolve which file to write based on the current branch/worktree.
 
-- **`handoff write`** — auto-archives the existing handoff to `history/handoff-YYYYMMDD-HHMMSS.md`, then signals the agent to write new content
+- **`handoff write`** — auto-archives the existing handoff to `history/{agent}-handoff-YYYYMMDD-HHMMSS.md`, then signals the agent to write new content
 - **`handoff write --lightweight`** — appends/updates a status line without archiving (for `/sync-all`)
-- **`handoff read`** — outputs current handoff content (used by session-start hooks to inject context)
+- **`handoff read`** — outputs current handoff content
 - **`handoff archive`** — manually archive without writing
 
-The tool resolves paths automatically from the git branch and principal directory. Handoff writing is **manual** — agents must invoke the `/handoff` skill (or run `./claude/tools/handoff write`) at the appropriate trigger points below. There is no automatic handoff hook today; the `Stop` hook checks for uncommitted changes but does not write handoffs.
+The tool resolves paths automatically from the worktree branch and principal directory. Handoff writing is **manual** — agents must invoke the `/handoff` skill (or run `./claude/tools/handoff write`) at the appropriate trigger points below. There is no automatic handoff hook today; the `Stop` hook checks for uncommitted changes but does not write handoffs.
+
+**Always invoke via the `/handoff` skill** — never write handoff files directly, never run the raw tool with `cd /path/to/main &&` (that breaks identity resolution and writes to the wrong agent's file). The `block-raw-handoff` hookify rule enforces this.
 
 ### Trigger Points
 

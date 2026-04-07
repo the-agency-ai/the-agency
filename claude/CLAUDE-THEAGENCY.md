@@ -301,7 +301,7 @@ This is how we develop. Not a suggestion — the process.
 Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
 ```
 
-1. **Idea** — a thought, observation, conversation. Pre-seed.
+1. **Idea** — a thought, observation, conversation. That gleam in someone's eye. Pre-seed.
 2. **Seed** — captured starting point (document, transcript, idea, flag). Launches the discussion.
 3. **Research (MARFI)** — Multi-Agent Request for Information. Captain drafts research questions, principal reviews, agents execute in parallel. Cross-cutting research only.
 4. **Define (PVR)** — Product Vision & Requirements. The _what_ and _why_. Use `/define`. MAR reviews it.
@@ -397,7 +397,7 @@ Worktree agents implement features on isolated branches. They build, test, and l
 
 ## Session Handoff
 
-Handoff files are a first-class Agency primitive for context bootstrapping. They live at `usr/{{principal}}/{project}/handoff.md`, are version controlled, and auto-rotate (each write archives the previous to `history/` with timestamp via `claude/tools/handoff`).
+Handoff files are a first-class Agency primitive for context bootstrapping. They live at `usr/{principal}/{project}/{agent}-handoff.md` (one per agent — `captain-handoff.md`, `iscp-handoff.md`, etc.), are version controlled, and auto-rotate (each write archives the previous to `history/` with timestamp via `claude/tools/handoff`). The tool uses `agent-identity` to resolve which file to write based on the current branch/worktree.
 
 Handoffs are not just session continuity — they bootstrap context for any purpose: agent-to-agent transfer, cold start, project setup, compaction survival, or spinning up a new agent into a desired state. The tool handles infrastructure; the agent writes the content.
 
