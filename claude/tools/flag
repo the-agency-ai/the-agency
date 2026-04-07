@@ -59,24 +59,44 @@ _my_identity() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 cmd_flag() {
-    local to_agent="" message=""
+    local to_agent="" message="" category=""
 
-    # Parse --to if present
-    if [[ "${1:-}" == "--to" ]]; then
-        [[ -n "${2:-}" ]] || { echo "Error: --to requires an agent address" >&2; return 1; }
-        # Resolve the target address — must resolve to fully qualified
-        address_resolve "$2" 2>/dev/null || address_parse "$2" 2>/dev/null || {
-            echo "Error: invalid --to address: $2" >&2; return 1
-        }
-        # M3 fix: require fully qualified — bare addresses become invisible to iscp-check
-        if [[ -z "${ADDR_REPO:-}" || -z "${ADDR_PRINCIPAL:-}" || -z "${ADDR_AGENT:-}" ]]; then
-            echo "Error: --to address '$2' could not be fully resolved" >&2
-            echo "Use fully qualified form: repo/principal/agent" >&2
-            return 1
-        fi
-        to_agent=$(address_format "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT")
-        shift 2
-    fi
+    # Parse leading flags in any order: --to, --friction, --idea, --bug
+    while [[ $# -gt 0 ]]; do
+        case "${1:-}" in
+            --to)
+                [[ -n "${2:-}" ]] || { echo "Error: --to requires an agent address" >&2; return 1; }
+                address_resolve "$2" 2>/dev/null || address_parse "$2" 2>/dev/null || {
+                    echo "Error: invalid --to address: $2" >&2; return 1
+                }
+                if [[ -z "${ADDR_REPO:-}" || -z "${ADDR_PRINCIPAL:-}" || -z "${ADDR_AGENT:-}" ]]; then
+                    echo "Error: --to address '$2' could not be fully resolved" >&2
+                    echo "Use fully qualified form: repo/principal/agent" >&2
+                    return 1
+                fi
+                to_agent=$(address_format "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT")
+                shift 2
+                ;;
+            --friction)
+                [[ -n "$category" ]] && { echo "Error: only one category flag allowed (got --friction after --$category)" >&2; return 1; }
+                category="friction"
+                shift
+                ;;
+            --idea)
+                [[ -n "$category" ]] && { echo "Error: only one category flag allowed (got --idea after --$category)" >&2; return 1; }
+                category="idea"
+                shift
+                ;;
+            --bug)
+                [[ -n "$category" ]] && { echo "Error: only one category flag allowed (got --bug after --$category)" >&2; return 1; }
+                category="bug"
+                shift
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
 
     # Rest is the message
     message="$*"
@@ -99,7 +119,7 @@ cmd_flag() {
     local branch
     branch=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 
-    iscp_db_insert_flag "$from_agent" "$to_agent" "$message" "$session" "$branch"
+    iscp_db_insert_flag "$from_agent" "$to_agent" "$message" "$session" "$branch" "$category"
 
     # Count unread for this agent
     local counts
@@ -113,34 +133,68 @@ cmd_flag() {
 cmd_list() {
     iscp_db_init
 
+    # Parse optional --category filter
+    local filter_category=""
+    while [[ $# -gt 0 ]]; do
+        case "${1:-}" in
+            --category)
+                [[ -n "${2:-}" ]] || { echo "Error: --category requires a value (friction|idea|bug)" >&2; return 1; }
+                case "$2" in
+                    friction|idea|bug) filter_category="$2"; shift 2 ;;
+                    *) echo "Error: unknown category '$2' (expected friction|idea|bug)" >&2; return 1 ;;
+                esac
+                ;;
+            *) shift ;;
+        esac
+    done
+
     local my_agent
     my_agent=$(_my_identity) || return 1
 
     local result
-    result=$(iscp_db_query "SELECT id, created_at, from_agent, message, status FROM flags WHERE to_agent = :agent ORDER BY created_at" ":agent" "$my_agent")
+    if [[ -n "$filter_category" ]]; then
+        result=$(iscp_db_query \
+            "SELECT id, created_at, from_agent, message, status, IFNULL(category, '') FROM flags WHERE to_agent = :agent AND category = :cat ORDER BY created_at" \
+            ":agent" "$my_agent" ":cat" "$filter_category")
+    else
+        result=$(iscp_db_query \
+            "SELECT id, created_at, from_agent, message, status, IFNULL(category, '') FROM flags WHERE to_agent = :agent ORDER BY created_at" \
+            ":agent" "$my_agent")
+    fi
 
     if [[ -z "$result" ]]; then
-        echo "flag: no flags"
+        if [[ -n "$filter_category" ]]; then
+            echo "flag: no flags in category '$filter_category'"
+        else
+            echo "flag: no flags"
+        fi
         return 0
     fi
 
-    echo "Flag Queue:"
+    echo "Flag Queue${filter_category:+ ($filter_category)}:"
     echo ""
     local n=0
-    while IFS='|' read -r id created from_ag msg status; do
+    while IFS='|' read -r id created from_ag msg status cat; do
         n=$((n + 1))
         local marker=""
         [[ "$status" == "unread" ]] && marker=" [NEW]"
-        echo "  $n. [$created] $msg${marker}"
+        local cat_tag=""
+        [[ -n "$cat" ]] && cat_tag=" {$cat}"
+        echo "  $n.${cat_tag} [$created] $msg${marker}"
     done <<< "$result"
     echo ""
     echo "$n item(s)"
 
-    # Mark all unread as read (Slack-style seen)
+    # Mark all unread as read (Slack-style seen) — scoped to the same filter
     local now
     now=$(date -u +%Y-%m-%dT%H:%M)
-    iscp_db_exec "UPDATE flags SET status = 'read', read_at = :now WHERE to_agent = :agent AND status = 'unread'" \
-        ":now" "$now" ":agent" "$my_agent"
+    if [[ -n "$filter_category" ]]; then
+        iscp_db_exec "UPDATE flags SET status = 'read', read_at = :now WHERE to_agent = :agent AND status = 'unread' AND category = :cat" \
+            ":now" "$now" ":agent" "$my_agent" ":cat" "$filter_category"
+    else
+        iscp_db_exec "UPDATE flags SET status = 'read', read_at = :now WHERE to_agent = :agent AND status = 'unread'" \
+            ":now" "$now" ":agent" "$my_agent"
+    fi
 }
 
 cmd_count() {
@@ -261,18 +315,24 @@ cmd_help() {
 flag — ISCP flag tool (v2) — Quick-capture observations
 
 Usage:
-  flag <message>                Flag to self
-  flag --to <agent> <message>   Flag to specific agent
-  flag list                     Show flags, mark as read
-  flag count                    Count unread flags
-  flag discuss                  Output as /discuss agenda, mark processed
-  flag clear                    Mark all as processed
-  flag resolve <id> [<id>...]   Mark specific flag(s) as processed
-  flag --version                Show version
-  flag --help                   Show help
+  flag <message>                       Flag to self
+  flag --to <agent> <message>          Flag to specific agent
+  flag --friction <message>            Flag friction (improvement candidate)
+  flag --idea <message>                Flag idea (seed candidate)
+  flag --bug <message>                 Flag bug (fix candidate)
+  flag --to <agent> --bug <message>    Categories combine with --to
+  flag list                            Show all flags, mark as read
+  flag list --category friction        Show only friction flags
+  flag count                           Count unread flags
+  flag discuss                         Output as /discuss agenda, mark processed
+  flag clear                           Mark all as processed
+  flag resolve <id> [<id>...]          Mark specific flag(s) as processed
+  flag --version                       Show version
+  flag --help                          Show help
 
 Flags are DB-only — no git payload, instant capture from any worktree.
 Three-state lifecycle: unread → read (on list) → processed (on discuss/clear).
+Categories: friction (improvement), idea (seed), bug (fix). Optional.
 HELP
 }
 
@@ -288,7 +348,7 @@ fi
 RUN_ID=$(log_start "flag" "$@")
 
 case "$1" in
-    list)    cmd_list; log_end "$RUN_ID" "success" "0" "0" "flag list" ;;
+    list)    shift; cmd_list "$@"; log_end "$RUN_ID" "success" "0" "0" "flag list" ;;
     count)   cmd_count; log_end "$RUN_ID" "success" "0" "0" "flag count" ;;
     discuss) cmd_discuss; log_end "$RUN_ID" "success" "0" "0" "flag discuss" ;;
     clear)   cmd_clear; log_end "$RUN_ID" "success" "0" "0" "flag clear" ;;

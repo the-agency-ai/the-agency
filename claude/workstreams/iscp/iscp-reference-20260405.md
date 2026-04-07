@@ -1,9 +1,18 @@
 # ISCP v1 — Reference
 
 **Workstream:** iscp
-**Date:** 2026-04-05
-**Status:** Complete (Phases 1 + 2)
+**Date:** 2026-04-05 (verified 2026-04-07 against main)
+**Status:** Complete (Phases 1 + 2). v1 fully merged to main. Phase 2 (V2 work) in progress.
 **Agent:** the-agency/jordan/iscp
+
+## v1 Verification (2026-04-07)
+
+ISCP v1 verified against main checkout for Phase 2 baseline:
+
+- **Tests:** 174/174 BATS green on main, 182/182 on iscp worktree (8 additional Phase 2.0 migration framework tests)
+- **Symlink dispatch payload resolution:** verified end-to-end. Symlinks in `~/.agency/the-agency/dispatches/` resolve to live git artifacts across all worktrees (main, iscp, devex, mdpal-cli). `dispatch read` follows symlinks transparently.
+- **Structured commit dispatch metadata:** verified present in commit-type dispatches. Fields: `commit_hash`, `branch`, `files_changed`, `stage_hash`, `work_item`, agent identity.
+- **Schema versioning framework:** Phase 2.0 done (commits `dfa9f2f` + `e24b2b4`). Migration runner `_iscp_run_migrations` plus `_iscp_migrate_v0_to_v1`. Ready for v1→v2 migration in Phase 2.3 (flag categories).
 
 ---
 
