@@ -3,7 +3,7 @@ type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
 date: 2026-04-07
-trigger: MAR review dispatch #96 completed
+trigger: principal requested handoff for exit/resume
 ---
 
 ## Identity
@@ -12,7 +12,30 @@ the-agency/jordan/devex — tech-lead on the devex workstream. I own test infras
 
 ## Current State
 
-Completed MAR review of Valueflow V2 implementation plan (dispatch #96). Sent review-response dispatch #99 to captain with 14 findings. No implementation started. No DevEx PVR written yet.
+Session was brief — startup investigation only, no code changes. Still awaiting captain's triage of MAR review findings (dispatch #99) and Valueflow plan approval before starting Phase 3.
+
+## Investigation: commit-precheck / test-run (the burning problem)
+
+Analyzed the full commit-time test execution chain. Key findings:
+
+1. **`commit-precheck`** classifies staged files via `has_app_code()` — checks for .ts/.js/.py/.rs etc.
+2. **Bash tools (`claude/tools/*`) don't match** `has_app_code()`, so tool changes get NO test coverage in pre-commit. Meanwhile, any app code change triggers ALL 703 BATS tests (32 files).
+3. **`test-run`** reads `agency.yaml` with a single suite: `bats tests/tools/` — runs everything, no scoping.
+4. **No git pre-commit hook** — commit-precheck is invoked by Agency tooling, not git hooks.
+5. **`git-commit`** does NOT call commit-precheck — it runs `git commit` directly.
+
+### Fix needed (two parts):
+- **Part A:** `has_app_code()` must recognize bash/shell scripts in `claude/tools/` as testable code
+- **Part B:** Smart test scoping — map staged files to relevant test files:
+  - `claude/tools/{name}` → `tests/tools/{name}.bats` + `tests/tools/{name}-*.bats`
+  - `claude/tools/lib/{name}` → run all tests (conservative — libs are cross-cutting)
+  - `tests/tools/{name}.bats` → run that test file directly
+  - Non-tool files (docs, config, markdown) → skip tests (fast path)
+
+### Identity bug confirmed (flag #27)
+- `agent-identity` resolves to captain on devex worktree
+- Handoff tool writes to `usr/jordan/captain/` instead of `usr/jordan/devex/`
+- Root cause: CLAUDE_PROJECT_DIR unset + no .agency-agent + SCRIPT_DIR fallback to main checkout
 
 ## Valueflow Context
 
@@ -23,40 +46,23 @@ Completed MAR review of Valueflow V2 implementation plan (dispatch #96). Sent re
 
 Read the A&D on startup — it assigns work to DevEx: section 4 enforcement ladder, section 6 quality gates, section 9 context budget linter.
 
-## Active Work
-
-MAR review complete. Awaiting captain's triage of my 14 findings and principal approval of the plan. Once approved, captain dispatches seed with my assigned phases (Phase 3, Phase 5 partial).
-
-Key findings from my review:
-- Phase 3 scope is correct, well-sequenced
-- "Scope brief" artifact type needs definition (finding #2)
-- Co-ship 3.4 + Phase 1 M4 is workable but needs M1-M3 on master for testing (finding #3)
-- Phase 5.0 handoff schema contract needs concrete example, not just field names (finding #4)
-- Several acceptance criteria need tightening (findings #5, #8, #9, #10)
-- BATS .git/config corruption is an unacknowledged pre-existing blocker (finding #13)
-
 ## Key Decisions
 
 - T1 gate: stage-hash + compile + format + fast tests, **60s budget** (Valueflow A&D section 6)
 - Convention-based test scoping (path mirroring) as default, package-level fallback
-- Enforcement registry: `claude/config/enforcement.yaml` + audit tool. **No registry without auditor.**
-- Context budget linter: **Ships with CLAUDE-THEAGENCY.md decomposition or neither ships.**
-- Hooks I implement: `WorktreeCreate`, `PostCompact`
-- Permission model: settings-template audit, zero-prompt for safe ops — I own
+- Enforcement registry: `claude/config/enforcement.yaml` + audit tool
+- Context budget linter: ships with CLAUDE-THEAGENCY.md decomposition or neither ships
 
 ## Open Items
 
-- Seeds to process: #29 (test management boundaries), #31 (test reporting service), #36 (permission model overhaul)
-- Dispatch #76 (polling tip from ISCP)
-- Write DevEx PVR — use `/define` with the seed (after plan approval)
-- The burning problem: `claude/tools/commit-precheck` runs all 155 tests on every commit. Rewrite with smart scoping.
+- 27 flags in queue (permissions friction, MAR process, conventions, seeds)
+- Seeds to process: #29 (test boundaries), #31 (test reporting), #36 (permission model)
 - BATS tests corrupt `.git/config` — happened 4+ times in Day 30 session
-- 4 flags in queue (SMS dispatches, captain's log, friction toolification, release notes)
+- Write DevEx PVR via `/define`
 
-## Startup Actions
+## Next Action
 
 1. Set dispatch loop: `/loop 5m dispatch check`
-2. Process unread dispatches: `dispatch list`
-3. Process unread flags: `flag list`
-4. Check if captain has triaged review findings and plan is approved
-5. If approved: read seed dispatch, begin Phase 3.1 (QG tier definitions)
+2. **Implement smart test scoping** for commit-precheck (Part A + Part B above) — investigation done, ready to implement
+3. Fix identity bug (flag #27) — `.agency-agent` file missing in worktree
+4. Check if captain has triaged MAR findings and plan is approved
