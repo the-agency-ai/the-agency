@@ -298,10 +298,10 @@ This is how we develop. Not a suggestion — the process.
 ### The Flow (Valueflow)
 
 ```
-Gleam → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
+Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
 ```
 
-1. **Gleam** — a thought, observation, conversation. Pre-seed.
+1. **Idea** — a thought, observation, conversation. Pre-seed.
 2. **Seed** — captured starting point (document, transcript, idea, flag). Launches the discussion.
 3. **Research (MARFI)** — Multi-Agent Request for Information. Captain drafts research questions, principal reviews, agents execute in parallel. Cross-cutting research only.
 4. **Define (PVR)** — Product Vision & Requirements. The _what_ and _why_. Use `/define`. MAR reviews it.

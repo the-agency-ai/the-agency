@@ -10,7 +10,7 @@
 
 Before installing, here are the terms you'll see throughout the docs:
 
-- **Valueflow** — the development lifecycle: `Gleam → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value`
+- **Valueflow** — the development lifecycle: `Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value`
 - **PVR** — Product Vision & Requirements (the *what* and *why*)
 - **A&D** — Architecture & Design (the *how* and *why*)
 - **MARFI** — Multi-Agent Request for Information (research)

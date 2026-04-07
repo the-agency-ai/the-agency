@@ -29,7 +29,7 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 
 ### Methodology
 - **Quality gates** — multi-agent parallel review (4+ specialized agents: code, security, design, test), red→green test cycle, QGR (Quality Gate Report) receipts at every commit boundary. The QGR is both the report format (3 tables + narrative) and a standalone receipt file tied to the exact staged content via a deterministic stage hash. `/git-commit` verifies a receipt exists before committing — no QG means no commit.
-- **Development flow (Valueflow)** — Gleam → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value. Living documents evolve through implementation; Reference produced at plan completion. Full description in the Valueflow section below.
+- **Development flow (Valueflow)** — Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value. Living documents evolve through implementation; Reference produced at plan completion. Full description in the Valueflow section below.
 - **Discussion protocol** — 1B1 (one-by-one) for structured decision-making. Resolve each item before moving to the next.
 - **Commit discipline** — five boundary types (iteration-complete, phase-complete, plan-complete, pr-prep, pre-phase-review), never partial work, never raw `git commit`
 - **Session handoff** — context bootstrap for any purpose (agent-to-agent, cold start, compaction survival)
@@ -60,10 +60,10 @@ Valueflow is TheAgency's methodology — the complete path from an idea to value
 ### The Flow
 
 ```
-Gleam → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
+Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
 ```
 
-**Seed.** A gleam — a thought, conversation, observation, flag. Capture it. Route it to a workstream.
+**Seed.** An idea — a thought, conversation, observation, flag. Capture it. Route it to a workstream.
 
 **Research (MARFI).** Multi-Agent Request for Information. Before defining, gather input. Research agents explore competitors, prior art, implementation approaches in parallel. Cross-cutting research only — domain-specific exploration is the agent's normal work.
 
