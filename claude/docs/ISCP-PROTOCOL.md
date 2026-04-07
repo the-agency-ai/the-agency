@@ -39,7 +39,7 @@ dispatch status                  # summary statistics
 | `seed` | Any agent | Input material for a workstream |
 | `review-response` | Reviewer (in reply to review) | "Here's what I found" |
 | `commit` | Automated (git-commit tool) | Iteration commit notification to captain |
-| `main-updated` | Captain only | Master was updated, sync your worktree |
+| `master-updated` | Captain only | Master was updated, sync your worktree |
 | `escalation` | Any agent | Urgent — captain triages before all other work |
 | `dispatch` | Any agent | General communication |
 

@@ -3,82 +3,144 @@
 ## Prerequisites
 
 - **Claude Code** CLI installed and authenticated
-- **Git** initialized repo
-- Familiarity with Claude Code basics (sessions, tools, skills)
+- **Git** repo initialized (`git init`)
+- The Agency framework cloned somewhere on your machine. The default location is `~/code/the-agency/`. The `agency` tool detects its own source location, so any path works — `~/code/the-agency/` is just convention.
+
+## Key Concepts (Read First)
+
+Before installing, here are the terms you'll see throughout the docs:
+
+- **Valueflow** — the development lifecycle: `Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value`
+- **PVR** — Product Vision & Requirements (the *what* and *why*)
+- **A&D** — Architecture & Design (the *how* and *why*)
+- **MARFI** — Multi-Agent Request for Information (research)
+- **MAR** — Multi-Agent Review (multiple agents review every artifact)
+- **ISCP** — Inter-Session Communication Protocol (dispatches + flags)
+- **QGR** — Quality Gate Report (proof a gate ran)
+- **Three-Bucket Pattern** — feedback triage: Disagree, Autonomous, Collaborative
+- **Enforcement Triangle** — every capability has tool + skill + hookify rule
+- **Hookify** — behavioral rules (block/warn) enforced mechanically
+
+For the full methodology, read `claude/README-THEAGENCY.md`.
 
 ## Install
 
-> **Note:** `agency init` is not yet available as a standalone command. Manual setup below.
+```bash
+cd ~/code/my-project
+~/code/the-agency/claude/tools/agency init
+```
 
-### Manual Setup
+This installs the framework into your repo:
+- `claude/` — tools, docs, agent classes, hooks, hookify rules, and methodology
+- `.claude/` — settings, skills, agent registrations (Claude Code discovery location)
+- `CLAUDE.md` — your project's agent-facing instructions (imports `@claude/CLAUDE-THEAGENCY.md`)
+- `usr/{principal}/` — your sandbox (handoffs, dispatches, transcripts)
 
-1. Clone or copy the `claude/` directory into your project root
-2. Copy `.claude/settings.json` from the template:
-   ```bash
-   cp claude/config/settings-template.json .claude/settings.json
-   ```
-3. Create your root `CLAUDE.md` with the framework import:
-   ```markdown
-   @claude/CLAUDE-THEAGENCY.md
-   ```
-4. Configure your principal in `claude/config/agency.yaml`:
-   ```yaml
-   principals:
-     your_username:          # $USER on your machine
-       name: yourname        # principal slug
-       display_name: "Your Name"
-   ```
-5. Create your sandbox: `mkdir -p usr/yourname/`
+After install, the `agency` tool lives at `./claude/tools/agency` in your project. You can either run it with the relative path or symlink it to your `$PATH`:
 
-### What You Get
+```bash
+# Run from project (always works)
+./claude/tools/agency verify
 
-- `claude/` — framework tools, docs, agent classes, hooks, and methodology
-- `claude/tools/` — CLI tools with built-in logging and telemetry
-- `claude/hookify/` — behavioral rules (warn/block) enforced mechanically
-- `.claude/skills/` — framework skills (auto-discovered by Claude Code, invoke via `/`)
-- `.claude/agents/` — agent registrations (launch via `claude --agent <name>`)
-- `CLAUDE.md` — your project's agent-facing instructions (imports methodology via `@claude/CLAUDE-THEAGENCY.md`)
-- `usr/yourname/` — your sandbox (handoffs, dispatches, transcripts, tools)
+# Or add to PATH (one-time setup)
+ln -s ~/code/my-project/claude/tools/agency ~/.local/bin/agency
+agency verify
+```
 
-### Permissions
+### Install Options
 
-The settings template ships with broad permissions:
+```bash
+# Override principal name (defaults to $USER mapping in agency.yaml)
+~/code/the-agency/claude/tools/agency init --principal jordan
+
+# Set project name explicitly
+~/code/the-agency/claude/tools/agency init --project my-project
+
+# Initialize a different directory
+~/code/the-agency/claude/tools/agency init ~/code/other-project
+```
+
+## Verify
+
+```bash
+./claude/tools/agency verify
+```
+
+Checks provider configuration, required files, and directories. Use `--verbose` for detailed output. Run this immediately after install to confirm everything is in place.
+
+## Update
+
+```bash
+./claude/tools/agency update
+```
+
+Syncs framework files to the latest version from the source repo. Your project-specific files are preserved — protected paths (from the registry) are never overwritten. Settings are merged via array union (new permissions added, existing kept).
+
+Preview changes without applying:
+```bash
+./claude/tools/agency update --dry-run
+```
+
+Run `agency update` periodically (weekly is reasonable). If you've adopted from a collaboration repo (e.g., monofolk), you'll receive release dispatches notifying you of significant changes.
+
+## Permissions Model
+
+The framework ships with broad permissions:
 ```json
 {
   "permissions": {
-    "allow": ["Bash(*)", "Read(**)", "Edit(**)", "Write(**)"]
+    "allow": [
+      "Bash(*)",
+      "Read(**)",
+      "Edit(**)",
+      "Write(**)"
+    ]
   }
 }
 ```
-Behavioral enforcement is handled by hookify rules, not the permission system. The project boundary is the security boundary.
 
-## Verify Setup
+**Why so broad?** The security model is layered:
 
-```bash
-# Check tools are accessible
-./claude/tools/agent-identity
+1. **Project boundary** — agents can read/write within the project, nothing outside it. The project root is the security perimeter.
+2. **Hookify rules** — behavioral enforcement happens at the rule layer, not the permission layer. Rules block raw `git commit`, prevent `cd` to the main repo, force the use of skills over raw tools, enforce QGR receipts, etc. See `claude/README-HOOKIFY.md` for the full list (33 rules).
+3. **Git** — version control is the audit trail. Anything an agent does is reviewable.
 
-# Check ISCP database initializes
-./claude/tools/dispatch list
+Narrow permission patterns (the old approach) created friction — every new command triggered a prompt, blocked legitimate work, and didn't actually improve security. Hookify rules enforce intent; permissions enforce scope.
 
-# Check settings are loaded
-claude --print-settings | head
-```
+## What You Get
 
-## Next Steps
+| Directory | What | Example |
+|-----------|------|---------|
+| `claude/tools/` | CLI tools with logging and telemetry | `dispatch`, `flag`, `handoff`, `git-commit` |
+| `claude/hookify/` | Behavioral rules (warn/block) | `hookify.block-git-commit.md` |
+| `claude/docs/` | Reference docs (injected on demand) | `QUALITY-GATE.md`, `ISCP-PROTOCOL.md` |
+| `claude/agents/` | Agent class definitions | `captain/agent.md`, `tech-lead/agent.md` |
+| `claude/hooks/` | Session lifecycle hooks | `ref-injector.sh` |
+| `claude/config/agency.yaml` | Principal mapping, providers, collaboration repos | configured during init |
+| `.claude/skills/` | Skills (invoke via `/`) | `/handoff`, `/discuss`, `/define` |
+| `.claude/agents/` | Agent registrations (launch via `claude --agent`) | `captain.md`, `devex.md` |
+| `usr/{principal}/` | Your sandbox | `usr/jordan/captain/` |
 
-1. Explore skills: type `/` in Claude Code to see the skill list
-2. Start a discussion: `/discuss`
-3. When ready to build: `/define` to create a Product Vision & Requirements (PVR)
-4. Read the methodology: `claude/README-THEAGENCY.md` for the full orientation
+## First Session — A Walk-Through
 
-## Key Concepts
+Once installed and verified, your first session looks like this:
 
-- **Valueflow** — the development lifecycle: Seed → Define (PVR) → Design (A&D) → Plan → Implement → Ship
-- **ISCP** — inter-session communication: dispatches (structured messages) and flags (quick-capture observations)
-- **Quality Gates** — tiered gates at every commit boundary (T1 iteration → T4 pre-PR)
-- **Enforcement Triangle** — every capability has a tool + skill + hookify rule
-- **Handoffs** — session continuity files that bootstrap context across sessions
+1. **Launch Claude Code:** `claude` (in your project root)
+2. **The captain greets you.** A bootstrap handoff was written by `agency init`. The captain reads it and greets you on session start — no need to type anything first.
+3. **Take the guided tour:** Run `/agency-welcome` for the interactive onboarding (5 paths to choose from based on what you're trying to do). Recommended for first-time adopters.
+4. **Or jump straight in:** Tell the captain what you want to build. Use `/discuss` for structured 1B1 capture, then `/define` to create a PVR.
+
+### Beyond the First Session
+
+Once you've captured an idea and started a PVR:
+
+- **Define it:** `/define` drives the PVR toward completeness via a checklist
+- **Design it:** `/design` creates the Architecture & Design (A&D)
+- **Plan it:** Once PVR and A&D are stable, the captain creates a Plan with phases and iterations
+- **Implement it:** Work through iterations, running quality gates at every commit boundary
+- **Ship it:** Captain manages PRs, pushes to origin, dispatches release notes to consumers
+
+Read `claude/README-THEAGENCY.md` for the full methodology — what each stage does and why.
 
 ## House Rules
 
