@@ -51,8 +51,8 @@ load 'test_helper'
 @test "platform-setup: handles missing provider tool" {
     local fixture="${BATS_TEST_TMPDIR}/project"
     mkdir -p "$fixture/claude/config" "$fixture/claude/tools/lib" "$fixture/tools"
-    cp "${TOOLS_DIR}/_path-resolve" "$fixture/tools/"
-    cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
+    cp "${TOOLS_DIR}/lib/_path-resolve" "$fixture/tools/"
+    cp "${TOOLS_DIR}/lib/_log-helper" "$fixture/tools/" 2>/dev/null || true
     cp "${REPO_ROOT}/claude/tools/lib/_provider-resolve" "$fixture/claude/tools/lib/"
     cp "${TOOLS_DIR}/platform-setup" "$fixture/tools/"
 
@@ -68,19 +68,10 @@ EOF
     assert_output_contains "not found"
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Deprecation shims
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "mac-setup: prints deprecation warning" {
-    run_tool mac-setup --help 2>&1
-    assert_output_contains "platform-setup-macos"
-}
-
-@test "linux-setup: prints deprecation warning" {
-    run_tool linux-setup --help 2>&1
-    assert_output_contains "platform-setup-linux"
-}
+# NOTE: mac-setup/linux-setup deprecation shim tests removed 2026-04-07.
+# The shims were never created (no git history of either tool); tests were
+# written ahead of work that was abandoned. The platform-setup-{macos,linux}
+# provider tools tested below are the actual implementation.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Provider tools

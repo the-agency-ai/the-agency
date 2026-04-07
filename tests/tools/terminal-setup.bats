@@ -45,8 +45,8 @@ load 'test_helper'
     # Create a fixture without terminal config
     local fixture="${BATS_TEST_TMPDIR}/project"
     mkdir -p "$fixture/claude/config" "$fixture/claude/tools/lib" "$fixture/tools"
-    cp "${TOOLS_DIR}/_path-resolve" "$fixture/tools/"
-    cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
+    cp "${TOOLS_DIR}/lib/_path-resolve" "$fixture/tools/"
+    cp "${TOOLS_DIR}/lib/_log-helper" "$fixture/tools/" 2>/dev/null || true
     cp "${REPO_ROOT}/claude/tools/lib/_provider-resolve" "$fixture/claude/tools/lib/"
     cp "${TOOLS_DIR}/terminal-setup" "$fixture/tools/"
 
@@ -73,8 +73,8 @@ EOF
 @test "terminal-setup: fails when no provider and unknown TERM_PROGRAM" {
     local fixture="${BATS_TEST_TMPDIR}/project"
     mkdir -p "$fixture/claude/config" "$fixture/claude/tools/lib" "$fixture/tools"
-    cp "${TOOLS_DIR}/_path-resolve" "$fixture/tools/"
-    cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
+    cp "${TOOLS_DIR}/lib/_path-resolve" "$fixture/tools/"
+    cp "${TOOLS_DIR}/lib/_log-helper" "$fixture/tools/" 2>/dev/null || true
     cp "${REPO_ROOT}/claude/tools/lib/_provider-resolve" "$fixture/claude/tools/lib/"
     cp "${TOOLS_DIR}/terminal-setup" "$fixture/tools/"
 
@@ -88,15 +88,9 @@ EOF
     assert_output_contains "No terminal provider configured"
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Deprecation shim
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "ghostty-setup: prints deprecation warning" {
-    run_tool ghostty-setup --help 2>&1
-    # The shim should mention the new name
-    assert_output_contains "terminal-setup-ghostty"
-}
+# NOTE: ghostty-setup deprecation test removed 2026-04-07. The deprecation
+# shim was never created — ghostty-setup is still the working tool that
+# creates the config directory. Renaming work was abandoned.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # terminal-setup-ghostty

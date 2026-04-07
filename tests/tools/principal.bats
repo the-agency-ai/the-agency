@@ -3,7 +3,7 @@
 # Tests for principal management tools:
 #   - principal
 #   - principal-create
-#   - setup-agency
+#   - (setup-agency removed — see notes inline at lines 110, 187, 228)
 #   - add-principal
 #
 # Tests CLI argument parsing, validation, flag handling, and security.
@@ -107,65 +107,9 @@ load 'test_helper'
     rm -rf "usr/testprincipal" "claude/principals/testprincipal" 2>/dev/null || true
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# setup-agency - Version and Help
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "setup-agency: --version shows version" {
-    run_tool setup-agency --version
-    assert_success
-    assert_output_contains "setup-agency"
-}
-
-@test "setup-agency: -v shows version" {
-    run_tool setup-agency -v
-    assert_success
-    assert_output_contains "setup-agency"
-}
-
-@test "setup-agency: --help shows usage" {
-    run_tool setup-agency --help
-    assert_success
-    assert_output_contains "Usage:"
-    assert_output_contains "principal"
-}
-
-@test "setup-agency: -h shows usage" {
-    run_tool setup-agency -h
-    assert_success
-    assert_output_contains "Usage:"
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# setup-agency - Flag Recognition
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "setup-agency: --principal flag is recognized" {
-    # Will fail (already setup) but flag should be recognized
-    run_tool setup-agency --principal testuser --skip-vault || true
-    [[ ! "$output" =~ "unknown option" ]] && [[ ! "$output" =~ "Unknown option" ]]
-}
-
-@test "setup-agency: --skip-vault flag is recognized" {
-    run_tool setup-agency --principal testuser --skip-vault || true
-    [[ ! "$output" =~ "unknown option" ]] && [[ ! "$output" =~ "Unknown option" ]]
-}
-
-@test "setup-agency: --verbose flag is recognized" {
-    run_tool setup-agency --verbose --help
-    [[ ! "$output" =~ "unknown option" ]] && [[ ! "$output" =~ "Unknown option" ]]
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# setup-agency - Detection
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "setup-agency: detects already setup project" {
-    # The test environment should have .agency-setup-complete or similar
-    run_tool setup-agency --principal testuser --skip-vault
-    # Should indicate already set up or complete successfully
-    [[ "$output" =~ "already" ]] || [[ "$status" -eq 0 ]]
-}
+# NOTE: setup-agency tests removed 2026-04-07 (devex maintenance pass).
+# The setup-agency tool was deleted/renamed; the agency-init flow replaces it.
+# These tests were referencing a non-existent binary and producing 8 false failures.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # add-principal - Version and Help
@@ -240,35 +184,9 @@ load 'test_helper'
     [[ ! "$output" =~ "syntax error" ]]
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Security - Input Validation (setup-agency)
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "setup-agency: handles special characters in principal name" {
-    run_tool setup-agency --principal 'test$user' --skip-vault || true
-    # Should not crash
-    [[ ! "$output" =~ "syntax error" ]]
-}
-
-@test "setup-agency: handles path traversal in principal name" {
-    run_tool setup-agency --principal '../../../tmp/hack' --skip-vault || true
-    # Should not create directory outside expected location
-    [[ ! -d "tmp/hack" ]]
-    [[ ! -d "../../../tmp/hack" ]]
-}
-
-@test "setup-agency: handles command injection in principal name" {
-    run_tool setup-agency --principal 'test; whoami' --skip-vault || true
-    # Should not execute
-    [[ ! "$output" =~ "syntax error" ]]
-}
-
-@test "setup-agency: validates principal name format" {
-    run_tool setup-agency --principal '123invalid' --skip-vault
-    # Should reject names starting with numbers OR detect already setup
-    # (validation happens after setup check, so already setup is valid)
-    [[ "$status" -ne 0 ]] || [[ "$output" =~ "Invalid" ]] || [[ "$output" =~ "must start" ]] || [[ "$output" =~ "already" ]]
-}
+# NOTE: setup-agency security tests removed 2026-04-07 (devex maintenance pass).
+# Same reason as the version/help block above — tool was deleted, security
+# coverage now lives in tests/tools/agency-init.bats.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Security - Input Validation (add-principal)
@@ -307,9 +225,8 @@ load 'test_helper'
     grep -q "_log-helper" "${TOOLS_DIR}/principal-create"
 }
 
-@test "setup-agency: sources log helper" {
-    grep -q "_log-helper" "${TOOLS_DIR}/setup-agency"
-}
+# NOTE: setup-agency log-helper tests removed 2026-04-07 (devex maintenance pass).
+# Tool deleted; agency-init replaces it.
 
 @test "add-principal: sources log helper" {
     grep -q "_log-helper" "${TOOLS_DIR}/add-principal"
@@ -323,10 +240,6 @@ load 'test_helper'
     grep -q "log_start" "${TOOLS_DIR}/principal-create"
 }
 
-@test "setup-agency: calls log_start" {
-    grep -q "log_start" "${TOOLS_DIR}/setup-agency"
-}
-
 @test "add-principal: calls log_start" {
     grep -q "log_start" "${TOOLS_DIR}/add-principal"
 }
@@ -337,10 +250,6 @@ load 'test_helper'
 
 @test "principal-create: calls log_end" {
     grep -q "log_end" "${TOOLS_DIR}/principal-create"
-}
-
-@test "setup-agency: calls log_end" {
-    grep -q "log_end" "${TOOLS_DIR}/setup-agency"
 }
 
 @test "add-principal: calls log_end" {
@@ -466,12 +375,6 @@ load 'test_helper'
     [[ "$status" -ne 0 ]] || [[ "$output" =~ "Invalid" ]]
 }
 
-@test "setup-agency: rejects name with newline" {
-    run_tool setup-agency --principal $'test\ninjection' --skip-vault || true
-    # Should fail or handle safely
-    [[ ! "$output" =~ "syntax error" ]]
-}
-
 @test "add-principal: rejects name with newline" {
     run_tool add-principal --name $'test\ninjection' || true
     # Should fail or handle safely
@@ -484,12 +387,6 @@ load 'test_helper'
     # Should reject due to & not being alphanumeric
     [[ "$output" =~ "Invalid principal name" ]] || [[ "$status" -ne 0 ]]
     [[ ! -d "claude/principals/test&whoami" ]]
-}
-
-@test "setup-agency: handles sed metacharacters safely" {
-    run_tool setup-agency --principal "test&whoami" --skip-vault || true
-    # Should reject or handle safely
-    [[ "$output" =~ "Invalid" ]] || [[ "$output" =~ "already" ]] || [[ "$status" -ne 0 ]]
 }
 
 @test "add-principal: handles sed metacharacters safely" {
