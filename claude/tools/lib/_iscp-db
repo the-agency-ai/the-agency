@@ -20,7 +20,7 @@
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
 
-readonly ISCP_SCHEMA_VERSION=2
+readonly ISCP_SCHEMA_VERSION=1
 readonly ISCP_MIN_SQLITE_VERSION="3.38.0"
 readonly ISCP_BUSY_TIMEOUT=1000
 
@@ -232,22 +232,6 @@ SCHEMA
 # Written: 2026-04-07 during ISCP Phase 2, Iteration 2.0
 _iscp_migrate_v0_to_v1() {
     _iscp_schema_ddl
-}
-
-# _iscp_migrate_v1_to_v2 — flag categories
-# What Problem: Flags accumulated as an undifferentiated pile. Triage had to
-# re-discover what the flagger already knew at capture: was this friction,
-# an idea, or a bug? Categories at capture route flags to different pipelines.
-# How & Why: Add a nullable category column to the flags table. Nullable so
-# existing uncategorized flags continue to work (backward compat). CHECK
-# constraint enumerates the valid categories — same pattern as the dispatch
-# type column.
-# Written: 2026-04-07 during ISCP Phase 2, Iteration 2.3
-_iscp_migrate_v1_to_v2() {
-    cat << 'SQL'
-ALTER TABLE flags ADD COLUMN category TEXT
-    CHECK(category IS NULL OR category IN ('friction', 'idea', 'bug'));
-SQL
 }
 
 # _iscp_run_migrations <db_path> <current_version> <target_version>
@@ -509,14 +493,10 @@ SQL
     local schema
     schema=$(_iscp_schema_ddl)
 
-    # Create the v1 baseline schema and set version to 1, then run forward
-    # migrations to bring up to ISCP_SCHEMA_VERSION. Same code path as upgrades —
-    # every schema change flows through a migration, fresh DBs are not a
-    # special case. This is what makes adding migrations safe.
     sqlite3 "$db_path" << SQL
 ${preamble}
 ${schema}
-PRAGMA user_version=1;
+PRAGMA user_version=${ISCP_SCHEMA_VERSION};
 SQL
 
     local rc=$?
@@ -525,14 +505,6 @@ SQL
     if [[ $rc -ne 0 ]]; then
         echo "iscp-db: FATAL: schema creation failed (sqlite3 exit $rc)." >&2
         return 1
-    fi
-
-    # Run forward migrations from v1 to current expected version
-    if [[ "$ISCP_SCHEMA_VERSION" -gt 1 ]]; then
-        _iscp_run_migrations "$db_path" 1 "$ISCP_SCHEMA_VERSION" || {
-            echo "iscp-db: FATAL: failed to apply migrations to fresh DB" >&2
-            return 1
-        }
     fi
 
     return 0
@@ -610,22 +582,14 @@ SQL
 # Convenience: insert helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-# iscp_db_insert_flag <from> <to> <message> [<session_id>] [<branch>] [<category>]
+# iscp_db_insert_flag <from> <to> <message> [<session_id>] [<branch>]
 # Returns: the new row id
-# What Problem: Categories at capture (Iteration 2.3) route flags to friction,
-# idea, and bug pipelines. Capture is routing — deferring to triage leaves an
-# undifferentiated pile.
-# How & Why: Optional 6th argument. Empty/unset → NULL category (backward
-# compat with existing flag callers and pre-2.3 captures). Validation is
-# enforced by the column's CHECK constraint, so an invalid value fails loud
-# at the DB layer.
 iscp_db_insert_flag() {
     local from="$1"
     local to="$2"
     local message="$3"
     local session_id="${4:-}"
     local branch="${5:-}"
-    local category="${6:-}"
     local now
     now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
@@ -635,7 +599,6 @@ iscp_db_insert_flag() {
     local preamble
     preamble=$(_iscp_pragma_preamble_light)
 
-    # Empty category → bind as NULL via empty string + NULLIF; non-empty stores literal
     local params
     params=$(_iscp_build_params \
         ":from_agent" "$from" \
@@ -643,14 +606,13 @@ iscp_db_insert_flag() {
         ":message" "$message" \
         ":session_id" "$session_id" \
         ":branch" "$branch" \
-        ":category" "$category" \
         ":now" "$now") || return 1
 
     sqlite3 "$db_path" << SQL
 ${preamble}
 ${params}
-INSERT INTO flags (created_at, from_agent, to_agent, message, status, session_id, branch, category)
-VALUES (:now, :from_agent, :to_agent, :message, 'unread', :session_id, :branch, NULLIF(:category, ''));
+INSERT INTO flags (created_at, from_agent, to_agent, message, status, session_id, branch)
+VALUES (:now, :from_agent, :to_agent, :message, 'unread', :session_id, :branch);
 SELECT last_insert_rowid();
 .param clear
 SQL
