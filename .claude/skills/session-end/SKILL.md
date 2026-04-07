@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/handoff *), Bash(git status:*), Bash(git log:*), Bash(git branch:*)
+allowed-tools: Bash(./claude/tools/handoff *), Bash(git status:*), Bash(git log:*), Bash(git branch:*)
 description: End a session cleanly — write handoff, warn on dirty state, report readiness
 ---
 
@@ -25,7 +25,7 @@ List the files. Ask if they want to commit first.
 ### Step 2: Archive and get handoff path
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/handoff write --trigger session-end
+./claude/tools/handoff write --trigger session-end
 ```
 
 The tool archives the current handoff and reports the path for the new one.
@@ -42,7 +42,7 @@ Write the handoff file at the path reported by the tool. Include:
 ### Step 4: Verify handoff
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/handoff read
+./claude/tools/handoff read
 ```
 
 Confirm the handoff was written correctly.
