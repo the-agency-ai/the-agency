@@ -2,14 +2,12 @@
 #
 # Tests for ./tools/secret
 #
-# QUARANTINED 2026-04-07 (devex maintenance pass): the generic 'secret' tool
-# was replaced by SPEC-PROVIDER pattern (secret-vault, secret-doppler). All 31
-# tests in this file reference the missing 'secret' binary and produce false
-# failures in the full BATS suite. Skipped en masse via setup() until rewritten
-# against the provider tools. See dispatch #130 from captain for context.
+# Tests CLI argument parsing, input validation, and error handling.
+# Uses mock responses where service interaction is needed.
 #
-# To rewrite: each @test should be reframed against secret-vault and/or
-# secret-doppler directly, OR against a new /secret skill if one exists.
+# Un-quarantined 2026-04-07 (Day 33) when claude/tools/secret merged from
+# main into devex. The earlier quarantine (Day 32) was because the tool was
+# only on main, not devex.
 #
 
 load 'test_helper'
@@ -21,7 +19,6 @@ setup() {
     export SECRET_SERVICE_URL="http://localhost:9999/api/secret"
     export AGENCY_USER="principal:test"
     cd "${REPO_ROOT}"
-    skip "secret tool replaced by SPEC-PROVIDER (secret-vault/secret-doppler) — tests need rewrite"
 }
 
 teardown() {

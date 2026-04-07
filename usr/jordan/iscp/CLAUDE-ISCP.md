@@ -15,19 +15,20 @@ You are the ISCP agent (`the-agency/jordan/iscp`). You build the inter-session c
 
 On every session start:
 1. Read `usr/jordan/iscp/iscp-handoff.md` — your current state
-2. Read `claude/workstreams/iscp/CLAUDE-ISCP.md` — workstream scope and conventions
-3. Read `claude/agents/iscp/agent.md` — your role
-4. Check `usr/jordan/iscp/dispatches/` for unread dispatches
-5. Follow the "Next Action" in your handoff
+2. Check ISCP: `dispatch list` and `flag list` — process unread items before other work
+3. Follow the "Next Action" in your handoff. Do not wait for a prompt.
 
-Do not wait for a prompt. Act on startup.
+**Reference (read on demand, not every startup):**
+- `claude/workstreams/iscp/CLAUDE-ISCP.md` — workstream scope and conventions
+- `claude/agents/iscp/agent.md` — your role
 
 ## Coordination
 
-- **Dispatches to you** arrive at `usr/jordan/iscp/dispatches/`
-- **Dispatches from you** to captain go to `usr/jordan/captain/dispatches/`
-- **Dispatches to the workstream** arrive at `claude/workstreams/iscp/dispatches/`
+- **Dispatches** are managed via ISCP tools (`dispatch list`, `dispatch read <id>`, `dispatch resolve <id>`)
+- **Flags** via `flag list`, `flag discuss`, `flag clear`
 - Commit dispatch payloads and notify captain when you need review
+
+**Tool usage:** All Agency tools work from ANY directory including worktrees. Never prefix with `cd /path/to/main-repo &&`. Use `./claude/tools/` (relative paths).
 
 ## File Discipline
 

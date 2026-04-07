@@ -313,6 +313,75 @@ main() {
         COMMIT_BODY="${COMMIT_BODY}Stage: ${STAGE}"$'\n'
     fi
     COMMIT_BODY="${COMMIT_BODY}Generated-With: Claude Code"$'\n'
+
+    # ---- Per-agent attribution (Day 32) ----
+    # What Problem: Commits today only credit Claude as co-author. Each commit
+    # is also done by a specific Agency agent (captain/iscp/devex/etc.) on
+    # behalf of a principal. We want traceable per-agent attribution that
+    # works on GitHub without requiring real bot accounts or domain registration.
+    #
+    # How & Why: Build a Co-Authored-By trailer for the current agent using
+    # the format {github-username}+{agent}.{repo}@users.noreply.github.com.
+    # GitHub treats this as a distinct contributor (literal-match, not
+    # plus-address-stripped — verified by test commits dd7984e, c133aaa,
+    # 1284b27, 7e0932a on the test/github-plus-tag-attribution branch).
+    # The {github-username} is the principal's per-org GitHub identity from
+    # agency.yaml. The .{repo} qualifier makes the identity globally unique
+    # across repos for cross-repo analytics.
+    #
+    # Future: this format becomes routable when "agent mail" service ships
+    # (flag #40). Until then it's a stable, GitHub-recognized attribution.
+    #
+    # Written: 2026-04-07 — Day 32 — flag #39 + flag #40
+    _agent_email_trailer=""
+    if [ -x "$SCRIPT_DIR/agent-identity" ]; then
+        _ai_agent=$("$SCRIPT_DIR/agent-identity" --agent 2>/dev/null || echo "")
+        _ai_principal=$("$SCRIPT_DIR/agent-identity" --principal 2>/dev/null || echo "")
+        _ai_repo=$("$SCRIPT_DIR/agent-identity" --repo 2>/dev/null || echo "")
+        if [ -n "$_ai_agent" ] && [ -n "$_ai_principal" ] && [ -n "$_ai_repo" ]; then
+            # Resolve github username for principal+org from agency.yaml.
+            # Auto-detect org from git remote, then look up principal's
+            # platforms.github entry whose repos[].org matches.
+            _git_remote=$(git -C "$PROJECT_ROOT" config --get remote.origin.url 2>/dev/null || echo "")
+            _git_org=""
+            case "$_git_remote" in
+                git@github.com:*) _git_org="${_git_remote#git@github.com:}"; _git_org="${_git_org%%/*}" ;;
+                https://github.com/*) _git_org="${_git_remote#https://github.com/}"; _git_org="${_git_org%%/*}" ;;
+                *://*@github.com/*) _git_org="${_git_remote##*://*@github.com/}"; _git_org="${_git_org%%/*}" ;;
+            esac
+
+            # Read github username from agency.yaml using a tiny awk parser.
+            # Looks for: principals.{key}.platforms.github[].username where
+            # any repos[].org == _git_org. The principal key may differ from
+            # the principal slug (e.g., key=jdm, name=jordan).
+            _gh_username=""
+            _yaml="$PROJECT_ROOT/claude/config/agency.yaml"
+            if [ -f "$_yaml" ] && [ -n "$_git_org" ]; then
+                _gh_username=$(awk -v want_principal="$_ai_principal" -v want_org="$_git_org" '
+                    /^principals:/ { in_principals=1; next }
+                    in_principals && /^[a-z][a-zA-Z0-9_-]*:/ { current_key=$1; sub(/:$/, "", current_key); next }
+                    in_principals && /^  name:/ { gsub(/[ "]/, "", $2); if ($2 == want_principal) matching=1; else matching=0 }
+                    matching && /^      - username:/ { gsub(/[ "]/, "", $3); current_username=$3 }
+                    matching && /^            - org:/ { gsub(/[ "]/, "", $3); if ($3 == want_org) { print current_username; exit } }
+                ' "$_yaml" 2>/dev/null || echo "")
+            fi
+
+            # If we couldn't resolve a github username, fall back to the
+            # principal slug (still gives distinct per-agent attribution).
+            _gh_username="${_gh_username:-$_ai_principal}"
+
+            # Format: {username}+{agent}.{repo}.{org}@users.noreply.github.com
+            # Org is included for self-describing fully qualified attribution
+            # (mirrors the {org}/{repo}/{principal}/{agent} address format).
+            _email_local="${_gh_username}+${_ai_agent}.${_ai_repo}"
+            [ -n "$_git_org" ] && _email_local="${_email_local}.${_git_org}"
+            _agent_email_trailer="Co-Authored-By: ${_ai_agent} <${_email_local}@users.noreply.github.com>"
+        fi
+    fi
+
+    if [ -n "$_agent_email_trailer" ]; then
+        COMMIT_BODY="${COMMIT_BODY}${_agent_email_trailer}"$'\n'
+    fi
     COMMIT_BODY="${COMMIT_BODY}Co-Authored-By: Claude <noreply@anthropic.com>"
 
     # Show preview (verbose only)
