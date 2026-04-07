@@ -77,18 +77,24 @@ end_run() {
 run_with_timeout() {
     local timeout_secs="$1"; shift
     if command -v gtimeout >/dev/null 2>&1; then
-        gtimeout "$timeout_secs" "$@"
+        # Use --kill-after to nuke the process group if SIGTERM doesn't take.
+        # Without this, bats can leave orphaned bats-exec-test processes.
+        gtimeout --kill-after=5 "$timeout_secs" "$@"
     elif command -v timeout >/dev/null 2>&1; then
-        timeout "$timeout_secs" "$@"
+        timeout --kill-after=5 "$timeout_secs" "$@"
     else
+        # Manual fallback with process group kill (-pid sends to whole pgroup).
+        # The trap ensures the watchdog dies even if the main process exits early.
         "$@" &
         local pid=$!
-        (sleep "$timeout_secs" && kill "$pid" 2>/dev/null) &
+        (sleep "$timeout_secs" && kill -TERM "-$pid" 2>/dev/null && sleep 5 && kill -KILL "-$pid" 2>/dev/null) &
         local watchdog=$!
         wait "$pid" 2>/dev/null
         local rc=$?
-        kill "$watchdog" 2>/dev/null 2>&1
-        wait "$watchdog" 2>/dev/null 2>&1
+        kill -KILL "$watchdog" 2>/dev/null
+        wait "$watchdog" 2>/dev/null
+        # Best-effort: kill the original pid's process group too
+        kill -KILL "-$pid" 2>/dev/null
         return $rc
     fi
 }

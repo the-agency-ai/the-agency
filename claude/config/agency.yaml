@@ -97,6 +97,9 @@ testing:
     tools:
       command: "bats tests/tools/"
       description: "BATS tool tests (framework tools, ISCP)"
+    mdpal:
+      command: "cd apps/mdpal && swift test 2>/dev/null || true"
+      description: "MarkdownPalEngine Swift tests (skips if apps/mdpal/ absent)"
 
 # Design system integration
 design:

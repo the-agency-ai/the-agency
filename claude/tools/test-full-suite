@@ -61,22 +61,24 @@ end_run() {
     log_end "$RUN_ID" "$1" "${2:-0}" "0" "$3" 2>/dev/null || true
 }
 
-# Timeout wrapper
+# Timeout wrapper. Uses --kill-after to nuke orphans (e.g., bats-exec-test
+# processes that ignore SIGTERM) and process-group kill on the manual fallback.
 run_with_timeout() {
     local secs="$1"; shift
     if command -v gtimeout >/dev/null 2>&1; then
-        gtimeout "$secs" "$@"
+        gtimeout --kill-after=5 "$secs" "$@"
     elif command -v timeout >/dev/null 2>&1; then
-        timeout "$secs" "$@"
+        timeout --kill-after=5 "$secs" "$@"
     else
         "$@" &
         local pid=$!
-        (sleep "$secs" && kill "$pid" 2>/dev/null) &
+        (sleep "$secs" && kill -TERM "-$pid" 2>/dev/null && sleep 5 && kill -KILL "-$pid" 2>/dev/null) &
         local watchdog=$!
         wait "$pid" 2>/dev/null
         local rc=$?
-        kill "$watchdog" 2>/dev/null 2>&1
-        wait "$watchdog" 2>/dev/null 2>&1
+        kill -KILL "$watchdog" 2>/dev/null
+        wait "$watchdog" 2>/dev/null
+        kill -KILL "-$pid" 2>/dev/null
         return $rc
     fi
 }
