@@ -275,7 +275,7 @@ Quality gates run at every commit boundary — iteration, phase, plan completion
 - Red-green cycle for every bug-exposing test. No valid test = no valid fix.
 - Never skip review agents — even for "small" or "trivial" changes. The audit always finds something.
 - Fix every finding. Every valid finding gets fixed — no "Won't Fix," no "Deferred," no severity-based skip. Severity orders the fix sequence, never the fix decision. Reject invalid findings with reasoning.
-- Always use `/git-commit` — never raw `git commit`. It verifies a QGR receipt exists for the staged changes.
+- Always use `/git-commit` — never raw `git commit`. *(Planned: it will verify a QGR receipt exists for the staged changes. Not yet implemented — currently the tool computes the stage hash for telemetry but does not block on missing receipts.)*
 
 **Boundary skills** (invoke these, never commit manually):
 

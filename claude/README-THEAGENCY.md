@@ -28,7 +28,7 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 ## What TheAgency Provides
 
 ### Methodology
-- **Quality gates** — multi-agent parallel review (4+ specialized agents: code, security, design, test), red→green test cycle, QGR (Quality Gate Report) receipts at every commit boundary. The QGR is both the report format (3 tables + narrative) and a standalone receipt file tied to the exact staged content via a deterministic stage hash. `/git-commit` verifies a receipt exists before committing — no QG means no commit.
+- **Quality gates** — multi-agent parallel review (4+ specialized agents: code, security, design, test), red→green test cycle, QGR (Quality Gate Report) receipts at every commit boundary. The QGR is both the report format (3 tables + narrative) and a standalone receipt file tied to the exact staged content via a deterministic stage hash. *(Planned: `/git-commit` will verify a matching receipt exists before committing. Not yet implemented — currently advisory.)*
 - **Development flow (Valueflow)** — Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value. Living documents evolve through implementation; Reference produced at plan completion. Full description in the Valueflow section below.
 - **Discussion protocol** — 1B1 (one-by-one) for structured decision-making. Resolve each item before moving to the next.
 - **Commit discipline** — five boundary types (iteration-complete, phase-complete, plan-complete, pr-prep, pre-phase-review), never partial work, never raw `git commit`
@@ -37,7 +37,7 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 ### Tooling
 - **Scaffold tools** — workstream-create, worktree-create, agent-define
 - **Context tools** — handoff (read/write/archive), plan-capture
-- **Observability** — tool-runs.jsonl, telemetry.jsonl, statusline
+- **Observability** — tool-runs.jsonl (`.claude/logs/tool-runs.jsonl`), statusline integration
 - **Review agents** — code-reviewer, security-reviewer, design-reviewer, test-reviewer, scorer
 
 ### Agent Definitions
@@ -174,7 +174,7 @@ preview-docker-compose logs     # stream recent logs
 |-----------|-------|----------|----------------|
 | Preview | `/preview` | `preview.provider` | `preview-{provider}` |
 | Deploy | `/deploy` | `deploy.provider` | `deploy-{provider}` |
-| Security/Secrets | `/secret` | `secret.provider` | `secret-{provider}` |
+| Security/Secrets | `/secret` | `secrets.provider` | `secret-{provider}` |
 | Prototype scaffolding | `/prototype-create` | `prototype.providers` | `prototype-{provider}` *(planned)* |
 
 ### Provider Contract
@@ -277,7 +277,9 @@ claude/workstreams/{ws}/project/{project}/quality-gate-reports/qgr-...
 
 (Single-project workstreams skip the `project/` level until a second project is added — then existing files migrate.)
 
-The QGR frontmatter includes `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic 7-character hash computed from the git staging area. `/git-commit` computes the same hash and globs for a matching receipt — if none exists, it warns that no QG was run.
+The QGR frontmatter includes `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic 7-character hash computed from the git staging area. *(Planned: `/git-commit` will compute the same hash and check for a matching receipt — blocking the commit if none exists. The `require-qgr` hookify rule is the planned enforcement point. Not yet wired.)*
+
+> **Transition note:** Existing QGRs from before this convention live at `usr/{principal}/{project}/qgr-*.md` and stay where they are. New QGRs go to the workstream location described above. No migration of historical files.
 
 ## Development Methodology
 
@@ -338,7 +340,7 @@ Handoff files are a first-class Agency primitive. They serve multiple purposes b
 
 Handoff files live at `usr/{principal}/{project}/{agent}-handoff.md` — one per agent (e.g., `captain-handoff.md`, `iscp-handoff.md`, `devex-handoff.md`). The `claude/tools/handoff` tool manages the lifecycle and uses `agent-identity` to resolve which file to write based on the current branch/worktree.
 
-- **`handoff write`** — auto-archives the existing handoff to `history/{agent}-handoff-YYYYMMDD-HHMMSS.md`, then signals the agent to write new content
+- **`handoff write`** — auto-archives the existing handoff to `history/handoff-YYYYMMDD-HHMMSS.md`, then signals the agent to write new content (the history dir is per-agent — `usr/{principal}/{agent}/history/` — so archive names don't collide across agents)
 - **`handoff write --lightweight`** — appends/updates a status line without archiving (for `/sync-all`)
 - **`handoff read`** — outputs current handoff content
 - **`handoff archive`** — manually archive without writing
@@ -418,7 +420,7 @@ TheAgency encourages building **tools** (`tools/`, `claude/tools/`) rather than 
 - **Observability.** Tools built with `_log-helper` emit structured telemetry to `tool-runs.jsonl` — who ran what, when, how long, what happened. Inline bash is invisible.
 - **Token economics.** A tool that does the right thing in one call saves tokens compared to multi-step bash sequences with error handling at each step. The tool absorbs the complexity; the agent pays one invocation.
 - **Reusability.** A tool used by one agent today is available to all agents tomorrow. Inline bash dies with the conversation.
-- **Testability.** Tools can have tests (`tools/__tests__/`). Inline bash can't.
+- **Testability.** Tools can have tests (`tests/tools/`). Inline bash can't.
 - **Learning.** This connects to the pattern gstack calls "learnings" — capturing what works into durable artifacts that compound over time. A tool is a crystallized learning: "this is the right way to do X."
 
 When an agent needs to do something, the first question should be: **does a tool already exist?** Check `tools/`, `claude/tools/`, and the tool registry before writing bash. If no tool exists and the task will recur, consider building one.

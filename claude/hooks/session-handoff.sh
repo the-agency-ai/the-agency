@@ -6,7 +6,9 @@
 # Behavior:
 #   1. Derives slug from branch name (last segment after /)
 #   2. Strips worktree- prefix (e.g., worktree-mycroft -> mycroft)
-#   3. Looks for handoff at $AGENCY_PRINCIPAL_DIR/{slug}/handoff.md
+#   3. Looks for handoff at $AGENCY_PRINCIPAL_DIR/{slug}/{slug}-handoff.md
+#      (per-agent convention: captain-handoff.md, iscp-handoff.md, etc.)
+#      Falls back to handoff.md if {slug}-handoff.md not found (legacy)
 #   4. Special case for master: prompts user to confirm captain session
 #   5. Also checks for .claude-session-recap.md (auto-generated recaps)
 #   6. Never blocks — always exits 0
@@ -47,10 +49,16 @@ if [ "$BRANCH_SLUG" = "main" ] || [ "$BRANCH_SLUG" = "master" ]; then
   BRANCH_SLUG="captain"
 fi
 
-# Look for handoff file in principal directory
+# Look for handoff file in principal directory.
+# Prefer per-agent convention: usr/{principal}/{slug}/{slug}-handoff.md
+# Fall back to legacy handoff.md for backward compatibility.
 HANDOFF_FILE=""
-if [ -n "$BRANCH_SLUG" ] && [ -f "$PRINCIPAL_DIR/${BRANCH_SLUG}/handoff.md" ]; then
-  HANDOFF_FILE="$PRINCIPAL_DIR/${BRANCH_SLUG}/handoff.md"
+if [ -n "$BRANCH_SLUG" ]; then
+  if [ -f "$PRINCIPAL_DIR/${BRANCH_SLUG}/${BRANCH_SLUG}-handoff.md" ]; then
+    HANDOFF_FILE="$PRINCIPAL_DIR/${BRANCH_SLUG}/${BRANCH_SLUG}-handoff.md"
+  elif [ -f "$PRINCIPAL_DIR/${BRANCH_SLUG}/handoff.md" ]; then
+    HANDOFF_FILE="$PRINCIPAL_DIR/${BRANCH_SLUG}/handoff.md"
+  fi
 fi
 
 RECAP_FILE="$PROJECT_DIR/.claude-session-recap.md"

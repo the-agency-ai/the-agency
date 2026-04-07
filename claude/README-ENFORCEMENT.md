@@ -84,7 +84,7 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 | `block-raw-handoff` | Block | Blocks raw `claude/tools/handoff` invocations | `/handoff` skill |
 | `block-no-verify` | Block | Blocks `git commit --no-verify` and similar bypasses | Fix the underlying issue |
 | `block-force-push-main` | Block | Blocks `git push --force` to main | Don't force-push main, ever |
-| `require-qgr` | Block | Blocks commits without a matching QGR receipt | Run `/iteration-complete` or `/phase-complete` |
+| `require-qgr` | Block *(planned)* | Will block commits without a matching QGR receipt — not yet wired | Run `/iteration-complete` or `/phase-complete` |
 | `require-plan-update` | Warn | Warns when committing without updating the plan file | Update `usr/{principal}/{project}/{project}-plan-*.md` |
 | `directive-authority` | Block | Only captain can create `--type directive` dispatches | Use a different dispatch type |
 | `review-authority` | Block | Only captain can create `--type review` dispatches | Use a different dispatch type |
@@ -155,7 +155,7 @@ Quality gates are tiered checkpoints that run at every commit boundary. Each tie
 | **T3** | Phase complete | Full test suite + MAR on phase artifacts | <5min | `/phase-complete` (deep QG) |
 | **T4** | Pre-PR | Full diff QG vs origin/main | <5min | `/pr-prep` |
 
-Each gate produces a **QGR (Quality Gate Report)** receipt at `claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md`. The `/git-commit` tool checks for a matching receipt before committing — no receipt means no QG was run, and `require-qgr` blocks the commit.
+Each gate produces a **QGR (Quality Gate Report)** receipt at `claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md`. *(Planned: `/git-commit` will check for a matching receipt before committing — no receipt means no QG was run, and `require-qgr` will block the commit. The tool currently computes the stage hash for telemetry but the receipt check is not yet wired.)*
 
 ## Permission Model
 
