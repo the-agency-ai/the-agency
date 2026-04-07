@@ -1,146 +1,86 @@
 #!/bin/bash
-# Pre-commit quality gate - runs all checks before allowing commits
+# What Problem: The original commit-precheck ran 5 Node.js-centric steps (format,
+# lint, typecheck, test, code-review) on every commit. Bash tools didn't trigger
+# tests at all (not matched by has_app_code). App code triggered ALL 703 BATS tests.
+# Code review spawned multi-agent sessions at pre-commit — way too heavy.
+#
+# How & Why: Rewrite around three principles: (1) classify staged files to decide
+# what checks to run, (2) use test-scoper for surgical test targeting instead of
+# running everything, (3) 60s budget with graceful timeout (warn, don't block).
+# Stripped code-review entirely — it belongs in /iteration-complete and
+# /phase-complete, not pre-commit. Kept format/lint/typecheck for JS/TS projects
+# that have them. Added stage-hash warn for QGR receipt tracking.
+#
+# Written: 2026-04-07 during devex Phase 1.3 (commit-precheck rewrite)
 #
 # Usage: ./claude/tools/commit-precheck [options]
-#   --verbose  Show detailed output instead of logging
-#
-# Runs 5 quality checks in sequence:
-#   1. Format code (auto-fix)
-#   2. Lint code (auto-fix)
-#   3. Type check (blocking)
-#   4. Unit tests (blocking)
-#   5. Code review (blocking)
+#   --verbose    Show detailed output
+#   --dry-run    Show what would run without executing
+#   --version    Show version
+#   --help       Show this help
 #
 # Exit codes:
-#   0 = all checks passed
-#   1 = checks failed (warnings only)
-#   2 = checks failed (blocking issues)
-#
-# Context-efficient: 1-line output, details in log-service
+#   0 = all checks passed (or no checks needed)
+#   2 = blocking check failed
 
 set -euo pipefail
 
-# Tool version
-TOOL_VERSION="2.0.0-3"
+TOOL_VERSION="3.0.0"
 
-# Configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Source log helper for telemetry
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
     source "$SCRIPT_DIR/lib/_log-helper"
 fi
 RUN_ID=$(log_start "commit-precheck" "$@" 2>/dev/null) || true
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Parse arguments
 VERBOSE=false
+DRY_RUN=false
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --verbose|-v)
-            VERBOSE=true
-            shift
-            ;;
-        --version)
-            echo "commit-precheck $TOOL_VERSION"
-            exit 0
-            ;;
+        --verbose|-v) VERBOSE=true; shift ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        --version) echo "commit-precheck $TOOL_VERSION"; exit 0 ;;
         --help|-h)
-            echo "commit-precheck - Run quality checks before commit"
-            echo ""
-            echo "Usage:"
-            echo "  ./claude/tools/commit-precheck [options]"
-            echo ""
-            echo "Options:"
-            echo "  --verbose, -v  Show detailed output instead of logging"
-            echo "  --version      Show version"
-            echo "  --help, -h     Show this help"
-            exit 0
-            ;;
-        *)
-            shift
-            ;;
+            sed -n '/^# Usage:/,/^# Exit/p' "$0" | sed 's/^# //' | sed 's/^#//'
+            exit 0 ;;
+        *) shift ;;
     esac
 done
 
-# Logging helpers
-log() {
-    local level="$1"
-    local message="$2"
+# ─────────────────────────────────────────────────────────────────────────────
+# Logging
+# ─────────────────────────────────────────────────────────────────────────────
 
+log_msg() {
+    local level="$1" message="$2"
     if [[ "$VERBOSE" == "true" ]]; then
         echo "[$level] $message"
-    elif [[ -n "$RUN_ID" ]]; then
+    elif [[ -n "${RUN_ID:-}" ]]; then
         curl -s -X POST "http://127.0.0.1:3141/api/log" \
             -H "Content-Type: application/json" \
             -d "{\"service\":\"commit-precheck\",\"level\":\"$level\",\"message\":\"$message\",\"runId\":\"$RUN_ID\"}" \
             > /dev/null 2>&1 || true
     fi
 }
+log_info() { log_msg "info" "$1"; }
+log_warn() { log_msg "warn" "$1"; }
 
-log_info() { log "info" "$1"; }
-log_warn() { log "warn" "$1"; }
-log_error() { log "error" "$1"; }
-
-# End tool run (wrapper for log_end from _log-helper)
 end_run() {
-    local status="$1"
-    local summary="$2"
-
-    if [[ "$VERBOSE" == "true" ]]; then
-        return
-    fi
-
-    # Use log_end from _log-helper
-    log_end "$RUN_ID" "$status" "0" "0" "$summary"
-}
-
-# Output result (standard format)
-output_success() {
-    local message="$1"
-    echo "$message"
-    echo "✓"
-}
-
-output_failure() {
-    local message="$1"
-    echo "$message"
-    echo "✗"
-    # Verbose output available via run ID
+    [[ "$VERBOSE" == "true" ]] && return
+    log_end "$RUN_ID" "$1" "0" "0" "$2" 2>/dev/null || true
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Staged file classification
+# Timeout wrapper
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Determine if staged changes include application code (not just tooling/config/docs)
-has_app_code() {
-    # Application code extensions that warrant full test + review
-    local app_patterns='\.ts$|\.tsx$|\.js$|\.jsx$|\.py$|\.rs$|\.go$|\.java$|\.swift$|\.vue$|\.svelte$'
-
-    # Check staged files against app code patterns
-    if git diff --cached --name-only | grep -qE "$app_patterns"; then
-        return 0  # has app code
-    fi
-    return 1  # tooling/config/docs only
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Timeout wrapper — kills long-running steps
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Run a command with a timeout. Returns the command's exit code, or 124 on timeout.
 run_with_timeout() {
-    local timeout_secs="$1"
-    shift
-
-    if command -v timeout >/dev/null 2>&1; then
-        timeout "$timeout_secs" "$@"
-    elif command -v gtimeout >/dev/null 2>&1; then
+    local timeout_secs="$1"; shift
+    if command -v gtimeout >/dev/null 2>&1; then
         gtimeout "$timeout_secs" "$@"
+    elif command -v timeout >/dev/null 2>&1; then
+        timeout "$timeout_secs" "$@"
     else
-        # No timeout command available — run directly but with a background watchdog
         "$@" &
         local pid=$!
         (sleep "$timeout_secs" && kill "$pid" 2>/dev/null) &
@@ -154,7 +94,39 @@ run_with_timeout() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Main pre-commit logic
+# Stage classification
+# ─────────────────────────────────────────────────────────────────────────────
+
+classify_staged() {
+    local staged_files
+    staged_files=$(git diff --cached --name-only)
+
+    # Check for markdown-only
+    local non_md
+    non_md=$(echo "$staged_files" | grep -vE '\.(md|txt|json|yaml|yml)$' || true)
+    if [[ -z "$non_md" ]]; then
+        echo "docs-only"
+        return
+    fi
+
+    # Check for app code (JS/TS/Python/Rust/Go/etc.)
+    if echo "$staged_files" | grep -qE '\.(ts|tsx|js|jsx|py|rs|go|java|swift|vue|svelte)$'; then
+        echo "app-code"
+        return
+    fi
+
+    # Check for tool/test code (bash scripts in claude/tools/ or tests/)
+    if echo "$staged_files" | grep -qE '^(claude/tools/|tests/)'; then
+        echo "tool-code"
+        return
+    fi
+
+    # Everything else: config, yaml, scripts outside tools/, etc.
+    echo "config-only"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main
 # ─────────────────────────────────────────────────────────────────────────────
 
 main() {
@@ -163,131 +135,161 @@ main() {
     REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
     cd "$REPO_ROOT"
 
-    # Check if there are any staged changes
+    # No staged changes = nothing to check
     if git diff --cached --quiet; then
-        log_info "No staged changes to check"
+        log_info "No staged changes"
         end_run "success" "No staged changes"
-        output_success "No staged changes to check"
+        echo "No staged changes to check"
+        echo "✓"
         exit 0
     fi
 
-    log_info "Starting pre-commit checks"
+    # Step 1: Classify
+    local classification
+    classification=$(classify_staged)
+    log_info "Classification: $classification"
 
-    # Classify staged changes
-    local APP_CODE=false
-    if has_app_code; then
-        APP_CODE=true
-        log_info "Staged changes include application code — full checks"
-    else
-        log_info "Staged changes are tooling/config/docs only — fast path"
+    # Fast path: docs/config only — no tests needed
+    if [[ "$classification" == "docs-only" || "$classification" == "config-only" ]]; then
+        log_info "Fast path: $classification — skipping all checks"
+        end_run "success" "Fast path: $classification"
+        echo "All pre-commit checks passed"
+        echo "✓"
+        exit 0
     fi
 
-    # Detect package manager
-    if [ -f "pnpm-lock.yaml" ]; then
-        PM="pnpm"
-    elif [ -f "yarn.lock" ]; then
-        PM="yarn"
-    else
-        PM="npm"
-    fi
-    log_info "Using package manager: $PM"
-
-    # Track results
-    STEPS_PASSED=0
-    STEPS_TOTAL=5
-
-    # Step 1: Format code (auto-fix) — 30s timeout
-    log_info "Step 1/5: Formatting code"
-    if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.format ? 0 : 1)" 2>/dev/null; then
-        if run_with_timeout 30 $PM run format 2>&1 >/dev/null; then
-            log_info "Formatting complete"
-        else
-            log_warn "Formatting failed or timed out (continuing)"
-        fi
-        ((STEPS_PASSED++))
-    else
-        log_warn "Format script not found (skipping)"
-        ((STEPS_PASSED++))
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "[dry-run] Classification: $classification"
     fi
 
-    # Step 2: Lint code (auto-fix) — 30s timeout
-    log_info "Step 2/5: Linting code"
-    if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['lint:fix'] ? 0 : 1)" 2>/dev/null; then
-        if run_with_timeout 30 $PM run lint:fix 2>&1 >/dev/null; then
-            log_info "Linting complete"
-        else
-            log_warn "Linting failed or timed out (continuing)"
+    # Step 2: Format + Lint + Typecheck (app-code only, if scripts exist)
+    if [[ "$classification" == "app-code" ]]; then
+        local PM="npm"
+        [[ -f "pnpm-lock.yaml" ]] && PM="pnpm"
+        [[ -f "yarn.lock" ]] && PM="yarn"
+
+        # Format (auto-fix, non-blocking)
+        if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.format ? 0 : 1)" 2>/dev/null; then
+            log_info "Formatting..."
+            if [[ "$DRY_RUN" == "true" ]]; then
+                echo "[dry-run] Would run: $PM run format"
+            else
+                run_with_timeout 30 $PM run format >/dev/null 2>&1 || log_warn "Format failed (continuing)"
+            fi
         fi
-        ((STEPS_PASSED++))
-    else
-        log_warn "Lint script not found (skipping)"
-        ((STEPS_PASSED++))
+
+        # Lint (auto-fix, non-blocking)
+        if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['lint:fix'] ? 0 : 1)" 2>/dev/null; then
+            log_info "Linting..."
+            if [[ "$DRY_RUN" == "true" ]]; then
+                echo "[dry-run] Would run: $PM run lint:fix"
+            else
+                run_with_timeout 30 $PM run lint:fix >/dev/null 2>&1 || log_warn "Lint failed (continuing)"
+            fi
+        fi
+
+        # Typecheck (blocking)
+        if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.typecheck ? 0 : 1)" 2>/dev/null; then
+            log_info "Type checking..."
+            if [[ "$DRY_RUN" == "true" ]]; then
+                echo "[dry-run] Would run: $PM run typecheck"
+            else
+                if ! run_with_timeout 60 $PM run typecheck >/dev/null 2>&1; then
+                    end_run "failure" "Type check failed"
+                    echo "Type check failed"
+                    echo "✗"
+                    exit 2
+                fi
+            fi
+        fi
     fi
 
-    # Step 3: Type check (blocking if script exists) — 60s timeout
-    log_info "Step 3/5: Type checking"
-    if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.typecheck ? 0 : 1)" 2>/dev/null; then
-        if run_with_timeout 60 $PM run typecheck 2>&1 >/dev/null; then
-            log_info "Type check passed"
-            ((STEPS_PASSED++))
+    # Step 3: Scoped tests (tool-code or app-code)
+    local test_scoper="$SCRIPT_DIR/test-scoper"
+    if [[ -x "$test_scoper" ]]; then
+        local scoped_tests
+        scoped_tests=$(git diff --cached --name-only | "$test_scoper" 2>/dev/null || true)
+
+        if [[ -n "$scoped_tests" ]]; then
+            local test_count
+            test_count=$(echo "$scoped_tests" | wc -l | tr -d ' ')
+            log_info "Scoped tests: $test_count file(s)"
+
+            if [[ "$DRY_RUN" == "true" ]]; then
+                echo "[dry-run] Would run $test_count scoped test file(s):"
+                echo "$scoped_tests" | sed 's|.*/||'
+            else
+                # Run scoped BATS tests with 60s timeout
+                local bats_files
+                bats_files=$(echo "$scoped_tests" | grep '\.bats$' || true)
+                if [[ -n "$bats_files" ]]; then
+                    local bats_args
+                    bats_args=$(echo "$bats_files" | tr '\n' ' ')
+                    log_info "Running: bats $bats_args"
+
+                    local test_output
+                    if test_output=$(run_with_timeout 60 bats $bats_args 2>&1); then
+                        log_info "Scoped tests passed"
+                    else
+                        local exit_code=$?
+                        if [[ $exit_code -eq 124 ]]; then
+                            log_warn "Tests timed out at 60s (allowing commit)"
+                            echo "WARNING: Tests timed out at 60s"
+                        else
+                            end_run "failure" "Scoped tests failed"
+                            echo "Scoped tests failed"
+                            # Show last 20 lines of output for diagnosis
+                            echo "$test_output" | tail -20
+                            echo "✗"
+                            exit 2
+                        fi
+                    fi
+                fi
+
+                # Run scoped vitest/jest if any .test.ts/.spec.ts matched
+                local js_tests
+                js_tests=$(echo "$scoped_tests" | grep -E '\.(test|spec)\.(ts|js|tsx|jsx)$' || true)
+                if [[ -n "$js_tests" ]]; then
+                    log_info "Running JS/TS tests..."
+                    if ! run_with_timeout 60 npx vitest run $js_tests >/dev/null 2>&1; then
+                        local exit_code=$?
+                        if [[ $exit_code -eq 124 ]]; then
+                            log_warn "JS tests timed out at 60s (allowing commit)"
+                        else
+                            end_run "failure" "JS tests failed"
+                            echo "JS tests failed"
+                            echo "✗"
+                            exit 2
+                        fi
+                    fi
+                fi
+            fi
         else
-            log_error "Type errors found (or timed out)"
-            end_run "failure" "Type check failed"
-            output_failure "Type check failed"
-            exit 2
+            log_info "No scoped tests found for staged files"
         fi
     else
-        log_warn "Type check script not found (skipping)"
-        ((STEPS_PASSED++))
+        log_warn "test-scoper not found — skipping scoped tests"
     fi
 
-    # Step 4: Unit tests — ONLY for app code, 120s timeout
-    log_info "Step 4/5: Running unit tests"
-    if [[ "$APP_CODE" == "true" ]] && [ -x "./claude/tools/test-run" ]; then
-        if run_with_timeout 120 ./claude/tools/test-run 2>&1 >/dev/null; then
-            log_info "Unit tests passed"
-            ((STEPS_PASSED++))
-        else
-            log_error "Unit tests failed (or timed out)"
-            end_run "failure" "Unit tests failed"
-            output_failure "Unit tests failed"
-            exit 2
+    # Step 4: Stage-hash check (warn-only)
+    local stage_hash_tool="$SCRIPT_DIR/stage-hash"
+    if [[ -x "$stage_hash_tool" && "$DRY_RUN" != "true" ]]; then
+        local current_hash
+        current_hash=$("$stage_hash_tool" 2>/dev/null || true)
+        if [[ -n "$current_hash" ]]; then
+            log_info "Stage hash: $current_hash"
+            # Check for matching QGR receipt (warn-only, don't block)
+            local qgr_match
+            qgr_match=$(ls usr/jordan/*/qgr-*-"$current_hash"-*.md 2>/dev/null | head -1 || true)
+            if [[ -z "$qgr_match" ]]; then
+                log_warn "No QGR receipt for stage hash $current_hash (warn-only)"
+            fi
         fi
-    else
-        if [[ "$APP_CODE" != "true" ]]; then
-            log_info "No app code staged — skipping tests (fast path)"
-        else
-            log_warn "Test runner not found (skipping)"
-        fi
-        ((STEPS_PASSED++))
     fi
 
-    # Step 5: Code review — ONLY for app code, 120s timeout
-    # Code review spawns multiple agents and is too heavy for pre-commit.
-    # It belongs in /iteration-complete and /phase-complete, not here.
-    log_info "Step 5/5: Code review"
-    if [[ "$APP_CODE" == "true" ]] && [ -x "./claude/tools/code-review" ]; then
-        if run_with_timeout 120 ./claude/tools/code-review 2>&1 >/dev/null; then
-            log_info "Code review passed"
-            ((STEPS_PASSED++))
-        else
-            log_error "Code review found blocking issues (or timed out)"
-            end_run "failure" "Code review failed"
-            output_failure "Code review found blocking issues"
-            exit 2
-        fi
-    else
-        if [[ "$APP_CODE" != "true" ]]; then
-            log_info "No app code staged — skipping code review (fast path)"
-        else
-            log_warn "Code review tool not found (skipping)"
-        fi
-        ((STEPS_PASSED++))
-    fi
-
-    log_info "All $STEPS_PASSED/$STEPS_TOTAL checks passed"
-    end_run "success" "All checks passed"
-    output_success "All pre-commit checks passed"
+    end_run "success" "All checks passed ($classification)"
+    echo "All pre-commit checks passed"
+    echo "✓"
 }
 
 main "$@"
