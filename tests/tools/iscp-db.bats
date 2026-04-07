@@ -623,3 +623,211 @@ YAML
     assert_failure
     assert_output_contains "not initialized"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Schema migration framework (Phase 2, Iteration 2.0)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "migrate_v0_to_v1 outputs valid SQL" {
+    # The migration function should output DDL that sqlite3 can parse
+    local sql
+    sql=$(_iscp_migrate_v0_to_v1)
+    [[ -n "$sql" ]]
+
+    # Should contain CREATE TABLE statements for all 6 tables
+    [[ "$sql" == *"CREATE TABLE IF NOT EXISTS flags"* ]]
+    [[ "$sql" == *"CREATE TABLE IF NOT EXISTS dispatches"* ]]
+    [[ "$sql" == *"CREATE TABLE IF NOT EXISTS transcripts"* ]]
+    [[ "$sql" == *"CREATE TABLE IF NOT EXISTS dropbox_items"* ]]
+    [[ "$sql" == *"CREATE TABLE IF NOT EXISTS subscriptions"* ]]
+    [[ "$sql" == *"CREATE TABLE IF NOT EXISTS notifications"* ]]
+}
+
+@test "run_migrations v0 to v1 creates schema and sets version" {
+    # Create a bare DB at version 0 (no schema, no user_version set)
+    local db
+    db=$(iscp_db_path)
+    local db_dir
+    db_dir=$(dirname "$db")
+    mkdir -p "$db_dir"
+    chmod 700 "$db_dir"
+    sqlite3 "$db" "PRAGMA user_version=0;"
+
+    run _iscp_run_migrations "$db" 0 1
+    assert_success
+
+    # Version should now be 1
+    local version
+    version=$(sqlite3 "$db" "PRAGMA user_version;")
+    [[ "$version" == "1" ]]
+
+    # All tables should exist
+    for table in flags dispatches transcripts dropbox_items subscriptions notifications; do
+        local count
+        count=$(sqlite3 "$db" "SELECT count(*) FROM $table;" 2>/dev/null)
+        [[ "$count" == "0" ]]
+    done
+}
+
+@test "run_migrations fails if migration function is missing" {
+    local db
+    db=$(iscp_db_path)
+    local db_dir
+    db_dir=$(dirname "$db")
+    mkdir -p "$db_dir"
+    chmod 700 "$db_dir"
+    sqlite3 "$db" "PRAGMA user_version=0;"
+
+    # Try to migrate to v99 — no _iscp_migrate_v0_to_v99 or intermediate functions exist
+    # First step v0→v1 exists, but v1→v2 does not
+    run _iscp_run_migrations "$db" 1 2
+    assert_failure
+    assert_output_contains "migration function"
+    assert_output_contains "not found"
+}
+
+@test "run_migrations handles multi-step upgrades" {
+    # Define a mock v1→v2 migration that adds a column
+    _iscp_migrate_v1_to_v2() {
+        echo "ALTER TABLE flags ADD COLUMN category TEXT DEFAULT '';"
+    }
+
+    # Create DB at v0
+    local db
+    db=$(iscp_db_path)
+    local db_dir
+    db_dir=$(dirname "$db")
+    mkdir -p "$db_dir"
+    chmod 700 "$db_dir"
+    sqlite3 "$db" "PRAGMA user_version=0;"
+
+    # Migrate v0→v2 (two steps)
+    run _iscp_run_migrations "$db" 0 2
+    assert_success
+
+    # Version should be 2
+    local version
+    version=$(sqlite3 "$db" "PRAGMA user_version;")
+    [[ "$version" == "2" ]]
+
+    # The new column should exist
+    run sqlite3 "$db" "SELECT category FROM flags LIMIT 0;"
+    assert_success
+
+    # Clean up mock
+    unset -f _iscp_migrate_v1_to_v2
+}
+
+@test "run_migrations preserves version on failure" {
+    # Define a mock v1→v2 migration that produces invalid SQL
+    _iscp_migrate_v1_to_v2() {
+        echo "THIS IS NOT VALID SQL AT ALL;"
+    }
+
+    # Create DB at v0, migrate to v1 first
+    local db
+    db=$(iscp_db_path)
+    local db_dir
+    db_dir=$(dirname "$db")
+    mkdir -p "$db_dir"
+    chmod 700 "$db_dir"
+    sqlite3 "$db" "PRAGMA user_version=0;"
+    _iscp_run_migrations "$db" 0 1
+
+    # Now attempt v1→v2 which should fail
+    run _iscp_run_migrations "$db" 1 2
+    assert_failure
+    assert_output_contains "migration v1 → v2 failed"
+
+    # Version should still be 1 (not 2)
+    local version
+    version=$(sqlite3 "$db" "PRAGMA user_version;")
+    [[ "$version" == "1" ]]
+
+    # Existing tables should be intact
+    run sqlite3 "$db" "SELECT count(*) FROM flags;"
+    assert_success
+
+    # Clean up mock
+    unset -f _iscp_migrate_v1_to_v2
+}
+
+@test "iscp_db_init upgrades v0 DB via migration path" {
+    # Simulate a pre-versioned DB (v0) with no tables
+    local db
+    db=$(iscp_db_path)
+    local db_dir
+    db_dir=$(dirname "$db")
+    mkdir -p "$db_dir"
+    chmod 700 "$db_dir"
+    # Create empty DB file with WAL mode but version 0
+    sqlite3 "$db" "PRAGMA journal_mode=WAL; PRAGMA user_version=0;"
+
+    # iscp_db_init should detect v0 and run migrations
+    run iscp_db_init
+    assert_success
+
+    # Should now be at current version
+    local version
+    version=$(sqlite3 "$db" "PRAGMA user_version;")
+    [[ "$version" == "$ISCP_SCHEMA_VERSION" ]]
+
+    # All tables should exist
+    for table in flags dispatches transcripts dropbox_items subscriptions notifications; do
+        local count
+        count=$(sqlite3 "$db" "SELECT count(*) FROM $table;" 2>/dev/null)
+        [[ "$count" == "0" ]]
+    done
+}
+
+@test "run_migrations is no-op when current equals target" {
+    iscp_db_init
+    local db
+    db=$(iscp_db_path)
+
+    # Insert some data
+    iscp_db_insert_flag "repo/p/a" "repo/p/b" "test" "" ""
+
+    # "Migrate" from v1 to v1 — should be a no-op
+    run _iscp_run_migrations "$db" 1 1
+    assert_success
+
+    # Data should be intact
+    run iscp_db_query "SELECT count(*) FROM flags"
+    assert_success
+    [[ "$output" == "1" ]]
+}
+
+@test "migration preserves existing data" {
+    # Define a mock v1→v2 that adds a column (non-destructive)
+    _iscp_migrate_v1_to_v2() {
+        echo "ALTER TABLE flags ADD COLUMN priority TEXT DEFAULT 'normal';"
+    }
+
+    # Create and populate a v1 DB
+    iscp_db_init
+    iscp_db_insert_flag "repo/p/a" "repo/p/b" "important message" "sess1" "main"
+    iscp_db_insert_flag "repo/p/a" "repo/p/b" "another message" "sess1" "main"
+
+    local db
+    db=$(iscp_db_path)
+
+    # Migrate to v2
+    run _iscp_run_migrations "$db" 1 2
+    assert_success
+
+    # Existing data should be intact
+    run sqlite3 "$db" "SELECT count(*) FROM flags;"
+    [[ "$output" == "2" ]]
+
+    # Messages should be preserved
+    run sqlite3 "$db" "SELECT message FROM flags WHERE id = 1;"
+    [[ "$output" == "important message" ]]
+
+    # New column should have default value
+    run sqlite3 "$db" "SELECT priority FROM flags WHERE id = 1;"
+    [[ "$output" == "normal" ]]
+
+    # Clean up mock
+    unset -f _iscp_migrate_v1_to_v2
+}
