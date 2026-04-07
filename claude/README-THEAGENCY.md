@@ -35,7 +35,7 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 - **Session handoff** — context bootstrap for any purpose (agent-to-agent, cold start, compaction survival)
 
 ### Tooling
-- **Scaffold tools** — proto-module-scaffold, agent-define
+- **Scaffold tools** — workstream-create, worktree-create, agent-define
 - **Context tools** — handoff (read/write/archive), plan-capture
 - **Observability** — tool-runs.jsonl, telemetry.jsonl, statusline
 - **Review agents** — code-reviewer, security-reviewer, design-reviewer, test-reviewer, scorer
@@ -491,20 +491,23 @@ my-project/
     │   ├── git-commit           — QG-aware commit wrapper
     │   ├── settings-merge       — merge settings template into current
     │   └── ...                  — (worktree-*, etc.)
-    ├── usr/                     — agent INSTANCES (per-principal sandboxes)
-    │   └── {principal}/
-    │       └── {project}/       — one directory per project
-    │           ├── handoff.md   — current session state
-    │           ├── {project}-pvr-*.md
-    │           ├── {project}-architecture-*.md
-    │           ├── {project}-plan-*.md
-    │           ├── code-reviews/ — captain review + dispatch files
-    │           ├── dispatches/  — incoming dispatches
-    │           ├── transcripts/ — discussion transcripts
-    │           └── history/     — archived handoffs and artifacts
     ├── workstreams/             — bodies of work
-    │   └── ops/                 — default workstream
-    └── src/                     — --dev only (source code, tests)
+    │   ├── agency/              — framework methodology (valueflow)
+    │   ├── iscp/                — inter-session communication protocol
+    │   ├── devex/               — developer experience
+    │   └── ...                  — per-project workstreams
+    └── starter-packs/           — starter kit templates for agency init
+usr/                             — agent INSTANCES (at PROJECT ROOT, not under claude/)
+    └── {principal}/
+        └── {project}/           — one directory per project
+            ├── {agent}-handoff.md — current session state
+            ├── {project}-pvr-*.md
+            ├── {project}-ad-*.md
+            ├── {project}-plan-*.md
+            ├── code-reviews/    — captain review + dispatch files
+            ├── dispatches/      — incoming dispatches
+            ├── transcripts/     — discussion transcripts
+            └── history/         — archived handoffs and artifacts
 ```
 
 **Three file tiers** (governs what `agency-update` does):

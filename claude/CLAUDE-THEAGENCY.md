@@ -24,7 +24,7 @@ claude/                    — framework (tools, agents, docs, hooks, config)
     FEEDBACK-FORMAT.md     — bug report / feature request template
     CODE-REVIEW-LIFECYCLE.md — dispatch handling protocol
     DEVELOPMENT-METHODOLOGY.md — full Seed→Reference lifecycle
-  hooks/                   — session hooks (ref-injector, tool-telemetry, session-handoff)
+  hooks/                   — session hooks (ref-injector, tool-telemetry, session-handoff, branch-freshness, quality-check, plan-capture)
   hookify/                 — shipped behavioral rules
   tools/                   — all tools (bash, python, rust, compiled)
     lib/                   — tool libraries (_log-helper, _path-resolve, etc.)
@@ -37,6 +37,7 @@ claude/                    — framework (tools, agents, docs, hooks, config)
     flag                   — agent-addressable flag capture and processing
     iscp-check             — "you got mail" notification hook
     iscp-migrate           — legacy flag/dispatch migration (one-shot)
+    collaboration          — cross-repo dispatch lifecycle (captain only)
   templates/               — scaffolding templates
   workstreams/             — bodies of work
     {workstream}/
@@ -46,7 +47,7 @@ claude/                    — framework (tools, agents, docs, hooks, config)
       dispatches/          — workstream-targeted dispatches
       reviews/             — QGRs and review files
       history/             — archived artifact versions
-  src/                     — --dev only (source code, tests)
+  starter-packs/           — starter kit templates for agency init
 usr/                       — agent INSTANCES (per-principal sandboxes, at PROJECT ROOT)
   {principal}/
     {project}/             — one directory per project
@@ -374,11 +375,11 @@ Handoff files are a first-class Agency primitive for context bootstrapping. They
 
 Handoffs are not just session continuity — they bootstrap context for any purpose: agent-to-agent transfer, cold start, project setup, compaction survival, or spinning up a new agent into a desired state. The tool handles infrastructure; the agent writes the content.
 
-**Always use the handoff tool.** Run `./claude/tools/handoff write --trigger <reason>` to write handoffs. The tool archives the previous handoff to `history/` with a timestamp, resolves the correct path for your project, and ensures consistent formatting. Never write handoff files manually — always use the tool. The `SessionEnd` and `PreCompact` hooks call it automatically, but agents must also call it explicitly at boundary commands and discussion milestones.
+**Always use the handoff tool.** Run `./claude/tools/handoff write --trigger <reason>` to write handoffs. The tool archives the previous handoff to `history/` with a timestamp, resolves the correct path for your project, and ensures consistent formatting. Never write handoff files manually — always use the tool. The `SessionEnd` and `Stop` hooks call it automatically, but agents must also call it explicitly at boundary commands and discussion milestones.
 
 **Note:** Never use `$CLAUDE_PROJECT_DIR` in Bash tool calls — the variable is only set inside hooks, not in agent shell sessions. Use `./claude/tools/` (relative paths) instead. Claude Code always sets CWD to the project root.
 
-**When to write:** At boundary commands (`/iteration-complete`, `/phase-complete`, `/plan-complete`, `/pre-phase-review`), automatically on `PreCompact` and `SessionEnd` hooks, after `/sync-all` (lightweight), and at discussion milestones (PVR draft, key A&D decision, plan revision).
+**When to write:** At boundary commands (`/iteration-complete`, `/phase-complete`, `/plan-complete`, `/pre-phase-review`), automatically on `Stop` and `SessionEnd` hooks, after `/sync-all` (lightweight), and at discussion milestones (PVR draft, key A&D decision, plan revision).
 
 **What to include:** Current phase/iteration status, what was just done, what's next, key decisions or context for a fresh session, open items or blockers.
 
@@ -402,6 +403,7 @@ The `iscp-check` hook fires on SessionStart, UserPromptSubmit, and Stop. It quer
 | `dispatch read <id>` | Read payload, mark as read |
 | `dispatch resolve <id>` | Mark dispatch resolved |
 | `agent-identity` | Resolve "who am I" (repo/principal/agent) |
+| `collaboration check` | Check cross-repo dispatches (captain only) |
 
 ### When You Have Mail
 
