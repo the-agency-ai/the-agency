@@ -127,6 +127,64 @@ Two modes: **always-on loop** (dispatch processing, commit merging, PR building)
 | QGR | Quality gate results | Standalone receipt + appended to Plan |
 | Reference | Final documentation | Produced at plan completion |
 
+## SPEC-PROVIDER Pattern
+
+TheAgency uses a **SPEC-PROVIDER** architectural pattern for capabilities that have multiple possible implementations: preview, deploy, security, and prototype scaffolding. The pattern keeps the framework generic while letting projects plug in their own backends.
+
+### How It Works
+
+Three layers:
+
+| Layer | What | Where |
+|-------|------|-------|
+| **Spec** | Declares which provider to use | `claude/config/agency.yaml` |
+| **Provider** | Tool that implements a contract for one backend | `claude/tools/{capability}-{provider}` |
+| **Skill** | Generic dispatcher that reads the spec and calls the provider | `.claude/skills/{capability}/SKILL.md` |
+
+### Example: Preview
+
+**Spec** in `agency.yaml`:
+```yaml
+preview:
+  provider: "docker-compose"   # or "fly", "vercel", "cloudflare"
+```
+
+**Provider** at `claude/tools/preview-docker-compose` implements the contract:
+```bash
+preview-docker-compose start    # launch, print URL
+preview-docker-compose stop     # tear down
+preview-docker-compose status   # running/stopped/error
+preview-docker-compose logs     # stream recent logs
+```
+
+**Skill** `/preview` reads the spec, dispatches to the provider tool. Same skill works for any provider that implements the contract.
+
+### Why This Pattern
+
+- **Generic skills, specific implementations.** `/preview` doesn't know about Docker — it knows about the contract. New backends plug in by adding a `preview-{name}` tool.
+- **Configuration in one place.** `agency.yaml` is the spec. Switch backends by changing one line.
+- **Forward compatible.** Adopters can add their own providers without forking the framework.
+- **Consistent UX.** Every SPEC-PROVIDER capability looks the same to the user — same skill invocation, same flags, same output format.
+
+### Capabilities Using SPEC-PROVIDER
+
+| Capability | Skill | Spec key | Provider naming |
+|-----------|-------|----------|----------------|
+| Preview | `/preview` | `preview.provider` | `preview-{provider}` |
+| Deploy | `/deploy` | `deploy.provider` | `deploy-{provider}` |
+| Security/Secrets | `/secret` | `secret.provider` | `secret-{provider}` |
+| Prototype scaffolding | `/prototype-create` | `prototype.providers` | `prototype-{provider}` *(planned)* |
+
+### Provider Contract
+
+Each provider tool is a CLI that accepts standardized verbs. The skill defines the contract for its capability — providers implement it. New providers added by:
+
+1. Creating `claude/tools/{capability}-{name}` that supports the verbs
+2. Documenting the verbs in the tool's `--help`
+3. Listing the provider as a valid value in the agency.yaml schema (optional)
+
+The framework intentionally has no central provider registry — providers exist by being installed and named correctly. This keeps the pattern open and forkable.
+
 ---
 
 *The sections below mirror the CLAUDE.md template structure. CLAUDE.md has the rules for agents; this README explains the why for humans.*
