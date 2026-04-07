@@ -99,7 +99,7 @@ Captain selects reviewers based on artifact type (PVR gets methodology critics; 
 
 ### The Enforcement Ladder
 
-Every capability in valueflow follows a progressive tightening path:
+Every capability follows a progressive tightening path. **The ladder is per-capability** — different parts of the framework are at different steps.
 
 1. **Document** — write it in CLAUDE-THEAGENCY.md. Human-readable, no tooling required.
 2. **Skill** — wrap it in an invocable skill. Discovery via `/` autocomplete.
@@ -109,7 +109,9 @@ Every capability in valueflow follows a progressive tightening path:
 
 Each layer addresses the bypass discovered in the previous layer. Gate on artifact existence (mechanical, auditable), not on artifact quality (human judgment).
 
-**We are at step 1.** Valueflow is documented. Skills, tools, and enforcement are being built as V2. The methodology is the process we follow now — tooling catches up.
+**Where we are today:** Mature capabilities like `git-commit`, `handoff`, and `dispatch` are at steps 4–5 (warn or block enforced). Newer methodology patterns like Valueflow, MAR, MARFI, and three-bucket triage are at step 1 — documented, but not yet skill-wrapped or enforced. Each capability progresses up the ladder as it matures.
+
+The Ladder (progression) is distinct from the **Enforcement Triangle** (structure: tool + skill + hookify). A capability at step 5 has all three Triangle parts; a capability at step 1 has only docs. The Triangle is what each capability looks like when fully built; the Ladder is how it gets there.
 
 ### Captain
 
@@ -255,13 +257,21 @@ Tests: 334 passing (21 new: 8 bug-exposing, 13 coverage), 0 failing
 
 ### QGR Receipt Files
 
-Each gate writes a standalone receipt file:
+Each gate writes a standalone receipt file at the workstream location:
 
 ```
-usr/{principal}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md
+claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md
 ```
 
-The stage hash is a deterministic 7-character hash computed from the git staging area. `/git-commit` computes the same hash and globs for a matching receipt — if none exists, it warns that no QG was run.
+For workstreams with multiple projects, use a project subdirectory:
+
+```
+claude/workstreams/{ws}/project/{project}/quality-gate-reports/qgr-...
+```
+
+(Single-project workstreams skip the `project/` level until a second project is added — then existing files migrate.)
+
+The QGR frontmatter includes `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic 7-character hash computed from the git staging area. `/git-commit` computes the same hash and globs for a matching receipt — if none exists, it warns that no QG was run.
 
 ## Development Methodology
 
@@ -327,7 +337,7 @@ Handoff files live at `usr/{principal}/{project}/handoff.md`. The `claude/tools/
 - **`handoff read`** — outputs current handoff content (used by session-start hooks to inject context)
 - **`handoff archive`** — manually archive without writing
 
-The tool resolves paths automatically from the git branch and principal directory. Hooks (`PreCompact`, `SessionEnd`) fire the tool automatically so no context is lost even if the session ends unexpectedly.
+The tool resolves paths automatically from the git branch and principal directory. Handoff writing is **manual** — agents must invoke the `/handoff` skill (or run `./claude/tools/handoff write`) at the appropriate trigger points below. There is no automatic handoff hook today; the `Stop` hook checks for uncommitted changes but does not write handoffs.
 
 ### Trigger Points
 
@@ -337,8 +347,7 @@ The tool resolves paths automatically from the git branch and principal director
 | `/phase-complete` | Boundary | Step of the command |
 | `/plan-complete` | Boundary | Final handoff before project close |
 | `/pre-phase-review` | Boundary | Before clearance |
-| `PreCompact` | Hook | Automatic — fires before context compression |
-| `SessionEnd` | Hook | Automatic — fires when session is ending |
+| Before exit/restart | Manual | Agent calls `/handoff` before ending session |
 | `/sync-all` | Convention | Lightweight status update (captain only) |
 | Discussion milestone | Convention | After PVR draft, key A&D decision, or plan revision |
 
@@ -559,7 +568,7 @@ When the captain finds issues, it writes two files per project:
 
 These are committed to master. The worktree agent picks them up by merging master, then works through the findings using the dispatch handling protocol: evaluate validity → bug-exposing test (red) → fix (green) → resolution table → `/iteration-complete`.
 
-Agents use their judgment — a dispatch is review input, not an action list. Findings can be Fixed, Disputed (with reasoning), Stale (code changed), or Deferred (with reason).
+Agents use their judgment — a dispatch is review input, not an action list. Findings are either **Fixed** (valid finding, resolved) or **Rejected** (invalid finding, with reasoning). No "Deferred," no "Won't Fix," no severity-based skip. Every valid finding gets fixed — severity orders the fix sequence, never the fix decision.
 
 ### Review File Convention
 

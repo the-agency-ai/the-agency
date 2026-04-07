@@ -287,7 +287,7 @@ Quality gates run at every commit boundary — iteration, phase, plan completion
 | Pre-PR | `/pr-prep` | Full diff vs origin/master | — |
 | Pre-phase | `/pre-phase-review` | PVR + A&D + Plan review | Principal required |
 
-**QGR receipt files:** Each gate produces a standalone receipt at `usr/{{principal}}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md`. The stage hash is a deterministic hash of the staged changes (computed by `claude/tools/stage-hash`). `/git-commit` checks for a matching receipt before committing — no receipt means no QG was run.
+**QGR receipt files:** Each gate produces a standalone receipt at `claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md`. For workstreams with multiple projects, use `claude/workstreams/{ws}/project/{project}/quality-gate-reports/`. The QGR frontmatter must include `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic hash of the staged changes (computed by `claude/tools/stage-hash`). `/git-commit` checks for a matching receipt before committing — no receipt means no QG was run.
 
 **After every commit:** Update the plan file with iteration/phase status, QG findings, and append the full QGR. The plan is the living record. The QGR receipt file is committed alongside the work as the permanent audit trail.
 
@@ -295,19 +295,43 @@ Quality gates run at every commit boundary — iteration, phase, plan completion
 
 This is how we develop. Not a suggestion — the process.
 
-### The Flow
+### The Flow (Valueflow)
 
 ```
-Seed → Discussion → PVR (evolving) → A&D (evolving) → Plan (phases × iterations)
+Gleam → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
 ```
 
-1. **Seed** — a starting point from elsewhere (document, idea, spec). Launches the discussion.
-2. **Discussion** — using the Discussion Protocol (`/discuss`). Explore requirements, constraints, trade-offs. No jumping to implementation.
-3. **Product Vision & Requirements (PVR)** — the _what_ and _why_. Built during discussion, evolves through implementation. Use `/define` to drive toward completeness.
-4. **Architecture & Design (A&D)** — the _how_ and _why_. Technical decisions, patterns, system design. Use `/design` to drive toward completeness. Evolves through implementation.
-5. **Plan** — Phases comprised of Iterations. Created after PVR and A&D have enough shape. Updated after every commit.
+1. **Gleam** — a thought, observation, conversation. Pre-seed.
+2. **Seed** — captured starting point (document, transcript, idea, flag). Launches the discussion.
+3. **Research (MARFI)** — Multi-Agent Request for Information. Captain drafts research questions, principal reviews, agents execute in parallel. Cross-cutting research only.
+4. **Define (PVR)** — Product Vision & Requirements. The _what_ and _why_. Use `/define`. MAR reviews it.
+5. **Design (A&D)** — Architecture & Design. The _how_ and _why_. Use `/design`. MAR reviews it.
+6. **Plan** — Phases × Iterations. May have MAP (Multi-Agent Plan input) for cross-cutting work. MAR reviews it.
+7. **Implement** — Agents execute autonomously. QG at every iteration boundary. Updated after every commit.
+8. **Ship** — Captain merges, builds PRs, pushes. Pre-PR QG.
+9. **Value** — Customer using it. Feedback generates new seeds.
 
 Three living documents (PVR, A&D, Plan) evolve together. The flow: **Requirements → A&D + Plan (evolving through iteration) → Reference** (produced at plan completion).
+
+### Multi-Agent Coordination Types
+
+| Type | Purpose | When |
+|------|---------|------|
+| **MARFI** (Multi-Agent Request for Information) | Research input — cross-cutting questions answerable with web search + docs | Before PVR/A&D, or mid-flow when a research question arises |
+| **MAR** (Multi-Agent Review) | Review of artifacts at every transition with three-bucket disposition | After every artifact (PVR, A&D, Plan, code at QG boundaries) |
+| **MAP** (Multi-Agent Plan input) | Planning input from multiple agents/workstreams | Cross-cutting projects spanning multiple workstreams |
+
+### Three-Bucket Disposition
+
+When an agent receives feedback (from MAR, QG, or any review), it triages findings into three buckets:
+
+| Bucket | What | Who decides |
+|--------|------|-------------|
+| **Disagree** | Finding rejected with reasoning | Agent decides, principal reviews |
+| **Autonomous** | Agent agrees and incorporates independently | Agent acts, principal informed |
+| **Collaborative** | Requires principal input | 1B1 discussion |
+
+**Important:** Reviewers give raw findings. The **author** triages into buckets, not the reviewer. Reviewers review; authors triage.
 
 ### Plan Mode Bias
 
@@ -375,11 +399,11 @@ Handoff files are a first-class Agency primitive for context bootstrapping. They
 
 Handoffs are not just session continuity — they bootstrap context for any purpose: agent-to-agent transfer, cold start, project setup, compaction survival, or spinning up a new agent into a desired state. The tool handles infrastructure; the agent writes the content.
 
-**Always use the handoff tool.** Run `./claude/tools/handoff write --trigger <reason>` to write handoffs. The tool archives the previous handoff to `history/` with a timestamp, resolves the correct path for your project, and ensures consistent formatting. Never write handoff files manually — always use the tool. The `SessionEnd` and `Stop` hooks call it automatically, but agents must also call it explicitly at boundary commands and discussion milestones.
+**Always use the handoff tool.** Run `./claude/tools/handoff write --trigger <reason>` to write handoffs — or invoke the `/handoff` skill which wraps it. The tool archives the previous handoff to `history/` with a timestamp, resolves the correct path for your project, and ensures consistent formatting. Never write handoff files manually — always use the tool. Handoff writing is **manual** — agents must call it explicitly at boundary commands, before context-heavy work, and at discussion milestones. There is no automatic handoff hook (the `Stop` hook checks for uncommitted changes but does not write handoffs).
 
 **Note:** Never use `$CLAUDE_PROJECT_DIR` in Bash tool calls — the variable is only set inside hooks, not in agent shell sessions. Use `./claude/tools/` (relative paths) instead. Claude Code always sets CWD to the project root.
 
-**When to write:** At boundary commands (`/iteration-complete`, `/phase-complete`, `/plan-complete`, `/pre-phase-review`), automatically on `Stop` and `SessionEnd` hooks, after `/sync-all` (lightweight), and at discussion milestones (PVR draft, key A&D decision, plan revision).
+**When to write:** At boundary commands (`/iteration-complete`, `/phase-complete`, `/plan-complete`, `/pre-phase-review`), before exit/restart, after `/sync-all` (lightweight), and at discussion milestones (PVR draft, key A&D decision, plan revision). Always invoke the `/handoff` skill or run `./claude/tools/handoff write` — never write the file directly.
 
 **What to include:** Current phase/iteration status, what was just done, what's next, key decisions or context for a fresh session, open items or blockers.
 
@@ -444,15 +468,42 @@ When drafting feedback or bug reports **for Anthropic / Claude Code** (via `/fee
 
 ### The Enforcement Triangle
 
-Every capability follows the same three-part pattern:
+The Triangle is the **per-capability structural pattern**. Every Agency capability has three parts that work together:
 
 | Layer | What | Why |
 |-------|------|-----|
 | **Tool** (bash, `claude/tools/`) | Does the work. Pre-approved in `settings.json`. | Permissions. No prompts for approved operations. |
-| **Skill** (markdown, `.claude/commands/` or `.claude/skills/`) | Tells the agent when and how to use the tool. | Discovery. Agents find it via `/` autocomplete. |
+| **Skill** (markdown, `.claude/skills/`) | Tells the agent when and how to use the tool. | Discovery. Agents find it via `/` autocomplete. |
 | **Hookify rule** (`claude/hookify/`) | Blocks the raw alternative. Points to the skill. | Compliance. Can't bypass. |
 
 When building a new capability: build the tool, wrap it in a skill, block the raw alternative with a hookify rule. All three. Not one, not two. The tool handles permissions, the skill handles discovery, the hookify rule handles compliance. *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+
+**Critical hookify rules** (full reference: `claude/README-HOOKIFY.md`):
+
+| Rule | Type | What |
+|------|------|------|
+| `block-git-commit` | Block | Forces `/git-commit` skill |
+| `block-cd-to-main` | Block | Blocks cd to main + absolute paths to tools |
+| `block-raw-handoff` | Block | Forces `/handoff` skill |
+| `require-qgr` | Block | Blocks commits without matching QGR |
+| `require-plan-update` | Warn | Warns on commit without plan update |
+| `directive-authority` | Block | Captain-only directive dispatches |
+
+See `claude/README-HOOKIFY.md` for all 33 rules organized by category.
+
+### The Enforcement Ladder
+
+The Ladder is the **per-capability adoption progression**. Different capabilities are at different ladder steps. New capabilities start at step 1 and progress as they mature:
+
+1. **Document** — write it in CLAUDE-THEAGENCY.md or a referenced doc. Human-readable, no tooling required.
+2. **Skill** — wrap the documented process in an invocable skill. Discovery via `/` autocomplete.
+3. **Tool** — build the mechanical capability. Pre-approved in settings.json.
+4. **Hookify warn** — warn when the tool is bypassed. Points to the skill.
+5. **Hookify block** — hard enforcement. Can't bypass.
+
+**Triangle vs Ladder:** The Triangle is the *structure* (tool + skill + hookify). The Ladder is the *progression* (how a capability moves from documented to fully enforced). A capability at step 5 has all three Triangle parts; a capability at step 1 has only docs.
+
+**The ladder is per-capability, not framework-wide.** Mature capabilities like `git-commit` and `handoff` are at step 5 (block enforced). Newer methodology patterns like Valueflow, MAR, and the three-bucket triage are at step 1 — documented, but not yet skill-wrapped or enforced. Each capability progresses up the ladder as it matures.
 
 - **No stale artifacts** — unused config, orphaned files, outdated docs — delete or update. Version control remembers.
 
