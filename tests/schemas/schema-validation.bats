@@ -21,12 +21,13 @@ setup() {
     if ! python3 -c "import jsonschema" 2>/dev/null; then
         skip "jsonschema not installed (pip3 install jsonschema)"
     fi
-    # Create temp directory for test artifacts
     export BATS_TEST_TMPDIR="$(mktemp -d)"
+    test_isolation_setup
     cd "${REPO_ROOT}"
 }
 
 teardown() {
+    test_isolation_teardown
     if [[ -d "${BATS_TEST_TMPDIR:-}" ]]; then
         rm -rf "${BATS_TEST_TMPDIR}"
     fi

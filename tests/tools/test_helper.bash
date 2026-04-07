@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 #
-# Test helper for bats-core bash tool tests
+# What Problem: BATS tests need hermetic isolation from the live environment.
+# Without it, tests leak flags into the live ISCP DB, corrupt .git/config,
+# and leave debris in the working tree. This was the root cause of 62 ghost
+# flags and bare=true corruption (dispatches #16, #17).
 #
-# Usage in test files:
-#   load 'test_helper'
+# How & Why: Universal isolation as the default for ALL test files — not just
+# ISCP tests. Every setup() gets fake HOME, isolated git config, explicit
+# ISCP DB path. Every teardown() checks for .git/config corruption and
+# working-tree debris. Opt-out via SKIP_ISOLATION=1 for the rare test that
+# needs real environment access. Belt-and-suspenders: env var overrides PLUS
+# guards that fail loudly.
 #
-# Provides:
-#   - Common setup/teardown
-#   - Path configuration
-#   - Helper functions
+# Written: 2026-04-07 during DevEx Phase 1.1 (Universal Test Isolation)
+# Evolved from: ISCP test isolation helpers (2026-04-06, dispatches #16, #17)
 #
 
 # Get the repo root
@@ -21,20 +26,115 @@ export PATH="${TOOLS_DIR}:${PATH}"
 # Disable telemetry during tests
 export LOG_SERVICE_URL=""
 
-# Common setup
+# ─────────────────────────────────────────────────────────────────────────────
+# Universal Test Isolation
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Call this in setup() — sets up complete isolation: fake HOME, explicit DB
+# path, git config isolation. Called automatically by the default setup().
+# Files with custom setup() MUST call this explicitly.
+test_isolation_setup() {
+    # Opt-out escape hatch
+    if [[ "${SKIP_ISOLATION:-0}" == "1" ]]; then
+        return 0
+    fi
+
+    # 1. Isolate HOME (DB path, cache, dotfiles, etc.)
+    export ORIGINAL_HOME="${HOME}"
+    export HOME="${BATS_TEST_TMPDIR}/fakehome"
+    mkdir -p "$HOME"
+
+    # 2. Explicit ISCP DB path — belt-and-suspenders on top of HOME override
+    export ISCP_DB_PATH="${BATS_TEST_TMPDIR}/test-iscp.db"
+
+    # 3. Git config isolation — prevent any writes to live .git/config
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_SYSTEM=/dev/null
+
+    # 4. Snapshot live .git/config checksum for guard validation
+    if [[ -f "$REPO_ROOT/.git/config" ]]; then
+        _TEST_GIT_CONFIG_HASH=$(md5 -q "$REPO_ROOT/.git/config" 2>/dev/null || md5sum "$REPO_ROOT/.git/config" 2>/dev/null | awk '{print $1}')
+    fi
+
+    # 5. Snapshot key directories for debris detection
+    if [[ -d "$REPO_ROOT/claude/agents" ]]; then
+        _TEST_AGENTS_SNAPSHOT=$(ls "$REPO_ROOT/claude/agents/" 2>/dev/null | sort)
+    fi
+    if [[ -d "$REPO_ROOT/.claude/agents" ]]; then
+        _TEST_DOT_AGENTS_SNAPSHOT=$(ls "$REPO_ROOT/.claude/agents/" 2>/dev/null | sort)
+    fi
+}
+
+# Call this in teardown() — fails loudly if live environment was modified.
+# Called automatically by the default teardown(). Files with custom
+# teardown() MUST call this explicitly.
+test_isolation_teardown() {
+    # Opt-out escape hatch
+    if [[ "${SKIP_ISOLATION:-0}" == "1" ]]; then
+        return 0
+    fi
+
+    # Guard 1: verify live .git/config wasn't modified
+    if [[ -n "${_TEST_GIT_CONFIG_HASH:-}" && -f "$REPO_ROOT/.git/config" ]]; then
+        local current_hash
+        current_hash=$(md5 -q "$REPO_ROOT/.git/config" 2>/dev/null || md5sum "$REPO_ROOT/.git/config" 2>/dev/null | awk '{print $1}')
+        if [[ "$current_hash" != "$_TEST_GIT_CONFIG_HASH" ]]; then
+            echo "CRITICAL: BATS test modified live .git/config! Hash before=$_TEST_GIT_CONFIG_HASH after=$current_hash" >&2
+            return 1
+        fi
+    fi
+
+    # Guard 2: verify no debris in key directories
+    if [[ -n "${_TEST_AGENTS_SNAPSHOT:-}" && -d "$REPO_ROOT/claude/agents" ]]; then
+        local current_agents
+        current_agents=$(ls "$REPO_ROOT/claude/agents/" 2>/dev/null | sort)
+        if [[ "$current_agents" != "$_TEST_AGENTS_SNAPSHOT" ]]; then
+            echo "CRITICAL: BATS test left debris in claude/agents/! Before: $_TEST_AGENTS_SNAPSHOT After: $current_agents" >&2
+            return 1
+        fi
+    fi
+    if [[ -n "${_TEST_DOT_AGENTS_SNAPSHOT:-}" && -d "$REPO_ROOT/.claude/agents" ]]; then
+        local current_dot_agents
+        current_dot_agents=$(ls "$REPO_ROOT/.claude/agents/" 2>/dev/null | sort)
+        if [[ "$current_dot_agents" != "$_TEST_DOT_AGENTS_SNAPSHOT" ]]; then
+            echo "CRITICAL: BATS test left debris in .claude/agents/! Before: $_TEST_DOT_AGENTS_SNAPSHOT After: $current_dot_agents" >&2
+            return 1
+        fi
+    fi
+
+    # Guard 3: verify live ISCP DB wasn't touched
+    # (HOME was overridden, so the real home's DB should be untouched.
+    # ISCP_DB_PATH override provides belt-and-suspenders protection.)
+}
+
+# Backward-compatible aliases for ISCP test files
+iscp_test_isolation_setup() { test_isolation_setup; }
+iscp_test_isolation_teardown() { test_isolation_teardown; }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Default setup/teardown — calls isolation automatically
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Common setup — files with custom setup() override this entirely,
+# so they MUST call test_isolation_setup themselves.
 setup() {
-    # Create temp directory for test artifacts
     export BATS_TEST_TMPDIR="$(mktemp -d)"
+    test_isolation_setup
     cd "${REPO_ROOT}"
 }
 
-# Common teardown
+# Common teardown — files with custom teardown() override this entirely,
+# so they MUST call test_isolation_teardown themselves.
 teardown() {
-    # Clean up temp directory
+    test_isolation_teardown
     if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
         rm -rf "${BATS_TEST_TMPDIR}"
     fi
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helper functions
+# ─────────────────────────────────────────────────────────────────────────────
 
 # Helper: Check if a command exists
 command_exists() {
@@ -107,53 +207,4 @@ create_mock_git_repo() {
     git add README.md
     git commit -m "Initial commit" --quiet
     echo "$dir"
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ISCP Test Isolation Helpers
-# What Problem: BATS tests leaked into the live ISCP DB (~62 flags) and
-# corrupted the live .git/config (bare=true, user=Test User). Tests MUST be
-# hermetically isolated from the live environment.
-# How & Why: Provides setup/teardown helpers that every ISCP test file calls.
-# Belt-and-suspenders: env var overrides PLUS guards that fail loudly.
-# Written: 2026-04-06 — test isolation fix (dispatches #16, #17)
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Call this in setup() of every ISCP test file AFTER creating BATS_TEST_TMPDIR.
-# Sets up complete isolation: fake HOME, explicit DB path, git config isolation.
-iscp_test_isolation_setup() {
-    # 1. Isolate HOME (DB path, cache, etc.)
-    export HOME="${BATS_TEST_TMPDIR}/fakehome"
-    mkdir -p "$HOME"
-
-    # 2. Explicit ISCP DB path — belt-and-suspenders on top of HOME override
-    export ISCP_DB_PATH="${BATS_TEST_TMPDIR}/test-iscp.db"
-
-    # 3. Git config isolation — prevent any writes to live .git/config
-    export GIT_CONFIG_GLOBAL=/dev/null
-    export GIT_CONFIG_SYSTEM=/dev/null
-
-    # 4. Snapshot live .git/config checksum for guard validation
-    if [[ -f "$REPO_ROOT/.git/config" ]]; then
-        _ISCP_TEST_GIT_CONFIG_HASH=$(md5 -q "$REPO_ROOT/.git/config" 2>/dev/null || md5sum "$REPO_ROOT/.git/config" 2>/dev/null | awk '{print $1}')
-    fi
-}
-
-# Call this in teardown() of every ISCP test file BEFORE cleanup.
-# Fails loudly if the live .git/config was modified during the test.
-iscp_test_isolation_teardown() {
-    # Guard: verify live .git/config wasn't modified
-    if [[ -n "${_ISCP_TEST_GIT_CONFIG_HASH:-}" && -f "$REPO_ROOT/.git/config" ]]; then
-        local current_hash
-        current_hash=$(md5 -q "$REPO_ROOT/.git/config" 2>/dev/null || md5sum "$REPO_ROOT/.git/config" 2>/dev/null | awk '{print $1}')
-        if [[ "$current_hash" != "$_ISCP_TEST_GIT_CONFIG_HASH" ]]; then
-            echo "CRITICAL: BATS test modified live .git/config! Hash before=$_ISCP_TEST_GIT_CONFIG_HASH after=$current_hash" >&2
-            return 1
-        fi
-    fi
-
-    # Guard: verify live ISCP DB wasn't touched
-    local live_db="$HOME/.agency/the-agency/iscp.db"
-    # (HOME was overridden, so this checks the FAKE home — if somehow the real
-    # home's DB was touched, the ISCP_DB_PATH override prevented it)
 }

@@ -8,6 +8,9 @@
 load 'test_helper'
 
 setup() {
+    export BATS_TEST_TMPDIR="$(mktemp -d)"
+    test_isolation_setup
+
     # Create temp log directory
     export CLAUDE_PROJECT_DIR="${BATS_TEST_TMPDIR}"
     mkdir -p "${BATS_TEST_TMPDIR}/.claude/logs"
