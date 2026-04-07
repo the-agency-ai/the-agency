@@ -17,8 +17,26 @@
 #   3: +tool (executable in claude/tools/)
 #   4: +hookify-warn (warns on raw alternative)
 #   5: +hookify-block (blocks raw alternative)
+#
+# Per-workstream overrides: each workstream can be at a different level
+# for each capability via the `workstreams:` section. See A&D §4.
 
 version: 1
+
+# Per-workstream level overrides. If a workstream isn't listed for a capability,
+# the capability's base level applies. Use sparingly — overrides are intentional
+# rollouts ("active workstreams at higher enforcement, dormant at lower").
+workstreams:
+  devex:
+    # devex agents must use git-commit and follow the prefix conventions
+    commit-message-format: 3
+    pre-commit-checks: 3
+  iscp:
+    # iscp ships everything fully enforced
+    commit-message-format: 3
+    pre-commit-checks: 3
+    dispatch-lifecycle: 3
+    flag-capture: 3
 
 capabilities:
   # ── Commit workflow ──

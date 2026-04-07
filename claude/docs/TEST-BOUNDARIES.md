@@ -8,9 +8,12 @@ This document defines what testing happens at each commit boundary in TheAgency,
 
 | Tier | When | Scope | Budget | Tool | Failure mode |
 |------|------|-------|--------|------|--------------|
-| **T1** | Pre-commit (every `git commit`) | Tests relevant to staged files only | 60s | `claude/tools/commit-precheck` (via `.git/hooks/pre-commit`) | Block on failure, warn on timeout |
-| **T2** | Iteration boundary (`/iteration-complete`) | Same as T1 + lint + format | <2 min | `/iteration-complete` skill | Block on failure |
-| **T3** | Phase boundary (`/phase-complete`) | **Full** suite, all 36 BATS files | 5 min | `claude/tools/test-full-suite` (Docker preferred, in-process fallback) | Block on failure |
+| **T1** | Pre-commit (every `git commit`) | Stage-hash + compile + format + tests relevant to staged files | 60s | `claude/tools/commit-precheck` (via `.git/hooks/pre-commit`) | Block on failure, warn on timeout |
+| **T2** | Iteration boundary (`/iteration-complete`) | T1 + full relevant unit tests (changed-file scoping) | <2 min | `/iteration-complete` skill | Block on failure |
+| **T3** | Phase boundary (`/phase-complete`) | **Full** suite, all BATS files + MAR on phase artifacts | <5 min | `claude/tools/test-full-suite` (Docker preferred, in-process fallback) | Block on failure |
+| **T4** | Pre-PR (`/pr-prep`) | Full diff QG vs origin/main | <5 min | `/pr-prep` skill | Block on failure |
+
+Source: Valueflow A&D §6 "Quality Gate Architecture".
 
 ## T1 — Pre-Commit (the burning problem, now solved)
 
@@ -72,6 +75,20 @@ T2 exists primarily to enforce the boundary commit ritual — it doesn't add tes
 
 ### Why Docker for T3
 The full suite runs against the live repo. Without container isolation, individual tests have leaked into the real `.git/config`, the real ISCP DB, and the real working tree (the `Test User` commit-author saga, the 62 ghost flags incident). Universal test isolation in `test_helper.bash` catches most of this, but Docker is the belt-and-suspenders that makes T3 reliably hermetic.
+
+## T4 — Pre-PR
+
+**Goal:** validate the full diff against origin/main before opening or updating a PR. T3 validates the working tree; T4 validates what's about to ship to humans.
+
+### How it works
+1. Agent (or captain) runs `/pr-prep` skill before pushing a PR branch
+2. Skill diffs the branch against `origin/main`
+3. Runs the multi-agent QG against the diff (focus on what's changing, not what's already merged)
+4. Produces a QGR receipt scoped to the PR diff
+5. Same 5-minute budget as T3
+6. On clean: PR is ready to push. On findings: dispatch back to the implementing agent.
+
+T4 is captain-driven in the standard flow — agents land work via T3 (`/phase-complete`), captain accumulates landed work and runs `/pr-prep` before `/sync` pushes to origin.
 
 ## Tool Inventory
 

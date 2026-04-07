@@ -201,8 +201,57 @@ main() {
         fi
     done < <(parse_registry)
 
+    # Validate per-workstream overrides via awk pass.
+    # An override is invalid if it exceeds the capability's base level (can't
+    # enforce stricter than the artifacts support).
+    local ws_violations=0
+    if grep -q "^workstreams:" "$REGISTRY" 2>/dev/null; then
+        # Parse workstreams section into "workstream|capability|level" tuples
+        local ws_overrides
+        ws_overrides=$(awk '
+            /^workstreams:/ { in_ws = 1; next }
+            /^[a-z]/ && !/^workstreams:/ { in_ws = 0 }
+            in_ws && /^  [a-z]/ {
+                sub(/:$/, "", $1)
+                ws = $1
+                next
+            }
+            in_ws && /^    [a-z]/ {
+                cap = $1; sub(/:$/, "", cap)
+                lvl = $2
+                printf "%s|%s|%s\n", ws, cap, lvl
+            }
+        ' "$REGISTRY")
+
+        # For each override, look up the capability base level
+        if [[ -n "$ws_overrides" ]]; then
+            while IFS='|' read -r ws cap override_level; do
+                local base_level
+                base_level=$(awk -v cap="$cap" '
+                    $0 ~ "^  " cap ":$" { in_cap = 1; next }
+                    in_cap && /^[a-z]/ { in_cap = 0 }
+                    in_cap && /^  [a-z]/ { in_cap = 0 }
+                    in_cap && /^    level:/ { print $2; exit }
+                ' "$REGISTRY")
+                if [[ -z "$base_level" ]]; then
+                    echo "✗ workstream/$ws: override for unknown capability '$cap'"
+                    ws_violations=$((ws_violations + 1))
+                elif [[ "$override_level" -gt "$base_level" ]]; then
+                    echo "✗ workstream/$ws/$cap: override level $override_level exceeds capability base level $base_level"
+                    ws_violations=$((ws_violations + 1))
+                else
+                    [[ "$VERBOSE" == "true" ]] && echo "  ✓ workstream/$ws/$cap: $override_level (base $base_level)"
+                fi
+            done <<< "$ws_overrides"
+        fi
+    fi
+
     echo "─────────────────────────"
     echo "Capabilities: $total total, $passed passed, $failed failed"
+    if [[ "$ws_violations" -gt 0 ]]; then
+        echo "Workstream overrides: $ws_violations violation(s)"
+        failed=$((failed + ws_violations))
+    fi
 
     if [[ "$failed" -gt 0 ]]; then
         log_end "$RUN_ID" "failure" 1 0 "$failed/$total violations" 2>/dev/null || true
