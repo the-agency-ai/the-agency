@@ -14,6 +14,14 @@ project:
   name: "My Project"
   timezone: "UTC"  # Used by ./tools/now
 
+# Commit message conventions
+commits:
+  # Opt-in: enforce 'Day N:' or 'Phase X.Y:' prefix on commit messages.
+  # When true, commit-precheck and the commit-msg hook reject commits whose
+  # first line doesn't start with: Day N: | Phase X.Y: | Phase X.MN: | Merge | Revert
+  # Default: false (off). Enable when your project follows the day-counting convention.
+  require_day_prefix: false
+
 # Framework version tracking
 framework:
   version: "2.0.0"
