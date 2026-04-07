@@ -1,7 +1,7 @@
 ---
 name: devex
 description: "DevEx — test infrastructure, commit workflow, permission model, tooling ergonomics"
-model: opus
+model: opus[1m]
 ---
 
 @usr/jordan/devex/CLAUDE-DEVEX-AGENT.md
