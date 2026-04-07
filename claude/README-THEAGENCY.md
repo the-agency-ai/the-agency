@@ -491,6 +491,81 @@ Git discipline is enforced by hookify rules. The git-related rules:
 
 For the complete enforcement model — Triangle, Ladder, lifecycle hooks, all 33 hookify rules, quality gate tiers, and the permission model — see `claude/README-ENFORCEMENT.md`.
 
+### Per-Agent Commit Attribution
+
+Every commit made via `/git-commit` carries three pieces of attribution:
+
+1. **Author** — the principal (legal authorship, profile-linked on GitHub)
+2. **Co-Author: agent** — the Agency agent that did the work (per-agent traceability)
+3. **Co-Author: Claude** — the model (existing convention)
+
+Example:
+
+```
+Author: Jordan Dea-Mattson <jordandm@users.noreply.github.com>
+
+Day 32: per-agent commit attribution via plus-tagged GitHub noreply
+
+[commit body]
+
+Co-Authored-By: captain <jordandm+captain.the-agency.the-agency-ai@users.noreply.github.com>
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+```
+
+#### Format
+
+The agent co-author email follows a fully qualified plus-tag format:
+
+```
+{username}+{agent}.{repo}.{org}@users.noreply.github.com
+```
+
+| Field | Source | Example |
+|-------|--------|---------|
+| `{username}` | `agency.yaml` → `principals.{key}.platforms.github[]` matching current org | `jordandm` |
+| `{agent}` | `agent-identity --agent` | `captain` |
+| `{repo}` | `agent-identity --repo` | `the-agency` |
+| `{org}` | Parsed from `git remote.origin.url` | `the-agency-ai` |
+
+This mirrors the Agency address convention `{org}/{repo}/{principal}/{agent}` — the email is self-describing across orgs.
+
+#### Why GitHub User Noreply
+
+`users.noreply.github.com` is GitHub's documented user noreply domain. The principal author uses the canonical form (`{username}@users.noreply.github.com`) which links to the GitHub profile — your avatar, contribution count, and profile link all work.
+
+The agent co-authors use the plus-tag form (`{username}+{agent}...@users.noreply.github.com`). GitHub treats each plus-tag identity as a **distinct contributor** (not deduped to the principal), so each agent appears as its own contributor entry. The agent doesn't get a profile photo (it's not a real GitHub user), but it gets a distinct attribution line in the commit's contributor view.
+
+Tested with real commits before shipping — GitHub does literal-string matching on plus-tags and does NOT strip them. See `usr/jordan/captain/transcripts/agent-attribution-model-20260407.md` for the full discussion, dead-end options, test results, and decision log.
+
+#### Per-Org Identity
+
+`agency.yaml` already tracks per-org GitHub identities for each principal:
+
+```yaml
+principals:
+  jdm:
+    platforms:
+      github:
+        - username: jordandm
+          repos:
+            - org: the-agency-ai
+              repo: the-agency
+        - username: jordan-of
+          repos:
+            - org: OrdinaryFolk
+              repo: monofolk
+```
+
+When committing in `the-agency`, `/git-commit` resolves to `jordandm` and produces `jordandm+captain.the-agency.the-agency-ai@`. When committing in `monofolk`, it resolves to `jordan-of` and produces `jordan-of+captain.monofolk.OrdinaryFolk@`. Each org gets its own per-org identity automatically.
+
+#### Future: Configurable Override (Layer 2)
+
+The default model is GitHub mode, no configuration. A future Layer 2 will allow per-principal overrides for adopters who want real email delivery (using plus-addressing on a real mailbox like `jdm+captain@devopspm.com`). Not implemented yet — will be added when the first adopter asks.
+
+#### Future: Agent Mail Service
+
+The plus-tag format is currently a non-routable string in commit trailers. There's a real product opportunity: an "agent mail" service that takes this format and provides actual delivery, with mailbox-per-principal and routing-per-agent. Captured as flag #40 for future product discussion.
+
 ## Local Setup / Sandbox
 
 ### The Sandbox Principle
@@ -572,6 +647,60 @@ The captain orchestrates the full cycle:
 ```
 
 If all PRs are clean (zero issues ≥80 confidence), steps 4-5 are skipped.
+
+### The Day-PR Release Pattern
+
+TheAgency releases use a **Day N - Release M** pattern. Each working day produces one or more PRs. Each PR is named `day{N}-release-{M}` where N is the working day number and M is the Mth PR of that day (usually 1, sometimes more if work splits cleanly).
+
+**The cycle:**
+
+1. **Start of day** — captain creates a PR branch from `origin/main` named `day{N}-release-{M}`
+2. **Work happens** on the branch — commits accumulate (infra fixes, doc updates, feature work)
+3. **PR opened as DRAFT** early in the day via `gh pr create --draft` — visibility for collaborators, not yet ready for review
+4. **Doc accuracy passes** — review CLAUDE.md docs and READMEs, run MAR if scope warrants, fix findings in the same branch
+5. **Friction analysis** — capture and triage friction points discovered during the day's work; either fix in the PR or dispatch to the right workstream
+6. **Release dispatch drafted** — captain prepares the dispatch to consumer repos (e.g., monofolk) describing what's in the PR and what they need to do
+7. **End of day** — when ready, mark PR ready-for-review (out of draft), merge, push the release dispatch
+8. **Multiple PRs/day** allowed — if work splits cleanly into independent units, each gets its own `day{N}-release-{M}` branch and PR
+
+**Rules:**
+
+- **Branch name:** `day{N}-release-{M}` — N is the working day (per day-counting convention), M starts at 1 and increments
+- **Always open as DRAFT first** — work happens on draft, ready-for-review only when complete
+- **PR description includes:** summary, what's in it, what adopters need to do, test plan
+- **Release dispatch goes to consumer repos** via the collaboration tool — same content as the PR description, formatted for cross-repo consumption
+- **Never push directly to main** — every change reaches origin through a PR
+- **The PR is the release record** — the audit trail of what shipped that day, with full diff and commit history
+
+**Why this pattern:**
+
+- One PR per day (or per logical unit) keeps changes reviewable
+- Day-numbering ties releases to the project's actual progress, not calendar dates
+- Draft-first prevents accidental "ready" state on incomplete work
+- Release dispatches close the loop with consumers — they know what shipped and what to do
+- The PR description becomes the human-readable release notes
+
+**Example flow:**
+
+```
+Day 32:
+  git checkout -b day32-release-1     # branch from origin/main
+  ... work happens, commits accumulate ...
+  gh pr create --draft --title "Day 32 - Release 1: ..."
+  ... doc passes, friction triage, more commits ...
+  ./claude/tools/collaboration reply monofolk --to ... # release dispatch
+  ./claude/tools/collaboration push monofolk
+  gh pr ready 46                       # out of draft
+  gh pr merge 46                       # merge to main
+  git checkout main && git pull        # local main matches origin/main
+```
+
+If a second logically-separate PR is needed the same day:
+
+```
+git checkout -b day32-release-2
+... separate work ...
+```
 
 ### The Dispatch Model
 

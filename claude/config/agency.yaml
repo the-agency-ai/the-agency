@@ -58,7 +58,7 @@ worktrees:
 
 # Secrets management
 secrets:
-  provider: "vault"  # Default: vault. Alternatives: doppler, aws, 1password
+  provider: "doppler"  # Active. Alternatives: vault, aws, 1password
 
 # Terminal integration
 terminal:
