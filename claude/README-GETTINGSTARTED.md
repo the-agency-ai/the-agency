@@ -126,12 +126,19 @@ Narrow permission patterns (the old approach) created friction — every new com
 Once installed and verified, your first session looks like this:
 
 1. **Launch Claude Code:** `claude` (in your project root)
-2. **Capture a seed:** Tell the agent what you want to build. The agent will capture it as a seed in your workstream.
-3. **Discuss it:** Use `/discuss` for structured 1B1 (one-by-one) exploration. The agent presents items, you give feedback, the agent confirms understanding before moving to the next.
-4. **Define it:** Use `/define` to create a Product Vision & Requirements (PVR). The agent drives toward completeness via a checklist.
-5. **Design it:** Use `/design` to create the Architecture & Design (A&D). Same pattern — checklist-driven.
-6. **Plan it:** Once PVR and A&D are stable, the agent creates a Plan with phases and iterations.
-7. **Implement:** The agent works through iterations, running quality gates at every commit.
+2. **The captain greets you.** A bootstrap handoff was written by `agency init`. The captain reads it and greets you on session start — no need to type anything first.
+3. **Take the guided tour:** Run `/agency-welcome` for the interactive onboarding (5 paths to choose from based on what you're trying to do). Recommended for first-time adopters.
+4. **Or jump straight in:** Tell the captain what you want to build. Use `/discuss` for structured 1B1 capture, then `/define` to create a PVR.
+
+### Beyond the First Session
+
+Once you've captured an idea and started a PVR:
+
+- **Define it:** `/define` drives the PVR toward completeness via a checklist
+- **Design it:** `/design` creates the Architecture & Design (A&D)
+- **Plan it:** Once PVR and A&D are stable, the captain creates a Plan with phases and iterations
+- **Implement it:** Work through iterations, running quality gates at every commit boundary
+- **Ship it:** Captain manages PRs, pushes to origin, dispatches release notes to consumers
 
 Read `claude/README-THEAGENCY.md` for the full methodology — what each stage does and why.
 
