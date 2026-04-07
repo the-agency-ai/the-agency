@@ -473,15 +473,19 @@ Worktree branches may need `--force-with-lease` after sync because reset+rebase 
 
 ### Mechanical Enforcement
 
-Five hookify rules enforce git discipline:
+Git discipline is enforced by hookify rules. The git-related rules:
 
 | Rule | Action | What it does |
 |------|--------|-------------|
-| `no-push-master` | BLOCK | Prevents any push to master |
+| `no-push-main` | BLOCK | Prevents any push to main |
 | `block-force-push-main` | BLOCK | Prevents force push to main/master |
 | `warn-on-push` | WARN | Requires confirmation before any push |
 | `warn-destructive-git` | WARN | Flags reset --hard, checkout --, etc. |
 | `warn-external-git-actions` | WARN | Flags external-facing git operations |
+| `block-cd-to-main` | BLOCK | Prevents worktree agents from cd-ing to main repo |
+| `block-raw-git-merge-master` | BLOCK | Forces use of `/sync-all` instead of raw merge |
+
+For the complete enforcement model — Triangle, Ladder, lifecycle hooks, all 33 hookify rules, quality gate tiers, and the permission model — see `claude/README-ENFORCEMENT.md`.
 
 ## Local Setup / Sandbox
 

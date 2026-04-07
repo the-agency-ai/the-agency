@@ -507,18 +507,7 @@ The Triangle is the **per-capability structural pattern**. Every Agency capabili
 
 When building a new capability: build the tool, wrap it in a skill, block the raw alternative with a hookify rule. All three. Not one, not two. The tool handles permissions, the skill handles discovery, the hookify rule handles compliance. *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
 
-**Critical hookify rules** (full reference: `claude/README-HOOKIFY.md`):
-
-| Rule | Type | What |
-|------|------|------|
-| `block-git-commit` | Block | Forces `/git-commit` skill |
-| `block-cd-to-main` | Block | Blocks cd to main + absolute paths to tools |
-| `block-raw-handoff` | Block | Forces `/handoff` skill |
-| `require-qgr` | Block | Blocks commits without matching QGR |
-| `require-plan-update` | Warn | Warns on commit without plan update |
-| `directive-authority` | Block | Captain-only directive dispatches |
-
-See `claude/README-HOOKIFY.md` for all 33 rules organized by category.
+**Full enforcement model:** See `claude/README-ENFORCEMENT.md` for the complete reference — Triangle, Ladder, lifecycle hooks, all 33 hookify rules, quality gate tiers, and the permission model. When a hookify rule blocks you, look it up in the README-ENFORCEMENT.md tables to understand what to do instead.
 
 ### The Enforcement Ladder
 
