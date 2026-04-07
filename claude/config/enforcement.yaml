@@ -1,0 +1,165 @@
+# Enforcement Registry — maps capabilities to their enforcement level
+#
+# What Problem: No central inventory of what The Agency enforces and how. Each
+# capability has a ladder (doc → skill → tool → hookify-warn → hookify-block)
+# but there's no way to audit which level each capability has actually reached.
+#
+# How & Why: Single YAML file listing every capability with its declared level
+# and the artifacts that back it. The enforcement-audit tool validates this
+# registry: does each capability actually have the artifacts its level claims?
+# Level 1 needs docs, level 3 needs a tool, level 5 needs a hookify-block rule.
+#
+# Written: 2026-04-07 during devex Phase 3.2
+#
+# Enforcement levels:
+#   1: documented (doc/CLAUDE.md reference exists)
+#   2: +skill (discoverable via / autocomplete)
+#   3: +tool (executable in claude/tools/)
+#   4: +hookify-warn (warns on raw alternative)
+#   5: +hookify-block (blocks raw alternative)
+
+version: 1
+
+capabilities:
+  # ── Commit workflow ──
+  commit-message-format:
+    level: 3
+    description: "Structured commit messages with workstream/agent prefix"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/git-commit/SKILL.md"
+      tool: "claude/tools/git-commit"
+
+  pre-commit-checks:
+    level: 3
+    description: "Quality gate before every commit"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/git-commit/SKILL.md"
+      tool: "claude/tools/commit-precheck"
+
+  # ── Session management ──
+  session-handoff:
+    level: 3
+    description: "Context bootstrap via handoff files with auto-archive"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/handoff/SKILL.md"
+      tool: "claude/tools/handoff"
+
+  # ── ISCP / dispatch ──
+  dispatch-lifecycle:
+    level: 3
+    description: "Structured inter-agent messaging via dispatch tool"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/dispatch/SKILL.md"
+      tool: "claude/tools/dispatch"
+
+  flag-capture:
+    level: 3
+    description: "Quick-capture observations for later discussion"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/flag/SKILL.md"
+      tool: "claude/tools/flag"
+
+  # ── Quality gates ──
+  quality-gate:
+    level: 2
+    description: "Multi-agent review at iteration/phase boundaries"
+    artifacts:
+      doc: "claude/docs/QUALITY-GATE.md"
+      skill: ".claude/skills/quality-gate/SKILL.md"
+
+  iteration-complete:
+    level: 2
+    description: "QG + auto-commit at iteration boundary"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/iteration-complete/SKILL.md"
+
+  phase-complete:
+    level: 2
+    description: "Deep QG + principal approval at phase boundary"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/phase-complete/SKILL.md"
+
+  # ── Code review ──
+  code-review:
+    level: 3
+    description: "7-agent parallel code review with confidence scoring"
+    artifacts:
+      doc: "claude/docs/CODE-REVIEW-LIFECYCLE.md"
+      skill: ".claude/skills/code-review/SKILL.md"
+      tool: "claude/tools/code-review"
+
+  # ── Test infrastructure ──
+  test-isolation:
+    level: 1
+    description: "Universal test isolation for all BATS files"
+    artifacts:
+      doc: "claude/workstreams/devex/devex-ad-20260407.md"
+
+  test-scoping:
+    level: 1
+    description: "Convention-based file-to-test mapping"
+    artifacts:
+      doc: "claude/workstreams/devex/devex-plan-20260407.md"
+
+  test-full-suite:
+    level: 1
+    description: "Docker + fallback full test suite runner"
+    artifacts:
+      doc: "claude/workstreams/devex/devex-plan-20260407.md"
+
+  # ── Discussion protocol ──
+  discussion-1b1:
+    level: 1
+    description: "One-by-one discussion protocol"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+
+  # ── Workstream management ──
+  workstream-create:
+    level: 2
+    description: "Scaffold workstream with artifacts, agents, worktree"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/workstream-create/SKILL.md"
+
+  worktree-create:
+    level: 2
+    description: "Create isolated worktree with bootstrapped environment"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/worktree-create/SKILL.md"
+
+  # ── Git discipline ──
+  no-push-master:
+    level: 1
+    description: "Block direct pushes to origin/master (rule, not capability)"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+
+  no-force-push:
+    level: 1
+    description: "Warn on any push, block force push (rule, not capability)"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+
+  # ── Provenance ──
+  provenance-headers:
+    level: 1
+    description: "What Problem / How & Why / Written headers on all code"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+
+  # ── Sandbox ──
+  sandbox-workflow:
+    level: 2
+    description: "Per-engineer sandbox with activate/try/adopt lifecycle"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/sandbox-create/SKILL.md"

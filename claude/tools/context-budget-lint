@@ -1,0 +1,217 @@
+#!/bin/bash
+# What Problem: Skills inject content into the agent's context window via @-import
+# chains. Without measurement, skills silently grow until they consume too much
+# of the context budget. A single skill importing 3 files that each import 2 more
+# can exceed 10k tokens — invisible to the author.
+#
+# How & Why: Resolve @-import chains recursively from skill files, measure total
+# word count, apply 0.75 token factor (wc -w approximation). Compare against a
+# configurable budget per skill (default 4000 tokens). Zero external deps — just
+# bash, wc, and grep. Handles circular imports by tracking visited files.
+#
+# Written: 2026-04-07 during devex Phase 3.3 (context budget linter)
+#
+# Usage:
+#   ./claude/tools/context-budget-lint                    # lint all skills
+#   ./claude/tools/context-budget-lint --budget 6000      # custom token budget
+#   ./claude/tools/context-budget-lint --skill handoff    # lint specific skill
+#   ./claude/tools/context-budget-lint --verbose          # show per-file breakdown
+#   ./claude/tools/context-budget-lint --version          # show version
+#
+# Exit codes:
+#   0 = all skills within budget
+#   1 = over-budget skills found
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "context-budget-lint" "$@" 2>/dev/null) || true
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+SKILLS_DIR="$REPO_ROOT/.claude/skills"
+DEFAULT_BUDGET=4000
+TOKEN_FACTOR="0.75"  # words → tokens approximation
+
+VERBOSE=false
+BUDGET=$DEFAULT_BUDGET
+SKILL_FILTER=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version) echo "context-budget-lint $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            sed -n '/^# Usage:/,/^# Exit/p' "$0" | sed 's/^# //' | sed 's/^#//'
+            exit 0 ;;
+        --verbose|-v) VERBOSE=true; shift ;;
+        --budget)
+            BUDGET="$2"; shift 2 ;;
+        --skill)
+            SKILL_FILTER="$2"; shift 2 ;;
+        *) echo "Error: unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
+verbose() { [[ "$VERBOSE" == "true" ]] && echo "$@" >&2 || true; }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Import chain resolution
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Track visited files to detect circular imports
+declare -a VISITED_FILES=()
+
+is_visited() {
+    local file="$1"
+    if [[ ${#VISITED_FILES[@]} -eq 0 ]]; then
+        return 1
+    fi
+    for v in "${VISITED_FILES[@]}"; do
+        [[ "$v" == "$file" ]] && return 0
+    done
+    return 1
+}
+
+# Count words in a file and its @-import chain recursively
+# Returns total word count via stdout
+count_words_recursive() {
+    local file="$1"
+    local depth="${2:-0}"
+
+    # Resolve to absolute path
+    local abs_file
+    if [[ "$file" = /* ]]; then
+        abs_file="$file"
+    else
+        abs_file="$REPO_ROOT/$file"
+    fi
+
+    # Guard: file exists
+    if [[ ! -f "$abs_file" ]]; then
+        verbose "  $( printf '%*s' $((depth*2)) '')⚠ $file (NOT FOUND)"
+        echo "0"
+        return
+    fi
+
+    # Guard: circular import
+    if is_visited "$abs_file"; then
+        verbose "  $( printf '%*s' $((depth*2)) '')⟲ $file (CIRCULAR — skipped)"
+        echo "0"
+        return
+    fi
+    VISITED_FILES+=("$abs_file")
+
+    # Count words in this file
+    local words
+    words=$(wc -w < "$abs_file" | tr -d ' ')
+    verbose "  $( printf '%*s' $((depth*2)) '')$file: $words words"
+
+    local total=$words
+
+    # Find @-imports: lines starting with @ followed by a path
+    local imports
+    imports=$(grep -oE '^@[^ ]+' "$abs_file" 2>/dev/null | sed 's/^@//' || true)
+
+    if [[ -n "$imports" ]]; then
+        while IFS= read -r import_path; do
+            [[ -z "$import_path" ]] && continue
+            local child_words
+            child_words=$(count_words_recursive "$import_path" $((depth + 1)))
+            total=$((total + child_words))
+        done <<< "$imports"
+    fi
+
+    echo "$total"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Token estimation
+# ─────────────────────────────────────────────────────────────────────────────
+
+words_to_tokens() {
+    local words="$1"
+    # Use awk for floating point: words * 0.75, rounded up
+    awk "BEGIN { printf \"%d\", ($words * $TOKEN_FACTOR) + 0.5 }"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────────────────────
+
+main() {
+    echo "context-budget-lint [run: ${RUN_ID:-none}]"
+    echo "Budget: $BUDGET tokens per skill"
+    echo ""
+
+    if [[ ! -d "$SKILLS_DIR" ]]; then
+        echo "No skills directory found at $SKILLS_DIR"
+        exit 0
+    fi
+
+    local total_skills=0
+    local over_budget=0
+    local within_budget=0
+
+    # Find all skill files
+    local skill_dirs=()
+    while IFS= read -r d; do
+        skill_dirs+=("$d")
+    done < <(find "$SKILLS_DIR" -name "SKILL.md" -type f | sort)
+
+    for skill_file in "${skill_dirs[@]}"; do
+        local skill_name
+        skill_name=$(basename "$(dirname "$skill_file")")
+
+        # Filter if --skill specified
+        if [[ -n "$SKILL_FILTER" && "$skill_name" != "$SKILL_FILTER" ]]; then
+            continue
+        fi
+
+        total_skills=$((total_skills + 1))
+
+        # Reset visited files for each skill
+        VISITED_FILES=()
+
+        verbose "Skill: $skill_name"
+
+        # Count total words including imports
+        local total_words
+        total_words=$(count_words_recursive "$skill_file" 0)
+
+        # Estimate tokens
+        local tokens
+        tokens=$(words_to_tokens "$total_words")
+
+        # Check budget
+        local pct
+        pct=$(awk "BEGIN { printf \"%d\", ($tokens / $BUDGET) * 100 }")
+
+        if [[ $tokens -gt $BUDGET ]]; then
+            over_budget=$((over_budget + 1))
+            echo "✗ $skill_name: ~${tokens} tokens (${pct}% of budget) — OVER"
+        else
+            within_budget=$((within_budget + 1))
+            echo "✓ $skill_name: ~${tokens} tokens (${pct}%)"
+        fi
+    done
+
+    echo ""
+    echo "─────────────────────────"
+    echo "Skills: $total_skills total, $within_budget within budget, $over_budget over budget"
+
+    if [[ $over_budget -gt 0 ]]; then
+        log_end "$RUN_ID" "failure" 1 0 "$over_budget/$total_skills over budget" 2>/dev/null || true
+        echo "✗ Over-budget skills found"
+        exit 1
+    else
+        log_end "$RUN_ID" "success" 0 0 "$total_skills/$total_skills within budget" 2>/dev/null || true
+        echo "✓ All skills within budget"
+        exit 0
+    fi
+}
+
+main "$@"

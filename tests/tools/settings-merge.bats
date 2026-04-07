@@ -10,8 +10,8 @@
 load 'test_helper'
 
 setup() {
-    # Create temp directory for test artifacts
     export BATS_TEST_TMPDIR="$(mktemp -d)"
+    test_isolation_setup
 
     # Create a minimal project structure
     mkdir -p "${BATS_TEST_TMPDIR}/.claude"
@@ -27,6 +27,7 @@ setup() {
 }
 
 teardown() {
+    test_isolation_teardown
     if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
         rm -rf "${BATS_TEST_TMPDIR}"
     fi

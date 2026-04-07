@@ -276,13 +276,32 @@ main() {
         PRINCIPAL="${AGENCY_PRINCIPAL:-unknown}"
     fi
 
-    # Build the commit message
-    # Format with work item: {WORK-ITEM} - {WORKSTREAM}/{AGENT} for {PRINCIPAL}: {MESSAGE}
-    # Format without: {WORKSTREAM}/{AGENT}: {MESSAGE}
-    if [ -n "$WORK_ITEM" ]; then
-        FULL_MESSAGE="${WORK_ITEM} - ${WORKSTREAM}/${AGENT} for ${PRINCIPAL}: ${MESSAGE}"
+    # Check Day/Phase prefix opt-in (commits.require_day_prefix in agency.yaml).
+    # When enabled, the user's MESSAGE must lead with the convention prefix
+    # (Day N:, Phase X.Y:, Phase X.MN:, Merge, or Revert) and FULL_MESSAGE
+    # uses the message AS-IS without the workstream/agent prefix injection.
+    # This avoids fighting the commit-msg hook's first-line validation.
+    REQUIRE_DAY_PREFIX=$("$SCRIPT_DIR/config" get commits.require_day_prefix 2>/dev/null || echo "false")
+    REQUIRE_DAY_PREFIX=$(echo "$REQUIRE_DAY_PREFIX" | tr '[:upper:]' '[:lower:]')
+
+    if [ "$REQUIRE_DAY_PREFIX" = "true" ]; then
+        # Source the validator and run it on the user's MESSAGE
+        source "$SCRIPT_DIR/lib/_commit-prefix"
+        if ! validate_commit_prefix "$MESSAGE"; then
+            log_end "$RUN_ID" "failure" 2 0 "Commit prefix validation failed"
+            exit 2
+        fi
+        # Use the message AS-IS — no workstream/agent prefix injection
+        FULL_MESSAGE="${MESSAGE}"
     else
-        FULL_MESSAGE="${WORKSTREAM}/${AGENT}: ${MESSAGE}"
+        # Build the commit message with workstream/agent prefix (default behavior)
+        # Format with work item: {WORK-ITEM} - {WORKSTREAM}/{AGENT} for {PRINCIPAL}: {MESSAGE}
+        # Format without: {WORKSTREAM}/{AGENT}: {MESSAGE}
+        if [ -n "$WORK_ITEM" ]; then
+            FULL_MESSAGE="${WORK_ITEM} - ${WORKSTREAM}/${AGENT} for ${PRINCIPAL}: ${MESSAGE}"
+        else
+            FULL_MESSAGE="${WORKSTREAM}/${AGENT}: ${MESSAGE}"
+        fi
     fi
 
     # Build the commit body with trailers

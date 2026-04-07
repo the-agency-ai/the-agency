@@ -1,0 +1,33 @@
+#!/bin/bash
+# What Problem: The git-commit tool validates the Day/Phase prefix at construction
+# time, but raw 'git commit' calls bypass that. The commit-msg hook fires on
+# EVERY commit including raw ones, so it's the defense-in-depth layer.
+#
+# How & Why: Reads the commit message file (passed as $1 by git), sources the
+# shared validator from claude/tools/lib/_commit-prefix, and rejects the commit
+# if the message doesn't match the convention. The validator itself reads the
+# opt-in flag from agency.yaml, so this hook is a no-op when the flag is false.
+#
+# Written: 2026-04-07 during devex Phase 122 (Day/Phase commit prefix enforcement)
+
+set -e
+
+MESSAGE_FILE="$1"
+[[ -z "$MESSAGE_FILE" || ! -f "$MESSAGE_FILE" ]] && exit 0
+
+# Locate the validator relative to repo root
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+VALIDATOR="$REPO_ROOT/claude/tools/lib/_commit-prefix"
+
+[[ -f "$VALIDATOR" ]] || exit 0  # validator missing — fail open
+
+source "$VALIDATOR"
+
+# Read the message (strip trailing newlines for cleaner first-line extraction)
+MESSAGE=$(cat "$MESSAGE_FILE")
+
+if ! validate_commit_prefix "$MESSAGE"; then
+    exit 1
+fi
+
+exit 0
