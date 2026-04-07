@@ -9,7 +9,13 @@
 # configurable budget per skill (default 4000 tokens). Zero external deps — just
 # bash, wc, and grep. Handles circular imports by tracking visited files.
 #
+# Aligns with Valueflow A&D §9 ("CLAUDE-THEAGENCY.md Decomposition"):
+#   - Budget per skill injection (4000 tokens total), not per document
+#   - No skill exceeds 4000 tokens of methodology + instructions
+#   - Linter and decomposition must ship together or neither ships
+#
 # Written: 2026-04-07 during devex Phase 3.3 (context budget linter)
+# Updated: 2026-04-07 — added size-sorted output and top-N offender summary
 #
 # Usage:
 #   ./claude/tools/context-budget-lint                    # lint all skills
@@ -156,6 +162,10 @@ main() {
     local over_budget=0
     local within_budget=0
 
+    # Collect all results into an array sortable by token count.
+    # Format: "tokens|pct|status|name" where status is OVER or OK.
+    local results=()
+
     # Find all skill files
     local skill_dirs=()
     while IFS= read -r d; do
@@ -190,14 +200,40 @@ main() {
         local pct
         pct=$(awk "BEGIN { printf \"%d\", ($tokens / $BUDGET) * 100 }")
 
+        local status
         if [[ $tokens -gt $BUDGET ]]; then
             over_budget=$((over_budget + 1))
-            echo "✗ $skill_name: ~${tokens} tokens (${pct}% of budget) — OVER"
+            status="OVER"
         else
             within_budget=$((within_budget + 1))
-            echo "✓ $skill_name: ~${tokens} tokens (${pct}%)"
+            status="OK"
         fi
+
+        # Pad tokens to 8 chars for clean sort by string
+        results+=("$(printf '%08d|%s|%s|%s' "$tokens" "$pct" "$status" "$skill_name")")
     done
+
+    # Sort by tokens descending (largest first) and print
+    if [[ ${#results[@]} -gt 0 ]]; then
+        local sorted
+        sorted=$(printf '%s\n' "${results[@]}" | sort -r)
+        while IFS='|' read -r tokens_padded pct status name; do
+            local tokens=$((10#$tokens_padded))
+            if [[ "$status" == "OVER" ]]; then
+                echo "✗ $name: ~${tokens} tokens (${pct}% of budget) — OVER"
+            else
+                echo "✓ $name: ~${tokens} tokens (${pct}%)"
+            fi
+        done <<< "$sorted"
+
+        # Top-5 largest summary (helps identify trim candidates)
+        echo ""
+        echo "Top 5 largest:"
+        echo "$sorted" | head -5 | while IFS='|' read -r tokens_padded pct status name; do
+            local tokens=$((10#$tokens_padded))
+            printf "  %-30s ~%4d tokens (%s%%)\n" "$name" "$tokens" "$pct"
+        done
+    fi
 
     echo ""
     echo "─────────────────────────"
