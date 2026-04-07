@@ -151,14 +151,34 @@ cmd_list() {
     local my_agent
     my_agent=$(_my_identity) || return 1
 
+    # Runtime check: does the flags table have a category column?
+    # During partial-deployment (v2 tools / v1 DB), the column may not exist.
+    local db_path has_category
+    db_path=$(iscp_db_path)
+    has_category=$(sqlite3 "$db_path" \
+        "SELECT COUNT(*) FROM pragma_table_info('flags') WHERE name='category';" \
+        2>/dev/null || echo 0)
+
+    if [[ -n "$filter_category" && "$has_category" -eq 0 ]]; then
+        echo "flag: --category filter requires DB with category column (not present in this DB)" >&2
+        return 1
+    fi
+
     local result
-    if [[ -n "$filter_category" ]]; then
-        result=$(iscp_db_query \
-            "SELECT id, created_at, from_agent, message, status, IFNULL(category, '') FROM flags WHERE to_agent = :agent AND category = :cat ORDER BY created_at" \
-            ":agent" "$my_agent" ":cat" "$filter_category")
+    if [[ "$has_category" -gt 0 ]]; then
+        if [[ -n "$filter_category" ]]; then
+            result=$(iscp_db_query \
+                "SELECT id, created_at, from_agent, message, status, IFNULL(category, '') FROM flags WHERE to_agent = :agent AND category = :cat ORDER BY created_at" \
+                ":agent" "$my_agent" ":cat" "$filter_category")
+        else
+            result=$(iscp_db_query \
+                "SELECT id, created_at, from_agent, message, status, IFNULL(category, '') FROM flags WHERE to_agent = :agent ORDER BY created_at" \
+                ":agent" "$my_agent")
+        fi
     else
+        # Legacy v1 DB — no category column, emit empty placeholder
         result=$(iscp_db_query \
-            "SELECT id, created_at, from_agent, message, status, IFNULL(category, '') FROM flags WHERE to_agent = :agent ORDER BY created_at" \
+            "SELECT id, created_at, from_agent, message, status, '' FROM flags WHERE to_agent = :agent ORDER BY created_at" \
             ":agent" "$my_agent")
     fi
 
@@ -188,7 +208,7 @@ cmd_list() {
     # Mark all unread as read (Slack-style seen) — scoped to the same filter
     local now
     now=$(date -u +%Y-%m-%dT%H:%M)
-    if [[ -n "$filter_category" ]]; then
+    if [[ -n "$filter_category" && "$has_category" -gt 0 ]]; then
         iscp_db_exec "UPDATE flags SET status = 'read', read_at = :now WHERE to_agent = :agent AND status = 'unread' AND category = :cat" \
             ":now" "$now" ":agent" "$my_agent" ":cat" "$filter_category"
     else

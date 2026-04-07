@@ -267,46 +267,62 @@ _db_query() { sqlite3 "$(_db_path)" "$1"; }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Flag categories (Iteration 2.3)
+#
+# These tests require the category column on flags. ISCP_SCHEMA_VERSION is
+# currently frozen at 1 (partial-deployment freeze) so iscp_db_init does NOT
+# auto-add the column on fresh DBs. Each test that needs the column must call
+# _add_category_column first to apply the migration manually.
 # ─────────────────────────────────────────────────────────────────────────────
 
+_add_category_column() {
+    "$FLAG" "bootstrap" >/dev/null  # ensure DB exists
+    sqlite3 "$ISCP_DB_PATH" "DELETE FROM flags;"
+    sqlite3 "$ISCP_DB_PATH" "ALTER TABLE flags ADD COLUMN category TEXT CHECK(category IS NULL OR category IN ('friction', 'idea', 'bug'));"
+}
+
 @test "flag --friction stores category" {
+    _add_category_column
     run "$FLAG" --friction "test friction"
     assert_success
     local cat
-    cat=$(_db_query "SELECT category FROM flags WHERE id=1")
+    cat=$(_db_query "SELECT category FROM flags WHERE message='test friction'")
     [[ "$cat" == "friction" ]]
 }
 
 @test "flag --idea stores category" {
+    _add_category_column
     run "$FLAG" --idea "test idea"
     assert_success
     local cat
-    cat=$(_db_query "SELECT category FROM flags WHERE id=1")
+    cat=$(_db_query "SELECT category FROM flags WHERE message='test idea'")
     [[ "$cat" == "idea" ]]
 }
 
 @test "flag --bug stores category" {
+    _add_category_column
     run "$FLAG" --bug "test bug"
     assert_success
     local cat
-    cat=$(_db_query "SELECT category FROM flags WHERE id=1")
+    cat=$(_db_query "SELECT category FROM flags WHERE message='test bug'")
     [[ "$cat" == "bug" ]]
 }
 
 @test "flag with no category stores NULL" {
+    _add_category_column
     run "$FLAG" "uncategorized"
     assert_success
     local cat
-    cat=$(_db_query "SELECT IFNULL(category, 'NULL') FROM flags WHERE id=1")
+    cat=$(_db_query "SELECT IFNULL(category, 'NULL') FROM flags WHERE message='uncategorized'")
     [[ "$cat" == "NULL" ]]
 }
 
 @test "flag --to combines with --friction" {
+    _add_category_column
     run "$FLAG" --to "test-repo/testprincipal/iscp" --friction "friction for iscp"
     assert_success
     local cat to_ag
-    cat=$(_db_query "SELECT category FROM flags WHERE id=1")
-    to_ag=$(_db_query "SELECT to_agent FROM flags WHERE id=1")
+    cat=$(_db_query "SELECT category FROM flags WHERE message='friction for iscp'")
+    to_ag=$(_db_query "SELECT to_agent FROM flags WHERE message='friction for iscp'")
     [[ "$cat" == "friction" ]]
     [[ "$to_ag" == "test-repo/testprincipal/iscp" ]]
 }
@@ -318,6 +334,7 @@ _db_query() { sqlite3 "$(_db_path)" "$1"; }
 }
 
 @test "flag list --category friction filters" {
+    _add_category_column
     "$FLAG" --friction "f1"
     "$FLAG" --idea "i1"
     "$FLAG" --bug "b1"
@@ -333,6 +350,7 @@ _db_query() { sqlite3 "$(_db_path)" "$1"; }
 }
 
 @test "flag list shows mixed categorized and uncategorized" {
+    _add_category_column
     "$FLAG" --friction "f1"
     "$FLAG" "u1"
     "$FLAG" --idea "i1"
@@ -353,12 +371,14 @@ _db_query() { sqlite3 "$(_db_path)" "$1"; }
 }
 
 @test "flag list --category friction in empty queue" {
+    _add_category_column
     run "$FLAG" list --category friction
     assert_success
     assert_output_contains "no flags in category 'friction'"
 }
 
 @test "flag list --category only marks filtered as read" {
+    _add_category_column
     "$FLAG" --friction "f1"
     "$FLAG" --idea "i1"
 

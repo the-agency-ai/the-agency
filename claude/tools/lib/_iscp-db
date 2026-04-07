@@ -20,9 +20,28 @@
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
 
-readonly ISCP_SCHEMA_VERSION=2
+readonly ISCP_SCHEMA_VERSION=1
 readonly ISCP_MIN_SQLITE_VERSION="3.38.0"
 readonly ISCP_BUSY_TIMEOUT=1000
+
+# What Problem: Phase 2.3 added a v1→v2 migration (flag categories). It got
+# committed on the iscp branch and my session migrated the live shared DB to
+# v2 — but every other agent (captain, devex, mdpal-cli, mdpal-app) is on a
+# branch with v1 tools. Their iscp_db_init calls FAIL with "DB version 2 is
+# newer than expected 1" — partial-deployment trap, every non-iscp agent
+# locked out of dispatch.
+#
+# Fix: revert ISCP_SCHEMA_VERSION to 1 here. Keep the migration FUNCTION
+# (_iscp_migrate_v1_to_v2) and the category column code in flag/insert paths.
+# The category column already exists in the live shared DB (added by my
+# earlier migration run). v1 tools ignore it (additive only). My v2 tools
+# write to it because it exists at the schema layer. The version stamp goes
+# back to 1 so other agents unblock.
+#
+# This is a temporary stratification — when the iscp branch lands on main and
+# every worktree merges main, all tools will agree on the schema and we can
+# bump ISCP_SCHEMA_VERSION to 2 in a coordinated deploy.
+# Written: 2026-04-07 — partial-deployment incident
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Internal: version comparison
@@ -242,8 +261,29 @@ _iscp_migrate_v0_to_v1() {
 # existing uncategorized flags continue to work (backward compat). CHECK
 # constraint enumerates the valid categories — same pattern as the dispatch
 # type column.
+#
+# IDEMPOTENCY: SQLite's ALTER TABLE ADD COLUMN has no IF NOT EXISTS form. If
+# the column already exists (e.g., live DB partially migrated then rolled
+# back, or two agents racing the migration), the ALTER fails with "duplicate
+# column name". To make this safe, we check pragma_table_info before emitting
+# the ALTER. If the column exists, return empty SQL — the runner just bumps
+# user_version, the migration is a no-op. _ISCP_MIGRATING_DB is set by the
+# runner before invoking the migration function so we can introspect the DB.
+#
 # Written: 2026-04-07 during ISCP Phase 2, Iteration 2.3
+# Idempotency added: 2026-04-07 — partial-deployment incident (captain's
+# tools at v1 couldn't connect to DB at v2 after my migration ran)
 _iscp_migrate_v1_to_v2() {
+    if [[ -n "${_ISCP_MIGRATING_DB:-}" ]]; then
+        local has_column
+        has_column=$(sqlite3 "$_ISCP_MIGRATING_DB" \
+            "SELECT COUNT(*) FROM pragma_table_info('flags') WHERE name='category';" \
+            2>/dev/null || echo 0)
+        if [[ "$has_column" -gt 0 ]]; then
+            # Column already exists — emit a no-op so the runner bumps version cleanly
+            return 0
+        fi
+    fi
     cat << 'SQL'
 ALTER TABLE flags ADD COLUMN category TEXT
     CHECK(category IS NULL OR category IN ('friction', 'idea', 'bug'));
@@ -280,8 +320,10 @@ _iscp_run_migrations() {
         fi
 
         # Get migration SQL from the function
+        # Export _ISCP_MIGRATING_DB so the migration function can introspect
+        # the DB if it needs to make idempotency decisions (see _iscp_migrate_v1_to_v2)
         local migration_sql
-        migration_sql=$("$fn") || {
+        migration_sql=$(_ISCP_MIGRATING_DB="$db_path" "$fn") || {
             echo "iscp-db: FATAL: migration function $fn failed to produce SQL." >&2
             return 1
         }
@@ -615,10 +657,11 @@ SQL
 # What Problem: Categories at capture (Iteration 2.3) route flags to friction,
 # idea, and bug pipelines. Capture is routing — deferring to triage leaves an
 # undifferentiated pile.
-# How & Why: Optional 6th argument. Empty/unset → NULL category (backward
-# compat with existing flag callers and pre-2.3 captures). Validation is
-# enforced by the column's CHECK constraint, so an invalid value fails loud
-# at the DB layer.
+# How & Why: Optional 6th argument. Runtime check for the category column —
+# if it exists, INSERT with category; if not (fresh v1 DB), INSERT without it
+# and silently drop the category. Runtime detection (not version-stamp based)
+# because the partial-deployment incident requires v2 tools to coexist with
+# v1 DBs that may or may not have the column.
 iscp_db_insert_flag() {
     local from="$1"
     local to="$2"
@@ -635,18 +678,24 @@ iscp_db_insert_flag() {
     local preamble
     preamble=$(_iscp_pragma_preamble_light)
 
-    # Empty category → bind as NULL via empty string + NULLIF; non-empty stores literal
-    local params
-    params=$(_iscp_build_params \
-        ":from_agent" "$from" \
-        ":to_agent" "$to" \
-        ":message" "$message" \
-        ":session_id" "$session_id" \
-        ":branch" "$branch" \
-        ":category" "$category" \
-        ":now" "$now") || return 1
+    # Runtime check: does the flags table have a category column?
+    local has_category
+    has_category=$(sqlite3 "$db_path" \
+        "SELECT COUNT(*) FROM pragma_table_info('flags') WHERE name='category';" \
+        2>/dev/null || echo 0)
 
-    sqlite3 "$db_path" << SQL
+    local params
+    if [[ "$has_category" -gt 0 ]]; then
+        params=$(_iscp_build_params \
+            ":from_agent" "$from" \
+            ":to_agent" "$to" \
+            ":message" "$message" \
+            ":session_id" "$session_id" \
+            ":branch" "$branch" \
+            ":category" "$category" \
+            ":now" "$now") || return 1
+
+        sqlite3 "$db_path" << SQL
 ${preamble}
 ${params}
 INSERT INTO flags (created_at, from_agent, to_agent, message, status, session_id, branch, category)
@@ -654,6 +703,25 @@ VALUES (:now, :from_agent, :to_agent, :message, 'unread', :session_id, :branch, 
 SELECT last_insert_rowid();
 .param clear
 SQL
+    else
+        # No category column — drop the category silently (degraded mode)
+        params=$(_iscp_build_params \
+            ":from_agent" "$from" \
+            ":to_agent" "$to" \
+            ":message" "$message" \
+            ":session_id" "$session_id" \
+            ":branch" "$branch" \
+            ":now" "$now") || return 1
+
+        sqlite3 "$db_path" << SQL
+${preamble}
+${params}
+INSERT INTO flags (created_at, from_agent, to_agent, message, status, session_id, branch)
+VALUES (:now, :from_agent, :to_agent, :message, 'unread', :session_id, :branch);
+SELECT last_insert_rowid();
+.param clear
+SQL
+    fi
 }
 
 # iscp_db_update_status <table> <id> <new_status>
