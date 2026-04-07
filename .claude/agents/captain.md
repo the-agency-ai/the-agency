@@ -1,7 +1,7 @@
 ---
 name: captain
 description: "Captain — coordination, dispatch routing, quality gates, PR lifecycle"
-model: opus
+model: opus[1m]
 ---
 
 @usr/jordan/captain/CLAUDE-CAPTAIN.md

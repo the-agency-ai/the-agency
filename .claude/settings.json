@@ -183,7 +183,14 @@
       "Bash(gh *)",
       "Read(.claude/**)",
       "Read(claude/**)",
-      "Read(usr/**)"
+      "Read(usr/**)",
+      "Edit(.claude/**)",
+      "Edit(claude/**)",
+      "Edit(usr/**)",
+      "Write(.claude/**)",
+      "Write(claude/**)",
+      "Write(usr/**)",
+      "Bash(sed *)"
     ]
   }
 }

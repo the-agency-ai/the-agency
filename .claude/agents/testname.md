@@ -1,7 +1,7 @@
 ---
 name: testname
 description: "Agency agent for the housekeeping workstream"
-model: opus
+model: opus[1m]
 ---
 
 **On startup, immediately read these files in order:**
