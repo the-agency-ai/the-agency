@@ -3,7 +3,7 @@ type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
 date: 2026-04-07
-trigger: post-dispatch-flurry status update
+trigger: session-end — Item 1 done, awaiting phase-complete + Items 2/4
 ---
 
 ## Identity
@@ -12,54 +12,92 @@ the-agency/jordan/devex — tech-lead on the devex workstream. I own test infras
 
 ## Current State
 
-**Day 32 — productive session.** Original DevEx plan (3 phases, 10 iterations) completed earlier today. Then 5 captain dispatches + 1 mdpal-cli escalation arrived. All implemented in plan-mode flow with captain approval. ISCP branch merged in to absorb v2 schema. Currently working through a self-directed task list (maintenance, hygiene, valueflow prep).
+**Day 33 in progress.** Captain dispatched a 4-item work queue (#149). Item 1 implementation + QG fixes are committed (`82a52c8`). Item 3 closed (Option A — captain accepted main as-is). Items 2 and 4 not started.
 
-## What Shipped (Day 32)
+**Session ended at a clean checkpoint** — fork-resource exhaustion from accumulated BATS test runs warranted a session boundary.
 
-### Original DevEx plan
-- **Phase 1:** Universal test isolation (37 BATS files), test-scoper tool, commit-precheck v3 rewrite, 25 BATS tests
-- **Phase 2:** Docker full suite extension (36 files), test-full-suite tool with Docker+local fallback
-- **Phase 3:** Permission model audit, enforcement.yaml registry (19 capabilities), enforcement-audit tool, context-budget-lint tool, 14 BATS tests
+## Day 33 Queue Status
 
-### Post-plan dispatches (all approved → implemented)
-- **#109** BATS test isolation bug: fixed test_isolation_setup to unset GIT_DIR/*, added hookify rule, **rewrote 20 polluted commits via filter-branch** (backup: `devex-pre-rewrite`)
-- **#110** cd-stays-in-worktree: `worktree-cwd-check` tool (Layer 1) + `block-cd-outside-worktree` hookify (Layer 2)
-- **#114** compound bash blocks: Rule 1 merged into #110, new `block-git-add-and-commit` rule
-- **#118** handoff integrity: stop-check.py categorization, handoff tool dirty-impl warning, /handoff skill update
-- **#122** Day/Phase commit prefix: opt-in agency.yaml flag, `_commit-prefix` lib (no python dep), git-commit integration, commit-msg hook template
-- **#133/#134** gh.bats hang fix: gh wrapper recursion bug + run_with_timeout orphan cleanup + Swift suite registration
-- **iscp merge:** absorbed Phase 2.0 schema migration framework, ISCP DB now consistently at v2
+| Item | What | Status |
+|------|------|--------|
+| **1** | SPEC-PROVIDER wrappers for /preview and /deploy | **Implementation + QG fixes committed (`82a52c8`).** Formal /phase-complete pending. |
+| **2** | Valueflow Phase 3 | Not started |
+| **3** | History rewrite (Test User attribution) | **Closed** — captain chose Option A (accept main as-is) per #152 |
+| **4** | Hookify rules (loop reminder + push auth) | Not started |
 
-### Test count
-**65 new BATS tests this session, all passing.** Across 7 new test files: test-scoper, commit-precheck, enforcement-audit, context-budget-lint, handoff-dirty-warning, worktree-cwd-check, commit-prefix.
+## Item 1 — what shipped
 
-## Artifacts
+### Tools (3 changes)
+- `claude/tools/preview` — new SPEC-PROVIDER wrapper, default `docker-compose`
+- `claude/tools/deploy` — new SPEC-PROVIDER wrapper, default `fly`
+- `claude/tools/secret` — slug validation backported (security fix from QG)
 
-- **PVR:** `usr/jordan/devex/devex-pvr-20260406.md` (approved)
-- **A&D:** `claude/workstreams/devex/devex-ad-20260407.md` (approved)
-- **Plan:** `claude/workstreams/devex/devex-plan-20260407.md` (all phases complete + bonus work documented)
+### Tests (40 new tests across 2 files)
+- `tests/tools/preview.bats` — 20 tests (was 12, added 8 from QG)
+- `tests/tools/deploy.bats` — 20 tests (was 12, added 8 from QG)
+- All 40 passing individually
+- secret.bats: 31/31 still passing after slug validation backport
 
-## Principal Feedback (CRITICAL — read every session)
+### Config
+- `claude/config/enforcement.yaml` — 3 new SPEC-PROVIDER dispatcher entries with consistent naming (`secret-dispatcher`, `preview-dispatcher`, `deploy-dispatcher`)
+- enforcement-audit: 22 capabilities valid (was 19)
 
-**USE THE TOOLS AND SKILLS.** Do not hand-roll bash commands. Do not `cd` to main repo from worktree (the new `block-cd-outside-worktree` hookify will catch you anyway). Run tools from worktree CWD with relative paths.
+### QG fixes from /quality-gate
+4 reviewer agents + own review → 46 raw findings → clustered + filtered to 9 fix groups:
 
-## Active Task List (self-directed maintenance)
+| Cluster | Fix |
+|---------|-----|
+| **A. Provider name validation** (security) | Slug validation `^[a-z0-9][a-z0-9_-]*$` across all 3 wrappers — prevents path traversal via `provider: "../../tmp/evil"` and shell injection via `provider: "foo;rm"` |
+| **B. awk parser hardening** | Section-exit regex `/^[a-z]/` → `/^[^ \t#]/` — terminates section on any non-indented, non-comment line |
+| **F. enforcement.yaml integrity** | Renamed `secret-management` → `secret-dispatcher` for naming consistency; doc references moved from CLAUDE-THEAGENCY.md (no SPEC-PROVIDER section) to README-ENFORCEMENT.md |
+| **G. Test fixture cleanup** | Removed dead `git init --no-verify` fallback (not a valid git init flag) |
+| **D. Coverage** | Added tests for non-executable provider, exit code propagation, empty provider, CLAUDE_PROJECT_DIR override, hyphenated names |
 
-Working through these in order:
-1. ✅ Update handoff and plan
-2. Run full BATS suite via test-full-suite (clean failure picture)
-3. Investigate pre-existing test failures (blocked by #2)
-4. Process legacy flag #1 — write canonical T1/T2/T3 boundary doc
-5. Audit context-budget-lint against Valueflow A&D §9
-6. Re-read Valueflow A&D §4/§6 (my Valueflow assignments)
-7. Draft QG tier definitions doc (blocked by #6)
+### Findings deferred (with reasoning)
+- **C. _provider-resolve lib extraction** — captain explicitly approved mirror-secret-exactly approach in #153 Q3. Lib extraction is a separate workstream.
+- **E. Reference provider stubs** — captain explicitly said "no provider tool stubs" in #153 Q3.
+- **Verb contract enforcement** — architectural, separate workstream.
+- **Skill files duplicating wrapper logic** — separate cleanup.
 
-## Open Items / Blockers
+## Next session — pick up here
 
-- Awaiting Valueflow Phase 3 / Phase 5 partial assignments from captain
-- backup branch `devex-pre-rewrite` kept until devex merges to main (per captain)
-- Pre-existing test failures (setup-agency, platform-setup, address-parse, findings) — investigation in task #3
+### Step 1: Resource recovery
+The session hit `fork: Resource temporarily unavailable` after many BATS runs. New session should have fresh resources. If not, `pkill -f bats; pkill -f bats-exec` to clean up orphans (or just wait — they self-reap eventually).
 
-## Next Action
+### Step 2: Finish Item 1 formal phase-complete
+The implementation and QG fixes are committed (`82a52c8`). What's pending in the formal phase-complete flow:
+- Run `./claude/tools/test-full-suite --local` and confirm clean (it WAS clean at 769 passing earlier this session — re-verify)
+- Write QGR receipt file at `usr/jordan/devex/qgr-phase-complete-1-{stage-hash}-{ts}.md`
+- Present QGR to principal for sprint-review approval
+- After approval, the work is already committed — just dispatch a phase-complete notification to captain
 
-Continue task list — currently on task #2 (run full BATS suite).
+Alternatively: skip the formal phase-complete since the work is already committed and tested, and dispatch directly to captain that Item 1 is done. Captain may or may not require the formal QGR for an iteration that's already in git.
+
+### Step 3: Item 2 — Valueflow Phase 3
+Per directive #149: "Read `claude/workstreams/agency/valueflow-plan-20260407.md`. Identify Phase 3 iterations assigned to devex workstream. Plan and execute them."
+
+I have NOT yet read this plan file. First step is to read it and identify which iterations are mine. Then enter plan-mode, dispatch the plan to captain, await approval, execute.
+
+### Step 4: Item 4 — Hookify rules
+Per directive #149:
+1. **Dispatch loop reminder** — warn if agent has been working >10min without `/loop 5m dispatch list`
+2. **Push authorization** — block `git push` without explicit principal authorization in the immediately-preceding turn (sensitive enforcement, captain wants to discuss in plan)
+
+Both need plan-mode + dispatch + approval before implementation.
+
+## Open items / blockers
+
+- **Backup branch `devex-pre-rewrite`** — keep until devex merges to main. Captain instruction.
+- **Dispatch loop cron `b92e29d8`** — running every 5 minutes, auto-expires in 7 days from session start. May or may not survive into next session depending on Claude Code session behavior.
+
+## Principal feedback (CRITICAL — read every session)
+
+**USE THE TOOLS AND SKILLS.** Don't hand-roll bash, don't `cd` to main repo, run from worktree CWD with relative paths. The new `block-cd-outside-worktree` hookify will catch the cd; use `/handoff`, `/dispatch`, `/git-commit`, `/iteration-complete`, `/phase-complete` skills for all boundary work.
+
+## Git state
+
+- Branch: `devex`
+- HEAD: `82a52c8` Phase 1 (Day 33 Item 1): SPEC-PROVIDER preview/deploy + QG fixes
+- Working tree clean (all session work committed)
+- 7 commits ahead of main (from this session and the prior)
+- All commits attributed to Jordan Dea-Mattson (no Test User pollution from this session)
