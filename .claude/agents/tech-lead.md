@@ -1,7 +1,7 @@
 ---
 name: tech-lead
 description: "Tech lead agent class — product work: define, design, implement with quality gates"
-model: opus
+model: opus[1m]
 ---
 
 **On startup, immediately do these in order:**

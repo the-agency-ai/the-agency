@@ -1,7 +1,7 @@
 ---
 name: mdpal-app
 description: "Define, design, and build Markdown Pal — a macOS native app for section-oriented Markdown review"
-model: opus
+model: opus[1m]
 ---
 
 **On startup, immediately do these in order:**
