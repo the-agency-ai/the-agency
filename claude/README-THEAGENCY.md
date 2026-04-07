@@ -491,6 +491,81 @@ Git discipline is enforced by hookify rules. The git-related rules:
 
 For the complete enforcement model — Triangle, Ladder, lifecycle hooks, all 33 hookify rules, quality gate tiers, and the permission model — see `claude/README-ENFORCEMENT.md`.
 
+### Per-Agent Commit Attribution
+
+Every commit made via `/git-commit` carries three pieces of attribution:
+
+1. **Author** — the principal (legal authorship, profile-linked on GitHub)
+2. **Co-Author: agent** — the Agency agent that did the work (per-agent traceability)
+3. **Co-Author: Claude** — the model (existing convention)
+
+Example:
+
+```
+Author: Jordan Dea-Mattson <jordandm@users.noreply.github.com>
+
+Day 32: per-agent commit attribution via plus-tagged GitHub noreply
+
+[commit body]
+
+Co-Authored-By: captain <jordandm+captain.the-agency.the-agency-ai@users.noreply.github.com>
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+```
+
+#### Format
+
+The agent co-author email follows a fully qualified plus-tag format:
+
+```
+{username}+{agent}.{repo}.{org}@users.noreply.github.com
+```
+
+| Field | Source | Example |
+|-------|--------|---------|
+| `{username}` | `agency.yaml` → `principals.{key}.platforms.github[]` matching current org | `jordandm` |
+| `{agent}` | `agent-identity --agent` | `captain` |
+| `{repo}` | `agent-identity --repo` | `the-agency` |
+| `{org}` | Parsed from `git remote.origin.url` | `the-agency-ai` |
+
+This mirrors the Agency address convention `{org}/{repo}/{principal}/{agent}` — the email is self-describing across orgs.
+
+#### Why GitHub User Noreply
+
+`users.noreply.github.com` is GitHub's documented user noreply domain. The principal author uses the canonical form (`{username}@users.noreply.github.com`) which links to the GitHub profile — your avatar, contribution count, and profile link all work.
+
+The agent co-authors use the plus-tag form (`{username}+{agent}...@users.noreply.github.com`). GitHub treats each plus-tag identity as a **distinct contributor** (not deduped to the principal), so each agent appears as its own contributor entry. The agent doesn't get a profile photo (it's not a real GitHub user), but it gets a distinct attribution line in the commit's contributor view.
+
+Tested with real commits before shipping — GitHub does literal-string matching on plus-tags and does NOT strip them. See `usr/jordan/captain/transcripts/agent-attribution-model-20260407.md` for the full discussion, dead-end options, test results, and decision log.
+
+#### Per-Org Identity
+
+`agency.yaml` already tracks per-org GitHub identities for each principal:
+
+```yaml
+principals:
+  jdm:
+    platforms:
+      github:
+        - username: jordandm
+          repos:
+            - org: the-agency-ai
+              repo: the-agency
+        - username: jordan-of
+          repos:
+            - org: OrdinaryFolk
+              repo: monofolk
+```
+
+When committing in `the-agency`, `/git-commit` resolves to `jordandm` and produces `jordandm+captain.the-agency.the-agency-ai@`. When committing in `monofolk`, it resolves to `jordan-of` and produces `jordan-of+captain.monofolk.OrdinaryFolk@`. Each org gets its own per-org identity automatically.
+
+#### Future: Configurable Override (Layer 2)
+
+The default model is GitHub mode, no configuration. A future Layer 2 will allow per-principal overrides for adopters who want real email delivery (using plus-addressing on a real mailbox like `jdm+captain@devopspm.com`). Not implemented yet — will be added when the first adopter asks.
+
+#### Future: Agent Mail Service
+
+The plus-tag format is currently a non-routable string in commit trailers. There's a real product opportunity: an "agent mail" service that takes this format and provides actual delivery, with mailbox-per-principal and routing-per-agent. Captured as flag #40 for future product discussion.
+
 ## Local Setup / Sandbox
 
 ### The Sandbox Principle
