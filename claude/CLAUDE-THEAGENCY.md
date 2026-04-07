@@ -374,7 +374,9 @@ Handoff files are a first-class Agency primitive for context bootstrapping. They
 
 Handoffs are not just session continuity — they bootstrap context for any purpose: agent-to-agent transfer, cold start, project setup, compaction survival, or spinning up a new agent into a desired state. The tool handles infrastructure; the agent writes the content.
 
-**Always use the handoff tool.** Run `bash $CLAUDE_PROJECT_DIR/claude/tools/handoff write --trigger <reason>` to write handoffs. The tool archives the previous handoff to `history/` with a timestamp, resolves the correct path for your project, and ensures consistent formatting. Never write handoff files manually — always use the tool. The `SessionEnd` and `PreCompact` hooks call it automatically, but agents must also call it explicitly at boundary commands and discussion milestones.
+**Always use the handoff tool.** Run `./claude/tools/handoff write --trigger <reason>` to write handoffs. The tool archives the previous handoff to `history/` with a timestamp, resolves the correct path for your project, and ensures consistent formatting. Never write handoff files manually — always use the tool. The `SessionEnd` and `PreCompact` hooks call it automatically, but agents must also call it explicitly at boundary commands and discussion milestones.
+
+**Note:** Never use `$CLAUDE_PROJECT_DIR` in Bash tool calls — the variable is only set inside hooks, not in agent shell sessions. Use `./claude/tools/` (relative paths) instead. Claude Code always sets CWD to the project root.
 
 **When to write:** At boundary commands (`/iteration-complete`, `/phase-complete`, `/plan-complete`, `/pre-phase-review`), automatically on `PreCompact` and `SessionEnd` hooks, after `/sync-all` (lightweight), and at discussion milestones (PVR draft, key A&D decision, plan revision).
 
