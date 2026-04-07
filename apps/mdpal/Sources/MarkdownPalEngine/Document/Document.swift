@@ -27,10 +27,15 @@ import Foundation
 public final class Document {
 
     /// The parsed section tree.
-    public let sections: SectionTree
+    /// Mutated by `editSection` to replace section content in place.
+    public internal(set) var sections: SectionTree
 
     /// The document metadata (comments, flags, info).
-    public var metadata: DocumentMetadata
+    /// Mutated only through `addComment`, `resolveComment`, `flagSection`,
+    /// `clearFlag`, and `refreshSection` so lifecycle invariants (id
+    /// assignment, slug validation, list-membership semantics) are upheld.
+    /// Test code can mutate this directly via `@testable import`.
+    public internal(set) var metadata: DocumentMetadata
 
     /// The parser used to read this document.
     public let parser: any DocumentParser

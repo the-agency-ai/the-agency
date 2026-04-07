@@ -37,6 +37,15 @@ public enum EngineError: Error, Equatable, Sendable {
     /// The document has no associated file path (called save() in library mode).
     case noFilePath
 
+    /// Comment with the given id was not found.
+    case commentNotFound(id: String)
+
+    /// Attempted to resolve a comment that is already resolved.
+    case commentAlreadyResolved(id: String)
+
+    /// Attempted to clear a flag on a section that is not flagged.
+    case sectionNotFlagged(slug: String)
+
     /// File I/O error (CLI mode only). The underlying error is preserved
     /// as a String description because Error is not Equatable.
     case fileError(path: String, description: String)

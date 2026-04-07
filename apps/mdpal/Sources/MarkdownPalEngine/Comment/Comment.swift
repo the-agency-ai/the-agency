@@ -81,4 +81,28 @@ public struct Comment: Identifiable, Equatable, Sendable, Codable {
 
     /// Whether the comment has been resolved.
     public var isResolved: Bool { resolution != nil }
+
+    /// Return a copy with the given fields replaced. Used by the engine
+    /// to update version hashes (refreshSection) and attach resolutions
+    /// (resolveComment) without hand-copying every field — which is
+    /// brittle when Comment gains new fields. Pass nil to leave a field
+    /// unchanged (we never need to clear a resolution).
+    public func with(
+        versionHash: String? = nil,
+        resolution: Resolution? = nil
+    ) -> Comment {
+        Comment(
+            id: self.id,
+            type: self.type,
+            author: self.author,
+            sectionSlug: self.sectionSlug,
+            versionHash: versionHash ?? self.versionHash,
+            timestamp: self.timestamp,
+            context: self.context,
+            text: self.text,
+            resolution: resolution ?? self.resolution,
+            priority: self.priority,
+            tags: self.tags
+        )
+    }
 }

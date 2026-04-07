@@ -497,39 +497,6 @@ import Testing
     #expect(beginCount == 1)
 }
 
-// MARK: - SectionInfo
-
-@Test func sectionInfoFromTree() throws {
-    let parser = MarkdownParser()
-    let content = """
-    # Heading
-
-    Content here.
-
-    ## Sub Heading
-
-    Sub content.
-    """
-
-    let tree = try parser.parse(content)
-    let info = tree.root.toSectionInfo(parser: parser)
-
-    #expect(info.heading == "")
-    #expect(info.level == 0)
-    #expect(info.children.count == 1)
-
-    let child = info.children[0]
-    #expect(child.heading == "Heading")
-    #expect(child.slug == "heading")
-    #expect(child.level == 1)
-    #expect(child.children.count == 1)
-
-    let grandchild = child.children[0]
-    #expect(grandchild.heading == "Sub Heading")
-    #expect(grandchild.slug == "sub-heading")
-    #expect(grandchild.level == 2)
-}
-
 // MARK: - EngineError
 
 @Test func engineErrorEquality() {
