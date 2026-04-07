@@ -170,12 +170,12 @@ preview-docker-compose logs     # stream recent logs
 
 ### Capabilities Using SPEC-PROVIDER
 
-| Capability | Skill | Spec key | Provider naming |
-|-----------|-------|----------|----------------|
-| Preview | `/preview` | `preview.provider` | `preview-{provider}` |
-| Deploy | `/deploy` | `deploy.provider` | `deploy-{provider}` |
-| Security/Secrets | `/secret` | `secrets.provider` | `secret-{provider}` |
-| Prototype scaffolding | `/prototype-create` | `prototype.providers` | `prototype-{provider}` *(planned)* |
+| Capability | Invocation | Type | Spec key | Provider naming |
+|-----------|------------|------|----------|----------------|
+| Preview | `/preview` | Skill | `preview.provider` | `preview-{provider}` |
+| Deploy | `/deploy` | Skill | `deploy.provider` | `deploy-{provider}` |
+| Security/Secrets | `/secret` | Command *(skill conversion planned)* | `secrets.provider` | `secret-{provider}` |
+| Prototype scaffolding | `/prototype-create` | *(planned)* | `prototype.providers` | `prototype-{provider}` |
 
 ### Provider Contract
 

@@ -48,15 +48,28 @@ The Ladder is the **per-capability adoption progression**. Different capabilitie
 
 Claude Code fires hooks at well-defined lifecycle events. TheAgency uses these to inject context, check messages, validate state, and run telemetry. Hooks live in `claude/hooks/` and are wired in `.claude/settings.json`.
 
-| Event | When It Fires | What TheAgency Runs |
-|-------|---------------|---------------------|
-| `SessionStart` | New session begins | `iscp-check` (mail check), `collaboration check` (cross-repo) |
-| `UserPromptSubmit` | User sends a message | `iscp-check` (mail reminder) |
-| `PreToolUse` (Skill) | Before a skill is invoked | `ref-injector.sh` (loads referenced docs) |
-| `Stop` | Agent stops responding | `iscp-check`, `quality-check.sh` (validates session state) |
-| `SessionEnd` | Session is ending | `session-backup`, `session-end.sh` |
+**Shipped template** (`claude/config/settings-template.json`) — what new adopters get on `agency init`:
 
-The shipped template (`claude/config/settings-template.json`) is intentionally minimal. Projects extend it by adding more hooks for project-specific concerns (formatting, telemetry, status line updates).
+| Event | What's Wired |
+|-------|--------------|
+| `SessionStart` | `iscp-check` (mail check), `collaboration check` (cross-repo) |
+| `UserPromptSubmit` | `iscp-check` (mail reminder) |
+| `PreToolUse` (Skill) | `ref-injector.sh` (loads referenced docs) |
+| `Stop` | `iscp-check` |
+
+The shipped template is intentionally minimal. Projects extend it for their own concerns. The current the-agency repo's local `.claude/settings.json` adds: `session-start.sh`, `branch-freshness.sh`, `session-handoff.sh`, `ghostty-status.sh`, `quality-check.sh`, `stop-check.py`, `tool-telemetry.sh`, `plan-capture.sh`/`.py`, `session-backup`, `session-end.sh`. These are local additions, not shipped.
+
+**Available hooks in `claude/hooks/`** (any project can wire these):
+
+| Hook | Purpose |
+|------|---------|
+| `branch-freshness.sh` | Warn if current branch is stale relative to main |
+| `ghostty-status.sh` | Update Ghostty terminal status line |
+| `plan-capture.sh` | Capture plan content on `ExitPlanMode` |
+| `quality-check.sh` | Validate session state on `Stop` (uncommitted changes, etc.) |
+| `ref-injector.sh` | Inject `@`-referenced docs when a skill is invoked |
+| `session-handoff.sh` | Inject the agent's handoff on `SessionStart` |
+| `tool-telemetry.sh` | Log every tool invocation to `~/.claude/telemetry/{date}.jsonl` |
 
 **Important:** `$CLAUDE_PROJECT_DIR` is **only set inside hook execution**, not in agent Bash tool calls. Agents must use `./claude/tools/` (relative paths) when invoking tools — never `$CLAUDE_PROJECT_DIR/claude/tools/...` from a Bash command.
 
