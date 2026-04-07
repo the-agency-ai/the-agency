@@ -218,9 +218,9 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 | 1 | 1.4 Tests for Pre-Commit | **Complete** |
 | 2 | 2.1 Docker Runner Extension | **Complete** |
 | 2 | 2.2 T3 Integration + Fallback | **Complete** |
-| 3 | 3.1 Permission Model Audit | Not started |
-| 3 | 3.2 Enforcement Registry + Audit | Not started |
-| 3 | 3.3 Context Budget Linter | Not started |
+| 3 | 3.1 Permission Model Audit | **Complete** |
+| 3 | 3.2 Enforcement Registry + Audit | **Complete** |
+| 3 | 3.3 Context Budget Linter | **Complete** |
 | 3 | 3.4 Tests for Phase 3 | Not started |
 
 ## Seed Backlog (future phases)
