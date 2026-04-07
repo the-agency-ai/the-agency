@@ -37,7 +37,7 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 ### Tooling
 - **Scaffold tools** — workstream-create, worktree-create, agent-define
 - **Context tools** — handoff (read/write/archive), plan-capture
-- **Observability** — tool-runs.jsonl (`.claude/logs/tool-runs.jsonl`), statusline integration
+- **Observability** — tool-runs.jsonl (`.claude/logs/tool-runs.jsonl`), telemetry (daily JSONL at `~/.claude/telemetry/{date}.jsonl`, read via `./claude/tools/telemetry`), statusline integration
 - **Review agents** — code-reviewer, security-reviewer, design-reviewer, test-reviewer, scorer
 
 ### Agent Definitions
