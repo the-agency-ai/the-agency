@@ -25,7 +25,7 @@ public struct MarkdownParser: DocumentParser {
     // MARK: - Parse
 
     public func parse(_ content: String) throws -> SectionTree {
-        let document = Document(parsing: content)
+        let document = Markdown.Document(parsing: content)
         let root = buildSectionTree(from: document, source: content)
         return SectionTree(root: root, originalSource: content)
     }
@@ -37,7 +37,7 @@ public struct MarkdownParser: DocumentParser {
     /// part of the current section's body. Heading levels determine parent-child
     /// relationships.
     private func buildSectionTree(
-        from document: Document,
+        from document: Markdown.Document,
         source: String
     ) -> SectionNode {
         // Collect all top-level blocks with their source ranges
