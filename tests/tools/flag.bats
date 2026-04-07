@@ -264,3 +264,109 @@ _db_query() { sqlite3 "$(_db_path)" "$1"; }
     assert_success
     assert_output_contains "2.0.1"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Flag categories (Iteration 2.3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "flag --friction stores category" {
+    run "$FLAG" --friction "test friction"
+    assert_success
+    local cat
+    cat=$(_db_query "SELECT category FROM flags WHERE id=1")
+    [[ "$cat" == "friction" ]]
+}
+
+@test "flag --idea stores category" {
+    run "$FLAG" --idea "test idea"
+    assert_success
+    local cat
+    cat=$(_db_query "SELECT category FROM flags WHERE id=1")
+    [[ "$cat" == "idea" ]]
+}
+
+@test "flag --bug stores category" {
+    run "$FLAG" --bug "test bug"
+    assert_success
+    local cat
+    cat=$(_db_query "SELECT category FROM flags WHERE id=1")
+    [[ "$cat" == "bug" ]]
+}
+
+@test "flag with no category stores NULL" {
+    run "$FLAG" "uncategorized"
+    assert_success
+    local cat
+    cat=$(_db_query "SELECT IFNULL(category, 'NULL') FROM flags WHERE id=1")
+    [[ "$cat" == "NULL" ]]
+}
+
+@test "flag --to combines with --friction" {
+    run "$FLAG" --to "test-repo/testprincipal/iscp" --friction "friction for iscp"
+    assert_success
+    local cat to_ag
+    cat=$(_db_query "SELECT category FROM flags WHERE id=1")
+    to_ag=$(_db_query "SELECT to_agent FROM flags WHERE id=1")
+    [[ "$cat" == "friction" ]]
+    [[ "$to_ag" == "test-repo/testprincipal/iscp" ]]
+}
+
+@test "flag --friction --bug fails (only one category)" {
+    run "$FLAG" --friction --bug "ambiguous"
+    assert_failure
+    assert_output_contains "only one category"
+}
+
+@test "flag list --category friction filters" {
+    "$FLAG" --friction "f1"
+    "$FLAG" --idea "i1"
+    "$FLAG" --bug "b1"
+    "$FLAG" "uncategorized"
+
+    run "$FLAG" list --category friction
+    assert_success
+    assert_output_contains "f1"
+    # Should not contain other categories
+    [[ "$output" != *"i1"* ]]
+    [[ "$output" != *"b1"* ]]
+    [[ "$output" != *"uncategorized"* ]]
+}
+
+@test "flag list shows mixed categorized and uncategorized" {
+    "$FLAG" --friction "f1"
+    "$FLAG" "u1"
+    "$FLAG" --idea "i1"
+
+    run "$FLAG" list
+    assert_success
+    assert_output_contains "f1"
+    assert_output_contains "u1"
+    assert_output_contains "i1"
+    assert_output_contains "{friction}"
+    assert_output_contains "{idea}"
+}
+
+@test "flag list --category with invalid value fails" {
+    run "$FLAG" list --category bogus
+    assert_failure
+    assert_output_contains "unknown category"
+}
+
+@test "flag list --category friction in empty queue" {
+    run "$FLAG" list --category friction
+    assert_success
+    assert_output_contains "no flags in category 'friction'"
+}
+
+@test "flag list --category only marks filtered as read" {
+    "$FLAG" --friction "f1"
+    "$FLAG" --idea "i1"
+
+    "$FLAG" list --category friction >/dev/null
+    # friction marked read, idea still unread
+    local f_status i_status
+    f_status=$(_db_query "SELECT status FROM flags WHERE message='f1'")
+    i_status=$(_db_query "SELECT status FROM flags WHERE message='i1'")
+    [[ "$f_status" == "read" ]]
+    [[ "$i_status" == "unread" ]]
+}

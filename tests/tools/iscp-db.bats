@@ -156,7 +156,7 @@ teardown() {
     db=$(iscp_db_path)
     local version
     version=$(sqlite3 "$db" "PRAGMA user_version;")
-    [[ "$version" == "1" ]]
+    [[ "$version" == "$ISCP_SCHEMA_VERSION" ]]
 }
 
 @test "iscp_db_init sets WAL mode" {
@@ -678,9 +678,10 @@ YAML
     chmod 700 "$db_dir"
     sqlite3 "$db" "PRAGMA user_version=0;"
 
-    # Try to migrate to v99 — no _iscp_migrate_v0_to_v99 or intermediate functions exist
-    # First step v0→v1 exists, but v1→v2 does not
-    run _iscp_run_migrations "$db" 1 2
+    # Ask for migration in a range with no defined migration functions
+    # (v98 → v99). The runner walks the range looking for _iscp_migrate_v98_to_v99
+    # which doesn't exist — first miss is fatal.
+    run _iscp_run_migrations "$db" 98 99
     assert_failure
     assert_output_contains "migration function"
     assert_output_contains "not found"
@@ -799,12 +800,14 @@ YAML
 }
 
 @test "migration preserves existing data" {
-    # Define a mock v1→v2 that adds a column (non-destructive)
-    _iscp_migrate_v1_to_v2() {
+    # Define a mock v2→v3 that adds a column (non-destructive).
+    # Using v2→v3 instead of v1→v2 because v1→v2 is now a real migration
+    # (Iteration 2.3 — flag categories) and we don't want to shadow it.
+    _iscp_migrate_v2_to_v3() {
         echo "ALTER TABLE flags ADD COLUMN priority TEXT DEFAULT 'normal';"
     }
 
-    # Create and populate a v1 DB
+    # Create and populate a DB at current schema (v2 includes category column)
     iscp_db_init
     iscp_db_insert_flag "repo/p/a" "repo/p/b" "important message" "sess1" "main"
     iscp_db_insert_flag "repo/p/a" "repo/p/b" "another message" "sess1" "main"
@@ -812,8 +815,8 @@ YAML
     local db
     db=$(iscp_db_path)
 
-    # Migrate to v2
-    run _iscp_run_migrations "$db" 1 2
+    # Migrate from v2 to v3 (mock migration)
+    run _iscp_run_migrations "$db" 2 3
     assert_success
 
     # Existing data should be intact
@@ -829,5 +832,5 @@ YAML
     [[ "$output" == "normal" ]]
 
     # Clean up mock
-    unset -f _iscp_migrate_v1_to_v2
+    unset -f _iscp_migrate_v2_to_v3
 }
