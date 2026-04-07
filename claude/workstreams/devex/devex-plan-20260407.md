@@ -215,7 +215,7 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 | 1 | 1.1 Universal Test Isolation | **Complete** |
 | 1 | 1.2 Test Scoper | **Complete** |
 | 1 | 1.3 Commit-Precheck Rewrite | **Complete** |
-| 1 | 1.4 Tests for Pre-Commit | Not started |
+| 1 | 1.4 Tests for Pre-Commit | **Complete** |
 | 2 | 2.1 Docker Runner Extension | Not started |
 | 2 | 2.2 T3 Integration + Fallback | Not started |
 | 3 | 3.1 Permission Model Audit | Not started |

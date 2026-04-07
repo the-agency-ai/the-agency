@@ -219,6 +219,11 @@ main() {
                 echo "[dry-run] Would run $test_count scoped test file(s):"
                 echo "$scoped_tests" | sed 's|.*/||'
             else
+                # Clean git env vars leaked by pre-commit hook context.
+                # Without this, BATS tests that create their own git repos
+                # would operate on the outer repo's index/dir instead.
+                unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_AUTHOR_DATE GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL 2>/dev/null || true
+
                 # Run scoped BATS tests with 60s timeout
                 local bats_files
                 bats_files=$(echo "$scoped_tests" | grep '\.bats$' || true)
