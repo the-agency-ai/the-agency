@@ -35,12 +35,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # What Problem: Worktree agents cd to main checkout and run dispatch tools.
 # SCRIPT_DIR resolves to main's tools → PROJECT_ROOT = main → branch = main
 # → identity = captain. Agent sends dispatches as captain, never sees own mail.
-# How & Why: CLAUDE_PROJECT_DIR is set by Claude Code to the worktree path.
-# It's the authoritative "where am I running" signal. Use it when available,
-# fall back to SCRIPT_DIR-derived path only when unset.
+# How & Why: Three-tier resolution: (1) CLAUDE_PROJECT_DIR env var (set by
+# Claude Code hooks — authoritative when available), (2) git rev-parse
+# --show-toplevel from PWD (detects worktree context when CLAUDE_PROJECT_DIR
+# is unset — which it always is in Bash tool calls), (3) SCRIPT_DIR fallback
+# (last resort for non-git contexts). The PWD tier was added because
+# CLAUDE_PROJECT_DIR is only set inside hooks, not in agent Bash tool calls,
+# so worktree agents always fell through to SCRIPT_DIR which resolves to the
+# main checkout → wrong branch → wrong identity → wrong dispatches.
 # Written: 2026-04-06 — escalation #90 (three identity bugs)
+# Updated: 2026-04-07 — PWD-based worktree detection (flag #33)
 if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
     PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+elif _pwd_toplevel="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    PROJECT_ROOT="$_pwd_toplevel"
 else
     PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 fi
