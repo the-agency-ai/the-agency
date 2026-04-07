@@ -53,6 +53,82 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 
 ---
 
+## Valueflow — The Development Lifecycle
+
+Valueflow is TheAgency's methodology — the complete path from an idea to value that customers are using. It's rooted in Lean thinking: every step must demonstrably reduce rework or increase delivery probability. Steps that don't are waste.
+
+### The Flow
+
+```
+Gleam → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
+```
+
+**Seed.** A gleam — a thought, conversation, observation, flag. Capture it. Route it to a workstream.
+
+**Research (MARFI).** Multi-Agent Request for Information. Before defining, gather input. Research agents explore competitors, prior art, implementation approaches in parallel. Cross-cutting research only — domain-specific exploration is the agent's normal work.
+
+**Define (PVR).** Seed + research → discussion with principal → Product Vision & Requirements. The "what" and "why."
+
+**Design (A&D).** Architecture & Design. The "how" and "why." Multi-agent input group contributes before the driving agent writes.
+
+**Plan.** PVR + A&D → phases and iterations. Phase planning is autonomous — no principal engagement unless flagged.
+
+**Implement.** Agents execute phases and iterations autonomously, surfacing for principal input as needed. Quality gate at every boundary.
+
+**Ship.** Captain merges, builds PRs, pushes to origin. Pre-PR quality gate.
+
+**Value.** Customer is using it. Feedback generates new seeds — closing the cycle.
+
+### The Three-Bucket Pattern
+
+The signature of valueflow. When an agent receives feedback on any artifact, it triages into three buckets:
+
+| Bucket | What | Who decides |
+|--------|------|-------------|
+| **Disagree** | Agent disagrees — presents reasoning | Agent decides, principal reviews |
+| **Autonomous** | Agent agrees and acts independently | Agent acts, principal informed |
+| **Collaborative** | Requires principal input | 1B1 discussion |
+
+Reviewers give raw findings. The **author** triages into buckets — not the reviewer. This pattern appears in MAR disposition, flag triage, dispatch handling, and plan review.
+
+### Multi-Agent Review (MAR)
+
+Review of artifacts at every transition. Many eyes, all bugs are shallow. With AI agents, the cost of review is seconds, not hours — there is no reason not to review everything.
+
+Captain selects reviewers based on artifact type (PVR gets methodology critics; A&D gets security/performance reviewers; code gets the QG protocol). 24-hour timeout for cross-session agent reviewers. Author triages all findings via three-bucket.
+
+### The Enforcement Ladder
+
+Every capability in valueflow follows a progressive tightening path:
+
+1. **Document** — write it in CLAUDE-THEAGENCY.md. Human-readable, no tooling required.
+2. **Skill** — wrap it in an invocable skill. Discovery via `/` autocomplete.
+3. **Tool** — build the mechanical capability. Pre-approved in settings.json.
+4. **Hookify warn** — warn when the tool is bypassed. "You should use X."
+5. **Hookify block** — block the bypass. Tool is the only path.
+
+Each layer addresses the bypass discovered in the previous layer. Gate on artifact existence (mechanical, auditable), not on artifact quality (human judgment).
+
+**We are at step 1.** Valueflow is documented. Skills, tools, and enforcement are being built as V2. The methodology is the process we follow now — tooling catches up.
+
+### Captain
+
+Captain is the coordination backbone. Always-on by design — first up, last down. If any agent is running, captain is running.
+
+Two modes: **always-on loop** (dispatch processing, commit merging, PR building) and **interactive session** (principal sits down for seed discussions, MAR triage, strategic decisions).
+
+### Artifacts
+
+| Artifact | Content | Lifecycle |
+|----------|---------|-----------|
+| PVR | What and why | Evolves through discussion + implementation |
+| A&D | How and why (technical decisions) | Evolves through implementation |
+| Plan | Phases, iterations, QGRs | Updated after every commit |
+| QGR | Quality gate results | Standalone receipt + appended to Plan |
+| Reference | Final documentation | Produced at plan completion |
+
+---
+
 *The sections below mirror the CLAUDE.md template structure. CLAUDE.md has the rules for agents; this README explains the why for humans.*
 
 ---
