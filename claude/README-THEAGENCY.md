@@ -573,6 +573,60 @@ The captain orchestrates the full cycle:
 
 If all PRs are clean (zero issues ≥80 confidence), steps 4-5 are skipped.
 
+### The Day-PR Release Pattern
+
+TheAgency releases use a **Day N - Release M** pattern. Each working day produces one or more PRs. Each PR is named `day{N}-release-{M}` where N is the working day number and M is the Mth PR of that day (usually 1, sometimes more if work splits cleanly).
+
+**The cycle:**
+
+1. **Start of day** — captain creates a PR branch from `origin/main` named `day{N}-release-{M}`
+2. **Work happens** on the branch — commits accumulate (infra fixes, doc updates, feature work)
+3. **PR opened as DRAFT** early in the day via `gh pr create --draft` — visibility for collaborators, not yet ready for review
+4. **Doc accuracy passes** — review CLAUDE.md docs and READMEs, run MAR if scope warrants, fix findings in the same branch
+5. **Friction analysis** — capture and triage friction points discovered during the day's work; either fix in the PR or dispatch to the right workstream
+6. **Release dispatch drafted** — captain prepares the dispatch to consumer repos (e.g., monofolk) describing what's in the PR and what they need to do
+7. **End of day** — when ready, mark PR ready-for-review (out of draft), merge, push the release dispatch
+8. **Multiple PRs/day** allowed — if work splits cleanly into independent units, each gets its own `day{N}-release-{M}` branch and PR
+
+**Rules:**
+
+- **Branch name:** `day{N}-release-{M}` — N is the working day (per day-counting convention), M starts at 1 and increments
+- **Always open as DRAFT first** — work happens on draft, ready-for-review only when complete
+- **PR description includes:** summary, what's in it, what adopters need to do, test plan
+- **Release dispatch goes to consumer repos** via the collaboration tool — same content as the PR description, formatted for cross-repo consumption
+- **Never push directly to main** — every change reaches origin through a PR
+- **The PR is the release record** — the audit trail of what shipped that day, with full diff and commit history
+
+**Why this pattern:**
+
+- One PR per day (or per logical unit) keeps changes reviewable
+- Day-numbering ties releases to the project's actual progress, not calendar dates
+- Draft-first prevents accidental "ready" state on incomplete work
+- Release dispatches close the loop with consumers — they know what shipped and what to do
+- The PR description becomes the human-readable release notes
+
+**Example flow:**
+
+```
+Day 32:
+  git checkout -b day32-release-1     # branch from origin/main
+  ... work happens, commits accumulate ...
+  gh pr create --draft --title "Day 32 - Release 1: ..."
+  ... doc passes, friction triage, more commits ...
+  ./claude/tools/collaboration reply monofolk --to ... # release dispatch
+  ./claude/tools/collaboration push monofolk
+  gh pr ready 46                       # out of draft
+  gh pr merge 46                       # merge to main
+  git checkout main && git pull        # local main matches origin/main
+```
+
+If a second logically-separate PR is needed the same day:
+
+```
+git checkout -b day32-release-2
+... separate work ...
+```
+
 ### The Dispatch Model
 
 When the captain finds issues, it writes two files per project:
