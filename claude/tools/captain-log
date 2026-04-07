@@ -1,0 +1,210 @@
+#!/bin/bash
+#
+# captain-log — Captain's narrative log
+#
+# What Problem: Captain accumulates decisions, friction encountered, tooling
+# built, and observations across a session. Handoffs capture current state;
+# transcripts capture full conversation; flags capture quick observations.
+# None of these capture the *narrative thread* — "today we discovered X,
+# built Y to fix it, decided Z." That narrative is what makes session-mining
+# possible later.
+#
+# How & Why: Daily markdown files at usr/{principal}/captain/logs/
+# captains-log-{YYYYMMDD}.md. Append-only with timestamps. Categorized for
+# later mining. Bash because it needs to run in any shell, no dependencies
+# beyond standard tools and the agency log helper.
+#
+# Written: 2026-04-07 — Day 32 — flag #2 (Captain's log formalization)
+#
+# Usage:
+#   captain-log "entry text"                — append entry (default category: observation)
+#   captain-log --category decision "..."   — append with category
+#   captain-log -c friction "..."           — short form
+#   captain-log read [YYYYMMDD]             — read today's log or specific day
+#   captain-log list                         — list all log files
+#   captain-log path                         — print current log path
+#
+# Categories: decision, friction, learning, milestone, observation, build
+#
+# All entries are timestamped HH:MM:SS in 24-hour local time.
+
+set -euo pipefail
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper if available
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# --- PATH resolution ---
+[ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
+
+show_help() {
+    cat <<'EOF'
+Usage: captain-log <command> [options]
+
+Commands:
+  captain-log "entry text"                 Append entry (category: observation)
+  captain-log -c <category> "entry"        Append with category
+  captain-log --category <category> "..."  Long form
+  captain-log read [YYYYMMDD]              Read today's log or specific day
+  captain-log list                          List all log files
+  captain-log path                          Print current log file path
+
+Categories: decision, friction, learning, milestone, observation, build
+
+Storage: usr/{principal}/captain/logs/captains-log-{YYYYMMDD}.md
+
+Examples:
+  captain-log "noticed agents kept cd-ing to main"
+  captain-log -c friction "permission prompt for chmod blocked agent boot"
+  captain-log -c decision "QGRs go in workstream/quality-gate-reports/"
+  captain-log -c build "shipped /collaborate skill and hookify rule"
+  captain-log read
+  captain-log read 20260406
+EOF
+}
+
+# --- Parse args ---
+COMMAND=""
+CATEGORY="observation"
+ENTRY=""
+DATE_ARG=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version|-v) echo "captain-log $VERSION"; exit 0 ;;
+        --help|-h) show_help; exit 0 ;;
+        -c|--category)
+            [[ -n "${2:-}" ]] || { echo "Error: --category requires a value" >&2; exit 1; }
+            CATEGORY="$2"
+            shift 2
+            ;;
+        read)
+            COMMAND="read"
+            shift
+            DATE_ARG="${1:-}"
+            [[ -n "$DATE_ARG" ]] && shift
+            ;;
+        list)
+            COMMAND="list"
+            shift
+            ;;
+        path)
+            COMMAND="path"
+            shift
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            show_help >&2
+            exit 1
+            ;;
+        *)
+            if [[ -z "$ENTRY" ]]; then
+                ENTRY="$1"
+            else
+                ENTRY="$ENTRY $1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Default command: append entry
+if [[ -z "$COMMAND" ]] && [[ -n "$ENTRY" ]]; then
+    COMMAND="append"
+fi
+
+if [[ -z "$COMMAND" ]]; then
+    show_help
+    exit 0
+fi
+
+# --- Validate category ---
+case "$CATEGORY" in
+    decision|friction|learning|milestone|observation|build) ;;
+    *)
+        echo "Error: invalid category '$CATEGORY'" >&2
+        echo "Valid: decision, friction, learning, milestone, observation, build" >&2
+        exit 1
+        ;;
+esac
+
+# --- Resolve project root and log path ---
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+elif PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+# Resolve principal via agent-identity if available
+PRINCIPAL=""
+if [[ -x "$SCRIPT_DIR/agent-identity" ]]; then
+    PRINCIPAL=$("$SCRIPT_DIR/agent-identity" --principal 2>/dev/null || echo "")
+fi
+PRINCIPAL="${PRINCIPAL:-${USER:-unknown}}"
+
+LOGS_DIR="$PROJECT_ROOT/usr/$PRINCIPAL/captain/logs"
+TODAY=$(date '+%Y%m%d')
+TIMESTAMP=$(date '+%H:%M:%S')
+LOG_FILE="$LOGS_DIR/captains-log-${TODAY}.md"
+
+# --- Execute command ---
+case "$COMMAND" in
+    append)
+        mkdir -p "$LOGS_DIR"
+        # Initialize file with header if new
+        if [[ ! -f "$LOG_FILE" ]]; then
+            cat > "$LOG_FILE" <<HEADER
+---
+type: captains-log
+date: $(date '+%Y-%m-%d')
+agent: ${PRINCIPAL}/captain
+---
+
+# Captain's Log — $(date '+%A, %B %-d, %Y')
+
+HEADER
+        fi
+        # Append entry
+        cat >> "$LOG_FILE" <<ENTRY
+
+## ${TIMESTAMP} — ${CATEGORY}
+
+${ENTRY}
+ENTRY
+        echo "Logged [$CATEGORY] $TIMESTAMP → $LOG_FILE"
+        ;;
+
+    read)
+        if [[ -n "$DATE_ARG" ]]; then
+            TARGET_FILE="$LOGS_DIR/captains-log-${DATE_ARG}.md"
+        else
+            TARGET_FILE="$LOG_FILE"
+        fi
+        if [[ ! -f "$TARGET_FILE" ]]; then
+            echo "No log file: $TARGET_FILE" >&2
+            exit 1
+        fi
+        cat "$TARGET_FILE"
+        ;;
+
+    list)
+        if [[ ! -d "$LOGS_DIR" ]]; then
+            echo "No logs directory: $LOGS_DIR" >&2
+            exit 1
+        fi
+        ls -1 "$LOGS_DIR"/captains-log-*.md 2>/dev/null | sort -r || {
+            echo "No log files in $LOGS_DIR" >&2
+            exit 1
+        }
+        ;;
+
+    path)
+        echo "$LOG_FILE"
+        ;;
+esac
