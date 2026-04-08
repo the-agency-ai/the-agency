@@ -18,6 +18,7 @@ Each row is one filing. Click through to the per-report markdown for full contex
 | 2026-04-08 | Periodic silent execution primitive for autonomous agents | feedback | anthropic/claude-code | feedback `8dd67e96…` + GH [#45017](https://github.com/anthropics/claude-code/issues/45017) | [report-silent-periodic-tool-calls-20260408](report-silent-periodic-tool-calls-20260408.md) | filed |
 | 2026-04-08 | agency-issue v1: new skill for two-way GitHub issue tracking | feature | the-agency-ai/the-agency | [#52](https://github.com/the-agency-ai/the-agency/issues/52) | [report-agency-issue-agency-issue-v1-new-skill-for-two-way-github-issue-20260408](report-agency-issue-agency-issue-v1-new-skill-for-two-way-github-issue-20260408.md) | open |
 
+| 2026-04-08 | agency update does not propagate new top-level YAML sections from agency.yaml | bug | the-agency-ai/the-agency | #56 | [report-agency-issue-agency-update-does-not-propagate-new-top-level-yam-20260408](usr/jordan/reports/report-agency-issue-agency-update-does-not-propagate-new-top-level-yam-20260408.md) | open |
 <!-- AGENCY-ISSUE-INDEX-END -->
 
 ## How to add an entry

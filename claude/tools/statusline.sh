@@ -171,6 +171,19 @@ if [ -n "$vim_mode" ]; then
     vim_info=" [${vim_mode}]"
 fi
 
+# --- Agency framework version ---
+# Reads agency_version from claude/config/manifest.json via agency-version tool.
+# Silent when missing (tool prints nothing in --statusline mode).
+av_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+agency_ver=""
+if [ -x "$av_script_dir/agency-version" ]; then
+    agency_ver=$("$av_script_dir/agency-version" --statusline 2>/dev/null || true)
+fi
+agency_ver_info=""
+if [ -n "$agency_ver" ]; then
+    agency_ver_info=" | ${agency_ver}"
+fi
+
 # --- ISCP mail indicator ---
 # Silent periodic polling via status line — shows unread dispatch/flag count
 # in the footer bar without touching the transcript. See iscp-check --statusline.
@@ -190,7 +203,7 @@ if [ -n "$iscp_mail" ]; then
 fi
 
 # --- Assemble ---
-status_line="${version_model} | ${location}"
+status_line="${version_model}${agency_ver_info} | ${location}"
 if [ -n "$ctx_label" ]; then
     status_line="${status_line} | ${ctx_label}"
 fi
