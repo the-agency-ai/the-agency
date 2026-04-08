@@ -649,8 +649,9 @@ Extract what you need — don't dump whole pages into context. Summarize, don't 
 
 - **Remote master is read-only.** All changes reach origin through PRs. Never push to origin/master.
 - **Never push without explicit permission.** Pushing is always deliberate. Mechanically enforced by hookify rules (block master push, warn on any push).
-- **Never `reset --hard` without confirming work is preserved.** A diverged branch may have new commits. Check first.
-- **`/rebase` and `/sync-all` are purely local.** `/sync` is the only command that pushes.
+- **Never `reset --hard origin/*`.** This drops all local commits not on origin, including framework files. Mechanically blocked by `block-reset-to-origin` hookify rule.
+- **Never `git rebase`.** All branch sync uses merge. Rebase rewrites history and breaks worktree merge-bases. Mechanically blocked by `block-raw-rebase` hookify rule. See `claude/docs/GIT-MERGE-NOT-REBASE.md`.
+- **`/sync-all` and `/sync` are merge-based.** `/sync-all` merges origin into local master (never pushes). `/sync` merges and pushes (the only push command).
 - **Lead commit messages with Phase-Iteration slug.** Format: `Phase 1.3: feat: concise summary`. The slug is first, before the prefix.
 
 **By role:**

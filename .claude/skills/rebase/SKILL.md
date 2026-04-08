@@ -1,47 +1,21 @@
 ---
-allowed-tools: Bash(git rebase:*), Bash(git fetch:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git stash:*), Read, Glob, Grep
-description: Rebase current branch onto a target branch with safety checks. Purely local — never pushes.
+allowed-tools: Read
+description: DEPRECATED — use `git merge <target>` or `/sync` instead. Rebase is blocked by hookify.
 ---
 
-# Rebase
+# Rebase (DEPRECATED)
 
-Rebase the current branch onto a target branch (default: master) with safety checks. Purely local — never pushes.
+**This skill is deprecated.** All branch synchronization now uses merge, not rebase.
 
-## Arguments
+Rebase rewrites history, breaks worktree merge-bases, and caused a fleet-wide data loss incident in a multi-worktree monorepo. See `claude/docs/GIT-MERGE-NOT-REBASE.md` for the full rationale and incident report.
 
-- $ARGUMENTS: Optional target branch (default: `master`). Examples: `master`, `origin/master`, `origin/develop`.
+## Use Instead
 
-## Steps
+| What you want | Use |
+|---------------|-----|
+| Sync your branch with master | `git merge master` |
+| Sync local master with origin | `/sync-all` |
+| Merge and push to origin | `/sync` |
+| Sync worktree with master | `/worktree-sync` |
 
-### Step 1: Safety checks
-
-1. Verify working tree is clean: `git status --porcelain`. If dirty, ask the user to commit or stash.
-2. Get current branch: `git rev-parse --abbrev-ref HEAD`. If detached HEAD, abort.
-3. If on master, abort: "Cannot rebase master onto itself. Switch to a feature branch first."
-
-### Step 2: Fetch (if remote target)
-
-If the target starts with `origin/`, run `git fetch origin` first.
-
-### Step 3: Show divergence
-
-Run `git log --oneline HEAD..{target}` and `git log --oneline {target}..HEAD` to show:
-- How many commits the target has that we don't
-- How many commits we have that the target doesn't
-
-### Step 4: Rebase
-
-Run `git rebase {target}`.
-
-If conflicts occur:
-- Show the conflicting files
-- Ask the user to resolve, then `git rebase --continue`
-- Or offer `git rebase --abort` to cancel
-
-### Step 5: Report
-
-```
-Rebase complete:
-  Branch: {current} rebased onto {target}
-  Commits replayed: N
-```
+The `block-raw-rebase` hookify rule blocks all `git rebase` commands. This is intentional and enforced framework-wide.
