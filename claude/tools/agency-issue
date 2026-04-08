@@ -356,6 +356,7 @@ _cmd_file() {
         cat "$body_tmp"
     } > "$final_body"
 
+    _check_gh
     _ensure_reports_dir
 
     # File via gh
@@ -400,12 +401,14 @@ _cmd_list() {
         *) _die "list: invalid --state '$state'. Must be open, closed, or all" ;;
     esac
 
+    _check_gh
     gh issue list --repo "$TARGET_REPO" --state "$state" --limit "$limit"
 }
 
 _cmd_view() {
     local id="${1:-}"
     [[ -n "$id" ]] || _die "view: issue id required"
+    _check_gh
     # gh issue view shows body+metadata; --comments is a SEPARATE mode that shows only comments.
     # To get both, call gh twice.
     gh issue view "$id" --repo "$TARGET_REPO"
@@ -433,12 +436,15 @@ _cmd_comment() {
         esac
     done
 
+    if [[ -z "$body" && -z "$body_file" ]]; then
+        _die "comment: --body or --body-file required"
+    fi
+
+    _check_gh
     if [[ -n "$body_file" ]]; then
         gh issue comment "$id" --repo "$TARGET_REPO" --body-file "$body_file"
-    elif [[ -n "$body" ]]; then
-        gh issue comment "$id" --repo "$TARGET_REPO" --body "$body"
     else
-        _die "comment: --body or --body-file required"
+        gh issue comment "$id" --repo "$TARGET_REPO" --body "$body"
     fi
 }
 
@@ -455,6 +461,7 @@ _cmd_close() {
         esac
     done
 
+    _check_gh
     if [[ -n "$comment" ]]; then
         gh issue close "$id" --repo "$TARGET_REPO" --comment "$comment"
     else
@@ -464,13 +471,17 @@ _cmd_close() {
 
 # --- Main ---
 
+# Arg validation runs BEFORE the gh auth check so bad args surface
+# their own errors instead of "gh not authenticated". Each verb function
+# parses its flags first and calls _check_gh only when it's about to
+# make a gh call.
 case "${1:-}" in
     --version) echo "agency-issue $TOOL_VERSION"; exit 0 ;;
     --help|-h|"") _show_help; exit 0 ;;
-    file) _check_gh; shift; _cmd_file "$@" ;;
-    list) _check_gh; shift; _cmd_list "$@" ;;
-    view) _check_gh; shift; _cmd_view "$@" ;;
-    comment) _check_gh; shift; _cmd_comment "$@" ;;
-    close) _check_gh; shift; _cmd_close "$@" ;;
+    file) shift; _cmd_file "$@" ;;
+    list) shift; _cmd_list "$@" ;;
+    view) shift; _cmd_view "$@" ;;
+    comment) shift; _cmd_comment "$@" ;;
+    close) shift; _cmd_close "$@" ;;
     *) _die "Unknown verb: $1. Run 'agency-issue --help' for usage." ;;
 esac
