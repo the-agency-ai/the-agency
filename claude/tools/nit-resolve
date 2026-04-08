@@ -67,15 +67,13 @@ handle_merge_conflict() {
   return 0
 }
 
-# Step 1: Pull latest
-echo "Pulling latest changes..."
-git pull --rebase 2>/dev/null || {
-  git rebase --abort 2>/dev/null || true
-  git pull || {
-    if git diff --name-only --diff-filter=U | grep -q "$NITS_FILE"; then
-      handle_merge_conflict
-    fi
-  }
+# Step 1: Pull latest (merge-based, per merge-not-rebase discipline).
+# Previously used `git pull --rebase` with a `git rebase --abort` cleanup,
+# but rebase is now blocked framework-wide (hookify.block-raw-rebase).
+git pull --no-rebase 2>/dev/null || {
+  if git diff --name-only --diff-filter=U | grep -q "$NITS_FILE"; then
+    handle_merge_conflict
+  fi
 }
 
 # Step 2: Verify the NIT exists
