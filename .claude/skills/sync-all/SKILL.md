@@ -1,11 +1,11 @@
 ---
-allowed-tools: Bash(git fetch:*), Bash(git rebase:*), Bash(git merge:*), Bash(git status:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git worktree:*), Bash(git tag:*), Bash(git reset:*), Bash(git -C:*), Bash(./claude/tools/dispatch*), Read, Write, Glob, Grep, Edit
-description: Fetch, rebase master, merge worktree work into master, sync all worktrees. NEVER pushes.
+allowed-tools: Bash(git fetch:*), Bash(git merge:*), Bash(git merge-base:*), Bash(git status:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git rev-list:*), Bash(git worktree:*), Bash(git tag:*), Bash(git -C:*), Bash(git diff:*), Bash(./claude/tools/dispatch*), Read, Write, Glob, Grep, Edit
+description: Fetch, merge origin into master, merge worktree work into master, sync all worktrees. NEVER pushes.
 ---
 
 # Sync All — Local Master Sync
 
-Fetch, rebase master, merge unique worktree work into master, and sync all worktrees. This is the daily rhythm command. **NEVER pushes to remote.**
+Fetch, merge origin into master, merge unique worktree work into master, and sync all worktrees. This is the daily rhythm command. **NEVER pushes to remote. NEVER rebases. NEVER resets to origin.**
 
 ## Steps
 
@@ -26,10 +26,15 @@ Check if master has diverged from origin/master:
 - `git log --oneline master..origin/master` — remote-only commits
 
 If diverged (squash PR scenario):
-1. Tag before resetting: `git tag sync/pre-reset-$(date +%Y%m%d-%H%M%S)`
-2. Ask the user before resetting to origin/master
+1. **Guard: verify merge-base exists.** Run `git merge-base origin/master HEAD`. If this fails (exit code 1 — no common ancestor), ABORT: "ERROR: No common ancestor. Run `git merge --allow-unrelated-histories origin/master` manually."
+2. Tag for recovery: `git tag sync/pre-merge-$(date +%Y%m%d-%H%M%S)`
+3. Merge: `git merge origin/master -m "Merge origin/master (post-squash-PR sync)"`
+4. If conflicts: `git merge --abort`, report, ask user. Do NOT auto-resolve.
+5. No worktree rebase needed — worktrees pick up changes via `git merge master`.
 
-If behind: `git rebase origin/master`
+If behind only: `git merge origin/master`
+
+**Never `git reset --hard origin/master`. Never `git rebase origin/master`.** See `claude/docs/GIT-MERGE-NOT-REBASE.md`.
 
 ### Step 4: Enumerate worktrees
 
