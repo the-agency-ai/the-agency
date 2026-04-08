@@ -84,3 +84,68 @@ Every skill that merges origin/master should include this guard:
 ```
 
 This catches disconnected histories before they cause damage. If the histories are disconnected, the user must run `git merge --allow-unrelated-histories origin/master` manually to connect them — a one-time operation that creates a permanent merge commit.
+
+## PR Scope Management
+
+When a project uses the captain's PR rebuild workflow (squash local work into scope-based PR branches), it needs a `pr-scopes.json` file to define which paths belong to which PR.
+
+### Setup
+
+Create `pr-scopes.json` in your project's scripts directory (e.g., `usr/{principal}/scripts/pr-scopes.json`):
+
+```json
+{
+  "feature-a": {
+    "include": [
+      "apps/backend/src/feature-a/",
+      "apps/frontend/pages/feature-a/",
+      "usr/{principal}/feature-a/"
+    ]
+  },
+  "feature-b": {
+    "include": [
+      "apps/backend/src/feature-b/",
+      "usr/{principal}/feature-b/"
+    ]
+  },
+  "shared": {
+    "exclude": [
+      "apps/backend/src/feature-a/",
+      "apps/frontend/pages/feature-a/",
+      "usr/{principal}/feature-a/",
+      "apps/backend/src/feature-b/",
+      "usr/{principal}/feature-b/"
+    ]
+  }
+}
+```
+
+### Scope Types
+
+- **INCLUDE scopes** — list the paths that belong to this PR. Only these paths are staged. Use for feature/workstream PRs.
+- **EXCLUDE scopes** — list the paths to exclude (claimed by other scopes). Everything else is staged. Use for shared/infrastructure PRs (one per project, typically named `devex` or `shared`).
+
+### Rules
+
+1. **Every worktree gets a scope.** When you create a worktree, add a scope to pr-scopes.json with its paths.
+2. **Include Agency artifacts.** Each scope should include `usr/{principal}/{project}/` so handoffs, QGRs, and dispatches travel with the feature code.
+3. **The EXCLUDE scope catches everything else.** Shared files (root package.json, framework updates, CLAUDE.md changes) land in the EXCLUDE scope. Update its exclude list when adding new INCLUDE scopes.
+4. **Paths that don't exist are silently skipped.** This is expected — a scope may include paths that only exist after the feature is built.
+
+### Adding a New Scope
+
+When creating a new worktree/workstream:
+
+1. Identify the app code paths the worktree will create/modify
+2. Add an INCLUDE scope to pr-scopes.json with those paths + `usr/{principal}/{name}/`
+3. Add those same paths to the EXCLUDE scope's exclude list
+4. Commit the updated pr-scopes.json
+
+### The PR Rebuild Flow
+
+The captain's `pr-rebuild.sh` script:
+1. Creates/resets a PR branch from `origin/master`
+2. Runs `git merge --squash master` to bring in local work
+3. Filters by scope (INCLUDE: selectively `git add`; EXCLUDE: `git reset HEAD` on excluded paths)
+4. Commits the scoped changes
+5. The PR branch has a clean single-commit diff against origin/master
