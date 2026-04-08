@@ -87,6 +87,14 @@ deploy:
 # Crawl (site content extraction)
 crawl:
   provider: "webfetch"  # Default: webfetch (built-in). Alternatives: playwright, wget, scrapy
+
+# Issue tracking (file/view/comment/close issues against the-agency framework)
+# v1: single provider (github), single target. v2+: SPEC-PROVIDER pattern with
+# pluggable providers (gitlab, linear, jira) and multi-target support.
+issues:
+  provider: "github"  # v1: github only
+  github:
+    target_repo: "the-agency-ai/the-agency"  # Where issues are filed
   sites: []  # Configure per-project: [{name, url, patterns}]
 
 # Testing — declares test suites and how to run them
