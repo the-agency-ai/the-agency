@@ -45,6 +45,19 @@ TOOL_VERSION="2.0.0-20260120-000002"
 
 # Source log helper for tool tracking
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Resolve project root for tools that need it (per-agent attribution lookup
+# reads agency.yaml at $PROJECT_ROOT/claude/config/agency.yaml). Prefer
+# CLAUDE_PROJECT_DIR (set in hooks), fall back to git rev-parse, then to
+# SCRIPT_DIR-based fallback. Without this, the per-agent attribution code
+# below silently fails with "PROJECT_ROOT: unbound variable" under set -u.
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+elif PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
     source "$SCRIPT_DIR/lib/_log-helper"
 fi
