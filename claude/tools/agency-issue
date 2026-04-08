@@ -1,0 +1,476 @@
+#!/bin/bash
+#
+# agency-issue — File, view, comment on, and close GitHub issues against
+# the-agency framework, with persisted local report files for audit.
+#
+# What Problem: /feedback (Anthropic Claude Code) is fire-and-forget — no
+# status visibility, no update path. We need a richer two-way channel for
+# filing issues against the-agency framework itself: file, view current
+# state, comment, close, all wrapped over the GitHub CLI with a persisted
+# local audit trail in usr/{principal}/reports/.
+#
+# This is the v1 implementation per the design 1B1'd with principal on
+# 2026-04-08 (see seed-agency-issue-skill-20260408.md).
+#
+# How & Why: Thin wrapper over `gh issue` — no local cache, live calls
+# every invocation, GitHub is the source of truth. Each filing writes a
+# markdown report file to usr/{principal}/reports/ with frontmatter
+# capturing the GitHub issue number, target repo, date, and a response
+# log slot for future updates. The REPORTS-INDEX.md is updated on every
+# file action.
+#
+# Target repo resolution: reads `issues.github.target_repo` from
+# claude/config/agency.yaml. Defaults to `the-agency-ai/the-agency` if
+# unconfigured. Same awk-parse approach as the secret tool — no yaml
+# library dependency.
+#
+# Permissions: delegates to GitHub. Anyone with `gh auth` can file. Comment
+# and close are gated by GitHub's own permission model — `gh` will refuse
+# if the user lacks write access. No custom authz.
+#
+# No labels in v1 — principal pushed back on premature complexity. Triage
+# happens by reading the issue body, not filtering on label dimensions.
+# Add labels later if/when volume justifies them.
+#
+# Verbs:
+#   file       Create a new issue, write a report file
+#   list       List open issues (or --state closed|all)
+#   view <id>  Show a specific issue with comments
+#   comment    Add a comment to an existing issue
+#   close      Close an issue (optionally with a closing comment)
+#
+# Written: 2026-04-08 — Day 33 R2
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# --- PATH resolution (for non-login shells) ---
+[ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
+
+# --- Resolve project root ---
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+elif PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+AGENCY_YAML="$PROJECT_ROOT/claude/config/agency.yaml"
+
+# --- Resolve target repo from agency.yaml ---
+# Looks for: issues.github.target_repo: "owner/repo"
+TARGET_REPO="the-agency-ai/the-agency"
+if [[ -f "$AGENCY_YAML" ]]; then
+    _resolved=$(awk '
+        /^issues:/ { in_issues=1; next }
+        in_issues && /^[a-z]/ && !/^  / { in_issues=0 }
+        in_issues && /^  github:/ { in_github=1; next }
+        in_github && /^  [a-z]/ && !/^    / { in_github=0 }
+        in_github && /^    target_repo:/ {
+            gsub(/^    target_repo: *"?/, "")
+            gsub(/"? *(#.*)?$/, "")
+            print
+            exit
+        }
+    ' "$AGENCY_YAML" 2>/dev/null || echo "")
+    [[ -n "$_resolved" ]] && TARGET_REPO="$_resolved"
+fi
+
+# --- Resolve principal for report directory ---
+PRINCIPAL=""
+if PRINCIPAL=$("$SCRIPT_DIR/agent-identity" --principal 2>/dev/null); then
+    :
+fi
+if [[ -z "$PRINCIPAL" ]]; then
+    PRINCIPAL="${USER:-default}"
+fi
+REPORTS_DIR="$PROJECT_ROOT/usr/$PRINCIPAL/reports"
+REPORTS_INDEX="$REPORTS_DIR/REPORTS-INDEX.md"
+
+# --- Helpers ---
+
+_die() {
+    echo "agency-issue: $*" >&2
+    exit 1
+}
+
+_check_gh() {
+    command -v gh >/dev/null 2>&1 || _die "gh CLI not installed. Install: https://cli.github.com/"
+    gh auth status >/dev/null 2>&1 || _die "gh not authenticated. Run: gh auth login"
+}
+
+_today() { date +%Y-%m-%d; }
+_now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+_slug() {
+    # Convert a string to a filesystem-safe slug
+    printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g; s/-\{2,\}/-/g; s/^-//; s/-$//' | cut -c1-50
+}
+
+_ensure_reports_dir() {
+    mkdir -p "$REPORTS_DIR"
+    if [[ ! -f "$REPORTS_INDEX" ]]; then
+        cat > "$REPORTS_INDEX" <<EOF
+# Principal Reports Index
+
+Reports filed externally (Anthropic Claude Code, the-agency GitHub, etc.) by or on behalf of $PRINCIPAL.
+
+Each row is one filing. Click through to the per-report markdown for full context, current state, and response log.
+
+**Location:** \`usr/$PRINCIPAL/reports/\` (principal-scoped)
+**Naming convention:** \`report-{kind}-{slug}-{YYYYMMDD}.md\`
+
+---
+
+## Filed Reports
+
+<!-- AGENCY-ISSUE-INDEX-START — agency-issue tool appends rows above the END marker -->
+
+| Date | Title | Kind | Target | External ID | Local Report | Status |
+|------|-------|------|--------|-------------|--------------|--------|
+
+<!-- AGENCY-ISSUE-INDEX-END -->
+
+## How to add an entry
+
+1. Draft the report with captain, following \`claude/docs/FEEDBACK-FORMAT.md\`
+2. File via the appropriate channel:
+   - \`agency-issue file\` → the-agency GitHub (auto-appends to this index)
+   - \`/feedback\` → Anthropic Claude Code (manually create the report file + append a row)
+3. The per-report markdown lives in this directory with full text, response log, and frontmatter linking back to the source seed
+4. This index is the at-a-glance view; the per-report file is the source of truth
+
+## Principle
+
+Reports are the record of what we asked the outside world for. Every gap we find in an external tool that we can't close in userspace becomes a report. Every response from the other side gets appended to its report file so we have a full narrative.
+EOF
+    fi
+
+    # Backfill the markers if they're missing (for indexes created before the marker convention)
+    if ! grep -q "AGENCY-ISSUE-INDEX-START" "$REPORTS_INDEX"; then
+        # Inject markers around the existing table — find the table block by header signature
+        local tmp
+        tmp=$(mktemp -t agency-issue-index.XXXXXX)
+        awk '
+            /^\| Date \| Title \|/ && !found_header {
+                print "<!-- AGENCY-ISSUE-INDEX-START — agency-issue tool appends rows above the END marker -->"
+                print ""
+                print
+                found_header=1
+                in_table=1
+                next
+            }
+            in_table && /^\| / { print; next }
+            in_table && /^\|--/ { print; next }
+            in_table && !/^\|/ {
+                print ""
+                print "<!-- AGENCY-ISSUE-INDEX-END -->"
+                print ""
+                print
+                in_table=0
+                next
+            }
+            { print }
+            END {
+                if (in_table) {
+                    print ""
+                    print "<!-- AGENCY-ISSUE-INDEX-END -->"
+                }
+            }
+        ' "$REPORTS_INDEX" > "$tmp"
+        mv "$tmp" "$REPORTS_INDEX"
+    fi
+}
+
+_append_to_index() {
+    local date="$1" title="$2" kind="$3" target="$4" external_id="$5" local_path="$6" status="$7"
+    local relative_local
+    relative_local="${local_path#$PROJECT_ROOT/}"
+    local row
+    row=$(printf '| %s | %s | %s | %s | %s | [%s](%s) | %s |' \
+        "$date" "$title" "$kind" "$target" "$external_id" \
+        "$(basename "$local_path" .md)" "$relative_local" "$status")
+
+    # Insert above the END marker so rows accumulate inside the table block
+    local tmp
+    tmp=$(mktemp -t agency-issue-index-append.XXXXXX)
+    awk -v row="$row" '
+        /<!-- AGENCY-ISSUE-INDEX-END -->/ {
+            print row
+            print
+            next
+        }
+        { print }
+    ' "$REPORTS_INDEX" > "$tmp"
+    mv "$tmp" "$REPORTS_INDEX"
+}
+
+_write_report_file() {
+    local issue_number="$1" issue_url="$2" title="$3" type="$4" body_file="$5"
+    local slug
+    slug=$(_slug "$title")
+    local report_file="$REPORTS_DIR/report-agency-issue-${slug}-$(date +%Y%m%d).md"
+
+    local body_content=""
+    if [[ -f "$body_file" ]]; then
+        body_content=$(cat "$body_file")
+    fi
+
+    cat > "$report_file" <<EOF
+---
+report_type: agency-issue
+issue_type: $type
+filing_agent: $(./claude/tools/agent-identity 2>/dev/null || echo "$PRINCIPAL")
+filed_by: $PRINCIPAL
+date_filed: $(_today)
+target_repo: $TARGET_REPO
+github_issue: $issue_url
+github_issue_number: $issue_number
+status: open
+---
+
+# $title
+
+**Filed:** $(_now_iso)
+**Target:** [$TARGET_REPO](https://github.com/$TARGET_REPO)
+**Issue:** [#$issue_number]($issue_url)
+**Type:** $type
+**Status:** open
+
+## Filed Body
+
+$body_content
+
+## Response Log
+
+_(append responses, comments, and state changes here as they occur)_
+
+- **$(_today):** Filed via \`agency-issue file\`. Issue created at $issue_url
+EOF
+
+    echo "$report_file"
+}
+
+_show_help() {
+    cat <<'HELP'
+agency-issue — File and track GitHub issues for the-agency framework
+
+Usage:
+  agency-issue file --type TYPE --title TITLE [--body BODY | --body-file FILE]
+  agency-issue list [--state open|closed|all] [--limit N]
+  agency-issue view <id>
+  agency-issue comment <id> --body BODY | --body-file FILE
+  agency-issue close <id> [--comment COMMENT]
+  agency-issue --version
+  agency-issue --help
+
+Verbs:
+  file       Create a new issue. Writes a local report to usr/{principal}/reports/
+  list       List open issues (default) or filter by state
+  view       Show a specific issue with its comments
+  comment    Add a comment to an existing issue
+  close      Close an issue, optionally with a final comment
+
+Required for `file`:
+  --type     bug | feature | friction | question | docs
+  --title    Issue title (one line)
+  --body     Issue body (or use --body-file)
+
+Optional for `file`:
+  --body-file FILE   Read the body from a file (use - for stdin)
+
+Configuration:
+  Target repo: read from claude/config/agency.yaml under issues.github.target_repo
+  Default: the-agency-ai/the-agency
+  Override: set issues.github.target_repo in agency.yaml
+
+Permissions: delegated to GitHub via `gh`. Anyone with gh auth can file.
+Comment and close are gated by GitHub's own write-access checks.
+
+Reports: every filed issue writes a markdown report to
+  usr/{principal}/reports/report-agency-issue-{slug}-{YYYYMMDD}.md
+and adds a row to usr/{principal}/reports/REPORTS-INDEX.md
+
+Failure modes:
+  - gh not installed → install from https://cli.github.com/
+  - gh not authenticated → run gh auth login
+  - no write access to target repo → GitHub error passed through
+  - other gh errors → passed through verbatim
+HELP
+}
+
+# --- Verb dispatch ---
+
+_cmd_file() {
+    local type="" title="" body="" body_file=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --type) type="$2"; shift 2 ;;
+            --title) title="$2"; shift 2 ;;
+            --body) body="$2"; shift 2 ;;
+            --body-file) body_file="$2"; shift 2 ;;
+            *) _die "Unknown flag for file: $1" ;;
+        esac
+    done
+
+    [[ -n "$type" ]] || _die "file: --type required (bug | feature | friction | question | docs)"
+    [[ -n "$title" ]] || _die "file: --title required"
+
+    case "$type" in
+        bug|feature|friction|question|docs) ;;
+        *) _die "file: invalid --type '$type'. Must be one of: bug, feature, friction, question, docs" ;;
+    esac
+
+    # Resolve body — use explicit cleanup, no trap (locals go out of scope at function return,
+    # which causes set -u to fire when EXIT trap runs at script-exit time).
+    local body_tmp final_body
+    body_tmp=$(mktemp -t agency-issue-body.XXXXXX)
+    final_body=$(mktemp -t agency-issue-final.XXXXXX)
+
+    _cleanup_file() {
+        [[ -n "${body_tmp:-}" && -f "$body_tmp" ]] && rm -f "$body_tmp"
+        [[ -n "${final_body:-}" && -f "$final_body" ]] && rm -f "$final_body"
+    }
+
+    if [[ -n "$body_file" ]]; then
+        if [[ "$body_file" == "-" ]]; then
+            cat > "$body_tmp"
+        elif [[ -f "$body_file" ]]; then
+            cp "$body_file" "$body_tmp"
+        else
+            _cleanup_file
+            _die "file: --body-file '$body_file' not found"
+        fi
+    elif [[ -n "$body" ]]; then
+        printf '%s\n' "$body" > "$body_tmp"
+    else
+        _cleanup_file
+        _die "file: --body or --body-file required"
+    fi
+
+    # Prepend a type header to the body so triagers see it without labels
+    {
+        printf '**Type:** %s\n\n' "$type"
+        cat "$body_tmp"
+    } > "$final_body"
+
+    _ensure_reports_dir
+
+    # File via gh
+    local issue_url
+    if ! issue_url=$(gh issue create --repo "$TARGET_REPO" --title "$title" --body-file "$final_body" 2>&1); then
+        local err="$issue_url"
+        _cleanup_file
+        _die "gh issue create failed: $err"
+    fi
+
+    # gh issue create prints the URL on success
+    local issue_number
+    issue_number=$(echo "$issue_url" | grep -oE 'issues/[0-9]+' | grep -oE '[0-9]+' | tail -1)
+    if [[ -z "$issue_number" ]]; then
+        _cleanup_file
+        _die "Could not parse issue number from gh output: $issue_url"
+    fi
+
+    local report_file
+    report_file=$(_write_report_file "$issue_number" "$issue_url" "$title" "$type" "$final_body")
+
+    _append_to_index "$(_today)" "$title" "$type" "$TARGET_REPO" "#$issue_number" "$report_file" "open"
+
+    _cleanup_file
+
+    echo "Filed: $issue_url"
+    echo "Report: $report_file"
+}
+
+_cmd_list() {
+    local state="open" limit="20"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --state) state="$2"; shift 2 ;;
+            --limit) limit="$2"; shift 2 ;;
+            *) _die "Unknown flag for list: $1" ;;
+        esac
+    done
+
+    case "$state" in
+        open|closed|all) ;;
+        *) _die "list: invalid --state '$state'. Must be open, closed, or all" ;;
+    esac
+
+    gh issue list --repo "$TARGET_REPO" --state "$state" --limit "$limit"
+}
+
+_cmd_view() {
+    local id="${1:-}"
+    [[ -n "$id" ]] || _die "view: issue id required"
+    # gh issue view shows body+metadata; --comments is a SEPARATE mode that shows only comments.
+    # To get both, call gh twice.
+    gh issue view "$id" --repo "$TARGET_REPO"
+    # Comments section, if any
+    local comments
+    comments=$(gh issue view "$id" --repo "$TARGET_REPO" --comments 2>/dev/null || true)
+    if [[ -n "$comments" ]]; then
+        echo ""
+        echo "─── Comments ───"
+        echo "$comments"
+    fi
+}
+
+_cmd_comment() {
+    local id="${1:-}"
+    [[ -n "$id" ]] || _die "comment: issue id required"
+    shift
+
+    local body="" body_file=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --body) body="$2"; shift 2 ;;
+            --body-file) body_file="$2"; shift 2 ;;
+            *) _die "Unknown flag for comment: $1" ;;
+        esac
+    done
+
+    if [[ -n "$body_file" ]]; then
+        gh issue comment "$id" --repo "$TARGET_REPO" --body-file "$body_file"
+    elif [[ -n "$body" ]]; then
+        gh issue comment "$id" --repo "$TARGET_REPO" --body "$body"
+    else
+        _die "comment: --body or --body-file required"
+    fi
+}
+
+_cmd_close() {
+    local id="${1:-}"
+    [[ -n "$id" ]] || _die "close: issue id required"
+    shift
+
+    local comment=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --comment) comment="$2"; shift 2 ;;
+            *) _die "Unknown flag for close: $1" ;;
+        esac
+    done
+
+    if [[ -n "$comment" ]]; then
+        gh issue close "$id" --repo "$TARGET_REPO" --comment "$comment"
+    else
+        gh issue close "$id" --repo "$TARGET_REPO"
+    fi
+}
+
+# --- Main ---
+
+case "${1:-}" in
+    --version) echo "agency-issue $TOOL_VERSION"; exit 0 ;;
+    --help|-h|"") _show_help; exit 0 ;;
+    file) _check_gh; shift; _cmd_file "$@" ;;
+    list) _check_gh; shift; _cmd_list "$@" ;;
+    view) _check_gh; shift; _cmd_view "$@" ;;
+    comment) _check_gh; shift; _cmd_comment "$@" ;;
+    close) _check_gh; shift; _cmd_close "$@" ;;
+    *) _die "Unknown verb: $1. Run 'agency-issue --help' for usage." ;;
+esac
