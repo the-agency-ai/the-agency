@@ -434,6 +434,33 @@ The `iscp-check` hook fires on SessionStart, UserPromptSubmit, and Stop. It quer
 ### When You Have Mail
 
 - **SessionStart:** Process unread items FIRST before other work (hookify enforced)
+- **Set up two dispatch loops on session start.** Every agent — not just captain — runs both loops at session start. They auto-expire after 7 days; re-set each session.
+
+  **Loop 1 — fast-path (silent-when-clean), every 5 minutes:**
+
+  ```
+  /loop 5m Run: ./claude/tools/dispatch list --status unread
+
+  If the output is exactly "No dispatches found." — produce NO output
+  whatsoever. No "Clean", no acknowledgment, nothing. End the turn silently.
+
+  If there are unread dispatches: pause current work, read each with
+  `dispatch read <id>`, respond appropriately, then resolve each with
+  `dispatch resolve <id>` if no further action is needed.
+  ```
+
+  **Loop 2 — nag-path (visible-when-sitting), every 30 minutes:**
+
+  ```
+  /loop 30m NAG CHECK: Run ./claude/tools/dispatch list --status unread.
+  If any unread items exist, they've been sitting at least 30 minutes —
+  produce a VISIBLE alert to the user (not silent): list the unread items
+  with IDs, ages, and senders, note that you are now reading and responding.
+  Then read each, respond, and resolve. If the output is "No dispatches
+  found." — produce NO output and end silently.
+  ```
+
+  Why two loops: the 5-minute loop picks up new mail quickly between prompts with zero terminal noise when there's nothing to do. The 30-minute loop is the "dispatches are being ignored" alarm — if anything is still unread at 30m, the 5m loop already processed it or is blocked, so a visible alert to the principal is warranted.
 - **Mid-session:** Act on mail at a natural break, not immediately
 - **Dispatch types:** directive (do this), review (fix these), seed (input material), escalation (urgent)
 
