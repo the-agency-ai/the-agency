@@ -104,16 +104,23 @@ IFS='|' read -r flags dispatches dropbox notifications <<< "$counts"
 
 # --- Statusline mode: compact one-liner for the footer, no state writes ---
 # Runs on every UI tick. Must be FAST. Output goes ONLY to the footer —
-# never to the transcript. Silent when zero. No delta logic — always shows
-# the current count.
+# never to the transcript. No delta logic — always shows current state.
+#
+# The mailbox is ALWAYS rendered, even when empty. A visible empty mailbox
+# ("📪") is different from "no mailbox in the footer at all" — the former
+# confirms the wiring is working and the inbox is empty; the latter is
+# ambiguous (not wired? broken? old code?). Always-visible removes the
+# ambiguity.
 if [[ "$STATUSLINE" == "true" ]]; then
     total=$(( flags + dispatches + dropbox + notifications ))
     if [[ "$total" -eq 0 ]]; then
-        # Nothing to show — empty output
+        # Empty mailbox glyph — visible, distinct from "no indicator"
+        echo "📪"
         exit 0
     fi
     # Compact format: "📬 2d 1f" — letters for type (d=dispatch, f=flag,
     # x=dropbox, n=notif). Dispatches and flags are the common cases.
+    # 📬 (open with raised flag) vs 📪 (closed) makes the state glanceable.
     parts=()
     [[ "$dispatches" -gt 0 ]] && parts+=("${dispatches}d")
     [[ "$flags" -gt 0 ]] && parts+=("${flags}f")

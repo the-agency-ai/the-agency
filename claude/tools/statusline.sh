@@ -174,7 +174,11 @@ fi
 # --- ISCP mail indicator ---
 # Silent periodic polling via status line — shows unread dispatch/flag count
 # in the footer bar without touching the transcript. See iscp-check --statusline.
-# Fast (<50ms typical); graceful on failure (empty output).
+# Fast (<250ms typical); graceful on failure (empty indicator).
+#
+# The mailbox is ALWAYS rendered once the wiring is in place — 📪 when empty,
+# 📬 with counts when non-empty. Always-visible removes ambiguity between
+# "empty inbox" and "mailbox not wired up".
 iscp_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 iscp_mail=""
 if [ -x "$iscp_script_dir/iscp-check" ]; then
