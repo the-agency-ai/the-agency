@@ -44,27 +44,43 @@ source "$SCRIPT_DIR/lib/_iscp-db"
 
 # Handle flags
 FORCE=false
+STATUSLINE=false
 case "${1:-}" in
     --version) echo "iscp-check $TOOL_VERSION"; exit 0 ;;
     --force) FORCE=true ;;
+    --statusline) STATUSLINE=true ;;
     --help|-h)
         cat <<'HELP'
 iscp-check — ISCP notification hook
 
-Usage: iscp-check [--force|--version|--help]
+Usage: iscp-check [--force|--statusline|--version|--help]
 
 Checks for unread ISCP items (dispatches, flags, dropbox, notifications)
 and outputs a JSON systemMessage if any are found. Silent when empty.
 
-By default (delta mode), emits a notification only when the unread total
-has INCREASED since the last invocation — prevents repeated "you have N
-items" spam on every UserPromptSubmit/Stop when the counts haven't changed.
+Modes:
 
-Pass --force to emit unconditionally when items are waiting (used by
-SessionStart hook so every new session sees the current state).
+  (default)     Hook mode with delta suppression. Emits a JSON systemMessage
+                only when the unread total has INCREASED since the last call.
+                Used for SessionStart/UserPromptSubmit/Stop hooks.
 
-Designed for hook consumption (SessionStart, UserPromptSubmit, Stop).
-Every failure path exits silently — never blocks the agent.
+  --force       Hook mode without delta suppression. Emits unconditionally
+                when items are waiting. Used by SessionStart so every new
+                session sees the current state regardless of prior state.
+
+  --statusline  Status-line mode. Outputs a SHORT plain-text one-liner
+                suitable for the Claude Code statusLine command — e.g.
+                "📬 2d 1f" when the current agent has unread items, or
+                silent (no output) when the inbox is empty. No delta
+                suppression; no state file writes. Safe to call on every
+                UI tick. The footer glyph only appears when there's
+                something to notice; absence is the normal state. Status
+                line commands render ONLY in the footer bar, never in
+                the chat transcript. This is the display-only silent
+                polling path.
+
+Designed for hook consumption (SessionStart, UserPromptSubmit, Stop) and
+status line polling. Every failure path exits silently — never blocks.
 HELP
         exit 0 ;;
 esac
@@ -88,6 +104,31 @@ fi
 counts=$(iscp_db_count_unread "$my_agent" 2>/dev/null) || exit 0
 
 IFS='|' read -r flags dispatches dropbox notifications <<< "$counts"
+
+# --- Statusline mode: compact one-liner for the footer, no state writes ---
+# Runs on every UI tick. Must be FAST. Output goes ONLY to the footer —
+# never to the transcript. No delta logic — always shows current state.
+#
+# Silent when the current agent has ZERO unread items. The mailbox glyph
+# only appears when there's something to notice — the absence of the glyph
+# is the normal state. (Principal directive 2026-04-08: the icon should
+# only be there if the current agent has unread messages.)
+if [[ "$STATUSLINE" == "true" ]]; then
+    total=$(( flags + dispatches + dropbox + notifications ))
+    if [[ "$total" -eq 0 ]]; then
+        # Silent — no output, no glyph in the footer
+        exit 0
+    fi
+    # Compact format: "📬 2d 1f" — letters for type (d=dispatch, f=flag,
+    # x=dropbox, n=notif). Dispatches and flags are the common cases.
+    parts=()
+    [[ "$dispatches" -gt 0 ]] && parts+=("${dispatches}d")
+    [[ "$flags" -gt 0 ]] && parts+=("${flags}f")
+    [[ "$dropbox" -gt 0 ]] && parts+=("${dropbox}x")
+    [[ "$notifications" -gt 0 ]] && parts+=("${notifications}n")
+    echo "📬 $(IFS=' '; echo "${parts[*]}")"
+    exit 0
+fi
 
 # Silent when all zeros
 total=$(( flags + dispatches + dropbox + notifications ))

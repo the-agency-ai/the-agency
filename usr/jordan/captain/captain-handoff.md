@@ -2,8 +2,8 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-07
-trigger: end-of-session
+date: 2026-04-08
+trigger: mid-session-day-33
 ---
 
 ## Identity
@@ -12,102 +12,72 @@ the-agency/jordan/captain — Captain. Coordination, dispatch routing, quality g
 
 ## Current State
 
-**Day 33 partially started.** Branch `day33-release-1` exists locally with the CLAUDE-THEAGENCY dispatch-loop edit unstaged. Day 32 priority-order commit (`6cd4307`) is on local main, ahead of origin. **Nothing pushed.** No PR opened.
+**Day 33 in progress.** R1 shipped and merged (PR #53). R2 in draft as PR #54 with substantial content. Monofolk's merge-not-rebase contribution (PR #55) merged into main and incorporated into R2 via merge (not rebase) — discipline applied on its first day.
 
-P0 worktree bug surfaced late in session, then **downgraded to P1** within minutes — see Open Items.
+## Day 33 - Release 1 (PR #53) — MERGED
 
-## What Happened This Session
+7 commits. Day 32 carry-over + Day 33 core work.
 
-### Methodology shipped
-- **CLAUDE-CAPTAIN.md Priority Order** (committed locally as `6cd4307`, NOT yet on a release branch):
-  1. Principal communications win, full stop
-  2. Dispatches second — read on iscp-check notification
-- **Dispatch loop is universal** — every agent runs `/loop 5m dispatch list --status unread` at session start. Documented in `claude/CLAUDE-THEAGENCY.md` (unstaged change).
-- mdpal-app already adopted the convention on its own startup (per #148).
+- **agency-issue v1** — thin gh wrapper with file/list/view/comment/close verbs. Designed via 10-question 1B1 with principal. Smoke-tested by filing the-agency-ai/the-agency#52 using the tool itself.
+- **release-plan v1** — heuristic-based release plan generator. Auto-detects day{N}-release-{M} branch, groups uncommitted files, pairs tool+skill+tests as feature commits. **Bootstrap pattern: built the tool then used it to assemble R1 and R2.**
+- **Dispatch loop convention** — documented in CLAUDE-THEAGENCY.md as canonical for every agent (5m silent + 30m visible nag).
+- **iscp-check v1.1.0** — delta suppression, stops the "You have N" repeat on every Stop event.
+- **6 seeds** — fleet awareness, agency-issue, release-plan, silent-tool-calls (filed as Anthropic feedback + GH #45017), granola carry-over, agent-mail-service.
+- **3 pre-existing bugs caught and fixed** — .git/config bare=true, git-commit PROJECT_ROOT unbound, iscp-check.bats stale version.
 
-### DevEx queue dispatched (Day 33 work)
-**Directive #149** — 4 items in order, plan-mode required, captain review then execute:
-1. SPEC-PROVIDER wrappers for `/preview` and `/deploy`
-2. Valueflow Phase 3
-3. History rewrite of devex branch (Test User attribution)
-4. Hookify rules from Day 32 friction
+## Day 33 - Release 2 (PR #54) — DRAFT
 
-### Item 1 plan approved
-- DevEx sent plan as #151 (6 iterations, ~85 min)
-- Captain approved as #153 with answers to all 4 questions:
-  - Merge main into devex (not cherry-pick)
-  - docker-compose / fly defaults confirmed
-  - No provider tool stubs — wrapper IS the deliverable
-  - enforcement.yaml level 2 confirmed
+13+ commits on top of R1. Still in flight.
 
-### Item 3 closed
-- DevEx already cleaned devex branch in earlier session (#132, #150)
-- Main branch part requires force-push to origin/main → BLOCKED
-- **Principal chose Option A: accept main as-is** (#152)
-- 64 historical Test User commits remain in pushed history. Test isolation fix prevents new ones.
+- **iscp-check --statusline mode** + statusline.sh integration — shows 📬 Nd Mf in the footer when current agent has unread mail; silent when empty (per principal directive — icon only appears when there's something to notice)
+- **release-plan heuristic for config-block pairing** — agency.yaml section changes now fold into matching feature commits (e.g., agency.yaml `issues:` block changes go with the agency-issue feature commit)
+- **BATS tests for agency-issue** — 19 tests covering version/help, arg validation, verb dispatch, required-flag checks. Arg validation moved before gh auth check so bad args surface real errors.
+- **BATS tests for release-plan** — 16 tests covering classification, feature pairing, agency.yaml config-block pairing, output options, base ref comparison.
+- **Monofolk merge-not-rebase contribution (PR #55) incorporated** — merged into day33-release-2 via `git merge origin/main` (not rebase). All skills now merge-based, hookify rules block raw rebase and reset --hard origin/*.
+- **nit-add + nit-resolve migrated to merge-based pull** — the two tools were using `git pull --rebase` with `git rebase --abort` cleanup, blocked by the new hookify rule from #55. Migrated to `git pull --no-rebase`.
+- **Monofolk RFI reply sent** — full 1B1 answers on SPEC-PROVIDER + SPEC-ENVIRONMENT, all 5 questions with options considered and reasoning. Delivered via collaboration repo.
+- **Worktree naming rule answered to devex** (#169 review-response, #166 unblocked)
+- **iscp notified of --statusline extension** (#170 heads-up)
+- **Captain's log for Day 33 written** (7 entries: 2 milestones, 2 builds, 1 decision, 3 learnings, 1 friction)
 
-### P0 → P1 worktree bug (downgraded, still real)
-- mdpal-app reported `git-commit` wipes worktree index (#155, high priority)
-- Initial symptom: ~1280 files show as deleted after running git-commit, no commit made
-- Escalated to devex as #157 (drop Item 1, triage as P0 hotfix)
-- Notified mdpal-cli to verify (#159)
-- Principal hypothesis sent as #160: likely mdpal-specific worktree creation issue
-- **DOWNGRADED via #161 from mdpal-app:** the 1280 'deleted' files are **normal sparse-worktree state** for split worktrees (mdpal-app, mdpal-cli) — not an index wipe. mdpal-cli already knew this and warned in passing (#154).
-- **Real residual bug (P1, not blocking):** git-commit silently exits 1 from mdpal-app's worktree with zero diagnostic output. Workaround works fine. Devex queued for after Item 1.
-- Cleanup dispatched: #162 (devex resume Item 1), #163 (mdpal-cli stand down), #164 (mdpal-app ack).
-- **Principal hypothesis was wrong direction** — it was sparse-checkout, not worktree creation. Disregard #160 thread.
+### R2 content pending
 
-### Two side issues captured for devex
-1. **Sparse-worktree convention is undocumented** — new agents in split worktrees panic at the 1280 D files. Needs a line in CLAUDE-THEAGENCY.md or worktree-create skill.
-2. **Split-worktree onboarding gotcha cluster** — mdpal-cli reports BATS pre-commit broken (#133, #134) + this confusion. Worth a single doc pass. Possibly fold into Item 4 (hookify rules from friction).
-
-### Dispatches processed
-Resolved this session: #137, #139, #145, #146, #148, #150, #151, #155, #161.
-Dispatches sent: #149, #152, #153, #157, #158, #159, #160, #162, #163, #164.
-
-## Next Action (start of next session)
-
-1. **Run dispatch loop immediately:** `/loop 5m dispatch list --status unread`
-2. **Check devex status on Item 1.** P0 was downgraded — devex should have resumed Item 1 (SPEC-PROVIDER wrappers). Watch for plan iteration commits or questions. The residual P1 (git-commit silent-fail from mdpal-app worktree) is queued for after Item 1, not blocking.
-3. **Check collaboration:** `./claude/tools/collaboration check` — monofolk has not yet responded to SPEC-PROVIDER structural thoughts dispatch (sent yesterday). Expected an RFI back.
-4. **Resume Day 33 release branch:**
-   - On `day33-release-1` already
-   - Cherry-pick `6cd4307` from local main onto this branch (or rebase main onto origin/main and then branch from there)
-   - Commit unstaged CLAUDE-THEAGENCY.md change (dispatch-loop universal)
-   - Commit untracked dispatch artifacts (#149, #150-#160 files, handoffs in history/)
-   - Push, open as draft PR
-   - `/sync-all` to push to worktrees
-5. **Captain's log entry for today** — Day 33 transition, P0 bug, priority-order rule shipped, dispatch-loop adoption.
+- This handoff update (complete once this file lands)
+- Push and update PR #54 description
+- Principal call on merging R2
+- Agency-update test on a real downstream project (1B1 pending on parameters)
 
 ## Active Agents (background)
 
 | Agent | State | Notes |
 |-------|-------|-------|
-| devex | Item 1 plan approved (#153), P0 lifted (#162) — should be executing iterations | Real but minor git-commit silent-fail bug queued for after Item 1 |
-| iscp | Shut down for the night per #146 handoff | Phase 2.3 reverted from R3 by design |
-| mdpal-app | Working Phase 1A SwiftUI, on raw-commit workaround | P0 retracted (#161, #164); devex will fix silent-fail later |
-| mdpal-cli | Working their own iteration; P0 verification cancelled (#163) | They flagged the sparse-worktree convention gap |
+| devex | Queue of 4 items from #149 + worktree naming (#166 unblocked today), #167 hookify rename, #168 agent-create scaffolding | Needs to merge master for R1/R2 updates |
+| iscp | Working on Phase 2 (per-agent inboxes plan approved). Received #170 heads-up on iscp-check extension. Also received peer-to-peer directive (#165) | Needs to merge master for R1 |
+| mdpal-app | Phase 1A SwiftUI work | Needs to merge master |
+| mdpal-cli | Own iteration | Needs to merge master |
+
+## Monofolk Cross-Repo
+
+- **Day 33 morning:** Received RFI on SPEC-PROVIDER + SPEC-ENVIRONMENT. 1B1'd with principal. Full reply sent today.
+- **Day 33 afternoon:** Received merge-not-rebase contribution (PR #55). Merged into main (ba6deed). Replied acknowledging, noting discipline applied on its first day (merged into R2, not rebased).
+- **No pending inbound** from monofolk.
 
 ## Open Items
 
-### P1 (not blocking)
-- **git-commit silently exits 1 from mdpal-app's sparse worktree** — zero diagnostic output. Devex queued for after Item 1. Workaround in use. NOT the index-wipe symptom — that was sparse-checkout normal state.
-- **Sparse-worktree convention undocumented** — needs a line in CLAUDE-THEAGENCY.md or worktree-create skill so agents don't panic at 1280 'D' files
-- **Split-worktree onboarding gotcha cluster** — fold sparse-worktree doc + BATS pre-commit (mdpal-cli #133/#134) + git-commit silent-fail into a single doc/fix pass. Possibly Item 4 of devex queue.
+### Pending principal calls
 
-### Uncommitted local state
-- **Local main is ahead of origin/main by 1 commit** (`6cd4307` priority order) — needs to land on a release branch
-- **`day33-release-1` branch exists** with `claude/CLAUDE-THEAGENCY.md` modified (dispatch-loop universal) but unstaged
-- **Untracked artifacts** in `usr/jordan/captain/dispatches/` and `usr/jordan/captain/history/`
+- **Merge R2** — PR #54 still draft, pending principal go-ahead
+- **Agency-update test** — principal offered a real-world test of R1+R2+#55 on an existing project. 1B1 pending on: project path, backup tag, branch, dry-run vs real run
+- **Anthropic Claude Code backlog** — 4 unfiled issues parked for tomorrow morning
 
-### Awaiting external
-- Monofolk response to SPEC-PROVIDER structural thoughts dispatch (sent yesterday)
-- DevEx Item 1 execution (~85 min plan, P0 lifted, should be running)
+### Carried forward (deferred to Day 34+)
 
-### Carried forward (from Day 32)
-- Hookify naming convention: **noun-verb decided** (this session). Need to update existing rules and document. Not yet executed.
-- MAR / VALUEFLOW doc decomposition (Phase 1 M3/M4 of Valueflow plan)
-- Captain's log entry for today not yet written
+- Git-commit `--staged` default behavior fix (when staging area non-empty)
+- Pull-rebase hookify gap investigation (block-raw-rebase pattern may miss `git pull --rebase`)
+- PR lifecycle tool build (on hold, seed captured)
+- Fleet awareness /define (seed ready, PVR not yet started)
+- Hookify noun-verb rename (dispatched to devex as #167, their work)
+- Agent-create scaffolding with dispatch loops (dispatched to devex as #168, their work)
 
 ## Active Flags
 
@@ -115,28 +85,31 @@ Dispatches sent: #149, #152, #153, #157, #158, #159, #160, #162, #163, #164.
 |----|------|--------|
 | 34 | SECURITY: Bash(*) too broad pre-GTM | TODO (kept active per principal) |
 
+## Next Action (start of next session or continuation)
+
+1. Push R2 content to update PR #54 description
+2. **1B1 with principal on agency-update test parameters** (see Open Items)
+3. If principal approves merge of R2: merge PR #54, then post-merge sync
+4. Run agency-update test on the selected downstream project
+5. Tomorrow morning: triage + file Anthropic Claude Code backlog (4 issues)
+
 ## Key Decisions This Session
 
-1. **Priority Order for Captain is canonical** — principal first, dispatches second (committed `6cd4307`, ships in Day 33 R1)
-2. **Dispatch loop is universal** — every agent, every session, `5m dispatch list --status unread`. Documented in CLAUDE-THEAGENCY.md.
-3. **Item 3 history rewrite of main: NO** — Option A. Cosmetic, not worth force-push cost.
-4. **Hookify naming = noun-verb** — principal call. Existing rules need rename (carried forward).
-5. **P0 triage order on git-commit bug:** worktree linkage first, then tool. Hypothesis from principal — turned out to be sparse-checkout, not worktree creation. Lesson: ask "is this normal for split worktrees?" before escalating to P0 next time.
+1. **Dispatch loop convention is universal** — every agent, every session, 5m silent + 30m visible nag
+2. **Bootstrap pattern confirmed** — captain can build a tool and use it in the same session to assemble the release containing the tool. Done twice (R1 with release-plan, R2 with release-plan's improvements)
+3. **Always-visible mailbox was wrong** — corrected to silent-when-empty per principal directive. The icon only appears when the current agent has unread mail.
+4. **Merge-not-rebase discipline adopted same-day** — monofolk's PR #55 shipped the framework-wide rule, we applied it to R2 within minutes via `git merge origin/main`.
+5. **SPEC-PROVIDER orthogonality confirmed** — environment and provider are fully independent concepts. Answered all 5 monofolk RFI questions.
+6. **Worktree naming = prefix collapse** — `devex/devex` → `devex`, `mdpal/mdpal-app` → `mdpal-app`, `agency/captain` → `agency-captain`. Devex unblocked to plan #166.
 
 ## Discipline Reminders
 
-- Use `/handoff` skill, never raw handoff tool (this handoff used the tool — fine since `/handoff` wraps it)
-- `/git-commit` always — but P0 bug in worktrees, fall back to raw `git -c core.hooksPath=/dev/null commit` until fixed
-- Never `cd` to main repo from worktree
-- Day-PR pattern: branch from origin/main, draft PR, no direct push to main
-- Run dispatch loop on session start
-
-## House Rules Self-Audit
-
-- ✅ Processed dispatches at session start
-- ✅ Replied to dispatches in same session
-- ✅ Asked principal before destructive ops (Item 3 force-push)
-- ⚠️ Left #148 (mdpal-app online) sitting through several loop fires before reading — corrected mid-session
-- ✅ No unauthorized pushes this session (no pushes at all yet)
+- **Never rebase** — framework-wide block active (block-raw-rebase hookify rule)
+- **Never reset --hard origin/*** — framework-wide block active (block-reset-to-origin hookify rule)
+- Use `/handoff` skill, never raw handoff tool
+- Use `/git-commit` (with `--staged` flag when pre-staging) — never bare `git commit`
+- Run dispatch loop on session start (5m + 30m)
+- Cross-repo dispatches via collaboration repo, not direct
+- Per-agent attribution in all commits via the new email format
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

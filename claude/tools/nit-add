@@ -92,17 +92,15 @@ EOF
   echo "Created nits file: $NITS_FILE"
 fi
 
-# Step 1: Pull latest
-echo "Pulling latest changes..."
-git pull --rebase 2>/dev/null || {
-  # If rebase fails due to conflicts, abort and try regular pull
-  git rebase --abort 2>/dev/null || true
-  git pull || {
-    # If regular pull also has conflicts, handle them
-    if git diff --name-only --diff-filter=U | grep -q "$NITS_FILE"; then
-      handle_merge_conflict
-    fi
-  }
+# Step 1: Pull latest (merge-based, per merge-not-rebase discipline).
+# Previously used `git pull --rebase` with a `git rebase --abort` cleanup,
+# but rebase is now blocked framework-wide (hookify.block-raw-rebase).
+# `git pull` with default merge behavior is the correct path: on conflict
+# in $NITS_FILE, the handler resolves it explicitly below.
+git pull --no-rebase 2>/dev/null || {
+  if git diff --name-only --diff-filter=U | grep -q "$NITS_FILE"; then
+    handle_merge_conflict
+  fi
 }
 
 # Step 2: Find the highest existing NIT ID

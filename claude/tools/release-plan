@@ -306,6 +306,72 @@ feature_groups() {
     grep '^feature:' "$GROUPS_FILE" 2>/dev/null | cut -d'|' -f1 | sort -u || true
 }
 
+# --- agency.yaml config-block pairing ---
+# If agency.yaml is in the changeset, inspect the diff to find which
+# top-level yaml section changed. For each changed section, try to match
+# it to an existing feature group (by stemmed name match against feature
+# names). When a match is found, reclassify agency.yaml into that feature
+# group so the config change commits with the feature.
+#
+# Heuristic: for section "issues", look for any feature whose name
+# contains "issue" (stem of "issues"). This handles plural→singular and
+# compound names like "agency-issue". First match wins; if nothing
+# matches, agency.yaml stays in "config".
+if grep -q "^config|claude/config/agency.yaml$" "$GROUPS_FILE"; then
+    # Get the diff of agency.yaml vs HEAD (covers staged + unstaged changes)
+    agency_diff=$(g diff HEAD -- claude/config/agency.yaml 2>/dev/null || true)
+    # If still empty (e.g., new untracked file), use cached diff against empty
+    if [[ -z "$agency_diff" ]]; then
+        agency_diff=$(g diff --cached -- claude/config/agency.yaml 2>/dev/null || true)
+    fi
+
+    # Extract top-level section names from the added lines (+{name}:).
+    # Matches "+issues:" or "+issues:  # comment" at column 0 of the added
+    # content. Skips hunk headers and unchanged lines.
+    changed_sections=$(printf '%s\n' "$agency_diff" | awk '
+        /^@@/ { in_hunk=1; next }
+        in_hunk && /^\+[a-z][a-z0-9_-]*:[[:space:]]*$/ {
+            gsub(/^\+/, "")
+            gsub(/:.*/, "")
+            print
+        }
+        in_hunk && /^\+[a-z][a-z0-9_-]*:[[:space:]]*#/ {
+            gsub(/^\+/, "")
+            gsub(/:.*/, "")
+            print
+        }
+    ' | sort -u)
+
+    # For each changed section, try to match to a feature
+    for section in $changed_sections; do
+        [[ -z "$section" ]] && continue
+        # Stem: drop trailing 'es' or 's' for simple plurals
+        stem="$section"
+        [[ "$stem" =~ (.+)es$ ]] && stem="${BASH_REMATCH[1]}"
+        [[ "$stem" =~ (.+)s$ ]] && stem="${BASH_REMATCH[1]}"
+
+        # Find first feature group whose name contains the stem or full section
+        match_feat=""
+        for fg in $(feature_groups); do
+            local_feat="${fg#feature:}"
+            if [[ "$local_feat" == *"$stem"* ]] || [[ "$local_feat" == *"$section"* ]]; then
+                match_feat="$local_feat"
+                break
+            fi
+        done
+
+        if [[ -n "$match_feat" ]]; then
+            # Reclassify agency.yaml into the matching feature group
+            awk -v feat="$match_feat" -F'|' -v OFS='|' '
+                $2 == "claude/config/agency.yaml" { $1 = "feature:" feat; print; next }
+                { print }
+            ' "$GROUPS_FILE" > "${GROUPS_FILE}.tmp"
+            mv "${GROUPS_FILE}.tmp" "$GROUPS_FILE"
+            break  # agency.yaml paired; stop at first match
+        fi
+    done
+fi
+
 # --- Group metadata ---
 group_title() {
     case "$1" in

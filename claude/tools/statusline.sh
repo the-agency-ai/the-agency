@@ -171,6 +171,24 @@ if [ -n "$vim_mode" ]; then
     vim_info=" [${vim_mode}]"
 fi
 
+# --- ISCP mail indicator ---
+# Silent periodic polling via status line — shows unread dispatch/flag count
+# in the footer bar without touching the transcript. See iscp-check --statusline.
+# Fast (<250ms typical); graceful on failure (empty indicator).
+#
+# The mailbox is ALWAYS rendered once the wiring is in place — 📪 when empty,
+# 📬 with counts when non-empty. Always-visible removes ambiguity between
+# "empty inbox" and "mailbox not wired up".
+iscp_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+iscp_mail=""
+if [ -x "$iscp_script_dir/iscp-check" ]; then
+    iscp_mail=$("$iscp_script_dir/iscp-check" --statusline 2>/dev/null || true)
+fi
+iscp_info=""
+if [ -n "$iscp_mail" ]; then
+    iscp_info=" | ${iscp_mail}"
+fi
+
 # --- Assemble ---
 status_line="${version_model} | ${location}"
 if [ -n "$ctx_label" ]; then
@@ -182,6 +200,6 @@ fi
 if [ -n "$cost_dur" ]; then
     status_line="${status_line} | ${cost_dur}"
 fi
-status_line="${status_line}${style_info}${vim_info}"
+status_line="${status_line}${iscp_info}${style_info}${vim_info}"
 
 printf "%s" "$status_line"
