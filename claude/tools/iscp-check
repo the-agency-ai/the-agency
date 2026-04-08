@@ -70,11 +70,14 @@ Modes:
 
   --statusline  Status-line mode. Outputs a SHORT plain-text one-liner
                 suitable for the Claude Code statusLine command — e.g.
-                "📬 2" or "📬 2d 1f" or empty when nothing unread. Always
-                current; no delta suppression; no state file writes. Safe
-                to call on every UI tick. Silent by design — status line
-                commands render ONLY in the footer bar, never in the chat
-                transcript. This is the display-only silent polling path.
+                "📬 2d 1f" when the current agent has unread items, or
+                silent (no output) when the inbox is empty. No delta
+                suppression; no state file writes. Safe to call on every
+                UI tick. The footer glyph only appears when there's
+                something to notice; absence is the normal state. Status
+                line commands render ONLY in the footer bar, never in
+                the chat transcript. This is the display-only silent
+                polling path.
 
 Designed for hook consumption (SessionStart, UserPromptSubmit, Stop) and
 status line polling. Every failure path exits silently — never blocks.
@@ -106,21 +109,18 @@ IFS='|' read -r flags dispatches dropbox notifications <<< "$counts"
 # Runs on every UI tick. Must be FAST. Output goes ONLY to the footer —
 # never to the transcript. No delta logic — always shows current state.
 #
-# The mailbox is ALWAYS rendered, even when empty. A visible empty mailbox
-# ("📪") is different from "no mailbox in the footer at all" — the former
-# confirms the wiring is working and the inbox is empty; the latter is
-# ambiguous (not wired? broken? old code?). Always-visible removes the
-# ambiguity.
+# Silent when the current agent has ZERO unread items. The mailbox glyph
+# only appears when there's something to notice — the absence of the glyph
+# is the normal state. (Principal directive 2026-04-08: the icon should
+# only be there if the current agent has unread messages.)
 if [[ "$STATUSLINE" == "true" ]]; then
     total=$(( flags + dispatches + dropbox + notifications ))
     if [[ "$total" -eq 0 ]]; then
-        # Empty mailbox glyph — visible, distinct from "no indicator"
-        echo "📪"
+        # Silent — no output, no glyph in the footer
         exit 0
     fi
     # Compact format: "📬 2d 1f" — letters for type (d=dispatch, f=flag,
     # x=dropbox, n=notif). Dispatches and flags are the common cases.
-    # 📬 (open with raised flag) vs 📪 (closed) makes the state glanceable.
     parts=()
     [[ "$dispatches" -gt 0 ]] && parts+=("${dispatches}d")
     [[ "$flags" -gt 0 ]] && parts+=("${flags}f")
