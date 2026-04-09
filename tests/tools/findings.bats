@@ -60,6 +60,8 @@ load 'test_helper'
 }
 
 @test "findings-save: dry-run shows output path" {
+    # Requires jsonschema Python package — skip if unavailable (zero-pip constraint pending)
+    python3 -c "import jsonschema" 2>/dev/null || skip "jsonschema not available under test isolation"
     cat > "${BATS_TEST_TMPDIR}/finding.json" << 'EOF'
 {
   "schema_version": "1.0",
@@ -237,6 +239,8 @@ EOF
 }
 
 @test "findings-consolidate: dry-run shows output path" {
+    # Requires jsonschema Python package — skip if unavailable (zero-pip constraint pending)
+    python3 -c "import jsonschema" 2>/dev/null || skip "jsonschema not available under test isolation"
     cat > "${BATS_TEST_TMPDIR}/consolidated.json" << 'EOF'
 {
   "schema_version": "1.0",

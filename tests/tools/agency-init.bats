@@ -44,14 +44,15 @@ run_agency() {
     rm -rf "$tmpdir"
 }
 
-@test "agency init: fails without .claude directory" {
-    local tmpdir
-    tmpdir=$(mktemp -d)
+@test "agency init: succeeds on bare repo without .claude directory" {
+    # agency init creates .claude/ if missing (updated behavior — used to fail)
+    # Use a clean project name (no dots/uppercase — validator rejects those)
+    local tmpdir="${BATS_TEST_TMPDIR}/test-workshop"
+    mkdir -p "$tmpdir"
     git -C "$tmpdir" init -b main 2>/dev/null
     run_agency init "$tmpdir"
-    assert_failure
-    assert_output_contains "No .claude/ directory"
-    rm -rf "$tmpdir"
+    assert_success
+    [[ -d "$tmpdir/.claude" ]]
 }
 
 @test "agency init: fails when already initialized" {
