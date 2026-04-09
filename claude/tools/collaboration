@@ -22,6 +22,8 @@
 #   collaboration list                               # list configured repos
 #   collaboration read <repo> <filename>             # read dispatch, mark as read
 #   collaboration resolve <repo> <filename|--all-resolved>  # mark resolved
+#   collaboration send <repo> --subject <text> --body <text> [--type <type>]
+#                                                    # originate a new outbound dispatch
 #   collaboration reply <repo> --to <filename> --subject <text> --body <text> [--type <type>]
 #   collaboration push <repo>                        # commit + push pending changes
 #   collaboration --version
@@ -311,30 +313,13 @@ cmd_resolve() {
     fi
 }
 
-cmd_reply() {
-    # collaboration reply <repo> --to <filename> --subject <text> --body <text> [--type <type>]
-    local repo_name="${1:-}"
-    shift || { echo "Usage: collaboration reply <repo> --to <file> --subject <text> --body <text>" >&2; exit 1; }
-
-    local to_file="" subject="" body="" dtype="dispatch"
-
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --to) to_file="$2"; shift 2 ;;
-            --subject) subject="$2"; shift 2 ;;
-            --body) body="$2"; shift 2 ;;
-            --type) dtype="$2"; shift 2 ;;
-            *) echo "Unknown option: $1" >&2; exit 1 ;;
-        esac
-    done
-
-    if [[ -z "$repo_name" || -z "$subject" || -z "$body" ]]; then
-        echo "Usage: collaboration reply <repo> --to <file> --subject <text> --body <text>" >&2
-        exit 1
-    fi
+_write_outbound() {
+    # Shared implementation for send and reply
+    # Args: verb repo_name to_file subject body dtype
+    local verb="$1" repo_name="$2" to_file="$3" subject="$4" body="$5" dtype="$6"
 
     local RUN_ID
-    RUN_ID=$(log_start "collaboration" "reply" "$repo_name" "$subject")
+    RUN_ID=$(log_start "collaboration" "$verb" "$repo_name" "$subject")
 
     local repo_info
     repo_info=$(_get_repo "$repo_name") || exit 1
@@ -386,10 +371,10 @@ in_reply_to: ${to_file:-null}
 $body
 DISPATCH
 
-    echo "✓ Reply written: $outbound_path/$filename"
+    echo "✓ Dispatch written: $outbound_path/$filename"
     echo "Run 'collaboration push $repo_name' to commit and deliver."
 
-    # Mark original as resolved if provided
+    # Mark original as resolved if replying
     if [[ -n "$to_file" ]]; then
         local orig="$full_path/$inbound/$to_file"
         if [[ -f "$orig" ]]; then
@@ -398,7 +383,56 @@ DISPATCH
         fi
     fi
 
-    log_end "$RUN_ID" "success" "0" "0" "reply written: $filename"
+    log_end "$RUN_ID" "success" "0" "0" "$verb written: $filename"
+}
+
+cmd_send() {
+    # collaboration send <repo> --subject <text> --body <text> [--type <type>]
+    local repo_name="${1:-}"
+    shift || { echo "Usage: collaboration send <repo> --subject <text> --body <text>" >&2; exit 1; }
+
+    local subject="" body="" dtype="dispatch"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --subject) subject="$2"; shift 2 ;;
+            --body) body="$2"; shift 2 ;;
+            --type) dtype="$2"; shift 2 ;;
+            *) echo "Unknown option: $1" >&2; exit 1 ;;
+        esac
+    done
+
+    if [[ -z "$repo_name" || -z "$subject" || -z "$body" ]]; then
+        echo "Usage: collaboration send <repo> --subject <text> --body <text>" >&2
+        exit 1
+    fi
+
+    _write_outbound "send" "$repo_name" "" "$subject" "$body" "$dtype"
+}
+
+cmd_reply() {
+    # collaboration reply <repo> --to <filename> --subject <text> --body <text> [--type <type>]
+    local repo_name="${1:-}"
+    shift || { echo "Usage: collaboration reply <repo> --to <file> --subject <text> --body <text>" >&2; exit 1; }
+
+    local to_file="" subject="" body="" dtype="dispatch"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --to) to_file="$2"; shift 2 ;;
+            --subject) subject="$2"; shift 2 ;;
+            --body) body="$2"; shift 2 ;;
+            --type) dtype="$2"; shift 2 ;;
+            *) echo "Unknown option: $1" >&2; exit 1 ;;
+        esac
+    done
+
+    if [[ -z "$repo_name" || -z "$to_file" || -z "$subject" || -z "$body" ]]; then
+        echo "Usage: collaboration reply <repo> --to <file> --subject <text> --body <text>" >&2
+        exit 1
+    fi
+
+    _write_outbound "reply" "$repo_name" "$to_file" "$subject" "$body" "$dtype"
 }
 
 cmd_push() {
@@ -472,8 +506,10 @@ Usage:
   collaboration list                               List configured collaboration repos
   collaboration read <repo> <filename>             Read a dispatch, mark as read
   collaboration resolve <repo> <file|--all-resolved>  Mark dispatch(es) resolved
+  collaboration send <repo> --subject <text> --body <text>
+                                                   Originate a new outbound dispatch
   collaboration reply <repo> --to <file> --subject <text> --body <text>
-                                                   Write a reply dispatch
+                                                   Reply to an existing inbound dispatch
   collaboration push <repo>                        Commit + push changes
   collaboration --version                          Show version
   collaboration --help                             Show this help
@@ -487,6 +523,7 @@ HELP
     list) shift; cmd_list "$@" ;;
     read) shift; cmd_read "$@" ;;
     resolve) shift; cmd_resolve "$@" ;;
+    send) shift; cmd_send "$@" ;;
     reply) shift; cmd_reply "$@" ;;
     push) shift; cmd_push "$@" ;;
     *)
