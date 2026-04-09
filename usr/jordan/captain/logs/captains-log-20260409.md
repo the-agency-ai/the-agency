@@ -42,3 +42,7 @@ Rapid-release discipline: Day.Release versioning (34.1, 34.2) where day = Agency
 ## 10:21:32 — milestone
 
 Devex UNBLOCKED — all 6 unblock steps complete (#175). Main merged cleanly via 'git rm + git merge main'. Item 4 (handoff reverted) was a false alarm — startup reminder was showing a working-tree artifact, HEAD always had Day 33 content. Gate 0 confirmed working on devex side (test commit 'dbcd25b' authored correctly as Jordan, not Test User). Devex resuming Task #8 (/phase-complete for SPEC-PROVIDER preview/deploy). Standing autonomy on remaining queue.
+
+## 10:31:26 — build
+
+Knocked out #65 + #62 in one bundle commit (79805a3). #65: worktree-sync detects MAIN_BRANCH dynamically from main checkout (was hardcoded 'master' in 7 places), 6/6 BATS tests green including new main-branch coverage. #62: stripped allowed-tools frontmatter from 48 skill files via persistent helper at usr/jordan/captain/tools/strip-skill-allowed-tools. Defense-in-depth was illusory (global .claude/settings.json has Bash(*)); skill-level allowed-tools only created silent-stall traps. Script is re-runnable for future audits.
