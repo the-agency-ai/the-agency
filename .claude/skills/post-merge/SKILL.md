@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(git fetch:*), Bash(git status:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git merge:*), Bash(git merge-base:*), Bash(git rev-list:*), Bash(git tag:*), Bash(git branch:*), Bash(gh pr:*), Read, Glob, Skill
 description: Run after a PR is merged on GitHub. Verifies merge, merges origin into master, invokes /sync-all.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Post-Merge
 

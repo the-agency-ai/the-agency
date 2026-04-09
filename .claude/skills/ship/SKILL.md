@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(./claude/tools/commit-precheck:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git push:*), Bash(git rev-parse:*), Bash(gh pr:*), Read, Glob, Grep, Skill
 description: Quality-check, commit, push, and create/update PR in one flow.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Ship
 

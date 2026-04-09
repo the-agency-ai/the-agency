@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(git fetch:*), Bash(git merge:*), Bash(git merge-base:*), Bash(git push:*), Bash(git status:*), Bash(git log:*), Bash(git rev-parse:*), Read
 description: Merge target into current branch and push to origin. The ONLY command that pushes.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Sync — Push to Origin
 

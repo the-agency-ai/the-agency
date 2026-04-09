@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(git fetch:*), Bash(git merge:*), Bash(git merge-base:*), Bash(git status:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git rev-list:*), Bash(git worktree:*), Bash(git tag:*), Bash(git -C:*), Bash(git diff:*), Bash(./claude/tools/dispatch*), Read, Write, Glob, Grep, Edit
 description: Fetch, merge origin into master, merge worktree work into master, sync all worktrees. NEVER pushes.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Sync All — Local Master Sync
 

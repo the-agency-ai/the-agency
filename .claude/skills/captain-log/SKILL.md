@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(./claude/tools/captain-log *), Bash(./claude/tools/captain-log)
 description: Append to or read the captain's narrative log — decisions, friction, learning, milestones
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Captain's Log
 

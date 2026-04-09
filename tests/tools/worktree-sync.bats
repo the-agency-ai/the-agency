@@ -105,3 +105,92 @@ teardown() {
     # MERGE_HEAD must not exist — proves the tool aborted its own merge
     [[ ! -f "${WORKTREE_PATH}/.git/MERGE_HEAD" ]] && [[ ! -f "${MOCK_ROOT}/.git/worktrees/mock-worktree/MERGE_HEAD" ]]
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #65 — main-branch repos (not just master)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# The tool originally hardcoded 'master' throughout, which meant it silently
+# broke in any repo using 'main' as the default branch (including the-agency
+# itself). The fix detects MAIN_BRANCH from the main checkout's actual HEAD.
+# These tests exercise the main-branch path with a successful merge (no
+# conflict) to confirm the tool reads MAIN_BRANCH dynamically.
+
+setup_main_branch_repo() {
+    # Alternate setup: mock repo uses 'main' as default, feature branch is
+    # behind main by one non-conflicting commit.
+    export MAIN_MOCK_ROOT="${BATS_TEST_TMPDIR}/mock-main-branch"
+    mkdir -p "${MAIN_MOCK_ROOT}"
+    cd "${MAIN_MOCK_ROOT}"
+
+    git init --quiet --initial-branch=main
+    git config user.email "tester@example.invalid"
+    git config user.name "Tester"
+
+    echo "root" > README.md
+    git add README.md
+    git commit --quiet -m "initial"
+
+    # Feature branch at the root commit
+    git checkout --quiet -b devfeature
+
+    # Main advances with a non-conflicting new file
+    git checkout --quiet main
+    echo "new on main" > newfile.txt
+    git add newfile.txt
+    git commit --quiet -m "main: add newfile"
+
+    # Register devfeature as a worktree
+    export MAIN_WORKTREE_PATH="${BATS_TEST_TMPDIR}/mock-main-worktree"
+    git worktree add --quiet "${MAIN_WORKTREE_PATH}" devfeature
+}
+
+teardown_main_branch_repo() {
+    if [[ -d "${MAIN_MOCK_ROOT:-}" ]]; then
+        (cd "${MAIN_MOCK_ROOT}" && git worktree remove --force "${MAIN_WORKTREE_PATH}" 2>/dev/null || true)
+    fi
+}
+
+@test "worktree-sync: successfully merges 'main' branch (not just 'master')" {
+    # Skip the master-based setup for this test
+    if [[ -d "${MOCK_ROOT}" ]]; then
+        (cd "${MOCK_ROOT}" && git worktree remove --force "${WORKTREE_PATH}" 2>/dev/null || true)
+    fi
+    setup_main_branch_repo
+    cd "${MAIN_WORKTREE_PATH}"
+    run bash "${REPO_ROOT}/claude/tools/worktree-sync" --auto
+    teardown_main_branch_repo
+    assert_success
+    # Output should reference 'main', not 'master'
+    if echo "$output" | grep -qi 'master'; then
+        echo "Output references 'master' instead of 'main' — #65 regression:" >&2
+        echo "$output" >&2
+        return 1
+    fi
+    # Output should confirm a merge happened
+    if ! echo "$output" | grep -qi 'merged\|up to date\|main'; then
+        echo "Output does not confirm main-branch merge:" >&2
+        echo "$output" >&2
+        return 1
+    fi
+}
+
+@test "worktree-sync: detects MAIN_BRANCH dynamically from main checkout" {
+    # Same setup, different assertion — verify the tool's error path references
+    # the actual branch name, not a hardcoded 'master'.
+    if [[ -d "${MOCK_ROOT}" ]]; then
+        (cd "${MOCK_ROOT}" && git worktree remove --force "${WORKTREE_PATH}" 2>/dev/null || true)
+    fi
+    setup_main_branch_repo
+    # Invoke from the main checkout itself (should soft-skip in auto mode with 'main' in the message)
+    cd "${MAIN_MOCK_ROOT}"
+    run bash "${REPO_ROOT}/claude/tools/worktree-sync" --auto
+    teardown_main_branch_repo
+    assert_success
+    # The soft-skip message should mention 'main', not 'master'
+    if ! echo "$output" | grep -q 'main'; then
+        echo "Soft-skip message does not reference 'main':" >&2
+        echo "$output" >&2
+        return 1
+    fi
+}

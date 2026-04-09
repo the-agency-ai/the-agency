@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(gh pr:*), Read, Write, Glob, Grep, Agent, Skill
 description: Review all draft PRs and generate dispatch reports for routing findings to worktree agents.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Captain Review
 
