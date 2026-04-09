@@ -9,18 +9,48 @@ Create a new git worktree under `.claude/worktrees/` with a dedicated branch and
 
 ## Arguments
 
-- $ARGUMENTS: The worktree name in kebab-case (e.g., `fix-auth-bug`, `refactor-cart`). Optionally followed by `--from <branch>` to branch off a specific ref instead of current HEAD.
+- $ARGUMENTS: Two supported forms:
+  1. **Ad-hoc worktree:** `<name>` in kebab-case (e.g., `fix-auth-bug`, `refactor-cart`) — for experiments and standalone branches that don't belong to a workstream.
+  2. **Workstream agent:** `--workstream <ws> --agent <ag>` — for agents working on a declared workstream. The worktree directory name is computed from these two via the collapse rule below.
+
+  Both forms accept optional `--from <branch>` to branch off a specific ref instead of current HEAD.
+
+## Naming convention (workstream form)
+
+Per the worktree naming convention (dispatches #166, #169), when both `--workstream` and `--agent` are given, the worktree directory name is computed:
+
+```
+if agent == workstream OR agent.startswith(workstream + "-"):
+    name = agent               # collapse: drop the workstream prefix
+else:
+    name = "workstream-agent"  # full form: join with hyphen
+```
+
+**Examples:**
+
+| Workstream | Agent | Worktree name |
+|-----------|-------|---------------|
+| `devex` | `devex` | `devex` (exact match → collapse) |
+| `iscp` | `iscp` | `iscp` (exact match → collapse) |
+| `mdpal` | `mdpal-app` | `mdpal-app` (prefix match → collapse) |
+| `mdpal` | `mdpal-cli` | `mdpal-cli` (prefix match → collapse) |
+| `agency` | `captain` | `agency-captain` (no match → full form) |
+| `fleet` | `captain` | `fleet-captain` (no match → full form) |
+
+The `claude/tools/worktree-create --compute-only --workstream <ws> --agent <ag>` mode prints the computed name without creating anything — useful if you want to check the canonical name before committing to a worktree layout.
 
 ## Instructions
 
 ### Step 0: Parse arguments
 
-If `$ARGUMENTS` is empty, ask for a name.
+If `$ARGUMENTS` is empty, ask for either a name OR a workstream+agent pair.
 
 Parse:
-- First positional arg is the **name**
+- First positional arg is the **name** (ad-hoc form)
+- If `--workstream <ws>` and `--agent <ag>` are both present, compute the name via the collapse rule above (workstream agent form)
 - If `--from <branch>` is present, record as **base ref**
-- If `--agent <agent-name>` is present, record as **agent name** (for identity binding)
+- Mixing positional name with `--workstream`/`--agent` is an error (ambiguous)
+- Legacy: if `--agent <agent-name>` is present WITHOUT `--workstream`, record as **agent name** for identity binding (the tool's `.agency-agent` file handling continues to support this)
 
 ### Step 1: Validate the name
 

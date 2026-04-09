@@ -395,6 +395,28 @@ Worktree agents implement features on isolated branches. They build, test, and l
 - **Bug fix or small change** — can work on master if it's a quick fix that doesn't need isolation.
 - **Dispatch handling** — `iscp-check` notifies the worktree agent automatically. The agent runs `dispatch read <id>` to see the payload. If the payload file is on master, merge master first to access it.
 
+### Worktree Naming Convention
+
+Worktree directory names follow `{workstream}-{agent}` with a **collapse rule** when the agent name matches or extends the workstream name:
+
+```
+if agent == workstream OR agent.startswith(workstream + "-"):
+    name = agent               # collapse: drop the workstream prefix
+else:
+    name = "workstream-agent"  # full form: join with hyphen
+```
+
+| Workstream | Agent | Worktree name | Why |
+|-----------|-------|---------------|-----|
+| `devex` | `devex` | `devex` | exact match → collapse |
+| `iscp` | `iscp` | `iscp` | exact match → collapse |
+| `mdpal` | `mdpal-app` | `mdpal-app` | prefix match → collapse |
+| `mdpal` | `mdpal-cli` | `mdpal-cli` | prefix match → collapse |
+| `agency` | `captain` | `agency-captain` | no match → full form |
+| `fleet` | `captain` | `fleet-captain` | no match → full form |
+
+`worktree-create --workstream <ws> --agent <ag>` enforces the rule. Use `--compute-only` to print the canonical name without creating the worktree. The positional form `worktree-create <name>` is preserved for ad-hoc worktrees that don't belong to a workstream (experiments, fix branches, etc.).
+
 ## Session Handoff
 
 Handoff files are a first-class Agency primitive for context bootstrapping. They live at `usr/{principal}/{project}/{agent}-handoff.md` (one per agent — `captain-handoff.md`, `iscp-handoff.md`, etc.), are version controlled, and auto-rotate (each write archives the previous to `history/` with timestamp via `claude/tools/handoff`). The tool uses `agent-identity` to resolve which file to write based on the current branch/worktree.

@@ -148,11 +148,20 @@ capabilities:
       skill: ".claude/skills/workstream-create/SKILL.md"
 
   worktree-create:
-    level: 2
+    level: 3
     description: "Create isolated worktree with bootstrapped environment"
     artifacts:
       doc: "claude/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/worktree-create/SKILL.md"
+      tool: "claude/tools/worktree-create"
+
+  worktree-naming:
+    level: 3
+    description: "Workstream-agent naming convention with collapse rule (#166/#169)"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/worktree-create/SKILL.md"
+      tool: "claude/tools/worktree-create"
 
   # ── Git discipline ──
   no-push-master:
