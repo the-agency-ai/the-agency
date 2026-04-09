@@ -141,6 +141,39 @@ main() {
     REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
     cd "$REPO_ROOT"
 
+    # ────────────────────────────────────────────────────────────────────────
+    # Gate 0: block Test User attribution (merge-durable guard against the
+    # recurring BATS pollution bug — dispatches #109 and #171).
+    #
+    # If .git/config grew a [user] section with Test User / test@example.com,
+    # a BATS test leaked pre-commit env vars and polluted the live config.
+    # Block the commit, print diagnostics, and tell the author how to clean.
+    # ────────────────────────────────────────────────────────────────────────
+    local git_user_name git_user_email
+    git_user_name=$(git config user.name 2>/dev/null || true)
+    git_user_email=$(git config user.email 2>/dev/null || true)
+    if [[ "$git_user_name" == "Test User" ]] || [[ "$git_user_email" == "test@example.com" ]]; then
+        echo "✗ BLOCKED: commit identity is Test User <test@example.com>" >&2
+        echo "  → Your .git/config has a polluted [user] section (likely from a" >&2
+        echo "    BATS test leaking env vars). Clean with:" >&2
+        echo "      git config --local --unset user.email" >&2
+        echo "      git config --local --unset user.name" >&2
+        echo "    Then verify: git config user.name && git config user.email" >&2
+        echo "  → Root cause: see dispatches #109 and #171." >&2
+        echo "*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*" >&2
+        end_run "blocked" "Test User attribution"
+        exit 1
+    fi
+    if grep -q '^\[user\]' "$REPO_ROOT/.git/config" 2>/dev/null; then
+        if grep -A2 '^\[user\]' "$REPO_ROOT/.git/config" 2>/dev/null | grep -qE 'Test User|test@example\.com'; then
+            echo "✗ BLOCKED: .git/config contains a polluted [user] section" >&2
+            echo "  → Clean with: git config --local --unset-all user.email && git config --local --unset-all user.name" >&2
+            echo "*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*" >&2
+            end_run "blocked" "Polluted .git/config [user] section"
+            exit 1
+        fi
+    fi
+
     # No staged changes = nothing to check
     if git diff --cached --quiet; then
         log_info "No staged changes"
