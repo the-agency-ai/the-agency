@@ -434,6 +434,33 @@ The `iscp-check` hook fires on SessionStart, UserPromptSubmit, and Stop. It quer
 ### When You Have Mail
 
 - **SessionStart:** Process unread items FIRST before other work (hookify enforced)
+- **Set up two dispatch loops on session start.** Every agent — not just captain — runs both loops at session start. They auto-expire after 7 days; re-set each session.
+
+  **Loop 1 — fast-path (silent-when-clean), every 5 minutes:**
+
+  ```
+  /loop 5m Run: ./claude/tools/dispatch list --status unread
+
+  If the output is exactly "No dispatches found." — produce NO output
+  whatsoever. No "Clean", no acknowledgment, nothing. End the turn silently.
+
+  If there are unread dispatches: pause current work, read each with
+  `dispatch read <id>`, respond appropriately, then resolve each with
+  `dispatch resolve <id>` if no further action is needed.
+  ```
+
+  **Loop 2 — nag-path (visible-when-sitting), every 30 minutes:**
+
+  ```
+  /loop 30m NAG CHECK: Run ./claude/tools/dispatch list --status unread.
+  If any unread items exist, they've been sitting at least 30 minutes —
+  produce a VISIBLE alert to the user (not silent): list the unread items
+  with IDs, ages, and senders, note that you are now reading and responding.
+  Then read each, respond, and resolve. If the output is "No dispatches
+  found." — produce NO output and end silently.
+  ```
+
+  Why two loops: the 5-minute loop picks up new mail quickly between prompts with zero terminal noise when there's nothing to do. The 30-minute loop is the "dispatches are being ignored" alarm — if anything is still unread at 30m, the 5m loop already processed it or is blocked, so a visible alert to the principal is warranted.
 - **Mid-session:** Act on mail at a natural break, not immediately
 - **Dispatch types:** directive (do this), review (fix these), seed (input material), escalation (urgent)
 
@@ -622,8 +649,9 @@ Extract what you need — don't dump whole pages into context. Summarize, don't 
 
 - **Remote master is read-only.** All changes reach origin through PRs. Never push to origin/master.
 - **Never push without explicit permission.** Pushing is always deliberate. Mechanically enforced by hookify rules (block master push, warn on any push).
-- **Never `reset --hard` without confirming work is preserved.** A diverged branch may have new commits. Check first.
-- **`/rebase` and `/sync-all` are purely local.** `/sync` is the only command that pushes.
+- **Never `reset --hard origin/*`.** This drops all local commits not on origin, including framework files. Mechanically blocked by `block-reset-to-origin` hookify rule.
+- **Never `git rebase`.** All branch sync uses merge. Rebase rewrites history and breaks worktree merge-bases. Mechanically blocked by `block-raw-rebase` hookify rule. See `claude/docs/GIT-MERGE-NOT-REBASE.md`.
+- **`/sync-all` and `/sync` are merge-based.** `/sync-all` merges origin into local master (never pushes). `/sync` merges and pushes (the only push command).
 - **Lead commit messages with Phase-Iteration slug.** Format: `Phase 1.3: feat: concise summary`. The slug is first, before the prefix.
 
 **By role:**

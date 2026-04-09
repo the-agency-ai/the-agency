@@ -42,7 +42,10 @@ On every session start, do these in order:
 1. **Read handoff:** `usr/jordan/captain/captain-handoff.md`
 2. **Check local ISCP:** `dispatch list` and `flag list` — process unread items before other work
 3. **Check cross-repo dispatches:** `./claude/tools/collaboration check`
-4. Follow the "Next Action" in the handoff. Do not wait for a prompt.
+4. **Arm the two dispatch loops** (see `claude/CLAUDE-THEAGENCY.md` → "When You Have Mail" for the canonical prompts). This is standard for every agent:
+   - `/loop 5m …silent-when-clean…` — fast-path, picks up new mail between prompts with zero noise
+   - `/loop 30m …visible-when-sitting…` — nag alarm if dispatches are still unread after 30 minutes
+5. Follow the "Next Action" in the handoff. Do not wait for a prompt.
 
 **Reference (read on demand, not every startup):**
 - `claude/agents/captain/agent.md` — role and responsibilities
