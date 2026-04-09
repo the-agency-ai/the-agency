@@ -317,14 +317,17 @@ LIB_DIR="${REPO_ROOT}/claude/tools/lib"
     [[ "$output" == "jordan" ]]
 }
 
-@test "principal detection: uses AGENCY_PRINCIPAL if set" {
+@test "principal detection: AGENCY_PRINCIPAL env var is deprecated and ignored" {
+    # AGENCY_PRINCIPAL was deprecated — _address_detect_principal ignores it
+    # and resolves from agency.yaml instead. This test confirms the deprecation.
     run bash -c "
         AGENCY_PRINCIPAL=override
         source '${LIB_DIR}/_address-parse'
         _address_detect_principal
     "
     assert_success
-    [[ "$output" == "override" ]]
+    # Should NOT output "override" — that env var is deprecated
+    [[ "$output" != "override" ]]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
