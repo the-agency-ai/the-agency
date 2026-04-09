@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(bash ./claude/tools/worktree-sync *), Bash(bash ./claude/tools/handoff *), Bash(bash ./claude/tools/dispatch *), Bash(git status:*), Bash(git log:*), Bash(git branch:*)
 description: Resume a worktree session — sync master, read handoff, check dispatches, report state
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Session Resume
 

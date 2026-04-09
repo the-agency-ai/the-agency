@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(./claude/tools/collaboration *), Bash(./claude/tools/collaboration), Read
 description: Cross-repo dispatch lifecycle — check, read, resolve, reply, push. Captain-only.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Cross-Repo Collaboration
 

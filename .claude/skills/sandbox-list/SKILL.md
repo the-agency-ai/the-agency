@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(ls:*), Bash(readlink:*), Bash(git config:*), Glob, Read
 description: Show all sandbox items across engineers with activation status
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Sandbox List
 

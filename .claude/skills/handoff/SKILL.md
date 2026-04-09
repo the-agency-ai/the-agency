@@ -1,7 +1,9 @@
 ---
-allowed-tools: Bash(bash ./claude/tools/handoff *), Read, Write
 description: Write a session handoff using the handoff tool — archive, write, verify
 ---
+
+<!-- Flag #62/#63: allowed-tools removed. Inherit Bash(*) from settings.json. -->
+
 
 # Session Handoff
 

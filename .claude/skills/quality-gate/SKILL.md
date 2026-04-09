@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(./claude/tools/stage-hash:*), Bash(./claude/tools/test-run:*), Bash(./claude/tools/commit-precheck:*), Bash(./claude/tools/skill-verify:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Read, Glob, Grep, Edit, Write, Agent, Skill
 description: Run the quality gate — parallel agent review, fix cycle, test, report. Composable — called by /iteration-complete and /phase-complete.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Quality Gate — Composable Skill
 

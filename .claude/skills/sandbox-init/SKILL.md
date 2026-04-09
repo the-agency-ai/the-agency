@@ -1,7 +1,13 @@
 ---
-allowed-tools: Read, Write, Bash(mkdir:*), Bash(touch:*), Bash(cp:*), Bash(ln:*), Bash(ls:*), Bash(readlink:*), Bash(git config:*), Bash(git rev-parse:*), Glob
 description: Set up a new engineer's sandbox workspace under usr/
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Sandbox Init
 
