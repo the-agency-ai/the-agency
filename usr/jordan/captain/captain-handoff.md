@@ -2,8 +2,8 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-08
-trigger: end-of-day-33
+date: 2026-04-09
+trigger: end-of-day-34
 ---
 
 ## Identity
@@ -12,158 +12,157 @@ the-agency/jordan/captain — Captain. Coordination, dispatch routing, quality g
 
 ## Current State
 
-**Day 33 complete.** Two releases shipped, one upstream contribution incorporated, one real-world agency-update test executed, first bug-found-and-filed via the new tooling loop. Local main is at `6cac2fa`, in sync with origin.
+**Day 34 complete. Biggest single day of the session so far.** Two releases shipped (34.1 + 34.2), meta-insight of the week captured, monofolk graduated to full-install, first full dogfood bug-found-filed-fixed-closed cycle executed, 13 new flags captured. Local main is at `1f54e79`, in sync with origin.
 
-## Shipped Today (Day 33)
+## Shipped Today (Day 34)
 
-### PR #53 — Day 33 R1 (MERGED)
+### PR #60 — Day 34.1 (MERGED)
 
-7 commits. Day 32 carry-over + Day 33 core work.
+Single feature release: **agency-version tool + statusline version display.**
 
-- **`agency-issue` v1** — thin gh wrapper with file/list/view/comment/close verbs. Designed via 10-question 1B1. Smoke-tested by filing [#52](https://github.com/the-agency-ai/the-agency/issues/52) using the tool itself
-- **`release-plan` v1** — heuristic-based release plan generator. Auto-detects day{N}-release-{M} branch, groups uncommitted files, pairs tool+skill+tests as feature commits. **Bootstrap pattern:** built then used to assemble its own release
-- **Dispatch loop convention** — documented in CLAUDE-THEAGENCY.md as canonical for every agent (5m silent + 30m visible nag)
-- **iscp-check v1.1.0** — delta suppression, stops the repeated "You have N" notifications
-- **6 seeds** — fleet-awareness, agency-issue, release-plan, silent-tool-calls (filed externally), granola carry-over, agent-mail-service
-- **3 pre-existing bugs fixed** — `.git/config bare=true`, `git-commit PROJECT_ROOT` unbound, `iscp-check.bats` stale version
+- `claude/tools/agency-version` — bash tool with verbs: `print` (default), `--statusline` (silent on missing), `--json`, `--help`
+- `claude/config/manifest.json` — new top-level `agency_version: "34.1"` field (single source of truth)
+- `claude/tools/statusline.sh` — renders `2.1.87 with Opus | 34.1 | the-agency (main) …`
+- 11 BATS tests, all green
+- Single commit: `118ae29`
 
-### PR #55 — merge-not-rebase (UPSTREAM, MERGED)
+### PR #63 — Day 34.2 (MERGED)
 
-Monofolk's contribution. Two hookify blocks (`block-raw-rebase`, `block-reset-to-origin`), four skill migrations (sync-all, sync, post-merge, rebase deprecated), `GIT-MERGE-NOT-REBASE.md` reference doc, CLAUDE-THEAGENCY.md update. Incorporated into our R2 same-day via `git merge origin/main`.
+Multi-fix release: **run-in Triangle + fixes #56, #57, #171 regression + telemetry-driven tool discovery seed.**
 
-### PR #54 — Day 33 R2 (MERGED)
+- **fix #56** (`c746d04`) — `agency update` now detects new top-level YAML keys in source `agency.yaml` and appends them to target with a comment marker. Dedupes duplicate keys. Verified end-to-end on `~/code/presence-detect` (43 → 124 lines, 9 missing sections added).
+- **fix #171 regression** (`2a62f8d`) — Gate 0 in `commit-precheck` hard-blocks any commit with `Test User <test@example.com>` attribution. Cleaned live `[user]` pollution from main's `.git/config` in same turn. Belt + suspenders alongside existing `test_helper.bash` unset guard.
+- **feat: run-in Triangle + fix #57** (`ac73ce9`) — new `claude/tools/run-in <dir> -- <cmd>` runs in subshell, parent CWD untouched. `/run-in` skill. `hookify.block-compound-bash` **wide block** on all compound patterns with educative WHY. 11 run-in BATS tests + 4 worktree-sync BATS tests (bug-exposing for #57). Seed: telemetry-driven tool discovery.
+- **34.2 version bump** (`bdab384`)
 
-13 commits on top of R1 + #55.
+### Issues closed today
+- #56 — agency update yaml section propagation (first full dogfood cycle via agency-issue)
+- #57 — worktree-sync misleading 'resolve manually' message
 
-- **iscp-check `--statusline` mode** + statusline.sh integration — silent periodic polling via Claude Code status line; `📬 Nd Mf` in footer when current agent has unread mail, silent when empty
-- **release-plan config-block pairing** — agency.yaml section changes fold into matching feature commits
-- **agency-issue BATS tests** (19) + arg-validation refactor (validate before gh auth check)
-- **release-plan BATS tests** (16)
-- **nit-add + nit-resolve** migrated to merge-based pull (were broken by new block-raw-rebase)
-- **Monofolk RFI reply** sent — full 1B1 answers on SPEC-PROVIDER + SPEC-ENVIRONMENT (5 questions, options considered, reasoning)
-- **Worktree naming answered** (#169 → devex) — prefix collapse rule unblocks #166
-- **iscp statusline heads-up** (#170)
-- **Captain's log for Day 33** — 7 entries: 2 milestones, 2 builds, 1 decision, 3 learnings, 1 friction
-- **PR lifecycle tool seed** — captured for future, on hold pending upstream work
+### Issues filed today
+- #58 — Docker CLI can't connect to daemon when Docker Desktop is running (dispatched to devex with standing autonomy directive)
 
-### Agency-update test (presence-detect)
+## The Meta-Insight of the Week
 
-Real-world dogfood test on `~/code/presence-detect` (5-day-old installation at 2.0.0 / `4d6f6683` → 2.0.0 / `6cac2fa9`).
+**"The Bash tool log is a list of the tools we haven't built yet."**
 
-**Backups created first:**
-- Filesystem copy at `~/code/presence-detect.backup-20260408-202749` (116 MB)
-- Git tag `agency-update-backup-20260408`
-- (Remote push not possible — no remote configured)
+Named the framework pattern that birthed run-in: **Friction → Telemetry → Tool → Block → Flow.** Every compound bash command is a request for a missing primitive. The telemetry already captures the request; we just need to mine it.
 
-**Dry-run summary:** +1085 new, ~66 modified, -1 deleted. Single deletion was benign (renamed hookify rule).
+Seed at `claude/workstreams/agency/seeds/seed-telemetry-driven-tool-discovery-20260409.md`. Queued for CLAUDE.md + README-THEAGENCY + articles + book revision (flag #55). This is the thesis statement for "why TheAgency builds tools the way it builds tools."
 
-**Real update succeeded:**
-- All framework files propagated
-- `agency verify` 10/12 passes (2 deferred Figma providers)
-- All R1 + R2 + #55 content spot-checked and present downstream
-- Pre-existing uncommitted work preserved
+## monofolk Graduated
 
-**One bug found: [#56](https://github.com/the-agency-ai/the-agency/issues/56)** — `agency update` does not propagate new top-level YAML sections from `agency.yaml`. Only framework metadata is bumped. **Filed via `agency-issue` tool** (first real bug found-and-filed via the new tooling loop). **Captain will fix tomorrow morning and close via `agency-issue close`.**
+**The first external validation that the framework is mature enough to run production work without the sandbox.**
+
+- monofolk removed 32 sandbox symlinks and 47 personal hookify files
+- 15 agents, 13 worktrees, running overnight research fleet of 10 agents in parallel
+- Full Agency install as of today
+- 5-week sprint to May 15 NextGeneration go-live
+- Asked for diagnostic tooling — **we committed to a 4-wave delivery plan**:
+  - **Wave 1** (this week, Day 38-40): audit tool (#51) + worktree health diagnostics
+  - **Wave 2** (next week): stale artifact detection + hookify rule coverage report
+  - **Wave 3** (weeks 3-4): compound command telemetry mining (the meta-tool)
+  - **Wave 4** (week 5, before go-live): whatever Wave 3's telemetry mining surfaces
 
 ## Dispatches Sent Today
 
 | ID | Type | To | Subject |
 |----|------|-----|---------|
-| #149 | directive | devex | Day 33 work queue (4 items) |
-| #152 | review-response | devex | Item 3: accept main as-is |
-| #153 | review-response | devex | Item 1: SPEC-PROVIDER wrappers plan approved |
-| #157 | escalation | devex | ~~P0 git-commit bug~~ (downgraded in #162) |
-| #162 | dispatch | devex | P0 → P1 downgrade (sparse worktree confusion) |
-| #165 | directive | iscp | Peer-to-peer cross-repo dispatches + auto-CC |
-| #166 | directive | devex | Worktree naming convention |
-| #167 | directive | devex | Hookify noun-verb rename |
-| #168 | directive | devex | agent-create scaffolding with dispatch loops |
-| #169 | review-response | devex | Worktree naming = B (prefix collapse) |
-| #170 | dispatch | iscp | iscp-check --statusline heads-up |
+| #172 | review-response | devex | RE: #171 acknowledged, triaging |
+| #173 | review-response | devex | RE: #171 per-item unblock direction + back-to-work trigger |
+| #174 | directive | devex | DIRECTIVE: fix #58 docker socket + standing autonomy on full queue |
+| (collab) | dispatch | monofolk | RE: We're All-In — congratulations + graduation path queued |
+| (collab) | dispatch | monofolk | RE: agency update live — diagnostic tooling inventory + 4-wave roadmap |
 
-## Cross-Repo (Monofolk)
+#171 resolved. Devex has full standing autonomy authorization and does not need per-item approval.
 
-**Sent today:**
-- Reply to merge-not-rebase contribution — acknowledging, adopted, shipped into R2
-- Reply to SPEC-PROVIDER + SPEC-ENVIRONMENT RFI — full 1B1 answers with reasoning
-- R2 shipped dispatch — what's in it for monofolk, adoption notes, agency-update test results, #56 heads-up
+## Cross-Repo (monofolk)
 
-**No pending inbound.** Collaboration repo is clean on our side.
+- Inbound: 2 dispatches received and replied to (graduation + diagnostic tooling request)
+- Outbound: 2 replies pushed to `collaboration-monofolk` repo
+- No pending inbound
 
 ## Active Agents (background)
 
 | Agent | State | Notes |
 |-------|-------|-------|
-| devex | Queue: 4 items from #149, plus #166 (unblocked), #167 hookify rename, #168 agent-create scaffolding | Needs to merge master for R1 + R2 |
-| iscp | Phase 2 (per-agent inboxes plan approved). Received #170 + peer-to-peer directive (#165) | Needs to merge master for R1 + R2 |
-| mdpal-app | Phase 1A SwiftUI work | Needs to merge master |
-| mdpal-cli | Own iteration | Needs to merge master |
+| devex | Standing autonomy. Queue: #58 docker fix + #149 items + #166/#167/#168 + #171 unblock sequence. Do not need approval on any item. | Needs to pick up main (R1+R2) on next session-resume. Manual merge likely required due to worktree-sync master/main bug (flag #65). |
+| iscp | Phase 2 work | Needs to pick up main. Manual merge required. |
+| mdpal-app / mdpal-cli | Own iterations | Not currently in active state. |
+
+## Captain Flags Captured Today (13 new, #53-#65)
+
+| # | Theme |
+|---|-------|
+| 53 | Docker socket self-heal (when Docker Desktop running but CLI can't connect) |
+| 54 | Compound command telemetry analysis workstream (the meta-tool that mines the log) |
+| 55 | CLAUDE.md + README revision for telemetry-driven tool discovery |
+| 56 | commit-precheck missing `end_run` event on failure (telemetry gap) |
+| 57 | Telemetry identity resolution broken (shows `testuser/unknown` instead of `jordan/captain`) |
+| 58 | `/why-did-this-fail` skill — query telemetry for failed run diagnostic |
+| 59 | Surface run IDs + exit codes on tool failure output |
+| 60 | Handoff tool investigation (why did commit 4bc05a1 not update blob?) |
+| 61 | RULE: We do NOT review on GitHub. PRs are shipping mechanism only. |
+| 62 | coord-commit allowed-tools frontmatter silently blocks agents (removed in fix) |
+| 63 | **Permission visibility gap** — agents can't see principal's permission prompts. File to Anthropic. |
+| 64 | Diagnostic tooling workstream (committed to monofolk) |
+| 65 | **worktree-sync hardcodes `master`** — breaks in main-branch repos. Blocks `/sync-all`. |
 
 ## Open Items
 
-### Tomorrow morning (immediate)
+### Tomorrow morning (Day 35 — highest priority)
 
-1. **Fix issue #56** — `agency update` YAML section migration. Investigate `claude/tools/lib/_agency-init`, implement three-way merge (preserve user values in existing sections, add new top-level sections from source with a comment). Test via re-running agency update on presence-detect. Close issue via `agency-issue close 56 --comment "Fixed in PR #NN"`.
-2. **Triage the 4 unfiled Anthropic Claude Code issues** from `usr/jordan/captain/anthropic-issues-to-file-20260406.md`. Verify #2 (brace expansion) is still relevant with current `Bash(*)` permissions. Close #4 (silent /feedback) in tracking doc. File #1 and #3 via `/feedback`.
+1. **Fix worktree-sync master/main bug (flag #65)** — pre-existing, blocking fleet sync. Detect `MAIN_BRANCH` from main checkout, replace all `master` references. File as agency-issue with bug-exposing test.
+2. **Fix coord-commit permission trap (flag #62)** — remove `allowed-tools` frontmatter, inherit `Bash(*)`. Audit all other skill frontmatter for the same pattern.
+3. **File permission visibility gap to Anthropic (flag #63)** — Claude Code feedback. Draft inline, principal approves.
+4. **Wave 1 diagnostic tools (committed to monofolk)** — audit tool (#51) + worktree health diagnostics. End-of-week target (Day 38-40).
 
-### Parked / deferred
+### KIV (when at laptop)
 
-- **Local presence-detect state** — left as-is with the agency-update diff uncommitted. Backups intact. Principal can commit when ready, after the #56 fix re-runs for the clean delta.
-- **PR lifecycle tool** — seed captured, on hold pending upstream work
-- **Fleet awareness `/define`** — seed ready, PVR not yet started
-- **Captain's log for #56 filing + #56 fix** — log tomorrow
-- **Pull-rebase hookify gap** — investigate whether `block-raw-rebase` pattern misses `git pull --rebase`
-- **`git-commit --staged` default when staging area non-empty** — small usability fix
+- PAT rotation — `.git/config` contains a GitHub token in the origin URL
+- `/compact-prep` B-prime build (session-end mode=compact flag)
+- CI/CD review (flag #52)
 
-### Dispatched to devex (their work)
+### Dispatched to devex (standing autonomy — they execute without approval)
 
-- #149 Item 2: Valueflow Phase 3
-- #149 Item 4: hookify rules from Day 32 friction
-- #166: worktree naming rule implementation
-- #167: hookify noun-verb rename
-- #168: agent-create scaffolding with dispatch loops
+- #58 docker socket fix
+- #149 full queue (Items 2, 4 + Valueflow Phase 3 + hookify rules)
+- #166 worktree naming
+- #167 hookify noun-verb rename
+- #168 agent-create scaffolding
+- #171 unblock sequence (merge conflict, handoff restore, stash cleanup)
+- Task #8 phase-complete SPEC-PROVIDER preview/deploy
 
-### Dispatched to iscp (their work)
+## Key Decisions Today
 
-- #165: peer-to-peer cross-repo dispatches + auto-CC to captains (protocol work)
-
-## Active Flags
-
-| ID | Flag | Status |
-|----|------|--------|
-| 34 | SECURITY: Bash(*) too broad pre-GTM | TODO (kept active per principal) |
-
-## Key Decisions This Session
-
-1. **Bootstrap pattern confirmed twice** — captain can build a tool and use it in the same session to assemble the release containing the tool. Done with `agency-issue` (R1) and `release-plan` (R1 + R2)
-2. **Merge-not-rebase discipline adopted same-day** — monofolk's PR #55 shipped the framework-wide rule, we applied it to R2 within minutes via `git merge origin/main`
-3. **Worktree naming = prefix collapse** — unblocks devex #166
-4. **Dispatch loop convention is universal** — every agent, every session
-5. **Mailbox statusline = silent when empty** — icon only appears when current agent has unread mail (corrected from an earlier wrong interpretation)
-6. **SPEC-PROVIDER orthogonality confirmed** — environment and provider fully independent (RFI answer to monofolk)
-7. **First dogfood bug-found-and-filed loop completed** — issue #56 filed via agency-issue, will be closed via agency-issue after tomorrow's fix
-8. **Destructive operations require explicit authorization** — principal reminded captain to pause and confirm before push/merge/reset even when strategy is chosen. Going forward: strategy selection is NOT execution authorization.
+1. **Release format locked**: `{day}.{release}`, no `v` prefix, rapid-release discipline, one PR per release
+2. **Stacked PR hazard learned**: merging child PR before parent lands the child into parent's branch, not main. **Merge base-first, wait for auto-retarget, then merge child.**
+3. **Run-in Triangle shipped**: compound bash commands are hard-blocked framework-wide; `run-in` is the canonical replacement for the `cd X && cmd` pattern
+4. **Telemetry-driven tool discovery named and seeded** — will become framework-level methodology in README + CLAUDE.md + articles
+5. **Standing autonomy for devex**: explicit "don't wait for approval, just do it" directive; applies to all queued items
+6. **No reviews on GitHub** (flag #61): PRs are shipping mechanism only; review happens locally via `/captain-review`/`/code-review`/`/pr-prep`
+7. **monofolk diagnostic tooling 4-wave commitment** — concrete timeline for the fleet health roadmap
+8. **Permission visibility gap is structural**: the agent cannot see what the principal sees when approval prompts fire. Pre-approve trusted tools + file to Anthropic.
 
 ## Discipline Reminders
 
-- **Never rebase** — framework-wide block active (block-raw-rebase)
-- **Never reset --hard origin/*** — framework-wide block active (block-reset-to-origin)
-- **Explicit authorization for destructive ops** — strategy choice is not execution go-ahead; always pause and confirm before push/merge/close/delete
-- Use `/handoff` skill, never raw handoff tool
-- Use `/git-commit` (with `--staged` flag when pre-staging), never bare `git commit`
-- Run dispatch loop on session start (5m + 30m)
-- Cross-repo dispatches via collaboration repo, not direct
-- Per-agent attribution in all commits via the new email format
+- **NEVER review on GitHub.** PRs are shipping mechanism only.
+- **NEVER rebase** — framework-wide block active
+- **NEVER `reset --hard origin/*`** — framework-wide block active
+- **NEVER compound bash commands** — `&&`/`||`/`;`/`|`/`$(…)`/backticks all blocked by `hookify.block-compound-bash`. Use `run-in` for the `cd X && cmd` pattern; split into separate Bash calls otherwise.
+- **Explicit authorization for destructive ops** — strategy choice is not execution go-ahead; pause and confirm before push/merge/close/delete
+- Use `/handoff` skill / `/git-commit` / etc — never raw tools
+- Dispatch loop (5m silent) running this session — will not survive compact; re-set on next session
+- Cross-repo dispatches via `collaboration` tool, not direct
 
 ## Next Action (start of next session)
 
 1. **Run dispatch loop + nag loop** on startup (5m silent + 30m visible)
-2. **Check collaboration** (`./claude/tools/collaboration check`) — monofolk may have acknowledged R2
-3. **Check for dispatches from devex/iscp/mdpal** — they may have picked up the merge
-4. **Tomorrow morning work:**
-   - Fix #56 (agency.yaml three-way merge)
-   - Triage + file Anthropic Claude Code backlog
-   - Day 34 R1 if more work surfaces
-5. **Captain's log** — append today's loop closing (#56 filed, fixed tomorrow) and anything new
+2. **Check collaboration** (`./claude/tools/collaboration check`) — monofolk may have picked up Day 34 and started sending feedback
+3. **Check devex / iscp / mdpal** for any inbound dispatches (probably pick-up acks for R1+R2 + #174)
+4. **Flag #65: worktree-sync master/main fix** — Wave 0, blocks fleet sync
+5. **Flag #62: coord-commit permission trap fix** — unblocks any future coord-commit invocations
+6. **Wave 1 diagnostic tooling kickoff** — audit tool (#51) + worktree health diagnostics, committed to monofolk for end-of-week
+7. **Captain's log** — append Day 35 kickoff
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
