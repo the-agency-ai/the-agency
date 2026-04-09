@@ -32,11 +32,18 @@ required:
 
   bash:
     brew: bash
-    min_version: "4.0"
+    min_version: "3.2"
     used_by:
       - "all tools in claude/tools/"
-    why: "framework tools are bash scripts; 4.0+ for associative arrays and modern features"
-    note: "macOS ships bash 3.2 — brew bash gives 5.x"
+    why: "framework tools are written to be bash 3.2 compatible (macOS default). brew bash gives 5.x."
+    note: "tools avoid 4.0+ features (associative arrays, mapfile) for macOS compatibility"
+
+  awk:
+    brew: gawk
+    used_by:
+      - "SPEC-PROVIDER wrappers (secret, preview, deploy)"
+      - "commit-prefix validator, agency.yaml parsing"
+    why: "YAML parsing without Python dependency — used across framework for lightweight config reads"
 
   jq:
     brew: jq
@@ -68,6 +75,7 @@ required:
       - "claude/hooks/stop-check.py, .claude/hooks/plan-capture.py"
       - "usr/jordan/captain/tools/strip-skill-allowed-tools"
     why: "hook scripts and ad-hoc captain tools use Python"
+    note: "ZERO-PIP CONSTRAINT: framework tools must NOT depend on pip packages (pyyaml, jsonschema, etc.). Use pure bash/awk for config parsing. Python stdlib only. More portable, no pip in test isolation."
 
   curl:
     brew: curl
@@ -93,7 +101,8 @@ required:
     used_by:
       - "terminal emulator — status line integration via statusline.sh"
       - "hooks: ghostty-status.sh, ghostty-claude-hook"
-    why: "the Agency terminal. Status line, session naming, color themes. Not optional."
+    why: "the Agency terminal. Status line, session naming, color themes."
+    note: "required for the-agency and monofolk. Adopters using other terminals get a degraded experience (no status line hooks) but framework tools still function."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Testing — needed for running the BATS test suite
@@ -108,11 +117,19 @@ testing:
 
   docker:
     brew: null
-    install: "curl -fsSL https://get.docker.com | sudo sh"
+    install_linux: "curl -fsSL https://get.docker.com | sudo sh"
+    install_macos: "brew install --cask docker  # or: brew install colima"
     used_by:
       - "tests/docker-test.sh — hermetic container-isolated test runs"
     why: "optional but recommended for full isolation during T3 (full-suite) test runs"
-    note: "not available via brew on Linux; use Docker's official install script"
+    note: "Linux: Docker Engine CE via official script. macOS: Docker Desktop or Colima."
+
+  md5:
+    brew: null
+    used_by:
+      - "claude/tools/lib/_test-isolation — .git/config hash verification"
+    why: "test isolation teardown hashes .git/config before/after to detect pollution"
+    note: "macOS has md5 -q; Linux has md5sum. Both pre-installed. Listed for completeness."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Optional — quality of life, not strictly required
