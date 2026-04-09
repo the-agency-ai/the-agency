@@ -134,6 +134,10 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/idle-mail-check.sh"
           }
         ]
       }
