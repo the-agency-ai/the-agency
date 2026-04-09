@@ -1,5 +1,5 @@
 ---
-name: block-no-verify
+name: no-verify-block
 enabled: true
 event: bash
 pattern: --no-verify

@@ -1,5 +1,5 @@
 ---
-name: block-force-push-main
+name: force-push-main-block
 enabled: true
 event: bash
 pattern: git\s+push\s+(?=.*(\s-f\b|--force(?!-with-lease)))(?=.*(main|master))

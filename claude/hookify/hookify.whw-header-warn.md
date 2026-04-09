@@ -1,5 +1,5 @@
 ---
-name: warn-whw-header
+name: whw-header-warn
 enabled: true
 event: write
 pattern: (\.sh|\.py|\.ts|\.js|\.rs|\.go|\.rb|\.java|\.c|\.cpp|\.h|claude/tools/|usr/.*/tools/)

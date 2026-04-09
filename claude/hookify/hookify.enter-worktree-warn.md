@@ -1,5 +1,5 @@
 ---
-name: warn-enter-worktree
+name: enter-worktree-warn
 enabled: true
 event: tool
 pattern: EnterWorktree

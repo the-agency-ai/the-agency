@@ -1,5 +1,5 @@
 ---
-name: warn-raw-find
+name: raw-find-warn
 enabled: true
 event: bash
 pattern: ^\s*find\s+

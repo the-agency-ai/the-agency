@@ -1,5 +1,5 @@
 ---
-name: warn-npx
+name: npx-warn
 enabled: true
 event: bash
 pattern: (?<!\bp)npx\s

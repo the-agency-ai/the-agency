@@ -1,5 +1,5 @@
 ---
-name: block-cd-outside-worktree
+name: cd-outside-worktree-block
 enabled: true
 event: bash
 pattern: (^|;|&&|\|\|)\s*cd(\s+(/|~|\.\.|-|\$HOME|\$\{HOME\})|\s*$|\s*&&|\s*\|\||\s*;)

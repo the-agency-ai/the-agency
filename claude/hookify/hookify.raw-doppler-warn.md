@@ -1,5 +1,5 @@
 ---
-name: warn-raw-doppler
+name: raw-doppler-warn
 enabled: true
 event: bash
 pattern: doppler\s+(secrets|run)

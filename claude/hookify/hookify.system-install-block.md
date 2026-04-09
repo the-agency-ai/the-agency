@@ -1,5 +1,5 @@
 ---
-name: block-system-install
+name: system-install-block
 enabled: true
 event: bash
 pattern: 'brew\s+(install|upgrade)|sudo\s|apt-get\s+install|apt\s+install|yum\s+install|dnf\s+install|pacman\s+-S|port\s+install'

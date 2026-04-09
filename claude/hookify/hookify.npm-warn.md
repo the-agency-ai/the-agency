@@ -1,5 +1,5 @@
 ---
-name: warn-npm
+name: npm-warn
 enabled: true
 event: bash
 pattern: (?<!p)npm\s+(install|run|test|start|build|ci|exec)

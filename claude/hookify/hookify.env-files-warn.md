@@ -1,5 +1,5 @@
 ---
-name: warn-env-files
+name: env-files-warn
 enabled: true
 event: file
 conditions:

@@ -1,5 +1,5 @@
 ---
-name: warn-on-push
+name: on-push-warn
 enabled: true
 event: bash
 pattern: 'git push (?!\.)'

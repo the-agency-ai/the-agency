@@ -1,5 +1,5 @@
 ---
-name: warn-secrets
+name: secrets-warn
 enabled: true
 event: file
 conditions:

@@ -1,5 +1,5 @@
 ---
-name: require-qgr
+name: qgr-require
 enabled: true
 event: bash
 pattern: 'git commit'

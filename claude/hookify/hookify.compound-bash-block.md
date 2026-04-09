@@ -1,5 +1,5 @@
 ---
-name: block-compound-bash
+name: compound-bash-block
 enabled: true
 event: bash
 pattern: (\s|^)(&&|\|\||;|\|)(\s|$)|\$\(|`[^`]*`|cd\s+[^;]+&&

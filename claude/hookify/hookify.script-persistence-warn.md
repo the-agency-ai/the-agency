@@ -1,5 +1,5 @@
 ---
-name: warn-script-persistence
+name: script-persistence-warn
 enabled: true
 event: Write
 pattern: \.(sh|py)$

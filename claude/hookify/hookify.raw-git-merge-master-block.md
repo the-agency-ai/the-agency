@@ -1,5 +1,5 @@
 ---
-name: block-raw-git-merge-master
+name: raw-git-merge-master-block
 enabled: true
 event: bash
 pattern: git merge (--\S+\s+)*(origin/)?master

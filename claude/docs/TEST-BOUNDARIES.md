@@ -128,11 +128,11 @@ Every BATS test inherits the default `setup()` from `test_helper.bash`, which ca
 
 | Rule | What it catches |
 |------|----------------|
-| `block-git-commit` | Raw `git commit` (use `/git-commit` skill which goes through `git-commit` tool which triggers the pre-commit hook) |
-| `block-git-add-and-commit` | Compound `git add ... && git commit` (dodges /git-commit) |
-| `block-cd-outside-worktree` | Worktree escape via `cd /any/path`, `cd ..`, etc. — protects identity resolution that drives the test paths |
-| `block-raw-git-config-user-in-tests` | Raw `git config user.*` outside `test_isolation_setup` (the historical pollution vector that broke T1) |
-| `block-no-verify` | `git commit --no-verify` (skips T1 entirely) |
+| `git-commit-block` | Raw `git commit` (use `/git-commit` skill which goes through `git-commit` tool which triggers the pre-commit hook) |
+| `git-add-and-commit-block` | Compound `git add ... && git commit` (dodges /git-commit) |
+| `cd-outside-worktree-block` | Worktree escape via `cd /any/path`, `cd ..`, etc. — protects identity resolution that drives the test paths |
+| `raw-git-config-user-in-tests-block` | Raw `git config user.*` outside `test_isolation_setup` (the historical pollution vector that broke T1) |
+| `no-verify-block` | `git commit --no-verify` (skips T1 entirely) |
 
 ## Related
 

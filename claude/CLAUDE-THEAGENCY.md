@@ -387,7 +387,7 @@ Worktree agents implement features on isolated branches. They build, test, and l
 - The `iscp-check` hook automatically notifies you of unread dispatches on SessionStart — you don't need to merge master to know about them. However, you still need to merge master to access dispatch payload files (the DB notification tells you the file exists; the payload lives on master).
 - Never push to origin directly — the captain manages PR branches and pushes.
 
-**Critical: never `cd` to the main checkout from a worktree.** Agent identity resolution uses the current working directory's git branch. When a worktree agent `cd`s to the main repo, `agent-identity` resolves the branch as `main` → identity becomes `captain` → handoffs and dispatches go to the wrong agent. The `block-cd-to-main` hookify rule blocks this pattern (and absolute paths to tools in the main repo). **Always use relative paths from your worktree:** `./claude/tools/dispatch list`, never `cd /path/to/main && ./claude/tools/dispatch list` or `/Users/.../the-agency/claude/tools/dispatch list`.
+**Critical: never `cd` to the main checkout from a worktree.** Agent identity resolution uses the current working directory's git branch. When a worktree agent `cd`s to the main repo, `agent-identity` resolves the branch as `main` → identity becomes `captain` → handoffs and dispatches go to the wrong agent. The `cd-to-main-block` hookify rule blocks this pattern (and absolute paths to tools in the main repo). **Always use relative paths from your worktree:** `./claude/tools/dispatch list`, never `cd /path/to/main && ./claude/tools/dispatch list` or `/Users/.../the-agency/claude/tools/dispatch list`.
 
 ### When to Create a Worktree
 

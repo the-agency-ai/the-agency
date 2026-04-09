@@ -1,5 +1,5 @@
 ---
-name: warn-compound-bash
+name: compound-bash-warn
 enabled: true
 event: bash
 pattern: (&&|\|\||;\s|(?<!\|)\|(?!\|))

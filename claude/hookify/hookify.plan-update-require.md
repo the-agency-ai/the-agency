@@ -1,5 +1,5 @@
 ---
-name: require-plan-update
+name: plan-update-require
 enabled: true
 event: bash
 pattern: 'git commit'

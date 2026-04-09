@@ -1,5 +1,5 @@
 ---
-name: block-git-add-and-commit
+name: git-add-and-commit-block
 enabled: true
 event: bash
 pattern: git\s+add\b.*&&.*git\s+commit

@@ -1,5 +1,5 @@
 ---
-name: warn-multi-item-response
+name: multi-item-response-warn
 enabled: true
 event: stop
 pattern: 'Item \d+.*Item \d+'

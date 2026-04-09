@@ -1,5 +1,5 @@
 ---
-name: block-testuser-paths
+name: testuser-paths-block
 enabled: true
 event: bash
 pattern: usr/testuser

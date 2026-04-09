@@ -1,5 +1,5 @@
 ---
-name: warn-destructive-git
+name: destructive-git-warn
 enabled: true
 event: bash
 pattern: git\s+(reset\s+--hard|checkout\s+\.|restore\s+\.|clean\s+-f|branch\s+-D)

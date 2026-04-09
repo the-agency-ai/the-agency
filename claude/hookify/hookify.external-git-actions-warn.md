@@ -1,5 +1,5 @@
 ---
-name: warn-external-git-actions
+name: external-git-actions-warn
 enabled: true
 event: bash
 pattern: gh\s+(pr\s+create|pr\s+comment|pr\s+close|pr\s+merge|issue\s+create|release\s+create)|git\s+push

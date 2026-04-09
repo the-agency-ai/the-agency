@@ -1,5 +1,5 @@
 ---
-name: block-git-commit
+name: git-commit-block
 enabled: true
 event: bash
 pattern: git commit

@@ -1,5 +1,5 @@
 ---
-name: block-reset-to-origin
+name: reset-to-origin-block
 enabled: true
 event: bash
 pattern: git\s+reset\s+--hard\s+origin

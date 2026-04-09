@@ -1,5 +1,5 @@
 ---
-name: warn-raw-cat
+name: raw-cat-warn
 enabled: true
 event: bash
 pattern: \bcat\s+

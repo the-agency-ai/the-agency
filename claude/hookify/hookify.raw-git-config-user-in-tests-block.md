@@ -1,5 +1,5 @@
 ---
-name: block-raw-git-config-user-in-tests
+name: raw-git-config-user-in-tests-block
 enabled: true
 event: bash
 pattern: git\s+config\s+(--global\s+|--local\s+)?user\.(name|email)

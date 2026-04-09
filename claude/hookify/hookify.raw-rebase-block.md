@@ -1,5 +1,5 @@
 ---
-name: block-raw-rebase
+name: raw-rebase-block
 enabled: true
 event: bash
 pattern: git\s+rebase\b

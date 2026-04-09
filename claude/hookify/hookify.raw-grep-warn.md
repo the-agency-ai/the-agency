@@ -1,5 +1,5 @@
 ---
-name: warn-raw-grep
+name: raw-grep-warn
 enabled: true
 event: bash
 pattern: \bgrep\s+|\brg\s+
