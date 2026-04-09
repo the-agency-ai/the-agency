@@ -146,32 +146,44 @@ else
     # --- Merge master ---
     MERGED=true
     MERGE_OUTPUT=$(git merge master 2>&1) || {
-        # Merge conflict — abort and restore
+        # Merge conflict — abort and restore. After this block runs the repo
+        # is back at PRE_MERGE_HEAD with MERGE_HEAD cleared. The message has
+        # to make that clear so the caller doesn't try to 'git merge --abort'
+        # themselves (issue #57 — 'Resolve manually' was misleading because
+        # the merge WAS already aborted automatically).
         ABORT_OK=true
         git merge --abort 2>/dev/null || ABORT_OK=false
         CONFLICT_FILES=$(echo "$MERGE_OUTPUT" | grep "CONFLICT" || echo "(unknown)")
 
-        echo "worktree-sync: merge conflict with master" >&2
-        echo "$CONFLICT_FILES" >&2
+        echo "worktree-sync: merge with master had conflicts — merge was automatically aborted." >&2
+        echo "  Repo state: restored to pre-merge HEAD ($PRE_MERGE_HEAD)." >&2
+        echo "  Conflict files:" >&2
+        echo "$CONFLICT_FILES" | sed 's/^/    /' >&2
 
         if [[ "$ABORT_OK" == false ]]; then
-            echo "worktree-sync: WARNING — git merge --abort failed" >&2
+            echo "  WARNING: git merge --abort failed — repo may not be fully restored." >&2
         fi
 
         # Unstash if we stashed (disable trap since we're handling it)
+        STASH_MSG="no stash taken"
         if [[ "$STASHED" == true ]]; then
             STASHED=false
-            if ! git stash pop --quiet 2>/dev/null; then
-                echo "worktree-sync: WARNING — stash pop failed after merge abort. Work is safe in git stash." >&2
+            if git stash pop --quiet 2>/dev/null; then
+                STASH_MSG="stashed work restored via git stash pop"
+            else
+                STASH_MSG="stash pop failed — your stashed work is still in git stash (run 'git stash list')"
             fi
         fi
+        echo "  Stash: $STASH_MSG." >&2
+
+        echo "  Next steps: review the conflict files listed above, decide whether to keep/delete/reconcile them, then retry worktree-sync. Do NOT run 'git merge --abort' — the merge has already been aborted." >&2
 
         if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
-            log_end "$RUN_ID" "failure" 1 0 "merge conflict"
+            log_end "$RUN_ID" "failure" 1 0 "merge conflict (aborted automatically)"
         fi
 
         if [[ "$AUTO_MODE" == true ]]; then
-            jq -n -c --arg msg "worktree-sync: merge conflict with master. Resolve manually." '{"systemMessage": $msg}'
+            jq -n -c --arg msg "worktree-sync: merge conflict with master — merge was automatically aborted, repo restored. Review conflict files before retrying." '{"systemMessage": $msg}'
         fi
         exit 1
     }
