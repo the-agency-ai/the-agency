@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+#
+# pr-build — Build PR branches using no-squash merge (preserves full commit history)
+#
+# What Problem: The old pr-rebuild squashed all commits into a single commit,
+# destroying the iteration history that agents and git-bisect need. This tool
+# creates PR branches from origin/master and merges source branches with --no-ff,
+# preserving every individual commit.
+#
+# How & Why: Use `git merge --no-ff` instead of `git merge --squash`. The merge
+# commit is the only new commit on the PR branch — all source commits ride through
+# as full history. GitHub renders individual commits in the PR's Commits tab.
+# Scope filtering is implicit: the worktree branch IS the scope. No pr-scopes.json
+# needed for workstream PRs.
+#
+# Written: 2026-04-09 during captain session — Day 6, no-squash PR workflow
+#
+# Usage:
+#   pr-build <branch-name> <source-branch>     Build a single PR branch
+#   pr-build --captain <branch-name>           Build captain PR (source: master)
+#   pr-build --help                            Show this help
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+source "$SCRIPT_DIR/lib/_log-helper" 2>/dev/null || true
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+_help() {
+    cat <<'EOF'
+pr-build — Build PR branches with full commit history (no squash)
+
+Usage:
+  pr-build <branch-name> <source-branch>     Build a single PR branch
+  pr-build --captain <branch-name>           Build captain PR (source: master)
+  pr-build --help                            Show this help
+
+Examples:
+  pr-build jordan-folio-D6-R3 folio          Merge folio branch into PR branch
+  pr-build --captain jordan-captain-D6-R1    Merge master into captain PR branch
+
+The PR branch is created from origin/master and the source branch is merged
+with --no-ff, preserving all individual commits.
+
+Day-Release naming: jordan-{agent}-D{day}-R{release}
+  Day = Nth day the principal has made PRs (not calendar day)
+  Release = Nth PR by this principal on this day (across all agents)
+EOF
+}
+
+_preconditions() {
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD)
+    if [[ "$current_branch" != "master" ]]; then
+        echo -e "${RED}ERROR:${NC} Must be on master (currently on: $current_branch)" >&2
+        exit 1
+    fi
+
+    if [[ -n "$(git status --porcelain)" ]]; then
+        echo -e "${RED}ERROR:${NC} Working tree is not clean. Commit or stash changes first." >&2
+        exit 1
+    fi
+
+    # Ensure origin/master is available
+    if ! git rev-parse origin/master >/dev/null 2>&1; then
+        echo -e "${RED}ERROR:${NC} origin/master not found. Run: git fetch origin" >&2
+        exit 1
+    fi
+}
+
+build_pr_branch() {
+    local pr_branch="$1"
+    local source_branch="$2"
+    local is_captain="${3:-false}"
+
+    local RUN_ID
+    RUN_ID=$(log_start "pr-build" "$pr_branch" "$source_branch" 2>/dev/null) || true
+
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  pr-build${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  PR Branch:  $pr_branch"
+    echo "  Source:     $source_branch"
+    echo "  Base:       origin/master"
+    if [[ "$is_captain" == "true" ]]; then
+        echo "  Mode:       captain (master catch-up)"
+    fi
+    echo ""
+
+    # Verify source branch exists
+    if ! git rev-parse "$source_branch" >/dev/null 2>&1; then
+        echo -e "${RED}ERROR:${NC} Source branch '$source_branch' not found." >&2
+        log_end "$RUN_ID" "error" "1" "0" "source branch not found: $source_branch" 2>/dev/null || true
+        exit 1
+    fi
+
+    # Check if source has commits ahead of origin/master
+    local ahead_count
+    ahead_count=$(git rev-list --count "origin/master..$source_branch")
+    if [[ "$ahead_count" -eq 0 ]]; then
+        echo -e "${YELLOW}SKIP:${NC} $source_branch has 0 commits ahead of origin/master. Nothing to PR."
+        log_end "$RUN_ID" "skip" "0" "0" "0 commits ahead" 2>/dev/null || true
+        return 1
+    fi
+
+    # Delete existing PR branch if it exists
+    if git rev-parse "$pr_branch" >/dev/null 2>&1; then
+        echo -e "${YELLOW}  Deleting existing branch: $pr_branch${NC}"
+        git branch -D "$pr_branch" >/dev/null 2>&1
+    fi
+
+    # Create PR branch from origin/master
+    echo -e "  Creating branch from origin/master..."
+    git checkout -b "$pr_branch" origin/master >/dev/null 2>&1
+
+    # Merge source with --no-ff (preserves all commits)
+    echo -e "  Merging $source_branch (--no-ff, preserving $ahead_count commits)..."
+    local merge_msg="Merge $source_branch into $pr_branch
+
+No-squash merge — preserves full commit history.
+$ahead_count commits from $source_branch."
+
+    # NOTE: --no-verify is intentional. PR branches are created from origin/master
+    # in the main worktree. The pre-commit hook (lint-staged) may fail on merged
+    # content from worktree branches that have different formatting state. The merge
+    # commit is a packaging artifact, not authored code — the worktree agent's own
+    # QG already validated the content. See QG finding #2, 2026-04-09.
+    if ! git merge --no-ff "$source_branch" -m "$merge_msg" --no-verify 2>/tmp/pr-build-merge-err.txt; then
+        echo -e "${RED}ERROR:${NC} Merge conflict!" >&2
+        echo "  Conflicts in:" >&2
+        git diff --name-only --diff-filter=U 2>/dev/null | head -20 >&2
+        echo "" >&2
+        echo "  Aborting merge and returning to master." >&2
+        git merge --abort 2>/dev/null || true
+        git checkout master >/dev/null 2>&1
+        log_end "$RUN_ID" "error" "1" "0" "merge conflict" 2>/dev/null || true
+        exit 1
+    fi
+
+    # Stats
+    local commit_count file_stats
+    commit_count=$(git rev-list --count "origin/master..$pr_branch")
+    file_stats=$(git diff --stat origin/master -- 2>/dev/null | tail -1)
+
+    # Return to master
+    git checkout master >/dev/null 2>&1
+
+    echo ""
+    echo -e "${GREEN}  Built: $pr_branch${NC}"
+    echo "  Commits: $commit_count (including merge commit)"
+    echo "  $file_stats"
+    echo ""
+
+    log_end "$RUN_ID" "success" "0" "0" "built $pr_branch: $commit_count commits" 2>/dev/null || true
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────────────────────
+
+case "${1:-}" in
+    --help|-h)
+        _help
+        exit 0
+        ;;
+    --captain)
+        shift
+        pr_branch="${1:-}"
+        if [[ -z "$pr_branch" ]]; then
+            echo "Usage: pr-build --captain <branch-name>" >&2
+            exit 1
+        fi
+        _preconditions
+        build_pr_branch "$pr_branch" "master" "true"
+        ;;
+    "")
+        echo "Usage: pr-build <branch-name> <source-branch>" >&2
+        echo "       pr-build --captain <branch-name>" >&2
+        echo "       pr-build --help" >&2
+        exit 1
+        ;;
+    *)
+        pr_branch="$1"
+        source_branch="${2:-}"
+        if [[ -z "$source_branch" ]]; then
+            echo "Usage: pr-build <branch-name> <source-branch>" >&2
+            exit 1
+        fi
+        _preconditions
+        build_pr_branch "$pr_branch" "$source_branch" "false"
+        ;;
+esac
