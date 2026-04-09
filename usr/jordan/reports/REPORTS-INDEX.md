@@ -20,6 +20,7 @@ Each row is one filing. Click through to the per-report markdown for full contex
 
 | 2026-04-08 | agency update does not propagate new top-level YAML sections from agency.yaml | bug | the-agency-ai/the-agency | #56 | [report-agency-issue-agency-update-does-not-propagate-new-top-level-yam-20260408](usr/jordan/reports/report-agency-issue-agency-update-does-not-propagate-new-top-level-yam-20260408.md) | open |
 | 2026-04-09 | worktree-sync: misleading 'resolve manually' message after successful conflict-abort | bug | the-agency-ai/the-agency | #57 | [report-agency-issue-worktree-sync-misleading-resolve-manually-message--20260409](usr/jordan/reports/report-agency-issue-worktree-sync-misleading-resolve-manually-message--20260409.md) | open |
+| 2026-04-09 | Docker CLI cannot connect to daemon even when Docker Desktop is running | bug | the-agency-ai/the-agency | #58 | [report-agency-issue-docker-cli-cannot-connect-to-daemon-even-when-dock-20260409](usr/jordan/reports/report-agency-issue-docker-cli-cannot-connect-to-daemon-even-when-dock-20260409.md) | open |
 <!-- AGENCY-ISSUE-INDEX-END -->
 
 ## How to add an entry
