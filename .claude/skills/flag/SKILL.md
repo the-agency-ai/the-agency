@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/flag *), Bash(bash claude/tools/flag *), Bash(./claude/tools/flag *)
 description: Quick-capture observations to a queue for later follow-up or 1B1 discussion
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Flag
 

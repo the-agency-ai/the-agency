@@ -1,7 +1,16 @@
 ---
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Read, Glob
 description: Commit coordination artifacts (handoffs, dispatches, seeds, config) without QG
 ---
+
+<!--
+  Permission note (flag #62, flag #63 / devex dispatch #171):
+  This skill intentionally does NOT set allowed-tools. Restricting to specific
+  git subcommand patterns silently blocks agents on permission prompts they
+  cannot see, and the principal cannot see which tool is being blocked either
+  (the permission visibility gap). Devex was stalled for hours on this trap.
+  Inherit from .claude/settings.json (Bash(*)) instead. See flag #63.
+-->
+
 
 # Coordination Commit
 

@@ -1,7 +1,13 @@
 ---
-allowed-tools: Read, Write, Bash(ls:*), Bash(chmod:*), Bash(git config:*), Bash(git rev-parse:*), Glob, Grep
 description: Create a new experimental command, hook, rule, tool, or script in your sandbox
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Sandbox Create
 

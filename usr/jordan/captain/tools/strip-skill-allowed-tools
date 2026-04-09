@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+#
+# What Problem: Every .claude/skills/*/SKILL.md file with an `allowed-tools`
+# frontmatter entry is a silent-stall trap. When an agent invokes that skill,
+# the allowed-tools scope OVERRIDES the global settings.json permissions
+# DOWNWARD, restricting what the skill can run. Any edge-case command the
+# skill needs that isn't in the pattern list triggers a permission prompt
+# that the agent cannot see and the principal cannot easily associate with
+# the stuck skill. Devex hit this inside coord-commit and silently stalled
+# for hours (dispatch #171 → flags #62, #63).
+#
+# How & Why: Scan all .claude/skills/*/SKILL.md files, find the allowed-tools
+# line inside the YAML frontmatter, remove it, and add a comment explaining
+# the removal so future readers understand the choice. Idempotent — can
+# re-run safely. Dry-run mode lists the files without modifying them. The
+# fix relies on .claude/settings.json already having Bash(*)/Read(**)/Edit(**)/
+# Write(**) globally, which the-agency does.
+#
+# Written: 2026-04-09 during captain Day 34 — skill allowed-tools audit
+
+import argparse
+import pathlib
+import re
+import sys
+
+SKILLS_DIR = pathlib.Path(".claude/skills")
+
+COMMENT_BLOCK = """
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
+"""
+
+
+def strip_allowed_tools(text: str) -> tuple[str, bool]:
+    """Return (new_text, modified). No-op if allowed-tools not present."""
+    lines = text.splitlines(keepends=True)
+    if not lines or not lines[0].startswith("---"):
+        return text, False
+
+    # Find closing of frontmatter
+    close_idx = None
+    for i in range(1, len(lines)):
+        if lines[i].startswith("---"):
+            close_idx = i
+            break
+    if close_idx is None:
+        return text, False
+
+    # Find the allowed-tools line(s) — could be single-line or continuation
+    new_frontmatter = []
+    removed = False
+    for line in lines[1:close_idx]:
+        if re.match(r"^allowed-tools\s*:", line):
+            removed = True
+            continue
+        new_frontmatter.append(line)
+
+    if not removed:
+        return text, False
+
+    rebuilt = "".join(
+        [lines[0]] + new_frontmatter + [lines[close_idx]] + [COMMENT_BLOCK] + lines[close_idx + 1 :]
+    )
+    return rebuilt, True
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Strip allowed-tools from skill frontmatters")
+    parser.add_argument("--dry-run", action="store_true", help="List files that would change, do not modify")
+    parser.add_argument("--root", default=".", help="Project root (default: cwd)")
+    parser.add_argument("--only", nargs="*", help="Only process specific skill names (e.g. 'handoff dispatch')")
+    args = parser.parse_args()
+
+    root = pathlib.Path(args.root)
+    skills_dir = root / SKILLS_DIR
+    if not skills_dir.is_dir():
+        print(f"error: skills dir not found at {skills_dir}", file=sys.stderr)
+        return 2
+
+    skill_files = sorted(skills_dir.glob("*/SKILL.md"))
+    changed = 0
+    skipped = 0
+    for f in skill_files:
+        skill_name = f.parent.name
+        if args.only and skill_name not in args.only:
+            skipped += 1
+            continue
+        text = f.read_text()
+        new_text, modified = strip_allowed_tools(text)
+        if modified:
+            if args.dry_run:
+                print(f"WOULD STRIP: {f}")
+            else:
+                f.write_text(new_text)
+                print(f"stripped: {f}")
+            changed += 1
+
+    print(f"\n{'would change' if args.dry_run else 'changed'}: {changed}; untouched: {len(skill_files) - changed - skipped}; skipped by filter: {skipped}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

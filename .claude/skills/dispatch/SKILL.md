@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch *), Bash(bash claude/tools/dispatch *), Bash(./claude/tools/dispatch *), Read, Write
 description: Manage dispatches — list, read, fetch, reply, create, resolve
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Dispatch Management
 

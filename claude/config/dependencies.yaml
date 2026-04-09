@@ -1,0 +1,170 @@
+# What Problem: The Agency framework has never formally listed its runtime
+# dependencies. Tools reference jq, sqlite3, gh, python3, etc. without a
+# single source of truth for what a host machine needs installed. This
+# causes silent failures on fresh installs, complicates the workshop VM
+# bootstrap, and blocks `agency verify` from doing a proper dependency check.
+#
+# How & Why: Machine-readable YAML listing every binary the framework
+# requires, organized by tier (required / testing / optional). Each entry
+# has: name, brew formula (for cross-platform install via Homebrew), minimum
+# version if applicable, what uses it, and why. `agency verify` reads this
+# file to check the host. The workshop bootstrap script reads it to install
+# everything. Adopter projects inherit it via `agency init`.
+#
+# Written: 2026-04-09 during captain Day 34 — workshop VM bootstrap planning
+# + fleet health audit surfaced the need for a formal dependency list.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Schema
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: "1.0"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Required — framework tools break without these
+# ─────────────────────────────────────────────────────────────────────────────
+required:
+  git:
+    brew: git
+    min_version: "2.30"
+    used_by:
+      - "every tool (version control is the backbone)"
+    why: "all commits, branches, worktrees, dispatches, collaboration"
+
+  bash:
+    brew: bash
+    min_version: "4.0"
+    used_by:
+      - "all tools in claude/tools/"
+    why: "framework tools are bash scripts; 4.0+ for associative arrays and modern features"
+    note: "macOS ships bash 3.2 — brew bash gives 5.x"
+
+  jq:
+    brew: jq
+    min_version: "1.6"
+    used_by:
+      - "agency-health, agency-version, iscp-check, statusline.sh, worktree-sync"
+      - "settings-merge, manifest operations, JSON output modes"
+    why: "JSON processing — used in 10+ tools for structured data parsing and emission"
+
+  sqlite3:
+    brew: sqlite
+    min_version: "3.35"
+    used_by:
+      - "dispatch, flag, iscp-check, iscp-migrate, dropbox (future)"
+      - "all inter-agent communication via ISCP"
+    why: "ISCP database engine — dispatches, flags, notifications, dropbox items"
+
+  node:
+    brew: node
+    min_version: "18.0"
+    used_by:
+      - "Claude Code CLI (npm package)"
+    why: "Claude Code is a Node.js tool; node 18+ for ES module support"
+
+  python3:
+    brew: python@3
+    min_version: "3.9"
+    used_by:
+      - "claude/hooks/stop-check.py, .claude/hooks/plan-capture.py"
+      - "usr/jordan/captain/tools/strip-skill-allowed-tools"
+    why: "hook scripts and ad-hoc captain tools use Python"
+
+  curl:
+    brew: curl
+    used_by:
+      - "Homebrew installer, web-fetch tool, agency-update"
+    why: "HTTP client for download and API calls"
+
+  rsync:
+    brew: rsync
+    used_by:
+      - "claude/tools/lib/_agency-update"
+    why: "framework file sync during agency update — rsync excludes are how we protect user config"
+
+  gh:
+    brew: gh
+    used_by:
+      - "agency-issue, PR workflow, collaboration tool, captain review"
+    why: "GitHub CLI — issues, PRs, API access. Required for the full PR packing workflow."
+
+  ghostty:
+    brew: null
+    install: "see https://ghostty.org/docs/install/binary"
+    used_by:
+      - "terminal emulator — status line integration via statusline.sh"
+      - "hooks: ghostty-status.sh, ghostty-claude-hook"
+    why: "the Agency terminal. Status line, session naming, color themes. Not optional."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Testing — needed for running the BATS test suite
+# ─────────────────────────────────────────────────────────────────────────────
+testing:
+  bats-core:
+    brew: bats-core
+    min_version: "1.10"
+    used_by:
+      - "all tests in tests/tools/*.bats"
+    why: "BATS is the framework's test runner — 142+ tests across 20+ test files"
+
+  docker:
+    brew: null
+    install: "curl -fsSL https://get.docker.com | sudo sh"
+    used_by:
+      - "tests/docker-test.sh — hermetic container-isolated test runs"
+    why: "optional but recommended for full isolation during T3 (full-suite) test runs"
+    note: "not available via brew on Linux; use Docker's official install script"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Optional — quality of life, not strictly required
+# ─────────────────────────────────────────────────────────────────────────────
+optional:
+  ripgrep:
+    brew: ripgrep
+    used_by:
+      - "developer convenience (fast grep across large repos)"
+    why: "Claude Code's Grep tool uses ripgrep under the hood"
+
+  fd:
+    brew: fd
+    used_by:
+      - "developer convenience (fast find replacement)"
+    why: "Claude Code's Glob tool uses fd-like patterns"
+
+  tree:
+    brew: tree
+    used_by:
+      - "directory listing in documentation and debugging"
+    why: "useful for repo structure visualization"
+
+  yq:
+    brew: yq
+    used_by:
+      - "YAML processing in some tools"
+    why: "jq for YAML — used in agency.yaml manipulation by some captain tools"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# System packages (apt-only on Linux, not available via brew)
+# ─────────────────────────────────────────────────────────────────────────────
+system_linux:
+  build-essential:
+    apt: build-essential
+    why: "C compiler toolchain — Homebrew needs it to build from source"
+
+  openssh-server:
+    apt: openssh-server
+    why: "SSH access for remote Claude Code sessions (workshop VM, server deployments)"
+
+  locales:
+    apt: locales
+    why: "Homebrew requires en_US.UTF-8 locale configured"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Install commands (convenience — generated from the lists above)
+# ─────────────────────────────────────────────────────────────────────────────
+install:
+  brew_required: "brew install git bash jq sqlite node python@3 curl rsync gh"
+  brew_testing: "brew install bats-core"
+  brew_optional: "brew install ripgrep fd tree yq"
+  apt_system: "sudo apt install -y build-essential openssh-server locales"
+  docker: "curl -fsSL https://get.docker.com | sudo sh"
