@@ -1,7 +1,9 @@
 ---
-allowed-tools: Bash(bash ./claude/tools/handoff *), Read, Write
 description: Write a session handoff using the handoff tool — archive, write, verify
 ---
+
+<!-- Flag #62/#63: allowed-tools removed. Inherit Bash(*) from settings.json. -->
+
 
 # Session Handoff
 
@@ -33,6 +35,16 @@ Write the handoff file at the path the tool reported. Include:
 4. **Key decisions** — anything a new session needs to know
 5. **Open items/blockers** — unresolved issues, pending discussions
 6. **Discussion queue** — carried-forward discussion items
+
+**Integrity rule:** before writing, check `git status`. If any implementation
+files (.ts, .py, .bats, .sh, claude/tools/*, hooks/*, etc.) are uncommitted,
+either commit them first OR clearly mark them as "in progress — uncommitted"
+in the Current State section. **Never write 'complete' for uncommitted work.**
+
+The handoff tool will automatically detect uncommitted impl files and emit a
+WARNING that you should include verbatim in the handoff Current State section.
+This is the audit trail — the next session reading the handoff sees exactly
+what was left dirty.
 
 ### Step 3: Verify
 

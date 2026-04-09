@@ -24,7 +24,7 @@ claude/                    — framework (tools, agents, docs, hooks, config)
     FEEDBACK-FORMAT.md     — bug report / feature request template
     CODE-REVIEW-LIFECYCLE.md — dispatch handling protocol
     DEVELOPMENT-METHODOLOGY.md — full Seed→Reference lifecycle
-  hooks/                   — session hooks (ref-injector, tool-telemetry, session-handoff)
+  hooks/                   — session hooks (ref-injector for skills; project-local hooks added per project)
   hookify/                 — shipped behavioral rules
   tools/                   — all tools (bash, python, rust, compiled)
     lib/                   — tool libraries (_log-helper, _path-resolve, etc.)
@@ -37,6 +37,7 @@ claude/                    — framework (tools, agents, docs, hooks, config)
     flag                   — agent-addressable flag capture and processing
     iscp-check             — "you got mail" notification hook
     iscp-migrate           — legacy flag/dispatch migration (one-shot)
+    collaboration          — cross-repo dispatch lifecycle (captain only)
   templates/               — scaffolding templates
   workstreams/             — bodies of work
     {workstream}/
@@ -46,7 +47,7 @@ claude/                    — framework (tools, agents, docs, hooks, config)
       dispatches/          — workstream-targeted dispatches
       reviews/             — QGRs and review files
       history/             — archived artifact versions
-  src/                     — --dev only (source code, tests)
+  starter-packs/           — starter kit templates for agency init
 usr/                       — agent INSTANCES (per-principal sandboxes, at PROJECT ROOT)
   {principal}/
     {project}/             — one directory per project
@@ -274,7 +275,7 @@ Quality gates run at every commit boundary — iteration, phase, plan completion
 - Red-green cycle for every bug-exposing test. No valid test = no valid fix.
 - Never skip review agents — even for "small" or "trivial" changes. The audit always finds something.
 - Fix every finding. Every valid finding gets fixed — no "Won't Fix," no "Deferred," no severity-based skip. Severity orders the fix sequence, never the fix decision. Reject invalid findings with reasoning.
-- Always use `/git-commit` — never raw `git commit`. It verifies a QGR receipt exists for the staged changes.
+- Always use `/git-commit` — never raw `git commit`. *(Planned: it will verify a QGR receipt exists for the staged changes. Not yet implemented — currently the tool computes the stage hash for telemetry but does not block on missing receipts.)*
 
 **Boundary skills** (invoke these, never commit manually):
 
@@ -286,7 +287,7 @@ Quality gates run at every commit boundary — iteration, phase, plan completion
 | Pre-PR | `/pr-prep` | Full diff vs origin/master | — |
 | Pre-phase | `/pre-phase-review` | PVR + A&D + Plan review | Principal required |
 
-**QGR receipt files:** Each gate produces a standalone receipt at `usr/{{principal}}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md`. The stage hash is a deterministic hash of the staged changes (computed by `claude/tools/stage-hash`). `/git-commit` checks for a matching receipt before committing — no receipt means no QG was run.
+**QGR receipt files:** Each gate produces a standalone receipt at `claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md`. For workstreams with multiple projects, use `claude/workstreams/{ws}/project/{project}/quality-gate-reports/`. The QGR frontmatter must include `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic hash of the staged changes (computed by `claude/tools/stage-hash`). `/git-commit` checks for a matching receipt before committing — no receipt means no QG was run.
 
 **After every commit:** Update the plan file with iteration/phase status, QG findings, and append the full QGR. The plan is the living record. The QGR receipt file is committed alongside the work as the permanent audit trail.
 
@@ -294,19 +295,43 @@ Quality gates run at every commit boundary — iteration, phase, plan completion
 
 This is how we develop. Not a suggestion — the process.
 
-### The Flow
+### The Flow (Valueflow)
 
 ```
-Seed → Discussion → PVR (evolving) → A&D (evolving) → Plan (phases × iterations)
+Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
 ```
 
-1. **Seed** — a starting point from elsewhere (document, idea, spec). Launches the discussion.
-2. **Discussion** — using the Discussion Protocol (`/discuss`). Explore requirements, constraints, trade-offs. No jumping to implementation.
-3. **Product Vision & Requirements (PVR)** — the _what_ and _why_. Built during discussion, evolves through implementation. Use `/define` to drive toward completeness.
-4. **Architecture & Design (A&D)** — the _how_ and _why_. Technical decisions, patterns, system design. Use `/design` to drive toward completeness. Evolves through implementation.
-5. **Plan** — Phases comprised of Iterations. Created after PVR and A&D have enough shape. Updated after every commit.
+1. **Idea** — a thought, observation, conversation. That gleam in someone's eye. Pre-seed.
+2. **Seed** — captured starting point (document, transcript, idea, flag). Launches the discussion.
+3. **Research (MARFI)** — Multi-Agent Request for Information. Captain drafts research questions, principal reviews, agents execute in parallel. Cross-cutting research only.
+4. **Define (PVR)** — Product Vision & Requirements. The _what_ and _why_. Use `/define`. MAR reviews it.
+5. **Design (A&D)** — Architecture & Design. The _how_ and _why_. Use `/design`. MAR reviews it.
+6. **Plan** — Phases × Iterations. May have MAP (Multi-Agent Plan input) for cross-cutting work. MAR reviews it.
+7. **Implement** — Agents execute autonomously. QG at every iteration boundary. Updated after every commit.
+8. **Ship** — Captain merges, builds PRs, pushes. Pre-PR QG.
+9. **Value** — Customer using it. Feedback generates new seeds.
 
 Three living documents (PVR, A&D, Plan) evolve together. The flow: **Requirements → A&D + Plan (evolving through iteration) → Reference** (produced at plan completion).
+
+### Multi-Agent Coordination Types
+
+| Type | Purpose | When |
+|------|---------|------|
+| **MARFI** (Multi-Agent Request for Information) | Research input — cross-cutting questions answerable with web search + docs | Before PVR/A&D, or mid-flow when a research question arises |
+| **MAR** (Multi-Agent Review) | Review of artifacts at every transition with three-bucket disposition | After every artifact (PVR, A&D, Plan, code at QG boundaries) |
+| **MAP** (Multi-Agent Plan input) | Planning input from multiple agents/workstreams | Cross-cutting projects spanning multiple workstreams |
+
+### Three-Bucket Disposition
+
+When an agent receives feedback (from MAR, QG, or any review), it triages findings into three buckets:
+
+| Bucket | What | Who decides |
+|--------|------|-------------|
+| **Disagree** | Finding rejected with reasoning | Agent decides, principal reviews |
+| **Autonomous** | Agent agrees and incorporates independently | Agent acts, principal informed |
+| **Collaborative** | Requires principal input | 1B1 discussion |
+
+**Important:** Reviewers give raw findings. The **author** triages into buckets, not the reviewer. Reviewers review; authors triage.
 
 ### Plan Mode Bias
 
@@ -362,23 +387,25 @@ Worktree agents implement features on isolated branches. They build, test, and l
 - The `iscp-check` hook automatically notifies you of unread dispatches on SessionStart — you don't need to merge master to know about them. However, you still need to merge master to access dispatch payload files (the DB notification tells you the file exists; the payload lives on master).
 - Never push to origin directly — the captain manages PR branches and pushes.
 
+**Critical: never `cd` to the main checkout from a worktree.** Agent identity resolution uses the current working directory's git branch. When a worktree agent `cd`s to the main repo, `agent-identity` resolves the branch as `main` → identity becomes `captain` → handoffs and dispatches go to the wrong agent. The `block-cd-to-main` hookify rule blocks this pattern (and absolute paths to tools in the main repo). **Always use relative paths from your worktree:** `./claude/tools/dispatch list`, never `cd /path/to/main && ./claude/tools/dispatch list` or `/Users/.../the-agency/claude/tools/dispatch list`.
+
 ### When to Create a Worktree
 
-- **New prototype or feature** — always a worktree. Use `/workstream-create` or `/prototype-create`.
+- **New prototype or feature** — always a worktree. Use `/workstream-create` or `/prototype-create` (planned via SPEC-PROVIDER pattern).
 - **Bug fix or small change** — can work on master if it's a quick fix that doesn't need isolation.
 - **Dispatch handling** — `iscp-check` notifies the worktree agent automatically. The agent runs `dispatch read <id>` to see the payload. If the payload file is on master, merge master first to access it.
 
 ## Session Handoff
 
-Handoff files are a first-class Agency primitive for context bootstrapping. They live at `usr/{{principal}}/{project}/handoff.md`, are version controlled, and auto-rotate (each write archives the previous to `history/` with timestamp via `claude/tools/handoff`).
+Handoff files are a first-class Agency primitive for context bootstrapping. They live at `usr/{principal}/{project}/{agent}-handoff.md` (one per agent — `captain-handoff.md`, `iscp-handoff.md`, etc.), are version controlled, and auto-rotate (each write archives the previous to `history/` with timestamp via `claude/tools/handoff`). The tool uses `agent-identity` to resolve which file to write based on the current branch/worktree.
 
 Handoffs are not just session continuity — they bootstrap context for any purpose: agent-to-agent transfer, cold start, project setup, compaction survival, or spinning up a new agent into a desired state. The tool handles infrastructure; the agent writes the content.
 
-**Always use the handoff tool.** Run `./claude/tools/handoff write --trigger <reason>` to write handoffs. The tool archives the previous handoff to `history/` with a timestamp, resolves the correct path for your project, and ensures consistent formatting. Never write handoff files manually — always use the tool. The `SessionEnd` and `PreCompact` hooks call it automatically, but agents must also call it explicitly at boundary commands and discussion milestones.
+**Always use the handoff tool.** Run `./claude/tools/handoff write --trigger <reason>` to write handoffs — or invoke the `/handoff` skill which wraps it. The tool archives the previous handoff to `history/` with a timestamp, resolves the correct path for your project, and ensures consistent formatting. Never write handoff files manually — always use the tool. Handoff writing is **manual** — agents must call it explicitly at boundary commands, before context-heavy work, and at discussion milestones. There is no automatic handoff hook (the `Stop` hook checks for uncommitted changes but does not write handoffs).
 
 **Note:** Never use `$CLAUDE_PROJECT_DIR` in Bash tool calls — the variable is only set inside hooks, not in agent shell sessions. Use `./claude/tools/` (relative paths) instead. Claude Code always sets CWD to the project root.
 
-**When to write:** At boundary commands (`/iteration-complete`, `/phase-complete`, `/plan-complete`, `/pre-phase-review`), automatically on `PreCompact` and `SessionEnd` hooks, after `/sync-all` (lightweight), and at discussion milestones (PVR draft, key A&D decision, plan revision).
+**When to write:** At boundary commands (`/iteration-complete`, `/phase-complete`, `/plan-complete`, `/pre-phase-review`), before exit/restart, after `/sync-all` (lightweight), and at discussion milestones (PVR draft, key A&D decision, plan revision). Always invoke the `/handoff` skill or run `./claude/tools/handoff write` — never write the file directly.
 
 **What to include:** Current phase/iteration status, what was just done, what's next, key decisions or context for a fresh session, open items or blockers.
 
@@ -402,16 +429,71 @@ The `iscp-check` hook fires on SessionStart, UserPromptSubmit, and Stop. It quer
 | `dispatch read <id>` | Read payload, mark as read |
 | `dispatch resolve <id>` | Mark dispatch resolved |
 | `agent-identity` | Resolve "who am I" (repo/principal/agent) |
+| `collaboration check` | Check cross-repo dispatches (captain only) |
 
 ### When You Have Mail
 
 - **SessionStart:** Process unread items FIRST before other work (hookify enforced)
+- **Set up two dispatch loops on session start.** Every agent — not just captain — runs both loops at session start. They auto-expire after 7 days; re-set each session.
+
+  **Loop 1 — fast-path (silent-when-clean), every 5 minutes:**
+
+  ```
+  /loop 5m Run: ./claude/tools/dispatch list --status unread
+
+  If the output is exactly "No dispatches found." — produce NO output
+  whatsoever. No "Clean", no acknowledgment, nothing. End the turn silently.
+
+  If there are unread dispatches: pause current work, read each with
+  `dispatch read <id>`, respond appropriately, then resolve each with
+  `dispatch resolve <id>` if no further action is needed.
+  ```
+
+  **Loop 2 — nag-path (visible-when-sitting), every 30 minutes:**
+
+  ```
+  /loop 30m NAG CHECK: Run ./claude/tools/dispatch list --status unread.
+  If any unread items exist, they've been sitting at least 30 minutes —
+  produce a VISIBLE alert to the user (not silent): list the unread items
+  with IDs, ages, and senders, note that you are now reading and responding.
+  Then read each, respond, and resolve. If the output is "No dispatches
+  found." — produce NO output and end silently.
+  ```
+
+  Why two loops: the 5-minute loop picks up new mail quickly between prompts with zero terminal noise when there's nothing to do. The 30-minute loop is the "dispatches are being ignored" alarm — if anything is still unread at 30m, the 5m loop already processed it or is blocked, so a visible alert to the principal is warranted.
 - **Mid-session:** Act on mail at a natural break, not immediately
 - **Dispatch types:** directive (do this), review (fix these), seed (input material), escalation (urgent)
 
+### Cross-Repo Communication
+
+ISCP is local to each repo (the SQLite DB lives at `~/.agency/{repo-name}/iscp.db`). Cross-repo dispatches use **collaboration repos** — git-file-based messaging since the two repos don't share a DB.
+
+**The collaboration tool** (`claude/tools/collaboration`) is captain-only. It manages cross-repo dispatch lifecycle: pull, check, read, reply, resolve, push.
+
+```bash
+collaboration check                    # Pull all repos, scan for unread
+collaboration list                     # List configured repos
+collaboration read <repo> <file>       # Read and mark as read
+collaboration reply <repo> --to <file> --subject <text> --body <text>
+collaboration resolve <repo> <file>    # Mark resolved
+collaboration push <repo>              # Commit and push status updates + replies
+```
+
+**Configuration** in `claude/config/agency.yaml`:
+```yaml
+collaboration:
+  repos:
+    monofolk:
+      path: "~/code/collaboration-monofolk"
+      inbound: "dispatches/monofolk-to-the-agency"
+      outbound: "dispatches/the-agency-to-monofolk"
+```
+
+Use the `/collaborate` skill — never invoke the raw tool directly.
+
 ### Reference
 
-Full details: `claude/workstreams/iscp/iscp-reference-20260405.md`
+Full details: `claude/workstreams/iscp/iscp-reference-20260405.md` and `claude/docs/ISCP-PROTOCOL.md`
 
 ## Discussion Protocol (1B1)
 
@@ -442,15 +524,31 @@ When drafting feedback or bug reports **for Anthropic / Claude Code** (via `/fee
 
 ### The Enforcement Triangle
 
-Every capability follows the same three-part pattern:
+The Triangle is the **per-capability structural pattern**. Every Agency capability has three parts that work together:
 
 | Layer | What | Why |
 |-------|------|-----|
 | **Tool** (bash, `claude/tools/`) | Does the work. Pre-approved in `settings.json`. | Permissions. No prompts for approved operations. |
-| **Skill** (markdown, `.claude/commands/` or `.claude/skills/`) | Tells the agent when and how to use the tool. | Discovery. Agents find it via `/` autocomplete. |
+| **Skill** (markdown, `.claude/skills/`) | Tells the agent when and how to use the tool. | Discovery. Agents find it via `/` autocomplete. |
 | **Hookify rule** (`claude/hookify/`) | Blocks the raw alternative. Points to the skill. | Compliance. Can't bypass. |
 
 When building a new capability: build the tool, wrap it in a skill, block the raw alternative with a hookify rule. All three. Not one, not two. The tool handles permissions, the skill handles discovery, the hookify rule handles compliance. *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+
+**Full enforcement model:** See `claude/README-ENFORCEMENT.md` for the complete reference — Triangle, Ladder, lifecycle hooks, all 36 hookify rules, quality gate tiers, and the permission model. When a hookify rule blocks you, look it up in the README-ENFORCEMENT.md tables to understand what to do instead.
+
+### The Enforcement Ladder
+
+The Ladder is the **per-capability adoption progression**. Different capabilities are at different ladder steps. New capabilities start at step 1 and progress as they mature:
+
+1. **Document** — write it in CLAUDE-THEAGENCY.md or a referenced doc. Human-readable, no tooling required.
+2. **Skill** — wrap the documented process in an invocable skill. Discovery via `/` autocomplete.
+3. **Tool** — build the mechanical capability. Pre-approved in settings.json.
+4. **Hookify warn** — warn when the tool is bypassed. Points to the skill.
+5. **Hookify block** — hard enforcement. Can't bypass.
+
+**Triangle vs Ladder:** The Triangle is the *structure* (tool + skill + hookify). The Ladder is the *progression* (how a capability moves from documented to fully enforced). A capability at step 5 has all three Triangle parts; a capability at step 1 has only docs.
+
+**The ladder is per-capability, not framework-wide.** Mature capabilities like `git-commit` and `handoff` are at step 5 (block enforced). Newer methodology patterns like Valueflow, MAR, and the three-bucket triage are at step 1 — documented, but not yet skill-wrapped or enforced. Each capability progresses up the ladder as it matures.
 
 - **No stale artifacts** — unused config, orphaned files, outdated docs — delete or update. Version control remembers.
 
@@ -551,8 +649,9 @@ Extract what you need — don't dump whole pages into context. Summarize, don't 
 
 - **Remote master is read-only.** All changes reach origin through PRs. Never push to origin/master.
 - **Never push without explicit permission.** Pushing is always deliberate. Mechanically enforced by hookify rules (block master push, warn on any push).
-- **Never `reset --hard` without confirming work is preserved.** A diverged branch may have new commits. Check first.
-- **`/rebase` and `/sync-all` are purely local.** `/sync` is the only command that pushes.
+- **Never `reset --hard origin/*`.** This drops all local commits not on origin, including framework files. Mechanically blocked by `block-reset-to-origin` hookify rule.
+- **Never `git rebase`.** All branch sync uses merge. Rebase rewrites history and breaks worktree merge-bases. Mechanically blocked by `block-raw-rebase` hookify rule. See `claude/docs/GIT-MERGE-NOT-REBASE.md`.
+- **`/sync-all` and `/sync` are merge-based.** `/sync-all` merges origin into local master (never pushes). `/sync` merges and pushes (the only push command).
 - **Lead commit messages with Phase-Iteration slug.** Format: `Phase 1.3: feat: concise summary`. The slug is first, before the prefix.
 
 **By role:**

@@ -28,16 +28,16 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 ## What TheAgency Provides
 
 ### Methodology
-- **Quality gates** — multi-agent parallel review (4+ specialized agents: code, security, design, test), red→green test cycle, QGR (Quality Gate Report) receipts at every commit boundary. The QGR is both the report format (3 tables + narrative) and a standalone receipt file tied to the exact staged content via a deterministic stage hash. `/git-commit` verifies a receipt exists before committing — no QG means no commit.
-- **Development flow** — Seed → Discussion → PVR → A&D → Plan → Implement. Living documents evolve through implementation; Reference produced at plan completion.
+- **Quality gates** — multi-agent parallel review (4+ specialized agents: code, security, design, test), red→green test cycle, QGR (Quality Gate Report) receipts at every commit boundary. The QGR is both the report format (3 tables + narrative) and a standalone receipt file tied to the exact staged content via a deterministic stage hash. *(Planned: `/git-commit` will verify a matching receipt exists before committing. Not yet implemented — currently advisory.)*
+- **Development flow (Valueflow)** — Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value. Living documents evolve through implementation; Reference produced at plan completion. Full description in the Valueflow section below.
 - **Discussion protocol** — 1B1 (one-by-one) for structured decision-making. Resolve each item before moving to the next.
 - **Commit discipline** — five boundary types (iteration-complete, phase-complete, plan-complete, pr-prep, pre-phase-review), never partial work, never raw `git commit`
 - **Session handoff** — context bootstrap for any purpose (agent-to-agent, cold start, compaction survival)
 
 ### Tooling
-- **Scaffold tools** — proto-module-scaffold, agent-define
+- **Scaffold tools** — workstream-create, worktree-create, agent-define
 - **Context tools** — handoff (read/write/archive), plan-capture
-- **Observability** — tool-runs.jsonl, telemetry.jsonl, statusline
+- **Observability** — tool-runs.jsonl (`.claude/logs/tool-runs.jsonl`), telemetry (daily JSONL at `~/.claude/telemetry/{date}.jsonl`, read via `./claude/tools/telemetry`), statusline integration
 - **Review agents** — code-reviewer, security-reviewer, design-reviewer, test-reviewer, scorer
 
 ### Agent Definitions
@@ -50,6 +50,152 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 - **Git discipline** — remote master read-only, never push without permission, mechanical enforcement via hookify
 - **Code review lifecycle** — three tools (/code-review, /review-pr, /phase-complete) for different purposes
 - **Dispatch model** — narrow, broadcast communications between agents and workstreams
+
+---
+
+## Valueflow — The Development Lifecycle
+
+Valueflow is TheAgency's methodology — the complete path from an idea to value that customers are using. It's rooted in Lean thinking: every step must demonstrably reduce rework or increase delivery probability. Steps that don't are waste.
+
+### The Flow
+
+```
+Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
+```
+
+**Seed.** An idea — a thought, conversation, observation, flag. That gleam in someone's eye, captured. Route it to a workstream.
+
+**Research (MARFI).** Multi-Agent Request for Information. Before defining, gather input. Research agents explore competitors, prior art, implementation approaches in parallel. Cross-cutting research only — domain-specific exploration is the agent's normal work.
+
+**Define (PVR).** Seed + research → discussion with principal → Product Vision & Requirements. The "what" and "why."
+
+**Design (A&D).** Architecture & Design. The "how" and "why." Multi-agent input group contributes before the driving agent writes.
+
+**Plan.** PVR + A&D → phases and iterations. Phase planning is autonomous — no principal engagement unless flagged.
+
+**Implement.** Agents execute phases and iterations autonomously, surfacing for principal input as needed. Quality gate at every boundary.
+
+**Ship.** Captain merges, builds PRs, pushes to origin. Pre-PR quality gate.
+
+**Value.** Customer is using it. Feedback generates new seeds — closing the cycle.
+
+### The Three-Bucket Pattern
+
+The signature of valueflow. When an agent receives feedback on any artifact, it triages into three buckets:
+
+| Bucket | What | Who decides |
+|--------|------|-------------|
+| **Disagree** | Agent disagrees — presents reasoning | Agent decides, principal reviews |
+| **Autonomous** | Agent agrees and acts independently | Agent acts, principal informed |
+| **Collaborative** | Requires principal input | 1B1 discussion |
+
+Reviewers give raw findings. The **author** triages into buckets — not the reviewer. This pattern appears in MAR disposition, flag triage, dispatch handling, and plan review.
+
+### Multi-Agent Review (MAR)
+
+Review of artifacts at every transition. Many eyes, all bugs are shallow. With AI agents, the cost of review is seconds, not hours — there is no reason not to review everything.
+
+Captain selects reviewers based on artifact type (PVR gets methodology critics; A&D gets security/performance reviewers; code gets the QG protocol). 24-hour timeout for cross-session agent reviewers. Author triages all findings via three-bucket.
+
+### The Enforcement Ladder
+
+Every capability follows a progressive tightening path. **The ladder is per-capability** — different parts of the framework are at different steps.
+
+1. **Document** — write it in CLAUDE-THEAGENCY.md. Human-readable, no tooling required.
+2. **Skill** — wrap it in an invocable skill. Discovery via `/` autocomplete.
+3. **Tool** — build the mechanical capability. Pre-approved in settings.json.
+4. **Hookify warn** — warn when the tool is bypassed. "You should use X."
+5. **Hookify block** — block the bypass. Tool is the only path.
+
+Each layer addresses the bypass discovered in the previous layer. Gate on artifact existence (mechanical, auditable), not on artifact quality (human judgment).
+
+**Where we are today:** Mature capabilities like `git-commit`, `handoff`, and `dispatch` are at steps 4–5 (warn or block enforced). Newer methodology patterns like Valueflow, MAR, MARFI, and three-bucket triage are at step 1 — documented, but not yet skill-wrapped or enforced. Each capability progresses up the ladder as it matures.
+
+The Ladder (progression) is distinct from the **Enforcement Triangle** (structure: tool + skill + hookify). A capability at step 5 has all three Triangle parts; a capability at step 1 has only docs. The Triangle is what each capability looks like when fully built; the Ladder is how it gets there.
+
+### Captain
+
+Captain is the coordination backbone. Always-on by design — first up, last down. If any agent is running, captain is running.
+
+Two modes: **always-on loop** (dispatch processing, commit merging, PR building) and **interactive session** (principal sits down for seed discussions, MAR triage, strategic decisions).
+
+### Artifacts
+
+| Artifact | Content | Lifecycle |
+|----------|---------|-----------|
+| PVR | What and why | Evolves through discussion + implementation |
+| A&D | How and why (technical decisions) | Evolves through implementation |
+| Plan | Phases, iterations, QGRs | Updated after every commit |
+| QGR | Quality gate results | Standalone receipt + appended to Plan |
+| Reference | Final documentation | Produced at plan completion |
+
+## SPEC-PROVIDER Pattern
+
+TheAgency uses a **SPEC-PROVIDER** architectural pattern for capabilities that have multiple possible implementations: preview, deploy, security, and prototype scaffolding. The pattern keeps the framework generic while letting projects plug in their own backends.
+
+### How It Works
+
+Three layers:
+
+| Layer | What | Where |
+|-------|------|-------|
+| **Spec** | Declares which provider to use | `claude/config/agency.yaml` |
+| **Provider** | Tool that implements a contract for one backend | `claude/tools/{capability}-{provider}` |
+| **Skill** | Generic dispatcher that reads the spec and calls the provider | `.claude/skills/{capability}/SKILL.md` |
+
+### Example: Preview
+
+**Spec** in `agency.yaml`:
+```yaml
+preview:
+  provider: "docker-compose"   # or "fly", "vercel", "cloudflare"
+```
+
+**Provider** at `claude/tools/preview-docker-compose` implements the contract:
+```bash
+preview-docker-compose start    # launch, print URL
+preview-docker-compose stop     # tear down
+preview-docker-compose status   # running/stopped/error
+preview-docker-compose logs     # stream recent logs
+```
+
+**Skill** `/preview` reads the spec, dispatches to the provider tool. Same skill works for any provider that implements the contract.
+
+### Why This Pattern
+
+- **Generic skills, specific implementations.** `/preview` doesn't know about Docker — it knows about the contract. New backends plug in by adding a `preview-{name}` tool.
+- **Configuration in one place.** `agency.yaml` is the spec. Switch backends by changing one line.
+- **Forward compatible.** Adopters can add their own providers without forking the framework.
+- **Consistent UX.** Every SPEC-PROVIDER capability looks the same to the user — same skill invocation, same flags, same output format.
+
+### Capabilities Using SPEC-PROVIDER
+
+| Capability | Skill | Tool wrapper | Spec key | Provider naming |
+|-----------|-------|--------------|----------|----------------|
+| Preview | `/preview` | *(planned)* | `preview.provider` | `preview-{provider}` |
+| Deploy | `/deploy` | *(planned)* | `deploy.provider` | `deploy-{provider}` |
+| Security/Secrets | `/secret` | `claude/tools/secret` ✅ | `secrets.provider` | `secret-{provider}` |
+| Prototype scaffolding | `/prototype-create` | *(planned)* | `prototype.providers` | `prototype-{provider}` |
+
+### The Three-Layer Triangle for SPEC-PROVIDER
+
+Each SPEC-PROVIDER capability has three layers:
+
+1. **Skill** (`.claude/skills/{name}/SKILL.md`) — agent invocation via `/`. Reads `agency.yaml`, dispatches to the provider tool. The discovery + agent-context layer.
+2. **Tool wrapper** (`claude/tools/{name}`) — CLI dispatcher for non-agent contexts (shell scripts, CI, dev tools). Same logic as the skill: reads `agency.yaml`, execs the provider tool. The mechanical layer.
+3. **Provider tool** (`claude/tools/{name}-{provider}`) — actual implementation for a specific backend (vault, doppler, vercel, etc.). The implementation layer.
+
+The first capability with all three layers complete is `/secret` (in R3). `/preview`, `/deploy`, and `/prototype-create` currently have only the skill + provider layers; the tool wrapper for each is planned. **The structural question of how to organize providers × environments × services is being explored** (see captain's discussion thread with monofolk/devex).
+
+### Provider Contract
+
+Each provider tool is a CLI that accepts standardized verbs. The skill defines the contract for its capability — providers implement it. New providers added by:
+
+1. Creating `claude/tools/{capability}-{name}` that supports the verbs
+2. Documenting the verbs in the tool's `--help`
+3. Listing the provider as a valid value in the agency.yaml schema (optional)
+
+The framework intentionally has no central provider registry — providers exist by being installed and named correctly. This keeps the pattern open and forkable.
 
 ---
 
@@ -96,6 +242,12 @@ Three tables + checks + narrative:
 - **Quality Phases** — dedicated phases focused on inspection, test development, and issue remediation. Like a HIP sprint. Still get a QG and QGR.
 - **PR QG** — full diff against origin/master before PR creation. Run via `/pr-prep`.
 
+### Day Counting Convention
+
+Working day commits lead with `Day N:` where N counts working days per repo (or per workstream for workstream-scoped work). Day 1 is the first day of active work on the repo. "Day 32: foo" means the 32nd day of active work. Compare to calendar days for velocity signal.
+
+Day counting and Phase-Iteration slugs are complementary — coordination commits use `Day N:` (e.g., infrastructure fixes, friction analysis), feature commits use `Phase X.Y:` (e.g., implementation work).
+
 ### Commit Message Format
 
 Boundary commits lead with the Phase-Iteration slug:
@@ -121,13 +273,23 @@ Tests: 334 passing (21 new: 8 bug-exposing, 13 coverage), 0 failing
 
 ### QGR Receipt Files
 
-Each gate writes a standalone receipt file:
+Each gate writes a standalone receipt file at the workstream location:
 
 ```
-usr/{principal}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md
+claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md
 ```
 
-The stage hash is a deterministic 7-character hash computed from the git staging area. `/git-commit` computes the same hash and globs for a matching receipt — if none exists, it warns that no QG was run.
+For workstreams with multiple projects, use a project subdirectory:
+
+```
+claude/workstreams/{ws}/project/{project}/quality-gate-reports/qgr-...
+```
+
+(Single-project workstreams skip the `project/` level until a second project is added — then existing files migrate.)
+
+The QGR frontmatter includes `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic 7-character hash computed from the git staging area. *(Planned: `/git-commit` will compute the same hash and check for a matching receipt — blocking the commit if none exists. The `require-qgr` hookify rule is the planned enforcement point. Not yet wired.)*
+
+> **Transition note:** Existing QGRs from before this convention live at `usr/{principal}/{project}/qgr-*.md` and stay where they are. New QGRs go to the workstream location described above. No migration of historical files.
 
 ## Development Methodology
 
@@ -171,7 +333,7 @@ captain builds PR branch → /captain-review → dispatch findings (if any) → 
 
 ### When to Use a Worktree
 
-- **New prototype or feature** — always. Use `/workstream-create` or `/prototype-create`.
+- **New prototype or feature** — always. Use `/workstream-create` or `/prototype-create` (planned via SPEC-PROVIDER pattern).
 - **Quick fix on master** — small, isolated changes that don't need a branch.
 - **Dispatch handling** — the worktree agent merges master to pick up the dispatch, fixes issues, lands via `/iteration-complete`.
 
@@ -186,14 +348,27 @@ Handoff files are a first-class Agency primitive. They serve multiple purposes b
 
 ### How It Works
 
-Handoff files live at `usr/{principal}/{project}/handoff.md`. The `claude/tools/handoff` tool manages the lifecycle:
+Handoff files live at `usr/{principal}/{project}/{agent}-handoff.md` — one per agent (e.g., `captain-handoff.md`, `iscp-handoff.md`, `devex-handoff.md`). The `claude/tools/handoff` tool manages the lifecycle and uses `agent-identity` to resolve which file to write based on the current branch/worktree.
 
-- **`handoff write`** — auto-archives the existing handoff to `history/handoff-YYYYMMDD-HHMMSS.md`, then signals the agent to write new content
+- **`handoff write`** — auto-archives the existing handoff to `history/handoff-YYYYMMDD-HHMMSS.md`, then signals the agent to write new content (the history dir is per-agent — `usr/{principal}/{agent}/history/` — so archive names don't collide across agents)
 - **`handoff write --lightweight`** — appends/updates a status line without archiving (for `/sync-all`)
-- **`handoff read`** — outputs current handoff content (used by session-start hooks to inject context)
+- **`handoff read`** — outputs current handoff content
 - **`handoff archive`** — manually archive without writing
 
-The tool resolves paths automatically from the git branch and principal directory. Hooks (`PreCompact`, `SessionEnd`) fire the tool automatically so no context is lost even if the session ends unexpectedly.
+The tool resolves paths automatically from the worktree branch and principal directory. Handoff writing is **manual** — agents must invoke the `/handoff` skill (or run `./claude/tools/handoff write`) at the appropriate trigger points below. There is no automatic handoff hook today; the `Stop` hook checks for uncommitted changes but does not write handoffs.
+
+**Always invoke via the `/handoff` skill** — never write handoff files directly, never run the raw tool with `cd /path/to/main &&` (that breaks identity resolution and writes to the wrong agent's file). The `block-raw-handoff` hookify rule enforces this.
+
+### Handoff Integrity Warnings
+
+The `handoff` tool detects uncommitted **implementation files** (not docs, not the handoff itself) and emits a warning header in the handoff body. The next session reading the handoff sees exactly what was left dirty — no false "complete" claims for uncommitted work. This is the integrity rule that prevents the failure mode where one session writes "iteration 1.1 complete" and the next session discovers the code was never committed.
+
+The companion `stop-check.py` hook categorizes uncommitted files at session stop:
+- **Implementation files dirty** → blocks the stop, force the agent to commit or explicitly mark in progress
+- **Handoff file dirty only** → silent (the agent just wrote it)
+- **Documentation files dirty only** → warns but allows stop
+
+This pairs with the "no false complete" rule: handoff content claims must match git reality, and the tooling enforces it mechanically.
 
 ### Trigger Points
 
@@ -203,8 +378,7 @@ The tool resolves paths automatically from the git branch and principal director
 | `/phase-complete` | Boundary | Step of the command |
 | `/plan-complete` | Boundary | Final handoff before project close |
 | `/pre-phase-review` | Boundary | Before clearance |
-| `PreCompact` | Hook | Automatic — fires before context compression |
-| `SessionEnd` | Hook | Automatic — fires when session is ending |
+| Before exit/restart | Manual | Agent calls `/handoff` before ending session |
 | `/sync-all` | Convention | Lightweight status update (captain only) |
 | Discussion milestone | Convention | After PVR draft, key A&D decision, or plan revision |
 
@@ -267,7 +441,7 @@ TheAgency encourages building **tools** (`tools/`, `claude/tools/`) rather than 
 - **Observability.** Tools built with `_log-helper` emit structured telemetry to `tool-runs.jsonl` — who ran what, when, how long, what happened. Inline bash is invisible.
 - **Token economics.** A tool that does the right thing in one call saves tokens compared to multi-step bash sequences with error handling at each step. The tool absorbs the complexity; the agent pays one invocation.
 - **Reusability.** A tool used by one agent today is available to all agents tomorrow. Inline bash dies with the conversation.
-- **Testability.** Tools can have tests (`tools/__tests__/`). Inline bash can't.
+- **Testability.** Tools can have tests (`tests/tools/`). Inline bash can't.
 - **Learning.** This connects to the pattern gstack calls "learnings" — capturing what works into durable artifacts that compound over time. A tool is a crystallized learning: "this is the right way to do X."
 
 When an agent needs to do something, the first question should be: **does a tool already exist?** Check `tools/`, `claude/tools/`, and the tool registry before writing bash. If no tool exists and the task will recur, consider building one.
@@ -324,15 +498,94 @@ Worktree branches may need `--force-with-lease` after sync because reset+rebase 
 
 ### Mechanical Enforcement
 
-Five hookify rules enforce git discipline:
+Git discipline is enforced by hookify rules. The git-related rules:
 
 | Rule | Action | What it does |
 |------|--------|-------------|
-| `no-push-master` | BLOCK | Prevents any push to master |
+| `no-push-main` | BLOCK | Prevents any push to main |
 | `block-force-push-main` | BLOCK | Prevents force push to main/master |
 | `warn-on-push` | WARN | Requires confirmation before any push |
 | `warn-destructive-git` | WARN | Flags reset --hard, checkout --, etc. |
 | `warn-external-git-actions` | WARN | Flags external-facing git operations |
+| `block-cd-to-main` | BLOCK | Prevents worktree agents from cd-ing to main repo |
+| `block-raw-git-merge-master` | BLOCK | Forces use of `/sync-all` instead of raw merge |
+
+For the complete enforcement model — Triangle, Ladder, lifecycle hooks, all 36 hookify rules, quality gate tiers, and the permission model — see `claude/README-ENFORCEMENT.md`.
+
+### Per-Agent Commit Attribution
+
+Every commit made via `/git-commit` carries three pieces of attribution:
+
+1. **Author** — the principal (legal authorship, profile-linked on GitHub)
+2. **Co-Author: agent** — the Agency agent that did the work (per-agent traceability)
+3. **Co-Author: Claude** — the model (existing convention)
+
+Example:
+
+```
+Author: Jordan Dea-Mattson <jordandm@users.noreply.github.com>
+
+Day 32: per-agent commit attribution via plus-tagged GitHub noreply
+
+[commit body]
+
+Co-Authored-By: captain <jordandm+captain.the-agency.the-agency-ai@users.noreply.github.com>
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+```
+
+#### Format
+
+The agent co-author email follows a fully qualified plus-tag format:
+
+```
+{username}+{agent}.{repo}.{org}@users.noreply.github.com
+```
+
+| Field | Source | Example |
+|-------|--------|---------|
+| `{username}` | `agency.yaml` → `principals.{key}.platforms.github[]` matching current org | `jordandm` |
+| `{agent}` | `agent-identity --agent` | `captain` |
+| `{repo}` | `agent-identity --repo` | `the-agency` |
+| `{org}` | Parsed from `git remote.origin.url` | `the-agency-ai` |
+
+This mirrors the Agency address convention `{org}/{repo}/{principal}/{agent}` — the email is self-describing across orgs.
+
+#### Why GitHub User Noreply
+
+`users.noreply.github.com` is GitHub's documented user noreply domain. The principal author uses the canonical form (`{username}@users.noreply.github.com`) which links to the GitHub profile — your avatar, contribution count, and profile link all work.
+
+The agent co-authors use the plus-tag form (`{username}+{agent}...@users.noreply.github.com`). GitHub treats each plus-tag identity as a **distinct contributor** (not deduped to the principal), so each agent appears as its own contributor entry. The agent doesn't get a profile photo (it's not a real GitHub user), but it gets a distinct attribution line in the commit's contributor view.
+
+Tested with real commits before shipping — GitHub does literal-string matching on plus-tags and does NOT strip them. See `usr/jordan/captain/transcripts/agent-attribution-model-20260407.md` for the full discussion, dead-end options, test results, and decision log.
+
+#### Per-Org Identity
+
+`agency.yaml` already tracks per-org GitHub identities for each principal:
+
+```yaml
+principals:
+  jdm:
+    platforms:
+      github:
+        - username: jordandm
+          repos:
+            - org: the-agency-ai
+              repo: the-agency
+        - username: jordan-of
+          repos:
+            - org: OrdinaryFolk
+              repo: monofolk
+```
+
+When committing in `the-agency`, `/git-commit` resolves to `jordandm` and produces `jordandm+captain.the-agency.the-agency-ai@`. When committing in `monofolk`, it resolves to `jordan-of` and produces `jordan-of+captain.monofolk.OrdinaryFolk@`. Each org gets its own per-org identity automatically.
+
+#### Future: Configurable Override (Layer 2)
+
+The default model is GitHub mode, no configuration. A future Layer 2 will allow per-principal overrides for adopters who want real email delivery (using plus-addressing on a real mailbox like `jdm+captain@devopspm.com`). Not implemented yet — will be added when the first adopter asks.
+
+#### Future: Agent Mail Service
+
+The plus-tag format is currently a non-routable string in commit trailers. There's a real product opportunity: an "agent mail" service that takes this format and provides actual delivery, with mailbox-per-principal and routing-per-agent. Captured as flag #40 for future product discussion.
 
 ## Local Setup / Sandbox
 
@@ -416,6 +669,62 @@ The captain orchestrates the full cycle:
 
 If all PRs are clean (zero issues ≥80 confidence), steps 4-5 are skipped.
 
+### The Day-PR Release Pattern
+
+TheAgency releases use a **Day N - Release M** pattern. Each working day produces one or more PRs. Each PR is named `day{N}-release-{M}` where N is the working day number and M is the Mth PR of that day (usually 1, sometimes more if work splits cleanly).
+
+**The cycle:**
+
+1. **Start of day** — captain creates a PR branch from `origin/main` named `day{N}-release-{M}`
+2. **Work happens** on the branch — commits accumulate (infra fixes, doc updates, feature work)
+3. **PR opened as DRAFT** early in the day via `gh pr create --draft` — visibility for collaborators, not yet ready for review
+4. **Doc accuracy passes** — review CLAUDE.md docs and READMEs, run MAR if scope warrants, fix findings in the same branch
+5. **Friction analysis** — capture and triage friction points discovered during the day's work; either fix in the PR or dispatch to the right workstream
+6. **Release dispatch drafted** — captain prepares the dispatch to consumer repos (e.g., monofolk) describing what's in the PR and what they need to do
+7. **End of day** — when ready, mark PR ready-for-review (out of draft), merge, push the release dispatch
+8. **Multiple PRs/day** allowed — if work splits cleanly into independent units, each gets its own `day{N}-release-{M}` branch and PR
+
+**Rules:**
+
+- **Branch name:** `day{N}-release-{M}` — N is the working day (per day-counting convention), M starts at 1 and increments
+- **Always open as DRAFT first** — work happens on draft, ready-for-review only when complete
+- **PR description includes:** summary, what's in it, what adopters need to do, test plan
+- **Release dispatch goes to consumer repos** via the collaboration tool — same content as the PR description, formatted for cross-repo consumption
+- **Never push directly to main** — every change reaches origin through a PR
+- **The PR is the release record** — the audit trail of what shipped that day, with full diff and commit history
+
+**Optional: Day/Phase prefix enforcement** — projects can opt in to mechanical enforcement of the convention by setting `commits.require_day_prefix: true` in `agency.yaml`. When enabled, `/git-commit` validates that every commit message lead-line matches `^(Day \d+|Phase \d+(\.\d+|\.M\d+)?|Merge|Revert)`. The validator is provider-agnostic (no Python dependency, awk-based). A `commit-msg` git hook is also installed by `agency init` for defense-in-depth against raw `git commit` invocations. Defaults to off — opt in when your project is consistent enough that the convention can be enforced without false positives.
+
+**Why this pattern:**
+
+- One PR per day (or per logical unit) keeps changes reviewable
+- Day-numbering ties releases to the project's actual progress, not calendar dates
+- Draft-first prevents accidental "ready" state on incomplete work
+- Release dispatches close the loop with consumers — they know what shipped and what to do
+- The PR description becomes the human-readable release notes
+
+**Example flow:**
+
+```
+Day 32:
+  git checkout -b day32-release-1     # branch from origin/main
+  ... work happens, commits accumulate ...
+  gh pr create --draft --title "Day 32 - Release 1: ..."
+  ... doc passes, friction triage, more commits ...
+  ./claude/tools/collaboration reply monofolk --to ... # release dispatch
+  ./claude/tools/collaboration push monofolk
+  gh pr ready 46                       # out of draft
+  gh pr merge 46                       # merge to main
+  git checkout main && git pull        # local main matches origin/main
+```
+
+If a second logically-separate PR is needed the same day:
+
+```
+git checkout -b day32-release-2
+... separate work ...
+```
+
 ### The Dispatch Model
 
 When the captain finds issues, it writes two files per project:
@@ -425,7 +734,7 @@ When the captain finds issues, it writes two files per project:
 
 These are committed to master. The worktree agent picks them up by merging master, then works through the findings using the dispatch handling protocol: evaluate validity → bug-exposing test (red) → fix (green) → resolution table → `/iteration-complete`.
 
-Agents use their judgment — a dispatch is review input, not an action list. Findings can be Fixed, Disputed (with reasoning), Stale (code changed), or Deferred (with reason).
+Agents use their judgment — a dispatch is review input, not an action list. Findings are either **Fixed** (valid finding, resolved) or **Rejected** (invalid finding, with reasoning). No "Deferred," no "Won't Fix," no severity-based skip. Every valid finding gets fixed — severity orders the fix sequence, never the fix decision.
 
 ### Review File Convention
 
@@ -491,20 +800,23 @@ my-project/
     │   ├── git-commit           — QG-aware commit wrapper
     │   ├── settings-merge       — merge settings template into current
     │   └── ...                  — (worktree-*, etc.)
-    ├── usr/                     — agent INSTANCES (per-principal sandboxes)
-    │   └── {principal}/
-    │       └── {project}/       — one directory per project
-    │           ├── handoff.md   — current session state
-    │           ├── {project}-pvr-*.md
-    │           ├── {project}-architecture-*.md
-    │           ├── {project}-plan-*.md
-    │           ├── code-reviews/ — captain review + dispatch files
-    │           ├── dispatches/  — incoming dispatches
-    │           ├── transcripts/ — discussion transcripts
-    │           └── history/     — archived handoffs and artifacts
     ├── workstreams/             — bodies of work
-    │   └── ops/                 — default workstream
-    └── src/                     — --dev only (source code, tests)
+    │   ├── agency/              — framework methodology (valueflow)
+    │   ├── iscp/                — inter-session communication protocol
+    │   ├── devex/               — developer experience
+    │   └── ...                  — per-project workstreams
+    └── starter-packs/           — starter kit templates for agency init
+usr/                             — agent INSTANCES (at PROJECT ROOT, not under claude/)
+    └── {principal}/
+        └── {project}/           — one directory per project
+            ├── {agent}-handoff.md — current session state
+            ├── {project}-pvr-*.md
+            ├── {project}-ad-*.md
+            ├── {project}-plan-*.md
+            ├── code-reviews/    — captain review + dispatch files
+            ├── dispatches/      — incoming dispatches
+            ├── transcripts/     — discussion transcripts
+            └── history/         — archived handoffs and artifacts
 ```
 
 **Three file tiers** (governs what `agency-update` does):

@@ -1,7 +1,13 @@
 ---
-allowed-tools: Read, Write, Edit, Glob, Grep, Skill
 description: Drive toward a complete Architecture & Design (A&D) using 1B1 protocol with completeness checklist.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Design — A&D Completeness
 

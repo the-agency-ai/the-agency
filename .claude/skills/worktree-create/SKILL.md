@@ -1,7 +1,13 @@
 ---
-allowed-tools: Read, Write, Bash(git worktree:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(git show-ref:*), Bash(./claude/tools/dependencies-install:*), Glob
 description: Create a new git worktree with dedicated branch and bootstrapped dev environment
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Create Worktree
 

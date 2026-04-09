@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(./claude/tools/stage-hash:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Read, Glob, Grep
 description: Git Commit Message Generator — QG-aware wrapper
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Git Commit — QG-Aware Wrapper
 

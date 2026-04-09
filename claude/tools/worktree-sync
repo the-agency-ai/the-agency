@@ -92,21 +92,30 @@ if [[ -z "$MAIN_CHECKOUT" ]] || [[ ! -d "$MAIN_CHECKOUT" ]]; then
     exit 1
 fi
 
+# Detect the main checkout's actual branch name — handles both 'main' and
+# 'master' conventions without hardcoding. Was the #65 bug: the tool
+# hardcoded 'master' everywhere and silently broke in any main-branch repo.
+MAIN_BRANCH=$(git -C "$MAIN_CHECKOUT" rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [[ -z "$MAIN_BRANCH" ]]; then
+    echo "worktree-sync: cannot determine main branch name from $MAIN_CHECKOUT" >&2
+    exit 1
+fi
+
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
-# --- Guard: not master ---
-if [[ "$BRANCH" == "master" || "$BRANCH" == "main" ]]; then
+# --- Guard: not on the main branch ---
+if [[ "$BRANCH" == "$MAIN_BRANCH" ]]; then
     if [[ "$AUTO_MODE" == true ]]; then
-        # Auto mode on master: soft skip, no error
+        # Auto mode on main: soft skip, no error
         if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
-            log_end "$RUN_ID" "success" 0 0 "skipped — on master"
+            log_end "$RUN_ID" "success" 0 0 "skipped — on $MAIN_BRANCH"
         fi
-        printf '{"systemMessage": "worktree-sync: skipped — on master"}'
+        printf '{"systemMessage": "worktree-sync: skipped — on %s"}' "$MAIN_BRANCH"
         exit 0
     else
-        echo "worktree-sync: on master — use /sync-all instead" >&2
+        echo "worktree-sync: on $MAIN_BRANCH — use /sync-all instead" >&2
         if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
-            log_end "$RUN_ID" "failure" 1 0 "on master"
+            log_end "$RUN_ID" "failure" 1 0 "on $MAIN_BRANCH"
         fi
         exit 1
     fi
@@ -134,49 +143,61 @@ fi
 PRE_MERGE_HEAD=$(git rev-parse HEAD 2>/dev/null)
 
 # --- Check if already up to date ---
-MERGE_BASE=$(git merge-base HEAD master 2>/dev/null || echo "")
-MASTER_HEAD=$(git rev-parse master 2>/dev/null || echo "")
+MERGE_BASE=$(git merge-base HEAD "$MAIN_BRANCH" 2>/dev/null || echo "")
+MAIN_HEAD=$(git rev-parse "$MAIN_BRANCH" 2>/dev/null || echo "")
 
-if [[ "$MERGE_BASE" == "$MASTER_HEAD" ]]; then
+if [[ "$MERGE_BASE" == "$MAIN_HEAD" ]]; then
     # Already up to date — skip merge, still sync settings + sandbox
     MERGED=false
     MERGE_MSG="already up to date"
     COMMITS=0
 else
-    # --- Merge master ---
+    # --- Merge main branch ---
     MERGED=true
-    MERGE_OUTPUT=$(git merge master 2>&1) || {
-        # Merge conflict — abort and restore
+    MERGE_OUTPUT=$(git merge "$MAIN_BRANCH" 2>&1) || {
+        # Merge conflict — abort and restore. After this block runs the repo
+        # is back at PRE_MERGE_HEAD with MERGE_HEAD cleared. The message has
+        # to make that clear so the caller doesn't try to 'git merge --abort'
+        # themselves (issue #57 — 'Resolve manually' was misleading because
+        # the merge WAS already aborted automatically).
         ABORT_OK=true
         git merge --abort 2>/dev/null || ABORT_OK=false
         CONFLICT_FILES=$(echo "$MERGE_OUTPUT" | grep "CONFLICT" || echo "(unknown)")
 
-        echo "worktree-sync: merge conflict with master" >&2
-        echo "$CONFLICT_FILES" >&2
+        echo "worktree-sync: merge with $MAIN_BRANCH had conflicts — merge was automatically aborted." >&2
+        echo "  Repo state: restored to pre-merge HEAD ($PRE_MERGE_HEAD)." >&2
+        echo "  Conflict files:" >&2
+        echo "$CONFLICT_FILES" | sed 's/^/    /' >&2
 
         if [[ "$ABORT_OK" == false ]]; then
-            echo "worktree-sync: WARNING — git merge --abort failed" >&2
+            echo "  WARNING: git merge --abort failed — repo may not be fully restored." >&2
         fi
 
         # Unstash if we stashed (disable trap since we're handling it)
+        STASH_MSG="no stash taken"
         if [[ "$STASHED" == true ]]; then
             STASHED=false
-            if ! git stash pop --quiet 2>/dev/null; then
-                echo "worktree-sync: WARNING — stash pop failed after merge abort. Work is safe in git stash." >&2
+            if git stash pop --quiet 2>/dev/null; then
+                STASH_MSG="stashed work restored via git stash pop"
+            else
+                STASH_MSG="stash pop failed — your stashed work is still in git stash (run 'git stash list')"
             fi
         fi
+        echo "  Stash: $STASH_MSG." >&2
+
+        echo "  Next steps: review the conflict files listed above, decide whether to keep/delete/reconcile them, then retry worktree-sync. Do NOT run 'git merge --abort' — the merge has already been aborted." >&2
 
         if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
-            log_end "$RUN_ID" "failure" 1 0 "merge conflict"
+            log_end "$RUN_ID" "failure" 1 0 "merge conflict (aborted automatically)"
         fi
 
         if [[ "$AUTO_MODE" == true ]]; then
-            jq -n -c --arg msg "worktree-sync: merge conflict with master. Resolve manually." '{"systemMessage": $msg}'
+            jq -n -c --arg msg "worktree-sync: merge conflict with $MAIN_BRANCH — merge was automatically aborted, repo restored. Review conflict files before retrying." '{"systemMessage": $msg}'
         fi
         exit 1
     }
     COMMITS=$(git rev-list "$PRE_MERGE_HEAD"..HEAD --count 2>/dev/null || echo "?")
-    MERGE_MSG="merged master ($COMMITS commits)"
+    MERGE_MSG="merged $MAIN_BRANCH ($COMMITS commits)"
 fi
 
 # --- Copy settings.json from main checkout ---

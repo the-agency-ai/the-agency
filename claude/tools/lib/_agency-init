@@ -317,6 +317,7 @@ YAML_EOF
     [[ -d "$AGENCY_SOURCE/claude/templates/principal-v2" ]] && cp -r "$AGENCY_SOURCE/claude/templates/principal-v2" "$TARGET_DIR/claude/templates/"
     [[ -f "$AGENCY_SOURCE/claude/templates/CLAUDE-USER.md" ]] && cp "$AGENCY_SOURCE/claude/templates/CLAUDE-USER.md" "$TARGET_DIR/claude/templates/"
     [[ -f "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" ]] && cp "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/claude/templates/"
+    [[ -f "$AGENCY_SOURCE/claude/templates/HANDOFF-BOOTSTRAP.md" ]] && cp "$AGENCY_SOURCE/claude/templates/HANDOFF-BOOTSTRAP.md" "$TARGET_DIR/claude/templates/"
     [[ -f "$AGENCY_SOURCE/claude/templates/PROVIDER.sh" ]] && cp "$AGENCY_SOURCE/claude/templates/PROVIDER.sh" "$TARGET_DIR/claude/templates/"
 
     log_info "Copied agents, hooks, hookify, docs, templates"
@@ -385,41 +386,36 @@ USR_EOF
     agent_count=$(find "$TARGET_DIR/claude/agents" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
     hook_count=$(find "$TARGET_DIR/claude/hooks" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
 
-    cat > "$TARGET_DIR/usr/$PRINCIPAL/captain/handoff.md" << HANDOFF_EOF
----
-type: agency-bootstrap
-date: $(date '+%Y-%m-%d %H:%M')
-principal: $PRINCIPAL
----
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"
+    local handoff_template="$AGENCY_SOURCE/claude/templates/HANDOFF-BOOTSTRAP.md"
+    local handoff_target="$TARGET_DIR/usr/$PRINCIPAL/captain/captain-handoff.md"
 
-## Welcome to The Agency
+    if [[ ! -f "$handoff_template" ]]; then
+        log_error "Bootstrap handoff template missing: $handoff_template"
+        exit 1
+    fi
 
-This project was just initialized with The Agency framework (v${framework_version}).
+    cp "$handoff_template" "$handoff_target"
 
-### What's installed
-- ${skill_count} skills, ${command_count} commands, ${agent_count} agent classes, ${hook_count} hooks
-- Quality gate protocol, code review lifecycle, development methodology
-- Principal sandbox at usr/${PRINCIPAL}/captain/
+    # Substitute template variables. Use | as delimiter to avoid issues with /
+    # in project names or paths. Escape & in substitution values (sed metachar).
+    local date_stamp
+    date_stamp=$(date '+%Y-%m-%d %H:%M')
+    local _sed_inplace=(-i '')
+    [[ "$(uname)" != "Darwin" ]] && _sed_inplace=(-i)
 
-### First steps
-1. Verify the installation: \`agency verify\`
-2. Explore available skills: type \`/\` to see skill list
-3. Start a discussion about your project: \`/discuss\`
-4. When ready to build: \`/define\` to create a PVR
+    sed "${_sed_inplace[@]}" \
+        -e "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g" \
+        -e "s|{{PRINCIPAL}}|${PRINCIPAL}|g" \
+        -e "s|{{DATE}}|${date_stamp}|g" \
+        -e "s|{{FRAMEWORK_VERSION}}|${framework_version}|g" \
+        -e "s|{{SKILL_COUNT}}|${skill_count}|g" \
+        -e "s|{{COMMAND_COUNT}}|${command_count}|g" \
+        -e "s|{{AGENT_COUNT}}|${agent_count}|g" \
+        -e "s|{{HOOK_COUNT}}|${hook_count}|g" \
+        "$handoff_target"
 
-### Your environment
-- Principal: ${PRINCIPAL}
-- Project: ${PROJECT_NAME}
-- Config: claude/config/agency.yaml
-
-### How to get help
-- \`/agency-help\` — quick reference
-- \`/agency-welcome\` — guided tour
-- \`/agency-tutorial\` — interactive walkthrough
-- \`claude/README-THEAGENCY.md\` — full documentation
-HANDOFF_EOF
-
-    log_info "Bootstrap handoff written"
+    log_info "Bootstrap handoff written from template: $handoff_target"
 
     # =====================================================================
     # Step 7: Plans directory and .gitignore

@@ -11,12 +11,14 @@ load 'test_helper'
 # Setup mock service URL
 setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
+    test_isolation_setup
     export SECRET_SERVICE_URL="http://localhost:9999/api/secret"
     export AGENCY_USER="principal:test"
     cd "${REPO_ROOT}"
 }
 
 teardown() {
+    test_isolation_teardown
     if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
         rm -rf "${BATS_TEST_TMPDIR}"
     fi

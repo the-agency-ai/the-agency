@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/flag *), Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch *), Bash(./claude/tools/flag *), Bash(./claude/tools/dispatch *), Read, Write
 description: Structured flag review — categorize, approve, dispose. Three-bucket triage for accumulated flags.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Flag Triage
 

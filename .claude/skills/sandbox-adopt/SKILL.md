@@ -1,7 +1,13 @@
 ---
-allowed-tools: Read, Write, Bash(mv:*), Bash(rm:*), Bash(ls:*), Bash(readlink:*), Bash(git add:*), Bash(git rev-parse:*), Glob, Grep
 description: Graduate a sandbox experiment to shared team-wide tooling
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Sandbox Adopt
 

@@ -5,11 +5,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check --force"
           },
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/collaboration check"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/worktree-cwd-check"
           }
         ]
       }
@@ -48,49 +52,10 @@
   },
   "permissions": {
     "allow": [
-      "Bash(./claude/tools/*:*)",
-      "Bash(bash ./claude/tools/*)",
-      "Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/*)",
-      "Bash(./claude/tools/dispatch)",
-      "Bash(./claude/tools/dispatch *)",
-      "Bash(./claude/tools/dispatch-create*)",
-      "Bash(./claude/tools/flag)",
-      "Bash(./claude/tools/flag *)",
-      "Bash(./claude/tools/agent-identity*)",
-      "Bash(./claude/tools/iscp-check*)",
-      "Bash(./claude/tools/iscp-migrate*)",
-      "Bash(./claude/tools/collaboration-check*)",
-      "Bash(./claude/tools/collaboration *)",
-      "Bash(./claude/tools/collaboration)",
-      "Bash(./claude/tools/handoff*)",
-      "Bash(./claude/tools/git-commit*)",
-      "Bash(./claude/tools/stage-hash*)",
-      "Glob(.claude/**)",
-      "Glob(claude/**)",
-      "Glob(usr/**)",
-      "Bash(./claude/tools/safe-extract*)",
-      "Bash(./claude/tools/worktree-sync*)",
-      "Bash(unzip -d usr/*:*)",
-      "Bash(git show *:*)",
-      "Bash(git worktree *)",
-      "Bash(git -C * log *)",
-      "Bash(git -C * status *)",
-      "Bash(git -C * diff *)",
-      "Bash(git log *)",
-      "Bash(git diff *)",
-      "Bash(git status *)",
-      "Bash(git branch *)",
-      "Bash(git rev-parse *)",
-      "Bash(git remote *)",
-      "Bash(git symbolic-ref *)",
-      "Bash(sqlite3 */.agency/*/iscp.db *)",
-      "Bash(chmod +x ./claude/tools/*)",
-      "Bash(ls */.agency/*)",
-      "Bash(ls */.agency/)",
-      "Bash(bats tests/*)",
-      "Read(.claude/**)",
-      "Read(claude/**)",
-      "Read(usr/**)"
+      "Bash(*)",
+      "Read(**)",
+      "Edit(**)",
+      "Write(**)"
     ]
   }
 }

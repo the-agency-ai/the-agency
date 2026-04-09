@@ -39,11 +39,23 @@ else
     log_end() { :; }
 fi
 
+# Find the real gh CLI, NOT this wrapper. We must strip our own directory from
+# PATH before lookup, otherwise we recursively invoke ourselves and hang.
+# (test_helper.bash prepends claude/tools/ to PATH for tests, causing this.)
+_find_real_gh() {
+    local stripped_path="${PATH//${SCRIPT_DIR}:/}"
+    stripped_path="${stripped_path//:${SCRIPT_DIR}/}"
+    PATH="$stripped_path" command -v gh 2>/dev/null || echo ""
+}
+REAL_GH=$(_find_real_gh)
+
 # Version check
 if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
     echo "gh (agency wrapper) $TOOL_VERSION"
-    echo "Wraps: $(command -v gh 2>/dev/null || echo 'gh not found')"
-    command gh --version 2>/dev/null || true
+    echo "Wraps: ${REAL_GH:-gh not found}"
+    if [[ -n "$REAL_GH" ]]; then
+        "$REAL_GH" --version 2>/dev/null || true
+    fi
     exit 0
 fi
 
@@ -94,8 +106,9 @@ if [[ "${1:-}" == "--dry-run" ]]; then
     shift
 fi
 
-# Check if gh CLI is installed
-if ! command -v gh &> /dev/null; then
+# Check if real gh CLI is installed (REAL_GH was resolved earlier with our
+# own dir stripped from PATH to prevent infinite recursion).
+if [[ -z "$REAL_GH" ]]; then
     echo "gh [run: ${RUN_ID}]" >&2
     echo "Error: gh CLI not installed" >&2
     echo "Install: https://cli.github.com/" >&2
@@ -154,7 +167,7 @@ ERROR_FILE=$(mktemp)
 trap "rm -f \"$OUTPUT_FILE\" \"$ERROR_FILE\"" EXIT
 
 set +e
-gh "$@" > "$OUTPUT_FILE" 2> "$ERROR_FILE"
+"$REAL_GH" "$@" > "$OUTPUT_FILE" 2> "$ERROR_FILE"
 EXIT_CODE=$?
 set -e
 

@@ -220,16 +220,18 @@ _update_main() {
     fi
 
     # =====================================================================
-    # Step 4: Update agency.yaml framework section
+    # Step 4: Update agency.yaml framework section + append new top-level
+    # sections (issue #56 — new sections from source never propagated)
     # =====================================================================
     log_step "Updating agency.yaml"
 
     if [[ "$DRY_RUN" == "false" ]]; then
         local yaml_file="$TARGET_DIR/claude/config/agency.yaml"
+        local src_yaml="$SOURCE_DIR/claude/config/agency.yaml"
         local updated_at
         updated_at=$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')
 
-        # Update version, updated_at, source_commit in the framework section
+        # --- Update metadata in the framework section (existing behavior) ---
         if [[ "$(uname)" == "Darwin" ]]; then
             sed -i '' "s|^  version: .*|  version: \"$to_version\"|" "$yaml_file"
             sed -i '' "s|^  updated_at: .*|  updated_at: \"$updated_at\"|" "$yaml_file"
@@ -238,6 +240,52 @@ _update_main() {
             sed -i "s|^  version: .*|  version: \"$to_version\"|" "$yaml_file"
             sed -i "s|^  updated_at: .*|  updated_at: \"$updated_at\"|" "$yaml_file"
             sed -i "s|^  source_commit: .*|  source_commit: \"$to_commit\"|" "$yaml_file"
+        fi
+
+        # --- Append new top-level sections from source (issue #56) ---
+        # Top-level key: a line matching ^[A-Za-z_][A-Za-z0-9_]*:
+        # For each key present in source but missing in target, extract the
+        # section (from that key through the line before the next top-level
+        # key or EOF) and append it to target with a comment marker.
+        local added_sections=""
+        local src_keys tgt_keys
+        # Dedupe in-place to tolerate duplicate top-level keys in source
+        src_keys=$(awk '/^[A-Za-z_][A-Za-z0-9_]*:/ { sub(/:.*/,""); if (!seen[$0]++) print }' "$src_yaml" 2>/dev/null || true)
+        tgt_keys=$(awk '/^[A-Za-z_][A-Za-z0-9_]*:/ { sub(/:.*/,""); if (!seen[$0]++) print }' "$yaml_file" 2>/dev/null || true)
+
+        local key
+        while IFS= read -r key; do
+            [[ -z "$key" ]] && continue
+            # Skip if key already present in target
+            if printf '%s\n' "$tgt_keys" | grep -qxF "$key"; then
+                continue
+            fi
+
+            # Extract section for this key from source: from ^key: up to (but
+            # not including) the next top-level key, trimming trailing blank
+            # lines from the block.
+            local section
+            section=$(awk -v k="$key" '
+                $0 ~ "^"k":" { in_block=1; print; next }
+                in_block && /^[A-Za-z_][A-Za-z0-9_]*:/ { in_block=0 }
+                in_block { print }
+            ' "$src_yaml")
+
+            [[ -z "$section" ]] && continue
+
+            # Buffer — we will append all new sections in one block
+            if [[ -z "$added_sections" ]]; then
+                added_sections=$(printf '\n# ─────────────────────────────────────────────────────────────────────────\n# New sections added by agency update — review and customize as needed.\n# Added by framework version %s (%s)\n# ─────────────────────────────────────────────────────────────────────────\n' "$to_version" "$to_commit")
+            fi
+            added_sections=$(printf '%s\n\n%s' "$added_sections" "$section")
+            log_info "  + new section: $key"
+        done <<<"$src_keys"
+
+        if [[ -n "$added_sections" ]]; then
+            # Ensure target ends with newline before appending
+            [[ -n "$(tail -c1 "$yaml_file" 2>/dev/null)" ]] && printf '\n' >> "$yaml_file"
+            printf '%s\n' "$added_sections" >> "$yaml_file"
+            log_info "Appended new top-level sections to agency.yaml"
         fi
     fi
 
