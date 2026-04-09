@@ -46,3 +46,7 @@ Devex UNBLOCKED — all 6 unblock steps complete (#175). Main merged cleanly via
 ## 10:31:26 — build
 
 Knocked out #65 + #62 in one bundle commit (79805a3). #65: worktree-sync detects MAIN_BRANCH dynamically from main checkout (was hardcoded 'master' in 7 places), 6/6 BATS tests green including new main-branch coverage. #62: stripped allowed-tools frontmatter from 48 skill files via persistent helper at usr/jordan/captain/tools/strip-skill-allowed-tools. Defense-in-depth was illusory (global .claude/settings.json has Bash(*)); skill-level allowed-tools only created silent-stall traps. Script is re-runnable for future audits.
+
+## 13:02:53 — learning
+
+THE REFRAME: 'Be the Man Who Was Too Lazy to Fail.' When I flagged myself as 'lazy' for bypassing /post-merge, Jordan corrected: manual steps are MORE work, not less. True laziness invests in the Triangle once so no task is ever done twice. This is the one-line framing of the entire framework thesis — captured at claude/workstreams/agency/references/too-lazy-to-fail-20260409.md. Articulates from the operator's angle what telemetry-driven tool discovery says from the framework's angle and what Gary Tan says from the principal's angle. All three converge: the valuable asset is the codified capability, not heroic manual execution. Shame is the wrong signal; calibration (tokens/time/attention burned) is the right signal.
