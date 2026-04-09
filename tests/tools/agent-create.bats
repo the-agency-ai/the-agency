@@ -115,9 +115,19 @@ teardown() {
     assert_success
     local reg=".claude/agents/testagent.md"
     [[ -f "$reg" ]]
-    grep -q "On startup, immediately read" "$reg"
+    grep -q "On startup, immediately do" "$reg"
     grep -q "handoff" "$reg"
-    grep -q "agent.md" "$reg"
+    grep -q "dispatch list" "$reg"
+}
+
+@test "agent-create: registration contains dispatch loop instructions" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/agent-create testagent testws
+    assert_success
+    local reg=".claude/agents/testagent.md"
+    grep -q "loop 5m" "$reg"
+    grep -q "loop 30m" "$reg"
+    grep -q "dispatch check" "$reg"
 }
 
 @test "agent-create: registration contains TODO guard" {
