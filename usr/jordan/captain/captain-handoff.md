@@ -2,67 +2,153 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-09
-trigger: break-2000sgt
+date: 2026-04-10
+trigger: mid-session-context-preservation
 ---
 
-## Resume after 0200 SGT
+## Current Session — Day 35 Captain
 
-### Immediate on resume
+### Active Work: Workshop Invites (1B1)
 
-1. **PR #69 (D34-R5)** — open, awaiting approval. 813/813 tests green + ISCP merge unblock. Approve → merge → `/post-merge 69`.
-2. **ISO download** — Ubuntu 24.04.4 ARM64 desktop downloading to `~/Downloads/ubuntu-24.04.4-desktop-arm64.iso`. Should be done. Verify: `ls -lh ~/Downloads/ubuntu-24.04.4-desktop-arm64.iso` — expect ~3.3 GB.
-3. **Create VM** in Fusion from the ISO → bootstrap script → agency init → snapshot → OVA. Workshop is Monday.
+Writing personalized WhatsApp invites for the Republic Poly workshop. 1B1 through the list.
 
-### Day 34 shipped (on origin)
+**Sent:**
+1. ✅ Abel Ang — Chairperson RP, arranged Jordan's SOI Advisory Board seat
+2. ✅ Kiren Kumar — DCEO IMDA, long relationship since Indeed/EDB days
+3. ✅ Agrim Singh / Sherry Jian — AI dev community leaders in SG, follow-up to X invite
+4. ✅ Alwyn, OGP — DevRel + Senior SWE, decade-long relationship, offered OGP session pro bono
+5. ✅ Sonjia, OGP — Lead PM, Jordan got her Indeed secondment from NRF, offered OGP session pro bono
+6. ✅ Andrew McGlinchey — ex-Indeed product partner, been on the whole journey, tried V1
 
-- **34.1** (PR #60) — agency-version tool + statusline
-- **34.2** (PR #63) — run-in Triangle + fixes #56/#57/#171
-- **34.3** (PR #66) — worktree-sync main/master fix + skill allowed-tools audit (48 files)
-- **34.4** (PR #67) — agency-health v1 (3-dimensional fleet health)
-- **34.5** (PR #69) — 27 test failures killed + schema skip guard + scaled timeout [PENDING MERGE]
+**Remaining:**
+7. Hongyi, OGP — need context
+8. Eliot, OGP — need context
+9. Hygin, OGP — need context
+10. Janson Seah, StaffAny — need context
+11. Dr Lim Woo Lip, SVP/CTO Cyber, ST Engineering — need context
+12. Mr Lim Thian Chin, CRO & Senior Director, GovTech — need context
+13. Dr Forest Tan, Associate Professor, SIT — need context
+14. David Alfred, Drew & Napier — need context
+15. Sherwyn Goh — need context
+16. Gail Lau — need context
+17. Peng Ong — need context
+18. Lin Yang — need context
+19. Shanyl Ong — need context
+20. Nicole Zhu — need context
+21. Luke Ong — need context
+22. Michael Cheng — need context
 
-### Fleet state
+**Base template** (finalized):
+- Opening: "I want to invite you to something this coming Monday."
+- Pro bono workshop at RP, AI Augmented Development with Claude Code
+- Beyond Vibe Coding: structured, disciplined building of software with AI
+- AIADLC through TheAgency methodology and Valueflow
+- Three takeaways: grounding, hands-on experience, framework
+- Accessible — you don't need a technical background
+- Short notice — nominate someone if can't attend
+- BYOAP — ~$100 for Claude Code subscription
+- Venue details + directions + Phyllis Ling contact
 
-- **devex** — standing autonomy, crushed tasks #8-#13. docker-heal shipped. Worktree naming, hookify rename, agent-create dispatch loops all in progress.
-- **iscp** — blocked on merge until #69 lands. Has 3 conflict files to resolve (flag, _iscp-db, flag.bats). Direction sent via #183/#184/#197/#199. Standing autonomy.
-- **mdpal-app** — worktree in weird split state (1449 deletions). Dispatched #181 for agent diagnosis. Stub handoff created.
-- **mdpal-cli** — synced to main, .agency-agent created, stub handoff created.
-- **mock-and-mark** — worktree created, identity set, settings synced. Ready for reactivation session. Jordan: "fix it, launching soon."
+### Also Pending: Anthropic License Outreach (Batch 2)
 
-### Monofolk
-
-- Graduated to full-install (sandbox removed)
-- Agency-health v1 committed to them as Wave 1 diagnostic tool
-- PR workflow converging (D#-R# naming, no-squash, captain builds PRs)
-- pr-build tool coming from them (upstream contribution)
-- Dropbox tool design routed to iscp (#177)
-- Awaiting their reply on QGR location alignment + D-counter retroactive question
+Jordan sent messages to Boris (Claude Code creator), Thariq, and Agrim/Sherry asking for 25-30 Max 20x licenses for two weeks. Need to draft additional outreach via LinkedIn and Twitter to more Anthropic folks.
 
 ### Workshop — Monday 2026-04-14 at Republic Polytechnic
 
-- Ubuntu 24.04 LTS ARM64 VM in VMware Workstation Pro (free)
-- Ghostty + brew + Docker + Claude Code + agency init
-- ISO downloading. Next: create VM, run bootstrap, snapshot, export OVA
-- Students get OVA, open Ghostty, `claude login`, `cd ~/workshop`, `claude`
-- "No compromises. As close to macOS as we can get."
+**Full outline written:** `claude/workstreams/agency/seeds/workshop-outline-republic-poly-20260410.md`
 
-### Principles locked today
+**Schedule:**
+- 10:00–10:20: Setup (bootstrap + login + remote control to Desktop)
+- 10:20–11:00: Part 1 — The Sea Change (NOT Vibe Coding, coding is dead, builder identity, abstraction ladder, MacHack, Christmas project)
+- 11:00–11:45: Part 2 — Claude Code (elements, CLAUDE.md, 4 Ds, career progression, Jamon's 8 practices)
+- 11:45–12:15: Part 3 — TheAgency + Valueflow (methodology, born from trenches, QG, OODA, Monitor tool case study)
+- 12:15–13:15: Lunch
+- 13:15–14:45: Part 4 — Guided Build (personal page + mini-blog → Vercel deploy)
+- 14:45–15:25: Elevator Pitches (20 × 2 min)
+- 15:25–16:30: Part 5 — Independent Build (you float)
+- 16:30–17:00: Show & Tell + Wrap
 
-- **No broken windows.** If we use it or have used it, it gets included.
-- **No compromises** on the workshop experience.
-- **Be the Man Who Was Too Lazy to Fail** — invest in tools, not heroic manual execution.
-- **Rapid release discipline** — D#-R# naming, no squash, one PR per release.
-- **Standing autonomy** — agents execute without per-step approval.
-- **No reviews on GitHub** — PRs are shipping mechanism only.
-- **Ban raw git writes** (flag #83, pending 1B1 on scope).
+**Key framing:**
+- "This is NOT Vibe Coding." / "Coding is dead." / "We are builders."
+- Abstraction ladder using Jordan's career: switches → MacsBug → MDS → MPW → AI
+- MacHack mantras: "It's all Jordan's fault", "Sleep is for the weak and sickly", "72 Hours Caffeine and Code"
+- Steve Yegge's 8 levels woven in (not dedicated block)
+- Monitor tool as live OODA case study
 
-### Open flags (31 total, key ones)
+**Student setup:**
+- VM runs Claude Code with remote-control
+- Students work from Claude Desktop Code tab on Windows
+- Captain bootstrap CLAUDE.md knows the curriculum, acts as tutor
+- Students' captains collaborate with Jordan's captain
+- Repo: clone → `agency init` → captain wakes up knowing the workshop
 
-- #55 CLAUDE.md revision (rich material ready)
-- #69 create-tool input validation (all *-create tools)
-- #78 session naming issues (needs 1B1)
-- #82 agency verify reads dependencies.yaml
-- #83 ban raw git writes (needs 1B1)
+**Toy project:** Personal page + mini-blog, deploy to Vercel. AI Q&A stretch goal.
+
+### Workshop Artifacts
+
+| Artifact | Status |
+|----------|--------|
+| Setup guide (GDoc) | ✅ Sent to participants |
+| Bootstrap script | ✅ Tested on ARM64 VM |
+| Workshop outline | ✅ Written |
+| Experience doc | ✅ Written with action log + manifest |
+| Workshop start script | 📝 Needs redraft for Remote Control + Desktop flow |
+| Workshop repo | ❌ TODO — `the-agency-ai/aiad-workshop` |
+| Captain bootstrap CLAUDE.md | ❌ TODO |
+| Slides / keynote | ❌ TODO |
+| Vercel deploy tested | ❌ TODO |
+| Monitor tool adoption | ❌ TODO — implement this weekend |
+
+### VM State
+
+- Fusion VM running at `~/Virtual Machines.localized/TheAgency-Workshop-Ubuntu-64-bit-ARM.vmwarevm/`
+- IP: 192.168.1.115 (bridged mode), SSH working with key auth
+- Passwordless sudo configured, lock screen disabled
+- **3 snapshots:** clean-install, pre-bootstrap, post-bootstrap
+- All tools verified green: chromium, git, node, npm, claude, jq, sqlite3, gh, docker, brew
+- Ghostty dropped (no Linux packages — students use GNOME Terminal)
+
+### Seeds Captured Today
+
+- `seed-it-happened-and-breadcrumb-20260410.md` — "This Happened!" + "Breadcrumb" value-added services
+- `seed-monitor-tool-adoption-20260410.md` — Monitor tool replaces dispatch polling, 96% token savings
+- `seed-ooda-loop-structural-framework-20260410.md` — from monofolk, OODA as structural pattern
+- `seed-process-intelligence-celonis-20260410.md` — from monofolk, Celonis interview + trajectory
+- `workshop-outline-republic-poly-20260410.md` — full workshop outline
+- `workshop-setup-guide-20260410.md` — student setup guide
+- `workshop-bootstrap.sh` — tested bootstrap script
+- `workshop-start.sh` — workshop morning script (needs redraft)
+
+### Dispatches Sent Today
+
+- **#200** to the-agency/jordan/devex — SPEC:PROVIDER for NestJS + React/Next.js
+- **Collaboration** to monofolk/captain — query on "This Happened!" prior discussion
+- **Collaboration** to monofolk/devex — SPEC:PROVIDER directive, coordinate with the-agency/devex
+
+### Earlier Today
+
+- ✅ PR #69 merged (D34-R5 — 27 test failures killed)
+- ✅ `pr-build` tool landed from upstream (monofolk contribution)
+- Architecture mistake: ARM64 ISO can't build x86 OVA → pivoted to bootstrap script model
+- VMX hand-crafted failures: lsilogic, e1000e, PCIe bridges — documented in experience report
+
+### Dispatch Loops Running
+
+| Loop | Interval | Job ID |
+|------|----------|--------|
+| Dispatch fast-path | 5m | e6f02feb |
+| Dispatch nag | 30m | 49fafcb4 |
+| Collaboration | 10m | 10e370af |
+
+### Content Knowledge (not in files, in session context)
+
+- MacHack: "It's all Jordan's fault" — conference mantra, Jordan was Apple rep
+- MacsBug: Motorola 68K debugger, Jordan was PM
+- MDS: Macintosh 68000 Development System (1984), Jordan was PM
+- MPW: Macintosh Programmer's Workshop (1986), Jordan was PM
+- "72 Hours Caffeine and Code" — MacHack mantra, Jordan jokes "that was my original plan but I got overruled"
+- Jamon Holmgren's 8 practices (X post) — validation from the trenches
+- Workshop is two-day format for Anthropic license ask, but one-day delivery this Monday
+- Boris + Thariq outreach for 25-30 Max 20x licenses
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
