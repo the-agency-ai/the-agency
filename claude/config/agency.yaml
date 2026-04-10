@@ -26,8 +26,8 @@ commits:
 framework:
   version: "2.0.0"
   installed_at: "2026-01-15T04:54:46+00:00"
-  updated_at: "2026-04-01T00:00:00+00:00"
-  source_commit: "self"
+  updated_at: "2026-04-10T11:39:43+00:00"
+  source_commit: "200a5499392942df6c62faa61d7f3da71b18d14e"
 
 # Agent defaults
 agents:
