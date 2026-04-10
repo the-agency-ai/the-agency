@@ -48,6 +48,18 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Merge commit skip — PR branch merge commits are packaging, not authored code.
+# The worktree agent's QG already validated the content. If the code has lint
+# issues, that's a QG gap in the worktree — not something to catch here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) || true
+if [[ -f "${GIT_DIR}/MERGE_HEAD" ]]; then
+    log_end "$RUN_ID" "skip" "0" "0" "merge commit — skipping pre-commit checks" 2>/dev/null || true
+    exit 0
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Logging
 # ─────────────────────────────────────────────────────────────────────────────
 

@@ -35,11 +35,11 @@ if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
 fi
 
 # Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m' BLUE='\033[0;34m' NC='\033[0m'
+fi
 
 # ─── Main branch detection ──────────────────────────────────────────────────
 # Detect whether the repo uses 'main' or 'master' as default branch.
@@ -208,13 +208,10 @@ build_pr_branch() {
 No-squash merge — preserves full commit history.
 $ahead_count commits from $source_branch."
 
-    # NOTE: --no-verify is intentional. PR branches are created from origin's main
-    # branch in the main worktree. The pre-commit hook (lint-staged) may fail on
-    # merged content from worktree branches that have different formatting state.
-    # The merge commit is a packaging artifact, not authored code — the worktree
-    # agent's own QG already validated the content. See QG finding #2, 2026-04-09.
-    # TODO: Move exception into the pre-commit hook itself (detect MERGE_HEAD).
-    if ! git merge --no-ff "$source_branch" -m "$merge_msg" --no-verify 2>&1; then
+    # Merge commits are detected by commit-precheck (MERGE_HEAD check) and
+    # skip pre-commit validation — the worktree agent's QG already validated
+    # the content. No --no-verify needed.
+    if ! git merge --no-ff "$source_branch" -m "$merge_msg" 2>&1; then
         echo -e "${RED}ERROR:${NC} Merge conflict!" >&2
         echo "  Conflicts in:" >&2
         git diff --name-only --diff-filter=U 2>/dev/null | head -20 >&2
