@@ -2,95 +2,94 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-10
-trigger: mid-session-context-preservation-2
+date: 2026-04-11
+trigger: end-of-day
 ---
 
-## Current Session — Day 35 Captain (continued)
+## Resume — Workshop Weekend Push
 
-### Active Work: Workshop Invites (1B1)
+### Day 35 Shipped
 
-Writing personalized WhatsApp invites for the Republic Poly workshop. Date correction: **Monday 13 April** (not 14th — caught by Eliot).
+- **35.1** (PR #70) — dispatch-monitor + changelog-monitor
+- **35.2** (PR #70) — changelog-monitor
+- **35.3** (PR #71) — block-raw-tools PreToolUse hook (upstream from monofolk)
+- **PR #72** — dispatch monitoring docs fix (Monitor replaces /loop)
+- **Presence-detect** synced to 35.3
 
-**Sent:**
-1. ✅ Abel Ang — Chairperson RP. In US, can't attend. Wants future session. "You give me a day, I will give you AI Augmented Development!"
-2. ✅ Kiren Kumar — DCEO IMDA. Linked to prior discussion about doing workshop for his team.
-3. ✅ Agrim Singh / Sherry Jian — AI dev community leaders. Follow-up to X invite.
-4. ✅ Alwyn, OGP — DevRel + SWE. Offered OGP session pro bono.
-5. ✅ Sonjia, OGP — Lead PM. Pre-messaged about OrdinaryFolk results. Offered OGP session pro bono.
-6. ✅ Andrew McGlinchey — ex-Indeed partner. In Korea, nominating Deepak (friend). Wants next one.
-7. ✅ Hongyi, OGP — Director. Personal message about OrdinaryFolk results (19 features, 3M LOC). Offered OGP session. "Want to share it with you when we both can make it happen."
-8. ✅ Eliot, OGP — SWE. S10 connection. Offered to bring it to OGP. Busy Mon/Tue but "you were right about Claude Code." Caught date error.
-9. ✅ Hygin, OGP — COO. Non-technical but TheAgency + Valueflow could be a win. Married to Lynette (ex-Indeed).
-10. ✅ Janson Seah — CEO StaffAny. "Try before you buy" framing. Bring new CTO.
+### Workshop — Monday 13 April at Republic Polytechnic
 
-**Remaining (date corrected to Monday 13 April):**
-11. Dr Lim Woo Lip — SVP/CTO Cyber, ST Engineering — need context
-12. Mr Lim Thian Chin — CRO & Senior Director, GovTech — need context
-13. Dr Forest Tan — Associate Professor, SIT — need context
-14. David Alfred — Drew & Napier — need context
-15. Sherwyn Goh — need context
-16. Gail Lau — need context
-17. Peng Ong — need context
-18. Lin Yang — need context
-19. Shanyl Ong — need context
-20. Nicole Zhu — need context
-21. Luke Ong — need context
-22. Michael Cheng — need context
-23. Dorcas Tan — IMDA, Cluster Director, works for Kiren — need context
-24. Deepak — Andrew's nominee, will reach out via WhatsApp
+**DATE IS MONDAY 13 APRIL** (not 14th — corrected by Eliot)
 
-**Also pending: Anthropic license outreach (Batch 2)** — LinkedIn + Twitter to more Anthropic folks for 25-30 Max 20x licenses.
+**22 invites sent.** Responses so far:
+- Abel Ang — in US, wants future session, will arrange
+- Andrew McGlinchey — in Korea, nominating Deepak (friend)
+- Eliot, OGP — busy Mon/Tue, caught date error, "you were right about Claude Code"
 
-### Base Invite Template (finalized)
+**Full outline:** `claude/workstreams/agency/seeds/workshop-outline-republic-poly-20260410.md`
 
-Key elements:
-- "I want to invite you to something this coming Monday."
-- AI Augmented Development with Claude Code workshop (pro bono) at RP
-- AIADLC, TheAgency methodology, Valueflow
-- "Think of it as beyond Vibe Coding: structured, disciplined building of software with AI."
-- Three takeaways: grounding, hands-on, framework
-- "you don't need a technical background"
-- Short notice — nominate someone
-- BYOAP ~$100 for Claude Code subscription
-- PS: TheAgency + Valueflow open source link
-- Venue details + directions after PS
-- **DATE: Monday 13 April** (corrected)
+### TODO for Weekend (priority order)
 
-### Workshop Outline
+1. **Workshop repo** — `the-agency-ai/the-agency-workshop` created but empty. Needs:
+   - CLAUDE.md (workshop-specific, captain knows curriculum)
+   - CAPTAIN.md (tutor mode agent definition)
+   - Test: clone → agency init → claude login → remote-control → Desktop Code tab
+   - Test: toy project (personal page + mini-blog) → Vercel deploy
 
-Full outline at: `claude/workstreams/agency/seeds/workshop-outline-republic-poly-20260410.md`
+2. **mdslide** — Jordan wants to build a markdown slide tool for the workshop presentations. Scope TBD.
 
-**Key dates/corrections:**
-- Workshop is **Monday 13 April** (not 14th)
-- 10:00-17:00, 1 hour lunch
+3. **Slides content** — outline is written, needs to become actual slides (via mdslide or Keynote)
 
-**Key framing:**
-- "This is NOT Vibe Coding" / "Coding is dead" / "We are builders"
-- Abstraction ladder: switches → MacsBug → MDS → MPW → AI
-- MacHack mantras: "It's all Jordan's fault", "Sleep is for the weak and sickly", "72 Hours Caffeine and Code"
-- 4 Ds, career progression, OODA, Monitor tool case study
+4. **Move workshop content** from the-agency to the-agency-group (content repo). Workshop materials (outline, setup guide, bootstrap script, seeds) shouldn't be in the framework repo.
+
+5. **Anthropic outreach batch 2** — LinkedIn + Twitter to more Anthropic folks for Max 20x licenses
+
+6. **Monofolk hookify upstream port** — 7 rules promoted from warn → block
+
+### Workshop Architecture
+
+- Students on Windows x86 machines
+- VM: Ubuntu 24.04 in VMware Workstation (setup guide sent, bootstrap at workshop)
+- Claude Code in VM with remote-control
+- Students work from Claude Desktop Code tab on Windows
+- Captain bootstrap knows curriculum, acts as tutor
+- Students' captains collaborate with Jordan's captain
 - Toy project: personal page + mini-blog → Vercel deploy
+- AI Q&A stretch goal (if they have API keys / Anthropic provides Max 20x licenses)
 
-**Student setup:**
-- VM + Claude Code with remote-control → Claude Desktop Code tab on Windows
-- Workshop repo: clone → agency init → captain wakes up knowing curriculum
+### VM State (Jordan's test VM)
 
-### Earlier Today
+- Fusion VM at `~/Virtual Machines.localized/TheAgency-Workshop-Ubuntu-64-bit-ARM.vmwarevm/`
+- 3 snapshots: clean-install, pre-bootstrap, post-bootstrap
+- All tools verified: chromium, git, node, npm, claude, jq, sqlite3, gh, docker, brew
+- SSH working (192.168.1.115, bridged mode)
 
-- ✅ PR #69 merged
-- ✅ VM built, tested, bootstrapped — 3 snapshots (clean-install, pre-bootstrap, post-bootstrap)
-- ✅ Presence-detect synced to agency 34.4 (1,057 files, committed f3dba8c)
-- ✅ Seeds captured: This Happened + Breadcrumb, Monitor tool, OODA, Process Intelligence
-- ✅ Dispatches sent: #200 to devex (SPEC:PROVIDER), monofolk collab (This Happened query + SPEC:PROVIDER)
-- ✅ Workshop outline, setup guide, bootstrap script, start script all written
+### Seeds Captured
 
-### Dispatch Loops Running
+- This Happened! + Breadcrumb — value-added services
+- Monitor tool adoption — event-driven dispatch watching
+- OODA structural framework — from monofolk
+- Process Intelligence (Celonis) — from monofolk
+- Workshop outline + setup guide + bootstrap + start scripts
 
-| Loop | Interval | Job ID |
-|------|----------|--------|
-| Dispatch fast-path | 5m | e6f02feb |
-| Dispatch nag | 30m | 49fafcb4 |
-| Collaboration | 10m | 10e370af |
+### Dispatches
+
+- #200 to devex — SPEC:PROVIDER for NestJS + React/Next.js
+- Monofolk: This Happened query, SPEC:PROVIDER directive
+- Monofolk: hookify promotion received and resolved
+
+### Content Knowledge (session context, not in files)
+
+- MacHack: "It's all Jordan's fault" — conference mantra
+- MacsBug (PM), MDS (PM), MPW (PM) — abstraction ladder
+- "72 Hours Caffeine and Code" — "that was my original plan but I got overruled"
+- Jamon Holmgren's 8 practices
+- Workshop is one-day format; two-day is future product
+- Boris + Thariq outreach for 25-30 Max 20x licenses pending
+- Monitor tool replaces /loop polling — running in this session
+- block-raw-tools is LIVE in settings.json — blocks cat/grep/find/sed/awk/head/tail
+
+### Invite List (for reference)
+
+All sent via WhatsApp or email. Committee emails via email with CC to wong_wai_ling@rp.edu.sg.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
