@@ -1,5 +1,5 @@
 ---
-description: Port files from monofolk to the-agency — auto path mapping, PR creation
+description: Port files from a source repo to the-agency — auto path mapping, PR creation
 ---
 
 <!--
@@ -11,7 +11,7 @@ description: Port files from monofolk to the-agency — auto path mapping, PR cr
 
 # Upstream Port
 
-Port tools, skills, hookify rules, and docs from monofolk to the-agency framework repo. Auto-maps paths between the two repos.
+Port tools, skills, hookify rules, and docs from a source repo to the-agency framework repo. Auto-maps paths between the two repos.
 
 ## Arguments
 
@@ -31,7 +31,7 @@ Common patterns:
 bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port claude/tools/flag
 
 # Port a skill (auto-maps commands/X.md → .claude/skills/X/SKILL.md)
-bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port usr/jordan/commands/flag.md
+bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port usr/{principal}/commands/flag.md
 
 # Port with auto-merge
 bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port claude/tools/flag --auto-merge

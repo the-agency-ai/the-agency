@@ -1,3 +1,7 @@
+---
+description: Monitor Claude Code changelog for new releases and features via background streaming
+---
+
 # Changelog Watch
 
 Monitor Claude Code's changelog for new releases and features. Uses the Monitor tool to stream updates as they land.

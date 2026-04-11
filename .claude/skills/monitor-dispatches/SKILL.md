@@ -1,3 +1,7 @@
+---
+description: Event-driven dispatch monitoring via Monitor tool — replaces /loop polling
+---
+
 # Monitor Dispatches
 
 Set up event-driven dispatch monitoring using Claude Code's Monitor tool. Replaces the /loop polling pattern with real-time, token-efficient background monitoring.

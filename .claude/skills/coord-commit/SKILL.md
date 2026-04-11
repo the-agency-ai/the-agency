@@ -23,7 +23,7 @@ For captain coordination artifacts only — handoffs, dispatches, seeds, config 
 ## Instructions
 
 1. Run `git status` to see changes
-2. Identify which changed files are coordination artifacts (handoffs, dispatches, seeds, config, hookify, CLAUDE*.md, tools in `usr/jordan/captain/tools/`)
+2. Identify which changed files are coordination artifacts (handoffs, dispatches, seeds, config, hookify, CLAUDE*.md, tools in `usr/{principal}/{agent}/tools/`)
 3. Stage ONLY coordination artifacts — never stage application code
 4. Run `git diff --cached --stat` to verify what's staged
 5. Run `git log --oneline -3` for commit message style
@@ -34,17 +34,17 @@ For captain coordination artifacts only — handoffs, dispatches, seeds, config 
 
 ## What is a coordination artifact?
 
-- `usr/jordan/*/handoff.md` or `*-handoff.md`
-- `usr/jordan/*/dispatches/*`
-- `usr/jordan/*/seeds/*`
-- `usr/jordan/captain/tools/*`
-- `usr/jordan/*/CLAUDE-*.md`
+- `usr/{principal}/*/handoff.md` or `*-handoff.md`
+- `usr/{principal}/*/dispatches/*`
+- `usr/{principal}/*/seeds/*`
+- `usr/{principal}/{agent}/tools/*`
+- `usr/{principal}/*/CLAUDE-*.md`
 - `claude/config/*`
 - `claude/CLAUDE-THEAGENCY.md`
 - `.claude/settings.json`
 - `.claude/skills/*/SKILL.md`
 - `.gitignore`
-- Hookify rules (`usr/jordan/hookify/*`)
+- Hookify rules (`usr/{principal}/hookify/*`)
 
 ## What is NOT a coordination artifact?
 
