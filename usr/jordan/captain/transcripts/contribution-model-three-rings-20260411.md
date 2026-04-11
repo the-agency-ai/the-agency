@@ -168,3 +168,22 @@ Jordan requested 1B1 protocol on the three open questions from the contribution 
 ---
 
 *Transcript active. Capturing application phase.*
+
+---
+
+## Feedback 1B1 — Anthropic Claude Code reports
+
+Mid-rollout, we discovered `/feedback` has been broken for weeks (silent failure). Master list of pending feedback lived at `usr/jordan/captain/anthropic-issues-to-file-20260406.md` with 4 items drafted but never filed, plus 1 new item (content filter opacity) drafted today.
+
+**Jordan's public action:** Tweeted from @AgencyGroupAI calling out the content filter silent-failure pattern. Public pressure to improve.
+
+**Draft list (all in `usr/jordan/reports/`, awaiting principal review):**
+1. `feedback-slash-feedback-silent-failure-20260411.md` (META — high)
+2. `feedback-content-filter-opacity-20260411.md` (tweet public)
+3. `feedback-agent-permission-ux-20260411.md` (folds in brace expansion)
+4. `feedback-agent-name-env-var-20260411.md`
+5. `feedback-macos-permissions-break-on-update-20260411.md`
+
+**Jordan:** "let's 1B1 them"
+
+Proceeding 1B1 in priority order.
