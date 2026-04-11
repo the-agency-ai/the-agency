@@ -4,17 +4,57 @@ workstream: mdslidepal
 date: 2026-04-11
 captured_by: the-agency/jordan/captain
 principal: jordan
-status: draft-contract-v1.2
+status: contract-v1.3-approved
 version: 0.1.0
-license: MIT
+license: Reference Source License (RSL)
 mar_applied:
   - agent-1-technical-correctness: 2026-04-11 (autonomous triage, applied)
   - agent-2-completeness-ambiguity: 2026-04-11 (autonomous triage, applied)
   - agent-3-scope-realism: 2026-04-11 (autonomous triage, applied)
   - agent-4-divergence-risk: 2026-04-11 (autonomous triage, applied)
+reconciliation:
+  - decision-1-fixture-08-strictness: B (50-line regex pre-processor in web Iteration 1)
+  - decision-2-license: RSL (matches mdpal-app, mock-and-mark precedent)
+  - decision-3-file-layout: workstream for coordination, apps/ for source trees
+  - decision-4-mac-cli: A (GUI only for MVP, CLI binary deferred to Phase 2)
 ---
 
-**CONTRACT v1.2 — Post-MAR Update (2026-04-11)**
+**CONTRACT v1.3 — Post-Reconciliation (2026-04-11)**
+
+Four reconciliation decisions baked in (see frontmatter + the "Reconciled Decisions" section below). License shifted from MIT (v1.2) to RSL (v1.3) to match the app-workstream precedent. Source trees now explicitly live under `apps/mdslidepal-web/` and `apps/mdslidepal-mac/`; this workstream directory holds coordination artifacts only.
+
+---
+
+## Reconciled Decisions (post-MAR, 2026-04-11)
+
+Captain spun two planning agents (mdslidepal-web, mdslidepal-mac) against contract v1.2. Both plans returned. Four decisions were flagged as collaborative and resolved 1B1 with the principal.
+
+### Decision 1 — Fixture 08 strictness for web Iteration 1: **B**
+
+reveal.js's native markdown plugin uses a regex splitter, not AST-based detection. This creates a contract-compliance gap for fixture 08's strict edge cases (two adjacent `---` = one empty slide; trailing `---` doesn't create phantom slide).
+
+**Resolution:** web Iteration 1 implements a ~50-line regex pre-processor that runs BEFORE reveal.js sees the content. It collapses `---\n\n---` sequences and strips trailing `---` lines. This closes the fixture 08 gap without pulling in `remark`. ~30 minutes of Saturday work. Web and Mac reconcile cleanly on fixture 08 with no known divergence at Iteration 1.
+
+### Decision 2 — License: **RSL**
+
+Contract v1.2 had MIT. After 1B1 review, switched to **Reference Source License (RSL)** to match existing app-workstream precedent (`mdpal-app`, `mock-and-mark`). mdslidepal is categorically an app, not a framework tool.
+
+### Decision 3 — File layout: **workstream + apps/ split**
+
+Two different concepts, not a choice between alternatives:
+
+- **Workstream** (`claude/workstreams/mdslidepal/`) = **how we manage things** — contract, shared themes, fixtures, plan-b safety net, plans, reconciliation receipts, decisions. This is the coordination locus.
+- **Source trees** (`apps/mdslidepal-web/`, `apps/mdslidepal-mac/`) = **where we put the code** — actual implementations, each with its own `package.json` / `Package.swift`, build configs, and local `claude/` agency configuration. This matches the existing `apps/mdpal-app/` precedent.
+
+A workstream and a source tree can share a name (`mdslidepal` workstream ↔ `apps/mdslidepal-*/` sources) but they are different kinds of things. One is management; the other is code.
+
+### Decision 4 — Mac CLI: **A (GUI only for MVP)**
+
+mdslidepal-mac ships as a single `.app` bundle for MVP. No companion CLI binary. Users interact via menus, file-open dialogs, keyboard shortcuts. A CLI binary is a reasonable Phase 2 addition (~1-2 days of Swift work + a menu item for "Install CLI tool") but not required for MVP.
+
+---
+
+
 
 This version incorporates findings from all four MAR agents (technical correctness, completeness/ambiguity, scope realism, divergence risk). All findings triaged autonomously — conservative defaults applied everywhere. Changes since v1.0:
 
@@ -369,7 +409,20 @@ The web agent's Phase 1 is deliberately the smallest possible wrapper over revea
 - **Node 20+ + TypeScript + pnpm** — consistent with the-agency framework conventions
 - **No custom markdown parser** — reveal.js's native markdown plugin is the only acceptable choice for MVP
 - **Vendored dependencies** — `npm install --save reveal.js`, bundle with the output, do not reference CDNs
-- **Bin script** — a small `bin/mdslidepal.ts` that implements the `serve` command via a tiny static file server (e.g., `sirv` or a raw `http.createServer`)
+- **Bin script** — a small `bin/mdslidepal.ts` that implements the `serve` command via a tiny static file server (`sirv` or raw `http.createServer`)
+- **Source tree location:** `apps/mdslidepal-web/` (not inside the workstream — see Decision 3)
+
+#### Fixture 08 strictness — required regex pre-processor (Decision 1)
+
+Web Iteration 1 MUST include a small pre-parse step (estimated ~50 lines of TypeScript regex work) that runs on the raw markdown BEFORE handing it to reveal.js's native markdown plugin. The pre-processor:
+
+1. **Collapses empty-slide sequences** — replaces `---\n\n---\n\n---` (three adjacent separators) with `---\n\n---` (two, producing one empty slide between them)
+2. **Strips trailing separators** — removes any `---` line that appears at the end of the file after all content (prevents phantom trailing slide)
+3. **Respects fenced code blocks** — must not touch `---` lines that appear inside `` ``` `` or `~~~` fences. Easiest approach: track fence state line-by-line during the pre-processing pass
+
+This closes the fixture 08 gap that arises because reveal.js's native markdown plugin uses a regex splitter rather than AST walking. Without this pre-processor, web Iteration 1 would diverge from Mac on fixture 08 at reconciliation time.
+
+The pre-processor does NOT replicate the full AST-based contract (that's Phase 2.1 via `remark`). It only fixes the two specific edge cases needed for fixture 08 compliance.
 
 #### Post-Monday iterations for web (Phase 2 and later)
 
@@ -419,6 +472,8 @@ MVP deliverables include:
 - **Syntax highlighter:** HighlightSwift (`appstefan/HighlightSwift`) — actively-maintained SwiftUI-native highlighter. Do NOT use Highlightr (no longer maintained in 2026). Splash (John Sundell, Swift-only) is acceptable only for Swift-language code blocks but is insufficient for a workshop deck that needs bash, typescript, python, etc.
 - **Theme loader:** consume `claude/workstreams/mdslidepal/themes/{name}.json` as source of truth; map to SwiftUI environment values or equivalent token struct.
 - **Real native feel:** menu bar, keyboard shortcuts, window management, presenter mode with multi-display awareness. This is not a web-view wrapper.
+- **Source tree location:** `apps/mdslidepal-mac/` (not inside the workstream — see Decision 3). Standard SPM layout matching `apps/mdpal-app/` precedent: `Package.swift`, `Sources/`, `Tests/`, local `claude/` for agency config.
+- **GUI only for MVP (Decision 4):** mdslidepal-mac ships as a single `.app` bundle. No companion CLI binary. CLI target is Phase 2 work (~1-2 days) and is NOT in scope for MVP.
 - **Phases likely:** (1) core renderer + slide model + theme loader, (2) window and file-load UI, (3) presentation/presenter mode (with AppKit interop for multi-display), (4) PDF export, (5) additional themes + Phase 2 contract parity items.
 
 ## Required deliverables from each agent
