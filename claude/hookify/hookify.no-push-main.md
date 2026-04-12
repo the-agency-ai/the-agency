@@ -6,4 +6,4 @@ pattern: 'git push origin.*(main|master)|git push -u origin.*(main|master)|git p
 action: block
 ---
 
-Do not push to origin/main or origin/master. All changes reach remote through PRs. See CLAUDE-THEAGENCY.md#git--remote-discipline — FEAR THE KITTENS!
+Do not push to origin/main or origin/master. All changes reach remote through PRs. See claude/docs/GIT-MERGE-NOT-REBASE.md — FEAR THE KITTENS!

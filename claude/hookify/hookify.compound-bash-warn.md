@@ -7,4 +7,4 @@ exclude_pattern: (git commit -m "\$\(cat <<|PATH=.*\bbash -c\b|2>&1 \||\| head -
 action: warn
 ---
 
-Compound bash detected. Run each command as a single Bash tool call — parallel when independent, sequential when dependent. See CLAUDE-THEAGENCY.md#bash-tool-usage — FEAR THE KITTENS!
+Compound bash detected. Run each command as a single Bash tool call — parallel when independent, sequential when dependent. See claude/docs/PROVENANCE-HEADERS.md — FEAR THE KITTENS!

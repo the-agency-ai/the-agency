@@ -26,21 +26,60 @@ SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // empty' 2>/dev/null)
 # Map skills to reference files (exact match only — no substring/glob)
 REF_FILES=()
 case "$SKILL" in
+  # Quality gate boundary skills → QG protocol
   iteration-complete|phase-complete|plan-complete|quality-gate|pr-prep)
     REF_FILES+=("$DOCS_DIR/QUALITY-GATE.md")
+    REF_FILES+=("$DOCS_DIR/QUALITY-DISCIPLINE.md")
     ;;
+  # Commit workflow → QG + code review + provenance
   git-commit|ship)
     REF_FILES+=("$DOCS_DIR/QUALITY-GATE.md")
     REF_FILES+=("$DOCS_DIR/CODE-REVIEW-LIFECYCLE.md")
+    REF_FILES+=("$DOCS_DIR/PROVENANCE-HEADERS.md")
     ;;
+  # Planning & design → methodology (Valueflow, MAR, three-bucket)
   pre-phase-review|define|design)
     REF_FILES+=("$DOCS_DIR/DEVELOPMENT-METHODOLOGY.md")
     ;;
+  # Code review skills → review lifecycle
   captain-review|code-review|review-pr|pr-respond|diff-summary)
     REF_FILES+=("$DOCS_DIR/CODE-REVIEW-LIFECYCLE.md")
     ;;
+  # Feedback → format template
   feedback)
     REF_FILES+=("$DOCS_DIR/FEEDBACK-FORMAT.md")
+    ;;
+  # Session handoff → handoff spec
+  handoff|session-end)
+    REF_FILES+=("$DOCS_DIR/HANDOFF-SPEC.md")
+    ;;
+  # Session resume → handoff + repo orientation
+  session-resume)
+    REF_FILES+=("$DOCS_DIR/HANDOFF-SPEC.md")
+    REF_FILES+=("$DOCS_DIR/REPO-STRUCTURE.md")
+    ;;
+  # ISCP dispatch/flag skills → protocol + addressing
+  dispatch|dispatch-read|flag|flag-triage|monitor-dispatches)
+    REF_FILES+=("$DOCS_DIR/ISCP-PROTOCOL.md")
+    REF_FILES+=("$DOCS_DIR/AGENT-ADDRESSING.md")
+    ;;
+  # Cross-repo collaboration → protocol + addressing
+  collaborate)
+    REF_FILES+=("$DOCS_DIR/ISCP-PROTOCOL.md")
+    REF_FILES+=("$DOCS_DIR/AGENT-ADDRESSING.md")
+    ;;
+  # Worktree skills → worktree discipline
+  worktree-create|worktree-sync|worktree-list|worktree-delete)
+    REF_FILES+=("$DOCS_DIR/WORKTREE-DISCIPLINE.md")
+    ;;
+  # Workstream creation → worktree discipline + repo structure
+  workstream-create)
+    REF_FILES+=("$DOCS_DIR/WORKTREE-DISCIPLINE.md")
+    REF_FILES+=("$DOCS_DIR/REPO-STRUCTURE.md")
+    ;;
+  # Sandbox skills → repo structure
+  sandbox-create|sandbox-activate|sandbox-adopt|sandbox-try)
+    REF_FILES+=("$DOCS_DIR/REPO-STRUCTURE.md")
     ;;
 esac
 

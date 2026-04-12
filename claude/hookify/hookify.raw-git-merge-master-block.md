@@ -6,4 +6,4 @@ pattern: git merge (--\S+\s+)*(origin/)?master
 action: warn
 ---
 
-Use `/worktree-sync` instead of raw `git merge master`. See CLAUDE-THEAGENCY.md#worktrees--master — FEAR THE KITTENS!
+Use `/worktree-sync` instead of raw `git merge master`. See claude/docs/WORKTREE-DISCIPLINE.md — FEAR THE KITTENS!

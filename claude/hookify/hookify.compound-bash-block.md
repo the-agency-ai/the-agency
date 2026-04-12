@@ -40,7 +40,7 @@ You wrote a bash command with `&&`, `||`, `;`, `|`, `$(…)`, backticks, or `cd 
 
 - Tool: `claude/tools/run-in` (replacement for the `cd X && cmd` pattern)
 - Skill: `/run-in`
-- Reference: `claude/CLAUDE-THEAGENCY.md` "Bash Tool Usage" section
+- Reference: `claude/docs/PROVENANCE-HEADERS.md`
 - Companion workstream: telemetry analysis of compound command patterns (flag #54) — mines the log of compound command attempts to identify which OTHER patterns deserve their own purpose-built tool
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
