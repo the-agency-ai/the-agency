@@ -711,6 +711,23 @@ Volunteers: demo what you built.
 
 ---
 
+# A Call to Action — For Educators
+
+You are the people who shape what the next generation learns.
+
+**Reorient education around OOD.**
+
+- Teach **Observe** — problem identification, critical analysis, pattern recognition
+- Teach **Orient** — framing problems, communicating context, giving clear direction
+- Teach **Decide** — evaluating output, judgment, when to trust and when to question
+- Teach **Delegation** — packaging work, assigning it, coordinating teams (human or AI)
+
+Don't teach coding as the core skill. **AI does the A.**
+
+Teach your students to be **great principals** — not great coders.
+
+---
+
 # What's Next — The Vision
 
 ---
