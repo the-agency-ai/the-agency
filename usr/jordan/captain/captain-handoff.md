@@ -2,76 +2,80 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-11
+date: 2026-04-12
 trigger: session-end
 ---
 
-## Resume — Day 36
+## Resume — Day 37 (continued from marathon session)
 
-### Immediate
+### IMMEDIATE: Execute deck revision from 3 Granola review passes
 
-1. **PR #73 awaiting approval** — D36-R1: shared _colors lib (59 tools), pr-build MAR cleanup (8 fixes), commit-precheck MERGE_HEAD skip, --no-verify removed. Approve → merge → /post-merge 73.
-2. **Flag #84** — PR tool needed (like git-commit wraps commit). Enforcement Triangle: tool + skill + hookify block on raw gh pr create.
+Jordan did three Granola-recorded slide review passes. The third is most comprehensive. Instructions: Feed transcript + slides to MAR, build TODO list, consolidate, plan mode, execute.
 
-### Day 35-36 Shipped
+**Current deck:** `claude/workstreams/mdslidepal/workshop-deck.md` (77 slides, v10)
+**Serve:** `cd .claude/worktrees/mdslidepal-web/apps/mdslidepal-web && node dist/bin/mdslidepal.js serve /path/to/workshop-deck.md --port 8001`
+**Screenshot:** `cd /tmp && node screenshot-slides.js`
 
-- **35.1** (PR #70) — dispatch-monitor (event-driven dispatch watching)
-- **35.2** (PR #70) — changelog-monitor (Claude Code release awareness)
-- **35.3** (PR #71) — block-raw-tools PreToolUse hook
-- **PR #72** — dispatch monitoring docs (Monitor replaces /loop)
-- **36.1** (PR #73) — _colors lib + pr-build MAR + MERGE_HEAD skip [PENDING MERGE]
-- **Presence-detect** synced to 35.3
+### TODO LIST — Consolidated from 3 Granola passes
 
-### Workshop — Monday 13 April at Republic Polytechnic
+**Slide fixes:**
+- **3**: Companies on separate lines. SV/SG on second lines. Smart Nation Fellow standalone. Advisors standalone.
+- **4**: SVG boxes still overlapping arrows — Create UP, Apply RIGHT, Learn DOWN, Improve LEFT
+- **16**: Add footnote defining "principal" (human in human-agent collaboration)
+- **18**: Add "Act happens fast with agents. Gated by OOD/Delegate."
+- **20**: "Many considered too expensive to scale" (not "without scale")
+- **21**: "effectively infinitely" / "They're free." own line / "You can have all three" own line
+- **25**: End with "They valued safety. They went to build safety." (drop quote)
+- **28**: 4 Ds cross-reference to paper + Anthropic Academy
+- **35**: "how to do things" not "what to do." CLAUDE.md=policy → tools/skills → hooks/enforcement. Bring Enforcement Triangle here.
+- **36**: Elements is "hodgepodge" — rework from agency README. Proper definitions.
+- **43**: Per-phase slides with artifacts (PVR, A&D, Plan). QG + QGR. Remove "From The Agency Group AI."
+- **46**: Conflate: bug filed + agent fixed it autonomously
+- **67**: Strike "For Educators" → "For Everyone." ODA double meaning.
+- **70**: "All built with Claude Code. / All built with Valueflow. / All open source."
 
-**22 invites sent.** Responses: Abel (US, wants future session), Andrew (Korea, nominating Deepak), Eliot (busy, caught date error).
+**Structural:**
+- NEW "What is a Principal?" slide before "What is an Agent"
+- Move Quality Gates + Enforcement Triangle INTO Valueflow walkthrough
+- Link Enforcement Triangle to continuous improvement / Deming / OODA
+- DROP "Case Study: Yesterday"
+- Move HX/AX EARLIER
+- "enables Valueflow" not "implements"
+- After Independent Build: recap Valueflow loop
+- Capitalize: Principal (P), Agency (A), Captain (C)
+- Guided Build: map to Valueflow phases with artifacts
+- "How Slides Were Made": not all today — several days, walks, dictation
+- Acknowledgments: Abel, Weiling, Phyllis, Anthropic
+- Markdown lingua franca stays in What's Next (not earlier)
 
-**Outline:** `claude/workstreams/agency/seeds/workshop-outline-republic-poly-20260410.md`
+### What shipped Day 37
 
-**TODO (priority order):**
-1. Workshop repo — `the-agency-ai/the-agency-workshop` created but empty. Needs CLAUDE.md + CAPTAIN.md.
-2. Test full student flow: clone → agency init → claude login → remote-control → Desktop Code tab → toy project → Vercel deploy
-3. mdslide — markdown slide tool for presentations
-4. Move workshop content from the-agency to the-agency-group (content repo)
-5. Anthropic outreach batch 2 (LinkedIn + Twitter for Max 20x licenses)
+- Release D37-R1 (PR #79): critical agency-update fix + Over protocol + contribution model + 8 feedback filings + mdslidepal workstream + Figma research + DesignEx + workshop deck v10
+- GitHub: #52 closed, #51 closed, #80 filed+closed. #74/#58/#50 open.
+- Monofolk: PR #77 merged, #78 open, 3 contrib branches clean, multiple dispatches
+- Feedback: 8 filed (#46531-#46860)
 
-### Monofolk
+### Fleet state
 
-- Dispatch sent: upstream pr-build MAR cleanup + _colors lib + block-raw-tools
-- Hookify promotion dispatch received and resolved
-- Pending: hookify upstream port (7 warn→block rules)
+- **DevEx**: Dispatch #223 just arrived (workshop repo LIVE + CODE_OF_CONDUCT). Check it!
+- **DesignEx**: PVR drafted, MAR complete, running autonomously
+- **mdslidepal-web**: Built, serving deck, SmartyPants working
+- **mdslidepal-mac**: Phase 1 in progress
+- **Monofolk**: D37-R1 notified, safe to update
 
-### Seeds Captured
+### Workshop Monday 13 April
 
-- This Happened! + Breadcrumb — value-added services
-- Monitor tool adoption — event-driven dispatch watching
-- OODA structural framework + Process Intelligence (Celonis) — from monofolk
-- Workshop outline + setup guide + bootstrap + start scripts
+- 09:00 start, Republic Polytechnic, 20+ lecturers + IMDA observers
+- AV gear purchased (lav mic + DJI camera)
+- Deck: 77 slides (v10), Plan B operational
+- Workshop repo: DevEx handling (dispatch #221/#222/#223)
+- Blocking: workshop repo + bootstrap script + Vercel deploy test
 
-### Fleet State
+### Protocols
 
-- **devex** — dispatch #200 sent (SPEC:PROVIDER for NestJS + React/Next.js)
-- **iscp** — blocked on merge until synced
-- **Monitor running** — dispatch-monitor replaces /loop polling (task bh93ichaq)
-- **block-raw-tools LIVE** — blocks cat/grep/find/sed/awk/head/tail. Already caught us!
-
-### Open Flags (key)
-
-- #55 CLAUDE.md revision
-- #69 create-tool input validation
-- #78 session naming
-- #82 agency verify reads dependencies.yaml
-- #83 ban raw git writes
-- #84 PR tool needed (NEW — Enforcement Triangle)
-
-### Collaborative Items from MAR (not yet resolved)
-
-Items 11-16 from pr-build MAR need disposition:
-- #11 multi-source builds
-- #12 `is_captain` parameter redundant
-- #13 principal name in help example
-- #14 `--captain` policy assumption
-- #15 BATS tests for pr-build
-- #16 `--version` flag (done in this release)
+- Over/Over-and-Out in CLAUDE-CAPTAIN.md + CLAUDE-THEAGENCY.md
+- Soft/hard gate execution model
+- Granola ingestion tool at usr/jordan/captain/tools/granola-ingest
+- Playwright slide review workflow
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
