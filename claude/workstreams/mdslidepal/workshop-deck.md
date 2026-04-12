@@ -51,18 +51,9 @@ CPTO (Chief Product Technical Officer) · Head of Product and Technology
 
 # My Two Hats
 
-<div style="display: flex; gap: 80px; justify-content: center; margin-top: 40px;">
-<div style="flex: 1; text-align: center;">
-<h3>Hat 1 — The Creator</h3>
-<p><strong>The Agency + Valueflow</strong></p>
-<p><em>Building the methodology and platform</em></p>
-</div>
-<div style="flex: 1; text-align: center;">
-<h3>Hat 2 — The Practitioner</h3>
-<p><strong>CPTO, OrdinaryFolk</strong></p>
-<p><em>Applying it daily with 12 agents</em></p>
-</div>
-</div>
+**Hat 1 — The Creator** · The Agency + Valueflow · *Building the methodology*
+
+**Hat 2 — The Practitioner** · CPTO, OrdinaryFolk · *Applying it daily with 12 agents*
 
 ![The OODA loop between my two hats](ooda-two-hats.svg)
 
@@ -134,7 +125,7 @@ We are in the **software development singularity** right now.
 
 AI is automating #1. The other four are what Valueflow amplifies.
 
-<div style="position: absolute; bottom: 60px; left: 24px; font-size: 14px; color: #888;">Li, Ko, Begel. "What Distinguishes Great Software Engineers?" <em>Empirical Software Engineering</em>, Springer, 2019.</div>
+*Li, Ko, Begel. "What Distinguishes Great Software Engineers?" Empirical Software Engineering, Springer, 2019.*
 
 ---
 
@@ -219,7 +210,8 @@ That's why Claude is the right foundation for serious agent work.
 
 # The 4 Ds of AI Fluency
 
-*Anthropic's framework — we gratefully acknowledge their contribution*
+*From Anthropic's AI Fluency research and the Anthropic Academy course*
+*We gratefully acknowledge their contribution*
 
 - **Delegation**
   - Knowing what to hand off and what to keep
@@ -577,6 +569,56 @@ Volunteers: demo what you built.
 
 ---
 
+# What's Next — The Vision
+
+---
+
+# Markdown is the Lingua Franca
+
+Not .doc. Not .pptx. Not Google Docs.
+
+**Markdown.**
+
+It's what agents read. It's what agents write. It's what survives compaction, handoffs, and version control.
+
+Every tool we build is markdown-native.
+
+---
+
+# The Ecosystem
+
+- **Markdown Pal** — reviewing and navigating markdown (macOS + iOS)
+- **mdslidepal** — presenting from markdown (these slides!)
+- **Mock and Mark** — visual communication for markdown-native workflows
+
+All built with Claude Code. All built with Valueflow. All open source.
+
+---
+
+# How I Actually Work
+
+- **Granola** — capture every meeting as structured knowledge
+- **Remote Control** — voice input from mobile while walking
+- **Over/Over-and-Out** — radio protocol for structured agent conversation
+- **Dispatch monitoring** — 4+ agents running in parallel, event-driven awareness
+- **Multi-agency** — principal on two agencies (The Agency + OrdinaryFolk) simultaneously, every day
+
+---
+
+# How These Slides Were Made
+
+This morning: breakfast walk to McDonald's.
+
+Voice input via Claude Desktop Remote Control.
+
+Captain held my input (Over protocol), mirrored back what I heard, made changes, I refreshed.
+
+**That loop — human directing, agent building, tool rendering — is what mdslidepal enables.**
+
+And it's all from markdown.
+
+---
+
 # Key Takeaways
 
 - **This is NOT Vibe Coding** — it's engineering
@@ -585,6 +627,20 @@ Volunteers: demo what you built.
 - **Trust but verify** — apprentice to master
 - **Quality gates matter** — agents review agents
 - **You are builders** — the abstraction continues
+
+---
+
+# Diligence Disclosure
+
+In keeping with the Fourth D:
+
+**The Agency** was built entirely with Claude Code — every tool, every skill, every hookify rule, every line of framework code.
+
+**Valueflow** was designed through structured human-agent collaboration — seeds, PVRs, A&Ds, plans, all produced via the methodology itself.
+
+**This workshop** — the outline, the research, the slides, the deck tool (mdslidepal) — was built in the last 48 hours using Claude Code, The Agency, and Valueflow.
+
+We are responsible for what we ship. And we disclose how it was made.
 
 ---
 
