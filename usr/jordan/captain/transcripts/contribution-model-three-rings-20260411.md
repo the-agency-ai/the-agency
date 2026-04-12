@@ -148,26 +148,112 @@ Jordan requested 1B1 protocol on the three open questions from the contribution 
 
 ---
 
-## Apply mode — begin execution
+## Apply mode — execution began
 
 **Jordan:** "So, capture this as a seed (all of this) and then let's apply it"
 
-**Action:** Seed written and updated with Q2 refinement. Beginning application phase per the order of operations in the seed:
-
-1. ✅ PR #76 merged (main green)
-2. → Write `claude/docs/CONTRIBUTION-MODEL.md`
-3. → Draft `CONTRIBUTING.md` at repo root
-4. → Send monofolk transition dispatch
-5. → Wire branch protection (after monofolk is informed)
-6. → Rework CI workflows (smoke-ubuntu + fork-pr-full-qg + sister-project-pr-gate)
-7. → Move skill-validation to commit-precheck
-8. → Build ci-monitor for Monitor tool
-9. → Disable email notifications
-10. → Code of conduct + PR template + external review tone
+Seed written and updated. Application phase commenced. See below for full session continuation.
 
 ---
 
-*Transcript active. Capturing application phase.*
+## Session continuation: 2026-04-11 → 2026-04-12
+
+### What was built (in session order)
+
+**Contribution model rollout:**
+- ✅ `claude/docs/CONTRIBUTION-MODEL.md` — three-ring trust reference doc
+- ✅ `CONTRIBUTING.md` — contributor front door (repo root)
+- ✅ `.github/PULL_REQUEST_TEMPLATE.md` — contributor PR template
+- ✅ `claude/config/agency.yaml` — full principal identity (email, github, platforms)
+- ✅ PR #76 (D36-R2) merged — CI now green
+
+**Feedback batch to Anthropic (6 items, 3 filed):**
+1. ✅ FILED: Comms gap — `/feedback` broken 5+ months while team directs users to it → [#46531](https://github.com/anthropics/claude-code/issues/46531) / `95fe4771`
+2. ✅ FILED: Debug logging — log `/feedback` errors to `~/.claude/debug/` → [#46538](https://github.com/anthropics/claude-code/issues/46538) / `229cbbce`
+3. ✅ FILED: Content filter opacity — zero diagnostic signal → [#46546](https://github.com/anthropics/claude-code/issues/46546) / `cc00b303`
+4. DRAFTED: Agent permission UX / trusted framework paths
+5. DRAFTED: `--agent/--name` env var missing
+6. DRAFTED: macOS permissions break on every update
+7. TO DRAFT: `/feedback` should auto-include Feedback ID in GitHub issue body
+
+**Key moment:** discovered that `/feedback` has been broken since November 2025 (GitHub #10905, closed + auto-locked, 21 comments reporting continued failure). Found @trq212's tweet directing users to `/feedback` during Opus 4.5 degradation in Feb 2026. Jordan made this public via @AgencyGroupAI tweet same day.
+
+**Figma → UI research (4 parallel agents):**
+- Agent 1: Designer workflow for handoff-ready Figma files
+- Agent 2: Codegen tooling survey (Builder.io, Figma Make, Anima, Locofy, etc.)
+- Agent 3: Design-system bridge (DTCG tokens, Style Dictionary, shadcn/Tamagui pipelines)
+- Agent 4: React vs React Native platform differences
+
+All 4 completed. Reports saved to `claude/workstreams/agency/seeds/research-figma-*-20260411.md`. Dispatch sent to monofolk for parallel research. Key finding: nobody has solved React Native cleanly; Builder.io Visual Copilot is the best option but no Tamagui target.
+
+**mdslidepal (new workstream — markdown slide tool):**
+- Shared contract spec written (v1.0 → v1.1 → v1.2 → v1.3)
+- Shared theme JSON files created (agency-default, agency-dark + schema)
+- 8-fixture corpus committed
+- Plan B safety net committed (reveal.js vendored, template works NOW)
+- MAR with 4 agents (technical correctness, completeness, scope realism, divergence risk) — all autonomous triage applied
+- Two planning agents (web + mac) ran in parallel — both plans completed
+- Reconciliation: 4 decisions resolved 1B1:
+  1. Fixture 08 strictness: Option B (50-line regex pre-processor)
+  2. License: RSL (matches app-workstream precedent)
+  3. File layout: workstream for coordination, apps/ for source trees
+  4. Mac CLI: GUI only for MVP
+- Implementation ready: web agent Saturday sprint, Mac agent proper pace
+
+**CLAUDE.md bootloader refactoring (NEW):**
+- Jordan observed CLAUDE-THEAGENCY.md is too big, should be a bootloader not a constitution
+- Discussion produced the bootloader model: ~200-300 words of orientation, everything else via skills + hookify + ref-injector
+- Seed captured at `claude/workstreams/agency/seeds/seed-claude-md-bootloader-refactoring-20260412.md`
+- Handed to DevEx for execution, captain supervises
+
+**Workshop updates:**
+- Kiren Kumar (DCEO IMDA) confirmed attending with 2 officers (Spenser, Zeph) — intent to "upskill many more"
+- Jordan tweeted about /ultraplan from @AgencyGroupAI
+- /ultraplan tested — remote container failed after 90 minutes (silent failure — another data point for the feedback batch)
+
+### Decisions captured
+
+| Decision | Resolution | Who decided |
+|---|---|---|
+| Three-ring contribution model | Approved: Ring 1 Internal / Ring 2 Sister Projects (trust but verify) / Ring 3 Community | Jordan |
+| Monofolk = Ring 2 | "They follow our processes, but not necessarily all of our players. Trust but verify." | Jordan |
+| Feedback filing via /feedback + gh cross-file | Yes, always cross-file. Captain authors, principal files. | Jordan |
+| mdslidepal name | mdslidepal (following "pal" convention) | Captain (Jordan confirmed) |
+| Fixture 08 strictness | Option B — 50-line regex pre-processor in web Iteration 1 | Jordan |
+| mdslidepal license | RSL (matches app-workstream precedent) | Jordan |
+| File layout (workstream vs source tree) | "Workstream and source trees are different. One is how we manage things vs. where we put our source." | Jordan |
+| Mac CLI | GUI only for MVP | Jordan |
+| CLAUDE.md bootloader | Yes — DevEx runs, captain supervises, hyper warp | Jordan |
+| Session as case study | "Transcript this and we make this all a case study for the workshop!" | Jordan |
+
+### Handoffs
+
+- **DevEx dispatch #201:** CLAUDE.md bootloader refactoring + contribution model rollout (CI, commit-precheck, ci-monitor, monofolk dispatch, branch protection, D36-R3 PR)
+- **mdslidepal-web:** plan ready at `plan-mdslidepal-web-20260411.md`, implementation agent starts Saturday
+- **mdslidepal-mac:** plan ready at `plan-mdslidepal-mac-20260411.md`, implementation agent starts at proper pace
+- **Monofolk:** Figma research + ultraplan dispatch already sent, awaiting response
+
+### Workshop case study note
+
+**Jordan:** "Transcript this and we make this all a case study for the workshop!"
+
+This entire session — from the PR #76 CI fix through the three-ring contribution model through the Anthropic feedback batch through the Figma research through mdslidepal planning through the CLAUDE.md bootloader discussion — is a real-world demonstration of the Valueflow in action. It shows:
+
+- Seed capture → structured discussion → 1B1 decisions → execution
+- Parallel agent research (4 agents, 4 angles, background execution)
+- Contract-based multi-platform planning (shared spec, platform-specific plans)
+- MAR with autonomous triage (4 reviewers, three-bucket disposition)
+- Reconciliation protocol (divergence detection, decision resolution)
+- Cross-repo coordination (monofolk dispatches)
+- Feedback lifecycle (draft → review → file → cross-reference → track)
+- Delegation patterns (captain → DevEx handoff)
+- All in one session, with real artifacts committed to the repo
+
+The case study for the workshop writes itself from this transcript.
+
+---
+
+*Transcript closed for this session. Case study development begins in the next session focused on workshop course materials.*
 
 ---
 
