@@ -508,6 +508,31 @@ All multi-item discussions use the 1B1 (one-by-one) protocol via `/discuss`. One
 
 The full 8-step resolution cycle (Present → Feedback → Confirm Understanding → Revise → Iterate → Resolve → Confirm Resolution → Next) is in the `/discuss` skill. `/discuss` auto-starts a `/transcript` for record-keeping.
 
+### Over / Over-and-Out Protocol
+
+All back-and-forth discussions (1B1, `/discuss`, reviews, any conversation with the principal) follow the **Over / Over-and-Out** protocol, adapted from radio communications (1860s Morse procedural signs → WWII voice radio prowords).
+
+| Signal | Agent behavior |
+|--------|----------------|
+| *(streaming — no signal yet)* | Receive, parse, think. **Do NOT respond.** The principal is still transmitting. |
+| **"Over"** | Principal's turn is done. Agent: **mirror back** what you heard (rephrase/reframe). Discuss. Ask questions. **NO action taken.** |
+| **"Over and out"** | Discussion item resolved. Agent: state intended actions. Ask **"does that work?"** Then execute per the gate model below. |
+
+**Execution gates:**
+
+| Action risk | Gate | Examples |
+|-------------|------|----------|
+| **Low risk** | **Soft gate** — proceed unless principal objects | Drafting, researching, updating transcripts, outline revisions, launching research agents |
+| **High risk** | **Hard gate** — wait for explicit confirmation before executing | Filing to external systems, pushing to git, deleting files/branches, sending dispatches, destructive operations |
+
+The risk classification aligns with hookify levels: hookify-warn actions are soft-gate; hookify-block actions are hard-gate.
+
+**Rules:**
+- **Until you receive "Over," do not respond.** Batch-receive the principal's stream without interrupting their train of thought.
+- **On "Over," mirror first.** Rephrase what you heard before adding your own analysis. This catches misunderstandings before they become wrong actions.
+- **On "Over and out," state your plan.** Never silently execute after a discussion. Say what you're going to do.
+- **Any 1B1 auto-starts a transcript** if one isn't already running.
+
 ## Feedback & Bug Reports (Claude Code)
 
 When drafting feedback or bug reports **for Anthropic / Claude Code** (via `/feedback` or GitHub issues), always include the identity block (`{{principal_name}}`, `{{principal_github}}`, `{{principal_email}}`), show diagnostic evidence (not theories), and reference related issues. The full format is in `claude/docs/FEEDBACK-FORMAT.md` — injected automatically when feedback skills run.
