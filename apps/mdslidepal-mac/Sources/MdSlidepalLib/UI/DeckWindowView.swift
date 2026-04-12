@@ -11,6 +11,7 @@
 // Updated: 2026-04-12 Phase 2 — file-open, live-reload, drag-and-drop, menus
 
 import SwiftUI
+import AppKit
 import UniformTypeIdentifiers
 
 /// The main deck window view with sidebar + slide preview.
@@ -179,6 +180,30 @@ public struct DeckWindowView: View {
         NotificationCenter.default.addObserver(
             forName: .lastSlide, object: nil, queue: .main
         ) { _ in deckState.lastSlide() }
+
+        NotificationCenter.default.addObserver(
+            forName: .exportPDF, object: nil, queue: .main
+        ) { _ in exportPDF() }
+    }
+
+    private func exportPDF() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = "\(deckState.document.title).pdf"
+        panel.canCreateDirectories = true
+
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try PDFExporter.export(
+                    document: deckState.document,
+                    theme: deckState.theme,
+                    to: url
+                )
+            } catch {
+                showError("PDF export failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func showError(_ message: String) {

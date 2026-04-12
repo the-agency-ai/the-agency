@@ -32,6 +32,13 @@ public struct AppMenuCommands: Commands {
             }
             .keyboardShortcut("r", modifiers: .command)
 
+            Button("Export PDF\u{2026}") {
+                NotificationCenter.default.post(
+                    name: .exportPDF, object: nil
+                )
+            }
+            .keyboardShortcut("e", modifiers: [.command, .shift])
+
             Divider()
         }
 
@@ -81,6 +88,7 @@ public struct AppMenuCommands: Commands {
 
 extension Notification.Name {
     public static let reloadDeck = Notification.Name("mdslidepal.reloadDeck")
+    public static let exportPDF = Notification.Name("mdslidepal.exportPDF")
     public static let startPresentation = Notification.Name("mdslidepal.startPresentation")
     public static let nextSlide = Notification.Name("mdslidepal.nextSlide")
     public static let previousSlide = Notification.Name("mdslidepal.previousSlide")
