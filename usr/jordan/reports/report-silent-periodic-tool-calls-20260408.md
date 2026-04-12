@@ -42,3 +42,4 @@ _(append responses here as they arrive)_
 
 - **2026-04-08:** Filed via `/feedback`. Confirmation: Feedback ID `8dd67e96-63ea-4a22-b687-d26a1b2d0add`.
 - **2026-04-08:** Filed on GitHub via `gh issue create`: https://github.com/anthropics/claude-code/issues/45017
+- **2026-04-11:** Cross-referenced this filing in a companion report covering the broader `/feedback` communications gap — see [report-feedback-comms-gap-20260411](report-feedback-comms-gap-20260411.md). The new filing is on Anthropic side as feedback ID `95fe4771-6780-4be7-9e8e-30d7feea3496` and GitHub issue [#46531](https://github.com/anthropics/claude-code/issues/46531). Added a cross-reference comment on this issue (#45017) pointing at #46531 so future readers can trace the connection in both directions.

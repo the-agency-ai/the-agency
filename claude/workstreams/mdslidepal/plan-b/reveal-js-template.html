@@ -1,0 +1,96 @@
+<!--
+Plan B template for mdslidepal.
+
+Purpose: if mdslidepal-web is not working by Sunday night, Jordan can open this
+HTML file directly in a browser and present the deck at Republic Polytechnic
+on Monday. The template loads `sample-workshop.md` via reveal.js's native
+markdown plugin, with all reveal.js assets vendored in `./reveal.js/`.
+
+BEFORE FIRST USE — vendor reveal.js locally:
+
+  cd claude/workstreams/mdslidepal/plan-b
+  curl -L https://github.com/hakimel/reveal.js/archive/refs/tags/5.2.1.tar.gz | tar xz
+  mv reveal.js-5.2.1 reveal.js
+
+Or if you have npm available:
+
+  cd claude/workstreams/mdslidepal/plan-b
+  npm init -y
+  npm install reveal.js@5
+  cp -r node_modules/reveal.js ./reveal.js
+
+After vendoring, double-click this file in Finder. Chrome, Safari, and Firefox
+all support the `file://` protocol for reveal.js.
+
+If `file://` fails (rare but possible on locked-down systems), run a local
+server in this directory:
+
+  python3 -m http.server 8000
+
+Then open http://localhost:8000/reveal-js-template.html
+
+To use your own content, replace `sample-workshop.md` with your markdown.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>mdslidepal · Plan B Template</title>
+
+    <link rel="stylesheet" href="./reveal.js/dist/reset.css" />
+    <link rel="stylesheet" href="./reveal.js/dist/reveal.css" />
+    <link rel="stylesheet" href="./reveal.js/dist/theme/white.css" id="theme" />
+    <link rel="stylesheet" href="./reveal.js/plugin/highlight/monokai.css" />
+
+    <style>
+      :root {
+        --r-main-font: system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+        --r-heading-font: system-ui, -apple-system, "SF Pro Display", "Segoe UI", sans-serif;
+        --r-code-font: "SF Mono", Menlo, Monaco, Consolas, monospace;
+        --r-main-color: #1a1a1a;
+        --r-heading-color: #1a1a1a;
+        --r-link-color: #0066cc;
+        --r-selection-background-color: #0066cc;
+      }
+      .reveal h1, .reveal h2, .reveal h3 { text-transform: none; letter-spacing: -0.01em; }
+      .reveal pre { box-shadow: none; }
+      .reveal .slide-background { background-color: #ffffff; }
+    </style>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section
+          data-markdown="sample-workshop.md"
+          data-separator="^\r?\n---\r?\n$"
+          data-separator-vertical="^\r?\n----\r?\n$"
+          data-separator-notes="^Notes?:"
+          data-charset="utf-8"
+        ></section>
+      </div>
+    </div>
+
+    <script src="./reveal.js/dist/reveal.js"></script>
+    <script src="./reveal.js/plugin/markdown/markdown.js"></script>
+    <script src="./reveal.js/plugin/highlight/highlight.js"></script>
+    <script src="./reveal.js/plugin/notes/notes.js"></script>
+
+    <script>
+      Reveal.initialize({
+        hash: true,
+        width: 1920,
+        height: 1080,
+        margin: 0.04,
+        minScale: 0.2,
+        maxScale: 2.0,
+        transition: "none",
+        controls: true,
+        progress: true,
+        center: true,
+        plugins: [RevealMarkdown, RevealHighlight, RevealNotes],
+      });
+    </script>
+  </body>
+</html>

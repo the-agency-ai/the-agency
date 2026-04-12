@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+#
+# What Problem: Jordan uses Granola for meeting transcripts. He needs to paste
+# the summary and transcript into a structured file with front matter, in the
+# right directory, with the right naming convention, so agents can scan
+# summaries quickly and pull in transcripts on demand.
+#
+# How & Why: Takes a title (or uses a default), generates the dated slug,
+# writes the summary file with front matter + the transcript file separately.
+# Reads from stdin or a file. Simple bash — no dependencies beyond date/sed.
+#
+# Written: 2026-04-12 during captain session (workshop content planning)
+
+set -euo pipefail
+
+GRANOLA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/granola"
+TRANSCRIPTS_DIR="$GRANOLA_DIR/transcripts"
+
+# Ensure directories exist
+mkdir -p "$TRANSCRIPTS_DIR"
+
+# Parse arguments
+TITLE="${1:-}"
+INPUT_FILE="${2:-}"
+
+if [[ -z "$TITLE" ]]; then
+    echo "Usage: granola-ingest <title> [input-file]" >&2
+    echo "" >&2
+    echo "  <title>       Summary title (will be slugified for filename)" >&2
+    echo "  [input-file]  File containing summary + transcript (or use stdin)" >&2
+    echo "" >&2
+    echo "Input format:" >&2
+    echo "  First section = summary (until a line starting with '## Transcript' or '---')" >&2
+    echo "  Second section = full transcript" >&2
+    echo "" >&2
+    echo "Example:" >&2
+    echo "  granola-ingest 'Workshop prep with Abel' notes.txt" >&2
+    echo "  pbpaste | granola-ingest 'Workshop prep with Abel'" >&2
+    exit 1
+fi
+
+# Generate slug from title
+SLUG=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-60)
+
+# Generate timestamp
+DATESTAMP=$(date +%Y%m%d-%H%M)
+DATE_ISO=$(date +%Y-%m-%dT%H:%M)
+
+# File paths
+SUMMARY_FILE="$GRANOLA_DIR/granola-${DATESTAMP}-${SLUG}.md"
+TRANSCRIPT_FILE="$TRANSCRIPTS_DIR/granola-${DATESTAMP}-${SLUG}-transcript.md"
+
+# Read input
+if [[ -n "$INPUT_FILE" ]]; then
+    INPUT=$(cat "$INPUT_FILE")
+else
+    INPUT=$(cat)
+fi
+
+# Split into summary and transcript
+# Look for "## Transcript" or "---" as separator
+if echo "$INPUT" | grep -qn '## Transcript'; then
+    SPLIT_LINE=$(echo "$INPUT" | grep -n '## Transcript' | head -1 | cut -d: -f1)
+    SUMMARY=$(echo "$INPUT" | head -n $((SPLIT_LINE - 1)))
+    TRANSCRIPT=$(echo "$INPUT" | tail -n +$((SPLIT_LINE + 1)))
+elif echo "$INPUT" | grep -qn '^---$'; then
+    SPLIT_LINE=$(echo "$INPUT" | grep -n '^---$' | head -1 | cut -d: -f1)
+    SUMMARY=$(echo "$INPUT" | head -n $((SPLIT_LINE - 1)))
+    TRANSCRIPT=$(echo "$INPUT" | tail -n +$((SPLIT_LINE + 1)))
+else
+    # No separator found — treat entire input as summary, no transcript
+    SUMMARY="$INPUT"
+    TRANSCRIPT=""
+fi
+
+# Write summary file with front matter
+cat > "$SUMMARY_FILE" << EOF
+---
+type: granola-transcript
+date: ${DATE_ISO}
+source: granola
+summary_title: "${TITLE}"
+transcript: transcripts/granola-${DATESTAMP}-${SLUG}-transcript.md
+---
+
+## Summary
+
+${SUMMARY}
+
+## Transcript
+
+See: [Full transcript](transcripts/granola-${DATESTAMP}-${SLUG}-transcript.md)
+EOF
+
+# Write transcript file
+if [[ -n "$TRANSCRIPT" ]]; then
+    cat > "$TRANSCRIPT_FILE" << EOF
+---
+type: granola-transcript-body
+date: ${DATE_ISO}
+source: granola
+summary_title: "${TITLE}"
+summary: ../granola-${DATESTAMP}-${SLUG}.md
+---
+
+${TRANSCRIPT}
+EOF
+    echo "✓ Summary:    $SUMMARY_FILE"
+    echo "✓ Transcript: $TRANSCRIPT_FILE"
+else
+    echo "✓ Summary:    $SUMMARY_FILE"
+    echo "  (no transcript section found — summary only)"
+fi
