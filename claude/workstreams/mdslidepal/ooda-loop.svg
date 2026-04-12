@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 320" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="ooda-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0066cc"/>
+    </marker>
+  </defs>
+
+  <!-- Circular arrows connecting boxes -->
+  <path d="M 220 80 A 140 140 0 0 1 350 55" fill="none" stroke="#0066cc" stroke-width="3" marker-end="url(#ooda-arrow)"/>
+  <path d="M 480 80 A 140 140 0 0 1 545 160" fill="none" stroke="#0066cc" stroke-width="3" marker-end="url(#ooda-arrow)"/>
+  <path d="M 480 240 A 140 140 0 0 1 350 265" fill="none" stroke="#0066cc" stroke-width="3" marker-end="url(#ooda-arrow)"/>
+  <path d="M 220 240 A 140 140 0 0 1 155 160" fill="none" stroke="#0066cc" stroke-width="3" marker-end="url(#ooda-arrow)"/>
+
+  <!-- OBSERVE (top-left) — Principal -->
+  <rect x="110" y="40" width="120" height="44" rx="8" fill="#0066cc"/>
+  <text x="170" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="white">OBSERVE</text>
+
+  <!-- ORIENT (top-right) — Principal -->
+  <rect x="370" y="40" width="120" height="44" rx="8" fill="#0066cc"/>
+  <text x="430" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="white">ORIENT</text>
+
+  <!-- DECIDE (bottom-right) — Principal -->
+  <rect x="370" y="236" width="120" height="44" rx="8" fill="#0066cc"/>
+  <text x="430" y="264" text-anchor="middle" font-size="16" font-weight="700" fill="white">DECIDE</text>
+
+  <!-- ACT (bottom-left) — Agents (dark) -->
+  <rect x="110" y="236" width="120" height="44" rx="8" fill="#1a1a1a"/>
+  <text x="170" y="264" text-anchor="middle" font-size="16" font-weight="700" fill="white">ACT</text>
+
+  <!-- Labels -->
+  <text x="170" y="30" text-anchor="middle" fill="#0066cc" font-size="11" font-weight="600">The Principal</text>
+  <text x="430" y="30" text-anchor="middle" fill="#0066cc" font-size="11" font-weight="600">The Principal</text>
+  <text x="430" y="296" text-anchor="middle" fill="#0066cc" font-size="11" font-weight="600">The Principal</text>
+  <text x="170" y="296" text-anchor="middle" fill="#888" font-size="11" font-weight="600">The Agents</text>
+
+  <!-- Center -->
+  <text x="300" y="155" text-anchor="middle" fill="#aaa" font-size="16" font-style="italic">The Loop</text>
+  <text x="300" y="175" text-anchor="middle" fill="#ccc" font-size="12">OOD + A</text>
+
+  <!-- Feedback arrow from ACT back to OBSERVE -->
+  <path d="M 140 236 Q 100 160 140 84" fill="none" stroke="#888" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#ooda-arrow)"/>
+  <text x="85" y="160" text-anchor="middle" fill="#888" font-size="10" font-style="italic">feedback</text>
+</svg>

@@ -47,7 +47,7 @@ Indeed · Trade Gecko · Carousell · OrdinaryFolk (CPTO)
 
 **Smart Nation Fellow**
 
-**Advisor:** Open Government Products · StaffAny
+**Advisor:** Open Government Products · StaffAny · *See LinkedIn*
 
 My Singaporean hero? Not LKY. **Philip Yeo.**
 
@@ -158,6 +158,9 @@ But I've been at Apple, Adobe, Indeed, Yahoo — and been successful at every on
 - Building teams and directing them to deliver
 - Learning continuously — new domains, new tools, new paradigms
 
+- Delegation
+- Focusing a team on a desired end-state
+
 ---
 
 # Sound Familiar?
@@ -189,30 +192,21 @@ Every day. Every hour. This loop, over and over.
 
 It's **OODA.**
 
-**Observe** → **Orient** → **Decide** → **Act**
+![The OODA Loop](ooda-loop.svg)
 
-Colonel John Boyd, USAF fighter pilot, 1950s.
-
-"The pilot who cycles through OODA fastest wins the dogfight."
-
-![Boyd: The Fighter Pilot Who Changed the Art of War](boyd-book.jpg)
+Colonel John Boyd, USAF fighter pilot, 1950s. "The pilot who cycles through OODA fastest wins the dogfight."
 
 ---
 
 # Our Role Is OOD
 
-| | Who |
-|---|---|
-| **Observe** | The Principal |
-| **Orient** | The Principal |
-| **Decide** | The Principal |
-| **Act** | **The agents** |
+![The OODA Loop](ooda-loop.svg)
+
+The Principal drives **OOD** — Observe, Orient, Decide.
+
+The agents execute **A** — Act.
 
 Act happens fast with agents. **Gated by OOD and Delegation.**
-
-AI Augmented Development with Valueflow + The Agency lets us **run the OODA loop faster** than anyone.
-
-The Principal drives OOD. The agents execute A.
 
 ---
 
@@ -281,6 +275,18 @@ Quality is **mechanical**, not aspirational.
 I didn't know telemedicine. I understood the **problem** and how to break it down.
 
 That system is now being pulled from for design and implementation at OrdinaryFolk.
+
+---
+
+# My Home Network
+
+I rebuilt my entire home network — VLANs, firewall rules, DNS, IoT segmentation — using Claude Code.
+
+I'm not a network engineer. I understood the **problem** (security, segmentation, reliability) and how to break it down.
+
+The agents did the implementation. I did the OOD.
+
+**This is what AI Augmented Development looks like in practice.**
 
 ---
 
@@ -365,14 +371,9 @@ That's why Claude is the right foundation for serious agent work.
 
 **It's the OOD in OODA.**
 
-The human in a human-agent collaboration.
+![The OODA Loop](ooda-loop.svg)
 
-- Sets direction and goals
-- Provides context and constraints
-- Evaluates output — trust but verify
-- Makes the decisions that matter
-
-You already know this role. You've been doing it as educators, as team leads, as professionals.
+The human in a human-agent collaboration. Sets direction, provides context, evaluates output, makes the decisions that matter.
 
 **In AI Augmented Development, you are the Principal.**
 
@@ -489,22 +490,6 @@ Every lesson learned becomes a standing instruction. **This is where discipline 
 
 ---
 
-# The Enforcement Triangle
-
-How do you get AI to do things **the way you want?**
-
-| Layer | What | Why |
-|-------|------|-----|
-| **CLAUDE.md** | Policy — tells it | Direction |
-| **Skills + Tools** | Capability — makes it easy | Discovery |
-| **Hooks + Hookify** | Enforcement — forces compliance | Compliance |
-
-"If it's not enforced by code, it's a suggestion."
-
-This is continuous improvement made structural — Deming's Plan-Do-Check-Act, encoded into the tooling.
-
----
-
 # Agents and Subagents
 
 **Agents** — isolated AI workers with their own context window, system prompt, and tools.
@@ -553,31 +538,25 @@ This is the third side of the Enforcement Triangle: **forced compliance.**
 
 ---
 
-# Lifecycle of a Claude Code Session
+# The Enforcement Triangle
 
-1. **Session Resume** — sync with master, read handoff, check dispatches
-2. **Dialogue** — discuss, plan, get direction from the Principal
-3. **Execute** — implement through phases and iterations, QG at every boundary
-4. **Compact** — context fills up, the AI summarizes and continues (plan for this)
-5. **Session End** — write handoff, commit work, report readiness
+How do you get AI to do things **the way you want?**
 
-Each session picks up where the last one left off. **Handoffs are the bridge.**
+| Layer | What | Why |
+|-------|------|-----|
+| **CLAUDE.md** | Policy — tells it | Direction |
+| **Skills + Tools** | Capability — makes it easy | Discovery |
+| **Hooks + Hookify** | Enforcement — forces compliance | Compliance |
+
+"If it's not enforced by code, it's a suggestion."
+
+This is continuous improvement made structural — Deming's Plan-Do-Check-Act, encoded into the tooling.
 
 ---
 
-# Jamon Holmgren's 8 Practices
+# Lifecycle of a Claude Code Session
 
-- ✅ Excellent test suite
-- ✅ Excellent docs
-- ✅ Curated codebase
-- ✅ Review agents
-- ✅ Well-written specs
-- ~~Review every line of every change~~
-  - **We use Quality Gates + Multi-Agent Review**
-- ✅ **Run agents at night** ← the discipline test
-- ✅ Hand-write features sometimes
-
-"If your system can't run autonomously while you sleep, your docs, tests, and specs aren't good enough yet."
+![Session Lifecycle](session-lifecycle.svg)
 
 ---
 
@@ -639,6 +618,22 @@ Valueflow is the process. The Agency is the tooling that enables it.
 
 ---
 
+# What The Agency Gives You
+
+| Component | What | Example |
+|-----------|------|---------|
+| **Tools** | 60+ CLI tools with logging | `dispatch`, `flag`, `handoff`, `git-commit` |
+| **Hookify** | Behavioral rules (warn/block) | `block-git-commit.md` |
+| **Docs** | Reference docs (injected on demand) | `QUALITY-GATE.md`, `ISCP-PROTOCOL.md` |
+| **Agent Classes** | Role definitions | `captain/agent.md`, `tech-lead/agent.md` |
+| **Hooks** | Session lifecycle automation | `ref-injector.sh` |
+| **Skills** | `/` invocable workflows | `/handoff`, `/discuss`, `/define` |
+| **Config** | Principal mapping, providers | `agency.yaml` |
+
+One `agency init` — and all of this is in your repo.
+
+---
+
 # Seed → Define
 
 **Seed** — a captured starting point. A conversation, a document, an observation, a flag.
@@ -676,6 +671,8 @@ Valueflow is the process. The Agency is the tooling that enables it.
 ---
 
 # Implement → Ship → Value
+
+**Always use Plan Mode to plan.** Think before you act. Iterate with MAR loops.
 
 **Implement** — agents execute autonomously. Quality Gate at every iteration boundary.
 
@@ -763,29 +760,23 @@ Bug found by one agent. Fixed by another. Delivered to a third Agency.
 
 ---
 
-# What You Get — The Repo Structure
+# What You Get — `claude init` vs `agency init`
 
-```
-my-project/
-├── CLAUDE.md              — project instructions
-├── claude/                — framework
-│   ├── tools/             — 60+ CLI tools
-│   ├── agents/            — agent class definitions
-│   ├── docs/              — reference docs
-│   ├── hooks/             — session lifecycle hooks
-│   ├── hookify/           — behavioral rules (warn/block)
-│   ├── config/            — agency.yaml, settings template
-│   └── workstreams/       — bodies of work
-├── .claude/
-│   ├── settings.json      — permissions, hooks config
-│   ├── skills/            — /define, /discuss, /commit...
-│   └── agents/            — captain.md, devex.md...
-└── usr/
-    └── jordan/
-        └── captain/       — handoffs, dispatches, transcripts
-```
-
-One `agency init` and you have a structured methodology.
+| `claude init` | `agency init` |
+|---|---|
+| `.claude/settings.json` | `.claude/settings.json` — **pre-configured** |
+| | `.claude/skills/` — `/define`, `/discuss`, `/commit`... |
+| | `.claude/agents/` — `captain.md`, `devex.md`... |
+| | `claude/tools/` — **60+ CLI tools** |
+| | `claude/agents/` — agent class definitions |
+| | `claude/docs/` — reference docs |
+| | `claude/hooks/` — lifecycle automation |
+| | `claude/hookify/` — behavioral enforcement |
+| | `claude/config/` — agency.yaml |
+| | `claude/workstreams/` — bodies of work |
+| | `usr/jordan/captain/` — handoffs, dispatches |
+| | `CLAUDE.md` — **standing instructions** |
+| **Smart assistant** | **Structured methodology** |
 
 ---
 
@@ -912,7 +903,7 @@ Captain executes. You watch and review.
 
 After each iteration: review → approve → next.
 
-**This is the OODA loop.**
+![The OODA Loop](ooda-loop.svg)
 
 ---
 
@@ -975,46 +966,26 @@ You are the people who shape what the next generation learns.
 
 **Reorient education around OODA.**
 
+![The OODA Loop](ooda-loop.svg)
+
 - Teach **Observe** — problem identification, critical analysis, pattern recognition
 - Teach **Orient** — framing problems, communicating context, giving clear direction
 - Teach **Decide** — evaluating output, judgment, when to trust and when to question
 - Teach **Act through Delegation** — packaging work, assigning it, coordinating agents
 
-The Principal IS the OOD. **Act is now Delegation.**
-
-Don't teach coding as the core skill. **AI does the execution.**
+The Principal IS the OOD. **The A is to Act through Delegation.**
 
 Teach your students to be **great Principals** — not great coders.
 
 ---
 
-# What's Next — Markdown is the Lingua Franca
-
-Not .doc. Not .pptx. Not Google Docs.
-
-**Markdown.**
-
-It's what agents read. It's what agents write. It's what survives compaction, handoffs, and version control.
-
-Every tool we build is markdown-native.
-
----
-
-# The Ecosystem
-
-- **Markdown Pal** — reviewing and navigating markdown (macOS + iOS)
-- **mdslidepal** — presenting from markdown (these slides!)
-- **Mock and Mark** — visual communication for markdown-native workflows
-
-All built with Claude Code. All built with Valueflow. All open source.
-
----
-
 # How I Actually Work
 
-- **Over/Over-and-Out** — radio protocol for structured agent conversation (adapted from 1860s Morse telegraphy)
-- **Multi-Agency** — Principal on two Agencies (The Agency + OrdinaryFolk) simultaneously, every day
-- **Voice-first** — Granola for meetings, Remote Control for mobile. These slides were built over several days via breakfast walks, dictation, and three Granola review passes fed to multi-agent review.
+- **Follow Valueflow** — every project, every feature, Seed to Value
+- **Captain to support** — the Captain coordinates, I direct
+- **Spin up workstreams** — one workstream per body of work, agents assigned
+- **1B1 + Over Protocol** — structured conversation, one item at a time
+- **Lots of voice, lots of capturing** — Granola for meetings, Remote Control for mobile, capture things when top of mind
 
 ---
 
