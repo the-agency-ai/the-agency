@@ -2,7 +2,7 @@
 type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
-date: 2026-04-09
+date: 2026-04-12
 trigger: session-end
 ---
 
@@ -12,44 +12,44 @@ the-agency/jordan/devex — tech-lead on the devex workstream. I own test infras
 
 ## Current State
 
-**Day 34 session — highly productive.** Entire Day 33 queue cleared + 3 captain directives + docker fix + dependencies review. Queue is EMPTY.
+**Day 35 session — massive output.** Bootloader refactoring + contribution model rollout. 4 commits on devex branch. Queue nearly clear.
 
 ## What Shipped This Session
 
-### Blocker resolution
-- Merged main 2x (picked up Gate 0, Day 33 R1/R2, Day 34.1-34.4)
-- Resolved worktree-sync merge conflict (.claude/logs/tool-runs.jsonl)
-- Verified Gate 0 works on devex (Jordan Dea-Mattson attribution confirmed)
+### Merge main
+- Resolved 9 merge conflicts (test files + releases.md) from captain Days 35-36 work
+- Committed 2664f89
 
-### New tools and libs
-- `claude/tools/lib/_docker-heal` — auto-detect Docker Desktop socket on macOS (fixes GH #58). 12 BATS tests.
-- `claude/tools/lib/_test-isolation` — extracted from test_helper.bash so adopters get it via agency update. Pure refactor.
+### CLAUDE-THEAGENCY.md bootloader refactoring (dispatch #201 Priority 1)
+- Slimmed monolith from ~6600 words to ~690 words (89% token reduction)
+- 5 new ref docs: AGENT-ADDRESSING.md, WORKTREE-DISCIPLINE.md, PROVENANCE-HEADERS.md, REPO-STRUCTURE.md, QUALITY-DISCIPLINE.md
+- Updated DEVELOPMENT-METHODOLOGY.md (9-step Valueflow, MAR/MARFI/MAP, three-bucket)
+- Ref-injector wired: 11 new case entries mapping 25+ skills to ref docs
+- 19 hookify rules updated: section anchors → new ref doc paths
+- MAR coverage audit: 73/73 concepts verified reachable
+- Committed f72d812
 
-### worktree-create v2.1.0 (#166)
-- `--workstream`/`--agent`/`--compute-only` flags with collapse rule. 20 BATS tests.
+### MAR fixes (dispatch #203) + CI rework + ci-monitor
+- QUALITY-GATE.md, CODE-REVIEW-LIFECYCLE.md, ref-injector fixes
+- 3 new CI workflows (smoke-ubuntu, fork-pr-full-qg, sister-project-pr-gate)
+- ci-monitor tool + monitor-ci skill
+- Committed 5c7f7e0
 
-### Hookify rename (#167)
-- 33 rules renamed verb-noun → noun-verb. All cross-refs updated.
+### Contribution model rollout
+- Skill-validation moved into commit-precheck (root cause fix for broken-window CI)
+- Email notification disable guide + branch protection setup guide
+- Monofolk Ring 2 transition dispatch drafted (#209)
+- Committed 434bc02
 
-### Agent-create dispatch loops (#168)
-- 4 agent registrations + template now include 5m + 30m dispatch loop step.
+## Remaining Items
 
-### Valueflow Phase 3 — verified already complete
-- All 4 non-stretch iterations confirmed against plan spec.
-
-### Item 4 hookify analysis + force-push-any-block
-- New rule blocks `--force` (without `--force-with-lease`) to ANY branch.
-
-### Dependencies.yaml review (#193)
-- 6 findings dispatched to captain.
-
-## Queue
-
-**EMPTY.** Only open: task #16 (test isolation SPEC:PROVIDER) paused pending monofolk/devex RFI #176.
+1. **CODE_OF_CONDUCT.md** — content filter blocks creation. Full text fetched from contributor-covenant.org. Jordan to create manually or retry.
+2. **Dispatch #200** (SPEC:PROVIDER NestJS/React) — queued, lower priority
+3. **Task #16** (test isolation SPEC:PROVIDER) — paused pending monofolk/devex RFI #176
+4. **2 monofolk collab dispatches** — captain-only (SPEC-PROVIDER status + This Happened)
 
 ## Next Action
 
-1. Arm dispatch loop: `/loop 5m dispatch check`
-2. Check ISCP: `dispatch list` and `flag list`
-3. Check for monofolk/devex response to RFI #176
-4. Await new assignments from captain
+1. Create CODE_OF_CONDUCT.md (Jordan or retry)
+2. Commit remaining + dispatch to captain for final PR build
+3. Await new assignments
