@@ -131,9 +131,7 @@ AI is automating #1. The other four are what Valueflow amplifies.
 
 # Fast · Good · Cheap
 
-<!-- TODO: SVG triangle graphic -->
-
-The classic conundrum: pick two.
+![Fast Good Cheap Triangle](fast-good-cheap.svg)
 
 **With discipline and AI augmented development, you can have all three.**
 
@@ -369,9 +367,7 @@ Forsgren measured half the problem. **Valueflow measures all of it.**
 
 # Valueflow — The AI ADLC
 
-<!-- TODO: Replace with SVG pipeline diagram -->
-
-**Idea** → **Seed** → **Research** → **Define** → **Design** → **Plan** → **Implement** → **Ship** → **Value**
+![Valueflow Pipeline](valueflow-pipeline.svg)
 
 The first methodology for **structured human-agent collaborative development.**
 
