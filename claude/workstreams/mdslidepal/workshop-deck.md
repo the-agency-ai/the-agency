@@ -36,15 +36,18 @@ That's what became **The Agency** and **Valueflow.**
 
 **Jordan Dea-Mattson** · Almost 4 decades in tech
 
-- **Apple** (13 years, 1986-1999) — PM for the 68K Dev Environment (MacsBug, MDS, MPW). Spoke at 10 WWDCs. Was there the night Steve Jobs came back.
-- **Adobe, Indeed, Yahoo** — Silicon Valley
-- **Trade Gecko** (Dev of Engineering), **Carousell** (VP Engineering), **OrdinaryFolk** (CPTO) — Singapore
+- **Apple** (13 years, 1986-1999)
+  - PM for the 68K Dev Environment (MacsBug, MDS, MPW)
+  - Spoke at 10 WWDCs
+  - Was there the night Steve Jobs came back
+- **Silicon Valley:** Adobe, Yahoo, startups (Ooyala, Numenta)
+- **Singapore:** Indeed, Trade Gecko, Carousell, OrdinaryFolk (CPTO)
 - **Smart Nation Fellow**
-- Advisor: Singapore Polytechnic, Open Government Products
+  - Advisor: Singapore Polytechnic, Open Government Products
 
-My Singaporean hero? Not LKY. **Philip Yeo.** Break rules to build new economies.
+My Singaporean hero? Not LKY. **Philip Yeo.**
 
-![Philip Yeo](sg-hero.jpg)
+![Philip Yeo — Break rules to build new economies](sg-hero.jpg)
 
 My agentic journey: **12 agents, 2 agencies, every day.**
 
@@ -213,6 +216,28 @@ That's the revolution.
 
 ---
 
+# Traditionally: Fast + Cheap
+
+People chose Fast and Cheap. They skipped the Good practices.
+
+Test-first · Red-green · Refactoring · Clean code · Code review · Continuous integration · Pair programming · TDD · BDD · Design patterns · SOLID principles · Martin Fowler · Kent Beck · Uncle Bob
+
+All proven. All produce great software. All **too expensive** without scale.
+
+---
+
+# With AI: All Three
+
+AI gives you **infinitely scalable execution resources.**
+
+Now you CAN do test-first. Now you CAN refactor. Now you CAN review every change — with agents.
+
+The good practices aren't expensive anymore. **They're free.**
+
+Fast + Good + Cheap. All three.
+
+---
+
 # How I Spent My Christmas Vacation
 
 **The challenge:** I wanted to prove to myself I could do it
@@ -333,56 +358,56 @@ An agentic harness **tuned for building software.**
 
 Boris Cherny at Anthropic needed to build a coding agent. He built it on a generalized agentic foundation, then focused it on the software development use case.
 
-That's why it's extensible — hooks, MCP servers, skills, tools — the general harness is underneath. The coding focus is a layer.
+That's why it's extensible — hooks, MCP servers, skills, tools. The coding focus is a layer on a general harness.
+
+---
+
+# What Are Tokens?
+
+The **atoms** of AI communication.
+
+Every word, every symbol, every piece of code is broken into tokens. A token is roughly 3/4 of a word.
+
+- "Hello, world!" ≈ 4 tokens
+- A typical email ≈ 200 tokens
+- A full source file ≈ 1,000-3,000 tokens
+
+Everything in AI is measured in tokens: what you send, what you receive, what the AI remembers.
 
 ---
 
 # Context Window
 
-The fundamental constraint.
+The AI's **working memory** — measured in tokens.
 
-- Your "working memory" — everything in the conversation
-- **Token economics:** context tokens cost money AND quality
-- "If I asked you to read a 50MB log dump, you'd lose every tree in the forest."
-- **Managing context is THE critical skill**
+Everything in the conversation lives here: your instructions, the AI's responses, file contents, tool output, CLAUDE.md.
+
+When it fills up → the AI forgets. That's **compaction.**
+
+"If I asked you to read a 50MB log dump, you'd lose every tree in the forest — and every token in that dump costs money."
 
 ---
 
 # Token Economics
 
-The Agency is **parsimonious** with tokens.
+Two kinds of tokens. Both cost money.
 
-People complain about running out → they're burning tokens on:
+**Usage tokens** — what you spend each month (your bill)
 
+**Context tokens** — what the AI can hold in working memory (quality)
+
+Burn either one carelessly and you hit limits:
 - Streaming command output nobody reads
-- Reading entire files when they need one line
-- Loading every doc into context "just in case"
+- Reading entire files when you need one line
+- Loading every doc "just in case"
 
 **Discipline = more productive sessions, lower cost, better output.**
 
----
-
-# Markdown is the Lingua Franca
-
-Not .doc. Not .pptx. Not Google Docs. Not PDF.
-
-**Markdown.**
-
-It's what agents read. It's what agents write. It's what survives compaction, handoffs, and version control.
-
-It replaces every proprietary format in the agentic world.
+The Agency is **parsimonious** with tokens. That's a competitive advantage.
 
 ---
 
-# These Slides Are Markdown
-
-This deck is a `.md` file rendered by **mdslidepal** — a tool we built yesterday.
-
-The workflow: I walk to breakfast. Voice input via Remote Control. My captain holds my input (Over protocol), mirrors back, makes changes. I refresh.
-
-**You're looking at the output of human-agent collaboration right now.**
-
----
+# How Do You Tell an Agent What to Do?
 
 # CLAUDE.md
 
