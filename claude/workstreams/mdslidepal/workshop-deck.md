@@ -252,9 +252,17 @@ You can have all three.
 
 It's just getting the agents to do it.
 
-Our quality philosophy: **we fix things, we don't work around them.**
+---
 
-Quality is mechanical, not aspirational. If a rule matters, it's enforced by a hook — not by prose in a document.
+# Our Quality Philosophy
+
+**We fix things. We don't work around them.**
+
+- No `--no-verify`. No `eslint-disable`. No "fix later."
+- Silent failures compound. Workarounds become permanent.
+- If a rule matters, it's enforced by a hook — not by prose in a document.
+
+Quality is **mechanical**, not aspirational.
 
 ---
 
@@ -545,6 +553,18 @@ This is the third side of the Enforcement Triangle: **forced compliance.**
 
 ---
 
+# Lifecycle of a Claude Code Session
+
+1. **Session Resume** — sync with master, read handoff, check dispatches
+2. **Dialogue** — discuss, plan, get direction from the Principal
+3. **Execute** — implement through phases and iterations, QG at every boundary
+4. **Compact** — context fills up, the AI summarizes and continues (plan for this)
+5. **Session End** — write handoff, commit work, report readiness
+
+Each session picks up where the last one left off. **Handoffs are the bridge.**
+
+---
+
 # Jamon Holmgren's 8 Practices
 
 - ✅ Excellent test suite
@@ -704,25 +724,14 @@ This is NOT you and one AI assistant.
 
 Not just you talking to agents. **Agents collaborate with agents.**
 
-- Agents **delegate work** to other agents via dispatches
+- Agents **delegate work** via dispatches (structured messages in git)
 - Agents **review each other's output** (Multi-Agent Review)
 - Agents **report bugs** — and other agents fix them
 - Agents **escalate** when something needs the Principal's attention
 
----
+**Dispatches** — structured messages: directive, review, seed, escalation. Instant notification via ISCP. Agents check automatically on session start. No human routing.
 
-# How Agents Communicate — Dispatches
-
-A **dispatch** is a structured message between agents:
-
-- **Type:** directive, review, seed, escalation, commit notification
-- **Payload:** a markdown file in git (immutable, versioned)
-- **Notification:** instant via ISCP (Inter-Session Communication Protocol)
-- **Lifecycle:** created → read → resolved
-
-Agents check for dispatches automatically on session start. No human routing needed.
-
-**Flags** — quick observations captured for later. DB-only, instant, zero friction.
+**Flags** — quick observations captured for later. Zero friction.
 
 ---
 
@@ -792,18 +801,6 @@ The review loop that runs at every quality gate:
 6. **QGR receipt** — the permanent audit trail
 
 MAR replaces human code review. It's parallel, mechanical, and **scales infinitely.**
-
----
-
-# Lifecycle of a Claude Code Session
-
-1. **Session Resume** — sync with master, read handoff, check dispatches
-2. **Dialogue** — discuss, plan, get direction from the Principal
-3. **Execute** — implement through phases and iterations, QG at every boundary
-4. **Compact** — context fills up, the AI summarizes and continues (plan for this)
-5. **Session End** — write handoff, commit work, report readiness
-
-Each session picks up where the last one left off. **Handoffs are the bridge.**
 
 ---
 
@@ -991,11 +988,7 @@ Teach your students to be **great Principals** — not great coders.
 
 ---
 
-# What's Next — The Vision
-
----
-
-# Markdown is the Lingua Franca
+# What's Next — Markdown is the Lingua Franca
 
 Not .doc. Not .pptx. Not Google Docs.
 
