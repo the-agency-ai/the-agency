@@ -478,6 +478,33 @@ This is NOT you and one AI assistant.
 
 ---
 
+# Agents Talk to Each Other
+
+Not just you talking to agents. **Agents collaborate with agents.**
+
+- Agents **delegate work** to other agents via dispatches
+- Agents **review each other's output** (Multi-Agent Review)
+- Agents **report bugs** — and other agents fix them
+- Agents **escalate** when something needs the principal's attention
+
+---
+
+# Today's Example
+
+**DesignEx agent** (running autonomously) hit a bug in `agency update`.
+
+It **escalated to captain** via dispatch.
+
+Captain **diagnosed and fixed** the bug in 5 minutes.
+
+Captain **dispatched the fix** to monofolk (a different agency).
+
+Bug found by one agent. Fixed by another. Delivered to a third agency.
+
+**No human had to discover the bug.** An agent found it while doing its own work.
+
+---
+
 # The Agency — The Platform
 
 **The Agency** implements Valueflow.
