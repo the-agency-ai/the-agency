@@ -26,16 +26,18 @@ SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // empty' 2>/dev/null)
 # Map skills to reference files (exact match only — no substring/glob)
 REF_FILES=()
 case "$SKILL" in
-  # Quality gate boundary skills → QG protocol
+  # Quality gate boundary skills → QG protocol + git discipline (pr-prep pushes)
   iteration-complete|phase-complete|plan-complete|quality-gate|pr-prep)
     REF_FILES+=("$DOCS_DIR/QUALITY-GATE.md")
     REF_FILES+=("$DOCS_DIR/QUALITY-DISCIPLINE.md")
+    REF_FILES+=("$DOCS_DIR/GIT-MERGE-NOT-REBASE.md")
     ;;
-  # Commit workflow → QG + code review + provenance
+  # Commit workflow → QG + code review + provenance + git discipline
   git-commit|ship)
     REF_FILES+=("$DOCS_DIR/QUALITY-GATE.md")
     REF_FILES+=("$DOCS_DIR/CODE-REVIEW-LIFECYCLE.md")
     REF_FILES+=("$DOCS_DIR/PROVENANCE-HEADERS.md")
+    REF_FILES+=("$DOCS_DIR/GIT-MERGE-NOT-REBASE.md")
     ;;
   # Planning & design → methodology (Valueflow, MAR, three-bucket)
   pre-phase-review|define|design)
@@ -67,6 +69,11 @@ case "$SKILL" in
   collaborate)
     REF_FILES+=("$DOCS_DIR/ISCP-PROTOCOL.md")
     REF_FILES+=("$DOCS_DIR/AGENT-ADDRESSING.md")
+    ;;
+  # Sync and post-merge skills → git discipline + worktree discipline
+  sync-all|sync|post-merge)
+    REF_FILES+=("$DOCS_DIR/GIT-MERGE-NOT-REBASE.md")
+    REF_FILES+=("$DOCS_DIR/WORKTREE-DISCIPLINE.md")
     ;;
   # Worktree skills → worktree discipline
   worktree-create|worktree-sync|worktree-list|worktree-delete)
