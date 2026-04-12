@@ -129,6 +129,21 @@ To send a dispatch to monofolk:
 |------|---------|-------------------|
 | monofolk | `monofolk/jordan/captain` | `~/code/collaboration-monofolk` |
 
+## Tool Discipline — USE THE TOOLS
+
+**Never hand-craft files that a tool creates.** The framework has tools for scaffolding workstreams, agents, and worktrees. USE THEM:
+
+- **Workstreams:** `/workstream-create` — creates directory structure, agent registrations, worktrees, sandbox
+- **Agents:** `./claude/tools/agent-create` — creates agent registrations in `.claude/agents/`. NEVER write registration files manually.
+- **Worktrees:** `./claude/tools/worktree-create` — creates git worktrees with proper branch, settings copy, identity file, dependency install
+- **Handoffs:** `./claude/tools/handoff write` — archives previous, writes new. NEVER write handoff files directly.
+- **Commits:** `./claude/tools/git-commit` — QG-aware wrapper. NEVER use raw `git commit`.
+- **Dispatches:** `./claude/tools/dispatch create` — creates DB record + git payload. NEVER write dispatch files manually.
+
+The tools exist because they enforce consistency, create the right structure, and are the Enforcement Triangle in action. Hand-crafting files that tools should create is a process violation — it bypasses the consistency guarantees and creates drift.
+
+**Lesson captured 2026-04-12:** Captain hand-crafted agent registration + handoff + workstream dirs for DesignEx instead of using `/workstream-create` + `agent-create` + `worktree-create`. Principal caught it: *"Use the tools! You are doing it manually! Spin up a workstream, an agent, a worktree with the tools!"* Fixed by removing manual files and redoing with tools.
+
 ## File Discipline
 
 - Handoffs: `usr/jordan/captain/captain-handoff.md` (via handoff tool, never manual)
