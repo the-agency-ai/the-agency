@@ -339,6 +339,34 @@ Nobody has reimagined the development lifecycle for human-agent collaboration.
 
 ---
 
+# The Research That Exists
+
+**Nicole Forsgren** + DORA (2014–2025, 39,000+ professionals)
+
+Proved: software delivery performance is **measurable** and predicts organizational outcomes.
+
+**Four Key Metrics:** deployment frequency, lead time, change failure rate, MTTR
+
+But these measure **code commit → production.**
+
+<!-- TODO: Show Accelerate + DevOps Handbook book covers -->
+
+---
+
+# The Gap Nobody Filled
+
+**Upstream** (idea → code): ideation, research, requirements, design, planning — **unmeasured**
+
+**Downstream** (production → value): adoption, feedback, value realization — **unmeasured**
+
+**Agentic**: multi-agent coordination, human-agent workflows, agent quality gates — **not addressed**
+
+Forsgren measured half the problem. **Valueflow measures all of it.**
+
+*Forsgren, Humble, Kim. "Accelerate." IT Revolution, 2018.*
+
+---
+
 # Valueflow — The AI ADLC
 
 <!-- TODO: Replace with SVG pipeline diagram -->
