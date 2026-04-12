@@ -252,6 +252,10 @@ You can have all three.
 
 It's just getting the agents to do it.
 
+Our quality philosophy: **we fix things, we don't work around them.**
+
+Quality is mechanical, not aspirational. If a rule matters, it's enforced by a hook — not by prose in a document.
+
 ---
 
 # How I Spent My Christmas Vacation
@@ -665,13 +669,22 @@ Valueflow is the process. The Agency is the tooling that enables it.
 
 ---
 
-# Quality Gates — How Valueflow Maintains Rigor
+# Quality Gates — The 8 Stages
 
-- Multi-Agent Review (MAR) — agents review each other's work at every boundary
-- Different depths for different boundaries
-- Red-green discipline — failing test first, then fix
-- Binary triage — fix it or it's not an issue
-- **Agents review agents** — this is how we scale quality
+Every commit boundary runs this protocol:
+
+1. **Parallel review** — 4+ specialized agents (code, security, design, test) review simultaneously
+2. **Score and consolidate** — scorer agent rates findings 0–100, filter noise, deduplicate
+3. **Bug-exposing tests** — write tests that expose each issue, confirm they **fail** (red)
+4. **Fix issues** — fix each issue, confirm the test now **passes** (green). Red→green = proof.
+5. **Coverage review** — identify gaps from test reviewer findings
+6. **Add coverage tests** — edge cases, error paths, integration boundaries
+7. **Fix new issues** — if new tests expose problems, fix them
+8. **Confirm all clean** — lint, format, typecheck, all tests pass. **Failing = 0.**
+
+The result: a **Quality Gate Report (QGR)** — the proof that the gate ran.
+
+**Agents review agents.** This is how we scale quality.
 
 ---
 
@@ -738,6 +751,47 @@ Bug found by one agent. Fixed by another. Delivered to a third Agency.
 | After setup | `.claude/` | `.claude/` + `claude/` + `usr/` + `CLAUDE.md` |
 | **First run** | Blank canvas | Hooks fire, handoff read, enforcement active |
 | **Result** | Smart assistant | **Structured methodology** |
+
+---
+
+# What You Get — The Repo Structure
+
+```
+my-project/
+├── CLAUDE.md              — project instructions
+├── claude/                — framework
+│   ├── tools/             — 60+ CLI tools
+│   ├── agents/            — agent class definitions
+│   ├── docs/              — reference docs
+│   ├── hooks/             — session lifecycle hooks
+│   ├── hookify/           — behavioral rules (warn/block)
+│   ├── config/            — agency.yaml, settings template
+│   └── workstreams/       — bodies of work
+├── .claude/
+│   ├── settings.json      — permissions, hooks config
+│   ├── skills/            — /define, /discuss, /commit...
+│   └── agents/            — captain.md, devex.md...
+└── usr/
+    └── jordan/
+        └── captain/       — handoffs, dispatches, transcripts
+```
+
+One `agency init` and you have a structured methodology.
+
+---
+
+# Multi-Agent Review (MAR)
+
+The review loop that runs at every quality gate:
+
+1. **Captain dispatches** the work to 4+ review agents in parallel
+2. Each agent reviews from a different lens (code, security, design, test)
+3. **Scorer consolidates** — rates findings 0–100, deduplicates
+4. Author agent **triages** into three buckets: Disagree, Autonomous, Collaborative
+5. **Fixes** with red→green test cycle — proof, not assertion
+6. **QGR receipt** — the permanent audit trail
+
+MAR replaces human code review. It's parallel, mechanical, and **scales infinitely.**
 
 ---
 
