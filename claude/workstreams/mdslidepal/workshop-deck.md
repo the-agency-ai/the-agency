@@ -129,6 +129,75 @@ AI is automating #1. The other four are what Valueflow amplifies.
 
 ---
 
+# A Confession
+
+I'm a **mediocre coder.**
+
+I'd probably fail half the LeetCode problems you throw at me.
+
+But I've been at Apple, Adobe, Indeed, Yahoo — and been successful at every one.
+
+---
+
+# So What Am I Good At?
+
+- Understanding problems and how to break them down
+- Seeing how to solve them — not just in code, but structurally
+- Building teams and directing them to deliver
+- Learning continuously — new domains, new tools, new paradigms
+
+---
+
+# Sound Familiar?
+
+Those are skills **#2 through #5** from the research.
+
+The ones that actually matter. The ones AI doesn't replace.
+
+**I'm top-notch at 4 of the 5.**
+
+And the one I'm mediocre at? AI does it better than me anyway.
+
+---
+
+# What Does a Principal Do All Day?
+
+- **Identify the problem** — scan, notice, catch what others miss
+- **Frame it** — give your agents context, goals, constraints
+- **Evaluate the output** — is this right? Is this good enough?
+- **Decide what's next** — iterate, pivot, ship, or scrap
+
+Every day. Every hour. This loop, over and over.
+
+---
+
+# You Might Recognize This Pattern
+
+It's **OODA.**
+
+**Observe** → **Orient** → **Decide** → **Act**
+
+Colonel John Boyd, USAF fighter pilot, 1950s.
+
+"The pilot who cycles through OODA fastest wins the dogfight."
+
+---
+
+# Our Role Is OOD
+
+| | Who |
+|---|---|
+| **Observe** | The principal |
+| **Orient** | The principal |
+| **Decide** | The principal |
+| **Act** | **The agents** |
+
+AI Augmented Development with Valueflow + The Agency lets us **run the OODA loop faster** than anyone.
+
+The principal drives OOD. The agents execute A.
+
+---
+
 # Fast · Good · Cheap
 
 ![Fast Good Cheap Triangle](fast-good-cheap.svg)
@@ -273,6 +342,28 @@ People complain about running out → they're burning tokens on:
 - Loading every doc into context "just in case"
 
 **Discipline = more productive sessions, lower cost, better output.**
+
+---
+
+# Markdown is the Lingua Franca
+
+Not .doc. Not .pptx. Not Google Docs. Not PDF.
+
+**Markdown.**
+
+It's what agents read. It's what agents write. It's what survives compaction, handoffs, and version control.
+
+It replaces every proprietary format in the agentic world.
+
+---
+
+# These Slides Are Markdown
+
+This deck is a `.md` file rendered by **mdslidepal** — a tool we built yesterday.
+
+The workflow: I walk to breakfast. Voice input via Remote Control. My captain holds my input (Over protocol), mirrors back, makes changes. I refresh.
+
+**You're looking at the output of human-agent collaboration right now.**
 
 ---
 
