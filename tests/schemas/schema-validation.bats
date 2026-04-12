@@ -18,12 +18,16 @@ VALIDATOR="${REPO_ROOT}/tests/schemas/validate-schema.py"
 
 # Skip tests if jsonschema not installed
 setup() {
-    if ! python3 -c "import jsonschema" 2>/dev/null; then
-        skip "jsonschema not installed (pip3 install jsonschema)"
-    fi
     export BATS_TEST_TMPDIR="$(mktemp -d)"
     test_isolation_setup
     cd "${REPO_ROOT}"
+    # Skip guard AFTER test_isolation_setup — checks import under the same
+    # HOME override that the validator script will run in. Before this fix,
+    # the guard checked the real HOME (which has jsonschema) but the validator
+    # ran under fake HOME (which doesn't). See dispatch #198.
+    if ! python3 -c "import jsonschema" 2>/dev/null; then
+        skip "jsonschema not available under test isolation (pip3 install jsonschema)"
+    fi
 }
 
 teardown() {

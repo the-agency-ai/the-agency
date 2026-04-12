@@ -227,8 +227,3 @@ load 'test_helper'
     [[ ! "$output" =~ "syntax error" ]]
 }
 
-# NOTE: project-update and agency-update tests removed 2026-04-07 (devex
-# maintenance pass). Both tools were deleted; the agency CLI now provides
-# 'agency update' as a subcommand. agency-update tests checked for a
-# deprecation shim that never existed (no git history of either tool).
-

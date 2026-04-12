@@ -44,10 +44,16 @@ run_agency() {
     rm -rf "$tmpdir"
 }
 
-# NOTE: removed 2026-04-07 — 'agency init: fails without .claude directory'
-# tested old behavior. agency init now CREATES .claude as part of init,
-# rather than requiring it to exist first. The new behavior is correct.
-# Coverage for happy-path init exists in other tests.
+@test "agency init: succeeds on bare repo without .claude directory" {
+    # agency init creates .claude/ if missing (updated behavior — used to fail)
+    # Use a clean project name (no dots/uppercase — validator rejects those)
+    local tmpdir="${BATS_TEST_TMPDIR}/test-workshop"
+    mkdir -p "$tmpdir"
+    git -C "$tmpdir" init -b main 2>/dev/null
+    run_agency init "$tmpdir"
+    assert_success
+    [[ -d "$tmpdir/.claude" ]]
+}
 
 @test "agency init: fails when already initialized" {
     local tmpdir

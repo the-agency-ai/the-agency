@@ -74,14 +74,13 @@ load 'test_helper'
     assert_output_contains "unknown"
 }
 
-@test "_path-resolve: ignores pre-set AGENCY_PRINCIPAL (contract: never trust)" {
-    # Per _path-resolve lines 173-175 and _address-parse lines 421-424,
+@test "_path-resolve: AGENCY_PRINCIPAL env var is deprecated and ignored" {
     # AGENCY_PRINCIPAL is intentionally never trusted because it leaks from
     # test suites, shell profiles, and old add-principal runs. The lib resolves
     # from agency.yaml via $USER and only WRITES to AGENCY_PRINCIPAL.
     run env AGENCY_PRINCIPAL=override USER=jdm bash -c "source '${TOOLS_DIR}/lib/_path-resolve' && echo \"\$AGENCY_PRINCIPAL\""
     assert_success
-    # Should NOT be 'override' — should be resolved from the_agency's yaml
+    # Should NOT be "override" — the env var is ignored
     [[ "$output" != "override" ]]
 }
 

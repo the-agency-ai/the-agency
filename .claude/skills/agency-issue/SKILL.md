@@ -57,7 +57,7 @@ Shows the issue body, metadata, and all comments.
 ### Comment on an issue
 
 ```bash
-./claude/tools/agency-issue comment 47 --body "Reproduced on monofolk too. Adding context: ..."
+./claude/tools/agency-issue comment 47 --body "Reproduced in another repo too. Adding context: ..."
 ./claude/tools/agency-issue comment 47 --body-file my-comment.md
 ```
 

@@ -1,12 +1,29 @@
 ---
 type: tracking
 date: 2026-04-06
-status: pending-filing
+updated: 2026-04-11
+status: drafts-ready-awaiting-filing
 ---
 
 # Claude Code Issues to File with Anthropic
 
-Collected issues from The Agency development. File via `/feedback` once operational, or directly on GitHub.
+Collected issues from The Agency development. `/feedback` is broken (see item 4), so all items file via GitHub issues at https://github.com/anthropics/claude-code/issues.
+
+## Filing status (2026-04-11)
+
+All five items have been drafted as proper feedback reports in `usr/jordan/reports/`. Awaiting principal review before filing to GitHub.
+
+| # | Item | Draft location | Status |
+|---|------|----------------|--------|
+| 1 | --agent/--name env var missing | [feedback-agent-name-env-var-20260411.md](../reports/feedback-agent-name-env-var-20260411.md) | draft |
+| 2 | Brace expansion triggers permission prompts | Folded into [feedback-agent-permission-ux-20260411.md](../reports/feedback-agent-permission-ux-20260411.md) | draft (combined with broader permission UX feedback) |
+| 3 | macOS permissions break on every update | [feedback-macos-permissions-break-on-update-20260411.md](../reports/feedback-macos-permissions-break-on-update-20260411.md) | draft |
+| 4 | /feedback command silently fails (META) | [feedback-slash-feedback-silent-failure-20260411.md](../reports/feedback-slash-feedback-silent-failure-20260411.md) | draft |
+| 5 | Content filter returns no signal (NEW 2026-04-11) | [feedback-content-filter-opacity-20260411.md](../reports/feedback-content-filter-opacity-20260411.md) | draft — tweet public |
+
+Original brief descriptions preserved below for reference.
+
+---
 
 ---
 

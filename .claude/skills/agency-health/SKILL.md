@@ -93,7 +93,7 @@ OVERALL: 2 warnings, 0 critical
 ## Related
 
 - Flag #51 — the original audit tool request that seeded this
-- Flag #64 — diagnostic tooling workstream committed to monofolk
+- Flag #64 — diagnostic tooling workstream
 - Companion tool: `agency verify` (structural validation — this is behavioral/state validation)
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

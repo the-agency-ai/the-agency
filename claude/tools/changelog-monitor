@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# What Problem: Claude Code ships updates frequently and we need to know
+# about new features, breaking changes, and opportunities (like the Monitor
+# tool itself) as they land. Currently we manually check the changelog or
+# hear about updates on X. We need automated, continuous awareness.
+#
+# How & Why: Polls the raw Claude Code CHANGELOG.md from GitHub every N
+# minutes (default 30). Compares against a local hash of the last-seen
+# version. When the changelog changes, outputs the new content for the
+# Monitor tool to stream to the agent. The agent then evaluates relevance
+# and surfaces what matters.
+#
+# Usage: With Monitor tool — "monitor Claude Code changelog for new releases"
+# Standalone: ./claude/tools/changelog-monitor [--interval N]
+#
+# Written: 2026-04-10 during captain session (35.2 — changelog awareness)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CHANGELOG_URL="https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md"
+STATE_DIR="${HOME}/.agency/changelog-monitor"
+HASH_FILE="${STATE_DIR}/last-hash"
+INTERVAL=1800  # 30 minutes default
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --interval)
+            INTERVAL="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: changelog-monitor [--interval N]"
+            echo ""
+            echo "Polls Claude Code CHANGELOG.md for new entries."
+            echo "Only outputs when the changelog has changed since last check."
+            echo "Designed for use with Claude Code's Monitor tool."
+            echo ""
+            echo "Options:"
+            echo "  --interval N    Poll interval in seconds (default: 1800 = 30 min)"
+            echo "  --help          Show this help"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Ensure state directory exists
+mkdir -p "$STATE_DIR"
+
+# Initialize hash file if it doesn't exist
+if [[ ! -f "$HASH_FILE" ]]; then
+    echo "none" > "$HASH_FILE"
+fi
+
+while true; do
+    # Fetch changelog
+    CONTENT=$(curl -fsSL "$CHANGELOG_URL" 2>/dev/null || true)
+
+    if [[ -z "$CONTENT" ]]; then
+        sleep "$INTERVAL"
+        continue
+    fi
+
+    # Hash the content
+    CURRENT_HASH=$(echo "$CONTENT" | md5 2>/dev/null || echo "$CONTENT" | md5sum 2>/dev/null | cut -d' ' -f1)
+    LAST_HASH=$(cat "$HASH_FILE" 2>/dev/null || echo "none")
+
+    if [[ "$CURRENT_HASH" != "$LAST_HASH" ]]; then
+        # Changelog changed — extract the latest entry (everything before the second ## heading)
+        LATEST=$(echo "$CONTENT" | awk '/^## /{count++; if(count==2) exit} {print}')
+
+        echo "[CHANGELOG] Claude Code changelog updated!"
+        echo "$LATEST"
+        echo "[/CHANGELOG]"
+
+        # Save new hash
+        echo "$CURRENT_HASH" > "$HASH_FILE"
+    fi
+
+    sleep "$INTERVAL"
+done

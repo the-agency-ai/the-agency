@@ -109,7 +109,6 @@ load 'test_helper'
 
 # NOTE: setup-agency tests removed 2026-04-07 (devex maintenance pass).
 # The setup-agency tool was deleted/renamed; the agency-init flow replaces it.
-# These tests were referencing a non-existent binary and producing 8 false failures.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # add-principal - Version and Help
@@ -132,6 +131,7 @@ load 'test_helper'
     assert_success
     assert_output_contains "Usage:"
 }
+
 
 @test "add-principal: -h shows usage" {
     run_tool add-principal -h
@@ -184,9 +184,8 @@ load 'test_helper'
     [[ ! "$output" =~ "syntax error" ]]
 }
 
-# NOTE: setup-agency security tests removed 2026-04-07 (devex maintenance pass).
-# Same reason as the version/help block above — tool was deleted, security
-# coverage now lives in tests/tools/agency-init.bats.
+# NOTE: setup-agency security tests removed 2026-04-07 — tool deleted,
+# security coverage now lives in tests/tools/agency-init.bats.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Security - Input Validation (add-principal)
@@ -199,6 +198,7 @@ load 'test_helper'
     # Clean up
     rm -rf 'claude/principals/test$user' 2>/dev/null || true
 }
+
 
 @test "add-principal: handles path traversal in name" {
     run_tool add-principal --name '../../../tmp/hack' || true
@@ -224,9 +224,6 @@ load 'test_helper'
 @test "principal-create: sources log helper" {
     grep -q "_log-helper" "${TOOLS_DIR}/principal-create"
 }
-
-# NOTE: setup-agency log-helper tests removed 2026-04-07 (devex maintenance pass).
-# Tool deleted; agency-init replaces it.
 
 @test "add-principal: sources log helper" {
     grep -q "_log-helper" "${TOOLS_DIR}/add-principal"

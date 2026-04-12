@@ -51,8 +51,8 @@ load 'test_helper'
 @test "platform-setup: handles missing provider tool" {
     local fixture="${BATS_TEST_TMPDIR}/project"
     mkdir -p "$fixture/claude/config" "$fixture/claude/tools/lib" "$fixture/tools"
-    cp "${TOOLS_DIR}/lib/_path-resolve" "$fixture/tools/"
-    cp "${TOOLS_DIR}/lib/_log-helper" "$fixture/tools/" 2>/dev/null || true
+    cp "${TOOLS_DIR}/lib/_path-resolve" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_path-resolve" "$fixture/tools/" 2>/dev/null || true
+    cp "${TOOLS_DIR}/lib/_log-helper" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
     cp "${REPO_ROOT}/claude/tools/lib/_provider-resolve" "$fixture/claude/tools/lib/"
     cp "${TOOLS_DIR}/platform-setup" "$fixture/tools/"
 
@@ -67,11 +67,6 @@ EOF
     assert_failure
     assert_output_contains "not found"
 }
-
-# NOTE: mac-setup/linux-setup deprecation shim tests removed 2026-04-07.
-# The shims were never created (no git history of either tool); tests were
-# written ahead of work that was abandoned. The platform-setup-{macos,linux}
-# provider tools tested below are the actual implementation.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Provider tools

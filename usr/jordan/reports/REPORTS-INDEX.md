@@ -15,6 +15,9 @@ Each row is one filing. Click through to the per-report markdown for full contex
 
 | Date | Title | Kind | Target | External ID | Local Report | Status |
 |------|-------|------|--------|-------------|--------------|--------|
+| 2026-04-11 | Content filter returns opaque 400 with zero diagnostic signal | feedback (bug) | anthropic/claude-code | feedback `cc00b303…` + GH [#46546](https://github.com/anthropics/claude-code/issues/46546) | [report-feedback-content-filter-opacity-20260411](report-feedback-content-filter-opacity-20260411.md) | filed |
+| 2026-04-11 | Log `/feedback` network requests and errors to `~/.claude/debug/` (narrow debug-logging ask) | feedback (bug) | anthropic/claude-code | feedback `229cbbce…` + GH [#46538](https://github.com/anthropics/claude-code/issues/46538) | [report-feedback-debug-logging-20260411](report-feedback-debug-logging-20260411.md) | filed |
+| 2026-04-11 | Communications gap — `/feedback` broken 5+ months while team publicly directs users to it | feedback (bug) | anthropic/claude-code | feedback `95fe4771…` + GH [#46531](https://github.com/anthropics/claude-code/issues/46531) | [report-feedback-comms-gap-20260411](report-feedback-comms-gap-20260411.md) | filed |
 | 2026-04-08 | Periodic silent execution primitive for autonomous agents | feedback | anthropic/claude-code | feedback `8dd67e96…` + GH [#45017](https://github.com/anthropics/claude-code/issues/45017) | [report-silent-periodic-tool-calls-20260408](report-silent-periodic-tool-calls-20260408.md) | filed |
 | 2026-04-08 | agency-issue v1: new skill for two-way GitHub issue tracking | feature | the-agency-ai/the-agency | [#52](https://github.com/the-agency-ai/the-agency/issues/52) | [report-agency-issue-agency-issue-v1-new-skill-for-two-way-github-issue-20260408](report-agency-issue-agency-issue-v1-new-skill-for-two-way-github-issue-20260408.md) | open |
 

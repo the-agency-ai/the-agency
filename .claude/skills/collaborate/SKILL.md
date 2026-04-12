@@ -75,10 +75,10 @@ Commit and push all pending changes (status updates + reply dispatches):
 ## Workflow
 
 1. **Check:** `collaboration check` → see what's waiting
-2. **Read:** `collaboration read monofolk <file>` → read and mark as read
-3. **Reply:** `collaboration reply monofolk --to <file> --subject "..." --body "..."` → write response
-4. **Resolve:** `collaboration resolve monofolk <file>` → mark done (reply does this automatically)
-5. **Push:** `collaboration push monofolk` → commit and deliver
+2. **Read:** `collaboration read <repo> <file>` → read and mark as read
+3. **Reply:** `collaboration reply <repo> --to <file> --subject "..." --body "..."` → write response
+4. **Resolve:** `collaboration resolve <repo> <file>` → mark done (reply does this automatically)
+5. **Push:** `collaboration push <repo>` → commit and deliver
 
 ## Configuration
 
@@ -87,8 +87,8 @@ Collaboration repos are configured in `claude/config/agency.yaml`:
 ```yaml
 collaboration:
   repos:
-    monofolk:
-      path: "~/code/collaboration-monofolk"
-      inbound: "dispatches/monofolk-to-the-agency"
-      outbound: "dispatches/the-agency-to-monofolk"
+    <partner-repo>:
+      path: "~/code/collaboration-<partner-repo>"
+      inbound: "dispatches/<partner-repo>-to-the-agency"
+      outbound: "dispatches/the-agency-to-<partner-repo>"
 ```

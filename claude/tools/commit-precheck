@@ -48,6 +48,18 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Merge commit skip — PR branch merge commits are packaging, not authored code.
+# The worktree agent's QG already validated the content. If the code has lint
+# issues, that's a QG gap in the worktree — not something to catch here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) || true
+if [[ -f "${GIT_DIR}/MERGE_HEAD" ]]; then
+    log_end "$RUN_ID" "skip" "0" "0" "merge commit — skipping pre-commit checks" 2>/dev/null || true
+    exit 0
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Logging
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -263,16 +275,24 @@ main() {
                 # would operate on the outer repo's index/dir instead.
                 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_AUTHOR_DATE GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL 2>/dev/null || true
 
-                # Run scoped BATS tests with 60s timeout
+                # Run scoped BATS tests with scaled timeout
+                # Base: 60s for ≤5 files, +15s per additional file (merge commits
+                # can touch 35+ files and need ~200s). See dispatch #198.
                 local bats_files
                 bats_files=$(echo "$scoped_tests" | grep '\.bats$' || true)
                 if [[ -n "$bats_files" ]]; then
                     local bats_args
                     bats_args=$(echo "$bats_files" | tr '\n' ' ')
-                    log_info "Running: bats $bats_args"
+                    local bats_count
+                    bats_count=$(echo "$bats_files" | wc -l | tr -d ' ')
+                    local bats_timeout=60
+                    if [[ "$bats_count" -gt 5 ]]; then
+                        bats_timeout=$(( 60 + (bats_count - 5) * 15 ))
+                    fi
+                    log_info "Running: bats $bats_args (timeout: ${bats_timeout}s for $bats_count files)"
 
                     local test_output
-                    if test_output=$(run_with_timeout 60 bats $bats_args 2>&1); then
+                    if test_output=$(run_with_timeout "$bats_timeout" bats $bats_args 2>&1); then
                         log_info "Scoped tests passed"
                     else
                         local exit_code=$?

@@ -42,9 +42,11 @@ On every session start, do these in order:
 1. **Read handoff:** `usr/jordan/captain/captain-handoff.md`
 2. **Check local ISCP:** `dispatch list` and `flag list` — process unread items before other work
 3. **Check cross-repo dispatches:** `./claude/tools/collaboration check`
-4. **Arm the two dispatch loops** (see `claude/CLAUDE-THEAGENCY.md` → "When You Have Mail" for the canonical prompts). This is standard for every agent:
-   - `/loop 5m …silent-when-clean…` — fast-path, picks up new mail between prompts with zero noise
-   - `/loop 30m …visible-when-sitting…` — nag alarm if dispatches are still unread after 30 minutes
+4. **Start dispatch monitoring** via the Monitor tool (replaces the old `/loop` polling — 96% token savings, 10-second latency):
+   ```
+   Use the Monitor tool to run ./claude/tools/dispatch-monitor --include-collab in the background persistently. When output appears, read and respond to the dispatches.
+   ```
+   This is the `/monitor-dispatches` skill. If Monitor is unavailable, fall back to the `/loop` polling pattern.
 5. Follow the "Next Action" in the handoff. Do not wait for a prompt.
 
 **Reference (read on demand, not every startup):**

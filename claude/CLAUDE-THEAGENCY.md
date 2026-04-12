@@ -456,33 +456,35 @@ The `iscp-check` hook fires on SessionStart, UserPromptSubmit, and Stop. It quer
 ### When You Have Mail
 
 - **SessionStart:** Process unread items FIRST before other work (hookify enforced)
-- **Set up two dispatch loops on session start.** Every agent — not just captain — runs both loops at session start. They auto-expire after 7 days; re-set each session.
+- **Start dispatch monitoring on session start.** Every agent — not just captain — starts monitoring at session start. Use the Monitor tool (Claude Code v2.1.98+) with the `dispatch-monitor` script for event-driven, token-efficient dispatch watching:
 
-  **Loop 1 — fast-path (silent-when-clean), every 5 minutes:**
+  **Preferred: Monitor tool (96% token savings, 10-second latency):**
+
+  ```
+  Use the Monitor tool to run ./claude/tools/dispatch-monitor --include-collab
+  in the background persistently. When output appears, read and respond to
+  the dispatches.
+  ```
+
+  This is the `/monitor-dispatches` skill. The script polls every 10 seconds but only outputs when there ARE unread dispatches (completely silent otherwise). The `--include-collab` flag also checks cross-repo collaboration dispatches.
+
+  **Fallback: `/loop` polling (if Monitor is unavailable):**
+
+  If Monitor is not available (Claude Code < v2.1.98), fall back to the two-loop polling pattern:
 
   ```
   /loop 5m Run: ./claude/tools/dispatch list --status unread
-
-  If the output is exactly "No dispatches found." — produce NO output
-  whatsoever. No "Clean", no acknowledgment, nothing. End the turn silently.
-
-  If there are unread dispatches: pause current work, read each with
-  `dispatch read <id>`, respond appropriately, then resolve each with
-  `dispatch resolve <id>` if no further action is needed.
+  (silent when clean, act on unread)
   ```
-
-  **Loop 2 — nag-path (visible-when-sitting), every 30 minutes:**
 
   ```
   /loop 30m NAG CHECK: Run ./claude/tools/dispatch list --status unread.
-  If any unread items exist, they've been sitting at least 30 minutes —
-  produce a VISIBLE alert to the user (not silent): list the unread items
-  with IDs, ages, and senders, note that you are now reading and responding.
-  Then read each, respond, and resolve. If the output is "No dispatches
-  found." — produce NO output and end silently.
+  (visible alert if items sitting 30+ minutes)
   ```
 
-  Why two loops: the 5-minute loop picks up new mail quickly between prompts with zero terminal noise when there's nothing to do. The 30-minute loop is the "dispatches are being ignored" alarm — if anything is still unread at 30m, the 5m loop already processed it or is blocked, so a visible alert to the principal is warranted.
+  **Why Monitor over loops:** Monitor streams events in real-time with ~10 tokens per event. Polling costs ~2,000 tokens per check × 288 checks/day = ~82,000 tokens/day. Monitor reduces this to ~2,000 tokens/day — a 96% reduction — with 10-second latency instead of 5 minutes. Monitor is non-blocking; loops block the conversation while polling.
+
+  **Note:** Monitor does not persist across session restarts. Re-arm it at every session start.
 - **Mid-session:** Act on mail at a natural break, not immediately
 - **Dispatch types:** directive (do this), review (fix these), seed (input material), escalation (urgent)
 
