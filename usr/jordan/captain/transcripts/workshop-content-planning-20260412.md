@@ -158,4 +158,75 @@ When on the mobile app using remote control and giving voice/text input, the dia
 
 ---
 
-*Transcript active. Jordan reviewing Parts 4-5 later. Captain executing outline revision + research.*
+## Continued mobile review — second batch
+
+### Protocol refinement (final version)
+
+Jordan refined the Over/Over-and-out protocol with a full state machine:
+
+| Signal | Agent behavior |
+|---|---|
+| *(streaming — no signal)* | Receive, parse, think. Do NOT respond. |
+| **"Over"** | Mirror back what you heard. Rephrase/reframe. Discuss. Ask questions. **NO action taken.** |
+| **"Over and out"** | State intended actions. Ask "does that work?" **Hard gate** for destructive/irreversible actions (wait for explicit yes). **Soft gate** for low-risk work (proceed unless principal objects). |
+
+Key principle: **Until you get "out," you don't take any action.** "Over" is discussion only. "Over and out" is the execution boundary.
+
+This applies to ALL back-and-forth, not just voice/remote-control. Every 1B1, every /discuss, every review conversation.
+
+Auto-start rule: **Any time you enter 1B1, a transcript should be kicked off if one isn't already running.**
+
+### Additional points captured
+
+**The "slamming escape" scenario (for article + workshop):**
+> "I wanna describe the situation where I asked you a question and somehow that triggers you to do something. And you go off and start doing a whole bunch of work, in some cases destructive, and I'm sitting there slamming escape until I can interrupt you. And then you go, what was that about? And then we have to unwind."
+
+This is the pain point the Over protocol solves. Every AI coding assistant user has lived this moment.
+
+**Article quality — beefy, cited piece:**
+Not a quick blog post. Substantive with research citations. One of the first publications on the-agency-group.ai blog/website.
+
+**Website content architecture — two feeds:**
+- **Papers** — substantive, research-cited, deep pieces (the Over piece qualifies)
+- **Articles** — blog-style, summaries, thread-weaving, pointing to papers
+
+**Radio protocol dating:**
+- Procedure words trace to **1860s Morse telegraphy** (procedural signs)
+- Spoken radio prowords formalized during **WWII (1940s)**
+- Jordan's preferred framing: "What does a **pre-World War II protocol** teach us" — starting with Morse, formalized later to voice radio
+
+**Demo slides — two-column markdown build:**
+Not screenshots. Actual slides with two columns:
+- Column A: git init → claude (what you get with raw Claude Code)
+- Column B: git init → agency init → claude (what you get with The Agency)
+- Progressive build, final comparison after first `claude` run
+
+**Valueflow vs The Agency distinction (continued):**
+- **AIADLC is Valueflow.** The Agency is the platform that implements Valueflow.
+- Must make this distinction consistently.
+- Give nod to other published frameworks (AWS AI-DLC, etc.) but stress the MULTI-AGENT nature as the differentiator
+- "This is not about me working with 1 agent. This is me working with multiple agents, and then collaborating with other humans who have their own agents."
+
+**mdpal-app platform expansion:**
+Jordan wants mdpal-app (and by extension mdslidepal) to have iPadOS and iPhone versions. Dispatch #211 sent to mdslidepal-mac.
+
+**Research results reported:**
+1. **AI ADLC landscape:** AWS AI-DLC is the closest competitor. Defensible claim: "first methodology for structured human-agent collaborative development." Saved as seed.
+2. **1B1 + Over protocol novelty:** Confirmed novel — no published formalized protocol for structured human-AI work session turn-taking. Defensible claim.
+3. **Radio protocol history:** 1860s Morse → WWII voice radio.
+
+### 1B1 on captain's questions — resolved
+
+1. **Agency plug in article:** Bottom. Lead with pain point, not the sell. ✅
+2. **Revised outline timing:** Produce now, Parts 1-3 updated, Parts 4-5 as-is pending review. ✅
+3. **Over/Over-and-out execution boundary:** Hard gate for destructive actions (wait for yes), soft gate for low-risk (proceed unless objection). ✅
+
+### Case study note
+
+**Jordan:** "This what we're doing here is an incredible case study. I wanna capture this whole collaboration via remote control and voice notes. Everything I'm doing here is voice. I'm not typing at all. Walked down to McDonald's, grabbed breakfast, ate at McDonald's, now walking home."
+
+This entire session — voice-only mobile input via Claude Desktop remote control, Over/Over-and-out protocol in live use, captain holding and batching, research agents spinning in background while principal walks — IS the case study for the article AND the workshop.
+
+---
+
+*Captain now executing: revised outline v2 + transcript commit. Jordan arriving home shortly.*
