@@ -31,7 +31,6 @@
   <text x="350" y="298" text-anchor="middle" fill="#888" font-size="13" font-style="italic">From both</text>
   <text x="170" y="195" text-anchor="middle" fill="#888" font-size="13" font-style="italic">Back to framework</text>
 
-  <!-- Center -->
-  <text x="350" y="142" text-anchor="middle" fill="#333" font-size="26" font-weight="700">OODA</text>
-  <text x="350" y="166" text-anchor="middle" fill="#888" font-size="13">Observe · Orient · Decide · Act</text>
+  <!-- Center — no OODA label, reveal comes later -->
+  <text x="350" y="155" text-anchor="middle" fill="#888" font-size="15" font-style="italic">The Loop</text>
 </svg>

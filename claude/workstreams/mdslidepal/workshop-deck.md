@@ -34,18 +34,19 @@ That's what became **The Agency** and **Valueflow.**
 
 # Who Am I
 
-**Jordan Dea-Mattson**
+**Jordan Dea-Mattson** · Almost 4 decades in tech
 
-CPTO (Chief Product Technical Officer) · Head of Product and Technology
-
-**OrdinaryFolk** · Healthtech · Singapore
-
-- 4 decades: Apple, Adobe, Indeed, Yahoo, startups
-- PM for the Apple 68K Development Environment (MacsBug, MDS, MPW)
-- MacHack: "It's all Jordan's fault"
+- **Apple** (13 years, 1986-1999) — PM for the 68K Dev Environment (MacsBug, MDS, MPW). Spoke at 10 WWDCs. Was there the night Steve Jobs came back.
+- **Adobe, Indeed, Yahoo** — Silicon Valley
+- **Trade Gecko** (Dev of Engineering), **Carousell** (VP Engineering), **OrdinaryFolk** (CPTO) — Singapore
+- **Smart Nation Fellow**
 - Advisor: Singapore Polytechnic, Open Government Products
-- **12 AI agents** working with me in parallel
-- **2 agencies** simultaneously — The Agency + OrdinaryFolk/monofolk
+
+My Singaporean hero? Not LKY. **Philip Yeo.** Break rules to build new economies.
+
+![Philip Yeo](sg-hero.jpg)
+
+My agentic journey: **12 agents, 2 agencies, every day.**
 
 ---
 
@@ -77,7 +78,7 @@ CPTO (Chief Product Technical Officer) · Head of Product and Technology
 
 # This is NOT Vibe Coding.
 
-<!-- TODO: Insert Vibe Coding book cover image here -->
+![Vibe Coding by Gene Kim and Steve Yegge](book-cover-2.jpg)
 
 ---
 
@@ -85,7 +86,9 @@ CPTO (Chief Product Technical Officer) · Head of Product and Technology
 
 ---
 
-# We are builders.
+# We are now all builders.
+
+Execution comes from agents. We are the builders.
 
 ---
 
@@ -181,6 +184,8 @@ Colonel John Boyd, USAF fighter pilot, 1950s.
 
 "The pilot who cycles through OODA fastest wins the dogfight."
 
+![Boyd: The Fighter Pilot Who Changed the Art of War](boyd-book.jpg)
+
 ---
 
 # Our Role Is OOD
@@ -208,9 +213,9 @@ That's the revolution.
 
 ---
 
-# The Christmas Project
+# How I Spent My Christmas Vacation
 
-**The challenge:** Job interview → build a full telemedicine application
+**The challenge:** I wanted to prove to myself I could do it
 
 **The timeline:** Christmas Eve to New Year's Day
 
@@ -278,45 +283,57 @@ That's why Claude is the right foundation for serious agent work.
 # The 4 Ds of AI Fluency
 
 *From Anthropic's AI Fluency research and the Anthropic Academy course*
-*We gratefully acknowledge their contribution*
 
-- **Delegation**
-  - Knowing what to hand off and what to keep
-- **Description**
-  - Clearly communicating context, goals, constraints
-  - "AI can only build what you can describe"
-- **Discernment**
-  - Evaluating AI output — trust but verify
-- **Diligence**
-  - You're responsible for what ships
-  - "AI ate my homework" is not a valid excuse
+### Delegation
+- Knowing what to hand off and what to keep
+- The art of scoping work for an autonomous actor
+
+### Description
+- Clearly communicating context, goals, constraints
+- "AI can only build what you can describe"
+
+### Discernment
+- Evaluating AI output — trust but verify
+- Knowing when something is right and when to push back
+
+### Diligence
+- You're responsible for what ships
+- "AI ate my homework" is not a valid excuse
+
+---
+
+# What Is an Agent?
+
+A software entity that can:
+
+- **Perceive** its environment (read files, see errors, receive instructions)
+- **Reason** about what to do (plan, evaluate, decide)
+- **Act** autonomously (write code, run commands, create artifacts)
+- **Persist** across interactions (memory, handoffs, identity)
+
+Not a chatbot. Not autocomplete. An **autonomous actor** with agency.
 
 ---
 
 # What Is an Agentic Harness?
 
-A platform for defining and running AI agents:
+The platform that makes agents possible:
 
-- Context management
-- Tool execution
-- Lifecycle hooks
-- Session persistence
-- Multi-agent coordination
-
-**Claude Code is an agentic harness tuned for coding.**
-
-Boris Cherny built it on a generalized foundation, then focused it on the coding use case. That's why it's extensible — the general harness is underneath.
+- Context management (what the agent knows)
+- Tool execution (what the agent can do)
+- Lifecycle hooks (when things happen automatically)
+- Session persistence (memory across restarts)
+- Multi-agent coordination (agents working together)
 
 ---
 
-# `claude`
+# What Is Claude Code?
 
-What happens when you type it:
+An agentic harness **tuned for building software.**
 
-- Starts a session
-- Reads your CLAUDE.md (standing instructions)
-- Reads your settings (permissions, hooks, tools)
-- Ready — you talk, it acts
+Boris Cherny at Anthropic needed to build a coding agent. He built it on a generalized agentic foundation, then focused it on the software development use case.
+
+That's why it's extensible — hooks, MCP servers, skills, tools — the general harness is underneath. The coding focus is a layer.
 
 ---
 
@@ -428,6 +445,14 @@ Nobody has reimagined the development lifecycle for human-agent collaboration.
 
 ---
 
+# A Lot Has Been Written About Shipping Faster
+
+![Accelerate](boyd-book-cover.jpg) ![DevOps Handbook](book-cover-1.jpg) ![Phoenix Project](book-cover-3.jpg) ![Unicorn Project](book-cover-4.jpg)
+
+All brilliant. All about **code commit → customer hands.**
+
+---
+
 # The Research That Exists
 
 **Nicole Forsgren** + DORA (2014–2025, 39,000+ professionals)
@@ -437,8 +462,6 @@ Proved: software delivery performance is **measurable** and predicts organizatio
 **Four Key Metrics:** deployment frequency, lead time, change failure rate, MTTR
 
 But these measure **code commit → production.**
-
-<!-- TODO: Show Accelerate + DevOps Handbook book covers -->
 
 ---
 
