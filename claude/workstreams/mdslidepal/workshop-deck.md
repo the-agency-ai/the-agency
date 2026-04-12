@@ -1,14 +1,70 @@
 # Introduction to AI Augmented Development
 
-### with Claude Code · The Agency · Valueflow
+### with
+
+### Claude Code
+
+### The Agency · Valueflow
+
+<br><br>
 
 Republic Polytechnic · 13 April 2026
 
-Jordan Dea-Mattson
+Jordan Dea-Mattson · Principal, The Agency Group AI · CPTO, OrdinaryFolk
 
-Principal · The Agency Group AI
+---
 
-CPTO · OrdinaryFolk
+# How We Got Here
+
+I started experimenting with AI augmented development around **April 2025** — the same time Claude Code appeared.
+
+Everything before that? Honestly, it didn't do much.
+
+Then I started being impressed.
+
+**Christmas 2025** was the inflection point. Claude Code's capabilities jumped. We saw this across the industry.
+
+I did zero-to-one and zero-to-100 exercises. Came away very impressed — but there was **a lot of friction. A lot of pain.**
+
+So I started solving those problems.
+
+That's what became **The Agency** and **Valueflow.**
+
+---
+
+# Who Am I
+
+**Jordan Dea-Mattson**
+
+CPTO (Chief Product Technical Officer) · Head of Product and Technology
+
+**OrdinaryFolk** · Healthtech · Singapore
+
+- 4 decades: Apple, Adobe, Indeed, Yahoo, startups
+- PM for the Apple 68K Development Environment (MacsBug, MDS, MPW)
+- MacHack: "It's all Jordan's fault"
+- Advisor: Singapore Polytechnic, Open Government Products
+- **12 AI agents** working with me in parallel
+- **2 agencies** simultaneously — The Agency + OrdinaryFolk/monofolk
+
+---
+
+# My Two Hats
+
+<div style="display: flex; gap: 80px; justify-content: center; margin-top: 40px;">
+<div style="flex: 1; text-align: center;">
+<h3>Hat 1 — The Creator</h3>
+<p><strong>The Agency + Valueflow</strong></p>
+<p><em>Building the methodology and platform</em></p>
+</div>
+<div style="flex: 1; text-align: center;">
+<h3>Hat 2 — The Practitioner</h3>
+<p><strong>CPTO, OrdinaryFolk</strong></p>
+<p><em>Applying it daily with 12 agents</em></p>
+</div>
+</div>
+
+![The OODA loop between my two hats](ooda-two-hats.svg)
 
 ---
 
@@ -30,6 +86,8 @@ CPTO · OrdinaryFolk
 
 # This is NOT Vibe Coding.
 
+<!-- TODO: Insert Vibe Coding book cover image here -->
+
 ---
 
 # Coding is dead.
@@ -42,15 +100,9 @@ CPTO · OrdinaryFolk
 
 # The Abstraction Ladder
 
-| Era | Layer | Jordan's role |
-|-----|-------|--------------|
-| 1980s | Hardware | Flipped switches on a front panel |
-| 1984 | Machine code | PM on MacsBug (68K debugger) |
-| 1984 | Assembly | PM on MDS (Mac Dev System) |
-| 1986 | HLL | PM on MPW (Mac Programmer's Workshop) |
-| 1990s+ | C, C++, Java, JS | Through the decades |
-| 2020s | Frameworks | React, Next.js, NestJS |
-| 2025+ | **AI Augmented** | Claude Code + Valueflow + The Agency |
+### As Seen Through My Career
+
+![The Abstraction Ladder](abstraction-ladder.svg)
 
 ---
 
@@ -58,80 +110,79 @@ CPTO · OrdinaryFolk
 
 ---
 
-# The Software Development Singularity
+# The Technological Singularity?
 
-Not a single event — a cascade.
+You've heard of the technological singularity?
 
-We are in it **right now.**
+Turns out it's not a single event. It's a **cascade.**
+
+We are in the **software development singularity** right now.
 
 ---
 
-# What distinguishes great engineers?
+# What Distinguishes Great Engineers?
 
-Li, Ko, Begel (2019) — 1,926 Microsoft engineers
+1,926 Microsoft engineers were surveyed. Top 5 attributes:
 
-1. Writing good code ← **the only coding skill**
-2. Adjusting for future value and costs
-3. Practicing informed decision-making
-4. Avoiding making others' jobs harder
-5. Learning continuously
+- Writing good code ← **the only coding skill**
+- Adjusting for future value and costs
+- Practicing informed decision-making
+- Avoiding making others' jobs harder
+- Learning continuously
 
 **4 of 5 are NOT coding skills.**
 
 AI is automating #1. The other four are what Valueflow amplifies.
 
+<div style="position: absolute; bottom: 60px; left: 24px; font-size: 14px; color: #888;">Li, Ko, Begel. "What Distinguishes Great Software Engineers?" <em>Empirical Software Engineering</em>, Springer, 2019.</div>
+
 ---
 
 # Fast · Good · Cheap
 
-Pick two.
+<!-- TODO: SVG triangle graphic -->
 
-**With discipline, you can have all three.**
+The classic conundrum: pick two.
+
+**With discipline and AI augmented development, you can have all three.**
 
 That's the revolution.
 
 ---
 
-# Who Am I
-
-**Jordan Dea-Mattson**
-CPTO · Head of Product and Technology · OrdinaryFolk
-
-- 4 decades: Apple, Adobe, Indeed, Yahoo
-- PM for the Apple 68K Development Environment
-- MacHack: *"It's all Jordan's fault"*
-- Advisor: Singapore Polytechnic, Open Government Products
-- **12 agents** working in parallel, **2 agencies** simultaneously
-
----
-
 # The Christmas Project
 
-- Job interview → built a full telemedicine app
-- Christmas Eve to New Year's Day
-- 7 agents, 14 hours/day
-- **$200/month** vs $35K+ human team
-- "Landed with dry tanks at 93% utilization"
-- Didn't know telemedicine — understood the **problem**
+**The challenge:** Job interview → build a full telemedicine application
+
+**The timeline:** Christmas Eve to New Year's Day
+
+**The team:** 7 Claude agents, 14 hours/day
+
+**The cost:** $200/month vs $35K+ for a human team
+
+**The result:** "Landed with dry tanks at 93% utilization"
+
+I didn't know telemedicine. I understood the **problem** and how to break it down.
+
+That system is now being pulled from for design and implementation at OrdinaryFolk.
 
 ---
 
-# Domain Fluency + AI > Either Alone
+# Domain Fluency + AI
 
-The skill that matters:
+# >
 
-**Understanding a problem and how to break it down.**
+# Either Alone
+
+<br>
+
+The skill that matters: **understanding a problem and how to break it down.**
 
 ---
 
 # Career Progression
 
-| Step | Level | AI Collaboration |
-|------|-------|-----------------|
-| 1. Directed contribution | Apprentice | Without tuning — creates more work than value |
-| 2. Independent (well-defined) | Journeyman | With CLAUDE.md + quality gates |
-| 3. Independent (ambiguous) | Senior Journeyman | With multi-agent review |
-| 4. Working through others | Master Craftsman | With full Valueflow, autonomous overnight |
+![Career Progression Continuum](career-progression.svg)
 
 ---
 
@@ -154,27 +205,38 @@ The skill that matters:
 
 # Why Safety Matters to You
 
-- Public Benefit Corporation — mission over profit
-- Constitutional AI (2022) — safety via principles
-- Lower hallucination, higher reliability
-- **When you trust agents to run overnight, alignment isn't abstract**
+**Safety is alignment.**
+
+**Alignment means lower hallucination.**
+
+**Alignment is not something abstract.**
+
+When you trust agents to run overnight, when you trust them with your codebase, when you trust them to ship — alignment is the foundation of that trust.
+
+That's why Claude is the right foundation for serious agent work.
 
 ---
 
 # The 4 Ds of AI Fluency
 
-1. **Delegation** — what to hand off, what to keep
-2. **Description** — context + goals + constraints
-3. **Discernment** — evaluate output, trust but verify
-4. **Diligence** — you're responsible for what ships
+*Anthropic's framework — we gratefully acknowledge their contribution*
 
-*"AI ate my homework" is not a valid excuse.*
+- **Delegation**
+  - Knowing what to hand off and what to keep
+- **Description**
+  - Clearly communicating context, goals, constraints
+  - "AI can only build what you can describe"
+- **Discernment**
+  - Evaluating AI output — trust but verify
+- **Diligence**
+  - You're responsible for what ships
+  - "AI ate my homework" is not a valid excuse
 
 ---
 
-# What is an Agentic Harness?
+# What Is an Agentic Harness?
 
-A platform for defining and running AI agents.
+A platform for defining and running AI agents:
 
 - Context management
 - Tool execution
@@ -182,9 +244,9 @@ A platform for defining and running AI agents.
 - Session persistence
 - Multi-agent coordination
 
-**Claude Code is a generalized agentic harness.**
+**Claude Code is an agentic harness tuned for coding.**
 
-Boris Cherny needed a coding agent. He built it on a general-purpose harness.
+Boris Cherny built it on a generalized foundation, then focused it on the coding use case. That's why it's extensible — the general harness is underneath.
 
 ---
 
@@ -192,10 +254,10 @@ Boris Cherny needed a coding agent. He built it on a general-purpose harness.
 
 What happens when you type it:
 
-1. Starts a session
-2. Reads your CLAUDE.md (standing instructions)
-3. Reads your settings (permissions, hooks, tools)
-4. Ready — you talk, it acts
+- Starts a session
+- Reads your CLAUDE.md (standing instructions)
+- Reads your settings (permissions, hooks, tools)
+- Ready — you talk, it acts
 
 ---
 
@@ -205,37 +267,8 @@ The fundamental constraint.
 
 - Your "working memory" — everything in the conversation
 - **Token economics:** context tokens cost money AND quality
-- The log dump problem: *"If I asked you to read a 50MB log dump..."*
+- "If I asked you to read a 50MB log dump, you'd lose every tree in the forest."
 - **Managing context is THE critical skill**
-
----
-
-# CLAUDE.md
-
-Standing instructions. Project memory. The working agreement.
-
-```
-~/.claude/CLAUDE.md     ← global
-./CLAUDE.md             ← project root
-./src/CLAUDE.md         ← subdirectory
-```
-
-Every lesson learned becomes a standing instruction.
-
-**This is where discipline lives.**
-
----
-
-# The Elements
-
-- **Tools** — Bash, Read, Write, Edit, Grep, Glob, Agent
-- **Plan Mode** — think before you act
-- **Ultraplan** — cloud planning with Opus 4.6
-- **Hooks** — automation at lifecycle events
-- **Skills** — `/` discoverable actions
-- **MCP Servers** — extend capabilities
-- **Compact** — surviving context overflow
-- **Remote Control** — Claude Desktop, browser, mobile
 
 ---
 
@@ -243,27 +276,58 @@ Every lesson learned becomes a standing instruction.
 
 The Agency is **parsimonious** with tokens.
 
-People complain about limits → they're burning tokens on:
-- Streaming command output
+People complain about running out → they're burning tokens on:
+
+- Streaming command output nobody reads
 - Reading entire files when they need one line
-- Loading every doc into context
+- Loading every doc into context "just in case"
 
 **Discipline = more productive sessions, lower cost, better output.**
 
 ---
 
+# CLAUDE.md
+
+Standing instructions. Project memory. The working agreement.
+
+- `~/.claude/CLAUDE.md` — global (your preferences)
+- `./CLAUDE.md` — project root (project rules)
+- `./src/CLAUDE.md` — subdirectory (scoped context)
+
+Every lesson learned becomes a standing instruction.
+
+**This is where discipline lives.**
+
+---
+
+# The Elements of Claude Code
+
+- **Tools** — Bash, Read, Write, Edit, Grep, Glob, Agent
+- **Plan Mode** — think before you act (local)
+- **Ultraplan** — cloud planning with Opus 4.6
+- **Hooks** — automation at lifecycle events (SessionStart, Stop, PreToolUse)
+- **Skills** — `/` discoverable actions
+- **MCP Servers** — extend capabilities (browser, databases, APIs, Figma)
+- **Compact** — surviving context overflow
+- **Handoffs** — session continuity across restarts
+
+<!-- TODO: Reorder and refine this list — needs attention -->
+
+---
+
 # Jamon Holmgren's 8 Practices
 
-1. ✅ Excellent test suite
-2. ✅ Excellent docs
-3. ✅ Curated codebase
-4. ✅ Review agents
-5. ✅ Well-written specs
-6. ❌ ~~Review every line~~ — **not possible at scale**
-7. ✅ **Run agents at night** ← the discipline test
-8. ✅ Hand-write features sometimes
+- ✅ Excellent test suite
+- ✅ Excellent docs
+- ✅ Curated codebase
+- ✅ Review agents
+- ✅ Well-written specs
+- ~~Review every line of every change~~
+  - **We use Quality Gates + Multi-Agent Review**
+- ✅ **Run agents at night** ← the discipline test
+- ✅ Hand-write features sometimes
 
-On #6: we don't review manually. **Agents review agents.** Quality gates.
+"If your system can't run autonomously while you sleep, your docs, tests, and specs aren't good enough yet."
 
 ---
 
@@ -279,13 +343,15 @@ All existing SDLCs were designed for a **non-agentic world.**
 
 Nobody has reimagined the development lifecycle for human-agent collaboration.
 
+<!-- Reference: AWS AI-DLC, Arthur.ai ADLC, EPAM — exist but focused on single-agent or building-agents-not-with-agents -->
+
 ---
 
 # Valueflow — The AI ADLC
 
-```
-Idea → Seed → Research → Define → Design → Plan → Implement → Ship → Value
-```
+<!-- TODO: Replace with SVG pipeline diagram -->
+
+**Idea** → **Seed** → **Research** → **Define** → **Design** → **Plan** → **Implement** → **Ship** → **Value**
 
 The first methodology for **structured human-agent collaborative development.**
 
@@ -297,10 +363,11 @@ From The Agency Group AI.
 
 This is NOT you and one AI assistant.
 
-- **Principal** running an **agency** — 12 agents in parallel
+- You as a **principal** running an **agency** — 12 agents in parallel
 - Each agent: identity, memory, handoffs, quality gates
 - Agents review each other, test each other
-- Your agency collaborates with **other agencies**
+- Your agency collaborates with **other agencies** run by other humans
+- "I run my agency. And I collaborate with other agencies."
 
 ---
 
@@ -308,17 +375,24 @@ This is NOT you and one AI assistant.
 
 **The Agency** implements Valueflow.
 
-60+ tools · quality gates · multi-agent coordination · session continuity · enforcement
+- 60+ tools
+- Quality gates at every boundary
+- Multi-agent coordination
+- Session continuity (handoffs, ISCP)
+- Enforcement (Triangle: tool + skill + hookify rule)
 
 ---
 
-# Claude Code alone vs The Agency
+# Claude Code Alone vs The Agency
+
+<!-- TODO: Build-up animation showing directory contents growing -->
 
 | | Claude Code | + The Agency |
 |---|---|---|
+| Start | Empty directory | Empty directory |
 | After `git init` | `.git/` | `.git/` |
-| After setup | `.claude/settings.json` | `.claude/` + `claude/` + `usr/` + CLAUDE.md |
-| First run | Blank canvas | Hooks fire, handoff read, enforcement active |
+| After setup | `.claude/` | `.claude/` + `claude/` + `usr/` + `CLAUDE.md` |
+| **First run** | Blank canvas | Hooks fire, handoff read, enforcement active |
 | **Result** | Smart assistant | **Structured methodology** |
 
 ---
@@ -326,6 +400,7 @@ This is NOT you and one AI assistant.
 # Quality Gates
 
 - Multi-Agent Review (MAR) at every boundary
+- Different depths for different boundaries
 - Red-green discipline — failing test first, then fix
 - Binary triage — fix it or it's not an issue
 - **Agents review agents** — this is how we scale review
@@ -340,7 +415,7 @@ This is NOT you and one AI assistant.
 | **Skill** | Tells you when/how | Discovery |
 | **Hookify rule** | Blocks the bypass | Compliance |
 
-*If it's not enforced by code, it's a suggestion.*
+"If it's not enforced by code, it's a suggestion."
 
 ---
 
@@ -360,12 +435,12 @@ Observe → Orient → Decide → Act
 
 One captain session:
 
-1. Fixed broken CI (tests failing for weeks)
-2. Designed contribution model (three rings of trust)
-3. Filed 8 feedback items to Anthropic
-4. Ran 4 parallel Figma research agents
-5. Planned mdslidepal (this tool!) — contract + MAR + reconciliation
-6. Refactored core instruction file (738 → 85 lines, 89% reduction)
+- Fixed broken CI (tests failing for weeks)
+- Designed contribution model (three rings of trust)
+- Filed 8 feedback items to Anthropic
+- Ran 4 parallel Figma research agents
+- Planned mdslidepal (this tool!) — contract + MAR + reconciliation
+- Refactored core instruction file (738 → 85 lines, 89% reduction)
 
 **Valueflow in action.**
 
@@ -376,7 +451,7 @@ One captain session:
 - **HX** — Human Experience (the principal)
 - **AX** — Agentic Experience (the agents)
 
-Most tools: great HX, **horrible AX.**
+Most tools today: great HX, **horrible AX.**
 
 The Agency treats both equally.
 
@@ -399,7 +474,7 @@ Back at 13:30.
 **Personal page + mini-blog → deployed to Vercel**
 
 - About me section
-- Mini-blog with 2-3 posts
+- Mini-blog with 2–3 posts
 - Next.js + Tailwind + markdown
 - **From idea to live URL in 90 minutes**
 
@@ -409,7 +484,7 @@ Back at 13:30.
 
 Tell your captain:
 
-*"I want to build a personal page with a mini-blog. Here's my name and a sentence about me."*
+"I want to build a personal page with a mini-blog. Here's my name and a sentence about me."
 
 ---
 
@@ -439,11 +514,11 @@ You review. You ask why.
 
 Captain breaks it into iterations:
 
-1. Project scaffold + about page
-2. Blog listing + individual posts
-3. Styling and polish
-4. Vercel deploy
-5. (Stretch) AI Q&A section
+- Project scaffold + about page
+- Blog listing + individual posts
+- Styling and polish
+- Vercel deploy
+- (Stretch) AI Q&A section
 
 **Think before you act.**
 
@@ -453,7 +528,7 @@ Captain breaks it into iterations:
 
 Captain executes. You watch and review.
 
-*"If something looks wrong, hit Escape and ask why."*
+"If something looks wrong, hit Escape and ask why."
 
 After each iteration: review → approve → next.
 
@@ -463,10 +538,10 @@ After each iteration: review → approve → next.
 
 # Step 6: Deploy
 
-1. Sign up for Vercel (free)
-2. Connect GitHub repo
-3. Captain handles the config
-4. **You have a live URL**
+- Sign up for Vercel (free)
+- Connect GitHub repo
+- Captain handles the config
+- **You have a live URL**
 
 ---
 
@@ -504,22 +579,12 @@ Volunteers: demo what you built.
 
 # Key Takeaways
 
-1. **This is NOT Vibe Coding** — it's engineering
-2. **Context is everything** — manage it or lose it
-3. **Description drives quality** — AI builds what you describe
-4. **Trust but verify** — apprentice to master
-5. **Quality gates matter** — agents review agents
-6. **You are builders** — the abstraction continues
-
----
-
-# 40 years ago, I was flipping switches on a front panel.
-
-Today you deployed a website by having a conversation with an AI agent.
-
-**The tools changed. The craft didn't.**
-
-**You are builders. Go build.**
+- **This is NOT Vibe Coding** — it's engineering
+- **Context is everything** — manage it or lose it
+- **Description drives quality** — AI builds what you describe
+- **Trust but verify** — apprentice to master
+- **Quality gates matter** — agents review agents
+- **You are builders** — the abstraction continues
 
 ---
 
@@ -531,11 +596,14 @@ Director, School of Infocomm (SOI), Republic Polytechnic
 
 **Mr Abel Ang**
 Chairperson, Republic Polytechnic
-*For recommending me to the SOI Advisory Committee. Without him, I wouldn't be here. This wouldn't be happening.*
+*For recommending me to the SOI Advisory Committee. Without him, this wouldn't be happening.*
 
 **Ms Phyllis Ling**
 Manager (Admin), Republic Polytechnic
 *For her help with logistics.*
+
+**Anthropic and the Claude AI team**
+*For building the foundation this is all built on.*
 
 And anyone else I might have missed — thank you.
 
@@ -547,8 +615,8 @@ Everything you experienced today was built using the tools and methodology we ju
 
 - **These slides** → built with **mdslidepal** (written yesterday, first use today)
 - **The workshop outline** → planned using **Valueflow** (Seed → PVR → Plan)
-- **The research** → run by **parallel agents** (4 agents, background, while we worked on other things)
-- **The content** → reviewed via **Over/Over-and-Out protocol** (Jordan on a breakfast walk, voice input via Remote Control)
+- **The research** → run by **parallel agents** (4 agents, background)
+- **The content review** → via **Over/Over-and-Out protocol** (voice input, breakfast walk, Remote Control)
 - **All of it** → **Claude Code + The Agency + Valueflow**
 
 We practice what we preach.
