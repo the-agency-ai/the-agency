@@ -3,6 +3,9 @@ report_type: feedback
 target: Anthropic Claude Code
 filing_agent: the-agency/jordan/captain
 filed_by: jordan
+anthropic_feedback_id: 48a647ec-73f5-4954-a88b-6b9fd7e8a185
+github_issue: https://github.com/anthropics/claude-code/issues/46859
+status: filed
 date_filed: 2026-04-11
 status: draft
 category: bug

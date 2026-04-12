@@ -15,6 +15,7 @@ Each row is one filing. Click through to the per-report markdown for full contex
 
 | Date | Title | Kind | Target | External ID | Local Report | Status |
 |------|-------|------|--------|-------------|--------------|--------|
+| 2026-04-12 | `/feedback` error-bleed — attaches all session errors to every filing | feedback (bug) | anthropic/claude-code | feedback `24fe6d3e…` + GH [#46860](https://github.com/anthropics/claude-code/issues/46860) | (inline in session) | filed |
 | 2026-04-12 | macOS permissions break on every Claude Code update | feedback (bug) | anthropic/claude-code | feedback `48a647ec…` + GH [#46859](https://github.com/anthropics/claude-code/issues/46859) | seed-macos-permissions-20260411 | filed |
 | 2026-04-12 | `--agent/--name` env var missing | feedback (feature) | anthropic/claude-code | feedback `0894552a…` + GH [#46858](https://github.com/anthropics/claude-code/issues/46858) | seed-agent-name-env-var-20260411 | filed |
 | 2026-04-12 | Agent permission UX — trusted framework paths for autonomous agents | feedback (feature) | anthropic/claude-code | feedback `b3bb3ef6…` + GH [#46855](https://github.com/anthropics/claude-code/issues/46855) | seed-agent-permission-ux-20260411 | filed |
