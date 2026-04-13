@@ -192,21 +192,34 @@ Every day. Every hour. This loop, over and over.
 
 It's **OODA.**
 
-![The OODA Loop](ooda-loop.svg)
+**Observe** → **Orient** → **Decide** → **Act**
 
-Colonel John Boyd, USAF fighter pilot, 1950s. "The pilot who cycles through OODA fastest wins the dogfight."
+Colonel John Boyd, USAF fighter pilot, 1950s.
+
+"The pilot who cycles through OODA fastest wins the dogfight."
+
+![Boyd: The Fighter Pilot Who Changed the Art of War](boyd-book.jpg)
+
+---
+
+# The OODA Loop
+
+![The OODA Loop](ooda-loop.svg)
 
 ---
 
 # Our Role Is OOD
 
-![The OODA Loop](ooda-loop.svg)
-
-The Principal drives **OOD** — Observe, Orient, Decide.
-
-The agents execute **A** — Act.
+| | Who |
+|---|---|
+| **Observe** | The Principal |
+| **Orient** | The Principal |
+| **Decide** | The Principal |
+| **Act** | **The agents** — through Delegation |
 
 Act happens fast with agents. **Gated by OOD and Delegation.**
+
+The Principal drives OOD. The agents execute A.
 
 ---
 
@@ -250,11 +263,17 @@ It's just getting the agents to do it.
 
 # Our Quality Philosophy
 
-**We fix things. We don't work around them.**
+We fix things.
+
+We don't work around them.
 
 - No `--no-verify`. No `eslint-disable`. No "fix later."
-- Silent failures compound. Workarounds become permanent.
-- If a rule matters, it's enforced by a hook — not by prose in a document.
+
+Silent failures compound.
+
+Workarounds become permanent.
+
+If a rule matters, it's enforced by a hook — not by prose in a document.
 
 Quality is **mechanical**, not aspirational.
 
@@ -280,13 +299,7 @@ That system is now being pulled from for design and implementation at OrdinaryFo
 
 # My Home Network
 
-I rebuilt my entire home network — VLANs, firewall rules, DNS, IoT segmentation — using Claude Code.
-
-I'm not a network engineer. I understood the **problem** (security, segmentation, reliability) and how to break it down.
-
-The agents did the implementation. I did the OOD.
-
-**This is what AI Augmented Development looks like in practice.**
+*A personal anecdote.*
 
 ---
 
@@ -371,9 +384,12 @@ That's why Claude is the right foundation for serious agent work.
 
 **It's the OOD in OODA.**
 
-![The OODA Loop](ooda-loop.svg)
+The human in a human-agent collaboration.
 
-The human in a human-agent collaboration. Sets direction, provides context, evaluates output, makes the decisions that matter.
+- Sets direction and goals
+- Provides context and constraints
+- Evaluates output — trust but verify
+- Makes the decisions that matter
 
 **In AI Augmented Development, you are the Principal.**
 
@@ -429,6 +445,50 @@ That's why it's extensible — hooks, MCP servers, skills, tools. The coding foc
 
 ---
 
+# Agents and Subagents
+
+**Agents** — isolated AI workers with their own context window, system prompt, and tools.
+
+Launch with `claude --agent captain` or `claude --agent devex`. Each agent has identity, memory, and handoffs.
+
+**Subagents** — spawned by the Agent tool for parallel work.
+
+An agent can spin up 4 subagents to review code simultaneously. Each runs in isolation — the parent only sees the summary.
+
+**This is how we scale.** One Principal, many agents, each agent spawning subagents.
+
+---
+
+# Commands, Skills, and Tools
+
+**Tools** — built-in capabilities: Bash · Read · Write · Edit · Grep · Glob · Agent · WebFetch · WebSearch
+
+**Skills** — `/` discoverable recipes for common tasks:
+
+`/define` · `/design` · `/discuss` · `/quality-gate` · `/handoff` · `/commit`
+
+Skills wrap tools into workflows. You type `/`, you see what's available, you pick one.
+
+**Commands** — how you invoke skills. Three kinds: built-in (`/help`, `/compact`), skill-based (your Markdown files), and MCP prompts.
+
+**MCP Servers** — extend capabilities beyond the built-in tools (browser, databases, APIs, Figma).
+
+---
+
+# Events and Hooks
+
+**Events** — lifecycle moments in a Claude Code session:
+
+`SessionStart` · `Stop` · `PreToolUse` · `PostToolUse` · `Notification`
+
+**Hooks** — automation that fires at those events:
+
+- On `SessionStart` → read your handoff, check for dispatches, sync with master
+- On `PreToolUse` → enforce rules before the agent acts
+- On `Stop` → warn about uncommitted work
+
+---
+
 # What Are Tokens?
 
 The **atoms** of AI communication.
@@ -474,83 +534,67 @@ The Agency is **parsimonious** with tokens. That's a competitive advantage.
 
 ---
 
-# How Do You Tell an Agent How to Do Things?
+# How to Get Claude to Do Things
 
-# CLAUDE.md
+Three layers. Each builds on the last.
 
-**Policy** — standing instructions, project memory, the working agreement.
+**Direction** → **Discovery** → **Compliance**
+
+---
+
+# Direction — CLAUDE.md
+
+Standing instructions. Project memory. The working agreement.
 
 - `~/.claude/CLAUDE.md` — global (your preferences)
 - `./CLAUDE.md` — project root (project rules)
 - `./src/CLAUDE.md` — subdirectory (scoped context)
 
-CLAUDE.md is **policy.** Tools and skills are **capability.** Hooks and hookify rules are **enforcement.**
-
 Every lesson learned becomes a standing instruction. **This is where discipline lives.**
 
----
-
-# Agents and Subagents
-
-**Agents** — isolated AI workers with their own context window, system prompt, and tools.
-
-Launch with `claude --agent captain` or `claude --agent devex`. Each agent has identity, memory, and handoffs.
-
-**Subagents** — spawned by the Agent tool for parallel work.
-
-An agent can spin up 4 subagents to review code simultaneously. Each runs in isolation — the parent only sees the summary. The verbose work stays in the subagent's context.
-
-**This is how we scale.** One Principal, many agents, each agent spawning subagents.
+You **tell** the agent what to do. But telling isn't enough.
 
 ---
 
-# Commands, Skills, and Tools
+# Discovery — Skills and Tools
 
-**Tools** — built-in capabilities: Bash · Read · Write · Edit · Grep · Glob · Agent · WebFetch · WebSearch
+Make the right thing **easy to do.**
 
-**Skills** — `/` discoverable recipes for common tasks:
+**Skills** wrap tools into discoverable workflows. Type `/`, pick one:
 
 `/define` · `/design` · `/discuss` · `/quality-gate` · `/handoff` · `/commit`
 
-Skills wrap tools into workflows. You type `/`, you see what's available, you pick one.
+**Tools** do the work with built-in logging and telemetry. 60+ in The Agency.
 
-**Commands** — how you invoke skills. Three kinds: built-in (`/help`, `/compact`), skill-based (your Markdown files), and MCP prompts.
-
-**MCP Servers** — extend capabilities beyond the built-in tools (browser, databases, APIs, Figma).
+The agent **finds** the right approach. But finding isn't enough either.
 
 ---
 
-# Events and Hooks
+# Compliance — Hooks and Hookify
 
-**Events** — lifecycle moments in a Claude Code session:
+Make the wrong thing **impossible to do.**
 
-`SessionStart` · `Stop` · `PreToolUse` · `PostToolUse` · `Notification`
+**Hookify rules** block dangerous patterns and point to the right skill:
 
-**Hooks** — automation that fires at those events:
+- `block-git-commit` → forces `/git-commit` (QG-aware)
+- `block-raw-rebase` → merge only, never rebase
+- `warn-on-push` → explicit approval required
 
-- On `SessionStart` → read your handoff, check for dispatches, sync with master
-- On `PreToolUse` → enforce rules before the agent acts
-- On `Stop` → warn about uncommitted work
-
-**Hookify rules** — the enforcement layer. Block dangerous patterns, warn on risky ones, point to the right skill.
-
-This is the third side of the Enforcement Triangle: **forced compliance.**
+36 rules shipped. **Mechanical enforcement, not prose.**
 
 ---
 
 # The Enforcement Triangle
 
-How do you get AI to do things **the way you want?**
-
 | Layer | What | Why |
 |-------|------|-----|
-| **CLAUDE.md** | Policy — tells it | Direction |
-| **Skills + Tools** | Capability — makes it easy | Discovery |
-| **Hooks + Hookify** | Enforcement — forces compliance | Compliance |
+| **CLAUDE.md** | Direction — tells it | Policy |
+| **Skills + Tools** | Discovery — makes it easy | Capability |
+| **Hooks + Hookify** | Compliance — forces it | Enforcement |
 
 "If it's not enforced by code, it's a suggestion."
 
-This is continuous improvement made structural — Deming's Plan-Do-Check-Act, encoded into the tooling.
+Deming's Plan-Do-Check-Act, encoded into the tooling.
 
 ---
 
@@ -618,6 +662,20 @@ Valueflow is the process. The Agency is the tooling that enables it.
 
 ---
 
+# Key Concepts
+
+- **Valueflow** — the lifecycle: Idea → Seed → Research → Define → Design → Plan → Implement → Ship → Value
+- **PVR** — Product Vision & Requirements (the *what* and *why*)
+- **A&D** — Architecture & Design (the *how* and *why*)
+- **MAR** — Multi-Agent Review (agents review every artifact)
+- **ISCP** — Inter-Session Communication Protocol (dispatches + flags)
+- **QGR** — Quality Gate Report (proof a gate ran)
+- **Three-Bucket Pattern** — feedback triage: Disagree, Autonomous, Collaborative
+- **Enforcement Triangle** — every capability has Direction + Discovery + Compliance
+- **Hookify** — behavioral rules (block/warn) enforced mechanically
+
+---
+
 # What The Agency Gives You
 
 | Component | What | Example |
@@ -631,6 +689,38 @@ Valueflow is the process. The Agency is the tooling that enables it.
 | **Config** | Principal mapping, providers | `agency.yaml` |
 
 One `agency init` — and all of this is in your repo.
+
+---
+
+# `claude init` vs `agency init`
+
+| `claude init` | `agency init` |
+|---|---|
+| `.claude/settings.json` | `.claude/settings.json` — **pre-configured** |
+| | `.claude/skills/` — `/define`, `/discuss`, `/commit`... |
+| | `.claude/agents/` — `captain.md`, `devex.md`... |
+| | `claude/tools/` — **60+ CLI tools** |
+| | `claude/agents/` — agent class definitions |
+| | `claude/hooks/` — lifecycle automation |
+| | `claude/hookify/` — behavioral enforcement |
+| | `usr/jordan/captain/` — handoffs, dispatches |
+| | `CLAUDE.md` — **standing instructions** |
+| **Smart assistant** | **Structured methodology** |
+
+---
+
+# Multi-Agent Review (MAR)
+
+The review loop that runs at every quality gate:
+
+1. **Captain dispatches** the work to 4+ review agents in parallel
+2. Each agent reviews from a different lens (code, security, design, test)
+3. **Scorer consolidates** — rates findings 0–100, deduplicates
+4. Author agent **triages** into three buckets: Disagree, Autonomous, Collaborative
+5. **Fixes** with red→green test cycle — proof, not assertion
+6. **QGR receipt** — the permanent audit trail
+
+MAR replaces human code review. It's parallel, mechanical, and **scales infinitely.**
 
 ---
 
@@ -748,53 +838,6 @@ Bug found by one agent. Fixed by another. Delivered to a third Agency.
 
 ---
 
-# Claude Code Alone vs The Agency
-
-| | Claude Code | + The Agency |
-|---|---|---|
-| Start | Empty directory | Empty directory |
-| After `git init` | `.git/` | `.git/` |
-| After setup | `.claude/` | `.claude/` + `claude/` + `usr/` + `CLAUDE.md` |
-| **First run** | Blank canvas | Hooks fire, handoff read, enforcement active |
-| **Result** | Smart assistant | **Structured methodology** |
-
----
-
-# What You Get — `claude init` vs `agency init`
-
-| `claude init` | `agency init` |
-|---|---|
-| `.claude/settings.json` | `.claude/settings.json` — **pre-configured** |
-| | `.claude/skills/` — `/define`, `/discuss`, `/commit`... |
-| | `.claude/agents/` — `captain.md`, `devex.md`... |
-| | `claude/tools/` — **60+ CLI tools** |
-| | `claude/agents/` — agent class definitions |
-| | `claude/docs/` — reference docs |
-| | `claude/hooks/` — lifecycle automation |
-| | `claude/hookify/` — behavioral enforcement |
-| | `claude/config/` — agency.yaml |
-| | `claude/workstreams/` — bodies of work |
-| | `usr/jordan/captain/` — handoffs, dispatches |
-| | `CLAUDE.md` — **standing instructions** |
-| **Smart assistant** | **Structured methodology** |
-
----
-
-# Multi-Agent Review (MAR)
-
-The review loop that runs at every quality gate:
-
-1. **Captain dispatches** the work to 4+ review agents in parallel
-2. Each agent reviews from a different lens (code, security, design, test)
-3. **Scorer consolidates** — rates findings 0–100, deduplicates
-4. Author agent **triages** into three buckets: Disagree, Autonomous, Collaborative
-5. **Fixes** with red→green test cycle — proof, not assertion
-6. **QGR receipt** — the permanent audit trail
-
-MAR replaces human code review. It's parallel, mechanical, and **scales infinitely.**
-
----
-
 # The Agency — The Platform
 
 **The Agency** enables Valueflow.
@@ -821,6 +864,20 @@ Back at 13:30.
 
 ---
 
+# Before We Start — Setup
+
+**Workshop repo:**
+
+`github.com/the-agency-ai/the-agency-workshop`
+
+**Bootstrap:**
+
+`curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-workshop/main/sessions/republic-poly-20260413/materials/bootstrap.sh | bash`
+
+See the **PRE-FLIGHT-CHECKLIST.md** in the workshop repo for full setup verification.
+
+---
+
 # Before We Start — Checklist
 
 - ✅ Claude Code installed and running (`claude --version`)
@@ -829,6 +886,14 @@ Back at 13:30.
 - ✅ Terminal open in the project directory
 
 **If you're stuck, raise your hand.** We'll get you sorted before we begin.
+
+---
+
+# Guided Tour
+
+Jordan will walk you through the process live.
+
+Follow along on your machine. Ask questions as we go.
 
 ---
 
@@ -903,7 +968,7 @@ Captain executes. You watch and review.
 
 After each iteration: review → approve → next.
 
-![The OODA Loop](ooda-loop.svg)
+**This is the OODA loop in action.**
 
 ---
 
@@ -965,8 +1030,6 @@ Volunteers: demo what you built.
 You are the people who shape what the next generation learns.
 
 **Reorient education around OODA.**
-
-![The OODA Loop](ooda-loop.svg)
 
 - Teach **Observe** — problem identification, critical analysis, pattern recognition
 - Teach **Orient** — framing problems, communicating context, giving clear direction
