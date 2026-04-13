@@ -1,23 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 520" font-family="system-ui, -apple-system, sans-serif">
-  <!-- Colored arc segments forming the circular loop -->
-  <path d="M 260 55 A 205 205 0 0 1 465 260" fill="none" stroke="#dc3545" stroke-width="36" stroke-linecap="butt"/>
-  <path d="M 465 260 A 205 205 0 0 1 260 465" fill="none" stroke="#f0a500" stroke-width="36" stroke-linecap="butt"/>
-  <path d="M 260 465 A 205 205 0 0 1 55 260" fill="none" stroke="#1a5276" stroke-width="36" stroke-linecap="butt"/>
-  <path d="M 55 260 A 205 205 0 0 1 260 55" fill="none" stroke="#28a745" stroke-width="36" stroke-linecap="butt"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 650" font-family="system-ui, -apple-system, sans-serif">
+  <!-- Title -->
+  <text x="300" y="60" text-anchor="middle" font-size="48" font-weight="800" fill="#222">The OODA Loop</text>
 
-  <!-- Arrowheads -->
-  <polygon points="465,240 485,260 465,280" fill="#dc3545"/>
-  <polygon points="280,465 260,485 240,465" fill="#f0a500"/>
-  <polygon points="55,280 35,260 55,240" fill="#1a5276"/>
-  <polygon points="240,55 260,35 280,55" fill="#28a745"/>
+  <!-- Colored arc segments — thick ring -->
+  <!-- Red: Observe (1 o'clock to 4 o'clock) -->
+  <path d="M 340 135 A 175 175 0 0 1 475 365" fill="none" stroke="#dc3545" stroke-width="44"/>
+  <!-- Yellow/Orange: Orient (4 o'clock to 7 o'clock) -->
+  <path d="M 475 365 A 175 175 0 0 1 260 505" fill="none" stroke="#f0a500" stroke-width="44"/>
+  <!-- Dark Blue: Decide (7 o'clock to 10 o'clock) -->
+  <path d="M 260 505 A 175 175 0 0 1 125 365" fill="none" stroke="#1a5276" stroke-width="44"/>
+  <!-- Green: Act (10 o'clock to 1 o'clock) -->
+  <path d="M 125 365 A 175 175 0 0 1 340 135" fill="none" stroke="#28a745" stroke-width="44"/>
 
-  <!-- Labels OUTSIDE the circle, horizontal, large and readable -->
-  <text x="420" y="140" text-anchor="start" font-size="26" font-weight="700" fill="#dc3545">Observe</text>
-  <text x="420" y="400" text-anchor="start" font-size="26" font-weight="700" fill="#f0a500">Orient</text>
-  <text x="10" y="400" text-anchor="start" font-size="26" font-weight="700" fill="#1a5276">Decide</text>
-  <text x="10" y="140" text-anchor="start" font-size="26" font-weight="700" fill="#28a745">Act</text>
+  <!-- Arrowheads at segment transitions -->
+  <polygon points="475,345 500,370 470,385" fill="#dc3545"/>
+  <polygon points="275,510 250,505 265,485" fill="#f0a500"/>
+  <polygon points="125,385 100,360 130,345" fill="#1a5276"/>
+  <polygon points="325,135 350,130 340,158" fill="#28a745"/>
+
+  <!-- Labels WELL OUTSIDE the ring, large, fully readable -->
+  <text x="520" y="230" text-anchor="start" font-size="32" font-weight="700" fill="#dc3545">Observe</text>
+  <text x="480" y="490" text-anchor="start" font-size="32" font-weight="700" fill="#f0a500">Orient</text>
+  <text x="10" y="490" text-anchor="start" font-size="32" font-weight="700" fill="#1a5276">Decide</text>
+  <text x="10" y="230" text-anchor="start" font-size="32" font-weight="700" fill="#28a745">Act</text>
 
   <!-- Center text -->
-  <text x="260" y="248" text-anchor="middle" font-size="42" font-weight="800" fill="#333">OODA</text>
-  <text x="260" y="290" text-anchor="middle" font-size="34" font-weight="700" fill="#333">Loop</text>
+  <text x="300" y="340" text-anchor="middle" font-size="44" font-weight="800" fill="#333">OODA</text>
+  <text x="300" y="385" text-anchor="middle" font-size="34" font-weight="700" fill="#333">Loop</text>
 </svg>
