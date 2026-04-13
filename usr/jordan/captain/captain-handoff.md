@@ -2,80 +2,69 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-12
+date: 2026-04-13
 trigger: session-end
 ---
 
-## Resume — Day 37 (continued from marathon session)
+## Resume — Day 38 (Workshop Day)
 
-### IMMEDIATE: Execute deck revision from 3 Granola review passes
+### What happened this session
 
-Jordan did three Granola-recorded slide review passes. The third is most comprehensive. Instructions: Feed transcript + slides to MAR, build TODO list, consolidate, plan mode, execute.
+**Workshop deck: v10 → v17 in one session.** 7 committed versions, 3 MAR rounds, 80+ individual changes.
 
-**Current deck:** `claude/workstreams/mdslidepal/workshop-deck.md` (77 slides, v10)
-**Serve:** `cd .claude/worktrees/mdslidepal-web/apps/mdslidepal-web && node dist/bin/mdslidepal.js serve /path/to/workshop-deck.md --port 8001`
-**Screenshot:** `cd /tmp && node screenshot-slides.js`
+**Deck is at v17** (`f8e3750`), 90+ slides, committed and serving on port 8001.
 
-### TODO LIST — Consolidated from 3 Granola passes
-
-**Slide fixes:**
-- **3**: Companies on separate lines. SV/SG on second lines. Smart Nation Fellow standalone. Advisors standalone.
-- **4**: SVG boxes still overlapping arrows — Create UP, Apply RIGHT, Learn DOWN, Improve LEFT
-- **16**: Add footnote defining "principal" (human in human-agent collaboration)
-- **18**: Add "Act happens fast with agents. Gated by OOD/Delegate."
-- **20**: "Many considered too expensive to scale" (not "without scale")
-- **21**: "effectively infinitely" / "They're free." own line / "You can have all three" own line
-- **25**: End with "They valued safety. They went to build safety." (drop quote)
-- **28**: 4 Ds cross-reference to paper + Anthropic Academy
-- **35**: "how to do things" not "what to do." CLAUDE.md=policy → tools/skills → hooks/enforcement. Bring Enforcement Triangle here.
-- **36**: Elements is "hodgepodge" — rework from agency README. Proper definitions.
-- **43**: Per-phase slides with artifacts (PVR, A&D, Plan). QG + QGR. Remove "From The Agency Group AI."
-- **46**: Conflate: bug filed + agent fixed it autonomously
-- **67**: Strike "For Educators" → "For Everyone." ODA double meaning.
-- **70**: "All built with Claude Code. / All built with Valueflow. / All open source."
-
-**Structural:**
-- NEW "What is a Principal?" slide before "What is an Agent"
-- Move Quality Gates + Enforcement Triangle INTO Valueflow walkthrough
-- Link Enforcement Triangle to continuous improvement / Deming / OODA
-- DROP "Case Study: Yesterday"
-- Move HX/AX EARLIER
-- "enables Valueflow" not "implements"
-- After Independent Build: recap Valueflow loop
-- Capitalize: Principal (P), Agency (A), Captain (C)
-- Guided Build: map to Valueflow phases with artifacts
-- "How Slides Were Made": not all today — several days, walks, dictation
+Key structural changes across v10→v17:
+- OODA throughout (NOT ODA — Principal IS the OOD, Act = Delegation)
+- Proper OODA loop SVG (circular, colored arcs, readable labels)
+- Enforcement Triangle SVG (Direction/Discovery/Compliance triangle)
+- Session Lifecycle SVG (Resume→Dialogue→Execute→Compact→End loop)
+- "Claude Code Concepts" section: Agents+Subagents, Commands/Skills/Tools, Events/Hooks
+- Direction→Discovery→Compliance→Triangle enforcement sequence
+- Valueflow stages with artifacts (Seed→Define, Design→Plan, Implement→Ship→Value)
+- QG expanded to 8 stages
+- Agency concepts: Processes/Artifacts/Patterns/Collaboration (4 slides)
+- Quality philosophy: "We fix things. We don't work around them."
+- "Context Is Everything" slide with Attention paper reference
+- My Home Network anecdote (content TBD — Jordan tells it live)
+- Guided Tour, Setup, Checklist slides for Part 4
 - Acknowledgments: Abel, Weiling, Phyllis, Anthropic
-- Markdown lingua franca stays in What's Next (not earlier)
+- Contact: jdm@devopspm.com, GitHub: jordandm
 
-### What shipped Day 37
+### Workshop status
 
-- Release D37-R1 (PR #79): critical agency-update fix + Over protocol + contribution model + 8 feedback filings + mdslidepal workstream + Figma research + DesignEx + workshop deck v10
-- GitHub: #52 closed, #51 closed, #80 filed+closed. #74/#58/#50 open.
-- Monofolk: PR #77 merged, #78 open, 3 contrib branches clean, multiple dispatches
-- Feedback: 8 filed (#46531-#46860)
+- **Workshop:** 13 April 2026, 09:00, Republic Polytechnic
+- **Deck:** v17, committed, ready
+- **Workshop repo:** https://github.com/the-agency-ai/the-agency-workshop — LIVE
+- **Bootstrap:** `curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-workshop/main/sessions/republic-poly-20260413/materials/bootstrap.sh | bash`
+- **Risk:** No end-to-end Ubuntu VM test confirmed
+
+### Commits this session
+
+- `2aad5b3` v11 — MAR + 30 revisions + OODA fix + concepts (83 slides)
+- `8391634` v12 — QG 8 stages, quality philosophy, repo structure, MAR loop (86 slides)
+- `fcbda87` v13 — structural review: pacing fixes (85 slides)
+- `a285f30` v14 — OODA graphics, reorder concepts, Agency elements
+- `c322b97` v15 — Boyd restored, Direction/Discovery/Compliance sequence
+- `9c480b5` v16 — OODA readable, Enforcement Triangle SVG, Agency reorg
+- `62b9be5` — OODA loop SVG fix (readable text)
+- `4db0eb1` — OODA loop proper circle
+- `f8e3750` v17 — CC Concepts header, two-line titles, Valueflow refresh
 
 ### Fleet state
 
-- **DevEx**: Dispatch #223 just arrived (workshop repo LIVE + CODE_OF_CONDUCT). Check it!
-- **DesignEx**: PVR drafted, MAR complete, running autonomously
-- **mdslidepal-web**: Built, serving deck, SmartyPants working
-- **mdslidepal-mac**: Phase 1 in progress
-- **Monofolk**: D37-R1 notified, safe to update
+- **DevEx:** Workshop repo delivered (dispatch #223). CODE_OF_CONDUCT shipped.
+- **DesignEx:** Running autonomously
+- **mdslidepal-web:** Serving deck, SmartyPants working
+- **mdslidepal-mac:** Phase 1 in progress
+- **Monofolk:** D37-R1 notified
 
-### Workshop Monday 13 April
+### What's next (post-workshop)
 
-- 09:00 start, Republic Polytechnic, 20+ lecturers + IMDA observers
-- AV gear purchased (lav mic + DJI camera)
-- Deck: 77 slides (v10), Plan B operational
-- Workshop repo: DevEx handling (dispatch #221/#222/#223)
-- Blocking: workshop repo + bootstrap script + Vercel deploy test
-
-### Protocols
-
-- Over/Over-and-Out in CLAUDE-CAPTAIN.md + CLAUDE-THEAGENCY.md
-- Soft/hard gate execution model
-- Granola ingestion tool at usr/jordan/captain/tools/granola-ingest
-- Playwright slide review workflow
+- Workshop debrief + lessons learned
+- DevEx PR build (#201 items complete, 6 commits ready)
+- Monofolk Ring 2 transition dispatch
+- CI rework (smoke-ubuntu + fork-pr-full-qg)
+- Deck post-mortem: what worked, what didn't, what to change for next time
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
