@@ -447,6 +447,10 @@ That's why it's extensible — hooks, MCP servers, skills, tools. The coding foc
 
 ---
 
+# Claude Code Concepts
+
+---
+
 # Agents and Subagents
 
 **Agents** — isolated AI workers with their own context window, system prompt, and tools.
@@ -556,7 +560,9 @@ Three layers. Each builds on the last.
 
 ---
 
-# Direction — CLAUDE.md
+# Direction
+
+## CLAUDE.md
 
 Standing instructions. Project memory. The working agreement.
 
@@ -570,7 +576,9 @@ You **tell** the agent what to do. But telling isn't enough.
 
 ---
 
-# Discovery — Skills and Tools
+# Discovery
+
+## Skills and Tools
 
 Make the right thing **easy to do.**
 
@@ -584,7 +592,9 @@ The agent **finds** the right approach. But finding isn't enough either.
 
 ---
 
-# Compliance — Hooks and Hookify
+# Compliance
+
+## Hooks and Hookify
 
 Make the wrong thing **impossible to do.**
 
@@ -666,7 +676,9 @@ Forsgren measured half the problem. **Valueflow measures all of it.**
 
 The first methodology for **structured human-agent collaborative development.**
 
-Valueflow is the process. The Agency is the tooling that enables it.
+Valueflow is the process.
+
+The Agency is the tooling that enables it.
 
 ---
 
@@ -688,6 +700,8 @@ Valueflow is the process. The Agency is the tooling that enables it.
 - **QGR** — Quality Gate Report (proof a gate ran — the audit trail)
 
 Three living documents that evolve together through implementation.
+
+One document that documents your quality.
 
 ---
 
@@ -726,6 +740,14 @@ Three living documents that evolve together through implementation.
 | | `usr/jordan/captain/` — handoffs, dispatches |
 | | `CLAUDE.md` — **standing instructions** |
 | **Smart assistant** | **Structured methodology** |
+
+---
+
+# The Valueflow Cycle
+
+![Valueflow Pipeline](valueflow-pipeline.svg)
+
+Let's walk through each stage.
 
 ---
 
@@ -827,7 +849,7 @@ Not just you talking to agents. **Agents collaborate with agents.**
 
 ---
 
-# Today's Example
+# An Example from Yesterday
 
 An agent filed a bug. Another agent fixed it. **Autonomously.**
 
