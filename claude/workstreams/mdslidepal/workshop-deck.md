@@ -217,9 +217,11 @@ Colonel John Boyd, USAF fighter pilot, 1950s.
 | **Decide** | The Principal |
 | **Act** | **The agents** — through Delegation |
 
-Act happens fast with agents. **Gated by OOD and Delegation.**
+We — the humans, the Principals — act through agents via delegation.
 
-The Principal drives OOD. The agents execute A.
+OODA Loop execution is gated by how fast we run O-O-D.
+
+**We run OOD. Agents execute A.**
 
 ---
 
@@ -534,6 +536,18 @@ The Agency is **parsimonious** with tokens. That's a competitive advantage.
 
 ---
 
+# Context Is Everything
+
+Context is how we **focus** the agent.
+
+The right context → the right output. The wrong context → hallucination, drift, wasted tokens.
+
+Everything you've learned about managing people applies: clear goals, clear constraints, clear success criteria. Same skills. Different medium.
+
+*"Attention Is All You Need." — Vaswani et al., 2017. The paper that started it all. Transformers work by attending to context. So does everything else in AI.*
+
+---
+
 # How to Get Claude to Do Things
 
 Three layers. Each builds on the last.
@@ -586,15 +600,9 @@ Make the wrong thing **impossible to do.**
 
 # The Enforcement Triangle
 
-| Layer | What | Why |
-|-------|------|-----|
-| **CLAUDE.md** | Direction — tells it | Policy |
-| **Skills + Tools** | Discovery — makes it easy | Capability |
-| **Hooks + Hookify** | Compliance — forces it | Enforcement |
+![The Enforcement Triangle](enforcement-triangle.svg)
 
 "If it's not enforced by code, it's a suggestion."
-
-Deming's Plan-Do-Check-Act, encoded into the tooling.
 
 ---
 
@@ -662,33 +670,46 @@ Valueflow is the process. The Agency is the tooling that enables it.
 
 ---
 
-# Key Concepts
+# The Agency — Processes
 
-- **Valueflow** — the lifecycle: Idea → Seed → Research → Define → Design → Plan → Implement → Ship → Value
-- **PVR** — Product Vision & Requirements (the *what* and *why*)
-- **A&D** — Architecture & Design (the *how* and *why*)
-- **MAR** — Multi-Agent Review (agents review every artifact)
-- **ISCP** — Inter-Session Communication Protocol (dispatches + flags)
-- **QGR** — Quality Gate Report (proof a gate ran)
-- **Three-Bucket Pattern** — feedback triage: Disagree, Autonomous, Collaborative
-- **Enforcement Triangle** — every capability has Direction + Discovery + Compliance
-- **Hookify** — behavioral rules (block/warn) enforced mechanically
+**Valueflow** — the lifecycle: Idea → Seed → Research → Define → Design → Plan → Implement → Ship → Value
+
+**Quality Gate (QG)** — 8-stage review protocol at every commit boundary
+
+**Multi-Agent Review (MAR)** — 4+ agents review in parallel, scorer consolidates, author triages and fixes
 
 ---
 
-# What The Agency Gives You
+# The Agency — Artifacts
 
-| Component | What | Example |
-|-----------|------|---------|
-| **Tools** | 60+ CLI tools with logging | `dispatch`, `flag`, `handoff`, `git-commit` |
-| **Hookify** | Behavioral rules (warn/block) | `block-git-commit.md` |
-| **Docs** | Reference docs (injected on demand) | `QUALITY-GATE.md`, `ISCP-PROTOCOL.md` |
-| **Agent Classes** | Role definitions | `captain/agent.md`, `tech-lead/agent.md` |
-| **Hooks** | Session lifecycle automation | `ref-injector.sh` |
-| **Skills** | `/` invocable workflows | `/handoff`, `/discuss`, `/define` |
-| **Config** | Principal mapping, providers | `agency.yaml` |
+- **PVR** — Product Vision & Requirements (the *what* and *why*)
+- **A&D** — Architecture & Design (the *how* and *why*)
+- **The Plan** — Phases × Iterations (the execution roadmap)
+- **QGR** — Quality Gate Report (proof a gate ran — the audit trail)
 
-One `agency init` — and all of this is in your repo.
+Three living documents that evolve together through implementation.
+
+---
+
+# The Agency — Patterns
+
+- **Handoffs** — session continuity (`/session-end`, `/session-resume`)
+- **Enforcement Triangle** — every capability has Direction + Discovery + Compliance
+- **Three-Bucket Pattern** — feedback triage: Disagree, Autonomous, Collaborative
+- **`/discuss` & `/transcript`** — structured conversation with capture
+- **Behavioral rules via Hookify** — 36 rules shipped, mechanical enforcement
+
+---
+
+# The Agency — Collaboration
+
+**Principal Collaboration:**
+- **1B1** — one-by-one discussion protocol. Resolve each item before moving to the next.
+- **Over Protocol** — structured turn-taking. Over = discuss. Over and out = execute.
+
+**Agent Collaboration:**
+- **Dispatches** — structured messages between agents (directive, review, seed, escalation)
+- **ISCP** — Inter-Session Communication Protocol. Agents check for mail automatically.
 
 ---
 
@@ -700,27 +721,11 @@ One `agency init` — and all of this is in your repo.
 | | `.claude/skills/` — `/define`, `/discuss`, `/commit`... |
 | | `.claude/agents/` — `captain.md`, `devex.md`... |
 | | `claude/tools/` — **60+ CLI tools** |
-| | `claude/agents/` — agent class definitions |
 | | `claude/hooks/` — lifecycle automation |
 | | `claude/hookify/` — behavioral enforcement |
 | | `usr/jordan/captain/` — handoffs, dispatches |
 | | `CLAUDE.md` — **standing instructions** |
 | **Smart assistant** | **Structured methodology** |
-
----
-
-# Multi-Agent Review (MAR)
-
-The review loop that runs at every quality gate:
-
-1. **Captain dispatches** the work to 4+ review agents in parallel
-2. Each agent reviews from a different lens (code, security, design, test)
-3. **Scorer consolidates** — rates findings 0–100, deduplicates
-4. Author agent **triages** into three buckets: Disagree, Autonomous, Collaborative
-5. **Fixes** with red→green test cycle — proof, not assertion
-6. **QGR receipt** — the permanent audit trail
-
-MAR replaces human code review. It's parallel, mechanical, and **scales infinitely.**
 
 ---
 
@@ -891,9 +896,11 @@ See the **PRE-FLIGHT-CHECKLIST.md** in the workshop repo for full setup verifica
 
 # Guided Tour
 
-Jordan will walk you through the process live.
+## Jordan will walk you through the process live.
 
-Follow along on your machine. Ask questions as we go.
+## Follow along on your machine.
+
+## Ask questions as we go.
 
 ---
 
@@ -914,7 +921,7 @@ Tell your Captain:
 
 "I want to build a personal page with a mini-blog. Here's my name and a sentence about me."
 
-Start with `/discuss` and `/transcript` — capture the conversation.
+Start with `/discuss` and `/transcript` — **capture everything.**
 
 ---
 
