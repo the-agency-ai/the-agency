@@ -2,88 +2,82 @@
 type: handoff
 agent: the-agency/jordan/mdpal-app
 workstream: mdpal
-date: 2026-04-14
-trigger: pre-0300-pause
+date: 2026-04-15
+trigger: iteration-complete-1A-2
 ---
 
 ## Identity
 
 the-agency/jordan/mdpal-app — tech-lead agent. macOS native SwiftUI app for Markdown Pal. Worktree: `.claude/worktrees/mdpal-app/`. Counterpart: mdpal-cli (separate worktree).
 
-## ⚠️ Paused until 0300
+## Just landed: Iteration 1A.2 — SectionReaderView interaction
 
-Principal directive: **resume Phase 1A work at 2026-04-15 03:00**. Timer: cron job `6288de17` (one-shot). Monitor `bxe47l3qw` running for dispatches. Do no proactive work before the timer fires.
+Commit **`80fbe37`** (work item ITERATION-mdpal-app-1A-2). Auto-dispatched to captain as #325.
 
-## What happened this session (2026-04-14)
+**What:** Added full interaction to the section reader — toolbar Flag/Add-Comment buttons, three sheets (AddCommentSheet, FlagEditorSheet, ResolveCommentSheet), Resolve button on every unresolved comment. Errors surfaced via `DocumentModel.lastError`; sheets stay open on failure so user never loses drafts.
 
-1. **Merged from main** — 54 commits landed cleanly as `d1a438e`. No conflicts (one expected sparse-worktree artifact: `test/test-agency-project` shown deleted).
-2. **New tooling rules now active here**: git-safe family enforced by hookify. Raw `git status/log/diff/merge` blocked. Use `/git-safe`, `/git-safe-commit`, `/git-captain` (captain only). Raw `cat`, `cp`, `gh pr create` also blocked.
-3. **Replied to captain's merge-confirmation directive (#302)** — but reply body did not transmit correctly (bug below). Captain sent two follow-ups (#310, #312). Per #312, response lives in this handoff.
-4. **Skills discipline reminder from principal** — use the Skill tool for `/dispatch`, `/git-safe`, `/git-safe-commit`, `/handoff`, not raw tool paths.
-5. **Handoff path correction** — canonical path is `usr/jordan/mdpal-app/mdpal-app-handoff.md` (confirmed via `handoff path`). Prior handoffs were written to `usr/jordan/mdpal/...` which is wrong. This handoff fixes that.
+**Model change:** `DocumentModel.toggleFlag(slug:author:note:)` — clears if flagged, flags otherwise.
 
-## Captain's merge-confirmation response (per #312)
+**Tests:** +6 DocumentModel state-flow tests (28 → 34). New `ToggleTrackingService` stateful mock covers add-then-clear transitions (default MockCLIService returns static list).
 
-1. **Merge clean?** Yes. 54 commits from main merged as `d1a438e`. No conflicts. `test/test-agency-project` deleted is the usual sparse-worktree artifact.
-2. **Questions / needs?** None blocking. Acknowledge git-safe family is now the only allowed git path here.
-3. **Blocking next iteration?** No. Phase 1A scaffold intact. Paused until 0300.
+**QG:** Single fix applied — sheet callbacks used `try?` swallowing errors. Routed through `document.lastError` + Bool-return sheets that only dismiss on success. Formal reviewer agents (reviewer-code/security/design/test/scorer) are **not in this agent class's invocable set** — substituted thorough own review; documented in QGR. Deferred findings (add/resolve state model inconsistency, no SwiftUI view tests) both scope-appropriate.
 
-## 🐛 Dispatch tool bug — investigate at 0300 (captain directive #312)
+QGR: `usr/jordan/mdpal-app/qgr-iteration-complete-1A-2-6f1bdc3-20260415-0307.md`
 
-**Symptom:** `./claude/tools/dispatch reply <id> --body "..."` (and `--body-file`) produces a dispatch with body content equal to the literal string `--body` (or `--body-file`). Two empty replies landed: #309 (`--body`) and #311 (`--body-file`).
+## Phase 1A state
 
-**Hypothesis:** the `reply` subcommand's argument parser reads the flag name as the body value.
+| # | Scope | Status |
+|---|---|---|
+| 1A.1 | Scaffold: models, views, mock service, 28 initial tests | Landed pre-split |
+| 1A.2 | Section reader interaction (flag/comment/resolve) | **Landed `80fbe37` — this session** |
+| 1A.3 | (next) Error presentation surface — wire `document.lastError` to an alert/banner in ContentView | Not started |
+| 1A.4 | (next) Edit flow — inline edit of section content with version-hash conflict handling | Not started |
+| 1A.5 | (next) Add-Comment context picker — let user highlight text to pre-fill `context` field | Not started |
 
-**At 0300, investigate:**
-1. Read `claude/tools/dispatch` source — find how `reply` parses `--body` / `--body-file`.
-2. Compare to `create --body` which other agents use successfully.
-3. Try: `/dispatch create --to ... --subject ... --body "test"` — does that work? If yes, bug is isolated to `reply`.
-4. File findings as a bug/flag, or dispatch to devex if framework bug.
+Test total: 34 passing (34/34). Build: clean.
 
-**Workaround until fixed:** write response in handoff or pre-written dispatch *file*, not inline flag.
+## Session events (2026-04-15 0300 block)
 
-## Phase 1A state (unchanged — no code written this session)
-
-Scaffold intact at `apps/mdpal-app/`:
-- Models: Comment, DocumentModel, Flag, Section, ResponseTypes
-- Views: ContentView, MarkdownContentView, MarkdownDocument, SectionListView, SectionReaderView
-- Services: CLIServiceProtocol, MockCLIService
-- Tests: ModelTests (735 lines)
-- Last verified `swift build` passes in ~43s
+1. Timer `6288de17` fired at 0300 as planned.
+2. Restarted Monitor `bytyd0zhv` (previous `bxe47l3qw` died with session).
+3. Investigated dispatch tool bug per #312 — **root cause was agent error, not tool bug**. `cmd_reply` uses positional args `reply <id> "message"`, not `--body` flag. Corrected reply went out as #316. Bug report retracted.
+4. Resumed Phase 1A — built iteration 1A.2, ran QG, committed.
 
 ## Dispatch state
 
-- #302 ← captain — merge directive — read, reply empty (tool bug)
-- #309 → captain — empty reply (tool bug)
-- #310 ← captain — "empty response, please reconfirm" — read, reply empty
-- #311 → captain — empty reply (tool bug)
-- #312 ← captain — "tool is broken, investigate at 0300, put response in handoff" — read, honored here
-- Monitor `bxe47l3qw` running
+- #302 ← captain — merge directive — resolved via #316
+- #310 ← captain — empty-reply follow-up — resolved via #316
+- #312 ← captain — tool bug investigation directive — resolved via #316 (agent error, not tool bug)
+- #316 → captain — consolidated reply w/ root cause
+- #325 → captain — auto-commit dispatch for `80fbe37`
+- Monitor `bytyd0zhv` running
 
-## mdpal-cli coordination (unchanged)
+## Skills/tooling reminders (now active on this worktree)
 
-Per #154 (2026-04-07): iterations 1.1–1.3 landed (124 tests), 1.4 bundle source compiled.
-Coordination decision: JSON shapes for CLI commands stay deferred until mdpal-cli implements Phase 2. App continues against `MockCLIService` + dispatch #23 spec.
+- **Git:** `./claude/tools/git-safe {status|log|diff|branch|show|blame|add|merge-from-master}`, `./claude/tools/git-safe-commit`. Raw `git`, `cp`, `cat`, `gh pr create` all blocked by hookify.
+- **Commits require a work item:** `--work-item ITERATION-mdpal-app-<phase>-<iter> --stage impl` (or escape with `--no-work-item`).
+- **Dispatch reply syntax:** positional — `dispatch reply <id> "message"`, NOT `--body`.
+- **Handoff canonical path:** `usr/jordan/mdpal-app/mdpal-app-handoff.md` (the tool writes a stub elsewhere if you use the old `usr/jordan/mdpal/` path).
+- **CWD pitfall:** `swift build` cd's into `apps/mdpal-app/`; remember to `cd` back to worktree root to invoke `./claude/tools/*`.
 
-## Environment notes
+## Next session startup actions
 
-- `CLAUDE_PROJECT_DIR` is not always exported — skills handle this correctly, direct bash may not.
-- Sparse worktree still in effect. Never `git add .`.
-- stop-check.py turn-loop problem appears mitigated by Monitor + 15m loop.
-- Canonical handoff path: `usr/jordan/mdpal-app/mdpal-app-handoff.md`.
+1. `dispatch list` — check for captain's reply to #316 + #325 and any new traffic
+2. Re-start Monitor if the session cycled: `bash ./claude/tools/dispatch-monitor --include-collab` (via Monitor tool)
+3. **Proceed to Iteration 1A.3** — wire `document.lastError` to a visible alert/banner in `ContentView`. Currently only set, never shown. Should be trivially small iteration: error banner/alert + 1 test that verifies it clears on success.
+4. Then **1A.4** — edit flow (the big one). Section content inline-editable via a TextEditor, Save button calls `document.editSection` with version hash, conflict → re-read current content and show merge prompt. Test: version-conflict path.
 
-## Startup actions (next session at 0300)
+## mdpal-cli coordination (unchanged since #154, 2026-04-07)
 
-1. Confirm Monitor `bxe47l3qw` still running
-2. `/dispatch list` — process anything new (Skill tool)
-3. `/flag list`
-4. **First task: dispatch tool bug per #312**
-5. **Then Phase 1A iteration work** per `usr/jordan/mdpal/plan-mdpal-20260406.md`. Likely targets: section-reader interaction flows, comment/flag state management in views, test expansion.
-6. Commit via `/git-safe-commit`
+Per #154: iterations 1.1–1.3 landed on the CLI side (124 tests), 1.4 bundle source compiled. App continues against MockCLIService + dispatch #23 JSON spec. Swap stubs when Phase 2 CLI lands.
+
+## Open questions (carried)
+
+- reviewer-* agent classes aren't in my invocable set — will this become a blocker at phase-complete? Ask captain or devex.
+- `DocumentModel.addComment` vs `resolveComment` state model: append-local vs reload-all — integration-phase decision when real CLI returns state.
+- Commit message formatting from `git-safe-commit` inserts "housekeeping/captain for testuser" into the subject — inspect at phase boundary, possibly flag.
 
 ## Timer + monitor
 
-- Cron: `6288de17` — one-shot 2026-04-15 03:00
-- Monitor: `bxe47l3qw` — event-driven dispatch watch
-
-*No further proactive work until 0300.*
+- Monitor: `bytyd0zhv` — event-driven dispatch watch (restart if session cycles)
+- No active timer — continuing work.
