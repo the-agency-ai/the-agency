@@ -36,6 +36,8 @@ find_recent_qgr() {
     local now
     now=$(date +%s)
     local max_age=3600  # 1 hour
+    local newest_file=""
+    local newest_time=0
 
     while IFS= read -r -d '' qgr_file; do
         local file_time
@@ -46,12 +48,16 @@ find_recent_qgr() {
         fi
 
         local age=$((now - file_time))
-        if [[ "$age" -le "$max_age" ]]; then
-            echo "$qgr_file"
-            return 0
+        if [[ "$age" -le "$max_age" && "$file_time" -gt "$newest_time" ]]; then
+            newest_file="$qgr_file"
+            newest_time="$file_time"
         fi
     done < <(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null)
 
+    if [[ -n "$newest_file" ]]; then
+        echo "$newest_file"
+        return 0
+    fi
     return 1
 }
 
@@ -70,7 +76,46 @@ fi
 
 echo "✓ QGR receipt found: $QGR_FILE"
 
-# ── Step 3: Verify version was bumped ────────────────────────────────────
+# ── Step 3: Verify stage-hash matches ────────────────────────────────────
+# The QGR filename contains the stage-hash of the code that was reviewed.
+# Compute the current stage-hash and compare. If they don't match, the
+# code changed after the QG ran — the QGR is stale.
+
+# Extract stage-hash from QGR filename: qgr-{boundary}-{hash}-{timestamp}.md
+# Boundary can contain hyphens (e.g., iteration-complete, pr-prep)
+# Hash is always 7 hex chars followed by a date stamp
+QGR_BASENAME=$(basename "$QGR_FILE")
+QGR_HASH=$(echo "$QGR_BASENAME" | grep -oE '[a-f0-9]{7}-[0-9]{8}' | head -1 | cut -d- -f1)
+
+if [[ -z "$QGR_HASH" ]]; then
+    echo "BLOCKED: Could not extract stage-hash from QGR filename: $QGR_BASENAME" >&2
+    echo "  Expected format: qgr-{boundary}-{7-char-hash}-{YYYYMMDD-HHMM}.md" >&2
+    exit 1
+fi
+
+# Compute current diff hash (excluding QGR files — they're added after the QG)
+# The QGR is written after the QG runs, so it changes the diff. Exclude it
+# from the hash to avoid the chicken-and-egg: QGR commit changes the hash
+# which invalidates the QGR.
+CURRENT_HASH=$(git -C "$REPO_ROOT" diff origin/main..HEAD -- . ':(exclude)usr/*/qgr-*.md' ':(exclude)usr/*/*/qgr-*.md' | shasum | cut -c1-7)
+if [[ -z "$CURRENT_HASH" ]]; then
+    echo "BLOCKED: Could not compute diff hash. Cannot verify QGR." >&2
+    exit 1
+fi
+
+if [[ "$QGR_HASH" != "$CURRENT_HASH" ]]; then
+    echo "BLOCKED: QGR stage-hash does not match current code." >&2
+    echo "" >&2
+    echo "  QGR hash:     $QGR_HASH (from $QGR_BASENAME)" >&2
+    echo "  Current hash: $CURRENT_HASH" >&2
+    echo "" >&2
+    echo "The code changed after the QG ran. Run /pr-prep again." >&2
+    exit 1
+fi
+
+echo "✓ Stage-hash verified: $QGR_HASH"
+
+# ── Step 4: Verify version was bumped ───────────────────────────────────
 
 MANIFEST="$REPO_ROOT/claude/config/manifest.json"
 
@@ -103,7 +148,7 @@ fi
 CURRENT_VERSION=$(grep -o '"agency_version": "[^"]*"' "$MANIFEST" | cut -d'"' -f4)
 echo "✓ Version bumped: $CURRENT_VERSION"
 
-# ── Step 4: Create the PR ────────────────────────────────────────────────
+# ── Step 5: Create the PR ────────────────────────────────────────────────
 
 echo "Creating PR..."
 gh pr create "$@"
