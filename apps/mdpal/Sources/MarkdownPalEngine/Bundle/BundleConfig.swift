@@ -90,10 +90,24 @@ extension BundleConfig {
         else {
             throw EngineError.metadataError("Bundle config `prune.keep` is required and must be an integer")
         }
+        // `auto` is optional. If absent, default to false. If present, it
+        // must be a real boolean — no silent type coercion that hides
+        // config bugs (e.g., `auto: "yes"` or `auto: 1`).
         let auto: Bool
-        if let b = pruneDict["auto"] as? Bool { auto = b }
-        else if let s = pruneDict["auto"] as? String { auto = (s == "true" || s == "yes") }
-        else { auto = false }
+        if pruneDict["auto"] == nil {
+            auto = false
+        } else if let b = pruneDict["auto"] as? Bool {
+            auto = b
+        } else {
+            throw EngineError.metadataError(
+                "Bundle config `prune.auto` must be a boolean (true/false) when present"
+            )
+        }
+        guard keep > 0 else {
+            throw EngineError.metadataError(
+                "Bundle config `prune.keep` must be > 0 (got \(keep))"
+            )
+        }
         return BundleConfig(name: name, prune: PruneConfig(keep: keep, auto: auto))
     }
 }

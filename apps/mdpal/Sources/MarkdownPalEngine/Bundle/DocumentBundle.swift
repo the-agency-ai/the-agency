@@ -87,11 +87,17 @@ public final class DocumentBundle {
 
         // Validate that the target directory's parent exists and we have a
         // place to put the bundle. The bundle path is `directory`.
-        if fileManager.fileExists(atPath: directory) {
-            throw EngineError.bundleConflict("Path already exists: \(directory)")
-        }
         guard directory.hasSuffix(".mdpal") else {
-            throw EngineError.bundleConflict("Bundle directory must end in .mdpal: \(directory)")
+            throw EngineError.invalidBundlePath(
+                path: directory,
+                reason: "Bundle directory must end in .mdpal"
+            )
+        }
+        if fileManager.fileExists(atPath: directory) {
+            throw EngineError.invalidBundlePath(
+                path: directory,
+                reason: "Target path already exists"
+            )
         }
 
         // Create the bundle root and the .mdpal config directory.
@@ -153,6 +159,14 @@ public final class DocumentBundle {
     }
 
     /// List all revisions in the bundle, sorted oldest → newest by version ID.
+    ///
+    /// Files in the bundle root that don't match the revision filename
+    /// pattern `V{NNNN}.{NNNN}.{YYYYMMDD}T{HHMM}Z.md` are SILENTLY SKIPPED
+    /// (not rejected). This is intentional: users may legitimately drop
+    /// `README.md`, `.DS_Store`, editor swap files, or other artifacts in
+    /// the bundle directory. The engine treats anything that doesn't parse
+    /// as a revision as "not a revision" and ignores it. The `latest.md`
+    /// symlink is also explicitly skipped.
     public func listRevisions() throws -> [RevisionInfo] {
         let entries: [String]
         do {
@@ -162,10 +176,13 @@ public final class DocumentBundle {
         }
         var revisions: [RevisionInfo] = []
         for entry in entries {
-            // Only consider .md files at the bundle root, skip latest.md and .mdpal/.
+            // Only consider .md files at the bundle root, skip latest.md.
             guard entry.hasSuffix(".md") else { continue }
             guard entry != "latest.md" else { continue }
             let stem = String(entry.dropLast(".md".count))
+            // Silently skip non-revision .md files (README.md, etc.).
+            // VersionId.parse rejects anything that doesn't match the
+            // strict format, so this is the gate.
             guard let components = VersionId.parse(stem) else { continue }
             revisions.append(RevisionInfo(
                 versionId: stem,
@@ -465,11 +482,17 @@ public final class DocumentBundle {
             throw EngineError.fileError(path: path, description: "Bundle path is not a directory")
         }
         guard path.hasSuffix(".mdpal") else {
-            throw EngineError.bundleConflict("Bundle path must end in .mdpal: \(path)")
+            throw EngineError.invalidBundlePath(
+                path: path,
+                reason: "Bundle path must end in .mdpal"
+            )
         }
         let configPath = Self.configPath(forBundle: path)
         guard fileManager.fileExists(atPath: configPath) else {
-            throw EngineError.bundleConflict("Bundle missing config file: \(configPath)")
+            throw EngineError.invalidBundlePath(
+                path: path,
+                reason: "Bundle missing config file: \(configPath)"
+            )
         }
     }
 

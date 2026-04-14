@@ -50,6 +50,14 @@ public enum EngineError: Error, Equatable, Sendable {
     /// as a String description because Error is not Equatable.
     case fileError(path: String, description: String)
 
-    /// Bundle operation conflict.
+    /// Bundle path failed structural validation (e.g., missing `.mdpal`
+    /// suffix, missing config file, target path already exists when creating).
+    /// Distinct from `bundleConflict`, which signals runtime conflicts
+    /// (concurrent writers, revision collisions).
+    case invalidBundlePath(path: String, reason: String)
+
+    /// Bundle operation conflict — concurrent write detected, revision
+    /// already exists, or other runtime contention. Distinct from
+    /// `invalidBundlePath`, which signals static structural problems.
     case bundleConflict(String)
 }
