@@ -1,0 +1,62 @@
+{
+  "$schema": "./theme-schema.json",
+  "name": "agency-default",
+  "version": "0.1.0",
+  "description": "The Agency default theme for mdslidepal. Light mode, professional, workshop-friendly.",
+  "aspect_ratio": "16:9",
+  "logical_dimensions": {
+    "width": 1920,
+    "height": 1080
+  },
+  "colors": {
+    "background": "#ffffff",
+    "foreground": "#1a1a1a",
+    "accent": "#0066cc",
+    "muted": "#666666",
+    "subtle": "#eeeeee",
+    "border": "#dddddd",
+    "link": "#0066cc",
+    "code_background": "#f5f5f5",
+    "code_border": "#e0e0e0"
+  },
+  "fonts": {
+    "sans_family": "system-ui, -apple-system, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', sans-serif",
+    "mono_family": "'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Roboto Mono', monospace",
+    "display_family": "system-ui, -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif"
+  },
+  "heading_scale": {
+    "h1": 72,
+    "h2": 56,
+    "h3": 44,
+    "h4": 36,
+    "h5": 28,
+    "h6": 24
+  },
+  "body_size": 32,
+  "line_height": 1.4,
+  "spacing_unit": 16,
+  "slide_padding": {
+    "top": 96,
+    "right": 120,
+    "bottom": 96,
+    "left": 120
+  },
+  "code_theme": {
+    "background": "#f5f5f5",
+    "foreground": "#1a1a1a",
+    "comment": "#6a737d",
+    "keyword": "#d73a49",
+    "string": "#032f62",
+    "number": "#005cc5",
+    "function": "#6f42c1",
+    "variable": "#24292e",
+    "type": "#6f42c1",
+    "operator": "#d73a49",
+    "punctuation": "#24292e"
+  },
+  "transitions": {
+    "default": "none",
+    "fade_duration_ms": 250,
+    "fade_easing": "linear"
+  }
+}
