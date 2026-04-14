@@ -36,6 +36,8 @@ find_recent_qgr() {
     local now
     now=$(date +%s)
     local max_age=3600  # 1 hour
+    local newest_file=""
+    local newest_time=0
 
     while IFS= read -r -d '' qgr_file; do
         local file_time
@@ -46,12 +48,16 @@ find_recent_qgr() {
         fi
 
         local age=$((now - file_time))
-        if [[ "$age" -le "$max_age" ]]; then
-            echo "$qgr_file"
-            return 0
+        if [[ "$age" -le "$max_age" && "$file_time" -gt "$newest_time" ]]; then
+            newest_file="$qgr_file"
+            newest_time="$file_time"
         fi
     done < <(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null)
 
+    if [[ -n "$newest_file" ]]; then
+        echo "$newest_file"
+        return 0
+    fi
     return 1
 }
 
