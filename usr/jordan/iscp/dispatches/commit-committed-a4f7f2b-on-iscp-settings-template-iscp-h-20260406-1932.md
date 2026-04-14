@@ -18,7 +18,7 @@ in_reply_to: null
 ### a4f7f2b — settings-template ISCP hooks/permissions + fix version test assertions
 - Settings-template now includes iscp-check hooks (SessionStart/UserPromptSubmit/Stop)
 - Added ISCP tool permissions (dispatch, flag, agent-identity, iscp-check, iscp-migrate)
-- Added core tool permissions (handoff, git-commit, stage-hash)
+- Added core tool permissions (handoff, git-safe-commit, stage-hash)
 - Fixed version test assertions for dispatch (2.0.1), flag (2.0.1), iscp-check (1.0.1)
 
 ### 41fb5cf — structured commit dispatch payloads with metadata

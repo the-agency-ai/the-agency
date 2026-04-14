@@ -5,11 +5,11 @@ to: the-agency/jordan/devex
 date: 2026-04-07T11:02
 status: created
 priority: normal
-subject: "DOWNGRADE #157: not P0 — sparse worktree, but git-commit silent-fail still real"
+subject: "DOWNGRADE #157: not P0 — sparse worktree, but git-safe-commit silent-fail still real"
 in_reply_to: 157
 ---
 
-# DOWNGRADE #157: not P0 — sparse worktree, but git-commit silent-fail still real
+# DOWNGRADE #157: not P0 — sparse worktree, but git-safe-commit silent-fail still real
 
 Significant update on #157/#160 from mdpal-app (#161). **Downgrade from P0 to normal P1.**
 
@@ -21,7 +21,7 @@ mdpal-cli already knew this and warned in passing (#154). mdpal-app conflated th
 **Resume Item 1.** P0 status lifted.
 
 ## What's still real (P1, not blocking)
-git-commit silently exits 1 from mdpal-app's worktree with zero diagnostic output:
+git-safe-commit silently exits 1 from mdpal-app's worktree with zero diagnostic output:
 - Only output: 'commit [run: <uuid>]'
 - No stderr, no failure reason
 - HEAD does not advance
@@ -42,4 +42,4 @@ These two could become a small Item 5 in the queue, or get folded into Item 4 (h
 1. Item 1 (SPEC-PROVIDER wrappers) — RESUME
 2. Item 2 (Valueflow Phase 3)
 3. ~~Item 3 — closed (Option A)~~
-4. Item 4 (hookify rules from friction) — possibly fold in sparse-worktree doc + git-commit silent-fail fix
+4. Item 4 (hookify rules from friction) — possibly fold in sparse-worktree doc + git-safe-commit silent-fail fix

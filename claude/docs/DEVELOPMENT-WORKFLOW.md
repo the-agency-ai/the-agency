@@ -27,7 +27,7 @@ Implementation → Code Review + Security Review → Test Review → Complete
 # Output: All tests passed
 
 # 3. Commit using the commit tool
-./claude/tools/git-commit "add Red-Green development cycle docs" \
+./claude/tools/git-safe-commit "add Red-Green development cycle docs" \
   --work-item REQUEST-jordan-0065 \
   --stage impl \
   --body "Updated CLAUDE.md with explicit workflow documentation including:
@@ -86,7 +86,7 @@ Return findings with severity (Critical/High/Medium/Low) and CWE IDs."
 ./claude/tools/test-run
 
 # 7. Commit using the commit tool
-./claude/tools/git-commit "apply code review findings" \
+./claude/tools/git-safe-commit "apply code review findings" \
   --work-item REQUEST-jordan-0065 \
   --stage review \
   --body "Applied consolidated review findings:
@@ -133,7 +133,7 @@ Return a list of test improvements needed."
 ./claude/tools/test-run
 
 # 6. Commit using the commit tool
-./claude/tools/git-commit "add tests from review findings" \
+./claude/tools/git-safe-commit "add tests from review findings" \
   --work-item REQUEST-jordan-0065 \
   --stage tests \
   --body "Added tests from consolidated test review:
@@ -185,17 +185,17 @@ SPRINT-web-2026w03 - web/frontend for jordan: complete sprint deliverables
 housekeeping/captain: update README formatting
 ```
 
-**Using ./claude/tools/git-commit:**
+**Using ./claude/tools/git-safe-commit:**
 ```bash
 # With work item
-./claude/tools/git-commit "add Red-Green workflow docs" --work-item REQUEST-jordan-0065 --stage impl
+./claude/tools/git-safe-commit "add Red-Green workflow docs" --work-item REQUEST-jordan-0065 --stage impl
 
 # With body
-./claude/tools/git-commit "fix path traversal" --work-item BUG-0042 --stage review \
+./claude/tools/git-safe-commit "fix path traversal" --work-item BUG-0042 --stage review \
   --body "Sanitized user input before file operations"
 
 # Simple commit (no work item)
-./claude/tools/git-commit "update README formatting"
+./claude/tools/git-safe-commit "update README formatting"
 ```
 
 ## Key Rules

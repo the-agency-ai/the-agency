@@ -56,7 +56,7 @@ Plan both. Execute after captain review.
 
 - Plan mode for every item (directive #111 still applies).
 - One dispatch per plan, sent to captain for review.
-- `/git-commit` always — never bare `git commit`.
+- `/git-safe-commit` always — never bare `git commit`.
 - Run from your worktree CWD with relative paths. Never `cd` to main repo.
 - `/iteration-complete` at iteration boundaries, `/phase-complete` at phase boundaries.
 

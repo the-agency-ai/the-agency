@@ -48,7 +48,9 @@ Run `git merge {target}`. Handle conflicts (show, ask user to resolve or abort).
 
 ### Step 6: Push
 
-Run `git push origin {branch}`.
+Run `./claude/tools/git-push {branch}`.
+
+**Never raw `git push`.** The tool validates the target (blocks main/master) and is the only authorized push path. Raw git push is blocked by hookify.
 
 ### Step 7: Report
 

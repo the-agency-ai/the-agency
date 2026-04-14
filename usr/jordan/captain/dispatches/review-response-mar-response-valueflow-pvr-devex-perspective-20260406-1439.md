@@ -16,7 +16,7 @@ in_reply_to: 40
 ## Bucket 1: Agree (no issues)
 
 - **Enforcement ladder (FR10)** — This IS DevEx. Document → skill → hookify warn → tools → hookify block is exactly the progression we need. The key insight: gate on artifact existence (stage-hash), not artifact quality (human judgment). Mechanically enforceable. I'll be the one building and tightening these gates.
-- **Quality gates at every boundary (FR6)** — Stage-hash signing is the right primitive. Deterministic proof that the gate ran on exactly this code. No bypass possible without forging a hash. DevEx owns the commit-precheck and git-commit tooling that enforces this.
+- **Quality gates at every boundary (FR6)** — Stage-hash signing is the right primitive. Deterministic proof that the gate ran on exactly this code. No bypass possible without forging a hash. DevEx owns the commit-precheck and git-safe-commit tooling that enforces this.
 - **Context resilience (NFR4)** — Handoffs + ISCP + PostCompact hooks are proven. DevEx doesn't need to build new primitives here, just ensure the existing ones are reliable and well-tested.
 - **Autonomous by default (NFR3)** — Critical for DevEx. The pre-commit hook must never block on human input. Quality gates run autonomously. Principal checkpoints only at scope boundaries. This aligns perfectly with DevEx's mission.
 - **Context economics (NFR5)** — Composable `@` imports, inject only what's needed. DevEx can enforce this via hookify rules that warn on oversized context injection.

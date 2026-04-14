@@ -22,7 +22,7 @@ Upgrade hookify.warn-compound-bash.md to **block** the most common patterns, kee
 ### BLOCK patterns (the offenders)
 
 - `cd <path> && <tool>` — biggest offender, breaks identity resolution. Block these regardless of cd target.
-- `git add <files> && git commit ...` — bypasses /git-commit skill via compound. Block this specifically.
+- `git add <files> && git commit ...` — bypasses /git-safe-commit skill via compound. Block this specifically.
 
 ### WARN patterns (legitimate but flagged)
 
@@ -57,12 +57,12 @@ After implementing:
 Per directive #111, **enter plan mode first**. Investigate:
 - Does our hookify infrastructure support mixed actions in one rule?
 - Are warn rules actually firing today? (telemetry check)
-- What's the overlap with existing block-cd-to-main and block-git-commit rules?
+- What's the overlap with existing block-cd-to-main and block-git-safe-commit rules?
 
 ## Reference
 
 - Friction analysis: usr/jordan/captain/transcripts/agent-session-friction-20260407.md (P4)
 - Existing rule: claude/hookify/hookify.warn-compound-bash.md
-- Already-blocked patterns: block-cd-to-main, block-git-commit, block-raw-handoff, block-raw-git-merge-master
+- Already-blocked patterns: block-cd-to-main, block-git-safe-commit, block-raw-handoff, block-raw-git-merge-master
 
 This is your fourth dispatch (#109, #110, #111, this one). Plan mode for all of them. Take your time.

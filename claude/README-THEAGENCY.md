@@ -28,7 +28,7 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 ## What TheAgency Provides
 
 ### Methodology
-- **Quality gates** — multi-agent parallel review (4+ specialized agents: code, security, design, test), red→green test cycle, QGR (Quality Gate Report) receipts at every commit boundary. The QGR is both the report format (3 tables + narrative) and a standalone receipt file tied to the exact staged content via a deterministic stage hash. *(Planned: `/git-commit` will verify a matching receipt exists before committing. Not yet implemented — currently advisory.)*
+- **Quality gates** — multi-agent parallel review (4+ specialized agents: code, security, design, test), red→green test cycle, QGR (Quality Gate Report) receipts at every commit boundary. The QGR is both the report format (3 tables + narrative) and a standalone receipt file tied to the exact staged content via a deterministic stage hash. *(Planned: `/git-safe-commit` will verify a matching receipt exists before committing. Not yet implemented — currently advisory.)*
 - **Development flow (Valueflow)** — Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value. Living documents evolve through implementation; Reference produced at plan completion. Full description in the Valueflow section below.
 - **Discussion protocol** — 1B1 (one-by-one) for structured decision-making. Resolve each item before moving to the next.
 - **Commit discipline** — five boundary types (iteration-complete, phase-complete, plan-complete, pr-prep, pre-phase-review), never partial work, never raw `git commit`
@@ -109,7 +109,7 @@ Every capability follows a progressive tightening path. **The ladder is per-capa
 
 Each layer addresses the bypass discovered in the previous layer. Gate on artifact existence (mechanical, auditable), not on artifact quality (human judgment).
 
-**Where we are today:** Mature capabilities like `git-commit`, `handoff`, and `dispatch` are at steps 4–5 (warn or block enforced). Newer methodology patterns like Valueflow, MAR, MARFI, and three-bucket triage are at step 1 — documented, but not yet skill-wrapped or enforced. Each capability progresses up the ladder as it matures.
+**Where we are today:** Mature capabilities like `git-safe-commit`, `handoff`, and `dispatch` are at steps 4–5 (warn or block enforced). Newer methodology patterns like Valueflow, MAR, MARFI, and three-bucket triage are at step 1 — documented, but not yet skill-wrapped or enforced. Each capability progresses up the ladder as it matures.
 
 The Ladder (progression) is distinct from the **Enforcement Triangle** (structure: tool + skill + hookify). A capability at step 5 has all three Triangle parts; a capability at step 1 has only docs. The Triangle is what each capability looks like when fully built; the Ladder is how it gets there.
 
@@ -287,7 +287,7 @@ claude/workstreams/{ws}/project/{project}/quality-gate-reports/qgr-...
 
 (Single-project workstreams skip the `project/` level until a second project is added — then existing files migrate.)
 
-The QGR frontmatter includes `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic 7-character hash computed from the git staging area. *(Planned: `/git-commit` will compute the same hash and check for a matching receipt — blocking the commit if none exists. The `require-qgr` hookify rule is the planned enforcement point. Not yet wired.)*
+The QGR frontmatter includes `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic 7-character hash computed from the git staging area. *(Planned: `/git-safe-commit` will compute the same hash and check for a matching receipt — blocking the commit if none exists. The `require-qgr` hookify rule is the planned enforcement point. Not yet wired.)*
 
 > **Transition note:** Existing QGRs from before this convention live at `usr/{principal}/{project}/qgr-*.md` and stay where they are. New QGRs go to the workstream location described above. No migration of historical files.
 
@@ -426,7 +426,7 @@ Run each shell command as a single, simple command — no `&&`, `||`, `;`, pipes
 |--------------|--------|
 | `cd dir && command` | `cwd` parameter on the Bash tool, or separate calls |
 | `command \| grep pattern` | The Grep tool directly |
-| `git commit -m "$(cat <<'EOF'...)"` | `/git-commit` skill |
+| `git commit -m "$(cat <<'EOF'...)"` | `/git-safe-commit` skill |
 | `command1 && command2` | Two separate Bash tool calls (sequential) |
 | `command > file` / `cat <<EOF > file` | The Write tool |
 | `cat file` / `head` / `tail` | The Read tool |
@@ -514,7 +514,7 @@ For the complete enforcement model — Triangle, Ladder, lifecycle hooks, all 36
 
 ### Per-Agent Commit Attribution
 
-Every commit made via `/git-commit` carries three pieces of attribution:
+Every commit made via `/git-safe-commit` carries three pieces of attribution:
 
 1. **Author** — the principal (legal authorship, profile-linked on GitHub)
 2. **Co-Author: agent** — the Agency agent that did the work (per-agent traceability)
@@ -577,7 +577,7 @@ principals:
               repo: monofolk
 ```
 
-When committing in `the-agency`, `/git-commit` resolves to `jordandm` and produces `jordandm+captain.the-agency.the-agency-ai@`. When committing in `monofolk`, it resolves to `jordan-of` and produces `jordan-of+captain.monofolk.OrdinaryFolk@`. Each org gets its own per-org identity automatically.
+When committing in `the-agency`, `/git-safe-commit` resolves to `jordandm` and produces `jordandm+captain.the-agency.the-agency-ai@`. When committing in `monofolk`, it resolves to `jordan-of` and produces `jordan-of+captain.monofolk.OrdinaryFolk@`. Each org gets its own per-org identity automatically.
 
 #### Future: Configurable Override (Layer 2)
 
@@ -693,7 +693,7 @@ TheAgency releases use a **Day N - Release M** pattern. Each working day produce
 - **Never push directly to main** — every change reaches origin through a PR
 - **The PR is the release record** — the audit trail of what shipped that day, with full diff and commit history
 
-**Optional: Day/Phase prefix enforcement** — projects can opt in to mechanical enforcement of the convention by setting `commits.require_day_prefix: true` in `agency.yaml`. When enabled, `/git-commit` validates that every commit message lead-line matches `^(Day \d+|Phase \d+(\.\d+|\.M\d+)?|Merge|Revert)`. The validator is provider-agnostic (no Python dependency, awk-based). A `commit-msg` git hook is also installed by `agency init` for defense-in-depth against raw `git commit` invocations. Defaults to off — opt in when your project is consistent enough that the convention can be enforced without false positives.
+**Optional: Day/Phase prefix enforcement** — projects can opt in to mechanical enforcement of the convention by setting `commits.require_day_prefix: true` in `agency.yaml`. When enabled, `/git-safe-commit` validates that every commit message lead-line matches `^(Day \d+|Phase \d+(\.\d+|\.M\d+)?|Merge|Revert)`. The validator is provider-agnostic (no Python dependency, awk-based). A `commit-msg` git hook is also installed by `agency init` for defense-in-depth against raw `git commit` invocations. Defaults to off — opt in when your project is consistent enough that the convention can be enforced without false positives.
 
 **Why this pattern:**
 
@@ -797,7 +797,7 @@ my-project/
     │   ├── lib/                 — tool libraries (_log-helper, _path-resolve, etc.)
     │   ├── handoff              — context bootstrap
     │   ├── stage-hash           — deterministic staging area hash
-    │   ├── git-commit           — QG-aware commit wrapper
+    │   ├── git-safe-commit           — QG-aware commit wrapper
     │   ├── settings-merge       — merge settings template into current
     │   └── ...                  — (worktree-*, etc.)
     ├── workstreams/             — bodies of work

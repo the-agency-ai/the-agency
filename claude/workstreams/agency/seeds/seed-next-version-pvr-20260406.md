@@ -25,7 +25,7 @@ Formalize what was designed in the Git Discipline v2 / Development Workflow seed
 - `git-pr` tool for captain (not raw push)
 - Kill `/ship`, scrub references
 - MAR formalization (tool + skill)
-- QGR stage-hash enforcement in `git-commit`
+- QGR stage-hash enforcement in `git-safe-commit`
 
 ## Command Audit
 

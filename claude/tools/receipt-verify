@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# What Problem: PRs were created without QG/RG receipts. Need standalone
+# verification that any skill or tool can call.
+#
+# How & Why: Finds receipts in claude/receipts/ matching workstream+project,
+# verifies Hash E matches current code/artifact. Reads diff_base from
+# receipt frontmatter. Exit 0 = valid, exit 1 = blocked.
+#
+# Usage:
+#   ./claude/tools/receipt-verify                                    # auto-detect
+#   ./claude/tools/receipt-verify --workstream devex --project git-safe
+#   ./claude/tools/receipt-verify --file claude/receipts/specific.md
+#
+# Written: 2026-04-14 during captain session (receipt infrastructure Phase 1)
+# QG: fixed double-invocation, dead branch code, wildcard fallback, full hash compare
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+RECEIPTS_DIR="$REPO_ROOT/claude/receipts"
+
+WORKSTREAM=""
+PROJECT=""
+SPECIFIC_FILE=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --workstream) WORKSTREAM="$2"; shift 2 ;;
+        --project) PROJECT="$2"; shift 2 ;;
+        --file) SPECIFIC_FILE="$2"; shift 2 ;;
+        --help)
+            echo "Usage: receipt-verify [--workstream <ws> --project <proj>] [--file <path>]"
+            exit 0
+            ;;
+        *) echo "Unknown argument: $1" >&2; exit 1 ;;
+    esac
+done
+
+# ── Helper: extract frontmatter value ────────────────────────────────────
+
+frontmatter_value() {
+    local file="$1"
+    local key="$2"
+    grep "^${key}:" "$file" | head -1 | sed "s/^${key}:[[:space:]]*//" | tr -d '"'
+}
+
+# ── Helper: verify a single receipt ──────────────────────────────────────
+
+verify_receipt() {
+    local receipt_file="$1"
+    local quiet="${2:-false}"
+
+    if [[ ! -f "$receipt_file" ]]; then
+        [[ "$quiet" == "false" ]] && echo "BLOCKED: Receipt file not found: $receipt_file" >&2
+        return 1
+    fi
+
+    local receipt_type hash_e diff_base receipt_version
+    receipt_type=$(frontmatter_value "$receipt_file" "type")
+    hash_e=$(frontmatter_value "$receipt_file" "hash_e")
+    diff_base=$(frontmatter_value "$receipt_file" "diff_base")
+    receipt_version=$(frontmatter_value "$receipt_file" "receipt_version")
+
+    if [[ -z "$receipt_version" ]]; then
+        [[ "$quiet" == "false" ]] && echo "BLOCKED: Receipt missing receipt_version: $receipt_file" >&2
+        return 1
+    fi
+
+    if [[ -z "$hash_e" ]]; then
+        [[ "$quiet" == "false" ]] && echo "BLOCKED: Receipt missing hash_e: $receipt_file" >&2
+        return 1
+    fi
+
+    # Compute current hash
+    local current_hash=""
+    local base="${diff_base:-origin/main}"
+
+    if [[ "$receipt_type" == "qgr" || "$receipt_type" == "rgr" ]]; then
+        current_hash=$("$SCRIPT_DIR/diff-hash" --base "$base" 2>/dev/null || true)
+    fi
+
+    if [[ -z "$current_hash" ]]; then
+        [[ "$quiet" == "false" ]] && echo "BLOCKED: Could not compute current hash for verification" >&2
+        return 1
+    fi
+
+    # Compare — use 7-char truncation (diff-hash returns 7 chars, hash_e is full SHA-256)
+    local short_hash_e="${hash_e:0:7}"
+
+    if [[ "$short_hash_e" != "$current_hash" ]]; then
+        [[ "$quiet" == "false" ]] && {
+            echo "BLOCKED: Receipt hash does not match current code." >&2
+            echo "  Receipt: $short_hash_e (from $(basename "$receipt_file"))" >&2
+            echo "  Current: $current_hash (base: $base)" >&2
+            echo "  Code changed after the gate ran. Run /pr-prep again." >&2
+        }
+        return 1
+    fi
+
+    [[ "$quiet" == "false" ]] && echo "✓ Receipt verified: $(basename "$receipt_file") (hash: $short_hash_e)"
+    return 0
+}
+
+# ── Main logic ───────────────────────────────────────────────────────────
+
+if [[ -n "$SPECIFIC_FILE" ]]; then
+    verify_receipt "$SPECIFIC_FILE"
+    exit $?
+fi
+
+# Require workstream+project if not using --file
+if [[ -z "$WORKSTREAM" || -z "$PROJECT" ]]; then
+    echo "BLOCKED: --workstream and --project required (or use --file)." >&2
+    echo "  Usage: receipt-verify --workstream devex --project git-safe" >&2
+    exit 1
+fi
+
+# Search claude/receipts/ with pattern
+FOUND=0
+VERIFIED=0
+PATTERN="*-${WORKSTREAM}-${PROJECT}-*.md"
+
+if [[ -d "$RECEIPTS_DIR" ]]; then
+    while IFS= read -r -d '' receipt; do
+        FOUND=$((FOUND + 1))
+        if verify_receipt "$receipt" "quiet"; then
+            VERIFIED=$((VERIFIED + 1))
+            verify_receipt "$receipt"
+        fi
+    done < <(find "$RECEIPTS_DIR" -name "$PATTERN" -print0 2>/dev/null)
+fi
+
+# Fall back to old location during migration
+if [[ "$FOUND" -eq 0 ]]; then
+    while IFS= read -r -d '' old_receipt; do
+        FOUND=$((FOUND + 1))
+        if verify_receipt "$old_receipt" "quiet"; then
+            VERIFIED=$((VERIFIED + 1))
+            echo "Note: Found receipt in old location (usr/). Migration to claude/receipts/ pending."
+            verify_receipt "$old_receipt"
+        fi
+    done < <(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null)
+fi
+
+if [[ "$FOUND" -eq 0 ]]; then
+    echo "BLOCKED: No receipts found for workstream=$WORKSTREAM project=$PROJECT." >&2
+    echo "  Searched: claude/receipts/ and usr/**/qgr-*.md" >&2
+    echo "  Run /pr-prep to produce a receipt." >&2
+    exit 1
+fi
+
+if [[ "$VERIFIED" -eq 0 ]]; then
+    echo "BLOCKED: Found $FOUND receipt(s) but none match current code." >&2
+    echo "  Code changed after the gate ran. Run /pr-prep again." >&2
+    exit 1
+fi
+
+echo ""
+echo "✓ $VERIFIED of $FOUND receipt(s) verified"
+exit 0

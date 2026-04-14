@@ -34,7 +34,7 @@ migrated_by: the-agency/jordan/captain
 16. **Stop hook repeats uncommitted changes warning** — same file flagged 3+ times — `2026-04-04`
 17. **Hookify rule messages full-screen** — should be one-liners with doc pointer — `2026-04-04`
 18. **agency-init settings-template missing usr/** pre-approval** — `2026-04-04`
-19. **ISCP agent prompted for git commit** — git-commit needs pre-approved permissions — `2026-04-04`
+19. **ISCP agent prompted for git commit** — git-safe-commit needs pre-approved permissions — `2026-04-04`
 20. **ISCP agent prompted for own handoff/dispatches** — worktree settings need broader usr/** — `2026-04-04`
 21. **Worktree status line redundant** — name shown 3 times — `2026-04-04`
 22. **Explore agent overkill on bootstrap** — 22 tool calls for lightweight orientation — `2026-04-04`

@@ -126,7 +126,7 @@ New implementation replacing the deprecated shim.
    Updated framework from abc123 to def456.
    ### Changes
    - 3 skills added: foo, bar, baz
-   - 2 tools updated: git-commit, handoff
+   - 2 tools updated: git-safe-commit, handoff
    - 1 hook added: new-hook.sh
    ### Previous session state
    [Summary of what the previous handoff contained — key context the agent needs to continue work]
@@ -378,7 +378,7 @@ claude/tools/
     _path-resolve           # existing
     _provider-resolve       # existing
   handoff                   # updated: --type flag support
-  git-commit                # existing
+  git-safe-commit                # existing
   settings-merge            # existing
   ...                       # other tools unchanged
 ```

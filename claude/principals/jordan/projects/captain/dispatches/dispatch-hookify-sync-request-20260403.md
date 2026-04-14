@@ -33,7 +33,7 @@ We want the hookify rule sets in sync between repos. Current state:
 
 | Rule | Event | Action | Notes |
 |------|-------|--------|-------|
-| `block-commit-main` | bash | warn | Redirects to `./claude/tools/git-commit`, warns about main/master branch |
+| `block-commit-main` | bash | warn | Redirects to `./claude/tools/git-safe-commit`, warns about main/master branch |
 | `warn-enter-worktree` | tool | warn | Blocks built-in `EnterWorktree`, redirects to Agency worktree tool |
 
 **Both are useful for monofolk.** We want them. Please confirm these are stable and we'll port them.

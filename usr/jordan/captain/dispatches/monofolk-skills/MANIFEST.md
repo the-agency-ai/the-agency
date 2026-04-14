@@ -14,7 +14,7 @@ These are Agency methodology skills. They belong in the-agency and get installed
 | `plan-complete.md` | Plan boundary | Updated: passes boundary context |
 | `pr-prep.md` | Pre-PR QG | **NEW** |
 | `pre-phase-review.md` | Pre-phase artifact review | Unchanged |
-| `git-commit.md` | QG-aware commit | **REWRITTEN** — stage hash receipt check |
+| `git-safe-commit.md` | QG-aware commit | **REWRITTEN** — stage hash receipt check |
 | `discuss.md` | 1B1 discussion protocol | Updated: added `Skill` to allowed-tools |
 | `transcript.md` | Dialogue capture | Unchanged |
 | `define.md` | Drive PVR to completeness | Unchanged |
@@ -89,8 +89,8 @@ These are monofolk prototype system skills. They use monofolk-specific infrastru
 ## Key Changes Summary
 
 1. **QGR receipt files** — new convention: `claude/usr/{principal}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md`
-2. **Stage hash** — deterministic 7-char hash of staged changes, used for QGR naming and `/git-commit` verification
-3. **`/git-commit` is QG-aware** — checks for matching QGR receipt before committing, `--force` to skip
+2. **Stage hash** — deterministic 7-char hash of staged changes, used for QGR naming and `/git-safe-commit` verification
+3. **`/git-safe-commit` is QG-aware** — checks for matching QGR receipt before committing, `--force` to skip
 4. **`/pr-prep` is new** — QG before PR creation, produces receipt
 5. **Boundary commands pass context** — `/iteration-complete`, `/phase-complete`, `/plan-complete` tell `/quality-gate` the boundary type for receipt naming
 6. **`/discuss` invokes `/transcript`** — `Skill` added to allowed-tools

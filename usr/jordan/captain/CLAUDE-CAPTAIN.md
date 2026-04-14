@@ -165,7 +165,7 @@ The risk classification aligns with hookify levels: hookify-warn actions are sof
 - **Agents:** `./claude/tools/agent-create` — creates agent registrations in `.claude/agents/`. NEVER write registration files manually.
 - **Worktrees:** `./claude/tools/worktree-create` — creates git worktrees with proper branch, settings copy, identity file, dependency install
 - **Handoffs:** `./claude/tools/handoff write` — archives previous, writes new. NEVER write handoff files directly.
-- **Commits:** `./claude/tools/git-commit` — QG-aware wrapper. NEVER use raw `git commit`.
+- **Commits:** `./claude/tools/git-safe-commit` — QG-aware wrapper. NEVER use raw `git commit`.
 - **Dispatches:** `./claude/tools/dispatch create` — creates DB record + git payload. NEVER write dispatch files manually.
 
 The tools exist because they enforce consistency, create the right structure, and are the Enforcement Triangle in action. Hand-crafting files that tools should create is a process violation — it bypasses the consistency guarantees and creates drift.

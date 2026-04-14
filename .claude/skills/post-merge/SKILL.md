@@ -55,18 +55,35 @@ If behind only: `git merge origin/master`
 
 Invoke `/sync-all` via the Skill tool to sync all worktrees.
 
-### Step 6: Clean up PR branch
+### Step 6: Create GitHub release
+
+**Every PR is a release.** This step is mandatory.
+
+1. Parse the PR title for the release name (e.g., "D39-R1: ...")
+2. Extract the day and release number from the branch name or title (e.g., D39-R1 → version 39.1)
+3. Verify `claude/config/manifest.json` has the correct `agency_version`. The version bump should have been done BEFORE the PR was created (in `/pr-prep` or `/ship`). If it wasn't, **stop and warn** — do not push to main to fix it. Create a follow-up PR instead.
+4. Create GitHub release: `gh release create v{version} --title "{PR title}" --notes "{release notes}" --target main`
+   - Release notes: summarize the PR description, list key changes
+5. Verify release: `gh release view v{version}`
+
+If the version format doesn't match D#-R# (e.g., a hotfix PR), use the PR number as the version suffix (e.g., v39.pr78).
+
+**Never push directly to main.** If the version is wrong, create a follow-up PR.
+
+### Step 7: Clean up PR branch
 
 If the PR's head branch still exists locally:
 - `git branch -d {branch}` (safe delete)
 - If it refuses (unmerged), note it and move on
 
-### Step 7: Report
+### Step 8: Report
 
 ```
 Post-merge complete:
   PR: #{number} ({title})
-  Master: reset to origin/master ({commit})
+  Version: {old} → {new}
+  Release: v{version} created on GitHub
+  Master: merged with origin/master ({commit})
   Worktrees: synced via /sync-all
   Branch cleanup: {branch} deleted/kept
 ```

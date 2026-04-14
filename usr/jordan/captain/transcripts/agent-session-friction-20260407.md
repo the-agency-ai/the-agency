@@ -121,9 +121,9 @@ The `.agency-agent` file mechanism creates a race condition between agents: the 
 
 ### Off-the-Rails Behavior
 
-**The raw `git commit` at Entry 60** — agent used `git add .agency-agent && git commit -m "..."` instead of the required `./claude/tools/git-commit`. This is a CLAUDE.md violation ("Always use `/git-commit` — never raw `git commit`"). The hookify rule should have blocked this. The pre-commit hook ran (so the hook IS there) but the `git-commit` tool wrapper was bypassed.
+**The raw `git commit` at Entry 60** — agent used `git add .agency-agent && git commit -m "..."` instead of the required `./claude/tools/git-safe-commit`. This is a CLAUDE.md violation ("Always use `/git-safe-commit` — never raw `git commit`"). The hookify rule should have blocked this. The pre-commit hook ran (so the hook IS there) but the `git-safe-commit` tool wrapper was bypassed.
 
-The commit failed for unrelated reasons, so no harm done — but the agent demonstrated it doesn't honor the git-commit wrapper requirement when acting quickly in response to stop hook feedback.
+The commit failed for unrelated reasons, so no harm done — but the agent demonstrated it doesn't honor the git-safe-commit wrapper requirement when acting quickly in response to stop hook feedback.
 
 **Entry 82** — during the later dispatch check, the agent used `cd /Users/jdm/code/the-agency && ./claude/tools/dispatch list --status unread` — both a cd-to-main-repo violation and a compound command.
 
@@ -133,11 +133,11 @@ The commit failed for unrelated reasons, so no harm done — but the agent demon
 
 - Entry 27: `cd /Users/jdm/code/the-agency && ./claude/tools/dispatch list 2>/dev/null`
 - Entry 28: `cd /Users/jdm/code/the-agency && ./claude/tools/flag list 2>/dev/null`
-- Entry 60: `git add .agency-agent && git commit -m "$(cat <<'EOF'...EOF)"` (also a /git-commit bypass)
+- Entry 60: `git add .agency-agent && git commit -m "$(cat <<'EOF'...EOF)"` (also a /git-safe-commit bypass)
 - Entry 82: `cd /Users/jdm/code/the-agency && ./claude/tools/dispatch list --status unread 2>/dev/null`
-- Entry 87: `git add usr/jordan/devex/devex-handoff.md && git commit -m "$(cat <<'EOF'...EOF)"` (another /git-commit bypass)
+- Entry 87: `git add usr/jordan/devex/devex-handoff.md && git commit -m "$(cat <<'EOF'...EOF)"` (another /git-safe-commit bypass)
 
-Note: entries 87-88 — the second raw commit succeeded. Agent committed the handoff file via bare `git commit`, not `./claude/tools/git-commit`. The pre-commit hook ran and passed, but the git-commit wrapper's QGR check was bypassed entirely.
+Note: entries 87-88 — the second raw commit succeeded. Agent committed the handoff file via bare `git commit`, not `./claude/tools/git-safe-commit`. The pre-commit hook ran and passed, but the git-safe-commit wrapper's QGR check was bypassed entirely.
 
 ### Token Waste
 
@@ -267,9 +267,9 @@ These are low-value reads. The handoff should carry the key context so agents ca
 
 All three agents open with compound commands for dispatch/flag. None triggered permission rejections in these sessions (permissions are now correctly configured), but they still violate CLAUDE.md discipline. The `2>&1` stderr redirect is particularly common and unnecessary — tool output already goes to stderr in useful ways.
 
-### Pattern 5: Raw `git commit` instead of `/git-commit`
+### Pattern 5: Raw `git commit` instead of `/git-safe-commit`
 
-DevEx used raw `git add && git commit` twice (entries 60, 87). The second one succeeded. The `/git-commit` wrapper was bypassed. This is a hookify rule gap — the rule exists but apparently doesn't block the compound form.
+DevEx used raw `git add && git commit` twice (entries 60, 87). The second one succeeded. The `/git-safe-commit` wrapper was bypassed. This is a hookify rule gap — the rule exists but apparently doesn't block the compound form.
 
 ### Pattern 6: Stop hook causes reactive micro-sessions
 
@@ -348,9 +348,9 @@ Alternatively: the agent class definition (`claude/agents/tech-lead/agent.md`) s
 
 ---
 
-### P5: Fix the raw-git-commit bypass (HIGH — QG integrity issue)
+### P5: Fix the raw-git-safe-commit bypass (HIGH — QG integrity issue)
 
-**Observed:** DevEx used `git add X && git commit` twice, bypassing `./claude/tools/git-commit`. The second commit succeeded without QGR verification.
+**Observed:** DevEx used `git add X && git commit` twice, bypassing `./claude/tools/git-safe-commit`. The second commit succeeded without QGR verification.
 
 **Currently:** There's a hookify rule warning about raw `git commit` but it didn't block the DevEx instance. This may be because:
 - The rule fires on bare `git commit` but the compound form `git add X && git commit` is parsed differently
@@ -358,7 +358,7 @@ Alternatively: the agent class definition (`claude/agents/tech-lead/agent.md`) s
 
 **Fix:** Verify the hookify rule fires on the compound `git add && git commit` pattern. If not, update the pattern to catch it. The QGR bypass is a real integrity issue — it undermines the quality gate entirely.
 
-**What to change:** `claude/hookify/hookify.warn-raw-git-commit.md` (or equivalent) — strengthen pattern matching.
+**What to change:** `claude/hookify/hookify.warn-raw-git-safe-commit.md` (or equivalent) — strengthen pattern matching.
 
 ---
 
