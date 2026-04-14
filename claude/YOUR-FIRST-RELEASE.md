@@ -243,5 +243,6 @@ The release skill runs `/pr-prep` (quality gate + tests), bumps the version, com
 - Safe tools full spec: `claude/REFERENCE-SAFE-TOOLS.md`
 - Safe tools overview: `claude/README-SAFE-TOOLS.md`
 - Receipt infrastructure: `claude/README-RECEIPT-INFRASTRUCTURE.md`
-- Quality gate protocol: `claude/docs/QUALITY-GATE.md`
-- Git discipline: `claude/docs/GIT-MERGE-NOT-REBASE.md`
+- Quality gate protocol: `claude/REFERENCE-QUALITY-GATE.md`
+- Git discipline: `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`
+- Receipt infrastructure: `claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md`

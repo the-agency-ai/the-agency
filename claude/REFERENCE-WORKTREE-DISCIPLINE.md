@@ -20,7 +20,7 @@ Agents work either on **master** (the main checkout) or on a **worktree** (an is
 The captain session runs on master. It coordinates — syncs worktrees, builds PR branches, dispatches reviews, pushes to origin. The captain does not implement features.
 
 - `/sync-all` — merges worktree work into master, syncs all worktrees. Purely local, never pushes.
-- `/sync` — the only command that pushes. Explicit confirmation required.
+- `/sync` and `/release` — the commands that push. `/sync` for branch push, `/release` for full PR flow (commit + push + PR + version bump). Both wrap `./claude/tools/git-push` which blocks main/master.
 - `/captain-review` — reviews PR branches locally, dispatches findings.
 - Direct commits to master are only for coordination artifacts (handoffs, dispatches, review files).
 
