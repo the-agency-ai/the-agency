@@ -139,3 +139,14 @@ The ISCP DB uses SQLite's `PRAGMA user_version` for schema versioning. The frame
 **Coordination requirement:** Schema bumps are multi-worktree events. All worktrees on the machine share the DB. If one worktree bumps to v2 but another worktree's tools still expect v1, the v1 tools will refuse to run (`FATAL: DB schema version 2 is newer than expected 1`). Schema changes must be planned as coordinated deploys: all worktrees pull the new tools first, THEN the version bump lands. Tools support runtime column detection (`PRAGMA table_info`) where possible, allowing the schema to be ahead of any individual worktree's expected version without breaking.
 
 **Currently shipped:** v1 schema (initial). Migration framework lands in R3. The first column-add migration (flag categories) is queued for a future release once the multi-worktree coordination is in place.
+
+---
+
+### Future: Dispatch Service
+
+A cloud-hosted agent messaging service is in design to replace the collaboration-repo mechanism for cross-agency dispatches. The seed and PVR are in the iscp workstream:
+
+- Seed: `claude/workstreams/iscp/seeds/seed-dispatch-service-20260414.md`
+- PVR: `claude/workstreams/iscp/dispatch-service-pvr-20260414.md` (when complete)
+
+The dispatch service will provide a durable, real-time message bus between agency instances — eliminating the need to push/pull collaboration repos for cross-repo communication. Local ISCP (SQLite DB) remains unchanged for intra-repo messaging; the service handles inter-repo and cross-machine dispatches.

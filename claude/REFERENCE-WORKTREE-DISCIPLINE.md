@@ -42,6 +42,19 @@ Worktree agents implement features on isolated branches. They build, test, and l
 - **Bug fix or small change** — can work on master if it's a quick fix that doesn't need isolation.
 - **Dispatch handling** — `iscp-check` notifies the worktree agent automatically. The agent runs `dispatch read <id>` to see the payload. If the payload file is on master, merge master first to access it.
 
+### Branch Protection
+
+`main` is protected at the GitHub level:
+
+- **Direct pushes to main are blocked** — GitHub enforces this via branch protection rules. Even with write access, `git push origin main` is rejected.
+- **All changes require a PR** — including captain coordination artifacts that land on master locally. The captain builds a PR branch, pushes it to origin, and merges via GitHub.
+- **PR approval required** — at least one approval before merge.
+- **Smoke test status check required** — the smoke test CI job must pass before merge is allowed.
+
+This means: `git push origin main` will fail. Use `/sync` (which pushes the current branch, not main) and then open a PR. The `/release` skill handles the full flow: QG → commit → push branch → create PR.
+
+---
+
 ### Worktree Naming Convention
 
 Worktree directory names follow `{workstream}-{agent}` with a **collapse rule** when the agent name matches or extends the workstream name:

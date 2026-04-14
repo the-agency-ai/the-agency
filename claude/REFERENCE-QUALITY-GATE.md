@@ -32,6 +32,8 @@ claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-
 
 For workstreams with multiple projects, use `claude/workstreams/{ws}/project/{project}/quality-gate-reports/`. The QGR frontmatter must include `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic hash of the staged changes (computed by `claude/tools/stage-hash`). `/git-safe-commit` checks for a matching receipt before committing — no receipt means no QG was run.
 
+**Receipt chain:** Each QGR is part of a five-hash chain linking the artifact through the gate (see `REFERENCE-RECEIPT-INFRASTRUCTURE.md` when available). The chain provides an auditable link: staged changes → stage hash → QGR file → commit → PR. `pr-create` (via `/release` or `/pr-prep`) verifies the receipt chain before pushing — a PR cannot be created without a valid T4 QGR receipt matching the current diff.
+
 ### Gate Tiers
 
 Gates are tiered by commit boundary type. Higher tiers include all lower-tier checks.

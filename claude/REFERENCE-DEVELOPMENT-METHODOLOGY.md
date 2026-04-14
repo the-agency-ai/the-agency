@@ -148,6 +148,20 @@ usr/{principal}/
 - **No nesting** — `usr/{principal}/folio/`, not `usr/{principal}/docs/projects/folio/`.
 - **Code** stays in `tools/`, `scripts/`, `source/` — not in sandbox project dirs.
 
+### Valueflow Stream Model
+
+Work moves through three streams, each with its own gate:
+
+| Stream | What | Gates | Receipt |
+|--------|------|-------|---------|
+| **Work stream** | Agent commits — iteration and phase work | `/iteration-complete` (auto), `/phase-complete` (approval) | QGR (Quality Gate Report) via `receipt-sign` |
+| **Delivery stream** | PRs and releases — shipping to origin | `/release`, `pr-create` | QGR required by `/git-safe-commit` before push |
+| **Value stream** | Builds and deployments — production value | `/deploy` | Deployment receipt |
+
+Each gate produces a **receipt**: the QGR for code gates, methodology artifact receipts for non-code gates. `/git-safe-commit` verifies a receipt exists (stage-hash match) before allowing a commit. `pr-create` verifies receipt before push. Gates are mechanical — they check for receipt existence, not receipt quality (human judgment stays where it belongs: principal approval at phase boundaries).
+
+---
+
 ### Living Documents
 
 Three documents evolve together:

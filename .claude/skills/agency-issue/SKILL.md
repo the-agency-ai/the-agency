@@ -70,7 +70,7 @@ Shows the issue body, metadata, and all comments.
 
 ## Issue body format
 
-For consistency, follow the same structure as `/feedback` (per `claude/docs/FEEDBACK-FORMAT.md`):
+For consistency, follow the same structure as `/feedback` (per `claude/REFERENCE-FEEDBACK-FORMAT.md`):
 
 - **Problem** — what's broken or missing, who hits it, what the impact is
 - **Steps to Reproduce** — exact commands or sequence (for bugs); use case description (for features)

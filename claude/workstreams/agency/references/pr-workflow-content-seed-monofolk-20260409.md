@@ -101,7 +101,7 @@ This is a complete worked example of:
 ## Cross-references
 
 - Our own PR workflow writeup: `dispatches/the-agency-to-monofolk/dispatch-pr-packing-workflow--my-understanding--f-20260409.md`
-- merge-not-rebase reference: `claude/docs/GIT-MERGE-NOT-REBASE.md`
+- merge-not-rebase reference: `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`
 - telemetry-driven tool discovery seed: `claude/workstreams/agency/seeds/seed-telemetry-driven-tool-discovery-20260409.md`
 - Gary Tan durable agents reference: `claude/workstreams/agency/references/gary-tan-durable-agents-20260409.md`
 
