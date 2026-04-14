@@ -32,9 +32,23 @@ echo "✓ On branch: $BRANCH"
 
 # ── Step 2: Verify receipt ───────────────────────────────────────────────
 
-if ! "$SCRIPT_DIR/receipt-verify" 2>&1; then
+# Find the newest receipt in claude/receipts/ and verify it
+NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    # Fall back to old location
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+fi
+
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    echo "BLOCKED: No receipt found in claude/receipts/ or usr/." >&2
+    echo "  Run /pr-prep first." >&2
+    exit 1
+fi
+
+if ! "$SCRIPT_DIR/receipt-verify" --file "$NEWEST_RECEIPT" 2>&1; then
     echo "" >&2
-    echo "Every PR requires a receipt (QGR or RGR). Run /pr-prep first." >&2
+    echo "Every PR requires a valid receipt. Run /pr-prep again." >&2
     exit 1
 fi
 
