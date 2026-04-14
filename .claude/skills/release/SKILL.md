@@ -1,5 +1,5 @@
 ---
-description: Quality-check, commit, push, and create/update PR in one flow.
+description: Quality-check, commit, push, create PR, and cut a release in one flow.
 ---
 
 <!--
@@ -9,9 +9,9 @@ description: Quality-check, commit, push, and create/update PR in one flow.
   see — see dispatch #171 for the devex incident that surfaced this trap.
 -->
 
-# Ship
+# Release
 
-Quality-check, commit, push, and create/update PR in one flow. The "code is ready" command.
+Quality-check, commit, push, create PR, and cut a release in one flow. The "code is ready" command. **Every PR is a release.**
 
 ## Arguments
 
@@ -33,7 +33,7 @@ If any check fails, stop and report the failures. Do not proceed.
 
 ### Step 3: Commit
 
-Invoke `/git-commit` via the Skill tool. Pass any commit description from `$ARGUMENTS`.
+Invoke `/git-safe-commit` via the Skill tool. Pass any commit description from `$ARGUMENTS`.
 
 ### Step 4: Push (unless --no-push)
 
@@ -47,13 +47,24 @@ If `--no-push` was NOT passed:
 If `--no-pr` was NOT passed and a push happened:
 1. Check if a PR already exists: `gh pr view {branch}`
 2. If exists: report the PR URL
-3. If not: offer to create one with `gh pr create`
+3. If not: create one with `./claude/tools/pr-create --title "..." --body "..."`
 
-### Step 6: Summary
+**Never raw `gh pr create`.** The `pr-create` tool validates a QGR receipt exists before allowing PR creation. If no QGR is found, it blocks — run `/pr-prep` first.
+
+### Step 6: Version bump
+
+1. Parse the PR title for the release version (D#-R# → version #.#)
+2. Update `claude/config/manifest.json`: bump `agency_version`, update `updated_at`
+3. Commit the version bump
+4. Push the version bump: `./claude/tools/git-push {branch}`
+
+### Step 7: Summary
 
 ```
-Ship complete:
+Release complete:
   Committed: {commit-hash} {message}
+  Version: {old} → {new}
   Pushed: origin/{branch}
   PR: {url} (or skipped)
+  Post-merge: run /post-merge after PR is merged to create GitHub release
 ```
