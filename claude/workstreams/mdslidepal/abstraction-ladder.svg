@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" font-family="system-ui, -apple-system, sans-serif">
+
+  <!-- Layers from bottom to top -->
+  <!-- 1. Hardware -->
+  <rect x="200" y="460" width="400" height="42" rx="6" fill="#e0e0e0" stroke="#ccc" stroke-width="1"/>
+  <text x="400" y="486" text-anchor="middle" font-size="15" font-weight="600" fill="#555">Hardware, Assembly, C, Pascal</text>
+  <text x="620" y="486" font-size="12" fill="#888">1980s</text>
+
+  <!-- 2. Machine Code -->
+  <rect x="200" y="410" width="400" height="42" rx="6" fill="#d5d5d5" stroke="#bbb" stroke-width="1"/>
+  <text x="400" y="436" text-anchor="middle" font-size="15" font-weight="600" fill="#555">Machine Code — MacsBug (68K debugger)</text>
+  <text x="620" y="436" font-size="12" fill="#888">1984</text>
+
+  <!-- 3. Assembly -->
+  <rect x="200" y="360" width="400" height="42" rx="6" fill="#c5d0da" stroke="#a5b0ba" stroke-width="1"/>
+  <text x="400" y="386" text-anchor="middle" font-size="15" font-weight="600" fill="#444">Assembly — MDS, MPW</text>
+  <text x="620" y="386" font-size="12" fill="#888">1984–86</text>
+
+  <!-- 4. High-Level Languages -->
+  <rect x="200" y="310" width="400" height="42" rx="6" fill="#b0c0d0" stroke="#90a0b0" stroke-width="1"/>
+  <text x="400" y="336" text-anchor="middle" font-size="15" font-weight="600" fill="#333">C++, Java, JavaScript, OOP</text>
+  <text x="620" y="336" font-size="12" fill="#888">1990s</text>
+
+  <!-- 5. Web + Enterprise -->
+  <rect x="200" y="260" width="400" height="42" rx="6" fill="#a0b5c8" stroke="#8098b0" stroke-width="1"/>
+  <text x="400" y="286" text-anchor="middle" font-size="15" font-weight="600" fill="#333">Web + Enterprise — Java EE, .NET, Ruby</text>
+  <text x="620" y="286" font-size="12" fill="#888">2000s</text>
+
+  <!-- 6. Frameworks -->
+  <rect x="200" y="210" width="400" height="42" rx="6" fill="#8aa8c0" stroke="#6888a0" stroke-width="1"/>
+  <text x="400" y="236" text-anchor="middle" font-size="15" font-weight="600" fill="#222">React, Node.js, Mobile</text>
+  <text x="620" y="236" font-size="12" fill="#888">2010–20s</text>
+
+  <!-- 7. AI Augmented (highlighted) -->
+  <rect x="200" y="150" width="400" height="48" rx="8" fill="#0066cc" stroke="none"/>
+  <text x="400" y="180" text-anchor="middle" font-size="17" font-weight="700" fill="white">AI Augmented — Claude Code + Valueflow</text>
+  <text x="620" y="180" font-size="13" fill="#4da6ff" font-weight="600">2025+</text>
+
+  <!-- Arrow on the left pointing UP -->
+  <line x1="170" y1="485" x2="170" y2="165" stroke="#0066cc" stroke-width="3"/>
+  <polygon points="170,153 162,170 178,170" fill="#0066cc"/>
+  <text x="155" y="320" text-anchor="middle" font-size="13" fill="#666" transform="rotate(-90, 155, 320)">Increasing Abstraction</text>
+
+  <!-- "We are here" label -->
+  <text x="400" y="138" text-anchor="middle" font-size="14" font-weight="700" fill="#0066cc">WE ARE HERE</text>
+</svg>
