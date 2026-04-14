@@ -40,7 +40,7 @@ Invoke `/git-commit` via the Skill tool. Pass any commit description from `$ARGU
 If `--no-push` was NOT passed:
 1. Show what will be pushed: `git log --oneline origin/{branch}..HEAD`
 2. Ask for confirmation
-3. `git push origin {branch} --force-with-lease`
+3. `./claude/tools/git-push --force-with-lease {branch}`
 
 ### Step 5: PR (unless --no-pr)
 
