@@ -2,83 +2,62 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-06
-trigger: reboot — Day 31 bootstrap
+date: 2026-04-14
+trigger: session-end
 ---
 
-## Identity
+## Resume — Day 40 (Bootloader Verified, Session Skills Shipped)
 
-the-agency/jordan/captain — Captain. Coordination, dispatch routing, quality gates, PR lifecycle. First up, last down. Always-on when agents are working.
+### Bootloader status: VERIFIED
 
-## Current State
+New 691-word CLAUDE-THEAGENCY.md bootloader is working. First live session confirmed:
+1. Oriented from handoff — ✅
+2. Ref-injector fires on skills — ✅
+3. Docs found on demand — ✅
 
-**Day 30 complete.** Massive session: valueflow PVR + A&D defined and through MAR (9/9 reviewers, 64 findings, ready for planning). Reboot executed: worktrees split, identities fixed, dispatches cleaned, registrations updated.
+No fallback needed. Old monolith is in git history before commit `13767a4` if ever needed.
 
-### What shipped Day 30:
-- Valueflow PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
-- Valueflow A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-- MAR dispositions: `claude/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md` and `mar-valueflow-ad-round2-20260406.md`
-- ISCP v1 hardened: symlinks, identity fixes, --body requirement, 174 tests
-- DevEx workstream created
-- Legacy 62 flags triaged and migrated
-- Handoff tool fixed (agent-identity, {agent}-handoff.md)
-- WHW hookify warn rule
-- Settings-template permissions
-- mdpal worktree split (mdpal-cli + mdpal-app)
+### What happened this session
 
-## Valueflow Context
+**Session lifecycle skills shipped:**
+- `/session-end` updated: get clean (commit everything, don't ask), send dispatches, write handoff, "Safe to `/compact` and/or `/exit`." Both idempotent.
+- `/session-compact` created: mid-session context refresh — same get-clean behavior, ends with "Run `/compact` now."
+- Key design decisions: no asking on dirty state (just commit), idempotent (safe to run multiple times), coord-commit is for cross-agency dispatches only (not general commits).
 
-You created this. You know it.
-- PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
-- A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-- MAR dispositions: `claude/workstreams/agency/reviews/`
-- Seeds: `claude/workstreams/agency/seeds/`
-- Transcripts: `usr/jordan/captain/transcripts/`
+**Fleet bootloader rollout dispatched:**
+- Dispatches #242–248: bootloader rollout to all 7 agents
+- Dispatches #250–256: session-end behavior change addendum to all 7 agents
+- mdslidepal-web acknowledged (#249, resolved)
 
-## Active Work
+**Flagged for later:**
+- Flag #92: (1) Need `/seed` skill for quick seed capture, (2) Build remote dispatch service to replace collaborate/git-file-based cross-repo messaging
 
-**Next: write the Valueflow V2 implementation plan.** This is Phase 5 of the reboot plan.
+### Fleet state
 
-The plan covers:
-- Phases and iterations for V2 deliverables (25 items in A&D §12)
-- Dependency graph
-- Agent assignments: ISCP (dispatch architecture), DevEx (test infra, permissions, enforcement), captain (documentation, decomposition)
-- CLAUDE-THEAGENCY.md decomposition sequencing
+| Agent | Status | Last dispatch |
+|-------|--------|---------------|
+| DevEx | Active, has git-safe seed + bootloader directive | #242, #250 |
+| DesignEx | Phase 1.1 implementing, has bootloader directive | #243, #251 |
+| mdslidepal-web | Idle, acknowledged bootloader, awaiting Phase 2 | #252 (ack'd #249) |
+| mdslidepal-mac | Phases 1-4 complete, has bootloader directive | #245, #253 |
+| mdpal-cli | Has bootloader directive | #246, #254 |
+| mdpal-app | Has bootloader directive | #247, #255 |
+| ISCP | 10 commits on branch, has bootloader directive | #248, #256 |
 
-## Agents
+### What's next
 
-| Agent | Worktree | Status | Next action |
-|-------|----------|--------|-------------|
-| iscp | `.claude/worktrees/iscp/` | Idle, awaiting V2 assignments | Process seeds, await plan |
-| devex | `.claude/worktrees/devex/` | Day 1, needs PVR | `/define` with seed, then implement |
-| mdpal-cli | `.claude/worktrees/mdpal-cli/` | Phase 1, iter 1.1 code done | `/iteration-complete`, then 1.2 |
-| mdpal-app | `.claude/worktrees/mdpal-app/` | Phase 1A in progress | Continue SwiftUI implementation |
-| mock-and-mark | (no worktree yet) | Not started | Awaiting seed + principal direction |
+1. **Cycle all agents** — Jordan to cycle agents through /session-end → /exit → resume → /session-resume for bootloader pickup
+2. **Merge PR #81** — D39-R1, check CI status
+3. **Monofolk Ring 2 dispatch** — STILL pending since D36
+4. **Monitor DevEx** — git-safe/git-captain progress
+5. **Monitor DesignEx** — April 17 monofolk deadline (3 days)
+6. **Flag #92 discussion** — /seed skill + remote dispatch service
+7. **Flag backlog triage** — 80+ accumulated flags need structured triage
 
-## Key Decisions (Day 30)
+### Lessons this session
 
-- Valueflow = TheAgency's AIADLC. Rooted in Lean.
-- MAR = pair programming. Never skipped. Many eyes, all bugs are shallow.
-- Three-bucket: reviewers give raw feedback, authors triage.
-- Enforcement ladder: document → skill → tool → warn → block. Principal decides transitions.
-- Captain: always-on, first up, last down. V2 = sessions, V3 = daemon.
-- One agent, one worktree. Workstream name is agent name prefix.
-- Day counting: Day N = Nth day with commits.
-- Dispatch payloads: symlinks in `~/.agency/` pointing to git artifacts.
-- 5-minute dispatch check loop on all agent startups.
-- PostCompact: inject handoff only. CLAUDE.md survives compaction.
+1. **Idempotent skills.** Session lifecycle skills must be safe to run multiple times.
+2. **Don't ask — just do it.** Session teardown commits everything. Clean working tree, no questions.
+3. **coord-commit confusion.** Agents were using coord-commit for intra-repo work. It's for cross-agency dispatches only.
 
-## Break-Glass
-
-If this handoff isn't enough context, ask principal for permission to read: `usr/jordan/captain/history/how-we-got-here-day31.md`. Session resume is the final backup.
-
-## Startup Actions
-
-1. Set dispatch loop: `/loop 5m dispatch check`
-2. Process unread dispatches: `dispatch list`
-3. Process unread flags: `flag list`
-4. Read the valueflow A&D (you wrote it, but refresh): `claude/workstreams/agency/valueflow-ad-20260406.md`
-5. Write the V2 implementation plan
-6. Send plan for autonomous agent MAR
-7. Principal review of plan
-8. Begin execution
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(./claude/tools/dispatch *), Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch *), Read, Grep, Glob
 description: Read a dispatch and mark it as read — works from any branch or worktree
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Read Dispatch
 

@@ -1,0 +1,534 @@
+#!/bin/bash
+#
+# collaboration — cross-repo dispatch lifecycle tool
+#
+# What Problem: Cross-repo dispatches (e.g., monofolk ↔ the-agency) use git-based
+# collaboration repos since repos don't share an ISCP SQLite DB. Without this tool,
+# agents had to manually cd into external repos, git pull, grep frontmatter, sed
+# status fields, write reply files, and push — all triggering permission prompts
+# for paths outside the project. This tool wraps the entire cross-repo dispatch
+# lifecycle into pre-approved subcommands.
+#
+# How & Why: Single tool with subcommands mirroring the local `dispatch` tool pattern.
+# Reads collaboration repo config from agency.yaml (path, inbound/outbound dirs).
+# All external-path operations happen inside this tool — the agent never touches
+# paths outside the project directly. Captain-only: cross-repo coordination is
+# a captain responsibility.
+#
+# Written: 2026-04-07 during captain session (cross-repo dispatch protocol)
+#
+# Usage:
+#   collaboration check                              # pull + scan for unread (silent when empty)
+#   collaboration list                               # list configured repos
+#   collaboration read <repo> <filename>             # read dispatch, mark as read
+#   collaboration resolve <repo> <filename|--all-resolved>  # mark resolved
+#   collaboration send <repo> --subject <text> --body <text> [--type <type>]
+#                                                    # originate a new outbound dispatch
+#   collaboration reply <repo> --to <filename> --subject <text> --body <text> [--type <type>]
+#   collaboration push <repo>                        # commit + push pending changes
+#   collaboration --version
+#   collaboration --help
+
+set -euo pipefail
+
+TOOL_VERSION="2.0.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+source "$SCRIPT_DIR/lib/_log-helper"
+
+AGENCY_YAML="$PROJECT_ROOT/claude/config/agency.yaml"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+_expand_path() {
+    echo "${1/#\~/$HOME}"
+}
+
+_parse_yaml_repos() {
+    # Parse collaboration repos from agency.yaml
+    # Returns lines of: name|path|inbound|outbound
+    local yaml="$AGENCY_YAML"
+    [[ -f "$yaml" ]] || return 1
+
+    if command -v yq >/dev/null 2>&1; then
+        yq -r '.collaboration.repos // {} | to_entries[] | "\(.key)|\(.value.path)|\(.value.inbound)|\(.value.outbound)"' "$yaml" 2>/dev/null
+    else
+        local in_collab=false in_repos=false current_name="" current_path="" current_inbound="" current_outbound=""
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^collaboration: ]]; then in_collab=true; continue; fi
+            if $in_collab && [[ "$line" =~ ^[[:space:]]+repos: ]]; then in_repos=true; continue; fi
+            if $in_repos && [[ "$line" =~ ^[a-z] ]]; then
+                [[ -n "$current_name" ]] && echo "${current_name}|${current_path}|${current_inbound}|${current_outbound}"
+                break
+            fi
+            if $in_repos; then
+                if [[ "$line" =~ ^[[:space:]]{4}([a-z][a-z0-9_-]*): ]]; then
+                    [[ -n "$current_name" ]] && echo "${current_name}|${current_path}|${current_inbound}|${current_outbound}"
+                    current_name="${BASH_REMATCH[1]}"; current_path=""; current_inbound=""; current_outbound=""
+                fi
+                [[ "$line" =~ ^[[:space:]]+path:[[:space:]]+\"?([^\"]+)\"? ]] && current_path="${BASH_REMATCH[1]}"
+                [[ "$line" =~ ^[[:space:]]+inbound:[[:space:]]+\"?([^\"]+)\"? ]] && current_inbound="${BASH_REMATCH[1]}"
+                [[ "$line" =~ ^[[:space:]]+outbound:[[:space:]]+\"?([^\"]+)\"? ]] && current_outbound="${BASH_REMATCH[1]}"
+            fi
+        done < "$yaml"
+        [[ -n "$current_name" ]] && echo "${current_name}|${current_path}|${current_inbound}|${current_outbound}"
+    fi
+}
+
+_get_repo() {
+    # Look up a repo by name, returns: path|inbound|outbound
+    local target="$1"
+    local repos
+    repos=$(_parse_yaml_repos 2>/dev/null) || { echo "ERROR: no collaboration repos configured" >&2; return 1; }
+
+    while IFS='|' read -r name repo_path inbound outbound; do
+        if [[ "$name" == "$target" ]]; then
+            echo "$repo_path|$inbound|$outbound"
+            return 0
+        fi
+    done <<< "$repos"
+
+    echo "ERROR: unknown collaboration repo '$target'. Run: collaboration list" >&2
+    return 1
+}
+
+_resolve_identity() {
+    # Get current agent identity for dispatch headers
+    "$SCRIPT_DIR/agent-identity" 2>/dev/null || echo "the-agency/unknown/captain"
+}
+
+_update_frontmatter_status() {
+    # Update status field in YAML frontmatter of a dispatch file
+    local file="$1" new_status="$2"
+    if [[ ! -f "$file" ]]; then
+        echo "ERROR: file not found: $file" >&2
+        return 1
+    fi
+    # Use sed to replace status in frontmatter (between --- markers)
+    sed -i '' "s/^status: .*/status: ${new_status}/" "$file"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Subcommands
+# ─────────────────────────────────────────────────────────────────────────────
+
+cmd_check() {
+    local RUN_ID
+    RUN_ID=$(log_start "collaboration" "check" "$@")
+    local start_time
+    start_time=$(date +%s)
+
+    local repos found_any=false total_unread=0
+    repos=$(_parse_yaml_repos 2>/dev/null) || {
+        log_end "$RUN_ID" "skip" "0" "0" "no collaboration repos configured"
+        exit 0
+    }
+
+    [[ -z "$repos" ]] && {
+        log_end "$RUN_ID" "skip" "0" "0" "no collaboration repos configured"
+        exit 0
+    }
+
+    local results=()
+
+    while IFS='|' read -r name repo_path inbound outbound; do
+        local full_path
+        full_path=$(_expand_path "$repo_path")
+
+        if [[ ! -d "$full_path" ]]; then
+            results+=("⚠ $name: repo not found at $full_path")
+            continue
+        fi
+
+        # Pull latest
+        local pull_output
+        pull_output=$(cd "$full_path" && git pull --rebase 2>&1) || {
+            results+=("⚠ $name: git pull failed — ${pull_output%%$'\n'*}")
+            continue
+        }
+
+        local inbound_path="$full_path/$inbound"
+        [[ -d "$inbound_path" ]] || continue
+
+        # Scan for unread dispatches
+        local unread_files
+        unread_files=$(grep -rl 'status: unread' "$inbound_path"/*.md 2>/dev/null) || true
+
+        if [[ -n "$unread_files" ]]; then
+            found_any=true
+            local count
+            count=$(echo "$unread_files" | wc -l | tr -d ' ')
+            total_unread=$((total_unread + count))
+
+            local subjects=()
+            while IFS= read -r file; do
+                local subj
+                subj=$(grep -m1 'subject:' "$file" 2>/dev/null | sed 's/.*subject:[[:space:]]*"*\([^"]*\)"*/\1/' || echo "(no subject)")
+                subjects+=("  • $subj ($(basename "$file"))")
+            done <<< "$unread_files"
+
+            results+=("📬 $name: $count unread dispatch(es)")
+            for s in "${subjects[@]}"; do
+                results+=("$s")
+            done
+        fi
+    done <<< "$repos"
+
+    local end_time duration
+    end_time=$(date +%s)
+    duration=$(( (end_time - start_time) * 1000 ))
+
+    if $found_any; then
+        echo "Cross-repo dispatches: $total_unread unread"
+        echo ""
+        for r in "${results[@]}"; do
+            echo "$r"
+        done
+        echo ""
+        echo "Use: collaboration read <repo> <filename>"
+        log_end "$RUN_ID" "success" "0" "$duration" "$total_unread unread cross-repo dispatch(es)"
+    else
+        log_end "$RUN_ID" "success" "0" "$duration" "no unread cross-repo dispatches"
+    fi
+}
+
+cmd_list() {
+    local repos
+    repos=$(_parse_yaml_repos 2>/dev/null) || {
+        echo "No collaboration repos configured in agency.yaml"
+        exit 0
+    }
+
+    [[ -z "$repos" ]] && { echo "No collaboration repos configured in agency.yaml"; exit 0; }
+
+    echo "Configured collaboration repos:"
+    echo ""
+    while IFS='|' read -r name repo_path inbound outbound; do
+        local full_path
+        full_path=$(_expand_path "$repo_path")
+        local status="✓"
+        [[ ! -d "$full_path" ]] && status="✗ (not found)"
+        echo "  $name: $full_path $status"
+        echo "    inbound:  $inbound"
+        echo "    outbound: $outbound"
+    done <<< "$repos"
+}
+
+cmd_read() {
+    # collaboration read <repo> <filename>
+    local repo_name="${1:-}" filename="${2:-}"
+    if [[ -z "$repo_name" || -z "$filename" ]]; then
+        echo "Usage: collaboration read <repo> <filename>" >&2
+        exit 1
+    fi
+
+    local RUN_ID
+    RUN_ID=$(log_start "collaboration" "read" "$repo_name" "$filename")
+
+    local repo_info
+    repo_info=$(_get_repo "$repo_name") || exit 1
+    IFS='|' read -r repo_path inbound outbound <<< "$repo_info"
+
+    local full_path
+    full_path=$(_expand_path "$repo_path")
+    local file="$full_path/$inbound/$filename"
+
+    if [[ ! -f "$file" ]]; then
+        echo "ERROR: dispatch not found: $file" >&2
+        log_end "$RUN_ID" "error" "1" "0" "file not found: $filename"
+        exit 1
+    fi
+
+    # Display the dispatch
+    cat "$file"
+
+    # Mark as read
+    _update_frontmatter_status "$file" "read"
+    echo ""
+    echo "--- Marked as read. Use 'collaboration resolve $repo_name $filename' when done. ---"
+
+    log_end "$RUN_ID" "success" "0" "0" "read $filename from $repo_name"
+}
+
+cmd_resolve() {
+    # collaboration resolve <repo> <filename|--all-resolved>
+    local repo_name="${1:-}" target="${2:-}"
+    if [[ -z "$repo_name" || -z "$target" ]]; then
+        echo "Usage: collaboration resolve <repo> <filename|--all-resolved>" >&2
+        exit 1
+    fi
+
+    local RUN_ID
+    RUN_ID=$(log_start "collaboration" "resolve" "$repo_name" "$target")
+
+    local repo_info
+    repo_info=$(_get_repo "$repo_name") || exit 1
+    IFS='|' read -r repo_path inbound outbound <<< "$repo_info"
+
+    local full_path
+    full_path=$(_expand_path "$repo_path")
+    local inbound_path="$full_path/$inbound"
+
+    if [[ "$target" == "--all-resolved" ]]; then
+        # Mark all 'read' dispatches as resolved (not unread — those haven't been processed)
+        local read_files
+        read_files=$(grep -rl 'status: read' "$inbound_path"/*.md 2>/dev/null) || true
+
+        if [[ -z "$read_files" ]]; then
+            echo "No read dispatches to resolve in $repo_name"
+            log_end "$RUN_ID" "skip" "0" "0" "nothing to resolve"
+            exit 0
+        fi
+
+        local count=0
+        while IFS= read -r file; do
+            _update_frontmatter_status "$file" "resolved"
+            echo "✓ Resolved: $(basename "$file")"
+            count=$((count + 1))
+        done <<< "$read_files"
+
+        echo ""
+        echo "$count dispatch(es) resolved. Run 'collaboration push $repo_name' to commit."
+        log_end "$RUN_ID" "success" "0" "0" "resolved $count dispatches"
+    else
+        local file="$inbound_path/$target"
+        if [[ ! -f "$file" ]]; then
+            echo "ERROR: dispatch not found: $target" >&2
+            log_end "$RUN_ID" "error" "1" "0" "file not found: $target"
+            exit 1
+        fi
+
+        _update_frontmatter_status "$file" "resolved"
+        echo "✓ Resolved: $target"
+        echo "Run 'collaboration push $repo_name' to commit."
+        log_end "$RUN_ID" "success" "0" "0" "resolved $target"
+    fi
+}
+
+_write_outbound() {
+    # Shared implementation for send and reply
+    # Args: verb repo_name to_file subject body dtype
+    local verb="$1" repo_name="$2" to_file="$3" subject="$4" body="$5" dtype="$6"
+
+    local RUN_ID
+    RUN_ID=$(log_start "collaboration" "$verb" "$repo_name" "$subject")
+
+    local repo_info
+    repo_info=$(_get_repo "$repo_name") || exit 1
+    IFS='|' read -r repo_path inbound outbound <<< "$repo_info"
+
+    local full_path
+    full_path=$(_expand_path "$repo_path")
+    local outbound_path="$full_path/$outbound"
+
+    # Ensure outbound directory exists
+    mkdir -p "$outbound_path"
+
+    # Resolve identity for from: header
+    local my_identity
+    my_identity=$(_resolve_identity)
+
+    # Determine recipient from original dispatch if --to provided
+    local recipient=""
+    if [[ -n "$to_file" ]]; then
+        local orig_file="$full_path/$inbound/$to_file"
+        if [[ -f "$orig_file" ]]; then
+            recipient=$(grep -m1 'from:' "$orig_file" 2>/dev/null | sed 's/.*from:[[:space:]]*//' || echo "")
+        fi
+    fi
+    [[ -z "$recipient" ]] && recipient="$repo_name/jordan/captain"
+
+    # Generate filename
+    local slug
+    slug=$(echo "$subject" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | head -c 40)
+    local datestamp
+    datestamp=$(date +%Y%m%d)
+    local filename="${dtype}-${slug}-${datestamp}.md"
+
+    # Write the dispatch
+    cat > "$outbound_path/$filename" << DISPATCH
+---
+type: $dtype
+from: $my_identity
+to: $recipient
+date: $(date +%Y-%m-%dT%H:%M)
+status: unread
+priority: normal
+subject: "$subject"
+in_reply_to: ${to_file:-null}
+---
+
+# $subject
+
+$body
+DISPATCH
+
+    echo "✓ Dispatch written: $outbound_path/$filename"
+    echo "Run 'collaboration push $repo_name' to commit and deliver."
+
+    # Mark original as resolved if replying
+    if [[ -n "$to_file" ]]; then
+        local orig="$full_path/$inbound/$to_file"
+        if [[ -f "$orig" ]]; then
+            _update_frontmatter_status "$orig" "resolved"
+            echo "✓ Original dispatch marked resolved: $to_file"
+        fi
+    fi
+
+    log_end "$RUN_ID" "success" "0" "0" "$verb written: $filename"
+}
+
+cmd_send() {
+    # collaboration send <repo> --subject <text> --body <text> [--type <type>]
+    local repo_name="${1:-}"
+    shift || { echo "Usage: collaboration send <repo> --subject <text> --body <text>" >&2; exit 1; }
+
+    local subject="" body="" dtype="dispatch"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --subject) subject="$2"; shift 2 ;;
+            --body) body="$2"; shift 2 ;;
+            --type) dtype="$2"; shift 2 ;;
+            *) echo "Unknown option: $1" >&2; exit 1 ;;
+        esac
+    done
+
+    if [[ -z "$repo_name" || -z "$subject" || -z "$body" ]]; then
+        echo "Usage: collaboration send <repo> --subject <text> --body <text>" >&2
+        exit 1
+    fi
+
+    _write_outbound "send" "$repo_name" "" "$subject" "$body" "$dtype"
+}
+
+cmd_reply() {
+    # collaboration reply <repo> --to <filename> --subject <text> --body <text> [--type <type>]
+    local repo_name="${1:-}"
+    shift || { echo "Usage: collaboration reply <repo> --to <file> --subject <text> --body <text>" >&2; exit 1; }
+
+    local to_file="" subject="" body="" dtype="dispatch"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --to) to_file="$2"; shift 2 ;;
+            --subject) subject="$2"; shift 2 ;;
+            --body) body="$2"; shift 2 ;;
+            --type) dtype="$2"; shift 2 ;;
+            *) echo "Unknown option: $1" >&2; exit 1 ;;
+        esac
+    done
+
+    if [[ -z "$repo_name" || -z "$to_file" || -z "$subject" || -z "$body" ]]; then
+        echo "Usage: collaboration reply <repo> --to <file> --subject <text> --body <text>" >&2
+        exit 1
+    fi
+
+    _write_outbound "reply" "$repo_name" "$to_file" "$subject" "$body" "$dtype"
+}
+
+cmd_push() {
+    # collaboration push <repo> [--message <text>]
+    local repo_name="${1:-}"
+    if [[ -z "$repo_name" ]]; then
+        echo "Usage: collaboration push <repo> [--message <text>]" >&2
+        exit 1
+    fi
+    shift
+
+    local message="dispatch: status updates and replies"
+    if [[ "${1:-}" == "--message" ]]; then
+        message="$2"
+    fi
+
+    local RUN_ID
+    RUN_ID=$(log_start "collaboration" "push" "$repo_name")
+
+    local repo_info
+    repo_info=$(_get_repo "$repo_name") || exit 1
+    IFS='|' read -r repo_path inbound outbound <<< "$repo_info"
+
+    local full_path
+    full_path=$(_expand_path "$repo_path")
+
+    if [[ ! -d "$full_path/.git" ]]; then
+        echo "ERROR: not a git repo: $full_path" >&2
+        log_end "$RUN_ID" "error" "1" "0" "not a git repo"
+        exit 1
+    fi
+
+    # Stage, commit, push
+    local output
+    output=$(cd "$full_path" && git add -A && git commit -m "$message" 2>&1) || {
+        if echo "$output" | grep -q "nothing to commit"; then
+            echo "Nothing to commit in $repo_name"
+            log_end "$RUN_ID" "skip" "0" "0" "nothing to commit"
+            exit 0
+        fi
+        echo "ERROR: commit failed — $output" >&2
+        log_end "$RUN_ID" "error" "1" "0" "commit failed"
+        exit 1
+    }
+
+    local push_output
+    push_output=$(cd "$full_path" && git push 2>&1) || {
+        echo "ERROR: push failed — $push_output" >&2
+        echo "Changes committed locally. Retry with: collaboration push $repo_name"
+        log_end "$RUN_ID" "error" "1" "0" "push failed"
+        exit 1
+    }
+
+    echo "✓ Committed and pushed to $repo_name"
+    echo "$output" | tail -1
+    log_end "$RUN_ID" "success" "0" "0" "pushed to $repo_name"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────────────────────
+
+case "${1:-}" in
+    --version) echo "collaboration $TOOL_VERSION"; exit 0 ;;
+    --help|-h)
+        cat <<'HELP'
+collaboration — cross-repo dispatch lifecycle tool
+
+Usage:
+  collaboration check                              Pull + scan all repos for unread dispatches
+  collaboration list                               List configured collaboration repos
+  collaboration read <repo> <filename>             Read a dispatch, mark as read
+  collaboration resolve <repo> <file|--all-resolved>  Mark dispatch(es) resolved
+  collaboration send <repo> --subject <text> --body <text>
+                                                   Originate a new outbound dispatch
+  collaboration reply <repo> --to <file> --subject <text> --body <text>
+                                                   Reply to an existing inbound dispatch
+  collaboration push <repo>                        Commit + push changes
+  collaboration --version                          Show version
+  collaboration --help                             Show this help
+
+Configuration: claude/config/agency.yaml → collaboration.repos
+
+Captain-only tool — cross-repo coordination is a captain responsibility.
+HELP
+        exit 0 ;;
+    check) shift; cmd_check "$@" ;;
+    list) shift; cmd_list "$@" ;;
+    read) shift; cmd_read "$@" ;;
+    resolve) shift; cmd_resolve "$@" ;;
+    send) shift; cmd_send "$@" ;;
+    reply) shift; cmd_reply "$@" ;;
+    push) shift; cmd_push "$@" ;;
+    *)
+        echo "Unknown subcommand: ${1:-}"
+        echo "Run 'collaboration --help' for usage."
+        exit 1
+        ;;
+esac

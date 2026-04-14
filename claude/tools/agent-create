@@ -37,11 +37,11 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TEMPLATE_DIR="$PROJECT_ROOT/claude/agents/templates"
 
 # Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="[0;31m" GREEN="[0;32m" YELLOW="[1;33m" BLUE="[0;34m" NC="[0m"
+fi
 
 # Defaults
 VERBOSE=false
@@ -344,16 +344,23 @@ description: "${CC_DESCRIPTION}"
 model: opus
 ---
 
-**On startup, immediately read these files in order:**
+**On startup, immediately do these in order:**
 
 1. \`usr/${PRINCIPAL}/${WORKSTREAM}/${AGENTNAME}-handoff.md\` — your bootstrap handoff (who you are, current state, next action)
-2. \`claude/agents/${AGENTNAME}/agent.md\` — your role and responsibilities
-3. \`claude/workstreams/${WORKSTREAM}/KNOWLEDGE.md\` — workstream knowledge
+2. Check ISCP: \`dispatch list\` and \`flag list\` — process any unread items before other work
+3. Arm dispatch loops (see \`claude/CLAUDE-THEAGENCY.md\` → "When You Have Mail"):
+   - \`/loop 5m dispatch check\` — silent fast-path every 5 minutes
+   - \`/loop 30m\` nag check — visible alert if dispatches sit >30 minutes unread
+4. Follow the "Next Action" in your handoff. Do not wait for a prompt — act on startup.
 
 **If your handoff contains TODO: placeholders,** report to the captain:
 > "Bootstrap handoff incomplete for ${AGENTNAME} — needs captain to run /discuss for workstream ${WORKSTREAM}."
 
-Then follow the "Next Action" in your handoff. Do not wait for a prompt — act on startup.
+**Reference (read on demand, not every startup):**
+- \`claude/agents/${AGENTNAME}/agent.md\` — your role and responsibilities
+- \`claude/workstreams/${WORKSTREAM}/KNOWLEDGE.md\` — workstream knowledge
+
+**Tool usage:** dispatch and flag tools work from ANY directory including worktrees. Never prefix with \`cd /path/to/main-repo &&\`. Just run \`./claude/tools/dispatch list\` directly.
 CCEOF
         verbose_echo "Registered Claude Code agent: $CLAUDE_AGENTS_DIR/${AGENTNAME}.md"
     fi

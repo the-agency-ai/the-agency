@@ -159,7 +159,8 @@ _db_query() {
 
     local payload_path
     payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=1")
-    [[ "$payload_path" == *"dispatch-code-review-findings"* ]]
+    # Filename includes target agent for broadcast uniqueness (issue #50)
+    [[ "$payload_path" == *"dispatch-to-captain-code-review-findings"* ]]
 }
 
 @test "dispatch create: type prefix in filename" {
@@ -167,7 +168,8 @@ _db_query() {
 
     local payload_path
     payload_path=$(_db_query "SELECT payload_path FROM dispatches WHERE id=1")
-    [[ "$payload_path" == *"review-fix-this"* ]]
+    # Filename includes target agent for broadcast uniqueness (issue #50)
+    [[ "$payload_path" == *"review-to-captain-fix-this"* ]]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

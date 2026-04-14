@@ -1,0 +1,254 @@
+#!/bin/bash
+# What Problem: commit-precheck runs ALL 703 BATS tests on every commit because
+# there's no way to map changed files to relevant test files. Tool changes either
+# get no test coverage (bash not matched by has_app_code) or trigger the full
+# suite. This makes pre-commit unbearably slow and wasteful.
+#
+# How & Why: Convention-based file→test mapping. Reads changed file paths from
+# stdin, outputs relevant test file paths to stdout. Three mapping strategies in
+# priority order: (1) manifest override via "# Test:" header comment in the source
+# file, (2) direct convention mapping (tool name → test file name), (3) dependency
+# grep for lib files (find all .bats files that source the lib). Uses stdin/stdout
+# pipe interface so commit-precheck can feed it `git diff --cached --name-only`.
+# No mapping = no output (exit 0) — the caller decides what to do with empty output.
+#
+# Written: 2026-04-07 during devex Phase 1.2 (test scoper)
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+TESTS_DIR="$REPO_ROOT/tests/tools"
+TOOLS_DIR="$REPO_ROOT/claude/tools"
+
+# Parse arguments
+VERBOSE=false
+DRY_RUN=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version) echo "test-scoper $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            cat <<'HELP'
+test-scoper — map changed files to relevant test files
+
+Usage:
+  git diff --cached --name-only | test-scoper
+  echo "claude/tools/flag" | test-scoper
+  test-scoper --help
+
+Reads file paths from stdin (one per line), outputs relevant .bats test
+file paths to stdout (deduplicated). Exit 0 always — empty output means
+no tests matched (not an error).
+
+Mapping strategies (in priority order):
+  1. Manifest: "# Test: path/to/test.bats" header in source file
+  2. Convention: claude/tools/{name} → tests/tools/{name}.bats
+  3. Dependency: claude/tools/lib/{name} → all .bats sourcing {name}
+  4. Direct: tests/**/*.bats → itself
+  5. Package: apps/{pkg}/Sources/... → PACKAGE:apps/{pkg}/Tests
+             (Swift/Rust/Go non-mirrored layouts; caller dispatches to runner)
+
+Options:
+  --verbose    Show mapping decisions on stderr
+  --dry-run    Show what would be output without dedup
+  --version    Show version
+  --help       Show this help
+HELP
+            exit 0 ;;
+        --verbose) VERBOSE=true; shift ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        *) echo "Error: unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
+verbose() { [[ "$VERBOSE" == "true" ]] && echo "[scope] $1" >&2 || true; }
+
+# Collect all matched test files (may have duplicates)
+declare -a MATCHED_TESTS=()
+
+# Strategy 1: Check for "# Test:" manifest header in a source file
+check_manifest() {
+    local file="$1"
+    local full_path="$REPO_ROOT/$file"
+    [[ -f "$full_path" ]] || return 1
+
+    # Read first 30 lines looking for "# Test: <path>"
+    local test_path
+    test_path=$(head -30 "$full_path" | sed -n 's/^# Test:[[:space:]]*\([^[:space:]]*\).*/\1/p' 2>/dev/null | head -1)
+    if [[ -n "$test_path" ]]; then
+        # Resolve relative to repo root
+        local resolved="$REPO_ROOT/$test_path"
+        if [[ -f "$resolved" ]]; then
+            verbose "manifest: $file → $test_path"
+            MATCHED_TESTS+=("$resolved")
+            return 0
+        else
+            verbose "manifest: $file → $test_path (NOT FOUND)"
+        fi
+    fi
+    return 1
+}
+
+# Strategy 2: Convention mapping — tool name to test file
+check_convention() {
+    local file="$1"
+
+    # claude/tools/{name} → tests/tools/{name}.bats + tests/tools/{name}-*.bats
+    if [[ "$file" =~ ^claude/tools/([^/]+)$ ]]; then
+        local name="${BASH_REMATCH[1]}"
+        local found=false
+
+        # Exact match
+        local test_file="$TESTS_DIR/${name}.bats"
+        if [[ -f "$test_file" ]]; then
+            verbose "convention: $file → tests/tools/${name}.bats"
+            MATCHED_TESTS+=("$test_file")
+            found=true
+        fi
+
+        # Prefix matches: tools/dispatch → tests/tools/dispatch-*.bats
+        local prefix_matches
+        prefix_matches=$(ls "$TESTS_DIR/${name}-"*.bats 2>/dev/null || true)
+        if [[ -n "$prefix_matches" ]]; then
+            while IFS= read -r match; do
+                verbose "convention-prefix: $file → $match"
+                MATCHED_TESTS+=("$match")
+                found=true
+            done <<< "$prefix_matches"
+        fi
+
+        if [[ "$found" == "true" ]]; then
+            return 0
+        fi
+
+        verbose "convention: $file → no test found"
+        return 1
+    fi
+
+    return 1
+}
+
+# Strategy 3: Dependency grep for lib files
+check_dependency() {
+    local file="$1"
+
+    # claude/tools/lib/{_name} → grep all .bats for source.*{_name}
+    if [[ "$file" =~ ^claude/tools/lib/(_?[^/]+)$ ]]; then
+        local lib_name="${BASH_REMATCH[1]}"
+
+        # First check direct name match (strip underscore)
+        local bare_name="${lib_name#_}"
+        local direct_test="$TESTS_DIR/${bare_name}.bats"
+        if [[ -f "$direct_test" ]]; then
+            verbose "dependency-direct: $file → tests/tools/${bare_name}.bats"
+            MATCHED_TESTS+=("$direct_test")
+        fi
+
+        # Then find all test files that source this lib
+        local sourcing_files
+        sourcing_files=$(grep -rl "source.*${lib_name}" "$TESTS_DIR/"*.bats 2>/dev/null || true)
+        if [[ -n "$sourcing_files" ]]; then
+            while IFS= read -r match; do
+                verbose "dependency-grep: $file → $match"
+                MATCHED_TESTS+=("$match")
+            done <<< "$sourcing_files"
+        fi
+
+        # Lib files are cross-cutting — if we found nothing, that's still OK
+        if [[ ${#MATCHED_TESTS[@]} -eq 0 ]]; then
+            verbose "dependency: $file → no dependents found"
+        fi
+        return 0
+    fi
+
+    return 1
+}
+
+# Strategy 4: Direct test file change
+check_direct() {
+    local file="$1"
+
+    if [[ "$file" =~ \.bats$ ]]; then
+        local full_path="$REPO_ROOT/$file"
+        if [[ -f "$full_path" ]]; then
+            verbose "direct: $file → itself"
+            MATCHED_TESTS+=("$full_path")
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Strategy 5: Package-level fallback for non-mirrored layouts.
+# Per Valueflow A&D §6: "anything in apps/mdpal/Sources/ changed → run tests
+# in apps/mdpal/". This handles Swift, Rust, Go packages where test paths
+# don't mirror source paths via the convention check.
+#
+# Maps:
+#   apps/{pkg}/Sources/...  → apps/{pkg}/Tests/...   (Swift)
+#   apps/{pkg}/src/...      → apps/{pkg}/tests/...   (Rust/Go-style)
+#   packages/{pkg}/src/...  → packages/{pkg}/tests/  (npm-style)
+#
+# Outputs all .bats / .swift / .rs / .go test files under the matched test dir.
+check_package() {
+    local file="$1"
+    local pkg_root=""
+    local test_dir=""
+
+    if [[ "$file" =~ ^(apps/[^/]+)/Sources/ ]]; then
+        pkg_root="${BASH_REMATCH[1]}"
+        test_dir="$pkg_root/Tests"
+    elif [[ "$file" =~ ^(apps/[^/]+)/src/ ]]; then
+        pkg_root="${BASH_REMATCH[1]}"
+        test_dir="$pkg_root/tests"
+    elif [[ "$file" =~ ^(packages/[^/]+)/src/ ]]; then
+        pkg_root="${BASH_REMATCH[1]}"
+        test_dir="$pkg_root/tests"
+    else
+        return 1
+    fi
+
+    local abs_test_dir="$REPO_ROOT/$test_dir"
+    if [[ ! -d "$abs_test_dir" ]]; then
+        verbose "package: $file → $test_dir (test dir not present)"
+        return 1
+    fi
+
+    # Find all test files in the package's test directory.
+    # We don't run them here — we record the package marker so the caller
+    # (commit-precheck) can dispatch to the right runner (swift test, cargo test, etc.).
+    # For now we emit the test directory itself; commit-precheck recognizes
+    # package markers via a TEST_DIR: prefix in the output.
+    verbose "package: $file → $test_dir/"
+    MATCHED_TESTS+=("PACKAGE:$abs_test_dir")
+    return 0
+}
+
+# Read file paths from stdin
+while IFS= read -r file; do
+    # Skip empty lines
+    [[ -z "$file" ]] && continue
+
+    # Try strategies in priority order
+    check_manifest "$file" && continue
+    check_convention "$file" && continue
+    check_dependency "$file" && continue
+    check_direct "$file" && continue
+    check_package "$file" && continue
+
+    verbose "no-mapping: $file"
+done
+
+# Deduplicate and output
+if [[ ${#MATCHED_TESTS[@]} -gt 0 ]]; then
+    printf '%s\n' "${MATCHED_TESTS[@]}" | sort -u
+fi
+
+exit 0

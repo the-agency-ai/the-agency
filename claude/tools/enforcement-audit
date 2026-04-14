@@ -1,0 +1,267 @@
+#!/bin/bash
+# What Problem: The enforcement registry (enforcement.yaml) declares what level
+# each capability has reached, but there's no way to verify the claims. A
+# capability at level 3 might be missing its tool, or level 4 might lack a
+# hookify rule. Without an auditor, the registry is just wishes.
+#
+# How & Why: Reads enforcement.yaml, checks each capability's declared level
+# against its artifact list, and verifies each artifact file exists on disk.
+# Level requirements are cumulative: level 3 needs doc + skill + tool.
+# Reports pass/fail per capability with missing artifacts listed. Uses simple
+# YAML parsing (grep/sed) to avoid external deps.
+#
+# Written: 2026-04-07 during devex Phase 3.2 (enforcement registry + audit)
+#
+# Usage:
+#   ./claude/tools/enforcement-audit              # audit all capabilities
+#   ./claude/tools/enforcement-audit --verbose    # show per-artifact details
+#   ./claude/tools/enforcement-audit --json       # machine-readable output
+#   ./claude/tools/enforcement-audit --version    # show version
+#
+# Exit codes:
+#   0 = all capabilities valid
+#   1 = violations found
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "enforcement-audit" "$@" 2>/dev/null) || true
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+REGISTRY="$REPO_ROOT/claude/config/enforcement.yaml"
+
+VERBOSE=false
+JSON_OUTPUT=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version) echo "enforcement-audit $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            sed -n '/^# Usage:/,/^# Exit/p' "$0" | sed 's/^# //' | sed 's/^#//'
+            exit 0 ;;
+        --verbose|-v) VERBOSE=true; shift ;;
+        --json) JSON_OUTPUT=true; shift ;;
+        *) echo "Error: unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Level requirements (cumulative)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Returns required artifact types for a given level
+required_artifacts_for_level() {
+    local level="$1"
+    case "$level" in
+        1) echo "doc" ;;
+        2) echo "doc skill" ;;
+        3) echo "doc skill tool" ;;
+        4) echo "doc skill tool hookify-warn" ;;
+        5) echo "doc skill tool hookify-warn hookify-block" ;;
+        *) echo "doc" ;;
+    esac
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Parse enforcement.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Extract capabilities and their data from the YAML
+# Outputs: cap_name|level|artifact_type:path,...
+parse_registry() {
+    [[ -f "$REGISTRY" ]] || { echo "Error: $REGISTRY not found" >&2; return 1; }
+
+    local current_cap=""
+    local current_level=""
+    local current_desc=""
+    local in_artifacts=false
+    local artifacts=""
+
+    while IFS= read -r line; do
+        # Skip comments and empty lines
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "$line" ]] && continue
+
+        # Capability name (2-space indent, ends with colon)
+        if [[ "$line" =~ ^[[:space:]]{2}([a-z][a-z0-9_-]+):$ ]]; then
+            # Emit previous capability
+            if [[ -n "$current_cap" && -n "$current_level" ]]; then
+                echo "${current_cap}|${current_level}|${artifacts}"
+            fi
+            current_cap="${BASH_REMATCH[1]}"
+            current_level=""
+            current_desc=""
+            artifacts=""
+            in_artifacts=false
+            continue
+        fi
+
+        # Level field
+        if [[ "$line" =~ ^[[:space:]]+level:[[:space:]]*([0-9]+) ]]; then
+            current_level="${BASH_REMATCH[1]}"
+            continue
+        fi
+
+        # Artifacts section start
+        if [[ "$line" =~ ^[[:space:]]+artifacts: ]]; then
+            in_artifacts=true
+            continue
+        fi
+
+        # Artifact entry (6-space indent)
+        if [[ "$in_artifacts" == "true" && "$line" =~ ^[[:space:]]+(doc|skill|tool|hookify-warn|hookify-block):[[:space:]]*\"?([^\"]+)\"? ]]; then
+            local atype="${BASH_REMATCH[1]}"
+            local apath="${BASH_REMATCH[2]}"
+            apath="${apath%\"}"  # strip trailing quote
+            if [[ -n "$artifacts" ]]; then
+                artifacts="${artifacts},${atype}:${apath}"
+            else
+                artifacts="${atype}:${apath}"
+            fi
+            continue
+        fi
+
+        # End of artifacts section
+        if [[ "$in_artifacts" == "true" && ! "$line" =~ ^[[:space:]]{6} ]]; then
+            in_artifacts=false
+        fi
+    done < "$REGISTRY"
+
+    # Emit last capability
+    if [[ -n "$current_cap" && -n "$current_level" ]]; then
+        echo "${current_cap}|${current_level}|${artifacts}"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Audit
+# ─────────────────────────────────────────────────────────────────────────────
+
+main() {
+    echo "enforcement-audit [run: ${RUN_ID:-none}]"
+
+    if [[ ! -f "$REGISTRY" ]]; then
+        echo "Error: enforcement registry not found at $REGISTRY" >&2
+        exit 1
+    fi
+
+    local total=0
+    local passed=0
+    local failed=0
+    local violations=""
+
+    while IFS='|' read -r cap_name level artifact_list; do
+        total=$((total + 1))
+        local cap_ok=true
+        local missing=""
+
+        # Check required artifacts exist for declared level
+        local required
+        required=$(required_artifacts_for_level "$level")
+
+        for req_type in $required; do
+            # Find matching artifact in the list
+            local found_path=""
+            IFS=',' read -ra artifacts_arr <<< "$artifact_list"
+            for artifact in "${artifacts_arr[@]}"; do
+                local atype="${artifact%%:*}"
+                local apath="${artifact#*:}"
+                if [[ "$atype" == "$req_type" ]]; then
+                    found_path="$apath"
+                    break
+                fi
+            done
+
+            if [[ -z "$found_path" ]]; then
+                # Artifact type not declared in registry
+                cap_ok=false
+                missing="${missing}  - ${req_type}: NOT DECLARED\n"
+            elif [[ ! -e "$REPO_ROOT/$found_path" ]]; then
+                # Artifact declared but file missing
+                cap_ok=false
+                missing="${missing}  - ${req_type}: $found_path (FILE NOT FOUND)\n"
+            else
+                [[ "$VERBOSE" == "true" ]] && echo "  ✓ ${cap_name}/${req_type}: $found_path"
+            fi
+        done
+
+        if [[ "$cap_ok" == "true" ]]; then
+            passed=$((passed + 1))
+            [[ "$VERBOSE" == "true" ]] && echo "✓ $cap_name (level $level)"
+        else
+            failed=$((failed + 1))
+            violations="${violations}✗ $cap_name (level $level):\n${missing}\n"
+            echo -e "✗ $cap_name (level $level):"
+            echo -e "$missing"
+        fi
+    done < <(parse_registry)
+
+    # Validate per-workstream overrides via awk pass.
+    # An override is invalid if it exceeds the capability's base level (can't
+    # enforce stricter than the artifacts support).
+    local ws_violations=0
+    if grep -q "^workstreams:" "$REGISTRY" 2>/dev/null; then
+        # Parse workstreams section into "workstream|capability|level" tuples
+        local ws_overrides
+        ws_overrides=$(awk '
+            /^workstreams:/ { in_ws = 1; next }
+            /^[a-z]/ && !/^workstreams:/ { in_ws = 0 }
+            in_ws && /^  [a-z]/ {
+                sub(/:$/, "", $1)
+                ws = $1
+                next
+            }
+            in_ws && /^    [a-z]/ {
+                cap = $1; sub(/:$/, "", cap)
+                lvl = $2
+                printf "%s|%s|%s\n", ws, cap, lvl
+            }
+        ' "$REGISTRY")
+
+        # For each override, look up the capability base level
+        if [[ -n "$ws_overrides" ]]; then
+            while IFS='|' read -r ws cap override_level; do
+                local base_level
+                base_level=$(awk -v cap="$cap" '
+                    $0 ~ "^  " cap ":$" { in_cap = 1; next }
+                    in_cap && /^[a-z]/ { in_cap = 0 }
+                    in_cap && /^  [a-z]/ { in_cap = 0 }
+                    in_cap && /^    level:/ { print $2; exit }
+                ' "$REGISTRY")
+                if [[ -z "$base_level" ]]; then
+                    echo "✗ workstream/$ws: override for unknown capability '$cap'"
+                    ws_violations=$((ws_violations + 1))
+                elif [[ "$override_level" -gt "$base_level" ]]; then
+                    echo "✗ workstream/$ws/$cap: override level $override_level exceeds capability base level $base_level"
+                    ws_violations=$((ws_violations + 1))
+                else
+                    [[ "$VERBOSE" == "true" ]] && echo "  ✓ workstream/$ws/$cap: $override_level (base $base_level)"
+                fi
+            done <<< "$ws_overrides"
+        fi
+    fi
+
+    echo "─────────────────────────"
+    echo "Capabilities: $total total, $passed passed, $failed failed"
+    if [[ "$ws_violations" -gt 0 ]]; then
+        echo "Workstream overrides: $ws_violations violation(s)"
+        failed=$((failed + ws_violations))
+    fi
+
+    if [[ "$failed" -gt 0 ]]; then
+        log_end "$RUN_ID" "failure" 1 0 "$failed/$total violations" 2>/dev/null || true
+        echo "✗ Violations found"
+        exit 1
+    else
+        log_end "$RUN_ID" "success" 0 0 "$total/$total passed" 2>/dev/null || true
+        echo "✓ All capabilities valid"
+        exit 0
+    fi
+}
+
+main "$@"

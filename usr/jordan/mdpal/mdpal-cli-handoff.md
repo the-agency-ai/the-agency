@@ -47,6 +47,10 @@ You reviewed both PVR (round 1 + round 2) and A&D. Your verdict: "solid and grou
 
 mdpal-app owns the macOS SwiftUI app. Read their handoff at `usr/jordan/mdpal/mdpal-app-handoff.md`. Coordinate via dispatches — you are now on separate worktrees.
 
+## Need Help?
+
+If you're stuck or have a question, send a dispatch to captain: `dispatch create --to captain --subject "Question: ..." --body "..."`
+
 ## Startup Actions
 
 1. Set dispatch loop: `/loop 5m dispatch check`

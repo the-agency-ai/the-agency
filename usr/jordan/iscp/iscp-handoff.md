@@ -2,62 +2,80 @@
 type: handoff
 agent: the-agency/jordan/iscp
 workstream: iscp
-date: 2026-04-06
-trigger: reboot
+date: 2026-04-07
+trigger: principal requested exit — mid-bugfix on agent-identity
 ---
 
 ## Identity
 
-`the-agency/jordan/iscp` — ISCP workstream agent. I build and maintain the Inter-Session Communication Protocol: the notification, dispatch, and flag infrastructure that connects all agents.
+`the-agency/jordan/iscp` -- ISCP workstream agent. I build and maintain the Inter-Session Communication Protocol: the notification, dispatch, and flag infrastructure that connects all agents.
 
 ## Current State
 
-ISCP v1 is complete and hardened. 174 BATS tests green. Branch `iscp` is ~15 commits ahead of main. Captain has merged earlier work into main but this session's commits (a4f7f2b, 41fb5cf) are not yet merged.
+ISCP v1 complete and hardened. 174 BATS tests green. The iscp branch is behind main (main is 8 commits ahead).
 
-Last two commits this session:
-- `a4f7f2b` — settings-template: ISCP hooks + permissions + version test fixes
-- `41fb5cf` — structured commit dispatch payloads (commit_hash, branch, files_changed, stage_hash in body)
+## Last Session Work
 
-Full tool suite operational: `agent-identity`, `dispatch` (create/list/read/check/resolve/status/reply), `flag` (capture/list/count/discuss/clear/resolve), `iscp-check` (hook notification), `iscp-migrate` (legacy migration).
+Investigated and diagnosed a **critical identity resolution bug** in `agent-identity`. The tool resolves to `captain` instead of `iscp` when running on the iscp worktree. This cascades into handoff writing to the wrong path.
 
-## Valueflow Context
+### Bug: agent-identity resolves wrong identity on worktrees
 
-- PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
-- A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-- MAR dispositions: `claude/workstreams/agency/reviews/`
+**Root cause chain:**
+1. `CLAUDE_PROJECT_DIR` is unset in Bash tool calls (only set inside hooks)
+2. No `.agency-agent` file existed in the iscp worktree (predates convention)
+3. Fallback `SCRIPT_DIR/../..` (line 45) resolves to the **main checkout** root, not the worktree
+4. Branch detection runs `git -C $PROJECT_ROOT` on main checkout → gets `main` → resolves to `captain`
+5. Cache keyed by branch hash — hits the `main` → `captain` cache entry
 
-Read the A&D on startup — it defines how ISCP tools work and the architectural decisions behind them.
+**What I tried:**
+- Created `.agency-agent` file in iscp worktree (`echo "iscp" > .claude/worktrees/iscp/.agency-agent`)
+- Doesn't help — the tool reads `.agency-agent` from `$PROJECT_ROOT` which points to main checkout
 
-## Active Work
+**The fix needed** (not yet implemented):
+- `agent-identity` line 42-46: When `CLAUDE_PROJECT_DIR` is unset, detect if `$PWD` is inside a git worktree and use that as `PROJECT_ROOT` instead of `SCRIPT_DIR/../..`
+- Use `git rev-parse --show-toplevel` from `$PWD` — this returns the worktree root when run inside a worktree
+- The `.agency-agent` file approach works IF `PROJECT_ROOT` points to the right place
 
-Was working the backlog when reboot was called. Two items completed this session:
-1. Settings-template updated with ISCP hooks (SessionStart/UserPromptSubmit/Stop) and tool permissions
-2. Dispatch-on-commit enhanced with structured YAML metadata body
+**Cache state verified:**
+- `~/.agency/the-agency/.agent-identity-1787558856` (hash of `main`) → `captain`
+- `~/.agency/the-agency/.agent-identity-1942628320` (hash of `iscp`) → `iscp` (correct, but never hit)
 
-Uncommitted file: `claude/tools/git-commit` (structured commit dispatch) — already committed as `41fb5cf`.
-Untracked: ~20 dispatch payload files in `usr/jordan/iscp/dispatches/`, history archives.
+### Dispatch status
+- Dispatch #106 (escalation from devex re: secret tool) — addressed to captain, not me. Read it but not my action.
+- All ISCP dispatches resolved.
+- MAR review response dispatch #100 still awaiting captain triage.
+- Flagged the identity bug as flag #33.
+
+## Next Action
+
+1. **Fix agent-identity** — replace SCRIPT_DIR fallback with `git rev-parse --show-toplevel` from PWD
+2. **Verify fix** — run `agent-identity` from iscp worktree, confirm resolves to `the-agency/jordan/iscp`
+3. **Test** — run `bats tests/tools/agent-identity.bats` to ensure no regressions
+4. **Then:** Resume waiting for captain triage of dispatch #100 (V2 plan MAR review)
 
 ## Key Decisions
 
 - `dispatch create` requires `--body` or explicit `--template`. No silent empty payloads.
-- `agent-identity` checks `.agency-agent` file before branch detection. PR branches (`captain/*`, `pr/*`, `release/*`) resolve to captain.
-- `CLAUDE_PROJECT_DIR` is authoritative over `SCRIPT_DIR` for project root in all ISCP tools — fixes identity when agents cd to main checkout.
-- Symlink-based dispatch payload resolution: `~/.agency/{repo}/dispatches/dispatch-{id}.md` symlinks to absolute filesystem paths. Falls back to legacy 4-strategy ladder.
-- Commit dispatches carry structured metadata: commit_hash, branch, files_changed, stage_hash, work_item.
+- `agent-identity` checks `.agency-agent` file before branch detection. PR branches resolve to captain.
+- Symlink-based dispatch payload resolution with legacy 4-strategy fallback.
+- Commit dispatches carry structured metadata.
 
 ## Open Items
 
-1. **DB schema versioning** — version column exists (PRAGMA user_version), but no migration framework for schema changes. Next item in backlog.
-2. **Flag categories** (`--friction`, `--idea`, `--bug`) — A&D Section 10. Not started.
-3. **Dispatch retention** — archive resolved dispatches after 30 days. Not started.
-4. **Dropbox primitive** — file staging between worktrees. Not started.
-5. **BUG 2** — `dispatch list --all` shows other agents' unread mail. Acknowledged, not fixed. Design question: should --all filter by principal?
+1. **agent-identity PROJECT_ROOT bug** (this session — IN PROGRESS)
+2. **DB schema versioning** — migration framework for schema changes. Should be Phase 2.0.
+3. **Flag categories** (`--friction`, `--idea`, `--bug`) — V2 Phase 2.3.
+4. **Dispatch retention** — archive resolved dispatches after 30 days.
+5. **BUG 2** — `dispatch list --all` shows other agents' unread mail.
+6. **SMS-style dispatches** — principal requested. Not in V2 plan.
+
+## Flags in Queue
+
+26 items — see `flag list` for full queue. Untriaged.
 
 ## Startup Actions
 
-1. Set dispatch loop: `/loop 5m dispatch check`
-2. Process unread dispatches: `dispatch list`
-3. Process unread flags: `flag list`
-4. Read the valueflow A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-5. Merge main to pick up any cross-agent changes: `git merge main`
-6. Resume backlog: DB schema versioning, then flag categories
+1. Read this handoff
+2. `dispatch list` / `flag list` — process unread items
+3. **Fix agent-identity** — the bug described above. File: `claude/tools/agent-identity`, lines 42-46. Replace SCRIPT_DIR fallback with PWD-based git worktree detection.
+4. Follow Next Action above

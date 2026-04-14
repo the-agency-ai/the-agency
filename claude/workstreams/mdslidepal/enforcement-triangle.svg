@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" font-family="system-ui, -apple-system, sans-serif">
+  <!-- Triangle shape -->
+  <polygon points="300,40 540,340 60,340" fill="none" stroke="#0066cc" stroke-width="3"/>
+
+  <!-- Direction (top) -->
+  <rect x="230" y="20" width="140" height="44" rx="8" fill="#0066cc"/>
+  <text x="300" y="48" text-anchor="middle" font-size="16" font-weight="700" fill="white">DIRECTION</text>
+  <text x="300" y="80" text-anchor="middle" font-size="13" fill="#555">CLAUDE.md — Policy</text>
+
+  <!-- Discovery (bottom-right) -->
+  <rect x="440" y="320" width="150" height="44" rx="8" fill="#0066cc"/>
+  <text x="515" y="348" text-anchor="middle" font-size="16" font-weight="700" fill="white">DISCOVERY</text>
+  <text x="515" y="380" text-anchor="middle" font-size="13" fill="#555">Skills + Tools — Capability</text>
+
+  <!-- Compliance (bottom-left) -->
+  <rect x="10" y="320" width="160" height="44" rx="8" fill="#1a1a1a"/>
+  <text x="90" y="348" text-anchor="middle" font-size="16" font-weight="700" fill="white">COMPLIANCE</text>
+  <text x="90" y="380" text-anchor="middle" font-size="13" fill="#555">Hooks + Hookify — Enforcement</text>
+
+  <!-- Center label -->
+  <text x="300" y="220" text-anchor="middle" font-size="18" font-weight="700" fill="#333">The Enforcement</text>
+  <text x="300" y="245" text-anchor="middle" font-size="18" font-weight="700" fill="#333">Triangle</text>
+
+  <!-- Edge labels -->
+  <text x="420" y="180" text-anchor="middle" font-size="11" fill="#888" transform="rotate(56, 420, 180)">Tell → Make Easy</text>
+  <text x="180" y="180" text-anchor="middle" font-size="11" fill="#888" transform="rotate(-56, 180, 180)">Tell → Force</text>
+  <text x="300" y="355" text-anchor="middle" font-size="11" fill="#888">Easy to do right, impossible to do wrong</text>
+</svg>

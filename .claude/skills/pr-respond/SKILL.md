@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(gh pr:*), Bash(gh api:*), Read, Glob, Grep
 description: Fetch review comments on current PR, compose threaded replies, and resolve threads. Does NOT make code changes.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # PR Respond
 

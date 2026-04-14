@@ -2,8 +2,8 @@
 type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
-date: 2026-04-06
-trigger: reboot
+date: 2026-04-12
+trigger: session-end
 ---
 
 ## Identity
@@ -12,42 +12,44 @@ the-agency/jordan/devex — tech-lead on the devex workstream. I own test infras
 
 ## Current State
 
-New workstream, Day 1. Bootstrapped, reviewed Valueflow PVR and A&D, sent scope proposal. No implementation started. No DevEx PVR written yet — scope proposal (dispatch #47) was pre-PVR alignment.
+**Day 35 session — massive output.** Bootloader refactoring + contribution model rollout. 4 commits on devex branch. Queue nearly clear.
 
-## Valueflow Context
+## What Shipped This Session
 
-- PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
-- A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-- MAR dispositions: `claude/workstreams/agency/reviews/`
+### Merge main
+- Resolved 9 merge conflicts (test files + releases.md) from captain Days 35-36 work
+- Committed 2664f89
 
-Read the A&D on startup — it assigns work to DevEx: §4 enforcement ladder, §6 quality gates, §9 context budget linter.
+### CLAUDE-THEAGENCY.md bootloader refactoring (dispatch #201 Priority 1)
+- Slimmed monolith from ~6600 words to ~690 words (89% token reduction)
+- 5 new ref docs: AGENT-ADDRESSING.md, WORKTREE-DISCIPLINE.md, PROVENANCE-HEADERS.md, REPO-STRUCTURE.md, QUALITY-DISCIPLINE.md
+- Updated DEVELOPMENT-METHODOLOGY.md (9-step Valueflow, MAR/MARFI/MAP, three-bucket)
+- Ref-injector wired: 11 new case entries mapping 25+ skills to ref docs
+- 19 hookify rules updated: section anchors → new ref doc paths
+- MAR coverage audit: 73/73 concepts verified reachable
+- Committed f72d812
 
-## Active Work
+### MAR fixes (dispatch #203) + CI rework + ci-monitor
+- QUALITY-GATE.md, CODE-REVIEW-LIFECYCLE.md, ref-injector fixes
+- 3 new CI workflows (smoke-ubuntu, fork-pr-full-qg, sister-project-pr-gate)
+- ci-monitor tool + monitor-ci skill
+- Committed 5c7f7e0
 
-Nothing in progress. Seed at `claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md`. Scope proposal at dispatch #47. Captain received it but priority was Valueflow PVR/A&D. Now that those are done, DevEx work begins.
+### Contribution model rollout
+- Skill-validation moved into commit-precheck (root cause fix for broken-window CI)
+- Email notification disable guide + branch protection setup guide
+- Monofolk Ring 2 transition dispatch drafted (#209)
+- Committed 434bc02
 
-## Key Decisions
+## Remaining Items
 
-- T1 gate: stage-hash + compile + format + fast tests, **60s budget** (Valueflow A&D §6)
-- Convention-based test scoping (path mirroring) as default, package-level fallback
-- Enforcement registry: `claude/config/enforcement.yaml` + audit tool. **No registry without auditor — you build both.**
-- Context budget linter: **Ships with CLAUDE-THEAGENCY.md decomposition or neither ships.**
-- Hooks you implement: `WorktreeCreate`, `PostCompact`, `PermissionDenied`, conditional `if:`
-- Permission model: settings-template audit, zero-prompt for safe ops — you own
+1. **CODE_OF_CONDUCT.md** — content filter blocks creation. Full text fetched from contributor-covenant.org. Jordan to create manually or retry.
+2. **Dispatch #200** (SPEC:PROVIDER NestJS/React) — queued, lower priority
+3. **Task #16** (test isolation SPEC:PROVIDER) — paused pending monofolk/devex RFI #176
+4. **2 monofolk collab dispatches** — captain-only (SPEC-PROVIDER status + This Happened)
 
-## Open Items
+## Next Action
 
-- Seeds to process: #29 (test management boundaries), #31 (test reporting service), #36 (permission model overhaul)
-- Dispatch #76 (polling tip from ISCP)
-- Write DevEx PVR — use `/define` with the seed
-- The burning problem: `claude/tools/commit-precheck` runs all 155 tests on every commit. Rewrite with smart scoping.
-- BATS tests corrupt `.git/config` — happened 4+ times in Day 30 session
-
-## Startup Actions
-
-1. Set dispatch loop: `/loop 5m dispatch check`
-2. Process unread dispatches: `dispatch list`
-3. Process unread flags: `flag list`
-4. Read the valueflow A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-5. Read your seed: `claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md`
-6. Start `/define` to write the DevEx PVR
+1. Create CODE_OF_CONDUCT.md (Jordan or retry)
+2. Commit remaining + dispatch to captain for final PR build
+3. Await new assignments

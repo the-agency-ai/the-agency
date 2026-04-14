@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 280" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="rarrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0066cc"/>
+    </marker>
+  </defs>
+
+  <!-- Connecting arrows -->
+  <line x1="215" y1="80" x2="248" y2="80" stroke="#0066cc" stroke-width="2" marker-end="url(#rarrow)"/>
+  <line x1="455" y1="80" x2="488" y2="80" stroke="#0066cc" stroke-width="2" marker-end="url(#rarrow)"/>
+
+  <!-- Box 1 -->
+  <rect x="20" y="35" width="195" height="90" rx="10" fill="#e8e8e8" stroke="#ccc" stroke-width="1"/>
+  <text x="118" y="65" text-anchor="middle" font-size="16" font-weight="700" fill="#333">Directed Contribution</text>
+  <line x1="40" y1="78" x2="196" y2="78" stroke="#ccc" stroke-width="1"/>
+  <text x="118" y="100" text-anchor="middle" font-size="20" font-weight="600" fill="#666">Apprentice</text>
+
+  <!-- Box 2 -->
+  <rect x="260" y="35" width="195" height="90" rx="10" fill="#c8d8e8" stroke="#a8b8c8" stroke-width="1"/>
+  <text x="358" y="62" text-anchor="middle" font-size="15" font-weight="700" fill="#333">Independent Contribution</text>
+  <text x="358" y="78" text-anchor="middle" font-size="12" fill="#666">(well-defined → ambiguous)</text>
+  <line x1="280" y1="86" x2="436" y2="86" stroke="#a8b8c8" stroke-width="1"/>
+  <text x="358" y="108" text-anchor="middle" font-size="20" font-weight="600" fill="#555">Journeyman</text>
+
+  <!-- Box 3 -->
+  <rect x="500" y="35" width="195" height="90" rx="10" fill="#0066cc" stroke="none"/>
+  <text x="598" y="62" text-anchor="middle" font-size="15" font-weight="700" fill="white">Working Through Others</text>
+  <line x1="520" y1="78" x2="676" y2="78" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <text x="598" y="105" text-anchor="middle" font-size="20" font-weight="600" fill="white">Master Craftsman</text>
+
+  <!-- AI Collaboration descriptions below -->
+  <text x="118" y="155" text-anchor="middle" font-size="13" fill="#888">Without tuning —</text>
+  <text x="118" y="172" text-anchor="middle" font-size="13" fill="#888">creates more work</text>
+  <text x="118" y="189" text-anchor="middle" font-size="13" fill="#888">than value</text>
+
+  <text x="358" y="155" text-anchor="middle" font-size="13" fill="#888">With CLAUDE.md,</text>
+  <text x="358" y="172" text-anchor="middle" font-size="13" fill="#888">quality gates, and</text>
+  <text x="358" y="189" text-anchor="middle" font-size="13" fill="#888">multi-agent review</text>
+
+  <text x="598" y="155" text-anchor="middle" font-size="13" fill="#888">Full Valueflow,</text>
+  <text x="598" y="172" text-anchor="middle" font-size="13" fill="#888">running autonomously</text>
+  <text x="598" y="189" text-anchor="middle" font-size="13" fill="#888">overnight</text>
+
+  <!-- Bottom label -->
+  <line x1="20" y1="220" x2="695" y2="220" stroke="#ddd" stroke-width="1"/>
+  <text x="358" y="245" text-anchor="middle" font-size="14" fill="#666" font-style="italic">The progression is the same for humans and for AI collaboration</text>
+</svg>

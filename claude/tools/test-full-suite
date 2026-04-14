@@ -1,0 +1,199 @@
+#!/bin/bash
+# What Problem: Phase-complete and deep QG runs need to execute ALL tests, not
+# just scoped ones. But running all BATS tests on the host risks environment
+# contamination (.git/config corruption, DB leaks). Docker gives perfect
+# isolation but isn't always available.
+#
+# How & Why: Two-tier execution. First tries Docker (complete filesystem
+# isolation, zero host contamination). Falls back to in-process with universal
+# test isolation (good but not perfect — some edge cases can still leak).
+# 5-minute timeout for the full suite either way. Called by /phase-complete
+# and /plan-complete as the T3 mechanism.
+#
+# Usage:
+#   ./claude/tools/test-full-suite              # auto-detect: Docker or fallback
+#   ./claude/tools/test-full-suite --docker     # force Docker (fail if unavailable)
+#   ./claude/tools/test-full-suite --local      # force in-process (skip Docker)
+#   ./claude/tools/test-full-suite --verbose    # show detailed output
+#   ./claude/tools/test-full-suite --version    # show version
+#
+# Exit codes:
+#   0 = all tests passed
+#   1 = tests failed
+#   2 = infrastructure error (Docker unavailable when forced, etc.)
+#
+# Written: 2026-04-07 during devex Phase 2.2 (T3 integration)
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "test-full-suite" "$@" 2>/dev/null) || true
+
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+TIMEOUT_SECS=300  # 5 minutes
+
+# Parse arguments
+VERBOSE=false
+FORCE_DOCKER=false
+FORCE_LOCAL=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version) echo "test-full-suite $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            sed -n '/^# Usage:/,/^# Exit/p' "$0" | sed 's/^# //' | sed 's/^#//'
+            exit 0 ;;
+        --verbose|-v) VERBOSE=true; shift ;;
+        --docker) FORCE_DOCKER=true; shift ;;
+        --local) FORCE_LOCAL=true; shift ;;
+        *) echo "Error: unknown option: $1" >&2; exit 2 ;;
+    esac
+done
+
+verbose() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+end_run() {
+    log_end "$RUN_ID" "$1" "${2:-0}" "0" "$3" 2>/dev/null || true
+}
+
+# Timeout wrapper. Uses --kill-after to nuke orphans (e.g., bats-exec-test
+# processes that ignore SIGTERM) and process-group kill on the manual fallback.
+run_with_timeout() {
+    local secs="$1"; shift
+    if command -v gtimeout >/dev/null 2>&1; then
+        gtimeout --kill-after=5 "$secs" "$@"
+    elif command -v timeout >/dev/null 2>&1; then
+        timeout --kill-after=5 "$secs" "$@"
+    else
+        "$@" &
+        local pid=$!
+        (sleep "$secs" && kill -TERM "-$pid" 2>/dev/null && sleep 5 && kill -KILL "-$pid" 2>/dev/null) &
+        local watchdog=$!
+        wait "$pid" 2>/dev/null
+        local rc=$?
+        kill -KILL "$watchdog" 2>/dev/null
+        wait "$watchdog" 2>/dev/null
+        kill -KILL "-$pid" 2>/dev/null
+        return $rc
+    fi
+}
+
+# Check Docker availability
+has_docker() {
+    docker info >/dev/null 2>&1
+}
+
+# Run via Docker
+run_docker() {
+    verbose "Running full suite in Docker container..."
+    local docker_script="$REPO_ROOT/tests/docker-test.sh"
+
+    if [[ ! -x "$docker_script" ]]; then
+        echo "Error: tests/docker-test.sh not found or not executable" >&2
+        return 2
+    fi
+
+    run_with_timeout "$TIMEOUT_SECS" "$docker_script"
+}
+
+# Run in-process with universal isolation
+run_local() {
+    verbose "Running full suite in-process with universal isolation..."
+    echo "WARNING: Running without Docker — using in-process isolation (good but not perfect)"
+
+    cd "$REPO_ROOT"
+
+    # Collect all BATS test files
+    local test_files=()
+    while IFS= read -r f; do
+        test_files+=("$f")
+    done < <(find tests/tools -name '*.bats' -type f | sort)
+
+    local count=${#test_files[@]}
+    verbose "Found $count test files"
+
+    # Clean git env vars (same fix as commit-precheck)
+    unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE 2>/dev/null || true
+
+    run_with_timeout "$TIMEOUT_SECS" bats "${test_files[@]}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────────────────────
+
+main() {
+    echo "test-full-suite [run: ${RUN_ID:-none}]"
+
+    # Determine execution mode
+    if [[ "$FORCE_LOCAL" == "true" ]]; then
+        verbose "Forced local mode"
+        if run_local; then
+            end_run "success" 0 "All tests passed (local)"
+            echo "✓ Full suite passed (in-process)"
+        else
+            local rc=$?
+            if [[ $rc -eq 124 ]]; then
+                end_run "failure" 124 "Timed out after ${TIMEOUT_SECS}s"
+                echo "✗ Full suite timed out after ${TIMEOUT_SECS}s"
+            else
+                end_run "failure" "$rc" "Tests failed (local)"
+                echo "✗ Full suite failed (in-process)"
+            fi
+            exit 1
+        fi
+    elif [[ "$FORCE_DOCKER" == "true" ]]; then
+        if ! has_docker; then
+            echo "Error: --docker specified but Docker is not available" >&2
+            end_run "failure" 2 "Docker unavailable"
+            exit 2
+        fi
+        verbose "Forced Docker mode"
+        if run_docker; then
+            end_run "success" 0 "All tests passed (Docker)"
+            echo "✓ Full suite passed (Docker)"
+        else
+            local rc=$?
+            end_run "failure" "$rc" "Tests failed (Docker)"
+            echo "✗ Full suite failed (Docker)"
+            exit 1
+        fi
+    else
+        # Auto-detect: prefer Docker, fall back to local
+        if has_docker; then
+            verbose "Docker available — using container isolation"
+            if run_docker; then
+                end_run "success" 0 "All tests passed (Docker)"
+                echo "✓ Full suite passed (Docker)"
+            else
+                local rc=$?
+                end_run "failure" "$rc" "Tests failed (Docker)"
+                echo "✗ Full suite failed (Docker)"
+                exit 1
+            fi
+        else
+            verbose "Docker not available — falling back to in-process"
+            if run_local; then
+                end_run "success" 0 "All tests passed (local fallback)"
+                echo "✓ Full suite passed (in-process, Docker unavailable)"
+            else
+                local rc=$?
+                if [[ $rc -eq 124 ]]; then
+                    end_run "failure" 124 "Timed out after ${TIMEOUT_SECS}s"
+                    echo "✗ Full suite timed out after ${TIMEOUT_SECS}s"
+                else
+                    end_run "failure" "$rc" "Tests failed (local fallback)"
+                    echo "✗ Full suite failed (in-process)"
+                fi
+                exit 1
+            fi
+        fi
+    fi
+}
+
+main "$@"

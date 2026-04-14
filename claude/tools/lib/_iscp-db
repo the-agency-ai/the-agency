@@ -221,6 +221,74 @@ SCHEMA
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Internal: Schema migrations
+# ─────────────────────────────────────────────────────────────────────────────
+
+# _iscp_migrate_v0_to_v1
+# What Problem: Need a migration path from an empty/pre-versioned DB to v1 schema.
+# How & Why: Outputs the full v1 DDL. Used by the migration framework when
+# upgrading from version 0 (unversioned) to version 1 (initial schema).
+# CREATE IF NOT EXISTS is safe even if some tables already exist.
+# Written: 2026-04-07 during ISCP Phase 2, Iteration 2.0
+_iscp_migrate_v0_to_v1() {
+    _iscp_schema_ddl
+}
+
+# _iscp_run_migrations <db_path> <current_version> <target_version>
+# What Problem: Schema evolution — adding columns, tables, or indexes to an
+# existing ISCP database without losing data. CREATE TABLE IF NOT EXISTS can't
+# add new columns to existing tables.
+# How & Why: Sequential migration runner. Each migration function
+# (_iscp_migrate_vN_to_vN+1) outputs SQL to stdout. The runner wraps each
+# step in a transaction and bumps PRAGMA user_version on success. If a step
+# fails, the DB stays at the last successful version — partial progress is
+# preserved, and the next run resumes from where it left off.
+# Written: 2026-04-07 during ISCP Phase 2, Iteration 2.0
+_iscp_run_migrations() {
+    local db_path="$1"
+    local current="$2"
+    local target="$3"
+
+    local preamble
+    preamble=$(_iscp_pragma_preamble)
+
+    local v
+    for ((v = current; v < target; v++)); do
+        local next=$((v + 1))
+        local fn="_iscp_migrate_v${v}_to_v${next}"
+
+        # Verify migration function exists
+        if ! declare -f "$fn" > /dev/null 2>&1; then
+            echo "iscp-db: FATAL: migration function $fn not found. Cannot upgrade from v${v} to v${next}." >&2
+            return 1
+        fi
+
+        # Get migration SQL from the function
+        local migration_sql
+        migration_sql=$("$fn") || {
+            echo "iscp-db: FATAL: migration function $fn failed to produce SQL." >&2
+            return 1
+        }
+
+        # Execute migration in a transaction with version bump
+        sqlite3 "$db_path" << SQL
+${preamble}
+BEGIN;
+${migration_sql}
+PRAGMA user_version=${next};
+COMMIT;
+SQL
+        local rc=$?
+        if [[ $rc -ne 0 ]]; then
+            echo "iscp-db: FATAL: migration v${v} → v${next} failed (sqlite3 exit $rc). DB remains at version ${v}." >&2
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Internal: PRAGMA preamble (suppresses output via .output /dev/null)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -408,9 +476,13 @@ ${preamble}
 SQL
             return 0
         fi
+
+        # DB exists but at older version — run migrations
+        _iscp_run_migrations "$db_path" "$current_version" "$ISCP_SCHEMA_VERSION" || return 1
+        return 0
     fi
 
-    # Create/upgrade schema
+    # Fresh install — create schema from scratch
     # Set restrictive umask so DB file is created with 600 permissions
     local old_umask
     old_umask=$(umask)

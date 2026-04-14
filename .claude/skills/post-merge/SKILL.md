@@ -1,11 +1,17 @@
 ---
-allowed-tools: Bash(git fetch:*), Bash(git status:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git reset:*), Bash(git tag:*), Bash(git branch:*), Bash(gh pr:*), Read, Glob, Skill
-description: Run after a PR is merged on GitHub. Verifies merge, resets master, invokes /sync-all.
+description: Run after a PR is merged on GitHub. Verifies merge, merges origin into master, invokes /sync-all.
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Post-Merge
 
-Run after a PR is merged on GitHub. Verifies the merge, resets master to origin, then invokes `/sync-all`.
+Run after a PR is merged on GitHub. Verifies the merge, merges origin into master, then invokes `/sync-all`. **Never resets master to origin.** See `claude/docs/GIT-MERGE-NOT-REBASE.md`.
 
 ## Arguments
 
@@ -31,13 +37,19 @@ Run `gh pr view {number} --json state,mergedAt,mergeCommit`. Confirm state is "M
 
 Run `git fetch origin`.
 
-### Step 4: Reset master
+### Step 4: Merge origin/master
 
-If master has local-only commits (ahead of origin/master):
-1. Tag before resetting: `git tag sync/pre-reset-$(date +%Y%m%d-%H%M%S)`
-2. `git reset --hard origin/master`
+Check divergence: `git rev-list --left-right --count origin/master...HEAD`
 
-If master is behind: just `git rebase origin/master`.
+If diverged (both sides > 0 — expected after squash PR merge):
+1. Verify merge-base exists: `git merge-base origin/master HEAD`. If fails, ABORT.
+2. Tag for recovery: `git tag sync/pre-merge-$(date +%Y%m%d-%H%M%S)`
+3. Merge: `git merge origin/master -m "Merge origin/master (post-PR-merge sync)"`
+4. If conflicts: `git merge --abort`, report, ask user.
+
+If behind only: `git merge origin/master`
+
+**Never `git reset --hard origin/master`.** See `claude/docs/GIT-MERGE-NOT-REBASE.md`.
 
 ### Step 5: Invoke sync-all
 

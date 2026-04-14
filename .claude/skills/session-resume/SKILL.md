@@ -1,7 +1,13 @@
 ---
-allowed-tools: Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/worktree-sync *), Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/handoff *), Bash(bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch *), Bash(git status:*), Bash(git log:*), Bash(git branch:*)
 description: Resume a worktree session — sync master, read handoff, check dispatches, report state
 ---
+
+<!--
+  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
+  .claude/settings.json. Restricting to specific subcommand patterns at the
+  skill level silently blocks agents on permission prompts the agent cannot
+  see — see dispatch #171 for the devex incident that surfaced this trap.
+-->
 
 # Session Resume
 
@@ -18,7 +24,7 @@ On SessionStart, Steps 1-2 run automatically via hooks (worktree-sync + session-
 ### Step 1: Sync with master
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/worktree-sync --auto
+bash ./claude/tools/worktree-sync --auto
 ```
 
 This stashes dirty work if needed, merges master, copies settings, runs sandbox-sync, and unstashes. If on master, it silently skips.
@@ -26,7 +32,7 @@ This stashes dirty work if needed, merges master, copies settings, runs sandbox-
 ### Step 2: Read the handoff
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/handoff read
+bash ./claude/tools/handoff read
 ```
 
 Display the handoff contents. This is your context for what was happening before this session.
@@ -34,7 +40,7 @@ Display the handoff contents. This is your context for what was happening before
 ### Step 3: Check for dispatches
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch check
+bash ./claude/tools/dispatch check
 ```
 
 Surface any unread dispatches. If found, list them with `dispatch list` and read with `dispatch read <id>`.

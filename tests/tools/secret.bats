@@ -5,18 +5,24 @@
 # Tests CLI argument parsing, input validation, and error handling.
 # Uses mock responses where service interaction is needed.
 #
+# Un-quarantined 2026-04-07 (Day 33) when claude/tools/secret merged from
+# main into devex. The earlier quarantine (Day 32) was because the tool was
+# only on main, not devex.
+#
 
 load 'test_helper'
 
 # Setup mock service URL
 setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
+    test_isolation_setup
     export SECRET_SERVICE_URL="http://localhost:9999/api/secret"
     export AGENCY_USER="principal:test"
     cd "${REPO_ROOT}"
 }
 
 teardown() {
+    test_isolation_teardown
     if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
         rm -rf "${BATS_TEST_TMPDIR}"
     fi

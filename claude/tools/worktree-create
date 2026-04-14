@@ -2,18 +2,36 @@
 #
 # worktree-create — Create a git worktree for parallel agent sessions
 #
-# Usage: worktree-create <name> [--branch <branch>]
+# Usage:
+#   worktree-create <name> [--branch <branch>]
+#   worktree-create --workstream <ws> --agent <ag> [--branch <branch>]
+#   worktree-create --compute-only --workstream <ws> --agent <ag>
 #
 # Creates a worktree at .claude/worktrees/<name>/ on branch <name> (or --branch).
 # Aligns with Claude Code's built-in EnterWorktree convention.
 # Sets up dev environment if dependencies are detected.
+#
+# Naming convention (per dispatch #166/#169): when `--workstream` and `--agent`
+# are both provided, the worktree name is computed via the collapse rule:
+#
+#   if agent == workstream OR agent.startswith("workstream-"):
+#       name = agent               # devex+devex → devex, mdpal+mdpal-app → mdpal-app
+#   else:
+#       name = "workstream-agent"  # agency+captain → agency-captain
+#
+# The positional form is preserved for backward compat and ad-hoc worktrees
+# that don't belong to a workstream (e.g., fix branches, experiments).
+#
+# The `--compute-only` mode prints the computed name and exits without
+# creating anything — useful for tests and programmatic callers that want
+# to know the canonical name for a {workstream, agent} pair.
 #
 # This is a FIRST-CLASS PRIMITIVE in Agency 2.0 — worktree isolation
 # enables multiple agent sessions to work in parallel without conflicts.
 
 set -euo pipefail
 
-VERSION="2.0.0"
+VERSION="2.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source helpers
@@ -24,30 +42,104 @@ if [[ -f "$SCRIPT_DIR/lib/_path-resolve" ]]; then
     source "$SCRIPT_DIR/lib/_path-resolve"
 fi
 
+# --- Name computation (per #166/#169) ---
+# compute_worktree_name <workstream> <agent>
+#
+# Implements the collapse rule: if the agent name is the workstream or starts
+# with "workstream-", drop the workstream prefix; otherwise join with "-".
+# Prints the computed name to stdout. Exits 1 on invalid input.
+compute_worktree_name() {
+    local ws="$1"
+    local ag="$2"
+
+    if [[ -z "$ws" ]] || [[ -z "$ag" ]]; then
+        echo "compute_worktree_name: workstream and agent both required" >&2
+        return 1
+    fi
+
+    if [[ "$ag" == "$ws" ]] || [[ "$ag" == "${ws}-"* ]]; then
+        echo "$ag"
+    else
+        echo "${ws}-${ag}"
+    fi
+}
+
 # --- Flags ---
 show_help() {
-    echo "Usage: worktree-create <name> [--branch <branch>]"
-    echo ""
-    echo "Creates a git worktree at .claude/worktrees/<name>/"
-    echo ""
-    echo "Options:"
-    echo "  --branch <name>   Branch name (default: same as worktree name)"
-    echo "  --version         Show version"
-    echo "  --help            Show this help"
+    cat <<HELP
+Usage:
+  worktree-create <name> [--branch <branch>]
+  worktree-create --workstream <ws> --agent <ag> [--branch <branch>]
+  worktree-create --compute-only --workstream <ws> --agent <ag>
+
+Creates a git worktree at .claude/worktrees/<name>/
+
+Options:
+  --workstream <ws> Workstream name (pairs with --agent to compute name)
+  --agent <ag>      Agent name (pairs with --workstream to compute name)
+  --branch <name>   Branch name (default: same as worktree name)
+  --compute-only    Print the computed name and exit (no worktree creation)
+  --version         Show version
+  --help            Show this help
+
+Naming rule when both --workstream and --agent are given:
+  agent == workstream OR agent starts with "workstream-"  → worktree = agent
+  otherwise                                                → worktree = workstream-agent
+
+Examples:
+  worktree-create --workstream devex --agent devex       → devex
+  worktree-create --workstream mdpal --agent mdpal-app   → mdpal-app
+  worktree-create --workstream agency --agent captain    → agency-captain
+HELP
 }
+
+# Short-circuit: --compute-only mode is pure naming logic, used by tests and
+# programmatic callers that want the canonical name without side effects.
+if [[ "${1:-}" == "--compute-only" ]]; then
+    shift
+    _ws=""
+    _ag=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --workstream) _ws="$2"; shift 2 ;;
+            --agent) _ag="$2"; shift 2 ;;
+            *) echo "Unknown option: $1" >&2; exit 1 ;;
+        esac
+    done
+    compute_worktree_name "$_ws" "$_ag"
+    exit $?
+fi
 
 NAME=""
 BRANCH=""
+WORKSTREAM=""
+AGENT=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --version|-v) echo "worktree-create $VERSION"; exit 0 ;;
         --help|-h) show_help; exit 0 ;;
         --branch) BRANCH="$2"; shift 2 ;;
+        --workstream) WORKSTREAM="$2"; shift 2 ;;
+        --agent) AGENT="$2"; shift 2 ;;
         -*) echo "Unknown option: $1" >&2; exit 1 ;;
         *) NAME="$1"; shift ;;
     esac
 done
+
+# If --workstream and --agent were given, compute NAME via the collapse rule.
+# Error if only one is given (ambiguous) or if positional name also given.
+if [[ -n "$WORKSTREAM" ]] || [[ -n "$AGENT" ]]; then
+    if [[ -z "$WORKSTREAM" ]] || [[ -z "$AGENT" ]]; then
+        echo "Error: --workstream and --agent must be given together" >&2
+        exit 1
+    fi
+    if [[ -n "$NAME" ]]; then
+        echo "Error: cannot mix positional name with --workstream/--agent" >&2
+        exit 1
+    fi
+    NAME="$(compute_worktree_name "$WORKSTREAM" "$AGENT")"
+fi
 
 if [[ -z "$NAME" ]]; then
     echo "Error: worktree name is required" >&2

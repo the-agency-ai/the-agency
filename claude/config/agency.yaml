@@ -1,25 +1,57 @@
 # The Agency Configuration
 # This file maps system identifiers to Agency concepts
 
-# Map system usernames to principal names
-# Used for: commit attribution, instruction routing, preferences
+# Map system usernames to principal definitions.
+# Used for: commit attribution, instruction routing, feedback identity,
+#           GitHub username resolution (git-commit tool parses this).
+#
+# Structure: The key is the system username ($USER). Each entry has:
+#   name           — principal slug (must match usr/{name}/ directory)
+#   display_name   — freeform Unicode (safe for quotes; see CLAUDE-THEAGENCY)
+#   address        — how to address in conversation (optional)
+#   email          — list of email addresses for external filings/feedback
+#   platforms      — per-platform identities (github, etc.)
 principals:
-  # Format: system_username: principal_name
-  # The principal_name should match a directory in usr/{principal_name}/
-  jdm: jordan
-  default: unknown  # Fallback if username not found
+  jdm:
+    name: jordan
+    display_name: "Jordan Dea-Mattson"
+    address:
+      informal: "Jordan"
+    email:
+      - jordandm@users.noreply.github.com
+      - jordan-of@users.noreply.github.com
+    platforms:
+      github:
+        - username: jordandm
+          repos:
+            - org: the-agency-ai
+              repo: the-agency
+        - username: jordan-of
+          repos:
+            - org: OrdinaryFolk
+              repo: monofolk
+  default:
+    name: unknown  # Fallback if username not found
 
 # Project settings
 project:
   name: "My Project"
   timezone: "UTC"  # Used by ./tools/now
 
+# Commit message conventions
+commits:
+  # Opt-in: enforce 'Day N:' or 'Phase X.Y:' prefix on commit messages.
+  # When true, commit-precheck and the commit-msg hook reject commits whose
+  # first line doesn't start with: Day N: | Phase X.Y: | Phase X.MN: | Merge | Revert
+  # Default: false (off). Enable when your project follows the day-counting convention.
+  require_day_prefix: false
+
 # Framework version tracking
 framework:
   version: "2.0.0"
   installed_at: "2026-01-15T04:54:46+00:00"
-  updated_at: "2026-04-01T00:00:00+00:00"
-  source_commit: "self"
+  updated_at: "2026-04-10T11:39:43+00:00"
+  source_commit: "200a5499392942df6c62faa61d7f3da71b18d14e"
 
 # Agent defaults
 agents:
@@ -58,7 +90,7 @@ worktrees:
 
 # Secrets management
 secrets:
-  provider: "vault"  # Default: vault. Alternatives: doppler, aws, 1password
+  provider: "vault"  # Default. Alternatives: doppler, aws, 1password
 
 # Terminal integration
 terminal:
@@ -79,6 +111,14 @@ deploy:
 # Crawl (site content extraction)
 crawl:
   provider: "webfetch"  # Default: webfetch (built-in). Alternatives: playwright, wget, scrapy
+
+# Issue tracking (file/view/comment/close issues against the-agency framework)
+# v1: single provider (github), single target. v2+: SPEC-PROVIDER pattern with
+# pluggable providers (gitlab, linear, jira) and multi-target support.
+issues:
+  provider: "github"  # v1: github only
+  github:
+    target_repo: "the-agency-ai/the-agency"  # Where issues are filed
   sites: []  # Configure per-project: [{name, url, patterns}]
 
 # Testing — declares test suites and how to run them
@@ -89,10 +129,23 @@ testing:
     tools:
       command: "bats tests/tools/"
       description: "BATS tool tests (framework tools, ISCP)"
+    mdpal:
+      command: "cd apps/mdpal && swift test 2>/dev/null || true"
+      description: "MarkdownPalEngine Swift tests (skips if apps/mdpal/ absent)"
 
 # Design system integration
 design:
   provider: "figma"  # Default: figma. Alternatives: sketch, adobe
+
+# Cross-repo collaboration
+# Each entry maps a collaborator name to its local checkout path and dispatch dirs.
+# Used by: collaboration-check tool (startup hook, dispatch loop)
+collaboration:
+  repos:
+    monofolk:
+      path: "~/code/collaboration-monofolk"
+      inbound: "dispatches/monofolk-to-the-agency"
+      outbound: "dispatches/the-agency-to-monofolk"
 
 # Telemetry providers
 telemetry:

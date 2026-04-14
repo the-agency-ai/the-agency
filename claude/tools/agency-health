@@ -1,0 +1,232 @@
+#!/bin/bash
+#
+# What Problem: Fleet-level health has been a stand of flags, a set of
+# intuitions, and a lot of "I noticed that devex's handoff hasn't been
+# touched in days." There is no single tool that answers "is this fleet
+# healthy?" across the three dimensions that actually matter: workstreams,
+# agents, and worktrees. monofolk explicitly asked for this; dispatch #171
+# surfaced how invisible friction can silently stall a worktree agent for
+# hours; flag #51 has been sitting in the captain backlog for a week.
+#
+# How & Why: One tool, three dimensions. Each dimension has a small set of
+# concrete checks with objective severity thresholds. Healthy / attention /
+# warning / critical. Human-readable report by default, JSON for downstream
+# consumers, exit codes for CI integration. No --repair in v1 — signal
+# before action. Calls into lib helpers that encapsulate per-dimension
+# logic so the main dispatcher stays small and readable.
+#
+# The three dimensions:
+#   workstream health — is the body of work alive and tended?
+#   agent health      — is the agent responsive and correctly addressed?
+#   worktree health   — is the working tree sane and recoverable?
+#
+# Written: 2026-04-09 during captain Day 34 — agency-health v1 build
+
+set -euo pipefail
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/lib"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source log helper
+if [[ -f "$LIB_DIR/_log-helper" ]]; then
+    # shellcheck source=/dev/null
+    source "$LIB_DIR/_log-helper"
+fi
+
+# Source health checkers
+for lib in "$LIB_DIR/_health-common" "$LIB_DIR/_health-worktree" "$LIB_DIR/_health-agent" "$LIB_DIR/_health-workstream"; do
+    if [[ -f "$lib" ]]; then
+        # shellcheck source=/dev/null
+        source "$lib"
+    fi
+done
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Args
+# ─────────────────────────────────────────────────────────────────────────────
+
+JSON=false
+DIMENSION="all"
+TARGET=""
+
+show_help() {
+    cat <<'EOF'
+agency-health — fleet health check across workstream / agent / worktree
+
+USAGE
+  agency-health [all]                         Check all three dimensions
+  agency-health worktree [<name>]             Check one worktree (or all)
+  agency-health agent [<name>]                Check one agent (or all)
+  agency-health workstream [<name>]           Check one workstream (or all)
+  agency-health --json [command]              JSON output for downstream consumers
+  agency-health --version
+  agency-health --help
+
+SEVERITY
+  healthy    — no issues
+  attention  — informational, worth noticing
+  warning    — should be addressed
+  critical   — requires immediate attention
+
+EXIT CODES
+  0 — all healthy (or attention only)
+  1 — one or more warnings
+  2 — one or more critical
+
+EXAMPLES
+  agency-health                       # full fleet report
+  agency-health worktree devex        # just the devex worktree
+  agency-health agent captain         # just the captain agent
+  agency-health workstream iscp       # just the iscp workstream
+  agency-health --json all            # JSON for CI / dashboards
+
+OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        --version|-v)
+            echo "agency-health $VERSION"
+            exit 0
+            ;;
+        --json)
+            JSON=true
+            shift
+            ;;
+        all|worktree|agent|workstream)
+            DIMENSION="$1"
+            shift
+            if [[ $# -gt 0 && "$1" != --* ]]; then
+                TARGET="$1"
+                shift
+            fi
+            ;;
+        *)
+            echo "agency-health: unknown argument: $1" >&2
+            show_help >&2
+            exit 2
+            ;;
+    esac
+done
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Telemetry start
+# ─────────────────────────────────────────────────────────────────────────────
+
+RUN_ID=""
+if type log_start &>/dev/null; then
+    RUN_ID=$(log_start "agency-health" "$DIMENSION ${TARGET:-*}")
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Execute
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Global severity counters for the exit code
+export HEALTH_WARN_COUNT=0
+export HEALTH_CRIT_COUNT=0
+
+# Results buffer for JSON mode
+: > "/tmp/agency-health-results-$$.jsonl"
+export HEALTH_RESULTS_FILE="/tmp/agency-health-results-$$.jsonl"
+
+cleanup() {
+    rm -f "$HEALTH_RESULTS_FILE" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+run_dimension() {
+    local dim="$1"
+    local target="${2:-}"
+    case "$dim" in
+        worktree)
+            if type health_check_worktrees &>/dev/null; then
+                health_check_worktrees "$target"
+            else
+                echo "agency-health: worktree checker not available" >&2
+                return 1
+            fi
+            ;;
+        agent)
+            if type health_check_agents &>/dev/null; then
+                health_check_agents "$target"
+            else
+                echo "agency-health: agent checker not available" >&2
+                return 1
+            fi
+            ;;
+        workstream)
+            if type health_check_workstreams &>/dev/null; then
+                health_check_workstreams "$target"
+            else
+                echo "agency-health: workstream checker not available" >&2
+                return 1
+            fi
+            ;;
+    esac
+}
+
+if [[ "$DIMENSION" == "all" ]]; then
+    if [[ "$JSON" == true ]]; then
+        printf '{\n  "timestamp": "%s",\n  "version": "%s",\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$VERSION"
+        run_dimension workstream "$TARGET" || true
+        run_dimension agent "$TARGET" || true
+        run_dimension worktree "$TARGET" || true
+        # Emit results buffered as JSON array by category
+        if command -v jq >/dev/null 2>&1; then
+            jq -sc 'group_by(.dimension) | map({key: .[0].dimension, value: .}) | from_entries' "$HEALTH_RESULTS_FILE" | sed 's/^{/  "results": {/' | sed 's/}$/}/'
+        fi
+        printf ',\n  "summary": {"warnings": %d, "critical": %d}\n}\n' "$HEALTH_WARN_COUNT" "$HEALTH_CRIT_COUNT"
+    else
+        health_render_header "the-agency fleet health" "$(date '+%Y-%m-%d %H:%M')"
+        run_dimension workstream "$TARGET" || true
+        echo
+        run_dimension agent "$TARGET" || true
+        echo
+        run_dimension worktree "$TARGET" || true
+        echo
+        health_render_summary "$HEALTH_WARN_COUNT" "$HEALTH_CRIT_COUNT"
+    fi
+else
+    if [[ "$JSON" == true ]]; then
+        printf '{\n  "timestamp": "%s",\n  "version": "%s",\n  "dimension": "%s",\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$VERSION" "$DIMENSION"
+        run_dimension "$DIMENSION" "$TARGET" || true
+        if command -v jq >/dev/null 2>&1 && [[ -s "$HEALTH_RESULTS_FILE" ]]; then
+            printf '  "results": '
+            jq -sc '.' "$HEALTH_RESULTS_FILE"
+            printf ',\n'
+        fi
+        printf '  "summary": {"warnings": %d, "critical": %d}\n}\n' "$HEALTH_WARN_COUNT" "$HEALTH_CRIT_COUNT"
+    else
+        health_render_header "the-agency $DIMENSION health" "$(date '+%Y-%m-%d %H:%M')"
+        run_dimension "$DIMENSION" "$TARGET" || true
+        echo
+        health_render_summary "$HEALTH_WARN_COUNT" "$HEALTH_CRIT_COUNT"
+    fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Exit code
+# ─────────────────────────────────────────────────────────────────────────────
+
+EXIT_CODE=0
+if [[ "$HEALTH_CRIT_COUNT" -gt 0 ]]; then
+    EXIT_CODE=2
+elif [[ "$HEALTH_WARN_COUNT" -gt 0 ]]; then
+    EXIT_CODE=1
+fi
+
+if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
+    local_status="success"
+    [[ "$EXIT_CODE" -eq 2 ]] && local_status="failure"
+    log_end "$RUN_ID" "$local_status" "$EXIT_CODE" 0 "w=$HEALTH_WARN_COUNT c=$HEALTH_CRIT_COUNT"
+fi
+
+exit "$EXIT_CODE"

@@ -1,10 +1,75 @@
 ## Quality Gate (QG) Protocol
 
-Run this full Quality Gate (QG) before every commit. Do not skip steps even if the work "looks fine" — the audit always finds something.
-
 The gate applies to **any artifact type** — code, commands, config, documentation. The review adapts to the artifact: code gets correctness/security/performance review plus tests; commands and config get design review, spec compliance checks, and edge case analysis; documentation gets accuracy and completeness review. The report format is the same regardless — sections that don't apply are marked "N/A" with an explanation, never omitted.
 
 Commits happen at iteration, phase, and plan completion — not in between. Do not commit partial work mid-iteration.
+
+### The 5 Hard Rules
+
+1. **Failing row MUST be 0.** No exceptions. Pre-existing failures are your problem too.
+2. **Red-green cycle for every bug-exposing test.** No valid test = no valid fix.
+3. **Never skip review agents** — even for "small" or "trivial" changes. The audit always finds something.
+4. **Fix every finding.** Every valid finding gets fixed — no "Won't Fix," no "Deferred," no severity-based skip. Severity orders the fix sequence, never the fix decision. Reject invalid findings with reasoning.
+5. **Always use `/git-commit`** — never raw `git commit`. The tool computes the stage hash and will verify a QGR receipt exists for the staged changes.
+
+### Boundary Skills
+
+| Boundary | Skill | QG Scope | Approval |
+|----------|-------|----------|----------|
+| Iteration end | `/iteration-complete` | Changes since last commit | Auto-commit |
+| Phase end | `/phase-complete` | Full codebase (deep QG) | Principal required |
+| Plan end | `/plan-complete` | Full codebase | Principal required |
+| Pre-PR | `/pr-prep` | Full diff vs origin/master | — |
+| Pre-phase | `/pre-phase-review` | PVR + A&D + Plan review | Principal required |
+
+### QGR Receipt Files
+
+Each gate produces a standalone receipt at:
+
+```
+claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md
+```
+
+For workstreams with multiple projects, use `claude/workstreams/{ws}/project/{project}/quality-gate-reports/`. The QGR frontmatter must include `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic hash of the staged changes (computed by `claude/tools/stage-hash`). `/git-commit` checks for a matching receipt before committing — no receipt means no QG was run.
+
+### Gate Tiers
+
+Gates are tiered by commit boundary type. Higher tiers include all lower-tier checks.
+
+| Tier | Boundary | Checks | Time budget | Skill |
+|------|----------|--------|-------------|-------|
+| **T1** | Iteration commit | Stage-hash match + build/compile + format + relevant fast tests | **<60s** | `/iteration-complete` |
+| **T2** | Phase commit | T1 + full relevant unit tests (changed-file scoping) | <120s | `/phase-complete` (pre-squash) |
+| **T3** | Phase complete | Full test suite + MAR on phase artifacts | <5min | `/phase-complete` (deep QG) |
+| **T4** | Pre-PR | Full diff QG vs origin/main | <5min | `/pr-prep` |
+
+**T1 is the iteration gate.** Stage-hash match proves the QGR was generated for the exact staged changes. Build/compile catches syntax errors. Format runs on save AND at T1 (belt and suspenders — both cheap). Relevant fast tests run tests that map to changed files (see Changed-File Test Scoping below). If tests exceed the 60s budget, test scoping needs improvement — not skipping.
+
+**T1 baseline is universal:** `stage-hash match + build/compile` works for every language. Format and lint are optional per language toolchain (Swift has no standard linter, JS has eslint). Relevant unit tests included if they fit the time budget.
+
+**T2 adds full scoped tests.** All unit tests relevant to the changed files, not just fast tests. 120s budget. This runs during phase commit before squash.
+
+**T3 is the deep gate.** Full test suite (Docker if available, in-process with isolation if not). MAR review of phase artifacts (PVR updates, A&D updates, plan updates). This is the Sprint Review gate.
+
+**T4 is the shipping gate.** Full diff quality gate against origin/main. Runs before PRs are created. Catches anything that slipped through T1-T3 across the accumulated diff.
+
+### Changed-File Test Scoping
+
+Tests are scoped to changed files to keep T1/T2 fast.
+
+**Convention-based (default):** Source path mirrors test path. `claude/tools/flag` → `tests/tools/flag.bats`. Zero-config, covers 90% of cases.
+
+**Package-level (fallback):** For non-mirrored layouts (Swift, Rust, Go packages): anything in `apps/mdpal/Sources/` changed → run tests in `apps/mdpal/`. Handles projects where test paths don't mirror source paths.
+
+**Manifest (override):** For edge cases where convention and package-level don't map, a tool can declare its test file in metadata.
+
+### Stage-Hash Delta Tolerance
+
+If the delta between QGR hash and current staged hash is **exclusively markdown files** (all changed files are `.md`) → allow with warning. Any non-markdown file in the delta → re-run QG. If the commit contains both a markdown change and a code change, re-run. Simpler than "non-code files changed" — is `package.json` code? Yes, re-run.
+
+### Full QG Protocol (T3/T4)
+
+Run the full protocol below for T3 (phase complete) and T4 (pre-PR) boundaries. T1 and T2 run the subset defined by their tier. Do not skip steps even if the work "looks fine" — the audit always finds something.
 
 ### Steps
 

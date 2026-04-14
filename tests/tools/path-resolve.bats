@@ -74,10 +74,14 @@ load 'test_helper'
     assert_output_contains "unknown"
 }
 
-@test "_path-resolve: AGENCY_PRINCIPAL env var takes precedence" {
-    run env AGENCY_PRINCIPAL=override bash -c "source '${TOOLS_DIR}/lib/_path-resolve' && echo \"\$AGENCY_PRINCIPAL\""
+@test "_path-resolve: AGENCY_PRINCIPAL env var is deprecated and ignored" {
+    # AGENCY_PRINCIPAL is intentionally never trusted because it leaks from
+    # test suites, shell profiles, and old add-principal runs. The lib resolves
+    # from agency.yaml via $USER and only WRITES to AGENCY_PRINCIPAL.
+    run env AGENCY_PRINCIPAL=override USER=jdm bash -c "source '${TOOLS_DIR}/lib/_path-resolve' && echo \"\$AGENCY_PRINCIPAL\""
     assert_success
-    assert_output_contains "override"
+    # Should NOT be "override" — the env var is ignored
+    [[ "$output" != "override" ]]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

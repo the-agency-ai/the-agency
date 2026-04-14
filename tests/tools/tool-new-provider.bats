@@ -11,6 +11,7 @@ load 'test_helper'
 # Save and restore build number to avoid side effects
 setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
+    test_isolation_setup
     cd "${REPO_ROOT}"
     export BUILD_FILE="${REPO_ROOT}/claude/data/tool-build-number"
     if [[ -f "$BUILD_FILE" ]]; then
@@ -19,6 +20,7 @@ setup() {
 }
 
 teardown() {
+    test_isolation_teardown
     # Restore build number
     if [[ -f "${BATS_TEST_TMPDIR}/build-number-backup" ]]; then
         cp "${BATS_TEST_TMPDIR}/build-number-backup" "$BUILD_FILE"

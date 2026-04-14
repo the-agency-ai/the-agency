@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-TOOL_VERSION="1.0.1"
+TOOL_VERSION="1.1.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # CLAUDE_PROJECT_DIR is authoritative — see escalation #90
@@ -43,19 +43,44 @@ source "$SCRIPT_DIR/lib/_iscp-db"
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Handle flags
+FORCE=false
+STATUSLINE=false
 case "${1:-}" in
     --version) echo "iscp-check $TOOL_VERSION"; exit 0 ;;
+    --force) FORCE=true ;;
+    --statusline) STATUSLINE=true ;;
     --help|-h)
         cat <<'HELP'
 iscp-check — ISCP notification hook
 
-Usage: iscp-check [--version|--help]
+Usage: iscp-check [--force|--statusline|--version|--help]
 
 Checks for unread ISCP items (dispatches, flags, dropbox, notifications)
 and outputs a JSON systemMessage if any are found. Silent when empty.
 
-Designed for hook consumption (SessionStart, UserPromptSubmit, Stop).
-Every failure path exits silently — never blocks the agent.
+Modes:
+
+  (default)     Hook mode with delta suppression. Emits a JSON systemMessage
+                only when the unread total has INCREASED since the last call.
+                Used for SessionStart/UserPromptSubmit/Stop hooks.
+
+  --force       Hook mode without delta suppression. Emits unconditionally
+                when items are waiting. Used by SessionStart so every new
+                session sees the current state regardless of prior state.
+
+  --statusline  Status-line mode. Outputs a SHORT plain-text one-liner
+                suitable for the Claude Code statusLine command — e.g.
+                "📬 2d 1f" when the current agent has unread items, or
+                silent (no output) when the inbox is empty. No delta
+                suppression; no state file writes. Safe to call on every
+                UI tick. The footer glyph only appears when there's
+                something to notice; absence is the normal state. Status
+                line commands render ONLY in the footer bar, never in
+                the chat transcript. This is the display-only silent
+                polling path.
+
+Designed for hook consumption (SessionStart, UserPromptSubmit, Stop) and
+status line polling. Every failure path exits silently — never blocks.
 HELP
         exit 0 ;;
 esac
@@ -80,9 +105,65 @@ counts=$(iscp_db_count_unread "$my_agent" 2>/dev/null) || exit 0
 
 IFS='|' read -r flags dispatches dropbox notifications <<< "$counts"
 
+# --- Statusline mode: compact one-liner for the footer, no state writes ---
+# Runs on every UI tick. Must be FAST. Output goes ONLY to the footer —
+# never to the transcript. No delta logic — always shows current state.
+#
+# Silent when the current agent has ZERO unread items. The mailbox glyph
+# only appears when there's something to notice — the absence of the glyph
+# is the normal state. (Principal directive 2026-04-08: the icon should
+# only be there if the current agent has unread messages.)
+if [[ "$STATUSLINE" == "true" ]]; then
+    total=$(( flags + dispatches + dropbox + notifications ))
+    if [[ "$total" -eq 0 ]]; then
+        # Silent — no output, no glyph in the footer
+        exit 0
+    fi
+    # Compact format: "📬 2d 1f" — letters for type (d=dispatch, f=flag,
+    # x=dropbox, n=notif). Dispatches and flags are the common cases.
+    parts=()
+    [[ "$dispatches" -gt 0 ]] && parts+=("${dispatches}d")
+    [[ "$flags" -gt 0 ]] && parts+=("${flags}f")
+    [[ "$dropbox" -gt 0 ]] && parts+=("${dropbox}x")
+    [[ "$notifications" -gt 0 ]] && parts+=("${notifications}n")
+    echo "📬 $(IFS=' '; echo "${parts[*]}")"
+    exit 0
+fi
+
 # Silent when all zeros
 total=$(( flags + dispatches + dropbox + notifications ))
 if [[ "$total" -eq 0 ]]; then
+    # Reset state so the next arrival triggers a notification even if
+    # it's just a single item (otherwise a drop-to-zero would leave
+    # last_total > 0 and the next item of equal count would be silent).
+    state_dir=$(dirname "$db_path")
+    agent_slug="${my_agent//\//_}"
+    state_file="$state_dir/.iscp-notify-state-$agent_slug"
+    echo 0 > "$state_file" 2>/dev/null || true
+    exit 0
+fi
+
+# Delta suppression: only emit when the total has INCREASED since last
+# notification. --force bypasses (used by SessionStart hook). State file
+# lives next to the DB, outside git, per-agent.
+state_dir=$(dirname "$db_path")
+agent_slug="${my_agent//\//_}"
+state_file="$state_dir/.iscp-notify-state-$agent_slug"
+
+last_total=0
+if [[ -f "$state_file" ]]; then
+    last_total=$(cat "$state_file" 2>/dev/null || echo 0)
+    # Guard against corrupted state (non-numeric)
+    [[ "$last_total" =~ ^[0-9]+$ ]] || last_total=0
+fi
+
+# Update state regardless of whether we emit — the state tracks "what the
+# agent has been told" so a drop in count (items read) lowers the bar for
+# the next notification.
+echo "$total" > "$state_file" 2>/dev/null || true
+
+# Suppress if delta mode and count has not increased
+if ! $FORCE && [[ "$total" -le "$last_total" ]]; then
     exit 0
 fi
 

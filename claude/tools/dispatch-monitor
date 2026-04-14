@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# What Problem: Dispatch polling via /loop costs ~82,000 tokens/day and has
+# 5-minute latency. The Monitor tool (Claude Code v2.1.98+) can watch a
+# background script and react to output in real-time, but needs a script
+# that only outputs when there are actual dispatches to process.
+#
+# How & Why: Lightweight polling script designed as a Monitor tool backend.
+# Polls dispatch list every N seconds (default 10), only outputs when unread
+# dispatches exist (completely silent otherwise). The Monitor tool streams
+# each output line to the agent, who reacts immediately. Result: 96% token
+# savings, 10-second latency instead of 5 minutes.
+#
+# Usage: With Monitor tool — ask Claude to "monitor dispatches using dispatch-monitor"
+# Standalone: ./claude/tools/dispatch-monitor [--interval N] [--include-collab]
+#
+# Written: 2026-04-10 during captain session (Monitor tool adoption)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+INTERVAL=10
+INCLUDE_COLLAB=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --interval)
+            INTERVAL="$2"
+            shift 2
+            ;;
+        --include-collab)
+            INCLUDE_COLLAB=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: dispatch-monitor [--interval N] [--include-collab]"
+            echo ""
+            echo "Lightweight polling script for use with Claude Code's Monitor tool."
+            echo "Only outputs when there are unread dispatches (silent otherwise)."
+            echo ""
+            echo "Options:"
+            echo "  --interval N        Poll interval in seconds (default: 10)"
+            echo "  --include-collab    Also check cross-repo collaboration dispatches"
+            echo "  --help              Show this help"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+    esac
+done
+
+while true; do
+    # Check local dispatches
+    OUTPUT=$("$SCRIPT_DIR/dispatch" list --status unread 2>/dev/null || true)
+    if [[ -n "$OUTPUT" ]] && [[ "$OUTPUT" != "No dispatches found." ]]; then
+        echo "[DISPATCH] $OUTPUT"
+    fi
+
+    # Optionally check cross-repo collaboration
+    if [[ "$INCLUDE_COLLAB" == "true" ]]; then
+        COLLAB_OUTPUT=$("$SCRIPT_DIR/collaboration" check 2>/dev/null || true)
+        if [[ -n "$COLLAB_OUTPUT" ]]; then
+            echo "[COLLAB] $COLLAB_OUTPUT"
+        fi
+    fi
+
+    sleep "$INTERVAL"
+done
