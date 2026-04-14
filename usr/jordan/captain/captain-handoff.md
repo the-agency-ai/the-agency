@@ -2,76 +2,69 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-11
+date: 2026-04-13
 trigger: session-end
 ---
 
-## Resume — Day 36
+## Resume — Day 38 (Workshop Day)
 
-### Immediate
+### What happened this session
 
-1. **PR #73 awaiting approval** — D36-R1: shared _colors lib (59 tools), pr-build MAR cleanup (8 fixes), commit-precheck MERGE_HEAD skip, --no-verify removed. Approve → merge → /post-merge 73.
-2. **Flag #84** — PR tool needed (like git-commit wraps commit). Enforcement Triangle: tool + skill + hookify block on raw gh pr create.
+**Workshop deck: v10 → v17 in one session.** 7 committed versions, 3 MAR rounds, 80+ individual changes.
 
-### Day 35-36 Shipped
+**Deck is at v17** (`f8e3750`), 90+ slides, committed and serving on port 8001.
 
-- **35.1** (PR #70) — dispatch-monitor (event-driven dispatch watching)
-- **35.2** (PR #70) — changelog-monitor (Claude Code release awareness)
-- **35.3** (PR #71) — block-raw-tools PreToolUse hook
-- **PR #72** — dispatch monitoring docs (Monitor replaces /loop)
-- **36.1** (PR #73) — _colors lib + pr-build MAR + MERGE_HEAD skip [PENDING MERGE]
-- **Presence-detect** synced to 35.3
+Key structural changes across v10→v17:
+- OODA throughout (NOT ODA — Principal IS the OOD, Act = Delegation)
+- Proper OODA loop SVG (circular, colored arcs, readable labels)
+- Enforcement Triangle SVG (Direction/Discovery/Compliance triangle)
+- Session Lifecycle SVG (Resume→Dialogue→Execute→Compact→End loop)
+- "Claude Code Concepts" section: Agents+Subagents, Commands/Skills/Tools, Events/Hooks
+- Direction→Discovery→Compliance→Triangle enforcement sequence
+- Valueflow stages with artifacts (Seed→Define, Design→Plan, Implement→Ship→Value)
+- QG expanded to 8 stages
+- Agency concepts: Processes/Artifacts/Patterns/Collaboration (4 slides)
+- Quality philosophy: "We fix things. We don't work around them."
+- "Context Is Everything" slide with Attention paper reference
+- My Home Network anecdote (content TBD — Jordan tells it live)
+- Guided Tour, Setup, Checklist slides for Part 4
+- Acknowledgments: Abel, Weiling, Phyllis, Anthropic
+- Contact: jdm@devopspm.com, GitHub: jordandm
 
-### Workshop — Monday 13 April at Republic Polytechnic
+### Workshop status
 
-**22 invites sent.** Responses: Abel (US, wants future session), Andrew (Korea, nominating Deepak), Eliot (busy, caught date error).
+- **Workshop:** 13 April 2026, 09:00, Republic Polytechnic
+- **Deck:** v17, committed, ready
+- **Workshop repo:** https://github.com/the-agency-ai/the-agency-workshop — LIVE
+- **Bootstrap:** `curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-workshop/main/sessions/republic-poly-20260413/materials/bootstrap.sh | bash`
+- **Risk:** No end-to-end Ubuntu VM test confirmed
 
-**Outline:** `claude/workstreams/agency/seeds/workshop-outline-republic-poly-20260410.md`
+### Commits this session
 
-**TODO (priority order):**
-1. Workshop repo — `the-agency-ai/the-agency-workshop` created but empty. Needs CLAUDE.md + CAPTAIN.md.
-2. Test full student flow: clone → agency init → claude login → remote-control → Desktop Code tab → toy project → Vercel deploy
-3. mdslide — markdown slide tool for presentations
-4. Move workshop content from the-agency to the-agency-group (content repo)
-5. Anthropic outreach batch 2 (LinkedIn + Twitter for Max 20x licenses)
+- `2aad5b3` v11 — MAR + 30 revisions + OODA fix + concepts (83 slides)
+- `8391634` v12 — QG 8 stages, quality philosophy, repo structure, MAR loop (86 slides)
+- `fcbda87` v13 — structural review: pacing fixes (85 slides)
+- `a285f30` v14 — OODA graphics, reorder concepts, Agency elements
+- `c322b97` v15 — Boyd restored, Direction/Discovery/Compliance sequence
+- `9c480b5` v16 — OODA readable, Enforcement Triangle SVG, Agency reorg
+- `62b9be5` — OODA loop SVG fix (readable text)
+- `4db0eb1` — OODA loop proper circle
+- `f8e3750` v17 — CC Concepts header, two-line titles, Valueflow refresh
 
-### Monofolk
+### Fleet state
 
-- Dispatch sent: upstream pr-build MAR cleanup + _colors lib + block-raw-tools
-- Hookify promotion dispatch received and resolved
-- Pending: hookify upstream port (7 warn→block rules)
+- **DevEx:** Workshop repo delivered (dispatch #223). CODE_OF_CONDUCT shipped.
+- **DesignEx:** Running autonomously
+- **mdslidepal-web:** Serving deck, SmartyPants working
+- **mdslidepal-mac:** Phase 1 in progress
+- **Monofolk:** D37-R1 notified
 
-### Seeds Captured
+### What's next (post-workshop)
 
-- This Happened! + Breadcrumb — value-added services
-- Monitor tool adoption — event-driven dispatch watching
-- OODA structural framework + Process Intelligence (Celonis) — from monofolk
-- Workshop outline + setup guide + bootstrap + start scripts
-
-### Fleet State
-
-- **devex** — dispatch #200 sent (SPEC:PROVIDER for NestJS + React/Next.js)
-- **iscp** — blocked on merge until synced
-- **Monitor running** — dispatch-monitor replaces /loop polling (task bh93ichaq)
-- **block-raw-tools LIVE** — blocks cat/grep/find/sed/awk/head/tail. Already caught us!
-
-### Open Flags (key)
-
-- #55 CLAUDE.md revision
-- #69 create-tool input validation
-- #78 session naming
-- #82 agency verify reads dependencies.yaml
-- #83 ban raw git writes
-- #84 PR tool needed (NEW — Enforcement Triangle)
-
-### Collaborative Items from MAR (not yet resolved)
-
-Items 11-16 from pr-build MAR need disposition:
-- #11 multi-source builds
-- #12 `is_captain` parameter redundant
-- #13 principal name in help example
-- #14 `--captain` policy assumption
-- #15 BATS tests for pr-build
-- #16 `--version` flag (done in this release)
+- Workshop debrief + lessons learned
+- DevEx PR build (#201 items complete, 6 commits ready)
+- Monofolk Ring 2 transition dispatch
+- CI rework (smoke-ubuntu + fork-pr-full-qg)
+- Deck post-mortem: what worked, what didn't, what to change for next time
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
