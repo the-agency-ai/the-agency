@@ -77,8 +77,8 @@ export function renderTemplate(params: TemplateParams): string {
     <script>
       Reveal.initialize({
         hash: true,
-        width: ${width},
-        height: ${height},
+        width: ${Number(width) || 1920},
+        height: ${Number(height) || 1080},
         margin: 0.04,
         minScale: 0.2,
         maxScale: 2.0,

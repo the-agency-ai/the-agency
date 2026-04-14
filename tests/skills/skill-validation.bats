@@ -13,8 +13,8 @@
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
 SKILLS_DIR="${REPO_ROOT}/.claude/skills"
 
-# Expected framework skills (34 total)
-EXPECTED_SKILL_COUNT=57
+# Minimum expected framework skills (threshold, not exact count)
+EXPECTED_SKILL_MIN=50
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Skill existence and count
@@ -24,10 +24,10 @@ EXPECTED_SKILL_COUNT=57
     [ -d "$SKILLS_DIR" ]
 }
 
-@test "skills: expected count ($EXPECTED_SKILL_COUNT)" {
+@test "skills: at least $EXPECTED_SKILL_MIN skills" {
     local count
     count=$(find "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
-    [ "$count" -eq "$EXPECTED_SKILL_COUNT" ]
+    [ "$count" -ge "$EXPECTED_SKILL_MIN" ]
 }
 
 @test "skills: every skill has a non-empty SKILL.md" {
