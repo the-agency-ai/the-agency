@@ -107,13 +107,27 @@ _resolve_identity() {
 
 _update_frontmatter_status() {
     # Update status field in YAML frontmatter of a dispatch file
+    # Bug fix: if no status field exists, add one after the subject line
     local file="$1" new_status="$2"
     if [[ ! -f "$file" ]]; then
         echo "ERROR: file not found: $file" >&2
         return 1
     fi
-    # Use sed to replace status in frontmatter (between --- markers)
-    sed -i '' "s/^status: .*/status: ${new_status}/" "$file"
+    if grep -q '^status: ' "$file" 2>/dev/null; then
+        # Replace existing status
+        sed -i '' "s/^status: .*/status: ${new_status}/" "$file"
+    else
+        # No status field — add after subject line (or after last --- if no subject)
+        if grep -q '^subject: ' "$file" 2>/dev/null; then
+            sed -i '' "/^subject: /a\\
+status: ${new_status}" "$file"
+        else
+            # Add before closing frontmatter marker
+            sed -i '' "0,/^---$/! { /^---$/i\\
+status: ${new_status}
+}" "$file"
+        fi
+    fi
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -148,19 +162,33 @@ cmd_check() {
             continue
         fi
 
-        # Pull latest
-        local pull_output
+        # Pull latest — stash dirty state first (status markers from resolve)
+        local pull_output stashed=false
+        if [[ -n "$(cd "$full_path" && git status --porcelain 2>/dev/null)" ]]; then
+            (cd "$full_path" && git stash -q 2>/dev/null) && stashed=true
+        fi
         pull_output=$(cd "$full_path" && git pull --rebase 2>&1) || {
             results+=("⚠ $name: git pull failed — ${pull_output%%$'\n'*}")
+            $stashed && (cd "$full_path" && git stash pop -q 2>/dev/null)
             continue
         }
+        $stashed && (cd "$full_path" && git stash pop -q 2>/dev/null)
 
         local inbound_path="$full_path/$inbound"
         [[ -d "$inbound_path" ]] || continue
 
         # Scan for unread dispatches
-        local unread_files
-        unread_files=$(grep -rl 'status: unread' "$inbound_path"/*.md 2>/dev/null) || true
+        # Bug fix: incoming dispatches from other repos arrive WITHOUT a status field.
+        # Old logic grepped for 'status: unread' which missed all new dispatches.
+        # New logic: find all .md files that are NOT marked read or resolved.
+        local unread_files=""
+        for candidate in "$inbound_path"/*.md; do
+            [[ -f "$candidate" ]] || continue
+            if ! grep -q 'status: \(read\|resolved\)' "$candidate" 2>/dev/null; then
+                unread_files="${unread_files:+$unread_files
+}$candidate"
+            fi
+        done
 
         if [[ -n "$unread_files" ]]; then
             found_any=true
