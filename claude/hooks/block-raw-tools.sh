@@ -33,21 +33,24 @@ if [[ -z "$COMMAND" ]]; then
     exit 0
 fi
 
-# Block git-captain for non-captain agents (belt-and-suspenders)
-if [[ "$COMMAND" =~ git-captain ]]; then
-    # Resolve identity — if not captain, block
-    agent_name=$(./claude/tools/agent-identity --field agent 2>/dev/null || echo "")
-    if [[ "$agent_name" != "captain" ]]; then
-        printf '{"decision":"block","reason":"🚫 BLOCKED: git-captain is captain-only. Agents use /git-safe for git operations.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
-        exit 2
-    fi
-fi
-
 # Allow framework tools to use whatever they need internally
 # (e.g., dispatch-monitor uses grep internally, that's fine)
+# MUST come before all content checks — tools are always exempt.
 if [[ "$COMMAND" =~ ^\./claude/tools/ ]] || [[ "$COMMAND" =~ ^\"?\$CLAUDE_PROJECT_DIR ]]; then
     printf '{}'
     exit 0
+fi
+
+# Block git-captain for non-captain agents (belt-and-suspenders)
+# Only match when git-captain is the COMMAND being invoked, not mentioned in args/strings
+TRIMMED_CMD=$(echo "$COMMAND" | sed 's/^[[:space:]]*//')
+if [[ "$TRIMMED_CMD" =~ ^git-captain([[:space:]]|$) ]] || [[ "$TRIMMED_CMD" =~ ^\./claude/tools/git-captain([[:space:]]|$) ]]; then
+    # Resolve identity — if not captain, block
+    agent_name=$(./claude/tools/agent-identity --field agent 2>/dev/null || echo "")
+    if [[ "$agent_name" != "captain" ]]; then
+        printf '{"decision":"block","reason":"BLOCKED: git-captain is captain-only. Agents use /git-safe for git operations.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+        exit 2
+    fi
 fi
 
 # Allow explicit opt-out (for legitimate edge cases)
