@@ -37,7 +37,9 @@ public struct ContentView: View {
                 SectionReaderView(
                     section: section,
                     comments: document.comments(forSection: section.slug),
-                    flag: document.flag(forSection: section.slug)
+                    flag: document.flag(forSection: section.slug),
+                    document: document,
+                    currentAuthor: "jordan"
                 )
             } else {
                 ContentUnavailableView(

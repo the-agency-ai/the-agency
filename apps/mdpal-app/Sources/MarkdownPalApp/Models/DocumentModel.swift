@@ -186,6 +186,16 @@ public final class DocumentModel {
         await loadFlags()
     }
 
+    /// Toggle the flag on a section — clears it if flagged, sets it if not.
+    /// The view surfaces a single toggle control backed by this method.
+    public func toggleFlag(slug: String, author: String, note: String? = nil) async throws {
+        if isFlagged(slug: slug) {
+            try await clearFlag(slug: slug)
+        } else {
+            try await flagSection(slug: slug, author: author, note: note)
+        }
+    }
+
     // MARK: - Document Lifecycle
 
     /// Load a document from a bundle path.

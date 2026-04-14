@@ -650,6 +650,127 @@ func testClearFlagReturnsMockResult() async throws {
     try expectFalse(result.flagged)
 }
 
+// MARK: - DocumentModel (state flow)
+
+func testDocumentModelLoadSectionsPopulatesState() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    try expect(doc.sections.count, equals: 0)
+    await doc.loadSections()
+    try expectTrue(doc.sections.count > 0, "sections should load from mock")
+}
+
+func testDocumentModelLoadCommentsAndFlagsPopulatesState() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.loadComments()
+    await doc.loadFlags()
+    try expectTrue(doc.comments.count > 0, "comments should load")
+    try expectTrue(doc.flags.count > 0, "flags should load")
+}
+
+func testDocumentModelAddCommentAppendsToState() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.loadComments()
+    let before = doc.comments.count
+    try await doc.addComment(
+        slug: "overview", type: .note, author: "jordan",
+        text: "Just added", context: nil, priority: .normal, tags: []
+    )
+    try expect(doc.comments.count, equals: before + 1)
+    let added = doc.comments.last!
+    try expect(added.text, equals: "Just added")
+    try expect(added.slug, equals: "overview")
+    try expectFalse(added.resolved)
+}
+
+func testDocumentModelResolveCommentTriggersReload() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.loadComments()
+    // Mock resolveComment returns ResolveResult; DocumentModel calls loadComments after
+    try await doc.resolveComment(commentId: "c001", response: "Handled", by: "jordan")
+    // State should still be populated (mock listComments returns static set — key assertion
+    // is that the call completed without throwing and comments stayed non-empty).
+    try expectTrue(doc.comments.count > 0)
+}
+
+func testDocumentModelToggleFlagAddsThenClearsInSequence() async throws {
+    let doc = DocumentModel(cliService: ToggleTrackingService())
+    // Not flagged initially
+    try expectFalse(doc.isFlagged(slug: "overview"))
+    try await doc.toggleFlag(slug: "overview", author: "jordan", note: "needs review")
+    try expectTrue(doc.isFlagged(slug: "overview"), "toggleFlag should add a flag when none exists")
+
+    try await doc.toggleFlag(slug: "overview", author: "jordan", note: nil)
+    try expectFalse(doc.isFlagged(slug: "overview"), "toggleFlag should clear an existing flag")
+}
+
+func testDocumentModelFlagSectionIsReflectedInState() async throws {
+    let doc = DocumentModel(cliService: ToggleTrackingService())
+    try await doc.flagSection(slug: "api-design", author: "jordan", note: nil)
+    try expectTrue(doc.isFlagged(slug: "api-design"))
+    let flag = doc.flag(forSection: "api-design")!
+    try expect(flag.author, equals: "jordan")
+}
+
+/// Stateful mock that reflects add/clear operations in subsequent list calls.
+/// Needed to test DocumentModel.toggleFlag end-to-end (default MockCLIService
+/// returns a fixed flag set regardless of mutations).
+final class ToggleTrackingService: CLIServiceProtocol, @unchecked Sendable {
+    private var flags: [Flag] = []
+    private var comments: [Comment] = []
+
+    func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
+        MockCLIService.mockSectionsFlat
+    }
+    func readSection(slug: String, bundle: BundlePath) async throws -> Section {
+        MockCLIService.mockSectionContents[slug]!
+    }
+    func editSection(slug: String, content: String,
+                     versionHash: String, bundle: BundlePath) async throws -> EditResult {
+        EditResult(slug: slug, versionHash: "new", versionId: "v", bytesWritten: content.utf8.count)
+    }
+    func listComments(bundle: BundlePath) async throws -> [Comment] { comments }
+    func listFlags(bundle: BundlePath) async throws -> [Flag] { flags }
+    func addComment(slug: String, bundle: BundlePath, type: CommentType,
+                    author: String, text: String, context: String?,
+                    priority: Priority, tags: [String]) async throws -> Comment {
+        let c = Comment(
+            commentId: "c\(comments.count + 1)", type: type, author: author,
+            slug: slug, timestamp: Date(), context: context, text: text,
+            resolved: false, priority: priority, tags: tags
+        )
+        comments.append(c)
+        return c
+    }
+    func resolveComment(commentId: String, bundle: BundlePath,
+                        response: String, by: String) async throws -> ResolveResult {
+        if let idx = comments.firstIndex(where: { $0.commentId == commentId }) {
+            let old = comments[idx]
+            comments[idx] = Comment(
+                commentId: old.commentId, type: old.type, author: old.author,
+                slug: old.slug, timestamp: old.timestamp, context: old.context,
+                text: old.text, resolved: true,
+                resolution: Resolution(response: response, by: by, timestamp: Date()),
+                priority: old.priority, tags: old.tags
+            )
+        }
+        return ResolveResult(
+            commentId: commentId, resolved: true,
+            resolution: Resolution(response: response, by: by, timestamp: Date())
+        )
+    }
+    func flagSection(slug: String, bundle: BundlePath,
+                     author: String, note: String?) async throws -> FlagResult {
+        let now = Date()
+        flags.removeAll { $0.slug == slug }
+        flags.append(Flag(slug: slug, note: note, author: author, timestamp: now))
+        return FlagResult(slug: slug, flagged: true, author: author, note: note, timestamp: now)
+    }
+    func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
+        flags.removeAll { $0.slug == slug }
+        return ClearFlagResult(slug: slug, flagged: false)
+    }
+}
+
 // MARK: - Runner
 
 @main
@@ -725,6 +846,14 @@ struct TestRunner {
         await runAsync("resolveComment returns mock result", testResolveCommentReturnsMockResult)
         await runAsync("flagSection returns mock result", testFlagSectionReturnsMockResult)
         await runAsync("clearFlag returns mock result", testClearFlagReturnsMockResult)
+
+        print("\nDocumentModel:")
+        await runAsync("loadSections populates state", testDocumentModelLoadSectionsPopulatesState)
+        await runAsync("loadComments and loadFlags populate state", testDocumentModelLoadCommentsAndFlagsPopulatesState)
+        await runAsync("addComment appends to state", testDocumentModelAddCommentAppendsToState)
+        await runAsync("resolveComment triggers reload", testDocumentModelResolveCommentTriggersReload)
+        await runAsync("toggleFlag adds then clears", testDocumentModelToggleFlagAddsThenClearsInSequence)
+        await runAsync("flagSection reflected in state", testDocumentModelFlagSectionIsReflectedInState)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 
