@@ -51,7 +51,7 @@ If the principal requests changes, make them and re-run the relevant QG steps.
 
 ### Step 5: Commit with approval
 
-Once approved, re-run `git status` to capture any new files written during the QG fix cycle (bug-exposing tests, coverage tests). Use `/git-commit` via the Skill tool, staging all relevant files. Pass it the full structured commit message from the QGR's "Proposed Commit" section.
+Once approved, re-run `git status` to capture any new files written during the QG fix cycle (bug-exposing tests, coverage tests). Use `/git-safe-commit` via the Skill tool, staging all relevant files. Pass it the full structured commit message from the QGR's "Proposed Commit" section.
 
 ### Step 6: Update the plan
 

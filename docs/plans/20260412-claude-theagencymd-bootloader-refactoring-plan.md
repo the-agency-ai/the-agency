@@ -47,7 +47,7 @@ All independent — can parallelize.
 ### 1D. NEW `claude/docs/PROVENANCE-HEADERS.md`
 - **Source:** Lines 596-657 (~950 words — WHW headers + script discipline)
 - **Content:** What Problem / How & Why / Written format, scope table, script persistence rules
-- **Injected by:** git-commit, ship
+- **Injected by:** git-safe-commit, ship
 - **Also:** Update hookify.whw-header-warn.md pointer from monolith anchor to new doc
 
 ### 1E. NEW `claude/docs/REPO-STRUCTURE.md`
@@ -81,7 +81,7 @@ New/updated case entries:
 | worktree-create, worktree-sync, worktree-list, worktree-delete | WORKTREE-DISCIPLINE.md |
 | workstream-create | WORKTREE-DISCIPLINE.md + REPO-STRUCTURE.md |
 | sandbox-create, sandbox-activate, sandbox-adopt | REPO-STRUCTURE.md |
-| git-commit, ship | (existing) + PROVENANCE-HEADERS.md |
+| git-safe-commit, ship | (existing) + PROVENANCE-HEADERS.md |
 | quality-gate, iteration-complete, phase-complete | (existing) + QUALITY-DISCIPLINE.md |
 
 ## Phase 3: Write the Bootloader
@@ -92,7 +92,7 @@ New/updated case entries:
 1. **What this is** (2 sentences) — framework dev repo, open core MIT + RSL
 2. **Where things live** (5 bullets) — claude/, usr/, .claude/skills/, claude/hookify/, claude/docs/
 3. **How you work** (5 bullets) — skills via `/`, hookify enforces, ref-injector provides docs on demand, handoff for context, ISCP for comms
-4. **Key skills** (10 pointers) — /git-commit, /quality-gate, /handoff, /dispatch, /discuss, /session-resume, /session-end, /worktree-sync, /define, /design
+4. **Key skills** (10 pointers) — /git-safe-commit, /quality-gate, /handoff, /dispatch, /discuss, /session-resume, /session-end, /worktree-sync, /define, /design
 5. **Reference docs table** (15 rows) — topic → doc path mapping
 6. **Kittens footer**
 

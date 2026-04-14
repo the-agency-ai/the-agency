@@ -45,7 +45,7 @@ Alternative worth considering: keep payloads in git but on a dedicated `dispatch
 
 ### 6. Enforcement ladder reordering (§4) — tools before warn is correct
 
-The revision from PVR → A&D swaps steps 3 and 4: tools before hookify-warn. This matches reality. On mdpal, we had hookify warnings about commit workflow before the `git-commit` tool existed, which just annoyed agents with no actionable path. Build the tool, then warn about bypassing it.
+The revision from PVR → A&D swaps steps 3 and 4: tools before hookify-warn. This matches reality. On mdpal, we had hookify warnings about commit workflow before the `git-safe-commit` tool existed, which just annoyed agents with no actionable path. Build the tool, then warn about bypassing it.
 
 The enforcement registry (YAML manifest) is a good addition. Per-workstream enforcement levels are practical — mdpal is further along than a fresh workstream.
 

@@ -111,7 +111,7 @@ Rationale: Migration framework (2.0) is prerequisite. Verify baseline (2.1) alon
 
 **Files:**
 - `claude/tools/dispatch` — authority check in `cmd_create()`
-- `claude/tools/git-commit` — add `--internal` flag to commit dispatch call
+- `claude/tools/git-safe-commit` — add `--internal` flag to commit dispatch call
 
 **Authority matrix (hardcoded — captain detected by agent name suffix `/captain`):**
 
@@ -119,7 +119,7 @@ Rationale: Migration framework (2.0) is prerequisite. Verify baseline (2.1) alon
 |------|---------------|
 | `directive`, `review`, `master-updated` | Captain only |
 | `seed`, `escalation`, `dispatch` | Any agent |
-| `commit` | Any agent with `--internal` flag (used by git-commit) |
+| `commit` | Any agent with `--internal` flag (used by git-safe-commit) |
 | `review-response` | Agent who received the original review (`--reply-to` required, `to_agent` of original must match sender) |
 
 **Changes to `dispatch`:**
@@ -130,7 +130,7 @@ Rationale: Migration framework (2.0) is prerequisite. Verify baseline (2.1) alon
 5. Add `--internal` to argument parsing (no-op for non-commit types)
 6. Clear error messages: "Error: dispatch type 'directive' requires captain role. Current agent: the-agency/jordan/iscp"
 
-**Changes to `git-commit`:**
+**Changes to `git-safe-commit`:**
 - Line 422: add `--internal` flag to dispatch create call
 
 **Tests** (`tests/tools/dispatch.bats`, ~11 new):
@@ -154,7 +154,7 @@ Rationale: Migration framework (2.0) is prerequisite. Verify baseline (2.1) alon
 **Goal:** Populate phase/iteration fields in commit dispatches, verify end-to-end.
 
 **Files:**
-- `claude/tools/git-commit` — add phase/iteration to metadata block
+- `claude/tools/git-safe-commit` — add phase/iteration to metadata block
 
 **Changes:**
 1. Lines 410-415: Add `phase` and `iteration` fields from env vars `ISCP_PHASE` and `ISCP_ITERATION` (set by `/iteration-complete` skill), fallback to "none"
@@ -226,8 +226,8 @@ flag_rates:
 | 2.0 | Migration framework | `_iscp-db` | ~8 | 2-3h | — |
 | 2.1 | Baseline verify | — | 0 | 15m | — |
 | 2.3 | Flag categories | `_iscp-db`, `flag` | ~16 | 3-4h | 2.0 |
-| 2.2 | Dispatch authority | `dispatch`, `git-commit` | ~11 | 4-5h | — |
-| 2.4 | Commit wiring | `git-commit` | ~5 | 2-3h | 2.2 |
+| 2.2 | Dispatch authority | `dispatch`, `git-safe-commit` | ~11 | 4-5h | — |
+| 2.4 | Commit wiring | `git-safe-commit` | ~5 | 2-3h | 2.2 |
 | 2.5 | Health metrics | NEW `iscp-metrics` | ~13 | 4-5h | 2.3 |
 | **Total** | | **5 files** | **~53** | **~16-21h** | |
 

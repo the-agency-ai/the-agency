@@ -233,7 +233,7 @@ Five dispatches arrived after the original plan was complete. All implemented in
 | #110 | cd-stays-in-worktree | New tool `worktree-cwd-check` (Layer 1, SessionStart hook) + `block-cd-outside-worktree` hookify (Layer 2) |
 | #114 | Compound bash blocks | `block-cd-outside-worktree` covers Rule 1 (merged), new `block-git-add-and-commit` covers Rule 2 |
 | #118 | Handoff integrity + stop hook | stop-check.py file categorization (impl/handoff/doc), handoff tool dirty-impl warning, /handoff skill integrity rule |
-| #122 | Day/Phase commit prefix | Opt-in via `commits.require_day_prefix` in agency.yaml, shared `_commit-prefix` lib (no Python dep), git-commit integration, commit-msg hook template |
+| #122 | Day/Phase commit prefix | Opt-in via `commits.require_day_prefix` in agency.yaml, shared `_commit-prefix` lib (no Python dep), git-safe-commit integration, commit-msg hook template |
 | #133/#134 | gh.bats hang + orphan cleanup | Fixed gh wrapper recursion bug (PATH lookup found self), added --kill-after to run_with_timeout, registered Swift suite in agency.yaml |
 
 **Post-approval test count:** 39 plan tests + 26 bonus tests = **65 new BATS tests**, all passing.

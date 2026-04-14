@@ -45,7 +45,7 @@ Captain subcommands (blocked for agents):
 - Hookify: block raw git write ops (git add, git merge, git push, git checkout, git tag, git fetch)
 
 ### Existing tools to integrate with
-- /git-commit — already exists, already blocked raw git commit
+- /git-safe-commit — already exists, already blocked raw git commit
 - /sync and /sync-all — captain push/merge workflows
 - /worktree-sync — agent merge-from-master wrapper
 
@@ -53,7 +53,7 @@ Captain subcommands (blocked for agents):
 Follow Valueflow: PVR → A&D → Plan → Implement. Full QG at boundaries. This replaces your PR #78 BATS task as your next priority.
 
 ### Questions to resolve in PVR
-1. Should git-safe subsume /git-commit? Or stay separate?
+1. Should git-safe subsume /git-safe-commit? Or stay separate?
 2. Should /sync and /sync-all call git-safe internally?
 3. What about git stash? Agents use it in worktree-sync.
-4. git-safe add vs letting /git-commit handle staging?
+4. git-safe add vs letting /git-safe-commit handle staging?

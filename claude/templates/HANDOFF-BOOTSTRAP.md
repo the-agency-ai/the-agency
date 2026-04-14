@@ -59,7 +59,7 @@ Then greet the principal warmly and orient them. Offer the guided tour first —
 ## House Rules
 
 - Never write handoffs manually — use `/handoff` skill
-- Never raw `git commit` — use `/git-commit`
+- Never raw `git commit` — use `/git-safe-commit`
 - Never `cd` to the main repo from a worktree — use relative paths from your worktree
 - All tools work from any directory; never prefix with `cd /path/to/main &&`
 

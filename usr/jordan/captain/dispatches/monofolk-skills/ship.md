@@ -29,7 +29,7 @@ Run quality checks, commit, push, and create or update a PR — the full "code i
    - If any check fails, report the failures and stop — do NOT proceed to commit
 
 3. **Commit:**
-   - Invoke the `/git-commit` skill to stage and commit
+   - Invoke the `/git-safe-commit` skill to stage and commit
    - This handles commit message generation and user approval
    - Wait for the commit to complete before proceeding
 

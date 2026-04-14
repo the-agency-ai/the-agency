@@ -122,7 +122,7 @@ All existing agents can absorb V2 work:
 - Captain-only: `directive`, `review`, `main-updated`
 - Any agent: `seed`, `escalation`, `dispatch`
 - Author-only: `review-response` (in reply to review)
-- Automated: `commit` (from git-commit tool only)
+- Automated: `commit` (from git-safe-commit tool only)
 - `agent-identity --agent` integration for role check
 
 *Iteration 2.3: Flag Categories*
@@ -133,7 +133,7 @@ All existing agents can absorb V2 work:
 - Backward compatible — untagged flags still work
 
 *Iteration 2.4: Dispatch-on-Commit*
-- `git-commit` tool auto-creates commit dispatch to captain
+- `git-safe-commit` tool auto-creates commit dispatch to captain
 - Structured YAML frontmatter: `commit_hash`, `stage_hash`, `branch`, `phase`, `iteration`, `files_changed`
 - Captain receives and can verify QGR receipt via stage-hash match
 

@@ -37,7 +37,7 @@ Wait for the QGR to be presented and the receipt file written before proceeding.
 
 At iteration boundaries, no approval is needed. Commit automatically after a clean QGR.
 
-Use `/git-commit` via the Skill tool. Pass it the full structured commit message from the QGR's "Proposed Commit" section. The message must follow the format from the injected `quality-gate.md` reference.
+Use `/git-safe-commit` via the Skill tool. Pass it the full structured commit message from the QGR's "Proposed Commit" section. The message must follow the format from the injected `quality-gate.md` reference.
 
 ### Step 4: Update the plan
 

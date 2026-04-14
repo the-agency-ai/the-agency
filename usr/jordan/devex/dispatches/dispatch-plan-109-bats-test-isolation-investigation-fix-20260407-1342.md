@@ -14,7 +14,7 @@ in_reply_to: 109
 ## Investigation Findings
 
 ### Root cause confirmed
-Tests call `git config user.email/name` in setup() blocks. When tests run inside a pre-commit hook context (git-commit triggers commit-precheck which can run scoped BATS tests), they inherit `GIT_DIR` from the parent. The `git config` calls then write to the OUTER repo's local config, polluting it with [user] section.
+Tests call `git config user.email/name` in setup() blocks. When tests run inside a pre-commit hook context (git-safe-commit triggers commit-precheck which can run scoped BATS tests), they inherit `GIT_DIR` from the parent. The `git config` calls then write to the OUTER repo's local config, polluting it with [user] section.
 
 ### Evidence
 - All commits in this devex session show `Test User <test@example.com>` as author (8c739d0, 047291f, b976409, 435dad1, 3ad7993, c2b6bf2, aa04513, plus older Day 31/32 commits)

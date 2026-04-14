@@ -3,7 +3,7 @@
 
 # Map system usernames to principal definitions.
 # Used for: commit attribution, instruction routing, feedback identity,
-#           GitHub username resolution (git-commit tool parses this).
+#           GitHub username resolution (git-safe-commit tool parses this).
 #
 # Structure: The key is the system username ($USER). Each entry has:
 #   name           — principal slug (must match usr/{name}/ directory)
