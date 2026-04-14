@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# What Problem: PRs were being created without running the Quality Gate,
+# and versions were not being bumped. Captain pushed directly to main twice
+# in one session. PRs shipped without QGR receipts or version updates.
+#
+# How & Why: Wraps gh pr create with mandatory checks:
+# 1. QGR receipt must exist (proves QG ran)
+# 2. agency_version in manifest.json must have been updated
+# 3. Must be on a branch, not main
+# No QGR = no PR. No version bump = no PR. Hookify blocks raw gh pr create.
+#
+# Usage: ./claude/tools/pr-create --title "title" --body "body"
+#        All gh pr create flags are passed through after validation.
+#
+# Written: 2026-04-14 during captain session (PR discipline enforcement)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# ── Step 1: Verify on a branch, not main ─────────────────────────────────
+
+BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)
+
+if [[ "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
+    echo "BLOCKED: Cannot create PR from $BRANCH. Create a branch first." >&2
+    exit 1
+fi
+
+echo "✓ On branch: $BRANCH"
+
+# ── Step 2: Find QGR receipt ─────────────────────────────────────────────
+
+find_recent_qgr() {
+    local now
+    now=$(date +%s)
+    local max_age=3600  # 1 hour
+
+    while IFS= read -r -d '' qgr_file; do
+        local file_time
+        if stat -f %m "$qgr_file" >/dev/null 2>&1; then
+            file_time=$(stat -f %m "$qgr_file")
+        else
+            file_time=$(stat -c %Y "$qgr_file")
+        fi
+
+        local age=$((now - file_time))
+        if [[ "$age" -le "$max_age" ]]; then
+            echo "$qgr_file"
+            return 0
+        fi
+    done < <(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null)
+
+    return 1
+}
+
+QGR_FILE=$(find_recent_qgr || true)
+
+if [[ -z "$QGR_FILE" ]]; then
+    echo "BLOCKED: No recent QGR receipt found." >&2
+    echo "" >&2
+    echo "Every PR requires a Quality Gate Report. Run /pr-prep first:" >&2
+    echo "  1. /pr-prep — runs the full QG (parallel review, fix, test)" >&2
+    echo "  2. /release or pr-create — creates the PR (checks for QGR)" >&2
+    echo "" >&2
+    echo "Looked in: usr/**/qgr-*.md (max age: 1 hour)" >&2
+    exit 1
+fi
+
+echo "✓ QGR receipt found: $QGR_FILE"
+
+# ── Step 3: Verify version was bumped ────────────────────────────────────
+
+MANIFEST="$REPO_ROOT/claude/config/manifest.json"
+
+if [[ ! -f "$MANIFEST" ]]; then
+    echo "BLOCKED: manifest.json not found at $MANIFEST" >&2
+    exit 1
+fi
+
+# Check if manifest.json was modified in this branch (compared to origin/main)
+MANIFEST_CHANGED=$(git -C "$REPO_ROOT" diff origin/main..HEAD --name-only -- claude/config/manifest.json 2>/dev/null || true)
+
+if [[ -z "$MANIFEST_CHANGED" ]]; then
+    # Also check staged/unstaged changes
+    MANIFEST_STAGED=$(git -C "$REPO_ROOT" diff --name-only -- claude/config/manifest.json 2>/dev/null || true)
+    MANIFEST_CACHED=$(git -C "$REPO_ROOT" diff --cached --name-only -- claude/config/manifest.json 2>/dev/null || true)
+
+    if [[ -z "$MANIFEST_STAGED" && -z "$MANIFEST_CACHED" ]]; then
+        echo "BLOCKED: agency_version not bumped." >&2
+        echo "" >&2
+        echo "Every PR is a release. Update claude/config/manifest.json:" >&2
+        echo "  - Bump agency_version (e.g., 39.1 → 40.1)" >&2
+        echo "  - Update updated_at timestamp" >&2
+        echo "" >&2
+        echo "The /release skill handles this automatically." >&2
+        exit 1
+    fi
+fi
+
+# Read current version for reporting
+CURRENT_VERSION=$(grep -o '"agency_version": "[^"]*"' "$MANIFEST" | cut -d'"' -f4)
+echo "✓ Version bumped: $CURRENT_VERSION"
+
+# ── Step 4: Create the PR ────────────────────────────────────────────────
+
+echo "Creating PR..."
+gh pr create "$@"

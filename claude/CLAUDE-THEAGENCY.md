@@ -36,7 +36,7 @@ This is **TheAgency framework development repo** — open core (MIT framework, R
 
 | Skill | Purpose |
 |-------|---------|
-| `/git-commit` | QG-aware commit wrapper (never raw `git commit`) |
+| `/git-safe-commit` | QG-aware commit wrapper (never raw `git commit`) |
 | `/quality-gate` | Parallel multi-agent review at commit boundaries |
 | `/iteration-complete` | Commit at iteration end (auto-approve) |
 | `/phase-complete` | Commit at phase end (principal approval required) |
@@ -72,13 +72,29 @@ Injected automatically when relevant skills run. Read directly when you need the
 | Contribution model (three rings of trust) | `claude/docs/CONTRIBUTION-MODEL.md` |
 | Concepts & onboarding | `claude/docs/CONCEPTS.md` |
 
+## Safe Tools
+
+Raw shell commands that can cause harm are **blocked by hookify**. Use the safe tool instead. Hookify tells you which tool to use when it blocks you.
+
+| Blocked command | Safe tool | Why |
+|----------------|-----------|-----|
+| `git push` | `./claude/tools/git-push` (via `/sync`) | All pushes go through PRs |
+| `cp` | `./claude/tools/cp-safe` | Blocks cross-worktree copies |
+| `gh pr create` | `./claude/tools/pr-create` (via `/release`) | Requires QGR + version bump |
+| `git *` | `git-safe`, `git-captain` (coming — DevEx building) | Will wrap all git operations |
+
+**Pattern:** Agents never call raw commands that cross boundaries (worktree, repo, remote). The safe tool validates the operation and blocks unsafe paths. Framework tools (worktree-sync, collaboration) can use raw commands internally — hookify fires on agent Bash calls, not subprocesses inside tools.
+
+**Available now:** `git-push`, `cp-safe`, `/git-safe-commit` (née `/git-commit`). **Coming soon:** `git-safe`, `git-captain` (DevEx implementing).
+
 ## Core Principles
 
 - **Fix what you find.** No workarounds, no "fix later," no severity-based skip.
 - **Merge, never rebase.** All branch sync uses merge. Hookify blocks rebase.
 - **Never push without permission.** `/sync` is the only push command.
 - **Plan before you build.** Use plan mode for non-trivial tasks.
-- **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-commit` — never raw `git commit`.
+- **Use safe tools.** Never raw `git`, `cp`, or `push`. Use `git-safe`, `cp-safe`, `git-push`. Hookify blocks the raw commands.
+- **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-safe-commit` — never raw `git commit`.
 
 ---
 
