@@ -38,7 +38,7 @@ dispatch status                  # summary statistics
 | `review` | Captain only | "Review and fix these findings" |
 | `seed` | Any agent | Input material for a workstream |
 | `review-response` | Reviewer (in reply to review) | "Here's what I found" |
-| `commit` | Automated (git-commit tool) | Iteration commit notification to captain |
+| `commit` | Automated (git-safe-commit tool) | Iteration commit notification to captain |
 | `master-updated` | Captain only | Master was updated, sync your worktree |
 | `escalation` | Any agent | Urgent — captain triages before all other work |
 | `dispatch` | Any agent | General communication |
@@ -77,7 +77,7 @@ Four states: **unread** → **read** (on `dispatch read`) → **resolved** (on `
 
 ### Dispatch-on-Commit (V2)
 
-When an agent commits via `/iteration-complete`, the `git-commit` tool auto-creates a commit dispatch to captain with structured YAML: `commit_hash`, `stage_hash`, `branch`, `phase`, `iteration`, `files_changed`. Captain verifies QGR receipt via stage-hash match, merges, and syncs worktrees.
+When an agent commits via `/iteration-complete`, the `git-safe-commit` tool auto-creates a commit dispatch to captain with structured YAML: `commit_hash`, `stage_hash`, `branch`, `phase`, `iteration`, `files_changed`. Captain verifies QGR receipt via stage-hash match, merges, and syncs worktrees.
 
 Dispatch-on-commit is fire-and-forget from the committing agent's perspective — if captain is not running, dispatches queue in the DB. No blocking.
 

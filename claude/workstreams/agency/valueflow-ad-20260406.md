@@ -221,12 +221,12 @@ Each capability declares its current ladder position in `claude/config/enforceme
 
 ```yaml
 capabilities:
-  git-commit:
+  git-safe-commit:
     level: 5  # block
-    tool: claude/tools/git-commit
-    skill: .claude/skills/git-commit/SKILL.md
+    tool: claude/tools/git-safe-commit
+    skill: .claude/skills/git-safe-commit/SKILL.md
     hookify-warn: claude/hookify/hookify.warn-whw-header.md
-    hookify-block: claude/hookify/hookify.block-git-commit.md
+    hookify-block: claude/hookify/hookify.block-git-safe-commit.md
     doc: claude/docs/VALUEFLOW.md#commit-workflow
   
   mar:
@@ -244,10 +244,10 @@ Each workstream can be at a different ladder level for each capability. Active w
 ```yaml
 workstreams:
   iscp:
-    git-commit: 5  # block — fully enforced
+    git-safe-commit: 5  # block — fully enforced
     mar: 2         # skill — working from docs
   devex:
-    git-commit: 3  # tool — tool exists, no hookify yet
+    git-safe-commit: 3  # tool — tool exists, no hookify yet
     mar: 1         # document only
 ```
 
@@ -263,7 +263,7 @@ Dispatch type creation is gated by agent role at enforcement ladder level 3 (too
 | review | captain only |
 | seed | any agent |
 | review-response | artifact author (in reply to review) |
-| commit | automated (git-commit tool) |
+| commit | automated (git-safe-commit tool) |
 | main-updated | captain only (sync-all) |
 | escalation | any agent |
 | dispatch | any agent (general communication) |
@@ -313,7 +313,7 @@ Dispatch-on-commit is **additive** to `/phase-complete`. Defense in depth — mu
 
 **Iteration commits (dispatch-on-commit) — coordination path:**
 1. Agent commits via `/iteration-complete`
-2. `git-commit` tool auto-dispatches to captain (commit type)
+2. `git-safe-commit` tool auto-dispatches to captain (commit type)
 3. Commit dispatch carries structured YAML: `commit_hash`, `stage_hash`, `branch`, `phase`, `iteration`, `files_changed`
 4. Captain verifies QGR receipt (stage-hash match from dispatch — no need to read worktree)
 5. Merge commit to main (fast-forward if clean, flag if conflict)
@@ -515,7 +515,7 @@ Decompose CLAUDE-THEAGENCY.md into focused documents, each `@`-importable:
 | `claude/docs/VALUEFLOW.md` | The flow, stages, transitions, three-bucket, enforcement ladder | All agents (via CLAUDE-THEAGENCY.md) |
 | `claude/docs/MAR.md` | MAR protocol, reviewer profiles, triage format | MAR skills, review skills |
 | `claude/docs/QUALITY-GATE.md` | QG protocol, tiers, stage-hash, QGR format | Already exists — update |
-| `claude/docs/GIT-DISCIPLINE.md` | Commit workflow, captain merge, PR lifecycle | git-commit skill, captain |
+| `claude/docs/GIT-DISCIPLINE.md` | Commit workflow, captain merge, PR lifecycle | git-safe-commit skill, captain |
 | `claude/docs/ISCP-PROTOCOL.md` | Dispatch, flag, addressing, hook integration | ISCP skills, all agents |
 | `claude/docs/ENFORCEMENT-LADDER.md` | The 5-stage ladder, registry, per-workstream levels | Enforcement skills, DevEx |
 | `claude/docs/CONTEXT-RESILIENCE.md` | Handoffs, PostCompact, stage-aware resume, transcripts | All agents |

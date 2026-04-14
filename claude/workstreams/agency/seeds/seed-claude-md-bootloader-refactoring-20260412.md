@@ -30,7 +30,7 @@ CLAUDE-THEAGENCY.md becomes:
 1. **What this repo is** (1 paragraph — framework dev repo, open core MIT + RSL for apps)
 2. **Where things live** (5 lines — `claude/`, `apps/`, `usr/`, `.claude/skills/`)
 3. **How you discover what to do** — skills via `/` autocomplete, hookify blocks you with guidance if you try something wrong, ref-injector provides docs on demand, handoff tool for session context
-4. **Key skills to know** — `/git-commit`, `/quality-gate`, `/discuss`, `/handoff`, `/dispatch` (list of 8-10 pointers)
+4. **Key skills to know** — `/git-safe-commit`, `/quality-gate`, `/discuss`, `/handoff`, `/dispatch` (list of 8-10 pointers)
 5. **Done.** Everything else is externalized.
 
 ## Extraction map — what moves where
@@ -46,12 +46,12 @@ CLAUDE-THEAGENCY.md becomes:
 | ISCP details | ~500 | Reference doc (already exists at `claude/workstreams/iscp/iscp-reference-20260405.md`) | ref-injector on dispatch/flag skills |
 | Session handoff | ~300 | `/handoff` skill + tool | ref-injector |
 | Feedback format | ~200 | `/feedback-draft` skill + `claude/docs/FEEDBACK-FORMAT.md` | ref-injector |
-| Git & remote discipline | ~400 | `/git-commit` skill + hookify rules (most already enforced) | hookify blocks violations; skill provides format on demand |
+| Git & remote discipline | ~400 | `/git-safe-commit` skill + hookify rules (most already enforced) | hookify blocks violations; skill provides format on demand |
 | Worktrees & master | ~400 | `/worktree-create`, `/worktree-sync` skills | ref-injector on worktree skills |
 | Enforcement Triangle/Ladder | ~200 | Reference doc or `/enforcement` skill | ref-injector when building new capabilities |
 | Bash tool usage rules | ~200 | **Already enforced by `block-raw-tools` hook** | hookify blocks violations — no CLAUDE.md prose needed |
-| Commit message format | ~200 | `/git-commit` skill | skill provides format at commit time |
-| Provenance headers | ~100 | `/git-commit` skill | checked at commit boundary |
+| Commit message format | ~200 | `/git-safe-commit` skill | skill provides format at commit time |
+| Provenance headers | ~100 | `/git-safe-commit` skill | checked at commit boundary |
 | Repo structure (detailed) | ~300 | Reference doc (injected for agents that need it) | ref-injector or agent class definitions |
 | Agent addressing (full model) | ~500 | Reference doc + address-resolution tools | ref-injector for dispatch/identity work |
 

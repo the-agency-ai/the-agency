@@ -28,7 +28,7 @@ version: 1
 # rollouts ("active workstreams at higher enforcement, dormant at lower").
 workstreams:
   devex:
-    # devex agents must use git-commit and follow the prefix conventions
+    # devex agents must use git-safe-commit and follow the prefix conventions
     commit-message-format: 3
     pre-commit-checks: 3
   iscp:
@@ -45,15 +45,15 @@ capabilities:
     description: "Structured commit messages with workstream/agent prefix"
     artifacts:
       doc: "claude/CLAUDE-THEAGENCY.md"
-      skill: ".claude/skills/git-commit/SKILL.md"
-      tool: "claude/tools/git-commit"
+      skill: ".claude/skills/git-safe-commit/SKILL.md"
+      tool: "claude/tools/git-safe-commit"
 
   pre-commit-checks:
     level: 3
     description: "Quality gate before every commit"
     artifacts:
       doc: "claude/CLAUDE-THEAGENCY.md"
-      skill: ".claude/skills/git-commit/SKILL.md"
+      skill: ".claude/skills/git-safe-commit/SKILL.md"
       tool: "claude/tools/commit-precheck"
 
   # ── Session management ──

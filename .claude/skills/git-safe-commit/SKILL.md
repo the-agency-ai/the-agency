@@ -9,7 +9,7 @@ description: Git Commit Message Generator — QG-aware wrapper
   see — see dispatch #171 for the devex incident that surfaced this trap.
 -->
 
-# Git Commit — QG-Aware Wrapper
+# Git Safe Commit — QG-Aware Wrapper
 
 The only way to run `git commit`. Never run raw `git commit` — always use this skill.
 
@@ -29,7 +29,7 @@ Before committing, verify that a Quality Gate has been run for the staged change
    >
    > Options:
    > - Run `/quality-gate` first to produce a QGR
-   > - Re-run `/git-commit --force` to commit without a QGR (use sparingly — handoff, config, docs only)
+   > - Re-run `/git-safe-commit --force` to commit without a QGR (use sparingly — handoff, config, docs only)
 5. **If `--force` was passed:** Note "Committing without QGR receipt (--force)" and proceed to Step 2.
 
 ## Step 2: Analyze changes

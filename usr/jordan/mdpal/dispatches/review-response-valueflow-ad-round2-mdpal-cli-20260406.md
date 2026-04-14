@@ -21,7 +21,7 @@ Reviewing as a tech-lead currently building mdpal using this methodology. Raw fi
 
 **Section 2 (Three-Bucket)** correctly places triage with the author, not the reviewer. The dispatch format for MAR results is clean. This matches the correction Jordan gave during the PVR MAR — reviewers give raw findings, author triages.
 
-**Section 4 (Enforcement Ladder)** — reordering to tool-before-warn is right. I experienced this: hookify warned about raw `git commit` before the `/git-commit` skill existed, which meant I got blocked with no alternative. Build the tool, then enforce it.
+**Section 4 (Enforcement Ladder)** — reordering to tool-before-warn is right. I experienced this: hookify warned about raw `git commit` before the `/git-safe-commit` skill existed, which meant I got blocked with no alternative. Build the tool, then enforce it.
 
 **Section 7 (Context Resilience)** — the multi-part handoff structure with selective re-injection is exactly what I need. The PostCompact hook is the right mechanism. I've survived multiple compactions with handoff files — formalizing this is good.
 

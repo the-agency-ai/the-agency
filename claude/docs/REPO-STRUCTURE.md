@@ -35,7 +35,7 @@ claude/                    — framework (tools, agents, docs, hooks, config)
     lib/                   — tool libraries (_log-helper, _path-resolve, etc.)
     handoff                — context bootstrap (read/write/archive)
     stage-hash             — deterministic staging area hash
-    git-commit             — QG-aware commit wrapper
+    git-safe-commit             — QG-aware commit wrapper
     settings-merge         — merge settings template into current settings
     agent-identity         — "who am I" identity resolution
     dispatch               — dispatch lifecycle (create/list/read/check/resolve/status)

@@ -33,7 +33,7 @@ Based on MAR review findings (dispatch #100):
 | Master plan | Adjustment | Rationale |
 |-------------|------------|-----------|
 | 2.1: Symlink merge | Reduced to verification step | Symlink commit (1e610fd) already on main. Zero divergence. MAR finding #1. |
-| 2.4: Dispatch-on-commit | Scoped to remaining work only | Structured YAML metadata implemented (41fb5cf). Remaining: git-commit tool wiring + phase/iteration fields. MAR finding #2. |
+| 2.4: Dispatch-on-commit | Scoped to remaining work only | Structured YAML metadata implemented (41fb5cf). Remaining: git-safe-commit tool wiring + phase/iteration fields. MAR finding #2. |
 | 2.5: DB schema versioning as part of metrics | Promoted to 2.0 (prerequisite) | Schema versioning is needed by 2.3 (flag category column) and 2.5 (any future columns). Must come first. MAR finding #6. |
 | 2.2: review-response authority | Corrected rule | Reviewers send responses (not authors). Check sender was in to_address of original review dispatch. MAR finding #4. |
 | 2.5: lead_time_hours | Defined as two metrics | lead_time = created→resolved. response_time = created→read. MAR finding #7. |
@@ -121,7 +121,7 @@ Based on MAR review findings (dispatch #100):
 | `escalation` | any agent | No check |
 | `dispatch` | any agent | No check |
 | `review-response` | recipient of the original review | `--reply-to` required; query DB for referenced dispatch's `to_agent`, compare to current sender |
-| `commit` | git-commit tool only | env var `ISCP_COMMIT_DISPATCH=1` (set by git-commit, not by agents directly) |
+| `commit` | git-safe-commit tool only | env var `ISCP_COMMIT_DISPATCH=1` (set by git-safe-commit, not by agents directly) |
 
 - `review-response` implementation: dispatch tool queries `SELECT from_agent, to_agent FROM dispatches WHERE id = <reply_to_id>`. Validates: (a) current sender is in `to_agent` of referenced dispatch (you received the review), AND (b) `--to` of the response is the `from_agent` of the referenced dispatch (response goes back to the reviewer's source). This second check catches misrouted responses (e.g., dispatch #105 case where mdpal-cli sent response to iscp instead of captain). If referenced dispatch doesn't exist in local DB → fail with "referenced dispatch not found" (cross-repo dispatch edge case: not supported in V2, fail loud)
 - Unauthorized create fails with actionable error: "Only captain can create [type] dispatches. You are [agent]."
@@ -182,19 +182,19 @@ Based on MAR review findings (dispatch #100):
 
 ### Iteration 2.4: Dispatch-on-Commit Wiring
 
-**What:** Wire the existing structured commit dispatch into the git-commit tool so every commit auto-notifies captain.
+**What:** Wire the existing structured commit dispatch into the git-safe-commit tool so every commit auto-notifies captain.
 
-**Why:** A&D §5 specifies dispatch-on-commit as the coordination path. The structured YAML metadata is already implemented (41fb5cf). What's missing: the git-commit tool doesn't call it automatically, and the phase/iteration fields aren't populated.
+**Why:** A&D §5 specifies dispatch-on-commit as the coordination path. The structured YAML metadata is already implemented (41fb5cf). What's missing: the git-safe-commit tool doesn't call it automatically, and the phase/iteration fields aren't populated.
 
 **Delivers:**
-- `git-commit` tool calls `dispatch create --type commit` after successful commit
+- `git-safe-commit` tool calls `dispatch create --type commit` after successful commit
 - Commit dispatch carries: `commit_hash`, `stage_hash`, `branch`, `phase`, `iteration`, `files_changed`, `work_item`
 - `phase` and `iteration` extracted from commit message slug (e.g., "Phase 1.3: feat: ..." → phase=1, iteration=3). Non-matching formats (merge commits, "housekeeping/captain: ...") → null fields, no error
 - Env var `ISCP_COMMIT_DISPATCH=1` set during the dispatch create call — serves dual purpose: (a) gates the dispatch (opt-out: unset to disable), (b) authorizes commit-type dispatch creation (from 2.2)
 - Suppress in test environments (`ISCP_DB_PATH` override present → skip dispatch)
 
 **Acceptance criteria:**
-- Commit via git-commit tool → commit dispatch appears in captain's dispatch list
+- Commit via git-safe-commit tool → commit dispatch appears in captain's dispatch list
 - Dispatch metadata includes all structured fields
 - Phase/iteration parsed correctly from commit message
 - Non-matching commit message format → phase/iteration are null, dispatch still created
@@ -202,16 +202,16 @@ Based on MAR review findings (dispatch #100):
 - `/iteration-complete` → commit → dispatch (end-to-end)
 
 **Dependencies:** 
-- **Co-ship with 2.2** (dispatch authority). Land together — if 2.2's commit authority check is live but git-commit isn't setting `ISCP_COMMIT_DISPATCH=1` yet, all manual commit dispatches break. No partial deployment.
-- Changes to `claude/tools/git-commit` (shared tool — coordinate with captain for merge)
+- **Co-ship with 2.2** (dispatch authority). Land together — if 2.2's commit authority check is live but git-safe-commit isn't setting `ISCP_COMMIT_DISPATCH=1` yet, all manual commit dispatches break. No partial deployment.
+- Changes to `claude/tools/git-safe-commit` (shared tool — coordinate with captain for merge)
 
 **Test cases (BATS):**
-- `dispatch-on-commit.bats`: mock git-commit, verify dispatch created with correct metadata
+- `dispatch-on-commit.bats`: mock git-safe-commit, verify dispatch created with correct metadata
 - Phase/iteration parsing: matching format, non-matching format, merge commit
 - Suppression in test environment
 - Env var unset → no dispatch
 
-**Estimated effort:** Small-moderate — touches git-commit tool (shared, needs careful testing).
+**Estimated effort:** Small-moderate — touches git-safe-commit tool (shared, needs careful testing).
 
 ---
 

@@ -30,7 +30,7 @@ in_reply_to: 122
 - **Critical gap:** Pre-commit hooks run BEFORE the message is finalized. The message isn't available to a pre-commit hook in the standard git flow.
 - Workaround options:
   - (a) Use `commit-msg` hook instead of `pre-commit` — fires after message is composed, before commit lands
-  - (b) Add the check inside `claude/tools/git-commit` (the wrapper) — has access to the `-m` arg before invoking git
+  - (b) Add the check inside `claude/tools/git-safe-commit` (the wrapper) — has access to the `-m` arg before invoking git
   - (c) Both — defense in depth
 
 ## Proposed Fix
@@ -94,9 +94,9 @@ EOF
 }
 ```
 
-### Part C: integrate into git-commit tool (Option B from analysis)
+### Part C: integrate into git-safe-commit tool (Option B from analysis)
 
-Add to `claude/tools/git-commit` after message is built and before `git commit` runs:
+Add to `claude/tools/git-safe-commit` after message is built and before `git commit` runs:
 
 ```bash
 source "$SCRIPT_DIR/lib/_commit-prefix"
@@ -106,7 +106,7 @@ if ! validate_commit_prefix "$FULL_MESSAGE"; then
 fi
 ```
 
-This is the primary enforcement path because /git-commit is the canonical commit tool.
+This is the primary enforcement path because /git-safe-commit is the canonical commit tool.
 
 ### Part D: defense in depth — commit-msg hook (Option A)
 
@@ -120,7 +120,7 @@ source ./claude/tools/lib/_commit-prefix
 validate_commit_prefix "$MESSAGE" || exit 1
 ```
 
-This catches raw `git commit` calls that bypass /git-commit. The block-git-commit hookify already strongly discourages raw git commit, but defense in depth.
+This catches raw `git commit` calls that bypass /git-safe-commit. The block-git-safe-commit hookify already strongly discourages raw git commit, but defense in depth.
 
 ### Part E: documentation
 
@@ -130,7 +130,7 @@ This catches raw `git commit` calls that bypass /git-commit. The block-git-commi
 
 ### Part F: tests
 
-Add to `tests/tools/git-commit.bats` (or create new `tests/tools/commit-prefix.bats`):
+Add to `tests/tools/git-safe-commit.bats` (or create new `tests/tools/commit-prefix.bats`):
 - Disabled (default): any prefix passes
 - Enabled + valid prefix: passes
 - Enabled + invalid prefix: blocks with helpful message
@@ -145,8 +145,8 @@ Add to `tests/tools/git-commit.bats` (or create new `tests/tools/commit-prefix.b
 
 1. Implement Parts A-F
 2. Set `commits.require_day_prefix: true` in agency.yaml
-3. Try a bad commit (`/git-commit "fix bug"`) — should block
-4. Try a good commit (`/git-commit "Day 32: fix bug"`) — should pass
+3. Try a bad commit (`/git-safe-commit "fix bug"`) — should block
+4. Try a good commit (`/git-safe-commit "Day 32: fix bug"`) — should pass
 5. Set the flag back to false; bad commit now passes
 6. Verify commit-msg hook catches raw `git commit` (defense in depth)
 7. Run all relevant BATS tests
@@ -159,7 +159,7 @@ Add to `tests/tools/git-commit.bats` (or create new `tests/tools/commit-prefix.b
 ## Estimated work
 - Part A (yaml schema): 2 min
 - Part B (lib): 20 min
-- Part C (git-commit integration): 10 min
+- Part C (git-safe-commit integration): 10 min
 - Part D (commit-msg hook): 15 min including agency-init template
 - Part E (docs): 10 min
 - Part F (tests): 30 min

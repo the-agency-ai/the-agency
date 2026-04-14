@@ -36,7 +36,7 @@
 #  11. other         — anything that doesn't match (flagged for review)
 #
 # Each group becomes a proposed commit. Groups with no files are omitted.
-# Coordination commits use /coord-commit (no QG). All others use /git-commit.
+# Coordination commits use /coord-commit (no QG). All others use /git-safe-commit.
 #
 # Written: 2026-04-08 — Day 33 R1 — bootstrap from agency-issue v1 pattern
 
@@ -90,12 +90,12 @@ What it does:
      - Modified files (staged + unstaged)
      - Untracked files (excluding gitignored)
   2. Groups files by heuristic glob patterns into logical commit categories
-  3. Proposes a commit ordering with suggested boundary type (/git-commit or /coord-commit)
+  3. Proposes a commit ordering with suggested boundary type (/git-safe-commit or /coord-commit)
   4. Flags scratch files (usr/*/tmp/*) for exclusion
   5. Writes a markdown plan to stdout or --output
 
 The plan is GENERATED, not applied. Captain reviews and executes the plan
-manually (or via /git-commit / /coord-commit). v2+ may add --apply.
+manually (or via /git-safe-commit / /coord-commit). v2+ may add --apply.
 
 Heuristic groups (in priority order):
   methodology, config, settings, hooks, tools, skills, tests,
@@ -394,7 +394,7 @@ group_commit_type() {
         coordination) echo "/coord-commit" ;;
         scratch)      echo "(do not commit)" ;;
         other)        echo "(review)" ;;
-        *)            echo "/git-commit" ;;
+        *)            echo "/git-safe-commit" ;;
     esac
 }
 
@@ -435,7 +435,7 @@ EOF
         files=$(group_files "$fg")
         [[ -z "$files" ]] && continue
         commit_n=$((commit_n + 1))
-        echo "### Commit $commit_n: Feature — \`$feat\` (tool + skill + tests) — /git-commit"
+        echo "### Commit $commit_n: Feature — \`$feat\` (tool + skill + tests) — /git-safe-commit"
         echo ""
         echo '```'
         printf '%s\n' "$files" | sed 's/^/  /' | grep -v '^  $' || true

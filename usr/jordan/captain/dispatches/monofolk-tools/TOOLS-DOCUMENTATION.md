@@ -132,7 +132,7 @@ Currently TypeScript (requires `tsx`/Node.js). For the-agency framework, conside
     → presents QGR
     → Step 10: runs `tsx tools/stage-hash.ts` to compute hash
     → writes QGR receipt to claude/usr/{principal}/{project}/qgr-{boundary}-{phase-iter}-{hash}-YYYYMMDD-HHMM.md
-  → invokes /git-commit (skill)
+  → invokes /git-safe-commit (skill)
     → runs `tsx tools/stage-hash.ts` to compute hash
     → globs for matching QGR receipt file
     → found → proceeds with commit

@@ -339,7 +339,7 @@ YAML_EOF
         [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
     done
     # Copy core tools
-    for tool in worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux tool-create secret-vault git-commit git-tag git-sync git-fetch handoff test-run commit-precheck code-review now stage-hash dispatch-create dispatch settings-merge sandbox-sync ghostty-claude-hook ghostty-config ghostty-integration ghostty-setup ghostty-debug-hook; do
+    for tool in worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux tool-create secret-vault git-safe-commit git-tag git-sync git-fetch handoff test-run commit-precheck code-review now stage-hash dispatch-create dispatch settings-merge sandbox-sync ghostty-claude-hook ghostty-config ghostty-integration ghostty-setup ghostty-debug-hook; do
         [[ -f "$AGENCY_SOURCE/claude/tools/$tool" ]] && cp "$AGENCY_SOURCE/claude/tools/$tool" "$TARGET_DIR/claude/tools/"
     done
     chmod +x "$TARGET_DIR/claude/tools/"* 2>/dev/null || true
@@ -461,7 +461,7 @@ Agency 2.0 initialized via agency init. Includes:
 - Hookify behavioral rules
 - Reference docs (quality gate, methodology, code review, feedback)
 - usr/$PRINCIPAL/ principal directory
-- Core tools (agency, git-commit, handoff, stage-hash, dispatch, and more)
+- Core tools (agency, git-safe-commit, handoff, stage-hash, dispatch, and more)
 - Bootstrap handoff at usr/$PRINCIPAL/captain/handoff.md
 
 Source: the-agency ${source_commit:0:8}

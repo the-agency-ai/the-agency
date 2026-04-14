@@ -2,54 +2,59 @@
 type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
-date: 2026-04-12
+date: 2026-04-14
 trigger: session-end
 ---
 
 ## Identity
 
-the-agency/jordan/devex — tech-lead on the devex workstream. I own test infrastructure, commit workflow, permission model, enforcement tooling, and context economics for TheAgency.
+the-agency/jordan/devex — tech-lead on the devex workstream.
 
 ## Current State
 
-**Day 35 session — massive output.** Bootloader refactoring + contribution model rollout. 4 commits on devex branch. Queue nearly clear.
+**Days 35-36 session.** Bootloader + contribution model shipped. Issue fixes done. git-safe PVR drafted. Waiting for captain to land devex on master.
 
 ## What Shipped This Session
 
-### Merge main
-- Resolved 9 merge conflicts (test files + releases.md) from captain Days 35-36 work
-- Committed 2664f89
+### Already committed on devex branch
+- **Bootloader refactoring** (f72d812) — 6600→690 words, 5 new ref docs, 11 ref-injector mappings, 19 hookify pointer updates
+- **MAR fixes + CI rework** (5c7f7e0) — 3 new workflows, ci-monitor tool, monitor-ci skill
+- **Contribution model** (434bc02) — skill-validation in precheck, docs, monofolk draft
+- **CODE_OF_CONDUCT.md** (5f08309) — Contributor Covenant v2.1
+- **Issue #74 + #50** (bccdb3d) — handoff clobber guard + dispatch filename uniqueness
+- **Merge main** (e2428bf) — resolved CLAUDE-THEAGENCY.md conflict (kept bootloader)
+- **git-safe PVR** (8546879) — draft PVR for git-safe + git-captain tools
 
-### CLAUDE-THEAGENCY.md bootloader refactoring (dispatch #201 Priority 1)
-- Slimmed monolith from ~6600 words to ~690 words (89% token reduction)
-- 5 new ref docs: AGENT-ADDRESSING.md, WORKTREE-DISCIPLINE.md, PROVENANCE-HEADERS.md, REPO-STRUCTURE.md, QUALITY-DISCIPLINE.md
-- Updated DEVELOPMENT-METHODOLOGY.md (9-step Valueflow, MAR/MARFI/MAP, three-bucket)
-- Ref-injector wired: 11 new case entries mapping 25+ skills to ref docs
-- 19 hookify rules updated: section anchors → new ref doc paths
-- MAR coverage audit: 73/73 concepts verified reachable
-- Committed f72d812
+### Workshop repo (separate repo, pushed)
+- https://github.com/the-agency-ai/the-agency-workshop — bootstrap.sh, workshop-start.sh, vercel-setup.sh, CLAUDE.md, pre-flight checklist
 
-### MAR fixes (dispatch #203) + CI rework + ci-monitor
-- QUALITY-GATE.md, CODE-REVIEW-LIFECYCLE.md, ref-injector fixes
-- 3 new CI workflows (smoke-ubuntu, fork-pr-full-qg, sister-project-pr-gate)
-- ci-monitor tool + monitor-ci skill
-- Committed 5c7f7e0
+## Lessons Learned (HARD)
+- **Never squash commits** — `git reset --soft` destroyed 35 commits. Recovered via reflog.
+- **Never use raw git** — use tools/skills. git-safe seed (#238/#239/#240) will enforce this mechanically.
+- **Don't echo monitor events** — dispatch monitor notifications are for silent processing, not stdout.
 
-### Contribution model rollout
-- Skill-validation moved into commit-precheck (root cause fix for broken-window CI)
-- Email notification disable guide + branch protection setup guide
-- Monofolk Ring 2 transition dispatch drafted (#209)
-- Committed 434bc02
+## Queue
 
-## Remaining Items
+### Immediate: git-safe + git-captain (dispatches #238/#239/#240)
+- PVR written: `claude/workstreams/devex/git-safe-pvr-20260414.md`
+- **3 open questions** pending principal input:
+  1. git stash — include in git-safe or leave internal to worktree-sync?
+  2. git add -A — block or warn?
+  3. git-safe subsume /git-safe-commit? (my rec: NO)
+- Next: A&D → Plan → Implement after questions answered
 
-1. **CODE_OF_CONDUCT.md** — content filter blocks creation. Full text fetched from contributor-covenant.org. Jordan to create manually or retry.
-2. **Dispatch #200** (SPEC:PROVIDER NestJS/React) — queued, lower priority
-3. **Task #16** (test isolation SPEC:PROVIDER) — paused pending monofolk/devex RFI #176
-4. **2 monofolk collab dispatches** — captain-only (SPEC-PROVIDER status + This Happened)
+### Waiting on captain
+- Land devex on master (dispatch #237) — 36 commits ahead of main
+- Send monofolk Ring 2 transition (dispatch #209)
+- Close issue #58 on GitHub
+
+### Lower priority
+- Dispatch #200 (SPEC:PROVIDER NestJS/React)
+- Task #16 (test isolation SPEC:PROVIDER) — paused on monofolk RFI #176
 
 ## Next Action
 
-1. Create CODE_OF_CONDUCT.md (Jordan or retry)
-2. Commit remaining + dispatch to captain for final PR build
-3. Await new assignments
+1. Cycle session (bootloader rollout per dispatch #242)
+2. /session-resume in fresh session
+3. Get answers to 3 PVR questions
+4. A&D → Plan → Implement for git-safe + git-captain

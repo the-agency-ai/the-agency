@@ -21,7 +21,7 @@ Captain MAR review of your bootloader refactoring (dispatch #202).
 These docs existed BEFORE your refactoring but content was removed from CLAUDE-THEAGENCY.md that points at them. Verify each contains what was removed:
 - **HANDOFF-SPEC.md** — must contain: handoff file locations, $CLAUDE_PROJECT_DIR prohibition, when-to-write list, always-use-the-tool mandate
 - **ISCP-PROTOCOL.md** — must contain: Monitor tool dispatch-monitoring pattern, /loop fallback, collaboration tool usage + YAML config example
-- **QUALITY-GATE.md** — must contain: 5 hard rules (zero failing rows, red-green cycle, never skip agents, fix every finding, always use /git-commit), QGR receipt path spec, boundary skills table
+- **QUALITY-GATE.md** — must contain: 5 hard rules (zero failing rows, red-green cycle, never skip agents, fix every finding, always use /git-safe-commit), QGR receipt path spec, boundary skills table
 - **CODE-REVIEW-LIFECYCLE.md** — must contain: 3-tool comparison table, dispatch-handling protocol
 If any gaps: update the doc. Do NOT put content back in the bootloader.
 
@@ -29,7 +29,7 @@ If any gaps: update the doc. Do NOT put content back in the bootloader.
 The role-based permissions table and full universal rules list were dropped from the bootloader. They must live somewhere reachable. Either:
 - Update GIT-MERGE-NOT-REBASE.md to include the full Git & Remote Discipline section
 - Or create a new GIT-DISCIPLINE.md
-Wire it into the ref-injector for git-commit, sync, ship, pr-prep skills.
+Wire it into the ref-injector for git-safe-commit, sync, ship, pr-prep skills.
 
 ### 3. Fix hookify rule name
 WORKTREE-DISCIPLINE.md line 37 says cd-to-main-block but the actual hookify rule is block-cd-to-main. Fix the reference.

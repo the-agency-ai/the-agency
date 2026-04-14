@@ -23,7 +23,7 @@ Before committing, verify that a Quality Gate has been run for the staged change
    >
    > Options:
    > - Run `/quality-gate` first to produce a QGR
-   > - Re-run `/git-commit --force` to commit without a QGR (use sparingly — handoff, config, docs only)
+   > - Re-run `/git-safe-commit --force` to commit without a QGR (use sparingly — handoff, config, docs only)
 5. **If `--force` was passed:** Note "Committing without QGR receipt (--force)" and proceed to Step 2.
 
 ## Step 2: Analyze changes
