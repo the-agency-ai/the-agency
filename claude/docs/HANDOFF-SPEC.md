@@ -67,6 +67,20 @@ On your next startup, do these in order:
 5. Resume from [your specific next action]
 ```
 
+## When to Write
+
+Handoffs are manual — agents must call the tool explicitly. Write a handoff at:
+
+- **Boundary commands:** `/iteration-complete`, `/phase-complete`, `/plan-complete`, `/pre-phase-review`
+- **Before exit/restart:** Always write before ending a session or restarting
+- **After `/sync-all`:** Lightweight handoff noting what synced
+- **At discussion milestones:** PVR draft, key A&D decision, plan revision
+- **Before context-heavy work:** Insurance against compaction or crash
+
+Always invoke the `/handoff` skill or run `./claude/tools/handoff write` — never write the file directly. The tool archives the previous handoff to `history/` with a timestamp.
+
+**Note:** Never use `$CLAUDE_PROJECT_DIR` in Bash tool calls — the variable is only set inside hooks, not in agent shell sessions. Use `./claude/tools/` (relative paths) instead.
+
 ## Rules
 
 1. **Be specific, not general.** "Working on tests" is useless. "Implementing convention-based test scoping in claude/tools/commit-precheck, T1 tier with 60s budget" is useful.

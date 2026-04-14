@@ -1,0 +1,108 @@
+#!/bin/bash
+#
+# deploy — Top-level wrapper for SPEC-PROVIDER deploy management
+#
+# What Problem: The /deploy skill (.claude/skills/deploy/SKILL.md) dispatches
+# to ./claude/tools/deploy-{provider} based on agency.yaml's deploy.provider
+# config — but only inside Claude Code sessions. Shell scripts, CI pipelines,
+# and dev tools that want to deploy/rollback/inspect can't invoke a skill.
+# Without a top-level wrapper, the SPEC-PROVIDER pattern is incomplete: the
+# skill (discovery layer) exists, providers (implementation layer) will exist,
+# but there's no tool (mechanical layer) for non-agent contexts.
+#
+# How & Why: Thin pass-through dispatcher modeled exactly on claude/tools/secret
+# (Day 32 R3, the reference SPEC-PROVIDER wrapper). Reads `deploy.provider`
+# from claude/config/agency.yaml, defaults to `fly` (matches the framework
+# default in agency.yaml), then execs the corresponding provider tool
+# (`./claude/tools/deploy-{provider}`) with all args forwarded. Using `exec`
+# instead of subshell so signals (Ctrl+C, etc.) propagate correctly and the
+# wrapper has zero process overhead.
+#
+# Provider resolution: simple awk parse of agency.yaml. No yaml library
+# dependency — keeps the wrapper portable to any environment with bash + awk.
+#
+# This completes the SPEC-PROVIDER triangle for the deploy capability:
+#   - Skill:    .claude/skills/deploy/SKILL.md       (agent invocation, /deploy)
+#   - Tool:     claude/tools/deploy                  (this file — CLI wrapper)
+#   - Provider: claude/tools/deploy-{provider}       (fly, vercel, aws, etc.)
+#
+# The skill defines the verb contract: deploy, status, rollback, logs (with
+# optional --env <name>). Provider tools must implement those verbs.
+#
+# Note: provider tools (deploy-fly, deploy-vercel, etc.) are not yet built.
+# The wrapper will fail with an actionable error when invoked until a provider
+# tool exists. That's the correct behavior — the wrapper IS the deliverable
+# for this iteration; provider implementations come later.
+#
+# Written: 2026-04-07 — Day 33 — Item 1 from captain's Day 33 work queue (#149)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# --- PATH resolution (for non-login shells) ---
+[ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
+
+# --- Resolve project root ---
+# CLAUDE_PROJECT_DIR is set inside Claude Code hooks but NOT in agent Bash
+# tool calls. Fall back to git rev-parse for worktree detection, then
+# SCRIPT_DIR-based fallback for non-git contexts.
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+elif PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+# --- Resolve provider from agency.yaml ---
+# Looks for: deploy.provider: "name" — handles quoted and unquoted forms.
+# Default: fly (matches framework default).
+AGENCY_YAML="$PROJECT_ROOT/claude/config/agency.yaml"
+PROVIDER="fly"
+
+if [[ -f "$AGENCY_YAML" ]]; then
+    _resolved=$(awk '
+        /^deploy:/ { in_deploy=1; next }
+        in_deploy && /^[^ \t#]/ { in_deploy=0 }
+        in_deploy && /^  provider:/ {
+            gsub(/^  provider: *"?/, "")
+            gsub(/"? *(#.*)?$/, "")
+            print
+            exit
+        }
+    ' "$AGENCY_YAML" 2>/dev/null || echo "")
+    [[ -n "$_resolved" ]] && PROVIDER="$_resolved"
+fi
+
+# --- Validate provider name (security: prevent path traversal + injection) ---
+# Provider names are slugs: lowercase alphanumeric + hyphen + underscore.
+# Reject anything else to prevent attacks like provider: "../../tmp/evil"
+# or provider: "foo;rm" via a malicious agency.yaml.
+if ! [[ "$PROVIDER" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+    echo "Error: Invalid provider name '$PROVIDER'" >&2
+    echo "Provider names must match: ^[a-z0-9][a-z0-9_-]*\$" >&2
+    echo "Configure in: $AGENCY_YAML (deploy.provider: <name>)" >&2
+    exit 1
+fi
+
+# --- Dispatch to provider tool ---
+PROVIDER_TOOL="$SCRIPT_DIR/deploy-$PROVIDER"
+
+if [[ ! -x "$PROVIDER_TOOL" ]]; then
+    echo "Error: deploy provider '$PROVIDER' not available at $PROVIDER_TOOL" >&2
+    echo "" >&2
+    echo "Available providers:" >&2
+    _found=0
+    for tool in "$SCRIPT_DIR"/deploy-*; do
+        [[ -x "$tool" ]] || continue
+        echo "  - $(basename "$tool" | sed 's/deploy-//')" >&2
+        _found=1
+    done
+    [[ "$_found" == "0" ]] && echo "  (none — provider tools not built yet)" >&2
+    echo "" >&2
+    echo "Configure in: $AGENCY_YAML (deploy.provider: <name>)" >&2
+    exit 1
+fi
+
+exec "$PROVIDER_TOOL" "$@"

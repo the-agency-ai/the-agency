@@ -34,35 +34,34 @@ That's what became **The Agency** and **Valueflow.**
 
 # Who Am I
 
-**Jordan Dea-Mattson**
+**Jordan Dea-Mattson** · Almost 4 decades in tech
 
-CPTO (Chief Product Technical Officer) · Head of Product and Technology
+**Apple** (13 years, 1986–1999)
+PM for the 68K Dev Environment (MacsBug, MDS, MPW) · Spoke at 10 WWDCs · Was there the night Steve Jobs came back
 
-**OrdinaryFolk** · Healthtech · Singapore
+**Silicon Valley**
+Adobe · Yahoo · Startups (Ooyala, Numenta)
 
-- 4 decades: Apple, Adobe, Indeed, Yahoo, startups
-- PM for the Apple 68K Development Environment (MacsBug, MDS, MPW)
-- MacHack: "It's all Jordan's fault"
-- Advisor: Singapore Polytechnic, Open Government Products
-- **12 AI agents** working with me in parallel
-- **2 agencies** simultaneously — The Agency + OrdinaryFolk/monofolk
+**Singapore**
+Indeed · Trade Gecko · Carousell · OrdinaryFolk (CPTO)
+
+**Smart Nation Fellow**
+
+**Advisor:** Open Government Products · StaffAny · *See LinkedIn*
+
+My Singaporean hero? Not LKY. **Philip Yeo.**
+
+![Philip Yeo — Break rules to build new economies](sg-hero.jpg)
+
+My agentic journey: **12 agents, 2 Agencies, every day.**
 
 ---
 
 # My Two Hats
 
-<div style="display: flex; gap: 80px; justify-content: center; margin-top: 40px;">
-<div style="flex: 1; text-align: center;">
-<h3>Hat 1 — The Creator</h3>
-<p><strong>The Agency + Valueflow</strong></p>
-<p><em>Building the methodology and platform</em></p>
-</div>
-<div style="flex: 1; text-align: center;">
-<h3>Hat 2 — The Practitioner</h3>
-<p><strong>CPTO, OrdinaryFolk</strong></p>
-<p><em>Applying it daily with 12 agents</em></p>
-</div>
-</div>
+**Hat 1 — The Creator** · The Agency + Valueflow · *Building the methodology*
+
+**Hat 2 — The Practitioner** · CPTO, OrdinaryFolk · *Applying it daily with 12 agents*
 
 ![The OODA loop between my two hats](ooda-two-hats.svg)
 
@@ -86,7 +85,7 @@ CPTO (Chief Product Technical Officer) · Head of Product and Technology
 
 # This is NOT Vibe Coding.
 
-<!-- TODO: Insert Vibe Coding book cover image here -->
+![Vibe Coding by Gene Kim and Steve Yegge](book-cover-2.jpg)
 
 ---
 
@@ -94,7 +93,9 @@ CPTO (Chief Product Technical Officer) · Head of Product and Technology
 
 ---
 
-# We are builders.
+# We are now all builders.
+
+Execution comes from agents. We are the builders.
 
 ---
 
@@ -134,15 +135,99 @@ We are in the **software development singularity** right now.
 
 AI is automating #1. The other four are what Valueflow amplifies.
 
-<div style="position: absolute; bottom: 60px; left: 24px; font-size: 14px; color: #888;">Li, Ko, Begel. "What Distinguishes Great Software Engineers?" <em>Empirical Software Engineering</em>, Springer, 2019.</div>
+*Li, Ko, Begel. "What Distinguishes Great Software Engineers?" Empirical Software Engineering, Springer, 2019.*
+
+**Question for you:** Which of these five do you teach? Which do you wish you taught more?
+
+---
+
+# A Confession
+
+I'm a **mediocre coder.**
+
+I'd probably fail half the LeetCode problems you throw at me.
+
+But I've been at Apple, Adobe, Indeed, Yahoo — and been successful at every one.
+
+---
+
+# So What Am I Good At?
+
+- Understanding problems and how to break them down
+- Seeing how to solve them — not just in code, but structurally
+- Building teams and directing them to deliver
+- Learning continuously — new domains, new tools, new paradigms
+
+- Delegation
+- Focusing a team on a desired end-state
+
+---
+
+# Sound Familiar?
+
+Those are skills **#2 through #5** from the research.
+
+The ones that actually matter. The ones AI doesn't replace.
+
+**I'm top-notch at 4 of the 5.**
+
+And the one I'm mediocre at? AI does it better than me anyway.
+
+---
+
+# What Does a Principal Do All Day?
+
+- **Identify the problem** — scan, notice, catch what others miss
+- **Frame it** — give your agents context, goals, constraints
+- **Evaluate the output** — is this right? Is this good enough?
+- **Decide what's next** — iterate, pivot, ship, or scrap
+
+Every day. Every hour. This loop, over and over.
+
+*A **Principal** is the human in a human-agent collaboration.*
+
+---
+
+# You Might Recognize This Pattern
+
+It's **OODA.**
+
+**Observe** → **Orient** → **Decide** → **Act**
+
+Colonel John Boyd, USAF fighter pilot, 1950s.
+
+"The pilot who cycles through OODA fastest wins the dogfight."
+
+![Boyd: The Fighter Pilot Who Changed the Art of War](boyd-book.jpg)
+
+---
+
+# The OODA Loop
+
+![The OODA Loop](ooda-loop.svg)
+
+---
+
+# Our Role Is OOD
+
+| | Who |
+|---|---|
+| **Observe** | The Principal |
+| **Orient** | The Principal |
+| **Decide** | The Principal |
+| **Act** | **The agents** — through Delegation |
+
+We — the humans, the Principals — act through agents via delegation.
+
+OODA Loop execution is gated by how fast we run O-O-D.
+
+**We run OOD. Agents execute A.**
 
 ---
 
 # Fast · Good · Cheap
 
-<!-- TODO: SVG triangle graphic -->
-
-The classic conundrum: pick two.
+![Fast Good Cheap Triangle](fast-good-cheap.svg)
 
 **With discipline and AI augmented development, you can have all three.**
 
@@ -150,9 +235,55 @@ That's the revolution.
 
 ---
 
-# The Christmas Project
+# Traditionally: Fast + Cheap
 
-**The challenge:** Job interview → build a full telemedicine application
+People chose Fast and Cheap. They skipped the Good practices.
+
+Test-first · Red-green · Refactoring · Clean code · Code review · Continuous integration · Pair programming · TDD · BDD · Design patterns · SOLID principles · Martin Fowler · Kent Beck · Uncle Bob
+
+All proven. All produce great software.
+
+Many considered **too expensive to scale.**
+
+---
+
+# With AI: All Three
+
+AI gives you **effectively infinitely scalable** execution resources.
+
+Now you CAN do test-first. Now you CAN refactor. Now you CAN review every change — with agents.
+
+The good practices aren't expensive anymore.
+
+**They're free.**
+
+You can have all three.
+
+It's just getting the agents to do it.
+
+---
+
+# Our Quality Philosophy
+
+We fix things.
+
+We don't work around them.
+
+- No `--no-verify`. No `eslint-disable`. No "fix later."
+
+Silent failures compound.
+
+Workarounds become permanent.
+
+If a rule matters, it's enforced by a hook — not by prose in a document.
+
+Quality is **mechanical**, not aspirational.
+
+---
+
+# How I Spent My Christmas Vacation
+
+**The challenge:** I wanted to prove to myself I could do it
 
 **The timeline:** Christmas Eve to New Year's Day
 
@@ -165,6 +296,12 @@ That's the revolution.
 I didn't know telemedicine. I understood the **problem** and how to break it down.
 
 That system is now being pulled from for design and implementation at OrdinaryFolk.
+
+---
+
+# My Home Network
+
+*A personal anecdote.*
 
 ---
 
@@ -199,7 +336,9 @@ The skill that matters: **understanding a problem and how to break it down.**
 - December 2020: they left. 14 researchers followed.
 - Founded Anthropic, 2021
 
-**"It is incredibly unproductive to try and argue with someone else's vision."**
+They valued safety.
+
+They went to build safety.
 
 ---
 
@@ -219,74 +358,211 @@ That's why Claude is the right foundation for serious agent work.
 
 # The 4 Ds of AI Fluency
 
-*Anthropic's framework — we gratefully acknowledge their contribution*
+*From Anthropic's AI Fluency research and the Anthropic Academy course*
 
-- **Delegation**
-  - Knowing what to hand off and what to keep
-- **Description**
-  - Clearly communicating context, goals, constraints
-  - "AI can only build what you can describe"
-- **Discernment**
-  - Evaluating AI output — trust but verify
-- **Diligence**
-  - You're responsible for what ships
-  - "AI ate my homework" is not a valid excuse
+### Delegation
+- Knowing what to hand off and what to keep
+- The art of scoping work for an autonomous actor
+
+### Description
+- Clearly communicating context, goals, constraints
+- "AI can only build what you can describe"
+
+### Discernment
+- Evaluating AI output — trust but verify
+- Knowing when something is right and when to push back
+
+### Diligence
+- You're responsible for what ships
+- "AI ate my homework" is not a valid excuse
+
+*Cross-reference: "The 4 Ds of Using AI" — Anthropic (2025). Available at the Anthropic Academy.*
+
+**Question for you:** Which D do your students struggle with most?
+
+---
+
+# What Is a Principal?
+
+**It's the OOD in OODA.**
+
+The human in a human-agent collaboration.
+
+- Sets direction and goals
+- Provides context and constraints
+- Evaluates output — trust but verify
+- Makes the decisions that matter
+
+**In AI Augmented Development, you are the Principal.**
+
+---
+
+# What Is an Agent?
+
+A software entity that can:
+
+- **Perceive** its environment (read files, see errors, receive instructions)
+- **Reason** about what to do (plan, evaluate, decide)
+- **Act** autonomously (write code, run commands, create artifacts)
+- **Persist** across interactions (memory, handoffs, identity)
+
+Not a chatbot. Not autocomplete. An **autonomous actor** with agency.
+
+**It's the A in OODA.**
 
 ---
 
 # What Is an Agentic Harness?
 
-A platform for defining and running AI agents:
+The platform that makes agents possible:
 
-- Context management
-- Tool execution
-- Lifecycle hooks
-- Session persistence
-- Multi-agent coordination
-
-**Claude Code is an agentic harness tuned for coding.**
-
-Boris Cherny built it on a generalized foundation, then focused it on the coding use case. That's why it's extensible — the general harness is underneath.
+- Context management (what the agent knows)
+- Tool execution (what the agent can do)
+- Lifecycle hooks (when things happen automatically)
+- Session persistence (memory across restarts)
+- Multi-agent coordination (agents working together)
 
 ---
 
-# `claude`
+# HX and AX
 
-What happens when you type it:
+- **HX** — Human Experience (the Principal's experience)
+- **AX** — Agentic Experience (the agent's experience)
 
-- Starts a session
-- Reads your CLAUDE.md (standing instructions)
-- Reads your settings (permissions, hooks, tools)
-- Ready — you talk, it acts
+Most tools today: great HX, **horrible AX.**
+
+The agent gets no identity, no memory between sessions, no coordination with other agents, constant permission prompts.
+
+The Agency treats both equally. **That's what makes multi-agent work possible.**
+
+---
+
+# What Is Claude Code?
+
+An agentic harness **tuned for building software.**
+
+Boris Cherny at Anthropic needed to build a coding agent. He built it on a generalized agentic foundation, then focused it on the software development use case.
+
+That's why it's extensible — hooks, MCP servers, skills, tools. The coding focus is a layer on a general harness.
+
+---
+
+# Claude Code Concepts
+
+---
+
+# Agents and Subagents
+
+**Agents** — isolated AI workers with their own context window, system prompt, and tools.
+
+Launch with `claude --agent captain` or `claude --agent devex`. Each agent has identity, memory, and handoffs.
+
+**Subagents** — spawned by the Agent tool for parallel work.
+
+An agent can spin up 4 subagents to review code simultaneously. Each runs in isolation — the parent only sees the summary.
+
+**This is how we scale.** One Principal, many agents, each agent spawning subagents.
+
+---
+
+# Commands, Skills, and Tools
+
+**Tools** — built-in capabilities: Bash · Read · Write · Edit · Grep · Glob · Agent · WebFetch · WebSearch
+
+**Skills** — `/` discoverable recipes for common tasks:
+
+`/define` · `/design` · `/discuss` · `/quality-gate` · `/handoff` · `/commit`
+
+Skills wrap tools into workflows. You type `/`, you see what's available, you pick one.
+
+**Commands** — how you invoke skills. Three kinds: built-in (`/help`, `/compact`), skill-based (your Markdown files), and MCP prompts.
+
+**MCP Servers** — extend capabilities beyond the built-in tools (browser, databases, APIs, Figma).
+
+---
+
+# Events and Hooks
+
+**Events** — lifecycle moments in a Claude Code session:
+
+`SessionStart` · `Stop` · `PreToolUse` · `PostToolUse` · `Notification`
+
+**Hooks** — automation that fires at those events:
+
+- On `SessionStart` → read your handoff, check for dispatches, sync with master
+- On `PreToolUse` → enforce rules before the agent acts
+- On `Stop` → warn about uncommitted work
+
+---
+
+# What Are Tokens?
+
+The **atoms** of AI communication.
+
+Every word, every symbol, every piece of code is broken into tokens. A token is roughly 3/4 of a word.
+
+- "Hello, world!" ≈ 4 tokens
+- A typical email ≈ 200 tokens
+- A full source file ≈ 1,000-3,000 tokens
+
+Everything in AI is measured in tokens: what you send, what you receive, what the AI remembers.
 
 ---
 
 # Context Window
 
-The fundamental constraint.
+The AI's **working memory** — measured in tokens.
 
-- Your "working memory" — everything in the conversation
-- **Token economics:** context tokens cost money AND quality
-- "If I asked you to read a 50MB log dump, you'd lose every tree in the forest."
-- **Managing context is THE critical skill**
+Everything in the conversation lives here: your instructions, the AI's responses, file contents, tool output, CLAUDE.md.
+
+When it fills up → the AI forgets. That's **compaction.**
+
+"If I asked you to read a 50MB log dump, you'd lose every tree in the forest — and every token in that dump costs money."
 
 ---
 
 # Token Economics
 
-The Agency is **parsimonious** with tokens.
+Two kinds of tokens. Both cost money.
 
-People complain about running out → they're burning tokens on:
+**Usage tokens** — what you spend each month (your bill)
 
+**Context tokens** — what the AI can hold in working memory (quality)
+
+Burn either one carelessly and you hit limits:
 - Streaming command output nobody reads
-- Reading entire files when they need one line
-- Loading every doc into context "just in case"
+- Reading entire files when you need one line
+- Loading every doc "just in case"
 
 **Discipline = more productive sessions, lower cost, better output.**
 
+The Agency is **parsimonious** with tokens. That's a competitive advantage.
+
 ---
 
-# CLAUDE.md
+# Context Is Everything
+
+Context is how we **focus** the agent.
+
+The right context → the right output. The wrong context → hallucination, drift, wasted tokens.
+
+Everything you've learned about managing people applies: clear goals, clear constraints, clear success criteria. Same skills. Different medium.
+
+*"Attention Is All You Need." — Vaswani et al., 2017. The paper that started it all. Transformers work by attending to context. So does everything else in AI.*
+
+---
+
+# How to Get Claude to Do Things
+
+Three layers. Each builds on the last.
+
+**Direction** → **Discovery** → **Compliance**
+
+---
+
+# Direction
+
+## CLAUDE.md
 
 Standing instructions. Project memory. The working agreement.
 
@@ -294,40 +570,55 @@ Standing instructions. Project memory. The working agreement.
 - `./CLAUDE.md` — project root (project rules)
 - `./src/CLAUDE.md` — subdirectory (scoped context)
 
-Every lesson learned becomes a standing instruction.
+Every lesson learned becomes a standing instruction. **This is where discipline lives.**
 
-**This is where discipline lives.**
-
----
-
-# The Elements of Claude Code
-
-- **Tools** — Bash, Read, Write, Edit, Grep, Glob, Agent
-- **Plan Mode** — think before you act (local)
-- **Ultraplan** — cloud planning with Opus 4.6
-- **Hooks** — automation at lifecycle events (SessionStart, Stop, PreToolUse)
-- **Skills** — `/` discoverable actions
-- **MCP Servers** — extend capabilities (browser, databases, APIs, Figma)
-- **Compact** — surviving context overflow
-- **Handoffs** — session continuity across restarts
-
-<!-- TODO: Reorder and refine this list — needs attention -->
+You **tell** the agent what to do. But telling isn't enough.
 
 ---
 
-# Jamon Holmgren's 8 Practices
+# Discovery
 
-- ✅ Excellent test suite
-- ✅ Excellent docs
-- ✅ Curated codebase
-- ✅ Review agents
-- ✅ Well-written specs
-- ~~Review every line of every change~~
-  - **We use Quality Gates + Multi-Agent Review**
-- ✅ **Run agents at night** ← the discipline test
-- ✅ Hand-write features sometimes
+## Skills and Tools
 
-"If your system can't run autonomously while you sleep, your docs, tests, and specs aren't good enough yet."
+Make the right thing **easy to do.**
+
+**Skills** wrap tools into discoverable workflows. Type `/`, pick one:
+
+`/define` · `/design` · `/discuss` · `/quality-gate` · `/handoff` · `/commit`
+
+**Tools** do the work with built-in logging and telemetry. 60+ in The Agency.
+
+The agent **finds** the right approach. But finding isn't enough either.
+
+---
+
+# Compliance
+
+## Hooks and Hookify
+
+Make the wrong thing **impossible to do.**
+
+**Hookify rules** block dangerous patterns and point to the right skill:
+
+- `block-git-commit` → forces `/git-commit` (QG-aware)
+- `block-raw-rebase` → merge only, never rebase
+- `warn-on-push` → explicit approval required
+
+36 rules shipped. **Mechanical enforcement, not prose.**
+
+---
+
+# The Enforcement Triangle
+
+![The Enforcement Triangle](enforcement-triangle.svg)
+
+"If it's not enforced by code, it's a suggestion."
+
+---
+
+# Lifecycle of a Claude Code Session
+
+![Session Lifecycle](session-lifecycle.svg)
 
 ---
 
@@ -343,19 +634,191 @@ All existing SDLCs were designed for a **non-agentic world.**
 
 Nobody has reimagined the development lifecycle for human-agent collaboration.
 
-<!-- Reference: AWS AI-DLC, Arthur.ai ADLC, EPAM — exist but focused on single-agent or building-agents-not-with-agents -->
+---
+
+# A Lot Has Been Written About Shipping Faster
+
+![Accelerate](boyd-book-cover.jpg) ![DevOps Handbook](book-cover-1.jpg) ![Phoenix Project](book-cover-3.jpg) ![Unicorn Project](book-cover-4.jpg)
+
+All brilliant. All about **code commit → customer hands.**
+
+---
+
+# The Research That Exists
+
+**Nicole Forsgren** + DORA (2014–2025, 39,000+ professionals)
+
+Proved: software delivery performance is **measurable** and predicts organizational outcomes.
+
+**Four Key Metrics:** deployment frequency, lead time, change failure rate, MTTR
+
+But these measure **code commit → production.**
+
+---
+
+# The Gap Nobody Filled
+
+**Upstream** (idea → code): ideation, research, requirements, design, planning — **unmeasured**
+
+**Downstream** (production → value): adoption, feedback, value realization — **unmeasured**
+
+**Agentic**: multi-agent coordination, human-agent workflows, agent quality gates — **not addressed**
+
+Forsgren measured half the problem. **Valueflow measures all of it.**
+
+*Forsgren, Humble, Kim. "Accelerate." IT Revolution, 2018.*
 
 ---
 
 # Valueflow — The AI ADLC
 
-<!-- TODO: Replace with SVG pipeline diagram -->
-
-**Idea** → **Seed** → **Research** → **Define** → **Design** → **Plan** → **Implement** → **Ship** → **Value**
+![Valueflow Pipeline](valueflow-pipeline.svg)
 
 The first methodology for **structured human-agent collaborative development.**
 
-From The Agency Group AI.
+Valueflow is the process.
+
+The Agency is the tooling that enables it.
+
+---
+
+# The Agency — Processes
+
+**Valueflow** — the lifecycle: Idea → Seed → Research → Define → Design → Plan → Implement → Ship → Value
+
+**Quality Gate (QG)** — 8-stage review protocol at every commit boundary
+
+**Multi-Agent Review (MAR)** — 4+ agents review in parallel, scorer consolidates, author triages and fixes
+
+---
+
+# The Agency — Artifacts
+
+- **PVR** — Product Vision & Requirements (the *what* and *why*)
+- **A&D** — Architecture & Design (the *how* and *why*)
+- **The Plan** — Phases × Iterations (the execution roadmap)
+- **QGR** — Quality Gate Report (proof a gate ran — the audit trail)
+
+Three living documents that evolve together through implementation.
+
+One document that documents your quality.
+
+---
+
+# The Agency — Patterns
+
+- **Handoffs** — session continuity (`/session-end`, `/session-resume`)
+- **Enforcement Triangle** — every capability has Direction + Discovery + Compliance
+- **Three-Bucket Pattern** — feedback triage: Disagree, Autonomous, Collaborative
+- **`/discuss` & `/transcript`** — structured conversation with capture
+- **Behavioral rules via Hookify** — 36 rules shipped, mechanical enforcement
+
+---
+
+# The Agency — Collaboration
+
+**Principal Collaboration:**
+- **1B1** — one-by-one discussion protocol. Resolve each item before moving to the next.
+- **Over Protocol** — structured turn-taking. Over = discuss. Over and out = execute.
+
+**Agent Collaboration:**
+- **Dispatches** — structured messages between agents (directive, review, seed, escalation)
+- **ISCP** — Inter-Session Communication Protocol. Agents check for mail automatically.
+
+---
+
+# `claude init` vs `agency init`
+
+| `claude init` | `agency init` |
+|---|---|
+| `.claude/settings.json` | `.claude/settings.json` — **pre-configured** |
+| | `.claude/skills/` — `/define`, `/discuss`, `/commit`... |
+| | `.claude/agents/` — `captain.md`, `devex.md`... |
+| | `claude/tools/` — **60+ CLI tools** |
+| | `claude/hooks/` — lifecycle automation |
+| | `claude/hookify/` — behavioral enforcement |
+| | `usr/jordan/captain/` — handoffs, dispatches |
+| | `CLAUDE.md` — **standing instructions** |
+| **Smart assistant** | **Structured methodology** |
+
+---
+
+# The Valueflow Cycle
+
+![Valueflow Pipeline](valueflow-pipeline.svg)
+
+Let's walk through each stage.
+
+---
+
+# Seed → Define
+
+**Seed** — a captured starting point. A conversation, a document, an observation, a flag.
+
+*"I want to build a personal page with a mini-blog."* ← That's a seed.
+
+**Define** — Product Vision & Requirements (PVR). The *what* and *why*.
+
+- What are we building?
+- Who is it for?
+- What does success look like?
+
+**Artifact: PVR** — the living requirements document.
+
+---
+
+# Design → Plan
+
+**Design** — Architecture & Design (A&D). The *how* and *why*.
+
+- Technology choices and rationale
+- Component architecture
+- Trade-offs considered and decided
+
+**Artifact: A&D** — the living design document.
+
+**Plan** — Phases × Iterations. The execution roadmap.
+
+- Phase 1: scaffold + core
+- Phase 2: features
+- Phase 3: polish + ship
+
+**Artifact: The Plan** — updated after every commit.
+
+---
+
+# Implement → Ship → Value
+
+**Always use Plan Mode to plan.** Think before you act. Iterate with MAR loops.
+
+**Implement** — agents execute autonomously. Quality Gate at every iteration boundary.
+
+**Ship** — Captain merges, builds PRs, pushes. Pre-ship quality gate.
+
+**Value** — in the customer's hands. Feedback generates new seeds — the loop continues.
+
+**Artifacts at Implement:**
+- **Quality Gate Report (QGR)** — multi-agent review, findings, fixes, test results
+- Every commit boundary has a QGR receipt — the audit trail
+
+---
+
+# Quality Gates — The 8 Stages
+
+Every commit boundary runs this protocol:
+
+1. **Parallel review** — 4+ specialized agents (code, security, design, test) review simultaneously
+2. **Score and consolidate** — scorer agent rates findings 0–100, filter noise, deduplicate
+3. **Bug-exposing tests** — write tests that expose each issue, confirm they **fail** (red)
+4. **Fix issues** — fix each issue, confirm the test now **passes** (green). Red→green = proof.
+5. **Coverage review** — identify gaps from test reviewer findings
+6. **Add coverage tests** — edge cases, error paths, integration boundaries
+7. **Fix new issues** — if new tests expose problems, fix them
+8. **Confirm all clean** — lint, format, typecheck, all tests pass. **Failing = 0.**
+
+The result: a **Quality Gate Report (QGR)** — the proof that the gate ran.
+
+**Agents review agents.** This is how we scale quality.
 
 ---
 
@@ -363,17 +826,48 @@ From The Agency Group AI.
 
 This is NOT you and one AI assistant.
 
-- You as a **principal** running an **agency** — 12 agents in parallel
+- You as a **Principal** running an **Agency** — 12 agents in parallel
 - Each agent: identity, memory, handoffs, quality gates
 - Agents review each other, test each other
-- Your agency collaborates with **other agencies** run by other humans
-- "I run my agency. And I collaborate with other agencies."
+- Your Agency collaborates with **other Agencies** run by other humans
+- "I run my Agency. And I collaborate with other Agencies."
+
+---
+
+# Agents Talk to Each Other
+
+Not just you talking to agents. **Agents collaborate with agents.**
+
+- Agents **delegate work** via dispatches (structured messages in git)
+- Agents **review each other's output** (Multi-Agent Review)
+- Agents **report bugs** — and other agents fix them
+- Agents **escalate** when something needs the Principal's attention
+
+**Dispatches** — structured messages: directive, review, seed, escalation. Instant notification via ISCP. Agents check automatically on session start. No human routing.
+
+**Flags** — quick observations captured for later. Zero friction.
+
+---
+
+# An Example from Yesterday
+
+An agent filed a bug. Another agent fixed it. **Autonomously.**
+
+**DesignEx agent** (running autonomously) hit a bug in `agency update`. It **filed the bug and escalated to Captain** via dispatch.
+
+Captain **diagnosed and fixed** the bug in 5 minutes.
+
+Captain **dispatched the fix** to monofolk (a different Agency).
+
+Bug found by one agent. Fixed by another. Delivered to a third Agency.
+
+**No human had to discover the bug.** No human had to assign the fix.
 
 ---
 
 # The Agency — The Platform
 
-**The Agency** implements Valueflow.
+**The Agency** enables Valueflow.
 
 - 60+ tools
 - Quality gates at every boundary
@@ -381,79 +875,7 @@ This is NOT you and one AI assistant.
 - Session continuity (handoffs, ISCP)
 - Enforcement (Triangle: tool + skill + hookify rule)
 
----
-
-# Claude Code Alone vs The Agency
-
-<!-- TODO: Build-up animation showing directory contents growing -->
-
-| | Claude Code | + The Agency |
-|---|---|---|
-| Start | Empty directory | Empty directory |
-| After `git init` | `.git/` | `.git/` |
-| After setup | `.claude/` | `.claude/` + `claude/` + `usr/` + `CLAUDE.md` |
-| **First run** | Blank canvas | Hooks fire, handoff read, enforcement active |
-| **Result** | Smart assistant | **Structured methodology** |
-
----
-
-# Quality Gates
-
-- Multi-Agent Review (MAR) at every boundary
-- Different depths for different boundaries
-- Red-green discipline — failing test first, then fix
-- Binary triage — fix it or it's not an issue
-- **Agents review agents** — this is how we scale review
-
----
-
-# The Enforcement Triangle
-
-| Layer | What | Why |
-|-------|------|-----|
-| **Tool** | Does the work | Permissions |
-| **Skill** | Tells you when/how | Discovery |
-| **Hookify rule** | Blocks the bypass | Compliance |
-
-"If it's not enforced by code, it's a suggestion."
-
----
-
-# OODA
-
-Observe → Orient → Decide → Act
-
-- Inner loop: single iteration
-- Middle loop: phase
-- Outer loop: project
-
-**Tighten the loop.**
-
----
-
-# Case Study: Yesterday
-
-One captain session:
-
-- Fixed broken CI (tests failing for weeks)
-- Designed contribution model (three rings of trust)
-- Filed 8 feedback items to Anthropic
-- Ran 4 parallel Figma research agents
-- Planned mdslidepal (this tool!) — contract + MAR + reconciliation
-- Refactored core instruction file (738 → 85 lines, 89% reduction)
-
-**Valueflow in action.**
-
----
-
-# HX and AX
-
-- **HX** — Human Experience (the principal)
-- **AX** — Agentic Experience (the agents)
-
-Most tools today: great HX, **horrible AX.**
-
-The Agency treats both equally.
+**This afternoon, you'll use it.**
 
 ---
 
@@ -466,6 +888,41 @@ Back at 13:30.
 # Part 4: Guided Build
 
 ## Seed to Deploy
+
+---
+
+# Before We Start — Setup
+
+**Workshop repo:**
+
+`github.com/the-agency-ai/the-agency-workshop`
+
+**Bootstrap:**
+
+`curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-workshop/main/sessions/republic-poly-20260413/materials/bootstrap.sh | bash`
+
+See the **PRE-FLIGHT-CHECKLIST.md** in the workshop repo for full setup verification.
+
+---
+
+# Before We Start — Checklist
+
+- ✅ Claude Code installed and running (`claude --version`)
+- ✅ GitHub account logged in
+- ✅ Workshop repo cloned
+- ✅ Terminal open in the project directory
+
+**If you're stuck, raise your hand.** We'll get you sorted before we begin.
+
+---
+
+# Guided Tour
+
+## Jordan will walk you through the process live.
+
+## Follow along on your machine.
+
+## Ask questions as we go.
 
 ---
 
@@ -482,19 +939,23 @@ Back at 13:30.
 
 # Step 1: The Seed
 
-Tell your captain:
+Tell your Captain:
 
 "I want to build a personal page with a mini-blog. Here's my name and a sentence about me."
+
+Start with `/discuss` and `/transcript` — **capture everything.**
 
 ---
 
 # Step 2: Define (PVR)
 
-Your captain guides you through requirements.
+Run `/define` — your Captain guides you through requirements.
 
 - What pages?
 - What features?
 - What does success look like?
+
+**Valueflow phase: Define.** Artifact: Product Vision & Requirements (PVR).
 
 **This is Description from the 4 Ds.**
 
@@ -502,9 +963,11 @@ Your captain guides you through requirements.
 
 # Step 3: Design (A&D)
 
-Captain proposes: Next.js, Tailwind, markdown files.
+Run `/design` — Captain proposes: Next.js, Tailwind, markdown files.
 
 You review. You ask why.
+
+**Valueflow phase: Design.** Artifact: Architecture & Design (A&D).
 
 **This is Discernment.**
 
@@ -520,7 +983,9 @@ Captain breaks it into iterations:
 - Vercel deploy
 - (Stretch) AI Q&A section
 
-**Think before you act.**
+Use **Plan Mode** — think before you act.
+
+**Valueflow phase: Plan.** Artifact: The Plan (phases × iterations).
 
 ---
 
@@ -532,7 +997,7 @@ Captain executes. You watch and review.
 
 After each iteration: review → approve → next.
 
-**This is the OODA loop.**
+**This is the OODA loop in action.**
 
 ---
 
@@ -563,7 +1028,7 @@ Share your URL!
 
 # Independent Build
 
-Your idea. Your captain. Valueflow.
+Your idea. Your Captain. Valueflow.
 
 Jordan floats — ask for help anytime.
 
@@ -571,9 +1036,48 @@ Goal: running locally, ideally deployed.
 
 ---
 
+# Remember the Loop
+
+You just experienced Valueflow:
+
+**Seed** (your idea) → **Define** (PVR) → **Design** (A&D) → **Plan** → **Implement** → **Ship** → **Value**
+
+Quality Gates at every boundary. OODA at every stage.
+
+Now do it again — on your own project.
+
+---
+
 # Show & Tell
 
 Volunteers: demo what you built.
+
+---
+
+# A Call to Action — ~~For Educators~~ For Everyone
+
+You are the people who shape what the next generation learns.
+
+**Reorient education around OODA.**
+
+- Teach **Observe** — problem identification, critical analysis, pattern recognition
+- Teach **Orient** — framing problems, communicating context, giving clear direction
+- Teach **Decide** — evaluating output, judgment, when to trust and when to question
+- Teach **Act through Delegation** — packaging work, assigning it, coordinating agents
+
+The Principal IS the OOD. **The A is to Act through Delegation.**
+
+Teach your students to be **great Principals** — not great coders.
+
+---
+
+# How I Actually Work
+
+- **Follow Valueflow** — every project, every feature, Seed to Value
+- **Captain to support** — the Captain coordinates, I direct
+- **Spin up workstreams** — one workstream per body of work, agents assigned
+- **1B1 + Over Protocol** — structured conversation, one item at a time
+- **Lots of voice, lots of capturing** — Granola for meetings, Remote Control for mobile, capture things when top of mind
 
 ---
 
@@ -588,15 +1092,29 @@ Volunteers: demo what you built.
 
 ---
 
-# Acknowledgments
+# Diligence Disclosure
 
-**Ms Wong Wai Ling**
-Director, School of Infocomm (SOI), Republic Polytechnic
-*For taking a risk on this workshop and making it a reality.*
+In keeping with the Fourth D:
+
+**The Agency** was built entirely with Claude Code — every tool, every skill, every hookify rule, every line of framework code.
+
+**Valueflow** was designed through structured human-agent collaboration — seeds, PVRs, A&Ds, plans, all produced via the methodology itself.
+
+**This workshop** — the outline, the research, the slides, the deck tool (mdslidepal) — was built using Claude Code, The Agency, and Valueflow.
+
+We are responsible for what we ship. And we disclose how it was made.
+
+---
+
+# Acknowledgments
 
 **Mr Abel Ang**
 Chairperson, Republic Polytechnic
 *For recommending me to the SOI Advisory Committee. Without him, this wouldn't be happening.*
+
+**Ms Wong Wai Ling**
+Director, School of Infocomm (SOI), Republic Polytechnic
+*For taking a risk on this workshop and making it a reality.*
 
 **Ms Phyllis Ling**
 Manager (Admin), Republic Polytechnic
@@ -629,4 +1147,4 @@ We practice what we preach.
 - **GitHub:** github.com/the-agency-ai/the-agency
 - **X:** @AgencyGroupAI
 
-Jordan Dea-Mattson · jordandm@gmail.com
+Jordan Dea-Mattson · jdm@devopspm.com · GitHub: jordandm

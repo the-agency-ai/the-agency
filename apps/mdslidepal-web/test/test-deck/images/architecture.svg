@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="800" height="400">
+  <defs>
+    <style>
+      text { font-family: system-ui, -apple-system, sans-serif; }
+      .title { font-size: 18px; font-weight: 600; fill: #1a1a1a; }
+      .label { font-size: 14px; fill: #1a1a1a; }
+      .sublabel { font-size: 12px; fill: #666666; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="400" fill="#f8f9fa" rx="8"/>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" class="title">mdslidepal Architecture</text>
+
+  <!-- CLI Box -->
+  <rect x="280" y="55" width="240" height="50" rx="6" fill="#0066cc" opacity="0.1" stroke="#0066cc" stroke-width="1.5"/>
+  <text x="400" y="78" text-anchor="middle" class="label" fill="#0066cc">mdslidepal serve deck.md</text>
+  <text x="400" y="95" text-anchor="middle" class="sublabel" fill="#0066cc">CLI Entry Point</text>
+
+  <!-- Arrow down -->
+  <line x1="400" y1="105" x2="400" y2="135" stroke="#666" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Build Box -->
+  <rect x="200" y="135" width="400" height="120" rx="6" fill="white" stroke="#dddddd" stroke-width="1"/>
+  <text x="400" y="158" text-anchor="middle" class="label">Build Pipeline</text>
+
+  <!-- Inner boxes -->
+  <rect x="220" y="170" width="110" height="35" rx="4" fill="#f5f5f5" stroke="#e0e0e0"/>
+  <text x="275" y="192" text-anchor="middle" class="sublabel">Theme Loader</text>
+
+  <rect x="345" y="170" width="110" height="35" rx="4" fill="#f5f5f5" stroke="#e0e0e0"/>
+  <text x="400" y="192" text-anchor="middle" class="sublabel">Template</text>
+
+  <rect x="470" y="170" width="110" height="35" rx="4" fill="#f5f5f5" stroke="#e0e0e0"/>
+  <text x="525" y="192" text-anchor="middle" class="sublabel">Asset Copy</text>
+
+  <rect x="280" y="215" width="240" height="30" rx="4" fill="#f5f5f5" stroke="#e0e0e0"/>
+  <text x="400" y="235" text-anchor="middle" class="sublabel">reveal.js Vendor Copy</text>
+
+  <!-- Arrow down -->
+  <line x1="400" y1="255" x2="400" y2="280" stroke="#666" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Server Box -->
+  <rect x="280" y="280" width="240" height="45" rx="6" fill="#e8f5e9" stroke="#4caf50" stroke-width="1"/>
+  <text x="400" y="300" text-anchor="middle" class="label" fill="#2e7d32">sirv Static Server</text>
+  <text x="400" y="316" text-anchor="middle" class="sublabel" fill="#4caf50">127.0.0.1:8000</text>
+
+  <!-- Arrow down -->
+  <line x1="400" y1="325" x2="400" y2="350" stroke="#666" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Browser Box -->
+  <rect x="280" y="350" width="240" height="40" rx="6" fill="#fff3e0" stroke="#ff9800" stroke-width="1"/>
+  <text x="400" y="375" text-anchor="middle" class="label" fill="#e65100">Browser (reveal.js)</text>
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#666"/>
+    </marker>
+  </defs>
+</svg>

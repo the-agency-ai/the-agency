@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+#
+# _test-isolation — universal BATS test isolation helpers, framework lib
+#
+# What Problem: BATS tests need hermetic isolation from the live environment.
+# Without it, tests leak flags into the live ISCP DB, corrupt .git/config (the
+# recurring Test User attribution bug from dispatches #109 and #171), and
+# leave debris in the working tree. This was the root cause of 62 ghost flags
+# and bare=true corruption (dispatches #16, #17). Previously the helpers
+# lived in the-agency's `tests/tools/test_helper.bash` — which meant adopter
+# projects (monofolk, etc.) didn't get them via `agency update` because
+# `tests/` is a project-local path, not a framework path.
+#
+# How & Why: Extracted into a framework lib under `claude/tools/lib/` so
+# `agency update` propagates the isolation helpers to every consuming project.
+# Adopter projects create their own `tests/*/test_helper.bash` that sources
+# this lib — one-line integration, zero duplication, same guarantees.
+# See `claude/templates/tests/test_helper.bash` for the template adopters
+# drop into their own `tests/` directory.
+#
+# Usage (adopter project):
+#   # tests/test_helper.bash
+#   REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+#   source "$REPO_ROOT/claude/tools/lib/_test-isolation"
+#   # Optional: add project-specific helpers below
+#
+# Written: 2026-04-09 during devex fill-the-gap work (Jordan direct Q on
+# monofolk propagation + captain autonomy directive #174)
+# Evolved from: tests/tools/test_helper.bash (the-agency, 2026-04-07)
+
+# REPO_ROOT must be set by the caller (before sourcing this lib) — it's
+# intentionally NOT computed here so adopter projects can override it, and so
+# this lib doesn't fight with BATS_TEST_DIRNAME in unusual test layouts.
+#
+# If REPO_ROOT is unset when we source, default to computing it from
+# BATS_TEST_DIRNAME (walking up to the repo root). This mirrors the old
+# test_helper.bash default but is overridable.
+if [[ -z "${REPO_ROOT:-}" ]]; then
+    if [[ -n "${BATS_TEST_DIRNAME:-}" ]]; then
+        REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+    else
+        REPO_ROOT="$(pwd)"
+    fi
+    export REPO_ROOT
+fi
+
+# Convenience: TOOLS_DIR points at the framework tools.
+export TOOLS_DIR="${TOOLS_DIR:-${REPO_ROOT}/claude/tools}"
+
+# Disable telemetry during tests so test runs don't pollute log-service.
+export LOG_SERVICE_URL=""
+
+# Add tools to PATH for run_tool helpers that use bare tool names.
+# NOTE: this creates a known risk — framework tools named the same as system
+# commands (e.g. our `gh` wrapper) can shadow the real command. Tools that
+# need to invoke the real system binary must strip $TOOLS_DIR from PATH
+# before resolution (see claude/tools/gh for the pattern).
+case ":${PATH}:" in
+    *":${TOOLS_DIR}:"*) ;; # already present
+    *) export PATH="${TOOLS_DIR}:${PATH}" ;;
+esac
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Universal Test Isolation
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Call this in setup() — sets up complete isolation: fake HOME, explicit DB
+# path, git config isolation, cleaned git env vars. Called automatically by
+# the default setup() in the template test_helper.bash. Files with custom
+# setup() MUST call this explicitly.
+test_isolation_setup() {
+    # Opt-out escape hatch
+    if [[ "${SKIP_ISOLATION:-0}" == "1" ]]; then
+        return 0
+    fi
+
+    # 0. Clean leaked git env vars (CRITICAL when running inside a pre-commit
+    # hook). Without this, BATS tests inherit GIT_DIR/GIT_INDEX_FILE/
+    # GIT_WORK_TREE from the parent commit operation. Calls to
+    # `git config user.email/name` then write to the OUTER repo's local
+    # config, polluting it with [user] section and corrupting commit
+    # attribution — this is the recurring Test User bug from dispatches #109
+    # and #171.
+    unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+    unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE
+    unset GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE
+
+    # 1. Isolate HOME (DB path, cache, dotfiles, etc.)
+    export ORIGINAL_HOME="${HOME}"
+    export HOME="${BATS_TEST_TMPDIR}/fakehome"
+    mkdir -p "$HOME"
+
+    # 2. Explicit ISCP DB path — belt-and-suspenders on top of HOME override
+    export ISCP_DB_PATH="${BATS_TEST_TMPDIR}/test-iscp.db"
+
+    # 3. Git config isolation — prevent any writes to live .git/config
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_SYSTEM=/dev/null
+
+    # 4. Snapshot live .git/config checksum for guard validation
+    if [[ -f "$REPO_ROOT/.git/config" ]]; then
+        _TEST_GIT_CONFIG_HASH=$(md5 -q "$REPO_ROOT/.git/config" 2>/dev/null || md5sum "$REPO_ROOT/.git/config" 2>/dev/null | awk '{print $1}')
+    fi
+
+    # 5. Snapshot key framework directories for debris detection.
+    # These directories exist in every project that uses the framework, so
+    # the check is meaningful for adopters too.
+    if [[ -d "$REPO_ROOT/claude/agents" ]]; then
+        _TEST_AGENTS_SNAPSHOT=$(ls "$REPO_ROOT/claude/agents/" 2>/dev/null | sort)
+    fi
+    if [[ -d "$REPO_ROOT/.claude/agents" ]]; then
+        _TEST_DOT_AGENTS_SNAPSHOT=$(ls "$REPO_ROOT/.claude/agents/" 2>/dev/null | sort)
+    fi
+}
+
+# Call this in teardown() — fails loudly if live environment was modified.
+# Called automatically by the default teardown() in the template
+# test_helper.bash. Files with custom teardown() MUST call this explicitly.
+test_isolation_teardown() {
+    # Opt-out escape hatch
+    if [[ "${SKIP_ISOLATION:-0}" == "1" ]]; then
+        return 0
+    fi
+
+    # Guard 1: verify live .git/config wasn't modified
+    if [[ -n "${_TEST_GIT_CONFIG_HASH:-}" && -f "$REPO_ROOT/.git/config" ]]; then
+        local current_hash
+        current_hash=$(md5 -q "$REPO_ROOT/.git/config" 2>/dev/null || md5sum "$REPO_ROOT/.git/config" 2>/dev/null | awk '{print $1}')
+        if [[ "$current_hash" != "$_TEST_GIT_CONFIG_HASH" ]]; then
+            echo "CRITICAL: BATS test modified live .git/config! Hash before=$_TEST_GIT_CONFIG_HASH after=$current_hash" >&2
+            # Specific check: did a [user] section get added? This is the
+            # most common pollution vector — tests calling
+            # 'git config user.email/name' inside a pre-commit hook context
+            # where GIT_DIR points to the outer repo.
+            if grep -q "^\[user\]" "$REPO_ROOT/.git/config" 2>/dev/null; then
+                echo "  → [user] section found in live .git/config — test polluted commit attribution" >&2
+            fi
+            return 1
+        fi
+    fi
+
+    # Guard 2: verify no debris in key framework directories
+    if [[ -n "${_TEST_AGENTS_SNAPSHOT:-}" && -d "$REPO_ROOT/claude/agents" ]]; then
+        local current_agents
+        current_agents=$(ls "$REPO_ROOT/claude/agents/" 2>/dev/null | sort)
+        if [[ "$current_agents" != "$_TEST_AGENTS_SNAPSHOT" ]]; then
+            echo "CRITICAL: BATS test left debris in claude/agents/! Before: $_TEST_AGENTS_SNAPSHOT After: $current_agents" >&2
+            return 1
+        fi
+    fi
+    if [[ -n "${_TEST_DOT_AGENTS_SNAPSHOT:-}" && -d "$REPO_ROOT/.claude/agents" ]]; then
+        local current_dot_agents
+        current_dot_agents=$(ls "$REPO_ROOT/.claude/agents/" 2>/dev/null | sort)
+        if [[ "$current_dot_agents" != "$_TEST_DOT_AGENTS_SNAPSHOT" ]]; then
+            echo "CRITICAL: BATS test left debris in .claude/agents/! Before: $_TEST_DOT_AGENTS_SNAPSHOT After: $current_dot_agents" >&2
+            return 1
+        fi
+    fi
+
+    # Guard 3: verify live ISCP DB wasn't touched
+    # (HOME was overridden, so the real home's DB should be untouched.
+    # ISCP_DB_PATH override provides belt-and-suspenders protection.)
+}
+
+# Backward-compatible aliases for ISCP test files that predate the rename.
+iscp_test_isolation_setup() { test_isolation_setup; }
+iscp_test_isolation_teardown() { test_isolation_teardown; }

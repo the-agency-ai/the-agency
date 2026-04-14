@@ -1,0 +1,29 @@
+{
+  "name": "mdslidepal",
+  "version": "0.1.0",
+  "description": "Markdown-to-slides CLI tool using reveal.js",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "bin": {
+    "mdslidepal": "./dist/bin/mdslidepal.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "open": "^10.1.0",
+    "reveal.js": "^5.2.1",
+    "sirv": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

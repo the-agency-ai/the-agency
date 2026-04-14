@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="odarrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0066cc"/>
+    </marker>
+  </defs>
+
+  <!-- Triangle arrangement: Observe top, Decide bottom-left, Act bottom-right -->
+
+  <!-- Arrow: Observe → Decide -->
+  <line x1="230" y1="90" x2="160" y2="190" stroke="#0066cc" stroke-width="3" marker-end="url(#odarrow)"/>
+
+  <!-- Arrow: Decide → Act -->
+  <line x1="210" y1="220" x2="370" y2="220" stroke="#0066cc" stroke-width="3" marker-end="url(#odarrow)"/>
+
+  <!-- Arrow: Act → Observe (feedback) -->
+  <line x1="420" y1="190" x2="320" y2="90" stroke="#0066cc" stroke-width="3" marker-end="url(#odarrow)"/>
+
+  <!-- Observe box (top center) — Principal color -->
+  <rect x="230" y="40" width="140" height="48" rx="8" fill="#0066cc"/>
+  <text x="300" y="70" text-anchor="middle" font-size="20" font-weight="700" fill="white">OBSERVE</text>
+
+  <!-- Decide box (bottom left) — Principal color -->
+  <rect x="80" y="196" width="130" height="48" rx="8" fill="#0066cc"/>
+  <text x="145" y="226" text-anchor="middle" font-size="20" font-weight="700" fill="white">DECIDE</text>
+
+  <!-- Act box (bottom right) — Agent color (dark) -->
+  <rect x="380" y="196" width="100" height="48" rx="8" fill="#1a1a1a"/>
+  <text x="430" y="226" text-anchor="middle" font-size="20" font-weight="700" fill="white">ACT</text>
+
+  <!-- Labels -->
+  <text x="300" y="28" text-anchor="middle" fill="#0066cc" font-size="13" font-weight="600">The Principal</text>
+  <text x="145" y="260" text-anchor="middle" fill="#0066cc" font-size="13" font-weight="600">The Principal</text>
+  <text x="430" y="260" text-anchor="middle" fill="#888" font-size="13" font-weight="600">The Agents</text>
+
+  <!-- Center label -->
+  <text x="280" y="165" text-anchor="middle" fill="#aaa" font-size="15" font-style="italic">ODA</text>
+</svg>

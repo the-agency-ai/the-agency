@@ -17,8 +17,26 @@
 #   3: +tool (executable in claude/tools/)
 #   4: +hookify-warn (warns on raw alternative)
 #   5: +hookify-block (blocks raw alternative)
+#
+# Per-workstream overrides: each workstream can be at a different level
+# for each capability via the `workstreams:` section. See A&D §4.
 
 version: 1
+
+# Per-workstream level overrides. If a workstream isn't listed for a capability,
+# the capability's base level applies. Use sparingly — overrides are intentional
+# rollouts ("active workstreams at higher enforcement, dormant at lower").
+workstreams:
+  devex:
+    # devex agents must use git-commit and follow the prefix conventions
+    commit-message-format: 3
+    pre-commit-checks: 3
+  iscp:
+    # iscp ships everything fully enforced
+    commit-message-format: 3
+    pre-commit-checks: 3
+    dispatch-lifecycle: 3
+    flag-capture: 3
 
 capabilities:
   # ── Commit workflow ──
@@ -130,11 +148,20 @@ capabilities:
       skill: ".claude/skills/workstream-create/SKILL.md"
 
   worktree-create:
-    level: 2
+    level: 3
     description: "Create isolated worktree with bootstrapped environment"
     artifacts:
       doc: "claude/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/worktree-create/SKILL.md"
+      tool: "claude/tools/worktree-create"
+
+  worktree-naming:
+    level: 3
+    description: "Workstream-agent naming convention with collapse rule (#166/#169)"
+    artifacts:
+      doc: "claude/CLAUDE-THEAGENCY.md"
+      skill: ".claude/skills/worktree-create/SKILL.md"
+      tool: "claude/tools/worktree-create"
 
   # ── Git discipline ──
   no-push-master:
@@ -155,6 +182,35 @@ capabilities:
     description: "What Problem / How & Why / Written headers on all code"
     artifacts:
       doc: "claude/CLAUDE-THEAGENCY.md"
+
+  # ── SPEC-PROVIDER dispatchers ──
+  # Top-level wrappers that read agency.yaml provider config and exec the
+  # corresponding provider tool. Consistent naming: {capability}-dispatcher.
+  # Doc reference is README-ENFORCEMENT (not CLAUDE-THEAGENCY) since that's
+  # the canonical SPEC-PROVIDER documentation home post-Day-32 R3.
+  secret-dispatcher:
+    level: 3
+    description: "Secret management via SPEC-PROVIDER wrapper (vault, doppler, etc.)"
+    artifacts:
+      doc: "claude/README-ENFORCEMENT.md"
+      skill: ".claude/skills/secret/SKILL.md"
+      tool: "claude/tools/secret"
+
+  preview-dispatcher:
+    level: 3
+    description: "Project preview via SPEC-PROVIDER wrapper (docker-compose, fly, etc.)"
+    artifacts:
+      doc: "claude/README-ENFORCEMENT.md"
+      skill: ".claude/skills/preview/SKILL.md"
+      tool: "claude/tools/preview"
+
+  deploy-dispatcher:
+    level: 3
+    description: "Project deploy via SPEC-PROVIDER wrapper (fly, vercel, aws, etc.)"
+    artifacts:
+      doc: "claude/README-ENFORCEMENT.md"
+      skill: ".claude/skills/deploy/SKILL.md"
+      tool: "claude/tools/deploy"
 
   # ── Sandbox ──
   sandbox-workflow:

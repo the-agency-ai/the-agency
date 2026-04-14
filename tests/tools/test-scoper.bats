@@ -181,3 +181,38 @@ teardown() {
     run bash -c 'echo "nonexistent/path/file.xyz" | ./claude/tools/test-scoper'
     [ "$status" -eq 0 ]
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Package-level fallback (Strategy 5)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "package: apps/X/Sources/ → PACKAGE:apps/X/Tests" {
+    cd "$TEST_REPO"
+    mkdir -p apps/mdpal/Sources apps/mdpal/Tests
+    echo "// swift" > apps/mdpal/Sources/Foo.swift
+    echo "// test" > apps/mdpal/Tests/FooTests.swift
+    run bash -c 'echo "apps/mdpal/Sources/Foo.swift" | ./claude/tools/test-scoper'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"PACKAGE:"* ]]
+    [[ "$output" == *"apps/mdpal/Tests"* ]]
+}
+
+@test "package: no Tests dir → no mapping" {
+    cd "$TEST_REPO"
+    mkdir -p apps/empty/Sources
+    echo "// swift" > apps/empty/Sources/Foo.swift
+    run bash -c 'echo "apps/empty/Sources/Foo.swift" | ./claude/tools/test-scoper'
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "package: packages/X/src/ → PACKAGE:packages/X/tests" {
+    cd "$TEST_REPO"
+    mkdir -p packages/lib/src packages/lib/tests
+    echo "x" > packages/lib/src/foo.js
+    echo "x" > packages/lib/tests/foo.test.js
+    run bash -c 'echo "packages/lib/src/foo.js" | ./claude/tools/test-scoper'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"PACKAGE:"* ]]
+    [[ "$output" == *"packages/lib/tests"* ]]
+}

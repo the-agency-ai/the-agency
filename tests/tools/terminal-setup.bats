@@ -46,7 +46,7 @@ load 'test_helper'
     local fixture="${BATS_TEST_TMPDIR}/project"
     mkdir -p "$fixture/claude/config" "$fixture/claude/tools/lib" "$fixture/tools"
     cp "${TOOLS_DIR}/lib/_path-resolve" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_path-resolve" "$fixture/tools/" 2>/dev/null || true
-    cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
+    cp "${TOOLS_DIR}/lib/_log-helper" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
     cp "${REPO_ROOT}/claude/tools/lib/_provider-resolve" "$fixture/claude/tools/lib/"
     cp "${TOOLS_DIR}/terminal-setup" "$fixture/tools/"
 
@@ -74,7 +74,7 @@ EOF
     local fixture="${BATS_TEST_TMPDIR}/project"
     mkdir -p "$fixture/claude/config" "$fixture/claude/tools/lib" "$fixture/tools"
     cp "${TOOLS_DIR}/lib/_path-resolve" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_path-resolve" "$fixture/tools/" 2>/dev/null || true
-    cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
+    cp "${TOOLS_DIR}/lib/_log-helper" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
     cp "${REPO_ROOT}/claude/tools/lib/_provider-resolve" "$fixture/claude/tools/lib/"
     cp "${TOOLS_DIR}/terminal-setup" "$fixture/tools/"
 

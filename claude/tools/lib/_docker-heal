@@ -1,0 +1,145 @@
+#!/bin/bash
+#
+# _docker-heal — sourceable library that detects a reachable Docker socket
+#                and sets DOCKER_HOST if needed.
+#
+# What Problem: On macOS, Docker Desktop exposes its socket at
+# `$HOME/.docker/run/docker.sock` rather than the classic `/var/run/docker.sock`.
+# Tools that hard-code the default socket (or rely on an unchanged `DOCKER_HOST`)
+# fail with "dial unix /var/run/docker.sock: connect: no such file or directory"
+# even though Docker Desktop is running. This blocks every containerized test
+# run until the principal manually exports `DOCKER_HOST` or changes context.
+# See GitHub issue #58.
+#
+# How & Why: Probe candidates in order: first try the CLI's default (fast path
+# when it's already working), then try Docker Desktop's per-user socket on
+# macOS, then try common Linux alternatives. On success, `DOCKER_HOST` is
+# exported for the caller. On failure, print an actionable error with
+# remediation commands for macOS, Linux, and CI contexts, and return non-zero.
+# Returning instead of exiting lets callers decide whether to fall back, retry,
+# or abort.
+#
+# Usage:
+#   source "$(dirname "${BASH_SOURCE[0]}")/lib/_docker-heal"
+#   if ! docker_heal; then
+#       exit 1
+#   fi
+#   docker build ...
+#
+# Testing hooks:
+#   DOCKER_HEAL_TEST_MODE=1 → uses $DOCKER_HEAL_STUB as the `docker` command
+#                            and $DOCKER_HEAL_SOCKET_* candidates as the
+#                            candidate list, bypassing real sockets.
+#
+# Written: 2026-04-09 — fix for GitHub issue #58 / dispatch #174
+
+# docker_heal — the only public function in this lib.
+# Returns 0 if docker is reachable (either already or after setting DOCKER_HOST).
+# Returns 1 with an actionable error on stderr if nothing works.
+docker_heal() {
+    local docker_cmd="${DOCKER_HEAL_STUB:-docker}"
+
+    # First: is docker already reachable (default socket or existing DOCKER_HOST)?
+    if "$docker_cmd" info >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # Not reachable. Build the candidate list.
+    # In test mode, use injected candidates; otherwise use platform defaults.
+    local candidates=()
+    if [[ "${DOCKER_HEAL_TEST_MODE:-0}" == "1" ]]; then
+        # Test mode: use DOCKER_HEAL_SOCKET_CANDIDATES (colon-separated).
+        IFS=':' read -ra candidates <<< "${DOCKER_HEAL_SOCKET_CANDIDATES:-}"
+    else
+        # macOS Docker Desktop (per-user)
+        candidates+=("$HOME/.docker/run/docker.sock")
+        # Colima (common macOS alternative)
+        candidates+=("$HOME/.colima/default/docker.sock")
+        # Linux systemd
+        candidates+=("/run/docker.sock")
+        # Linux rootless
+        if command -v id >/dev/null 2>&1; then
+            candidates+=("/run/user/$(id -u)/docker.sock")
+        fi
+    fi
+
+    # Try each candidate. Export DOCKER_HOST and probe.
+    local sock
+    for sock in "${candidates[@]}"; do
+        [[ -z "$sock" ]] && continue
+        if [[ -S "$sock" ]] || [[ "${DOCKER_HEAL_TEST_MODE:-0}" == "1" ]]; then
+            export DOCKER_HOST="unix://$sock"
+            if "$docker_cmd" info >/dev/null 2>&1; then
+                echo "docker-heal: auto-detected docker socket at $sock" >&2
+                return 0
+            fi
+        fi
+    done
+
+    # Nothing worked. Unset DOCKER_HOST so caller doesn't inherit a broken value.
+    unset DOCKER_HOST
+
+    # Print actionable error with platform-specific remediation.
+    local platform
+    platform="$(uname -s 2>/dev/null || echo unknown)"
+    cat >&2 <<EOF
+docker-heal: cannot connect to Docker daemon
+
+Tried:
+  - default CLI socket / current \$DOCKER_HOST
+  - candidates: ${candidates[*]}
+
+Remediation:
+
+EOF
+
+    case "$platform" in
+        Darwin)
+            cat >&2 <<'EOF'
+  macOS + Docker Desktop:
+
+    1. Verify Docker Desktop is running:
+         open -a Docker
+         # wait ~10s for daemon startup
+
+    2. If Desktop is running but CLI still can't connect:
+         docker context use desktop-linux
+         # or
+         export DOCKER_HOST="unix://$HOME/.docker/run/docker.sock"
+
+    3. Alternatives if Docker Desktop isn't available:
+         brew install colima && colima start
+         export DOCKER_HOST="unix://$HOME/.colima/default/docker.sock"
+
+EOF
+            ;;
+        Linux)
+            cat >&2 <<'EOF'
+  Linux:
+
+    1. Verify daemon is running:
+         systemctl status docker
+         sudo systemctl start docker
+
+    2. If user lacks permission:
+         sudo usermod -aG docker "$USER"
+         # log out and back in
+
+    3. Rootless:
+         systemctl --user status docker
+         export DOCKER_HOST="unix:///run/user/$(id -u)/docker.sock"
+
+EOF
+            ;;
+        *)
+            cat >&2 <<'EOF'
+  Platform-specific setup required. Set DOCKER_HOST to your runner's socket:
+    export DOCKER_HOST="tcp://docker:2375"  # typical CI
+    export DOCKER_HOST="unix:///var/run/docker.sock"  # typical daemon
+
+EOF
+            ;;
+    esac
+
+    return 1
+}

@@ -3,7 +3,7 @@
   <!-- Layers from bottom to top -->
   <!-- 1. Hardware -->
   <rect x="200" y="460" width="400" height="42" rx="6" fill="#e0e0e0" stroke="#ccc" stroke-width="1"/>
-  <text x="400" y="486" text-anchor="middle" font-size="15" font-weight="600" fill="#555">Hardware — Switches on a front panel</text>
+  <text x="400" y="486" text-anchor="middle" font-size="15" font-weight="600" fill="#555">Hardware, Assembly, C, Pascal</text>
   <text x="620" y="486" font-size="12" fill="#888">1980s</text>
 
   <!-- 2. Machine Code -->
@@ -18,7 +18,7 @@
 
   <!-- 4. High-Level Languages -->
   <rect x="200" y="310" width="400" height="42" rx="6" fill="#b0c0d0" stroke="#90a0b0" stroke-width="1"/>
-  <text x="400" y="336" text-anchor="middle" font-size="15" font-weight="600" fill="#333">C, C++, Java, JavaScript</text>
+  <text x="400" y="336" text-anchor="middle" font-size="15" font-weight="600" fill="#333">C++, Java, JavaScript, OOP</text>
   <text x="620" y="336" font-size="12" fill="#888">1990s</text>
 
   <!-- 5. Web + Enterprise -->
@@ -28,8 +28,8 @@
 
   <!-- 6. Frameworks -->
   <rect x="200" y="210" width="400" height="42" rx="6" fill="#8aa8c0" stroke="#6888a0" stroke-width="1"/>
-  <text x="400" y="236" text-anchor="middle" font-size="15" font-weight="600" fill="#222">Frameworks — React, Next.js, NestJS</text>
-  <text x="620" y="236" font-size="12" fill="#888">2010s–20s</text>
+  <text x="400" y="236" text-anchor="middle" font-size="15" font-weight="600" fill="#222">React, Node.js, Mobile</text>
+  <text x="620" y="236" font-size="12" fill="#888">2010–20s</text>
 
   <!-- 7. AI Augmented (highlighted) -->
   <rect x="200" y="150" width="400" height="48" rx="8" fill="#0066cc" stroke="none"/>

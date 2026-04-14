@@ -226,3 +226,4 @@ load 'test_helper'
     # Should not execute injection
     [[ ! "$output" =~ "syntax error" ]]
 }
+
