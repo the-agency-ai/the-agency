@@ -6,11 +6,11 @@ pattern: '\bcp\s+'
 action: block
 ---
 
-BLOCKED: Raw cp is not allowed. Use the appropriate tool:
-- `/worktree-sync` — sync worktree with master (copies settings, runs sandbox-sync)
-- `Write` tool — create or overwrite a file with specific content
-- `Edit` tool — modify an existing file
+BLOCKED: Raw cp is not allowed. Use `./claude/tools/cp-safe` instead:
+- `cp-safe <source> <dest>` — copies within the same worktree (blocks cross-worktree)
+- `/worktree-sync` — sync worktree with master
+- `Write` tool — create a file with specific content
 
-Copying files between worktrees bypasses git, creates dirty state, and loses change tracking. Use the sync tools — they exist for this reason.
+Cross-worktree copying bypasses git, creates dirty state, and loses change tracking.
 
 OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!
