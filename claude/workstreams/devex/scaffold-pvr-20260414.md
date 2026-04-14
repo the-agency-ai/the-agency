@@ -168,20 +168,33 @@ Both need identical scaffolding patterns, which is exactly the "two instances pr
 - **Not database migration scaffolding** — that is a separate concern for later
 - **Not Docker/containerization** — that is `/preview` provider territory
 
-## 10. Open Questions
+## 10. Resolved Decisions (pending monofolk confirmation)
 
-### OQ1: Monorepo structure
-Where do scaffolded apps land?
-- **Option A:** `apps/` at repo root (flat, simple)
-- **Option B:** `apps/` + `packages/` for shared libs (monorepo pattern)
-- **Recommendation:** Start with Option A. Add `packages/` when a shared lib is actually needed (YAGNI). The `scaffold.target_dir` config in agency.yaml makes this changeable later.
+Captain approved proceeding with these defaults while monofolk RFI is in flight (#284):
 
-### OQ2: Package manager
-- **Option A:** pnpm (consistent with the-agency-workshop repo)
-- **Option B:** npm (widest compatibility, zero setup)
-- **Recommendation:** pnpm. The workshop already uses it, and workspace support is better for monorepos. The scaffold template should include a root `pnpm-workspace.yaml` if one does not exist.
+### D1: Monorepo structure — **apps/ + packages/**
+- `apps/` for user-facing applications (NestJS services, Next.js frontends)
+- `packages/` for shared libraries (types, utils, UI components)
+- Both managed as a pnpm workspace
+- Rationale: monofolk already runs NestJS + Next.js in production with a monorepo — this matches the pattern. `packages/` starts empty and grows only when a shared lib is actually needed.
 
-### OQ3: Test runner
-- **Option A:** Jest (NestJS default, wide ecosystem)
-- **Option B:** Vitest (faster, native ESM, consistent with modern tooling)
-- **Recommendation:** Vitest for both. Jest is NestJS's historical default but Vitest is strictly better for TypeScript projects (faster, native ESM support, compatible API). NestJS works fine with Vitest via `@nestjs/testing`.
+### D2: Package manager — **pnpm**
+- Root `pnpm-workspace.yaml` lists `apps/*` and `packages/*`
+- Consistent with the-agency-workshop repo
+- Better workspace support than npm for monorepos
+- Faster installs, strict node_modules isolation
+
+### D3: Test runner — **Vitest**
+- For both NestJS backends and Next.js frontends
+- Faster than Jest, native ESM, compatible Jest API
+- NestJS works fine with Vitest via `@nestjs/testing`
+- Consistent tooling across backend + frontend reduces cognitive load
+
+## 11. Pending monofolk confirmation
+
+RFI sent via captain #284. If monofolk responds with different conventions, we will adjust:
+- D1 alternatives: apps/ only (flatter), or nested service/app boundaries
+- D2 alternatives: npm (if monofolk uses npm in production)
+- D3 alternatives: Jest (if monofolk's existing test infrastructure is Jest-based)
+
+Adjustment is low-cost pre-implementation — decisions are in agency.yaml config and template selection. PVR → A&D → Plan proceeds with D1/D2/D3 as the working assumption.
