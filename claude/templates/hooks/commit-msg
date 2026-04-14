@@ -1,5 +1,5 @@
 #!/bin/bash
-# What Problem: The git-commit tool validates the Day/Phase prefix at construction
+# What Problem: The git-safe-commit tool validates the Day/Phase prefix at construction
 # time, but raw 'git commit' calls bypass that. The commit-msg hook fires on
 # EVERY commit including raw ones, so it's the defense-in-depth layer.
 #

@@ -33,7 +33,7 @@ The gate applies to **any artifact type** — code, commands, config, documentat
 8. **Confirm all clean** — Run all tests in scope plus lint, format, and typecheck. **Zero failing tests — no exceptions.**
 9. **Present quality gate report** — Share the QGR inline. Add it to the Plan.
 10. **Commit** — behavior depends on boundary type:
-    - **Iteration boundary**: Commit automatically using `/git-commit`. No approval needed.
+    - **Iteration boundary**: Commit automatically using `/git-safe-commit`. No approval needed.
     - **Phase boundary**: Present QGR and proposed commit. **Wait for principal approval.**
 
 ### 2. Quality Gate Report (QGR) Format
@@ -132,7 +132,7 @@ Plain-language summary grouped by issue type. For each issue: one sentence descr
 
 ### 3. Commit Discipline
 
-- **Always use `/git-commit`** — never run raw `git commit`.
+- **Always use `/git-safe-commit`** — never run raw `git commit`.
 - **Iteration complete**: QG scoped to changes, auto-commit after clean QGR. No approval needed.
 - **Phase complete**: Squash iterations, deep QG (full codebase), Sprint Review, approval required. After approval, land on master: verify clean → merge master → `git push . HEAD:master` → reset to master → verify → notify captain. See `claude/docs/DEVELOPMENT-METHODOLOGY.md` for the full landing protocol.
 - **Plan complete**: Final deep QG, finalize PVR/A&D/Plan, produce Reference doc. Notify captain — PRs are created by the captain, not the worktree agent.
@@ -222,7 +222,7 @@ Flow: **Requirements → A&D + Plan (evolving together) → Reference**
 
 - **Never write application code** — you review it, you don't author it
 - **Never make architectural decisions** — flag them for the workstream agent or principal
-- **Never touch git directly** — use `/git-commit` for commits, never raw `git commit`, `git add`, or `git push`
+- **Never touch git directly** — use `/git-safe-commit` for commits, never raw `git commit`, `git add`, or `git push`
 - **Never push to any remote** — you commit locally, the workstream agent handles landing
 - **Never run standalone** — you are invoked via skills by workstream agents
 - **Never skip review agents** — even for "small" changes. The audit always finds something.

@@ -23,7 +23,7 @@ The CLAUDE-THEAGENCY.md template and README-THEAGENCY.md have been through a ful
   - `plan-complete.md` — passes boundary context to `/quality-gate`
   - `pr-prep.md` — **NEW** — QG before PR creation
   - `pre-phase-review.md` — multi-agent review of PVR, A&D, Plan
-  - `git-commit.md` — **REWRITTEN** — QG-aware with stage hash receipt check
+  - `git-safe-commit.md` — **REWRITTEN** — QG-aware with stage hash receipt check
   - `discuss.md` — added `Skill` to allowed-tools for `/transcript`
   - `transcript.md` — real-time dialogue capture
   - `project-manager-agent.md` — added "do not touch git" clause
@@ -175,7 +175,7 @@ The dispatch design references `claude/tools/settings-merge` for diffing `settin
 | # | Decision | Transcript |
 |---|----------|------------|
 | 1 | QGR files are standalone receipts with stage hash naming | Session discussion (no transcript — pre-transcript tooling) |
-| 2 | `/git-commit` checks for QGR receipt via stage hash match | Session discussion |
+| 2 | `/git-safe-commit` checks for QGR receipt via stage hash match | Session discussion |
 | 3 | File Organization collapsed to pointer in Dev Methodology | `captain/transcripts/20260331-1914-discuss-claudemd-review-findings.md` |
 | 4 | Docker tooling → `/preview local` + Docker Compose | Same transcript |
 | 5 | Aspirational skills kept in table, "missing = bug" framing | Same transcript |
@@ -209,7 +209,7 @@ The following monofolk tooling was built or updated during this session and need
 - `usr/jordan/claude/commands/phase-complete.md` — updated to pass boundary context
 - `usr/jordan/claude/commands/plan-complete.md` — updated to pass boundary context
 - `usr/jordan/claude/commands/pr-prep.md` — **NEW** — QG before PR creation
-- `.claude/commands/git-commit.md` — **REWRITTEN** — QG-aware wrapper with stage hash check
+- `.claude/commands/git-safe-commit.md` — **REWRITTEN** — QG-aware wrapper with stage hash check
 - `usr/jordan/claude/commands/discuss.md` — added `Skill` to allowed-tools for `/transcript` invocation
 
 ### Updated tools

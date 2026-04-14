@@ -82,7 +82,7 @@ tools/                       # CLI tools for The Agency
 - `./claude/tools/install-hooks` - Install git pre-commit hooks
 
 **Git:**
-- `./claude/tools/git-commit` - Create properly formatted commits
+- `./claude/tools/git-safe-commit` - Create properly formatted commits
 - `./claude/tools/git-tag` - Tag work item stages (verifies tests pass)
 - `./claude/tools/git-sync` - Push with pre-commit checks
 

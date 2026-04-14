@@ -600,7 +600,7 @@ Make the wrong thing **impossible to do.**
 
 **Hookify rules** block dangerous patterns and point to the right skill:
 
-- `block-git-commit` → forces `/git-commit` (QG-aware)
+- `block-git-safe-commit` → forces `/git-safe-commit` (QG-aware)
 - `block-raw-rebase` → merge only, never rebase
 - `warn-on-push` → explicit approval required
 

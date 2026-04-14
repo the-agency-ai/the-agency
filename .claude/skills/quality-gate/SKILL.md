@@ -146,7 +146,7 @@ In the "Stage 1 — Parallel Review" section, attribute findings to the formal a
 
 ## Step 10: Write QGR receipt file
 
-After presenting the QGR, write it to a standalone file as the commit receipt. `/git-commit` checks for this file before allowing a commit.
+After presenting the QGR, write it to a standalone file as the commit receipt. `/git-safe-commit` checks for this file before allowing a commit.
 
 ### Naming convention
 

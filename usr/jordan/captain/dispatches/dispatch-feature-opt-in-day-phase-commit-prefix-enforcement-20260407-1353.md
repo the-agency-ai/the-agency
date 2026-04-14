@@ -69,7 +69,7 @@ Investigate:
 - How does commit-precheck currently read config? Is there a shared config loader in `_log-helper` or similar?
 - What other feature flags exist in agency.yaml today? Match their style.
 - Is there a test harness for commit-precheck? Add tests for the new check.
-- How does this interact with /git-commit (which wraps commit-precheck)?
+- How does this interact with /git-safe-commit (which wraps commit-precheck)?
 
 Present a plan before implementing. This is your 6th dispatch (#109, #110, #111, #114, #118, #120, this one). Plan mode required.
 

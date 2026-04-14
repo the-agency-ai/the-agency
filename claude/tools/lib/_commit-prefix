@@ -2,7 +2,7 @@
 # What Problem: Multiple tools need to validate commit message prefixes against
 # the Day/Phase convention (Day N:, Phase X.Y:, Phase X.MN:). Without a shared
 # library, the regex and the helpful error message would be duplicated in
-# git-commit, the commit-msg hook, and any future caller. Drift would follow.
+# git-safe-commit, the commit-msg hook, and any future caller. Drift would follow.
 #
 # How & Why: Sourced library exposing validate_commit_prefix(). Reads the
 # opt-in flag from agency.yaml via the config tool. Returns 0 if the message

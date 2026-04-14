@@ -30,7 +30,7 @@ Plus surrounding infrastructure in `claude/tools/`:
 - `test-scoper` (maps changed files → relevant .bats)
 - `test-full-suite` (Docker preferred, in-process fallback)
 - `tests/docker-test.sh` (containerized isolation)
-- Hookify rules: `block-raw-git-config-user-in-tests`, `block-git-commit`, `block-cd-outside-worktree`
+- Hookify rules: `block-raw-git-config-user-in-tests`, `block-git-safe-commit`, `block-cd-outside-worktree`
 
 ## The gap I was about to fix
 

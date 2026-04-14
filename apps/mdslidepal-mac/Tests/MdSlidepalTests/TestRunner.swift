@@ -437,24 +437,32 @@ func testMetadata_NotFirstChild() throws {
 // MARK: - ColorHex Tests (QG #10)
 
 func testColorHex_ValidHex() throws {
-    // Just verify it doesn't crash — Color values can't easily be compared
-    let _ = Color(hex: "ff0000")
-    let _ = Color(hex: "#00ff00")
-    let _ = Color(hex: "000000")
-    // If we got here without crashing, pass
+    // Verify colors parse without crashing and produce distinct values
+    let red = Color(hex: "ff0000")
+    let green = Color(hex: "#00ff00")
+    let black = Color(hex: "000000")
+    // SwiftUI Color doesn't expose components directly, but we can verify
+    // distinct inputs produce distinct colors (not all magenta fallback)
+    XCTAssertNotEqual(red.description, green.description, "Red and green should differ")
+    XCTAssertNotEqual(red.description, black.description, "Red and black should differ")
+    XCTAssertNotEqual(green.description, black.description, "Green and black should differ")
 }
 
 func testColorHex_WithHash() throws {
-    let _ = Color(hex: "#ffffff")
-    // No crash = pass
+    // Hash prefix should be stripped and produce the same color
+    let withHash = Color(hex: "#ffffff")
+    let withoutHash = Color(hex: "ffffff")
+    XCTAssertEqual(withHash.description, withoutHash.description, "Hash prefix should not change result")
 }
 
 func testColorHex_InvalidLength() throws {
-    // Should produce magenta fallback, not crash
-    let _ = Color(hex: "fff")
-    let _ = Color(hex: "")
-    let _ = Color(hex: "gggggg")
-    // No crash = pass
+    // Invalid inputs should produce magenta fallback, not crash
+    let short = Color(hex: "fff")
+    let empty = Color(hex: "")
+    let invalid = Color(hex: "gggggg")
+    // All invalid inputs should produce the same fallback
+    XCTAssertEqual(short.description, empty.description, "Invalid inputs should match")
+    XCTAssertEqual(empty.description, invalid.description, "Invalid inputs should match")
 }
 
 // MARK: - DeckDocument.title Tests (QG #11)

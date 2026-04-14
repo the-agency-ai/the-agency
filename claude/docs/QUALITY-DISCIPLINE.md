@@ -45,7 +45,7 @@ The Ladder is the **per-capability adoption progression**. Different capabilitie
 
 **Triangle vs Ladder:** The Triangle is the *structure* (tool + skill + hookify). The Ladder is the *progression* (how a capability moves from documented to fully enforced). A capability at step 5 has all three Triangle parts; a capability at step 1 has only docs.
 
-**The ladder is per-capability, not framework-wide.** Mature capabilities like `git-commit` and `handoff` are at step 5 (block enforced). Newer methodology patterns like Valueflow, MAR, and the three-bucket triage are at step 1 — documented, but not yet skill-wrapped or enforced. Each capability progresses up the ladder as it matures.
+**The ladder is per-capability, not framework-wide.** Mature capabilities like `git-safe-commit` and `handoff` are at step 5 (block enforced). Newer methodology patterns like Valueflow, MAR, and the three-bucket triage are at step 1 — documented, but not yet skill-wrapped or enforced. Each capability progresses up the ladder as it matures.
 
 - **No stale artifacts** — unused config, orphaned files, outdated docs — delete or update. Version control remembers.
 

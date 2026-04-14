@@ -103,7 +103,7 @@ Delete:
 ### 1.2: Purge ADHOC References and Kill --adhoc Flag
 **Slug:** `adhoc-purge.purge-refs`
 
-- `claude/tools/git-commit` — remove `--adhoc` flag entirely, replace with `--no-work-item` (explicit escape hatch)
+- `claude/tools/git-safe-commit` — remove `--adhoc` flag entirely, replace with `--no-work-item` (explicit escape hatch)
 - `.claude/settings.json` — remove `Bash(./claude/tools/adhoc-log*)` permission
 - `.agency/manifest.json` — remove adhoc-log entries
 - `registry.json` — remove adhoc-log and ADHOC-WORKLOG protected paths
@@ -195,7 +195,7 @@ Create or update `claude/tools/dispatch-create` to auto-stamp filenames with `YY
 | `iteration-complete`, `phase-complete`, `plan-complete` | Boundary lifecycle |
 | `pr-prep` | Pre-PR lifecycle |
 | `pre-phase-review` | Triggered before phases |
-| `git-commit` | QG-aware wrapper (skill wraps `claude/tools/git-commit` tool) |
+| `git-safe-commit` | QG-aware wrapper (skill wraps `claude/tools/git-safe-commit` tool) |
 | `transcript` | Invoked by discuss via `Skill` tool, not directly by user |
 | `define`, `design` | Methodology lifecycle |
 | `code-review`, `captain-review`, `review-pr`, `pr-respond` | Review lifecycle |
@@ -226,11 +226,11 @@ Port and parameterize:
 - `plan-complete` — Same + reference doc finalization
 - `pr-prep` — NEW skill, parameterize
 - `pre-phase-review` — Port, fix artifact glob patterns
-- `git-commit` — QG-aware skill wrapping `claude/tools/git-commit`. Stage hash path fix.
+- `git-safe-commit` — QG-aware skill wrapping `claude/tools/git-safe-commit`. Stage hash path fix.
 
 **Critical files:**
 - `usr/jordan/captain/dispatches/monofolk-skills/quality-gate.md`
-- `usr/jordan/captain/dispatches/monofolk-skills/git-commit.md`
+- `usr/jordan/captain/dispatches/monofolk-skills/git-safe-commit.md`
 
 ### 3.2: Git and Sync Skills (5)
 **Slug:** `skills-port.git-sync`
@@ -289,8 +289,8 @@ Update existing `.claude/commands/secret.md` to use provider dispatch via `agenc
 ## Phase 4: Tool and Agent Updates
 **Slug:** `tool-agent-updates`
 
-### 4.1: Update git-commit Tool
-**Slug:** `tool-agent-updates.git-commit`
+### 4.1: Update git-safe-commit Tool
+**Slug:** `tool-agent-updates.git-safe-commit`
 
 Phase 1 killed `--adhoc`. Now ensure `--no-work-item` is wired correctly as the replacement escape hatch. Update help text, usage examples, error messages.
 
@@ -309,7 +309,7 @@ Merge dispatch changes into `claude/agents/project-manager/agent.md`:
 
 Skills in `.claude/skills/` are auto-discovered by Claude Code — they do NOT need registration in settings.json. But:
 - Add permissions in `.claude/settings.json` for any new tool invocations skills depend on
-- Ensure no naming collisions between new skills and existing commands (e.g., `git-commit` skill vs `git-commit` tool — different namespaces, no collision)
+- Ensure no naming collisions between new skills and existing commands (e.g., `git-safe-commit` skill vs `git-safe-commit` tool — different namespaces, no collision)
 - Validate settings.json remains valid JSON: `jq . .claude/settings.json > /dev/null`
 
 Update `claude/hooks/ref-injector.sh` with new skill-to-reference mappings. Use EXACT match (not substring) for security:
@@ -319,7 +319,7 @@ Update `claude/hooks/ref-injector.sh` with new skill-to-reference mappings. Use 
 | `quality-gate`, `iteration-complete`, `phase-complete`, `plan-complete`, `pr-prep` | `claude/docs/QUALITY-GATE.md` |
 | `pre-phase-review`, `define`, `design` | `claude/docs/DEVELOPMENT-METHODOLOGY.md` |
 | `code-review`, `captain-review`, `review-pr`, `pr-respond`, `diff-summary` | `claude/docs/CODE-REVIEW-LIFECYCLE.md` |
-| `ship`, `git-commit` | `claude/docs/QUALITY-GATE.md` + `claude/docs/CODE-REVIEW-LIFECYCLE.md` |
+| `ship`, `git-safe-commit` | `claude/docs/QUALITY-GATE.md` + `claude/docs/CODE-REVIEW-LIFECYCLE.md` |
 | `secret` | (no ref injection needed — self-contained) |
 
 **Security note:** Replace substring matching (`*quality-gate*`) with exact matching in the `case` statement to prevent injection via malicious skill names.
@@ -469,7 +469,7 @@ Phases 1-4: sequential (each depends on prior). Within Phase 3: 3.1 first (quali
 
 ## Critical Files
 
-- `claude/tools/git-commit` — adhoc removal, --no-work-item addition
+- `claude/tools/git-safe-commit` — adhoc removal, --no-work-item addition
 - `claude/tools/agency-init` — skill installation
 - `claude/hooks/ref-injector.sh` — skill reference injection
 - `.claude/settings.json` — permissions, hooks, skill registration

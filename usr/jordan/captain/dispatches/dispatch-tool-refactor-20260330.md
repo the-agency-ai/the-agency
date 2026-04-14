@@ -25,7 +25,7 @@ Refactor existing tools AND standardize telemetry/logging to eliminate the agenc
 ```json
 {
   "run": "019d3e2c-...",       // UUID7 (time-sortable)
-  "tool": "git-commit",
+  "tool": "git-safe-commit",
   "event": "start|end|detail",
   "ts": "2026-03-30T10:00:00Z",
   "agency": "the-agency",      // repo/agency name
@@ -107,7 +107,7 @@ Migrate all tools to source `claude/tools/lib/_log-helper` instead of `tools/_lo
 ### 3. Noun-verb naming
 
 Rename tools:
-- `commit` → `git-commit`
+- `commit` → `git-safe-commit`
 - `tag` → `git-tag`
 - `sync` → `git-sync`
 - `whoami` + `agentname` → `agency-whoami`

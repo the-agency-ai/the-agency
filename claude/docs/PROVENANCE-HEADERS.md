@@ -16,7 +16,7 @@
 
 ### Bash Tool Usage
 
-Run each shell command as a **single, simple command** — no `&&`, `||`, `;`, pipes, subshells, or `$(...)` substitutions. These bypass the allowed-tools list, triggering extra permission prompts. Use separate Bash tool calls (parallel when independent, sequential when dependent). Use dedicated tools: Grep not `grep`, Glob not `find`, Read not `cat`, Write not `echo`, `/git-commit` not `git commit`.
+Run each shell command as a **single, simple command** — no `&&`, `||`, `;`, pipes, subshells, or `$(...)` substitutions. These bypass the allowed-tools list, triggering extra permission prompts. Use separate Bash tool calls (parallel when independent, sequential when dependent). Use dedicated tools: Grep not `grep`, Glob not `find`, Read not `cat`, Write not `echo`, `/git-safe-commit` not `git commit`.
 
 **Before writing bash, check if a tool already exists.** Tools in `claude/tools/` have built-in logging, telemetry, and structured output — they're more token-efficient and observable than inline bash. See `claude/README-THEAGENCY.md` for the full alternatives table and the tool ecosystem.
 

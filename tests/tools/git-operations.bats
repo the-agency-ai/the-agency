@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for git operation tools: git-commit, git-tag, git-sync
+# Tests for git operation tools: git-safe-commit, git-tag, git-sync
 #
 # Tests CLI argument parsing, validation, and git state handling.
 #
@@ -12,26 +12,26 @@ load 'test_helper'
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "commit: --version shows version" {
-    run_tool git-commit --version
+    run_tool git-safe-commit --version
     assert_success
     assert_output_contains "commit"
 }
 
 @test "commit: --help shows usage" {
-    run_tool git-commit --help
+    run_tool git-safe-commit --help
     assert_success
     assert_output_contains "Usage:"
     assert_output_contains "summary"
 }
 
 @test "commit: -h shows usage" {
-    run_tool git-commit -h
+    run_tool git-safe-commit -h
     assert_success
     assert_output_contains "Usage:"
 }
 
 @test "commit: requires message argument" {
-    run_tool git-commit
+    run_tool git-safe-commit
     assert_failure
     # Should indicate message is required
     assert_output_contains "message" || assert_output_contains "required"
@@ -39,49 +39,49 @@ load 'test_helper'
 
 @test "commit: accepts -m flag for message" {
     # Will fail (no git context) but validates flag is recognized
-    run_tool git-commit -m "Test message"
+    run_tool git-safe-commit -m "Test message"
     # Should not complain about unknown flag
     [[ ! "$output" =~ "unknown" ]] && [[ ! "$output" =~ "invalid" ]]
 }
 
 @test "commit: accepts --message flag" {
-    run_tool git-commit --message "Test message"
+    run_tool git-safe-commit --message "Test message"
     [[ ! "$output" =~ "unknown" ]] && [[ ! "$output" =~ "invalid" ]]
 }
 
 @test "commit: accepts work item with -w flag" {
-    run_tool git-commit -m "Test" -w REQUEST-test-0001
+    run_tool git-safe-commit -m "Test" -w REQUEST-test-0001
     [[ ! "$output" =~ "invalid flag" ]]
 }
 
 @test "commit: accepts --work-item flag" {
-    run_tool git-commit -m "Test" --work-item REQUEST-test-0001
+    run_tool git-safe-commit -m "Test" --work-item REQUEST-test-0001
     [[ ! "$output" =~ "invalid flag" ]]
 }
 
 @test "commit: accepts stage with -s flag" {
-    run_tool git-commit -m "Test" -s impl
+    run_tool git-safe-commit -m "Test" -s impl
     [[ ! "$output" =~ "invalid flag" ]]
 }
 
 @test "commit: accepts --stage flag" {
-    run_tool git-commit -m "Test" --stage impl
+    run_tool git-safe-commit -m "Test" --stage impl
     [[ ! "$output" =~ "invalid flag" ]]
 }
 
 @test "commit: validates stage values" {
-    run_tool git-commit -m "Test" --stage invalid
+    run_tool git-safe-commit -m "Test" --stage invalid
     # Invalid stage should be rejected
     [[ "$status" -ne 0 ]] || [[ "$output" =~ "invalid" ]] || [[ "$output" =~ "stage" ]]
 }
 
 @test "commit: --dry-run flag is recognized" {
-    run_tool git-commit -m "Test" --dry-run
+    run_tool git-safe-commit -m "Test" --dry-run
     [[ ! "$output" =~ "unknown" ]]
 }
 
 @test "commit: requires work item OR --no-work-item flag" {
-    run_tool git-commit "Test message"
+    run_tool git-safe-commit "Test message"
     assert_failure
     assert_output_contains "Work item required" || assert_output_contains "--no-work-item"
 }
@@ -92,7 +92,7 @@ load 'test_helper'
     cd "$repo_dir"
     echo "change" >> README.md
     git add README.md
-    run_tool git-commit "Test message" --no-work-item
+    run_tool git-safe-commit "Test message" --no-work-item
     # Flag should be recognized (no "Work item required" error)
     [[ ! "$output" =~ "unknown" ]] && [[ ! "$output" =~ "Work item required" ]]
 }
@@ -103,7 +103,7 @@ load 'test_helper'
     cd "$repo_dir"
     echo "change" >> README.md
     git add README.md
-    run_tool git-commit "Test message" --adhoc
+    run_tool git-safe-commit "Test message" --adhoc
     # Should still require work item — --adhoc is no longer recognized
     assert_failure
 }
@@ -114,7 +114,7 @@ load 'test_helper'
     cd "$repo_dir"
     echo "change" >> README.md
     git add README.md
-    run_tool git-commit "Test" --work-item REQUEST-jordan-0001 --stage impl
+    run_tool git-safe-commit "Test" --work-item REQUEST-jordan-0001 --stage impl
     [[ ! "$output" =~ "Invalid work item" ]]
 }
 
@@ -124,7 +124,7 @@ load 'test_helper'
     cd "$repo_dir"
     echo "change" >> README.md
     git add README.md
-    run_tool git-commit "Test" --work-item BUG-housekeeping-00001 --stage impl
+    run_tool git-safe-commit "Test" --work-item BUG-housekeeping-00001 --stage impl
     [[ ! "$output" =~ "Invalid work item" ]]
 }
 
@@ -134,29 +134,29 @@ load 'test_helper'
     cd "$repo_dir"
     echo "change" >> README.md
     git add README.md
-    run_tool git-commit "Test" --work-item TASK-auth-refactor --stage impl
+    run_tool git-safe-commit "Test" --work-item TASK-auth-refactor --stage impl
     [[ ! "$output" =~ "Invalid work item" ]]
 }
 
 @test "commit: validates work item format - rejects invalid" {
-    run_tool git-commit "Test" --work-item INVALID-test --stage impl
+    run_tool git-safe-commit "Test" --work-item INVALID-test --stage impl
     assert_failure
     assert_output_contains "Invalid work item"
 }
 
 @test "commit: validates work item format - rejects empty" {
-    run_tool git-commit "Test" --work-item "" --stage impl
+    run_tool git-safe-commit "Test" --work-item "" --stage impl
     assert_failure
 }
 
 @test "commit: --work-item requires value" {
-    run_tool git-commit "Test" --work-item --stage impl
+    run_tool git-safe-commit "Test" --work-item --stage impl
     assert_failure
     assert_output_contains "requires a value"
 }
 
 @test "commit: --stage requires value" {
-    run_tool git-commit "Test" --work-item REQUEST-test-0001 --stage
+    run_tool git-safe-commit "Test" --work-item REQUEST-test-0001 --stage
     assert_failure
     assert_output_contains "requires a value"
 }
@@ -369,7 +369,7 @@ load 'test_helper'
 
 @test "commit: detects non-git directory" {
     cd "${BATS_TEST_TMPDIR}"
-    run "${TOOLS_DIR}/git-commit" -m "Test"
+    run "${TOOLS_DIR}/git-safe-commit" -m "Test"
     assert_failure
     # Should indicate git issue
     [[ "$output" =~ "git" ]] || [[ "$output" =~ "repository" ]] || [[ "$status" -ne 0 ]]

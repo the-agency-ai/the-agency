@@ -21,12 +21,12 @@ Commits happen at iteration, phase, and plan completion — not in between. Do n
 8. **Confirm all clean** — Run all tests in scope plus lint, format, and typecheck. **Zero failing tests — no exceptions.** If pre-existing tests are failing, fix them. If infrastructure is broken (missing packages, wrong paths, flaky parallelism), that's the work. The Failing row in the report must be 0.
 9. **Present quality gate report** — Share the report (format below) inline in the conversation. Add it to the Plan.
 10. **Commit** — behavior depends on the boundary type:
-    - **Iteration boundary** (via `/iteration-complete`): Commit automatically using `/git-commit`. No approval needed. Present the QGR inline and move to the next iteration.
+    - **Iteration boundary** (via `/iteration-complete`): Commit automatically using `/git-safe-commit`. No approval needed. Present the QGR inline and move to the next iteration.
     - **Phase boundary** (via `/phase-complete`): Present the QGR and proposed commit message. **Wait for principal approval** before committing. This is a Sprint Review — the principal reviews the body of work.
 
 ### Commit Discipline
 
-- **Always use `/git-commit`** — never run raw `git commit`. The `/git-commit` skill enforces the project's commit message conventions.
+- **Always use `/git-safe-commit`** — never run raw `git commit`. The `/git-safe-commit` skill enforces the project's commit message conventions.
 - **Iteration complete** — run `/iteration-complete`. QG scoped to changes, auto-commit after clean Quality Gate Report (QGR). No approval needed.
 - **Phase complete** — run `/phase-complete`. Squashes iterations, deep QG (full codebase), Sprint Review, approval required, lands on master.
 - **Plan complete** — run `/plan-complete`. Final deep QG, finalize Product Vision & Requirements (PVR) / Architecture & Design (A&D) / Plan, produce Reference doc. Captain creates PRs.
@@ -238,8 +238,8 @@ All three are living documents during active work. Update architecture and desig
   - `/pr-prep` — QG scoped to full diff vs origin/master, before PR creation
   - `/pre-phase-review` — multi-agent review of PVR, A&D, Plan before starting a new phase
 - **Stage hash utility** — `tools/lib/stage-hash.ts` + CLI `tools/stage-hash.ts`: computes deterministic 7-char hash from git staging area (SHA-256 of sorted index entries). Used for QGR receipt filenames.
-- **QGR receipt files** — standalone files at `usr/{principal}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md`. Written by `/quality-gate` Step 10. `/git-commit` checks for a matching receipt before committing.
-- **`/git-commit` QG-awareness** — computes stage hash, globs for matching QGR receipt. Found = proceed. Not found = warn and ask. `--force` skips the check for non-QG commits.
+- **QGR receipt files** — standalone files at `usr/{principal}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md`. Written by `/quality-gate` Step 10. `/git-safe-commit` checks for a matching receipt before committing.
+- **`/git-safe-commit` QG-awareness** — computes stage hash, globs for matching QGR receipt. Found = proceed. Not found = warn and ask. `--force` skips the check for non-QG commits.
 - **Hookify enforcement rules:**
   - `hookify.require-qgr.local.md` — warns on `git commit` if QGR checklist not completed
   - `hookify.require-plan-update.local.md` — warns on `git commit` if plan file not in staged changes

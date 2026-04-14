@@ -38,7 +38,7 @@ jobs:
             "claude/CLAUDE-THEAGENCY.md"
             "claude/tools/agency"
             "claude/tools/handoff"
-            "claude/tools/git-commit"
+            "claude/tools/git-safe-commit"
             "claude/hooks/ref-injector.sh"
           )
           for f in "${required_files[@]}"; do
@@ -86,7 +86,7 @@ jobs:
       - name: Tool help smoke test
         run: |
           # Key tools should respond to --help without error
-          for tool in agency handoff git-commit dispatch flag; do
+          for tool in agency handoff git-safe-commit dispatch flag; do
             ./claude/tools/$tool --help > /dev/null 2>&1 || echo "Warning: $tool --help failed (may not support --help)"
           done
           echo "Tool help smoke test complete"

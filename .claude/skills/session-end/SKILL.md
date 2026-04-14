@@ -30,7 +30,7 @@ Run `git status --porcelain`. If the tree is already clean, skip to Step 3.
 If there are uncommitted changes (modified, staged, or untracked files):
 
 1. Stage all relevant files
-2. Commit via `/git-commit` with a descriptive message covering what's being committed
+2. Commit via `/git-safe-commit` with a descriptive message covering what's being committed
 3. Verify clean: `git status --porcelain` should return empty
 
 **Do not ask.** Do not warn and leave dirty. Commit everything and get clean. The next session starts from a clean tree.

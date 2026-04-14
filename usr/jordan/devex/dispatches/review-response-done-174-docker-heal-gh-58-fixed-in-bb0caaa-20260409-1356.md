@@ -57,7 +57,7 @@ I'll close #58 on GitHub once this lands on main via the normal sync flow.
 ## Autonomous execution per your #174 direction
 
 - Red → green cycle on my own (bug-exposing test 3 failed initially, passed after the lib was complete)
-- Committed on devex via /git-commit → Gate 0 passed → Jordan Dea-Mattson attribution
+- Committed on devex via /git-safe-commit → Gate 0 passed → Jordan Dea-Mattson attribution
 - No approval loops
 - Dispatching results not asking permission
 

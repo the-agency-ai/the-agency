@@ -9,7 +9,7 @@
 ### Dispatch 5: Tool Refactor (COMPLETE — PR #18 MERGED)
 
 1. **489ddb6** — Delete 24 deprecated tools, clean agency-service refs
-2. **9dee22b** — Move ~95 tools `tools/` → `claude/tools/`, rename (git-commit, git-tag, git-sync, agency-whoami, tool-create), new tools (git-fetch, telemetry), standardize JSONL logging, fix code-review false positive
+2. **9dee22b** — Move ~95 tools `tools/` → `claude/tools/`, rename (git-safe-commit, git-tag, git-sync, agency-whoami, tool-create), new tools (git-fetch, telemetry), standardize JSONL logging, fix code-review false positive
 3. **d6e7a6b** — Update TOOL.sh/PROVIDER.sh templates, CLAUDE.md, all test files, add missing permissions
 4. **f67e11b** — Update all docs (17 files), agent templates (12 files), commands (3 files), hookify rules (3 files), agency-init shipped tool list + permissions, captain agent.md
 5. **eddd5b2** — Clean stale tool refs from agent templates (collaborate, doc-commit, test-coverage)
