@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# What Problem: PRs were being created without running the Quality Gate,
+# and versions were not being bumped. PRs shipped without receipts.
+#
+# How & Why: Wraps gh pr create with mandatory checks:
+# 1. Must be on a branch, not main
+# 2. receipt-verify must pass (QGR or RGR with valid hash)
+# 3. agency_version must be bumped
+# Hookify blocks raw gh pr create.
+#
+# Usage: ./claude/tools/pr-create --title "title" --body "body"
+#        All gh pr create flags are passed through after validation.
+#
+# Written: 2026-04-14 during captain session (PR discipline enforcement)
+# Updated: iteration 1.4 — replaced inline hash logic with receipt-verify
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# ── Step 1: Verify on a branch, not main ─────────────────────────────────
+
+BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)
+
+if [[ "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
+    echo "BLOCKED: Cannot create PR from $BRANCH. Create a branch first." >&2
+    exit 1
+fi
+
+echo "✓ On branch: $BRANCH"
+
+# ── Step 2: Verify receipt ───────────────────────────────────────────────
+
+# Find the newest receipt in claude/receipts/ and verify it
+NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    # Fall back to old location
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+fi
+
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    echo "BLOCKED: No receipt found in claude/receipts/ or usr/." >&2
+    echo "  Run /pr-prep first." >&2
+    exit 1
+fi
+
+if ! "$SCRIPT_DIR/receipt-verify" --file "$NEWEST_RECEIPT" 2>&1; then
+    echo "" >&2
+    echo "Every PR requires a valid receipt. Run /pr-prep again." >&2
+    exit 1
+fi
+
+# ── Step 3: Verify version was bumped ────────────────────────────────────
+
+MANIFEST="$REPO_ROOT/claude/config/manifest.json"
+
+if [[ ! -f "$MANIFEST" ]]; then
+    echo "BLOCKED: manifest.json not found at $MANIFEST" >&2
+    exit 1
+fi
+
+MANIFEST_CHANGED=$(git -C "$REPO_ROOT" diff origin/main..HEAD --name-only -- claude/config/manifest.json 2>/dev/null || true)
+
+if [[ -z "$MANIFEST_CHANGED" ]]; then
+    MANIFEST_STAGED=$(git -C "$REPO_ROOT" diff --name-only -- claude/config/manifest.json 2>/dev/null || true)
+    MANIFEST_CACHED=$(git -C "$REPO_ROOT" diff --cached --name-only -- claude/config/manifest.json 2>/dev/null || true)
+
+    if [[ -z "$MANIFEST_STAGED" && -z "$MANIFEST_CACHED" ]]; then
+        echo "BLOCKED: agency_version not bumped." >&2
+        echo "" >&2
+        echo "Every PR is a release. Update claude/config/manifest.json:" >&2
+        echo "  - Bump agency_version (e.g., 40.1 → 40.2)" >&2
+        echo "  - Update updated_at timestamp" >&2
+        echo "" >&2
+        echo "The /release skill handles this automatically." >&2
+        exit 1
+    fi
+fi
+
+CURRENT_VERSION=$(grep -o '"agency_version": "[^"]*"' "$MANIFEST" | cut -d'"' -f4)
+echo "✓ Version bumped: $CURRENT_VERSION"
+
+# ── Step 4: Create the PR ────────────────────────────────────────────────
+
+echo "Creating PR..."
+gh pr create "$@"

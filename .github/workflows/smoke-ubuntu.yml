@@ -1,0 +1,92 @@
+# What Problem: CI needs a fast smoke test that validates framework integrity
+# on every push/PR without running the full test suite. The three-ring trust
+# model requires Ring 1 (core team) to have a lightweight gate that catches
+# broken files, bad permissions, and invalid configs in ~90 seconds.
+#
+# How & Why: Checks file existence, executable permissions, JSON validity,
+# shell syntax, and skill count. No BATS or heavy dependencies — just bash
+# and jq. Designed to be the universal gate that runs on ALL pushes and PRs,
+# while heavier gates (fork-pr-full-qg, sister-project-pr-gate) only run on
+# their respective trust rings.
+#
+# Written: 2026-04-12 during devex CI rework for contribution model
+
+name: Smoke Test (Ubuntu)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required framework files
+        run: |
+          required_files=(
+            "CLAUDE.md"
+            "README.md"
+            "LICENSE"
+            ".claude/settings.json"
+            "claude/agents/captain/agent.md"
+            "claude/config/agency.yaml"
+            "claude/CLAUDE-THEAGENCY.md"
+            "claude/tools/agency"
+            "claude/tools/handoff"
+            "claude/tools/git-safe-commit"
+            "claude/hooks/ref-injector.sh"
+          )
+          for f in "${required_files[@]}"; do
+            [ -e "$f" ] || { echo "Missing: $f"; exit 1; }
+          done
+          echo "All required files present"
+
+      - name: Verify tools are executable
+        run: |
+          for tool in claude/tools/*; do
+            if [ -f "$tool" ] && head -1 "$tool" | grep -q '^#!'; then
+              [ -x "$tool" ] || { echo "Not executable: $tool"; exit 1; }
+            fi
+          done
+          echo "All shebang tools are executable"
+
+      - name: Verify hooks are executable
+        run: |
+          for hook in claude/hooks/*.sh; do
+            [ -f "$hook" ] && [ ! -x "$hook" ] && { echo "Not executable: $hook"; exit 1; }
+          done
+          echo "All hooks are executable"
+
+      - name: Validate JSON configs
+        run: |
+          for f in .claude/settings.json claude/config/manifest.json registry.json; do
+            [ -f "$f" ] && jq . "$f" > /dev/null || { echo "Invalid JSON: $f"; exit 1; }
+          done
+
+      - name: Validate shell tool syntax
+        run: |
+          for tool in claude/tools/*; do
+            if [ -f "$tool" ] && head -1 "$tool" | grep -q '^#!/.*bash'; then
+              bash -n "$tool" || { echo "Syntax error in $tool"; exit 1; }
+            fi
+          done
+          echo "All shell tools pass syntax check"
+
+      - name: Verify skills count
+        run: |
+          count=$(find .claude/skills -maxdepth 1 -mindepth 1 -type d | wc -l)
+          echo "Found $count skills"
+          [ "$count" -ge 30 ] || { echo "Expected >= 30 skills"; exit 1; }
+
+      - name: Tool help smoke test
+        run: |
+          # Key tools should respond to --help without error
+          for tool in agency handoff git-safe-commit dispatch flag; do
+            ./claude/tools/$tool --help > /dev/null 2>&1 || echo "Warning: $tool --help failed (may not support --help)"
+          done
+          echo "Tool help smoke test complete"

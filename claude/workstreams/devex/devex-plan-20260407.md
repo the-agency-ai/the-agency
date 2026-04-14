@@ -223,6 +223,23 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 | 3 | 3.3 Context Budget Linter | **Complete** |
 | 3 | 3.4 Tests for Phase 3 | **Complete** |
 
+## Post-Plan Bonus Work (Day 32, dispatched after plan completion)
+
+Five dispatches arrived after the original plan was complete. All implemented in plan-mode → approval → execution flow.
+
+| # | What | Resolution |
+|---|------|------------|
+| #109 | BATS test isolation bug | Fixed: test_isolation_setup unsets GIT_DIR/*, hookify rule blocks raw `git config user.*`, **20 polluted commits rewritten** to Jordan via filter-branch |
+| #110 | cd-stays-in-worktree | New tool `worktree-cwd-check` (Layer 1, SessionStart hook) + `block-cd-outside-worktree` hookify (Layer 2) |
+| #114 | Compound bash blocks | `block-cd-outside-worktree` covers Rule 1 (merged), new `block-git-add-and-commit` covers Rule 2 |
+| #118 | Handoff integrity + stop hook | stop-check.py file categorization (impl/handoff/doc), handoff tool dirty-impl warning, /handoff skill integrity rule |
+| #122 | Day/Phase commit prefix | Opt-in via `commits.require_day_prefix` in agency.yaml, shared `_commit-prefix` lib (no Python dep), git-safe-commit integration, commit-msg hook template |
+| #133/#134 | gh.bats hang + orphan cleanup | Fixed gh wrapper recursion bug (PATH lookup found self), added --kill-after to run_with_timeout, registered Swift suite in agency.yaml |
+
+**Post-approval test count:** 39 plan tests + 26 bonus tests = **65 new BATS tests**, all passing.
+
+**Other:** Merged iscp branch into devex to absorb Phase 2.0 schema migration framework + flag categories. ISCP DB now consistently at v2.
+
 ## Seed Backlog (future phases)
 
 - Dispatch #31: Test result reporting service (DB-backed, structured, wires into QG)

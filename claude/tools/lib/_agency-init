@@ -245,8 +245,8 @@ _init_main() {
 # Agency Configuration for $PROJECT_NAME
 
 principals:
-  $PRINCIPAL_KEY:
-    name: $PRINCIPAL
+  "$PRINCIPAL_KEY":
+    name: "$PRINCIPAL"
   default:
     name: unknown
 
@@ -339,7 +339,7 @@ YAML_EOF
         [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
     done
     # Copy core tools
-    for tool in worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux tool-create secret-vault git-commit git-tag git-sync git-fetch handoff test-run commit-precheck code-review now stage-hash dispatch-create dispatch settings-merge sandbox-sync ghostty-claude-hook ghostty-config ghostty-integration ghostty-setup ghostty-debug-hook; do
+    for tool in worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux tool-create secret-vault git-safe-commit git-tag git-sync git-fetch handoff test-run commit-precheck code-review now stage-hash dispatch-create dispatch settings-merge sandbox-sync ghostty-claude-hook ghostty-config ghostty-integration ghostty-setup ghostty-debug-hook; do
         [[ -f "$AGENCY_SOURCE/claude/tools/$tool" ]] && cp "$AGENCY_SOURCE/claude/tools/$tool" "$TARGET_DIR/claude/tools/"
     done
     chmod +x "$TARGET_DIR/claude/tools/"* 2>/dev/null || true
@@ -395,27 +395,35 @@ USR_EOF
         exit 1
     fi
 
-    cp "$handoff_template" "$handoff_target"
+    # Guard: only write bootstrap handoff on INITIAL init (no existing handoff).
+    # On updates, the existing handoff contains session state that must not be
+    # clobbered. Issue #74: agency update was overwriting captain-handoff.md
+    # with the bootstrap template, destroying session context.
+    if [[ -f "$handoff_target" ]]; then
+        log_info "Handoff already exists — skipping bootstrap template (preserving session state)"
+    else
+        cp "$handoff_template" "$handoff_target"
 
-    # Substitute template variables. Use | as delimiter to avoid issues with /
-    # in project names or paths. Escape & in substitution values (sed metachar).
-    local date_stamp
-    date_stamp=$(date '+%Y-%m-%d %H:%M')
-    local _sed_inplace=(-i '')
-    [[ "$(uname)" != "Darwin" ]] && _sed_inplace=(-i)
+        # Substitute template variables. Use | as delimiter to avoid issues with /
+        # in project names or paths. Escape & in substitution values (sed metachar).
+        local date_stamp
+        date_stamp=$(date '+%Y-%m-%d %H:%M')
+        local _sed_inplace=(-i '')
+        [[ "$(uname)" != "Darwin" ]] && _sed_inplace=(-i)
 
-    sed "${_sed_inplace[@]}" \
-        -e "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g" \
-        -e "s|{{PRINCIPAL}}|${PRINCIPAL}|g" \
-        -e "s|{{DATE}}|${date_stamp}|g" \
-        -e "s|{{FRAMEWORK_VERSION}}|${framework_version}|g" \
-        -e "s|{{SKILL_COUNT}}|${skill_count}|g" \
-        -e "s|{{COMMAND_COUNT}}|${command_count}|g" \
-        -e "s|{{AGENT_COUNT}}|${agent_count}|g" \
-        -e "s|{{HOOK_COUNT}}|${hook_count}|g" \
-        "$handoff_target"
+        sed "${_sed_inplace[@]}" \
+            -e "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g" \
+            -e "s|{{PRINCIPAL}}|${PRINCIPAL}|g" \
+            -e "s|{{DATE}}|${date_stamp}|g" \
+            -e "s|{{FRAMEWORK_VERSION}}|${framework_version}|g" \
+            -e "s|{{SKILL_COUNT}}|${skill_count}|g" \
+            -e "s|{{COMMAND_COUNT}}|${command_count}|g" \
+            -e "s|{{AGENT_COUNT}}|${agent_count}|g" \
+            -e "s|{{HOOK_COUNT}}|${hook_count}|g" \
+            "$handoff_target"
 
-    log_info "Bootstrap handoff written from template: $handoff_target"
+        log_info "Bootstrap handoff written from template: $handoff_target"
+    fi
 
     # =====================================================================
     # Step 7: Plans directory and .gitignore
@@ -453,7 +461,7 @@ Agency 2.0 initialized via agency init. Includes:
 - Hookify behavioral rules
 - Reference docs (quality gate, methodology, code review, feedback)
 - usr/$PRINCIPAL/ principal directory
-- Core tools (agency, git-commit, handoff, stage-hash, dispatch, and more)
+- Core tools (agency, git-safe-commit, handoff, stage-hash, dispatch, and more)
 - Bootstrap handoff at usr/$PRINCIPAL/captain/handoff.md
 
 Source: the-agency ${source_commit:0:8}

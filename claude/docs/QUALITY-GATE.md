@@ -4,6 +4,34 @@ The gate applies to **any artifact type** — code, commands, config, documentat
 
 Commits happen at iteration, phase, and plan completion — not in between. Do not commit partial work mid-iteration.
 
+### The 5 Hard Rules
+
+1. **Failing row MUST be 0.** No exceptions. Pre-existing failures are your problem too.
+2. **Red-green cycle for every bug-exposing test.** No valid test = no valid fix.
+3. **Never skip review agents** — even for "small" or "trivial" changes. The audit always finds something.
+4. **Fix every finding.** Every valid finding gets fixed — no "Won't Fix," no "Deferred," no severity-based skip. Severity orders the fix sequence, never the fix decision. Reject invalid findings with reasoning.
+5. **Always use `/git-safe-commit`** — never raw `git commit`. The tool computes the stage hash and will verify a QGR receipt exists for the staged changes.
+
+### Boundary Skills
+
+| Boundary | Skill | QG Scope | Approval |
+|----------|-------|----------|----------|
+| Iteration end | `/iteration-complete` | Changes since last commit | Auto-commit |
+| Phase end | `/phase-complete` | Full codebase (deep QG) | Principal required |
+| Plan end | `/plan-complete` | Full codebase | Principal required |
+| Pre-PR | `/pr-prep` | Full diff vs origin/master | — |
+| Pre-phase | `/pre-phase-review` | PVR + A&D + Plan review | Principal required |
+
+### QGR Receipt Files
+
+Each gate produces a standalone receipt at:
+
+```
+claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md
+```
+
+For workstreams with multiple projects, use `claude/workstreams/{ws}/project/{project}/quality-gate-reports/`. The QGR frontmatter must include `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic hash of the staged changes (computed by `claude/tools/stage-hash`). `/git-safe-commit` checks for a matching receipt before committing — no receipt means no QG was run.
+
 ### Gate Tiers
 
 Gates are tiered by commit boundary type. Higher tiers include all lower-tier checks.

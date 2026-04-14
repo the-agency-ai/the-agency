@@ -1,0 +1,62 @@
+{
+  "$schema": "./theme-schema.json",
+  "name": "agency-dark",
+  "version": "0.1.0",
+  "description": "The Agency dark theme for mdslidepal. Dark mode, low-glare, suitable for dimly-lit presentation environments.",
+  "aspect_ratio": "16:9",
+  "logical_dimensions": {
+    "width": 1920,
+    "height": 1080
+  },
+  "colors": {
+    "background": "#0a0a0a",
+    "foreground": "#eaeaea",
+    "accent": "#4da6ff",
+    "muted": "#888888",
+    "subtle": "#1a1a1a",
+    "border": "#2a2a2a",
+    "link": "#4da6ff",
+    "code_background": "#161616",
+    "code_border": "#2a2a2a"
+  },
+  "fonts": {
+    "sans_family": "system-ui, -apple-system, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', sans-serif",
+    "mono_family": "'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Roboto Mono', monospace",
+    "display_family": "system-ui, -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif"
+  },
+  "heading_scale": {
+    "h1": 72,
+    "h2": 56,
+    "h3": 44,
+    "h4": 36,
+    "h5": 28,
+    "h6": 24
+  },
+  "body_size": 32,
+  "line_height": 1.4,
+  "spacing_unit": 16,
+  "slide_padding": {
+    "top": 96,
+    "right": 120,
+    "bottom": 96,
+    "left": 120
+  },
+  "code_theme": {
+    "background": "#161616",
+    "foreground": "#eaeaea",
+    "comment": "#7a8590",
+    "keyword": "#ff7b72",
+    "string": "#a5d6ff",
+    "number": "#79c0ff",
+    "function": "#d2a8ff",
+    "variable": "#eaeaea",
+    "type": "#ffa657",
+    "operator": "#ff7b72",
+    "punctuation": "#eaeaea"
+  },
+  "transitions": {
+    "default": "none",
+    "fade_duration_ms": 250,
+    "fade_easing": "linear"
+  }
+}

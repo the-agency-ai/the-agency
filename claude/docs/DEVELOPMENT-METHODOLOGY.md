@@ -1,29 +1,72 @@
+# What Problem: The CLAUDE-THEAGENCY.md bootloader is too large for efficient
+# context injection. The development methodology section needs to be a standalone
+# reference doc for targeted injection by skills and hooks.
+#
+# How & Why: Extracted from CLAUDE-THEAGENCY.md "Development Methodology" section
+# (lines 294-365), updated from the old 5-step flow to the canonical 9-step
+# Valueflow, and enriched with Multi-Agent Coordination Types, Three-Bucket
+# Disposition, and Plan Mode Bias sections that were missing from the original doc.
+#
+# Written: 2026-04-12 during devex session (CLAUDE.md bootloader refactoring)
+
 ## Development Methodology
 
 This is how we develop. Not a suggestion — the process.
 
-### The Flow
+### The Flow (Valueflow)
 
 ```
-Seed -> Discussion -> PVR (evolving) -> A&D (evolving) -> Plan (phases x iterations)
+Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan → Implement → Ship → Value
 ```
 
-1. **Seed** — the principal brings a starting point. Could be a document from elsewhere, a rough idea, a detailed spec. It launches the discussion.
-2. **Discussion** — using the Discussion Protocol (1B1). Explore requirements, constraints, trade-offs. No jumping to implementation.
-3. **Product Vision & Requirements (PVR)** — incrementally built during discussion. The _what_ and _why_. Evolves through implementation as we learn.
-4. **Architecture & Design (A&D)** — incrementally built alongside the PVR. The _how_ and _why_. Technical decisions, patterns, system design. Evolves through implementation.
-5. **Plan** — breaks implementation into Phases comprised of Iterations. Created after PVR and A&D have enough shape. Updated after every commit.
+1. **Idea** — a thought, observation, conversation. That gleam in someone's eye. Pre-seed.
+2. **Seed** — captured starting point (document, transcript, idea, flag). Launches the discussion.
+3. **Research (MARFI)** — Multi-Agent Request for Information. Captain drafts research questions, principal reviews, agents execute in parallel. Cross-cutting research only.
+4. **Define (PVR)** — Product Vision & Requirements. The _what_ and _why_. Use `/define`. MAR reviews it.
+5. **Design (A&D)** — Architecture & Design. The _how_ and _why_. Use `/design`. MAR reviews it.
+6. **Plan** — Phases x Iterations. May have MAP (Multi-Agent Plan input) for cross-cutting work. MAR reviews it.
+7. **Implement** — Agents execute autonomously. QG at every iteration boundary. Updated after every commit.
+8. **Ship** — Captain merges, builds PRs, pushes. Pre-PR QG.
+9. **Value** — Customer using it. Feedback generates new seeds.
+
+Three living documents (PVR, A&D, Plan) evolve together. The flow: **Requirements → A&D + Plan (evolving through iteration) → Reference** (produced at plan completion).
+
+### Multi-Agent Coordination Types
+
+| Type | Purpose | When |
+|------|---------|------|
+| **MARFI** (Multi-Agent Request for Information) | Research input — cross-cutting questions answerable with web search + docs | Before PVR/A&D, or mid-flow when a research question arises |
+| **MAR** (Multi-Agent Review) | Review of artifacts at every transition with three-bucket disposition | After every artifact (PVR, A&D, Plan, code at QG boundaries) |
+| **MAP** (Multi-Agent Plan input) | Planning input from multiple agents/workstreams | Cross-cutting projects spanning multiple workstreams |
+
+### Three-Bucket Disposition
+
+When an agent receives feedback (from MAR, QG, or any review), it triages findings into three buckets:
+
+| Bucket | What | Who decides |
+|--------|------|-------------|
+| **Disagree** | Finding rejected with reasoning | Agent decides, principal reviews |
+| **Autonomous** | Agent agrees and incorporates independently | Agent acts, principal informed |
+| **Collaborative** | Requires principal input | 1B1 discussion |
+
+**Important:** Reviewers give raw findings. The **author** triages into buckets, not the reviewer. Reviewers review; authors triage.
+
+### Plan Mode Bias
+
+**Use plan mode.** For any non-trivial task, enter plan mode first — explore the codebase, understand existing patterns, design your approach, get principal alignment, then implement. The cost of planning is low; the cost of rework is high.
+
+- **Discuss → Plan → Review Plan → Revise → Implement.** This is the work pattern.
+- Plan mode is read-only exploration and design. No code changes until the plan is approved.
+- If the principal says "plan" or "plan mode," enter plan mode. Don't write a markdown file instead.
+- Complex tasks, multi-file changes, architectural decisions, and unclear requirements all warrant plan mode.
+- Simple, directed fixes (typo, one-line change, clear instructions) can skip plan mode.
 
 ### Execution
 
-- **Phases** are numbered with whole numbers: Phase 1, Phase 2, Phase 3.
-- **Iterations** are Phase.Iteration: 1.1, 1.2, 2.1, 2.2. Read `1.1` as "Phase 1, Iteration 1". Read `2.3` as "Phase 2, Iteration 3".
-- **No letters** — no 1a, 1b. Only numbers.
-- **Every phase and iteration carries a slug** (e.g., "Phase 2: Provider Abstraction") because renumbering happens when phases or iterations are added.
-- **Renumber freely.** If we insert Phase 3 between old Phase 2 and 3, renumber everything. The slug is the stable identifier.
-- **Commit at iteration boundaries.** Auto-commit after clean QGR. No approval needed.
-- **Commit at phase boundaries.** Squash, deep QG, Sprint Review, land on master.
-- **Pre-phase review** before starting the next phase.
+- **Phases** are whole numbers: Phase 1, Phase 2, Phase 3. **Iterations** are Phase.Iteration: 1.1, 1.2, 2.1. **No letters** — only numbers.
+- **Every phase and iteration carries a slug** (e.g., "Phase 2: Provider Abstraction"). The slug is the stable identifier — renumber freely.
+- **Commit at boundaries** — `/iteration-complete` (auto), `/phase-complete` (approval), `/plan-complete` (final). See the QG Protocol section.
+- **Pre-phase review** — run `/pre-phase-review` before starting the next phase. Multi-agent review of PVR, A&D, Plan. Principal approval required to proceed.
 
 ### Quality Gates
 
@@ -74,13 +117,13 @@ Before starting any new phase, conduct a structured review of all living artifac
 
 ### Artifacts
 
-| Artifact                      | Abbreviation | Content                           | Lifecycle                                   |
-| ----------------------------- | ------------ | --------------------------------- | ------------------------------------------- |
-| Product Vision & Requirements | PVR          | What and why                      | Evolves through discussion + implementation |
-| Architecture & Design         | A&D          | How and why (technical decisions) | Evolves through implementation              |
-| Plan                          | Plan         | Phases, iterations, QGRs          | Updated after every commit                  |
-| Quality Gate Reports          | QGR          | Three tables + summary            | Appended to Plan                            |
-| Reference                     | Ref          | Final documentation               | Produced at plan completion                 |
+| Artifact | Abbrev | Content | Lifecycle |
+|----------|--------|---------|-----------|
+| Product Vision & Requirements | PVR | What and why | Evolves through discussion + implementation |
+| Architecture & Design | A&D | How and why (technical decisions) | Evolves through implementation |
+| Plan | Plan | Phases, iterations, QGRs | Updated after every commit |
+| Quality Gate Reports | QGR | Three tables + summary | Standalone receipt + appended to Plan |
+| Reference | Ref | Final documentation | Produced at plan completion |
 
 ### File Organization
 

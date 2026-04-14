@@ -2,55 +2,59 @@
 type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
-date: 2026-04-07
-trigger: session-end — all 3 phases complete
+date: 2026-04-14
+trigger: session-end
 ---
 
 ## Identity
 
-the-agency/jordan/devex — tech-lead on the devex workstream. I own test infrastructure, commit workflow, permission model, enforcement tooling, and context economics for TheAgency.
+the-agency/jordan/devex — tech-lead on the devex workstream.
 
 ## Current State
 
-**All 3 phases of the DevEx plan complete.** 10 iterations shipped across 5 commits. 4 new tools, 4 new test files (39 tests), settings-template and enforcement registry created.
+**Days 35-36 session.** Bootloader + contribution model shipped. Issue fixes done. git-safe PVR drafted. Waiting for captain to land devex on master.
 
-## What Shipped
+## What Shipped This Session
 
-### Phase 1: Pre-Commit + Test Isolation
-- **test-scoper** (v1.0.0): convention-based file→test mapping (4 strategies: manifest, convention, dependency grep, direct)
-- **commit-precheck** (v3.0.0): rewritten from 5-step Node.js-centric to classify→scope→run with 60s budget. Docs/config fast path. Git env var leak fix for nested BATS.
-- 25 BATS tests (13 test-scoper, 12 commit-precheck)
+### Already committed on devex branch
+- **Bootloader refactoring** (f72d812) — 6600→690 words, 5 new ref docs, 11 ref-injector mappings, 19 hookify pointer updates
+- **MAR fixes + CI rework** (5c7f7e0) — 3 new workflows, ci-monitor tool, monitor-ci skill
+- **Contribution model** (434bc02) — skill-validation in precheck, docs, monofolk draft
+- **CODE_OF_CONDUCT.md** (5f08309) — Contributor Covenant v2.1
+- **Issue #74 + #50** (bccdb3d) — handoff clobber guard + dispatch filename uniqueness
+- **Merge main** (e2428bf) — resolved CLAUDE-THEAGENCY.md conflict (kept bootloader)
+- **git-safe PVR** (8546879) — draft PVR for git-safe + git-captain tools
 
-### Phase 2: Docker Full Suite
-- **docker-test.sh**: extended from 7 ISCP files to all 36 BATS files. --iscp-only backward compat.
-- **test-full-suite** (v1.0.0): Docker first, in-process fallback, 5min timeout. T3 mechanism.
+### Workshop repo (separate repo, pushed)
+- https://github.com/the-agency-ai/the-agency-workshop — bootstrap.sh, workshop-start.sh, vercel-setup.sh, CLAUDE.md, pre-flight checklist
 
-### Phase 3: Permission Model + Enforcement
-- **settings-template.json**: cleaned 15 redundant entries, added git local ops, safe filesystem ops, test runners. No destructive ops.
-- **enforcement.yaml**: 19 capabilities registered with declared levels.
-- **enforcement-audit** (v1.0.0): validates artifacts exist for each level. All 19 pass.
-- **context-budget-lint** (v1.0.0): recursive @-import chain resolution, wc -w * 0.75 token estimate. All 47 skills within 4000-token budget.
-- 14 BATS tests (7 enforcement-audit, 7 context-budget-lint)
+## Lessons Learned (HARD)
+- **Never squash commits** — `git reset --soft` destroyed 35 commits. Recovered via reflog.
+- **Never use raw git** — use tools/skills. git-safe seed (#238/#239/#240) will enforce this mechanically.
+- **Don't echo monitor events** — dispatch monitor notifications are for silent processing, not stdout.
 
-## Artifacts
+## Queue
 
-- **PVR:** `usr/jordan/devex/devex-pvr-20260406.md` (approved)
-- **A&D:** `claude/workstreams/devex/devex-ad-20260407.md` (approved)
-- **Plan:** `claude/workstreams/devex/devex-plan-20260407.md` (all phases complete)
+### Immediate: git-safe + git-captain (dispatches #238/#239/#240)
+- PVR written: `claude/workstreams/devex/git-safe-pvr-20260414.md`
+- **3 open questions** pending principal input:
+  1. git stash — include in git-safe or leave internal to worktree-sync?
+  2. git add -A — block or warn?
+  3. git-safe subsume /git-safe-commit? (my rec: NO)
+- Next: A&D → Plan → Implement after questions answered
 
-## Principal Feedback (CRITICAL — read every session)
+### Waiting on captain
+- Land devex on master (dispatch #237) — 36 commits ahead of main
+- Send monofolk Ring 2 transition (dispatch #209)
+- Close issue #58 on GitHub
 
-**USE THE TOOLS AND SKILLS.** Do not hand-roll bash commands. Do not `cd` to main repo from worktree. Do not write files directly when a tool exists. Run tools from the worktree CWD with relative paths — never `cd /Users/jdm/code/the-agency && ...`.
-
-## Open Items
-
-- 1 flag remaining (test management boundary definitions)
-- Still awaiting captain's triage of MAR review findings (dispatch #99)
-- Pre-existing BATS test failures (setup-agency, platform-setup refs to deleted tools) — not regressions
-- Identity bug (flag #27) still exists but workaround is simple: don't cd to main repo
+### Lower priority
+- Dispatch #200 (SPEC:PROVIDER NestJS/React)
+- Task #16 (test isolation SPEC:PROVIDER) — paused on monofolk RFI #176
 
 ## Next Action
 
-1. Plan is complete — notify captain, request `/plan-complete` or PR prep
-2. Process remaining flag
-3. Await next assignment from captain (Valueflow Phase 3 or Phase 5 partial)
+1. Cycle session (bootloader rollout per dispatch #242)
+2. /session-resume in fresh session
+3. Get answers to 3 PVR questions
+4. A&D → Plan → Implement for git-safe + git-captain

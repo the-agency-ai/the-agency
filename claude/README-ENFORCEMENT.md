@@ -12,8 +12,8 @@ Enforcement in TheAgency operates at **five layers**, from soft to hard:
 |-------|-----------|------|----------|
 | 1. Documentation | Markdown in `claude/docs/`, `CLAUDE-THEAGENCY.md` | Human and agent readable conventions | Methodology, address format |
 | 2. Skills | `.claude/skills/{name}/SKILL.md` | Discoverable invocations of conventions | `/handoff`, `/iteration-complete` |
-| 3. Tools | `claude/tools/{name}` | Mechanical capabilities with logging and telemetry | `dispatch`, `git-commit`, `stage-hash` |
-| 4. Hookify rules | `claude/hookify/hookify.{name}.md` | PreToolUse hooks that block or warn on patterns | `block-git-commit`, `warn-compound-bash` |
+| 3. Tools | `claude/tools/{name}` | Mechanical capabilities with logging and telemetry | `dispatch`, `git-safe-commit`, `stage-hash` |
+| 4. Hookify rules | `claude/hookify/hookify.{name}.md` | PreToolUse hooks that block or warn on patterns | `block-git-safe-commit`, `warn-compound-bash` |
 | 5. Lifecycle hooks | `.claude/settings.json` hooks | Claude Code lifecycle events that fire scripts | `iscp-check`, `quality-check`, `ref-injector` |
 
 Each layer addresses the bypass discovered in the previous layer. Quality gates run on top of all of them.
@@ -42,7 +42,7 @@ The Ladder is the **per-capability adoption progression**. Different capabilitie
 
 **Triangle vs Ladder:** The Triangle is the *structure* (tool + skill + hookify). The Ladder is the *progression* (how a capability moves from documented to fully enforced). A capability at step 5 has all three Triangle parts; a capability at step 1 has only docs.
 
-**Where things stand today:** Mature capabilities like `git-commit`, `handoff`, `dispatch`, and `flag` are at steps 4–5 (warn or block enforced). Newer methodology patterns like Valueflow, MAR, MARFI, three-bucket triage, and SPEC-PROVIDER are at step 1 — documented, but not yet skill-wrapped or enforced. Each capability progresses up the ladder as it matures.
+**Where things stand today:** Mature capabilities like `git-safe-commit`, `handoff`, `dispatch`, and `flag` are at steps 4–5 (warn or block enforced). Newer methodology patterns like Valueflow, MAR, MARFI, three-bucket triage, and SPEC-PROVIDER are at step 1 — documented, but not yet skill-wrapped or enforced. Each capability progresses up the ladder as it matures.
 
 ## Lifecycle Hooks
 
@@ -106,10 +106,10 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 
 | Rule | Type | What It Does | Use Instead |
 |------|------|-------------|-------------|
-| `block-git-commit` | Block | Blocks raw `git commit` | `/git-commit` skill or `./claude/tools/git-commit` |
+| `block-git-safe-commit` | Block | Blocks raw `git commit` | `/git-safe-commit` skill or `./claude/tools/git-safe-commit` |
 | `block-cd-to-main` | Block | Blocks `cd /Users/...` and absolute paths to tools | `./claude/tools/{name}` (relative paths from worktree) |
 | `block-cd-outside-worktree` | Block | Blocks any `cd` that takes the agent outside their worktree | Stay in worktree, use absolute paths via Read/Write tools |
-| `block-git-add-and-commit` | Block | Blocks the compound `git add ... && git commit` form | `/git-commit` skill (separate Bash calls if you must) |
+| `block-git-add-and-commit` | Block | Blocks the compound `git add ... && git commit` form | `/git-safe-commit` skill (separate Bash calls if you must) |
 | `block-raw-handoff` | Block | Blocks raw `claude/tools/handoff` invocations | `/handoff` skill |
 | `block-no-verify` | Block | Blocks `git commit --no-verify` and similar bypasses | Fix the underlying issue |
 | `block-force-push-main` | Block | Blocks `git push --force` to main | Don't force-push main, ever |
@@ -128,8 +128,8 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 | `block-cd-to-main` | `cd /Users/.../the-agency &&` and absolute paths to `claude/tools/` | `./claude/tools/{name}` |
 | `block-cd-outside-worktree` | Any `cd` that resolves to a path outside the agent's worktree | Stay in worktree; use absolute paths to Read/Write outside |
 | `block-force-push-main` | `git push --force` to main/master | Don't force-push main |
-| `block-git-add-and-commit` | The compound `git add ... && git commit ...` pattern | `/git-commit` skill (or separate Bash calls if you must) |
-| `block-git-commit` | Raw `git commit` | `/git-commit` skill |
+| `block-git-add-and-commit` | The compound `git add ... && git commit ...` pattern | `/git-safe-commit` skill (or separate Bash calls if you must) |
+| `block-git-safe-commit` | Raw `git commit` | `/git-safe-commit` skill |
 | `block-no-verify` | `--no-verify`, `--no-gpg-sign`, etc. | Fix the underlying issue |
 | `block-raw-git-config-user-in-tests` | Bare `git config user.name`/`user.email` in BATS test files | Use `test_isolation_setup` from `test_helper.bash` |
 | `block-raw-git-merge-master` | Raw `git merge master` | `/sync-all` skill |
@@ -188,7 +188,7 @@ Quality gates are tiered checkpoints that run at every commit boundary. Each tie
 | **T3** | Phase complete | Full test suite + MAR on phase artifacts | <5min | `/phase-complete` (deep QG) |
 | **T4** | Pre-PR | Full diff QG vs origin/main | <5min | `/pr-prep` |
 
-Each gate produces a **QGR (Quality Gate Report)** receipt at `claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md`. *(Planned: `/git-commit` will check for a matching receipt before committing — no receipt means no QG was run, and `require-qgr` will block the commit. The tool currently computes the stage hash for telemetry but the receipt check is not yet wired.)*
+Each gate produces a **QGR (Quality Gate Report)** receipt at `claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md`. *(Planned: `/git-safe-commit` will check for a matching receipt before committing — no receipt means no QG was run, and `require-qgr` will block the commit. The tool currently computes the stage hash for telemetry but the receipt check is not yet wired.)*
 
 ## Permission Model
 
@@ -221,7 +221,7 @@ Every new capability needs three parts:
 
 1. **Tool** — `claude/tools/{name}` does the work
 2. **Skill** — `.claude/skills/{name}/SKILL.md` tells the agent when and how
-3. **Hookify rule** — `claude/hookify/hookify.block-raw-{name}.md` blocks the bypass
+3. **Hookify rule** — `claude/hookify/hookify.raw-{name}-block.md` blocks the bypass (noun-verb naming: noun first, action last)
 
 Build all three. The tool handles permissions, the skill handles discovery, the hookify rule handles compliance.
 

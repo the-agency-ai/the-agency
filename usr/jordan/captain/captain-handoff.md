@@ -2,76 +2,64 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-11
-trigger: session-end
+date: 2026-04-14
+trigger: session-compact
 ---
 
-## Resume — Day 36
+## Continue — Day 40 (Mid-Session Compact)
 
-### Immediate
+### Context: compacting to refresh, NOT ending session
 
-1. **PR #73 awaiting approval** — D36-R1: shared _colors lib (59 tools), pr-build MAR cleanup (8 fixes), commit-precheck MERGE_HEAD skip, --no-verify removed. Approve → merge → /post-merge 73.
-2. **Flag #84** — PR tool needed (like git-commit wraps commit). Enforcement Triangle: tool + skill + hookify block on raw gh pr create.
+Heavy session — continuing after compact. Key context that must survive:
 
-### Day 35-36 Shipped
+### What's done so far this session
 
-- **35.1** (PR #70) — dispatch-monitor (event-driven dispatch watching)
-- **35.2** (PR #70) — changelog-monitor (Claude Code release awareness)
-- **35.3** (PR #71) — block-raw-tools PreToolUse hook
-- **PR #72** — dispatch monitoring docs (Monitor replaces /loop)
-- **36.1** (PR #73) — _colors lib + pr-build MAR + MERGE_HEAD skip [PENDING MERGE]
-- **Presence-detect** synced to 35.3
+1. **Bootloader verified** ✅ — 691-word CLAUDE-THEAGENCY.md working
+2. **Session skills shipped** — /session-end (get clean, idempotent, "Safe to /compact and/or /exit"), /session-compact (new)
+3. **Session-preflight tool** — 5-check preflight (clean tree, synced, handoff, dispatches, monitor) added to /session-resume Step 5
+4. **Fleet bootloader rollout** — dispatches #242-256 to all 7 agents, all cycled
+5. **Fleet check-in** — DevEx, DesignEx, mdslidepal-mac, mdpal-cli responded. mdpal-app has merge conflicts (directive sent). mdslidepal-web and ISCP intentionally not brought up yet.
+6. **git-safe A&D reviewed** — DevEx MAR (#272). 3 questions resolved: (1) stash internal to worktree-sync, (2) git add -A blocked, (3) separate concerns. Plus: rename /git-commit → /git-safe-commit. DevEx greenlit autonomous through implement (#274).
+7. **Dispatch service seed** — written, MAR'd (4 agents, 7 findings incorporated), dispatched to ISCP (#275, high priority). Key: 4-segment addressing (org/repo/principal/agent), JSON envelope + markdown body, BSL license, single hub.
+8. **PR #81 CI fix** — smoke test failed on ci-monitor not executable. Fixed (chmod +x), pushed. CI re-running.
+9. **Monofolk statusline** — diagnosed (missing settings.json key), monofolk confirmed and fixed. They want merge tool for updates.
+10. **Flag triage complete** — 83 flags: 22 DISCUSS, 53 ACT, 8 STALE
 
-### Workshop — Monday 13 April at Republic Polytechnic
+### What's in progress RIGHT NOW
 
-**22 invites sent.** Responses: Abel (US, wants future session), Andrew (Korea, nominating Deepak), Eliot (busy, caught date error).
+- **PR #81 CI** — pushed fix, waiting for CI to pass, then merge
+- **Flag DISCUSS bucket** — 22 items need 1B1 with Jordan. Haven't started yet.
+- **Monofolk Ring 2 dispatch** — still pending since D36
 
-**Outline:** `claude/workstreams/agency/seeds/workshop-outline-republic-poly-20260410.md`
+### Fleet state
 
-**TODO (priority order):**
-1. Workshop repo — `the-agency-ai/the-agency-workshop` created but empty. Needs CLAUDE.md + CAPTAIN.md.
-2. Test full student flow: clone → agency init → claude login → remote-control → Desktop Code tab → toy project → Vercel deploy
-3. mdslide — markdown slide tool for presentations
-4. Move workshop content from the-agency to the-agency-group (content repo)
-5. Anthropic outreach batch 2 (LinkedIn + Twitter for Max 20x licenses)
+| Agent | Status | Last dispatch |
+|-------|--------|---------------|
+| DevEx | Autonomous — git-safe plan+implement | #274 |
+| DesignEx | Phase 1.1 figma-extract, April 17 deadline | #264 |
+| mdslidepal-mac | Phase 5 visual polish | #271 |
+| mdpal-cli | Phase 1.4, 15 QG findings remaining | #273 |
+| mdpal-app | Merge conflicts, directive sent | #269 |
+| ISCP | Dispatch service seed sent, needs to cycle first | #275 |
+| mdslidepal-web | Intentionally not brought up yet | — |
 
-### Monofolk
+### What's next (immediate, post-compact)
 
-- Dispatch sent: upstream pr-build MAR cleanup + _colors lib + block-raw-tools
-- Hookify promotion dispatch received and resolved
-- Pending: hookify upstream port (7 warn→block rules)
+1. **Check PR #81 CI** — if green, merge it
+2. **Flag DISCUSS 1B1** — 22 items, clustered by theme (business/GTM, architecture, process, content)
+3. **Monofolk Ring 2 dispatch** — long overdue
+4. **/seed skill discussion** — from flag #92, still open
 
-### Seeds Captured
+### Key decisions this session
 
-- This Happened! + Breadcrumb — value-added services
-- Monitor tool adoption — event-driven dispatch watching
-- OODA structural framework + Process Intelligence (Celonis) — from monofolk
-- Workshop outline + setup guide + bootstrap + start scripts
+- **Session lifecycle:** commit everything, don't ask. Idempotent. "Safe to /compact and/or /exit."
+- **coord-commit:** cross-agency dispatches only, not general commits
+- **git-safe family:** git-safe (all agents), git-captain (captain only), git-safe-commit (renamed from git-commit). One catch-all hookify rule with escalation path.
+- **Dispatch service:** single hub, 4-segment addressing, BSL + 3-year Apache 2.0 conversion, JSON envelope + markdown body
+- **Monofolk statusline:** settings.json merge problem. They want option A (merge tool).
 
-### Fleet State
+### Dispatch monitor
 
-- **devex** — dispatch #200 sent (SPEC:PROVIDER for NestJS + React/Next.js)
-- **iscp** — blocked on merge until synced
-- **Monitor running** — dispatch-monitor replaces /loop polling (task bh93ichaq)
-- **block-raw-tools LIVE** — blocks cat/grep/find/sed/awk/head/tail. Already caught us!
-
-### Open Flags (key)
-
-- #55 CLAUDE.md revision
-- #69 create-tool input validation
-- #78 session naming
-- #82 agency verify reads dependencies.yaml
-- #83 ban raw git writes
-- #84 PR tool needed (NEW — Enforcement Triangle)
-
-### Collaborative Items from MAR (not yet resolved)
-
-Items 11-16 from pr-build MAR need disposition:
-- #11 multi-source builds
-- #12 `is_captain` parameter redundant
-- #13 principal name in help example
-- #14 `--captain` policy assumption
-- #15 BATS tests for pr-build
-- #16 `--version` flag (done in this release)
+**MUST restart dispatch monitor after compact.** This is the #1 thing that gets missed.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

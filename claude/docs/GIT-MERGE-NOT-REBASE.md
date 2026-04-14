@@ -42,6 +42,26 @@ Root cause: local repo and origin had different root commits (identical content,
 | **Skill** | `/worktree-sync` | Uses `git merge master` (already correct) |
 | **Skill** | `/rebase` | DEPRECATED — points to merge-based alternatives |
 
+## Git & Remote Discipline
+
+**Universal rules (all agents):**
+
+- **Remote master is read-only.** All changes reach origin through PRs. Never push to origin/master.
+- **Never push without explicit permission.** Pushing is always deliberate. Mechanically enforced by hookify rules (block master push, warn on any push).
+- **Lead commit messages with Phase-Iteration slug.** Format: `Phase 1.3: feat: concise summary`. The slug is first, before the prefix.
+
+**By role:**
+
+| Action | Feature agent (worktree) | Captain (master) | PM (subagent) |
+|--------|-------------------------|-----------------|---------------|
+| Write application code | Yes | Never | Never |
+| Commit | Via `/iteration-complete`, `/phase-complete` | Coordination artifacts only | Never directly |
+| Push to origin | Never | Via `/sync`, with approval | Never |
+| Create PRs | Never | Yes, via `gh pr create` | Never |
+| Run QG | Invokes `/quality-gate` | Invokes `/code-review` | Runs the protocol |
+| Merge master | `git merge master` to pick up updates | Owns master | N/A |
+| Land on master | Via `/phase-complete` | Receives landed work | N/A |
+
 ## CLAUDE.md Updates
 
 Projects adopting this pattern should update their CLAUDE-THEAGENCY.md `Git & Remote Discipline` section:

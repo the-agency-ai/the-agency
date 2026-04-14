@@ -47,9 +47,18 @@ The captain commits review and dispatch files to master, then notifies the workt
 
 ### Worktree Agent: Handling a Dispatch
 
-The dispatch file is **review input** from an independent 7-agent review process — not an action list. Use your judgment.
+When you receive a review dispatch via ISCP:
 
-1. **Merge master** to pick up the dispatch file
+1. Run `dispatch list` to see pending dispatches with their integer IDs
+2. Run `dispatch read <id>` to read the payload and mark it as read
+3. Evaluate findings, fix with red-green cycle, append a resolution table
+4. Run `/iteration-complete` to commit your fixes
+5. Run `dispatch resolve <id>` to mark the dispatch resolved
+6. For review dispatches, send a `review-response` dispatch with `--reply-to <id>`
+
+The dispatch file itself is **review input** from an independent 7-agent review process — not an action list. Use your judgment.
+
+1. **Merge master** to pick up the dispatch file (if the payload is on master)
 2. **Read the dispatch file** — most recent in `code-reviews/`
 3. **Check the reviewed SHA** — verify it's in your branch history
 4. **Evaluate each finding for validity.** Investigate the code. Document your assessment.

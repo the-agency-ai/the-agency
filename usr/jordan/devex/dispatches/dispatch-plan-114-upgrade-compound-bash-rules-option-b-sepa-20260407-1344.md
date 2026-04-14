@@ -16,7 +16,7 @@ in_reply_to: 114
 ### Current state
 - `hookify.warn-compound-bash.md` (action: warn) — catches `&&`, `||`, `;`, single `|` with exclude pattern for benign cases (HEREDOC commit, `bash -c`, `2>&1 |`, `| head`, `| tail`)
 - `hookify.block-cd-to-main.md` (action: block) — blocks `cd /Users/` etc. specifically (no compound match)
-- `hookify.block-git-commit.md` (action: block) — blocks `git commit` directly with HEREDOC exclude
+- `hookify.block-git-safe-commit.md` (action: block) — blocks `git commit` directly with HEREDOC exclude
 - 33 hookify rules total
 
 ### Hookify infrastructure
@@ -24,10 +24,10 @@ Single action per rule: `block`, `warn`, or `inform`. **Option A (mixed actions 
 
 ### Overlap with existing rules
 - `cd /path && tool` — currently warned by warn-compound-bash. Not blocked by block-cd-to-main if path doesn't start with /Users/, ~/, or $HOME.
-- `git add ... && git commit` — the `git commit` substring IS matched by block-git-commit (no compound exclude). But: my recent commits used `git commit -m "$(cat <<...EOF)"` which is in the exclude pattern, suggesting block-git-commit ALLOWS compound commit if HEREDOC is used. So a direct `git add foo && git commit -m "x"` may or may not block depending on the regex matching behavior across the whole compound string.
+- `git add ... && git commit` — the `git commit` substring IS matched by block-git-safe-commit (no compound exclude). But: my recent commits used `git commit -m "$(cat <<...EOF)"` which is in the exclude pattern, suggesting block-git-safe-commit ALLOWS compound commit if HEREDOC is used. So a direct `git add foo && git commit -m "x"` may or may not block depending on the regex matching behavior across the whole compound string.
 
 ### My own offense pattern
-I am the recent offender. Pattern from this session: `git add foo && git commit -m "$(cat <<EOF...` — compound + HEREDOC + bypass of /git-commit. The HEREDOC exclude in block-git-commit lets it through.
+I am the recent offender. Pattern from this session: `git add foo && git commit -m "$(cat <<EOF...` — compound + HEREDOC + bypass of /git-safe-commit. The HEREDOC exclude in block-git-safe-commit lets it through.
 
 ## Proposed Fix (Option B — separate rules)
 
@@ -71,18 +71,18 @@ pattern: git\s+add\b.*&&.*git\s+commit
 action: block
 ---
 
-**BLOCKED: `git add ... && git commit ...` bypasses /git-commit skill.**
+**BLOCKED: `git add ... && git commit ...` bypasses /git-safe-commit skill.**
 
-The /git-commit skill enforces QGR receipt checks and dispatches commit notifications.
+The /git-safe-commit skill enforces QGR receipt checks and dispatches commit notifications.
 Compound git add+commit dodges both. Stage and commit as separate steps via the skill.
 
-Right: `/git-commit` (the skill — does add+commit+dispatch in one go correctly)
-Or:  Two separate Bash calls, one for add, one for /git-commit invocation.
+Right: `/git-safe-commit` (the skill — does add+commit+dispatch in one go correctly)
+Or:  Two separate Bash calls, one for add, one for /git-safe-commit invocation.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
 ```
 
-**Note:** block-git-commit's HEREDOC exclude lets compound HEREDOC commits through. This new rule closes that gap by matching the compound pattern explicitly.
+**Note:** block-git-safe-commit's HEREDOC exclude lets compound HEREDOC commits through. This new rule closes that gap by matching the compound pattern explicitly.
 
 ### Rule 3: warn-compound-bash stays as-is
 
@@ -108,7 +108,7 @@ I'll check telemetry as part of the implementation.
 ## Risks
 
 - **Pattern overlap:** block-compound-cd in this plan overlaps with cd-stays-in-worktree from #110. **Merge them or drop this rule and rely on #110.** My recommendation: drop Rule 1 here, do the comprehensive cd rule in #110.
-- **False positives on git add+commit:** Some legitimate use cases (rebasing, fixup commits) chain git add+commit. The block message should mention the escape hatch (/git-commit skill or two Bash calls).
+- **False positives on git add+commit:** Some legitimate use cases (rebasing, fixup commits) chain git add+commit. The block message should mention the escape hatch (/git-safe-commit skill or two Bash calls).
 - **No infra changes:** Sticking with single-action rules means more files. 33→34 or 35. Acceptable.
 
 ## Estimated work

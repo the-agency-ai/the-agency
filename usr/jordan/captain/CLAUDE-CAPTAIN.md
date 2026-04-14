@@ -129,6 +129,49 @@ To send a dispatch to monofolk:
 |------|---------|-------------------|
 | monofolk | `monofolk/jordan/captain` | `~/code/collaboration-monofolk` |
 
+## Communication Protocol — Over / Over-and-Out
+
+All back-and-forth discussions (1B1, /discuss, reviews, any conversation with the principal) follow the **Over / Over-and-Out** protocol, adapted from radio communications (1860s Morse procedural signs → WWII voice radio prowords).
+
+### Signals
+
+| Signal | Agent behavior |
+|---|---|
+| *(streaming — no signal yet)* | Receive, parse, think. **Do NOT respond.** The principal is still transmitting. |
+| **"Over"** | Principal's turn is done. Agent: **mirror back** what you heard (rephrase/reframe). Discuss. Ask questions. **NO action taken.** |
+| **"Over and out"** | Discussion item resolved. Agent: state intended actions. Ask **"does that work?"** Then execute per the gate model below. |
+
+### Execution gates
+
+| Action risk | Gate | Examples |
+|---|---|---|
+| **Low risk** | **Soft gate** — proceed unless principal objects | Drafting, researching, updating transcripts, outline revisions, launching research agents |
+| **High risk** | **Hard gate** — wait for explicit confirmation before executing | Filing to external systems, pushing to git, deleting files/branches, sending dispatches, destructive operations |
+
+The risk classification aligns with hookify levels: hookify-warn actions are soft-gate; hookify-block actions are hard-gate.
+
+### Rules
+
+- **Until you receive "Over," do not respond.** Batch-receive the principal's stream without interrupting their train of thought.
+- **On "Over," mirror first.** Rephrase what you heard before adding your own analysis. This catches misunderstandings before they become wrong actions.
+- **On "Over and out," state your plan.** Never silently execute after a discussion. Say what you're going to do. Ask "does that work?" For soft-gate actions, proceed after asking. For hard-gate actions, wait for explicit "yes."
+- **Any 1B1 auto-starts a transcript** if one isn't already running.
+
+## Tool Discipline — USE THE TOOLS
+
+**Never hand-craft files that a tool creates.** The framework has tools for scaffolding workstreams, agents, and worktrees. USE THEM:
+
+- **Workstreams:** `/workstream-create` — creates directory structure, agent registrations, worktrees, sandbox
+- **Agents:** `./claude/tools/agent-create` — creates agent registrations in `.claude/agents/`. NEVER write registration files manually.
+- **Worktrees:** `./claude/tools/worktree-create` — creates git worktrees with proper branch, settings copy, identity file, dependency install
+- **Handoffs:** `./claude/tools/handoff write` — archives previous, writes new. NEVER write handoff files directly.
+- **Commits:** `./claude/tools/git-safe-commit` — QG-aware wrapper. NEVER use raw `git commit`.
+- **Dispatches:** `./claude/tools/dispatch create` — creates DB record + git payload. NEVER write dispatch files manually.
+
+The tools exist because they enforce consistency, create the right structure, and are the Enforcement Triangle in action. Hand-crafting files that tools should create is a process violation — it bypasses the consistency guarantees and creates drift.
+
+**Lesson captured 2026-04-12:** Captain hand-crafted agent registration + handoff + workstream dirs for DesignEx instead of using `/workstream-create` + `agent-create` + `worktree-create`. Principal caught it: *"Use the tools! You are doing it manually! Spin up a workstream, an agent, a worktree with the tools!"* Fixed by removing manual files and redoing with tools.
+
 ## File Discipline
 
 - Handoffs: `usr/jordan/captain/captain-handoff.md` (via handoff tool, never manual)

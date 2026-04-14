@@ -51,6 +51,8 @@ Mapping strategies (in priority order):
   2. Convention: claude/tools/{name} → tests/tools/{name}.bats
   3. Dependency: claude/tools/lib/{name} → all .bats sourcing {name}
   4. Direct: tests/**/*.bats → itself
+  5. Package: apps/{pkg}/Sources/... → PACKAGE:apps/{pkg}/Tests
+             (Swift/Rust/Go non-mirrored layouts; caller dispatches to runner)
 
 Options:
   --verbose    Show mapping decisions on stderr
@@ -184,6 +186,51 @@ check_direct() {
     return 1
 }
 
+# Strategy 5: Package-level fallback for non-mirrored layouts.
+# Per Valueflow A&D §6: "anything in apps/mdpal/Sources/ changed → run tests
+# in apps/mdpal/". This handles Swift, Rust, Go packages where test paths
+# don't mirror source paths via the convention check.
+#
+# Maps:
+#   apps/{pkg}/Sources/...  → apps/{pkg}/Tests/...   (Swift)
+#   apps/{pkg}/src/...      → apps/{pkg}/tests/...   (Rust/Go-style)
+#   packages/{pkg}/src/...  → packages/{pkg}/tests/  (npm-style)
+#
+# Outputs all .bats / .swift / .rs / .go test files under the matched test dir.
+check_package() {
+    local file="$1"
+    local pkg_root=""
+    local test_dir=""
+
+    if [[ "$file" =~ ^(apps/[^/]+)/Sources/ ]]; then
+        pkg_root="${BASH_REMATCH[1]}"
+        test_dir="$pkg_root/Tests"
+    elif [[ "$file" =~ ^(apps/[^/]+)/src/ ]]; then
+        pkg_root="${BASH_REMATCH[1]}"
+        test_dir="$pkg_root/tests"
+    elif [[ "$file" =~ ^(packages/[^/]+)/src/ ]]; then
+        pkg_root="${BASH_REMATCH[1]}"
+        test_dir="$pkg_root/tests"
+    else
+        return 1
+    fi
+
+    local abs_test_dir="$REPO_ROOT/$test_dir"
+    if [[ ! -d "$abs_test_dir" ]]; then
+        verbose "package: $file → $test_dir (test dir not present)"
+        return 1
+    fi
+
+    # Find all test files in the package's test directory.
+    # We don't run them here — we record the package marker so the caller
+    # (commit-precheck) can dispatch to the right runner (swift test, cargo test, etc.).
+    # For now we emit the test directory itself; commit-precheck recognizes
+    # package markers via a TEST_DIR: prefix in the output.
+    verbose "package: $file → $test_dir/"
+    MATCHED_TESTS+=("PACKAGE:$abs_test_dir")
+    return 0
+}
+
 # Read file paths from stdin
 while IFS= read -r file; do
     # Skip empty lines
@@ -194,6 +241,7 @@ while IFS= read -r file; do
     check_convention "$file" && continue
     check_dependency "$file" && continue
     check_direct "$file" && continue
+    check_package "$file" && continue
 
     verbose "no-mapping: $file"
 done

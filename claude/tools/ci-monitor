@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# What Problem: Agents need visibility into CI status — failed GitHub Actions
+# runs on main or failing checks on open PRs — without burning tokens on
+# constant polling loops. The Monitor tool can watch a background script and
+# react to output lines in real-time, but needs a script that only outputs
+# when there are actionable failures (completely silent when everything is
+# green).
+#
+# How & Why: Lightweight polling script designed as a Monitor tool backend.
+# Polls GitHub Actions CI status every N seconds (default 60), only outputs
+# when there are failures (completely silent otherwise). Uses `gh` CLI for
+# GitHub API access — no extra dependencies. The Monitor tool streams each
+# output line to the agent, who can then investigate, notify the principal,
+# or take corrective action. Modeled after dispatch-monitor (same silent-
+# when-clean pattern).
+#
+# Usage: With Monitor tool — ask Claude to "monitor CI using ci-monitor"
+# Standalone: ./claude/tools/ci-monitor [--interval N] [--repo OWNER/REPO]
+#
+# Written: 2026-04-12 during devex session (contribution model rollout)
+
+set -euo pipefail
+
+INTERVAL=60
+REPO=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --interval)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --interval requires a numeric argument" >&2
+                exit 1
+            fi
+            INTERVAL="$2"
+            shift 2
+            ;;
+        --repo)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --repo requires an OWNER/REPO argument" >&2
+                exit 1
+            fi
+            REPO="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: ci-monitor [--interval N] [--repo OWNER/REPO]"
+            echo ""
+            echo "Lightweight CI status polling script for use with Claude Code's Monitor tool."
+            echo "Only outputs when there are actionable failures (silent when green)."
+            echo ""
+            echo "Options:"
+            echo "  --interval N        Poll interval in seconds (default: 60)"
+            echo "  --repo OWNER/REPO   GitHub repository (default: auto-detect from git remote)"
+            echo "  --help              Show this help"
+            echo ""
+            echo "Output prefixes:"
+            echo "  [CI] Main branch failures detected:"
+            echo "  [CI] PR check failures:"
+            echo ""
+            echo "Examples:"
+            echo "  ci-monitor                          # auto-detect repo, 60s interval"
+            echo "  ci-monitor --interval 120           # check every 2 minutes"
+            echo "  ci-monitor --repo the-agency-ai/the-agency"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            echo "Run ci-monitor --help for usage" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Validate interval is a positive integer
+if ! [[ "$INTERVAL" =~ ^[0-9]+$ ]] || [[ "$INTERVAL" -lt 1 ]]; then
+    echo "Error: --interval must be a positive integer (got: $INTERVAL)" >&2
+    exit 1
+fi
+
+# Auto-detect repo from git remote if not specified
+if [[ -z "$REPO" ]]; then
+    REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner' 2>/dev/null || echo "")
+    if [[ -z "$REPO" ]]; then
+        echo "Error: could not auto-detect repo. Pass --repo OWNER/REPO or ensure gh is authenticated." >&2
+        exit 1
+    fi
+fi
+
+# Verify gh CLI is available and authenticated
+if ! command -v gh &>/dev/null; then
+    echo "Error: gh CLI not found. Install from https://cli.github.com/" >&2
+    exit 1
+fi
+
+if ! gh auth status &>/dev/null; then
+    echo "Error: gh CLI not authenticated. Run 'gh auth login' first." >&2
+    exit 1
+fi
+
+while true; do
+    # Check main branch workflow run failures (last 5 runs)
+    FAILED=$(gh run list --repo "$REPO" --branch main --status failure --limit 5 \
+        --json conclusion,name,createdAt,url 2>/dev/null || echo "[]")
+
+    if [[ "$FAILED" != "[]" && "$FAILED" != "null" ]]; then
+        FAIL_COUNT=$(echo "$FAILED" | jq 'length' 2>/dev/null || echo "0")
+        if [[ "$FAIL_COUNT" -gt 0 ]]; then
+            echo "[CI] Main branch failures detected ($FAIL_COUNT):"
+            echo "$FAILED" | jq -r '.[] | "  - \(.name) (\(.createdAt)): \(.url)"'
+        fi
+    fi
+
+    # Check open PR check failures
+    PR_FAILURES=$(gh pr list --repo "$REPO" --state open \
+        --json number,title,statusCheckRollup \
+        --jq '.[] | select(.statusCheckRollup != null) | select([.statusCheckRollup[] | select(.conclusion == "FAILURE")] | length > 0) | "  PR #\(.number): \(.title)"' \
+        2>/dev/null || echo "")
+
+    if [[ -n "$PR_FAILURES" ]]; then
+        echo "[CI] PR check failures:"
+        echo "$PR_FAILURES"
+    fi
+
+    sleep "$INTERVAL"
+done

@@ -55,6 +55,22 @@ Report to the user:
 - **Handoff summary:** key points from Step 2
 - **Dispatches:** any unread from Step 3
 
+### Step 5: Session preflight
+
+```
+bash ./claude/tools/session-preflight
+```
+
+This runs the preflight checklist: clean tree, synced with main, handoff loaded, dispatches processed, dispatch monitor running. If any check fails, **fix it before proceeding.** Do not skip failures.
+
+If the dispatch monitor is not running, start it now:
+
+```
+Monitor dispatches using ./claude/tools/dispatch-monitor --include-collab (persistent, session-length)
+```
+
+The session is not ready until preflight passes.
+
 ### Note
 
 On master, Step 1 silently skips — the rest still runs. This skill works on any branch.

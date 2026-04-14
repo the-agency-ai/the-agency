@@ -335,7 +335,47 @@ main() {
         log_warn "test-scoper not found — skipping scoped tests"
     fi
 
-    # Step 4: Stage-hash check (warn-only)
+    # Step 4: Skill validation (runs when skills or framework files change)
+    # Moved from CI-only (where failures went unnoticed for weeks) to local
+    # pre-commit (where failures block immediately). See contribution model seed.
+    local staged_files
+    staged_files=$(git diff --cached --name-only)
+    local run_skill_validation=false
+
+    # Run skill validation if any skill, hookify, or framework file changed
+    if echo "$staged_files" | grep -qE '^\.claude/skills/|^claude/hookify/|^claude/hooks/|^claude/tools/|^claude/CLAUDE-'; then
+        run_skill_validation=true
+    fi
+
+    if [[ "$run_skill_validation" == "true" ]]; then
+        local skill_validation="$REPO_ROOT/tests/skills/skill-validation.bats"
+        if [[ -f "$skill_validation" ]]; then
+            if [[ "$DRY_RUN" == "true" ]]; then
+                echo "[dry-run] Would run: skill-validation.bats"
+            else
+                log_info "Running skill validation..."
+                unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE 2>/dev/null || true
+                local sv_output
+                if sv_output=$(run_with_timeout 30 bats "$skill_validation" 2>&1); then
+                    log_info "Skill validation passed"
+                else
+                    local sv_exit=$?
+                    if [[ $sv_exit -eq 124 ]]; then
+                        log_warn "Skill validation timed out (allowing commit)"
+                        echo "WARNING: Skill validation timed out"
+                    else
+                        end_run "failure" "Skill validation failed"
+                        echo "Skill validation failed"
+                        echo "$sv_output" | tail -20
+                        echo "✗"
+                        exit 2
+                    fi
+                fi
+            fi
+        fi
+    fi
+
+    # Step 5: Stage-hash check (warn-only)
     local stage_hash_tool="$SCRIPT_DIR/stage-hash"
     if [[ -x "$stage_hash_tool" && "$DRY_RUN" != "true" ]]; then
         local current_hash

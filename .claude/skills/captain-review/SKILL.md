@@ -55,4 +55,4 @@ mock-and-mark    #15   3 issues   usr/.../mock-and-mark-dispatch-20260401-1430.m
 
 ### Step 5: Commit review and dispatch files
 
-Stage and commit the review and dispatch files using `/git-commit --force` (these are coordination artifacts, not code changes).
+Stage and commit the review and dispatch files using `/git-safe-commit --force` (these are coordination artifacts, not code changes).

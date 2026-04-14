@@ -21,7 +21,7 @@ All ADHOC files, tools, flags, and framework references were removed. The
 |-------|--------|
 | `find . -name "*adhoc*" -o -name "*ADHOC*"` (excluding .git) | Zero results |
 | Framework files grep (excl. historical records) | Zero active refs |
-| `--adhoc` flag in git-commit | Rejected (test exists) |
+| `--adhoc` flag in git-safe-commit | Rejected (test exists) |
 | `--no-work-item` flag | Accepted (test exists) |
 | adhoc-log tool | Deleted |
 | ADHOC-WORKLOG.md files | All deleted |
