@@ -2,69 +2,66 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-13
+date: 2026-04-14
 trigger: session-end
 ---
 
-## Resume — Day 38 (Workshop Day)
+## Resume — Day 39 (Post-Workshop, Fleet Sync)
+
+### CRITICAL: First session on new bootloader
+
+CLAUDE-THEAGENCY.md bootloader refactor landed this session (from DevEx merge). Old 6,600-word monolith → 85-line/691-word bootloader. **Verify on startup:**
+1. Can you orient from this handoff?
+2. Does ref-injector fire when skills run?
+3. Do agents find docs on demand?
+
+If broken, old CLAUDE-THEAGENCY.md is in git history before commit `13767a4`.
 
 ### What happened this session
 
-**Workshop deck: v10 → v17 in one session.** 7 committed versions, 3 MAR rounds, 80+ individual changes.
+**Workshop went extremely well.** Live Valueflow demo — built a personal page + mini-blog in front of ~20 lecturers. Transcript coming.
 
-**Deck is at v17** (`f8e3750`), 90+ slides, committed and serving on port 8001.
+**Fleet sync — massive merge to main:**
+- DevEx: 35 commits (CI rework, hookify renames, CODE_OF_CONDUCT, contribution model, issues #50/#74 fixes, bootloader refactor, 4 new tools, 39 tests)
+- mdslidepal-web: Phase 1.1 MVP (serve command, theme, pre-processor, 35 tests)
+- mdslidepal-mac: Phases 1-4 (parser, themes, syntax highlighting, presentation mode, PDF export, 38 tests)
+- All worktrees synced
 
-Key structural changes across v10→v17:
-- OODA throughout (NOT ODA — Principal IS the OOD, Act = Delegation)
-- Proper OODA loop SVG (circular, colored arcs, readable labels)
-- Enforcement Triangle SVG (Direction/Discovery/Compliance triangle)
-- Session Lifecycle SVG (Resume→Dialogue→Execute→Compact→End loop)
-- "Claude Code Concepts" section: Agents+Subagents, Commands/Skills/Tools, Events/Hooks
-- Direction→Discovery→Compliance→Triangle enforcement sequence
-- Valueflow stages with artifacts (Seed→Define, Design→Plan, Implement→Ship→Value)
-- QG expanded to 8 stages
-- Agency concepts: Processes/Artifacts/Patterns/Collaboration (4 slides)
-- Quality philosophy: "We fix things. We don't work around them."
-- "Context Is Everything" slide with Attention paper reference
-- My Home Network anecdote (content TBD — Jordan tells it live)
-- Guided Tour, Setup, Checklist slides for Part 4
-- Acknowledgments: Abel, Weiling, Phyllis, Anthropic
-- Contact: jdm@devopspm.com, GitHub: jordandm
+**Issues closed:** #50 (dispatch filename collision), #58 (Docker CLI), #74 (handoff clobber)
 
-### Workshop status
+**PR #81 created:** D39-R1 — all merged work + 10 QG fixes. Pushed to origin.
 
-- **Workshop:** 13 April 2026, 09:00, Republic Polytechnic
-- **Deck:** v17, committed, ready
-- **Workshop repo:** https://github.com/the-agency-ai/the-agency-workshop — LIVE
-- **Bootstrap:** `curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-workshop/main/sessions/republic-poly-20260413/materials/bootstrap.sh | bash`
-- **Risk:** No end-to-end Ubuntu VM test confirmed
+**PR #78 (secret-local):** Open, needs BATS tests + stdin fix from DevEx.
 
-### Commits this session
-
-- `2aad5b3` v11 — MAR + 30 revisions + OODA fix + concepts (83 slides)
-- `8391634` v12 — QG 8 stages, quality philosophy, repo structure, MAR loop (86 slides)
-- `fcbda87` v13 — structural review: pacing fixes (85 slides)
-- `a285f30` v14 — OODA graphics, reorder concepts, Agency elements
-- `c322b97` v15 — Boyd restored, Direction/Discovery/Compliance sequence
-- `9c480b5` v16 — OODA readable, Enforcement Triangle SVG, Agency reorg
-- `62b9be5` — OODA loop SVG fix (readable text)
-- `4db0eb1` — OODA loop proper circle
-- `f8e3750` v17 — CC Concepts header, two-line titles, Valueflow refresh
+**git-safe + git-captain seeded to DevEx (#238-240):**
+- Two tools: git-safe (all agents), git-captain (captain only)
+- ALL git wrapped — no raw git whatsoever
+- Hookify blocks all raw git
+- DevEx runs full Valueflow: PVR → A&D → Plan → Implement
 
 ### Fleet state
 
-- **DevEx:** Workshop repo delivered (dispatch #223). CODE_OF_CONDUCT shipped.
-- **DesignEx:** Running autonomously
-- **mdslidepal-web:** Serving deck, SmartyPants working
-- **mdslidepal-mac:** Phase 1 in progress
-- **Monofolk:** D37-R1 notified
+| Agent | Status | Last dispatch |
+|-------|--------|---------------|
+| DevEx | Active, has git-safe seed | #238-240 |
+| DesignEx | Phase 1.1 implementing (figma-extract DTCG) | #234 (proceed to A&D) |
+| mdslidepal-web | Phase 1.1 complete, idle | #231 |
+| mdslidepal-mac | Phases 1-4 complete, debugging .app bundle | #232 |
+| ISCP | 10 commits on branch, not reviewed | — |
 
-### What's next (post-workshop)
+### What's next
 
-- Workshop debrief + lessons learned
-- DevEx PR build (#201 items complete, 6 commits ready)
-- Monofolk Ring 2 transition dispatch
-- CI rework (smoke-ubuntu + fork-pr-full-qg)
-- Deck post-mortem: what worked, what didn't, what to change for next time
+1. **Verify bootloader** — next session restart IS the test
+2. **Merge PR #81** — after CI
+3. **Monofolk Ring 2 dispatch** — STILL pending since D36
+4. **Monitor DevEx** — git-safe/git-captain progress
+5. **Monitor DesignEx** — April 17 monofolk deadline (3 days)
+6. **Workshop debrief** — awaiting Jordan's transcript
+
+### Lessons this session
+
+1. **Always start dispatch monitor at session start.** Missed DevEx response.
+2. **Don't let work sit.** DevEx had 35 commits unmerged. Sync regularly.
+3. **No half measures.** When Jordan says "wrap everything," he means everything.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
