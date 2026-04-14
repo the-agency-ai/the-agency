@@ -16,7 +16,7 @@ ADDENDUM to dispatch #242 (bootloader rollout):
 /session-end behavior has changed. When you run /session-end:
 
 1. Send any pending dispatches
-2. Commit ALL uncommitted files via /git-commit — do NOT ask the user, just commit and get clean
+2. Commit ALL uncommitted files via /git-safe-commit — do NOT ask the user, just commit and get clean
 3. Write the handoff
 4. Report readiness
 5. End with: 'Safe to /compact and/or /exit.'

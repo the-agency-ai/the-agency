@@ -16,7 +16,7 @@ The-agency uses a **three-ring contribution model** that matches CI discipline t
 
 **Who belongs here:** The captain and all worktree agents operating on this repository under the same captain's direction. Devex, iscp, and any future agents that follow the-agency's captain workflow.
 
-**Trust basis:** Same processes (Valueflow, QG, three-bucket triage, hookify), same players (this captain's worktree agents), same commit discipline (`git-commit` wrapper, enforced hookify rules, pre-commit quality gates). Everything that matters is enforced at the commit boundary by tools we control.
+**Trust basis:** Same processes (Valueflow, QG, three-bucket triage, hookify), same players (this captain's worktree agents), same commit discipline (`git-safe-commit` wrapper, enforced hookify rules, pre-commit quality gates). Everything that matters is enforced at the commit boundary by tools we control.
 
 **What this means in practice:**
 

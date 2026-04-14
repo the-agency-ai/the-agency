@@ -2,9 +2,9 @@
 # Create properly formatted commits for The Agency
 #
 # Usage:
-#   ./claude/tools/git-commit "short summary" --work-item REQUEST-jordan-0065 --stage impl
-#   ./claude/tools/git-commit "fix null handling" --work-item BUG-0042 --stage review
-#   ./claude/tools/git-commit "quick doc fix" --no-work-item  # Escape hatch when no work item applies
+#   ./claude/tools/git-safe-commit "short summary" --work-item REQUEST-jordan-0065 --stage impl
+#   ./claude/tools/git-safe-commit "fix null handling" --work-item BUG-0042 --stage review
+#   ./claude/tools/git-safe-commit "quick doc fix" --no-work-item  # Escape hatch when no work item applies
 #
 # IMPORTANT: Work item OR --no-work-item is REQUIRED. Commits without either are blocked.
 #
@@ -186,7 +186,7 @@ main() {
 
     if [ -z "$MESSAGE" ]; then
         log_error "Commit message required"
-        verbose_echo "Usage: ./claude/tools/git-commit \"message\" --work-item WORK-ITEM --stage impl"
+        verbose_echo "Usage: ./claude/tools/git-safe-commit \"message\" --work-item WORK-ITEM --stage impl"
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "Missing commit message"
         exit 1
@@ -197,10 +197,10 @@ main() {
         log_error "Work item required"
         echo ""
         echo "Every commit must reference a work item:"
-        echo "  ./claude/tools/git-commit \"message\" --work-item REQUEST-jordan-XXXX --stage impl"
+        echo "  ./claude/tools/git-safe-commit \"message\" --work-item REQUEST-jordan-XXXX --stage impl"
         echo ""
         echo "To skip (escape hatch):"
-        echo "  ./claude/tools/git-commit \"message\" --no-work-item"
+        echo "  ./claude/tools/git-safe-commit \"message\" --no-work-item"
         echo ""
         echo "Valid work item types: REQUEST, BUG, TASK, PHASE, ITERATION, SPRINT"
         trap - EXIT

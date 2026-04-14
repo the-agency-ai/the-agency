@@ -128,7 +128,7 @@ my-project/
 │   │   ├── commit-precheck                # framework
 │   │   ├── dependencies-check             # framework
 │   │   ├── dependencies-install           # framework
-│   │   ├── git-commit                     # framework
+│   │   ├── git-safe-commit                     # framework
 │   │   ├── git-fetch                      # framework
 │   │   ├── git-sync                       # framework
 │   │   ├── git-tag                        # framework
@@ -322,7 +322,7 @@ Lives at `claude/config/manifest.json`.
     "principal": "jordan"
   },
   "files": {
-    "claude/tools/git-commit": {
+    "claude/tools/git-safe-commit": {
       "hash": "sha256:abc123...",
       "tier": "framework",
       "installed_version": "2.0.0"

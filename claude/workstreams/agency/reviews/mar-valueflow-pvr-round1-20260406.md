@@ -36,7 +36,7 @@ reviewers:
 |---|--------|---------|-----------|
 | 1 | Critic #4 | Enforcement ladder omits rollback | The ladder is iterative. "Strip kittens when tooling is sufficient" IS the recalibrate mechanism. C4 (rapid iteration) covers this. |
 | 2 | Lean #7 | "Everything before delivery is waste" is undercut | The Lean provocation is intentional framing. AGREED with the refinement — added "every step must demonstrably reduce rework or increase delivery probability" as clarification. |
-| 3 | Practitioner #4 | Dispatch-on-commit is V3 | Already implemented in git-commit tool (lines 365-390). This is V2, shipped. |
+| 3 | Practitioner #4 | Dispatch-on-commit is V3 | Already implemented in git-safe-commit tool (lines 365-390). This is V2, shipped. |
 | 4 | Lean #1 | Ceremony exceeds waste reduction — need complexity tiers | Two hours from gleam to implementation is not ceremony. It's context building. The full valueflow IS lightweight when agents do the heavy lifting. Bug fixes skip it — that's not a tier, it's a different type of work. |
 | 5 | Lean #3 | Push model, not pull | Push is correct for agents. Agents don't get fatigued. The dispatch-push model IS the quality assurance mechanism — every commit dispatches to captain, captain processes it. Nothing slips through without a gate. |
 

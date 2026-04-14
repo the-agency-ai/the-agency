@@ -40,7 +40,7 @@ the-agency/jordan/devex — tech-lead on the devex workstream.
 - **3 open questions** pending principal input:
   1. git stash — include in git-safe or leave internal to worktree-sync?
   2. git add -A — block or warn?
-  3. git-safe subsume /git-commit? (my rec: NO)
+  3. git-safe subsume /git-safe-commit? (my rec: NO)
 - Next: A&D → Plan → Implement after questions answered
 
 ### Waiting on captain

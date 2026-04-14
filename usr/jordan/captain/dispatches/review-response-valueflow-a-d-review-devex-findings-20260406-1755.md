@@ -29,7 +29,7 @@ My recommendation: no mapping = warn and proceed. The manifest override is how w
 
 'No registry without auditor' is a load-bearing statement and I fully agree. The audit tool validates that at level N, artifacts for levels 1-N exist. This is testable, automatable, and produces a clear compliance report. I'll own this.
 
-One gap: the registry schema shows `level: 5` as a number but doesn't define what happens at intermediate levels. If git-commit is at level 5 (block) and mar is at level 1 (document), what does level 3 for a new capability look like in practice? The tool exists but no hookify warn yet? The A&D should show a concrete example of a capability progressing through all 5 levels — what files get created at each step, what the audit tool checks at each level.
+One gap: the registry schema shows `level: 5` as a number but doesn't define what happens at intermediate levels. If git-safe-commit is at level 5 (block) and mar is at level 1 (document), what does level 3 for a new capability look like in practice? The tool exists but no hookify warn yet? The A&D should show a concrete example of a capability progressing through all 5 levels — what files get created at each step, what the audit tool checks at each level.
 
 ### 3. §6 test hermiticity section is good but incomplete
 

@@ -45,7 +45,7 @@ Focus areas: enforcement ladder, quality gates, pre-commit scope, permission mod
 
 ## ISCP Integration
 
-**FR7 dispatch-on-commit is the right primitive but the PVR understates the complexity.** The dispatch needs to carry: commit hash, branch, files changed, iteration/phase context, and whether the commit landed on the agent's branch or on main. Today, dispatch create requires manual invocation. Automating it means either a post-commit hook or a git-commit wrapper that dispatches. The git-commit tool is the right place.
+**FR7 dispatch-on-commit is the right primitive but the PVR understates the complexity.** The dispatch needs to carry: commit hash, branch, files changed, iteration/phase context, and whether the commit landed on the agent's branch or on main. Today, dispatch create requires manual invocation. Automating it means either a post-commit hook or a git-safe-commit wrapper that dispatches. The git-safe-commit tool is the right place.
 
 **Captain batching (FR8) interacts with ISCP ordering guarantees.** If captain batches "all commits before syncing," the batch needs to be processed in commit order (topological), not dispatch creation order. Two agents committing simultaneously could create dispatches in either order. ISCP dispatches have sequential IDs but that doesn't guarantee the underlying commits are in dependency order.
 

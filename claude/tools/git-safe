@@ -1,0 +1,172 @@
+#!/bin/bash
+# What Problem: Agents run raw git commands that can be destructive or violate
+# conventions (git add -A, git add ., rebasing, force push). There is no safe
+# subset of git operations that agents can use without risk of breaking the
+# working tree or violating The Agency's merge-not-rebase discipline.
+#
+# How & Why: A curated set of read-only and carefully-guarded write operations
+# exposed as subcommands. Read operations (status, log, diff, branch, show,
+# blame) pass through directly. The only write operation — git add — blocks
+# wildcard/directory patterns that could stage secrets or binaries. The
+# merge-from-master subcommand enforces clean-tree merges with auto-detection
+# of main vs master. Hookify rules can trust git-safe invocations because the
+# dangerous patterns are blocked at this layer.
+#
+# Written: 2026-04-14 during devex workstream (git-safe family)
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# Colors
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED=$'\033[0;31m' GREEN=$'\033[0;32m' YELLOW=$'\033[1;33m' BLUE=$'\033[0;34m' NC=$'\033[0m'
+fi
+
+die() { echo "${RED}[ERROR]${NC} $1" >&2; exit 1; }
+
+usage() {
+    cat <<'USAGE'
+git-safe — Safe git operations for all agents
+
+Usage: ./claude/tools/git-safe <subcommand> [args...]
+
+Subcommands (read-only):
+  status [args]          git status
+  log [args]             git log
+  diff [args]            git diff
+  branch                 Show current branch name
+  show [args]            git show
+  blame [args]           git blame
+
+Subcommands (guarded write):
+  add <file> [file...]   Stage explicit file paths (blocks -A, --all, ., wildcards)
+  merge-from-master      Merge main/master into current branch (clean tree required)
+
+Options:
+  --help                 Show this help
+  --version              Show version
+USAGE
+    exit 0
+}
+
+# --- Subcommand: status ---
+cmd_status() {
+    git status "$@"
+}
+
+# --- Subcommand: log ---
+cmd_log() {
+    git log "$@"
+}
+
+# --- Subcommand: diff ---
+cmd_diff() {
+    git diff "$@"
+}
+
+# --- Subcommand: branch ---
+cmd_branch() {
+    git branch --show-current
+}
+
+# --- Subcommand: show ---
+cmd_show() {
+    git show "$@"
+}
+
+# --- Subcommand: blame ---
+cmd_blame() {
+    git blame "$@"
+}
+
+# --- Subcommand: add ---
+cmd_add() {
+    [[ $# -eq 0 ]] && die "git-safe add requires explicit file paths. Usage: git-safe add <file> [file...]"
+
+    for arg in "$@"; do
+        # Block flags that stage everything
+        case "$arg" in
+            -A|--all)
+                die "git-safe add blocks '$arg' — specify explicit file paths instead."
+                ;;
+        esac
+
+        # Block bare directory paths and wildcards
+        if [[ "$arg" == "." || "$arg" == "./" || "$arg" == ".." || "$arg" == "../" ]]; then
+            die "git-safe add blocks '$arg' — specify explicit file paths instead."
+        fi
+
+        # Block glob wildcards (unquoted * would be expanded by shell, but quoted * arrives here)
+        if [[ "$arg" == "*" || "$arg" == "**" ]]; then
+            die "git-safe add blocks '$arg' — specify explicit file paths instead."
+        fi
+
+        # Block bare directory paths
+        if [[ -d "$arg" ]]; then
+            die "git-safe add blocks directory '$arg' — specify individual files within the directory."
+        fi
+    done
+
+    git add "$@"
+    echo "${GREEN}Staged:${NC} $*"
+}
+
+# --- Subcommand: merge-from-master ---
+cmd_merge_from_master() {
+    # Auto-detect main branch name
+    local main_branch=""
+    if git show-ref --verify refs/heads/main &>/dev/null; then
+        main_branch="main"
+    elif git show-ref --verify refs/heads/master &>/dev/null; then
+        main_branch="master"
+    else
+        die "Cannot find main or master branch."
+    fi
+
+    local current_branch
+    current_branch=$(git branch --show-current)
+
+    if [[ "$current_branch" == "$main_branch" ]]; then
+        die "Already on $main_branch — merge-from-master is for feature branches."
+    fi
+
+    # Refuse if working tree is dirty
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+        die "Working tree is dirty. Commit or stash changes first (see /worktree-sync)."
+    fi
+
+    # Check for untracked files that might cause merge conflicts
+    # (informational only — untracked files don't block merge)
+
+    echo "${BLUE}Merging $main_branch into $current_branch...${NC}"
+    if git merge "$main_branch" --no-edit; then
+        echo "${GREEN}Merge complete.${NC} $main_branch merged into $current_branch."
+    else
+        die "Merge failed — resolve conflicts manually, then commit."
+    fi
+}
+
+# --- Main dispatch ---
+[[ $# -eq 0 ]] && usage
+
+case "$1" in
+    --help|-h)    usage ;;
+    --version)    echo "git-safe $TOOL_VERSION"; exit 0 ;;
+    status)       shift; cmd_status "$@" ;;
+    log)          shift; cmd_log "$@" ;;
+    diff)         shift; cmd_diff "$@" ;;
+    branch)       shift; cmd_branch "$@" ;;
+    show)         shift; cmd_show "$@" ;;
+    blame)        shift; cmd_blame "$@" ;;
+    add)          shift; cmd_add "$@" ;;
+    merge-from-master) shift; cmd_merge_from_master "$@" ;;
+    *)            die "Unknown subcommand: $1 — run 'git-safe --help' for usage." ;;
+esac

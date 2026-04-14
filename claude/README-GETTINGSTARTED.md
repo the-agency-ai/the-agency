@@ -111,8 +111,8 @@ Narrow permission patterns (the old approach) created friction — every new com
 
 | Directory | What | Example |
 |-----------|------|---------|
-| `claude/tools/` | CLI tools with logging and telemetry | `dispatch`, `flag`, `handoff`, `git-commit` |
-| `claude/hookify/` | Behavioral rules (warn/block) | `hookify.block-git-commit.md` |
+| `claude/tools/` | CLI tools with logging and telemetry | `dispatch`, `flag`, `handoff`, `git-safe-commit` |
+| `claude/hookify/` | Behavioral rules (warn/block) | `hookify.block-git-safe-commit.md` |
 | `claude/docs/` | Reference docs (injected on demand) | `QUALITY-GATE.md`, `ISCP-PROTOCOL.md` |
 | `claude/agents/` | Agent class definitions | `captain/agent.md`, `tech-lead/agent.md` |
 | `claude/hooks/` | Session lifecycle hooks | `ref-injector.sh` |

@@ -75,7 +75,7 @@ Generate a final "this is how it works" document:
 
 ### Step 8: Commit
 
-Use `/git-commit` via the Skill tool. The message must follow the `Phase X.Y:` format. **Principal must approve the commit message.**
+Use `/git-safe-commit` via the Skill tool. The message must follow the `Phase X.Y:` format. **Principal must approve the commit message.**
 
 ### Step 9: Update handoff
 

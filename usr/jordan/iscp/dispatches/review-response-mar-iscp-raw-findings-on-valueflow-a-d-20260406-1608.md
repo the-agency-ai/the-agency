@@ -61,7 +61,7 @@ Superseded by directive #71 — principal decided on symlinks. I'll implement th
 
 **Section 4 (Enforcement Ladder) — the revised ordering is correct.** Tools before warn, warn before block. The enforcement registry (enforcement.yaml) is a good idea but it's a new file that needs to be maintained. Risk: it drifts from reality. Mitigation: the audit tool that DevEx is asked to build. Without the audit tool, the registry is just another document that gets stale.
 
-**Per-workstream enforcement levels are right** but the mechanism for transitioning between levels needs more design. Who decides when iscp goes from level 3 to level 5 for git-commit? Is it automatic based on criteria, or a principal decision? The registry captures the state but not the transition rules.
+**Per-workstream enforcement levels are right** but the mechanism for transitioning between levels needs more design. Who decides when iscp goes from level 3 to level 5 for git-safe-commit? Is it automatic based on criteria, or a principal decision? The registry captures the state but not the transition rules.
 
 **Section 5 (Captain Architecture) — the catch-up protocol is critical and well-designed.** Processing queued dispatches in created_at order on restart is correct. The batching model (all commits before syncing) is right for efficiency.
 

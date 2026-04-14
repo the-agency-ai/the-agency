@@ -60,7 +60,7 @@ BATS tests that verify the naming function for each of the 5 example cases + a c
 
 ## Checkpoint
 
-I'll commit via /git-commit when the rule is implemented + tested. No /phase-complete ritual (Item 1's dispatch-direct approach applies here too — just commit and report).
+I'll commit via /git-safe-commit when the rule is implemented + tested. No /phase-complete ritual (Item 1's dispatch-direct approach applies here too — just commit and report).
 
 ## Why I'm dispatching this before starting
 

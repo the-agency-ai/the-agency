@@ -77,7 +77,7 @@ Exceptions: none. All git goes through the tools.
 ### FR4: Existing tool migration
 All existing tools that use raw git internally must be updated to call `git-safe` or `git-captain` subcommands instead. Key tools:
 - `worktree-sync` → `git-safe merge-from-master`
-- `git-commit` → `git-safe add` (already uses git add internally)
+- `git-safe-commit` → `git-safe add` (already uses git add internally)
 - `collaboration` → `git-captain push`
 - `upstream-port` → `git-captain checkout-branch`, `git-safe add`, `git-captain push`
 - `nit-add`, `nit-resolve` → `git-safe add`
@@ -94,7 +94,7 @@ Tools in `claude/tools/` that call git internally should NOT be blocked by hooki
 ## 5. Non-Functional Requirements
 
 - **Performance:** Zero overhead for read-only operations (thin wrappers)
-- **Compatibility:** Must not break existing worktree-sync, git-commit, /sync, /sync-all flows
+- **Compatibility:** Must not break existing worktree-sync, git-safe-commit, /sync, /sync-all flows
 - **Idempotent:** Running the same command twice produces the same result
 - **Error messages:** Actionable — tell the user what to do instead
 
@@ -117,12 +117,21 @@ Tools in `claude/tools/` that call git internally should NOT be blocked by hooki
 ## 8. Non-Goals
 
 - **Not replacing /sync or /sync-all** — those are higher-level workflows that will call git-captain internally
-- **Not replacing /git-commit** — that's a higher-level workflow with QGR enforcement
+- **Not replacing /git-safe-commit (née /git-safe-commit)** — that's a higher-level workflow with QGR enforcement
 - **Not wrapping git in hooks** — hooks are internal (PreToolUse fires on Bash, not subprocesses)
 - **Not changing the merge-not-rebase policy** — that's already enforced
 
-## 9. Open Questions
+## 9. Open Questions — RESOLVED (dispatch #266)
 
-1. **git stash** — worktree-sync uses `git stash`/`git stash pop`. Should this be in git-safe? Or left as internal to worktree-sync?
-2. **git-safe add -A** — should we block `git add -A` / `git add .` to prevent accidental staging of secrets? Or just warn?
-3. **Should git-safe subsume /git-commit?** — Principal question from dispatch #238. Recommendation: NO — /git-commit is a higher-level workflow (QGR enforcement, dispatch-on-commit). git-safe add is the low-level staging.
+1. **git stash** — NO. Stays internal to worktree-sync. Agents should not stash ad hoc.
+2. **git add -A** — BLOCK. Not safe. Blindly stages secrets, binaries, temp files. Require explicit file paths.
+3. **git-safe subsume /git-safe-commit?** — NO. Separate concerns. git-safe = plumbing. /git-safe-commit = commit workflow.
+
+## 10. Additional Scope (dispatch #266)
+
+**Rename /git-safe-commit → /git-safe-commit.** Naming consistency with the git-safe family. Framework-wide refactor: skills, docs, hookify rules, CLAUDE.md references, session lifecycle skills.
+
+The family:
+- `git-safe` — tool, safe git operations (all agents)
+- `git-captain` — tool, captain-only git operations
+- `/git-safe-commit` — skill, safe commit workflow (wraps QG + message + staging)
