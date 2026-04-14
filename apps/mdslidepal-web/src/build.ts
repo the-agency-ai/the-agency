@@ -103,8 +103,8 @@ export async function buildOutput(options: BuildOptions): Promise<BuildResult> {
   const indexPath = join(outputDir, "index.html");
   await writeFile(indexPath, html, "utf-8");
 
-  // Estimate slide count from separators
-  const slideCount = (markdown.match(/^\r?\n---\r?\n$/gm)?.length ?? 0) + 1;
+  // Estimate slide count from separators (match blank-line-surrounded ---)
+  const slideCount = (markdown.match(/\n---\n/g)?.length ?? 0) + 1;
 
   return { indexPath, outputDir, slideCount, imagesCopied };
 }

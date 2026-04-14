@@ -55,7 +55,7 @@ Source: Valueflow A&D §6 "Quality Gate Architecture".
 1. Agent runs `/iteration-complete` skill
 2. Skill calls `commit-precheck` (full path: classify → scope → run)
 3. Skill calls format/lint/typecheck for app-code projects (when scripts exist in `package.json`)
-4. On clean: auto-commits via `claude/tools/git-commit` with the iteration prefix
+4. On clean: auto-commits via `claude/tools/git-safe-commit` with the iteration prefix
 5. On failure: blocks, surfaces findings, agent fixes and re-runs
 
 T2 exists primarily to enforce the boundary commit ritual — it doesn't add test coverage beyond T1, it adds the surrounding hygiene.
@@ -128,8 +128,8 @@ Every BATS test inherits the default `setup()` from `test_helper.bash`, which ca
 
 | Rule | What it catches |
 |------|----------------|
-| `git-commit-block` | Raw `git commit` (use `/git-commit` skill which goes through `git-commit` tool which triggers the pre-commit hook) |
-| `git-add-and-commit-block` | Compound `git add ... && git commit` (dodges /git-commit) |
+| `git-safe-commit-block` | Raw `git commit` (use `/git-safe-commit` skill which goes through `git-safe-commit` tool which triggers the pre-commit hook) |
+| `git-add-and-commit-block` | Compound `git add ... && git commit` (dodges /git-safe-commit) |
 | `cd-outside-worktree-block` | Worktree escape via `cd /any/path`, `cd ..`, etc. — protects identity resolution that drives the test paths |
 | `raw-git-config-user-in-tests-block` | Raw `git config user.*` outside `test_isolation_setup` (the historical pollution vector that broke T1) |
 | `no-verify-block` | `git commit --no-verify` (skips T1 entirely) |

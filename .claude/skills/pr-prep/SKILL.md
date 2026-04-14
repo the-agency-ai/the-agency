@@ -42,7 +42,7 @@ Wait for the QGR to be presented and the receipt file written before proceeding.
 If the QG found and fixed issues (it usually does):
 
 1. Stage the fixes and any new test files.
-2. Use `/git-commit` to commit them. The QGR receipt from Step 2 covers the pre-fix state; the commit will update the staged content. This is expected — the receipt proves the QG ran.
+2. Use `/git-safe-commit` to commit them. The QGR receipt from Step 2 covers the pre-fix state; the commit will update the staged content. This is expected — the receipt proves the QG ran.
 3. If the fixes are significant, consider running the QG again on the updated code.
 
 ### Step 4: Report readiness

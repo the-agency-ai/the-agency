@@ -18,20 +18,20 @@ Agents in monofolk (and any project using the-agency) are blocked from committin
 
 1. Agents commit whenever they have a unit of work. Not gated on permission — gated on QG/MAR passing.
 2. Defined boundaries that WILL commit (skills call commit tool internally):
-   - PVR complete/revision → `/define` calls MAR → `git-commit`
-   - A&D complete/revision → `/design` calls MAR → `git-commit`
-   - Plan complete/revision → plan skill calls MAR → `git-commit`
-   - `/iteration-complete` → QG → `git-commit`
-   - `/phase-complete` → deep QG → `git-commit`
-   - `/plan-complete` → deep QG → `git-commit`
+   - PVR complete/revision → `/define` calls MAR → `git-safe-commit`
+   - A&D complete/revision → `/design` calls MAR → `git-safe-commit`
+   - Plan complete/revision → plan skill calls MAR → `git-safe-commit`
+   - `/iteration-complete` → QG → `git-safe-commit`
+   - `/phase-complete` → deep QG → `git-safe-commit`
+   - `/plan-complete` → deep QG → `git-safe-commit`
 3. Agents can commit outside these boundaries too — the tool doesn't police "are you at a boundary?"
 4. Every commit dispatches "committed" notification to captain.
 5. Agents CANNOT commit to main. Tool enforces branch check.
-6. Agents CANNOT use raw `git commit`. Hookify rule blocks it, points to `/git-commit`.
+6. Agents CANNOT use raw `git commit`. Hookify rule blocks it, points to `/git-safe-commit`.
 
 ### QGR Enforcement in the Tool
 
-The `claude/tools/git-commit` bash tool must mechanically enforce the stage-hash receipt check:
+The `claude/tools/git-safe-commit` bash tool must mechanically enforce the stage-hash receipt check:
 1. Compute stage-hash of staged changes
 2. Glob for matching QGR or MAR receipt
 3. No receipt + no `--force` → exit 1, blocked
@@ -81,7 +81,7 @@ New Enforcement Triangle:
 `/ship` conflates agent and captain roles (commit + push + PR in one grab-bag). Originally from monofolk where developers ship feature branches. Doesn't fit the new model.
 
 Action: delete the skill, scrub all documentation references. Its responsibilities split into:
-- Agent commit flow → `/iteration-complete` etc. → `/git-commit` → dispatch
+- Agent commit flow → `/iteration-complete` etc. → `/git-safe-commit` → dispatch
 - Captain PR flow → `/git-pr` → dispatch
 
 If a framework release workflow is needed later, that's `/release` — a separate concern.
@@ -124,7 +124,7 @@ This was exercised live for monofolk ISCP adoption (2026-04-05). The dispatch at
 
 ## Kill `/ship`
 
-`/ship` is removed from the-agency and all adopting projects. Conflates agent commit and captain PR roles. Responsibilities split to `/git-commit` (agents) and `/git-pr` (captain).
+`/ship` is removed from the-agency and all adopting projects. Conflates agent commit and captain PR roles. Responsibilities split to `/git-safe-commit` (agents) and `/git-pr` (captain).
 
 Action: delete skill, scrub all documentation references, remove from settings.json permissions.
 
@@ -135,7 +135,7 @@ The model: agents execute freely (QG/MAR enforced mechanically), captain coordin
 ```
 Agent (worktree)                    Captain (main)                   Origin
 ─────────────────                   ──────────────                   ──────
-work → QG/MAR → git-commit
+work → QG/MAR → git-safe-commit
   └─ dispatch: "committed"  ───→   auto-merge to main
                                    sync main → all branches
                                      └─ dispatch: "main-updated"

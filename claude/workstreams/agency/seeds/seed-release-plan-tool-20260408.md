@@ -34,7 +34,7 @@ Given the current branch state, produces:
 3. **Suggested commit boundaries** — N proposed commits with:
    - File list
    - Suggested message (drawn from file paths + agent identity)
-   - Whether it needs QG (`/git-commit`) or coordination (`/coord-commit`)
+   - Whether it needs QG (`/git-safe-commit`) or coordination (`/coord-commit`)
 4. **Things to exclude from R1** — files that look like they were left over from prior work, untouched in the current session, or are tmp/scratch
 5. **PR shape** — branch name, base branch, draft status, suggested title and summary
 
@@ -62,7 +62,7 @@ It also unblocks **agents** doing their own releases (devex, iscp, etc.) — the
 1. **Heuristics vs machine-learned grouping.** Heuristics from file paths are simple and explainable. ML grouping is fancier but harder to debug. v1 should be heuristic-only.
 2. **How does it know what's "current session" vs leftover from prior work?** Use `git stash` timestamps? Modification time vs session start? Commit-hint-from-message? Hard problem.
 3. **Does it auto-write commit messages?** Or just propose? I'd say propose and let captain edit before applying.
-4. **Integration with `/git-commit`**. Each proposed commit should be runnable through `/git-commit` so QG attribution stays consistent.
+4. **Integration with `/git-safe-commit`**. Each proposed commit should be runnable through `/git-safe-commit` so QG attribution stays consistent.
 5. **Integration with `/sync-all`** and the Day-PR Release Pattern. Release plan is the *input* to building the day-N-release-M branch.
 6. **Should it be invokable by any agent or captain-only?** Probably any agent for their own worktree's release.
 
@@ -71,7 +71,7 @@ It also unblocks **agents** doing their own releases (devex, iscp, etc.) — the
 - **Day-PR Release Pattern** (shipped Day 32) — `day{N}-release-{M}` branches as drafts. release-plan would automate the branch construction.
 - **`/pr-prep` skill** — runs the QG before creating a PR. release-plan would run *before* `/pr-prep` to determine WHAT goes in the PR.
 - **`/coord-commit` skill** — for committing coordination artifacts without QG. release-plan would emit `coord-commit` calls for the artifact group.
-- **`/git-commit` tool** — release-plan emits `git-commit` calls for content groups.
+- **`/git-safe-commit` tool** — release-plan emits `git-safe-commit` calls for content groups.
 - **`stage-hash` tool** — release-plan can use stage-hash to verify each proposed commit.
 
 ## Slot

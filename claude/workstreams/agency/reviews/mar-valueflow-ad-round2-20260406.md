@@ -61,7 +61,7 @@ reviewers:
 | R2-MF2 | monofolk | R1-revised | Context budget linter critical path — must ship with decomposition | **Autonomous** | Already captured in revision |
 | R2-MF3 | monofolk | R1-revised | Dispatch retention — git payloads stay forever, only clean symlinks + DB | **Autonomous** | Valid refinement. 30-day = DB + symlinks. Git payloads stay. |
 | R2-DX1 | DevEx | R1-revised | T1 scoping needs default for unmapped files | **Autonomous** | No mapping = warn and proceed. Manifest closes gaps over time. State explicitly. |
-| R2-DX2 | DevEx | R1-revised | Enforcement ladder needs concrete example through all 5 levels | **Autonomous** | Add git-commit as worked example (currently at level 5) |
+| R2-DX2 | DevEx | R1-revised | Enforcement ladder needs concrete example through all 5 levels | **Autonomous** | Add git-safe-commit as worked example (currently at level 5) |
 | R2-DX3 | DevEx | R1-revised | Test hermiticity misses 25 un-isolated files + filesystem pollution | **Autonomous** | DevEx Phase 1 scope. A&D references requirement; DevEx PVR/A&D owns rollout. |
 | R2-DX4 | DevEx | R1-revised | Permission model still missing — no design section | **Autonomous** | DevEx owns in their PVR/A&D. Valueflow A&D references, doesn't duplicate. |
 | R2-DX5 | DevEx | R1-revised | Symlinks need reconstruction on fresh clone | **Autonomous** | Add: dispatch tool rebuilds symlinks from DB on init. |

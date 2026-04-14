@@ -8,6 +8,17 @@ import { describe, it, expect } from "vitest";
 import { preprocessMarkdown } from "../src/preprocess.js";
 
 describe("preprocessMarkdown", () => {
+  it("handles empty input", () => {
+    expect(preprocessMarkdown("")).toBe("");
+  });
+
+  it("collapses adjacent separators", () => {
+    const input = "# Slide 1\n\n---\n\n---\n\n---\n\n# Slide 2";
+    const result = preprocessMarkdown(input);
+    // Adjacent separators should collapse to one
+    expect(result).toBe("# Slide 1\n\n---\n\n# Slide 2");
+  });
+
   it("strips trailing --- at end of file", () => {
     const input = "# Slide 1\n\n---\n\n# Slide 2\n\n---";
     const result = preprocessMarkdown(input);
@@ -41,11 +52,12 @@ describe("preprocessMarkdown", () => {
     expect(result).toContain("---\ntitle: test\n---");
   });
 
-  it("preserves adjacent separators (reveal.js handles them correctly)", () => {
+  it("collapses adjacent separators per contract Decision 1", () => {
     const input = "# Slide 1\n\n---\n\n---\n\n# Slide 2";
     const result = preprocessMarkdown(input);
-    // Adjacent separators stay — reveal.js naturally produces one empty slide
-    expect(result).toContain("\n---\n\n---\n");
+    // Adjacent separators collapse to one — no phantom empty slides
+    expect(result).not.toContain("\n---\n\n---\n");
+    expect(result).toBe("# Slide 1\n\n---\n\n# Slide 2");
   });
 });
 

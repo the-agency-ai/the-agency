@@ -1,0 +1,554 @@
+#!/bin/bash
+# Create properly formatted commits for The Agency
+#
+# Usage:
+#   ./claude/tools/git-safe-commit "short summary" --work-item REQUEST-jordan-0065 --stage impl
+#   ./claude/tools/git-safe-commit "fix null handling" --work-item BUG-0042 --stage review
+#   ./claude/tools/git-safe-commit "quick doc fix" --no-work-item  # Escape hatch when no work item applies
+#
+# IMPORTANT: Work item OR --no-work-item is REQUIRED. Commits without either are blocked.
+#
+# Format (with work item):
+#   {WORK-ITEM} - {WORKSTREAM}/{AGENT} for {PRINCIPAL}: {SHORT SUMMARY}
+#
+#   {body}
+#
+#   Stage: {stage}
+#   Generated-With: Claude Code
+#   Co-Authored-By: Claude <noreply@anthropic.com>
+#
+# Format (without work item):
+#   {WORKSTREAM}/{AGENT}: {SHORT SUMMARY}
+#
+#   {body}
+#
+#   Generated-With: Claude Code
+#   Co-Authored-By: Claude <noreply@anthropic.com>
+#
+# Options:
+#   --work-item, -w   Work item ID (REQUEST-jordan-0065, SPRINT-web-2026w03, etc.)
+#   --stage, -s       Stage: impl, review, tests (required if work-item provided)
+#   --no-work-item    Escape hatch when no work item applies (skip work-item requirement)
+#   --body, -b        Detailed commit body
+#   --principal, -p   Override principal (default: from config or work item)
+#   --no-verify       Skip pre-commit hooks
+#   --amend           Amend the previous commit (use carefully!)
+#   --dry-run         Show what would be committed
+#   --staged          Only commit staged changes (default: stage all)
+#   --verbose         Show detailed output
+#
+
+set -euo pipefail
+
+# Tool version
+TOOL_VERSION="2.0.0-20260120-000002"
+
+# Source log helper for tool tracking
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Resolve project root for tools that need it (per-agent attribution lookup
+# reads agency.yaml at $PROJECT_ROOT/claude/config/agency.yaml). Prefer
+# CLAUDE_PROJECT_DIR (set in hooks), fall back to git rev-parse, then to
+# SCRIPT_DIR-based fallback. Without this, the per-agent attribution code
+# below silently fails with "PROJECT_ROOT: unbound variable" under set -u.
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+elif PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "commit" "$@" 2>/dev/null) || true
+
+# Colors
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="[0;31m" GREEN="[0;32m" YELLOW="[1;33m" BLUE="[0;34m" NC="[0m"
+fi
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Defaults
+NO_VERIFY=false
+AMEND=false
+DRY_RUN=false
+STAGED_ONLY=false
+VERBOSE=false
+NO_WORK_ITEM=false
+WORK_ITEM=""
+STAGE=""
+BODY=""
+PRINCIPAL_OVERRIDE=""
+MESSAGE=""
+
+# Valid work item patterns (extensible for future types)
+WORK_ITEM_PATTERN='^(REQUEST|BUG|TASK|PHASE|ITERATION|SPRINT)-[a-zA-Z0-9-]+$'
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --version|-v)
+            echo "commit $TOOL_VERSION"
+            exit 0
+            ;;
+        --help|-h)
+            head -36 "$0" | tail -35 | sed 's/^# //' | sed 's/^#//'
+            exit 0
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --no-verify)
+            NO_VERIFY=true
+            shift
+            ;;
+        --amend)
+            AMEND=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --staged)
+            STAGED_ONLY=true
+            shift
+            ;;
+        --no-work-item)
+            NO_WORK_ITEM=true
+            shift
+            ;;
+        --work-item|-w)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                log_error "--work-item requires a value"
+                exit 1
+            fi
+            WORK_ITEM="$2"
+            shift 2
+            ;;
+        --stage|-s)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                log_error "--stage requires a value"
+                exit 1
+            fi
+            STAGE="$2"
+            shift 2
+            ;;
+        --body|-b)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                log_error "--body requires a value"
+                exit 1
+            fi
+            BODY="$2"
+            shift 2
+            ;;
+        --principal|-p)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                log_error "--principal requires a value"
+                exit 1
+            fi
+            PRINCIPAL_OVERRIDE="$2"
+            shift 2
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            exit 1
+            ;;
+        *)
+            # Capture positional argument (message) and continue parsing
+            if [ -z "$MESSAGE" ]; then
+                MESSAGE="$1"
+                shift
+            else
+                log_error "Unexpected argument: $1"
+                exit 1
+            fi
+            ;;
+    esac
+done
+
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "commit [run: ${RUN_ID:-none}]"
+
+    if [ -z "$MESSAGE" ]; then
+        log_error "Commit message required"
+        verbose_echo "Usage: ./claude/tools/git-safe-commit \"message\" --work-item WORK-ITEM --stage impl"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Missing commit message"
+        exit 1
+    fi
+
+    # ENFORCEMENT: Require work item OR --no-work-item
+    if [ -z "$WORK_ITEM" ] && [ "$NO_WORK_ITEM" = false ]; then
+        log_error "Work item required"
+        echo ""
+        echo "Every commit must reference a work item:"
+        echo "  ./claude/tools/git-safe-commit \"message\" --work-item REQUEST-jordan-XXXX --stage impl"
+        echo ""
+        echo "To skip (escape hatch):"
+        echo "  ./claude/tools/git-safe-commit \"message\" --no-work-item"
+        echo ""
+        echo "Valid work item types: REQUEST, BUG, TASK, PHASE, ITERATION, SPRINT"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Missing work item"
+        exit 1
+    fi
+
+    # Validate work item format if provided
+    if [ -n "$WORK_ITEM" ]; then
+        if ! [[ "$WORK_ITEM" =~ $WORK_ITEM_PATTERN ]]; then
+            log_error "Invalid work item format: $WORK_ITEM"
+            echo "Expected: REQUEST-principal-XXXX, BUG-workstream-XXXXX, TASK-id, etc."
+            trap - EXIT
+            log_end "$RUN_ID" "failure" 1 0 "Invalid work item format"
+            exit 1
+        fi
+    fi
+
+    # Validate: if work item provided, stage is required
+    if [ -n "$WORK_ITEM" ] && [ -z "$STAGE" ]; then
+        log_error "Stage required when work item is provided (--stage impl|review|tests)"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Missing stage"
+        exit 1
+    fi
+
+    # Validate stage value
+    if [ -n "$STAGE" ]; then
+        case "$STAGE" in
+            impl|review|tests) ;;
+            *)
+                log_error "Invalid stage: $STAGE (must be impl, review, or tests)"
+                trap - EXIT
+                log_end "$RUN_ID" "failure" 1 0 "Invalid stage"
+                exit 1
+                ;;
+        esac
+    fi
+
+    # Try to detect workstream/agent from environment or current directory
+    WORKSTREAM="${AGENCY_WORKSTREAM:-}"
+    AGENT="${AGENCY_AGENT:-}"
+
+    # If not set, try to infer from myclaude session marker
+    if [ -z "$WORKSTREAM" ] || [ -z "$AGENT" ]; then
+        # Check for session file (safely parse, don't source arbitrary code)
+        SESSION_FILE="${HOME}/.claude/current-session"
+        if [ -f "$SESSION_FILE" ]; then
+            # Only extract expected variable assignments
+            while IFS='=' read -r key value; do
+                case "$key" in
+                    AGENCY_WORKSTREAM) WORKSTREAM="${value//[^a-zA-Z0-9_-]/}" ;;
+                    AGENCY_AGENT) AGENT="${value//[^a-zA-Z0-9_-]/}" ;;
+                esac
+            done < "$SESSION_FILE" 2>/dev/null || true
+        fi
+    fi
+
+    # Fallback: try to get from git branch name (e.g., feature/housekeeping-secret-service)
+    if [ -z "$WORKSTREAM" ] || [ -z "$AGENT" ]; then
+        BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+        # Try pattern like "workstream/agent-description"
+        if [[ "$BRANCH" =~ ^([a-z-]+)/([a-z-]+)- ]]; then
+            WORKSTREAM="${BASH_REMATCH[1]}"
+            AGENT="${BASH_REMATCH[2]}"
+        fi
+    fi
+
+    # Final fallback: use "housekeeping/captain" as default
+    WORKSTREAM="${WORKSTREAM:-housekeeping}"
+    AGENT="${AGENT:-captain}"
+
+    # Determine principal
+    PRINCIPAL=""
+    if [ -n "$PRINCIPAL_OVERRIDE" ]; then
+        PRINCIPAL="$PRINCIPAL_OVERRIDE"
+    elif [ -n "$WORK_ITEM" ]; then
+        # Try to extract principal from REQUEST work items (e.g., REQUEST-jordan-0065 -> jordan)
+        # Only REQUEST type has principal in the ID; others (SPRINT, PHASE, etc.) do not
+        if [[ "$WORK_ITEM" =~ ^REQUEST-([a-z]+)-[0-9]+ ]]; then
+            PRINCIPAL="${BASH_REMATCH[1]}"
+        fi
+    fi
+    # Fallback: try environment or config
+    if [ -z "$PRINCIPAL" ]; then
+        PRINCIPAL="${AGENCY_PRINCIPAL:-unknown}"
+    fi
+
+    # Check Day/Phase prefix opt-in (commits.require_day_prefix in agency.yaml).
+    # When enabled, the user's MESSAGE must lead with the convention prefix
+    # (Day N:, Phase X.Y:, Phase X.MN:, Merge, or Revert) and FULL_MESSAGE
+    # uses the message AS-IS without the workstream/agent prefix injection.
+    # This avoids fighting the commit-msg hook's first-line validation.
+    REQUIRE_DAY_PREFIX=$("$SCRIPT_DIR/config" get commits.require_day_prefix 2>/dev/null || echo "false")
+    REQUIRE_DAY_PREFIX=$(echo "$REQUIRE_DAY_PREFIX" | tr '[:upper:]' '[:lower:]')
+
+    if [ "$REQUIRE_DAY_PREFIX" = "true" ]; then
+        # Source the validator and run it on the user's MESSAGE
+        source "$SCRIPT_DIR/lib/_commit-prefix"
+        if ! validate_commit_prefix "$MESSAGE"; then
+            log_end "$RUN_ID" "failure" 2 0 "Commit prefix validation failed"
+            exit 2
+        fi
+        # Use the message AS-IS — no workstream/agent prefix injection
+        FULL_MESSAGE="${MESSAGE}"
+    else
+        # Build the commit message with workstream/agent prefix (default behavior)
+        # Format with work item: {WORK-ITEM} - {WORKSTREAM}/{AGENT} for {PRINCIPAL}: {MESSAGE}
+        # Format without: {WORKSTREAM}/{AGENT}: {MESSAGE}
+        if [ -n "$WORK_ITEM" ]; then
+            FULL_MESSAGE="${WORK_ITEM} - ${WORKSTREAM}/${AGENT} for ${PRINCIPAL}: ${MESSAGE}"
+        else
+            FULL_MESSAGE="${WORKSTREAM}/${AGENT}: ${MESSAGE}"
+        fi
+    fi
+
+    # Build the commit body with trailers
+    COMMIT_BODY=""
+    if [ -n "$BODY" ]; then
+        COMMIT_BODY="${BODY}"$'\n\n'
+    fi
+    if [ -n "$STAGE" ]; then
+        COMMIT_BODY="${COMMIT_BODY}Stage: ${STAGE}"$'\n'
+    fi
+    COMMIT_BODY="${COMMIT_BODY}Generated-With: Claude Code"$'\n'
+
+    # ---- Per-agent attribution (Day 32) ----
+    # What Problem: Commits today only credit Claude as co-author. Each commit
+    # is also done by a specific Agency agent (captain/iscp/devex/etc.) on
+    # behalf of a principal. We want traceable per-agent attribution that
+    # works on GitHub without requiring real bot accounts or domain registration.
+    #
+    # How & Why: Build a Co-Authored-By trailer for the current agent using
+    # the format {github-username}+{agent}.{repo}@users.noreply.github.com.
+    # GitHub treats this as a distinct contributor (literal-match, not
+    # plus-address-stripped — verified by test commits dd7984e, c133aaa,
+    # 1284b27, 7e0932a on the test/github-plus-tag-attribution branch).
+    # The {github-username} is the principal's per-org GitHub identity from
+    # agency.yaml. The .{repo} qualifier makes the identity globally unique
+    # across repos for cross-repo analytics.
+    #
+    # Future: this format becomes routable when "agent mail" service ships
+    # (flag #40). Until then it's a stable, GitHub-recognized attribution.
+    #
+    # Written: 2026-04-07 — Day 32 — flag #39 + flag #40
+    _agent_email_trailer=""
+    if [ -x "$SCRIPT_DIR/agent-identity" ]; then
+        _ai_agent=$("$SCRIPT_DIR/agent-identity" --agent 2>/dev/null || echo "")
+        _ai_principal=$("$SCRIPT_DIR/agent-identity" --principal 2>/dev/null || echo "")
+        _ai_repo=$("$SCRIPT_DIR/agent-identity" --repo 2>/dev/null || echo "")
+        if [ -n "$_ai_agent" ] && [ -n "$_ai_principal" ] && [ -n "$_ai_repo" ]; then
+            # Resolve github username for principal+org from agency.yaml.
+            # Auto-detect org from git remote, then look up principal's
+            # platforms.github entry whose repos[].org matches.
+            _git_remote=$(git -C "$PROJECT_ROOT" config --get remote.origin.url 2>/dev/null || echo "")
+            _git_org=""
+            case "$_git_remote" in
+                git@github.com:*) _git_org="${_git_remote#git@github.com:}"; _git_org="${_git_org%%/*}" ;;
+                https://github.com/*) _git_org="${_git_remote#https://github.com/}"; _git_org="${_git_org%%/*}" ;;
+                *://*@github.com/*) _git_org="${_git_remote##*://*@github.com/}"; _git_org="${_git_org%%/*}" ;;
+            esac
+
+            # Read github username from agency.yaml using a tiny awk parser.
+            # Looks for: principals.{key}.platforms.github[].username where
+            # any repos[].org == _git_org. The principal key may differ from
+            # the principal slug (e.g., key=jdm, name=jordan).
+            _gh_username=""
+            _yaml="$PROJECT_ROOT/claude/config/agency.yaml"
+            if [ -f "$_yaml" ] && [ -n "$_git_org" ]; then
+                _gh_username=$(awk -v want_principal="$_ai_principal" -v want_org="$_git_org" '
+                    /^principals:/ { in_principals=1; next }
+                    in_principals && /^[a-z][a-zA-Z0-9_-]*:/ { current_key=$1; sub(/:$/, "", current_key); next }
+                    in_principals && /^  name:/ { gsub(/[ "]/, "", $2); if ($2 == want_principal) matching=1; else matching=0 }
+                    matching && /^      - username:/ { gsub(/[ "]/, "", $3); current_username=$3 }
+                    matching && /^            - org:/ { gsub(/[ "]/, "", $3); if ($3 == want_org) { print current_username; exit } }
+                ' "$_yaml" 2>/dev/null || echo "")
+            fi
+
+            # If we couldn't resolve a github username, fall back to the
+            # principal slug (still gives distinct per-agent attribution).
+            _gh_username="${_gh_username:-$_ai_principal}"
+
+            # Format: {username}+{agent}.{repo}.{org}@users.noreply.github.com
+            # Org is included for self-describing fully qualified attribution
+            # (mirrors the {org}/{repo}/{principal}/{agent} address format).
+            _email_local="${_gh_username}+${_ai_agent}.${_ai_repo}"
+            [ -n "$_git_org" ] && _email_local="${_email_local}.${_git_org}"
+            _agent_email_trailer="Co-Authored-By: ${_ai_agent} <${_email_local}@users.noreply.github.com>"
+        fi
+    fi
+
+    if [ -n "$_agent_email_trailer" ]; then
+        COMMIT_BODY="${COMMIT_BODY}${_agent_email_trailer}"$'\n'
+    fi
+    COMMIT_BODY="${COMMIT_BODY}Co-Authored-By: Claude <noreply@anthropic.com>"
+
+    # Show preview (verbose only)
+    log_step "Commit Preview"
+    verbose_echo "---"
+    verbose_echo -e "${GREEN}${FULL_MESSAGE}${NC}"
+    verbose_echo ""
+    verbose_echo "$COMMIT_BODY"
+    verbose_echo "---"
+
+    # Check for changes
+    if [ "$AMEND" = false ]; then
+        if [ "$STAGED_ONLY" = false ]; then
+            # Check if there are any changes to commit
+            if [ -z "$(git status --porcelain)" ]; then
+                log_warn "Nothing to commit, working tree clean"
+                trap - EXIT
+                log_end "$RUN_ID" "success" 0 0 "Nothing to commit"
+                exit 0
+            fi
+        else
+            # Check if there are staged changes
+            if [ -z "$(git diff --cached --name-only)" ]; then
+                log_warn "No staged changes to commit"
+                verbose_echo "Tip: Stage files with 'git add' or use without --staged to commit all"
+                trap - EXIT
+                log_end "$RUN_ID" "success" 0 0 "No staged changes"
+                exit 0
+            fi
+        fi
+    fi
+
+    # Dry run - just show what would happen
+    if [ "$DRY_RUN" = true ]; then
+        echo "[dry-run]"
+        echo "✓"
+
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Dry run: $FULL_MESSAGE"
+        exit 0
+    fi
+
+    # Stage changes if not staged-only mode
+    if [ "$STAGED_ONLY" = false ]; then
+        log_step "Staging all changes"
+        git add -A
+    fi
+
+    # Build git commit command
+    GIT_CMD="git commit"
+
+    if [ "$NO_VERIFY" = true ]; then
+        GIT_CMD="$GIT_CMD --no-verify"
+    fi
+
+    if [ "$AMEND" = true ]; then
+        GIT_CMD="$GIT_CMD --amend"
+    fi
+
+    # Execute commit
+    log_step "Creating commit"
+    COMMIT_OUTPUT=$($GIT_CMD -m "$FULL_MESSAGE" -m "$COMMIT_BODY" 2>&1)
+    COMMIT_EXIT=$?
+
+    if [ $COMMIT_EXIT -eq 0 ]; then
+        COMMIT_HASH=$(git log -1 --format='%h')
+        echo "Committed: $COMMIT_HASH"
+
+        # Dispatch "committed" notification to captain
+        #
+        # What Problem: Captain needs structured commit metadata for coordination —
+        # commit hash, branch, files changed, stage hash — not just a subject line.
+        # Without structured payloads, captain has to git-log each worktree manually.
+        #
+        # How & Why: Build a markdown body with YAML metadata block. Only dispatch
+        # if not on main/master, dispatch tool exists, and identity resolves. Never
+        # dispatch to self. Failures are silent — commit dispatch is best-effort,
+        # never blocks the commit itself.
+        #
+        # Written: 2026-04-06 during ISCP backlog work (dispatch-on-commit hook)
+        CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        DISPATCH_TOOL="$SCRIPT_DIR/dispatch"
+        IDENTITY_TOOL="$SCRIPT_DIR/agent-identity"
+        STAGE_HASH_TOOL="$SCRIPT_DIR/stage-hash"
+        if [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]] \
+           && [[ -x "$DISPATCH_TOOL" ]] \
+           && [[ -x "$IDENTITY_TOOL" ]]; then
+            MY_IDENTITY=$("$IDENTITY_TOOL" 2>/dev/null || echo "")
+            if [[ -n "$MY_IDENTITY" ]]; then
+                # Resolve captain address: same repo/principal, agent=captain
+                REPO_PART=$(echo "$MY_IDENTITY" | cut -d/ -f1)
+                PRINCIPAL_PART=$(echo "$MY_IDENTITY" | cut -d/ -f2)
+                CAPTAIN_ADDR="${REPO_PART}/${PRINCIPAL_PART}/captain"
+                # Don't dispatch to self if we ARE captain
+                AGENT_PART=$(echo "$MY_IDENTITY" | cut -d/ -f3)
+                if [[ "$AGENT_PART" != "captain" ]]; then
+                    # Build structured commit body
+                    local files_changed
+                    files_changed=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | head -20)
+                    local files_count
+                    files_count=$(echo "$files_changed" | wc -l | tr -d ' ')
+                    local commit_stage_hash=""
+                    if [[ -x "$STAGE_HASH_TOOL" ]]; then
+                        commit_stage_hash=$("$STAGE_HASH_TOOL" 2>/dev/null || echo "")
+                    fi
+                    local commit_body
+                    commit_body="## Commit: ${COMMIT_HASH}
+
+**Branch:** ${CURRENT_BRANCH}
+**Agent:** ${MY_IDENTITY}
+**Message:** ${FULL_MESSAGE}
+
+### Metadata
+- commit_hash: ${COMMIT_HASH}
+- branch: ${CURRENT_BRANCH}
+- files_changed: ${files_count}
+- stage: ${STAGE:-none}
+- stage_hash: ${commit_stage_hash:-none}
+- work_item: ${WORK_ITEM:-none}
+
+### Files Changed
+\`\`\`
+${files_changed}
+\`\`\`"
+
+                    "$DISPATCH_TOOL" create \
+                        --type commit \
+                        --to "$CAPTAIN_ADDR" \
+                        --subject "Committed ${COMMIT_HASH} on ${CURRENT_BRANCH}: ${MESSAGE}" \
+                        --body "$commit_body" \
+                        2>/dev/null || true
+                    log_info "Dispatched commit notification to $CAPTAIN_ADDR"
+                fi
+            fi
+        fi
+
+        # Telemetry captures commit via log_end
+
+        echo "✓"
+
+        verbose_echo ""
+        [[ "$VERBOSE" == "true" ]] && git log -1 --oneline
+
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 ${#COMMIT_OUTPUT} "Committed: $COMMIT_HASH - $MESSAGE"
+    else
+        echo "✗"
+        trap - EXIT
+        # Log verbose output to database for investigation
+        log_end "$RUN_ID" "failure" "$COMMIT_EXIT" ${#COMMIT_OUTPUT} "Commit failed: $MESSAGE"
+        # Only show error in verbose mode
+        [[ "$VERBOSE" == "true" ]] && echo "$COMMIT_OUTPUT"
+        exit $COMMIT_EXIT
+    fi
+}
+
+main

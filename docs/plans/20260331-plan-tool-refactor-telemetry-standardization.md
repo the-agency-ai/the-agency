@@ -56,7 +56,7 @@ All ~120 Agency tools live in `tools/` at repo root with an old HTTP-based logge
 ### Move + rename tools
 | Current | New |
 |---------|-----|
-| `tools/commit` | `claude/tools/git-commit` |
+| `tools/commit` | `claude/tools/git-safe-commit` |
 | `tools/tag` | `claude/tools/git-tag` |
 | `tools/sync` | `claude/tools/git-sync` |
 | `tools/whoami` + `tools/agentname` | `claude/tools/agency-whoami` (merge) |
@@ -99,7 +99,7 @@ Also fix:
 
 ### Update settings.json
 - All 108 `Bash(./tools/...)` → `Bash(./claude/tools/...)`
-- Apply renames (commit→git-commit, etc.)
+- Apply renames (commit→git-safe-commit, etc.)
 - Add `git-fetch` and `telemetry` permissions
 - Update hook paths in SessionEnd
 
@@ -125,7 +125,7 @@ Also fix:
 3. `bash -n claude/hooks/*.sh` — all hooks pass syntax check
 4. Every `Bash(./claude/tools/...)` permission in settings.json has a corresponding file
 5. No remaining `./tools/` references (grep the repo)
-6. `claude/tools/git-commit --help` works
+6. `claude/tools/git-safe-commit --help` works
 7. `claude/tools/git-fetch` works
 8. `claude/tools/telemetry --summary` works
 9. `claude/tools/agency-whoami` works

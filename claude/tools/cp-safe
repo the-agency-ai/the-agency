@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# What Problem: Agents copy files across worktree boundaries using raw cp,
+# bypassing git, creating dirty state, and losing change tracking. This is
+# a framework-level problem — any agency with worktrees will hit it.
+#
+# How & Why: Wraps cp with worktree boundary validation. Resolves the real
+# paths of source and destination, checks they're in the same worktree (or
+# both in the main checkout). Blocks cross-worktree copies. For syncing
+# between worktrees, use /worktree-sync instead.
+#
+# Usage: ./claude/tools/cp-safe <source> <dest>
+#        ./claude/tools/cp-safe -r <source-dir> <dest-dir>
+#
+# Written: 2026-04-14 during captain session (worktree discipline enforcement)
+# QG: fixed multi-source drop (#4), non-existent dest bypass (#2)
+
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+    echo "Usage: cp-safe [-r] <source> <dest>" >&2
+    echo "  Copies files within the same worktree. Blocks cross-worktree copies." >&2
+    echo "  For syncing between worktrees, use /worktree-sync." >&2
+    exit 1
+fi
+
+# Collect flags and positional arguments
+CP_FLAGS=()
+POSITIONALS=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -r|-R|--recursive|-a)
+            CP_FLAGS+=("$1")
+            shift
+            ;;
+        -*)
+            CP_FLAGS+=("$1")
+            shift
+            ;;
+        *)
+            POSITIONALS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Must have exactly 2 positional args (source + dest)
+# Multi-source copy (cp file1 file2 dir/) is explicitly not supported —
+# use multiple cp-safe calls instead
+if [[ ${#POSITIONALS[@]} -ne 2 ]]; then
+    echo "Error: exactly one source and one destination required." >&2
+    echo "  Got ${#POSITIONALS[@]} positional argument(s)." >&2
+    echo "  For multiple files, run cp-safe once per file." >&2
+    exit 1
+fi
+
+SOURCE="${POSITIONALS[0]}"
+DEST="${POSITIONALS[1]}"
+
+# Resolve to absolute paths
+resolve_path() {
+    local path="$1"
+    if [[ "$path" = /* ]]; then
+        echo "$path"
+    else
+        echo "$PWD/$path"
+    fi
+}
+
+SOURCE_ABS=$(resolve_path "$SOURCE")
+DEST_ABS=$(resolve_path "$DEST")
+
+# Get the worktree root for a path
+# For non-existent dest, walk up to the nearest existing parent
+get_worktree_root() {
+    local path="$1"
+    local dir
+
+    # If path exists, start from it (or its parent if it's a file)
+    if [[ -e "$path" ]]; then
+        if [[ -f "$path" ]]; then
+            dir=$(dirname "$path")
+        else
+            dir="$path"
+        fi
+    else
+        # Path doesn't exist — walk up to nearest existing parent
+        dir="$path"
+        while [[ ! -d "$dir" && "$dir" != "/" ]]; do
+            dir=$(dirname "$dir")
+        done
+    fi
+
+    while [[ "$dir" != "/" ]]; do
+        if [[ -e "$dir/.git" ]]; then
+            echo "$dir"
+            return 0
+        fi
+        dir=$(dirname "$dir")
+    done
+    return 1
+}
+
+SOURCE_ROOT=$(get_worktree_root "$SOURCE_ABS" 2>/dev/null || true)
+DEST_ROOT=$(get_worktree_root "$DEST_ABS" 2>/dev/null || true)
+
+# BOTH must be in a git tree. If either is outside, block it.
+# This prevents copies to /tmp or other non-repo locations from bypassing checks.
+if [[ -z "$SOURCE_ROOT" ]]; then
+    echo "BLOCKED: Source is not in a git repository." >&2
+    echo "  Source: $SOURCE_ABS" >&2
+    exit 1
+fi
+
+if [[ -z "$DEST_ROOT" ]]; then
+    echo "BLOCKED: Destination is not in a git repository." >&2
+    echo "  Dest: $DEST_ABS" >&2
+    exit 1
+fi
+
+# Check same worktree
+if [[ "$SOURCE_ROOT" != "$DEST_ROOT" ]]; then
+    echo "BLOCKED: Cross-worktree copy detected." >&2
+    echo "  Source:  $SOURCE_ABS (worktree: $SOURCE_ROOT)" >&2
+    echo "  Dest:    $DEST_ABS (worktree: $DEST_ROOT)" >&2
+    echo "" >&2
+    echo "Use /worktree-sync to sync between worktrees, or Write/Edit tools." >&2
+    exit 1
+fi
+
+# Same worktree — allow the copy
+if [[ ${#CP_FLAGS[@]} -gt 0 ]]; then
+    cp "${CP_FLAGS[@]}" "$SOURCE" "$DEST"
+else
+    cp "$SOURCE" "$DEST"
+fi
+echo "✓ Copied within $(basename "$SOURCE_ROOT")"

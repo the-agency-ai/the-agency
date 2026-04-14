@@ -3,7 +3,7 @@
  *
  * The hash ties a QGR (Quality Gate Report) file to the exact staged content.
  * Given the same staged changes, the hash is always the same, regardless of
- * platform or timing. This lets `/git-commit` verify that a QGR exists for
+ * platform or timing. This lets `/git-safe-commit` verify that a QGR exists for
  * the current staged changes before committing.
  *
  * Algorithm:

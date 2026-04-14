@@ -27,7 +27,7 @@ Plan is solid. Execute.
 
 ## Discipline reminders
 
-- `/git-commit` always
+- `/git-safe-commit` always
 - `/iteration-complete` at iteration boundaries
 - `/phase-complete` when Item 1 is done — then move to Item 2 (Valueflow Phase 3)
 - Item 3 is closed (Option A). Skip it.

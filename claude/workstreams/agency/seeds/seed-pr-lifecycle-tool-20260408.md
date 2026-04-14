@@ -49,7 +49,7 @@ The natural composed flow:
 
 ```
 release-plan          → propose plan
-git-commit (xN)       → execute commits per plan
+git-safe-commit (xN)       → execute commits per plan
 pr open               → push + create draft PR
 (reviews happen)
 pr ready              → mark ready for review

@@ -8,7 +8,7 @@ status: resolved → implemented in commit 03d3ed6
 
 # Per-Agent Commit Attribution Model
 
-A working session that started from a question — "should we attribute commits to the agent and maybe give credit to the principal?" — and ended with a shipped implementation in `claude/tools/git-commit`. This document captures the decisions, the rationale, the dead-ends, and the open questions for future iteration.
+A working session that started from a question — "should we attribute commits to the agent and maybe give credit to the principal?" — and ended with a shipped implementation in `claude/tools/git-safe-commit`. This document captures the decisions, the rationale, the dead-ends, and the open questions for future iteration.
 
 ## The Question
 
@@ -125,9 +125,9 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 
 **Why GitHub user noreply:** Profile linking on the principal author. Agents get gray avatars (correct — they're not GitHub users) but are counted as distinct contributors.
 
-## What `/git-commit` Does (after this change)
+## What `/git-safe-commit` Does (after this change)
 
-Before building the commit body, `git-commit`:
+Before building the commit body, `git-safe-commit`:
 
 1. Calls `agent-identity` for `--agent`, `--principal`, `--repo`
 2. Parses `git remote get-url origin` to extract the GitHub `{org}`
@@ -150,7 +150,7 @@ principals:
     commit_email: jdm@devopspm.com   # if set, use this for author + plus-tag for agent
 ```
 
-When set, `/git-commit` would build:
+When set, `/git-safe-commit` would build:
 ```
 Author: Jordan Dea-Mattson <jdm@devopspm.com>
 Co-Authored-By: captain <jdm+captain@devopspm.com>
@@ -198,12 +198,12 @@ Separate issue (flag #6, dispatched to devex as #109). Not part of this attribut
 6. **Include `.org` in the plus-tag** — fully qualified, self-describing, mirrors the address convention.
 7. **Pull GitHub username from `agency.yaml`** — supports per-org identities (principal can have different usernames in different orgs).
 8. **Default is GitHub mode, no override** — ship simple, add config when needed.
-9. **Implementation lives in `claude/tools/git-commit`** — captain territory, small enough to do in-context, not dispatched to devex.
+9. **Implementation lives in `claude/tools/git-safe-commit`** — captain territory, small enough to do in-context, not dispatched to devex.
 10. **Test branch deleted after verification** — keep main history clean.
 
 ## Implementation Reference
 
-- Tool: `claude/tools/git-commit` (commit `03d3ed6`)
+- Tool: `claude/tools/git-safe-commit` (commit `03d3ed6`)
 - Test commits (deleted): `dd7984e`, `c133aaa`, `1284b27`, `7e0932a`
 - Flags captured: `flag #39` (attribution model), `flag #40` (agent mail business idea)
 - Related: Day 32 - Release 1 PR (`day32-release-1` branch, PR #46)

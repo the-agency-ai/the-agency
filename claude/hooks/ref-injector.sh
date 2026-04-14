@@ -33,7 +33,7 @@ case "$SKILL" in
     REF_FILES+=("$DOCS_DIR/GIT-MERGE-NOT-REBASE.md")
     ;;
   # Commit workflow → QG + code review + provenance + git discipline
-  git-commit|ship)
+  git-safe-commit|ship)
     REF_FILES+=("$DOCS_DIR/QUALITY-GATE.md")
     REF_FILES+=("$DOCS_DIR/CODE-REVIEW-LIFECYCLE.md")
     REF_FILES+=("$DOCS_DIR/PROVENANCE-HEADERS.md")

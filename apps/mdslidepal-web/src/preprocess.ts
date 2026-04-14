@@ -25,6 +25,12 @@
 export function preprocessMarkdown(markdown: string): string {
   let processed = markdown;
 
+  // Collapse adjacent separators (---\n\n---\n\n--- → single ---) per contract Decision 1
+  // Match sequences of two or more --- separated by blank lines
+  while (/\n---\s*\n\s*\n---\s*\n/.test(processed)) {
+    processed = processed.replace(/\n---\s*\n\s*\n---/g, "\n---");
+  }
+
   // Strip trailing separator(s) at end of file.
   // Handles both LF and CRLF line endings.
   while (true) {
@@ -56,9 +62,8 @@ function applySmartyPants(text: string): string {
   let processed = text;
 
   // 1. Protect fenced code blocks (``` or ~~~, including unclosed at EOF)
-  processed = processed.replace(/^(```|~~~)[^\n]*\n[\s\S]*?(?:\n\1\s*$)/gm, protect);
-  // Handle unclosed fences at EOF (everything from opening fence to EOF)
-  processed = processed.replace(/^(```|~~~)[^\n]*\n[\s\S]*$/gm, protect);
+  // Single regex handles both closed and unclosed fences to prevent double-matching
+  processed = processed.replace(/^(```|~~~)[^\n]*\n[\s\S]*?(?:\n\1\s*$|$)/gm, protect);
 
   // 2. Protect inline code spans (single and double backtick)
   processed = processed.replace(/``[^`]+``|`[^`]+`/g, protect);

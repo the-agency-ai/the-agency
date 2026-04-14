@@ -14,10 +14,10 @@ Several Agency patterns waste tokens on repeated, non-actionable content injecte
 
 ## Tools / Fixes Needed
 
-### 1. `/git-commit` skill
+### 1. `/git-safe-commit` skill
 **Impact:** ~250 tokens per commit × N commits per session
-**Problem:** The hookify rule `warn-compound-bash` fires on every `git commit -m "$(cat <<'EOF'..."` heredoc pattern, injecting a ~250-token warning into context. The warning says "use `/git-commit` instead" but no such skill exists.
-**Solution:** Build a `/git-commit` skill that handles heredoc commit messages natively, OR suppress the hookify rule for heredoc git commits specifically.
+**Problem:** The hookify rule `warn-compound-bash` fires on every `git commit -m "$(cat <<'EOF'..."` heredoc pattern, injecting a ~250-token warning into context. The warning says "use `/git-safe-commit` instead" but no such skill exists.
+**Solution:** Build a `/git-safe-commit` skill that handles heredoc commit messages natively, OR suppress the hookify rule for heredoc git commits specifically.
 
 ### 2. Compound bash detector refinement
 **Impact:** ~250 tokens per false positive
@@ -44,7 +44,7 @@ Several Agency patterns waste tokens on repeated, non-actionable content injecte
 
 ## Priority
 
-1. `/git-commit` skill or hookify refinement (immediate — fires every commit)
+1. `/git-safe-commit` skill or hookify refinement (immediate — fires every commit)
 2. Compound bash detector refinement (immediate — false positives are noisy)
 3. Hook output minimization (quick audit)
 4. Context budget estimation (before next large review pass)

@@ -36,7 +36,7 @@ This is **TheAgency framework development repo** — open core (MIT framework, R
 
 | Skill | Purpose |
 |-------|---------|
-| `/git-commit` | QG-aware commit wrapper (never raw `git commit`) |
+| `/git-safe-commit` | QG-aware commit wrapper (never raw `git commit`) |
 | `/quality-gate` | Parallel multi-agent review at commit boundaries |
 | `/iteration-complete` | Commit at iteration end (auto-approve) |
 | `/phase-complete` | Commit at phase end (principal approval required) |
@@ -78,7 +78,7 @@ Injected automatically when relevant skills run. Read directly when you need the
 - **Merge, never rebase.** All branch sync uses merge. Hookify blocks rebase.
 - **Never push without permission.** `/sync` is the only push command.
 - **Plan before you build.** Use plan mode for non-trivial tasks.
-- **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-commit` — never raw `git commit`.
+- **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-safe-commit` — never raw `git commit`.
 
 ---
 
