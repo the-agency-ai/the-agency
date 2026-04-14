@@ -148,10 +148,21 @@ hash_b: $HASH_B
 hash_c: $HASH_C
 hash_d: $HASH_D
 hash_d_source: "$HASH_D_SOURCE"
-${HASH_D_TRANSCRIPT_LINE:+$HASH_D_TRANSCRIPT_LINE}
 hash_e: $HASH_E
 date: $(date +%Y-%m-%dT%H:%M)
 ---
+RECEIPT
+
+# Insert hash_d_transcript line if present (avoids blank line in heredoc)
+if [[ -n "$HASH_D_TRANSCRIPT" ]]; then
+    # Insert before the closing --- of frontmatter
+    sed -i.bak "/^hash_d_source:/a\\
+hash_d_transcript: $HASH_D_TRANSCRIPT" "$FILEPATH"
+    rm -f "${FILEPATH}.bak"
+fi
+
+# Append body
+cat >> "$FILEPATH" << BODY
 
 # Receipt: $BOUNDARY — $PROJECT
 
@@ -164,7 +175,7 @@ date: $(date +%Y-%m-%dT%H:%M)
 
 ## Review Summary
 ${SUMMARY:-No summary provided.}
-RECEIPT
+BODY
 
 echo "✓ Receipt written: $FILEPATH"
 echo "  Type: $TYPE | Boundary: $BOUNDARY | Hash E: $SHORT_HASH_E"
