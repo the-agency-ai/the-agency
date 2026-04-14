@@ -12,6 +12,7 @@
 #        ./claude/tools/cp-safe -r <source-dir> <dest-dir>
 #
 # Written: 2026-04-14 during captain session (worktree discipline enforcement)
+# QG: fixed multi-source drop (#4), non-existent dest bypass (#2)
 
 set -euo pipefail
 
@@ -22,10 +23,9 @@ if [[ $# -lt 2 ]]; then
     exit 1
 fi
 
-# Collect flags and arguments
+# Collect flags and positional arguments
 CP_FLAGS=()
-SOURCE=""
-DEST=""
+POSITIONALS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -38,20 +38,24 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         *)
-            if [[ -z "$SOURCE" ]]; then
-                SOURCE="$1"
-            else
-                DEST="$1"
-            fi
+            POSITIONALS+=("$1")
             shift
             ;;
     esac
 done
 
-if [[ -z "$SOURCE" || -z "$DEST" ]]; then
-    echo "Error: source and destination required." >&2
+# Must have exactly 2 positional args (source + dest)
+# Multi-source copy (cp file1 file2 dir/) is explicitly not supported —
+# use multiple cp-safe calls instead
+if [[ ${#POSITIONALS[@]} -ne 2 ]]; then
+    echo "Error: exactly one source and one destination required." >&2
+    echo "  Got ${#POSITIONALS[@]} positional argument(s)." >&2
+    echo "  For multiple files, run cp-safe once per file." >&2
     exit 1
 fi
+
+SOURCE="${POSITIONALS[0]}"
+DEST="${POSITIONALS[1]}"
 
 # Resolve to absolute paths
 resolve_path() {
@@ -67,14 +71,24 @@ SOURCE_ABS=$(resolve_path "$SOURCE")
 DEST_ABS=$(resolve_path "$DEST")
 
 # Get the worktree root for a path
+# For non-existent dest, walk up to the nearest existing parent
 get_worktree_root() {
     local path="$1"
-    # Walk up to find .git (file for worktrees, directory for main checkout)
     local dir
-    if [[ -f "$path" ]]; then
-        dir=$(dirname "$path")
+
+    # If path exists, start from it (or its parent if it's a file)
+    if [[ -e "$path" ]]; then
+        if [[ -f "$path" ]]; then
+            dir=$(dirname "$path")
+        else
+            dir="$path"
+        fi
     else
+        # Path doesn't exist — walk up to nearest existing parent
         dir="$path"
+        while [[ ! -d "$dir" && "$dir" != "/" ]]; do
+            dir=$(dirname "$dir")
+        done
     fi
 
     while [[ "$dir" != "/" ]]; do
@@ -90,10 +104,18 @@ get_worktree_root() {
 SOURCE_ROOT=$(get_worktree_root "$SOURCE_ABS" 2>/dev/null || true)
 DEST_ROOT=$(get_worktree_root "$DEST_ABS" 2>/dev/null || true)
 
-# If we can't determine either root, allow the copy (not in a git repo)
-if [[ -z "$SOURCE_ROOT" || -z "$DEST_ROOT" ]]; then
-    cp "${CP_FLAGS[@]}" "$SOURCE" "$DEST"
-    exit 0
+# BOTH must be in a git tree. If either is outside, block it.
+# This prevents copies to /tmp or other non-repo locations from bypassing checks.
+if [[ -z "$SOURCE_ROOT" ]]; then
+    echo "BLOCKED: Source is not in a git repository." >&2
+    echo "  Source: $SOURCE_ABS" >&2
+    exit 1
+fi
+
+if [[ -z "$DEST_ROOT" ]]; then
+    echo "BLOCKED: Destination is not in a git repository." >&2
+    echo "  Dest: $DEST_ABS" >&2
+    exit 1
 fi
 
 # Check same worktree
@@ -107,5 +129,9 @@ if [[ "$SOURCE_ROOT" != "$DEST_ROOT" ]]; then
 fi
 
 # Same worktree — allow the copy
-cp "${CP_FLAGS[@]}" "$SOURCE" "$DEST"
+if [[ ${#CP_FLAGS[@]} -gt 0 ]]; then
+    cp "${CP_FLAGS[@]}" "$SOURCE" "$DEST"
+else
+    cp "$SOURCE" "$DEST"
+fi
 echo "✓ Copied within $(basename "$SOURCE_ROOT")"

@@ -78,13 +78,13 @@ Raw shell commands that can cause harm are **blocked by hookify**. Use the safe 
 
 | Blocked command | Safe tool | Why |
 |----------------|-----------|-----|
-| `git *` | `git-safe`, `git-captain`, `git-safe-commit` | All git operations wrapped — no raw git |
 | `git push` | `./claude/tools/git-push` (via `/sync`) | All pushes go through PRs |
 | `cp` | `./claude/tools/cp-safe` | Blocks cross-worktree copies |
+| `git *` | `git-safe`, `git-captain` (coming — DevEx building) | Will wrap all git operations |
 
 **Pattern:** Agents never call raw commands that cross boundaries (worktree, repo, remote). The safe tool validates the operation and blocks unsafe paths. Framework tools (worktree-sync, collaboration) can use raw commands internally — hookify fires on agent Bash calls, not subprocesses inside tools.
 
-When git-safe and git-captain land (DevEx building now), the git row expands to cover all operations. Until then, existing hookify rules block the most dangerous git commands individually.
+**Available now:** `git-push`, `cp-safe`, `/git-safe-commit` (née `/git-commit`). **Coming soon:** `git-safe`, `git-captain` (DevEx implementing).
 
 ## Core Principles
 
