@@ -46,6 +46,6 @@ jobs:
 
       - name: Validate JSON configs
         run: |
-          jq . .claude/settings.json > /dev/null
-          jq . claude/config/manifest.json > /dev/null
-          jq . registry.json > /dev/null
+          for f in .claude/settings.json claude/config/manifest.json registry.json; do
+            [ -f "$f" ] && jq . "$f" > /dev/null || { echo "Invalid JSON: $f"; exit 1; }
+          done

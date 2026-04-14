@@ -245,8 +245,8 @@ _init_main() {
 # Agency Configuration for $PROJECT_NAME
 
 principals:
-  $PRINCIPAL_KEY:
-    name: $PRINCIPAL
+  "$PRINCIPAL_KEY":
+    name: "$PRINCIPAL"
   default:
     name: unknown
 
