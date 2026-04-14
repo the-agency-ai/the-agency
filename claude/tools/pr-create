@@ -87,15 +87,13 @@ if [[ -z "$QGR_HASH" ]]; then
     exit 1
 fi
 
-# Compute current stage-hash
-if [[ ! -x "$SCRIPT_DIR/stage-hash" ]]; then
-    echo "BLOCKED: stage-hash tool not found at $SCRIPT_DIR/stage-hash" >&2
-    exit 1
-fi
-
-CURRENT_HASH=$("$SCRIPT_DIR/stage-hash" 2>/dev/null)
+# Compute current diff hash (excluding QGR files — they're added after the QG)
+# The QGR is written after the QG runs, so it changes the diff. Exclude it
+# from the hash to avoid the chicken-and-egg: QGR commit changes the hash
+# which invalidates the QGR.
+CURRENT_HASH=$(git -C "$REPO_ROOT" diff origin/main..HEAD -- . ':(exclude)usr/*/qgr-*.md' ':(exclude)usr/*/*/qgr-*.md' | shasum | cut -c1-7)
 if [[ -z "$CURRENT_HASH" ]]; then
-    echo "BLOCKED: stage-hash returned empty. Cannot verify QGR." >&2
+    echo "BLOCKED: Could not compute diff hash. Cannot verify QGR." >&2
     exit 1
 fi
 
