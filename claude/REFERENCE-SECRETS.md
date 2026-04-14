@@ -385,5 +385,5 @@ For programmatic access, use the provided `./claude/tools/secret` CLI rather tha
 ## Related Documentation
 
 - `CLAUDE.md` - Essential commands for agents
-- `claude/docs/PERMISSIONS.md` - How to grant tool permissions
+- `claude/REFERENCE-PERMISSIONS.md` - How to grant tool permissions
 - `source/services/agency-service/README.md` - Service architecture

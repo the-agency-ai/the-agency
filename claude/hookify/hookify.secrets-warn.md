@@ -8,4 +8,4 @@ conditions:
     pattern: credentials|secrets|\.pem$|\.key$
 ---
 
-Sensitive file detected — ensure no hardcoded secrets, file is in `.gitignore`, use `/secret` for secret management. See claude/docs/QUALITY-DISCIPLINE.md — FEAR THE KITTENS!
+Sensitive file detected — ensure no hardcoded secrets, file is in `.gitignore`, use `/secret` for secret management. See claude/REFERENCE-QUALITY-DISCIPLINE.md — FEAR THE KITTENS!

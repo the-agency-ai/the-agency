@@ -40,7 +40,7 @@ If diverged (squash PR scenario):
 
 If behind only: `git merge origin/master`
 
-**Never `git reset --hard origin/master`. Never `git rebase origin/master`.** See `claude/docs/GIT-MERGE-NOT-REBASE.md`.
+**Never `git reset --hard origin/master`. Never `git rebase origin/master`.** See `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
 
 ### Step 4: Enumerate worktrees
 

@@ -113,7 +113,7 @@ Narrow permission patterns (the old approach) created friction — every new com
 |-----------|------|---------|
 | `claude/tools/` | CLI tools with logging and telemetry | `dispatch`, `flag`, `handoff`, `git-safe-commit` |
 | `claude/hookify/` | Behavioral rules (warn/block) | `hookify.block-git-safe-commit.md` |
-| `claude/docs/` | Reference docs (injected on demand) | `QUALITY-GATE.md`, `ISCP-PROTOCOL.md` |
+| `claude/REFERENCE-*.md` | Reference docs (injected on demand) | `REFERENCE-QUALITY-GATE.md`, `REFERENCE-ISCP-PROTOCOL.md` |
 | `claude/agents/` | Agent class definitions | `captain/agent.md`, `tech-lead/agent.md` |
 | `claude/hooks/` | Session lifecycle hooks | `ref-injector.sh` |
 | `claude/config/agency.yaml` | Principal mapping, providers, collaboration repos | configured during init |
@@ -141,6 +141,32 @@ Once you've captured an idea and started a PVR:
 - **Ship it:** Captain manages PRs, pushes to origin, dispatches release notes to consumers
 
 Read `claude/README-THEAGENCY.md` for the full methodology — what each stage does and why.
+
+## Safe Tools — No Raw Git
+
+TheAgency enforces safe alternatives to raw shell commands. The most important:
+
+| Don't use | Use instead | Why |
+|-----------|-------------|-----|
+| `git commit` | `/git-safe-commit` or `./claude/tools/git-safe-commit` | Runs quality gate, writes QGR receipt |
+| `git push` | `/sync` | Only authorized push command — handles branch checks |
+| `cp` | `./claude/tools/cp-safe` | Provenance-aware copy with logging |
+| `gh pr create` | `/release` | QG + code review before PR creation |
+
+Hookify rules **hard-block** the raw alternatives (not just warn — they cancel the command). See `claude/README-ENFORCEMENT.md` for the full list.
+
+## Branch Protection
+
+The `main` branch requires:
+
+1. **PR approval** — no direct pushes; all merges go through a pull request
+2. **Smoke test** — CI must pass before merge
+
+If you're setting up a new repo, enable branch protection on `main` after your first push. See task #11 in the project task list for the exact GitHub settings to configure.
+
+## Your First Release
+
+When you're ready to ship your first feature, follow the release guide at `claude/YOUR-FIRST-RELEASE.md`. It covers: quality gate → commit → PR → merge → dispatch to consumers.
 
 ## House Rules
 
