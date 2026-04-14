@@ -14,7 +14,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
 SKILLS_DIR="${REPO_ROOT}/.claude/skills"
 
 # Expected framework skills (34 total)
-EXPECTED_SKILL_COUNT=40
+EXPECTED_SKILL_COUNT=56
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Skill existence and count
@@ -52,17 +52,20 @@ EXPECTED_SKILL_COUNT=40
 # Frontmatter validation
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "skills: every SKILL.md has allowed-tools in frontmatter" {
+@test "skills: no SKILL.md has allowed-tools in frontmatter (flag #62/#63 — removed)" {
+    # Flag #62/#63: allowed-tools was removed from all skills because restricting
+    # to specific subcommand patterns silently blocks agents on permission prompts
+    # they cannot see. Skills inherit from .claude/settings.json instead.
     local failures=""
     for skill_dir in "$SKILLS_DIR"/*/; do
         local name
         name=$(basename "$skill_dir")
-        if ! head -5 "$skill_dir/SKILL.md" | grep -q "allowed-tools:"; then
+        if head -5 "$skill_dir/SKILL.md" | grep -q "allowed-tools:"; then
             failures="${failures}$name\n"
         fi
     done
     if [ -n "$failures" ]; then
-        echo -e "Missing allowed-tools:\n$failures" >&2
+        echo -e "Skills still have allowed-tools (should be removed per flag #62/#63):\n$failures" >&2
         return 1
     fi
 }

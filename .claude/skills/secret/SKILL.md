@@ -31,7 +31,7 @@ Read `claude/config/agency.yaml` for the secrets provider:
 
 ```yaml
 secrets:
-  provider: "vault"  # or "doppler", "aws", "1password"
+  provider: "vault"  # or "aws", "1password", etc.
 ```
 
 The provider maps to a tool: `./claude/tools/secret-{provider}`
@@ -52,7 +52,7 @@ Different providers use different verbs:
 - **vault provider** (`./claude/tools/secret-vault`):
   - `set` → maps to `create`
   - `get`, `list`, `delete`, `rotate` pass through directly
-- **doppler provider** (`./claude/tools/secret-doppler`):
+- **other providers** (`./claude/tools/secret-{provider}`):
   - all verbs pass through directly
 - **scan verb** (any provider): use `./claude/tools/secrets-scan` directly
 
@@ -62,7 +62,7 @@ Run the provider tool with the mapped verb:
 
 ```bash
 ./claude/tools/secret-vault create api-key
-./claude/tools/secret-doppler get database-url
+./claude/tools/secret-{provider} get database-url
 ./claude/tools/secrets-scan
 ```
 

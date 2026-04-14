@@ -81,6 +81,51 @@ When an agent commits via `/iteration-complete`, the `git-commit` tool auto-crea
 
 Dispatch-on-commit is fire-and-forget from the committing agent's perspective — if captain is not running, dispatches queue in the DB. No blocking.
 
+### Dispatch Monitoring
+
+**Preferred: Monitor tool (96% token savings, 10-second latency):**
+
+Use the `/monitor-dispatches` skill at session start. It runs `./claude/tools/dispatch-monitor --include-collab` in the background persistently via the Monitor tool. Completely silent when no dispatches; outputs when items arrive. The `--include-collab` flag also checks cross-repo collaboration dispatches.
+
+**Fallback: `/loop` polling (if Monitor is unavailable, Claude Code < v2.1.98):**
+
+```
+/loop 5m Run: ./claude/tools/dispatch list --status unread
+(silent when clean, act on unread)
+```
+
+```
+/loop 30m NAG CHECK: Run ./claude/tools/dispatch list --status unread
+(visible alert if items sitting 30+ minutes)
+```
+
+### Cross-Repo Communication
+
+ISCP is local to each repo (the SQLite DB lives at `~/.agency/{repo-name}/iscp.db`). Cross-repo dispatches use **collaboration repos** — git-file-based messaging since the two repos don't share a DB.
+
+**The collaboration tool** (`claude/tools/collaboration`) is captain-only. It manages cross-repo dispatch lifecycle:
+
+```bash
+collaboration check                    # Pull all repos, scan for unread
+collaboration list                     # List configured repos
+collaboration read <repo> <file>       # Read and mark as read
+collaboration reply <repo> --to <file> --subject <text> --body <text>
+collaboration resolve <repo> <file>    # Mark resolved
+collaboration push <repo>             # Commit and push status updates + replies
+```
+
+**Configuration** in `claude/config/agency.yaml`:
+```yaml
+collaboration:
+  repos:
+    monofolk:
+      path: "~/code/collaboration-monofolk"
+      inbound: "dispatches/monofolk-to-the-agency"
+      outbound: "dispatches/the-agency-to-monofolk"
+```
+
+Use the `/collaborate` skill — never invoke the raw tool directly.
+
 ### Schema Versioning (V2 Phase 2.0)
 
 The ISCP DB uses SQLite's `PRAGMA user_version` for schema versioning. The framework ships migration code via `_iscp_run_migrations` and per-version functions named `_iscp_migration_v<N>`. The runner walks from `current_version+1` to `ISCP_SCHEMA_VERSION`, wrapping each migration in `BEGIN EXCLUSIVE`/`COMMIT` for concurrency safety (multiple agents share one DB).

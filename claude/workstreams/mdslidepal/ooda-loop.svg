@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" font-family="system-ui, -apple-system, sans-serif">
+  <!-- Title removed — slide already has # The OODA Loop -->
+
+  <!-- Circle center at 400,300, radius 180, stroke-width 48 -->
+
+  <!-- Green: Act (9 o'clock to 12 o'clock) -->
+  <path d="M 220 300 A 180 180 0 0 1 400 120" fill="none" stroke="#28a745" stroke-width="48"/>
+  <!-- Red: Observe (12 o'clock to 3 o'clock) -->
+  <path d="M 400 120 A 180 180 0 0 1 580 300" fill="none" stroke="#dc3545" stroke-width="48"/>
+  <!-- Yellow: Orient (3 o'clock to 6 o'clock) -->
+  <path d="M 580 300 A 180 180 0 0 1 400 480" fill="none" stroke="#f0a500" stroke-width="48"/>
+  <!-- Dark Blue: Decide (6 o'clock to 9 o'clock) -->
+  <path d="M 400 480 A 180 180 0 0 1 220 300" fill="none" stroke="#1a5276" stroke-width="48"/>
+
+  <!-- Arrowheads at each quadrant boundary -->
+  <!-- Arrow at 3 o'clock -->
+  <polygon points="580,278 604,300 580,322" fill="#dc3545"/>
+  <!-- Arrow at 6 o'clock -->
+  <polygon points="422,480 400,504 378,480" fill="#f0a500"/>
+  <!-- Arrow at 9 o'clock -->
+  <polygon points="220,322 196,300 220,278" fill="#1a5276"/>
+  <!-- Arrow at 12 o'clock -->
+  <polygon points="378,120 400,96 422,120" fill="#28a745"/>
+
+  <!-- Labels fully outside, large, horizontal -->
+  <text x="90" y="220" text-anchor="middle" font-size="36" font-weight="700" fill="#28a745">Act</text>
+  <text x="700" y="220" text-anchor="middle" font-size="36" font-weight="700" fill="#dc3545">Observe</text>
+  <text x="700" y="420" text-anchor="middle" font-size="36" font-weight="700" fill="#f0a500">Orient</text>
+  <text x="90" y="420" text-anchor="middle" font-size="36" font-weight="700" fill="#1a5276">Decide</text>
+
+  <!-- Center text -->
+  <text x="400" y="290" text-anchor="middle" font-size="48" font-weight="800" fill="#333">OODA</text>
+  <text x="400" y="335" text-anchor="middle" font-size="36" font-weight="700" fill="#333">Loop</text>
+</svg>

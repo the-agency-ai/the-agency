@@ -317,14 +317,20 @@ LIB_DIR="${REPO_ROOT}/claude/tools/lib"
     [[ "$output" == "jordan" ]]
 }
 
-@test "principal detection: uses AGENCY_PRINCIPAL if set" {
+@test "principal detection: AGENCY_PRINCIPAL env var is deprecated and ignored" {
+    # AGENCY_PRINCIPAL is intentionally ignored per the contract in
+    # _address_detect_principal lines 421-424. It leaks from test suites,
+    # shell profiles, and old add-principal runs. Detection always resolves
+    # from agency.yaml via $USER.
     run bash -c "
         AGENCY_PRINCIPAL=override
+        USER=jdm
         source '${LIB_DIR}/_address-parse'
         _address_detect_principal
     "
     assert_success
-    [[ "$output" == "override" ]]
+    # Should NOT output "override" — that env var is deprecated
+    [[ "$output" != "override" ]]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

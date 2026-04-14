@@ -149,7 +149,13 @@ _update_main() {
     log_step "Syncing framework files"
 
     # Use rsync in dry-run or real mode
-    local rsync_flags=("-rlpt" "--delete")
+    # CRITICAL: NO --delete flag. Sync is ADDITIVE — add new files, update
+    # existing files, but NEVER delete files that only exist in the target.
+    # Project-specific tools (secret-local, provider tools, etc.) live in
+    # claude/tools/ alongside framework tools. --delete would destroy them.
+    # If a framework tool is renamed or removed, document it in release notes
+    # for manual cleanup — that's safer than destructive sync.
+    local rsync_flags=("-rlpt")
     [[ "$VERBOSE" == "true" ]] && rsync_flags+=("-v")
     [[ "$DRY_RUN" == "true" ]] && rsync_flags+=("--dry-run")
 

@@ -2,8 +2,8 @@
 type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
-date: 2026-04-07
-trigger: session-end — all 3 phases complete
+date: 2026-04-12
+trigger: session-end
 ---
 
 ## Identity
@@ -12,45 +12,44 @@ the-agency/jordan/devex — tech-lead on the devex workstream. I own test infras
 
 ## Current State
 
-**All 3 phases of the DevEx plan complete.** 10 iterations shipped across 5 commits. 4 new tools, 4 new test files (39 tests), settings-template and enforcement registry created.
+**Day 35 session — massive output.** Bootloader refactoring + contribution model rollout. 4 commits on devex branch. Queue nearly clear.
 
-## What Shipped
+## What Shipped This Session
 
-### Phase 1: Pre-Commit + Test Isolation
-- **test-scoper** (v1.0.0): convention-based file→test mapping (4 strategies: manifest, convention, dependency grep, direct)
-- **commit-precheck** (v3.0.0): rewritten from 5-step Node.js-centric to classify→scope→run with 60s budget. Docs/config fast path. Git env var leak fix for nested BATS.
-- 25 BATS tests (13 test-scoper, 12 commit-precheck)
+### Merge main
+- Resolved 9 merge conflicts (test files + releases.md) from captain Days 35-36 work
+- Committed 2664f89
 
-### Phase 2: Docker Full Suite
-- **docker-test.sh**: extended from 7 ISCP files to all 36 BATS files. --iscp-only backward compat.
-- **test-full-suite** (v1.0.0): Docker first, in-process fallback, 5min timeout. T3 mechanism.
+### CLAUDE-THEAGENCY.md bootloader refactoring (dispatch #201 Priority 1)
+- Slimmed monolith from ~6600 words to ~690 words (89% token reduction)
+- 5 new ref docs: AGENT-ADDRESSING.md, WORKTREE-DISCIPLINE.md, PROVENANCE-HEADERS.md, REPO-STRUCTURE.md, QUALITY-DISCIPLINE.md
+- Updated DEVELOPMENT-METHODOLOGY.md (9-step Valueflow, MAR/MARFI/MAP, three-bucket)
+- Ref-injector wired: 11 new case entries mapping 25+ skills to ref docs
+- 19 hookify rules updated: section anchors → new ref doc paths
+- MAR coverage audit: 73/73 concepts verified reachable
+- Committed f72d812
 
-### Phase 3: Permission Model + Enforcement
-- **settings-template.json**: cleaned 15 redundant entries, added git local ops, safe filesystem ops, test runners. No destructive ops.
-- **enforcement.yaml**: 19 capabilities registered with declared levels.
-- **enforcement-audit** (v1.0.0): validates artifacts exist for each level. All 19 pass.
-- **context-budget-lint** (v1.0.0): recursive @-import chain resolution, wc -w * 0.75 token estimate. All 47 skills within 4000-token budget.
-- 14 BATS tests (7 enforcement-audit, 7 context-budget-lint)
+### MAR fixes (dispatch #203) + CI rework + ci-monitor
+- QUALITY-GATE.md, CODE-REVIEW-LIFECYCLE.md, ref-injector fixes
+- 3 new CI workflows (smoke-ubuntu, fork-pr-full-qg, sister-project-pr-gate)
+- ci-monitor tool + monitor-ci skill
+- Committed 5c7f7e0
 
-## Artifacts
+### Contribution model rollout
+- Skill-validation moved into commit-precheck (root cause fix for broken-window CI)
+- Email notification disable guide + branch protection setup guide
+- Monofolk Ring 2 transition dispatch drafted (#209)
+- Committed 434bc02
 
-- **PVR:** `usr/jordan/devex/devex-pvr-20260406.md` (approved)
-- **A&D:** `claude/workstreams/devex/devex-ad-20260407.md` (approved)
-- **Plan:** `claude/workstreams/devex/devex-plan-20260407.md` (all phases complete)
+## Remaining Items
 
-## Principal Feedback (CRITICAL — read every session)
-
-**USE THE TOOLS AND SKILLS.** Do not hand-roll bash commands. Do not `cd` to main repo from worktree. Do not write files directly when a tool exists. Run tools from the worktree CWD with relative paths — never `cd /Users/jdm/code/the-agency && ...`.
-
-## Open Items
-
-- 1 flag remaining (test management boundary definitions)
-- Still awaiting captain's triage of MAR review findings (dispatch #99)
-- Pre-existing BATS test failures (setup-agency, platform-setup refs to deleted tools) — not regressions
-- Identity bug (flag #27) still exists but workaround is simple: don't cd to main repo
+1. **CODE_OF_CONDUCT.md** — content filter blocks creation. Full text fetched from contributor-covenant.org. Jordan to create manually or retry.
+2. **Dispatch #200** (SPEC:PROVIDER NestJS/React) — queued, lower priority
+3. **Task #16** (test isolation SPEC:PROVIDER) — paused pending monofolk/devex RFI #176
+4. **2 monofolk collab dispatches** — captain-only (SPEC-PROVIDER status + This Happened)
 
 ## Next Action
 
-1. Plan is complete — notify captain, request `/plan-complete` or PR prep
-2. Process remaining flag
-3. Await next assignment from captain (Valueflow Phase 3 or Phase 5 partial)
+1. Create CODE_OF_CONDUCT.md (Jordan or retry)
+2. Commit remaining + dispatch to captain for final PR build
+3. Await new assignments

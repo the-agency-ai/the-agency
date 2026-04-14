@@ -221,7 +221,7 @@ Every new capability needs three parts:
 
 1. **Tool** — `claude/tools/{name}` does the work
 2. **Skill** — `.claude/skills/{name}/SKILL.md` tells the agent when and how
-3. **Hookify rule** — `claude/hookify/hookify.block-raw-{name}.md` blocks the bypass
+3. **Hookify rule** — `claude/hookify/hookify.raw-{name}-block.md` blocks the bypass (noun-verb naming: noun first, action last)
 
 Build all three. The tool handles permissions, the skill handles discovery, the hookify rule handles compliance.
 

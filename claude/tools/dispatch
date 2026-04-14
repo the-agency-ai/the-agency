@@ -307,13 +307,18 @@ cmd_create() {
         project="${ADDR_AGENT:-captain}"
     fi
 
-    # Generate payload file
+    # Generate payload file — include target agent in slug to avoid UNIQUE
+    # constraint violation when broadcasting the same subject to multiple agents.
+    # Issue #50: filename collision on broadcast.
     local slug timestamp date_full filename
     slug=$(_slugify "$subject")
     [[ -z "$slug" ]] && slug="dispatch"
+    # Extract target agent name for filename uniqueness
+    address_parse "$to_addr" 2>/dev/null || true
+    local to_slug="${ADDR_AGENT:-unknown}"
     timestamp=$(date +%Y%m%d-%H%M)
     date_full=$(date -u +%Y-%m-%dT%H:%M)
-    filename="${dtype}-${slug}-${timestamp}.md"
+    filename="${dtype}-to-${to_slug}-${slug}-${timestamp}.md"
 
     # Resolve dispatch directory from sender's principal
     address_parse "$from_agent" 2>/dev/null || true

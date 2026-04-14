@@ -50,3 +50,7 @@ Knocked out #65 + #62 in one bundle commit (79805a3). #65: worktree-sync detects
 ## 13:02:53 — learning
 
 THE REFRAME: 'Be the Man Who Was Too Lazy to Fail.' When I flagged myself as 'lazy' for bypassing /post-merge, Jordan corrected: manual steps are MORE work, not less. True laziness invests in the Triangle once so no task is ever done twice. This is the one-line framing of the entire framework thesis — captured at claude/workstreams/agency/references/too-lazy-to-fail-20260409.md. Articulates from the operator's angle what telemetry-driven tool discovery says from the framework's angle and what Gary Tan says from the principal's angle. All three converge: the valuable asset is the codified capability, not heroic manual execution. Shame is the wrong signal; calibration (tokens/time/attention burned) is the right signal.
+
+## 18:54:47 — milestone
+
+KILLED ALL 27 pre-existing test failures on main. 813/813 green (2af8b79). Root causes: 18 orphaned tests for deleted tools, 2 deprecated env var tests, 3 wrong lib paths, 2 pip-dependent tests (skip-guarded), 1 wrong assertion, 1 wrong expected behavior. ISCP unblocked — dispatched #197 with green-light to merge. No broken windows.

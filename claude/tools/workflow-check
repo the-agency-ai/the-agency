@@ -32,11 +32,11 @@ if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
 fi
 
 # Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="[0;31m" GREEN="[0;32m" YELLOW="[1;33m" BLUE="[0;34m" NC="[0m"
+fi
 
 # Defaults
 QUIET=false
