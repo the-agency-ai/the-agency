@@ -1,5 +1,5 @@
 ---
-description: End a session cleanly — commit, write handoff, report readiness
+description: Mid-session context refresh — commit, write handoff, then compact
 ---
 
 <!--
@@ -9,13 +9,15 @@ description: End a session cleanly — commit, write handoff, report readiness
   see — see dispatch #171 for the devex incident that surfaced this trap.
 -->
 
-# Session End
+# Session Compact
 
-Clean session teardown. Commits all work, sends pending dispatches, writes the handoff, and reports readiness. **Leave a clean working tree. No asking — just do it.**
+Mid-session context refresh. Commits all work, writes a handoff to preserve session state, then directs the user to compact. **Leave a clean working tree. No asking — just do it.**
+
+Use this when context is getting heavy but you want to keep working. The handoff ensures context survives compaction. After `/compact`, the agent re-orients from the compacted summary which includes the fresh handoff.
 
 ## Arguments
 
-- `$ARGUMENTS`: Optional trigger reason (e.g., "end-of-day", "switching-context"). Defaults to "session-end".
+- `$ARGUMENTS`: Optional reason (e.g., "context heavy", "mid-sprint refresh"). Defaults to "session-compact".
 
 ## Instructions
 
@@ -33,14 +35,14 @@ If there are uncommitted changes (modified, staged, or untracked files):
 2. Commit via `/git-commit` with a descriptive message covering what's being committed
 3. Verify clean: `git status --porcelain` should return empty
 
-**Do not ask.** Do not warn and leave dirty. Commit everything and get clean. The next session starts from a clean tree.
+**Do not ask.** Do not warn and leave dirty. Commit everything and get clean.
 
-**Idempotent:** Running `/session-end` multiple times is safe. If already clean, it skips the commit. If a handoff already exists, it archives and writes a fresh one.
+**Idempotent:** Running `/session-compact` multiple times is safe. If already clean, it skips the commit. If a handoff already exists, it archives and writes a fresh one.
 
 ### Step 3: Archive and get handoff path
 
 ```
-./claude/tools/handoff write --trigger session-end
+./claude/tools/handoff write --trigger session-compact
 ```
 
 The tool archives the current handoff and reports the path for the new one.
@@ -49,10 +51,13 @@ The tool archives the current handoff and reports the path for the new one.
 
 Write the handoff file at the path reported by the tool. Include:
 - Current phase/iteration status
-- What was done this session
-- What's next
-- Key decisions or context for a fresh session
+- What was done this session (so far)
+- What's in progress right now
+- What's next (immediate — this is a mid-session checkpoint, not end-of-day)
+- Key decisions or context that must survive compaction
 - Open items or blockers
+
+Frame the handoff for **continuation**, not resumption. The agent will keep working after compact, not start fresh.
 
 ### Step 5: Verify handoff
 
@@ -62,7 +67,7 @@ Write the handoff file at the path reported by the tool. Include:
 
 Confirm the handoff was written correctly.
 
-### Step 6: Report readiness
+### Step 6: Report and direct
 
 Report to the user:
 - **Branch:** `git branch --show-current`
@@ -70,17 +75,8 @@ Report to the user:
 - **Dirty files:** 0 (must be 0 — Step 2 ensures this)
 - **Handoff:** written ✓
 
-### Step 7: Next action directive
+Then the directive:
 
-End with a clear directive:
-
-> **Safe to `/compact` and/or `/exit`.**
-
-This tells the user their session state is preserved and they can:
-- `/compact` — refresh context and keep working
-- `/exit` — end the session
-- `/compact` then `/exit` — compact first, then end
-
-The handoff is written. Either action is safe.
+> **Run `/compact` now.**
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

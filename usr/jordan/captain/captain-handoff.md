@@ -2,69 +2,62 @@
 type: handoff
 agent: the-agency/jordan/captain
 workstream: agency
-date: 2026-04-13
+date: 2026-04-14
 trigger: session-end
 ---
 
-## Resume — Day 38 (Workshop Day)
+## Resume — Day 40 (Bootloader Verified, Session Skills Shipped)
+
+### Bootloader status: VERIFIED
+
+New 691-word CLAUDE-THEAGENCY.md bootloader is working. First live session confirmed:
+1. Oriented from handoff — ✅
+2. Ref-injector fires on skills — ✅
+3. Docs found on demand — ✅
+
+No fallback needed. Old monolith is in git history before commit `13767a4` if ever needed.
 
 ### What happened this session
 
-**Workshop deck: v10 → v17 in one session.** 7 committed versions, 3 MAR rounds, 80+ individual changes.
+**Session lifecycle skills shipped:**
+- `/session-end` updated: get clean (commit everything, don't ask), send dispatches, write handoff, "Safe to `/compact` and/or `/exit`." Both idempotent.
+- `/session-compact` created: mid-session context refresh — same get-clean behavior, ends with "Run `/compact` now."
+- Key design decisions: no asking on dirty state (just commit), idempotent (safe to run multiple times), coord-commit is for cross-agency dispatches only (not general commits).
 
-**Deck is at v17** (`f8e3750`), 90+ slides, committed and serving on port 8001.
+**Fleet bootloader rollout dispatched:**
+- Dispatches #242–248: bootloader rollout to all 7 agents
+- Dispatches #250–256: session-end behavior change addendum to all 7 agents
+- mdslidepal-web acknowledged (#249, resolved)
 
-Key structural changes across v10→v17:
-- OODA throughout (NOT ODA — Principal IS the OOD, Act = Delegation)
-- Proper OODA loop SVG (circular, colored arcs, readable labels)
-- Enforcement Triangle SVG (Direction/Discovery/Compliance triangle)
-- Session Lifecycle SVG (Resume→Dialogue→Execute→Compact→End loop)
-- "Claude Code Concepts" section: Agents+Subagents, Commands/Skills/Tools, Events/Hooks
-- Direction→Discovery→Compliance→Triangle enforcement sequence
-- Valueflow stages with artifacts (Seed→Define, Design→Plan, Implement→Ship→Value)
-- QG expanded to 8 stages
-- Agency concepts: Processes/Artifacts/Patterns/Collaboration (4 slides)
-- Quality philosophy: "We fix things. We don't work around them."
-- "Context Is Everything" slide with Attention paper reference
-- My Home Network anecdote (content TBD — Jordan tells it live)
-- Guided Tour, Setup, Checklist slides for Part 4
-- Acknowledgments: Abel, Weiling, Phyllis, Anthropic
-- Contact: jdm@devopspm.com, GitHub: jordandm
-
-### Workshop status
-
-- **Workshop:** 13 April 2026, 09:00, Republic Polytechnic
-- **Deck:** v17, committed, ready
-- **Workshop repo:** https://github.com/the-agency-ai/the-agency-workshop — LIVE
-- **Bootstrap:** `curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency-workshop/main/sessions/republic-poly-20260413/materials/bootstrap.sh | bash`
-- **Risk:** No end-to-end Ubuntu VM test confirmed
-
-### Commits this session
-
-- `2aad5b3` v11 — MAR + 30 revisions + OODA fix + concepts (83 slides)
-- `8391634` v12 — QG 8 stages, quality philosophy, repo structure, MAR loop (86 slides)
-- `fcbda87` v13 — structural review: pacing fixes (85 slides)
-- `a285f30` v14 — OODA graphics, reorder concepts, Agency elements
-- `c322b97` v15 — Boyd restored, Direction/Discovery/Compliance sequence
-- `9c480b5` v16 — OODA readable, Enforcement Triangle SVG, Agency reorg
-- `62b9be5` — OODA loop SVG fix (readable text)
-- `4db0eb1` — OODA loop proper circle
-- `f8e3750` v17 — CC Concepts header, two-line titles, Valueflow refresh
+**Flagged for later:**
+- Flag #92: (1) Need `/seed` skill for quick seed capture, (2) Build remote dispatch service to replace collaborate/git-file-based cross-repo messaging
 
 ### Fleet state
 
-- **DevEx:** Workshop repo delivered (dispatch #223). CODE_OF_CONDUCT shipped.
-- **DesignEx:** Running autonomously
-- **mdslidepal-web:** Serving deck, SmartyPants working
-- **mdslidepal-mac:** Phase 1 in progress
-- **Monofolk:** D37-R1 notified
+| Agent | Status | Last dispatch |
+|-------|--------|---------------|
+| DevEx | Active, has git-safe seed + bootloader directive | #242, #250 |
+| DesignEx | Phase 1.1 implementing, has bootloader directive | #243, #251 |
+| mdslidepal-web | Idle, acknowledged bootloader, awaiting Phase 2 | #252 (ack'd #249) |
+| mdslidepal-mac | Phases 1-4 complete, has bootloader directive | #245, #253 |
+| mdpal-cli | Has bootloader directive | #246, #254 |
+| mdpal-app | Has bootloader directive | #247, #255 |
+| ISCP | 10 commits on branch, has bootloader directive | #248, #256 |
 
-### What's next (post-workshop)
+### What's next
 
-- Workshop debrief + lessons learned
-- DevEx PR build (#201 items complete, 6 commits ready)
-- Monofolk Ring 2 transition dispatch
-- CI rework (smoke-ubuntu + fork-pr-full-qg)
-- Deck post-mortem: what worked, what didn't, what to change for next time
+1. **Cycle all agents** — Jordan to cycle agents through /session-end → /exit → resume → /session-resume for bootloader pickup
+2. **Merge PR #81** — D39-R1, check CI status
+3. **Monofolk Ring 2 dispatch** — STILL pending since D36
+4. **Monitor DevEx** — git-safe/git-captain progress
+5. **Monitor DesignEx** — April 17 monofolk deadline (3 days)
+6. **Flag #92 discussion** — /seed skill + remote dispatch service
+7. **Flag backlog triage** — 80+ accumulated flags need structured triage
+
+### Lessons this session
+
+1. **Idempotent skills.** Session lifecycle skills must be safe to run multiple times.
+2. **Don't ask — just do it.** Session teardown commits everything. Clean working tree, no questions.
+3. **coord-commit confusion.** Agents were using coord-commit for intra-repo work. It's for cross-agency dispatches only.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
