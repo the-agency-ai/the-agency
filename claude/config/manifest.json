@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "agency_version": "36.1",
+  "agency_version": "40.2",
   "project": {
     "name": "the-agency",
     "created_at": "2026-01-15T04:54:46Z",
     "framework_version": "2.0.0",
-    "updated_at": "2026-04-10T11:39:44Z"
+    "updated_at": "2026-04-14T08:17:17Z"
   },
   "source": {
     "type": "local",
