@@ -76,31 +76,40 @@ echo "✓ QGR receipt found: $QGR_FILE"
 # code changed after the QG ran — the QGR is stale.
 
 # Extract stage-hash from QGR filename: qgr-{boundary}-{hash}-{timestamp}.md
+# Boundary can contain hyphens (e.g., iteration-complete, pr-prep)
+# Hash is always 7 hex chars followed by a date stamp
 QGR_BASENAME=$(basename "$QGR_FILE")
-QGR_HASH=$(echo "$QGR_BASENAME" | sed -E 's/qgr-[^-]+-([a-f0-9]{7})-.*/\1/')
+QGR_HASH=$(echo "$QGR_BASENAME" | grep -oE '[a-f0-9]{7}-[0-9]{8}' | head -1 | cut -d- -f1)
 
-if [[ -z "$QGR_HASH" || "$QGR_HASH" == "$QGR_BASENAME" ]]; then
-    echo "WARNING: Could not extract stage-hash from QGR filename: $QGR_BASENAME" >&2
-    echo "  Skipping hash verification — QGR may not match current code." >&2
-else
-    # Compute current stage-hash
-    # Stage all committed content (diff against origin/main) to get the hash
-    CURRENT_HASH=$("$SCRIPT_DIR/stage-hash" 2>/dev/null || true)
-
-    if [[ -z "$CURRENT_HASH" ]]; then
-        echo "WARNING: Could not compute current stage-hash. Skipping verification." >&2
-    elif [[ "$QGR_HASH" != "$CURRENT_HASH" ]]; then
-        echo "BLOCKED: QGR stage-hash does not match current code." >&2
-        echo "" >&2
-        echo "  QGR hash:     $QGR_HASH (from $QGR_BASENAME)" >&2
-        echo "  Current hash: $CURRENT_HASH" >&2
-        echo "" >&2
-        echo "The code changed after the QG ran. Run /pr-prep again." >&2
-        exit 1
-    else
-        echo "✓ Stage-hash verified: $QGR_HASH"
-    fi
+if [[ -z "$QGR_HASH" ]]; then
+    echo "BLOCKED: Could not extract stage-hash from QGR filename: $QGR_BASENAME" >&2
+    echo "  Expected format: qgr-{boundary}-{7-char-hash}-{YYYYMMDD-HHMM}.md" >&2
+    exit 1
 fi
+
+# Compute current stage-hash
+if [[ ! -x "$SCRIPT_DIR/stage-hash" ]]; then
+    echo "BLOCKED: stage-hash tool not found at $SCRIPT_DIR/stage-hash" >&2
+    exit 1
+fi
+
+CURRENT_HASH=$("$SCRIPT_DIR/stage-hash" 2>/dev/null)
+if [[ -z "$CURRENT_HASH" ]]; then
+    echo "BLOCKED: stage-hash returned empty. Cannot verify QGR." >&2
+    exit 1
+fi
+
+if [[ "$QGR_HASH" != "$CURRENT_HASH" ]]; then
+    echo "BLOCKED: QGR stage-hash does not match current code." >&2
+    echo "" >&2
+    echo "  QGR hash:     $QGR_HASH (from $QGR_BASENAME)" >&2
+    echo "  Current hash: $CURRENT_HASH" >&2
+    echo "" >&2
+    echo "The code changed after the QG ran. Run /pr-prep again." >&2
+    exit 1
+fi
+
+echo "✓ Stage-hash verified: $QGR_HASH"
 
 # ── Step 4: Verify version was bumped ───────────────────────────────────
 
