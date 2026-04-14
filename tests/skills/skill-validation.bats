@@ -14,7 +14,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
 SKILLS_DIR="${REPO_ROOT}/.claude/skills"
 
 # Expected framework skills (34 total)
-EXPECTED_SKILL_COUNT=55
+EXPECTED_SKILL_COUNT=56
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Skill existence and count

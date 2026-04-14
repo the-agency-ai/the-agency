@@ -3,7 +3,7 @@
 # Tests for principal management tools:
 #   - principal
 #   - principal-create
-#   - setup-agency
+#   - (setup-agency removed — see notes inline at lines 110, 187, 228)
 #   - add-principal
 #
 # Tests CLI argument parsing, validation, flag handling, and security.
@@ -107,6 +107,32 @@ load 'test_helper'
     rm -rf "usr/testprincipal" "claude/principals/testprincipal" 2>/dev/null || true
 }
 
+# NOTE: setup-agency tests removed 2026-04-07 (devex maintenance pass).
+# The setup-agency tool was deleted/renamed; the agency-init flow replaces it.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# add-principal - Version and Help
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "add-principal: --version shows version" {
+    run_tool add-principal --version
+    assert_success
+    assert_output_contains "add-principal"
+}
+
+@test "add-principal: -v shows version" {
+    run_tool add-principal -v
+    assert_success
+    assert_output_contains "add-principal"
+}
+
+@test "add-principal: --help shows usage" {
+    run_tool add-principal --help
+    assert_success
+    assert_output_contains "Usage:"
+}
+
+
 @test "add-principal: -h shows usage" {
     run_tool add-principal -h
     assert_success
@@ -158,6 +184,22 @@ load 'test_helper'
     [[ ! "$output" =~ "syntax error" ]]
 }
 
+# NOTE: setup-agency security tests removed 2026-04-07 — tool deleted,
+# security coverage now lives in tests/tools/agency-init.bats.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Security - Input Validation (add-principal)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "add-principal: handles special characters in name" {
+    run_tool add-principal --name 'test$user' || true
+    # Should not crash
+    [[ ! "$output" =~ "syntax error" ]]
+    # Clean up
+    rm -rf 'claude/principals/test$user' 2>/dev/null || true
+}
+
+
 @test "add-principal: handles path traversal in name" {
     run_tool add-principal --name '../../../tmp/hack' || true
     # Should not create directory outside expected location
@@ -182,6 +224,7 @@ load 'test_helper'
 @test "principal-create: sources log helper" {
     grep -q "_log-helper" "${TOOLS_DIR}/principal-create"
 }
+
 @test "add-principal: sources log helper" {
     grep -q "_log-helper" "${TOOLS_DIR}/add-principal"
 }
@@ -193,6 +236,7 @@ load 'test_helper'
 @test "principal-create: calls log_start" {
     grep -q "log_start" "${TOOLS_DIR}/principal-create"
 }
+
 @test "add-principal: calls log_start" {
     grep -q "log_start" "${TOOLS_DIR}/add-principal"
 }
@@ -204,6 +248,7 @@ load 'test_helper'
 @test "principal-create: calls log_end" {
     grep -q "log_end" "${TOOLS_DIR}/principal-create"
 }
+
 @test "add-principal: calls log_end" {
     grep -q "log_end" "${TOOLS_DIR}/add-principal"
 }
@@ -326,6 +371,7 @@ load 'test_helper'
     # Should fail validation or handle safely
     [[ "$status" -ne 0 ]] || [[ "$output" =~ "Invalid" ]]
 }
+
 @test "add-principal: rejects name with newline" {
     run_tool add-principal --name $'test\ninjection' || true
     # Should fail or handle safely
@@ -339,6 +385,7 @@ load 'test_helper'
     [[ "$output" =~ "Invalid principal name" ]] || [[ "$status" -ne 0 ]]
     [[ ! -d "claude/principals/test&whoami" ]]
 }
+
 @test "add-principal: handles sed metacharacters safely" {
     run_tool add-principal --name "test&whoami" || true
     # Should reject due to & not being alphanumeric

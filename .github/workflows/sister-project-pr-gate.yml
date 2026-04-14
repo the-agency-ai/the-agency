@@ -1,0 +1,51 @@
+# What Problem: Sister projects (Ring 2 — monofolk etc) port changes into
+# the-agency via upstream-port/ branches. These PRs need full validation
+# because the code originates from a different repo context and may not
+# conform to the-agency's conventions.
+#
+# How & Why: Same test suite as fork PRs (BATS skills + tools, JSON and
+# shell validation). Triggers only on same-repo PRs from branches matching
+# the upstream-port/ prefix — the convention used by /upstream-port skill.
+# Separated from fork-pr-full-qg for clarity in CI status checks and to
+# allow independent tuning of the two gates.
+#
+# Written: 2026-04-12 during devex CI rework for contribution model
+
+name: Sister Project PR Gate
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  sister-gate:
+    # Run on PRs from branches matching sister-project patterns
+    # These are PRs from within the same repo but from sister-project branches
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'upstream-port/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install BATS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+
+      - name: Run skill validation tests
+        run: bats tests/skills/skill-validation.bats
+
+      - name: Run tool tests
+        run: |
+          for f in tests/tools/*.bats; do
+            echo "Running: $f"
+            bats "$f" || exit 1
+          done
+
+      - name: Validate JSON configs
+        run: |
+          jq . .claude/settings.json > /dev/null
+          jq . claude/config/manifest.json > /dev/null
+          jq . registry.json > /dev/null
