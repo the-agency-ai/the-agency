@@ -53,6 +53,7 @@ Usage: ./claude/tools/git-captain <subcommand> [args...]
 Subcommands:
   merge-to-master <branch>       Merge branch into main/master (--no-ff)
   checkout-branch <name>         Create and switch to a new branch
+  switch-branch <name>           Switch to an existing branch (including main)
   push [args]                    Push to remote (blocks main/master, blocks bare --force)
   fetch                          Fetch from origin
   tag <name> [-m <msg>]          Create annotated tag
@@ -106,11 +107,31 @@ cmd_checkout_branch() {
     fi
 
     if git show-ref --verify "refs/heads/$name" &>/dev/null; then
-        die "Branch '$name' already exists. Use 'git checkout $name' to switch to it."
+        die "Branch '$name' already exists. Use 'git-captain switch-branch $name' to switch to it."
     fi
 
     git checkout -b "$name"
     echo "${GREEN}Created and switched to branch:${NC} $name"
+}
+
+# --- Subcommand: switch-branch ---
+cmd_switch_branch() {
+    [[ $# -eq 0 ]] && die "Usage: git-captain switch-branch <name>"
+
+    local name="$1"
+
+    # Must be an existing branch
+    if ! git show-ref --verify "refs/heads/$name" &>/dev/null; then
+        die "Branch '$name' does not exist. Use 'git-captain checkout-branch $name' to create it."
+    fi
+
+    # Must have clean working tree
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        die "Working tree is dirty. Commit or stash changes before switching branches."
+    fi
+
+    git checkout "$name"
+    echo "${GREEN}Switched to branch:${NC} $name"
 }
 
 # --- Subcommand: push ---
@@ -239,6 +260,7 @@ case "$1" in
     --version)          echo "git-captain $TOOL_VERSION"; exit 0 ;;
     merge-to-master)    shift; cmd_merge_to_master "$@" ;;
     checkout-branch)    shift; cmd_checkout_branch "$@" ;;
+    switch-branch)      shift; cmd_switch_branch "$@" ;;
     push)               shift; cmd_push "$@" ;;
     fetch)              shift; cmd_fetch "$@" ;;
     tag)                shift; cmd_tag "$@" ;;
