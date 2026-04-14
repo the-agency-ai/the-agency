@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# What Problem: Hash computation for receipts was fragile — manual, changed
+# when receipts were added, no parameterized baseline. Every QG/RG gate
+# needs a deterministic hash of what was reviewed.
+#
+# How & Why: Computes deterministic SHA-256 hash of either a code diff
+# (branch vs base) or a single artifact file. Excludes claude/receipts/
+# from all diff computations to prevent chicken-and-egg. Full SHA-256
+# stored internally; 7-char truncation for display and filenames.
+#
+# Usage:
+#   ./claude/tools/diff-hash                      # diff against origin/main
+#   ./claude/tools/diff-hash --base v39.1         # diff against tag/commit
+#   ./claude/tools/diff-hash --file <path>        # single file hash
+#   ./claude/tools/diff-hash --json               # JSON output with full hash
+#
+# Written: 2026-04-14 during captain session (receipt infrastructure Phase 1)
+
+set -euo pipefail
+
+BASE="origin/main"
+FILE=""
+JSON=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --base)
+            BASE="$2"
+            shift 2
+            ;;
+        --file)
+            FILE="$2"
+            shift 2
+            ;;
+        --json)
+            JSON=true
+            shift
+            ;;
+        --help)
+            echo "Usage: diff-hash [--base <ref>] [--file <path>] [--json]"
+            echo "  --base <ref>   Base ref for diff (default: origin/main)"
+            echo "  --file <path>  Hash a single file instead of diff"
+            echo "  --json         JSON output with full SHA-256"
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1" >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [[ -n "$FILE" ]]; then
+    # Single file hash
+    if [[ ! -f "$FILE" ]]; then
+        echo "Error: file not found: $FILE" >&2
+        exit 1
+    fi
+
+    FULL_HASH=$(shasum -a 256 "$FILE" | cut -d' ' -f1)
+    SHORT_HASH="${FULL_HASH:0:7}"
+    FILE_COUNT=1
+
+    if [[ "$JSON" == "true" ]]; then
+        echo "{\"hash\":\"$SHORT_HASH\",\"full_hash\":\"$FULL_HASH\",\"mode\":\"file\",\"file\":\"$FILE\"}"
+    else
+        echo "$SHORT_HASH"
+    fi
+else
+    # Diff hash — exclude claude/receipts/
+    DIFF_OUTPUT=$(git diff "$BASE"..HEAD -- . ':(exclude)claude/receipts/' 2>/dev/null)
+
+    if [[ -z "$DIFF_OUTPUT" ]]; then
+        echo "Error: no diff between $BASE and HEAD (excluding claude/receipts/)" >&2
+        exit 1
+    fi
+
+    FULL_HASH=$(echo "$DIFF_OUTPUT" | shasum -a 256 | cut -d' ' -f1)
+    SHORT_HASH="${FULL_HASH:0:7}"
+    FILE_COUNT=$(git diff "$BASE"..HEAD --name-only -- . ':(exclude)claude/receipts/' 2>/dev/null | wc -l | tr -d ' ')
+
+    if [[ "$JSON" == "true" ]]; then
+        echo "{\"hash\":\"$SHORT_HASH\",\"full_hash\":\"$FULL_HASH\",\"mode\":\"diff\",\"base\":\"$BASE\",\"file_count\":$FILE_COUNT}"
+    else
+        echo "$SHORT_HASH"
+    fi
+fi
