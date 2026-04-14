@@ -38,8 +38,8 @@ if [[ "$COMMAND" =~ git-captain ]]; then
     # Resolve identity — if not captain, block
     agent_name=$(./claude/tools/agent-identity --field agent 2>/dev/null || echo "")
     if [[ "$agent_name" != "captain" ]]; then
-        printf '{"systemMessage":"BLOCKED: git-captain is captain-only. Agents use /git-safe for git operations.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
-        exit 0
+        printf '{"decision":"block","reason":"🚫 BLOCKED: git-captain is captain-only. Agents use /git-safe for git operations.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+        exit 2
     fi
 fi
 
@@ -63,8 +63,8 @@ TRIMMED=$(echo "$COMMAND" | sed 's/^[[:space:]]*//')
 # Framework tools that call git internally are already exempted by the
 # ./claude/tools/ path check above.
 if [[ "$TRIMMED" =~ ^git[[:space:]] ]] || [[ "$TRIMMED" == "git" ]]; then
-    printf '{"systemMessage":"BLOCKED: Only safe git operations allowed. Use the git-safe family:\\n- /git-safe — status, log, diff, branch, show, blame, add, merge-from-master\\n- /git-safe-commit — commit with QG awareness\\n- /git-captain — captain only: push, fetch, tag, merge-to-master, checkout-branch, branch-delete\\n\\nIf you cannot do what you need with these, escalate to captain.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
-    exit 0
+    printf '{"decision":"block","reason":"🚫 BLOCKED: Only safe git operations allowed. Use the git-safe family:\\n- /git-safe — status, log, diff, branch, show, blame, add, merge-from-master\\n- /git-safe-commit — commit with QG awareness\\n- /git-captain — captain only: push, fetch, tag, merge-to-master, checkout-branch, branch-delete\\n\\nIf you cannot do what you need with these, escalate to captain.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+    exit 2
 fi
 
 # Block raw cat — use Read tool
