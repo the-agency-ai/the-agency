@@ -1,38 +1,125 @@
 #!/bin/bash
 #
-# stage-hash — Compute deterministic hash of git staging area
+# stage-hash — Compute deterministic hash of git staging area.
 #
-# Wraps the TypeScript implementation at tools/stage-hash.ts.
-# The hash ties QGR receipt files to specific staged content.
+# What Problem: The QGR receipt protocol ties a signed receipt to the exact
+# staged content via a 7-char hash. Receipt name includes the hash so
+# /git-safe-commit can verify "did the QG run against THIS stage?" before
+# allowing the commit. Previously implemented in TypeScript (tools/stage-hash.ts)
+# requiring `tsx` and Node. Broke on bare repos (homekit-daikin-ac-bridge,
+# issue #128) because node wasn't installed and the TS source wasn't shipped
+# by agency init. First commit path was blocked end-to-end.
+#
+# How & Why: Pure bash. Uses git plumbing (ls-files -s + diff --cached --name-only)
+# + shasum. No Node, no tsx, no TS source file. Framework tools should work
+# in ANY repo — language-agnostic, zero runtime dependencies beyond git + shasum.
+# Output is byte-identical to the TS implementation so receipts cross-verify.
+#
+# Written: 2026-04-15 during D41-R28 — issue #128 live blocker.
 #
 # Usage:
 #   ./claude/tools/stage-hash          # prints 7-char hash
 #   ./claude/tools/stage-hash --json   # prints JSON with hash, fileCount, files
-#
 
 set -euo pipefail
 
+TOOL_VERSION="2.0.0"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-# shellcheck source=lib/_log-helper
-source "$SCRIPT_DIR/lib/_log-helper"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    # shellcheck source=lib/_log-helper
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
 
-RUN_ID=$(log_start "stage-hash" "$@")
-START_MS=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s000)
+JSON=false
+for arg in "$@"; do
+    case "$arg" in
+        --json) JSON=true ;;
+        --version) echo "stage-hash $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            cat <<'USAGE'
+stage-hash — Compute deterministic hash of git staging area
 
-cd "$PROJECT_ROOT"
+Usage:
+  stage-hash          Print 7-char hex hash
+  stage-hash --json   Print JSON: {"hash", "fileCount", "files"}
+  stage-hash --version
+  stage-hash --help
 
-OUTPUT=$(tsx tools/stage-hash.ts "$@" 2>&1) || {
-  EXIT_CODE=$?
-  END_MS=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s000)
-  DURATION=$(( END_MS - START_MS ))
-  log_end "$RUN_ID" "error" "$EXIT_CODE" "$DURATION" "$OUTPUT"
-  echo "$OUTPUT" >&2
-  exit $EXIT_CODE
-}
+Algorithm:
+  1. List staged file paths (git diff --cached --name-only, sorted)
+  2. Look up each in the index (git ls-files -s) for "{mode} {objectHash} {path}"
+  3. Files staged for deletion use "000000 0000...0 {path}"
+  4. Join lines with newline, SHA-256, take first 7 hex chars
 
-END_MS=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s000)
-DURATION=$(( END_MS - START_MS ))
-log_end "$RUN_ID" "success" "0" "$DURATION" "stage-hash computed"
+Fails with exit 1 if no files are staged.
+USAGE
+            exit 0
+            ;;
+    esac
+done
 
-echo "$OUTPUT"
+RUN_ID=""
+if declare -f log_start >/dev/null 2>&1; then
+    RUN_ID=$(log_start "stage-hash" "$@" 2>/dev/null) || true
+fi
+
+# --- Collect staged file paths (sorted) ---
+# macOS ships bash 3.2 — no `mapfile -d`. Use newline-delimited list.
+# Falls back to newlines in filenames = rare; matches TS version's behavior
+# which used `split('\n')`.
+STAGED=()
+while IFS= read -r _path; do
+    [[ -n "$_path" ]] && STAGED+=("$_path")
+done < <(git diff --cached --name-only | LC_ALL=C sort)
+
+if [[ ${#STAGED[@]} -eq 0 ]]; then
+    echo "stage-hash: No files are staged" >&2
+    [[ -n "$RUN_ID" ]] && log_end "$RUN_ID" "error" 1 0 "no staged files" >/dev/null 2>&1 || true
+    exit 1
+fi
+
+# --- Build hash input ---
+# macOS bash 3.2 has no associative arrays (declare -A), so we can't build
+# a lookup map. Instead, `git ls-files -s -- <path>` retrieves the index
+# entry for one file per call. Fine for typical commit sizes (tens-to-low-
+# hundreds of staged files); still avoids node.
+HASH_INPUT=""
+FILES_JSON=""
+for file in "${STAGED[@]}"; do
+    # Lookup mode + objectHash for this path in the index.
+    # Output: "mode objectHash stage\tpath" (empty if path not in index,
+    # meaning it's staged for deletion).
+    ls_entry=$(git ls-files -s -- "$file" 2>/dev/null || true)
+    if [[ -n "$ls_entry" ]]; then
+        # Extract meta (everything before the tab) and split.
+        meta="${ls_entry%%$'\t'*}"
+        read -r mode object_hash _ <<<"$meta"
+        entry="${mode} ${object_hash} ${file}"
+    else
+        entry="000000 0000000000000000000000000000000000000000 ${file}"
+    fi
+    if [[ -z "$HASH_INPUT" ]]; then
+        HASH_INPUT="$entry"
+    else
+        HASH_INPUT="${HASH_INPUT}"$'\n'"${entry}"
+    fi
+    file_esc="${file//\\/\\\\}"
+    file_esc="${file_esc//\"/\\\"}"
+    if [[ -z "$FILES_JSON" ]]; then
+        FILES_JSON="\"$file_esc\""
+    else
+        FILES_JSON="$FILES_JSON, \"$file_esc\""
+    fi
+done
+
+HASH=$(printf '%s' "$HASH_INPUT" | shasum -a 256 | awk '{print $1}' | cut -c1-7)
+
+if [[ "$JSON" == "true" ]]; then
+    printf '{\n  "hash": "%s",\n  "fileCount": %d,\n  "files": [\n    %s\n  ]\n}\n' \
+        "$HASH" "${#STAGED[@]}" "$FILES_JSON"
+else
+    echo "$HASH"
+fi
+
+[[ -n "$RUN_ID" ]] && log_end "$RUN_ID" "success" 0 0 "hash=$HASH files=${#STAGED[@]}" >/dev/null 2>&1 || true

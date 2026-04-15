@@ -63,6 +63,11 @@ Subcommands (guarded write):
                                Allowed keys: commit.gpgsign, commit.verbose,
                                user.name, user.email, pull.rebase,
                                init.defaultBranch, core.autocrlf, core.editor
+  stash push [-m <msg>]        Stash working tree changes (pass-through)
+  stash list                   List stashes
+  stash pop [<stash>]          Pop the latest (or named) stash
+  stash drop [<stash>]         Drop the latest (or named) stash (destructive — warns)
+  stash show [<stash>]         Show stash contents (diff)
 
 Options:
   --help                 Show this help
@@ -265,6 +270,26 @@ cmd_config() {
     esac
 }
 
+# --- Subcommand: stash ---
+# D41-R28 (issue #126): safe wrappers lacked stash — blocked mid-merge recovery.
+# Pass-through to git stash subcommands. `drop` is destructive and warns.
+cmd_stash() {
+    [[ $# -eq 0 ]] && die "Usage: git-safe stash push|list|pop|drop|show [args...]"
+
+    local sub="$1"; shift
+    case "$sub" in
+        push)  git stash push "$@" ;;
+        list)  git stash list "$@" ;;
+        pop)   git stash pop "$@" ;;
+        drop)
+            echo "${YELLOW}warn:${NC} git-safe stash drop is destructive and cannot be undone." >&2
+            git stash drop "$@"
+            ;;
+        show)  git stash show "$@" ;;
+        *)     die "Unknown stash subcommand: $sub (use push, list, pop, drop, show)" ;;
+    esac
+}
+
 # --- Subcommand: merge-from-master ---
 cmd_merge_from_master() {
     # Auto-detect main branch name
@@ -333,5 +358,6 @@ case "$1" in
     merge-abort)      shift; cmd_merge_abort "$@" ;;
     merge-from-master) shift; cmd_merge_from_master "$@" ;;
     config)           shift; cmd_config "$@" ;;
+    stash)            shift; cmd_stash "$@" ;;
     *)            die "Unknown subcommand: $1 — run 'git-safe --help' for usage." ;;
 esac

@@ -444,3 +444,35 @@ make_feature_branch() {
     assert_failure
     assert_output_contains "Unknown flag"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R28: reset-soft — sanctioned recovery for local commits (issue #128)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "reset-soft: default undoes last local commit, keeps changes staged" {
+    cd "${BATS_TEST_TMPDIR}"
+    # Make a second commit that we'll reset
+    echo "to-undo" > undo.txt
+    git add undo.txt
+    git commit -q -m "commit to be undone" --no-verify
+    run ./claude/tools/git-captain reset-soft
+    assert_success
+    assert_output_contains "Reset complete"
+    # File is still present and staged (soft reset)
+    run git status --porcelain
+    [[ "$output" == *"A "* ]] || [[ "$output" == *"M "* ]]
+}
+
+@test "reset-soft: refuses when ref does not resolve" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain reset-soft does-not-exist
+    assert_failure
+    assert_output_contains "does not resolve"
+}
+
+@test "git-captain --help mentions reset-soft — D41-R28" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain --help
+    assert_success
+    assert_output_contains "reset-soft"
+}
