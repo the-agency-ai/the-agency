@@ -115,10 +115,12 @@ capabilities:
 
   # ── Test infrastructure ──
   test-isolation:
-    level: 1
-    description: "Universal test isolation for all BATS files"
+    level: 3
+    description: "Test isolation for BATS — prevents git config pollution, HOME leakage, ISCP DB conflicts"
     artifacts:
       doc: "claude/workstreams/devex/devex-ad-20260407.md"
+      tool: "claude/tools/lib/_test-isolation"
+      template: "claude/templates/tests/test_helper.bash"
 
   test-scoping:
     level: 1

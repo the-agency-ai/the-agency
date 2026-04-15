@@ -332,6 +332,15 @@ YAML_EOF
     for lib in _log-helper _path-resolve _provider-resolve _address-parse; do
         [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
     done
+    # Copy test isolation library
+    [[ -f "$AGENCY_SOURCE/claude/tools/lib/_test-isolation" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/_test-isolation" "$TARGET_DIR/claude/tools/lib/"
+    # Copy test helper template (don't overwrite project customizations)
+    if [[ -f "$AGENCY_SOURCE/claude/templates/tests/test_helper.bash" ]]; then
+        mkdir -p "$TARGET_DIR/tests/tools"
+        if [[ ! -f "$TARGET_DIR/tests/tools/test_helper.bash" ]]; then
+            cp "$AGENCY_SOURCE/claude/templates/tests/test_helper.bash" "$TARGET_DIR/tests/tools/test_helper.bash"
+        fi
+    fi
     # Copy the agency CLI itself
     [[ -f "$AGENCY_SOURCE/claude/tools/agency" ]] && cp "$AGENCY_SOURCE/claude/tools/agency" "$TARGET_DIR/claude/tools/"
     # Copy agency subcommand libs
