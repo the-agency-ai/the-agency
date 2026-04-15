@@ -3,97 +3,97 @@ type: handoff
 agent: the-agency/jordan/mdpal-app
 workstream: mdpal
 date: 2026-04-15
-trigger: iteration-complete
+trigger: phase-complete
 ---
 
 ## Identity
 
 the-agency/jordan/mdpal-app — tech-lead agent. macOS native SwiftUI app for Markdown Pal. Worktree: `.claude/worktrees/mdpal-app/`. Counterpart: mdpal-cli.
 
-## ⚠️ Phase 1A iterations all landed — phase boundary next
+## ⚠️ Phase 1A complete — awaiting land-on-master
 
-Phase 1A iterations 1A.1 through 1A.5 are all committed. The next boundary is **`/phase-complete`** which requires:
-- Principal approval before land-on-master
-- Deeper QG (cross-iteration review, not just the last diff)
-- Phase-level plan update
+`/phase-complete 1A` ran. Marker commit `24a6078`. Self-review QGR landed.
+Captain pre-approved (#380). Reply sent (#382) requesting merge or direction.
 
-Do not trigger `/phase-complete` autonomously — wait for principal direction.
+**Do not start Phase 1B coding before captain confirms the merge** — Phase 1B requires master to carry Phase 1A.
 
-## Session status (2026-04-15, post-compact autonomous run)
+## Phase 1A — final state
 
-### Iterations committed this session
-
-| Iter | Commit | Tests | Summary |
+| Iter | Commit | Tests Δ | Scope |
 |---|---|---|---|
-| 1A.3 | `4a74d37` | 34→36 | `.alert` bound to `document.lastError` in ContentView (+2 tests: set on failure, cleared on success) |
-| 1A.4 | `eee24d9` | 36→38 | Inline edit flow: TextEditor + version-hash conflict UI with Overwrite / Discard / Keep-editing (+2 tests: happy path, stale-hash conflict) |
-| 1A.5 | `fe7cb37` | 38→43 | Add-Comment context picker — clipboard-backed prefill gated by substring match against section content (+5 tests: SelectionContext.extract cases) |
+| 1A.1 | (pre-split) | 28 baseline | Scaffold: models/views/MockCLIService |
+| 1A.2 | `80fbe37` | +6 → 34 | SectionReaderView interaction (flag/comment/resolve) |
+| 1A.3 | `4a74d37` | +2 → 36 | Error presentation surface — `.alert` on `document.lastError` |
+| 1A.4 | `eee24d9` | +2 → 38 | Inline edit flow + version-hash conflict UI |
+| 1A.5 | `fe7cb37` | +5 → 43 | Add-Comment context picker (clipboard-backed prefill) |
+| 1A | `24a6078` | (marker) | **Phase complete** |
 
-Plus housekeeping: `fb4ff7b` (handoff after 1A.3).
+- **43/43 tests passing**, clean build, zero warnings
+- Phase QGR: `usr/jordan/mdpal-app/qgr-phase-complete-1A-09611a3-20260415-0845.md`
+- Iteration QGRs: see `usr/jordan/mdpal-app/qgr-iteration-complete-1A-{2,3,4,5}-*.md`
 
-### Tests
-- **43/43 passing** (`swift run MarkdownPalAppTests` in `apps/mdpal-app/`)
-- Build: clean, zero warnings
+## Phase 1A feature surface (reference)
 
-### Dispatches
-- Out: #360 (reply #356 — already merged D41-R1), #365/#368/#370/#375 (auto-commit announcements)
-- Cross-repo collab traffic (monofolk) is for captain, not mdpal-app — ignore at this level
-
-### QGRs
-- `usr/jordan/mdpal-app/qgr-iteration-complete-1A-3-c5a7eb1-20260415-0820.md`
-- `usr/jordan/mdpal-app/qgr-iteration-complete-1A-4-c32d54b-20260415-0830.md`
-- `usr/jordan/mdpal-app/qgr-iteration-complete-1A-5-da2bfc8-20260415-0840.md`
-
-## Phase 1A state
-
-| # | Scope | Status |
-|---|---|---|
-| 1A.1 | Scaffold: models/views/mock service + 28 tests | Landed pre-split |
-| 1A.2 | Section reader interaction | Landed `80fbe37` |
-| 1A.3 | Error presentation surface | Landed `4a74d37` |
-| 1A.4 | Inline edit flow + version-hash conflict | Landed `eee24d9` |
-| 1A.5 | Add-Comment context picker | Landed `fe7cb37` |
-
-**Phase 1A complete at the iteration level. Awaiting principal direction for `/phase-complete`.**
+- NavigationSplitView with section list + reader detail
+- Section header (heading, slug, version hash, level), flag banner, comment thread
+- Toolbar:
+  - Edit / Save / Cancel (inline TextEditor, version-hash optimistic concurrency)
+  - Add Comment menu (plain + Comment-on-Selection clipboard prefill, substring-gated)
+  - Flag / Clear Flag toggle
+- Sheets: AddCommentSheet (with optional context prefill), ResolveCommentSheet, FlagEditorSheet
+- Errors: generic `.alert` bound to `document.lastError`; version conflict has its own Overwrite/Discard/Keep-editing alert
+- Backing: `MockCLIService` end-to-end (CLIServiceProtocol abstraction ready for real-CLI swap)
 
 ## Immediate next action
 
-**Pause and await direction.** Options for principal to weigh in on:
+**Idle until captain replies on #382 with merge confirmation or direction.** When master carries Phase 1A:
 
-1. **Run `/phase-complete 1A`** — deep QG across all five iterations, requires principal approval, lands on master. The Phase 1A feature set ready for that:
-   - Section list + reader with content + comments + flag banner
-   - Toolbar: Edit / Add Comment (with Comment-on-Selection) / Flag toggle
-   - Sheets: AddComment, ResolveComment, FlagEditor
-   - Inline edit with version-hash conflict alert
-   - Error alert bound to `document.lastError`
-   - MockCLIService wired end-to-end; real-CLI swap deferred to Phase 2
-   - 43 tests
-2. **Queue Phase 1B** — next planned phase (check `docs/plans/plan-mdpal-20260406.md` if it exists). Might be real-CLI integration, persistence, or another app surface.
-3. **Address any backlog** — flags, deferred items, cleanup.
+1. `./claude/tools/git-safe merge-from-master` to bring Phase 1A back into the mdpal-app branch as the new starting point
+2. Begin **Phase 1B planning** — real-CLI integration (per captain #380):
+   - Implement a `RealCLIService: CLIServiceProtocol` that shells to `mdpal` CLI per dispatch #23 JSON spec
+   - Wire it behind a flag or env var so MockCLIService stays available for previews/tests
+   - Handle CLI process lifecycle (find binary, error on absence — `CLIServiceError.cliNotFound`)
+   - Bundle path resolution from open document
+   - Phase 1B QG **must** invoke formal reviewer-* agents via captain general-purpose escalation (per #380); flag the enforcement gap if hit
+3. Optional Phase 1B housekeeping: split SectionReaderView.swift (682 lines, 8 types) into smaller files. Captured in phase QGR's deferred list.
 
-## Open questions / flags
+## Key decisions / context for next session
 
-- **Flag #124 → devex**: git-safe-commit auto-dispatch loop vs session-compact's clean-tree goal. Unresolved.
-- **Reviewer-* agents not invocable from this class** — confirmed throughout QGs. At phase-complete boundary this might be a blocker for the deep QG; ask captain or devex before running phase-complete.
-- **DocumentModel.addComment vs resolveComment state model inconsistency** (append-local vs reload-all) — integration-phase decision.
-- **Live selection capture via NSTextView** deferred from 1A.5 — clipboard approach shipped instead.
+- **Reviewer-* agent escalation path:** for Phase 1B+, captain confirmed formal reviewer agents should be invoked via captain general-purpose escalation when this agent class can't reach them directly. Flag enforcement gaps if hit.
+- **Persistence is Phase 1C**, not 1B. Don't conflate.
+- **Edit conflict UX is intentionally distinct from generic errors** — the `EditConflict` alert offers Overwrite/Discard/Keep-editing rather than just an error message. Real-CLI needs to surface `versionConflict` as a typed error so the view can route correctly.
+- **Sheet error-return Bool pattern** is the established idiom for any new mutation sheet.
+- **Stateful mocks** (`ToggleTrackingService`, `FailingToggleService`) live in test target — Phase 1B may want similar harnesses for real-CLI error injection.
+
+## Open items / flags
+
+- **Flag #124 → devex**: git-safe-commit auto-dispatch recursion (untracked-file loop on session-compact). Still open.
+- **DocumentModel.addComment vs resolveComment state model inconsistency** — Phase 1B integration decision (real CLI's behavior may force the resolution).
+- **NSTextView live selection capture** deferred from 1A.5.
 - **Diff view in conflict alert** deferred from 1A.4.
-- **SwiftUI view tests** deferred throughout — no XCUITest harness in this Swift Package setup.
+- **SwiftUI view tests** deferred — no XCUITest harness in this Swift Package setup.
+- **SectionReaderView.swift split** — recommend in Phase 1B per phase QGR.
 
 ## Tooling reminders
 
 - **Git:** `./claude/tools/git-safe {status|log|diff|branch|show|blame|add|merge-from-master}`, `./claude/tools/git-safe-commit`. Raw `git`, `cp`, `cat`, `gh pr create` blocked.
 - **git-safe-commit syntax:** `"short summary" --work-item <ID> --stage <impl|review|tests> --body "body"` — NOT `-m`.
-- **Commits require work item:** `--work-item ITERATION-mdpal-app-<phase>-<iter> --stage impl` or `--no-work-item`.
+- **Commits require work item:** `--work-item ITERATION-mdpal-app-<phase>-<iter> --stage impl` (or `PHASE-mdpal-app-<phase>` at phase boundaries) or `--no-work-item` for housekeeping.
 - **Dispatch reply syntax:** positional — `dispatch reply <id> "message"`. NOT `--body`.
 - **Handoff canonical path:** `usr/jordan/mdpal-app/mdpal-app-handoff.md`.
 - **CWD pitfall:** `swift build` cd's to `apps/mdpal-app/`; `cd` back to worktree root for `./claude/tools/*`.
 
-## mdpal-cli coordination (unchanged)
+## mdpal-cli coordination (active reference for Phase 1B)
 
-Per #154: Phase 1 iterations 1.1–1.3 landed on CLI side (124 tests), 1.4 bundle source compiled. App continues against MockCLIService + dispatch #23 JSON spec. Stubs swap when Phase 2 CLI lands.
+Per #154: CLI Phase 1 iterations 1.1–1.3 landed (124 tests), 1.4 bundle source compiled. Phase 1B's real-CLI bridge consumes:
+- JSON wire format from dispatch #23
+- CLI commands: sections, read, edit, comments, add-comment, resolve-comment, flags, flag, clear-flag
+- Bundle path mechanics from CLI Phase 1.4
+
+Coordinate with mdpal-cli before designing the bridge — confirm wire format hasn't drifted.
 
 ## Monitor
 
-- Task `bytyd0zhv` / `bxe47l3qw` — dispatch monitor (both firing collab noise).
-- On resume: `TaskList` and restart via `./claude/tools/dispatch-monitor --include-collab` if dead. Consider dropping `--include-collab` since the collab queue is captain's scope, not mdpal-app's, and it's generating repeated wake events.
+- Dispatch monitor task IDs: `bytyd0zhv`, `bxe47l3qw` (both alive; both firing collab noise that is captain's scope).
+- On resume: consider restarting monitor without `--include-collab` since the cross-repo queue is captain's, not mdpal-app's.
+- `./claude/tools/dispatch-monitor` (without `--include-collab`) for mdpal-app-only alerts.
