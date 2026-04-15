@@ -276,11 +276,15 @@ _init_main() {
         exit 1
     fi
 
-    # Commands
-    cp "$AGENCY_SOURCE/.claude/commands/discuss.md" "$TARGET_DIR/.claude/commands/" 2>/dev/null || true
-    for cmd in secret.md agency-help.md agency-welcome.md agency-tutorial.md agency-bug.md agency-nit.md agency-request.md changelog.md; do
-        [[ -f "$AGENCY_SOURCE/.claude/commands/$cmd" ]] && cp "$AGENCY_SOURCE/.claude/commands/$cmd" "$TARGET_DIR/.claude/commands/"
-    done
+    # Commands — D41-R26: directory-level copy (was hardcoded list that
+    # missed new commands added post-freeze)
+    if [[ -d "$AGENCY_SOURCE/.claude/commands" ]]; then
+        local cmd_file
+        for cmd_file in "$AGENCY_SOURCE/.claude/commands/"*.md; do
+            [[ -f "$cmd_file" ]] || continue
+            cp "$cmd_file" "$TARGET_DIR/.claude/commands/"
+        done
+    fi
 
     # Skills
     if [[ -d "$AGENCY_SOURCE/.claude/skills" ]]; then
@@ -302,8 +306,23 @@ _init_main() {
 
     mkdir -p "$TARGET_DIR/claude"
     [[ -f "$AGENCY_SOURCE/claude/CLAUDE-THEAGENCY.md" ]] && cp "$AGENCY_SOURCE/claude/CLAUDE-THEAGENCY.md" "$TARGET_DIR/claude/"
-    [[ -f "$AGENCY_SOURCE/claude/README-THEAGENCY.md" ]] && cp "$AGENCY_SOURCE/claude/README-THEAGENCY.md" "$TARGET_DIR/claude/"
-    [[ -f "$AGENCY_SOURCE/claude/README-GETTINGSTARTED.md" ]] && cp "$AGENCY_SOURCE/claude/README-GETTINGSTARTED.md" "$TARGET_DIR/claude/"
+
+    # README-*.md — D41-R26: copy ALL top-level README files from framework
+    # (was hardcoded list missing README-ENFORCEMENT.md + README-SAFE-TOOLS.md +
+    # README-RECEIPT-INFRASTRUCTURE.md + more as they're added)
+    local readme_file
+    for readme_file in "$AGENCY_SOURCE/claude/"README-*.md; do
+        [[ -f "$readme_file" ]] && cp "$readme_file" "$TARGET_DIR/claude/"
+    done
+
+    # REFERENCE-*.md — D41-R26: the 39 framework reference docs are the
+    # authoritative guidance layer. Old code tried to copy /claude/docs/*.md
+    # which doesn't exist — these live at /claude/REFERENCE-*.md instead.
+    # Every ref-injected skill assumes these are present.
+    local ref_file
+    for ref_file in "$AGENCY_SOURCE/claude/"REFERENCE-*.md; do
+        [[ -f "$ref_file" ]] && cp "$ref_file" "$TARGET_DIR/claude/"
+    done
 
     # Config
     mkdir -p "$TARGET_DIR/claude/config"
@@ -353,25 +372,45 @@ telemetry:
   providers: ["jsonl"]
 YAML_EOF
 
-    # Docs
-    mkdir -p "$TARGET_DIR/claude/docs"
-    for doc in QUALITY-GATE.md DEVELOPMENT-METHODOLOGY.md CODE-REVIEW-LIFECYCLE.md FEEDBACK-FORMAT.md PR-LIFECYCLE.md TELEMETRY.md; do
-        [[ -f "$AGENCY_SOURCE/claude/docs/$doc" ]] && cp "$AGENCY_SOURCE/claude/docs/$doc" "$TARGET_DIR/claude/docs/"
-    done
+    # Docs — legacy /claude/docs/ path (kept as no-op fallback; content
+    # lives at /claude/REFERENCE-*.md now, copied above in Step 3).
+    if [[ -d "$AGENCY_SOURCE/claude/docs" ]]; then
+        mkdir -p "$TARGET_DIR/claude/docs"
+        local doc_file
+        for doc_file in "$AGENCY_SOURCE/claude/docs/"*.md; do
+            [[ -f "$doc_file" ]] && cp "$doc_file" "$TARGET_DIR/claude/docs/"
+        done
+    fi
 
-    # Agents
-    for agent in project-manager reviewer-code reviewer-design reviewer-scorer reviewer-security reviewer-test cos captain; do
-        if [[ -d "$AGENCY_SOURCE/claude/agents/$agent" ]]; then
-            mkdir -p "$TARGET_DIR/claude/agents/$agent"
-            cp "$AGENCY_SOURCE/claude/agents/$agent/agent.md" "$TARGET_DIR/claude/agents/$agent/"
-        fi
-    done
+    # Agents — D41-R26: directory-level copy of ALL agent classes + their
+    # agent.md class docs. Old hardcoded list missed iscp, tech-lead,
+    # platform-specialist, researcher, and ~10 others. Every agent class
+    # that ships gets copied now.
+    if [[ -d "$AGENCY_SOURCE/claude/agents" ]]; then
+        mkdir -p "$TARGET_DIR/claude/agents"
+        local agent_dir agent_name
+        for agent_dir in "$AGENCY_SOURCE/claude/agents"/*/; do
+            [[ -d "$agent_dir" ]] || continue
+            agent_name=$(basename "$agent_dir")
+            mkdir -p "$TARGET_DIR/claude/agents/$agent_name"
+            # Copy all .md files in the agent dir (agent.md + any KNOWLEDGE.md etc)
+            local af
+            for af in "$agent_dir"*.md; do
+                [[ -f "$af" ]] && cp "$af" "$TARGET_DIR/claude/agents/$agent_name/"
+            done
+        done
+    fi
 
-    # Hooks
-    mkdir -p "$TARGET_DIR/claude/hooks"
-    for hook in ref-injector.sh session-handoff.sh quality-check.sh plan-capture.sh branch-freshness.sh tool-telemetry.sh ghostty-status.sh; do
-        [[ -f "$AGENCY_SOURCE/claude/hooks/$hook" ]] && cp "$AGENCY_SOURCE/claude/hooks/$hook" "$TARGET_DIR/claude/hooks/"
-    done
+    # Hooks — D41-R26: directory-level copy. Old hardcoded list missed
+    # block-raw-tools.sh (CRITICAL — hookify enforcement layer) and
+    # idle-mail-check.sh. New hooks auto-install with no list maintenance.
+    if [[ -d "$AGENCY_SOURCE/claude/hooks" ]]; then
+        mkdir -p "$TARGET_DIR/claude/hooks"
+        local hook_file
+        for hook_file in "$AGENCY_SOURCE/claude/hooks/"*.sh; do
+            [[ -f "$hook_file" ]] && cp "$hook_file" "$TARGET_DIR/claude/hooks/"
+        done
+    fi
     chmod +x "$TARGET_DIR/claude/hooks/"*.sh 2>/dev/null || true
 
     # Hookify rules
