@@ -171,7 +171,7 @@ Both dispatch notifications and flags are persisted in a SQLite database at `~/.
 
 ### Commit Messages
 
-Commit message agent prefixes (`housekeeping/captain: ...`) stay bare-form. They are repo-local context and do not need qualification. See `claude/docs/GIT-MERGE-NOT-REBASE.md` § "Git & Remote Discipline" for the full commit message format.
+Commit message agent prefixes (`housekeeping/captain: ...`) stay bare-form. They are repo-local context and do not need qualification. See `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` § "Git & Remote Discipline" for the full commit message format.
 
 ### Future Extensions
 

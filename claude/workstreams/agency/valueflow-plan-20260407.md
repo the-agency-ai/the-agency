@@ -73,9 +73,9 @@ All existing agents can absorb V2 work:
 - `claude/docs/ENFORCEMENT-LADDER.md` — 5-stage ladder, registry format, per-workstream levels
 - `claude/docs/CONTEXT-RESILIENCE.md` — handoff classes, PostCompact, stage-aware resume
 - `claude/docs/CONTINUAL-LEARNING.md` — flag categories, transcript mining, telemetry, improvement loop
-- Update `claude/docs/QUALITY-GATE.md` — add tier definitions (T1-T4)
+- Update `claude/REFERENCE-QUALITY-GATE.md` — add tier definitions (T1-T4)
 - Update `claude/docs/GIT-DISCIPLINE.md` — add dispatch-on-commit protocol
-- Update `claude/docs/ISCP-PROTOCOL.md` — consolidate from existing reference
+- Update `claude/REFERENCE-ISCP-PROTOCOL.md` — consolidate from existing reference
 - Thin CLAUDE-THEAGENCY.md wrapper that `@` imports the above
 - Scoped `@` imports in all existing skills (each skill imports only what it needs)
 
@@ -368,14 +368,14 @@ All existing agents can absorb V2 work:
 - Integrates with dispatch-on-commit (Phase 2.4)
 
 *Iteration 6.3: Ship Flow Enhancement*
-- `/ship` skill: QG → commit → push → PR in one flow
+- `/release` skill: QG → commit → push → PR in one flow (was `/ship`, renamed in Day 40)
 - Phase boundary detection: build PR at phase boundaries, not iteration boundaries
 - Release notes dispatch to collaboration repos on push (flag #4)
 
 **Acceptance criteria:**
 - Captain restart processes queued dispatches in order
 - Batch processing merges N commits before syncing M worktrees (not interleaved)
-- `/ship` completes the full QG → PR flow
+- `/release` completes the full QG → PR flow
 
 **Dependencies:**
 - Phase 2.4 (dispatch-on-commit) — hard dependency for 6.2 integration testing
