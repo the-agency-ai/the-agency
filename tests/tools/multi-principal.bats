@@ -336,9 +336,27 @@ teardown() {
     # include runtime principal resolution.
     run grep -l "agent-bootstrap" "$REPO_ROOT/.claude/agents/"*.md
     assert_success
-    local count
-    count=$(grep -l "agent-bootstrap" "$REPO_ROOT/.claude/agents/"*.md | wc -l | tr -d ' ')
-    [[ "$count" -ge "9" ]]
+    # D41-R22 (issue #115 bug 2): ratio-based coverage instead of fixed
+    # threshold. Catches regressions where any single agent loses
+    # agent-bootstrap, regardless of how many agents the repo has.
+    local total covered
+    total=$(ls "$REPO_ROOT/.claude/agents/"*.md 2>/dev/null | grep -v -i 'README' | wc -l | tr -d ' ')
+    covered=$(grep -l "agent-bootstrap" "$REPO_ROOT/.claude/agents/"*.md 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$covered" -ne "$total" ]]; then
+        echo "agent-bootstrap coverage: $covered/$total (must be 100%)"
+        false
+    fi
+}
+
+@test "agent-bootstrap --agent with no value: clean error, no shift crash (issue #115 bug 1)" {
+    cd "$MOCK_REPO"
+    export USER="jdm"
+    # Trailing --agent with no value would crash under set -euo pipefail
+    # (shift 2 with one arg). D41-R22 fix: validate before shifting.
+    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent
+    assert_failure
+    [[ "$status" -eq "2" ]]
+    [[ "$output" == *"--agent requires a value"* ]] || [[ "$stderr" == *"--agent requires a value"* ]]
 }
 
 @test "agent-bootstrap honors CLAUDE_AGENT_NAME env fallback when agent-identity is unavailable" {
