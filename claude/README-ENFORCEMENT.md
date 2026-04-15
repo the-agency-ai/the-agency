@@ -10,7 +10,7 @@ Enforcement in TheAgency operates at **five layers**, from soft to hard:
 
 | Layer | Mechanism | What | Examples |
 |-------|-----------|------|----------|
-| 1. Documentation | Markdown in `claude/docs/`, `CLAUDE-THEAGENCY.md` | Human and agent readable conventions | Methodology, address format |
+| 1. Documentation | Markdown in `claude/REFERENCE-*.md`, `CLAUDE-THEAGENCY.md` | Human and agent readable conventions | Methodology, address format |
 | 2. Skills | `.claude/skills/{name}/SKILL.md` | Discoverable invocations of conventions | `/handoff`, `/iteration-complete` |
 | 3. Tools | `claude/tools/{name}` | Mechanical capabilities with logging and telemetry | `dispatch`, `git-safe-commit`, `stage-hash` |
 | 4. Hookify rules | `claude/hookify/hookify.{name}.md` | PreToolUse hooks that block or warn on patterns | `block-git-safe-commit`, `warn-compound-bash` |
@@ -29,6 +29,14 @@ The Triangle is the **per-capability structural pattern**. Every Agency capabili
 | **Hookify rule** (`claude/hookify/`) | Blocks the raw alternative. Points to the skill. | Compliance. Can't bypass. |
 
 When building a new capability: build the tool, wrap it in a skill, block the raw alternative with a hookify rule. All three. Not one, not two. The tool handles permissions, the skill handles discovery, the hookify rule handles compliance.
+
+**Triangle examples:**
+
+| Capability | Tool | Skill | Hookify Rule |
+|------------|------|-------|--------------|
+| Safe git commits | `git-safe` / `git-captain` | `/git-safe`, `/git-captain`, `/git-safe-commit` | `block-git-safe-commit` (blocks raw `git commit`) |
+| Safe file copy | `cp-safe` | *(called directly)* | `block-raw-cp` (blocks raw `cp`) |
+| PR creation | `pr-create` | `/release` | `block-raw-pr-create` (blocks raw `gh pr create`) |
 
 ## The Enforcement Ladder
 
@@ -91,6 +99,12 @@ The shipped template is intentionally minimal. Projects extend it for their own 
 
 Hookify rules are `PreToolUse` hooks with pattern matching that block or warn when an agent is about to do something that violates conventions. They live in `claude/hookify/hookify.{name}.md` and are activated by symlinking into `.claude/hookify.{name}.local.md`.
 
+### Critical Fix — Day 40: Blocks Were Theater Before
+
+**Prior to the Day 40 hookify fix**, all "block" rules used `systemMessage` + `exit 0`. This meant the hook printed a warning but Claude Code treated `exit 0` as success and **ran the command anyway**. "BLOCKED" messages were theater.
+
+**After the Day 40 fix**, block rules use `decision: block` + `exit 2`. Claude Code interprets `exit 2` as a hard block — the command is cancelled, not just warned about. If you adopted TheAgency before Day 40, run `agency update` to pick up the corrected hookify rules.
+
 ### Rule Categories
 
 | Category | Purpose |
@@ -107,12 +121,14 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 | Rule | Type | What It Does | Use Instead |
 |------|------|-------------|-------------|
 | `block-git-safe-commit` | Block | Blocks raw `git commit` | `/git-safe-commit` skill or `./claude/tools/git-safe-commit` |
+| `block-raw-push` | Block | Blocks ALL raw `git push` (replaces `no-push-main`, `warn-on-push`, `block-force-push-main`, `block-force-push-any`) | Use `/sync` (the only authorized push command) |
+| `block-raw-cp` | Block | Blocks raw `cp` commands | `./claude/tools/cp-safe` |
+| `block-raw-pr-create` | Block | Blocks raw `gh pr create` | `/release` skill |
 | `block-cd-to-main` | Block | Blocks `cd /Users/...` and absolute paths to tools | `./claude/tools/{name}` (relative paths from worktree) |
 | `block-cd-outside-worktree` | Block | Blocks any `cd` that takes the agent outside their worktree | Stay in worktree, use absolute paths via Read/Write tools |
 | `block-git-add-and-commit` | Block | Blocks the compound `git add ... && git commit` form | `/git-safe-commit` skill (separate Bash calls if you must) |
 | `block-raw-handoff` | Block | Blocks raw `claude/tools/handoff` invocations | `/handoff` skill |
 | `block-no-verify` | Block | Blocks `git commit --no-verify` and similar bypasses | Fix the underlying issue |
-| `block-force-push-main` | Block | Blocks `git push --force` to main | Don't force-push main, ever |
 | `block-raw-git-config-user-in-tests` | Block | Blocks bare `git config user.*` in BATS tests | Use `test_isolation_setup` from `test_helper.bash` |
 | `require-qgr` | Block *(planned)* | Will block commits without a matching QGR receipt — not yet wired | Run `/iteration-complete` or `/phase-complete` |
 | `require-plan-update` | Warn | Warns when committing without updating the plan file | Update `usr/{principal}/{project}/{project}-plan-*.md` |
@@ -127,13 +143,15 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 |------|---------------|-------------|
 | `block-cd-to-main` | `cd /Users/.../the-agency &&` and absolute paths to `claude/tools/` | `./claude/tools/{name}` |
 | `block-cd-outside-worktree` | Any `cd` that resolves to a path outside the agent's worktree | Stay in worktree; use absolute paths to Read/Write outside |
-| `block-force-push-main` | `git push --force` to main/master | Don't force-push main |
 | `block-git-add-and-commit` | The compound `git add ... && git commit ...` pattern | `/git-safe-commit` skill (or separate Bash calls if you must) |
 | `block-git-safe-commit` | Raw `git commit` | `/git-safe-commit` skill |
 | `block-no-verify` | `--no-verify`, `--no-gpg-sign`, etc. | Fix the underlying issue |
+| `block-raw-cp` | Raw `cp` commands | `./claude/tools/cp-safe` |
 | `block-raw-git-config-user-in-tests` | Bare `git config user.name`/`user.email` in BATS test files | Use `test_isolation_setup` from `test_helper.bash` |
 | `block-raw-git-merge-master` | Raw `git merge master` | `/sync-all` skill |
 | `block-raw-handoff` | Raw `claude/tools/handoff` | `/handoff` skill |
+| `block-raw-pr-create` | Raw `gh pr create` | `/release` skill |
+| `block-raw-push` | ALL `git push` commands | `/sync` skill (the only authorized push command) |
 | `block-system-install` | `brew install`, `apt install`, etc. | Ask principal first |
 | `block-testuser-paths` | Writes to `usr/testuser/` | Use `usr/{actual-principal}/` |
 
@@ -165,7 +183,6 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 |------|-------------------|---------|
 | `directive-authority` | `dispatch create --type directive` | Captain only |
 | `review-authority` | `dispatch create --type review` | Captain only |
-| `no-push-main` | `git push origin main` (or master) | Captain with explicit principal approval |
 
 #### Manual Process Reminders
 
@@ -179,7 +196,7 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 
 ## Quality Gates
 
-Quality gates are tiered checkpoints that run at every commit boundary. Each tier has a different scope and time budget. See `claude/docs/QUALITY-GATE.md` for the full protocol.
+Quality gates are tiered checkpoints that run at every commit boundary. Each tier has a different scope and time budget. See `claude/REFERENCE-QUALITY-GATE.md` for the full protocol.
 
 | Tier | Boundary | Checks | Time budget | Skill |
 |------|----------|--------|-------------|-------|

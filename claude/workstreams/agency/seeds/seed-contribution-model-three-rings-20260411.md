@@ -8,7 +8,7 @@ status: approved-proceed
 transcript: usr/jordan/captain/transcripts/contribution-model-three-rings-20260411.md
 related:
   - claude/CLAUDE-THEAGENCY.md
-  - claude/docs/QUALITY-GATE.md
+  - claude/REFERENCE-QUALITY-GATE.md
   - claude/tools/upstream-port
   - usr/jordan/captain/flags (flag #84 — PR tool needed)
 ---
@@ -120,7 +120,7 @@ Disable global failure email notifications. Replace with:
 The following sequence applies the seed:
 
 1. ✅ **Fix the immediate broken window** — PR #76 (D36-R2) merged. Skill validation tests pass. Main is green.
-2. **Document the three rings** — write `claude/docs/CONTRIBUTION-MODEL.md` as the reference.
+2. **Document the three rings** — write `claude/REFERENCE-CONTRIBUTION-MODEL.md` as the reference.
 3. **Draft `CONTRIBUTING.md`** at repo root — the contributor's front door. References the three-ring model.
 4. **Send monofolk transition dispatch** — tell their captain the Ring 2 transition is starting, with a clear deadline and migration path via `upstream-port`.
 5. **Wire branch protection on main** — AFTER monofolk is informed. Disallow direct push for all but an explicit allowlist. All changes via PR.

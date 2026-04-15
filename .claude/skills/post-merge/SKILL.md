@@ -11,7 +11,7 @@ description: Run after a PR is merged on GitHub. Verifies merge, merges origin i
 
 # Post-Merge
 
-Run after a PR is merged on GitHub. Verifies the merge, merges origin into master, then invokes `/sync-all`. **Never resets master to origin.** See `claude/docs/GIT-MERGE-NOT-REBASE.md`.
+Run after a PR is merged on GitHub. Verifies the merge, merges origin into master, then invokes `/sync-all`. **Never resets master to origin.** See `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
 
 ## Arguments
 
@@ -49,7 +49,7 @@ If diverged (both sides > 0 — expected after squash PR merge):
 
 If behind only: `git merge origin/master`
 
-**Never `git reset --hard origin/master`.** See `claude/docs/GIT-MERGE-NOT-REBASE.md`.
+**Never `git reset --hard origin/master`.** See `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
 
 ### Step 5: Invoke sync-all
 
@@ -61,7 +61,7 @@ Invoke `/sync-all` via the Skill tool to sync all worktrees.
 
 1. Parse the PR title for the release name (e.g., "D39-R1: ...")
 2. Extract the day and release number from the branch name or title (e.g., D39-R1 → version 39.1)
-3. Verify `claude/config/manifest.json` has the correct `agency_version`. The version bump should have been done BEFORE the PR was created (in `/pr-prep` or `/ship`). If it wasn't, **stop and warn** — do not push to main to fix it. Create a follow-up PR instead.
+3. Verify `claude/config/manifest.json` has the correct `agency_version`. The version bump should have been done BEFORE the PR was created (in `/pr-prep` or `/release`). If it wasn't, **stop and warn** — do not push to main to fix it. Create a follow-up PR instead.
 4. Create GitHub release: `gh release create v{version} --title "{PR title}" --notes "{release notes}" --target main`
    - Release notes: summarize the PR description, list key changes
 5. Verify release: `gh release view v{version}`

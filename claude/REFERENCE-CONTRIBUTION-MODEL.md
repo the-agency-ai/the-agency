@@ -126,8 +126,8 @@ Anything that duplicates local QG without adding environment/verification value:
 ## References
 
 - **Seed:** `claude/workstreams/agency/seeds/seed-contribution-model-three-rings-20260411.md`
-- **Quality Gate Protocol:** `claude/docs/QUALITY-GATE.md`
-- **Code Review Lifecycle:** `claude/docs/CODE-REVIEW-LIFECYCLE.md`
+- **Quality Gate Protocol:** `claude/REFERENCE-QUALITY-GATE.md`
+- **Code Review Lifecycle:** `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md`
 - **Agency Methodology:** `claude/CLAUDE-THEAGENCY.md`
 - **Contributor Front Door:** `CONTRIBUTING.md` (at repo root)
 - **Code of Conduct:** `CODE_OF_CONDUCT.md` (at repo root)
