@@ -55,6 +55,7 @@ Subcommands:
   checkout-branch <name>         Create and switch to a new branch
   switch-branch <name>           Switch to an existing branch (including main)
   sync-main                      Fast-forward main to origin/main (requires clean tree, on main)
+  merge-continue                 Conclude an in-progress merge (after conflict resolution)
   push [args]                    Push to remote (blocks main/master, blocks bare --force)
   fetch                          Fetch from origin
   tag <name> [-m <msg>]          Create annotated tag
@@ -169,6 +170,34 @@ cmd_sync_main() {
         echo "${GREEN}sync-main complete.${NC}"
     else
         die "Fast-forward failed — $main_branch has diverged from origin/$main_branch. Investigate manually."
+    fi
+}
+
+# --- Subcommand: merge-continue ---
+# Conclude an in-progress merge after the operator has resolved conflicts.
+# Verifies MERGE_HEAD exists (else there's nothing to continue) and that no
+# unresolved conflicts remain, then runs `git commit --no-edit` to produce
+# the merge commit using the merge-default message.
+cmd_merge_continue() {
+    [[ $# -gt 0 ]] && die "Usage: git-captain merge-continue (takes no arguments)"
+
+    local git_dir
+    git_dir=$(git rev-parse --git-dir 2>/dev/null) || die "Not in a git repository."
+
+    if [[ ! -f "$git_dir/MERGE_HEAD" ]]; then
+        die "No merge in progress. MERGE_HEAD not found."
+    fi
+
+    # Refuse if any conflicts remain unresolved
+    if git diff --name-only --diff-filter=U 2>/dev/null | grep -q .; then
+        die "Unresolved conflicts remain. Resolve them with edit + git-safe add, then re-run."
+    fi
+
+    echo "${BLUE}Concluding merge...${NC}"
+    if git commit --no-edit; then
+        echo "${GREEN}merge-continue complete.${NC}"
+    else
+        die "git commit --no-edit failed. Inspect repository state."
     fi
 }
 
@@ -300,6 +329,7 @@ case "$1" in
     checkout-branch)    shift; cmd_checkout_branch "$@" ;;
     switch-branch)      shift; cmd_switch_branch "$@" ;;
     sync-main)          shift; cmd_sync_main "$@" ;;
+    merge-continue)     shift; cmd_merge_continue "$@" ;;
     push)               shift; cmd_push "$@" ;;
     fetch)              shift; cmd_fetch "$@" ;;
     tag)                shift; cmd_tag "$@" ;;

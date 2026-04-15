@@ -105,6 +105,66 @@ _resolve_identity() {
     "$SCRIPT_DIR/agent-identity" 2>/dev/null || echo "the-agency/unknown/captain"
 }
 
+# D41-R5 monofolk QG fix: validate that filename is a safe basename inside the
+# given inbound directory. Rejects path-traversal sequences (../, absolute paths,
+# / or \\ in the basename). Returns 0 on success, 1 on rejection. Echoes the
+# canonicalized full path on success.
+#
+# Usage:
+#   safe_path=$(_validate_dispatch_filename "$inbound_path" "$filename") || exit 1
+_validate_dispatch_filename() {
+    local inbound_path="$1" filename="$2"
+
+    # Reject empty
+    if [[ -z "$filename" ]]; then
+        echo "ERROR: filename is empty" >&2
+        return 1
+    fi
+
+    # Reject path separators in the basename
+    if [[ "$filename" == */* || "$filename" == *\\* ]]; then
+        echo "ERROR: filename must be a basename (no path separators): $filename" >&2
+        return 1
+    fi
+
+    # Reject parent-traversal sequences
+    if [[ "$filename" == ".." || "$filename" == *..* || "$filename" == "." ]]; then
+        echo "ERROR: filename contains traversal sequence: $filename" >&2
+        return 1
+    fi
+
+    # Reject leading dot files except for .md (no hidden files)
+    if [[ "$filename" == .* ]]; then
+        echo "ERROR: filename must not start with a dot: $filename" >&2
+        return 1
+    fi
+
+    # Allowlist characters: alphanumeric, dot, underscore, hyphen
+    if [[ ! "$filename" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+        echo "ERROR: filename contains disallowed characters: $filename" >&2
+        return 1
+    fi
+
+    # Build candidate path and verify it's inside inbound_path after realpath
+    local candidate="$inbound_path/$filename"
+    local canon_inbound canon_candidate
+    canon_inbound=$(cd "$inbound_path" 2>/dev/null && pwd -P) || {
+        echo "ERROR: inbound directory not accessible: $inbound_path" >&2
+        return 1
+    }
+    # File may not exist yet (write path); resolve directory portion only
+    canon_candidate="$canon_inbound/$filename"
+
+    # Final containment check: candidate must start with canon_inbound + /
+    if [[ "$canon_candidate" != "$canon_inbound/"* ]]; then
+        echo "ERROR: filename escapes inbound directory: $filename" >&2
+        return 1
+    fi
+
+    echo "$canon_candidate"
+    return 0
+}
+
 _update_frontmatter_status() {
     # Update status field in YAML frontmatter of a dispatch file.
     # Operates ONLY on the frontmatter block (between first two ^---$ markers)
@@ -178,11 +238,12 @@ cmd_check() {
             continue
         fi
 
-        # Pull latest — stash dirty state first (status markers from resolve).
-        # PR #87 review fix (D41-R3): detect stash creation by stash-list delta,
-        # not by `git stash` exit code — `git stash` returns 0 even when it
-        # creates no new entry (e.g., tracked-file no-op). Popping in that case
-        # would restore an UNRELATED older stash.
+        # Pull latest. Combines:
+        # - D41-R3: stash dirty state first via stash-list-delta detection
+        #   (git stash returns 0 even when it creates no new entry; popping
+        #   would then restore an unrelated older stash).
+        # - D41-R5: --ff-only (was --rebase) — aligns with merge-not-rebase
+        #   discipline; surfaces real divergence as conflict.
         local pull_output stashed=false stash_before stash_after
         stash_before=$(cd "$full_path" && git stash list 2>/dev/null | wc -l | tr -d ' ')
         if [[ -n "$(cd "$full_path" && git status --porcelain 2>/dev/null)" ]]; then
@@ -190,7 +251,7 @@ cmd_check() {
             stash_after=$(cd "$full_path" && git stash list 2>/dev/null | wc -l | tr -d ' ')
             [[ "$stash_after" -gt "$stash_before" ]] && stashed=true
         fi
-        pull_output=$(cd "$full_path" && git pull --rebase 2>&1) || {
+        pull_output=$(cd "$full_path" && git pull --ff-only 2>&1) || {
             results+=("⚠ $name: git pull failed — ${pull_output%%$'\n'*}")
             if $stashed; then
                 (cd "$full_path" && git stash pop -q 2>/dev/null) || \
@@ -314,7 +375,14 @@ cmd_read() {
 
     local full_path
     full_path=$(_expand_path "$repo_path")
-    local file="$full_path/$inbound/$filename"
+    local inbound_path="$full_path/$inbound"
+
+    # D41-R5 monofolk QG fix: validate filename is a safe basename inside inbound.
+    local file
+    file=$(_validate_dispatch_filename "$inbound_path" "$filename") || {
+        log_end "$RUN_ID" "error" "1" "0" "rejected unsafe filename: $filename"
+        exit 1
+    }
 
     if [[ ! -f "$file" ]]; then
         echo "ERROR: dispatch not found: $file" >&2
@@ -374,7 +442,12 @@ cmd_resolve() {
         echo "$count dispatch(es) resolved. Run 'collaboration push $repo_name' to commit."
         log_end "$RUN_ID" "success" "0" "0" "resolved $count dispatches"
     else
-        local file="$inbound_path/$target"
+        # D41-R5 monofolk QG fix: validate filename is a safe basename inside inbound.
+        local file
+        file=$(_validate_dispatch_filename "$inbound_path" "$target") || {
+            log_end "$RUN_ID" "error" "1" "0" "rejected unsafe filename: $target"
+            exit 1
+        }
         if [[ ! -f "$file" ]]; then
             echo "ERROR: dispatch not found: $target" >&2
             log_end "$RUN_ID" "error" "1" "0" "file not found: $target"
