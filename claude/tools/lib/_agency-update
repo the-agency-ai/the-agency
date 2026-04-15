@@ -17,6 +17,8 @@ RUN_ID=$(log_start "agency-update" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/de
 VERBOSE=false
 DRY_RUN=false
 FORCE=false
+PRUNE=false              # D41-R16: opt-in rsync --delete for orphan cleanup
+YES=false                # D41-R16: bypass prune confirmation prompt
 TARGET_DIR=""
 FROM_GITHUB=""           # D41-R10 (monofolk hotfix): github ref to fetch from
 GITHUB_REPO_URL="https://github.com/the-agency-ai/the-agency.git"
@@ -34,6 +36,11 @@ Options:
   --verbose             Show detailed output
   --dry-run             Preview changes without applying
   --force               Proceed even if the working tree has uncommitted framework changes
+  --prune               Remove orphaned framework files (rsync --delete).
+                        Protects usr/, workstreams/, and paths in registry.json
+                        protected_paths. Prompts for confirmation before deleting
+                        unless --yes is passed. Default: off (purely additive sync).
+  --yes                 Skip the --prune confirmation prompt. No effect without --prune.
   --from-github [ref]   Shallow-clone the-agency from GitHub and use as source.
                         Optional ref: tag, branch, or commit (default: latest tag).
                         Examples:  --from-github
@@ -59,6 +66,8 @@ while [[ $# -gt 0 ]]; do
         --verbose) VERBOSE=true; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
         --force) FORCE=true; shift ;;
+        --prune) PRUNE=true; shift ;;
+        --yes|-y) YES=true; shift ;;
         --from-github)
             # Optional ref follows the flag. If next arg is missing or starts
             # with `-` or matches a target-dir-like pattern, default to "latest".
@@ -255,15 +264,60 @@ _update_main() {
     log_step "Syncing framework files"
 
     # Use rsync in dry-run or real mode
-    # CRITICAL: NO --delete flag. Sync is ADDITIVE — add new files, update
-    # existing files, but NEVER delete files that only exist in the target.
+    #
+    # DEFAULT: NO --delete flag. Sync is ADDITIVE — add new files, update
+    # existing files, NEVER delete files that only exist in the target.
     # Project-specific tools (secret-local, provider tools, etc.) live in
-    # claude/tools/ alongside framework tools. --delete would destroy them.
-    # If a framework tool is renamed or removed, document it in release notes
-    # for manual cleanup — that's safer than destructive sync.
+    # claude/tools/ alongside framework tools. A blind --delete would destroy them.
+    #
+    # OPT-IN: --prune enables --delete with protected_paths enforced.
+    # Adopters run it explicitly when they want orphan cleanup. Confirmation
+    # prompt unless --yes. D41-R16 (monofolk request — opt-in adopter hygiene).
     local rsync_flags=("-rlpt")
     [[ "$VERBOSE" == "true" ]] && rsync_flags+=("-v")
     [[ "$DRY_RUN" == "true" ]] && rsync_flags+=("--dry-run")
+
+    # --- D41-R16: opt-in --prune (rsync --delete with protected paths) ---
+    if [[ "$PRUNE" == "true" ]]; then
+        # First pass: dry-run with --delete to preview what would be removed
+        local prune_preview
+        prune_preview=$(rsync -rlpt --dry-run --delete \
+            "${rsync_excludes[@]+"${rsync_excludes[@]}"}" \
+            --exclude "workstreams/" \
+            --exclude "usr/" \
+            --itemize-changes \
+            "$SOURCE_DIR/claude/" "$TARGET_DIR/claude/" 2>&1 | grep -E '^\*deleting' || true)
+
+        local prune_count
+        prune_count=$(echo "${prune_preview:-}" | grep -c '^\*deleting' || echo "0")
+
+        if [[ "$prune_count" -gt 0 ]]; then
+            echo ""
+            echo -e "${YELLOW}--prune: ${prune_count} orphan file(s) would be deleted from claude/:${NC}"
+            echo "$prune_preview" | head -20
+            [[ "$prune_count" -gt 20 ]] && echo "  ... and $((prune_count - 20)) more (use --verbose to see all)"
+            echo ""
+
+            if [[ "$DRY_RUN" == "true" ]]; then
+                echo "  [dry-run] no files will actually be deleted"
+            elif [[ "$YES" == "true" ]]; then
+                echo "  --yes: proceeding without prompt"
+                rsync_flags+=("--delete")
+            else
+                echo -en "  Delete these files? (yes/no) [default: no]: "
+                read -r prune_confirm
+                if [[ "$prune_confirm" == "yes" ]]; then
+                    rsync_flags+=("--delete")
+                    echo "  Proceeding with --delete."
+                else
+                    echo "  Aborting prune. Re-run without --prune, or with --yes to skip prompt."
+                    PRUNE=false
+                fi
+            fi
+        else
+            echo "  --prune: no orphan files found, nothing to delete."
+        fi
+    fi
 
     # Sync claude/ (excluding agency.yaml, protected paths, and workstreams)
     local rsync_output

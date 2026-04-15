@@ -140,3 +140,66 @@ EOF
 # operate on the full porcelain output instead of the head-20 truncated
 # version — is a one-line refactor that the positive-assertion tests above
 # already exercise end-to-end.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R16: opt-in --prune (rsync --delete with protected paths)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency update: --help documents --prune and --yes" {
+    run_agency update --help
+    assert_success
+    assert_output_contains "--prune"
+    assert_output_contains "--yes"
+}
+
+@test "agency update: default (no --prune) does NOT delete orphaned target files" {
+    # Defensive regression test — forbids silent orphan deletion by default.
+    local root
+    root=$(setup_update_fixture)
+    # Orphan only in target, not in source
+    local orphan="$root/target/claude/tools/my-local-tool"
+    echo "#!/bin/bash" > "$orphan"
+
+    AGENCY_SOURCE="$root/source" run_agency update "$root/target" --force --yes
+    # The orphan must survive — default sync is additive only
+    [ -f "$orphan" ]
+}
+
+@test "agency update: --prune --dry-run previews deletions but does not delete" {
+    local root
+    root=$(setup_update_fixture)
+    local orphan="$root/target/claude/tools/my-local-tool"
+    echo "#!/bin/bash" > "$orphan"
+
+    AGENCY_SOURCE="$root/source" run_agency update "$root/target" --prune --dry-run --force
+    # Dry-run: orphan still exists
+    [ -f "$orphan" ]
+    # Prune preview should mention the orphan count or the dry-run note
+    [[ "$output" == *"--prune"* ]] || [[ "$output" == *"dry-run"* ]]
+}
+
+@test "agency update: --prune --yes deletes orphaned target files" {
+    local root
+    root=$(setup_update_fixture)
+    local orphan="$root/target/claude/tools/my-local-tool"
+    echo "#!/bin/bash" > "$orphan"
+
+    AGENCY_SOURCE="$root/source" run_agency update "$root/target" --prune --yes --force
+    # Orphan must be removed
+    [ ! -f "$orphan" ]
+}
+
+@test "agency update: --prune --yes preserves usr/ and workstreams/" {
+    local root
+    root=$(setup_update_fixture)
+    # Create adopter-owned files under usr/ (sandbox) and workstreams/ that
+    # don't exist in source — they must survive prune via the hard excludes.
+    mkdir -p "$root/target/usr/jordan/captain"
+    echo "handoff" > "$root/target/usr/jordan/captain/captain-handoff.md"
+    mkdir -p "$root/target/claude/workstreams/myproject"
+    echo "knowledge" > "$root/target/claude/workstreams/myproject/KNOWLEDGE.md"
+
+    AGENCY_SOURCE="$root/source" run_agency update "$root/target" --prune --yes --force
+    [ -f "$root/target/usr/jordan/captain/captain-handoff.md" ]
+    [ -f "$root/target/claude/workstreams/myproject/KNOWLEDGE.md" ]
+}
