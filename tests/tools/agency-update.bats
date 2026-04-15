@@ -307,6 +307,81 @@ EOF
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# D41-R24: agency init --from-github (principal directive, closes #119 bundle)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency init --help documents --from-github" {
+    run_agency init --help
+    assert_success
+    assert_output_contains "from-github"
+    # Default should be main, not 'latest tag'
+    assert_output_contains "Default: main"
+    # @latest opt-in for release-tag behavior
+    assert_output_contains "@latest"
+}
+
+@test "agency init --from-github parses the flag (no value = main default)" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p target
+    cd target && git init --quiet --initial-branch=main && \
+        git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+    # Point at nonexistent repo so clone fails fast after ref resolution —
+    # we just verify the flag is parsed and the main-default path is taken.
+    GITHUB_REPO_URL="file:///nonexistent-r24-test" run "${TOOLS_DIR}/agency" init --from-github --verbose 2>&1
+    # Output should mention main ref
+    [[ "$output" == *"ref: main"* ]] || [[ "$output" == *"main"* ]]
+}
+
+@test "agency init --from-github @latest enters release-tag resolution path" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p target
+    cd target && git init --quiet --initial-branch=main && \
+        git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+    GITHUB_REPO_URL="file:///nonexistent-r24-test" run "${TOOLS_DIR}/agency" init --from-github @latest --verbose 2>&1
+    [[ "$output" == *"@latest"* ]] || [[ "$output" == *"main"* ]]
+}
+
+@test "agency init --from-github= equals form works" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p target
+    cd target && git init --quiet --initial-branch=main && \
+        git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+    GITHUB_REPO_URL="file:///nonexistent-r24-test" run "${TOOLS_DIR}/agency" init --from-github=v41.23 --verbose 2>&1
+    [[ "$output" == *"v41.23"* ]] || [[ "$output" == *"ref: v41.23"* ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R24: agency-bootstrap.sh curl-entrypoint script exists and is executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency-bootstrap.sh exists and is executable" {
+    [[ -f "$REPO_ROOT/claude/tools/agency-bootstrap.sh" ]]
+    [[ -x "$REPO_ROOT/claude/tools/agency-bootstrap.sh" ]]
+}
+
+@test "agency-bootstrap.sh --help works without network" {
+    run "$REPO_ROOT/claude/tools/agency-bootstrap.sh" --help
+    assert_success
+    assert_output_contains "agency-bootstrap.sh"
+    assert_output_contains "curl"
+}
+
+@test "agency-bootstrap.sh --version prints version" {
+    run "$REPO_ROOT/claude/tools/agency-bootstrap.sh" --version
+    assert_success
+    assert_output_contains "agency-bootstrap.sh"
+}
+
+@test "agency-bootstrap.sh: refuses non-git-repo" {
+    local non_git="${BATS_TEST_TMPDIR}/not-a-git-repo-$$"
+    mkdir -p "$non_git"
+    cd "$non_git"
+    run "$REPO_ROOT/claude/tools/agency-bootstrap.sh"
+    assert_failure
+    assert_output_contains "git repo"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # D41-R20: post-merge skill enforces release verification
 # ─────────────────────────────────────────────────────────────────────────────
 

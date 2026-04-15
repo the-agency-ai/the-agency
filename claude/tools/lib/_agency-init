@@ -19,6 +19,8 @@ TARGET_DIR=""
 PRINCIPAL=""
 PROJECT_NAME=""
 TIMEZONE="UTC"
+FROM_GITHUB=""
+GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.com/the-agency-ai/the-agency.git}"
 
 _init_help() {
     cat << 'EOF'
@@ -29,6 +31,15 @@ Usage:
   agency init --principal <name>        Override principal name
   agency init --project <name>          Set project name
   agency init --timezone <tz>           Set timezone (default: UTC)
+  agency init --from-github [ref]       Shallow-clone the-agency from GitHub
+                                        and use as source. Optional ref:
+                                        tag, branch, or commit. Default: main.
+                                        Use @latest for latest release tag.
+                                        Examples:
+                                          --from-github              # main
+                                          --from-github main         # explicit
+                                          --from-github @latest      # tag
+                                          --from-github v41.23       # specific tag
 
 Options:
   --verbose        Show detailed output
@@ -37,6 +48,7 @@ Options:
 Examples:
   cd ~/code/my-project && agency init
   agency init ~/code/my-project --principal jordan --project my-project
+  cd ~/code/bare-repo && agency init --from-github --principal alex
 EOF
 }
 
@@ -49,6 +61,18 @@ while [[ $# -gt 0 ]]; do
         --principal) [[ -n "${2:-}" ]] || { echo "Error: --principal requires a value" >&2; exit 1; }; PRINCIPAL="$2"; shift 2 ;;
         --project) [[ -n "${2:-}" ]] || { echo "Error: --project requires a value" >&2; exit 1; }; PROJECT_NAME="$2"; shift 2 ;;
         --timezone) [[ -n "${2:-}" ]] || { echo "Error: --timezone requires a value" >&2; exit 1; }; TIMEZONE="$2"; shift 2 ;;
+        --from-github)
+            # Optional ref follows the flag. If next arg is missing or starts
+            # with `-` or matches a target-dir-like pattern, default to "main".
+            # D41-R24: mirrors agency update --from-github semantics (issue #113+).
+            FROM_GITHUB="main"
+            shift
+            if [[ $# -gt 0 && "$1" != -* && ! -d "$1" ]]; then
+                FROM_GITHUB="$1"
+                shift
+            fi
+            ;;
+        --from-github=*) FROM_GITHUB="${1#--from-github=}"; shift ;;
         -*) echo "Unknown option: $1" >&2; _init_help; exit 1 ;;
         *) TARGET_DIR="$1"; shift ;;
     esac
@@ -71,7 +95,49 @@ _init_main() {
         exit 1
     }
 
-    AGENCY_SOURCE="${AGENCY_SOURCE:-$(cd "$AGENCY_DIR/.." && pwd)}"
+    # D41-R24 (principal directive, related to issue #113): when --from-github is
+    # passed, shallow-clone the-agency from GitHub and use that as the source,
+    # bypassing the requirement for a local the-agency clone. Mirrors the
+    # _agency-update --from-github semantics.
+    local TMP_SOURCE_DIR=""
+    if [[ -n "$FROM_GITHUB" ]]; then
+        log_step "Fetching the-agency from GitHub (ref: $FROM_GITHUB)..."
+        TMP_SOURCE_DIR=$(mktemp -d -t agency-init-source-XXXXXX)
+        # Resolve ref. Default "main". "@latest" → latest release tag via gh.
+        local clone_ref="$FROM_GITHUB"
+        if [[ "$FROM_GITHUB" == "@latest" ]]; then
+            if command -v gh >/dev/null 2>&1; then
+                clone_ref=$(gh release view --repo the-agency-ai/the-agency --json tagName -q .tagName 2>/dev/null) || clone_ref=""
+            fi
+            if [[ -z "$clone_ref" ]]; then
+                log_warn "Could not resolve latest release; falling back to main"
+                clone_ref="main"
+            else
+                log_info "Resolved @latest → $clone_ref"
+            fi
+        fi
+        if ! git clone --depth 1 --branch "$clone_ref" "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
+            # Fallback: full-ish clone + checkout (handles SHAs)
+            rm -rf "$TMP_SOURCE_DIR"
+            TMP_SOURCE_DIR=$(mktemp -d -t agency-init-source-XXXXXX)
+            if ! git clone --depth 50 "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
+                log_error "git clone failed for $GITHUB_REPO_URL"
+                rm -rf "$TMP_SOURCE_DIR"
+                exit 1
+            fi
+            if ! git -C "$TMP_SOURCE_DIR" checkout "$clone_ref" >/dev/null 2>&1; then
+                log_error "Could not checkout ref '$clone_ref' in fetched repo"
+                rm -rf "$TMP_SOURCE_DIR"
+                exit 1
+            fi
+        fi
+        AGENCY_SOURCE="$TMP_SOURCE_DIR"
+        # Teardown trap: clean up temp clone on any exit path
+        trap 'rm -rf "$TMP_SOURCE_DIR" 2>/dev/null; log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+        log_info "Source: $AGENCY_SOURCE (shallow clone, will be removed)"
+    else
+        AGENCY_SOURCE="${AGENCY_SOURCE:-$(cd "$AGENCY_DIR/.." && pwd)}"
+    fi
 
     # --- Precondition 1: git repo ---
     if [[ ! -d "$TARGET_DIR/.git" ]]; then
