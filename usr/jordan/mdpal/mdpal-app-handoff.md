@@ -2,61 +2,93 @@
 type: handoff
 agent: the-agency/jordan/mdpal-app
 workstream: mdpal
-date: 2026-04-06
-trigger: reboot
+date: 2026-04-14
+trigger: pre-0300-pause
 ---
 
 ## Identity
 
-the-agency/jordan/mdpal-app — tech-lead agent. Owns the macOS native SwiftUI app for Markdown Pal. You build the face; mdpal-cli builds the brain.
+the-agency/jordan/mdpal-app — tech-lead agent. macOS native SwiftUI app for Markdown Pal. Worktree: `.claude/worktrees/mdpal-app/`. Counterpart: mdpal-cli (separate worktree).
 
-**NEW: You now have your own worktree at `.claude/worktrees/mdpal-app/`.** Previously shared with mdpal-cli — now split. One agent, one worktree. Coordinate with mdpal-cli via dispatches.
+## ⚠️ Paused until 0300
 
-## Current State
+Principal directive: **resume Phase 1A work at 2026-04-15 03:00**. Timer: cron job `6288de17` (one-shot). Monitor `bxe47l3qw` running for dispatches. Do no proactive work before the timer fires.
 
-Implementation Phase 1A in progress. SwiftUI app scaffold shipped: models (Comment, DocumentModel, Flag, Section, ResponseTypes), views (ContentView, MarkdownContentView, MarkdownDocument, SectionListView, SectionReaderView), services (CLIServiceProtocol, MockCLIService), tests (ModelTests — 735 lines). Code is on main (merged from mdpal branch).
+## What happened this session (2026-04-14)
 
-Key artifacts:
-- PVR: check `usr/jordan/mdpal/` for latest
-- A&D: `usr/jordan/mdpal/ad-mdpal-20260404.md`
-- Plan: `usr/jordan/mdpal/plan-mdpal-20260406.md`
-- Code: `apps/mdpal-app/` (SwiftUI package)
+1. **Merged from main** — 54 commits landed cleanly as `d1a438e`. No conflicts (one expected sparse-worktree artifact: `test/test-agency-project` shown deleted).
+2. **New tooling rules now active here**: git-safe family enforced by hookify. Raw `git status/log/diff/merge` blocked. Use `/git-safe`, `/git-safe-commit`, `/git-captain` (captain only). Raw `cat` also blocked — use Read tool. Raw `cp` and `gh pr create` also blocked.
+3. **Replied to captain's merge-confirmation directive (#302)** — but the reply body did not transmit correctly (see bug below). Captain sent two follow-ups (#310, #312) asking for the status. Captain has accepted that the response lives in this handoff instead.
+4. **Skills discipline reminder from principal** — stop shelling to `./claude/tools/dispatch` directly; use `/dispatch`. Stop using raw git; use `/git-safe`. Going forward, invoke skills via the Skill tool.
 
-## Valueflow Context
+## Captain's merge-confirmation response (per #312 — lives here until bug fixed)
 
-- PVR: `claude/workstreams/agency/valueflow-pvr-20260406.md`
-- A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-- MAR dispositions: `claude/workstreams/agency/reviews/`
+1. **Merge clean?** Yes. 54 commits from main merged as `d1a438e`. No conflicts. `test/test-agency-project` shown deleted is the usual sparse-worktree artifact.
+2. **Questions / needs?** None blocking. Acknowledge git-safe family is now the only allowed git path here.
+3. **Blocking next iteration?** No. Phase 1A scaffold intact. Paused until 0300.
 
-You reviewed both PVR (rounds 1 + 2) and A&D (rounds 1 + 2). Your A&D verdict: "no structural concerns." Best reviewer across both rounds. Read the A&D on startup.
+## 🐛 Dispatch tool bug — investigate at 0300 (captain directive #312)
 
-## Active Work
+**Symptom:** `./claude/tools/dispatch reply <id> --body "..."` (and `--body-file`) produces a dispatch with body content equal to the literal string `--body` (or `--body-file`). Two empty replies landed this session: #309 (`--body`) and #311 (`--body-file`).
 
-- Phase 1A implementation in progress — models and views scaffolded, iteration work ongoing
-- Continue implementing per plan at `usr/jordan/mdpal/plan-mdpal-20260406.md`
-- MAR review dispatches fully resolved — no pending reviews
+**Hypothesis:** the tool's argument parser is reading the flag *name* as the body value, i.e. the positional slot that should hold the body content is being filled by the flag name itself. Could be a shift/offset bug, or the CLI treats `--body` as a positional rather than a flag-with-value.
 
-## Key Decisions
+**At 0300, investigate:**
+1. Read `claude/tools/dispatch` source — find how `reply` subcommand parses `--body` / `--body-file`.
+2. Compare to `create --body` which other agents use successfully.
+3. Check if the issue is shell-level: Bash quoting? `$(...)` expansion? Heredoc? Principal's earlier heredoc through the Bash tool had issues — may or may not be related.
+4. Try: `dispatch create --to ... --subject ... --body "test"` — does that work? If yes, the bug is isolated to `reply`.
+5. File findings as a bug/flag, or send a dispatch to devex if it's a framework bug.
 
-- MDPal tray for principal notifications stays in NFR1 — MDPal is an Agency application
-- Three-bucket: reviewers give raw feedback, authors triage (you flagged this correction in round 1)
-- Cross-workstream RFI works — you tested it with library linking question to mdpal-cli
-- Convention-based test scoping: package-level for Swift (`apps/mdpal-app/Sources/` → run tests in `apps/mdpal-app/`)
-- Bootstrap handoffs: captain writes them. You suggested clarifying this — incorporated.
+**Workaround until fixed:** write response content in this handoff or in a dispatch *file* (pre-written payload) rather than inline flag.
 
-## Your Counterpart
+## Phase 1A state (unchanged — no code written this session)
 
-mdpal-cli owns the core engine, CLI, and LSP server. Read their handoff at `usr/jordan/mdpal/mdpal-cli-handoff.md`. Coordinate via dispatches — you are now on separate worktrees.
+Scaffold intact at `apps/mdpal-app/`:
+- Models: Comment, DocumentModel, Flag, Section, ResponseTypes
+- Views: ContentView, MarkdownContentView, MarkdownDocument, SectionListView, SectionReaderView
+- Services: CLIServiceProtocol, MockCLIService
+- Tests: ModelTests (735 lines)
+- Last verified `swift build` passes in ~43s
+- Iteration work NOT advanced this session
 
-## Need Help?
+## Dispatch state
 
-If you're stuck or have a question, send a dispatch to captain: `dispatch create --to captain --subject "Question: ..." --body "..."`
+- #302 ← captain — merge directive — read, replied (but reply empty due to tool bug)
+- #309 → captain — empty reply (tool bug)
+- #310 ← captain — "empty response, please reconfirm" — read, replied (again empty)
+- #311 → captain — empty reply (tool bug)
+- #312 ← captain — "tool is broken, investigate at 0300, put response in handoff" — read, honored here
+- Monitor `bxe47l3qw` still running
 
-## Startup Actions
+## mdpal-cli coordination (unchanged from prior handoff)
 
-1. Set dispatch loop: `/loop 5m dispatch check`
-2. Process unread dispatches: `dispatch list`
-3. Process unread flags: `flag list`
-4. Read the valueflow A&D: `claude/workstreams/agency/valueflow-ad-20260406.md`
-5. Read your plan: `usr/jordan/mdpal/plan-mdpal-20260406.md`
-6. Continue Phase 1A implementation
+Per #154 (2026-04-07): iterations 1.1–1.3 landed (124 tests), 1.4 bundle source compiled.
+Coordination decision: JSON shapes for CLI commands stay deferred until mdpal-cli implements Phase 2. App continues against `MockCLIService` + dispatch #23 spec. Swap stubs in one pass when real shapes land.
+
+## Environment notes
+
+- `CLAUDE_PROJECT_DIR` is not always exported to the shell — when invoking tools manually, may need `export CLAUDE_PROJECT_DIR=/Users/jdm/code/the-agency/.claude/worktrees/mdpal-app` first. Skills handle this correctly; direct bash does not.
+- Sparse worktree still in effect. Still never `git add .`.
+- stop-check.py turn-loop problem from previous sessions appears mitigated by Monitor + 15m loop.
+
+## Startup actions (next session at 0300)
+
+1. **Check timer fired correctly** — expect prompt "Resume autonomous Phase 1A work..."
+2. `/dispatch list` — process anything new (use skill, not raw tool)
+3. `/flag list`
+4. **First investigation task**: dispatch tool bug per #312. File fix or dispatch to devex.
+5. **Then Phase 1A iteration work** per `usr/jordan/mdpal/plan-mdpal-20260406.md`. Likely targets: section-reader interaction flows, comment/flag state management in views, test expansion.
+6. **Commit via `/git-safe-commit`** — new canonical path; git-commit is renamed.
+
+## Open questions (carried)
+
+- Dispatch `reply --body` / `--body-file` bug — investigate at 0300
+- mdpal-cli Phase 1 completion status — ping if still needed after checking their handoff
+
+## Timer + monitor
+
+- Cron: `6288de17` — one-shot 2026-04-15 03:00
+- Monitor: `bxe47l3qw` — event-driven dispatch watch
+
+*No further proactive work until 0300.*

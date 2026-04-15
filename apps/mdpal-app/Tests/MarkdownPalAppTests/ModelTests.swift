@@ -650,6 +650,318 @@ func testClearFlagReturnsMockResult() async throws {
     try expectFalse(result.flagged)
 }
 
+// MARK: - DocumentModel (state flow)
+
+func testDocumentModelLoadSectionsPopulatesState() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    try expect(doc.sections.count, equals: 0)
+    await doc.loadSections()
+    try expectTrue(doc.sections.count > 0, "sections should load from mock")
+}
+
+func testDocumentModelLoadCommentsAndFlagsPopulatesState() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.loadComments()
+    await doc.loadFlags()
+    try expectTrue(doc.comments.count > 0, "comments should load")
+    try expectTrue(doc.flags.count > 0, "flags should load")
+}
+
+func testDocumentModelAddCommentAppendsToState() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.loadComments()
+    let before = doc.comments.count
+    try await doc.addComment(
+        slug: "overview", type: .note, author: "jordan",
+        text: "Just added", context: nil, priority: .normal, tags: []
+    )
+    try expect(doc.comments.count, equals: before + 1)
+    let added = doc.comments.last!
+    try expect(added.text, equals: "Just added")
+    try expect(added.slug, equals: "overview")
+    try expectFalse(added.resolved)
+}
+
+func testDocumentModelResolveCommentTriggersReload() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.loadComments()
+    // Mock resolveComment returns ResolveResult; DocumentModel calls loadComments after
+    try await doc.resolveComment(commentId: "c001", response: "Handled", by: "jordan")
+    // State should still be populated (mock listComments returns static set — key assertion
+    // is that the call completed without throwing and comments stayed non-empty).
+    try expectTrue(doc.comments.count > 0)
+}
+
+func testDocumentModelToggleFlagAddsThenClearsInSequence() async throws {
+    let doc = DocumentModel(cliService: ToggleTrackingService())
+    // Not flagged initially
+    try expectFalse(doc.isFlagged(slug: "overview"))
+    try await doc.toggleFlag(slug: "overview", author: "jordan", note: "needs review")
+    try expectTrue(doc.isFlagged(slug: "overview"), "toggleFlag should add a flag when none exists")
+
+    try await doc.toggleFlag(slug: "overview", author: "jordan", note: nil)
+    try expectFalse(doc.isFlagged(slug: "overview"), "toggleFlag should clear an existing flag")
+}
+
+func testDocumentModelFlagSectionIsReflectedInState() async throws {
+    let doc = DocumentModel(cliService: ToggleTrackingService())
+    try await doc.flagSection(slug: "api-design", author: "jordan", note: nil)
+    try expectTrue(doc.isFlagged(slug: "api-design"))
+    let flag = doc.flag(forSection: "api-design")!
+    try expect(flag.author, equals: "jordan")
+}
+
+/// Stateful mock that reflects add/clear operations in subsequent list calls.
+/// Needed to test DocumentModel.toggleFlag end-to-end (default MockCLIService
+/// returns a fixed flag set regardless of mutations).
+final class ToggleTrackingService: CLIServiceProtocol, @unchecked Sendable {
+    private var flags: [Flag] = []
+    private var comments: [Comment] = []
+
+    func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
+        MockCLIService.mockSectionsFlat
+    }
+    func readSection(slug: String, bundle: BundlePath) async throws -> Section {
+        MockCLIService.mockSectionContents[slug]!
+    }
+    func editSection(slug: String, content: String,
+                     versionHash: String, bundle: BundlePath) async throws -> EditResult {
+        EditResult(slug: slug, versionHash: "new", versionId: "v", bytesWritten: content.utf8.count)
+    }
+    func listComments(bundle: BundlePath) async throws -> [Comment] { comments }
+    func listFlags(bundle: BundlePath) async throws -> [Flag] { flags }
+    func addComment(slug: String, bundle: BundlePath, type: CommentType,
+                    author: String, text: String, context: String?,
+                    priority: Priority, tags: [String]) async throws -> Comment {
+        let c = Comment(
+            commentId: "c\(comments.count + 1)", type: type, author: author,
+            slug: slug, timestamp: Date(), context: context, text: text,
+            resolved: false, priority: priority, tags: tags
+        )
+        comments.append(c)
+        return c
+    }
+    func resolveComment(commentId: String, bundle: BundlePath,
+                        response: String, by: String) async throws -> ResolveResult {
+        if let idx = comments.firstIndex(where: { $0.commentId == commentId }) {
+            let old = comments[idx]
+            comments[idx] = Comment(
+                commentId: old.commentId, type: old.type, author: old.author,
+                slug: old.slug, timestamp: old.timestamp, context: old.context,
+                text: old.text, resolved: true,
+                resolution: Resolution(response: response, by: by, timestamp: Date()),
+                priority: old.priority, tags: old.tags
+            )
+        }
+        return ResolveResult(
+            commentId: commentId, resolved: true,
+            resolution: Resolution(response: response, by: by, timestamp: Date())
+        )
+    }
+    func flagSection(slug: String, bundle: BundlePath,
+                     author: String, note: String?) async throws -> FlagResult {
+        let now = Date()
+        flags.removeAll { $0.slug == slug }
+        flags.append(Flag(slug: slug, note: note, author: author, timestamp: now))
+        return FlagResult(slug: slug, flagged: true, author: author, note: note, timestamp: now)
+    }
+    func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
+        flags.removeAll { $0.slug == slug }
+        return ClearFlagResult(slug: slug, flagged: false)
+    }
+}
+
+/// Service that throws on list/read operations when `shouldFail` is true.
+/// Used to verify DocumentModel's lastError wiring (Iteration 1A.3).
+final class FailingToggleService: CLIServiceProtocol, @unchecked Sendable {
+    var shouldFail: Bool = true
+    private let inner = ToggleTrackingService()
+
+    struct FailureError: Error, LocalizedError {
+        var errorDescription: String? { "simulated CLI failure" }
+    }
+
+    func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
+        if shouldFail { throw FailureError() }
+        return try await inner.listSections(bundle: bundle)
+    }
+    func readSection(slug: String, bundle: BundlePath) async throws -> Section {
+        if shouldFail { throw FailureError() }
+        return try await inner.readSection(slug: slug, bundle: bundle)
+    }
+    func editSection(slug: String, content: String,
+                     versionHash: String, bundle: BundlePath) async throws -> EditResult {
+        try await inner.editSection(slug: slug, content: content,
+                                    versionHash: versionHash, bundle: bundle)
+    }
+    func listComments(bundle: BundlePath) async throws -> [Comment] {
+        if shouldFail { throw FailureError() }
+        return try await inner.listComments(bundle: bundle)
+    }
+    func listFlags(bundle: BundlePath) async throws -> [Flag] {
+        if shouldFail { throw FailureError() }
+        return try await inner.listFlags(bundle: bundle)
+    }
+    func addComment(slug: String, bundle: BundlePath, type: CommentType,
+                    author: String, text: String, context: String?,
+                    priority: Priority, tags: [String]) async throws -> Comment {
+        try await inner.addComment(slug: slug, bundle: bundle, type: type,
+                                   author: author, text: text, context: context,
+                                   priority: priority, tags: tags)
+    }
+    func resolveComment(commentId: String, bundle: BundlePath,
+                        response: String, by: String) async throws -> ResolveResult {
+        try await inner.resolveComment(commentId: commentId, bundle: bundle,
+                                       response: response, by: by)
+    }
+    func flagSection(slug: String, bundle: BundlePath,
+                     author: String, note: String?) async throws -> FlagResult {
+        try await inner.flagSection(slug: slug, bundle: bundle,
+                                    author: author, note: note)
+    }
+    func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
+        try await inner.clearFlag(slug: slug, bundle: bundle)
+    }
+}
+
+func testDocumentModelEditSectionHappyPath() async throws {
+    // MockCLIService enforces versionHash — use the real mock + real hash.
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.loadSections()
+    await doc.selectSection(slug: "overview")
+    let base = doc.selectedSection!
+    try await doc.editSection(
+        slug: "overview", newContent: "New body.", versionHash: base.versionHash
+    )
+    try expectTrue(doc.isDirty, "editSection should mark document dirty")
+    // selectedSection is refreshed via readSection after edit
+    try expectTrue(doc.selectedSection != nil, "selectedSection should remain populated post-edit")
+}
+
+func testDocumentModelEditSectionThrowsOnStaleVersionHash() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.selectSection(slug: "overview")
+    var threw = false
+    do {
+        try await doc.editSection(
+            slug: "overview", newContent: "X", versionHash: "obviously-stale-hash"
+        )
+    } catch let CLIServiceError.versionConflict(slug, _, _) {
+        threw = true
+        try expect(slug, equals: "overview")
+    } catch {
+        throw TestFailure(
+            message: "expected versionConflict, got \(error)",
+            file: #file, line: #line
+        )
+    }
+    try expectTrue(threw, "editSection should throw versionConflict on stale hash")
+}
+
+func testDocumentModelLastErrorSetOnLoadFailure() async throws {
+    let svc = FailingToggleService()
+    let doc = DocumentModel(cliService: svc)
+    try expectTrue(doc.lastError == nil, "lastError starts nil")
+    await doc.loadSections()
+    try expectTrue(doc.lastError != nil, "lastError set after failing loadSections")
+    try expectTrue(
+        doc.lastError!.contains("simulated CLI failure"),
+        "lastError should carry the underlying message, got: \(doc.lastError!)"
+    )
+}
+
+func testDocumentModelLastErrorClearedOnSuccess() async throws {
+    let svc = FailingToggleService()
+    let doc = DocumentModel(cliService: svc)
+    await doc.loadSections()
+    try expectTrue(doc.lastError != nil, "precondition: lastError set after failure")
+    svc.shouldFail = false
+    await doc.loadSections()
+    try expectTrue(doc.lastError == nil, "lastError cleared after subsequent success")
+}
+
+// Coverage: mutation paths must clear lastError on success so a stale
+// error alert from a prior failure does not linger.
+
+func testDocumentModelEditSectionClearsLastErrorOnSuccess() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    doc.lastError = "stale error from prior op"
+    await doc.loadSections()
+    await doc.selectSection(slug: "overview")
+    let base = doc.selectedSection!
+    try await doc.editSection(
+        slug: "overview", newContent: "Refreshed body.", versionHash: base.versionHash
+    )
+    try expectTrue(doc.lastError == nil,
+                   "editSection success must clear lastError; got: \(doc.lastError ?? "nil")")
+}
+
+func testDocumentModelAddCommentClearsLastErrorOnSuccess() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    doc.lastError = "stale error from prior op"
+    try await doc.addComment(
+        slug: "overview", type: .question, author: "alice",
+        text: "What about edge cases?"
+    )
+    try expectTrue(doc.lastError == nil,
+                   "addComment success must clear lastError; got: \(doc.lastError ?? "nil")")
+}
+
+func testDocumentModelSelectSectionFailureSetsLastError() async throws {
+    let svc = FailingToggleService()
+    let doc = DocumentModel(cliService: svc)
+    try expectTrue(doc.lastError == nil, "lastError starts nil")
+    await doc.selectSection(slug: "overview")
+    try expectTrue(doc.lastError != nil,
+                   "selectSection failure must set lastError")
+    try expectTrue(
+        doc.lastError!.contains("Failed to read section"),
+        "lastError should describe the failure, got: \(doc.lastError!)"
+    )
+}
+
+// MARK: - SelectionContext (1A.5)
+
+func testSelectionContextNilClipboardReturnsNil() throws {
+    try expectNil(SelectionContext.extract(from: nil, within: "Some content."))
+}
+
+func testSelectionContextEmptyClipboardReturnsNil() throws {
+    try expectNil(SelectionContext.extract(from: "", within: "Some content."))
+    try expectNil(SelectionContext.extract(from: "   \n  ", within: "Some content."))
+}
+
+func testSelectionContextNonMatchingClipboardReturnsNil() throws {
+    // Clipboard text not present in the section content — typical case where
+    // the user's clipboard came from somewhere unrelated.
+    try expectNil(SelectionContext.extract(
+        from: "https://example.com/secret-token",
+        within: "This section has nothing to do with that URL."
+    ))
+}
+
+func testSelectionContextMatchingClipboardReturnsTrimmed() throws {
+    let section = "The parser handles edge cases like nested quotes and escapes."
+    let clip = "  nested quotes and escapes\n"
+    let got = try expectNotNilUnwrap(SelectionContext.extract(from: clip, within: section))
+    try expect(got, equals: "nested quotes and escapes")
+}
+
+func testSelectionContextSubstringMatchAcrossWords() throws {
+    let section = "Dispatch 23 specifies the JSON wire format for the CLI."
+    let clip = "JSON wire format"
+    let got = try expectNotNilUnwrap(SelectionContext.extract(from: clip, within: section))
+    try expect(got, equals: "JSON wire format")
+}
+
+/// Small helper: returns the unwrapped optional or throws (used for non-nil + extract).
+func expectNotNilUnwrap<T>(_ value: T?, file: String = #file, line: Int = #line) throws -> T {
+    guard let unwrapped = value else {
+        throw TestFailure(message: "Expected non-nil", file: file, line: line)
+    }
+    return unwrapped
+}
+
 // MARK: - Runner
 
 @main
@@ -725,6 +1037,28 @@ struct TestRunner {
         await runAsync("resolveComment returns mock result", testResolveCommentReturnsMockResult)
         await runAsync("flagSection returns mock result", testFlagSectionReturnsMockResult)
         await runAsync("clearFlag returns mock result", testClearFlagReturnsMockResult)
+
+        print("\nDocumentModel:")
+        await runAsync("loadSections populates state", testDocumentModelLoadSectionsPopulatesState)
+        await runAsync("loadComments and loadFlags populate state", testDocumentModelLoadCommentsAndFlagsPopulatesState)
+        await runAsync("addComment appends to state", testDocumentModelAddCommentAppendsToState)
+        await runAsync("resolveComment triggers reload", testDocumentModelResolveCommentTriggersReload)
+        await runAsync("toggleFlag adds then clears", testDocumentModelToggleFlagAddsThenClearsInSequence)
+        await runAsync("flagSection reflected in state", testDocumentModelFlagSectionIsReflectedInState)
+        await runAsync("lastError set on load failure", testDocumentModelLastErrorSetOnLoadFailure)
+        await runAsync("lastError cleared on subsequent success", testDocumentModelLastErrorClearedOnSuccess)
+        await runAsync("editSection happy path", testDocumentModelEditSectionHappyPath)
+        await runAsync("editSection throws on stale version hash", testDocumentModelEditSectionThrowsOnStaleVersionHash)
+        await runAsync("editSection success clears lastError", testDocumentModelEditSectionClearsLastErrorOnSuccess)
+        await runAsync("addComment success clears lastError", testDocumentModelAddCommentClearsLastErrorOnSuccess)
+        await runAsync("selectSection failure sets lastError", testDocumentModelSelectSectionFailureSetsLastError)
+
+        print("\nSelectionContext (1A.5):")
+        run("nil clipboard returns nil", testSelectionContextNilClipboardReturnsNil)
+        run("empty clipboard returns nil", testSelectionContextEmptyClipboardReturnsNil)
+        run("non-matching clipboard returns nil", testSelectionContextNonMatchingClipboardReturnsNil)
+        run("matching clipboard returns trimmed", testSelectionContextMatchingClipboardReturnsTrimmed)
+        run("substring across words matches", testSelectionContextSubstringMatchAcrossWords)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 

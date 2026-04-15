@@ -100,6 +100,9 @@ public final class DocumentModel {
         selectedSection = try await cliService.readSection(slug: slug, bundle: effectiveBundle)
         isDirty = true
         await loadSections()
+        // Clear any prior error now that the mutation succeeded — prevents a
+        // stale alert from showing after the user retries successfully.
+        lastError = nil
     }
 
     // MARK: - Comment Operations
@@ -135,6 +138,8 @@ public final class DocumentModel {
             priority: priority, tags: tags
         )
         comments.append(comment)
+        // Clear any prior error now that the mutation succeeded.
+        lastError = nil
     }
 
     /// Resolve a comment.
@@ -144,6 +149,8 @@ public final class DocumentModel {
             response: response, by: by
         )
         await loadComments()
+        // Clear any prior error now that the mutation succeeded.
+        lastError = nil
     }
 
     // MARK: - Flag Operations
@@ -178,12 +185,27 @@ public final class DocumentModel {
         if result.flagged {
             await loadFlags()
         }
+        // Clear any prior error now that the mutation succeeded — covers the
+        // result.flagged == false branch where loadFlags isn't called.
+        lastError = nil
     }
 
     /// Clear a flag from a section.
     public func clearFlag(slug: String) async throws {
         _ = try await cliService.clearFlag(slug: slug, bundle: effectiveBundle)
         await loadFlags()
+        // Clear any prior error now that the mutation succeeded.
+        lastError = nil
+    }
+
+    /// Toggle the flag on a section — clears it if flagged, sets it if not.
+    /// The view surfaces a single toggle control backed by this method.
+    public func toggleFlag(slug: String, author: String, note: String? = nil) async throws {
+        if isFlagged(slug: slug) {
+            try await clearFlag(slug: slug)
+        } else {
+            try await flagSection(slug: slug, author: author, note: note)
+        }
     }
 
     // MARK: - Document Lifecycle
