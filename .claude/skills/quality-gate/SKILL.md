@@ -22,13 +22,20 @@ The gate applies to **any artifact type** — code, commands, config, documentat
 ## Arguments
 
 - `$ARGUMENTS`: Description of what was completed (e.g., "Iteration 1.2: parser edge cases" or "Phase 1: types and parser"). Required — if empty, stop and ask the caller what was completed.
+- `--base <ref>`: Baseline ref for the diff hash chain. Optional. If omitted, defaults to `origin/main`. Callers pass:
+  - `/iteration-complete` → `--base {prior-iteration-commit}`
+  - `/phase-complete` → `--base {phase-start-tag}`
+  - `/pr-prep` / `/plan-complete` → `--base origin/main`
+
+Parse `--base <ref>` out of `$ARGUMENTS` at the start of Step 0. The remainder is the description. If no `--base` is present, set `BASE_REF=origin/main`.
 
 ## Step 0: Preconditions
 
-1. If `$ARGUMENTS` is empty, stop and ask what was completed before proceeding.
+1. If `$ARGUMENTS` (after stripping `--base`) is empty, stop and ask what was completed before proceeding.
 2. Run `./claude/tools/skill-verify --quiet`. If it fails, report the missing/invalid skills and stop — the framework is incomplete.
 3. Run `git diff --stat HEAD` and `git status`. If no changed files, report "Nothing to gate — no changes since last commit" and stop.
 4. Collect the list of changed files (staged + unstaged + untracked). This is the review scope.
+5. **Capture Hash A** (original artifact into review): run `./claude/tools/diff-hash --base "$BASE_REF" --json` and capture the full SHA-256 from the JSON output. Record as `HASH_A`. This is the state of the code BEFORE any QG work begins.
 
 ## Step 1: Parallel review — Formal agents + own review
 
@@ -69,6 +76,12 @@ Provide the scorer with:
 The scorer rates each finding 0-100. **Filter out findings scored below 50.** (The QG fixes real issues — threshold 50 catches anything the scorer considers "likely real." Note: the scorer's output shows both >=80 and >=50 thresholds for informational purposes — the QG uses >=50 as the operative threshold.)
 
 Merge and deduplicate the surviving findings into a single prioritized list. Assign each an ID (1, 2, 3...).
+
+**Capture Hash B** (raw review findings): write the consolidated findings list (the post-scorer, deduplicated, prioritized list with IDs) to a temp file — e.g., `$(mktemp -t qg-findings)`. Then run `./claude/tools/diff-hash --file <temp-file> --json` and capture the full SHA-256 as `HASH_B`.
+
+### Capture Hash C (triage)
+
+After the findings list is finalized (post-scorer, deduplicated, with author triage decisions — what's accepted, what's rejected, what's deferred into a bucket), write the triage summary to a temp file — e.g., `$(mktemp -t qg-triage)`. Include per-finding disposition (accept / reject / defer / bucket) and any rationale. Then run `./claude/tools/diff-hash --file <temp-file> --json` and capture the full SHA-256 as `HASH_C`.
 
 ## Step 3: Write bug-exposing tests
 
@@ -144,36 +157,61 @@ In the "Stage 1 — Parallel Review" section, attribute findings to the formal a
 - Own review: N issues (describe what you looked at)
 ```
 
-## Step 10: Write QGR receipt file
+## Step 10: Sign receipt (five-hash chain)
 
-After presenting the QGR, write it to a standalone file as the commit receipt. `/git-safe-commit` checks for this file before allowing a commit.
+After presenting the QGR, sign a receipt via `./claude/tools/receipt-sign`. This replaces the old `usr/{principal}/{project}/qgr-*.md` stage-hash receipt — receipts now live in `claude/receipts/` with full provenance naming and a five-hash chain of trust.
 
-### Naming convention
+### Capture Hash D (principal 1B1)
+
+- **If principal 1B1 occurred** (this QG included a discussion/transcript with the principal, typically for `phase-complete` / `plan-complete` / `pr-prep`): hash the transcript file. Run `./claude/tools/diff-hash --file <transcript-path> --json` and capture the full SHA-256 as `HASH_D`. Record `HASH_D_SOURCE="transcript"` and `HASH_D_TRANSCRIPT=<transcript-path>`.
+- **If auto-approved** (no 1B1 — typical for `iteration-complete`): set `HASH_D=$HASH_C` and `HASH_D_SOURCE="auto-approved — no principal 1B1"`. Omit `--hash-d-transcript`. (receipt-sign also auto-detects this when hash-d == hash-c.)
+
+### Capture Hash E (final state)
+
+After Step 8 confirmed everything is clean and all fixes are staged/written to disk, run `./claude/tools/diff-hash --base "$BASE_REF" --json` and capture the full SHA-256 as `HASH_E`. This is the final artifact state — what will be committed.
+
+### Parse boundary and metadata
+
+1. Parse the boundary type from `$ARGUMENTS` (first token after any `--base` is stripped): one of `iteration-complete`, `phase-complete`, `plan-complete`, `pr-prep`.
+2. Detect principal via `./claude/tools/agency whoami` (or glob `usr/*/`).
+3. Detect agent/workstream/project — from the agent's identity (`./claude/tools/agent-identity` if available) or from the caller's context. Workstream typically matches the current branch/worktree; project matches the active plan/A&D.
+4. Write a short `--summary` string derived from the description in `$ARGUMENTS` (the text after the boundary token).
+
+### Call receipt-sign
 
 ```
-usr/{principal}/{project}/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md
+./claude/tools/receipt-sign \
+  --type qgr \
+  --boundary <iteration-complete|phase-complete|plan-complete|pr-prep> \
+  --org the-agency \
+  --principal <principal> \
+  --agent <agent> \
+  --workstream <workstream> \
+  --project <project> \
+  --hash-a "$HASH_A" \
+  --hash-b "$HASH_B" \
+  --hash-c "$HASH_C" \
+  --hash-d "$HASH_D" \
+  --hash-e "$HASH_E" \
+  --hash-d-source "$HASH_D_SOURCE" \
+  [--hash-d-transcript "$HASH_D_TRANSCRIPT"] \
+  --diff-base "$BASE_REF" \
+  --summary "<short summary>"
 ```
 
-Where:
-- `{principal}` — detected via `./claude/tools/agency whoami` or glob `usr/*/`
-- `{project}` — the agent/project directory name
-- `{boundary}` — one of: `iteration-complete`, `phase-complete`, `plan-complete`, `pr-prep`
-- `{phase-iter}` — phase and iteration numbers (e.g., `1-2` for Phase 1, Iteration 2; `2` for Phase 2; omit for `pr-prep`)
-- `{stage-hash}` — 7-character deterministic hash of the staged changes (computed by `./claude/tools/stage-hash`)
-- `YYYYMMDD-HHMM` — timestamp
+Capture the receipt path printed by `receipt-sign` (it writes to `claude/receipts/` with the naming convention `{org}-{principal}-{agent}-{workstream}-{project}-qgr-{hash}-{YYYYMMDD-HHMM}.md`).
 
-### How to write it
+### Report to caller
 
-1. Parse the boundary type and phase-iteration from `$ARGUMENTS`. The caller (e.g., `/iteration-complete`) passes these. If not parseable, ask the caller.
-2. Stage the files that will be committed: `git add` the relevant files.
-3. Compute the stage hash: run `./claude/tools/stage-hash` and capture the output.
-4. Generate the timestamp: `YYYYMMDD-HHMM` from the current time.
-5. Write the full QGR content (as presented in Step 9) to the file.
-6. Report the file path to the caller: "QGR receipt written to: `{path}`"
+Report: "Receipt signed: `claude/receipts/{filename}`"
+
+### Backward compatibility note
+
+Do NOT write the old `usr/{principal}/{project}/qgr-*.md` stage-hash receipt — that path is retired. During transition, `receipt-verify` still recognizes old-format receipts at `usr/**/qgr-*.md` (per Plan Iteration 1.4) so in-flight PRs aren't broken, but new QG runs MUST emit receipts only via `receipt-sign`. The sunset condition: backward compat is removed when no old-format receipts remain in the repo.
 
 ## Done
 
-After writing the QGR receipt, the skill is complete. The caller handles:
+After signing the receipt, the skill is complete. The caller handles:
 
 - Committing (auto for iteration, approval-required for phase/plan)
 - Updating the plan file (append QGR inline)

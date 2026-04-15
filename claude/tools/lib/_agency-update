@@ -16,7 +16,10 @@ RUN_ID=$(log_start "agency-update" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/de
 # --- Defaults ---
 VERBOSE=false
 DRY_RUN=false
+FORCE=false
 TARGET_DIR=""
+FROM_GITHUB=""           # D41-R10 (monofolk hotfix): github ref to fetch from
+GITHUB_REPO_URL="https://github.com/the-agency-ai/the-agency.git"
 
 _update_help() {
     cat << 'EOF'
@@ -25,15 +28,23 @@ agency update — Sync framework to latest
 Usage:
   agency update [target-dir]         Update target (default: cwd)
   agency update --dry-run            Show what would change, don't apply
+  agency update --from-github [ref]  Pull source from github (no local clone needed)
 
 Options:
-  --verbose        Show detailed output
-  --dry-run        Preview changes without applying
-  --help, -h       Show this help
+  --verbose             Show detailed output
+  --dry-run             Preview changes without applying
+  --force               Proceed even if the working tree has uncommitted framework changes
+  --from-github [ref]   Shallow-clone the-agency from GitHub and use as source.
+                        Optional ref: tag, branch, or commit (default: latest tag).
+                        Examples:  --from-github
+                                   --from-github main
+                                   --from-github v41.5
+  --help, -h            Show this help
 
-Source detection (in order):
-  1. $AGENCY_SOURCE environment variable
-  2. ../the-agency/ (sibling directory)
+Source detection (in order, first match wins):
+  1. --from-github flag           (D41-R10: shallow-clone from GitHub)
+  2. $AGENCY_SOURCE env variable
+  3. ../the-agency/ (sibling directory)
 
 Protected paths (from registry.json) are never overwritten.
 Settings merged via array union (new permissions added, existing kept).
@@ -47,6 +58,18 @@ while [[ $# -gt 0 ]]; do
         --help|-h) _update_help; exit 0 ;;
         --verbose) VERBOSE=true; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
+        --force) FORCE=true; shift ;;
+        --from-github)
+            # Optional ref follows the flag. If next arg is missing or starts
+            # with `-` or matches a target-dir-like pattern, default to "latest".
+            FROM_GITHUB="latest"
+            shift
+            if [[ $# -gt 0 && "$1" != -* && ! -d "$1" ]]; then
+                FROM_GITHUB="$1"
+                shift
+            fi
+            ;;
+        --from-github=*) FROM_GITHUB="${1#--from-github=}"; shift ;;
         -*) echo "Unknown option: $1" >&2; _update_help; exit 1 ;;
         *) TARGET_DIR="$1"; shift ;;
     esac
@@ -76,9 +99,85 @@ _update_main() {
         exit 1
     fi
 
+    # --- Precondition: no interrupted prior update ---
+    # If the target is a git repo and has uncommitted changes under the
+    # framework-managed paths (claude/, .claude/) OR the framework section of
+    # agency.yaml is modified, a prior 'agency update' likely left work
+    # uncommitted. Re-running in that state silently rewrites those changes
+    # and has caused cross-repo confusion (monofolk escalation, D41).
+    # Print a 3-line guide naming the right tool sequence. --force bypasses.
+    if [[ "$DRY_RUN" == "false" ]] && git -C "$TARGET_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+        local dirty_framework dirty_all
+        dirty_all=$(git -C "$TARGET_DIR" status --porcelain -- \
+            'claude/' '.claude/' 2>/dev/null || true)
+        # QG fix (D41-R4+R6+R7): count from the full porcelain output, then
+        # truncate to 20 lines for display. Earlier code counted after head -20
+        # which under-reported when more than 20 files were dirty.
+        dirty_framework=$(echo "$dirty_all" | head -20)
+        if [[ -n "$dirty_all" && "$FORCE" != "true" ]]; then
+            local dirty_count
+            dirty_count=$(echo "$dirty_all" | grep -c '^' || echo "0")
+            echo -e "${RED}✗ agency update: $dirty_count uncommitted framework file(s) detected${NC}" >&2
+            echo "  → Looks like a prior 'agency update' left changes in claude/ or .claude/." >&2
+            echo "  → Commit first — these are coordination artifacts, not app code:" >&2
+            echo "      ./claude/tools/git-safe-commit \"misc: prior agency update\" --no-work-item" >&2
+            echo "  → Or re-run with --force to overwrite (will lose uncommitted local changes)." >&2
+            echo "" >&2
+            if [[ "$VERBOSE" == "true" ]]; then
+                echo "Dirty files (first 20):" >&2
+                echo "$dirty_framework" >&2
+            else
+                echo "  First few:" >&2
+                echo "$dirty_framework" | head -5 | sed 's/^/    /' >&2
+                [[ "$dirty_count" -gt 5 ]] && echo "    ... ($dirty_count total; use --verbose to see all)" >&2
+            fi
+            log_end "$RUN_ID" "blocked" 1 0 "Dirty framework tree — prior update uncommitted" 2>/dev/null || true
+            trap - EXIT
+            exit 1
+        fi
+    fi
+
     # --- Source detection ---
+    # D41-R10 (monofolk hotfix): --from-github takes precedence so adopters
+    # without a local the-agency clone can update directly from origin.
     local SOURCE_DIR=""
-    if [[ -n "${AGENCY_SOURCE:-}" ]]; then
+    local TMP_SOURCE_DIR=""   # Set if we shallow-cloned; teardown trap unsets
+    if [[ -n "$FROM_GITHUB" ]]; then
+        log_step "Fetching the-agency from GitHub (ref: $FROM_GITHUB)..."
+        TMP_SOURCE_DIR=$(mktemp -d -t agency-source-XXXXXX)
+        # Resolve "latest" → most-recent release tag via gh, fall back to main
+        local clone_ref="$FROM_GITHUB"
+        if [[ "$FROM_GITHUB" == "latest" ]]; then
+            if command -v gh >/dev/null 2>&1; then
+                clone_ref=$(gh release view --repo the-agency-ai/the-agency --json tagName -q .tagName 2>/dev/null) || clone_ref=""
+            fi
+            if [[ -z "$clone_ref" ]]; then
+                log_warn "Could not resolve latest release; falling back to main"
+                clone_ref="main"
+            else
+                log_info "Resolved latest → $clone_ref"
+            fi
+        fi
+        if ! git clone --depth 1 --branch "$clone_ref" "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
+            # Branch-with-tag-name might fail if it's a commit SHA — try fetch+checkout fallback.
+            rm -rf "$TMP_SOURCE_DIR"
+            TMP_SOURCE_DIR=$(mktemp -d -t agency-source-XXXXXX)
+            if ! git clone --depth 50 "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
+                log_error "git clone failed for $GITHUB_REPO_URL"
+                rm -rf "$TMP_SOURCE_DIR"
+                exit 1
+            fi
+            if ! git -C "$TMP_SOURCE_DIR" checkout "$clone_ref" >/dev/null 2>&1; then
+                log_error "Could not checkout ref '$clone_ref' in fetched repo"
+                rm -rf "$TMP_SOURCE_DIR"
+                exit 1
+            fi
+        fi
+        SOURCE_DIR="$TMP_SOURCE_DIR"
+        # Update teardown trap to clean up temp clone on any exit path
+        trap 'rm -rf "$TMP_SOURCE_DIR" 2>/dev/null; log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+        log_info "Source: $SOURCE_DIR (shallow clone, will be removed)"
+    elif [[ -n "${AGENCY_SOURCE:-}" ]]; then
         SOURCE_DIR="$AGENCY_SOURCE"
     elif [[ -f "$TARGET_DIR/../the-agency/claude/config/agency.yaml" ]]; then
         SOURCE_DIR="$(cd "$TARGET_DIR/../the-agency" && pwd)"
@@ -90,13 +189,20 @@ _update_main() {
     if [[ -z "$SOURCE_DIR" ]] || [[ ! -f "$SOURCE_DIR/claude/config/agency.yaml" ]]; then
         log_error "Agency source not found."
         echo ""
-        echo "Set AGENCY_SOURCE to the path of your the-agency clone:"
-        echo "  export AGENCY_SOURCE=~/code/the-agency"
-        echo "  agency update"
+        echo "Three ways to provide source:"
+        echo "  1. Pull from GitHub (no local clone needed):"
+        echo "       agency update --from-github            # latest release tag"
+        echo "       agency update --from-github main       # main branch"
+        echo "       agency update --from-github v41.5      # specific tag"
         echo ""
-        echo "Or place the-agency repo as a sibling directory:"
-        echo "  ~/code/the-agency/    (source)"
-        echo "  ~/code/your-project/  (target)"
+        echo "  2. Set AGENCY_SOURCE to a local the-agency clone:"
+        echo "       export AGENCY_SOURCE=~/code/the-agency"
+        echo "       agency update"
+        echo ""
+        echo "  3. Place the-agency repo as a sibling directory:"
+        echo "       ~/code/the-agency/    (source)"
+        echo "       ~/code/your-project/  (target)"
+        [[ -n "$TMP_SOURCE_DIR" ]] && rm -rf "$TMP_SOURCE_DIR"
         exit 1
     fi
 
@@ -387,6 +493,8 @@ UPDATE_EOF
     echo ""
 
     trap - EXIT
+    # D41-R10: clean up shallow-clone temp dir on success path
+    [[ -n "$TMP_SOURCE_DIR" ]] && rm -rf "$TMP_SOURCE_DIR" 2>/dev/null
     log_end "$RUN_ID" "success" 0 0 "Updated from ${from_commit:0:8} to ${to_commit:0:8}" 2>/dev/null || true
 }
 
