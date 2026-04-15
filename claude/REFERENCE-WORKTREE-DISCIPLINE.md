@@ -20,7 +20,7 @@ Agents work either on **master** (the main checkout) or on a **worktree** (an is
 The captain session runs on master. It coordinates — syncs worktrees, builds PR branches, dispatches reviews, pushes to origin. The captain does not implement features.
 
 - `/sync-all` — merges worktree work into master, syncs all worktrees. Purely local, never pushes.
-- `/sync` — the only command that pushes. Explicit confirmation required.
+- `/sync` and `/release` — the commands that push. `/sync` for branch push, `/release` for full PR flow (commit + push + PR + version bump). Both wrap `./claude/tools/git-push` which blocks main/master.
 - `/captain-review` — reviews PR branches locally, dispatches findings.
 - Direct commits to master are only for coordination artifacts (handoffs, dispatches, review files).
 
@@ -41,6 +41,19 @@ Worktree agents implement features on isolated branches. They build, test, and l
 - **New prototype or feature** — always a worktree. Use `/workstream-create` or `/prototype-create` (planned via SPEC-PROVIDER pattern).
 - **Bug fix or small change** — can work on master if it's a quick fix that doesn't need isolation.
 - **Dispatch handling** — `iscp-check` notifies the worktree agent automatically. The agent runs `dispatch read <id>` to see the payload. If the payload file is on master, merge master first to access it.
+
+### Branch Protection
+
+`main` is protected at the GitHub level:
+
+- **Direct pushes to main are blocked** — GitHub enforces this via branch protection rules. Even with write access, `git push origin main` is rejected.
+- **All changes require a PR** — including captain coordination artifacts that land on master locally. The captain builds a PR branch, pushes it to origin, and merges via GitHub.
+- **PR approval required** — at least one approval before merge.
+- **Smoke test status check required** — the smoke test CI job must pass before merge is allowed.
+
+This means: `git push origin main` will fail. Use `/sync` (which pushes the current branch, not main) and then open a PR. The `/release` skill handles the full flow: QG → commit → push branch → create PR.
+
+---
 
 ### Worktree Naming Convention
 

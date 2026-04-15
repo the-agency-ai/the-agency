@@ -514,9 +514,9 @@ Decompose CLAUDE-THEAGENCY.md into focused documents, each `@`-importable:
 |----------|---------|------------|
 | `claude/docs/VALUEFLOW.md` | The flow, stages, transitions, three-bucket, enforcement ladder | All agents (via CLAUDE-THEAGENCY.md) |
 | `claude/docs/MAR.md` | MAR protocol, reviewer profiles, triage format | MAR skills, review skills |
-| `claude/docs/QUALITY-GATE.md` | QG protocol, tiers, stage-hash, QGR format | Already exists — update |
+| `claude/REFERENCE-QUALITY-GATE.md` | QG protocol, tiers, stage-hash, QGR format | Already exists — update |
 | `claude/docs/GIT-DISCIPLINE.md` | Commit workflow, captain merge, PR lifecycle | git-safe-commit skill, captain |
-| `claude/docs/ISCP-PROTOCOL.md` | Dispatch, flag, addressing, hook integration | ISCP skills, all agents |
+| `claude/REFERENCE-ISCP-PROTOCOL.md` | Dispatch, flag, addressing, hook integration | ISCP skills, all agents |
 | `claude/docs/ENFORCEMENT-LADDER.md` | The 5-stage ladder, registry, per-workstream levels | Enforcement skills, DevEx |
 | `claude/docs/CONTEXT-RESILIENCE.md` | Handoffs, PostCompact, stage-aware resume, transcripts | All agents |
 | `claude/docs/CONTINUAL-LEARNING.md` | Transcript mining, flag categories, telemetry, improvement loop | Captain, DevEx |

@@ -66,7 +66,7 @@ claude/data/
 
 - `source/services/agency-service/src/core/adapters/database/index.ts` — serviceName support, DatabaseRegistry, removed singleton
 - `source/services/agency-service/src/index.ts` — registry wiring, per-service adapters, health + shutdown
-- `claude/docs/DISPATCH-AND-MESSAGING.md` — per-service DB architecture table
+- `claude/REFERENCE-DISPATCH-AND-MESSAGING.md` — per-service DB architecture table
 
 ### Files Created
 

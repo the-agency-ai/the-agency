@@ -56,9 +56,9 @@ the-agency/
 
 ## Documentation
 
-- [Quick Start Guide](claude/docs/QUICK-START.md) - Get up and running
+- [Quick Start Guide](claude/REFERENCE-QUICK-START.md) - Get up and running
 - [CLAUDE.md](CLAUDE.md) - The constitution (main documentation)
-- [claude/docs/](claude/docs/) - Guides and references
+- [claude/](claude/) - Guides and references (`REFERENCE-*.md`)
 - [claude/docs/cookbooks/](claude/docs/cookbooks/) - Claude Cookbook patterns
 
 ## For Contributors
