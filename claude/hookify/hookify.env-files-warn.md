@@ -8,4 +8,4 @@ conditions:
     pattern: \.env$
 ---
 
-Editing `.env` directly — use `/secret` for secret management. `.env` files should be in `.gitignore`. See claude/docs/QUALITY-DISCIPLINE.md — FEAR THE KITTENS!
+Editing `.env` directly — use `/secret` for secret management. `.env` files should be in `.gitignore`. See claude/REFERENCE-QUALITY-DISCIPLINE.md — FEAR THE KITTENS!

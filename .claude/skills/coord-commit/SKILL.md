@@ -22,15 +22,19 @@ For captain coordination artifacts only — handoffs, dispatches, seeds, config 
 
 ## Instructions
 
-1. Run `git status` to see changes
+D41-R5 fix: instructions now use the safe-tool family. Bare `git` is
+hookify-blocked for agents (block-raw-tools.sh). Use `git-safe` /
+`git-safe-commit` per the standard discipline.
+
+1. Run `./claude/tools/git-safe status` to see changes
 2. Identify which changed files are coordination artifacts (handoffs, dispatches, seeds, config, hookify, CLAUDE*.md, tools in `usr/{principal}/{agent}/tools/`)
 3. Stage ONLY coordination artifacts — never stage application code
-4. Run `git diff --cached --stat` to verify what's staged
-5. Run `git log --oneline -3` for commit message style
+4. Run `./claude/tools/git-safe diff --cached --stat` to verify what's staged
+5. Run `./claude/tools/git-safe log --oneline -3` for commit message style
 6. Generate a commit message with `misc:` prefix
-7. Run `git add` for each file separately (not `git add -A`)
-8. Run `git commit` with the message — single command, no heredoc, no `&&`
-9. Run `git status` to verify
+7. Run `./claude/tools/git-safe add` for each file separately (the tool blocks `-A`, `--all`, `.`, and wildcards by design)
+8. Run `./claude/tools/git-safe-commit "message" --no-work-item` to commit — never raw `git commit`. Coordination artifacts skip QG (no QGR receipt required) but still go through the safe wrapper.
+9. Run `./claude/tools/git-safe status` to verify
 
 ## What is a coordination artifact?
 

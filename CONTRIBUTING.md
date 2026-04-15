@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to **The Agency** — a framework for AI-augmented software development. Whether you're fixing a typo, reporting a bug, improving the docs, or building a new tool, we welcome your help.
 
-This document is the front door for community contributors. If you're looking for the deep reference on our trust and verification model, see [CONTRIBUTION-MODEL.md](claude/docs/CONTRIBUTION-MODEL.md). If you're looking for the methodology, see [claude/CLAUDE-THEAGENCY.md](claude/CLAUDE-THEAGENCY.md).
+This document is the front door for community contributors. If you're looking for the deep reference on our trust and verification model, see [CONTRIBUTION-MODEL.md](claude/REFERENCE-CONTRIBUTION-MODEL.md). If you're looking for the methodology, see [claude/CLAUDE-THEAGENCY.md](claude/CLAUDE-THEAGENCY.md).
 
 ## TL;DR
 
@@ -29,7 +29,7 @@ The Agency uses a **three-ring contribution model** that matches review discipli
 
 Don't be intimidated by the word "framework." If your PR is one line that fixes a typo, that's a valid PR. If it's a new tool that does something cool, that's also a valid PR. All sizes are welcome.
 
-Full detail on how the rings work: [CONTRIBUTION-MODEL.md](claude/docs/CONTRIBUTION-MODEL.md).
+Full detail on how the rings work: [CONTRIBUTION-MODEL.md](claude/REFERENCE-CONTRIBUTION-MODEL.md).
 
 ## Before you start
 

@@ -25,6 +25,6 @@ Capture the methodology, primitives, and patterns that make TheAgency work. The 
 - `claude/CLAUDE-THEAGENCY.md` — the main framework CLAUDE file imported above
 - `claude/README-THEAGENCY.md` — human-readable framework orientation
 - `claude/README-ENFORCEMENT.md` — Triangle + Ladder reference
-- `claude/docs/DEVELOPMENT-METHODOLOGY.md` — Valueflow lifecycle
+- `claude/REFERENCE-DEVELOPMENT-METHODOLOGY.md` — Valueflow lifecycle
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

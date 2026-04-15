@@ -13,7 +13,7 @@ description: DEPRECATED — use `git merge <target>` or `/sync` instead. Rebase 
 
 **This skill is deprecated.** All branch synchronization now uses merge, not rebase.
 
-Rebase rewrites history, breaks worktree merge-bases, and caused a fleet-wide data loss incident in a multi-worktree monorepo. See `claude/docs/GIT-MERGE-NOT-REBASE.md` for the full rationale and incident report.
+Rebase rewrites history, breaks worktree merge-bases, and caused a fleet-wide data loss incident in a multi-worktree monorepo. See `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` for the full rationale and incident report.
 
 ## Use Instead
 
