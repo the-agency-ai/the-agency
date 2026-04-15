@@ -880,6 +880,48 @@ func testDocumentModelLastErrorClearedOnSuccess() async throws {
     try expectTrue(doc.lastError == nil, "lastError cleared after subsequent success")
 }
 
+// MARK: - SelectionContext (1A.5)
+
+func testSelectionContextNilClipboardReturnsNil() throws {
+    try expectNil(SelectionContext.extract(from: nil, within: "Some content."))
+}
+
+func testSelectionContextEmptyClipboardReturnsNil() throws {
+    try expectNil(SelectionContext.extract(from: "", within: "Some content."))
+    try expectNil(SelectionContext.extract(from: "   \n  ", within: "Some content."))
+}
+
+func testSelectionContextNonMatchingClipboardReturnsNil() throws {
+    // Clipboard text not present in the section content — typical case where
+    // the user's clipboard came from somewhere unrelated.
+    try expectNil(SelectionContext.extract(
+        from: "https://example.com/secret-token",
+        within: "This section has nothing to do with that URL."
+    ))
+}
+
+func testSelectionContextMatchingClipboardReturnsTrimmed() throws {
+    let section = "The parser handles edge cases like nested quotes and escapes."
+    let clip = "  nested quotes and escapes\n"
+    let got = try expectNotNilUnwrap(SelectionContext.extract(from: clip, within: section))
+    try expect(got, equals: "nested quotes and escapes")
+}
+
+func testSelectionContextSubstringMatchAcrossWords() throws {
+    let section = "Dispatch 23 specifies the JSON wire format for the CLI."
+    let clip = "JSON wire format"
+    let got = try expectNotNilUnwrap(SelectionContext.extract(from: clip, within: section))
+    try expect(got, equals: "JSON wire format")
+}
+
+/// Small helper: returns the unwrapped optional or throws (used for non-nil + extract).
+func expectNotNilUnwrap<T>(_ value: T?, file: String = #file, line: Int = #line) throws -> T {
+    guard let unwrapped = value else {
+        throw TestFailure(message: "Expected non-nil", file: file, line: line)
+    }
+    return unwrapped
+}
+
 // MARK: - Runner
 
 @main
@@ -967,6 +1009,13 @@ struct TestRunner {
         await runAsync("lastError cleared on subsequent success", testDocumentModelLastErrorClearedOnSuccess)
         await runAsync("editSection happy path", testDocumentModelEditSectionHappyPath)
         await runAsync("editSection throws on stale version hash", testDocumentModelEditSectionThrowsOnStaleVersionHash)
+
+        print("\nSelectionContext (1A.5):")
+        run("nil clipboard returns nil", testSelectionContextNilClipboardReturnsNil)
+        run("empty clipboard returns nil", testSelectionContextEmptyClipboardReturnsNil)
+        run("non-matching clipboard returns nil", testSelectionContextNonMatchingClipboardReturnsNil)
+        run("matching clipboard returns trimmed", testSelectionContextMatchingClipboardReturnsTrimmed)
+        run("substring across words matches", testSelectionContextSubstringMatchAcrossWords)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 

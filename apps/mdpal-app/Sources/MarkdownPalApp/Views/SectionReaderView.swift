@@ -15,8 +15,12 @@
 // Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
 // Updated: 2026-04-15 Phase 1A iteration — interaction (flag/comment/resolve)
 // Updated: 2026-04-15 Phase 1A.4 — inline edit flow (TextEditor + version-hash conflict)
+// Updated: 2026-04-15 Phase 1A.5 — Add-Comment context picker (clipboard-backed prefill)
 
 import SwiftUI
+#if canImport(AppKit)
+import AppKit
+#endif
 
 /// Detail view showing a section's content and review state.
 public struct SectionReaderView: View {
@@ -30,6 +34,10 @@ public struct SectionReaderView: View {
     @State private var showingAddComment = false
     @State private var showingFlagEditor = false
     @State private var resolvingComment: Comment?
+
+    /// Context to prefill into the next AddCommentSheet presentation.
+    /// Set by "Comment on Selection" toolbar action before opening the sheet.
+    @State private var commentPrefillContext: String?
 
     // Edit mode state (1A.4)
     /// Non-nil when the user is actively editing; holds the working copy.
@@ -99,8 +107,12 @@ public struct SectionReaderView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(section.heading)
         .toolbar { if document != nil { toolbarContent } }
-        .sheet(isPresented: $showingAddComment) {
-            AddCommentSheet(slug: section.slug, author: currentAuthor) { type, text, context, priority in
+        .sheet(isPresented: $showingAddComment, onDismiss: { commentPrefillContext = nil }) {
+            AddCommentSheet(
+                slug: section.slug,
+                author: currentAuthor,
+                prefillContext: commentPrefillContext
+            ) { type, text, context, priority in
                 guard let document else { return true }
                 do {
                     try await document.addComment(
@@ -185,12 +197,24 @@ public struct SectionReaderView: View {
                 .help("Edit this section's content")
             }
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingAddComment = true
+                Menu {
+                    Button {
+                        commentPrefillContext = nil
+                        showingAddComment = true
+                    } label: {
+                        Label("Add Comment", systemImage: "plus.bubble")
+                    }
+                    Button {
+                        commentPrefillContext = selectionContextFromClipboard()
+                        showingAddComment = true
+                    } label: {
+                        Label("Comment on Selection", systemImage: "text.quote")
+                    }
+                    .disabled(selectionContextFromClipboard() == nil)
                 } label: {
                     Label("Add Comment", systemImage: "plus.bubble")
                 }
-                .help("Add a comment to this section")
+                .help("Add a comment — use 'Comment on Selection' to prefill context from your copied selection")
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -216,6 +240,19 @@ public struct SectionReaderView: View {
                 .disabled(saving || (editDraft ?? "").isEmpty)
             }
         }
+    }
+
+    // MARK: - Selection context (1A.5)
+
+    /// Produce a prefill context from the system clipboard, if the clipboard
+    /// text looks like a quote from the current section. Returns nil if the
+    /// clipboard is empty, not text, or doesn't appear in `section.content`.
+    /// Extracted for testability — see `SelectionContext.extract` below.
+    private func selectionContextFromClipboard() -> String? {
+        SelectionContext.extract(
+            from: ClipboardReader.current.readString(),
+            within: section.content
+        )
     }
 
     // MARK: - Edit commit
@@ -392,11 +429,61 @@ struct CommentView: View {
     }
 }
 
+// MARK: - Selection Context Helper (1A.5)
+
+/// Pure logic for deciding whether a clipboard string should pre-fill the
+/// "context" field of a new comment. Separated for testability — no SwiftUI,
+/// no AppKit, no Foundation platform deps.
+public enum SelectionContext {
+    /// Extract a usable context prefill from `clipboard` given the section's
+    /// content. Returns nil if:
+    /// - clipboard is nil or empty/whitespace
+    /// - clipboard text does not appear as a substring of `sectionContent`
+    ///   (trimmed comparison so a stray trailing newline from a copy doesn't
+    ///   defeat the check)
+    ///
+    /// The Phase 1A workflow: user selects text in the reader, hits Cmd-C,
+    /// then opens "Comment on Selection" — this function gatekeeps so
+    /// unrelated clipboard contents (URLs from elsewhere, passwords, etc.)
+    /// don't accidentally leak into a comment.
+    public static func extract(from clipboard: String?, within sectionContent: String) -> String? {
+        guard let raw = clipboard else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard sectionContent.contains(trimmed) else { return nil }
+        return trimmed
+    }
+}
+
+/// Thin indirection over NSPasteboard so views can read the clipboard and
+/// tests can swap in a fake. 1A.5.
+public struct ClipboardReader {
+    public let readString: () -> String?
+
+    public init(readString: @escaping () -> String?) {
+        self.readString = readString
+    }
+
+    /// The current reader. Defaults to reading NSPasteboard.general on macOS.
+    /// Tests override by assigning to `ClipboardReader.current`.
+    public static var current: ClipboardReader = .system
+
+    #if canImport(AppKit)
+    public static let system = ClipboardReader {
+        NSPasteboard.general.string(forType: .string)
+    }
+    #else
+    public static let system = ClipboardReader { nil }
+    #endif
+}
+
 // MARK: - Add Comment Sheet
 
 struct AddCommentSheet: View {
     let slug: String
     let author: String
+    /// Optional pre-filled context (e.g. user's quoted selection). 1A.5.
+    let prefillContext: String?
     /// Returns true on success; false signals failure — sheet stays open.
     let onSubmit: (CommentType, String, String?, Priority) async -> Bool
 
@@ -406,6 +493,17 @@ struct AddCommentSheet: View {
     @State private var context: String = ""
     @State private var priority: Priority = .normal
     @State private var submitting = false
+
+    init(slug: String, author: String, prefillContext: String? = nil,
+         onSubmit: @escaping (CommentType, String, String?, Priority) async -> Bool) {
+        self.slug = slug
+        self.author = author
+        self.prefillContext = prefillContext
+        self.onSubmit = onSubmit
+        // Seed the @State's initial value with the prefill so the sheet
+        // renders with it on first appearance.
+        self._context = State(initialValue: prefillContext ?? "")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -435,7 +533,13 @@ struct AddCommentSheet: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Context (optional)").font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Text("Context (optional)").font(.caption).foregroundStyle(.secondary)
+                    if prefillContext != nil {
+                        Text("· prefilled from your selection")
+                            .font(.caption).foregroundStyle(.blue)
+                    }
+                }
                 TextEditor(text: $context)
                     .frame(minHeight: 50)
                     .font(.body)
