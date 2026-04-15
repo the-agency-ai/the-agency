@@ -105,6 +105,66 @@ _resolve_identity() {
     "$SCRIPT_DIR/agent-identity" 2>/dev/null || echo "the-agency/unknown/captain"
 }
 
+# D41-R5 monofolk QG fix: validate that filename is a safe basename inside the
+# given inbound directory. Rejects path-traversal sequences (../, absolute paths,
+# / or \\ in the basename). Returns 0 on success, 1 on rejection. Echoes the
+# canonicalized full path on success.
+#
+# Usage:
+#   safe_path=$(_validate_dispatch_filename "$inbound_path" "$filename") || exit 1
+_validate_dispatch_filename() {
+    local inbound_path="$1" filename="$2"
+
+    # Reject empty
+    if [[ -z "$filename" ]]; then
+        echo "ERROR: filename is empty" >&2
+        return 1
+    fi
+
+    # Reject path separators in the basename
+    if [[ "$filename" == */* || "$filename" == *\\* ]]; then
+        echo "ERROR: filename must be a basename (no path separators): $filename" >&2
+        return 1
+    fi
+
+    # Reject parent-traversal sequences
+    if [[ "$filename" == ".." || "$filename" == *..* || "$filename" == "." ]]; then
+        echo "ERROR: filename contains traversal sequence: $filename" >&2
+        return 1
+    fi
+
+    # Reject leading dot files except for .md (no hidden files)
+    if [[ "$filename" == .* ]]; then
+        echo "ERROR: filename must not start with a dot: $filename" >&2
+        return 1
+    fi
+
+    # Allowlist characters: alphanumeric, dot, underscore, hyphen
+    if [[ ! "$filename" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+        echo "ERROR: filename contains disallowed characters: $filename" >&2
+        return 1
+    fi
+
+    # Build candidate path and verify it's inside inbound_path after realpath
+    local candidate="$inbound_path/$filename"
+    local canon_inbound canon_candidate
+    canon_inbound=$(cd "$inbound_path" 2>/dev/null && pwd -P) || {
+        echo "ERROR: inbound directory not accessible: $inbound_path" >&2
+        return 1
+    }
+    # File may not exist yet (write path); resolve directory portion only
+    canon_candidate="$canon_inbound/$filename"
+
+    # Final containment check: candidate must start with canon_inbound + /
+    if [[ "$canon_candidate" != "$canon_inbound/"* ]]; then
+        echo "ERROR: filename escapes inbound directory: $filename" >&2
+        return 1
+    fi
+
+    echo "$canon_candidate"
+    return 0
+}
+
 _update_frontmatter_status() {
     # Update status field in YAML frontmatter of a dispatch file
     local file="$1" new_status="$2"
@@ -148,9 +208,12 @@ cmd_check() {
             continue
         fi
 
-        # Pull latest
+        # Pull latest. D41-R5 monofolk QG fix: --ff-only (was --rebase).
+        # Rebase rewrites collaboration-repo history; --ff-only refuses to
+        # auto-merge divergence, surfacing real conflicts to the operator.
+        # Aligns with the framework's merge-not-rebase discipline.
         local pull_output
-        pull_output=$(cd "$full_path" && git pull --rebase 2>&1) || {
+        pull_output=$(cd "$full_path" && git pull --ff-only 2>&1) || {
             results+=("⚠ $name: git pull failed — ${pull_output%%$'\n'*}")
             continue
         }
@@ -239,7 +302,14 @@ cmd_read() {
 
     local full_path
     full_path=$(_expand_path "$repo_path")
-    local file="$full_path/$inbound/$filename"
+    local inbound_path="$full_path/$inbound"
+
+    # D41-R5 monofolk QG fix: validate filename is a safe basename inside inbound.
+    local file
+    file=$(_validate_dispatch_filename "$inbound_path" "$filename") || {
+        log_end "$RUN_ID" "error" "1" "0" "rejected unsafe filename: $filename"
+        exit 1
+    }
 
     if [[ ! -f "$file" ]]; then
         echo "ERROR: dispatch not found: $file" >&2
@@ -299,7 +369,12 @@ cmd_resolve() {
         echo "$count dispatch(es) resolved. Run 'collaboration push $repo_name' to commit."
         log_end "$RUN_ID" "success" "0" "0" "resolved $count dispatches"
     else
-        local file="$inbound_path/$target"
+        # D41-R5 monofolk QG fix: validate filename is a safe basename inside inbound.
+        local file
+        file=$(_validate_dispatch_filename "$inbound_path" "$target") || {
+            log_end "$RUN_ID" "error" "1" "0" "rejected unsafe filename: $target"
+            exit 1
+        }
         if [[ ! -f "$file" ]]; then
             echo "ERROR: dispatch not found: $target" >&2
             log_end "$RUN_ID" "error" "1" "0" "file not found: $target"
@@ -494,6 +569,10 @@ cmd_push() {
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
+
+# When sourced (e.g., from BATS tests), expose helpers without dispatching.
+# D41-R5 monofolk QG fix coverage requires this guard for testability.
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && return 0 2>/dev/null || true
 
 case "${1:-}" in
     --version) echo "collaboration $TOOL_VERSION"; exit 0 ;;
