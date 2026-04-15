@@ -962,6 +962,238 @@ func expectNotNilUnwrap<T>(_ value: T?, file: String = #file, line: Int = #line)
     return unwrapped
 }
 
+// MARK: - Phase 1B.1: CLIProcess + RealCLIService
+
+/// Test ProcessRunner that returns canned results without spawning anything.
+final class FakeProcessRunner: ProcessRunner, @unchecked Sendable {
+    let result: ProcessResult
+    var lastExecutable: String?
+    var lastArgs: [String]?
+    var lastStdin: Data?
+
+    init(result: ProcessResult) {
+        self.result = result
+    }
+
+    func run(executable: String, args: [String], stdin: Data?) async throws -> ProcessResult {
+        lastExecutable = executable
+        lastArgs = args
+        lastStdin = stdin
+        return result
+    }
+}
+
+/// Build a temp directory with an executable `mdpal` file inside, return the dir path.
+func makeTempDirWithMdpal() throws -> String {
+    let fm = FileManager.default
+    let tmp = NSTemporaryDirectory() + "mdpal-test-\(UUID().uuidString)"
+    try fm.createDirectory(atPath: tmp, withIntermediateDirectories: true)
+    let bin = (tmp as NSString).appendingPathComponent("mdpal")
+    fm.createFile(atPath: bin, contents: Data("#!/bin/sh\nexit 0\n".utf8),
+                  attributes: [.posixPermissions: 0o755])
+    return tmp
+}
+
+func testCLIBinaryResolverHonorsMDPALBinOverride() throws {
+    let dir = try makeTempDirWithMdpal()
+    defer { try? FileManager.default.removeItem(atPath: dir) }
+    let bin = (dir as NSString).appendingPathComponent("mdpal")
+    let resolved = try CLIBinaryResolver.resolve(
+        environment: ["MDPAL_BIN": bin, "PATH": "/nonexistent"]
+    )
+    try expect(resolved, equals: bin)
+}
+
+func testCLIBinaryResolverThrowsWhenMDPALBinPointsNowhere() throws {
+    do {
+        _ = try CLIBinaryResolver.resolve(
+            environment: ["MDPAL_BIN": "/definitely/not/here/mdpal", "PATH": "/usr/bin"]
+        )
+        throw TestFailure(message: "Expected cliNotFound to be thrown",
+                          file: #file, line: #line)
+    } catch CLIServiceError.cliNotFound {
+        // expected — explicit override pointing nowhere is a config error
+    }
+}
+
+func testCLIBinaryResolverFindsBinaryOnPATH() throws {
+    let dir = try makeTempDirWithMdpal()
+    defer { try? FileManager.default.removeItem(atPath: dir) }
+    let resolved = try CLIBinaryResolver.resolve(
+        environment: ["PATH": "/nonexistent:\(dir)"]
+    )
+    try expect(resolved, equals: (dir as NSString).appendingPathComponent("mdpal"))
+}
+
+func testCLIBinaryResolverThrowsWhenNothingFound() throws {
+    // Use empty fallbacks so the test is deterministic regardless of whether
+    // the host has a real mdpal installed in /usr/local/bin or /opt/homebrew/bin.
+    do {
+        _ = try CLIBinaryResolver.resolve(
+            environment: ["PATH": "/nonexistent-a:/nonexistent-b"],
+            fallbacks: []
+        )
+        throw TestFailure(message: "Expected cliNotFound to be thrown",
+                          file: #file, line: #line)
+    } catch CLIServiceError.cliNotFound {
+        // expected
+    }
+}
+
+func testCLIBinaryResolverPATHWinsOverFallbacks() throws {
+    // PATH should be preferred over the fallback list when both contain mdpal.
+    let dir = try makeTempDirWithMdpal()
+    defer { try? FileManager.default.removeItem(atPath: dir) }
+    let pathBin = (dir as NSString).appendingPathComponent("mdpal")
+
+    let fallbackDir = try makeTempDirWithMdpal()
+    defer { try? FileManager.default.removeItem(atPath: fallbackDir) }
+    let fallbackBin = (fallbackDir as NSString).appendingPathComponent("mdpal")
+
+    let resolved = try CLIBinaryResolver.resolve(
+        environment: ["PATH": dir],
+        fallbacks: [fallbackBin]
+    )
+    try expect(resolved, equals: pathBin, "PATH must win over fallbacks")
+}
+
+func testCLIBinaryResolverMDPALBinWinsOverPATH() throws {
+    // MDPAL_BIN is the explicit override and must beat PATH even when both exist.
+    let overrideDir = try makeTempDirWithMdpal()
+    defer { try? FileManager.default.removeItem(atPath: overrideDir) }
+    let overrideBin = (overrideDir as NSString).appendingPathComponent("mdpal")
+
+    let pathDir = try makeTempDirWithMdpal()
+    defer { try? FileManager.default.removeItem(atPath: pathDir) }
+
+    let resolved = try CLIBinaryResolver.resolve(
+        environment: ["MDPAL_BIN": overrideBin, "PATH": pathDir],
+        fallbacks: []
+    )
+    try expect(resolved, equals: overrideBin, "MDPAL_BIN must win over PATH")
+}
+
+// MARK: - DefaultProcessRunner integration tests
+
+/// Build a temp dir with a script at `mdpal-script` that does whatever the
+/// caller writes. Returns the script path.
+func makeTempScript(body: String) throws -> String {
+    let dir = NSTemporaryDirectory() + "mdpal-script-\(UUID().uuidString)"
+    try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    let path = (dir as NSString).appendingPathComponent("script.sh")
+    let script = "#!/bin/sh\n\(body)\n"
+    FileManager.default.createFile(atPath: path, contents: Data(script.utf8),
+                                   attributes: [.posixPermissions: 0o755])
+    return path
+}
+
+func testDefaultProcessRunnerCapturesStdoutAndExitCode() async throws {
+    let script = try makeTempScript(body: "echo hello world; exit 0")
+    defer { try? FileManager.default.removeItem(atPath: (script as NSString).deletingLastPathComponent) }
+    let runner = DefaultProcessRunner()
+    let result = try await runner.run(executable: script, args: [], stdin: nil)
+    try expect(result.exitCode, equals: Int32(0))
+    try expect(result.stdoutString, equals: "hello world\n")
+    try expect(result.stderrString, equals: "")
+}
+
+func testDefaultProcessRunnerCapturesStderrAndNonZeroExit() async throws {
+    let script = try makeTempScript(body: "echo oops 1>&2; exit 7")
+    defer { try? FileManager.default.removeItem(atPath: (script as NSString).deletingLastPathComponent) }
+    let runner = DefaultProcessRunner()
+    let result = try await runner.run(executable: script, args: [], stdin: nil)
+    try expect(result.exitCode, equals: Int32(7))
+    try expect(result.stdoutString, equals: "")
+    try expect(result.stderrString, equals: "oops\n")
+}
+
+func testDefaultProcessRunnerForwardsStdinToChild() async throws {
+    // `cat` echoes stdin to stdout — proves stdin reaches the child.
+    let runner = DefaultProcessRunner()
+    let payload = "the quick brown fox\n"
+    let result = try await runner.run(
+        executable: "/bin/cat",
+        args: [],
+        stdin: Data(payload.utf8)
+    )
+    try expect(result.exitCode, equals: Int32(0))
+    try expect(result.stdoutString, equals: payload)
+}
+
+func testDefaultProcessRunnerHandlesLargeStdoutWithoutDeadlock() async throws {
+    // Validates the central correctness claim of DefaultProcessRunner:
+    // pipe drains run concurrently with the child so >64KB output doesn't
+    // deadlock. Emit ~256KB and confirm it all comes back.
+    let script = try makeTempScript(body: "yes 'A' | head -c 262144")
+    defer { try? FileManager.default.removeItem(atPath: (script as NSString).deletingLastPathComponent) }
+    let runner = DefaultProcessRunner()
+    let result = try await runner.run(executable: script, args: [], stdin: nil)
+    try expect(result.exitCode, equals: Int32(0))
+    try expect(result.stdout.count, equals: 262144,
+               "must fully drain output past the ~64KB pipe-buffer boundary")
+}
+
+func testDefaultProcessRunnerThrowsWhenExecutableMissing() async throws {
+    let runner = DefaultProcessRunner()
+    do {
+        _ = try await runner.run(
+            executable: "/no/such/binary",
+            args: [],
+            stdin: nil
+        )
+        throw TestFailure(message: "Expected executionFailed",
+                          file: #file, line: #line)
+    } catch CLIServiceError.executionFailed {
+        // expected
+    }
+}
+
+func testCLIProcessRunDelegatesToRunner() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data("hello\n".utf8),
+        stderr: Data()
+    )
+    let runner = FakeProcessRunner(result: canned)
+    let cli = CLIProcess(executable: "/usr/bin/mdpal", runner: runner)
+    let stdin = Data("input\n".utf8)
+    let got = try await cli.run(args: ["sections", "/tmp/bundle"], stdin: stdin)
+    try expect(got.exitCode, equals: Int32(0))
+    try expect(got.stdoutString, equals: "hello\n")
+    try expect(runner.lastExecutable ?? "", equals: "/usr/bin/mdpal")
+    try expect(runner.lastArgs ?? [], equals: ["sections", "/tmp/bundle"])
+    try expect(runner.lastStdin ?? Data(), equals: stdin)
+}
+
+func testRealCLIServiceInitFailsCleanlyWhenBinaryMissing() throws {
+    do {
+        _ = try RealCLIService(
+            environment: ["MDPAL_BIN": "/no/such/file", "PATH": "/nonexistent"],
+            fileManager: .default,
+            runner: FakeProcessRunner(result: ProcessResult(
+                exitCode: 0, stdout: Data(), stderr: Data()
+            ))
+        )
+        throw TestFailure(message: "Expected cliNotFound", file: #file, line: #line)
+    } catch CLIServiceError.cliNotFound {
+        // expected
+    }
+}
+
+func testRealCLIServiceInitSucceedsWhenBinaryResolves() throws {
+    let dir = try makeTempDirWithMdpal()
+    defer { try? FileManager.default.removeItem(atPath: dir) }
+    let bin = (dir as NSString).appendingPathComponent("mdpal")
+    let svc = try RealCLIService(
+        environment: ["MDPAL_BIN": bin, "PATH": "/nonexistent"],
+        fileManager: .default,
+        runner: FakeProcessRunner(result: ProcessResult(
+            exitCode: 0, stdout: Data(), stderr: Data()
+        ))
+    )
+    try expect(svc.executablePath, equals: bin)
+}
+
 // MARK: - Runner
 
 @main
@@ -1059,6 +1291,22 @@ struct TestRunner {
         run("non-matching clipboard returns nil", testSelectionContextNonMatchingClipboardReturnsNil)
         run("matching clipboard returns trimmed", testSelectionContextMatchingClipboardReturnsTrimmed)
         run("substring across words matches", testSelectionContextSubstringMatchAcrossWords)
+
+        print("\nCLIProcess + RealCLIService (Phase 1B.1):")
+        run("CLIBinaryResolver honors MDPAL_BIN override", testCLIBinaryResolverHonorsMDPALBinOverride)
+        run("CLIBinaryResolver throws when MDPAL_BIN points nowhere", testCLIBinaryResolverThrowsWhenMDPALBinPointsNowhere)
+        run("CLIBinaryResolver finds binary on PATH", testCLIBinaryResolverFindsBinaryOnPATH)
+        run("CLIBinaryResolver throws when nothing found", testCLIBinaryResolverThrowsWhenNothingFound)
+        run("CLIBinaryResolver PATH wins over fallbacks", testCLIBinaryResolverPATHWinsOverFallbacks)
+        run("CLIBinaryResolver MDPAL_BIN wins over PATH", testCLIBinaryResolverMDPALBinWinsOverPATH)
+        await runAsync("CLIProcess.run delegates to runner", testCLIProcessRunDelegatesToRunner)
+        run("RealCLIService init fails cleanly when binary missing", testRealCLIServiceInitFailsCleanlyWhenBinaryMissing)
+        run("RealCLIService init succeeds when binary resolves", testRealCLIServiceInitSucceedsWhenBinaryResolves)
+        await runAsync("DefaultProcessRunner captures stdout and exit code", testDefaultProcessRunnerCapturesStdoutAndExitCode)
+        await runAsync("DefaultProcessRunner captures stderr and non-zero exit", testDefaultProcessRunnerCapturesStderrAndNonZeroExit)
+        await runAsync("DefaultProcessRunner forwards stdin to child", testDefaultProcessRunnerForwardsStdinToChild)
+        await runAsync("DefaultProcessRunner handles large stdout without deadlock", testDefaultProcessRunnerHandlesLargeStdoutWithoutDeadlock)
+        await runAsync("DefaultProcessRunner throws when executable missing", testDefaultProcessRunnerThrowsWhenExecutableMissing)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 
