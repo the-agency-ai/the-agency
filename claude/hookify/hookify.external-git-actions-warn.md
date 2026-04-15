@@ -6,4 +6,4 @@ pattern: gh\s+(pr\s+create|pr\s+comment|pr\s+close|pr\s+merge|issue\s+create|rel
 action: warn
 ---
 
-External action — this affects GitHub or a remote. Only proceed if the principal explicitly asked. See claude/docs/GIT-MERGE-NOT-REBASE.md — FEAR THE KITTENS!
+External action — this affects GitHub or a remote. Only proceed if the principal explicitly asked. See claude/REFERENCE-GIT-MERGE-NOT-REBASE.md — FEAR THE KITTENS!

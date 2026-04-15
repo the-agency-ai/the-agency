@@ -179,7 +179,7 @@ log_end "$RUN_ID" "success" "$exit_code" "$output_size" "Summary message"
 
 The Agency uses a test-service for test execution and tracking.
 
-**Full documentation:** See `claude/docs/TESTING.md`
+**Full documentation:** See `claude/REFERENCE-TESTING.md`
 
 ### Quick Reference
 
@@ -395,7 +395,7 @@ Configuration: `.claude/settings.json` or project-level MCP config.
 - Database MCP - Direct database queries
 - Custom MCPs - Project-specific tools
 
-See `claude/docs/BROWSER-MCP.md` for browser integration details.
+See `claude/REFERENCE-BROWSER-MCP.md` for browser integration details.
 
 ## Custom Slash Commands
 

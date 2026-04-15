@@ -11,7 +11,7 @@ description: Merge target into current branch and push to origin. The ONLY comma
 
 # Sync — Push to Origin
 
-Merge target into current branch and push to origin. This is the **only** command that pushes to a remote. Requires explicit confirmation. **Never rebases.** See `claude/docs/GIT-MERGE-NOT-REBASE.md`.
+Merge target into current branch and push to origin. This is the **only** command that pushes to a remote. Requires explicit confirmation. **Never rebases.** See `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
 
 ## Arguments
 

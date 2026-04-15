@@ -82,18 +82,17 @@ When an agent receives feedback (from MAR, QG, or any review), it triages findin
 3. Commit message documents all work done with pointers to project documents (PVR, A&D, Plan)
 4. QGR generated and appended to Plan automatically
 5. Present QGR and proposed commit inline — **principal must approve**
-6. After approval, land on master:
-   a. Verify clean: `git status` shows nothing to commit
-   b. Merge master into branch: `git merge master`
-   c. Push branch to local master: `git push . HEAD:master`
-   d. Reset to master: `git reset --hard master`
-   e. Verify: `git log --oneline -3` should show your commit on master
-   f. Notify the captain session that new work has landed on master.
+6. After approval, land via PR (Day 40+ — branch protection requires PR):
+   a. Run `/release` skill (or manual: `git-safe-commit` → `git-push` → `pr-create`)
+   b. `/release` handles: commit + push branch + create PR + bump version
+   c. CI runs (smoke test). Branch protection requires status check + approval.
+   d. Principal merges PR via GitHub
+   e. Captain runs `/post-merge` to sync, create GitHub release tag
 7. **Flag conditions** — stop and report to principal if:
-   - `git push . HEAD:master` fails (non-fast-forward after merge)
-   - Branch is dirty at merge time
-   - Merge brings in work that breaks tests
-   - Race condition with other agents updating master
+   - `pr-create` blocks (missing QGR receipt, no version bump, on main)
+   - `/release` blocks at version bump (manifest.json not updated)
+   - CI fails on the PR
+   - Branch protection rejects merge (no approval, CI failed)
 
 ### Pre-Phase Review
 
@@ -147,6 +146,20 @@ usr/{principal}/
 - **One plan per project.** Date stamp bumps only on a new day.
 - **No nesting** — `usr/{principal}/folio/`, not `usr/{principal}/docs/projects/folio/`.
 - **Code** stays in `tools/`, `scripts/`, `source/` — not in sandbox project dirs.
+
+### Valueflow Stream Model
+
+Work moves through three streams, each with its own gate:
+
+| Stream | What | Gates | Receipt |
+|--------|------|-------|---------|
+| **Work stream** | Agent commits — iteration and phase work | `/iteration-complete` (auto), `/phase-complete` (approval) | QGR (Quality Gate Report) via `receipt-sign` |
+| **Delivery stream** | PRs and releases — shipping to origin | `/release`, `pr-create` | QGR required by `/git-safe-commit` before push |
+| **Value stream** | Builds and deployments — production value | `/deploy` | Deployment receipt |
+
+Each gate produces a **receipt**: the QGR for code gates, methodology artifact receipts for non-code gates. `/git-safe-commit` verifies a receipt exists (stage-hash match) before allowing a commit. `pr-create` verifies receipt before push. Gates are mechanical — they check for receipt existence, not receipt quality (human judgment stays where it belongs: principal approval at phase boundaries).
+
+---
 
 ### Living Documents
 

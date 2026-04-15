@@ -49,6 +49,7 @@ Subcommands (read-only):
 Subcommands (guarded write):
   add <file> [file...]   Stage explicit file paths (blocks -A, --all, ., wildcards)
   merge-from-master      Merge main/master into current branch (clean tree required)
+                         Pass --remote to merge origin/main instead of local main
 
 Options:
   --help                 Show this help
@@ -146,9 +147,24 @@ cmd_merge_from_master() {
     # Check for untracked files that might cause merge conflicts
     # (informational only — untracked files don't block merge)
 
-    echo "${BLUE}Merging $main_branch into $current_branch...${NC}"
-    if git merge "$main_branch" --no-edit; then
-        echo "${GREEN}Merge complete.${NC} $main_branch merged into $current_branch."
+    # Optional --remote flag: merge origin/$main_branch instead of local main.
+    # Useful when local main is behind origin/main and cannot be advanced
+    # (e.g., captain sitting on a feature branch post-PR-merge).
+    local target="$main_branch"
+    local label="$main_branch"
+    for arg in "$@"; do
+        if [[ "$arg" == "--remote" ]]; then
+            if ! git show-ref --verify "refs/remotes/origin/$main_branch" &>/dev/null; then
+                die "origin/$main_branch does not exist. Fetch first."
+            fi
+            target="origin/$main_branch"
+            label="origin/$main_branch"
+        fi
+    done
+
+    echo "${BLUE}Merging $label into $current_branch...${NC}"
+    if git merge "$target" --no-edit; then
+        echo "${GREEN}Merge complete.${NC} $label merged into $current_branch."
     else
         die "Merge failed — resolve conflicts manually, then commit."
     fi
