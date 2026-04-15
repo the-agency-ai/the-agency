@@ -771,6 +771,81 @@ final class ToggleTrackingService: CLIServiceProtocol, @unchecked Sendable {
     }
 }
 
+/// Service that throws on list/read operations when `shouldFail` is true.
+/// Used to verify DocumentModel's lastError wiring (Iteration 1A.3).
+final class FailingToggleService: CLIServiceProtocol, @unchecked Sendable {
+    var shouldFail: Bool = true
+    private let inner = ToggleTrackingService()
+
+    struct FailureError: Error, LocalizedError {
+        var errorDescription: String? { "simulated CLI failure" }
+    }
+
+    func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
+        if shouldFail { throw FailureError() }
+        return try await inner.listSections(bundle: bundle)
+    }
+    func readSection(slug: String, bundle: BundlePath) async throws -> Section {
+        if shouldFail { throw FailureError() }
+        return try await inner.readSection(slug: slug, bundle: bundle)
+    }
+    func editSection(slug: String, content: String,
+                     versionHash: String, bundle: BundlePath) async throws -> EditResult {
+        try await inner.editSection(slug: slug, content: content,
+                                    versionHash: versionHash, bundle: bundle)
+    }
+    func listComments(bundle: BundlePath) async throws -> [Comment] {
+        if shouldFail { throw FailureError() }
+        return try await inner.listComments(bundle: bundle)
+    }
+    func listFlags(bundle: BundlePath) async throws -> [Flag] {
+        if shouldFail { throw FailureError() }
+        return try await inner.listFlags(bundle: bundle)
+    }
+    func addComment(slug: String, bundle: BundlePath, type: CommentType,
+                    author: String, text: String, context: String?,
+                    priority: Priority, tags: [String]) async throws -> Comment {
+        try await inner.addComment(slug: slug, bundle: bundle, type: type,
+                                   author: author, text: text, context: context,
+                                   priority: priority, tags: tags)
+    }
+    func resolveComment(commentId: String, bundle: BundlePath,
+                        response: String, by: String) async throws -> ResolveResult {
+        try await inner.resolveComment(commentId: commentId, bundle: bundle,
+                                       response: response, by: by)
+    }
+    func flagSection(slug: String, bundle: BundlePath,
+                     author: String, note: String?) async throws -> FlagResult {
+        try await inner.flagSection(slug: slug, bundle: bundle,
+                                    author: author, note: note)
+    }
+    func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
+        try await inner.clearFlag(slug: slug, bundle: bundle)
+    }
+}
+
+func testDocumentModelLastErrorSetOnLoadFailure() async throws {
+    let svc = FailingToggleService()
+    let doc = DocumentModel(cliService: svc)
+    try expectTrue(doc.lastError == nil, "lastError starts nil")
+    await doc.loadSections()
+    try expectTrue(doc.lastError != nil, "lastError set after failing loadSections")
+    try expectTrue(
+        doc.lastError!.contains("simulated CLI failure"),
+        "lastError should carry the underlying message, got: \(doc.lastError!)"
+    )
+}
+
+func testDocumentModelLastErrorClearedOnSuccess() async throws {
+    let svc = FailingToggleService()
+    let doc = DocumentModel(cliService: svc)
+    await doc.loadSections()
+    try expectTrue(doc.lastError != nil, "precondition: lastError set after failure")
+    svc.shouldFail = false
+    await doc.loadSections()
+    try expectTrue(doc.lastError == nil, "lastError cleared after subsequent success")
+}
+
 // MARK: - Runner
 
 @main
@@ -854,6 +929,8 @@ struct TestRunner {
         await runAsync("resolveComment triggers reload", testDocumentModelResolveCommentTriggersReload)
         await runAsync("toggleFlag adds then clears", testDocumentModelToggleFlagAddsThenClearsInSequence)
         await runAsync("flagSection reflected in state", testDocumentModelFlagSectionIsReflectedInState)
+        await runAsync("lastError set on load failure", testDocumentModelLastErrorSetOnLoadFailure)
+        await runAsync("lastError cleared on subsequent success", testDocumentModelLastErrorClearedOnSuccess)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 
