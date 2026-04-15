@@ -159,6 +159,7 @@ QG-aware commit wrapper. Enforces work item tracking, builds structured commit m
 | `--work-item <ID>` | `-w` | Yes* | Work item ID: `REQUEST-jordan-0065`, `SPRINT-web-2026w03`, etc. |
 | `--stage <stage>` | `-s` | When work-item given | One of: `impl`, `review`, `tests` |
 | `--no-work-item` | — | Alternative to `--work-item` | Explicit escape hatch |
+| `--allow-large` | — | No | Bypass commit-precheck large-file block for this commit (sets `ALLOW_LARGE_COMMIT=1`) |
 | `--body <text>` | `-b` | No | Detailed commit body |
 | `--principal <name>` | `-p` | No | Override principal (default: from work item or env) |
 | `--staged` | — | No | Only commit staged changes (default: stage all with `git add -A`) |
@@ -213,6 +214,21 @@ When `commits.require_day_prefix` is `true` in `agency.yaml`, the message is use
 | 0 | Success (or nothing to commit) |
 | 1 | Missing message, missing work item, invalid work item format, missing stage, invalid stage, or commit failure |
 | 2 | Commit prefix validation failure (when `require_day_prefix` is enabled) |
+
+### Large-file gate (via `commit-precheck`)
+
+The pre-commit hook runs `commit-precheck`, which stats every staged file and enforces size thresholds:
+
+| Threshold | Default | Env override | Action |
+|---|---|---|---|
+| Warn | 1 MB (1048576 B) | `LARGE_FILE_WARN_BYTES` | Prints warning, commit proceeds |
+| Block | 10 MB (10485760 B) | `LARGE_FILE_BLOCK_BYTES` | Exits 2, commit aborted |
+
+**Bypass:** `git-safe-commit --allow-large` (one-shot) or export `ALLOW_LARGE_COMMIT=1`.
+
+**Permanent exemptions:** add one glob per line to `claude/config/large-file-exceptions.txt`. Matching is against full path or basename, `#` comments and blank lines ignored. Prefer narrow globs; use Git LFS for recurring large binaries.
+
+Rationale: GitHub soft-caps at 50 MB (warn) / 100 MB (reject). By then the commit is already local and requires history rewrite to remove. Catching at commit time avoids that.
 
 ---
 

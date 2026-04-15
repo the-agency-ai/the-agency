@@ -1,0 +1,17 @@
+# Large-file exceptions for commit-precheck large-file gate.
+#
+# One glob per line. A staged file matching any glob here is exempt from
+# the warn/block size thresholds (see commit-precheck check_large_files).
+#
+# Matching uses bash extglob pattern semantics against the file path relative
+# to the repo root (e.g., "claude/receipts/foo.md", "apps/mdpal/build/x.bin").
+#
+# Blanks and lines starting with # are ignored.
+#
+# Guidance:
+#   - Add narrow globs, not directory-wide wildcards.
+#   - Prefer Git LFS for genuinely large binaries (images, datasets).
+#   - Override a single commit with `git-safe-commit --allow-large`, don't
+#     list it here — exceptions are for recurring paths only.
+
+# (none yet)

@@ -29,6 +29,7 @@
 #   --work-item, -w   Work item ID (REQUEST-jordan-0065, SPRINT-web-2026w03, etc.)
 #   --stage, -s       Stage: impl, review, tests (required if work-item provided)
 #   --no-work-item    Escape hatch when no work item applies (skip work-item requirement)
+#   --allow-large     Bypass commit-precheck large-file block (single-commit override)
 #   --body, -b        Detailed commit body
 #   --principal, -p   Override principal (default: from config or work item)
 #   --no-verify       Skip pre-commit hooks
@@ -84,6 +85,7 @@ DRY_RUN=false
 STAGED_ONLY=false
 VERBOSE=false
 NO_WORK_ITEM=false
+ALLOW_LARGE=false
 WORK_ITEM=""
 STAGE=""
 BODY=""
@@ -126,6 +128,13 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-work-item)
             NO_WORK_ITEM=true
+            shift
+            ;;
+        --allow-large)
+            # Override commit-precheck large-file block for this commit.
+            # Exported so the pre-commit hook inherits it.
+            ALLOW_LARGE=true
+            export ALLOW_LARGE_COMMIT=1
             shift
             ;;
         --work-item|-w)

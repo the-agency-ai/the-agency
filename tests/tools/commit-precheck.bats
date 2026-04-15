@@ -177,3 +177,79 @@ teardown() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"app-code"* ]]
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Large-file gate (D41-Rn — monofolk REQUEST)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "large-file: small file passes" {
+    cd "$TEST_REPO"
+    # 100 KB
+    dd if=/dev/zero of=small.bin bs=1024 count=100 2>/dev/null
+    git add small.bin
+    LARGE_FILE_WARN_BYTES=1048576 LARGE_FILE_BLOCK_BYTES=10485760 \
+        run ./claude/tools/commit-precheck
+    [ "$status" -eq 0 ]
+}
+
+@test "large-file: warn threshold prints warning but does not block" {
+    cd "$TEST_REPO"
+    # 2 MB — over 1 MB warn, under 10 MB block
+    dd if=/dev/zero of=warn.bin bs=1024 count=2048 2>/dev/null
+    git add warn.bin
+    LARGE_FILE_WARN_BYTES=1048576 LARGE_FILE_BLOCK_BYTES=10485760 \
+        run ./claude/tools/commit-precheck
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Large file warning"* ]] || [[ "$stderr" == *"Large file warning"* ]]
+}
+
+@test "large-file: block threshold exits 2 with remediation message" {
+    cd "$TEST_REPO"
+    # Tiny block threshold so we don't need to write a 10 MB file
+    dd if=/dev/zero of=big.bin bs=1024 count=100 2>/dev/null
+    git add big.bin
+    LARGE_FILE_WARN_BYTES=1024 LARGE_FILE_BLOCK_BYTES=10240 \
+        run ./claude/tools/commit-precheck
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"BLOCKED"* ]]
+    [[ "$output" == *"Git LFS"* ]]
+    [[ "$output" == *"--allow-large"* ]]
+}
+
+@test "large-file: ALLOW_LARGE_COMMIT=1 bypasses the block" {
+    cd "$TEST_REPO"
+    dd if=/dev/zero of=big.bin bs=1024 count=100 2>/dev/null
+    git add big.bin
+    LARGE_FILE_WARN_BYTES=1024 LARGE_FILE_BLOCK_BYTES=10240 \
+    ALLOW_LARGE_COMMIT=1 \
+        run ./claude/tools/commit-precheck
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ALLOW_LARGE_COMMIT=1"* ]]
+}
+
+@test "large-file: exception glob exempts matching file" {
+    cd "$TEST_REPO"
+    mkdir -p claude/config
+    cat > claude/config/large-file-exceptions.txt <<'EOF'
+# test exceptions
+*.bin
+EOF
+    dd if=/dev/zero of=big.bin bs=1024 count=100 2>/dev/null
+    git add big.bin claude/config/large-file-exceptions.txt
+    LARGE_FILE_WARN_BYTES=1024 LARGE_FILE_BLOCK_BYTES=10240 \
+        run ./claude/tools/commit-precheck
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"BLOCKED"* ]]
+}
+
+@test "large-file: deleted file is not size-checked" {
+    cd "$TEST_REPO"
+    # Commit a file, then stage its deletion — should not trigger size check
+    echo "hello" > todelete.txt
+    git add todelete.txt
+    git commit -m "add" --quiet --no-verify
+    git rm todelete.txt --quiet
+    LARGE_FILE_WARN_BYTES=1024 LARGE_FILE_BLOCK_BYTES=10240 \
+        run ./claude/tools/commit-precheck
+    [ "$status" -eq 0 ]
+}
