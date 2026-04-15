@@ -498,3 +498,121 @@ _setup_conflict() {
     assert_failure
     assert_output_contains "not conflicted"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R23: config subcommand (issue #118)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "config --list: shows git config" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe config --list
+    assert_success
+    assert_output_contains "user.email=test@example.com"
+}
+
+@test "config <key>: reads single key" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe config user.email
+    assert_success
+    assert_output_contains "test@example.com"
+}
+
+@test "config --local <key> <value>: sets allowed key in repo" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe config --local commit.gpgsign false
+    assert_success
+    assert_output_contains "Set"
+    # Verify it took effect
+    run git config --local --get commit.gpgsign
+    assert_output_contains "false"
+}
+
+@test "config --local user.name 'Test Name': allowed key works" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe config --local user.name "Test Name"
+    assert_success
+    run git config --local --get user.name
+    assert_output_contains "Test Name"
+}
+
+@test "config --local refuses non-allowed key (remote.origin.url)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe config --local remote.origin.url "https://evil.example.com/repo"
+    assert_failure
+    assert_output_contains "refuses"
+    assert_output_contains "allow-list"
+}
+
+@test "config --local refuses non-allowed key (core.hooksPath)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe config --local core.hooksPath /tmp/evil
+    assert_failure
+    assert_output_contains "refuses"
+}
+
+@test "config --global refuses non-allowed key (credential.helper)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe config --global credential.helper "bad-helper"
+    assert_failure
+    assert_output_contains "refuses"
+}
+
+@test "config: no args prints usage" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe config
+    assert_failure
+    assert_output_contains "Usage"
+}
+
+@test "config: rejects unknown flag" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe config --bogus
+    assert_failure
+    assert_output_contains "Unknown flag"
+}
+
+@test "config --local: requires value" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe config --local commit.gpgsign
+    assert_failure
+    assert_output_contains "Usage"
+}
+
+@test "git-safe --help mentions config subcommand" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe --help
+    assert_success
+    assert_output_contains "config --list"
+    assert_output_contains "commit.gpgsign"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R23: git-safe-commit gpg-missing detection (issue #118)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "git-safe-commit source: gpg-missing detection regex matches expected git output" {
+    # Pin the detection regex against representative git stderr from gpg-missing.
+    # End-to-end fixture is hard to set up reliably (commit-precheck, identity
+    # resolution, log-helper all need stubbing); instead, prove the detection
+    # logic catches all the strings git emits when commit.gpgsign=true and
+    # gpg is missing or broken.
+    local sample1="error: cannot run gpg: No such file or directory"
+    local sample2="error: gpg failed to write commit object"
+    local sample3="gpg: signing failed: No such file or directory"
+    local sample4="error: gpg: not found in PATH"
+
+    for sample in "$sample1" "$sample2" "$sample3" "$sample4"; do
+        # Mirror the regex used in claude/tools/git-safe-commit
+        echo "$sample" | grep -qiE "cannot run gpg|gpg failed|gpg: not found|gpg: signing failed" \
+            || { echo "Regex did not match: $sample"; false; }
+    done
+
+    # Also assert the regex is actually present in the tool source (catches
+    # accidental removal of the detection block)
+    run grep -F "cannot run gpg|gpg failed" "$REPO_ROOT/claude/tools/git-safe-commit"
+    assert_success
+    run grep -F "BLOCKED:" "$REPO_ROOT/claude/tools/git-safe-commit"
+    assert_success
+    run grep -F "git-safe config --local commit.gpgsign false" "$REPO_ROOT/claude/tools/git-safe-commit"
+    assert_success
+}

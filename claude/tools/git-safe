@@ -55,6 +55,14 @@ Subcommands (guarded write):
                                Resolve a conflicted file by taking one side, then stage it.
                                Only valid mid-merge (MERGE_HEAD present).
   merge-abort                  Abort an in-progress merge (wraps git merge --abort).
+  config --list                List all git config
+  config <key>                 Read one config key
+  config --local <key> <value> Set a config key in this repo (allow-list enforced)
+  config --global <key> <value>
+                               Set a config key globally (allow-list enforced)
+                               Allowed keys: commit.gpgsign, commit.verbose,
+                               user.name, user.email, pull.rebase,
+                               init.defaultBranch, core.autocrlf, core.editor
 
 Options:
   --help                 Show this help
@@ -205,6 +213,58 @@ cmd_merge_abort() {
     echo "${GREEN}Merge aborted.${NC} Working tree restored to pre-merge state."
 }
 
+# --- Subcommand: config ---
+# D41-R23 (issue #118): agents need a safe path to read/set git config so
+# they can self-recover from common friction (gpg-missing, missing user.name,
+# etc.) without escalating to principal. Allow-list keeps blast radius small;
+# anything that could affect auth, hooks, remotes, or signing keys requires
+# principal escalation.
+SAFE_CONFIG_KEYS=(
+    commit.gpgsign
+    commit.verbose
+    user.name
+    user.email
+    pull.rebase
+    init.defaultBranch
+    core.autocrlf
+    core.editor
+)
+
+_config_assert_allowed() {
+    local key="$1"
+    local allowed
+    for allowed in "${SAFE_CONFIG_KEYS[@]}"; do
+        [[ "$key" == "$allowed" ]] && return 0
+    done
+    die "git-safe config refuses '$key' — not on the safe-keys allow-list (${SAFE_CONFIG_KEYS[*]}). Escalate to principal for other config changes."
+}
+
+cmd_config() {
+    [[ $# -eq 0 ]] && die "Usage: git-safe config --list | <key> | --local <key> <value> | --global <key> <value>"
+
+    case "$1" in
+        --list)
+            git config --list
+            return
+            ;;
+        --local|--global)
+            local scope="$1"; shift
+            [[ $# -ne 2 ]] && die "Usage: git-safe config $scope <key> <value>"
+            local key="$1" value="$2"
+            _config_assert_allowed "$key"
+            git config "$scope" "$key" "$value"
+            echo "${GREEN}Set${NC} $scope $key=$value"
+            ;;
+        -*)
+            die "Unknown flag: $1 (use --list, --local, --global, or a bare key)"
+            ;;
+        *)
+            # Read a single key (no value → exit 0 with empty output, like git config --get)
+            git config --get "$1" 2>/dev/null || true
+            ;;
+    esac
+}
+
 # --- Subcommand: merge-from-master ---
 cmd_merge_from_master() {
     # Auto-detect main branch name
@@ -272,5 +332,6 @@ case "$1" in
     resolve-conflict) shift; cmd_resolve_conflict "$@" ;;
     merge-abort)      shift; cmd_merge_abort "$@" ;;
     merge-from-master) shift; cmd_merge_from_master "$@" ;;
+    config)           shift; cmd_config "$@" ;;
     *)            die "Unknown subcommand: $1 — run 'git-safe --help' for usage." ;;
 esac
