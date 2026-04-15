@@ -35,6 +35,14 @@ Stages explicit file paths. Blocked patterns (exit 1):
 
 On success: stages files, prints `Staged: <files>`.
 
+**`rm <file> [file...]`**
+
+Removes explicit file paths from working tree and index. Same guards as `add`:
+- blocks `-r` / `-R` / `-rf` / `--recursive` / `-f` / `--force`
+- blocks `.` / `./` / `..` / `../`, `*` / `**`, and any path that resolves to a directory
+
+On success: runs `git rm`, prints `Removed: <files>`.
+
 **`merge-from-master`**
 
 Merges main/master into the current feature branch.
@@ -43,8 +51,35 @@ Checks (each exits 1 on failure):
 1. Auto-detects `main` (tried first) or `master`
 2. Refuses if already on the main branch
 3. Refuses if working tree is dirty (`git diff` or `git diff --cached` non-empty)
+4. Optional `--remote` merges `origin/main` instead of local `main` (fetch first).
 
 On success: runs `git merge <main_branch> --no-edit`, prints merge summary.
+
+**`resolve-conflict <file> --ours|--theirs`** (D41-R7)
+
+Resolves a conflicted file mid-merge by taking one side and staging it.
+
+- Requires MERGE_HEAD (exits 1 otherwise — no merge in progress)
+- Requires the file to have an unmerged index entry (exits 1 otherwise)
+- Exactly one file per invocation; `--ours` or `--theirs` mandatory
+- Runs `git checkout --ours|--theirs -- <file>` then `git add -- <file>`
+
+On success: prints `Resolved: <file> (took <side>)`.
+
+**When to use which tool mid-merge:**
+
+| Situation | Tool |
+|---|---|
+| Keep our side of a conflicted file | `git-safe resolve-conflict <file> --ours` |
+| Keep the incoming side | `git-safe resolve-conflict <file> --theirs` |
+| File should be deleted (delete-as-resolution) | `git-safe rm <file>` |
+| Abandon the merge entirely | `git-safe merge-abort` |
+| Manual edit already made, stage the result | `git-safe add <file>` |
+| Conclude the merge after all files resolved | `git-safe-commit` (auto-detects MERGE_HEAD) |
+
+**`merge-abort`** (D41-R7)
+
+Aborts an in-progress merge by wrapping `git merge --abort`. Exits 1 if MERGE_HEAD is absent.
 
 ### Options
 
@@ -159,6 +194,7 @@ QG-aware commit wrapper. Enforces work item tracking, builds structured commit m
 | `--work-item <ID>` | `-w` | Yes* | Work item ID: `REQUEST-jordan-0065`, `SPRINT-web-2026w03`, etc. |
 | `--stage <stage>` | `-s` | When work-item given | One of: `impl`, `review`, `tests` |
 | `--no-work-item` | — | Alternative to `--work-item` | Explicit escape hatch |
+| `--allow-large` | — | No | Bypass commit-precheck large-file block for this commit (sets `ALLOW_LARGE_COMMIT=1`) |
 | `--body <text>` | `-b` | No | Detailed commit body |
 | `--principal <name>` | `-p` | No | Override principal (default: from work item or env) |
 | `--staged` | — | No | Only commit staged changes (default: stage all with `git add -A`) |
@@ -213,6 +249,29 @@ When `commits.require_day_prefix` is `true` in `agency.yaml`, the message is use
 | 0 | Success (or nothing to commit) |
 | 1 | Missing message, missing work item, invalid work item format, missing stage, invalid stage, or commit failure |
 | 2 | Commit prefix validation failure (when `require_day_prefix` is enabled) |
+
+### Merge-commit auto-route (D41-R7)
+
+When invoked with a merge in progress (`.git/MERGE_HEAD` present) and no `--amend` / `--dry-run`, `git-safe-commit` short-circuits to `git commit --no-edit` to conclude the merge using git's default merge message. The normal work-item / message flow is skipped — you do not need `--no-work-item` mid-merge.
+
+If conflicts remain unresolved (unmerged index entries), the commit is blocked with a pointer to `git-safe resolve-conflict` / `git-safe rm` / `git-safe merge-abort`.
+
+This replaces the earlier `git-captain merge-continue` workaround for agents finishing a merge through the git-safe family.
+
+### Large-file gate (via `commit-precheck`)
+
+The pre-commit hook runs `commit-precheck`, which stats every staged file and enforces size thresholds:
+
+| Threshold | Default | Env override | Action |
+|---|---|---|---|
+| Warn | 1 MB (1048576 B) | `LARGE_FILE_WARN_BYTES` | Prints warning, commit proceeds |
+| Block | 10 MB (10485760 B) | `LARGE_FILE_BLOCK_BYTES` | Exits 2, commit aborted |
+
+**Bypass:** `git-safe-commit --allow-large` (one-shot) or export `ALLOW_LARGE_COMMIT=1`.
+
+**Permanent exemptions:** add one glob per line to `claude/config/large-file-exceptions.txt`. Matching is against full path or basename, `#` comments and blank lines ignored. Prefer narrow globs; use Git LFS for recurring large binaries.
+
+Rationale: GitHub soft-caps at 50 MB (warn) / 100 MB (reject). By then the commit is already local and requires history rewrite to remove. Catching at commit time avoids that.
 
 ---
 

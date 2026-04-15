@@ -2,59 +2,70 @@
 type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
-date: 2026-04-14
-trigger: session-end
+date: 2026-04-15
+trigger: session-compact
 ---
 
 ## Identity
 
-the-agency/jordan/devex — tech-lead on the devex workstream.
+the-agency/jordan/devex — tech-lead on the devex workstream. Mid-session compact — continuation, not resumption.
 
 ## Current State
 
-**Days 35-36 session.** Bootloader + contribution model shipped. Issue fixes done. git-safe PVR drafted. Waiting for captain to land devex on master.
+Day 41 / 0300 wakeup productive. Queue clear, waiting on captain direction.
 
-## What Shipped This Session
+## What Shipped This Session (devex branch)
 
-### Already committed on devex branch
-- **Bootloader refactoring** (f72d812) — 6600→690 words, 5 new ref docs, 11 ref-injector mappings, 19 hookify pointer updates
-- **MAR fixes + CI rework** (5c7f7e0) — 3 new workflows, ci-monitor tool, monitor-ci skill
-- **Contribution model** (434bc02) — skill-validation in precheck, docs, monofolk draft
-- **CODE_OF_CONDUCT.md** (5f08309) — Contributor Covenant v2.1
-- **Issue #74 + #50** (bccdb3d) — handoff clobber guard + dispatch filename uniqueness
-- **Merge main** (e2428bf) — resolved CLAUDE-THEAGENCY.md conflict (kept bootloader)
-- **git-safe PVR** (8546879) — draft PVR for git-safe + git-captain tools
+| Commit | What |
+|--------|------|
+| `e6b2c07` | Phase 2.1: BATS tests — git-safe (30) + git-captain (35), 65/65 passing |
+| `a8b4f76` | Phase 2.2: Receipt infrastructure Phase 2 — QG skill integration (quality-gate + iteration-complete + phase-complete now use receipt-sign with five-hash chain) |
+| `5e81385` | Phase 2.3: Scaffold PVR — resolved open questions (apps/+packages/, pnpm, vitest) pending monofolk confirmation |
+| `2e5fec6` | Phase 2.4: End-to-end receipt infrastructure verification — diff-hash → receipt-sign → receipt-verify chain validated |
+| `0188a9b` | Phase 2.5: archive dispatches |
+| `2187cac` | misc: archive commit-dispatch artifact |
 
-### Workshop repo (separate repo, pushed)
-- https://github.com/the-agency-ai/the-agency-workshop — bootstrap.sh, workshop-start.sh, vercel-setup.sh, CLAUDE.md, pre-flight checklist
+## Phase 2 Integration Summary
 
-## Lessons Learned (HARD)
-- **Never squash commits** — `git reset --soft` destroyed 35 commits. Recovered via reflog.
-- **Never use raw git** — use tools/skills. git-safe seed (#238/#239/#240) will enforce this mechanically.
-- **Don't echo monitor events** — dispatch monitor notifications are for silent processing, not stdout.
+All three QG skills now use the receipt infrastructure:
+- `/quality-gate`: five-hash chain (A before review, B findings, C triage, D transcript or =C, E final) + receipt-sign write
+- `/iteration-complete`: determines prior-iteration base ref, passes `--base` to /quality-gate
+- `/phase-complete`: determines phase-start base ref, passes `--base` to /quality-gate
 
-## Queue
+Old usr/{principal}/{project}/qgr-*.md logic REMOVED from Step 10. Backward-compat noted — receipt-verify reads old format during transition.
 
-### Immediate: git-safe + git-captain (dispatches #238/#239/#240)
-- PVR written: `claude/workstreams/devex/git-safe-pvr-20260414.md`
-- **3 open questions** pending principal input:
-  1. git stash — include in git-safe or leave internal to worktree-sync?
-  2. git add -A — block or warn?
-  3. git-safe subsume /git-safe-commit? (my rec: NO)
-- Next: A&D → Plan → Implement after questions answered
+## Rough Edges Found (reported to captain #331)
 
-### Waiting on captain
-- Land devex on master (dispatch #237) — 36 commits ahead of main
-- Send monofolk Ring 2 transition (dispatch #209)
-- Close issue #58 on GitHub
+1. **MINOR**: diff-hash silently returns empty hash when cwd is outside a git repo. Should resolve to repo root via _path-resolve, or fail loudly.
+2. **MINOR**: receipt-verify stale detection works on committed state only — A&D §6 should clarify "on disk" means "committed state", not working tree.
 
-### Lower priority
-- Dispatch #200 (SPEC:PROVIDER NestJS/React)
-- Task #16 (test isolation SPEC:PROVIDER) — paused on monofolk RFI #176
+## In Progress
 
-## Next Action
+Nothing. Queue clear.
 
-1. Cycle session (bootloader rollout per dispatch #242)
-2. /session-resume in fresh session
-3. Get answers to 3 PVR questions
-4. A&D → Plan → Implement for git-safe + git-captain
+## What's Next (Immediate)
+
+1. Await captain response to #331 (rough edges for potential Phase 2 follow-up)
+2. Monitor for new dispatches
+3. If captain greenlights: start scaffold A&D (PVR is ready)
+4. If monofolk responds to #284 RFI: update scaffold PVR with their answers
+
+## Key Context for Continuation
+
+- Branch protection is LIVE on main (PR required, smoke check, force-push blocked, admins exempt)
+- git-safe family shipped and landed on main (captain's version; complementary to captain's git-push/cp-safe/pr-create)
+- Receipt infrastructure Phase 1 = captain shipped; Phase 2 = me (this session); Phase 3 (RG for methodology artifacts) = future
+- Scaffold PVR is A&D-ready with captain-approved defaults
+- Monofolk RFI for scaffold still in flight via captain's /collaborate
+
+## Open Items
+
+- Monofolk response to #284 (scaffold RFI) — pending
+- Captain response to #331 (rough edges) — pending
+- Task #16 SPEC:PROVIDER future fold — deferred until monofolk's SPEC:PROVIDER design matures
+
+## Notes
+
+- The git-safe family means no raw git. Use /git-safe, /git-safe-commit, /git-captain.
+- block-raw-tools.sh enforces mechanically. If blocked, use the tool.
+- Commits via /git-safe-commit auto-dispatch to captain — no need to manually dispatch after commits.

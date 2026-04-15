@@ -29,6 +29,7 @@
 #   --work-item, -w   Work item ID (REQUEST-jordan-0065, SPRINT-web-2026w03, etc.)
 #   --stage, -s       Stage: impl, review, tests (required if work-item provided)
 #   --no-work-item    Escape hatch when no work item applies (skip work-item requirement)
+#   --allow-large     Bypass commit-precheck large-file block (single-commit override)
 #   --body, -b        Detailed commit body
 #   --principal, -p   Override principal (default: from config or work item)
 #   --no-verify       Skip pre-commit hooks
@@ -84,6 +85,7 @@ DRY_RUN=false
 STAGED_ONLY=false
 VERBOSE=false
 NO_WORK_ITEM=false
+ALLOW_LARGE=false
 WORK_ITEM=""
 STAGE=""
 BODY=""
@@ -126,6 +128,13 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-work-item)
             NO_WORK_ITEM=true
+            shift
+            ;;
+        --allow-large)
+            # Override commit-precheck large-file block for this commit.
+            # Exported so the pre-commit hook inherits it.
+            ALLOW_LARGE=true
+            export ALLOW_LARGE_COMMIT=1
             shift
             ;;
         --work-item|-w)
@@ -183,6 +192,51 @@ main() {
     trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
 
     echo "commit [run: ${RUN_ID:-none}]"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Merge-commit auto-route (D41-R7 — monofolk BLOCKER).
+    #
+    # If a merge is in progress (MERGE_HEAD exists), `git commit --no-edit`
+    # concludes it using the default merge message. git-safe-commit's normal
+    # message/work-item flow does not apply to merge commits — the merge
+    # message is standardized by git and the "author" is the merger, not the
+    # work. Auto-detect and short-circuit.
+    #
+    # --amend still wins (user explicitly wants to amend) and --dry-run still
+    # previews, but for the common case (agent resolved conflicts and wants
+    # to finalize the merge) just running `git-safe-commit` does the right
+    # thing. Replaces the git-captain merge-continue workaround for agents.
+    # ─────────────────────────────────────────────────────────────────────────
+    local git_dir_mrg
+    git_dir_mrg=$(git rev-parse --git-dir 2>/dev/null) || true
+    if [[ -n "$git_dir_mrg" && -f "$git_dir_mrg/MERGE_HEAD" && "$AMEND" = false && "$DRY_RUN" = false ]]; then
+        echo -e "${BLUE}[INFO]${NC} Merge in progress detected — concluding with 'git commit --no-edit'."
+        # Verify no remaining conflicts
+        if git ls-files -u | grep -q .; then
+            log_error "Merge has unresolved conflicts. Resolve with:"
+            echo "  ./claude/tools/git-safe resolve-conflict <file> --ours|--theirs"
+            echo "  ./claude/tools/git-safe rm <file>       # delete-as-resolution"
+            echo "  ./claude/tools/git-safe merge-abort     # bail out"
+            trap - EXIT
+            log_end "$RUN_ID" "failure" 1 0 "Merge has unresolved conflicts"
+            exit 1
+        fi
+        local merge_cmd=(git commit --no-edit)
+        [[ "$NO_VERIFY" = true ]] && merge_cmd+=(--no-verify)
+        if "${merge_cmd[@]}"; then
+            local merge_hash
+            merge_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+            echo -e "${GREEN}Merge committed:${NC} $merge_hash"
+            trap - EXIT
+            log_end "$RUN_ID" "success" 0 0 "Merge commit $merge_hash"
+            exit 0
+        else
+            log_error "git commit --no-edit failed."
+            trap - EXIT
+            log_end "$RUN_ID" "failure" 1 0 "Merge commit failed"
+            exit 1
+        fi
+    fi
 
     if [ -z "$MESSAGE" ]; then
         log_error "Commit message required"

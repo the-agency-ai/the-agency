@@ -186,6 +186,110 @@ main() {
         fi
     fi
 
+    # ────────────────────────────────────────────────────────────────────────
+    # Gate 1: Large-file blocker (D41-Rn — monofolk REQUEST, dispatch #369/#371)
+    #
+    # Block commits that stage files above BLOCK_BYTES; warn above WARN_BYTES.
+    # Rationale: large binaries pollute history and inflate clones forever.
+    # GitHub soft-caps at 50MB warn / 100MB reject — by that point the commit
+    # is already local and requires history rewrite to remove.
+    #
+    # Defaults: warn at 1 MB, block at 10 MB.
+    # Env overrides: LARGE_FILE_WARN_BYTES, LARGE_FILE_BLOCK_BYTES.
+    # Bypass: ALLOW_LARGE_COMMIT=1 (set by git-safe-commit --allow-large).
+    # Exceptions: claude/config/large-file-exceptions.txt (one glob per line).
+    # ────────────────────────────────────────────────────────────────────────
+    check_large_files() {
+        local warn_bytes="${LARGE_FILE_WARN_BYTES:-1048576}"     # 1 MB
+        local block_bytes="${LARGE_FILE_BLOCK_BYTES:-10485760}"  # 10 MB
+        local exceptions_file="$REPO_ROOT/claude/config/large-file-exceptions.txt"
+        local exceptions=()
+        if [[ -f "$exceptions_file" ]]; then
+            while IFS= read -r line; do
+                # Skip blanks and comments
+                [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+                exceptions+=("$line")
+            done < "$exceptions_file"
+        fi
+
+        # QG fix (D41-R4+R6+R7): set globstar once outside the per-file loop.
+        # NOTE on pattern matching: bash `[[ "$f" == $pat ]]` uses fnmatch-style
+        # pattern matching, not pathname expansion, so `**` in $pat reduces to
+        # `*` regardless of globstar. Patterns in large-file-exceptions.txt
+        # should be literal globs like `*.bin` or `apps/*/dist/*`. We match
+        # against both the full path and the basename to cover common cases.
+        shopt -s globstar 2>/dev/null || true
+
+        local staged
+        staged=$(git diff --cached --name-only --diff-filter=AM)
+        [[ -z "$staged" ]] && return 0
+
+        local blocked=()
+        local warned=()
+        while IFS= read -r f; do
+            [[ -z "$f" || ! -f "$f" ]] && continue
+            # Check exceptions — match against full path OR basename.
+            local is_exempt=false
+            local base="${f##*/}"
+            for pat in "${exceptions[@]+"${exceptions[@]}"}"; do
+                # shellcheck disable=SC2053
+                if [[ "$f" == $pat || "$base" == $pat ]]; then is_exempt=true; break; fi
+            done
+            [[ "$is_exempt" == "true" ]] && continue
+
+            local size
+            if size=$(wc -c < "$f" 2>/dev/null); then
+                size=$(echo "$size" | tr -d ' ')
+            else
+                continue
+            fi
+            if [[ "$size" -gt "$block_bytes" ]]; then
+                blocked+=("$f|$size")
+            elif [[ "$size" -gt "$warn_bytes" ]]; then
+                warned+=("$f|$size")
+            fi
+        done <<< "$staged"
+
+        # Warn (informational, doesn't block)
+        if [[ ${#warned[@]} -gt 0 ]]; then
+            echo "⚠ Large file warning (>$(( warn_bytes / 1048576 )) MB):" >&2
+            for entry in "${warned[@]}"; do
+                local path="${entry%|*}" sz="${entry#*|}"
+                printf "  %s  %.2f MB\n" "$path" "$(echo "scale=2; $sz / 1048576" | bc 2>/dev/null || echo "?")" >&2
+            done
+        fi
+
+        # Block (unless overridden)
+        if [[ ${#blocked[@]} -gt 0 ]]; then
+            if [[ "${ALLOW_LARGE_COMMIT:-}" == "1" ]]; then
+                echo "⚠ ALLOW_LARGE_COMMIT=1 — proceeding with large files:" >&2
+                for entry in "${blocked[@]}"; do
+                    local path="${entry%|*}" sz="${entry#*|}"
+                    printf "  %s  %.2f MB\n" "$path" "$(echo "scale=2; $sz / 1048576" | bc 2>/dev/null || echo "?")" >&2
+                done
+                return 0
+            fi
+            echo "✗ BLOCKED: staged file(s) exceed size threshold ($(( block_bytes / 1048576 )) MB):" >&2
+            for entry in "${blocked[@]}"; do
+                local path="${entry%|*}" sz="${entry#*|}"
+                printf "  %s  %.2f MB\n" "$path" "$(echo "scale=2; $sz / 1048576" | bc 2>/dev/null || echo "?")" >&2
+            done
+            cat >&2 <<'EOF'
+
+If this is intentional:
+  1. Use Git LFS:      git lfs track '*.bin' && git add .gitattributes
+  2. Override once:    ./claude/tools/git-safe-commit --allow-large ...
+  3. Permanent exempt: add glob to claude/config/large-file-exceptions.txt
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+EOF
+            end_run "blocked" "Large file exceeds block threshold"
+            exit 2
+        fi
+        return 0
+    }
+    check_large_files
+
     # No staged changes = nothing to check
     if git diff --cached --quiet; then
         log_info "No staged changes"
