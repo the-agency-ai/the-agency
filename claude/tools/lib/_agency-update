@@ -124,6 +124,13 @@ _update_main() {
         local dirty_framework dirty_all
         dirty_all=$(git -C "$TARGET_DIR" status --porcelain -- \
             'claude/' '.claude/' 2>/dev/null || true)
+        # D41-R27 (live blocker 2026-04-15 ~21:00): filter out auto-appended
+        # runtime state that should never trigger the gate. .claude/logs/ is
+        # tool telemetry (every tool run appends; gitignored by the framework
+        # template but may be tracked in adopter repos that init'd before the
+        # template existed). claude/logs/ same reason (agency service logs).
+        # These are NOT framework changes — exclude from dirty detection.
+        dirty_all=$(echo "$dirty_all" | grep -v -E '^ ?[A-Z?] (\.claude/logs/|claude/logs/)' || true)
         # QG fix (D41-R4+R6+R7): count from the full porcelain output, then
         # truncate to 20 lines for display. Earlier code counted after head -20
         # which under-reported when more than 20 files were dirty.
@@ -573,6 +580,23 @@ UPDATE_EOF
     fi
 
     log_info "Update handoff written"
+
+    # =====================================================================
+    # D41-R27: merge framework .gitignore block (idempotent)
+    # Existing adopters that init'd before R27 don't have .claude/logs/ in
+    # their .gitignore. On every `agency update`, ensure the framework block
+    # is present. Marker string is used to detect existing block — if found,
+    # leave alone (no-op). If absent, append.
+    # =====================================================================
+    local gitignore_template="$SOURCE_DIR/claude/templates/gitignore-framework"
+    local gitignore_target="$TARGET_DIR/.gitignore"
+    if [[ "$DRY_RUN" == "false" && -f "$gitignore_template" ]]; then
+        if [[ ! -f "$gitignore_target" ]] || ! grep -q "Agency framework-managed ignores" "$gitignore_target" 2>/dev/null; then
+            [[ -f "$gitignore_target" ]] && echo "" >> "$gitignore_target"
+            cat "$gitignore_template" >> "$gitignore_target"
+            log_info "Appended framework .gitignore block to $gitignore_target"
+        fi
+    fi
 
     # =====================================================================
     # Done

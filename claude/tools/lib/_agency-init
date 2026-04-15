@@ -476,6 +476,24 @@ YAML_EOF
     log_info "Installed all tools (directory-level copy)"
 
     # =====================================================================
+    # Step 4b: Framework .gitignore block
+    # D41-R27 — ensure adopter's .gitignore contains the framework-managed
+    # ignores. Without this, runtime log files (.claude/logs/tool-runs.jsonl)
+    # and agency service logs show up as dirty on every `agency update` and
+    # block the update via the dirty-tree gate. Merge idempotently: if the
+    # block marker already exists, leave existing ignores alone.
+    # =====================================================================
+    local gitignore_template="$AGENCY_SOURCE/claude/templates/gitignore-framework"
+    local gitignore_target="$TARGET_DIR/.gitignore"
+    if [[ -f "$gitignore_template" ]]; then
+        if [[ ! -f "$gitignore_target" ]] || ! grep -q "Agency framework-managed ignores" "$gitignore_target" 2>/dev/null; then
+            [[ -f "$gitignore_target" ]] && echo "" >> "$gitignore_target"
+            cat "$gitignore_template" >> "$gitignore_target"
+            log_info "Appended framework .gitignore block"
+        fi
+    fi
+
+    # =====================================================================
     # Step 5: Principal directory
     # =====================================================================
     log_step "Scaffolding usr/$PRINCIPAL/"
