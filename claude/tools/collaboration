@@ -106,28 +106,44 @@ _resolve_identity() {
 }
 
 _update_frontmatter_status() {
-    # Update status field in YAML frontmatter of a dispatch file
-    # Bug fix: if no status field exists, add one after the subject line
+    # Update status field in YAML frontmatter of a dispatch file.
+    # Operates ONLY on the frontmatter block (between first two ^---$ markers)
+    # to avoid false matches in the body (e.g., a reply quoting another
+    # dispatch header). Replaces existing status; inserts before closing ---
+    # if absent. Atomic via temp file.
+    #
+    # PR #87 review fixes (D41-R3):
+    # - Frontmatter-scoped (was: matched body lines)
+    # - awk-based (was: BSD sed `i\` + `}` quoting was unreliable)
     local file="$1" new_status="$2"
     if [[ ! -f "$file" ]]; then
         echo "ERROR: file not found: $file" >&2
         return 1
     fi
-    if grep -q '^status: ' "$file" 2>/dev/null; then
-        # Replace existing status
-        sed -i '' "s/^status: .*/status: ${new_status}/" "$file"
-    else
-        # No status field — add after subject line (or after last --- if no subject)
-        if grep -q '^subject: ' "$file" 2>/dev/null; then
-            sed -i '' "/^subject: /a\\
-status: ${new_status}" "$file"
-        else
-            # Add before closing frontmatter marker
-            sed -i '' "0,/^---$/! { /^---$/i\\
-status: ${new_status}
-}" "$file"
-        fi
-    fi
+
+    local tmp
+    tmp=$(mktemp) || { echo "ERROR: mktemp failed" >&2; return 1; }
+
+    awk -v new_status="$new_status" '
+        BEGIN { in_fm = 0; fm_done = 0; saw_status = 0; opened = 0 }
+        # Track frontmatter boundaries: first --- opens, second --- closes.
+        /^---[[:space:]]*$/ {
+            if (!opened) { opened = 1; in_fm = 1; print; next }
+            if (in_fm && !fm_done) {
+                if (!saw_status) print "status: " new_status
+                in_fm = 0; fm_done = 1; print; next
+            }
+        }
+        # Inside frontmatter: rewrite status: lines, pass others.
+        in_fm && /^status:[[:space:]]/ {
+            print "status: " new_status
+            saw_status = 1
+            next
+        }
+        { print }
+    ' "$file" > "$tmp" || { rm -f "$tmp"; echo "ERROR: awk failed" >&2; return 1; }
+
+    mv "$tmp" "$file"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -162,33 +178,64 @@ cmd_check() {
             continue
         fi
 
-        # Pull latest — stash dirty state first (status markers from resolve)
-        local pull_output stashed=false
+        # Pull latest — stash dirty state first (status markers from resolve).
+        # PR #87 review fix (D41-R3): detect stash creation by stash-list delta,
+        # not by `git stash` exit code — `git stash` returns 0 even when it
+        # creates no new entry (e.g., tracked-file no-op). Popping in that case
+        # would restore an UNRELATED older stash.
+        local pull_output stashed=false stash_before stash_after
+        stash_before=$(cd "$full_path" && git stash list 2>/dev/null | wc -l | tr -d ' ')
         if [[ -n "$(cd "$full_path" && git status --porcelain 2>/dev/null)" ]]; then
-            (cd "$full_path" && git stash -q 2>/dev/null) && stashed=true
+            (cd "$full_path" && git stash push -q -u -m "collaboration-check" 2>/dev/null) || true
+            stash_after=$(cd "$full_path" && git stash list 2>/dev/null | wc -l | tr -d ' ')
+            [[ "$stash_after" -gt "$stash_before" ]] && stashed=true
         fi
         pull_output=$(cd "$full_path" && git pull --rebase 2>&1) || {
             results+=("⚠ $name: git pull failed — ${pull_output%%$'\n'*}")
-            $stashed && (cd "$full_path" && git stash pop -q 2>/dev/null)
+            if $stashed; then
+                (cd "$full_path" && git stash pop -q 2>/dev/null) || \
+                    results+=("⚠ $name: stash pop failed — resolve manually in $full_path")
+            fi
             continue
         }
-        $stashed && (cd "$full_path" && git stash pop -q 2>/dev/null)
+        if $stashed; then
+            (cd "$full_path" && git stash pop -q 2>/dev/null) || \
+                results+=("⚠ $name: stash pop failed after pull — resolve manually in $full_path")
+        fi
 
         local inbound_path="$full_path/$inbound"
         [[ -d "$inbound_path" ]] || continue
 
-        # Scan for unread dispatches
-        # Bug fix: incoming dispatches from other repos arrive WITHOUT a status field.
-        # Old logic grepped for 'status: unread' which missed all new dispatches.
-        # New logic: find all .md files that are NOT marked read or resolved.
+        # Scan for unread dispatches.
+        # Incoming cross-repo dispatches arrive WITHOUT a status field; old
+        # logic looked for `status: unread` and missed them all.
+        # PR #87 review fix (D41-R3): inspect frontmatter ONLY (between first
+        # two ^---$ markers). A reply that quotes another dispatch header in
+        # its body would otherwise be a false negative ("status: resolved"
+        # appearing in body would mark a legitimately unread dispatch as read).
         local unread_files=""
+        shopt -s nullglob
         for candidate in "$inbound_path"/*.md; do
             [[ -f "$candidate" ]] || continue
-            if ! grep -q 'status: \(read\|resolved\)' "$candidate" 2>/dev/null; then
+            local fm_status
+            fm_status=$(awk '
+                BEGIN { in_fm = 0; opened = 0 }
+                /^---[[:space:]]*$/ {
+                    if (!opened) { opened = 1; in_fm = 1; next }
+                    if (in_fm)   { exit }
+                }
+                in_fm && /^status:[[:space:]]/ {
+                    sub(/^status:[[:space:]]*/, "")
+                    print
+                    exit
+                }
+            ' "$candidate" 2>/dev/null)
+            if [[ "$fm_status" != "read" && "$fm_status" != "resolved" ]]; then
                 unread_files="${unread_files:+$unread_files
 }$candidate"
             fi
         done
+        shopt -u nullglob
 
         if [[ -n "$unread_files" ]]; then
             found_any=true
@@ -522,6 +569,9 @@ cmd_push() {
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
+
+# When sourced (e.g., from BATS tests), expose helpers without dispatching.
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && return 0 2>/dev/null || true
 
 case "${1:-}" in
     --version) echo "collaboration $TOOL_VERSION"; exit 0 ;;
