@@ -59,7 +59,10 @@ Subcommands:
   push [args]                    Push to remote (blocks main/master, blocks bare --force)
   fetch                          Fetch from origin
   tag <name> [-m <msg>]          Create annotated tag
-  branch-delete <name>           Safe-delete a branch (-d, not -D)
+  branch-delete <name> [--force] Safe-delete a branch (-d). With --force,
+                                 force-delete (-D) — required for post-merge
+                                 cleanup of branches with unreachable commits
+                                 (RGR receipts, dispatch artifacts, etc.).
 
 Options:
   --help                         Show this help
@@ -295,12 +298,32 @@ cmd_tag() {
 
 # --- Subcommand: branch-delete ---
 cmd_branch_delete() {
-    [[ $# -eq 0 ]] && die "Usage: git-captain branch-delete <name>"
+    [[ $# -eq 0 ]] && die "Usage: git-captain branch-delete <name> [--force]"
 
-    local name="$1"
+    local name=""
+    local force=false
+
+    # Parse: name plus optional --force / -f. Order-independent.
+    for arg in "$@"; do
+        case "$arg" in
+            --force|-f) force=true ;;
+            -*) die "Unknown flag: $arg" ;;
+            *)
+                if [[ -z "$name" ]]; then
+                    name="$arg"
+                else
+                    die "Unexpected argument: $arg (only one branch name allowed)"
+                fi
+                ;;
+        esac
+    done
+
+    [[ -z "$name" ]] && die "Usage: git-captain branch-delete <name> [--force]"
+
     local main_branch
     main_branch=$(detect_main_branch)
 
+    # Same protections apply with or without --force
     if [[ "$name" == "$main_branch" ]]; then
         die "Cannot delete $main_branch."
     fi
@@ -312,10 +335,21 @@ cmd_branch_delete() {
         die "Cannot delete the current branch ($name). Switch to another branch first."
     fi
 
-    if git branch -d "$name"; then
-        echo "${GREEN}Deleted branch:${NC} $name"
+    # D41-R21 (issue #110): --force enables -D for post-merge cleanup of
+    # branches with unreachable commits (RGR receipts, dispatch artifacts).
+    # Without --force, safe -d behavior is unchanged.
+    if [[ "$force" == "true" ]]; then
+        if git branch -D "$name"; then
+            echo "${GREEN}Force-deleted branch:${NC} $name"
+        else
+            die "git branch -D '$name' failed (does the branch exist?)"
+        fi
     else
-        die "Branch '$name' has unmerged changes. Merge first or use raw 'git branch -D' if you are certain."
+        if git branch -d "$name"; then
+            echo "${GREEN}Deleted branch:${NC} $name"
+        else
+            die "Branch '$name' has unmerged changes. Re-run with --force for post-merge cleanup, or merge first if changes still matter."
+        fi
     fi
 }
 
