@@ -370,3 +370,77 @@ make_feature_branch() {
     assert_failure
     assert_output_contains "Usage:"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R21: --force flag for post-merge cleanup (issue #110)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "branch-delete --force: deletes unmerged branch (post-merge cleanup case)" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b unmerged-r21
+    echo "RGR receipt content" > rgr.md
+    git add rgr.md
+    git commit -q -m "RGR receipt — not in main"
+    git checkout -q main
+    # Without --force: refuses (existing behavior, regression-anchored above)
+    # With --force: succeeds
+    run ./claude/tools/git-captain branch-delete unmerged-r21 --force
+    assert_success
+    assert_output_contains "Force-deleted branch"
+    # Confirm branch is gone
+    run git rev-parse --verify unmerged-r21
+    assert_failure
+}
+
+@test "branch-delete -f: short form works the same way" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b unmerged-r21-short
+    echo "x" > a && git add a && git commit -q -m "unreachable"
+    git checkout -q main
+    run ./claude/tools/git-captain branch-delete unmerged-r21-short -f
+    assert_success
+    assert_output_contains "Force-deleted branch"
+}
+
+@test "branch-delete --force: still refuses to delete main" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b sidekick-r21
+    run ./claude/tools/git-captain branch-delete main --force
+    assert_failure
+    assert_output_contains "Cannot delete main"
+}
+
+@test "branch-delete --force: still refuses to delete current branch" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b currentb-r21
+    run ./claude/tools/git-captain branch-delete currentb-r21 --force
+    assert_failure
+    assert_output_contains "Cannot delete the current branch"
+}
+
+@test "branch-delete: error message points at --force when safe-delete fails" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b unmerged-r21-msg
+    echo "x" > b && git add b && git commit -q -m "unreachable"
+    git checkout -q main
+    run ./claude/tools/git-captain branch-delete unmerged-r21-msg
+    assert_failure
+    # New error message includes --force guidance
+    assert_output_contains "--force"
+}
+
+@test "branch-delete: --help mentions --force flag" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain --help
+    assert_success
+    assert_output_contains "branch-delete"
+    assert_output_contains "force"
+}
+
+@test "branch-delete: rejects unknown flag" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b sidekick-bogus
+    run ./claude/tools/git-captain branch-delete sidekick-bogus --bogus
+    assert_failure
+    assert_output_contains "Unknown flag"
+}

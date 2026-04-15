@@ -77,8 +77,14 @@ If the version format doesn't match D#-R# (e.g., a hotfix PR), use the PR number
 ### Step 7: Clean up PR branch
 
 If the PR's head branch still exists locally:
-- `git branch -d {branch}` (safe delete)
-- If it refuses (unmerged), note it and move on
+
+```
+./claude/tools/git-captain branch-delete {branch} --force
+```
+
+`--force` is required for post-merge cleanup because the local PR branch typically contains commits not reachable from main's history (RGR receipts, dispatch artifacts). Safe `-d` would refuse. The `--force` flag is gated for exactly this case (added in D41-R21, issue #110). The same protections apply: cannot delete `main`, cannot delete the current branch.
+
+If the branch doesn't exist locally (e.g. you `pr-merge --delete-branch` already removed the remote and you never had a local copy), this step is a no-op — move on.
 
 ### Step 8: Report
 
