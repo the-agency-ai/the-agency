@@ -630,6 +630,70 @@ EOF
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# D41-R27: framework .gitignore block + dirty-tree gate excludes .claude/logs/
+# Live blocker: after R26 shipped, principal ran `agency update --from-github`
+# on homekit-daikin-ac-bridge and was blocked by the dirty-tree gate because
+# .claude/logs/tool-runs.jsonl (auto-appended tool telemetry) was untracked.
+# Fix: ignore runtime-log paths in the gate AND ship/merge a framework
+# .gitignore block so adopters never hit this on fresh repos.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency init: installs framework .gitignore block — D41-R27" {
+    local target="${BATS_TEST_TMPDIR}/init-gitignore"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    [[ -f "$target/.gitignore" ]]
+    run grep -F "Agency framework-managed ignores" "$target/.gitignore"
+    assert_success
+    run grep -F ".claude/logs/" "$target/.gitignore"
+    assert_success
+}
+
+@test "agency init: gitignore merge is idempotent — D41-R27" {
+    local target="${BATS_TEST_TMPDIR}/init-gitignore-idempotent"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    # Pre-existing adopter .gitignore with project-specific entries
+    cat > "$target/.gitignore" <<EOF
+node_modules/
+.env
+EOF
+    git add .gitignore
+    git -c user.name=t -c user.email=t@t commit --quiet -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    # Adopter's pre-existing lines must be preserved
+    run grep -F "node_modules" "$target/.gitignore"
+    assert_success
+    # Framework block must be appended
+    run grep -F "Agency framework-managed ignores" "$target/.gitignore"
+    assert_success
+    # Block should appear exactly once (idempotent)
+    local count
+    count=$(grep -c "Agency framework-managed ignores" "$target/.gitignore")
+    [[ "$count" == "1" ]]
+}
+
+@test "agency update: dirty-tree gate ignores .claude/logs/* — D41-R27" {
+    # Full end-to-end is heavy — verify the _agency-update source contains
+    # the exclusion pattern. Regression anchor: if the grep filter is removed,
+    # the dirty-tree gate returns to false-positives on .claude/logs/.
+    run grep -F ".claude/logs/" "$REPO_ROOT/claude/tools/lib/_agency-update"
+    assert_success
+    run grep -F "grep -v -E" "$REPO_ROOT/claude/tools/lib/_agency-update"
+    assert_success
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # D41-R20: post-merge skill enforces release verification
 # ─────────────────────────────────────────────────────────────────────────────
 

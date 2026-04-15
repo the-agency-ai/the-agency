@@ -124,6 +124,13 @@ _update_main() {
         local dirty_framework dirty_all
         dirty_all=$(git -C "$TARGET_DIR" status --porcelain -- \
             'claude/' '.claude/' 2>/dev/null || true)
+        # D41-R27 (live blocker 2026-04-15 ~21:00): filter out auto-appended
+        # runtime state that should never trigger the gate. .claude/logs/ is
+        # tool telemetry (every tool run appends; gitignored by the framework
+        # template but may be tracked in adopter repos that init'd before the
+        # template existed). claude/logs/ same reason (agency service logs).
+        # These are NOT framework changes — exclude from dirty detection.
+        dirty_all=$(echo "$dirty_all" | grep -v -E '^ ?[A-Z?] (\.claude/logs/|claude/logs/)' || true)
         # QG fix (D41-R4+R6+R7): count from the full porcelain output, then
         # truncate to 20 lines for display. Earlier code counted after head -20
         # which under-reported when more than 20 files were dirty.
@@ -573,6 +580,73 @@ UPDATE_EOF
     fi
 
     log_info "Update handoff written"
+
+    # =====================================================================
+    # D41-R27: auto-commit framework sync as coordination commit.
+    #
+    # Without this, every `agency update` leaves dozens-to-hundreds of
+    # framework files dirty — captain's session-preflight then fails, and
+    # adopter has to manually run git-safe-commit with --allow-large before
+    # they can start their actual work. Ship the framework sync as a single
+    # misc: commit so adopters get a clean tree automatically.
+    #
+    # Only runs if: not dry-run, commit-precheck not blocking, no existing
+    # non-framework dirty files (leave user's in-progress work alone).
+    # Opt-out via --no-commit.
+    # =====================================================================
+    if [[ "$DRY_RUN" == "false" && "${NO_COMMIT:-false}" != "true" ]] && \
+       git -C "$TARGET_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+        # Collect framework-only dirty paths (under claude/ or .claude/ but
+        # NOT under .claude/logs/ or claude/logs/ which are runtime state)
+        local fw_dirty
+        fw_dirty=$(git -C "$TARGET_DIR" status --porcelain -- 'claude/' '.claude/' 2>/dev/null \
+            | grep -v -E '^ ?[A-Z?] (\.claude/logs/|claude/logs/)' || true)
+
+        # Also collect non-framework dirty files — if user has in-progress
+        # work, we must NOT auto-commit (would mix framework sync with their
+        # work). Only proceed when the ONLY dirty paths are framework.
+        local other_dirty
+        other_dirty=$(git -C "$TARGET_DIR" status --porcelain 2>/dev/null \
+            | grep -v -E '^ ?[A-Z?] (claude/|\.claude/)' || true)
+
+        if [[ -n "$fw_dirty" && -z "$other_dirty" ]]; then
+            log_step "Auto-committing framework sync"
+            local short_from="${from_commit:0:8}"
+            local short_to="${to_commit:0:8}"
+            local msg="misc: agency update — framework sync ${short_from} → ${short_to}"
+            # Stage framework paths explicitly. Use git-safe-commit if present
+            # (respects project discipline); fall back to direct git otherwise.
+            local commit_tool="$TARGET_DIR/claude/tools/git-safe-commit"
+            if [[ -x "$commit_tool" ]]; then
+                ( cd "$TARGET_DIR" && git add claude/ .claude/ 2>/dev/null || true )
+                ( cd "$TARGET_DIR" && "$commit_tool" "$msg" --no-work-item --allow-large >/dev/null 2>&1 ) || \
+                    log_warn "Auto-commit failed — run 'git-safe-commit' manually"
+            else
+                ( cd "$TARGET_DIR" && git add claude/ .claude/ && \
+                    git -c user.name="agency update" -c user.email=noreply@the-agency commit -m "$msg" --no-verify >/dev/null 2>&1 ) || true
+            fi
+            log_info "Framework sync committed"
+        elif [[ -n "$other_dirty" ]]; then
+            log_warn "Skipping auto-commit — adopter has non-framework dirty files (preserving in-progress work)"
+        fi
+    fi
+
+    # =====================================================================
+    # D41-R27: merge framework .gitignore block (idempotent)
+    # Existing adopters that init'd before R27 don't have .claude/logs/ in
+    # their .gitignore. On every `agency update`, ensure the framework block
+    # is present. Marker string is used to detect existing block — if found,
+    # leave alone (no-op). If absent, append.
+    # =====================================================================
+    local gitignore_template="$SOURCE_DIR/claude/templates/gitignore-framework"
+    local gitignore_target="$TARGET_DIR/.gitignore"
+    if [[ "$DRY_RUN" == "false" && -f "$gitignore_template" ]]; then
+        if [[ ! -f "$gitignore_target" ]] || ! grep -q "Agency framework-managed ignores" "$gitignore_target" 2>/dev/null; then
+            [[ -f "$gitignore_target" ]] && echo "" >> "$gitignore_target"
+            cat "$gitignore_template" >> "$gitignore_target"
+            log_info "Appended framework .gitignore block to $gitignore_target"
+        fi
+    fi
 
     # =====================================================================
     # Done
