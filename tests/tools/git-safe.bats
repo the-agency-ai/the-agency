@@ -616,3 +616,35 @@ _setup_conflict() {
     run grep -F "git-safe config --local commit.gpgsign false" "$REPO_ROOT/claude/tools/git-safe-commit"
     assert_success
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R28: stash subcommand (issue #126)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "stash: list works on empty repo — D41-R28" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe stash list
+    assert_success
+}
+
+@test "stash: unknown subcommand fails — D41-R28" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe stash bogus
+    assert_failure
+    assert_output_contains "Unknown stash subcommand"
+}
+
+@test "stash: no args prints usage — D41-R28" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe stash
+    assert_failure
+    assert_output_contains "Usage"
+}
+
+@test "git-safe --help mentions stash subcommand — D41-R28" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe --help
+    assert_success
+    assert_output_contains "stash push"
+    assert_output_contains "stash pop"
+}
