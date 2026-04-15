@@ -391,15 +391,28 @@ YAML_EOF
     # =====================================================================
     # Step 4: Tools
     # =====================================================================
+    # D41-R25 HOTFIX: Previously this block used a hardcoded list of tools
+    # to copy (frozen ~D35 with ~30 tools). Framework grew to 60+ tools
+    # by D41 (safe-tools family, receipt infra, agent-bootstrap, collaboration,
+    # ISCP, sandbox-*, principal-onboard, etc.) — every tool added after the
+    # freeze was absent from fresh inits, breaking hooks and preflight on
+    # first `claude --agent captain` run. Surfaced live in homekit-daikin-ac-bridge
+    # init (2026-04-15 ~20:30 UTC). Now copies all top-level files under
+    # claude/tools/ and all libs under claude/tools/lib/ — new tools auto-install
+    # with zero maintenance on this block.
     log_step "Installing tools"
 
     mkdir -p "$TARGET_DIR/claude/tools/lib"
-    # Copy shared libs
-    for lib in _log-helper _path-resolve _provider-resolve _address-parse; do
-        [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
-    done
-    # Copy test isolation library
-    [[ -f "$AGENCY_SOURCE/claude/tools/lib/_test-isolation" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/_test-isolation" "$TARGET_DIR/claude/tools/lib/"
+
+    # Copy ALL libs from source. Skip subdirectories (e.g. tests/).
+    if [[ -d "$AGENCY_SOURCE/claude/tools/lib" ]]; then
+        local lib_file
+        for lib_file in "$AGENCY_SOURCE/claude/tools/lib/"*; do
+            [[ -f "$lib_file" ]] || continue
+            cp "$lib_file" "$TARGET_DIR/claude/tools/lib/"
+        done
+    fi
+
     # Copy test helper template (don't overwrite project customizations)
     if [[ -f "$AGENCY_SOURCE/claude/templates/tests/test_helper.bash" ]]; then
         mkdir -p "$TARGET_DIR/tests/tools"
@@ -407,19 +420,21 @@ YAML_EOF
             cp "$AGENCY_SOURCE/claude/templates/tests/test_helper.bash" "$TARGET_DIR/tests/tools/test_helper.bash"
         fi
     fi
-    # Copy the agency CLI itself
-    [[ -f "$AGENCY_SOURCE/claude/tools/agency" ]] && cp "$AGENCY_SOURCE/claude/tools/agency" "$TARGET_DIR/claude/tools/"
-    # Copy agency subcommand libs
-    for lib in _agency-init _agency-update _agency-verify _agency-whoami _agency-feedback; do
-        [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
-    done
-    # Copy core tools
-    for tool in worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux tool-create secret-vault git-safe-commit git-tag git-sync git-fetch handoff test-run commit-precheck code-review now stage-hash dispatch-create dispatch settings-merge sandbox-sync ghostty-claude-hook ghostty-config ghostty-integration ghostty-setup ghostty-debug-hook; do
-        [[ -f "$AGENCY_SOURCE/claude/tools/$tool" ]] && cp "$AGENCY_SOURCE/claude/tools/$tool" "$TARGET_DIR/claude/tools/"
-    done
-    chmod +x "$TARGET_DIR/claude/tools/"* 2>/dev/null || true
 
-    log_info "Installed core tools"
+    # Copy ALL top-level tools from source. Skip subdirectories (lib/ handled
+    # above, tests/ is dev-only and not shipped to adopters).
+    if [[ -d "$AGENCY_SOURCE/claude/tools" ]]; then
+        local tool_file
+        for tool_file in "$AGENCY_SOURCE/claude/tools/"*; do
+            [[ -f "$tool_file" ]] || continue
+            cp "$tool_file" "$TARGET_DIR/claude/tools/"
+        done
+    fi
+
+    chmod +x "$TARGET_DIR/claude/tools/"* 2>/dev/null || true
+    chmod +x "$TARGET_DIR/claude/tools/lib/"* 2>/dev/null || true
+
+    log_info "Installed all tools (directory-level copy)"
 
     # =====================================================================
     # Step 5: Principal directory

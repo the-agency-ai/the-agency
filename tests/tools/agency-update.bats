@@ -382,6 +382,110 @@ EOF
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# D41-R25 HOTFIX: agency init installs ALL tools (regression anchor)
+# Live incident 2026-04-15 — hardcoded tool list in _agency-init was frozen
+# around ~30 tools while framework grew to 60+. Every tool added post-freeze
+# was missing from fresh inits. This test asserts that a fresh `agency init`
+# installs every canonical tool that was missing (surfaced in
+# homekit-daikin-ac-bridge).
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency init: installs all canonical tools (not a hardcoded subset)" {
+    local target="${BATS_TEST_TMPDIR}/init-full-toolset"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    # Point AGENCY_SOURCE at the real repo so _agency-init copies actual tools
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    # Canonical set of tools that MUST be installed (these were the missing
+    # ones surfaced in the live incident). If any of these is absent after
+    # init, the hardcoded-list bug has regressed.
+    local missing=()
+    local canonical_tools=(
+        agency
+        git-safe
+        git-captain
+        git-push
+        git-safe-commit
+        cp-safe
+        handoff
+        dispatch
+        dispatch-create
+        agent-identity
+        agent-create
+        agent-bootstrap
+        agency-bootstrap.sh
+        collaboration
+        iscp-check
+        iscp-migrate
+        flag
+        pr-create
+        pr-merge
+        principal-onboard
+        receipt-sign
+        receipt-verify
+        session-preflight
+        worktree-sync
+        worktree-cwd-check
+        worktree-create
+        worktree-delete
+        worktree-list
+        skill-verify
+        agency-issue
+        agency-health
+        issue-monitor
+        dispatch-monitor
+        diff-hash
+        stage-hash
+        commit-precheck
+        instruction-show
+    )
+    for tool in "${canonical_tools[@]}"; do
+        [[ -f "$target/claude/tools/$tool" ]] || missing+=("$tool")
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing tools after agency init: ${missing[*]}"
+        false
+    fi
+}
+
+@test "agency init: installs canonical libs (not a hardcoded subset)" {
+    local target="${BATS_TEST_TMPDIR}/init-full-libs"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    local missing=()
+    # Libs that _were_ missing from the old hardcoded list
+    local canonical_libs=(
+        _log-helper
+        _path-resolve
+        _address-parse
+        _provider-resolve
+        _agency-init
+        _agency-update
+        _test-isolation
+    )
+    for lib in "${canonical_libs[@]}"; do
+        [[ -f "$target/claude/tools/lib/$lib" ]] || missing+=("$lib")
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing libs after agency init: ${missing[*]}"
+        false
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # D41-R20: post-merge skill enforces release verification
 # ─────────────────────────────────────────────────────────────────────────────
 
