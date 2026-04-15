@@ -486,6 +486,150 @@ EOF
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# D41-R26: regression anchors for THREE more frozen lists beyond R25's tools
+# (agents, hooks, commands, REFERENCE-*, README-*). If any future PR
+# re-hardcodes any of these, these tests fail loud.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency init: installs ALL hooks (not hardcoded subset) — D41-R26" {
+    local target="${BATS_TEST_TMPDIR}/init-hooks"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    # These hooks were MISSING from the old hardcoded list — now must be present
+    local missing=()
+    local canonical_hooks=(
+        block-raw-tools.sh      # CRITICAL — hookify enforcement
+        idle-mail-check.sh
+        ref-injector.sh
+        session-handoff.sh
+        quality-check.sh
+    )
+    for hook in "${canonical_hooks[@]}"; do
+        [[ -f "$target/claude/hooks/$hook" ]] || missing+=("$hook")
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing hooks after agency init: ${missing[*]}"
+        false
+    fi
+}
+
+@test "agency init: installs ALL agent classes (not hardcoded 8) — D41-R26" {
+    local target="${BATS_TEST_TMPDIR}/init-agents"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    # Old hardcoded list had 8 classes. Framework has ~21. Assert the ones
+    # that were previously missing are now present.
+    local missing=()
+    local canonical_agents=(
+        captain
+        cos
+        project-manager
+        reviewer-code
+        reviewer-design
+        reviewer-scorer
+        reviewer-security
+        reviewer-test
+        iscp
+        tech-lead
+    )
+    for agent in "${canonical_agents[@]}"; do
+        [[ -f "$target/claude/agents/$agent/agent.md" ]] || missing+=("$agent")
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing agent classes after agency init: ${missing[*]}"
+        false
+    fi
+
+    # Also: count should match framework's count (dir-level copy)
+    local framework_count=$(ls -d "$REPO_ROOT/claude/agents/"*/ 2>/dev/null | wc -l | tr -d ' ')
+    local target_count=$(ls -d "$target/claude/agents/"*/ 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$target_count" -lt "$framework_count" ]]; then
+        echo "Agent count mismatch: framework has $framework_count, target has $target_count"
+        false
+    fi
+}
+
+@test "agency init: installs ALL REFERENCE-*.md docs — D41-R26" {
+    local target="${BATS_TEST_TMPDIR}/init-refs"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    # REFERENCE-* docs must all ship — ref-injector depends on them
+    local framework_refs=$(ls "$REPO_ROOT/claude/"REFERENCE-*.md 2>/dev/null | wc -l | tr -d ' ')
+    local target_refs=$(ls "$target/claude/"REFERENCE-*.md 2>/dev/null | wc -l | tr -d ' ')
+
+    # Target must match framework count (directory-level copy)
+    if [[ "$target_refs" -ne "$framework_refs" ]]; then
+        echo "REFERENCE-*.md count mismatch: framework has $framework_refs, target has $target_refs"
+        false
+    fi
+
+    # At least a few canonical refs must be present by name
+    local canonical_refs=(REFERENCE-QUALITY-GATE.md REFERENCE-AGENT-DISCIPLINE.md REFERENCE-ISCP-PROTOCOL.md)
+    local missing=()
+    for ref in "${canonical_refs[@]}"; do
+        [[ -f "$target/claude/$ref" ]] || missing+=("$ref")
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing canonical REFERENCE docs: ${missing[*]}"
+        false
+    fi
+}
+
+@test "agency init: installs ALL README-*.md docs — D41-R26" {
+    local target="${BATS_TEST_TMPDIR}/init-readmes"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    local framework_readmes=$(ls "$REPO_ROOT/claude/"README-*.md 2>/dev/null | wc -l | tr -d ' ')
+    local target_readmes=$(ls "$target/claude/"README-*.md 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$target_readmes" -ne "$framework_readmes" ]]; then
+        echo "README-*.md count mismatch: framework has $framework_readmes, target has $target_readmes"
+        false
+    fi
+}
+
+@test "agency init: installs ALL commands — D41-R26" {
+    local target="${BATS_TEST_TMPDIR}/init-cmds"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    local framework_cmds=$(ls "$REPO_ROOT/.claude/commands/"*.md 2>/dev/null | wc -l | tr -d ' ')
+    local target_cmds=$(ls "$target/.claude/commands/"*.md 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$target_cmds" -ne "$framework_cmds" ]]; then
+        echo "Commands count mismatch: framework has $framework_cmds, target has $target_cmds"
+        false
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # D41-R20: post-merge skill enforces release verification
 # ─────────────────────────────────────────────────────────────────────────────
 
