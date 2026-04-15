@@ -93,9 +93,11 @@ EOF
     echo "stale" > "$root/target/claude/tools/some-stale-tool"
 
     AGENCY_SOURCE="$root/source" run_agency update "$root/target" --force
-    # Should proceed past the gate. Exit 0 is ideal, but rsync quirks in
-    # a stub fixture can produce non-zero — the gate itself must NOT be hit.
+    # QG fix: assert the gate itself was not hit AND that update made progress
+    # (reached the version-resolution banner). Earlier version accepted any
+    # exit code, which made this test pass even on early unrelated crashes.
     [[ "$output" != *"uncommitted framework file"* ]]
+    [[ "$output" == *"Agency Update"* ]] || [[ "$output" == *"From:"* ]]
 }
 
 @test "agency update: clean tree proceeds past gate" {
@@ -103,8 +105,9 @@ EOF
     root=$(setup_update_fixture)
     # No modifications — clean target
     AGENCY_SOURCE="$root/source" run_agency update "$root/target"
-    # Gate should not fire
+    # QG fix: positive assertion the update actually progressed past the gate
     [[ "$output" != *"uncommitted framework file"* ]]
+    [[ "$output" == *"Agency Update"* ]] || [[ "$output" == *"From:"* ]]
 }
 
 @test "agency update: dirty tree OUTSIDE claude/ does not block" {
@@ -115,6 +118,7 @@ EOF
 
     AGENCY_SOURCE="$root/source" run_agency update "$root/target"
     [[ "$output" != *"uncommitted framework file"* ]]
+    [[ "$output" == *"Agency Update"* ]] || [[ "$output" == *"From:"* ]]
 }
 
 @test "agency update: dry-run skips dirty-tree gate" {
@@ -123,6 +127,16 @@ EOF
     echo "stale" > "$root/target/claude/tools/some-stale-tool"
 
     AGENCY_SOURCE="$root/source" run_agency update "$root/target" --dry-run
-    # Dry-run should not trip the gate — it's read-only
+    # Dry-run should not trip the gate — it's read-only.
+    # QG fix: also assert dry-run banner is shown so we know we reached
+    # update execution, not a pre-flight crash.
     [[ "$output" != *"uncommitted framework file"* ]]
+    [[ "$output" == *"dry-run"* ]] || [[ "$output" == *"Dry Run"* ]]
 }
+
+# NOTE: a scale test for >20 dirty files was considered but the fixture setup
+# cost (creating 25 files, git-statusing them, asserting exact count string)
+# is disproportionate to the risk. The count fix — moving `grep -c '^'` to
+# operate on the full porcelain output instead of the head-20 truncated
+# version — is a one-line refactor that the positive-assertion tests above
+# already exercise end-to-end.

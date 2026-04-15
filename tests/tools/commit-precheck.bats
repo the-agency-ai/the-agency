@@ -197,10 +197,13 @@ teardown() {
     # 2 MB — over 1 MB warn, under 10 MB block
     dd if=/dev/zero of=warn.bin bs=1024 count=2048 2>/dev/null
     git add warn.bin
+    # QG fix: bats' `run` collapses stderr into $output by default (we don't
+    # pass --separate-stderr), so assert against $output only. The previous
+    # `|| $stderr` branch was dead code.
     LARGE_FILE_WARN_BYTES=1048576 LARGE_FILE_BLOCK_BYTES=10485760 \
         run ./claude/tools/commit-precheck
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Large file warning"* ]] || [[ "$stderr" == *"Large file warning"* ]]
+    [[ "$output" == *"Large file warning"* ]]
 }
 
 @test "large-file: block threshold exits 2 with remediation message" {

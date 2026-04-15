@@ -64,17 +64,20 @@ teardown() {
 @test "git-safe-commit detects MERGE_HEAD and blocks with unresolved conflicts" {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/git-safe-commit --no-verify
-    # Should report unresolved conflicts and point at resolve-conflict
+    # QG fix: pin to the specific message — earlier "Merge" substring was too
+    # broad and could match unrelated output.
     [ "$status" -ne 0 ]
-    [[ "$output" == *"unresolved conflicts"* ]] || [[ "$output" == *"Merge"* ]]
+    [[ "$output" == *"unresolved conflicts"* ]]
 }
 
 @test "git-safe-commit finalizes merge after resolve-conflict --ours" {
     cd "${BATS_TEST_TMPDIR}"
     ./claude/tools/git-safe resolve-conflict shared.txt --ours >/dev/null
     run ./claude/tools/git-safe-commit --no-verify
+    # QG fix: assert the specific success banner from the merge-route, not a
+    # generic "Merge" substring which matched everything.
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Merge"* ]] || [[ "$output" == *"committed"* ]]
+    [[ "$output" == *"Merge committed"* ]]
     # No MERGE_HEAD should remain
     [ ! -f .git/MERGE_HEAD ]
     # Last commit should be a merge (two parents)

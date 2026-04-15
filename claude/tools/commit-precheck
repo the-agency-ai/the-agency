@@ -212,6 +212,14 @@ main() {
             done < "$exceptions_file"
         fi
 
+        # QG fix (D41-R4+R6+R7): set globstar once outside the per-file loop.
+        # NOTE on pattern matching: bash `[[ "$f" == $pat ]]` uses fnmatch-style
+        # pattern matching, not pathname expansion, so `**` in $pat reduces to
+        # `*` regardless of globstar. Patterns in large-file-exceptions.txt
+        # should be literal globs like `*.bin` or `apps/*/dist/*`. We match
+        # against both the full path and the basename to cover common cases.
+        shopt -s globstar 2>/dev/null || true
+
         local staged
         staged=$(git diff --cached --name-only --diff-filter=AM)
         [[ -z "$staged" ]] && return 0
@@ -221,8 +229,6 @@ main() {
         while IFS= read -r f; do
             [[ -z "$f" || ! -f "$f" ]] && continue
             # Check exceptions — match against full path OR basename.
-            # Enable globstar so `**/*.bin` works at any depth.
-            shopt -s globstar 2>/dev/null || true
             local is_exempt=false
             local base="${f##*/}"
             for pat in "${exceptions[@]+"${exceptions[@]}"}"; do

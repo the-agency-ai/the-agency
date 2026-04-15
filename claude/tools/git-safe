@@ -148,7 +148,10 @@ cmd_rm() {
         fi
     done
 
-    git rm "$@"
+    # QG fix (D41-R4+R6+R7): `--` terminator — filenames starting with '-' that
+    # weren't caught by the arg-scan deny-list should never be interpreted as
+    # flags by git rm. Defense-in-depth.
+    git rm -- "$@"
     echo "${GREEN}Removed:${NC} $*"
 }
 

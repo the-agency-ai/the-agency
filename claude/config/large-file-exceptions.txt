@@ -3,8 +3,17 @@
 # One glob per line. A staged file matching any glob here is exempt from
 # the warn/block size thresholds (see commit-precheck check_large_files).
 #
-# Matching uses bash extglob pattern semantics against the file path relative
-# to the repo root (e.g., "claude/receipts/foo.md", "apps/mdpal/build/x.bin").
+# Matching uses bash `[[ "$path" == $pat ]]` (fnmatch-style) against the
+# file path relative to the repo root AND against the basename. `*` matches
+# any characters within a single path segment; it does NOT recurse across
+# directory separators. To match at any depth, either use the basename form
+# (e.g. `*.bin`) or enumerate the directories (e.g. `apps/*/dist/*`). Bash
+# `**` does not act as globstar inside `[[ ]]` pattern matching.
+#
+# Examples:
+#   *.bin             — any .bin file at any depth (basename match)
+#   apps/*/dist/*     — files under apps/<name>/dist/ (path match, 3 levels)
+#   claude/receipts/* — files directly in claude/receipts/
 #
 # Blanks and lines starting with # are ignored.
 #

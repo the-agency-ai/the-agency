@@ -66,6 +66,17 @@ Resolves a conflicted file mid-merge by taking one side and staging it.
 
 On success: prints `Resolved: <file> (took <side>)`.
 
+**When to use which tool mid-merge:**
+
+| Situation | Tool |
+|---|---|
+| Keep our side of a conflicted file | `git-safe resolve-conflict <file> --ours` |
+| Keep the incoming side | `git-safe resolve-conflict <file> --theirs` |
+| File should be deleted (delete-as-resolution) | `git-safe rm <file>` |
+| Abandon the merge entirely | `git-safe merge-abort` |
+| Manual edit already made, stage the result | `git-safe add <file>` |
+| Conclude the merge after all files resolved | `git-safe-commit` (auto-detects MERGE_HEAD) |
+
 **`merge-abort`** (D41-R7)
 
 Aborts an in-progress merge by wrapping `git merge --abort`. Exits 1 if MERGE_HEAD is absent.
