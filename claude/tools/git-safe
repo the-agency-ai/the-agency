@@ -47,9 +47,14 @@ Subcommands (read-only):
   blame [args]           git blame
 
 Subcommands (guarded write):
-  add <file> [file...]   Stage explicit file paths (blocks -A, --all, ., wildcards)
-  merge-from-master      Merge main/master into current branch (clean tree required)
-                         Pass --remote to merge origin/main instead of local main
+  add <file> [file...]         Stage explicit file paths (blocks -A, --all, ., wildcards)
+  rm <file> [file...]          Remove files (also removes from index) — blocks wildcards/dirs
+  merge-from-master            Merge main/master into current branch (clean tree required)
+                               Pass --remote to merge origin/main instead of local main
+  resolve-conflict <file> --ours|--theirs
+                               Resolve a conflicted file by taking one side, then stage it.
+                               Only valid mid-merge (MERGE_HEAD present).
+  merge-abort                  Abort an in-progress merge (wraps git merge --abort).
 
 Options:
   --help                 Show this help
@@ -120,6 +125,83 @@ cmd_add() {
     echo "${GREEN}Staged:${NC} $*"
 }
 
+# --- Subcommand: rm ---
+# Delete files from working tree AND index. Guards match cmd_add: no wildcards,
+# no bare directories, no -r/-rf flags (those could nuke whole trees).
+cmd_rm() {
+    [[ $# -eq 0 ]] && die "git-safe rm requires explicit file paths. Usage: git-safe rm <file> [file...]"
+
+    for arg in "$@"; do
+        case "$arg" in
+            -r|-R|-rf|-rR|--recursive|-f|--force)
+                die "git-safe rm blocks '$arg' — remove individual files explicitly."
+                ;;
+        esac
+        if [[ "$arg" == "." || "$arg" == "./" || "$arg" == ".." || "$arg" == "../" ]]; then
+            die "git-safe rm blocks '$arg' — specify explicit file paths instead."
+        fi
+        if [[ "$arg" == "*" || "$arg" == "**" ]]; then
+            die "git-safe rm blocks '$arg' — specify explicit file paths instead."
+        fi
+        if [[ -d "$arg" ]]; then
+            die "git-safe rm blocks directory '$arg' — remove individual files within the directory."
+        fi
+    done
+
+    git rm "$@"
+    echo "${GREEN}Removed:${NC} $*"
+}
+
+# --- Subcommand: resolve-conflict ---
+# Mid-merge helper: take one side of a conflicted file and stage it.
+# Only valid when MERGE_HEAD exists — otherwise there's no merge to resolve.
+cmd_resolve_conflict() {
+    local file=""
+    local side=""
+    for arg in "$@"; do
+        case "$arg" in
+            --ours)   side="ours" ;;
+            --theirs) side="theirs" ;;
+            -*)       die "Unknown flag for resolve-conflict: $arg (use --ours or --theirs)" ;;
+            *)
+                if [[ -n "$file" ]]; then
+                    die "resolve-conflict takes exactly one file."
+                fi
+                file="$arg"
+                ;;
+        esac
+    done
+
+    [[ -z "$file" ]] && die "resolve-conflict requires a file path. Usage: git-safe resolve-conflict <file> --ours|--theirs"
+    [[ -z "$side" ]] && die "resolve-conflict requires --ours or --theirs."
+
+    local git_dir
+    git_dir=$(git rev-parse --git-dir 2>/dev/null) || die "Not a git repository."
+    if [[ ! -f "$git_dir/MERGE_HEAD" ]]; then
+        die "No merge in progress (no MERGE_HEAD). resolve-conflict is only valid mid-merge."
+    fi
+
+    # Verify file is actually conflicted (has unmerged entry in index)
+    if ! git ls-files -u -- "$file" 2>/dev/null | grep -q .; then
+        die "File '$file' is not conflicted (no unmerged index entry)."
+    fi
+
+    git checkout "--$side" -- "$file"
+    git add -- "$file"
+    echo "${GREEN}Resolved:${NC} $file (took $side)"
+}
+
+# --- Subcommand: merge-abort ---
+cmd_merge_abort() {
+    local git_dir
+    git_dir=$(git rev-parse --git-dir 2>/dev/null) || die "Not a git repository."
+    if [[ ! -f "$git_dir/MERGE_HEAD" ]]; then
+        die "No merge in progress (no MERGE_HEAD). Nothing to abort."
+    fi
+    git merge --abort
+    echo "${GREEN}Merge aborted.${NC} Working tree restored to pre-merge state."
+}
+
 # --- Subcommand: merge-from-master ---
 cmd_merge_from_master() {
     # Auto-detect main branch name
@@ -182,7 +264,10 @@ case "$1" in
     branch)       shift; cmd_branch "$@" ;;
     show)         shift; cmd_show "$@" ;;
     blame)        shift; cmd_blame "$@" ;;
-    add)          shift; cmd_add "$@" ;;
+    add)              shift; cmd_add "$@" ;;
+    rm)               shift; cmd_rm "$@" ;;
+    resolve-conflict) shift; cmd_resolve_conflict "$@" ;;
+    merge-abort)      shift; cmd_merge_abort "$@" ;;
     merge-from-master) shift; cmd_merge_from_master "$@" ;;
     *)            die "Unknown subcommand: $1 — run 'git-safe --help' for usage." ;;
 esac

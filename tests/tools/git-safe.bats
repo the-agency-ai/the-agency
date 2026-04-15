@@ -361,3 +361,140 @@ teardown() {
     assert_failure
     assert_output_contains "dirty"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# rm — guarded delete (D41-R7)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "rm removes a tracked file" {
+    cd "${BATS_TEST_TMPDIR}"
+    echo "doomed" > doomed.txt
+    git add doomed.txt
+    git commit -m "add doomed" --quiet
+    run ./claude/tools/git-safe rm doomed.txt
+    assert_success
+    assert_output_contains "Removed"
+    [ ! -f doomed.txt ]
+}
+
+@test "rm blocks -r and --recursive" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe rm -r some-dir
+    assert_failure
+    run ./claude/tools/git-safe rm --recursive some-dir
+    assert_failure
+}
+
+@test "rm blocks -f" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe rm -f x.txt
+    assert_failure
+}
+
+@test "rm blocks bare directory" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p subdir
+    run ./claude/tools/git-safe rm subdir
+    assert_failure
+    assert_output_contains "directory"
+}
+
+@test "rm blocks wildcards and dot paths" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe rm '*'
+    assert_failure
+    run ./claude/tools/git-safe rm '.'
+    assert_failure
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# merge-abort (D41-R7)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "merge-abort fails when no merge is in progress" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe merge-abort
+    assert_failure
+    assert_output_contains "No merge in progress"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# resolve-conflict (D41-R7)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Helper — create a two-branch conflict setup on shared.txt and leave the
+# working tree mid-merge with an unresolved conflict. Uses 'conflict-br'
+# because the shared setup() already created 'feature'.
+_setup_conflict() {
+    cd "${BATS_TEST_TMPDIR}"
+    # setup() left us on 'feature' with feature branch existing. Move back
+    # to main for the conflict setup.
+    git checkout main --quiet 2>/dev/null || true
+    echo "base" > shared.txt
+    git add shared.txt
+    git commit -m "base" --quiet
+    git checkout -b conflict-br --quiet
+    echo "theirs side" > shared.txt
+    git add shared.txt
+    git commit -m "theirs change" --quiet
+    git checkout main --quiet
+    echo "ours side" > shared.txt
+    git add shared.txt
+    git commit -m "ours change" --quiet
+    git merge conflict-br --no-edit >/dev/null 2>&1 || true
+}
+
+@test "resolve-conflict requires a file argument" {
+    _setup_conflict
+    run ./claude/tools/git-safe resolve-conflict --ours
+    assert_failure
+    assert_output_contains "requires a file"
+}
+
+@test "resolve-conflict requires --ours or --theirs" {
+    _setup_conflict
+    run ./claude/tools/git-safe resolve-conflict shared.txt
+    assert_failure
+    assert_output_contains "ours"
+}
+
+@test "resolve-conflict fails when no merge is in progress" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-safe resolve-conflict shared.txt --ours
+    assert_failure
+    assert_output_contains "No merge in progress"
+}
+
+@test "resolve-conflict --ours picks main's version and stages it" {
+    _setup_conflict
+    run ./claude/tools/git-safe resolve-conflict shared.txt --ours
+    assert_success
+    assert_output_contains "Resolved"
+    run cat shared.txt
+    assert_output_contains "ours side"
+    # Should be staged (no unmerged entries for this file)
+    [[ -z "$(git ls-files -u shared.txt)" ]]
+}
+
+@test "resolve-conflict --theirs picks the incoming version and stages it" {
+    _setup_conflict
+    run ./claude/tools/git-safe resolve-conflict shared.txt --theirs
+    assert_success
+    run cat shared.txt
+    assert_output_contains "theirs side"
+}
+
+@test "resolve-conflict rejects unknown flags" {
+    _setup_conflict
+    run ./claude/tools/git-safe resolve-conflict shared.txt --bogus
+    assert_failure
+}
+
+@test "resolve-conflict rejects non-conflicted file" {
+    _setup_conflict
+    # Unrelated, non-conflicted file
+    echo "clean" > clean.txt
+    run ./claude/tools/git-safe resolve-conflict clean.txt --ours
+    assert_failure
+    assert_output_contains "not conflicted"
+}

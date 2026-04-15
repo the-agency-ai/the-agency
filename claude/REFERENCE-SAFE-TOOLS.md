@@ -35,6 +35,14 @@ Stages explicit file paths. Blocked patterns (exit 1):
 
 On success: stages files, prints `Staged: <files>`.
 
+**`rm <file> [file...]`**
+
+Removes explicit file paths from working tree and index. Same guards as `add`:
+- blocks `-r` / `-R` / `-rf` / `--recursive` / `-f` / `--force`
+- blocks `.` / `./` / `..` / `../`, `*` / `**`, and any path that resolves to a directory
+
+On success: runs `git rm`, prints `Removed: <files>`.
+
 **`merge-from-master`**
 
 Merges main/master into the current feature branch.
@@ -43,8 +51,24 @@ Checks (each exits 1 on failure):
 1. Auto-detects `main` (tried first) or `master`
 2. Refuses if already on the main branch
 3. Refuses if working tree is dirty (`git diff` or `git diff --cached` non-empty)
+4. Optional `--remote` merges `origin/main` instead of local `main` (fetch first).
 
 On success: runs `git merge <main_branch> --no-edit`, prints merge summary.
+
+**`resolve-conflict <file> --ours|--theirs`** (D41-R7)
+
+Resolves a conflicted file mid-merge by taking one side and staging it.
+
+- Requires MERGE_HEAD (exits 1 otherwise — no merge in progress)
+- Requires the file to have an unmerged index entry (exits 1 otherwise)
+- Exactly one file per invocation; `--ours` or `--theirs` mandatory
+- Runs `git checkout --ours|--theirs -- <file>` then `git add -- <file>`
+
+On success: prints `Resolved: <file> (took <side>)`.
+
+**`merge-abort`** (D41-R7)
+
+Aborts an in-progress merge by wrapping `git merge --abort`. Exits 1 if MERGE_HEAD is absent.
 
 ### Options
 
@@ -214,6 +238,14 @@ When `commits.require_day_prefix` is `true` in `agency.yaml`, the message is use
 | 0 | Success (or nothing to commit) |
 | 1 | Missing message, missing work item, invalid work item format, missing stage, invalid stage, or commit failure |
 | 2 | Commit prefix validation failure (when `require_day_prefix` is enabled) |
+
+### Merge-commit auto-route (D41-R7)
+
+When invoked with a merge in progress (`.git/MERGE_HEAD` present) and no `--amend` / `--dry-run`, `git-safe-commit` short-circuits to `git commit --no-edit` to conclude the merge using git's default merge message. The normal work-item / message flow is skipped — you do not need `--no-work-item` mid-merge.
+
+If conflicts remain unresolved (unmerged index entries), the commit is blocked with a pointer to `git-safe resolve-conflict` / `git-safe rm` / `git-safe merge-abort`.
+
+This replaces the earlier `git-captain merge-continue` workaround for agents finishing a merge through the git-safe family.
 
 ### Large-file gate (via `commit-precheck`)
 
