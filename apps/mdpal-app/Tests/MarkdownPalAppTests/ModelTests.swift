@@ -824,6 +824,40 @@ final class FailingToggleService: CLIServiceProtocol, @unchecked Sendable {
     }
 }
 
+func testDocumentModelEditSectionHappyPath() async throws {
+    // MockCLIService enforces versionHash — use the real mock + real hash.
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.loadSections()
+    await doc.selectSection(slug: "overview")
+    let base = doc.selectedSection!
+    try await doc.editSection(
+        slug: "overview", newContent: "New body.", versionHash: base.versionHash
+    )
+    try expectTrue(doc.isDirty, "editSection should mark document dirty")
+    // selectedSection is refreshed via readSection after edit
+    try expectTrue(doc.selectedSection != nil, "selectedSection should remain populated post-edit")
+}
+
+func testDocumentModelEditSectionThrowsOnStaleVersionHash() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.selectSection(slug: "overview")
+    var threw = false
+    do {
+        try await doc.editSection(
+            slug: "overview", newContent: "X", versionHash: "obviously-stale-hash"
+        )
+    } catch let CLIServiceError.versionConflict(slug, _, _) {
+        threw = true
+        try expect(slug, equals: "overview")
+    } catch {
+        throw TestFailure(
+            message: "expected versionConflict, got \(error)",
+            file: #file, line: #line
+        )
+    }
+    try expectTrue(threw, "editSection should throw versionConflict on stale hash")
+}
+
 func testDocumentModelLastErrorSetOnLoadFailure() async throws {
     let svc = FailingToggleService()
     let doc = DocumentModel(cliService: svc)
@@ -931,6 +965,8 @@ struct TestRunner {
         await runAsync("flagSection reflected in state", testDocumentModelFlagSectionIsReflectedInState)
         await runAsync("lastError set on load failure", testDocumentModelLastErrorSetOnLoadFailure)
         await runAsync("lastError cleared on subsequent success", testDocumentModelLastErrorClearedOnSuccess)
+        await runAsync("editSection happy path", testDocumentModelEditSectionHappyPath)
+        await runAsync("editSection throws on stale version hash", testDocumentModelEditSectionThrowsOnStaleVersionHash)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 

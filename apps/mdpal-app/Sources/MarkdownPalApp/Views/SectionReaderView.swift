@@ -14,6 +14,7 @@
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
 // Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
 // Updated: 2026-04-15 Phase 1A iteration — interaction (flag/comment/resolve)
+// Updated: 2026-04-15 Phase 1A.4 — inline edit flow (TextEditor + version-hash conflict)
 
 import SwiftUI
 
@@ -29,6 +30,24 @@ public struct SectionReaderView: View {
     @State private var showingAddComment = false
     @State private var showingFlagEditor = false
     @State private var resolvingComment: Comment?
+
+    // Edit mode state (1A.4)
+    /// Non-nil when the user is actively editing; holds the working copy.
+    @State private var editDraft: String?
+    /// Hash captured at the moment edit began — used for optimistic concurrency.
+    @State private var editBaseHash: String = ""
+    /// True while a save is in flight.
+    @State private var saving: Bool = false
+    /// Carries a version-conflict error for a distinct alert UI.
+    @State private var conflict: EditConflict?
+
+    /// Distinct state for a version-conflict so the UI can offer Overwrite vs Reload.
+    struct EditConflict: Identifiable {
+        let id = UUID()
+        let slug: String
+        let currentHash: String
+        let draft: String
+    }
 
     /// Read-only init (tests / previews without a DocumentModel).
     public init(section: Section, comments: [Comment], flag: Flag?) {
@@ -55,10 +74,21 @@ public struct SectionReaderView: View {
                 sectionHeader
                 if let flag = flag { flagBanner(flag) }
                 Divider()
-                Text(section.content)
+                if let draft = editDraft {
+                    TextEditor(text: Binding(
+                        get: { draft },
+                        set: { editDraft = $0 }
+                    ))
                     .font(.body)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(minHeight: 240)
+                    .border(.quaternary)
+                    .disabled(saving)
+                } else {
+                    Text(section.content)
+                        .font(.body)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 if !comments.isEmpty {
                     Divider()
                     commentsSection
@@ -98,6 +128,32 @@ public struct SectionReaderView: View {
                 }
             }
         }
+        .alert(
+            "Section changed on disk",
+            isPresented: Binding(
+                get: { conflict != nil },
+                set: { shown in if !shown { conflict = nil } }
+            ),
+            presenting: conflict
+        ) { c in
+            Button("Overwrite") {
+                editBaseHash = c.currentHash
+                Task { await commitEdit() }
+            }
+            Button("Discard my edits", role: .destructive) {
+                editDraft = nil
+                editBaseHash = ""
+                conflict = nil
+                if let document {
+                    Task { await document.selectSection(slug: c.slug) }
+                }
+            }
+            Button("Keep editing", role: .cancel) {
+                conflict = nil
+            }
+        } message: { c in
+            Text("Another writer updated this section (current hash: \(c.currentHash)). Overwrite with your edits, discard yours to reload, or keep editing to merge by hand.")
+        }
         .sheet(item: $resolvingComment) { comment in
             ResolveCommentSheet(comment: comment, by: currentAuthor) { response in
                 guard let document else { return true }
@@ -118,22 +174,68 @@ public struct SectionReaderView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                showingAddComment = true
-            } label: {
-                Label("Add Comment", systemImage: "plus.bubble")
+        if editDraft == nil {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    editDraft = section.content
+                    editBaseHash = section.versionHash
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                .help("Edit this section's content")
             }
-            .help("Add a comment to this section")
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingAddComment = true
+                } label: {
+                    Label("Add Comment", systemImage: "plus.bubble")
+                }
+                .help("Add a comment to this section")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingFlagEditor = true
+                } label: {
+                    Label(flag == nil ? "Flag" : "Clear Flag",
+                          systemImage: flag == nil ? "flag" : "flag.slash")
+                }
+                .help(flag == nil ? "Flag this section for discussion" : "Clear the flag")
+            }
+        } else {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    editDraft = nil
+                    editBaseHash = ""
+                }
+                .disabled(saving)
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button(saving ? "Saving…" : "Save") {
+                    Task { await commitEdit() }
+                }
+                .disabled(saving || (editDraft ?? "").isEmpty)
+            }
         }
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                showingFlagEditor = true
-            } label: {
-                Label(flag == nil ? "Flag" : "Clear Flag",
-                      systemImage: flag == nil ? "flag" : "flag.slash")
-            }
-            .help(flag == nil ? "Flag this section for discussion" : "Clear the flag")
+    }
+
+    // MARK: - Edit commit
+
+    /// Save the draft through DocumentModel.editSection, routing version
+    /// conflicts to a dedicated UI and other errors to document.lastError.
+    private func commitEdit() async {
+        guard let document, let draft = editDraft else { return }
+        saving = true
+        defer { saving = false }
+        do {
+            try await document.editSection(
+                slug: section.slug, newContent: draft, versionHash: editBaseHash
+            )
+            editDraft = nil
+            editBaseHash = ""
+        } catch let CLIServiceError.versionConflict(slug, _, currentHash) {
+            conflict = EditConflict(slug: slug, currentHash: currentHash, draft: draft)
+        } catch {
+            document.lastError = "Failed to save section: \(error.localizedDescription)"
         }
     }
 
