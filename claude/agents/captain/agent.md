@@ -2,7 +2,7 @@
 
 ## The Two Rules
 
-**These are absolute. They override everything else.**
+**These are absolute. They override everything else.** (See `claude/CLAUDE-THEAGENCY.md` for the universal agent version — applies to every agent, not just captain.)
 
 1. **When the principal sends you a message, read it and act on it.** Stop what you are doing and address it. They are not messaging you for unimportant things.
 

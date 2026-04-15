@@ -95,7 +95,7 @@ After a successful merge:
 - Sync local main: `./claude/tools/_sync-main-ref`
 - Create the GitHub release (if this is a release PR): `gh release create v<version> --target main --notes ...`
 - Notify fleet (if relevant): `/dispatch` to affected agents
-- Notify monofolk (if cross-repo relevant): `/collaborate send`
+- Notify cross-repo collaborators (if relevant): `/collaborate send`
 
 ## What this skill does NOT do
 

@@ -42,10 +42,13 @@ Options:
                         unless --yes is passed. Default: off (purely additive sync).
   --yes                 Skip the --prune confirmation prompt. No effect without --prune.
   --from-github [ref]   Shallow-clone the-agency from GitHub and use as source.
-                        Optional ref: tag, branch, or commit (default: latest tag).
-                        Examples:  --from-github
-                                   --from-github main
-                                   --from-github v41.5
+                        Optional ref: tag, branch, or commit. Default: main.
+                        (Changed in D41-R20, issue #113 — was "latest tag" and
+                        silently pinned adopters to stale code.)
+                        Examples:  --from-github              # main
+                                   --from-github main         # explicit main
+                                   --from-github @latest      # latest release tag
+                                   --from-github v41.19       # specific tag
   --help, -h            Show this help
 
 Source detection (in order, first match wins):
@@ -70,8 +73,10 @@ while [[ $# -gt 0 ]]; do
         --yes|-y) YES=true; shift ;;
         --from-github)
             # Optional ref follows the flag. If next arg is missing or starts
-            # with `-` or matches a target-dir-like pattern, default to "latest".
-            FROM_GITHUB="latest"
+            # with `-` or matches a target-dir-like pattern, default to "main".
+            # (D41-R20: was "latest" — silently pinned adopters to stale code.
+            # Use --from-github @latest to opt in to the previous behavior.)
+            FROM_GITHUB="main"
             shift
             if [[ $# -gt 0 && "$1" != -* && ! -d "$1" ]]; then
                 FROM_GITHUB="$1"
@@ -154,9 +159,11 @@ _update_main() {
     if [[ -n "$FROM_GITHUB" ]]; then
         log_step "Fetching the-agency from GitHub (ref: $FROM_GITHUB)..."
         TMP_SOURCE_DIR=$(mktemp -d -t agency-source-XXXXXX)
-        # Resolve "latest" → most-recent release tag via gh, fall back to main
+        # Resolve ref. Default is main (D41-R20). "@latest" is the opt-in
+        # sentinel for the previous "latest release tag" behavior. Any other
+        # value is a literal git ref (tag, branch, or commit).
         local clone_ref="$FROM_GITHUB"
-        if [[ "$FROM_GITHUB" == "latest" ]]; then
+        if [[ "$FROM_GITHUB" == "@latest" ]]; then
             if command -v gh >/dev/null 2>&1; then
                 clone_ref=$(gh release view --repo the-agency-ai/the-agency --json tagName -q .tagName 2>/dev/null) || clone_ref=""
             fi
@@ -164,8 +171,16 @@ _update_main() {
                 log_warn "Could not resolve latest release; falling back to main"
                 clone_ref="main"
             else
-                log_info "Resolved latest → $clone_ref"
+                log_info "Resolved @latest → $clone_ref"
             fi
+        elif [[ "$FROM_GITHUB" == "latest" ]]; then
+            # Backward-compat: accept the old "latest" string with a deprecation
+            # warning so existing scripts don't break silently.
+            log_warn "'--from-github latest' is deprecated; use '--from-github @latest' (release tag) or '--from-github main' (branch tip). Treating as @latest for now."
+            if command -v gh >/dev/null 2>&1; then
+                clone_ref=$(gh release view --repo the-agency-ai/the-agency --json tagName -q .tagName 2>/dev/null) || clone_ref=""
+            fi
+            [[ -z "$clone_ref" ]] && clone_ref="main"
         fi
         if ! git clone --depth 1 --branch "$clone_ref" "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
             # Branch-with-tag-name might fail if it's a commit SHA — try fetch+checkout fallback.
@@ -200,9 +215,9 @@ _update_main() {
         echo ""
         echo "Three ways to provide source:"
         echo "  1. Pull from GitHub (no local clone needed):"
-        echo "       agency update --from-github            # latest release tag"
-        echo "       agency update --from-github main       # main branch"
-        echo "       agency update --from-github v41.5      # specific tag"
+        echo "       agency update --from-github            # main (default)"
+        echo "       agency update --from-github @latest    # latest release tag"
+        echo "       agency update --from-github v41.19     # specific tag"
         echo ""
         echo "  2. Set AGENCY_SOURCE to a local the-agency clone:"
         echo "       export AGENCY_SOURCE=~/code/the-agency"
@@ -232,6 +247,17 @@ _update_main() {
     echo "  Source:  $SOURCE_DIR"
     echo "  From:    ${from_version} (${from_commit:0:8})"
     echo "  To:      ${to_version} (${to_commit:0:8})"
+
+    # D41-R20: show "N commits ahead" when the incoming ref includes un-tagged
+    # work. Helpful signal that adopters are pulling main HEAD vs a release tag.
+    if [[ "$from_commit" != "unknown" && "$to_commit" != "unknown" && "$from_commit" != "$to_commit" ]]; then
+        local ahead
+        ahead=$(git -C "$SOURCE_DIR" rev-list --count "${from_commit}..${to_commit}" 2>/dev/null || echo "")
+        if [[ -n "$ahead" && "$ahead" -gt 0 ]]; then
+            echo "  Commits: ${ahead} ahead"
+        fi
+    fi
+
     if [[ "$DRY_RUN" == "true" ]]; then
         echo -e "  Mode:    ${YELLOW}dry-run${NC}"
     fi

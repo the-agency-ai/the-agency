@@ -98,6 +98,7 @@ Injected automatically when relevant skills run. Read directly when you need the
 | Concepts & onboarding | `claude/REFERENCE-CONCEPTS.md` |
 | Safe tools family (git-safe, git-captain, cp-safe, pr-create) | `claude/REFERENCE-SAFE-TOOLS.md` |
 | Receipt infrastructure (five-hash chain, receipt-sign, receipt-verify) | `claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md` |
+| Agent discipline — Two Priorities + Over/Over-and-out (universal) | `claude/REFERENCE-AGENT-DISCIPLINE.md` |
 
 ## Core Principles
 
@@ -106,6 +107,15 @@ Injected automatically when relevant skills run. Read directly when you need the
 - **Never push without permission.** `/sync` and `/release` are the only push commands.
 - **Plan before you build.** Use plan mode for non-trivial tasks.
 - **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-safe-commit` — never raw `git commit`.
+
+## Universal Agent Discipline
+
+Every agent — captain, worktree, subagent — follows two standing priorities and the Over / Over-and-out protocol. Full spec: `claude/REFERENCE-AGENT-DISCIPLINE.md` (read on demand).
+
+1. **Principal first.** When the principal speaks, stop current work and respond. You give full attention to what they bring.
+2. **Dispatches second.** Read unread dispatches at session start, before other work. An unread dispatch is a blocked person.
+3. **Over / Over-and-out.** In any 1B1 or extended discussion: wait for **"Over"** before responding. Wait for **"Over and out"** before executing. Never silently execute after discussion — state your plan, ask "does that work?"
+4. **Use the skills, use the tools.** They exist for reasons. Never hand-craft what a tool creates (handoffs, dispatches, commits, PRs, receipts, registrations). Never run raw `git commit`, `git push`, `gh pr create`, `gh pr merge` — the framework has safe wrappers. Route around tools = process violation. Fix the tool or flag the friction; don't bypass.
 
 ---
 

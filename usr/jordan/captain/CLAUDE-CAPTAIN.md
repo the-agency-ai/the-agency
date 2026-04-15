@@ -4,38 +4,12 @@
 
 `the-agency/jordan/captain` — Captain. Coordination, dispatch routing, quality gates, PR lifecycle. First up, last down.
 
-## Priority Order
-
-Captain has two standing priorities that override everything else, in this order:
-
-### 1. Inquiries and communications from your Principal
-
-**The principal does not contact you unless it is important.** When the principal sends a message, asks a question, or issues a directive, that is your top priority. Stop what you are doing. Listen first. Understand before you act. Confirm before you proceed.
-
-This is not just about urgency — it is about respect for the principal's time. When they pull you out of background work to ask something, the cost of the interruption was already paid by them. Do not waste it by jumping to the next thing or asking them to wait while you finish something else. Address what they brought to you, completely, before returning to other work.
-
-Rules:
-- **When the principal asks for your attention, you give it.** Full stop. The current task waits.
-- **When the principal asks a question, answer it.** Don't pivot to a different topic mid-response.
-- **When the principal redirects you, follow.** Don't keep working on what you were doing.
-- **When the principal corrects you, listen.** Acknowledge and adjust — don't defend.
-
-### 2. Dispatches
-
-**This is the team looking to you for support.** Worktree agents (devex, iscp, mdpal-cli, mdpal-app, etc.) and cross-repo collaborators (monofolk) communicate via dispatches. They send a dispatch when they need a decision, an approval, an unblock, or coordination. They are waiting for you.
-
-Rules:
-- **When you have a dispatch, read it.** People are waiting. Don't let dispatches sit unread.
-- **Read on the iscp-check notification.** When the hook tells you mail is waiting, that is the signal to check immediately at the next natural break.
-- **Process dispatches at session start, before other work.** This is the third startup step below — it is non-negotiable.
-- **Reply or resolve in the same session.** Don't leave plans waiting for approval indefinitely.
-- **Coordinate at the speed your team is working.** If devex shipped a plan and is sitting waiting on you, your job is to unblock them.
-
-### How they interact
-
-If both happen at the same time — principal contacts you AND a new dispatch arrives — the principal's communication wins. Acknowledge the dispatch quickly ("dispatch from devex just landed, will read after we wrap this") but address the principal first.
-
 ## Startup Sequence
+
+<!-- D41-R19: "The Two Standing Priorities" section moved to class doc
+     (claude/agents/captain/agent.md) — it's class-level policy, not
+     principal-specific. Same for "Over / Over-and-out" further down. -->
+
 
 On every session start, do these in order:
 
@@ -129,48 +103,32 @@ To send a dispatch to monofolk:
 |------|---------|-------------------|
 | monofolk | `monofolk/jordan/captain` | `~/code/collaboration-monofolk` |
 
-## Communication Protocol — Over / Over-and-Out
+## Release Discipline — CAPTAIN-OWNED, NON-NEGOTIABLE
 
-All back-and-forth discussions (1B1, /discuss, reviews, any conversation with the principal) follow the **Over / Over-and-Out** protocol, adapted from radio communications (1860s Morse procedural signs → WWII voice radio prowords).
+Captain owns every release in this repo. The release path is fixed and mandatory. No shortcuts, no raw `gh` commands, no exceptions.
 
-### Signals
+### Every release follows this sequence
 
-| Signal | Agent behavior |
-|---|---|
-| *(streaming — no signal yet)* | Receive, parse, think. **Do NOT respond.** The principal is still transmitting. |
-| **"Over"** | Principal's turn is done. Agent: **mirror back** what you heard (rephrase/reframe). Discuss. Ask questions. **NO action taken.** |
-| **"Over and out"** | Discussion item resolved. Agent: state intended actions. Ask **"does that work?"** Then execute per the gate model below. |
+1. **Branch.** `jordandm-D{day}-R{release}` — no topic suffix. Created via `./claude/tools/git-captain checkout-branch`.
+2. **Implement.** Iteration-level commits via `/iteration-complete` (auto-approve) or `/phase-complete` (principal approval).
+3. **`/pr-prep`.** Full QG against `origin/main` — parallel MAR, fix cycle, RGR receipt signed via `receipt-sign` (five-hash chain, NOT legacy QGR stage-hash file).
+4. **Manifest bump.** `claude/config/manifest.json → agency_version: {day}.{release}`, updated_at stamped. Committed in the release branch, NOT in a follow-up.
+5. **`/release`.** Pushes via `./claude/tools/git-push`, PR created via `./claude/tools/pr-create` — title `jordandm-D{day}-R{release}: {summary}`, body references the RGR receipt and closes related issues.
+6. **Principal approval.** Explicit `--principal-approved` confirmation on the PR. No merges without it.
+7. **`/pr-merge`.** Uses `--merge` (never `--squash`, never `--rebase`). Hookify blocks `gh pr merge` directly.
+8. **`/post-merge`.** Syncs local main, cuts a GitHub release tagged `v{day}.{release}`, runs `/sync-all` to propagate to worktrees.
 
-### Execution gates
+### Release rules — read these every release
 
-| Action risk | Gate | Examples |
-|---|---|---|
-| **Low risk** | **Soft gate** — proceed unless principal objects | Drafting, researching, updating transcripts, outline revisions, launching research agents |
-| **High risk** | **Hard gate** — wait for explicit confirmation before executing | Filing to external systems, pushing to git, deleting files/branches, sending dispatches, destructive operations |
+- **No squash merges. Ever.** Same family as rebase. Principal banned in D41. `pr-merge` refuses `--squash` mechanically.
+- **No raw `gh pr merge`.** Hookify blocks it. Route through `./claude/tools/pr-merge`.
+- **No direct pushes to main.** Hookify blocks. All changes through PR.
+- **No RGR, no PR.** `pr-create` validates the receipt. No valid receipt → no PR.
+- **Every PR is a release.** There are no "small" PRs that skip version bump or RGR. If the change ships, it's a release.
+- **Issues closed in PR body** via `Closes #N` — the post-merge release notes pick these up.
+- **Release notes in the PR body** — not hand-written later. What ships is what you write.
 
-The risk classification aligns with hookify levels: hookify-warn actions are soft-gate; hookify-block actions are hard-gate.
-
-### Rules
-
-- **Until you receive "Over," do not respond.** Batch-receive the principal's stream without interrupting their train of thought.
-- **On "Over," mirror first.** Rephrase what you heard before adding your own analysis. This catches misunderstandings before they become wrong actions.
-- **On "Over and out," state your plan.** Never silently execute after a discussion. Say what you're going to do. Ask "does that work?" For soft-gate actions, proceed after asking. For hard-gate actions, wait for explicit "yes."
-- **Any 1B1 auto-starts a transcript** if one isn't already running.
-
-## Tool Discipline — USE THE TOOLS
-
-**Never hand-craft files that a tool creates.** The framework has tools for scaffolding workstreams, agents, and worktrees. USE THEM:
-
-- **Workstreams:** `/workstream-create` — creates directory structure, agent registrations, worktrees, sandbox
-- **Agents:** `./claude/tools/agent-create` — creates agent registrations in `.claude/agents/`. NEVER write registration files manually.
-- **Worktrees:** `./claude/tools/worktree-create` — creates git worktrees with proper branch, settings copy, identity file, dependency install
-- **Handoffs:** `./claude/tools/handoff write` — archives previous, writes new. NEVER write handoff files directly.
-- **Commits:** `./claude/tools/git-safe-commit` — QG-aware wrapper. NEVER use raw `git commit`.
-- **Dispatches:** `./claude/tools/dispatch create` — creates DB record + git payload. NEVER write dispatch files manually.
-
-The tools exist because they enforce consistency, create the right structure, and are the Enforcement Triangle in action. Hand-crafting files that tools should create is a process violation — it bypasses the consistency guarantees and creates drift.
-
-**Lesson captured 2026-04-12:** Captain hand-crafted agent registration + handoff + workstream dirs for DesignEx instead of using `/workstream-create` + `agent-create` + `worktree-create`. Principal caught it: *"Use the tools! You are doing it manually! Spin up a workstream, an agent, a worktree with the tools!"* Fixed by removing manual files and redoing with tools.
+Universal tool discipline (use the skills, use the tools — they exist for reasons) is captured in `claude/REFERENCE-AGENT-DISCIPLINE.md` and the bootloader. **Release discipline is the captain's specific cut of that universal rule — stricter, because releases are the point at which drift becomes unrecoverable.**
 
 ## File Discipline
 

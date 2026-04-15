@@ -1,0 +1,74 @@
+# What Problem: Post-merge release-tag creation was advisory in the
+# /post-merge skill but not mechanically enforced. On Day 41, PR #98
+# (R4+R6+R7 devex bundle) merged but no release tag was cut — a historical
+# gap only discovered weeks later when monofolk couldn't pull fixes via
+# `agency update --from-github`. Principal directive: "We always need a
+# release tag." (Issue #113.)
+#
+# How & Why: Run on every push to main. Only enforce on merge commits
+# (two-parent commits produced by PR --merge). Read manifest.json →
+# agency_version and fail the workflow if the corresponding `v{version}`
+# release does not exist. Red CI is visible pressure on captain to cut the
+# tag immediately after merge. Skips direct housekeeping coord-commits
+# (single-parent), since those aren't PRs and don't need releases.
+#
+# Written: 2026-04-15 during D41-R20 — issue #113 enforcement half.
+
+name: Release Tag Check
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  release-tag-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need parents to detect merge commits
+
+      - name: Detect merge commit
+        id: ismerge
+        run: |
+          parent_count=$(git rev-list --parents -n 1 HEAD | awk '{print NF-1}')
+          echo "parents=$parent_count" >> "$GITHUB_OUTPUT"
+          echo "Commit $(git rev-parse --short HEAD) has $parent_count parent(s)"
+
+      - name: Read manifest version
+        id: ver
+        if: steps.ismerge.outputs.parents == '2'
+        run: |
+          if [[ ! -f claude/config/manifest.json ]]; then
+            echo "::error::claude/config/manifest.json missing"
+            exit 1
+          fi
+          v=$(jq -r .agency_version claude/config/manifest.json)
+          if [[ -z "$v" || "$v" == "null" ]]; then
+            echo "::error::Could not read agency_version from manifest.json"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Manifest version: v${v}"
+
+      - name: Assert release exists
+        if: steps.ismerge.outputs.parents == '2'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          v="${{ steps.ver.outputs.version }}"
+          if ! gh release view "v${v}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "::error file=claude/config/manifest.json::Merge commit $(git rev-parse --short HEAD) landed without release tag v${v}. Captain must run /post-merge to cut the release immediately. See issue #113."
+            exit 1
+          fi
+          echo "✓ Release v${v} present for merge commit $(git rev-parse --short HEAD)"
+
+      - name: Skip (non-merge commit)
+        if: steps.ismerge.outputs.parents != '2'
+        run: |
+          echo "Skipping release-tag check — this is a direct commit (not a PR merge)."
+          echo "Release-tag enforcement applies only to merge commits (two-parent)."
