@@ -166,14 +166,44 @@ _validate_dispatch_filename() {
 }
 
 _update_frontmatter_status() {
-    # Update status field in YAML frontmatter of a dispatch file
+    # Update status field in YAML frontmatter of a dispatch file.
+    # Operates ONLY on the frontmatter block (between first two ^---$ markers)
+    # to avoid false matches in the body (e.g., a reply quoting another
+    # dispatch header). Replaces existing status; inserts before closing ---
+    # if absent. Atomic via temp file.
+    #
+    # PR #87 review fixes (D41-R3):
+    # - Frontmatter-scoped (was: matched body lines)
+    # - awk-based (was: BSD sed `i\` + `}` quoting was unreliable)
     local file="$1" new_status="$2"
     if [[ ! -f "$file" ]]; then
         echo "ERROR: file not found: $file" >&2
         return 1
     fi
-    # Use sed to replace status in frontmatter (between --- markers)
-    sed -i '' "s/^status: .*/status: ${new_status}/" "$file"
+
+    local tmp
+    tmp=$(mktemp) || { echo "ERROR: mktemp failed" >&2; return 1; }
+
+    awk -v new_status="$new_status" '
+        BEGIN { in_fm = 0; fm_done = 0; saw_status = 0; opened = 0 }
+        # Track frontmatter boundaries: first --- opens, second --- closes.
+        /^---[[:space:]]*$/ {
+            if (!opened) { opened = 1; in_fm = 1; print; next }
+            if (in_fm && !fm_done) {
+                if (!saw_status) print "status: " new_status
+                in_fm = 0; fm_done = 1; print; next
+            }
+        }
+        # Inside frontmatter: rewrite status: lines, pass others.
+        in_fm && /^status:[[:space:]]/ {
+            print "status: " new_status
+            saw_status = 1
+            next
+        }
+        { print }
+    ' "$file" > "$tmp" || { rm -f "$tmp"; echo "ERROR: awk failed" >&2; return 1; }
+
+    mv "$tmp" "$file"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -208,22 +238,65 @@ cmd_check() {
             continue
         fi
 
-        # Pull latest. D41-R5 monofolk QG fix: --ff-only (was --rebase).
-        # Rebase rewrites collaboration-repo history; --ff-only refuses to
-        # auto-merge divergence, surfacing real conflicts to the operator.
-        # Aligns with the framework's merge-not-rebase discipline.
-        local pull_output
+        # Pull latest. Combines:
+        # - D41-R3: stash dirty state first via stash-list-delta detection
+        #   (git stash returns 0 even when it creates no new entry; popping
+        #   would then restore an unrelated older stash).
+        # - D41-R5: --ff-only (was --rebase) — aligns with merge-not-rebase
+        #   discipline; surfaces real divergence as conflict.
+        local pull_output stashed=false stash_before stash_after
+        stash_before=$(cd "$full_path" && git stash list 2>/dev/null | wc -l | tr -d ' ')
+        if [[ -n "$(cd "$full_path" && git status --porcelain 2>/dev/null)" ]]; then
+            (cd "$full_path" && git stash push -q -u -m "collaboration-check" 2>/dev/null) || true
+            stash_after=$(cd "$full_path" && git stash list 2>/dev/null | wc -l | tr -d ' ')
+            [[ "$stash_after" -gt "$stash_before" ]] && stashed=true
+        fi
         pull_output=$(cd "$full_path" && git pull --ff-only 2>&1) || {
             results+=("⚠ $name: git pull failed — ${pull_output%%$'\n'*}")
+            if $stashed; then
+                (cd "$full_path" && git stash pop -q 2>/dev/null) || \
+                    results+=("⚠ $name: stash pop failed — resolve manually in $full_path")
+            fi
             continue
         }
+        if $stashed; then
+            (cd "$full_path" && git stash pop -q 2>/dev/null) || \
+                results+=("⚠ $name: stash pop failed after pull — resolve manually in $full_path")
+        fi
 
         local inbound_path="$full_path/$inbound"
         [[ -d "$inbound_path" ]] || continue
 
-        # Scan for unread dispatches
-        local unread_files
-        unread_files=$(grep -rl 'status: unread' "$inbound_path"/*.md 2>/dev/null) || true
+        # Scan for unread dispatches.
+        # Incoming cross-repo dispatches arrive WITHOUT a status field; old
+        # logic looked for `status: unread` and missed them all.
+        # PR #87 review fix (D41-R3): inspect frontmatter ONLY (between first
+        # two ^---$ markers). A reply that quotes another dispatch header in
+        # its body would otherwise be a false negative ("status: resolved"
+        # appearing in body would mark a legitimately unread dispatch as read).
+        local unread_files=""
+        shopt -s nullglob
+        for candidate in "$inbound_path"/*.md; do
+            [[ -f "$candidate" ]] || continue
+            local fm_status
+            fm_status=$(awk '
+                BEGIN { in_fm = 0; opened = 0 }
+                /^---[[:space:]]*$/ {
+                    if (!opened) { opened = 1; in_fm = 1; next }
+                    if (in_fm)   { exit }
+                }
+                in_fm && /^status:[[:space:]]/ {
+                    sub(/^status:[[:space:]]*/, "")
+                    print
+                    exit
+                }
+            ' "$candidate" 2>/dev/null)
+            if [[ "$fm_status" != "read" && "$fm_status" != "resolved" ]]; then
+                unread_files="${unread_files:+$unread_files
+}$candidate"
+            fi
+        done
+        shopt -u nullglob
 
         if [[ -n "$unread_files" ]]; then
             found_any=true
@@ -571,7 +644,6 @@ cmd_push() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 # When sourced (e.g., from BATS tests), expose helpers without dispatching.
-# D41-R5 monofolk QG fix coverage requires this guard for testability.
 [[ "${BASH_SOURCE[0]}" != "${0}" ]] && return 0 2>/dev/null || true
 
 case "${1:-}" in
