@@ -68,7 +68,14 @@ verbose=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --agent)
-            agent_override="${2:-}"
+            # D41-R22 (issue #115 bug 1): under set -euo pipefail, `shift 2`
+            # crashes when --agent is the last arg with no value following.
+            # Validate before consuming.
+            if [[ $# -lt 2 ]]; then
+                echo "agent-bootstrap: --agent requires a value" >&2
+                exit 2
+            fi
+            agent_override="$2"
             shift 2
             ;;
         --path)
