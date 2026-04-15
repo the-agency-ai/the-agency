@@ -488,7 +488,10 @@ EOF
             log_info "Stage hash: $current_hash"
             # Check for matching QGR receipt (warn-only, don't block)
             local qgr_match
-            qgr_match=$(ls usr/jordan/*/qgr-*-"$current_hash"-*.md 2>/dev/null | head -1 || true)
+            # Glob over every principal dir — receipts may be produced by
+            # any contributor's principal sandbox in multi-principal repos.
+            # Fixed in D41-R19 (issue #111) — was hardcoded to usr/jordan/.
+            qgr_match=$(ls usr/*/*/qgr-*-"$current_hash"-*.md 2>/dev/null | head -1 || true)
             if [[ -z "$qgr_match" ]]; then
                 log_warn "No QGR receipt for stage hash $current_hash (warn-only)"
             fi
