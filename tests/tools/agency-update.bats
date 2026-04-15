@@ -203,3 +203,118 @@ EOF
     [ -f "$root/target/usr/jordan/captain/captain-handoff.md" ]
     [ -f "$root/target/claude/workstreams/myproject/KNOWLEDGE.md" ]
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R20: --from-github default-ref behavior (issue #113)
+#
+# These tests exercise the parser-level default for the --from-github flag.
+# They do NOT actually clone from github (would require network and a real
+# fork). They verify the default ref the parser/resolver would pass to git.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency update: --help documents new default and @latest opt-in" {
+    run_agency update --help
+    assert_success
+    assert_output_contains "Default: main"
+    assert_output_contains "@latest"
+}
+
+@test "agency update: --help no longer claims 'latest tag' as default" {
+    run_agency update --help
+    assert_success
+    # The phrase 'default: latest tag' WAS the old behavior; ensure it's gone.
+    [[ "$output" != *"default: latest tag"* ]]
+}
+
+@test "agency update: --from-github with no ref falls through to main resolution" {
+    # Without network access we cannot complete a clone, so we expect the tool
+    # to fail at the clone step. But the verbose output should reference 'main'
+    # (the new default), not 'latest'.
+    cd "$BATS_TEST_TMPDIR"
+    mkdir -p target/claude/config
+    cat > target/claude/config/agency.yaml <<EOF
+framework:
+  version: "1.0.0"
+  source_commit: "deadbee"
+EOF
+    cd target && git init --quiet && git add -A && \
+        git -c user.name=t -c user.email=t@t commit --quiet -m init --no-verify
+    # --force bypasses dirty-tree gate (unrelated to this test)
+    GITHUB_REPO_URL="file:///nonexistent-r20-test" run "${TOOLS_DIR}/agency" update --from-github --force 2>&1
+    # The "ref: ..." log line tells us what FROM_GITHUB resolved to.
+    assert_output_contains "ref: main"
+}
+
+@test "agency update: --from-github @latest opt-in attempts release-tag resolution" {
+    cd "$BATS_TEST_TMPDIR"
+    mkdir -p target/claude/config
+    cat > target/claude/config/agency.yaml <<EOF
+framework:
+  version: "1.0.0"
+  source_commit: "deadbee"
+EOF
+    cd target && git init --quiet && git add -A && \
+        git -c user.name=t -c user.email=t@t commit --quiet -m init --no-verify
+    # @latest takes the gh-release-view branch (or falls back to main if gh
+    # missing or release lookup fails).
+    GITHUB_REPO_URL="file:///nonexistent-r20-test" run "${TOOLS_DIR}/agency" update --from-github @latest --force 2>&1
+    # The "ref: @latest" log line shows we entered the @latest branch
+    assert_output_contains "ref: @latest"
+}
+
+@test "agency update: legacy --from-github latest emits deprecation warning" {
+    cd "$BATS_TEST_TMPDIR"
+    mkdir -p target/claude/config
+    cat > target/claude/config/agency.yaml <<EOF
+framework:
+  version: "1.0.0"
+  source_commit: "deadbee"
+EOF
+    cd target && git init --quiet && git add -A && \
+        git -c user.name=t -c user.email=t@t commit --quiet -m init --no-verify
+    # --force bypasses the unrelated dirty-tree gate so we can reach the
+    # from-github resolution path.
+    GITHUB_REPO_URL="file:///nonexistent-r20-test" run "${TOOLS_DIR}/agency" update --from-github latest --force 2>&1
+    assert_output_contains "deprecated"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R20: release-tag-check workflow file present and well-formed
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "release-tag-check workflow file exists and references manifest version" {
+    [[ -f "$REPO_ROOT/.github/workflows/release-tag-check.yml" ]]
+    run grep -F "agency_version" "$REPO_ROOT/.github/workflows/release-tag-check.yml"
+    assert_success
+    run grep -F "gh release view" "$REPO_ROOT/.github/workflows/release-tag-check.yml"
+    assert_success
+}
+
+@test "release-tag-check workflow only fires on push to main" {
+    run grep -A2 "^on:" "$REPO_ROOT/.github/workflows/release-tag-check.yml"
+    assert_success
+    # assert_output_contains uses bash regex; brackets are character classes.
+    # Use a fixed-string grep instead to verify the literal phrase.
+    run grep -F "branches: [main]" "$REPO_ROOT/.github/workflows/release-tag-check.yml"
+    assert_success
+}
+
+@test "release-tag-check workflow skips non-merge commits (single-parent)" {
+    # Verify the parent-count logic exists so housekeeping coord-commits don't
+    # trigger false-red CI.
+    run grep -F "parents == '2'" "$REPO_ROOT/.github/workflows/release-tag-check.yml"
+    assert_success
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R20: post-merge skill enforces release verification
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "post-merge skill marks release-tag step as MANDATORY with hard verify" {
+    run grep -F "MANDATORY" "$REPO_ROOT/.claude/skills/post-merge/SKILL.md"
+    assert_success
+    run grep -F "hard check" "$REPO_ROOT/.claude/skills/post-merge/SKILL.md"
+    assert_success
+    run grep -F "release-tag-check" "$REPO_ROOT/.claude/skills/post-merge/SKILL.md"
+    assert_success
+}
