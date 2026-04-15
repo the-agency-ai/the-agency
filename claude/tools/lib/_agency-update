@@ -16,6 +16,7 @@ RUN_ID=$(log_start "agency-update" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/de
 # --- Defaults ---
 VERBOSE=false
 DRY_RUN=false
+FORCE=false
 TARGET_DIR=""
 
 _update_help() {
@@ -29,6 +30,7 @@ Usage:
 Options:
   --verbose        Show detailed output
   --dry-run        Preview changes without applying
+  --force          Proceed even if the working tree has uncommitted framework changes
   --help, -h       Show this help
 
 Source detection (in order):
@@ -47,6 +49,7 @@ while [[ $# -gt 0 ]]; do
         --help|-h) _update_help; exit 0 ;;
         --verbose) VERBOSE=true; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
+        --force) FORCE=true; shift ;;
         -*) echo "Unknown option: $1" >&2; _update_help; exit 1 ;;
         *) TARGET_DIR="$1"; shift ;;
     esac
@@ -74,6 +77,40 @@ _update_main() {
         log_error "Agency not initialized in $TARGET_DIR"
         echo "Run 'agency init' first."
         exit 1
+    fi
+
+    # --- Precondition: no interrupted prior update ---
+    # If the target is a git repo and has uncommitted changes under the
+    # framework-managed paths (claude/, .claude/) OR the framework section of
+    # agency.yaml is modified, a prior 'agency update' likely left work
+    # uncommitted. Re-running in that state silently rewrites those changes
+    # and has caused cross-repo confusion (monofolk escalation, D41).
+    # Print a 3-line guide naming the right tool sequence. --force bypasses.
+    if [[ "$DRY_RUN" == "false" ]] && git -C "$TARGET_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+        local dirty_framework
+        dirty_framework=$(git -C "$TARGET_DIR" status --porcelain -- \
+            'claude/' '.claude/' 2>/dev/null | head -20 || true)
+        if [[ -n "$dirty_framework" && "$FORCE" != "true" ]]; then
+            local dirty_count
+            dirty_count=$(echo "$dirty_framework" | grep -c '^' || echo "0")
+            echo -e "${RED}✗ agency update: $dirty_count uncommitted framework file(s) detected${NC}" >&2
+            echo "  → Looks like a prior 'agency update' left changes in claude/ or .claude/." >&2
+            echo "  → Commit first — these are coordination artifacts, not app code:" >&2
+            echo "      ./claude/tools/git-safe-commit \"misc: prior agency update\" --no-work-item" >&2
+            echo "  → Or re-run with --force to overwrite (will lose uncommitted local changes)." >&2
+            echo "" >&2
+            if [[ "$VERBOSE" == "true" ]]; then
+                echo "Dirty files (first 20):" >&2
+                echo "$dirty_framework" >&2
+            else
+                echo "  First few:" >&2
+                echo "$dirty_framework" | head -5 | sed 's/^/    /' >&2
+                [[ "$dirty_count" -gt 5 ]] && echo "    ... ($dirty_count total; use --verbose to see all)" >&2
+            fi
+            log_end "$RUN_ID" "blocked" 1 0 "Dirty framework tree — prior update uncommitted" 2>/dev/null || true
+            trap - EXIT
+            exit 1
+        fi
     fi
 
     # --- Source detection ---
