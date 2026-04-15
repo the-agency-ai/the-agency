@@ -880,6 +880,46 @@ func testDocumentModelLastErrorClearedOnSuccess() async throws {
     try expectTrue(doc.lastError == nil, "lastError cleared after subsequent success")
 }
 
+// Coverage: mutation paths must clear lastError on success so a stale
+// error alert from a prior failure does not linger.
+
+func testDocumentModelEditSectionClearsLastErrorOnSuccess() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    doc.lastError = "stale error from prior op"
+    await doc.loadSections()
+    await doc.selectSection(slug: "overview")
+    let base = doc.selectedSection!
+    try await doc.editSection(
+        slug: "overview", newContent: "Refreshed body.", versionHash: base.versionHash
+    )
+    try expectTrue(doc.lastError == nil,
+                   "editSection success must clear lastError; got: \(doc.lastError ?? "nil")")
+}
+
+func testDocumentModelAddCommentClearsLastErrorOnSuccess() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    doc.lastError = "stale error from prior op"
+    try await doc.addComment(
+        slug: "overview", type: .question, author: "alice",
+        text: "What about edge cases?"
+    )
+    try expectTrue(doc.lastError == nil,
+                   "addComment success must clear lastError; got: \(doc.lastError ?? "nil")")
+}
+
+func testDocumentModelSelectSectionFailureSetsLastError() async throws {
+    let svc = FailingToggleService()
+    let doc = DocumentModel(cliService: svc)
+    try expectTrue(doc.lastError == nil, "lastError starts nil")
+    await doc.selectSection(slug: "overview")
+    try expectTrue(doc.lastError != nil,
+                   "selectSection failure must set lastError")
+    try expectTrue(
+        doc.lastError!.contains("Failed to read section"),
+        "lastError should describe the failure, got: \(doc.lastError!)"
+    )
+}
+
 // MARK: - SelectionContext (1A.5)
 
 func testSelectionContextNilClipboardReturnsNil() throws {
@@ -1009,6 +1049,9 @@ struct TestRunner {
         await runAsync("lastError cleared on subsequent success", testDocumentModelLastErrorClearedOnSuccess)
         await runAsync("editSection happy path", testDocumentModelEditSectionHappyPath)
         await runAsync("editSection throws on stale version hash", testDocumentModelEditSectionThrowsOnStaleVersionHash)
+        await runAsync("editSection success clears lastError", testDocumentModelEditSectionClearsLastErrorOnSuccess)
+        await runAsync("addComment success clears lastError", testDocumentModelAddCommentClearsLastErrorOnSuccess)
+        await runAsync("selectSection failure sets lastError", testDocumentModelSelectSectionFailureSetsLastError)
 
         print("\nSelectionContext (1A.5):")
         run("nil clipboard returns nil", testSelectionContextNilClipboardReturnsNil)

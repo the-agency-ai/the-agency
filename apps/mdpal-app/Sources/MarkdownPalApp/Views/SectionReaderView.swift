@@ -113,7 +113,9 @@ public struct SectionReaderView: View {
                 author: currentAuthor,
                 prefillContext: commentPrefillContext
             ) { type, text, context, priority in
-                guard let document else { return true }
+                // No document means we cannot perform the mutation — keep the
+                // sheet open so the user's draft is preserved (return false).
+                guard let document else { return false }
                 do {
                     try await document.addComment(
                         slug: section.slug, type: type, author: currentAuthor,
@@ -128,7 +130,9 @@ public struct SectionReaderView: View {
         }
         .sheet(isPresented: $showingFlagEditor) {
             FlagEditorSheet(slug: section.slug, currentlyFlagged: flag != nil) { note in
-                guard let document else { return true }
+                // No document means we cannot perform the mutation — keep the
+                // sheet open so the user's draft is preserved (return false).
+                guard let document else { return false }
                 do {
                     try await document.toggleFlag(
                         slug: section.slug, author: currentAuthor, note: note
@@ -168,7 +172,9 @@ public struct SectionReaderView: View {
         }
         .sheet(item: $resolvingComment) { comment in
             ResolveCommentSheet(comment: comment, by: currentAuthor) { response in
-                guard let document else { return true }
+                // No document means we cannot perform the mutation — keep the
+                // sheet open so the user's draft is preserved (return false).
+                guard let document else { return false }
                 do {
                     try await document.resolveComment(
                         commentId: comment.commentId, response: response, by: currentAuthor
