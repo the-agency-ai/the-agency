@@ -316,6 +316,32 @@ _update_main() {
         fi
     fi
 
+    # Tests for framework tools (D41-R15: monofolk issue #102 fix)
+    # Adopters need the BATS suites for the tools they receive so they can
+    # verify behavior locally and contribute upstream. Sync tests/tools/
+    # only — NOT tests/skills/ (some skill tests reference framework-specific
+    # state) and NOT project-local test dirs the adopter may have.
+    if [[ -d "$SOURCE_DIR/tests/tools" ]]; then
+        mkdir -p "$TARGET_DIR/tests/tools"
+        local tests_output
+        tests_output=$(rsync "${rsync_flags[@]}" \
+            --itemize-changes \
+            "$SOURCE_DIR/tests/tools/" "$TARGET_DIR/tests/tools/" 2>&1) || true
+        if [[ -n "$tests_output" ]] && [[ "$VERBOSE" == "true" ]]; then
+            echo "$tests_output"
+        fi
+        local tests_added
+        tests_added=$(echo "${tests_output:-}" | grep -c '^>f+++' || true)
+        added=$((added + tests_added))
+        log_info "tests/tools/ sync: +$tests_added"
+    fi
+    # Also sync the test_helper.bash if present (tests/tools/ depends on it)
+    if [[ -f "$SOURCE_DIR/tests/test_helper.bash" ]]; then
+        mkdir -p "$TARGET_DIR/tests"
+        rsync "${rsync_flags[@]}" \
+            "$SOURCE_DIR/tests/test_helper.bash" "$TARGET_DIR/tests/test_helper.bash" 2>&1 >/dev/null || true
+    fi
+
     # =====================================================================
     # Step 3: Settings merge
     # =====================================================================

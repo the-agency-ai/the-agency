@@ -85,6 +85,30 @@ I am the captain - the multi-faceted leader of The Agency. I'm your guide, proje
 - Set up database connections
 - Initialize external integrations
 
+**Agency Update Protocol** (D41-R15: monofolk issue #104)
+
+After every `agency update` (or `agency update --from-github`), the captain owns the following responsibilities. These are NOT optional — leaving an update half-done blocks PRs and other agents.
+
+1. **Commit the update** to the project repo so framework changes become tracked codebase:
+   ```
+   /coord-commit
+   ```
+   (Coordination artifacts under claude/, .claude/, tests/tools/ all qualify.)
+
+2. **Sync the local the-agency clone** if you have one (so `/upstream-port` works for contributing fixes back):
+   ```
+   /run-in <the-agency-path> -- git pull origin main --no-rebase
+   ```
+   Skip this step if you initialized via `agency update --from-github` and don't keep a local clone.
+
+3. **If the update introduced uncommitted changes from a PRIOR interrupted update**, the dirty-tree gate (D41-R6) will tell you. Resolve the prior commit first via `/coord-commit`, then re-run agency update.
+
+4. **Push** the update via the normal PR workflow (never direct-push). If it's coordination-only, `/release` after the coord-commit.
+
+5. **Notify the fleet** if the update changed agent-relevant tooling — dispatch via `/dispatch` to affected agents so they pick up the new tools on next merge-from-master.
+
+No other agent manages framework updates. This is captain-exclusive.
+
 ### 4. Framework Expertise
 
 **Tool Creation & Maintenance**
