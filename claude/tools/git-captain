@@ -54,6 +54,7 @@ Subcommands:
   merge-to-master <branch>       Merge branch into main/master (--no-ff)
   checkout-branch <name>         Create and switch to a new branch
   switch-branch <name>           Switch to an existing branch (including main)
+  sync-main                      Fast-forward main to origin/main (requires clean tree, on main)
   push [args]                    Push to remote (blocks main/master, blocks bare --force)
   fetch                          Fetch from origin
   tag <name> [-m <msg>]          Create annotated tag
@@ -132,6 +133,43 @@ cmd_switch_branch() {
 
     git checkout "$name"
     echo "${GREEN}Switched to branch:${NC} $name"
+}
+
+# --- Subcommand: sync-main ---
+# Fast-forward main to origin/main. Safe by design: only FF, never merge commits,
+# never touches feature branches. Used by post-merge after a PR lands on GitHub.
+cmd_sync_main() {
+    [[ $# -gt 0 ]] && die "Usage: git-captain sync-main (takes no arguments)"
+
+    local main_branch
+    main_branch=$(detect_main_branch)
+
+    local current_branch
+    current_branch=$(git branch --show-current)
+
+    if [[ -z "$current_branch" ]]; then
+        die "HEAD is detached. Switch to $main_branch first: git-captain switch-branch $main_branch"
+    fi
+
+    if [[ "$current_branch" != "$main_branch" ]]; then
+        die "Must be on $main_branch to sync. Currently on: $current_branch"
+    fi
+
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        die "Working tree is dirty. Commit or stash before sync-main."
+    fi
+
+    # Verify origin/main exists
+    if ! git show-ref --verify "refs/remotes/origin/$main_branch" &>/dev/null; then
+        die "origin/$main_branch does not exist. Run 'git-captain fetch' first."
+    fi
+
+    echo "${BLUE}Fast-forwarding $main_branch to origin/$main_branch...${NC}"
+    if git merge --ff-only "origin/$main_branch"; then
+        echo "${GREEN}sync-main complete.${NC}"
+    else
+        die "Fast-forward failed — $main_branch has diverged from origin/$main_branch. Investigate manually."
+    fi
 }
 
 # --- Subcommand: push ---
@@ -261,6 +299,7 @@ case "$1" in
     merge-to-master)    shift; cmd_merge_to_master "$@" ;;
     checkout-branch)    shift; cmd_checkout_branch "$@" ;;
     switch-branch)      shift; cmd_switch_branch "$@" ;;
+    sync-main)          shift; cmd_sync_main "$@" ;;
     push)               shift; cmd_push "$@" ;;
     fetch)              shift; cmd_fetch "$@" ;;
     tag)                shift; cmd_tag "$@" ;;
