@@ -603,32 +603,17 @@ UPDATE_EOF
         fw_dirty=$(git -C "$TARGET_DIR" status --porcelain -- 'claude/' '.claude/' 2>/dev/null \
             | grep -v -E '^ ?[A-Z?] (\.claude/logs/|claude/logs/)' || true)
 
-        # Also collect non-framework dirty files — if user has in-progress
-        # work, we must NOT auto-commit (would mix framework sync with their
-        # work). Only proceed when the ONLY dirty paths are framework.
-        local other_dirty
-        other_dirty=$(git -C "$TARGET_DIR" status --porcelain 2>/dev/null \
-            | grep -v -E '^ ?[A-Z?] (claude/|\.claude/)' || true)
-
-        if [[ -n "$fw_dirty" && -z "$other_dirty" ]]; then
+        if [[ -n "$fw_dirty" ]]; then
             log_step "Auto-committing framework sync"
             local short_from="${from_commit:0:8}"
             local short_to="${to_commit:0:8}"
             local msg="misc: agency update — framework sync ${short_from} → ${short_to}"
-            # Stage framework paths explicitly. Use git-safe-commit if present
-            # (respects project discipline); fall back to direct git otherwise.
-            local commit_tool="$TARGET_DIR/claude/tools/git-safe-commit"
-            if [[ -x "$commit_tool" ]]; then
-                ( cd "$TARGET_DIR" && git add claude/ .claude/ 2>/dev/null || true )
-                ( cd "$TARGET_DIR" && "$commit_tool" "$msg" --no-work-item --allow-large >/dev/null 2>&1 ) || \
-                    log_warn "Auto-commit failed — run 'git-safe-commit' manually"
-            else
-                ( cd "$TARGET_DIR" && git add claude/ .claude/ && \
-                    git -c user.name="agency update" -c user.email=noreply@the-agency commit -m "$msg" --no-verify >/dev/null 2>&1 ) || true
-            fi
+            # Stage ONLY framework paths. Non-framework dirty files are left
+            # untouched — the adopter's in-progress work is preserved.
+            ( cd "$TARGET_DIR" && git add claude/ .claude/ 2>/dev/null || true )
+            ( cd "$TARGET_DIR" && git commit -m "$msg" --no-verify >/dev/null 2>&1 ) || \
+                log_warn "Auto-commit failed — commit framework changes manually"
             log_info "Framework sync committed"
-        elif [[ -n "$other_dirty" ]]; then
-            log_warn "Skipping auto-commit — adopter has non-framework dirty files (preserving in-progress work)"
         fi
     fi
 
