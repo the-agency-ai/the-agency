@@ -162,7 +162,7 @@ _update_main() {
     # D41-R10 (monofolk hotfix): --from-github takes precedence so adopters
     # without a local the-agency clone can update directly from origin.
     local SOURCE_DIR=""
-    local TMP_SOURCE_DIR=""   # Set if we shallow-cloned; teardown trap unsets
+    TMP_SOURCE_DIR=""   # NOT local — trap needs access after function exits
     if [[ -n "$FROM_GITHUB" ]]; then
         log_step "Fetching the-agency from GitHub (ref: $FROM_GITHUB)..."
         TMP_SOURCE_DIR=$(mktemp -d -t agency-source-XXXXXX)
@@ -240,10 +240,9 @@ _update_main() {
     # --- Resolve versions ---
     local from_commit to_commit from_version to_version
     from_commit=$(grep '^  source_commit:' "$TARGET_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
-    from_version=$(grep '^  version:' "$TARGET_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
+    from_version=$(jq -r '.agency_version // "unknown"' "$TARGET_DIR/claude/config/manifest.json" 2>/dev/null || echo "unknown")
     to_commit=$(git -C "$SOURCE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
-    to_version=$(grep '^  version:' "$SOURCE_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "2.0.0")
-    to_version="${to_version:-2.0.0}"
+    to_version=$(jq -r '.agency_version // "unknown"' "$SOURCE_DIR/claude/config/manifest.json" 2>/dev/null || echo "unknown")
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -553,6 +552,7 @@ _update_main() {
         # Write update handoff directly (handoff write signals the agent,
         # but we want to write the content ourselves)
         if [[ -n "$handoff_path" ]]; then
+            mkdir -p "$(dirname "$handoff_path")"
             cat > "$handoff_path" << UPDATE_EOF
 ---
 type: agency-update
@@ -602,32 +602,17 @@ UPDATE_EOF
         fw_dirty=$(git -C "$TARGET_DIR" status --porcelain -- 'claude/' '.claude/' 2>/dev/null \
             | grep -v -E '^ ?[A-Z?] (\.claude/logs/|claude/logs/)' || true)
 
-        # Also collect non-framework dirty files — if user has in-progress
-        # work, we must NOT auto-commit (would mix framework sync with their
-        # work). Only proceed when the ONLY dirty paths are framework.
-        local other_dirty
-        other_dirty=$(git -C "$TARGET_DIR" status --porcelain 2>/dev/null \
-            | grep -v -E '^ ?[A-Z?] (claude/|\.claude/)' || true)
-
-        if [[ -n "$fw_dirty" && -z "$other_dirty" ]]; then
+        if [[ -n "$fw_dirty" ]]; then
             log_step "Auto-committing framework sync"
             local short_from="${from_commit:0:8}"
             local short_to="${to_commit:0:8}"
             local msg="misc: agency update — framework sync ${short_from} → ${short_to}"
-            # Stage framework paths explicitly. Use git-safe-commit if present
-            # (respects project discipline); fall back to direct git otherwise.
-            local commit_tool="$TARGET_DIR/claude/tools/git-safe-commit"
-            if [[ -x "$commit_tool" ]]; then
-                ( cd "$TARGET_DIR" && git add claude/ .claude/ 2>/dev/null || true )
-                ( cd "$TARGET_DIR" && "$commit_tool" "$msg" --no-work-item --allow-large >/dev/null 2>&1 ) || \
-                    log_warn "Auto-commit failed — run 'git-safe-commit' manually"
-            else
-                ( cd "$TARGET_DIR" && git add claude/ .claude/ && \
-                    git -c user.name="agency update" -c user.email=noreply@the-agency commit -m "$msg" --no-verify >/dev/null 2>&1 ) || true
-            fi
+            # Stage ONLY framework paths. Non-framework dirty files are left
+            # untouched — the adopter's in-progress work is preserved.
+            ( cd "$TARGET_DIR" && git add claude/ .claude/ 2>/dev/null || true )
+            ( cd "$TARGET_DIR" && git commit -m "$msg" --no-verify >/dev/null 2>&1 ) || \
+                log_warn "Auto-commit failed — commit framework changes manually"
             log_info "Framework sync committed"
-        elif [[ -n "$other_dirty" ]]; then
-            log_warn "Skipping auto-commit — adopter has non-framework dirty files (preserving in-progress work)"
         fi
     fi
 
@@ -665,10 +650,12 @@ UPDATE_EOF
     echo "  Changes: +$added ~$updated -$removed"
     echo ""
     if [[ "$DRY_RUN" == "false" ]]; then
-        echo "Next steps:"
-        echo "  1. Run 'agency verify' to confirm"
-        echo "  2. Review changes with 'git diff'"
-        echo "  3. Commit when satisfied"
+        # Auto-verify after update — don't ask the adopter to do it
+        log_step "Verifying installation"
+        if [[ -x "$TARGET_DIR/claude/tools/agency" ]]; then
+            ( cd "$TARGET_DIR" && ./claude/tools/agency verify ) || \
+                log_warn "Verify reported issues — run 'agency verify --verbose' for details"
+        fi
     fi
     echo ""
 
