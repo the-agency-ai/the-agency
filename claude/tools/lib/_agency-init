@@ -498,10 +498,10 @@ YAML_EOF
     # =====================================================================
     log_step "Scaffolding usr/$PRINCIPAL/"
 
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/claude"/{commands,hookify,hooks,agents,refs}
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/scripts"
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{transcripts,code-reviews,dispatches,history,tools,tmp}
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME"/{code-reviews,dispatches,transcripts,history,tools,tmp}
+    # D42-R3: slim scaffold — only personal state dirs
+    # Shared content goes in claude/workstreams/{W}/ (see Step 5b)
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{tools,tmp,history/flotsam}
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME"/{tools,tmp,history/flotsam}
 
     # tmp/ is scratch space — gitignore its contents
     for tmp_dir in "$TARGET_DIR/usr/$PRINCIPAL/captain/tmp" "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME/tmp"; do
@@ -511,15 +511,30 @@ YAML_EOF
         fi
     done
 
-    cat > "$TARGET_DIR/usr/$PRINCIPAL/README.md" << USR_EOF
-# Principal: $PRINCIPAL
+    log_info "Scaffolded usr/$PRINCIPAL/ (slim: tools, tmp, history)"
 
-## Projects
-- \`captain/\` — captain coordination
-- \`$PROJECT_NAME/\` — project work
-USR_EOF
+    # =====================================================================
+    # Step 5b: Repo-level workstream (captain's shared space)
+    # =====================================================================
+    log_step "Creating repo-level workstream: claude/workstreams/$PROJECT_NAME/"
 
-    log_info "Scaffolded usr/$PRINCIPAL/"
+    mkdir -p "$TARGET_DIR/claude/workstreams/$PROJECT_NAME"/{qgr,rgr,drafts,research,transcripts,history/flotsam}
+
+    if [[ ! -f "$TARGET_DIR/claude/workstreams/$PROJECT_NAME/KNOWLEDGE.md" ]]; then
+        cat > "$TARGET_DIR/claude/workstreams/$PROJECT_NAME/KNOWLEDGE.md" << KNOWLEDGE_EOF
+# $PROJECT_NAME — Workstream Knowledge
+
+## Patterns and Conventions
+
+<!-- Accumulate patterns discovered during development -->
+
+## Key Decisions
+
+<!-- Record architectural and design decisions with rationale -->
+KNOWLEDGE_EOF
+    fi
+
+    log_info "Created repo-level workstream"
 
     # =====================================================================
     # Step 6: Bootstrap handoff

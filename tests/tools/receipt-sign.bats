@@ -36,20 +36,22 @@ COMMON_ARGS="--type qgr --boundary pr-prep --org test-org --principal jordan --a
     [[ "$output" == *"Receipt written"* ]]
 }
 
-@test "receipt-sign: receipt contains version 1" {
+@test "receipt-sign: receipt contains version 1 — D42-R3 per-workstream path" {
     bash "$RECEIPT_SIGN" $COMMON_ARGS
     local receipt
-    receipt=$(ls "${REPO_ROOT}/claude/receipts/"*test-proj* 2>/dev/null | head -1)
+    # D42-R3: receipts now write to claude/workstreams/{W}/qgr/ or rgr/
+    receipt=$(ls "${REPO_ROOT}/claude/workstreams/agency/qgr/"*test-proj* 2>/dev/null | head -1)
     [ -n "$receipt" ]
     grep -q "receipt_version: 1" "$receipt"
     # Cleanup
     rm -f "$receipt"
 }
 
-@test "receipt-sign: auto-approve when hash-d equals hash-c" {
+@test "receipt-sign: auto-approve when hash-d equals hash-c — D42-R3 per-workstream path" {
     bash "$RECEIPT_SIGN" --type qgr --boundary iteration-complete --org test-org --principal jordan --agent devex --workstream devex --project test-auto --hash-a aaaa --hash-b bbbb --hash-c cccc --hash-d cccc --hash-e eeee
     local receipt
-    receipt=$(ls "${REPO_ROOT}/claude/receipts/"*test-auto* 2>/dev/null | head -1)
+    # D42-R3: receipts write to per-workstream path
+    receipt=$(ls "${REPO_ROOT}/claude/workstreams/devex/qgr/"*test-auto* 2>/dev/null | head -1)
     [ -n "$receipt" ]
     grep -q "auto-approved" "$receipt"
     rm -f "$receipt"
