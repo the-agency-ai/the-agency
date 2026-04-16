@@ -33,4 +33,4 @@ claude --agent iscp
 ## Seed Files
 
 - `usr/jordan/iscp/seeds/` — seed files and reference material (includes ISCP design dispatch and mdpal mining findings)
-- `usr/jordan/captain/transcripts/discussion-transcript-20260404.md` — Item 2 decisions on flag/dispatch/ISCP
+- `claude/workstreams/the-agency/transcripts/discussion-transcript-20260404.md` — Item 2 decisions on flag/dispatch/ISCP
