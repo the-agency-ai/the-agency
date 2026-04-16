@@ -97,11 +97,10 @@ if [[ -z "$MANIFEST_CHANGED" ]]; then
     MANIFEST_CACHED=$(git -C "$REPO_ROOT" diff --cached --name-only -- claude/config/manifest.json 2>/dev/null || true)
 
     if [[ -z "$MANIFEST_STAGED" && -z "$MANIFEST_CACHED" ]]; then
-        echo "BLOCKED: version not bumped." >&2
+        echo "BLOCKED: agency_version not bumped." >&2
         echo "" >&2
         echo "Every PR is a release. Update claude/config/manifest.json:" >&2
-        echo "  - Bump project_version for product changes (e.g., 42.7 → 42.8)" >&2
-        echo "  - Bump agency_version for framework changes (e.g., 42.7 → 42.8)" >&2
+        echo "  - Bump agency_version (e.g., 40.1 → 40.2)" >&2
         echo "  - Update updated_at timestamp" >&2
         echo "" >&2
         echo "The /release skill handles this automatically." >&2

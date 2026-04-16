@@ -6,13 +6,9 @@ date: 2026-04-16
 trigger: session-end
 ---
 
-## Session End — D42 (5 releases shipped)
+## D42 Session End — 8 releases shipped
 
-Massive structural overhaul session. Workstream content split spec designed, 1B1'd, MAR'd, implemented, migrated, and cleaned up in one session.
-
-## What was done
-
-### Releases shipped (5)
+### Releases
 
 | Release | PR | What |
 |---------|-----|------|
@@ -21,53 +17,44 @@ Massive structural overhaul session. Workstream content split spec designed, 1B1
 | v42.3 | #132 | workstream content split — principal-scoped registrations, per-workstream receipts, git-safe mv/unstage/restore (closes #121 #130) |
 | v42.4 | #133 | migrate the-agency artifacts to new structure |
 | v42.5 | #136 | v1 tool retirement + root cleanup + repo structure overhaul |
+| v42.6 | #137 | .gitignore + CLAUDE.md + REFERENCE-TOOL-BUILDING.md |
+| v42.7 | #138 | plan-capture workstream-aware + agency-welcome + test fixtures |
+| v42.8 | #139 | version decouple (#122) + dependencies manifest (#135) + tool-create template |
 
-### Issues closed
+### Issues closed: #121, #122, #126, #128, #130, #135
 
-#121, #126, #128, #130
+### Issues filed: #135, #140, #141, #142, #143
 
-### Issues filed
+### Stale working tree warning
 
-#135 — machine-readable dependencies manifest
+Local working tree has stale files from pre-merge state. 4 files show as modified (plan-capture.py, TOOL.sh, pr-create, release-plan.bats) — these are the OLD versions from main before R7/R8 merged. Run `AGENCY_ALLOW_RAW=1 git checkout -- .` to restore from HEAD.
 
-### Key structural changes
+### Open issues for next session
 
-1. Agent registrations → `.claude/agents/{P}/{A}.md` (principal-scoped, `claude --agent jordan/captain`)
+- **#140** — TOOL.sh template: complete logging/telemetry patterns
+- **#141** — Python tool template (TOOL.py)
+- **#142** — README-*.md content review (5 files need update)
+- **#143** — Workshop pitch for Mapletree REIT L&D
+- **#134** — workstream-create scaffold (monofolk report — likely stale SKILL.md)
+
+### Key structural decisions (D42)
+
+1. `.claude/agents/{P}/{A}.md` — principal-scoped, `claude --agent jordan/captain`
 2. `agent-bootstrap` retired — structural @import
 3. Receipt naming: `{org}-{principal}-{agent}-{ws}-{proj}-{type}-{boundary}-{date}-{hash}.md`
-4. Receipts write to `claude/workstreams/{W}/qgr/` and `rgr/`
-5. `usr/{P}/{A}/` slimmed to tmp/, tools/, history/, history/flotsam/
-6. 15 v1 tools deleted, 3 templates deleted, 2 commands retired
-7. Root cleaned: agency, tools/, VERSION, EXTENDING.md, registry.json, package.json, source/, history/, mock-and-mark moved to apps/
-8. `git-safe mv`, `unstage`, `restore` subcommands added
-9. `REFERENCE-WORKSTREAM-CONTENT-SPLIT.md` shipped
-
-## Outstanding for next session
-
-### Immediate (D42-R6 scope)
-
-1. `plan-capture.py` — update to be workstream-aware (proper slugs, history, write to `claude/workstreams/{W}/`)
-2. `agency-welcome.md` — update to current paths
-3. `README-*.md` (5 files) — audit, merge unique content into REFERENCE-*.md, delete
-4. `.gitignore` — update stale `claude/principals/` exclusion
-5. Test fixture path updates (release-plan.bats, iscp-migrate.bats, test-worktree-sync.sh)
-6. `tool-create` + `TOOL.sh` template — update to current conventions
-7. `REFERENCE-TOOL-BUILDING.md` — extract from deleted EXTENDING.md (content already known)
-8. `CLAUDE.md` root bootloader — update stale references
-
-### Queued
-
-- #122 — version decouple (agency_version vs project.version)
-- #135 — dependencies manifest (claude/config/dependencies.yaml)
-- Workshop pitch for Mapletree REIT (flagged)
+4. Receipts at `claude/workstreams/{W}/qgr/` and `rgr/`
+5. `usr/{P}/{A}/` slim: tmp/, tools/, history/, history/flotsam/
+6. `project_version` decoupled from `agency_version`
+7. `claude/config/dependencies.yaml` — machine-readable deps manifest
+8. `git add -A` requires explicit principal approval every time
 
 ### Fleet status
 
-All 8 agents dispatched on v42.3. Designex, ISCP, Devex confirmed. Monofolk dispatched via collaboration.
+All agents dispatched on v42.3. Monofolk dispatched via collaboration.
 
-## Branch
+### Repo root (clean)
 
-main (clean, HEAD = v42.5 merge)
+apps/ CHANGELOG.md claude/ CLAUDE.md CODE_OF_CONDUCT.md CONTRIBUTING.md LICENSE README.md tests/ usr/
 
 ---
 

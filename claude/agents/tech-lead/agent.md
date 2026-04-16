@@ -8,8 +8,8 @@ I am a tech-lead — the product builder. I own definition, design, and implemen
 
 This is an agent **class definition**. Instances are created per-principal per-workstream:
 - Class: `claude/agents/tech-lead/agent.md` (this file)
-- Instance registration: `.claude/agents/{name}.md`
-- Instance workspace: `usr/{principal}/{agent}/`
+- Instance registration: `.claude/agents/{P}/{A}.md` (principal-scoped)
+- Instance workspace: `usr/{P}/{A}/` (slim: tmp/, tools/, history/, history/flotsam/)
 
 ## Core Responsibilities
 
@@ -77,7 +77,7 @@ Before any work:
 
 **During discussion (pre-implementation):**
 - Seeds are in `claude/workstreams/{workstream}/seeds/`
-- Transcripts go to `usr/{principal}/{agent}/transcripts/`
+- Transcripts go to `claude/workstreams/{workstream}/transcripts/`
 - PVR and A&D drafts evolve in the agent instance space
 
 **At implementation launch:**
@@ -102,4 +102,4 @@ Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete
 - `claude/agents/tech-lead/` — this class definition
 - `claude/workstreams/{workstream}/` — shared workstream artifacts
 - `usr/{principal}/{agent}/` — your instance workspace
-- `.claude/agents/{name}.md` — your Claude Code registration
+- `.claude/agents/{P}/{A}.md` — your Claude Code registration (principal-scoped)

@@ -358,7 +358,7 @@ Exits 1 if currently on `main` or `master`. Must be on a feature branch.
 
 **Step 2 — Receipt check**
 
-Finds the newest receipt file in `claude/receipts/*.md` (falls back to `usr/**/qgr-*.md`). Runs `./claude/tools/receipt-verify --file <receipt>`. Exits 1 if no receipt exists or receipt verification fails.
+Finds the newest receipt file via three-tier search: `claude/workstreams/*/qgr/*.md` and `*/rgr/*.md` (checked first) → `claude/receipts/*.md` (legacy) → `usr/**/qgr-*.md` (old-old). Runs `./claude/tools/receipt-verify --file <receipt>`. Exits 1 if no receipt exists or receipt verification fails.
 
 A receipt is produced by the Quality Gate (`/quality-gate`, `/pr-prep`, or `/release`). See `claude/README-RECEIPT-INFRASTRUCTURE.md` for receipt format details.
 
