@@ -162,7 +162,7 @@ _update_main() {
     # D41-R10 (monofolk hotfix): --from-github takes precedence so adopters
     # without a local the-agency clone can update directly from origin.
     local SOURCE_DIR=""
-    local TMP_SOURCE_DIR=""   # Set if we shallow-cloned; teardown trap unsets
+    TMP_SOURCE_DIR=""   # NOT local — trap needs access after function exits
     if [[ -n "$FROM_GITHUB" ]]; then
         log_step "Fetching the-agency from GitHub (ref: $FROM_GITHUB)..."
         TMP_SOURCE_DIR=$(mktemp -d -t agency-source-XXXXXX)
@@ -553,6 +553,7 @@ _update_main() {
         # Write update handoff directly (handoff write signals the agent,
         # but we want to write the content ourselves)
         if [[ -n "$handoff_path" ]]; then
+            mkdir -p "$(dirname "$handoff_path")"
             cat > "$handoff_path" << UPDATE_EOF
 ---
 type: agency-update

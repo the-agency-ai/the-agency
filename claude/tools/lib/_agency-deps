@@ -1,0 +1,184 @@
+# What Problem: Framework dependencies (jq, sqlite3, gh, bats, etc.) are listed
+# in dependencies.yaml but there's no tool to check or install them. Fresh
+# adopters get cryptic failures when tools are missing.
+#
+# How & Why: Reads dependencies.yaml and checks each binary. On macOS, uses
+# brew to install missing ones. Reports status in a clear table.
+#
+# Usage: agency deps [check|install]
+#   check   — verify all deps, report missing (default)
+#   install — install missing deps via brew (macOS only for now)
+#
+# Written: 2026-04-16 during D43 session (issue #135)
+#
+# Inherits: set -euo pipefail, AGENCY_DIR, _log-helper, colors
+
+# --- Subcommand parsing ---
+DEPS_CMD="${AGENCY_ARGS[0]:-check}"
+DEPS_TIER="${AGENCY_ARGS[1]:-all}"  # all, required, testing, optional
+
+_deps_help() {
+    cat << 'HELP'
+agency deps — Dependency management
+
+Usage:
+  agency deps              Check all dependencies (default)
+  agency deps check        Same as above
+  agency deps install      Install missing dependencies via brew (macOS)
+  agency deps install required   Install only required tier
+  agency deps install testing    Install only testing tier
+
+Reads: claude/config/dependencies.yaml
+HELP
+}
+
+case "$DEPS_CMD" in
+    --help|-h) _deps_help; exit 0 ;;
+    check|install) ;;
+    *) echo "Unknown deps command: $DEPS_CMD" >&2; _deps_help >&2; exit 1 ;;
+esac
+
+# --- Locate dependencies.yaml ---
+PROJECT_ROOT="$(cd "$AGENCY_DIR/.." && pwd)"
+DEPS_FILE="$PROJECT_ROOT/claude/config/dependencies.yaml"
+
+if [[ ! -f "$DEPS_FILE" ]]; then
+    echo "Error: dependencies.yaml not found at $DEPS_FILE" >&2
+    exit 1
+fi
+
+# --- Parse dependencies.yaml (awk-based, no yq/python dependency) ---
+
+_parse_tier() {
+    local tier="$1"
+    awk -v tier="$tier:" '
+        BEGIN { in_tier = 0; current = "" }
+        /^[a-z]/ { in_tier = ($0 == tier) ? 1 : 0; next }
+        in_tier && /^  [a-z]/ {
+            gsub(/^  /, ""); gsub(/:.*/, "")
+            current = $0
+        }
+        in_tier && current != "" && /brew:/ {
+            val = $0
+            gsub(/.*brew: */, "", val)
+            gsub(/["'"'"']/, "", val)
+            gsub(/ *$/, "", val)
+            if (val != "null" && val != "") {
+                print current "|" val
+            } else {
+                print current "|MANUAL"
+            }
+            current = ""
+        }
+    ' "$DEPS_FILE"
+}
+
+# --- Check dependencies ---
+
+MISSING_BREW=()
+MISSING_MANUAL=()
+FOUND=0
+MISSING=0
+TOTAL=0
+
+_check_tier() {
+    local tier="$1"
+    local tier_label="$2"
+
+    local entries
+    entries=$(_parse_tier "$tier")
+    if [[ -z "$entries" ]]; then
+        return
+    fi
+
+    echo ""
+    echo -e "${BLUE}$tier_label${NC}"
+    echo "────────────────────────────────────────"
+
+    while IFS='|' read -r name brew; do
+        TOTAL=$((TOTAL + 1))
+        if command -v "$name" &>/dev/null; then
+            local ver
+            ver=$("$name" --version 2>/dev/null | head -1 | head -c 40) || ver="installed"
+            printf "  ${GREEN}✓${NC} %-20s %s\n" "$name" "$ver"
+            FOUND=$((FOUND + 1))
+        else
+            printf "  ${RED}✗${NC} %-20s %s\n" "$name" "(missing — brew: $brew)"
+            MISSING=$((MISSING + 1))
+            if [[ "$brew" == "MANUAL" ]]; then
+                MISSING_MANUAL+=("$name")
+            else
+                MISSING_BREW+=("$brew")
+            fi
+        fi
+    done <<< "$entries"
+}
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Agency Dependency Check"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+if [[ "$DEPS_TIER" == "all" || "$DEPS_TIER" == "required" ]]; then
+    _check_tier "required" "Required"
+fi
+if [[ "$DEPS_TIER" == "all" || "$DEPS_TIER" == "testing" ]]; then
+    _check_tier "testing" "Testing"
+fi
+if [[ "$DEPS_TIER" == "all" || "$DEPS_TIER" == "optional" ]]; then
+    _check_tier "optional" "Optional"
+fi
+
+echo ""
+echo "────────────────────────────────────────"
+printf "  Total: %d | Found: %d | Missing: %d\n" "$TOTAL" "$FOUND" "$MISSING"
+
+if [[ $MISSING -eq 0 ]]; then
+    echo -e "  ${GREEN}All dependencies satisfied.${NC}"
+    echo ""
+    exit 0
+fi
+
+echo ""
+
+# --- Install missing (macOS only) ---
+
+if [[ "$DEPS_CMD" == "install" ]]; then
+    if [[ "$(uname -s)" != "Darwin" ]]; then
+        echo -e "${YELLOW}Install is macOS-only (brew) for now.${NC}"
+        echo "Linux support: see issue #150."
+        exit 1
+    fi
+
+    if ! command -v brew &>/dev/null; then
+        echo -e "${RED}Homebrew not found.${NC} Install it first:"
+        echo '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+        exit 1
+    fi
+
+    if [[ ${#MISSING_BREW[@]} -gt 0 ]]; then
+        echo -e "Installing via brew: ${MISSING_BREW[*]}"
+        brew install "${MISSING_BREW[@]}"
+        echo ""
+        echo -e "${GREEN}✓ Installed ${#MISSING_BREW[@]} package(s).${NC}"
+    fi
+
+    if [[ ${#MISSING_MANUAL[@]} -gt 0 ]]; then
+        echo ""
+        echo -e "${YELLOW}Manual install needed:${NC}"
+        for name in "${MISSING_MANUAL[@]}"; do
+            echo "  - $name (see dependencies.yaml for install instructions)"
+        done
+    fi
+else
+    if [[ ${#MISSING_BREW[@]} -gt 0 ]]; then
+        echo "  Install missing: agency deps install"
+        echo "  Or manually:     brew install ${MISSING_BREW[*]}"
+    fi
+    if [[ ${#MISSING_MANUAL[@]} -gt 0 ]]; then
+        echo "  Manual install needed: ${MISSING_MANUAL[*]}"
+    fi
+fi
+
+echo ""
+exit "$MISSING"
