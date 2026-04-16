@@ -106,6 +106,12 @@ if [[ "$TYPE" != "qgr" && "$TYPE" != "rgr" ]]; then
     exit 1
 fi
 
+# D42-R3: path traversal check on workstream (QG finding)
+if [[ "$WORKSTREAM" == *".."* || "$WORKSTREAM" == *"/"* ]]; then
+    echo "Error: --workstream contains invalid characters (.. or /)" >&2
+    exit 1
+fi
+
 # Default hash-d-source
 if [[ -z "$HASH_D_SOURCE" ]]; then
     if [[ "$HASH_D" == "$HASH_C" ]]; then

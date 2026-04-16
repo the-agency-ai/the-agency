@@ -34,7 +34,7 @@ echo "✓ On branch: $BRANCH"
 
 # D42-R3: three-tier receipt search (workstream → claude/receipts/ → usr/)
 # Tier 1: per-workstream qgr/ and rgr/
-NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/workstreams" -path "*/qgr/*.md" -o -path "*/rgr/*.md" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
+NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
     # Tier 2: legacy claude/receipts/
