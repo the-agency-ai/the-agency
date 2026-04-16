@@ -6,55 +6,48 @@ date: 2026-04-16
 trigger: session-end
 ---
 
-## D42 Session End — 8 releases shipped
+## D43 Session End — 4 releases shipped
 
 ### Releases
 
 | Release | PR | What |
 |---------|-----|------|
-| v42.1 | #129 | stage-hash bash + reset-soft + stash + hookify Bash wiring (closes #126 #128) |
-| v42.2 | #131 | hookify block-raw-gh-release + /secret dedup + block-raw-tools enforcement |
-| v42.3 | #132 | workstream content split — principal-scoped registrations, per-workstream receipts, git-safe mv/unstage/restore (closes #121 #130) |
-| v42.4 | #133 | migrate the-agency artifacts to new structure |
-| v42.5 | #136 | v1 tool retirement + root cleanup + repo structure overhaul |
-| v42.6 | #137 | .gitignore + CLAUDE.md + REFERENCE-TOOL-BUILDING.md |
-| v42.7 | #138 | plan-capture workstream-aware + agency-welcome + test fixtures |
-| v42.8 | #139 | version decouple (#122) + dependencies manifest (#135) + tool-create template |
+| v43.1 | #145 | TOOL.sh/TOOL.py templates (#140 #141) + D42 doc sweep (65+ stale refs across 33 files) + README review (#142) + workshop pitch (#143) + CI fix (#148) |
+| v43.2 | #152 | Hotfix — agency update crash (#147) + dispatch-monitor stale-read (#144) + agency deps macOS (#135) + phantom test (#149) |
+| v43.3 | #154 | agency update auto-commit framework files + auto-verify |
+| v43.4 | #156 | agency update version display from manifest.json (#155) |
 
-### Issues closed: #121, #122, #126, #128, #130, #135
+### Issues closed: #134, #135, #140, #141, #142, #143, #144, #147, #148, #149, #151, #153, #155
 
-### Issues filed: #135, #140, #141, #142, #143
+### Issues filed: #146, #147, #148, #149, #150, #151, #153, #155, #157
 
-### Stale working tree warning
+### Open issues
 
-Local working tree has stale files from pre-merge state. 4 files show as modified (plan-capture.py, TOOL.sh, pr-create, release-plan.bats) — these are the OLD versions from main before R7/R8 merged. Run `AGENCY_ALLOW_RAW=1 git checkout -- .` to restore from HEAD.
+- **#146** — Block AGENCY_ALLOW_RAW escape hatch (waiting on monofolk input)
+- **#150** — Linux deps support (apt/dnf) — future
+- **#157** — D-R format in version display — next release
 
-### Open issues for next session
+### Key decisions (D43)
 
-- **#140** — TOOL.sh template: complete logging/telemetry patterns
-- **#141** — Python tool template (TOOL.py)
-- **#142** — README-*.md content review (5 files need update)
-- **#143** — Workshop pitch for Mapletree REIT L&D
-- **#134** — workstream-create scaffold (monofolk report — likely stale SKILL.md)
-
-### Key structural decisions (D42)
-
-1. `.claude/agents/{P}/{A}.md` — principal-scoped, `claude --agent jordan/captain`
-2. `agent-bootstrap` retired — structural @import
-3. Receipt naming: `{org}-{principal}-{agent}-{ws}-{proj}-{type}-{boundary}-{date}-{hash}.md`
-4. Receipts at `claude/workstreams/{W}/qgr/` and `rgr/`
-5. `usr/{P}/{A}/` slim: tmp/, tools/, history/, history/flotsam/
-6. `project_version` decoupled from `agency_version`
-7. `claude/config/dependencies.yaml` — machine-readable deps manifest
-8. `git add -A` requires explicit principal approval every time
+1. **No more raw git.** Principal directive: use tools and skills only. If the tool can't do it, build the capability. AGENCY_ALLOW_RAW escape hatch to be blocked (#146).
+2. **Always file issues.** Every bug gets an issue, even if fixed immediately. No silent fixes.
+3. **agency update must be zero-friction for adopters.** Auto-commit framework files, auto-verify, no manual git steps.
+4. **_sync-main-ref doesn't update working tree.** Post-merge flow needs `git checkout HEAD -- .` after `_sync-main-ref` to keep files in sync.
+5. **D-R format for version display** (#157) — next release.
 
 ### Fleet status
 
-All agents dispatched on v42.3. Monofolk dispatched via collaboration.
+- 4 worktrees synced (devex, mdpal-app, mdpal-cli, mdslidepal-web)
+- 3 worktrees pending resolution (iscp, mdslidepal-mac, mock-and-mark — dispatched)
+- designex resolved merge conflict and shipping Phase 1.1
 
-### Repo root (clean)
+### Behavioral notes for next session
 
-apps/ CHANGELOG.md claude/ CLAUDE.md CODE_OF_CONDUCT.md CONTRIBUTING.md LICENSE README.md tests/ usr/
+- NEVER suggest compact. Principal monitors via statusline.
+- NEVER use raw git. Use tools/skills. If blocked, build the tool.
+- Always file issues. Bug → issue → fix → close.
+- `git add -A` requires explicit principal approval every time.
+- Over/Over-and-out protocol for 1B1 discussions.
 
 ---
 
