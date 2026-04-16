@@ -1,65 +1,76 @@
 ---
 type: handoff
 agent: the-agency/jordan/captain
-workstream: agency
-date: 2026-04-14
+workstream: housekeeping
+date: 2026-04-16
 trigger: session-compact
 ---
 
-## Continue — Day 40 (Mid-Session Compact)
+## Continue — D42-R3 Phase 1 (mid-implementation compact)
 
-### Context: compacting to refresh, NOT ending session
+Executing the Workstream Content Split (#121 + #130 + #122) plan. Phase 1 is the big-bang infrastructure release.
 
-Heavy session — continuing after compact. Key context that must survive:
+## Immediate next action post-compact
 
-### What's done so far this session
+**Continue Phase 1 implementation.** Next items per ordering constraints:
 
-1. **Bootloader verified** ✅ — 691-word CLAUDE-THEAGENCY.md working
-2. **Session skills shipped** — /session-end (get clean, idempotent, "Safe to /compact and/or /exit"), /session-compact (new)
-3. **Session-preflight tool** — 5-check preflight (clean tree, synced, handoff, dispatches, monitor) added to /session-resume Step 5
-4. **Fleet bootloader rollout** — dispatches #242-256 to all 7 agents, all cycled
-5. **Fleet check-in** — DevEx, DesignEx, mdslidepal-mac, mdpal-cli responded. mdpal-app has merge conflicts (directive sent). mdslidepal-web and ISCP intentionally not brought up yet.
-6. **git-safe A&D reviewed** — DevEx MAR (#272). 3 questions resolved: (1) stash internal to worktree-sync, (2) git add -A blocked, (3) separate concerns. Plus: rename /git-commit → /git-safe-commit. DevEx greenlit autonomous through implement (#274).
-7. **Dispatch service seed** — written, MAR'd (4 agents, 7 findings incorporated), dispatched to ISCP (#275, high priority). Key: 4-segment addressing (org/repo/principal/agent), JSON envelope + markdown body, BSL license, single hub.
-8. **PR #81 CI fix** — smoke test failed on ci-monitor not executable. Fixed (chmod +x), pushed. CI re-running.
-9. **Monofolk statusline** — diagnosed (missing settings.json key), monofolk confirmed and fixed. They want merge tool for updates.
-10. **Flag triage complete** — 83 flags: 22 DISCUSS, 53 ACT, 8 STALE
+1. ~~`git-safe mv/unstage/restore` — DONE~~ (3 new subcommands)
+2. ~~`agent-create` update — DONE~~ (writes `.claude/agents/{P}/{A}.md`, slim scaffold)
+3. ~~9 registrations migrated — DONE~~ (all at `.claude/agents/jordan/`, flat deleted)
+4. ~~`multi-principal.bats` + `agent-create.bats` — DONE~~ (tests updated, all pass)
+5. **`receipt-sign` write path** — NEXT (new naming format, write to `claude/workstreams/{W}/qgr/` or `rgr/`)
+6. **`receipt-verify` + `pr-create` + `diff-hash`** — atomically with receipt-sign
+7. **`_agency-init`** scaffold update (slim usr/, auto-create repo-level workstream)
+8. **`workstream-create` skill** scaffold update (new subdirs)
+9. **`agent-bootstrap`** retire (delete or stub)
+10. **REFERENCE-WORKSTREAM-CONTENT-SPLIT.md** — new reference doc
+11. **Manifest bump** 42.2 → 42.3
 
-### What's in progress RIGHT NOW
+## Current state
 
-- **PR #81 CI** — pushed fix, waiting for CI to pass, then merge
-- **Flag DISCUSS bucket** — 22 items need 1B1 with Jordan. Haven't started yet.
-- **Monofolk Ring 2 dispatch** — still pending since D36
+- **Branch:** `jordandm-d42-r3` (1 commit ahead of main: `2fe08e8`)
+- **Tree:** clean (committed WIP)
+- **Tests:** all passing (agent-create 14/14, multi-principal 24/24, git-safe 59/59)
 
-### Fleet state
+## D42-R3 scope (approved plan)
 
-| Agent | Status | Last dispatch |
-|-------|--------|---------------|
-| DevEx | Autonomous — git-safe plan+implement | #274 |
-| DesignEx | Phase 1.1 figma-extract, April 17 deadline | #264 |
-| mdslidepal-mac | Phase 5 visual polish | #271 |
-| mdpal-cli | Phase 1.4, 15 QG findings remaining | #273 |
-| mdpal-app | Merge conflicts, directive sent | #269 |
-| ISCP | Dispatch service seed sent, needs to cycle first | #275 |
-| mdslidepal-web | Intentionally not brought up yet | — |
+Three phases:
+- **Phase 1 (D42-R3):** All tools + scaffold + registrations updated atomically
+- **Phase 2 (D42-R4):** Skill output paths (`/define`, `/design`, `/transcript`) + reference doc updates
+- **Phase 3 (D42-R5+):** Migration of existing artifacts
 
-### What's next (immediate, post-compact)
+## Key decisions from 1B1 (must survive compact)
 
-1. **Check PR #81 CI** — if green, merge it
-2. **Flag DISCUSS 1B1** — 22 items, clustered by theme (business/GTM, architecture, process, content)
-3. **Monofolk Ring 2 dispatch** — long overdue
-4. **/seed skill discussion** — from flag #92, still open
+1. **Agent registrations → `.claude/agents/{P}/{A}.md`** — Claude Code supports subdirectory discovery. Invocation: `claude --agent jordan/captain`. `agent-bootstrap` retired.
+2. **Receipt naming:** `{org}-{principal}-{agent}-{workstream}-{project}-{type}-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md`
+3. **Receipt write path:** `claude/workstreams/{W}/qgr/` and `rgr/` with dual-read transition
+4. **`usr/{P}/{A}/` slimmed:** only tmp/, tools/, history/, history/flotsam/ + handoff + CLAUDE overlay
+5. **Dispatches dir dropped** from scaffold (DB-only now)
+6. **PII:** fix at source, not path-scoping
+7. **`agency init`** uses `$USER` for founding principal (no explicit param)
+8. **`agency init`** auto-creates repo-level workstream at `claude/workstreams/{repo-name}/`
+9. **New stuff flows to new locations NOW** — old stuff migrated after
 
-### Key decisions this session
+## Prior releases this session
 
-- **Session lifecycle:** commit everything, don't ask. Idempotent. "Safe to /compact and/or /exit."
-- **coord-commit:** cross-agency dispatches only, not general commits
-- **git-safe family:** git-safe (all agents), git-captain (captain only), git-safe-commit (renamed from git-commit). One catch-all hookify rule with escalation path.
-- **Dispatch service:** single hub, 4-segment addressing, BSL + 3-year Apache 2.0 conversion, JSON envelope + markdown body
-- **Monofolk statusline:** settings.json merge problem. They want option A (merge tool).
+- **v42.1** (D42-R1): stage-hash pure bash + reset-soft + stash + hookify Bash wiring (closes #126 #128)
+- **v42.2** (D42-R2): hookify block-raw-gh-release + /secret dedup + block-raw-tools enforcement
 
-### Dispatch monitor
+## Open issues
 
-**MUST restart dispatch monitor after compact.** This is the #1 thing that gets missed.
+- #121 — workstream content split (this release)
+- #122 — version decouple (separate release, D42-R4 or later)
+- #130 — git-safe mv (included in this release — done)
+
+## Active infra
+
+- Issue monitor (task `bohvfuaf3`) — persistent
+- Dispatch monitor needs restart (not running this session)
+
+## Working tree stale-index bug
+
+The `pr-merge --admin` leaves local working tree out of sync with HEAD. Hit this twice this session. Needed `AGENCY_ALLOW_RAW=1 git reset HEAD` and `AGENCY_ALLOW_RAW=1 git checkout -- .` escape hatches. Root cause documented in plan. `git-safe unstage` and `git-safe restore` (now shipped) prevent future occurrences.
+
+---
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

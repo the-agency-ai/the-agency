@@ -77,23 +77,27 @@ _health_check_one_agent() {
     fi
 
     # ─── Check 3: Handoff freshness ───
-    # Handoff lives at usr/{principal}/{agent}/{agent}-handoff.md typically
+    # Handoff lives at usr/{principal}/{agent}/{agent}-handoff.md typically.
+    # Walk EVERY principal directory (not a hardcoded 'jordan') so multi-
+    # principal repos resolve each agent's handoff regardless of who the
+    # current $USER is. Fixes issue #111 (D41-R19 Option E).
     local handoff=""
-    local principal_dir="$PROJECT_ROOT/usr/jordan"
-    if [[ -d "$principal_dir" ]]; then
-        # Common layouts: usr/jordan/captain/captain-handoff.md,
-        # usr/jordan/{agent}/{agent}-handoff.md
-        for candidate in \
-            "$principal_dir/$agent/$agent-handoff.md" \
-            "$principal_dir/$agent/handoff.md" \
-            "$principal_dir/captain/captain-handoff.md"; do
-            if [[ "$agent" == "captain" && -f "$candidate" && "$candidate" == *"captain"* ]]; then
-                handoff="$candidate"
-                break
-            elif [[ "$agent" != "captain" && -f "$candidate" && "$candidate" == *"$agent"* ]]; then
-                handoff="$candidate"
-                break
-            fi
+    if [[ -d "$PROJECT_ROOT/usr" ]]; then
+        local principal_dir
+        for principal_dir in "$PROJECT_ROOT/usr/"*; do
+            [[ -d "$principal_dir" ]] || continue
+            for candidate in \
+                "$principal_dir/$agent/$agent-handoff.md" \
+                "$principal_dir/$agent/handoff.md" \
+                "$principal_dir/captain/captain-handoff.md"; do
+                if [[ "$agent" == "captain" && -f "$candidate" && "$candidate" == *"captain"* ]]; then
+                    handoff="$candidate"
+                    break 2
+                elif [[ "$agent" != "captain" && -f "$candidate" && "$candidate" == *"$agent"* ]]; then
+                    handoff="$candidate"
+                    break 2
+                fi
+            done
         done
     fi
 

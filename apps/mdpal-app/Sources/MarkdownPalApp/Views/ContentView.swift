@@ -11,6 +11,7 @@
 //
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
 // Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
+// Updated: 2026-04-15 Phase 1A.3 — surface document.lastError via alert
 
 import SwiftUI
 
@@ -37,7 +38,9 @@ public struct ContentView: View {
                 SectionReaderView(
                     section: section,
                     comments: document.comments(forSection: section.slug),
-                    flag: document.flag(forSection: section.slug)
+                    flag: document.flag(forSection: section.slug),
+                    document: document,
+                    currentAuthor: "jordan"
                 )
             } else {
                 ContentUnavailableView(
@@ -60,6 +63,18 @@ public struct ContentView: View {
             await document.loadSections()
             await document.loadComments()
             await document.loadFlags()
+        }
+        .alert(
+            "Something went wrong",
+            isPresented: Binding(
+                get: { document.lastError != nil },
+                set: { shown in if !shown { document.lastError = nil } }
+            ),
+            presenting: document.lastError
+        ) { _ in
+            Button("Dismiss", role: .cancel) { document.lastError = nil }
+        } message: { message in
+            Text(message)
         }
     }
 

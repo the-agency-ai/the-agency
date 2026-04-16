@@ -39,6 +39,8 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 - **Context tools** — handoff (read/write/archive), plan-capture
 - **Observability** — tool-runs.jsonl (`.claude/logs/tool-runs.jsonl`), telemetry (daily JSONL at `~/.claude/telemetry/{date}.jsonl`, read via `./claude/tools/telemetry`), statusline integration
 - **Review agents** — code-reviewer, security-reviewer, design-reviewer, test-reviewer, scorer
+- **Safe tools family** — role-scoped git access (git-safe for read+merge, git-captain for captain-only ops), git-push (via /sync and /release), cp-safe (blocks cross-worktree copies), pr-create (requires QGR + version bump). All blocked from direct bypass via hookify (decision:block + exit 2).
+- **Receipt infrastructure** — five-hash chain linking staged content to QGR receipt. Tools: receipt-sign, receipt-verify. Receipts live at `claude/receipts/`.
 
 ### Agent Definitions
 - **Class/instance model** — `claude/agents/{class}/agent.md` defines roles; `usr/{principal}/{agent}/` is the working instance
@@ -48,6 +50,8 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 ### Operational Conventions
 - **Sandbox principle** — per-principal workspace (`usr/{principal}/`), zero team impact, opt-in adoption
 - **Git discipline** — remote master read-only, never push without permission, mechanical enforcement via hookify
+- **Branch protection** — main branch requires PR approval + passing smoke test; no direct-push to main
+- **Release flow** — `/release` replaces `/ship`: quality-check, commit, push, create PR, and cut a release in one flow
 - **Code review lifecycle** — three tools (/code-review, /review-pr, /phase-complete) for different purposes
 - **Dispatch model** — narrow, broadcast communications between agents and workstreams
 
@@ -75,7 +79,7 @@ Idea → Seed → Research (MARFI) → Define (PVR) → Design (A&D) → Plan �
 
 **Implement.** Agents execute phases and iterations autonomously, surfacing for principal input as needed. Quality gate at every boundary.
 
-**Ship.** Captain merges, builds PRs, pushes to origin. Pre-PR quality gate.
+**Ship.** Captain merges, builds PRs, pushes to origin via `/release`. Pre-PR quality gate.
 
 **Value.** Customer is using it. Feedback generates new seeds — closing the cycle.
 
@@ -396,7 +400,7 @@ The 1B1 protocol applies to ALL structured discussions, not just when `/discuss`
 
 When agents encounter issues with Claude Code itself (bugs, missing features, unexpected behavior), they draft structured feedback using a standard format that includes diagnostic evidence, reproduction steps, and root cause analysis when known. The format ensures Anthropic's team can triage quickly.
 
-The key principle: **draft it, then wait for approval.** Agents never send feedback externally without the principal reviewing it first. The full format template is in `claude/docs/FEEDBACK-FORMAT.md` and gets injected automatically when feedback skills are invoked.
+The key principle: **draft it, then wait for approval.** Agents never send feedback externally without the principal reviewing it first. The full format template is in `claude/REFERENCE-FEEDBACK-FORMAT.md` and gets injected automatically when feedback skills are invoked.
 
 ## Testing & Quality Discipline
 

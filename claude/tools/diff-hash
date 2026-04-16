@@ -3,8 +3,16 @@
 # when receipts were added, no parameterized baseline. Every QG/RG gate
 # needs a deterministic hash of what was reviewed.
 #
+# Additional chicken-and-egg fix (2026-04-15, monofolk issue #99): the
+# safe-commit tool auto-stages dispatch artifacts under usr/{principal}/
+# {project}/dispatches/. Without excluding those paths, the diff-hash
+# changes on every commit (commit creates a dispatch artifact, which is
+# part of the next diff). Same circular trap as receipts.
+#
 # How & Why: Computes deterministic SHA-256 hash of either a code diff
-# (branch vs base) or a single artifact file. Excludes claude/receipts/
+# (branch vs base) or a single artifact file. Excludes:
+#   - claude/receipts/      (the receipts themselves — original fix)
+#   - usr/**/dispatches/    (auto-staged commit-announce dispatches — #99 fix)
 # from all diff computations to prevent chicken-and-egg. Full SHA-256
 # stored internally; 7-char truncation for display and filenames.
 #
@@ -73,17 +81,29 @@ if [[ -n "$FILE" ]]; then
         echo "$SHORT_HASH"
     fi
 else
-    # Diff hash — exclude claude/receipts/
-    DIFF_OUTPUT=$(git diff "$BASE"..HEAD -- . ':(exclude)claude/receipts/' 2>/dev/null)
+    # Diff hash — exclude receipts and dispatches
+    # (both auto-mutate per commit; including them would make hashes circular)
+    # D42-R3: added per-workstream qgr/rgr exclusions
+    DIFF_OUTPUT=$(git diff "$BASE"..HEAD -- . \
+        ':(exclude)claude/receipts/' \
+        ':(exclude,glob)claude/workstreams/*/qgr/**' \
+        ':(exclude,glob)claude/workstreams/*/rgr/**' \
+        ':(exclude,glob)usr/*/*/dispatches/**' \
+        ':(exclude,glob)usr/*/dispatches/**' \
+        2>/dev/null)
 
     if [[ -z "$DIFF_OUTPUT" ]]; then
-        echo "Error: no diff between $BASE and HEAD (excluding claude/receipts/)" >&2
+        echo "Error: no diff between $BASE and HEAD (excluding receipts and dispatches)" >&2
         exit 1
     fi
 
     FULL_HASH=$(echo "$DIFF_OUTPUT" | shasum -a 256 | cut -d' ' -f1)
     SHORT_HASH="${FULL_HASH:0:7}"
-    FILE_COUNT=$(git diff "$BASE"..HEAD --name-only -- . ':(exclude)claude/receipts/' 2>/dev/null | wc -l | tr -d ' ')
+    FILE_COUNT=$(git diff "$BASE"..HEAD --name-only -- . \
+        ':(exclude)claude/receipts/' \
+        ':(exclude,glob)usr/*/*/dispatches/**' \
+        ':(exclude,glob)usr/*/dispatches/**' \
+        2>/dev/null | wc -l | tr -d ' ')
 
     if [[ "$JSON" == "true" ]]; then
         echo "{\"hash\":\"$SHORT_HASH\",\"full_hash\":\"$FULL_HASH\",\"mode\":\"diff\",\"base\":\"$BASE\",\"file_count\":$FILE_COUNT}"

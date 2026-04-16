@@ -1,0 +1,294 @@
+#!/bin/bash
+#
+# principal-onboard — End-to-end principal onboarding orchestrator
+#
+# What Problem: principal-create scaffolds a bare usr/{name}/ but doesn't:
+#   - mutate agency.yaml (new principal entry)
+#   - drop CLAUDE-PRINCIPAL.md
+#   - write captain agent registration (.claude/agents/{name}-captain.md)
+#   - bootstrap captain handoff
+# Without those, a fresh principal can't do useful work without manual editing.
+#
+# How & Why: Wraps principal-create and adds the missing scaffold steps using
+# template files at claude/templates/principal-v2/. Mustache-style substitution
+# (PRINCIPAL_NAME, PRINCIPAL_DISPLAY_NAME, REPO_NAME, TIMESTAMP) — no template
+# engine dependency, just sed.
+#
+# Usage:
+#   principal-onboard <principal_name> \
+#     --user <system-username> \
+#     --display-name "Display Name" \
+#     [--email a@b.com] [--github-user gh-handle] \
+#     [--repo-name auto] [--no-yaml] [--no-agent-reg] [--dry-run] [--verbose]
+#
+# Examples:
+#   principal-onboard peter --user pyg --display-name "Peter Gao" \
+#     --email peter@example.com --github-user pgao
+#
+#   principal-onboard alice --user alice --display-name "Alice"
+#
+# Idempotent: if usr/{name}/ already exists, refuses unless --force.
+#
+# Written: 2026-04-15 (D41-R9 principal onboarding) for workshop-day demo.
+#
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+TEMPLATE_DIR="$PROJECT_ROOT/claude/templates/principal-v2"
+
+# Source helpers
+[[ -f "$SCRIPT_DIR/lib/_log-helper" ]] && source "$SCRIPT_DIR/lib/_log-helper"
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="" GREEN="" YELLOW="" BLUE="" NC=""
+fi
+
+TOOL_VERSION="1.0.0-20260415-d41r9"
+
+usage() {
+    cat <<'USAGE'
+principal-onboard — End-to-end principal onboarding
+
+Usage:
+  principal-onboard <name> --user <sysuser> --display-name "Display" [opts]
+
+Required:
+  <name>                     principal slug (lowercase, alphanum + hyphen/underscore)
+  --user <sysuser>           system $USER value to map this principal to
+  --display-name "..."       display name (Unicode OK, quote it)
+
+Optional:
+  --email <addr>             email (repeat flag for multiple)
+  --github-user <handle>     GitHub username
+  --repo-name <name>         repo name for templates (default: auto-detect from git)
+  --no-yaml                  skip agency.yaml mutation
+  --no-agent-reg             skip .claude/agents/<name>-captain.md
+  --no-handoff               skip bootstrap captain handoff
+  --force                    overwrite existing usr/{name}/
+  --dry-run                  show what would be done
+  --verbose                  detailed logging
+  --help                     this text
+  --version                  show version
+
+Examples:
+  principal-onboard peter --user pyg --display-name "Peter Gao" \
+    --email peter@example.com --github-user pgao
+
+  principal-onboard alice --user alice --display-name "Alice"
+USAGE
+}
+
+die() { echo "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+log()  { [[ "${VERBOSE:-false}" == "true" ]] && echo "${BLUE}[info]${NC} $*" || true; }
+say()  { echo "$*"; }
+
+# --- Parse args ---
+PRINCIPAL_NAME=""
+SYS_USER=""
+DISPLAY_NAME=""
+EMAILS=()
+GITHUB_USER=""
+REPO_NAME=""
+WRITE_YAML=true
+WRITE_AGENT=true
+WRITE_HANDOFF=true
+FORCE=false
+DRY_RUN=false
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h)         usage; exit 0 ;;
+        --version)         echo "principal-onboard $TOOL_VERSION"; exit 0 ;;
+        --user)            SYS_USER="$2"; shift 2 ;;
+        --display-name)    DISPLAY_NAME="$2"; shift 2 ;;
+        --email)           EMAILS+=("$2"); shift 2 ;;
+        --github-user)     GITHUB_USER="$2"; shift 2 ;;
+        --repo-name)       REPO_NAME="$2"; shift 2 ;;
+        --no-yaml)         WRITE_YAML=false; shift ;;
+        --no-agent-reg)    WRITE_AGENT=false; shift ;;
+        --no-handoff)      WRITE_HANDOFF=false; shift ;;
+        --force)           FORCE=true; shift ;;
+        --dry-run)         DRY_RUN=true; shift ;;
+        --verbose)         VERBOSE=true; shift ;;
+        -*)                die "Unknown flag: $1" ;;
+        *)
+            if [[ -z "$PRINCIPAL_NAME" ]]; then
+                PRINCIPAL_NAME="$1"
+            else
+                die "Unexpected positional arg: $1"
+            fi
+            shift ;;
+    esac
+done
+
+# --- Validate ---
+[[ -z "$PRINCIPAL_NAME" ]] && { usage; die "Missing <name>"; }
+[[ ! "$PRINCIPAL_NAME" =~ ^[a-z][a-z0-9_-]*$ ]] && die "Invalid name '$PRINCIPAL_NAME' — must match ^[a-z][a-z0-9_-]*\$"
+[[ -z "$SYS_USER" ]] && die "Missing --user"
+[[ -z "$DISPLAY_NAME" ]] && die "Missing --display-name"
+
+# Auto-detect repo name from git remote if not provided
+if [[ -z "$REPO_NAME" ]]; then
+    REPO_NAME=$(cd "$PROJECT_ROOT" && git remote get-url origin 2>/dev/null \
+        | sed -E 's|.*[/:]([^/]+)/([^/.]+)(\.git)?$|\2|' \
+        | head -1) || REPO_NAME=""
+    [[ -z "$REPO_NAME" ]] && REPO_NAME="$(basename "$PROJECT_ROOT")"
+fi
+
+PRINCIPAL_DIR="$PROJECT_ROOT/usr/$PRINCIPAL_NAME"
+# Local time per project.timezone in agency.yaml (./claude/tools/now respects that).
+# Falls back to UTC if `now` isn't available (e.g. fresh init pre-tools).
+TIMESTAMP=$("$SCRIPT_DIR/now" 2>/dev/null || date -u +"%Y-%m-%d %H:%M:%S +00")
+
+if [[ -d "$PRINCIPAL_DIR" && "$FORCE" != "true" ]]; then
+    die "$PRINCIPAL_DIR already exists. Use --force to overwrite."
+fi
+
+# --- Telemetry start ---
+RUN_ID=$(log_start "principal-onboard" "$@" 2>/dev/null) || RUN_ID=""
+trap 'log_end "${RUN_ID:-}" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+say "${BLUE}principal-onboard${NC} [$PRINCIPAL_NAME] (run: ${RUN_ID:-none})"
+log "principal=$PRINCIPAL_NAME user=$SYS_USER display=\"$DISPLAY_NAME\" repo=$REPO_NAME"
+log "emails=(${EMAILS[*]:-}) github=${GITHUB_USER:-(none)}"
+
+# --- Helpers ---
+
+# substitute_template <src> <dest>
+# Replaces {{PRINCIPAL_NAME}}, {{PRINCIPAL_DISPLAY_NAME}}, {{REPO_NAME}}, {{TIMESTAMP}}.
+substitute_template() {
+    local src="$1" dest="$2"
+    if [[ ! -f "$src" ]]; then
+        log "template missing: $src — skip"
+        return 1
+    fi
+    if [[ "$DRY_RUN" == "true" ]]; then
+        say "  [dry-run] write: $dest"
+        return 0
+    fi
+    sed \
+        -e "s|{{PRINCIPAL_NAME}}|$PRINCIPAL_NAME|g" \
+        -e "s|{{PRINCIPAL_DISPLAY_NAME}}|$DISPLAY_NAME|g" \
+        -e "s|{{REPO_NAME}}|$REPO_NAME|g" \
+        -e "s|{{TIMESTAMP}}|$TIMESTAMP|g" \
+        "$src" > "$dest"
+    say "  ${GREEN}wrote${NC} $dest"
+}
+
+# --- Step 1: principal-create (dir scaffold) ---
+say "${BLUE}step 1${NC}: scaffold usr/$PRINCIPAL_NAME/ via principal-create"
+if [[ "$DRY_RUN" == "true" ]]; then
+    say "  [dry-run] $SCRIPT_DIR/principal-create $PRINCIPAL_NAME"
+elif [[ -d "$PRINCIPAL_DIR" && "$FORCE" == "true" ]]; then
+    log "force: keeping existing dir, skipping principal-create"
+else
+    "$SCRIPT_DIR/principal-create" "$PRINCIPAL_NAME" >/dev/null
+    say "  ${GREEN}created${NC} $PRINCIPAL_DIR"
+fi
+
+# --- Step 2: ensure captain dir ---
+say "${BLUE}step 2${NC}: ensure $PRINCIPAL_NAME/captain/ exists"
+[[ "$DRY_RUN" != "true" ]] && mkdir -p "$PRINCIPAL_DIR/captain/"{dispatches,history,reports}
+say "  ${GREEN}ensured${NC} $PRINCIPAL_DIR/captain/{dispatches,history,reports}"
+
+# --- Step 3: CLAUDE-PRINCIPAL.md ---
+say "${BLUE}step 3${NC}: CLAUDE-PRINCIPAL.md"
+substitute_template \
+    "$TEMPLATE_DIR/CLAUDE-PRINCIPAL.md.template" \
+    "$PRINCIPAL_DIR/CLAUDE-PRINCIPAL.md"
+
+# --- Step 4: bootstrap captain handoff ---
+if [[ "$WRITE_HANDOFF" == "true" ]]; then
+    say "${BLUE}step 4${NC}: bootstrap captain handoff"
+    substitute_template \
+        "$TEMPLATE_DIR/captain-handoff.md.template" \
+        "$PRINCIPAL_DIR/captain/captain-handoff.md"
+else
+    say "${YELLOW}step 4 skipped${NC} (--no-handoff)"
+fi
+
+# --- Step 5: agent registration ---
+if [[ "$WRITE_AGENT" == "true" ]]; then
+    say "${BLUE}step 5${NC}: .claude/agents/$PRINCIPAL_NAME-captain.md"
+    AGENT_REG="$PROJECT_ROOT/.claude/agents/$PRINCIPAL_NAME-captain.md"
+    mkdir -p "$(dirname "$AGENT_REG")"
+    substitute_template \
+        "$TEMPLATE_DIR/agent-captain.md.template" \
+        "$AGENT_REG"
+else
+    say "${YELLOW}step 5 skipped${NC} (--no-agent-reg)"
+fi
+
+# --- Step 6: agency.yaml mutation ---
+if [[ "$WRITE_YAML" == "true" ]]; then
+    say "${BLUE}step 6${NC}: agency.yaml entry"
+    YAML="$PROJECT_ROOT/claude/config/agency.yaml"
+    if [[ ! -f "$YAML" ]]; then
+        say "  ${YELLOW}skipped${NC} — $YAML not found"
+    elif grep -qE "^  $SYS_USER:" "$YAML"; then
+        say "  ${YELLOW}entry exists${NC} — $SYS_USER already in principals: block"
+    elif [[ "$DRY_RUN" == "true" ]]; then
+        say "  [dry-run] insert principal entry under principals: block"
+    else
+        # Build the entry block in a temp file, then awk-insert before `default:`
+        ENTRY_FILE=$(mktemp)
+        {
+            echo "  $SYS_USER:"
+            echo "    name: $PRINCIPAL_NAME"
+            echo "    display_name: \"$DISPLAY_NAME\""
+            echo "    address:"
+            echo "      informal: \"$DISPLAY_NAME\""
+            if [[ ${#EMAILS[@]} -gt 0 ]]; then
+                echo "    email:"
+                for e in "${EMAILS[@]}"; do
+                    echo "      - $e"
+                done
+            fi
+            if [[ -n "$GITHUB_USER" ]]; then
+                echo "    platforms:"
+                echo "      github:"
+                echo "        - username: $GITHUB_USER"
+            fi
+        } > "$ENTRY_FILE"
+
+        # Insert before the `  default:` line within principals block.
+        TMP=$(mktemp)
+        awk -v entry_file="$ENTRY_FILE" '
+            /^  default:/ && !inserted {
+                while ((getline line < entry_file) > 0) print line
+                close(entry_file)
+                inserted = 1
+            }
+            { print }
+        ' "$YAML" > "$TMP"
+        mv "$TMP" "$YAML"
+        rm -f "$ENTRY_FILE"
+        say "  ${GREEN}inserted${NC} $SYS_USER → $PRINCIPAL_NAME entry into $YAML"
+    fi
+else
+    say "${YELLOW}step 6 skipped${NC} (--no-yaml)"
+fi
+
+# --- Report ---
+say ""
+say "${GREEN}principal-onboard complete${NC}: $PRINCIPAL_NAME"
+say ""
+say "Files:"
+say "  $PRINCIPAL_DIR/CLAUDE-PRINCIPAL.md"
+say "  $PRINCIPAL_DIR/captain/captain-handoff.md"
+say "  $PROJECT_ROOT/.claude/agents/$PRINCIPAL_NAME-captain.md"
+say "  $PROJECT_ROOT/claude/config/agency.yaml  (entry: $SYS_USER → $PRINCIPAL_NAME)"
+say ""
+say "Next steps for $DISPLAY_NAME:"
+say "  1. Set environment: export AGENCY_PRINCIPAL=$PRINCIPAL_NAME"
+say "  2. Verify identity: ./claude/tools/principal"
+say "  3. Launch captain: claude --agent $PRINCIPAL_NAME-captain"
+say "  4. (in claude) /session-resume — reads the bootstrap handoff"
+say ""
+
+trap - EXIT
+log_end "$RUN_ID" "success" 0 0 "principal-onboard $PRINCIPAL_NAME complete" 2>/dev/null || true

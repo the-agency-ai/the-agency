@@ -37,6 +37,15 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ref-injector.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/block-raw-tools.sh"
+          }
+        ]
       }
     ],
     "Stop": [
@@ -55,7 +64,14 @@
       "Bash(*)",
       "Read(**)",
       "Edit(**)",
-      "Write(**)"
+      "Write(**)",
+      "Read(/tmp/**)",
+      "Write(/tmp/**)",
+      "Edit(/tmp/**)",
+      "Read(/var/folders/**)",
+      "Write(/var/folders/**)",
+      "Edit(/var/folders/**)"
     ]
   }
 }
+

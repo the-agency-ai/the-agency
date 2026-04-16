@@ -14,7 +14,7 @@ Script written outside `tools/` directories. Save reusable scripts to `usr/{prin
 # Written: YYYY-MM-DD during <phase/task>
 ```
 
-Framework tools go to `claude/tools/`. See claude/docs/PROVENANCE-HEADERS.md.
+Framework tools go to `claude/tools/`. See claude/REFERENCE-PROVENANCE-HEADERS.md.
 
 **Scope limitation:** This rule catches Write tool calls to `.sh`/`.py` files. It does NOT catch heredocs in Bash tool calls, scripts without extensions, or writes to `tmp/`. It is a nudge, not a gate — pair with telemetry for full observability.
 
