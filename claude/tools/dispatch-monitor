@@ -50,17 +50,52 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Track IDs we've already surfaced to prevent the stale-read loop.
+# Once an ID is emitted, it never emits again — even if the DB query
+# returns it (e.g., because resolve/read didn't stick or identity shifted).
+declare -A SEEN_IDS
+
 while true; do
     # Check local dispatches
     OUTPUT=$("$SCRIPT_DIR/dispatch" list --status unread 2>/dev/null || true)
     if [[ -n "$OUTPUT" ]] && [[ "$OUTPUT" != "No dispatches found." ]]; then
-        echo "[DISPATCH] $OUTPUT"
+        # Extract IDs from the table output (first column, numeric lines only)
+        # and filter out already-seen IDs
+        NEW_OUTPUT=""
+        while IFS= read -r line; do
+            # Extract leading ID (first whitespace-delimited token that's numeric)
+            local_id=$(echo "$line" | awk '{print $1}')
+            if [[ "$local_id" =~ ^[0-9]+$ ]]; then
+                if [[ -z "${SEEN_IDS[$local_id]+_}" ]]; then
+                    SEEN_IDS[$local_id]=1
+                    NEW_OUTPUT+="$line"$'\n'
+                fi
+            else
+                # Header/separator lines — include if we have new dispatches
+                NEW_OUTPUT+="$line"$'\n'
+            fi
+        done <<< "$OUTPUT"
+
+        # Only emit if there are genuinely new dispatch lines
+        HAS_NEW=false
+        while IFS= read -r line; do
+            local_id=$(echo "$line" | awk '{print $1}')
+            if [[ "$local_id" =~ ^[0-9]+$ ]]; then
+                HAS_NEW=true
+                break
+            fi
+        done <<< "$NEW_OUTPUT"
+
+        if [[ "$HAS_NEW" == "true" ]]; then
+            echo "[DISPATCH] $NEW_OUTPUT"
+        fi
     fi
 
     # Optionally check cross-repo collaboration
     if [[ "$INCLUDE_COLLAB" == "true" ]]; then
         COLLAB_OUTPUT=$("$SCRIPT_DIR/collaboration" check 2>/dev/null || true)
-        if [[ -n "$COLLAB_OUTPUT" ]]; then
+        if [[ -n "$COLLAB_OUTPUT" ]] && [[ -z "${SEEN_IDS[collab_${COLLAB_OUTPUT:0:40}]+_}" ]]; then
+            SEEN_IDS["collab_${COLLAB_OUTPUT:0:40}"]=1
             echo "[COLLAB] $COLLAB_OUTPUT"
         fi
     fi
