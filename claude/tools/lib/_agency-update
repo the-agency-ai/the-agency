@@ -651,10 +651,12 @@ UPDATE_EOF
     echo "  Changes: +$added ~$updated -$removed"
     echo ""
     if [[ "$DRY_RUN" == "false" ]]; then
-        echo "Next steps:"
-        echo "  1. Run 'agency verify' to confirm"
-        echo "  2. Review changes with 'git diff'"
-        echo "  3. Commit when satisfied"
+        # Auto-verify after update — don't ask the adopter to do it
+        log_step "Verifying installation"
+        if [[ -x "$TARGET_DIR/claude/tools/agency" ]]; then
+            ( cd "$TARGET_DIR" && ./claude/tools/agency verify ) || \
+                log_warn "Verify reported issues — run 'agency verify --verbose' for details"
+        fi
     fi
     echo ""
 
