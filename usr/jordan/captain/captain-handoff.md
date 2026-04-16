@@ -95,4 +95,13 @@ Deferred until post-workshop.
 
 ---
 
+## D42-R2 scope (bundled — principal-confirmed)
+
+- **#122** — decouple `agency_version` (framework) from `project.version` (adopter). `/release` bumps project.version; `agency update` bumps agency_version. Add project.version to manifest schema. Update release/SKILL.md + pr-create version-check.
+- **#121** — codify workstream content split (shared `claude/workstreams/{W}/` vs principal `usr/{P}/{W}/`). Option B: docs + `workstream-create` scaffold update (pvr/ad/plans/seeds/research/reviews/transcripts/). Update REFERENCE-REPO-STRUCTURE.md + REFERENCE-CONTRIBUTION-MODEL.md.
+- **`/secret` dedup** — `/sec` palette shows `secret` 3×. Both `.claude/commands/secret.md` and `.claude/skills/secret/SKILL.md` are registered. Skill is canonical (frontmatter + permission discipline). Delete the command file. Audit other command/skill name collisions while in there.
+- **Hookify block raw `gh release create`** — rule written at `claude/hookify/hookify.block-raw-gh-release.md` (uncommitted on main, live anyway). Routes to `gh-release` tool / `/post-merge` / `/release`. Captain bypass during v42.1 was the trigger. Add tests, commit in D42-R2.
+
+---
+
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
