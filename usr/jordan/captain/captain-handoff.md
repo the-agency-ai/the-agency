@@ -3,73 +3,58 @@ type: handoff
 agent: the-agency/jordan/captain
 workstream: housekeeping
 date: 2026-04-16
-trigger: session-compact
+trigger: session-end
 ---
 
-## Continue — D42-R3 Phase 1 (mid-implementation compact)
+## D42 Session End — 8 releases shipped
 
-Executing the Workstream Content Split (#121 + #130 + #122) plan. Phase 1 is the big-bang infrastructure release.
+### Releases
 
-## Immediate next action post-compact
+| Release | PR | What |
+|---------|-----|------|
+| v42.1 | #129 | stage-hash bash + reset-soft + stash + hookify Bash wiring (closes #126 #128) |
+| v42.2 | #131 | hookify block-raw-gh-release + /secret dedup + block-raw-tools enforcement |
+| v42.3 | #132 | workstream content split — principal-scoped registrations, per-workstream receipts, git-safe mv/unstage/restore (closes #121 #130) |
+| v42.4 | #133 | migrate the-agency artifacts to new structure |
+| v42.5 | #136 | v1 tool retirement + root cleanup + repo structure overhaul |
+| v42.6 | #137 | .gitignore + CLAUDE.md + REFERENCE-TOOL-BUILDING.md |
+| v42.7 | #138 | plan-capture workstream-aware + agency-welcome + test fixtures |
+| v42.8 | #139 | version decouple (#122) + dependencies manifest (#135) + tool-create template |
 
-**Continue Phase 1 implementation.** Next items per ordering constraints:
+### Issues closed: #121, #122, #126, #128, #130, #135
 
-1. ~~`git-safe mv/unstage/restore` — DONE~~ (3 new subcommands)
-2. ~~`agent-create` update — DONE~~ (writes `.claude/agents/{P}/{A}.md`, slim scaffold)
-3. ~~9 registrations migrated — DONE~~ (all at `.claude/agents/jordan/`, flat deleted)
-4. ~~`multi-principal.bats` + `agent-create.bats` — DONE~~ (tests updated, all pass)
-5. **`receipt-sign` write path** — NEXT (new naming format, write to `claude/workstreams/{W}/qgr/` or `rgr/`)
-6. **`receipt-verify` + `pr-create` + `diff-hash`** — atomically with receipt-sign
-7. **`_agency-init`** scaffold update (slim usr/, auto-create repo-level workstream)
-8. **`workstream-create` skill** scaffold update (new subdirs)
-9. **`agent-bootstrap`** retire (delete or stub)
-10. **REFERENCE-WORKSTREAM-CONTENT-SPLIT.md** — new reference doc
-11. **Manifest bump** 42.2 → 42.3
+### Issues filed: #135, #140, #141, #142, #143
 
-## Current state
+### Stale working tree warning
 
-- **Branch:** `jordandm-d42-r3` (1 commit ahead of main: `2fe08e8`)
-- **Tree:** clean (committed WIP)
-- **Tests:** all passing (agent-create 14/14, multi-principal 24/24, git-safe 59/59)
+Local working tree has stale files from pre-merge state. 4 files show as modified (plan-capture.py, TOOL.sh, pr-create, release-plan.bats) — these are the OLD versions from main before R7/R8 merged. Run `AGENCY_ALLOW_RAW=1 git checkout -- .` to restore from HEAD.
 
-## D42-R3 scope (approved plan)
+### Open issues for next session
 
-Three phases:
-- **Phase 1 (D42-R3):** All tools + scaffold + registrations updated atomically
-- **Phase 2 (D42-R4):** Skill output paths (`/define`, `/design`, `/transcript`) + reference doc updates
-- **Phase 3 (D42-R5+):** Migration of existing artifacts
+- **#140** — TOOL.sh template: complete logging/telemetry patterns
+- **#141** — Python tool template (TOOL.py)
+- **#142** — README-*.md content review (5 files need update)
+- **#143** — Workshop pitch for Mapletree REIT L&D
+- **#134** — workstream-create scaffold (monofolk report — likely stale SKILL.md)
 
-## Key decisions from 1B1 (must survive compact)
+### Key structural decisions (D42)
 
-1. **Agent registrations → `.claude/agents/{P}/{A}.md`** — Claude Code supports subdirectory discovery. Invocation: `claude --agent jordan/captain`. `agent-bootstrap` retired.
-2. **Receipt naming:** `{org}-{principal}-{agent}-{workstream}-{project}-{type}-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md`
-3. **Receipt write path:** `claude/workstreams/{W}/qgr/` and `rgr/` with dual-read transition
-4. **`usr/{P}/{A}/` slimmed:** only tmp/, tools/, history/, history/flotsam/ + handoff + CLAUDE overlay
-5. **Dispatches dir dropped** from scaffold (DB-only now)
-6. **PII:** fix at source, not path-scoping
-7. **`agency init`** uses `$USER` for founding principal (no explicit param)
-8. **`agency init`** auto-creates repo-level workstream at `claude/workstreams/{repo-name}/`
-9. **New stuff flows to new locations NOW** — old stuff migrated after
+1. `.claude/agents/{P}/{A}.md` — principal-scoped, `claude --agent jordan/captain`
+2. `agent-bootstrap` retired — structural @import
+3. Receipt naming: `{org}-{principal}-{agent}-{ws}-{proj}-{type}-{boundary}-{date}-{hash}.md`
+4. Receipts at `claude/workstreams/{W}/qgr/` and `rgr/`
+5. `usr/{P}/{A}/` slim: tmp/, tools/, history/, history/flotsam/
+6. `project_version` decoupled from `agency_version`
+7. `claude/config/dependencies.yaml` — machine-readable deps manifest
+8. `git add -A` requires explicit principal approval every time
 
-## Prior releases this session
+### Fleet status
 
-- **v42.1** (D42-R1): stage-hash pure bash + reset-soft + stash + hookify Bash wiring (closes #126 #128)
-- **v42.2** (D42-R2): hookify block-raw-gh-release + /secret dedup + block-raw-tools enforcement
+All agents dispatched on v42.3. Monofolk dispatched via collaboration.
 
-## Open issues
+### Repo root (clean)
 
-- #121 — workstream content split (this release)
-- #122 — version decouple (separate release, D42-R4 or later)
-- #130 — git-safe mv (included in this release — done)
-
-## Active infra
-
-- Issue monitor (task `bohvfuaf3`) — persistent
-- Dispatch monitor needs restart (not running this session)
-
-## Working tree stale-index bug
-
-The `pr-merge --admin` leaves local working tree out of sync with HEAD. Hit this twice this session. Needed `AGENCY_ALLOW_RAW=1 git reset HEAD` and `AGENCY_ALLOW_RAW=1 git checkout -- .` escape hatches. Root cause documented in plan. `git-safe unstage` and `git-safe restore` (now shipped) prevent future occurrences.
+apps/ CHANGELOG.md claude/ CLAUDE.md CODE_OF_CONDUCT.md CONTRIBUTING.md LICENSE README.md tests/ usr/
 
 ---
 

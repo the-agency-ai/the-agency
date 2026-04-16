@@ -1,8 +1,0 @@
-# The Agency Python Dependencies
-# Install with: pip3 install -r requirements.txt
-
-# YAML parsing for configuration files (used by tools/config)
-pyyaml>=6.0
-
-# JSON schema validation for findings (used by tests/schemas)
-jsonschema>=4.0

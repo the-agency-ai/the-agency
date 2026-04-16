@@ -78,119 +78,26 @@ teardown() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# agent-bootstrap — core resolution
+# agent-bootstrap — RETIRED (D42-R3)
+# Principal resolution is now structural via .claude/agents/{P}/{A}.md
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agent-bootstrap dumps jordan's CLAUDE-CAPTAIN.md when \$USER=jdm" {
+@test "agent-bootstrap retired: exits 0 with deprecation — D42-R3" {
     cd "$MOCK_REPO"
     export USER="jdm"
     run "$MOCK_REPO/claude/tools/agent-bootstrap"
     assert_success
-    assert_output_contains "JORDAN-SENTINEL-STRING"
-    [[ "$output" != *"PETER-SENTINEL-STRING"* ]]
 }
 
-@test "agent-bootstrap dumps peter's CLAUDE-CAPTAIN.md when \$USER=pyg" {
+@test "agent-bootstrap retired: any args still exit 0 — D42-R3" {
     cd "$MOCK_REPO"
-    export USER="pyg"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
-    assert_success
-    assert_output_contains "PETER-SENTINEL-STRING"
-    [[ "$output" != *"JORDAN-SENTINEL-STRING"* ]]
-}
-
-@test "agent-bootstrap --path prints resolved file, no content" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --path
-    assert_success
-    assert_output_contains "usr/jordan/captain/CLAUDE-CAPTAIN.md"
-    [[ "$output" != *"JORDAN-SENTINEL-STRING"* ]]
-}
-
-@test "agent-bootstrap --agent override reads specified agent" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    # No devex file → silent
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent devex
-    assert_success
-    [[ -z "$output" ]]
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# agent-bootstrap — missing-file behavior (expected for 6 of 9 agents)
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "agent-bootstrap no file → exits 0 silently" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    rm "$MOCK_REPO/usr/jordan/captain/CLAUDE-CAPTAIN.md"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
-    assert_success
-    [[ -z "$output" ]]
-}
-
-@test "agent-bootstrap --verbose + missing file → stderr note" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    rm "$MOCK_REPO/usr/jordan/captain/CLAUDE-CAPTAIN.md"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --verbose
-    assert_success
-    [[ "$output" == *"no CLAUDE-"* ]] || [[ "$stderr" == *"no CLAUDE-"* ]] || true
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# agent-bootstrap — asymmetric filenames (CLAUDE-DEVEX-AGENT.md, etc.)
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "agent-bootstrap resolves CLAUDE-DEVEX-AGENT.md (asymmetric filename)" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    mkdir -p "$MOCK_REPO/usr/jordan/devex"
-    echo "DEVEX-AGENT-SENTINEL" > "$MOCK_REPO/usr/jordan/devex/CLAUDE-DEVEX-AGENT.md"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent devex
-    assert_success
-    assert_output_contains "DEVEX-AGENT-SENTINEL"
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# agent-bootstrap — shared-parent layout (mdpal-app/mdpal-cli live in mdpal/)
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "agent-bootstrap falls back to shared-parent layout for mdpal-app" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    mkdir -p "$MOCK_REPO/usr/jordan/mdpal"
-    echo "MDPAL-APP-SENTINEL" > "$MOCK_REPO/usr/jordan/mdpal/CLAUDE-MDPAL-APP.md"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent mdpal-app
-    assert_success
-    assert_output_contains "MDPAL-APP-SENTINEL"
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# agent-bootstrap — degenerate environments
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "agent-bootstrap with unknown \$USER → silent" {
-    cd "$MOCK_REPO"
-    export USER="nobody_in_yaml"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
+    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent captain --verbose
     assert_success
 }
 
-@test "agent-bootstrap with no usr/ dir → silent" {
+@test "agent-bootstrap retired: unknown user still exit 0 — D42-R3" {
     cd "$MOCK_REPO"
-    rm -rf "$MOCK_REPO/usr"
-    export USER="jdm"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
-    assert_success
-    [[ -z "$output" ]]
-}
-
-@test "agent-bootstrap with no agency.yaml → silent" {
-    cd "$MOCK_REPO"
-    rm "$MOCK_REPO/claude/config/agency.yaml"
-    export USER="jdm"
+    export USER="nobody"
     run "$MOCK_REPO/claude/tools/agent-bootstrap"
     assert_success
 }
@@ -199,16 +106,14 @@ teardown() {
 # Regression anchor — catches re-hardcoding of usr/jordan in framework tools
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "regression anchor — agent-bootstrap resolves per-principal, NOT pinned to jordan" {
+@test "regression anchor — agent-bootstrap retired, principal resolution is structural — D42-R3" {
+    # D42-R3: agent-bootstrap retired. Principal resolution is structural
+    # via .claude/agents/{P}/{A}.md. This test verifies the retired stub
+    # works from any user context without crashing.
     cd "$MOCK_REPO"
-    # Peter-as-captain; jordan dir exists, peter dir exists, each has its
-    # own sentinel. If the fix is reverted (hardcoded usr/jordan), this
-    # test fails because peter's content won't be dumped.
     export USER="pyg"
     run "$MOCK_REPO/claude/tools/agent-bootstrap"
     assert_success
-    [[ "$output" == *"PETER-SENTINEL-STRING"* ]]
-    [[ "$output" != *"JORDAN-SENTINEL-STRING"* ]]
 }
 
 @test "regression anchor — universal reference doc contains Two Standing Priorities" {
@@ -355,28 +260,19 @@ teardown() {
     }
 }
 
-@test "agent-bootstrap --agent with no value: clean error, no shift crash (issue #115 bug 1)" {
+@test "agent-bootstrap retired: --agent flag exits 0 — D42-R3" {
     cd "$MOCK_REPO"
     export USER="jdm"
-    # Trailing --agent with no value would crash under set -euo pipefail
-    # (shift 2 with one arg). D41-R22 fix: validate before shifting.
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent
-    assert_failure
-    [[ "$status" -eq "2" ]]
-    [[ "$output" == *"--agent requires a value"* ]] || [[ "$stderr" == *"--agent requires a value"* ]]
+    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent foo
+    assert_success
 }
 
-@test "agent-bootstrap honors CLAUDE_AGENT_NAME env fallback when agent-identity is unavailable" {
+@test "agent-bootstrap retired: CLAUDE_AGENT_NAME irrelevant — D42-R3" {
     cd "$MOCK_REPO"
     export USER="jdm"
     export CLAUDE_AGENT_NAME="captain"
-    # Rename agent-identity so it's not findable; agent-bootstrap should
-    # either use the env fallback or degrade silently — NOT crash.
-    mv "$MOCK_REPO/claude/tools/agent-identity" "$MOCK_REPO/claude/tools/agent-identity.disabled"
     run "$MOCK_REPO/claude/tools/agent-bootstrap"
-    # Restore before assertions so teardown is clean
-    mv "$MOCK_REPO/claude/tools/agent-identity.disabled" "$MOCK_REPO/claude/tools/agent-identity"
-    assert_success  # Must not crash, even without agent-identity
+    assert_success
 }
 
 @test "registration files use structural principal paths — D42-R3" {

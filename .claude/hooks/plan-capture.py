@@ -148,6 +148,25 @@ def find_active_request(project_dir: str) -> str | None:
     return None
 
 
+def _resolve_workstream(project_dir: str) -> str:
+    """Resolve current workstream from branch name or fall back to repo name."""
+    import subprocess
+    try:
+        branch = subprocess.check_output(
+            ["git", "branch", "--show-current"],
+            cwd=project_dir, text=True, stderr=subprocess.DEVNULL
+        ).strip()
+        # Branch format: jordandm-d42-r7 or feature/folio-cms
+        # Extract workstream: last segment after / or the whole thing
+        if "/" in branch:
+            return branch.split("/")[-1]
+        # For jordandm-d42-r7 style, can't reliably extract workstream
+    except Exception:
+        pass
+    # Fall back to repo name (repo-level workstream)
+    return Path(project_dir).name
+
+
 def main():
     try:
         hook_input = json.loads(sys.stdin.read())
@@ -165,18 +184,26 @@ def main():
         sys.exit(0)
 
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", cwd)
-    plans_dir = Path(project_dir) / "claude" / "plans"
+
+    # D42-R7: resolve workstream for plan placement
+    # Try: branch name → agent identity → default to repo-level workstream
+    workstream = _resolve_workstream(project_dir)
+    repo_name = Path(project_dir).name
+
+    # D42-R7: write to claude/workstreams/{W}/ root (per content split spec)
+    plans_dir = Path(project_dir) / "claude" / "workstreams" / workstream
     plans_dir.mkdir(parents=True, exist_ok=True)
+    history_dir = plans_dir / "history"
+    history_dir.mkdir(parents=True, exist_ok=True)
 
     # Check if a plan was already captured recently (agent did it manually)
     recent_plans = []
-    for f in plans_dir.glob("PLAN-*.md"):
+    for f in plans_dir.glob("plan-*.md"):
         if time.time() - f.stat().st_mtime < 120:
             recent_plans.append(f.name)
 
     if recent_plans:
-        plan_id = recent_plans[-1].replace('.md', '')
-        print(f"Plan already captured as {plan_id}")
+        print(f"Plan already captured as {recent_plans[-1]}")
         sys.exit(0)
 
     # Extract from transcript
@@ -206,22 +233,35 @@ def main():
     else:
         related_field = "N/A"
 
-    # Generate plan artifact
-    plan_num = get_next_plan_number(plans_dir)
-    plan_id = f"PLAN-{plan_num:04d}"
+    # D42-R7: new naming convention per workstream content split spec
+    # plan-{W}-{slug}-{YYYYMMDD}.md at workstream root
     slug = slugify(task_subject) if task_subject else "untitled"
-    filename = f"{plan_id}-{slug}.md"
     today = date.today().isoformat()
+    today_compact = date.today().strftime("%Y%m%d")
+    filename = f"plan-{workstream}-{slug}-{today_compact}.md"
 
-    # Build the plan file
-    if extracted["plan_content"] and extracted["plan_content"].startswith("# Plan:"):
-        # Plan was already formatted — inject Related if missing
-        artifact_content = extracted["plan_content"]
-        if "**Related:**" in artifact_content and "N/A" in artifact_content and request_ids_sorted:
-            artifact_content = artifact_content.replace(
-                "**Related:** N/A",
-                f"**Related:** {related_field}"
-            )
+    # Archive existing plan with same name if present (superseded → history/)
+    existing_plan = plans_dir / filename
+    if existing_plan.exists():
+        now_hhmm = time.strftime("%H%M")
+        archive_name = f"plan-{workstream}-{slug}-{today_compact}-{now_hhmm}.md"
+        existing_plan.rename(history_dir / archive_name)
+        sys.stderr.write(f"plan-capture: archived superseded plan → history/{archive_name}\n")
+
+    # Build the plan file with frontmatter per content split spec
+    if extracted["plan_content"] and extracted["plan_content"].startswith("# "):
+        # Plan was already formatted by the agent — use as-is with frontmatter
+        artifact_content = f"""---
+type: plan
+workstream: {workstream}
+principal: jordan
+agent: the-agency/jordan/captain
+date: {today}
+slug: {slug}
+---
+
+{extracted["plan_content"]}
+"""
     else:
         prompt_section = (
             f"> {extracted['prompt_context']}"
@@ -229,14 +269,16 @@ def main():
             else "> (captured from plan mode session)"
         )
 
-        artifact_content = f"""# Plan: {task_subject or 'Untitled Plan'}
+        artifact_content = f"""---
+type: plan
+workstream: {workstream}
+principal: jordan
+agent: the-agency/jordan/captain
+date: {today}
+slug: {slug}
+---
 
-**Plan ID:** {plan_id}
-**Date:** {today}
-**Agent:** captain
-**Principal:** jordan
-**Status:** Draft
-**Related:** {related_field}
+# {task_subject or 'Untitled Plan'}
 
 ## Prompt Context
 {prompt_section}
@@ -252,8 +294,7 @@ def main():
     plan_path.write_text(artifact_content)
 
     # Feed back to Claude
-    related_msg = f" (related: {related_field})" if request_ids_sorted else ""
-    print(f"plan-capture: saved {plan_id} → claude/plans/{filename}{related_msg}")
+    print(f"plan-capture: saved → claude/workstreams/{workstream}/{filename}")
     sys.exit(0)
 
 
