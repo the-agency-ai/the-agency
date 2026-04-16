@@ -33,7 +33,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-RECEIPTS_DIR="$REPO_ROOT/claude/receipts"
+# D42-R3: receipts write to per-workstream paths.
+# RECEIPTS_DIR is set after --workstream is parsed (see below).
 
 # Defaults
 TYPE=""
@@ -105,6 +106,12 @@ if [[ "$TYPE" != "qgr" && "$TYPE" != "rgr" ]]; then
     exit 1
 fi
 
+# D42-R3: path traversal check on workstream (QG finding)
+if [[ "$WORKSTREAM" == *".."* || "$WORKSTREAM" == *"/"* ]]; then
+    echo "Error: --workstream contains invalid characters (.. or /)" >&2
+    exit 1
+fi
+
 # Default hash-d-source
 if [[ -z "$HASH_D_SOURCE" ]]; then
     if [[ "$HASH_D" == "$HASH_C" ]]; then
@@ -118,11 +125,14 @@ fi
 TIMESTAMP=$(date +%Y%m%d-%H%M)
 SHORT_HASH_E="${HASH_E:0:7}"
 
-# Construct filename
-FILENAME="${ORG}-${PRINCIPAL}-${AGENT}-${WORKSTREAM}-${PROJECT}-${TYPE}-${SHORT_HASH_E}-${TIMESTAMP}.md"
+# D42-R3: per-workstream receipt paths + revised naming
+# New: {org}-{principal}-{agent}-{workstream}-{project}-{type}-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md
+# Write to: claude/workstreams/{W}/qgr/ or rgr/
+RECEIPTS_DIR="$REPO_ROOT/claude/workstreams/$WORKSTREAM/$TYPE"
+FILENAME="${ORG}-${PRINCIPAL}-${AGENT}-${WORKSTREAM}-${PROJECT}-${TYPE}-${BOUNDARY}-${TIMESTAMP}-${SHORT_HASH_E}.md"
 FILEPATH="$RECEIPTS_DIR/$FILENAME"
 
-# Ensure receipts directory exists
+# Ensure receipt directory exists (creates qgr/ or rgr/ under workstream)
 mkdir -p "$RECEIPTS_DIR"
 
 # Build hash-d-transcript line

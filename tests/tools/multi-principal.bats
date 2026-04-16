@@ -329,23 +329,30 @@ teardown() {
 # Subagent-invocation anchor (per monofolk Q-A)
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "subagent-invocation anchor — registration file contains agent-bootstrap startup step" {
-    # Not a runtime subagent spawn (BATS can't do that), but verifies the
-    # registration files DO route through agent-bootstrap, so when Claude
-    # Code spawns a subagent via subagent_type, the startup sequence will
-    # include runtime principal resolution.
-    run grep -l "agent-bootstrap" "$REPO_ROOT/.claude/agents/"*.md
-    assert_success
-    # D41-R22 (issue #115 bug 2): ratio-based coverage instead of fixed
-    # threshold. Catches regressions where any single agent loses
-    # agent-bootstrap, regardless of how many agents the repo has.
-    local total covered
-    total=$(ls "$REPO_ROOT/.claude/agents/"*.md 2>/dev/null | grep -v -i 'README' | wc -l | tr -d ' ')
-    covered=$(grep -l "agent-bootstrap" "$REPO_ROOT/.claude/agents/"*.md 2>/dev/null | wc -l | tr -d ' ')
-    if [[ "$covered" -ne "$total" ]]; then
-        echo "agent-bootstrap coverage: $covered/$total (must be 100%)"
+@test "principal-scoped registration anchor — registrations at .claude/agents/{P}/{A}.md — D42-R3" {
+    # D42-R3: agent-bootstrap retired. Registrations are principal-scoped
+    # at .claude/agents/{P}/{A}.md with structural @import.
+    # Verify at least one principal subdir exists with .md files.
+    local found=0
+    for dir in "$REPO_ROOT/.claude/agents"/*/; do
+        [[ -d "$dir" ]] || continue
+        local count
+        count=$(ls "$dir"*.md 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "$count" -gt 0 ]]; then
+            found=$((found + count))
+        fi
+    done
+    [[ "$found" -gt 0 ]] || {
+        echo "No principal-scoped registrations found at .claude/agents/{P}/*.md"
         false
-    fi
+    }
+    # Verify NO flat registrations remain at .claude/agents/*.md
+    local flat_count
+    flat_count=$(ls "$REPO_ROOT/.claude/agents/"*.md 2>/dev/null | wc -l | tr -d ' ')
+    [[ "$flat_count" -eq 0 ]] || {
+        echo "Flat registrations still exist: $flat_count files at .claude/agents/*.md (should be 0)"
+        false
+    }
 }
 
 @test "agent-bootstrap --agent with no value: clean error, no shift crash (issue #115 bug 1)" {
@@ -372,16 +379,28 @@ teardown() {
     assert_success  # Must not crash, even without agent-identity
 }
 
-@test "registration files no longer hardcode usr/jordan" {
-    run grep -r "usr/jordan" "$REPO_ROOT/.claude/agents/"
-    # grep returns 0 on match; we want no matches (exit 1). Either output
-    # is empty, or only matches inside a runtime command substitution
-    # (e.g. `usr/$(agent-identity --principal)/...`) which is not a
-    # literal jordan hardcode.
-    [[ "$status" -ne "0" ]] || {
-        # If any match, must all be inside $(...) substitutions
-        while IFS= read -r line; do
-            [[ "$line" == *"\$("*"usr/"*")"* ]] || false
-        done <<< "$output"
+@test "registration files use structural principal paths — D42-R3" {
+    # D42-R3: registrations live at .claude/agents/{P}/{A}.md with
+    # explicit usr/{P}/{A}/ references (structural, not dynamic).
+    # This is correct — the principal IS in the path. Verify registrations
+    # exist in principal subdirs and reference their principal's usr/ path.
+    local reg_count=0
+    for dir in "$REPO_ROOT/.claude/agents"/*/; do
+        [[ -d "$dir" ]] || continue
+        local principal
+        principal=$(basename "$dir")
+        for reg in "$dir"*.md; do
+            [[ -f "$reg" ]] || continue
+            reg_count=$((reg_count + 1))
+            # Each registration should reference usr/{principal}/
+            grep -q "usr/$principal/" "$reg" || {
+                echo "$(basename "$reg") doesn't reference usr/$principal/"
+                false
+            }
+        done
+    done
+    [[ "$reg_count" -gt 0 ]] || {
+        echo "No registrations found in principal subdirs"
+        false
     }
 }

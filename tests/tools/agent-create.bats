@@ -73,32 +73,32 @@ teardown() {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/agent-create testagent testws
     assert_success
-    [[ -d "usr/testuser/testws/tools" ]]
+    [[ -d "usr/testuser/testagent/tools" ]]
 }
 
 @test "agent-create: scaffolds tmp/ with .gitignore" {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/agent-create testagent testws
     assert_success
-    [[ -d "usr/testuser/testws/tmp" ]]
-    [[ -f "usr/testuser/testws/tmp/.gitignore" ]]
-    grep -q '^\*$' "usr/testuser/testws/tmp/.gitignore"
-    grep -q '!\.gitignore' "usr/testuser/testws/tmp/.gitignore"
+    [[ -d "usr/testuser/testagent/tmp" ]]
+    [[ -f "usr/testuser/testagent/tmp/.gitignore" ]]
+    grep -q '^\*$' "usr/testuser/testagent/tmp/.gitignore"
+    grep -q '!\.gitignore' "usr/testuser/testagent/tmp/.gitignore"
 }
 
 @test "agent-create: writes bootstrap handoff with TODO placeholders" {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/agent-create testagent testws
     assert_success
-    [[ -f "usr/testuser/testws/testagent-handoff.md" ]]
-    grep -q "TODO:" "usr/testuser/testws/testagent-handoff.md"
+    [[ -f "usr/testuser/testagent/testagent-handoff.md" ]]
+    grep -q "TODO:" "usr/testuser/testagent/testagent-handoff.md"
 }
 
 @test "agent-create: bootstrap handoff has required frontmatter" {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/agent-create testagent testws
     assert_success
-    local handoff="usr/testuser/testws/testagent-handoff.md"
+    local handoff="usr/testuser/testagent/testagent-handoff.md"
     grep -q "type: agency-bootstrap" "$handoff"
     grep -q "principal:" "$handoff"
     grep -q "agent:" "$handoff"
@@ -109,40 +109,41 @@ teardown() {
 # Registration template (Plan 5.1)
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agent-create: registration contains startup read directives" {
+@test "agent-create: registration at principal-scoped path — D42-R3" {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/agent-create testagent testws
     assert_success
-    local reg=".claude/agents/testagent.md"
+    local reg=".claude/agents/testuser/testagent.md"
     [[ -f "$reg" ]]
     grep -q "On startup, immediately do" "$reg"
     grep -q "handoff" "$reg"
     grep -q "dispatch list" "$reg"
 }
 
-@test "agent-create: registration contains dispatch loop instructions" {
+@test "agent-create: registration uses @import pattern — D42-R3" {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/agent-create testagent testws
     assert_success
-    local reg=".claude/agents/testagent.md"
-    grep -q "loop 5m" "$reg"
-    grep -q "loop 30m" "$reg"
-    grep -q "dispatch check" "$reg"
+    local reg=".claude/agents/testuser/testagent.md"
+    # Structural @import for class doc and workstream CLAUDE
+    grep -q "@claude/agents/" "$reg"
+    grep -q "@claude/workstreams/testws/" "$reg"
+    grep -q "@usr/testuser/" "$reg"
 }
 
 @test "agent-create: registration contains TODO guard" {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/agent-create testagent testws
     assert_success
-    grep -q "TODO:" ".claude/agents/testagent.md"
-    grep -q "Bootstrap handoff incomplete" ".claude/agents/testagent.md"
+    grep -q "TODO:" ".claude/agents/testuser/testagent.md"
+    grep -q "Bootstrap handoff incomplete" ".claude/agents/testuser/testagent.md"
 }
 
 @test "agent-create: registration contains act-on-startup directive" {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/agent-create testagent testws
     assert_success
-    grep -q "Do not wait for a prompt" ".claude/agents/testagent.md"
+    grep -q "Do not wait for a prompt" ".claude/agents/testuser/testagent.md"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
