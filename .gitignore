@@ -53,9 +53,11 @@ coverage/
 *.temp
 .cache/
 
-# Principal secrets (never commit)
-claude/principals/*/resources/secrets/
+# Build artifacts
+dist/
 claude/apps/AgencyBench.app
+
+# Legacy test fixture (embedded git repo)
 test/
 
 # Claude Code local settings (user customizations)

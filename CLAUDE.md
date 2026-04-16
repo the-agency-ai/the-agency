@@ -4,10 +4,15 @@ This is the **framework development repo** — TheAgency itself. You are buildin
 
 ## This Repo
 
-- **Framework code:** `claude/` (tools, agents, docs, hooks, skills, templates, starter packs)
-- **App workstreams:** `claude/workstreams/mdpal/`, `claude/workstreams/mock-and-mark/` (Reference Source License)
-- **Test fixtures:** `test/test-agency-project/` (embedded git repo — commit inside it separately)
-- **Principal sandbox:** `usr/jordan/` (captain instance, dispatches, transcripts)
+- **Framework code:** `claude/` (tools, agents, docs, hooks, skills, templates)
+- **App workstreams:** `apps/` (mdpal-app, mdslidepal-mac, mdslidepal-web, mock-and-mark — Reference Source License)
+- **Shared workstream content:** `claude/workstreams/{W}/` (PVRs, A&Ds, plans, seeds, receipts, transcripts)
+- **Principal sandboxes:** `usr/{P}/{A}/` (personal state: handoffs, tools, history)
+- **Agent registrations:** `.claude/agents/{P}/{A}.md` (principal-scoped, invoke with `claude --agent {P}/{A}`)
+
+## Content Placement
+
+See `claude/REFERENCE-WORKSTREAM-CONTENT-SPLIT.md` for where artifacts belong (shared vs personal).
 
 ## Licensing
 
@@ -18,9 +23,7 @@ Open core model:
 ## Testing
 
 - BATS for tool tests: `bats tests/tools/`
-- ISCP tools: `bats tests/tools/iscp-db.bats tests/tools/agent-identity.bats tests/tools/dispatch-create.bats tests/tools/dispatch.bats tests/tools/flag.bats tests/tools/iscp-check.bats tests/tools/iscp-migrate.bats` (142 tests)
-- Vitest for TypeScript: `npx vitest run`
-- Test fixtures are embedded git repos with their own `.git/` — changes inside them require commits inside the fixture, then a submodule-reference update in the outer repo
+- BATS for schemas: `bats tests/schemas/`
 
 ## Repo-Specific Conventions
 
@@ -28,6 +31,6 @@ Open core model:
 - Skills live in `.claude/skills/{name}/SKILL.md` — auto-discovered by Claude Code
 - Commands live in `.claude/commands/{name}.md` — user-invoked via `/{name}`
 - Agent classes live in `claude/agents/{class}/agent.md`
-- Agent registrations live in `.claude/agents/{name}.md`
+- Agent registrations live in `.claude/agents/{P}/{A}.md` (principal-scoped)
 
 @claude/CLAUDE-THEAGENCY.md
