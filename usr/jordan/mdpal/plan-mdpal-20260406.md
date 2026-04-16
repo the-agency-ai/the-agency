@@ -211,9 +211,37 @@ apps/mdpal/
 
 **Delivers:** Phase 1 complete. All core section operations working end-to-end.
 
+### Phase 1 Completion — 2026-04-16
+
+**Status: COMPLETE (engine-only MVP)**
+
+Phase 1 scope diverged from the original plan. The engine core (iterations 1.1–1.4) shipped as a library — CLI commands (original iterations 1.4–1.6) are deferred to Phase 2.
+
+**What shipped:**
+| Iteration | Commit | Tests | Content |
+|-----------|--------|-------|---------|
+| 1.1 | `9cf480b` | 33 | Core types, Markdown parser, section tree |
+| 1.2 | `abbc746` | 80 | Document model, comments, flags, YAML metadata |
+| 1.3 | `904131e` | 124 | Section operations (read/edit), comment lifecycle, flag lifecycle |
+| 1.4 | `1a18718` | 175 | DocumentBundle, revisions, prune, dual-latest mechanism |
+| Phase QG | `2a80f21` | 179 | C1 append-only fix + C2 symlink attack fix |
+
+**Phase QG findings — 2 CRITICAL fixed, 7 HIGH deferred:**
+- C1 FIXED: prune() violated append-only invariant by re-serializing whole document
+- C2 FIXED: symlink-as-revision attack — listRevisions followed symlinks
+- H1 DEFERRED: Revision metadata drift — createRevision doesn't update DocumentInfo
+- H2 DEFERRED: DocumentInfo.blank() non-POSIX DateFormatter
+- H3 DEFERRED: Empty slug for non-ASCII headings
+- H4 DEFERRED: Slug suffix scheme drift (-1,-2 vs A&D -2,-3)
+- H5 DEFERRED: Diff API missing (blocks Phase 2 CLI)
+- H6 DEFERRED: No end-to-end Bundle+Document integration test
+- H7 DEFERRED: Byte-equal round-trip not asserted
+
+**QGR receipt:** `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md`
+
 ---
 
-## Phase 2: Bundle Operations + Advanced CLI
+## Phase 2: CLI Commands + Bundle Operations
 
 **Scope:** DocumentBundle, revisions, pruning, diff, history + CLI commands `create`, `history`, `prune`, `diff`, `version show/bump`, `revision create`, `refresh`.
 
