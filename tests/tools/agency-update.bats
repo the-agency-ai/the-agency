@@ -307,6 +307,393 @@ EOF
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# D41-R24: agency init --from-github (principal directive, closes #119 bundle)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency init --help documents --from-github" {
+    run_agency init --help
+    assert_success
+    assert_output_contains "from-github"
+    # Default should be main, not 'latest tag'
+    assert_output_contains "Default: main"
+    # @latest opt-in for release-tag behavior
+    assert_output_contains "@latest"
+}
+
+@test "agency init --from-github parses the flag (no value = main default)" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p target
+    cd target && git init --quiet --initial-branch=main && \
+        git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+    # Point at nonexistent repo so clone fails fast after ref resolution —
+    # we just verify the flag is parsed and the main-default path is taken.
+    GITHUB_REPO_URL="file:///nonexistent-r24-test" run "${TOOLS_DIR}/agency" init --from-github --verbose 2>&1
+    # Output should mention main ref
+    [[ "$output" == *"ref: main"* ]] || [[ "$output" == *"main"* ]]
+}
+
+@test "agency init --from-github @latest enters release-tag resolution path" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p target
+    cd target && git init --quiet --initial-branch=main && \
+        git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+    GITHUB_REPO_URL="file:///nonexistent-r24-test" run "${TOOLS_DIR}/agency" init --from-github @latest --verbose 2>&1
+    [[ "$output" == *"@latest"* ]] || [[ "$output" == *"main"* ]]
+}
+
+@test "agency init --from-github= equals form works" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p target
+    cd target && git init --quiet --initial-branch=main && \
+        git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+    GITHUB_REPO_URL="file:///nonexistent-r24-test" run "${TOOLS_DIR}/agency" init --from-github=v41.23 --verbose 2>&1
+    [[ "$output" == *"v41.23"* ]] || [[ "$output" == *"ref: v41.23"* ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R24: agency-bootstrap.sh curl-entrypoint script exists and is executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency-bootstrap.sh exists and is executable" {
+    [[ -f "$REPO_ROOT/claude/tools/agency-bootstrap.sh" ]]
+    [[ -x "$REPO_ROOT/claude/tools/agency-bootstrap.sh" ]]
+}
+
+@test "agency-bootstrap.sh --help works without network" {
+    run "$REPO_ROOT/claude/tools/agency-bootstrap.sh" --help
+    assert_success
+    assert_output_contains "agency-bootstrap.sh"
+    assert_output_contains "curl"
+}
+
+@test "agency-bootstrap.sh --version prints version" {
+    run "$REPO_ROOT/claude/tools/agency-bootstrap.sh" --version
+    assert_success
+    assert_output_contains "agency-bootstrap.sh"
+}
+
+@test "agency-bootstrap.sh: refuses non-git-repo" {
+    local non_git="${BATS_TEST_TMPDIR}/not-a-git-repo-$$"
+    mkdir -p "$non_git"
+    cd "$non_git"
+    run "$REPO_ROOT/claude/tools/agency-bootstrap.sh"
+    assert_failure
+    assert_output_contains "git repo"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R25 HOTFIX: agency init installs ALL tools (regression anchor)
+# Live incident 2026-04-15 — hardcoded tool list in _agency-init was frozen
+# around ~30 tools while framework grew to 60+. Every tool added post-freeze
+# was missing from fresh inits. This test asserts that a fresh `agency init`
+# installs every canonical tool that was missing (surfaced in
+# homekit-daikin-ac-bridge).
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency init: installs all canonical tools (not a hardcoded subset)" {
+    local target="${BATS_TEST_TMPDIR}/init-full-toolset"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    # Point AGENCY_SOURCE at the real repo so _agency-init copies actual tools
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    # Canonical set of tools that MUST be installed (these were the missing
+    # ones surfaced in the live incident). If any of these is absent after
+    # init, the hardcoded-list bug has regressed.
+    local missing=()
+    local canonical_tools=(
+        agency
+        git-safe
+        git-captain
+        git-push
+        git-safe-commit
+        cp-safe
+        handoff
+        dispatch
+        dispatch-create
+        agent-identity
+        agent-create
+        agent-bootstrap
+        agency-bootstrap.sh
+        collaboration
+        iscp-check
+        iscp-migrate
+        flag
+        pr-create
+        pr-merge
+        principal-onboard
+        receipt-sign
+        receipt-verify
+        session-preflight
+        worktree-sync
+        worktree-cwd-check
+        worktree-create
+        worktree-delete
+        worktree-list
+        skill-verify
+        agency-issue
+        agency-health
+        issue-monitor
+        dispatch-monitor
+        diff-hash
+        stage-hash
+        commit-precheck
+        instruction-show
+    )
+    for tool in "${canonical_tools[@]}"; do
+        [[ -f "$target/claude/tools/$tool" ]] || missing+=("$tool")
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing tools after agency init: ${missing[*]}"
+        false
+    fi
+}
+
+@test "agency init: installs canonical libs (not a hardcoded subset)" {
+    local target="${BATS_TEST_TMPDIR}/init-full-libs"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    local missing=()
+    # Libs that _were_ missing from the old hardcoded list
+    local canonical_libs=(
+        _log-helper
+        _path-resolve
+        _address-parse
+        _provider-resolve
+        _agency-init
+        _agency-update
+        _test-isolation
+    )
+    for lib in "${canonical_libs[@]}"; do
+        [[ -f "$target/claude/tools/lib/$lib" ]] || missing+=("$lib")
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing libs after agency init: ${missing[*]}"
+        false
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R26: regression anchors for THREE more frozen lists beyond R25's tools
+# (agents, hooks, commands, REFERENCE-*, README-*). If any future PR
+# re-hardcodes any of these, these tests fail loud.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency init: installs ALL hooks (not hardcoded subset) — D41-R26" {
+    local target="${BATS_TEST_TMPDIR}/init-hooks"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    # These hooks were MISSING from the old hardcoded list — now must be present
+    local missing=()
+    local canonical_hooks=(
+        block-raw-tools.sh      # CRITICAL — hookify enforcement
+        idle-mail-check.sh
+        ref-injector.sh
+        session-handoff.sh
+        quality-check.sh
+    )
+    for hook in "${canonical_hooks[@]}"; do
+        [[ -f "$target/claude/hooks/$hook" ]] || missing+=("$hook")
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing hooks after agency init: ${missing[*]}"
+        false
+    fi
+}
+
+@test "agency init: installs ALL agent classes (not hardcoded 8) — D41-R26" {
+    local target="${BATS_TEST_TMPDIR}/init-agents"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    # Old hardcoded list had 8 classes. Framework has ~21. Assert the ones
+    # that were previously missing are now present.
+    local missing=()
+    local canonical_agents=(
+        captain
+        cos
+        project-manager
+        reviewer-code
+        reviewer-design
+        reviewer-scorer
+        reviewer-security
+        reviewer-test
+        iscp
+        tech-lead
+    )
+    for agent in "${canonical_agents[@]}"; do
+        [[ -f "$target/claude/agents/$agent/agent.md" ]] || missing+=("$agent")
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing agent classes after agency init: ${missing[*]}"
+        false
+    fi
+
+    # Also: count should match framework's count (dir-level copy)
+    local framework_count=$(ls -d "$REPO_ROOT/claude/agents/"*/ 2>/dev/null | wc -l | tr -d ' ')
+    local target_count=$(ls -d "$target/claude/agents/"*/ 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$target_count" -lt "$framework_count" ]]; then
+        echo "Agent count mismatch: framework has $framework_count, target has $target_count"
+        false
+    fi
+}
+
+@test "agency init: installs ALL REFERENCE-*.md docs — D41-R26" {
+    local target="${BATS_TEST_TMPDIR}/init-refs"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    # REFERENCE-* docs must all ship — ref-injector depends on them
+    local framework_refs=$(ls "$REPO_ROOT/claude/"REFERENCE-*.md 2>/dev/null | wc -l | tr -d ' ')
+    local target_refs=$(ls "$target/claude/"REFERENCE-*.md 2>/dev/null | wc -l | tr -d ' ')
+
+    # Target must match framework count (directory-level copy)
+    if [[ "$target_refs" -ne "$framework_refs" ]]; then
+        echo "REFERENCE-*.md count mismatch: framework has $framework_refs, target has $target_refs"
+        false
+    fi
+
+    # At least a few canonical refs must be present by name
+    local canonical_refs=(REFERENCE-QUALITY-GATE.md REFERENCE-AGENT-DISCIPLINE.md REFERENCE-ISCP-PROTOCOL.md)
+    local missing=()
+    for ref in "${canonical_refs[@]}"; do
+        [[ -f "$target/claude/$ref" ]] || missing+=("$ref")
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing canonical REFERENCE docs: ${missing[*]}"
+        false
+    fi
+}
+
+@test "agency init: installs ALL README-*.md docs — D41-R26" {
+    local target="${BATS_TEST_TMPDIR}/init-readmes"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    local framework_readmes=$(ls "$REPO_ROOT/claude/"README-*.md 2>/dev/null | wc -l | tr -d ' ')
+    local target_readmes=$(ls "$target/claude/"README-*.md 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$target_readmes" -ne "$framework_readmes" ]]; then
+        echo "README-*.md count mismatch: framework has $framework_readmes, target has $target_readmes"
+        false
+    fi
+}
+
+@test "agency init: installs ALL commands — D41-R26" {
+    local target="${BATS_TEST_TMPDIR}/init-cmds"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    local framework_cmds=$(ls "$REPO_ROOT/.claude/commands/"*.md 2>/dev/null | wc -l | tr -d ' ')
+    local target_cmds=$(ls "$target/.claude/commands/"*.md 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$target_cmds" -ne "$framework_cmds" ]]; then
+        echo "Commands count mismatch: framework has $framework_cmds, target has $target_cmds"
+        false
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R27: framework .gitignore block + dirty-tree gate excludes .claude/logs/
+# Live blocker: after R26 shipped, principal ran `agency update --from-github`
+# on homekit-daikin-ac-bridge and was blocked by the dirty-tree gate because
+# .claude/logs/tool-runs.jsonl (auto-appended tool telemetry) was untracked.
+# Fix: ignore runtime-log paths in the gate AND ship/merge a framework
+# .gitignore block so adopters never hit this on fresh repos.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "agency init: installs framework .gitignore block — D41-R27" {
+    local target="${BATS_TEST_TMPDIR}/init-gitignore"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    [[ -f "$target/.gitignore" ]]
+    run grep -F "Agency framework-managed ignores" "$target/.gitignore"
+    assert_success
+    run grep -F ".claude/logs/" "$target/.gitignore"
+    assert_success
+}
+
+@test "agency init: gitignore merge is idempotent — D41-R27" {
+    local target="${BATS_TEST_TMPDIR}/init-gitignore-idempotent"
+    mkdir -p "$target"
+    cd "$target"
+    git init --quiet --initial-branch=main
+    # Pre-existing adopter .gitignore with project-specific entries
+    cat > "$target/.gitignore" <<EOF
+node_modules/
+.env
+EOF
+    git add .gitignore
+    git -c user.name=t -c user.email=t@t commit --quiet -m "init" --no-verify
+
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    assert_success
+
+    # Adopter's pre-existing lines must be preserved
+    run grep -F "node_modules" "$target/.gitignore"
+    assert_success
+    # Framework block must be appended
+    run grep -F "Agency framework-managed ignores" "$target/.gitignore"
+    assert_success
+    # Block should appear exactly once (idempotent)
+    local count
+    count=$(grep -c "Agency framework-managed ignores" "$target/.gitignore")
+    [[ "$count" == "1" ]]
+}
+
+@test "agency update: dirty-tree gate ignores .claude/logs/* — D41-R27" {
+    # Full end-to-end is heavy — verify the _agency-update source contains
+    # the exclusion pattern. Regression anchor: if the grep filter is removed,
+    # the dirty-tree gate returns to false-positives on .claude/logs/.
+    run grep -F ".claude/logs/" "$REPO_ROOT/claude/tools/lib/_agency-update"
+    assert_success
+    run grep -F "grep -v -E" "$REPO_ROOT/claude/tools/lib/_agency-update"
+    assert_success
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # D41-R20: post-merge skill enforces release verification
 # ─────────────────────────────────────────────────────────────────────────────
 

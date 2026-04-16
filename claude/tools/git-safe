@@ -55,6 +55,25 @@ Subcommands (guarded write):
                                Resolve a conflicted file by taking one side, then stage it.
                                Only valid mid-merge (MERGE_HEAD present).
   merge-abort                  Abort an in-progress merge (wraps git merge --abort).
+  config --list                List all git config
+  config <key>                 Read one config key
+  config --local <key> <value> Set a config key in this repo (allow-list enforced)
+  config --global <key> <value>
+                               Set a config key globally (allow-list enforced)
+                               Allowed keys: commit.gpgsign, commit.verbose,
+                               user.name, user.email, pull.rebase,
+                               init.defaultBranch, core.autocrlf, core.editor
+  stash push [-m <msg>]        Stash working tree changes (pass-through)
+  stash list                   List stashes
+  stash pop [<stash>]          Pop the latest (or named) stash
+  stash drop [<stash>]         Drop the latest (or named) stash (destructive — warns)
+  stash show [<stash>]         Show stash contents (diff)
+  mv <source> <destination>    Atomic file move (git mv with safety guards)
+                               Blocks: wildcards, path traversal (..), directories
+  unstage <file> [file...]     Remove files from staging area (keeps working tree)
+                               Wraps git reset HEAD -- <files>
+  restore <file> [file...]     Restore working tree files from HEAD
+                               Wraps git checkout HEAD -- <files> via temp+rename
 
 Options:
   --help                 Show this help
@@ -205,6 +224,78 @@ cmd_merge_abort() {
     echo "${GREEN}Merge aborted.${NC} Working tree restored to pre-merge state."
 }
 
+# --- Subcommand: config ---
+# D41-R23 (issue #118): agents need a safe path to read/set git config so
+# they can self-recover from common friction (gpg-missing, missing user.name,
+# etc.) without escalating to principal. Allow-list keeps blast radius small;
+# anything that could affect auth, hooks, remotes, or signing keys requires
+# principal escalation.
+SAFE_CONFIG_KEYS=(
+    commit.gpgsign
+    commit.verbose
+    user.name
+    user.email
+    pull.rebase
+    init.defaultBranch
+    core.autocrlf
+    core.editor
+)
+
+_config_assert_allowed() {
+    local key="$1"
+    local allowed
+    for allowed in "${SAFE_CONFIG_KEYS[@]}"; do
+        [[ "$key" == "$allowed" ]] && return 0
+    done
+    die "git-safe config refuses '$key' — not on the safe-keys allow-list (${SAFE_CONFIG_KEYS[*]}). Escalate to principal for other config changes."
+}
+
+cmd_config() {
+    [[ $# -eq 0 ]] && die "Usage: git-safe config --list | <key> | --local <key> <value> | --global <key> <value>"
+
+    case "$1" in
+        --list)
+            git config --list
+            return
+            ;;
+        --local|--global)
+            local scope="$1"; shift
+            [[ $# -ne 2 ]] && die "Usage: git-safe config $scope <key> <value>"
+            local key="$1" value="$2"
+            _config_assert_allowed "$key"
+            git config "$scope" "$key" "$value"
+            echo "${GREEN}Set${NC} $scope $key=$value"
+            ;;
+        -*)
+            die "Unknown flag: $1 (use --list, --local, --global, or a bare key)"
+            ;;
+        *)
+            # Read a single key (no value → exit 0 with empty output, like git config --get)
+            git config --get "$1" 2>/dev/null || true
+            ;;
+    esac
+}
+
+# --- Subcommand: stash ---
+# D41-R28 (issue #126): safe wrappers lacked stash — blocked mid-merge recovery.
+# Pass-through to git stash subcommands. `drop` is destructive and warns.
+cmd_stash() {
+    [[ $# -eq 0 ]] && die "Usage: git-safe stash push|list|pop|drop|show [args...]"
+
+    local sub="$1"; shift
+    case "$sub" in
+        push)  git stash push "$@" ;;
+        list)  git stash list "$@" ;;
+        pop)   git stash pop "$@" ;;
+        drop)
+            echo "${YELLOW}warn:${NC} git-safe stash drop is destructive and cannot be undone." >&2
+            git stash drop "$@"
+            ;;
+        show)  git stash show "$@" ;;
+        *)     die "Unknown stash subcommand: $sub (use push, list, pop, drop, show)" ;;
+    esac
+}
+
 # --- Subcommand: merge-from-master ---
 cmd_merge_from_master() {
     # Auto-detect main branch name
@@ -255,6 +346,110 @@ cmd_merge_from_master() {
     fi
 }
 
+# --- Subcommand: mv ---
+# D42-R3 (issue #130): atomic file move with path safety.
+# Wraps git mv. Blocks wildcards, path traversal, directories.
+cmd_mv() {
+    [[ $# -lt 2 ]] && die "Usage: git-safe mv <source> <destination>"
+
+    local source="$1"
+    local dest="$2"
+    shift 2
+
+    local dry_run=false
+    local verbose=false
+    for arg in "$@"; do
+        case "$arg" in
+            --dry-run) dry_run=true ;;
+            --verbose|-v) verbose=true ;;
+            *) die "Unknown flag: $arg" ;;
+        esac
+    done
+
+    # Path traversal check
+    [[ "$source" == *".."* ]] && die "Path traversal blocked — '..' not allowed in source"
+    [[ "$dest" == *".."* ]] && die "Path traversal blocked — '..' not allowed in destination"
+
+    # Wildcard check
+    [[ "$source" == *"*"* || "$source" == *"?"* ]] && die "Wildcards not allowed — specify exact file paths"
+    [[ "$dest" == *"*"* || "$dest" == *"?"* ]] && die "Wildcards not allowed — specify exact file paths"
+
+    # Source must exist and be a file (not directory)
+    [[ -e "$source" ]] || die "Source file not found: $source"
+    [[ -f "$source" ]] || die "Source must be a file, not a directory: $source (move files individually for auditability)"
+
+    # Destination parent must exist
+    local dest_dir
+    dest_dir="$(dirname "$dest")"
+    [[ -d "$dest_dir" ]] || die "Destination directory does not exist: $dest_dir\n  Create it first: mkdir -p $dest_dir"
+
+    # Dry run
+    if [[ "$dry_run" == "true" ]]; then
+        echo "Would move: $source → $dest"
+        exit 0
+    fi
+
+    # Execute
+    if git mv "$source" "$dest"; then
+        if [[ "$verbose" == "true" ]]; then
+            echo "Moved: $source → $dest"
+        fi
+    else
+        die "git mv failed for: $source → $dest"
+    fi
+}
+
+# --- Subcommand: unstage ---
+# D42-R3: framework safety gap from D42 index corruption incident.
+# Removes files from staging area without touching working tree.
+cmd_unstage() {
+    [[ $# -eq 0 ]] && die "Usage: git-safe unstage <file> [file...]"
+
+    for file in "$@"; do
+        # Block wildcards
+        [[ "$file" == *"*"* || "$file" == *"?"* ]] && die "Wildcards not allowed: $file"
+        # Block path traversal
+        [[ "$file" == *".."* ]] && die "Path traversal blocked: $file"
+        # Block -A/--all style flags
+        [[ "$file" == -* ]] && die "Flags not allowed — specify file paths only"
+    done
+
+    git reset HEAD -- "$@"
+    echo "Unstaged: $*"
+}
+
+# --- Subcommand: restore ---
+# D42-R3: framework safety gap from D42 self-clobber incident.
+# Restores working tree files from HEAD. Uses temp file + rename to avoid
+# the shell redirect self-clobber trap (> truncates before command runs).
+cmd_restore() {
+    [[ $# -eq 0 ]] && die "Usage: git-safe restore <file> [file...]"
+
+    for file in "$@"; do
+        # Block wildcards
+        [[ "$file" == *"*"* || "$file" == *"?"* ]] && die "Wildcards not allowed: $file"
+        # Block path traversal
+        [[ "$file" == *".."* ]] && die "Path traversal blocked: $file"
+        # Block -A/--all style flags
+        [[ "$file" == -* ]] && die "Flags not allowed — specify file paths only"
+    done
+
+    local restored=0
+    for file in "$@"; do
+        # Write to temp first, then move — avoids self-clobber
+        local tmp
+        tmp=$(mktemp "${file}.restore.XXXXXX")
+        if git show "HEAD:$file" > "$tmp" 2>/dev/null; then
+            mv "$tmp" "$file"
+            ((restored++))
+        else
+            rm -f "$tmp"
+            echo "${YELLOW}warn:${NC} $file not found in HEAD — skipped" >&2
+        fi
+    done
+    echo "Restored $restored file(s) from HEAD"
+}
+
 # --- Main dispatch ---
 [[ $# -eq 0 ]] && usage
 
@@ -272,5 +467,10 @@ case "$1" in
     resolve-conflict) shift; cmd_resolve_conflict "$@" ;;
     merge-abort)      shift; cmd_merge_abort "$@" ;;
     merge-from-master) shift; cmd_merge_from_master "$@" ;;
+    config)           shift; cmd_config "$@" ;;
+    stash)            shift; cmd_stash "$@" ;;
+    mv)               shift; cmd_mv "$@" ;;
+    unstage)          shift; cmd_unstage "$@" ;;
+    restore)          shift; cmd_restore "$@" ;;
     *)            die "Unknown subcommand: $1 — run 'git-safe --help' for usage." ;;
 esac

@@ -599,8 +599,29 @@ ${files_changed}
         trap - EXIT
         # Log verbose output to database for investigation
         log_end "$RUN_ID" "failure" "$COMMIT_EXIT" ${#COMMIT_OUTPUT} "Commit failed: $MESSAGE"
-        # Only show error in verbose mode
-        [[ "$VERBOSE" == "true" ]] && echo "$COMMIT_OUTPUT"
+
+        # D41-R23 (issue #118): detect gpg-missing — common macOS friction
+        # when commit.gpgsign=true is set globally but gpg isn't installed.
+        # Without this detection, agents see only "Exit code 128" with no
+        # path forward (Peter Gao hit this on his first commit as a new
+        # principal on monofolk, blocking him entirely).
+        if echo "$COMMIT_OUTPUT" | grep -qiE "cannot run gpg|gpg failed|gpg: not found|gpg: signing failed"; then
+            local current_gpgsign
+            current_gpgsign=$(git config --get-all commit.gpgsign 2>/dev/null | tr '\n' ' ' | sed 's/ $//')
+            cat >&2 <<EOF
+${RED}BLOCKED:${NC} git commit failed because commit.gpgsign=true but gpg is missing.
+
+Fix options:
+  1. Disable signing for this repo:    ./claude/tools/git-safe config --local commit.gpgsign false
+  2. Disable signing globally:         ./claude/tools/git-safe config --global commit.gpgsign false
+  3. Install gpg (macOS):              brew install gnupg
+
+Current commit.gpgsign: ${current_gpgsign:-(unset, but likely set globally)}
+EOF
+        else
+            # Existing behavior — verbose-only
+            [[ "$VERBOSE" == "true" ]] && echo "$COMMIT_OUTPUT"
+        fi
         exit $COMMIT_EXIT
     fi
 }

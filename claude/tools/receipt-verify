@@ -116,28 +116,44 @@ if [[ -z "$WORKSTREAM" || -z "$PROJECT" ]]; then
     exit 1
 fi
 
-# Search claude/receipts/ with pattern
+# D42-R3: three-tier receipt search (new path → legacy claude/receipts/ → old usr/)
 FOUND=0
 VERIFIED=0
 PATTERN="*-${WORKSTREAM}-${PROJECT}-*.md"
 
-if [[ -d "$RECEIPTS_DIR" ]]; then
+# Tier 1: per-workstream paths (D42-R3+)
+for subdir in qgr rgr; do
+    local_dir="$REPO_ROOT/claude/workstreams/$WORKSTREAM/$subdir"
+    if [[ -d "$local_dir" ]]; then
+        while IFS= read -r -d '' receipt; do
+            FOUND=$((FOUND + 1))
+            if verify_receipt "$receipt" "quiet"; then
+                VERIFIED=$((VERIFIED + 1))
+                verify_receipt "$receipt"
+            fi
+        done < <(find "$local_dir" -name "$PATTERN" -print0 2>/dev/null)
+    fi
+done
+
+# Tier 2: legacy claude/receipts/ (pre-D42-R3)
+if [[ "$FOUND" -eq 0 && -d "$RECEIPTS_DIR" ]]; then
     while IFS= read -r -d '' receipt; do
         FOUND=$((FOUND + 1))
         if verify_receipt "$receipt" "quiet"; then
             VERIFIED=$((VERIFIED + 1))
+            echo "Note: Found receipt in legacy location (claude/receipts/). Migration pending."
             verify_receipt "$receipt"
         fi
     done < <(find "$RECEIPTS_DIR" -name "$PATTERN" -print0 2>/dev/null)
 fi
 
-# Fall back to old location during migration
+# Tier 3: old usr/ location (pre-receipt-sign)
 if [[ "$FOUND" -eq 0 ]]; then
     while IFS= read -r -d '' old_receipt; do
         FOUND=$((FOUND + 1))
         if verify_receipt "$old_receipt" "quiet"; then
             VERIFIED=$((VERIFIED + 1))
-            echo "Note: Found receipt in old location (usr/). Migration to claude/receipts/ pending."
+            echo "Note: Found receipt in old location (usr/). Migration to per-workstream pending."
             verify_receipt "$old_receipt"
         fi
     done < <(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null)
@@ -145,7 +161,7 @@ fi
 
 if [[ "$FOUND" -eq 0 ]]; then
     echo "BLOCKED: No receipts found for workstream=$WORKSTREAM project=$PROJECT." >&2
-    echo "  Searched: claude/receipts/ and usr/**/qgr-*.md" >&2
+    echo "  Searched: claude/workstreams/$WORKSTREAM/{qgr,rgr}/, claude/receipts/, usr/**/qgr-*.md" >&2
     echo "  Run /pr-prep to produce a receipt." >&2
     exit 1
 fi

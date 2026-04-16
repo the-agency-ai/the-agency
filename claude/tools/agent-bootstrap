@@ -1,179 +1,23 @@
 #!/bin/bash
+# agent-bootstrap — RETIRED (D42-R3)
 #
-# agent-bootstrap — Load the current agent's principal-scoped CLAUDE-{AGENT}.md
+# What Problem: This tool performed runtime principal resolution for agent
+# registrations at .claude/agents/{A}.md (flat path). It resolved $USER →
+# principal → usr/{P}/{A}/CLAUDE-{A}.md and output the content.
 #
-# What Problem: Agent registration files (.claude/agents/*.md) used to hard-
-# code `@usr/jordan/{agent}/CLAUDE-{AGENT}.md` as an `@import` line. That
-# broke multi-principal adoption (issue #111): a second principal in an
-# adopter repo always loaded Jordan's principal-scoped operating context,
-# regardless of $USER. Claude Code does not support variable expansion in
-# `@import` directives, so the hardcoded literal had to go.
+# Why Retired: D42-R3 moved agent registrations to .claude/agents/{P}/{A}.md
+# (principal-scoped). Principal resolution is now structural — the registration
+# file directly @imports usr/{P}/{A}/CLAUDE-{A}.md. No runtime resolution needed.
 #
-# How & Why: Resolve the current principal via _path-resolve ($USER →
-# agency.yaml → principal), identify the current agent via agent-identity,
-# and cat the principal-scoped CLAUDE-{AGENT}.md to stdout. Agents call
-# this as startup step 1; the stdout lands in the agent's turn-1 context.
-# Missing file is a silent no-op by design — only some agents have a
-# principal-scoped CLAUDE-*.md file; others are fully covered by the class
-# doc `@import`.
+# If you're seeing this: your agent registration still calls agent-bootstrap.
+# Update it to .claude/agents/{P}/{A}.md with structural @import. See:
+# claude/REFERENCE-WORKSTREAM-CONTENT-SPLIT.md
 #
-# Resolution uses a glob (not a hardcoded naming map) so asymmetric
-# filenames (`CLAUDE-DEVEX-AGENT.md`, `CLAUDE-CAPTAIN.md`, `CLAUDE-ISCP.md`)
-# all work without a lookup table. Falls back to a parent-dir glob for
-# shared-directory layouts (mdpal-app/mdpal-cli both live under mdpal/).
-#
-# Written: 2026-04-15 during D41-R19 — issue #111 Option E.
+# Written: 2026-04-15 (D41-R19, issue #111)
+# Retired: 2026-04-16 (D42-R3, issue #121)
 
-set -euo pipefail
-
-TOOL_VERSION="1.0.0"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Locate project root. Prefer CLAUDE_PROJECT_DIR (set by hooks), fall back
-# to git toplevel from PWD, then SCRIPT_DIR's parent-parent (claude/tools/
-# is two levels down from the project root).
-if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
-    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
-elif _pwd_toplevel="$(git rev-parse --show-toplevel 2>/dev/null)"; then
-    PROJECT_ROOT="$_pwd_toplevel"
-else
-    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-fi
-
-# Source shared principal resolver (sets AGENCY_PRINCIPAL, AGENCY_PRINCIPAL_DIR,
-# AGENCY_PROJECT_ROOT). Silent on failure — tool degrades to a no-op if
-# resolution is impossible (e.g. bare repo with no agency.yaml).
-if [[ -f "$PROJECT_ROOT/claude/tools/lib/_path-resolve" ]]; then
-    # shellcheck disable=SC1091
-    source "$PROJECT_ROOT/claude/tools/lib/_path-resolve" 2>/dev/null || true
-fi
-
-# Source logging helper (non-fatal if absent — tool still works).
-# log_helper writes to a log file, NOT to stdout/stderr, so it does not
-# pollute the bootloader output stream that agents read as turn-1 context.
-if [[ -f "$PROJECT_ROOT/claude/tools/lib/_log-helper" ]]; then
-    # shellcheck disable=SC1091
-    source "$PROJECT_ROOT/claude/tools/lib/_log-helper" 2>/dev/null || true
-fi
-if declare -f log_start >/dev/null 2>&1; then
-    log_start "agent-bootstrap" "$@" >/dev/null 2>&1 || true
-fi
-
-# ─── Argument parsing ─────────────────────────────────────────────────────
-agent_override=""
-show_path_only=false
-verbose=false
-
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --agent)
-            agent_override="${2:-}"
-            shift 2
-            ;;
-        --path)
-            show_path_only=true
-            shift
-            ;;
-        --verbose|-v)
-            verbose=true
-            shift
-            ;;
-        --version)
-            echo "agent-bootstrap $TOOL_VERSION"
-            exit 0
-            ;;
-        --help|-h)
-            cat <<'USAGE'
-agent-bootstrap — Load the current agent's principal-scoped CLAUDE-{AGENT}.md
-
-Usage:
-  agent-bootstrap                  Resolve current agent, cat CLAUDE-*.md
-  agent-bootstrap --agent <name>   Override agent name (for tests/debug)
-  agent-bootstrap --path           Print resolved file path, no content
-  agent-bootstrap --verbose        Emit a stderr note when no file found
-  agent-bootstrap --version        Show version
-  agent-bootstrap --help           This help
-
-Behavior:
-  • Resolves principal via claude/config/agency.yaml → $USER
-  • Resolves agent via agent-identity (or --agent override)
-  • Globs usr/{principal}/{agent}/CLAUDE-*.md (primary layout)
-  • Falls back to usr/{principal}/*/CLAUDE-*{AGENT}*.md for shared-dir layouts
-  • Exits 0 silently if no file found (optional bootstrap content)
-USAGE
-            exit 0
-            ;;
-        *)
-            echo "agent-bootstrap: unknown argument: $1" >&2
-            exit 2
-            ;;
-    esac
-done
-
-# ─── Resolve agent name ───────────────────────────────────────────────────
-agent=""
-if [[ -n "$agent_override" ]]; then
-    agent="$agent_override"
-elif [[ -x "$PROJECT_ROOT/claude/tools/agent-identity" ]]; then
-    agent="$("$PROJECT_ROOT/claude/tools/agent-identity" --agent 2>/dev/null || echo "")"
-fi
-
-if [[ -z "$agent" ]]; then
-    # Nothing to resolve; silent no-op (see file header).
-    [[ "$verbose" == "true" ]] && echo "agent-bootstrap: could not resolve agent name" >&2
-    exit 0
-fi
-
-# ─── Resolve principal dir ────────────────────────────────────────────────
-principal_dir="${AGENCY_PRINCIPAL_DIR:-}"
-if [[ -z "$principal_dir" || ! -d "$principal_dir" ]]; then
-    [[ "$verbose" == "true" ]] && echo "agent-bootstrap: no resolvable principal dir (AGENCY_PRINCIPAL_DIR=$principal_dir)" >&2
-    exit 0
-fi
-
-# ─── Find the CLAUDE-*.md file ───────────────────────────────────────────
-file=""
-
-# Primary layout: usr/{principal}/{agent}/CLAUDE-*.md
-if [[ -d "$principal_dir/$agent" ]]; then
-    # Use a loop (not just head) so we gracefully handle zero matches
-    for candidate in "$principal_dir/$agent"/CLAUDE-*.md; do
-        [[ -f "$candidate" ]] || continue
-        file="$candidate"
-        break
-    done
-fi
-
-# Fallback: shared-parent layout — match by agent name fragment in filename.
-# Handles usr/{principal}/mdpal/CLAUDE-MDPAL-APP.md (for agent mdpal-app) etc.
-if [[ -z "$file" ]]; then
-    agent_upper="$(printf '%s' "$agent" | tr 'a-z' 'A-Z')"
-    for candidate in "$principal_dir"/*/CLAUDE-*"$agent_upper"*.md; do
-        [[ -f "$candidate" ]] || continue
-        file="$candidate"
-        break
-    done
-fi
-
-# ─── Emit ────────────────────────────────────────────────────────────────
-if [[ -z "$file" ]]; then
-    [[ "$verbose" == "true" ]] && echo "agent-bootstrap: no CLAUDE-*.md found for agent '$agent' under $principal_dir" >&2
-    if declare -f log_end >/dev/null 2>&1; then
-        log_end "success" "no-op: no CLAUDE-*.md for agent $agent" >/dev/null 2>&1 || true
-    fi
-    exit 0
-fi
-
-if [[ "$show_path_only" == "true" ]]; then
-    echo "$file"
-    if declare -f log_end >/dev/null 2>&1; then
-        log_end "success" "--path: $file" >/dev/null 2>&1 || true
-    fi
-    exit 0
-fi
-
-cat "$file"
-if declare -f log_end >/dev/null 2>&1; then
-    log_end "success" "loaded: $file" >/dev/null 2>&1 || true
-fi
+echo "DEPRECATED: agent-bootstrap is retired (D42-R3)." >&2
+echo "  Agent registrations now live at .claude/agents/{P}/{A}.md" >&2
+echo "  with structural @import for principal context." >&2
+echo "  See: claude/REFERENCE-WORKSTREAM-CONTENT-SPLIT.md" >&2
+exit 0

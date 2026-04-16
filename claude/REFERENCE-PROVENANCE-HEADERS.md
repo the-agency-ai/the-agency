@@ -72,12 +72,12 @@ Every script — whether part of a plan or written ad hoc — must follow two ru
 | Scope | Location | Lifecycle |
 |-------|----------|-----------|
 | **Framework tool** (plan work, shipped to all projects) | `claude/tools/` | Committed, reviewed, permanent |
-| **Agent script** (ad hoc, session work, one-off automation) | `usr/{principal}/{project}/tools/` | Committed, reusable across sessions |
-| **Scratch** (truly ephemeral, intermediate output) | `usr/{principal}/{project}/tmp/` | Gitignored, disposable |
+| **Agent script** (ad hoc, session work, one-off automation) | `usr/{principal}/{agent}/tools/` | Committed, reusable across sessions |
+| **Scratch** (truly ephemeral, intermediate output) | `usr/{principal}/{agent}/tmp/` | Gitignored, disposable |
 
 **The workflow for ad hoc scripts:**
 1. You realize you need a script (parsing, scanning, transforming, testing).
-2. Write it to `usr/{principal}/{project}/tools/` with a provenance header.
+2. Write it to `usr/{principal}/{agent}/tools/` with a provenance header.
 3. Run it from there.
 4. If you need it again later in the session, it's already there — don't rewrite it.
 5. If it proves broadly useful, propose moving it to `claude/tools/`.

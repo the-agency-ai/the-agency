@@ -619,8 +619,43 @@ cmd_fetch() {
 # Written: 2026-04-05 during dispatch fetch/reply implementation
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_reply() {
-    local dispatch_id="${1:-}"
-    local message="${2:-}"
+    # D41-R24 (issue #119 bug 4): strict flag parsing. Previously the
+    # signature was cmd_reply($1, $2) = (id, message) — passing flags like
+    # --subject/--body resulted in either the flag becoming the id (failed
+    # regex) OR the flag becoming the message body (silent drop of the
+    # intended body). Captain hit this on a real dispatch; receiving agent
+    # had to bounce a malformed body. Reject any unknown flag loudly.
+    local dispatch_id=""
+    local message=""
+    local extra_args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --help|-h)
+                echo "Usage: dispatch reply <id> \"message\"" >&2
+                return 0
+                ;;
+            -*)
+                echo "Error: dispatch reply does not accept flag: $1" >&2
+                echo "Usage: dispatch reply <id> \"message\"" >&2
+                echo "(Flags like --subject/--body are for 'dispatch create', not 'reply'.)" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$dispatch_id" ]]; then
+                    dispatch_id="$1"
+                elif [[ -z "$message" ]]; then
+                    message="$1"
+                else
+                    extra_args+=("$1")
+                fi
+                shift
+                ;;
+        esac
+    done
+    if [[ ${#extra_args[@]} -gt 0 ]]; then
+        echo "Error: dispatch reply takes exactly two positional args (<id> \"message\"). Extra: ${extra_args[*]}" >&2
+        return 1
+    fi
 
     if [[ -z "$dispatch_id" || ! "$dispatch_id" =~ ^[0-9]+$ ]]; then
         echo "Error: dispatch reply requires an integer ID" >&2

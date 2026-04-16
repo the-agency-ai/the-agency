@@ -29,7 +29,7 @@ setup() {
     git config user.email "test@example.com"
     git config user.name "Test User"
     # Create a minimal agency.yaml and make the initial commit
-    mkdir -p claude/config claude/tools .claude/skills claude/workstreams/agency/seeds usr/jordan/captain/dispatches
+    mkdir -p claude/config claude/tools .claude/skills claude/workstreams/agency/seeds usr/jordan/captain/{tools,tmp,history/flotsam}
     echo "# base agency.yaml" > claude/config/agency.yaml
     echo "# base README" > README.md
     git add -A
@@ -142,8 +142,9 @@ teardown() {
 
 @test "release-plan: classifies coordination dispatches correctly" {
     cd "$TEST_REPO"
-    echo "# dispatch" > usr/jordan/captain/dispatches/directive-test-20260408-1200.md
-    git add usr/jordan/captain/dispatches/directive-test-20260408-1200.md
+    mkdir -p usr/jordan/captain/history/flotsam
+    echo "# dispatch" > usr/jordan/captain/history/flotsam/directive-test-20260408-1200.md
+    git add usr/jordan/captain/history/flotsam/directive-test-20260408-1200.md
     run ./claude/tools/release-plan --no-switch
     assert_success
     assert_output_contains "Coordination"

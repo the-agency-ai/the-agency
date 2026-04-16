@@ -59,7 +59,15 @@ Subcommands:
   push [args]                    Push to remote (blocks main/master, blocks bare --force)
   fetch                          Fetch from origin
   tag <name> [-m <msg>]          Create annotated tag
-  branch-delete <name>           Safe-delete a branch (-d, not -D)
+  reset-soft [<ref>]             Sanctioned recovery: undo the last local
+                                 commit (or reset to <ref>), keeping changes
+                                 staged. REFUSES if HEAD is pushed to origin
+                                 (use git revert for pushed commits). Default
+                                 ref is HEAD~1.
+  branch-delete <name> [--force] Safe-delete a branch (-d). With --force,
+                                 force-delete (-D) — required for post-merge
+                                 cleanup of branches with unreachable commits
+                                 (RGR receipts, dispatch artifacts, etc.).
 
 Options:
   --help                         Show this help
@@ -293,14 +301,79 @@ cmd_tag() {
     echo "${GREEN}Created annotated tag:${NC} $name"
 }
 
+# --- Subcommand: reset-soft ---
+# D41-R28 (issue #128): sanctioned recovery path for undoing a local,
+# un-pushed commit. Without this, agents who bypass /git-safe-commit (e.g.
+# because stage-hash crashed) can't cleanly redo the commit through the
+# safe flow — they'd need raw `git reset`, another bypass. Soft reset
+# preserves staged changes so the agent can re-run /git-safe-commit.
+#
+# Guards:
+#   - Refuse if target is ancestor of origin/<branch> (pushed commits need
+#     revert, not reset — reset on pushed history is a force-push waiting
+#     to happen).
+#   - Default ref is HEAD~1 (undo last commit).
+#   - Only --soft. For --mixed or --hard, agents must escalate to principal.
+cmd_reset_soft() {
+    local ref="${1:-HEAD~1}"
+    local current_branch
+    current_branch=$(git branch --show-current 2>/dev/null || echo "")
+    [[ -z "$current_branch" ]] && die "Not on a branch (detached HEAD). Cannot reset-soft."
+
+    # Verify ref resolves
+    local target_commit
+    target_commit=$(git rev-parse --verify "$ref" 2>/dev/null) || die "Ref '$ref' does not resolve."
+
+    # Refuse if we'd be resetting past already-pushed commits
+    if git show-ref --verify "refs/remotes/origin/$current_branch" >/dev/null 2>&1; then
+        local origin_tip
+        origin_tip=$(git rev-parse "refs/remotes/origin/$current_branch")
+        # If HEAD == origin, we're already synced — resetting moves us behind
+        local head_commit
+        head_commit=$(git rev-parse HEAD)
+        # Check: is origin_tip an ancestor of HEAD (i.e. we have local commits ahead)?
+        if ! git merge-base --is-ancestor "$origin_tip" "$head_commit" 2>/dev/null; then
+            die "Cannot reset-soft: origin/$current_branch is not an ancestor of HEAD — history has diverged. Use git revert for pushed commits, or escalate to principal."
+        fi
+        # Check: is target_commit at or ahead of origin/branch?
+        if ! git merge-base --is-ancestor "$origin_tip" "$target_commit" 2>/dev/null; then
+            die "Cannot reset-soft: target '$ref' is BEHIND origin/$current_branch (this would rewrite pushed history). Use git revert for pushed commits."
+        fi
+    fi
+
+    echo "${BLUE}Resetting $current_branch to $ref (soft — staged changes preserved)${NC}"
+    git reset --soft "$ref"
+    echo "${GREEN}Reset complete.${NC} Changes preserved in index; re-run /git-safe-commit to commit properly."
+}
+
 # --- Subcommand: branch-delete ---
 cmd_branch_delete() {
-    [[ $# -eq 0 ]] && die "Usage: git-captain branch-delete <name>"
+    [[ $# -eq 0 ]] && die "Usage: git-captain branch-delete <name> [--force]"
 
-    local name="$1"
+    local name=""
+    local force=false
+
+    # Parse: name plus optional --force / -f. Order-independent.
+    for arg in "$@"; do
+        case "$arg" in
+            --force|-f) force=true ;;
+            -*) die "Unknown flag: $arg" ;;
+            *)
+                if [[ -z "$name" ]]; then
+                    name="$arg"
+                else
+                    die "Unexpected argument: $arg (only one branch name allowed)"
+                fi
+                ;;
+        esac
+    done
+
+    [[ -z "$name" ]] && die "Usage: git-captain branch-delete <name> [--force]"
+
     local main_branch
     main_branch=$(detect_main_branch)
 
+    # Same protections apply with or without --force
     if [[ "$name" == "$main_branch" ]]; then
         die "Cannot delete $main_branch."
     fi
@@ -312,10 +385,21 @@ cmd_branch_delete() {
         die "Cannot delete the current branch ($name). Switch to another branch first."
     fi
 
-    if git branch -d "$name"; then
-        echo "${GREEN}Deleted branch:${NC} $name"
+    # D41-R21 (issue #110): --force enables -D for post-merge cleanup of
+    # branches with unreachable commits (RGR receipts, dispatch artifacts).
+    # Without --force, safe -d behavior is unchanged.
+    if [[ "$force" == "true" ]]; then
+        if git branch -D "$name"; then
+            echo "${GREEN}Force-deleted branch:${NC} $name"
+        else
+            die "git branch -D '$name' failed (does the branch exist?)"
+        fi
     else
-        die "Branch '$name' has unmerged changes. Merge first or use raw 'git branch -D' if you are certain."
+        if git branch -d "$name"; then
+            echo "${GREEN}Deleted branch:${NC} $name"
+        else
+            die "Branch '$name' has unmerged changes. Re-run with --force for post-merge cleanup, or merge first if changes still matter."
+        fi
     fi
 }
 
@@ -333,6 +417,7 @@ case "$1" in
     push)               shift; cmd_push "$@" ;;
     fetch)              shift; cmd_fetch "$@" ;;
     tag)                shift; cmd_tag "$@" ;;
+    reset-soft)         shift; cmd_reset_soft "$@" ;;
     branch-delete)      shift; cmd_branch_delete "$@" ;;
     *)                  die "Unknown subcommand: $1 — run 'git-captain --help' for usage." ;;
 esac

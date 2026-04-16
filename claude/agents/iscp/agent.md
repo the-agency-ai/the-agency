@@ -21,16 +21,16 @@ Design and implement the Inter-Session Communication Protocol (ISCP) — the mes
 ## How to Spin Up
 
 ```bash
-claude --agent iscp
+claude --agent {P}/iscp
 ```
 
 ## Key Directories
 
 - `claude/agents/iscp/` — agent identity
 - `claude/workstreams/iscp/` — workstream artifacts (KNOWLEDGE.md, seeds, reviews)
-- `usr/jordan/iscp/` — project sandbox (dispatches, transcripts, tools, history)
+- `usr/jordan/iscp/` — agent sandbox (slim: tmp/, tools/, history/, history/flotsam/)
 
 ## Seed Files
 
-- `usr/jordan/iscp/seeds/` — seed files and reference material (includes ISCP design dispatch and mdpal mining findings)
-- `usr/jordan/captain/transcripts/discussion-transcript-20260404.md` — Item 2 decisions on flag/dispatch/ISCP
+- `claude/workstreams/iscp/` — shared workstream content (seeds, reviews, transcripts)
+- `claude/workstreams/iscp/transcripts/discussion-transcript-20260404.md` — Item 2 decisions on flag/dispatch/ISCP

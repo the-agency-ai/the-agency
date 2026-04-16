@@ -78,119 +78,26 @@ teardown() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# agent-bootstrap — core resolution
+# agent-bootstrap — RETIRED (D42-R3)
+# Principal resolution is now structural via .claude/agents/{P}/{A}.md
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agent-bootstrap dumps jordan's CLAUDE-CAPTAIN.md when \$USER=jdm" {
+@test "agent-bootstrap retired: exits 0 with deprecation — D42-R3" {
     cd "$MOCK_REPO"
     export USER="jdm"
     run "$MOCK_REPO/claude/tools/agent-bootstrap"
     assert_success
-    assert_output_contains "JORDAN-SENTINEL-STRING"
-    [[ "$output" != *"PETER-SENTINEL-STRING"* ]]
 }
 
-@test "agent-bootstrap dumps peter's CLAUDE-CAPTAIN.md when \$USER=pyg" {
+@test "agent-bootstrap retired: any args still exit 0 — D42-R3" {
     cd "$MOCK_REPO"
-    export USER="pyg"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
-    assert_success
-    assert_output_contains "PETER-SENTINEL-STRING"
-    [[ "$output" != *"JORDAN-SENTINEL-STRING"* ]]
-}
-
-@test "agent-bootstrap --path prints resolved file, no content" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --path
-    assert_success
-    assert_output_contains "usr/jordan/captain/CLAUDE-CAPTAIN.md"
-    [[ "$output" != *"JORDAN-SENTINEL-STRING"* ]]
-}
-
-@test "agent-bootstrap --agent override reads specified agent" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    # No devex file → silent
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent devex
-    assert_success
-    [[ -z "$output" ]]
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# agent-bootstrap — missing-file behavior (expected for 6 of 9 agents)
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "agent-bootstrap no file → exits 0 silently" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    rm "$MOCK_REPO/usr/jordan/captain/CLAUDE-CAPTAIN.md"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
-    assert_success
-    [[ -z "$output" ]]
-}
-
-@test "agent-bootstrap --verbose + missing file → stderr note" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    rm "$MOCK_REPO/usr/jordan/captain/CLAUDE-CAPTAIN.md"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --verbose
-    assert_success
-    [[ "$output" == *"no CLAUDE-"* ]] || [[ "$stderr" == *"no CLAUDE-"* ]] || true
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# agent-bootstrap — asymmetric filenames (CLAUDE-DEVEX-AGENT.md, etc.)
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "agent-bootstrap resolves CLAUDE-DEVEX-AGENT.md (asymmetric filename)" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    mkdir -p "$MOCK_REPO/usr/jordan/devex"
-    echo "DEVEX-AGENT-SENTINEL" > "$MOCK_REPO/usr/jordan/devex/CLAUDE-DEVEX-AGENT.md"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent devex
-    assert_success
-    assert_output_contains "DEVEX-AGENT-SENTINEL"
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# agent-bootstrap — shared-parent layout (mdpal-app/mdpal-cli live in mdpal/)
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "agent-bootstrap falls back to shared-parent layout for mdpal-app" {
-    cd "$MOCK_REPO"
-    export USER="jdm"
-    mkdir -p "$MOCK_REPO/usr/jordan/mdpal"
-    echo "MDPAL-APP-SENTINEL" > "$MOCK_REPO/usr/jordan/mdpal/CLAUDE-MDPAL-APP.md"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent mdpal-app
-    assert_success
-    assert_output_contains "MDPAL-APP-SENTINEL"
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# agent-bootstrap — degenerate environments
-# ─────────────────────────────────────────────────────────────────────────────
-
-@test "agent-bootstrap with unknown \$USER → silent" {
-    cd "$MOCK_REPO"
-    export USER="nobody_in_yaml"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
+    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent captain --verbose
     assert_success
 }
 
-@test "agent-bootstrap with no usr/ dir → silent" {
+@test "agent-bootstrap retired: unknown user still exit 0 — D42-R3" {
     cd "$MOCK_REPO"
-    rm -rf "$MOCK_REPO/usr"
-    export USER="jdm"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
-    assert_success
-    [[ -z "$output" ]]
-}
-
-@test "agent-bootstrap with no agency.yaml → silent" {
-    cd "$MOCK_REPO"
-    rm "$MOCK_REPO/claude/config/agency.yaml"
-    export USER="jdm"
+    export USER="nobody"
     run "$MOCK_REPO/claude/tools/agent-bootstrap"
     assert_success
 }
@@ -199,16 +106,14 @@ teardown() {
 # Regression anchor — catches re-hardcoding of usr/jordan in framework tools
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "regression anchor — agent-bootstrap resolves per-principal, NOT pinned to jordan" {
+@test "regression anchor — agent-bootstrap retired, principal resolution is structural — D42-R3" {
+    # D42-R3: agent-bootstrap retired. Principal resolution is structural
+    # via .claude/agents/{P}/{A}.md. This test verifies the retired stub
+    # works from any user context without crashing.
     cd "$MOCK_REPO"
-    # Peter-as-captain; jordan dir exists, peter dir exists, each has its
-    # own sentinel. If the fix is reverted (hardcoded usr/jordan), this
-    # test fails because peter's content won't be dumped.
     export USER="pyg"
     run "$MOCK_REPO/claude/tools/agent-bootstrap"
     assert_success
-    [[ "$output" == *"PETER-SENTINEL-STRING"* ]]
-    [[ "$output" != *"JORDAN-SENTINEL-STRING"* ]]
 }
 
 @test "regression anchor — universal reference doc contains Two Standing Priorities" {
@@ -329,41 +234,69 @@ teardown() {
 # Subagent-invocation anchor (per monofolk Q-A)
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "subagent-invocation anchor — registration file contains agent-bootstrap startup step" {
-    # Not a runtime subagent spawn (BATS can't do that), but verifies the
-    # registration files DO route through agent-bootstrap, so when Claude
-    # Code spawns a subagent via subagent_type, the startup sequence will
-    # include runtime principal resolution.
-    run grep -l "agent-bootstrap" "$REPO_ROOT/.claude/agents/"*.md
-    assert_success
-    local count
-    count=$(grep -l "agent-bootstrap" "$REPO_ROOT/.claude/agents/"*.md | wc -l | tr -d ' ')
-    [[ "$count" -ge "9" ]]
+@test "principal-scoped registration anchor — registrations at .claude/agents/{P}/{A}.md — D42-R3" {
+    # D42-R3: agent-bootstrap retired. Registrations are principal-scoped
+    # at .claude/agents/{P}/{A}.md with structural @import.
+    # Verify at least one principal subdir exists with .md files.
+    local found=0
+    for dir in "$REPO_ROOT/.claude/agents"/*/; do
+        [[ -d "$dir" ]] || continue
+        local count
+        count=$(ls "$dir"*.md 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "$count" -gt 0 ]]; then
+            found=$((found + count))
+        fi
+    done
+    [[ "$found" -gt 0 ]] || {
+        echo "No principal-scoped registrations found at .claude/agents/{P}/*.md"
+        false
+    }
+    # Verify NO flat registrations remain at .claude/agents/*.md
+    local flat_count
+    flat_count=$(ls "$REPO_ROOT/.claude/agents/"*.md 2>/dev/null | wc -l | tr -d ' ')
+    [[ "$flat_count" -eq 0 ]] || {
+        echo "Flat registrations still exist: $flat_count files at .claude/agents/*.md (should be 0)"
+        false
+    }
 }
 
-@test "agent-bootstrap honors CLAUDE_AGENT_NAME env fallback when agent-identity is unavailable" {
+@test "agent-bootstrap retired: --agent flag exits 0 — D42-R3" {
+    cd "$MOCK_REPO"
+    export USER="jdm"
+    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent foo
+    assert_success
+}
+
+@test "agent-bootstrap retired: CLAUDE_AGENT_NAME irrelevant — D42-R3" {
     cd "$MOCK_REPO"
     export USER="jdm"
     export CLAUDE_AGENT_NAME="captain"
-    # Rename agent-identity so it's not findable; agent-bootstrap should
-    # either use the env fallback or degrade silently — NOT crash.
-    mv "$MOCK_REPO/claude/tools/agent-identity" "$MOCK_REPO/claude/tools/agent-identity.disabled"
     run "$MOCK_REPO/claude/tools/agent-bootstrap"
-    # Restore before assertions so teardown is clean
-    mv "$MOCK_REPO/claude/tools/agent-identity.disabled" "$MOCK_REPO/claude/tools/agent-identity"
-    assert_success  # Must not crash, even without agent-identity
+    assert_success
 }
 
-@test "registration files no longer hardcode usr/jordan" {
-    run grep -r "usr/jordan" "$REPO_ROOT/.claude/agents/"
-    # grep returns 0 on match; we want no matches (exit 1). Either output
-    # is empty, or only matches inside a runtime command substitution
-    # (e.g. `usr/$(agent-identity --principal)/...`) which is not a
-    # literal jordan hardcode.
-    [[ "$status" -ne "0" ]] || {
-        # If any match, must all be inside $(...) substitutions
-        while IFS= read -r line; do
-            [[ "$line" == *"\$("*"usr/"*")"* ]] || false
-        done <<< "$output"
+@test "registration files use structural principal paths — D42-R3" {
+    # D42-R3: registrations live at .claude/agents/{P}/{A}.md with
+    # explicit usr/{P}/{A}/ references (structural, not dynamic).
+    # This is correct — the principal IS in the path. Verify registrations
+    # exist in principal subdirs and reference their principal's usr/ path.
+    local reg_count=0
+    for dir in "$REPO_ROOT/.claude/agents"/*/; do
+        [[ -d "$dir" ]] || continue
+        local principal
+        principal=$(basename "$dir")
+        for reg in "$dir"*.md; do
+            [[ -f "$reg" ]] || continue
+            reg_count=$((reg_count + 1))
+            # Each registration should reference usr/{principal}/
+            grep -q "usr/$principal/" "$reg" || {
+                echo "$(basename "$reg") doesn't reference usr/$principal/"
+                false
+            }
+        done
+    done
+    [[ "$reg_count" -gt 0 ]] || {
+        echo "No registrations found in principal subdirs"
+        false
     }
 }
