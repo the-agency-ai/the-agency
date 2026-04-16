@@ -240,10 +240,9 @@ _update_main() {
     # --- Resolve versions ---
     local from_commit to_commit from_version to_version
     from_commit=$(grep '^  source_commit:' "$TARGET_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
-    from_version=$(grep '^  version:' "$TARGET_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
+    from_version=$(jq -r '.agency_version // "unknown"' "$TARGET_DIR/claude/config/manifest.json" 2>/dev/null || echo "unknown")
     to_commit=$(git -C "$SOURCE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
-    to_version=$(grep '^  version:' "$SOURCE_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "2.0.0")
-    to_version="${to_version:-2.0.0}"
+    to_version=$(jq -r '.agency_version // "unknown"' "$SOURCE_DIR/claude/config/manifest.json" 2>/dev/null || echo "unknown")
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
