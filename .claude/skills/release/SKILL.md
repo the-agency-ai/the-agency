@@ -54,7 +54,10 @@ If `--no-pr` was NOT passed and a push happened:
 ### Step 6: Version bump
 
 1. Parse the PR title for the release version (D#-R# → version #.#)
-2. Update `claude/config/manifest.json`: bump `agency_version`, update `updated_at`
+2. Update `claude/config/manifest.json`:
+   - Bump `project_version` for product/adopter changes
+   - Bump `agency_version` for framework changes (the-agency repo only)
+   - Update `updated_at` timestamp
 3. Commit the version bump
 4. Push the version bump: `./claude/tools/git-push {branch}`
 

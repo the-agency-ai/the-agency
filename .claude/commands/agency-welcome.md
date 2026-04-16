@@ -57,7 +57,7 @@ Based on their choice, guide them through that path interactively using the deta
 - Let them know they can always come back with `/agency-tutorial`
 
 ### Remember Progress
-- Track what they've completed in `usr/{principal}/captain/onboarding.yaml`
+- Track what they've completed in `claude/principals/{name}/onboarding.yaml`
 - Don't repeat sections they've already seen
 - Allow resuming from where they left off
 
@@ -88,7 +88,7 @@ You can run tools during the tutorial:
 - And any other Agency tools
 
 ### Onboarding State
-Track progress by writing to `usr/{principal}/captain/onboarding.yaml`:
+Track progress by writing to `claude/principals/{principal}/onboarding.yaml`:
 
 ```yaml
 started: 2026-01-14
