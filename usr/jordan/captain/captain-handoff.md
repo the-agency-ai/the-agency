@@ -1,10 +1,23 @@
 ---
-type: handoff
-agent: the-agency/jordan/captain
-workstream: housekeeping
-date: 2026-04-16
-trigger: session-end
+type: agency-update
+date: 2026-04-16 21:50
+from_commit: 200a5499
+to_commit: d0b15b61
 ---
+
+## Agency Update
+
+Updated framework from 43.4 (200a5499) to 43.4 (d0b15b61).
+
+### Changes
+- 0 files added, 0 files updated, 0 files removed
+- Settings merged via array union
+- Framework section in agency.yaml updated
+
+### Verify the update
+Run `agency verify` to confirm everything is in order.
+
+### Previous session state
 
 ## D43 Session End — 4 releases shipped
 
@@ -25,30 +38,3 @@ trigger: session-end
 
 - **#146** — Block AGENCY_ALLOW_RAW escape hatch (waiting on monofolk input)
 - **#150** — Linux deps support (apt/dnf) — future
-- **#157** — D-R format in version display — next release
-
-### Key decisions (D43)
-
-1. **No more raw git.** Principal directive: use tools and skills only. If the tool can't do it, build the capability. AGENCY_ALLOW_RAW escape hatch to be blocked (#146).
-2. **Always file issues.** Every bug gets an issue, even if fixed immediately. No silent fixes.
-3. **agency update must be zero-friction for adopters.** Auto-commit framework files, auto-verify, no manual git steps.
-4. **_sync-main-ref doesn't update working tree.** Post-merge flow needs `git checkout HEAD -- .` after `_sync-main-ref` to keep files in sync.
-5. **D-R format for version display** (#157) — next release.
-
-### Fleet status
-
-- 4 worktrees synced (devex, mdpal-app, mdpal-cli, mdslidepal-web)
-- 3 worktrees pending resolution (iscp, mdslidepal-mac, mock-and-mark — dispatched)
-- designex resolved merge conflict and shipping Phase 1.1
-
-### Behavioral notes for next session
-
-- NEVER suggest compact. Principal monitors via statusline.
-- NEVER use raw git. Use tools/skills. If blocked, build the tool.
-- Always file issues. Bug → issue → fix → close.
-- `git add -A` requires explicit principal approval every time.
-- Over/Over-and-out protocol for 1B1 discussions.
-
----
-
-*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
