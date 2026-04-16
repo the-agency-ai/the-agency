@@ -873,7 +873,184 @@ private func fixtureDate(
     #expect(revs.last?.revision == 5)
 }
 
-// MARK: Prune concurrent-write gate (QG test gap #7)
+// MARK: C1 — Prune preserves body byte-for-byte (phase QG critical fix)
+
+@Test func prunePreservesBodyContentVerbatim() throws {
+    let path = uniqueBundlePath()
+    defer { cleanup(path) }
+    let t0 = fixtureDate()
+
+    // Create a bundle and add a resolved comment to r1.
+    _ = try DocumentBundle.create(name: "C1Test", initialContent: initialBody, at: path, timestamp: t0)
+    let bundle = try DocumentBundle(at: path)
+
+    let doc1 = try bundle.currentDocument()
+    let cmt1 = try doc1.addComment(NewComment(
+        type: .note,
+        author: "alice",
+        sectionSlug: "section-a",
+        text: "old comment"
+    ))
+    try doc1.resolveComment(id: cmt1.id, response: "accepted", resolvedBy: "alice")
+    try doc1.save()
+
+    // Create r2 with deliberate whitespace quirks that serialize() would
+    // normalize: trailing spaces, multiple blank lines, mixed indentation.
+    // This becomes the latest after prune — its body MUST survive verbatim.
+    let r2Body = "# Title\n\nBody with trailing spaces.   \n\n\nExtra blank lines.\n\n\ttab-indented.\n"
+    _ = try bundle.createRevision(content: r2Body, timestamp: t0.addingTimeInterval(60))
+
+    // Capture the raw r2 file content BEFORE prune.
+    let r2Revision = try bundle.latestRevision()!
+    let r2BeforePrune = try String(contentsOfFile: r2Revision.filePath, encoding: .utf8)
+    #expect(r2BeforePrune == r2Body) // sanity: file is exactly what we wrote
+
+    // Prune to keep 1. Merges r1's resolved comment into r2.
+    let result = try bundle.prune(keep: 1)
+    #expect(result.prunedRevisions.count == 1)
+    #expect(result.mergedComments == 1)
+
+    // Read the surviving file and verify body is untouched.
+    let rawAfterPrune = try String(contentsOfFile: r2Revision.filePath, encoding: .utf8)
+
+    // The body portion must be preserved byte-for-byte. Since r2 had no
+    // metadata block before prune, one was appended. The original content
+    // must still be a prefix.
+    #expect(rawAfterPrune.hasPrefix(r2Body))
+
+    // Metadata was appended with the merged comment.
+    #expect(rawAfterPrune.contains("begin:markdown-pal-meta"))
+    #expect(rawAfterPrune.contains("old comment"))
+}
+
+@Test func prunePreservesBodyWhenLatestAlreadyHasMetadata() throws {
+    let path = uniqueBundlePath()
+    defer { cleanup(path) }
+    let t0 = fixtureDate()
+
+    // Create bundle and add a resolved comment to r1.
+    _ = try DocumentBundle.create(name: "SpliceTest", initialContent: initialBody, at: path, timestamp: t0)
+    let bundle = try DocumentBundle(at: path)
+    let doc1 = try bundle.currentDocument()
+    let cmt1 = try doc1.addComment(NewComment(
+        type: .note,
+        author: "alice",
+        sectionSlug: "section-a",
+        text: "from revision 1"
+    ))
+    try doc1.resolveComment(id: cmt1.id, response: "ok", resolvedBy: "alice")
+    try doc1.save()
+
+    // Create r2 with quirky whitespace AND give it its own metadata block
+    // by adding a comment and saving. This tests in-place splice.
+    let r2Body = "# Title\n\nBody with trailing spaces.   \n\n\nExtra blank lines.\n\n\ttab-indented.\n"
+    _ = try bundle.createRevision(content: r2Body, timestamp: t0.addingTimeInterval(60))
+    let doc2 = try bundle.currentDocument()
+    _ = try doc2.addComment(NewComment(
+        type: .question,
+        author: "bob",
+        sectionSlug: "title",
+        text: "unresolved question on r2"
+    ))
+    try doc2.save()
+
+    // r2 now has a metadata block. Capture body portion BEFORE prune.
+    let r2Revision = try bundle.latestRevision()!
+    let rawBefore = try String(contentsOfFile: r2Revision.filePath, encoding: .utf8)
+
+    // Extract the body portion (everything before the metadata block).
+    let metaMarker = "<!-- begin:markdown-pal-meta"
+    let bodyBefore: String
+    if let markerRange = rawBefore.range(of: metaMarker) {
+        bodyBefore = String(rawBefore[rawBefore.startIndex..<markerRange.lowerBound])
+    } else {
+        bodyBefore = rawBefore
+    }
+    // Body should contain the quirky whitespace.
+    #expect(bodyBefore.contains("trailing spaces.   "))
+
+    // Prune to keep 1. Merges r1's resolved comment into r2's metadata.
+    let result = try bundle.prune(keep: 1)
+    #expect(result.prunedRevisions.count == 1)
+    #expect(result.mergedComments == 1)
+
+    // Read the surviving file and verify body is preserved verbatim.
+    let rawAfter = try String(contentsOfFile: r2Revision.filePath, encoding: .utf8)
+    let bodyAfter: String
+    if let markerRange = rawAfter.range(of: metaMarker) {
+        bodyAfter = String(rawAfter[rawAfter.startIndex..<markerRange.lowerBound])
+    } else {
+        bodyAfter = rawAfter
+    }
+
+    // Body content must be identical before and after prune.
+    #expect(bodyAfter == bodyBefore)
+
+    // Metadata must now contain the merged comment from r1.
+    #expect(rawAfter.contains("from revision 1"))
+    // And still contain r2's own unresolved comment.
+    #expect(rawAfter.contains("unresolved question on r2"))
+}
+
+// MARK: C2 — Symlink-as-revision rejected (phase QG critical fix)
+
+@Test func listRevisionsSkipsSymlinks() throws {
+    let path = uniqueBundlePath()
+    defer { cleanup(path) }
+    let t0 = fixtureDate()
+    _ = try DocumentBundle.create(name: "SymTest", initialContent: initialBody, at: path, timestamp: t0)
+    let bundle = try DocumentBundle(at: path)
+
+    // Create a symlink that looks like a valid revision filename.
+    let symlinkName = "V0001.0099.\(VersionId.formatTimestamp(t0.addingTimeInterval(300))).md"
+    let symlinkPath = "\(path)/\(symlinkName)"
+    // Point at /etc/passwd (or any file) — the engine should never follow it.
+    try FileManager.default.createSymbolicLink(
+        atPath: symlinkPath,
+        withDestinationPath: "/etc/passwd"
+    )
+
+    // listRevisions must skip the symlink — only the real revision counts.
+    let revs = try bundle.listRevisions()
+    #expect(revs.count == 1)
+    #expect(revs[0].revision == 1)
+    // The symlink must NOT appear in the list.
+    #expect(!revs.contains(where: { $0.versionId.contains("0099") }))
+}
+
+@Test func listRevisionsSkipsReplacedSymlink() throws {
+    let path = uniqueBundlePath()
+    defer { cleanup(path) }
+    let t0 = fixtureDate()
+    _ = try DocumentBundle.create(name: "SymPrune", initialContent: initialBody, at: path, timestamp: t0)
+    let bundle = try DocumentBundle(at: path)
+
+    // Create real revisions.
+    for i in 1...3 {
+        _ = try bundle.createRevision(
+            content: "r\(i+1)",
+            timestamp: t0.addingTimeInterval(Double(i * 60))
+        )
+    }
+
+    // Replace the oldest real revision file with a symlink (simulating
+    // a TOCTOU race where a file is swapped after listRevisions runs).
+    let revs = try bundle.listRevisions()
+    let oldest = revs[0]
+    try FileManager.default.removeItem(atPath: oldest.filePath)
+    try FileManager.default.createSymbolicLink(
+        atPath: oldest.filePath,
+        withDestinationPath: "/etc/passwd"
+    )
+
+    // listRevisions itself now skips the symlink, so prune won't even see it.
+    // Verify the symlink doesn't appear in listings.
+    let cleanRevs = try bundle.listRevisions()
+    #expect(cleanRevs.count == 3) // 3 real revisions remain (symlink skipped)
+    #expect(!cleanRevs.contains(where: { $0.versionId == oldest.versionId }))
+}
+
+
 
 @Test func pruneAbortsWhenLatestChangesDuringPrune() throws {
     // Direct test of the gate is impossible without thread orchestration.

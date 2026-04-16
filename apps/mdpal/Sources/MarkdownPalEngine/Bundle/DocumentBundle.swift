@@ -179,6 +179,20 @@ public final class DocumentBundle {
             // Only consider .md files at the bundle root, skip latest.md.
             guard entry.hasSuffix(".md") else { continue }
             guard entry != "latest.md" else { continue }
+
+            // Security: reject symlinks. A malicious bundle (via git/tar/zip)
+            // could ship a revision filename as a symlink to /etc/passwd or
+            // ~/.ssh/id_rsa. Following it gives arbitrary read; pruning it
+            // gives arbitrary deletion. Only regular files are valid revisions.
+            let entryPath = "\(path)/\(entry)"
+            do {
+                let attrs = try fileManager.attributesOfItem(atPath: entryPath)
+                guard (attrs[.type] as? FileAttributeType) == .typeRegular else { continue }
+            } catch {
+                // Can't stat — skip silently (same policy as non-revision files).
+                continue
+            }
+
             let stem = String(entry.dropLast(".md".count))
             // Silently skip non-revision .md files (README.md, etc.).
             // VersionId.parse rejects anything that doesn't match the
@@ -370,12 +384,38 @@ public final class DocumentBundle {
             )
         }
 
-        // Write the updated metadata back to the latest revision file.
+        // Write ONLY the updated metadata block back to the latest revision
+        // file, preserving the body content byte-for-byte. The previous
+        // approach called `latestDoc.save()` which re-serializes the entire
+        // document — reformatting body whitespace on every save. With
+        // `prune.auto: true`, every save would silently rewrite supposedly-
+        // immutable revision content, violating the append-only invariant.
+        //
+        // Fix: read the raw file, encode the updated metadata to YAML, and
+        // splice it into the raw content via `writeMetadataBlock`.
         if mergedCount > 0 {
             // Order resolved comments by id for stable output.
             latestDoc.metadata.resolvedComments = latestResolvedById.values
                 .sorted(by: { $0.id < $1.id })
-            try latestDoc.save(to: latest.filePath)
+
+            // Read the raw file content to preserve body verbatim.
+            let rawContent: String
+            do {
+                rawContent = try String(contentsOfFile: latest.filePath, encoding: .utf8)
+            } catch {
+                throw EngineError.fileError(path: latest.filePath, description: "\(error)")
+            }
+
+            // Encode the updated metadata and splice it into the raw content.
+            let updatedYAML = try MetadataSerializer.encode(latestDoc.metadata)
+            let parser = MarkdownParser()
+            let updatedContent = parser.writeMetadataBlock(updatedYAML, into: rawContent)
+
+            do {
+                try updatedContent.write(toFile: latest.filePath, atomically: true, encoding: .utf8)
+            } catch {
+                throw EngineError.fileError(path: latest.filePath, description: "\(error)")
+            }
         }
 
         // Delete pruned revision files. Failure to delete a single file
@@ -383,6 +423,24 @@ public final class DocumentBundle {
         // the issue; future iterations may add a "best effort" mode.)
         var prunedIds: [String] = []
         for prunedRevision in pruned {
+            // Defense-in-depth: verify the file is still a regular file
+            // before deletion. listRevisions already filters out symlinks,
+            // but a TOCTOU race could replace a file between list and delete.
+            do {
+                let attrs = try fileManager.attributesOfItem(atPath: prunedRevision.filePath)
+                guard (attrs[.type] as? FileAttributeType) == .typeRegular else {
+                    throw EngineError.bundleConflict(
+                        "Refusing to delete non-regular file during prune: \(prunedRevision.filePath)"
+                    )
+                }
+            } catch let e as EngineError {
+                throw e
+            } catch {
+                throw EngineError.fileError(
+                    path: prunedRevision.filePath,
+                    description: "Cannot verify file type before prune: \(error)"
+                )
+            }
             do {
                 try fileManager.removeItem(atPath: prunedRevision.filePath)
                 prunedIds.append(prunedRevision.versionId)
