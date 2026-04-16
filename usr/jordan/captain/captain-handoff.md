@@ -6,113 +6,120 @@ date: 2026-04-16
 trigger: session-compact
 ---
 
-## Continue — D42 Phase 3 Migration (redo after stash-pop corruption)
+## Continue — D42-R5 Cleanup (execute immediately)
 
-### Immediate next action
+Branch `jordandm-d42-r5-cleanup` cut from main (121c351, post-v42.4 merge). Tree has minor stale state from branch switching — `AGENCY_ALLOW_RAW=1 git checkout -- .` to clean before starting.
 
-**Redo the migration on branch `jordandm-d42-r4-migration`.** The migration work was completed but lost to a stash-pop corruption. Tree is now clean at HEAD (d18c172, merge of PR #132). All moves need to be redone and committed BEFORE running any test verification.
+## D42-R5 Full Scope (all items principal-approved via 1B1)
 
-### Exact migration steps (redo)
+### Delete v1 tools (15 tools)
 
-```bash
-# 1. Create destination dirs
-for ws in the-agency agency devex iscp mdpal mdslidepal mock-and-mark designex gtm housekeeping; do
-  mkdir -p "claude/workstreams/$ws"/{qgr,rgr,drafts,research,transcripts,history/flotsam}
-done
-mkdir -p claude/workstreams/the-agency/history/flotsam/{legacy-dispatches,legacy-qgr,legacy-plans,legacy-principals,captain-loose-artifacts}
-
-# 2. Add + move dispatches (250 files)
-AGENCY_ALLOW_RAW=1 git add usr/jordan/captain/dispatches/
-AGENCY_ALLOW_RAW=1 git mv usr/jordan/captain/dispatches/* claude/workstreams/the-agency/history/flotsam/legacy-dispatches/
-
-# 3. Move old QGR files (14 files)
-AGENCY_ALLOW_RAW=1 git mv usr/jordan/captain/qgr-*.md claude/workstreams/the-agency/history/flotsam/legacy-qgr/
-
-# 4. Move transcripts (20 files) + granola (2 files) to shared
-AGENCY_ALLOW_RAW=1 git add usr/jordan/captain/transcripts/
-AGENCY_ALLOW_RAW=1 git mv usr/jordan/captain/transcripts/* claude/workstreams/the-agency/transcripts/
-AGENCY_ALLOW_RAW=1 git mv usr/jordan/captain/granola/* claude/workstreams/the-agency/transcripts/
-
-# 5. Move claude/principals/ to flotsam
-AGENCY_ALLOW_RAW=1 git mv claude/principals claude/workstreams/the-agency/history/flotsam/legacy-principals
-
-# 6. Move legacy claude/ dirs
-AGENCY_ALLOW_RAW=1 git mv claude/reviews claude/workstreams/the-agency/history/flotsam/reviews
-AGENCY_ALLOW_RAW=1 git mv claude/proposals claude/workstreams/the-agency/history/flotsam/proposals
-AGENCY_ALLOW_RAW=1 git mv claude/plans claude/workstreams/the-agency/history/flotsam/plans
-AGENCY_ALLOW_RAW=1 git mv claude/knowledge claude/workstreams/the-agency/history/flotsam/knowledge
-
-# 7. Delete binaries
-git-safe rm "usr/jordan/session-transcripts.zip"
-git-safe rm "usr/jordan/Twitter Article on Claude Skills??Lessons from Building Claude Code….pdf"
-
-# 8. Delete injection artifact
-AGENCY_ALLOW_RAW=1 git rm -r "claude/workstreams/test; rm -rf /"
-
-# 9. Move orphan dirs to captain flotsam
-# (file-by-file for dirs where git mv dir fails)
-for dir in conference housekeeping valueflow-pvr-20260406 personal; do
-  AGENCY_ALLOW_RAW=1 git ls-files "usr/jordan/$dir/" | while read f; do
-    dest="usr/jordan/captain/history/flotsam/$dir/$(dirname "${f#usr/jordan/$dir/}")"
-    mkdir -p "$dest"
-    AGENCY_ALLOW_RAW=1 git mv "$f" "usr/jordan/captain/history/flotsam/$dir/${f#usr/jordan/$dir/}"
-  done
-done
-
-# 10. Move loose captain .md files to flotsam
-AGENCY_ALLOW_RAW=1 git ls-files usr/jordan/captain/*.md | grep -v handoff | grep -v CLAUDE | while read f; do
-  AGENCY_ALLOW_RAW=1 git mv "$f" "claude/workstreams/the-agency/history/flotsam/captain-loose-artifacts/$(basename "$f")"
-done
-
-# 11. Remove principal-level README
-git-safe rm usr/jordan/README.md
-
-# 12. COMMIT IMMEDIATELY (before any test verification!)
-git-safe-commit "D42-R4: migrate the-agency artifacts to workstream content split structure" --no-work-item --staged
+```
+claude/tools/myclaude
+claude/tools/request
+claude/tools/request-complete
+claude/tools/observe
+claude/tools/browser
+claude/tools/session-archive
+claude/tools/instruction-show
+claude/tools/instruction-list
+claude/tools/instruction-index-update
+claude/tools/instruction-capture
+claude/tools/instruction-complete
+claude/tools/add-principal
+claude/tools/proposal-capture
+claude/tools/designsystem-validate
+claude/tools/secret-migrate
 ```
 
-### CRITICAL: Do NOT run `git stash` during migration
+**DO NOT delete:** `figma-extract`, `designsystem-add` (claimed by designex, dispatch #474/#475)
 
-The stash-pop corruption happened because:
-1. Switched to main to verify diff-hash test pre-existence
-2. Stash-popped brought back stale flat-agent registrations from pre-R3
-3. 1235 dirty files, tree unrecoverable without `git checkout -- .` + `git clean -fd`
-4. That wiped all uncommitted migration work
+### Delete v1 agent templates (3)
 
-**COMMIT BEFORE VERIFYING.** Do not switch branches. Do not stash. Commit first, verify after.
+```
+claude/agents/templates/design-system/
+claude/agents/templates/ux-dev/
+claude/agents/templates/services/
+```
 
-### diff-hash test failures are PRE-EXISTING
+### Retire commands (2), update 1
 
-Tests 1, 2, 6 in diff-hash.bats fail on main too — they depend on git state (origin/main baseline) that the test repo doesn't have. Not caused by migration. Skip for commit-precheck. If precheck blocks, use `--force` or bypass the scoped-test gate.
+- Delete: `.claude/commands/agency-request.md`, `.claude/commands/agency-tutorial.md`
+- Update: `.claude/commands/agency-welcome.md` (new paths)
 
-### Session releases shipped
+### Move dirs to flotsam (after tool deletion unblocks)
+
+- `claude/principals/` → `claude/workstreams/the-agency/history/flotsam/legacy-principals/`
+- `claude/proposals/` → `claude/workstreams/the-agency/history/flotsam/proposals/`
+
+### Update plan-capture.py
+
+- Workstream-aware: resolve {W} from branch/agent context
+- Write to `claude/workstreams/{W}/plan-{W}-{slug}-{YYYYMMDD}.md`
+- Superseded plans → `history/` with `{HHMM}` timestamp
+- Proper slug generation
+- Then move `claude/plans/` → `claude/workstreams/the-agency/history/flotsam/legacy-plans/`
+- Also move `docs/plans/` (18 files) → same flotsam location
+
+### Root cleanup
+
+- Delete: `agency` (v1 CLI file), `tools/` (dead TS stage-hash), `VERSION`, `EXTENDING.md`, `registry.json`, `package.json`, `package-lock.json`
+- Delete: `test/test-agency-project/` (v1 starter snapshot, no tests reference it)
+- Delete: `dist/` from disk (not tracked, add to .gitignore)
+- Move: `mock-and-mark/` → `apps/mock-and-mark/`
+- Move: `source/` → `claude/workstreams/the-agency/history/flotsam/legacy-source/`
+- Move: `services/` → `claude/workstreams/the-agency/history/flotsam/legacy-services/`
+- Move: `history/` → `claude/workstreams/the-agency/history/flotsam/legacy-history/`
+- Move: `docs/plans/` → flotsam (18 files)
+- Extract "Building Tools" from `EXTENDING.md` → `claude/REFERENCE-TOOL-BUILDING.md`, then delete `EXTENDING.md`
+
+### Documentation cleanup
+
+- Audit + merge `claude/README-*.md` (5 files) into corresponding `REFERENCE-*.md`, delete READMEs
+- Update `CLAUDE.md` root bootloader (remove stale refs)
+- Update `.gitignore` (stale principals exclusion + add dist/)
+
+### Agent sandbox cleanup
+
+- Move `usr/jordan/mdslidepal/qgr-*` → `claude/workstreams/mdslidepal/qgr/`
+- Move `usr/jordan/reports/` → flotsam
+- `claude/workstream-agent-nits.md` → flotsam
+- `claude/CHANGELOG-*.md` (4 files) → flotsam
+- `claude/YOUR-FIRST-RELEASE.md` → `claude/templates/`
+
+### Stale DBs
+
+- Delete: `claude/data/bug.db`, `bugs.db`, `idea.db`, `messages.db`, `observation.db`, `product.db`, `queue.db`, `request.db`, `test.db` (+ WAL/SHM files)
+- Keep: `agency.db`, `dispatch.db`, `log.db`, `secret.db`
+
+### Test fixture updates
+
+- Update `release-plan.bats`, `iscp-migrate.bats`, `test-worktree-sync.sh` fixture paths
+
+### Update tool-create + TOOL.sh template
+
+- Current conventions: provenance headers, `_colors`, `_log-helper` v2
+
+### Manifest bump
+
+42.4 → 42.5
+
+## Session releases
 
 | Release | PR | What |
 |---------|-----|------|
-| v42.1 (D42-R1) | #129 | stage-hash pure bash + reset-soft + stash + hookify Bash wiring (closes #126 #128) |
-| v42.2 (D42-R2) | #131 | hookify block-raw-gh-release + /secret dedup + block-raw-tools enforcement |
-| v42.3 (D42-R3) | #132 | workstream content split — principal-scoped registrations, per-workstream receipts, git-safe mv/unstage/restore (closes #121 #130) |
+| v42.1 | #129 | stage-hash bash + reset-soft + stash + hookify (closes #126 #128) |
+| v42.2 | #131 | hookify block-raw-gh-release + /secret dedup |
+| v42.3 | #132 | workstream content split — registrations, receipts, git-safe mv (closes #121 #130) |
+| v42.4 | #133 | migrate the-agency artifacts |
 
-### Fleet notification status
+## Issues filed this session
 
-All 8 agents dispatched (IDs 462-469). Designex + ISCP + Devex confirmed sync. Monofolk dispatched via collaboration.
+- #135 — dependencies manifest (post-cleanup)
 
-### After migration ships (D42-R4)
+## Fleet status
 
-- Phase 2 (D42-R5): Skill output paths (`/define`, `/design`, `/transcript`) + reference doc updates
-- #122 version decouple — separate release
-
-### Key decisions surviving compact
-
-1. `.claude/agents/{P}/{A}.md` — principal-scoped registrations, `claude --agent jordan/captain`
-2. `agent-bootstrap` retired — structural @import
-3. Receipt naming: `{org}-{principal}-{agent}-{ws}-{proj}-{type}-{boundary}-{date}-{hash}.md`
-4. Receipt write path: `claude/workstreams/{W}/qgr/` and `rgr/`
-5. `usr/{P}/{A}/` slim: tmp/, tools/, history/, history/flotsam/ only
-6. `agency init` uses $USER, auto-creates repo-level workstream
-7. `claude/principals/` is legacy (19 referencing tools are all v1 dead code)
-8. .env files in principals/ are gitignored (not tracked), no action needed
-9. ISCP DB is superset of filesystem dispatches (507 vs 250), safe to move
+All 8 agents dispatched on v42.3. Designex, ISCP, Devex confirmed. Monofolk dispatched via collaboration.
 
 ---
 
