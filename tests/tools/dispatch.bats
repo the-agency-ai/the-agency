@@ -383,6 +383,46 @@ _create_dispatch() {
     assert_output_contains "integer ID"
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# D41-R24 (issue #119 bug 4): strict flag rejection on `dispatch reply`
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch reply: rejects --subject flag (issue #119 bug 4)" {
+    _create_dispatch "Strict parsing test"
+    run "$DISPATCH" reply 1 --subject "foo"
+    assert_failure
+    assert_output_contains "does not accept flag"
+    assert_output_contains "--subject"
+}
+
+@test "dispatch reply: rejects --body flag" {
+    _create_dispatch "Strict parsing test"
+    run "$DISPATCH" reply 1 --body "bar"
+    assert_failure
+    assert_output_contains "does not accept flag"
+}
+
+@test "dispatch reply: rejects arbitrary unknown flag" {
+    _create_dispatch "Strict parsing test"
+    run "$DISPATCH" reply 1 --not-a-real-flag
+    assert_failure
+    assert_output_contains "does not accept flag"
+    assert_output_contains "--not-a-real-flag"
+}
+
+@test "dispatch reply: rejects extra positional args" {
+    _create_dispatch "Strict parsing test"
+    run "$DISPATCH" reply 1 "message" "extra1" "extra2"
+    assert_failure
+    assert_output_contains "Extra"
+}
+
+@test "dispatch reply: regression — legitimate call with just id and message still works" {
+    _create_dispatch "Legit call"
+    run "$DISPATCH" reply 1 "legitimate reply message"
+    assert_success
+}
+
 @test "dispatch reply: writes payload file with message body" {
     _create_dispatch "Payload test"
 

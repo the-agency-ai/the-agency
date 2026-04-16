@@ -33,21 +33,24 @@ if [[ -z "$COMMAND" ]]; then
     exit 0
 fi
 
-# Block git-captain for non-captain agents (belt-and-suspenders)
-if [[ "$COMMAND" =~ git-captain ]]; then
-    # Resolve identity — if not captain, block
-    agent_name=$(./claude/tools/agent-identity --field agent 2>/dev/null || echo "")
-    if [[ "$agent_name" != "captain" ]]; then
-        printf '{"systemMessage":"BLOCKED: git-captain is captain-only. Agents use /git-safe for git operations.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
-        exit 0
-    fi
-fi
-
 # Allow framework tools to use whatever they need internally
 # (e.g., dispatch-monitor uses grep internally, that's fine)
+# MUST come before all content checks — tools are always exempt.
 if [[ "$COMMAND" =~ ^\./claude/tools/ ]] || [[ "$COMMAND" =~ ^\"?\$CLAUDE_PROJECT_DIR ]]; then
     printf '{}'
     exit 0
+fi
+
+# Block git-captain for non-captain agents (belt-and-suspenders)
+# Only match when git-captain is the COMMAND being invoked, not mentioned in args/strings
+TRIMMED_CMD=$(echo "$COMMAND" | sed 's/^[[:space:]]*//')
+if [[ "$TRIMMED_CMD" =~ ^git-captain([[:space:]]|$) ]] || [[ "$TRIMMED_CMD" =~ ^\./claude/tools/git-captain([[:space:]]|$) ]]; then
+    # Resolve identity — if not captain, block
+    agent_name=$(./claude/tools/agent-identity --field agent 2>/dev/null || echo "")
+    if [[ "$agent_name" != "captain" ]]; then
+        printf '{"decision":"block","reason":"BLOCKED: git-captain is captain-only. Agents use /git-safe for git operations.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+        exit 2
+    fi
 fi
 
 # Allow explicit opt-out (for legitimate edge cases)
@@ -59,12 +62,24 @@ fi
 # Strip leading whitespace for matching
 TRIMMED=$(echo "$COMMAND" | sed 's/^[[:space:]]*//')
 
+# Block raw gh pr merge — use pr-merge tool
+if [[ "$TRIMMED" =~ ^gh[[:space:]]+pr[[:space:]]+merge ]]; then
+    printf '{"decision":"block","reason":"🚫 BLOCKED: Raw `gh pr merge` is not allowed. Use `./claude/tools/pr-merge` (or `/pr-merge` skill) instead.\\n\\nThe safe wrapper always uses true merge commit (--merge), refuses --squash and --rebase, and requires --principal-approved for --admin override.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+    exit 2
+fi
+
+# Block raw gh release create — use gh-release tool or /post-merge
+if [[ "$TRIMMED" =~ ^gh[[:space:]]+release[[:space:]]+create ]]; then
+    printf '{"decision":"block","reason":"🚫 BLOCKED: Raw `gh release create` is not allowed. Use `./claude/tools/gh-release` (direct) or `/post-merge` (after PR merge) or `/release` (full workflow).\\n\\nReleases are framework boundaries — version must match manifest, notes must follow D{day}-R{release} format.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+    exit 2
+fi
+
 # Block ALL raw git commands — agents must use git-safe/git-captain/git-safe-commit
 # Framework tools that call git internally are already exempted by the
 # ./claude/tools/ path check above.
 if [[ "$TRIMMED" =~ ^git[[:space:]] ]] || [[ "$TRIMMED" == "git" ]]; then
-    printf '{"systemMessage":"BLOCKED: Only safe git operations allowed. Use the git-safe family:\\n- /git-safe — status, log, diff, branch, show, blame, add, merge-from-master\\n- /git-safe-commit — commit with QG awareness\\n- /git-captain — captain only: push, fetch, tag, merge-to-master, checkout-branch, branch-delete\\n\\nIf you cannot do what you need with these, escalate to captain.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
-    exit 0
+    printf '{"decision":"block","reason":"🚫 BLOCKED: Only safe git operations allowed. Use the git-safe family:\\n- /git-safe — status, log, diff, branch, show, blame, add, merge-from-master\\n- /git-safe-commit — commit with QG awareness\\n- /git-captain — captain only: push, fetch, tag, merge-to-master, checkout-branch, branch-delete\\n\\nIf you cannot do what you need with these, escalate to captain.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+    exit 2
 fi
 
 # Block raw cat — use Read tool

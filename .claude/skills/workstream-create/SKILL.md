@@ -61,9 +61,13 @@ Find the principal from `claude/config/agency.yaml` — match `$USER` key in `pr
 
 ```
 claude/workstreams/<name>/
-  seeds/                    — input materials (user drops these)
-  reviews/                  — QGRs and review files
-  history/                  — archived artifact versions
+  qgr/                      — quality gate receipts
+  rgr/                      — release gate receipts
+  drafts/                   — WIP before ratification (per {P}-{A} subdir)
+  research/                 — MARFI outputs, investigations
+  transcripts/              — 1B1 records, summaries, verbatim
+  history/                  — superseded current versions
+  history/flotsam/          — uncategorized archive
   KNOWLEDGE.md              — patterns, conventions, key decisions
 ```
 
@@ -84,19 +88,16 @@ claude/workstreams/<name>/
 ### Step 4: Create shared project sandbox
 
 ```
-usr/<principal>/<name>/
-  dispatches/               — incoming dispatches
-  code-reviews/             — review and dispatch files
-  transcripts/              — discussion transcripts
-  history/                  — archived artifacts
-  seeds/                    — principal-scoped seed materials
+usr/<principal>/<agent>/
   tools/                    — agent-written scripts (persisted, reusable)
   tmp/                      — scratch space (gitignored)
+  history/                  — personal archive
+  history/flotsam/          — uncategorized personal items
 ```
 
 Create `tmp/.gitignore` with `*` and `!.gitignore`.
 
-**Note:** No `handoffs/` directory. Per-agent handoffs are flat files: `{agent}-handoff.md` in the project directory. Written by agent-create in Step 5.
+**Note:** Shared content (seeds, transcripts, research, receipts) lives in `claude/workstreams/<name>/`, NOT here. Per-agent handoffs are flat files: `{agent}-handoff.md` in the agent directory. Written by agent-create in Step 5.
 
 ### Step 5: Create per-agent registrations via agent-create
 

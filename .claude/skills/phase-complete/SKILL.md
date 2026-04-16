@@ -31,17 +31,37 @@ If this phase had multiple iterations committed separately, squash them into a s
 
 If only one commit or no prior iteration commits, skip this step.
 
-### Step 3: Run the quality gate
+### Step 3: Determine the phase-start base ref
 
-Invoke `/quality-gate` via the Skill tool, passing `$ARGUMENTS` as the skill argument. Ensure `$ARGUMENTS` starts with `phase-complete` followed by the phase number (e.g., "phase-complete 1: types and parser"). This tells `/quality-gate` what boundary type and phase to use for the QGR receipt filename.
+The QG's Hash A/Hash E diff is computed against the **phase-start tag** (or commit). Determine as follows, in order:
 
-This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → write QGR receipt file.
+1. **Read the plan file** in `docs/plans/` (or `claude/workstreams/*/`) for a phase-start tag — most plans record `tag: v<phase>.0` or similar on the phase header (e.g., Phase 1 starts at `v40.1`).
+2. **Check for a git tag** matching the phase: `git tag --list 'v*' --sort=-v:refname | head` — use the tag that marks the start of this phase.
+3. **Fallback:** `git merge-base main HEAD` — the divergence point from master. Note in the handoff if fallback was used.
+
+Capture the tag/SHA as `$BASE_REF`.
+
+### Step 4: Run the quality gate
+
+Invoke `/quality-gate` via the Skill tool, passing arguments that include both the boundary description AND the base ref:
+
+```
+phase-complete 1: types and parser --base <BASE_REF>
+```
+
+For example: `phase-complete 1: types and parser --base v40.1`.
+
+The leading `phase-complete <phase>` tells `/quality-gate` the boundary type (used in the receipt filename). The `--base <ref>` tells `/quality-gate` what baseline to use for Hash A / Hash E via `diff-hash --base`.
+
+This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt via `receipt-sign` (five-hash chain, written to `claude/receipts/`).
 
 The QG is scoped to the **full phase's work** (all changes since divergence from master, or since the last phase commit). This is a deep review — broader scope than the iteration-level gate.
 
-Wait for the QGR to be presented and the receipt file written before proceeding.
+Phase-complete requires principal 1B1 — capture the 1B1 transcript path so `/quality-gate` Step 10 can record Hash D as the transcript hash (not auto-approved).
 
-### Step 4: Sprint Review — Wait for approval
+Wait for the QGR to be presented and the receipt signed before proceeding.
+
+### Step 5: Sprint Review — Wait for approval
 
 Present the QGR and proposed commit message to the user. This is a Sprint Review — the principal reviews the body of work.
 
@@ -49,11 +69,11 @@ Present the QGR and proposed commit message to the user. This is a Sprint Review
 
 If the principal requests changes, make them and re-run the relevant QG steps.
 
-### Step 5: Commit with approval
+### Step 6: Commit with approval
 
 Once approved, re-run `git status` to capture any new files written during the QG fix cycle (bug-exposing tests, coverage tests). Use `/git-safe-commit` via the Skill tool, staging all relevant files. Pass it the full structured commit message from the QGR's "Proposed Commit" section.
 
-### Step 6: Update the plan
+### Step 7: Update the plan
 
 After committing, update the plan file in `docs/plans/` to reflect:
 
@@ -62,7 +82,7 @@ After committing, update the plan file in `docs/plans/` to reflect:
 - Any changes to the plan itself (scope adjustments, reordering, new findings)
 - **Append the full QGR** under a "Quality Gate Reports" section. Each phase gets its own subsection.
 
-### Step 7: Update handoff
+### Step 8: Update handoff
 
 Locate the handoff file for this project (glob `usr/*/*/handoff.md` or `usr/*/captain/handoff.md`). Update with:
 

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # What Problem: PRs were being created without running the Quality Gate,
-# and versions were not being bumped. Captain pushed directly to main twice
-# in one session. PRs shipped without QGR receipts or version updates.
+# and versions were not being bumped. PRs shipped without receipts.
 #
 # How & Why: Wraps gh pr create with mandatory checks:
-# 1. QGR receipt must exist (proves QG ran)
-# 2. agency_version in manifest.json must have been updated
-# 3. Must be on a branch, not main
-# No QGR = no PR. No version bump = no PR. Hookify blocks raw gh pr create.
+# 1. Must be on a branch, not main
+# 2. receipt-verify must pass (QGR or RGR with valid hash)
+# 3. agency_version must be bumped
+# Hookify blocks raw gh pr create.
 #
 # Usage: ./claude/tools/pr-create --title "title" --body "body"
 #        All gh pr create flags are passed through after validation.
 #
 # Written: 2026-04-14 during captain session (PR discipline enforcement)
+# Updated: iteration 1.4 — replaced inline hash logic with receipt-verify
 
 set -euo pipefail
 
@@ -30,92 +30,36 @@ fi
 
 echo "✓ On branch: $BRANCH"
 
-# ── Step 2: Find QGR receipt ─────────────────────────────────────────────
+# ── Step 2: Verify receipt ───────────────────────────────────────────────
 
-find_recent_qgr() {
-    local now
-    now=$(date +%s)
-    local max_age=3600  # 1 hour
-    local newest_file=""
-    local newest_time=0
+# D42-R3: three-tier receipt search (workstream → claude/receipts/ → usr/)
+# Tier 1: per-workstream qgr/ and rgr/
+NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
 
-    while IFS= read -r -d '' qgr_file; do
-        local file_time
-        if stat -f %m "$qgr_file" >/dev/null 2>&1; then
-            file_time=$(stat -f %m "$qgr_file")
-        else
-            file_time=$(stat -c %Y "$qgr_file")
-        fi
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    # Tier 2: legacy claude/receipts/
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+fi
 
-        local age=$((now - file_time))
-        if [[ "$age" -le "$max_age" && "$file_time" -gt "$newest_time" ]]; then
-            newest_file="$qgr_file"
-            newest_time="$file_time"
-        fi
-    done < <(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null)
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    # Tier 3: old usr/ location
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+fi
 
-    if [[ -n "$newest_file" ]]; then
-        echo "$newest_file"
-        return 0
-    fi
-    return 1
-}
-
-QGR_FILE=$(find_recent_qgr || true)
-
-if [[ -z "$QGR_FILE" ]]; then
-    echo "BLOCKED: No recent QGR receipt found." >&2
-    echo "" >&2
-    echo "Every PR requires a Quality Gate Report. Run /pr-prep first:" >&2
-    echo "  1. /pr-prep — runs the full QG (parallel review, fix, test)" >&2
-    echo "  2. /release or pr-create — creates the PR (checks for QGR)" >&2
-    echo "" >&2
-    echo "Looked in: usr/**/qgr-*.md (max age: 1 hour)" >&2
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    echo "BLOCKED: No receipt found." >&2
+    echo "  Searched: claude/workstreams/*/qgr/, claude/receipts/, usr/**/qgr-*.md" >&2
+    echo "  Run /pr-prep first." >&2
     exit 1
 fi
 
-echo "✓ QGR receipt found: $QGR_FILE"
-
-# ── Step 3: Verify stage-hash matches ────────────────────────────────────
-# The QGR filename contains the stage-hash of the code that was reviewed.
-# Compute the current stage-hash and compare. If they don't match, the
-# code changed after the QG ran — the QGR is stale.
-
-# Extract stage-hash from QGR filename: qgr-{boundary}-{hash}-{timestamp}.md
-# Boundary can contain hyphens (e.g., iteration-complete, pr-prep)
-# Hash is always 7 hex chars followed by a date stamp
-QGR_BASENAME=$(basename "$QGR_FILE")
-QGR_HASH=$(echo "$QGR_BASENAME" | grep -oE '[a-f0-9]{7}-[0-9]{8}' | head -1 | cut -d- -f1)
-
-if [[ -z "$QGR_HASH" ]]; then
-    echo "BLOCKED: Could not extract stage-hash from QGR filename: $QGR_BASENAME" >&2
-    echo "  Expected format: qgr-{boundary}-{7-char-hash}-{YYYYMMDD-HHMM}.md" >&2
-    exit 1
-fi
-
-# Compute current diff hash (excluding QGR files — they're added after the QG)
-# The QGR is written after the QG runs, so it changes the diff. Exclude it
-# from the hash to avoid the chicken-and-egg: QGR commit changes the hash
-# which invalidates the QGR.
-CURRENT_HASH=$(git -C "$REPO_ROOT" diff origin/main..HEAD -- . ':(exclude)usr/*/qgr-*.md' ':(exclude)usr/*/*/qgr-*.md' | shasum | cut -c1-7)
-if [[ -z "$CURRENT_HASH" ]]; then
-    echo "BLOCKED: Could not compute diff hash. Cannot verify QGR." >&2
-    exit 1
-fi
-
-if [[ "$QGR_HASH" != "$CURRENT_HASH" ]]; then
-    echo "BLOCKED: QGR stage-hash does not match current code." >&2
+if ! "$SCRIPT_DIR/receipt-verify" --file "$NEWEST_RECEIPT" 2>&1; then
     echo "" >&2
-    echo "  QGR hash:     $QGR_HASH (from $QGR_BASENAME)" >&2
-    echo "  Current hash: $CURRENT_HASH" >&2
-    echo "" >&2
-    echo "The code changed after the QG ran. Run /pr-prep again." >&2
+    echo "Every PR requires a valid receipt. Run /pr-prep again." >&2
     exit 1
 fi
 
-echo "✓ Stage-hash verified: $QGR_HASH"
-
-# ── Step 4: Verify version was bumped ───────────────────────────────────
+# ── Step 3: Verify version was bumped ────────────────────────────────────
 
 MANIFEST="$REPO_ROOT/claude/config/manifest.json"
 
@@ -124,11 +68,31 @@ if [[ ! -f "$MANIFEST" ]]; then
     exit 1
 fi
 
-# Check if manifest.json was modified in this branch (compared to origin/main)
-MANIFEST_CHANGED=$(git -C "$REPO_ROOT" diff origin/main..HEAD --name-only -- claude/config/manifest.json 2>/dev/null || true)
+# Detect the default branch so this works on repos using 'master' as well.
+# Issue #107 (monofolk hotfix): the hardcoded 'origin/main' caused false
+# "version not bumped" failures on repos where origin/master is the default.
+# Detection order:
+#   1. git symbolic-ref refs/remotes/origin/HEAD   (GitHub HEAD metadata)
+#   2. existence of refs/remotes/origin/main
+#   3. existence of refs/remotes/origin/master
+#   4. hard fail with clear message
+DEFAULT_BRANCH=$(git -C "$REPO_ROOT" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
+if [[ -z "$DEFAULT_BRANCH" ]]; then
+    if git -C "$REPO_ROOT" show-ref --verify --quiet refs/remotes/origin/main; then
+        DEFAULT_BRANCH="main"
+    elif git -C "$REPO_ROOT" show-ref --verify --quiet refs/remotes/origin/master; then
+        DEFAULT_BRANCH="master"
+    else
+        echo "BLOCKED: could not determine default branch (origin/main or origin/master)." >&2
+        echo "  Fix: git remote set-head origin -a   # to set origin/HEAD" >&2
+        exit 1
+    fi
+fi
+DEFAULT_REF="origin/$DEFAULT_BRANCH"
+
+MANIFEST_CHANGED=$(git -C "$REPO_ROOT" diff "$DEFAULT_REF"..HEAD --name-only -- claude/config/manifest.json 2>/dev/null || true)
 
 if [[ -z "$MANIFEST_CHANGED" ]]; then
-    # Also check staged/unstaged changes
     MANIFEST_STAGED=$(git -C "$REPO_ROOT" diff --name-only -- claude/config/manifest.json 2>/dev/null || true)
     MANIFEST_CACHED=$(git -C "$REPO_ROOT" diff --cached --name-only -- claude/config/manifest.json 2>/dev/null || true)
 
@@ -136,7 +100,7 @@ if [[ -z "$MANIFEST_CHANGED" ]]; then
         echo "BLOCKED: agency_version not bumped." >&2
         echo "" >&2
         echo "Every PR is a release. Update claude/config/manifest.json:" >&2
-        echo "  - Bump agency_version (e.g., 39.1 → 40.1)" >&2
+        echo "  - Bump agency_version (e.g., 40.1 → 40.2)" >&2
         echo "  - Update updated_at timestamp" >&2
         echo "" >&2
         echo "The /release skill handles this automatically." >&2
@@ -144,11 +108,10 @@ if [[ -z "$MANIFEST_CHANGED" ]]; then
     fi
 fi
 
-# Read current version for reporting
 CURRENT_VERSION=$(grep -o '"agency_version": "[^"]*"' "$MANIFEST" | cut -d'"' -f4)
 echo "✓ Version bumped: $CURRENT_VERSION"
 
-# ── Step 5: Create the PR ────────────────────────────────────────────────
+# ── Step 4: Create the PR ────────────────────────────────────────────────
 
 echo "Creating PR..."
 gh pr create "$@"

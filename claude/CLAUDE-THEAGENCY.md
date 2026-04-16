@@ -9,7 +9,7 @@ How & Why: Refactored to a ~250-word bootloader that orients agents and points t
 skills, hookify rules, and ref-injector-provided reference docs. The ref-injector
 hook injects the right doc when the right skill runs — agents get full protocol
 detail exactly when they need it, not at startup. All extracted content lives in
-claude/docs/ as standalone reference documents.
+claude/ as standalone REFERENCE-*.md documents.
 
 Written: 2026-04-12 during devex Day 35 — bootloader refactoring (seed approved
 by captain, dispatch #201). -->
@@ -22,7 +22,7 @@ This is **TheAgency framework development repo** — open core (MIT framework, R
 - `usr/` — principal sandboxes (at **project root**, NOT under `claude/`)
 - `.claude/skills/` — skill definitions (discover via `/` autocomplete)
 - `claude/hookify/` — behavioral enforcement rules (40 rules — blocks, warns, informs)
-- `claude/docs/` — reference docs (injected on demand by `ref-injector.sh` when skills run)
+- `claude/REFERENCE-*.md` — reference docs (injected on demand by `ref-injector.sh` when skills run)
 
 ## How You Work
 
@@ -40,8 +40,10 @@ This is **TheAgency framework development repo** — open core (MIT framework, R
 | `/quality-gate` | Parallel multi-agent review at commit boundaries |
 | `/iteration-complete` | Commit at iteration end (auto-approve) |
 | `/phase-complete` | Commit at phase end (principal approval required) |
+| `/release` | Quality-check, commit, push, create PR, and cut a release in one flow |
 | `/handoff` | Session context — archive, write, verify |
-| `/session-resume` | Full startup — sync, handoff, dispatches |
+| `/session-resume` | Full startup — sync, handoff, dispatches (runs session-preflight at end) |
+| `/session-compact` | Mid-session context refresh — commit, write handoff, then compact |
 | `/session-end` | Clean teardown — handoff, dirty-state warning |
 | `/dispatch` | ISCP dispatch lifecycle |
 | `/discuss` | 1B1 protocol for multi-item discussions |
@@ -50,35 +52,70 @@ This is **TheAgency framework development repo** — open core (MIT framework, R
 | `/worktree-sync` | Sync worktree with master |
 | `/monitor-dispatches` | Event-driven dispatch watching (Monitor tool) |
 
+## Safe Tools
+
+All commands in the table below are blocked by hookify (decision:block + exit 2 — enforced since Day 40). Use the safe alternatives.
+
+| Blocked command | Safe alternative | Why |
+|----------------|-----------------|-----|
+| `git *` (all subcommands) | `git-safe` (read + merge ops), `git-captain` (captain-only: push, fetch, tag, merge-to-master, switch-branch), `/git-safe-commit` (commits) | Role-scoped git access |
+| `git push` | `./claude/tools/git-push` (via `/sync`, `/release`) | All pushes go through PRs |
+| `cp` | `./claude/tools/cp-safe` | Blocks cross-worktree copies |
+| `gh pr create` | `./claude/tools/pr-create` (via `/release`) | Requires QGR + version bump |
+
+## Valueflow Stream Model
+
+Work moves through three streams. Each stream has its own gates.
+
+| Stream | What flows | Gates |
+|--------|-----------|-------|
+| **Work stream** | Agent commits | `/iteration-complete`, `/phase-complete` |
+| **Delivery stream** | PRs and releases | `/release`, `pr-create` |
+| **Value stream** | Builds and deployments | `/deploy` |
+
+Transitions: commits → QG/RG gate → PRs → PR gate → builds.
+
 ## Reference Docs
 
 Injected automatically when relevant skills run. Read directly when you need them outside a skill context.
 
 | Topic | Document |
 |-------|----------|
-| Repo structure & directory tree | `claude/docs/REPO-STRUCTURE.md` |
-| Agent & principal addressing | `claude/docs/AGENT-ADDRESSING.md` |
-| Quality gate protocol | `claude/docs/QUALITY-GATE.md` |
-| Development methodology (Valueflow, MAR, three-bucket) | `claude/docs/DEVELOPMENT-METHODOLOGY.md` |
-| Worktrees, master, and agent roles | `claude/docs/WORKTREE-DISCIPLINE.md` |
-| Session handoff spec | `claude/docs/HANDOFF-SPEC.md` |
-| ISCP protocol (dispatches & flags) | `claude/docs/ISCP-PROTOCOL.md` |
-| Code review & PR lifecycle | `claude/docs/CODE-REVIEW-LIFECYCLE.md` |
-| Git discipline (merge, never rebase) | `claude/docs/GIT-MERGE-NOT-REBASE.md` |
-| Feedback & bug report format | `claude/docs/FEEDBACK-FORMAT.md` |
-| Provenance headers & script discipline | `claude/docs/PROVENANCE-HEADERS.md` |
-| Testing & quality discipline | `claude/docs/QUALITY-DISCIPLINE.md` |
+| Repo structure & directory tree | `claude/REFERENCE-REPO-STRUCTURE.md` |
+| Agent & principal addressing | `claude/REFERENCE-AGENT-ADDRESSING.md` |
+| Quality gate protocol | `claude/REFERENCE-QUALITY-GATE.md` |
+| Development methodology (Valueflow, MAR, three-bucket) | `claude/REFERENCE-DEVELOPMENT-METHODOLOGY.md` |
+| Worktrees, master, and agent roles | `claude/REFERENCE-WORKTREE-DISCIPLINE.md` |
+| Session handoff spec | `claude/REFERENCE-HANDOFF-SPEC.md` |
+| ISCP protocol (dispatches & flags) | `claude/REFERENCE-ISCP-PROTOCOL.md` |
+| Code review & PR lifecycle | `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md` |
+| Git discipline (merge, never rebase) | `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` |
+| Feedback & bug report format | `claude/REFERENCE-FEEDBACK-FORMAT.md` |
+| Provenance headers & script discipline | `claude/REFERENCE-PROVENANCE-HEADERS.md` |
+| Testing & quality discipline | `claude/REFERENCE-QUALITY-DISCIPLINE.md` |
 | Enforcement model (Triangle, Ladder, all rules) | `claude/README-ENFORCEMENT.md` |
-| Contribution model (three rings of trust) | `claude/docs/CONTRIBUTION-MODEL.md` |
-| Concepts & onboarding | `claude/docs/CONCEPTS.md` |
+| Contribution model (three rings of trust) | `claude/REFERENCE-CONTRIBUTION-MODEL.md` |
+| Concepts & onboarding | `claude/REFERENCE-CONCEPTS.md` |
+| Safe tools family (git-safe, git-captain, cp-safe, pr-create) | `claude/REFERENCE-SAFE-TOOLS.md` |
+| Receipt infrastructure (five-hash chain, receipt-sign, receipt-verify) | `claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md` |
+| Agent discipline — Two Priorities + Over/Over-and-out (universal) | `claude/REFERENCE-AGENT-DISCIPLINE.md` |
 
 ## Core Principles
 
 - **Fix what you find.** No workarounds, no "fix later," no severity-based skip.
 - **Merge, never rebase.** All branch sync uses merge. Hookify blocks rebase.
-- **Never push without permission.** `/sync` is the only push command.
+- **Never push without permission.** `/sync` and `/release` are the only push commands.
 - **Plan before you build.** Use plan mode for non-trivial tasks.
 - **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-safe-commit` — never raw `git commit`.
+
+## Universal Agent Discipline
+
+Every agent — captain, worktree, subagent — follows two standing priorities and the Over / Over-and-out protocol. Full spec: `claude/REFERENCE-AGENT-DISCIPLINE.md` (read on demand).
+
+1. **Principal first.** When the principal speaks, stop current work and respond. You give full attention to what they bring.
+2. **Dispatches second.** Read unread dispatches at session start, before other work. An unread dispatch is a blocked person.
+3. **Over / Over-and-out.** In any 1B1 or extended discussion: wait for **"Over"** before responding. Wait for **"Over and out"** before executing. Never silently execute after discussion — state your plan, ask "does that work?"
+4. **Use the skills, use the tools.** They exist for reasons. Never hand-craft what a tool creates (handoffs, dispatches, commits, PRs, receipts, registrations). Never run raw `git commit`, `git push`, `gh pr create`, `gh pr merge` — the framework has safe wrappers. Route around tools = process violation. Fix the tool or flag the friction; don't bypass.
 
 ---
 
