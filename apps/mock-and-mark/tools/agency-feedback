@@ -1,0 +1,66 @@
+#!/bin/bash
+# Agency Feedback Tool (Apple Platforms Wrapper)
+# Captures feedback for the-agency-starter framework
+#
+# Usage: ./tools/agency-feedback "title" "description"
+
+set -e
+
+TITLE="$1"
+DESCRIPTION="$2"
+
+if [ -z "$TITLE" ]; then
+    echo "Usage: ./tools/agency-feedback \"title\" \"description\""
+    echo ""
+    echo "Examples:"
+    echo "  ./tools/agency-feedback \"Need Swift-specific tool\" \"For Xcode builds...\""
+    echo "  ./tools/agency-feedback \"Docs gap: Apple setup\" \"The getting started doesn't cover...\""
+    exit 1
+fi
+
+# Get agent context
+AGENT="${AGENTNAME:-$(basename "$(pwd)")}"
+
+# Path to the-agency-starter
+AGENCY_STARTER="/Users/jdm/code/the-agency-starter"
+
+if [ -d "$AGENCY_STARTER/tools" ]; then
+    # Use the-agency-starter's tool
+    cd "$AGENCY_STARTER"
+    AGENTNAME="$AGENT" ./tools/agency-feedback "$TITLE" "$DESCRIPTION"
+else
+    # Fallback: create issue directly
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Agency Feedback"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "  Title: ${TITLE}"
+    echo "  Agent: ${AGENT}"
+    echo ""
+
+    BODY="## Feedback from Agent
+
+**Agent:** ${AGENT}
+**Source:** apple-platforms-starter
+**Date:** $(date '+%Y-%m-%d %H:%M %Z')
+
+## Description
+
+${DESCRIPTION:-No description provided.}
+
+---
+*Submitted via apple-platforms-starter/tools/agency-feedback*"
+
+    if command -v gh &> /dev/null; then
+        gh issue create --repo jordandm/the-agency-starter \
+            --title "Feedback: ${TITLE}" \
+            --body "$BODY" \
+            --label "feedback" && echo "  ✓ Issue created"
+    else
+        echo "  ⚠️  GitHub CLI not available"
+        echo "  Please install gh: brew install gh"
+    fi
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+fi

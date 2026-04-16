@@ -1,0 +1,89 @@
+#!/bin/bash
+# Create a new Xcode project skeleton
+# Usage: ./tools/create-project <project-name>
+
+set -e
+
+PROJECT_NAME="${1:-}"
+
+if [ -z "$PROJECT_NAME" ]; then
+    echo "Usage: ./tools/create-project <project-name>"
+    exit 1
+fi
+
+PROJECT_DIR="projects/$PROJECT_NAME"
+
+if [ -d "$PROJECT_DIR" ]; then
+    echo "Error: Project '$PROJECT_NAME' already exists."
+    exit 1
+fi
+
+echo "Creating project: $PROJECT_NAME"
+echo ""
+
+# Create project directory structure
+mkdir -p "$PROJECT_DIR"
+
+# Create README
+cat > "$PROJECT_DIR/README.md" << EOF
+# $PROJECT_NAME
+
+## Overview
+
+(Describe your project here)
+
+## Features
+
+- Feature 1
+- Feature 2
+
+## Tech Stack
+
+- SwiftUI
+- SwiftData
+- iCloud Sync
+
+## Getting Started
+
+1. Open \`$PROJECT_NAME.xcodeproj\` in Xcode
+2. Build and run on simulator
+
+## Status
+
+- [ ] Initial setup
+- [ ] Core features
+- [ ] Testing
+- [ ] Polish
+EOF
+
+# Create REQUIREMENTS placeholder
+cat > "$PROJECT_DIR/REQUIREMENTS.md" << EOF
+# $PROJECT_NAME Requirements
+
+## Problem Statement
+
+(What problem does this solve?)
+
+## User Stories
+
+- As a user, I want to...
+
+## Functional Requirements
+
+- FR-1: ...
+
+## Non-Functional Requirements
+
+- NFR-1: Performance...
+
+## Acceptance Criteria
+
+- [ ] Criteria 1
+EOF
+
+echo "Created project at: $PROJECT_DIR"
+echo ""
+echo "Next steps:"
+echo "  1. Edit $PROJECT_DIR/README.md with project details"
+echo "  2. Create Xcode project: File → New → Project"
+echo "  3. Save .xcodeproj in $PROJECT_DIR/"
