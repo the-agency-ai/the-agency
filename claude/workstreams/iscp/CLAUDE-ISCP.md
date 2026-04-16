@@ -49,7 +49,7 @@ Do not implement without captain sign-off on the design. This is foundational in
 
 - `usr/jordan/iscp/seeds/` — seed materials
 - `usr/jordan/iscp/dispatches/` — incoming dispatches (check on startup)
-- `usr/jordan/captain/transcripts/discussion-transcript-20260404.md` — the founding discussion
+- `claude/workstreams/the-agency/transcripts/discussion-transcript-20260404.md` — the founding discussion
 - `claude/tools/flag` — current flag implementation (being replaced)
 - `claude/tools/dispatch-create` — current dispatch tool (being replaced)
 - `claude/tools/lib/_path-resolve` — address resolution library (has bugs)

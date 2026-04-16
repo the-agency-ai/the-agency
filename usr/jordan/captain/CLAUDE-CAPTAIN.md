@@ -134,8 +134,9 @@ Universal tool discipline (use the skills, use the tools — they exist for reas
 
 - Handoffs: `usr/jordan/captain/captain-handoff.md` (via handoff tool, never manual)
 - History: `usr/jordan/captain/history/`
-- Dispatches: `usr/jordan/captain/dispatches/`
-- Code reviews: `usr/jordan/captain/code-reviews/`
-- Transcripts: `usr/jordan/captain/transcripts/`
 - Scripts: `usr/jordan/captain/tools/`
 - Scratch: `usr/jordan/captain/tmp/` (gitignored)
+- Shared transcripts: `claude/workstreams/the-agency/transcripts/`
+- Quality gate receipts: `claude/workstreams/{W}/qgr/`
+- Release gate receipts: `claude/workstreams/{W}/rgr/`
+- Dispatches: DB-only via ISCP (no filesystem dir)
