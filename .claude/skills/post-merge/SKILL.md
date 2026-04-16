@@ -57,14 +57,18 @@ Invoke `/sync-all` via the Skill tool to sync all worktrees.
 
 ### Step 6: Create GitHub release
 
-**Every PR is a release.** This step is mandatory.
+**Every PR is a release.** This step is MANDATORY. Mechanically enforced by the `release-tag-check` GitHub Actions workflow (D41-R20, issue #113) — if a merge commit lands on main without a matching release tag, CI goes red on main immediately. Don't rely on that catching you; create the release here.
 
 1. Parse the PR title for the release name (e.g., "D39-R1: ...")
 2. Extract the day and release number from the branch name or title (e.g., D39-R1 → version 39.1)
 3. Verify `claude/config/manifest.json` has the correct `agency_version`. The version bump should have been done BEFORE the PR was created (in `/pr-prep` or `/release`). If it wasn't, **stop and warn** — do not push to main to fix it. Create a follow-up PR instead.
 4. Create GitHub release: `gh release create v{version} --title "{PR title}" --notes "{release notes}" --target main`
    - Release notes: summarize the PR description, list key changes
-5. Verify release: `gh release view v{version}`
+5. **Verify release exists (hard check, fail-loud — not optional):**
+   ```
+   gh release view v{version} --repo {owner}/{repo}
+   ```
+   If this returns non-zero, the release was NOT created. Fix and retry before exiting the skill. Do not move to Step 7 on a missing release. Until the release lands, the `release-tag-check` workflow keeps main red.
 
 If the version format doesn't match D#-R# (e.g., a hotfix PR), use the PR number as the version suffix (e.g., v39.pr78).
 
@@ -73,8 +77,14 @@ If the version format doesn't match D#-R# (e.g., a hotfix PR), use the PR number
 ### Step 7: Clean up PR branch
 
 If the PR's head branch still exists locally:
-- `git branch -d {branch}` (safe delete)
-- If it refuses (unmerged), note it and move on
+
+```
+./claude/tools/git-captain branch-delete {branch} --force
+```
+
+`--force` is required for post-merge cleanup because the local PR branch typically contains commits not reachable from main's history (RGR receipts, dispatch artifacts). Safe `-d` would refuse. The `--force` flag is gated for exactly this case (added in D41-R21, issue #110). The same protections apply: cannot delete `main`, cannot delete the current branch.
+
+If the branch doesn't exist locally (e.g. you `pr-merge --delete-branch` already removed the remote and you never had a local copy), this step is a no-op — move on.
 
 ### Step 8: Report
 

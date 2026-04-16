@@ -62,6 +62,18 @@ fi
 # Strip leading whitespace for matching
 TRIMMED=$(echo "$COMMAND" | sed 's/^[[:space:]]*//')
 
+# Block raw gh pr merge — use pr-merge tool
+if [[ "$TRIMMED" =~ ^gh[[:space:]]+pr[[:space:]]+merge ]]; then
+    printf '{"decision":"block","reason":"🚫 BLOCKED: Raw `gh pr merge` is not allowed. Use `./claude/tools/pr-merge` (or `/pr-merge` skill) instead.\\n\\nThe safe wrapper always uses true merge commit (--merge), refuses --squash and --rebase, and requires --principal-approved for --admin override.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+    exit 2
+fi
+
+# Block raw gh release create — use gh-release tool or /post-merge
+if [[ "$TRIMMED" =~ ^gh[[:space:]]+release[[:space:]]+create ]]; then
+    printf '{"decision":"block","reason":"🚫 BLOCKED: Raw `gh release create` is not allowed. Use `./claude/tools/gh-release` (direct) or `/post-merge` (after PR merge) or `/release` (full workflow).\\n\\nReleases are framework boundaries — version must match manifest, notes must follow D{day}-R{release} format.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+    exit 2
+fi
+
 # Block ALL raw git commands — agents must use git-safe/git-captain/git-safe-commit
 # Framework tools that call git internally are already exempted by the
 # ./claude/tools/ path check above.

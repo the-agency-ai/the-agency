@@ -139,7 +139,14 @@
       "Bash(*)",
       "Edit(**)",
       "Read(**)",
-      "Write(**)"
+      "Write(**)",
+      "Read(/tmp/**)",
+      "Write(/tmp/**)",
+      "Edit(/tmp/**)",
+      "Read(/var/folders/**)",
+      "Write(/var/folders/**)",
+      "Edit(/var/folders/**)"
     ]
   }
 }
+

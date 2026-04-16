@@ -19,6 +19,8 @@ TARGET_DIR=""
 PRINCIPAL=""
 PROJECT_NAME=""
 TIMEZONE="UTC"
+FROM_GITHUB=""
+GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.com/the-agency-ai/the-agency.git}"
 
 _init_help() {
     cat << 'EOF'
@@ -29,6 +31,15 @@ Usage:
   agency init --principal <name>        Override principal name
   agency init --project <name>          Set project name
   agency init --timezone <tz>           Set timezone (default: UTC)
+  agency init --from-github [ref]       Shallow-clone the-agency from GitHub
+                                        and use as source. Optional ref:
+                                        tag, branch, or commit. Default: main.
+                                        Use @latest for latest release tag.
+                                        Examples:
+                                          --from-github              # main
+                                          --from-github main         # explicit
+                                          --from-github @latest      # tag
+                                          --from-github v41.23       # specific tag
 
 Options:
   --verbose        Show detailed output
@@ -37,6 +48,7 @@ Options:
 Examples:
   cd ~/code/my-project && agency init
   agency init ~/code/my-project --principal jordan --project my-project
+  cd ~/code/bare-repo && agency init --from-github --principal alex
 EOF
 }
 
@@ -49,6 +61,18 @@ while [[ $# -gt 0 ]]; do
         --principal) [[ -n "${2:-}" ]] || { echo "Error: --principal requires a value" >&2; exit 1; }; PRINCIPAL="$2"; shift 2 ;;
         --project) [[ -n "${2:-}" ]] || { echo "Error: --project requires a value" >&2; exit 1; }; PROJECT_NAME="$2"; shift 2 ;;
         --timezone) [[ -n "${2:-}" ]] || { echo "Error: --timezone requires a value" >&2; exit 1; }; TIMEZONE="$2"; shift 2 ;;
+        --from-github)
+            # Optional ref follows the flag. If next arg is missing or starts
+            # with `-` or matches a target-dir-like pattern, default to "main".
+            # D41-R24: mirrors agency update --from-github semantics (issue #113+).
+            FROM_GITHUB="main"
+            shift
+            if [[ $# -gt 0 && "$1" != -* && ! -d "$1" ]]; then
+                FROM_GITHUB="$1"
+                shift
+            fi
+            ;;
+        --from-github=*) FROM_GITHUB="${1#--from-github=}"; shift ;;
         -*) echo "Unknown option: $1" >&2; _init_help; exit 1 ;;
         *) TARGET_DIR="$1"; shift ;;
     esac
@@ -71,7 +95,49 @@ _init_main() {
         exit 1
     }
 
-    AGENCY_SOURCE="${AGENCY_SOURCE:-$(cd "$AGENCY_DIR/.." && pwd)}"
+    # D41-R24 (principal directive, related to issue #113): when --from-github is
+    # passed, shallow-clone the-agency from GitHub and use that as the source,
+    # bypassing the requirement for a local the-agency clone. Mirrors the
+    # _agency-update --from-github semantics.
+    local TMP_SOURCE_DIR=""
+    if [[ -n "$FROM_GITHUB" ]]; then
+        log_step "Fetching the-agency from GitHub (ref: $FROM_GITHUB)..."
+        TMP_SOURCE_DIR=$(mktemp -d -t agency-init-source-XXXXXX)
+        # Resolve ref. Default "main". "@latest" → latest release tag via gh.
+        local clone_ref="$FROM_GITHUB"
+        if [[ "$FROM_GITHUB" == "@latest" ]]; then
+            if command -v gh >/dev/null 2>&1; then
+                clone_ref=$(gh release view --repo the-agency-ai/the-agency --json tagName -q .tagName 2>/dev/null) || clone_ref=""
+            fi
+            if [[ -z "$clone_ref" ]]; then
+                log_warn "Could not resolve latest release; falling back to main"
+                clone_ref="main"
+            else
+                log_info "Resolved @latest → $clone_ref"
+            fi
+        fi
+        if ! git clone --depth 1 --branch "$clone_ref" "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
+            # Fallback: full-ish clone + checkout (handles SHAs)
+            rm -rf "$TMP_SOURCE_DIR"
+            TMP_SOURCE_DIR=$(mktemp -d -t agency-init-source-XXXXXX)
+            if ! git clone --depth 50 "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
+                log_error "git clone failed for $GITHUB_REPO_URL"
+                rm -rf "$TMP_SOURCE_DIR"
+                exit 1
+            fi
+            if ! git -C "$TMP_SOURCE_DIR" checkout "$clone_ref" >/dev/null 2>&1; then
+                log_error "Could not checkout ref '$clone_ref' in fetched repo"
+                rm -rf "$TMP_SOURCE_DIR"
+                exit 1
+            fi
+        fi
+        AGENCY_SOURCE="$TMP_SOURCE_DIR"
+        # Teardown trap: clean up temp clone on any exit path
+        trap 'rm -rf "$TMP_SOURCE_DIR" 2>/dev/null; log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+        log_info "Source: $AGENCY_SOURCE (shallow clone, will be removed)"
+    else
+        AGENCY_SOURCE="${AGENCY_SOURCE:-$(cd "$AGENCY_DIR/.." && pwd)}"
+    fi
 
     # --- Precondition 1: git repo ---
     if [[ ! -d "$TARGET_DIR/.git" ]]; then
@@ -210,11 +276,15 @@ _init_main() {
         exit 1
     fi
 
-    # Commands
-    cp "$AGENCY_SOURCE/.claude/commands/discuss.md" "$TARGET_DIR/.claude/commands/" 2>/dev/null || true
-    for cmd in secret.md agency-help.md agency-welcome.md agency-tutorial.md agency-bug.md agency-nit.md agency-request.md changelog.md; do
-        [[ -f "$AGENCY_SOURCE/.claude/commands/$cmd" ]] && cp "$AGENCY_SOURCE/.claude/commands/$cmd" "$TARGET_DIR/.claude/commands/"
-    done
+    # Commands — D41-R26: directory-level copy (was hardcoded list that
+    # missed new commands added post-freeze)
+    if [[ -d "$AGENCY_SOURCE/.claude/commands" ]]; then
+        local cmd_file
+        for cmd_file in "$AGENCY_SOURCE/.claude/commands/"*.md; do
+            [[ -f "$cmd_file" ]] || continue
+            cp "$cmd_file" "$TARGET_DIR/.claude/commands/"
+        done
+    fi
 
     # Skills
     if [[ -d "$AGENCY_SOURCE/.claude/skills" ]]; then
@@ -236,8 +306,23 @@ _init_main() {
 
     mkdir -p "$TARGET_DIR/claude"
     [[ -f "$AGENCY_SOURCE/claude/CLAUDE-THEAGENCY.md" ]] && cp "$AGENCY_SOURCE/claude/CLAUDE-THEAGENCY.md" "$TARGET_DIR/claude/"
-    [[ -f "$AGENCY_SOURCE/claude/README-THEAGENCY.md" ]] && cp "$AGENCY_SOURCE/claude/README-THEAGENCY.md" "$TARGET_DIR/claude/"
-    [[ -f "$AGENCY_SOURCE/claude/README-GETTINGSTARTED.md" ]] && cp "$AGENCY_SOURCE/claude/README-GETTINGSTARTED.md" "$TARGET_DIR/claude/"
+
+    # README-*.md — D41-R26: copy ALL top-level README files from framework
+    # (was hardcoded list missing README-ENFORCEMENT.md + README-SAFE-TOOLS.md +
+    # README-RECEIPT-INFRASTRUCTURE.md + more as they're added)
+    local readme_file
+    for readme_file in "$AGENCY_SOURCE/claude/"README-*.md; do
+        [[ -f "$readme_file" ]] && cp "$readme_file" "$TARGET_DIR/claude/"
+    done
+
+    # REFERENCE-*.md — D41-R26: the 39 framework reference docs are the
+    # authoritative guidance layer. Old code tried to copy /claude/docs/*.md
+    # which doesn't exist — these live at /claude/REFERENCE-*.md instead.
+    # Every ref-injected skill assumes these are present.
+    local ref_file
+    for ref_file in "$AGENCY_SOURCE/claude/"REFERENCE-*.md; do
+        [[ -f "$ref_file" ]] && cp "$ref_file" "$TARGET_DIR/claude/"
+    done
 
     # Config
     mkdir -p "$TARGET_DIR/claude/config"
@@ -287,25 +372,45 @@ telemetry:
   providers: ["jsonl"]
 YAML_EOF
 
-    # Docs
-    mkdir -p "$TARGET_DIR/claude/docs"
-    for doc in QUALITY-GATE.md DEVELOPMENT-METHODOLOGY.md CODE-REVIEW-LIFECYCLE.md FEEDBACK-FORMAT.md PR-LIFECYCLE.md TELEMETRY.md; do
-        [[ -f "$AGENCY_SOURCE/claude/docs/$doc" ]] && cp "$AGENCY_SOURCE/claude/docs/$doc" "$TARGET_DIR/claude/docs/"
-    done
+    # Docs — legacy /claude/docs/ path (kept as no-op fallback; content
+    # lives at /claude/REFERENCE-*.md now, copied above in Step 3).
+    if [[ -d "$AGENCY_SOURCE/claude/docs" ]]; then
+        mkdir -p "$TARGET_DIR/claude/docs"
+        local doc_file
+        for doc_file in "$AGENCY_SOURCE/claude/docs/"*.md; do
+            [[ -f "$doc_file" ]] && cp "$doc_file" "$TARGET_DIR/claude/docs/"
+        done
+    fi
 
-    # Agents
-    for agent in project-manager reviewer-code reviewer-design reviewer-scorer reviewer-security reviewer-test cos captain; do
-        if [[ -d "$AGENCY_SOURCE/claude/agents/$agent" ]]; then
-            mkdir -p "$TARGET_DIR/claude/agents/$agent"
-            cp "$AGENCY_SOURCE/claude/agents/$agent/agent.md" "$TARGET_DIR/claude/agents/$agent/"
-        fi
-    done
+    # Agents — D41-R26: directory-level copy of ALL agent classes + their
+    # agent.md class docs. Old hardcoded list missed iscp, tech-lead,
+    # platform-specialist, researcher, and ~10 others. Every agent class
+    # that ships gets copied now.
+    if [[ -d "$AGENCY_SOURCE/claude/agents" ]]; then
+        mkdir -p "$TARGET_DIR/claude/agents"
+        local agent_dir agent_name
+        for agent_dir in "$AGENCY_SOURCE/claude/agents"/*/; do
+            [[ -d "$agent_dir" ]] || continue
+            agent_name=$(basename "$agent_dir")
+            mkdir -p "$TARGET_DIR/claude/agents/$agent_name"
+            # Copy all .md files in the agent dir (agent.md + any KNOWLEDGE.md etc)
+            local af
+            for af in "$agent_dir"*.md; do
+                [[ -f "$af" ]] && cp "$af" "$TARGET_DIR/claude/agents/$agent_name/"
+            done
+        done
+    fi
 
-    # Hooks
-    mkdir -p "$TARGET_DIR/claude/hooks"
-    for hook in ref-injector.sh session-handoff.sh quality-check.sh plan-capture.sh branch-freshness.sh tool-telemetry.sh ghostty-status.sh; do
-        [[ -f "$AGENCY_SOURCE/claude/hooks/$hook" ]] && cp "$AGENCY_SOURCE/claude/hooks/$hook" "$TARGET_DIR/claude/hooks/"
-    done
+    # Hooks — D41-R26: directory-level copy. Old hardcoded list missed
+    # block-raw-tools.sh (CRITICAL — hookify enforcement layer) and
+    # idle-mail-check.sh. New hooks auto-install with no list maintenance.
+    if [[ -d "$AGENCY_SOURCE/claude/hooks" ]]; then
+        mkdir -p "$TARGET_DIR/claude/hooks"
+        local hook_file
+        for hook_file in "$AGENCY_SOURCE/claude/hooks/"*.sh; do
+            [[ -f "$hook_file" ]] && cp "$hook_file" "$TARGET_DIR/claude/hooks/"
+        done
+    fi
     chmod +x "$TARGET_DIR/claude/hooks/"*.sh 2>/dev/null || true
 
     # Hookify rules
@@ -325,15 +430,28 @@ YAML_EOF
     # =====================================================================
     # Step 4: Tools
     # =====================================================================
+    # D41-R25 HOTFIX: Previously this block used a hardcoded list of tools
+    # to copy (frozen ~D35 with ~30 tools). Framework grew to 60+ tools
+    # by D41 (safe-tools family, receipt infra, agent-bootstrap, collaboration,
+    # ISCP, sandbox-*, principal-onboard, etc.) — every tool added after the
+    # freeze was absent from fresh inits, breaking hooks and preflight on
+    # first `claude --agent captain` run. Surfaced live in homekit-daikin-ac-bridge
+    # init (2026-04-15 ~20:30 UTC). Now copies all top-level files under
+    # claude/tools/ and all libs under claude/tools/lib/ — new tools auto-install
+    # with zero maintenance on this block.
     log_step "Installing tools"
 
     mkdir -p "$TARGET_DIR/claude/tools/lib"
-    # Copy shared libs
-    for lib in _log-helper _path-resolve _provider-resolve _address-parse; do
-        [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
-    done
-    # Copy test isolation library
-    [[ -f "$AGENCY_SOURCE/claude/tools/lib/_test-isolation" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/_test-isolation" "$TARGET_DIR/claude/tools/lib/"
+
+    # Copy ALL libs from source. Skip subdirectories (e.g. tests/).
+    if [[ -d "$AGENCY_SOURCE/claude/tools/lib" ]]; then
+        local lib_file
+        for lib_file in "$AGENCY_SOURCE/claude/tools/lib/"*; do
+            [[ -f "$lib_file" ]] || continue
+            cp "$lib_file" "$TARGET_DIR/claude/tools/lib/"
+        done
+    fi
+
     # Copy test helper template (don't overwrite project customizations)
     if [[ -f "$AGENCY_SOURCE/claude/templates/tests/test_helper.bash" ]]; then
         mkdir -p "$TARGET_DIR/tests/tools"
@@ -341,29 +459,49 @@ YAML_EOF
             cp "$AGENCY_SOURCE/claude/templates/tests/test_helper.bash" "$TARGET_DIR/tests/tools/test_helper.bash"
         fi
     fi
-    # Copy the agency CLI itself
-    [[ -f "$AGENCY_SOURCE/claude/tools/agency" ]] && cp "$AGENCY_SOURCE/claude/tools/agency" "$TARGET_DIR/claude/tools/"
-    # Copy agency subcommand libs
-    for lib in _agency-init _agency-update _agency-verify _agency-whoami _agency-feedback; do
-        [[ -f "$AGENCY_SOURCE/claude/tools/lib/$lib" ]] && cp "$AGENCY_SOURCE/claude/tools/lib/$lib" "$TARGET_DIR/claude/tools/lib/"
-    done
-    # Copy core tools
-    for tool in worktree-create worktree-list worktree-delete terminal-setup terminal-setup-ghostty platform-setup platform-setup-macos platform-setup-linux tool-create secret-vault git-safe-commit git-tag git-sync git-fetch handoff test-run commit-precheck code-review now stage-hash dispatch-create dispatch settings-merge sandbox-sync ghostty-claude-hook ghostty-config ghostty-integration ghostty-setup ghostty-debug-hook; do
-        [[ -f "$AGENCY_SOURCE/claude/tools/$tool" ]] && cp "$AGENCY_SOURCE/claude/tools/$tool" "$TARGET_DIR/claude/tools/"
-    done
-    chmod +x "$TARGET_DIR/claude/tools/"* 2>/dev/null || true
 
-    log_info "Installed core tools"
+    # Copy ALL top-level tools from source. Skip subdirectories (lib/ handled
+    # above, tests/ is dev-only and not shipped to adopters).
+    if [[ -d "$AGENCY_SOURCE/claude/tools" ]]; then
+        local tool_file
+        for tool_file in "$AGENCY_SOURCE/claude/tools/"*; do
+            [[ -f "$tool_file" ]] || continue
+            cp "$tool_file" "$TARGET_DIR/claude/tools/"
+        done
+    fi
+
+    chmod +x "$TARGET_DIR/claude/tools/"* 2>/dev/null || true
+    chmod +x "$TARGET_DIR/claude/tools/lib/"* 2>/dev/null || true
+
+    log_info "Installed all tools (directory-level copy)"
+
+    # =====================================================================
+    # Step 4b: Framework .gitignore block
+    # D41-R27 — ensure adopter's .gitignore contains the framework-managed
+    # ignores. Without this, runtime log files (.claude/logs/tool-runs.jsonl)
+    # and agency service logs show up as dirty on every `agency update` and
+    # block the update via the dirty-tree gate. Merge idempotently: if the
+    # block marker already exists, leave existing ignores alone.
+    # =====================================================================
+    local gitignore_template="$AGENCY_SOURCE/claude/templates/gitignore-framework"
+    local gitignore_target="$TARGET_DIR/.gitignore"
+    if [[ -f "$gitignore_template" ]]; then
+        if [[ ! -f "$gitignore_target" ]] || ! grep -q "Agency framework-managed ignores" "$gitignore_target" 2>/dev/null; then
+            [[ -f "$gitignore_target" ]] && echo "" >> "$gitignore_target"
+            cat "$gitignore_template" >> "$gitignore_target"
+            log_info "Appended framework .gitignore block"
+        fi
+    fi
 
     # =====================================================================
     # Step 5: Principal directory
     # =====================================================================
     log_step "Scaffolding usr/$PRINCIPAL/"
 
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/claude"/{commands,hookify,hooks,agents,refs}
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/scripts"
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{transcripts,code-reviews,dispatches,history,tools,tmp}
-    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME"/{code-reviews,dispatches,transcripts,history,tools,tmp}
+    # D42-R3: slim scaffold — only personal state dirs
+    # Shared content goes in claude/workstreams/{W}/ (see Step 5b)
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{tools,tmp,history/flotsam}
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME"/{tools,tmp,history/flotsam}
 
     # tmp/ is scratch space — gitignore its contents
     for tmp_dir in "$TARGET_DIR/usr/$PRINCIPAL/captain/tmp" "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME/tmp"; do
@@ -373,15 +511,30 @@ YAML_EOF
         fi
     done
 
-    cat > "$TARGET_DIR/usr/$PRINCIPAL/README.md" << USR_EOF
-# Principal: $PRINCIPAL
+    log_info "Scaffolded usr/$PRINCIPAL/ (slim: tools, tmp, history)"
 
-## Projects
-- \`captain/\` — captain coordination
-- \`$PROJECT_NAME/\` — project work
-USR_EOF
+    # =====================================================================
+    # Step 5b: Repo-level workstream (captain's shared space)
+    # =====================================================================
+    log_step "Creating repo-level workstream: claude/workstreams/$PROJECT_NAME/"
 
-    log_info "Scaffolded usr/$PRINCIPAL/"
+    mkdir -p "$TARGET_DIR/claude/workstreams/$PROJECT_NAME"/{qgr,rgr,drafts,research,transcripts,history/flotsam}
+
+    if [[ ! -f "$TARGET_DIR/claude/workstreams/$PROJECT_NAME/KNOWLEDGE.md" ]]; then
+        cat > "$TARGET_DIR/claude/workstreams/$PROJECT_NAME/KNOWLEDGE.md" << KNOWLEDGE_EOF
+# $PROJECT_NAME — Workstream Knowledge
+
+## Patterns and Conventions
+
+<!-- Accumulate patterns discovered during development -->
+
+## Key Decisions
+
+<!-- Record architectural and design decisions with rationale -->
+KNOWLEDGE_EOF
+    fi
+
+    log_info "Created repo-level workstream"
 
     # =====================================================================
     # Step 6: Bootstrap handoff
