@@ -1,0 +1,348 @@
+#!/bin/bash
+#
+# plan-capture — Capture plans from plan mode as dated artifacts
+#
+# Usage:
+#   plan-capture --from-hook        — called by ExitPlanMode hook, reads stdin JSON
+#   plan-capture --manual "title"   — manual capture, reads plan content from stdin
+#   plan-capture --list [N]         — list recent plans (default: 10)
+#   plan-capture --version          — show version
+#   plan-capture --help             — show help
+#
+# Plans are saved to docs/plans/{YYYYMMDD}-{slug}.md with YAML frontmatter.
+# The hook is a thin wrapper that calls this tool.
+
+set -euo pipefail
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper if available
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+PLAN_DIR="$PROJECT_DIR/docs/plans"
+
+show_help() {
+    echo "Usage: plan-capture <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  --from-hook          Called by ExitPlanMode hook (reads stdin JSON)"
+    echo "  --manual \"title\"     Manual capture (reads plan content from stdin)"
+    echo "  --list [N]           List recent plans (default: 10)"
+    echo ""
+    echo "Options:"
+    echo "  --version            Show version"
+    echo "  --help               Show this help"
+}
+
+# --- Derive title and slug ---
+derive_slug() {
+    local content="$1"
+    local title
+    title=$(echo "$content" | grep -m1 '^# ' | sed 's/^# //')
+
+    local slug=""
+    if [ -n "$title" ]; then
+        slug=$(echo "$title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 -]//g' | tr ' ' '-' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+    fi
+
+    # Fallback: branch name
+    if [ -z "$slug" ]; then
+        local branch
+        branch=$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null || echo "")
+        if [ -n "$branch" ] && [ "$branch" != "main" ] && [ "$branch" != "master" ]; then
+            slug=$(echo "$branch" | sed 's|^[^/]*/||' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+        fi
+    fi
+
+    # Final fallback
+    if [ -z "$slug" ]; then
+        slug="draft"
+    fi
+
+    echo "$slug"
+}
+
+# --- Detect scope tags ---
+detect_tags() {
+    local content="$1"
+    local tags=""
+    echo "$content" | grep -qiE 'apps/backend|nestjs|prisma' && tags="${tags:+$tags, }BE"
+    echo "$content" | grep -qiE 'apps/doctor-frontend|doctor' && tags="${tags:+$tags, }DF"
+    echo "$content" | grep -qiE 'apps/prototype-fe|prototype-fe' && tags="${tags:+$tags, }PF"
+    echo "$content" | grep -qiE 'apps/ops-frontend' && tags="${tags:+$tags, }OF"
+    echo "$content" | grep -qiE 'packages/|monorepo|turborepo|pnpm|\.claude/|hooks/' && tags="${tags:+$tags, }Mono"
+    echo "$tags"
+}
+
+# --- Extract plan from transcript JSONL ---
+extract_from_transcript() {
+    local transcript_path="$1"
+    python3 - "$transcript_path" <<'PYTHON'
+import json, sys
+
+transcript_path = sys.argv[1]
+messages = []
+with open(transcript_path, 'r') as f:
+    for line in f:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            messages.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+
+in_plan = False
+plan_blocks = []
+current_plan = []
+
+for msg in messages:
+    msg_type = msg.get('type', '')
+    content = msg.get('message', {}).get('content', []) if isinstance(msg.get('message'), dict) else []
+
+    if msg_type == 'assistant' and isinstance(content, list):
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            if block.get('type') == 'tool_use':
+                if block.get('name') == 'EnterPlanMode':
+                    in_plan = True
+                    current_plan = []
+                elif block.get('name') == 'ExitPlanMode':
+                    if current_plan:
+                        plan_blocks.append('\n'.join(current_plan))
+                    in_plan = False
+                continue
+            if in_plan and block.get('type') == 'text':
+                text = block.get('text', '').strip()
+                if text:
+                    current_plan.append(text)
+
+if in_plan and current_plan:
+    plan_blocks.append('\n'.join(current_plan))
+
+if plan_blocks:
+    print('\n\n'.join(plan_blocks))
+PYTHON
+}
+
+# --- Write plan file with frontmatter ---
+write_plan() {
+    local content="$1"
+    local slug="$2"
+    local session_id="${3:-}"
+
+    mkdir -p "$PLAN_DIR"
+
+    local date_fmt
+    date_fmt=$(date +%Y-%m-%d)
+    local date_compact
+    date_compact=$(date +%Y%m%d)
+
+    local title
+    title=$(echo "$content" | grep -m1 '^# ' | sed 's/^# //')
+
+    local branch
+    branch=$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null || echo "")
+
+    local worktree=""
+    case "$PROJECT_DIR" in
+        */.claude/worktrees/*|*/.worktrees/*)
+            worktree=$(echo "$PROJECT_DIR" | sed -E 's|.*/\.(claude/)?worktrees/||' | cut -d/ -f1)
+            ;;
+    esac
+
+    local principal
+    principal=$(git -C "$PROJECT_DIR" config user.name 2>/dev/null || echo "")
+
+    local tags
+    tags=$(detect_tags "$content")
+
+    local plan_file="$PLAN_DIR/${date_compact}-${slug}.md"
+
+    # Handle collision
+    if [ -f "$plan_file" ]; then
+        local counter=2
+        while [ -f "$PLAN_DIR/${date_compact}-${slug}-${counter}.md" ]; do
+            counter=$((counter + 1))
+        done
+        plan_file="$PLAN_DIR/${date_compact}-${slug}-${counter}.md"
+    fi
+
+    local plan_path
+    plan_path="${plan_file#"$PROJECT_DIR/"}"
+
+    local needs_rename=false
+    [ "$slug" = "draft" ] && needs_rename=true
+
+    # Escape double quotes in title for valid YAML
+    local safe_title="${title:-$slug}"
+    safe_title="${safe_title//\"/\\\"}"
+
+    {
+        echo "---"
+        echo "title: \"${safe_title}\""
+        echo "slug: $slug"
+        echo "path: $plan_path"
+        echo "date: $date_fmt"
+        echo "status: draft"
+        echo "branch: ${branch:-detached}"
+        [ -n "$worktree" ] && echo "worktree: $worktree"
+        echo "authors:"
+        [ -n "$principal" ] && echo "  - $principal (principal)"
+        echo "  - Claude Code"
+        [ -n "$session_id" ] && echo "session: $session_id"
+        [ -n "$tags" ] && echo "tags: [$tags]"
+        echo "---"
+        echo ""
+        echo "$content"
+    } > "$plan_file"
+
+    # Return path and rename flag
+    echo "$plan_path"
+    echo "$needs_rename"
+}
+
+# --- Parse args ---
+case "${1:-}" in
+    --version|-v)
+        echo "plan-capture $VERSION"
+        exit 0
+        ;;
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+    --from-hook)
+        # ERR trap: emit warning on unexpected failure so agent knows capture failed
+        trap 'echo "{\"systemMessage\":\"Plan capture encountered an unexpected error. Run: bash claude/tools/plan-capture --manual '\''title'\'' to capture manually.\"}"; exit 0' ERR
+
+        INPUT=$(cat)
+
+        # Try tool_input.plan first
+        PLAN_CONTENT=$(echo "$INPUT" | jq -r '.tool_input.plan // empty')
+
+        # Fallback: parse transcript
+        if [ -z "$PLAN_CONTENT" ]; then
+            TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
+            # Validate transcript path is within expected directories
+            if [ -n "$TRANSCRIPT_PATH" ]; then
+                case "$TRANSCRIPT_PATH" in
+                    "$HOME/.claude/"*|"${CLAUDE_PROJECT_DIR:-__none__}/"*) ;; # allowed prefixes
+                    *) TRANSCRIPT_PATH="" ;; # reject unexpected paths
+                esac
+            fi
+            if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
+                # No plan content found — emit warning
+                echo '{"systemMessage":"Plan mode exited but no plan content was captured. Run: bash claude/tools/plan-capture --manual '\''title'\''  to capture manually."}'
+                exit 0
+            fi
+            PLAN_CONTENT=$(extract_from_transcript "$TRANSCRIPT_PATH")
+        fi
+
+        if [ -z "$PLAN_CONTENT" ]; then
+            echo '{"systemMessage":"Plan mode exited but no plan content was captured. Run: bash claude/tools/plan-capture --manual '\''title'\'' to capture manually."}'
+            exit 0
+        fi
+
+        SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
+        SLUG=$(derive_slug "$PLAN_CONTENT")
+
+        RESULT=$(write_plan "$PLAN_CONTENT" "$SLUG" "$SESSION_ID") || {
+            echo '{"systemMessage":"Plan capture failed — could not write file. Check disk space and permissions."}'
+            exit 0
+        }
+        PLAN_PATH=$(echo "$RESULT" | head -1)
+        NEEDS_RENAME=$(echo "$RESULT" | tail -1)
+
+        if [ "$NEEDS_RENAME" = "true" ]; then
+            echo "{\"systemMessage\": \"Plan captured to $PLAN_PATH with a temporary name. Ask the user for a short slug to rename it.\"}"
+        else
+            echo "{\"systemMessage\": \"Plan captured to $PLAN_PATH.\"}"
+        fi
+        exit 0
+        ;;
+    --manual)
+        TITLE="${2:-}"
+        if [ -z "$TITLE" ]; then
+            echo "Error: --manual requires a title" >&2
+            exit 1
+        fi
+
+        echo "Paste plan content (Ctrl-D when done):"
+        PLAN_CONTENT=$(cat)
+
+        if [ -z "$PLAN_CONTENT" ]; then
+            echo "Error: no plan content provided" >&2
+            exit 1
+        fi
+
+        # Prepend title if content doesn't start with one
+        if ! echo "$PLAN_CONTENT" | head -1 | grep -q '^# '; then
+            PLAN_CONTENT="# $TITLE"$'\n\n'"$PLAN_CONTENT"
+        fi
+
+        SLUG=$(derive_slug "$PLAN_CONTENT")
+        RESULT=$(write_plan "$PLAN_CONTENT" "$SLUG" "")
+        PLAN_PATH=$(echo "$RESULT" | head -1)
+
+        RUN_ID=""
+        if type log_start &>/dev/null; then
+            RUN_ID=$(log_start "plan-capture" "--manual $TITLE")
+            log_end "$RUN_ID" "success" 0 0 "captured to $PLAN_PATH"
+            tool_output "plan-capture" "$RUN_ID" "Captured: $PLAN_PATH"
+        else
+            echo "plan-capture"
+            echo "Captured: $PLAN_PATH"
+            echo "✓"
+        fi
+        ;;
+    --list)
+        COUNT="${2:-10}"
+        if [ ! -d "$PLAN_DIR" ]; then
+            echo "No plans directory at docs/plans/"
+            exit 0
+        fi
+
+        LIST_RUN_ID=""
+        if type log_start &>/dev/null; then
+            LIST_RUN_ID=$(log_start "plan-capture" "--list $COUNT")
+        fi
+
+        LISTING=""
+        _old_nullglob=$(shopt -p nullglob 2>/dev/null || true)
+        shopt -s nullglob
+        for f in "${PLAN_DIR}"/*.md; do
+            [ -f "$f" ] || continue
+            name=$(basename "$f")
+            title=$(grep -m1 '^title:' "$f" 2>/dev/null | sed 's/^title: *//' | tr -d '"')
+            LISTING="${LISTING}  ${name}  ${title:-(no title)}"$'\n'
+        done
+        eval "$_old_nullglob" 2>/dev/null || true
+
+        # Sort by name descending (date prefix) and limit
+        LISTING=$(printf '%s' "$LISTING" | sort -r | head -"$COUNT")
+
+        if [ -n "$LIST_RUN_ID" ]; then
+            log_end "$LIST_RUN_ID" "success" 0 0 "listed plans"
+            tool_output "plan-capture" "$LIST_RUN_ID" "$LISTING"
+        else
+            echo "plan-capture"
+            echo "$LISTING"
+            echo "✓"
+        fi
+        ;;
+    "")
+        show_help
+        exit 1
+        ;;
+    *)
+        echo "Error: unknown command '$1'" >&2
+        show_help >&2
+        exit 1
+        ;;
+esac
