@@ -159,7 +159,7 @@ In the "Stage 1 — Parallel Review" section, attribute findings to the formal a
 
 ## Step 10: Sign receipt (five-hash chain)
 
-After presenting the QGR, sign a receipt via `./claude/tools/receipt-sign`. This replaces the old `usr/{principal}/{project}/qgr-*.md` stage-hash receipt — receipts now live in `claude/receipts/` with full provenance naming and a five-hash chain of trust.
+After presenting the QGR, sign a receipt via `./claude/tools/receipt-sign`. Receipts live in `claude/workstreams/{W}/qgr/` (or `rgr/` for review gates) with full provenance naming and a five-hash chain of trust.
 
 ### Capture Hash D (principal 1B1)
 
@@ -199,11 +199,11 @@ After Step 8 confirmed everything is clean and all fixes are staged/written to d
   --summary "<short summary>"
 ```
 
-Capture the receipt path printed by `receipt-sign` (it writes to `claude/receipts/` with the naming convention `{org}-{principal}-{agent}-{workstream}-{project}-qgr-{hash}-{YYYYMMDD-HHMM}.md`).
+Capture the receipt path printed by `receipt-sign` (it writes to `claude/workstreams/{W}/qgr/` with the naming convention `{org}-{principal}-{agent}-{ws}-{proj}-qgr-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md`).
 
 ### Report to caller
 
-Report: "Receipt signed: `claude/receipts/{filename}`"
+Report: "Receipt signed: `claude/workstreams/{W}/qgr/{filename}`"
 
 ### Backward compatibility note
 

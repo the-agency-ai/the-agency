@@ -6,7 +6,7 @@ Principals are the human stakeholders who direct work in The Agency. This guide 
 
 A principal is a human identity in The Agency. Each principal has:
 - A unique name (lowercase, alphanumeric with hyphens/underscores)
-- A directory under `claude/principals/{name}/`
+- A sandbox under `usr/{principal}/{agent}/`
 - Work requests (`REQUEST-{name}-XXXX`)
 - Artifacts produced by agents
 - Configuration preferences
@@ -153,14 +153,11 @@ source ~/.zshrc  # or ~/.bashrc
 ## Principal Directory Structure
 
 ```
-claude/principals/{name}/
-├── README.md           # Principal overview
-├── requests/           # Work requests (REQUEST-{name}-XXXX.md)
-├── artifacts/          # Deliverables from agents (ART-XXXX.md)
-├── resources/          # Reference materials
-│   ├── cloud/          # Symlink to iCloud (if set up)
-│   └── secrets/        # Credentials (gitignored)
-└── config/             # App configurations
+usr/{principal}/{agent}/
+├── tmp/                # Scratch space (gitignored)
+├── tools/              # Agent scripts and ad hoc automation
+├── history/            # Archived handoffs and artifacts
+│   └── flotsam/        # Discarded drafts and experiments
 ```
 
 ## Configuration Mapping
@@ -193,7 +190,7 @@ The `myclaude` launcher checks principal status on every launch:
 2. **Is this the starter template?** - Checks for `.agency-starter` marker
 3. **Is setup complete?** - Checks for `.agency-setup-complete`
 4. **Is AGENCY_PRINCIPAL set?** - Checks environment variable
-5. **Does principal directory exist?** - Checks `claude/principals/$AGENCY_PRINCIPAL/`
+5. **Does principal directory exist?** - Checks `usr/$AGENCY_PRINCIPAL/`
 
 If any check fails, `myclaude` guides you through the appropriate setup.
 

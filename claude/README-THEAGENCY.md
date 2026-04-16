@@ -40,12 +40,12 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 - **Observability** — tool-runs.jsonl (`.claude/logs/tool-runs.jsonl`), telemetry (daily JSONL at `~/.claude/telemetry/{date}.jsonl`, read via `./claude/tools/telemetry`), statusline integration
 - **Review agents** — code-reviewer, security-reviewer, design-reviewer, test-reviewer, scorer
 - **Safe tools family** — role-scoped git access (git-safe for read+merge, git-captain for captain-only ops), git-push (via /sync and /release), cp-safe (blocks cross-worktree copies), pr-create (requires QGR + version bump). All blocked from direct bypass via hookify (decision:block + exit 2).
-- **Receipt infrastructure** — five-hash chain linking staged content to QGR receipt. Tools: receipt-sign, receipt-verify. Receipts live at `claude/receipts/`.
+- **Receipt infrastructure** — five-hash chain linking staged content to QGR receipt. Tools: receipt-sign, receipt-verify. Receipts live at `claude/workstreams/{W}/qgr/` and `rgr/` (per-workstream).
 
 ### Agent Definitions
-- **Class/instance model** — `claude/agents/{class}/agent.md` defines roles; `usr/{principal}/{agent}/` is the working instance
+- **Class/instance model** — `claude/agents/{class}/agent.md` defines roles; `.claude/agents/{P}/{A}.md` is the principal-scoped registration; `usr/{P}/{A}/` is the agent sandbox
 - **Standard classes** — captain, tech-lead, marketing-lead, platform-specialist, researcher
-- **Workstream model** — agents work on workstreams with shared artifacts (seeds, PVR, A&D, Plan)
+- **Workstream model** — agents work on workstreams with shared artifacts in `claude/workstreams/{W}/` (seeds, PVR, A&D, Plan, receipts, research, transcripts)
 
 ### Operational Conventions
 - **Sandbox principle** — per-principal workspace (`usr/{principal}/`), zero team impact, opt-in adoption
@@ -277,23 +277,15 @@ Tests: 334 passing (21 new: 8 bug-exposing, 13 coverage), 0 failing
 
 ### QGR Receipt Files
 
-Each gate writes a standalone receipt file at the workstream location:
+Each gate writes a standalone receipt file via `receipt-sign`:
 
 ```
-claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md
+claude/workstreams/{ws}/qgr/{org}-{principal}-{agent}-{ws}-{proj}-qgr-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md
 ```
 
-For workstreams with multiple projects, use a project subdirectory:
+The receipt contains a five-hash chain of trust (A through E) linking the original artifact to the final reviewed state. `pr-create` calls `receipt-verify` and blocks if no valid receipt matches the current diff.
 
-```
-claude/workstreams/{ws}/project/{project}/quality-gate-reports/qgr-...
-```
-
-(Single-project workstreams skip the `project/` level until a second project is added — then existing files migrate.)
-
-The QGR frontmatter includes `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic 7-character hash computed from the git staging area. *(Planned: `/git-safe-commit` will compute the same hash and check for a matching receipt — blocking the commit if none exists. The `require-qgr` hookify rule is the planned enforcement point. Not yet wired.)*
-
-> **Transition note:** Existing QGRs from before this convention live at `usr/{principal}/{project}/qgr-*.md` and stay where they are. New QGRs go to the workstream location described above. No migration of historical files.
+Receipt search is three-tier (backward compatible): per-workstream `qgr/`/`rgr/` → legacy `claude/receipts/` → old `usr/**/qgr-*.md`.
 
 ## Development Methodology
 
@@ -352,7 +344,7 @@ Handoff files are a first-class Agency primitive. They serve multiple purposes b
 
 ### How It Works
 
-Handoff files live at `usr/{principal}/{project}/{agent}-handoff.md` — one per agent (e.g., `captain-handoff.md`, `iscp-handoff.md`, `devex-handoff.md`). The `claude/tools/handoff` tool manages the lifecycle and uses `agent-identity` to resolve which file to write based on the current branch/worktree.
+Handoff files live at `usr/{principal}/{agent}/{agent}-handoff.md` — one per agent (e.g., `captain-handoff.md`, `iscp-handoff.md`, `devex-handoff.md`). The `claude/tools/handoff` tool manages the lifecycle and uses `agent-identity` to resolve which file to write based on the current branch/worktree.
 
 - **`handoff write`** — auto-archives the existing handoff to `history/handoff-YYYYMMDD-HHMMSS.md`, then signals the agent to write new content (the history dir is per-agent — `usr/{principal}/{agent}/history/` — so archive names don't collide across agents)
 - **`handoff write --lightweight`** — appends/updates a status line without archiving (for `/sync-all`)
@@ -392,7 +384,7 @@ The 1B1 (one-by-one) protocol is how agents present information to principals. I
 
 The core idea: when there are multiple items to discuss, address each one individually. Present → get feedback → confirm understanding (reflective listening) → revise → iterate → resolve → confirm resolution → next item. Never skip the "confirm understanding" step — it's the one agents skip most, and skipping it leads to wasted revision cycles.
 
-The `/discuss` skill implements the full 8-step cycle and auto-starts a `/transcript` to capture decisions as they're made. The discussion IS the record. Transcripts live at `usr/{principal}/{project}/transcripts/` and persist decisions, rationale, and context that would otherwise be lost when the conversation scrolls off-screen or the session ends.
+The `/discuss` skill implements the full 8-step cycle and auto-starts a `/transcript` to capture decisions as they're made. The discussion IS the record. Transcripts live at `claude/workstreams/{W}/transcripts/` (shared) and persist decisions, rationale, and context that would otherwise be lost when the conversation scrolls off-screen or the session ends.
 
 The 1B1 protocol applies to ALL structured discussions, not just when `/discuss` is explicitly invoked. It is the default way agents present information to principals.
 
@@ -506,9 +498,10 @@ Git discipline is enforced by hookify rules. The git-related rules:
 
 | Rule | Action | What it does |
 |------|--------|-------------|
-| `no-push-main` | BLOCK | Prevents any push to main |
-| `block-force-push-main` | BLOCK | Prevents force push to main/master |
-| `warn-on-push` | WARN | Requires confirmation before any push |
+| `block-raw-push` | BLOCK | Blocks ALL raw `git push` — use `/sync` |
+| `block-raw-pr-create` | BLOCK | Blocks raw `gh pr create` — use `/release` |
+| `block-raw-gh-pr-merge` | BLOCK | Blocks raw `gh pr merge` — use `/pr-merge` |
+| `block-raw-gh-release` | BLOCK | Blocks raw `gh release create` — use `/post-merge` |
 | `warn-destructive-git` | WARN | Flags reset --hard, checkout --, etc. |
 | `warn-external-git-actions` | WARN | Flags external-facing git operations |
 | `block-cd-to-main` | BLOCK | Prevents worktree agents from cd-ing to main repo |
@@ -742,14 +735,15 @@ Agents use their judgment — a dispatch is review input, not an action list. Fi
 
 ### Review File Convention
 
+Review files live in the workstream shared space:
+
 ```
-usr/{principal}/{project}/
-  code-reviews/
-    {project}-review-YYYYMMDD-HHMM.md     — full review output
-    {project}-dispatch-YYYYMMDD-HHMM.md    — actionable findings
+claude/workstreams/{W}/
+  qgr/    — quality gate receipts (five-hash chain)
+  rgr/    — review gate receipts
 ```
 
-YYYYMMDD-HHMM timestamps ensure uniqueness for multiple reviews per day. These files appear in the PR diff as the audit trail — reviewers can see both the code and the review.
+Receipt filenames carry full provenance and timestamps for uniqueness. These files appear in the PR diff as the audit trail — reviewers can see both the code and the review.
 
 ---
 
@@ -757,9 +751,9 @@ YYYYMMDD-HHMM timestamps ensure uniqueness for multiple reviews per day. These f
 
 ### Agent Definitions
 
-- **Class/instance model** — `claude/agents/{class}/agent.md` defines the role; `usr/{principal}/{agent}/` is the working instance with handoff, project artifacts, and session state.
+- **Class/instance model** — `claude/agents/{class}/agent.md` defines the role; `.claude/agents/{P}/{A}.md` is the principal-scoped registration; `usr/{P}/{A}/` is the agent sandbox (slim: tmp/, tools/, history/)
 - **Standard classes** — captain (coordination), tech-lead (architecture), marketing-lead (content), platform-specialist (infrastructure), researcher (investigation)
-- **Workstream model** — agents work on workstreams with shared artifacts (seeds, PVR, A&D, Plan)
+- **Workstream model** — agents work on workstreams. Shared artifacts (seeds, PVR, A&D, Plan, receipts, research, transcripts) live in `claude/workstreams/{W}/`
 
 ### TheAgency Default Structure
 
@@ -771,56 +765,58 @@ my-project/
 ├── CLAUDE.md                    — project CLAUDE.md (scaffold) — @imports claude/CLAUDE-THEAGENCY.md
 │
 ├── .claude/                     — CLAUDE CODE DISCOVERY LOCATION
+│   ├── agents/{P}/{A}.md        — principal-scoped agent registrations
 │   ├── commands/                — active skills (framework + symlinked personal)
 │   ├── skills/                  — skill definitions
 │   ├── settings.json            — Claude Code settings (scaffold — never overwritten)
 │   └── hookify.*.local.md       — active hookify rules (symlinks)
 │
-└── claude/                      — THE AGENCY FRAMEWORK (single namespace)
-    ├── CLAUDE-THEAGENCY.md      — Agency methodology (imported by root CLAUDE.md)
-    ├── README-THEAGENCY.md      — This file — orientation for humans
-    ├── README-GETTINGSTARTED.md — Onboarding guide
-    ├── config/
-    │   ├── agency.yaml          — project-specific Agency config (scaffold)
-    │   ├── manifest.json        — tracks installed files and versions
-    │   └── settings-template.json — canonical permissions/hooks template (framework)
-    ├── agents/                  — agent CLASS definitions (framework)
-    │   ├── captain/agent.md     — per-repo coordination
-    │   ├── project-manager/agent.md — process enforcement (QG, boundaries)
-    │   ├── cos/agent.md         — Chief of Staff (cross-repo, strategic)
-    │   └── reviewer-*/agent.md  — review agents (code, design, security, test, scorer)
-    ├── docs/                    — reference docs (injected on demand by hooks)
-    │   ├── QUALITY-GATE.md      — QGR format, protocol, commit message spec
-    │   ├── FEEDBACK-FORMAT.md   — bug report / feature request template
-    │   ├── CODE-REVIEW-LIFECYCLE.md — dispatch handling protocol
-    │   └── DEVELOPMENT-METHODOLOGY.md — full Seed→Reference lifecycle
-    ├── hooks/                   — session lifecycle hooks (config tier)
-    ├── hookify/                 — shipped behavioral rules (config tier)
-    ├── templates/               — scaffolding templates (framework)
-    ├── tools/                   — ALL tools — bash, python, rust, compiled (framework)
-    │   ├── lib/                 — tool libraries (_log-helper, _path-resolve, etc.)
-    │   ├── handoff              — context bootstrap
-    │   ├── stage-hash           — deterministic staging area hash
-    │   ├── git-safe-commit           — QG-aware commit wrapper
-    │   ├── settings-merge       — merge settings template into current
-    │   └── ...                  — (worktree-*, etc.)
-    ├── workstreams/             — bodies of work
-    │   ├── agency/              — framework methodology (valueflow)
-    │   ├── iscp/                — inter-session communication protocol
-    │   ├── devex/               — developer experience
-    │   └── ...                  — per-project workstreams
-    └── starter-packs/           — starter kit templates for agency init
-usr/                             — agent INSTANCES (at PROJECT ROOT, not under claude/)
+├── claude/                      — THE AGENCY FRAMEWORK (single namespace)
+│   ├── CLAUDE-THEAGENCY.md      — Agency methodology (imported by root CLAUDE.md)
+│   ├── README-*.md              — Human-facing onboarding docs
+│   ├── REFERENCE-*.md           — Agent-facing protocol docs (injected by ref-injector)
+│   ├── config/
+│   │   ├── agency.yaml          — project-specific Agency config (scaffold)
+│   │   ├── manifest.json        — tracks installed files, versions, dependencies
+│   │   ├── dependencies.yaml    — machine-readable dependency manifest
+│   │   └── settings-template.json — canonical permissions/hooks template (framework)
+│   ├── agents/                  — agent CLASS definitions (framework)
+│   │   ├── captain/agent.md     — per-repo coordination
+│   │   ├── tech-lead/agent.md   — implementation agent
+│   │   └── reviewer-*/agent.md  — review agents (code, design, security, test, scorer)
+│   ├── hooks/                   — session lifecycle hooks (config tier)
+│   ├── hookify/                 — shipped behavioral rules (config tier)
+│   ├── templates/               — scaffolding templates (TOOL.sh, TOOL.py)
+│   ├── tools/                   — ALL tools — bash, python (framework)
+│   │   ├── lib/                 — tool libraries (_log-helper, _colors, etc.)
+│   │   ├── handoff              — context bootstrap
+│   │   ├── git-safe             — safe git operations (read + merge + mv/unstage/restore)
+│   │   ├── git-captain          — captain-only git ops (push, tag, merge-to-master)
+│   │   ├── receipt-sign         — write signed QGR/RGR with five-hash chain
+│   │   ├── receipt-verify       — verify receipt validity
+│   │   ├── pr-create            — QG-gated PR creation
+│   │   └── ...                  — (worktree-*, dispatch, flag, etc.)
+│   ├── workstreams/             — shared workstream content
+│   │   ├── {W}/                 — per-workstream directory
+│   │   │   ├── qgr/            — quality gate receipts
+│   │   │   ├── rgr/            — review gate receipts
+│   │   │   ├── drafts/         — WIP before ratification
+│   │   │   ├── research/       — MARFI outputs
+│   │   │   ├── transcripts/    — 1B1 records
+│   │   │   ├── history/        — superseded versions
+│   │   │   └── KNOWLEDGE.md    — patterns + decisions
+│   │   └── ...
+│   └── starter-packs/           — starter kit templates for agency init
+│
+└── usr/                         — agent sandboxes (at PROJECT ROOT, not under claude/)
     └── {principal}/
-        └── {project}/           — one directory per project
+        └── {agent}/             — per-agent personal state
             ├── {agent}-handoff.md — current session state
-            ├── {project}-pvr-*.md
-            ├── {project}-ad-*.md
-            ├── {project}-plan-*.md
-            ├── code-reviews/    — captain review + dispatch files
-            ├── dispatches/      — incoming dispatches
-            ├── transcripts/     — discussion transcripts
-            └── history/         — archived handoffs and artifacts
+            ├── CLAUDE-{A}.md    — personal overlay on class doc
+            ├── tools/           — agent-written scripts
+            ├── tmp/             — scratch space (gitignored)
+            ├── history/         — personal archive
+            └── history/flotsam/ — uncategorized items
 ```
 
 **Three file tiers** (governs what `agency-update` does):

@@ -171,7 +171,7 @@ No other agent manages framework updates. This is captain-exclusive.
 ## How to Launch Me
 
 ```bash
-claude --agent captain --name captain
+claude --agent {P}/captain --name captain
 ```
 
 ## First-Time Users
@@ -210,7 +210,7 @@ When you launch me, I'll read the handoff and pick up where we left off.
 - Ask me any question about The Agency
 - Type `/agency-welcome` for the interactive tour
 - Read `CLAUDE.md` for the complete guide
-- Check `claude/docs/` for detailed documentation
+- Check `claude/REFERENCE-*.md` for detailed documentation
 
 ## Agency 2.0: Coordination Responsibilities
 
@@ -230,7 +230,7 @@ The captain also serves as the per-repo coordination agent on master branch.
 
 ### Code Review (`/captain-review`)
 - Run `/code-review` against each PR branch (7 review agents + scoring)
-- Generate review files: `usr/{principal}/{project}/code-reviews/{project}-review-YYYYMMDD-HHmm.md`
+- Generate review files: `claude/workstreams/{workstream}/reviews/{workstream}-review-YYYYMMDD-HHmm.md`
 - Generate dispatch files for issues with confidence >= 80
 - Commit review + dispatch files to master
 - Notify workstream agents via handoff files

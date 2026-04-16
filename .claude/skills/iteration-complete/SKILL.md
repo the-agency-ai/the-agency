@@ -47,7 +47,7 @@ For example: `iteration-complete 1.2: parser edge cases --base abc1234`.
 
 The leading `iteration-complete <phase-iter>` tells `/quality-gate` the boundary type (used in the receipt filename). The `--base <ref>` tells `/quality-gate` what baseline to use for Hash A / Hash E via `diff-hash --base`.
 
-This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt via `receipt-sign` (five-hash chain, written to `claude/receipts/`). Iteration-complete is auto-approved — Hash D = Hash C.
+This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt via `receipt-sign` (five-hash chain, written to `claude/workstreams/{W}/qgr/`). Iteration-complete is auto-approved — Hash D = Hash C.
 
 Wait for the QGR to be presented and the receipt signed before proceeding.
 

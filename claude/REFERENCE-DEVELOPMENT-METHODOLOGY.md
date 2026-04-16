@@ -126,26 +126,27 @@ Before starting any new phase, conduct a structured review of all living artifac
 
 ### File Organization
 
-All project work lives in `usr/{principal}/{project}/`. Each project gets its own directory.
+Agent sandboxes live in `usr/{principal}/{agent}/`. Shared workstream content lives in `claude/workstreams/{workstream}/`.
 
 ```
-usr/{principal}/
-  claude/              — Claude Code config (CLAUDE.md, commands, hookify, hooks, agents, refs)
-  scripts/             — cross-cutting scripts
-  {project}/           — one directory per project
-    handoff.md                          — current session handoff
-    {project}-seed-YYYYMMDD.md          — the starting context (optional)
-    {project}-pvr-YYYYMMDD.md           — Product Vision & Requirements
-    {project}-architecture-YYYYMMDD.md  — Architecture & Design
-    {project}-plan-YYYYMMDD.md          — The Plan
-    transcripts/                        — discussion records
-    code-reviews/                       — captain review and dispatch files
-    history/                            — archived artifacts
+usr/{principal}/{agent}/          — agent sandbox (slim)
+  tmp/                            — scratch space (gitignored)
+  tools/                          — agent scripts and ad hoc automation
+  history/                        — archived handoffs and artifacts
+    flotsam/                      — discarded drafts and experiments
+
+claude/workstreams/{workstream}/  — shared workstream content
+  qgr/                            — quality gate reports and review dispatches
+  rgr/                            — release gate reports
+  drafts/                         — work-in-progress documents
+  research/                       — MARFI research output
+  transcripts/                    — discussion records
+  history/                        — archived workstream artifacts
 ```
 
-- **One plan per project.** Date stamp bumps only on a new day.
-- **No nesting** — `usr/{principal}/folio/`, not `usr/{principal}/docs/projects/folio/`.
-- **Code** stays in `tools/`, `scripts/`, `source/` — not in sandbox project dirs.
+- **Agent sandboxes are slim** — only tmp/, tools/, history/, history/flotsam/.
+- **Shared content lives in workstreams** — QGRs, research, transcripts, drafts.
+- **Code** stays in `tools/`, `scripts/`, `source/` — not in sandbox dirs.
 
 ### Valueflow Stream Model
 

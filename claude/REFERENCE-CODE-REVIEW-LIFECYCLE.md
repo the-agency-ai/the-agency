@@ -33,12 +33,12 @@ If all PRs are clean (zero issues >= 80 confidence), skip steps 4-5 and proceed 
 
 When the captain runs `/captain-review`, it generates two files per project:
 
-1. **Review file** — `usr/{principal}/{project}/code-reviews/{project}-review-YYYYMMDD-HHmm.md`
+1. **Review file** — `claude/workstreams/{workstream}/qgr/{workstream}-review-YYYYMMDD-HHmm.md`
    - Full review output from all 7 agents
    - All issues with confidence scores
    - Filtered issues (>= 80) and below-threshold issues
 
-2. **Dispatch file** (if issues found) — `usr/{principal}/{project}/code-reviews/{project}-dispatch-YYYYMMDD-HHmm.md`
+2. **Dispatch file** (if issues found) — `claude/workstreams/{workstream}/qgr/{workstream}-dispatch-YYYYMMDD-HHmm.md`
    - Issues to fix, with file paths, line numbers, suggested fixes
    - Reviewed commit SHA for staleness checking
    - Instructions for the worktree agent
@@ -59,7 +59,7 @@ When you receive a review dispatch via ISCP:
 The dispatch file itself is **review input** from an independent 7-agent review process — not an action list. Use your judgment.
 
 1. **Merge master** to pick up the dispatch file (if the payload is on master)
-2. **Read the dispatch file** — most recent in `code-reviews/`
+2. **Read the dispatch file** — most recent in `claude/workstreams/{workstream}/qgr/`
 3. **Check the reviewed SHA** — verify it's in your branch history
 4. **Evaluate each finding for validity.** Investigate the code. Document your assessment.
 5. **For valid findings, write a bug-exposing test.** Confirm it fails (red).
@@ -87,10 +87,10 @@ Status values: **Fixed**, **Disputed** (with reasoning), **Stale** (code changed
 ### Review File Convention
 
 ```
-usr/{principal}/{project}/
-  code-reviews/
-    {project}-review-YYYYMMDD-HHmm.md
-    {project}-dispatch-YYYYMMDD-HHmm.md
+claude/workstreams/{workstream}/
+  qgr/
+    {workstream}-review-YYYYMMDD-HHmm.md
+    {workstream}-dispatch-YYYYMMDD-HHmm.md
 ```
 
 YYYYMMDD-HHmm timestamps — multiple reviews per day get unique timestamps. These files are committed to the repo and appear in the PR diff as the audit trail.
