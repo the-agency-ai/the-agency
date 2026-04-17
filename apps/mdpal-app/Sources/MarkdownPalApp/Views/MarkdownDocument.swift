@@ -14,7 +14,13 @@
 // `mdpal revision create --stdin`. Auto-save is FileWrapper only — no
 // revision, no CLI call. The distinction is handled here.
 //
+// Service selection (1B.6): MarkdownDocument uses CLIServiceFactory.make()
+// to resolve Real vs Mock at init time. MDPAL_MOCK=1 forces Mock for
+// previews/tests; cliNotFound falls back to Mock so the app is usable
+// on machines without an mdpal binary installed.
+//
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
+// Updated: 2026-04-17 Phase 1B.6 — CLIServiceFactory-driven service selection
 
 import SwiftUI
 import UniformTypeIdentifiers
@@ -48,14 +54,21 @@ public final class MarkdownDocument: ReferenceFileDocument {
 
     // MARK: - Initialization
 
+    /// Resolution of the current CLI service — surfaced so the UI can
+    /// show a banner indicating mock vs real mode when it matters.
+    public let cliResolution: CLIServiceFactory.Resolution
+
     /// Create a new empty document.
     public init() {
-        self.model = DocumentModel(cliService: MockCLIService())
+        let (service, resolution) = CLIServiceFactory.make()
+        self.model = DocumentModel(cliService: service)
+        self.cliResolution = resolution
     }
 
     /// Read a document from a FileWrapper.
     public required init(configuration: ReadConfiguration) throws {
-        let model = DocumentModel(cliService: MockCLIService())
+        let (service, resolution) = CLIServiceFactory.make()
+        let model = DocumentModel(cliService: service)
 
         guard let data = configuration.file.regularFileContents,
               let content = String(data: data, encoding: .utf8) else {
@@ -64,6 +77,7 @@ public final class MarkdownDocument: ReferenceFileDocument {
 
         model.rawContent = content
         self.model = model
+        self.cliResolution = resolution
 
         // Load sections/comments/flags asynchronously after init
         Task { @MainActor in
