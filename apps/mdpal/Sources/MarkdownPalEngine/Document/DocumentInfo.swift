@@ -63,8 +63,16 @@ public struct DocumentInfo: Equatable, Sendable, Codable {
     }
 
     /// Format a Date as a versionId timestamp (e.g., "20260404T1200Z").
+    ///
+    /// Locale and calendar are pinned to POSIX/Gregorian so the formatted year
+    /// matches the wire format on systems whose default locale uses a non-Gregorian
+    /// calendar (e.g., Thai Buddhist `th_TH`, Japanese Imperial). Without this pin,
+    /// the resulting versionId would fail to round-trip through `VersionId.parse`,
+    /// which is also pinned to POSIX/Gregorian.
     private static func formatVersionTimestamp(_ date: Date) -> String {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyyMMdd'T'HHmm'Z'"
         formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter.string(from: date)

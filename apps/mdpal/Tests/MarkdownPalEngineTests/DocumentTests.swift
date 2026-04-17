@@ -232,6 +232,28 @@ import Foundation
     #expect(info.authors == [])
 }
 
+// Regression: DocumentInfo.blank() must produce a versionId that round-trips
+// through VersionId.parse on every system, regardless of the user's default
+// locale or calendar (e.g., Thai Buddhist `th_TH`, Japanese Imperial). Without
+// the POSIX/Gregorian pin in formatVersionTimestamp, the formatted year would
+// not match the wire format on those systems.
+@Test func documentInfoBlankVersionIdRoundTrips() throws {
+    let info = DocumentInfo.blank()
+    let parsed = try #require(VersionId.parse(info.versionId))
+    #expect(parsed.version == 1)
+    #expect(parsed.revision == 1)
+    // The formatted timestamp must use 4-digit Gregorian year (e.g., 2026, not
+    // 2569 Buddhist or 8 Reiwa). The first 4 chars after "V0001.0001." are the
+    // year — assert they parse as a Gregorian year in a sane range.
+    let prefix = "V0001.0001."
+    let yearStart = info.versionId.index(info.versionId.startIndex, offsetBy: prefix.count)
+    let yearEnd = info.versionId.index(yearStart, offsetBy: 4)
+    let yearString = String(info.versionId[yearStart..<yearEnd])
+    let year = Int(yearString)
+    #expect(year != nil)
+    #expect((2020...2100).contains(year ?? 0), "year \(year ?? -1) outside Gregorian range — locale/calendar leak?")
+}
+
 // MARK: - DocumentMetadata
 
 @Test func documentMetadataBlank() {

@@ -1052,13 +1052,18 @@ private func fixtureDate(
 
 
 
-@Test func pruneAbortsWhenLatestChangesDuringPrune() throws {
-    // Direct test of the gate is impossible without thread orchestration.
-    // This exercises the equivalent code path: after a successful prune,
-    // verify the post-merge gate compares the captured initial latest
-    // against the current latest. We simulate by creating a bundle,
-    // calling prune, and confirming the result reflects the gate's check
-    // (no exception, prune succeeds when no concurrent write occurs).
+@Test func pruneSucceedsWhenNoConcurrentWriter() throws {
+    // The post-merge gate (DocumentBundle.swift ~line 379) aborts a prune
+    // if a concurrent writer changed `latest` between capture-time and
+    // splice-time. Triggering the gate requires multi-thread orchestration
+    // and is not directly exercised here.
+    //
+    // This test pins the *no-concurrency* contract: a sequential prune
+    // (no other writer) MUST complete cleanly. It exists to catch a
+    // regression where the gate fires spuriously and breaks the happy path.
+    //
+    // True gate-firing behavior is tracked under the deferred Phase 1.5
+    // backlog (see qg-triage notes: TOCTOU coverage gap).
     let path = uniqueBundlePath()
     defer { cleanup(path) }
     let t0 = fixtureDate()
