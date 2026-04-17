@@ -31,6 +31,21 @@ public enum CLIServiceFactory {
         case mockRequested
         /// Real CLI couldn't be found; fell back to Mock so the app still runs.
         case mockFallback(reason: String)
+
+        /// User-visible banner text. Nil when the resolution is production
+        /// (real CLI in use) — no banner needed. Used by the app's
+        /// CLIServiceBanner view (1C.1) so the user knows when they're
+        /// running against mock data, and why.
+        public var bannerMessage: String? {
+            switch self {
+            case .real:
+                return nil
+            case .mockRequested:
+                return "Running in mock mode (MDPAL_MOCK). No changes will reach a real bundle."
+            case .mockFallback(let reason):
+                return "`mdpal` CLI not found — running with mock data. \(reason)"
+            }
+        }
     }
 
     /// Construct a service and report the resolution. Callers that care

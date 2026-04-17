@@ -2537,6 +2537,33 @@ func testDefaultProcessRunnerRespectsMaxOutputBytes() async throws {
                "truncation marker must be appended to stderr")
 }
 
+// MARK: - Phase 1C.1: CLIServiceBanner message derivation
+
+func testResolutionBannerMessageIsNilForReal() throws {
+    let resolution: CLIServiceFactory.Resolution = .real(executablePath: "/usr/local/bin/mdpal")
+    try expectNil(resolution.bannerMessage,
+                  "production path must not surface a banner message")
+}
+
+func testResolutionBannerMessageMentionsMockWhenRequested() throws {
+    let resolution: CLIServiceFactory.Resolution = .mockRequested
+    let message = try expectNotNilUnwrap(resolution.bannerMessage)
+    try expect(message.contains("mock mode"), equals: true,
+               "mockRequested banner must tell the user they're in mock mode")
+    try expect(message.contains("MDPAL_MOCK"), equals: true,
+               "message must name the env var so the user can unset it")
+}
+
+func testResolutionBannerMessageIncludesReasonOnFallback() throws {
+    let reason = "no `mdpal` binary found on MDPAL_BIN, PATH, or fallbacks"
+    let resolution: CLIServiceFactory.Resolution = .mockFallback(reason: reason)
+    let message = try expectNotNilUnwrap(resolution.bannerMessage)
+    try expect(message.contains("not found"), equals: true,
+               "fallback banner must name the problem")
+    try expect(message.contains(reason), equals: true,
+               "fallback banner must include the diagnostic reason verbatim")
+}
+
 // MARK: - Runner
 
 @main
@@ -2713,6 +2740,11 @@ struct TestRunner {
         run("ProcessResult.sanitize strips ANSI + control chars", testProcessResultSanitizeStripsAnsiAndControlChars)
         run("ProcessResult.sanitize caps length with marker", testProcessResultSanitizeCapsLength)
         await runAsync("DefaultProcessRunner respects maxOutputBytes", testDefaultProcessRunnerRespectsMaxOutputBytes)
+
+        print("\nCLIServiceBanner message derivation (Phase 1C.1):")
+        run("Resolution.bannerMessage is nil for real", testResolutionBannerMessageIsNilForReal)
+        run("Resolution.bannerMessage mentions mock when requested", testResolutionBannerMessageMentionsMockWhenRequested)
+        run("Resolution.bannerMessage includes reason on fallback", testResolutionBannerMessageIncludesReasonOnFallback)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 
