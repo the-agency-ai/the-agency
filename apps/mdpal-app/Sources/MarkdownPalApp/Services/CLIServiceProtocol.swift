@@ -12,6 +12,9 @@
 //
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
 // Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
+// Updated: 2026-04-17 Phase 1C.3 — persistence surface: createRevision,
+//          listHistory, showVersion, bumpVersion. Adds typed
+//          .bundleConflict mapping for stale --base-revision writes.
 
 import Foundation
 
@@ -62,6 +65,27 @@ public protocol CLIServiceProtocol: Sendable {
     /// Clear a flag from a section.
     /// Maps to: `mdpal clear-flag <slug> <bundle>`
     func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult
+
+    // MARK: - Persistence (Phase 1C)
+
+    /// Create a new revision of the bundle from the given content, with
+    /// optional optimistic-concurrency anchor. Maps to:
+    /// `mdpal revision create <bundle> --stdin [--base-revision <versionId>]`.
+    /// If `baseRevision` is stale, throws `.bundleConflict(...)`.
+    func createRevision(bundle: BundlePath, content: String,
+                        baseRevision: String?) async throws -> RevisionInfo
+
+    /// List all revisions in the bundle, newest-first.
+    /// Maps to: `mdpal history <bundle>`. Service unwraps `HistoryResponse`.
+    func listHistory(bundle: BundlePath) async throws -> [RevisionInfo]
+
+    /// Return current version info. Maps to: `mdpal version show <bundle>`.
+    func showVersion(bundle: BundlePath) async throws -> VersionInfo
+
+    /// Bump the bundle's major version. Maps to: `mdpal version bump <bundle>`.
+    /// Returns the new version info (previous version included so the UI
+    /// can surface "vN → vN+1" feedback).
+    func bumpVersion(bundle: BundlePath) async throws -> VersionBumpResult
 }
 
 /// Errors from CLI operations.

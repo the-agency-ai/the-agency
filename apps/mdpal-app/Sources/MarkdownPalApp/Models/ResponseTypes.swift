@@ -80,6 +80,80 @@ public struct ClearFlagResult: Codable, Hashable {
     }
 }
 
+// MARK: - Persistence Response Types (Phase 1C)
+
+/// One revision in a bundle's history. Used both as the success shape of
+/// `mdpal revision create` (latest == nil, since the create doesn't
+/// emit it) and as the element shape of `mdpal history`'s revision list
+/// (latest present).
+public struct RevisionInfo: Codable, Hashable {
+    public let versionId: String
+    public let version: Int
+    public let revision: Int
+    public let timestamp: Date
+    public let filePath: String
+    /// Only set by `mdpal history` output — marks which revision the
+    /// `latest.md` symlink currently points at. Nil for fresh-create.
+    public let latest: Bool?
+
+    public init(versionId: String, version: Int, revision: Int,
+                timestamp: Date, filePath: String, latest: Bool? = nil) {
+        self.versionId = versionId
+        self.version = version
+        self.revision = revision
+        self.timestamp = timestamp
+        self.filePath = filePath
+        self.latest = latest
+    }
+}
+
+/// Wrapper for `mdpal history <bundle>`. Service unwraps to the array.
+public struct HistoryResponse: Codable {
+    public let revisions: [RevisionInfo]
+    public let count: Int
+    public let currentVersion: Int
+
+    public init(revisions: [RevisionInfo], count: Int, currentVersion: Int) {
+        self.revisions = revisions
+        self.count = count
+        self.currentVersion = currentVersion
+    }
+}
+
+/// Response from `mdpal version show <bundle>`.
+public struct VersionInfo: Codable, Hashable {
+    public let version: Int
+    public let versionId: String
+    public let revision: Int
+    public let timestamp: Date
+
+    public init(version: Int, versionId: String, revision: Int, timestamp: Date) {
+        self.version = version
+        self.versionId = versionId
+        self.revision = revision
+        self.timestamp = timestamp
+    }
+}
+
+/// Response from `mdpal version bump <bundle>`. Separate type from
+/// `VersionInfo` because `previousVersion` is only meaningful on bump.
+public struct VersionBumpResult: Codable, Hashable {
+    public let previousVersion: Int
+    public let version: Int
+    public let versionId: String
+    public let revision: Int
+    public let timestamp: Date
+
+    public init(previousVersion: Int, version: Int, versionId: String,
+                revision: Int, timestamp: Date) {
+        self.previousVersion = previousVersion
+        self.version = version
+        self.versionId = versionId
+        self.revision = revision
+        self.timestamp = timestamp
+    }
+}
+
 // MARK: - List Response Wrappers
 
 /// Wrapper for `mdpal comments` response.

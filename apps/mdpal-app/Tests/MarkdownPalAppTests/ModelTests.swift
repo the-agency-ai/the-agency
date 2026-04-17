@@ -857,6 +857,22 @@ final class ToggleTrackingService: CLIServiceProtocol, @unchecked Sendable {
         flags.removeAll { $0.slug == slug }
         return ClearFlagResult(slug: slug, flagged: false)
     }
+    // Phase 1C.3 persistence — delegate to the default Mock implementations
+    // since the toggle-tracking tests don't exercise them.
+    private let mock = MockCLIService()
+    func createRevision(bundle: BundlePath, content: String,
+                        baseRevision: String?) async throws -> RevisionInfo {
+        try await mock.createRevision(bundle: bundle, content: content, baseRevision: baseRevision)
+    }
+    func listHistory(bundle: BundlePath) async throws -> [RevisionInfo] {
+        try await mock.listHistory(bundle: bundle)
+    }
+    func showVersion(bundle: BundlePath) async throws -> VersionInfo {
+        try await mock.showVersion(bundle: bundle)
+    }
+    func bumpVersion(bundle: BundlePath) async throws -> VersionBumpResult {
+        try await mock.bumpVersion(bundle: bundle)
+    }
 }
 
 /// Service that throws on list/read operations when `shouldFail` is true.
@@ -909,6 +925,21 @@ final class FailingToggleService: CLIServiceProtocol, @unchecked Sendable {
     }
     func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
         try await inner.clearFlag(slug: slug, bundle: bundle)
+    }
+    func createRevision(bundle: BundlePath, content: String,
+                        baseRevision: String?) async throws -> RevisionInfo {
+        try await inner.createRevision(bundle: bundle, content: content, baseRevision: baseRevision)
+    }
+    func listHistory(bundle: BundlePath) async throws -> [RevisionInfo] {
+        if shouldFail { throw FailureError() }
+        return try await inner.listHistory(bundle: bundle)
+    }
+    func showVersion(bundle: BundlePath) async throws -> VersionInfo {
+        if shouldFail { throw FailureError() }
+        return try await inner.showVersion(bundle: bundle)
+    }
+    func bumpVersion(bundle: BundlePath) async throws -> VersionBumpResult {
+        try await inner.bumpVersion(bundle: bundle)
     }
 }
 
@@ -2537,6 +2568,183 @@ func testDefaultProcessRunnerRespectsMaxOutputBytes() async throws {
                "truncation marker must be appended to stderr")
 }
 
+// MARK: - Phase 1C.3: persistence — createRevision/listHistory/showVersion/bumpVersion
+
+// --- createRevision ------------------------------------------------------
+
+private let revisionCreateHappyJSON = """
+{
+  "versionId": "V0001.0004.20260417T1030Z",
+  "version": 1,
+  "revision": 4,
+  "timestamp": "2026-04-17T10:30:00Z",
+  "filePath": "V0001.0004.20260417T1030Z.md"
+}
+"""
+
+func testRealCLIServiceCreateRevisionHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(revisionCreateHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let rev = try await svc.createRevision(
+            bundle: BundlePath("/abs/b.mdpal"),
+            content: "# New content\n",
+            baseRevision: "V0001.0003.20260417T1000Z"
+        )
+        try expect(rev.versionId, equals: "V0001.0004.20260417T1030Z")
+        try expect(rev.revision, equals: 4)
+        try expect(rev.filePath, equals: "V0001.0004.20260417T1030Z.md")
+        try expectNil(rev.latest, "create response doesn't carry latest")
+
+        // argv: revision create <bundle> --stdin --base-revision <id>
+        try expect(runner.lastArgs ?? [],
+                   equals: ["revision", "create", "/abs/b.mdpal", "--stdin",
+                            "--base-revision", "V0001.0003.20260417T1000Z"])
+        try expect(runner.lastStdin ?? Data(),
+                   equals: Data("# New content\n".utf8),
+                   "content must go via stdin per spec")
+    }
+}
+
+func testRealCLIServiceCreateRevisionOmitsBaseRevisionWhenNil() async throws {
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(revisionCreateHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.createRevision(
+            bundle: BundlePath("/b.mdpal"), content: "x", baseRevision: nil)
+        let argv = runner.lastArgs ?? []
+        try expect(argv.contains("--base-revision"), equals: false,
+                   "--base-revision must be omitted when caller passes nil")
+    }
+}
+
+func testRealCLIServiceCreateRevisionMapsBundleConflictEnvelope() async throws {
+    // Exit 4 + structured bundleConflict stderr → typed .bundleConflict.
+    let stderr = """
+    { "error": "bundleConflict", "message": "stale base",
+      "details": { "baseRevision": "V0001.0002", "currentRevision": "V0001.0003" } }
+    """
+    let canned = ProcessResult(
+        exitCode: 4, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.createRevision(
+                bundle: BundlePath("/b.mdpal"),
+                content: "x",
+                baseRevision: "V0001.0002")
+            throw TestFailure(message: "Expected bundleConflict", file: #file, line: #line)
+        } catch let CLIServiceError.bundleConflict(base, current) {
+            try expect(base, equals: "V0001.0002")
+            try expect(current, equals: "V0001.0003")
+        }
+    }
+}
+
+// --- listHistory ---------------------------------------------------------
+
+private let historyHappyJSON = """
+{
+  "revisions": [
+    {
+      "versionId": "V0001.0003.20260417T1000Z",
+      "version": 1, "revision": 3,
+      "timestamp": "2026-04-17T10:00:00Z",
+      "filePath": "V0001.0003.20260417T1000Z.md",
+      "latest": true
+    },
+    {
+      "versionId": "V0001.0002.20260417T0900Z",
+      "version": 1, "revision": 2,
+      "timestamp": "2026-04-17T09:00:00Z",
+      "filePath": "V0001.0002.20260417T0900Z.md",
+      "latest": false
+    }
+  ],
+  "count": 2,
+  "currentVersion": 1
+}
+"""
+
+func testRealCLIServiceListHistoryHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(historyHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let history = try await svc.listHistory(bundle: BundlePath("/abs/b.mdpal"))
+        try expect(history.count, equals: 2, "service must unwrap HistoryResponse.revisions")
+        try expect(history[0].latest ?? false, equals: true,
+                   "first entry is the current latest per spec newest-first ordering")
+        try expect(history[1].latest ?? true, equals: false)
+
+        try expect(runner.lastArgs ?? [], equals: ["history", "/abs/b.mdpal"])
+    }
+}
+
+func testRealCLIServiceListHistoryMapsMalformedJSONToParseError() async throws {
+    let canned = ProcessResult(exitCode: 0, stdout: Data("not json".utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.listHistory(bundle: BundlePath("/b.mdpal"))
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected
+        }
+    }
+}
+
+// --- showVersion / bumpVersion ------------------------------------------
+
+func testRealCLIServiceShowVersionHappyPath() async throws {
+    let json = """
+    { "version": 1, "versionId": "V0001.0003.20260417T1000Z",
+      "revision": 3, "timestamp": "2026-04-17T10:00:00Z" }
+    """
+    let canned = ProcessResult(exitCode: 0, stdout: Data(json.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let v = try await svc.showVersion(bundle: BundlePath("/abs/b.mdpal"))
+        try expect(v.version, equals: 1)
+        try expect(v.revision, equals: 3)
+        try expect(runner.lastArgs ?? [], equals: ["version", "show", "/abs/b.mdpal"])
+    }
+}
+
+func testRealCLIServiceBumpVersionHappyPath() async throws {
+    let json = """
+    { "previousVersion": 1, "version": 2,
+      "versionId": "V0002.0001.20260417T1100Z",
+      "revision": 1, "timestamp": "2026-04-17T11:00:00Z" }
+    """
+    let canned = ProcessResult(exitCode: 0, stdout: Data(json.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let result = try await svc.bumpVersion(bundle: BundlePath("/abs/b.mdpal"))
+        try expect(result.previousVersion, equals: 1)
+        try expect(result.version, equals: 2,
+                   "bumpVersion must return the NEW version, not the previous")
+        try expect(runner.lastArgs ?? [], equals: ["version", "bump", "/abs/b.mdpal"])
+    }
+}
+
+// --- Mock service smoke tests -------------------------------------------
+
+func testMockCLIServiceCreateRevisionReturnsPlausibleInfo() async throws {
+    let mock = MockCLIService()
+    let r = try await mock.createRevision(
+        bundle: BundlePath("/b.mdpal"),
+        content: "x",
+        baseRevision: nil
+    )
+    try expect(r.versionId.hasPrefix("V0001."), equals: true,
+               "mock versionId format matches CLI spec prefix")
+    try expect(r.revision > 0, equals: true)
+}
+
+func testMockCLIServiceListHistoryReturnsCannedRevisions() async throws {
+    let mock = MockCLIService()
+    let h = try await mock.listHistory(bundle: BundlePath("/b.mdpal"))
+    try expect(h.count, equals: 2, "mock ships 2 canned history revisions")
+    try expect(h[0].latest ?? false, equals: true,
+               "first entry marked latest per spec newest-first")
+}
+
 // MARK: - Phase 1C.2: commentNotFound typed envelope mapping
 
 func testCLIErrorCommentNotFoundEnvelopeDecodes() throws {
@@ -2804,6 +3012,17 @@ struct TestRunner {
         run("ProcessResult.sanitize strips ANSI + control chars", testProcessResultSanitizeStripsAnsiAndControlChars)
         run("ProcessResult.sanitize caps length with marker", testProcessResultSanitizeCapsLength)
         await runAsync("DefaultProcessRunner respects maxOutputBytes", testDefaultProcessRunnerRespectsMaxOutputBytes)
+
+        print("\nPersistence: createRevision / history / version (Phase 1C.3):")
+        await runAsync("createRevision happy path + argv + stdin + omits base when nil", testRealCLIServiceCreateRevisionHappyPath)
+        await runAsync("createRevision omits --base-revision when nil", testRealCLIServiceCreateRevisionOmitsBaseRevisionWhenNil)
+        await runAsync("createRevision maps bundleConflict envelope", testRealCLIServiceCreateRevisionMapsBundleConflictEnvelope)
+        await runAsync("listHistory happy path unwraps + newest-first", testRealCLIServiceListHistoryHappyPath)
+        await runAsync("listHistory maps malformed JSON to parseError", testRealCLIServiceListHistoryMapsMalformedJSONToParseError)
+        await runAsync("showVersion happy path + argv", testRealCLIServiceShowVersionHappyPath)
+        await runAsync("bumpVersion happy path returns new version", testRealCLIServiceBumpVersionHappyPath)
+        await runAsync("MockCLIService createRevision returns plausible info", testMockCLIServiceCreateRevisionReturnsPlausibleInfo)
+        await runAsync("MockCLIService listHistory returns canned revisions", testMockCLIServiceListHistoryReturnsCannedRevisions)
 
         print("\ncommentNotFound typed mapping (Phase 1C.2):")
         run("CLIErrorCommentNotFound envelope decodes", testCLIErrorCommentNotFoundEnvelopeDecodes)

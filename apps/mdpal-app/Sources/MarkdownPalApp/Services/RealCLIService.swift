@@ -424,6 +424,70 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         )
     }
 
+    // MARK: - Persistence (Phase 1C.3)
+
+    /// Maps `bundleConflict` envelopes to typed `.bundleConflict`. Shared
+    /// by revision-creation (the only 1C command that emits it in dispatch
+    /// #23's spec; extend when more consumers land).
+    private static let bundleConflictMapper: (CLIErrorResponse) -> CLIServiceError? = { envelope in
+        switch (envelope.error, envelope.details) {
+        case ("bundleConflict", .some(.bundleConflict(let base, let current))):
+            return .bundleConflict(baseRevision: base, currentRevision: current)
+        default:
+            return nil
+        }
+    }
+
+    /// Maps to `mdpal revision create <bundle> --stdin [--base-revision <versionId>]`.
+    /// `--base-revision` enables optimistic concurrency: if the current
+    /// latest has drifted past the caller's anchor, the CLI emits exit 4
+    /// with a bundleConflict envelope.
+    public func createRevision(
+        bundle: BundlePath,
+        content: String,
+        baseRevision: String?
+    ) async throws -> RevisionInfo {
+        var args = ["revision", "create", bundle.path, "--stdin"]
+        if let baseRevision {
+            args.append(contentsOf: ["--base-revision", baseRevision])
+        }
+        return try await runCommandWithEnvelope(
+            args,
+            stdin: Data(content.utf8),
+            as: RevisionInfo.self,
+            envelopeMapper: Self.bundleConflictMapper
+        )
+    }
+
+    /// Maps to `mdpal history <bundle>`. Service unwraps HistoryResponse
+    /// to just the revision array; `count` and `currentVersion` are
+    /// derivable from the array but mdpal-cli computes them once, so if
+    /// the UI needs them later we can expose via a sibling method.
+    public func listHistory(bundle: BundlePath) async throws -> [RevisionInfo] {
+        let response = try await runCommand(
+            ["history", bundle.path],
+            as: HistoryResponse.self
+        )
+        return response.revisions
+    }
+
+    /// Maps to `mdpal version show <bundle>`.
+    public func showVersion(bundle: BundlePath) async throws -> VersionInfo {
+        try await runCommand(
+            ["version", "show", bundle.path],
+            as: VersionInfo.self
+        )
+    }
+
+    /// Maps to `mdpal version bump <bundle>`. Returns both the new
+    /// version and the previous one for UX feedback.
+    public func bumpVersion(bundle: BundlePath) async throws -> VersionBumpResult {
+        try await runCommand(
+            ["version", "bump", bundle.path],
+            as: VersionBumpResult.self
+        )
+    }
+
     /// The resolved binary path, exposed for diagnostics/tests.
     public var executablePath: String { cli.executable }
 }
