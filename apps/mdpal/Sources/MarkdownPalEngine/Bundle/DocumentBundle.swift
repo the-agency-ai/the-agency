@@ -213,9 +213,35 @@ public final class DocumentBundle {
 
     /// Create a new revision from modified content.
     /// Increments the revision number and updates both latest pointers.
+    ///
+    /// When `expectedBase` is supplied, the bundle's current latest revision
+    /// must equal it exactly OR `EngineError.bundleConflict` is thrown
+    /// BEFORE the new file is written. This closes the TOCTOU window
+    /// between the caller's "I last saw revision X" check and this method's
+    /// own latest-discovery in `listRevisions`. Pass nil (the default) to
+    /// retain the existing append-anything semantics.
     @discardableResult
-    public func createRevision(content: String, timestamp: Date = Date()) throws -> RevisionInfo {
+    public func createRevision(
+        content: String,
+        timestamp: Date = Date(),
+        expectedBase: String? = nil
+    ) throws -> RevisionInfo {
         let revisions = try listRevisions()
+
+        // Optimistic concurrency: if the caller named the base they expect,
+        // verify the bundle hasn't moved underneath them. Done INSIDE the
+        // engine so the file-existence check at writeRevision time and the
+        // base check share the same `revisions` snapshot.
+        if let expectedBase {
+            let currentBase = revisions.last?.versionId ?? ""
+            if currentBase != expectedBase {
+                throw EngineError.bundleBaseConflict(
+                    expected: expectedBase,
+                    actual: currentBase
+                )
+            }
+        }
+
         let nextVersion: Int
         let nextRevision: Int
         if let latest = revisions.last {

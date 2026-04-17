@@ -62,17 +62,6 @@ struct EditCommand: ParsableCommand {
     }
 
     func run() throws {
-        // Reject interactive-TTY stdin with no redirect — would hang forever.
-        // Only check when --stdin is requested; otherwise irrelevant.
-        if stdin && isatty(fileno(stdin_pointer())) != 0 {
-            let envelope = ErrorEnvelope(
-                error: "stdinIsTTY",
-                message: "stdin is a terminal; pipe content or use --content"
-            )
-            envelope.emit(format: output.format)
-            throw MdpalExitCode.generalError.argumentParserCode
-        }
-
         // Resolve bundle BEFORE the do/catch so we can use it inside the
         // versionConflict-specific path below.
         let resolvedBundle: DocumentBundle
@@ -91,17 +80,13 @@ struct EditCommand: ParsableCommand {
             if let content {
                 newContent = content
             } else {
-                // --stdin: read all of stdin to EOF.
-                let data = FileHandle.standardInput.readDataToEndOfFile()
-                guard let decoded = String(data: data, encoding: .utf8) else {
-                    let envelope = ErrorEnvelope(
-                        error: "invalidEncoding",
-                        message: "stdin contained non-UTF-8 bytes"
-                    )
-                    envelope.emit(format: output.format)
+                // --stdin: read all of stdin via the shared bounded reader.
+                do {
+                    newContent = try StdinReader.readAll()
+                } catch let f as StdinReader.ReadFailure {
+                    f.envelope.emit(format: output.format)
                     throw MdpalExitCode.generalError.argumentParserCode
                 }
-                newContent = decoded
             }
 
             let updated = try document.editSection(
@@ -169,12 +154,6 @@ struct EditCommand: ParsableCommand {
             throw exit.argumentParserCode
         }
     }
-}
-
-// Helper to get FILE* for isatty — avoids `Darwin.stdin` collision
-// with Swift's `stdin` keyword on macOS.
-private func stdin_pointer() -> UnsafeMutablePointer<FILE> {
-    fdopen(0, "r")
 }
 
 /// Wire shape for `mdpal edit` success payload. Per dispatched spec:

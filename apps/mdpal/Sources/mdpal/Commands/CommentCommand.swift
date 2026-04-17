@@ -76,21 +76,17 @@ struct CommentCommand: ParsableCommand {
             let resolvedBundle = try BundleResolver.resolve(self.bundle)
             let document = try resolvedBundle.currentDocument()
 
-            // Resolve text from --text or stdin.
+            // Resolve text from --text or stdin (bounded read).
             let resolvedText: String
             if let text {
                 resolvedText = text
             } else {
-                let data = FileHandle.standardInput.readDataToEndOfFile()
-                guard let decoded = String(data: data, encoding: .utf8) else {
-                    let envelope = ErrorEnvelope(
-                        error: "invalidEncoding",
-                        message: "stdin contained non-UTF-8 bytes"
-                    )
-                    envelope.emit(format: output.format)
+                do {
+                    resolvedText = try StdinReader.readAll()
+                } catch let f as StdinReader.ReadFailure {
+                    f.envelope.emit(format: output.format)
                     throw MdpalExitCode.generalError.argumentParserCode
                 }
-                resolvedText = decoded
             }
 
             guard let commentType = CommentType(rawValue: type) else {

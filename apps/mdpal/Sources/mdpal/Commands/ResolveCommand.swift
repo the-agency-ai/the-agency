@@ -57,16 +57,12 @@ struct ResolveCommand: ParsableCommand {
             if let response {
                 resolvedResponse = response
             } else {
-                let data = FileHandle.standardInput.readDataToEndOfFile()
-                guard let decoded = String(data: data, encoding: .utf8) else {
-                    let envelope = ErrorEnvelope(
-                        error: "invalidEncoding",
-                        message: "stdin contained non-UTF-8 bytes"
-                    )
-                    envelope.emit(format: output.format)
+                do {
+                    resolvedResponse = try StdinReader.readAll()
+                } catch let f as StdinReader.ReadFailure {
+                    f.envelope.emit(format: output.format)
                     throw MdpalExitCode.generalError.argumentParserCode
                 }
-                resolvedResponse = decoded
             }
 
             let comment = try document.resolveComment(

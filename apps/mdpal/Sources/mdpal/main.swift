@@ -29,8 +29,8 @@ struct Mdpal: ParsableCommand {
             JSON is the default output; pass --format text for human-readable output.
 
             Use --version to print the tool version. The `version` subcommand
-            group is reserved for document-version operations
-            (`mdpal version show/bump <bundle>`) in a later iteration.
+            group operates on the document version of a bundle
+            (`mdpal version show/bump <bundle>`).
 
             Exit codes (see error envelope `error` field for category):
               0 — success
@@ -50,6 +50,13 @@ struct Mdpal: ParsableCommand {
             FlagCommand.self,
             FlagsCommand.self,
             ClearFlagCommand.self,
+            CreateCommand.self,
+            HistoryCommand.self,
+            VersionCommand.self,
+            RevisionCommand.self,
+            DiffCommand.self,
+            PruneCommand.self,
+            RefreshCommand.self,
         ]
     )
 }

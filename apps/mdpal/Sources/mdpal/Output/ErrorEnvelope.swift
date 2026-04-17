@@ -171,6 +171,24 @@ enum EngineErrorMapper {
                 ErrorEnvelope(error: "bundleConflict", message: message),
                 .bundleConflict
             )
+        case .bundleBaseConflict(let expected, let actual):
+            // Spec wire shape (line 384-392 of dispatch-cli-json-output-shapes):
+            // {error: "bundleConflict", details: {baseRevision, currentRevision}}.
+            // Discriminator stays "bundleConflict" so mdpal-app's switch is
+            // unchanged; structured fields land in details for callers that
+            // need to re-fetch and merge.
+            let details: [String: AnyCodable] = [
+                "baseRevision": AnyCodable(expected),
+                "currentRevision": AnyCodable(actual),
+            ]
+            return (
+                ErrorEnvelope(
+                    error: "bundleConflict",
+                    message: "Base revision \(expected) does not match current latest \(actual)",
+                    details: details
+                ),
+                .bundleConflict
+            )
         case .invalidBundlePath(let path, let reason):
             let details: [String: AnyCodable] = [
                 "path": AnyCodable(path),

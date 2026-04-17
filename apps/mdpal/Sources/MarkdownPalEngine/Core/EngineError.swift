@@ -60,4 +60,11 @@ public enum EngineError: Error, Equatable, Sendable {
     /// already exists, or other runtime contention. Distinct from
     /// `invalidBundlePath`, which signals static structural problems.
     case bundleConflict(String)
+
+    /// Optimistic-concurrency rejection at the bundle level: a write was
+    /// attempted with a `--base-revision` that no longer matches the
+    /// bundle's current latest. Carries both ids so callers can re-fetch
+    /// and merge. Distinct from the generic `bundleConflict(String)` so
+    /// the wire envelope's `details` block carries structured fields.
+    case bundleBaseConflict(expected: String, actual: String)
 }
