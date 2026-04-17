@@ -55,6 +55,7 @@ Subcommands:
   checkout-branch <name>         Create and switch to a new branch
   switch-branch <name>           Switch to an existing branch (including main)
   sync-main                      Fast-forward main to origin/main (requires clean tree, on main)
+  merge-from-origin              Merge origin/main into local main (handles divergence, uses merge commit)
   merge-continue                 Conclude an in-progress merge (after conflict resolution)
   push [args]                    Push to remote (blocks main/master, blocks bare --force)
   fetch                          Fetch from origin
@@ -110,10 +111,13 @@ cmd_checkout_branch() {
 
     local name="$1"
 
-    # Validate branch name: must start with lowercase letter or digit,
-    # then lowercase letters, digits, dots, underscores, hyphens, slashes
-    if [[ ! "$name" =~ ^[a-z0-9][a-z0-9._/-]*$ ]]; then
-        die "Invalid branch name '$name'. Must match: [a-z0-9][a-z0-9._/-]*"
+    # Validate branch name: must start with an ASCII letter or digit,
+    # then ASCII letters, digits, dots, underscores, hyphens, slashes.
+    # D44-R3 (issue #428): accept uppercase so release names like 'D7-R1'
+    # or feature branches like 'D44-R3-regex-fix' are permitted. Previously
+    # lowercase-only, which rejected the convention used across workstreams.
+    if [[ ! "$name" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/-]*$ ]]; then
+        die "Invalid branch name '$name'. Must match: [a-zA-Z0-9][a-zA-Z0-9._/-]*"
     fi
 
     if git show-ref --verify "refs/heads/$name" &>/dev/null; then
@@ -178,6 +182,76 @@ cmd_sync_main() {
         echo "${GREEN}sync-main complete.${NC}"
     else
         die "Fast-forward failed — $main_branch has diverged from origin/$main_branch. Investigate manually."
+    fi
+}
+
+# --- Subcommand: merge-from-origin ---
+# Merge origin/main into the current main branch. Unlike sync-main (ff-only),
+# this uses a real merge commit so it handles post-squash-PR divergence.
+# Required for captains who need to merge origin into local main without
+# creating a temp branch just to run merge-from-master --remote.
+# Issue #171 — captain sync gap that drove AGENCY_ALLOW_RAW pressure.
+cmd_merge_from_origin() {
+    [[ $# -gt 0 ]] && die "Usage: git-captain merge-from-origin (takes no arguments)"
+
+    local main_branch
+    main_branch=$(detect_main_branch)
+
+    local current_branch
+    current_branch=$(git branch --show-current)
+
+    if [[ -z "$current_branch" ]]; then
+        die "HEAD is detached. Switch to $main_branch first: git-captain switch-branch $main_branch"
+    fi
+
+    if [[ "$current_branch" != "$main_branch" ]]; then
+        die "Must be on $main_branch to merge-from-origin. Currently on: $current_branch"
+    fi
+
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        die "Working tree is dirty. Commit or stash before merge-from-origin."
+    fi
+
+    if ! git show-ref --verify "refs/remotes/origin/$main_branch" &>/dev/null; then
+        die "origin/$main_branch does not exist. Run 'git-captain fetch' first."
+    fi
+
+    # Verify merge-base exists — reject unrelated histories
+    if ! git merge-base "origin/$main_branch" HEAD &>/dev/null; then
+        die "No common ancestor with origin/$main_branch. Investigate manually."
+    fi
+
+    # Divergence check
+    local ahead behind
+    ahead=$(git rev-list --count "origin/$main_branch..HEAD" 2>/dev/null || echo 0)
+    behind=$(git rev-list --count "HEAD..origin/$main_branch" 2>/dev/null || echo 0)
+
+    if [[ "$behind" == "0" ]]; then
+        echo "${GREEN}Already up to date with origin/$main_branch.${NC}"
+        return 0
+    fi
+
+    if [[ "$ahead" == "0" ]]; then
+        # Can fast-forward
+        echo "${BLUE}Fast-forwarding $main_branch to origin/$main_branch...${NC}"
+        if git merge --ff-only "origin/$main_branch"; then
+            echo "${GREEN}merge-from-origin complete (fast-forward).${NC}"
+        else
+            die "Fast-forward failed unexpectedly."
+        fi
+    else
+        # Real merge needed (divergence, e.g., after squash PR)
+        echo "${BLUE}Merging origin/$main_branch into $main_branch (ahead: $ahead, behind: $behind)...${NC}"
+        # Tag for recovery (post-merge skill does the same)
+        local recovery_tag
+        recovery_tag="sync/pre-merge-$(date +%Y%m%d-%H%M%S)"
+        git tag "$recovery_tag" || true
+        if git merge "origin/$main_branch" -m "Merge origin/$main_branch (captain sync)"; then
+            echo "${GREEN}merge-from-origin complete (merge commit).${NC}"
+            echo "${BLUE}Recovery tag: $recovery_tag${NC}"
+        else
+            die "Merge failed — likely conflicts. Resolve with 'git-safe resolve-conflict', then 'git-captain merge-continue'."
+        fi
     fi
 }
 
@@ -413,6 +487,7 @@ case "$1" in
     checkout-branch)    shift; cmd_checkout_branch "$@" ;;
     switch-branch)      shift; cmd_switch_branch "$@" ;;
     sync-main)          shift; cmd_sync_main "$@" ;;
+    merge-from-origin)  shift; cmd_merge_from_origin "$@" ;;
     merge-continue)     shift; cmd_merge_continue "$@" ;;
     push)               shift; cmd_push "$@" ;;
     fetch)              shift; cmd_fetch "$@" ;;

@@ -211,72 +211,139 @@ apps/mdpal/
 
 **Delivers:** Phase 1 complete. All core section operations working end-to-end.
 
+### Phase 1 Completion — 2026-04-16
+
+**Status: COMPLETE (engine-only MVP)**
+
+Phase 1 scope diverged from the original plan. The engine core (iterations 1.1–1.4) shipped as a library — CLI commands (original iterations 1.4–1.6) are deferred to Phase 2.
+
+**What shipped:**
+| Iteration | Commit | Tests | Content |
+|-----------|--------|-------|---------|
+| 1.1 | `9cf480b` | 33 | Core types, Markdown parser, section tree |
+| 1.2 | `abbc746` | 80 | Document model, comments, flags, YAML metadata |
+| 1.3 | `904131e` | 124 | Section operations (read/edit), comment lifecycle, flag lifecycle |
+| 1.4 | `1a18718` | 175 | DocumentBundle, revisions, prune, dual-latest mechanism |
+| Phase QG | `2a80f21` | 179 | C1 append-only fix + C2 symlink attack fix |
+
+**Phase QG findings — 2 CRITICAL fixed, 7 HIGH deferred:**
+- C1 FIXED: prune() violated append-only invariant by re-serializing whole document
+- C2 FIXED: symlink-as-revision attack — listRevisions followed symlinks
+- H1 DEFERRED: Revision metadata drift — createRevision doesn't update DocumentInfo
+- H2 DEFERRED: DocumentInfo.blank() non-POSIX DateFormatter
+- H3 DEFERRED: Empty slug for non-ASCII headings
+- H4 DEFERRED: Slug suffix scheme drift (-1,-2 vs A&D -2,-3)
+- H5 DEFERRED: Diff API missing (blocks Phase 2 CLI)
+- H6 DEFERRED: No end-to-end Bundle+Document integration test
+- H7 DEFERRED: Byte-equal round-trip not asserted
+
+**QGR receipt:** `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md`
+
 ---
 
-## Phase 2: Bundle Operations + Advanced CLI
+## Phase 2: CLI Commands
 
-**Scope:** DocumentBundle, revisions, pruning, diff, history + CLI commands `create`, `history`, `prune`, `diff`, `version show/bump`, `revision create`, `refresh`.
+**Scope:** Build the `mdpal` binary on top of the Phase 1 engine library. Deliver every command in the dispatched JSON spec to mdpal-app
+(`usr/jordan/mdpal/dispatches/dispatch-cli-json-output-shapes-20260406.md`).
 
-### Iteration 2.1: DocumentBundle + Revision Management
+**Plan note (2026-04-17):** Iteration 2.1 in the original plan was DocumentBundle/RevisionManager, which already shipped in Phase 1. Phase 2 iterations are renumbered below to reflect the actual CLI work that remains.
+
+### Iteration 2.1: CLI framework + read-side commands ✅ COMPLETE 2026-04-17
+
+**Built:**
+- ArgumentParser scaffold (`main.swift`, `Mdpal` root command)
+- Wire-format infrastructure: `JSONOutput` (camelCase encoder, ISO8601 dates, sorted keys), `MdpalExitCode` (5 canonical exit codes), `OutputFormat` (json|text)
+- `ErrorEnvelope` + `EngineErrorMapper` — every `EngineError` case maps to a camelCase symbol-style discriminator under the `error` field (matches dispatched spec)
+- `BundleResolver` — tilde expansion, relative-to-cwd resolution, `..` normalization
+- `SectionsCommand` — recursive tree with top-level `count` + `versionId`
+- `ReadCommand` — full section payload with `versionHash` + `versionId`
+- Tool version exposed via root `--version` flag (frees `version` for `version show/bump` later)
+
+**Tests built:**
+- `mdpalCLITests` target added to `Package.swift`
+- `CLISupport` infrastructure: binary location, fixture creation with safe cleanup, subprocess invocation, error types with proper diagnostics
+- 12 CLI integration tests covering wire-format shape, recursive tree, empty bundle, missing bundle, near-miss suggestions, text format, root help/version
+
+**QG findings:**
+- 2 CRITICAL contract drift caught + fixed: snake_case → camelCase wire format, `code` → `error` envelope field. Shipping the original implementation would have broken mdpal-app's RealCLIService integration.
+- 1 HIGH structural drift caught + fixed: flat sections list → recursive tree + count + versionId
+- Other supporting fixes (BundleResolver path normalization, ErrorEnvelope fallback preserving error+message, test infrastructure improvements)
+
+**Tests:** 192 passing (180 engine + 12 CLI).
+
+**Commits:**
+| Commit | Content |
+|--------|---------|
+| `94d0169` | Phase 2.1 staging — initial implementation (with snake_case drift) |
+| `874ae16` | QG fixes — wire-format alignment with dispatched spec |
+
+**QGR receipt:** `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1312-fb1f7e3.md`
+
+### Iteration 2.2: Section-write commands
 
 **Build:**
-- `DocumentBundle` — manages `.mdpal` directory (config.yaml, revision files, latest.md symlink, .mdpal/latest pointer file)
-- `BundleConfig` — YAML config: keepRevisions, version
-- `RevisionManager` — create/list/read revisions, manage symlink + pointer file
-- Dual latest mechanism (A&D §6.6): symlink for CLI/agents, `.mdpal/latest` pointer for app/FileWrapper
-- Version ID format: `V{NNNN}.{NNNN}.{YYYYMMDDTHHMMSSZ}`
+- `EditCommand` — `mdpal edit <slug> --version <hash> <bundle> [--content <text> | --stdin]`
+- Optimistic-concurrency wire shape (success: `versionHash` + `versionId` + `bytesWritten`; conflict: exit 2 with full conflict envelope including `currentContent`)
+- Surface --format `OptionGroup` once 4+ commands exist (defer from Iter 2.1 review)
+- Slug edge case coverage (empty, leading/trailing slash, double slash)
+- Subprocess timeout in `CLISupport.runCLI`
 
 **Test:**
-- Unit: bundle creation → correct directory structure
-- Unit: revision creation → new file + symlink update + pointer update
-- Unit: revision listing → correct order, latest flag
-- Integration: create bundle → add revisions → verify symlink chain
-- Unit: crash recovery — symlink authoritative over pointer file
+- API: edit with correct version → success JSON, exit 0
+- API: edit with stale version → conflict JSON on stderr, exit 2
+- API: edit via stdin
+- Negative: edit nonexistent slug → exit 3 sectionNotFound
 
-### Iteration 2.2: Bundle CLI Commands
+### Iteration 2.3: Comment + flag commands + Wire/ refactor
+
+**Build:**
+- `CommentCommand`, `CommentsCommand`, `ResolveCommand`
+- `FlagCommand`, `FlagsCommand`, `ClearFlagCommand`
+- Refactor: payload DTOs from Commands/* → `Sources/mdpal/Wire/` (deferred from Iter 2.1)
+- Comment lifecycle integration test through CLI
+
+**Test:**
+- API: comment → returns commentId + comment JSON
+- API: comments with --section, --type, --unresolved, --resolved filters
+- API: resolve → resolved comment JSON
+- API: flag/flags/clear-flag round-trip
+
+### Iteration 2.4: Bundle + diff + prune + refresh commands
 
 **Build:**
 - `CreateCommand` — `mdpal create <name> [--dir]`
-- `HistoryCommand` — `mdpal history <bundle>`
-- `VersionCommand` — `mdpal version show/bump <bundle>`
+- `HistoryCommand` — `mdpal history <bundle>` (revision list)
+- `version show/bump` subcommand group (now that the leaf was reserved in Iter 2.1)
 - `RevisionCommand` — `mdpal revision create <bundle> [--content | --stdin] [--base-revision]`
-- Base revision conflict detection (exit 4)
-
-**Test:**
-- API: create → bundle directory + initial revision + JSON
-- API: history → revision list JSON
-- API: version show/bump → correct version IDs
-- API: revision create via stdin → new revision JSON
-- API: revision create with stale base-revision → exit 4
-
-### Iteration 2.3: Diff + Prune + Refresh
-
-**Build:**
-- `DiffCommand` — `mdpal diff <rev1> <rev2> <bundle>` (section-level diff)
-- `PruneCommand` — `mdpal prune <bundle> [--keep <n>]` (with comment merge-forward)
-- `PruneManager` — handles comment history preservation during pruning
+- `DiffCommand` — requires building the deferred Diff API in the engine (H5 from Phase 1.5 backlog)
+- `PruneCommand` — `mdpal prune <bundle> [--keep <n>]`
 - `RefreshCommand` — `mdpal refresh <slug> <bundle>`
 
 **Test:**
-- API: diff between two revisions → changes JSON
-- API: prune with keep count → correct files removed, comments preserved
-- API: refresh → updated hash, stale comments updated
-- Integration: create → multiple revisions → prune → verify comments survived
+- API: create → bundle directory + initial revision + JSON
+- API: history → revision list JSON ordered newest-first
+- API: version show/bump → correct version IDs
+- API: revision create via stdin → new revision JSON
+- API: revision create with stale base-revision → exit 4 bundleConflict
+- API: diff → changes array
+- API: prune → kept + prunedCount + commentsPreserved
+- API: refresh → updated hash + commentsUpdated count
 
-### Iteration 2.4: Phase 2 Hardening
+### Iteration 2.5: Phase 2 hardening + dispatch to mdpal-app
 
 **Build:**
-- Fix integration issues
-- 100-revision bundle performance test
-- Concurrent CLI invocation test
-- Dispatch to mdpal-app: "Phase 2 CLI complete — bundle commands ready"
+- E2E test: full create → edit → comment → flag → prune → diff lifecycle through CLI
+- Performance: 100-revision bundle benchmarks
+- Concurrent CLI invocation test (multi-process)
+- Address Phase 1.5 deferred items that still apply: file-size limits, name validation, CSV-style YAML billion-laughs guard
+- Dispatch to mdpal-app: "Phase 2 CLI complete — all commands ready"
 
 **Test:**
-- End-to-end: full bundle lifecycle
-- Performance: 100-revision operations within targets
-- Coverage check: ≥90% engine, ≥80% CLI
+- Coverage: ≥90% engine, ≥80% CLI
+- Performance benchmarks within envelope
+- Wire-format goldens — assert byte-equal JSON payloads against fixture for stable mdpal-app integration
 
-**Delivers:** Phase 2 complete. All bundle operations working.
+**Delivers:** Phase 2 complete. mdpal-app unblocked.
 
 ---
 
