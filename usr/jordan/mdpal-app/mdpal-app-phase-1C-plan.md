@@ -39,6 +39,18 @@ Per captain #399: this phase's completion is the **second mdpal-app PR**.
 
 All iterations on the `mdpal-app` branch. PR lands after phase-complete.
 
+## Iteration status
+
+| Iter | Status | Commit | Tests | Notes |
+|------|--------|--------|-------|-------|
+| 1C.1 | ✅ COMPLETE | `5e9ef6a` | 111→114 | cliResolution UI banner; 1B.6 carry-forward |
+| 1C.2 | ✅ COMPLETE | `6d1db83` | 114→117 | commentNotFound typed envelope mapping |
+| 1C.3 | ✅ COMPLETE | `11ef182` | 117→126 | protocol extension: createRevision + listHistory + showVersion + bumpVersion |
+| 1C.4 | ✅ COMPLETE | `08c194d` | 126→133 | DocumentModel persistence wiring; bundleConflict distinct from generic failure |
+| 1C.5 | ✅ COMPLETE | `092f630` | 133→135 | history drawer UI (HistoryView + HistoryRow) |
+| 1C.6 | ✅ COMPLETE | `32e539b` | 135→139 | --text-stdin / --response-stdin adoption (16 KiB threshold) |
+| phase | ✅ COMPLETE | (receipt `a92873b`) | — | phase-complete receipt signed; PR deferred until Phase 1B PR #183 merges |
+
 ### 1C.1 — `cliResolution` UI banner (carry-forward from 1B.6)
 **Scope:** `MarkdownDocument.cliResolution` is plumbed but unused. Add a thin banner above `ContentView` when resolution is `.mockRequested` or `.mockFallback`. Banner text is case-specific: "Running in mock mode" for requested, "`mdpal` CLI not found — running with mock data" for fallback.
 **Deliverable:** visible indicator whenever the app is NOT on real CLI.

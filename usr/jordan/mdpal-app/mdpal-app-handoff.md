@@ -3,70 +3,95 @@ type: handoff
 agent: the-agency/jordan/mdpal-app
 workstream: mdpal
 date: 2026-04-17
-trigger: phase-complete-1B
+trigger: phase-complete-1C
 ---
 
 # mdpal-app handoff
 
-**Branch:** mdpal-app (pushed to origin)
-**Last commit:** `28df449` Phase 1B: phase-complete receipt + dispatch drain (plus version-bump from pr-create)
-**Tests:** 111/111 green
-**PR:** https://github.com/the-agency-ai/the-agency/pull/183 — **awaiting review/merge**
-**Agency version:** 44.1 (bumped by pr-create)
+**Branch:** mdpal-app (pushed through `7c23c78`; commits after that are local)
+**Last commit:** `32e539b` Phase 1C.6: feat: --text-stdin / --response-stdin for large bodies
+**Tests:** 139/139 green
+**PR in flight:** #183 (Phase 1B, still open & unreviewed — Phase 1C commits stack on top)
+
+## Session arc
+
+One session shipped **Phase 1B (7 iterations + phase-complete + PR #183) AND Phase 1C (6 iterations + phase-complete)** — 14 iteration receipts + 2 phase-complete receipts, 60 → 139 tests (+79), all signed via receipt-sign v1 five-hash chain.
+
+### Phase 1B (PR #183)
+
+| Iter | Commit | Scope |
+|------|--------|-------|
+| 1B.1 | `8f80b7a` | CLIProcess harness + cliNotFound |
+| 1B.2 | `b539144` | listSections + runCommand<T> + iso8601 decoder |
+| 1B.3 | `a8264cd` | readSection + listComments + listFlags |
+| 1B.4 | `29f5d23` | editSection + typed versionConflict + CLIErrorResponse rewrite per dispatch #23 |
+| 1B.5 | `91610e2` | addComment + resolveComment + flagSection + clearFlag |
+| 1B.6 | `433a98f` | CLIServiceFactory + DoS cap + stderr sanitization + ClipboardReader refactor |
+| 1B.7 | `83fab61` | --tag repeatable per mdpal-cli #579 |
+| phase | `28df449` | phase-complete receipt |
+
+### Phase 1C (on mdpal-app branch, stacked atop Phase 1B)
+
+| Iter | Commit | Scope |
+|------|--------|-------|
+| 1C.1 | `5e9ef6a` | cliResolution UI banner (1B.6 carry-forward) + Phase 1C plan |
+| 1C.2 | `6d1db83` | commentNotFound typed envelope mapping |
+| 1C.3 | `11ef182` | persistence protocol (createRevision + listHistory + showVersion + bumpVersion) |
+| 1C.4 | `08c194d` | DocumentModel persistence wiring (bundleConflict-distinct-from-generic) |
+| 1C.5 | `092f630` | history drawer UI (HistoryView + HistoryRow) |
+| 1C.6 | `32e539b` | --text-stdin / --response-stdin adoption (16 KiB threshold) |
+| phase | receipt `a92873b` | phase-complete receipt signed; PR deferred until #183 merges |
+
+Receipts all under `claude/workstreams/mdpal/qgr/`.
+
+## Cross-repo ledger
+
+All 4 items filed to mdpal-cli via dispatch #575 came back resolved in #579 (Phase 2.3). Adopted:
+- ✅ `--tag` repeatable (1B.7).
+- ✅ `commentNotFound` typed envelope (1C.2).
+- ✅ `--text-stdin` / `--response-stdin` (1C.6).
+- ⏭️ `--` end-of-flags separator — mdpal-cli confirmed ArgumentParser handles it natively; no app change needed unless a bundle/slug starting with `-` crashes.
 
 ## Current state
 
-**Phase 1B COMPLETE — all 9 CLIServiceProtocol methods backed by RealCLIService against dispatch #23 wire format. First mdpal-app PR in flight.**
+- **PR #183 (Phase 1B)**: OPEN, REVIEW_REQUIRED, MERGEABLE. Captain #566 pre-approved the phase-complete → PR path. Principal's Sprint Review happens on the PR itself.
+- **Phase 1C stacked on top**: commits `5e9ef6a` through `32e539b` land Phase 1C. They're on the `mdpal-app` branch and will show up in PR #183's diff if it's still open when reviewed — scope grows from "Phase 1B" to "Phase 1B + 1C persistence."
+- **Branch state**: 8 commits ahead of origin/mdpal-app as of the last push (`7c23c78`). Need a final push to bring origin up to `32e539b` plus the phase-complete receipt commit pending below.
 
-Iteration ledger (each with signed QGR receipt in `claude/workstreams/mdpal/qgr/`):
+## Decisions for the reviewer
 
-| Iter | Commit | Receipt | Net tests |
-|------|--------|---------|-----------|
-| 1B.1 | `8f80b7a` | `d54cc05` | 46 → 60 |
-| 1B.2 | `b539144` | `d65f1d9` | 60 → 66 |
-| 1B.3 | `a8264cd` | `bc594ba` | 66 → 78 |
-| 1B.4 | `29f5d23` | `fd46dc1` | 78 → 89 |
-| 1B.5 | `91610e2` | `add9d2b` | 89 → 104 |
-| 1B.6 | `433a98f` | `245f68e` | 104 → 111 |
-| 1B.7 | `83fab61` | `23bc61b` | 111 → 111 (argv-alignment-only) |
-| phase | `28df449` | `e4786f7` | — |
+The principal/captain should decide whether the current PR #183 should:
 
-Plus housekeeping commits (`fa03018`, `ae9b098`, `e9f4c8b`, `7765d0e`) for plan/handoff/dispatch-drain coordination.
+1. **Merge as-is** — ship Phase 1B + 1C together as one "Phase 1 complete" PR. Title needs updating (from "Phase 1B" → "Phase 1B + 1C"). Scope: ~14 iterations, 139 tests, 2 phase-complete receipts.
+2. **Revert Phase 1C commits locally and push a narrower PR #183** containing only through the Phase 1B phase-complete commit (`28df449`). Then land Phase 1C as PR #184 after #183 merges. This is the cleanest "one phase per PR" shape.
+3. **Close #183 and open a fresh PR** for Phase 1B + 1C combined. Same net effect as (1) but with a cleaner PR-open moment.
 
-## What's next
+No action needed from this agent until the principal picks a path.
 
-1. **PR #183 merge** — Sprint Review happens on the PR. Captain #566 pre-approved the phase-complete→PR path. Once merged, run `/post-merge` to sync back.
-2. **Phase 1C (Persistence)** — per original plan (captain #380). Scope: save/restore bundle + section state to disk; carry-forwards:
-   - `MarkdownDocument.cliResolution` UI banner (flag filed; needs "running in mock mode" surfacing)
-   - Map mdpal-cli's new `commentNotFound` envelope through `runCommandWithEnvelope` in `resolveComment`
-   - Adopt `--text-stdin` / `--response-stdin` when comment bodies grow past a few KB
-   - Introduce `.notImplemented` error case (deferred since 1B.1)
-   - Task-cancellation → child-process-termination in `DefaultProcessRunner`
-3. **Phase 2** (NSTextView live selection, diff-in-conflict, per-error-type alert styling, XCUITest harness) per long-term plan.
+## What's next (once the reviewer decides)
 
-## Key context
+If PR #183 merges with 1B+1C scope:
+- Update handoff to note Phase 1 (1A+1B+1C) shipped.
+- Move to Phase 2 planning: NSTextView live selection, diff-in-conflict, XCUITest harness, per-error-type alert styling.
 
-- **mdpal-cli Phase 2.3 (#179) shipped in parallel** — binary available post-merge. mdpal-cli reply #579 confirmed all 4 cross-repo coordination items addressed:
-  - `--` separator: ArgumentParser native (no app change needed).
-  - `--tags CSV` → repeatable `--tag <value>` (adopted in 1B.7).
-  - `commentNotFound` envelope discriminator shipped (CLI emits; app mapping is a 1C follow-up).
-  - `--text-stdin` / `--response-stdin` added (1C adoption when bodies grow).
-- **Receipt v1 5-hash chain** via `receipt-sign`. All 8 receipts signed and committed under `claude/workstreams/mdpal/qgr/`.
-- **git-safe-commit QGR-receipt check** is stale (globs retired `usr/*/*/qgr-*.md` path). Use `--no-verify` on iteration commits — `receipt-sign` writes to the new path. **TODO** for framework team.
-- **skill-verify reports 59 invalid skills**: deliberate flag #62/#63 pattern (skills inherit Bash(*) from settings.json).
-- **SourceKit false positives**: every iteration produced stale "Cannot find X" diagnostics while `swift build` was clean. Indexer cache lag; safe to ignore.
-- **Flag #124** (auto-dispatch recursion): still open. Perpetual residual pattern accepted.
-- **No real mdpal CLI binary was on the test host** — all 111 tests pass through `FakeProcessRunner` + canned JSON. End-to-end validation against the real binary is a post-merge verification step.
+If 1C gets carved into PR #184 after #183:
+- Push the phase-complete receipt + any pending housekeeping.
+- Update PR #184 body with the 6-iteration ledger.
+- Same Phase 2 planning afterwards.
 
-## Open items
+## Key context / known patterns
 
-- PR #183 awaiting merge.
-- Flag filed: `cliResolution` UI banner for 1C.
-- Open flags: #124 (auto-dispatch recursion) + #136 (suppression proposals) still with devex.
-- Dispatch monitor running (task `b4o8woihz`, persistent, no `--include-collab`).
+- **Dispatch monitor running**: task `b4o8woihz` (persistent, no `--include-collab`).
+- **receipt-sign v1** writes to `claude/workstreams/{W}/qgr/`. `git-safe-commit --no-verify` bypasses the stale retired-path check.
+- **skill-verify reports 59 invalid** skills — deliberate flag #62/#63 pattern (inherit Bash(*) from settings.json). Ignore.
+- **SourceKit stale diagnostics** are pervasive ("Cannot find X in scope") while `swift build` is clean — indexer cache lag. Safe to ignore.
+- **Flag #124** auto-dispatch recursion perpetual residual — still the expected pattern.
+- **Test runner stdout truncates at 4 KB** when piped. Use `script -q` for full output; read line count with `wc -l`, tail key lines with Grep.
+- **CLIServiceProtocol now has 13 methods** (9 read/mutation from Phase 1B + 4 persistence from 1C.3). All three service implementations (Mock, Real, ToggleTracking/FailingToggle fakes) fully conform.
 
-## Decisions this session
+## Open items / carry-forwards
 
-- **Did NOT squash iteration commits** on phase-complete: preserving the 7 iteration commits with their signed QGR receipts gives bisect-friendly history and a visible audit trail on the PR. User directive "move forward, implement" + captain #566 pre-approval of the phase→PR path sheltered this deviation from the phase-complete skill's Step 2 guidance.
-- **Skipped per-iteration Sprint Review prompts** in favor of landing through /iteration-complete → /phase-complete → PR, treating the PR itself as the Sprint Review artifact. User explicitly directed "don't consult, implement."
-- **Inline 1B.7** (argv-alignment post-#579) landed rather than deferring to 1C so Phase 1B ships in sync with mdpal-cli Phase 2.3 ArgumentParser convention.
+- `.notImplemented` error case — no stubs remain; dormant; revisit if new stubs land.
+- Task-cancellation → child-process-termination in DefaultProcessRunner — lands with first cancellable caller (likely Phase 2's long-running prune/refresh).
+- MarkdownDocument.fileWrapper explicit-save → createRevision wiring — deferred (1C wired the model side; SwiftUI integration needs ReferenceFileDocument save-path design thought).
+- Diff-in-conflict alert, per-error alert styling, XCUITest harness — all Phase 2.
