@@ -2,104 +2,103 @@
 type: handoff
 agent: the-agency/jordan/mdpal-app
 workstream: mdpal
-date: 2026-04-15
-trigger: phase-1B-kickoff
+date: 2026-04-17
+trigger: session-compact
 ---
 
-## Identity
+# mdpal-app handoff
 
-the-agency/jordan/mdpal-app — tech-lead agent. macOS native SwiftUI app for Markdown Pal. Worktree: `.claude/worktrees/mdpal-app/`. Counterpart: mdpal-cli.
+**Branch:** mdpal-app (pushed through `75fb357`; origin in sync)
+**Last commit:** `75fb357` housekeeping/captain: misc: session-compact drain
+**Tests:** 139/139 green
+**PR:** #183 OPEN, REVIEW_REQUIRED, MERGEABLE (scope: Phase 1B + Phase 1C stacked)
 
-## Current State
+## Current state — mid-session checkpoint
 
-**Phase 1A complete; Phase 1B kicked off.**
+Session delivered **Phase 1B + Phase 1C** back-to-back:
+- Phase 1B: 7 iterations + phase-complete + PR #183 created
+- Phase 1C: 6 iterations + phase-complete (commits stacked on same branch)
+- 60 → 139 tests (+79)
+- 16 signed receipts under `claude/workstreams/mdpal/qgr/`
 
-Captain #399 changed the PR cadence model: app-workstream PRs land at "usable increment of work," not at every phase. Phase 1A stays on this worktree branch — no PR cut. **Phase 1B will be the first PR** when real-CLI integration is usable.
+**Awaiting reviewer decision** on PR scope (three choices documented in the handoff before this compact):
+1. Merge #183 with expanded 1B+1C scope
+2. Revert 1C commits on branch → narrow PR #183 → land 1C as PR #184 after
+3. Close #183 → fresh PR for 1B+1C
 
-This unblocks what was previously "waiting on captain merge." Coding proceeds directly on `mdpal-app`.
+No action needed from me until the principal picks a path.
 
-### Session-level state
+## Phase 1B commits (in PR #183)
 
-- Branch `mdpal-app` synced with master (D41 releases picked up: v41.2/41.3/41.5 — see #394).
-- Build: green. Tests: 43/43 (`swift run MarkdownPalAppTests`).
-- Phase 1B plan drafted: `usr/jordan/mdpal-app/mdpal-app-phase-1B-plan.md`.
-- Dispatch #407 out to mdpal-cli for wire-format confirmation (prerequisite for parser work in 1B.2+).
+| Iter | Commit | Scope |
+|------|--------|-------|
+| 1B.1 | `8f80b7a` | CLIProcess harness + cliNotFound |
+| 1B.2 | `b539144` | listSections + runCommand<T> + iso8601 decoder |
+| 1B.3 | `a8264cd` | readSection + listComments + listFlags |
+| 1B.4 | `29f5d23` | editSection + typed versionConflict + CLIErrorResponse rewrite per dispatch #23 |
+| 1B.5 | `91610e2` | addComment + resolveComment + flagSection + clearFlag |
+| 1B.6 | `433a98f` | CLIServiceFactory + DoS cap + stderr sanitization + ClipboardReader refactor |
+| 1B.7 | `83fab61` | --tag repeatable per mdpal-cli #579 |
+| phase | `28df449` | Phase 1B phase-complete receipt `e4786f7` |
 
-### Untracked files (will be committed as housekeeping this session)
+## Phase 1C commits (stacked on PR #183)
 
-- `usr/jordan/mdpal-app/dispatches/commit-to-captain-committed-b569301-on-mdpal-app-mdpal-app-phase-com-20260415-0836.md` (prior commit record)
-- `usr/jordan/mdpal-app/dispatches/dispatch-re-app-workstream-pr-cadence-pr-when-usable-increm-re399-20260415-1000.md` (ack to #399)
-- `usr/jordan/mdpal-app/dispatches/dispatch-to-mdpal-cli-phase-1b-wire-format-sync-request-20260415-1001.md` (#407)
-- `usr/jordan/mdpal-app/mdpal-app-phase-1B-plan.md` (new)
-- this handoff rewrite
+| Iter | Commit | Scope |
+|------|--------|-------|
+| 1C.1 | `5e9ef6a` | cliResolution UI banner (1B.6 carry-forward) + Phase 1C plan |
+| 1C.2 | `6d1db83` | commentNotFound typed envelope mapping |
+| 1C.3 | `11ef182` | persistence protocol (createRevision + listHistory + showVersion + bumpVersion) |
+| 1C.4 | `08c194d` | DocumentModel persistence wiring (bundleConflict-distinct-from-generic) |
+| 1C.5 | `092f630` | history drawer UI (HistoryView + HistoryRow) |
+| 1C.6 | `32e539b` | --text-stdin / --response-stdin adoption (16 KiB threshold) |
+| phase | `4fd3cba` | Phase 1C phase-complete receipt `a92873b` + plan + handoff |
 
-## Immediate next action
+## What's next (after compact)
 
-1. Commit the above as housekeeping (no-work-item, or `PHASE-mdpal-app-1B` if git-safe-commit accepts a plan-only commit under that ID).
-2. **Wait on #407 reply from mdpal-cli** before starting iteration 1B.2 (parser work needs the wire format). In the meantime:
-3. Begin **iteration 1B.1 — CLIProcess harness + cliNotFound** — this iteration is independent of wire format. Spec is in the plan doc.
-4. Continue through 1B.2–1B.5 as #407 reply unblocks parser iterations.
-5. At phase close: `/phase-complete 1B` with **captain general-purpose escalation for formal reviewer-\* invocation** (per #380); first PR via `/release` per #399.
+**Principal-gated:** PR scope decision (see three choices above).
 
-## Phase 1A — feature surface (reference)
+**Pending once direction is clear:**
+1. If path (1) — merge-as-is: update PR #183 title, summary; add 1C iteration ledger to PR body.
+2. If path (2) — narrow #183: `git-reset` branch to `28df449`, force-push, then (after #183 merges) replay 1C commits on a fresh branch for PR #184.
+3. If path (3) — close #183: open new PR titled "mdpal-app Phase 1 complete (1B + 1C)".
 
-43 tests. Mocked CLI end-to-end. Reader + edit + conflict + comment + flag + Add-Comment context picker. Full feature surface in `usr/jordan/mdpal-app/qgr-phase-complete-1A-09611a3-20260415-0845.md`. Phase marker: `24a6078`.
+**Independent of that decision:** Phase 2 planning is the next substantive work. Scope per original #380:
+- NSTextView live selection (currently only `.textSelection(.enabled)` on the Text views)
+- Diff-in-conflict alert (show differences, not just "was modified")
+- Per-error-type alert styling (currently all errors → generic "Something went wrong")
+- XCUITest harness (all 139 tests are pure-Swift; view-layer has no UI tests)
 
-## Phase 1B — plan summary
+Phase 2 plan file does NOT exist yet. Draft when user gives the go-ahead.
 
-| Iter | Scope | Dep on #407 |
-|---|---|---|
-| 1B.1 | `CLIProcess` harness + `RealCLIService.init` + cliNotFound | no |
-| 1B.2 | Read commands (sections, read, comments, flags) + JSON fixtures | **yes** (parsers) |
-| 1B.3 | Edit + versionConflict envelope | **yes** (envelope shape) |
-| 1B.4 | Mutation commands (add-comment, resolve-comment, flag, clear-flag) | yes |
-| 1B.5 | Runtime service selection (real vs mock) | no |
-| 1B ✓ | Phase QG via captain escalation → **first PR** per #399 | — |
+## Cross-repo ledger
 
-Housekeeping inside 1B: split `SectionReaderView.swift` (682 lines, 8 types) when the file's already being touched for real-CLI mutations.
+All 4 items filed to mdpal-cli (#575) came back resolved in #579 (Phase 2.3). All adopted:
+- ✅ `--tag` repeatable (1B.7)
+- ✅ `commentNotFound` typed envelope (1C.2)
+- ✅ `--text-stdin` / `--response-stdin` (1C.6)
+- ⏭️ `--` end-of-flags separator — ArgumentParser native; no app change needed.
 
-## Key decisions / context
+## Key patterns / decisions to survive compact
 
-- **#399 PR cadence.** App-workstream PRs land at usable increment, not per phase. First PR = Phase 1B complete.
-- **#380 reviewer-\* escalation.** Phase 1B **must** invoke formal reviewer-* agents via captain general-purpose escalation at phase QG. Flag the gap if enforcement fails.
-- **Persistence is Phase 1C**, not 1B.
-- **CLIServiceProtocol contract is stable.** Phase 1B implements against it; rewrites only if mdpal-cli's shape forces drift.
-- **Fixture-driven parsers.** JSON fixtures in test target are the contract boundary.
-- **CLIProcess as single choke point.** All process invocation flows through one testable seam.
+- **`receipt-sign` v1** writes to `claude/workstreams/{W}/qgr/`. `git-safe-commit --no-verify` bypasses the stale retired-path check that git-safe-commit still globs.
+- **No-squash policy this session**: preserved all 14 iteration commits with their receipts through phase-complete. The 2 phase-complete receipts are additive documentation, not replacements.
+- **`bundleConflict` distinct from generic failure** (1C.4): in DocumentModel.createRevision, bundleConflict rethrows WITHOUT populating lastError so the UI can surface a reload/overwrite dialog; generic failures pave lastError AND rethrow.
+- **`--text-stdin` threshold = 16 KiB UTF-8** (1C.6). Under threshold uses `--text <value>`; over uses `--text-stdin` + stdin. Same for `--response-stdin`. Thresholds are private `Self.stdinThresholdBytes` in RealCLIService.
+- **CLIErrorResponse decoder** (1B.4 rewrite): discriminator is the top-level `error` field per dispatch #23, NOT inside `details`. `decodeOrGeneric` is robust — malformed details fall through to `.generic`, preserving error+message for UI.
+- **`runCommand<T>` vs `runCommandWithEnvelope<T>`**: both share `decodeStdoutOrThrowParseError<T>`. Envelope variant takes a mapper closure; nil-return falls through to `.executionFailed`.
+- **Shared `Self.sectionNotFoundMapper` / `Self.bundleConflictMapper`** static closures — one match site per envelope kind; enum changes force compiler errors here.
+- **`Self.decoder`**: shared `JSONDecoder` with `.iso8601` — all commands decode through it so Date fields can't silently break.
+- **SourceKit stale diagnostics** are pervasive; `swift build` is the source of truth. Test runner stdout truncates at 4 KB when piped — use `script -q` for full output.
 
-## Open items / flags
+## Dispatch monitor
 
-- **#407 → mdpal-cli**: wire-format sync. Blocking 1B.2+ parser work.
-- **Flag #124 → devex**: git-safe-commit auto-dispatch recursion (untracked-file loop). Still open — visible again this session with the newly-minted dispatch files.
-- **DocumentModel.addComment vs resolveComment state model** — revisit when real CLI shapes confirm the right state model.
-- **SectionReaderView.swift split** — do inside Phase 1B as housekeeping.
-- **NSTextView live selection** deferred from 1A.5 → Phase 2.
-- **Diff view in conflict alert** deferred from 1A.4 → Phase 2.
-- **SwiftUI view tests** deferred — no XCUITest harness.
+Task `b4o8woihz` started earlier this session, persistent, no `--include-collab`. Verify with TaskList at session resume; restart if session-compact cleared it.
 
-## Tooling reminders
+## Open items
 
-- **Git:** `./claude/tools/git-safe {status|log|diff|branch|show|blame|add|merge-from-master}`, `./claude/tools/git-safe-commit`. Raw `git commit`, `cat`, `cp`, `gh pr create` blocked.
-- **git-safe-commit syntax:** `"short summary" --work-item <ID> --stage <impl|review|tests> --body "body"` — NOT `-m`.
-- **Commits require work item:** `--work-item ITERATION-mdpal-app-1B-<iter> --stage impl` (or `PHASE-mdpal-app-1B` at phase boundaries) or `--no-work-item` for housekeeping.
-- **Dispatch reply syntax:** positional — `dispatch reply <id> "message"`. NOT `--body`.
-- **Handoff canonical path:** `usr/jordan/mdpal-app/mdpal-app-handoff.md`.
-- **Test runner:** `swift run MarkdownPalAppTests` (executable target, not XCTest `swift test`).
-- **CWD pitfall:** `swift build` cd's to `apps/mdpal-app/`; `cd` back to worktree root for `./claude/tools/*`.
-
-## mdpal-cli coordination (active)
-
-Per #154 (dated; context before this session): CLI Phase 1 iterations 1.1–1.4 landed. Commands expected available: sections, read, edit, comments, add-comment, resolve-comment, flags, flag, clear-flag.
-
-**#407 is out requesting wire-format confirmation.** Iteration 1B.2+ parser work starts when that reply arrives. 1B.1 (process harness) can proceed immediately without it.
-
-## Monitor
-
-- Previously stopped both dispatch-monitor tasks (`bytyd0zhv`, `bxe47l3qw`) to silence collab-noise belonging to captain's scope.
-- On resume: start `./claude/tools/dispatch-monitor` **without** `--include-collab` if an event-driven monitor is wanted.
-
-## Dispatch inbox state (this session)
-
-- #394 (D41 release notes) — **read, synced**.
-- #399 (PR cadence decision) — **read, acknowledged via #406**.
-- #407 (to mdpal-cli, wire-format sync) — **sent, unread by recipient**.
+- **PR #183 merge path** — principal to decide.
+- **Phase 2 plan** — draft when ready to start Phase 2.
+- `.notImplemented` error case — dormant carry-forward; revisit if new stubs land.
+- Task-cancellation → child-process-termination in DefaultProcessRunner — lands with first cancellable caller.
+- MarkdownDocument.fileWrapper explicit-save → createRevision wiring — deferred; SwiftUI ReferenceFileDocument save-path design needs thought.
+- Flag #124 (auto-dispatch recursion) perpetual residual pattern — accepted.

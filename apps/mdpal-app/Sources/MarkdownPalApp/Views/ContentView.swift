@@ -12,19 +12,56 @@
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
 // Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
 // Updated: 2026-04-15 Phase 1A.3 — surface document.lastError via alert
+// Updated: 2026-04-17 Phase 1C.1 — CLIServiceBanner for non-real resolutions
 
 import SwiftUI
 
-/// The main content view — split between section list and section reader.
+/// The main content view — split between section list and section reader,
+/// with an optional top banner when running in Mock mode.
 public struct ContentView: View {
     @Bindable var document: DocumentModel
+    /// Which CLI service is in use. Drives the top banner so users know
+    /// when they're NOT hitting a real bundle. Default is
+    /// `.real(executablePath: "")` for previews; production passes the
+    /// actual resolution from `MarkdownDocument.cliResolution`.
+    let cliResolution: CLIServiceFactory.Resolution
     @State private var selectedSlug: String?
+    @State private var showingHistory = false
 
-    public init(document: DocumentModel) {
+    public init(
+        document: DocumentModel,
+        cliResolution: CLIServiceFactory.Resolution = .real(executablePath: "")
+    ) {
         self.document = document
+        self.cliResolution = cliResolution
     }
 
     public var body: some View {
+        VStack(spacing: 0) {
+            CLIServiceBanner(resolution: cliResolution)
+            mainSplitView
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task {
+                        await document.loadHistory()
+                        showingHistory = true
+                    }
+                } label: {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                }
+            }
+        }
+        .sheet(isPresented: $showingHistory) {
+            HistoryView(
+                revisions: document.history,
+                onDismiss: { showingHistory = false }
+            )
+        }
+    }
+
+    private var mainSplitView: some View {
         NavigationSplitView {
             SectionListView(
                 sections: document.sections,
