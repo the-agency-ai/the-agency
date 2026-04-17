@@ -43,6 +43,7 @@ struct Mdpal: ParsableCommand {
         subcommands: [
             SectionsCommand.self,
             ReadCommand.self,
+            EditCommand.self,
         ]
     )
 }

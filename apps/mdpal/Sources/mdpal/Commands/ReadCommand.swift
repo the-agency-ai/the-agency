@@ -34,8 +34,7 @@ struct ReadCommand: ParsableCommand {
     @Argument(help: "Path to the .mdpal bundle directory.")
     var bundle: String
 
-    @Option(name: .long, help: "Output format: json (default) or text.")
-    var format: OutputFormat = .json
+    @OptionGroup var output: GlobalOutputOptions
 
     func run() throws {
         do {
@@ -44,7 +43,7 @@ struct ReadCommand: ParsableCommand {
             let section = try document.readSection(slug)
             let versionId = try resolvedBundle.latestRevision()?.versionId ?? ""
 
-            switch format {
+            switch output.format {
             case .json:
                 let payload = SectionPayload(from: section, versionId: versionId)
                 try JSONOutput.print(payload)
@@ -65,7 +64,7 @@ struct ReadCommand: ParsableCommand {
             }
         } catch let error as EngineError {
             let (envelope, exit) = EngineErrorMapper.envelope(for: error)
-            envelope.emit(format: format)
+            envelope.emit(format: output.format)
             throw exit.argumentParserCode
         }
     }
