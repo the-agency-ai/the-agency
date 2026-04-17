@@ -537,23 +537,58 @@ _update_main() {
     log_step "Writing update handoff"
 
     if [[ "$DRY_RUN" == "false" ]]; then
-        # Read previous handoff summary before archiving
-        local prev_summary=""
         local handoff_path
         handoff_path=$(bash "$TARGET_DIR/claude/tools/handoff" path 2>/dev/null || echo "")
+
+        # Issue #160: never overwrite a session handoff. Prior behavior
+        # archived + wrote an agency-update stub on every update, destroying
+        # session context. Two failure modes:
+        #   1. Single update: loses the substantive session handoff
+        #   2. Consecutive updates: 'Previous session state' becomes a stub
+        #      of a stub of a stub — recursion of emptiness.
+        # Fix: detect the type in existing frontmatter. Only overwrite if the
+        # current handoff is itself an agency-update or agency-bootstrap stub.
+        # If it's type: session (or anything else substantive), prepend the
+        # update info as a section and preserve the rest.
         if [[ -n "$handoff_path" ]] && [[ -f "$handoff_path" ]]; then
-            # Get first 20 lines of content (after frontmatter) for summary
-            prev_summary=$(sed '1,/^---$/d; 1,/^---$/d' "$handoff_path" 2>/dev/null | head -20 || true)
-        fi
+            # Extract existing frontmatter type (awk scoped to frontmatter block)
+            local existing_type
+            existing_type=$(awk '
+                BEGIN { in_fm = 0; opened = 0 }
+                /^---[[:space:]]*$/ {
+                    if (!opened) { opened = 1; in_fm = 1; next }
+                    if (in_fm)   { exit }
+                }
+                in_fm && /^type:[[:space:]]/ {
+                    sub(/^type:[[:space:]]*/, "")
+                    gsub(/["\x27]/, "")
+                    print
+                    exit
+                }
+            ' "$handoff_path" 2>/dev/null)
 
-        # Archive existing handoff
-        bash "$TARGET_DIR/claude/tools/handoff" archive 2>/dev/null || true
+            local update_section
+            update_section=$(cat << UPDATE_SECTION_EOF
+## Agency Update — $(date '+%Y-%m-%d %H:%M')
 
-        # Write update handoff directly (handoff write signals the agent,
-        # but we want to write the content ourselves)
-        if [[ -n "$handoff_path" ]]; then
-            mkdir -p "$(dirname "$handoff_path")"
-            cat > "$handoff_path" << UPDATE_EOF
+Updated framework from ${from_version} (${from_commit:0:8}) to ${to_version} (${to_commit:0:8}).
+
+- $added files added, $updated files updated, $removed files removed
+- Settings merged via array union
+- Framework section in agency.yaml updated
+
+Run \`agency verify\` to confirm everything is in order.
+
+---
+
+UPDATE_SECTION_EOF
+)
+
+            if [[ "$existing_type" == "agency-update" || "$existing_type" == "agency-bootstrap" || -z "$existing_type" ]]; then
+                # Existing handoff is a prior stub or has no type — safe to replace
+                bash "$TARGET_DIR/claude/tools/handoff" archive 2>/dev/null || true
+                mkdir -p "$(dirname "$handoff_path")"
+                cat > "$handoff_path" << UPDATE_STUB_EOF
 ---
 type: agency-update
 date: $(date '+%Y-%m-%d %H:%M')
@@ -561,21 +596,33 @@ from_commit: ${from_commit:0:8}
 to_commit: ${to_commit:0:8}
 ---
 
-## Agency Update
-
-Updated framework from ${from_version} (${from_commit:0:8}) to ${to_version} (${to_commit:0:8}).
-
-### Changes
-- $added files added, $updated files updated, $removed files removed
-- Settings merged via array union
-- Framework section in agency.yaml updated
-
-### Verify the update
-Run \`agency verify\` to confirm everything is in order.
-
-### Previous session state
-${prev_summary:-No previous session state.}
-UPDATE_EOF
+${update_section}
+UPDATE_STUB_EOF
+                log_info "Update handoff written (replaced prior ${existing_type:-untyped} stub)"
+            else
+                # Existing handoff is substantive (type: session or similar) —
+                # preserve it. Prepend update section inside the body after
+                # the frontmatter block so nothing is lost.
+                local tmp_file
+                tmp_file=$(mktemp "${handoff_path}.update.XXXXXX")
+                # Split at end of frontmatter, inject update section
+                awk -v update="$update_section" '
+                    BEGIN { fm_closed = 0; fm_seen = 0 }
+                    /^---[[:space:]]*$/ {
+                        if (!fm_seen) { fm_seen = 1; print; next }
+                        if (!fm_closed) {
+                            fm_closed = 1
+                            print
+                            print ""
+                            print update
+                            next
+                        }
+                    }
+                    { print }
+                ' "$handoff_path" > "$tmp_file"
+                mv "$tmp_file" "$handoff_path"
+                log_info "Update info prepended to existing ${existing_type} handoff (preserved, not overwritten)"
+            fi
         fi
     fi
 
