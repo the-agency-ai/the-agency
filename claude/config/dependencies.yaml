@@ -69,13 +69,16 @@ required:
     why: "Claude Code is a Node.js tool; node 18+ for ES module support"
 
   python3:
-    brew: python@3
-    min_version: "3.9"
+    brew: python@3.12
+    min_version: "3.12"
+    version_cmd: "python3.12 --version | grep -oE '[0-9]+\\.[0-9]+'"
     used_by:
       - "claude/hooks/stop-check.py, .claude/hooks/plan-capture.py"
+      - "claude/tools/dispatch-monitor (D44-R1 Python rewrite)"
       - "usr/jordan/captain/tools/strip-skill-allowed-tools"
-    why: "hook scripts and ad-hoc captain tools use Python"
-    note: "ZERO-PIP CONSTRAINT: framework tools must NOT depend on pip packages (pyyaml, jsonschema, etc.). Use pure bash/awk for config parsing. Python stdlib only. More portable, no pip in test isolation."
+      - "iscp dispatch-hub service (FastAPI + SQLAlchemy 2.0 + Alembic)"
+    why: "framework tools, hooks, and services target modern Python. 3.12 buys native match, PEP 604 union types, PEP 695 generics, typing.Self, tomllib, ~10-15% perf."
+    note: "ZERO-PIP CONSTRAINT for framework tools in claude/tools/ — stdlib only, no pip deps (pyyaml, jsonschema, etc.). Services (iscp dispatch-hub, etc.) may use pip. Floor raised from 3.9 → 3.12 in D44 per principal directive — 'If people don't like it, they can not use our stuff.' Adopters who can't run 3.12 aren't our target audience. Shebang convention: #!/usr/bin/env python3.12 (explicit floor — requires python@3.12 on PATH; brew and deadsnakes PPA both install this name)."
 
   curl:
     brew: curl
@@ -180,7 +183,7 @@ system_linux:
 # Install commands (convenience — generated from the lists above)
 # ─────────────────────────────────────────────────────────────────────────────
 install:
-  brew_required: "brew install git bash jq sqlite node python@3 curl rsync gh"
+  brew_required: "brew install git bash jq sqlite node python@3.12 curl rsync gh"
   brew_testing: "brew install bats-core"
   brew_optional: "brew install ripgrep fd tree yq"
   apt_system: "sudo apt install -y build-essential openssh-server locales"

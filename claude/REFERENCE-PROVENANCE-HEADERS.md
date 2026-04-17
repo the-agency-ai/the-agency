@@ -45,15 +45,16 @@ Every piece of code — scripts, tools, modules, classes, methods, functions —
 **Python tools** use the same pattern in a docstring:
 
 ```python
-#!/usr/bin/env python3
+#!/usr/bin/env python3.12
 """
 What Problem: Dispatch polling via /loop costs ~82,000 tokens/day and has
 5-minute latency. The Monitor tool can watch a background script and react
 to output in real-time, but the bash implementation requires bash 4+.
 
-How & Why: Python 3.9+ rewrite using stdlib only. Python gives us native
+How & Why: Python 3.12 rewrite using stdlib only. Python gives us native
 set() for seen-ID tracking, proper subprocess error handling, and signal-
-based clean shutdown. No external dependencies.
+based clean shutdown. No external dependencies. 3.12 gives us native
+match, PEP 604 unions, typing.Self, tomllib.
 
 Written: 2026-04-17 D44 — first Python tool in the framework
 """
@@ -61,7 +62,7 @@ Written: 2026-04-17 D44 — first Python tool in the framework
 
 ### Language Choice for Tools
 
-Both bash and Python 3.9+ are valid languages for tools in `claude/tools/`.
+Both bash and Python 3.12+ are valid languages for tools in `claude/tools/`.
 
 | Use bash when | Use Python when |
 |---------------|-----------------|
@@ -69,9 +70,9 @@ Both bash and Python 3.9+ are valid languages for tools in `claude/tools/`.
 | Git operations via git-safe | Long-running processes |
 | Simple file/path manipulation | Complex string parsing or JSON processing |
 | Interop with existing bash tools | Error handling needs try/except |
-| Shebang: `#!/usr/bin/env bash` | Shebang: `#!/usr/bin/env python3` |
+| Shebang: `#!/usr/bin/env bash` | Shebang: `#!/usr/bin/env python3.12` |
 
-**Python constraints:** stdlib only (no pip/virtualenv). Python 3.9+ floor (matches macOS system Python). Use `from __future__ import annotations` for modern type hint syntax on 3.9.
+**Python constraints:** stdlib only for framework tools in `claude/tools/` (no pip/virtualenv). Python **3.12+** floor per D44 directive. Use native `match`, PEP 604 unions, `typing.Self` — no `from __future__ import annotations` backports needed. Services (iscp dispatch-hub, etc.) may use pip deps.
 
 Templates: `claude/templates/TOOL.sh` (bash), `claude/templates/TOOL.py` (Python).
 

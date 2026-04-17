@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.12
 """
 What Problem: {{TOOL_DESCRIPTION}}
 
@@ -6,6 +6,9 @@ How & Why: [Explain the approach and rationale]
 
 Usage:
     ./claude/tools/{{TOOL_NAME}} [options] <args>
+
+Python: 3.12+ (framework floor per D44). Stdlib only for framework tools
+(ZERO-PIP CONSTRAINT). Services may use pip deps.
 
 Written: {{TOOL_DATE}} by {{TOOL_AUTHOR}}
 """

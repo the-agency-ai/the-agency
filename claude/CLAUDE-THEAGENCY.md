@@ -108,6 +108,12 @@ Injected automatically when relevant skills run. Read directly when you need the
 - **Plan before you build.** Use plan mode for non-trivial tasks.
 - **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-safe-commit` — never raw `git commit`.
 
+## Runtime Floor
+
+- **Python: 3.12+.** Framework tools, hooks, and services target modern Python. Set in D44 per principal directive, superseding the prior 3.9+ floor. See `claude/config/dependencies.yaml` for rationale and what 3.12 buys us (native `match`, PEP 604 unions, PEP 695 generics, `typing.Self`, `tomllib`, ~10-15% perf). Framework tools in `claude/tools/` remain **zero-pip**: stdlib only. Services (iscp dispatch-hub, etc.) may use pip deps.
+- **Bash: 3.2** (macOS default) — framework tools avoid 4.0+ features for portability.
+- **Node: 18+** — Claude Code CLI requirement.
+
 ## Universal Agent Discipline
 
 Every agent — captain, worktree, subagent — follows two standing priorities and the Over / Over-and-out protocol. Full spec: `claude/REFERENCE-AGENT-DISCIPLINE.md` (read on demand).

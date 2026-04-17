@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.12
 """
 What Problem: Dispatch polling via /loop costs ~82,000 tokens/day and has
 5-minute latency. The Monitor tool (Claude Code v2.1.98+) can watch a
@@ -9,7 +9,7 @@ The original bash implementation used `declare -A` (associative arrays)
 for seen-ID tracking, which requires bash 4+. macOS ships bash 3.2
 (Apple won't distribute GPLv3), so the script fails on stock macOS.
 
-How & Why: Python 3.9+ rewrite — first Python tool in the framework.
+How & Why: Python 3.12 rewrite — first Python tool in the framework.
 Python gives us a native set() for seen-ID tracking (no bash version
 issues), proper subprocess error handling, and signal-based clean
 shutdown. Polls dispatch list every N seconds (default 10), only outputs

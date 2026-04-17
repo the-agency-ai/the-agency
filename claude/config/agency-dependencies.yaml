@@ -49,6 +49,16 @@ dependencies:
       all: "curl -fsSL https://claude.ai/install.sh | sh"
     breaks: "Claude Code CLI - core functionality"
 
+  # Python runtime (framework floor 3.12 per D44)
+  - name: python3
+    min_version: "3.12"
+    check: "command -v python3"
+    version_cmd: "python3 --version | grep -oE '[0-9]+\\.[0-9]+'"
+    install:
+      darwin: "brew install python@3.12"
+      linux: "sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt-get update && sudo apt-get install -y python3.12"
+    breaks: "hooks (stop-check, plan-capture), dispatch-monitor, iscp dispatch-hub service, captain tools"
+
   # JavaScript runtime
   - name: bun
     min_version: "1.0"
