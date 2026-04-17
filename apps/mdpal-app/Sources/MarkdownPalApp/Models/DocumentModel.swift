@@ -13,6 +13,11 @@
 //
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
 // Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
+// Updated: 2026-04-17 Phase 1C.4 — persistence surface: latestRevision
+//          state + createRevision()/loadHistory()/loadCurrentVersion()/
+//          bumpVersion(). bundleConflict is re-thrown for the UI to
+//          handle; other failures populate lastError like the rest of
+//          the load/mutation methods.
 
 import Foundation
 import SwiftUI
@@ -48,6 +53,19 @@ public final class DocumentModel {
 
     /// Error state for display.
     public var lastError: String?
+
+    /// Latest revision created or observed for this bundle. Used as the
+    /// optimistic-concurrency anchor when createRevision is called —
+    /// changes landed by another client between our load and our save
+    /// will surface as `.bundleConflict`.
+    public var latestRevision: RevisionInfo?
+
+    /// Revision history for this bundle. Populated by loadHistory();
+    /// newest-first. Drives the history drawer (1C.5).
+    public var history: [RevisionInfo] = []
+
+    /// Current version info (bundle-level). Populated by loadCurrentVersion().
+    public var currentVersion: VersionInfo?
 
     /// The CLI service used for operations.
     private let cliService: CLIServiceProtocol
@@ -206,6 +224,83 @@ public final class DocumentModel {
         } else {
             try await flagSection(slug: slug, author: author, note: note)
         }
+    }
+
+    // MARK: - Persistence (Phase 1C.4)
+
+    /// Create a new revision of the bundle from the given content.
+    /// Uses `latestRevision?.versionId` as the optimistic-concurrency
+    /// anchor when present — the service throws `.bundleConflict` if the
+    /// bundle drifted past that anchor. Callers catch bundleConflict
+    /// distinctly (typically to show a reload-or-overwrite prompt); other
+    /// failures populate `lastError`.
+    ///
+    /// On success: isDirty cleared, `latestRevision` updated, nothing else
+    /// reloaded (the UI calls `loadHistory()` explicitly when it needs
+    /// the refreshed list).
+    public func createRevision(content: String) async throws {
+        do {
+            let rev = try await cliService.createRevision(
+                bundle: effectiveBundle,
+                content: content,
+                baseRevision: latestRevision?.versionId
+            )
+            latestRevision = rev
+            isDirty = false
+            lastError = nil
+        } catch let conflict as CLIServiceError where isBundleConflict(conflict) {
+            // Rethrow so the view layer can present a reload/overwrite
+            // dialog. Don't pave the error into lastError — this is a
+            // distinct workflow, not an "unexpected failure" toast.
+            throw conflict
+        } catch {
+            lastError = "Failed to save revision: \(error.localizedDescription)"
+            throw error
+        }
+    }
+
+    /// Load the bundle's revision history (newest-first).
+    public func loadHistory() async {
+        do {
+            history = try await cliService.listHistory(bundle: effectiveBundle)
+            // Keep latestRevision in sync with what the history says is latest.
+            // Fallback: first entry (history is newest-first).
+            latestRevision = history.first { $0.latest == true } ?? history.first
+            lastError = nil
+        } catch {
+            lastError = "Failed to load history: \(error.localizedDescription)"
+        }
+    }
+
+    /// Load the current bundle-level version info.
+    public func loadCurrentVersion() async {
+        do {
+            currentVersion = try await cliService.showVersion(bundle: effectiveBundle)
+            lastError = nil
+        } catch {
+            lastError = "Failed to load version info: \(error.localizedDescription)"
+        }
+    }
+
+    /// Predicate for the conflict-rethrow catch arm above. Pulling it
+    /// out keeps the `where` clause readable.
+    private func isBundleConflict(_ error: CLIServiceError) -> Bool {
+        if case .bundleConflict = error { return true }
+        return false
+    }
+
+    /// Bump the bundle's major version. On success updates
+    /// `currentVersion` via the returned VersionBumpResult.
+    public func bumpVersion() async throws -> VersionBumpResult {
+        let result = try await cliService.bumpVersion(bundle: effectiveBundle)
+        currentVersion = VersionInfo(
+            version: result.version,
+            versionId: result.versionId,
+            revision: result.revision,
+            timestamp: result.timestamp
+        )
+        lastError = nil
+        return result
     }
 
     // MARK: - Document Lifecycle
