@@ -335,26 +335,33 @@ Phase 1 scope diverged from the original plan. The engine core (iterations 1.1�
 
 **Deferred (fold into 2.4):** subprocess timeout, slug edge cases, e2e collaboration test, wire-format goldens.
 
-### Iteration 2.4: Bundle + diff + prune + refresh commands
+### Iteration 2.4: Bundle + diff + prune + refresh commands ✅ COMPLETE 2026-04-17
 
-**Build:**
-- `CreateCommand` — `mdpal create <name> [--dir]`
-- `HistoryCommand` — `mdpal history <bundle>` (revision list)
-- `version show/bump` subcommand group (now that the leaf was reserved in Iter 2.1)
-- `RevisionCommand` — `mdpal revision create <bundle> [--content | --stdin] [--base-revision]`
-- `DiffCommand` — requires building the deferred Diff API in the engine (H5 from Phase 1.5 backlog)
-- `PruneCommand` — `mdpal prune <bundle> [--keep <n>]`
-- `RefreshCommand` — `mdpal refresh <slug> <bundle>`
+**Shipped — commit `8c8dbe1`, 24 new tests (267 → 291), 0 failing:**
+- `CreateCommand`, `HistoryCommand`, `VersionCommand` (show/bump), `RevisionCommand` (create), `DiffCommand`, `PruneCommand`, `RefreshCommand`
+- Engine Diff API: `Document.diff(against:) throws -> [SectionDiff]`, `DocumentBundle.diff(baseRevision:, targetRevision:)` with `SectionDiff` value type + `SectionDiffType` enum
+- Engine optimistic-concurrency API: `DocumentBundle.createRevision(content:, timestamp:, expectedBase:)` overload — moves the TOCTOU window check inside the engine where it shares the same `listRevisions` snapshot as the write
+- Engine error: new `EngineError.bundleBaseConflict(expected:actual:)` for structured wire details
+- **Pre-existing engine bug fixed inline:** Unicode-aware slug regex (`[^\p{L}\p{N}\-]`) — H3 from Phase 1 deferred backlog. ASCII slug behavior unchanged for the 8 existing slug tests.
+- Shared `StdinReader` (16 MiB cap, `payloadTooLarge` envelope) — replaces 4 ad-hoc stdin handlers in Edit/Comment/Resolve/RevisionCreate. Closes the unbounded-stdin OOM risk.
 
-**Test:**
-- API: create → bundle directory + initial revision + JSON
-- API: history → revision list JSON ordered newest-first
-- API: version show/bump → correct version IDs
-- API: revision create via stdin → new revision JSON
-- API: revision create with stale base-revision → exit 4 bundleConflict
-- API: diff → changes array
-- API: prune → kept + prunedCount + commentsPreserved
-- API: refresh → updated hash + commentsUpdated count
+**QG fixes (12 ACCEPT, fix-what-you-find, no defers):**
+- F1 RefreshCommand same-minute retry → skip-write when nothing changed
+- F2 Document+Diff readSection error swallow → eager content read, propagate
+- F3 CreateCommand validateName tightened (rejects `..`, leading `.`/`-`, backslash, control chars)
+- F4 PrunePayload duplicate-versionId crash → uniquingKeysWith
+- F5 HistoryCommand empty-bundle `currentVersion` → explicit JSON null (Int? + custom encode)
+- F6 VersionBumpCommand re-serialize formatting drift → read raw revision file bytes
+- D1+D3 RevisionCreate + Refresh `--base-revision` TOCTOU → engine-level enforcement
+- D2 Stdin OOM → 16 MiB ceiling + `payloadTooLarge`
+- D6 Coordination dispatch #616 to mdpal-app — additive `--include-unchanged`, canonical 17-discriminator list, bundleConflict structured details, nullable currentVersion (acked dispatch #617)
+- D7 8 wire-format goldens (one per new command) — locks shapes against silent drift
+- D8a Unicode-in-slugs test — exposed and fixed engine H3 bug
+- D9 Filed flag #166 to captain re skill-verify framework gap
+
+**Deferred (fold into 2.5):** subprocess timeout, e2e collaboration test (planned), large-payload concurrent-writer race test (engine same-minute case already covered).
+
+**Receipt:** `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1509-53e3abe.md`
 
 ### Iteration 2.5: Phase 2 hardening + dispatch to mdpal-app
 
