@@ -305,19 +305,35 @@ Phase 1 scope diverged from the original plan. The engine core (iterations 1.1�
 
 **Deferred (fold into 2.3):** subprocess timeout, slug edge cases (empty slug, leading slash), no-op edit semantics, exact bytesWritten pin, invalidBundlePath in edit, text format ordering.
 
-### Iteration 2.3: Comment + flag commands + Wire/ refactor
+### Iteration 2.3: Comment + flag commands + Wire/ refactor ✅ COMPLETE 2026-04-17
 
-**Build:**
-- `CommentCommand`, `CommentsCommand`, `ResolveCommand`
-- `FlagCommand`, `FlagsCommand`, `ClearFlagCommand`
-- Refactor: payload DTOs from Commands/* → `Sources/mdpal/Wire/` (deferred from Iter 2.1)
-- Comment lifecycle integration test through CLI
+**Built:**
+- 6 commands per dispatched spec: `comment`, `comments`, `resolve`, `flag`, `flags`, `clear-flag`
+- Wire/ directory created with `CommentPayload`, `ResolutionPayload`, `FlagPayload`, `FlagListEntryPayload`, `ClearFlagPayload`, `FlagsListPayload`
+- Field-name mapping at the wire boundary (engine's `id`→`commentId`, `sectionSlug`→`slug`, `isResolved`→`resolved`, `resolvedBy`→`by`, `resolvedDate`→`timestamp`)
+- Custom `encode(to:)` on FlagPayload, FlagListEntryPayload, CommentPayload, ResolvePayload, FiltersEcho — emits nil optionals as explicit JSON `null` (Swift's synthesized Encodable would omit; spec requires explicit null)
+- Persistence: each mutating command serializes + createRevision (append-only)
 
-**Test:**
-- API: comment → returns commentId + comment JSON
-- API: comments with --section, --type, --unresolved, --resolved filters
-- API: resolve → resolved comment JSON
-- API: flag/flags/clear-flag round-trip
+**Wire format (matches dispatched spec):**
+- Comment: `{commentId, slug, type, author, text, context, priority, tags, timestamp, resolved, resolution}`
+- Resolution: `{response, by, timestamp}`
+- Comments list: `{comments, count, filters: {section, type, resolved}}` — all filter fields explicit null when unset
+- Flag: `{slug, flagged: true, author, note, timestamp}` — note is explicit null when absent
+- Flags list: `{flags: [{slug, author, note, timestamp}], count}` — list entries omit `flagged` (implicit)
+- Clear-flag: `{slug, flagged: false}`
+- Resolve: `{commentId, resolved: true, resolution: {response, by, timestamp}}`
+
+**QG (self-review against established 2.1/2.2 patterns):**
+- 1 CRITICAL caught + fixed inline: nil-optional encoding (custom encode(to:) on 5 types)
+- Wire-format renames verified test-by-test (engine field names asserted absent)
+
+**Tests:** 221 passing (180 engine + 41 CLI). 17 new (10 comment lifecycle + 7 flag lifecycle).
+
+**Commit:** `6b312ad`
+
+**QGR receipt:** `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1334-d57306b.md`
+
+**Deferred (fold into 2.4):** subprocess timeout, slug edge cases, e2e collaboration test, wire-format goldens.
 
 ### Iteration 2.4: Bundle + diff + prune + refresh commands
 

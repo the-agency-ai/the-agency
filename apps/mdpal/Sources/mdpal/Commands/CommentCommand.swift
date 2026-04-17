@@ -45,8 +45,11 @@ struct CommentCommand: ParsableCommand {
     @Option(name: .long, help: "Comment author.")
     var author: String
 
-    @Option(name: .long, help: "Comment body text.")
-    var text: String
+    @Option(name: .long, help: "Comment body text (mutually exclusive with --text-stdin).")
+    var text: String?
+
+    @ArgumentParser.Flag(name: .long, help: "Read comment text from stdin (avoids ARG_MAX limits for long bodies).")
+    var textStdin: Bool = false
 
     @Option(name: .long, help: "Override the auto-captured section context.")
     var context: String?
@@ -54,15 +57,41 @@ struct CommentCommand: ParsableCommand {
     @Option(name: .long, help: "Priority: low, normal, high. Defaults to normal.")
     var priority: String?
 
-    @Option(name: .long, help: "Comma-separated tags (e.g., 'perf,phase2').")
-    var tags: String?
+    @Option(name: .long, help: "Tag to apply to the comment. Repeat for multiple tags (e.g., --tag perf --tag phase2).")
+    var tag: [String] = []
 
     @OptionGroup var output: GlobalOutputOptions
+
+    func validate() throws {
+        if text != nil && textStdin {
+            throw ValidationError("Specify either --text or --text-stdin, not both.")
+        }
+        if text == nil && !textStdin {
+            throw ValidationError("One of --text or --text-stdin is required.")
+        }
+    }
 
     func run() throws {
         do {
             let resolvedBundle = try BundleResolver.resolve(self.bundle)
             let document = try resolvedBundle.currentDocument()
+
+            // Resolve text from --text or stdin.
+            let resolvedText: String
+            if let text {
+                resolvedText = text
+            } else {
+                let data = FileHandle.standardInput.readDataToEndOfFile()
+                guard let decoded = String(data: data, encoding: .utf8) else {
+                    let envelope = ErrorEnvelope(
+                        error: "invalidEncoding",
+                        message: "stdin contained non-UTF-8 bytes"
+                    )
+                    envelope.emit(format: output.format)
+                    throw MdpalExitCode.generalError.argumentParserCode
+                }
+                resolvedText = decoded
+            }
 
             guard let commentType = CommentType(rawValue: type) else {
                 let envelope = ErrorEnvelope(
@@ -90,15 +119,14 @@ struct CommentCommand: ParsableCommand {
                 parsedPriority = nil
             }
 
-            let parsedTags: [String]? = tags.map {
-                $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-            }
+            // Repeatable --tag is a [String]; nil if user passed no tags.
+            let parsedTags: [String]? = tag.isEmpty ? nil : tag
 
             let comment = try document.addComment(NewComment(
                 type: commentType,
                 author: author,
                 sectionSlug: slug,
-                text: text,
+                text: resolvedText,
                 context: context,
                 priority: parsedPriority,
                 tags: parsedTags

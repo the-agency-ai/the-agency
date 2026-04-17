@@ -14,7 +14,7 @@ the-agency/jordan/mdpal-cli — Markdown Pal engine + CLI. Branch `mdpal-cli`. W
 
 **Phase 1 SHIPPED.** PR #179 open at https://github.com/the-agency-ai/the-agency/pull/179.
 
-**Phase 2 Iterations 2.1 + 2.2 COMPLETE.** Working `mdpal` binary with `sections`, `read`, `edit` commands. Full read/write loop functional. Wire format aligned with dispatched spec — versionId now flows through every payload including conflict envelopes.
+**Phase 2 Iterations 2.1 + 2.2 + 2.3 COMPLETE.** Working `mdpal` binary with sections + read + edit + comment + comments + resolve + flag + flags + clear-flag (9 commands). Full read/write/collaboration loop functional. Wire format strict-aligned with dispatched spec including explicit null encoding for absent optional fields.
 
 | Phase / Iter | Commit | Tests | Content |
 |--------------|--------|-------|---------|
@@ -28,6 +28,7 @@ the-agency/jordan/mdpal-cli — Markdown Pal engine + CLI. Branch `mdpal-cli`. W
 | **2.1 QG fixes** | `874ae16` | 192 | camelCase, error field, recursive tree, removed VersionCommand |
 | **2.2 staging** | `f444ded` | 199 | EditCommand + GlobalOutputOptions |
 | **2.2 QG fixes** | `0b26f86` | 204 | versionId in conflict envelope, TTY/encoding/bytes hardening |
+| **2.3** | `6b312ad` | 221 | comment + flag lifecycle (6 commands) + Wire/ refactor + explicit null encoding |
 
 ## What was done this session
 
@@ -47,25 +48,35 @@ the-agency/jordan/mdpal-cli — Markdown Pal engine + CLI. Branch `mdpal-cli`. W
 
 ## Next action
 
-**Iteration 2.3: Comment + flag commands.**
+**Iteration 2.4: Bundle commands + diff + prune + refresh.**
 
-mdpal-app's collaboration features need these. Per dispatched spec:
-- `mdpal comment <slug> <bundle> --type --author --text [--context] [--priority] [--tags]` — returns `{commentId, slug, type, author, text, context, priority, tags, timestamp, resolved}`
-- `mdpal comments <bundle> [--section] [--type] [--unresolved] [--resolved]` — returns `{comments: [...], count, filters}`
-- `mdpal resolve <commentId> <bundle> --response --by` — returns resolved comment with resolution
-- `mdpal flag <slug> <bundle> --author [--note]` — returns `{slug, flagged, author, note, timestamp}`
-- `mdpal flags <bundle>` — returns `{flags: [...], count}`
-- `mdpal clear-flag <slug> <bundle>` — returns `{slug, flagged: false}`
+This rounds out the dispatched CLI spec — mdpal-app will be fully unblocked after this.
 
-Plus the deferred-from-2.2 hygiene items (slug edge case tests, --version "" test, no-op edit, exact bytesWritten pin, invalidBundlePath in edit, text format ordering).
+Commands to build:
+- `mdpal create <name> [--dir]` — create new bundle with initial revision
+- `mdpal history <bundle>` — list revisions newest-first with `latest: true` flag
+- `mdpal version show <bundle>` — display current version + revision + versionId + timestamp
+- `mdpal version bump <bundle>` — increment major version, reset revision to 1
+- `mdpal revision create <bundle> [--content | --stdin] [--base-revision]` — explicit revision creation with optional concurrency check
+- `mdpal diff <rev1> <rev2> <bundle>` — section-level diff (REQUIRES Phase 1.5 H5: Diff API in engine — build that first)
+- `mdpal prune <bundle> [--keep <n>]` — prune old revisions with comment merge-forward
+- `mdpal refresh <slug> <bundle>` — update stale comment hashes on a section
 
-Build order:
-1. CommentCommand + CommentsCommand + ResolveCommand
-2. FlagCommand + FlagsCommand + ClearFlagCommand
-3. Wire/ directory split (refactor payload DTOs out of Commands/*) — deferred from 2.1
-4. Bonus: subprocess timeout in CLISupport (cheap, prevents future hangs)
+Plus deferred-from-2.2/2.3 hygiene:
+- Subprocess timeout in CLISupport
+- Slug edge case tests
+- E2E collaboration test through CLI
+- Wire-format goldens
 
-Then iteration-complete and merge. Don't wait for principal.
+Order:
+1. Build engine Diff API (H5 from Phase 1 backlog) — needed for `mdpal diff`
+2. CreateCommand, HistoryCommand
+3. VersionShowCommand + VersionBumpCommand (group)
+4. RevisionCreateCommand (subcommand of `revision`)
+5. DiffCommand, PruneCommand, RefreshCommand
+6. Iteration QG, commit, push
+
+Then iter 2.4 ships and Phase 2 is complete. Don't wait for principal.
 
 ## Open coordination
 

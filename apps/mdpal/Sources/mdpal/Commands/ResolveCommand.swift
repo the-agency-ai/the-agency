@@ -28,22 +28,50 @@ struct ResolveCommand: ParsableCommand {
     @Argument(help: "Path to the .mdpal bundle directory.")
     var bundle: String
 
-    @Option(name: .long, help: "Response text explaining the resolution.")
-    var response: String
+    @Option(name: .long, help: "Response text (mutually exclusive with --response-stdin).")
+    var response: String?
+
+    @ArgumentParser.Flag(name: .long, help: "Read response text from stdin (avoids ARG_MAX limits).")
+    var responseStdin: Bool = false
 
     @Option(name: .long, help: "Who is resolving the comment.")
     var by: String
 
     @OptionGroup var output: GlobalOutputOptions
 
+    func validate() throws {
+        if response != nil && responseStdin {
+            throw ValidationError("Specify either --response or --response-stdin, not both.")
+        }
+        if response == nil && !responseStdin {
+            throw ValidationError("One of --response or --response-stdin is required.")
+        }
+    }
+
     func run() throws {
         do {
             let resolvedBundle = try BundleResolver.resolve(self.bundle)
             let document = try resolvedBundle.currentDocument()
 
+            let resolvedResponse: String
+            if let response {
+                resolvedResponse = response
+            } else {
+                let data = FileHandle.standardInput.readDataToEndOfFile()
+                guard let decoded = String(data: data, encoding: .utf8) else {
+                    let envelope = ErrorEnvelope(
+                        error: "invalidEncoding",
+                        message: "stdin contained non-UTF-8 bytes"
+                    )
+                    envelope.emit(format: output.format)
+                    throw MdpalExitCode.generalError.argumentParserCode
+                }
+                resolvedResponse = decoded
+            }
+
             let comment = try document.resolveComment(
                 id: commentId,
-                response: response,
+                response: resolvedResponse,
                 resolvedBy: by
             )
 

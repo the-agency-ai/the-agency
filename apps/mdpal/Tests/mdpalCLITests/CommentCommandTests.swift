@@ -196,6 +196,80 @@ Design here.
     #expect(envelope["error"] as? String == "commentNotFound")
 }
 
+// mdpal-app coord item #2: repeatable --tag (replaces --tags comma-separated)
+@Test func commentAcceptsRepeatableTagFlag() throws {
+    let fixture = try CLISupport.makeFixture(name: "comment-tags", content: fixtureContent)
+    defer { CLISupport.cleanup(fixture) }
+
+    let result = try CLISupport.runCLI([
+        "comment", "introduction", fixture.bundlePath,
+        "--type", "note", "--author", "alice", "--text", "tagged",
+        "--tag", "perf", "--tag", "phase2",
+    ])
+    #expect(result.exitCode == 0, "stderr: \(result.stderr)")
+    let payload = try TestJSON.parse(result.stdout)
+    let tags = try #require(payload["tags"] as? [String])
+    #expect(tags.contains("perf"))
+    #expect(tags.contains("phase2"))
+    #expect(tags.count == 2)
+}
+
+// mdpal-app coord item #4: --text-stdin avoids ARG_MAX limits
+@Test func commentTextViaStdin() throws {
+    let fixture = try CLISupport.makeFixture(name: "comment-stdin", content: fixtureContent)
+    defer { CLISupport.cleanup(fixture) }
+
+    let longText = String(repeating: "Long comment body. ", count: 1000)
+    let result = try CLISupport.runCLI(
+        [
+            "comment", "introduction", fixture.bundlePath,
+            "--type", "note", "--author", "alice", "--text-stdin",
+        ],
+        stdin: longText
+    )
+    #expect(result.exitCode == 0, "stderr: \(result.stderr)")
+    let payload = try TestJSON.parse(result.stdout)
+    let text = try #require(payload["text"] as? String)
+    #expect(text.contains("Long comment body."))
+    #expect(text.count > 10_000, "expected long text round-tripped intact, got \(text.count) chars")
+}
+
+@Test func commentRejectsBothTextAndTextStdin() throws {
+    let fixture = try CLISupport.makeFixture(name: "comment-both", content: fixtureContent)
+    defer { CLISupport.cleanup(fixture) }
+    let result = try CLISupport.runCLI(
+        [
+            "comment", "introduction", fixture.bundlePath,
+            "--type", "note", "--author", "alice", "--text", "x", "--text-stdin",
+        ],
+        stdin: "y"
+    )
+    #expect(result.exitCode != 0)
+}
+
+@Test func resolveResponseViaStdin() throws {
+    let fixture = try CLISupport.makeFixture(name: "resolve-stdin", content: fixtureContent)
+    defer { CLISupport.cleanup(fixture) }
+
+    let added = try TestJSON.parse(try CLISupport.runCLI([
+        "comment", "introduction", fixture.bundlePath,
+        "--type", "question", "--author", "alice", "--text", "Q",
+    ]).stdout)
+    let cid = try #require(added["commentId"] as? String)
+
+    let result = try CLISupport.runCLI(
+        [
+            "resolve", cid, fixture.bundlePath,
+            "--response-stdin", "--by", "bob",
+        ],
+        stdin: "Long resolution explanation."
+    )
+    #expect(result.exitCode == 0, "stderr: \(result.stderr)")
+    let payload = try TestJSON.parse(result.stdout)
+    let resolution = try #require(payload["resolution"] as? [String: Any])
+    #expect(resolution["response"] as? String == "Long resolution explanation.")
+}
+
 @Test func resolveAlreadyResolvedReturnsExitCode1() throws {
     let fixture = try CLISupport.makeFixture(name: "resolve-twice", content: fixtureContent)
     defer { CLISupport.cleanup(fixture) }
