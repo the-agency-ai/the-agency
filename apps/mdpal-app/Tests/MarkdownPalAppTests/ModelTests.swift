@@ -2123,8 +2123,9 @@ func testRealCLIServiceAddCommentHappyPath() async throws {
         try expect(comment.author, equals: "jordan")
         try expect(comment.resolved, equals: false)
 
-        // argv contract per dispatch #23: --priority always emitted,
-        // --context omitted when nil, --tags omitted when empty.
+        // argv contract per dispatch #23 + mdpal-cli #579: --priority
+        // always emitted, --context omitted when nil, --tag repeatable
+        // (one per tag) and omitted when tags are empty.
         try expect(runner.lastArgs ?? [],
                    equals: [
                        "comment", "architecture", "/abs/path/design.mdpal",
@@ -2133,12 +2134,12 @@ func testRealCLIServiceAddCommentHappyPath() async throws {
                        "--text", "Should we use dependency injection here?",
                        "--priority", "normal",
                    ],
-                   "argv must follow dispatch #23 comment command; no --context when nil; no --tags when empty")
+                   "argv must follow comment command; no --context when nil; no --tag when empty")
         try expectNil(runner.lastStdin, "comment is not stdin-fed")
     }
 }
 
-func testRealCLIServiceAddCommentEmitsContextAndTagsWhenPresent() async throws {
+func testRealCLIServiceAddCommentEmitsContextAndRepeatableTagsWhenPresent() async throws {
     let canned = ProcessResult(
         exitCode: 0,
         stdout: Data(addCommentHappyJSON.utf8),
@@ -2164,9 +2165,10 @@ func testRealCLIServiceAddCommentEmitsContextAndTagsWhenPresent() async throws {
                        "--text", "foo",
                        "--priority", "high",
                        "--context", "surrounding text",
-                       "--tags", "perf,phase2",
+                       "--tag", "perf",
+                       "--tag", "phase2",
                    ],
-                   "optional flags emitted only when values are supplied; tags comma-joined")
+                   "repeatable --tag <value> per mdpal-cli #579 (not --tags comma-list)")
     }
 }
 
@@ -2407,17 +2409,22 @@ func testRealCLIServiceClearFlagMapsMalformedJSONToParseError() async throws {
 
 func testRealCLIServiceAddCommentFiltersEmptyTags() async throws {
     // `tags: [""]` is a common mistake source (from parsing a trailing
-    // comma or empty input). Must not render as `--tags ""`.
+    // comma or empty input). Must not render as `--tag ""` for any entry.
     let canned = ProcessResult(
         exitCode: 0, stdout: Data(addCommentHappyJSON.utf8), stderr: Data())
     try await withRealCLIServiceForTesting(result: canned) { svc, runner in
         _ = try await svc.addComment(
             slug: "architecture", bundle: BundlePath("/b.mdpal"),
             type: .note, author: "a", text: "t",
-            context: nil, priority: .normal, tags: [""])
+            context: nil, priority: .normal, tags: ["", "real", ""])
         let argv = runner.lastArgs ?? []
-        try expect(argv.contains("--tags"), equals: false,
-                   "--tags must be omitted when only empty strings were supplied")
+        try expect(argv.contains("--tag"), equals: true,
+                   "non-empty tag must still produce --tag real")
+        // The only --tag entry should be the "real" one; empty tags dropped.
+        let tagIndices = argv.indices.filter { argv[$0] == "--tag" }
+        try expect(tagIndices.count, equals: 1, "exactly one --tag for one real tag")
+        try expect(argv[tagIndices[0] + 1], equals: "real",
+                   "empty-string tags must be dropped, not rendered as --tag ''")
     }
 }
 
@@ -2683,7 +2690,7 @@ struct TestRunner {
 
         print("\nRealCLIService mutations (Phase 1B.5):")
         await runAsync("addComment happy path + argv (minimal)", testRealCLIServiceAddCommentHappyPath)
-        await runAsync("addComment emits --context and --tags when present", testRealCLIServiceAddCommentEmitsContextAndTagsWhenPresent)
+        await runAsync("addComment emits --context and repeatable --tag when present", testRealCLIServiceAddCommentEmitsContextAndRepeatableTagsWhenPresent)
         await runAsync("addComment maps sectionNotFound envelope", testRealCLIServiceAddCommentMapsSectionNotFoundEnvelope)
         await runAsync("resolveComment happy path + argv", testRealCLIServiceResolveCommentHappyPath)
         await runAsync("resolveComment maps non-zero exit to executionFailed", testRealCLIServiceResolveCommentMapsNonZeroExitToExecutionFailed)

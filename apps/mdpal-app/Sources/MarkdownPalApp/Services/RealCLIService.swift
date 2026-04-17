@@ -42,6 +42,10 @@
 //          (addComment, flagSection, clearFlag) map sectionNotFound
 //          through the envelope; resolveComment keys off commentId and
 //          just uses runCommand.
+// Updated: 2026-04-17 Phase 1B.7 — addComment switched from
+//          `--tags <csv>` to repeatable `--tag <value>` per mdpal-cli
+//          Phase 2.3 resolution (dispatch #579). Sidesteps the comma-
+//          encoding question.
 
 import Foundation
 
@@ -353,16 +357,13 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         if let context {
             args.append(contentsOf: ["--context", context])
         }
-        // Filter empty tags so `tags = [""]` doesn't render as `--tags ""`,
-        // which the CLI would accept as one empty-named tag. If all tags
-        // are empty after filtering, omit --tags entirely.
-        let realTags = tags.filter { !$0.isEmpty }
-        if !realTags.isEmpty {
-            // NOTE: spec uses comma-separated tag list with no documented
-            // escape convention. A tag containing a literal comma would
-            // be split CLI-side. Cross-repo coordination item for
-            // mdpal-cli — for now, callers must not embed commas.
-            args.append(contentsOf: ["--tags", realTags.joined(separator: ",")])
+        // Per mdpal-cli #579: CLI takes repeatable `--tag <value>` (one
+        // flag per tag), not a comma-separated `--tags` list. This
+        // sidesteps the comma-encoding question that dispatch #23 left
+        // open. Empty strings are filtered so `tags = [""]` doesn't
+        // render as `--tag ""`.
+        for tag in tags where !tag.isEmpty {
+            args.append(contentsOf: ["--tag", tag])
         }
         return try await runCommandWithEnvelope(
             args, as: Comment.self, envelopeMapper: Self.sectionNotFoundMapper
