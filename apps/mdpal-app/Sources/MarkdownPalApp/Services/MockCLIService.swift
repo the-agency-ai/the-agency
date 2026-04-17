@@ -320,4 +320,98 @@ public final class MockCLIService: CLIServiceProtocol, @unchecked Sendable {
         try await Task.sleep(for: .milliseconds(20))
         return ClearFlagResult(slug: slug, flagged: false)
     }
+
+    // MARK: - Persistence (Phase 1C.3)
+
+    /// Mock revision counter — increments on each createRevision call so
+    /// the mock looks plausibly "live" across multiple saves in a session.
+    /// @unchecked via the wrapping class is acceptable for test/preview
+    /// data; no multi-actor contention in mock paths.
+    private static let revisionCounter = MockCounter()
+
+    public func createRevision(
+        bundle: BundlePath, content: String, baseRevision: String?
+    ) async throws -> RevisionInfo {
+        try await Task.sleep(for: .milliseconds(50))
+        let n = Self.revisionCounter.next()
+        let ts = Date()
+        let versionId = "V0001.\(String(format: "%04d", n)).\(ts.iso8601UTC)"
+        return RevisionInfo(
+            versionId: versionId,
+            version: 1,
+            revision: n,
+            timestamp: ts,
+            filePath: "\(versionId).md",
+            latest: nil // create response doesn't carry latest
+        )
+    }
+
+    public func listHistory(bundle: BundlePath) async throws -> [RevisionInfo] {
+        try await Task.sleep(for: .milliseconds(30))
+        // Two canned revisions; newest first matches spec.
+        let fmt = ISO8601DateFormatter()
+        let now = fmt.date(from: "2026-04-17T10:00:00Z") ?? Date()
+        let earlier = fmt.date(from: "2026-04-17T09:00:00Z") ?? Date()
+        return [
+            RevisionInfo(
+                versionId: "V0001.0003.20260417T1000Z", version: 1, revision: 3,
+                timestamp: now, filePath: "V0001.0003.20260417T1000Z.md", latest: true
+            ),
+            RevisionInfo(
+                versionId: "V0001.0002.20260417T0900Z", version: 1, revision: 2,
+                timestamp: earlier, filePath: "V0001.0002.20260417T0900Z.md", latest: false
+            ),
+        ]
+    }
+
+    public func showVersion(bundle: BundlePath) async throws -> VersionInfo {
+        try await Task.sleep(for: .milliseconds(20))
+        let ts = ISO8601DateFormatter().date(from: "2026-04-17T10:00:00Z") ?? Date()
+        return VersionInfo(
+            version: 1,
+            versionId: "V0001.0003.20260417T1000Z",
+            revision: 3,
+            timestamp: ts
+        )
+    }
+
+    public func bumpVersion(bundle: BundlePath) async throws -> VersionBumpResult {
+        try await Task.sleep(for: .milliseconds(30))
+        let ts = Date()
+        return VersionBumpResult(
+            previousVersion: 1,
+            version: 2,
+            versionId: "V0002.0001.\(ts.iso8601UTC)",
+            revision: 1,
+            timestamp: ts
+        )
+    }
+}
+
+/// Tiny thread-safe monotonic counter for MockCLIService state that
+/// needs to feel "live" across calls. Not Codable / Sendable-intended;
+/// Mock is @unchecked Sendable which covers the reference here.
+private final class MockCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 3 // start after the two canned history revisions
+
+    func next() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        value += 1
+        return value
+    }
+}
+
+private extension Date {
+    /// ISO8601 UTC string without fractional seconds, hyphens/colons —
+    /// matches the `V0001.0003.YYYYMMDDTHHMMSSZ` pattern the CLI emits.
+    var iso8601UTC: String {
+        let df = DateFormatter()
+        df.calendar = Calendar(identifier: .gregorian)
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.timeZone = TimeZone(identifier: "UTC")
+        df.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+        return df.string(from: self)
+    }
 }
