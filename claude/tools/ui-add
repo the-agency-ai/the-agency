@@ -1,0 +1,15 @@
+#!/bin/bash
+# ui-add — add a frontend app to an existing workstream
+#
+# Thin wrapper around tools/ui-add.ts — keeps the tool discoverable under
+# claude/tools/ alongside other framework tools.
+#
+# Usage: ./claude/tools/ui-add <name> --workstream <ws> [options]
+# See:   claude/starter-packs/nextjs-app/README.md
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+exec pnpm --silent tsx "$REPO_ROOT/tools/ui-add.ts" "$@"
