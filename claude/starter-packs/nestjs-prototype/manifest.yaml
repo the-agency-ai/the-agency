@@ -1,0 +1,50 @@
+# NestJS Prototype Starter Pack — manifest
+# Declares what this provider emits when invoked by /service-add.
+#
+# SPEC-PROVIDER: this pack is the PROVIDER for the spec
+#   { type: compute, language: typescript, framework: nestjs }
+#
+# Read by: claude/tools/service-add (via tools/service-add.ts)
+
+name: nestjs-prototype
+version: 1.0.0
+description: Minimal NestJS prototype module scaffold mirroring apps/backend/src/prototype/hello-world/
+
+# What this pack creates (paths relative to repoRoot, with {{name}} templated from CLI arg)
+emits:
+  files:
+    - path: apps/backend/src/prototype/{{name}}/{{name}}.module.ts
+    - path: apps/backend/src/prototype/{{name}}/{{name}}.controller.ts
+    - path: apps/backend/src/prototype/{{name}}/{{name}}.service.ts
+    - path: apps/backend/src/prototype/{{name}}/{{name}}.controller.spec.ts
+    - path: docs/prototype/{{name}}/build-manifest.json
+
+# What topology.yaml entry the pack expects the caller (service-add.ts) to create
+topology:
+  type: compute
+  # Backend is the sole compute service in v1 — this prototype rides inside the backend app.
+  # service-add.ts does NOT add a separate topology entry for a prototype; it only updates
+  # the registry. This field is informational.
+  shares_service: backend
+
+# What registry entry to create
+registry:
+  name: "{{name}}"
+  module: "{{PascalName}}Module"
+  routes:
+    - "GET /greet"
+    - "GET /build-info"
+    - "POST /register-build"
+  description: "{{name}} prototype (scaffolded)"
+
+# Port allocation: not applicable — prototypes ride inside the backend service
+port_range: null
+
+# Verification: caller should run this after scaffolding
+verify:
+  - description: "Prototype module files written"
+    check: "test -f apps/backend/src/prototype/{{name}}/{{name}}.module.ts"
+  - description: "Module imported in registry"
+    check: "grep -q '{{PascalName}}Module' apps/backend/src/prototype/prototype.registry.ts"
+  - description: "Entry added in registry array"
+    check: "grep -q \"name: '{{name}}'\" apps/backend/src/prototype/prototype.registry.ts"
