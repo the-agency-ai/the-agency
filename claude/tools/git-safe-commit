@@ -210,7 +210,12 @@ main() {
     local git_dir_mrg
     git_dir_mrg=$(git rev-parse --git-dir 2>/dev/null) || true
     if [[ -n "$git_dir_mrg" && -f "$git_dir_mrg/MERGE_HEAD" && "$AMEND" = false && "$DRY_RUN" = false ]]; then
-        echo -e "${BLUE}[INFO]${NC} Merge in progress detected — concluding with 'git commit --no-edit'."
+        # Issue #172: auto-add --no-verify during merge resolution. Pre-commit
+        # hooks (lint-staged) try to lint the entire merge diff — hundreds of
+        # files. The merge itself was already reviewed; the conflict resolution
+        # is mechanical. Without this, captains reach for raw `git commit
+        # --no-verify` (defeating the safe-commit wrapper).
+        echo -e "${BLUE}[INFO]${NC} Merge in progress detected — concluding with 'git commit --no-edit --no-verify' (auto: merge resolution)."
         # Verify no remaining conflicts
         if git ls-files -u | grep -q .; then
             log_error "Merge has unresolved conflicts. Resolve with:"
@@ -221,8 +226,8 @@ main() {
             log_end "$RUN_ID" "failure" 1 0 "Merge has unresolved conflicts"
             exit 1
         fi
-        local merge_cmd=(git commit --no-edit)
-        [[ "$NO_VERIFY" = true ]] && merge_cmd+=(--no-verify)
+        # Always --no-verify during merge — pre-commit hooks don't belong here.
+        local merge_cmd=(git commit --no-edit --no-verify)
         if "${merge_cmd[@]}"; then
             local merge_hash
             merge_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
