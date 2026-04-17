@@ -111,9 +111,10 @@ Resolved by mdpal-cli dispatch #408 (2026-04-15):
 | 1B.1 | ✅ COMPLETE | `8f80b7a` | 46 → 60 | CLIProcess harness + RealCLIService init + cliNotFound |
 | 1B.2 | ✅ COMPLETE | `b539144` | 60 → 66 | listSections against #23; runCommand<T>; shared iso8601 decoder |
 | 1B.3 | ✅ COMPLETE | `a8264cd` | 66 → 78 | readSection + listComments + listFlags; iso8601 decoder exercised end-to-end |
-| 1B.4 | pending | — | — | editSection + versionConflict envelope (typed stderr) |
-| 1B.5 | pending | — | — | mutation commands (add/resolve/flag/clear) |
-| 1B.6 | pending | — | — | service selection + housekeeping (ClipboardReader, DoS cap, stderr sanitization) |
+| 1B.4 | ✅ COMPLETE | `29f5d23` | 78 → 89 | editSection + versionConflict typed envelope; readSection migrated to sectionNotFound; CLIErrorResponse decoder rewritten per dispatch #23 |
+| 1B.5 | ✅ COMPLETE | `91610e2` | 89 → 104 | mutation commands (add/resolve/flag/clear); all 9 CLIServiceProtocol methods real |
+| 1B.6 | ✅ COMPLETE | `433a98f` | 104 → 111 | CLIServiceFactory + DoS cap + stderr sanitization + ClipboardReader refactor |
+| 1B-close | in progress | — | — | cross-repo dispatch to mdpal-cli; /phase-complete; PR to main |
 
 ## Quality Gate Reports
 
