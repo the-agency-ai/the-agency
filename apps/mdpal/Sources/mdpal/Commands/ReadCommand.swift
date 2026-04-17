@@ -1,12 +1,14 @@
 // What Problem: `mdpal read <slug> <bundle>` returns the full content
-// of a single section, including its version hash (for subsequent
-// optimistic-concurrency edits) and direct children. mdpal-app uses
-// this when the user clicks into a section in the outline.
+// of a single section, including its versionHash (for subsequent
+// optimistic-concurrency edits) and the bundle's versionId. mdpal-app
+// uses this when the user clicks into a section in the outline.
 //
 // How & Why: Open bundle, fetch currentDocument(), call readSection.
-// Emit JSON with slug, heading, level, content, version_hash, children.
-// On not-found, surface section_not_found via ErrorEnvelope so the app
-// can offer the suggestions list.
+// Emit JSON with slug, heading, level, content, versionHash, versionId.
+// On not-found, surface sectionNotFound via ErrorEnvelope so the app
+// can offer the availableSlugs list.
+//
+// Reference: usr/jordan/mdpal/dispatches/dispatch-cli-json-output-shapes-20260406.md
 //
 // Written: 2026-04-17 during mdpal-cli session (Phase 2 iteration 2.1)
 
@@ -37,19 +39,21 @@ struct ReadCommand: ParsableCommand {
 
     func run() throws {
         do {
-            let bundle = try BundleResolver.resolve(self.bundle)
-            let document = try bundle.currentDocument()
+            let resolvedBundle = try BundleResolver.resolve(self.bundle)
+            let document = try resolvedBundle.currentDocument()
             let section = try document.readSection(slug)
+            let versionId = try resolvedBundle.latestRevision()?.versionId ?? ""
 
             switch format {
             case .json:
-                let payload = SectionPayload(from: section)
+                let payload = SectionPayload(from: section, versionId: versionId)
                 try JSONOutput.print(payload)
             case .text:
                 print("# \(section.heading)")
-                print("slug:         \(section.slug)")
-                print("level:        \(section.level)")
-                print("version_hash: \(section.versionHash)")
+                print("slug:        \(section.slug)")
+                print("level:       \(section.level)")
+                print("versionHash: \(section.versionHash)")
+                print("versionId:   \(versionId)")
                 if !section.children.isEmpty {
                     print("children:")
                     for child in section.children {
@@ -67,23 +71,26 @@ struct ReadCommand: ParsableCommand {
     }
 }
 
-/// Wire shape for `mdpal read` JSON output. Mirrors `Section` but omits
-/// `lineRange` (always nil in Phase 1; will be added when wired through
-/// the parser in Phase 2.5).
+/// Wire shape for `mdpal read` JSON output. Per the dispatched spec:
+/// includes `versionHash` (for optimistic-concurrency edits) and
+/// `versionId` (identifies the revision the section was read from).
+///
+/// Note: the spec does not include the children array on `read` (that
+/// info is on `sections`). We omit it here too to match the contract.
 struct SectionPayload: Encodable {
     let slug: String
     let heading: String
     let level: Int
     let content: String
     let versionHash: String
-    let children: [SectionInfo]
+    let versionId: String
 
-    init(from section: Section) {
+    init(from section: Section, versionId: String) {
         self.slug = section.slug
         self.heading = section.heading
         self.level = section.level
         self.content = section.content
         self.versionHash = section.versionHash
-        self.children = section.children
+        self.versionId = versionId
     }
 }

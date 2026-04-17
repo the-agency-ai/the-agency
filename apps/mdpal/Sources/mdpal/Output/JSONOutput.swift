@@ -15,19 +15,25 @@ import Foundation
 enum JSONOutput {
 
     /// Shared encoder used by every command. Configuration must match the
-    /// dispatched JSON spec to mdpal-app — drift here is a wire-format break.
+    /// dispatched JSON spec to mdpal-app (`dispatch-cli-json-output-shapes-20260406.md`)
+    /// — drift here is a wire-format break.
+    ///
+    /// Field naming is camelCase (Swift property names emit verbatim — no key
+    /// transformation). The dispatched spec uses camelCase for every field
+    /// (`versionHash`, `versionId`, `commentId`, `availableSlugs`, etc.).
+    /// Internal YAML metadata uses snake_case but JSON is a separate surface.
     static let encoder: JSONEncoder = {
         let enc = JSONEncoder()
-        enc.keyEncodingStrategy = .convertToSnakeCase
         enc.dateEncodingStrategy = .iso8601
         enc.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         return enc
     }()
 
     /// Shared decoder for inputs (e.g., `mdpal edit --stdin` JSON payloads).
+    /// camelCase property names match the wire format directly — no key
+    /// transformation needed.
     static let decoder: JSONDecoder = {
         let dec = JSONDecoder()
-        dec.keyDecodingStrategy = .convertFromSnakeCase
         dec.dateDecodingStrategy = .iso8601
         return dec
     }()
