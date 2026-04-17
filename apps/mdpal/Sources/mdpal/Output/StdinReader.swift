@@ -58,6 +58,17 @@ enum StdinReader {
                 )
             }
         }
+
+        /// Exit code per failure mode. `payloadTooLarge` shares the
+        /// `sizeLimitExceeded` exit code with engine `fileTooLarge` —
+        /// both are "size cap hit" with the same caller-recovery
+        /// pattern (reduce input or raise the cap).
+        var exitCode: MdpalExitCode {
+            switch self {
+            case .payloadTooLarge: return .sizeLimitExceeded
+            case .isTTY, .invalidEncoding: return .generalError
+            }
+        }
     }
 
     /// Read all of stdin (up to `maxBytes`), refusing TTY input and

@@ -244,6 +244,20 @@ enum EngineErrorMapper {
                 ErrorEnvelope(error: "noFilePath", message: "Document was created without a file path"),
                 .generalError
             )
+        case .fileTooLarge(let path, let sizeBytes, let limitBytes):
+            let details: [String: AnyCodable] = [
+                "path": AnyCodable(path),
+                "sizeBytes": AnyCodable(sizeBytes),
+                "limitBytes": AnyCodable(limitBytes),
+            ]
+            return (
+                ErrorEnvelope(
+                    error: "fileTooLarge",
+                    message: "File at '\(path)' exceeds the \(limitBytes)-byte ceiling (observed \(sizeBytes))",
+                    details: details
+                ),
+                .sizeLimitExceeded
+            )
         }
     }
 }

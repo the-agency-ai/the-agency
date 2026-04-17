@@ -89,7 +89,7 @@ struct RevisionCreateCommand: ParsableCommand {
                     resolvedContent = try StdinReader.readAll()
                 } catch let f as StdinReader.ReadFailure {
                     f.envelope.emit(format: output.format)
-                    throw MdpalExitCode.generalError.argumentParserCode
+                    throw f.exitCode.argumentParserCode
                 }
             }
 

@@ -38,6 +38,7 @@ struct Mdpal: ParsableCommand {
               2 — version conflict (optimistic concurrency)
               3 — not found (slug, comment, file)
               4 — bundle conflict (revision collision, concurrent write)
+              5 — size limit exceeded (stdin payloadTooLarge, file fileTooLarge)
             """,
         version: "0.2.0-dev",
         subcommands: [

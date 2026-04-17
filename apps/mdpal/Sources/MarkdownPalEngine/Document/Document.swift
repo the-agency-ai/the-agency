@@ -79,15 +79,16 @@ public final class Document {
     /// CLI mode: read the file from disk and parse it.
     ///
     /// Resolves the parser via `ParserRegistry.shared` based on the file
-    /// extension. Throws `.unsupportedFormat` if no parser matches and
-    /// `.fileError` if the file cannot be read.
+    /// extension. Throws `.unsupportedFormat` if no parser matches,
+    /// `.fileError` if the file cannot be read, and `.fileTooLarge` if
+    /// the file exceeds the engine's defensive 16 MiB ceiling (matches
+    /// the `revision create --stdin` cap so anything writable is also
+    /// readable).
     public convenience init(contentsOfFile path: String) throws {
-        let content: String
-        do {
-            content = try String(contentsOfFile: path, encoding: .utf8)
-        } catch {
-            throw EngineError.fileError(path: path, description: "\(error)")
-        }
+        // Capped read — defends against accidental or hostile multi-GB
+        // revision files. Limit is the same as StdinReader's cap so a
+        // bundle written by THIS engine is always readable by THIS engine.
+        let content = try SizedFileReader.readRevisionUTF8(at: path)
 
         let pathExtension = (path as NSString).pathExtension
         guard !pathExtension.isEmpty else {

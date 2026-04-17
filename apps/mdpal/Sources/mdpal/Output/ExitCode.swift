@@ -32,6 +32,12 @@ enum MdpalExitCode: Int32 {
     case notFound = 3
     /// Bundle invariant violated (revision collision, concurrent writer detected).
     case bundleConflict = 4
+    /// Input or on-disk size exceeded the engine's defensive cap.
+    /// Shared between stdin payloads (`payloadTooLarge` envelope) and
+    /// file reads (`fileTooLarge` envelope) — both are "size limit hit"
+    /// conditions that the caller resolves by reducing input size or
+    /// raising the cap (deliberate operator action), not by retrying.
+    case sizeLimitExceeded = 5
 
     /// Convert to ArgumentParser's `ExitCode` (which conforms to `Error`
     /// and is the throwable that ParsableCommand uses to set the

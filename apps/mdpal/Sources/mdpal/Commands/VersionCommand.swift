@@ -114,14 +114,9 @@ struct VersionBumpCommand: ParsableCommand {
             // reformatting whitespace, list indentation, and YAML key
             // ordering. The append-only invariant (mirrors the prune-side
             // fix at DocumentBundle.swift) requires the new V0002.0001 file
-            // to be byte-identical to the prior latest. Read the raw bytes
-            // off disk and pass them straight to bumpVersion.
-            let content: String
-            do {
-                content = try String(contentsOfFile: priorLatest.filePath, encoding: .utf8)
-            } catch {
-                throw EngineError.fileError(path: priorLatest.filePath, description: "\(error)")
-            }
+            // to be byte-identical to the prior latest. The bundle helper
+            // applies the engine's revision-size cap.
+            let content = try resolvedBundle.rawRevisionContent(versionId: priorLatest.versionId)
             let newRevision = try resolvedBundle.bumpVersion(content: content)
 
             switch output.format {

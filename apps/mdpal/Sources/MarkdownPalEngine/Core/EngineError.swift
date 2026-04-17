@@ -67,4 +67,12 @@ public enum EngineError: Error, Equatable, Sendable {
     /// and merge. Distinct from the generic `bundleConflict(String)` so
     /// the wire envelope's `details` block carries structured fields.
     case bundleBaseConflict(expected: String, actual: String)
+
+    /// File on disk exceeded the engine's defensive size ceiling. Catches
+    /// (a) accidentally-huge revision files, (b) malicious bundles
+    /// shipping multi-GB YAML/markdown to OOM the engine, (c) YAML
+    /// billion-laughs amplification attacks (the cap blocks the input
+    /// before Yams even sees it). Carries both observed and limit sizes
+    /// so callers can decide whether to raise the cap or reject.
+    case fileTooLarge(path: String, sizeBytes: Int, limitBytes: Int)
 }

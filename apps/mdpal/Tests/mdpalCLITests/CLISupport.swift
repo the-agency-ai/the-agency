@@ -63,16 +63,33 @@ enum CLISupport {
         throw CLITestError.binaryNotFound
     }
 
+    /// Default timeout for any single CLI invocation. 60s is well above
+    /// any real command's wall-clock cost (the slowest path — prune of a
+    /// 100-revision bundle with merge-forward — runs sub-second). A test
+    /// that hangs against an unresponsive subprocess is a debugging
+    /// nightmare; better to fail loudly with `Output(timedOut: true)`.
+    static let defaultTimeoutSeconds: TimeInterval = 60
+
     /// Launch the mdpal binary with the given arguments. Captures stdout,
-    /// stderr, and exit code. Synchronous — blocks until the process exits.
+    /// stderr, and exit code. Synchronous — blocks until the process exits
+    /// or the timeout elapses, whichever comes first.
     ///
-    /// Note: pipes are drained AFTER waitUntilExit. This is fine for the
-    /// small payloads (a few KB) the current commands emit. If a future
-    /// command emits >16KB to either stream, switch to incremental
-    /// draining via readabilityHandler before the child can block. For
-    /// now the simple synchronous path is more reliable than DispatchGroup
-    /// orchestration around Foundation's Pipe.
-    static func runCLI(_ args: [String], stdin: String? = nil) throws -> Output {
+    /// On timeout, the child is sent SIGTERM (then SIGKILL after a brief
+    /// grace period) and the function throws `CLITestError.timedOut` so
+    /// the test fails with an actionable signal instead of stalling for
+    /// the full test-runner timeout. The default 60s ceiling is a soft
+    /// safety net — most commands complete in <100ms.
+    ///
+    /// Note: pipes are drained AFTER waitUntilExit (or after kill on
+    /// timeout). The simple synchronous path is more reliable than
+    /// DispatchGroup orchestration around Foundation's Pipe; the
+    /// per-command output is well under 16KB so the kernel pipe buffer
+    /// won't block the child.
+    static func runCLI(
+        _ args: [String],
+        stdin: String? = nil,
+        timeoutSeconds: TimeInterval = defaultTimeoutSeconds
+    ) throws -> Output {
         let binary = try binaryURL()
 
         let process = Process()
@@ -94,7 +111,42 @@ enum CLISupport {
             try process.run()
         }
 
+        // Watchdog using DispatchWorkItem.cancel(): if the process exits
+        // BEFORE the deadline, we cancel the watchdog and it never runs.
+        // If the deadline fires first, the watchdog terminates the
+        // process and sets `didTimeOut`. Simpler than the prior semaphore
+        // dance and eliminates the spurious-timeout race window where
+        // the watchdog could fire just as the process exited cleanly.
+        let didTimeOutLock = NSLock()
+        var didTimeOut = false
+        let watchdog = DispatchWorkItem { [weak process] in
+            guard let process else { return }
+            guard process.isRunning else { return }
+            process.terminate()
+            // Grace period for SIGTERM to take effect, then escalate.
+            DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) { [weak process] in
+                guard let process, process.isRunning else { return }
+                kill(process.processIdentifier, SIGKILL)
+            }
+            didTimeOutLock.lock()
+            didTimeOut = true
+            didTimeOutLock.unlock()
+        }
+        DispatchQueue.global(qos: .userInitiated)
+            .asyncAfter(deadline: .now() + timeoutSeconds, execute: watchdog)
+
         process.waitUntilExit()
+        // Cancel the watchdog AFTER waitUntilExit returns. If the work
+        // item already started executing it's a no-op; if it hasn't,
+        // .cancel() prevents it from running at all.
+        watchdog.cancel()
+
+        didTimeOutLock.lock()
+        let timedOut = didTimeOut
+        didTimeOutLock.unlock()
+        if timedOut {
+            throw CLITestError.timedOut(seconds: timeoutSeconds, args: args)
+        }
 
         let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
         let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
@@ -144,6 +196,7 @@ enum CLITestError: Error, CustomStringConvertible {
     case binaryNotFound
     case binaryEnvOverrideInvalid(path: String)
     case wrongJSONRootType(actual: String)
+    case timedOut(seconds: TimeInterval, args: [String])
 
     var description: String {
         switch self {
@@ -153,6 +206,8 @@ enum CLITestError: Error, CustomStringConvertible {
             return "MDPAL_BIN_DIR overrides binary location to '\(path)' but no executable found there"
         case .wrongJSONRootType(let actual):
             return "Expected JSON root type to be an object, got: \(actual)"
+        case .timedOut(let seconds, let args):
+            return "mdpal subprocess exceeded \(seconds)s timeout: \(args.joined(separator: " "))"
         }
     }
 }
