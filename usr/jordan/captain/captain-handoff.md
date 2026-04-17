@@ -1,40 +1,30 @@
 ---
-type: agency-update
-date: 2026-04-16 21:50
-from_commit: 200a5499
-to_commit: d0b15b61
+type: session
+agent: the-agency/jordan/captain
+workstream: housekeeping
+date: 2026-04-17
+trigger: session-compact
 ---
 
-## Agency Update
+## D44 — dispatch-monitor Python rewrite + CI fix
 
-Updated framework from 43.4 (200a5499) to 43.4 (d0b15b61).
+### In progress
+- Executing full Valueflow flow: PVR → MAR → A&D → MAR → Plan → MAR → Implement
+- dispatch-monitor rewrite from bash to Python (first Python tool in framework)
+- #159 release-tag-check CI fix (polling grace period) — code done, not yet committed
 
-### Changes
-- 0 files added, 0 files updated, 0 files removed
-- Settings merged via array union
-- Framework section in agency.yaml updated
-
-### Verify the update
-Run `agency verify` to confirm everything is in order.
-
-### Previous session state
-
-## D43 Session End — 4 releases shipped
-
-### Releases
-
-| Release | PR | What |
-|---------|-----|------|
-| v43.1 | #145 | TOOL.sh/TOOL.py templates (#140 #141) + D42 doc sweep (65+ stale refs across 33 files) + README review (#142) + workshop pitch (#143) + CI fix (#148) |
-| v43.2 | #152 | Hotfix — agency update crash (#147) + dispatch-monitor stale-read (#144) + agency deps macOS (#135) + phantom test (#149) |
-| v43.3 | #154 | agency update auto-commit framework files + auto-verify |
-| v43.4 | #156 | agency update version display from manifest.json (#155) |
-
-### Issues closed: #134, #135, #140, #141, #142, #143, #144, #147, #148, #149, #151, #153, #155
-
-### Issues filed: #146, #147, #148, #149, #150, #151, #153, #155, #157
+### Context
+- 88% context at start — executing autonomously, no compaction
+- Principal directive: Python 3.9+ is valid for tooling, dispatch-monitor is first
+- Flagged: audit all tools for Python rewrite candidates
+- Flagged: update docs to make Python official
+- Dispatch fleet when done: Python is now an option
 
 ### Open issues
-
-- **#146** — Block AGENCY_ALLOW_RAW escape hatch (waiting on monofolk input)
-- **#150** — Linux deps support (apt/dnf) — future
+- #159 — CI fix (in this session)
+- #160 — agency update overwrites handoff
+- #157 — D-R version format
+- #146 — Block AGENCY_ALLOW_RAW
+- #158 — Captain monitors as proper tools
+- Duplicate /secret in presence-detect
+- jdm/jordan identity split

@@ -1,97 +1,185 @@
-#!/usr/bin/env bash
-# What Problem: Dispatch polling via /loop costs ~82,000 tokens/day and has
-# 5-minute latency. The Monitor tool (Claude Code v2.1.98+) can watch a
-# background script and react to output in real-time, but needs a script
-# that only outputs when there are actual dispatches to process.
-#
-# How & Why: Lightweight polling script designed as a Monitor tool backend.
-# Polls dispatch list every N seconds (default 10), only outputs when unread
-# dispatches exist (completely silent otherwise). The Monitor tool streams
-# each output line to the agent, who reacts immediately. Result: 96% token
-# savings, 10-second latency instead of 5 minutes.
-#
-# D43-R2: Added SEEN_IDS tracking to prevent stale-read loop (#144). Once a
-# dispatch ID is emitted, it never emits again — even if the DB query returns
-# it (e.g., because resolve/read didn't stick or identity shifted).
-#
-# Usage: With Monitor tool — ask Claude to "monitor dispatches using dispatch-monitor"
-# Standalone: ./claude/tools/dispatch-monitor [--interval N] [--include-collab]
-#
-# Written: 2026-04-10 during captain session (Monitor tool adoption)
-# Updated: 2026-04-16 D43-R2 — stale-read loop fix (#144)
+#!/usr/bin/env python3
+"""
+What Problem: Dispatch polling via /loop costs ~82,000 tokens/day and has
+5-minute latency. The Monitor tool (Claude Code v2.1.98+) can watch a
+background script and react to output in real-time, but needs a script
+that only outputs when there are actual dispatches to process.
 
-set -euo pipefail
+The original bash implementation used `declare -A` (associative arrays)
+for seen-ID tracking, which requires bash 4+. macOS ships bash 3.2
+(Apple won't distribute GPLv3), so the script fails on stock macOS.
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-INTERVAL=10
-INCLUDE_COLLAB=false
+How & Why: Python 3.9+ rewrite — first Python tool in the framework.
+Python gives us a native set() for seen-ID tracking (no bash version
+issues), proper subprocess error handling, and signal-based clean
+shutdown. Polls dispatch list every N seconds (default 10), only outputs
+when NEW unread dispatches exist (completely silent otherwise). The
+Monitor tool streams each stdout line to the agent.
 
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --interval)
-            INTERVAL="$2"
-            shift 2
-            ;;
-        --include-collab)
-            INCLUDE_COLLAB=true
-            shift
-            ;;
-        --help|-h)
-            echo "Usage: dispatch-monitor [--interval N] [--include-collab]"
-            echo ""
-            echo "Lightweight polling script for use with Claude Code's Monitor tool."
-            echo "Only outputs when there are unread dispatches (silent otherwise)."
-            echo ""
-            echo "Options:"
-            echo "  --interval N        Poll interval in seconds (default: 10)"
-            echo "  --include-collab    Also check cross-repo collaboration dispatches"
-            echo "  --help              Show this help"
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1" >&2
-            exit 1
-            ;;
-    esac
-done
+D43-R2 origin: SEEN_IDS tracking prevents stale-read loop (#144). Once
+a dispatch ID is emitted within a session, it never emits again — even
+if the DB query returns it (resolved dispatch re-appearing, identity
+shift, etc.). seen_ids is memory-only (lost on restart, by design —
+restart should re-surface currently-unread items).
 
-# Track IDs we've already surfaced to prevent the stale-read loop (#144).
-# Once an ID is emitted, it never emits again.
-declare -A SEEN_IDS
+Usage:
+    With Monitor tool: monitor dispatches using ./claude/tools/dispatch-monitor --include-collab
+    Standalone: ./claude/tools/dispatch-monitor [--interval N] [--include-collab]
 
-while true; do
-    # Check local dispatches
-    OUTPUT=$("$SCRIPT_DIR/dispatch" list --status unread 2>/dev/null || true)
-    if [[ -n "$OUTPUT" ]] && [[ "$OUTPUT" != "No dispatches found." ]]; then
-        # Filter out already-seen IDs
-        HAS_NEW=false
-        NEW_LINES=""
-        while IFS= read -r line; do
-            local_id=$(echo "$line" | awk '{print $1}')
-            if [[ "$local_id" =~ ^[0-9]+$ ]]; then
-                if [[ -z "${SEEN_IDS[$local_id]+_}" ]]; then
-                    SEEN_IDS[$local_id]=1
-                    HAS_NEW=true
-                    NEW_LINES+="$line"$'\n'
-                fi
-            else
-                NEW_LINES+="$line"$'\n'
-            fi
-        done <<< "$OUTPUT"
+Written: 2026-04-10 during captain session (Monitor tool adoption)
+Rewritten: 2026-04-17 D44 — Python rewrite (bash 3.2 compat, first Python tool)
+"""
 
-        if [[ "$HAS_NEW" == "true" ]]; then
-            echo "[DISPATCH] $NEW_LINES"
-        fi
-    fi
+from __future__ import annotations
 
-    # Optionally check cross-repo collaboration
-    if [[ "$INCLUDE_COLLAB" == "true" ]]; then
-        COLLAB_OUTPUT=$("$SCRIPT_DIR/collaboration" check 2>/dev/null || true)
-        if [[ -n "$COLLAB_OUTPUT" ]] && [[ -z "${SEEN_IDS[collab_${COLLAB_OUTPUT:0:40}]+_}" ]]; then
-            SEEN_IDS["collab_${COLLAB_OUTPUT:0:40}"]=1
-            echo "[COLLAB] $COLLAB_OUTPUT"
-        fi
-    fi
+import argparse
+import re
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Optional, Set, List
 
-    sleep "$INTERVAL"
-done
+# ── Constants ────────────────────────────────────────────────────────────────
+SCRIPT_DIR = Path(__file__).resolve().parent
+DISPATCH_TOOL = SCRIPT_DIR / "dispatch"
+COLLAB_TOOL = SCRIPT_DIR / "collaboration"
+MAX_SEEN_IDS = 10_000  # Cap to prevent unbounded growth in long sessions
+ID_PATTERN = re.compile(r"^\s*(\d+)\s")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="dispatch-monitor",
+        description=(
+            "Lightweight polling script for use with Claude Code's Monitor tool. "
+            "Only outputs when there are unread dispatches (silent otherwise)."
+        ),
+    )
+    parser.add_argument(
+        "--interval",
+        type=int,
+        default=10,
+        help="Poll interval in seconds (default: 10)",
+    )
+    parser.add_argument(
+        "--include-collab",
+        action="store_true",
+        help="Also check cross-repo collaboration dispatches",
+    )
+    return parser.parse_args()
+
+
+def run_command(cmd: list[str], timeout: int = 30) -> str:
+    """Run a subprocess, return stdout. Silent on failure (returns empty)."""
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        print(f"dispatch-monitor: {e}", file=sys.stderr, flush=True)
+        return ""
+
+
+def extract_id(line: str) -> int | None:
+    """Extract dispatch ID from a line. Returns None if not an ID line."""
+    match = ID_PATTERN.match(line)
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def evict_oldest(seen: set[int], max_size: int) -> None:
+    """Evict oldest entries if set exceeds max size.
+
+    Since Python sets don't preserve insertion order in a recoverable way,
+    we just clear half when we hit the cap. Dispatch IDs are monotonically
+    increasing, so old IDs won't reappear — clearing is safe.
+    """
+    if len(seen) > max_size:
+        # Keep the higher (newer) IDs
+        sorted_ids = sorted(seen)
+        cutoff = len(sorted_ids) // 2
+        for old_id in sorted_ids[:cutoff]:
+            seen.discard(old_id)
+
+
+def check_dispatches(seen_ids: set[int]) -> None:
+    """Poll for unread dispatches and emit new ones."""
+    output = run_command([str(DISPATCH_TOOL), "list", "--status", "unread"])
+
+    if not output or output == "No dispatches found.":
+        return
+
+    new_lines: list[str] = []
+    has_new = False
+
+    for line in output.splitlines():
+        dispatch_id = extract_id(line)
+        if dispatch_id is not None:
+            if dispatch_id not in seen_ids:
+                seen_ids.add(dispatch_id)
+                has_new = True
+                new_lines.append(line)
+            # Skip already-seen IDs
+        else:
+            # Non-ID lines (headers, separators) — include with new dispatches
+            new_lines.append(line)
+
+    if has_new:
+        print(f"[DISPATCH] {chr(10).join(new_lines)}", flush=True)
+
+    evict_oldest(seen_ids, MAX_SEEN_IDS)
+
+
+def check_collab(seen_collab: set[str]) -> None:
+    """Poll for cross-repo collaboration dispatches."""
+    output = run_command([str(COLLAB_TOOL), "check"])
+
+    if not output:
+        return
+
+    # Key on first 40 chars to dedup (same pattern as bash version)
+    collab_key = output[:40]
+    if collab_key not in seen_collab:
+        seen_collab.add(collab_key)
+        print(f"[COLLAB] {output}", flush=True)
+
+
+def shutdown(signum: int, frame) -> None:
+    """Clean shutdown on SIGINT/SIGTERM."""
+    sys.exit(0)
+
+
+def main() -> None:
+    args = parse_args()
+
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGTERM, shutdown)
+
+    seen_ids: set[int] = set()
+    seen_collab: set[str] = set()
+
+    print(
+        f"dispatch-monitor: polling every {args.interval}s"
+        + (" (with collab)" if args.include_collab else ""),
+        file=sys.stderr,
+        flush=True,
+    )
+
+    while True:
+        check_dispatches(seen_ids)
+
+        if args.include_collab:
+            check_collab(seen_collab)
+
+        time.sleep(args.interval)
+
+
+if __name__ == "__main__":
+    main()

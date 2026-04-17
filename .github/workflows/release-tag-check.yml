@@ -55,17 +55,27 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "Manifest version: v${v}"
 
-      - name: Assert release exists
+      - name: Assert release exists (with grace period)
         if: steps.ismerge.outputs.parents == '2'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           v="${{ steps.ver.outputs.version }}"
-          if ! gh release view "v${v}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            echo "::error file=claude/config/manifest.json::Merge commit $(git rev-parse --short HEAD) landed without release tag v${v}. Captain must run /post-merge to cut the release immediately. See issue #113."
-            exit 1
-          fi
-          echo "✓ Release v${v} present for merge commit $(git rev-parse --short HEAD)"
+          # /post-merge creates the release tag shortly after the merge lands.
+          # Poll for up to 120 seconds (12 × 10s) to avoid the race condition
+          # where this workflow fires before the tag exists. Issue #159.
+          for attempt in $(seq 1 12); do
+            if gh release view "v${v}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              echo "✓ Release v${v} present for merge commit $(git rev-parse --short HEAD) (attempt ${attempt})"
+              exit 0
+            fi
+            if [[ "$attempt" -lt 12 ]]; then
+              echo "Release v${v} not found yet — waiting 10s (attempt ${attempt}/12)..."
+              sleep 10
+            fi
+          done
+          echo "::error file=claude/config/manifest.json::Merge commit $(git rev-parse --short HEAD) landed without release tag v${v} after 120s grace period. Captain must run /post-merge to cut the release. See issue #113."
+          exit 1
 
       - name: Skip (non-merge commit)
         if: steps.ismerge.outputs.parents != '2'
