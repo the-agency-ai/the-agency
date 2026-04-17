@@ -2,7 +2,7 @@
 type: handoff
 agent: the-agency/jordan/devex
 workstream: devex
-date: 2026-04-15
+date: 2026-04-16
 trigger: session-compact
 ---
 
@@ -12,60 +12,61 @@ the-agency/jordan/devex — tech-lead on the devex workstream. Mid-session compa
 
 ## Current State
 
-Day 41 / 0300 wakeup productive. Queue clear, waiting on captain direction.
+Day 42. PR #98 (D41-R4+R6+R7 bundle) merged. Synced to v42.3. Test isolation fix shipped. Queue has pending items awaiting captain direction.
 
-## What Shipped This Session (devex branch)
+## What Shipped This Session
 
 | Commit | What |
 |--------|------|
-| `e6b2c07` | Phase 2.1: BATS tests — git-safe (30) + git-captain (35), 65/65 passing |
-| `a8b4f76` | Phase 2.2: Receipt infrastructure Phase 2 — QG skill integration (quality-gate + iteration-complete + phase-complete now use receipt-sign with five-hash chain) |
-| `5e81385` | Phase 2.3: Scaffold PVR — resolved open questions (apps/+packages/, pnpm, vitest) pending monofolk confirmation |
-| `2e5fec6` | Phase 2.4: End-to-end receipt infrastructure verification — diff-hash → receipt-sign → receipt-verify chain validated |
-| `0188a9b` | Phase 2.5: archive dispatches |
-| `2187cac` | misc: archive commit-dispatch artifact |
+| `3e6ca03` | D41-R4: large-file commit blocker — commit-precheck size gate + git-safe-commit --allow-large |
+| `23a121d` | D41-R6: agency update dirty-tree gate — detect interrupted prior update, guide to git-safe-commit |
+| `d285a7c` | D41-R7: git-safe merge-conflict family — resolve-conflict, rm, merge-abort + git-safe-commit MERGE_HEAD auto-route |
+| `725ba7c` | release: bump agency_version 41.5 → 41.7 (pre-resync) |
+| PR #98 | Bundle PR (R4+R6+R7) — full QG (4 parallel reviewers, 16 findings, 7 fixed), receipt chain, principal-approved merge |
+| `362e8c6` | fix: diff-hash.bats test isolation — use local git repo fixture instead of live origin/main (dispatch #476) |
 
-## Phase 2 Integration Summary
+## QG Summary for PR #98
 
-All three QG skills now use the receipt infrastructure:
-- `/quality-gate`: five-hash chain (A before review, B findings, C triage, D transcript or =C, E final) + receipt-sign write
-- `/iteration-complete`: determines prior-iteration base ref, passes `--base` to /quality-gate
-- `/phase-complete`: determines phase-start base ref, passes `--base` to /quality-gate
-
-Old usr/{principal}/{project}/qgr-*.md logic REMOVED from Step 10. Backward-compat noted — receipt-verify reads old format during transition.
-
-## Rough Edges Found (reported to captain #331)
-
-1. **MINOR**: diff-hash silently returns empty hash when cwd is outside a git repo. Should resolve to repo root via _path-resolve, or fail loudly.
-2. **MINOR**: receipt-verify stale detection works on committed state only — A&D §6 should clarify "on disk" means "committed state", not working tree.
+- 4 parallel reviewer agents (code/security/design/test) + own review
+- 16 findings consolidated → 7 ACCEPT (fixed in-PR), 9 DEFER (tracked), 1 REJECT (cosmetic)
+- Key fixes: cmd_rm `--` terminator, globstar doc clarification, dirty_count pre-truncation, positive test assertions
+- Receipt: `claude/receipts/the-agency-jordan-devex-devex-safe-tools-bundle-qgr-598cba2-20260415-1112.md`
+- Five-hash chain: A=80d395a → B=ca3315e → C=5ac5846 → D=C (auto) → E=598cba2
 
 ## In Progress
 
-Nothing. Queue clear.
+Nothing active. Queue clear pending captain direction.
 
 ## What's Next (Immediate)
 
-1. Await captain response to #331 (rough edges for potential Phase 2 follow-up)
-2. Monitor for new dispatches
-3. If captain greenlights: start scaffold A&D (PVR is ready)
-4. If monofolk responds to #284 RFI: update scaffold PVR with their answers
+1. **Awaiting captain response** to queue check dispatch (sandbox-sync bugs #420, git-captain regex #428)
+2. **Sandbox-sync 2 bugs** (#420) — still unfixed:
+   - Engineer-detection alphabetical fallback → should use agency.yaml `principals:` keyed by `$USER`
+   - Path mismatch `commands/` vs `claude/commands/` → align sandbox-init and sandbox-sync
+3. **git-captain checkout-branch regex** (#428 item 1) — still lowercase-only (`^[a-z0-9]`), needs `^[a-zA-Z0-9]`
+4. **Test container/runner** (#476 item 3) — scope if captain wants it as a project
+5. **Scaffold A&D** — PVR ready, awaiting captain greenlight (deferred since PR #98 train)
+6. **Deferred QG findings** from PR #98 — 9 items tracked (exit-code collision, --force naming, wc-c symlink, etc.)
 
 ## Key Context for Continuation
 
-- Branch protection is LIVE on main (PR required, smoke check, force-push blocked, admins exempt)
-- git-safe family shipped and landed on main (captain's version; complementary to captain's git-push/cp-safe/pr-create)
-- Receipt infrastructure Phase 1 = captain shipped; Phase 2 = me (this session); Phase 3 (RG for methodology artifacts) = future
-- Scaffold PVR is A&D-ready with captain-approved defaults
-- Monofolk RFI for scaffold still in flight via captain's /collaborate
+- Repo now at v42.3 — major restructuring: agent registrations moved to `.claude/agents/jordan/devex.md`, git-safe gained config/stash/mv/unstage/restore subcommands, agency-update gained --from-github
+- PR #98 merged at 2026-04-15T03:31:28Z by principal
+- 172/172 BATS pass (full suite)
+- Filed bug #95 (Write to /tmp prompts permission during QG)
+- Monofolk cross-repo dispatches still flowing (captain lane) — various gaps/issues from workshop
 
 ## Open Items
 
-- Monofolk response to #284 (scaffold RFI) — pending
-- Captain response to #331 (rough edges) — pending
-- Task #16 SPEC:PROVIDER future fold — deferred until monofolk's SPEC:PROVIDER design matures
+- Sandbox-sync bugs (#420) — assigned to me, unfixed
+- git-captain regex (#428 item 1) — assigned to me, unfixed (item 2 done by captain as D41-R21)
+- Scaffold PVR (#200) — A&D-ready, pending captain greenlight
+- Monofolk RFI #284 (scaffold decisions) — still in flight
+- Captain response to queue check — pending
 
 ## Notes
 
-- The git-safe family means no raw git. Use /git-safe, /git-safe-commit, /git-captain.
-- block-raw-tools.sh enforces mechanically. If blocked, use the tool.
-- Commits via /git-safe-commit auto-dispatch to captain — no need to manually dispatch after commits.
+- git-safe family means no raw git. Includes new subcommands: config, stash, mv, unstage, restore.
+- block-raw-tools.sh enforces mechanically.
+- Commits via /git-safe-commit auto-dispatch to captain.
+- The recursive commit-dispatch artifact pattern: each git-safe-commit creates an untracked dispatch file. Known issue — 1 dirty file will persist after compact.
