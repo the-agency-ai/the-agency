@@ -1,0 +1,44 @@
+# Next.js App Starter Pack — manifest
+# Declares what this provider emits when invoked by /ui-add.
+#
+# SPEC-PROVIDER: this pack is the PROVIDER for the spec
+#   { type: frontend, language: typescript, framework: nextjs }
+#
+# Mirrors apps/doctor-frontend/ — the reference pattern for Next.js apps in monofolk.
+# Read by: claude/tools/ui-add (via tools/ui-add.ts)
+
+name: nextjs-app
+version: 1.0.0
+description: Minimal Next.js 16 app scaffold with @of/ui, Dockerfile, and preview wiring
+
+emits:
+  files:
+    - path: apps/{{name}}/package.json
+    - path: apps/{{name}}/tsconfig.json
+    - path: apps/{{name}}/next.config.ts
+    - path: apps/{{name}}/Dockerfile
+    - path: apps/{{name}}/scripts/init-docker.sh
+    - path: apps/{{name}}/app/layout.tsx
+    - path: apps/{{name}}/app/page.tsx
+    - path: apps/{{name}}/app/globals.css
+
+# Topology contract: frontend services are first-class entries
+topology:
+  type: frontend
+  build: "apps/{{name}}"
+  wires_from: ["backend"]
+  env:
+    NEXT_PUBLIC_API_URL: "{{backend.outputs.url}}"
+
+# Port allocation: frontend range (4100–4199)
+port_range:
+  start: 4100
+  end: 4199
+
+verify:
+  - description: "App directory created"
+    check: "test -f apps/{{name}}/package.json"
+  - description: "Dockerfile generated"
+    check: "test -f apps/{{name}}/Dockerfile"
+  - description: "Topology entry added"
+    check: "grep -q '  {{name}}:' claude/config/topology.yaml"
