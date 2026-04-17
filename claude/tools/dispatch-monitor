@@ -132,7 +132,8 @@ def check_dispatches(seen_ids: set[int]) -> None:
             new_lines.append(line)
 
     if has_new:
-        print(f"[DISPATCH] {chr(10).join(new_lines)}", flush=True)
+        joined = "\n".join(new_lines)
+        print(f"[DISPATCH] {joined}", flush=True)
 
     evict_oldest(seen_ids, MAX_SEEN_IDS)
 
