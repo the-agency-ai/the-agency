@@ -2,81 +2,100 @@
 type: handoff
 agent: the-agency/jordan/mdpal-cli
 workstream: mdpal
-date: 2026-04-16
-trigger: session-compact
+date: 2026-04-17
+trigger: iteration-complete
 ---
 
 ## Identity
 
-the-agency/jordan/mdpal-cli — headless Markdown Pal engine + CLI tool. Branch `mdpal-cli`. Worktree at `.claude/worktrees/mdpal-cli/`.
+the-agency/jordan/mdpal-cli — Markdown Pal engine + CLI. Branch `mdpal-cli`. Worktree at `.claude/worktrees/mdpal-cli/`.
 
 ## Current state
 
-**Phase 1 COMPLETE.** Engine library shipped. 179 tests passing. Phase-complete QG done, receipt signed. Plan updated.
+**Phase 1 SHIPPED.** PR #179 open at https://github.com/the-agency-ai/the-agency/pull/179.
 
-| Iteration | Commit | Tests | Content |
-|-----------|--------|-------|---------|
-| 1.1 | `9cf480b` | 33 | Core types, Markdown parser |
+**Phase 2 Iteration 2.1 COMPLETE.** First working `mdpal` binary with `sections`, `read` commands. Wire format aligned with dispatched spec to mdpal-app (camelCase, `error` envelope, recursive section tree, `versionId` everywhere).
+
+| Phase / Iter | Commit | Tests | Content |
+|--------------|--------|-------|---------|
+| 1.1 | `9cf480b` | 33 | Core types, parser |
 | 1.2 | `abbc746` | 80 | Document model, metadata |
 | 1.3 | `904131e` | 124 | Section operations |
 | 1.4 | `1a18718` | 175 | Bundle management |
-| Phase QG | `2a80f21` | 179 | C1+C2 critical fixes |
-| Plan+handoff | `dd52513` | — | Coordination |
+| Phase 1 QG | `2a80f21` | 179 | C1+C2 critical fixes |
+| pr-prep QG | `7c8a359` | 180 | DocumentInfo POSIX pin + test name |
+| **2.1 staging** | `94d0169` | 193 | CLI scaffold (initial wire format) |
+| **2.1 QG fixes** | `874ae16` | 192 | camelCase, error field, recursive tree, removed VersionCommand |
 
 ## What was done this session
 
-1. **Post-compact resume** — re-read handoff, checked dispatches
-2. **Processed 6 dispatches:** captain #355 (merge from master), #393 (D41 release notes), #398 (PR cadence), #464 (v42.3 content split); mdpal-app #407 (wire-format sync — replied: CLI not built yet), #410 (ack)
-3. **Phase-complete Path 2 — autonomous execution per principal directive:**
-   - Fixed C1: prune metadata-only rewrite — reads raw file, splices via writeMetadataBlock, preserves body verbatim
-   - Fixed C2: symlink rejection in listRevisions (attributesOfItem check) + defense-in-depth before removeItem in prune
-   - Phase QG: 4 reviewer agents, scored 20 findings, 9 >= 50 threshold, 2 accepted + fixed, 1 rejected, 6 deferred
-   - 4 new tests (175 -> 179): body preservation (no meta), body preservation (with meta in-place splice), symlink rejection, symlink replacement
-   - Committed as `2a80f21`
-   - Signed receipt: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md`
-4. **Plan updated** — Phase 1 completion section with QG findings, deferred items, receipt reference
-5. **Handoff written** + coordination committed as `dd52513`
+1. Session resume + dispatch monitor in place
+2. **Phase 1 PR shipped:**
+   - `/pr-prep` QG (5-hash chain, receipt `8f2da0f`) — fixed DocumentInfo POSIX/Gregorian + test name accuracy
+   - `/release` — pushed `mdpal-cli` branch, opened PR #179
+3. **Phase 2 Iteration 2.1 implemented + landed:**
+   - Built ArgumentParser scaffold + 3 commands initially (version, sections, read)
+   - QG caught CRITICAL contract drift: snake_case vs spec's camelCase, `code` vs `error`, flat vs recursive sections
+   - Verified by reading the dispatched JSON spec directly
+   - Fixed all critical findings + supporting items (BundleResolver `~`/`..`, ErrorEnvelope fallback preservation, CLISupport Fixture struct)
+   - Removed VersionCommand (`version` reserved per spec for `version show/bump`); tool version now via root `--version` flag
+   - 192 tests passing
+   - Receipt: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1312-fb1f7e3.md`
+4. Plan updated — Phase 2 iterations renumbered to reflect actual remaining CLI work
 
 ## Next action
 
-**Decide: Phase 1.5 cleanup sprint OR Phase 2 CLI?**
+**Iteration 2.2: Section-write commands** (`edit`).
 
-Options:
-- **Phase 1.5**: Fix all 7 deferred HIGH findings before CLI work
-- **Phase 2**: Build CLI commands (what mdpal-app is blocked on)
+This is the next mdpal-app blocker after `sections` + `read`. The edit command is critical because it exercises the optimistic-concurrency wire shape (versionConflict at exit 2 with `currentContent`).
 
-Recommendation: Phase 2 — mdpal-app dispatch #407 confirmed they need a usable CLI binary.
+Build order:
+1. EditCommand with `--version <hash>` + `--content` + `--stdin`
+2. Surface `--format` via OptionGroup (deferred from 2.1)
+3. Slug edge case coverage tests
+4. Subprocess timeout in CLISupport.runCLI
 
-Also: captain dispatch #398 says Phase 1 is a "strong PR candidate." Consider creating a PR for Phase 1 before starting Phase 2.
+Then iteration-complete and merge. Don't wait for principal.
 
-## Deferred findings (Phase 1.5 backlog)
+## Open coordination
 
-- H1: Revision metadata drift — createRevision doesn't update DocumentInfo
-- H2: DocumentInfo.blank() non-POSIX DateFormatter
-- H3: Empty slug for non-ASCII headings
-- H4: Slug suffix scheme drift (-1,-2 vs A&D -2,-3)
-- H5: Diff API missing (blocks Phase 2 `mdpal diff`)
-- H6: No end-to-end Bundle+Document integration test
-- H7: Byte-equal round-trip not asserted
-- reconcileLatest follows symlinks via fileExists (score 72)
-- TOCTOU window in prune file-type check (score 68)
-- reconcileLatest doesn't validate symlink destination (score 58)
+- **PR #179** open, waiting for captain review/merge. mdpal-app already has Phase 1A-4 done (per dispatch #410); they're holding for the CLI.
+- **mdpal-app dispatch #407** still open — they want a usable binary. With 2.1 + 2.2 they can integrate `sections`, `read`, `edit` (the core read/write loop).
+- **Cross-repo collab dispatches** to monofolk are surfacing in my monitor (--include-collab) — captain territory, not mine.
 
-## Infrastructure notes
+## Deferred (Phase 1.5 / Phase 2 backlogs)
 
-### git-safe-commit auto-dispatch cascade (flag #125)
-Every git-safe-commit creates an untracked auto-dispatch file. Steady state: 1 untracked file. Accept it.
+### Security hardening (Phase 1.5)
+- C2 follow-up: Document(contentsOfFile:) follows symlinks in prune merge-forward (TOCTOU)
+- Pointer file content validation
+- File-size limits + YAML billion-laughs guard
+- BundleConfig name validation
+- BundleResolver sandbox-root policy
+- Path scrubbing in error messages
 
-### Sparse worktree reminder
-`git status` shows ~1310 "D" framework files — normal. Always stage specific files.
+### Phase 2 future iterations
+- 2.2: edit command + slug edge cases + subprocess timeout
+- 2.3: comment + flag commands + Wire/ directory split
+- 2.4: bundle commands + diff API + prune + refresh
+- 2.5: hardening + e2e + dispatch to mdpal-app
 
-### ISCP schema version
-Worktree on `ISCP_SCHEMA_VERSION=1`. Verified safe.
+### From Phase 1 deferred (still relevant)
+- H1 Revision metadata drift, H2 DocumentInfo blank() (FIXED in pr-prep), H3 empty slug for non-ASCII, H4 slug suffix scheme, H5 Diff API (needed for 2.4), H6 e2e Bundle+Document, H7 byte-equal round-trip
 
 ## Key Artifacts
 
 - PVR: `usr/jordan/mdpal/pvr-mdpal-20260403-1447.md`
 - A&D: `usr/jordan/mdpal/ad-mdpal-20260404.md`
-- Plan: `usr/jordan/mdpal/plan-mdpal-20260406.md` (Phase 1 completion section added)
-- Iteration QGRs: `usr/jordan/mdpal/qgr-iteration-complete-{1-1, 1-2, 1-3, 1-4}-*.md`
-- Phase QGR: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md`
+- Plan: `usr/jordan/mdpal/plan-mdpal-20260406.md` (Phase 2 iterations rewritten)
+- Wire-format spec (CRITICAL — read before any CLI iteration): `usr/jordan/mdpal/dispatches/dispatch-cli-json-output-shapes-20260406.md`
+- Phase 1 QGR: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md`
+- pr-prep QGR: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-pr-prep-20260417-1213-8f2da0f.md`
+- Iter 2.1 QGR: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1312-fb1f7e3.md`
+- PR: https://github.com/the-agency-ai/the-agency/pull/179
+
+## Infrastructure notes
+
+- Dispatch monitor running (task `b0mwsu3oj`, persistent, --include-collab)
+- git-safe-commit auto-dispatch cascade: 1 untracked dispatch = steady state (flag #125)
+- Sparse worktree: `git status` shows ~1310 D files = normal (always stage explicit paths)
+- ISCP_SCHEMA_VERSION=1
