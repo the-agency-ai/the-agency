@@ -1,0 +1,16 @@
+#!/bin/bash
+# service-add — add a backend prototype module to an existing workstream
+#
+# Thin wrapper around tools/service-add.ts. Keeps the tool discoverable under
+# claude/tools/ alongside other framework tools (workstream-create, worktree-create, etc.)
+# while the actual logic lives in Node/TypeScript where it has js-yaml and proper types.
+#
+# Usage: ./claude/tools/service-add <name> --workstream <ws> [options]
+# See:   claude/starter-packs/nestjs-prototype/README.md
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+exec pnpm --silent tsx "$REPO_ROOT/tools/service-add.ts" "$@"
