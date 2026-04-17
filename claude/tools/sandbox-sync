@@ -20,22 +20,49 @@ fi
 # Safe glob handling — empty globs expand to nothing
 shopt -s nullglob
 
-# Detect engineer — prefer $USER match, fall back to first found
+# Detect engineer via agency.yaml principal mapping (D44-R4 / issue #420).
+#
+# Resolution order:
+#   1. PRINCIPAL env var (explicit override)
+#   2. Lookup principals.$USER.name in claude/config/agency.yaml
+#   3. If $USER's sandbox exists directly (usr/$USER/), use $USER (covers the
+#      case where agency.yaml isn't configured yet but the sandbox is already
+#      named after the system username)
+#   4. Refuse — no silent alphabetical fallback (previously picked the first
+#      sandbox dir alphabetically, which gave Peter → 'jordan' in multi-
+#      principal setups; dispatch #420).
 ENGINEER=""
-if [ -d "$ROOT/usr/${USER:-}" ]; then
+
+if [ -n "${PRINCIPAL:-}" ]; then
+  ENGINEER="$PRINCIPAL"
+elif [ -x "$ROOT/claude/tools/config" ] && [ -n "${USER:-}" ]; then
+  # Ask the config tool — returns empty on miss (exit 1), caught via || true.
+  candidate="$("$ROOT/claude/tools/config" get "principals.${USER}.name" 2>/dev/null || true)"
+  # 'unknown' is the default sentinel in agency.yaml; reject it.
+  if [ -n "$candidate" ] && [ "$candidate" != "unknown" ]; then
+    ENGINEER="$candidate"
+  fi
+fi
+
+# Fallback: if config didn't yield a principal but a sandbox exists at the
+# exact $USER path (bootstrap scenario), use $USER.
+if [ -z "$ENGINEER" ] && [ -n "${USER:-}" ] && [ -d "$ROOT/usr/${USER}" ]; then
   ENGINEER="$USER"
-else
-  for dir in "$ROOT"/usr/*/; do
-    [ -d "$dir" ] || continue
-    name="$(basename "$dir")"
-    [ "$name" = "README.md" ] && continue
-    ENGINEER="$name"
-    break
-  done
 fi
 
 if [ -z "$ENGINEER" ]; then
-  echo "error: no engineer sandbox found in usr/" >&2
+  echo "error: cannot resolve principal for \$USER='${USER:-}'" >&2
+  echo "  tried: PRINCIPAL env var, claude/config/agency.yaml principals.${USER:-}.name, usr/${USER:-}/" >&2
+  echo "  fix:   add an entry under 'principals:' in claude/config/agency.yaml keyed by '${USER:-}'" >&2
+  echo "         (each entry needs a 'name:' that matches the usr/<name>/ dir)" >&2
+  exit 1
+fi
+
+# Validate the sandbox exists for this principal — refuse to create symlinks
+# pointing at a non-existent sandbox.
+if [ ! -d "$ROOT/usr/$ENGINEER" ]; then
+  echo "error: principal '$ENGINEER' (resolved from \$USER='${USER:-}') has no sandbox at usr/$ENGINEER/" >&2
+  echo "  fix: run /sandbox-init to scaffold it, or correct the mapping in agency.yaml" >&2
   exit 1
 fi
 

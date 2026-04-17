@@ -32,26 +32,34 @@ Set up a per-engineer sandbox for Claude Code tooling development.
 
    ```
    usr/<name>/
-     claude/
-       commands/.gitkeep
-       hooks/.gitkeep
-       hookify/.gitkeep
-       CLAUDE.md
-       settings.local.json
+     commands/.gitkeep
+     hooks/.gitkeep
+     hookify/.gitkeep
+     agents/.gitkeep
      scripts/.gitkeep
      tools/.gitkeep
+     CLAUDE.md
+     settings.local.json
      README.md
    ```
+
+   > D44-R4 (#420): `commands/`, `hooks/`, `hookify/`, `agents/` live at the
+   > sandbox root — NOT under a `claude/` subdirectory. This matches what
+   > `claude/tools/sandbox-sync` reads from (it symlinks these into
+   > `.claude/` discovery locations). `CLAUDE.md` and `settings.local.json`
+   > also live at the sandbox root so `sandbox-sync` can find
+   > `settings.local.json` at `usr/<name>/settings.local.json`.
 
    Project directories (e.g., `usr/<name>/captain/`, `usr/<name>/folio/`) are created per-project as work begins, not at init time.
 
 4. **Set up CLAUDE.md:**
-   - If `~/.claude/CLAUDE.md` exists and is NOT a symlink: copy to sandbox, create symlink back
+   - If `~/.claude/CLAUDE.md` exists and is NOT a symlink: copy to `usr/<name>/CLAUDE.md`, create symlink from `~/.claude/CLAUDE.md` back
    - If already a symlink: report where it points, offer to update
-   - If doesn't exist: create a starter file and symlink
+   - If doesn't exist: create a starter file at `usr/<name>/CLAUDE.md` and symlink
 
 5. **Set up settings.local.json:**
-   - If not present, create with `{}`
+   - Create `usr/<name>/settings.local.json` with `{}` if not present
+   - (sandbox-sync will symlink this into `.claude/settings.local.json` in each worktree)
 
 6. **Scaffold README:**
    - Create `usr/<name>/README.md` with engineer name and date
