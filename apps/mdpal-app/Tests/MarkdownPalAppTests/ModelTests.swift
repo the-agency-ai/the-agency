@@ -36,6 +36,10 @@
 //          (happy+exit), flagSection (happy+note-omission+envelope),
 //          clearFlag (happy+envelope). CLIServiceProtocol is now fully
 //          covered end-to-end against canned JSON.
+// Updated: 2026-04-17 Phase 1B.6 — CLIServiceFactory tests (Mock vs Real
+//          resolution), ProcessResult stderr-sanitization tests (ANSI
+//          strip + length cap), DefaultProcessRunner maxOutputBytes
+//          enforcement. Phase 1B housekeeping complete.
 
 import Foundation
 @testable import MarkdownPalAppLib
@@ -2417,6 +2421,115 @@ func testRealCLIServiceAddCommentFiltersEmptyTags() async throws {
     }
 }
 
+// MARK: - Phase 1B.6: service selection + housekeeping
+
+// --- CLIServiceFactory ---------------------------------------------------
+
+func testCLIServiceFactoryPicksMockWhenMDPALMockIsTruthy() throws {
+    for value in ["1", "true", "TRUE", "yes", "on"] {
+        let (service, resolution) = CLIServiceFactory.make(
+            environment: ["MDPAL_MOCK": value, "PATH": "/nonexistent"]
+        )
+        try expect(service is MockCLIService, equals: true,
+                   "MDPAL_MOCK=\(value) must pick MockCLIService")
+        try expect(resolution, equals: .mockRequested,
+                   "MDPAL_MOCK=\(value) must report .mockRequested")
+    }
+}
+
+func testCLIServiceFactoryPicksRealWhenBinaryAvailable() throws {
+    let dir = try makeTempDirWithMdpal()
+    defer { try? FileManager.default.removeItem(atPath: dir) }
+    let bin = (dir as NSString).appendingPathComponent("mdpal")
+
+    let (service, resolution) = CLIServiceFactory.make(
+        environment: ["MDPAL_BIN": bin, "PATH": "/nonexistent"]
+    )
+    try expect(service is RealCLIService, equals: true,
+               "binary on MDPAL_BIN must produce RealCLIService")
+    try expect(resolution, equals: .real(executablePath: bin))
+}
+
+func testCLIServiceFactoryFallsBackToMockWhenCLINotFound() throws {
+    let (service, resolution) = CLIServiceFactory.make(
+        environment: ["PATH": "/definitely/nowhere", "HOME": "/tmp"]
+    )
+    try expect(service is MockCLIService, equals: true,
+               "missing CLI must fall back to Mock, not crash")
+    if case .mockFallback(let reason) = resolution {
+        try expect(reason.contains("mdpal"), equals: true,
+                   "fallback reason must be diagnostic")
+    } else {
+        throw TestFailure(message: "Expected .mockFallback, got \(resolution)",
+                          file: #file, line: #line)
+    }
+}
+
+func testCLIServiceFactoryEmptyMockVarDoesNotForceMock() throws {
+    // Empty MDPAL_MOCK="" (e.g., inherited-but-unset-in-shell) must NOT
+    // trigger Mock — only truthy values opt in.
+    let dir = try makeTempDirWithMdpal()
+    defer { try? FileManager.default.removeItem(atPath: dir) }
+    let bin = (dir as NSString).appendingPathComponent("mdpal")
+
+    let (service, _) = CLIServiceFactory.make(
+        environment: ["MDPAL_MOCK": "", "MDPAL_BIN": bin, "PATH": "/nonexistent"]
+    )
+    try expect(service is RealCLIService, equals: true,
+               "empty MDPAL_MOCK must not trigger Mock — only truthy values opt in")
+}
+
+// --- stderr sanitization for UI ------------------------------------------
+
+func testProcessResultSanitizeStripsAnsiAndControlChars() throws {
+    // Simulated stderr with ANSI CSI + control chars.
+    let raw = "\u{1B}[31mError\u{1B}[0m: \u{07}missing\t\"file\"\n\u{1B}[2J\u{1B}[H"
+    let result = ProcessResult(
+        exitCode: 1,
+        stdout: Data(),
+        stderr: Data(raw.utf8)
+    )
+    let ui = result.stderrStringForUI
+    try expect(ui.contains("\u{1B}["), equals: false,
+               "ANSI CSI sequences must be stripped")
+    try expect(ui.contains("\u{07}"), equals: false,
+               "C0 control chars (BEL) must be stripped")
+    try expect(ui.contains("Error"), equals: true,
+               "visible text must survive sanitization")
+    try expect(ui.contains("missing\t\"file\""), equals: true,
+               "tab and quote must survive")
+    try expect(ui.contains("\n"), equals: true, "newline preserved")
+}
+
+func testProcessResultSanitizeCapsLength() throws {
+    let raw = String(repeating: "A", count: 10000)
+    let result = ProcessResult(
+        exitCode: 1, stdout: Data(), stderr: Data(raw.utf8))
+    let ui = result.stderrStringForUI
+    // Expected = 4096 prefix + "… (truncated)" suffix = 4096 + 14 chars.
+    try expect(ui.count, equals: 4096 + "… (truncated)".count,
+               "UI stderr must be exactly prefix(4096) + '… (truncated)'")
+    try expect(ui.hasSuffix("(truncated)"), equals: true,
+               "truncation marker signals the cap")
+}
+
+// --- DefaultProcessRunner size cap ---------------------------------------
+
+func testDefaultProcessRunnerRespectsMaxOutputBytes() async throws {
+    // Ask for 512 KB but cap at 100 KB — emitted-minus-received should
+    // be >0 (truncated) and the returned stdout must match the cap.
+    let script = try makeTempScript(body: "yes 'A' | head -c 524288")
+    defer { try? FileManager.default.removeItem(atPath: (script as NSString).deletingLastPathComponent) }
+
+    let runner = DefaultProcessRunner(maxOutputBytes: 100 * 1024)
+    let result = try await runner.run(executable: script, args: [], stdin: nil)
+
+    try expect(result.stdout.count, equals: 100 * 1024,
+               "stdout must be capped at maxOutputBytes")
+    try expect(result.stderrString.contains("stdout truncated"), equals: true,
+               "truncation marker must be appended to stderr")
+}
+
 // MARK: - Runner
 
 @main
@@ -2584,6 +2697,15 @@ struct TestRunner {
         await runAsync("resolveComment maps malformed JSON to parseError", testRealCLIServiceResolveCommentMapsMalformedJSONToParseError)
         await runAsync("flagSection maps malformed JSON to parseError", testRealCLIServiceFlagSectionMapsMalformedJSONToParseError)
         await runAsync("clearFlag maps malformed JSON to parseError", testRealCLIServiceClearFlagMapsMalformedJSONToParseError)
+
+        print("\nCLIServiceFactory + housekeeping (Phase 1B.6):")
+        run("CLIServiceFactory picks Mock when MDPAL_MOCK is truthy", testCLIServiceFactoryPicksMockWhenMDPALMockIsTruthy)
+        run("CLIServiceFactory picks Real when binary available", testCLIServiceFactoryPicksRealWhenBinaryAvailable)
+        run("CLIServiceFactory falls back to Mock when CLI missing", testCLIServiceFactoryFallsBackToMockWhenCLINotFound)
+        run("CLIServiceFactory empty MDPAL_MOCK does not force Mock", testCLIServiceFactoryEmptyMockVarDoesNotForceMock)
+        run("ProcessResult.sanitize strips ANSI + control chars", testProcessResultSanitizeStripsAnsiAndControlChars)
+        run("ProcessResult.sanitize caps length with marker", testProcessResultSanitizeCapsLength)
+        await runAsync("DefaultProcessRunner respects maxOutputBytes", testDefaultProcessRunnerRespectsMaxOutputBytes)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 

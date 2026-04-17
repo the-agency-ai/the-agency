@@ -41,6 +41,70 @@ public struct ProcessResult: Sendable, Equatable {
     public var stderrString: String {
         String(data: stderr, encoding: .utf8) ?? ""
     }
+
+    /// stderr decoded and sanitized for UI display: strips ANSI CSI
+    /// sequences and C0 control chars (except newline/tab/CR), and
+    /// caps length at 4096 chars with an ellipsis. Use this for alert
+    /// strings sourced from `.executionFailed(stderr:)` — a malicious or
+    /// mistaken binary writing `\u{1B}[2J\u{1B}[H` (clear screen + home)
+    /// or similar control sequences shouldn't hijack UI rendering.
+    /// Internal envelope parsing keeps using the raw `stderr` bytes.
+    public var stderrStringForUI: String {
+        Self.sanitizeForUI(stderrString)
+    }
+
+    /// ANSI/control sanitization + length cap. Exposed as `internal` only
+    /// for testability; not part of the public API surface.
+    static func sanitizeForUI(_ s: String) -> String {
+        // Strip ANSI CSI sequences: ESC `[` + 0..n params + intermediates + final byte.
+        // Hand-roll the tiny state machine instead of a regex — NSRegularExpression's
+        // Swift-literal escape rules bite repeatedly, and the CSI grammar is small.
+        //
+        // CSI = ESC `[` + (param-byte: 0x30-0x3F)* + (intermediate-byte: 0x20-0x2F)* + (final-byte: 0x40-0x7E)
+        var output = String.UnicodeScalarView()
+        output.reserveCapacity(s.unicodeScalars.count)
+        var it = s.unicodeScalars.makeIterator()
+        while let ch = it.next() {
+            if ch.value == 0x1B { // ESC
+                // Peek next. If it's `[` we have a CSI; otherwise emit literal ESC.
+                if let next = it.next() {
+                    if next.value == 0x5B { // `[`
+                        // Consume param, intermediate, then final byte — or EOF.
+                        var finished = false
+                        while !finished, let inner = it.next() {
+                            let v = inner.value
+                            if (0x40...0x7E).contains(v) {
+                                finished = true // final byte consumed; skip emitting
+                            } else if (0x20...0x3F).contains(v) {
+                                continue // param / intermediate — keep skipping
+                            } else {
+                                // Not a CSI body char — re-emit it and stop the CSI walk.
+                                // (Shouldn't happen in well-formed streams but we don't
+                                // want to silently drop non-CSI data.)
+                                output.append(inner)
+                                finished = true
+                            }
+                        }
+                    } else {
+                        // ESC followed by non-`[` — drop both (rare; other single-char
+                        // escapes like SGR reset are uncommon in CLI output).
+                        _ = next
+                    }
+                }
+                continue
+            }
+            // Strip C0 control chars except \t (0x09), \n (0x0A), \r (0x0D).
+            let v = ch.value
+            if v >= 0x20 || v == 0x09 || v == 0x0A || v == 0x0D {
+                output.append(ch)
+            }
+        }
+        let cleaned = String(output)
+        if cleaned.count > 4096 {
+            return String(cleaned.prefix(4096)) + "… (truncated)"
+        }
+        return cleaned
+    }
 }
 
 /// The substitutable seam. Production uses `DefaultProcessRunner`; tests
@@ -55,16 +119,27 @@ public protocol ProcessRunner: Sendable {
 /// Production runner backed by Foundation.Process. Spawns the binary,
 /// pipes stdout/stderr, optionally writes stdin, waits to completion.
 public struct DefaultProcessRunner: ProcessRunner {
-    public init() {}
+    /// Max bytes to retain per stream (stdout and stderr each, separately).
+    /// Default 32 MiB — mdpal responses are JSON at kilobyte scale, so a
+    /// child producing more is either pathological or malicious. Past the
+    /// cap, further bytes are drained-and-dropped (so the producer doesn't
+    /// deadlock) and a truncation marker is appended to stderr.
+    public let maxOutputBytes: Int
+
+    public init(maxOutputBytes: Int = 32 * 1024 * 1024) {
+        self.maxOutputBytes = maxOutputBytes
+    }
 
     public func run(executable: String, args: [String], stdin: Data?) async throws -> ProcessResult {
         // Run the synchronous Process work off the cooperative pool. waitUntilExit
         // and the drain wait both block; doing them on a Swift concurrency thread
         // would starve the pool. DispatchQueue.global gives us a dedicated worker.
-        try await withCheckedThrowingContinuation { continuation in
+        let cap = maxOutputBytes
+        return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 Self.runBlocking(executable: executable, args: args,
-                                 stdin: stdin, continuation: continuation)
+                                 stdin: stdin, maxBytes: cap,
+                                 continuation: continuation)
             }
         }
         // NOTE: Task cancellation does not currently terminate the child
@@ -77,6 +152,7 @@ public struct DefaultProcessRunner: ProcessRunner {
         executable: String,
         args: [String],
         stdin: Data?,
+        maxBytes: Int,
         continuation: CheckedContinuation<ProcessResult, Error>
     ) {
         let process = Process()
@@ -109,19 +185,64 @@ public struct DefaultProcessRunner: ProcessRunner {
         let lock = NSLock()
         var stdoutData = Data()
         var stderrData = Data()
+        var stdoutTruncated = false
+        var stderrTruncated = false
         let drainGroup = DispatchGroup()
         let drainQueue = DispatchQueue(label: "CLIProcess.drain", attributes: .concurrent)
 
+        // Bounded-drain helper: reads from the pipe until EOF, keeping
+        // only the first `maxBytes` into the target and discarding the
+        // rest so the producer doesn't block on a full pipe buffer.
+        // `availableData` returns whatever the kernel buffered, then
+        // returns empty at EOF. Returns true via `truncated` if any
+        // data was dropped.
+        func drain(
+            from handle: FileHandle,
+            into target: inout Data,
+            maxBytes: Int,
+            truncated: inout Bool
+        ) {
+            while true {
+                let chunk = handle.availableData
+                if chunk.isEmpty { return } // EOF
+                if target.count < maxBytes {
+                    let room = maxBytes - target.count
+                    if chunk.count <= room {
+                        target.append(chunk)
+                    } else {
+                        target.append(chunk.prefix(room))
+                        truncated = true
+                    }
+                } else {
+                    // Over cap: drop the chunk but mark truncated so the
+                    // caller knows output was clipped.
+                    truncated = true
+                }
+            }
+        }
+
         drainGroup.enter()
         drainQueue.async {
-            let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-            lock.lock(); stdoutData = data; lock.unlock()
+            var local = Data()
+            var truncated = false
+            drain(from: stdoutPipe.fileHandleForReading,
+                  into: &local, maxBytes: maxBytes, truncated: &truncated)
+            lock.lock()
+            stdoutData = local
+            stdoutTruncated = truncated
+            lock.unlock()
             drainGroup.leave()
         }
         drainGroup.enter()
         drainQueue.async {
-            let data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-            lock.lock(); stderrData = data; lock.unlock()
+            var local = Data()
+            var truncated = false
+            drain(from: stderrPipe.fileHandleForReading,
+                  into: &local, maxBytes: maxBytes, truncated: &truncated)
+            lock.lock()
+            stderrData = local
+            stderrTruncated = truncated
+            lock.unlock()
             drainGroup.leave()
         }
 
@@ -155,9 +276,17 @@ public struct DefaultProcessRunner: ProcessRunner {
         lock.lock()
         let outData = stdoutData
         var errData = stderrData
+        let outTrunc = stdoutTruncated
+        let errTrunc = stderrTruncated
         lock.unlock()
         if let stdinError {
             errData.append(Data("\n[CLIProcess] \(stdinError)\n".utf8))
+        }
+        if outTrunc {
+            errData.append(Data("\n[CLIProcess] stdout truncated at \(maxBytes) bytes\n".utf8))
+        }
+        if errTrunc {
+            errData.append(Data("\n[CLIProcess] stderr truncated at \(maxBytes) bytes\n".utf8))
         }
 
         continuation.resume(returning: ProcessResult(

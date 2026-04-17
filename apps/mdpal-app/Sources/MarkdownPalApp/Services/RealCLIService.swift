@@ -126,7 +126,7 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         guard result.exitCode == 0 else {
             throw CLIServiceError.executionFailed(
                 exitCode: Int(result.exitCode),
-                stderr: result.stderrString
+                stderr: result.stderrStringForUI
             )
         }
         return try Self.decodeStdoutOrThrowParseError(T.self, from: result.stdout)
@@ -165,7 +165,7 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
             }
             throw CLIServiceError.executionFailed(
                 exitCode: Int(result.exitCode),
-                stderr: result.stderrString
+                stderr: result.stderrStringForUI
             )
         }
         return try Self.decodeStdoutOrThrowParseError(T.self, from: result.stdout)

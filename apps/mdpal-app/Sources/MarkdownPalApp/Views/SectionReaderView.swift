@@ -29,6 +29,10 @@ public struct SectionReaderView: View {
     let flag: Flag?
     let document: DocumentModel?
     let currentAuthor: String
+    /// Clipboard-read seam for "Comment on Selection" (1A.5). Defaults to
+    /// `.system` (NSPasteboard on macOS); tests pass a fake. 1B.6
+    /// refactored this from a global mutable static.
+    let clipboard: ClipboardReader
 
     // Sheet presentation state
     @State private var showingAddComment = false
@@ -58,22 +62,30 @@ public struct SectionReaderView: View {
     }
 
     /// Read-only init (tests / previews without a DocumentModel).
-    public init(section: Section, comments: [Comment], flag: Flag?) {
+    public init(
+        section: Section, comments: [Comment], flag: Flag?,
+        clipboard: ClipboardReader = .system
+    ) {
         self.section = section
         self.comments = comments
         self.flag = flag
         self.document = nil
         self.currentAuthor = "you"
+        self.clipboard = clipboard
     }
 
     /// Interactive init (production use from ContentView).
-    public init(section: Section, comments: [Comment], flag: Flag?,
-                document: DocumentModel, currentAuthor: String = "you") {
+    public init(
+        section: Section, comments: [Comment], flag: Flag?,
+        document: DocumentModel, currentAuthor: String = "you",
+        clipboard: ClipboardReader = .system
+    ) {
         self.section = section
         self.comments = comments
         self.flag = flag
         self.document = document
         self.currentAuthor = currentAuthor
+        self.clipboard = clipboard
     }
 
     public var body: some View {
@@ -256,7 +268,7 @@ public struct SectionReaderView: View {
     /// Extracted for testability — see `SelectionContext.extract` below.
     private func selectionContextFromClipboard() -> String? {
         SelectionContext.extract(
-            from: ClipboardReader.current.readString(),
+            from: clipboard.readString(),
             within: section.content
         )
     }
@@ -463,16 +475,17 @@ public enum SelectionContext {
 
 /// Thin indirection over NSPasteboard so views can read the clipboard and
 /// tests can swap in a fake. 1A.5.
-public struct ClipboardReader {
-    public let readString: () -> String?
+///
+/// 1B.6 refactor: dropped the global mutable `static var current` in
+/// favor of env-injection. Views now take a `ClipboardReader` (default
+/// `.system`) as an init parameter; tests pass their own reader rather
+/// than mutating shared state.
+public struct ClipboardReader: Sendable {
+    public let readString: @Sendable () -> String?
 
-    public init(readString: @escaping () -> String?) {
+    public init(readString: @escaping @Sendable () -> String?) {
         self.readString = readString
     }
-
-    /// The current reader. Defaults to reading NSPasteboard.general on macOS.
-    /// Tests override by assigning to `ClipboardReader.current`.
-    public static var current: ClipboardReader = .system
 
     #if canImport(AppKit)
     public static let system = ClipboardReader {
