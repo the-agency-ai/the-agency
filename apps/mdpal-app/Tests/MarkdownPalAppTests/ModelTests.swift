@@ -2568,6 +2568,185 @@ func testDefaultProcessRunnerRespectsMaxOutputBytes() async throws {
                "truncation marker must be appended to stderr")
 }
 
+// MARK: - Phase 1C.4: DocumentModel persistence wiring
+
+/// CLIServiceProtocol fake that lets tests control createRevision's
+/// outcome: success returning a canned RevisionInfo, OR throwing a typed
+/// .bundleConflict. Other methods delegate to MockCLIService.
+final class RevisionCreateControllableService: CLIServiceProtocol, @unchecked Sendable {
+    enum Outcome {
+        case success(RevisionInfo)
+        case bundleConflict(baseRevision: String, currentRevision: String)
+        case failure(String)
+    }
+
+    var outcome: Outcome
+    private let mock = MockCLIService()
+    private(set) var lastBaseRevision: String??
+
+    init(outcome: Outcome) { self.outcome = outcome }
+
+    func createRevision(bundle: BundlePath, content: String,
+                        baseRevision: String?) async throws -> RevisionInfo {
+        lastBaseRevision = baseRevision
+        switch outcome {
+        case .success(let rev): return rev
+        case .bundleConflict(let base, let current):
+            throw CLIServiceError.bundleConflict(
+                baseRevision: base, currentRevision: current)
+        case .failure(let reason):
+            throw CLIServiceError.executionFailed(exitCode: 1, stderr: reason)
+        }
+    }
+
+    // Delegate everything else to the mock.
+    func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
+        try await mock.listSections(bundle: bundle)
+    }
+    func readSection(slug: String, bundle: BundlePath) async throws -> Section {
+        try await mock.readSection(slug: slug, bundle: bundle)
+    }
+    func editSection(slug: String, content: String,
+                     versionHash: String, bundle: BundlePath) async throws -> EditResult {
+        try await mock.editSection(slug: slug, content: content,
+                                   versionHash: versionHash, bundle: bundle)
+    }
+    func listComments(bundle: BundlePath) async throws -> [Comment] {
+        try await mock.listComments(bundle: bundle)
+    }
+    func listFlags(bundle: BundlePath) async throws -> [Flag] {
+        try await mock.listFlags(bundle: bundle)
+    }
+    func addComment(slug: String, bundle: BundlePath, type: CommentType,
+                    author: String, text: String, context: String?,
+                    priority: Priority, tags: [String]) async throws -> Comment {
+        try await mock.addComment(slug: slug, bundle: bundle, type: type,
+                                  author: author, text: text, context: context,
+                                  priority: priority, tags: tags)
+    }
+    func resolveComment(commentId: String, bundle: BundlePath,
+                        response: String, by: String) async throws -> ResolveResult {
+        try await mock.resolveComment(commentId: commentId, bundle: bundle,
+                                      response: response, by: by)
+    }
+    func flagSection(slug: String, bundle: BundlePath,
+                     author: String, note: String?) async throws -> FlagResult {
+        try await mock.flagSection(slug: slug, bundle: bundle,
+                                   author: author, note: note)
+    }
+    func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
+        try await mock.clearFlag(slug: slug, bundle: bundle)
+    }
+    func listHistory(bundle: BundlePath) async throws -> [RevisionInfo] {
+        try await mock.listHistory(bundle: bundle)
+    }
+    func showVersion(bundle: BundlePath) async throws -> VersionInfo {
+        try await mock.showVersion(bundle: bundle)
+    }
+    func bumpVersion(bundle: BundlePath) async throws -> VersionBumpResult {
+        try await mock.bumpVersion(bundle: bundle)
+    }
+}
+
+func testDocumentModelCreateRevisionHappyPath() async throws {
+    let rev = RevisionInfo(
+        versionId: "V0001.0005.20260417T1200Z", version: 1, revision: 5,
+        timestamp: Date(), filePath: "V0001.0005.20260417T1200Z.md")
+    let svc = RevisionCreateControllableService(outcome: .success(rev))
+    let doc = DocumentModel(cliService: svc)
+    doc.isDirty = true
+    doc.latestRevision = RevisionInfo(
+        versionId: "V0001.0004.20260417T1100Z", version: 1, revision: 4,
+        timestamp: Date(), filePath: "V0001.0004.20260417T1100Z.md", latest: true)
+
+    try await doc.createRevision(content: "# Updated doc\n")
+
+    try expect(doc.latestRevision?.versionId, equals: "V0001.0005.20260417T1200Z",
+               "latestRevision must advance after successful save")
+    try expect(doc.isDirty, equals: false, "isDirty must clear after successful save")
+    try expectNil(doc.lastError)
+
+    let seen = try expectNotNilUnwrap(svc.lastBaseRevision)
+    try expect(seen ?? "", equals: "V0001.0004.20260417T1100Z",
+               "baseRevision must be the prior latestRevision.versionId")
+}
+
+func testDocumentModelCreateRevisionOmitsBaseWhenNoLatest() async throws {
+    let rev = RevisionInfo(
+        versionId: "V0001.0001.20260417T1300Z", version: 1, revision: 1,
+        timestamp: Date(), filePath: "V0001.0001.20260417T1300Z.md")
+    let svc = RevisionCreateControllableService(outcome: .success(rev))
+    let doc = DocumentModel(cliService: svc)
+    // latestRevision intentionally nil — first save on a fresh bundle.
+
+    try await doc.createRevision(content: "first")
+
+    let seen = try expectNotNilUnwrap(svc.lastBaseRevision)
+    try expectNil(seen, "first save must pass nil baseRevision (no anchor yet)")
+}
+
+func testDocumentModelCreateRevisionRethrowsBundleConflict() async throws {
+    let svc = RevisionCreateControllableService(
+        outcome: .bundleConflict(baseRevision: "V0001.0002", currentRevision: "V0001.0003"))
+    let doc = DocumentModel(cliService: svc)
+    doc.latestRevision = RevisionInfo(
+        versionId: "V0001.0002.20260417T0900Z", version: 1, revision: 2,
+        timestamp: Date(), filePath: "V0001.0002.20260417T0900Z.md", latest: true)
+
+    do {
+        try await doc.createRevision(content: "overwrite attempt")
+        throw TestFailure(message: "Expected bundleConflict", file: #file, line: #line)
+    } catch let CLIServiceError.bundleConflict(base, current) {
+        try expect(base, equals: "V0001.0002")
+        try expect(current, equals: "V0001.0003")
+    }
+
+    try expectNil(doc.lastError,
+                  "bundleConflict must NOT populate lastError — UI handles it distinctly")
+    try expect(doc.latestRevision?.versionId, equals: "V0001.0002.20260417T0900Z",
+               "failed save must not advance latestRevision")
+}
+
+func testDocumentModelCreateRevisionSetsLastErrorOnGenericFailure() async throws {
+    let svc = RevisionCreateControllableService(
+        outcome: .failure("disk full"))
+    let doc = DocumentModel(cliService: svc)
+
+    do {
+        try await doc.createRevision(content: "x")
+        throw TestFailure(message: "Expected failure", file: #file, line: #line)
+    } catch {
+        // expected — generic failure propagates
+    }
+
+    try expect(doc.lastError?.contains("Failed to save revision") ?? false, equals: true,
+               "generic failure populates lastError for UI toast")
+}
+
+func testDocumentModelLoadHistoryPopulatesState() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.loadHistory()
+    try expect(doc.history.count, equals: 2, "mock delivers 2 history entries")
+    try expect(doc.latestRevision?.latest ?? false, equals: true,
+               "loadHistory must sync latestRevision with the latest-flagged entry")
+}
+
+func testDocumentModelLoadCurrentVersionPopulatesState() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    await doc.loadCurrentVersion()
+    try expect(doc.currentVersion?.version ?? 0, equals: 1,
+               "mock reports version 1")
+}
+
+func testDocumentModelBumpVersionUpdatesCurrentVersion() async throws {
+    let doc = DocumentModel(cliService: MockCLIService())
+    let result = try await doc.bumpVersion()
+    try expect(result.previousVersion, equals: 1)
+    try expect(result.version, equals: 2)
+    try expect(doc.currentVersion?.version ?? 0, equals: 2,
+               "currentVersion must update to the new version")
+}
+
 // MARK: - Phase 1C.3: persistence — createRevision/listHistory/showVersion/bumpVersion
 
 // --- createRevision ------------------------------------------------------
@@ -3012,6 +3191,15 @@ struct TestRunner {
         run("ProcessResult.sanitize strips ANSI + control chars", testProcessResultSanitizeStripsAnsiAndControlChars)
         run("ProcessResult.sanitize caps length with marker", testProcessResultSanitizeCapsLength)
         await runAsync("DefaultProcessRunner respects maxOutputBytes", testDefaultProcessRunnerRespectsMaxOutputBytes)
+
+        print("\nDocumentModel persistence (Phase 1C.4):")
+        await runAsync("createRevision happy path advances latestRevision + clears isDirty", testDocumentModelCreateRevisionHappyPath)
+        await runAsync("createRevision omits base when no latest", testDocumentModelCreateRevisionOmitsBaseWhenNoLatest)
+        await runAsync("createRevision rethrows bundleConflict (no lastError)", testDocumentModelCreateRevisionRethrowsBundleConflict)
+        await runAsync("createRevision sets lastError on generic failure", testDocumentModelCreateRevisionSetsLastErrorOnGenericFailure)
+        await runAsync("loadHistory populates history + syncs latestRevision", testDocumentModelLoadHistoryPopulatesState)
+        await runAsync("loadCurrentVersion populates currentVersion", testDocumentModelLoadCurrentVersionPopulatesState)
+        await runAsync("bumpVersion updates currentVersion to new value", testDocumentModelBumpVersionUpdatesCurrentVersion)
 
         print("\nPersistence: createRevision / history / version (Phase 1C.3):")
         await runAsync("createRevision happy path + argv + stdin + omits base when nil", testRealCLIServiceCreateRevisionHappyPath)
