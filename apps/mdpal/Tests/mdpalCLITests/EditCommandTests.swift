@@ -32,6 +32,14 @@ private func readVersionHash(slug: String, bundle: String) throws -> String {
     return try #require(payload["versionHash"] as? String)
 }
 
+/// Count revision files in a bundle directory. Revision filenames match
+/// `V*.md` (e.g., `V0001.0001.20260407T1200Z.md`); other `.md` files
+/// (latest.md symlink) and the `.mdpal/` config dir are excluded.
+private func countRevisionFiles(bundle: String) throws -> Int {
+    let entries = try FileManager.default.contentsOfDirectory(atPath: bundle)
+    return entries.filter { $0.hasPrefix("V") && $0.hasSuffix(".md") }.count
+}
+
 @Test func editSuccessReturnsNewVersionHashAndId() throws {
     let fixture = try CLISupport.makeFixture(name: "edit-success", content: fixtureContent)
     defer { CLISupport.cleanup(fixture) }
@@ -146,6 +154,88 @@ private func readVersionHash(slug: String, bundle: String) throws -> String {
         stdin: "y"
     )
     #expect(result.exitCode != 0, "expected non-zero for both --content and --stdin")
+}
+
+// QG fix: spec requires `versionId` in versionConflict envelope details.
+@Test func editConflictEnvelopeIncludesVersionId() throws {
+    let fixture = try CLISupport.makeFixture(name: "edit-conflict-vid", content: fixtureContent)
+    defer { CLISupport.cleanup(fixture) }
+
+    let originalHash = try readVersionHash(slug: "introduction", bundle: fixture.bundlePath)
+    _ = try CLISupport.runCLI([
+        "edit", "introduction", fixture.bundlePath,
+        "--version", originalHash, "--content", "winner\n",
+    ])
+
+    let conflicted = try CLISupport.runCLI([
+        "edit", "introduction", fixture.bundlePath,
+        "--version", originalHash, "--content", "loser\n",
+    ])
+    #expect(conflicted.exitCode == 2)
+    let envelope = try TestJSON.parse(conflicted.stderr)
+    let details = try #require(envelope["details"] as? [String: Any])
+    let versionId = try #require(details["versionId"] as? String)
+    #expect(versionId.hasPrefix("V"), "versionId must be present in conflict envelope per spec")
+}
+
+// QG fix: empty content is allowed per discussion text.
+@Test func editAcceptsEmptyContent() throws {
+    let fixture = try CLISupport.makeFixture(name: "edit-empty", content: fixtureContent)
+    defer { CLISupport.cleanup(fixture) }
+    let hash = try readVersionHash(slug: "introduction", bundle: fixture.bundlePath)
+
+    let result = try CLISupport.runCLI([
+        "edit", "introduction", fixture.bundlePath,
+        "--version", hash, "--content", "",
+    ])
+    #expect(result.exitCode == 0, "empty content should be accepted; stderr: \(result.stderr)")
+}
+
+// QG fix: empty stdin should also be accepted.
+@Test func editAcceptsEmptyStdin() throws {
+    let fixture = try CLISupport.makeFixture(name: "edit-empty-stdin", content: fixtureContent)
+    defer { CLISupport.cleanup(fixture) }
+    let hash = try readVersionHash(slug: "introduction", bundle: fixture.bundlePath)
+
+    let result = try CLISupport.runCLI(
+        ["edit", "introduction", fixture.bundlePath, "--version", hash, "--stdin"],
+        stdin: ""
+    )
+    #expect(result.exitCode == 0, "empty stdin should be accepted; stderr: \(result.stderr)")
+}
+
+// QG fix: piped content with embedded heading must be rejected per engine
+// rule (Document+Sections.swift forbids headings in newContent).
+@Test func editStdinWithEmbeddedHeadingReturnsParseError() throws {
+    let fixture = try CLISupport.makeFixture(name: "edit-heading-stdin", content: fixtureContent)
+    defer { CLISupport.cleanup(fixture) }
+    let hash = try readVersionHash(slug: "introduction", bundle: fixture.bundlePath)
+
+    let result = try CLISupport.runCLI(
+        ["edit", "introduction", fixture.bundlePath, "--version", hash, "--stdin"],
+        stdin: "# Stowaway heading\n\nbody\n"
+    )
+    #expect(result.exitCode != 0, "headings inside content should be rejected")
+    let envelope = try TestJSON.parse(result.stderr)
+    #expect(envelope["error"] as? String == "parseError")
+}
+
+// QG fix: every successful edit must produce a new revision file on disk.
+@Test func editCreatesNewRevisionFile() throws {
+    let fixture = try CLISupport.makeFixture(name: "edit-rev-count", content: fixtureContent)
+    defer { CLISupport.cleanup(fixture) }
+    let hash = try readVersionHash(slug: "introduction", bundle: fixture.bundlePath)
+
+    let beforeCount = try countRevisionFiles(bundle: fixture.bundlePath)
+
+    let result = try CLISupport.runCLI([
+        "edit", "introduction", fixture.bundlePath,
+        "--version", hash, "--content", "Filesystem-witnessed edit.\n",
+    ])
+    #expect(result.exitCode == 0)
+
+    let afterCount = try countRevisionFiles(bundle: fixture.bundlePath)
+    #expect(afterCount == beforeCount + 1, "expected 1 new revision file (before=\(beforeCount), after=\(afterCount))")
 }
 
 @Test func editTextFormat() throws {

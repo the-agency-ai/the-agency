@@ -62,8 +62,29 @@ struct EditCommand: ParsableCommand {
     }
 
     func run() throws {
+        // Reject interactive-TTY stdin with no redirect — would hang forever.
+        // Only check when --stdin is requested; otherwise irrelevant.
+        if stdin && isatty(fileno(stdin_pointer())) != 0 {
+            let envelope = ErrorEnvelope(
+                error: "stdinIsTTY",
+                message: "stdin is a terminal; pipe content or use --content"
+            )
+            envelope.emit(format: output.format)
+            throw MdpalExitCode.generalError.argumentParserCode
+        }
+
+        // Resolve bundle BEFORE the do/catch so we can use it inside the
+        // versionConflict-specific path below.
+        let resolvedBundle: DocumentBundle
         do {
-            let resolvedBundle = try BundleResolver.resolve(self.bundle)
+            resolvedBundle = try BundleResolver.resolve(self.bundle)
+        } catch let error as EngineError {
+            let (envelope, exit) = EngineErrorMapper.envelope(for: error)
+            envelope.emit(format: output.format)
+            throw exit.argumentParserCode
+        }
+
+        do {
             let document = try resolvedBundle.currentDocument()
 
             let newContent: String
@@ -72,7 +93,15 @@ struct EditCommand: ParsableCommand {
             } else {
                 // --stdin: read all of stdin to EOF.
                 let data = FileHandle.standardInput.readDataToEndOfFile()
-                newContent = String(data: data, encoding: .utf8) ?? ""
+                guard let decoded = String(data: data, encoding: .utf8) else {
+                    let envelope = ErrorEnvelope(
+                        error: "invalidEncoding",
+                        message: "stdin contained non-UTF-8 bytes"
+                    )
+                    envelope.emit(format: output.format)
+                    throw MdpalExitCode.generalError.argumentParserCode
+                }
+                newContent = decoded
             }
 
             let updated = try document.editSection(
@@ -82,8 +111,21 @@ struct EditCommand: ParsableCommand {
             )
 
             // Persist as a new revision (append-only invariant).
+            //
+            // Note: `editSection` mutates the in-memory Document before this
+            // line. If `serialize()` or `createRevision` fails below, the
+            // bundle on disk is unchanged (good — bundle integrity preserved)
+            // but the in-memory Document is dirty. Harmless for a single CLI
+            // invocation (process exits); flagged for future long-lived
+            // contexts.
             let serialized = try document.serialize()
             let revision = try resolvedBundle.createRevision(content: serialized)
+
+            // Report on-disk size, not in-memory string byte count.
+            // attributesOfItem returns the actual file length the consumer
+            // can verify via stat/du.
+            let onDiskBytes = (try? FileManager.default.attributesOfItem(atPath: revision.filePath)[.size] as? Int)
+                ?? serialized.utf8.count
 
             switch output.format {
             case .json:
@@ -91,21 +133,48 @@ struct EditCommand: ParsableCommand {
                     slug: updated.slug,
                     versionHash: updated.versionHash,
                     versionId: revision.versionId,
-                    bytesWritten: serialized.utf8.count
+                    bytesWritten: onDiskBytes
                 )
                 try JSONOutput.print(payload)
             case .text:
                 print("slug:         \(updated.slug)")
                 print("versionHash:  \(updated.versionHash)")
                 print("versionId:    \(revision.versionId)")
-                print("bytesWritten: \(serialized.utf8.count)")
+                print("bytesWritten: \(onDiskBytes)")
             }
         } catch let error as EngineError {
+            // Enrich versionConflict envelope with the bundle's current
+            // versionId per the dispatched spec — the engine error doesn't
+            // carry it (Document doesn't know bundle metadata), so we add
+            // it here at the boundary where both contexts are available.
+            if case .versionConflict(let slug, let expected, let actual, let currentContent) = error {
+                let versionId = (try? resolvedBundle.latestRevision()?.versionId) ?? ""
+                let details: [String: AnyCodable] = [
+                    "slug": AnyCodable(slug),
+                    "expectedHash": AnyCodable(expected),
+                    "currentHash": AnyCodable(actual),
+                    "currentContent": AnyCodable(currentContent),
+                    "versionId": AnyCodable(versionId),
+                ]
+                let envelope = ErrorEnvelope(
+                    error: "versionConflict",
+                    message: "Section '\(slug)' was modified — expected hash \(expected), got \(actual)",
+                    details: details
+                )
+                envelope.emit(format: output.format)
+                throw MdpalExitCode.versionConflict.argumentParserCode
+            }
             let (envelope, exit) = EngineErrorMapper.envelope(for: error)
             envelope.emit(format: output.format)
             throw exit.argumentParserCode
         }
     }
+}
+
+// Helper to get FILE* for isatty — avoids `Darwin.stdin` collision
+// with Swift's `stdin` keyword on macOS.
+private func stdin_pointer() -> UnsafeMutablePointer<FILE> {
+    fdopen(0, "r")
 }
 
 /// Wire shape for `mdpal edit` success payload. Per dispatched spec:
