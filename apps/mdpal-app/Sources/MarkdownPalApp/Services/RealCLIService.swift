@@ -23,6 +23,11 @@
 //          decoding for sectionNotFound/versionConflict/bundleConflict);
 //          shared JSONDecoder with .iso8601 hoisted to forward-proof
 //          Date decoding when Comment/Flag land in 1B.3
+// Updated: 2026-04-17 Phase 1B.3 — readSection, listComments, listFlags
+//          implemented. listComments/listFlags unwrap their list-response
+//          types (CommentsResponse/FlagsResponse) before returning the
+//          array. Comment/Flag timestamps exercise the shared iso8601
+//          decoder end-to-end for the first time.
 
 import Foundation
 
@@ -139,7 +144,55 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         return response.flattened()
     }
 
-    // MARK: - Protocol stubs (land in 1B.3–1B.4)
+    /// Maps to `mdpal read <slug> <bundle>`. Wire format per dispatch #23:
+    /// flat Section payload — `slug`, `heading`, `level`, `content`,
+    /// `versionHash`, `versionId`. No wrapper to unwrap.
+    ///
+    /// The CLI signals section-not-found via exit 3 + structured stderr
+    /// `{"error":"sectionNotFound","details":{"slug":"...", "availableSlugs":[...]}}`.
+    /// For 1B.3 that surfaces as the generic `.executionFailed(3, stderr)`;
+    /// typed `.sectionNotFound(slug:, availableSlugs:)` mapping lands in
+    /// 1B.4 alongside editSection's versionConflict envelope — same
+    /// stderr-envelope machinery covers both. 1B.3 ships
+    /// `.executionFailed` so DocumentModel's error path is wired now;
+    /// 1B.4 swaps the case without churning call sites.
+    public func readSection(slug: String, bundle: BundlePath) async throws -> Section {
+        try await runCommand(
+            ["read", slug, bundle.path],
+            as: Section.self
+        )
+    }
+
+    /// Maps to `mdpal comments <bundle>`. Wire format per dispatch #23:
+    /// `{ "comments": [Comment], "count": Int, "filters": CommentsFilters }`.
+    /// Service unwraps the response to just the `comments` array; `count`
+    /// and `filters` are discarded by the protocol contract. When server-
+    /// side filtering is needed (1B.x), this method grows optional filter
+    /// parameters that translate to argv (`--section`, `--type`,
+    /// `--resolved`, `--unresolved`).
+    ///
+    /// Comment timestamps decode as Date via the shared iso8601 decoder;
+    /// the decoder config was hoisted in 1B.2 specifically to handle this.
+    public func listComments(bundle: BundlePath) async throws -> [Comment] {
+        let response = try await runCommand(
+            ["comments", bundle.path],
+            as: CommentsResponse.self
+        )
+        return response.comments
+    }
+
+    /// Maps to `mdpal flags <bundle>`. Wire format per dispatch #23:
+    /// `{ "flags": [Flag], "count": Int }`. Service unwraps to the array.
+    /// Flag timestamps decode as Date via the shared iso8601 decoder.
+    public func listFlags(bundle: BundlePath) async throws -> [Flag] {
+        let response = try await runCommand(
+            ["flags", bundle.path],
+            as: FlagsResponse.self
+        )
+        return response.flags
+    }
+
+    // MARK: - Protocol stubs (land in 1B.4–1B.5)
 
     private func notYetImplemented(_ method: String) -> CLIServiceError {
         .executionFailed(
@@ -148,21 +201,9 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         )
     }
 
-    public func readSection(slug: String, bundle: BundlePath) async throws -> Section {
-        throw notYetImplemented("readSection")
-    }
-
     public func editSection(slug: String, content: String,
                             versionHash: String, bundle: BundlePath) async throws -> EditResult {
         throw notYetImplemented("editSection")
-    }
-
-    public func listComments(bundle: BundlePath) async throws -> [Comment] {
-        throw notYetImplemented("listComments")
-    }
-
-    public func listFlags(bundle: BundlePath) async throws -> [Flag] {
-        throw notYetImplemented("listFlags")
     }
 
     public func addComment(slug: String, bundle: BundlePath, type: CommentType,

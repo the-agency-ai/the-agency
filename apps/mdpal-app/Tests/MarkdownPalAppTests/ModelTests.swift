@@ -22,6 +22,9 @@
 // Updated: 2026-04-17 Phase 1B.2 — RealCLIService.listSections tests
 //          (happy-path 3-level tree; empty bundle; argv shape; non-zero
 //          exit; malformed JSON; missing required field)
+// Updated: 2026-04-17 Phase 1B.3 — RealCLIService readSection / listComments /
+//          listFlags tests. listComments/listFlags prove end-to-end Date
+//          decode via the shared iso8601 decoder hoisted in 1B.2.
 
 import Foundation
 @testable import MarkdownPalAppLib
@@ -1379,6 +1382,392 @@ func testRealCLIServiceListSectionsMapsMissingRequiredFieldToParseError() async 
     }
 }
 
+// MARK: - Phase 1B.3: RealCLIService read-side methods
+//
+// Coverage rotates across the three methods since `runCommand<T>` is shared
+// (1B.2). Each method gets happy-path + two error paths; the specific error
+// paths rotate (readSection: exit + malformed; listComments: empty + exit;
+// listFlags: empty + malformed) so the shared helper's mappings are
+// jointly exercised without three-times duplication. Plus one
+// path-style-slug test pinning readSection argv forwarding, one
+// missing-required-field test, and one CommentsResponse.filters
+// requirement-pin test.
+
+// --- readSection ----------------------------------------------------------
+
+/// Dispatch #23 sample for `mdpal read architecture <bundle>`.
+private let readSectionHappyJSON = """
+{
+  "slug": "architecture",
+  "heading": "Architecture",
+  "level": 1,
+  "content": "The system uses a section-oriented architecture...\\n\\n### Components\\n\\nEach component is...",
+  "versionHash": "c9d0e1f2",
+  "versionId": "V0001.0003.20260406T0000Z"
+}
+"""
+
+func testRealCLIServiceReadSectionHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(readSectionHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let section = try await svc.readSection(
+            slug: "architecture",
+            bundle: BundlePath("/abs/path/design.mdpal")
+        )
+
+        try expect(section.slug, equals: "architecture")
+        try expect(section.heading, equals: "Architecture")
+        try expect(section.level, equals: 1)
+        try expect(section.versionHash, equals: "c9d0e1f2")
+        try expect(section.versionId, equals: "V0001.0003.20260406T0000Z")
+        try expect(section.content.contains("section-oriented architecture"), equals: true)
+
+        // argv contract: ["read", <slug>, <bundle>]
+        try expect(runner.lastArgs ?? [], equals: ["read", "architecture", "/abs/path/design.mdpal"],
+                   "argv must be ['read', <slug>, <bundle-path>] per dispatch #23")
+        try expectNil(runner.lastStdin, "read is a read command — stdin must be nil")
+    }
+}
+
+func testRealCLIServiceReadSectionMapsNonZeroExitToExecutionFailed() async throws {
+    // The CLI signals section-not-found via exit 3 + structured stderr.
+    // 1B.3 maps it generically to .executionFailed; typed .sectionNotFound
+    // mapping lands in 1B.4 alongside the versionConflict envelope work.
+    // This test pins the generic mapping — it only asserts exit code and
+    // that stderr is forwarded. The 1B.4 typed-envelope test will own the
+    // "stderr parses to a specific envelope" invariant so this test
+    // doesn't have to change when the mapping upgrades.
+    let canned = ProcessResult(
+        exitCode: 3,
+        stdout: Data(),
+        stderr: Data(#"{"error":"sectionNotFound","message":"Section 'missing' not found","details":{"slug":"missing","availableSlugs":["architecture"]}}"#.utf8)
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.readSection(
+                slug: "missing",
+                bundle: BundlePath("/tmp/bundle.mdpal")
+            )
+            throw TestFailure(message: "Expected executionFailed", file: #file, line: #line)
+        } catch let CLIServiceError.executionFailed(exitCode, stderr) {
+            try expect(exitCode, equals: 3)
+            try expect(stderr.isEmpty, equals: false,
+                       "stderr bytes must be forwarded (generic mapping for 1B.3)")
+        }
+    }
+}
+
+func testRealCLIServiceReadSectionPassesPathStyleSlugAsArgv() async throws {
+    // Dispatch #23 allows path-style slugs like "introduction/background".
+    // Process.arguments preserves each element as a single argv token, but
+    // this test pins that contract so a future refactor (joining via
+    // shell, splitting slug on "/") can't silently regress it.
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(readSectionHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.readSection(
+            slug: "introduction/background",
+            bundle: BundlePath("/abs/path/design.mdpal")
+        )
+        try expect(runner.lastArgs ?? [],
+                   equals: ["read", "introduction/background", "/abs/path/design.mdpal"],
+                   "path-style slug must survive as one argv token")
+    }
+}
+
+func testRealCLIServiceReadSectionMapsMissingRequiredFieldToParseError() async throws {
+    // Section has six required fields. If the CLI ever drops one (e.g.
+    // versionId, the optimistic-concurrency anchor), JSONDecoder throws
+    // .keyNotFound — must surface as .parseError, same as garbage JSON.
+    let missingFieldJSON = """
+    {
+      "slug": "architecture",
+      "heading": "Architecture",
+      "level": 1,
+      "content": "...",
+      "versionHash": "c9d0e1f2"
+    }
+    """
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(missingFieldJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.readSection(
+                slug: "architecture",
+                bundle: BundlePath("/tmp/bundle.mdpal")
+            )
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected — missing versionId is a contract violation
+        }
+    }
+}
+
+func testRealCLIServiceReadSectionMapsMalformedJSONToParseError() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data("not valid json".utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.readSection(
+                slug: "architecture",
+                bundle: BundlePath("/tmp/bundle.mdpal")
+            )
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected
+        }
+    }
+}
+
+// --- listComments ---------------------------------------------------------
+
+/// Dispatch #23 sample for `mdpal comments <bundle>`. Exercises Date decoding
+/// via the shared iso8601 decoder — comment `timestamp` and `resolution.timestamp`.
+private let listCommentsHappyJSON = """
+{
+  "comments": [
+    {
+      "commentId": "c007",
+      "slug": "architecture",
+      "type": "question",
+      "author": "jordan",
+      "text": "Should we use dependency injection here?",
+      "context": "The system uses a section-oriented architecture...",
+      "priority": "normal",
+      "tags": [],
+      "timestamp": "2026-04-06T01:00:00Z",
+      "resolved": false,
+      "resolution": null
+    },
+    {
+      "commentId": "c008",
+      "slug": "testing",
+      "type": "suggestion",
+      "author": "mdpal-cli",
+      "text": "Add performance benchmarks",
+      "context": "Testing is baked in...",
+      "priority": "high",
+      "tags": ["perf", "phase2"],
+      "timestamp": "2026-04-06T01:05:00Z",
+      "resolved": true,
+      "resolution": {
+        "response": "Added in iteration 1.3",
+        "by": "mdpal-cli",
+        "timestamp": "2026-04-06T02:00:00Z"
+      }
+    }
+  ],
+  "count": 2,
+  "filters": {
+    "section": null,
+    "type": null,
+    "resolved": null
+  }
+}
+"""
+
+func testRealCLIServiceListCommentsHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(listCommentsHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let comments = try await svc.listComments(bundle: BundlePath("/abs/path/design.mdpal"))
+
+        try expect(comments.count, equals: 2, "service must unwrap CommentsResponse.comments")
+        try expect(comments[0].commentId, equals: "c007")
+        try expect(comments[0].isResolved, equals: false)
+        try expect(comments[0].type, equals: .question)
+        try expect(comments[1].commentId, equals: "c008")
+        try expect(comments[1].isResolved, equals: true)
+        try expect(comments[1].tags, equals: ["perf", "phase2"])
+
+        // Proves the shared iso8601 decoder is wired end-to-end:
+        // a fresh JSONDecoder() without the strategy would throw here.
+        // Compute the expected Date via the same formatter rather than a
+        // hand-coded epoch — avoids brittle magic-number expectations.
+        let iso = ISO8601DateFormatter()
+        let expected = try expectNotNilUnwrap(iso.date(from: "2026-04-06T01:00:00Z"))
+        try expect(comments[0].timestamp.timeIntervalSince1970,
+                   equals: expected.timeIntervalSince1970,
+                   "timestamp must decode as iso8601 Date — 2026-04-06T01:00:00Z")
+        let resolution = try expectNotNilUnwrap(comments[1].resolution)
+        try expect(resolution.by, equals: "mdpal-cli")
+
+        // Nested Date inside Resolution — proves the shared iso8601
+        // decoder reaches nested structures, not just the top level.
+        let expectedResolutionTimestamp = try expectNotNilUnwrap(
+            iso.date(from: "2026-04-06T02:00:00Z")
+        )
+        try expect(resolution.timestamp.timeIntervalSince1970,
+                   equals: expectedResolutionTimestamp.timeIntervalSince1970,
+                   "nested resolution.timestamp must also decode as iso8601 Date")
+
+        // argv contract: ["comments", <bundle>]
+        try expect(runner.lastArgs ?? [], equals: ["comments", "/abs/path/design.mdpal"],
+                   "argv must be ['comments', <bundle-path>] per dispatch #23")
+        try expectNil(runner.lastStdin)
+    }
+}
+
+func testRealCLIServiceListCommentsHandlesEmpty() async throws {
+    let emptyJSON = """
+    { "comments": [], "count": 0, "filters": { "section": null, "type": null, "resolved": null } }
+    """
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(emptyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        let comments = try await svc.listComments(bundle: BundlePath("/tmp/empty.mdpal"))
+        try expect(comments.count, equals: 0)
+    }
+}
+
+func testRealCLIServiceListCommentsMapsNonZeroExitToExecutionFailed() async throws {
+    let canned = ProcessResult(
+        exitCode: 1,
+        stdout: Data(),
+        stderr: Data("mdpal: bundle read failure\n".utf8)
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.listComments(bundle: BundlePath("/tmp/bundle.mdpal"))
+            throw TestFailure(message: "Expected executionFailed", file: #file, line: #line)
+        } catch let CLIServiceError.executionFailed(exitCode, _) {
+            try expect(exitCode, equals: 1)
+        }
+    }
+}
+
+func testRealCLIServiceListCommentsRequiresFiltersKey() async throws {
+    // Pins current model requirement: CommentsResponse.filters is non-
+    // optional, so a CLI payload without `filters` fails decode →
+    // .parseError. If the spec or model changes to accept absent filters
+    // (sensible default for no-active-filters case), this test needs to
+    // be updated deliberately — guarding against silent drift.
+    let noFiltersJSON = """
+    { "comments": [], "count": 0 }
+    """
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(noFiltersJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.listComments(bundle: BundlePath("/tmp/bundle.mdpal"))
+            throw TestFailure(
+                message: "Expected parseError — CommentsResponse.filters is currently required",
+                file: #file, line: #line
+            )
+        } catch CLIServiceError.parseError {
+            // expected — if this test starts failing, CommentsResponse.filters
+            // likely became optional; update the model AND this test together.
+        }
+    }
+}
+
+// --- listFlags ------------------------------------------------------------
+
+/// Dispatch #23 sample for `mdpal flags <bundle>`.
+private let listFlagsHappyJSON = """
+{
+  "flags": [
+    {
+      "slug": "architecture",
+      "author": "jordan",
+      "note": "Needs discussion before proceeding",
+      "timestamp": "2026-04-06T01:00:00Z"
+    },
+    {
+      "slug": "testing",
+      "author": "mdpal-cli",
+      "note": null,
+      "timestamp": "2026-04-06T02:00:00Z"
+    }
+  ],
+  "count": 2
+}
+"""
+
+func testRealCLIServiceListFlagsHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(listFlagsHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let flags = try await svc.listFlags(bundle: BundlePath("/abs/path/design.mdpal"))
+
+        try expect(flags.count, equals: 2, "service must unwrap FlagsResponse.flags")
+        try expect(flags[0].slug, equals: "architecture")
+        try expect(flags[0].author, equals: "jordan")
+        try expect(flags[0].note ?? "", equals: "Needs discussion before proceeding")
+        try expect(flags[1].slug, equals: "testing")
+        try expectNil(flags[1].note, "null note must decode to nil")
+
+        // Date decode via shared iso8601 — 2026-04-06T01:00:00Z. Compute
+        // expected via the same formatter to keep the assertion honest.
+        let iso = ISO8601DateFormatter()
+        let expected = try expectNotNilUnwrap(iso.date(from: "2026-04-06T01:00:00Z"))
+        try expect(flags[0].timestamp.timeIntervalSince1970,
+                   equals: expected.timeIntervalSince1970,
+                   "timestamp must decode as iso8601 Date")
+
+        // argv contract: ["flags", <bundle>]
+        try expect(runner.lastArgs ?? [], equals: ["flags", "/abs/path/design.mdpal"],
+                   "argv must be ['flags', <bundle-path>] per dispatch #23")
+        try expectNil(runner.lastStdin, "flags is a read command — stdin must be nil")
+    }
+}
+
+func testRealCLIServiceListFlagsHandlesEmpty() async throws {
+    let emptyJSON = """
+    { "flags": [], "count": 0 }
+    """
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(emptyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        let flags = try await svc.listFlags(bundle: BundlePath("/tmp/empty.mdpal"))
+        try expect(flags.count, equals: 0)
+    }
+}
+
+func testRealCLIServiceListFlagsMapsMalformedJSONToParseError() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data("{\"flags\": not-valid }".utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.listFlags(bundle: BundlePath("/tmp/bundle.mdpal"))
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected
+        }
+    }
+}
+
 // MARK: - Runner
 
 @main
@@ -1500,6 +1889,20 @@ struct TestRunner {
         await runAsync("listSections maps non-zero exit to executionFailed", testRealCLIServiceListSectionsMapsNonZeroExitToExecutionFailed)
         await runAsync("listSections maps malformed JSON to parseError", testRealCLIServiceListSectionsMapsMalformedJSONToParseError)
         await runAsync("listSections maps missing required field to parseError", testRealCLIServiceListSectionsMapsMissingRequiredFieldToParseError)
+
+        print("\nRealCLIService read-side (Phase 1B.3):")
+        await runAsync("readSection happy path decodes Section payload", testRealCLIServiceReadSectionHappyPath)
+        await runAsync("readSection maps non-zero exit to executionFailed", testRealCLIServiceReadSectionMapsNonZeroExitToExecutionFailed)
+        await runAsync("readSection passes path-style slug as argv", testRealCLIServiceReadSectionPassesPathStyleSlugAsArgv)
+        await runAsync("readSection maps missing required field to parseError", testRealCLIServiceReadSectionMapsMissingRequiredFieldToParseError)
+        await runAsync("readSection maps malformed JSON to parseError", testRealCLIServiceReadSectionMapsMalformedJSONToParseError)
+        await runAsync("listComments happy path unwraps + iso8601 dates", testRealCLIServiceListCommentsHappyPath)
+        await runAsync("listComments handles empty", testRealCLIServiceListCommentsHandlesEmpty)
+        await runAsync("listComments maps non-zero exit to executionFailed", testRealCLIServiceListCommentsMapsNonZeroExitToExecutionFailed)
+        await runAsync("listComments requires filters key (pinned)", testRealCLIServiceListCommentsRequiresFiltersKey)
+        await runAsync("listFlags happy path unwraps + iso8601 dates", testRealCLIServiceListFlagsHappyPath)
+        await runAsync("listFlags handles empty", testRealCLIServiceListFlagsHandlesEmpty)
+        await runAsync("listFlags maps malformed JSON to parseError", testRealCLIServiceListFlagsMapsMalformedJSONToParseError)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 
