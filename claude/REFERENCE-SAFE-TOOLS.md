@@ -120,7 +120,7 @@ On success: `git merge <branch> --no-ff --no-edit`.
 Creates and switches to a new branch.
 
 Checks (each exits 1 on failure):
-1. Name must match `[a-z0-9][a-z0-9._/-]*` (lowercase, no uppercase, no leading special chars)
+1. Name must match `[a-zA-Z0-9][a-zA-Z0-9._/-]*` (ASCII letters + digits, leading letter or digit, subsequent chars may also include `.`, `_`, `/`, `-`)
 2. Branch must not already exist (use `switch-branch` for existing branches)
 
 **`switch-branch <name>`**

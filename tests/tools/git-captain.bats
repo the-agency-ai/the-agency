@@ -137,9 +137,50 @@ make_feature_branch() {
     assert_success
 }
 
-@test "checkout-branch: uppercase name fails" {
+@test "checkout-branch: uppercase name succeeds (D44-R3 / issue #428)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch BadName
+    run ./claude/tools/git-captain checkout-branch MyBranch
+    assert_success
+    run git branch --show-current
+    [[ "$output" == "MyBranch" ]]
+}
+
+@test "checkout-branch: mixed-case release name D7-R1 succeeds (D44-R3 / issue #428)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch D7-R1
+    assert_success
+    run git branch --show-current
+    [[ "$output" == "D7-R1" ]]
+}
+
+@test "checkout-branch: nested uppercase path Feature/ABC succeeds (D44-R3 / issue #428)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch Feature/ABC
+    assert_success
+    run git branch --show-current
+    [[ "$output" == "Feature/ABC" ]]
+}
+
+@test "checkout-branch: digits-only name succeeds (D44-R3 coverage)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch 20260417
+    assert_success
+    run git branch --show-current
+    [[ "$output" == "20260417" ]]
+}
+
+@test "checkout-branch: non-ASCII letters rejected (D44-R3 coverage)" {
+    cd "${BATS_TEST_TMPDIR}"
+    # café contains non-ASCII é, outside [a-zA-Z0-9._/-] — must fail
+    run ./claude/tools/git-captain checkout-branch "café"
+    assert_failure
+    assert_output_contains "Invalid branch name"
+}
+
+@test "checkout-branch: invalid characters still fail after D44-R3 widening" {
+    cd "${BATS_TEST_TMPDIR}"
+    # @ is not in the allowed set [a-zA-Z0-9._/-]
+    run ./claude/tools/git-captain checkout-branch "Bad@Name"
     assert_failure
     assert_output_contains "Invalid branch name"
 }
