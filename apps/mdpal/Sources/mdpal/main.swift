@@ -44,6 +44,12 @@ struct Mdpal: ParsableCommand {
             SectionsCommand.self,
             ReadCommand.self,
             EditCommand.self,
+            CommentCommand.self,
+            CommentsCommand.self,
+            ResolveCommand.self,
+            FlagCommand.self,
+            FlagsCommand.self,
+            ClearFlagCommand.self,
         ]
     )
 }
