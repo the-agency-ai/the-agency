@@ -44,10 +44,27 @@ At PR/release time, `receipt-verify` finds all receipts for the current workstre
 
 ## Where Receipts Live
 
-All receipts go in **`claude/receipts/`** — a flat directory, no subdirectories. The filename carries the full hierarchy:
+Receipts are written to **per-workstream directories**:
 
 ```
-{org}-{principal}-{agent}-{workstream}-{project}-{qgr|rgr}-{hash}-{YYYYMMDD-HHMM}.md
+claude/workstreams/{W}/qgr/    — quality gate receipts
+claude/workstreams/{W}/rgr/    — review gate receipts
 ```
 
-The `claude/receipts/` directory is excluded from all hash computations so receipts never invalidate each other.
+The filename carries full provenance:
+
+```
+{org}-{principal}-{agent}-{ws}-{proj}-{type}-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md
+```
+
+Receipt directories (`qgr/` and `rgr/`) are excluded from all hash computations so receipts never invalidate each other.
+
+### Read Path (three-tier, backward compatible)
+
+`receipt-verify` and `pr-create` search receipts in this order:
+
+1. `claude/workstreams/*/qgr/` and `rgr/` (current — checked first)
+2. `claude/receipts/` (legacy fallback)
+3. `usr/**/qgr-*.md` (old-old fallback — sunsets when all migrated)
+
+New receipts are always written to the per-workstream path via `receipt-sign`.

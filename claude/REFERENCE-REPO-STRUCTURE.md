@@ -48,26 +48,30 @@ claude/                    — framework (tools, agents, docs, hooks, config)
     {workstream}/
       CLAUDE-{WORKSTREAM}.md — workstream-scoped instructions
       KNOWLEDGE.md         — patterns, conventions, key decisions
-      seeds/               — input materials
-      dispatches/          — workstream-targeted dispatches
-      reviews/             — QGRs and review files
-      history/             — archived artifact versions
+      pvr-{W}-{slug}-{YYYYMMDD}.md  — current PVR(s)
+      ad-{W}-{slug}-{YYYYMMDD}.md   — current A&D(s)
+      plan-{W}-{slug}-{YYYYMMDD}.md — current plan(s)
+      seed-{W}-{topic}-{YYYYMMDD}.md — seed proposals
+      qgr/               — quality gate receipts
+      rgr/               — review gate receipts
+      drafts/{P}-{A}/    — WIP before ratification
+      research/          — MARFI outputs, investigations
+      transcripts/       — 1B1 records, summaries, verbatim
+      history/           — superseded current versions
+      history/flotsam/   — uncategorized archive
+      KNOWLEDGE.md       — patterns, conventions, key decisions
   starter-packs/           — starter kit templates for agency init
-usr/                       — agent INSTANCES (per-principal sandboxes, at PROJECT ROOT)
+usr/                       — agent sandboxes (at PROJECT ROOT, not under claude/)
   {principal}/
-    {project}/             — one directory per project
-      CLAUDE-{AGENT}.md    — agent-scoped instructions
-      {agent}-handoff.md   — per-agent session state (one per agent in project)
-      {project}-pvr-*.md   — Product Vision & Requirements
-      {project}-architecture-*.md — Architecture & Design
-      {project}-plan-*.md  — The Plan
-      code-reviews/        — captain review and dispatch files
-      dispatches/          — incoming dispatches
-      transcripts/         — discussion transcripts
-      history/             — archived handoffs and artifacts
+    {agent}/               — per-agent personal state (slim)
+      {agent}-handoff.md   — current session state
+      CLAUDE-{A}.md        — personal overlay on class doc
       tools/               — agent-written scripts (persisted, reusable)
       tmp/                 — scratch space (ephemeral, gitignored)
+      history/             — personal archive
+      history/flotsam/     — uncategorized items
 .claude/                   — Claude Code discovery location
+  agents/{P}/{A}.md        — principal-scoped agent registrations
   commands/                — active skills (symlinks from usr/ + shared)
   skills/                  — skill definitions
   settings.json            — Claude Code settings (scaffold — never overwritten by updates)
@@ -86,13 +90,13 @@ Every workstream and every agent gets a scoped CLAUDE.md file. These are fully q
 |-------|----------|---------|
 | **Framework** | `claude/CLAUDE-THEAGENCY.md` | Agency methodology (this file) |
 | **Workstream** | `claude/workstreams/{name}/CLAUDE-{WORKSTREAM}.md` | Scope, boundaries, conventions, review discipline |
-| **Agent** | `usr/{principal}/{project}/CLAUDE-{AGENT}.md` | Identity, startup sequence, coordination, file discipline |
+| **Agent** | `usr/{P}/{A}/CLAUDE-{A}.md` | Identity, startup sequence, coordination, file discipline |
 
-Agent registrations (`.claude/agents/{name}.md`) import both via `@` directives:
+Agent registrations (`.claude/agents/{P}/{A}.md`) import both via `@` directives:
 
 ```markdown
-@usr/{principal}/{project}/CLAUDE-{AGENT}.md
-@claude/workstreams/{workstream}/CLAUDE-{WORKSTREAM}.md
+@usr/{P}/{A}/CLAUDE-{A}.md
+@claude/workstreams/{W}/CLAUDE-{W}.md
 ```
 
 `/workstream-create` scaffolds the workstream CLAUDE.md. `/agent-create` (via `workstream-create`) scaffolds the agent CLAUDE.md. Both are part of the standard creation workflow.

@@ -64,11 +64,11 @@ claude/workstreams/{workstream}/
 A **principal** is a human stakeholder:
 
 ```
-claude/principals/{principal}/
-  preferences.yaml           # How they like to work
-  requests/                  # REQUEST-principal-XXXX files they've issued
-  artifacts/                 # Deliverables produced for them
-  resources/                 # Reference materials they've provided
+usr/{principal}/{agent}/
+  tmp/                       # Scratch space (gitignored)
+  tools/                     # Agent scripts and ad hoc automation
+  history/                   # Archived handoffs and artifacts
+    flotsam/                 # Discarded drafts and experiments
 ```
 
 **Key properties:**

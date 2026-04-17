@@ -48,10 +48,10 @@ commits:
 
 # Framework version tracking
 framework:
-  version: "2.0.0"
+  version: "43.4"
   installed_at: "2026-01-15T04:54:46+00:00"
-  updated_at: "2026-04-10T11:39:43+00:00"
-  source_commit: "200a5499392942df6c62faa61d7f3da71b18d14e"
+  updated_at: "2026-04-16T13:50:42+00:00"
+  source_commit: "d0b15b61f56341964e4f1de005e6bbc497bc8b1b"
 
 # Agent defaults
 agents:

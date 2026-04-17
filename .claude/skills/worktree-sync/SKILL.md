@@ -38,7 +38,7 @@ The tool reports:
 ### Step 3: Act on changes
 
 - **If CLAUDE.md was updated:** Re-read CLAUDE.md now. Methodology or project instructions changed.
-- **If dispatches found:** Read them with `/dispatch read <file>`. Check `usr/{principal}/{project}/dispatches/` for new dispatches after every sync.
+- **If dispatches found:** Read them with `/dispatch read <file>`. Use `dispatch list` to check for new dispatches after every sync.
 - **If settings.json updated:** New hooks or permissions are active.
 - **If claude/ or .claude/ files changed:** Review the diff to understand what framework changes came in.
 
