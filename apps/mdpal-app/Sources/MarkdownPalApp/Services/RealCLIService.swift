@@ -46,6 +46,13 @@
 //          `--tags <csv>` to repeatable `--tag <value>` per mdpal-cli
 //          Phase 2.3 resolution (dispatch #579). Sidesteps the comma-
 //          encoding question.
+// Updated: 2026-04-17 Phase 1C.3 — persistence surface: createRevision,
+//          listHistory, showVersion, bumpVersion. bundleConflictMapper
+//          static shared with 1C.4's DocumentModel save-flow consumer.
+// Updated: 2026-04-17 Phase 1C.6 — --text-stdin / --response-stdin
+//          adoption. addComment and resolveComment forward large user
+//          text via stdin (threshold 16 KiB UTF-8) to avoid ARG_MAX
+//          pressure on pasted log/quote/code blocks.
 
 import Foundation
 
@@ -332,11 +339,24 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         }
     }
 
-    /// Maps to `mdpal comment <slug> <bundle> --type <type> --author <author> --text <text>
-    /// [--context <text>] [--priority <low|normal|high>] [--tags <comma-separated>]`.
+    /// Threshold (bytes of UTF-8) past which user-supplied text is
+    /// forwarded via stdin instead of argv. macOS ARG_MAX is ~1 MiB
+    /// total argv+env — any single string over ~16 KiB starts eating
+    /// meaningful budget, and pasted log/quote/code blocks routinely
+    /// cross that line. Per mdpal-cli #579, the CLI accepts
+    /// `--text-stdin` / `--response-stdin` mutually-exclusive with the
+    /// argv forms for exactly this reason.
+    private static let stdinThresholdBytes = 16 * 1024
+
+    /// Maps to `mdpal comment <slug> <bundle> --type <type> --author <author>
+    /// (--text <text> | --text-stdin) [--context <text>] [--priority <p>]
+    /// [--tag <v>]...`.
     ///
     /// Always emits `--priority`; emits `--context` only if non-nil;
-    /// emits `--tags` only if non-empty (CLI treats absent tags as []).
+    /// emits `--tag` repeatedly (one flag per non-empty tag) per
+    /// mdpal-cli #579. Large `text` (>16 KiB UTF-8) is piped via stdin
+    /// using `--text-stdin` instead of `--text <value>` to avoid
+    /// ARG_MAX pressure.
     public func addComment(
         slug: String,
         bundle: BundlePath,
@@ -351,9 +371,17 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
             "comment", slug, bundle.path,
             "--type", type.rawValue,
             "--author", author,
-            "--text", text,
-            "--priority", priority.rawValue,
         ]
+        let textBytes = text.utf8.count
+        let stdin: Data?
+        if textBytes > Self.stdinThresholdBytes {
+            args.append("--text-stdin")
+            stdin = Data(text.utf8)
+        } else {
+            args.append(contentsOf: ["--text", text])
+            stdin = nil
+        }
+        args.append(contentsOf: ["--priority", priority.rawValue])
         if let context {
             args.append(contentsOf: ["--context", context])
         }
@@ -366,26 +394,42 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
             args.append(contentsOf: ["--tag", tag])
         }
         return try await runCommandWithEnvelope(
-            args, as: Comment.self, envelopeMapper: Self.sectionNotFoundMapper
+            args, stdin: stdin,
+            as: Comment.self, envelopeMapper: Self.sectionNotFoundMapper
         )
     }
 
-    /// Maps to `mdpal resolve <commentId> <bundle> --response <text> --by <author>`.
+    /// Maps to `mdpal resolve <commentId> <bundle>
+    /// (--response <text> | --response-stdin) --by <author>`.
     /// Keyed off commentId, not slug. Per mdpal-cli #579, the CLI emits
     /// `{ "error":"commentNotFound", "details":{ "commentId": ... } }`
     /// at exit 3 when the commentId doesn't exist — this method maps
     /// that envelope to typed `.commentNotFound(commentId:)` so the UI
     /// can render a useful message. Unrecognized / wrong-shape envelopes
     /// fall through to `.executionFailed`.
+    ///
+    /// Large `response` (>16 KiB UTF-8) is forwarded via stdin using
+    /// `--response-stdin` to avoid ARG_MAX pressure — same pattern as
+    /// addComment's --text-stdin.
     public func resolveComment(
         commentId: String,
         bundle: BundlePath,
         response: String,
         by: String
     ) async throws -> ResolveResult {
-        try await runCommandWithEnvelope(
-            ["resolve", commentId, bundle.path, "--response", response, "--by", by],
-            as: ResolveResult.self,
+        var args = ["resolve", commentId, bundle.path]
+        let respBytes = response.utf8.count
+        let stdin: Data?
+        if respBytes > Self.stdinThresholdBytes {
+            args.append("--response-stdin")
+            stdin = Data(response.utf8)
+        } else {
+            args.append(contentsOf: ["--response", response])
+            stdin = nil
+        }
+        args.append(contentsOf: ["--by", by])
+        return try await runCommandWithEnvelope(
+            args, stdin: stdin, as: ResolveResult.self,
             envelopeMapper: { envelope in
                 switch (envelope.error, envelope.details) {
                 case ("commentNotFound", .some(.commentNotFound(let id))):

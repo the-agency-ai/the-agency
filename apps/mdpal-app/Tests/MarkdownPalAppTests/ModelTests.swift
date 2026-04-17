@@ -2568,6 +2568,78 @@ func testDefaultProcessRunnerRespectsMaxOutputBytes() async throws {
                "truncation marker must be appended to stderr")
 }
 
+// MARK: - Phase 1C.6: --text-stdin / --response-stdin adoption
+
+func testAddCommentUsesTextArgvBelowThreshold() async throws {
+    // Short text — argv path, stdin nil.
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(addCommentHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.addComment(
+            slug: "s", bundle: BundlePath("/b.mdpal"),
+            type: .note, author: "a", text: "short",
+            context: nil, priority: .normal, tags: [])
+        let argv = runner.lastArgs ?? []
+        try expect(argv.contains("--text"), equals: true,
+                   "short text takes --text argv form")
+        try expect(argv.contains("--text-stdin"), equals: false,
+                   "short text must NOT use stdin")
+        try expectNil(runner.lastStdin, "stdin nil for short text")
+    }
+}
+
+func testAddCommentUsesTextStdinAboveThreshold() async throws {
+    // 20 KiB of text — exceeds the 16 KiB threshold → stdin path.
+    let bigText = String(repeating: "L", count: 20 * 1024)
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(addCommentHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.addComment(
+            slug: "s", bundle: BundlePath("/b.mdpal"),
+            type: .note, author: "a", text: bigText,
+            context: nil, priority: .normal, tags: [])
+        let argv = runner.lastArgs ?? []
+        try expect(argv.contains("--text-stdin"), equals: true,
+                   "large text must opt into --text-stdin")
+        try expect(argv.contains("--text"), equals: false,
+                   "large text must NOT also emit --text (mutually exclusive per CLI)")
+        let stdin = try expectNotNilUnwrap(runner.lastStdin)
+        try expect(stdin.count, equals: bigText.utf8.count,
+                   "stdin carries the text body exactly")
+    }
+}
+
+func testResolveCommentUsesResponseArgvBelowThreshold() async throws {
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(resolveCommentHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.resolveComment(
+            commentId: "c1", bundle: BundlePath("/b.mdpal"),
+            response: "short reply", by: "a")
+        let argv = runner.lastArgs ?? []
+        try expect(argv.contains("--response"), equals: true)
+        try expect(argv.contains("--response-stdin"), equals: false)
+        try expectNil(runner.lastStdin)
+    }
+}
+
+func testResolveCommentUsesResponseStdinAboveThreshold() async throws {
+    let bigResp = String(repeating: "R", count: 20 * 1024)
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(resolveCommentHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.resolveComment(
+            commentId: "c1", bundle: BundlePath("/b.mdpal"),
+            response: bigResp, by: "a")
+        let argv = runner.lastArgs ?? []
+        try expect(argv.contains("--response-stdin"), equals: true)
+        try expect(argv.contains("--response"), equals: false,
+                   "large response must NOT also emit --response")
+        let stdin = try expectNotNilUnwrap(runner.lastStdin)
+        try expect(stdin.count, equals: bigResp.utf8.count)
+    }
+}
+
 // MARK: - Phase 1C.5: HistoryRow display-model derivation
 
 private let historyRowTestFormatter: DateFormatter = {
@@ -3232,6 +3304,12 @@ struct TestRunner {
         run("ProcessResult.sanitize strips ANSI + control chars", testProcessResultSanitizeStripsAnsiAndControlChars)
         run("ProcessResult.sanitize caps length with marker", testProcessResultSanitizeCapsLength)
         await runAsync("DefaultProcessRunner respects maxOutputBytes", testDefaultProcessRunnerRespectsMaxOutputBytes)
+
+        print("\n--text-stdin / --response-stdin adoption (Phase 1C.6):")
+        await runAsync("addComment uses --text argv below threshold", testAddCommentUsesTextArgvBelowThreshold)
+        await runAsync("addComment uses --text-stdin above threshold", testAddCommentUsesTextStdinAboveThreshold)
+        await runAsync("resolveComment uses --response argv below threshold", testResolveCommentUsesResponseArgvBelowThreshold)
+        await runAsync("resolveComment uses --response-stdin above threshold", testResolveCommentUsesResponseStdinAboveThreshold)
 
         print("\nHistoryRow display model (Phase 1C.5):")
         run("HistoryRow title includes version, revision, timestamp", testHistoryRowTitleIncludesVersionRevisionAndTimestamp)
