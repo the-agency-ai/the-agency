@@ -14,7 +14,7 @@ the-agency/jordan/mdpal-cli — Markdown Pal engine + CLI. Branch `mdpal-cli`. W
 
 **Phase 1 SHIPPED.** PR #179 open at https://github.com/the-agency-ai/the-agency/pull/179.
 
-**Phase 2 Iteration 2.1 COMPLETE.** First working `mdpal` binary with `sections`, `read` commands. Wire format aligned with dispatched spec to mdpal-app (camelCase, `error` envelope, recursive section tree, `versionId` everywhere).
+**Phase 2 Iterations 2.1 + 2.2 COMPLETE.** Working `mdpal` binary with `sections`, `read`, `edit` commands. Full read/write loop functional. Wire format aligned with dispatched spec — versionId now flows through every payload including conflict envelopes.
 
 | Phase / Iter | Commit | Tests | Content |
 |--------------|--------|-------|---------|
@@ -26,6 +26,8 @@ the-agency/jordan/mdpal-cli — Markdown Pal engine + CLI. Branch `mdpal-cli`. W
 | pr-prep QG | `7c8a359` | 180 | DocumentInfo POSIX pin + test name |
 | **2.1 staging** | `94d0169` | 193 | CLI scaffold (initial wire format) |
 | **2.1 QG fixes** | `874ae16` | 192 | camelCase, error field, recursive tree, removed VersionCommand |
+| **2.2 staging** | `f444ded` | 199 | EditCommand + GlobalOutputOptions |
+| **2.2 QG fixes** | `0b26f86` | 204 | versionId in conflict envelope, TTY/encoding/bytes hardening |
 
 ## What was done this session
 
@@ -45,15 +47,23 @@ the-agency/jordan/mdpal-cli — Markdown Pal engine + CLI. Branch `mdpal-cli`. W
 
 ## Next action
 
-**Iteration 2.2: Section-write commands** (`edit`).
+**Iteration 2.3: Comment + flag commands.**
 
-This is the next mdpal-app blocker after `sections` + `read`. The edit command is critical because it exercises the optimistic-concurrency wire shape (versionConflict at exit 2 with `currentContent`).
+mdpal-app's collaboration features need these. Per dispatched spec:
+- `mdpal comment <slug> <bundle> --type --author --text [--context] [--priority] [--tags]` — returns `{commentId, slug, type, author, text, context, priority, tags, timestamp, resolved}`
+- `mdpal comments <bundle> [--section] [--type] [--unresolved] [--resolved]` — returns `{comments: [...], count, filters}`
+- `mdpal resolve <commentId> <bundle> --response --by` — returns resolved comment with resolution
+- `mdpal flag <slug> <bundle> --author [--note]` — returns `{slug, flagged, author, note, timestamp}`
+- `mdpal flags <bundle>` — returns `{flags: [...], count}`
+- `mdpal clear-flag <slug> <bundle>` — returns `{slug, flagged: false}`
+
+Plus the deferred-from-2.2 hygiene items (slug edge case tests, --version "" test, no-op edit, exact bytesWritten pin, invalidBundlePath in edit, text format ordering).
 
 Build order:
-1. EditCommand with `--version <hash>` + `--content` + `--stdin`
-2. Surface `--format` via OptionGroup (deferred from 2.1)
-3. Slug edge case coverage tests
-4. Subprocess timeout in CLISupport.runCLI
+1. CommentCommand + CommentsCommand + ResolveCommand
+2. FlagCommand + FlagsCommand + ClearFlagCommand
+3. Wire/ directory split (refactor payload DTOs out of Commands/*) — deferred from 2.1
+4. Bonus: subprocess timeout in CLISupport (cheap, prevents future hangs)
 
 Then iteration-complete and merge. Don't wait for principal.
 
