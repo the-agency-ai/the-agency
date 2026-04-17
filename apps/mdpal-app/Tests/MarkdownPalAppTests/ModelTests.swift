@@ -18,6 +18,10 @@
 //
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
 // Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
+// Updated: 2026-04-15 Phase 1B.1 — CLIProcess + RealCLIService init tests
+// Updated: 2026-04-17 Phase 1B.2 — RealCLIService.listSections tests
+//          (happy-path 3-level tree; empty bundle; argv shape; non-zero
+//          exit; malformed JSON; missing required field)
 
 import Foundation
 @testable import MarkdownPalAppLib
@@ -1194,6 +1198,187 @@ func testRealCLIServiceInitSucceedsWhenBinaryResolves() throws {
     try expect(svc.executablePath, equals: bin)
 }
 
+// MARK: - Phase 1B.2: RealCLIService.listSections
+
+/// Dispatch #23 wire-format sample: a 3-level tree with nested children +
+/// one leaf at the top level. Exercises the full decode → flatten pipeline
+/// past the 2-level boundary (Phase 1A's pure-flatten test only goes two
+/// levels). `count` is the top-level-section count per dispatch #23.
+private let listSectionsHappyJSON = """
+{
+  "sections": [
+    {
+      "slug": "introduction",
+      "heading": "Introduction",
+      "level": 1,
+      "versionHash": "a1b2c3d4",
+      "children": [
+        {
+          "slug": "introduction/background",
+          "heading": "Background",
+          "level": 2,
+          "versionHash": "e5f6a7b8",
+          "children": [
+            {
+              "slug": "introduction/background/context",
+              "heading": "Context",
+              "level": 3,
+              "versionHash": "11223344",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "architecture",
+      "heading": "Architecture",
+      "level": 1,
+      "versionHash": "c9d0e1f2",
+      "children": []
+    }
+  ],
+  "count": 2,
+  "versionId": "V0001.0003.20260406T0000Z"
+}
+"""
+
+/// Run a body closure with a RealCLIService wired to a canned ProcessResult.
+/// The helper owns tmp-dir lifecycle — cleanup runs even if the init throws
+/// or the body throws. Fallbacks are empty so the resolver is hermetic
+/// regardless of whether the host has a real mdpal installed.
+private func withRealCLIServiceForTesting(
+    result: ProcessResult,
+    body: (RealCLIService, FakeProcessRunner) async throws -> Void
+) async throws {
+    let dir = try makeTempDirWithMdpal()
+    defer { try? FileManager.default.removeItem(atPath: dir) }
+
+    let bin = (dir as NSString).appendingPathComponent("mdpal")
+    let runner = FakeProcessRunner(result: result)
+    let svc = try RealCLIService(
+        environment: ["MDPAL_BIN": bin, "PATH": "/nonexistent"],
+        fileManager: .default,
+        runner: runner,
+        fallbacks: []
+    )
+    try await body(svc, runner)
+}
+
+func testRealCLIServiceListSectionsHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(listSectionsHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        let sections = try await svc.listSections(bundle: BundlePath("/tmp/bundle.mdpal"))
+
+        // Flatten contract: depth-first, parent before children, leaf after.
+        // Three levels of nesting prove the recursion past the 2-level boundary.
+        try expect(sections.count, equals: 4, "nested children must be flattened in")
+        try expect(sections[0].slug, equals: "introduction")
+        try expect(sections[1].slug, equals: "introduction/background",
+                   "child must follow its parent in depth-first order")
+        try expect(sections[2].slug, equals: "introduction/background/context",
+                   "grandchild must follow child in depth-first order")
+        try expect(sections[3].slug, equals: "architecture")
+        try expect(sections[0].versionHash, equals: "a1b2c3d4")
+        try expect(sections[2].level, equals: 3)
+    }
+}
+
+func testRealCLIServiceListSectionsPassesBundlePathAsArgv() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(listSectionsHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.listSections(bundle: BundlePath("/abs/path/design.mdpal"))
+
+        try expect(runner.lastArgs ?? [], equals: ["sections", "/abs/path/design.mdpal"],
+                   "argv must be ['sections', <bundle-path>] per dispatch #23")
+        try expectNil(runner.lastStdin,
+                      "sections is a read command — stdin must be nil")
+    }
+}
+
+func testRealCLIServiceListSectionsHandlesEmptySections() async throws {
+    // Realistic first-run / empty-bundle path.
+    let emptyJSON = """
+    { "sections": [], "count": 0, "versionId": "V0001.0001.20260406T0000Z" }
+    """
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(emptyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        let sections = try await svc.listSections(bundle: BundlePath("/tmp/empty.mdpal"))
+        try expect(sections.count, equals: 0, "empty sections must decode and flatten to []")
+    }
+}
+
+func testRealCLIServiceListSectionsMapsNonZeroExitToExecutionFailed() async throws {
+    let canned = ProcessResult(
+        exitCode: 1,
+        stdout: Data(),
+        stderr: Data("mdpal: bundle not found: /no/such/bundle\n".utf8)
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.listSections(bundle: BundlePath("/no/such/bundle"))
+            throw TestFailure(message: "Expected executionFailed", file: #file, line: #line)
+        } catch let CLIServiceError.executionFailed(exitCode, stderr) {
+            try expect(exitCode, equals: 1)
+            try expect(stderr.contains("bundle not found"), equals: true,
+                       "stderr bytes must be forwarded to the error payload")
+        }
+    }
+}
+
+func testRealCLIServiceListSectionsMapsMalformedJSONToParseError() async throws {
+    // Exit code 0 but stdout isn't valid JSON for SectionsResponse — a real
+    // scenario if the CLI drifts from the spec. Must surface as .parseError,
+    // not masquerade as success or executionFailed.
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data("this is not json at all { maybe?".utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.listSections(bundle: BundlePath("/tmp/bundle.mdpal"))
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected
+        }
+    }
+}
+
+func testRealCLIServiceListSectionsMapsMissingRequiredFieldToParseError() async throws {
+    // Valid JSON syntactically, but the `versionId` key is absent. JSONDecoder
+    // surfaces .keyNotFound — a distinct error path from "garbage bytes" that
+    // must also map to .parseError, not masquerade as success.
+    let missingFieldJSON = """
+    { "sections": [], "count": 0 }
+    """
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(missingFieldJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.listSections(bundle: BundlePath("/tmp/bundle.mdpal"))
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected — missing required field is a parse contract violation
+        }
+    }
+}
+
 // MARK: - Runner
 
 @main
@@ -1307,6 +1492,14 @@ struct TestRunner {
         await runAsync("DefaultProcessRunner forwards stdin to child", testDefaultProcessRunnerForwardsStdinToChild)
         await runAsync("DefaultProcessRunner handles large stdout without deadlock", testDefaultProcessRunnerHandlesLargeStdoutWithoutDeadlock)
         await runAsync("DefaultProcessRunner throws when executable missing", testDefaultProcessRunnerThrowsWhenExecutableMissing)
+
+        print("\nRealCLIService.listSections (Phase 1B.2):")
+        await runAsync("listSections happy path flattens 3-level tree depth-first", testRealCLIServiceListSectionsHappyPath)
+        await runAsync("listSections passes bundle path as argv", testRealCLIServiceListSectionsPassesBundlePathAsArgv)
+        await runAsync("listSections handles empty sections", testRealCLIServiceListSectionsHandlesEmptySections)
+        await runAsync("listSections maps non-zero exit to executionFailed", testRealCLIServiceListSectionsMapsNonZeroExitToExecutionFailed)
+        await runAsync("listSections maps malformed JSON to parseError", testRealCLIServiceListSectionsMapsMalformedJSONToParseError)
+        await runAsync("listSections maps missing required field to parseError", testRealCLIServiceListSectionsMapsMissingRequiredFieldToParseError)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 
