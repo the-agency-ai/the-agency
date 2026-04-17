@@ -20,6 +20,26 @@ fi
 # Safe glob handling — empty globs expand to nothing
 shopt -s nullglob
 
+# D44-R4 (QG finding #1/#2): guard against crafted filenames or directory
+# names that would escape the intended destination when interpolated into
+# a symlink target. A file literally named `../evil.md` would otherwise
+# produce a symlink pointing outside `usr/<engineer>/commands/`. All four
+# sync blocks (commands/hookify/hooks/agents) use this check before
+# constructing the `ln -sf` target.
+#
+# Return 0 (safe) or 1 (reject). Rejected names are skipped with a stderr
+# note — we never silently accept them.
+_is_safe_name() {
+  local n="$1"
+  [[ -z "$n" ]] && return 1
+  [[ "$n" == .* ]] && return 1       # leading dot (.., ., .hidden)
+  [[ "$n" == *".."* ]] && return 1   # embedded path traversal
+  [[ "$n" == */* ]] && return 1      # embedded slash (should never happen
+                                     # since basename strips path, but
+                                     # defense-in-depth)
+  return 0
+}
+
 # Detect engineer via agency.yaml principal mapping (D44-R4 / issue #420).
 #
 # Resolution order:
@@ -44,8 +64,14 @@ elif [ -x "$ROOT/claude/tools/config" ] && [ -n "${USER:-}" ]; then
   fi
 fi
 
-# Fallback: if config didn't yield a principal but a sandbox exists at the
-# exact $USER path (bootstrap scenario), use $USER.
+# Bootstrap exception: if config didn't yield a principal AND a sandbox
+# already exists at usr/$USER/, accept $USER. This is the narrow case of
+# running the tool in a repo where the sandbox was scaffolded but
+# agency.yaml hasn't been mutated yet (e.g. mid-onboarding, or a freshly-
+# cloned repo). It is NOT the old alphabetical fallback — the only way in
+# here is when usr/$USER/ exactly exists on disk. Remove this block if the
+# workstream decides all principals must be registered in agency.yaml
+# before sandbox-sync runs.
 if [ -z "$ENGINEER" ] && [ -n "${USER:-}" ] && [ -d "$ROOT/usr/${USER}" ]; then
   ENGINEER="$USER"
 fi
@@ -88,6 +114,10 @@ if [ -d "$COMMANDS_SRC" ]; then
     [ -f "$src" ] || continue
     name="$(basename "$src")"
     [ "$name" = ".gitkeep" ] && continue
+    if ! _is_safe_name "$name"; then
+      echo "warn: skipping unsafe command filename: $name" >&2
+      continue
+    fi
 
     target="$COMMANDS_DST/usr-${ENGINEER}.${name}"
     relative="../../usr/$ENGINEER/commands/$name"
@@ -116,6 +146,10 @@ if [ -d "$HOOKIFY_SRC" ]; then
     [ -f "$src" ] || continue
     name="$(basename "$src")"
     [ "$name" = ".gitkeep" ] && continue
+    if ! _is_safe_name "$name"; then
+      echo "warn: skipping unsafe hookify filename: $name" >&2
+      continue
+    fi
 
     # Hookify naming: .claude/hookify.usr-<engineer>.<name>
     # But source files may already have hookify. prefix — strip it for the target name
@@ -150,6 +184,10 @@ if [ -d "$HOOKS_SRC" ]; then
     [ -f "$src" ] || continue
     name="$(basename "$src")"
     [ "$name" = ".gitkeep" ] && continue
+    if ! _is_safe_name "$name"; then
+      echo "warn: skipping unsafe hook filename: $name" >&2
+      continue
+    fi
 
     target="$HOOKS_DST/usr-${ENGINEER}.${name}"
     relative="../../usr/$ENGINEER/hooks/$name"
@@ -179,6 +217,10 @@ if [ -d "$AGENTS_SRC" ]; then
   for agent_dir in "$AGENTS_SRC"/*/; do
     [ -d "$agent_dir" ] || continue
     agent_name="$(basename "$agent_dir")"
+    if ! _is_safe_name "$agent_name"; then
+      echo "warn: skipping unsafe agent dir name: $agent_name" >&2
+      continue
+    fi
 
     target_dir="$AGENTS_DST/usr-${ENGINEER}.${agent_name}"
     relative_dir="../../usr/$ENGINEER/agents/$agent_name"

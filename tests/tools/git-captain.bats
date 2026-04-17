@@ -250,6 +250,18 @@ make_feature_branch() {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/git-captain checkout-branch feature-lock
     assert_success
+    run git branch --show-current
+    [[ "$output" == "feature-lock" ]]
+}
+
+@test "checkout-branch: accepts '.lock' mid-name (e.g. foo.lock-bar) — only suffix is forbidden" {
+    cd "${BATS_TEST_TMPDIR}"
+    # D44-R6 QG (finding #12): the suffix-only rule `[[ $name == *.lock ]]`
+    # must not reject `.lock` as a substring. Positive regression.
+    run ./claude/tools/git-captain checkout-branch foo.lock-bar
+    assert_success
+    run git branch --show-current
+    [[ "$output" == "foo.lock-bar" ]]
 }
 
 @test "checkout-branch: name starting with hyphen fails" {

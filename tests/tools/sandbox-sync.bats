@@ -202,3 +202,53 @@ YAML
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Filename / dir-name safety (D44-R4 QG findings #1/#2 — symlink path traversal)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "sandbox-sync: skips commands with '..' in filename (no symlink created)" {
+    _setup_fixture jordan testuser
+    cd "$FIX"
+    # basename("...evil.md") == "...evil.md" — contains '..'
+    echo "evil" > "usr/jordan/commands/...evil.md"
+    echo "# good" > "usr/jordan/commands/good.md"
+
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"unsafe command filename"* ]] || [[ "$output" == *"...evil.md"* ]]
+    # Good file still gets symlinked
+    [ -L .claude/commands/usr-jordan.good.md ]
+    # Unsafe file does NOT get symlinked
+    [ ! -L ".claude/commands/usr-jordan....evil.md" ]
+}
+
+@test "sandbox-sync: skips agent dirs with '..' in name" {
+    _setup_fixture jordan testuser
+    cd "$FIX"
+    # A directory literally named "..escape" — contains ".." prefix
+    mkdir -p "usr/jordan/agents/..escape"
+    touch "usr/jordan/agents/..escape/agent.md"
+    mkdir -p "usr/jordan/agents/goodagent"
+    touch "usr/jordan/agents/goodagent/agent.md"
+
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    [ "$status" -eq 0 ]
+    # Good agent dir gets symlinked
+    [ -L .claude/agents/usr-jordan.goodagent ]
+    # Unsafe agent dir rejected
+    [ ! -L ".claude/agents/usr-jordan...escape" ]
+}
+
+@test "sandbox-sync: leading-dot hidden files in commands/ are skipped" {
+    _setup_fixture jordan testuser
+    cd "$FIX"
+    # Dotfiles other than .gitkeep are rejected (leading dot could be traversal-adjacent)
+    echo "hidden" > "usr/jordan/commands/.hidden.md"
+    echo "# good" > "usr/jordan/commands/good.md"
+
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    [ "$status" -eq 0 ]
+    [ -L .claude/commands/usr-jordan.good.md ]
+    [ ! -L .claude/commands/usr-jordan..hidden.md ]
+}
