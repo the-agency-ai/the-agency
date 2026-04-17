@@ -42,6 +42,39 @@ Every piece of code — scripts, tools, modules, classes, methods, functions —
 # Written: 2026-04-04 during captain session 18 (ISCP workstream creation)
 ```
 
+**Python tools** use the same pattern in a docstring:
+
+```python
+#!/usr/bin/env python3
+"""
+What Problem: Dispatch polling via /loop costs ~82,000 tokens/day and has
+5-minute latency. The Monitor tool can watch a background script and react
+to output in real-time, but the bash implementation requires bash 4+.
+
+How & Why: Python 3.9+ rewrite using stdlib only. Python gives us native
+set() for seen-ID tracking, proper subprocess error handling, and signal-
+based clean shutdown. No external dependencies.
+
+Written: 2026-04-17 D44 — first Python tool in the framework
+"""
+```
+
+### Language Choice for Tools
+
+Both bash and Python 3.9+ are valid languages for tools in `claude/tools/`.
+
+| Use bash when | Use Python when |
+|---------------|-----------------|
+| Thin wrappers around other tools | Data structures beyond arrays (sets, dicts) |
+| Git operations via git-safe | Long-running processes |
+| Simple file/path manipulation | Complex string parsing or JSON processing |
+| Interop with existing bash tools | Error handling needs try/except |
+| Shebang: `#!/usr/bin/env bash` | Shebang: `#!/usr/bin/env python3` |
+
+**Python constraints:** stdlib only (no pip/virtualenv). Python 3.9+ floor (matches macOS system Python). Use `from __future__ import annotations` for modern type hint syntax on 3.9.
+
+Templates: `claude/templates/TOOL.sh` (bash), `claude/templates/TOOL.py` (Python).
+
 The **What Problem** forces intent articulation. "What it does" is readable from the code. "What problem it solves" is not — and it's the thing that tells a future reader whether this code is still relevant.
 
 The **How & Why** captures the reasoning chain. When someone needs to change this code, they need to know not just what it does but why it does it *this way*. What alternatives were considered? What constraints drove the choice? This is the context that gets lost when code outlives the session that created it.
