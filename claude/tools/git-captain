@@ -114,7 +114,7 @@ cmd_checkout_branch() {
     # Validate branch name: must start with an ASCII letter or digit,
     # then ASCII letters, digits, dots, underscores, hyphens, slashes.
     # D44-R3 (issue #428): accept uppercase so release names like 'D7-R1'
-    # or feature branches like 'D42-R1-regex-fix' are permitted. Previously
+    # or feature branches like 'D44-R3-regex-fix' are permitted. Previously
     # lowercase-only, which rejected the convention used across workstreams.
     if [[ ! "$name" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/-]*$ ]]; then
         die "Invalid branch name '$name'. Must match: [a-zA-Z0-9][a-zA-Z0-9._/-]*"

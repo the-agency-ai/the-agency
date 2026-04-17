@@ -161,10 +161,20 @@ make_feature_branch() {
     [[ "$output" == "Feature/ABC" ]]
 }
 
-@test "checkout-branch: leading hyphen still fails after D44-R3 widening" {
+@test "checkout-branch: digits-only name succeeds (D44-R3 coverage)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch -- -Bad
+    run ./claude/tools/git-captain checkout-branch 20260417
+    assert_success
+    run git branch --show-current
+    [[ "$output" == "20260417" ]]
+}
+
+@test "checkout-branch: non-ASCII letters rejected (D44-R3 coverage)" {
+    cd "${BATS_TEST_TMPDIR}"
+    # café contains non-ASCII é, outside [a-zA-Z0-9._/-] — must fail
+    run ./claude/tools/git-captain checkout-branch "café"
     assert_failure
+    assert_output_contains "Invalid branch name"
 }
 
 @test "checkout-branch: invalid characters still fail after D44-R3 widening" {
