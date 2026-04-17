@@ -29,6 +29,16 @@ On every session start, do these in order:
 
 **Tool usage:** All Agency tools work from ANY directory. Never prefix with `cd /path/to/main-repo &&`. Use relative paths (`./claude/tools/`).
 
+## Communication With Jordan
+
+### Path references
+- **Always lead with the repo name** when referencing files across multiple repos — the principal operates across `the-agency`, `the-agency-group`, `monofolk`, `ordinaryfolk`, and others.
+- **Use `~/code/` paths** in responses, not absolute `/Users/jdm/code/` paths. Shorter, cleaner, and the principal thinks in `~/code/`.
+- When listing multiple paths from different repos, prefix each with the repo clearly.
+
+Example (good): `~/code/the-agency-group/usr/jordan/captain/outbound/raj-mukherjee-whatsapp-20260417.md`
+Example (avoid): `/Users/jdm/code/the-agency-group/usr/...` or `usr/jordan/captain/outbound/...` with no repo context.
+
 ## Cross-Repo Dispatch Protocol
 
 ISCP is local to each repo (SQLite DB at `~/.agency/{repo-name}/iscp.db`). Cross-repo dispatches use a **collaboration repo** — git-file-based messaging since the two repos don't share a DB.

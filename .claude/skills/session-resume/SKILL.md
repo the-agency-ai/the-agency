@@ -48,9 +48,9 @@ Surface any unread dispatches. If found, list them with `dispatch list` and read
 ### Step 4: Report session state
 
 Report to the user:
-- **Branch:** `git branch --show-current`
-- **Last commit:** `git log --oneline -1`
-- **Dirty files:** `git status --porcelain | wc -l` (0 = clean)
+- **Branch:** `./claude/tools/git-safe branch --show-current`
+- **Last commit:** `./claude/tools/git-safe log --oneline -1`
+- **Dirty files:** `./claude/tools/git-safe status --porcelain` (0 lines = clean)
 - **Sync result:** what changed from Step 1
 - **Handoff summary:** key points from Step 2
 - **Dispatches:** any unread from Step 3
