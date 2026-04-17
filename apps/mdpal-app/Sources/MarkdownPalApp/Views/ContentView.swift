@@ -26,6 +26,7 @@ public struct ContentView: View {
     /// actual resolution from `MarkdownDocument.cliResolution`.
     let cliResolution: CLIServiceFactory.Resolution
     @State private var selectedSlug: String?
+    @State private var showingHistory = false
 
     public init(
         document: DocumentModel,
@@ -39,6 +40,24 @@ public struct ContentView: View {
         VStack(spacing: 0) {
             CLIServiceBanner(resolution: cliResolution)
             mainSplitView
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task {
+                        await document.loadHistory()
+                        showingHistory = true
+                    }
+                } label: {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                }
+            }
+        }
+        .sheet(isPresented: $showingHistory) {
+            HistoryView(
+                revisions: document.history,
+                onDismiss: { showingHistory = false }
+            )
         }
     }
 

@@ -2568,6 +2568,47 @@ func testDefaultProcessRunnerRespectsMaxOutputBytes() async throws {
                "truncation marker must be appended to stderr")
 }
 
+// MARK: - Phase 1C.5: HistoryRow display-model derivation
+
+private let historyRowTestFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.calendar = Calendar(identifier: .gregorian)
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.timeZone = TimeZone(identifier: "UTC")
+    f.dateFormat = "yyyy-MM-dd HH:mm"
+    return f
+}()
+
+func testHistoryRowTitleIncludesVersionRevisionAndTimestamp() throws {
+    let iso = ISO8601DateFormatter()
+    let rev = RevisionInfo(
+        versionId: "V0001.0003.20260417T1000Z",
+        version: 1, revision: 3,
+        timestamp: iso.date(from: "2026-04-17T10:00:00Z")!,
+        filePath: "V0001.0003.20260417T1000Z.md",
+        latest: true
+    )
+    let row = HistoryRow(from: rev, formatter: historyRowTestFormatter)
+
+    try expect(row.title, equals: "v1 r3 — 2026-04-17 10:00",
+               "title must fold version + revision + formatted timestamp")
+    try expect(row.subtitle, equals: "V0001.0003.20260417T1000Z.md",
+               "subtitle is the filePath for debugging / engine context")
+    try expect(row.isLatest, equals: true, "latest flag round-trips")
+    try expect(row.id, equals: rev.versionId, "row id == versionId for stable identity")
+}
+
+func testHistoryRowIsLatestFalseWhenRevisionLatestIsNil() throws {
+    let rev = RevisionInfo(
+        versionId: "V", version: 1, revision: 1,
+        timestamp: Date(), filePath: "x.md",
+        latest: nil // fresh-create response
+    )
+    let row = HistoryRow(from: rev, formatter: historyRowTestFormatter)
+    try expect(row.isLatest, equals: false,
+               "unknown .latest must render as NOT latest (conservative)")
+}
+
 // MARK: - Phase 1C.4: DocumentModel persistence wiring
 
 /// CLIServiceProtocol fake that lets tests control createRevision's
@@ -3191,6 +3232,10 @@ struct TestRunner {
         run("ProcessResult.sanitize strips ANSI + control chars", testProcessResultSanitizeStripsAnsiAndControlChars)
         run("ProcessResult.sanitize caps length with marker", testProcessResultSanitizeCapsLength)
         await runAsync("DefaultProcessRunner respects maxOutputBytes", testDefaultProcessRunnerRespectsMaxOutputBytes)
+
+        print("\nHistoryRow display model (Phase 1C.5):")
+        run("HistoryRow title includes version, revision, timestamp", testHistoryRowTitleIncludesVersionRevisionAndTimestamp)
+        run("HistoryRow isLatest false when revision.latest is nil", testHistoryRowIsLatestFalseWhenRevisionLatestIsNil)
 
         print("\nDocumentModel persistence (Phase 1C.4):")
         await runAsync("createRevision happy path advances latestRevision + clears isDirty", testDocumentModelCreateRevisionHappyPath)
