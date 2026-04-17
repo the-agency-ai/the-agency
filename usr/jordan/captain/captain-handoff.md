@@ -3,73 +3,143 @@ type: session
 agent: the-agency/jordan/captain
 workstream: housekeeping
 date: 2026-04-17
-trigger: session-compact
+trigger: session-end
 ---
 
-## D44 — mid-session compact
+## D44 — end of day
 
-### Context shape
-Pre-compact mid-day on D44. Major release cadence hit: v44.1 → v44.2 → v44.3 → v44.4 all shipped today. Fleet is active and self-scheduling.
+### On wake — immediate agenda
 
-### Released today
+1. **Set the 0300 cron** (principal directive: set it AFTER session resume, not before /exit). Schedule: CronCreate for 0300 SGT tomorrow (today) — see "0300 Setup Prompt" below. Use `durable: true` if supported.
+2. **1B1 the Close-Issues themes** (7 themes, 73 flags). Briefing is drafted (inline below — to be filed at `usr/jordan/captain/briefings/close-issues-briefing-20260418.md` during 0300 setup).
+3. **Ratify flag→issue rule** — principal agreed to "Flag persistence = GitHub issue." Rewrite `/flag-triage` skill: outcomes become `close`, `do now`, or `file issue`. No "defer" state.
+4. **Open install-vs-repo boundary discussion** — flags #146/#165. Topic: clearly separate what's in an `agency init`/`agency update` install from what's in the framework dev repo accessible to contributors.
+5. **HIP Sprint work** — FIFO through the 13 items after issues filed.
+
+### Release summary — D44 (today)
+
+Fifteen releases shipped:
+
 | Version | PR | What |
-|---------|-----|------|
-| v44.1 | #162 | dispatch-monitor Python rewrite (first Python tool) + CI release-tag-check fix (#159) |
-| v44.2 | #175 | 9-issue batch — session-resume git-safe, git-captain merge-from-origin, git-safe-commit MERGE_HEAD auto-no-verify, agency update handoff preservation, 6 closed as already-fixed |
+|---|---|---|
+| v44.1 | #162 | dispatch-monitor Python rewrite + CI release-tag-check fix |
+| v44.2 | #175 | 9-issue batch (session-resume, git-captain merge-from-origin, etc.) |
 | v44.3 | #179 | mdpal Phase 1 — Swift engine library + CLI (180 tests) |
-| v44.4 | #182 | git-captain checkout-branch regex widened to accept uppercase (closes #428 item 1) |
+| v44.4 | #182 | git-captain checkout-branch uppercase regex |
+| v44.pr183 | #183 | mdpal-app Phase 1B — real-CLI integration (111 tests) |
+| v44.pr185–pr193 | #185–193 | 9 monofolk cross-repo contributions (starter packs, service-add, ui-add, scaffold lib) |
+| v44.6 | #203 | D44-R5 devex triple — sandbox-sync #420 + skill-verify flag #163 + git-captain hardening |
+| v44.7 | #208 | D44-R6 — **Python 3.12 is the new framework floor** (supersedes 3.9) |
 
-### In flight / awaiting
-- **v44.5 slot** — designex Phase 1 (Enforcement Triangle, DTCG + SD v4) — dispatched #565 to run `/phase-complete`, no PR yet
-- **mdpal-cli Phase 2** — active, shipping many commits; will PR at natural boundary
-- **mdpal-app Phase 1B** — iterating (1B.3 landed, more coming)
-- **iscp** — repaired successfully (captain-side external surgery), should be committing her pending work via /iteration-complete
+### Key principal directives (today)
 
-### Fleet status
-- iscp unblocked — captain externally repaired her worktree (unstaged designex cross-contamination, stashed her work, merged origin/main, popped stash). She confirmed repair landed cleanly, found new bug #181 (cross-worktree dispatch delivery corrupts 'from' field).
-- monofolk collaboration — designex↔of-mobile-web channel opened. Pilot Phase 0 (read-only diff this week) proposed to monofolk. Waiting their designex response.
-- devex shipped D44-R3 and is likely idle
-- designex Phase 1.4 complete, PR pending after principal signoff
+1. **Python 3.12 is the new framework floor** — ratified via v44.7; broadcast dispatches #649-656 sent to 8 worktree agents; iscp #614 ack'd via #657.
+2. **"We do not defer. We do or we don't do."** — remove "defer" as an internal state. Outcomes: do immediately, file GH issue, or reject/close.
+3. **Flag persistence = GH issue.** A flag that survives triage becomes an issue. Flags are working memory; issues are the backlog.
+4. **Agents don't open PRs. Captain builds and opens PRs.** Agents produce branch commits (with QGRs); captain opens PR.
+5. **Workshop onboarding cluster is DONE** — Peter bootstrapped; close the flags.
+6. **No more "seed files" as deferral dumps.** If worth remembering → GH issue. If not → reject.
+7. **HIP Sprint** (Hardening + Improvement focused on reviews and tests) is approved — tomorrow.
 
-### Issues filed today
-- #159 (CI release-tag-check noise), #160 (agency update handoff overwrite), #161 (session-resume raw git), #163-166 (agency update + collab + dispatch bugs — closed as already-fixed), #167-170 (various), #171-173 (git-safe family, #173 closed already-impl), #176 (/fleet-report skill), #177 (agent duty register), #180 (Monitor for test runs, assigned to devex), #181 (cross-worktree dispatch 'from' corruption)
-- anthropics/claude-code#49712 (session name auto-rename — filed by principal via /feedback, ID 61261384)
+### HIP Sprint scope (13 items — to be filed as child issues at 0300)
 
-### Infrastructure landed today
-- `~/code/the-agency/usr/jordan/captain/outbound/` — sent correspondence archive (Raj Mukherjee WhatsApp)
-- `~/code/the-agency/usr/jordan/captain/feedback/` — Anthropic feedback tracking (registry + detail files, 25 entries)
-- `~/code/the-agency-group/usr/jordan/captain/workshops/mapletree-reit-workshop-pitch.md` — canonical workshop pitch
+| Flag | Item | Acceptance |
+|---|---|---|
+| #138 | figma-extract BATS tests | Variables API path, Styles API fallback, Tokens Studio import, brand-name validation, file-key validation |
+| #139 | designsystem-add BATS tests | brand-name regex, refusal-to-overwrite, template copy correctness |
+| #140 | designsystem-build BATS tests | SD4 config, sd-transforms auto-detect, multi-target, build-manifest checksum determinism |
+| #114 | git-captain sibling coverage | merge-to-master, switch-branch, fetch, push, tag, branch-delete BATS tests |
+| #143 | skill-validation.bats #10 allowlist | allow inline-code spans + list contexts |
+| #144 | hookify dispatch integration harness | feed commands through block-raw-tools.sh; assert exit codes + decisions |
+| #142 | **git-safe-commit receipt glob** | Recognize new five-hash receipts at `claude/workstreams/*/qgr/`. Lead item. |
+| #134 | Audit bash tools for Python 3.12 rewrite candidates | List + rationale; no rewrites yet |
+| #148 | designex Phase 1.5 housekeeping (31 findings) | Dispatch to designex; track |
+| #5, #32 | Provenance header audit + security skill validate-or-remove | Quick wins |
+| #95 | Receipt chain-verify (five-hash recomputation) | QG Phase 2 |
+| #86 | session-preflight: `gh issue list` + Dependabot check | Add to preflight |
 
-### Key decisions
-1. **Python 3.9+ is official** for framework tools. stdlib only, no pip. dispatch-monitor was first. ISCP directive #521 dispatched.
-2. **Multiple small releases** per principal directive — don't bundle, ship as each PR lands.
-3. **Captain doesn't file on external repos** — principal files anthropics/* and other orgs. Captain prepares drafts.
-4. **Path convention** — use `~/code/...` paths, lead with repo name. Added to CLAUDE-CAPTAIN.md overlay.
-5. **Silent resolve for routine commit dispatches** — don't emit chat message for every fleet heartbeat. Only surface PR-ready, escalations, cross-repo, principal input needed.
+### Close Issues — 7 themes, 73 flags (1B1 on wake)
 
-### Behavioral notes
-- NEVER file on anthropics/claude-code — that's principal-only
-- Lead file references with repo name, use `~/code/` paths
-- Silent resolve commit dispatches
-- Over/Over-and-out protocol
-- Principal filing preferred — captain drafts
+**Theme 1 — Fixed in a release (22 flags):** #1, #2, #3, #22, #27, #51, #54, #83, #93, #96, #97, #98, #99, #100, #101, #104, #112, #113, #116, #133, #141, #147
 
-### Open issues for follow-up
-- **#146** — Block AGENCY_ALLOW_RAW, waiting on #171/#172/#173 prerequisites (#171/#172 done today, #173 closed as already-impl, so prerequisites are met — ready to implement Option B when monofolk is ready)
-- **#176** — /fleet-report skill (deferred)
-- **#177** — Agent duty register (deferred)
-- **#150** — Linux deps (deferred to weekend)
-- **#157** — D-R version format display (quick win)
-- **#181** — cross-worktree dispatch 'from' field corruption (ISCP territory)
+**Theme 2 — Decided & locked (22 flags):** #11, #12, #13, #19, #23, #24, #25, #26, #36, #50, #60, #61, #63, #64, #68, #70, #72, #73, #76, #79, #84, #85
 
-### Monitor state
-- dispatch-monitor running (task bkdquuee6, Python, --include-collab)
-- Dispatch stream steady — mdpal-cli + mdpal-app + devex producing commit heartbeat
-- No blocking issues
+**Theme 3 — Tracked externally — Anthropic feedback / cross-repo (7 flags):** #9, #10, #52, #67, #74, #75, #82
 
-### Next session actions
-1. Check for designex `/phase-complete` PR → v44.5
-2. Watch for mdpal-cli Phase 2 PR
-3. Watch for mdpal-app Phase 1B phase boundary
-4. If iscp didn't land her work: check status, possibly dispatch
-5. Eventually tackle #157 (D-R format), #176 (/fleet-report)
+**Theme 4 — Superseded / rejected / cancelled (9 flags):** #7, #16, #17, #18, #20, #57, #59, #77, #134
+
+**Theme 5 — Time-bound event completed (3 flags):** #49, #66, #128
+
+**Theme 6 — Test noise / empty flag entries (6 flags):** #37, #38, #39, #69, #131, #132
+
+**Theme 7 — Already a GH issue / absorbed (4 flags):** #136 (→ #177), #35, #42, #41
+
+### New-issue filings queued (at 0300 setup)
+
+~28 "true defer" flags → new GH issues (with dedup check):
+#40, #56, #58, #28, #71, #103, #106, #107, #108, #111, #119, #121, #123, #124, #126, #130, #44, #4 (header-sync hookify), #5 (audit), #29 (worktree awareness), #30 (core.bare=true bug), #31 (Granola pipeline), #32 (security skill), #43 (telemetry mining), #45/#47/#48 (observability cluster), #46 (telemetry identity), #55 (collaboration naming 1B1), #87/#88/#89 (QG Phase 2), #90/#91/#92 (receipt registry), #102/#105 (skill-vs-tool gap — folds into #146 discussion), #115 (detect_main_branch), #117 (pre-staging QGR — folds into #142), #118 (monofolk allowed-tools MAR reply), #120 (git-captain cherry-pick), #125 (onboardees list tracking — only if new info arrives)
+
+~12 "was-seed" items → GH issues labeled `discuss` or `research` (no seed files):
+#6 (agency-gtm), #14 (agency-audit), #15 (structure.yaml), #21 (CLAUDE.md fragment registry), #33/#34 (agentic email — opportunities), #53 (monofolk diagnostic waves), #62 (cross-repo framework evolution — articles seed), #65 (pre-history — articles), #80 (dispatch service — #170 exists?), #129 (iCloud rebuild)
+
+Sibling issue: **#170 already exists** — "Add /seed command and skill for frictionless Valueflow seed capture" (OPEN). Pull into existing-open-issues iteration.
+
+Related: Flag #137 / #165 — `/feedback-submit` tool/skill (no hardcode). **File as new issue** sibling to #170.
+
+### 0300 Setup Prompt (to install via CronCreate on wake)
+
+```
+It is 0300 SGT 2026-04-18 — morning setup before principal wakes (captain, the-agency repo, /Users/jdm/code/the-agency).
+
+Read handoff: ./claude/tools/handoff read
+
+Execute autonomously — SETUP ONLY, NO SPRINT WORK:
+
+1. File HIP Sprint epic issue (title: "HIP Sprint — Hardening + Improvement: Reviews and Tests"), label `hip`. Body lists the 13 scope items from the handoff.
+
+2. File 13 child issues, one per scope item, each linked to the epic. Labels: `hip`, plus `test-coverage`/`framework-polish`/`tool-gap`/`observability` as appropriate.
+
+3. Dedup-check + file ~28 new GH issues from handoff "defer → issue" list (gh issue list --state open --search). Concise titles from flag text.
+
+4. ~12 was-seed items → GH issues labeled `discuss` or `research`. No seed files.
+
+5. Write `usr/jordan/captain/briefings/close-issues-briefing-20260418.md` — 7 themes + flag numbers (from handoff).
+
+6. Start dispatch-monitor via Monitor: ./claude/tools/dispatch-monitor --include-collab. Silently batch-resolve routine commits.
+
+7. Refresh handoff (./claude/tools/handoff write --trigger pre-principal-wake) summarizing what was filed + any failures.
+
+Do NOT start HIP work. Do NOT merge PRs. Setup only. Wait for principal.
+```
+
+### Fleet status at session end
+
+| Agent | Branch | Ahead | Behind | Dirty |
+|---|---|---|---|---|
+| designex | designex | varied | ~136 | some |
+| devex | devex (merged) | 10 | 0 | 1 |
+| iscp | iscp | 24 | 0 | 7 |
+| mdpal-app | mdpal-app | 1 | many | 3 |
+| mdpal-cli | mdpal-cli | 13 | 71 | 31 |
+| mdslidepal-mac | | 9 | 338 | 6 |
+| mdslidepal-web | | 4 | 163 | 1 |
+| mock-and-mark | (empty) | — | — | — |
+
+**Fleet sync deferred** — principal directive at end of day: fleet will sync via `/session-resume` on wake.
+
+### Routine dispatch backlog
+
+~25+ unread commit dispatches accumulated during session end. Clear via batch in morning or let them age out. No action-requiring dispatches pending.
+
+### Open questions unanswered (not blocking)
+
+- **Q3 — Fourth iteration scope:** proposed (a) flag→issue rule rollout + `/flag-triage` rewrite (pairs with Close-Issues 1B1). Principal to confirm.
+
+### Repo state
+- **Branch:** main
+- **Last commit:** `053b8758 misc: D44 dispatch artifacts — Python 3.12 floor broadcast (8 agents) + iscp #614 ack`
+- **Clean tree.**
+
+### Context for fresh session
+- Today's scoreboard: 15 releases, 14 merged PRs, Python 3.12 floor ratified
+- Tomorrow's priorities (in order): 0300 setup (autonomous) → 1B1 Close Issues → ratify flag→issue rule → install-vs-repo discussion → HIP Sprint FIFO
