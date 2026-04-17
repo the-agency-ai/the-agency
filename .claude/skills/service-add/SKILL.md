@@ -35,7 +35,7 @@ Uses the SPEC-PROVIDER pattern: the **SPEC** is the skill invocation (name + wor
 ## What it does NOT do (v1)
 
 - Does not add a new topology.yaml entry — v1 prototypes ride inside the existing `backend` compute service
-- Does not create Prisma models — add manually if the prototype needs DB access
+- Does not create ORM models — add manually if the prototype needs DB access
 - Does not create DTOs — add when endpoints need request validation beyond the stock three
 - Does not change package.json or install dependencies
 - Does not update agency.yaml
@@ -74,4 +74,4 @@ Changed files for a non-dry-run:
 - `apps/backend/src/prototype/prototype.registry.ts` (modified — import + entry)
 - `docs/prototype/<name>/build-manifest.json` (new file)
 
-The principal decides whether to run `/iteration-complete` immediately, add follow-up changes (Prisma schema, DTOs) first, or fold the scaffold into a larger iteration.
+The principal decides whether to run `/iteration-complete` immediately, add follow-up changes (ORM schema, DTOs) first, or fold the scaffold into a larger iteration.

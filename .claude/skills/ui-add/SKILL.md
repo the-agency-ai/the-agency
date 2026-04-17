@@ -31,12 +31,12 @@ Uses the SPEC-PROVIDER pattern: the **SPEC** is the skill invocation (name + wor
 2. Allocates a free port in the frontend range (4100–4199) by scanning `docker-compose.dev.yml`, unless `--port` is provided
 3. Invokes the starter pack's `install.sh` which scaffolds the app files
 4. Updates `claude/config/topology.yaml` — adds a `frontend` service entry with `wires_from: [backend]`
-5. Reports next steps (pnpm install, pnpm dev)
+5. Reports next steps (e.g. pnpm install, pnpm dev — actual commands depend on your configured package manager)
 
 ## What it does NOT do (v1)
 
 - Does not edit `docker-compose.dev.yml` — add the service block manually if needed for the full stack
-- Does not install deps (run `pnpm install` at repo root)
+- Does not install deps (run your package manager's install at repo root, e.g. `pnpm install`)
 - Does not init shadcn/Tailwind (uses `@of/ui` workspace package instead)
 - Does not wire Vercel / Fly.io (cloud providers are separate)
 - Does not update agency.yaml
