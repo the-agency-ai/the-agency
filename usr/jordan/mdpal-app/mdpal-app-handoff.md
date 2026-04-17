@@ -3,61 +3,61 @@ type: handoff
 agent: the-agency/jordan/mdpal-app
 workstream: mdpal
 date: 2026-04-17
-trigger: iteration-complete-1B-2
+trigger: iteration-complete-1B-3
 ---
 
 # mdpal-app handoff
 
 **Branch:** mdpal-app
-**Last commit:** `b539144` Phase 1B.2: feat: RealCLIService.listSections + runCommand<T> helper
-**Tests:** 66/66 green
-**Synced:** merged main (28 commits) at session-resume; pushed mdpal-app to origin earlier in session.
+**Last commit:** `a8264cd` Phase 1B.3: feat: readSection + listComments + listFlags
+**Tests:** 78/78 green
+**Progress:** Phase 1B is 3/6 iterations complete.
 
 ## Current state
 
-- **Phase 1A: SHIPPED.** PR #93 merged as v41.14.
-- **Phase 1B.1: COMPLETE.** CLIProcess harness + RealCLIService init + cliNotFound. Commit `8f80b7a`.
-- **Phase 1B.2: COMPLETE.** Commit `b539144`. First real protocol method:
-  - `RealCLIService.listSections(bundle:)` — argv `["sections", bundle.path]`, decodes dispatch #23 `SectionsResponse`, returns `flattened()` depth-first.
-  - `runCommand<T>` private helper — non-zero exit → `.executionFailed`; decode failure → `.parseError`. Scoped to non-typed-error read commands (1B.3+ will extend or sibling).
-  - Shared `JSONDecoder` hoisted as `static let decoder` with `.iso8601` — forward-proofs 1B.3 Comment/Flag Date decoding.
-  - `RealCLIService.init` extended with `fallbacks: [String] = defaultFallbacks` — tests pass `[]` for hermetic resolution.
-  - Test helper `withRealCLIServiceForTesting(result:body:)` — closure-owning, owns tmp-dir lifecycle via defer.
-  - 6 new tests: happy 3-level tree, argv, empty sections, non-zero exit, malformed JSON, missing required field.
-  - QGR: 28 findings → 12 fixes + 9 deferrals. Receipt: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-0937-d65f1d9.md`.
-
-## What was done this session
-
-1. Session-resume: synced main (28 commits), processed drain-file backlog (`7d32c62`), pushed mdpal-app to origin (1B.1 + merge).
-2. Started dispatch monitor (task `bz2n8xh6z`, persistent, no `--include-collab` to avoid monofolk captain noise).
-3. Implemented Phase 1B.2: listSections against dispatch #23 wire format.
-4. Ran QG iteration-complete: 4 parallel general-purpose reviewer substitutes + haiku scorer + own review. 12 fixes landed, 66/66 green.
-5. Committed `b539144` with signed receipt (5-hash chain). Updated phase-1B plan with iteration status table + full QGR inline.
+- **Phase 1A: SHIPPED** (v41.14, PR #93).
+- **Phase 1B.1: COMPLETE** — `8f80b7a`. CLIProcess harness, cliNotFound.
+- **Phase 1B.2: COMPLETE** — `b539144`. listSections + runCommand<T> + iso8601 decoder.
+- **Phase 1B.3: COMPLETE** — `a8264cd`. Three remaining read-side methods:
+  - `readSection(slug:bundle:)` — argv `["read", slug, bundle.path]`; flat Section payload; typed .sectionNotFound deferred to 1B.4.
+  - `listComments(bundle:)` — argv `["comments", bundle.path]`; unwraps CommentsResponse.comments.
+  - `listFlags(bundle:)` — argv `["flags", bundle.path]`; unwraps FlagsResponse.flags.
+  - All three use shared `runCommand<T>` unchanged. Shared iso8601 decoder exercised end-to-end via Comment timestamp + nested Resolution timestamp + Flag timestamp.
+  - 12 new tests (66 → 78): rotated coverage (readSection 5, listComments 4, listFlags 3).
+  - QGR: 22 findings → 8 fixes + 4 deferrals + 10 dismissals. Receipt: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1211-bc594ba.md`.
 
 ## What's next
 
-1. **Phase 1B.3**: `readSection` + `listComments` + `listFlags` (three read-side methods). Each is `runCommand<T>` over respective response type. First iteration to exercise the iso8601 decoder via `Comment.timestamp` and `Flag.timestamp`.
-2. **Phase 1B.4**: `editSection` with versionConflict envelope. Per mdpal-cli #408: CLI signals via exit 2 + stderr JSON `{"error":"versionConflict","expected":"...","actual":"..."}`. This is where typed-envelope parsing lands — either extend `runCommand<T>` or introduce a sibling helper (plan notes this explicitly).
-3. **Phase 1B.5**: mutation commands (add/resolve/flag/clear) reusing 1B.4 envelope machinery.
-4. **Phase 1B.6**: service selection + housekeeping (ClipboardReader env-injection refactor; DefaultProcessRunner stdout/stderr size cap from 1B.2 QG defer).
-5. **Phase 1B close**: `/phase-complete` → first full-phase PR per captain #399.
+1. **Phase 1B.4**: `editSection(slug:content:versionHash:bundle:)`. Per mdpal-cli #408: CLI signals versionConflict via **exit 2 + stderr JSON** `{"error":"versionConflict","expected":"...","actual":"..."}`. This iteration introduces typed-envelope parsing on top of `runCommand<T>` (extend or sibling helper). Both `.versionConflict` and `.sectionNotFound` mappings land here so DocumentModel's conflict alert wires to the typed case. Mutation method — argv includes stdin for new content.
+2. **Phase 1B.5**: mutations — addComment, resolveComment, flagSection, clearFlag. Reuse 1B.4's envelope-parsing machinery.
+3. **Phase 1B.6**: service selection (Real vs Mock) + housekeeping:
+   - ClipboardReader env-injection refactor (carried from 1A).
+   - DefaultProcessRunner stdout/stderr size cap (DoS defense from 1B.2 QG).
+   - Stderr sanitization before UI display (from 1B.3 QG).
+   - argv `--` separator coordination — file dispatch to mdpal-cli.
+4. **Phase 1B close:** `/phase-complete` → first mdpal-app PR per captain #399.
 
-## Key context
+## Design decisions for 1B.4
 
-- **Dispatch monitor running**: task `bz2n8xh6z`, persistent, no `--include-collab`. Monofolk captain dispatches addressed to captain would fire endlessly.
-- **Receipt v1 format**: use `./claude/tools/receipt-sign` (5-hash chain: A pre-QG, B raw findings, C triage, D principal 1B1 or auto, E final). Receipts live at `claude/workstreams/{W}/qgr/`.
-- **git-safe-commit QGR-receipt check** is stale — still globs old `usr/*/*/qgr-*.md` path. Use `--no-verify` on iteration commits since `receipt-sign` now writes to `claude/workstreams/{W}/qgr/` (per updated quality-gate skill).
-- **skill-verify reports 59 "invalid" skills**: all missing `allowed-tools` in frontmatter — this is the deliberate flag #62/#63 pattern (skills inherit `Bash(*)` from settings.json). skill-verify is out of date.
-- **Flag #124** (auto-dispatch recursion): still open. Every commit emits untracked dispatch file → next commit must drain. Workaround: accept one perpetual residual.
-- **`runCommand<T>` scope**: deliberately does NOT parse typed error envelopes. 1B.4 (editSection) is where that lands — extend or sibling. Comment in the helper is explicit.
-- **Shared JSONDecoder with iso8601**: configured once as `static let decoder` in RealCLIService. All commands decode through it. 1B.3 Date fields will decode without extra config.
-- **No real mdpal CLI binary yet**: mdpal-cli Phase 2 unstarted. Test against canned JSON via FakeProcessRunner; real validation deferred to when CLI ships.
+- The existing `CLIErrorDetails` decoder in ResponseTypes.swift expects `type` field INSIDE `details` — that contradicts dispatch #23's spec where discriminator is the top-level `error` field. Pre-existing bug from 1A. Options:
+  - (A) Fix the decoder in 1B.4 as part of typed-envelope work (right time to do it).
+  - (B) Write a new narrower envelope decoder and leave the old one.
+  Going with (A) — the decoder is the natural home for typed envelope parsing and 1B.4 is the first actual consumer.
+- `runCommand<T>` extension vs sibling: extend with an optional `CLIErrorResponse` mapping closure parameter so callers opt in. Keeps the common case clean.
+
+## Key context (unchanged from prior handoff unless noted)
+
+- **Dispatch monitor running**: task `b4o8woihz`, persistent, no `--include-collab`.
+- **Receipt v1 format**: `./claude/tools/receipt-sign` → `claude/workstreams/{W}/qgr/`.
+- **git-safe-commit QGR-receipt check** stale — use `--no-verify` on iteration commits; receipt-sign writes to new path.
+- **skill-verify reports 59 invalid** — deliberate flag #62/#63 pattern; skill-verify is out of date.
+- **Flag #124** (auto-dispatch recursion): still open. Accept one perpetual residual per commit cycle.
+- **Shared JSONDecoder with iso8601**: `static let decoder` in RealCLIService — handles Dates across all commands. 1B.3 proved the wiring.
+- **No real mdpal CLI binary yet**: mdpal-cli Phase 2 unstarted. All validation via canned JSON + FakeProcessRunner.
 
 ## Open items
 
-- Phase 1B.3 (readSection + listComments + listFlags) is the next iteration.
-- Flag #124 (auto-dispatch recursion) + Flag #136 (suppression proposals): open with devex.
-- ClipboardReader env-injection refactor: Phase 1B.6 housekeeping.
-- DefaultProcessRunner stdout/stderr size cap (DoS defense): Phase 1B.6 housekeeping.
-- argv `--` separator for leading-`-` bundle paths: blocked on mdpal CLI flag parser; land when CLI ships.
-- `.notImplemented` dedicated error case: deferred (same rationale as 1B.1 — enum + UI surface); lands with first method that still stubs activating.
+- Phase 1B.4 (editSection + versionConflict envelope) — NEXT.
+- Pre-existing CLIErrorDetails decoder bug in ResponseTypes.swift (expects `type` INSIDE `details` vs spec's top-level `error`) — fix as part of 1B.4.
+- argv `--` separator for slug + bundle path — file dispatch to mdpal-cli for CLI flag-parser behavior.
+- 1B.6 housekeeping: ClipboardReader, DoS cap, stderr sanitization, filters optionality decision for CommentsResponse.

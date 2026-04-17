@@ -50,10 +50,10 @@ All iterations are on the `mdpal-app` branch; no PR until phase complete.
 **Deliverable (landed):** `listSections` path end-to-end against canned JSON; 6 tests (happy 3-level; argv; empty; non-zero exit; malformed JSON; missing required field); 60 → 66 green.
 **Fixture strategy:** inline JSON strings in ModelTests.swift (no separate Tests/Fixtures/cli/ dir yet — revisit if fixtures proliferate in 1B.3).
 
-### 1B.3 — Read-side commands: `readSection` + `listComments` + `listFlags` (pending)
-**Scope:** Three remaining read-only methods. Each: argv assembly + decode through `runCommand<T>`. `readSection` returns `Section`; `listComments` unwraps `CommentsResponse`; `listFlags` unwraps `FlagsResponse`. First iteration to decode Date fields (Comment/Flag timestamps) — proves the shared decoder's iso8601 strategy.
-**Tests:** For each: happy-path + malformed-JSON + non-zero-exit.
-**Design note:** `runCommand<T>` comment flags this as the iteration where typed-envelope parsing (sectionNotFound on `readSection`) may need to land — either extend the helper or introduce a sibling.
+### 1B.3 — Read-side commands: `readSection` + `listComments` + `listFlags` ✅ COMPLETE (commit a8264cd)
+**Scope (landed):** Three remaining read-only methods. All use the shared `runCommand<T>` helper unchanged from 1B.2. `readSection` decodes flat `Section`; `listComments` unwraps `CommentsResponse.comments`; `listFlags` unwraps `FlagsResponse.flags`. First iteration to exercise the shared iso8601 JSONDecoder end-to-end via Comment + Flag + nested Resolution timestamps.
+**Tests (landed):** 12 new tests (66 → 78). Coverage rotates across methods since `runCommand<T>` is shared: readSection (5: happy+argv+path-style slug+missing-field+malformed); listComments (4: happy+nested timestamp+empty+exit+filters-key pin); listFlags (3: happy+null-note+empty+malformed).
+**Deferred to 1B.4:** typed `.sectionNotFound` mapping — co-lands with `versionConflict` envelope machinery.
 
 ### 1B.4 — Edit (version-hash conflict envelope)
 **Scope:** Implement `editSection`. Per mdpal-cli #408: CLI will signal versionConflict via exit code 2 + structured stderr JSON `{"error":"versionConflict","expected":"...","actual":"..."}`. This iteration introduces the typed-envelope parsing path on top of `runCommand<T>` (likely as a sibling helper or an extension with optional `CLIErrorResponse` decoding from stderr).
@@ -110,12 +110,43 @@ Resolved by mdpal-cli dispatch #408 (2026-04-15):
 |------|--------|--------|-------|-------|
 | 1B.1 | ✅ COMPLETE | `8f80b7a` | 46 → 60 | CLIProcess harness + RealCLIService init + cliNotFound |
 | 1B.2 | ✅ COMPLETE | `b539144` | 60 → 66 | listSections against #23; runCommand<T>; shared iso8601 decoder |
-| 1B.3 | pending | — | — | readSection + listComments + listFlags |
-| 1B.4 | pending | — | — | editSection + versionConflict envelope |
+| 1B.3 | ✅ COMPLETE | `a8264cd` | 66 → 78 | readSection + listComments + listFlags; iso8601 decoder exercised end-to-end |
+| 1B.4 | pending | — | — | editSection + versionConflict envelope (typed stderr) |
 | 1B.5 | pending | — | — | mutation commands (add/resolve/flag/clear) |
-| 1B.6 | pending | — | — | service selection + housekeeping (ClipboardReader, DoS cap) |
+| 1B.6 | pending | — | — | service selection + housekeeping (ClipboardReader, DoS cap, stderr sanitization) |
 
 ## Quality Gate Reports
+
+### QGR — iteration-complete 1B.3 (commit `a8264cd`, hash E `bc594ba`)
+
+**Receipt:** `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1211-bc594ba.md`
+**Hash chain:** A `e141832` → B `d8ad97d` → C `f9cee44` → D `f9cee44` (auto) → E `bc594ba`
+**Base:** `b539144` (1B.2)
+
+**Issues Found and Fixed (8):**
+
+| # | Category | Sev | Description | Fix |
+|---|----------|-----|-------------|-----|
+| 1 | reviewer-test | MEDIUM | `resolution.timestamp` (nested Date) not asserted | Added iso8601 assertion on comments[1].resolution.timestamp |
+| 2 | reviewer-test | MEDIUM | Missing-required-field coverage dropped from 1B.2 pattern | Added readSection test with Section missing versionId |
+| 3 | reviewer-code | MEDIUM | CommentsResponse.filters non-optional — silent drift risk | Added pin test: decode without filters key → parseError |
+| 4 | reviewer-design | MINOR | listComments doc leaked DocumentModel cross-layer claim | Rephrased to service-only contract |
+| 5 | reviewer-design | MINOR | readSection doc missing iteration-rationale for deferred typed mapping | Added sentence: "1B.3 ships .executionFailed so DocumentModel's error path is wired now; 1B.4 swaps without churning call sites" |
+| 6 | reviewer-design | MINOR | readSection exit test coupled to 1B.4 via stderr.contains("sectionNotFound") | Weakened to stderr-non-empty (1B.4 owns envelope assertion) |
+| 7 | reviewer-test | LOW | Rotation across methods undocumented | MARK-header comment explains rotation |
+| 8 | reviewer-code+test | LOW | listFlags lastStdin-nil missing; no path-style-slug argv test | Added both |
+
+**Deferred with rationale:** C1/S1 argv `--` separator (coordinate via mdpal-cli dispatch, same deferral as 1B.2); S3 DoS cap + S4 stderr sanitization → 1B.6 housekeeping.
+
+**Dismissed below threshold:** 10 findings (Double equality fragility, near-valid JSON coverage, wrapper asymmetry, view-layer markdown concerns, rotation distribution).
+
+**Coverage:** 66 → **78 tests**; 12 new for 1B.3 methods; zero build warnings.
+
+**Stage 1:** reviewer-code 7, reviewer-security 7, reviewer-design 8, reviewer-test 8 findings; 8 fixes + 4 deferrals + 10 dismissals. Own review confirmed rotation-distribution calibration.
+
+Per captain #380: general-purpose reviewer substitutes; scorer self-scored.
+
+---
 
 ### QGR — iteration-complete 1B.2 (commit `b539144`, hash E `d65f1d9`)
 
