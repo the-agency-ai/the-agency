@@ -3,116 +3,106 @@ type: session
 agent: the-agency/jordan/captain
 workstream: housekeeping
 date: 2026-04-17
-trigger: session-end
+trigger: pre-session-end-model-switch
 ---
 
-## D44 — end of day
+## On resume — IMMEDIATE ACTIONS (in order)
 
-### On wake — immediate agenda
+**Principal is doing /exit + /resume to switch models. Session state must be rebuilt.**
 
-1. **Set the 0300 cron** (principal directive: set it AFTER session resume, not before /exit). Schedule: CronCreate for 0300 SGT tomorrow (today) — see "0300 Setup Prompt" below. Use `durable: true` if supported.
-2. **1B1 the Close-Issues themes** (7 themes, 73 flags). Briefing is drafted (inline below — to be filed at `usr/jordan/captain/briefings/close-issues-briefing-20260418.md` during 0300 setup).
-3. **Ratify flag→issue rule** — principal agreed to "Flag persistence = GitHub issue." Rewrite `/flag-triage` skill: outcomes become `close`, `do now`, or `file issue`. No "defer" state.
-4. **Open install-vs-repo boundary discussion** — flags #146/#165. Topic: clearly separate what's in an `agency init`/`agency update` install from what's in the framework dev repo accessible to contributors.
-5. **HIP Sprint work** — FIFO through the 13 items after issues filed.
+### 1. Reinstall the 0300 cron (CRITICAL — time-sensitive)
 
-### Release summary — D44 (today)
+The cron is session-only and died on /exit. Reinstall immediately via CronCreate:
 
-Fifteen releases shipped:
+- Target time: **03:03 SGT 2026-04-18**
+- Cron expression: `3 3 18 4 *`
+- recurring: `false` (one-shot)
+- durable: `true` (will still report session-only — keep session alive)
+- Prompt:
+  ```
+  It is 0300 SGT 2026-04-18 — morning autonomous setup (captain, the-agency repo, /Users/jdm/code/the-agency).
 
-| Version | PR | What |
+  Execute the 0300 runbook: `/Users/jdm/code/the-agency/usr/jordan/captain/briefings/0300-runbook-20260418.md`
+
+  Read it first, then execute each workstream in order. The runbook is the source of truth — follow it verbatim. Setup only — no PR merges, no fleet broadcasts. Principal reviews on wake.
+
+  Pre-flight reminder: you are on `main`, tree should be clean. Read handoff first: `./claude/tools/handoff read`.
+  ```
+
+### 2. Restart the dispatch-monitor (via Monitor tool)
+
+The Monitor task also died on /exit. Restart with the python3.13 shim (until 3.13 floor PR ships):
+
+- Description: `dispatches + cross-repo collab (python3.13 workaround until floor PR ships)`
+- Command: `/opt/homebrew/bin/python3.13 ./claude/tools/dispatch-monitor --include-collab`
+- persistent: `true`
+- timeout_ms: `3600000`
+
+**Why the explicit path?** Shebang on `dispatch-monitor` is `#!/usr/bin/env python3.12` (from D44-R6, now stale) and `python3.12` is not installed on this machine. The explicit `/opt/homebrew/bin/python3.13` bypasses the shebang. Once the D45-R1 PR ships (at 0300 + principal merge), the shebang becomes `python3` + guard and the shim is no longer needed.
+
+### 3. Confirm state to principal
+
+Report: cron reinstalled (task id), monitor running (task id), runbook still committed (`237245ed`), standing by for 0300.
+
+---
+
+## Session context — D44 late-evening revisions (what changed tonight)
+
+### Python 3.13 SUPERSEDES 3.12
+
+Principal flipped the floor decision tonight:
+
+- **D44-R6 (earlier today):** Python 3.12 ratified as floor — PR #208 merged as v44.7, fleet dispatches #649-656 broadcast, iscp #614 ack'd via #657.
+- **D45 decision (tonight):** Flip to **3.13**. Rationale: brew default is 3.13 (adopters get the floor for free); 3.13 adds nothing we must turn on (JIT + no-GIL are opt-in); 3.12 was never even installed on this dev machine — which is how we discovered the gap: Monitor exited 127 tonight because `python3.12` not on PATH. `python3.13` already present via brew.
+- **To be implemented at 0300:** D45-R1 PR (branch `release/python-3.13-floor`) — built autonomously per runbook, PR left `OPEN` for principal review, unmerged.
+
+### Runbook committed
+
+`usr/jordan/captain/briefings/0300-runbook-20260418.md` (commit `237245ed`) — full 0300 autonomous execution plan across 9 workstreams (A–I). The cron prompt just tells the 0300 agent to read and execute this file. **Runbook is the source of truth — do not improvise at 0300.**
+
+### Workstreams queued for 0300 autonomous execution
+
+| Workstream | Output | State on principal wake |
 |---|---|---|
-| v44.1 | #162 | dispatch-monitor Python rewrite + CI release-tag-check fix |
-| v44.2 | #175 | 9-issue batch (session-resume, git-captain merge-from-origin, etc.) |
-| v44.3 | #179 | mdpal Phase 1 — Swift engine library + CLI (180 tests) |
-| v44.4 | #182 | git-captain checkout-branch uppercase regex |
-| v44.pr183 | #183 | mdpal-app Phase 1B — real-CLI integration (111 tests) |
-| v44.pr185–pr193 | #185–193 | 9 monofolk cross-repo contributions (starter packs, service-add, ui-add, scaffold lib) |
-| v44.6 | #203 | D44-R5 devex triple — sandbox-sync #420 + skill-verify flag #163 + git-captain hardening |
-| v44.7 | #208 | D44-R6 — **Python 3.12 is the new framework floor** (supersedes 3.9) |
+| A | D45-R1 PR: Python 3.13 floor | `OPEN`, QGR signed, unmerged |
+| B | Shebang investigation briefing | Written, recommends B3 hybrid (`python3` + `sys.version_info` guard + agency-health check) |
+| C | GH issue: "Release notes mechanism accessible to Principals and Agents" | Filed, labeled `discuss` |
+| D | HIP Sprint epic + 13 child issues | Filed |
+| E | ~40 defer→issue filings (dedup'd) | Filed |
+| F | Close Issues themes briefing | Written at `usr/jordan/captain/briefings/close-issues-briefing-20260418.md` |
+| G | Fleet broadcast drafts | Saved, NOT sent — awaits principal authorization |
+| H | Dispatch monitor | Restarted (shebang-appropriate) |
+| I | Handoff refresh | Written with `--trigger pre-principal-wake` |
 
-### Key principal directives (today)
+### New principal directive — release notes mechanism
 
-1. **Python 3.12 is the new framework floor** — ratified via v44.7; broadcast dispatches #649-656 sent to 8 worktree agents; iscp #614 ack'd via #657.
-2. **"We do not defer. We do or we don't do."** — remove "defer" as an internal state. Outcomes: do immediately, file GH issue, or reject/close.
-3. **Flag persistence = GH issue.** A flag that survives triage becomes an issue. Flags are working memory; issues are the backlog.
-4. **Agents don't open PRs. Captain builds and opens PRs.** Agents produce branch commits (with QGRs); captain opens PR.
-5. **Workshop onboarding cluster is DONE** — Peter bootstrapped; close the flags.
-6. **No more "seed files" as deferral dumps.** If worth remembering → GH issue. If not → reject.
-7. **HIP Sprint** (Hardening + Improvement focused on reviews and tests) is approved — tomorrow.
+"We need to have a release notes mechanism that is accessible to Principals and Agents. Let's do this."
 
-### HIP Sprint scope (13 items — to be filed as child issues at 0300)
+- Captured as Workstream C (GH issue filing at 0300).
+- Shape TBD. Candidates: `agency release-notes` tool / hookified session-resume hint / per-agent dispatch on main-updated / machine-readable log at `claude/releases/NOTES.jsonl`.
+- Enters Valueflow as /define (PVR) → /design (A&D) → /plan after HIP Sprint items land.
 
-| Flag | Item | Acceptance |
-|---|---|---|
-| #138 | figma-extract BATS tests | Variables API path, Styles API fallback, Tokens Studio import, brand-name validation, file-key validation |
-| #139 | designsystem-add BATS tests | brand-name regex, refusal-to-overwrite, template copy correctness |
-| #140 | designsystem-build BATS tests | SD4 config, sd-transforms auto-detect, multi-target, build-manifest checksum determinism |
-| #114 | git-captain sibling coverage | merge-to-master, switch-branch, fetch, push, tag, branch-delete BATS tests |
-| #143 | skill-validation.bats #10 allowlist | allow inline-code spans + list contexts |
-| #144 | hookify dispatch integration harness | feed commands through block-raw-tools.sh; assert exit codes + decisions |
-| #142 | **git-safe-commit receipt glob** | Recognize new five-hash receipts at `claude/workstreams/*/qgr/`. Lead item. |
-| #134 | Audit bash tools for Python 3.12 rewrite candidates | List + rationale; no rewrites yet |
-| #148 | designex Phase 1.5 housekeeping (31 findings) | Dispatch to designex; track |
-| #5, #32 | Provenance header audit + security skill validate-or-remove | Quick wins |
-| #95 | Receipt chain-verify (five-hash recomputation) | QG Phase 2 |
-| #86 | session-preflight: `gh issue list` + Dependabot check | Add to preflight |
+### Shebang decision — captured in runbook Workstream B
 
-### Close Issues — 7 themes, 73 flags (1B1 on wake)
+- Original D44 convention: `#!/usr/bin/env python3.12` — fails on any machine without that exact binary on PATH. Tonight's Monitor 127 proved the fragility.
+- Options analyzed:
+  - **B1:** Switch to `#!/usr/bin/env python3.13` — same fragility, different number.
+  - **B2:** `#!/usr/bin/env python3` + runtime `sys.version_info` guard — flexible.
+  - **B3:** B2 + `agency-health` check that warns if `python3` resolves to <3.13 — install-time visibility.
+- Runbook recommends **B3**. Workstream A implements whatever B produces.
 
-**Theme 1 — Fixed in a release (22 flags):** #1, #2, #3, #22, #27, #51, #54, #83, #93, #96, #97, #98, #99, #100, #101, #104, #112, #113, #116, #133, #141, #147
+## Morning 1B1 agenda on principal wake (unchanged, with D45 items prepended)
 
-**Theme 2 — Decided & locked (22 flags):** #11, #12, #13, #19, #23, #24, #25, #26, #36, #50, #60, #61, #63, #64, #68, #70, #72, #73, #76, #79, #84, #85
+0. **Review + merge D45-R1 PR** (Python 3.13 floor) → /post-merge → authorize fleet broadcast
+1. 1B1 Close Issues (7 themes, 73 flags)
+2. Ratify flag→issue rule (rewrite `/flag-triage` skill)
+3. Install-vs-repo boundary discussion (flags #146/#165)
+4. HIP Sprint FIFO (13 items)
+5. Release notes mechanism — start /define (PVR) after HIP items land
 
-**Theme 3 — Tracked externally — Anthropic feedback / cross-repo (7 flags):** #9, #10, #52, #67, #74, #75, #82
+---
 
-**Theme 4 — Superseded / rejected / cancelled (9 flags):** #7, #16, #17, #18, #20, #57, #59, #77, #134
-
-**Theme 5 — Time-bound event completed (3 flags):** #49, #66, #128
-
-**Theme 6 — Test noise / empty flag entries (6 flags):** #37, #38, #39, #69, #131, #132
-
-**Theme 7 — Already a GH issue / absorbed (4 flags):** #136 (→ #177), #35, #42, #41
-
-### New-issue filings queued (at 0300 setup)
-
-~28 "true defer" flags → new GH issues (with dedup check):
-#40, #56, #58, #28, #71, #103, #106, #107, #108, #111, #119, #121, #123, #124, #126, #130, #44, #4 (header-sync hookify), #5 (audit), #29 (worktree awareness), #30 (core.bare=true bug), #31 (Granola pipeline), #32 (security skill), #43 (telemetry mining), #45/#47/#48 (observability cluster), #46 (telemetry identity), #55 (collaboration naming 1B1), #87/#88/#89 (QG Phase 2), #90/#91/#92 (receipt registry), #102/#105 (skill-vs-tool gap — folds into #146 discussion), #115 (detect_main_branch), #117 (pre-staging QGR — folds into #142), #118 (monofolk allowed-tools MAR reply), #120 (git-captain cherry-pick), #125 (onboardees list tracking — only if new info arrives)
-
-~12 "was-seed" items → GH issues labeled `discuss` or `research` (no seed files):
-#6 (agency-gtm), #14 (agency-audit), #15 (structure.yaml), #21 (CLAUDE.md fragment registry), #33/#34 (agentic email — opportunities), #53 (monofolk diagnostic waves), #62 (cross-repo framework evolution — articles seed), #65 (pre-history — articles), #80 (dispatch service — #170 exists?), #129 (iCloud rebuild)
-
-Sibling issue: **#170 already exists** — "Add /seed command and skill for frictionless Valueflow seed capture" (OPEN). Pull into existing-open-issues iteration.
-
-Related: Flag #137 / #165 — `/feedback-submit` tool/skill (no hardcode). **File as new issue** sibling to #170.
-
-### 0300 Setup Prompt (to install via CronCreate on wake)
-
-```
-It is 0300 SGT 2026-04-18 — morning setup before principal wakes (captain, the-agency repo, /Users/jdm/code/the-agency).
-
-Read handoff: ./claude/tools/handoff read
-
-Execute autonomously — SETUP ONLY, NO SPRINT WORK:
-
-1. File HIP Sprint epic issue (title: "HIP Sprint — Hardening + Improvement: Reviews and Tests"), label `hip`. Body lists the 13 scope items from the handoff.
-
-2. File 13 child issues, one per scope item, each linked to the epic. Labels: `hip`, plus `test-coverage`/`framework-polish`/`tool-gap`/`observability` as appropriate.
-
-3. Dedup-check + file ~28 new GH issues from handoff "defer → issue" list (gh issue list --state open --search). Concise titles from flag text.
-
-4. ~12 was-seed items → GH issues labeled `discuss` or `research`. No seed files.
-
-5. Write `usr/jordan/captain/briefings/close-issues-briefing-20260418.md` — 7 themes + flag numbers (from handoff).
-
-6. Start dispatch-monitor via Monitor: ./claude/tools/dispatch-monitor --include-collab. Silently batch-resolve routine commits.
-
-7. Refresh handoff (./claude/tools/handoff write --trigger pre-principal-wake) summarizing what was filed + any failures.
-
-Do NOT start HIP work. Do NOT merge PRs. Setup only. Wait for principal.
-```
-
-### Fleet status at session end
+## Fleet status at handoff (unchanged from D44 end-of-day)
 
 | Agent | Branch | Ahead | Behind | Dirty |
 |---|---|---|---|---|
@@ -125,21 +115,36 @@ Do NOT start HIP work. Do NOT merge PRs. Setup only. Wait for principal.
 | mdslidepal-web | | 4 | 163 | 1 |
 | mock-and-mark | (empty) | — | — | — |
 
-**Fleet sync deferred** — principal directive at end of day: fleet will sync via `/session-resume` on wake.
+Fleet sync deferred to `/session-resume` on individual agent wake.
 
-### Routine dispatch backlog
+## Dispatches & flags at handoff
 
-~25+ unread commit dispatches accumulated during session end. Clear via batch in morning or let them age out. No action-requiring dispatches pending.
+- Dispatches: all 21 routine commit notifications batch-resolved silently. Queue clean at this snapshot. Fresh routine commits may have accumulated since — resolve silently on resume via batch loop.
+- Flags: 0.
+- Cross-repo collab: 1 stale marker (`dispatch-patch-incoming-issue-111-principal-scope-20260415.md: needs merge`) — two days old, non-actionable, dedup'd by Monitor within a session.
 
-### Open questions unanswered (not blocking)
+## Release summary carryover — D44
 
-- **Q3 — Fourth iteration scope:** proposed (a) flag→issue rule rollout + `/flag-triage` rewrite (pairs with Close-Issues 1B1). Principal to confirm.
+Fifteen releases shipped D44:
+- v44.1 (#162), v44.2 (#175), v44.3 (#179), v44.4 (#182)
+- v44.pr183 (#183 mdpal-app Phase 1B)
+- v44.pr185–pr193 (#185–193 monofolk contributions)
+- v44.6 (#203 devex triple)
+- v44.7 (#208 Python 3.12 floor — SUPERSEDED by pending D45-R1)
 
-### Repo state
+## Repo state at this handoff
+
 - **Branch:** main
-- **Last commit:** `053b8758 misc: D44 dispatch artifacts — Python 3.12 floor broadcast (8 agents) + iscp #614 ack`
-- **Clean tree.**
+- **Last commit:** `237245ed misc: 0300 runbook — D45-R1 Python 3.13 floor PR prep + HIP/issues setup`
+- **Clean after commit of this handoff** (run /coord-commit on resume if this handoff is untracked).
+- **Ahead of origin:** 3 local commits. Do NOT push.
 
-### Context for fresh session
-- Today's scoreboard: 15 releases, 14 merged PRs, Python 3.12 floor ratified
-- Tomorrow's priorities (in order): 0300 setup (autonomous) → 1B1 Close Issues → ratify flag→issue rule → install-vs-repo discussion → HIP Sprint FIFO
+## Context for fresh session
+
+- Tonight's scoreboard: Python floor **re-ratified from 3.12 to 3.13**, runbook committed, release notes mechanism added as morning Valueflow input.
+- Tomorrow's priorities: 0300 runbook → review PR + merge → authorize broadcast → 1B1 Close Issues → flag→issue rule → install-vs-repo → HIP Sprint FIFO → /define release-notes-mechanism.
+- **Session must stay alive through 0300** (cron is session-only, `durable: true` is ignored by the scheduler).
+
+## Model note (from principal tonight)
+
+Principal tried `/model 4.6[1M]` / `Opus 4.6` / `Opus 4.6 (1M contect)` — **Opus 4.6 is not available via /model.** Current model is Opus 4.7 (1M context). Session restart is happening to retry the model switch — outcome may still land on 4.7.
