@@ -36,6 +36,12 @@
 //          .sectionNotFound, .bundleConflict). Unrecognized / unparseable
 //          stderr falls through to .executionFailed. Same hook supports
 //          1B.5 mutation methods.
+// Updated: 2026-04-17 Phase 1B.5 — remaining mutation methods:
+//          addComment, resolveComment, flagSection, clearFlag. All nine
+//          CLIServiceProtocol methods are now real. Slug-based mutations
+//          (addComment, flagSection, clearFlag) map sectionNotFound
+//          through the envelope; resolveComment keys off commentId and
+//          just uses runCommand.
 
 import Foundation
 
@@ -308,33 +314,103 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         )
     }
 
-    // MARK: - Protocol stubs (land in 1B.5)
+    // MARK: - Mutations (Phase 1B.5)
 
-    private func notYetImplemented(_ method: String) -> CLIServiceError {
-        .executionFailed(
-            exitCode: -1,
-            stderr: "RealCLIService.\(method) is not yet implemented"
+    /// Maps slug-based mutation envelopes to typed `.sectionNotFound`.
+    /// Used by addComment, flagSection, clearFlag. Unrecognized or
+    /// wrong-shape envelopes fall through to .executionFailed.
+    private static let sectionNotFoundMapper: (CLIErrorResponse) -> CLIServiceError? = { envelope in
+        switch (envelope.error, envelope.details) {
+        case ("sectionNotFound", .some(.sectionNotFound(let slug, let available))):
+            return .sectionNotFound(slug: slug, availableSlugs: available)
+        default:
+            return nil
+        }
+    }
+
+    /// Maps to `mdpal comment <slug> <bundle> --type <type> --author <author> --text <text>
+    /// [--context <text>] [--priority <low|normal|high>] [--tags <comma-separated>]`.
+    ///
+    /// Always emits `--priority`; emits `--context` only if non-nil;
+    /// emits `--tags` only if non-empty (CLI treats absent tags as []).
+    public func addComment(
+        slug: String,
+        bundle: BundlePath,
+        type: CommentType,
+        author: String,
+        text: String,
+        context: String?,
+        priority: Priority,
+        tags: [String]
+    ) async throws -> Comment {
+        var args: [String] = [
+            "comment", slug, bundle.path,
+            "--type", type.rawValue,
+            "--author", author,
+            "--text", text,
+            "--priority", priority.rawValue,
+        ]
+        if let context {
+            args.append(contentsOf: ["--context", context])
+        }
+        // Filter empty tags so `tags = [""]` doesn't render as `--tags ""`,
+        // which the CLI would accept as one empty-named tag. If all tags
+        // are empty after filtering, omit --tags entirely.
+        let realTags = tags.filter { !$0.isEmpty }
+        if !realTags.isEmpty {
+            // NOTE: spec uses comma-separated tag list with no documented
+            // escape convention. A tag containing a literal comma would
+            // be split CLI-side. Cross-repo coordination item for
+            // mdpal-cli — for now, callers must not embed commas.
+            args.append(contentsOf: ["--tags", realTags.joined(separator: ",")])
+        }
+        return try await runCommandWithEnvelope(
+            args, as: Comment.self, envelopeMapper: Self.sectionNotFoundMapper
         )
     }
 
-    public func addComment(slug: String, bundle: BundlePath, type: CommentType,
-                           author: String, text: String, context: String?,
-                           priority: Priority, tags: [String]) async throws -> Comment {
-        throw notYetImplemented("addComment")
+    /// Maps to `mdpal resolve <commentId> <bundle> --response <text> --by <author>`.
+    /// Keyed off commentId, not slug — the "entity not found" shape would
+    /// be commentNotFound, which isn't enumerated in dispatch #23's spec.
+    /// Uses runCommand (no typed envelope mapping); any failure lands
+    /// as .executionFailed.
+    public func resolveComment(
+        commentId: String,
+        bundle: BundlePath,
+        response: String,
+        by: String
+    ) async throws -> ResolveResult {
+        try await runCommand(
+            ["resolve", commentId, bundle.path, "--response", response, "--by", by],
+            as: ResolveResult.self
+        )
     }
 
-    public func resolveComment(commentId: String, bundle: BundlePath,
-                               response: String, by: String) async throws -> ResolveResult {
-        throw notYetImplemented("resolveComment")
+    /// Maps to `mdpal flag <slug> <bundle> --author <author> [--note <text>]`.
+    /// Emits `--note` only if non-nil (omitting the flag is the spec's
+    /// "no note" signal).
+    public func flagSection(
+        slug: String,
+        bundle: BundlePath,
+        author: String,
+        note: String?
+    ) async throws -> FlagResult {
+        var args = ["flag", slug, bundle.path, "--author", author]
+        if let note {
+            args.append(contentsOf: ["--note", note])
+        }
+        return try await runCommandWithEnvelope(
+            args, as: FlagResult.self, envelopeMapper: Self.sectionNotFoundMapper
+        )
     }
 
-    public func flagSection(slug: String, bundle: BundlePath,
-                            author: String, note: String?) async throws -> FlagResult {
-        throw notYetImplemented("flagSection")
-    }
-
+    /// Maps to `mdpal clear-flag <slug> <bundle>`.
     public func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
-        throw notYetImplemented("clearFlag")
+        try await runCommandWithEnvelope(
+            ["clear-flag", slug, bundle.path],
+            as: ClearFlagResult.self,
+            envelopeMapper: Self.sectionNotFoundMapper
+        )
     }
 
     /// The resolved binary path, exposed for diagnostics/tests.

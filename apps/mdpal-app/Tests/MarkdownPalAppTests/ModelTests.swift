@@ -31,6 +31,11 @@
 //          (discriminator is the TOP-LEVEL `error` field, not nested in
 //          `details`); added sectionNotFound, bundleConflict, and
 //          unknown-kind-fallback envelope tests.
+// Updated: 2026-04-17 Phase 1B.5 — RealCLIService mutation tests:
+//          addComment (happy+optional-args+envelope), resolveComment
+//          (happy+exit), flagSection (happy+note-omission+envelope),
+//          clearFlag (happy+envelope). CLIServiceProtocol is now fully
+//          covered end-to-end against canned JSON.
 
 import Foundation
 @testable import MarkdownPalAppLib
@@ -2065,6 +2070,353 @@ func testRealCLIServiceEditSectionMapsMalformedSuccessStdoutToParseError() async
     }
 }
 
+// MARK: - Phase 1B.5: RealCLIService mutations
+//
+// Four methods complete the CLIServiceProtocol surface: addComment,
+// resolveComment, flagSection, clearFlag. All except resolveComment key
+// off a slug and map sectionNotFound via the shared envelope machinery.
+// Coverage rotates (happy+argv+envelope-where-applicable+one error path
+// each) since runCommand / runCommandWithEnvelope are shared.
+
+// --- addComment ----------------------------------------------------------
+
+private let addCommentHappyJSON = """
+{
+  "commentId": "c007",
+  "slug": "architecture",
+  "type": "question",
+  "author": "jordan",
+  "text": "Should we use dependency injection here?",
+  "context": "The system uses a section-oriented architecture...",
+  "priority": "normal",
+  "tags": [],
+  "timestamp": "2026-04-06T01:00:00Z",
+  "resolved": false,
+  "resolution": null
+}
+"""
+
+func testRealCLIServiceAddCommentHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(addCommentHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let comment = try await svc.addComment(
+            slug: "architecture",
+            bundle: BundlePath("/abs/path/design.mdpal"),
+            type: .question,
+            author: "jordan",
+            text: "Should we use dependency injection here?",
+            context: nil,
+            priority: .normal,
+            tags: []
+        )
+
+        try expect(comment.commentId, equals: "c007")
+        try expect(comment.type, equals: .question)
+        try expect(comment.author, equals: "jordan")
+        try expect(comment.resolved, equals: false)
+
+        // argv contract per dispatch #23: --priority always emitted,
+        // --context omitted when nil, --tags omitted when empty.
+        try expect(runner.lastArgs ?? [],
+                   equals: [
+                       "comment", "architecture", "/abs/path/design.mdpal",
+                       "--type", "question",
+                       "--author", "jordan",
+                       "--text", "Should we use dependency injection here?",
+                       "--priority", "normal",
+                   ],
+                   "argv must follow dispatch #23 comment command; no --context when nil; no --tags when empty")
+        try expectNil(runner.lastStdin, "comment is not stdin-fed")
+    }
+}
+
+func testRealCLIServiceAddCommentEmitsContextAndTagsWhenPresent() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(addCommentHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.addComment(
+            slug: "architecture",
+            bundle: BundlePath("/abs/b.mdpal"),
+            type: .suggestion,
+            author: "jordan",
+            text: "foo",
+            context: "surrounding text",
+            priority: .high,
+            tags: ["perf", "phase2"]
+        )
+
+        try expect(runner.lastArgs ?? [],
+                   equals: [
+                       "comment", "architecture", "/abs/b.mdpal",
+                       "--type", "suggestion",
+                       "--author", "jordan",
+                       "--text", "foo",
+                       "--priority", "high",
+                       "--context", "surrounding text",
+                       "--tags", "perf,phase2",
+                   ],
+                   "optional flags emitted only when values are supplied; tags comma-joined")
+    }
+}
+
+func testRealCLIServiceAddCommentMapsSectionNotFoundEnvelope() async throws {
+    let stderr = """
+    { "error": "sectionNotFound", "message": "not here",
+      "details": { "slug": "gone", "availableSlugs": ["a","b"] } }
+    """
+    let canned = ProcessResult(
+        exitCode: 3, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.addComment(
+                slug: "gone", bundle: BundlePath("/b.mdpal"),
+                type: .note, author: "a", text: "t",
+                context: nil, priority: .normal, tags: [])
+            throw TestFailure(message: "Expected sectionNotFound", file: #file, line: #line)
+        } catch let CLIServiceError.sectionNotFound(slug, available) {
+            try expect(slug, equals: "gone")
+            try expect(available, equals: ["a", "b"])
+        }
+    }
+}
+
+// --- resolveComment ------------------------------------------------------
+
+private let resolveCommentHappyJSON = """
+{
+  "commentId": "c007",
+  "resolved": true,
+  "resolution": {
+    "response": "Yes, using protocol-based DI",
+    "by": "mdpal-cli",
+    "timestamp": "2026-04-06T02:00:00Z"
+  }
+}
+"""
+
+func testRealCLIServiceResolveCommentHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(resolveCommentHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let result = try await svc.resolveComment(
+            commentId: "c007",
+            bundle: BundlePath("/abs/design.mdpal"),
+            response: "Yes, using protocol-based DI",
+            by: "mdpal-cli"
+        )
+        try expect(result.commentId, equals: "c007")
+        try expect(result.resolved, equals: true)
+        try expect(result.resolution.by, equals: "mdpal-cli")
+
+        try expect(runner.lastArgs ?? [],
+                   equals: [
+                       "resolve", "c007", "/abs/design.mdpal",
+                       "--response", "Yes, using protocol-based DI",
+                       "--by", "mdpal-cli",
+                   ])
+    }
+}
+
+func testRealCLIServiceResolveCommentMapsNonZeroExitToExecutionFailed() async throws {
+    let canned = ProcessResult(
+        exitCode: 1, stdout: Data(),
+        stderr: Data("mdpal: comment c999 not found\n".utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.resolveComment(
+                commentId: "c999", bundle: BundlePath("/b.mdpal"),
+                response: "r", by: "a")
+            throw TestFailure(message: "Expected executionFailed", file: #file, line: #line)
+        } catch let CLIServiceError.executionFailed(exitCode, _) {
+            try expect(exitCode, equals: 1)
+        }
+    }
+}
+
+// --- flagSection ----------------------------------------------------------
+
+private let flagSectionHappyJSON = """
+{
+  "slug": "architecture",
+  "flagged": true,
+  "author": "jordan",
+  "note": "Needs discussion before proceeding",
+  "timestamp": "2026-04-06T01:00:00Z"
+}
+"""
+
+func testRealCLIServiceFlagSectionHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(flagSectionHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let result = try await svc.flagSection(
+            slug: "architecture",
+            bundle: BundlePath("/abs/design.mdpal"),
+            author: "jordan",
+            note: "Needs discussion before proceeding"
+        )
+        try expect(result.slug, equals: "architecture")
+        try expect(result.flagged, equals: true)
+
+        try expect(runner.lastArgs ?? [],
+                   equals: [
+                       "flag", "architecture", "/abs/design.mdpal",
+                       "--author", "jordan",
+                       "--note", "Needs discussion before proceeding",
+                   ])
+    }
+}
+
+func testRealCLIServiceFlagSectionOmitsNoteWhenNil() async throws {
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(flagSectionHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.flagSection(
+            slug: "architecture", bundle: BundlePath("/b.mdpal"),
+            author: "jordan", note: nil)
+        try expect(runner.lastArgs ?? [],
+                   equals: ["flag", "architecture", "/b.mdpal", "--author", "jordan"],
+                   "--note flag omitted when value is nil (spec: absence == no note)")
+    }
+}
+
+func testRealCLIServiceFlagSectionMapsSectionNotFoundEnvelope() async throws {
+    let stderr = """
+    { "error": "sectionNotFound", "message": "not here",
+      "details": { "slug": "gone", "availableSlugs": ["x"] } }
+    """
+    let canned = ProcessResult(exitCode: 3, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.flagSection(
+                slug: "gone", bundle: BundlePath("/b.mdpal"),
+                author: "a", note: nil)
+            throw TestFailure(message: "Expected sectionNotFound", file: #file, line: #line)
+        } catch CLIServiceError.sectionNotFound {
+            // expected
+        }
+    }
+}
+
+// --- clearFlag ------------------------------------------------------------
+
+func testRealCLIServiceClearFlagHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(#"{"slug":"architecture","flagged":false}"#.utf8),
+        stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let result = try await svc.clearFlag(
+            slug: "architecture",
+            bundle: BundlePath("/abs/design.mdpal"))
+        try expect(result.slug, equals: "architecture")
+        try expect(result.flagged, equals: false)
+
+        try expect(runner.lastArgs ?? [],
+                   equals: ["clear-flag", "architecture", "/abs/design.mdpal"])
+    }
+}
+
+func testRealCLIServiceClearFlagMapsSectionNotFoundEnvelope() async throws {
+    let stderr = """
+    { "error": "sectionNotFound", "message": "not here",
+      "details": { "slug": "gone", "availableSlugs": [] } }
+    """
+    let canned = ProcessResult(exitCode: 3, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.clearFlag(slug: "gone", bundle: BundlePath("/b.mdpal"))
+            throw TestFailure(message: "Expected sectionNotFound", file: #file, line: #line)
+        } catch CLIServiceError.sectionNotFound {
+            // expected
+        }
+    }
+}
+
+// --- parseError symmetry across mutations ---------------------------------
+// Earlier iterations each have a malformed-JSON → .parseError test. The
+// mutation methods share `runCommand`/`runCommandWithEnvelope` but a
+// regression in a specific response type's decoder (e.g., Comment,
+// FlagResult) wouldn't fail any 1B.5 test without these.
+
+func testRealCLIServiceAddCommentMapsMalformedJSONToParseError() async throws {
+    let canned = ProcessResult(exitCode: 0, stdout: Data("{".utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.addComment(
+                slug: "x", bundle: BundlePath("/b.mdpal"),
+                type: .note, author: "a", text: "t",
+                context: nil, priority: .normal, tags: [])
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected
+        }
+    }
+}
+
+func testRealCLIServiceResolveCommentMapsMalformedJSONToParseError() async throws {
+    let canned = ProcessResult(exitCode: 0, stdout: Data("not json".utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.resolveComment(
+                commentId: "c1", bundle: BundlePath("/b.mdpal"),
+                response: "r", by: "a")
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected
+        }
+    }
+}
+
+func testRealCLIServiceFlagSectionMapsMalformedJSONToParseError() async throws {
+    let canned = ProcessResult(exitCode: 0, stdout: Data("{\"slug\":}".utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.flagSection(
+                slug: "x", bundle: BundlePath("/b.mdpal"),
+                author: "a", note: nil)
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected
+        }
+    }
+}
+
+func testRealCLIServiceClearFlagMapsMalformedJSONToParseError() async throws {
+    let canned = ProcessResult(exitCode: 0, stdout: Data("garbage".utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.clearFlag(slug: "x", bundle: BundlePath("/b.mdpal"))
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected
+        }
+    }
+}
+
+func testRealCLIServiceAddCommentFiltersEmptyTags() async throws {
+    // `tags: [""]` is a common mistake source (from parsing a trailing
+    // comma or empty input). Must not render as `--tags ""`.
+    let canned = ProcessResult(
+        exitCode: 0, stdout: Data(addCommentHappyJSON.utf8), stderr: Data())
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.addComment(
+            slug: "architecture", bundle: BundlePath("/b.mdpal"),
+            type: .note, author: "a", text: "t",
+            context: nil, priority: .normal, tags: [""])
+        let argv = runner.lastArgs ?? []
+        try expect(argv.contains("--tags"), equals: false,
+                   "--tags must be omitted when only empty strings were supplied")
+    }
+}
+
 // MARK: - Runner
 
 @main
@@ -2215,6 +2567,23 @@ struct TestRunner {
         run("sectionNotFound envelope decodes", testCLIErrorSectionNotFoundDecodes)
         run("bundleConflict envelope decodes", testCLIErrorBundleConflictDecodes)
         run("unknown kind falls back to generic", testCLIErrorUnknownKindFallsBackToGeneric)
+
+        print("\nRealCLIService mutations (Phase 1B.5):")
+        await runAsync("addComment happy path + argv (minimal)", testRealCLIServiceAddCommentHappyPath)
+        await runAsync("addComment emits --context and --tags when present", testRealCLIServiceAddCommentEmitsContextAndTagsWhenPresent)
+        await runAsync("addComment maps sectionNotFound envelope", testRealCLIServiceAddCommentMapsSectionNotFoundEnvelope)
+        await runAsync("resolveComment happy path + argv", testRealCLIServiceResolveCommentHappyPath)
+        await runAsync("resolveComment maps non-zero exit to executionFailed", testRealCLIServiceResolveCommentMapsNonZeroExitToExecutionFailed)
+        await runAsync("flagSection happy path + argv", testRealCLIServiceFlagSectionHappyPath)
+        await runAsync("flagSection omits --note when nil", testRealCLIServiceFlagSectionOmitsNoteWhenNil)
+        await runAsync("flagSection maps sectionNotFound envelope", testRealCLIServiceFlagSectionMapsSectionNotFoundEnvelope)
+        await runAsync("clearFlag happy path + argv", testRealCLIServiceClearFlagHappyPath)
+        await runAsync("clearFlag maps sectionNotFound envelope", testRealCLIServiceClearFlagMapsSectionNotFoundEnvelope)
+        await runAsync("addComment filters empty tags", testRealCLIServiceAddCommentFiltersEmptyTags)
+        await runAsync("addComment maps malformed JSON to parseError", testRealCLIServiceAddCommentMapsMalformedJSONToParseError)
+        await runAsync("resolveComment maps malformed JSON to parseError", testRealCLIServiceResolveCommentMapsMalformedJSONToParseError)
+        await runAsync("flagSection maps malformed JSON to parseError", testRealCLIServiceFlagSectionMapsMalformedJSONToParseError)
+        await runAsync("clearFlag maps malformed JSON to parseError", testRealCLIServiceClearFlagMapsMalformedJSONToParseError)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 
