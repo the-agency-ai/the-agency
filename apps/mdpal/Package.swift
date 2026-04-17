@@ -55,6 +55,12 @@ let package = Package(
                 .product(name: "Testing", package: "swift-testing"),
             ]
         ),
-        // mdpalCLITests — will be added when CLI command tests exist
+        .testTarget(
+            name: "mdpalCLITests",
+            dependencies: [
+                "MarkdownPalEngine",
+                .product(name: "Testing", package: "swift-testing"),
+            ]
+        ),
     ]
 )
