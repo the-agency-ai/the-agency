@@ -67,6 +67,7 @@ public protocol CLIServiceProtocol: Sendable {
 /// Errors from CLI operations.
 public enum CLIServiceError: Error, LocalizedError {
     case sectionNotFound(slug: String, availableSlugs: [String])
+    case commentNotFound(commentId: String)
     case versionConflict(slug: String, expectedHash: String, currentHash: String)
     case bundleConflict(baseRevision: String, currentRevision: String)
     case parseError(description: String)
@@ -79,6 +80,8 @@ public enum CLIServiceError: Error, LocalizedError {
         switch self {
         case .sectionNotFound(let slug, let available):
             return "Section '\(slug)' not found. Available: \(available.joined(separator: ", "))"
+        case .commentNotFound(let commentId):
+            return "Comment '\(commentId)' not found — it may have been resolved or the bundle reloaded."
         case .versionConflict(let slug, _, let currentHash):
             return "Section '\(slug)' was modified (current hash: \(currentHash)). Reload and retry."
         case .bundleConflict(let base, let current):

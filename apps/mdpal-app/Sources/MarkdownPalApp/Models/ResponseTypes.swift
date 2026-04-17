@@ -205,6 +205,7 @@ extension CLIErrorResponse: Decodable {
 /// the discriminator so there's no ambiguity about where `type` lives.
 public enum CLIErrorDetails: Hashable {
     case sectionNotFound(slug: String, availableSlugs: [String])
+    case commentNotFound(commentId: String)
     case versionConflict(slug: String, expectedHash: String, currentHash: String,
                          currentContent: String, versionId: String)
     case bundleConflict(baseRevision: String, currentRevision: String)
@@ -217,6 +218,7 @@ public enum CLIErrorDetails: Hashable {
     fileprivate enum DetailsKeys: String, CodingKey {
         case slug, availableSlugs, expectedHash, currentHash
         case currentContent, versionId, baseRevision, currentRevision
+        case commentId
     }
 
     /// Decode the details payload into a typed case when the discriminator
@@ -236,6 +238,12 @@ public enum CLIErrorDetails: Hashable {
                let slug = try? c.decode(String.self, forKey: .slug),
                let available = try? c.decode([String].self, forKey: .availableSlugs) {
                 return .sectionNotFound(slug: slug, availableSlugs: available)
+            }
+
+        case "commentNotFound":
+            if let c = try? decoder.container(keyedBy: DetailsKeys.self),
+               let commentId = try? c.decode(String.self, forKey: .commentId) {
+                return .commentNotFound(commentId: commentId)
             }
 
         case "versionConflict":

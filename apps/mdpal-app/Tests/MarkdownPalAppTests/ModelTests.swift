@@ -2537,6 +2537,70 @@ func testDefaultProcessRunnerRespectsMaxOutputBytes() async throws {
                "truncation marker must be appended to stderr")
 }
 
+// MARK: - Phase 1C.2: commentNotFound typed envelope mapping
+
+func testCLIErrorCommentNotFoundEnvelopeDecodes() throws {
+    // Per mdpal-cli #579 — Phase 2.3 envelope shape.
+    let json = """
+    {
+        "error": "commentNotFound",
+        "message": "Comment 'c0042' not found",
+        "details": { "commentId": "c0042" }
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+
+    try expect(error.error, equals: "commentNotFound")
+    if case .commentNotFound(let commentId) = try expectNotNilUnwrap(error.details) {
+        try expect(commentId, equals: "c0042")
+    } else {
+        throw TestFailure(message: "Expected commentNotFound details", file: #file, line: #line)
+    }
+}
+
+func testRealCLIServiceResolveCommentMapsCommentNotFoundEnvelope() async throws {
+    let stderr = """
+    { "error": "commentNotFound", "message": "not here", "details": { "commentId": "c0042" } }
+    """
+    let canned = ProcessResult(
+        exitCode: 3, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.resolveComment(
+                commentId: "c0042",
+                bundle: BundlePath("/b.mdpal"),
+                response: "resolved",
+                by: "jordan"
+            )
+            throw TestFailure(message: "Expected commentNotFound", file: #file, line: #line)
+        } catch let CLIServiceError.commentNotFound(commentId) {
+            try expect(commentId, equals: "c0042")
+        }
+    }
+}
+
+func testRealCLIServiceResolveCommentFallsThroughOnOtherEnvelopeKind() async throws {
+    // Recognized envelope tag but not the one resolveComment maps (e.g.,
+    // versionConflict) — must fall through to .executionFailed.
+    let stderr = """
+    { "error": "versionConflict", "message": "wrong",
+      "details": { "slug": "s", "expectedHash": "a", "currentHash": "b",
+                   "currentContent": "c", "versionId": "v" } }
+    """
+    let canned = ProcessResult(exitCode: 2, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.resolveComment(
+                commentId: "c1", bundle: BundlePath("/b.mdpal"),
+                response: "r", by: "a")
+            throw TestFailure(message: "Expected executionFailed", file: #file, line: #line)
+        } catch CLIServiceError.executionFailed {
+            // expected
+        }
+    }
+}
+
 // MARK: - Phase 1C.1: CLIServiceBanner message derivation
 
 func testResolutionBannerMessageIsNilForReal() throws {
@@ -2740,6 +2804,11 @@ struct TestRunner {
         run("ProcessResult.sanitize strips ANSI + control chars", testProcessResultSanitizeStripsAnsiAndControlChars)
         run("ProcessResult.sanitize caps length with marker", testProcessResultSanitizeCapsLength)
         await runAsync("DefaultProcessRunner respects maxOutputBytes", testDefaultProcessRunnerRespectsMaxOutputBytes)
+
+        print("\ncommentNotFound typed mapping (Phase 1C.2):")
+        run("CLIErrorCommentNotFound envelope decodes", testCLIErrorCommentNotFoundEnvelopeDecodes)
+        await runAsync("resolveComment maps commentNotFound envelope to typed error", testRealCLIServiceResolveCommentMapsCommentNotFoundEnvelope)
+        await runAsync("resolveComment falls through on other envelope kind", testRealCLIServiceResolveCommentFallsThroughOnOtherEnvelopeKind)
 
         print("\nCLIServiceBanner message derivation (Phase 1C.1):")
         run("Resolution.bannerMessage is nil for real", testResolutionBannerMessageIsNilForReal)

@@ -371,19 +371,29 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     }
 
     /// Maps to `mdpal resolve <commentId> <bundle> --response <text> --by <author>`.
-    /// Keyed off commentId, not slug — the "entity not found" shape would
-    /// be commentNotFound, which isn't enumerated in dispatch #23's spec.
-    /// Uses runCommand (no typed envelope mapping); any failure lands
-    /// as .executionFailed.
+    /// Keyed off commentId, not slug. Per mdpal-cli #579, the CLI emits
+    /// `{ "error":"commentNotFound", "details":{ "commentId": ... } }`
+    /// at exit 3 when the commentId doesn't exist — this method maps
+    /// that envelope to typed `.commentNotFound(commentId:)` so the UI
+    /// can render a useful message. Unrecognized / wrong-shape envelopes
+    /// fall through to `.executionFailed`.
     public func resolveComment(
         commentId: String,
         bundle: BundlePath,
         response: String,
         by: String
     ) async throws -> ResolveResult {
-        try await runCommand(
+        try await runCommandWithEnvelope(
             ["resolve", commentId, bundle.path, "--response", response, "--by", by],
-            as: ResolveResult.self
+            as: ResolveResult.self,
+            envelopeMapper: { envelope in
+                switch (envelope.error, envelope.details) {
+                case ("commentNotFound", .some(.commentNotFound(let id))):
+                    return .commentNotFound(commentId: id)
+                default:
+                    return nil
+                }
+            }
         )
     }
 
