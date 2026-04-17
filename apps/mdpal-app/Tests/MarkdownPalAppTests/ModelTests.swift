@@ -25,6 +25,12 @@
 // Updated: 2026-04-17 Phase 1B.3 — RealCLIService readSection / listComments /
 //          listFlags tests. listComments/listFlags prove end-to-end Date
 //          decode via the shared iso8601 decoder hoisted in 1B.2.
+// Updated: 2026-04-17 Phase 1B.4 — RealCLIService.editSection tests with
+//          typed versionConflict envelope mapping; rewrote the pre-existing
+//          CLIErrorResponse tests to match dispatch #23's wire format
+//          (discriminator is the TOP-LEVEL `error` field, not nested in
+//          `details`); added sectionNotFound, bundleConflict, and
+//          unknown-kind-fallback envelope tests.
 
 import Foundation
 @testable import MarkdownPalAppLib
@@ -510,27 +516,30 @@ func testClearFlagResultDecodesFromCLIJSON() throws {
 // MARK: - Error Type Tests
 
 func testCLIErrorResponseDecodesFromJSON() throws {
+    // Envelope without details (some error kinds carry no structured
+    // details). Dispatch #23: discriminator is the top-level `error` field.
     let json = """
     {
-        "error": "SECTION_NOT_FOUND",
-        "message": "Section 'nonexistent' not found"
+        "error": "parseError",
+        "message": "Malformed markdown at line 42"
     }
     """
     let data = json.data(using: .utf8)!
     let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
 
-    try expect(error.error, equals: "SECTION_NOT_FOUND")
-    try expect(error.message, equals: "Section 'nonexistent' not found")
+    try expect(error.error, equals: "parseError")
+    try expect(error.message, equals: "Malformed markdown at line 42")
     try expectNil(error.details)
 }
 
 func testCLIErrorWithDetailsDecodesFromJSON() throws {
+    // Spec-faithful shape: top-level `error` is the discriminator;
+    // `details` has the case-specific fields WITHOUT a nested `type`.
     let json = """
     {
-        "error": "VERSION_CONFLICT",
-        "message": "Section was modified",
+        "error": "versionConflict",
+        "message": "Section 'overview' was modified since version abc",
         "details": {
-            "type": "versionConflict",
             "slug": "overview",
             "expectedHash": "abc",
             "currentHash": "def",
@@ -542,16 +551,79 @@ func testCLIErrorWithDetailsDecodesFromJSON() throws {
     let data = json.data(using: .utf8)!
     let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
 
-    try expect(error.error, equals: "VERSION_CONFLICT")
+    try expect(error.error, equals: "versionConflict")
     try expectNotNil(error.details)
 
-    if case .versionConflict(let slug, let expected, let current, _, let versionId) = error.details! {
+    if case .versionConflict(let slug, let expected, let current, let content, let versionId) = error.details! {
         try expect(slug, equals: "overview")
         try expect(expected, equals: "abc")
         try expect(current, equals: "def")
+        try expect(content, equals: "new content here")
         try expect(versionId, equals: "v2")
     } else {
         throw TestFailure(message: "Expected versionConflict details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorSectionNotFoundDecodes() throws {
+    let json = """
+    {
+        "error": "sectionNotFound",
+        "message": "Section 'missing' not found",
+        "details": { "slug": "missing", "availableSlugs": ["architecture", "testing"] }
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+
+    try expect(error.error, equals: "sectionNotFound")
+    if case .sectionNotFound(let slug, let available) = try expectNotNilUnwrap(error.details) {
+        try expect(slug, equals: "missing")
+        try expect(available, equals: ["architecture", "testing"])
+    } else {
+        throw TestFailure(message: "Expected sectionNotFound details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorBundleConflictDecodes() throws {
+    let json = """
+    {
+        "error": "bundleConflict",
+        "message": "Base revision stale",
+        "details": { "baseRevision": "V0001.0002", "currentRevision": "V0001.0003" }
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+
+    if case .bundleConflict(let base, let current) = try expectNotNilUnwrap(error.details) {
+        try expect(base, equals: "V0001.0002")
+        try expect(current, equals: "V0001.0003")
+    } else {
+        throw TestFailure(message: "Expected bundleConflict details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorUnknownKindFallsBackToGeneric() throws {
+    // Forward-compat: CLI emits a new error kind the app doesn't recognize.
+    // Envelope still decodes; details fall through to .generic with any
+    // string key/values harvested for diagnostics.
+    let json = """
+    {
+        "error": "quotaExceeded",
+        "message": "Hit monthly quota",
+        "details": { "limit": "1000", "used": "1001" }
+    }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+
+    try expect(error.error, equals: "quotaExceeded")
+    if case .generic(let data) = try expectNotNilUnwrap(error.details) {
+        try expect(data["limit"] ?? "", equals: "1000")
+        try expect(data["used"] ?? "", equals: "1001")
+    } else {
+        throw TestFailure(message: "Expected generic fallback", file: #file, line: #line)
     }
 }
 
@@ -1433,18 +1505,14 @@ func testRealCLIServiceReadSectionHappyPath() async throws {
     }
 }
 
-func testRealCLIServiceReadSectionMapsNonZeroExitToExecutionFailed() async throws {
-    // The CLI signals section-not-found via exit 3 + structured stderr.
-    // 1B.3 maps it generically to .executionFailed; typed .sectionNotFound
-    // mapping lands in 1B.4 alongside the versionConflict envelope work.
-    // This test pins the generic mapping — it only asserts exit code and
-    // that stderr is forwarded. The 1B.4 typed-envelope test will own the
-    // "stderr parses to a specific envelope" invariant so this test
-    // doesn't have to change when the mapping upgrades.
+func testRealCLIServiceReadSectionMapsSectionNotFoundEnvelope() async throws {
+    // 1B.4 migrated readSection to runCommandWithEnvelope; the CLI's
+    // structured stderr now maps to the typed .sectionNotFound case
+    // (was .executionFailed in 1B.3).
     let canned = ProcessResult(
         exitCode: 3,
         stdout: Data(),
-        stderr: Data(#"{"error":"sectionNotFound","message":"Section 'missing' not found","details":{"slug":"missing","availableSlugs":["architecture"]}}"#.utf8)
+        stderr: Data(#"{"error":"sectionNotFound","message":"Section 'missing' not found","details":{"slug":"missing","availableSlugs":["architecture","testing"]}}"#.utf8)
     )
     try await withRealCLIServiceForTesting(result: canned) { svc, _ in
         do {
@@ -1452,11 +1520,32 @@ func testRealCLIServiceReadSectionMapsNonZeroExitToExecutionFailed() async throw
                 slug: "missing",
                 bundle: BundlePath("/tmp/bundle.mdpal")
             )
+            throw TestFailure(message: "Expected sectionNotFound", file: #file, line: #line)
+        } catch let CLIServiceError.sectionNotFound(slug, available) {
+            try expect(slug, equals: "missing")
+            try expect(available, equals: ["architecture", "testing"])
+        }
+    }
+}
+
+func testRealCLIServiceReadSectionFallsThroughOnNonEnvelopeStderr() async throws {
+    // Non-zero exit with stderr that isn't envelope-shaped — must
+    // preserve 1B.3 behaviour (raw stderr via .executionFailed).
+    let canned = ProcessResult(
+        exitCode: 1,
+        stdout: Data(),
+        stderr: Data("mdpal: bundle permission denied\n".utf8)
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.readSection(
+                slug: "any",
+                bundle: BundlePath("/tmp/bundle.mdpal")
+            )
             throw TestFailure(message: "Expected executionFailed", file: #file, line: #line)
         } catch let CLIServiceError.executionFailed(exitCode, stderr) {
-            try expect(exitCode, equals: 3)
-            try expect(stderr.isEmpty, equals: false,
-                       "stderr bytes must be forwarded (generic mapping for 1B.3)")
+            try expect(exitCode, equals: 1)
+            try expect(stderr.contains("permission denied"), equals: true)
         }
     }
 }
@@ -1768,6 +1857,214 @@ func testRealCLIServiceListFlagsMapsMalformedJSONToParseError() async throws {
     }
 }
 
+// MARK: - Phase 1B.4: RealCLIService.editSection + typed envelope mapping
+
+private let editSectionHappyJSON = """
+{
+  "slug": "architecture",
+  "versionHash": "f3a4b5c6",
+  "versionId": "V0001.0004.20260406T0100Z",
+  "bytesWritten": 1234
+}
+"""
+
+private let editSectionVersionConflictStderr = """
+{
+  "error": "versionConflict",
+  "message": "Section 'architecture' has been modified since version c9d0e1f2",
+  "details": {
+    "slug": "architecture",
+    "expectedHash": "c9d0e1f2",
+    "currentHash": "f3a4b5c6",
+    "currentContent": "The updated content that someone else wrote...",
+    "versionId": "V0001.0004.20260406T0100Z"
+  }
+}
+"""
+
+func testRealCLIServiceEditSectionHappyPath() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(editSectionHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        let result = try await svc.editSection(
+            slug: "architecture",
+            content: "New content for architecture section.",
+            versionHash: "c9d0e1f2",
+            bundle: BundlePath("/abs/path/design.mdpal")
+        )
+
+        try expect(result.slug, equals: "architecture")
+        try expect(result.versionHash, equals: "f3a4b5c6",
+                   "response versionHash is the NEW hash for subsequent edits")
+        try expect(result.versionId, equals: "V0001.0004.20260406T0100Z")
+        try expect(result.bytesWritten, equals: 1234)
+
+        // argv contract: edit <slug> --version <hash> <bundle> --stdin
+        try expect(runner.lastArgs ?? [],
+                   equals: ["edit", "architecture", "--version", "c9d0e1f2",
+                            "/abs/path/design.mdpal", "--stdin"],
+                   "argv must follow dispatch #23 edit command shape")
+
+        // Content must be forwarded on stdin (not inlined in argv).
+        let expectedStdin = Data("New content for architecture section.".utf8)
+        try expect(runner.lastStdin ?? Data(), equals: expectedStdin,
+                   "content must be forwarded via stdin, not argv")
+    }
+}
+
+func testRealCLIServiceEditSectionMapsVersionConflictEnvelope() async throws {
+    // Exit 2 + structured stderr → must produce typed .versionConflict
+    // (NOT .executionFailed). This proves the envelope-parsing path.
+    let canned = ProcessResult(
+        exitCode: 2,
+        stdout: Data(),
+        stderr: Data(editSectionVersionConflictStderr.utf8)
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.editSection(
+                slug: "architecture",
+                content: "stale update",
+                versionHash: "c9d0e1f2",
+                bundle: BundlePath("/tmp/bundle.mdpal")
+            )
+            throw TestFailure(
+                message: "Expected versionConflict", file: #file, line: #line)
+        } catch let CLIServiceError.versionConflict(slug, expected, current) {
+            try expect(slug, equals: "architecture")
+            try expect(expected, equals: "c9d0e1f2",
+                       "expectedHash must carry the hash the caller supplied")
+            try expect(current, equals: "f3a4b5c6",
+                       "currentHash must be the fresh hash for retry")
+        }
+    }
+}
+
+func testRealCLIServiceEditSectionFallsThroughOnUnrecognizedEnvelope() async throws {
+    // CLI emits exit != 0 with an envelope whose discriminator isn't one
+    // editSection cares about. Must fall through to .executionFailed, not
+    // force the unknown envelope into versionConflict.
+    let unknownStderr = """
+    { "error": "quotaExceeded", "message": "hit limit", "details": {"limit":"1"} }
+    """
+    let canned = ProcessResult(
+        exitCode: 1,
+        stdout: Data(),
+        stderr: Data(unknownStderr.utf8)
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.editSection(
+                slug: "architecture", content: "x", versionHash: "h",
+                bundle: BundlePath("/tmp/b.mdpal"))
+            throw TestFailure(
+                message: "Expected executionFailed", file: #file, line: #line)
+        } catch let CLIServiceError.executionFailed(exitCode, stderr) {
+            try expect(exitCode, equals: 1)
+            try expect(stderr.contains("quotaExceeded"), equals: true,
+                       "raw stderr must be forwarded for diagnostics")
+        }
+    }
+}
+
+func testRealCLIServiceEditSectionFallsThroughOnNonEnvelopeStderr() async throws {
+    // exit != 0 but stderr isn't JSON at all (e.g., /bin/sh error message).
+    // Envelope decode fails; must fall through to .executionFailed.
+    let canned = ProcessResult(
+        exitCode: 1,
+        stdout: Data(),
+        stderr: Data("mdpal: bundle locked by another process\n".utf8)
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.editSection(
+                slug: "architecture", content: "x", versionHash: "h",
+                bundle: BundlePath("/tmp/b.mdpal"))
+            throw TestFailure(message: "Expected executionFailed", file: #file, line: #line)
+        } catch let CLIServiceError.executionFailed(exitCode, stderr) {
+            try expect(exitCode, equals: 1)
+            try expect(stderr.contains("bundle locked"), equals: true)
+        }
+    }
+}
+
+func testRealCLIServiceEditSectionFallsThroughOnEnvelopeMissingMessage() async throws {
+    // Envelope missing required `message` field → CLIErrorResponse decode
+    // fails → runCommandWithEnvelope falls through to .executionFailed
+    // with raw stderr. Pins the "partial-envelope graceful-degrade" path.
+    let missingMessageStderr = """
+    { "error": "versionConflict", "details": { "slug": "x", "expectedHash": "a", "currentHash": "b", "currentContent": "y", "versionId": "v" } }
+    """
+    let canned = ProcessResult(
+        exitCode: 2,
+        stdout: Data(),
+        stderr: Data(missingMessageStderr.utf8)
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.editSection(
+                slug: "x", content: "y", versionHash: "a",
+                bundle: BundlePath("/tmp/b.mdpal"))
+            throw TestFailure(message: "Expected executionFailed", file: #file, line: #line)
+        } catch let CLIServiceError.executionFailed(exitCode, _) {
+            try expect(exitCode, equals: 2,
+                       "partial envelope without message must fall through, not blow up")
+        }
+    }
+}
+
+func testRealCLIServiceEditSectionFallsThroughOnKnownButUnmappedTag() async throws {
+    // Envelope has a discriminator the ERROR MODEL knows about
+    // (sectionNotFound — decodes to a typed case) but that editSection's
+    // mapper deliberately doesn't handle (editSection only maps
+    // versionConflict). The mapper returns nil → .executionFailed.
+    // Pins the "mapper-returns-nil for recognized-by-model tag" arm
+    // distinct from "unknown discriminator".
+    let sectionNotFoundStderr = """
+    { "error": "sectionNotFound", "message": "not here",
+      "details": { "slug": "gone", "availableSlugs": ["a"] } }
+    """
+    let canned = ProcessResult(
+        exitCode: 3,
+        stdout: Data(),
+        stderr: Data(sectionNotFoundStderr.utf8)
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.editSection(
+                slug: "x", content: "y", versionHash: "h",
+                bundle: BundlePath("/tmp/b.mdpal"))
+            throw TestFailure(message: "Expected executionFailed", file: #file, line: #line)
+        } catch let CLIServiceError.executionFailed(exitCode, stderr) {
+            try expect(exitCode, equals: 3)
+            try expect(stderr.contains("sectionNotFound"), equals: true,
+                       "stderr forwarded intact — mapper declined, not swallowed")
+        }
+    }
+}
+
+func testRealCLIServiceEditSectionMapsMalformedSuccessStdoutToParseError() async throws {
+    // exit 0 but stdout isn't a valid EditResult.
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data("{ \"slug\": \"x\" }".utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.editSection(
+                slug: "x", content: "y", versionHash: "z",
+                bundle: BundlePath("/tmp/b.mdpal"))
+            throw TestFailure(message: "Expected parseError", file: #file, line: #line)
+        } catch CLIServiceError.parseError {
+            // expected
+        }
+    }
+}
+
 // MARK: - Runner
 
 @main
@@ -1892,7 +2189,8 @@ struct TestRunner {
 
         print("\nRealCLIService read-side (Phase 1B.3):")
         await runAsync("readSection happy path decodes Section payload", testRealCLIServiceReadSectionHappyPath)
-        await runAsync("readSection maps non-zero exit to executionFailed", testRealCLIServiceReadSectionMapsNonZeroExitToExecutionFailed)
+        await runAsync("readSection maps sectionNotFound envelope (1B.4)", testRealCLIServiceReadSectionMapsSectionNotFoundEnvelope)
+        await runAsync("readSection falls through on non-envelope stderr", testRealCLIServiceReadSectionFallsThroughOnNonEnvelopeStderr)
         await runAsync("readSection passes path-style slug as argv", testRealCLIServiceReadSectionPassesPathStyleSlugAsArgv)
         await runAsync("readSection maps missing required field to parseError", testRealCLIServiceReadSectionMapsMissingRequiredFieldToParseError)
         await runAsync("readSection maps malformed JSON to parseError", testRealCLIServiceReadSectionMapsMalformedJSONToParseError)
@@ -1903,6 +2201,20 @@ struct TestRunner {
         await runAsync("listFlags happy path unwraps + iso8601 dates", testRealCLIServiceListFlagsHappyPath)
         await runAsync("listFlags handles empty", testRealCLIServiceListFlagsHandlesEmpty)
         await runAsync("listFlags maps malformed JSON to parseError", testRealCLIServiceListFlagsMapsMalformedJSONToParseError)
+
+        print("\nRealCLIService.editSection + envelope (Phase 1B.4):")
+        await runAsync("editSection happy path decodes EditResult + argv + stdin", testRealCLIServiceEditSectionHappyPath)
+        await runAsync("editSection maps versionConflict envelope to typed error", testRealCLIServiceEditSectionMapsVersionConflictEnvelope)
+        await runAsync("editSection falls through on unrecognized envelope kind", testRealCLIServiceEditSectionFallsThroughOnUnrecognizedEnvelope)
+        await runAsync("editSection falls through on non-envelope stderr", testRealCLIServiceEditSectionFallsThroughOnNonEnvelopeStderr)
+        await runAsync("editSection falls through on envelope missing message", testRealCLIServiceEditSectionFallsThroughOnEnvelopeMissingMessage)
+        await runAsync("editSection falls through on known-but-unmapped tag", testRealCLIServiceEditSectionFallsThroughOnKnownButUnmappedTag)
+        await runAsync("editSection maps malformed stdout to parseError", testRealCLIServiceEditSectionMapsMalformedSuccessStdoutToParseError)
+
+        print("\nCLIErrorResponse envelope (Phase 1B.4):")
+        run("sectionNotFound envelope decodes", testCLIErrorSectionNotFoundDecodes)
+        run("bundleConflict envelope decodes", testCLIErrorBundleConflictDecodes)
+        run("unknown kind falls back to generic", testCLIErrorUnknownKindFallsBackToGeneric)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 

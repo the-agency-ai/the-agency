@@ -28,6 +28,14 @@
 //          types (CommentsResponse/FlagsResponse) before returning the
 //          array. Comment/Flag timestamps exercise the shared iso8601
 //          decoder end-to-end for the first time.
+// Updated: 2026-04-17 Phase 1B.4 — editSection + typed-envelope mapping.
+//          runCommandWithEnvelope<T> extends runCommand<T> with optional
+//          stderr-envelope decoding: non-zero exit tries to decode
+//          CLIErrorResponse from stderr and map recognized discriminators
+//          to typed CLIServiceError cases (.versionConflict,
+//          .sectionNotFound, .bundleConflict). Unrecognized / unparseable
+//          stderr falls through to .executionFailed. Same hook supports
+//          1B.5 mutation methods.
 
 import Foundation
 
@@ -115,8 +123,57 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
                 stderr: result.stderrString
             )
         }
+        return try Self.decodeStdoutOrThrowParseError(T.self, from: result.stdout)
+    }
+
+    /// Variant of `runCommand<T>` that attempts typed-error-envelope
+    /// decoding on non-zero exit. Used by 1B.4+ methods where the CLI
+    /// signals distinct failure modes (versionConflict, sectionNotFound,
+    /// bundleConflict) via structured stderr per dispatch #23.
+    ///
+    /// Behaviour:
+    ///   - exit == 0 → decode stdout into T (same as runCommand<T>).
+    ///   - exit != 0 AND stderr parses as a CLIErrorResponse envelope
+    ///     AND `envelopeMapper` returns a typed error for it → throw
+    ///     that typed error.
+    ///   - exit != 0 AND stderr isn't envelope-shaped, OR the mapper
+    ///     returns nil → fall through to `.executionFailed(exitCode:,
+    ///     stderr:)` with the raw bytes.
+    ///
+    /// `envelopeMapper` lets each caller decide which envelope kinds it
+    /// cares about — editSection maps `versionConflict`, readSection
+    /// maps `sectionNotFound`, revisioning methods would map
+    /// `bundleConflict`. Unrecognized kinds deliberately fall through
+    /// rather than getting forced into a typed case prematurely.
+    private func runCommandWithEnvelope<T: Decodable>(
+        _ args: [String],
+        stdin: Data? = nil,
+        as type: T.Type = T.self,
+        envelopeMapper: (CLIErrorResponse) -> CLIServiceError?
+    ) async throws -> T {
+        let result = try await cli.run(args: args, stdin: stdin)
+        if result.exitCode != 0 {
+            if let envelope = try? Self.decoder.decode(CLIErrorResponse.self, from: result.stderr),
+               let mapped = envelopeMapper(envelope) {
+                throw mapped
+            }
+            throw CLIServiceError.executionFailed(
+                exitCode: Int(result.exitCode),
+                stderr: result.stderrString
+            )
+        }
+        return try Self.decodeStdoutOrThrowParseError(T.self, from: result.stdout)
+    }
+
+    /// Shared stdout-decode step. Both runCommand variants route success
+    /// through here so a future change to the parseError wording or
+    /// decoder config lands in one place.
+    private static func decodeStdoutOrThrowParseError<T: Decodable>(
+        _ type: T.Type,
+        from stdout: Data
+    ) throws -> T {
         do {
-            return try Self.decoder.decode(T.self, from: result.stdout)
+            return try decoder.decode(T.self, from: stdout)
         } catch {
             throw CLIServiceError.parseError(
                 description: "decode \(T.self): \(error.localizedDescription)"
@@ -148,18 +205,27 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     /// flat Section payload — `slug`, `heading`, `level`, `content`,
     /// `versionHash`, `versionId`. No wrapper to unwrap.
     ///
-    /// The CLI signals section-not-found via exit 3 + structured stderr
+    /// Typed error: CLI signals section-not-found via exit 3 +
     /// `{"error":"sectionNotFound","details":{"slug":"...", "availableSlugs":[...]}}`.
-    /// For 1B.3 that surfaces as the generic `.executionFailed(3, stderr)`;
-    /// typed `.sectionNotFound(slug:, availableSlugs:)` mapping lands in
-    /// 1B.4 alongside editSection's versionConflict envelope — same
-    /// stderr-envelope machinery covers both. 1B.3 ships
-    /// `.executionFailed` so DocumentModel's error path is wired now;
-    /// 1B.4 swaps the case without churning call sites.
+    /// 1B.4 migrated this method to `runCommandWithEnvelope` so the typed
+    /// `.sectionNotFound(slug:, availableSlugs:)` lands in the error surface
+    /// instead of the generic `.executionFailed` path. Unrecognized
+    /// stderr falls through to `.executionFailed` as before.
     public func readSection(slug: String, bundle: BundlePath) async throws -> Section {
-        try await runCommand(
+        try await runCommandWithEnvelope(
             ["read", slug, bundle.path],
-            as: Section.self
+            as: Section.self,
+            envelopeMapper: { envelope in
+                switch (envelope.error, envelope.details) {
+                case ("sectionNotFound", .some(.sectionNotFound(let s, let available))):
+                    return .sectionNotFound(slug: s, availableSlugs: available)
+                default:
+                    // tag unrecognized, or tag recognized but details fell
+                    // through to .generic (malformed envelope) — let the
+                    // raw stderr surface via .executionFailed.
+                    return nil
+                }
+            }
         )
     }
 
@@ -192,18 +258,63 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         return response.flags
     }
 
-    // MARK: - Protocol stubs (land in 1B.4–1B.5)
+    // MARK: - Mutation: editSection (Phase 1B.4)
+
+    /// Maps to `mdpal edit <slug> --version <hash> <bundle> --stdin`,
+    /// with the new content fed on stdin.
+    ///
+    /// Wire format per dispatch #23:
+    /// - Success (exit 0): JSON EditResult with new `versionHash`,
+    ///   `versionId`, and `bytesWritten`.
+    /// - versionConflict (exit 2): stderr envelope
+    ///   `{ "error":"versionConflict", "details":{ slug, expectedHash,
+    ///   currentHash, currentContent, versionId } }` → maps to typed
+    ///   `.versionConflict(slug:, expectedHash:, currentHash:)`.
+    ///   (The protocol's case drops `currentContent` and `versionId`;
+    ///   DocumentModel fetches the current content via readSection on
+    ///   retry. The richer fields stay on `CLIErrorDetails` for later
+    ///   use.)
+    /// - Other non-zero → `.executionFailed` (bundleConflict +
+    ///   sectionNotFound would be mapped here if they were expected
+    ///   from `edit`; they aren't per the spec, so falling through is
+    ///   correct).
+    public func editSection(
+        slug: String,
+        content: String,
+        versionHash: String,
+        bundle: BundlePath
+    ) async throws -> EditResult {
+        try await runCommandWithEnvelope(
+            ["edit", slug, "--version", versionHash, bundle.path, "--stdin"],
+            stdin: Data(content.utf8),
+            as: EditResult.self,
+            envelopeMapper: { envelope in
+                switch (envelope.error, envelope.details) {
+                case ("versionConflict",
+                      .some(.versionConflict(let s, let expected, let current, _, _))):
+                    return .versionConflict(
+                        slug: s,
+                        expectedHash: expected,
+                        currentHash: current
+                    )
+                default:
+                    // Unrecognized tag, OR tag matches but details shape
+                    // doesn't (malformed envelope fell through to .generic):
+                    // let the raw stderr surface via .executionFailed so
+                    // the UI still shows something diagnostic.
+                    return nil
+                }
+            }
+        )
+    }
+
+    // MARK: - Protocol stubs (land in 1B.5)
 
     private func notYetImplemented(_ method: String) -> CLIServiceError {
         .executionFailed(
             exitCode: -1,
             stderr: "RealCLIService.\(method) is not yet implemented"
         )
-    }
-
-    public func editSection(slug: String, content: String,
-                            versionHash: String, bundle: BundlePath) async throws -> EditResult {
-        throw notYetImplemented("editSection")
     }
 
     public func addComment(slug: String, bundle: BundlePath, type: CommentType,
