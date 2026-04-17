@@ -131,10 +131,14 @@ make_feature_branch() {
     [[ "$output" == "feature/foo" ]]
 }
 
-@test "checkout-branch: valid name test-branch succeeds" {
+@test "checkout-branch: valid name test-branch succeeds and creates the branch" {
     cd "${BATS_TEST_TMPDIR}"
     run ./claude/tools/git-captain checkout-branch test-branch
     assert_success
+    # D44-R6 (QG finding #10): strengthen assertion — verify branch was
+    # actually created and checked out, not just that exit code was 0.
+    run git branch --show-current
+    [[ "$output" == "test-branch" ]]
 }
 
 @test "checkout-branch: uppercase name succeeds (D44-R3 / issue #428)" {
@@ -183,6 +187,69 @@ make_feature_branch() {
     run ./claude/tools/git-captain checkout-branch "Bad@Name"
     assert_failure
     assert_output_contains "Invalid branch name"
+}
+
+# D44-R6 — reject structural patterns that git itself rejects, so the
+# error surfaces at the tool level with a clear message instead of bubbling
+# up from git's internals later.
+
+@test "checkout-branch: rejects '..' sequences (D44-R6 / git ref-format)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch "D44..R6"
+    assert_failure
+    assert_output_contains "'..'"
+}
+
+@test "checkout-branch: rejects trailing '.lock' suffix (D44-R6 / git ref lockfiles)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch "feature.lock"
+    assert_failure
+    assert_output_contains ".lock"
+}
+
+@test "checkout-branch: rejects trailing hyphen (D44-R6 / git ref-format)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch "feature-"
+    assert_failure
+    assert_output_contains "end with '-'"
+}
+
+@test "checkout-branch: rejects trailing dot (D44-R6 / git ref-format)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch "release."
+    assert_failure
+    assert_output_contains "end with '.'"
+}
+
+@test "checkout-branch: rejects trailing slash (D44-R6 / git ref-format)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch "feature/"
+    assert_failure
+    assert_output_contains "end with '/'"
+}
+
+# Positive regression — structural rules must not reject legitimate names.
+
+@test "checkout-branch: accepts dotted version name v1.0 (D44-R6 coverage)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch v1.0
+    assert_success
+    run git branch --show-current
+    [[ "$output" == "v1.0" ]]
+}
+
+@test "checkout-branch: accepts underscored name my_branch (D44-R6 coverage)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch my_branch
+    assert_success
+    run git branch --show-current
+    [[ "$output" == "my_branch" ]]
+}
+
+@test "checkout-branch: accepts 'lock' (no dot) — only '.lock' suffix is forbidden" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./claude/tools/git-captain checkout-branch feature-lock
+    assert_success
 }
 
 @test "checkout-branch: name starting with hyphen fails" {
