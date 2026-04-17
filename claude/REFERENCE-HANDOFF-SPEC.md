@@ -9,7 +9,7 @@ Write to your handoff file using the handoff tool:
 bash ./claude/tools/handoff write --trigger reboot
 ```
 
-Then edit the file at: `usr/jordan/{project}/{agent}-handoff.md`
+Then edit the file at: `usr/jordan/{agent}/handoff.md`
 
 ## Structure
 

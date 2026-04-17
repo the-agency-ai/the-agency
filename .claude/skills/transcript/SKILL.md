@@ -36,7 +36,7 @@ If `--project` not specified, derive from branch name:
 
 ## File Location
 
-Transcripts go to `usr/{principal}/{project}/transcripts/` where `{principal}` is detected via glob `usr/*/`.
+Transcripts go to `claude/workstreams/{W}/transcripts/` where `{W}` is the current workstream (derived from branch name or `--project` argument). `{principal}` is detected via glob `usr/*/`.
 
 Filename: `{mode}-transcript-{YYYYMMDD}.md` (e.g., `dialogue-transcript-20260401.md`)
 

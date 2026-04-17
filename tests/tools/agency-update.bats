@@ -442,7 +442,6 @@ EOF
         diff-hash
         stage-hash
         commit-precheck
-        instruction-show
     )
     for tool in "${canonical_tools[@]}"; do
         [[ -f "$target/claude/tools/$tool" ]] || missing+=("$tool")

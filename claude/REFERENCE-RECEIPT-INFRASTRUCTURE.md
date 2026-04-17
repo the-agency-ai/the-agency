@@ -7,19 +7,19 @@ Source A&D: `claude/workstreams/agency/receipt-infrastructure-ad-20260414.md`
 ## Naming Convention
 
 ```
-{org}-{principal}-{agent}-{workstream}-{project}-{qgr|rgr}-{hash}-{YYYYMMDD-HHMM}.md
+{org}-{principal}-{agent}-{workstream}-{project}-{qgr|rgr}-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md
 ```
 
 All fields are required. Full provenance in every filename — too much information is better than not enough.
 
 **Examples:**
 ```
-claude/receipts/the-agency-jordan-devex-devex-git-safe-qgr-a1b2c3d-20260414-1835.md
-claude/receipts/the-agency-jordan-captain-agency-valueflow-rgr-b2c3d4e-20260414-1900.md
-claude/receipts/monofolk-jordan-captain-ops-infra-qgr-c3d4e5f-20260414-1930.md
+claude/workstreams/devex/qgr/the-agency-jordan-devex-devex-git-safe-qgr-pr-prep-20260414-1835-a1b2c3d.md
+claude/workstreams/agency/rgr/the-agency-jordan-captain-agency-valueflow-rgr-plan-complete-20260414-1900-b2c3d4e.md
+claude/workstreams/ops/qgr/monofolk-jordan-captain-ops-infra-qgr-phase-complete-20260414-1930-c3d4e5f.md
 ```
 
-The `{hash}` field is the 7-char truncation of Hash E (the final artifact hash).
+The `{hash_e_short}` field is the 7-char truncation of Hash E (the final artifact hash). Date comes before hash for chronological `ls` sort.
 
 ---
 
@@ -49,7 +49,7 @@ When a principal 1B1 does occur:
 - Receipt field: `hash_d_source: "transcript"`
 - Receipt field: `hash_d_transcript: {path/to/transcript.md}`
 
-To audit all auto-approvals: grep `claude/receipts/` for `hash_d_source: "auto-approved"`.
+To audit all auto-approvals: grep `claude/workstreams/*/qgr/` for `hash_d_source: "auto-approved"`.
 
 ---
 
@@ -85,7 +85,7 @@ For RGR methodology artifacts, hash the file content directly:
 
 ### Exclusion
 
-`claude/receipts/` is excluded from ALL hash computations. Receipts do not appear in diffs and do not affect hash values.
+`qgr/` and `rgr/` directories are excluded from ALL hash computations. Receipts do not appear in diffs and do not affect hash values.
 
 ---
 
@@ -186,7 +186,7 @@ Find and verify receipts for the current PR content.
 | `./claude/tools/receipt-verify --file <path>` | Verify a specific receipt file |
 
 Matching algorithm:
-1. Filter `claude/receipts/` by filename pattern `*-{workstream}-{project}-*`
+1. Filter `claude/workstreams/{W}/qgr/` by filename pattern `*-{workstream}-{project}-*`
 2. For each matching receipt, check Hash E against the current diff hash (QGR) or artifact hash (RGR)
 3. Match → valid. No match → blocked.
 
