@@ -37,6 +37,7 @@ BUILD_FILE="$PROJECT_ROOT/claude/data/tool-build-number"
 # Usage: tool-new --provider=secrets my-backend "My secrets backend"
 #   → creates tools/secret-my-backend from PROVIDER.sh template
 PROVIDER_PATTERN=""
+PYTHON_MODE=false
 
 # Colors
 if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
@@ -105,6 +106,9 @@ main() {
             --verbose)
                 VERBOSE=true
                 ;;
+            --python)
+                PYTHON_MODE=true
+                ;;
             --provider=*)
                 PROVIDER_PATTERN="${arg#--provider=}"
                 ;;
@@ -125,6 +129,8 @@ main() {
         echo ""
         echo "Examples:"
         echo "  ./claude/tools/tool-create sync-data \"Sync data between environments\""
+        echo "  ./claude/tools/tool-create --python my-tool \"My Python tool\""
+        echo "    → creates tools/my-tool from TOOL.py template"
         echo "  ./claude/tools/tool-create --provider=secrets aws \"AWS Secrets Manager provider\""
         echo "    → creates tools/secret-aws"
         trap - EXIT
@@ -140,8 +146,13 @@ main() {
         exit 1
     fi
 
-    # Provider mode: remap tool name and select provider template
+    # Python mode: use Python template
     local actual_template="$TEMPLATE_FILE"
+    if [[ "$PYTHON_MODE" == "true" ]]; then
+        actual_template="$PROJECT_ROOT/claude/templates/TOOL.py"
+    fi
+
+    # Provider mode: remap tool name and select provider template
     local dispatcher_name=""
     if [[ -n "$PROVIDER_PATTERN" ]]; then
         actual_template="$PROVIDER_TEMPLATE_FILE"
@@ -211,10 +222,17 @@ main() {
     provider_pattern_escaped=$(escape_sed "${PROVIDER_PATTERN:-}")
     dispatcher_name_escaped=$(escape_sed "${dispatcher_name:-}")
 
+    local tool_date_escaped
+    local tool_author_escaped
+    tool_date_escaped=$(escape_sed "$(date '+%Y-%m-%d')")
+    tool_author_escaped=$(escape_sed "${AGENCY_PRINCIPAL:-${USER:-unknown}}")
+
     sed \
         -e "s/{{TOOL_NAME}}/$tool_name_escaped/g" \
         -e "s/{{TOOL_DESCRIPTION}}/$tool_description_escaped/g" \
         -e "s/{{BUILD_NUMBER}}/$build_number_escaped/g" \
+        -e "s/{{TOOL_DATE}}/$tool_date_escaped/g" \
+        -e "s/{{TOOL_AUTHOR}}/$tool_author_escaped/g" \
         -e "s/{{PROVIDER_PATTERN}}/$provider_pattern_escaped/g" \
         -e "s/{{DISPATCHER_NAME}}/$dispatcher_name_escaped/g" \
         "$actual_template" > "$tool_file"

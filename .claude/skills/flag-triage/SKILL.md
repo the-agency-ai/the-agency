@@ -79,7 +79,7 @@ For each approved Bucket 2 item, execute the proposed disposition:
 - **Send dispatch:** Use `dispatch create --to <agent> --subject <text> --body <text>`
 - **Update docs:** Edit the relevant file directly
 - **File bug:** Use `/agency-bug` or create a dispatch
-- **Create tool:** Write to `usr/{principal}/{project}/tools/`
+- **Create tool:** Write to `usr/{principal}/{agent}/tools/`
 
 Report each action taken with the artifact created (file path, dispatch ID, etc.).
 

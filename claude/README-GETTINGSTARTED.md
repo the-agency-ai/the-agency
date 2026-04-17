@@ -34,7 +34,7 @@ This installs the framework into your repo:
 - `claude/` — tools, docs, agent classes, hooks, hookify rules, and methodology
 - `.claude/` — settings, skills, agent registrations (Claude Code discovery location)
 - `CLAUDE.md` — your project's agent-facing instructions (imports `@claude/CLAUDE-THEAGENCY.md`)
-- `usr/{principal}/` — your sandbox (handoffs, dispatches, transcripts)
+- `usr/{principal}/{agent}/` — agent sandboxes (handoffs, tools, scratch space)
 
 After install, the `agency` tool lives at `./claude/tools/agency` in your project. You can either run it with the relative path or symlink it to your `$PATH`:
 
@@ -118,8 +118,8 @@ Narrow permission patterns (the old approach) created friction — every new com
 | `claude/hooks/` | Session lifecycle hooks | `ref-injector.sh` |
 | `claude/config/agency.yaml` | Principal mapping, providers, collaboration repos | configured during init |
 | `.claude/skills/` | Skills (invoke via `/`) | `/handoff`, `/discuss`, `/define` |
-| `.claude/agents/` | Agent registrations (launch via `claude --agent`) | `captain.md`, `devex.md` |
-| `usr/{principal}/` | Your sandbox | `usr/jordan/captain/` |
+| `.claude/agents/{P}/` | Agent registrations (launch via `claude --agent {P}/{A}`) | `jordan/captain.md` |
+| `usr/{principal}/{agent}/` | Agent sandbox (slim: tmp/, tools/, history/) | `usr/jordan/captain/` |
 
 ## First Session — A Walk-Through
 
@@ -153,7 +153,7 @@ TheAgency enforces safe alternatives to raw shell commands. The most important:
 | `cp` | `./claude/tools/cp-safe` | Provenance-aware copy with logging |
 | `gh pr create` | `/release` | QG + code review before PR creation |
 
-Hookify rules **hard-block** the raw alternatives (not just warn — they cancel the command). See `claude/README-ENFORCEMENT.md` for the full list.
+Hookify rules **hard-block** the raw alternatives (not just warn — they cancel the command). Also blocked: `gh pr merge` (use `/pr-merge`) and `gh release create` (use `/post-merge`). See `claude/README-ENFORCEMENT.md` for the full list.
 
 ## Branch Protection
 

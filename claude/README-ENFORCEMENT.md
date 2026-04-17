@@ -121,7 +121,7 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 | Rule | Type | What It Does | Use Instead |
 |------|------|-------------|-------------|
 | `block-git-safe-commit` | Block | Blocks raw `git commit` | `/git-safe-commit` skill or `./claude/tools/git-safe-commit` |
-| `block-raw-push` | Block | Blocks ALL raw `git push` (replaces `no-push-main`, `warn-on-push`, `block-force-push-main`, `block-force-push-any`) | Use `/sync` (the only authorized push command) |
+| `block-raw-push` | Block | Blocks ALL raw `git push` | Use `/sync` (the only authorized push command) |
 | `block-raw-cp` | Block | Blocks raw `cp` commands | `./claude/tools/cp-safe` |
 | `block-raw-pr-create` | Block | Blocks raw `gh pr create` | `/release` skill |
 | `block-cd-to-main` | Block | Blocks `cd /Users/...` and absolute paths to tools | `./claude/tools/{name}` (relative paths from worktree) |
@@ -131,7 +131,7 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 | `block-no-verify` | Block | Blocks `git commit --no-verify` and similar bypasses | Fix the underlying issue |
 | `block-raw-git-config-user-in-tests` | Block | Blocks bare `git config user.*` in BATS tests | Use `test_isolation_setup` from `test_helper.bash` |
 | `require-qgr` | Block *(planned)* | Will block commits without a matching QGR receipt — not yet wired | Run `/iteration-complete` or `/phase-complete` |
-| `require-plan-update` | Warn | Warns when committing without updating the plan file | Update `usr/{principal}/{project}/{project}-plan-*.md` |
+| `require-plan-update` | Warn | Warns when committing without updating the plan file | Update `claude/workstreams/{W}/plan-{W}-{slug}-*.md` |
 | `directive-authority` | Block | Only captain can create `--type directive` dispatches | Use a different dispatch type |
 | `review-authority` | Block | Only captain can create `--type review` dispatches | Use a different dispatch type |
 
@@ -154,6 +154,9 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 | `block-raw-push` | ALL `git push` commands | `/sync` skill (the only authorized push command) |
 | `block-system-install` | `brew install`, `apt install`, etc. | Ask principal first |
 | `block-testuser-paths` | Writes to `usr/testuser/` | Use `usr/{actual-principal}/` |
+| `block-raw-gh-pr-merge` | Raw `gh pr merge` | `./claude/tools/pr-merge` via `/pr-merge` skill |
+| `block-raw-gh-release` | Raw `gh release create` | `/post-merge` skill (creates release after PR merge) |
+| `block-raw-tools` | Raw invocation of tools that have skill wrappers | Use the corresponding `/` skill |
 
 #### Warn Rules (Advisory)
 
@@ -173,7 +176,7 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 | `warn-raw-doppler` | Direct `doppler` invocations | Use the secret tool |
 | `warn-raw-find` | Raw `find` commands | Use the `Glob` tool |
 | `warn-raw-grep` | Raw `grep` commands | Use the `Grep` tool |
-| `warn-script-persistence` | Writing scripts to `tmp/` instead of `tools/` | Use `usr/{principal}/{project}/tools/` |
+| `warn-script-persistence` | Writing scripts to `tmp/` instead of `tools/` | Use `usr/{P}/{A}/tools/` |
 | `warn-secrets` | Patterns that look like secrets | Use the secret tool |
 | `warn-whw-header` | File writes without provenance headers | Add What/How/Written header |
 
@@ -205,7 +208,7 @@ Quality gates are tiered checkpoints that run at every commit boundary. Each tie
 | **T3** | Phase complete | Full test suite + MAR on phase artifacts | <5min | `/phase-complete` (deep QG) |
 | **T4** | Pre-PR | Full diff QG vs origin/main | <5min | `/pr-prep` |
 
-Each gate produces a **QGR (Quality Gate Report)** receipt at `claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md`. *(Planned: `/git-safe-commit` will check for a matching receipt before committing — no receipt means no QG was run, and `require-qgr` will block the commit. The tool currently computes the stage hash for telemetry but the receipt check is not yet wired.)*
+Each gate produces a **QGR (Quality Gate Report)** receipt at `claude/workstreams/{ws}/qgr/{org}-{principal}-{agent}-{ws}-{proj}-qgr-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md`. The receipt is signed via `receipt-sign` with a five-hash chain of trust. `pr-create` calls `receipt-verify` and blocks if no valid receipt matches the current diff.
 
 ## Permission Model
 

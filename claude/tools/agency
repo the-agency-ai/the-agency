@@ -10,6 +10,7 @@
 #   verify [--verbose]                                         Health check
 #   whoami                                                     Show principal
 #   feedback "title" "description"                             Submit feedback
+#   deps [check|install]                                       Dependency management (macOS)
 #   version                                                    Show version info
 #   help                                                       Show this help
 #
@@ -47,6 +48,7 @@ Commands:
   update                    Sync framework to latest
   verify [--verbose]        Validate configuration
   whoami                    Show current principal
+  deps [check|install]      Dependency management (macOS brew)
   feedback "title" "desc"  Submit feedback
   version                   Show version info
   help                      Show this help
@@ -91,6 +93,10 @@ case "${1:-}" in
     whoami)
         shift; AGENCY_ARGS=("$@")
         source "$AGENCY_DIR/tools/lib/_agency-whoami"
+        ;;
+    deps)
+        shift; AGENCY_ARGS=("$@")
+        source "$AGENCY_DIR/tools/lib/_agency-deps"
         ;;
     feedback)
         shift; AGENCY_ARGS=("$@")

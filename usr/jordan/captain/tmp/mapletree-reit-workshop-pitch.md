@@ -1,0 +1,9 @@
+# Workshop Pitch — AI Augmented Development with Claude Code
+
+**For L&D teams considering hosting a workshop**
+
+---
+
+**TheAgency** is an open-source AI Augmented Development Lifecycle (AIADLC) framework that transforms how software gets built. Instead of AI assisting individual developers with autocomplete and suggestions, TheAgency deploys multiple AI agents as first-class developers — each with defined roles, quality gates, and structured handoffs — while humans set direction and approve at boundaries. Built on Anthropic's Claude Code, it includes methodology (Valueflow), mechanical enforcement (40+ behavioral rules), multi-agent parallel code review, and a complete toolchain that turns "be careful" into "the system won't let you ship broken code." **Valueflow** — the methodology at its core — maps the full path from idea to deployed value: Seed, Research, Define, Design, Plan, Implement, Ship. Every step has a gate. Every gate is enforced by tooling, not discipline.
+
+**For technical teams**, this workshop teaches the emerging discipline of AI Augmented Development — structured, disciplined building of software with AI that goes far beyond vibe coding. Participants build real software using Claude Code with TheAgency framework, experiencing multi-agent coordination, quality gates, and the Valueflow methodology hands-on. **For L&D leaders**, this is an investment in a capability that will define software delivery over the next 3-5 years. Teams that adopt AI-augmented development now will see multiplicative throughput gains — not the 30% incremental improvement of AI-assisted coding, but fundamentally different delivery capacity. The workshop is a full-day, hands-on experience (BYOAP — Bring Your Own Anthropic Plan, ~$100 in API costs) that leaves participants with a working framework they can immediately apply to their own projects.

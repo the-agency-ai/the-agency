@@ -111,7 +111,7 @@ When a project uses the captain's PR rebuild workflow (squash local work into sc
 
 ### Setup
 
-Create `pr-scopes.json` in your project's scripts directory (e.g., `usr/{principal}/scripts/pr-scopes.json`):
+Create `pr-scopes.json` in your principal's scripts directory (e.g., `usr/{principal}/{agent}/tools/pr-scopes.json`):
 
 ```json
 {
@@ -148,7 +148,7 @@ Create `pr-scopes.json` in your project's scripts directory (e.g., `usr/{princip
 ### Rules
 
 1. **Every worktree gets a scope.** When you create a worktree, add a scope to pr-scopes.json with its paths.
-2. **Include Agency artifacts.** Each scope should include `usr/{principal}/{project}/` so handoffs, QGRs, and dispatches travel with the feature code.
+2. **Include Agency artifacts.** Each scope should include `usr/{principal}/{agent}/` and `claude/workstreams/{workstream}/` so handoffs, QGRs, and dispatches travel with the feature code.
 3. **The EXCLUDE scope catches everything else.** Shared files (root package.json, framework updates, CLAUDE.md changes) land in the EXCLUDE scope. Update its exclude list when adding new INCLUDE scopes.
 4. **Paths that don't exist are silently skipped.** This is expected — a scope may include paths that only exist after the feature is built.
 
@@ -157,7 +157,7 @@ Create `pr-scopes.json` in your project's scripts directory (e.g., `usr/{princip
 When creating a new worktree/workstream:
 
 1. Identify the app code paths the worktree will create/modify
-2. Add an INCLUDE scope to pr-scopes.json with those paths + `usr/{principal}/{name}/`
+2. Add an INCLUDE scope to pr-scopes.json with those paths + `usr/{principal}/{agent}/`
 3. Add those same paths to the EXCLUDE scope's exclude list
 4. Commit the updated pr-scopes.json
 
