@@ -243,7 +243,7 @@ Three tables + checks + narrative:
 
 - **Iteration QG** — scoped to the work in that iteration. Standard parallel review (4+ agents + own review). Commit automatically after clean QGR. No approval needed.
 - **Phase QG** — deep review of the **entire project codebase**, not just changes. More agents, deeper inspection. Explicitly considers design alignment with A&D. **Approval required.** Design issues flagged for Pre-Phase Review.
-- **Quality Phases** — dedicated phases focused on inspection, test development, and issue remediation. Like a HIP sprint. Still get a QG and QGR.
+- **Quality Phases** — dedicated phases focused on inspection, test development, and issue remediation. Analogous to a Hardening + Improvement Plan (HIP) — the Valueflow pattern for structural-quality work. Still get a QG and QGR.
 - **PR QG** — full diff against origin/master before PR creation. Run via `/pr-prep`.
 
 ### Day Counting Convention

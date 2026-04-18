@@ -15,7 +15,7 @@ below is what the D44 end-of-day briefing committed us to.
 1. **1B1 Close Issues** (7 themes, 73 flags). Briefing at `usr/jordan/captain/briefings/close-issues-briefing-20260418.md`.
 2. **Ratify flag→issue rule** — rewrite `/flag-triage` skill so outcomes are `close` / `do now` / `file issue`. No "defer" state.
 3. **Install-vs-repo boundary discussion** (flag #146 / #165). Open question — needs a decision on where the line between `agency init` install surface and dev-repo-only surface lives. Candidate outcome: new GH issue captures scope; maybe a CONTRIBUTING.md + INSTALLED-SURFACE.md split.
-4. **HIP Sprint FIFO** (epic #215, children #216–#228). Lead item #222 (git-safe-commit receipt glob) first.
+4. **HIP Plan FIFO** (epic #215, children #216–#228). Lead item #222 (git-safe-commit receipt glob) first.
 5. **Release notes mechanism** — start `/define` (PVR) on issue #214 after HIP work is in flight.
 
 ## 0300 autonomous setup — what was executed
@@ -27,7 +27,7 @@ Executed per runbook `usr/jordan/captain/briefings/0300-runbook-20260418.md` (co
 | A | D45-R1 PR #213 (Python 3.13 floor) | **OPEN**, QGR signed, unmerged. Awaits review. |
 | B | Shebang briefing written | `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md` (B2 shipped, B3 deferred per briefing). |
 | C | Release notes mechanism GH issue | **#214** filed, labeled `enhancement`. |
-| D | HIP Sprint epic + 13 children | Epic **#215**; children **#216–#228**. Comment on #215 lists children. |
+| D | HIP Plan epic + 13 children | Epic **#215**; children **#216–#228**. Comment on #215 lists children. |
 | E | ~40 defer→issue filings | **#229–#269** (41 issues across Pass 1 + Pass 2). See "Workstream E issues" below for groupings. |
 | F | Close Issues briefing | `usr/jordan/captain/briefings/close-issues-briefing-20260418.md`. |
 | G | Fleet broadcast drafts | `usr/jordan/captain/dispatches/drafts/d45-r1-python-3.13-broadcast-draft.md` + `-body.md`. **HOLD — do NOT send without principal authorization.** |
