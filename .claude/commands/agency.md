@@ -5,15 +5,15 @@ Display the help text:
 ```
 The Agency Commands
 
-Quick Captures:
-  /agency-bug [summary]         Report a bug quickly
-  /agency-request [summary]     Create a REQUEST
+File issues & feedback:
+  /agency-issue                 File, view, comment on GitHub issues (two-way channel)
 
 Onboarding:
   /agency-welcome               Guided tour of The Agency
-  /agency-tutorial [cmd]        Tutorial navigation
 
 Meta:
   /agency-help                  Show this help
   /agency                       Same as /agency-help
 ```
+
+**For the full skill catalog**, use `/` autocomplete (there are ~60 skills across workflow gates, Valueflow stages, session lifecycle, git + ISCP, worktrees, sandboxes, scaffolding, and observability). This help covers only the top-level onboarding path.

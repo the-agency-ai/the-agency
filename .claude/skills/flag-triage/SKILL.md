@@ -78,7 +78,7 @@ For each approved Bucket 2 item, execute the proposed disposition:
 - **Write seed:** Create seed file in the appropriate workstream's `seeds/` directory
 - **Send dispatch:** Use `dispatch create --to <agent> --subject <text> --body <text>`
 - **Update docs:** Edit the relevant file directly
-- **File bug:** Use `/agency-bug` or create a dispatch
+- **File bug:** Use `/agency-issue file "<summary>"` or create a dispatch
 - **Create tool:** Write to `usr/{principal}/{agent}/tools/`
 
 Report each action taken with the artifact created (file path, dispatch ID, etc.).
