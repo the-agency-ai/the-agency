@@ -68,6 +68,14 @@ test/
 # Session backups (ephemeral state - not versioned)
 claude/agents/*/backups/latest/
 claude/agents/*/backups/archive/
+claude/agents/*/backups/
+claude/agents/*/logs/
+# Per-agent SESSION files and notes belong in usr/{principal}/{agent}/history/ — not in class dirs
+claude/agents/*/SESSION-*.md
+claude/agents/*/notes/
+# Per-agent accumulation files (IDEAS, ONBOARDING) — adopter creates them in usr/
+claude/agents/*/IDEAS.md
+claude/agents/*/ONBOARDING.md
 
 # Services (local development - root level only, not source/services)
 /services/

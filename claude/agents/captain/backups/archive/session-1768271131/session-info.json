@@ -1,9 +1,0 @@
-{
-  "agentname": "housekeeping",
-  "workstream": "housekeeping",
-  "timestamp": "2026-01-13 10:25:31 +08",
-  "branch": "main",
-  "last_commit": "21812af - feat: Add starter-test and starter-test-cleanup tools",
-  "has_uncommitted": true,
-  "has_staged": false
-}
