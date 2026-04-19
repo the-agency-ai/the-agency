@@ -76,8 +76,51 @@ Locate the handoff file for this project (glob `usr/*/*/handoff.md` or `usr/*/ca
 - What's next (next iteration or phase-complete)
 - Any decisions made or context that would help a fresh session continue
 
+### Step 7: Emit iteration-complete dispatch to captain (NEW — small-batch cadence)
+
+Structured dispatch so captain's auto-ship daemon can respond. **Must run AFTER the commit (Step 4) so `commit_hash` is current.**
+
+Capture these values:
+- `ITERATION_SLUG` — from `$ARGUMENTS` (e.g., "1.2")
+- `PHASE_NUM` — the phase number from the iteration slug
+- `BRANCH` — current branch via `git branch --show-current`
+- `COMMIT_HASH` — the commit you just made
+- `SUMMARY` — one-line iteration summary from the commit's first line
+- `RECEIPT_PATH` — the QGR receipt path from Step 3
+
+Resolve captain's address: glob `usr/*/captain/` for the principal directory name, then captain address is `{repo}/{principal}/captain`. Repo is derived from the current repository name.
+
+Emit the dispatch:
+
+```
+bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch create \
+  --to {repo}/{principal}/captain \
+  --type iteration-complete \
+  --subject "Iteration {ITERATION_SLUG} complete on {BRANCH}" \
+  --body "<structured YAML — see below>"
+```
+
+Body format (embed as plain text, captain parses):
+
+```yaml
+event: iteration-complete
+iteration: {ITERATION_SLUG}
+phase: {PHASE_NUM}
+branch: {BRANCH}
+commit_hash: {COMMIT_HASH}
+summary: {SUMMARY}
+qgr_receipt: {RECEIPT_PATH}
+emitted_at: {ISO-8601 timestamp}
+```
+
+**Cascade isolation:** the commit-dispatch hook in `git-safe-commit` already skips its own cascade when `AGENCY_SKILL_BYPASS_CASCADE=1` is set in the environment. If the skill's agent runs multiple commits and you want to be SURE the cascade doesn't interfere, export this env var at skill start and unset it at skill end.
+
 ### Note
 
 This command handles iteration boundaries only. At phase boundaries, use `/phase-complete` instead — it runs a deep QG, requires principal approval, and lands on master.
 
 After completing this iteration, move to the next iteration. When all iterations in a phase are done, run `/phase-complete`.
+
+### Cadence note (small-batch-cadence project)
+
+Step 7's iteration-complete dispatch triggers captain's `auto-ship` daemon which opens a PR, waits for CI, and merges on green. Agents don't need to push or open PRs themselves — the daemon handles delivery to origin. See `claude/workstreams/captain/small-batch-cadence-*.md` for the full design (v1.1).
