@@ -154,3 +154,19 @@ detect() {
     [ "$status" -eq 0 ]
     [ "$output" = "master" ]
 }
+
+@test "detect_main_branch: handles repo path with spaces (quoting correctness)" {
+    # Regression for QGR reviewer-test M1 — the helper uses `git -C "$path"`
+    # throughout and must resolve cleanly even when the repo lives under a
+    # path with spaces. macOS default user dirs ("~/Library/Application
+    # Support", "~/My Drive/…") routinely contain spaces; this case must
+    # never silently regress to the empty-path failure mode.
+    local root="${BATS_TEST_TMPDIR}/repo with spaces"
+    mkdir -p "$root"
+    git init --quiet --initial-branch=main "$root"
+    ( cd "$root" && echo "hello" > README.md && git add README.md && \
+        git -c user.name=t -c user.email=t@t commit --quiet -m init --no-verify )
+    run detect "$root"
+    [ "$status" -eq 0 ]
+    [ "$output" = "main" ]
+}

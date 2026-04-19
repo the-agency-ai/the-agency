@@ -65,10 +65,18 @@ setup_repo() {
     git config user.name "Test"
 
     # Create initial structure
-    mkdir -p claude/tools .claude
+    mkdir -p claude/tools/lib .claude
     echo '{"permissions":{}}' > .claude/settings.json
     cp "$TOOL" claude/tools/worktree-sync
     chmod +x claude/tools/worktree-sync
+
+    # D45-R3: worktree-sync now sources claude/tools/lib/_detect-main-branch
+    # (shared MAIN_BRANCH resolver). Fixture must install the helper or the
+    # tool's `source` call fails and every test in this suite fails with
+    # "No such file or directory" on line 102. Same pattern applied to the
+    # BATS fixtures (tests/tools/git-safe.bats, git-safe-commit-merge.bats,
+    # git-captain.bats) in the same refactor.
+    cp "$TOOLS_DIR/lib/_detect-main-branch" claude/tools/lib/_detect-main-branch 2>/dev/null || true
 
     # Don't copy log helper — it uses python3 for UUID generation which can hang in temp repos
     # The tool handles missing _log-helper gracefully (logging is optional)
@@ -333,6 +341,14 @@ fi
 assert_eq "master-side commit did merge" "real master work" "$(cat real-master.txt 2>/dev/null || echo 'missing')"
 cleanup
 echo ""
+
+# NOTE — Helper guard refusal path (origin/HEAD → trunk/develop) is unit-
+# tested in tests/tools/_detect-main-branch.bats test 8 (guard refusal)
+# and test 9 (fails loudly when no branches). An additional integration
+# test at the worktree-sync level would require a deeper fixture refactor
+# (add origin remote + origin/HEAD symbolic-ref setup). Tracked for the
+# install_tool_lib_deps / shared-fixture follow-up (QGR D4). Documented
+# per reviewer-code L2 and QGR triage.
 
 # ========================================
 echo ""

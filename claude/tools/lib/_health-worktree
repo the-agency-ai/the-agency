@@ -90,8 +90,20 @@ _health_check_one_worktree() {
     branch=$(git -C "$path" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
     local main_checkout
     main_checkout=$(git worktree list --porcelain 2>/dev/null | awk '/^worktree / {print $2; exit}')
-    local main_branch
-    main_branch=$(detect_main_branch "$main_checkout" 2>/dev/null || echo "")
+    # If detect_main_branch refuses (e.g., origin/HEAD points to `trunk` or the
+    # repo has no main/master), surface that in the health report rather than
+    # silently skipping Check 3. A health tool MUST name the gap. No bug left
+    # behind — see D45-R3 QGR reviewer-code H2.
+    local main_branch main_branch_err
+    main_branch_err=$(mktemp)
+    main_branch=$(detect_main_branch "$main_checkout" 2>"$main_branch_err" || echo "")
+    if [[ -z "$main_branch" ]]; then
+        [[ "$worst" == "healthy" ]] && worst="attention"
+        local err_snip
+        err_snip=$(head -1 "$main_branch_err" 2>/dev/null || echo "")
+        detail_parts+=("main-branch detection skipped — divergence check not run (${err_snip:-reason unavailable})")
+    fi
+    rm -f "$main_branch_err" 2>/dev/null || true
     if [[ -n "$branch" && -n "$main_branch" && "$branch" != "$main_branch" ]]; then
         local behind
         behind=$(git -C "$path" rev-list --count "HEAD..$main_branch" 2>/dev/null || echo 0)
