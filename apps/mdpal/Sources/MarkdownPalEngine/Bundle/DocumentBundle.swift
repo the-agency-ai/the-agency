@@ -79,6 +79,74 @@ public final class DocumentBundle {
         try Self.reapOrphanTempFiles(bundlePath: path, fileManager: fileManager)
     }
 
+    /// Create a new bundle directory with an initial revision and an
+    /// optional set of additive top-level metadata extensions.
+    ///
+    /// `metadataExtensions` is a map of unknown top-level YAML keys to
+    /// their YAML-serialized values, embedded into the first revision's
+    /// metadata block via the parser. mdpal-app's inbox/reply flow uses
+    /// this to seed `review:` metadata at wrap time.
+    ///
+    /// **Phase 3 iter 3.2.** Additive extension over the base
+    /// `create(name:initialContent:at:timestamp:)` API; default empty
+    /// dict produces byte-identical output to the base call.
+    @discardableResult
+    public static func create(
+        name: String,
+        initialContent: String,
+        metadataExtensions: [String: String],
+        at directory: String,
+        timestamp: Date = Date()
+    ) throws -> DocumentBundle {
+        // If no extensions, fall back to the base path.
+        guard !metadataExtensions.isEmpty else {
+            return try create(
+                name: name,
+                initialContent: initialContent,
+                at: directory,
+                timestamp: timestamp
+            )
+        }
+        // Construct an augmented initialContent with the metadata block
+        // embedded. We construct a Document, set unknownTopLevelYAML,
+        // and serialize — that gives us the canonical placement (after
+        // the body, inside the markdown-pal-meta fence).
+        let parser = MarkdownParser()
+        // Parse for validation only — wrap rejects unparseable source.
+        _ = try parser.parse(initialContent)
+        let documentInfo = DocumentInfo(
+            versionId: VersionId.format(version: 1, revision: 1, timestamp: timestamp),
+            version: 1,
+            revision: 1,
+            timestamp: timestamp,
+            created: timestamp,
+            authors: ["mdpal-cli"]
+        )
+        let metadata = DocumentMetadata(
+            document: documentInfo,
+            unknownTopLevelYAML: metadataExtensions
+        )
+        let yaml = try MetadataSerializer.encode(metadata)
+        // The body is the original content minus any pre-existing
+        // metadata block (wrap source files are pancakes, so this is
+        // typically a no-op).
+        let body: String
+        if let range = parser.findMetadataBlock(in: initialContent) {
+            var stripped = initialContent
+            stripped.removeSubrange(range.outerRange)
+            body = stripped
+        } else {
+            body = initialContent
+        }
+        let augmentedContent = parser.writeMetadataBlock(yaml, into: body)
+        return try create(
+            name: name,
+            initialContent: augmentedContent,
+            at: directory,
+            timestamp: timestamp
+        )
+    }
+
     /// Create a new bundle directory with an initial revision.
     @discardableResult
     public static func create(

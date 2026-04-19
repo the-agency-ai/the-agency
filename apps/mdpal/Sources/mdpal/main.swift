@@ -58,6 +58,7 @@ struct Mdpal: ParsableCommand {
             DiffCommand.self,
             PruneCommand.self,
             RefreshCommand.self,
+            WrapCommand.self,
         ]
     )
 }
