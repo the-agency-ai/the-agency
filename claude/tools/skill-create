@@ -1,0 +1,364 @@
+#!/bin/bash
+#
+# skill-create — Scaffold an agency-skill-version 2 compliant skill bundle
+#
+# WHAT: Wraps Anthropic's `skills create` (from skills-cli) and layers
+# agency-v2 requirements: full bundle (SKILL.md + reference.md + examples.md
+# + scripts/ + assets/), all-fields frontmatter template, registry-row
+# append to claude/REFERENCE-SKILLS-INDEX.md.
+#
+# WHY: authors create skills ad-hoc today. Frontmatter incomplete; bundle
+# fragments; registry drifts. This tool enforces the v2 spec from scaffold.
+#
+# Part of the-agency#298 + #314 + #315 + #316 methodology work.
+#
+# USAGE:
+#   skill-create <name> --description "what it does" [--actor captain|agent|both|subagent]
+#
+# EXIT CODES:
+#   0 — scaffold created, registry row appended
+#   1 — precondition failed or skills-cli error
+#   2 — arg parse error / input validation failure
+#   3 — skill already exists
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${CLAUDE_PROJECT_DIR:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
+SKILLS_DIR="$REPO_ROOT/.claude/skills"
+REGISTRY="$REPO_ROOT/claude/REFERENCE-SKILLS-INDEX.md"
+
+# ── Args ─────────────────────────────────────────────────────────────────────
+
+NAME=""
+DESCRIPTION=""
+ACTOR="agent"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --description) DESCRIPTION="$2"; shift 2 ;;
+    --actor) ACTOR="$2"; shift 2 ;;
+    --version) echo "skill-create $TOOL_VERSION"; exit 0 ;;
+    --help|-h)
+      cat <<'EOF'
+Usage: skill-create <name> --description "what it does" [--actor captain|agent|both|subagent]
+
+Scaffolds an agency-skill-version 2 compliant skill bundle per
+claude/REFERENCE-SKILL-AUTHORING.md.
+
+Arguments:
+  <name>              Skill name (noun-verb or noun-actor-verb). Kebab-case.
+  --description       One-line description. Must NOT contain newlines or
+                      pipe characters (YAML/markdown-table safe).
+  --actor             agent (default) | captain | both | subagent.
+
+Exit codes:
+  0 — success
+  1 — precondition failure
+  2 — arg parse / input validation error
+  3 — skill already exists
+EOF
+      exit 0
+      ;;
+    -*) echo "skill-create: unknown flag: $1" >&2; exit 2 ;;
+    *) NAME="$1"; shift ;;
+  esac
+done
+
+if [[ -z "$NAME" ]]; then
+  echo "skill-create: <name> is required" >&2; exit 2
+fi
+
+if [[ -z "$DESCRIPTION" ]]; then
+  echo "skill-create: --description is required" >&2; exit 2
+fi
+
+case "$ACTOR" in
+  agent|captain|both|subagent) ;;
+  *) echo "skill-create: --actor must be agent, captain, both, or subagent" >&2; exit 2 ;;
+esac
+
+# Kebab-case validation for NAME (path-traversal + YAML-safety guard)
+if ! [[ "$NAME" =~ ^[a-z][a-z0-9-]*$ ]]; then
+  echo "skill-create: name must be lowercase kebab-case (letters, numbers, hyphens)" >&2; exit 2
+fi
+
+# Description validation — must be single-line, no pipes
+# Prevents YAML frontmatter corruption (F1) and markdown-table injection (F2)
+if [[ "$DESCRIPTION" == *$'\n'* ]]; then
+  echo "skill-create: --description must be single-line (no newlines)" >&2; exit 2
+fi
+if [[ "$DESCRIPTION" == *"|"* ]]; then
+  echo "skill-create: --description must not contain '|' (breaks registry markdown table)" >&2; exit 2
+fi
+
+# Sanitize quotes + backslashes for YAML safety — emit as YAML double-quoted scalar
+DESC_YAML=$(printf '%s' "$DESCRIPTION" | sed 's/\\/\\\\/g; s/"/\\"/g')
+
+# ── Preconditions ────────────────────────────────────────────────────────────
+
+if ! command -v skills &>/dev/null; then
+  echo "skill-create: skills-cli not found. Install with: uv tool install skills-cli" >&2
+  echo "  (see the-agency#307 — SessionStart dependency-install mechanism)" >&2
+  exit 1
+fi
+
+mkdir -p "$SKILLS_DIR"
+
+if [[ -d "$SKILLS_DIR/$NAME" ]]; then
+  echo "skill-create: skill '$NAME' already exists at $SKILLS_DIR/$NAME" >&2
+  exit 3
+fi
+
+# Cleanup trap — handles BOTH partial scaffold AND mktemp tmp file (H14 from MAR).
+# Single trap, composes both concerns so one doesn't overwrite the other.
+SUCCESS_MARK=false
+TMP_REG=""
+_cleanup_all() {
+    if [[ -n "$TMP_REG" ]] && [[ -f "$TMP_REG" ]]; then
+        rm -f "$TMP_REG"
+    fi
+    if [[ "$SUCCESS_MARK" != "true" ]] && [[ -d "$SKILLS_DIR/$NAME" ]]; then
+        rm -rf "$SKILLS_DIR/$NAME"
+        echo "skill-create: aborted; removed partial scaffold at $SKILLS_DIR/$NAME" >&2
+    fi
+}
+trap _cleanup_all EXIT
+
+if [[ ! -f "$REGISTRY" ]]; then
+  echo "skill-create: registry not found at $REGISTRY" >&2
+  echo "  Expected claude/REFERENCE-SKILLS-INDEX.md to exist. Run bootstrap first." >&2
+  exit 1
+fi
+
+# ── Determine scoping based on actor ─────────────────────────────────────────
+
+PATHS_LINE=""
+DISABLE_MODEL_INVOCATION="false"
+case "$ACTOR" in
+  agent)
+    PATHS_LINE='  - .claude/worktrees/**'
+    ;;
+  captain)
+    PATHS_LINE='  []'
+    DISABLE_MODEL_INVOCATION="true"
+    ;;
+  both|subagent)
+    PATHS_LINE='  []'
+    ;;
+esac
+
+# ── Invoke Anthropic skills create (subshell to protect caller cwd) ──────────
+
+echo "[skill-create] Invoking skills create for base scaffold..."
+(
+  cd "$SKILLS_DIR" || exit 1
+  skills create "$NAME" >/dev/null 2>&1 || true
+) || true
+
+# Ensure bundle structure exists (idempotent)
+mkdir -p "$SKILLS_DIR/$NAME/scripts" "$SKILLS_DIR/$NAME/assets"
+
+# ── Overwrite SKILL.md with agency-v2 template ──────────────────────────────
+
+cat > "$SKILLS_DIR/$NAME/SKILL.md" <<EOF
+---
+name: $NAME
+description: "$DESC_YAML"
+agency-skill-version: 2
+when_to_use: "TODO: explicit trigger phrases + anti-trigger phrases. NEVER-from-X statements as needed."
+argument-hint: "TODO: <arg1> <arg2> [--flag value]"
+paths:
+$PATHS_LINE
+disable-model-invocation: $DISABLE_MODEL_INVOCATION
+required_reading:
+  - claude/REFERENCE-SKILL-AUTHORING.md
+  # TODO: add framework reference docs this skill depends on, e.g.:
+  # - claude/REFERENCE-QUALITY-GATE.md
+---
+
+<!--
+  allowed-tools omitted — inherits Bash(*) from .claude/settings.json.
+  Subcommand-level restriction silently blocks fleet agents (flag #62/#63
+  / devex dispatch #171 / the-agency#298 caveat). If narrowing is
+  warranted here, use TOOL-level only (e.g., Bash(claude/tools/git-safe:*)).
+-->
+
+# $NAME
+
+TODO: One-line overview expanding the description. What this skill does.
+
+## Why this exists
+
+TODO: the pain addressed. Why reach for this over some alternative.
+
+## Required reading
+
+Before proceeding, Read the files listed in \`required_reading:\` frontmatter. They contain protocol details this skill relies on.
+
+## Usage
+
+\`\`\`
+/$NAME TODO: arg pattern
+\`\`\`
+
+## Preconditions
+
+TODO: what must be true before running, or "None — …"
+
+## Flow / Steps
+
+TODO: numbered step-by-step, or "Single step — …"
+
+## Failure modes
+
+TODO: per-step what can go wrong + recovery, or "No destructive operations; failures are benign"
+
+## What this does NOT do
+
+TODO: explicit non-goals, companion skills, or "N/A — scope is unambiguous"
+
+## Status
+
+pilot
+
+## Related
+
+TODO: companion skills, reference docs, upstream issues
+EOF
+
+# ── Create reference.md stub ─────────────────────────────────────────────────
+
+cat > "$SKILLS_DIR/$NAME/reference.md" <<EOF
+# $NAME — unique protocol
+
+TODO: protocol detail UNIQUE to this skill. Do not duplicate content from
+claude/REFERENCE-*.md — those are declared in SKILL.md required_reading.
+
+If this skill has no unique protocol, keep this note minimal:
+"This skill has no unique protocol. See required_reading in SKILL.md for
+all behavior specifications."
+EOF
+
+# ── Create examples.md stub ──────────────────────────────────────────────────
+
+cat > "$SKILLS_DIR/$NAME/examples.md" <<EOF
+# $NAME — examples
+
+## Happy-path examples
+
+TODO: typical invocations with expected output
+
+## Edge-case examples
+
+TODO: preconditions failing, what error looks like
+
+## Integration examples
+
+TODO: how this skill fits with other skills; composability
+EOF
+
+# ── Create scripts/README.md ─────────────────────────────────────────────────
+
+cat > "$SKILLS_DIR/$NAME/scripts/README.md" <<EOF
+# scripts/
+
+TODO: describe what scripts live here and why. If empty by design,
+explain: "Empty by design. This skill is pure orchestration — no
+skill-specific scripts needed."
+
+The v2 bundle-structure requirement says this directory exists even
+when empty; this README explains why.
+EOF
+
+# ── Create assets/README.md ──────────────────────────────────────────────────
+
+cat > "$SKILLS_DIR/$NAME/assets/README.md" <<EOF
+# assets/
+
+TODO: describe templates/static files here. If empty by design,
+explain: "Empty by design. This skill has no user-facing templates
+or static assets."
+
+The v2 bundle-structure requirement says this directory exists even
+when empty; this README explains why.
+EOF
+
+# ── Append registry row (atomic via mktemp + mv, with cleanup trap) ─────────
+
+# One-line summary — first sentence, but handle version-numbers like "v2.0"
+# by taking the first period-then-space or period-at-end split.
+# Fall back to the whole description if no natural sentence boundary exists.
+SUMMARY=$(printf '%s' "$DESCRIPTION" | awk 'BEGIN{FS="\\. "} {print $1}' | head -c 100)
+# Escape any remaining markdown-table meta (defense in depth; pipes already rejected)
+SUMMARY="${SUMMARY//|/\\|}"
+
+REGISTRY_SCOPE="$ACTOR"
+NEW_ROW="| $NAME | $SUMMARY | 2 | $REGISTRY_SCOPE | pilot | SKILL-AUTHORING |"
+
+TMP_REG=$(mktemp)
+# Note: TMP_REG cleanup is handled by the composed _cleanup_all trap set above.
+
+INSERTED=false
+while IFS= read -r line; do
+  if [[ "$INSERTED" = false && "$line" == "## Retrofit priorities" ]]; then
+    printf '%s\n' "$NEW_ROW" >> "$TMP_REG"
+    printf '\n' >> "$TMP_REG"
+    INSERTED=true
+  fi
+  printf '%s\n' "$line" >> "$TMP_REG"
+done < "$REGISTRY"
+
+if [[ "$INSERTED" = true ]]; then
+  mv "$TMP_REG" "$REGISTRY"
+  TMP_REG=""    # mv consumed the tmp file; tell the trap not to re-rm it
+  echo "[skill-create] Registry row appended."
+else
+  printf '\n%s\n' "$NEW_ROW" >> "$REGISTRY"
+  rm -f "$TMP_REG"
+  TMP_REG=""
+  echo "[skill-create] Registry row appended at EOF (anchor section heading missing — review placement)."
+fi
+
+# Mark full success — _cleanup_all trap will skip the partial-scaffold removal.
+SUCCESS_MARK=true
+
+# ── Author checklist ─────────────────────────────────────────────────────────
+
+cat <<EOF
+
+[ok] skill '$NAME' scaffolded at .claude/skills/$NAME/
+
+Next steps (author checklist):
+
+  [ ] Edit .claude/skills/$NAME/SKILL.md
+      - Fill description if the one you passed needs refinement
+      - Fill when_to_use with explicit trigger/anti-trigger phrases
+      - Fill argument-hint with real arg pattern
+      - Add required_reading entries for framework docs this skill needs
+      - Fill all 9 body sections. Use "N/A because ..." for genuinely empty.
+
+  [ ] Edit .claude/skills/$NAME/reference.md
+      - Protocol detail unique to this skill, or keep note minimal
+
+  [ ] Edit .claude/skills/$NAME/examples.md
+      - Happy-path / Edge-case / Integration examples
+
+  [ ] Decide if scripts/ needs real content. If not, update the README.
+
+  [ ] Decide if assets/ needs real content. If not, update the README.
+
+  [ ] Run skill-audit to verify v2 compliance + registry correctness:
+        claude/tools/skill-audit $NAME
+
+  [ ] Commit via /git-safe-commit.
+
+  [ ] If framework-level, upstream-port to the-agency after merge.
+
+  [ ] If pilot, dogfood once before promoting Status to 'active'.
+
+EOF
+
+exit 0

@@ -1,83 +1,185 @@
 ---
-description: Run the quality gate after completing an iteration — review, fix, test, report, auto-commit
+name: iteration-complete
+description: Run the quality gate after completing an iteration — review, fix, test, report, auto-commit. No principal approval needed (iteration boundary is auto-approved). Auto-emits a structured dispatch to captain so the small-batch-cadence daemon can pick up for PR landing.
+agency-skill-version: 2
+when_to_use: After completing an iteration of work inside a phase. For phase boundaries use /phase-complete. For final plan delivery use /plan-complete. For pre-PR gating of accumulated work use /pr-prep.
+argument-hint: "<phase.iter>: <description> [--base <ref>]"
+paths:
+  - .claude/worktrees/**
+required_reading:
+  - claude/REFERENCE-QUALITY-GATE.md
+  - claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md
 ---
 
 <!--
-  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
-  .claude/settings.json. Restricting to specific subcommand patterns at the
-  skill level silently blocks agents on permission prompts the agent cannot
-  see — see dispatch #171 for the devex incident that surfaced this trap.
+  allowed-tools intentionally omitted — inherits Bash(*) from
+  .claude/settings.json. Subcommand-level restriction silently blocked
+  fleet agents (flag #62/#63; devex dispatch #171). This skill composes
+  dispatch, diff-hash, receipt-sign, git-safe, git-safe-commit, and
+  Skill invocations — too broad to enumerate at subcommand level without
+  regression risk. Inherit Bash(*).
 -->
 
-# Iteration Complete
+# iteration-complete
 
-Run this after completing each iteration. Invokes `/quality-gate` for the review+fix cycle, then auto-commits — no principal approval needed.
+Run this after completing each iteration of work. Invokes `/quality-gate` for the review+fix cycle, auto-commits on green (no principal approval at iteration boundaries), and emits a structured dispatch to captain so the small-batch-cadence daemon can pick up for PR landing.
 
-## Arguments
+## Why this exists
 
-- $ARGUMENTS: Description of what was completed. Must include boundary type and phase-iteration (e.g., "iteration-complete 1.2: parser edge cases"). If empty or missing phase-iteration, ask the user before proceeding.
+Iteration boundaries are the smallest formal commit-and-review unit in the-agency's valueflow work stream. Without a dedicated skill, agents skip the quality gate, forget the receipt-sign step, or let the commit drift from the plan file. `iteration-complete` bundles all five responsibilities (QG run → QGR receipt → auto-commit → plan update → handoff update + dispatch to captain) so iteration-end is single-invocation and auditable.
 
-## Steps
+Auto-commit (no principal approval) is specifically for iteration boundaries — they're small, bounded units where the QG + receipt is sufficient attestation. Phase and plan boundaries use sister skills with principal approval gates.
 
-### Step 1: Preconditions
+## Required reading
 
-1. If `$ARGUMENTS` is empty, ask the user what was completed before proceeding.
-2. Run `git diff --stat HEAD` and `git status`. If no changed files, tell the user "Nothing to gate — no changes since last commit" and stop.
-3. Identify the plan file in `docs/plans/` that this work belongs to. If none exists, note "no plan file" — the commit message will omit the Plan: line.
+Before proceeding, Read the files listed in `required_reading:` frontmatter. `REFERENCE-QUALITY-GATE.md` is the protocol the invoked `/quality-gate` skill runs. `REFERENCE-RECEIPT-INFRASTRUCTURE.md` explains the five-hash chain that signs the iteration's QGR receipt.
 
-### Step 2: Determine the prior-iteration base ref
+## Usage
 
-The QG's Hash A/Hash E diff is computed against the **prior iteration commit** (or the phase-start commit if this is the first iteration in the phase). Determine it as follows, in order:
+```
+/iteration-complete <phase.iter>: <description> [--base <ref>]
+```
 
-1. **Read the plan file** in `docs/plans/` (or `claude/workstreams/*/`) for an iteration history / status table. The most recent prior iteration's commit SHA is the base. Many plans record this under "Quality Gate Reports" or a status table.
-2. **Grep git log** for the prior iteration's commit: `git log --oneline --grep="Phase <P>\\." | head` — e.g., for iteration 1.3, the base is the SHA of the commit titled "Phase 1.2: ...". If this is iteration X.1 (first iteration in the phase), use the phase-start tag / commit (e.g., `v{phase}.0` or the commit titled "Phase <P-1>: ..." if no tag).
-3. **Fallback:** `HEAD~1` — use only if steps 1 and 2 yield nothing, and note this in the handoff update as a fallback used.
+Examples:
+- `/iteration-complete 1.2: parser edge cases`
+- `/iteration-complete 1.3: error handling --base abc1234`
 
-Capture the SHA/ref as `$BASE_REF`.
+- `<phase.iter>`: numeric identifier (phase.iteration), e.g., `1.2`
+- `<description>`: one-line summary
+- `--base <ref>` (optional): override baseline for QG diff-hash; resolved automatically if omitted
+
+If invoked with empty arguments, ask what was completed before proceeding.
+
+## Preconditions
+
+- Changed files present (`git status` non-empty).
+- On a worktree branch (not master — this skill is worktree-only).
+- Prior iteration's commit identifiable (or explicit `--base` passed). First iteration in a phase uses the phase-start commit.
+- A plan file should exist under `docs/plans/` or `claude/workstreams/*/`. If absent, skill proceeds with a "no plan file" note in the commit; handoff captures the omission.
+
+## Flow / Steps
+
+### Step 1: Preflight
+
+1. If args empty, ask what was completed.
+2. `git status` + `git diff --stat HEAD`. If empty, report "Nothing to gate" and stop.
+3. Identify plan file.
+
+### Step 2: Determine prior-iteration base ref
+
+QG's Hash A / Hash E diff is computed against the prior iteration commit (or phase-start commit for first iteration). Resolution order:
+
+1. Read plan file for iteration history / status table; use the last iteration's commit SHA.
+2. Grep git log for the prior-iteration commit: `git log --oneline --grep="Phase <P>\\."`. If this is X.1, use phase-start tag/commit.
+3. Fallback: `HEAD~1`. Note fallback usage in handoff.
+
+Capture as `$BASE_REF`.
 
 ### Step 3: Run the quality gate
 
-Invoke `/quality-gate` via the Skill tool, passing arguments that include both the boundary description AND the base ref:
-
 ```
-iteration-complete 1.2: parser edge cases --base <BASE_REF>
+/quality-gate iteration-complete <phase.iter>: <description> --base <BASE_REF>
 ```
 
-For example: `iteration-complete 1.2: parser edge cases --base abc1234`.
+Leading `iteration-complete <phase.iter>` tells QG the boundary type (used in receipt filename). `--base` tells QG the baseline for Hash A/E via `diff-hash --base`.
 
-The leading `iteration-complete <phase-iter>` tells `/quality-gate` the boundary type (used in the receipt filename). The `--base <ref>` tells `/quality-gate` what baseline to use for Hash A / Hash E via `diff-hash --base`.
+Full QG protocol runs: parallel review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt (five-hash chain at `claude/workstreams/{W}/qgr/`). Iteration-complete is auto-approved — Hash D = Hash C.
 
-This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt via `receipt-sign` (five-hash chain, written to `claude/workstreams/{W}/qgr/`). Iteration-complete is auto-approved — Hash D = Hash C.
+Wait for receipt signed before proceeding.
 
-Wait for the QGR to be presented and the receipt signed before proceeding.
+### Step 4: Commit (auto)
 
-### Step 4: Commit automatically
+No approval. Commit automatically after clean QGR.
 
-At iteration boundaries, no approval is needed. Commit automatically after a clean QGR.
+Use `/git-safe-commit` with the full structured commit message from the QGR's "Proposed Commit" section.
 
-Use `/git-safe-commit` via the Skill tool. Pass it the full structured commit message from the QGR's "Proposed Commit" section. The message must follow the format from the injected `quality-gate.md` reference.
+### Step 5: Update plan file
 
-### Step 5: Update the plan
+Append to the plan under "Quality Gate Reports":
 
-After committing, update the plan file in `docs/plans/` to reflect:
+- What was done
+- What QG found + fixed
+- Plan changes (scope, reordering, new findings)
+- Iteration status-table row
 
-- What was done in this commit (iteration/phase status change)
-- What the quality gate found (bugs fixed, test gaps closed)
-- Any changes to the plan itself (scope adjustments, reordering, new findings)
-- Iteration-level status table for multi-iteration phases
-- **Append the full QGR** (all three tables + summary) under a "Quality Gate Reports" section. Each iteration gets its own subsection. This is required — the plan is the living record.
+Append the full QGR (all tables + summary). The plan is the living record.
 
 ### Step 6: Update handoff
 
-Locate the handoff file for this project (glob `usr/*/*/handoff.md` or `usr/*/captain/handoff.md`). Update with:
+Update the worktree handoff file (`usr/*/*/handoff.md` or `usr/*/captain/handoff.md`):
 
-- Current phase and iteration status
-- What was just committed (summary, not full QGR)
-- What's next (next iteration or phase-complete)
-- Any decisions made or context that would help a fresh session continue
+- Current phase + iteration status
+- What just committed (summary, not full QGR)
+- What's next
+- Context for fresh-session continuation
 
-### Note
+### Step 7: Emit iteration-complete dispatch to captain
 
-This command handles iteration boundaries only. At phase boundaries, use `/phase-complete` instead — it runs a deep QG, requires principal approval, and lands on master.
+Structured dispatch for captain's auto-ship daemon. Must run AFTER the commit (Step 4) so `commit_hash` is current.
 
-After completing this iteration, move to the next iteration. When all iterations in a phase are done, run `/phase-complete`.
+Capture:
+- `ITERATION_SLUG` (e.g., "1.2")
+- `PHASE_NUM`
+- `BRANCH` = `git branch --show-current`
+- `COMMIT_HASH` = the Step 4 commit
+- `SUMMARY` = first line of commit message
+- `RECEIPT_PATH` = QGR receipt path from Step 3
+
+Emit:
+
+```
+bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch create \
+  --to {repo}/{principal}/captain \
+  --type iteration-complete \
+  --subject "Iteration {ITERATION_SLUG} complete on {BRANCH}" \
+  --body "<yaml body — see below>"
+```
+
+Body:
+
+```yaml
+event: iteration-complete
+iteration: {ITERATION_SLUG}
+phase: {PHASE_NUM}
+branch: {BRANCH}
+commit_hash: {COMMIT_HASH}
+summary: {SUMMARY}
+qgr_receipt: {RECEIPT_PATH}
+emitted_at: {ISO-8601 timestamp}
+```
+
+Cascade isolation: export `AGENCY_SKILL_BYPASS_CASCADE=1` at skill start and unset at end if running multiple commits within the skill.
+
+## Failure modes
+
+- **No changes to gate** (Step 1): skill stops cleanly with "Nothing to gate" message. Not an error.
+- **QG fails** (Step 3): fix-and-retry per QG protocol — the gate itself handles findings, no special iteration-complete handling needed.
+- **Commit fails** (Step 4): usually a pre-commit hook (lint-staged, oxfmt). Fix the blocking issue; re-run from Step 4 (QG already passed; no need to re-run Step 3).
+- **Plan file missing** (Step 5): skill notes "no plan file" and continues. Handoff records the gap.
+- **Dispatch emission fails** (Step 7): skill warns but exits 0 — the commit itself is the authoritative record; dispatch is notification. Captain catches the omission via other mechanisms (handoff read, manual check).
+
+## What this does NOT do
+
+- **Does not land on master** — iteration-complete is a worktree-side boundary. Phase boundary + pr-submit + captain's pr-captain-land land on master.
+- **Does not require principal approval** — iteration boundaries are auto-approved; the QG + receipt is sufficient attestation.
+- **Does not run deep QG** — the QG here is iteration-scoped (diff against prior iteration). Phase and plan boundaries run deeper variants.
+- **Does not squash prior iteration commits** — those stay individually visible in history; squash happens (if at all) at phase boundary.
+
+## Status
+
+`active` (v2, body retrofit from Arguments/Steps pattern to 9-section structure 2026-04-19).
+
+## Related
+
+- `/quality-gate` — the core QG protocol this skill invokes in Step 3
+- `/phase-complete` — sibling skill for phase boundaries (deep QG + principal approval)
+- `/plan-complete` — sibling skill for plan delivery (final deep QG + A&D)
+- `/pr-prep` — pre-PR gating for accumulated work
+- `/pr-submit` — agent's hand-off to captain for PR landing (runs AFTER iteration-complete when ready to ship)
+- `claude/tools/receipt-sign` — signs the five-hash receipt
+- `claude/tools/dispatch` — emits the Step 7 notification
+- `claude/workstreams/captain/small-batch-cadence-*.md` — design for the auto-ship daemon that consumes Step 7's dispatch
+- the-agency#298 — skill refactor recommendation
+- the-agency#315 — V1→V2 migration
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

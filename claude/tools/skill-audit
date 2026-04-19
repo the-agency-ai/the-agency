@@ -1,0 +1,380 @@
+#!/bin/bash
+#
+# skill-audit — Audit framework skills for agency-skill-version 2 compliance
+#                + registry consistency
+#
+# WHAT: For each skill under .claude/skills/, checks:
+#   (a) structural validity (calls `skills validate` if skills-cli present)
+#   (b) agency-v2 compliance (required frontmatter fields, bundle files,
+#       body section headings)
+#   (c) required_reading paths resolve to real files
+#   (d) registry consistency — row in REFERENCE-SKILLS-INDEX.md exists and
+#       matches directory name
+#
+# WHY: the-agency#298 + #315 — automated audit of the v2 methodology rollout.
+# Manual drift detection doesn't scale past 60 skills.
+#
+# USAGE:
+#   skill-audit                    # audit all skills
+#   skill-audit <skill-name>       # audit one
+#   skill-audit --json             # machine-readable output
+#   skill-audit --fix              # auto-fix drift where safe
+#   skill-audit --quiet            # only print on issues
+#
+# EXIT CODES:
+#   0 — clean
+#   1 — drift (registry vs filesystem mismatch)
+#   2 — v2 non-compliance
+#   3 — tool error
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${CLAUDE_PROJECT_DIR:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
+SKILLS_DIR="$REPO_ROOT/.claude/skills"
+REGISTRY="$REPO_ROOT/claude/REFERENCE-SKILLS-INDEX.md"
+
+# Required body-structure section headings per REFERENCE-SKILL-AUTHORING.md §5
+REQUIRED_SECTIONS=(
+  "## Why this exists"
+  "## Required reading"
+  "## Usage"
+  "## Preconditions"
+  "## Flow / Steps"
+  "## Failure modes"
+  "## What this does NOT do"
+  "## Status"
+  "## Related"
+)
+
+# ── Args ─────────────────────────────────────────────────────────────────────
+
+TARGET=""
+JSON=false
+FIX=false
+QUIET=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) JSON=true; shift ;;
+    --fix) FIX=true; shift ;;
+    --quiet|-q) QUIET=true; shift ;;
+    --version) echo "skill-audit $TOOL_VERSION"; exit 0 ;;
+    --help|-h)
+      cat <<'EOF'
+Usage: skill-audit [<skill-name>] [--json] [--fix] [--quiet]
+
+Audit framework skills for agency-skill-version 2 compliance + registry
+consistency. Checks structure, v2 frontmatter, bundle completeness,
+required_reading paths, body sections, and registry drift.
+
+Exit codes:
+  0 — clean
+  1 — drift (registry <-> filesystem mismatch)
+  2 — v2 non-compliance
+  3 — tool error
+
+See claude/REFERENCE-SKILL-AUTHORING.md for the v2 spec.
+EOF
+      exit 0
+      ;;
+    -*) echo "skill-audit: unknown flag: $1" >&2; exit 2 ;;
+    *) TARGET="$1"; shift ;;
+  esac
+done
+
+# ── Preconditions ────────────────────────────────────────────────────────────
+
+if [[ ! -d "$SKILLS_DIR" ]]; then
+  echo "skill-audit: skills directory not found at $SKILLS_DIR" >&2
+  exit 3
+fi
+
+if [[ ! -f "$REGISTRY" ]]; then
+  echo "skill-audit: registry not found at $REGISTRY" >&2
+  exit 3
+fi
+
+# If TARGET specified, validate it exists as a directory
+if [[ -n "$TARGET" && ! -d "$SKILLS_DIR/$TARGET" ]]; then
+  echo "skill-audit: skill '$TARGET' not found at $SKILLS_DIR/$TARGET" >&2
+  exit 3
+fi
+
+SKILLS_VALIDATE_AVAILABLE=false
+if command -v skills &>/dev/null; then
+  SKILLS_VALIDATE_AVAILABLE=true
+fi
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+# Extract a YAML frontmatter field value from a SKILL.md file.
+# Handles: scalar values, YAML lists (returns all list items, one per line).
+# Anchors field match to end-of-field (colon followed by space or EOL).
+_get_frontmatter() {
+  local file="$1" field="$2"
+  if [[ ! -f "$file" ]]; then
+    echo ""; return
+  fi
+  awk -v field="$field" '
+    BEGIN { in_fm=0; in_list=0 }
+    /^---$/ { if (in_fm==0) { in_fm=1; next } else { exit } }
+    in_fm==1 {
+      # Match "field:" followed by space or end-of-line (not field_other:)
+      if ($0 ~ "^"field":([ \t]|$)") {
+        sub("^"field":[ \t]*", "", $0)
+        if ($0 == "") { in_list=1 } else { print $0; exit }
+      } else if (in_list==1) {
+        # List continuation: indented lines; stop on any top-level key
+        if ($0 ~ /^[ \t]/) {
+          print $0
+        } else {
+          in_list=0
+        }
+      }
+    }
+  ' "$file"
+}
+
+_get_version() {
+  _get_frontmatter "$1" "agency-skill-version" | tr -d ' '
+}
+
+# ── Audit state ──────────────────────────────────────────────────────────────
+
+AUDIT_COUNT=0
+CLEAN_COUNT=0
+DRIFT_COUNT=0
+NONCOMPLIANT_COUNT=0
+FIXED_COUNT=0
+
+ISSUES=()
+
+# ── Audit a single skill ─────────────────────────────────────────────────────
+
+_audit_skill() {
+  local skill_name="$1"
+  local skill_dir="$SKILLS_DIR/$skill_name"
+  local skill_file="$skill_dir/SKILL.md"
+  local version
+  local issues_for_skill=0
+
+  AUDIT_COUNT=$((AUDIT_COUNT + 1))
+
+  if [[ ! -f "$skill_file" ]]; then
+    ISSUES+=("$skill_name: missing SKILL.md")
+    NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+    return
+  fi
+
+  version=$(_get_version "$skill_file")
+
+  # v1 skills: only registry check applies
+  if [[ "$version" != "2" ]]; then
+    if ! grep -qF "| $skill_name " "$REGISTRY" 2>/dev/null; then
+      ISSUES+=("$skill_name (v${version:-1}): not in registry")
+      DRIFT_COUNT=$((DRIFT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    fi
+    if [[ $issues_for_skill -eq 0 ]]; then
+      CLEAN_COUNT=$((CLEAN_COUNT + 1))
+    fi
+    return
+  fi
+
+  # === v2 compliance ===
+
+  # 1. Bundle completeness (5 required paths)
+  local required_paths=(
+    "$skill_dir/SKILL.md"
+    "$skill_dir/reference.md"
+    "$skill_dir/examples.md"
+    "$skill_dir/scripts"
+    "$skill_dir/assets"
+  )
+  for p in "${required_paths[@]}"; do
+    if [[ ! -e "$p" ]]; then
+      local rel="${p#"$skill_dir/"}"
+      ISSUES+=("$skill_name (v2): missing $rel")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+      if [[ "$FIX" = true ]]; then
+        case "$rel" in
+          reference.md)
+            printf "# %s — unique protocol\n\nTODO: fill or note empty\n" "$skill_name" > "$p"
+            FIXED_COUNT=$((FIXED_COUNT + 1))
+            ;;
+          examples.md)
+            printf "# %s — examples\n\n## Happy-path\n\n## Edge-case\n\n## Integration\n" "$skill_name" > "$p"
+            FIXED_COUNT=$((FIXED_COUNT + 1))
+            ;;
+          scripts)
+            mkdir -p "$p"
+            printf "# scripts/\n\nTODO: describe or note empty\n" > "$p/README.md"
+            FIXED_COUNT=$((FIXED_COUNT + 1))
+            ;;
+          assets)
+            mkdir -p "$p"
+            printf "# assets/\n\nTODO: describe or note empty\n" > "$p/README.md"
+            FIXED_COUNT=$((FIXED_COUNT + 1))
+            ;;
+        esac
+      fi
+    fi
+  done
+
+  # 2. Required frontmatter fields
+  local required_fields=(
+    "name"
+    "description"
+    "agency-skill-version"
+    "when_to_use"
+    "argument-hint"
+    "paths"
+    "required_reading"
+  )
+  for f in "${required_fields[@]}"; do
+    local val
+    val=$(_get_frontmatter "$skill_file" "$f")
+    if [[ -z "$val" ]]; then
+      ISSUES+=("$skill_name (v2): missing frontmatter field '$f'")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    fi
+  done
+
+  # 3. Name matches dir
+  local declared_name
+  declared_name=$(_get_frontmatter "$skill_file" "name" | tr -d ' ')
+  if [[ "$declared_name" != "$skill_name" && -n "$declared_name" ]]; then
+    ISSUES+=("$skill_name (v2): frontmatter name='$declared_name' doesn't match directory")
+    NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+    issues_for_skill=$((issues_for_skill + 1))
+  fi
+
+  # 4. required_reading paths resolve to real files
+  local rr
+  rr=$(_get_frontmatter "$skill_file" "required_reading")
+  if [[ -n "$rr" ]]; then
+    while IFS= read -r rr_line; do
+      local rr_path
+      rr_path=$(echo "$rr_line" | sed 's/^[ \t]*-[ \t]*//')
+      [[ -z "$rr_path" || "$rr_path" =~ ^# ]] && continue
+      if [[ ! -f "$REPO_ROOT/$rr_path" ]]; then
+        ISSUES+=("$skill_name (v2): required_reading path not found: $rr_path")
+        NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+        issues_for_skill=$((issues_for_skill + 1))
+      fi
+    done <<< "$rr"
+  fi
+
+  # 5. Body section headings (9 required per v2 spec)
+  # Use anchored regex (-E + ^) to avoid matching H3 (### Foo) as H2 (## Foo).
+  # Fix for H5 from MAR 2026-04-19 — grep -F substring match was too lenient.
+  if [[ -f "$skill_file" ]]; then
+    for section in "${REQUIRED_SECTIONS[@]}"; do
+      # Escape regex metacharacters in section name for safe grep -E.
+      # Required sections use '##', '/', and spaces — / and space are literal in ERE.
+      local pattern="^${section//\//\\/}\$"
+      if ! grep -qE "$pattern" "$skill_file" 2>/dev/null; then
+        # Also accept the heading with trailing content (e.g., "## Usage — notes")
+        local pattern_loose="^${section//\//\\/}( |\$)"
+        if ! grep -qE "$pattern_loose" "$skill_file" 2>/dev/null; then
+          ISSUES+=("$skill_name (v2): missing body section '$section'")
+          NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+          issues_for_skill=$((issues_for_skill + 1))
+        fi
+      fi
+    done
+  fi
+
+  # 6. Registry row
+  if ! grep -qF "| $skill_name " "$REGISTRY" 2>/dev/null; then
+    ISSUES+=("$skill_name (v2): not in registry (claude/REFERENCE-SKILLS-INDEX.md)")
+    DRIFT_COUNT=$((DRIFT_COUNT + 1))
+    issues_for_skill=$((issues_for_skill + 1))
+  fi
+
+  # 7. Anthropic skills validate
+  if [[ "$SKILLS_VALIDATE_AVAILABLE" = true ]]; then
+    if ! skills validate "$skill_dir" &>/dev/null; then
+      ISSUES+=("$skill_name (v2): skills validate reports structural issue")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    fi
+  fi
+
+  if [[ $issues_for_skill -eq 0 ]]; then
+    CLEAN_COUNT=$((CLEAN_COUNT + 1))
+  fi
+}
+
+# ── Audit loop ───────────────────────────────────────────────────────────────
+
+if [[ -n "$TARGET" ]]; then
+  _audit_skill "$TARGET"
+else
+  for d in "$SKILLS_DIR"/*/; do
+    [[ -d "$d" ]] || continue
+    _audit_skill "$(basename "$d")"
+  done
+fi
+
+# ── Report ───────────────────────────────────────────────────────────────────
+
+if [[ "$JSON" = true ]]; then
+  printf '{\n'
+  printf '  "audited": %d,\n' "$AUDIT_COUNT"
+  printf '  "clean": %d,\n' "$CLEAN_COUNT"
+  printf '  "drift": %d,\n' "$DRIFT_COUNT"
+  printf '  "noncompliant": %d,\n' "$NONCOMPLIANT_COUNT"
+  printf '  "fixed": %d,\n' "$FIXED_COUNT"
+  printf '  "issues": ['
+  first=true
+  if [[ ${#ISSUES[@]} -gt 0 ]]; then
+    for issue in "${ISSUES[@]}"; do
+      if [[ "$first" = true ]]; then first=false; else printf ','; fi
+      escaped=$(printf '%s' "$issue" | sed 's/"/\\"/g')
+      printf '\n    "%s"' "$escaped"
+    done
+  fi
+  printf '\n  ]\n'
+  printf '}\n'
+else
+  # Always print fixes when --fix used, even in --quiet mode
+  local_print=false
+  if [[ "$QUIET" = false ]] || [[ ${#ISSUES[@]} -gt 0 ]] || [[ "$FIX" = true && "$FIXED_COUNT" -gt 0 ]]; then
+    local_print=true
+  fi
+
+  if [[ "$local_print" = true ]]; then
+    echo ""
+    echo "Skill Audit — $AUDIT_COUNT skills audited"
+    echo "-----------------------------------------"
+    echo "  [ok]   Clean:         $CLEAN_COUNT"
+    echo "  [warn] Drift:         $DRIFT_COUNT"
+    echo "  [fail] Non-compliant: $NONCOMPLIANT_COUNT"
+    if [[ "$FIX" = true ]]; then
+      echo "  [fix]  Auto-fixed:    $FIXED_COUNT"
+    fi
+    echo ""
+    if [[ ${#ISSUES[@]} -gt 0 ]]; then
+      echo "Issues:"
+      for issue in "${ISSUES[@]}"; do
+        echo "  - $issue"
+      done
+      echo ""
+    fi
+  fi
+fi
+
+# ── Exit code ────────────────────────────────────────────────────────────────
+
+if [[ "$NONCOMPLIANT_COUNT" -gt 0 ]]; then
+  exit 2
+elif [[ "$DRIFT_COUNT" -gt 0 ]]; then
+  exit 1
+fi
+exit 0
