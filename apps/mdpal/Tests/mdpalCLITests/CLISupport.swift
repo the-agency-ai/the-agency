@@ -102,7 +102,8 @@ enum CLISupport {
         _ args: [String],
         stdin: String? = nil,
         timeoutSeconds: TimeInterval = defaultTimeoutSeconds,
-        executableURL: URL? = nil
+        executableURL: URL? = nil,
+        env: [String: String]? = nil
     ) throws -> Output {
         // T13 (phase-complete): the optional `executableURL` lets a test
         // exercise the real runCLI machinery (pipe drain + watchdog +
@@ -110,11 +111,22 @@ enum CLISupport {
         // /bin/sleep, without forcing a hang scenario through the mdpal
         // binary itself. Production callers leave it nil; the resolver
         // falls back to the locally-built mdpal binary.
+        //
+        // Phase 3 iter 3.4: optional `env` lets a test override
+        // environment variables (notably MDPAL_ROOT for sandbox tests)
+        // without mutating the shared process environment. When nil,
+        // child inherits parent's env; when set, child sees the
+        // OVERLAY of parent env + these keys.
         let binary = try executableURL ?? binaryURL()
 
         let process = Process()
         process.executableURL = binary
         process.arguments = args
+        if let env {
+            var merged = ProcessInfo.processInfo.environment
+            for (k, v) in env { merged[k] = v }
+            process.environment = merged
+        }
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
