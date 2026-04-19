@@ -23,42 +23,65 @@
 
 set -euo pipefail
 
-TOOL_VERSION="1.0.0"
+TOOL_VERSION="1.1.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${CLAUDE_PROJECT_DIR:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
 SKILLS_DIR="$REPO_ROOT/.claude/skills"
 REGISTRY="$REPO_ROOT/claude/REFERENCE-SKILLS-INDEX.md"
+LOCK_FILE="$REPO_ROOT/.claude/skill-create.lock"
+
+# the-agency#320 item 3: structured telemetry
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+  # shellcheck source=./lib/_log-helper
+  source "$SCRIPT_DIR/lib/_log-helper"
+else
+  log_start() { echo ""; }
+  log_end()   { :; }
+fi
 
 # ── Args ─────────────────────────────────────────────────────────────────────
 
 NAME=""
 DESCRIPTION=""
 ACTOR="agent"
+UPGRADE_MODE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --description) DESCRIPTION="$2"; shift 2 ;;
     --actor) ACTOR="$2"; shift 2 ;;
+    --upgrade) UPGRADE_MODE=true; shift ;;
     --version) echo "skill-create $TOOL_VERSION"; exit 0 ;;
     --help|-h)
       cat <<'EOF'
-Usage: skill-create <name> --description "what it does" [--actor captain|agent|both|subagent]
+Usage:
+  skill-create <name> --description "what it does" [--actor captain|agent|both|subagent]
+  skill-create --upgrade <name>
 
-Scaffolds an agency-skill-version 2 compliant skill bundle per
-claude/REFERENCE-SKILL-AUTHORING.md.
+Modes:
+  create (default)    — scaffold new v2-compliant skill bundle
+  --upgrade           — retrofit existing v1 skill to v2 (the-agency#320 item 1)
 
-Arguments:
+Create-mode arguments:
   <name>              Skill name (noun-verb or noun-actor-verb). Kebab-case.
   --description       One-line description. Must NOT contain newlines or
                       pipe characters (YAML/markdown-table safe).
   --actor             agent (default) | captain | both | subagent.
 
+Upgrade-mode arguments:
+  --upgrade <name>    Existing v1 skill name under .claude/skills/<name>.
+                      Scaffolds missing bundle files (reference.md, examples.md,
+                      scripts/README, assets/README), adds v2 required frontmatter
+                      fields with TODO placeholders (does NOT overwrite existing
+                      name/description/body content), bumps registry row to v2.
+
 Exit codes:
   0 — success
   1 — precondition failure
   2 — arg parse / input validation error
-  3 — skill already exists
+  3 — skill already exists (create) / skill doesn't exist (upgrade)
+  4 — upgrade would overwrite content (safety abort)
 EOF
       exit 0
       ;;
@@ -71,45 +94,62 @@ if [[ -z "$NAME" ]]; then
   echo "skill-create: <name> is required" >&2; exit 2
 fi
 
-if [[ -z "$DESCRIPTION" ]]; then
-  echo "skill-create: --description is required" >&2; exit 2
-fi
-
-case "$ACTOR" in
-  agent|captain|both|subagent) ;;
-  *) echo "skill-create: --actor must be agent, captain, both, or subagent" >&2; exit 2 ;;
-esac
-
 # Kebab-case validation for NAME (path-traversal + YAML-safety guard)
 if ! [[ "$NAME" =~ ^[a-z][a-z0-9-]*$ ]]; then
   echo "skill-create: name must be lowercase kebab-case (letters, numbers, hyphens)" >&2; exit 2
 fi
 
-# Description validation — must be single-line, no pipes
-# Prevents YAML frontmatter corruption (F1) and markdown-table injection (F2)
-if [[ "$DESCRIPTION" == *$'\n'* ]]; then
-  echo "skill-create: --description must be single-line (no newlines)" >&2; exit 2
-fi
-if [[ "$DESCRIPTION" == *"|"* ]]; then
-  echo "skill-create: --description must not contain '|' (breaks registry markdown table)" >&2; exit 2
-fi
+# Description is only required in create mode
+if [[ "$UPGRADE_MODE" = false ]]; then
+  if [[ -z "$DESCRIPTION" ]]; then
+    echo "skill-create: --description is required (create mode)" >&2; exit 2
+  fi
 
-# Sanitize quotes + backslashes for YAML safety — emit as YAML double-quoted scalar
-DESC_YAML=$(printf '%s' "$DESCRIPTION" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  case "$ACTOR" in
+    agent|captain|both|subagent) ;;
+    *) echo "skill-create: --actor must be agent, captain, both, or subagent" >&2; exit 2 ;;
+  esac
+
+  # Description validation — must be single-line, no pipes
+  # Prevents YAML frontmatter corruption (F1) and markdown-table injection (F2)
+  if [[ "$DESCRIPTION" == *$'\n'* ]]; then
+    echo "skill-create: --description must be single-line (no newlines)" >&2; exit 2
+  fi
+  if [[ "$DESCRIPTION" == *"|"* ]]; then
+    echo "skill-create: --description must not contain '|' (breaks registry markdown table)" >&2; exit 2
+  fi
+
+  # Sanitize quotes + backslashes for YAML safety — emit as YAML double-quoted scalar
+  DESC_YAML=$(printf '%s' "$DESCRIPTION" | sed 's/\\/\\\\/g; s/"/\\"/g')
+fi
 
 # ── Preconditions ────────────────────────────────────────────────────────────
 
-if ! command -v skills &>/dev/null; then
-  echo "skill-create: skills-cli not found. Install with: uv tool install skills-cli" >&2
-  echo "  (see the-agency#307 — SessionStart dependency-install mechanism)" >&2
-  exit 1
-fi
-
 mkdir -p "$SKILLS_DIR"
 
-if [[ -d "$SKILLS_DIR/$NAME" ]]; then
-  echo "skill-create: skill '$NAME' already exists at $SKILLS_DIR/$NAME" >&2
-  exit 3
+# skills-cli is only needed in create mode (upgrade never calls `skills create`)
+if [[ "$UPGRADE_MODE" = false ]]; then
+  if ! command -v skills &>/dev/null; then
+    echo "skill-create: skills-cli not found. Install with: uv tool install skills-cli" >&2
+    echo "  (see the-agency#307 — SessionStart dependency-install mechanism)" >&2
+    exit 1
+  fi
+
+  if [[ -d "$SKILLS_DIR/$NAME" ]]; then
+    echo "skill-create: skill '$NAME' already exists at $SKILLS_DIR/$NAME" >&2
+    echo "  Hint: use --upgrade <name> to retrofit an existing v1 skill to v2." >&2
+    exit 3
+  fi
+else
+  # Upgrade mode: skill must EXIST
+  if [[ ! -d "$SKILLS_DIR/$NAME" ]]; then
+    echo "skill-create --upgrade: skill '$NAME' not found at $SKILLS_DIR/$NAME" >&2
+    exit 3
+  fi
+  if [[ ! -f "$SKILLS_DIR/$NAME/SKILL.md" ]]; then
+    echo "skill-create --upgrade: SKILL.md missing at $SKILLS_DIR/$NAME/SKILL.md" >&2
+    exit 3
+  fi
 fi
 
 # Cleanup trap — handles BOTH partial scaffold AND mktemp tmp file (H14 from MAR).
@@ -131,6 +171,208 @@ if [[ ! -f "$REGISTRY" ]]; then
   echo "skill-create: registry not found at $REGISTRY" >&2
   echo "  Expected claude/REFERENCE-SKILLS-INDEX.md to exist. Run bootstrap first." >&2
   exit 1
+fi
+
+# the-agency#320 item 3: structured run telemetry
+RUN_ID=$(log_start "skill-create" "$@" 2>/dev/null || echo "")
+
+# the-agency#320 item 4: serialize registry writes (concurrent-append safety)
+# Open fd 9 for the lockfile. `flock -x 9` acquires exclusive lock; releases
+# on script exit (fd closed). Safe across multiple skill-create invocations.
+# Works on macOS (util-linux flock or brew-installed flock) and Linux.
+_registry_lock() {
+  if command -v flock >/dev/null 2>&1; then
+    exec 9>"$LOCK_FILE" || return 1
+    flock -x -w 30 9 || {
+      echo "skill-create: could not acquire registry lock after 30s" >&2
+      return 1
+    }
+  fi
+  # If no flock available, fall through without locking (single-writer assumption).
+  return 0
+}
+
+_registry_unlock() {
+  if command -v flock >/dev/null 2>&1; then
+    flock -u 9 2>/dev/null || :
+    exec 9>&- 2>/dev/null || :
+  fi
+}
+
+# ── Upgrade mode (the-agency#320 item 1) ────────────────────────────────────
+
+if [[ "$UPGRADE_MODE" = true ]]; then
+  SKILL_FILE="$SKILLS_DIR/$NAME/SKILL.md"
+  echo "[skill-create --upgrade] Retrofitting $NAME to v2 compliance..."
+
+  # Read existing frontmatter fields (best-effort via python3+yaml)
+  _existing() {
+    local field="$1"
+    if command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1; then
+      FILE="$SKILL_FILE" FIELD="$field" python3 -c '
+import os, sys, yaml
+with open(os.environ["FILE"], "r", encoding="utf-8") as f:
+    txt = f.read()
+if not txt.startswith("---"):
+    sys.exit(0)
+end = txt.find("\n---", 3)
+if end < 0:
+    sys.exit(0)
+try:
+    fm = yaml.safe_load(txt[3:end].lstrip("\n")) or {}
+except yaml.YAMLError:
+    sys.exit(0)
+val = fm.get(os.environ["FIELD"])
+if val is None:
+    sys.exit(0)
+print(val if isinstance(val, str) else "")
+' 2>/dev/null
+    fi
+  }
+
+  EXISTING_VERSION=$(_existing "agency-skill-version")
+  if [[ "$EXISTING_VERSION" = "2" ]]; then
+    echo "[skill-create --upgrade] $NAME is already agency-skill-version 2. No frontmatter changes needed."
+  fi
+
+  # Create missing bundle files (safe — only writes if absent)
+  mkdir -p "$SKILLS_DIR/$NAME/scripts" "$SKILLS_DIR/$NAME/assets"
+
+  if [[ ! -f "$SKILLS_DIR/$NAME/reference.md" ]]; then
+    printf "# %s — unique protocol\n\nTODO: fill with protocol unique to this skill, or note: \"This skill has no unique protocol. See required_reading in SKILL.md for all behavior specifications.\"\n" "$NAME" > "$SKILLS_DIR/$NAME/reference.md"
+    echo "[skill-create --upgrade] created reference.md"
+  fi
+
+  if [[ ! -f "$SKILLS_DIR/$NAME/examples.md" ]]; then
+    printf "# %s — examples\n\n## Happy-path examples\n\nTODO: typical invocations with expected output\n\n## Edge-case examples\n\nTODO: preconditions failing, what error looks like\n\n## Integration examples\n\nTODO: how this skill fits with other skills; composability\n" "$NAME" > "$SKILLS_DIR/$NAME/examples.md"
+    echo "[skill-create --upgrade] created examples.md"
+  fi
+
+  if [[ ! -f "$SKILLS_DIR/$NAME/scripts/README.md" ]]; then
+    printf "# scripts/\n\nTODO: describe what scripts live here and why. If empty by design, explain: \"Empty by design. This skill is pure orchestration — no skill-specific scripts needed.\"\n" > "$SKILLS_DIR/$NAME/scripts/README.md"
+    echo "[skill-create --upgrade] created scripts/README.md"
+  fi
+
+  if [[ ! -f "$SKILLS_DIR/$NAME/assets/README.md" ]]; then
+    printf "# assets/\n\nTODO: describe templates/static files here. If empty by design, explain: \"Empty by design. This skill has no user-facing templates or static assets.\"\n" > "$SKILLS_DIR/$NAME/assets/README.md"
+    echo "[skill-create --upgrade] created assets/README.md"
+  fi
+
+  # Add v2 frontmatter fields if missing (use python3+yaml for safety).
+  # Preserves existing name/description/body content. Only adds TODO placeholders
+  # for v2-required fields that don't exist.
+  if command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1; then
+    FILE="$SKILL_FILE" NAME="$NAME" python3 <<'PYEOF'
+import os, sys, yaml
+path = os.environ["FILE"]
+skill_name = os.environ["NAME"]
+with open(path, "r", encoding="utf-8") as f:
+    txt = f.read()
+if not txt.startswith("---"):
+    print("skill-create --upgrade: SKILL.md missing frontmatter — cannot safely add v2 fields", file=sys.stderr)
+    sys.exit(4)
+end = txt.find("\n---", 3)
+if end < 0:
+    print("skill-create --upgrade: SKILL.md frontmatter not terminated", file=sys.stderr)
+    sys.exit(4)
+fm_src = txt[3:end].lstrip("\n")
+rest = txt[end+4:]  # after "\n---"
+try:
+    fm = yaml.safe_load(fm_src) or {}
+except yaml.YAMLError as e:
+    print(f"skill-create --upgrade: SKILL.md frontmatter parse error: {e}", file=sys.stderr)
+    sys.exit(4)
+if not isinstance(fm, dict):
+    print("skill-create --upgrade: SKILL.md frontmatter not a mapping", file=sys.stderr)
+    sys.exit(4)
+
+changed = False
+# Add missing v2 fields with TODO placeholders
+if "agency-skill-version" not in fm:
+    fm["agency-skill-version"] = 2; changed = True
+if "when_to_use" not in fm:
+    fm["when_to_use"] = "TODO: explicit trigger phrases + anti-trigger phrases"; changed = True
+if "argument-hint" not in fm:
+    fm["argument-hint"] = "TODO: <arg1> [--flag value]"; changed = True
+if "paths" not in fm:
+    fm["paths"] = ["TODO: .claude/worktrees/** (agent) or [] (captain/subagent)"]; changed = True
+if "required_reading" not in fm:
+    fm["required_reading"] = ["claude/REFERENCE-SKILL-AUTHORING.md"]; changed = True
+
+if not changed:
+    sys.exit(0)
+
+# Re-emit frontmatter preserving key order
+out = "---\n"
+# Preserve order-of-importance: name, description, version, trigger, args, paths, disable, required_reading, rest
+order = [
+    "name", "description", "agency-skill-version", "when_to_use",
+    "argument-hint", "paths", "disable-model-invocation", "required_reading",
+]
+seen = set()
+for k in order:
+    if k in fm:
+        out += yaml.safe_dump({k: fm[k]}, default_flow_style=False, sort_keys=False)
+        seen.add(k)
+# Remaining keys in original order
+for k, v in fm.items():
+    if k not in seen:
+        out += yaml.safe_dump({k: v}, default_flow_style=False, sort_keys=False)
+        seen.add(k)
+out += "---\n"
+out += rest if rest.startswith("\n") else "\n" + rest
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(out)
+print("[skill-create --upgrade] frontmatter updated (added missing v2 fields)")
+PYEOF
+    UPGRADE_FM_EXIT=$?
+    if [[ $UPGRADE_FM_EXIT -ne 0 && $UPGRADE_FM_EXIT -ne 4 ]]; then
+      echo "[skill-create --upgrade] frontmatter update errored (exit $UPGRADE_FM_EXIT), continuing" >&2
+    elif [[ $UPGRADE_FM_EXIT -eq 4 ]]; then
+      exit 4
+    fi
+  else
+    echo "[skill-create --upgrade] python3+yaml not available; frontmatter fields NOT added automatically" >&2
+    echo "  Manual step: add agency-skill-version: 2, when_to_use, argument-hint, paths, required_reading" >&2
+  fi
+
+  # Update registry row — bump version to 2 if row exists, append if missing
+  _registry_lock || exit 1
+  if grep -qE "^\| $NAME " "$REGISTRY" 2>/dev/null; then
+    # Replace the version column in the existing row (assuming 3rd column)
+    tmp=$(mktemp)
+    awk -v skill="$NAME" 'BEGIN{FS=OFS="|"} {
+      if ($2 ~ "^ "skill" $") { $4 = " 2 " }
+      print
+    }' "$REGISTRY" > "$tmp" && mv "$tmp" "$REGISTRY"
+    echo "[skill-create --upgrade] Registry row version bumped to 2."
+  else
+    echo "[skill-create --upgrade] Registry row for '$NAME' not found; run skill-audit to surface drift." >&2
+  fi
+  _registry_unlock
+
+  # Run audit to report remaining gaps
+  if [[ -x "$SCRIPT_DIR/skill-audit" ]]; then
+    echo ""
+    echo "[skill-create --upgrade] Running skill-audit for $NAME..."
+    "$SCRIPT_DIR/skill-audit" "$NAME" || true
+  fi
+
+  echo ""
+  echo "[ok] skill '$NAME' upgraded to v2 scaffolding."
+  echo ""
+  echo "Author checklist:"
+  echo "  [ ] Review SKILL.md frontmatter — replace TODO placeholders with real content"
+  echo "  [ ] Ensure body has the 9 required sections (see REFERENCE-SKILL-AUTHORING.md §5)"
+  echo "  [ ] Fill reference.md / examples.md / scripts+assets/README.md as appropriate"
+  echo "  [ ] Run skill-audit to confirm 0 non-compliance"
+  echo "  [ ] Commit via /git-safe-commit"
+
+  if [[ -n "$RUN_ID" ]]; then
+    log_end "$RUN_ID" "success" "0" "0" "upgraded $NAME" 2>/dev/null || :
+  fi
+  exit 0
 fi
 
 # ── Determine scoping based on actor ─────────────────────────────────────────
@@ -301,6 +543,9 @@ NEW_ROW="| $NAME | $SUMMARY | 2 | $REGISTRY_SCOPE | pilot | SKILL-AUTHORING |"
 TMP_REG=$(mktemp)
 # Note: TMP_REG cleanup is handled by the composed _cleanup_all trap set above.
 
+# the-agency#320 item 4: serialize registry writes
+_registry_lock || exit 1
+
 INSERTED=false
 while IFS= read -r line; do
   if [[ "$INSERTED" = false && "$line" == "## Retrofit priorities" ]]; then
@@ -321,6 +566,8 @@ else
   TMP_REG=""
   echo "[skill-create] Registry row appended at EOF (anchor section heading missing — review placement)."
 fi
+
+_registry_unlock
 
 # Mark full success — _cleanup_all trap will skip the partial-scaffold removal.
 SUCCESS_MARK=true
@@ -360,5 +607,9 @@ Next steps (author checklist):
   [ ] If pilot, dogfood once before promoting Status to 'active'.
 
 EOF
+
+if [[ -n "$RUN_ID" ]]; then
+  log_end "$RUN_ID" "success" "0" "0" "created $NAME actor=$ACTOR" 2>/dev/null || :
+fi
 
 exit 0

@@ -29,12 +29,22 @@
 
 set -euo pipefail
 
-TOOL_VERSION="1.0.0"
+TOOL_VERSION="1.1.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${CLAUDE_PROJECT_DIR:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
 SKILLS_DIR="$REPO_ROOT/.claude/skills"
 REGISTRY="$REPO_ROOT/claude/REFERENCE-SKILLS-INDEX.md"
+
+# the-agency#320 item 3: structured telemetry
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+  # shellcheck source=./lib/_log-helper
+  source "$SCRIPT_DIR/lib/_log-helper"
+else
+  # No-op shims if helper missing — keep tool functional without telemetry
+  log_start() { echo ""; }
+  log_end()   { :; }
+fi
 
 # Required body-structure section headings per REFERENCE-SKILL-AUTHORING.md §5
 REQUIRED_SECTIONS=(
@@ -112,12 +122,91 @@ fi
 
 # Extract a YAML frontmatter field value from a SKILL.md file.
 # Handles: scalar values, YAML lists (returns all list items, one per line).
-# Anchors field match to end-of-field (colon followed by space or EOL).
+#
+# the-agency#320 item 2: YAML-aware parsing (PyYAML / yq) preferred over awk.
+# Fallback: awk (safe when skill content is well-formed; hardened by Anthropic
+# `skills validate` which runs as outer gate when skills-cli is installed).
+#
+# Strategy: try python3+yaml first (ubiquitous on macOS + most Linuxes),
+# then yq, then awk. If first parser succeeds, we get real YAML semantics:
+# block scalars, flow-style nested mappings, duplicate-key handling (YAML
+# takes last; awk took first — consistent YAML behavior matters for audit).
 _get_frontmatter() {
   local file="$1" field="$2"
   if [[ ! -f "$file" ]]; then
     echo ""; return
   fi
+
+  # Try python3+yaml (preferred — pure YAML semantics)
+  if command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1; then
+    FILE="$file" FIELD="$field" python3 -c '
+import os, sys, yaml
+path = os.environ["FILE"]
+field = os.environ["FIELD"]
+with open(path, "r", encoding="utf-8") as f:
+    txt = f.read()
+# Extract frontmatter between leading "---" and next "---"
+if not txt.startswith("---"):
+    sys.exit(0)
+end = txt.find("\n---", 3)
+if end < 0:
+    sys.exit(0)
+fm_src = txt[3:end].lstrip("\n")
+try:
+    fm = yaml.safe_load(fm_src) or {}
+except yaml.YAMLError:
+    sys.exit(0)
+if not isinstance(fm, dict) or field not in fm:
+    # Not declared — emit nothing so caller treats as missing
+    sys.exit(0)
+val = fm[field]
+if val is None:
+    # Declared but null — emit sentinel so caller distinguishes from missing
+    print("~")
+elif isinstance(val, list):
+    if len(val) == 0:
+        # Declared empty list — emit sentinel "[]" for parity with awk behavior
+        # (so audit sees "field declared" even when list is empty)
+        print("[]")
+    else:
+        for item in val:
+            print(item)
+elif isinstance(val, bool):
+    # YAML true/false as lowercase (awk emitted verbatim)
+    print("true" if val else "false")
+elif isinstance(val, (dict,)):
+    # Flow-style nested mapping — emit as YAML one-liner
+    print(yaml.safe_dump(val, default_flow_style=True).rstrip())
+else:
+    # Scalar (string/int/float). Empty string is declared-but-empty —
+    # emit sentinel "~" so shell caller sees non-empty.
+    if val == "":
+        print("~")
+    else:
+        print(val)
+' 2>/dev/null && return
+  fi
+
+  # Try yq (yq v4+)
+  if command -v yq >/dev/null 2>&1; then
+    # Extract frontmatter, then eval field. `yq` on plain YAML file only.
+    local tmp_fm
+    tmp_fm=$(mktemp)
+    awk '/^---$/ { if (++i == 1) next; else exit } i==1' "$file" > "$tmp_fm"
+    local out
+    if out=$(yq eval ".${field}" "$tmp_fm" 2>/dev/null); then
+      rm -f "$tmp_fm"
+      if [[ "$out" == "null" ]]; then
+        return
+      fi
+      # yq emits list items as "- item"; strip to match python3 output
+      echo "$out" | sed -E 's/^- //'
+      return
+    fi
+    rm -f "$tmp_fm"
+  fi
+
+  # Fallback: awk (v1 behavior — may disagree with real YAML on edge cases)
   awk -v field="$field" '
     BEGIN { in_fm=0; in_list=0 }
     /^---$/ { if (in_fm==0) { in_fm=1; next } else { exit } }
@@ -313,6 +402,9 @@ _audit_skill() {
 
 # ── Audit loop ───────────────────────────────────────────────────────────────
 
+# the-agency#320 item 3: structured run telemetry
+RUN_ID=$(log_start "skill-audit" "$@" 2>/dev/null || echo "")
+
 if [[ -n "$TARGET" ]]; then
   _audit_skill "$TARGET"
 else
@@ -372,9 +464,18 @@ fi
 
 # ── Exit code ────────────────────────────────────────────────────────────────
 
+_final_exit() {
+  local code="$1"
+  local summary="audited=$AUDIT_COUNT clean=$CLEAN_COUNT drift=$DRIFT_COUNT noncompliant=$NONCOMPLIANT_COUNT fixed=$FIXED_COUNT"
+  if [[ -n "$RUN_ID" ]]; then
+    log_end "$RUN_ID" "success" "$code" "0" "$summary" 2>/dev/null || :
+  fi
+  exit "$code"
+}
+
 if [[ "$NONCOMPLIANT_COUNT" -gt 0 ]]; then
-  exit 2
+  _final_exit 2
 elif [[ "$DRIFT_COUNT" -gt 0 ]]; then
-  exit 1
+  _final_exit 1
 fi
-exit 0
+_final_exit 0
