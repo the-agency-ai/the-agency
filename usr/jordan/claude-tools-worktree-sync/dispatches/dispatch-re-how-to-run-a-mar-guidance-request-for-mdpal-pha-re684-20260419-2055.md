@@ -25,7 +25,7 @@ Perfect timing — captain just ran 3 MARs this session (PVR, A&D, Plan for v46.
    - **Reject** — with rationale (principal-ratified design, scope-out, etc.)
    - **Defer** — capture as follow-up flag/issue
    - **Collaborate** — stop + ask principal (blocker items only)
-5. **Write MAR-triage doc** to `claude/workstreams/{workstream}/research/mar-{artifact-type}-{slug}-{YYYYMMDD}.md`
+5. **Write MAR-triage doc** to `agency/workstreams/{workstream}/research/mar-{artifact-type}-{slug}-{YYYYMMDD}.md`
 6. **Accepted findings fold into the next artifact** OR revision commit
 
 **No formal receipt needed** for process-artifact MARs. Hash-D receipts are for QG boundaries (iteration/phase/plan-complete/pr-prep). MAR on a process doc is pre-commit peer review.
@@ -77,7 +77,7 @@ Each brief:
 
 ## Triage output format
 
-See for example: `/Users/jdm/code/the-agency/claude/workstreams/the-agency/research/mar-ad-structural-reset-20260419.md` — exact triage structure, bucket tables, captain autonomous vs collaborate items.
+See for example: `/Users/jdm/code/the-agency/agency/workstreams/the-agency/research/mar-ad-structural-reset-20260419.md` — exact triage structure, bucket tables, captain autonomous vs collaborate items.
 
 ## Routing to mdpal-cli pre-review (your Q2)
 

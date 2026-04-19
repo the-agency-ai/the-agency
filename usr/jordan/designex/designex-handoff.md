@@ -18,16 +18,16 @@ Build the-agency's **Figma-to-code pipeline** as a standard framework capability
 
 ### Seed material — 4 research reports (READ THESE FIRST)
 
-1. `claude/workstreams/agency/seeds/research-figma-designer-workflow-20260411.md` — what designers need to do for handoff-ready Figma files
-2. `claude/workstreams/agency/seeds/research-figma-codegen-survey-20260411.md` — tool landscape (Builder.io, Figma Make, Anima, etc.)
-3. `claude/workstreams/agency/seeds/research-figma-design-system-bridge-20260411.md` — tokens extraction, DTCG spec, Style Dictionary v4, shadcn + Tamagui pipelines
-4. `claude/workstreams/agency/seeds/research-figma-react-vs-rn-20260411.md` — platform differences, NativeWind vs Tamagui, universal app stacks
+1. `agency/workstreams/agency/seeds/research-figma-designer-workflow-20260411.md` — what designers need to do for handoff-ready Figma files
+2. `agency/workstreams/agency/seeds/research-figma-codegen-survey-20260411.md` — tool landscape (Builder.io, Figma Make, Anima, etc.)
+3. `agency/workstreams/agency/seeds/research-figma-design-system-bridge-20260411.md` — tokens extraction, DTCG spec, Style Dictionary v4, shadcn + Tamagui pipelines
+4. `agency/workstreams/agency/seeds/research-figma-react-vs-rn-20260411.md` — platform differences, NativeWind vs Tamagui, universal app stacks
 
 ### Existing tools to upgrade (READ THESE)
 
-- `claude/tools/figma-extract` — currently uses old Styles API, emits ad-hoc markdown. Needs DTCG JSON output, Variables API support.
-- `claude/tools/figma-diff` — visual regression. Needs component-level snapshot mode.
-- `claude/tools/designsystem-add` — scaffold. Needs DTCG file structure, Style Dictionary config.
+- `agency/tools/figma-extract` — currently uses old Styles API, emits ad-hoc markdown. Needs DTCG JSON output, Variables API support.
+- `agency/tools/figma-diff` — visual regression. Needs component-level snapshot mode.
+- `agency/tools/designsystem-add` — scaffold. Needs DTCG file structure, Style Dictionary config.
 - `claude/knowledge/design-systems/ordinaryfolk-003/` — prior extraction example
 - `claude/knowledge/ui-development/figma-workflow.md` — workflow guide (web-only, needs RN)
 
@@ -45,7 +45,7 @@ Build the-agency's **Figma-to-code pipeline** as a standard framework capability
 - They're starting with the token pipeline today (Style Dictionary v4 + sd-transforms)
 - They'll build against our upgraded tools
 - Send findings via dispatch to `monofolk/jordan/designex` when you have something to share
-- Their research is in the collaboration repo — check for updates via `./claude/tools/collaboration check`
+- Their research is in the collaboration repo — check for updates via `./agency/tools/collaboration check`
 
 ### Execution approach
 

@@ -1,7 +1,7 @@
-diff --git a/claude/agents/housekeeping/backups/latest/status.txt b/claude/agents/housekeeping/backups/latest/status.txt
+diff --git a/agency/agents/housekeeping/backups/latest/status.txt b/agency/agents/housekeeping/backups/latest/status.txt
 index b0cd4f9..5ce7546 100644
---- a/claude/agents/housekeeping/backups/latest/status.txt
-+++ b/claude/agents/housekeeping/backups/latest/status.txt
+--- a/agency/agents/housekeeping/backups/latest/status.txt
++++ b/agency/agents/housekeeping/backups/latest/status.txt
 @@ -1,8 +1,17 @@
  On branch main
  Your branch is up to date with 'origin/main'.
@@ -9,12 +9,12 @@ index b0cd4f9..5ce7546 100644
 +Changes not staged for commit:
 +  (use "git add <file>..." to update what will be committed)
 +  (use "git restore <file>..." to discard changes in working directory)
-+	modified:   claude/agents/housekeeping/backups/latest/status.txt
++	modified:   agency/agents/housekeeping/backups/latest/status.txt
 +
  Untracked files:
    (use "git add <file>..." to include in what will be committed)
--	claude/agents/housekeeping/backups/
-+	claude/data/agency-service.pid
+-	agency/agents/housekeeping/backups/
++	agency/data/agency-service.pid
 +	claude/knowledge/ui-development/
 +	claude/principals/jordan/artifacts/ART-jordan-0002-figma-to-code-strategy.md
 +	package-lock.json

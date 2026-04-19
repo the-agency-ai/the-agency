@@ -31,7 +31,7 @@ All ADHOC files, tools, flags, and framework references were removed. The
 
 | Location | Reason |
 |----------|--------|
-| `claude/agents/unknown/backups/archive/` | Session backup archives (historical) |
+| `agency/agents/unknown/backups/archive/` | Session backup archives (historical) |
 | `claude/principals/jordan/requests/` | Historical REQUEST files |
 | `claude/principals/jordan/projects/` | Book content |
 | `docs/plans/` | Historical plan files |

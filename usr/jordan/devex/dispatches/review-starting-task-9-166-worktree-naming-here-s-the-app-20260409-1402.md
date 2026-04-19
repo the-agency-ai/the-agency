@@ -33,7 +33,7 @@ Examples confirmed:
 ## Planned scope (small, fits one iteration)
 
 ### 1. Update worktree-create skill + tool (enforce rule on creation)
-- `claude/tools/worktree-create` — add naming logic, use it for the directory name
+- `agency/tools/worktree-create` — add naming logic, use it for the directory name
 - `.claude/skills/worktree-create/SKILL.md` — document the rule in the skill
 - BATS coverage if feasible (may need test fixtures for worktree creation)
 

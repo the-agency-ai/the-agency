@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for claude/tools/test-scoper — file-to-test mapping
+# Tests for agency/tools/test-scoper — file-to-test mapping
 #
 # What Problem: test-scoper maps changed files to relevant BATS test files.
 # These tests verify all four mapping strategies work: manifest, convention,
@@ -14,7 +14,7 @@ setup() {
 
     # Create a mini repo structure in temp dir for testing
     export TEST_REPO="${BATS_TEST_TMPDIR}/test-repo"
-    mkdir -p "$TEST_REPO/claude/tools/lib"
+    mkdir -p "$TEST_REPO/agency/tools/lib"
     mkdir -p "$TEST_REPO/tests/tools"
     mkdir -p "$TEST_REPO/.git"
 
@@ -22,12 +22,12 @@ setup() {
     git -C "$TEST_REPO" init --quiet 2>/dev/null
 
     # Create fake tools
-    echo '#!/bin/bash' > "$TEST_REPO/claude/tools/flag"
-    echo '#!/bin/bash' > "$TEST_REPO/claude/tools/dispatch"
-    echo '#!/bin/bash' > "$TEST_REPO/claude/tools/lib/_iscp-db"
+    echo '#!/bin/bash' > "$TEST_REPO/agency/tools/flag"
+    echo '#!/bin/bash' > "$TEST_REPO/agency/tools/dispatch"
+    echo '#!/bin/bash' > "$TEST_REPO/agency/tools/lib/_iscp-db"
 
     # Create a tool with manifest header
-    cat > "$TEST_REPO/claude/tools/special-tool" <<'TOOL'
+    cat > "$TEST_REPO/agency/tools/special-tool" <<'TOOL'
 #!/bin/bash
 # What Problem: A special tool
 # Test: tests/tools/custom-test.bats
@@ -50,8 +50,8 @@ TEST
     echo '@test "standalone" { true; }' > "$TEST_REPO/tests/tools/standalone.bats"
 
     # Copy test-scoper to the test repo
-    cp "$REPO_ROOT/claude/tools/test-scoper" "$TEST_REPO/claude/tools/test-scoper"
-    chmod +x "$TEST_REPO/claude/tools/test-scoper"
+    cp "$REPO_ROOT/agency/tools/test-scoper" "$TEST_REPO/agency/tools/test-scoper"
+    chmod +x "$TEST_REPO/agency/tools/test-scoper"
 }
 
 teardown() {
@@ -64,14 +64,14 @@ teardown() {
 
 @test "convention: tool maps to matching test file" {
     cd "$TEST_REPO"
-    run bash -c 'echo "claude/tools/flag" | ./claude/tools/test-scoper'
+    run bash -c 'echo "agency/tools/flag" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [[ "$output" == *"flag.bats"* ]]
 }
 
 @test "convention: tool with prefix matches gets all related tests" {
     cd "$TEST_REPO"
-    run bash -c 'echo "claude/tools/dispatch" | ./claude/tools/test-scoper'
+    run bash -c 'echo "agency/tools/dispatch" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [[ "$output" == *"dispatch.bats"* ]]
     [[ "$output" == *"dispatch-create.bats"* ]]
@@ -79,8 +79,8 @@ teardown() {
 
 @test "convention: tool without test file produces no output" {
     cd "$TEST_REPO"
-    echo '#!/bin/bash' > "$TEST_REPO/claude/tools/no-tests-for-me"
-    run bash -c 'echo "claude/tools/no-tests-for-me" | ./claude/tools/test-scoper'
+    echo '#!/bin/bash' > "$TEST_REPO/agency/tools/no-tests-for-me"
+    run bash -c 'echo "agency/tools/no-tests-for-me" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
@@ -91,14 +91,14 @@ teardown() {
 
 @test "dependency: lib file maps to direct-named test and dependents" {
     cd "$TEST_REPO"
-    run bash -c 'echo "claude/tools/lib/_iscp-db" | ./claude/tools/test-scoper'
+    run bash -c 'echo "agency/tools/lib/_iscp-db" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [[ "$output" == *"iscp-db.bats"* ]]
 }
 
 @test "dependency: lib file finds test files that source it" {
     cd "$TEST_REPO"
-    run bash -c 'echo "claude/tools/lib/_iscp-db" | ./claude/tools/test-scoper'
+    run bash -c 'echo "agency/tools/lib/_iscp-db" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [[ "$output" == *"other.bats"* ]]
 }
@@ -109,7 +109,7 @@ teardown() {
 
 @test "direct: .bats file maps to itself" {
     cd "$TEST_REPO"
-    run bash -c 'echo "tests/tools/standalone.bats" | ./claude/tools/test-scoper'
+    run bash -c 'echo "tests/tools/standalone.bats" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [[ "$output" == *"standalone.bats"* ]]
 }
@@ -120,7 +120,7 @@ teardown() {
 
 @test "manifest: # Test: header overrides convention" {
     cd "$TEST_REPO"
-    run bash -c 'echo "claude/tools/special-tool" | ./claude/tools/test-scoper'
+    run bash -c 'echo "agency/tools/special-tool" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [[ "$output" == *"custom-test.bats"* ]]
 }
@@ -138,7 +138,7 @@ teardown() {
 
 @test "no-mapping: yaml config produces no output" {
     cd "$TEST_REPO"
-    run bash -c 'echo "claude/config/agency.yaml" | ./claude/tools/test-scoper'
+    run bash -c 'echo "agency/config/agency.yaml" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
@@ -149,7 +149,7 @@ teardown() {
 
 @test "multi: multiple files deduplicates output" {
     cd "$TEST_REPO"
-    run bash -c 'printf "claude/tools/flag\ntests/tools/flag.bats\n" | ./claude/tools/test-scoper'
+    run bash -c 'printf "agency/tools/flag\ntests/tools/flag.bats\n" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     # flag.bats should appear exactly once despite two inputs mapping to it
     local count
@@ -171,14 +171,14 @@ teardown() {
 
 @test "empty input produces no output" {
     cd "$TEST_REPO"
-    run bash -c 'echo "" | ./claude/tools/test-scoper'
+    run bash -c 'echo "" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
 
 @test "exit code is always 0" {
     cd "$TEST_REPO"
-    run bash -c 'echo "nonexistent/path/file.xyz" | ./claude/tools/test-scoper'
+    run bash -c 'echo "nonexistent/path/file.xyz" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
 }
 
@@ -191,7 +191,7 @@ teardown() {
     mkdir -p apps/mdpal/Sources apps/mdpal/Tests
     echo "// swift" > apps/mdpal/Sources/Foo.swift
     echo "// test" > apps/mdpal/Tests/FooTests.swift
-    run bash -c 'echo "apps/mdpal/Sources/Foo.swift" | ./claude/tools/test-scoper'
+    run bash -c 'echo "apps/mdpal/Sources/Foo.swift" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [[ "$output" == *"PACKAGE:"* ]]
     [[ "$output" == *"apps/mdpal/Tests"* ]]
@@ -201,7 +201,7 @@ teardown() {
     cd "$TEST_REPO"
     mkdir -p apps/empty/Sources
     echo "// swift" > apps/empty/Sources/Foo.swift
-    run bash -c 'echo "apps/empty/Sources/Foo.swift" | ./claude/tools/test-scoper'
+    run bash -c 'echo "apps/empty/Sources/Foo.swift" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
@@ -211,7 +211,7 @@ teardown() {
     mkdir -p packages/lib/src packages/lib/tests
     echo "x" > packages/lib/src/foo.js
     echo "x" > packages/lib/tests/foo.test.js
-    run bash -c 'echo "packages/lib/src/foo.js" | ./claude/tools/test-scoper'
+    run bash -c 'echo "packages/lib/src/foo.js" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [[ "$output" == *"PACKAGE:"* ]]
     [[ "$output" == *"packages/lib/tests"* ]]

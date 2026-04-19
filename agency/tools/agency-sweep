@@ -50,7 +50,7 @@ Options:
   --apply                  Write substitutions to disk
   --dry-run                Preview without writing (default)
   --output-patch           Emit unified diff to stdout (no file writes)
-  --allowlist FILE         Allowlist (default: claude/tools/ref-sweep-allowlist.txt)
+  --allowlist FILE         Allowlist (default: agency/tools/ref-sweep-allowlist.txt)
   --no-allowlist           Ignore allowlist (dangerous; test-only)
   --help                   Show this help
   --version                Show version
@@ -89,8 +89,8 @@ cd "$REPO_ROOT"
 if [[ $USE_ALLOWLIST -eq 1 && -z "$ALLOWLIST" ]]; then
     if [[ -f "$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt" ]]; then
         ALLOWLIST="$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt"
-    elif [[ -f "$REPO_ROOT/claude/tools/ref-sweep-allowlist.txt" ]]; then
-        ALLOWLIST="$REPO_ROOT/claude/tools/ref-sweep-allowlist.txt"
+    elif [[ -f "$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt" ]]; then
+        ALLOWLIST="$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt"
     fi
 fi
 

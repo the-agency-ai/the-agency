@@ -56,7 +56,7 @@ CHANGELOG.
 Key changes you need to know:
 1. usr/jordan/ is the new principal directory (v2). Your handoff is at usr/jordan/captain/handoff.md — read it.
 2. tools/secret is now tools/secret-vault. tools/secret-doppler is new.
-3. Hookify plugin is enabled in settings.json. 15 behavioral rules in claude/hookify/.
+3. Hookify plugin is enabled in settings.json. 15 behavioral rules in agency/hookify/.
 4. 6 new hooks wired in settings.json (SessionStart, PreToolUse[Skill], PreToolUse[ExitPlanMode], PostToolUse, Stop).
 5. Development methodology docs are in claude/docs/ (QUALITY-GATE.md, DEVELOPMENT-METHODOLOGY.md, etc.)
 6. /discuss skill is available for structured 1B1 discussions.

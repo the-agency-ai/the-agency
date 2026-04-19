@@ -5,8 +5,8 @@
 # When asked "What is your workstream?" or "Who are you?", use this script.
 #
 # Usage:
-#   ./claude/tools/workstream
-#   WORKSTREAM=$(./claude/tools/workstream)
+#   ./agency/tools/workstream
+#   WORKSTREAM=$(./agency/tools/workstream)
 #
 
 # Source log helper for telemetry
@@ -49,7 +49,7 @@ for arg in "$@"; do
         --help|-h)
             echo "workstream - Get current workstream"
             echo ""
-            echo "Usage: ./claude/tools/workstream"
+            echo "Usage: ./agency/tools/workstream"
             echo ""
             echo "Options:"
             echo "  --verbose      Show verbose output"

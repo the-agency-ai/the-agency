@@ -27,7 +27,7 @@ Bug fix in gate-check: handle absolute --baseline-dir paths (macOS
 /private/var vs /var symlink caused failing BATS when fixture tmp paths
 didn't share prefix with git toplevel). Now accepts absolute paths as-is.
 
-Gate 0 verification (./claude/tools/gate-check 0): PASS against real baseline.
+Gate 0 verification (./agency/tools/gate-check 0): PASS against real baseline.
 BATS gate-check.bats: 74/74 green."
 in_reply_to: null
 ---
@@ -54,7 +54,7 @@ Bug fix in gate-check: handle absolute --baseline-dir paths (macOS
 /private/var vs /var symlink caused failing BATS when fixture tmp paths
 didn't share prefix with git toplevel). Now accepts absolute paths as-is.
 
-Gate 0 verification (./claude/tools/gate-check 0): PASS against real baseline.
+Gate 0 verification (./agency/tools/gate-check 0): PASS against real baseline.
 BATS gate-check.bats: 74/74 green.
 
 ## Commit: 044823f8
@@ -83,7 +83,7 @@ Bug fix in gate-check: handle absolute --baseline-dir paths (macOS
 /private/var vs /var symlink caused failing BATS when fixture tmp paths
 didn't share prefix with git toplevel). Now accepts absolute paths as-is.
 
-Gate 0 verification (./claude/tools/gate-check 0): PASS against real baseline.
+Gate 0 verification (./agency/tools/gate-check 0): PASS against real baseline.
 BATS gate-check.bats: 74/74 green.
 
 ### Metadata
@@ -96,20 +96,20 @@ BATS gate-check.bats: 74/74 green.
 
 ### Files Changed
 ```
-claude/hookify/hookify.block-git-clean-during-reset.canary
-claude/hookify/hookify.block-git-clean-during-reset.md
-claude/tools/agency-health-v46
-claude/tools/agency-migrate-prep
-claude/tools/agency-report
-claude/tools/agency-update-migrate
-claude/tools/agency-update-migrate-back
-claude/tools/agency-verify-v46
-claude/tools/audit-log-merge
-claude/tools/audit-log-reconcile
-claude/tools/gate-check
-claude/tools/hookify-rule-canary
-claude/tools/reset-rollback
-claude/tools/smoke-battery
+agency/hookify/hookify.block-git-clean-during-reset.canary
+agency/hookify/hookify.block-git-clean-during-reset.md
+agency/tools/agency-health-v46
+agency/tools/agency-migrate-prep
+agency/tools/agency-report
+agency/tools/agency-update-migrate
+agency/tools/agency-update-migrate-back
+agency/tools/agency-verify-v46
+agency/tools/audit-log-merge
+agency/tools/audit-log-reconcile
+agency/tools/gate-check
+agency/tools/hookify-rule-canary
+agency/tools/reset-rollback
+agency/tools/smoke-battery
 tests/tools/agency-health-v46.bats
 tests/tools/agency-migrate-back.bats
 tests/tools/agency-migrate-prep.bats

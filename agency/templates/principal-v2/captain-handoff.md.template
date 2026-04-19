@@ -12,7 +12,7 @@ You are the captain instance for principal **{{PRINCIPAL_DISPLAY_NAME}}** in rep
 
 ### What this handoff is
 
-This file was scaffolded by `/principal-create` so that your first `/session-resume` has context to read instead of an empty file. Once you finish your first real session, the normal handoff tool (`./claude/tools/handoff write`) will replace this bootstrap with real session state.
+This file was scaffolded by `/principal-create` so that your first `/session-resume` has context to read instead of an empty file. Once you finish your first real session, the normal handoff tool (`./agency/tools/handoff write`) will replace this bootstrap with real session state.
 
 ### Your sandbox
 
@@ -28,17 +28,17 @@ Your ISCP DB is empty for this principal — **no inherited dispatches, no flags
 ### First actions — do these in order
 
 1. **Read your principal definition** — `usr/{{PRINCIPAL_NAME}}/CLAUDE-PRINCIPAL.md`. This is your source of truth for what {{PRINCIPAL_DISPLAY_NAME}} wants, their voice, their priorities.
-2. **Baseline the repo** — run `./claude/tools/agency-health` to see fleet state: workstreams, agents, worktrees, severity. Record anything red or yellow.
-3. **Read the bootloader** — `claude/CLAUDE-THEAGENCY.md` if you haven't already. It's your operating manual.
+2. **Baseline the repo** — run `./agency/tools/agency-health` to see fleet state: workstreams, agents, worktrees, severity. Record anything red or yellow.
+3. **Read the bootloader** — `agency/CLAUDE-THEAGENCY.md` if you haven't already. It's your operating manual.
 4. **Pick a first workstream** — either:
-   - Adopt an existing workstream under `claude/workstreams/` that aligns with {{PRINCIPAL_DISPLAY_NAME}}'s goals, or
+   - Adopt an existing workstream under `agency/workstreams/` that aligns with {{PRINCIPAL_DISPLAY_NAME}}'s goals, or
    - Use `/workstream-create` to scaffold a new one.
 5. **Start the dispatch monitor** — run `/monitor-dispatches` so you get real-time notification of incoming ISCP traffic. **Do not skip this.** It is the #1 thing new captains miss.
 6. **Write your first real handoff** — at session end, run `/session-end` (or `./claude/tools/handoff write`). That archives this bootstrap to `history/` and replaces it with real session state.
 
 ### Cross-repo collaboration
 
-If {{PRINCIPAL_DISPLAY_NAME}} participates in cross-repo dispatches with other agencies (monofolk, etc.), the `/collaborate` skill is your interface. Check `claude/REFERENCE-ISCP-PROTOCOL.md` for the 4-segment addressing model (`org/repo/principal/agent`). No inbound cross-repo traffic yet — you'll wire that up when there's something to coordinate.
+If {{PRINCIPAL_DISPLAY_NAME}} participates in cross-repo dispatches with other agencies (monofolk, etc.), the `/collaborate` skill is your interface. Check `agency/REFERENCE-ISCP-PROTOCOL.md` for the 4-segment addressing model (`org/repo/principal/agent`). No inbound cross-repo traffic yet — you'll wire that up when there's something to coordinate.
 
 ### Key skills to remember
 

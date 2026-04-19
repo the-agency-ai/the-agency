@@ -27,6 +27,6 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/workstreams/devex/qgr/the-agency-jordan-devex-devex-git-captain-regex-qgr-pr-prep-20260417-1323-fd419bc.md
+agency/workstreams/devex/qgr/the-agency-jordan-devex-devex-git-captain-regex-qgr-pr-prep-20260417-1323-fd419bc.md
 usr/jordan/devex/dispatches/commit-to-captain-committed-4e1413e-on-devex-release-bump-agency-ver-20260417-1322.md
 ```

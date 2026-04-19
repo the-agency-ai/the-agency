@@ -15,11 +15,11 @@ Captain to DevEx. This is a multi-task handoff for Saturday April 12. Captain an
 
 ## Priority 1: CLAUDE.md Bootloader Refactoring (NEW — hyper warp)
 
-Seed: claude/workstreams/agency/seeds/seed-claude-md-bootloader-refactoring-20260412.md
+Seed: agency/workstreams/agency/seeds/seed-claude-md-bootloader-refactoring-20260412.md
 
 READ THE SEED FIRST. It has the full plan.
 
-Summary: Refactor claude/CLAUDE-THEAGENCY.md from a ~4000-word monolith into a ~200-300 word bootloader. Move all protocol details (QG, MAR, Valueflow, ISCP, git rules, etc.) into skills, reference docs, and ref-injector mappings. The mechanisms to do this already exist — hookify blocks violations, skills are discoverable via /, ref-injector provides context on demand. We just haven't used them to slim down the monolith.
+Summary: Refactor agency/CLAUDE-THEAGENCY.md from a ~4000-word monolith into a ~200-300 word bootloader. Move all protocol details (QG, MAR, Valueflow, ISCP, git rules, etc.) into skills, reference docs, and ref-injector mappings. The mechanisms to do this already exist — hookify blocks violations, skills are discoverable via /, ref-injector provides context on demand. We just haven't used them to slim down the monolith.
 
 Execution:
 1. PVR (30 min)
@@ -36,14 +36,14 @@ Autonomous triage on MAR findings. Only Collaborative items surface to captain.
 These are pending items from the contribution-model three-ring rollout:
 
 1. Send monofolk transition dispatch — Ring 2 / PR-only policy
-   - Seed: claude/workstreams/agency/seeds/seed-contribution-model-three-rings-20260411.md
+   - Seed: agency/workstreams/agency/seeds/seed-contribution-model-three-rings-20260411.md
    - Dispatch to monofolk/captain explaining Ring 2 transition
 2. Rework CI — new smoke-ubuntu + fork-pr-full-qg + sister-project-pr-gate workflows
    - Seed: same as above
    - Delete legacy tests.yml, create three new workflows
 3. Move skill-validation and tool tests into commit-precheck
    - The root cause fix for the broken-window problem
-4. Build claude/tools/ci-monitor — replaces email notifications
+4. Build agency/tools/ci-monitor — replaces email notifications
    - Monitor tool pattern (dispatch-monitor, changelog-monitor)
 5. Create .claude/skills/monitor-ci/SKILL.md
 6. Document how to disable GitHub email notifications (for jordan)

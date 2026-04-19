@@ -21,7 +21,7 @@ This dispatch itemizes every change needed, organized by section. Captain should
 
 ## Section-by-Section Changes
 
-### 1. Repo Structure — `claude/tools/` listing (around line 28)
+### 1. Repo Structure — `agency/tools/` listing (around line 28)
 
 **Add** to the tools list:
 ```
@@ -38,7 +38,7 @@ The `flag` and `dispatch` tools are already listed but their descriptions should
 > Both dispatch notifications and flags will be persisted in a local database outside the repo (see the ISCP workstream for the design). Until that is implemented, dispatches are markdown files in git and flags are JSONL files staged on write.
 
 **Replace with:**
-> Both dispatch notifications and flags are persisted in a SQLite database at `~/.agency/{repo-name}/iscp.db` (outside git). The DB stores notification metadata and mutable state (read/unread, timestamps). Dispatch payloads remain as immutable markdown files in git. Flags are DB-only (no git payload). See the ISCP reference: `claude/workstreams/iscp/iscp-reference-20260405.md`.
+> Both dispatch notifications and flags are persisted in a SQLite database at `~/.agency/{repo-name}/iscp.db` (outside git). The DB stores notification metadata and mutable state (read/unread, timestamps). Dispatch payloads remain as immutable markdown files in git. Flags are DB-only (no git payload). See the ISCP reference: `agency/workstreams/iscp/iscp-reference-20260405.md`.
 
 ### 3. Dispatch description (around line 244)
 
@@ -120,7 +120,7 @@ The `iscp-check` hook fires on SessionStart, UserPromptSubmit, and Stop. It quer
 
 ### Reference
 
-Full details: `claude/workstreams/iscp/iscp-reference-20260405.md`
+Full details: `agency/workstreams/iscp/iscp-reference-20260405.md`
 ```
 
 ### 9. Enforcement Triangle — add ISCP entries (around the hookify rules table)

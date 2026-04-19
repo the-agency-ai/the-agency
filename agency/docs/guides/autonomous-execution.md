@@ -36,7 +36,7 @@ When executing sprints autonomously (without user interaction between iterations
    - Deviations from plan (if any)
 3. **Do NOT batch multiple iteration completions** - Each iteration gets its own report
 
-**Location:** `claude/workstreams/{workstream}/epic###/sprint###/sprint###-iteration###-{workstream}-completion.md`
+**Location:** `agency/workstreams/{workstream}/epic###/sprint###/sprint###-iteration###-{workstream}-completion.md`
 
 ## Sprint Completion Requirements
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for claude/tools/enforcement-audit
+# Tests for agency/tools/enforcement-audit
 #
 # What Problem: enforcement-audit validates the enforcement registry. These tests
 # verify it correctly detects valid registries, missing artifacts, and level
@@ -23,13 +23,13 @@ setup() {
     git init --quiet --no-verify 2>/dev/null || git init --quiet
 
     # Copy the audit tool
-    cp "$REPO_ROOT/claude/tools/enforcement-audit" "$TEST_REPO/claude/tools/"
-    chmod +x "$TEST_REPO/claude/tools/enforcement-audit"
+    cp "$REPO_ROOT/agency/tools/enforcement-audit" "$TEST_REPO/agency/tools/"
+    chmod +x "$TEST_REPO/agency/tools/enforcement-audit"
 
     # Copy log helper
-    if [[ -f "$REPO_ROOT/claude/tools/lib/_log-helper" ]]; then
-        mkdir -p "$TEST_REPO/claude/tools/lib"
-        cp "$REPO_ROOT/claude/tools/lib/_log-helper" "$TEST_REPO/claude/tools/lib/"
+    if [[ -f "$REPO_ROOT/agency/tools/lib/_log-helper" ]]; then
+        mkdir -p "$TEST_REPO/agency/tools/lib"
+        cp "$REPO_ROOT/agency/tools/lib/_log-helper" "$TEST_REPO/agency/tools/lib/"
     fi
 }
 
@@ -44,7 +44,7 @@ teardown() {
 @test "valid: level 1 capability with doc passes" {
     cd "$TEST_REPO"
     echo "# docs" > claude/docs/MY-DOC.md
-    cat > claude/config/enforcement.yaml <<'YAML'
+    cat > agency/config/enforcement.yaml <<'YAML'
 version: 1
 capabilities:
   my-cap:
@@ -53,7 +53,7 @@ capabilities:
     artifacts:
       doc: "claude/docs/MY-DOC.md"
 YAML
-    run ./claude/tools/enforcement-audit
+    run ./agency/tools/enforcement-audit
     [ "$status" -eq 0 ]
     [[ "$output" == *"All capabilities valid"* ]]
 }
@@ -62,8 +62,8 @@ YAML
     cd "$TEST_REPO"
     echo "# docs" > claude/docs/MY-DOC.md
     echo "# skill" > .claude/skills/my-skill/SKILL.md
-    echo '#!/bin/bash' > claude/tools/my-tool
-    cat > claude/config/enforcement.yaml <<'YAML'
+    echo '#!/bin/bash' > agency/tools/my-tool
+    cat > agency/config/enforcement.yaml <<'YAML'
 version: 1
 capabilities:
   my-cap:
@@ -72,9 +72,9 @@ capabilities:
     artifacts:
       doc: "claude/docs/MY-DOC.md"
       skill: ".claude/skills/my-skill/SKILL.md"
-      tool: "claude/tools/my-tool"
+      tool: "agency/tools/my-tool"
 YAML
-    run ./claude/tools/enforcement-audit
+    run ./agency/tools/enforcement-audit
     [ "$status" -eq 0 ]
     [[ "$output" == *"All capabilities valid"* ]]
 }
@@ -86,7 +86,7 @@ YAML
 @test "missing: level 2 without skill fails" {
     cd "$TEST_REPO"
     echo "# docs" > claude/docs/MY-DOC.md
-    cat > claude/config/enforcement.yaml <<'YAML'
+    cat > agency/config/enforcement.yaml <<'YAML'
 version: 1
 capabilities:
   my-cap:
@@ -95,7 +95,7 @@ capabilities:
     artifacts:
       doc: "claude/docs/MY-DOC.md"
 YAML
-    run ./claude/tools/enforcement-audit
+    run ./agency/tools/enforcement-audit
     [ "$status" -eq 1 ]
     [[ "$output" == *"NOT DECLARED"* ]]
 }
@@ -104,7 +104,7 @@ YAML
     cd "$TEST_REPO"
     echo "# docs" > claude/docs/MY-DOC.md
     echo "# skill" > .claude/skills/my-skill/SKILL.md
-    cat > claude/config/enforcement.yaml <<'YAML'
+    cat > agency/config/enforcement.yaml <<'YAML'
 version: 1
 capabilities:
   my-cap:
@@ -113,9 +113,9 @@ capabilities:
     artifacts:
       doc: "claude/docs/MY-DOC.md"
       skill: ".claude/skills/my-skill/SKILL.md"
-      tool: "claude/tools/nonexistent"
+      tool: "agency/tools/nonexistent"
 YAML
-    run ./claude/tools/enforcement-audit
+    run ./agency/tools/enforcement-audit
     [ "$status" -eq 1 ]
     [[ "$output" == *"FILE NOT FOUND"* ]]
 }
@@ -127,7 +127,7 @@ YAML
 @test "mixed: reports correct pass/fail count" {
     cd "$TEST_REPO"
     echo "# docs" > claude/docs/MY-DOC.md
-    cat > claude/config/enforcement.yaml <<'YAML'
+    cat > agency/config/enforcement.yaml <<'YAML'
 version: 1
 capabilities:
   good-cap:
@@ -141,7 +141,7 @@ capabilities:
     artifacts:
       doc: "claude/docs/MY-DOC.md"
 YAML
-    run ./claude/tools/enforcement-audit
+    run ./agency/tools/enforcement-audit
     [ "$status" -eq 1 ]
     [[ "$output" == *"2 total"* ]]
     [[ "$output" == *"1 passed"* ]]
@@ -154,13 +154,13 @@ YAML
 
 @test "missing registry file fails" {
     cd "$TEST_REPO"
-    rm -f claude/config/enforcement.yaml
-    run ./claude/tools/enforcement-audit
+    rm -f agency/config/enforcement.yaml
+    run ./agency/tools/enforcement-audit
     [ "$status" -eq 1 ]
 }
 
 @test "version flag works" {
-    run ./claude/tools/enforcement-audit --version
+    run ./agency/tools/enforcement-audit --version
     [ "$status" -eq 0 ]
     [[ "$output" == *"enforcement-audit"* ]]
 }

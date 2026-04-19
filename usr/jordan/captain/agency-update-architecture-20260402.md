@@ -56,7 +56,7 @@ After:   agency-update uses manifest checksums + tier strategy
 
 ### 2.2 `_address-parse` Library
 
-**Location:** `claude/tools/lib/_address-parse`
+**Location:** `agency/tools/lib/_address-parse`
 
 The canonical address parsing library. All tools source this instead of reimplementing. Sourced like `_log-helper` and `_path-resolve` — sets up functions, no side effects.
 
@@ -98,7 +98,7 @@ address_validate_component <name> [--level org|repo|principal|agent]
 
 ### 2.3 `dispatch-create` Rewrite
 
-**Location:** `claude/tools/dispatch-create` (currently 76 lines → ~120 lines)
+**Location:** `agency/tools/dispatch-create` (currently 76 lines → ~120 lines)
 
 **Current:** Writes bare `From: jordan/captain`, no structured frontmatter.
 
@@ -131,7 +131,7 @@ resolved_at: null
 
 ### 2.4 `handoff` Tool Update
 
-**Location:** `claude/tools/handoff` (currently 282 lines → ~300 lines)
+**Location:** `agency/tools/handoff` (currently 282 lines → ~300 lines)
 
 **Add `agent` field to frontmatter:**
 ```yaml
@@ -153,7 +153,7 @@ trigger: session-end
 
 ### 2.5 `_path-resolve` Updates
 
-**Location:** `claude/tools/lib/_path-resolve` (currently 123 lines)
+**Location:** `agency/tools/lib/_path-resolve` (currently 123 lines)
 
 **Add `_validate_name()`:**
 ```bash
@@ -191,7 +191,7 @@ Applied in every function that constructs filesystem paths from names. Leading d
 
 ### 2.6 `_agency-update` v2 Rewrite
 
-**Location:** `claude/tools/lib/_agency-update` (currently 339 lines → ~600 lines)
+**Location:** `agency/tools/lib/_agency-update` (currently 339 lines → ~600 lines)
 
 **Replace rsync with manifest-driven file loop.** This is the core architectural change.
 
@@ -199,7 +199,7 @@ Applied in every function that constructs filesystem paths from names. Leading d
 
 ```
 1. Pre-flight validation
-   ├── Source exists and has claude/CLAUDE-THEAGENCY.md
+   ├── Source exists and has agency/CLAUDE-THEAGENCY.md
    ├── Source has required directories
    ├── Target is initialized (has agency.yaml)
    └── Warn if uncommitted changes in claude/
@@ -268,24 +268,24 @@ File existence guard and capability probe (not just `command -v`). (Monofolk rev
 
 | Path pattern | Tier | Rationale |
 |---|---|---|
-| `claude/tools/`, `claude/tools/lib/` | framework | Core tooling, must stay in sync |
+| `agency/tools/`, `agency/tools/lib/` | framework | Core tooling, must stay in sync |
 | `claude/docs/` | framework | Reference docs |
-| `claude/hookify/` | framework | Shipped rules (project rules coexist — see below) |
+| `agency/hookify/` | framework | Shipped rules (project rules coexist — see below) |
 | `.claude/skills/*/SKILL.md` | framework | Shipped skills |
 | `.claude/commands/*.md` | framework | Shipped commands |
-| `claude/config/settings-template.json` | framework | Template is ours |
-| `claude/hooks/` | config | Project may customize |
+| `agency/config/settings-template.json` | framework | Template is ours |
+| `agency/hooks/` | config | Project may customize |
 | `.claude/settings.json` | config | User's live settings |
-| `claude/config/agency.yaml` | config | User's project config |
+| `agency/config/agency.yaml` | config | User's project config |
 | `.claude/agents/*.md` | config | User's agent registrations |
 
-**Framework and project coexistence:** Framework and project rules coexist in the same directories (e.g., `claude/hookify/`). The manifest is the ownership boundary — `agency update` manages what it tracks, ignores what it doesn't. No separate project tier directory needed. (Monofolk review F12, hookify sync Q4.)
+**Framework and project coexistence:** Framework and project rules coexist in the same directories (e.g., `agency/hookify/`). The manifest is the ownership boundary — `agency update` manages what it tracks, ignores what it doesn't. No separate project tier directory needed. (Monofolk review F12, hookify sync Q4.)
 
 **Manifest bootstrap conservatism:** When no prior manifest exists, treat config-tier files as user-modified (skip). Only framework-tier files are safe to overwrite without baseline. This prevents the first v2 update from clobbering customized hooks. Add `--force-config` flag to override (explicit opt-in to overwrite config-tier files). Log clear warning listing every skipped file. (Monofolk review F12.)
 
 ### 2.7 `settings-merge` Upgrade
 
-**Location:** `claude/tools/settings-merge` (currently 73 lines → ~100 lines)
+**Location:** `agency/tools/settings-merge` (currently 73 lines → ~100 lines)
 
 **Current:** Array union on `permissions.allow`, shallow merge for everything else.
 
@@ -317,11 +317,11 @@ This ensures framework hooks stay in sync while project hooks survive updates. T
 
 ### 2.8 `agency-init` Updates
 
-**Location:** `claude/tools/lib/_agency-init` (currently 530 lines → ~560 lines)
+**Location:** `agency/tools/lib/_agency-init` (currently 530 lines → ~560 lines)
 
 **Changes:**
 
-1. **Write per-file manifest.** After copying all framework files, compute SHA-256 for each and write to `claude/config/manifest.json` with `tier` field. This gives `agency update` v2 a baseline.
+1. **Write per-file manifest.** After copying all framework files, compute SHA-256 for each and write to `agency/config/manifest.json` with `tier` field. This gives `agency update` v2 a baseline.
 
 2. **Scaffold project directory.** Already fixed: creates `usr/{principal}/{project}/` with code-reviews, dispatches, transcripts, history. (Committed at `6a5a104`.)
 

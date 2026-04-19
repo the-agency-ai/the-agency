@@ -154,7 +154,7 @@ Single, simple commands — no `&&`, `||`, `;`, pipes, subshells. Use separate B
 
 ## Hookify Rules
 
-15 behavioral rules in `claude/hookify/`. Enforced via the hookify plugin.
+15 behavioral rules in `agency/hookify/`. Enforced via the hookify plugin.
 
 ## What NOT to Do
 

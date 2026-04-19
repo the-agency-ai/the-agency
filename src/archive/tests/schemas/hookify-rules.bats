@@ -3,7 +3,7 @@
 # Validates all hookify rules have valid YAML frontmatter.
 #
 # Checks:
-#   - Each .md file in claude/hookify/ has YAML frontmatter delimiters
+#   - Each .md file in agency/hookify/ has YAML frontmatter delimiters
 #   - Required field: name
 #   - Required field: event (one of: bash, file, stop, prompt, all)
 #   - bash-event rules require: action (one of: warn, block)

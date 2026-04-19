@@ -3,7 +3,7 @@
 # settings-merge — Merge settings template into .claude/settings.json
 #
 # Usage:
-#   ./claude/tools/settings-merge [--dry-run]
+#   ./agency/tools/settings-merge [--dry-run]
 #
 # Merges claude/config/settings-template.json into .claude/settings.json:
 # - hooks: deep merge (add missing hooks, don't replace existing)
@@ -20,7 +20,7 @@ source "$SCRIPT_DIR/lib/_log-helper"
 
 RUN_ID=$(log_start "settings-merge" "$@")
 
-TEMPLATE="$PROJECT_ROOT/claude/config/settings-template.json"
+TEMPLATE="$PROJECT_ROOT/agency/config/settings-template.json"
 TARGET="$PROJECT_ROOT/.claude/settings.json"
 DRY_RUN=false
 

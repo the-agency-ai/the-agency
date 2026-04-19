@@ -12,7 +12,7 @@ supersedes: D44 convention `#!/usr/bin/env python3.12`
 
 ## Purpose
 
-Decide the shebang convention for framework Python tools (`claude/tools/*.py`, `claude/hooks/*.py`, the `dispatch-monitor`, the `TOOL.py` template) as part of the Python 3.13 floor migration (D45-R1). The D44 convention hard-codes the exact interpreter binary name (`python3.12`), which proved fragile tonight when the dev machine had `python3.13` but not `python3.12` on PATH and Monitor exited 127.
+Decide the shebang convention for framework Python tools (`agency/tools/*.py`, `agency/hooks/*.py`, the `dispatch-monitor`, the `TOOL.py` template) as part of the Python 3.13 floor migration (D45-R1). The D44 convention hard-codes the exact interpreter binary name (`python3.12`), which proved fragile tonight when the dev machine had `python3.13` but not `python3.12` on PATH and Monitor exited 127.
 
 ## Current convention (to be replaced)
 
@@ -51,7 +51,7 @@ import sys
 if sys.version_info < (3, 13):
     sys.exit(
         f"Python 3.13+ required (got {sys.version_info.major}.{sys.version_info.minor}). "
-        f"See claude/config/dependencies.yaml."
+        f"See agency/config/dependencies.yaml."
     )
 ```
 
@@ -62,7 +62,7 @@ if sys.version_info < (3, 13):
 
 **Cons**
 - Failure is runtime, not shebang-resolution — tool *starts*, then immediately exits. Slightly later fail-fast than B1.
-- Every tool carries the same five-line preamble (can be deduped via `claude/tools/lib/_py_floor.py` import, but adds one stat per startup — trivial).
+- Every tool carries the same five-line preamble (can be deduped via `agency/tools/lib/_py_floor.py` import, but adds one stat per startup — trivial).
 
 ### B3 — Hybrid: B2 + `agency-health` check
 
@@ -75,8 +75,8 @@ python3 missing → ✗ critical
 ```
 
 **Pros**
-- Install-time visibility in addition to runtime visibility — adopters running `./claude/tools/agency-health` after `agency init` learn the floor *before* they invoke a broken tool.
-- Pairs naturally with `claude/config/dependencies.yaml` — `agency-health` already reads this file; adding a `min_version` check on `python3` is a one-function addition.
+- Install-time visibility in addition to runtime visibility — adopters running `./agency/tools/agency-health` after `agency init` learn the floor *before* they invoke a broken tool.
+- Pairs naturally with `agency/config/dependencies.yaml` — `agency-health` already reads this file; adding a `min_version` check on `python3` is a one-function addition.
 - Keeps B2's adopter ergonomics (flexible shebang).
 
 **Cons**
@@ -112,7 +112,7 @@ Net: B2/B3 have strictly more compatibility than B1, with equal or better failur
 
 1. The principal directive is "brew default is 3.13 so adopters get the floor for free." B3 honors that by not requiring any binary name beyond what brew (and every other reasonable package manager) already provides.
 2. B2 alone is already a strict improvement over B1; B3 adds install-time visibility for the small marginal cost of one `agency-health` check.
-3. `claude/config/dependencies.yaml` already has a `version_cmd` field for `python3`. Updating it from `python3.12 --version | ...` to `python3 --version | ...` is a one-line diff that makes `agency-health` correctness follow for free.
+3. `agency/config/dependencies.yaml` already has a `version_cmd` field for `python3`. Updating it from `python3.12 --version | ...` to `python3 --version | ...` is a one-line diff that makes `agency-health` correctness follow for free.
 4. The D44→D45 migration already pays the cost of editing every shebang anyway. Doing it once to a shape that survives 3.14 and 3.15 is net cheaper than doing it again next year.
 
 ## Fallback
@@ -135,16 +135,16 @@ Per B3:
 +if sys.version_info < (3, 13):
 +    sys.exit(
 +        f"Python 3.13+ required (got {sys.version_info.major}.{sys.version_info.minor}). "
-+        f"See claude/config/dependencies.yaml."
++        f"See agency/config/dependencies.yaml."
 +    )
 ```
 
 Files touched (per runbook Workstream A):
-- `claude/tools/dispatch-monitor`
-- `claude/templates/TOOL.py`
+- `agency/tools/dispatch-monitor`
+- `agency/templates/TOOL.py`
 - Any other `#!/usr/bin/env python3.12` in `claude/tools/` or `claude/hooks/` (sweep with grep).
 
-### `claude/config/dependencies.yaml`
+### `agency/config/dependencies.yaml`
 
 ```diff
    python3:
@@ -159,7 +159,7 @@ Files touched (per runbook Workstream A):
 -    why: "... 3.12 buys native match, ..."
 +    why: "framework tools, hooks, and services target modern Python. 3.13 is brew default so adopters get the floor for free. 3.13 adds optional features (PEP 703 no-GIL, PEP 744 JIT) that we do not require — floor is set for toolchain modernity, not opt-in runtime features."
      note: |
-       ZERO-PIP CONSTRAINT for framework tools in claude/tools/ — stdlib only,
+       ZERO-PIP CONSTRAINT for framework tools in agency/tools/ — stdlib only,
        no pip deps. Services (iscp dispatch-hub, etc.) may use pip.
 
        Floor raised 3.9 → 3.12 in D44-R6 (superseded) → 3.13 in D45-R1.
@@ -186,12 +186,12 @@ Add a single check reading `dependencies.yaml.python3.min_version` and comparing
 
 **If this exceeds PR scope,** fall back to B2 for D45-R1 and file a follow-up issue.
 
-### `claude/CLAUDE-THEAGENCY.md`
+### `agency/CLAUDE-THEAGENCY.md`
 
 Runtime Floor section:
 
 ```diff
--- **Python: 3.12+.** Framework tools, hooks, and services target modern Python. Set in D44 per principal directive, superseding the prior 3.9+ floor. See `claude/config/dependencies.yaml` for rationale and what 3.12 buys us (native `match`, PEP 604 unions, PEP 695 generics, `typing.Self`, `tomllib`, ~10-15% perf). Framework tools in `claude/tools/` remain **zero-pip**: stdlib only. Services (iscp dispatch-hub, etc.) may use pip deps.
+-- **Python: 3.12+.** Framework tools, hooks, and services target modern Python. Set in D44 per principal directive, superseding the prior 3.9+ floor. See `agency/config/dependencies.yaml` for rationale and what 3.12 buys us (native `match`, PEP 604 unions, PEP 695 generics, `typing.Self`, `tomllib`, ~10-15% perf). Framework tools in `agency/tools/` remain **zero-pip**: stdlib only. Services (iscp dispatch-hub, etc.) may use pip deps.
 +- **Python: 3.13+.** Framework tools, hooks, and services target modern Python. Set in D45 per principal directive, superseding the D44 3.12 floor. Rationale: brew default is 3.13 so adopters get the floor for free; 3.13 adds nothing we must opt into (JIT + no-GIL are opt-in). Shebang convention: `#!/usr/bin/env python3` + runtime `sys.version_info` guard (not `python3.13` — see `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md`). Framework tools in `claude/tools/` remain **zero-pip**: stdlib only. Services (iscp dispatch-hub, etc.) may use pip deps.
 ```
 
@@ -210,11 +210,11 @@ After B3:
 - `sys.version_info` is `(3, 13, ...)`, guard passes.
 - Monitor runs; no explicit-path shim needed.
 
-The explicit-path workaround in the current captain-handoff (`/opt/homebrew/bin/python3.13 ./claude/tools/dispatch-monitor --include-collab`) can be retired the moment D45-R1 lands.
+The explicit-path workaround in the current captain-handoff (`/opt/homebrew/bin/python3.13 ./agency/tools/dispatch-monitor --include-collab`) can be retired the moment D45-R1 lands.
 
 ## Open items (not blocking)
 
-- **`claude/tools/_py_floor.py` helper.** A single `from _py_floor import assert_floor` avoids the five-line preamble in every tool. Tradeoff: one import means the guard is only enforced after the import resolves; if the import itself fails (e.g. `sys.path` issue on a weird install), failure mode is worse than the inline version. Recommend inline for D45-R1; revisit a helper after the fleet stabilizes.
+- **`agency/tools/_py_floor.py` helper.** A single `from _py_floor import assert_floor` avoids the five-line preamble in every tool. Tradeoff: one import means the guard is only enforced after the import resolves; if the import itself fails (e.g. `sys.path` issue on a weird install), failure mode is worse than the inline version. Recommend inline for D45-R1; revisit a helper after the fleet stabilizes.
 - **Hookify rule: block `python3.12`/`python3.13` shebangs in new files.** A `decision: block` hookify rule on Write/Edit of `#!/usr/bin/env python3\.\d+` in `claude/tools/` would prevent regression. Not blocking for D45-R1; file as follow-up.
 - **`agency verify` enforcement.** `agency-health` reports; `agency verify` should gate `agency init` / `agency update`. Separate concern from this briefing.
 

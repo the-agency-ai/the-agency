@@ -2,11 +2,11 @@
 # GitHub API operations wrapper
 #
 # Usage:
-#   ./claude/tools/gh-api /repos/{owner}/{repo}
-#   ./claude/tools/gh-api /repos/{owner}/{repo}/pulls --method POST --field title="PR"
-#   ./claude/tools/gh-api graphql -f query='{ viewer { login } }'
+#   ./agency/tools/gh-api /repos/{owner}/{repo}
+#   ./agency/tools/gh-api /repos/{owner}/{repo}/pulls --method POST --field title="PR"
+#   ./agency/tools/gh-api graphql -f query='{ viewer { login } }'
 #
-# This is a convenience wrapper around ./claude/tools/gh api
+# This is a convenience wrapper around ./agency/tools/gh api
 # All operations are logged via the base gh wrapper.
 #
 # Related: REQUEST-jordan-0072
@@ -30,16 +30,16 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] || [[ $# -eq 0 ]]; then
 gh-api - GitHub API operations
 
 Usage:
-  ./claude/tools/gh-api <endpoint> [options...]
+  ./agency/tools/gh-api <endpoint> [options...]
 
 REST API:
-  ./claude/tools/gh-api /repos/{owner}/{repo}
-  ./claude/tools/gh-api /repos/{owner}/{repo}/pulls
-  ./claude/tools/gh-api /repos/{owner}/{repo}/issues --method POST --field title="Bug"
+  ./agency/tools/gh-api /repos/{owner}/{repo}
+  ./agency/tools/gh-api /repos/{owner}/{repo}/pulls
+  ./agency/tools/gh-api /repos/{owner}/{repo}/issues --method POST --field title="Bug"
 
 GraphQL:
-  ./claude/tools/gh-api graphql -f query='{ viewer { login } }'
-  ./claude/tools/gh-api graphql -f query='query($n:Int!){viewer{repositories(first:$n){nodes{name}}}}' -F n=3
+  ./agency/tools/gh-api graphql -f query='{ viewer { login } }'
+  ./agency/tools/gh-api graphql -f query='query($n:Int!){viewer{repositories(first:$n){nodes{name}}}}' -F n=3
 
 Options:
   --method, -X    HTTP method (GET, POST, PUT, DELETE, PATCH)
@@ -50,11 +50,11 @@ Options:
   --silent        Suppress output
 
 Examples:
-  ./claude/tools/gh-api /user
-  ./claude/tools/gh-api /repos/the-agency-ai/the-agency/pulls --jq '.[].title'
-  ./claude/tools/gh-api /repos/{owner}/{repo}/issues --method POST -f title="New issue" -f body="Details"
+  ./agency/tools/gh-api /user
+  ./agency/tools/gh-api /repos/the-agency-ai/the-agency/pulls --jq '.[].title'
+  ./agency/tools/gh-api /repos/{owner}/{repo}/issues --method POST -f title="New issue" -f body="Details"
 
-All operations use ./claude/tools/gh for token injection and logging.
+All operations use ./agency/tools/gh for token injection and logging.
 EOF
     exit 0
 fi

@@ -40,7 +40,7 @@ Key changes from initial plan based on 3-agent MAR:
 
 ### Iteration 1.3: `agent-identity` tool [S]
 
-New tool at `claude/tools/agent-identity`.
+New tool at `agency/tools/agent-identity`.
 
 **Build:**
 - Source `_address-parse`, `_path-resolve`, `_log-helper`
@@ -60,7 +60,7 @@ New tool at `claude/tools/agent-identity`.
 
 Merge dispatch-create INTO dispatch tool as the `create` subcommand. The standalone `dispatch-create` file becomes a thin wrapper that calls `dispatch create "$@"` (backward compat).
 
-**Build (in `claude/tools/dispatch`):**
+**Build (in `agency/tools/dispatch`):**
 - Add `create` subcommand with dispatch-create's current logic
 - Source `_iscp-db`, call `iscp_db_init`
 - Add `--type <type>` flag (default: `dispatch`, validated against 8-type enum)
@@ -80,7 +80,7 @@ Merge dispatch-create INTO dispatch tool as the `create` subcommand. The standal
 
 Complete the dispatch tool with DB-backed lifecycle subcommands.
 
-**Build (continue in `claude/tools/dispatch`):**
+**Build (continue in `agency/tools/dispatch`):**
 - `list [--all] [--status <s>] [--type <t>]` — SELECT from DB, formatted table
 - `read <id>` — show payload content (from main checkout via `git worktree list | head -1`), mark read in DB
 - `check` — `iscp_db_count_unread`, silent when zero, `jq`-constructed `{"systemMessage": "..."}` when non-zero
@@ -102,7 +102,7 @@ Complete the dispatch tool with DB-backed lifecycle subcommands.
 
 ### Iteration 1.6: Flag v2 [S]
 
-Rewrite `claude/tools/flag` in place. JSONL → SQLite, agent-addressable.
+Rewrite `agency/tools/flag` in place. JSONL → SQLite, agent-addressable.
 
 **Build:**
 - Source `_iscp-db`, `_address-parse`, `_log-helper`
@@ -127,7 +127,7 @@ Rewrite `claude/tools/flag` in place. JSONL → SQLite, agent-addressable.
 
 ### Iteration 2.1: `iscp-check` + hook wiring [S-M]
 
-New tool at `claude/tools/iscp-check` + settings.json updates.
+New tool at `agency/tools/iscp-check` + settings.json updates.
 
 **iscp-check:**
 - Source `_iscp-db`, use `agent-identity` (cache read, no fork on warm path)
@@ -138,7 +138,7 @@ New tool at `claude/tools/iscp-check` + settings.json updates.
 
 **Hook wiring in `.claude/settings.json`:**
 - Add iscp-check to SessionStart, UserPromptSubmit, Stop hooks
-- Add permissions: `Bash(./claude/tools/agent-identity*)`, `Bash(./claude/tools/iscp-check*)`, `Bash(./claude/tools/iscp-migrate*)`
+- Add permissions: `Bash(./agency/tools/agent-identity*)`, `Bash(./agency/tools/iscp-check*)`, `Bash(./agency/tools/iscp-migrate*)`
 
 **Tests:** `tests/tools/iscp-check.bats` (~10 tests)
 - Override HOME
@@ -149,7 +149,7 @@ New tool at `claude/tools/iscp-check` + settings.json updates.
 
 ### Iteration 2.2: Migration + hookify rules [M]
 
-**iscp-migrate** (new tool at `claude/tools/iscp-migrate`):
+**iscp-migrate** (new tool at `agency/tools/iscp-migrate`):
 
 Flag migration:
 - Read `usr/jordan/flag-queue.jsonl`, parse with jq, insert into flags table
@@ -164,7 +164,7 @@ Dispatch migration (MAR F-1, F-6 fixes):
 - Log warnings for unparseable addresses
 - Idempotent via UNIQUE index on payload_path
 
-**Hookify rules** (in `claude/hookify/`):
+**Hookify rules** (in `agency/hookify/`):
 - `hookify.dispatch-manual.md` — blocks writing to `*/dispatches/` without dispatch tool
 - `hookify.flag-manual.md` — blocks writing to flag-queue.jsonl or flag DB directly
 - `hookify.directive-authority.md` — non-principal/captain → blocked for directive type
@@ -219,22 +219,22 @@ _address-parse (DONE) ────┤
 
 | File | Action |
 |------|--------|
-| `claude/tools/agent-identity` | NEW |
-| `claude/tools/dispatch` | REWRITE (add create subcommand + lifecycle) |
-| `claude/tools/dispatch-create` | REPLACE with thin wrapper |
-| `claude/tools/flag` | REWRITE |
-| `claude/tools/iscp-check` | NEW |
-| `claude/tools/iscp-migrate` | NEW (temporary) |
+| `agency/tools/agent-identity` | NEW |
+| `agency/tools/dispatch` | REWRITE (add create subcommand + lifecycle) |
+| `agency/tools/dispatch-create` | REPLACE with thin wrapper |
+| `agency/tools/flag` | REWRITE |
+| `agency/tools/iscp-check` | NEW |
+| `agency/tools/iscp-migrate` | NEW (temporary) |
 | `.claude/settings.json` | UPDATE (hooks + permissions) |
 | `.claude/skills/dispatch/SKILL.md` | UPDATE |
 | `.claude/skills/dispatch-read/SKILL.md` | UPDATE |
 | `.claude/skills/session-resume/SKILL.md` | UPDATE |
 | `.claude/skills/flag/SKILL.md` | UPDATE |
-| `claude/hookify/hookify.dispatch-manual.md` | NEW |
-| `claude/hookify/hookify.flag-manual.md` | NEW |
-| `claude/hookify/hookify.directive-authority.md` | NEW |
-| `claude/hookify/hookify.review-authority.md` | NEW |
-| `claude/hookify/hookify.session-start-mail.md` | NEW |
+| `agency/hookify/hookify.dispatch-manual.md` | NEW |
+| `agency/hookify/hookify.flag-manual.md` | NEW |
+| `agency/hookify/hookify.directive-authority.md` | NEW |
+| `agency/hookify/hookify.review-authority.md` | NEW |
+| `agency/hookify/hookify.session-start-mail.md` | NEW |
 
 ## Verification
 

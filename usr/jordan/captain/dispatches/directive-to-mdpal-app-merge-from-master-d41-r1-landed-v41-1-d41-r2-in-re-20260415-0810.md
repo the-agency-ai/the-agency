@@ -13,12 +13,12 @@ in_reply_to: null
 
 PR #89 (D41-R1 documentation sweep) is MERGED to main. Key changes affecting all agents:
 
-- 37 docs renamed: claude/docs/*.md → claude/REFERENCE-*.md
+- 37 docs renamed: claude/docs/*.md → agency/REFERENCE-*.md
 - 5 new docs: README/REFERENCE for receipt-infrastructure + safe-tools, plus YOUR-FIRST-RELEASE.md
-- Bootloader updated (claude/CLAUDE-THEAGENCY.md)
+- Bootloader updated (agency/CLAUDE-THEAGENCY.md)
 
 ACTION REQUIRED:
-1. In your worktree: /worktree-sync or ./claude/tools/git-safe merge-from-master
+1. In your worktree: /worktree-sync or ./agency/tools/git-safe merge-from-master
 2. Verify your registration and handoff reference the new REFERENCE-* paths
 3. Continue your autonomous work
 

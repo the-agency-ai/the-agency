@@ -25,14 +25,14 @@ Read the Valueflow plan's Phase 3 spec. Every non-stretch iteration is already i
 - Minor gap: commit-precheck isn't explicitly 'tier-aware' in config — it's implicitly T1. Acceptable for V2.
 
 **3.2 Changed-File Test Scoping — DONE**
-- `claude/tools/test-scoper` with 5 strategies: manifest, convention, dependency grep, direct, package-level fallback
+- `agency/tools/test-scoper` with 5 strategies: manifest, convention, dependency grep, direct, package-level fallback
 - Package-level fallback for Swift/Rust/Go (apps/X/Sources/ → PACKAGE:apps/X/Tests)
 - Integrated into commit-precheck (scoped tests, not full suite)
 - 16 BATS tests passing
 
 **3.3a Enforcement Registry Schema + Audit Tool — DONE**
-- `claude/config/enforcement.yaml` — 23 capabilities registered with declared levels
-- `claude/tools/enforcement-audit` — validates artifacts exist per declared level
+- `agency/config/enforcement.yaml` — 23 capabilities registered with declared levels
+- `agency/tools/enforcement-audit` — validates artifacts exist per declared level
 - Per-workstream override support validated (warn-if-override-exceeds-base)
 - 7 BATS tests passing, audit itself: 23/23
 
@@ -42,7 +42,7 @@ Read the Valueflow plan's Phase 3 spec. Every non-stretch iteration is already i
 - Hard dependency on Phase 1 (docs): the registration reflects what exists TODAY. When captain ships Phase 1 decomposition, the registry may need new entries — but the infrastructure is ready.
 
 **3.4 Context Budget Linter — DONE**
-- `claude/tools/context-budget-lint` — recursive @-import chain resolution, wc -w * 0.75 tokens
+- `agency/tools/context-budget-lint` — recursive @-import chain resolution, wc -w * 0.75 tokens
 - 4000-token default, --budget override, sorted output, top-5 offender report
 - 52 skills measured, all within budget (largest: quality-gate at 954 tokens / 23%)
 - Co-ship dependency with Phase 1 decomposition: linter is ready, waiting on the decomposition to validate. Per the co-ship protocol in the plan: 'No timeout — M4 waits for 3.4.' 3.4 IS shipped.

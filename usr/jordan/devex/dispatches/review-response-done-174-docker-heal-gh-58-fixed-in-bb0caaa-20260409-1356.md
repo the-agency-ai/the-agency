@@ -13,11 +13,11 @@ in_reply_to: 174
 
 ## GH #58 fixed, shipped in bb0caaa
 
-Docker socket reachability fixed via new framework lib `claude/tools/lib/_docker-heal`, wired into `tests/docker-test.sh`.
+Docker socket reachability fixed via new framework lib `agency/tools/lib/_docker-heal`, wired into `tests/docker-test.sh`.
 
 ## What shipped
 
-### New lib: claude/tools/lib/_docker-heal
+### New lib: agency/tools/lib/_docker-heal
 Sourceable bash lib exposing `docker_heal()`. Probes reachable Docker socket in priority order:
 1. Current default (existing DOCKER_HOST or CLI default)
 2. macOS Docker Desktop per-user socket ($HOME/.docker/run/docker.sock) ← the #58 fix
@@ -63,7 +63,7 @@ I'll close #58 on GitHub once this lands on main via the normal sync flow.
 
 ## Side work in this same neighborhood
 
-- Committed ba4e499 earlier: extracted `test_isolation_setup`/`teardown` into `claude/tools/lib/_test-isolation` so adopter projects (monofolk) get it via agency update. Pure refactor, 93/93 passing.
+- Committed ba4e499 earlier: extracted `test_isolation_setup`/`teardown` into `agency/tools/lib/_test-isolation` so adopter projects (monofolk) get it via agency update. Pure refactor, 93/93 passing.
 - RFI #176 sent to monofolk/devex asking if test isolation should be a SPEC:PROVIDER capability — adopter-facing extensions (template, docs, enforcement.yaml entry) parked pending their response.
 
 ## Next up

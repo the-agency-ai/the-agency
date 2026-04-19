@@ -43,15 +43,15 @@ Artifacts that are **executable code, framework methodology, or configuration th
 
 | Artifact | Examples |
 |----------|---------|
-| Tools | `claude/tools/*` (bash scripts) |
+| Tools | `agency/tools/*` (bash scripts) |
 | Skills | `.claude/skills/*/SKILL.md`, `usr/*/commands/*.md` |
-| Hookify rules | `claude/hookify/*.md` |
-| Agent class definitions | `claude/agents/*/agent.md` |
-| Framework methodology | `claude/CLAUDE-THEAGENCY.md` changes |
-| Hook scripts | `claude/hooks/*` |
-| Configuration templates | `claude/config/settings-template.json`, `agency.yaml` template |
-| Tests | `tests/**`, `claude/tools/tests/*` |
-| Library code | `claude/tools/lib/*` |
+| Hookify rules | `agency/hookify/*.md` |
+| Agent class definitions | `agency/agents/*/agent.md` |
+| Framework methodology | `agency/CLAUDE-THEAGENCY.md` changes |
+| Hook scripts | `agency/hooks/*` |
+| Configuration templates | `agency/config/settings-template.json`, `agency.yaml` template |
+| Tests | `tests/**`, `agency/tools/tests/*` |
+| Library code | `agency/tools/lib/*` |
 
 **Rationale:** Code changes affect agent behavior. They need a PR for: audit trail, the-agency captain to review against framework patterns, and potential rollback. The upstream-port tool handles this automatically.
 

@@ -233,7 +233,7 @@ class AgencyOrchestrator:
 
     def launch_agent(self, workstream: str, agent: str, task: str):
         """Launch an Agency agent programmatically."""
-        project_dir = f"claude/agents/{agent}"
+        project_dir = f"agency/agents/{agent}"
 
         with self.client.create_session(
             project_dir=".",

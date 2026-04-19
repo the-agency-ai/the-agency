@@ -2,14 +2,14 @@
 # What Problem: PRs were created without QG/RG receipts. Need standalone
 # verification that any skill or tool can call.
 #
-# How & Why: Finds receipts in claude/receipts/ matching workstream+project,
+# How & Why: Finds receipts in agency/receipts/ matching workstream+project,
 # verifies Hash E matches current code/artifact. Reads diff_base from
 # receipt frontmatter. Exit 0 = valid, exit 1 = blocked.
 #
 # Usage:
-#   ./claude/tools/receipt-verify                                    # auto-detect
-#   ./claude/tools/receipt-verify --workstream devex --project git-safe
-#   ./claude/tools/receipt-verify --file claude/receipts/specific.md
+#   ./agency/tools/receipt-verify                                    # auto-detect
+#   ./agency/tools/receipt-verify --workstream devex --project git-safe
+#   ./agency/tools/receipt-verify --file agency/receipts/specific.md
 #
 # Written: 2026-04-14 during captain session (receipt infrastructure Phase 1)
 # QG: fixed double-invocation, dead branch code, wildcard fallback, full hash compare
@@ -123,7 +123,7 @@ PATTERN="*-${WORKSTREAM}-${PROJECT}-*.md"
 
 # Tier 1: per-workstream paths (D42-R3+)
 for subdir in qgr rgr; do
-    local_dir="$REPO_ROOT/claude/workstreams/$WORKSTREAM/$subdir"
+    local_dir="$REPO_ROOT/agency/workstreams/$WORKSTREAM/$subdir"
     if [[ -d "$local_dir" ]]; then
         while IFS= read -r -d '' receipt; do
             FOUND=$((FOUND + 1))
@@ -135,13 +135,13 @@ for subdir in qgr rgr; do
     fi
 done
 
-# Tier 2: legacy claude/receipts/ (pre-D42-R3)
+# Tier 2: legacy agency/receipts/ (pre-D42-R3)
 if [[ "$FOUND" -eq 0 && -d "$RECEIPTS_DIR" ]]; then
     while IFS= read -r -d '' receipt; do
         FOUND=$((FOUND + 1))
         if verify_receipt "$receipt" "quiet"; then
             VERIFIED=$((VERIFIED + 1))
-            echo "Note: Found receipt in legacy location (claude/receipts/). Migration pending."
+            echo "Note: Found receipt in legacy location (agency/receipts/). Migration pending."
             verify_receipt "$receipt"
         fi
     done < <(find "$RECEIPTS_DIR" -name "$PATTERN" -print0 2>/dev/null)

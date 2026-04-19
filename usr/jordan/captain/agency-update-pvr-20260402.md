@@ -39,7 +39,7 @@ User has not modified any framework files. `agency update` syncs all framework f
 
 ### UC2: Update with User Modifications
 
-User customized `claude/hooks/ref-injector.sh`. `agency update` detects the modification (manifest checksum mismatch), warns the user, and preserves their version. Reports what was skipped and why.
+User customized `agency/hooks/ref-injector.sh`. `agency update` detects the modification (manifest checksum mismatch), warns the user, and preserves their version. Reports what was skipped and why.
 
 ### UC3: Agency.yaml Migration
 
@@ -69,10 +69,10 @@ Implement the tier model from the starter-sunset A&D. **This replaces v1's uncon
 | Config | Copy from source | Skip if user-modified; overwrite if untouched | Checksum differs from manifest = user-modified |
 | Scaffold | Generate | Never overwrite (but may migrate schema — see 4.3) | File exists in target but not in source manifest |
 
-**Tier assignment:** Stored in `claude/config/manifest.json` per file. Each file entry has `hash`, `tier`, and `version` fields. The existing `modified` field is dropped — modification is now computed on-the-fly by comparing the current file hash against the manifest hash.
+**Tier assignment:** Stored in `agency/config/manifest.json` per file. Each file entry has `hash`, `tier`, and `version` fields. The existing `modified` field is dropped — modification is now computed on-the-fly by comparing the current file hash against the manifest hash.
 
 ```json
-"claude/hooks/ref-injector.sh": {
+"agency/hooks/ref-injector.sh": {
   "hash": "abc123...",
   "tier": "config",
   "version": "2.0.0"
@@ -131,9 +131,9 @@ Migration steps:
 
 Before making any changes:
 
-1. Source exists and is a valid Agency framework source (has `claude/CLAUDE-THEAGENCY.md` — the definitive framework marker)
+1. Source exists and is a valid Agency framework source (has `agency/CLAUDE-THEAGENCY.md` — the definitive framework marker)
 2. Source has all required directories (agents/, docs/, hooks/, tools/)
-3. Target is initialized (has `claude/config/agency.yaml`)
+3. Target is initialized (has `agency/config/agency.yaml`)
 4. Target has clean git state for framework files (warn if uncommitted changes in `claude/`)
 5. Display "from version → to version" and list of changes before applying
 

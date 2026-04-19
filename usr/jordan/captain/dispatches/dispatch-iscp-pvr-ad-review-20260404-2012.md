@@ -21,8 +21,8 @@ The ISCP workstream has completed its first pass PVR and A&D through /define and
 
 ## Files to Review
 
-- `claude/workstreams/iscp/iscp-pvr-20260404.md` — Product Vision & Requirements (13 use cases, 11 FRs)
-- `claude/workstreams/iscp/iscp-ad-20260404.md` — Architecture & Design (6 tables, 8 tools, 5 hookify rules)
+- `agency/workstreams/iscp/iscp-pvr-20260404.md` — Product Vision & Requirements (13 use cases, 11 FRs)
+- `agency/workstreams/iscp/iscp-ad-20260404.md` — Architecture & Design (6 tables, 8 tools, 5 hookify rules)
 
 ## Key Decisions Needing Captain Alignment
 

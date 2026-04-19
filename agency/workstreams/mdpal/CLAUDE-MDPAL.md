@@ -11,7 +11,7 @@ The engine is language-agnostic. The CLI exposes section-level read/write/diff/c
 ## Scope
 
 - **In scope:** section addressing, section-level read/write, section diff, section compose, markdown frontmatter handling, table of contents generation, native macOS reviewer UI, CLI tool and skill, BATS + Swift tests.
-- **Licensing:** Reference Source License per-directory (see `claude/workstreams/mdpal/LICENSE`). Not MIT like the framework.
+- **Licensing:** Reference Source License per-directory (see `agency/workstreams/mdpal/LICENSE`). Not MIT like the framework.
 - **Out of scope:** general-purpose markdown rendering, static site generation, Markdown flavor conversion (CommonMark / GFM / etc.) — mdpal is about STRUCTURE and REVIEW, not rendering.
 
 ## Agents
@@ -29,8 +29,8 @@ Both agents share the workstream directory and artifacts (PVR, A&D, Plan) but co
 
 ## Related
 
-- `claude/workstreams/mdpal/LICENSE` — Reference Source License
-- PVR, A&D, Plan at `claude/workstreams/mdpal/` top level
+- `agency/workstreams/mdpal/LICENSE` — Reference Source License
+- PVR, A&D, Plan at `agency/workstreams/mdpal/` top level
 - Upcoming: mdslide / mdslidepal — markdown-based slides feature (captured as seed pending build)
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

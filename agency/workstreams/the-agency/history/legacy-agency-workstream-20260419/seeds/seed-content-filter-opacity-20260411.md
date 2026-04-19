@@ -8,7 +8,7 @@ status: filed
 anthropic_feedback_id: cc00b303-5710-4e23-862e-882d6db8c7e0
 github_issue: https://github.com/anthropics/claude-code/issues/46546
 report: usr/jordan/reports/report-feedback-content-filter-opacity-20260411.md
-related_seed: claude/workstreams/agency/seeds/seed-feedback-comms-gap-20260411.md
+related_seed: agency/workstreams/agency/seeds/seed-feedback-comms-gap-20260411.md
 ---
 
 **FILED 2026-04-11.** Anthropic feedback ID `cc00b303-5710-4e23-862e-882d6db8c7e0`; GitHub issue [anthropics/claude-code#46546](https://github.com/anthropics/claude-code/issues/46546). Tracking at `usr/jordan/reports/report-feedback-content-filter-opacity-20260411.md`.

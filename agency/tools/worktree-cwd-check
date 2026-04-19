@@ -14,9 +14,9 @@
 # Written: 2026-04-07 during devex Phase 110 (cd-stays-in-worktree)
 #
 # Usage:
-#   ./claude/tools/worktree-cwd-check              # check, emit warning if mismatch
-#   ./claude/tools/worktree-cwd-check --quiet      # exit code only, no output
-#   ./claude/tools/worktree-cwd-check --version    # show version
+#   ./agency/tools/worktree-cwd-check              # check, emit warning if mismatch
+#   ./agency/tools/worktree-cwd-check --quiet      # exit code only, no output
+#   ./agency/tools/worktree-cwd-check --version    # show version
 #
 # Exit codes:
 #   0 = CWD matches worktree (or not inside any git repo)

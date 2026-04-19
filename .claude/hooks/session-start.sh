@@ -12,9 +12,9 @@ fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 AGENTNAME="${AGENTNAME:-captain}"
-CONTEXT_FILE="$REPO_ROOT/claude/agents/$AGENTNAME/backups/latest/context.jsonl"
-GIT_STATUS_FILE="$REPO_ROOT/claude/agents/$AGENTNAME/backups/latest/status.txt"
-INSTANCES_DIR="$REPO_ROOT/claude/data/instances"
+CONTEXT_FILE="$REPO_ROOT/agency/agents/$AGENTNAME/backups/latest/context.jsonl"
+GIT_STATUS_FILE="$REPO_ROOT/agency/agents/$AGENTNAME/backups/latest/status.txt"
+INSTANCES_DIR="$REPO_ROOT/agency/data/instances"
 
 # Register this instance
 mkdir -p "$INSTANCES_DIR"

@@ -31,7 +31,7 @@ Agents in monofolk (and any project using the-agency) are blocked from committin
 
 ### QGR Enforcement in the Tool
 
-The `claude/tools/git-safe-commit` bash tool must mechanically enforce the stage-hash receipt check:
+The `agency/tools/git-safe-commit` bash tool must mechanically enforce the stage-hash receipt check:
 1. Compute stage-hash of staged changes
 2. Glob for matching QGR or MAR receipt
 3. No receipt + no `--force` → exit 1, blocked
@@ -44,7 +44,7 @@ Receipt type doesn't matter (QGR or MAR) — the tool just needs *a* receipt mat
 ### MAR (Multi-Agent Review) for Artifacts
 
 MAR is the QG for non-code artifacts (PVR, A&D, Plan). Already proven in captain PVR review. Needs formalization:
-- **Tool:** `claude/tools/mar` (or integrated into existing QG tool with `--type artifact`)
+- **Tool:** `agency/tools/mar` (or integrated into existing QG tool with `--type artifact`)
 - **Skill:** `/mar` or integrated into `/quality-gate --artifact`
 - **Hookify:** Block committing artifact files without MAR receipt
 - Produces a MAR receipt with stage-hash, same format as QGR receipt
@@ -65,7 +65,7 @@ New Enforcement Triangle:
 
 | Layer | What |
 |-------|------|
-| **Tool** | `claude/tools/git-pr` — creates/updates PR via `gh`, dispatches "pr-created" |
+| **Tool** | `agency/tools/git-pr` — creates/updates PR via `gh`, dispatches "pr-created" |
 | **Skill** | `/git-pr` — captain's PR skill |
 | **Hookify** | Block raw `git push` for captain — must use `/git-pr` |
 

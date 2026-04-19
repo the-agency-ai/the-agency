@@ -1,7 +1,7 @@
 #!/bin/bash
 # Set up iCloud cloud storage integration for a project
 #
-# Usage: ./claude/tools/icloud-setup <projectname> <principalname>
+# Usage: ./agency/tools/icloud-setup <projectname> <principalname>
 #
 # Creates:
 #   ~/Library/Mobile Documents/com~apple~CloudDocs/claude/{projectname}/
@@ -56,11 +56,11 @@ for arg in "$@"; do
         --help|-h)
             echo "icloud-setup - Set up iCloud cloud storage integration"
             echo ""
-            echo "Usage: ./claude/tools/icloud-setup <projectname> <principalname>"
+            echo "Usage: ./agency/tools/icloud-setup <projectname> <principalname>"
             echo ""
             echo "Examples:"
-            echo "  ./claude/tools/icloud-setup the-agency jordan"
-            echo "  ./claude/tools/icloud-setup ordinaryfolk-nextgen jordan"
+            echo "  ./agency/tools/icloud-setup the-agency jordan"
+            echo "  ./agency/tools/icloud-setup ordinaryfolk-nextgen jordan"
             echo ""
             echo "This creates:"
             echo "  1. iCloud Drive/claude/{projectname}/ folder"
@@ -91,11 +91,11 @@ main() {
     if [ -z "$PROJECTNAME" ] || [ -z "$PRINCIPALNAME" ]; then
         log_error "Missing required arguments"
         echo ""
-        echo "Usage: ./claude/tools/icloud-setup <projectname> <principalname>"
+        echo "Usage: ./agency/tools/icloud-setup <projectname> <principalname>"
         echo ""
         echo "Examples:"
-        echo "  ./claude/tools/icloud-setup the-agency jordan"
-        echo "  ./claude/tools/icloud-setup ordinaryfolk-nextgen jordan"
+        echo "  ./agency/tools/icloud-setup the-agency jordan"
+        echo "  ./agency/tools/icloud-setup ordinaryfolk-nextgen jordan"
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "Missing arguments"
         exit 1
@@ -149,7 +149,7 @@ main() {
 
         # Create folders for existing agents
         if [ -d "claude/agents" ]; then
-            for agent_dir in claude/agents/*/; do
+            for agent_dir in agency/agents/*/; do
                 agent_name=$(basename "$agent_dir")
                 if [ "$agent_name" != "*" ]; then
                     verbose_echo "Creating agent folder: $agent_name"

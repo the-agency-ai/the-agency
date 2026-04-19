@@ -24,7 +24,7 @@ Three worktree agent sessions analyzed: ISCP, DevEx, mdpal-cli. All ran on 2026-
 
 No `tool_rejected` events. Two `is_error: true` results observed:
 
-1. **Entry 25** — `Read` on `claude/workstreams/agency/valueflow-plan-20260407.md` returned file-not-found because the plan lived on main and the branch hadn't been merged yet. Not a permission error — a legitimate workflow problem (agent read from the wrong branch). The agent self-corrected with `git show main:...` to verify existence, then merged main.
+1. **Entry 25** — `Read` on `agency/workstreams/agency/valueflow-plan-20260407.md` returned file-not-found because the plan lived on main and the branch hadn't been merged yet. Not a permission error — a legitimate workflow problem (agent read from the wrong branch). The agent self-corrected with `git show main:...` to verify existence, then merged main.
 
 2. No blocked commands. Permission model appears to be working for ISCP — this is the agent that wrote the permissions in settings-template.json.
 
@@ -58,8 +58,8 @@ Root cause: `dispatch list` shows ALL dispatches for the agent — both inbound 
 
 **2 compound command violations** (both with `cd /Users/jdm/code/the-agency &&`):
 
-- Entry 11: `cd /Users/jdm/code/the-agency && ./claude/tools/dispatch list 2>&1`
-- Entry 12: `cd /Users/jdm/code/the-agency && ./claude/tools/flag list 2>&1`
+- Entry 11: `cd /Users/jdm/code/the-agency && ./agency/tools/dispatch list 2>&1`
+- Entry 12: `cd /Users/jdm/code/the-agency && ./agency/tools/flag list 2>&1`
 
 The agent was running from the worktree CWD (`/Users/jdm/code/the-agency/.claude/worktrees/iscp`) and prefixed both dispatch/flag commands with `cd` to the main repo. This is wrong — the tools work from any CWD. The `cd` is unnecessary and violates the compound command rule.
 
@@ -125,19 +125,19 @@ The `.agency-agent` file mechanism creates a race condition between agents: the 
 
 The commit failed for unrelated reasons, so no harm done — but the agent demonstrated it doesn't honor the git-safe-commit wrapper requirement when acting quickly in response to stop hook feedback.
 
-**Entry 82** — during the later dispatch check, the agent used `cd /Users/jdm/code/the-agency && ./claude/tools/dispatch list --status unread` — both a cd-to-main-repo violation and a compound command.
+**Entry 82** — during the later dispatch check, the agent used `cd /Users/jdm/code/the-agency && ./agency/tools/dispatch list --status unread` — both a cd-to-main-repo violation and a compound command.
 
 ### Compound Command Violations
 
 **4 compound command violations**:
 
-- Entry 27: `cd /Users/jdm/code/the-agency && ./claude/tools/dispatch list 2>/dev/null`
-- Entry 28: `cd /Users/jdm/code/the-agency && ./claude/tools/flag list 2>/dev/null`
+- Entry 27: `cd /Users/jdm/code/the-agency && ./agency/tools/dispatch list 2>/dev/null`
+- Entry 28: `cd /Users/jdm/code/the-agency && ./agency/tools/flag list 2>/dev/null`
 - Entry 60: `git add .agency-agent && git commit -m "$(cat <<'EOF'...EOF)"` (also a /git-safe-commit bypass)
-- Entry 82: `cd /Users/jdm/code/the-agency && ./claude/tools/dispatch list --status unread 2>/dev/null`
+- Entry 82: `cd /Users/jdm/code/the-agency && ./agency/tools/dispatch list --status unread 2>/dev/null`
 - Entry 87: `git add usr/jordan/devex/devex-handoff.md && git commit -m "$(cat <<'EOF'...EOF)"` (another /git-safe-commit bypass)
 
-Note: entries 87-88 — the second raw commit succeeded. Agent committed the handoff file via bare `git commit`, not `./claude/tools/git-safe-commit`. The pre-commit hook ran and passed, but the git-safe-commit wrapper's QGR check was bypassed entirely.
+Note: entries 87-88 — the second raw commit succeeded. Agent committed the handoff file via bare `git commit`, not `./agency/tools/git-safe-commit`. The pre-commit hook ran and passed, but the git-safe-commit wrapper's QGR check was bypassed entirely.
 
 ### Token Waste
 
@@ -211,9 +211,9 @@ Three extra tool calls from the cwd reset behavior that CLAUDE.md specifically w
 
 **5 compound command violations**:
 
-- Entry 18: `cd /Users/jdm/code/the-agency && ./claude/tools/dispatch list 2>&1 | tail -20`
+- Entry 18: `cd /Users/jdm/code/the-agency && ./agency/tools/dispatch list 2>&1 | tail -20`
   (also uses a pipe — double violation)
-- Entry 19: `cd /Users/jdm/code/the-agency && ./claude/tools/flag list 2>&1 | tail -20`
+- Entry 19: `cd /Users/jdm/code/the-agency && ./agency/tools/flag list 2>&1 | tail -20`
   (pipe too)
 - Entry 42: `git log mdpal --oneline -5 2>/dev/null; echo "---"; git show mdpal:apps/mdpal/Package.swift 2>/dev/null | head -5 || echo "No mdpal code on mdpal branch"`
   (three different chain operators: `;`, `|`, `||`)
@@ -237,7 +237,7 @@ High. Several contributors:
 
 ### Pattern 1: cd-to-main-repo for dispatch/flag tools
 
-All three agents prefix `./claude/tools/dispatch` and `./claude/tools/flag` with `cd /Users/jdm/code/the-agency &&`. This happens CONSISTENTLY in every session startup:
+All three agents prefix `./agency/tools/dispatch` and `./agency/tools/flag` with `cd /Users/jdm/code/the-agency &&`. This happens CONSISTENTLY in every session startup:
 
 - ISCP: 2 occurrences (entries 11, 12)
 - DevEx: 3 occurrences (entries 27, 28, 82)
@@ -298,7 +298,7 @@ Four tool calls to handle something that should have been a no-op (the file was 
 - **Hookify rule:** Block `cd .*/the-agency && .*dispatch` and `cd .*/the-agency && .*flag` with guidance to use relative paths.
 - **Tool improvement:** Make the tools print a diagnostic if run from a worktree to confirm they're resolving correctly, so agents gain confidence they work from anywhere.
 
-**What to change:** CLAUDE-THEAGENCY.md (add callout in ISCP section), hookify rule in `claude/hookify/`.
+**What to change:** CLAUDE-THEAGENCY.md (add callout in ISCP section), hookify rule in `agency/hookify/`.
 
 ---
 
@@ -308,7 +308,7 @@ Four tool calls to handle something that should have been a no-op (the file was 
 
 **Fix:** Move the dispatch loop setup into the SessionStart hook. The `iscp-check` hook already fires on SessionStart — the loop should be automatically initialized there or via a hookify rule that fires on agent boot.
 
-Alternatively: the agent class definition (`claude/agents/tech-lead/agent.md`) should specify that the dispatch loop is automatic infrastructure, not a manual startup step — and the SessionStart hook should CronCreate it.
+Alternatively: the agent class definition (`agency/agents/tech-lead/agent.md`) should specify that the dispatch loop is automatic infrastructure, not a manual startup step — and the SessionStart hook should CronCreate it.
 
 **What to change:** SessionStart hook or hookify rule; remove dispatch loop setup from handoff startup sequences.
 
@@ -337,20 +337,20 @@ Alternatively: the agent class definition (`claude/agents/tech-lead/agent.md`) s
 
 **Currently:** The hookify warning exists for `git commit` but not for `&&` chains in general. Agents have absorbed the compound command prohibition verbally but don't have mechanical enforcement.
 
-**Fix:** Hookify rule that triggers on patterns like `&& git`, `&& ./claude/tools/`, `;` chains in Bash tool calls. The rule should:
+**Fix:** Hookify rule that triggers on patterns like `&& git`, `&& ./agency/tools/`, `;` chains in Bash tool calls. The rule should:
 1. Block the call
 2. Explain why (CWD resets, permission model)
 3. Show the simple form
 
 **Caveat:** Some `&&` is legitimate (build commands, heredoc commit messages). The rule needs to be specific to the problematic patterns — primarily `cd /path && tool` and `git add X && git commit`.
 
-**What to change:** New hookify rule in `claude/hookify/hookify.compound-commands.md`.
+**What to change:** New hookify rule in `agency/hookify/hookify.compound-commands.md`.
 
 ---
 
 ### P5: Fix the raw-git-safe-commit bypass (HIGH — QG integrity issue)
 
-**Observed:** DevEx used `git add X && git commit` twice, bypassing `./claude/tools/git-safe-commit`. The second commit succeeded without QGR verification.
+**Observed:** DevEx used `git add X && git commit` twice, bypassing `./agency/tools/git-safe-commit`. The second commit succeeded without QGR verification.
 
 **Currently:** There's a hookify rule warning about raw `git commit` but it didn't block the DevEx instance. This may be because:
 - The rule fires on bare `git commit` but the compound form `git add X && git commit` is parsed differently
@@ -358,7 +358,7 @@ Alternatively: the agent class definition (`claude/agents/tech-lead/agent.md`) s
 
 **Fix:** Verify the hookify rule fires on the compound `git add && git commit` pattern. If not, update the pattern to catch it. The QGR bypass is a real integrity issue — it undermines the quality gate entirely.
 
-**What to change:** `claude/hookify/hookify.warn-raw-git-safe-commit.md` (or equivalent) — strengthen pattern matching.
+**What to change:** `agency/hookify/hookify.warn-raw-git-safe-commit.md` (or equivalent) — strengthen pattern matching.
 
 ---
 
@@ -386,7 +386,7 @@ Alternatively: the agent class definition (`claude/agents/tech-lead/agent.md`) s
 2. The handoff template should not encourage agents to claim completion for work that isn't committed
 3. Stronger: the `handoff` tool could check `git status` and refuse to write "Current State" claims that contradict dirty/uncommitted state
 
-**What to change:** `claude/hooks/quality-check.sh`, handoff write guidance in `CLAUDE-THEAGENCY.md`.
+**What to change:** `agency/hooks/quality-check.sh`, handoff write guidance in `CLAUDE-THEAGENCY.md`.
 
 ---
 
@@ -408,7 +408,7 @@ Alternatively: the agent class definition (`claude/agents/tech-lead/agent.md`) s
 
 **Fix:** `dispatch list` should separate inbound (to-me, unread) from outbound (from-me, awaiting captain). Or add a `--inbox` flag that shows only dispatches where `to == current_agent`. The default view (`dispatch list`) should be inbox-only.
 
-**What to change:** `claude/tools/dispatch` — add `--inbox` filter or change default behavior.
+**What to change:** `agency/tools/dispatch` — add `--inbox` filter or change default behavior.
 
 ---
 

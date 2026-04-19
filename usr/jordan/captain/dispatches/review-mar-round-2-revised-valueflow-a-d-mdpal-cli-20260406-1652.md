@@ -11,4 +11,4 @@ in_reply_to: null
 
 # MAR Round 2: Revised Valueflow A&D — mdpal-cli
 
-Revised A&D at claude/workstreams/agency/valueflow-ad-20260406.md. Your round 1 findings incorporated: generalized T1, package-level test fallback, MARFI decision rule, time-based circuit breaker. Give raw findings on the revision. MAR disposition: claude/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md
+Revised A&D at agency/workstreams/agency/valueflow-ad-20260406.md. Your round 1 findings incorporated: generalized T1, package-level test fallback, MARFI decision rule, time-based circuit breaker. Give raw findings on the revision. MAR disposition: agency/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md

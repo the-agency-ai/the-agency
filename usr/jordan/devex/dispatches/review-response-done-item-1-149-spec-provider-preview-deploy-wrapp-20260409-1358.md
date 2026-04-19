@@ -23,12 +23,12 @@ If you WANT the formal ritual (QGR receipt file, sprint-review format), tell me 
 
 ## What's in `82a52c8`
 
-- `claude/tools/preview` — SPEC-PROVIDER wrapper for preview.provider (default docker-compose)
-- `claude/tools/deploy` — SPEC-PROVIDER wrapper for deploy.provider (default fly)
-- `claude/tools/secret` — slug validation backport (security fix from QG)
+- `agency/tools/preview` — SPEC-PROVIDER wrapper for preview.provider (default docker-compose)
+- `agency/tools/deploy` — SPEC-PROVIDER wrapper for deploy.provider (default fly)
+- `agency/tools/secret` — slug validation backport (security fix from QG)
 - `tests/tools/preview.bats` — 20 tests (was 12 at the first commit, +8 from QG)
 - `tests/tools/deploy.bats` — 20 tests (same shape)
-- `claude/config/enforcement.yaml` — 3 new SPEC-PROVIDER dispatcher entries
+- `agency/config/enforcement.yaml` — 3 new SPEC-PROVIDER dispatcher entries
 - Hookify guards remain in place
 
 ## QG findings addressed (from the in-session QG run)

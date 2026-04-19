@@ -27,10 +27,10 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/tools/lib/_agency-init
+agency/tools/lib/_agency-init
 claude/workstreams/captain/transcripts/dialogue-transcript-20260419.md
-claude/workstreams/the-agency/research/andrew-demo-root-cause-20260419.md
-claude/workstreams/the-agency/seeds/seed-true-installer-bootstrap-20260419.md
+agency/workstreams/the-agency/research/andrew-demo-root-cause-20260419.md
+agency/workstreams/the-agency/seeds/seed-true-installer-bootstrap-20260419.md
 claude/workstreams/the-agency/seeds/seed-what-is-claude-code-anthropic-architecture-20260419.md
 claude/workstreams/the-agency/seeds/seed-what-is-claude-code-components-20260419.md
 usr/jordan/claude-tools-worktree-sync/dispatches/commit-to-captain-committed-c4fbc4c2-on-contrib-claude-tools-worktre-20260419-1716.md

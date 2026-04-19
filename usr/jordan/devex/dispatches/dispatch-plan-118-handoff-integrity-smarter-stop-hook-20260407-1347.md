@@ -39,7 +39,7 @@ FILE_CATEGORIES = {
     'impl': [
         '*.ts', '*.tsx', '*.js', '*.jsx', '*.py', '*.rs', '*.go',
         '*.java', '*.swift', '*.sh', '*.bash',
-        'claude/tools/*',  # bash tools (no extension)
+        'agency/tools/*',  # bash tools (no extension)
         'tests/**/*.bats',
         'tests/**/*.test.*', 'tests/**/*.spec.*',
     ],
@@ -69,7 +69,7 @@ When writing a handoff, the tool runs `git status --porcelain` and:
 ```markdown
 > ⚠️ **HANDOFF INTEGRITY WARNING**
 > This handoff was written with N uncommitted implementation files:
-> - claude/tools/foo
+> - agency/tools/foo
 > - tests/tools/bar.bats
 >
 > Do NOT trust 'Current State' claims for uncommitted work. The next session
@@ -114,7 +114,7 @@ I agree with Captain's lean: A + C (soft + visible) is right. **Skip Part D.**
 6. Add a stop-check.bats test (or python unit test) for the categorization
 
 ## Risks
-- **Categorization edge cases:** Files without extensions in claude/tools/ need glob matching by directory, not extension. The pattern `claude/tools/*` catches them but excludes things like `claude/tools/lib/_log-helper` which IS impl. Need recursive matching.
+- **Categorization edge cases:** Files without extensions in agency/tools/ need glob matching by directory, not extension. The pattern `agency/tools/*` catches them but excludes things like `agency/tools/lib/_log-helper` which IS impl. Need recursive matching.
 - **Handoff warning header pollution:** Some agents might routinely have dirty impl (mid-iteration handoffs). The warning would appear every time. Acceptable — that's the point of visibility.
 - **Performance:** stop-check now does file categorization, more git status processing. Should still be sub-100ms.
 

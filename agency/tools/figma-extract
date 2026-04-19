@@ -2,11 +2,11 @@
 # figma-extract - Extract design tokens from Figma via API
 #
 # Usage:
-#   ./claude/tools/figma-extract <file-key> --name=<brand> --version=<version>
-#   ./claude/tools/figma-extract abc123xyz --name=acme --version=001
+#   ./agency/tools/figma-extract <file-key> --name=<brand> --version=<version>
+#   ./agency/tools/figma-extract abc123xyz --name=acme --version=001
 #
 # Prerequisites:
-#   1. Store Figma token: ./claude/tools/secret-vault create figma-token --type=api_key --service=Figma
+#   1. Store Figma token: ./agency/tools/secret-vault create figma-token --type=api_key --service=Figma
 #   2. Get file key from Figma URL: figma.com/file/FILE_KEY/...
 #
 # This tool:
@@ -94,7 +94,7 @@ show_help() {
     echo "figma-extract - Extract design tokens from Figma via API"
     echo ""
     echo "Usage:"
-    echo "  ./claude/tools/figma-extract <file-key> --name=<brand> --version=<version>"
+    echo "  ./agency/tools/figma-extract <file-key> --name=<brand> --version=<version>"
     echo ""
     echo "Arguments:"
     echo "  file-key     Figma file key (from URL: figma.com/file/FILE_KEY/...)"
@@ -109,14 +109,14 @@ show_help() {
     echo ""
     echo "Prerequisites:"
     echo "  1. Store Figma token:"
-    echo "     ./claude/tools/secret-vault create figma-token --type=api_key --service=Figma"
+    echo "     ./agency/tools/secret-vault create figma-token --type=api_key --service=Figma"
     echo ""
     echo "  2. Get file key from Figma URL:"
     echo "     https://www.figma.com/file/FILE_KEY/Project-Name"
     echo ""
     echo "Examples:"
-    echo "  ./claude/tools/figma-extract abc123xyz --name=acme --version=001"
-    echo "  ./claude/tools/figma-extract abc123xyz --name=myproject --version=002 --dry-run"
+    echo "  ./agency/tools/figma-extract abc123xyz --name=acme --version=001"
+    echo "  ./agency/tools/figma-extract abc123xyz --name=myproject --version=002 --dry-run"
     echo ""
     echo "Hybrid Workflow (Recommended for comprehensive extraction):"
     echo ""
@@ -124,7 +124,7 @@ show_help() {
     echo "  with unpublished styles, use the hybrid PDF workflow:"
     echo ""
     echo "  1. Run this tool to create the structure:"
-    echo "     ./claude/tools/figma-extract abc123xyz --name=acme --version=001"
+    echo "     ./agency/tools/figma-extract abc123xyz --name=acme --version=001"
     echo ""
     echo "  2. In Figma, export design documentation pages as PDFs:"
     echo "     - Select the Colors/Typography/Effects pages"
@@ -198,7 +198,7 @@ fi
 
 # Get Figma token from secret service
 log_step "Fetching Figma API token..."
-FIGMA_TOKEN=$("$PROJECT_ROOT/claude/tools/secret-vault" get figma-token 2>/dev/null) || true
+FIGMA_TOKEN=$("$PROJECT_ROOT/agency/tools/secret-vault" get figma-token 2>/dev/null) || true
 
 if [[ -z "$FIGMA_TOKEN" ]]; then
     log_error "Figma token not found in Secret Service"
@@ -206,7 +206,7 @@ if [[ -z "$FIGMA_TOKEN" ]]; then
     echo "To set up Figma API access:"
     echo "  1. Go to Figma > Account Settings > Personal Access Tokens"
     echo "  2. Generate a new token"
-    echo "  3. Store it: ./claude/tools/secret-vault create figma-token --type=api_key --service=Figma"
+    echo "  3. Store it: ./agency/tools/secret-vault create figma-token --type=api_key --service=Figma"
     log_end "$RUN_ID" "failure" "1" "0" "No Figma token" 2>/dev/null || true
     exit 1
 fi
@@ -577,7 +577,7 @@ Extracted from Figma on $TIMESTAMP.
 2. Review fonts in \`typography.md\` and define text styles
 3. For complete text style details, export typography page from Figma as PDF
 4. Update \`tailwind-config.md\` with named tokens
-5. Run \`./claude/tools/designsystem-validate $OUTPUT_DIR\` to check completeness
+5. Run \`./agency/tools/designsystem-validate $OUTPUT_DIR\` to check completeness
 
 ## Hybrid Workflow Tip
 
@@ -741,7 +741,7 @@ rm -rf "$TEMP_DIR"
     echo "  1. Review source/figma-styles.json for raw data"
     echo "  2. Map values to colors.md, typography.md, etc."
     echo "  3. Update tailwind-config.md"
-    echo "  4. Validate: ./claude/tools/designsystem-validate $OUTPUT_DIR"
+    echo "  4. Validate: ./agency/tools/designsystem-validate $OUTPUT_DIR"
     echo ""
 
     trap - EXIT  # Clear trap

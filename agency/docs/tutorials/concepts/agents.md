@@ -42,7 +42,7 @@ Each agent has:
 
 This creates:
 ```
-claude/agents/{name}/
+agency/agents/{name}/
   ├── agent.md
   ├── backups/
   ├── logs/

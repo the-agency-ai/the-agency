@@ -58,11 +58,11 @@ Simple. Direct. Clear. If any step fails, flag for help.
 ## Context
 
 Read these for full context:
-- Workshop outline v2: claude/workstreams/agency/seeds/workshop-outline-republic-poly-v2-20260412.md
-- Workshop setup guide: claude/workstreams/agency/seeds/workshop-setup-guide-20260410.md
-- Bootstrap script: claude/workstreams/agency/seeds/workshop-bootstrap.sh
-- Workshop start script: claude/workstreams/agency/seeds/workshop-start.sh
-- Slide deck (current): claude/workstreams/mdslidepal/workshop-deck.md
+- Workshop outline v2: agency/workstreams/agency/seeds/workshop-outline-republic-poly-v2-20260412.md
+- Workshop setup guide: agency/workstreams/agency/seeds/workshop-setup-guide-20260410.md
+- Bootstrap script: agency/workstreams/agency/seeds/workshop-bootstrap.sh
+- Workshop start script: agency/workstreams/agency/seeds/workshop-start.sh
+- Slide deck (current): agency/workstreams/mdslidepal/workshop-deck.md
 - Workshop content transcript: usr/jordan/captain/transcripts/workshop-content-planning-20260412.md
 
 ## Deadline

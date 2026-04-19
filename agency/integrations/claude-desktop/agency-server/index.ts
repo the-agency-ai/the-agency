@@ -91,7 +91,7 @@ function readFile(relativePath: string): string {
 
 // Helper: List collaboration files
 function getCollaborations(): string[] {
-  const collabDir = path.join(PROJECT_ROOT, "claude/agents/collaboration");
+  const collabDir = path.join(PROJECT_ROOT, "agency/agents/collaboration");
   try {
     return fs
       .readdirSync(collabDir)
@@ -279,7 +279,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: `Workstream '${workstream}' not found` }] };
       }
 
-      const knowledge = readFile(`claude/workstreams/${workstream}/KNOWLEDGE.md`);
+      const knowledge = readFile(`agency/workstreams/${workstream}/KNOWLEDGE.md`);
 
       // Find active sprints
       const epics = fs.readdirSync(wsDir).filter((f) => f.startsWith("epic"));
@@ -333,7 +333,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const pending: Array<{ file: string; subject: string; from: string; status: string }> = [];
 
       for (const file of collabs) {
-        const content = readFile(`claude/agents/collaboration/${file}`);
+        const content = readFile(`agency/agents/collaboration/${file}`);
         const statusMatch = content.match(/\*\*Status:\*\* (\w+)/);
         const subjectMatch = content.match(/## Subject\n\n(.+)/);
         const fromMatch = file.match(/FROM-(.+?)-COLLABORATE/);
@@ -414,7 +414,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // Pending collabs
       const pendingCollabs = getCollaborations().filter((f) => {
-        const content = readFile(`claude/agents/collaboration/${f}`);
+        const content = readFile(`agency/agents/collaboration/${f}`);
         return content.includes("**Status:** Open");
       }).length;
 
@@ -504,7 +504,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         {
           uri,
           mimeType: "text/yaml",
-          text: readFile("claude/config/agency.yaml"),
+          text: readFile("agency/config/agency.yaml"),
         },
       ],
     };
@@ -528,7 +528,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
           {
             uri,
             mimeType: "text/markdown",
-            text: readFile(`claude/agents/${agent}/${file}`),
+            text: readFile(`agency/agents/${agent}/${file}`),
           },
         ],
       };

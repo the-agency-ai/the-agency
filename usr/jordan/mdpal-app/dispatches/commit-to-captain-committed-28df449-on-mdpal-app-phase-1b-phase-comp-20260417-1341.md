@@ -27,7 +27,7 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-phase-complete-20260417-1341-e4786f7.md
+agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-phase-complete-20260417-1341-e4786f7.md
 usr/jordan/mdpal-app/dispatches/commit-to-captain-committed-7765d0e-on-mdpal-app-housekeeping-captai-20260417-1336.md
 usr/jordan/mdpal-app/dispatches/commit-to-captain-committed-83fab61-on-mdpal-app-phase-1b-7-feat-add-20260417-1340.md
 ```

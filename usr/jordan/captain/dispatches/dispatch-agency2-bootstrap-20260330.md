@@ -25,7 +25,7 @@ This PR (`fix/claudemd-v2-and-fixes`) delivers the Agency 2.0 CLAUDE.md — the 
 - Three hierarchies: framework (`claude/`), agent instances (`usr/{principal}/`), tooling
 - Agent class (`claude/agents/{class}/`) vs instance (`usr/{principal}/{agent}/`) model
 - Workstream shared artifacts (KNOWLEDGE.md, seeds, PVR, A&D, Plan, Ref, reviews)
-- Full tool audit with current state + planned migration to `claude/tools/` with noun-verb naming
+- Full tool audit with current state + planned migration to `agency/tools/` with noun-verb naming
 - Plugin provider pattern formalized (secrets, terminal, platform, design)
 - Skills model: `/discuss` (protocol), `/define` (PVR checklist), `/design` (A&D checklist)
 - Handoff as first-class primitive (context bootstrap, not just session continuity)
@@ -58,7 +58,7 @@ This PR (`fix/claudemd-v2-and-fixes`) delivers the Agency 2.0 CLAUDE.md — the 
 6. **Act on dispatch-browser-protocol** — agent browsing escalation
 7. **Build `/define` and `/design` skills** with completeness checklists
 8. **Build promotion tooling** — move artifacts from agent instance to workstream at implementation launch
-9. **Tool migration** — move tools from `tools/` to `claude/tools/`, adopt noun-verb naming
+9. **Tool migration** — move tools from `tools/` to `agency/tools/`, adopt noun-verb naming
 10. **Services audit** — identify which agency-service components are still needed, kill dead ones
 
 ### Adopted from gstack (see analysis)

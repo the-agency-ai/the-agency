@@ -78,7 +78,7 @@ Closes #428 item 1.
 
 ### Files Changed
 ```
-claude/tools/git-captain
+agency/tools/git-captain
 tests/tools/git-captain.bats
 usr/jordan/devex/dispatches/commit-to-captain-committed-19f020f-on-devex-housekeeping-devex-misc-20260417-0919.md
 usr/jordan/devex/dispatches/commit-to-captain-committed-9823036-on-devex-housekeeping-devex-misc-20260417-1249.md

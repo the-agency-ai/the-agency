@@ -62,18 +62,18 @@ Captain session 20. Started ~midnight, ran ~20 hours. The session that defined t
 
 | Artifact | Path |
 |----------|------|
-| Valueflow PVR | `claude/workstreams/agency/valueflow-pvr-20260406.md` |
-| Valueflow A&D | `claude/workstreams/agency/valueflow-ad-20260406.md` |
-| MAR R1 disposition | `claude/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md` |
-| MAR R2 disposition | `claude/workstreams/agency/reviews/mar-valueflow-ad-round2-20260406.md` |
-| PVR MAR R1 disposition | `claude/workstreams/agency/reviews/mar-valueflow-pvr-round1-20260406.md` |
-| MARFI brief | `claude/workstreams/agency/seeds/marfi-valueflow-20260406.md` |
-| Valueflow seed | `claude/workstreams/agency/seeds/seed-valueflow-20260406.md` |
-| Agency GTM seed | `claude/workstreams/agency/seeds/seed-agency-gtm-20260406.md` |
-| Next-version PVR seed | `claude/workstreams/agency/seeds/seed-next-version-pvr-20260406.md` |
-| Agency audit seed | `claude/workstreams/agency/seeds/seed-agency-audit-update-20260406.md` |
-| Flag triage seed | `claude/workstreams/iscp/seeds/seed-flag-triage-workflow-20260406.md` |
-| DevEx kickoff seed | `claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md` |
+| Valueflow PVR | `agency/workstreams/agency/valueflow-pvr-20260406.md` |
+| Valueflow A&D | `agency/workstreams/agency/valueflow-ad-20260406.md` |
+| MAR R1 disposition | `agency/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md` |
+| MAR R2 disposition | `agency/workstreams/agency/reviews/mar-valueflow-ad-round2-20260406.md` |
+| PVR MAR R1 disposition | `agency/workstreams/agency/reviews/mar-valueflow-pvr-round1-20260406.md` |
+| MARFI brief | `agency/workstreams/agency/seeds/marfi-valueflow-20260406.md` |
+| Valueflow seed | `agency/workstreams/agency/seeds/seed-valueflow-20260406.md` |
+| Agency GTM seed | `agency/workstreams/agency/seeds/seed-agency-gtm-20260406.md` |
+| Next-version PVR seed | `agency/workstreams/agency/seeds/seed-next-version-pvr-20260406.md` |
+| Agency audit seed | `agency/workstreams/agency/seeds/seed-agency-audit-update-20260406.md` |
+| Flag triage seed | `agency/workstreams/iscp/seeds/seed-flag-triage-workflow-20260406.md` |
+| DevEx kickoff seed | `agency/workstreams/devex/seeds/seed-devex-kickoff-20260406.md` |
 | Handoff spec | `claude/docs/HANDOFF-SPEC.md` |
 | Friction points | `usr/jordan/captain/friction-points-20260405.md` |
 | Legacy flags migrated | `usr/jordan/captain/legacy-flags-migrated-20260406.md` |

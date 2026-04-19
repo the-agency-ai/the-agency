@@ -7,9 +7,9 @@ research_agent: agent-2-of-4 (codegen tooling survey)
 status: complete
 part_of: Figma → UI research batch (2026-04-11)
 related:
-  - claude/workstreams/agency/seeds/research-figma-designer-workflow-20260411.md (pending)
-  - claude/workstreams/agency/seeds/research-figma-design-system-bridge-20260411.md (pending)
-  - claude/workstreams/agency/seeds/research-figma-react-vs-rn-20260411.md (pending)
+  - agency/workstreams/agency/seeds/research-figma-designer-workflow-20260411.md (pending)
+  - agency/workstreams/agency/seeds/research-figma-design-system-bridge-20260411.md (pending)
+  - agency/workstreams/agency/seeds/research-figma-react-vs-rn-20260411.md (pending)
 ---
 
 # Research Report: Codegen Tooling Survey — Figma → React / React Native (2026)
@@ -84,7 +84,7 @@ Our existing tools occupy a niche these commercial products do not:
 
 Five tools worth testing against the monofolk codebase, in priority order:
 
-1. **Figma Code Connect** — non-negotiable. Build an adapter in `claude/tools/` that writes Code Connect mapping files from our design-system markdown. Low cost, high leverage.
+1. **Figma Code Connect** — non-negotiable. Build an adapter in `agency/tools/` that writes Code Connect mapping files from our design-system markdown. Low cost, high leverage.
 2. **Builder.io Visual Copilot** — highest-quality RN codegen. Spike: point it at a monofolk screen and measure cleanup effort. If Tamagui adaptation is feasible via Mitosis, this becomes the primary path.
 3. **Figma Dev Mode MCP** — connect Claude Code to Figma's MCP server directly. Cleanest path for agent-in-the-loop codegen; no scraping, no rate limits.
 4. **Figma Make** — evaluate for principal-facing prototyping only. Do not build a pipeline on it.

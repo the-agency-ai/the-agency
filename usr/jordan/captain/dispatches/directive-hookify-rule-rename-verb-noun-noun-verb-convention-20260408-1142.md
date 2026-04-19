@@ -17,11 +17,11 @@ Principal decision from last session: hookify rule names follow **noun-verb**, n
 
 ## Current state
 
-Hookify rules in `claude/hookify/` currently use verb-noun (e.g. `hookify.block-cd-to-main.md`, `hookify.block-raw-handoff.md`). These need to be renamed to noun-verb.
+Hookify rules in `agency/hookify/` currently use verb-noun (e.g. `hookify.block-cd-to-main.md`, `hookify.block-raw-handoff.md`). These need to be renamed to noun-verb.
 
 ## Scope
 
-1. **Inventory** — list all hookify rules in `claude/hookify/` and categorize:
+1. **Inventory** — list all hookify rules in `agency/hookify/` and categorize:
    - Verb-first rules that need renaming
    - Already noun-first rules (leave alone)
    - Ambiguous cases — flag for principal clarification in the plan
@@ -34,7 +34,7 @@ Hookify rules in `claude/hookify/` currently use verb-noun (e.g. `hookify.block-
 
 3. **Preserve content, update metadata** — the rule title, frontmatter, and any internal references to the rule name should also update.
 
-4. **Update docs** — `claude/README-ENFORCEMENT.md` table lists all hookify rules by name. Update every row.
+4. **Update docs** — `agency/README-ENFORCEMENT.md` table lists all hookify rules by name. Update every row.
 
 5. **Update symlinks in `.claude/`** — hookify rules get activated via symlinks (`hookify.*.local.md`). Any active symlinks need to point at the renamed files.
 

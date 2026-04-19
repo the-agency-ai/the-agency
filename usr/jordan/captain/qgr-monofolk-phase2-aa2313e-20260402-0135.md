@@ -23,7 +23,7 @@ Phase 2 items were completed across prior sessions and the Starter Sunset work.
 | 2.2: Root CLAUDE.md | Small, agent-facing, @import | Correct |
 | 2.2: Root README.md | Points to framework docs | Updated (PR #25) |
 | 2.2: README-GETTINGSTARTED.md | Short, `agency init` | Rewritten (PR #25) |
-| 2.3: manifest.json | In `claude/config/` | Present (moved in prior session) |
+| 2.3: manifest.json | In `agency/config/` | Present (moved in prior session) |
 | 2.3: .agency/manifest.json | Removed | Gone |
 | 2.3: settings-template.json | Exists | Present |
 | 2.3: Stale refs/ paths | Zero | Verified |

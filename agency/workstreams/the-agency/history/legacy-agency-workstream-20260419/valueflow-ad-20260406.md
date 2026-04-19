@@ -5,8 +5,8 @@ workstream: agency
 date: 2026-04-06
 status: revised — MAR rounds 1+2 (research) incorporated, agent round 2 pending
 author: the-agency/jordan/captain
-pvr: claude/workstreams/agency/valueflow-pvr-20260406.md
-mar-round-1: claude/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md
+pvr: agency/workstreams/agency/valueflow-pvr-20260406.md
+mar-round-1: agency/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md
 mar-round-2-research: 4 subagents (methodology-critic, practitioner, adopter-advocate, lean-analyst)
 ---
 
@@ -18,7 +18,7 @@ This document designs the implementation of valueflow — TheAgency's AIADLC. It
 
 The design draws from: the PVR (13 FRs, 8 NFRs, 5 constraints), MAR round 1 (4 research reviewers + 5 agent reviewers, 50 findings + 12 Q&A), MARFI research (Lean/SAFe/Shape Up/DORA, AI multi-agent patterns, enforcement patterns, Claude Code features), and the Day 30 session transcript.
 
-**Revision note:** This is the post-MAR-round-1 revision. All 28 autonomous incorporations and 8 collaborative resolutions (with principal) applied. Embedded questions resolved. See MAR disposition: `claude/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md`.
+**Revision note:** This is the post-MAR-round-1 revision. All 28 autonomous incorporations and 8 collaborative resolutions (with principal) applied. Embedded questions resolved. See MAR disposition: `agency/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md`.
 
 ---
 
@@ -57,13 +57,13 @@ Every artifact in valueflow has a type, a canonical location, and a naming conve
 
 | Artifact | Type slug | Location | Naming |
 |----------|-----------|----------|--------|
-| Seed | `seed` | `claude/workstreams/{ws}/seeds/` | `seed-{topic}-{YYYYMMDD}.md` |
-| MARFI brief | `marfi` | `claude/workstreams/{ws}/seeds/` | `marfi-{project}-{YYYYMMDD}.md` |
-| PVR | `pvr` | `claude/workstreams/{ws}/` | `{project}[-{subproject}]-pvr-{YYYYMMDD}.md` |
-| A&D | `ad` | `claude/workstreams/{ws}/` | `{project}[-{subproject}]-ad-{YYYYMMDD}.md` |
-| Plan | `plan` | `claude/workstreams/{ws}/` | `{project}[-{subproject}]-plan-{YYYYMMDD}.md` |
-| QGR | `qgr` | `claude/workstreams/{ws}/reviews/` | `qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md` |
-| MAR report | `mar` | `claude/workstreams/{ws}/reviews/` | `mar-{artifact}-round{N}-{YYYYMMDD}.md` |
+| Seed | `seed` | `agency/workstreams/{ws}/seeds/` | `seed-{topic}-{YYYYMMDD}.md` |
+| MARFI brief | `marfi` | `agency/workstreams/{ws}/seeds/` | `marfi-{project}-{YYYYMMDD}.md` |
+| PVR | `pvr` | `agency/workstreams/{ws}/` | `{project}[-{subproject}]-pvr-{YYYYMMDD}.md` |
+| A&D | `ad` | `agency/workstreams/{ws}/` | `{project}[-{subproject}]-ad-{YYYYMMDD}.md` |
+| Plan | `plan` | `agency/workstreams/{ws}/` | `{project}[-{subproject}]-plan-{YYYYMMDD}.md` |
+| QGR | `qgr` | `agency/workstreams/{ws}/reviews/` | `qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md` |
+| MAR report | `mar` | `agency/workstreams/{ws}/reviews/` | `mar-{artifact}-round{N}-{YYYYMMDD}.md` |
 | Transcript | `transcript` | `usr/{principal}/{project}/transcripts/` | `{topic}-{YYYYMMDD-HHMM}.md` |
 | Handoff | `handoff` | `usr/{principal}/{project}/` | `{agent}-handoff.md` |
 | Dispatch payload | `dispatch` | Git (author's branch/worktree) + symlink in `~/.agency/{repo}/dispatches/` | `{type}-{slug}-{YYYYMMDD-HHMM}.md` |
@@ -150,7 +150,7 @@ Body contains three tables (disagree, autonomous, collaborative) with finding ID
 2. Principal reviews and adds questions (MARFI process gate)
 3. Captain spins up N research agents (sonnet model, `effort: medium`)
 4. Agents execute in parallel (background, `run_in_background: true`)
-5. **Agents write output to `claude/workstreams/{ws}/seeds/marfi-{agent}-{date}.md` for durability** — if the session crashes mid-MARFI, research is preserved
+5. **Agents write output to `agency/workstreams/{ws}/seeds/marfi-{agent}-{date}.md` for durability** — if the session crashes mid-MARFI, research is preserved
 6. Results returned to driving agent
 7. Driving agent synthesizes into MARFI brief
 
@@ -217,16 +217,16 @@ Body contains three tables (disagree, autonomous, collaborative) with finding ID
 
 ### Enforcement Registry
 
-Each capability declares its current ladder position in `claude/config/enforcement.yaml`:
+Each capability declares its current ladder position in `agency/config/enforcement.yaml`:
 
 ```yaml
 capabilities:
   git-safe-commit:
     level: 5  # block
-    tool: claude/tools/git-safe-commit
+    tool: agency/tools/git-safe-commit
     skill: .claude/skills/git-safe-commit/SKILL.md
-    hookify-warn: claude/hookify/hookify.warn-whw-header.md
-    hookify-block: claude/hookify/hookify.block-git-safe-commit.md
+    hookify-warn: agency/hookify/hookify.warn-whw-header.md
+    hookify-block: agency/hookify/hookify.block-git-safe-commit.md
     doc: claude/docs/VALUEFLOW.md#commit-workflow
   
   mar:
@@ -349,7 +349,7 @@ Gates are tiered by commit boundary type:
 
 ### Changed-File Test Scoping
 
-**Convention-based as default:** `claude/tools/flag` → `tests/tools/flag.bats` (path mirroring). Zero-config, covers 90% of cases.
+**Convention-based as default:** `agency/tools/flag` → `tests/tools/flag.bats` (path mirroring). Zero-config, covers 90% of cases.
 
 **Package-level fallback:** For non-mirrored layouts (Swift, Rust, Go packages): "anything in `apps/mdpal/Sources/` changed → run tests in `apps/mdpal/`." This handles projects where test paths don't mirror source paths.
 
@@ -415,7 +415,7 @@ Last commit: abc1234 — smart test scoping for changed files
 Implement timeout with graceful degradation in commit-precheck
 
 ## Working Set
-- claude/tools/commit-precheck (rewriting)
+- agency/tools/commit-precheck (rewriting)
 - tests/tools/commit-precheck.bats (new)
 ```
 
@@ -464,7 +464,7 @@ Dispatch payloads stay in git (C3 — source of truth, auditable). Branch-transp
 ~/.agency/the-agency/
   iscp.db                    — notification DB (existing)
   dispatches/                — symlinks to git artifacts (NEW)
-    dispatch-001.md → /Users/jdm/code/the-agency/claude/workstreams/agency/valueflow-pvr-20260406.md
+    dispatch-001.md → /Users/jdm/code/the-agency/agency/workstreams/agency/valueflow-pvr-20260406.md
     dispatch-002.md → /Users/jdm/code/the-agency/.claude/worktrees/devex/usr/jordan/devex/some-artifact.md
 ```
 
@@ -514,9 +514,9 @@ Decompose CLAUDE-THEAGENCY.md into focused documents, each `@`-importable:
 |----------|---------|------------|
 | `claude/docs/VALUEFLOW.md` | The flow, stages, transitions, three-bucket, enforcement ladder | All agents (via CLAUDE-THEAGENCY.md) |
 | `claude/docs/MAR.md` | MAR protocol, reviewer profiles, triage format | MAR skills, review skills |
-| `claude/REFERENCE-QUALITY-GATE.md` | QG protocol, tiers, stage-hash, QGR format | Already exists — update |
+| `agency/REFERENCE-QUALITY-GATE.md` | QG protocol, tiers, stage-hash, QGR format | Already exists — update |
 | `claude/docs/GIT-DISCIPLINE.md` | Commit workflow, captain merge, PR lifecycle | git-safe-commit skill, captain |
-| `claude/REFERENCE-ISCP-PROTOCOL.md` | Dispatch, flag, addressing, hook integration | ISCP skills, all agents |
+| `agency/REFERENCE-ISCP-PROTOCOL.md` | Dispatch, flag, addressing, hook integration | ISCP skills, all agents |
 | `claude/docs/ENFORCEMENT-LADDER.md` | The 5-stage ladder, registry, per-workstream levels | Enforcement skills, DevEx |
 | `claude/docs/CONTEXT-RESILIENCE.md` | Handoffs, PostCompact, stage-aware resume, transcripts | All agents |
 | `claude/docs/CONTINUAL-LEARNING.md` | Transcript mining, flag categories, telemetry, improvement loop | Captain, DevEx |

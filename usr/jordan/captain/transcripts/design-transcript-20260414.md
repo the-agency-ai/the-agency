@@ -33,7 +33,7 @@
 ## Receipt Infrastructure 1B1
 
 ### Item 1: Receipt location
-**Decision:** `claude/receipts/` — flat directory, framework-level. No subdirectories. Filename IS the hierarchy.
+**Decision:** `agency/receipts/` — flat directory, framework-level. No subdirectories. Filename IS the hierarchy.
 
 ### Item 2: Receipt naming
 **Decision:** Full provenance: `{org}-{principal}-{agent}-{workstream}-{project}-{qgr|rgr}-{hash}-{YYYYMMDD-HHMM}.md`

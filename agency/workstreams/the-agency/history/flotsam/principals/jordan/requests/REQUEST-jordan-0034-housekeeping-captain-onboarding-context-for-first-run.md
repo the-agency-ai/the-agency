@@ -117,8 +117,8 @@ I'll need a few things:
 
 You're all set! Here's what I created:
 - claude/principals/[name]/
-- claude/workstreams/[workstream]/
-- claude/agents/[agent]/
+- agency/workstreams/[workstream]/
+- agency/agents/[agent]/
 
 Run ./tools/myclaude [workstream] [agent] to start working!
 ```

@@ -11,7 +11,7 @@ description: Merge target into current branch and push to origin. The ONLY comma
 
 # Sync — Push to Origin
 
-Merge target into current branch and push to origin. This is the **only** command that pushes to a remote. Requires explicit confirmation. **Never rebases.** See `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
+Merge target into current branch and push to origin. This is the **only** command that pushes to a remote. Requires explicit confirmation. **Never rebases.** See `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
 
 ## Arguments
 
@@ -48,7 +48,7 @@ Run `git merge {target}`. Handle conflicts (show, ask user to resolve or abort).
 
 ### Step 6: Push
 
-Run `./claude/tools/git-push {branch}`.
+Run `./agency/tools/git-push {branch}`.
 
 **Never raw `git push`.** The tool validates the target (blocks main/master) and is the only authorized push path. Raw git push is blocked by hookify.
 

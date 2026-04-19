@@ -99,8 +99,8 @@ emit "OK" "backup tag v45.3-pre-reset-local present"
 
 # Dry-run the sweep
 SWEEP_TOOL=""
-if [[ -x "$ROOT/claude/tools/agency-sweep" ]]; then
-    SWEEP_TOOL="$ROOT/claude/tools/agency-sweep"
+if [[ -x "$ROOT/agency/tools/agency-sweep" ]]; then
+    SWEEP_TOOL="$ROOT/agency/tools/agency-sweep"
 elif [[ -x "$ROOT/agency/tools/agency-sweep" ]]; then
     SWEEP_TOOL="$ROOT/agency/tools/agency-sweep"
 fi

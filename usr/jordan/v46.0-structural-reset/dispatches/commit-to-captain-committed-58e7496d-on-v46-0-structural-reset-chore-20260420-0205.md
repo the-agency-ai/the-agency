@@ -8,7 +8,7 @@ priority: normal
 subject: "Committed 58e7496d on v46.0-structural-reset: chore(v46.0): disable hooks for Phase 1-4.5 reset window
 
 Plan v4 Phase 1 entry prep: .claude/settings.json hook arrays emptied so Claude
-Code doesn't ENOENT on claude/hooks/*.sh paths when the Phase 1 rename moves
+Code doesn't ENOENT on agency/hooks/*.sh paths when the Phase 1 rename moves
 them to agency/hooks/*.sh. Backup saved at
 usr/jordan/captain/reset-baseline-20260419/.claude-settings.pre-phase-1.json.
 
@@ -22,7 +22,7 @@ in_reply_to: null
 # Committed 58e7496d on v46.0-structural-reset: chore(v46.0): disable hooks for Phase 1-4.5 reset window
 
 Plan v4 Phase 1 entry prep: .claude/settings.json hook arrays emptied so Claude
-Code doesn't ENOENT on claude/hooks/*.sh paths when the Phase 1 rename moves
+Code doesn't ENOENT on agency/hooks/*.sh paths when the Phase 1 rename moves
 them to agency/hooks/*.sh. Backup saved at
 usr/jordan/captain/reset-baseline-20260419/.claude-settings.pre-phase-1.json.
 
@@ -38,7 +38,7 @@ rename without chicken-and-egg hook path breakage.
 **Message:** housekeeping/captain: chore(v46.0): disable hooks for Phase 1-4.5 reset window
 
 Plan v4 Phase 1 entry prep: .claude/settings.json hook arrays emptied so Claude
-Code doesn't ENOENT on claude/hooks/*.sh paths when the Phase 1 rename moves
+Code doesn't ENOENT on agency/hooks/*.sh paths when the Phase 1 rename moves
 them to agency/hooks/*.sh. Backup saved at
 usr/jordan/captain/reset-baseline-20260419/.claude-settings.pre-phase-1.json.
 

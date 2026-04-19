@@ -17,7 +17,7 @@ Hookify rule rename: verb-noun → noun-verb convention. Per Jordan's 'move forw
 
 ## Approach
 
-1. **Inventory** all 33+ hookify rules in `claude/hookify/`
+1. **Inventory** all 33+ hookify rules in `agency/hookify/`
 2. **Classify** each as verb-first (needs rename) or already noun-first (leave alone)
 3. **Rename** verb-first files to noun-verb form (e.g., `hookify.block-cd-to-main.md` → `hookify.cd-to-main-block.md`)
 4. **Preserve content** — only the filename and any internal name references change

@@ -5,7 +5,7 @@
 #
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
-COLLAB="${REPO_ROOT}/claude/tools/collaboration"
+COLLAB="${REPO_ROOT}/agency/tools/collaboration"
 
 setup() {
     BATS_TEST_TMPDIR="$(mktemp -d)"

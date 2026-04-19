@@ -47,8 +47,8 @@ done
 cd "$ROOT"
 
 VERIFY_TOOL=""
-if [[ -x "$ROOT/claude/tools/agency-verify-v46" ]]; then
-    VERIFY_TOOL="$ROOT/claude/tools/agency-verify-v46"
+if [[ -x "$ROOT/agency/tools/agency-verify-v46" ]]; then
+    VERIFY_TOOL="$ROOT/agency/tools/agency-verify-v46"
 elif [[ -x "$ROOT/agency/tools/agency-verify-v46" ]]; then
     VERIFY_TOOL="$ROOT/agency/tools/agency-verify-v46"
 fi

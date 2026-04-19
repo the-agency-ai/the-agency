@@ -216,7 +216,7 @@ ok 214 path-traversal: contains traversal sequence inside name
 ok 215 no staged changes exits cleanly
 ok 216 docs-only: markdown files take fast path
 ok 217 docs-only: yaml config takes fast path
-ok 218 tool-code: files in claude/tools/ classified correctly
+ok 218 tool-code: files in agency/tools/ classified correctly
 ok 219 tool-code: test files classified as tool-code
 ok 220 app-code: TypeScript files classified correctly
 ok 221 app-code: Python files classified correctly
@@ -440,7 +440,7 @@ ok 438 gh-pr: --help shows PR commands
 ok 439 gh-pr: no args shows help
 ok 440 gh-release: --version shows gh-release version
 ok 441 gh-release: --help shows release commands
-ok 442 gh-release: --help mentions ./claude/tools/release
+ok 442 gh-release: --help mentions ./agency/tools/release
 ok 443 gh-release: no args shows help
 ok 444 gh-api: --version shows gh-api version
 ok 445 gh-api: --help shows API usage
@@ -654,7 +654,7 @@ ok 652 git-safe --help mentions stash subcommand — D41-R28
 ok 653 clean: no warning when no impl files dirty
 ok 654 dirty: .py file triggers warning
 ok 655 dirty: .bats file triggers warning
-ok 656 dirty: claude/tools/ bash script triggers warning
+ok 656 dirty: agency/tools/ bash script triggers warning
 ok 657 clean: markdown changes don't trigger warning
 ok 658 clean: yaml config changes don't trigger warning
 ok 659 dirty: counts multiple impl files
@@ -874,25 +874,25 @@ not ok 871 add-principal: --version shows version
 #  in test file tests/tools/principal.bats, line 119)
 #   `assert_success' failed
 # Expected success (exit 0), got exit 127
-# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/agency/tools/add-principal: No such file or directory
 not ok 872 add-principal: -v shows version
 # (from function `assert_success' in file tests/tools/test_helper.bash, line 98,
 #  in test file tests/tools/principal.bats, line 125)
 #   `assert_success' failed
 # Expected success (exit 0), got exit 127
-# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/agency/tools/add-principal: No such file or directory
 not ok 873 add-principal: --help shows usage
 # (from function `assert_success' in file tests/tools/test_helper.bash, line 98,
 #  in test file tests/tools/principal.bats, line 131)
 #   `assert_success' failed
 # Expected success (exit 0), got exit 127
-# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/agency/tools/add-principal: No such file or directory
 not ok 874 add-principal: -h shows usage
 # (from function `assert_success' in file tests/tools/test_helper.bash, line 98,
 #  in test file tests/tools/principal.bats, line 138)
 #   `assert_success' failed
 # Expected success (exit 0), got exit 127
-# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/agency/tools/add-principal: No such file or directory
 ok 875 add-principal: --name flag is recognized
 ok 876 add-principal: --verbose flag is recognized
 ok 877 principal-create: handles special characters in name
@@ -907,19 +907,19 @@ ok 885 principal-create: sources log helper
 not ok 886 add-principal: sources log helper
 # (in test file tests/tools/principal.bats, line 229)
 #   `grep -q "_log-helper" "${TOOLS_DIR}/add-principal"' failed with status 2
-# grep: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+# grep: /Users/jdm/code/the-agency/agency/tools/add-principal: No such file or directory
 ok 887 principal: calls log_start
 ok 888 principal-create: calls log_start
 not ok 889 add-principal: calls log_start
 # (in test file tests/tools/principal.bats, line 241)
 #   `grep -q "log_start" "${TOOLS_DIR}/add-principal"' failed with status 2
-# grep: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+# grep: /Users/jdm/code/the-agency/agency/tools/add-principal: No such file or directory
 ok 890 principal: calls log_end
 ok 891 principal-create: calls log_end
 not ok 892 add-principal: calls log_end
 # (in test file tests/tools/principal.bats, line 253)
 #   `grep -q "log_end" "${TOOLS_DIR}/add-principal"' failed with status 2
-# grep: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+# grep: /Users/jdm/code/the-agency/agency/tools/add-principal: No such file or directory
 ok 893 principal: PRINCIPAL env var takes precedence
 ok 894 principal-create: -h shows usage
 ok 895 principal-create: --help shows usage
@@ -932,7 +932,7 @@ not ok 900 add-principal: rejects name starting with number
 #  in test file tests/tools/principal.bats, line 345)
 #   `assert_output_contains "Invalid principal name"' failed
 # Expected output to contain: Invalid principal name
-# Actual output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+# Actual output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/agency/tools/add-principal: No such file or directory
 ok 901 add-principal: --no-set-current flag is recognized
 ok 902 principal-create: rejects name with newline
 ok 903 principal-create: rejects name with null byte
@@ -969,7 +969,7 @@ ok 933 resolve_provider: fails when tool not executable
 ok 934 resolve_provider: fails for unconfigured section
 ok 935 runtime-guard: sub-3.13 interpreter emits guard message and exits non-zero
 ok 936 runtime-guard: 3.13+ interpreter does NOT emit guard message
-ok 937 runtime-guard: source of truth is claude/tools/dispatch-monitor
+ok 937 runtime-guard: source of truth is agency/tools/dispatch-monitor
 ok 938 runtime-guard: template TOOL.py matches convention
 ok 939 receipt-sign: missing required args fails
 ok 940 receipt-sign: invalid type fails

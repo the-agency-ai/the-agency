@@ -71,7 +71,7 @@ reviewers:
 | A24 | mdpal-cli #7 | Circuit breaker should be time-based not attempt-based | Change §11: "no progress in N hours" not "N failed attempts." Agent self-reports: stuck vs making progress on distinct findings. |
 | A25 | mdpal-cli #8 | Context budget linter must ship with decomposition | Move from question to §12 V2 deliverables: linter ships alongside CLAUDE-THEAGENCY.md decomposition |
 | A26 | mdpal-cli #9 | Captain loop cadence is not an open question | Close OQ7: fixed interval V2 (`/loop 5m dispatch check`), event-driven V3 |
-| A27 | ISCP Q&A | MARFI subagents persist output to seeds/ for durability | Add to §3 MARFI protocol: subagents write output to `claude/workstreams/{ws}/seeds/marfi-{agent}-{date}.md` before returning |
+| A27 | ISCP Q&A | MARFI subagents persist output to seeds/ for durability | Add to §3 MARFI protocol: subagents write output to `agency/workstreams/{ws}/seeds/marfi-{agent}-{date}.md` before returning |
 | A28 | ISCP Q&A | Commit dispatch structured YAML frontmatter | Add to §5: commit dispatch payload format — YAML with commit_hash, stage_hash, branch, phase, iteration, files_changed |
 
 ## Bucket 3: Collaborative — Need Principal Input (8 items)

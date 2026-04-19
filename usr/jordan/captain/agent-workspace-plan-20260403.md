@@ -37,7 +37,7 @@ Fix the tool that scaffolds agent workspaces. This is the single write path for 
 - Source `_path-resolve` for `_validate_name` and path resolution
 - **MAR D5:** Resolve principal via `_path-resolve` using `$USER` → agency.yaml `name` field (same pattern as workstream-create Step 2). Do NOT use `$USER` raw as a path component.
 
-**Verify:** `grep -r 'claude/principals' claude/tools/agent-create` returns zero. Principal resolved from agency.yaml, not `$USER`.
+**Verify:** `grep -r 'claude/principals' agency/tools/agent-create` returns zero. Principal resolved from agency.yaml, not `$USER`.
 
 ### 1.2: Scaffold tools/, tmp/, Bootstrap Handoff
 
@@ -103,7 +103,7 @@ Hookify rule + telemetry for script persistence (A&D 2.5, 2.6).
 
 ### 3.1: Hookify Rule — Script Persistence Nudge
 
-Create `claude/hookify/hookify.warn-script-persistence.md`:
+Create `agency/hookify/hookify.warn-script-persistence.md`:
 - Triggers on `Write` tool calls to `*.sh` or `*.py` outside `usr/*/tools/` and `claude/tools/`
 - Warns: save to `usr/{principal}/{project}/tools/` with `# Why did I write this script:` header
 - Explicitly documents scope limitations (no extension, heredoc, tmp — it's a nudge, not a gate per MAR S4)
@@ -113,7 +113,7 @@ Create `claude/hookify/hookify.warn-script-persistence.md`:
 
 ### 3.2: Telemetry — Agent Script Detection
 
-Modify `claude/hooks/tool-telemetry.sh`:
+Modify `agency/hooks/tool-telemetry.sh`:
 - In the Bash branch, check if command path matches `usr/*/tools/*` or `*/usr/*/tools/*`
 - If match, add `"source": "agent-script", "script_path": "<relative>"` to JSONL entry
 - ~10 lines of change
@@ -128,7 +128,7 @@ Enable standard operations without prompts (A&D 2.7, 2.4).
 
 ### 4.1: Permission Additions
 
-Update `claude/config/settings-template.json`:
+Update `agency/config/settings-template.json`:
 - Add `Bash(unzip -d usr/*:*)`
 - Add `Bash(tar -xf * -C usr/*:*)`
 - Verify Read/Glob permissions present: `usr/**`, `claude/**`, `.claude/**`
@@ -142,12 +142,12 @@ Run `settings-merge` to propagate.
 
 ### 4.2: Unzip Safety Script
 
-Create `claude/tools/safe-extract`:
+Create `agency/tools/safe-extract`:
 - **Unzip only** for now (MAR S3 — tar symlink attacks need separate validation, deferred)
 - `unzip -l <archive>` piped through `grep '\.\.'` — reject if `../` found in any entry path
 - Also check for symlink entries in zip (`unzip -l` output, flag entries with `l` attribute)
 - Only extracts to `usr/` paths
-- Pre-approved in settings.json: `Bash(./claude/tools/safe-extract*)`
+- Pre-approved in settings.json: `Bash(./agency/tools/safe-extract*)`
 - Remove `Bash(tar -xf * -C usr/*:*)` from permissions until tar-specific validation is written
 
 **Verify:** Archive with `../` entry is rejected. Archive with symlink entry is rejected. Clean archive extracts to `usr/*/seeds/`.
@@ -157,9 +157,9 @@ Create `claude/tools/safe-extract`:
 Update `.claude/skills/worktree-sync/SKILL.md`:
 - After merge, log diff stats for `claude/`, `.claude/`, `CLAUDE.md` changes
 - Mention checking for new dispatches after sync
-- Verify `claude/tools/worktree-sync` exists and has `_log-helper` integration
+- Verify `agency/tools/worktree-sync` exists and has `_log-helper` integration
 
-Add permission if missing: `Bash(./claude/tools/worktree-sync*)` to settings-template.json.
+Add permission if missing: `Bash(./agency/tools/worktree-sync*)` to settings-template.json.
 
 **Verify:** Skill mentions dispatch check. Tool permission present.
 
@@ -189,7 +189,7 @@ Create or extend `tests/tools/agent-create.bats`:
 ### 5.2: session-handoff Tests
 
 Create `tests/tools/session-handoff.bats`:
-- **Test the hook script directly** (`claude/hooks/session-handoff.sh`), not the handoff tool (MAR T2)
+- **Test the hook script directly** (`agency/hooks/session-handoff.sh`), not the handoff tool (MAR T2)
 - Stub git environment for branch detection
 - `main` branch resolves to captain directory
 - `master` branch resolves to captain directory
@@ -231,7 +231,7 @@ Create `tests/tools/safe-extract.bats`:
 ### 5.6: worktree-sync Tests (MAR D3/T4)
 
 Add to existing `tests/tools/worktree.bats` or create new:
-- `claude/tools/worktree-sync` exists and is executable
+- `agency/tools/worktree-sync` exists and is executable
 - `--dry-run` exits 0 and makes no git state changes
 - Skill file mentions dispatch check after sync
 
@@ -249,7 +249,7 @@ Full sweep:
 - `bats tests/tools/` — all tests pass
 - `bash -n` on all modified shell tools
 - `jq . .claude/settings.json > /dev/null` — valid JSON
-- `jq . claude/config/settings-template.json > /dev/null` — valid JSON
+- `jq . agency/config/settings-template.json > /dev/null` — valid JSON
 - No `claude/principals/` references in framework code
 - All hookify rules end with attack kittens trademark
 

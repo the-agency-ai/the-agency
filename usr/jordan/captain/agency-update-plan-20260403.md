@@ -18,7 +18,7 @@ Build the foundation that everything else depends on. No external dependencies �
 
 ### 1.1: Build `_address-parse` library
 
-- Create `claude/tools/lib/_address-parse`
+- Create `agency/tools/lib/_address-parse`
 - Implement `address_parse` — segment-count dispatch (1=bare, 2=principal/agent, 3=repo/principal/agent, 4=org/repo/principal/agent)
 - Implement `address_resolve` — repo from `git -C "$PROJECT_ROOT" remote -v` (explicit `-C` for worktree safety), principal from agency.yaml via `_pr_yaml_get`
 - Implement `address_format` — produce `repo/principal/agent` string
@@ -84,7 +84,7 @@ Update init to write per-file manifest with checksums and tiers. This gives `age
 ### 3.1: Manifest generation in `_agency-init`
 
 - After copying framework files, compute SHA-256 for each via `_compute_checksum`
-- Write `claude/config/manifest.json` with per-file `hash`, `tier`, `version` fields
+- Write `agency/config/manifest.json` with per-file `hash`, `tier`, `version` fields
 - Tier assigned from path-to-tier rules (A&D Section 2.6)
 - `_compute_checksum` with file existence guard and capability probe (F5)
 
@@ -138,11 +138,11 @@ The core work. Depends on Phases 1-4. Replace rsync with manifest-driven file lo
 
 ### 5.1: Pre-flight validation
 
-- Source integrity: `claude/CLAUDE-THEAGENCY.md` exists, required dirs present
+- Source integrity: `agency/CLAUDE-THEAGENCY.md` exists, required dirs present
 - Target initialized: `agency.yaml` exists
 - Clean git state warning for `claude/` changes
 - Source detection: `$AGENCY_SOURCE` → `../the-agency/` → error
-- Check for stale sentinel `claude/config/.update-in-progress` — if present, previous update was interrupted; warn and require `--force` to proceed
+- Check for stale sentinel `agency/config/.update-in-progress` — if present, previous update was interrupted; warn and require `--force` to proceed
 
 ### 5.2: Manifest load and bootstrap
 
@@ -154,7 +154,7 @@ The core work. Depends on Phases 1-4. Replace rsync with manifest-driven file lo
 
 ### 5.3: File delta computation
 
-- Write sentinel file `claude/config/.update-in-progress` with timestamp
+- Write sentinel file `agency/config/.update-in-progress` with timestamp
 - For each file in source framework: compute source + target SHA-256
 - Look up manifest entry (hash, tier)
 - Decision matrix per A&D Section 2.6 flow
@@ -188,7 +188,7 @@ The core work. Depends on Phases 1-4. Replace rsync with manifest-driven file lo
 
 ### 5.5: Post-update actions
 
-- Remove sentinel file `claude/config/.update-in-progress` (written at start of 5.3)
+- Remove sentinel file `agency/config/.update-in-progress` (written at start of 5.3)
 - Update manifest: new checksums, tiers for new files, bump framework_version
 - Atomic manifest write: `.manifest.json.tmp` → `mv`
 - Run sandbox-sync
@@ -279,7 +279,7 @@ Phase 5 sub-steps have internal dependencies:
 | R6: `_address-parse` SPOF | Comprehensive BATS as Phase 1 gate. Pure functions. | Open |
 | R7: Bash 3.2 YAML limits | agency.yaml is our format. Tests cover our formats. | Open |
 | R8: Manifest corruption | Validate JSON. Bootstrap fallback. Atomic write. Sentinel file for interrupted updates. | Open |
-| R9: Interrupted update | Sentinel file `claude/config/.update-in-progress` detects partial state. `--force` to override. | Open |
+| R9: Interrupted update | Sentinel file `agency/config/.update-in-progress` detects partial state. `--force` to override. | Open |
 
 ## Estimates
 

@@ -15,15 +15,15 @@ in_reply_to: 106
 
 The /secret CLI tool exists and works:
 
-- `./claude/tools/secret-vault` ✓
-- `./claude/tools/secret-doppler` ✓
-- `./claude/tools/secrets-scan` ✓
+- `./agency/tools/secret-vault` ✓
+- `./agency/tools/secret-doppler` ✓
+- `./agency/tools/secrets-scan` ✓
 
 The MISSING thing was the /secret SKILL (in .claude/skills/secret/). I shipped it in commit 5e6d31e on day32-release-2 (PR #47) as part of resolving flag #5. The skill is a SPEC-PROVIDER dispatcher that reads secrets.provider from agency.yaml and routes to the appropriate provider tool.
 
 ## What about the 21 BATS test failures?
 
-Those are real and need investigation. If tests/tools/secret.bats references `./claude/tools/secret` (no provider suffix), that's wrong — there's no generic 'secret' tool, only the provider tools. The test file was probably written before the SPEC-PROVIDER pattern was applied to secrets.
+Those are real and need investigation. If tests/tools/secret.bats references `./agency/tools/secret` (no provider suffix), that's wrong — there's no generic 'secret' tool, only the provider tools. The test file was probably written before the SPEC-PROVIDER pattern was applied to secrets.
 
 Two options:
 1. **Update tests/tools/secret.bats** to test the provider tools (vault, doppler) directly via the SPEC-PROVIDER pattern

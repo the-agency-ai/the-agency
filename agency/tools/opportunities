@@ -7,11 +7,11 @@
 # - Failure patterns (auto-fix candidates)
 #
 # Usage:
-#   ./claude/tools/opportunities              # Summary
-#   ./claude/tools/opportunities --patterns   # Frequent patterns
-#   ./claude/tools/opportunities --output     # High output tools
-#   ./claude/tools/opportunities --failures   # Failure patterns
-#   ./claude/tools/opportunities --all        # All details
+#   ./agency/tools/opportunities              # Summary
+#   ./agency/tools/opportunities --patterns   # Frequent patterns
+#   ./agency/tools/opportunities --output     # High output tools
+#   ./agency/tools/opportunities --failures   # Failure patterns
+#   ./agency/tools/opportunities --all        # All details
 
 set -euo pipefail
 

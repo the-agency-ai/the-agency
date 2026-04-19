@@ -14,8 +14,8 @@ in_reply_to: null
 Captain ran the 2026-04-09 fleet cleanup sweep and attempted `git merge main` on your worktree. Main is 98 commits ahead of your branch, and the merge surfaced conflicts in three files you have been actively evolving:
 
 ```
-CONFLICT (content): Merge conflict in claude/tools/flag
-CONFLICT (content): Merge conflict in claude/tools/lib/_iscp-db
+CONFLICT (content): Merge conflict in agency/tools/flag
+CONFLICT (content): Merge conflict in agency/tools/lib/_iscp-db
 CONFLICT (content): Merge conflict in tests/tools/flag.bats
 ```
 

@@ -22,30 +22,30 @@ setup() {
     git config user.name "Test User"
 
     # Minimal agency structure
-    mkdir -p claude/tools/lib
-    mkdir -p claude/agents/templates/generic
-    mkdir -p claude/workstreams/testws
+    mkdir -p agency/tools/lib
+    mkdir -p agency/agents/templates/generic
+    mkdir -p agency/workstreams/testws
     mkdir -p claude/config
     mkdir -p .claude/agents
     mkdir -p usr/testuser
 
     # Copy tools we need
-    cp "${REPO_ROOT}/claude/tools/agent-create" claude/tools/agent-create
-    chmod +x claude/tools/agent-create
-    cp "${REPO_ROOT}/claude/tools/lib/_log-helper" claude/tools/lib/_log-helper 2>/dev/null || true
-    cp "${REPO_ROOT}/claude/tools/lib/_path-resolve" claude/tools/lib/_path-resolve 2>/dev/null || true
+    cp "${REPO_ROOT}/agency/tools/agent-create" agency/tools/agent-create
+    chmod +x agency/tools/agent-create
+    cp "${REPO_ROOT}/agency/tools/lib/_log-helper" agency/tools/lib/_log-helper 2>/dev/null || true
+    cp "${REPO_ROOT}/agency/tools/lib/_path-resolve" agency/tools/lib/_path-resolve 2>/dev/null || true
 
     # Copy now tool if it exists
-    if [[ -f "${REPO_ROOT}/claude/tools/now" ]]; then
-        cp "${REPO_ROOT}/claude/tools/now" claude/tools/now
-        chmod +x claude/tools/now
+    if [[ -f "${REPO_ROOT}/agency/tools/now" ]]; then
+        cp "${REPO_ROOT}/agency/tools/now" agency/tools/now
+        chmod +x agency/tools/now
     fi
 
     # Copy agent template
-    cp -r "${REPO_ROOT}/claude/agents/templates/generic/." claude/agents/templates/generic/
+    cp -r "${REPO_ROOT}/agency/agents/templates/generic/." agency/agents/templates/generic/
 
     # Minimal agency.yaml
-    cat > claude/config/agency.yaml << 'YAML'
+    cat > agency/config/agency.yaml << 'YAML'
 principals:
   testuser:
     name: testuser
@@ -71,14 +71,14 @@ teardown() {
 
 @test "agent-create: scaffolds tools/ in principal sandbox" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create testagent testws
+    run ./agency/tools/agent-create testagent testws
     assert_success
     [[ -d "usr/testuser/testagent/tools" ]]
 }
 
 @test "agent-create: scaffolds tmp/ with .gitignore" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create testagent testws
+    run ./agency/tools/agent-create testagent testws
     assert_success
     [[ -d "usr/testuser/testagent/tmp" ]]
     [[ -f "usr/testuser/testagent/tmp/.gitignore" ]]
@@ -88,7 +88,7 @@ teardown() {
 
 @test "agent-create: writes bootstrap handoff with TODO placeholders" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create testagent testws
+    run ./agency/tools/agent-create testagent testws
     assert_success
     [[ -f "usr/testuser/testagent/testagent-handoff.md" ]]
     grep -q "TODO:" "usr/testuser/testagent/testagent-handoff.md"
@@ -96,7 +96,7 @@ teardown() {
 
 @test "agent-create: bootstrap handoff has required frontmatter" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create testagent testws
+    run ./agency/tools/agent-create testagent testws
     assert_success
     local handoff="usr/testuser/testagent/testagent-handoff.md"
     grep -q "type: agency-bootstrap" "$handoff"
@@ -111,7 +111,7 @@ teardown() {
 
 @test "agent-create: registration at principal-scoped path — D42-R3" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create testagent testws
+    run ./agency/tools/agent-create testagent testws
     assert_success
     local reg=".claude/agents/testuser/testagent.md"
     [[ -f "$reg" ]]
@@ -122,18 +122,18 @@ teardown() {
 
 @test "agent-create: registration uses @import pattern — D42-R3" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create testagent testws
+    run ./agency/tools/agent-create testagent testws
     assert_success
     local reg=".claude/agents/testuser/testagent.md"
     # Structural @import for class doc and workstream CLAUDE
-    grep -q "@claude/agents/" "$reg"
-    grep -q "@claude/workstreams/testws/" "$reg"
+    grep -q "@agency/agents/" "$reg"
+    grep -q "@agency/workstreams/testws/" "$reg"
     grep -q "@usr/testuser/" "$reg"
 }
 
 @test "agent-create: registration contains TODO guard" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create testagent testws
+    run ./agency/tools/agent-create testagent testws
     assert_success
     grep -q "TODO:" ".claude/agents/testuser/testagent.md"
     grep -q "Bootstrap handoff incomplete" ".claude/agents/testuser/testagent.md"
@@ -141,7 +141,7 @@ teardown() {
 
 @test "agent-create: registration contains act-on-startup directive" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create testagent testws
+    run ./agency/tools/agent-create testagent testws
     assert_success
     grep -q "Do not wait for a prompt" ".claude/agents/testuser/testagent.md"
 }
@@ -152,26 +152,26 @@ teardown() {
 
 @test "agent-create: rejects name over 32 characters" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create abcdefghijklmnopqrstuvwxyz1234567 testws
+    run ./agency/tools/agent-create abcdefghijklmnopqrstuvwxyz1234567 testws
     assert_failure
 }
 
 @test "agent-create: rejects uppercase name" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create TestAgent testws
+    run ./agency/tools/agent-create TestAgent testws
     assert_failure
 }
 
 @test "agent-create: rejects path traversal name" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create '../evil' testws
+    run ./agency/tools/agent-create '../evil' testws
     assert_failure
     [[ ! -d "../evil" ]]
 }
 
 @test "agent-create: rejects name with special characters" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/agent-create 'test$agent' testws
+    run ./agency/tools/agent-create 'test$agent' testws
     assert_failure
 }
 
@@ -180,9 +180,9 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "agent-create: no claude/principals/ references in tool" {
-    ! grep -q 'claude/principals' "${REPO_ROOT}/claude/tools/agent-create"
+    ! grep -q 'claude/principals' "${REPO_ROOT}/agency/tools/agent-create"
 }
 
 @test "agent-create: no myclaude references in tool" {
-    ! grep -q 'myclaude' "${REPO_ROOT}/claude/tools/agent-create"
+    ! grep -q 'myclaude' "${REPO_ROOT}/agency/tools/agent-create"
 }

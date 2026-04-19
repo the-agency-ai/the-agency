@@ -134,6 +134,6 @@ claude/logs/reviews/
 ## Related
 
 - REQUEST-jordan-0066: Findings Consolidation implementation
-- `claude/templates/prompts/code-review.md`: Code review prompt
-- `claude/templates/prompts/security-review.md`: Security review prompt
-- `claude/templates/prompts/test-review.md`: Test review prompt
+- `agency/templates/prompts/code-review.md`: Code review prompt
+- `agency/templates/prompts/security-review.md`: Security review prompt
+- `agency/templates/prompts/test-review.md`: Test review prompt

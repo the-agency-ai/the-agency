@@ -70,7 +70,7 @@ CREATE TABLE bug_attachments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   bug_id TEXT NOT NULL,
   filename TEXT NOT NULL,             -- Original filename
-  filepath TEXT NOT NULL,             -- Path in claude/assets/bugs/{bug-id}/
+  filepath TEXT NOT NULL,             -- Path in agency/assets/bugs/{bug-id}/
   mime_type TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (bug_id) REFERENCES bugs(bug_id)
@@ -136,7 +136,7 @@ The CLI tool models the API that could later become a proper REST/IPC API:
 ## Acceptance Criteria
 
 - [x] Build number implemented (v0.1.0-20260109-009)
-- [x] SQLite database at `claude/data/bugs.db` (shared between CLI and UI)
+- [x] SQLite database at `agency/data/bugs.db` (shared between CLI and UI)
 - [x] `./tools/bug-report` CLI tool working
 - [x] BugBench app in AgencyBench sidebar
 - [x] Can create bugs from UI
@@ -149,7 +149,7 @@ The CLI tool models the API that could later become a proper REST/IPC API:
 
 - No priorities - "kill every bug as it comes in"
 - Statuses: Open → In Progress → Fixed (or Won't Fix)
-- Attachments copied to `claude/assets/bugs/{bug-id}/`
+- Attachments copied to `agency/assets/bugs/{bug-id}/`
 
 ---
 
@@ -196,12 +196,12 @@ The CLI tool models the API that could later become a proper REST/IPC API:
 - **Open Question:** Path structure for attachments?
   - Option A: `claude/attachments/bugs/` and `claude/attachments/requests/` (separate)
   - Option B: `claude/attachments/{type}/{id}/` (organized by item)
-  - Option C: `claude/assets/` for all (images, attachments, etc.)
+  - Option C: `agency/assets/` for all (images, attachments, etc.)
 
-  Current image insertion uses `/claude/assets/images/`. Should we unify?
-  - `claude/assets/images/` - general images
-  - `claude/assets/bugs/{bug-id}/` - bug attachments
-  - `claude/assets/requests/{request-id}/` - request attachments
+  Current image insertion uses `/agency/assets/images/`. Should we unify?
+  - `agency/assets/images/` - general images
+  - `agency/assets/bugs/{bug-id}/` - bug attachments
+  - `agency/assets/requests/{request-id}/` - request attachments
 
 **6. BugBench UI:**
 - **Decision (Jordan):** Yes, new app in AgencyBench sidebar
@@ -238,12 +238,12 @@ The CLI tool models the API that could later become a proper REST/IPC API:
 ### Issue 1: Attachment Path Structure
 **Status:** Needs Decision
 
-Current proposal: `claude/assets/bugs/{bug-id}/`
+Current proposal: `agency/assets/bugs/{bug-id}/`
 
 **Questions:**
 1. Should `{bug-id}` be the full ID like `BENCH-00001` or just the number?
-   - Full ID: `claude/assets/bugs/BENCH-00001/screenshot.png` (clearer)
-   - Number only: `claude/assets/bugs/00001/screenshot.png` (shorter but ambiguous across workstreams)
+   - Full ID: `agency/assets/bugs/BENCH-00001/screenshot.png` (clearer)
+   - Number only: `agency/assets/bugs/00001/screenshot.png` (shorter but ambiguous across workstreams)
 
 2. How to handle name collisions?
    - Add timestamp suffix: `screenshot-20260109-213015.png`
@@ -307,7 +307,7 @@ Current proposal: `claude/assets/bugs/{bug-id}/`
 
 4. **Sidebar Integration** - Added BugBench to AppSidebar.tsx and Header.tsx
 
-**Database Location:** `claude/data/bugs.db` (shared between CLI and UI)
+**Database Location:** `agency/data/bugs.db` (shared between CLI and UI)
 
 **Files Created/Modified:**
 - `./tools/bug-report` - CLI tool (new)

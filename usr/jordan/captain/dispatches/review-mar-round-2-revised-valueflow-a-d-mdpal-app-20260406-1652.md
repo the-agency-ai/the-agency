@@ -11,4 +11,4 @@ in_reply_to: null
 
 # MAR Round 2: Revised Valueflow A&D — mdpal-app
 
-Revised A&D at claude/workstreams/agency/valueflow-ad-20260406.md. Your round 1 findings incorporated: RFI timeout, reviewer focus in dispatches, 4000-token budget per skill, triage format structured. Give raw findings on the revision. MAR disposition: claude/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md
+Revised A&D at agency/workstreams/agency/valueflow-ad-20260406.md. Your round 1 findings incorporated: RFI timeout, reviewer focus in dispatches, 4000-token budget per skill, triage format structured. Give raw findings on the revision. MAR disposition: agency/workstreams/agency/reviews/mar-valueflow-ad-round1-20260406.md

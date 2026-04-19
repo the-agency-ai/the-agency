@@ -16,10 +16,10 @@
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
 
 # Source the framework test isolation library
-if [[ -f "$REPO_ROOT/claude/tools/lib/_test-isolation" ]]; then
-    source "$REPO_ROOT/claude/tools/lib/_test-isolation"
+if [[ -f "$REPO_ROOT/agency/tools/lib/_test-isolation" ]]; then
+    source "$REPO_ROOT/agency/tools/lib/_test-isolation"
 else
-    echo "WARNING: _test-isolation not found at $REPO_ROOT/claude/tools/lib/_test-isolation" >&2
+    echo "WARNING: _test-isolation not found at $REPO_ROOT/agency/tools/lib/_test-isolation" >&2
     echo "Run 'agency update' to install framework test infrastructure" >&2
 fi
 

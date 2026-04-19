@@ -222,7 +222,7 @@ gate_4_5() {
     if [[ -f ".claude/settings.json" ]] && ! grep -q 'claude/hooks/' ".claude/settings.json" 2>/dev/null; then
         emit_ok "settings-hooks-rewritten"
     else
-        emit_fail "settings-hooks-rewritten" "settings.json still references claude/hooks/ or missing"
+        emit_fail "settings-hooks-rewritten" "settings.json still references agency/hooks/ or missing"
     fi
     # CLAUDE.md references @agency
     if [[ ! -f "CLAUDE.md" ]] || ! grep -q '@claude/' "CLAUDE.md" 2>/dev/null; then

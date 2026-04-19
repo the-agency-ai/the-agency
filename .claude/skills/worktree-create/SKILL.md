@@ -43,7 +43,7 @@ else:
 | `agency` | `captain` | `agency-captain` (no match → full form) |
 | `fleet` | `captain` | `fleet-captain` (no match → full form) |
 
-The `claude/tools/worktree-create --compute-only --workstream <ws> --agent <ag>` mode prints the computed name without creating anything — useful if you want to check the canonical name before committing to a worktree layout.
+The `agency/tools/worktree-create --compute-only --workstream <ws> --agent <ag>` mode prints the computed name without creating anything — useful if you want to check the canonical name before committing to a worktree layout.
 
 ## Instructions
 
@@ -90,7 +90,7 @@ This file is gitignored (worktrees are local state) but critical for ISCP — wi
 
 ### Step 4: Bootstrap the worktree
 
-If `./claude/tools/dependencies-install` exists, run it in the worktree directory to install project dependencies.
+If `./agency/tools/dependencies-install` exists, run it in the worktree directory to install project dependencies.
 
 Otherwise, check for common dependency files and install:
 - `package.json` → run the project's package manager install

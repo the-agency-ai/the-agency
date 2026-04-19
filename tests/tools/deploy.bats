@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for ./claude/tools/deploy — SPEC-PROVIDER wrapper
+# Tests for ./agency/tools/deploy — SPEC-PROVIDER wrapper
 #
 # Tests provider resolution from agency.yaml, default fallback, exec dispatch
 # to provider tool, and the missing-provider error path.
@@ -21,8 +21,8 @@ setup() {
     cd "$TEST_REPO"
     git init --quiet
 
-    cp "${REPO_ROOT}/claude/tools/deploy" "$TEST_REPO/claude/tools/"
-    chmod +x "$TEST_REPO/claude/tools/deploy"
+    cp "${REPO_ROOT}/agency/tools/deploy" "$TEST_REPO/agency/tools/"
+    chmod +x "$TEST_REPO/agency/tools/deploy"
 }
 
 teardown() {
@@ -31,7 +31,7 @@ teardown() {
 
 _write_yaml() {
     local provider="$1"
-    cat > "$TEST_REPO/claude/config/agency.yaml" <<YAML
+    cat > "$TEST_REPO/agency/config/agency.yaml" <<YAML
 deploy:
   provider: "${provider}"
 YAML
@@ -39,12 +39,12 @@ YAML
 
 _install_mock_provider() {
     local name="$1"
-    cat > "$TEST_REPO/claude/tools/deploy-$name" <<'PROVIDER'
+    cat > "$TEST_REPO/agency/tools/deploy-$name" <<'PROVIDER'
 #!/bin/bash
 echo "mock-deploy-$(basename "$0" | sed 's/deploy-//') invoked with: $*"
 exit 0
 PROVIDER
-    chmod +x "$TEST_REPO/claude/tools/deploy-$name"
+    chmod +x "$TEST_REPO/agency/tools/deploy-$name"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -53,19 +53,19 @@ PROVIDER
 
 @test "deploy: defaults to fly when no agency.yaml" {
     cd "$TEST_REPO"
-    rm -f claude/config/agency.yaml
-    run ./claude/tools/deploy
+    rm -f agency/config/agency.yaml
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"fly"* ]]
 }
 
 @test "deploy: defaults to fly when agency.yaml has no deploy section" {
     cd "$TEST_REPO"
-    cat > claude/config/agency.yaml <<'YAML'
+    cat > agency/config/agency.yaml <<'YAML'
 project:
   name: "test"
 YAML
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"fly"* ]]
 }
@@ -77,29 +77,29 @@ YAML
 @test "deploy: reads provider from agency.yaml (quoted)" {
     cd "$TEST_REPO"
     _write_yaml "vercel"
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"deploy-vercel"* ]]
 }
 
 @test "deploy: reads provider from agency.yaml (unquoted)" {
     cd "$TEST_REPO"
-    cat > claude/config/agency.yaml <<'YAML'
+    cat > agency/config/agency.yaml <<'YAML'
 deploy:
   provider: aws
 YAML
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"deploy-aws"* ]]
 }
 
 @test "deploy: reads provider with inline comment" {
     cd "$TEST_REPO"
-    cat > claude/config/agency.yaml <<'YAML'
+    cat > agency/config/agency.yaml <<'YAML'
 deploy:
   provider: "railway"  # Default. Alternatives: fly, vercel, aws
 YAML
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"deploy-railway"* ]]
 }
@@ -112,7 +112,7 @@ YAML
     cd "$TEST_REPO"
     _write_yaml "test"
     _install_mock_provider "test"
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 0 ]
     [[ "$output" == *"mock-deploy-test invoked with:"* ]]
 }
@@ -121,7 +121,7 @@ YAML
     cd "$TEST_REPO"
     _write_yaml "test"
     _install_mock_provider "test"
-    run ./claude/tools/deploy deploy --env staging
+    run ./agency/tools/deploy deploy --env staging
     [ "$status" -eq 0 ]
     [[ "$output" == *"deploy --env staging"* ]]
 }
@@ -133,7 +133,7 @@ YAML
 @test "deploy: missing provider tool returns error" {
     cd "$TEST_REPO"
     _write_yaml "missing"
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"Error"* ]]
     [[ "$output" == *"missing"* ]]
@@ -144,7 +144,7 @@ YAML
     _write_yaml "missing"
     _install_mock_provider "alpha"
     _install_mock_provider "beta"
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"alpha"* ]]
     [[ "$output" == *"beta"* ]]
@@ -153,7 +153,7 @@ YAML
 @test "deploy: missing provider points at agency.yaml" {
     cd "$TEST_REPO"
     _write_yaml "missing"
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"agency.yaml"* ]]
     [[ "$output" == *"deploy.provider"* ]]
@@ -167,14 +167,14 @@ YAML
     cd "$TEST_REPO"
     _write_yaml "test"
     _install_mock_provider "test"
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 0 ]
 }
 
 @test "deploy: exit 1 on missing provider" {
     cd "$TEST_REPO"
     _write_yaml "missing"
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
 }
 
@@ -185,7 +185,7 @@ YAML
 @test "deploy: rejects provider name with path traversal (../)" {
     cd "$TEST_REPO"
     _write_yaml "../../../tmp/evil"
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid provider"* ]] || [[ "$output" == *"invalid"* ]]
 }
@@ -193,7 +193,7 @@ YAML
 @test "deploy: rejects provider name with slash" {
     cd "$TEST_REPO"
     _write_yaml "foo/bar"
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid provider"* ]] || [[ "$output" == *"invalid"* ]]
 }
@@ -201,7 +201,7 @@ YAML
 @test "deploy: rejects provider name with shell metacharacters" {
     cd "$TEST_REPO"
     _write_yaml 'foo;rm'
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid provider"* ]] || [[ "$output" == *"invalid"* ]]
 }
@@ -210,7 +210,7 @@ YAML
     cd "$TEST_REPO"
     _write_yaml "fly-io"
     _install_mock_provider "fly-io"
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 0 ]
     [[ "$output" == *"mock-deploy-fly-io"* ]]
 }
@@ -222,8 +222,8 @@ YAML
 @test "deploy: provider tool exists but not executable → error" {
     cd "$TEST_REPO"
     _write_yaml "broken"
-    echo '#!/bin/bash' > claude/tools/deploy-broken
-    run ./claude/tools/deploy
+    echo '#!/bin/bash' > agency/tools/deploy-broken
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"broken"* ]]
 }
@@ -231,22 +231,22 @@ YAML
 @test "deploy: forwards exit code from provider tool (exec semantics)" {
     cd "$TEST_REPO"
     _write_yaml "test"
-    cat > claude/tools/deploy-test <<'PROVIDER'
+    cat > agency/tools/deploy-test <<'PROVIDER'
 #!/bin/bash
 exit 42
 PROVIDER
-    chmod +x claude/tools/deploy-test
-    run ./claude/tools/deploy
+    chmod +x agency/tools/deploy-test
+    run ./agency/tools/deploy
     [ "$status" -eq 42 ]
 }
 
 @test "deploy: empty provider value falls back to default" {
     cd "$TEST_REPO"
-    cat > claude/config/agency.yaml <<'YAML'
+    cat > agency/config/agency.yaml <<'YAML'
 deploy:
   provider: ""
 YAML
-    run ./claude/tools/deploy
+    run ./agency/tools/deploy
     [ "$status" -eq 1 ]
     [[ "$output" == *"fly"* ]]
 }
@@ -255,7 +255,7 @@ YAML
     cd "$TEST_REPO"
     local alt="$BATS_TEST_TMPDIR/alt-root"
     mkdir -p "$alt/claude/config"
-    cat > "$alt/claude/config/agency.yaml" <<'YAML'
+    cat > "$alt/agency/config/agency.yaml" <<'YAML'
 deploy:
   provider: "alt-provider"
 YAML

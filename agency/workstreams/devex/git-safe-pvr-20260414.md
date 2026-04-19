@@ -89,7 +89,7 @@ All existing tools that use raw git internally must be updated to call `git-safe
 - `/git-captain` skill — discovery for captain git operations
 
 ### FR6: Pass-through for tools
-Tools in `claude/tools/` that call git internally should NOT be blocked by hookify. The hookify rule should only fire on Bash tool calls from agents, not on internal tool execution. This is already how hookify works (PreToolUse on Bash, not on internal subprocesses).
+Tools in `agency/tools/` that call git internally should NOT be blocked by hookify. The hookify rule should only fire on Bash tool calls from agents, not on internal tool execution. This is already how hookify works (PreToolUse on Bash, not on internal subprocesses).
 
 ## 5. Non-Functional Requirements
 
@@ -102,7 +102,7 @@ Tools in `claude/tools/` that call git internally should NOT be blocked by hooki
 
 - Must ship on the devex branch (standard worktree workflow)
 - Hookify rule must not block git operations INSIDE existing tools (only direct Bash tool calls)
-- git-safe and git-captain are Bash scripts in `claude/tools/`
+- git-safe and git-captain are Bash scripts in `agency/tools/`
 - Must handle both `main` and `master` branch names
 - Must work in worktrees and main checkout
 

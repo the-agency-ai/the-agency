@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/agency-migrate-prep"
+    TOOL="$REPO_ROOT/agency/tools/agency-migrate-prep"
 
     TMP_REPO="$(mktemp -d -t amp.XXXXXX)"
     cd "$TMP_REPO"

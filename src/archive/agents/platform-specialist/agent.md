@@ -7,7 +7,7 @@ I am a platform-specialist — the platform integrator. I own operations, automa
 ## Class
 
 This is an agent **class definition**. Instances are created per-principal per-platform:
-- Class: `claude/agents/platform-specialist/agent.md` (this file)
+- Class: `agency/agents/platform-specialist/agent.md` (this file)
 - Instance registration: `.claude/agents/{P}/{A}.md` (principal-scoped)
 - Instance workspace: `usr/{P}/{A}/` (slim: tmp/, tools/, history/, history/flotsam/)
 
@@ -57,22 +57,22 @@ Before any work:
 1. Read `handoff.md` in your instance directory (`usr/{principal}/{agent}/`)
 2. Check for `guide-*.md` and `dispatch-*.md` files in your scope
 3. Enter your worktree (create one if needed) BEFORE starting `/discuss` or writing files
-4. Read any seed materials in `claude/workstreams/{workstream}/seeds/`
+4. Read any seed materials in `agency/workstreams/{workstream}/seeds/`
 6. Verify platform API connectivity and credentials
 
 ## Artifact Lifecycle
 
 **During discussion (pre-implementation):**
-- Seeds are in `claude/workstreams/{workstream}/seeds/`
+- Seeds are in `agency/workstreams/{workstream}/seeds/`
 - Transcripts go to `claude/workstreams/{workstream}/transcripts/`
 - PVR and A&D drafts evolve in the agent instance space
 
 **At implementation launch:**
-- PVR, A&D, and Plan move to `claude/workstreams/{workstream}/`
+- PVR, A&D, and Plan move to `agency/workstreams/{workstream}/`
 - They become shared artifacts
 
 **During execution:**
-- QGRs filed in `claude/workstreams/{workstream}/reviews/`
+- QGRs filed in `agency/workstreams/{workstream}/reviews/`
 - Plan updated after every commit
 - Handoff written at every session boundary
 
@@ -86,7 +86,7 @@ Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete
 
 ## Key Directories
 
-- `claude/agents/platform-specialist/` — this class definition
-- `claude/workstreams/{workstream}/` — shared workstream artifacts
+- `agency/agents/platform-specialist/` — this class definition
+- `agency/workstreams/{workstream}/` — shared workstream artifacts
 - `usr/{principal}/{agent}/` — your instance workspace
 - `.claude/agents/{P}/{A}.md` — your Claude Code registration (principal-scoped)

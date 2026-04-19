@@ -107,7 +107,7 @@ _update_main() {
     }
 
     # --- Precondition: initialized ---
-    if [[ ! -f "$TARGET_DIR/claude/config/agency.yaml" ]]; then
+    if [[ ! -f "$TARGET_DIR/agency/config/agency.yaml" ]]; then
         log_error "Agency not initialized in $TARGET_DIR"
         echo "Run 'agency init' first."
         exit 1
@@ -141,7 +141,7 @@ _update_main() {
             echo -e "${RED}✗ agency update: $dirty_count uncommitted framework file(s) detected${NC}" >&2
             echo "  → Looks like a prior 'agency update' left changes in claude/ or .claude/." >&2
             echo "  → Commit first — these are coordination artifacts, not app code:" >&2
-            echo "      ./claude/tools/git-safe-commit \"misc: prior agency update\" --no-work-item" >&2
+            echo "      ./agency/tools/git-safe-commit \"misc: prior agency update\" --no-work-item" >&2
             echo "  → Or re-run with --force to overwrite (will lose uncommitted local changes)." >&2
             echo "" >&2
             if [[ "$VERBOSE" == "true" ]]; then
@@ -210,14 +210,14 @@ _update_main() {
         log_info "Source: $SOURCE_DIR (shallow clone, will be removed)"
     elif [[ -n "${AGENCY_SOURCE:-}" ]]; then
         SOURCE_DIR="$AGENCY_SOURCE"
-    elif [[ -f "$TARGET_DIR/../the-agency/claude/config/agency.yaml" ]]; then
+    elif [[ -f "$TARGET_DIR/../the-agency/agency/config/agency.yaml" ]]; then
         SOURCE_DIR="$(cd "$TARGET_DIR/../the-agency" && pwd)"
-    elif [[ -f "$AGENCY_DIR/../claude/config/agency.yaml" ]]; then
+    elif [[ -f "$AGENCY_DIR/../agency/config/agency.yaml" ]]; then
         # Running from the framework itself — AGENCY_DIR points to claude/
         SOURCE_DIR="$(cd "$AGENCY_DIR/.." && pwd)"
     fi
 
-    if [[ -z "$SOURCE_DIR" ]] || [[ ! -f "$SOURCE_DIR/claude/config/agency.yaml" ]]; then
+    if [[ -z "$SOURCE_DIR" ]] || [[ ! -f "$SOURCE_DIR/agency/config/agency.yaml" ]]; then
         log_error "Agency source not found."
         echo ""
         echo "Three ways to provide source:"
@@ -239,10 +239,10 @@ _update_main() {
 
     # --- Resolve versions ---
     local from_commit to_commit from_version to_version
-    from_commit=$(grep '^  source_commit:' "$TARGET_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
-    from_version=$(jq -r '.agency_version // "unknown"' "$TARGET_DIR/claude/config/manifest.json" 2>/dev/null || echo "unknown")
+    from_commit=$(grep '^  source_commit:' "$TARGET_DIR/agency/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
+    from_version=$(jq -r '.agency_version // "unknown"' "$TARGET_DIR/agency/config/manifest.json" 2>/dev/null || echo "unknown")
     to_commit=$(git -C "$SOURCE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
-    to_version=$(jq -r '.agency_version // "unknown"' "$SOURCE_DIR/claude/config/manifest.json" 2>/dev/null || echo "unknown")
+    to_version=$(jq -r '.agency_version // "unknown"' "$SOURCE_DIR/agency/config/manifest.json" 2>/dev/null || echo "unknown")
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -300,7 +300,7 @@ _update_main() {
     # DEFAULT: NO --delete flag. Sync is ADDITIVE — add new files, update
     # existing files, NEVER delete files that only exist in the target.
     # Project-specific tools (secret-local, provider tools, etc.) live in
-    # claude/tools/ alongside framework tools. A blind --delete would destroy them.
+    # agency/tools/ alongside framework tools. A blind --delete would destroy them.
     #
     # OPT-IN: --prune enables --delete with protected_paths enforced.
     # Adopters run it explicitly when they want orphan cleanup. Confirmation
@@ -433,11 +433,11 @@ _update_main() {
     # =====================================================================
     log_step "Merging settings"
 
-    if [[ -f "$TARGET_DIR/claude/tools/settings-merge" ]]; then
+    if [[ -f "$TARGET_DIR/agency/tools/settings-merge" ]]; then
         if [[ "$DRY_RUN" == "true" ]]; then
-            bash "$TARGET_DIR/claude/tools/settings-merge" --dry-run 2>/dev/null || true
+            bash "$TARGET_DIR/agency/tools/settings-merge" --dry-run 2>/dev/null || true
         else
-            bash "$TARGET_DIR/claude/tools/settings-merge" 2>/dev/null || log_warn "settings-merge failed — settings.json unchanged"
+            bash "$TARGET_DIR/agency/tools/settings-merge" 2>/dev/null || log_warn "settings-merge failed — settings.json unchanged"
         fi
     else
         log_warn "settings-merge tool not found — skipping settings merge"
@@ -450,8 +450,8 @@ _update_main() {
     log_step "Updating agency.yaml"
 
     if [[ "$DRY_RUN" == "false" ]]; then
-        local yaml_file="$TARGET_DIR/claude/config/agency.yaml"
-        local src_yaml="$SOURCE_DIR/claude/config/agency.yaml"
+        local yaml_file="$TARGET_DIR/agency/config/agency.yaml"
+        local src_yaml="$SOURCE_DIR/agency/config/agency.yaml"
         local updated_at
         updated_at=$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')
 
@@ -520,13 +520,13 @@ _update_main() {
     # =====================================================================
     log_step "Updating manifest"
 
-    if [[ "$DRY_RUN" == "false" ]] && [[ -f "$TARGET_DIR/claude/config/manifest.json" ]] && command -v jq >/dev/null 2>&1; then
+    if [[ "$DRY_RUN" == "false" ]] && [[ -f "$TARGET_DIR/agency/config/manifest.json" ]] && command -v jq >/dev/null 2>&1; then
         local tmp_manifest
         tmp_manifest=$(mktemp)
         jq --arg ver "$to_version" --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             '.project.framework_version = $ver | .project.updated_at = $ts' \
-            "$TARGET_DIR/claude/config/manifest.json" > "$tmp_manifest" 2>/dev/null && \
-            mv "$tmp_manifest" "$TARGET_DIR/claude/config/manifest.json"
+            "$TARGET_DIR/agency/config/manifest.json" > "$tmp_manifest" 2>/dev/null && \
+            mv "$tmp_manifest" "$TARGET_DIR/agency/config/manifest.json"
     fi
 
     log_info "Manifest updated"
@@ -538,7 +538,7 @@ _update_main() {
 
     if [[ "$DRY_RUN" == "false" ]]; then
         local handoff_path
-        handoff_path=$(bash "$TARGET_DIR/claude/tools/handoff" path 2>/dev/null || echo "")
+        handoff_path=$(bash "$TARGET_DIR/agency/tools/handoff" path 2>/dev/null || echo "")
 
         # Issue #160: never overwrite a session handoff. Prior behavior
         # archived + wrote an agency-update stub on every update, destroying
@@ -586,7 +586,7 @@ UPDATE_SECTION_EOF
 
             if [[ "$existing_type" == "agency-update" || "$existing_type" == "agency-bootstrap" || -z "$existing_type" ]]; then
                 # Existing handoff is a prior stub or has no type — safe to replace
-                bash "$TARGET_DIR/claude/tools/handoff" archive 2>/dev/null || true
+                bash "$TARGET_DIR/agency/tools/handoff" archive 2>/dev/null || true
                 mkdir -p "$(dirname "$handoff_path")"
                 cat > "$handoff_path" << UPDATE_STUB_EOF
 ---
@@ -670,7 +670,7 @@ UPDATE_STUB_EOF
     # is present. Marker string is used to detect existing block — if found,
     # leave alone (no-op). If absent, append.
     # =====================================================================
-    local gitignore_template="$SOURCE_DIR/claude/templates/gitignore-framework"
+    local gitignore_template="$SOURCE_DIR/agency/templates/gitignore-framework"
     local gitignore_target="$TARGET_DIR/.gitignore"
     if [[ "$DRY_RUN" == "false" && -f "$gitignore_template" ]]; then
         if [[ ! -f "$gitignore_target" ]] || ! grep -q "Agency framework-managed ignores" "$gitignore_target" 2>/dev/null; then
@@ -699,8 +699,8 @@ UPDATE_STUB_EOF
     if [[ "$DRY_RUN" == "false" ]]; then
         # Auto-verify after update — don't ask the adopter to do it
         log_step "Verifying installation"
-        if [[ -x "$TARGET_DIR/claude/tools/agency" ]]; then
-            ( cd "$TARGET_DIR" && ./claude/tools/agency verify ) || \
+        if [[ -x "$TARGET_DIR/agency/tools/agency" ]]; then
+            ( cd "$TARGET_DIR" && ./agency/tools/agency verify ) || \
                 log_warn "Verify reported issues — run 'agency verify --verbose' for details"
         fi
     fi

@@ -40,7 +40,7 @@ fi
 
 # Locate project root for tool paths
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-ISCP_CHECK="$PROJECT_DIR/claude/tools/iscp-check"
+ISCP_CHECK="$PROJECT_DIR/agency/tools/iscp-check"
 
 if [[ ! -x "$ISCP_CHECK" ]]; then
     exit 0
@@ -55,7 +55,7 @@ if [[ -z "$MAIL" ]]; then
 fi
 
 # Build the context message — brief, specific, actionable
-CONTEXT_MSG="[idle-mail-check] You have new inbox items: $MAIL. Run './claude/tools/dispatch list --status unread' to see them. The principal has not yet typed a new prompt; this is an idle-time notification so you can decide whether to surface it now or wait."
+CONTEXT_MSG="[idle-mail-check] You have new inbox items: $MAIL. Run './agency/tools/dispatch list --status unread' to see them. The principal has not yet typed a new prompt; this is an idle-time notification so you can decide whether to surface it now or wait."
 
 # Also write state file for the UserPromptSubmit hook fallback path
 REPO_NAME="$(basename "$PROJECT_DIR")"

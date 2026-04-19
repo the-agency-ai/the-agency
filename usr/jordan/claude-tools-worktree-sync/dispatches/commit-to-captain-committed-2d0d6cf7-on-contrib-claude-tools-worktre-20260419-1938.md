@@ -27,6 +27,6 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/workstreams/the-agency/seeds/seed-true-installer-bootstrap-20260419.md
+agency/workstreams/the-agency/seeds/seed-true-installer-bootstrap-20260419.md
 usr/jordan/claude-tools-worktree-sync/dispatches/commit-to-captain-committed-f2e5f371-on-contrib-claude-tools-worktre-20260419-1838.md
 ```

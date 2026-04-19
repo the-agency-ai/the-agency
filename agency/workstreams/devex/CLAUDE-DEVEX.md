@@ -11,7 +11,7 @@ DevEx owns the developer experience for agents and principals working in TheAgen
 
 ## Boundaries
 
-- **Owns:** `tests/`, `claude/tools/commit-precheck`, `.git/hooks/pre-commit`, `tests/Dockerfile`, `tests/docker-test.sh`, `tests/tools/test_helper.bash`
+- **Owns:** `tests/`, `agency/tools/commit-precheck`, `.git/hooks/pre-commit`, `tests/Dockerfile`, `tests/docker-test.sh`, `tests/tools/test_helper.bash`
 - **Contributes to:** `claude/tools/` (ergonomic improvements), `.claude/settings.json` (permission model), `claude/config/settings-template.json`
 - **Does NOT own:** ISCP tools (iscp workstream), application workstreams (mdpal, mock-and-mark), agent class definitions
 

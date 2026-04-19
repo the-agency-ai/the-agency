@@ -13,7 +13,7 @@ in_reply_to: null
 
 Principal directive (D44):
 
-Python 3.9+ (stdlib only, no pip) is now a valid and encouraged language for framework tools. dispatch-monitor was rewritten from bash to Python today — first Python tool in claude/tools/. It's shipped and running.
+Python 3.9+ (stdlib only, no pip) is now a valid and encouraged language for framework tools. dispatch-monitor was rewritten from bash to Python today — first Python tool in agency/tools/. It's shipped and running.
 
 **For you specifically:**
 

@@ -14,7 +14,7 @@ Significant framework changes landed D40 without corresponding documentation upd
 
 **Day 40 changes needing documentation:**
 1. **Safe tools family** — git-safe, git-captain, git-safe-commit (renamed from git-commit), git-push, cp-safe, pr-create
-2. **Receipt infrastructure** — diff-hash, receipt-sign, receipt-verify, claude/receipts/, five-hash chain
+2. **Receipt infrastructure** — diff-hash, receipt-sign, receipt-verify, agency/receipts/, five-hash chain
 3. **Session lifecycle** — /session-end (commit everything), /session-compact (new), session-preflight
 4. **PR enforcement** — pr-create, /release (renamed from /ship), block-raw-pr-create hookify, version bump in manifest
 5. **Hookify enforcement fix** — blocks now actually block (decision:block + exit 2)
@@ -22,7 +22,7 @@ Significant framework changes landed D40 without corresponding documentation upd
 7. **Branch protection** — LIVE on main (requires PR approval + smoke test)
 8. **Dispatch service seed** — ISCP workstream, cloud-hosted agent messaging
 
-**Naming refactor:** `claude/docs/*.md` → `claude/REFERENCE-*.md`
+**Naming refactor:** `claude/docs/*.md` → `agency/REFERENCE-*.md`
 
 ## Target Audience
 
@@ -50,7 +50,7 @@ Significant framework changes landed D40 without corresponding documentation upd
 7. Create REFERENCE-SAFE-TOOLS.md (spec)
 8. Create README-SAFE-TOOLS.md (overview)
 9. Create YOUR-FIRST-RELEASE.md (step-by-step guide)
-10. Rename claude/docs/*.md → claude/REFERENCE-*.md
+10. Rename claude/docs/*.md → agency/REFERENCE-*.md
 11. Update every reference to claude/docs/ across skills, hookify, ref-injector, READMEs
 12. Update skill descriptions that reference old skill/tool names
 
@@ -71,7 +71,7 @@ Significant framework changes landed D40 without corresponding documentation upd
 ## Success Criteria
 
 - All 8 Day 40 changes documented
-- All claude/docs/*.md renamed to claude/REFERENCE-*.md with references updated
+- All claude/docs/*.md renamed to agency/REFERENCE-*.md with references updated
 - New docs (RECEIPT-INFRASTRUCTURE, SAFE-TOOLS, YOUR-FIRST-RELEASE) created
 - No broken references (grep for old paths returns nothing)
 - PR staged with RGR receipt

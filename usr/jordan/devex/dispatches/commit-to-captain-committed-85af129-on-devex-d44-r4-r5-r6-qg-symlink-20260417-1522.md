@@ -29,7 +29,7 @@ in_reply_to: null
 ```
 .claude/skills/service-add/SKILL.md
 .claude/skills/ui-add/SKILL.md
-claude/tools/sandbox-sync
+agency/tools/sandbox-sync
 tests/tools/git-captain.bats
 tests/tools/sandbox-sync.bats
 usr/jordan/devex/dispatches/commit-to-captain-committed-43e31fe-on-devex-release-bump-agency-ver-20260417-1458.md

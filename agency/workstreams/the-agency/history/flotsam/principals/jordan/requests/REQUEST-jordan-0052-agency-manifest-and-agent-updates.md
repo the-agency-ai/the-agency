@@ -676,7 +676,7 @@ The Hub Agent - centerpiece of the system.
 | Task | Description | Depends On |
 |------|-------------|------------|
 | B1 | Create `./agency` command | - |
-| B2 | Create Hub Agent (`claude/agents/hub/agent.md`, `KNOWLEDGE.md`) | - |
+| B2 | Create Hub Agent (`agency/agents/hub/agent.md`, `KNOWLEDGE.md`) | - |
 | B3 | Hub: update starter (git fetch/pull, conflict handling) | B1, B2 |
 | B4 | Hub: list projects + show status | B1, B2, A3 |
 | B5 | Hub: "what's new" (read CHANGELOG, show updates) | B1, B2 |
@@ -941,7 +941,7 @@ cd the-agency-starter
 
 Over weeks/months, they:
 - Add their own principal in `claude/principals/jordan/`
-- Create custom agents in `claude/agents/my-agent/`
+- Create custom agents in `agency/agents/my-agent/`
 - Add local tools in `tools/local/`
 - Maybe modify `tools/collaborate` for their workflow
 - Apply starter packs: `react-app`, `supabase-auth`
@@ -1160,7 +1160,7 @@ Either way, Captain is ready with all the new features and updated knowledge.
 
 ### EC-6: User Created Custom Agents
 
-**Scenario:** User has `claude/agents/my-custom-agent/`.
+**Scenario:** User has `agency/agents/my-custom-agent/`.
 
 **Handling:**
 - Protected path - NEVER touched
@@ -1338,10 +1338,10 @@ Recommended: Commit your changes first.
 |------|--------|
 | `tools/local/*` | User's custom tools |
 | `claude/principals/*` | User's principals, requests, instructions |
-| `claude/agents/*/WORKLOG.md` | Agent work history |
-| `claude/agents/*/ADHOC-WORKLOG.md` | Adhoc work history |
-| `claude/workstreams/*/sprints/*` | Sprint work |
-| `claude/agents/<user-created>/*` | User's custom agents |
+| `agency/agents/*/WORKLOG.md` | Agent work history |
+| `agency/agents/*/ADHOC-WORKLOG.md` | Adhoc work history |
+| `agency/workstreams/*/sprints/*` | Sprint work |
+| `agency/agents/<user-created>/*` | User's custom agents |
 | `.agency/*` | Local metadata (except manifest updates) |
 | `.git/*` | Git repository |
 | `node_modules/*` | Dependencies (managed by pnpm) |

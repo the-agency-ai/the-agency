@@ -135,7 +135,7 @@ usr/{principal}/{agent}/          — agent sandbox (slim)
   history/                        — archived handoffs and artifacts
     flotsam/                      — discarded drafts and experiments
 
-claude/workstreams/{workstream}/  — shared workstream content
+agency/workstreams/{workstream}/  — shared workstream content
   qgr/                            — quality gate reports and review dispatches
   rgr/                            — release gate reports
   drafts/                         — work-in-progress documents

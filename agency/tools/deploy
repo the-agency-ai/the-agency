@@ -3,18 +3,18 @@
 # deploy — Top-level wrapper for SPEC-PROVIDER deploy management
 #
 # What Problem: The /deploy skill (.claude/skills/deploy/SKILL.md) dispatches
-# to ./claude/tools/deploy-{provider} based on agency.yaml's deploy.provider
+# to ./agency/tools/deploy-{provider} based on agency.yaml's deploy.provider
 # config — but only inside Claude Code sessions. Shell scripts, CI pipelines,
 # and dev tools that want to deploy/rollback/inspect can't invoke a skill.
 # Without a top-level wrapper, the SPEC-PROVIDER pattern is incomplete: the
 # skill (discovery layer) exists, providers (implementation layer) will exist,
 # but there's no tool (mechanical layer) for non-agent contexts.
 #
-# How & Why: Thin pass-through dispatcher modeled exactly on claude/tools/secret
+# How & Why: Thin pass-through dispatcher modeled exactly on agency/tools/secret
 # (Day 32 R3, the reference SPEC-PROVIDER wrapper). Reads `deploy.provider`
-# from claude/config/agency.yaml, defaults to `fly` (matches the framework
+# from agency/config/agency.yaml, defaults to `fly` (matches the framework
 # default in agency.yaml), then execs the corresponding provider tool
-# (`./claude/tools/deploy-{provider}`) with all args forwarded. Using `exec`
+# (`./agency/tools/deploy-{provider}`) with all args forwarded. Using `exec`
 # instead of subshell so signals (Ctrl+C, etc.) propagate correctly and the
 # wrapper has zero process overhead.
 #
@@ -23,8 +23,8 @@
 #
 # This completes the SPEC-PROVIDER triangle for the deploy capability:
 #   - Skill:    .claude/skills/deploy/SKILL.md       (agent invocation, /deploy)
-#   - Tool:     claude/tools/deploy                  (this file — CLI wrapper)
-#   - Provider: claude/tools/deploy-{provider}       (fly, vercel, aws, etc.)
+#   - Tool:     agency/tools/deploy                  (this file — CLI wrapper)
+#   - Provider: agency/tools/deploy-{provider}       (fly, vercel, aws, etc.)
 #
 # The skill defines the verb contract: deploy, status, rollback, logs (with
 # optional --env <name>). Provider tools must implement those verbs.
@@ -58,7 +58,7 @@ fi
 # --- Resolve provider from agency.yaml ---
 # Looks for: deploy.provider: "name" — handles quoted and unquoted forms.
 # Default: fly (matches framework default).
-AGENCY_YAML="$PROJECT_ROOT/claude/config/agency.yaml"
+AGENCY_YAML="$PROJECT_ROOT/agency/config/agency.yaml"
 PROVIDER="fly"
 
 if [[ -f "$AGENCY_YAML" ]]; then

@@ -27,6 +27,6 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/receipts/the-agency-jordan-devex-devex-safe-tools-bundle-qgr-598cba2-20260415-1112.md
+agency/receipts/the-agency-jordan-devex-devex-safe-tools-bundle-qgr-598cba2-20260415-1112.md
 usr/jordan/devex/dispatches/commit-to-captain-committed-e30932b-on-devex-misc-pre-resync-stage-p-20260415-1107.md
 ```

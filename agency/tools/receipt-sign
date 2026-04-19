@@ -5,11 +5,11 @@
 #
 # How & Why: Single tool for writing signed receipts (QGR or RGR) with the
 # five-hash chain of trust. Enforces naming convention, format version,
-# and writes to claude/receipts/. All receipt creation goes through this
+# and writes to agency/receipts/. All receipt creation goes through this
 # tool — never write receipts manually.
 #
 # Usage:
-#   ./claude/tools/receipt-sign \
+#   ./agency/tools/receipt-sign \
 #     --type qgr \
 #     --boundary iteration-complete \
 #     --org the-agency \
@@ -127,8 +127,8 @@ SHORT_HASH_E="${HASH_E:0:7}"
 
 # D42-R3: per-workstream receipt paths + revised naming
 # New: {org}-{principal}-{agent}-{workstream}-{project}-{type}-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md
-# Write to: claude/workstreams/{W}/qgr/ or rgr/
-RECEIPTS_DIR="$REPO_ROOT/claude/workstreams/$WORKSTREAM/$TYPE"
+# Write to: agency/workstreams/{W}/qgr/ or rgr/
+RECEIPTS_DIR="$REPO_ROOT/agency/workstreams/$WORKSTREAM/$TYPE"
 FILENAME="${ORG}-${PRINCIPAL}-${AGENT}-${WORKSTREAM}-${PROJECT}-${TYPE}-${BOUNDARY}-${TIMESTAMP}-${SHORT_HASH_E}.md"
 FILEPATH="$RECEIPTS_DIR/$FILENAME"
 

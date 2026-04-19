@@ -24,17 +24,17 @@ status: open
 
 ## Problem
 
-`agency update` does not propagate new top-level YAML sections from the upstream `claude/config/agency.yaml` to downstream adopters. New config sections added in framework releases are invisible to existing installations; only the framework metadata (`updated_at`, `source_commit`) is bumped.
+`agency update` does not propagate new top-level YAML sections from the upstream `agency/config/agency.yaml` to downstream adopters. New config sections added in framework releases are invisible to existing installations; only the framework metadata (`updated_at`, `source_commit`) is bumped.
 
 This is a real gap in the update path. A downstream adopter who runs `agency update` regularly will never receive new optional config schemas like `issues:`, `preview:`, `deploy:`, `crawl:`, `testing:`, and so on — even though the framework code that consumes those sections DOES land. The tools fall back to their hardcoded defaults instead of the adopter's opt-in config, and the adopter has no visible signal that new sections exist.
 
 ## Steps to Reproduce
 
 1. Install the-agency in a project at framework commit `A`.
-2. In the upstream framework, add a new top-level section to `claude/config/agency.yaml` at commit `B` (e.g., add `issues: { provider: "github", github: { target_repo: "owner/repo" } }`).
+2. In the upstream framework, add a new top-level section to `agency/config/agency.yaml` at commit `B` (e.g., add `issues: { provider: "github", github: { target_repo: "owner/repo" } }`).
 3. Merge `B` to main.
 4. Run `agency update` in the downstream project.
-5. Inspect `claude/config/agency.yaml` in the downstream.
+5. Inspect `agency/config/agency.yaml` in the downstream.
 
 **Expected:** the new `issues:` section appears in the downstream agency.yaml (with a commented-out hint that says "new section added by framework update X — review and customize").
 
@@ -52,28 +52,28 @@ Changes: +1085 ~66 -1
 ```
 
 Verification that framework files propagated correctly:
-- `claude/tools/agency-issue` → present ✅
-- `claude/tools/release-plan` → present ✅
-- `claude/tools/iscp-check` v1.1.0 → present ✅
-- `claude/hookify/hookify.block-raw-rebase.md` → present ✅
-- `claude/hookify/hookify.block-reset-to-origin.md` → present ✅
+- `agency/tools/agency-issue` → present ✅
+- `agency/tools/release-plan` → present ✅
+- `agency/tools/iscp-check` v1.1.0 → present ✅
+- `agency/hookify/hookify.block-raw-rebase.md` → present ✅
+- `agency/hookify/hookify.block-reset-to-origin.md` → present ✅
 - `claude/docs/GIT-MERGE-NOT-REBASE.md` → present ✅
-- `claude/CLAUDE-THEAGENCY.md` → updated ✅
+- `agency/CLAUDE-THEAGENCY.md` → updated ✅
 - `.claude/skills/agency-issue/SKILL.md` → present ✅
 
 But:
 
 ```
-$ wc -l ~/code/presence-detect/claude/config/agency.yaml claude/config/agency.yaml
-      43 /Users/jdm/code/presence-detect/claude/config/agency.yaml
-     128 claude/config/agency.yaml
+$ wc -l ~/code/presence-detect/agency/config/agency.yaml agency/config/agency.yaml
+      43 /Users/jdm/code/presence-detect/agency/config/agency.yaml
+     128 agency/config/agency.yaml
      171 total
 ```
 
 **85 lines of config schema never propagated.** Checking specific sections:
 
 ```
-$ grep -E "^(issues|preview|deploy|crawl|testing):" ~/code/presence-detect/claude/config/agency.yaml
+$ grep -E "^(issues|preview|deploy|crawl|testing):" ~/code/presence-detect/agency/config/agency.yaml
 (no output — none of these sections exist downstream)
 ```
 
@@ -90,7 +90,7 @@ The diff against prior HEAD of agency.yaml in presence-detect:
 
 ## Root Cause (preliminary)
 
-`claude/tools/lib/_agency-init` handles agency.yaml management. For existing installations, it only updates the `framework.*` metadata block (the "updated_at" and "source_commit" fields) and leaves the rest of the file untouched. This is the correct default — overwriting the whole file would destroy user customizations to existing sections.
+`agency/tools/lib/_agency-init` handles agency.yaml management. For existing installations, it only updates the `framework.*` metadata block (the "updated_at" and "source_commit" fields) and leaves the rest of the file untouched. This is the correct default — overwriting the whole file would destroy user customizations to existing sections.
 
 But the correct behavior is a **three-way merge**, not a metadata-only update:
 
@@ -110,7 +110,7 @@ When `agency update` encounters a top-level YAML section in source that does not
 3. **Report in the update summary** which new sections were added, so the adopter knows to review them
 4. **Never modify** existing sections with user values
 
-The implementation should live in `claude/tools/lib/_agency-init` or a new helper like `_yaml-merge`, and should be idempotent (re-running update doesn't re-add or duplicate sections).
+The implementation should live in `agency/tools/lib/_agency-init` or a new helper like `_yaml-merge`, and should be idempotent (re-running update doesn't re-add or duplicate sections).
 
 ## Why This Matters
 
@@ -126,7 +126,7 @@ We hit this during the 2026-04-08 agency-update test on a real downstream projec
 ## Related
 
 - Found during: 2026-04-08 agency-update test on `~/code/presence-detect` (installed 2026-04-03 at commit 4d6f6683, updated to commit 6cac2fa9 in this session)
-- Related tool: `claude/tools/lib/_agency-init`
+- Related tool: `agency/tools/lib/_agency-init`
 - Related pattern: `settings-merge` does the right thing for `.claude/settings.json`
 - Sibling pattern: the Claude Code `settings.json` merge logic that unions arrays rather than overwriting
 - Local report: `usr/jordan/reports/report-agency-issue-*-20260408.md` (written by the filing)

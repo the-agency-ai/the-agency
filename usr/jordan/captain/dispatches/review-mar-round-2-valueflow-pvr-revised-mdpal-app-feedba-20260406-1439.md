@@ -11,4 +11,4 @@ in_reply_to: null
 
 # MAR Round 2: Valueflow PVR revised — mdpal-app feedback incorporated
 
-PVR revised at claude/workstreams/agency/valueflow-pvr-20260406.md. Your round 1 feedback incorporated (MARFI scope, MAP triggers, MDPal tray restored per principal). Give raw findings on the revision — concerns, gaps, questions. Don't sort into buckets.
+PVR revised at agency/workstreams/agency/valueflow-pvr-20260406.md. Your round 1 feedback incorporated (MARFI scope, MAP triggers, MDPal tray restored per principal). Give raw findings on the revision — concerns, gaps, questions. Don't sort into buckets.

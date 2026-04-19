@@ -170,6 +170,6 @@ case "${1:-help}" in
     echo "  ghostty-state-watchdog start-all           Start for all active sessions"
     echo ""
     echo "Run from your shell (not Claude Code) — needs real /dev/tty access."
-    echo "Start it with: ! bash claude/tools/ghostty-state-watchdog start"
+    echo "Start it with: ! bash agency/tools/ghostty-state-watchdog start"
     ;;
 esac

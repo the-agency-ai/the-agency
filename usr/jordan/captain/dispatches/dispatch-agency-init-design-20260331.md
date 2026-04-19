@@ -12,7 +12,7 @@
 
 The agency-init and agency-update tools have been redesigned. This dispatch contains the finalized design decisions that monofolk/captain needs to incorporate into CLAUDE.md, README work, and downstream tooling.
 
-**Full design document:** `claude/workstreams/agency/seeds/agency-init-design-20260331.md`
+**Full design document:** `agency/workstreams/agency/seeds/agency-init-design-20260331.md`
 
 ---
 
@@ -43,7 +43,7 @@ my-project/
     └── src/              # --dev only (source code, tests)
 ```
 
-**Rationale:** Good neighbor in someone else's repo. No top-level pollution. No breaking change from current `claude/workstreams/` layout.
+**Rationale:** Good neighbor in someone else's repo. No top-level pollution. No breaking change from current `agency/workstreams/` layout.
 
 ### 2. Three File Tiers
 
@@ -64,8 +64,8 @@ Tier assigned by directory pattern. More specific patterns win (e.g., `claude/us
 ### 4. Settings Merge
 
 `.claude/settings.json` is scaffold (never overwritten). New tools/hooks delivered via:
-- `claude/config/settings-template.json` — framework tier, always current
-- `./claude/tools/settings-merge` — diffs template against current settings, adds missing entries
+- `agency/config/settings-template.json` — framework tier, always current
+- `./agency/tools/settings-merge` — diffs template against current settings, adds missing entries
 - Fallback: if JSON malformed, prints exact fragments for manual paste
 
 ### 5. Git Is the Rollback

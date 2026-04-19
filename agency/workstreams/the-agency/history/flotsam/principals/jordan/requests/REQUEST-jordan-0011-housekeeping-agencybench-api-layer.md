@@ -315,7 +315,7 @@ export const config = {
   // Database
   database: {
     type: process.env.DB_TYPE || 'sqlite',   // 'sqlite' | 'postgres'
-    url: process.env.DATABASE_URL || 'claude/data/agency.db',
+    url: process.env.DATABASE_URL || 'agency/data/agency.db',
   },
 
   // Queue

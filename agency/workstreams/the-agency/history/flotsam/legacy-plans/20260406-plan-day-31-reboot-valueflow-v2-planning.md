@@ -183,7 +183,7 @@ Agents start their assigned phases. Valueflow V2 is live.
 | `usr/jordan/*/handoff.md` | CAPTAIN WRITES ALL | 3.2 |
 | `usr/jordan/captain/captain-handoff.md` | REWRITE (Day 31 bootstrap) | 3.3 |
 | `usr/jordan/captain/history/how-we-got-here-day31.md` | CREATE (break-glass) | 3.4 |
-| `claude/workstreams/agency/valueflow-plan-20260407.md` | CREATE (V2 plan) | 5.1 |
+| `agency/workstreams/agency/valueflow-plan-20260407.md` | CREATE (V2 plan) | 5.1 |
 
 ## Dependency Graph
 

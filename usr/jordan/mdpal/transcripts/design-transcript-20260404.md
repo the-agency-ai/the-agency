@@ -177,7 +177,7 @@ These require design decisions:
 
 ### Item 4: App package location
 
-**Decision:** Same monorepo (the-agency), but engine/CLI and app are **independent packages** that evolve separately. No direct library linking. They interact through ISCP dispatches and exposed commands. Both under `claude/workstreams/mdpal/`.
+**Decision:** Same monorepo (the-agency), but engine/CLI and app are **independent packages** that evolve separately. No direct library linking. They interact through ISCP dispatches and exposed commands. Both under `agency/workstreams/mdpal/`.
 
 **Jordan:** "I firmly believe in a monorepo for delivery of a value stream."
 

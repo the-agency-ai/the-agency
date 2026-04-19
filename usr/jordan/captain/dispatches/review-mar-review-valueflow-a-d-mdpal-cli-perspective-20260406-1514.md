@@ -11,4 +11,4 @@ in_reply_to: null
 
 # MAR: Review Valueflow A&D — mdpal-cli perspective
 
-A&D at claude/workstreams/agency/valueflow-ad-20260406.md. Give raw findings — does this design work for a tech-lead building a product? Are the gate tiers realistic? Does the handoff structure match your experience? Merge main first.
+A&D at agency/workstreams/agency/valueflow-ad-20260406.md. Give raw findings — does this design work for a tech-lead building a product? Are the gate tiers realistic? Does the handoff structure match your experience? Merge main first.

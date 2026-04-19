@@ -30,7 +30,7 @@ Day 42. PR #98 (D41-R4+R6+R7 bundle) merged. Synced to v42.3. Test isolation fix
 - 4 parallel reviewer agents (code/security/design/test) + own review
 - 16 findings consolidated → 7 ACCEPT (fixed in-PR), 9 DEFER (tracked), 1 REJECT (cosmetic)
 - Key fixes: cmd_rm `--` terminator, globstar doc clarification, dirty_count pre-truncation, positive test assertions
-- Receipt: `claude/receipts/the-agency-jordan-devex-devex-safe-tools-bundle-qgr-598cba2-20260415-1112.md`
+- Receipt: `agency/receipts/the-agency-jordan-devex-devex-safe-tools-bundle-qgr-598cba2-20260415-1112.md`
 - Five-hash chain: A=80d395a → B=ca3315e → C=5ac5846 → D=C (auto) → E=598cba2
 
 ## In Progress

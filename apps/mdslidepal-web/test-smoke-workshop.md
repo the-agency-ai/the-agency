@@ -15,7 +15,7 @@
 
 ```bash
 cd apps/mdslidepal-web
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/plan-b/sample-workshop.md
+node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/plan-b/sample-workshop.md
 ```
 
 - [ ] Browser opens automatically
@@ -31,39 +31,39 @@ node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/plan-b/sam
 Run each fixture and verify:
 
 ```bash
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/fixtures/01-minimal.md
+node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/fixtures/01-minimal.md
 # → 1 slide, heading "Hello mdslidepal" visible
 ```
 
 ```bash
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/fixtures/02-multi-slide.md
+node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/fixtures/02-multi-slide.md
 # → 3 slides with correct headings
 ```
 
 ```bash
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/fixtures/03-code-blocks.md
+node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/fixtures/03-code-blocks.md
 # → Code blocks syntax-highlighted per language
 ```
 
 ```bash
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/fixtures/04-images.md
+node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/fixtures/04-images.md
 # → sample.png renders; missing image shows broken-image icon + alt text
 ```
 
 ```bash
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/fixtures/05-tables-and-lists.md
+node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/fixtures/05-tables-and-lists.md
 # → Tables with borders, nested lists indented, task checkboxes visible
 ```
 
 ```bash
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/fixtures/08-edge-cases.md
+node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/fixtures/08-edge-cases.md
 # → Code block --- does NOT split slide; adjacent --- produces one empty slide
 ```
 
 ## Test 3: Offline (airplane mode)
 
 - [ ] Enable airplane mode (wifi off, bluetooth off)
-- [ ] Run `node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/plan-b/sample-workshop.md`
+- [ ] Run `node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/plan-b/sample-workshop.md`
 - [ ] Verify slides render fully (all CSS, JS loaded from local files)
 - [ ] Navigate all slides
 - [ ] Re-enable wifi
@@ -72,10 +72,10 @@ node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/fixtures/0
 
 ```bash
 # Terminal 1:
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/fixtures/01-minimal.md
+node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/fixtures/01-minimal.md
 
 # Terminal 2 (while terminal 1 is running):
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/fixtures/02-multi-slide.md
+node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/fixtures/02-multi-slide.md
 # → Should auto-increment to port 8001
 ```
 
@@ -87,7 +87,7 @@ node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/fixtures/0
 If mdslidepal-web is broken:
 
 ```bash
-cd claude/workstreams/mdslidepal/plan-b
+cd agency/workstreams/mdslidepal/plan-b
 python3 -m http.server 8000
 # Open http://localhost:8000/reveal-js-template.html
 ```

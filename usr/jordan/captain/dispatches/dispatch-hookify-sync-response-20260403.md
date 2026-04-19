@@ -38,9 +38,9 @@ Standardize to one rule that matches both `main` and `master` in the pattern. No
 
 ### Q4: Should `agency update` have a hookify sync strategy?
 
-Yes — hookify rules in `claude/hookify/` are framework tier, synced by `agency update`. The manifest is the ownership boundary: files tracked in the manifest are framework-owned and get updated. Files not in the manifest are project-owned and left alone. Framework and project rules coexist in the same directory.
+Yes — hookify rules in `agency/hookify/` are framework tier, synced by `agency update`. The manifest is the ownership boundary: files tracked in the manifest are framework-owned and get updated. Files not in the manifest are project-owned and left alone. Framework and project rules coexist in the same directory.
 
-No separate project tier directory needed. If you add a project-specific hookify rule to `claude/hookify/`, `agency update` won't touch it because it's not in the manifest.
+No separate project tier directory needed. If you add a project-specific hookify rule to `agency/hookify/`, `agency update` won't touch it because it's not in the manifest.
 
 ### New convention: hookify message format
 

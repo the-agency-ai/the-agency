@@ -11,4 +11,4 @@ in_reply_to: null
 
 # MAR: Review Valueflow PVR — mdpal-app perspective
 
-Valueflow PVR at claude/workstreams/agency/valueflow-pvr-20260406.md defines TheAgency's AIADLC. Review from your perspective as a tech-lead on a companion product. Does the cross-workstream RFI model work for mdpal-app coordinating with mdpal-cli? Does the three-bucket pattern match your review experience? Three-bucket response: (1) disagree, (2) agree, (3) discuss. Reply via dispatch.
+Valueflow PVR at agency/workstreams/agency/valueflow-pvr-20260406.md defines TheAgency's AIADLC. Review from your perspective as a tech-lead on a companion product. Does the cross-workstream RFI model work for mdpal-app coordinating with mdpal-cli? Does the three-bucket pattern match your review experience? Three-bucket response: (1) disagree, (2) agree, (3) discuss. Reply via dispatch.

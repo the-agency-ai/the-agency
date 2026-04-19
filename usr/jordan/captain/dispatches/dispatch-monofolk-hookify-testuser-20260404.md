@@ -19,7 +19,7 @@ Any repo using the Agency BATS test suite hits this. The leaked env var causes `
 
 ## What to Adopt
 
-Copy `claude/hookify/hookify.block-testuser-paths.md` from the-agency PR #34. One file, 13 lines. No dependencies.
+Copy `agency/hookify/hookify.block-testuser-paths.md` from the-agency PR #34. One file, 13 lines. No dependencies.
 
 ## PR Reference
 

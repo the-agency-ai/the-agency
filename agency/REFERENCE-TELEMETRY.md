@@ -9,7 +9,7 @@ The Agency provides two complementary telemetry systems:
 
 ### Configuration
 
-In `claude/config/agency.yaml`:
+In `agency/config/agency.yaml`:
 
 ```yaml
 telemetry:

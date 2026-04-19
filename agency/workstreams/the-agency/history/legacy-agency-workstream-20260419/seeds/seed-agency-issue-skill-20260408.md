@@ -7,9 +7,9 @@ principal: jordan
 status: shipped-v1
 discussion: 1B1 with principal 2026-04-08
 v1_implementation:
-  tool: claude/tools/agency-issue
+  tool: agency/tools/agency-issue
   skill: .claude/skills/agency-issue/SKILL.md
-  config: claude/config/agency.yaml (issues.github.target_repo)
+  config: agency/config/agency.yaml (issues.github.target_repo)
   reports_dir: usr/jordan/reports/
   smoke_test_issue: https://github.com/the-agency-ai/the-agency/issues/52
 ---
@@ -198,9 +198,9 @@ The natural v2+ shape:
 ```
 /agency-issue file              (contract skill — agency semantics + reports + audit)
        ↓
-  claude/tools/agency-issue     (top-level dispatcher, reads issues.provider from agency.yaml)
+  agency/tools/agency-issue     (top-level dispatcher, reads issues.provider from agency.yaml)
        ↓
-  claude/tools/agency-issue-github   (GitHub provider, wraps gh CLI)
+  agency/tools/agency-issue-github   (GitHub provider, wraps gh CLI)
 ```
 
 Later providers: `agency-issue-gitlab`, `agency-issue-linear`, `agency-issue-jira`, etc. Same skill contract, pluggable backend.

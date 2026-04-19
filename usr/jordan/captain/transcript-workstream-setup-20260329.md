@@ -123,24 +123,24 @@ Each issue includes action items for monofolk.
 ### All Changes Made This Session
 
 **Files created:**
-- `claude/workstreams/markdown-pal/` — workstream directory
-- `claude/workstreams/mock-and-mark/` — workstream directory
-- `claude/agents/markdown-pal/` — agent directory
-- `claude/agents/mock-and-mark/` — agent directory
-- `claude/agents/gtm/` — agent directory
+- `agency/workstreams/markdown-pal/` — workstream directory
+- `agency/workstreams/mock-and-mark/` — workstream directory
+- `agency/agents/markdown-pal/` — agent directory
+- `agency/agents/mock-and-mark/` — agent directory
+- `agency/agents/gtm/` — agent directory
 - `usr/jordan/captain/transcript-workstream-setup-20260329.md` — this transcript
 - `usr/jordan/captain/issues-agency2-setup-20260329.md` — issues document
 
 **Files modified:**
-- `claude/agents/markdown-pal/agent.md` — filled in purpose, responsibilities, seed files
-- `claude/agents/mock-and-mark/agent.md` — filled in purpose, responsibilities, seed files
-- `claude/agents/gtm/agent.md` — filled in purpose, responsibilities
-- `claude/workstreams/markdown-pal/KNOWLEDGE.md` — filled in project scope
-- `claude/workstreams/mock-and-mark/KNOWLEDGE.md` — filled in project scope
-- `claude/workstreams/gtm/KNOWLEDGE.md` — filled in GTM scope
+- `agency/agents/markdown-pal/agent.md` — filled in purpose, responsibilities, seed files
+- `agency/agents/mock-and-mark/agent.md` — filled in purpose, responsibilities, seed files
+- `agency/agents/gtm/agent.md` — filled in purpose, responsibilities
+- `agency/workstreams/markdown-pal/KNOWLEDGE.md` — filled in project scope
+- `agency/workstreams/mock-and-mark/KNOWLEDGE.md` — filled in project scope
+- `agency/workstreams/gtm/KNOWLEDGE.md` — filled in GTM scope
 
 **Files removed:**
-- `claude/workstreams/--help/` — errant directory from workstream-create bug
+- `agency/workstreams/--help/` — errant directory from workstream-create bug
 
 ### Commands Created
 

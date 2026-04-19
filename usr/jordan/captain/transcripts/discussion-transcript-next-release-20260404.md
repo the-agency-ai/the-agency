@@ -58,7 +58,7 @@
 
 ## Item 9: Transcript mining tool
 
-**Decision:** Formalize mine-transcripts.sh and ship to claude/tools/. Mine and analyze for now. Downstream: agentic pipeline for automated friction detection and usage pattern analysis. Feeds into permissions discovery (Item 4) and continual improvement loop.
+**Decision:** Formalize mine-transcripts.sh and ship to agency/tools/. Mine and analyze for now. Downstream: agentic pipeline for automated friction detection and usage pattern analysis. Feeds into permissions discovery (Item 4) and continual improvement loop.
 
 ---
 
@@ -166,7 +166,7 @@
 
 ## Item 27: Seeds location
 
-**Decision:** Seeds live in claude/workstreams/{name}/seeds/. They belong to the workstream, not the agent. Input material that predates agent assignment, persists regardless of who works on them.
+**Decision:** Seeds live in agency/workstreams/{name}/seeds/. They belong to the workstream, not the agent. Input material that predates agent assignment, persists regardless of who works on them.
 
 ---
 
@@ -206,7 +206,7 @@ Follow-on discussion: which unported monofolk tools should be generalized into t
 
 ### Item 15: Project Manager agent
 
-**Decision:** Already exists at claude/agents/project-manager/agent.md. Diff against monofolk version and update if needed.
+**Decision:** Already exists at agency/agents/project-manager/agent.md. Diff against monofolk version and update if needed.
 
 ---
 

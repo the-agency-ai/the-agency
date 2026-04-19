@@ -31,5 +31,5 @@ apps/mdpal-app/Sources/MarkdownPalApp/Models/ResponseTypes.swift
 apps/mdpal-app/Sources/MarkdownPalApp/Services/CLIServiceProtocol.swift
 apps/mdpal-app/Sources/MarkdownPalApp/Services/RealCLIService.swift
 apps/mdpal-app/Tests/MarkdownPalAppTests/ModelTests.swift
-claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1417-2783263.md
+agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1417-2783263.md
 ```

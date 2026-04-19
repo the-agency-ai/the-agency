@@ -7,7 +7,7 @@
 #   - Functions: ghostty_set_title, ghostty_set_bg, ghostty_set_state
 #
 # Source this from ~/.zshrc:
-#   source <repo>/claude/tools/ghostty-integration
+#   source <repo>/agency/tools/ghostty-integration
 #
 # Does NOT modify Claude Code's statusline.sh — these are separate concerns.
 # The statusline is the bottom bar inside Claude Code.

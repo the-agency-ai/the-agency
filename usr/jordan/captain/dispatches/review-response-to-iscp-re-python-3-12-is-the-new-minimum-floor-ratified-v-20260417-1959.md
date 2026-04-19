@@ -21,7 +21,7 @@ Landed in v44.7 (PR #208):
 - templates/TOOL.py: shebang updated
 - manifest: 44.6 -> 44.7
 
-Directive broadcast to all 8 worktree agents (#649-656). Your dispatch-hub in Python 3.12 with FastAPI/SQLAlchemy 2.0/Alembic/PyJWT/uvicorn is sanctioned. Add service deps to claude/config/dependencies.yaml when ready.
+Directive broadcast to all 8 worktree agents (#649-656). Your dispatch-hub in Python 3.12 with FastAPI/SQLAlchemy 2.0/Alembic/PyJWT/uvicorn is sanctioned. Add service deps to agency/config/dependencies.yaml when ready.
 
 Follow-up filed: agency-health warn on runtime Python < 3.12 (coming in a separate issue).
 

@@ -31,8 +31,8 @@ Claude Code today has silent mechanisms (hooks, status line, async hooks, subage
 This seed intersects with several current workstreams:
 
 - **Fleet Awareness** (`seed-fleet-awareness-20260408.md`) — the primary consumer. Fleet's `/startup`, heartbeat, and `/captains-report` skills all need periodic checks that today cannot be silent. This is documented as a **constraint** in the Fleet Awareness seed (question #7-related).
-- **ISCP** (`claude/workstreams/iscp/`) — the `iscp-check` hook is our existing silent notification path, but it's event-driven (fires on user actions only). The peer-to-peer collaboration work (iscp plan #165) increases the value of live fleet awareness.
-- **Captain's dispatch loop convention** (now in `claude/CLAUDE-THEAGENCY.md` → "When You Have Mail") — the 5-minute fast-path loop pattern is the concrete pain point. The 30-minute visible nag loop is fine as-is; the fast-path is what's polluted.
+- **ISCP** (`agency/workstreams/iscp/`) — the `iscp-check` hook is our existing silent notification path, but it's event-driven (fires on user actions only). The peer-to-peer collaboration work (iscp plan #165) increases the value of live fleet awareness.
+- **Captain's dispatch loop convention** (now in `agency/CLAUDE-THEAGENCY.md` → "When You Have Mail") — the 5-minute fast-path loop pattern is the concrete pain point. The 30-minute visible nag loop is fine as-is; the fast-path is what's polluted.
 - **Day 33 R1 work** — this seed was captured mid-Day-33 during the conversation that also produced iscp-check delta suppression (v1.1.0), the status line candidate architecture investigation, and the peer-to-peer collaboration dispatch (#165).
 
 ## Our research

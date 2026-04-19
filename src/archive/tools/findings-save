@@ -2,8 +2,8 @@
 # Save review findings to structured JSON file
 #
 # Usage:
-#   ./claude/tools/findings-save WORK-ITEM STAGE REVIEW-TYPE < findings.json
-#   cat findings.json | ./claude/tools/findings-save REQUEST-jordan-0065 impl code
+#   ./agency/tools/findings-save WORK-ITEM STAGE REVIEW-TYPE < findings.json
+#   cat findings.json | ./agency/tools/findings-save REQUEST-jordan-0065 impl code
 #
 # Arguments:
 #   WORK-ITEM    Work item ID (REQUEST-jordan-0065, SPRINT-web-2026w03, etc.)
@@ -87,7 +87,7 @@ fi
 # Validate arguments
 if [[ $# -lt 3 ]]; then
     echo "findings-save [run: $RUN_ID]" >&2
-    echo "Usage: ./claude/tools/findings-save WORK-ITEM STAGE REVIEW-TYPE < findings.json" >&2
+    echo "Usage: ./agency/tools/findings-save WORK-ITEM STAGE REVIEW-TYPE < findings.json" >&2
     echo "✗" >&2
     log_end "$RUN_ID" 1 "" "Missing arguments"
     exit 1

@@ -21,8 +21,8 @@ Thanks for the heads-up — without your context I'd have kept fighting the wron
 
 Already fixed — see dispatch #138 (my reply to mdpal-cli) for full details. Quick summary:
 
-**Root cause was infinite recursion in claude/tools/gh:**
-- test_helper.bash prepends `claude/tools/` to PATH at line 24
+**Root cause was infinite recursion in agency/tools/gh:**
+- test_helper.bash prepends `agency/tools/` to PATH at line 24
 - The gh wrapper called `command gh` which found itself (because it's first on PATH)
 - Each invocation called itself again — bash recursion = hang
 - This is why the hang happened ONLY in BATS context, not when running gh manually

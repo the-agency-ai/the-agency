@@ -40,7 +40,7 @@ the-agency/jordan/mdpal-cli — Markdown Pal engine + CLI. Branch `mdpal-cli`. W
    - Fixed all critical findings + supporting items (BundleResolver `~`/`..`, ErrorEnvelope fallback preservation, CLISupport Fixture struct)
    - Removed VersionCommand (`version` reserved per spec for `version show/bump`); tool version now via root `--version` flag
    - 192 tests passing
-   - Receipt: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1312-fb1f7e3.md`
+   - Receipt: `agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1312-fb1f7e3.md`
 4. Plan updated — Phase 2 iterations renumbered to reflect actual remaining CLI work
 
 ## Next action
@@ -88,9 +88,9 @@ Then iteration-complete and merge. Don't wait for principal.
 - A&D: `usr/jordan/mdpal/ad-mdpal-20260404.md`
 - Plan: `usr/jordan/mdpal/plan-mdpal-20260406.md` (Phase 2 iterations rewritten)
 - Wire-format spec (CRITICAL — read before any CLI iteration): `usr/jordan/mdpal/dispatches/dispatch-cli-json-output-shapes-20260406.md`
-- Phase 1 QGR: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md`
-- pr-prep QGR: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-pr-prep-20260417-1213-8f2da0f.md`
-- Iter 2.1 QGR: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1312-fb1f7e3.md`
+- Phase 1 QGR: `agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md`
+- pr-prep QGR: `agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-pr-prep-20260417-1213-8f2da0f.md`
+- Iter 2.1 QGR: `agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1312-fb1f7e3.md`
 - PR: https://github.com/the-agency-ai/the-agency/pull/179
 
 ## Infrastructure notes

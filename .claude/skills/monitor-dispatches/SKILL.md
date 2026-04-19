@@ -19,7 +19,7 @@ Set up event-driven dispatch monitoring using Claude Code's Monitor tool. Replac
 Use the Monitor tool to run the dispatch-monitor script in the background:
 
 ```
-Monitor dispatches for me. Run ./claude/tools/dispatch-monitor --include-collab in the background. When output appears, read and respond to the dispatches.
+Monitor dispatches for me. Run ./agency/tools/dispatch-monitor --include-collab in the background. When output appears, read and respond to the dispatches.
 ```
 
 The script:
@@ -31,9 +31,9 @@ The script:
 ### When output arrives
 
 1. Parse the dispatch list from the Monitor output
-2. Read each unread dispatch with `./claude/tools/dispatch read <id>`
+2. Read each unread dispatch with `./agency/tools/dispatch read <id>`
 3. Respond appropriately
-4. Resolve with `./claude/tools/dispatch resolve <id>` if no further action needed
+4. Resolve with `./agency/tools/dispatch resolve <id>` if no further action needed
 
 ### Why this replaces /loop
 

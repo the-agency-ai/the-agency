@@ -8,7 +8,7 @@
 # 3. agency_version must be bumped
 # Hookify blocks raw gh pr create.
 #
-# Usage: ./claude/tools/pr-create --title "title" --body "body"
+# Usage: ./agency/tools/pr-create --title "title" --body "body"
 #        All gh pr create flags are passed through after validation.
 #
 # Written: 2026-04-14 during captain session (PR discipline enforcement)
@@ -40,7 +40,7 @@ echo "✓ On branch: $BRANCH"
 NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
-    # Tier 2: legacy claude/receipts/
+    # Tier 2: legacy agency/receipts/
     NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
 fi
 
@@ -64,7 +64,7 @@ fi
 
 # ── Step 3: Verify version was bumped ────────────────────────────────────
 
-MANIFEST="$REPO_ROOT/claude/config/manifest.json"
+MANIFEST="$REPO_ROOT/agency/config/manifest.json"
 
 if [[ ! -f "$MANIFEST" ]]; then
     echo "BLOCKED: manifest.json not found at $MANIFEST" >&2
@@ -74,22 +74,22 @@ fi
 # Detect the default branch so this works on repos using 'master' as well.
 # Issue #107 (monofolk hotfix): the hardcoded 'origin/main' caused false
 # "version not bumped" failures on repos where origin/master is the default.
-# D45-R3: resolver extracted to claude/tools/lib/_detect-main-branch —
+# D45-R3: resolver extracted to agency/tools/lib/_detect-main-branch —
 # canonical order is origin/HEAD → local main → local master, whitelisted
 # to main|master only.
 DEFAULT_BRANCH=$(detect_main_branch "$REPO_ROOT") || exit 1
 DEFAULT_REF="origin/$DEFAULT_BRANCH"
 
-MANIFEST_CHANGED=$(git -C "$REPO_ROOT" diff "$DEFAULT_REF"..HEAD --name-only -- claude/config/manifest.json 2>/dev/null || true)
+MANIFEST_CHANGED=$(git -C "$REPO_ROOT" diff "$DEFAULT_REF"..HEAD --name-only -- agency/config/manifest.json 2>/dev/null || true)
 
 if [[ -z "$MANIFEST_CHANGED" ]]; then
-    MANIFEST_STAGED=$(git -C "$REPO_ROOT" diff --name-only -- claude/config/manifest.json 2>/dev/null || true)
-    MANIFEST_CACHED=$(git -C "$REPO_ROOT" diff --cached --name-only -- claude/config/manifest.json 2>/dev/null || true)
+    MANIFEST_STAGED=$(git -C "$REPO_ROOT" diff --name-only -- agency/config/manifest.json 2>/dev/null || true)
+    MANIFEST_CACHED=$(git -C "$REPO_ROOT" diff --cached --name-only -- agency/config/manifest.json 2>/dev/null || true)
 
     if [[ -z "$MANIFEST_STAGED" && -z "$MANIFEST_CACHED" ]]; then
         echo "BLOCKED: agency_version not bumped." >&2
         echo "" >&2
-        echo "Every PR is a release. Update claude/config/manifest.json:" >&2
+        echo "Every PR is a release. Update agency/config/manifest.json:" >&2
         echo "  - Bump agency_version (e.g., 40.1 → 40.2)" >&2
         echo "  - Update updated_at timestamp" >&2
         echo "" >&2

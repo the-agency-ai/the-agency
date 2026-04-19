@@ -14,7 +14,7 @@ in_reply_to: 110
 ## Investigation
 
 ### Existing rule
-`claude/hookify/hookify.block-cd-to-main.md` blocks the specific case: `cd /Users/...` or `cd ~/` or `cd $HOME` followed by `&&`. Doesn't catch:
+`agency/hookify/hookify.block-cd-to-main.md` blocks the specific case: `cd /Users/...` or `cd ~/` or `cd $HOME` followed by `&&`. Doesn't catch:
 - `cd /tmp/foo`
 - `cd ../sibling-worktree`
 - `cd $HOME/code/somewhere` without `&&`
@@ -27,7 +27,7 @@ Inside a worktree, `git rev-parse --show-toplevel` returns the worktree path (`.
 
 ### Layer 1: SessionStart hook check (small, fast)
 
-Add to `claude/tools/iscp-check` (already runs at SessionStart) OR new tool `claude/tools/worktree-cwd-check`:
+Add to `agency/tools/iscp-check` (already runs at SessionStart) OR new tool `agency/tools/worktree-cwd-check`:
 
 ```bash
 # Verify CWD is inside the current worktree's root
@@ -44,7 +44,7 @@ fi
 
 ### Layer 2: PreToolUse hookify rule (the main protection)
 
-New file: `claude/hookify/hookify.cd-stays-in-worktree.md`
+New file: `agency/hookify/hookify.cd-stays-in-worktree.md`
 
 ```markdown
 ---

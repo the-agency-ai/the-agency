@@ -54,7 +54,7 @@ Full MVP of mdslidepal-web — a CLI tool wrapping reveal.js for markdown-to-sli
 - Source: `apps/mdslidepal-web/src/` (7 modules)
 - Tests: `apps/mdslidepal-web/test/` (5 test files, 35 tests)
 - CLI: `apps/mdslidepal-web/bin/mdslidepal.ts`
-- Plan: `claude/workstreams/mdslidepal/plan-mdslidepal-web-20260411.md`
+- Plan: `agency/workstreams/mdslidepal/plan-mdslidepal-web-20260411.md`
 - QGR: `usr/jordan/mdslidepal-web/qgr-iteration-complete-1-1-54ad7db-20260412-2149.md`
 
 ### How to run
@@ -63,5 +63,5 @@ Full MVP of mdslidepal-web — a CLI tool wrapping reveal.js for markdown-to-sli
 cd apps/mdslidepal-web
 pnpm install
 pnpm run build
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/plan-b/sample-workshop.md
+node dist/bin/mdslidepal.js serve ../../agency/workstreams/mdslidepal/plan-b/sample-workshop.md
 ```

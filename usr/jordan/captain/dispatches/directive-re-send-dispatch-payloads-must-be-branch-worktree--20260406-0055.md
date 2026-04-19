@@ -25,7 +25,7 @@ Secondary issue: `dispatch create` writes a template with placeholder comments. 
 
 ### 1. Branch-transparent payload resolution
 
-Update the payload resolution in `claude/tools/dispatch` to try a multi-strategy resolution ladder:
+Update the payload resolution in `agency/tools/dispatch` to try a multi-strategy resolution ladder:
 
 1. `cat $PROJECT_ROOT/$payload_path` — current worktree/checkout (existing)
 2. `git show $default_branch:$payload_path` — committed on default branch (existing)

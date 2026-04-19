@@ -58,28 +58,28 @@ D44-R6 3.12 floor — see dispatch #649-#656 (now stale).
 3. **Adopter install.** `brew install python` (unversioned — creates the
    `python3` symlink). NOT `brew install python@3.13` — the versioned
    keg does not create the symlink and leaves Apple stock 3.9 winning
-   on PATH. `claude/config/dependencies.yaml` has `brew: python` with
+   on PATH. `agency/config/dependencies.yaml` has `brew: python` with
    `brew_alt: python@3.13` documenting the alternative.
 
 ## What you need to do on your next session
 
-1. Run `./claude/tools/worktree-sync --auto` (or `/session-resume`).
+1. Run `./agency/tools/worktree-sync --auto` (or `/session-resume`).
 2. Confirm `python3 --version` returns `>= 3.13`. If not:
    - macOS: `brew install python` (unversioned keg).
    - Linux: `sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt install python3.13 && sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1`
    - pyenv/nix: point `python3` at a 3.13+ interpreter.
 3. If you get `Python 3.13+ required (got <version>)` from any framework
    tool, that is the guard firing. Fix your PATH per step 2.
-4. New Python tools you write: scaffold from `claude/templates/TOOL.py`.
+4. New Python tools you write: scaffold from `agency/templates/TOOL.py`.
    It now carries the correct shebang + guard.
 
 ## References
 
 - PR: #213 (release/python-3.13-floor → main)
 - Briefing: `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md`
-- Updated docs: `claude/CLAUDE-THEAGENCY.md` (Runtime Floor), `claude/REFERENCE-PROVENANCE-HEADERS.md`
-- Config: `claude/config/dependencies.yaml`, `claude/config/agency-dependencies.yaml`
-- QGR: `claude/workstreams/the-agency/qgr/...-d406320.md`
+- Updated docs: `agency/CLAUDE-THEAGENCY.md` (Runtime Floor), `agency/REFERENCE-PROVENANCE-HEADERS.md`
+- Config: `agency/config/dependencies.yaml`, `agency/config/agency-dependencies.yaml`
+- QGR: `agency/workstreams/the-agency/qgr/...-d406320.md`
 
 ## Follow-ups (tracked in GH, not blocking for you)
 
@@ -97,7 +97,7 @@ Questions: reply to this dispatch or flag to captain.
 
 ```bash
 for agent in devex designex iscp mdpal-cli mdpal-app mdslidepal-mac mdslidepal-web mock-and-mark; do
-  ./claude/tools/dispatch create \
+  ./agency/tools/dispatch create \
     --type main-updated \
     --to "the-agency/jordan/$agent" \
     --subject "Python 3.13 floor — supersedes 3.12 (D45-R1)" \

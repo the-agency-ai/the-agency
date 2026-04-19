@@ -18,7 +18,7 @@
 
 **Tagline:** "By the end of today, you'll have built and deployed your own app."
 
-[(housekeeping) Consider adding TheAgency constellation logo here - SVG available at claude/assets/theagency-logo-constellation.svg]
+[(housekeeping) Consider adding TheAgency constellation logo here - SVG available at agency/assets/theagency-logo-constellation.svg]
 
 ---
 

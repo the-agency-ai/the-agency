@@ -25,7 +25,7 @@ When invoked:
 1. **Establish context.** If a project name or PVR is provided, read it. If not, ask: "What are we designing?" If a PVR exists, load it — requirements inform architecture.
 
 2. **Scan for existing work.** Check for an existing A&D in:
-   - `claude/workstreams/{workstream}/` (shared, post-implementation)
+   - `agency/workstreams/{workstream}/` (shared, post-implementation)
    - `usr/{principal}/{agent}/` (instance, pre-implementation)
      If found, load it and identify gaps against the checklist.
 
@@ -126,4 +126,4 @@ The A&D is written progressively as items resolve. Structure:
 | PVR updates | Same location as existing PVR                                 | As needed                  |
 | Transcript  | `usr/{principal}/{agent}/transcripts/`                        | Progressively via /discuss |
 
-When implementation launches, the A&D moves to `claude/workstreams/{workstream}/`.
+When implementation launches, the A&D moves to `agency/workstreams/{workstream}/`.

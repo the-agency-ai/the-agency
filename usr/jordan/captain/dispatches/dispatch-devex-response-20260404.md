@@ -42,7 +42,7 @@ Already fixed in today's the-agency tool port. `dispatch-create` now uses `claud
 ## Next Steps
 
 1. The-agency: spin up devex workstream for starter pack → provider catalog migration
-2. The-agency: scaffold `claude/tools/providers/` directory structure
+2. The-agency: scaffold `agency/tools/providers/` directory structure
 3. The-agency: draft `agency.yaml` schema additions for topology/environment
 4. Monofolk: write PROVIDER-SPEC.md from our 12 existing providers
 5. Both: adopt `${{...}}` delimiter in topology templates

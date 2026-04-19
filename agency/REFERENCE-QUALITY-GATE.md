@@ -27,10 +27,10 @@ Commits happen at iteration, phase, and plan completion — not in between. Do n
 Each gate produces a standalone receipt at:
 
 ```
-claude/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md
+agency/workstreams/{ws}/quality-gate-reports/qgr-{boundary}-{phase.iter}-{stage-hash}-{YYYYMMDD-HHMM}.md
 ```
 
-For workstreams with multiple projects, use `claude/workstreams/{ws}/project/{project}/quality-gate-reports/`. The QGR frontmatter must include `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic hash of the staged changes (computed by `claude/tools/stage-hash`). `/git-safe-commit` checks for a matching receipt before committing — no receipt means no QG was run.
+For workstreams with multiple projects, use `agency/workstreams/{ws}/project/{project}/quality-gate-reports/`. The QGR frontmatter must include `agent: {repo}/{principal}/{agent}` for attribution. The stage hash is a deterministic hash of the staged changes (computed by `agency/tools/stage-hash`). `/git-safe-commit` checks for a matching receipt before committing — no receipt means no QG was run.
 
 **Receipt chain:** Each QGR is part of a five-hash chain linking the artifact through the gate (see `REFERENCE-RECEIPT-INFRASTRUCTURE.md` when available). The chain provides an auditable link: staged changes → stage hash → QGR file → commit → PR. `pr-create` (via `/release` or `/pr-prep`) verifies the receipt chain before pushing — a PR cannot be created without a valid T4 QGR receipt matching the current diff.
 
@@ -59,7 +59,7 @@ Gates are tiered by commit boundary type. Higher tiers include all lower-tier ch
 
 Tests are scoped to changed files to keep T1/T2 fast.
 
-**Convention-based (default):** Source path mirrors test path. `claude/tools/flag` → `tests/tools/flag.bats`. Zero-config, covers 90% of cases.
+**Convention-based (default):** Source path mirrors test path. `agency/tools/flag` → `tests/tools/flag.bats`. Zero-config, covers 90% of cases.
 
 **Package-level (fallback):** For non-mirrored layouts (Swift, Rust, Go packages): anything in `apps/mdpal/Sources/` changed → run tests in `apps/mdpal/`. Handles projects where test paths don't mirror source paths.
 

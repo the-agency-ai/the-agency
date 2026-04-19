@@ -5,7 +5,7 @@
 #   { type: frontend, language: typescript, framework: nextjs }
 #
 # Mirrors apps/doctor-frontend/ — the reference pattern for Next.js apps in monofolk.
-# Read by: claude/tools/ui-add (via tools/ui-add.ts)
+# Read by: agency/tools/ui-add (via tools/ui-add.ts)
 
 name: nextjs-app
 version: 1.0.0
@@ -41,4 +41,4 @@ verify:
   - description: "Dockerfile generated"
     check: "test -f apps/{{name}}/Dockerfile"
   - description: "Topology entry added"
-    check: "grep -q '  {{name}}:' claude/config/topology.yaml"
+    check: "grep -q '  {{name}}:' agency/config/topology.yaml"

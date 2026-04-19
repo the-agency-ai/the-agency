@@ -78,8 +78,8 @@ Present the plan back as a dispatch reply. Captain reviews before implementation
 ## Reference
 
 - Friction analysis: usr/jordan/captain/transcripts/agent-session-friction-20260407.md (P9)
-- Current dispatch tool: claude/tools/dispatch
-- V2 symlink design: claude/workstreams/agency/valueflow-ad-20260406.md §8 (Dispatch Payload Architecture)
-- ISCP reference: claude/workstreams/iscp/iscp-reference-20260405.md
+- Current dispatch tool: agency/tools/dispatch
+- V2 symlink design: agency/workstreams/agency/valueflow-ad-20260406.md §8 (Dispatch Payload Architecture)
+- ISCP reference: agency/workstreams/iscp/iscp-reference-20260405.md
 
 This is a big enough change that it should be a proper iteration in the ISCP workstream — possibly its own phase. Don't rush. Plan first.

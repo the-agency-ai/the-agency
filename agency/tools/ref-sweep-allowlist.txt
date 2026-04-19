@@ -8,8 +8,7 @@
 # NOTE: patterns apply to BOTH pre-rename and post-rename inventory scans.
 #
 \.claude/	Anthropic Claude Code discovery dir — never renamed
-^CLAUDE\.md	Root bootloader filename (token at line start)
-(?:^| )CLAUDE\.md(?:$| )	Root bootloader filename (in-text)
+CLAUDE\.md	Root bootloader filename (any context — ERE-compatible broad match)
 anthropic/claude-code	Upstream project reference
 \$CLAUDE_PROJECT_DIR	Environment variable reference
 CLAUDE_PROJECT_DIR	Environment variable reference (unsymbol'd)

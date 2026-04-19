@@ -5,12 +5,12 @@ workstream: agency
 date: 2026-04-06
 status: MAR round 1 complete — revised, pending round 2
 author: the-agency/jordan/captain
-mar-round-1: claude/workstreams/agency/reviews/mar-valueflow-pvr-round1-20260406.md
+mar-round-1: agency/workstreams/agency/reviews/mar-valueflow-pvr-round1-20260406.md
 seeds:
-  - claude/workstreams/agency/seeds/seed-valueflow-20260406.md
-  - claude/workstreams/agency/seeds/marfi-valueflow-20260406.md
-  - claude/workstreams/iscp/seeds/seed-git-discipline-v2-20260405.md
-  - claude/workstreams/agency/seeds/seed-next-version-pvr-20260406.md
+  - agency/workstreams/agency/seeds/seed-valueflow-20260406.md
+  - agency/workstreams/agency/seeds/marfi-valueflow-20260406.md
+  - agency/workstreams/iscp/seeds/seed-git-discipline-v2-20260405.md
+  - agency/workstreams/agency/seeds/seed-next-version-pvr-20260406.md
 transcripts:
   - usr/jordan/captain/transcripts/valueflow-design-session-20260406-0400.md
 reviewers:
@@ -217,7 +217,7 @@ Dispatch-on-commit queues in ISCP DB. Captain processes when running — no assu
 
 ## MAR Round 1 Summary
 
-21 findings from 4 research reviewers + 5 agent reviews (mdpal-app, ISCP, mdpal-cli, monofolk/captain, DevEx pending). Full disposition at `claude/workstreams/agency/reviews/mar-valueflow-pvr-round1-20260406.md`.
+21 findings from 4 research reviewers + 5 agent reviews (mdpal-app, ISCP, mdpal-cli, monofolk/captain, DevEx pending). Full disposition at `agency/workstreams/agency/reviews/mar-valueflow-pvr-round1-20260406.md`.
 
 Key revisions from MAR:
 - Lean framing refined: "optimize every stage for its contribution to delivery"

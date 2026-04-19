@@ -60,7 +60,7 @@ Investigated the serialization bug reported in dispatch #6. The current code is 
 
 | File | Change |
 |------|--------|
-| `claude/tools/dispatch` | Added `cmd_fetch`, `cmd_reply`, `_display_dispatch`, `_default_branch`; refactored `cmd_read` to use shared display |
+| `agency/tools/dispatch` | Added `cmd_fetch`, `cmd_reply`, `_display_dispatch`, `_default_branch`; refactored `cmd_read` to use shared display |
 | `tests/tools/dispatch.bats` | +13 tests (5 fetch + 8 reply) |
 
 ## Next Steps

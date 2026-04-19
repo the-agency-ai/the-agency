@@ -28,7 +28,7 @@ git init && claude init
 agency init
 ```
 
-See `claude/README-GETTINGSTARTED.md` for detailed setup instructions.
+See `agency/README-GETTINGSTARTED.md` for detailed setup instructions.
 
 ## Repository Structure
 
@@ -56,7 +56,7 @@ the-agency/
 
 ## Documentation
 
-- [Quick Start Guide](claude/REFERENCE-QUICK-START.md) - Get up and running
+- [Quick Start Guide](agency/REFERENCE-QUICK-START.md) - Get up and running
 - [CLAUDE.md](CLAUDE.md) - The constitution (main documentation)
 - [claude/](claude/) - Guides and references (`REFERENCE-*.md`)
 - [claude/docs/cookbooks/](claude/docs/cookbooks/) - Claude Cookbook patterns
@@ -73,7 +73,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to:
 This repository uses an **open core** model:
 
 - **Framework** (tools, agents, docs, methodology) — [MIT License](LICENSE)
-- **App workstreams** (Markdown Pal, Mock and Mark, future apps/services) — [Reference Source License](claude/workstreams/mdpal/LICENSE) (view, contribute, no commercial redistribution)
+- **App workstreams** (Markdown Pal, Mock and Mark, future apps/services) — [Reference Source License](agency/workstreams/mdpal/LICENSE) (view, contribute, no commercial redistribution)
 
 Each app workstream directory contains its own LICENSE file.
 

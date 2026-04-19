@@ -29,7 +29,7 @@ Two changes per the issue's proposed fix:
 
 ## File-level changes
 
-### 1. `claude/tools/git-safe` — new `cmd_config` + dispatch entry
+### 1. `agency/tools/git-safe` — new `cmd_config` + dispatch entry
 
 ```bash
 SAFE_CONFIG_KEYS=(commit.gpgsign commit.verbose user.name user.email pull.rebase init.defaultBranch core.autocrlf core.editor)
@@ -78,7 +78,7 @@ Dispatch entry: `config) shift; cmd_config "$@" ;;`
 
 Help block updated.
 
-### 2. `claude/tools/git-safe-commit` — gpg-missing detection on failure path
+### 2. `agency/tools/git-safe-commit` — gpg-missing detection on failure path
 
 Replace lines ~601–604:
 
@@ -93,8 +93,8 @@ if echo "$COMMIT_OUTPUT" | grep -qiE "cannot run gpg|gpg failed|gpg: not found";
 ${RED}BLOCKED:${NC} git commit failed because commit.gpgsign=true but gpg is missing.
 
 Fix options:
-  1. Disable signing for this repo:    ./claude/tools/git-safe config --local commit.gpgsign false
-  2. Disable signing globally:         ./claude/tools/git-safe config --global commit.gpgsign false
+  1. Disable signing for this repo:    ./agency/tools/git-safe config --local commit.gpgsign false
+  2. Disable signing globally:         ./agency/tools/git-safe config --global commit.gpgsign false
   3. Install gpg (macOS):              brew install gnupg
 
 Current config:
@@ -129,7 +129,7 @@ exit $COMMIT_EXIT
 
 If a fixture-friendly gpg-stub is hard, fall back to a unit test that pipes a synthetic COMMIT_OUTPUT into the detection block via shell-source.
 
-### 5. `claude/config/manifest.json`
+### 5. `agency/config/manifest.json`
 
 Bump `agency_version: 41.22 → 41.23`.
 
@@ -141,11 +141,11 @@ Bump `agency_version: 41.22 → 41.23`.
 
 ## Critical files
 
-- `/Users/jdm/code/the-agency/claude/tools/git-safe` (new `cmd_config`, dispatch entry, help)
-- `/Users/jdm/code/the-agency/claude/tools/git-safe-commit` (lines ~601–604 — failure detection)
+- `/Users/jdm/code/the-agency/agency/tools/git-safe` (new `cmd_config`, dispatch entry, help)
+- `/Users/jdm/code/the-agency/agency/tools/git-safe-commit` (lines ~601–604 — failure detection)
 - `/Users/jdm/code/the-agency/tests/tools/git-safe.bats` (extend)
 - `/Users/jdm/code/the-agency/tests/tools/git-safe-commit.bats` (extend if exists, else new)
-- `/Users/jdm/code/the-agency/claude/config/manifest.json`
+- `/Users/jdm/code/the-agency/agency/config/manifest.json`
 
 ## Verification
 

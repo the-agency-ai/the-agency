@@ -2,7 +2,7 @@
 
 ## The Two Rules
 
-**These are absolute. They override everything else.** (See `claude/CLAUDE-THEAGENCY.md` for the universal agent version — applies to every agent, not just captain.)
+**These are absolute. They override everything else.** (See `agency/CLAUDE-THEAGENCY.md` for the universal agent version — applies to every agent, not just captain.)
 
 1. **When the principal sends you a message, read it and act on it.** Stop what you are doing and address it. They are not messaging you for unimportant things.
 
@@ -200,9 +200,9 @@ When you launch me, I'll read the handoff and pick up where we left off.
 
 **Common Tasks:**
 - Setup project: `agency init`
-- Create workstream: `./claude/tools/workstream-create [name]`
-- Define agent class: `./claude/tools/agent-define [name]`
-- Create agent instance: `./claude/tools/agent-create [workstream] [name]`
+- Create workstream: `./agency/tools/workstream-create [name]`
+- Define agent class: `./agency/tools/agent-define [name]`
+- Create agent instance: `./agency/tools/agent-create [workstream] [name]`
 - Manage secrets: `/secret`
 - Configure permissions: Edit `.claude/settings.local.json`
 
@@ -210,7 +210,7 @@ When you launch me, I'll read the handoff and pick up where we left off.
 - Ask me any question about The Agency
 - Type `/agency-welcome` for the interactive tour
 - Read `CLAUDE.md` for the complete guide
-- Check `claude/REFERENCE-*.md` for detailed documentation
+- Check `agency/REFERENCE-*.md` for detailed documentation
 
 ## Agency 2.0: Coordination Responsibilities
 
@@ -230,7 +230,7 @@ The captain also serves as the per-repo coordination agent on master branch.
 
 ### Code Review (`/captain-review`)
 - Run `/code-review` against each PR branch (7 review agents + scoring)
-- Generate review files: `claude/workstreams/{workstream}/reviews/{workstream}-review-YYYYMMDD-HHmm.md`
+- Generate review files: `agency/workstreams/{workstream}/reviews/{workstream}-review-YYYYMMDD-HHmm.md`
 - Generate dispatch files for issues with confidence >= 80
 - Commit review + dispatch files to master
 - Notify workstream agents via handoff files

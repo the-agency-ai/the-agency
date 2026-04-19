@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Sandbox Sync — bulk symlink activation for commands and hookify rules
 # Usage:
-#   bash claude/tools/sandbox-sync           # normal output
-#   bash claude/tools/sandbox-sync --quiet    # only report if changes made
+#   bash agency/tools/sandbox-sync           # normal output
+#   bash agency/tools/sandbox-sync --quiet    # only report if changes made
 #
 # Creates symlinks from usr/<engineer>/claude/ into .claude/ discovery locations.
 # Idempotent — safe to run repeatedly. Works from any worktree.
@@ -44,7 +44,7 @@ _is_safe_name() {
 #
 # Resolution order:
 #   1. PRINCIPAL env var (explicit override)
-#   2. Lookup principals.$USER.name in claude/config/agency.yaml
+#   2. Lookup principals.$USER.name in agency/config/agency.yaml
 #   3. If $USER's sandbox exists directly (usr/$USER/), use $USER (covers the
 #      case where agency.yaml isn't configured yet but the sandbox is already
 #      named after the system username)
@@ -55,9 +55,9 @@ ENGINEER=""
 
 if [ -n "${PRINCIPAL:-}" ]; then
   ENGINEER="$PRINCIPAL"
-elif [ -x "$ROOT/claude/tools/config" ] && [ -n "${USER:-}" ]; then
+elif [ -x "$ROOT/agency/tools/config" ] && [ -n "${USER:-}" ]; then
   # Ask the config tool — returns empty on miss (exit 1), caught via || true.
-  candidate="$("$ROOT/claude/tools/config" get "principals.${USER}.name" 2>/dev/null || true)"
+  candidate="$("$ROOT/agency/tools/config" get "principals.${USER}.name" 2>/dev/null || true)"
   # 'unknown' is the default sentinel in agency.yaml; reject it.
   if [ -n "$candidate" ] && [ "$candidate" != "unknown" ]; then
     ENGINEER="$candidate"
@@ -79,7 +79,7 @@ fi
 if [ -z "$ENGINEER" ]; then
   echo "error: cannot resolve principal for \$USER='${USER:-}'" >&2
   echo "  tried: PRINCIPAL env var, claude/config/agency.yaml principals.${USER:-}.name, usr/${USER:-}/" >&2
-  echo "  fix:   add an entry under 'principals:' in claude/config/agency.yaml keyed by '${USER:-}'" >&2
+  echo "  fix:   add an entry under 'principals:' in agency/config/agency.yaml keyed by '${USER:-}'" >&2
   echo "         (each entry needs a 'name:' that matches the usr/<name>/ dir)" >&2
   exit 1
 fi

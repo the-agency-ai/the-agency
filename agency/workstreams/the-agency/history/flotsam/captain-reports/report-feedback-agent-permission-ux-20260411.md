@@ -5,7 +5,7 @@ captain: the-agency/jordan/captain
 date_filed: 2026-04-11
 anthropic_feedback_id: TBD
 github_issue: TBD
-seed: claude/workstreams/agency/seeds/seed-agent-permission-ux-20260411.md
+seed: agency/workstreams/agency/seeds/seed-agent-permission-ux-20260411.md
 related_report: usr/jordan/reports/report-feedback-comms-gap-20260411.md
 status: drafted-awaiting-filing
 ---
@@ -15,7 +15,7 @@ status: drafted-awaiting-filing
 **Filed to Anthropic via `/feedback`:** _(pending)_
 **Feedback ID:** _(pending)_
 **Filed to GitHub:** _(pending)_
-**Internal seed:** `claude/workstreams/agency/seeds/seed-agent-permission-ux-20260411.md`
+**Internal seed:** `agency/workstreams/agency/seeds/seed-agent-permission-ux-20260411.md`
 **Related filing:** [report-feedback-comms-gap-20260411](report-feedback-comms-gap-20260411.md) — part of the same 2026-04-11 feedback batch
 
 ## Summary

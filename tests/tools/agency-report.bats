@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/agency-report"
+    TOOL="$REPO_ROOT/agency/tools/agency-report"
     TMP_REPO="$(mktemp -d -t arr.XXXXXX)"
     cd "$TMP_REPO"
     git init -q .
@@ -14,8 +14,8 @@ setup() {
     git config user.name "t"
     # Need agency-verify-v46 findable — symlink to main-tree
     mkdir -p claude/tools
-    cp "$REPO_ROOT/claude/tools/agency-verify-v46" claude/tools/
-    chmod +x claude/tools/agency-verify-v46
+    cp "$REPO_ROOT/agency/tools/agency-verify-v46" agency/tools/
+    chmod +x agency/tools/agency-verify-v46
     echo seed > README
     git add .; git commit -q -m s
 }
@@ -46,7 +46,7 @@ teardown() {
 
 @test "missing verify tool produces exit 10" {
     # Remove the tool we staged
-    rm -f claude/tools/agency-verify-v46
+    rm -f agency/tools/agency-verify-v46
     run "$TOOL"
     [ "$status" -eq 10 ]
 }

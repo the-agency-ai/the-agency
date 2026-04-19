@@ -43,7 +43,7 @@ Contract v1.2 had MIT. After 1B1 review, switched to **Reference Source License 
 
 Two different concepts, not a choice between alternatives:
 
-- **Workstream** (`claude/workstreams/mdslidepal/`) = **how we manage things** — contract, shared themes, fixtures, plan-b safety net, plans, reconciliation receipts, decisions. This is the coordination locus.
+- **Workstream** (`agency/workstreams/mdslidepal/`) = **how we manage things** — contract, shared themes, fixtures, plan-b safety net, plans, reconciliation receipts, decisions. This is the coordination locus.
 - **Source trees** (`apps/mdslidepal-web/`, `apps/mdslidepal-mac/`) = **where we put the code** — actual implementations, each with its own `package.json` / `Package.swift`, build configs, and local `claude/` agency configuration. This matches the existing `apps/mdpal-app/` precedent.
 
 A workstream and a source tree can share a name (`mdslidepal` workstream ↔ `apps/mdslidepal-*/` sources) but they are different kinds of things. One is management; the other is code.
@@ -80,7 +80,7 @@ This version incorporates findings from all four MAR agents (technical correctne
 - **Layout property deferred** (Agents 2, 4) — `layout:` field deferred to Phase 2 entirely; MVP has no slide layouts beyond "default"
 
 See each section below for the applied fixes. Finding numbers reference the MAR agent reports saved at:
-- `claude/workstreams/agency/seeds/research-figma-*-20260411.md` (Figma research, unrelated)
+- `agency/workstreams/agency/seeds/research-figma-*-20260411.md` (Figma research, unrelated)
 - MAR reports are captured inline in this spec via the `mar_applied` frontmatter above.
 
 # Seed: mdslidepal — Shared Contract Spec
@@ -248,9 +248,9 @@ Web's primary user interface is the CLI + a local dev server. Mac's primary user
 
 **Themes are shared JSON files at the workstream level:**
 
-- `claude/workstreams/mdslidepal/themes/agency-default.json` (light theme)
-- `claude/workstreams/mdslidepal/themes/agency-dark.json` (dark theme)
-- `claude/workstreams/mdslidepal/themes/theme-schema.json` (JSON Schema for validation)
+- `agency/workstreams/mdslidepal/themes/agency-default.json` (light theme)
+- `agency/workstreams/mdslidepal/themes/agency-dark.json` (dark theme)
+- `agency/workstreams/mdslidepal/themes/theme-schema.json` (JSON Schema for validation)
 
 Both implementations MUST load and honor these files. Each platform implements a theme loader that maps the JSON schema to its native rendering primitives (CSS variables on web, SwiftUI environment values or token structs on Mac). The theme files are the single source of truth; theme file changes are workstream-level, not platform-level.
 
@@ -308,7 +308,7 @@ All errors produce a stderr/console warning (web) or a non-modal alert (Mac). No
 
 ### 12. Acceptance criteria
 
-Both implementations are "done" (MVP Iteration 1) when they render every fixture in `claude/workstreams/mdslidepal/fixtures/` correctly.
+Both implementations are "done" (MVP Iteration 1) when they render every fixture in `agency/workstreams/mdslidepal/fixtures/` correctly.
 
 The fixture corpus is:
 
@@ -339,7 +339,7 @@ At reconciliation, captain:
    - Speaker notes identical (presenter view)
    - Theme colors match JSON spec
 4. Flags any divergences as reconciliation bugs to be fixed before merge
-5. Documents the reconciliation in a receipt at `claude/workstreams/mdslidepal/reconciliation-{date}.md`
+5. Documents the reconciliation in a receipt at `agency/workstreams/mdslidepal/reconciliation-{date}.md`
 
 ### 14. What mdslidepal is NOT responsible for
 
@@ -440,10 +440,10 @@ Phase 2 brings web agent to full contract parity with Mac:
 
 Before either implementation agent begins its plan, the following must exist in the repo as an unconditional workshop fallback:
 
-1. **`claude/workstreams/mdslidepal/plan-b/sample-workshop.md`** — a real sample workshop deck
-2. **`claude/workstreams/mdslidepal/plan-b/reveal-js-template.html`** — a pre-built reveal.js HTML file with a `<section data-markdown>` block that loads `sample-workshop.md`. Vendored reveal.js in the same directory (no CDN).
-3. **`claude/workstreams/mdslidepal/plan-b/README.md`** — one paragraph: "If mdslidepal-web is not working by Sunday night, open reveal-js-template.html in a browser. This is your workshop deck. Replace sample-workshop.md with your real workshop content."
-4. **`claude/workstreams/mdslidepal/fixtures/`** — the canonical fixture corpus (8 `.md` files) required by the acceptance criteria section of this contract
+1. **`agency/workstreams/mdslidepal/plan-b/sample-workshop.md`** — a real sample workshop deck
+2. **`agency/workstreams/mdslidepal/plan-b/reveal-js-template.html`** — a pre-built reveal.js HTML file with a `<section data-markdown>` block that loads `sample-workshop.md`. Vendored reveal.js in the same directory (no CDN).
+3. **`agency/workstreams/mdslidepal/plan-b/README.md`** — one paragraph: "If mdslidepal-web is not working by Sunday night, open reveal-js-template.html in a browser. This is your workshop deck. Replace sample-workshop.md with your real workshop content."
+4. **`agency/workstreams/mdslidepal/fixtures/`** — the canonical fixture corpus (8 `.md` files) required by the acceptance criteria section of this contract
 5. **Marp CLI as second safety net** — Jordan installs `npm install -g @marp-team/marp-cli` on his laptop as a documented Plan C. If Plan B's reveal.js template fails for any reason, `marp` is a known-good one-command alternative.
 
 This is **Plan B + Plan C**. Plan B takes ~15 minutes to set up. Plan C takes a one-line install. Together they eliminate the "what if everything breaks" risk for Monday, and give Jordan known-good fallbacks that don't depend on any agent work. The web agent's Iteration 1 can then iterate on top of Plan B, progressively replacing the raw template with the `mdslidepal serve` wrapper.
@@ -458,7 +458,7 @@ reveal.js was chosen for the Monday deadline because its markdown plugin matches
 
 MVP deliverables include:
 - `README.md` at each implementation root with install and usage
-- `claude/workstreams/mdslidepal/USAGE.md` — shared user guide at the workstream level, consumed by both platforms
+- `agency/workstreams/mdslidepal/USAGE.md` — shared user guide at the workstream level, consumed by both platforms
 - Mac in-app help is Phase 2
 
 ### mdslidepal-mac
@@ -470,7 +470,7 @@ MVP deliverables include:
 - **Tech stack guidance:** single `.app` bundle, universal binary (x86_64 + arm64), signed and notarizable. Xcode project file or SPM-managed.
 - **Markdown parser:** `swift-markdown` (`swiftlang/swift-markdown`) — Apple's cmark-gfm-backed library. This is the only acceptable choice. Do NOT use Ink (stagnant). Do NOT use MarkdownUI (maintenance mode, not a parser).
 - **Syntax highlighter:** HighlightSwift (`appstefan/HighlightSwift`) — actively-maintained SwiftUI-native highlighter. Do NOT use Highlightr (no longer maintained in 2026). Splash (John Sundell, Swift-only) is acceptable only for Swift-language code blocks but is insufficient for a workshop deck that needs bash, typescript, python, etc.
-- **Theme loader:** consume `claude/workstreams/mdslidepal/themes/{name}.json` as source of truth; map to SwiftUI environment values or equivalent token struct.
+- **Theme loader:** consume `agency/workstreams/mdslidepal/themes/{name}.json` as source of truth; map to SwiftUI environment values or equivalent token struct.
 - **Real native feel:** menu bar, keyboard shortcuts, window management, presenter mode with multi-display awareness. This is not a web-view wrapper.
 - **Source tree location:** `apps/mdslidepal-mac/` (not inside the workstream — see Decision 3). Standard SPM layout matching `apps/mdpal-app/` precedent: `Package.swift`, `Sources/`, `Tests/`, local `claude/` for agency config.
 - **GUI only for MVP (Decision 4):** mdslidepal-mac ships as a single `.app` bundle. No companion CLI binary. CLI target is Phase 2 work (~1-2 days) and is NOT in scope for MVP.
@@ -486,8 +486,8 @@ Each agent should produce a **plan document** following the agency's PVR/A&D/Pla
 4. **Open questions** — anything the agent can't resolve without Jordan's input
 
 Save the deliverables at:
-- `claude/workstreams/mdslidepal/plan-mdslidepal-web-20260411.md`
-- `claude/workstreams/mdslidepal/plan-mdslidepal-mac-20260411.md`
+- `agency/workstreams/mdslidepal/plan-mdslidepal-web-20260411.md`
+- `agency/workstreams/mdslidepal/plan-mdslidepal-mac-20260411.md`
 
 ## What the agents should NOT do
 

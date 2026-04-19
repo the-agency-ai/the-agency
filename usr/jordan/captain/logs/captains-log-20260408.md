@@ -25,7 +25,7 @@ Dispatch loop convention for every agent: 5m silent + 30m visible nag. Documente
 
 ## 20:20:47 — learning
 
-Three pre-existing framework bugs surfaced today during bootstrap work: (1) .git/config bare=true mis-flagged the repo; every git command failed until fixed. (2) claude/tools/git-safe-commit referenced PROJECT_ROOT without defining it — caused 'unbound variable' under set -u in every commit since the per-agent attribution code was added. (3) tests/tools/iscp-check.bats version assertion stale at 1.0.1 (we bumped to 1.1.0). All three were invisible until we started exercising the edges. Lesson: build + test in the same session. Bugs hide at the edges where tools compose.
+Three pre-existing framework bugs surfaced today during bootstrap work: (1) .git/config bare=true mis-flagged the repo; every git command failed until fixed. (2) agency/tools/git-safe-commit referenced PROJECT_ROOT without defining it — caused 'unbound variable' under set -u in every commit since the per-agent attribution code was added. (3) tests/tools/iscp-check.bats version assertion stale at 1.0.1 (we bumped to 1.1.0). All three were invisible until we started exercising the edges. Lesson: build + test in the same session. Bugs hide at the edges where tools compose.
 
 ## 20:20:51 — milestone
 

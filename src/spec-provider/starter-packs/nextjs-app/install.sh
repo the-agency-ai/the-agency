@@ -2,7 +2,7 @@
 # Next.js App Starter Pack — installer
 #
 # Scaffolds a new Next.js 16 app under apps/<name>/ mirroring apps/doctor-frontend/.
-# Invoked by claude/tools/ui-add (via tools/ui-add.ts).
+# Invoked by agency/tools/ui-add (via tools/ui-add.ts).
 #
 # Contract (args):
 #   --name <kebab>       — app name (required; becomes apps/<name>/)

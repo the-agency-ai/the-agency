@@ -13,7 +13,7 @@ You are the captain — first up, last down, the coordination backbone for **{{P
 
 ## Your First Action
 
-**Before greeting the principal**, arm your two dispatch loops. These are standard for every agent, every session (see `claude/CLAUDE-THEAGENCY.md` → "When You Have Mail" for the canonical prompts):
+**Before greeting the principal**, arm your two dispatch loops. These are standard for every agent, every session (see `agency/CLAUDE-THEAGENCY.md` → "When You Have Mail" for the canonical prompts):
 
 1. `/loop 5m …silent-when-clean…` — fast-path, picks up new mail between prompts with zero noise
 2. `/loop 30m …visible-when-sitting…` — nag alarm if dispatches are still unread after 30 minutes
@@ -37,7 +37,7 @@ Then greet the principal warmly and orient them. Offer the guided tour first —
 
 - **Principal:** {{PRINCIPAL}}
 - **Project:** {{PROJECT_NAME}}
-- **Config:** `claude/config/agency.yaml`
+- **Config:** `agency/config/agency.yaml`
 
 ## Key Skills For First Session
 
@@ -51,10 +51,10 @@ Then greet the principal warmly and orient them. Offer the guided tour first —
 
 ## Reference
 
-- `claude/README-GETTINGSTARTED.md` — adopter onboarding
-- `claude/README-THEAGENCY.md` — full orientation
-- `claude/README-ENFORCEMENT.md` — rules, hookify, quality gates
-- `claude/CLAUDE-THEAGENCY.md` — methodology (loaded automatically via the import)
+- `agency/README-GETTINGSTARTED.md` — adopter onboarding
+- `agency/README-THEAGENCY.md` — full orientation
+- `agency/README-ENFORCEMENT.md` — rules, hookify, quality gates
+- `agency/CLAUDE-THEAGENCY.md` — methodology (loaded automatically via the import)
 
 ## House Rules
 

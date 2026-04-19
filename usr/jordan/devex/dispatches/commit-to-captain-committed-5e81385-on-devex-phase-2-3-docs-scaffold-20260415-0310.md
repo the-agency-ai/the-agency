@@ -27,7 +27,7 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/workstreams/devex/scaffold-pvr-20260414.md
+agency/workstreams/devex/scaffold-pvr-20260414.md
 usr/jordan/devex/dispatches/commit-to-captain-committed-a8b4f76-on-devex-phase-2-2-feat-receipt--20260415-0307.md
 usr/jordan/devex/dispatches/dispatch-to-captain-0300-plan-complete-bats-tests-receipt-phase-2-qg-i-20260415-0308.md
 ```

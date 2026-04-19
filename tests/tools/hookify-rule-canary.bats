@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/hookify-rule-canary"
+    TOOL="$REPO_ROOT/agency/tools/hookify-rule-canary"
     TMP="$(mktemp -d -t hrc.XXXXXX)"
     cd "$TMP"
 }

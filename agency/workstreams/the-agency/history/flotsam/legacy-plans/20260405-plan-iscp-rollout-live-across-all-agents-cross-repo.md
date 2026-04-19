@@ -38,7 +38,7 @@ model: opus
 Startup sequence:
 1. Read `usr/jordan/captain/handoff.md`
 2. Check ISCP: `dispatch list` and `flag list` — process unread items first
-3. Read `claude/agents/captain/agent.md` (if exists) for role
+3. Read `agency/agents/captain/agent.md` (if exists) for role
 4. Enter coordination mode — sync worktrees, route dispatches, manage PRs
 
 ### 1.2: Update all agent registrations with ISCP startup step
@@ -72,9 +72,9 @@ Add step 2 to each agent's startup: **"Check ISCP: `dispatch list` and `flag lis
 4. **`dispatch send` improvement** — Document that `dispatch create` from worktrees already works (writes to main checkout via `_main_checkout()`), but the file is uncommitted. For small messages, use `payload_content` in DB instead. For large payloads, captain must commit the file after it lands on main checkout.
 
 **ISCP agent files to modify:**
-- `claude/tools/dispatch` — add `cmd_fetch`, `cmd_reply`, update `cmd_read` to check `payload_content`
-- `claude/tools/lib/_iscp-db` — bump schema, add migration function
-- `claude/tools/iscp-migrate` — add v1→v2 migration
+- `agency/tools/dispatch` — add `cmd_fetch`, `cmd_reply`, update `cmd_read` to check `payload_content`
+- `agency/tools/lib/_iscp-db` — bump schema, add migration function
+- `agency/tools/iscp-migrate` — add v1→v2 migration
 - New BATS tests for fetch/reply
 
 **Acceptance:** ISCP sends reply dispatch to captain confirming done. All tests green.
@@ -146,19 +146,19 @@ notes/                       # Coordination notes
 **Dispatch content includes:**
 
 1. **Tool manifest** — list of every file to create/copy, with full file contents embedded as code blocks:
-   - `claude/tools/dispatch` (22.7KB)
-   - `claude/tools/flag` (8.9KB)
-   - `claude/tools/agent-identity` (6.6KB)
-   - `claude/tools/iscp-check` (4.3KB)
-   - `claude/tools/iscp-migrate` (15.2KB)
-   - `claude/tools/dispatch-create` (577B wrapper)
-   - `claude/tools/lib/_iscp-db` (shared DB library)
-   - `claude/tools/lib/_address-parse` (address resolution)
-   - `claude/tools/lib/_path-resolve` (path resolution)
-   - `claude/tools/lib/_log-helper` (if not already present)
+   - `agency/tools/dispatch` (22.7KB)
+   - `agency/tools/flag` (8.9KB)
+   - `agency/tools/agent-identity` (6.6KB)
+   - `agency/tools/iscp-check` (4.3KB)
+   - `agency/tools/iscp-migrate` (15.2KB)
+   - `agency/tools/dispatch-create` (577B wrapper)
+   - `agency/tools/lib/_iscp-db` (shared DB library)
+   - `agency/tools/lib/_address-parse` (address resolution)
+   - `agency/tools/lib/_path-resolve` (path resolution)
+   - `agency/tools/lib/_log-helper` (if not already present)
 
 2. **Config changes** — exact JSON/YAML patches:
-   - `claude/config/agency.yaml` — `principals:` mapping for monofolk users
+   - `agency/config/agency.yaml` — `principals:` mapping for monofolk users
    - `.claude/settings.json` — hooks (SessionStart/UserPromptSubmit/Stop → iscp-check)
    - `.claude/settings.json` — permissions for all ISCP tools
 
@@ -230,7 +230,7 @@ Phases 1, 2, 4, 6 can run in parallel. Phase 3 depends on 1. Phase 5 depends on 
 | `usr/jordan/captain/dispatches/directive-*` | CREATE (dispatch tool) | 2, 3 |
 | `/Users/jdm/code/collaboration-monofolk/dispatches/` | CREATE structure | 4 |
 | monofolk clone: `.claude/settings.json` | UPDATE | 5 |
-| monofolk clone: `claude/tools/` ISCP tools | COPY | 5 |
+| monofolk clone: `agency/tools/` ISCP tools | COPY | 5 |
 | `/Users/jdm/code/the-agency-group/usr/jordan/captain/seeds/` | CREATE | 6 |
 
 ## Verification

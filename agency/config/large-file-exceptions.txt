@@ -13,7 +13,7 @@
 # Examples:
 #   *.bin             — any .bin file at any depth (basename match)
 #   apps/*/dist/*     — files under apps/<name>/dist/ (path match, 3 levels)
-#   claude/receipts/* — files directly in claude/receipts/
+#   agency/receipts/* — files directly in agency/receipts/
 #
 # Blanks and lines starting with # are ignored.
 #

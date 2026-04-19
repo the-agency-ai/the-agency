@@ -24,9 +24,9 @@ Agency 2.0 needs a pluggable provider model for external service integrations. S
 ## Phases
 
 ### Phase 1: Infrastructure
-Create `claude/tools/lib/` and build `_provider-resolve`.
+Create `agency/tools/lib/` and build `_provider-resolve`.
 
-**Create: `claude/tools/lib/_provider-resolve`** (~80 lines)
+**Create: `agency/tools/lib/_provider-resolve`** (~80 lines)
 - Sourceable bash lib, follows `_path-resolve` pattern exactly
 - Sources `_path-resolve` internally for `AGENCY_PROJECT_ROOT` and `_pr_yaml_get`
 - `resolve_provider "secrets"` → reads `secrets.provider` from agency.yaml → returns full tool path
@@ -39,7 +39,7 @@ Create `claude/tools/lib/` and build `_provider-resolve`.
 - Validates tool exists, returns path on stdout, exits 1 if not found
 - Exports `AGENCY_PROVIDER` and `AGENCY_PROVIDER_TOOL`
 
-**Modify: `claude/config/agency.yaml`**
+**Modify: `agency/config/agency.yaml`**
 - Add `terminal.provider: "ghostty"`, `platform.provider: "auto"`, `design.provider: "figma"`
 
 ### Phase 2: Secrets Dispatcher
@@ -79,7 +79,7 @@ Rename + dispatcher.
 
 ### Phase 5: Scaffolding & Verification
 
-**Create: `claude/templates/PROVIDER.sh`** (~100 lines)
+**Create: `agency/templates/PROVIDER.sh`** (~100 lines)
 - Provider template with standard verb interface skeleton
 - Sources `_log-helper`, token-conservative output
 - Case statement for standard verbs
@@ -96,7 +96,7 @@ Rename + dispatcher.
 ### Phase 6: agency-init Updates
 
 **Modify: `tools/agency-init`**
-- Copy `claude/tools/lib/_provider-resolve` to target
+- Copy `agency/tools/lib/_provider-resolve` to target
 - Add dispatchers to tools copy list: `terminal-setup`, `platform-setup`, `agency-verify`
 - Add providers to copy list: `terminal-setup-ghostty`, `platform-setup-macos`, `platform-setup-linux`
 - Do NOT copy deprecation shims
@@ -118,7 +118,7 @@ Rename + dispatcher.
 
 - `tools/_path-resolve` (123 lines) — pattern to follow for `_provider-resolve`
 - `tools/_log-helper` (212 lines) — logging pattern all tools use
-- `claude/config/agency.yaml` (53 lines) — config schema
+- `agency/config/agency.yaml` (53 lines) — config schema
 - `tools/ghostty-setup` (231 lines) → becomes `terminal-setup-ghostty`
 - `tools/mac-setup` (171 lines) → becomes `platform-setup-macos`
 - `tools/linux-setup` (exists) → becomes `platform-setup-linux`
@@ -129,7 +129,7 @@ Rename + dispatcher.
 
 ## Verification
 
-1. `source claude/tools/lib/_provider-resolve && resolve_provider "secrets"` → returns `tools/secret-vault`
+1. `source agency/tools/lib/_provider-resolve && resolve_provider "secrets"` → returns `tools/secret-vault`
 2. `./tools/terminal-setup --help` → dispatches to `terminal-setup-ghostty`
 3. `./tools/platform-setup --help` → auto-detects OS, dispatches to macos/linux
 4. `./tools/ghostty-setup` → prints deprecation, delegates to `terminal-setup-ghostty`

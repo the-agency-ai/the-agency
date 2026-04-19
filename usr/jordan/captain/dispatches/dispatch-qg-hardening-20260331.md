@@ -15,10 +15,10 @@
 
 | File | Changes |
 |------|---------|
-| `claude/tools/lib/_log-helper` | printf-based JSON → jq --arg (all 3 functions), python3 failure warning on stderr, echo→printf for args |
-| `claude/hooks/tool-telemetry.sh` | eval+@sh → individual jq calls, ERR trap no stdout, Bash logs first token only, Agent desc newline collapse, agency/principal/agent fields |
-| `claude/tools/handoff` | TRIGGER sanitization, git-failure guard, nullglob, log_start top-level, log_end unconditional, archive→_do_archive, temp file cleanup trap |
-| `claude/tools/plan-capture` | sed→parameter substitution, title quote escaping, ERR trap emits warning, transcript path validation, --list instrumented with tool_output+nullglob |
+| `agency/tools/lib/_log-helper` | printf-based JSON → jq --arg (all 3 functions), python3 failure warning on stderr, echo→printf for args |
+| `agency/hooks/tool-telemetry.sh` | eval+@sh → individual jq calls, ERR trap no stdout, Bash logs first token only, Agent desc newline collapse, agency/principal/agent fields |
+| `agency/tools/handoff` | TRIGGER sanitization, git-failure guard, nullglob, log_start top-level, log_end unconditional, archive→_do_archive, temp file cleanup trap |
+| `agency/tools/plan-capture` | sed→parameter substitution, title quote escaping, ERR trap emits warning, transcript path validation, --list instrumented with tool_output+nullglob |
 
 ## Security Fixes (Critical)
 
@@ -48,11 +48,11 @@
 
 ## What the Captain Should Do
 
-1. **Verify integration** — Run `bash claude/tools/handoff path` and `bash claude/tools/handoff --version` to confirm tools load correctly.
-2. **Existing tools** — When migrating existing tools to `claude/tools/` (per dispatch-tool-refactor-20260330), use the updated `_log-helper` patterns (jq --arg, not printf).
-3. **New tools** — All new tools should source `claude/tools/lib/_log-helper` and follow the patterns in `handoff` and `plan-capture`.
+1. **Verify integration** — Run `bash agency/tools/handoff path` and `bash agency/tools/handoff --version` to confirm tools load correctly.
+2. **Existing tools** — When migrating existing tools to `agency/tools/` (per dispatch-tool-refactor-20260330), use the updated `_log-helper` patterns (jq --arg, not printf).
+3. **New tools** — All new tools should source `agency/tools/lib/_log-helper` and follow the patterns in `handoff` and `plan-capture`.
 4. **Telemetry hook** — Already updated. No captain action needed.
 
 ## Relationship to Tool Refactor Dispatch
 
-This dispatch is a **prerequisite** to `dispatch-tool-refactor-20260330.md`. The refactor dispatch calls for migrating all tools to source `claude/tools/lib/_log-helper` — the version in this PR is the one to use. The security and correctness fixes here ensure the foundation is solid before the migration.
+This dispatch is a **prerequisite** to `dispatch-tool-refactor-20260330.md`. The refactor dispatch calls for migrating all tools to source `agency/tools/lib/_log-helper` — the version in this PR is the one to use. The security and correctness fixes here ensure the foundation is solid before the migration.

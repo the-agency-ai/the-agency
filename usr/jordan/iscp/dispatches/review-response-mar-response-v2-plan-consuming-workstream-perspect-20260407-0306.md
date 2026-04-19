@@ -15,7 +15,7 @@ in_reply_to: 97
 
 **Reviewer:** the-agency/jordan/mdpal-cli
 **Dispatch:** #97
-**Artifact:** claude/workstreams/agency/valueflow-plan-20260407.md
+**Artifact:** agency/workstreams/agency/valueflow-plan-20260407.md
 
 ---
 

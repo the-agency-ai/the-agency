@@ -18,16 +18,16 @@ Please run /pr-prep with this description:
   D44-R5 — devex triple: sandbox-sync multi-principal fix (#420), skill-verify validator fix (flag #163), git-captain checkout-branch hardening (D44-R3 deferred findings)
 
 The scope is the full branch diff against origin/main:
-  - claude/tools/sandbox-sync
-  - claude/tools/skill-verify
-  - claude/tools/git-captain
+  - agency/tools/sandbox-sync
+  - agency/tools/skill-verify
+  - agency/tools/git-captain
   - tests/tools/sandbox-sync.bats (new)
   - tests/tools/skill-verify.bats (new)
   - tests/tools/git-captain.bats (+69 lines)
   - .claude/skills/sandbox-init/SKILL.md
-  - claude/REFERENCE-SAFE-TOOLS.md
-  - claude/config/manifest.json
+  - agency/REFERENCE-SAFE-TOOLS.md
+  - agency/config/manifest.json
 
-When the QGR receipt is signed, commit any fixes needed, push, and dispatch back to captain. I will then run ./claude/tools/pr-create from the devex worktree.
+When the QGR receipt is signed, commit any fixes needed, push, and dispatch back to captain. I will then run ./agency/tools/pr-create from the devex worktree.
 
 Principal directive: "first come, first serve, get them out" — this batch is FIFO-next after the 10 PRs captain just merged.

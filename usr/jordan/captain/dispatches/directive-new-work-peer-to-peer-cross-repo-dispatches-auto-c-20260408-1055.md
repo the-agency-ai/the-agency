@@ -74,7 +74,7 @@ Principal decision: **cross-repo goes peer-to-peer, with auto-CC to both captain
 
 5. **Documentation**
    - Update claude/docs/ISCP-PROTOCOL.md with the cc model
-   - Update claude/workstreams/iscp/iscp-reference-20260405.md
+   - Update agency/workstreams/iscp/iscp-reference-20260405.md
    - Cross-repo section in CLAUDE-THEAGENCY.md updated to reflect peer-to-peer
    - Leave README-ENFORCEMENT.md + hookify rule removal to devex (dispatched separately)
 

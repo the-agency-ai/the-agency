@@ -29,7 +29,7 @@ We want you to look at it and start giving feedback. This is not a port request 
 
 **Core abstraction:** `Topology + Environment Bindings + Environment = Concrete Infrastructure`
 
-- **Topology** (`claude/config/topology.yaml`) — declares services, types, dependencies, computed wiring (template variables like `{{backend.outputs.url}}`)
+- **Topology** (`agency/config/topology.yaml`) — declares services, types, dependencies, computed wiring (template variables like `{{backend.outputs.url}}`)
 - **Environment bindings** — maps service types to providers per environment (local→Docker, dev→Fly/Vercel)
 - **Three-layer lifecycle:** Provider Setup → Provision → Deploy
 
@@ -86,9 +86,9 @@ All artifacts live in the monofolk repo. Key files:
 | `20260403-phase-33-dns-secrets-provider-tools.md` | Phase 3.3 detail — dns-cloudflare + secrets-doppler |
 | `20260403-phase-4-migration-verification-polish.md` | Phase 4 detail — migration, verification |
 
-### Code (in `claude/tools/` on branch `proto/devex`)
+### Code (in `agency/tools/` on branch `proto/devex`)
 
-The 12 provider tools listed above, plus `claude/config/topology.yaml` (the topology definition).
+The 12 provider tools listed above, plus `agency/config/topology.yaml` (the topology definition).
 
 ### Handoff
 

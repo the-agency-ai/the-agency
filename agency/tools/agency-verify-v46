@@ -108,9 +108,9 @@ check_settings_hooks() {
         return 11
     fi
 
-    # Any hook command referencing claude/hooks/ is stale
-    if grep -q 'claude/hooks/' "$settings" 2>/dev/null; then
-        emit "FAIL" "settings-hooks" "stale claude/hooks/ reference in settings.json"
+    # Any hook command referencing agency/hooks/ is stale
+    if grep -q 'agency/hooks/' "$settings" 2>/dev/null; then
+        emit "FAIL" "settings-hooks" "stale agency/hooks/ reference in settings.json"
         return 11
     fi
 
@@ -122,8 +122,8 @@ check_settings_hooks() {
 check_agent_registrations() {
     local stale=0
     while IFS= read -r -d '' f; do
-        if grep -q '@claude/agents/' "$f" 2>/dev/null; then
-            emit "FAIL" "agent-registration" "$f still references @claude/agents/"
+        if grep -q '@agency/agents/' "$f" 2>/dev/null; then
+            emit "FAIL" "agent-registration" "$f still references @agency/agents/"
             stale=1
         fi
     done < <(find "$ROOT/.claude/agents" -name '*.md' -print0 2>/dev/null)
@@ -185,8 +185,8 @@ check_iscp_smoke() {
     local ident_tool
     if [[ -x "$ROOT/agency/tools/agent-identity" ]]; then
         ident_tool="$ROOT/agency/tools/agent-identity"
-    elif [[ -x "$ROOT/claude/tools/agent-identity" ]]; then
-        ident_tool="$ROOT/claude/tools/agent-identity"
+    elif [[ -x "$ROOT/agency/tools/agent-identity" ]]; then
+        ident_tool="$ROOT/agency/tools/agent-identity"
     else
         emit "WARN" "iscp-smoke" "agent-identity tool not found (skipping)"
         return 0

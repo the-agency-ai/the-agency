@@ -125,14 +125,14 @@ Anything that duplicates local QG without adding environment/verification value:
 
 ## References
 
-- **Seed:** `claude/workstreams/agency/seeds/seed-contribution-model-three-rings-20260411.md`
-- **Quality Gate Protocol:** `claude/REFERENCE-QUALITY-GATE.md`
-- **Code Review Lifecycle:** `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md`
-- **Agency Methodology:** `claude/CLAUDE-THEAGENCY.md`
+- **Seed:** `agency/workstreams/agency/seeds/seed-contribution-model-three-rings-20260411.md`
+- **Quality Gate Protocol:** `agency/REFERENCE-QUALITY-GATE.md`
+- **Code Review Lifecycle:** `agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md`
+- **Agency Methodology:** `agency/CLAUDE-THEAGENCY.md`
 - **Contributor Front Door:** `CONTRIBUTING.md` (at repo root)
 - **Code of Conduct:** `CODE_OF_CONDUCT.md` (at repo root)
-- **Upstream port tool:** `claude/tools/upstream-port` — automates Ring 2 PR creation
-- **CI monitor tool:** `claude/tools/ci-monitor` — replaces email notifications for captain
+- **Upstream port tool:** `agency/tools/upstream-port` — automates Ring 2 PR creation
+- **CI monitor tool:** `agency/tools/ci-monitor` — replaces email notifications for captain
 
 ## Changelog
 

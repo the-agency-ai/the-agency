@@ -15,8 +15,8 @@
 
 ## Key Resources
 
-- Agent directory: `claude/agents/discord/`
-- Workstream: `claude/workstreams/gtm/`
+- Agent directory: `agency/agents/discord/`
+- Workstream: `agency/workstreams/gtm/`
 ## Getting Help
 
 ```bash

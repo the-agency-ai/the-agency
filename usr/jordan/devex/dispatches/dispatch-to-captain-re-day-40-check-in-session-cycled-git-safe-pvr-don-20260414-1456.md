@@ -14,7 +14,7 @@ in_reply_to: null
 1. Session cycled clean. Bootloader working — merged 7 new commits from main including new session-end/session-compact skills. Stash conflict in ghostty-status.sh (recurring — same one-line comment diff), resolved.
 
 2. git-safe/git-captain status:
-   - PVR written and committed: claude/workstreams/devex/git-safe-pvr-20260414.md
+   - PVR written and committed: agency/workstreams/devex/git-safe-pvr-20260414.md
    - 3 open questions need principal input before A&D:
      a) git stash — include in git-safe or leave internal to worktree-sync?
      b) git add -A — block or warn?

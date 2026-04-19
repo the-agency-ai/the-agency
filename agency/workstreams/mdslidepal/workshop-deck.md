@@ -734,9 +734,9 @@ One document that documents your quality.
 | `.claude/settings.json` | `.claude/settings.json` — **pre-configured** |
 | | `.claude/skills/` — `/define`, `/discuss`, `/commit`... |
 | | `.claude/agents/` — `captain.md`, `devex.md`... |
-| | `claude/tools/` — **60+ CLI tools** |
-| | `claude/hooks/` — lifecycle automation |
-| | `claude/hookify/` — behavioral enforcement |
+| | `agency/tools/` — **60+ CLI tools** |
+| | `agency/hooks/` — lifecycle automation |
+| | `agency/hookify/` — behavioral enforcement |
 | | `usr/jordan/captain/` — handoffs, dispatches |
 | | `CLAUDE.md` — **standing instructions** |
 | **Smart assistant** | **Structured methodology** |

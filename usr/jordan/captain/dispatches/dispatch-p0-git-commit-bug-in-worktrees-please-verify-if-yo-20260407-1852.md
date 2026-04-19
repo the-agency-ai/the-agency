@@ -11,4 +11,4 @@ in_reply_to: null
 
 # P0 git-safe-commit bug in worktrees — please verify if you reproduce
 
-mdpal-app reported (#155) that ./claude/tools/git-safe-commit wipes the index when run from a worktree — leaves ~1280 files showing as deleted, no commit made. Devex is triaging as P0 (#157). Please verify in your worktree: modify a tracked file, git add, run ./claude/tools/git-safe-commit "test" --no-work-item, then git status. If you reproduce, fall back to raw 'git -c core.hooksPath=/dev/null commit' until devex ships a fix. Pause /iteration-complete and /phase-complete until then. Report back.
+mdpal-app reported (#155) that ./agency/tools/git-safe-commit wipes the index when run from a worktree — leaves ~1280 files showing as deleted, no commit made. Devex is triaging as P0 (#157). Please verify in your worktree: modify a tracked file, git add, run ./agency/tools/git-safe-commit "test" --no-work-item, then git status. If you reproduce, fall back to raw 'git -c core.hooksPath=/dev/null commit' until devex ships a fix. Pause /iteration-complete and /phase-complete until then. Report back.

@@ -88,15 +88,15 @@ Every workstream and every agent gets a scoped CLAUDE.md file. These are fully q
 
 | Scope | Location | Content |
 |-------|----------|---------|
-| **Framework** | `claude/CLAUDE-THEAGENCY.md` | Agency methodology (this file) |
-| **Workstream** | `claude/workstreams/{name}/CLAUDE-{WORKSTREAM}.md` | Scope, boundaries, conventions, review discipline |
+| **Framework** | `agency/CLAUDE-THEAGENCY.md` | Agency methodology (this file) |
+| **Workstream** | `agency/workstreams/{name}/CLAUDE-{WORKSTREAM}.md` | Scope, boundaries, conventions, review discipline |
 | **Agent** | `usr/{P}/{A}/CLAUDE-{A}.md` | Identity, startup sequence, coordination, file discipline |
 
 Agent registrations (`.claude/agents/{P}/{A}.md`) import both via `@` directives:
 
 ```markdown
 @usr/{P}/{A}/CLAUDE-{A}.md
-@claude/workstreams/{W}/CLAUDE-{W}.md
+@agency/workstreams/{W}/CLAUDE-{W}.md
 ```
 
 `/workstream-create` scaffolds the workstream CLAUDE.md. `/agent-create` (via `workstream-create`) scaffolds the agent CLAUDE.md. Both are part of the standard creation workflow.

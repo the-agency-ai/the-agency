@@ -19,7 +19,7 @@ tags: [Infra]
 
 ## Context
 
-All ~120 Agency tools live in `tools/` at repo root with an old HTTP-based logger (`_log-helper` posting to agency-service). The new JSONL-based logger already exists at `claude/tools/lib/_log-helper` (UUID7, append-only, no service dependency). This refactor moves everything to `claude/tools/`, kills the agency-service dependency, renames tools to noun-verb convention, and standardizes all logging. Big-bang on a single branch, no forwarding stubs.
+All ~120 Agency tools live in `tools/` at repo root with an old HTTP-based logger (`_log-helper` posting to agency-service). The new JSONL-based logger already exists at `agency/tools/lib/_log-helper` (UUID7, append-only, no service dependency). This refactor moves everything to `agency/tools/`, kills the agency-service dependency, renames tools to noun-verb convention, and standardizes all logging. Big-bang on a single branch, no forwarding stubs.
 
 ## Decisions
 
@@ -28,7 +28,7 @@ All ~120 Agency tools live in `tools/` at repo root with an old HTTP-based logge
 - **Delete old `_log-helper`** — no coexistence
 - **PROJECT_ROOT depth** — changes from `$SCRIPT_DIR/..` to `$SCRIPT_DIR/../..`
 - **Ambiguous tools**: DELETE `install-hooks`, `setup-agency`, `agency-service`, `log-tool-use-debug`, `requests-backfill`, `msg`, `dispatch`, `dispatch-request`. KEEP `opportunities`, `launch-project`.
-- **Telemetry reader**: Build `claude/tools/telemetry` (reads `telemetry.jsonl`, similar to `tool-log`)
+- **Telemetry reader**: Build `agency/tools/telemetry` (reads `telemetry.jsonl`, similar to `tool-log`)
 
 ## Commit 1: Delete deprecated tools and clean references
 
@@ -50,20 +50,20 @@ All ~120 Agency tools live in `tools/` at repo root with an old HTTP-based logge
 
 ### Move libraries
 - Delete `tools/_log-helper` (old HTTP version)
-- Move `tools/_path-resolve` → `claude/tools/lib/_path-resolve`
-- Fix `claude/tools/lib/_provider-resolve` to source sibling `_path-resolve`
+- Move `tools/_path-resolve` → `agency/tools/lib/_path-resolve`
+- Fix `agency/tools/lib/_provider-resolve` to source sibling `_path-resolve`
 
 ### Move + rename tools
 | Current | New |
 |---------|-----|
-| `tools/commit` | `claude/tools/git-safe-commit` |
-| `tools/tag` | `claude/tools/git-tag` |
-| `tools/sync` | `claude/tools/git-sync` |
-| `tools/whoami` + `tools/agentname` | `claude/tools/agency-whoami` (merge) |
-| `tools/tool-new` | `claude/tools/tool-create` |
-| All other ~95 tools | `claude/tools/{same-name}` |
+| `tools/commit` | `agency/tools/git-safe-commit` |
+| `tools/tag` | `agency/tools/git-tag` |
+| `tools/sync` | `agency/tools/git-sync` |
+| `tools/whoami` + `tools/agentname` | `agency/tools/agency-whoami` (merge) |
+| `tools/tool-new` | `agency/tools/tool-create` |
+| All other ~95 tools | `agency/tools/{same-name}` |
 
-**New tools:** `claude/tools/git-fetch`, `claude/tools/telemetry`
+**New tools:** `agency/tools/git-fetch`, `agency/tools/telemetry`
 
 **Delete `tools/` directory** after all moves.
 
@@ -89,16 +89,16 @@ fi
 Also fix:
 - `PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"` → `"$(cd "$SCRIPT_DIR/../.." && pwd)"`
 - `_path-resolve` sourcing: `$SCRIPT_DIR/_path-resolve` → `$SCRIPT_DIR/lib/_path-resolve`
-- Cross-tool references: `./tools/X` → `./claude/tools/X` within tool scripts
+- Cross-tool references: `./tools/X` → `./agency/tools/X` within tool scripts
 - `log_end` 6-arg calls → 5-arg (drop output param)
 
 ### Update hooks
-- `claude/hooks/*.sh` (5 files): `../tools/_path-resolve` → `../tools/lib/_path-resolve`
+- `agency/hooks/*.sh` (5 files): `../tools/_path-resolve` → `../tools/lib/_path-resolve`
 - `.claude/hooks/session-end.sh`: `$REPO_ROOT/tools/X` → `$REPO_ROOT/claude/tools/X`
 - `.claude/hooks/session-start.sh`: same path updates
 
 ### Update settings.json
-- All 108 `Bash(./tools/...)` → `Bash(./claude/tools/...)`
+- All 108 `Bash(./tools/...)` → `Bash(./agency/tools/...)`
 - Apply renames (commit→git-safe-commit, etc.)
 - Add `git-fetch` and `telemetry` permissions
 - Update hook paths in SessionEnd
@@ -106,8 +106,8 @@ Also fix:
 ## Commit 3: Update templates, docs, and tests
 
 ### Templates
-- `claude/templates/TOOL.sh`: rewrite to use new source pattern, fix PROJECT_ROOT depth
-- `claude/templates/PROVIDER.sh`: same treatment
+- `agency/templates/TOOL.sh`: rewrite to use new source pattern, fix PROJECT_ROOT depth
+- `agency/templates/PROVIDER.sh`: same treatment
 
 ### Documentation
 - `CLAUDE.md`: update all `./tools/` refs, tool names, project structure diagram
@@ -120,25 +120,25 @@ Also fix:
 
 ## Verification
 
-1. `bash -n claude/tools/*` — all tools pass syntax check
-2. `bash -n claude/tools/lib/*` — all libs pass syntax check
-3. `bash -n claude/hooks/*.sh` — all hooks pass syntax check
-4. Every `Bash(./claude/tools/...)` permission in settings.json has a corresponding file
+1. `bash -n agency/tools/*` — all tools pass syntax check
+2. `bash -n agency/tools/lib/*` — all libs pass syntax check
+3. `bash -n agency/hooks/*.sh` — all hooks pass syntax check
+4. Every `Bash(./agency/tools/...)` permission in settings.json has a corresponding file
 5. No remaining `./tools/` references (grep the repo)
-6. `claude/tools/git-safe-commit --help` works
-7. `claude/tools/git-fetch` works
-8. `claude/tools/telemetry --summary` works
-9. `claude/tools/agency-whoami` works
+6. `agency/tools/git-safe-commit --help` works
+7. `agency/tools/git-fetch` works
+8. `agency/tools/telemetry --summary` works
+9. `agency/tools/agency-whoami` works
 9. Run test suite: `bats tests/tools/`
 
 ## Critical Files
 
-- `claude/tools/lib/_log-helper` — new logger (already exists, do not modify)
-- `claude/tools/lib/_path-resolve` — moved from `tools/`
-- `claude/tools/lib/_provider-resolve` — fix sibling source
+- `agency/tools/lib/_log-helper` — new logger (already exists, do not modify)
+- `agency/tools/lib/_path-resolve` — moved from `tools/`
+- `agency/tools/lib/_provider-resolve` — fix sibling source
 - `.claude/settings.json` — 108 permission rewrites + hook path updates
-- `claude/templates/TOOL.sh` — template rewrite
-- `claude/templates/PROVIDER.sh` — template rewrite
+- `agency/templates/TOOL.sh` — template rewrite
+- `agency/templates/PROVIDER.sh` — template rewrite
 - `CLAUDE.md` — extensive path updates
 - `tests/tools/test_helper.bash` — TOOLS_DIR update
 

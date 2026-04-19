@@ -7,10 +7,10 @@ agent: the-agency/jordan/captain
 date_started: 2026-04-19
 stage: plan
 status: in-progress
-pvr: claude/workstreams/the-agency/pvr-the-agency-structural-reset-20260419.md
-ad: claude/workstreams/the-agency/ad-the-agency-structural-reset-20260419.md
-pvr_mar: claude/workstreams/the-agency/research/mar-pvr-structural-reset-20260419.md
-ad_mar: claude/workstreams/the-agency/research/mar-ad-structural-reset-20260419.md
+pvr: agency/workstreams/the-agency/pvr-the-agency-structural-reset-20260419.md
+ad: agency/workstreams/the-agency/ad-the-agency-structural-reset-20260419.md
+pvr_mar: agency/workstreams/the-agency/research/mar-pvr-structural-reset-20260419.md
+ad_mar: agency/workstreams/the-agency/research/mar-ad-structural-reset-20260419.md
 related_issues: [270, 287, 332, 333, 334, 335, 336, 337]
 ---
 
@@ -33,10 +33,10 @@ Executable plan for the structural reset. All PVR + A&D MAR findings folded in a
 
 ### 0.1. Create branch + pre-reset tag
 ```bash
-./claude/tools/git-captain checkout-branch v46.0-structural-reset
+./agency/tools/git-captain checkout-branch v46.0-structural-reset
 AGENCY_ALLOW_RAW=1 git tag v45.3-pre-reset
-./claude/tools/git-captain push  # push branch
-./claude/tools/git-captain push-tag v45.3-pre-reset  # push tag (REQUIRED per F-OPS-05)
+./agency/tools/git-captain push  # push branch
+./agency/tools/git-captain push-tag v45.3-pre-reset  # push tag (REQUIRED per F-OPS-05)
 ```
 
 ### 0.2. Create baseline directory
@@ -49,7 +49,7 @@ mkdir -p usr/jordan/captain/reset-baseline-20260419
 BASELINE="usr/jordan/captain/reset-baseline-20260419"
 
 # Fleet health JSON
-./claude/tools/agency-health --json all > "$BASELINE/agency-health-pre.json"
+./agency/tools/agency-health --json all > "$BASELINE/agency-health-pre.json"
 
 # Test suite baseline
 bats tests/ > "$BASELINE/bats-output-pre.txt" 2>&1
@@ -60,11 +60,11 @@ AGENCY_ALLOW_RAW=1 git ls-files -z claude/ | xargs -0 sha256sum > "$BASELINE/con
 
 # Counts
 echo "skills: $(ls .claude/skills | wc -l)" > "$BASELINE/counts-pre.txt"
-echo "hookify-rules: $(ls claude/hookify/*.md | wc -l)" >> "$BASELINE/counts-pre.txt"
-echo "hook-scripts: $(ls claude/hooks/*.sh | wc -l)" >> "$BASELINE/counts-pre.txt"
-echo "tools: $(ls claude/tools/ | wc -l)" >> "$BASELINE/counts-pre.txt"
-echo "reference-docs: $(ls claude/REFERENCE-*.md | wc -l)" >> "$BASELINE/counts-pre.txt"
-echo "readme-docs: $(ls claude/README-*.md | wc -l)" >> "$BASELINE/counts-pre.txt"
+echo "hookify-rules: $(ls agency/hookify/*.md | wc -l)" >> "$BASELINE/counts-pre.txt"
+echo "hook-scripts: $(ls agency/hooks/*.sh | wc -l)" >> "$BASELINE/counts-pre.txt"
+echo "tools: $(ls agency/tools/ | wc -l)" >> "$BASELINE/counts-pre.txt"
+echo "reference-docs: $(ls agency/REFERENCE-*.md | wc -l)" >> "$BASELINE/counts-pre.txt"
+echo "readme-docs: $(ls agency/README-*.md | wc -l)" >> "$BASELINE/counts-pre.txt"
 echo "tests: $(bats --count tests/)" >> "$BASELINE/counts-pre.txt"
 
 # Checksums of critical files
@@ -72,7 +72,7 @@ sha256sum .claude/settings.json > "$BASELINE/settings-json-pre.sha256"
 sha256sum CLAUDE.md > "$BASELINE/claude-md-pre.sha256"
 
 # Git state
-./claude/tools/git-safe log --oneline -5 HEAD > "$BASELINE/git-head-pre.txt"
+./agency/tools/git-safe log --oneline -5 HEAD > "$BASELINE/git-head-pre.txt"
 
 # Phase cursor init
 echo "phase-0-baseline-captured" > "$BASELINE/PHASE-CURSOR.txt"
@@ -80,7 +80,7 @@ echo "phase-0-baseline-captured" > "$BASELINE/PHASE-CURSOR.txt"
 
 ### 0.4. Build `ref-inventory-gen` tool (V9)
 
-Write new tool `claude/tools/ref-inventory-gen`:
+Write new tool `agency/tools/ref-inventory-gen`:
 ```bash
 #!/usr/bin/env bash
 # Scans for `claude/` path references across active code.
@@ -93,18 +93,18 @@ Write new tool `claude/tools/ref-inventory-gen`:
 # Outputs: file:line:pattern-hit
 set -euo pipefail
 PATTERNS='claude/|@claude/|["'"'"']claude/|claude/$|\$CLAUDE_PROJECT_DIR/claude'
-./claude/tools/git-safe ls-files ... | xargs grep -nE "$PATTERNS" ...
+./agency/tools/git-safe ls-files ... | xargs grep -nE "$PATTERNS" ...
 ```
 
 Capture pre-sweep inventory:
 ```bash
-./claude/tools/ref-inventory-gen > "$BASELINE/ref-inventory-pre.txt"
+./agency/tools/ref-inventory-gen > "$BASELINE/ref-inventory-pre.txt"
 echo "pre-sweep-refs: $(wc -l < "$BASELINE/ref-inventory-pre.txt")" >> "$BASELINE/counts-pre.txt"
 ```
 
 ### 0.5. Build `gate-check.sh` suite
 
-Scripts at `claude/tools/reset/`:
+Scripts at `agency/tools/reset/`:
 - `gate-check-0.sh` — baseline artifacts exist
 - `gate-check-1.sh` — Great Rename gate (canary `git log --follow` passes)
 - `gate-check-2.sh` — subdir reorg gate (file counts)
@@ -120,7 +120,7 @@ Each exits 0 (pass) or nonzero (block). Receipts under `$BASELINE/gate-{N}-recei
 
 ### 0.6. Build `agency-archive-then-delete` wrapper (R-1)
 
-New tool `claude/tools/agency-archive-then-delete`:
+New tool `agency/tools/agency-archive-then-delete`:
 ```bash
 #!/usr/bin/env bash
 # Usage: agency-archive-then-delete <path> [--confirmed-zero-value=<rationale>]
@@ -132,7 +132,7 @@ New tool `claude/tools/agency-archive-then-delete`:
 
 ### 0.7. Build `subagent-scope-check.sh` (F-OPS-02 / R-4)
 
-Script `claude/tools/reset/subagent-scope-check.sh`:
+Script `agency/tools/reset/subagent-scope-check.sh`:
 ```bash
 #!/usr/bin/env bash
 # Usage: subagent-scope-check.sh <subagent-id> <manifest-path> <changed-files-list>
@@ -142,7 +142,7 @@ Script `claude/tools/reset/subagent-scope-check.sh`:
 
 ### 0.8. Build `hookify-rule-canary` tool (F10)
 
-Script `claude/tools/reset/hookify-rule-canary.sh`:
+Script `agency/tools/reset/hookify-rule-canary.sh`:
 ```bash
 #!/usr/bin/env bash
 # For each rule in agency/hookify/*.md + agency/hooks/*.sh:
@@ -163,7 +163,7 @@ Script `claude/tools/reset/hookify-rule-canary.sh`:
 
 ### 0.10. Build `migrate` + `migrate-back` flags for `_agency-update` (R-6)
 
-New flags in `claude/tools/lib/_agency-update`:
+New flags in `agency/tools/lib/_agency-update`:
 - `--migrate`: rewrites adopter's `.claude/settings.json` hook paths + `CLAUDE.md` @imports from `claude/` → `agency/`
 - `--migrate-back`: reverses for rollback
 
@@ -228,7 +228,7 @@ If any file shows A+D (delete+create) instead of R (rename), HARD STOP — gate 
 
 ### 1.3. Commit
 ```bash
-./claude/tools/git-safe-commit "feat(v46.0): Great Rename — claude/ → agency/ (pure move, no content edits)" --no-work-item --body "..."
+./agency/tools/git-safe-commit "feat(v46.0): Great Rename — claude/ → agency/ (pure move, no content edits)" --no-work-item --body "..."
 ```
 
 Also check for symlinks pre-move (V5): `AGENCY_ALLOW_RAW=1 git ls-files -s claude/ | awk '$1==120000{print $4}'` — must be empty.
@@ -266,7 +266,7 @@ Top-level stay at `agency/` root: `README-THEAGENCY.md`, `README-GETTINGSTARTED.
 
 ### 2.4. Commit
 ```bash
-./claude/tools/git-safe-commit "feat(v46.0): subdir reorg — REFERENCE/ + README/ subdirs for navigability" --no-work-item --body "..."
+./agency/tools/git-safe-commit "feat(v46.0): subdir reorg — REFERENCE/ + README/ subdirs for navigability" --no-work-item --body "..."
 ```
 
 ### Gate 2
@@ -319,7 +319,7 @@ In each flotsam subdir:
 # Historical path note
 
 These artifacts were created when the framework lived at `claude/`. Any
-path-strings in their bodies (e.g., `claude/tools/...`, `@claude/REFERENCE-...`)
+path-strings in their bodies (e.g., `agency/tools/...`, `@agency/REFERENCE-...`)
 refer to the PRE-v46.0 layout and do not resolve in current tree. They are
 preserved for audit-trail integrity per v46.0 structural reset policy.
 
@@ -329,7 +329,7 @@ To search history with path-string translation: `./agency/tools/grep-with-histor
 
 ### 3a.7. Commit
 ```bash
-./claude/tools/git-safe-commit "feat(v46.0): archive legacy subsystems to flotsam (principals/, receipts/, reviews/, logs/)" --no-work-item --body "..."
+./agency/tools/git-safe-commit "feat(v46.0): archive legacy subsystems to flotsam (principals/, receipts/, reviews/, logs/)" --no-work-item --body "..."
 ```
 
 ### Gate 3a
@@ -363,7 +363,7 @@ Repeat for `bugs.db`.
 
 ### 3b.2. Commit extractions
 ```bash
-./claude/tools/git-safe-commit "feat(v46.0): extract legacy bug DBs to flotsam (integrity + round-trip validated)" --no-work-item --body "..."
+./agency/tools/git-safe-commit "feat(v46.0): extract legacy bug DBs to flotsam (integrity + round-trip validated)" --no-work-item --body "..."
 ```
 
 ### Gate 3b
@@ -375,24 +375,24 @@ Repeat for `bugs.db`.
 
 ### 3c.1. Delete injection-test workstream
 ```bash
-./claude/tools/agency-archive-then-delete "agency/workstreams/test; rm -rf " --confirmed-zero-value="injection-test artifact — content is only a single KNOWLEDGE.md; no archive needed"
+./agency/tools/agency-archive-then-delete "agency/workstreams/test; rm -rf " --confirmed-zero-value="injection-test artifact — content is only a single KNOWLEDGE.md; no archive needed"
 ```
 
 ### 3c.2. Delete root-level empty `docs/`
 ```bash
-./claude/tools/agency-archive-then-delete docs --confirmed-zero-value="empty after docs/plans/ deprecation fix (#335)"
+./agency/tools/agency-archive-then-delete docs --confirmed-zero-value="empty after docs/plans/ deprecation fix (#335)"
 ```
 
 ### 3c.3. Delete legacy bug DBs (extracted in 3b)
 ```bash
-./claude/tools/agency-archive-then-delete agency/data/bug.db
-./claude/tools/agency-archive-then-delete agency/data/bugs.db
+./agency/tools/agency-archive-then-delete agency/data/bug.db
+./agency/tools/agency-archive-then-delete agency/data/bugs.db
 # Flotsam dumps exist from 3b.1 — wrapper permits delete
 ```
 
 ### 3c.4. Commit
 ```bash
-./claude/tools/git-safe-commit "feat(v46.0): delete confirmed-dead cruft (injection-test, empty docs/, legacy bug DBs)" --no-work-item --body "..."
+./agency/tools/git-safe-commit "feat(v46.0): delete confirmed-dead cruft (injection-test, empty docs/, legacy bug DBs)" --no-work-item --body "..."
 ```
 
 ### Gate 3c
@@ -456,7 +456,7 @@ EOF
 
 ### 3.5.5. Commit
 ```bash
-./claude/tools/git-safe-commit "feat(v46.0): consolidate duplicate workstreams into the-agency/; defer gtm/ to the-agency-group" --no-work-item --body "..."
+./agency/tools/git-safe-commit "feat(v46.0): consolidate duplicate workstreams into the-agency/; defer gtm/ to the-agency-group" --no-work-item --body "..."
 ```
 
 ### Gate 3.5
@@ -473,7 +473,7 @@ Per F-OPS-06: release notes must exist IN the PR before open — so captain draf
 
 ### 4.0. Capture pre-sweep ref-inventory
 ```bash
-./claude/tools/ref-inventory-gen > "$BASELINE/ref-inventory-mid.txt"
+./agency/tools/ref-inventory-gen > "$BASELINE/ref-inventory-mid.txt"
 ```
 
 ### 4.1. Create `ref-sweep-allowlist.txt` (V9)
@@ -527,13 +527,13 @@ Per F4 / F-OPS-02 / R-4: each subagent receives file-list manifest + scope const
 ### 4.3. Fan-in: captain validates each receipt (F-OPS-07)
 For each subagent:
 - Verify receipt exists
-- `./claude/tools/reset/subagent-scope-check.sh <id> <manifest> <changed-files>` returns 0
+- `./agency/tools/reset/subagent-scope-check.sh <id> <manifest> <changed-files>` returns 0
 - Receipt's ref-leakage count is 0 (after their sweep, no `claude/` in their scope)
 - Any overlap with other subagent scope = reject + re-dispatch
 
 ### 4.4. Post-fan-out ref inventory + diff
 ```bash
-./claude/tools/ref-inventory-gen > "$BASELINE/ref-inventory-post.txt"
+./agency/tools/ref-inventory-gen > "$BASELINE/ref-inventory-post.txt"
 diff "$BASELINE/ref-inventory-pre.txt" "$BASELINE/ref-inventory-post.txt" > "$BASELINE/ref-inventory-diff.txt"
 # Remaining hits must be in allowlist only
 ```
@@ -556,11 +556,11 @@ Rewrite hook paths:
 
 ### 4.5.2. Root `CLAUDE.md`
 Rewrite @imports:
-- `@claude/CLAUDE-THEAGENCY.md` → `@agency/CLAUDE-THEAGENCY.md`
+- `@agency/CLAUDE-THEAGENCY.md` → `@agency/CLAUDE-THEAGENCY.md`
 
 ### 4.5.3. `agency/CLAUDE-THEAGENCY.md` internal @imports
-- `@claude/REFERENCE-*.md` → `@agency/REFERENCE/REFERENCE-*.md`
-- `@claude/README-*.md` → `@agency/README/README-*.md` (if any)
+- `@agency/REFERENCE-*.md` → `@agency/REFERENCE/REFERENCE-*.md`
+- `@agency/README-*.md` → `@agency/README/README-*.md` (if any)
 
 ### 4.5.4. `agency/agents/*/agent.md`
 Any @imports referencing old paths.
@@ -599,13 +599,13 @@ done
 
 ### 5.2. Dynamic canary per rule (via `hookify-rule-canary`)
 ```bash
-./claude/tools/reset/hookify-rule-canary.sh --all
+./agency/tools/reset/hookify-rule-canary.sh --all
 # Attempts the blocked action for each rule, verifies block fires with correct message
 ```
 
 ### 5.3. Commit
 ```bash
-./claude/tools/git-safe-commit "test(v46.0): hookify rule validation — 40+ rules verified firing post-reset" --no-work-item --body "..."
+./agency/tools/git-safe-commit "test(v46.0): hookify rule validation — 40+ rules verified firing post-reset" --no-work-item --body "..."
 ```
 
 ### Gate 5
@@ -679,7 +679,7 @@ File: `agency/REFERENCE/REFERENCE-MIGRATION-V46.md` — step-by-step guide with 
 
 ### 6.3. Commit
 ```bash
-./claude/tools/git-safe-commit "docs(v46.0): release notes + migration guide" --no-work-item --body "..."
+./agency/tools/git-safe-commit "docs(v46.0): release notes + migration guide" --no-work-item --body "..."
 ```
 
 ### 6.4. Audit log commit (F9)
@@ -687,7 +687,7 @@ Commit the audit log:
 ```bash
 cp usr/jordan/captain/reset-audit-20260419.log agency/workstreams/the-agency/history/reset-audit-20260419.log
 ./claude/tools/git-safe add agency/workstreams/the-agency/history/reset-audit-20260419.log
-./claude/tools/git-safe-commit "docs(v46.0): commit reset audit log for historical record" --no-work-item
+./agency/tools/git-safe-commit "docs(v46.0): commit reset audit log for historical record" --no-work-item
 ```
 
 ### Gate 6 — PR-open gate
@@ -704,7 +704,7 @@ Phase cursor → `phase-6-gate-passed`.
 Per branching decision: new PR `v46.0-structural-reset`.
 
 ```bash
-./claude/tools/pr-create --title "D46-R1: v46.0 — Structural Reset (breaking)" --body "$(cat release-notes.md)"
+./agency/tools/pr-create --title "D46-R1: v46.0 — Structural Reset (breaking)" --body "$(cat release-notes.md)"
 ```
 
 PR body includes full release notes + migration guide link + rollback runbook.
@@ -713,13 +713,13 @@ PR body includes full release notes + migration guide link + rollback runbook.
 
 Captain on master after merge:
 ```bash
-./claude/tools/agency-health --json all > post-merge-health.json
+./agency/tools/agency-health --json all > post-merge-health.json
 bats tests/ > post-merge-bats.txt
 ./agency/tools/handoff read
 ./agency/tools/dispatch list
 ```
 
-If red: `./claude/tools/git-captain revert-merge <sha>` and notify monofolk via cross-repo dispatch.
+If red: `./agency/tools/git-captain revert-merge <sha>` and notify monofolk via cross-repo dispatch.
 
 ### Gate 7 — Post-merge master smoke
 If passes: dispatch fleet rebase template to 9 worktree agents (V6 per-worktree rollback included).
@@ -731,9 +731,9 @@ Each worktree agent receives:
 Subject: Rebase onto master for v46.0 structural reset
 Body:
 1. Tag pre-rebase state: `git tag pre-v46-rebase` (in worktree)
-2. Rebase: `./claude/tools/git-safe merge-from-master --remote`
+2. Rebase: `./agency/tools/git-safe merge-from-master --remote`
 3. Run smoke: handoff read, dispatch list, flag list, agency-health
-4. On smoke FAILURE: `./claude/tools/git-safe reset --hard pre-v46-rebase` + report
+4. On smoke FAILURE: `./agency/tools/git-safe reset --hard pre-v46-rebase` + report
 5. On smoke SUCCESS: commit post-rebase worktree state
 ```
 
@@ -750,7 +750,7 @@ Before merging the reset PR, run this test in `/tmp/v45-snapshot/`:
 AGENCY_ALLOW_RAW=1 git clone <repo> /tmp/v45-snapshot/
 cd /tmp/v45-snapshot
 AGENCY_ALLOW_RAW=1 git checkout v45.3-pre-reset
-./claude/tools/agency update --migrate  # (after building the flag)
+./agency/tools/agency update --migrate  # (after building the flag)
 # Run monofolk smoke battery
 ```
 
@@ -762,10 +762,10 @@ Artifacts this Plan produces:
 - 12 commits across 9 phases
 - `usr/jordan/captain/reset-baseline-20260419/` with 10+ baseline artifacts
 - 10 `gate-check-{0..6,7}.sh` scripts
-- `claude/tools/ref-inventory-gen`
-- `claude/tools/agency-archive-then-delete`
-- `claude/tools/reset/subagent-scope-check.sh`
-- `claude/tools/reset/hookify-rule-canary.sh`
+- `agency/tools/ref-inventory-gen`
+- `agency/tools/agency-archive-then-delete`
+- `agency/tools/reset/subagent-scope-check.sh`
+- `agency/tools/reset/hookify-rule-canary.sh`
 - `_agency-update --migrate` + `--migrate-back` flags + BATS tests
 - `ref-sweep-allowlist.txt`
 - 5 subagent file-list manifests

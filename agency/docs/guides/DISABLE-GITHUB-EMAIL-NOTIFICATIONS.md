@@ -32,7 +32,7 @@ In any captain session, start CI monitoring:
 /monitor-ci
 ```
 
-This runs `./claude/tools/ci-monitor` in the background via the Monitor tool. Silent when green. Structured output when failures exist. 60-second latency. Zero email noise.
+This runs `./agency/tools/ci-monitor` in the background via the Monitor tool. Silent when green. Structured output when failures exist. 60-second latency. Zero email noise.
 
 ## Step 3: Verify
 

@@ -17,7 +17,7 @@ session: 1c010e18-a978-4bb4-92fa-8ac43b2849cb
 
 ## Context
 
-ISCP v1 is complete: 174 BATS tests green, all tools merged to main, full dispatch/flag/notification infrastructure operational. The Valueflow V2 master plan (`claude/workstreams/agency/valueflow-plan-20260407.md`) assigns Phase 2 to the ISCP workstream: dispatch authority, flag categories, dispatch-on-commit wiring, and health metrics.
+ISCP v1 is complete: 174 BATS tests green, all tools merged to main, full dispatch/flag/notification infrastructure operational. The Valueflow V2 master plan (`agency/workstreams/agency/valueflow-plan-20260407.md`) assigns Phase 2 to the ISCP workstream: dispatch authority, flag categories, dispatch-on-commit wiring, and health metrics.
 
 My MAR review (dispatch #95, 14 findings) identified that **DB schema versioning is the prerequisite** for all schema-touching work — the current `iscp_db_init()` does `CREATE TABLE IF NOT EXISTS` which silently ignores missing columns. Adding a `category` column to flags (2.3) or any new columns requires a migration framework first.
 
@@ -34,7 +34,7 @@ Rationale: Migration framework (2.0) is prerequisite. Verify baseline (2.1) alon
 **Goal:** Enable ALTER TABLE operations via versioned migrations.
 
 **Files:**
-- `claude/tools/lib/_iscp-db` — add migration runner, keep `ISCP_SCHEMA_VERSION=1`
+- `agency/tools/lib/_iscp-db` — add migration runner, keep `ISCP_SCHEMA_VERSION=1`
 
 **Changes:**
 1. Add `_iscp_run_migrations(db_path, current_ver, target_ver)` function: iterates from current to target, calling `_iscp_migrate_vN_to_vN+1()` for each step, wrapped in BEGIN/COMMIT
@@ -75,8 +75,8 @@ Rationale: Migration framework (2.0) is prerequisite. Verify baseline (2.1) alon
 **Goal:** Add `--friction`, `--idea`, `--bug` category flags. First real schema migration.
 
 **Files:**
-- `claude/tools/lib/_iscp-db` — bump to v2, add migration, update DDL and insert helper
-- `claude/tools/flag` — category parsing, filtered queries
+- `agency/tools/lib/_iscp-db` — bump to v2, add migration, update DDL and insert helper
+- `agency/tools/flag` — category parsing, filtered queries
 
 **Changes to `_iscp-db`:**
 1. Bump `ISCP_SCHEMA_VERSION` to `2`
@@ -110,8 +110,8 @@ Rationale: Migration framework (2.0) is prerequisite. Verify baseline (2.1) alon
 **Goal:** Gate `dispatch create` by agent role × dispatch type (A&D §4).
 
 **Files:**
-- `claude/tools/dispatch` — authority check in `cmd_create()`
-- `claude/tools/git-safe-commit` — add `--internal` flag to commit dispatch call
+- `agency/tools/dispatch` — authority check in `cmd_create()`
+- `agency/tools/git-safe-commit` — add `--internal` flag to commit dispatch call
 
 **Authority matrix (hardcoded — captain detected by agent name suffix `/captain`):**
 
@@ -154,7 +154,7 @@ Rationale: Migration framework (2.0) is prerequisite. Verify baseline (2.1) alon
 **Goal:** Populate phase/iteration fields in commit dispatches, verify end-to-end.
 
 **Files:**
-- `claude/tools/git-safe-commit` — add phase/iteration to metadata block
+- `agency/tools/git-safe-commit` — add phase/iteration to metadata block
 
 **Changes:**
 1. Lines 410-415: Add `phase` and `iteration` fields from env vars `ISCP_PHASE` and `ISCP_ITERATION` (set by `/iteration-complete` skill), fallback to "none"
@@ -179,7 +179,7 @@ Rationale: Migration framework (2.0) is prerequisite. Verify baseline (2.1) alon
 **Goal:** New `iscp-metrics` tool for lead time and flag rate queries.
 
 **Files:**
-- `claude/tools/iscp-metrics` — NEW (~200 lines)
+- `agency/tools/iscp-metrics` — NEW (~200 lines)
 - `tests/tools/iscp-metrics.bats` — NEW
 
 **Subcommands:**

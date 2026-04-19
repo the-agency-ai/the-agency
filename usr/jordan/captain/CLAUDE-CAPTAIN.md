@@ -7,7 +7,7 @@
 ## Startup Sequence
 
 <!-- D41-R19: "The Two Standing Priorities" section moved to class doc
-     (claude/agents/captain/agent.md) — it's class-level policy, not
+     (agency/agents/captain/agent.md) — it's class-level policy, not
      principal-specific. Same for "Over / Over-and-out" further down. -->
 
 
@@ -15,19 +15,19 @@ On every session start, do these in order:
 
 1. **Read handoff:** `usr/jordan/captain/captain-handoff.md`
 2. **Check local ISCP:** `dispatch list` and `flag list` — process unread items before other work
-3. **Check cross-repo dispatches:** `./claude/tools/collaboration check`
+3. **Check cross-repo dispatches:** `./agency/tools/collaboration check`
 4. **Start dispatch monitoring** via the Monitor tool (replaces the old `/loop` polling — 96% token savings, 10-second latency):
    ```
-   Use the Monitor tool to run ./claude/tools/dispatch-monitor --include-collab in the background persistently. When output appears, read and respond to the dispatches.
+   Use the Monitor tool to run ./agency/tools/dispatch-monitor --include-collab in the background persistently. When output appears, read and respond to the dispatches.
    ```
    This is the `/monitor-dispatches` skill. If Monitor is unavailable, fall back to the `/loop` polling pattern.
 5. Follow the "Next Action" in the handoff. Do not wait for a prompt.
 
 **Reference (read on demand, not every startup):**
-- `claude/agents/captain/agent.md` — role and responsibilities
-- `claude/workstreams/agency/valueflow-ad-20260406.md` — methodology (when working on Valueflow)
+- `agency/agents/captain/agent.md` — role and responsibilities
+- `agency/workstreams/agency/valueflow-ad-20260406.md` — methodology (when working on Valueflow)
 
-**Tool usage:** All Agency tools work from ANY directory. Never prefix with `cd /path/to/main-repo &&`. Use relative paths (`./claude/tools/`).
+**Tool usage:** All Agency tools work from ANY directory. Never prefix with `cd /path/to/main-repo &&`. Use relative paths (`./agency/tools/`).
 
 ## Communication With Jordan
 
@@ -54,7 +54,7 @@ ISCP is local to each repo (SQLite DB at `~/.agency/{repo-name}/iscp.db`). Cross
 On every session start (after local ISCP check), run the tool:
 
 ```bash
-./claude/tools/collaboration-check
+./agency/tools/collaboration-check
 ```
 
 This pulls latest from all configured collaboration repos and reports unread dispatches. Silent when empty. Pre-approved in settings.json — no permission prompts.
@@ -119,11 +119,11 @@ Captain owns every release in this repo. The release path is fixed and mandatory
 
 ### Every release follows this sequence
 
-1. **Branch.** `jordandm-D{day}-R{release}` — no topic suffix. Created via `./claude/tools/git-captain checkout-branch`.
+1. **Branch.** `jordandm-D{day}-R{release}` — no topic suffix. Created via `./agency/tools/git-captain checkout-branch`.
 2. **Implement.** Iteration-level commits via `/iteration-complete` (auto-approve) or `/phase-complete` (principal approval).
 3. **`/pr-prep`.** Full QG against `origin/main` — parallel MAR, fix cycle, RGR receipt signed via `receipt-sign` (five-hash chain, NOT legacy QGR stage-hash file).
-4. **Manifest bump.** `claude/config/manifest.json → agency_version: {day}.{release}`, updated_at stamped. Committed in the release branch, NOT in a follow-up.
-5. **`/release`.** Pushes via `./claude/tools/git-push`, PR created via `./claude/tools/pr-create` — title `jordandm-D{day}-R{release}: {summary}`, body references the RGR receipt and closes related issues.
+4. **Manifest bump.** `agency/config/manifest.json → agency_version: {day}.{release}`, updated_at stamped. Committed in the release branch, NOT in a follow-up.
+5. **`/release`.** Pushes via `./agency/tools/git-push`, PR created via `./agency/tools/pr-create` — title `jordandm-D{day}-R{release}: {summary}`, body references the RGR receipt and closes related issues.
 6. **Principal approval.** Explicit `--principal-approved` confirmation on the PR. No merges without it.
 7. **`/pr-merge`.** Uses `--merge` (never `--squash`, never `--rebase`). Hookify blocks `gh pr merge` directly.
 8. **`/post-merge`.** Syncs local main, cuts a GitHub release tagged `v{day}.{release}`, runs `/sync-all` to propagate to worktrees.
@@ -131,14 +131,14 @@ Captain owns every release in this repo. The release path is fixed and mandatory
 ### Release rules — read these every release
 
 - **No squash merges. Ever.** Same family as rebase. Principal banned in D41. `pr-merge` refuses `--squash` mechanically.
-- **No raw `gh pr merge`.** Hookify blocks it. Route through `./claude/tools/pr-merge`.
+- **No raw `gh pr merge`.** Hookify blocks it. Route through `./agency/tools/pr-merge`.
 - **No direct pushes to main.** Hookify blocks. All changes through PR.
 - **No RGR, no PR.** `pr-create` validates the receipt. No valid receipt → no PR.
 - **Every PR is a release.** There are no "small" PRs that skip version bump or RGR. If the change ships, it's a release.
 - **Issues closed in PR body** via `Closes #N` — the post-merge release notes pick these up.
 - **Release notes in the PR body** — not hand-written later. What ships is what you write.
 
-Universal tool discipline (use the skills, use the tools — they exist for reasons) is captured in `claude/REFERENCE-AGENT-DISCIPLINE.md` and the bootloader. **Release discipline is the captain's specific cut of that universal rule — stricter, because releases are the point at which drift becomes unrecoverable.**
+Universal tool discipline (use the skills, use the tools — they exist for reasons) is captured in `agency/REFERENCE-AGENT-DISCIPLINE.md` and the bootloader. **Release discipline is the captain's specific cut of that universal rule — stricter, because releases are the point at which drift becomes unrecoverable.**
 
 ## File Discipline
 

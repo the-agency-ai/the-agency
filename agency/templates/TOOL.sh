@@ -4,7 +4,7 @@
 # How & Why: [Explain the approach and rationale]
 #
 # Usage:
-#   ./claude/tools/{{TOOL_NAME}} [options] <args>
+#   ./agency/tools/{{TOOL_NAME}} [options] <args>
 #
 # Written: {{TOOL_DATE}} by {{TOOL_AUTHOR}}
 
@@ -105,7 +105,7 @@ while [[ $# -gt 0 ]]; do
 $TOOL_NAME - {{TOOL_DESCRIPTION}}
 
 Usage:
-  ./claude/tools/$TOOL_NAME [options] <args>
+  ./agency/tools/$TOOL_NAME [options] <args>
 
 Options:
   --verbose, -v  Show detailed output (default: log to telemetry DB)
@@ -113,8 +113,8 @@ Options:
   --help, -h     Show this help
 
 Examples:
-  ./claude/tools/$TOOL_NAME --verbose arg1
-  ./claude/tools/$TOOL_NAME arg1 arg2
+  ./agency/tools/$TOOL_NAME --verbose arg1
+  ./agency/tools/$TOOL_NAME arg1 arg2
 HELP
             exit 0
             ;;

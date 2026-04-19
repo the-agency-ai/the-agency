@@ -25,7 +25,7 @@ Given the current branch state, produces:
    - Untracked files (excluding gitignored)
 2. **Logical grouping** by directory / file pattern / commit hint:
    - Methodology / docs (`claude/CLAUDE-*.md`, `usr/*/CLAUDE-*.md`, `claude/templates/*`)
-   - Tool changes (`claude/tools/*`)
+   - Tool changes (`agency/tools/*`)
    - Skill changes (`.claude/skills/*`)
    - Hook changes (`claude/hooks/*`, `.claude/settings.json`, `claude/config/settings-template.json`)
    - Workstream artifacts (seeds, dispatches, plans, transcripts)
@@ -47,13 +47,13 @@ It also unblocks **agents** doing their own releases (devex, iscp, etc.) — the
 ## Sketch of usage
 
 ```bash
-./claude/tools/release-plan
+./agency/tools/release-plan
 # → produces a markdown plan to stdout, or writes to .claude/.tmp/release-plan-{YYYYMMDD-HHMM}.md
 
-./claude/tools/release-plan --apply
+./agency/tools/release-plan --apply
 # → actually creates the branch, stages and commits per the plan, and opens a draft PR
 
-./claude/tools/release-plan --since {ref}
+./agency/tools/release-plan --since {ref}
 # → consider only changes since {ref} (default: origin/main)
 ```
 

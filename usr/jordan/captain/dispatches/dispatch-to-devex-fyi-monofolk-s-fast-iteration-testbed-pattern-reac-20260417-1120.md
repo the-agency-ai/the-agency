@@ -20,7 +20,7 @@ Relevant to DevEx: the pattern of 'fast-iteration surface decoupled from slow-bu
 Could inform: (1) how we structure dev loops when the target runtime has slow feedback, (2) whether testbed agents are a pattern worth generalizing across the fleet, (3) test-run tooling that supports multiple iteration surfaces.
 
 Their artifacts (monofolk repo):
-- PVR/A&D/Plan at claude/workstreams/of-mobile/noah-web-testbed-*.md
+- PVR/A&D/Plan at agency/workstreams/of-mobile/noah-web-testbed-*.md
 - App scaffold at apps/noah-web-mobile/
 
 No action needed. Awareness + possible pattern extraction.

@@ -23,7 +23,7 @@ load 'test_helper'
 
 setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
-    SCRIPT="${REPO_ROOT:-$(pwd)}/claude/tools/dispatch-monitor"
+    SCRIPT="${REPO_ROOT:-$(pwd)}/agency/tools/dispatch-monitor"
 }
 
 teardown() {
@@ -48,7 +48,7 @@ teardown() {
     run "$SUB_PY" "$SCRIPT" --help
     [ "$status" -ne 0 ]
     [[ "$output" == *"Python 3.13+ required"* ]]
-    [[ "$output" == *"See claude/config/dependencies.yaml"* ]]
+    [[ "$output" == *"See agency/config/dependencies.yaml"* ]]
 }
 
 @test "runtime-guard: 3.13+ interpreter does NOT emit guard message" {
@@ -75,7 +75,7 @@ teardown() {
     [[ "$output" != *"Python 3.13+ required"* ]]
 }
 
-@test "runtime-guard: source of truth is claude/tools/dispatch-monitor" {
+@test "runtime-guard: source of truth is agency/tools/dispatch-monitor" {
     # Sanity: the shebang is python3 (not python3.13, not python3.12), and the
     # guard tuple is (3, 13). A regression that flips either flag would be
     # caught here before merge.
@@ -89,7 +89,7 @@ teardown() {
 @test "runtime-guard: template TOOL.py matches convention" {
     # Every new framework tool is scaffolded from TOOL.py. If the template
     # drifts, new tools will silently miss the floor.
-    TPL="${REPO_ROOT:-$(pwd)}/claude/templates/TOOL.py"
+    TPL="${REPO_ROOT:-$(pwd)}/agency/templates/TOOL.py"
     FIRST_LINE=$(head -n 1 "$TPL")
     [ "$FIRST_LINE" = "#!/usr/bin/env python3" ]
 

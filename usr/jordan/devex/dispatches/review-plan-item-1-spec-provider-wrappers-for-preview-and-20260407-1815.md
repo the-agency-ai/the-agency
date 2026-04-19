@@ -14,7 +14,7 @@ in_reply_to: 149
 ## Investigation
 
 ### Reference implementation
-`claude/tools/secret` exists on main (commit 6cd4307, 100 lines, Day 32 R3). Read end-to-end. Structure:
+`agency/tools/secret` exists on main (commit 6cd4307, 100 lines, Day 32 R3). Read end-to-end. Structure:
 1. Provenance header (What Problem / How & Why / Written)
 2. set -euo pipefail + SCRIPT_DIR resolve
 3. PATH resolution for non-login shells
@@ -25,7 +25,7 @@ in_reply_to: 149
 8. Available-providers listing on missing-tool error
 
 ### Configuration already in place
-`claude/config/agency.yaml` already declares:
+`agency/config/agency.yaml` already declares:
 ```yaml
 preview:
   provider: "docker-compose"  # Default: docker-compose. Alternatives: fly, vercel, cloudflare
@@ -37,8 +37,8 @@ The wrappers will read these. No agency.yaml changes needed.
 ### Skill files exist, provider files don't
 - `.claude/skills/preview/SKILL.md` ✓ (defines verb contract: start/stop/status/logs)
 - `.claude/skills/deploy/SKILL.md` ✓ (defines verb contract: deploy/status/rollback/logs)
-- `claude/tools/preview-*` — none exist on main or devex
-- `claude/tools/deploy-*` — none exist on main or devex
+- `agency/tools/preview-*` — none exist on main or devex
+- `agency/tools/deploy-*` — none exist on main or devex
 
 So the wrappers will dispatch to provider tools that don't exist yet. They'll fail with the 'available providers' error message. This is fine — the wrapper IS the deliverable; the provider tools come later when someone wires up docker-compose / fly / etc. The skill contract documents what providers must do.
 
@@ -52,7 +52,7 @@ So the wrappers will dispatch to provider tools that don't exist yet. They'll fa
 ### Iteration 1.1: Merge main into devex (sync prerequisite)
 
 Merge main into devex to pick up:
-- `claude/tools/secret` (the reference implementation)
+- `agency/tools/secret` (the reference implementation)
 - `tests/tools/secret.bats` (the unquarantined version)
 - Any other Day 32 R3 work that's on main but not devex
 
@@ -60,9 +60,9 @@ Resolve secret.bats conflict in favor of main (un-quarantine — secret tool wil
 
 **Acceptance:** `bats tests/tools/secret.bats` runs cleanly (no skip), full BATS suite still 0 failures.
 
-### Iteration 1.2: claude/tools/preview wrapper
+### Iteration 1.2: agency/tools/preview wrapper
 
-Mirror `claude/tools/secret` structure exactly. Differences from secret:
+Mirror `agency/tools/secret` structure exactly. Differences from secret:
 - Read `preview.provider` instead of `secrets.provider`
 - Default to `docker-compose` (matches agency.yaml default)
 - Dispatch to `preview-{provider}`
@@ -70,12 +70,12 @@ Mirror `claude/tools/secret` structure exactly. Differences from secret:
 - Provenance header references the SPEC-PROVIDER triangle and links to the skill at `.claude/skills/preview/SKILL.md`
 
 **Acceptance:**
-- `./claude/tools/preview --version` prints wrapper version
-- `./claude/tools/preview --help` prints usage
-- `./claude/tools/preview` (no provider tool) prints actionable error with the configured provider name
+- `./agency/tools/preview --version` prints wrapper version
+- `./agency/tools/preview --help` prints usage
+- `./agency/tools/preview` (no provider tool) prints actionable error with the configured provider name
 - `chmod +x` set, file passes shellcheck (if available in env)
 
-### Iteration 1.3: claude/tools/deploy wrapper
+### Iteration 1.3: agency/tools/deploy wrapper
 
 Same structure as 1.2 but for deploy. Differences:
 - Read `deploy.provider` instead
@@ -100,9 +100,9 @@ I'll mock provider tools in BATS_TEST_TMPDIR — same approach as the platform-s
 
 ### Iteration 1.5: enforcement.yaml registry update
 
-Add `preview` and `deploy` capabilities to `claude/config/enforcement.yaml` (parallel to the existing secret entry on main, if any). Both at level 2 (skill exists, tool exists, no hookify yet).
+Add `preview` and `deploy` capabilities to `agency/config/enforcement.yaml` (parallel to the existing secret entry on main, if any). Both at level 2 (skill exists, tool exists, no hookify yet).
 
-Run `./claude/tools/enforcement-audit` to verify the registry is consistent.
+Run `./agency/tools/enforcement-audit` to verify the registry is consistent.
 
 ### Iteration 1.6: /phase-complete
 

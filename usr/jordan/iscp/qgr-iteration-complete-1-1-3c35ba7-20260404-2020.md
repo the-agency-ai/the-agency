@@ -95,8 +95,8 @@ QG: 42 findings from 4 review agents + captain + mdpal consumer reviews, all fix
 
 ## Files
 
-- `claude/workstreams/iscp/iscp-pvr-20260404.md` (new)
-- `claude/workstreams/iscp/iscp-ad-20260404.md` (new)
+- `agency/workstreams/iscp/iscp-pvr-20260404.md` (new)
+- `agency/workstreams/iscp/iscp-ad-20260404.md` (new)
 - `usr/jordan/captain/dispatches/dispatch-iscp-pvr-ad-review-20260404-2012.md` (new)
 - `usr/jordan/mdpal/dispatches/dispatch-iscp-pvr-ad-review-20260404-2013.md` (new)
 - `usr/jordan/iscp/qgr-iteration-complete-1-1-3c35ba7-20260404-2020.md` (this file)

@@ -11,4 +11,4 @@ in_reply_to: null
 
 # MAR: Review Valueflow A&D — mdpal-app perspective
 
-A&D at claude/workstreams/agency/valueflow-ad-20260406.md. Give raw findings. Does cross-workstream RFI design work for mdpal coordination? Are quality gate tiers practical? Merge main first.
+A&D at agency/workstreams/agency/valueflow-ad-20260406.md. Give raw findings. Does cross-workstream RFI design work for mdpal coordination? Are quality gate tiers practical? Merge main first.

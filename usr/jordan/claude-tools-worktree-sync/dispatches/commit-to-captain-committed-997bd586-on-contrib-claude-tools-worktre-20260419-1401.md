@@ -27,9 +27,9 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/tools/git-captain
-claude/tools/lib/_health-worktree
-claude/tools/tests/test-worktree-sync.sh
+agency/tools/git-captain
+agency/tools/lib/_health-worktree
+agency/tools/tests/test-worktree-sync.sh
 tests/tools/_detect-main-branch.bats
 usr/jordan/claude-tools-worktree-sync/dispatches/commit-to-captain-committed-39cc9837-on-contrib-claude-tools-worktre-20260419-1347.md
 ```

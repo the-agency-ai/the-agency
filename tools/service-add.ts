@@ -73,7 +73,7 @@ Arguments:
   <name>                  kebab-case service name (1–32 chars)
 
 Options:
-  --workstream <ws>       existing workstream name (claude/workstreams/<ws>/) [required]
+  --workstream <ws>       existing workstream name (agency/workstreams/<ws>/) [required]
   --type <provider>       starter pack under claude/starter-packs/<type>/ [default: nestjs-prototype]
   --description <text>    description used in scaffold + registry entry
   --owner <text>          owner attribution used in registry entry

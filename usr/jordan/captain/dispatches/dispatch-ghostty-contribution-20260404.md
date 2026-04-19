@@ -71,6 +71,6 @@ The `set_tab_title` keybinding action already writes to `controller.titleOverrid
 - Ghostty issue #12048 (contributor friendly): writable tab.name via AppleScript/JXA
 - Ghostty vouch: https://github.com/ghostty-org/ghostty/discussions/12093
 - Fork: https://github.com/the-agency-ai/ghostty
-- Monofolk ghostty-claude-hook: `claude/tools/ghostty-claude-hook`
-- Monofolk ghostty-state-watchdog: `claude/tools/ghostty-state-watchdog`
+- Monofolk ghostty-claude-hook: `agency/tools/ghostty-claude-hook`
+- Monofolk ghostty-state-watchdog: `agency/tools/ghostty-state-watchdog`
 - 3 Claude Code feedback drafts at `claude/usr/jordan/captain/feedback-drafts/`

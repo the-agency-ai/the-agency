@@ -27,7 +27,7 @@ Claude Code v2.1.98+ introduces the **Monitor tool** — background scripts that
 - Blocks conversation while polling
 
 ### Proposed pattern: Monitor + dispatch polling script
-- Background script runs: `while true; do ./claude/tools/dispatch list --status unread 2>/dev/null | grep -v "No dispatches"; sleep 10; done`
+- Background script runs: `while true; do ./agency/tools/dispatch list --status unread 2>/dev/null | grep -v "No dispatches"; sleep 10; done`
 - Only streams output when there ARE dispatches
 - **~2,000 tokens/day** (per dispatch event, not per poll)
 - **10-second latency** instead of 5 minutes
@@ -56,7 +56,7 @@ Shows the live, iterative, responsive nature of working this way.
 - Requires Claude Code v2.1.98+
 - Monitor processes die with the session — need to restart on session start
 - Can be wrapped in a skill: `/monitor-dispatches`
-- Background script should be in `claude/tools/` (e.g., `dispatch-monitor`)
+- Background script should be in `agency/tools/` (e.g., `dispatch-monitor`)
 - Replaces both the 5m fast-path and 30m nag loops
 
 ## References

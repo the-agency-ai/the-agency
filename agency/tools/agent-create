@@ -1,7 +1,7 @@
 #!/bin/bash
 # Create a new agent identity
 #
-# Usage: ./claude/tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>]
+# Usage: ./agency/tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>]
 #
 # Many-to-one mapping: Multiple agents can work on the same workstream
 # Agent name may differ from workstream name
@@ -13,7 +13,7 @@
 #   --verbose               Show detailed logging
 #
 # Creates:
-#   claude/agents/{agentname}/
+#   agency/agents/{agentname}/
 #     - agent.md, IDEAS.md, ONBOARDING.md
 #     - backups/, logs/
 
@@ -34,7 +34,7 @@ TOOL_VERSION="2.0.0"
 
 # Configuration
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TEMPLATE_DIR="$PROJECT_ROOT/claude/agents/templates"
+TEMPLATE_DIR="$PROJECT_ROOT/agency/agents/templates"
 
 # Colors
 if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
@@ -74,7 +74,7 @@ fi
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "agent-create - Create a new agent identity"
     echo ""
-    echo "Usage: ./claude/tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>] [--verbose]"
+    echo "Usage: ./agency/tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>] [--verbose]"
     echo ""
     echo "Arguments:"
     echo "  agentname     Name for the new agent"
@@ -90,9 +90,9 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "  --help, -h              Show this help"
     echo ""
     echo "Examples:"
-    echo "  ./claude/tools/agent-create agent-manager agents"
-    echo "  ./claude/tools/agent-create ui-specialist web --type=ux-dev"
-    echo "  ./claude/tools/agent-create backend-dev api --type=generic --description='Backend development specialist'"
+    echo "  ./agency/tools/agent-create agent-manager agents"
+    echo "  ./agency/tools/agent-create ui-specialist web --type=ux-dev"
+    echo "  ./agency/tools/agent-create backend-dev api --type=generic --description='Backend development specialist'"
     echo "  ./claude/tools/agent-create researcher research --seeds=usr/{principal}/researcher/"
     echo ""
     echo "Available templates:"
@@ -162,22 +162,22 @@ done
 if [ -z "$AGENTNAME" ] || [ -z "$WORKSTREAM" ]; then
   log_error "Missing required arguments"
   echo ""
-  echo "Usage: ./claude/tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>] [--verbose]"
+  echo "Usage: ./agency/tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>] [--verbose]"
   echo ""
   echo "Examples:"
-  echo "  ./claude/tools/agent-create agent-manager agents"
-  echo "  ./claude/tools/agent-create ui-specialist web --type=ux-dev"
+  echo "  ./agency/tools/agent-create agent-manager agents"
+  echo "  ./agency/tools/agent-create ui-specialist web --type=ux-dev"
   echo ""
   echo "Note: Workstream must exist first. Create with:"
-  echo "  ./claude/tools/workstream-create <name>"
+  echo "  ./agency/tools/workstream-create <name>"
   echo ""
   echo "Run with --list-types to see available templates."
   exit 1
 fi
 
-DIR="claude/agents/$AGENTNAME"
-WORKSTREAM_DIR="claude/workstreams/$WORKSTREAM"
-TIMESTAMP=$(./claude/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
+DIR="agency/agents/$AGENTNAME"
+WORKSTREAM_DIR="agency/workstreams/$WORKSTREAM"
+TIMESTAMP=$(./agency/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 AGENT_TEMPLATE_DIR="$TEMPLATE_DIR/$AGENT_TYPE"
 
 # Resolve principal from agency.yaml (not raw $USER)
@@ -222,7 +222,7 @@ main() {
     if [ ! -d "$WORKSTREAM_DIR" ]; then
       log_error "Workstream '$WORKSTREAM' doesn't exist at $WORKSTREAM_DIR"
       echo ""
-      echo "Create workstream first: ./claude/tools/workstream-create $WORKSTREAM"
+      echo "Create workstream first: ./agency/tools/workstream-create $WORKSTREAM"
       trap - EXIT
       log_end "$RUN_ID" "failure" 1 0 "Workstream not found"
       exit 1
@@ -353,25 +353,25 @@ description: "${CC_DESCRIPTION}"
 model: opus
 ---
 
-@claude/agents/${agent_class}/agent.md
-@claude/workstreams/${WORKSTREAM}/CLAUDE-${ws_upper}.md
+@agency/agents/${agent_class}/agent.md
+@agency/workstreams/${WORKSTREAM}/CLAUDE-${ws_upper}.md
 @usr/${PRINCIPAL}/${AGENTNAME}/CLAUDE-${agent_upper}.md
 
 **On startup, immediately do these in order:**
 
 1. \`usr/${PRINCIPAL}/${AGENTNAME}/${AGENTNAME}-handoff.md\` — your current state and next action
 2. Check ISCP: \`dispatch list\` and \`flag list\` — process any unread items before other work
-3. Check cross-repo: \`./claude/tools/collaboration check\` — process any unread cross-repo dispatches
+3. Check cross-repo: \`./agency/tools/collaboration check\` — process any unread cross-repo dispatches
 4. Follow the "Next Action" in your handoff. Do not wait for a prompt — act on startup.
 
 **If your handoff contains TODO: placeholders,** report to the captain:
 > "Bootstrap handoff incomplete for ${AGENTNAME} — needs captain to run /discuss for workstream ${WORKSTREAM}."
 
 **Reference (read on demand, not every startup):**
-- \`claude/agents/${agent_class}/agent.md\` — your class role and responsibilities
-- \`claude/workstreams/${WORKSTREAM}/KNOWLEDGE.md\` — workstream knowledge
+- \`agency/agents/${agent_class}/agent.md\` — your class role and responsibilities
+- \`agency/workstreams/${WORKSTREAM}/KNOWLEDGE.md\` — workstream knowledge
 
-**Tool usage:** All Agency tools work from ANY directory including worktrees. Never prefix with \`cd /path/to/main-repo &&\`. Use \`./claude/tools/\` (relative paths).
+**Tool usage:** All Agency tools work from ANY directory including worktrees. Never prefix with \`cd /path/to/main-repo &&\`. Use \`./agency/tools/\` (relative paths).
 CCEOF
         verbose_echo "Registered Claude Code agent: $CLAUDE_AGENTS_DIR/${AGENTNAME}.md"
     fi

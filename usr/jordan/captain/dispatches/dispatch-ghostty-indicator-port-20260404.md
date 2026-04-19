@@ -15,8 +15,8 @@ Rebuilt ghostty-claude-hook with a proper state model and added a new watchdog t
 
 | File | Status | Description |
 |------|--------|-------------|
-| `claude/tools/ghostty-claude-hook` | Updated | Full state model rebuild |
-| `claude/tools/ghostty-state-watchdog` | New | Polling watchdog for OSC writes from shell |
+| `agency/tools/ghostty-claude-hook` | Updated | Full state model rebuild |
+| `agency/tools/ghostty-state-watchdog` | New | Polling watchdog for OSC writes from shell |
 
 ## ghostty-claude-hook Changes
 

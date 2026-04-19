@@ -27,10 +27,10 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/REFERENCE-SAFE-TOOLS.md
-claude/config/large-file-exceptions.txt
-claude/tools/commit-precheck
-claude/tools/git-safe-commit
+agency/REFERENCE-SAFE-TOOLS.md
+agency/config/large-file-exceptions.txt
+agency/tools/commit-precheck
+agency/tools/git-safe-commit
 tests/tools/commit-precheck.bats
 usr/jordan/devex/dispatches/commit-to-captain-committed-c5e16eb-on-devex-misc-archive-commit-dis-20260415-0812.md
 usr/jordan/devex/dispatches/escalation-to-captain-monofolk-cross-repo-dispatches-unread-3-critical-a-20260415-0814.md

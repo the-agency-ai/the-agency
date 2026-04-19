@@ -8,7 +8,7 @@ I am a researcher — the deep research specialist. I investigate technical topi
 
 This is an agent **class definition**. Unlike standing agents (tech-lead, marketing-lead), researchers are **subagents** — spun up for a specific task and terminated when the deliverable is complete.
 
-- Class: `claude/agents/researcher/agent.md` (this file)
+- Class: `agency/agents/researcher/agent.md` (this file)
 - Invocation: spawned as a subagent by standing agents, or launched directly
 - No persistent instance directory — results delivered to the requesting agent's workspace
 
@@ -99,5 +99,5 @@ This is intentionally minimal. Researchers deliver knowledge and exit.
 
 ## Key Directories
 
-- `claude/agents/researcher/` — this class definition
+- `agency/agents/researcher/` — this class definition
 - Output location determined by requesting agent (typically their workspace or workstream)

@@ -38,8 +38,8 @@ Only escalate if you hit a true blocker (conflict with captain decision, ambigui
 
 Captain attempted `git merge main` on your worktree as part of today's fleet cleanup. Conflicts on three of your files:
 
-- `claude/tools/flag`
-- `claude/tools/lib/_iscp-db`
+- `agency/tools/flag`
+- `agency/tools/lib/_iscp-db`
 - `tests/tools/flag.bats`
 
 Captain aborted and restored pre-sync state — nothing lost. Your worktree is exactly as it was. See dispatch #183 (sent a minute ago) for the details.
@@ -58,11 +58,11 @@ This is captain's suggested order. Under standing autonomy you may reorder if yo
 
 ## Also heads up
 
-New framework tool available as of Day 34.4: `claude/tools/agency-health`. Three-dimensional fleet health check (workstream / agent / worktree). Useful to run at the start of your sessions:
+New framework tool available as of Day 34.4: `agency/tools/agency-health`. Three-dimensional fleet health check (workstream / agent / worktree). Useful to run at the start of your sessions:
 
 ```
-./claude/tools/agency-health agent iscp
-./claude/tools/agency-health worktree iscp
+./agency/tools/agency-health agent iscp
+./agency/tools/agency-health worktree iscp
 ```
 
 Once you merge main you will pick it up automatically.

@@ -2,11 +2,11 @@
 
 This skill is pure orchestration — it invokes existing framework tools via the Bash tool:
 
-- `./claude/tools/agency-health`
-- `./claude/tools/dispatch`
-- `./claude/tools/flag`
-- `./claude/tools/collaboration`
-- `./claude/tools/git-safe`
+- `./agency/tools/agency-health`
+- `./agency/tools/dispatch`
+- `./agency/tools/flag`
+- `./agency/tools/collaboration`
+- `./agency/tools/git-safe`
 - `gh pr list`
 
 No skill-specific scripts are needed. Directory preserved for bundle-structure consistency per v2 methodology (REFERENCE-SKILL-AUTHORING.md §1 "Full bundle structure — always").

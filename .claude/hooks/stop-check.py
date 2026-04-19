@@ -19,8 +19,8 @@ from pathlib import Path
 # Files that change every session and shouldn't block stopping
 # Patterns support exact matches and glob-style wildcards
 EXCLUDE_PATTERNS = [
-    "claude/data/messages.db",      # Tool run logs database
-    "claude/data/*.db",             # Any database in data dir
+    "agency/data/messages.db",      # Tool run logs database
+    "agency/data/*.db",             # Any database in data dir
     "history/push-log.md",          # Push accountability log
     "*.pyc",                        # Python bytecode
     "__pycache__/*",                # Python cache
@@ -47,14 +47,14 @@ FILE_CATEGORIES = {
         '*.sh', '*.bash',
         '*.bats',
         'tests/**/*.test.*', 'tests/**/*.spec.*',
-        'claude/tools/*',           # bash tools (no extension)
-        'claude/tools/lib/*',       # tool libraries
+        'agency/tools/*',           # bash tools (no extension)
+        'agency/tools/lib/*',       # tool libraries
         '.claude/hooks/*.py',       # python hooks
         '.claude/hooks/*.sh',       # shell hooks
     ],
     'config': [
         '*.yaml', '*.yml', '*.toml', '*.json',
-        'claude/config/*',
+        'agency/config/*',
         '.claude/settings*.json',
     ],
     'doc': [

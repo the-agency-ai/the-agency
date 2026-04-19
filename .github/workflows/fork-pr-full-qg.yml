@@ -47,7 +47,7 @@ jobs:
 
       - name: Validate shell tool syntax
         run: |
-          for tool in claude/tools/*; do
+          for tool in agency/tools/*; do
             if [ -f "$tool" ] && head -1 "$tool" | grep -q '^#!/.*bash'; then
               bash -n "$tool" || { echo "Syntax error in $tool"; exit 1; }
             fi

@@ -3,13 +3,13 @@
 # version-next - Calculate the next version number
 #
 # Usage:
-#   ./claude/tools/version-next                     # Read VERSION file, output next
-#   ./claude/tools/version-next 1.0.0-20260110-000001  # Output: 1.0.0-20260110-000002
-#   ./claude/tools/version-next --major             # Increment major version
-#   ./claude/tools/version-next --minor             # Increment minor version
-#   ./claude/tools/version-next --patch             # Increment patch version
-#   ./claude/tools/version-next --build             # Increment build only (default)
-#   ./claude/tools/version-next --apply             # Update VERSION file in place
+#   ./agency/tools/version-next                     # Read VERSION file, output next
+#   ./agency/tools/version-next 1.0.0-20260110-000001  # Output: 1.0.0-20260110-000002
+#   ./agency/tools/version-next --major             # Increment major version
+#   ./agency/tools/version-next --minor             # Increment minor version
+#   ./agency/tools/version-next --patch             # Increment patch version
+#   ./agency/tools/version-next --build             # Increment build only (default)
+#   ./agency/tools/version-next --apply             # Update VERSION file in place
 #
 # Version Format: MAJOR.MINOR.PATCH-YYYYMMDD-NNNNNN
 #   MAJOR    - Breaking changes
@@ -157,7 +157,7 @@ print_help() {
 version-next - Calculate the next version number
 
 USAGE:
-    ./claude/tools/version-next [OPTIONS] [VERSION]
+    ./agency/tools/version-next [OPTIONS] [VERSION]
 
 OPTIONS:
     --major         Increment major version (resets minor, patch, build)
@@ -181,11 +181,11 @@ VERSION FORMAT:
              └─────────────────── Major (breaking changes)
 
 EXAMPLES:
-    ./claude/tools/version-next                          # Next build from VERSION file
-    ./claude/tools/version-next 1.0.0-20260110-000001    # Output: 1.0.0-20260110-000002
-    ./claude/tools/version-next --minor                  # Next minor version
-    ./claude/tools/version-next --apply                  # Update VERSION file
-    ./claude/tools/version-next --major --apply          # Major release, update file
+    ./agency/tools/version-next                          # Next build from VERSION file
+    ./agency/tools/version-next 1.0.0-20260110-000001    # Output: 1.0.0-20260110-000002
+    ./agency/tools/version-next --minor                  # Next minor version
+    ./agency/tools/version-next --apply                  # Update VERSION file
+    ./agency/tools/version-next --major --apply          # Major release, update file
 
 BEHAVIOR:
     - Build number resets to 000001 on each new day

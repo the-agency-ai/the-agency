@@ -27,9 +27,9 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/REFERENCE-SAFE-TOOLS.md
-claude/tools/git-safe
-claude/tools/git-safe-commit
+agency/REFERENCE-SAFE-TOOLS.md
+agency/tools/git-safe
+agency/tools/git-safe-commit
 tests/tools/git-safe-commit-merge.bats
 tests/tools/git-safe.bats
 usr/jordan/devex/dispatches/commit-to-captain-committed-23a121d-on-devex-feat-agency-update-dirt-20260415-0900.md

@@ -57,7 +57,7 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
     warn "Missing tools: ${MISSING[*]}"
     echo ""
     echo "Run the bootstrap script first:"
-    echo "  curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/claude/workstreams/agency/seeds/workshop-bootstrap.sh | bash"
+    echo "  curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/workstreams/agency/seeds/workshop-bootstrap.sh | bash"
     echo ""
     fail "Cannot continue without required tools."
 fi

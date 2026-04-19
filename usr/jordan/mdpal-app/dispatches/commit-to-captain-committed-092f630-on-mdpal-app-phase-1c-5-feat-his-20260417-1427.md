@@ -30,5 +30,5 @@ in_reply_to: null
 apps/mdpal-app/Sources/MarkdownPalApp/Views/ContentView.swift
 apps/mdpal-app/Sources/MarkdownPalApp/Views/HistoryView.swift
 apps/mdpal-app/Tests/MarkdownPalAppTests/ModelTests.swift
-claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1426-f1a58c9.md
+agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1426-f1a58c9.md
 ```

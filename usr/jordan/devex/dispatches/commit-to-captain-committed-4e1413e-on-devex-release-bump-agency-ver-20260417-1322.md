@@ -27,7 +27,7 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/config/manifest.json
-claude/workstreams/devex/qgr/the-agency-jordan-devex-devex-git-captain-regex-qgr-pr-prep-20260417-1319-fd40ed2.md
+agency/config/manifest.json
+agency/workstreams/devex/qgr/the-agency-jordan-devex-devex-git-captain-regex-qgr-pr-prep-20260417-1319-fd40ed2.md
 usr/jordan/devex/dispatches/commit-to-captain-committed-97bdb1c-on-devex-d44-r3-qg-fix-doc-drift-20260417-1318.md
 ```

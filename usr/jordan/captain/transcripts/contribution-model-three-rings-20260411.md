@@ -164,7 +164,7 @@ Seed written and updated. Application phase commenced. See below for full sessio
 - ✅ `claude/docs/CONTRIBUTION-MODEL.md` — three-ring trust reference doc
 - ✅ `CONTRIBUTING.md` — contributor front door (repo root)
 - ✅ `.github/PULL_REQUEST_TEMPLATE.md` — contributor PR template
-- ✅ `claude/config/agency.yaml` — full principal identity (email, github, platforms)
+- ✅ `agency/config/agency.yaml` — full principal identity (email, github, platforms)
 - ✅ PR #76 (D36-R2) merged — CI now green
 
 **Feedback batch to Anthropic (6 items, 3 filed):**
@@ -184,7 +184,7 @@ Seed written and updated. Application phase commenced. See below for full sessio
 - Agent 3: Design-system bridge (DTCG tokens, Style Dictionary, shadcn/Tamagui pipelines)
 - Agent 4: React vs React Native platform differences
 
-All 4 completed. Reports saved to `claude/workstreams/agency/seeds/research-figma-*-20260411.md`. Dispatch sent to monofolk for parallel research. Key finding: nobody has solved React Native cleanly; Builder.io Visual Copilot is the best option but no Tamagui target.
+All 4 completed. Reports saved to `agency/workstreams/agency/seeds/research-figma-*-20260411.md`. Dispatch sent to monofolk for parallel research. Key finding: nobody has solved React Native cleanly; Builder.io Visual Copilot is the best option but no Tamagui target.
 
 **mdslidepal (new workstream — markdown slide tool):**
 - Shared contract spec written (v1.0 → v1.1 → v1.2 → v1.3)
@@ -203,7 +203,7 @@ All 4 completed. Reports saved to `claude/workstreams/agency/seeds/research-figm
 **CLAUDE.md bootloader refactoring (NEW):**
 - Jordan observed CLAUDE-THEAGENCY.md is too big, should be a bootloader not a constitution
 - Discussion produced the bootloader model: ~200-300 words of orientation, everything else via skills + hookify + ref-injector
-- Seed captured at `claude/workstreams/agency/seeds/seed-claude-md-bootloader-refactoring-20260412.md`
+- Seed captured at `agency/workstreams/agency/seeds/seed-claude-md-bootloader-refactoring-20260412.md`
 - Handed to DevEx for execution, captain supervises
 
 **Workshop updates:**

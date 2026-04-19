@@ -28,20 +28,20 @@ Deferred to future releases: #121 (workstream content codification — R25), #12
 
 ### Part A — `agency init --from-github [ref]`
 
-Replicate the `_agency-update --from-github` pattern (lines 159–200 of `claude/tools/lib/_agency-update`) into `claude/tools/lib/_agency-init`. Accept same flag shape: no ref = `main`, `@latest` = latest release tag, literal ref = tag/branch/commit. Shallow-clone to a temp dir, use as source, cleanup on exit.
+Replicate the `_agency-update --from-github` pattern (lines 159–200 of `agency/tools/lib/_agency-update`) into `agency/tools/lib/_agency-init`. Accept same flag shape: no ref = `main`, `@latest` = latest release tag, literal ref = tag/branch/commit. Shallow-clone to a temp dir, use as source, cleanup on exit.
 
 ### Part B — curl bootstrap one-liner
 
-Ship a tiny `claude/tools/agency-bootstrap.sh` script that (a) downloads the latest `the-agency/claude/tools/agency` from GitHub raw, (b) invokes it with `init --from-github` + any extra flags. Document the one-liner in README / docs. Principal wanted this — makes bare-repo onboarding truly single-command.
+Ship a tiny `agency/tools/agency-bootstrap.sh` script that (a) downloads the latest `the-agency/agency/tools/agency` from GitHub raw, (b) invokes it with `init --from-github` + any extra flags. Document the one-liner in README / docs. Principal wanted this — makes bare-repo onboarding truly single-command.
 
 One-liner shape:
 ```
-curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/claude/tools/agency-bootstrap.sh | bash
+curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/tools/agency-bootstrap.sh | bash
 ```
 
 ### Part C — `dispatch reply` strict flag rejection
 
-`claude/tools/dispatch` → `cmd_reply`: parse args, reject any `-*` flag that isn't `--help`. Keep positional interface (`dispatch reply <id> "message"`) but fail loud on `--subject`/`--body`/any unknown.
+`agency/tools/dispatch` → `cmd_reply`: parse args, reject any `-*` flag that isn't `--help`. Keep positional interface (`dispatch reply <id> "message"`) but fail loud on `--subject`/`--body`/any unknown.
 
 ### Part D — Regression anchors for #119 bugs 2 and 3
 
@@ -51,14 +51,14 @@ New BATS cases proving:
 
 ## File-level changes
 
-### 1. `claude/tools/lib/_agency-init` — add `--from-github [ref]`
+### 1. `agency/tools/lib/_agency-init` — add `--from-github [ref]`
 
 - Parse `--from-github` flag (mirror lines 71–81 of `_agency-update`)
 - Shallow-clone block (mirror lines 159–200 of `_agency-update`) populating `SOURCE_DIR=$TMP_SOURCE_DIR`
 - Help text update: document the new flag
 - Trap for temp dir cleanup
 
-### 2. `claude/tools/agency-bootstrap.sh` (new)
+### 2. `agency/tools/agency-bootstrap.sh` (new)
 
 ~30 lines. Accepts same args as `agency init`. Body:
 ```bash
@@ -67,12 +67,12 @@ set -euo pipefail
 TMP=$(mktemp -d -t agency-bootstrap-XXXXXX)
 trap 'rm -rf "$TMP"' EXIT
 git clone --depth 1 https://github.com/the-agency-ai/the-agency.git "$TMP" >/dev/null 2>&1
-exec "$TMP/claude/tools/agency" init --from-github "$@"
+exec "$TMP/agency/tools/agency" init --from-github "$@"
 ```
 
 Provenance header, --help, --version.
 
-### 3. `claude/tools/dispatch` — `cmd_reply` strict flag parsing
+### 3. `agency/tools/dispatch` — `cmd_reply` strict flag parsing
 
 Replace:
 ```bash
@@ -127,7 +127,7 @@ Usage: dispatch reply <id> \"message\"" ;;
 - `agency init --from-github @latest` enters release-tag path
 - `agency-bootstrap.sh` exists and is executable
 
-### 7. `claude/config/manifest.json`
+### 7. `agency/config/manifest.json`
 
 Bump `agency_version: 41.23 → 41.24`.
 
@@ -140,13 +140,13 @@ Bump `agency_version: 41.23 → 41.24`.
 
 ## Critical files
 
-- `/Users/jdm/code/the-agency/claude/tools/lib/_agency-init`
-- `/Users/jdm/code/the-agency/claude/tools/agency-bootstrap.sh` (new)
-- `/Users/jdm/code/the-agency/claude/tools/dispatch` (cmd_reply ~line 621)
+- `/Users/jdm/code/the-agency/agency/tools/lib/_agency-init`
+- `/Users/jdm/code/the-agency/agency/tools/agency-bootstrap.sh` (new)
+- `/Users/jdm/code/the-agency/agency/tools/dispatch` (cmd_reply ~line 621)
 - `/Users/jdm/code/the-agency/tests/tools/dispatch.bats` (extend)
 - `/Users/jdm/code/the-agency/tests/tools/collaboration-frontmatter.bats` (extend) or new regression-anchor file
 - `/Users/jdm/code/the-agency/tests/tools/agency-update.bats` (extend or new agency-init.bats)
-- `/Users/jdm/code/the-agency/claude/config/manifest.json`
+- `/Users/jdm/code/the-agency/agency/config/manifest.json`
 
 ## Verification
 

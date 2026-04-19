@@ -10,7 +10,7 @@ fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
-INSTANCES_DIR="$REPO_ROOT/claude/data/instances"
+INSTANCES_DIR="$REPO_ROOT/agency/data/instances"
 
 # Get this instance's ID (use CLAUDE_SESSION_ID if available, otherwise use parent PID)
 INSTANCE_ID="${CLAUDE_SESSION_ID:-$$}"

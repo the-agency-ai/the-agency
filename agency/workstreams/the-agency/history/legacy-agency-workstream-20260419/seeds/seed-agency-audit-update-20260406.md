@@ -46,7 +46,7 @@ Runs before and after agency-update. Also runs standalone for health checks.
 
 ### 3. `agency-update` — Framework update tool (already exists, needs hardening)
 
-Existing tool at `claude/tools/agency-update`. Needs:
+Existing tool at `agency/tools/agency-update`. Needs:
 - Pre-flight audit (calls agency-audit, blocks on failure)
 - Post-update audit (calls agency-audit, reports findings)
 - Integration with `structure.yaml` for scaffolding decisions

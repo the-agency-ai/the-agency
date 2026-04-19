@@ -202,7 +202,7 @@ paths:
 │   ├── git-workflow.md     # Commit standards
 │   └── testing.md          # Test requirements
 ├── agents/
-│   ├── captain.md          # Captain-specific (paths: claude/agents/captain/**)
+│   ├── captain.md          # Captain-specific (paths: agency/agents/captain/**)
 │   └── research.md         # Research-specific
 └── workstreams/
     └── housekeeping.md     # Workstream rules
@@ -213,14 +213,14 @@ paths:
 # The Agency
 
 @README.md for project overview.
-@claude/docs/PERMISSIONS.md for permission model.
+@agency/docs/PERMISSIONS.md for permission model.
 
 ## Agent Context
-@claude/agents/captain/agent.md
-@claude/agents/captain/KNOWLEDGE.md
+@agency/agents/captain/agent.md
+@agency/agents/captain/KNOWLEDGE.md
 
 ## Conventions
-@claude/docs/conventions.md
+@agency/docs/conventions.md
 ```
 
 ## Links/Sources

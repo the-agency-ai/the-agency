@@ -20,9 +20,9 @@ The hung test wasn't a flaky test or a slow test — it was an actual infinite r
 export PATH="${TOOLS_DIR}:${PATH}"
 ```
 
-This puts `claude/tools/` FIRST on PATH for tests. So when `claude/tools/gh` ran:
+This puts `agency/tools/` FIRST on PATH for tests. So when `agency/tools/gh` ran:
 ```bash
-command gh --version  # finds claude/tools/gh — itself
+command gh --version  # finds agency/tools/gh — itself
 ```
 
 It called itself. Each invocation called itself again. Bash recursion = infinite hang. That's why `bats tests/tools/gh.bats` hung at the very first test ("gh: --version shows wrapper version") and you saw piles of stuck `bats-exec-test` processes.
@@ -59,7 +59,7 @@ It called itself. Each invocation called itself again. Bash recursion = infinite
 
 ## What's already fixed in devex (you'll get when you merge)
 
-- **commit-precheck v3** classifies staged files (docs/config/tool/app-code), then uses test-scoper to run ONLY relevant tests via convention mapping (e.g., `claude/tools/flag` → `tests/tools/flag.bats`). No more full-suite runs on every commit.
+- **commit-precheck v3** classifies staged files (docs/config/tool/app-code), then uses test-scoper to run ONLY relevant tests via convention mapping (e.g., `agency/tools/flag` → `tests/tools/flag.bats`). No more full-suite runs on every commit.
 - **60s budget** with graceful degradation (timeout = warn + allow, not block).
 - **test-scoper tool** for the file→test mapping logic.
 - **stop-check.py** now categorizes uncommitted files; impl blocks, doc/handoff don't.

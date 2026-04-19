@@ -13,7 +13,7 @@ in_reply_to: null
 
 ## Finding
 
-claude/tools/secret does not exist on the devex branch (or master). However, tests/tools/secret.bats references it and has 31 tests — 21 of which fail with exit code 127 (command not found).
+agency/tools/secret does not exist on the devex branch (or master). However, tests/tools/secret.bats references it and has 31 tests — 21 of which fail with exit code 127 (command not found).
 
 This predates DevEx work — discovered during Phase 1.1 universal test isolation, where all 37 BATS files were run.
 

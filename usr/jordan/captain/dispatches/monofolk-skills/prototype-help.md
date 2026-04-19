@@ -74,7 +74,7 @@ Display the tables below:
 
 | Command | Description |
 |---------|-------------|
-| `bash claude/tools/proto-module-scaffold <name>` | Generate backend module from template (called by /prototype-create) |
+| `bash agency/tools/proto-module-scaffold <name>` | Generate backend module from template (called by /prototype-create) |
 
 **Documentation:**
 

@@ -11,7 +11,7 @@
 #
 # If you're seeing this: your agent registration still calls agent-bootstrap.
 # Update it to .claude/agents/{P}/{A}.md with structural @import. See:
-# claude/REFERENCE-WORKSTREAM-CONTENT-SPLIT.md
+# agency/REFERENCE-WORKSTREAM-CONTENT-SPLIT.md
 #
 # Written: 2026-04-15 (D41-R19, issue #111)
 # Retired: 2026-04-16 (D42-R3, issue #121)
@@ -19,5 +19,5 @@
 echo "DEPRECATED: agent-bootstrap is retired (D42-R3)." >&2
 echo "  Agent registrations now live at .claude/agents/{P}/{A}.md" >&2
 echo "  with structural @import for principal context." >&2
-echo "  See: claude/REFERENCE-WORKSTREAM-CONTENT-SPLIT.md" >&2
+echo "  See: agency/REFERENCE-WORKSTREAM-CONTENT-SPLIT.md" >&2
 exit 0

@@ -40,7 +40,7 @@ setup() {
     export AGENCY_PROJECT_ROOT="$MOCK_REPO"
 
     # Source the library
-    source "$REPO_ROOT/claude/tools/lib/_iscp-db"
+    source "$REPO_ROOT/agency/tools/lib/_iscp-db"
 }
 
 teardown() {
@@ -583,7 +583,7 @@ teardown() {
 
 @test "repo name resolves from agency.yaml" {
     # Create agency.yaml with repo.name
-    cat > "$MOCK_REPO/claude/config/agency.yaml" << 'YAML'
+    cat > "$MOCK_REPO/agency/config/agency.yaml" << 'YAML'
 principals:
   jdm: jordan
 

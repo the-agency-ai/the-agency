@@ -76,8 +76,8 @@ The three-framing comparison table (telemetry-driven discovery / Gary Tan / Too 
 
 ## Related artifacts
 
-- Seed: `claude/workstreams/agency/seeds/seed-telemetry-driven-tool-discovery-20260409.md`
-- Reference: `claude/workstreams/agency/references/gary-tan-durable-agents-20260409.md`
+- Seed: `agency/workstreams/agency/seeds/seed-telemetry-driven-tool-discovery-20260409.md`
+- Reference: `agency/workstreams/agency/references/gary-tan-durable-agents-20260409.md`
 - Flag #74 — captain bypassed /post-merge on PR #66 and #67 (the incident that surfaced this reframe)
-- The Enforcement Triangle: `claude/README-ENFORCEMENT.md`
-- The Enforcement Ladder: `claude/CLAUDE-THEAGENCY.md` ("The Enforcement Ladder" section)
+- The Enforcement Triangle: `agency/README-ENFORCEMENT.md`
+- The Enforcement Ladder: `agency/CLAUDE-THEAGENCY.md` ("The Enforcement Ladder" section)

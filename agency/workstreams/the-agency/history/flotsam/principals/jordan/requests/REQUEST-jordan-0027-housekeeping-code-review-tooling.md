@@ -47,9 +47,9 @@ Code review happens via subagent but findings not persisted.
 ### 2026-01-20 - Closed
 - Verified existing tooling addresses core workflow:
   - `./tools/review-spawn REQUEST code` - triggers code + security reviews
-  - `claude/templates/prompts/code-review.md` - reviewer prompt
-  - `claude/templates/prompts/security-review.md` - security prompt
-  - `claude/templates/prompts/consolidation.md` - merge findings
+  - `agency/templates/prompts/code-review.md` - reviewer prompt
+  - `agency/templates/prompts/security-review.md` - security prompt
+  - `agency/templates/prompts/consolidation.md` - merge findings
   - CLAUDE.md documents the full process
 - Persistence/tracking deferred to REQUEST-jordan-0066 (Findings Consolidation)
 

@@ -75,7 +75,7 @@ Research results should be delivered as:
 
 ## Acceptance Criteria
 
-- [ ] Create `claude/agents/research/agent.md` with full spec
+- [ ] Create `agency/agents/research/agent.md` with full spec
 - [ ] Define research workflow and methodology
 - [ ] Document tool usage patterns
 - [ ] Include example prompts for common research tasks
@@ -84,7 +84,7 @@ Research results should be delivered as:
 
 ## Deliverables
 
-1. **Agent Spec** - `claude/agents/research/agent.md`
+1. **Agent Spec** - `agency/agents/research/agent.md`
 2. **Knowledge Template** - Template for research output documents
 3. **Example Output** - Research document on Google Docs integration
 

@@ -24,18 +24,18 @@ Do not start item N+1 until item N is complete and merged.
 
 ## Item 1 — SPEC-PROVIDER wrappers for `/preview` and `/deploy`
 
-Parallel to `claude/tools/secret` (shipped Day 32 R3). Build top-level dispatcher wrappers:
+Parallel to `agency/tools/secret` (shipped Day 32 R3). Build top-level dispatcher wrappers:
 
-- `claude/tools/preview` — reads `preview.provider` from `claude/config/agency.yaml`, execs `claude/tools/preview-{provider}`
-- `claude/tools/deploy` — reads `deploy.provider`, execs `claude/tools/deploy-{provider}`
+- `agency/tools/preview` — reads `preview.provider` from `agency/config/agency.yaml`, execs `agency/tools/preview-{provider}`
+- `agency/tools/deploy` — reads `deploy.provider`, execs `agency/tools/deploy-{provider}`
 
-Reference implementation: `claude/tools/secret` (101 lines, awk parse, exec dispatch, provenance header). Mirror its structure exactly. Add BATS tests parallel to `tests/tools/secret.bats`.
+Reference implementation: `agency/tools/secret` (101 lines, awk parse, exec dispatch, provenance header). Mirror its structure exactly. Add BATS tests parallel to `tests/tools/secret.bats`.
 
 Completes the SPEC-PROVIDER triangle for two more capabilities. Note: monofolk has an open structural question on SPEC-PROVIDER (sent in dispatch from captain) — these wrappers are safe to build regardless of how that resolves; they're the minimal mechanical layer.
 
 ## Item 2 — Valueflow Phase 3
 
-Read `claude/workstreams/agency/valueflow-plan-20260407.md`. Identify Phase 3 iterations assigned to devex workstream. Plan and execute them.
+Read `agency/workstreams/agency/valueflow-plan-20260407.md`. Identify Phase 3 iterations assigned to devex workstream. Plan and execute them.
 
 ## Item 3 — History rewrite of devex branch (Test User attribution)
 
@@ -47,7 +47,7 @@ Captain already did this on the iscp branch — reference that approach.
 
 Day 32 surfaced two patterns that should become hookify rules:
 
-1. **Dispatch loop on session start** — every agent should run `/loop 5m dispatch list --status unread` at session start. Documented in `claude/CLAUDE-THEAGENCY.md` under \"When You Have Mail\". Build a hookify warn rule that detects when an agent has been working >10min without a loop set up and reminds them.
+1. **Dispatch loop on session start** — every agent should run `/loop 5m dispatch list --status unread` at session start. Documented in `agency/CLAUDE-THEAGENCY.md` under \"When You Have Mail\". Build a hookify warn rule that detects when an agent has been working >10min without a loop set up and reminds them.
 2. **Don't push without authorization** — captain violated this 3x on Day 32. Hookify block rule that intercepts `git push` and requires either explicit principal authorization in the immediately-preceding turn OR a sentinel file. (Discuss in plan with captain — this is sensitive enforcement.)
 
 Plan both. Execute after captain review.

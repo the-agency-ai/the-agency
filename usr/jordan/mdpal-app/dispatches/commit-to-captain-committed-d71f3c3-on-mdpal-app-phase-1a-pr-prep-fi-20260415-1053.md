@@ -27,7 +27,7 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/receipts/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-1e05d67-20260415-1052.md
-claude/receipts/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-569b56c-20260415-1053.md
+agency/receipts/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-1e05d67-20260415-1052.md
+agency/receipts/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-569b56c-20260415-1053.md
 usr/jordan/mdpal-app/dispatches/commit-to-captain-committed-9ad894c-on-mdpal-app-housekeeping-drain--20260415-1053.md
 ```

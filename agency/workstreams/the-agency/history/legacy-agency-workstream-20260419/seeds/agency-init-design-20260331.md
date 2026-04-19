@@ -25,7 +25,7 @@ agency-init validates that git is initialized. It does not create the repo.
 - **Copy, don't symlink.** Framework files are copied into the target repo and committed. The project owns them.
 - **Manifest-driven updates.** A manifest tracks what was installed, at what version, with what checksum. Updates compare against manifest to detect user modifications.
 - **Three file tiers.** Every installed file has a tier (framework, config, scaffold) that governs update behavior.
-- **Tools are tools.** No distinction by implementation language — bash, python, rust, compiled binary. All live in `claude/tools/`.
+- **Tools are tools.** No distinction by implementation language — bash, python, rust, compiled binary. All live in `agency/tools/`.
 - **Single namespace.** Everything Agency-related lives under `claude/`. One top-level directory. Good neighbor in someone else's repo.
 - **Git is the safety net.** Updates don't auto-commit. `git checkout -- claude/` is the rollback. No custom staging or backup mechanism needed.
 
@@ -184,15 +184,15 @@ my-project/
 |-----------|---------|----------|
 | `.claude/` | Claude Code configuration (settings, commands, skills, worktrees) | Claude Code |
 | `claude/` | Agency framework — everything Agency-related | Agency |
-| `claude/agents/` | Agent class definitions — what a role IS | Framework |
+| `agency/agents/` | Agent class definitions — what a role IS | Framework |
 | `claude/usr/` | Agent instances — a principal's deployment of agent classes | Per-principal |
-| `claude/workstreams/` | Bodies of work with artifacts (PVR, A&D, Plan, QGR, Ref) | Per-workstream |
+| `agency/workstreams/` | Bodies of work with artifacts (PVR, A&D, Plan, QGR, Ref) | Per-workstream |
 
 ### Key Relationships
 
-- **Agent class** (`claude/agents/tech-lead/agent.md`) — what the role IS
+- **Agent class** (`agency/agents/tech-lead/agent.md`) — what the role IS
 - **Agent instance** (`claude/usr/jordan/devex/`) — who's filling the role, on what workstream
-- **Workstream** (`claude/workstreams/devex/`) — the body of work
+- **Workstream** (`agency/workstreams/devex/`) — the body of work
 
 Names can overlap. A workstream called `devex` can have an agent instance called `devex` (which is a tech-lead assigned to the devex workstream). The directory location disambiguates.
 
@@ -209,7 +209,7 @@ CLAUDE.md replaces the former KNOWLEDGE.md. Claude Code discovers CLAUDE.md file
 All artifacts are peers at the workstream root:
 
 ```
-claude/workstreams/devex/
+agency/workstreams/devex/
   devex-pvr-YYYYMMDD.md          # Product Vision & Requirements
   devex-ad-YYYYMMDD.md           # Architecture & Design
   devex-plan-YYYYMMDD.md         # Plan (phases, iterations)
@@ -252,41 +252,41 @@ Three tiers govern update behavior:
 
 ### Tier Assignment by Path
 
-Tier is assigned by directory pattern, not per-file lists. Add a tool to `claude/tools/` in the source — it's automatically framework tier. Add a hook to `claude/hooks/` — automatically config tier.
+Tier is assigned by directory pattern, not per-file lists. Add a tool to `agency/tools/` in the source — it's automatically framework tier. Add a hook to `agency/hooks/` — automatically config tier.
 
 **Precedence rule:** More specific patterns win. `claude/usr/**` (scaffold) takes precedence over `claude/*/CLAUDE.md` (framework) because `claude/usr/` is explicitly listed as scaffold.
 
 ```
 framework:
-  - claude/tools/**
-  - claude/tools/lib/**
+  - agency/tools/**
+  - agency/tools/lib/**
   - claude/docs/**
-  - claude/agents/*/agent.md
-  - claude/agents/*/README.md
+  - agency/agents/*/agent.md
+  - agency/agents/*/README.md
   - claude/agents/*/CLAUDE.md
-  - claude/templates/**
-  - claude/config/agency-dependencies.yaml
-  - claude/config/settings-template.json
-  - claude/README-*.md
+  - agency/templates/**
+  - agency/config/agency-dependencies.yaml
+  - agency/config/settings-template.json
+  - agency/README-*.md
   - .claude/commands/**
   - .claude/skills/**
 
 config:
   - claude/hooks/** (excluding README.md, CLAUDE.md which are framework)
-  - claude/hookify/*.md (shipped rules only — distinguished by presence in manifest)
+  - agency/hookify/*.md (shipped rules only — distinguished by presence in manifest)
 
 scaffold:
   - CLAUDE.md (repo root)
   - README.md (repo root)
-  - claude/config/agency.yaml
+  - agency/config/agency.yaml
   - .claude/settings.json
   - claude/usr/**
-  - claude/workstreams/**
+  - agency/workstreams/**
 ```
 
-**Distinguishing shipped vs user hookify rules:** A hookify rule is "shipped" if it exists in the source at init/update time and is tracked in the manifest. User-added rules in `claude/hookify/` are not in the manifest and are never touched.
+**Distinguishing shipped vs user hookify rules:** A hookify rule is "shipped" if it exists in the source at init/update time and is tracked in the manifest. User-added rules in `agency/hookify/` are not in the manifest and are never touched.
 
-**Deleted config-tier files:** If a user deletes a config-tier file that is in the manifest, agency-update treats the missing file as a user modification (intentional deletion) and skips it. The update summary warns: "Skipped (deleted by user): claude/hooks/foo.sh".
+**Deleted config-tier files:** If a user deletes a config-tier file that is in the manifest, agency-update treats the missing file as a user modification (intentional deletion) and skips it. The update summary warns: "Skipped (deleted by user): agency/hooks/foo.sh".
 
 Update only touches files tracked in the manifest. User-added files in any directory are never deleted.
 
@@ -296,15 +296,15 @@ Update only touches files tracked in the manifest. User-added files in any direc
 
 **Solution:** `claude/config/settings-template.json` is a framework-tier file (always current). The `settings-merge` tool diffs the template against the user's `.claude/settings.json` and adds missing permission entries and hook entries. It never removes or modifies existing entries.
 
-- **agency-update summary prompts:** "Run `./claude/tools/settings-merge` to pick up new permissions and hooks."
+- **agency-update summary prompts:** "Run `./agency/tools/settings-merge` to pick up new permissions and hooks."
 - **If `.claude/settings.json` is malformed:** `settings-merge` prints the exact JSON fragments to add manually instead of attempting a merge.
-- **`claude/config/agency.yaml`** follows the same pattern — scaffold, never overwritten, manual merge for new config keys.
+- **`agency/config/agency.yaml`** follows the same pattern — scaffold, never overwritten, manual merge for new config keys.
 
 ---
 
 ## Manifest Schema (v2)
 
-Lives at `claude/config/manifest.json`.
+Lives at `agency/config/manifest.json`.
 
 ```json
 {
@@ -322,12 +322,12 @@ Lives at `claude/config/manifest.json`.
     "principal": "jordan"
   },
   "files": {
-    "claude/tools/git-safe-commit": {
+    "agency/tools/git-safe-commit": {
       "hash": "sha256:abc123...",
       "tier": "framework",
       "installed_version": "2.0.0"
     },
-    "claude/hooks/ref-injector.sh": {
+    "agency/hooks/ref-injector.sh": {
       "hash": "sha256:def456...",
       "tier": "config",
       "installed_version": "2.0.0"
@@ -357,7 +357,7 @@ agency-init <target> [--principal <name>] [--project <name>] [--dev]
 ```
 
 1. **Validate** — target is a git repo (abort if not — do not offer to create). Agency source exists (AGENCY_SOURCE env var or auto-detect from script location).
-2. **Check not initialized** — if `claude/config/manifest.json` exists, abort with "use agency-update".
+2. **Check not initialized** — if `agency/config/manifest.json` exists, abort with "use agency-update".
 3. **Resolve defaults** — principal from `whoami` (lowercased, validated: `^[a-z][a-z0-9-]*$`), project from directory name, timezone from system.
 4. **Copy framework files** — all framework tier files from source to target.
 5. **Copy config files** — all config tier files from source to target.
@@ -376,8 +376,8 @@ agency-init <target> [--principal <name>] [--project <name>] [--dev]
 agency-update [--source <path>] [--dry-run]
 ```
 
-1. **Read manifest** — load `claude/config/manifest.json`. If missing, abort ("not an Agency project, use agency-init"). If `schema_version` is unrecognized, abort with version mismatch error.
-2. **Resolve source** — `--source` flag first, then AGENCY_SOURCE env var, then `source.path` from manifest. Validate that the resolved path exists and contains `claude/config/agency-dependencies.yaml`.
+1. **Read manifest** — load `agency/config/manifest.json`. If missing, abort ("not an Agency project, use agency-init"). If `schema_version` is unrecognized, abort with version mismatch error.
+2. **Resolve source** — `--source` flag first, then AGENCY_SOURCE env var, then `source.path` from manifest. Validate that the resolved path exists and contains `agency/config/agency-dependencies.yaml`.
 3. **If `--dry-run`** — perform all comparisons and print the summary (step 7) without writing any files. Exit.
 4. **For each file in the new source:**
    - **Framework tier** — overwrite always.
@@ -397,7 +397,7 @@ agency-update [--source <path>] [--dry-run]
      Added:   4 files (new in this version)
      Deprecated: 1 file (removed upstream)
 
-   Run ./claude/tools/settings-merge to pick up new permissions and hooks.
+   Run ./agency/tools/settings-merge to pick up new permissions and hooks.
    ```
 9. **No auto-commit** — user reviews changes with `git diff` and commits when ready. Rollback: `git checkout -- claude/`.
 
@@ -423,7 +423,7 @@ The `source/services/agency-service/` directory and its 10 embedded services are
 Actions:
 - Delete `source/services/agency-service/` entirely
 - Rewrite `.github/workflows/test.yml` to install bats and run `bats tests/` directly (no service startup, no health checks, no HTTP API)
-- Fix `.github/workflows/starter-verify.yml`: update `tools/myclaude` → `claude/tools/agency-verify` (or remove if myclaude was a starter-only artifact), update `source/services/agency-service` references → remove, update `tools/` → `claude/tools/` paths
+- Fix `.github/workflows/starter-verify.yml`: update `tools/myclaude` → `agency/tools/agency-verify` (or remove if myclaude was a starter-only artifact), update `source/services/agency-service` references → remove, update `tools/` → `agency/tools/` paths
 - Remove agency-service from manifest components
 
 ---

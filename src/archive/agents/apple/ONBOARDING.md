@@ -15,8 +15,8 @@
 
 ## Key Resources
 
-- Agent directory: `claude/agents/apple/`
-- Workstream: `claude/workstreams/gtm/`
+- Agent directory: `agency/agents/apple/`
+- Workstream: `agency/workstreams/gtm/`
 ## Getting Help
 
 ```bash

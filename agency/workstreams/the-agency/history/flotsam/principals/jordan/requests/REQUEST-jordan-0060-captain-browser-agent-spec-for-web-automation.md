@@ -21,7 +21,7 @@ User requested ability to:
 - Automate browser interactions
 
 ### Deliverables
-1. Create `claude/agents/browser/agent.md` spec
+1. Create `agency/agents/browser/agent.md` spec
 2. Define browser-agent capabilities and tools
 3. Document launch mechanism (via collaborate or direct)
 4. Integration with MCP browser tools
@@ -35,7 +35,7 @@ User requested ability to:
 
 ## Acceptance Criteria
 
-- [x] Create `claude/agents/browser/agent.md`
+- [x] Create `agency/agents/browser/agent.md`
 - [x] Define capabilities (basic and enhanced with MCP)
 - [x] Document launch methods (standalone, collaboration, programmatic)
 - [x] Define security boundaries
@@ -44,7 +44,7 @@ User requested ability to:
 ## Work Completed
 
 ### 2026-01-16 - Agent Spec Created
-- Created `claude/agents/browser/agent.md` with full spec
+- Created `agency/agents/browser/agent.md` with full spec
 - Defined basic capabilities (WebFetch, WebSearch)
 - Defined enhanced capabilities (with Browser MCP)
 - Documented launch methods: myclaude, collaborate, programmatic

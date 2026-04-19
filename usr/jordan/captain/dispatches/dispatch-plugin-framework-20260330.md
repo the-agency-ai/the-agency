@@ -88,7 +88,7 @@ design:
 
 ## Order of Operations
 
-1. Build provider resolution infrastructure (`_provider-resolve` in `claude/tools/lib/`)
+1. Build provider resolution infrastructure (`_provider-resolve` in `agency/tools/lib/`)
 2. Secrets — wire dispatcher to existing providers via agency.yaml
 3. Terminal — rename `ghostty-setup`, wire dispatcher
 4. Platform — rename `mac-setup`, build dispatcher, prioritize Linux provider

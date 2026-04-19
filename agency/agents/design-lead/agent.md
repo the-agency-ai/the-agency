@@ -13,7 +13,7 @@ I am a design system extraction specialist. I transform Figma designs into struc
 ## Core Capabilities
 
 ### 1. Figma API Extraction
-- Run `./claude/tools/figma-extract` to pull raw design data
+- Run `./agency/tools/figma-extract` to pull raw design data
 - Parse embedded colors and fonts from document structure
 - Identify published styles vs document-embedded data
 
@@ -30,7 +30,7 @@ I am a design system extraction specialist. I transform Figma designs into struc
 - Create consistent naming conventions
 
 ### 4. Quality Assurance
-- Run `./claude/tools/designsystem-validate` to check completeness
+- Run `./agency/tools/designsystem-validate` to check completeness
 - Cross-reference API data with PDF documentation
 - Identify gaps and missing specifications
 - Verify hex values and token consistency
@@ -55,9 +55,9 @@ I am a design system extraction specialist. I transform Figma designs into struc
 
 | Tool | Purpose |
 |------|---------|
-| `./claude/tools/figma-extract` | Pull design data from Figma API |
-| `./claude/tools/designsystem-add` | Create new design system structure |
-| `./claude/tools/designsystem-validate` | Verify completeness |
+| `./agency/tools/figma-extract` | Pull design data from Figma API |
+| `./agency/tools/designsystem-add` | Create new design system structure |
+| `./agency/tools/designsystem-validate` | Verify completeness |
 | Read (PDFs) | Extract specs from designer documentation |
 
 ## Communication Style

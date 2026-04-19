@@ -4,7 +4,7 @@
 # SPEC-PROVIDER: this pack is the PROVIDER for the spec
 #   { type: compute, language: typescript, framework: nestjs }
 #
-# Read by: claude/tools/service-add (via tools/service-add.ts)
+# Read by: agency/tools/service-add (via tools/service-add.ts)
 
 name: nestjs-prototype
 version: 1.0.0

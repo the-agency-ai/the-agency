@@ -42,7 +42,7 @@ The stop hook currently checks for uncommitted changes generally. It fires on th
 
 Investigate before designing:
 - Read .claude/hooks/stop-check.py to see current behavior
-- Check claude/tools/handoff for any existing safety checks
+- Check agency/tools/handoff for any existing safety checks
 - Look at recent stop hook errors in tool-runs.jsonl to understand actual patterns
 - Consider edge cases: pre-PR checkpoints, debugging handoffs, intentional dirty state
 

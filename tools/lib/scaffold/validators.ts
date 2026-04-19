@@ -117,11 +117,11 @@ export function validateWorkstream(name: string, repoRoot: string): ValidationRe
   if (!existsSync(dir)) {
     return {
       ok: false,
-      error: `Workstream "${name}" not found at claude/workstreams/${name}/ — create it first with /workstream-create`,
+      error: `Workstream "${name}" not found at agency/workstreams/${name}/ — create it first with /workstream-create`,
     };
   }
   if (!statSync(dir).isDirectory()) {
-    return { ok: false, error: `claude/workstreams/${name} exists but is not a directory` };
+    return { ok: false, error: `agency/workstreams/${name} exists but is not a directory` };
   }
   return { ok: true };
 }

@@ -29,11 +29,11 @@ Two changes:
 
 **Part A — `agency update --from-github` default → `main`.** Matches `git pull`, `npm update`, `brew update`, etc. Keep opt-in for latest-tag behavior via `--from-github @latest` sentinel. Add informational "N commits ahead" output when the update includes un-tagged work.
 
-**Part B — Mechanical release-tag enforcement on push-to-main.** New GitHub Actions workflow that runs on merge commits to main, reads `claude/config/manifest.json → agency_version`, and fails if `gh release view v{version}` doesn't succeed. Red CI is visible pressure on captain to cut the tag immediately. Complements (does not replace) the /post-merge skill.
+**Part B — Mechanical release-tag enforcement on push-to-main.** New GitHub Actions workflow that runs on merge commits to main, reads `agency/config/manifest.json → agency_version`, and fails if `gh release view v{version}` doesn't succeed. Red CI is visible pressure on captain to cut the tag immediately. Complements (does not replace) the /post-merge skill.
 
 ## File-level changes
 
-### 1. `claude/tools/lib/_agency-update`
+### 1. `agency/tools/lib/_agency-update`
 
 - **Line 71** (flag parsing): change default `FROM_GITHUB="latest"` → `FROM_GITHUB="main"`.
 - **Lines 159–168** (ref resolution): replace the `gh release view` branch. New behavior:
@@ -67,7 +67,7 @@ jobs:
         id: ver
         if: steps.ismerge.outputs.parents == '2'
         run: |
-          v=$(jq -r .agency_version claude/config/manifest.json)
+          v=$(jq -r .agency_version agency/config/manifest.json)
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Assert release exists
@@ -100,7 +100,7 @@ Add cases (extend existing fixture pattern):
 
 Test helper additions: a stub for `gh release view` if needed; otherwise inject `FROM_GITHUB=@latest` and assert the code path takes the `gh` branch.
 
-### 5. `claude/config/manifest.json`
+### 5. `agency/config/manifest.json`
 
 Bump `agency_version: 41.19 → 41.20`, stamp `updated_at`.
 
@@ -113,11 +113,11 @@ Bump `agency_version: 41.19 → 41.20`, stamp `updated_at`.
 
 ## Critical files
 
-- `/Users/jdm/code/the-agency/claude/tools/lib/_agency-update` (lines 71, 44–48, 159–168, 218–234)
+- `/Users/jdm/code/the-agency/agency/tools/lib/_agency-update` (lines 71, 44–48, 159–168, 218–234)
 - `/Users/jdm/code/the-agency/.github/workflows/release-tag-check.yml` (new)
 - `/Users/jdm/code/the-agency/.claude/skills/post-merge/SKILL.md` (Step 6)
 - `/Users/jdm/code/the-agency/tests/tools/agency-update.bats` (extend)
-- `/Users/jdm/code/the-agency/claude/config/manifest.json`
+- `/Users/jdm/code/the-agency/agency/config/manifest.json`
 
 ## Existing helpers to reuse
 
@@ -128,10 +128,10 @@ Bump `agency_version: 41.19 → 41.20`, stamp `updated_at`.
 ## Verification
 
 1. `bats tests/tools/agency-update.bats` all green.
-2. Manual: `./claude/tools/agency update --from-github --help` documents the new default + `@latest` opt-in.
-3. Manual: `./claude/tools/agency update --from-github` resolves to `main` (not latest tag).
-4. Manual: `./claude/tools/agency update --from-github @latest` resolves to latest release tag.
-5. Manual: regression — `./claude/tools/agency update --from-github v41.11` pulls that specific tag.
+2. Manual: `./agency/tools/agency update --from-github --help` documents the new default + `@latest` opt-in.
+3. Manual: `./agency/tools/agency update --from-github` resolves to `main` (not latest tag).
+4. Manual: `./agency/tools/agency update --from-github @latest` resolves to latest release tag.
+5. Manual: regression — `./agency/tools/agency update --from-github v41.11` pulls that specific tag.
 6. CI: the new workflow passes on a merge commit with correct release tag; fails red if release is missing.
 7. QG: full MAR (4 reviewers + scorer), RGR signed, pr-create verifies receipt hash.
 

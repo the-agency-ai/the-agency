@@ -43,7 +43,7 @@ The installer automatically:
 cd ~/the-agency-starter
 
 # Create a new project
-./claude/tools/project-create my-awesome-project
+./agency/tools/project-create my-awesome-project
 
 # Navigate to your project
 cd ~/my-awesome-project
@@ -52,7 +52,7 @@ cd ~/my-awesome-project
 ### Step 3: Launch the Captain
 
 ```bash
-./claude/tools/myclaude housekeeping captain
+./agency/tools/myclaude housekeeping captain
 ```
 
 On first launch, myclaude automatically:
@@ -88,16 +88,16 @@ Type `/agency-welcome` to start the interactive tour. The captain will:
 
 ```bash
 # Launch an agent
-./claude/tools/myclaude WORKSTREAM AGENTNAME [prompt]
+./agency/tools/myclaude WORKSTREAM AGENTNAME [prompt]
 
 # Create a new workstream
-./claude/tools/workstream-create my-feature
+./agency/tools/workstream-create my-feature
 
 # Create a new agent
-./claude/tools/agent-create my-feature my-agent
+./agency/tools/agent-create my-feature my-agent
 
 # Check tool version
-./claude/tools/myclaude --version
+./agency/tools/myclaude --version
 ```
 
 ## Core Concepts
@@ -126,13 +126,13 @@ Agents communicate through explicit tools:
 
 ```bash
 # Request help from another agent
-./claude/tools/collaborate agent-name "I need help with X"
+./agency/tools/collaborate agent-name "I need help with X"
 
 # Broadcast news to all agents
-./claude/tools/news-post "Released v1.0"
+./agency/tools/news-post "Released v1.0"
 
 # Read news updates
-./claude/tools/news-read
+./agency/tools/news-read
 ```
 
 ## Secret Service
@@ -143,7 +143,7 @@ The Agency includes a built-in secret service for secure credential management.
 
 ```bash
 # Initialize the vault (creates master passphrase)
-./claude/tools/secret vault init
+./agency/tools/secret vault init
 
 # You'll be prompted to create a master passphrase
 # This encrypts all secrets - don't lose it!
@@ -153,16 +153,16 @@ The Agency includes a built-in secret service for secure credential management.
 
 ```bash
 # Store a secret (e.g., API key)
-./claude/tools/secret create anthropic-api-key --type=api_key --service=Anthropic
+./agency/tools/secret create anthropic-api-key --type=api_key --service=Anthropic
 
 # Retrieve a secret
-./claude/tools/secret get anthropic-api-key
+./agency/tools/secret get anthropic-api-key
 
 # List all secrets
-./claude/tools/secret list
+./agency/tools/secret list
 
 # Unlock vault (if locked after timeout)
-./claude/tools/secret vault unlock
+./agency/tools/secret vault unlock
 ```
 
 ### Security Model
@@ -178,10 +178,10 @@ If you have existing secrets:
 
 ```bash
 # Preview what will be migrated
-./claude/tools/secret-migrate --dry-run
+./agency/tools/secret-migrate --dry-run
 
 # Run the migration
-./claude/tools/secret-migrate
+./agency/tools/secret-migrate
 
 # Remove .env files after migration
 ```
@@ -203,13 +203,13 @@ The service runs on port 3141 and is automatically started by `myclaude`.
 
 ```bash
 # Start the service
-./claude/tools/agency-service start
+./agency/tools/agency-service start
 
 # Stop the service
-./claude/tools/agency-service stop
+./agency/tools/agency-service stop
 
 # Check status
-./claude/tools/agency-service status
+./agency/tools/agency-service status
 ```
 
 ## Quality Gates
@@ -225,7 +225,7 @@ Pre-commit hooks enforce standards automatically:
 Run manually with:
 
 ```bash
-./claude/tools/commit-precheck
+./agency/tools/commit-precheck
 ```
 
 ## Session Context
@@ -234,7 +234,7 @@ Agents automatically save and restore session context:
 
 ```bash
 # Save context manually
-./claude/tools/context-save --checkpoint "Completed feature X"
+./agency/tools/context-save --checkpoint "Completed feature X"
 
 # Context auto-restores on next session start
 ```
@@ -259,9 +259,9 @@ source/
 ## Next Steps
 
 1. **Run the tour:** Type `/agency-welcome` in your first session
-2. **Create a workstream:** `./claude/tools/workstream-create my-feature`
-3. **Create an agent:** `./claude/tools/agent-create my-feature my-agent`
-4. **Start working:** `./claude/tools/myclaude my-feature my-agent "Build feature X"`
+2. **Create a workstream:** `./agency/tools/workstream-create my-feature`
+3. **Create an agent:** `./agency/tools/agent-create my-feature my-agent`
+4. **Start working:** `./agency/tools/myclaude my-feature my-agent "Build feature X"`
 
 ## Troubleshooting
 
@@ -271,7 +271,7 @@ If `/agency-welcome` doesn't work after installation:
 
 1. **Always use myclaude to launch Claude:**
    ```bash
-   ./claude/tools/myclaude housekeeping captain
+   ./agency/tools/myclaude housekeeping captain
    ```
    Don't run `claude` directly - myclaude ensures proper directory context.
 
@@ -284,7 +284,7 @@ If `/agency-welcome` doesn't work after installation:
 3. **Restart Claude from project directory:**
    ```bash
    cd ~/your-project
-   ./claude/tools/myclaude housekeeping captain
+   ./agency/tools/myclaude housekeeping captain
    ```
 
 ### Dependencies Missing
@@ -293,10 +293,10 @@ If you see "command not found" errors:
 
 ```bash
 # Check all dependencies
-./claude/tools/dependencies-check --verbose
+./agency/tools/dependencies-check --verbose
 
 # Install missing dependencies
-./claude/tools/dependencies-check --fix
+./agency/tools/dependencies-check --fix
 ```
 
 ### Services Not Starting
@@ -305,14 +305,14 @@ If agency-service fails to start:
 
 ```bash
 # Check service status
-./claude/tools/agency-service status
+./agency/tools/agency-service status
 
 # Restart the service
-./claude/tools/agency-service stop
-./claude/tools/agency-service start
+./agency/tools/agency-service stop
+./agency/tools/agency-service start
 
 # Check logs
-./claude/tools/log recent
+./agency/tools/log recent
 ```
 
 ## Getting Help
@@ -320,7 +320,7 @@ If agency-service fails to start:
 The captain is always available:
 
 ```bash
-./claude/tools/myclaude housekeeping captain "I need help with..."
+./agency/tools/myclaude housekeeping captain "I need help with..."
 ```
 
 ---

@@ -66,8 +66,8 @@ Knowledge follows the same precedence as tools:
 
 ```
 Lookup order for agent knowledge:
-1. claude/agents/{agent}/KNOWLEDGE.local.md   # Project-specific
-2. claude/agents/{agent}/KNOWLEDGE.md         # Framework baseline
+1. agency/agents/{agent}/KNOWLEDGE.local.md   # Project-specific
+2. agency/agents/{agent}/KNOWLEDGE.md         # Framework baseline
 
 Lookup order for general knowledge:
 1. claude/knowledge/local/{topic}.md          # Project-specific

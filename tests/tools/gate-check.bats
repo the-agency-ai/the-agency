@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/gate-check"
+    TOOL="$REPO_ROOT/agency/tools/gate-check"
 
     TMP_REPO="$(mktemp -d -t gc.XXXXXX)"
     cd "$TMP_REPO"
@@ -336,7 +336,7 @@ EOF
     [ "$status" -eq 1 ]
 }
 
-@test "gate 4.5: settings.json references claude/hooks/" {
+@test "gate 4.5: settings.json references agency/hooks/" {
     mkdir -p .claude
     cat > .claude/settings.json <<'EOF'
 {"hooks": {"PreToolUse": [{"hooks": [{"command": "$CLAUDE_PROJECT_DIR/claude/hooks/x.sh"}]}]}}

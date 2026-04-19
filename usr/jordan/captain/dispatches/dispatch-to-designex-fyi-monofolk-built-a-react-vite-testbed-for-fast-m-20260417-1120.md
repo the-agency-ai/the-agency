@@ -20,7 +20,7 @@ Pattern: validate UX in web (seconds per iteration), then RN agent implements th
 Likely relevant to your Figma-to-code pipeline thinking. The 'web as fast iteration surface for native UX' pattern could inform how we structure the designex codegen pipeline — validate in browser before committing to platform-specific code.
 
 Their artifacts (monofolk repo, not ours):
-- PVR/A&D/Plan at claude/workstreams/of-mobile/noah-web-testbed-*.md
+- PVR/A&D/Plan at agency/workstreams/of-mobile/noah-web-testbed-*.md
 - App scaffold at apps/noah-web-mobile/ (Phase 1 complete, 22 source files)
 
 No action needed. Just awareness.

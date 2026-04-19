@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to **The Agency** — a framework for AI-augmented software development. Whether you're fixing a typo, reporting a bug, improving the docs, or building a new tool, we welcome your help.
 
-This document is the front door for community contributors. If you're looking for the deep reference on our trust and verification model, see [CONTRIBUTION-MODEL.md](claude/REFERENCE-CONTRIBUTION-MODEL.md). If you're looking for the methodology, see [claude/CLAUDE-THEAGENCY.md](claude/CLAUDE-THEAGENCY.md).
+This document is the front door for community contributors. If you're looking for the deep reference on our trust and verification model, see [CONTRIBUTION-MODEL.md](agency/REFERENCE-CONTRIBUTION-MODEL.md). If you're looking for the methodology, see [agency/CLAUDE-THEAGENCY.md](agency/CLAUDE-THEAGENCY.md).
 
 ## TL;DR
 
@@ -29,7 +29,7 @@ The Agency uses a **three-ring contribution model** that matches review discipli
 
 Don't be intimidated by the word "framework." If your PR is one line that fixes a typo, that's a valid PR. If it's a new tool that does something cool, that's also a valid PR. All sizes are welcome.
 
-Full detail on how the rings work: [CONTRIBUTION-MODEL.md](claude/REFERENCE-CONTRIBUTION-MODEL.md).
+Full detail on how the rings work: [CONTRIBUTION-MODEL.md](agency/REFERENCE-CONTRIBUTION-MODEL.md).
 
 ## Before you start
 
@@ -102,9 +102,9 @@ You don't need to follow our internal commit message convention — that's for o
 
 A few project conventions that will make review easier:
 
-- **Provenance headers** on new scripts and significant modules — explain *what problem* the code solves and *how & why* you chose your approach. See examples in `claude/tools/` for the format.
+- **Provenance headers** on new scripts and significant modules — explain *what problem* the code solves and *how & why* you chose your approach. See examples in `agency/tools/` for the format.
 - **No silent failures** — fail loudly or handle explicitly. If you suppress an error, comment why.
-- **Use the dedicated tools** when available — `claude/tools/` has many utilities; prefer them over inline bash.
+- **Use the dedicated tools** when available — `agency/tools/` has many utilities; prefer them over inline bash.
 - **Follow existing patterns** — if there's a similar tool or skill that does something close to what you're building, match its structure.
 
 ## Opening your Pull Request
@@ -162,7 +162,7 @@ The PR template is there to help you structure your submission. If something doe
 ## What can you contribute?
 
 - **Bug fixes** — fix issues you encounter
-- **New tools** — add utilities to `claude/tools/`
+- **New tools** — add utilities to `agency/tools/`
 - **New skills** — add skills to `.claude/skills/`
 - **New agents** — build specialized agent classes
 - **Starter packs** — framework-specific conventions and templates

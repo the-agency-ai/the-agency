@@ -27,7 +27,7 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/tools/lib/_agency-update
+agency/tools/lib/_agency-update
 tests/tools/agency-update.bats
 usr/jordan/devex/dispatches/commit-to-captain-committed-3e6ca03-on-devex-feat-large-file-commit--20260415-0827.md
 usr/jordan/devex/dispatches/dispatch-to-captain-d41-r4-ack-draft-monofolk-acknowledgment-for-relay-20260415-0829.md

@@ -50,7 +50,7 @@ This worktree is currently held in `warning` state by `agency-health` and will s
 
 ## Related
 
-- `agency-health` tool: `claude/tools/agency-health` (new in Day 34.4 — run it with `--target mdpal-app` to see your own state)
+- `agency-health` tool: `agency/tools/agency-health` (new in Day 34.4 — run it with `--target mdpal-app` to see your own state)
 - Flag #69 — workstream-create input validation (the \"claude path is the same class of bug)
 - 133 commits behind main includes Day 34.1-34.4 work: agency-version, run-in Triangle, #56/#57/#171 fixes, agency-health itself
 

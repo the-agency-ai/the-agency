@@ -1,6 +1,6 @@
 # Push Log
 
-Accountability log for all remote pushes. All agents must use `./claude/tools/git-sync`.
+Accountability log for all remote pushes. All agents must use `./agency/tools/git-sync`.
 
 | Timestamp | Agent | Commits | Skip CI | Branch |
 |-----------|-------|---------|---------|--------|

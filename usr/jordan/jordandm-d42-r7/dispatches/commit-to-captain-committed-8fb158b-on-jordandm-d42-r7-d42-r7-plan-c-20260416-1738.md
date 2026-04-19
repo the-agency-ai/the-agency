@@ -31,9 +31,9 @@ in_reply_to: null
 .claude/hooks/plan-capture.py
 .gitignore
 CLAUDE.md
-claude/REFERENCE-TOOL-BUILDING.md
-claude/config/manifest.json
-claude/workstreams/the-agency/qgr/the-agency-jordan-captain-the-agency-the-agency-qgr-pr-prep-20260416-1732-231d6ef.md
+agency/REFERENCE-TOOL-BUILDING.md
+agency/config/manifest.json
+agency/workstreams/the-agency/qgr/the-agency-jordan-captain-the-agency-the-agency-qgr-pr-prep-20260416-1732-231d6ef.md
 tests/tools/release-plan.bats
 usr/jordan/captain/history/handoff-20260416-172632.md
 ```

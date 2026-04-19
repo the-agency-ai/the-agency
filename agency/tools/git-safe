@@ -39,7 +39,7 @@ usage() {
     cat <<'USAGE'
 git-safe — Safe git operations for all agents
 
-Usage: ./claude/tools/git-safe <subcommand> [args...]
+Usage: ./agency/tools/git-safe <subcommand> [args...]
 
 Subcommands (read-only):
   status [args]          git status

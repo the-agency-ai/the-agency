@@ -21,7 +21,7 @@ Scope for D41-R7:
 
 Tests: BATS coverage for each.
 
-Workaround I can relay to monofolk NOW (while you build): use ./claude/tools/git-captain merge-continue from D41-R5 to conclude a merge after manual file resolution. That's already shipped.
+Workaround I can relay to monofolk NOW (while you build): use ./agency/tools/git-captain merge-continue from D41-R5 to conclude a merge after manual file resolution. That's already shipped.
 
 After R7 lands, R4 (large-file) + R6 (dirty-tree gate) can ship as your next two.
 

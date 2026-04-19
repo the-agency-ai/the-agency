@@ -77,18 +77,18 @@ The rest of The Agency's documentation lives in `claude/`:
 
 | Topic | Document |
 |-------|----------|
-| Agency bootloader (tools, skills, gates, principles) | `claude/CLAUDE-THEAGENCY.md` |
-| Repo structure | `claude/REFERENCE-REPO-STRUCTURE.md` |
-| Agent & principal addressing | `claude/REFERENCE-AGENT-ADDRESSING.md` |
-| Quality gate protocol | `claude/REFERENCE-QUALITY-GATE.md` |
-| Development methodology (Valueflow, MAR, three-bucket) | `claude/REFERENCE-DEVELOPMENT-METHODOLOGY.md` |
-| Worktree discipline | `claude/REFERENCE-WORKTREE-DISCIPLINE.md` |
-| Handoff spec | `claude/REFERENCE-HANDOFF-SPEC.md` |
-| ISCP protocol | `claude/REFERENCE-ISCP-PROTOCOL.md` |
-| Code review & PR lifecycle | `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md` |
-| Git discipline (merge, never rebase) | `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` |
-| Safe tools family | `claude/REFERENCE-SAFE-TOOLS.md` |
-| Enforcement model | `claude/README-ENFORCEMENT.md` |
+| Agency bootloader (tools, skills, gates, principles) | `agency/CLAUDE-THEAGENCY.md` |
+| Repo structure | `agency/REFERENCE-REPO-STRUCTURE.md` |
+| Agent & principal addressing | `agency/REFERENCE-AGENT-ADDRESSING.md` |
+| Quality gate protocol | `agency/REFERENCE-QUALITY-GATE.md` |
+| Development methodology (Valueflow, MAR, three-bucket) | `agency/REFERENCE-DEVELOPMENT-METHODOLOGY.md` |
+| Worktree discipline | `agency/REFERENCE-WORKTREE-DISCIPLINE.md` |
+| Handoff spec | `agency/REFERENCE-HANDOFF-SPEC.md` |
+| ISCP protocol | `agency/REFERENCE-ISCP-PROTOCOL.md` |
+| Code review & PR lifecycle | `agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md` |
+| Git discipline (merge, never rebase) | `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md` |
+| Safe tools family | `agency/REFERENCE-SAFE-TOOLS.md` |
+| Enforcement model | `agency/README-ENFORCEMENT.md` |
 
 Relevant docs are auto-injected when you invoke a skill. Read them directly when you're working outside a skill context.
 

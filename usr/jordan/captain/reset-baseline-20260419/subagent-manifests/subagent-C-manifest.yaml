@@ -22,13 +22,13 @@ excludes:
   - src/archive/tests/**
 
 allowed_substitutions:
-  - pattern: "claude/tools/"
+  - pattern: "agency/tools/"
     replacement: "agency/tools/"
-  - pattern: "claude/hooks/"
+  - pattern: "agency/hooks/"
     replacement: "agency/hooks/"
-  - pattern: "claude/hookify/"
+  - pattern: "agency/hookify/"
     replacement: "agency/hookify/"
-  - pattern: "claude/config/"
+  - pattern: "agency/config/"
     replacement: "agency/config/"
 
 rejected_substitutions:

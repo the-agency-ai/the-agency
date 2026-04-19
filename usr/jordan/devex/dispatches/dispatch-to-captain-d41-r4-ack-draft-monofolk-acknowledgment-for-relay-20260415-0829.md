@@ -25,7 +25,7 @@ Shipped in the-agency framework as D41-R4 (commit 3e6ca03 on devex branch, landi
 - Every staged file sized at commit-precheck time.
 - Warn >1 MB, block >10 MB. Env overrides: `LARGE_FILE_WARN_BYTES` / `LARGE_FILE_BLOCK_BYTES`.
 - Bypass (one commit): `git-safe-commit --allow-large` or `ALLOW_LARGE_COMMIT=1`.
-- Permanent exceptions: `claude/config/large-file-exceptions.txt` (glob per line; matches full path or basename).
+- Permanent exceptions: `agency/config/large-file-exceptions.txt` (glob per line; matches full path or basename).
 
 **Why these defaults:** GitHub soft-caps at 50 MB warn / 100 MB reject. By then the commit is local and requires history rewrite. 10 MB block is conservative enough to catch accidents before they calcify.
 

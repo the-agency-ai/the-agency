@@ -15,8 +15,8 @@
 
 ## Key Resources
 
-- Agent directory: `claude/agents/gumroad/`
-- Workstream: `claude/workstreams/gtm/`
+- Agent directory: `agency/agents/gumroad/`
+- Workstream: `agency/workstreams/gtm/`
 ## Getting Help
 
 ```bash

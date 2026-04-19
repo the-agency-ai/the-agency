@@ -208,7 +208,7 @@ entries:
   - id: hook.block-raw-tools
     kind: hook
     source: src/hooks/block-raw-tools.sh
-    destination: claude/hooks/block-raw-tools.sh
+    destination: agency/hooks/block-raw-tools.sh
     op: copy
     scope: [framework-dev, adopter]
     ownership: framework
@@ -243,7 +243,7 @@ entries:
   - id: workstream.{repo}
     kind: workstream
     source: src/templates/workstream/
-    destination_template: "claude/workstreams/{repo}/"
+    destination_template: "agency/workstreams/{repo}/"
     op: template-expand
     scope: [adopter]
     ownership: user-owned

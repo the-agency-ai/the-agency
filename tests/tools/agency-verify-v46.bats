@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/agency-verify-v46"
+    TOOL="$REPO_ROOT/agency/tools/agency-verify-v46"
 
     TMP_REPO="$(mktemp -d -t avv.XXXXXX)"
     cd "$TMP_REPO"
@@ -67,7 +67,7 @@ EOF
     [ "$status" -eq 10 ]
 }
 
-@test "detects stale claude/hooks/ in settings.json (exit 11)" {
+@test "detects stale agency/hooks/ in settings.json (exit 11)" {
     make_v46_tree
     # Corrupt settings to reference old path
     cat > .claude/settings.json <<'EOF'
@@ -86,10 +86,10 @@ EOF
     [ "$status" -eq 11 ]
 }
 
-@test "detects stale @claude/agents/ in registration (exit 12)" {
+@test "detects stale @agency/agents/ in registration (exit 12)" {
     make_v46_tree
     cat > .claude/agents/jordan/captain.md <<'EOF'
-@import @claude/agents/captain/agent.md
+@import @agency/agents/captain/agent.md
 EOF
     git add -A; git commit -q -m update
     run "$TOOL" --customer

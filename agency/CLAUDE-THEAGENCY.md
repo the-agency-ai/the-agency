@@ -21,15 +21,15 @@ This is **TheAgency framework development repo** — open core (MIT framework, R
 - `claude/` — framework: tools, agents, docs, hooks, hookify rules, config, skills, templates
 - `usr/` — principal sandboxes (at **project root**, NOT under `claude/`)
 - `.claude/skills/` — skill definitions (discover via `/` autocomplete)
-- `claude/hookify/` — behavioral enforcement rules (40 rules — blocks, warns, informs)
-- `claude/REFERENCE-*.md` — reference docs (injected on demand by `ref-injector.sh` when skills run)
+- `agency/hookify/` — behavioral enforcement rules (40 rules — blocks, warns, informs)
+- `agency/REFERENCE-*.md` — reference docs (injected on demand by `ref-injector.sh` when skills run)
 
 ## How You Work
 
 1. **Skills are the interface.** Use `/` autocomplete to discover capabilities. Skills invoke tools with correct parameters and trigger ref-injector to provide protocol docs when needed.
 2. **Hookify enforces mechanically.** If you try something wrong (raw `git commit`, compound bash, force push, cd to main), a hookify rule blocks you with guidance on what to do instead.
 3. **Ref-injector provides context on demand.** When you invoke a skill, the hook injects the relevant reference doc into your context — full protocol detail exactly when you need it.
-4. **Handoff tool for session context.** Use `/handoff` or `./claude/tools/handoff write` — never write handoff files manually.
+4. **Handoff tool for session context.** Use `/handoff` or `./agency/tools/handoff write` — never write handoff files manually.
 5. **ISCP for communication.** Dispatches and flags via `/dispatch` and `/flag` skills. Start `/monitor-dispatches` at session start for real-time notification.
 
 ## Key Skills
@@ -59,9 +59,9 @@ All commands in the table below are blocked by hookify (decision:block + exit 2 
 | Blocked command | Safe alternative | Why |
 |----------------|-----------------|-----|
 | `git *` (all subcommands) | `git-safe` (read + merge ops), `git-captain` (captain-only: push, fetch, tag, merge-to-master, switch-branch), `/git-safe-commit` (commits) | Role-scoped git access |
-| `git push` | `./claude/tools/git-push` (via `/sync`, `/release`) | All pushes go through PRs |
-| `cp` | `./claude/tools/cp-safe` | Blocks cross-worktree copies |
-| `gh pr create` | `./claude/tools/pr-create` (via `/release`) | Requires QGR + version bump |
+| `git push` | `./agency/tools/git-push` (via `/sync`, `/release`) | All pushes go through PRs |
+| `cp` | `./agency/tools/cp-safe` | Blocks cross-worktree copies |
+| `gh pr create` | `./agency/tools/pr-create` (via `/release`) | Requires QGR + version bump |
 
 ## Valueflow Stream Model
 
@@ -81,24 +81,24 @@ Injected automatically when relevant skills run. Read directly when you need the
 
 | Topic | Document |
 |-------|----------|
-| Repo structure & directory tree | `claude/REFERENCE-REPO-STRUCTURE.md` |
-| Agent & principal addressing | `claude/REFERENCE-AGENT-ADDRESSING.md` |
-| Quality gate protocol | `claude/REFERENCE-QUALITY-GATE.md` |
-| Development methodology (Valueflow, MAR, three-bucket) | `claude/REFERENCE-DEVELOPMENT-METHODOLOGY.md` |
-| Worktrees, master, and agent roles | `claude/REFERENCE-WORKTREE-DISCIPLINE.md` |
-| Session handoff spec | `claude/REFERENCE-HANDOFF-SPEC.md` |
-| ISCP protocol (dispatches & flags) | `claude/REFERENCE-ISCP-PROTOCOL.md` |
-| Code review & PR lifecycle | `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md` |
-| Git discipline (merge, never rebase) | `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` |
-| Feedback & bug report format | `claude/REFERENCE-FEEDBACK-FORMAT.md` |
-| Provenance headers & script discipline | `claude/REFERENCE-PROVENANCE-HEADERS.md` |
-| Testing & quality discipline | `claude/REFERENCE-QUALITY-DISCIPLINE.md` |
-| Enforcement model (Triangle, Ladder, all rules) | `claude/README-ENFORCEMENT.md` |
-| Contribution model (three rings of trust) | `claude/REFERENCE-CONTRIBUTION-MODEL.md` |
-| Concepts & onboarding | `claude/REFERENCE-CONCEPTS.md` |
-| Safe tools family (git-safe, git-captain, cp-safe, pr-create) | `claude/REFERENCE-SAFE-TOOLS.md` |
-| Receipt infrastructure (five-hash chain, receipt-sign, receipt-verify) | `claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md` |
-| Agent discipline — Two Priorities + Over/Over-and-out (universal) | `claude/REFERENCE-AGENT-DISCIPLINE.md` |
+| Repo structure & directory tree | `agency/REFERENCE-REPO-STRUCTURE.md` |
+| Agent & principal addressing | `agency/REFERENCE-AGENT-ADDRESSING.md` |
+| Quality gate protocol | `agency/REFERENCE-QUALITY-GATE.md` |
+| Development methodology (Valueflow, MAR, three-bucket) | `agency/REFERENCE-DEVELOPMENT-METHODOLOGY.md` |
+| Worktrees, master, and agent roles | `agency/REFERENCE-WORKTREE-DISCIPLINE.md` |
+| Session handoff spec | `agency/REFERENCE-HANDOFF-SPEC.md` |
+| ISCP protocol (dispatches & flags) | `agency/REFERENCE-ISCP-PROTOCOL.md` |
+| Code review & PR lifecycle | `agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md` |
+| Git discipline (merge, never rebase) | `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md` |
+| Feedback & bug report format | `agency/REFERENCE-FEEDBACK-FORMAT.md` |
+| Provenance headers & script discipline | `agency/REFERENCE-PROVENANCE-HEADERS.md` |
+| Testing & quality discipline | `agency/REFERENCE-QUALITY-DISCIPLINE.md` |
+| Enforcement model (Triangle, Ladder, all rules) | `agency/README-ENFORCEMENT.md` |
+| Contribution model (three rings of trust) | `agency/REFERENCE-CONTRIBUTION-MODEL.md` |
+| Concepts & onboarding | `agency/REFERENCE-CONCEPTS.md` |
+| Safe tools family (git-safe, git-captain, cp-safe, pr-create) | `agency/REFERENCE-SAFE-TOOLS.md` |
+| Receipt infrastructure (five-hash chain, receipt-sign, receipt-verify) | `agency/REFERENCE-RECEIPT-INFRASTRUCTURE.md` |
+| Agent discipline — Two Priorities + Over/Over-and-out (universal) | `agency/REFERENCE-AGENT-DISCIPLINE.md` |
 
 ## Core Principles
 
@@ -116,7 +116,7 @@ Injected automatically when relevant skills run. Read directly when you need the
 
 ## Universal Agent Discipline
 
-Every agent — captain, worktree, subagent — follows two standing priorities and the Over / Over-and-out protocol. Full spec: `claude/REFERENCE-AGENT-DISCIPLINE.md` (read on demand).
+Every agent — captain, worktree, subagent — follows two standing priorities and the Over / Over-and-out protocol. Full spec: `agency/REFERENCE-AGENT-DISCIPLINE.md` (read on demand).
 
 1. **Principal first.** When the principal speaks, stop current work and respond. You give full attention to what they bring.
 2. **Dispatches second.** Read unread dispatches at session start, before other work. An unread dispatch is a blocked person.

@@ -9,7 +9,7 @@
 # checks against a blocklist of raw commands that have superior built-in
 # alternatives. Returns exit 2 (block) with an educative message pointing
 # to the correct tool. Allows exceptions: commands inside framework tools
-# (./claude/tools/*), git subcommands (git grep, git log), and explicit
+# (./agency/tools/*), git subcommands (git grep, git log), and explicit
 # opt-out via AGENCY_ALLOW_RAW=1.
 #
 # This is the Enforcement Triangle at full strength: code enforcement,
@@ -44,9 +44,9 @@ fi
 # Block git-captain for non-captain agents (belt-and-suspenders)
 # Only match when git-captain is the COMMAND being invoked, not mentioned in args/strings
 TRIMMED_CMD=$(echo "$COMMAND" | sed 's/^[[:space:]]*//')
-if [[ "$TRIMMED_CMD" =~ ^git-captain([[:space:]]|$) ]] || [[ "$TRIMMED_CMD" =~ ^\./claude/tools/git-captain([[:space:]]|$) ]]; then
+if [[ "$TRIMMED_CMD" =~ ^git-captain([[:space:]]|$) ]] || [[ "$TRIMMED_CMD" =~ ^\./agency/tools/git-captain([[:space:]]|$) ]]; then
     # Resolve identity — if not captain, block
-    agent_name=$(./claude/tools/agent-identity --field agent 2>/dev/null || echo "")
+    agent_name=$(./agency/tools/agent-identity --field agent 2>/dev/null || echo "")
     if [[ "$agent_name" != "captain" ]]; then
         printf '{"decision":"block","reason":"BLOCKED: git-captain is captain-only. Agents use /git-safe for git operations.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
         exit 2
@@ -64,19 +64,19 @@ TRIMMED=$(echo "$COMMAND" | sed 's/^[[:space:]]*//')
 
 # Block raw gh pr merge — use pr-merge tool
 if [[ "$TRIMMED" =~ ^gh[[:space:]]+pr[[:space:]]+merge ]]; then
-    printf '{"decision":"block","reason":"🚫 BLOCKED: Raw `gh pr merge` is not allowed. Use `./claude/tools/pr-merge` (or `/pr-merge` skill) instead.\\n\\nThe safe wrapper always uses true merge commit (--merge), refuses --squash and --rebase, and requires --principal-approved for --admin override.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+    printf '{"decision":"block","reason":"🚫 BLOCKED: Raw `gh pr merge` is not allowed. Use `./agency/tools/pr-merge` (or `/pr-merge` skill) instead.\\n\\nThe safe wrapper always uses true merge commit (--merge), refuses --squash and --rebase, and requires --principal-approved for --admin override.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
     exit 2
 fi
 
 # Block raw gh release create — use gh-release tool or /post-merge
 if [[ "$TRIMMED" =~ ^gh[[:space:]]+release[[:space:]]+create ]]; then
-    printf '{"decision":"block","reason":"🚫 BLOCKED: Raw `gh release create` is not allowed. Use `./claude/tools/gh-release` (direct) or `/post-merge` (after PR merge) or `/release` (full workflow).\\n\\nReleases are framework boundaries — version must match manifest, notes must follow D{day}-R{release} format.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
+    printf '{"decision":"block","reason":"🚫 BLOCKED: Raw `gh release create` is not allowed. Use `./agency/tools/gh-release` (direct) or `/post-merge` (after PR merge) or `/release` (full workflow).\\n\\nReleases are framework boundaries — version must match manifest, notes must follow D{day}-R{release} format.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
     exit 2
 fi
 
 # Block ALL raw git commands — agents must use git-safe/git-captain/git-safe-commit
 # Framework tools that call git internally are already exempted by the
-# ./claude/tools/ path check above.
+# ./agency/tools/ path check above.
 if [[ "$TRIMMED" =~ ^git[[:space:]] ]] || [[ "$TRIMMED" == "git" ]]; then
     printf '{"decision":"block","reason":"🚫 BLOCKED: Only safe git operations allowed. Use the git-safe family:\\n- /git-safe — status, log, diff, branch, show, blame, add, merge-from-master\\n- /git-safe-commit — commit with QG awareness\\n- /git-captain — captain only: push, fetch, tag, merge-to-master, checkout-branch, branch-delete\\n\\nIf you cannot do what you need with these, escalate to captain.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
     exit 2

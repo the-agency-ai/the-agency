@@ -4,7 +4,7 @@
 # EVERY commit including raw ones, so it's the defense-in-depth layer.
 #
 # How & Why: Reads the commit message file (passed as $1 by git), sources the
-# shared validator from claude/tools/lib/_commit-prefix, and rejects the commit
+# shared validator from agency/tools/lib/_commit-prefix, and rejects the commit
 # if the message doesn't match the convention. The validator itself reads the
 # opt-in flag from agency.yaml, so this hook is a no-op when the flag is false.
 #
@@ -17,7 +17,7 @@ MESSAGE_FILE="$1"
 
 # Locate the validator relative to repo root
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-VALIDATOR="$REPO_ROOT/claude/tools/lib/_commit-prefix"
+VALIDATOR="$REPO_ROOT/agency/tools/lib/_commit-prefix"
 
 [[ -f "$VALIDATOR" ]] || exit 0  # validator missing — fail open
 

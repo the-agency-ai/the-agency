@@ -73,7 +73,7 @@ Derived from contract §1–§12. Mac MVP is the full contract:
 ### 1.6 Acceptance criteria
 
 MVP is complete when:
-1. All 8 fixtures in `claude/workstreams/mdslidepal/fixtures/` open, parse, and render without errors.
+1. All 8 fixtures in `agency/workstreams/mdslidepal/fixtures/` open, parse, and render without errors.
 2. Fixture 06 (front-matter) exposes `title`, `author`, `theme`, `date` to the theme engine and honors `theme: agency-dark` as a theme switch.
 3. Fixture 07 (speaker notes) shows notes in presenter view and NEVER in the audience view.
 4. Fixture 08 (edge cases) produces the expected slide count (no phantom empty slides from trailing `---`, no slide breaks from `---` inside fenced code blocks).
@@ -288,7 +288,7 @@ apps/mdslidepal-mac/                    (Mac app lives in apps/, not workstreams
         └── FixtureAcceptanceTests.swift      (all 8 fixtures, slide-count + structural)
 ```
 
-**Resource symlinks to workstream themes:** the build script copies (or symlinks at dev time) `claude/workstreams/mdslidepal/themes/*.json` into `Resources/Themes/` so the `.app` bundle ships them. Source of truth remains the workstream directory (contract §9).
+**Resource symlinks to workstream themes:** the build script copies (or symlinks at dev time) `agency/workstreams/mdslidepal/themes/*.json` into `Resources/Themes/` so the `.app` bundle ships them. Source of truth remains the workstream directory (contract §9).
 
 ---
 

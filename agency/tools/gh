@@ -2,9 +2,9 @@
 # GitHub CLI wrapper with automatic token injection and logging
 #
 # Usage:
-#   ./claude/tools/gh pr list
-#   ./claude/tools/gh release create v1.0.0
-#   ./claude/tools/gh api /repos/{owner}/{repo}/pulls
+#   ./agency/tools/gh pr list
+#   ./agency/tools/gh release create v1.0.0
+#   ./agency/tools/gh api /repos/{owner}/{repo}/pulls
 #
 # Features:
 #   - Automatic token injection from secret-service
@@ -41,7 +41,7 @@ fi
 
 # Find the real gh CLI, NOT this wrapper. We must strip our own directory from
 # PATH before lookup, otherwise we recursively invoke ourselves and hang.
-# (test_helper.bash prepends claude/tools/ to PATH for tests, causing this.)
+# (test_helper.bash prepends agency/tools/ to PATH for tests, causing this.)
 _find_real_gh() {
     local stripped_path="${PATH//${SCRIPT_DIR}:/}"
     stripped_path="${stripped_path//:${SCRIPT_DIR}/}"
@@ -65,13 +65,13 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] && [[ $# -eq 1 ]]; then
 gh - GitHub CLI wrapper with token injection and logging
 
 Usage:
-  ./claude/tools/gh <gh-command> [arguments...]
+  ./agency/tools/gh <gh-command> [arguments...]
 
 Examples:
-  ./claude/tools/gh pr list
-  ./claude/tools/gh pr create --title "My PR" --body "Description"
-  ./claude/tools/gh release create v1.0.0 --notes "Release notes"
-  ./claude/tools/gh api /repos/{owner}/{repo}/pulls
+  ./agency/tools/gh pr list
+  ./agency/tools/gh pr create --title "My PR" --body "Description"
+  ./agency/tools/gh release create v1.0.0 --notes "Release notes"
+  ./agency/tools/gh api /repos/{owner}/{repo}/pulls
 
 Features:
   - Automatic GH_TOKEN injection from secret-service
@@ -92,9 +92,9 @@ Security:
   Avoid passing secrets directly as command arguments.
 
 See also:
-  ./claude/tools/gh-pr      PR-specific operations
-  ./claude/tools/gh-release Release-specific operations
-  ./claude/tools/gh-api     API-specific operations
+  ./agency/tools/gh-pr      PR-specific operations
+  ./agency/tools/gh-release Release-specific operations
+  ./agency/tools/gh-api     API-specific operations
 EOF
     exit 0
 fi
@@ -139,7 +139,7 @@ fi
 # Warn if no token available
 if [[ -z "${GH_TOKEN:-}" ]]; then
     echo "Warning: No GitHub token available. Some operations may fail." >&2
-    echo "Set up with: ./claude/tools/secret-vault create github-admin-token --type=api_key --service=GitHub" >&2
+    echo "Set up with: ./agency/tools/secret-vault create github-admin-token --type=api_key --service=GitHub" >&2
 fi
 
 # Build command description for logging (redact potentially sensitive args)

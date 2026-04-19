@@ -45,20 +45,20 @@ Minors:
 ### reviewer-design
 
 Six items:
-- **(medium)** Divergence from 4 existing inline `detect_main_branch` variants in sibling tools (`git-captain`, `pr-build`, `git-safe`, `pr-create`). PR introduces a 5th. Should extract shared helper to `claude/tools/lib/_main-branch-resolve`.
+- **(medium)** Divergence from 4 existing inline `detect_main_branch` variants in sibling tools (`git-captain`, `pr-build`, `git-safe`, `pr-create`). PR introduces a 5th. Should extract shared helper to `agency/tools/lib/_main-branch-resolve`.
 - **(low)** Resolution order differs slightly across tools. Commit message claims alignment with `pr-create` but that's only partially true.
 - **(informational)** Error message uses `Hint:` prefix; `pr-create` uses `Fix:`. Minor idiom drift.
 - **(low)** Safety guard conflict: `dispatch` tool supports `develop`/`trunk`; this PR refuses anything non-main/master. Framework internally split on the posture.
 - **(low)** Error message suggests editing the tool: "update worktree-sync's safety guard". Unusual convention — framework prefers "escalate to principal" phrasing.
-- **(low-medium)** Code comment references `claude/REFERENCE-WORKTREE-DISCIPLINE.md` for "Day 42 designex incident" history — but that doc has no such section. Debt trap if unfixed.
+- **(low-medium)** Code comment references `agency/REFERENCE-WORKTREE-DISCIPLINE.md` for "Day 42 designex incident" history — but that doc has no such section. Debt trap if unfixed.
 - **(informational)** Tool predates the provenance-header convention and doesn't carry What/How/Why headers. Not introduced by this PR.
 
 ### reviewer-test
 
 Four items:
-- **(medium)** Test 15 lives in `claude/tools/tests/test-worktree-sync.sh` (legacy shell harness) but framework convention is BATS in `tests/tools/*.bats`. `tests/tools/worktree-sync.bats` **already exists** with 6 prior regression tests. The new regression should be there, not in the shell file.
+- **(medium)** Test 15 lives in `agency/tools/tests/test-worktree-sync.sh` (legacy shell harness) but framework convention is BATS in `tests/tools/*.bats`. `tests/tools/worktree-sync.bats` **already exists** with 6 prior regression tests. The new regression should be there, not in the shell file.
 - **(medium)** Test 15 only covers the FALLBACK path (test repo has no `origin` remote, so resolution always falls through to the for-candidate loop). Does NOT cover: (a) symbolic-ref path with a real remote, (b) local-main-preferred-over-master mid-rename, (c) safety guard refusing non-main/master branches.
-- **(medium)** `claude/tools/lib/_health-worktree:89` has the SAME `rev-parse --abbrev-ref HEAD` pattern. Not destructive (health reporting) but misleading. Same bug class, untouched by this PR.
+- **(medium)** `agency/tools/lib/_health-worktree:89` has the SAME `rev-parse --abbrev-ref HEAD` pattern. Not destructive (health reporting) but misleading. Same bug class, untouched by this PR.
 - **(low)** `assert_contains "merged master"` brittle — any future rewording of the success message breaks the test. Existing BATS tests use looser grep patterns.
 - **(low)** Test 15 hand-rolls file-absence assertion instead of using `assert_*` helpers. Inconsistent with sibling tests.
 - **(medium, pre-existing)** Test 6 and Test 14 in the shell file have pre-existing failures from message drift (issue #57 rework). Not introduced by this PR but suggests the shell test file is rotting.

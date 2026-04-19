@@ -5,8 +5,8 @@ workstream: agency
 date: 2026-04-17
 status: active
 author: the-agency/jordan/captain
-pvr: claude/workstreams/agency/dispatch-monitor-pvr-20260417.md
-ad: claude/workstreams/agency/dispatch-monitor-ad-20260417.md
+pvr: agency/workstreams/agency/dispatch-monitor-pvr-20260417.md
+ad: agency/workstreams/agency/dispatch-monitor-ad-20260417.md
 mar: "Quick MAR — 3 agents (methodology-critic, practitioner, adopter-advocate)"
 ---
 
@@ -19,7 +19,7 @@ Single-phase, 3 iterations. Small tool — no need for multi-phase.
 ## Phase 1: Python Rewrite (3 iterations)
 
 ### Iteration 1.1: Core rewrite
-- Replace `claude/tools/dispatch-monitor` with Python implementation
+- Replace `agency/tools/dispatch-monitor` with Python implementation
 - Main loop: poll, parse, dedup, emit
 - seen_ids as set with max 10,000 cap (LRU eviction via oldest-first discard)
 - Subprocess calls to dispatch list and collaboration check

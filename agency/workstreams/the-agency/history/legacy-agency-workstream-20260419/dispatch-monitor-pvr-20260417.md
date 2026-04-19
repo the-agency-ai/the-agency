@@ -72,7 +72,7 @@ Rewrite `dispatch-monitor` from bash to Python 3.9+, establishing it as the firs
 2. Must work with the Monitor tool (stdout is the event stream, stderr for diagnostics)
 3. No pip install — stdlib only
 4. Shebang must be `#!/usr/bin/env python3` (resolves correctly on macOS and Linux)
-5. Must replace the existing bash script at `claude/tools/dispatch-monitor` (not a new path)
+5. Must replace the existing bash script at `agency/tools/dispatch-monitor` (not a new path)
 
 ## Success Criteria
 
@@ -80,7 +80,7 @@ Rewrite `dispatch-monitor` from bash to Python 3.9+, establishing it as the firs
 2. Stale-read prevention works (same dispatch ID never emitted twice)
 3. Silent when no new dispatches (zero output, no tokens consumed)
 4. All existing dispatch-monitor tests pass (update test expectations if needed)
-5. First Python tool shipped in `claude/tools/` — sets the precedent
+5. First Python tool shipped in `agency/tools/` — sets the precedent
 
 ## Non-Goals
 

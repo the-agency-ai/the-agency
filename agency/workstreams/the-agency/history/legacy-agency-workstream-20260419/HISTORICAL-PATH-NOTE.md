@@ -1,7 +1,7 @@
 # Historical Path Note — legacy-agency-workstream-20260419
 
 Legacy workstream content from pre-v46.0 tree organization. Original location:
-`agency/workstreams/legacy-agency` (pre-rename: `claude/workstreams/legacy-agency`).
+`agency/workstreams/legacy-agency` (pre-rename: `agency/workstreams/legacy-agency`).
 
 Archived 2026-04-19 during v46.0 structural reset (Phase 3.5 / 3.6).
 

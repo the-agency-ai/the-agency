@@ -13,7 +13,7 @@
 # The shim is removed at Phase 4.5 / Gate 6.
 #
 # Rationale: between Phase 1 (git mv claude agency) and Phase 4.5
-# (@import rewrites), tool invocations that still use `./claude/tools/X`
+# (@import rewrites), tool invocations that still use `./agency/tools/X`
 # paths would ENOENT. This shim aliases them so captain can continue
 # executing reset phases without first sweeping every invocation site.
 # ─────────────────────────────────────────────────────────────────────
@@ -37,8 +37,8 @@ claude-tool() {
     local cmd="$1"; shift
     if [[ -x "$REPO_ROOT/agency/tools/$cmd" ]]; then
         "$REPO_ROOT/agency/tools/$cmd" "$@"
-    elif [[ -x "$REPO_ROOT/claude/tools/$cmd" ]]; then
-        "$REPO_ROOT/claude/tools/$cmd" "$@"
+    elif [[ -x "$REPO_ROOT/agency/tools/$cmd" ]]; then
+        "$REPO_ROOT/agency/tools/$cmd" "$@"
     else
         echo "[shim] tool not found: $cmd" >&2
         return 127

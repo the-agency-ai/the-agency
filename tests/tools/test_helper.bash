@@ -7,16 +7,16 @@
 # Test User attribution bug (dispatches #109, #171).
 #
 # How & Why: Thin wrapper around the framework lib at
-# claude/tools/lib/_test-isolation. The actual isolation helpers live there
+# agency/tools/lib/_test-isolation. The actual isolation helpers live there
 # so `agency update` propagates them to every consuming project (monofolk,
 # etc.) — they no longer live only in the-agency's tests/ directory. This
 # file only computes REPO_ROOT (the-agency-specific) and sources the lib.
 #
 # Adopter projects: create your own tests/test_helper.bash that sources
-# the same lib — see claude/templates/tests/test_helper.bash.
+# the same lib — see agency/templates/tests/test_helper.bash.
 #
 # Written: 2026-04-07 during DevEx Phase 1.1 (Universal Test Isolation)
-# Refactored: 2026-04-09 — extract helpers to claude/tools/lib/_test-isolation
+# Refactored: 2026-04-09 — extract helpers to agency/tools/lib/_test-isolation
 #             for adopter propagation via agency update
 # Evolved from: ISCP test isolation helpers (2026-04-06, dispatches #16, #17)
 #
@@ -29,7 +29,7 @@ export REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
 # test_isolation_teardown, SKIP_ISOLATION handling, iscp_* backward-compat
 # aliases) live there. The lib also sets TOOLS_DIR, LOG_SERVICE_URL="",
 # and adds $TOOLS_DIR to PATH.
-source "${REPO_ROOT}/claude/tools/lib/_test-isolation"
+source "${REPO_ROOT}/agency/tools/lib/_test-isolation"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Default setup/teardown — calls isolation automatically

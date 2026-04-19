@@ -15,7 +15,7 @@ branches respectively. Smoke passes.
 
 PR #87 has no CI checks because it's in **mergeable=CONFLICTING / DIRTY**
 state — GitHub doesn't even attempt CI on a conflicting PR. The conflict is
-in `claude/config/manifest.json` (40.5→41.3 on contrib vs 41.1 on main from
+in `agency/config/manifest.json` (40.5→41.3 on contrib vs 41.1 on main from
 PR #89). Resolution requires manual merge of origin/main into contrib branch,
 which is blocked locally until PR #90 lands (D41-R2 introduces the
 `git-safe merge-from-master --remote` flag needed to do this without raw
@@ -55,7 +55,7 @@ mergeStateStatus: DIRTY
 ```
 
 **Verdict:** GitHub's CI doesn't attempt to run because the PR has merge
-conflicts. The conflict is `claude/config/manifest.json` — contrib branch
+conflicts. The conflict is `agency/config/manifest.json` — contrib branch
 bumped 40.5→41.3 directly (skipping 41.1 from PR #89 and 41.2 from PR #90).
 
 **Resolution path:**

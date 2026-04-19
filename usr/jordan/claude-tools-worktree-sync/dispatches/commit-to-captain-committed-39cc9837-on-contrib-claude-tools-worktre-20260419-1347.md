@@ -27,7 +27,7 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/tools/git-captain
+agency/tools/git-captain
 tests/tools/git-captain.bats
 usr/jordan/claude-tools-worktree-sync/dispatches/commit-to-captain-committed-e1af9d15-on-contrib-claude-tools-worktre-20260419-1341.md
 ```

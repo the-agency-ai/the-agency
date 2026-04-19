@@ -45,16 +45,16 @@ show_help() {
     echo "  --auto-merge          Squash-merge the PR immediately (default: create PR only)"
     echo ""
     echo "Path mapping (auto):"
-    echo "  claude/tools/X                    → claude/tools/X"
-    echo "  claude/tools/tests/X              → claude/tools/tests/X"
+    echo "  agency/tools/X                    → agency/tools/X"
+    echo "  agency/tools/tests/X              → agency/tools/tests/X"
     echo "  usr/*/commands/X.md               → .claude/skills/X/SKILL.md (mkdir)"
     echo "  claude/usr/*/commands/X.md        → .claude/skills/X/SKILL.md (mkdir, legacy path)"
-    echo "  claude/hookify/X                  → claude/hookify/X"
+    echo "  agency/hookify/X                  → agency/hookify/X"
     echo "  usr/*/hookify/X                   → claude/hookify/X"
     echo "  claude/usr/*/hookify/X            → claude/hookify/X (legacy path)"
-    echo "  claude/agents/X                   → claude/agents/X"
+    echo "  agency/agents/X                   → agency/agents/X"
     echo "  claude/docs/X                     → claude/docs/X"
-    echo "  claude/config/X                   → claude/config/X"
+    echo "  agency/config/X                   → agency/config/X"
     echo ""
     echo "Options:"
     echo "  --version    Show version"
@@ -125,34 +125,34 @@ resolve_target() {
     local rel="${src#$MONOFOLK_ROOT/}"
 
     case "$rel" in
-        claude/tools/tests/*)
-            echo "claude/tools/tests/$(basename "$rel")"
+        agency/tools/tests/*)
+            echo "agency/tools/tests/$(basename "$rel")"
             ;;
-        claude/tools/*)
-            echo "claude/tools/$(basename "$rel")"
+        agency/tools/*)
+            echo "agency/tools/$(basename "$rel")"
             ;;
         usr/*/commands/*.md|claude/usr/*/commands/*.md)
             # commands/X.md → .claude/skills/X/SKILL.md
             local name=$(basename "$rel" .md)
             echo ".claude/skills/$name/SKILL.md"
             ;;
-        claude/hookify/*)
-            echo "claude/hookify/$(basename "$rel")"
+        agency/hookify/*)
+            echo "agency/hookify/$(basename "$rel")"
             ;;
         usr/*/hookify/*|claude/usr/*/hookify/*)
             # Sandbox hookify → shared framework hookify
             local name=$(basename "$rel")
             # Strip .local from name if present
             name="${name%.local.md}.md"
-            echo "claude/hookify/$name"
+            echo "agency/hookify/$name"
             ;;
-        claude/agents/*)
+        agency/agents/*)
             echo "$rel"
             ;;
         claude/docs/*)
             echo "$rel"
             ;;
-        claude/config/*)
+        agency/config/*)
             echo "$rel"
             ;;
         *)

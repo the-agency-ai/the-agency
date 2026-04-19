@@ -3,16 +3,16 @@
 # sandbox-sync tests — engineer detection + symlink behavior (D44-R4 / issue #420).
 #
 # Each test builds an isolated repo fixture with:
-#   - minimal claude/config/agency.yaml (defines principals)
-#   - claude/tools/config (copied from the live repo — sandbox-sync reads it)
-#   - claude/tools/sandbox-sync (the subject of the test)
+#   - minimal agency/config/agency.yaml (defines principals)
+#   - agency/tools/config (copied from the live repo — sandbox-sync reads it)
+#   - agency/tools/sandbox-sync (the subject of the test)
 #   - usr/<principal>/ sandbox layout under test
 #
 # No dependency on the live usr/ layout.
 
 load 'test_helper'
 
-SANDBOX_SYNC="${REPO_ROOT}/claude/tools/sandbox-sync"
+SANDBOX_SYNC="${REPO_ROOT}/agency/tools/sandbox-sync"
 
 # Build an isolated repo fixture with the pieces sandbox-sync needs. Accepts
 # a list of principal slugs — scaffolds usr/<slug>/ and an agency.yaml that
@@ -30,14 +30,14 @@ _setup_fixture() {
     git config commit.gpgsign false
 
     mkdir -p .claude/commands .claude/hooks
-    mkdir -p claude/tools/lib claude/config
+    mkdir -p agency/tools/lib claude/config
 
     # Copy the minimum framework tools sandbox-sync depends on
-    cp "${REPO_ROOT}/claude/tools/sandbox-sync" claude/tools/sandbox-sync
-    cp "${REPO_ROOT}/claude/tools/config" claude/tools/config
-    chmod +x claude/tools/sandbox-sync claude/tools/config
+    cp "${REPO_ROOT}/agency/tools/sandbox-sync" agency/tools/sandbox-sync
+    cp "${REPO_ROOT}/agency/tools/config" agency/tools/config
+    chmod +x agency/tools/sandbox-sync agency/tools/config
 
-    cat > claude/config/agency.yaml <<YAML
+    cat > agency/config/agency.yaml <<YAML
 principals:
   ${primary_user}:
     name: ${primary_principal}
@@ -63,7 +63,7 @@ YAML
 @test "sandbox-sync: resolves principal via agency.yaml for matching \$USER" {
     _setup_fixture jordan testuser
     cd "$FIX"
-    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
     [[ "$output" == *"sandbox-sync:"* ]]
 }
@@ -78,7 +78,7 @@ YAML
     git add usr/alice
     git commit -m "add alice" --quiet --no-verify
 
-    run env HOME="$ORIGINAL_HOME" USER=peter ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=peter ./agency/tools/sandbox-sync
     [ "$status" -ne 0 ]
     [[ "$output" == *"cannot resolve principal"* ]] || [[ "$output" == *"peter"* ]]
     # Critical regression check: MUST NOT silently pick alice or jordan.
@@ -90,7 +90,7 @@ YAML
     cd "$FIX"
 
     # Simulate the default catchall — should be rejected, not used.
-    run env HOME="$ORIGINAL_HOME" USER=someone_not_in_principals ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=someone_not_in_principals ./agency/tools/sandbox-sync
     [ "$status" -ne 0 ]
     [[ "$output" == *"cannot resolve principal"* ]]
 }
@@ -99,7 +99,7 @@ YAML
     _setup_fixture jordan jdm
     cd "$FIX"
     # Wrong USER but right PRINCIPAL — should succeed.
-    run env HOME="$ORIGINAL_HOME" USER=wronguser PRINCIPAL=jordan ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=wronguser PRINCIPAL=jordan ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
     [[ "$output" == *"sandbox-sync:"* ]]
 }
@@ -114,7 +114,7 @@ YAML
     git add usr/newuser
     git commit -m "new sandbox" --quiet --no-verify
 
-    run env HOME="$ORIGINAL_HOME" USER=newuser ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=newuser ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
     [[ "$output" == *"sandbox-sync:"* ]]
 }
@@ -123,7 +123,7 @@ YAML
     _setup_fixture jordan jdm
     cd "$FIX"
     # Edit agency.yaml to map testuser → ghost, but usr/ghost/ doesn't exist.
-    cat > claude/config/agency.yaml <<YAML
+    cat > agency/config/agency.yaml <<YAML
 principals:
   testuser:
     name: ghost
@@ -132,7 +132,7 @@ principals:
     name: unknown
 YAML
 
-    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync
     [ "$status" -ne 0 ]
     [[ "$output" == *"no sandbox at usr/ghost"* ]] || [[ "$output" == *"ghost"* ]]
 }
@@ -147,7 +147,7 @@ YAML
     # Put a command at the POST-D44-R4 path
     echo "# test command" > usr/jordan/commands/my-cmd.md
 
-    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
     # The symlink should be created at .claude/commands/usr-jordan.my-cmd.md
     [ -L .claude/commands/usr-jordan.my-cmd.md ]
@@ -160,7 +160,7 @@ YAML
     mkdir -p usr/jordan/claude/commands
     echo "# legacy" > usr/jordan/claude/commands/legacy-cmd.md
 
-    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
     # The legacy symlink should NOT have been created.
     [ ! -L .claude/commands/usr-jordan.legacy-cmd.md ]
@@ -171,7 +171,7 @@ YAML
     cd "$FIX"
     echo "# hookify rule" > usr/jordan/hookify/my-rule.md
 
-    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
     [ -L .claude/hookify.usr-jordan.my-rule.md ]
 }
@@ -185,8 +185,8 @@ YAML
     cd "$FIX"
     echo "# cmd" > usr/jordan/commands/x.md
 
-    env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync >/dev/null
-    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync >/dev/null
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
     [[ "$output" == *"existing: 1 already current"* ]]
     [[ "$output" == *"created:  0"* ]]
@@ -197,8 +197,8 @@ YAML
     cd "$FIX"
     echo "# cmd" > usr/jordan/commands/x.md
 
-    env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync >/dev/null
-    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync --quiet
+    env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync >/dev/null
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync --quiet
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
@@ -214,7 +214,7 @@ YAML
     echo "evil" > "usr/jordan/commands/...evil.md"
     echo "# good" > "usr/jordan/commands/good.md"
 
-    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
     [[ "$output" == *"unsafe command filename"* ]] || [[ "$output" == *"...evil.md"* ]]
     # Good file still gets symlinked
@@ -232,7 +232,7 @@ YAML
     mkdir -p "usr/jordan/agents/goodagent"
     touch "usr/jordan/agents/goodagent/agent.md"
 
-    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
     # Good agent dir gets symlinked
     [ -L .claude/agents/usr-jordan.goodagent ]
@@ -247,7 +247,7 @@ YAML
     echo "hidden" > "usr/jordan/commands/.hidden.md"
     echo "# good" > "usr/jordan/commands/good.md"
 
-    run env HOME="$ORIGINAL_HOME" USER=testuser ./claude/tools/sandbox-sync
+    run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
     [ -L .claude/commands/usr-jordan.good.md ]
     [ ! -L .claude/commands/usr-jordan..hidden.md ]

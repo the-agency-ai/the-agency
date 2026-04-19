@@ -28,7 +28,7 @@ Usage:
   agency deps install required   Install only required tier
   agency deps install testing    Install only testing tier
 
-Reads: claude/config/dependencies.yaml
+Reads: agency/config/dependencies.yaml
 HELP
 }
 
@@ -40,7 +40,7 @@ esac
 
 # --- Locate dependencies.yaml ---
 PROJECT_ROOT="$(cd "$AGENCY_DIR/.." && pwd)"
-DEPS_FILE="$PROJECT_ROOT/claude/config/dependencies.yaml"
+DEPS_FILE="$PROJECT_ROOT/agency/config/dependencies.yaml"
 
 if [[ ! -f "$DEPS_FILE" ]]; then
     echo "Error: dependencies.yaml not found at $DEPS_FILE" >&2

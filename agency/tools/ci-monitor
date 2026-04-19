@@ -15,7 +15,7 @@
 # when-clean pattern).
 #
 # Usage: With Monitor tool — ask Claude to "monitor CI using ci-monitor"
-# Standalone: ./claude/tools/ci-monitor [--interval N] [--repo OWNER/REPO]
+# Standalone: ./agency/tools/ci-monitor [--interval N] [--repo OWNER/REPO]
 #
 # Written: 2026-04-12 during devex session (contribution model rollout)
 

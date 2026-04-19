@@ -35,5 +35,5 @@ Manage The Agency's Apple ecosystem presence - App Store submissions, developer 
 
 ## Key Directories
 
-- `claude/agents/apple/` - Agent identity
-- `claude/workstreams/gtm/` - Work artifacts (shared with other gtm agents)
+- `agency/agents/apple/` - Agent identity
+- `agency/workstreams/gtm/` - Work artifacts (shared with other gtm agents)

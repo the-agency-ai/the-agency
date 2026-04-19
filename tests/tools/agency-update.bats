@@ -41,14 +41,14 @@ setup_update_fixture() {
     mkdir -p "$root/target/claude/config" "$root/target/claude/tools" "$root/target/.claude/skills"
 
     # Source agency.yaml
-    cat > "$root/source/claude/config/agency.yaml" <<EOF
+    cat > "$root/source/agency/config/agency.yaml" <<EOF
 framework:
   version: "99.0.0"
   source_commit: "abc1234"
   updated_at: "2026-04-15T00:00:00+00:00"
 EOF
     # Target agency.yaml (older version)
-    cat > "$root/target/claude/config/agency.yaml" <<EOF
+    cat > "$root/target/agency/config/agency.yaml" <<EOF
 framework:
   version: "1.0.0"
   source_commit: "deadbee"
@@ -68,7 +68,7 @@ EOF
     local root
     root=$(setup_update_fixture)
     # Simulate an interrupted prior update — a framework file is modified
-    echo "stale change" > "$root/target/claude/tools/some-stale-tool"
+    echo "stale change" > "$root/target/agency/tools/some-stale-tool"
 
     AGENCY_SOURCE="$root/source" run_agency update "$root/target"
     assert_failure
@@ -90,7 +90,7 @@ EOF
 @test "agency update: --force bypasses dirty-tree gate" {
     local root
     root=$(setup_update_fixture)
-    echo "stale" > "$root/target/claude/tools/some-stale-tool"
+    echo "stale" > "$root/target/agency/tools/some-stale-tool"
 
     AGENCY_SOURCE="$root/source" run_agency update "$root/target" --force
     # QG fix: assert the gate itself was not hit AND that update made progress
@@ -124,7 +124,7 @@ EOF
 @test "agency update: dry-run skips dirty-tree gate" {
     local root
     root=$(setup_update_fixture)
-    echo "stale" > "$root/target/claude/tools/some-stale-tool"
+    echo "stale" > "$root/target/agency/tools/some-stale-tool"
 
     AGENCY_SOURCE="$root/source" run_agency update "$root/target" --dry-run
     # Dry-run should not trip the gate — it's read-only.
@@ -157,7 +157,7 @@ EOF
     local root
     root=$(setup_update_fixture)
     # Orphan only in target, not in source
-    local orphan="$root/target/claude/tools/my-local-tool"
+    local orphan="$root/target/agency/tools/my-local-tool"
     echo "#!/bin/bash" > "$orphan"
 
     AGENCY_SOURCE="$root/source" run_agency update "$root/target" --force --yes
@@ -168,7 +168,7 @@ EOF
 @test "agency update: --prune --dry-run previews deletions but does not delete" {
     local root
     root=$(setup_update_fixture)
-    local orphan="$root/target/claude/tools/my-local-tool"
+    local orphan="$root/target/agency/tools/my-local-tool"
     echo "#!/bin/bash" > "$orphan"
 
     AGENCY_SOURCE="$root/source" run_agency update "$root/target" --prune --dry-run --force
@@ -181,7 +181,7 @@ EOF
 @test "agency update: --prune --yes deletes orphaned target files" {
     local root
     root=$(setup_update_fixture)
-    local orphan="$root/target/claude/tools/my-local-tool"
+    local orphan="$root/target/agency/tools/my-local-tool"
     echo "#!/bin/bash" > "$orphan"
 
     AGENCY_SOURCE="$root/source" run_agency update "$root/target" --prune --yes --force
@@ -196,12 +196,12 @@ EOF
     # don't exist in source — they must survive prune via the hard excludes.
     mkdir -p "$root/target/usr/jordan/captain"
     echo "handoff" > "$root/target/usr/jordan/captain/captain-handoff.md"
-    mkdir -p "$root/target/claude/workstreams/myproject"
-    echo "knowledge" > "$root/target/claude/workstreams/myproject/KNOWLEDGE.md"
+    mkdir -p "$root/target/agency/workstreams/myproject"
+    echo "knowledge" > "$root/target/agency/workstreams/myproject/KNOWLEDGE.md"
 
     AGENCY_SOURCE="$root/source" run_agency update "$root/target" --prune --yes --force
     [ -f "$root/target/usr/jordan/captain/captain-handoff.md" ]
-    [ -f "$root/target/claude/workstreams/myproject/KNOWLEDGE.md" ]
+    [ -f "$root/target/agency/workstreams/myproject/KNOWLEDGE.md" ]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -232,7 +232,7 @@ EOF
     # (the new default), not 'latest'.
     cd "$BATS_TEST_TMPDIR"
     mkdir -p target/claude/config
-    cat > target/claude/config/agency.yaml <<EOF
+    cat > target/agency/config/agency.yaml <<EOF
 framework:
   version: "1.0.0"
   source_commit: "deadbee"
@@ -248,7 +248,7 @@ EOF
 @test "agency update: --from-github @latest opt-in attempts release-tag resolution" {
     cd "$BATS_TEST_TMPDIR"
     mkdir -p target/claude/config
-    cat > target/claude/config/agency.yaml <<EOF
+    cat > target/agency/config/agency.yaml <<EOF
 framework:
   version: "1.0.0"
   source_commit: "deadbee"
@@ -265,7 +265,7 @@ EOF
 @test "agency update: legacy --from-github latest emits deprecation warning" {
     cd "$BATS_TEST_TMPDIR"
     mkdir -p target/claude/config
-    cat > target/claude/config/agency.yaml <<EOF
+    cat > target/agency/config/agency.yaml <<EOF
 framework:
   version: "1.0.0"
   source_commit: "deadbee"
@@ -355,19 +355,19 @@ EOF
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "agency-bootstrap.sh exists and is executable" {
-    [[ -f "$REPO_ROOT/claude/tools/agency-bootstrap.sh" ]]
-    [[ -x "$REPO_ROOT/claude/tools/agency-bootstrap.sh" ]]
+    [[ -f "$REPO_ROOT/agency/tools/agency-bootstrap.sh" ]]
+    [[ -x "$REPO_ROOT/agency/tools/agency-bootstrap.sh" ]]
 }
 
 @test "agency-bootstrap.sh --help works without network" {
-    run "$REPO_ROOT/claude/tools/agency-bootstrap.sh" --help
+    run "$REPO_ROOT/agency/tools/agency-bootstrap.sh" --help
     assert_success
     assert_output_contains "agency-bootstrap.sh"
     assert_output_contains "curl"
 }
 
 @test "agency-bootstrap.sh --version prints version" {
-    run "$REPO_ROOT/claude/tools/agency-bootstrap.sh" --version
+    run "$REPO_ROOT/agency/tools/agency-bootstrap.sh" --version
     assert_success
     assert_output_contains "agency-bootstrap.sh"
 }
@@ -376,7 +376,7 @@ EOF
     local non_git="${BATS_TEST_TMPDIR}/not-a-git-repo-$$"
     mkdir -p "$non_git"
     cd "$non_git"
-    run "$REPO_ROOT/claude/tools/agency-bootstrap.sh"
+    run "$REPO_ROOT/agency/tools/agency-bootstrap.sh"
     assert_failure
     assert_output_contains "git repo"
 }
@@ -398,7 +398,7 @@ EOF
     git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
 
     # Point AGENCY_SOURCE at the real repo so _agency-init copies actual tools
-    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
     # Canonical set of tools that MUST be installed (these were the missing
@@ -444,7 +444,7 @@ EOF
         commit-precheck
     )
     for tool in "${canonical_tools[@]}"; do
-        [[ -f "$target/claude/tools/$tool" ]] || missing+=("$tool")
+        [[ -f "$target/agency/tools/$tool" ]] || missing+=("$tool")
     done
 
     if [[ ${#missing[@]} -gt 0 ]]; then
@@ -460,7 +460,7 @@ EOF
     git init --quiet --initial-branch=main
     git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
 
-    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
     local missing=()
@@ -475,7 +475,7 @@ EOF
         _test-isolation
     )
     for lib in "${canonical_libs[@]}"; do
-        [[ -f "$target/claude/tools/lib/$lib" ]] || missing+=("$lib")
+        [[ -f "$target/agency/tools/lib/$lib" ]] || missing+=("$lib")
     done
 
     if [[ ${#missing[@]} -gt 0 ]]; then
@@ -497,7 +497,7 @@ EOF
     git init --quiet --initial-branch=main
     git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
 
-    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
     # These hooks were MISSING from the old hardcoded list — now must be present
@@ -510,7 +510,7 @@ EOF
         quality-check.sh
     )
     for hook in "${canonical_hooks[@]}"; do
-        [[ -f "$target/claude/hooks/$hook" ]] || missing+=("$hook")
+        [[ -f "$target/agency/hooks/$hook" ]] || missing+=("$hook")
     done
     if [[ ${#missing[@]} -gt 0 ]]; then
         echo "Missing hooks after agency init: ${missing[*]}"
@@ -525,7 +525,7 @@ EOF
     git init --quiet --initial-branch=main
     git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
 
-    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
     # Old hardcoded list had 8 classes. Framework has ~21. Assert the ones
@@ -544,7 +544,7 @@ EOF
         tech-lead
     )
     for agent in "${canonical_agents[@]}"; do
-        [[ -f "$target/claude/agents/$agent/agent.md" ]] || missing+=("$agent")
+        [[ -f "$target/agency/agents/$agent/agent.md" ]] || missing+=("$agent")
     done
     if [[ ${#missing[@]} -gt 0 ]]; then
         echo "Missing agent classes after agency init: ${missing[*]}"
@@ -552,8 +552,8 @@ EOF
     fi
 
     # Also: count should match framework's count (dir-level copy)
-    local framework_count=$(ls -d "$REPO_ROOT/claude/agents/"*/ 2>/dev/null | wc -l | tr -d ' ')
-    local target_count=$(ls -d "$target/claude/agents/"*/ 2>/dev/null | wc -l | tr -d ' ')
+    local framework_count=$(ls -d "$REPO_ROOT/agency/agents/"*/ 2>/dev/null | wc -l | tr -d ' ')
+    local target_count=$(ls -d "$target/agency/agents/"*/ 2>/dev/null | wc -l | tr -d ' ')
     if [[ "$target_count" -lt "$framework_count" ]]; then
         echo "Agent count mismatch: framework has $framework_count, target has $target_count"
         false
@@ -567,7 +567,7 @@ EOF
     git init --quiet --initial-branch=main
     git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
 
-    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
     # REFERENCE-* docs must all ship — ref-injector depends on them
@@ -599,7 +599,7 @@ EOF
     git init --quiet --initial-branch=main
     git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
 
-    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
     local framework_readmes=$(ls "$REPO_ROOT/claude/"README-*.md 2>/dev/null | wc -l | tr -d ' ')
@@ -617,7 +617,7 @@ EOF
     git init --quiet --initial-branch=main
     git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
 
-    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
     local framework_cmds=$(ls "$REPO_ROOT/.claude/commands/"*.md 2>/dev/null | wc -l | tr -d ' ')
@@ -644,7 +644,7 @@ EOF
     git init --quiet --initial-branch=main
     git -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m "init" --no-verify
 
-    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
     [[ -f "$target/.gitignore" ]]
@@ -667,7 +667,7 @@ EOF
     git add .gitignore
     git -c user.name=t -c user.email=t@t commit --quiet -m "init" --no-verify
 
-    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/claude/tools/agency" init --principal tester
+    AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
     # Adopter's pre-existing lines must be preserved
@@ -688,7 +688,7 @@ EOF
     # the dirty-tree gate returns to false-positives on .claude/logs/.
     run grep -F ".claude/logs/" "$REPO_ROOT/claude/tools/lib/_agency-update"
     assert_success
-    run grep -F "grep -v -E" "$REPO_ROOT/claude/tools/lib/_agency-update"
+    run grep -F "grep -v -E" "$REPO_ROOT/agency/tools/lib/_agency-update"
     assert_success
 }
 

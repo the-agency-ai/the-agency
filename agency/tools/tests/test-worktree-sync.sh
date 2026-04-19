@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# test-worktree-sync.sh — Tests for claude/tools/worktree-sync
+# test-worktree-sync.sh — Tests for agency/tools/worktree-sync
 #
-# Run: bash claude/tools/tests/test-worktree-sync.sh
+# Run: bash agency/tools/tests/test-worktree-sync.sh
 #
 # Creates temp git repos to test all code paths.
 
@@ -65,18 +65,18 @@ setup_repo() {
     git config user.name "Test"
 
     # Create initial structure
-    mkdir -p claude/tools/lib .claude
+    mkdir -p agency/tools/lib .claude
     echo '{"permissions":{}}' > .claude/settings.json
-    cp "$TOOL" claude/tools/worktree-sync
-    chmod +x claude/tools/worktree-sync
+    cp "$TOOL" agency/tools/worktree-sync
+    chmod +x agency/tools/worktree-sync
 
-    # D45-R3: worktree-sync now sources claude/tools/lib/_detect-main-branch
+    # D45-R3: worktree-sync now sources agency/tools/lib/_detect-main-branch
     # (shared MAIN_BRANCH resolver). Fixture must install the helper or the
     # tool's `source` call fails and every test in this suite fails with
     # "No such file or directory" on line 102. Same pattern applied to the
     # BATS fixtures (tests/tools/git-safe.bats, git-safe-commit-merge.bats,
     # git-captain.bats) in the same refactor.
-    cp "$TOOLS_DIR/lib/_detect-main-branch" claude/tools/lib/_detect-main-branch 2>/dev/null || true
+    cp "$TOOLS_DIR/lib/_detect-main-branch" agency/tools/lib/_detect-main-branch 2>/dev/null || true
 
     # Don't copy log helper — it uses python3 for UUID generation which can hang in temp repos
     # The tool handles missing _log-helper gracefully (logging is optional)
@@ -133,7 +133,7 @@ echo ""
 echo "Test: master guard — manual mode"
 setup_repo
 cd "$TMPBASE/main"  # on master
-OUTPUT=$(bash claude/tools/worktree-sync 2>&1 || true)
+OUTPUT=$(bash agency/tools/worktree-sync 2>&1 || true)
 EXIT=${PIPESTATUS[0]:-1}
 assert_contains "refuses on master" "use /sync-all instead" "$OUTPUT"
 cleanup
@@ -143,7 +143,7 @@ echo ""
 echo "Test: master guard — auto mode (soft skip)"
 setup_repo
 cd "$TMPBASE/main"
-OUTPUT=$(bash claude/tools/worktree-sync --auto 2>&1)
+OUTPUT=$(bash agency/tools/worktree-sync --auto 2>&1)
 EXIT=$?
 assert_eq "exit code 0" "0" "$EXIT"
 assert_valid_json "valid JSON output" "$OUTPUT"
@@ -155,7 +155,7 @@ echo ""
 echo "Test: dirty tree — manual mode"
 setup_repo
 echo "dirty" > dirty.txt
-OUTPUT=$(bash claude/tools/worktree-sync 2>&1 || true)
+OUTPUT=$(bash agency/tools/worktree-sync 2>&1 || true)
 assert_contains "refuses on dirty" "dirty" "$OUTPUT"
 assert_contains "file count" "modified files" "$OUTPUT"
 cleanup
@@ -164,7 +164,7 @@ echo ""
 # --- Test 7: already up to date ---
 echo "Test: already up to date"
 setup_repo
-OUTPUT=$(bash claude/tools/worktree-sync 2>&1)
+OUTPUT=$(bash agency/tools/worktree-sync 2>&1)
 EXIT=$?
 assert_eq "exit code 0" "0" "$EXIT"
 assert_contains "up to date" "already up to date" "$OUTPUT"
@@ -176,18 +176,18 @@ echo "Test: merge master with changes"
 setup_repo
 # Add a commit to master
 cd "$TMPBASE/main"
-echo "new content" > claude/tools/new-tool
-git add claude/tools/new-tool
+echo "new content" > agency/tools/new-tool
+git add agency/tools/new-tool
 git commit -m "add new tool" --quiet
 # Back to worktree
 cd "$TMPBASE/worktree"
-OUTPUT=$(bash claude/tools/worktree-sync 2>&1)
+OUTPUT=$(bash agency/tools/worktree-sync 2>&1)
 EXIT=$?
 assert_eq "exit code 0" "0" "$EXIT"
 assert_contains "merge report" "merged master" "$OUTPUT"
 assert_contains "file in report" "new-tool" "$OUTPUT"
 # Verify the file actually arrived
-assert_eq "file merged" "new content" "$(cat claude/tools/new-tool 2>/dev/null || echo 'missing')"
+assert_eq "file merged" "new content" "$(cat agency/tools/new-tool 2>/dev/null || echo 'missing')"
 cleanup
 echo ""
 
@@ -196,7 +196,7 @@ echo "Test: settings.json copy from main checkout"
 setup_repo
 # Update settings in main checkout only (not via git)
 echo '{"permissions":{"allow":["new"]}}' > "$TMPBASE/main/.claude/settings.json"
-OUTPUT=$(bash claude/tools/worktree-sync 2>&1)
+OUTPUT=$(bash agency/tools/worktree-sync 2>&1)
 assert_contains "settings copied" "settings.json" "$OUTPUT"
 # Verify copy happened
 WORKTREE_SETTINGS=$(cat .claude/settings.json)
@@ -212,7 +212,7 @@ echo "updated methodology" > CLAUDE.md
 git add CLAUDE.md
 git commit -m "update CLAUDE.md" --quiet
 cd "$TMPBASE/worktree"
-OUTPUT=$(bash claude/tools/worktree-sync 2>&1)
+OUTPUT=$(bash agency/tools/worktree-sync 2>&1)
 assert_contains "claude.md detected" "re-read recommended" "$OUTPUT"
 cleanup
 echo ""
@@ -222,20 +222,20 @@ echo "Test: auto mode — stash/merge/unstash"
 setup_repo
 # Add commit to master
 cd "$TMPBASE/main"
-echo "master change" > claude/tools/master-file
-git add claude/tools/master-file
+echo "master change" > agency/tools/master-file
+git add agency/tools/master-file
 git commit -m "master commit" --quiet
 # Back to worktree with dirty file (different from master's change)
 cd "$TMPBASE/worktree"
 echo "local work" > local-work.txt
-OUTPUT=$(bash claude/tools/worktree-sync --auto 2>&1)
+OUTPUT=$(bash agency/tools/worktree-sync --auto 2>&1)
 EXIT=$?
 assert_eq "exit code 0" "0" "$EXIT"
 assert_valid_json "valid JSON" "$OUTPUT"
 # Verify local work survived the stash/unstash
 assert_eq "local work preserved" "local work" "$(cat local-work.txt 2>/dev/null || echo 'missing')"
 # Verify master change arrived
-assert_eq "master file merged" "master change" "$(cat claude/tools/master-file 2>/dev/null || echo 'missing')"
+assert_eq "master file merged" "master change" "$(cat agency/tools/master-file 2>/dev/null || echo 'missing')"
 cleanup
 echo ""
 
@@ -251,7 +251,7 @@ cd "$TMPBASE/worktree"
 echo "worktree version" > conflict-file.txt
 git add conflict-file.txt
 git commit -m "worktree side" --quiet
-OUTPUT=$(bash claude/tools/worktree-sync 2>&1 || true)
+OUTPUT=$(bash agency/tools/worktree-sync 2>&1 || true)
 assert_contains "conflict detected" "merge conflict" "$OUTPUT"
 # Verify worktree is clean (merge aborted)
 MERGE_STATE=$(git rev-parse --verify MERGE_HEAD 2>/dev/null || echo "no-merge")
@@ -270,7 +270,7 @@ cd "$TMPBASE/worktree"
 echo "worktree version" > conflict-file.txt
 git add conflict-file.txt
 git commit -m "worktree side" --quiet
-OUTPUT=$(bash claude/tools/worktree-sync --auto 2>&1 || true)
+OUTPUT=$(bash agency/tools/worktree-sync --auto 2>&1 || true)
 # Extract just the JSON line (last line of output)
 JSON_LINE=$(echo "$OUTPUT" | grep '{"systemMessage"' || echo "")
 if [[ -n "$JSON_LINE" ]]; then
@@ -292,7 +292,7 @@ echo "dispatch content" > usr/jordan/captain/dispatches/dispatch-test-20260401.m
 git add -A
 git commit -m "add dispatch" --quiet
 cd "$TMPBASE/worktree"
-OUTPUT=$(bash claude/tools/worktree-sync 2>&1)
+OUTPUT=$(bash agency/tools/worktree-sync 2>&1)
 assert_contains "dispatch detected" "dispatch" "$OUTPUT"
 cleanup
 echo ""
@@ -324,7 +324,7 @@ git commit -m "actual master commit" --quiet
 git checkout captain-feature --quiet
 # Peer agent runs worktree-sync from the worktree
 cd "$TMPBASE/worktree"
-OUTPUT=$(bash claude/tools/worktree-sync 2>&1)
+OUTPUT=$(bash agency/tools/worktree-sync 2>&1)
 EXIT=$?
 assert_eq "exit code 0" "0" "$EXIT"
 assert_contains "merged master, not feature branch" "merged master" "$OUTPUT"

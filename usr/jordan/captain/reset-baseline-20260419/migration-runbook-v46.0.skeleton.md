@@ -48,7 +48,7 @@ Exit codes:
 Exit codes:
 - 0: all checks passed
 - 10: tree-shape mismatch (claude/ still present OR agency/ missing)
-- 11: settings.json stale (references claude/hooks/)
+- 11: settings.json stale (references agency/hooks/)
 - 12: agent registration path mismatch
 - 13: ISCP smoke fail
 - 14: hook path ENOENT
@@ -89,6 +89,6 @@ If migration fails in ways not covered above:
 
 Then either:
 - File a GitHub issue at the-agency-ai/the-agency with the output attached
-- Or send a cross-repo dispatch via `./claude/tools/collaboration send`
+- Or send a cross-repo dispatch via `./agency/tools/collaboration send`
 
 Your support channel: `the-agency/captain` (cross-repo dispatch routing).

@@ -17,7 +17,7 @@ Two infrastructure bugs in commit-precheck are blocking worktree agents from lan
 
 1. **Hung test**: tests/tools/gh.bats test ~218 (gh: --version shows wrapper version) hangs indefinitely. Confirmed via ps aux — bats-exec-test processes never terminate after the test fires.
 
-2. **Timeout too short**: claude/tools/commit-precheck:247 sets 'run_with_timeout 120 ./claude/tools/test-run'. The full BATS suite (~240 tests) needs longer than 120s even when not hung.
+2. **Timeout too short**: agency/tools/commit-precheck:247 sets 'run_with_timeout 120 ./agency/tools/test-run'. The full BATS suite (~240 tests) needs longer than 120s even when not hung.
 
 ## Reproduction
 
@@ -28,7 +28,7 @@ Two infrastructure bugs in commit-precheck are blocking worktree agents from lan
 
 Manual reproduction of the hang:
 
-    ./claude/tools/test-run 2>&1 | tee /tmp/bats.out
+    ./agency/tools/test-run 2>&1 | tee /tmp/bats.out
     # Watch for it to stop progressing around test 217-218 in gh.bats
     ps aux | grep bats  # piles of stuck processes
 

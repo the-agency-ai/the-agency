@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/agency-update-migrate-back"
+    TOOL="$REPO_ROOT/agency/tools/agency-update-migrate-back"
     TMP_REPO="$(mktemp -d -t amb.XXXXXX)"
     cd "$TMP_REPO"
     git init -q .

@@ -51,7 +51,7 @@ When `address_resolve` fails but `address_parse` succeeds, the raw unresolved in
 - `iscp-migrate` hard-coded to `usr/jordan/flag-queue.jsonl` — won't migrate other principals
 - `iscp-migrate` `skipped` counter declared but never incremented — always reports 0
 - `agent-identity` cache file written without restrictive permissions (inherits umask)
-- Missing `Bash(./claude/tools/dispatch)` bare permission in settings.json (captain will fix)
+- Missing `Bash(./agency/tools/dispatch)` bare permission in settings.json (captain will fix)
 - `iscp-check` fallback `printf` JSON path doesn't escape (safe today, fragile)
 
 ## What Captain Is Doing (parallel)
@@ -59,7 +59,7 @@ When `address_resolve` fails but `address_parse` succeeds, the raw unresolved in
 While ISCP fixes the above, captain will:
 
 1. Update CLAUDE-THEAGENCY.md with the 12 ISCP revisions (per your dispatch)
-2. Fix settings.json: add `Bash(./claude/tools/dispatch)` bare permission
+2. Fix settings.json: add `Bash(./agency/tools/dispatch)` bare permission
 3. Run `iscp-migrate` on main after M4 is fixed
 4. Sync worktrees
 

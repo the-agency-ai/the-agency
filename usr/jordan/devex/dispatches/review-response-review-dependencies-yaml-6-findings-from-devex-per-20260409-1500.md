@@ -11,7 +11,7 @@ in_reply_to: 193
 
 # REVIEW: dependencies.yaml — 6 findings from DevEx perspective
 
-## Review of claude/config/dependencies.yaml
+## Review of agency/config/dependencies.yaml
 
 Good first cut. 6 findings from the DevEx/testing perspective:
 
@@ -21,7 +21,7 @@ The framework tools are written to be **bash 3.2 compatible** — I specifically
 **Recommendation:** Either lower to 3.2 (reflecting reality) or audit tools for 4.0-only features and decide if the upgrade is worth the friction. My tools all work on 3.2.
 
 ### Finding 2: Missing — `md5sum` or `md5` for test isolation (LOW)
-`test_isolation_teardown` in `claude/tools/lib/_test-isolation` uses `md5 -q` (macOS) with `md5sum` fallback (Linux) to hash .git/config before/after tests. Neither is listed as a dependency. Both are typically pre-installed, but worth noting for completeness.
+`test_isolation_teardown` in `agency/tools/lib/_test-isolation` uses `md5 -q` (macOS) with `md5sum` fallback (Linux) to hash .git/config before/after tests. Neither is listed as a dependency. Both are typically pre-installed, but worth noting for completeness.
 
 **Recommendation:** Add to optional or note in the testing tier with `note: usually pre-installed`.
 
@@ -32,8 +32,8 @@ All 3 SPEC-PROVIDER wrappers (secret, preview, deploy) use awk for agency.yaml p
 
 ### Finding 4: `pyyaml` and `jsonschema` are NOT listed as Python deps (MEDIUM)
 Two tools depend on Python packages:
-- `claude/tools/config` uses `python3 + pyyaml` for YAML parsing
-- `claude/tools/findings-save` / `findings-consolidate` use `python3 + jsonschema`
+- `agency/tools/config` uses `python3 + pyyaml` for YAML parsing
+- `agency/tools/findings-save` / `findings-consolidate` use `python3 + jsonschema`
 
 These fail in test isolation (HOME override hides user pip packages — see my earlier workaround in `_commit-prefix` where I replaced the config tool's pyyaml-based read with pure awk).
 

@@ -142,7 +142,7 @@ Two research agents launched (Medium vs Substack, local content management archi
 
 **Research finding (platforms):** Ghost as canonical home (own domain, full API, own SEO). Skip Medium (dead API, no custom domain). Substack as syndication only (no API). LinkedIn, X, Reddit for audience reach.
 
-**Research finding (architecture):** Captain tools, not a SwiftUI app. `/publish` skill → platform adapter tools in `claude/tools/`. Ghost Admin API is the only mature publishing API. Postiz (open-source scheduler) worth studying for OAuth patterns.
+**Research finding (architecture):** Captain tools, not a SwiftUI app. `/publish` skill → platform adapter tools in `agency/tools/`. Ghost Admin API is the only mature publishing API. Postiz (open-source scheduler) worth studying for OAuth patterns.
 
 Jordan: "But does anyone read Ghost?" — Ghost is the engine, not the destination. Like WordPress — nobody "reads WordPress," they read sites built on it.
 
@@ -246,7 +246,7 @@ Three-layer model:
 
 All three in ISCP's SQLite. Agent queries for what it needs on bootstrap. Token-aware loading — "give me N tokens of the most important context."
 
-**Decision:** Spec this separately from ISCP. ISCP is storage, Context Manager is intelligence. Seed written to `claude/workstreams/iscp/seeds/context-manager-20260405.md`.
+**Decision:** Spec this separately from ISCP. ISCP is storage, Context Manager is intelligence. Seed written to `agency/workstreams/iscp/seeds/context-manager-20260405.md`.
 
 ---
 
@@ -367,7 +367,7 @@ Jordan: "Why???? Testing info is in root CLAUDE.md, not CLAUDE-THEAGENCY.md."
 
 Discussion led to identifying the provider-spec pattern: project-specific capabilities (testing, secrets, terminal, etc.) belong in `agency.yaml`, not CLAUDE.md. CLAUDE-THEAGENCY.md describes the *pattern*; agency.yaml holds the *config*.
 
-**Decision:** Added `testing:` section to agency.yaml. Rewrote `claude/tools/test-run` v2 to read suites from agency.yaml. Falls back to package manager detection for backward compat.
+**Decision:** Added `testing:` section to agency.yaml. Rewrote `agency/tools/test-run` v2 to read suites from agency.yaml. Falls back to package manager detection for backward compat.
 
 **Action:** test-run v2 staged but commit blocked by pre-commit (commit-precheck runs full BATS, reports failure despite exit 0).
 

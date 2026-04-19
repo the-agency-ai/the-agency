@@ -19,7 +19,7 @@ Large binary/asset files accidentally committed pollute repo history and inflate
 ## Design
 
 ### Integration point
-Extend `claude/tools/commit-precheck` (already in the pre-commit path via /git-safe-commit). No new tool needed.
+Extend `agency/tools/commit-precheck` (already in the pre-commit path via /git-safe-commit). No new tool needed.
 
 ### Check
 For each staged file:
@@ -27,7 +27,7 @@ For each staged file:
 - If file size > BLOCK_BYTES (default 10 MB): block the commit with remediation guidance
 
 ### Configuration
-- `claude/config/enforcement.yaml` → new section:
+- `agency/config/enforcement.yaml` → new section:
   ```yaml
   commit-precheck:
     large_file:
@@ -35,7 +35,7 @@ For each staged file:
       block_bytes: 10485760    # 10 MB
       exceptions:
         - "**/*.png"         # allow design assets up to block_bytes
-        - "claude/receipts/**"
+        - "agency/receipts/**"
   ```
 
 ### Override
@@ -50,8 +50,8 @@ BLOCKED: staged file exceeds size threshold
 
 If this is intentional:
   1. Use Git LFS: git lfs track '*.bin' && git add .gitattributes
-  2. Override once: ./claude/tools/git-safe-commit --allow-large ...
-  3. Add permanent exception: edit claude/config/enforcement.yaml
+  2. Override once: ./agency/tools/git-safe-commit --allow-large ...
+  3. Add permanent exception: edit agency/config/enforcement.yaml
 ```
 
 ## Scope

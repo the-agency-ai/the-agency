@@ -13,9 +13,9 @@ inputs:
   - /Users/jdm/code/andrew-demo/usr/andrew/captain/captain-handoff.md
   - /Users/jdm/code/andrew-demo/usr/jdm/captain/captain-handoff.md
   - /Users/jdm/code/andrew-demo/usr/jdm/reports/REPORTS-INDEX.md
-  - /Users/jdm/code/andrew-demo/claude/workstreams/flashcards/pvr-flashcards-hsk3-20260418.md
-  - /Users/jdm/code/andrew-demo/claude/workstreams/flashcards/ad-flashcards-hsk3-20260418.md
-  - /Users/jdm/code/andrew-demo/claude/workstreams/flashcards/plan-flashcards-hsk3-20260418.md
+  - /Users/jdm/code/andrew-demo/agency/workstreams/flashcards/pvr-flashcards-hsk3-20260418.md
+  - /Users/jdm/code/andrew-demo/agency/workstreams/flashcards/ad-flashcards-hsk3-20260418.md
+  - /Users/jdm/code/andrew-demo/agency/workstreams/flashcards/plan-flashcards-hsk3-20260418.md
   - /Users/jdm/code/andrew-demo full tree
 ---
 
@@ -53,7 +53,7 @@ discussions.
 
 1. **NEW-1** `.claude/agents/` missing entirely after `agency init` — no
    subagent classes registered for Claude Code discovery. Files exist at
-   `claude/agents/<class>/agent.md` but there's no bridge.
+   `agency/agents/<class>/agent.md` but there's no bridge.
 2. **NEW-2** `CLAUDE.md` stays placeholder stub after init — `# myapp` header
    with empty `<!-- comment -->` stubs. Primary context-injection surface is
    unset on day one.
@@ -65,7 +65,7 @@ discussions.
 5. **NEW-5** Plan mode writes stray `~/.claude/plans/<name>.md` outside the
    repo — content escapes source control.
 6. **NEW-6** `agency init` auto-scaffolds a project workstream (`myapp/`) with
-   full shape while `claude/workstreams/captain/` gets only partial shape —
+   full shape while `agency/workstreams/captain/` gets only partial shape —
    inconsistent. Refines #278 (captain is under-scaffolded, not mis-located).
 7. **NEW-7** Tests directory ships framework BATS scaffolding to adopters who
    have no test runner for their own code — confusing install surface.
@@ -113,20 +113,20 @@ discussions.
 - `/Users/jdm/code/andrew-demo/.claude/settings.json` — no statusLine, no agents/
 - `/Users/jdm/code/andrew-demo/.claude/commands/` — 7 files vs 61 skills
 - `/Users/jdm/code/andrew-demo/CLAUDE.md` — placeholder stub (20 lines)
-- `/Users/jdm/code/andrew-demo/claude/config/agency.yaml` — principal mapping
+- `/Users/jdm/code/andrew-demo/agency/config/agency.yaml` — principal mapping
   root cause
-- `/Users/jdm/code/andrew-demo/claude/agents/captain/SESSION-BACKUP-*.md` — 5
+- `/Users/jdm/code/andrew-demo/agency/agents/captain/SESSION-BACKUP-*.md` — 5
   leaked captain session backups (662 lines)
-- `/Users/jdm/code/andrew-demo/claude/agents/{apple,discord,gumroad,testname,
+- `/Users/jdm/code/andrew-demo/agency/agents/{apple,discord,gumroad,testname,
   designex}/` — stale specific agents
-- `/Users/jdm/code/andrew-demo/claude/workstreams/{captain,flashcards,
+- `/Users/jdm/code/andrew-demo/agency/workstreams/{captain,flashcards,
   housekeeping,myapp}/` — 4 workstreams, inconsistent shapes
 - `/Users/jdm/code/andrew-demo/usr/{andrew,jdm}/captain/captain-handoff.md` —
   identity split in action
 - `/Users/jdm/code/andrew-demo/usr/jdm/reports/` — reports in git-user dir
-- `/Users/jdm/code/andrew-demo/claude/workstreams/housekeeping/bugs/BUG-0001.md`
+- `/Users/jdm/code/andrew-demo/agency/workstreams/housekeeping/bugs/BUG-0001.md`
   — local audit of #271
-- `/Users/jdm/code/andrew-demo/claude/REFERENCE-{EXTRACTION_PLAN,WORKNOTE-*,
+- `/Users/jdm/code/andrew-demo/agency/REFERENCE-{EXTRACTION_PLAN,WORKNOTE-*,
   QUALITY-GATE-MONOFOLK}.md` — framework-internal docs leaked
 
 ## Input to related work

@@ -59,13 +59,13 @@ Based on PROP-0001 and PROP-0006:
 | Path | Reason |
 |------|--------|
 | `tools/local/` | Project-specific tools |
-| `claude/agents/local/` | Local agent customizations |
+| `agency/agents/local/` | Local agent customizations |
 | `claude/knowledge/local/` | Project-specific knowledge |
 | `claude/docs/local/` | Project-specific docs |
 | `claude/principals/` | User's principals and requests |
-| `claude/workstreams/*/sprints/` | Active work |
-| `claude/agents/*/WORKLOG.md` | Agent work history |
-| `claude/agents/*/ADHOC-WORKLOG.md` | Adhoc work history |
+| `agency/workstreams/*/sprints/` | Active work |
+| `agency/agents/*/WORKLOG.md` | Agent work history |
+| `agency/agents/*/ADHOC-WORKLOG.md` | Adhoc work history |
 | `.agency/` | Local metadata |
 
 ### Updatable Paths
@@ -75,8 +75,8 @@ Based on PROP-0001 and PROP-0006:
 | `tools/*` (except local/) | Replace if unmodified, backup if modified |
 | `claude/docs/*` (except local/) | Replace if unmodified |
 | `claude/knowledge/*` (except local/) | Replace if unmodified |
-| `claude/agents/templates/` | Replace (framework templates) |
-| `claude/config/agency.yaml` | Merge with project values preserved |
+| `agency/agents/templates/` | Replace (framework templates) |
+| `agency/config/agency.yaml` | Merge with project values preserved |
 | `CLAUDE.md` | Section-based merge |
 
 ### CLAUDE.md Merge Strategy
@@ -169,9 +169,9 @@ Use section markers to enable safe merging:
 **Protected Paths:**
 - `tools/local/` - Project-specific tools
 - `claude/principals/` - User's principals
-- `claude/agents/*/WORKLOG.md` - Work history
-- `claude/agents/*/ADHOC-WORKLOG.md` - Adhoc work
-- `claude/workstreams/*/sprints/` - Active sprints
+- `agency/agents/*/WORKLOG.md` - Work history
+- `agency/agents/*/ADHOC-WORKLOG.md` - Adhoc work
+- `agency/workstreams/*/sprints/` - Active sprints
 - `.agency/` - Local metadata
 
 **Tested:**

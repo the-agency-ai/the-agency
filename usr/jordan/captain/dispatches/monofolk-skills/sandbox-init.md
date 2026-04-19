@@ -68,8 +68,8 @@ Set up a per-engineer sandbox for Claude Code tooling development.
 
    Structure:
      claude/commands/       — slash commands (activated via symlink)
-     claude/hooks/          — hooks
-     claude/hookify/        — hookify enforcement rules
+     agency/hooks/          — hooks
+     agency/hookify/        — hookify enforcement rules
      claude/CLAUDE.md       — your user-level instructions (symlinked to ~/.claude/CLAUDE.md)
      claude/settings.local.json — local settings overrides
      scripts/               — cross-cutting scripts

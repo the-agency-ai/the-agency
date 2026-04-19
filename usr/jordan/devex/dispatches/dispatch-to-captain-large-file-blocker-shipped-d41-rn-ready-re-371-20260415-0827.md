@@ -14,10 +14,10 @@ in_reply_to: null
 Shipped in commit 3e6ca03 on devex branch. Scope exactly as outlined in #369 / approved in #371.
 
 ## What landed
-- `claude/tools/commit-precheck` — new "Gate 1" check_large_files between Test User block and No-staged-changes check. Stats every staged file, warns >1 MB (env: LARGE_FILE_WARN_BYTES), blocks >10 MB (env: LARGE_FILE_BLOCK_BYTES). Bypass: ALLOW_LARGE_COMMIT=1. Globstar-aware path-or-basename exception match.
-- `claude/tools/git-safe-commit` — `--allow-large` flag; exports ALLOW_LARGE_COMMIT=1 so the pre-commit hook inherits it.
-- `claude/config/large-file-exceptions.txt` — empty allowlist with guidance header (glob per line).
-- `claude/REFERENCE-SAFE-TOOLS.md` — new 'Large-file gate' section under git-safe-commit with thresholds table, bypass, and exceptions path.
+- `agency/tools/commit-precheck` — new "Gate 1" check_large_files between Test User block and No-staged-changes check. Stats every staged file, warns >1 MB (env: LARGE_FILE_WARN_BYTES), blocks >10 MB (env: LARGE_FILE_BLOCK_BYTES). Bypass: ALLOW_LARGE_COMMIT=1. Globstar-aware path-or-basename exception match.
+- `agency/tools/git-safe-commit` — `--allow-large` flag; exports ALLOW_LARGE_COMMIT=1 so the pre-commit hook inherits it.
+- `agency/config/large-file-exceptions.txt` — empty allowlist with guidance header (glob per line).
+- `agency/REFERENCE-SAFE-TOOLS.md` — new 'Large-file gate' section under git-safe-commit with thresholds table, bypass, and exceptions path.
 
 ## Tests
 All 18 commit-precheck BATS tests pass, including 6 new:
@@ -40,8 +40,8 @@ Deferred D41-Rn version tag / manifest bump per your note (#371) — will coordi
 
 If this is intentional:
   1. Use Git LFS:      git lfs track '*.bin' && git add .gitattributes
-  2. Override once:    ./claude/tools/git-safe-commit --allow-large ...
-  3. Permanent exempt: add glob to claude/config/large-file-exceptions.txt
+  2. Override once:    ./agency/tools/git-safe-commit --allow-large ...
+  3. Permanent exempt: add glob to agency/config/large-file-exceptions.txt
 ```
 
 Queue clear. Awaiting D41-Rn bump instructions or next directive.

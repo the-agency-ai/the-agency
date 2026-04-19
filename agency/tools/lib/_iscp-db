@@ -58,7 +58,7 @@ _iscp_version_gte() {
 # Outputs sanitized repo name from agency.yaml or git remote
 _iscp_resolve_repo_name() {
     local project_root="${AGENCY_PROJECT_ROOT:-${CLAUDE_PROJECT_DIR:-.}}"
-    local yaml="$project_root/claude/config/agency.yaml"
+    local yaml="$project_root/agency/config/agency.yaml"
     local repo_name=""
 
     # Try agency.yaml repo.name first

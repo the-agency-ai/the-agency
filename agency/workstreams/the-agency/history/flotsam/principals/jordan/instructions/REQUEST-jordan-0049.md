@@ -48,7 +48,7 @@ Implement automatic session context capture system that:
    - `--raw`: Raw JSONL
 
 3. **`.claude/hooks/session-start.sh`** - Context restoration hook
-   - Reads `claude/agents/{AGENT}/backups/latest/context.jsonl`
+   - Reads `agency/agents/{AGENT}/backups/latest/context.jsonl`
    - Formats and displays last 10 context entries
    - Shows parked items prominently (⏸ PARKED)
    - Shows git status summary if uncommitted changes
@@ -73,7 +73,7 @@ Implement automatic session context capture system that:
 
 ### File Format
 
-**Location:** `claude/agents/{AGENT}/backups/latest/context.jsonl`
+**Location:** `agency/agents/{AGENT}/backups/latest/context.jsonl`
 
 **Format:** JSONL (JSON Lines) - one JSON object per line
 

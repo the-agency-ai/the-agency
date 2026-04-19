@@ -24,16 +24,16 @@ Shipped in commit d285a7c. Monofolk BLOCKER unblocked.
 - git-safe-commit-merge.bats NEW: 4/4
 
 ## Docs
-- claude/REFERENCE-SAFE-TOOLS.md updated: new subsections for rm, resolve-conflict, merge-abort, merge-commit auto-route.
+- agency/REFERENCE-SAFE-TOOLS.md updated: new subsections for rm, resolve-conflict, merge-abort, merge-commit auto-route.
 
 ## Monofolk workaround recap (for your relay)
 Agents can now do the full in-tool flow:
 ```
-./claude/tools/git-safe merge-from-master --remote
+./agency/tools/git-safe merge-from-master --remote
 # → conflicts
-./claude/tools/git-safe resolve-conflict <file> --ours|--theirs
+./agency/tools/git-safe resolve-conflict <file> --ours|--theirs
 # (or: git-safe rm <file> to drop the file; or: git-safe merge-abort to bail)
-./claude/tools/git-safe-commit --no-verify
+./agency/tools/git-safe-commit --no-verify
 # → auto-detects MERGE_HEAD, finalizes
 ```
 

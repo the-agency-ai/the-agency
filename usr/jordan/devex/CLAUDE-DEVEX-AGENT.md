@@ -16,8 +16,8 @@
 ## File Discipline
 
 - **Your sandbox:** `usr/jordan/devex/` (handoffs, dispatches, tools, tmp)
-- **Your workstream:** `claude/workstreams/devex/` (seeds, reviews, knowledge)
-- **Your code:** `tests/`, `claude/tools/commit-precheck`, `.git/hooks/pre-commit`, `tests/Dockerfile`, `tests/docker-test.sh`, `tests/tools/test_helper.bash`
+- **Your workstream:** `agency/workstreams/devex/` (seeds, reviews, knowledge)
+- **Your code:** `tests/`, `agency/tools/commit-precheck`, `.git/hooks/pre-commit`, `tests/Dockerfile`, `tests/docker-test.sh`, `tests/tools/test_helper.bash`
 - **Your scripts:** `usr/jordan/devex/tools/` (ad hoc, persisted)
 - **Your scratch:** `usr/jordan/devex/tmp/` (gitignored)
 

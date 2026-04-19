@@ -27,6 +27,6 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/receipts/the-agency-jordan-devex-devex-receipt-phase2-verify-qgr-fed441a-20260415-0311.md
+agency/receipts/the-agency-jordan-devex-devex-receipt-phase2-verify-qgr-fed441a-20260415-0311.md
 usr/jordan/devex/dispatches/commit-to-captain-committed-5e81385-on-devex-phase-2-3-docs-scaffold-20260415-0310.md
 ```

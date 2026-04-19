@@ -29,7 +29,7 @@ in_reply_to: null
 ```
 apps/mdpal/Sources/MarkdownPalEngine/Bundle/DocumentBundle.swift
 apps/mdpal/Tests/MarkdownPalEngineTests/BundleTests.swift
-claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md
+agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md
 usr/jordan/mdpal-cli/dispatches/commit-to-captain-committed-719e30c-on-mdpal-cli-misc-session-compac-20260415-0724.md
 usr/jordan/mdpal-cli/dispatches/dispatch-to-mdpal-app-re-phase-1b-wire-format-cli-not-yet-built-phase-2-20260415-1002.md
 ```

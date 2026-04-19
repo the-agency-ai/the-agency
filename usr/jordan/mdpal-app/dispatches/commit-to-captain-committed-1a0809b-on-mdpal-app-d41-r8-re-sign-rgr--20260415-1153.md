@@ -27,5 +27,5 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/receipts/the-agency-jordan-mdpal-app-mdpal-mdpal-app-rgr-f2b6702-20260415-1153.md
+agency/receipts/the-agency-jordan-mdpal-app-mdpal-mdpal-app-rgr-f2b6702-20260415-1153.md
 ```

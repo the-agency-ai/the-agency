@@ -21,14 +21,14 @@ tags: [Backend, Infra]
 
 Agency 2.0 introduced a class/instance model for agents. Classes (`claude/agents/{class}/agent.md`) define roles. Instances (`.claude/agents/{name}.md`) are registrations that point to a class + workstream. Currently:
 
-- 7 dead agents clutter `claude/agents/`
+- 7 dead agents clutter `agency/agents/`
 - 3 class definitions are missing (marketing-lead, platform-specialist, researcher)
 - 3 live agents have project-specific `agent.md` files in class-only space
 - Test artifacts from previous test runs need cleanup
 
 ## Phase 1: Kill Dead Agents
 
-Delete these directories from `claude/agents/`:
+Delete these directories from `agency/agents/`:
 
 | Directory | What it is | Safe to delete? |
 |-----------|-----------|-----------------|
@@ -41,8 +41,8 @@ Delete these directories from `claude/agents/`:
 | `research/` | v1-era research agent (19 files) | Yes — replaced by new researcher class |
 
 Also clean up test artifacts:
-- `claude/agents/test$agent/` directory
-- `claude/agents/testname/` directory
+- `agency/agents/test$agent/` directory
+- `agency/agents/testname/` directory
 - `.claude/agents/test$agent.md` registration
 - `.claude/agents/testname.md` registration
 
@@ -52,7 +52,7 @@ Also clean up test artifacts:
 
 Follow the `tech-lead/agent.md` pattern: identity, class description, responsibilities, startup protocol, artifact lifecycle, handoff discipline, key directories.
 
-### `claude/agents/marketing-lead/agent.md`
+### `agency/agents/marketing-lead/agent.md`
 
 - Identity: marketing-lead — the GTM strategist
 - Class mechanism: instances per-principal per-workstream
@@ -64,7 +64,7 @@ Follow the `tech-lead/agent.md` pattern: identity, class description, responsibi
 - Startup protocol: read handoff, check dispatches/guides, enter worktree, read KNOWLEDGE.md + seeds
 - Handoff discipline: same as tech-lead
 
-### `claude/agents/platform-specialist/agent.md`
+### `agency/agents/platform-specialist/agent.md`
 
 - Identity: platform-specialist — the platform integrator
 - Class mechanism: instances per-principal per-platform
@@ -76,7 +76,7 @@ Follow the `tech-lead/agent.md` pattern: identity, class description, responsibi
 - Startup protocol: same pattern
 - Note: gumroad, discord, apple agents are future platform-specialist instances
 
-### `claude/agents/researcher/agent.md`
+### `agency/agents/researcher/agent.md`
 
 - Identity: researcher — the deep research specialist
 - Class mechanism: subagent (spun up for specific research tasks, not standing)
@@ -93,22 +93,22 @@ Follow the `tech-lead/agent.md` pattern: identity, class description, responsibi
 
 ### markdown-pal and mock-and-mark
 
-Both registrations already point to `tech-lead/agent.md` — **this is correct**. They ARE tech-lead instances. However, both have project-specific `claude/agents/{name}/agent.md` files that belong in workstream knowledge, not in class space.
+Both registrations already point to `tech-lead/agent.md` — **this is correct**. They ARE tech-lead instances. However, both have project-specific `agency/agents/{name}/agent.md` files that belong in workstream knowledge, not in class space.
 
 **Action:**
-1. Compare `claude/agents/markdown-pal/agent.md` with `claude/workstreams/markdown-pal/KNOWLEDGE.md` — merge any unique content into KNOWLEDGE.md
+1. Compare `agency/agents/markdown-pal/agent.md` with `agency/workstreams/markdown-pal/KNOWLEDGE.md` — merge any unique content into KNOWLEDGE.md
 2. Same for mock-and-mark
-3. Delete `claude/agents/markdown-pal/` directory (class space is for classes only)
-4. Delete `claude/agents/mock-and-mark/` directory
+3. Delete `agency/agents/markdown-pal/` directory (class space is for classes only)
+4. Delete `agency/agents/mock-and-mark/` directory
 
 ### gtm
 
-Registration points to `claude/agents/gtm/agent.md` (project-specific, not a class). Should point to `marketing-lead`.
+Registration points to `agency/agents/gtm/agent.md` (project-specific, not a class). Should point to `marketing-lead`.
 
 **Action:**
 1. Update `.claude/agents/gtm.md` to read from `claude/agents/marketing-lead/agent.md`
-2. Merge unique content from `claude/agents/gtm/agent.md` into `claude/workstreams/gtm/KNOWLEDGE.md`
-3. Delete `claude/agents/gtm/` directory
+2. Merge unique content from `agency/agents/gtm/agent.md` into `agency/workstreams/gtm/KNOWLEDGE.md`
+3. Delete `agency/agents/gtm/` directory
 
 ### Service agents (gumroad, discord, apple)
 
@@ -120,7 +120,7 @@ Update the agent class table in CLAUDE.md to mark marketing-lead, platform-speci
 
 ## Verification
 
-1. `ls claude/agents/` — should only contain: captain, cos, project-manager, tech-lead, marketing-lead, platform-specialist, researcher, reviewer-code, reviewer-design, reviewer-security, reviewer-test, reviewer-scorer, templates, gumroad, discord, apple, housekeeping
+1. `ls agency/agents/` — should only contain: captain, cos, project-manager, tech-lead, marketing-lead, platform-specialist, researcher, reviewer-code, reviewer-design, reviewer-security, reviewer-test, reviewer-scorer, templates, gumroad, discord, apple, housekeeping
 2. `ls .claude/agents/` — should contain: gtm.md, markdown-pal.md, mock-and-mark.md, tech-lead.md (no test artifacts)
 3. `cat .claude/agents/gtm.md` — should reference marketing-lead class
 4. `cat .claude/agents/markdown-pal.md` — should reference tech-lead class (unchanged)
@@ -133,9 +133,9 @@ Save this plan to `docs/plans/20260330-plan-agency2-bootstrap.md` (follows the p
 
 ## Key Files
 
-- `claude/agents/tech-lead/agent.md` (103 lines) — pattern to follow for new classes
-- `claude/agents/research/agent.md` (143 lines) — content to incorporate into researcher class
+- `agency/agents/tech-lead/agent.md` (103 lines) — pattern to follow for new classes
+- `agency/agents/research/agent.md` (143 lines) — content to incorporate into researcher class
 - `.claude/agents/gtm.md` (9 lines) — needs re-pointing
 - `.claude/agents/markdown-pal.md` (9 lines) — verify correct
 - `.claude/agents/mock-and-mark.md` (9 lines) — verify correct
-- `claude/workstreams/*/KNOWLEDGE.md` — targets for content merge
+- `agency/workstreams/*/KNOWLEDGE.md` — targets for content merge

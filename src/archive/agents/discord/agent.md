@@ -35,5 +35,5 @@ Manage The Agency's Discord community - server setup, bot integrations, communit
 
 ## Key Directories
 
-- `claude/agents/discord/` - Agent identity
-- `claude/workstreams/gtm/` - Work artifacts (shared with other gtm agents)
+- `agency/agents/discord/` - Agent identity
+- `agency/workstreams/gtm/` - Work artifacts (shared with other gtm agents)

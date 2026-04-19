@@ -10,14 +10,14 @@ This issue is being filed using the tool itself as a smoke test of the full pipe
 
 ## What v1 ships
 
-- **Tool:** `claude/tools/agency-issue` — bash wrapper over `gh issue` with five verbs:
+- **Tool:** `agency/tools/agency-issue` — bash wrapper over `gh issue` with five verbs:
   - `file` — create a new issue, write a local report file
   - `list` — list open/closed/all issues
   - `view <id>` — show issue body + comments
   - `comment <id>` — add a comment
   - `close <id>` — close an issue, optionally with a final comment
 - **Skill:** `.claude/skills/agency-issue/SKILL.md` — agent discovery + usage docs
-- **Config:** `claude/config/agency.yaml` — `issues.github.target_repo` block
+- **Config:** `agency/config/agency.yaml` — `issues.github.target_repo` block
 - **Reports:** every filed issue writes a markdown report to `usr/{principal}/reports/` and updates `REPORTS-INDEX.md`
 
 ## Design principles
@@ -40,7 +40,7 @@ Future v2+ work captured in the seed:
 
 ## Related
 
-- Seed: `claude/workstreams/agency/seeds/seed-agency-issue-skill-20260408.md`
+- Seed: `agency/workstreams/agency/seeds/seed-agency-issue-skill-20260408.md`
 - Sibling pattern: `/feedback` (Anthropic Claude Code)
 - Report directory pattern: `usr/jordan/reports/REPORTS-INDEX.md`
 

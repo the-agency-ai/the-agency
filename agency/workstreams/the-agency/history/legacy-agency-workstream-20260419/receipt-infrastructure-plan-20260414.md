@@ -3,7 +3,7 @@ type: plan
 project: receipt-infrastructure
 workstream: agency
 date: 2026-04-14
-ad: claude/workstreams/agency/receipt-infrastructure-ad-20260414.md
+ad: agency/workstreams/agency/receipt-infrastructure-ad-20260414.md
 status: active
 owner: the-agency/jordan/captain
 ---
@@ -20,7 +20,7 @@ Phase 1 only. Build the three core tools, migration path, and tests. Phase 2 (QG
 **Goal:** Deterministic hash computation with parameterized base.
 
 **Tasks:**
-1. Build `claude/tools/diff-hash` — diff mode (branch vs base, excluding `claude/receipts/`) and file mode (single artifact hash)
+1. Build `agency/tools/diff-hash` — diff mode (branch vs base, excluding `agency/receipts/`) and file mode (single artifact hash)
 2. Support `--base`, `--file`, `--json` flags
 3. Full SHA-256 internally, 7-char truncation for display
 4. BATS tests: diff mode, file mode, JSON output, empty diff error, receipts exclusion
@@ -33,7 +33,7 @@ Phase 1 only. Build the three core tools, migration path, and tests. Phase 2 (QG
 **Goal:** Write signed receipts with five-hash chain.
 
 **Tasks:**
-1. Build `claude/tools/receipt-sign` — accepts all 5 hashes + metadata via CLI flags
+1. Build `agency/tools/receipt-sign` — accepts all 5 hashes + metadata via CLI flags
 2. Enforce naming convention: `{org}-{principal}-{agent}-{workstream}-{project}-{qgr|rgr}-{hash}-{YYYYMMDD-HHMM}.md`
 3. Write receipt format v1 with all frontmatter fields
 4. Hash D auto-detection: if hash-d == hash-c, set source to "auto-approved"
@@ -41,13 +41,13 @@ Phase 1 only. Build the three core tools, migration path, and tests. Phase 2 (QG
 6. Omit hash_d_transcript when auto-approved (DevEx finding #9)
 7. BATS tests: valid receipt, missing fields, auto-approve detection, format validation
 
-**Done when:** `bats tests/tools/receipt-sign.bats` passes, receipts written to `claude/receipts/`.
+**Done when:** `bats tests/tools/receipt-sign.bats` passes, receipts written to `agency/receipts/`.
 
 ### Iteration 1.3: receipt-verify tool
 **Goal:** Find and verify receipts for current code/artifacts.
 
 **Tasks:**
-1. Build `claude/tools/receipt-verify` — find receipts matching workstream+project, verify Hash E
+1. Build `agency/tools/receipt-verify` — find receipts matching workstream+project, verify Hash E
 2. Accept explicit `--workstream` and `--project` flags; fall back to branch name parsing (MAR finding #2)
 3. Read `diff_base` from receipt frontmatter for recomputation (DevEx finding #7)
 3. Support `--file` for verifying specific receipt
@@ -63,7 +63,7 @@ Phase 1 only. Build the three core tools, migration path, and tests. Phase 2 (QG
 **Tasks:**
 1. Update `pr-create` to call `receipt-verify` instead of inline hash logic
 2. Backward compat: `receipt-verify` also checks old `usr/**/qgr-*.md` location during transition
-3. Update `claude/receipts/.gitkeep` to `.gitignore` if needed
+3. Update `agency/receipts/.gitkeep` to `.gitignore` if needed
 4. Remove old stage-hash references from pr-create (DevEx finding #2 — stage-hash stays for pre-commit, diff-hash for receipts)
 5. Document migration in receipt infrastructure reference doc
 
@@ -75,7 +75,7 @@ Phase 1 only. Build the three core tools, migration path, and tests. Phase 2 (QG
 **Tasks:**
 1. Integration BATS test: diff-hash → receipt-sign → receipt-verify chain
 2. Integration test: pr-create + receipt-verify path
-3. Test isolation: all tests use temp dirs / fixture repo, never write to real `claude/receipts/`
+3. Test isolation: all tests use temp dirs / fixture repo, never write to real `agency/receipts/`
 4. Backward compat test: receipt-verify finds old `usr/**/qgr-*.md` format
 5. Sunset condition: backward compat removed when no old-format receipts exist in repo (documented)
 

@@ -73,7 +73,7 @@ Single skill, same sequence, different branches based on state detection.
 Periodic ping from every agent (including captain) to fleet.db. Updates `last_heartbeat`.
 
 **Draft design:**
-- New tool: `claude/tools/fleet-heartbeat` — updates current session's heartbeat, idempotent
+- New tool: `agency/tools/fleet-heartbeat` — updates current session's heartbeat, idempotent
 - Scheduled loop: `/loop 10m fleet-heartbeat` armed by `/startup`
 - Silent operation — no terminal noise
 - Stale threshold tuneable (default 15m → presumed offline)

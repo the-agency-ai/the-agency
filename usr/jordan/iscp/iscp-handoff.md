@@ -77,5 +77,5 @@ Investigated and diagnosed a **critical identity resolution bug** in `agent-iden
 
 1. Read this handoff
 2. `dispatch list` / `flag list` — process unread items
-3. **Fix agent-identity** — the bug described above. File: `claude/tools/agent-identity`, lines 42-46. Replace SCRIPT_DIR fallback with PWD-based git worktree detection.
+3. **Fix agent-identity** — the bug described above. File: `agency/tools/agent-identity`, lines 42-46. Replace SCRIPT_DIR fallback with PWD-based git worktree detection.
 4. Follow Next Action above

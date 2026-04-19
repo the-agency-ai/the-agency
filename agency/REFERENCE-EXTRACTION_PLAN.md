@@ -115,11 +115,11 @@ Each starter pack (next, react-native, swift, python) can optionally include wor
 
 ```bash
 # Install base Agency
-./claude/tools/create-project my-app --pack next
+./agency/tools/create-project my-app --pack next
 
 # Add optional workbench
-./claude/tools/add-workbench content-manager
-./claude/tools/add-workbench session-viewer
+./agency/tools/add-workbench content-manager
+./agency/tools/add-workbench session-viewer
 ```
 
 ---

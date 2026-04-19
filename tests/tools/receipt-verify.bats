@@ -4,7 +4,7 @@
 #
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
-RECEIPT_VERIFY="${REPO_ROOT}/claude/tools/receipt-verify"
+RECEIPT_VERIFY="${REPO_ROOT}/agency/tools/receipt-verify"
 
 @test "receipt-verify: no receipts = blocked" {
     # Empty receipts dir

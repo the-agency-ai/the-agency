@@ -123,7 +123,7 @@ load 'test_helper'
     run_tool workstream-create newworkstream --verbose || true
     [[ ! "$output" =~ "unknown option" ]] && [[ ! "$output" =~ "invalid flag" ]]
     # Clean up if created
-    rm -rf "claude/workstreams/newworkstream" 2>/dev/null || true
+    rm -rf "agency/workstreams/newworkstream" 2>/dev/null || true
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

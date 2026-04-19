@@ -34,7 +34,7 @@ These flags were resolved by Day 32 work. The original observations were correct
 
 **Original (2026-04-06):** Count days with commits per repo and per workstream. Day 30 = 30 days with commits since 2026-01-05. Propose as Agency model. Add to CLAUDE-THEAGENCY.md and valueflow PVR as a health metric.
 
-**Resolution:** Documented in `claude/README-THEAGENCY.md` under the Day-PR Release Pattern section as part of Day 32 commit `f3022da`. Convention is now active — every Day 32 commit uses `Day 32:` prefix.
+**Resolution:** Documented in `agency/README-THEAGENCY.md` under the Day-PR Release Pattern section as part of Day 32 commit `f3022da`. Convention is now active — every Day 32 commit uses `Day 32:` prefix.
 
 ### Flag 16, 20 — Manual dispatch loop convention
 

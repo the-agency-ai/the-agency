@@ -7,8 +7,8 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/git-rename-tree"
-    GIT_SAFE="$REPO_ROOT/claude/tools/git-safe"
+    TOOL="$REPO_ROOT/agency/tools/git-rename-tree"
+    GIT_SAFE="$REPO_ROOT/agency/tools/git-safe"
 
     # Per-test throwaway git repo
     TMP_REPO="$(mktemp -d -t grtree.XXXXXX)"

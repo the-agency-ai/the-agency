@@ -19,7 +19,7 @@ apps/<name>/
     globals.css             — minimal tokens-aware CSS
 ```
 
-Also updates `claude/config/topology.yaml`:
+Also updates `agency/config/topology.yaml`:
 
 - Adds a `frontend` service entry with `build: apps/<name>`, `wires_from: [backend]`, and `NEXT_PUBLIC_API_URL: "{{backend.outputs.url}}"`.
 

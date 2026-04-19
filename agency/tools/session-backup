@@ -2,7 +2,7 @@
 # Backup session state - captures git status, uncommitted changes, metadata
 #
 # Usage: Called automatically by SessionEnd hook
-#        ./claude/tools/session-backup [--verbose]
+#        ./agency/tools/session-backup [--verbose]
 #
 # Why this exists:
 #   Enables session continuity - capture complete work state on exit
@@ -34,7 +34,7 @@ for arg in "$@"; do
             echo "session-backup - Backup session state"
             echo ""
             echo "Usage:"
-            echo "  ./claude/tools/session-backup [--verbose]"
+            echo "  ./agency/tools/session-backup [--verbose]"
             echo ""
             echo "Options:"
             echo "  --verbose     Show detailed logging"
@@ -69,10 +69,10 @@ main() {
 
     verbose_echo "session-backup [run: ${RUN_ID:-none}]"
 
-    local AGENTNAME=$(./claude/tools/agency-whoami 2>/dev/null || echo 'unknown')
-    local TIMESTAMP=$(./claude/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M:%S %Z')
-    local BACKUP_DIR="claude/agents/$AGENTNAME/backups/latest"
-    local ARCHIVE_DIR="claude/agents/$AGENTNAME/backups/archive/session-$(date +%s)"
+    local AGENTNAME=$(./agency/tools/agency-whoami 2>/dev/null || echo 'unknown')
+    local TIMESTAMP=$(./agency/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M:%S %Z')
+    local BACKUP_DIR="agency/agents/$AGENTNAME/backups/latest"
+    local ARCHIVE_DIR="agency/agents/$AGENTNAME/backups/archive/session-$(date +%s)"
 
     log_step "Creating backup directories"
     mkdir -p "$BACKUP_DIR"
@@ -97,7 +97,7 @@ main() {
     fi
 
     log_step "Capturing session metadata"
-    local WORKSTREAM=$(./claude/tools/workstream 2>/dev/null || echo 'unknown')
+    local WORKSTREAM=$(./agency/tools/workstream 2>/dev/null || echo 'unknown')
     cat > "$BACKUP_DIR/session-info.json" <<EOF
 {
   "agentname": "$AGENTNAME",
@@ -111,7 +111,7 @@ main() {
 EOF
 
     log_step "Archiving context if exists"
-    local CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
+    local CONTEXT_FILE="agency/agents/$AGENTNAME/backups/latest/context.jsonl"
     if [[ -f "$CONTEXT_FILE" ]]; then
         cp "$CONTEXT_FILE" "$ARCHIVE_DIR/context.jsonl" 2>/dev/null
         verbose_echo "  Archived context file"

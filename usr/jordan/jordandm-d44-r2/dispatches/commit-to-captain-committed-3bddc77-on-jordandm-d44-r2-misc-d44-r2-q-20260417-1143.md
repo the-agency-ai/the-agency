@@ -27,5 +27,5 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/workstreams/the-agency/qgr/the-agency-jordan-captain-the-agency-the-agency-qgr-pr-prep-20260417-1142-078b391.md
+agency/workstreams/the-agency/qgr/the-agency-jordan-captain-the-agency-the-agency-qgr-pr-prep-20260417-1142-078b391.md
 ```

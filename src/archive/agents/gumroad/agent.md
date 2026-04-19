@@ -35,5 +35,5 @@ Manage The Agency's Gumroad storefront - products, pricing, sales tracking, and 
 
 ## Key Directories
 
-- `claude/agents/gumroad/` - Agent identity
-- `claude/workstreams/gtm/` - Work artifacts (shared with other gtm agents)
+- `agency/agents/gumroad/` - Agent identity
+- `agency/workstreams/gtm/` - Work artifacts (shared with other gtm agents)

@@ -3,7 +3,7 @@ type: plan
 project: documentation-sweep
 workstream: agency
 date: 2026-04-15
-pvr: claude/workstreams/agency/documentation-sweep-pvr-20260415.md
+pvr: agency/workstreams/agency/documentation-sweep-pvr-20260415.md
 status: reviewed
 mar: 2 agents, 11 findings incorporated
 ---
@@ -23,16 +23,16 @@ mar: 2 agents, 11 findings incorporated
 **Captain owns:** File renames + global reference updates. Not a subagent — too much cross-cutting.
 
 **Tasks:**
-1. `git mv` each `claude/docs/*.md` → `claude/REFERENCE-*.md` (keep README-* as-is)
-2. Update `claude/hooks/ref-injector.sh` paths for all renamed docs
+1. `git mv` each `claude/docs/*.md` → `agency/REFERENCE-*.md` (keep README-* as-is)
+2. Update `agency/hooks/ref-injector.sh` paths for all renamed docs
 3. Add placeholder entries in ref-injector for REFERENCE-RECEIPT-INFRASTRUCTURE and REFERENCE-SAFE-TOOLS (to be created in Iter 3)
 4. Update every reference to `claude/docs/` in:
    - Root `CLAUDE.md`
-   - `claude/CLAUDE-THEAGENCY.md` (bootloader + Reference Docs table)
+   - `agency/CLAUDE-THEAGENCY.md` (bootloader + Reference Docs table)
    - All skills (.claude/skills/**/*.md)
-   - All hookify rules (claude/hookify/*.md)
+   - All hookify rules (agency/hookify/*.md)
    - README-* files
-   - Workstream docs in claude/workstreams/ (if any)
+   - Workstream docs in agency/workstreams/ (if any)
 5. Verify: `grep -r "claude/docs/" --exclude-dir=.git --exclude-dir=usr --exclude-dir=history` returns nothing
 
 **Done when:** All docs renamed, all references updated, ref-injector has placeholders for new docs.
@@ -105,11 +105,11 @@ mar: 2 agents, 11 findings incorporated
    - Missing new skills in related skill lists
 2. Update skill frontmatter descriptions where applicable
 3. Update workstream docs:
-   - `claude/workstreams/agency/valueflow-ad-*.md` — add stream model if relevant
-   - `claude/workstreams/agency/valueflow-plan-*.md` — same
-   - `claude/REFERENCE-DEVELOPMENT-METHODOLOGY.md` (formerly claude/docs/DEVELOPMENT-METHODOLOGY.md) — add stream model section
-   - `claude/REFERENCE-WORKTREE-DISCIPLINE.md` — add branch protection section
-   - `claude/REFERENCE-ISCP-PROTOCOL.md` — add dispatch service seed note (coming soon)
+   - `agency/workstreams/agency/valueflow-ad-*.md` — add stream model if relevant
+   - `agency/workstreams/agency/valueflow-plan-*.md` — same
+   - `agency/REFERENCE-DEVELOPMENT-METHODOLOGY.md` (formerly claude/docs/DEVELOPMENT-METHODOLOGY.md) — add stream model section
+   - `agency/REFERENCE-WORKTREE-DISCIPLINE.md` — add branch protection section
+   - `agency/REFERENCE-ISCP-PROTOCOL.md` — add dispatch service seed note (coming soon)
 
 **Scope boundary:** Iter 1 already did PATH updates. Iter 4 does CONTENT updates only.
 

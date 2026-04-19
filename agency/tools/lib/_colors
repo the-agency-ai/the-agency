@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# What Problem: Every tool in claude/tools/ copy-pastes the same color
+# What Problem: Every tool in agency/tools/ copy-pastes the same color
 # constants (RED, GREEN, YELLOW, BLUE, NC). Adding a color, changing a
 # shade, or adding NO_COLOR support means touching every file.
 #

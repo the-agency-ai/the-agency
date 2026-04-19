@@ -18,8 +18,8 @@
 # Written: 2026-04-15 during D41-R28 — issue #128 live blocker.
 #
 # Usage:
-#   ./claude/tools/stage-hash          # prints 7-char hash
-#   ./claude/tools/stage-hash --json   # prints JSON with hash, fileCount, files
+#   ./agency/tools/stage-hash          # prints 7-char hash
+#   ./agency/tools/stage-hash --json   # prints JSON with hash, fileCount, files
 
 set -euo pipefail
 

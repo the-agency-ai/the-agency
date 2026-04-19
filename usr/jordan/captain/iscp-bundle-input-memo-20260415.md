@@ -17,9 +17,9 @@ two clarifications and one small Plan addendum.
 
 | Artifact | Path | Size |
 |----------|------|------|
-| PVR | `claude/workstreams/iscp/dispatch-service-pvr-20260414.md` | 9 sections complete |
-| A&D | `claude/workstreams/iscp/dispatch-service-ad-20260415.md` | 604 lines, 10 sections, 10 trade-offs, 10 failure modes |
-| Plan | `claude/workstreams/iscp/dispatch-service-plan-20260415.md` | 8 iterations, 8 weeks, 7 milestones, 10-risk register |
+| PVR | `agency/workstreams/iscp/dispatch-service-pvr-20260414.md` | 9 sections complete |
+| A&D | `agency/workstreams/iscp/dispatch-service-ad-20260415.md` | 604 lines, 10 sections, 10 trade-offs, 10 failure modes |
+| Plan | `agency/workstreams/iscp/dispatch-service-plan-20260415.md` | 8 iterations, 8 weeks, 7 milestones, 10-risk register |
 
 The agent ran the full PVR → A&D → Plan chain autonomously per directive,
 paused at the sign-off gate (Plan §8) per protocol. Did not start

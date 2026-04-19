@@ -76,6 +76,6 @@ The book angle: Tan's version is the **sound-bite version** (easy to copy-paste 
 
 ## Related artifacts
 
-- Seed: `claude/workstreams/agency/seeds/seed-telemetry-driven-tool-discovery-20260409.md`
+- Seed: `agency/workstreams/agency/seeds/seed-telemetry-driven-tool-discovery-20260409.md`
 - Flag #55: CLAUDE.md + README revision for telemetry-driven tool discovery (add a section referencing Tan)
 - Flag #54: compound command telemetry analysis workstream (the mining side)

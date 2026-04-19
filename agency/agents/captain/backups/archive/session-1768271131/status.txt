@@ -4,11 +4,11 @@ Your branch is up to date with 'origin/main'.
 Changes not staged for commit:
   (use "git add <file>..." to update what will be committed)
   (use "git restore <file>..." to discard changes in working directory)
-	modified:   claude/agents/housekeeping/backups/latest/status.txt
+	modified:   agency/agents/housekeeping/backups/latest/status.txt
 
 Untracked files:
   (use "git add <file>..." to include in what will be committed)
-	claude/data/agency-service.pid
+	agency/data/agency-service.pid
 	claude/knowledge/ui-development/
 	claude/principals/jordan/artifacts/ART-jordan-0002-figma-to-code-strategy.md
 	package-lock.json

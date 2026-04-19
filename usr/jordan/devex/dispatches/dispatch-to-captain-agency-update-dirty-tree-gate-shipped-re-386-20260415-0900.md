@@ -24,7 +24,7 @@ Shipped in commit 23a121d. Scope exactly as you outlined (#386): detect interrup
 ✗ agency update: N uncommitted framework file(s) detected
   → Looks like a prior 'agency update' left changes in claude/ or .claude/.
   → Commit first — these are coordination artifacts, not app code:
-      ./claude/tools/git-safe-commit "misc: prior agency update" --no-work-item
+      ./agency/tools/git-safe-commit "misc: prior agency update" --no-work-item
   → Or re-run with --force to overwrite (will lose uncommitted local changes).
 ```
 

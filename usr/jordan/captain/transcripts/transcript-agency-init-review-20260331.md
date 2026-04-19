@@ -19,7 +19,7 @@ Three parallel reviewers (design, code, security) reviewed the design document. 
 
 ## Item 1: Workstream & usr/ Location + Worktrees
 
-**Decision: Option A — everything under `claude/`.** Single namespace. Good neighbor in someone else's repo. No breaking change from current `claude/workstreams/` layout.
+**Decision: Option A — everything under `claude/`.** Single namespace. Good neighbor in someone else's repo. No breaking change from current `agency/workstreams/` layout.
 
 Worktrees stay at `.claude/worktrees/` — transient, gitignored, Claude Code's concern. ISS-012 (worktrees in two locations in monofolk) noted as open item.
 

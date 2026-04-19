@@ -4,7 +4,7 @@
 
 1. Launch the agent:
    ```bash
-   ./claude/tools/myclaude housekeeping testname
+   ./agency/tools/myclaude housekeeping testname
    ```
 
 2. Review current work:
@@ -15,8 +15,8 @@
 
 ## Key Resources
 
-- Agent directory: `claude/agents/testname/`
-- Workstream: `claude/workstreams/housekeeping/`
+- Agent directory: `agency/agents/testname/`
+- Workstream: `agency/workstreams/housekeeping/`
 ## Getting Help
 
 Write a dispatch to the captain agent for cross-workstream coordination.

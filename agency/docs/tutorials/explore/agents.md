@@ -17,7 +17,7 @@ Think of agents as team members with specific expertise.
 Show them an agent directory:
 
 ```bash
-ls -la claude/agents/captain/
+ls -la agency/agents/captain/
 ```
 
 Explain what they'll see:
@@ -33,7 +33,7 @@ Walk through creating a test agent:
 
 Show them what was created:
 ```bash
-cat claude/agents/demo-agent/agent.md
+cat agency/agents/demo-agent/agent.md
 ```
 
 ## Launching an Agent

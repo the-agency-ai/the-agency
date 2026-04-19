@@ -27,7 +27,7 @@
 
 **Decision:** Two target types:
 - **Agent:** `{repo}/{principal}/{agent}` → payload at `usr/{principal}/{agent-project}/dispatches/`
-- **Workstream:** `{repo}/{workstream}` → payload at `claude/workstreams/{workstream}/dispatches/`. Repo-level, no principal scoping — matches `claude/workstreams/{name}/` hierarchy.
+- **Workstream:** `{repo}/{workstream}` → payload at `agency/workstreams/{workstream}/dispatches/`. Repo-level, no principal scoping — matches `agency/workstreams/{name}/` hierarchy.
 - **Flag:** DB-only, same addressing, no payload location.
 - Bare forms resolve from context; disambiguate by checking workstream dir first, then agent registration.
 

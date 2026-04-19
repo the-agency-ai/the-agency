@@ -87,28 +87,28 @@ check() {
 # --- Smoke items ---
 
 smoke_handoff() {
-    local tool="$ROOT/claude/tools/handoff"
+    local tool="$ROOT/agency/tools/handoff"
     [[ -x "$tool" ]] || tool="$ROOT/agency/tools/handoff"
     [[ -x "$tool" ]] || return 1
     "$tool" --version >/dev/null 2>&1
 }
 
 smoke_dispatch() {
-    local tool="$ROOT/claude/tools/dispatch"
+    local tool="$ROOT/agency/tools/dispatch"
     [[ -x "$tool" ]] || tool="$ROOT/agency/tools/dispatch"
     [[ -x "$tool" ]] || return 1
     "$tool" --version >/dev/null 2>&1
 }
 
 smoke_flag() {
-    local tool="$ROOT/claude/tools/flag"
+    local tool="$ROOT/agency/tools/flag"
     [[ -x "$tool" ]] || tool="$ROOT/agency/tools/flag"
     [[ -x "$tool" ]] || return 1
     "$tool" --version >/dev/null 2>&1 || "$tool" count >/dev/null 2>&1
 }
 
 smoke_agency_health() {
-    local tool="$ROOT/claude/tools/agency-health"
+    local tool="$ROOT/agency/tools/agency-health"
     [[ -x "$tool" ]] || tool="$ROOT/agency/tools/agency-health"
     [[ -x "$tool" ]] || return 1
     "$tool" --version >/dev/null 2>&1
@@ -124,33 +124,33 @@ smoke_bats() {
 }
 
 smoke_ref_injector() {
-    local hook="$ROOT/claude/hooks/ref-injector.sh"
+    local hook="$ROOT/agency/hooks/ref-injector.sh"
     [[ -x "$hook" ]] || hook="$ROOT/agency/hooks/ref-injector.sh"
     [[ -f "$hook" ]]
 }
 
 smoke_commit_precheck() {
-    local tool="$ROOT/claude/tools/commit-precheck"
+    local tool="$ROOT/agency/tools/commit-precheck"
     [[ -x "$tool" ]] || tool="$ROOT/agency/tools/commit-precheck"
     [[ -f "$tool" ]]
 }
 
 smoke_iscp() {
     # Check agent-identity tool resolves
-    local tool="$ROOT/claude/tools/agent-identity"
+    local tool="$ROOT/agency/tools/agent-identity"
     [[ -x "$tool" ]] || tool="$ROOT/agency/tools/agent-identity"
     [[ -x "$tool" ]] || return 1
     "$tool" --version >/dev/null 2>&1 || "$tool" --self >/dev/null 2>&1
 }
 
 smoke_skill_validate() {
-    local tool="$ROOT/claude/tools/skill-validate"
+    local tool="$ROOT/agency/tools/skill-validate"
     [[ -x "$tool" ]] || tool="$ROOT/agency/tools/skill-validate"
     [[ -f "$tool" ]]
 }
 
 smoke_skill_verify() {
-    local tool="$ROOT/claude/tools/skill-verify"
+    local tool="$ROOT/agency/tools/skill-verify"
     [[ -x "$tool" ]] || tool="$ROOT/agency/tools/skill-verify"
     [[ -f "$tool" ]]
 }

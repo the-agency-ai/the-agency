@@ -707,7 +707,7 @@ What happens:
 
 ## Logo Design: "The Constellation"
 
-**SVG File:** `claude/assets/theagency-logo-constellation.svg`
+**SVG File:** `agency/assets/theagency-logo-constellation.svg`
 
 **Concept:**
 The logo represents the collaborative nature of TheAgency through a constellation metaphor - nodes connected by lines forming a network.
@@ -731,7 +731,7 @@ The logo represents the collaborative nature of TheAgency through a constellatio
 
 **Preview the SVG:**
 ```bash
-open claude/assets/theagency-logo-constellation.svg
+open agency/assets/theagency-logo-constellation.svg
 ```
 
 ---

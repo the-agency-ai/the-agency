@@ -138,8 +138,8 @@ Only spec divergence: `name` field often omitted by monofolk (tolerated by Claud
 
 - **Item 1** `.claude/commands/agency-bug.md` — **Principal:** "Yes, it is dead. Kill it. Over and Out." Captain used raw `rm` initially; **Principal:** "Shouldn't this be a git rm?" Switched to `./claude/tools/git-safe rm`. **Decision:** principal caught and corrected raw-rm discipline gap. **Action:** flag #185 filed for hookify rule enforcing `git rm` over `rm` on tracked files.
 - **Item 2** `.claude/commands/agency-nit.md` — killed via `git-safe rm`.
-- **Item 3** `claude/tools/nit-add` — killed via `git-safe rm`.
-- **Item 4** `claude/tools/nit-resolve` — killed via `git-safe rm`.
+- **Item 3** `agency/tools/nit-add` — killed via `git-safe rm`.
+- **Item 4** `agency/tools/nit-resolve` — killed via `git-safe rm`.
 - **Item 5** `.claude/commands/agency-help.md` — **Principal:** "Let's also point them at documents like the readme, getting started, etc." Captain proposed 3 tiers of doc depth. **Principal:** "I think Tier 2 is what we need to do." **Decision:** Tier 2 = 5 start-here docs (README-THEAGENCY, README-GETTINGSTARTED, REFERENCE-FIRST-LAUNCH, REFERENCE-QUICK-START, REFERENCE-CONCEPTS) + 3 how-to-work (REFERENCE-AGENT-DISCIPLINE, REFERENCE-DEVELOPMENT-METHODOLOGY, CLAUDE-THEAGENCY). Rewrite executed.
 - **Item 6** `.claude/commands/agency.md` — **Principal:** "A." Delegation stub pointing at `/agency-help`. **Decision:** single source of truth in agency-help; agency.md is 2-line pointer to prevent drift.
 

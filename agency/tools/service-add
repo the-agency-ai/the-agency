@@ -2,10 +2,10 @@
 # service-add — add a backend prototype module to an existing workstream
 #
 # Thin wrapper around tools/service-add.ts. Keeps the tool discoverable under
-# claude/tools/ alongside other framework tools (workstream-create, worktree-create, etc.)
+# agency/tools/ alongside other framework tools (workstream-create, worktree-create, etc.)
 # while the actual logic lives in Node/TypeScript where it has js-yaml and proper types.
 #
-# Usage: ./claude/tools/service-add <name> --workstream <ws> [options]
+# Usage: ./agency/tools/service-add <name> --workstream <ws> [options]
 # See:   claude/starter-packs/nestjs-prototype/README.md
 
 set -euo pipefail

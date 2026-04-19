@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/subagent-scope-check"
+    TOOL="$REPO_ROOT/agency/tools/subagent-scope-check"
 
     TMP_REPO="$(mktemp -d -t sasc.XXXXXX)"
     cd "$TMP_REPO"

@@ -47,22 +47,22 @@ The log is mined later for patterns, friction analysis, and continual improvemen
 
 ```bash
 # Quick observation (default category)
-./claude/tools/captain-log "noticed agents kept cd-ing to main checkout"
+./agency/tools/captain-log "noticed agents kept cd-ing to main checkout"
 
 # Friction with category
-./claude/tools/captain-log -c friction "permission prompt for chmod blocked agent boot"
+./agency/tools/captain-log -c friction "permission prompt for chmod blocked agent boot"
 
 # Decision
 ./claude/tools/captain-log -c decision "QGRs go in workstream/quality-gate-reports/, not usr/"
 
 # Build
-./claude/tools/captain-log -c build "shipped /collaborate skill + collaboration tool + hookify warn"
+./agency/tools/captain-log -c build "shipped /collaborate skill + collaboration tool + hookify warn"
 
 # Read today's log
-./claude/tools/captain-log read
+./agency/tools/captain-log read
 
 # Read a specific day
-./claude/tools/captain-log read 20260406
+./agency/tools/captain-log read 20260406
 ```
 
 ## Storage

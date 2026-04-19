@@ -27,8 +27,8 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/tools/flag
-claude/tools/lib/_iscp-db
+agency/tools/flag
+agency/tools/lib/_iscp-db
 tests/tools/flag.bats
 tests/tools/iscp-db.bats
 usr/jordan/iscp/dispatches/commit-committed-54991c0-on-iscp-phase-2-1-verify-v1-base-20260407-1615.md

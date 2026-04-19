@@ -20,7 +20,7 @@ Write a handoff file for session continuity. **Always use the handoff tool** —
 Run the handoff tool to archive the current handoff and prepare for a new one:
 
 ```
-bash ./claude/tools/handoff write --trigger $ARGUMENTS
+bash ./agency/tools/handoff write --trigger $ARGUMENTS
 ```
 
 If `$ARGUMENTS` is empty, use `--trigger manual`.
@@ -37,7 +37,7 @@ Write the handoff file at the path the tool reported. Include:
 6. **Discussion queue** — carried-forward discussion items
 
 **Integrity rule:** before writing, check `git status`. If any implementation
-files (.ts, .py, .bats, .sh, claude/tools/*, hooks/*, etc.) are uncommitted,
+files (.ts, .py, .bats, .sh, agency/tools/*, hooks/*, etc.) are uncommitted,
 either commit them first OR clearly mark them as "in progress — uncommitted"
 in the Current State section. **Never write 'complete' for uncommitted work.**
 
@@ -48,4 +48,4 @@ what was left dirty.
 
 ### Step 3: Verify
 
-Run `bash ./claude/tools/handoff read` to verify the handoff was written correctly.
+Run `bash ./agency/tools/handoff read` to verify the handoff was written correctly.

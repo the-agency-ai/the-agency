@@ -13,14 +13,14 @@ in_reply_to: null
 
 # agent-create: bake dispatch loops into scaffolded startup sequences
 
-Small scaffolding update. The two-loop dispatch pattern is now canonical for every agent (documented in `claude/CLAUDE-THEAGENCY.md` → "When You Have Mail" and `claude/templates/HANDOFF-BOOTSTRAP.md`). When a new agent is created via `agent-create` (or `workstream-create`, which calls it), the generated `CLAUDE-{AGENT}.md` must include the loop arming as part of the standard startup sequence.
+Small scaffolding update. The two-loop dispatch pattern is now canonical for every agent (documented in `agency/CLAUDE-THEAGENCY.md` → "When You Have Mail" and `agency/templates/HANDOFF-BOOTSTRAP.md`). When a new agent is created via `agent-create` (or `workstream-create`, which calls it), the generated `CLAUDE-{AGENT}.md` must include the loop arming as part of the standard startup sequence.
 
 ## The canonical prompts
 
 **Loop 1 — fast-path (silent-when-clean), every 5 minutes:**
 
 ```
-/loop 5m Run: ./claude/tools/dispatch list --status unread
+/loop 5m Run: ./agency/tools/dispatch list --status unread
 
 If the output is exactly "No dispatches found." — produce NO output
 whatsoever. No "Clean", no acknowledgment, nothing. End the turn silently.
@@ -33,7 +33,7 @@ If there are unread dispatches: pause current work, read each with
 **Loop 2 — nag-path (visible-when-sitting), every 30 minutes:**
 
 ```
-/loop 30m NAG CHECK: Run ./claude/tools/dispatch list --status unread.
+/loop 30m NAG CHECK: Run ./agency/tools/dispatch list --status unread.
 If any unread items exist, they've been sitting at least 30 minutes —
 produce a VISIBLE alert to the user (not silent): list the unread items
 with IDs, ages, and senders, note that you are now reading and
@@ -43,9 +43,9 @@ responding. Then read each, respond, and resolve. If the output is
 
 ## What to change
 
-1. **`claude/tools/agent-create`** (or wherever the scaffold template lives) — the generated `CLAUDE-{AGENT}.md` startup sequence should include a step like:
+1. **`agency/tools/agent-create`** (or wherever the scaffold template lives) — the generated `CLAUDE-{AGENT}.md` startup sequence should include a step like:
    ```
-   4. Arm the two dispatch loops (see claude/CLAUDE-THEAGENCY.md → "When You Have Mail"):
+   4. Arm the two dispatch loops (see agency/CLAUDE-THEAGENCY.md → "When You Have Mail"):
       - /loop 5m [silent-when-clean prompt]
       - /loop 30m [visible-when-sitting prompt]
    ```
@@ -56,8 +56,8 @@ responding. Then read each, respond, and resolve. If the output is
 
 The captain-scoped change is already shipped:
 - `usr/jordan/captain/CLAUDE-CAPTAIN.md` — startup step 4 references the canonical doc
-- `claude/CLAUDE-THEAGENCY.md` → "When You Have Mail" — full loop specs with prompts
-- `claude/templates/HANDOFF-BOOTSTRAP.md` — bootstrap handoff arms both loops before greeting principal
+- `agency/CLAUDE-THEAGENCY.md` → "When You Have Mail" — full loop specs with prompts
+- `agency/templates/HANDOFF-BOOTSTRAP.md` — bootstrap handoff arms both loops before greeting principal
 
 Mirror that pattern in scaffolded agents.
 

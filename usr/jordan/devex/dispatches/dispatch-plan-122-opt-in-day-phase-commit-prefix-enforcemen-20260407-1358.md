@@ -14,7 +14,7 @@ in_reply_to: 122
 ## Investigation
 
 ### Existing config infrastructure
-- `claude/tools/config get <dot.path>` reads agency.yaml — perfect for this use case
+- `agency/tools/config get <dot.path>` reads agency.yaml — perfect for this use case
 - agency.yaml already has nested config sections (principals, project, framework, collaboration, etc.)
 - No `commits:` section exists yet — clean slot
 - commit-precheck does NOT currently read agency.yaml (no provider pattern dependency yet)
@@ -30,7 +30,7 @@ in_reply_to: 122
 - **Critical gap:** Pre-commit hooks run BEFORE the message is finalized. The message isn't available to a pre-commit hook in the standard git flow.
 - Workaround options:
   - (a) Use `commit-msg` hook instead of `pre-commit` — fires after message is composed, before commit lands
-  - (b) Add the check inside `claude/tools/git-safe-commit` (the wrapper) — has access to the `-m` arg before invoking git
+  - (b) Add the check inside `agency/tools/git-safe-commit` (the wrapper) — has access to the `-m` arg before invoking git
   - (c) Both — defense in depth
 
 ## Proposed Fix
@@ -49,7 +49,7 @@ Default: `false`. Projects opt in by setting to `true`.
 
 ### Part B: prefix validator (shared lib)
 
-Create `claude/tools/lib/_commit-prefix` (sourced library, like `_log-helper`):
+Create `agency/tools/lib/_commit-prefix` (sourced library, like `_log-helper`):
 
 ```bash
 # What Problem: Multiple tools need to validate commit message prefixes against
@@ -64,7 +64,7 @@ validate_commit_prefix() {
 
     # Read flag from agency.yaml
     local enabled
-    enabled=$(./claude/tools/config get commits.require_day_prefix 2>/dev/null || echo "false")
+    enabled=$(./agency/tools/config get commits.require_day_prefix 2>/dev/null || echo "false")
     [[ "$enabled" != "true" ]] && return 0  # opt-in: disabled = pass
 
     # Allowed prefixes
@@ -96,7 +96,7 @@ EOF
 
 ### Part C: integrate into git-safe-commit tool (Option B from analysis)
 
-Add to `claude/tools/git-safe-commit` after message is built and before `git commit` runs:
+Add to `agency/tools/git-safe-commit` after message is built and before `git commit` runs:
 
 ```bash
 source "$SCRIPT_DIR/lib/_commit-prefix"
@@ -116,7 +116,7 @@ Add a `commit-msg` hook to `.git/hooks/commit-msg` (and the template installed b
 #!/bin/bash
 # Validates commit message prefix when commits.require_day_prefix=true
 MESSAGE=$(cat "$1")
-source ./claude/tools/lib/_commit-prefix
+source ./agency/tools/lib/_commit-prefix
 validate_commit_prefix "$MESSAGE" || exit 1
 ```
 
@@ -154,7 +154,7 @@ Add to `tests/tools/git-safe-commit.bats` (or create new `tests/tools/commit-pre
 ## Risks
 - **Breaking existing commits:** If we set the flag globally for the-agency, my recent commits don't follow the pattern. Recommendation: ship the feature with flag=false in this repo, document the opt-in, then flip later when we're consistent.
 - **commit-msg hook conflicts:** Some projects may have existing commit-msg hooks. The agency-init installer should respect existing files or chain them.
-- **Config tool dependency:** `./claude/tools/config` needs to exist and work. It does.
+- **Config tool dependency:** `./agency/tools/config` needs to exist and work. It does.
 
 ## Estimated work
 - Part A (yaml schema): 2 min

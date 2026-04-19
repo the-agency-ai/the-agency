@@ -6,7 +6,7 @@ Tools ported from monofolk for incorporation into the-agency framework. These ar
 
 ## `handoff` — Context Bootstrap Tool
 
-**Location:** `claude/tools/handoff` (bash)
+**Location:** `agency/tools/handoff` (bash)
 **Purpose:** First-class Agency primitive for session context bootstrapping.
 
 ### Subcommands
@@ -35,7 +35,7 @@ Tools ported from monofolk for incorporation into the-agency framework. These ar
 
 ## `plan-capture` — Plan File Management
 
-**Location:** `claude/tools/plan-capture` (bash)
+**Location:** `agency/tools/plan-capture` (bash)
 **Purpose:** Extracted from a 243-line hook. Captures plan files created during Claude Code plan mode.
 
 ### Modes
@@ -58,7 +58,7 @@ Tools ported from monofolk for incorporation into the-agency framework. These ar
 
 ## `lib/_log-helper` — Structured Telemetry Library
 
-**Location:** `claude/tools/lib/_log-helper` (bash, sourced)
+**Location:** `agency/tools/lib/_log-helper` (bash, sourced)
 **Purpose:** Provides structured logging functions for all Agency tools.
 
 ### Functions
@@ -138,7 +138,7 @@ Currently TypeScript (requires `tsx`/Node.js). For the-agency framework, conside
     → found → proceeds with commit
     → not found → warns, asks if QG should run
   → updates plan file
-  → updates handoff (calls `claude/tools/handoff write --trigger iteration-complete`)
+  → updates handoff (calls `agency/tools/handoff write --trigger iteration-complete`)
 ```
 
 ### The Handoff Flow
@@ -146,12 +146,12 @@ Currently TypeScript (requires `tsx`/Node.js). For the-agency framework, conside
 ```
 Session starts
   → session-handoff.sh hook fires
-  → calls `claude/tools/handoff read`
+  → calls `agency/tools/handoff read`
   → injects handoff content as system message
 
 Session ends / context compresses
   → SessionEnd or PreCompact hook fires
-  → calls `claude/tools/handoff write --trigger {SessionEnd|PreCompact}`
+  → calls `agency/tools/handoff write --trigger {SessionEnd|PreCompact}`
   → handoff auto-archives previous, agent writes new content
 ```
 

@@ -120,7 +120,7 @@ Resolved by mdpal-cli dispatch #408 (2026-04-15):
 
 ### QGR — iteration-complete 1B.3 (commit `a8264cd`, hash E `bc594ba`)
 
-**Receipt:** `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1211-bc594ba.md`
+**Receipt:** `agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1211-bc594ba.md`
 **Hash chain:** A `e141832` → B `d8ad97d` → C `f9cee44` → D `f9cee44` (auto) → E `bc594ba`
 **Base:** `b539144` (1B.2)
 
@@ -151,7 +151,7 @@ Per captain #380: general-purpose reviewer substitutes; scorer self-scored.
 
 ### QGR — iteration-complete 1B.2 (commit `b539144`, hash E `d65f1d9`)
 
-**Receipt:** `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-0937-d65f1d9.md`
+**Receipt:** `agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-0937-d65f1d9.md`
 **Hash chain:** A `daa1f4b` → B `63ff916` → C `4b67dd1` → D `4b67dd1` (auto-approved) → E `d65f1d9`
 **Base:** `8f80b7a` (Phase 1B.1)
 

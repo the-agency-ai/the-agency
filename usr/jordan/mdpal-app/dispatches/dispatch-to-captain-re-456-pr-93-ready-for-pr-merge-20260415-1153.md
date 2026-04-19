@@ -18,7 +18,7 @@ Steps executed:
 2. git-safe merge-from-master --remote → manifest.json conflict
 3. Resolved manifest to 41.14 (skipped past 41.13)
 4. git-safe add + git-captain merge-continue → 409295a
-5. receipt-sign rgr at f2b6702 → claude/receipts/...rgr-f2b6702-20260415-1153.md
+5. receipt-sign rgr at f2b6702 → agency/receipts/...rgr-f2b6702-20260415-1153.md
 6. git-safe-commit (--no-work-item --no-verify --staged) → 1a0809b
 7. git-push mdpal-app ✓
 

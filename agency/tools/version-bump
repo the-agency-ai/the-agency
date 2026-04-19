@@ -3,8 +3,8 @@
 # version-bump - Increment build number with date prefix
 #
 # Usage:
-#   ./claude/tools/version-bump           # Increment build number
-#   ./claude/tools/version-bump --show    # Show current version
+#   ./agency/tools/version-bump           # Increment build number
+#   ./agency/tools/version-bump --show    # Show current version
 #
 # Version format: YYYY-MM-DD-BUILDNUMBER
 # Example: 2026-01-09-000042
@@ -87,7 +87,7 @@ main() {
             exit 0
             ;;
         --help|-h)
-            echo "Usage: ./claude/tools/version-bump [--show|--help|--verbose]"
+            echo "Usage: ./agency/tools/version-bump [--show|--help|--verbose]"
             echo ""
             echo "Increments the build number with today's date prefix."
             echo ""

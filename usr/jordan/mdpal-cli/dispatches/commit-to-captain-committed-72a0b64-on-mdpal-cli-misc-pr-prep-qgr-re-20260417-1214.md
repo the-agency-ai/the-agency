@@ -27,6 +27,6 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-pr-prep-20260417-1213-8f2da0f.md
+agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-pr-prep-20260417-1213-8f2da0f.md
 usr/jordan/mdpal-cli/dispatches/commit-to-captain-committed-7c8a359-on-mdpal-cli-pr-prep-qg-fixes-do-20260417-1213.md
 ```

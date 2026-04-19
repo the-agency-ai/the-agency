@@ -31,8 +31,8 @@ PVR in progress — 7 of 10 items resolved, item 8 active.
 
 - PVR: `usr/jordan/mock-and-mark/PVR-mock-and-mark.md`
 - Transcript: `usr/jordan/mock-and-mark/transcripts/PVR-transcript-20260329.md`
-- Seeds: `claude/workstreams/mock-and-mark/seeds/`
-- Workstream knowledge: `claude/workstreams/mock-and-mark/KNOWLEDGE.md`
+- Seeds: `agency/workstreams/mock-and-mark/seeds/`
+- Workstream knowledge: `agency/workstreams/mock-and-mark/KNOWLEDGE.md`
 
 ## Next Action
 

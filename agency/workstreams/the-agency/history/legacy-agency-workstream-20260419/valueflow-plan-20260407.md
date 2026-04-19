@@ -5,8 +5,8 @@ workstream: agency
 date: 2026-04-07
 status: MAR round 1 research complete — 4 disagree, 21 autonomous, 13 collaborative (all resolved). Agent reviews pending (#95 ISCP, #96 DevEx, #97 mdpal-cli). Awaiting principal approval.
 author: the-agency/jordan/captain
-pvr: claude/workstreams/agency/valueflow-pvr-20260406.md
-ad: claude/workstreams/agency/valueflow-ad-20260406.md
+pvr: agency/workstreams/agency/valueflow-pvr-20260406.md
+ad: agency/workstreams/agency/valueflow-ad-20260406.md
 ---
 
 # Valueflow V2 — Implementation Plan
@@ -73,9 +73,9 @@ All existing agents can absorb V2 work:
 - `claude/docs/ENFORCEMENT-LADDER.md` — 5-stage ladder, registry format, per-workstream levels
 - `claude/docs/CONTEXT-RESILIENCE.md` — handoff classes, PostCompact, stage-aware resume
 - `claude/docs/CONTINUAL-LEARNING.md` — flag categories, transcript mining, telemetry, improvement loop
-- Update `claude/REFERENCE-QUALITY-GATE.md` — add tier definitions (T1-T4)
+- Update `agency/REFERENCE-QUALITY-GATE.md` — add tier definitions (T1-T4)
 - Update `claude/docs/GIT-DISCIPLINE.md` — add dispatch-on-commit protocol
-- Update `claude/REFERENCE-ISCP-PROTOCOL.md` — consolidate from existing reference
+- Update `agency/REFERENCE-ISCP-PROTOCOL.md` — consolidate from existing reference
 - Thin CLAUDE-THEAGENCY.md wrapper that `@` imports the above
 - Scoped `@` imports in all existing skills (each skill imports only what it needs)
 
@@ -92,7 +92,7 @@ All existing agents can absorb V2 work:
 - All existing skills updated with scoped `@` imports
 - All information preserved — nothing lost in decomposition
 - All existing agent sessions can cold-start with the decomposed CLAUDE-THEAGENCY.md (backward compatibility — C5)
-- Old `@claude/CLAUDE-THEAGENCY.md` import still works (it's the entry point, just thinner)
+- Old `@agency/CLAUDE-THEAGENCY.md` import still works (it's the entry point, just thinner)
 - Phase 1 final commit gated on DevEx 3.4 (context budget linter) being merged to master first
 
 **Dependencies:** None — this is the foundation. Co-ship gate: Phase 1 final commit waits for Phase 3.4.
@@ -178,13 +178,13 @@ All existing agents can absorb V2 work:
 - `commit-precheck` evolves to tier-aware (currently it's implicitly T1)
 
 *Iteration 3.2: Changed-File Test Scoping*
-- Convention-based default: `claude/tools/flag` → `tests/tools/flag.bats`
+- Convention-based default: `agency/tools/flag` → `tests/tools/flag.bats`
 - Package-level fallback: `apps/mdpal/Sources/*` → `apps/mdpal/` test dir
 - Manifest override for edge cases
 - Integration with commit-precheck for T1/T2 scoping
 
 *Iteration 3.3a: Enforcement Registry Schema + Audit Tool (no Phase 1 dependency)*
-- `claude/config/enforcement.yaml` — registry schema and tooling
+- `agency/config/enforcement.yaml` — registry schema and tooling
 - Audit tool: validates that at level N, all artifacts for levels 1-N exist
 - `enforcement audit` command — reports gaps and inconsistencies
 
@@ -450,8 +450,8 @@ Each workstream writes its own implementation plan with iteration-level detail:
 | Workstream | Plan location | Owner | Scope |
 |------------|--------------|-------|-------|
 | agency | This document (captain coordinates) | captain | Phase 1, 4, 5.1/5.3, 6 |
-| iscp | `claude/workstreams/iscp/iscp-valueflow-plan-20260407.md` | iscp agent | Phase 2 |
-| devex | `claude/workstreams/devex/devex-valueflow-plan-20260407.md` | devex agent | Phase 3, 5.2/5.4 |
+| iscp | `agency/workstreams/iscp/iscp-valueflow-plan-20260407.md` | iscp agent | Phase 2 |
+| devex | `agency/workstreams/devex/devex-valueflow-plan-20260407.md` | devex agent | Phase 3, 5.2/5.4 |
 
 Captain dispatches seeds to each workstream with their scope, dependencies, and acceptance criteria from this master plan.
 

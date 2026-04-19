@@ -8,7 +8,7 @@ date_started: 2026-04-19
 stage: define
 status: in-progress
 next_stage: design
-seed: claude/workstreams/the-agency/seeds/seed-true-installer-bootstrap-20260419.md
+seed: agency/workstreams/the-agency/seeds/seed-true-installer-bootstrap-20260419.md
 related_issues: [270, 287, 332, 333, 334, 335, 336, 337]
 driver: "Principal directive D45-R3 — 'This is required to get us in shipping shape'"
 ---
@@ -53,7 +53,7 @@ The-agency's framework root (`claude/`) has accumulated structural debt that blo
 - Release notes walk the adopter through manual steps if any (accept breaking change per principal)
 
 ### 3.3. Captain reads a skill's `required_reading:` frontmatter
-- Skills reference `agency/REFERENCE/REFERENCE-*.md` (new) vs `claude/REFERENCE-*.md` (old)
+- Skills reference `agency/REFERENCE/REFERENCE-*.md` (new) vs `agency/REFERENCE-*.md` (old)
 - Ref-injector hook resolves new paths
 - Skill bundle validation passes
 
@@ -85,11 +85,11 @@ The-agency's framework root (`claude/`) has accumulated structural debt that blo
 
 ### 4.3. Cruft removal
 
-- DELETE `claude/workstreams/test; rm -rf ` (injection-test artifact, 1 file)
+- DELETE `agency/workstreams/test; rm -rf ` (injection-test artifact, 1 file)
 - DELETE `claude/reviews/` if verified dead
-- DELETE `claude/data/bug.db`, `claude/data/bugs.db` if legacy from killed `/agency-bug`
+- DELETE `agency/data/bug.db`, `agency/data/bugs.db` if legacy from killed `/agency-bug`
 - DELETE `claude/docs/` after 1B1 review of contents (principal directive — pending content review)
-- DELETE `claude/receipts/` after verifying all receipts migrated to per-workstream `qgr/`/`rgr/`
+- DELETE `agency/receipts/` after verifying all receipts migrated to per-workstream `qgr/`/`rgr/`
 - DELETE empty or redundant starter-pack contents (per content audit)
 
 ### 4.4. Workstream consolidation
@@ -106,7 +106,7 @@ The-agency's framework root (`claude/`) has accumulated structural debt that blo
 
 ### 4.6. the-agency-group moves (DEFERRED if collab repo not set up)
 
-- `claude/workstreams/gtm/` → the-agency-group workstream (via cross-repo collaboration)
+- `agency/workstreams/gtm/` → the-agency-group workstream (via cross-repo collaboration)
 - `claude/proposals/` → the-agency-group archive (philosophy/ + projects/)
 - IF collab repo not ready: leave in place with prominent `TODO-MOVE-TO-THE-AGENCY-GROUP.md` marker; do not block reset on this
 
@@ -117,8 +117,8 @@ Every path reference to the old layout must update:
 | Reference type | Old | New | Files affected (approx) |
 |---|---|---|---|
 | `@claude/REFERENCE-*.md` imports | `@claude/REFERENCE-FOO.md` | `@agency/REFERENCE/REFERENCE-FOO.md` | CLAUDE.md, CLAUDE-*.md (~20 files) |
-| `@claude/README-*.md` imports | `@claude/README-SAFE-TOOLS.md` | `@agency/README/README-SAFE-TOOLS.md` | CLAUDE-*.md, skill docs (~15 files) |
-| Hardcoded `claude/` in tools | `claude/tools/foo` | `agency/tools/foo` | Every bash tool with path refs (~100 files) |
+| `@agency/README-*.md` imports | `@agency/README-SAFE-TOOLS.md` | `@agency/README/README-SAFE-TOOLS.md` | CLAUDE-*.md, skill docs (~15 files) |
+| Hardcoded `claude/` in tools | `agency/tools/foo` | `agency/tools/foo` | Every bash tool with path refs (~100 files) |
 | `required_reading:` frontmatter | `claude/REFERENCE-X.md` | `agency/REFERENCE/REFERENCE-X.md` | All .claude/skills/*/SKILL.md with required_reading (~10 files) |
 | Settings.json hook paths | `$CLAUDE_PROJECT_DIR/claude/hooks/X.sh` | `$CLAUDE_PROJECT_DIR/agency/hooks/X.sh` | `.claude/settings.json` + adopter settings |
 | Hookify rule docs | References to `claude/` paths | `agency/` paths | 40+ rule docs |
@@ -129,13 +129,13 @@ Every path reference to the old layout must update:
 ### 4.8. CLAUDE.md at repo root
 
 - Continues to exist at repo root (Claude Code convention)
-- `@import` points updated: `@claude/CLAUDE-THEAGENCY.md` → `@agency/CLAUDE-THEAGENCY.md`
+- `@import` points updated: `@agency/CLAUDE-THEAGENCY.md` → `@agency/CLAUDE-THEAGENCY.md`
 
 ### 4.9. Framework tools (`agency/tools/`)
 
-- All tools retain their current discoverable location `claude/tools/X` → `agency/tools/X`
+- All tools retain their current discoverable location `agency/tools/X` → `agency/tools/X`
 - Safe-tools family updated (git-safe, git-captain, cp-safe, pr-create, etc.) — no behavior change, just path
-- Invocation pattern: `./claude/tools/X` → `./agency/tools/X` for captain; documented in README-SAFE-TOOLS.md post-move
+- Invocation pattern: `./agency/tools/X` → `./agency/tools/X` for captain; documented in README-SAFE-TOOLS.md post-move
 
 ### 4.10. `.claude/` (Claude Code private) content
 
@@ -197,11 +197,11 @@ Concrete, measurable, pass/fail:
 1. `claude/` directory does not exist at framework-source root; `agency/` does
 2. `agency/REFERENCE/` contains all 36 REFERENCE docs; none at `agency/` root
 3. `agency/README/` contains README-ENFORCEMENT, SAFE-TOOLS, RECEIPT-INFRASTRUCTURE; README-THEAGENCY + README-GETTINGSTARTED at `agency/` root
-4. `claude/workstreams/test; rm -rf ` does not exist (or its successor)
+4. `agency/workstreams/test; rm -rf ` does not exist (or its successor)
 5. No `claude/principals/` exists; its content preserved under history/flotsam
 6. No `claude/reviews/` exists (if confirmed dead)
 7. No `claude/docs/` or empty `docs/plans/` at repo root
-8. `claude/workstreams/agency/`, `claude/workstreams/captain/`, `claude/workstreams/housekeeping/` do not exist (merged into `the-agency/`)
+8. `agency/workstreams/agency/`, `agency/workstreams/captain/`, `agency/workstreams/housekeeping/` do not exist (merged into `the-agency/`)
 9. All `bats tests/` pass
 10. `commit-precheck` passes on a no-op change
 11. `agency-health` returns clean (0 critical, 0 warnings in baseline state)
@@ -235,7 +235,7 @@ Concrete, measurable, pass/fail:
 5. **reviews/ dead confirmation** — only one file (`REVIEW-captain-2026-03-28.md`). Delete or archive to history/flotsam?
 6. **Legacy DBs (bug.db, bugs.db)** — query contents before decide delete vs archive?
 7. **claude/logs/** — unreviewed. Delete, archive, or keep with path rename?
-8. **claude/assets/theagency-logo-constellation.svg** — stays at `agency/assets/`? Or move to `agency/brand/`?
+8. **agency/assets/theagency-logo-constellation.svg** — stays at `agency/assets/`? Or move to `agency/brand/`?
 9. **claude/integrations/claude-desktop/** — what is it + purpose? Keep, move, delete?
 10. **Principal authorization to disable hooks temporarily?** — already authorized; prefer `AGENCY_ALLOW_RAW=1` per-command for auditability unless speed requires
 11. **Who merges the reset PR** — principal approval required given breaking change

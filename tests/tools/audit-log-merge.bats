@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/audit-log-merge"
+    TOOL="$REPO_ROOT/agency/tools/audit-log-merge"
     TMP="$(mktemp -d -t alm.XXXXXX)"
     cd "$TMP"
 

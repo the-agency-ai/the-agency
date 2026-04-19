@@ -6,7 +6,7 @@ pattern: 'gh pr merge'
 action: block
 ---
 
-🚫 BLOCKED: Raw `gh pr merge` is not allowed. Use `./claude/tools/pr-merge` (or `/pr-merge` skill) instead.
+🚫 BLOCKED: Raw `gh pr merge` is not allowed. Use `./agency/tools/pr-merge` (or `/pr-merge` skill) instead.
 
 Why: `gh pr merge` defaults nudge toward `--squash` (banned — same family as rebase, rewrites history). Captain shipped 4 squash merges on Day 41 by reaching for raw `gh pr merge`. The framework's principle is "merge, never rebase, never squash."
 
@@ -18,9 +18,9 @@ The safe wrapper:
 - Logs every override
 
 Usage:
-  ./claude/tools/pr-merge <PR>                       # standard merge
-  ./claude/tools/pr-merge <PR> --principal-approved  # captain attestation that principal verbally approved override
-  ./claude/tools/pr-merge <PR> --delete-branch       # also delete remote branch
+  ./agency/tools/pr-merge <PR>                       # standard merge
+  ./agency/tools/pr-merge <PR> --principal-approved  # captain attestation that principal verbally approved override
+  ./agency/tools/pr-merge <PR> --delete-branch       # also delete remote branch
 
 Skill: /pr-merge
 

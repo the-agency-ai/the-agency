@@ -26,10 +26,10 @@ End-to-end tested diff-hash → receipt-sign → receipt-verify chain with a rea
 - Hash C hashed triage JSON ✓
 - Hash D set to Hash C for auto-approved case ✓
 - Hash E computed after clean (== Hash A since no fixes) ✓
-- receipt-sign wrote to claude/receipts/ with correct naming ✓
+- receipt-sign wrote to agency/receipts/ with correct naming ✓
 - receipt-verify found and validated against committed state ✓
 
-Receipt sample: claude/receipts/the-agency-jordan-devex-devex-receipt-phase2-verify-qgr-fed441a-20260415-0311.md
+Receipt sample: agency/receipts/the-agency-jordan-devex-devex-receipt-phase2-verify-qgr-fed441a-20260415-0311.md
 
 ## Rough edges found
 

@@ -10,7 +10,7 @@ Discuss -> Plan Mode (explore + design) -> Review Plan -> Revise -> Review -> Fi
 
 ## Quality Gate (QG)
 
-Quality gates (QGs) run at every commit boundary. The PM agent (`project-manager`) owns the full protocol — see `claude/REFERENCE-QUALITY-GATE.md` for the complete steps and report format. Use `/iteration-complete` at iteration boundaries (scoped QG, auto-commit), `/phase-complete` at phase boundaries (deep QG, full codebase, approval required), `/plan-complete` at project completion. Run `/pre-phase-review` before starting each new phase.
+Quality gates (QGs) run at every commit boundary. The PM agent (`project-manager`) owns the full protocol — see `agency/REFERENCE-QUALITY-GATE.md` for the complete steps and report format. Use `/iteration-complete` at iteration boundaries (scoped QG, auto-commit), `/phase-complete` at phase boundaries (deep QG, full codebase, approval required), `/plan-complete` at project completion. Run `/pre-phase-review` before starting each new phase.
 
 ## Development Methodology
 
@@ -93,11 +93,11 @@ Run each shell command as a **single, simple command** — no `&&`, `||`, `;`, p
 
 ## Feedback & Bug Reports
 
-When drafting feedback or bug reports, follow the format in `claude/REFERENCE-FEEDBACK-FORMAT.md`. Always include the identity block. Always wait for principal approval before sending.
+When drafting feedback or bug reports, follow the format in `agency/REFERENCE-FEEDBACK-FORMAT.md`. Always include the identity block. Always wait for principal approval before sending.
 
 ## Code Review
 
-The captain manages code review dispatch via `/captain-review`. Worktree agents handle dispatched findings via `/iteration-complete`. Three review tools serve different purposes: `/code-review` (captain, 7-agent), `/review-pr` (ad-hoc), `/phase-complete` (deep QG with fix cycle). For the full dispatch-handling protocol, see `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md`.
+The captain manages code review dispatch via `/captain-review`. Worktree agents handle dispatched findings via `/iteration-complete`. Three review tools serve different purposes: `/code-review` (captain, 7-agent), `/review-pr` (ad-hoc), `/phase-complete` (deep QG with fix cycle). For the full dispatch-handling protocol, see `agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md`.
 
 ## Session Handoff
 

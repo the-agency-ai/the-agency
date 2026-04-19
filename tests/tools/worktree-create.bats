@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for claude/tools/worktree-create
+# Tests for agency/tools/worktree-create
 #
 # Focus: the --workstream/--agent collapse rule (dispatch #166, resolved in
 # #169). These tests use --compute-only mode so no real worktrees are created.
@@ -16,7 +16,7 @@ load test_helper
 
 setup() {
     test_isolation_setup
-    export TOOL="${REPO_ROOT}/claude/tools/worktree-create"
+    export TOOL="${REPO_ROOT}/agency/tools/worktree-create"
 }
 
 teardown() {

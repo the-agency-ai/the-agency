@@ -18,7 +18,7 @@ Think of it as a "department" or "module" in your project.
 Each workstream has:
 
 ```
-claude/workstreams/{name}/
+agency/workstreams/{name}/
   ├── sprints/              # Planned work
   │   ├── 2026-01/
   │   ├── 2026-02/
@@ -63,7 +63,7 @@ Workstreams organize work into sprints:
 
 ### Sprint Structure
 ```
-claude/workstreams/web/sprints/2026-02/
+agency/workstreams/web/sprints/2026-02/
   ├── README.md            # Sprint goals
   ├── REQUEST-...          # Work items
   ├── RETROSPECTIVE.md     # Post-sprint review
@@ -86,7 +86,7 @@ For major initiatives that span sprints:
 
 Creates:
 ```
-claude/workstreams/web/epics/user-profiles/
+agency/workstreams/web/epics/user-profiles/
   ├── README.md            # Epic overview
   ├── DESIGN.md            # Technical design
   ├── PROGRESS.md          # Track implementation

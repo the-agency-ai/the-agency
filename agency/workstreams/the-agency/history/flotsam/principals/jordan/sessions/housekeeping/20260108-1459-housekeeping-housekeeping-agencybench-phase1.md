@@ -3,7 +3,7 @@ archived: 2026-01-08 14:59
 workstream: housekeeping
 agent: housekeeping
 principal: jordan
-source: claude/agents/housekeeping/SESSION-BACKUP-2026-01-08-afternoon.md
+source: agency/agents/housekeeping/SESSION-BACKUP-2026-01-08-afternoon.md
 ---
 
 # Session Backup — 2026-01-08 Afternoon

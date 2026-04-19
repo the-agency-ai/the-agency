@@ -34,7 +34,7 @@ in_reply_to: null
 .claude/skills/fleet-report/SKILL.md
 .claude/skills/fleet-report/examples.md
 .claude/skills/fleet-report/reference.md
-claude/tools/nit-add
-claude/tools/nit-resolve
+agency/tools/nit-add
+agency/tools/nit-resolve
 usr/jordan/claude-tools-worktree-sync/dispatches/commit-to-captain-committed-e4bb12b3-on-contrib-claude-tools-worktre-20260419-1432.md
 ```

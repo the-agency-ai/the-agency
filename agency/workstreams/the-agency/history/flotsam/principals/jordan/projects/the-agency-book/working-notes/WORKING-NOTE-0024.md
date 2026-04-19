@@ -179,7 +179,7 @@ Onboarding state in `claude/principals/{name}/onboarding.yaml`:
 
 The first-launch context ships with the-agency-starter:
 ```
-claude/agents/captain/backups/latest/context.jsonl
+agency/agents/captain/backups/latest/context.jsonl
 ```
 
 On first launch, the SessionStart hook reads this file and displays guidance. The captain sees their role and knows how to help the principal.

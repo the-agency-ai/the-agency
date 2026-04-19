@@ -13,7 +13,7 @@ in_reply_to: null
 
 You have a new seed to take through Valueflow. This is your next major project.
 
-**Seed location:** claude/workstreams/iscp/seeds/seed-dispatch-service-20260414.md
+**Seed location:** agency/workstreams/iscp/seeds/seed-dispatch-service-20260414.md
 
 **Summary:** Build a cloud-hosted dispatch service that replaces the current git-file-based collaborate mechanism for inter-agency messaging. Mirrors what ISCP does locally, but works across agencies and orgs. Single hub, REST API, JSON envelope with markdown body, 4-segment addressing (org/repo/principal/agent).
 

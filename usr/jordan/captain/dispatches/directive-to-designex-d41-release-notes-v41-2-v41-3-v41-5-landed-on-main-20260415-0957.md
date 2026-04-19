@@ -17,10 +17,10 @@ Three releases just merged on origin/main. Run worktree-sync (or merge-from-mast
 
 == v41.2 (D41-R2) — Captain post-merge tool gaps ==
 NEW SUBCOMMANDS:
-  ./claude/tools/git-captain sync-main
+  ./agency/tools/git-captain sync-main
     Fast-forward local main to origin/main (FF-only, on main, clean tree).
     Used by /post-merge step 4 after a PR is merged on GitHub.
-  ./claude/tools/git-safe merge-from-master --remote
+  ./agency/tools/git-safe merge-from-master --remote
     Merge origin/main (not local main) into current feature branch.
     Use when your branch base is behind origin/main but you can't sync local main first.
 WHEN TO USE:
@@ -40,15 +40,15 @@ WHAT TO DO: nothing — drop-in compatible. Cross-repo collab check now reliable
 
 == v41.5 (D41-R5) — Monofolk QG hot patches ==
 NEW SUBCOMMAND:
-  ./claude/tools/git-captain merge-continue
+  ./agency/tools/git-captain merge-continue
     Conclude an in-progress merge after conflict resolution
     (replaces raw 'git commit --no-edit').
 SKILL FIX:
-  /coord-commit instructions now use ./claude/tools/git-safe family
+  /coord-commit instructions now use ./agency/tools/git-safe family
     (was: bare 'git status'/'git add' which hookify blocks).
 COLLAB TOOL: git pull --ff-only (was --rebase) — aligns with merge-not-rebase.
 NEW HELPER:
-  ./claude/tools/_sync-main-ref
+  ./agency/tools/_sync-main-ref
     Updates local main label to origin/main without checkout. Bootstrap helper.
 
 NEXT IN FLIGHT:

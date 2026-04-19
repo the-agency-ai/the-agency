@@ -17,8 +17,8 @@ The pre-commit hook (commit-precheck → test-run → BATS) is blocking ALL comm
 
 ## Root cause
 
-claude/tools/commit-precheck line 247:
-    run_with_timeout 120 ./claude/tools/test-run 2>&1 >/dev/null
+agency/tools/commit-precheck line 247:
+    run_with_timeout 120 ./agency/tools/test-run 2>&1 >/dev/null
 
 The full BATS framework suite (tests/tools/, ~240+ tests) cannot complete within 120s. Worse: there is a hung test in tests/tools/gh.bats around test 218 (gh: --version shows wrapper version) that locks up the run indefinitely. Confirmed via ps aux — bats-exec-test processes pile up and never terminate.
 

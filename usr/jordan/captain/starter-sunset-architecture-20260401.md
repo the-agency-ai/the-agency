@@ -21,7 +21,7 @@ After:   agency init|update|verify|whoami|feedback
 
 ### 2.1 The `agency` CLI
 
-Single bash script at `claude/tools/agency`. Subcommand dispatch pattern (like `git init`, `rails new`).
+Single bash script at `agency/tools/agency`. Subcommand dispatch pattern (like `git init`, `rails new`).
 
 ```bash
 #!/usr/bin/env bash
@@ -49,7 +49,7 @@ esac
 
 **Key decisions:**
 
-- **Subcommand logic lives in `claude/tools/lib/_agency-*` files.** The main script is a thin dispatcher. Each subcommand file is sourced (not exec'd) so it shares the parent's environment (AGENCY_DIR, log helper, etc.).
+- **Subcommand logic lives in `agency/tools/lib/_agency-*` files.** The main script is a thin dispatcher. Each subcommand file is sourced (not exec'd) so it shares the parent's environment (AGENCY_DIR, log helper, etc.).
 - **Arguments via `AGENCY_ARGS` array.** Unlike existing lib files (`_log-helper`, `_path-resolve`) which set up environment by side effect, `_agency-*` files receive arguments via the `AGENCY_ARGS` bash array — not via `source script "$@"`, which is fragile across Bash versions. Subcommand files read `"${AGENCY_ARGS[@]}"` for their positional parameters.
 - **`set -euo pipefail` is inherited.** All sourced subcommand files execute under strict mode. Every `_agency-*` file must be written with this awareness — use `${VAR:-}` for optional variables, and handle expected non-zero exits explicitly.
 - **`${BASH_SOURCE[0]}` for path resolution.** Not `$0`, which breaks when invoked via symlink.
@@ -68,7 +68,7 @@ Absorbs current `agency-init` logic with these changes:
    .git/ exists?            → if not: "Run git init first" and exit
    .claude/ exists?         → if not: "Run claude init first" (creates .claude/ and settings.json)
    On main/master branch?   → if not: "Switch to main/master before running agency init" and exit
-   Already initialized?     → if claude/config/agency.yaml exists: "Already initialized" and exit
+   Already initialized?     → if agency/config/agency.yaml exists: "Already initialized" and exit
    ```
    The initialization check uses `agency.yaml` (not `handoff.md`) because it's a framework file created by init that users don't normally delete. The branch check ensures the bootstrap handoff lands at `usr/{principal}/captain/handoff.md` where `session-handoff.sh` will find it (the hook maps main/master → captain).
 
@@ -110,9 +110,9 @@ New implementation replacing the deprecated shim.
 4. **Write update handoff** — uses the handoff tool (archive-then-write pattern):
    ```bash
    # Archive existing handoff to history/
-   bash claude/tools/handoff archive
+   bash agency/tools/handoff archive
    # Write new handoff with update type
-   bash claude/tools/handoff write --type agency-update --trigger agency-update
+   bash agency/tools/handoff write --type agency-update --trigger agency-update
    ```
    The handoff tool archives the existing session handoff to `history/`, then the agent writes the new handoff with update content:
    ```markdown
@@ -183,7 +183,7 @@ trigger: SessionEnd
 - Write: handoff tool always includes `type` in frontmatter
 - Read: missing type = `session` (default). The session-handoff.sh hook and any agent reading a handoff treats missing type as session. This means old handoffs (pre-type-support) work without migration.
 
-**Changes to handoff tool (`claude/tools/handoff`):**
+**Changes to handoff tool (`agency/tools/handoff`):**
 
 1. `handoff write` — add `--type <type>` flag. Default: `session`. The tool writes YAML frontmatter with the type.
 2. `handoff read` — no change (it already outputs raw content; consumers parse the frontmatter).
@@ -247,13 +247,13 @@ This project was just initialized with The Agency framework (v2.0.0).
 ### Your environment
 - Principal: {principal}
 - Project: {project_name}
-- Config: claude/config/agency.yaml
+- Config: agency/config/agency.yaml
 
 ### How to get help
 - `/agency-help` — quick reference
 - `/agency-welcome` — guided tour
 - `/agency-tutorial` — interactive walkthrough
-- `claude/README-THEAGENCY.md` — full documentation
+- `agency/README-THEAGENCY.md` — full documentation
 ```
 
 The `{...}` placeholders are computed by `_agency-init` at runtime (e.g., `skill_count=$(find .claude/skills -mindepth 1 -maxdepth 1 -type d | wc -l)`). This avoids drift between the template and reality.
@@ -268,7 +268,7 @@ This content IS the onboarding. The session-handoff.sh hook injects it with the 
 |----------|----------|--------|
 | Starter repo contents | `archive-the-agency-starter/` | Already archived, commit then delete after verification |
 | Starter test fixture | `test/the-agency-starter/` | Delete (embedded git repo) |
-| Starter tools | `claude/tools/starter-*` | Delete: starter-test, starter-verify, starter-compare, starter-cleanup, starter-update, starter-release |
+| Starter tools | `agency/tools/starter-*` | Delete: starter-test, starter-verify, starter-compare, starter-cleanup, starter-update, starter-release |
 | Starter docs | `claude/docs/STARTER-PACK-INTEGRATION.md`, `STARTER-RELEASE-PROCESS.md` | Delete |
 | Repo relationship doc | `claude/docs/REPO-RELATIONSHIP.md` | Delete |
 | Starter workflows | `.github/workflows/starter-release.yml` | Already deleted |
@@ -307,15 +307,15 @@ This A&D acknowledges the path but does NOT design the skill — that's the DevE
 ```
 Current                    → Transition                → Final
 ─────────────────────────────────────────────────────────────────
-claude/tools/agency-init   → thin wrapper calling       → deleted
+agency/tools/agency-init   → thin wrapper calling       → deleted
                               agency init (deprecation
                               warning)
-claude/tools/agency-update → already deprecated shim    → deleted
-claude/tools/agency-verify → thin wrapper               → deleted
-claude/tools/agency-whoami → thin wrapper               → deleted
-claude/tools/agency-feedback → thin wrapper             → deleted
-claude/tools/agency        → NEW: main CLI script       → permanent
-claude/tools/lib/_agency-* → NEW: subcommand logic      → permanent
+agency/tools/agency-update → already deprecated shim    → deleted
+agency/tools/agency-verify → thin wrapper               → deleted
+agency/tools/agency-whoami → thin wrapper               → deleted
+agency/tools/agency-feedback → thin wrapper             → deleted
+agency/tools/agency        → NEW: main CLI script       → permanent
+agency/tools/lib/_agency-* → NEW: subcommand logic      → permanent
 ```
 
 **Clean break decision:** Given two projects in the installed base and we control both — skip the thin-wrapper transition. Delete old tools, ship `agency`. Update settings.json permissions to reference `agency` instead of individual `agency-*` tools.
@@ -324,15 +324,15 @@ claude/tools/lib/_agency-* → NEW: subcommand logic      → permanent
 
 ```json
 // Before (5 entries):
-"Bash(./claude/tools/agency-init *)",
-"Bash(./claude/tools/agency-update *)",
-"Bash(./claude/tools/agency-verify *)",
-"Bash(./claude/tools/agency-whoami *)",
-"Bash(./claude/tools/agency-feedback *)",
+"Bash(./agency/tools/agency-init *)",
+"Bash(./agency/tools/agency-update *)",
+"Bash(./agency/tools/agency-verify *)",
+"Bash(./agency/tools/agency-whoami *)",
+"Bash(./agency/tools/agency-feedback *)",
 
 // After (2 entries — no-arg and with-arg):
-"Bash(./claude/tools/agency)",
-"Bash(./claude/tools/agency *)",
+"Bash(./agency/tools/agency)",
+"Bash(./agency/tools/agency *)",
 ```
 
 Two entries: `agency` (no args, for help/version) and `agency *` (with subcommand). Claude Code matches the glob against the full command string — `agency *` matches `agency init --principal foo` but not bare `agency`.
@@ -366,7 +366,7 @@ framework:
 ### 2.9 File Layout (Final State)
 
 ```
-claude/tools/
+agency/tools/
   agency                    # CLI entry point (new)
   lib/
     _agency-init            # init subcommand logic (extracted from agency-init)

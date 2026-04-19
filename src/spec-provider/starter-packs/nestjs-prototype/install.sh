@@ -2,7 +2,7 @@
 # NestJS Prototype Starter Pack — installer
 #
 # Scaffolds a new NestJS prototype module under apps/backend/src/prototype/<name>/.
-# Invoked by claude/tools/service-add (via tools/service-add.ts).
+# Invoked by agency/tools/service-add (via tools/service-add.ts).
 #
 # Contract (args):
 #   --name <kebab-case>      — service name (required)

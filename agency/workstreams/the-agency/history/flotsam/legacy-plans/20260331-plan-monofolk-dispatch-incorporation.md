@@ -34,15 +34,15 @@ Pre-init work (Phases 1-4) must complete before agency-init implementation. Post
 6. **Dispatch tool:** Auto-stamp with datetime. Fix now.
 7. **gstack patterns:** Template system, confidence scoring, diff-scope, learnings JSONL, decision classification. These inform skill design but are separate work items — NOT in this plan's scope. Tracked in backlog.
 8. **Parameterization mechanism:** Skills resolve paths at RUNTIME via `agency-whoami` (principal detection) and `agency.yaml` (config). NOT install-time templating. Skills use globs like `usr/*/` rather than hardcoded `usr/jordan/`.
-9. **Skill `allowed-tools` resolved:** Skills call `claude/tools/*` — that's the whole point of the tools directory. Skills have stable `allowed-tools` referencing framework tools (`Bash(./claude/tools/test-run:*)`, `Bash(./claude/tools/commit-precheck:*)`). Tools read project config from `agency.yaml` and run the right project-specific commands. This is the existing architecture — not a new pattern.
-10. **Permission scope resolved:** Skills reference tools, not raw commands. No `Bash(doppler *)` or `Bash(tsx:*)` in skill frontmatter. Secret skill → `Bash(./claude/tools/secret-*:*)`. Stage-hash → `Bash(tsx tools/stage-hash.ts)` (specific file, not wildcard).
+9. **Skill `allowed-tools` resolved:** Skills call `agency/tools/*` — that's the whole point of the tools directory. Skills have stable `allowed-tools` referencing framework tools (`Bash(./agency/tools/test-run:*)`, `Bash(./agency/tools/commit-precheck:*)`). Tools read project config from `agency.yaml` and run the right project-specific commands. This is the existing architecture — not a new pattern.
+10. **Permission scope resolved:** Skills reference tools, not raw commands. No `Bash(doppler *)` or `Bash(tsx:*)` in skill frontmatter. Secret skill → `Bash(./agency/tools/secret-*:*)`. Stage-hash → `Bash(tsx tools/stage-hash.ts)` (specific file, not wildcard).
 11. **Prototype skills (13):** Explicitly OUT OF SCOPE — monofolk-only per MANIFEST. Not ported.
 12. **PR strategy:** One PR per phase. Keeps reviews manageable.
 13. **Tools already merged:** `handoff` and `plan-capture` are identical in framework and dispatch — no work needed. `_log-helper` is also identical (only comment header differs) — no merge needed.
 
 ## Agent Architecture Update
 
-### Classes (role templates in `claude/agents/{class}/`)
+### Classes (role templates in `agency/agents/{class}/`)
 
 | Class | Type | Status | Notes |
 |-------|------|--------|-------|
@@ -87,15 +87,15 @@ From gstack analysis, consider adding:
 **Slug:** `adhoc-purge.delete-files`
 
 Delete:
-- `claude/agents/captain/ADHOC-WORKLOG.md`
-- `claude/agents/gumroad/ADHOC-WORKLOG.md`
-- `claude/agents/discord/ADHOC-WORKLOG.md`
-- `claude/agents/apple/ADHOC-WORKLOG.md`
-- `claude/tools/adhoc-log`
+- `agency/agents/captain/ADHOC-WORKLOG.md`
+- `agency/agents/gumroad/ADHOC-WORKLOG.md`
+- `agency/agents/discord/ADHOC-WORKLOG.md`
+- `agency/agents/apple/ADHOC-WORKLOG.md`
+- `agency/tools/adhoc-log`
 - `test/test-agency-project/claude/agents/housekeeping/ADHOC-WORKLOG.md`
-- `test/the-agency-starter/claude/agents/captain/ADHOC-WORKLOG.md`
-- `test/the-agency-starter/claude/agents/housekeeping/ADHOC-WORKLOG.md`
-- `test/the-agency-starter/claude/agents/hub/ADHOC-WORKLOG.md`
+- `test/the-agency-starter/agency/agents/captain/ADHOC-WORKLOG.md`
+- `test/the-agency-starter/agency/agents/housekeeping/ADHOC-WORKLOG.md`
+- `test/the-agency-starter/agency/agents/hub/ADHOC-WORKLOG.md`
 - `test/the-agency-starter/tools/adhoc-log` (starter pack copy)
 
 **Verify:** `find . -path ./.git -prune -o -name "*adhoc*" -print -o -name "*ADHOC*" -print | grep -v node_modules` returns zero.
@@ -103,15 +103,15 @@ Delete:
 ### 1.2: Purge ADHOC References and Kill --adhoc Flag
 **Slug:** `adhoc-purge.purge-refs`
 
-- `claude/tools/git-safe-commit` — remove `--adhoc` flag entirely, replace with `--no-work-item` (explicit escape hatch)
+- `agency/tools/git-safe-commit` — remove `--adhoc` flag entirely, replace with `--no-work-item` (explicit escape hatch)
 - `.claude/settings.json` — remove `Bash(./claude/tools/adhoc-log*)` permission
 - `.agency/manifest.json` — remove adhoc-log entries
 - `registry.json` — remove adhoc-log and ADHOC-WORKLOG protected paths
-- `claude/agents/captain/KNOWLEDGE.md` — remove ADHOC references
-- `claude/agents/templates/generic/ONBOARDING.md` — remove ADHOC mentions
-- `claude/agents/apple/ONBOARDING.md`, `discord/ONBOARDING.md`, `gumroad/ONBOARDING.md` — remove
+- `agency/agents/captain/KNOWLEDGE.md` — remove ADHOC references
+- `agency/agents/templates/generic/ONBOARDING.md` — remove ADHOC mentions
+- `agency/agents/apple/ONBOARDING.md`, `discord/ONBOARDING.md`, `gumroad/ONBOARDING.md` — remove
 - `claude/docs/CONCEPTS.md`, `PRINCIPAL-GUIDE.md`, `STARTER-PACK-INTEGRATION.md` — remove
-- `claude/tools/project-update`, `starter-release`, `agent-create` — remove ADHOC scaffolding
+- `agency/tools/project-update`, `starter-release`, `agent-create` — remove ADHOC scaffolding
 - `claude/integrations/claude-desktop/agency-server/index.ts` — remove adhoc refs
 - `claude/docs/tutorials/` — remove from tutorials
 - Tests: update `tests/tools/git-operations.bats`:
@@ -137,8 +137,8 @@ Delete:
 
 Open core model:
 - Root `LICENSE` — MIT License, scoped to framework (everything except app workstreams)
-- `claude/workstreams/markdown-pal/LICENSE` — Source-available (view, contribute, no commercial redistribution)
-- `claude/workstreams/mock-and-mark/LICENSE` — Source-available (same)
+- `agency/workstreams/markdown-pal/LICENSE` — Source-available (view, contribute, no commercial redistribution)
+- `agency/workstreams/mock-and-mark/LICENSE` — Source-available (same)
 - Root README licensing section explaining the split
 
 ### 2.2: Project CLAUDE.md and README
@@ -148,19 +148,19 @@ Write the project-specific Layer 2 files for the-agency itself:
 
 **Root `CLAUDE.md`** — small, agent-facing. Just project specifics:
 - What this repo is (the-agency framework itself)
-- `@claude/CLAUDE-THEAGENCY.md` import at the bottom
+- `@agency/CLAUDE-THEAGENCY.md` import at the bottom
 
-**Root `README.md`** — a paragraph pointing to `claude/README-THEAGENCY.md` for depth.
+**Root `README.md`** — a paragraph pointing to `agency/README-THEAGENCY.md` for depth.
 
-**`claude/README-GETTINGSTARTED.md`** — short: grab the agency command, run `agency-init`. That's it.
+**`agency/README-GETTINGSTARTED.md`** — short: grab the agency command, run `agency-init`. That's it.
 
 ### 2.3: Move Files to Match Template Paths
 **Slug:** `licensing-infra.align-paths`
 
 CLAUDE-THEAGENCY.md describes the TARGET state. Move things to match:
-- Move `tools/stage-hash.ts` and `tools/lib/stage-hash.ts` → `claude/tools/stage-hash` (or wrapper)
-- Move `.agency/manifest.json` → `claude/config/manifest.json`
-- Create `claude/config/settings-template.json` (stub for Phase 5.4)
+- Move `tools/stage-hash.ts` and `tools/lib/stage-hash.ts` → `agency/tools/stage-hash` (or wrapper)
+- Move `.agency/manifest.json` → `agency/config/manifest.json`
+- Create `agency/config/settings-template.json` (stub for Phase 5.4)
 - Fix `project-manager/agent.md` stale `refs/` path → `claude/docs/DEVELOPMENT-METHODOLOGY.md`
 - Audit ref-injector.sh — confirm `claude/docs/` paths
 - Default workstream: `ops/` in template vs `housekeeping` in repo — resolve
@@ -170,7 +170,7 @@ CLAUDE-THEAGENCY.md describes the TARGET state. Move things to match:
 ### 2.4: Dispatch Tool Datetime Fix
 **Slug:** `licensing-infra.dispatch-datetime`
 
-Create or update `claude/tools/dispatch-create` to auto-stamp filenames with `YYYYMMDD-HHMM`.
+Create or update `agency/tools/dispatch-create` to auto-stamp filenames with `YYYYMMDD-HHMM`.
 
 ---
 
@@ -195,7 +195,7 @@ Create or update `claude/tools/dispatch-create` to auto-stamp filenames with `YY
 | `iteration-complete`, `phase-complete`, `plan-complete` | Boundary lifecycle |
 | `pr-prep` | Pre-PR lifecycle |
 | `pre-phase-review` | Triggered before phases |
-| `git-safe-commit` | QG-aware wrapper (skill wraps `claude/tools/git-safe-commit` tool) |
+| `git-safe-commit` | QG-aware wrapper (skill wraps `agency/tools/git-safe-commit` tool) |
 | `transcript` | Invoked by discuss via `Skill` tool, not directly by user |
 | `define`, `design` | Methodology lifecycle |
 | `code-review`, `captain-review`, `review-pr`, `pr-respond` | Review lifecycle |
@@ -220,13 +220,13 @@ jq . .claude/settings.json > /dev/null
 **Slug:** `skills-port.quality-boundary`
 
 Port and parameterize:
-- `quality-gate` — Replace `pnpx vitest`, `oxfmt`, `oxlint`, `pnpm` with configurable test/lint commands. Replace `tsx tools/stage-hash.ts` with `claude/tools/stage-hash`. Parameterize QGR receipt paths.
+- `quality-gate` — Replace `pnpx vitest`, `oxfmt`, `oxlint`, `pnpm` with configurable test/lint commands. Replace `tsx tools/stage-hash.ts` with `agency/tools/stage-hash`. Parameterize QGR receipt paths.
 - `iteration-complete` — Parameterize `usr/jordan/` to principal-resolved paths
 - `phase-complete` — Same
 - `plan-complete` — Same + reference doc finalization
 - `pr-prep` — NEW skill, parameterize
 - `pre-phase-review` — Port, fix artifact glob patterns
-- `git-safe-commit` — QG-aware skill wrapping `claude/tools/git-safe-commit`. Stage hash path fix.
+- `git-safe-commit` — QG-aware skill wrapping `agency/tools/git-safe-commit`. Stage hash path fix.
 
 **Critical files:**
 - `usr/jordan/captain/dispatches/monofolk-skills/quality-gate.md`
@@ -299,7 +299,7 @@ Phase 1 killed `--adhoc`. Now ensure `--no-work-item` is wired correctly as the 
 ### 4.2: Update Project Manager Agent
 **Slug:** `tool-agent-updates.pm-agent`
 
-Merge dispatch changes into `claude/agents/project-manager/agent.md`:
+Merge dispatch changes into `agency/agents/project-manager/agent.md`:
 - Add "do not touch git directly" clause
 - Fix stale `refs/` path
 - Remove monofolk-specific quality gate tooling refs
@@ -312,7 +312,7 @@ Skills in `.claude/skills/` are auto-discovered by Claude Code — they do NOT n
 - Ensure no naming collisions between new skills and existing commands (e.g., `git-safe-commit` skill vs `git-safe-commit` tool — different namespaces, no collision)
 - Validate settings.json remains valid JSON: `jq . .claude/settings.json > /dev/null`
 
-Update `claude/hooks/ref-injector.sh` with new skill-to-reference mappings. Use EXACT match (not substring) for security:
+Update `agency/hooks/ref-injector.sh` with new skill-to-reference mappings. Use EXACT match (not substring) for security:
 
 | Skill trigger | Reference document |
 |---------------|-------------------|
@@ -349,7 +349,7 @@ deploy:
 **Slug:** `post-init-enhance.workstream-create`
 
 Higher-level than worktree-create:
-- Creates project directory at `claude/workstreams/{name}/`
+- Creates project directory at `agency/workstreams/{name}/`
 - Scaffolds artifacts (KNOWLEDGE.md, initial PVR stub, handoff)
 - Assigns agent
 - Calls worktree-create for the git worktree
@@ -362,8 +362,8 @@ At boundary commands, verify all skills in the project's tooling table exist. "I
 ### 5.4: Settings-Merge Tool
 **Slug:** `post-init-enhance.settings-merge`
 
-Build `claude/tools/settings-merge`:
-- Read `claude/config/settings-template.json`
+Build `agency/tools/settings-merge`:
+- Read `agency/config/settings-template.json`
 - Merge into `.claude/settings.json`
 - Array union for permissions.allow (don't replace)
 
@@ -382,7 +382,7 @@ Replace manual escalation ladder with automated fallback tools.
 ### 6.1: Update agency-init to Install Skills
 **Slug:** `cleanup-verify.agency-init-skills`
 
-Update `claude/tools/agency-init` to:
+Update `agency/tools/agency-init` to:
 - Create `.claude/skills/` in target
 - Copy all framework skills
 - Copy CLAUDE-THEAGENCY.md and README-THEAGENCY.md
@@ -391,7 +391,7 @@ Update `claude/tools/agency-init` to:
 ### 6.2: Update agency-update
 **Slug:** `cleanup-verify.agency-update`
 
-Ensure `claude/tools/agency-update` handles skills and templates in tier assignments.
+Ensure `agency/tools/agency-update` handles skills and templates in tier assignments.
 
 ### 6.3: Starter Pack and Test Fixture Integration
 **Slug:** `cleanup-verify.starter-pack`
@@ -406,7 +406,7 @@ Update BOTH test fixture directories:
 Create `tests/skills/skill-validation.bats` — static tier testing for all 33 skills:
 - Every `.claude/skills/{name}/SKILL.md` exists and is non-empty
 - No SKILL.md contains `usr/jordan/`, `monofolk`, hardcoded `pnpm`, hardcoded `doppler`, hardcoded `prisma`
-- No SKILL.md references non-existent tools (check `Bash(./claude/tools/{name}*)` patterns against actual files)
+- No SKILL.md references non-existent tools (check `Bash(./agency/tools/{name}*)` patterns against actual files)
 - Skill count matches expected (33 framework skills)
 - Also validate stage-hash TypeScript tests: `npx vitest run tools/lib/stage-hash.test.ts` (if vitest available)
 
@@ -469,11 +469,11 @@ Phases 1-4: sequential (each depends on prior). Within Phase 3: 3.1 first (quali
 
 ## Critical Files
 
-- `claude/tools/git-safe-commit` — adhoc removal, --no-work-item addition
-- `claude/tools/agency-init` — skill installation
-- `claude/hooks/ref-injector.sh` — skill reference injection
+- `agency/tools/git-safe-commit` — adhoc removal, --no-work-item addition
+- `agency/tools/agency-init` — skill installation
+- `agency/hooks/ref-injector.sh` — skill reference injection
 - `.claude/settings.json` — permissions, hooks, skill registration
-- `claude/agents/project-manager/agent.md` — "no git" clause
-- `claude/CLAUDE-THEAGENCY.md` — verify against dispatch
-- `claude/README-THEAGENCY.md` — verify against dispatch
+- `agency/agents/project-manager/agent.md` — "no git" clause
+- `agency/CLAUDE-THEAGENCY.md` — verify against dispatch
+- `agency/README-THEAGENCY.md` — verify against dispatch
 - All 35 skill source files in `usr/jordan/captain/dispatches/monofolk-skills/`

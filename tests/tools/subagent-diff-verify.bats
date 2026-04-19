@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/subagent-diff-verify"
+    TOOL="$REPO_ROOT/agency/tools/subagent-diff-verify"
 
     TMP_REPO="$(mktemp -d -t sdv.XXXXXX)"
     cd "$TMP_REPO"
@@ -17,9 +17,9 @@ setup() {
     cat > manifest.yaml <<'EOF'
 subagent: A
 allowed_substitutions:
-  - pattern: "claude/tools/"
+  - pattern: "agency/tools/"
     replacement: "agency/tools/"
-  - pattern: "claude/hooks/"
+  - pattern: "agency/hooks/"
     replacement: "agency/hooks/"
 EOF
 }
@@ -51,7 +51,7 @@ commit_base() {
 }
 
 @test "manifest-authorized single substitution passes" {
-    commit_base "claude/tools/foo" a.md
+    commit_base "agency/tools/foo" a.md
     git checkout -q -b work
     echo "agency/tools/foo" > a.md
     git commit -q -am "sub"
@@ -61,7 +61,7 @@ commit_base() {
 }
 
 @test "multi-substitution on same line passes" {
-    commit_base "claude/tools/a claude/hooks/b" a.md
+    commit_base "agency/tools/a agency/hooks/b" a.md
     git checkout -q -b work
     echo "agency/tools/a agency/hooks/b" > a.md
     git commit -q -am "sub"
@@ -70,7 +70,7 @@ commit_base() {
 }
 
 @test "same-length non-sub corruption rejects" {
-    commit_base "claude/tools/foo" a.md
+    commit_base "agency/tools/foo" a.md
     git checkout -q -b work
     # Change the path to something same-length but not a manifest substitution
     echo "xxxxxx/tools/foo" > a.md
@@ -81,9 +81,9 @@ commit_base() {
 }
 
 @test "whitespace-only drift rejects" {
-    commit_base "claude/tools/foo" a.md
+    commit_base "agency/tools/foo" a.md
     git checkout -q -b work
-    printf 'claude/tools/foo  \n' > a.md  # trailing spaces
+    printf 'agency/tools/foo  \n' > a.md  # trailing spaces
     git commit -q -am "ws-drift"
     run "$TOOL" --manifest manifest.yaml --branch work --base "$BASE"
     [ "$status" -eq 1 ]
@@ -100,7 +100,7 @@ commit_base() {
 }
 
 @test "binary-file change rejects" {
-    printf '\x00\x01claude/tools/\x02' > bin.dat
+    printf '\x00\x01agency/tools/\x02' > bin.dat
     git add bin.dat; git commit -q -m "seed"
     BASE="$(git rev-parse HEAD)"
     git checkout -q -b work

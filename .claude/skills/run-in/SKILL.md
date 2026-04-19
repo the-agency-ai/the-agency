@@ -30,13 +30,13 @@ the command and its argv.
 
 ```bash
 # Run a command on another repo without leaking CWD
-./claude/tools/run-in ~/code/presence-detect -- ./claude/tools/agency verify
+./agency/tools/run-in ~/code/presence-detect -- ./agency/tools/agency verify
 
 # Run a git command in a worktree from your captain shell
 ./claude/tools/run-in .claude/worktrees/devex -- git status
 
 # Run a test suite in a sandbox dir
-./claude/tools/run-in "$BATS_TEST_TMPDIR/mock" -- bats mock.bats
+./agency/tools/run-in "$BATS_TEST_TMPDIR/mock" -- bats mock.bats
 ```
 
 ## What NOT to do
@@ -49,7 +49,7 @@ cd ~/code/presence-detect && agency verify
 cd .claude/worktrees/devex && git status && cd -
 
 # ✅ Use run-in instead
-./claude/tools/run-in ~/code/presence-detect -- agency verify
+./agency/tools/run-in ~/code/presence-detect -- agency verify
 ./claude/tools/run-in .claude/worktrees/devex -- git status
 ```
 
@@ -64,8 +64,8 @@ CWD is untouchable by construction, so identity resolution stays correct.
 
 ## Related
 
-- Hookify rule: `claude/hookify/hookify.block-compound-bash.md`
-- Tool: `claude/tools/run-in`
+- Hookify rule: `agency/hookify/hookify.block-compound-bash.md`
+- Tool: `agency/tools/run-in`
 - Companion seed: telemetry-mining for compound command patterns (flag #54)
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

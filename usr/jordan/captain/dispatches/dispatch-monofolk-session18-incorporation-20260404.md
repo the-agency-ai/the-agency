@@ -20,7 +20,7 @@ PR incoming from the-agency with 19 commits covering addressing standards, scope
 - **Dropbox** concept introduced: `claude/dropbox/{principal}/{agent}/` on master for file staging across worktrees
 
 ### 2. Scoped CLAUDE.md Pattern
-- **CLAUDE-{WORKSTREAM}.md** in `claude/workstreams/{name}/` — workstream-scoped agent instructions
+- **CLAUDE-{WORKSTREAM}.md** in `agency/workstreams/{name}/` — workstream-scoped agent instructions
 - **CLAUDE-{AGENT}.md** in `usr/{principal}/{project}/` — agent-scoped instructions
 - **Convention:** `@` import from agent registrations in `.claude/agents/{name}.md`
 - Table in CLAUDE-THEAGENCY.md formalizes the three layers (Framework / Workstream / Agent)
@@ -38,7 +38,7 @@ PR incoming from the-agency with 19 commits covering addressing standards, scope
 - Principal resolution fixed (was using `$USER` instead of `AGENCY_PRINCIPAL`)
 
 ### 5. ISCP Workstream Created
-- New workstream at `claude/workstreams/iscp/` — Inter-Session Communication Protocol
+- New workstream at `agency/workstreams/iscp/` — Inter-Session Communication Protocol
 - Scope: flag (SQLite-backed), dispatch lifecycle, ISCP v1 notification hook, dropbox, addressing, cross-repo
 - Agent registered at `.claude/agents/iscp.md` with bootstrap handoff
 - Seeds include mdpal-cli/mdpal-app mining findings (worktree/master path confusion is #1 friction)
@@ -50,9 +50,9 @@ PR incoming from the-agency with 19 commits covering addressing standards, scope
 ## Directive
 
 Incorporate these framework changes into monofolk:
-1. Update `claude/CLAUDE-THEAGENCY.md` from this PR
-2. Apply the flag tool fix (`claude/tools/flag`)
-3. Apply session-handoff.sh flag detection (`claude/hooks/session-handoff.sh`)
+1. Update `agency/CLAUDE-THEAGENCY.md` from this PR
+2. Apply the flag tool fix (`agency/tools/flag`)
+3. Apply session-handoff.sh flag detection (`agency/hooks/session-handoff.sh`)
 4. Review and adopt scoped CLAUDE.md pattern for monofolk workstreams
 5. Adopt provenance header convention going forward
 

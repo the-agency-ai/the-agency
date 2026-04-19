@@ -19,7 +19,7 @@ Principal directive: **resume Phase 1A work at 2026-04-15 03:00**. Timer: cron j
 1. **Merged from main** — 54 commits landed cleanly as `d1a438e`. No conflicts (one expected sparse-worktree artifact: `test/test-agency-project` shown deleted).
 2. **New tooling rules now active here**: git-safe family enforced by hookify. Raw `git status/log/diff/merge` blocked. Use `/git-safe`, `/git-safe-commit`, `/git-captain` (captain only). Raw `cat` also blocked — use Read tool. Raw `cp` and `gh pr create` also blocked.
 3. **Replied to captain's merge-confirmation directive (#302)** — but the reply body did not transmit correctly (see bug below). Captain sent two follow-ups (#310, #312) asking for the status. Captain has accepted that the response lives in this handoff instead.
-4. **Skills discipline reminder from principal** — stop shelling to `./claude/tools/dispatch` directly; use `/dispatch`. Stop using raw git; use `/git-safe`. Going forward, invoke skills via the Skill tool.
+4. **Skills discipline reminder from principal** — stop shelling to `./agency/tools/dispatch` directly; use `/dispatch`. Stop using raw git; use `/git-safe`. Going forward, invoke skills via the Skill tool.
 
 ## Captain's merge-confirmation response (per #312 — lives here until bug fixed)
 
@@ -29,12 +29,12 @@ Principal directive: **resume Phase 1A work at 2026-04-15 03:00**. Timer: cron j
 
 ## 🐛 Dispatch tool bug — investigate at 0300 (captain directive #312)
 
-**Symptom:** `./claude/tools/dispatch reply <id> --body "..."` (and `--body-file`) produces a dispatch with body content equal to the literal string `--body` (or `--body-file`). Two empty replies landed this session: #309 (`--body`) and #311 (`--body-file`).
+**Symptom:** `./agency/tools/dispatch reply <id> --body "..."` (and `--body-file`) produces a dispatch with body content equal to the literal string `--body` (or `--body-file`). Two empty replies landed this session: #309 (`--body`) and #311 (`--body-file`).
 
 **Hypothesis:** the tool's argument parser is reading the flag *name* as the body value, i.e. the positional slot that should hold the body content is being filled by the flag name itself. Could be a shift/offset bug, or the CLI treats `--body` as a positional rather than a flag-with-value.
 
 **At 0300, investigate:**
-1. Read `claude/tools/dispatch` source — find how `reply` subcommand parses `--body` / `--body-file`.
+1. Read `agency/tools/dispatch` source — find how `reply` subcommand parses `--body` / `--body-file`.
 2. Compare to `create --body` which other agents use successfully.
 3. Check if the issue is shell-level: Bash quoting? `$(...)` expansion? Heredoc? Principal's earlier heredoc through the Bash tool had issues — may or may not be related.
 4. Try: `dispatch create --to ... --subject ... --body "test"` — does that work? If yes, the bug is isolated to `reply`.

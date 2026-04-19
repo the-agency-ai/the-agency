@@ -31,7 +31,7 @@ v46.0 is the one-shot structural reset that unblocks the installer (#337) and ev
 - **Dual-use tooling.** Tools built for the-agency's reset are packaged into customer `agency-migrate-prep`.
 - **Deterministic verification over self-report.** Captain verifies via tool output; receipts are informational.
 
-**Bootstrap paradox acknowledgment** (fold P-8): this reset is the framework rebuilding itself while running on itself. Phase 0 builds tools inside `claude/tools/` (pre-rename); those tools participate in their own move. The operational strategy (untracked alias-shim for captain's session only — fold A-4/O-3/R-2/V-2/P-7) contains the paradox in captain-private scope. This is a one-time transitional condition, not a pattern — documented in release notes "Why now."
+**Bootstrap paradox acknowledgment** (fold P-8): this reset is the framework rebuilding itself while running on itself. Phase 0 builds tools inside `agency/tools/` (pre-rename); those tools participate in their own move. The operational strategy (untracked alias-shim for captain's session only — fold A-4/O-3/R-2/V-2/P-7) contains the paradox in captain-private scope. This is a one-time transitional condition, not a pattern — documented in release notes "Why now."
 
 ## 1. Nine Blocker Resolutions Folded (anchor — already Over-and-out'd with principal)
 
@@ -148,7 +148,7 @@ v46.0 is the one-shot structural reset that unblocks the installer (#337) and ev
 
    **Sensitive-dir supply-chain baseline** (fold R-1 + V-12): `agency/hooks/`, `agency/tools/`, `.claude/` sha256 manifest captured in Phase 0a. Post-Phase-4.5 `gate-check-4.5.sh` asserts: for every file NOT in any subagent manifest, SHA256 matches Phase 0 manifest (unchanged). For files IN a manifest, `subagent-diff-verify` covers them.
 
-   **Allowlist** — `claude/tools/ref-sweep-allowlist.txt` with ≥14 seed entries + rationale per line:
+   **Allowlist** — `agency/tools/ref-sweep-allowlist.txt` with ≥14 seed entries + rationale per line:
    ```
    \.claude/	Anthropic Claude Code discovery dir — never renamed
    CLAUDE\.md$	Root bootloader filename
@@ -197,9 +197,9 @@ v46.0 is the one-shot structural reset that unblocks the installer (#337) and ev
      - agency/workstreams/*/history/**
      - agency/workstreams/*/transcripts/**
    allowed_substitutions:
-     - pattern: "claude/tools/"
+     - pattern: "agency/tools/"
        replacement: "agency/tools/"
-     - pattern: "claude/hooks/"
+     - pattern: "agency/hooks/"
        replacement: "agency/hooks/"
      # etc.
    rejected_substitutions:
@@ -222,7 +222,7 @@ v46.0 is the one-shot structural reset that unblocks the installer (#337) and ev
    - What changed (adopter-visible; fold v3 P-3 per-change impact + v3 P-8 templates move):
      - Directory rename `claude/` → `agency/` — **Adopter impact: see runbook § migration-paths for all 5+ path categories**
      - New top-level `src/` dir — **Adopter impact: none (source-code tree, not runtime)**
-     - New canonical class `design-lead` (fold P-12) — **Adopter impact: if your repo registers a design agent, consider `@import @agency/agents/design-lead/agent.md` as the new canonical. Legacy `agency/agents/designex/` class directory replaced; `agency-migrate-prep` rewrites `@import @claude/agents/designex` references automatically (fold v4 P-3).**
+     - New canonical class `design-lead` (fold P-12) — **Adopter impact: if your repo registers a design agent, consider `@import @agency/agents/design-lead/agent.md` as the new canonical. Legacy `agency/agents/designex/` class directory replaced; `agency-migrate-prep` rewrites `@import @agency/agents/designex` references automatically (fold v4 P-3).**
      - Agent templates relocated from `agency/agents/templates/` to `agency/templates/` — **Adopter impact: any reference to `agency/agents/templates/` swept automatically by prep**
      - 9 non-class agents archived to `src/archive/agents/`: `apple, cos, discord, gumroad, iscp, marketing-lead, platform-specialist, project-manager, testname` — **Adopter impact: if your repo has `@import @claude/agents/{name}` OR `.claude/agents/*/{name}.md`, see runbook § agent-migration**
    - What's preserved (fold P-3 test fixture carve-out + v3 P-1): `usr/`, workstream data, `@import` semantics, **test fixture at `test/test-agency-project/` (embedded git repo — fixture's internal `claude/` references preserved verbatim as historical fixture content; adopters take no action on it)**, dispatches + flags
@@ -585,7 +585,7 @@ Any of 1-5 fails → reject branch; subagent redoes; captain re-verifies.
 6. Commit audit log + reconciled cursor chain as Phase 6 deliverable.
 6.5. **QGR v46.0 aggregation** (fold v3 O-5): Aggregate all 9 continuous-MAR checkpoint receipts (0→1, 1→2, 2→3, 3→3.5, 3.5→4, 4→4.5, 4.5→5, 5→6, 6→merge) into single artifact `agency/workstreams/the-agency/qgr/qgr-v46.0-reset-20260419.md` — references phase-cursor chain-hash as proof-of-gate-passage, summarizes each checkpoint's findings + folds. `pr-create` reads this as the QGR receipt. If `pr-create` tool does not accept this shape, patch is a Phase 0b deliverable.
 7. **PR creation** (fold O-15 — decision):
-   - **Use `./claude/tools/pr-create`** (safe tool, not raw `gh`). This reset's scope satisfies `/release` requirements modulo version-bump — captain manually bumps `agency/config/manifest.json` to `46.0.0` pre-PR creation, commits as part of the same phase, then invokes `pr-create --title "D45-Rn: the-agency v46.0 Structural Reset" --body "<full body>"`.
+   - **Use `./agency/tools/pr-create`** (safe tool, not raw `gh`). This reset's scope satisfies `/release` requirements modulo version-bump — captain manually bumps `agency/config/manifest.json` to `46.0.0` pre-PR creation, commits as part of the same phase, then invokes `pr-create --title "D45-Rn: the-agency v46.0 Structural Reset" --body "<full body>"`.
    - `/release` skill is NOT invoked as a single skill — its sub-steps (commit-precheck, push, pr-create) are performed inline because this work already has QGR-equivalent via the continuous-MAR chain, not the standard QG.
 
 **Gate 6 exit** (`gate-check-6.sh`):

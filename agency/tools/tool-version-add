@@ -2,7 +2,7 @@
 #
 # tool-version-add - Add version metadata to a tool
 #
-# Usage: ./claude/tools/tool-version-add <toolname> [version]
+# Usage: ./agency/tools/tool-version-add <toolname> [version]
 #
 # Adds TOOL_VERSION and --version/-v handling to a tool.
 # Default version: 1.0.0-20260114-000001
@@ -64,14 +64,14 @@ main() {
     done
 
     if [ -z "$TOOLNAME" ]; then
-        echo "Usage: ./claude/tools/tool-version-add <toolname> [version]"
+        echo "Usage: ./agency/tools/tool-version-add <toolname> [version]"
         echo ""
         echo "Options:"
         echo "  --verbose  Show detailed output"
         echo ""
         echo "Examples:"
-        echo "  ./claude/tools/tool-version-add session-backup"
-        echo "  ./claude/tools/tool-version-add config 1.0.0-20260114-000002"
+        echo "  ./agency/tools/tool-version-add session-backup"
+        echo "  ./agency/tools/tool-version-add config 1.0.0-20260114-000002"
         trap - EXIT
         log_end "$RUN_ID" "success" 0 0 "Help displayed" 2>/dev/null || true
         exit 1

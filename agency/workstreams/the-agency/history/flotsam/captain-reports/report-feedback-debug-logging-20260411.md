@@ -5,7 +5,7 @@ captain: the-agency/jordan/captain
 date_filed: 2026-04-11
 anthropic_feedback_id: 229cbbce-6d28-4390-8eb2-aeaecc192b6c
 github_issue: https://github.com/anthropics/claude-code/issues/46538
-seed: claude/workstreams/agency/seeds/seed-feedback-debug-logging-20260411.md
+seed: agency/workstreams/agency/seeds/seed-feedback-debug-logging-20260411.md
 related_report: usr/jordan/reports/report-feedback-comms-gap-20260411.md
 status: filed
 ---
@@ -15,7 +15,7 @@ status: filed
 **Filed to Anthropic via `/feedback`:** 2026-04-11
 **Feedback ID:** `229cbbce-6d28-4390-8eb2-aeaecc192b6c`
 **Filed to GitHub:** https://github.com/anthropics/claude-code/issues/46538
-**Internal seed:** `claude/workstreams/agency/seeds/seed-feedback-debug-logging-20260411.md`
+**Internal seed:** `agency/workstreams/agency/seeds/seed-feedback-debug-logging-20260411.md`
 **Related filing:** [report-feedback-comms-gap-20260411](report-feedback-comms-gap-20260411.md) — broader `/feedback` issue filed as [#46531](https://github.com/anthropics/claude-code/issues/46531)
 
 ## Summary

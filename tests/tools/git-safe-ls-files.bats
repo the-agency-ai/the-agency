@@ -11,33 +11,33 @@ setup() {
 }
 
 @test "ls-files returns tracked files" {
-    run ./claude/tools/git-safe ls-files
+    run ./agency/tools/git-safe ls-files
     [ "$status" -eq 0 ]
     # Should include at least one known tracked file
-    [[ "$output" == *"claude/tools/git-safe"* ]]
+    [[ "$output" == *"agency/tools/git-safe"* ]]
 }
 
 @test "ls-files with explicit path filters to that subtree" {
-    run ./claude/tools/git-safe ls-files claude/tools/git-safe
+    run ./agency/tools/git-safe ls-files agency/tools/git-safe
     [ "$status" -eq 0 ]
-    [ "$output" = "claude/tools/git-safe" ]
+    [ "$output" = "agency/tools/git-safe" ]
 }
 
 @test "ls-files on missing path returns empty, exit 0" {
-    run ./claude/tools/git-safe ls-files -- does/not/exist/anywhere
+    run ./agency/tools/git-safe ls-files -- does/not/exist/anywhere
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
 
 @test "ls-files respects pathspec pseudo-separator '--'" {
     # After --, an argument that happens to look like a flag is treated as a path.
-    run ./claude/tools/git-safe ls-files -- claude/tools/git-safe
+    run ./agency/tools/git-safe ls-files -- agency/tools/git-safe
     [ "$status" -eq 0 ]
-    [ "$output" = "claude/tools/git-safe" ]
+    [ "$output" = "agency/tools/git-safe" ]
 }
 
 @test "ls-files is enumerated in --help" {
-    run ./claude/tools/git-safe --help
+    run ./agency/tools/git-safe --help
     [ "$status" -eq 0 ]
     [[ "$output" == *"ls-files"* ]]
 }

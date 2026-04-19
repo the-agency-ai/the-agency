@@ -237,7 +237,7 @@ Phase 1 scope diverged from the original plan. The engine core (iterations 1.1â€
 - H6 DEFERRED: No end-to-end Bundle+Document integration test
 - H7 DEFERRED: Byte-equal round-trip not asserted
 
-**QGR receipt:** `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md`
+**QGR receipt:** `agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260416-1901-f1656c3.md`
 
 ---
 
@@ -277,7 +277,7 @@ Phase 1 scope diverged from the original plan. The engine core (iterations 1.1â€
 | `94d0169` | Phase 2.1 staging â€” initial implementation (with snake_case drift) |
 | `874ae16` | QG fixes â€” wire-format alignment with dispatched spec |
 
-**QGR receipt:** `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1312-fb1f7e3.md`
+**QGR receipt:** `agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-iteration-complete-20260417-1312-fb1f7e3.md`
 
 ### Iteration 2.2: Section-write commands
 

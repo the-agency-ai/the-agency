@@ -28,7 +28,7 @@ Updated three skills per A&D:
 - Hash C captured after triage (dispositions hashed)
 - Hash D: transcript hash if 1B1, else = Hash C (auto-approved)
 - Hash E captured at Step 8 (final clean state)
-- Step 10 REPLACED: calls receipt-sign, writes to claude/receipts/
+- Step 10 REPLACED: calls receipt-sign, writes to agency/receipts/
 - Old usr/{principal}/{project}/qgr-*.md logic removed
 - Backward-compat noted (receipt-verify reads old format during transition)
 

@@ -25,7 +25,7 @@ Test isolation for BATS is a bash helper pair: `test_isolation_setup` / `test_is
 - Teardown guards: hash `.git/config` before/after, ls-snapshot key framework dirs (`claude/agents/`, `.claude/agents/`) to detect debris
 - `SKIP_ISOLATION=1` opt-out
 
-Plus surrounding infrastructure in `claude/tools/`:
+Plus surrounding infrastructure in `agency/tools/`:
 - `commit-precheck` with Gate 0 (blocks Test User attribution)
 - `test-scoper` (maps changed files → relevant .bats)
 - `test-full-suite` (Docker preferred, in-process fallback)
@@ -36,7 +36,7 @@ Plus surrounding infrastructure in `claude/tools/`:
 
 The helpers live in `tests/tools/test_helper.bash` — the-agency's own test directory. They don't propagate to consuming projects (monofolk, mdpal, etc.) via `agency update` because `tests/` is a project-local path.
 
-I started extracting them into `claude/tools/lib/_test-isolation` (framework lib, does propagate) with a template at `claude/templates/tests/test_helper.bash` that adopters source. Minimal refactor, pure bash, behavior-preserving. That work is in-progress on devex but not committed.
+I started extracting them into `agency/tools/lib/_test-isolation` (framework lib, does propagate) with a template at `agency/templates/tests/test_helper.bash` that adopters source. Minimal refactor, pure bash, behavior-preserving. That work is in-progress on devex but not committed.
 
 ## Why Jordan paused me
 
@@ -55,10 +55,10 @@ Translated: a bash-only isolation lib is the minimum viable, but test isolation 
        provider: "bash"  # or: docker, colima, vm, ephemeral-worktree
    ```
    With tools like:
-   - `claude/tools/test-isolation-bash` (current helpers)
-   - `claude/tools/test-isolation-docker` (container per test)
-   - `claude/tools/test-isolation-ephemeral-worktree` (git worktree per test)
-   And a wrapper `claude/tools/test-isolation` that dispatches.
+   - `agency/tools/test-isolation-bash` (current helpers)
+   - `agency/tools/test-isolation-docker` (container per test)
+   - `agency/tools/test-isolation-ephemeral-worktree` (git worktree per test)
+   And a wrapper `agency/tools/test-isolation` that dispatches.
 
    Does that align with your provider conventions, or are you doing something different?
 
@@ -71,7 +71,7 @@ Translated: a bash-only isolation lib is the minimum viable, but test isolation 
 ## What I'll do while I wait
 
 - Park the lib extraction (don't commit the template / docs / enforcement entry)
-- Keep the-agency's `tests/tools/test_helper.bash` working (I already refactored it to source `claude/tools/lib/_test-isolation` — 93/93 tests passing, pure behavior-preserving refactor)
+- Keep the-agency's `tests/tools/test_helper.bash` working (I already refactored it to source `agency/tools/lib/_test-isolation` — 93/93 tests passing, pure behavior-preserving refactor)
 - Continue with #174 (docker socket heal for GH issue #58) which is independent
 - Resume this task when you reply
 

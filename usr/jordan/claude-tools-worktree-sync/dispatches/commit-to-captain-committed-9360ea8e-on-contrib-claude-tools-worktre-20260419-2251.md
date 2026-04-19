@@ -100,6 +100,6 @@ exit and Phase 3.6 exit.
 ### Files Changed
 ```
 claude/workstreams/the-agency/history/plan-the-agency-structural-reset-20260419-1310.md
-claude/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md
+agency/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md
 usr/jordan/claude-tools-worktree-sync/dispatches/commit-to-captain-committed-add05fb5-on-contrib-claude-tools-worktre-20260419-2056.md
 ```

@@ -294,13 +294,13 @@ displayName = "My ARM64 VM"
 
 ## Deliverables Produced
 
-1. **Workshop Setup Guide** — `claude/workstreams/agency/seeds/workshop-setup-guide-20260410.md`
+1. **Workshop Setup Guide** — `agency/workstreams/agency/seeds/workshop-setup-guide-20260410.md`
    - Students download VMware Workstation + Ubuntu AMD64 ISO + Claude Desktop
    - Create VM via Workstation wizard, install Ubuntu
    - Detailed installer walk-through (every screen documented)
    - Bootstrap script runs at the workshop, not at home
 
-2. **Bootstrap Script** — `claude/workstreams/agency/seeds/workshop-bootstrap.sh`
+2. **Bootstrap Script** — `agency/workstreams/agency/seeds/workshop-bootstrap.sh`
    - Idempotent, architecture-independent
    - Installs: Chrome/Chromium, Homebrew, Node.js, Claude Code, Docker, GitHub CLI
    - Tested on ARM64 VM

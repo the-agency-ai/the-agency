@@ -63,8 +63,8 @@ Tests: 50/50 git-captain.bats, 121/121 adjacent suites.
 
 ### Files Changed
 ```
-claude/REFERENCE-SAFE-TOOLS.md
-claude/tools/git-captain
+agency/REFERENCE-SAFE-TOOLS.md
+agency/tools/git-captain
 tests/tools/git-captain.bats
 usr/jordan/devex/dispatches/commit-to-captain-committed-51211ed-on-devex-d44-r3-feat-git-captain-20260417-1254.md
 ```

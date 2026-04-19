@@ -15,10 +15,10 @@ Ask for these three things:
    - Used to create `claude/principals/{name}/`
 
 2. **Primary workstream name** (e.g., "web", "api", "core")
-   - Used to create `claude/workstreams/{workstream}/`
+   - Used to create `agency/workstreams/{workstream}/`
 
 3. **First agent name** (or suggest "dev" as default)
-   - Used to create `claude/agents/{agent}/`
+   - Used to create `agency/agents/{agent}/`
 
 ## Setup Commands
 
@@ -44,8 +44,8 @@ Show them what was created:
 
 ```
 ✓ Created claude/principals/{name}/
-✓ Created claude/workstreams/{workstream}/
-✓ Created claude/agents/{agent}/
+✓ Created agency/workstreams/{workstream}/
+✓ Created agency/agents/{agent}/
 
 You're all set! Launch your agent:
   ./tools/myclaude {workstream} {agent}

@@ -34,7 +34,7 @@ mode: autonomous-overnight-execution
 - **Branch:** `contrib/claude-tools-worktree-sync`
 - **Last commit:** `9360ea8e` (Plan v4 Valueflow artifact, committed this session)
 - **Working tree:** clean after this handoff commit
-- **Plan v4 location:** `claude/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md`
+- **Plan v4 location:** `agency/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md`
 - **Plan v4 history:** v1 archived at `claude/workstreams/the-agency/history/plan-the-agency-structural-reset-20260419-1310.md`; v2 + v3 were in-conversation iterations (never committed as separate files, folded into v4)
 
 ## MAR convergence achieved
@@ -67,7 +67,7 @@ Per Plan v4 §3 Phase 0:
 **0b. Tool build (20 tool rows per Plan v4):**
 - New tools: git-safe ls-files subcommand, git-rename-tree, agency-sweep (with --output-patch + cascade-prevention), ref-inventory-gen, import-link-check, subagent-scope-check, subagent-diff-verify, subagent-overlap-check, audit-log-merge, audit-log-reconcile, hookify-rule-canary, agency-verify-v46 (--customer / --internal), agency-migrate-prep, agency update --migrate + --migrate-back, agency-health v46 broken-state, agency-report, gate-check-{0,1,2,3,3.5,3.6,4,4.5,5,6,7}.sh (11 gates), smoke-battery.sh, reset-rollback.sh, hookify.block-git-clean-during-reset rule
 - Each tool ships BATS fixture with declared min-test-count; Gate 0 asserts ≥ declared mins
-- Allowlist file: claude/tools/ref-sweep-allowlist.txt (≥14 seed entries w/ rationale per line)
+- Allowlist file: agency/tools/ref-sweep-allowlist.txt (≥14 seed entries w/ rationale per line)
 
 **0c. Subagent manifests (declared partitioning; concrete files at Phase 4 start):**
 - A=tools, B=docs, C=tests, D=discovery-bodies, E=config
@@ -106,7 +106,7 @@ Follow Plan v4 §3 phase-by-phase with inline MAR checkpoints per §4 table.
 - Full BATS green post-reset
 - Release notes + migration runbook finalized
 - QGR-v46.0 aggregation at `agency/workstreams/the-agency/qgr/qgr-v46.0-reset-20260419.md`
-- PR created via `./claude/tools/pr-create` with complete body
+- PR created via `./agency/tools/pr-create` with complete body
 - PR awaits principal review in morning
 
 ### If blocked overnight
@@ -138,9 +138,9 @@ Plan v4 execution happens on... **decision**: continue on `contrib/claude-tools-
 
 ## Files critical to re-read on resume
 
-1. `claude/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md` (Plan v4 — THE execution spec)
-2. `claude/workstreams/the-agency/pvr-the-agency-structural-reset-20260419.md` (PVR context)
-3. `claude/workstreams/the-agency/ad-the-agency-structural-reset-20260419.md` (A&D context)
+1. `agency/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md` (Plan v4 — THE execution spec)
+2. `agency/workstreams/the-agency/pvr-the-agency-structural-reset-20260419.md` (PVR context)
+3. `agency/workstreams/the-agency/ad-the-agency-structural-reset-20260419.md` (A&D context)
 4. This handoff for directive + state
 
 ## Compact instruction

@@ -27,7 +27,7 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/tools/git-captain
+agency/tools/git-captain
 tests/tools/git-captain.bats
 usr/jordan/devex/dispatches/commit-to-captain-committed-19f020f-on-devex-housekeeping-devex-misc-20260417-0919.md
 usr/jordan/devex/history/handoff-20260417-124145.md

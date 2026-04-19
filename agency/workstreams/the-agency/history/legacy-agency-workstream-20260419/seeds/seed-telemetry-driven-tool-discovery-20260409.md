@@ -55,8 +55,8 @@ Five steps. Each step is observable. Each step has a primitive in the framework 
 |------|-----------|
 | Friction | The raw Bash tool call attempt |
 | Telemetry | `log_start` / `log_end` in every Agency tool + the `bash` event hook |
-| Tool | `claude/tools/{tool}` with the Triangle |
-| Block | `claude/hookify/hookify.block-{pattern}.md` |
+| Tool | `agency/tools/{tool}` with the Triangle |
+| Block | `agency/hookify/hookify.block-{pattern}.md` |
 | Flow | The new primitive is used; telemetry confirms the pattern has stopped |
 
 ## Where this belongs
@@ -79,7 +79,7 @@ This feels like a *thesis*, not just a tactic. The framework that mines its own 
 
 ## Related
 
-- Tool: `claude/tools/run-in` (the first tool built under this discipline)
-- Hookify: `claude/hookify/hookify.block-compound-bash.md`
+- Tool: `agency/tools/run-in` (the first tool built under this discipline)
+- Hookify: `agency/hookify/hookify.block-compound-bash.md`
 - Flag #54 — "Analyze telemetry logs of Bash tool calls to mine compound command patterns"
 - Framework primitives: Triangle, Ladder, Valueflow

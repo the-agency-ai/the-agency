@@ -219,7 +219,7 @@ After install completes, user should be able to:
 2. **myclaude** - verifies deps on every launch (catches drift)
 
 **Proposed Fix:**
-- Installer reads from `claude/config/dependencies.yaml` (see #9)
+- Installer reads from `agency/config/dependencies.yaml` (see #9)
 - For each dependency:
   - Check if installed
   - If missing, install it (platform-specific)
@@ -266,7 +266,7 @@ After install completes, user should be able to:
 
 ---
 
-**AGENCY DEPENDENCIES** (`claude/config/agency-dependencies.yaml`)
+**AGENCY DEPENDENCIES** (`agency/config/agency-dependencies.yaml`)
 
 These are required to run The Agency itself. Checked at:
 - Initial install
@@ -326,7 +326,7 @@ check:
 - No version checking
 
 **Proposed Fix:**
-1. Create `claude/config/agency-dependencies.yaml` - Agency deps with versions
+1. Create `agency/config/agency-dependencies.yaml` - Agency deps with versions
 2. Create `project-dependencies.yaml` template - Project deps
 3. Each dependency entry includes:
    - Name
@@ -371,7 +371,7 @@ dependencies:
 ```
 
 **Deliverables:**
-- [ ] `claude/config/agency-dependencies.yaml` - Agency deps with versions
+- [ ] `agency/config/agency-dependencies.yaml` - Agency deps with versions
 - [ ] `project-dependencies.yaml` template - Project deps
 - [ ] `./tools/install-agency-deps` - installs Agency deps (with version check)
 - [ ] `./tools/check-agency-deps` - verifies Agency deps + versions
@@ -437,7 +437,7 @@ New users get a copy of jordan's stuff instead of a clean slate.
 
 **What Starter Should Have:**
 - `claude/principals/.gitkeep` (empty directory)
-- `claude/templates/principal/` with template structure
+- `agency/templates/principal/` with template structure
 - NO actual principal directories
 - NO project-specific documents
 - ZERO hardcoded names
@@ -448,7 +448,7 @@ New users get a copy of jordan's stuff instead of a clean slate.
 - `./tools/add-principal --name someone` - add another principal
 
 **Proposed Fix:**
-1. Create `claude/templates/principal/` with:
+1. Create `agency/templates/principal/` with:
    - `preferences.md` (template)
    - `requests/.gitkeep`
    - `artifacts/.gitkeep`
@@ -476,7 +476,7 @@ INSTALL (install.sh):
 
 FIRST LAUNCH (myclaude):
 0. Check if this is an Agency project?
-   └─→ Look for .agency-project marker OR claude/config/agency.yaml
+   └─→ Look for .agency-project marker OR agency/config/agency.yaml
    └─→ NO: "Not an Agency project. Run this from an Agency project root
            created with ./tools/project-create" → EXIT
 
@@ -520,7 +520,7 @@ FIRST LAUNCH (myclaude):
 
 **Decision Tree:**
 ```
-Is this an Agency project? (.agency-project OR claude/config/agency.yaml)
+Is this an Agency project? (.agency-project OR agency/config/agency.yaml)
 ├─ NO → BLOCK: "Not an Agency project"
 └─ YES
     │
@@ -598,16 +598,16 @@ cd my-project
 
 **What Gets Updated:**
 - `tools/` - all CLI tools
-- `claude/templates/` - templates for agents, principals, etc.
-- `claude/config/` - default configurations
+- `agency/templates/` - templates for agents, principals, etc.
+- `agency/config/` - default configurations
 - `claude/docs/` - documentation
 - `CLAUDE.md` - constitution (with merge strategy)
 
 **What Does NOT Get Updated (preserved):**
 - `claude/principals/` - user's principals
-- `claude/agents/*/KNOWLEDGE.md` - agent knowledge
-- `claude/agents/*/WORKLOG.md` - work history
-- `claude/workstreams/` - workstream content
+- `agency/agents/*/KNOWLEDGE.md` - agent knowledge
+- `agency/agents/*/WORKLOG.md` - work history
+- `agency/workstreams/` - workstream content
 - `.agency-config` - local settings
 - Any user modifications to tools (flagged for review)
 
@@ -653,12 +653,12 @@ _Space reserved for additional issues as they're discovered._
 - [ ] Installer installs ALL dependencies automatically
 - [ ] Starter contains NO project-specific content (no jordan/)
 - [ ] Starter contains ZERO hardcoded principal names
-- [ ] Agency projects have `.agency-project` marker (or claude/config/agency.yaml)
+- [ ] Agency projects have `.agency-project` marker (or agency/config/agency.yaml)
 - [ ] myclaude blocks if NOT an Agency project
 - [ ] Starter has `.agency-starter` marker file
 - [ ] myclaude blocks if `.agency-starter` exists (must use new-project)
 - [ ] `./tools/project-create` removes `.agency-starter` marker
-- [ ] `claude/templates/principal/` exists with template
+- [ ] `agency/templates/principal/` exists with template
 - [ ] `./tools/add-principal` exists for joining existing projects
 - [ ] setup-agency triggered on first myclaude run (new project)
 - [ ] add-principal triggered when joining existing project

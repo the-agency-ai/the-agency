@@ -37,7 +37,7 @@ ISCP agent fixed the immediate test isolation bugs in dispatches #20-22. This wo
 - `iscp_test_isolation_setup()` — overrides HOME, sets `ISCP_DB_PATH` to temp file, sets `GIT_CONFIG_GLOBAL=/dev/null`, snapshots `.git/config` hash
 - `iscp_test_isolation_teardown()` — verifies `.git/config` hash unchanged, cleans temp files
 - All 7 ISCP BATS files updated to use these helpers
-- `ISCP_DB_PATH` env var support in `claude/tools/lib/_iscp-db`
+- `ISCP_DB_PATH` env var support in `agency/tools/lib/_iscp-db`
 
 **Layer 2: Docker isolation** (`tests/Dockerfile` + `tests/docker-test.sh`)
 - Alpine container with bash/git/sqlite/jq/bats
@@ -92,9 +92,9 @@ The friction points document (`usr/jordan/captain/friction-points-20260405.md`) 
 | `tests/tools/test_helper.bash` | Shared BATS isolation helpers | EXISTS — ISCP built |
 | `tests/Dockerfile` | Docker test container | EXISTS — ISCP built |
 | `tests/docker-test.sh` | Docker test runner | EXISTS — ISCP built, ISCP-only |
-| `claude/tools/commit-precheck` | Pre-commit hook logic | EXISTS — needs rewrite |
+| `agency/tools/commit-precheck` | Pre-commit hook logic | EXISTS — needs rewrite |
 | `.git/hooks/pre-commit` | Git hook entry point | EXISTS — calls commit-precheck |
-| `claude/tools/lib/_iscp-db` | ISCP DB with env var override | EXISTS — ISCP built |
+| `agency/tools/lib/_iscp-db` | ISCP DB with env var override | EXISTS — ISCP built |
 | `usr/jordan/captain/friction-points-20260405.md` | Full friction catalog | EXISTS |
 
 ## References
@@ -102,4 +102,4 @@ The friction points document (`usr/jordan/captain/friction-points-20260405.md`) 
 - ISCP dispatches #20, #21, #22 — the bug reports that triggered this work
 - ISCP commits: b1cd1b0, efa00d6, 52222e7, d0c7c9e
 - Friction points: `usr/jordan/captain/friction-points-20260405.md`
-- ISCP reference: `claude/workstreams/iscp/iscp-reference-20260405.md`
+- ISCP reference: `agency/workstreams/iscp/iscp-reference-20260405.md`

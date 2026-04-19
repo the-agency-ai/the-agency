@@ -19,19 +19,19 @@ Sunset the-agency-starter repo, consolidate `agency-*` tools into a single `agen
 Build the `agency` CLI dispatcher, extract existing tools into lib subcommands, and refactor registry.json so Phase 3 can consume it cleanly.
 
 ### 1.1: Create `agency` dispatcher and subcommands
-- Create `claude/tools/agency` — thin dispatcher with `AGENCY_ARGS` pattern per A&D Section 2.1
-- Create `claude/tools/lib/_agency-init` — extract logic from current `agency-init`
-- Create `claude/tools/lib/_agency-verify` — extract logic from current `agency-verify`
-- Create `claude/tools/lib/_agency-whoami` — extract logic from current `agency-whoami`
-- Create `claude/tools/lib/_agency-feedback` — extract logic from current `agency-feedback`, update target repo to `the-agency`
-- Create `claude/tools/lib/_agency-update` — stub (implemented in Phase 3)
+- Create `agency/tools/agency` — thin dispatcher with `AGENCY_ARGS` pattern per A&D Section 2.1
+- Create `agency/tools/lib/_agency-init` — extract logic from current `agency-init`
+- Create `agency/tools/lib/_agency-verify` — extract logic from current `agency-verify`
+- Create `agency/tools/lib/_agency-whoami` — extract logic from current `agency-whoami`
+- Create `agency/tools/lib/_agency-feedback` — extract logic from current `agency-feedback`, update target repo to `the-agency`
+- Create `agency/tools/lib/_agency-update` — stub (implemented in Phase 3)
 - Add `_agency_help` function to dispatcher
 - Make `agency` executable
 - Test: `agency help`, `agency whoami`, `agency verify` produce expected output
 
 ### 1.2: Wire permissions and clean up old tools
 - Update `.claude/settings.json`: replace 5 `agency-*` entries with `agency` + `agency *`
-- Update `claude/config/settings-template.json` if it exists
+- Update `agency/config/settings-template.json` if it exists
 - Delete old tools: `agency-init`, `agency-update`, `agency-verify`, `agency-whoami`, `agency-feedback`
 - Update any skills/commands that reference old tool names (grep for `agency-init`, `agency-verify`, etc.)
 - Validate: `jq . .claude/settings.json > /dev/null`

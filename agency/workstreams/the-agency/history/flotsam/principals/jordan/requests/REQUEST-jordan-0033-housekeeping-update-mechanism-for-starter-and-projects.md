@@ -47,12 +47,12 @@ Implement update-starter and update-agency tools. Allow updating local starter f
 ### Protected Paths (Never Updated)
 
 - `tools/local/` - Project-specific tools
-- `claude/agents/local/` - Local agent customizations
+- `agency/agents/local/` - Local agent customizations
 - `claude/knowledge/local/` - Project-specific knowledge
 - `claude/docs/local/` - Project-specific docs
 - `claude/principals/` - User's principals and requests
-- `claude/agents/*/WORKLOG.md` - Agent work history
-- `claude/agents/*/ADHOC-WORKLOG.md` - Ad-hoc work logs
+- `agency/agents/*/WORKLOG.md` - Agent work history
+- `agency/agents/*/ADHOC-WORKLOG.md` - Ad-hoc work logs
 - `.agency/` - Local metadata
 
 ### Version Tracking

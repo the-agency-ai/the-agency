@@ -7,7 +7,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/ref-inventory-gen"
+    TOOL="$REPO_ROOT/agency/tools/ref-inventory-gen"
 
     TMP_REPO="$(mktemp -d -t rig.XXXXXX)"
     cd "$TMP_REPO"
@@ -24,7 +24,7 @@ teardown() {
 seed_basic() {
     # A known rename-target hit
     mkdir -p src
-    echo "look at claude/tools/foo" > src/tool-ref.md
+    echo "look at agency/tools/foo" > src/tool-ref.md
     # Allowlisted hit
     echo "see .claude/settings.json" > src/claude-code.md
     # An unknown-classifier hit (bare 'claude' that doesn't map to a known subdir)
@@ -32,7 +32,7 @@ seed_basic() {
 
     # Seed allowlist
     mkdir -p claude/tools
-    cat > claude/tools/ref-sweep-allowlist.txt <<'EOF'
+    cat > agency/tools/ref-sweep-allowlist.txt <<'EOF'
 # test allowlist
 \.claude/	Anthropic Claude Code discovery dir
 test-allow	Test marker
@@ -84,9 +84,9 @@ EOF
 
 @test "--strict exits 0 when all hits are rename-target or allowlisted" {
     mkdir -p src claude/tools
-    echo "claude/tools/foo" > src/a.md
+    echo "agency/tools/foo" > src/a.md
     echo ".claude/settings" > src/b.md
-    cat > claude/tools/ref-sweep-allowlist.txt <<'EOF'
+    cat > agency/tools/ref-sweep-allowlist.txt <<'EOF'
 \.claude/	Anthropic
 EOF
     git add .
@@ -114,7 +114,7 @@ EOF
 @test "post mode classifies agency/ patterns" {
     mkdir -p src claude/tools
     echo "look at agency/tools/foo" > src/ref.md
-    cat > claude/tools/ref-sweep-allowlist.txt <<'EOF'
+    cat > agency/tools/ref-sweep-allowlist.txt <<'EOF'
 \.claude/	Anthropic
 EOF
     git add .
@@ -127,11 +127,11 @@ EOF
 
 @test "binary files are skipped" {
     # Create a tiny binary file
-    printf '\x00\x01\x02claude/tools/binary\x03' > binary.bin
-    echo "claude/tools/text" > text.txt
+    printf '\x00\x01\x02agency/tools/binary\x03' > binary.bin
+    echo "agency/tools/text" > text.txt
 
     mkdir -p claude/tools
-    cat > claude/tools/ref-sweep-allowlist.txt <<'EOF'
+    cat > agency/tools/ref-sweep-allowlist.txt <<'EOF'
 \.claude/	Anthropic
 EOF
     git add .

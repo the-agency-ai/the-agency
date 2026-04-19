@@ -182,12 +182,12 @@ agency-plugin/
 ```markdown
 # Agent: Captain
 
-See @claude/agents/captain/agent.md for identity.
-See @claude/agents/captain/KNOWLEDGE.md for accumulated wisdom.
-See @claude/workstreams/housekeeping/KNOWLEDGE.md for workstream patterns.
+See @agency/agents/captain/agent.md for identity.
+See @agency/agents/captain/KNOWLEDGE.md for accumulated wisdom.
+See @agency/workstreams/housekeeping/KNOWLEDGE.md for workstream patterns.
 
 ## Current Work
-@claude/agents/captain/WORKLOG.md
+@agency/agents/captain/WORKLOG.md
 ```
 
 **Benefits:**

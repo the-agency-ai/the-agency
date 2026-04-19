@@ -15,10 +15,10 @@ in_reply_to: null
 
 worktree-sync merged 120 commits from main into mdpal-cli. The merge auto-stashed dirty files before merging, but the unstash conflicted. The stashed content is NOT mdpal-cli work — it is housekeeping agent backup artifacts that were sitting dirty in the worktree from a prior main-merge:
 
-- claude/agents/housekeeping/backups/latest/session-info.json (timestamp + commit ref update)
-- claude/agents/housekeeping/backups/latest/status.txt (git status snapshot)
-- claude/agents/housekeeping/backups/latest/uncommitted.patch (uncommitted changes capture)
-- claude/data/messages.db (binary session DB)
+- agency/agents/housekeeping/backups/latest/session-info.json (timestamp + commit ref update)
+- agency/agents/housekeeping/backups/latest/status.txt (git status snapshot)
+- agency/agents/housekeeping/backups/latest/uncommitted.patch (uncommitted changes capture)
+- agency/data/messages.db (binary session DB)
 
 ## Conflict
 

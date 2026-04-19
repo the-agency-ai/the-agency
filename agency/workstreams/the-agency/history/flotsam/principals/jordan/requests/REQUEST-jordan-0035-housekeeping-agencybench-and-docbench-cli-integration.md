@@ -45,7 +45,7 @@ Improve AgencyBench and DocBench CLI integration for seamless document workflow.
   - Insert Image fails with "forbidden path" error
   - Tauri security/permissions issue
   - Need to configure Tauri `fs` scope to allow project directories
-  - Error: `forbidden path: /Users/jdm/code/the-agency/claude/assets/images/...`
+  - Error: `forbidden path: /Users/jdm/code/the-agency/agency/assets/images/...`
 
 ### Phase 4: Request Service (NEW)
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for claude/tools/lib/_log-helper (JSONL-based logger)
+# Tests for agency/tools/lib/_log-helper (JSONL-based logger)
 #
 # Run with: bats tests/tools/log-helper.bats
 #

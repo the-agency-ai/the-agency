@@ -14,7 +14,7 @@
 # Enforcement levels:
 #   1: documented (doc/CLAUDE.md reference exists)
 #   2: +skill (discoverable via / autocomplete)
-#   3: +tool (executable in claude/tools/)
+#   3: +tool (executable in agency/tools/)
 #   4: +hookify-warn (warns on raw alternative)
 #   5: +hookify-block (blocks raw alternative)
 #
@@ -44,43 +44,43 @@ capabilities:
     level: 3
     description: "Structured commit messages with workstream/agent prefix"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/git-safe-commit/SKILL.md"
-      tool: "claude/tools/git-safe-commit"
+      tool: "agency/tools/git-safe-commit"
 
   pre-commit-checks:
     level: 3
     description: "Quality gate before every commit"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/git-safe-commit/SKILL.md"
-      tool: "claude/tools/commit-precheck"
+      tool: "agency/tools/commit-precheck"
 
   # ── Session management ──
   session-handoff:
     level: 3
     description: "Context bootstrap via handoff files with auto-archive"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/handoff/SKILL.md"
-      tool: "claude/tools/handoff"
+      tool: "agency/tools/handoff"
 
   # ── ISCP / dispatch ──
   dispatch-lifecycle:
     level: 3
     description: "Structured inter-agent messaging via dispatch tool"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/dispatch/SKILL.md"
-      tool: "claude/tools/dispatch"
+      tool: "agency/tools/dispatch"
 
   flag-capture:
     level: 3
     description: "Quick-capture observations for later discussion"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/flag/SKILL.md"
-      tool: "claude/tools/flag"
+      tool: "agency/tools/flag"
 
   # ── Quality gates ──
   quality-gate:
@@ -94,14 +94,14 @@ capabilities:
     level: 2
     description: "QG + auto-commit at iteration boundary"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/iteration-complete/SKILL.md"
 
   phase-complete:
     level: 2
     description: "Deep QG + principal approval at phase boundary"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/phase-complete/SKILL.md"
 
   # ── Code review ──
@@ -111,79 +111,79 @@ capabilities:
     artifacts:
       doc: "claude/docs/CODE-REVIEW-LIFECYCLE.md"
       skill: ".claude/skills/code-review/SKILL.md"
-      tool: "claude/tools/code-review"
+      tool: "agency/tools/code-review"
 
   # ── Test infrastructure ──
   test-isolation:
     level: 3
     description: "Test isolation for BATS — prevents git config pollution, HOME leakage, ISCP DB conflicts"
     artifacts:
-      doc: "claude/workstreams/devex/devex-ad-20260407.md"
-      tool: "claude/tools/lib/_test-isolation"
-      template: "claude/templates/tests/test_helper.bash"
+      doc: "agency/workstreams/devex/devex-ad-20260407.md"
+      tool: "agency/tools/lib/_test-isolation"
+      template: "agency/templates/tests/test_helper.bash"
 
   test-scoping:
     level: 1
     description: "Convention-based file-to-test mapping"
     artifacts:
-      doc: "claude/workstreams/devex/devex-plan-20260407.md"
+      doc: "agency/workstreams/devex/devex-plan-20260407.md"
 
   test-full-suite:
     level: 1
     description: "Docker + fallback full test suite runner"
     artifacts:
-      doc: "claude/workstreams/devex/devex-plan-20260407.md"
+      doc: "agency/workstreams/devex/devex-plan-20260407.md"
 
   # ── Discussion protocol ──
   discussion-1b1:
     level: 1
     description: "One-by-one discussion protocol"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
 
   # ── Workstream management ──
   workstream-create:
     level: 2
     description: "Scaffold workstream with artifacts, agents, worktree"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/workstream-create/SKILL.md"
 
   worktree-create:
     level: 3
     description: "Create isolated worktree with bootstrapped environment"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/worktree-create/SKILL.md"
-      tool: "claude/tools/worktree-create"
+      tool: "agency/tools/worktree-create"
 
   worktree-naming:
     level: 3
     description: "Workstream-agent naming convention with collapse rule (#166/#169)"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/worktree-create/SKILL.md"
-      tool: "claude/tools/worktree-create"
+      tool: "agency/tools/worktree-create"
 
   # ── Git discipline ──
   no-push-master:
     level: 1
     description: "Block direct pushes to origin/master (rule, not capability)"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
 
   no-force-push:
     level: 1
     description: "Warn on any push, block force push (rule, not capability)"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
 
   # ── Provenance ──
   provenance-headers:
     level: 1
     description: "What Problem / How & Why / Written headers on all code"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
 
   # ── SPEC-PROVIDER dispatchers ──
   # Top-level wrappers that read agency.yaml provider config and exec the
@@ -194,30 +194,30 @@ capabilities:
     level: 3
     description: "Secret management via SPEC-PROVIDER wrapper (vault, doppler, etc.)"
     artifacts:
-      doc: "claude/README-ENFORCEMENT.md"
+      doc: "agency/README-ENFORCEMENT.md"
       skill: ".claude/skills/secret/SKILL.md"
-      tool: "claude/tools/secret"
+      tool: "agency/tools/secret"
 
   preview-dispatcher:
     level: 3
     description: "Project preview via SPEC-PROVIDER wrapper (docker-compose, fly, etc.)"
     artifacts:
-      doc: "claude/README-ENFORCEMENT.md"
+      doc: "agency/README-ENFORCEMENT.md"
       skill: ".claude/skills/preview/SKILL.md"
-      tool: "claude/tools/preview"
+      tool: "agency/tools/preview"
 
   deploy-dispatcher:
     level: 3
     description: "Project deploy via SPEC-PROVIDER wrapper (fly, vercel, aws, etc.)"
     artifacts:
-      doc: "claude/README-ENFORCEMENT.md"
+      doc: "agency/README-ENFORCEMENT.md"
       skill: ".claude/skills/deploy/SKILL.md"
-      tool: "claude/tools/deploy"
+      tool: "agency/tools/deploy"
 
   # ── Sandbox ──
   sandbox-workflow:
     level: 2
     description: "Per-engineer sandbox with activate/try/adopt lifecycle"
     artifacts:
-      doc: "claude/CLAUDE-THEAGENCY.md"
+      doc: "agency/CLAUDE-THEAGENCY.md"
       skill: ".claude/skills/sandbox-create/SKILL.md"

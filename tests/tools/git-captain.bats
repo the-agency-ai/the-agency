@@ -19,12 +19,12 @@ setup() {
     git config user.name "Test User"
     git config commit.gpgsign false
 
-    mkdir -p claude/tools/lib
-    cp "${REPO_ROOT}/claude/tools/git-captain" claude/tools/git-captain
-    chmod +x claude/tools/git-captain
-    cp "${REPO_ROOT}/claude/tools/lib/_log-helper" claude/tools/lib/_log-helper 2>/dev/null || true
-    cp "${REPO_ROOT}/claude/tools/lib/_colors" claude/tools/lib/_colors 2>/dev/null || true
-    cp "${REPO_ROOT}/claude/tools/lib/_detect-main-branch" claude/tools/lib/_detect-main-branch 2>/dev/null || true
+    mkdir -p agency/tools/lib
+    cp "${REPO_ROOT}/agency/tools/git-captain" agency/tools/git-captain
+    chmod +x agency/tools/git-captain
+    cp "${REPO_ROOT}/agency/tools/lib/_log-helper" agency/tools/lib/_log-helper 2>/dev/null || true
+    cp "${REPO_ROOT}/agency/tools/lib/_colors" agency/tools/lib/_colors 2>/dev/null || true
+    cp "${REPO_ROOT}/agency/tools/lib/_detect-main-branch" agency/tools/lib/_detect-main-branch 2>/dev/null || true
 
     echo "hello" > README.md
     git add README.md
@@ -55,7 +55,7 @@ make_feature_branch() {
 
 @test "git-captain --help shows usage" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain --help
+    run ./agency/tools/git-captain --help
     assert_success
     assert_output_contains "Captain-only git operations"
     assert_output_contains "merge-to-master"
@@ -63,21 +63,21 @@ make_feature_branch() {
 
 @test "git-captain --version shows version" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain --version
+    run ./agency/tools/git-captain --version
     assert_success
     assert_output_contains "git-captain"
 }
 
 @test "git-captain with no args shows usage" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain
+    run ./agency/tools/git-captain
     assert_success
     assert_output_contains "Captain-only git operations"
 }
 
 @test "git-captain unknown subcommand fails" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain bogus-cmd
+    run ./agency/tools/git-captain bogus-cmd
     assert_failure
     assert_output_contains "Unknown subcommand"
 }
@@ -89,7 +89,7 @@ make_feature_branch() {
 @test "merge-to-master: on main, merges named branch with --no-ff" {
     cd "${BATS_TEST_TMPDIR}"
     make_feature_branch featbranch
-    run ./claude/tools/git-captain merge-to-master featbranch
+    run ./agency/tools/git-captain merge-to-master featbranch
     assert_success
     assert_output_contains "Merge complete"
     # --no-ff should produce a merge commit
@@ -101,21 +101,21 @@ make_feature_branch() {
     cd "${BATS_TEST_TMPDIR}"
     make_feature_branch featbranch
     git checkout -q -b otherbranch
-    run ./claude/tools/git-captain merge-to-master featbranch
+    run ./agency/tools/git-captain merge-to-master featbranch
     assert_failure
     assert_output_contains "Must be on main"
 }
 
 @test "merge-to-master: nonexistent branch fails" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain merge-to-master nosuchbranch
+    run ./agency/tools/git-captain merge-to-master nosuchbranch
     assert_failure
     assert_output_contains "does not exist"
 }
 
 @test "merge-to-master: requires branch argument" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain merge-to-master
+    run ./agency/tools/git-captain merge-to-master
     assert_failure
     assert_output_contains "Usage:"
 }
@@ -126,7 +126,7 @@ make_feature_branch() {
 
 @test "checkout-branch: valid name feature/foo succeeds" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch feature/foo
+    run ./agency/tools/git-captain checkout-branch feature/foo
     assert_success
     run git branch --show-current
     [[ "$output" == "feature/foo" ]]
@@ -134,7 +134,7 @@ make_feature_branch() {
 
 @test "checkout-branch: valid name test-branch succeeds and creates the branch" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch test-branch
+    run ./agency/tools/git-captain checkout-branch test-branch
     assert_success
     # D44-R6 (QG finding #10): strengthen assertion — verify branch was
     # actually created and checked out, not just that exit code was 0.
@@ -144,7 +144,7 @@ make_feature_branch() {
 
 @test "checkout-branch: uppercase name succeeds (D44-R3 / issue #428)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch MyBranch
+    run ./agency/tools/git-captain checkout-branch MyBranch
     assert_success
     run git branch --show-current
     [[ "$output" == "MyBranch" ]]
@@ -152,7 +152,7 @@ make_feature_branch() {
 
 @test "checkout-branch: mixed-case release name D7-R1 succeeds (D44-R3 / issue #428)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch D7-R1
+    run ./agency/tools/git-captain checkout-branch D7-R1
     assert_success
     run git branch --show-current
     [[ "$output" == "D7-R1" ]]
@@ -160,7 +160,7 @@ make_feature_branch() {
 
 @test "checkout-branch: nested uppercase path Feature/ABC succeeds (D44-R3 / issue #428)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch Feature/ABC
+    run ./agency/tools/git-captain checkout-branch Feature/ABC
     assert_success
     run git branch --show-current
     [[ "$output" == "Feature/ABC" ]]
@@ -168,7 +168,7 @@ make_feature_branch() {
 
 @test "checkout-branch: digits-only name succeeds (D44-R3 coverage)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch 20260417
+    run ./agency/tools/git-captain checkout-branch 20260417
     assert_success
     run git branch --show-current
     [[ "$output" == "20260417" ]]
@@ -177,7 +177,7 @@ make_feature_branch() {
 @test "checkout-branch: non-ASCII letters rejected (D44-R3 coverage)" {
     cd "${BATS_TEST_TMPDIR}"
     # café contains non-ASCII é, outside [a-zA-Z0-9._/-] — must fail
-    run ./claude/tools/git-captain checkout-branch "café"
+    run ./agency/tools/git-captain checkout-branch "café"
     assert_failure
     assert_output_contains "Invalid branch name"
 }
@@ -185,7 +185,7 @@ make_feature_branch() {
 @test "checkout-branch: invalid characters still fail after D44-R3 widening" {
     cd "${BATS_TEST_TMPDIR}"
     # @ is not in the allowed set [a-zA-Z0-9._/-]
-    run ./claude/tools/git-captain checkout-branch "Bad@Name"
+    run ./agency/tools/git-captain checkout-branch "Bad@Name"
     assert_failure
     assert_output_contains "Invalid branch name"
 }
@@ -196,35 +196,35 @@ make_feature_branch() {
 
 @test "checkout-branch: rejects '..' sequences (D44-R6 / git ref-format)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch "D44..R6"
+    run ./agency/tools/git-captain checkout-branch "D44..R6"
     assert_failure
     assert_output_contains "'..'"
 }
 
 @test "checkout-branch: rejects trailing '.lock' suffix (D44-R6 / git ref lockfiles)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch "feature.lock"
+    run ./agency/tools/git-captain checkout-branch "feature.lock"
     assert_failure
     assert_output_contains ".lock"
 }
 
 @test "checkout-branch: rejects trailing hyphen (D44-R6 / git ref-format)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch "feature-"
+    run ./agency/tools/git-captain checkout-branch "feature-"
     assert_failure
     assert_output_contains "end with '-'"
 }
 
 @test "checkout-branch: rejects trailing dot (D44-R6 / git ref-format)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch "release."
+    run ./agency/tools/git-captain checkout-branch "release."
     assert_failure
     assert_output_contains "end with '.'"
 }
 
 @test "checkout-branch: rejects trailing slash (D44-R6 / git ref-format)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch "feature/"
+    run ./agency/tools/git-captain checkout-branch "feature/"
     assert_failure
     assert_output_contains "end with '/'"
 }
@@ -233,7 +233,7 @@ make_feature_branch() {
 
 @test "checkout-branch: accepts dotted version name v1.0 (D44-R6 coverage)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch v1.0
+    run ./agency/tools/git-captain checkout-branch v1.0
     assert_success
     run git branch --show-current
     [[ "$output" == "v1.0" ]]
@@ -241,7 +241,7 @@ make_feature_branch() {
 
 @test "checkout-branch: accepts underscored name my_branch (D44-R6 coverage)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch my_branch
+    run ./agency/tools/git-captain checkout-branch my_branch
     assert_success
     run git branch --show-current
     [[ "$output" == "my_branch" ]]
@@ -249,7 +249,7 @@ make_feature_branch() {
 
 @test "checkout-branch: accepts 'lock' (no dot) — only '.lock' suffix is forbidden" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch feature-lock
+    run ./agency/tools/git-captain checkout-branch feature-lock
     assert_success
     run git branch --show-current
     [[ "$output" == "feature-lock" ]]
@@ -259,7 +259,7 @@ make_feature_branch() {
     cd "${BATS_TEST_TMPDIR}"
     # D44-R6 QG (finding #12): the suffix-only rule `[[ $name == *.lock ]]`
     # must not reject `.lock` as a substring. Positive regression.
-    run ./claude/tools/git-captain checkout-branch foo.lock-bar
+    run ./agency/tools/git-captain checkout-branch foo.lock-bar
     assert_success
     run git branch --show-current
     [[ "$output" == "foo.lock-bar" ]]
@@ -267,20 +267,20 @@ make_feature_branch() {
 
 @test "checkout-branch: name starting with hyphen fails" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch -- -badstart
+    run ./agency/tools/git-captain checkout-branch -- -badstart
     assert_failure
 }
 
 @test "checkout-branch: name with spaces fails" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch "has space"
+    run ./agency/tools/git-captain checkout-branch "has space"
     assert_failure
     assert_output_contains "Invalid branch name"
 }
 
 @test "checkout-branch: requires name argument" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain checkout-branch
+    run ./agency/tools/git-captain checkout-branch
     assert_failure
     assert_output_contains "Usage:"
 }
@@ -293,7 +293,7 @@ make_feature_branch() {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b existing
     git checkout -q main
-    run ./claude/tools/git-captain switch-branch existing
+    run ./agency/tools/git-captain switch-branch existing
     assert_success
     run git branch --show-current
     [[ "$output" == "existing" ]]
@@ -302,7 +302,7 @@ make_feature_branch() {
 @test "switch-branch: can switch to main" {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b sidekick
-    run ./claude/tools/git-captain switch-branch main
+    run ./agency/tools/git-captain switch-branch main
     assert_success
     run git branch --show-current
     [[ "$output" == "main" ]]
@@ -310,14 +310,14 @@ make_feature_branch() {
 
 @test "switch-branch: nonexistent branch fails" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain switch-branch nosuchbranch
+    run ./agency/tools/git-captain switch-branch nosuchbranch
     assert_failure
     assert_output_contains "does not exist"
 }
 
 @test "switch-branch: requires name argument" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain switch-branch
+    run ./agency/tools/git-captain switch-branch
     assert_failure
     assert_output_contains "Usage:"
 }
@@ -328,7 +328,7 @@ make_feature_branch() {
 
 @test "push: from main is blocked" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain push
+    run ./agency/tools/git-captain push
     assert_failure
     assert_output_contains "blocked"
 }
@@ -336,7 +336,7 @@ make_feature_branch() {
 @test "push: explicit main target blocked" {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b featb
-    run ./claude/tools/git-captain push origin main
+    run ./agency/tools/git-captain push origin main
     assert_failure
     assert_output_contains "blocked"
 }
@@ -344,7 +344,7 @@ make_feature_branch() {
 @test "push: bare --force is blocked (no --force-with-lease)" {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b featb
-    run ./claude/tools/git-captain push --force origin featb
+    run ./agency/tools/git-captain push --force origin featb
     assert_failure
     assert_output_contains "Bare --force is blocked"
 }
@@ -352,7 +352,7 @@ make_feature_branch() {
 @test "push: -f shorthand is blocked" {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b featb
-    run ./claude/tools/git-captain push -f origin featb
+    run ./agency/tools/git-captain push -f origin featb
     assert_failure
     assert_output_contains "Bare --force is blocked"
 }
@@ -362,7 +362,7 @@ make_feature_branch() {
     git checkout -q -b featb
     # No remote, so git push will fail — but we only care that the guard
     # passes and we get past the block to the actual git push invocation.
-    run ./claude/tools/git-captain push --force-with-lease origin featb
+    run ./agency/tools/git-captain push --force-with-lease origin featb
     assert_failure
     # Must NOT be blocked by the guard
     [[ ! "$output" =~ "Bare --force is blocked" ]]
@@ -372,7 +372,7 @@ make_feature_branch() {
 @test "push: to feature branch passes guards (no remote causes git failure)" {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b featb
-    run ./claude/tools/git-captain push origin featb
+    run ./agency/tools/git-captain push origin featb
     # Guards pass; git push fails because no remote is configured
     [[ ! "$output" =~ "blocked" ]]
 }
@@ -383,7 +383,7 @@ make_feature_branch() {
 
 @test "fetch: invokes git fetch origin (graceful on no remote)" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain fetch
+    run ./agency/tools/git-captain fetch
     # Either succeeds or fails due to no remote, but the tool must invoke it
     assert_output_contains "Fetching from origin"
 }
@@ -394,7 +394,7 @@ make_feature_branch() {
 
 @test "tag: creates annotated tag" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain tag v1.0.0
+    run ./agency/tools/git-captain tag v1.0.0
     assert_success
     assert_output_contains "Created annotated tag"
     run git tag -l v1.0.0
@@ -406,7 +406,7 @@ make_feature_branch() {
 
 @test "tag: creates annotated tag with -m message" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain tag v1.0.0 -m "first release"
+    run ./agency/tools/git-captain tag v1.0.0 -m "first release"
     assert_success
     run git tag -l --format='%(contents)' v1.0.0
     [[ "$output" =~ "first release" ]]
@@ -414,15 +414,15 @@ make_feature_branch() {
 
 @test "tag: duplicate tag fails" {
     cd "${BATS_TEST_TMPDIR}"
-    ./claude/tools/git-captain tag v1.0.0 >/dev/null
-    run ./claude/tools/git-captain tag v1.0.0
+    ./agency/tools/git-captain tag v1.0.0 >/dev/null
+    run ./agency/tools/git-captain tag v1.0.0
     assert_failure
     assert_output_contains "already exists"
 }
 
 @test "tag: requires name argument" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain tag
+    run ./agency/tools/git-captain tag
     assert_failure
     assert_output_contains "Usage:"
 }
@@ -435,7 +435,7 @@ make_feature_branch() {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b mergedb
     git checkout -q main
-    run ./claude/tools/git-captain branch-delete mergedb
+    run ./agency/tools/git-captain branch-delete mergedb
     assert_success
     assert_output_contains "Deleted branch"
 }
@@ -443,7 +443,7 @@ make_feature_branch() {
 @test "branch-delete: deleting main is blocked" {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b sidekick
-    run ./claude/tools/git-captain branch-delete main
+    run ./agency/tools/git-captain branch-delete main
     assert_failure
     assert_output_contains "Cannot delete main"
 }
@@ -460,7 +460,7 @@ make_feature_branch() {
     git config commit.gpgsign false
     echo x > f && git add f && git commit -q -m init
     git checkout -q -b sidekick
-    run "${BATS_TEST_TMPDIR}/claude/tools/git-captain" branch-delete master
+    run "${BATS_TEST_TMPDIR}/agency/tools/git-captain" branch-delete master
     assert_failure
     assert_output_contains "Cannot delete master"
 }
@@ -468,7 +468,7 @@ make_feature_branch() {
 @test "branch-delete: deleting current branch is blocked" {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b currentb
-    run ./claude/tools/git-captain branch-delete currentb
+    run ./agency/tools/git-captain branch-delete currentb
     assert_failure
     assert_output_contains "Cannot delete the current branch"
 }
@@ -480,14 +480,14 @@ make_feature_branch() {
     git add u.txt
     git commit -q -m "unmerged commit"
     git checkout -q main
-    run ./claude/tools/git-captain branch-delete unmerged
+    run ./agency/tools/git-captain branch-delete unmerged
     assert_failure
     assert_output_contains "unmerged changes"
 }
 
 @test "branch-delete: requires name argument" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain branch-delete
+    run ./agency/tools/git-captain branch-delete
     assert_failure
     assert_output_contains "Usage:"
 }
@@ -505,7 +505,7 @@ make_feature_branch() {
     git checkout -q main
     # Without --force: refuses (existing behavior, regression-anchored above)
     # With --force: succeeds
-    run ./claude/tools/git-captain branch-delete unmerged-r21 --force
+    run ./agency/tools/git-captain branch-delete unmerged-r21 --force
     assert_success
     assert_output_contains "Force-deleted branch"
     # Confirm branch is gone
@@ -518,7 +518,7 @@ make_feature_branch() {
     git checkout -q -b unmerged-r21-short
     echo "x" > a && git add a && git commit -q -m "unreachable"
     git checkout -q main
-    run ./claude/tools/git-captain branch-delete unmerged-r21-short -f
+    run ./agency/tools/git-captain branch-delete unmerged-r21-short -f
     assert_success
     assert_output_contains "Force-deleted branch"
 }
@@ -526,7 +526,7 @@ make_feature_branch() {
 @test "branch-delete --force: still refuses to delete main" {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b sidekick-r21
-    run ./claude/tools/git-captain branch-delete main --force
+    run ./agency/tools/git-captain branch-delete main --force
     assert_failure
     assert_output_contains "Cannot delete main"
 }
@@ -534,7 +534,7 @@ make_feature_branch() {
 @test "branch-delete --force: still refuses to delete current branch" {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b currentb-r21
-    run ./claude/tools/git-captain branch-delete currentb-r21 --force
+    run ./agency/tools/git-captain branch-delete currentb-r21 --force
     assert_failure
     assert_output_contains "Cannot delete the current branch"
 }
@@ -544,7 +544,7 @@ make_feature_branch() {
     git checkout -q -b unmerged-r21-msg
     echo "x" > b && git add b && git commit -q -m "unreachable"
     git checkout -q main
-    run ./claude/tools/git-captain branch-delete unmerged-r21-msg
+    run ./agency/tools/git-captain branch-delete unmerged-r21-msg
     assert_failure
     # New error message includes --force guidance
     assert_output_contains "--force"
@@ -552,7 +552,7 @@ make_feature_branch() {
 
 @test "branch-delete: --help mentions --force flag" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain --help
+    run ./agency/tools/git-captain --help
     assert_success
     assert_output_contains "branch-delete"
     assert_output_contains "force"
@@ -561,7 +561,7 @@ make_feature_branch() {
 @test "branch-delete: rejects unknown flag" {
     cd "${BATS_TEST_TMPDIR}"
     git checkout -q -b sidekick-bogus
-    run ./claude/tools/git-captain branch-delete sidekick-bogus --bogus
+    run ./agency/tools/git-captain branch-delete sidekick-bogus --bogus
     assert_failure
     assert_output_contains "Unknown flag"
 }
@@ -576,7 +576,7 @@ make_feature_branch() {
     echo "to-undo" > undo.txt
     git add undo.txt
     git commit -q -m "commit to be undone" --no-verify
-    run ./claude/tools/git-captain reset-soft
+    run ./agency/tools/git-captain reset-soft
     assert_success
     assert_output_contains "Reset complete"
     # File is still present and staged (soft reset)
@@ -586,14 +586,14 @@ make_feature_branch() {
 
 @test "reset-soft: refuses when ref does not resolve" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain reset-soft does-not-exist
+    run ./agency/tools/git-captain reset-soft does-not-exist
     assert_failure
     assert_output_contains "does not resolve"
 }
 
 @test "git-captain --help mentions reset-soft — D41-R28" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-captain --help
+    run ./agency/tools/git-captain --help
     assert_success
     assert_output_contains "reset-soft"
 }

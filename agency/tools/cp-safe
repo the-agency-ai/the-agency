@@ -8,8 +8,8 @@
 # both in the main checkout). Blocks cross-worktree copies. For syncing
 # between worktrees, use /worktree-sync instead.
 #
-# Usage: ./claude/tools/cp-safe <source> <dest>
-#        ./claude/tools/cp-safe -r <source-dir> <dest-dir>
+# Usage: ./agency/tools/cp-safe <source> <dest>
+#        ./agency/tools/cp-safe -r <source-dir> <dest-dir>
 #
 # Written: 2026-04-14 during captain session (worktree discipline enforcement)
 # QG: fixed multi-source drop (#4), non-existent dest bypass (#2)

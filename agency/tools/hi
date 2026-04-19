@@ -1,6 +1,6 @@
 #!/bin/bash
 # Welcome back prompt for agent session startup
-# Usage: ./claude/tools/welcomeback
+# Usage: ./agency/tools/welcomeback
 #
 # This tool provides a friendly prompt to start an agent session.
 # It triggers the agent to restore context from system reminders

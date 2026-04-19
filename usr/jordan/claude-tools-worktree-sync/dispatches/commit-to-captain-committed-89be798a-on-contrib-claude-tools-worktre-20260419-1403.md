@@ -27,6 +27,6 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/workstreams/the-agency/qgr/the-agency-jordan-captain-the-agency-worktree-sync-helper-refactor-qgr-pr-prep-20260419-1401-6155d28.md
+agency/workstreams/the-agency/qgr/the-agency-jordan-captain-the-agency-worktree-sync-helper-refactor-qgr-pr-prep-20260419-1401-6155d28.md
 usr/jordan/claude-tools-worktree-sync/dispatches/commit-to-captain-committed-997bd586-on-contrib-claude-tools-worktre-20260419-1401.md
 ```

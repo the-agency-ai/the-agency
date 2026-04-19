@@ -27,7 +27,7 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/config/manifest.json
+agency/config/manifest.json
 usr/jordan/devex/dispatches/commit-to-captain-committed-d285a7c-on-devex-feat-git-safe-merge-con-20260415-1006.md
 usr/jordan/devex/dispatches/dispatch-to-captain-d41-r7-shipped-git-safe-merge-conflict-family-git--20260415-1006.md
 usr/jordan/devex/dispatches/escalation-to-captain-urgent-r4-r6-r7-are-stacked-on-devex-bundle-pr-or--20260415-1009.md

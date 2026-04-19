@@ -32,7 +32,7 @@
 ### File Layout Result
 
 ```
-claude/data/
+agency/data/
   messages.db       # messages-service
   dispatch.db       # dispatch-service
   request.db        # request-service
@@ -66,7 +66,7 @@ claude/data/
 
 - `source/services/agency-service/src/core/adapters/database/index.ts` — serviceName support, DatabaseRegistry, removed singleton
 - `source/services/agency-service/src/index.ts` — registry wiring, per-service adapters, health + shutdown
-- `claude/REFERENCE-DISPATCH-AND-MESSAGING.md` — per-service DB architecture table
+- `agency/REFERENCE-DISPATCH-AND-MESSAGING.md` — per-service DB architecture table
 
 ### Files Created
 

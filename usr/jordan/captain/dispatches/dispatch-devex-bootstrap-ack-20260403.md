@@ -45,7 +45,7 @@ We have no installed base and no backward compatibility constraints. There's not
 - **Topology templates** — example `topology.yaml` files for common patterns (SPA + API + DB, static site, monolith)
 - **`agency init` integration** — during init, ask "what do you need?" and scaffold the right topology + providers
 
-The starter pack directories (`claude/starter-packs/`) become provider directories (`claude/providers/` or `claude/tools/providers/`). Clean break, not a migration.
+The starter pack directories (`claude/starter-packs/`) become provider directories (`claude/providers/` or `agency/tools/providers/`). Clean break, not a migration.
 
 ### 3. Topology Format
 
@@ -75,9 +75,9 @@ This spec becomes the contract that third-party providers must implement. Agency
 
 | Layer | What | Where | Lifecycle |
 |-------|------|-------|-----------|
-| **Framework** | Resolution, lifecycle, spec | `claude/tools/`, `claude/docs/` | Shipped by `agency init`, updated by `agency update` |
-| **Default providers** | compute-fly, db-docker, etc. | `claude/tools/providers/` or `claude/providers/` | Shipped, swappable, versioned |
-| **Project config** | topology.yaml, env bindings | `claude/config/`, `agency.yaml` | Project-specific, not overwritten by updates |
+| **Framework** | Resolution, lifecycle, spec | `agency/tools/`, `claude/docs/` | Shipped by `agency init`, updated by `agency update` |
+| **Default providers** | compute-fly, db-docker, etc. | `agency/tools/providers/` or `claude/providers/` | Shipped, swappable, versioned |
+| **Project config** | topology.yaml, env bindings | `agency/config/`, `agency.yaml` | Project-specific, not overwritten by updates |
 | **Skills** | /preview, /deploy | `.claude/skills/` | Call framework tools, project-configured |
 
 **Key constraint:** `agency update` must never overwrite project config (topology, env bindings). It CAN update framework tools and default providers. This is the same pattern as `settings-merge` — array union for additive, key-based replace for framework-owned.

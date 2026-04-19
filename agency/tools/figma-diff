@@ -2,8 +2,8 @@
 # figma-diff - Visual comparison between Figma mockup and deployed implementation
 #
 # Usage:
-#   ./claude/tools/figma-diff <mockup-path> <url> [--viewport=<width>x<height>]
-#   ./claude/tools/figma-diff source/home-desktop.png http://localhost:3000 --viewport=1440x900
+#   ./agency/tools/figma-diff <mockup-path> <url> [--viewport=<width>x<height>]
+#   ./agency/tools/figma-diff source/home-desktop.png http://localhost:3000 --viewport=1440x900
 #
 # This tool:
 #   1. Screenshots the deployed URL at specified viewport
@@ -50,7 +50,7 @@ show_help() {
     echo "figma-diff - Visual comparison between mockup and implementation"
     echo ""
     echo "Usage:"
-    echo "  ./claude/tools/figma-diff <mockup-path> <url> [options]"
+    echo "  ./agency/tools/figma-diff <mockup-path> <url> [options]"
     echo ""
     echo "Arguments:"
     echo "  mockup-path  Path to Figma mockup image (PNG)"
@@ -58,17 +58,17 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  --viewport=<WxH>   Viewport size (default: 1440x900)"
-    echo "  --output=<dir>     Output directory (default: claude/data/figma-diffs/)"
+    echo "  --output=<dir>     Output directory (default: agency/data/figma-diffs/)"
     echo "  --help, -h         Show this help"
     echo "  --version, -v      Show version"
     echo "  --verbose          Enable verbose logging"
     echo ""
     echo "Examples:"
-    echo "  ./claude/tools/figma-diff mockup.png http://localhost:3000"
-    echo "  ./claude/tools/figma-diff home-desktop.png http://localhost:3000 --viewport=1920x1080"
+    echo "  ./agency/tools/figma-diff mockup.png http://localhost:3000"
+    echo "  ./agency/tools/figma-diff home-desktop.png http://localhost:3000 --viewport=1920x1080"
     echo ""
     echo "Dependencies:"
-    echo "  - Puppeteer/Playwright for screenshots (via ./claude/tools/browser)"
+    echo "  - Puppeteer/Playwright for screenshots (via ./agency/tools/browser)"
     echo "  - ImageMagick for image comparison (optional)"
 }
 
@@ -76,7 +76,7 @@ show_help() {
 MOCKUP_PATH=""
 URL=""
 VIEWPORT="1440x900"
-OUTPUT_DIR="$PROJECT_ROOT/claude/data/figma-diffs"
+OUTPUT_DIR="$PROJECT_ROOT/agency/data/figma-diffs"
 
 for arg in "$@"; do
     case $arg in
@@ -176,9 +176,9 @@ log_step "Taking screenshot of $URL..."
 SCREENSHOT_PATH="$COMPARISON_DIR/screenshot.png"
 
 # Check if browser tool exists
-if [[ -x "$PROJECT_ROOT/claude/tools/browser" ]]; then
+if [[ -x "$PROJECT_ROOT/agency/tools/browser" ]]; then
     # Use browser tool if available
-    "$PROJECT_ROOT/claude/tools/browser" screenshot "$URL" \
+    "$PROJECT_ROOT/agency/tools/browser" screenshot "$URL" \
         --output="$SCREENSHOT_PATH" \
         --viewport="${VIEWPORT_WIDTH}x${VIEWPORT_HEIGHT}" 2>/dev/null || {
         log_warn "Browser tool screenshot failed, trying fallback..."
@@ -195,7 +195,7 @@ if [[ -x "$PROJECT_ROOT/claude/tools/browser" ]]; then
         fi
     }
 else
-    log_warn "Browser tool not available at $PROJECT_ROOT/claude/tools/browser"
+    log_warn "Browser tool not available at $PROJECT_ROOT/agency/tools/browser"
     echo ""
     echo "To take screenshot manually:"
     echo "  1. Open $URL in browser"

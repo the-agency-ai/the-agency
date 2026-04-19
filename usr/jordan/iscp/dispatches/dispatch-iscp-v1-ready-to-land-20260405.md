@@ -33,7 +33,7 @@ This is the messaging backbone that every agent needs. Dispatches are now operat
 - **Permissions** — agent-identity, iscp-check, iscp-migrate, flag all pre-approved
 
 ### Reference
-- Full reference document at `claude/workstreams/iscp/iscp-reference-20260405.md`
+- Full reference document at `agency/workstreams/iscp/iscp-reference-20260405.md`
 
 ## What Captain Needs to Do
 

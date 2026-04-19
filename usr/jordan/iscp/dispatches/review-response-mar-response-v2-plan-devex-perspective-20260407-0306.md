@@ -31,7 +31,7 @@ in_reply_to: 96
 
 **5. Acceptance criteria for 3.1 are testable but tight.** "T1 gate completes in <60s for a typical iteration commit" — what is a "typical iteration commit"? The current commit-precheck runs 155 tests on every commit, so anything is an improvement, but 60s depends on what "relevant fast tests" means after scoping. Need to define what "typical" means for the test: N changed files, M matching test files, expected test count. Otherwise the acceptance criterion is non-falsifiable.
 
-**6. Acceptance criterion for 3.2 is clear and testable.** "Changed-file scoping correctly maps source to test for existing tools" — I can write a test that takes claude/tools/flag as input and asserts tests/tools/flag.bats as output. Good.
+**6. Acceptance criterion for 3.2 is clear and testable.** "Changed-file scoping correctly maps source to test for existing tools" — I can write a test that takes agency/tools/flag as input and asserts tests/tools/flag.bats as output. Good.
 
 **7. Acceptance criterion for 3.3 is clear.** "enforcement audit reports accurate ladder positions for all capabilities" — I can build this as a validation tool that checks the registry YAML against filesystem reality. Good.
 

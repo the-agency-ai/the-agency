@@ -22,13 +22,13 @@ setup() {
     git config init.defaultBranch main
 
     # Install git-safe and git-safe-commit (+ pre-commit hook deps minimal)
-    mkdir -p claude/tools/lib
+    mkdir -p agency/tools/lib
     for t in git-safe git-safe-commit; do
-        cp "${REPO_ROOT}/claude/tools/$t" "claude/tools/$t"
-        chmod +x "claude/tools/$t"
+        cp "${REPO_ROOT}/agency/tools/$t" "agency/tools/$t"
+        chmod +x "agency/tools/$t"
     done
     for lib in _log-helper _colors _detect-main-branch; do
-        cp "${REPO_ROOT}/claude/tools/lib/$lib" "claude/tools/lib/$lib" 2>/dev/null || true
+        cp "${REPO_ROOT}/agency/tools/lib/$lib" "agency/tools/lib/$lib" 2>/dev/null || true
     done
 
     # Disable the real pre-commit hook to keep tests fast and self-contained.
@@ -63,7 +63,7 @@ teardown() {
 
 @test "git-safe-commit detects MERGE_HEAD and blocks with unresolved conflicts" {
     cd "${BATS_TEST_TMPDIR}"
-    run ./claude/tools/git-safe-commit --no-verify
+    run ./agency/tools/git-safe-commit --no-verify
     # QG fix: pin to the specific message — earlier "Merge" substring was too
     # broad and could match unrelated output.
     [ "$status" -ne 0 ]
@@ -72,8 +72,8 @@ teardown() {
 
 @test "git-safe-commit finalizes merge after resolve-conflict --ours" {
     cd "${BATS_TEST_TMPDIR}"
-    ./claude/tools/git-safe resolve-conflict shared.txt --ours >/dev/null
-    run ./claude/tools/git-safe-commit --no-verify
+    ./agency/tools/git-safe resolve-conflict shared.txt --ours >/dev/null
+    run ./agency/tools/git-safe-commit --no-verify
     # QG fix: assert the specific success banner from the merge-route, not a
     # generic "Merge" substring which matched everything.
     [ "$status" -eq 0 ]
@@ -87,16 +87,16 @@ teardown() {
 
 @test "git-safe-commit finalizes merge after resolve-conflict --theirs" {
     cd "${BATS_TEST_TMPDIR}"
-    ./claude/tools/git-safe resolve-conflict shared.txt --theirs >/dev/null
-    run ./claude/tools/git-safe-commit --no-verify
+    ./agency/tools/git-safe resolve-conflict shared.txt --theirs >/dev/null
+    run ./agency/tools/git-safe-commit --no-verify
     [ "$status" -eq 0 ]
     [ ! -f .git/MERGE_HEAD ]
 }
 
 @test "git-safe-commit merge-route does NOT require --no-work-item" {
     cd "${BATS_TEST_TMPDIR}"
-    ./claude/tools/git-safe resolve-conflict shared.txt --ours >/dev/null
+    ./agency/tools/git-safe resolve-conflict shared.txt --ours >/dev/null
     # Plain git-safe-commit (no message, no work-item) should succeed mid-merge
-    run ./claude/tools/git-safe-commit --no-verify
+    run ./agency/tools/git-safe-commit --no-verify
     [ "$status" -eq 0 ]
 }

@@ -21,29 +21,29 @@ Before installing, here are the terms you'll see throughout the docs:
 - **Enforcement Triangle** — every capability has tool + skill + hookify rule
 - **Hookify** — behavioral rules (block/warn) enforced mechanically
 
-For the full methodology, read `claude/README-THEAGENCY.md`.
+For the full methodology, read `agency/README-THEAGENCY.md`.
 
 ## Install
 
 ```bash
 cd ~/code/my-project
-~/code/the-agency/claude/tools/agency init
+~/code/the-agency/agency/tools/agency init
 ```
 
 This installs the framework into your repo:
 - `claude/` — tools, docs, agent classes, hooks, hookify rules, and methodology
 - `.claude/` — settings, skills, agent registrations (Claude Code discovery location)
-- `CLAUDE.md` — your project's agent-facing instructions (imports `@claude/CLAUDE-THEAGENCY.md`)
+- `CLAUDE.md` — your project's agent-facing instructions (imports `@agency/CLAUDE-THEAGENCY.md`)
 - `usr/{principal}/{agent}/` — agent sandboxes (handoffs, tools, scratch space)
 
-After install, the `agency` tool lives at `./claude/tools/agency` in your project. You can either run it with the relative path or symlink it to your `$PATH`:
+After install, the `agency` tool lives at `./agency/tools/agency` in your project. You can either run it with the relative path or symlink it to your `$PATH`:
 
 ```bash
 # Run from project (always works)
-./claude/tools/agency verify
+./agency/tools/agency verify
 
 # Or add to PATH (one-time setup)
-ln -s ~/code/my-project/claude/tools/agency ~/.local/bin/agency
+ln -s ~/code/my-project/agency/tools/agency ~/.local/bin/agency
 agency verify
 ```
 
@@ -51,19 +51,19 @@ agency verify
 
 ```bash
 # Override principal name (defaults to $USER mapping in agency.yaml)
-~/code/the-agency/claude/tools/agency init --principal jordan
+~/code/the-agency/agency/tools/agency init --principal jordan
 
 # Set project name explicitly
-~/code/the-agency/claude/tools/agency init --project my-project
+~/code/the-agency/agency/tools/agency init --project my-project
 
 # Initialize a different directory
-~/code/the-agency/claude/tools/agency init ~/code/other-project
+~/code/the-agency/agency/tools/agency init ~/code/other-project
 ```
 
 ## Verify
 
 ```bash
-./claude/tools/agency verify
+./agency/tools/agency verify
 ```
 
 Checks provider configuration, required files, and directories. Use `--verbose` for detailed output. Run this immediately after install to confirm everything is in place.
@@ -71,14 +71,14 @@ Checks provider configuration, required files, and directories. Use `--verbose` 
 ## Update
 
 ```bash
-./claude/tools/agency update
+./agency/tools/agency update
 ```
 
 Syncs framework files to the latest version from the source repo. Your project-specific files are preserved — protected paths (from the registry) are never overwritten. Settings are merged via array union (new permissions added, existing kept).
 
 Preview changes without applying:
 ```bash
-./claude/tools/agency update --dry-run
+./agency/tools/agency update --dry-run
 ```
 
 Run `agency update` periodically (weekly is reasonable). If you've adopted from a collaboration repo (e.g., monofolk), you'll receive release dispatches notifying you of significant changes.
@@ -102,7 +102,7 @@ The framework ships with broad permissions:
 **Why so broad?** The security model is layered:
 
 1. **Project boundary** — agents can read/write within the project, nothing outside it. The project root is the security perimeter.
-2. **Hookify rules** — behavioral enforcement happens at the rule layer, not the permission layer. Rules block raw `git commit`, prevent `cd` outside your worktree, force the use of skills over raw tools, enforce QGR receipts, etc. See `claude/README-ENFORCEMENT.md` for the full list (36 rules) and the complete enforcement model.
+2. **Hookify rules** — behavioral enforcement happens at the rule layer, not the permission layer. Rules block raw `git commit`, prevent `cd` outside your worktree, force the use of skills over raw tools, enforce QGR receipts, etc. See `agency/README-ENFORCEMENT.md` for the full list (36 rules) and the complete enforcement model.
 3. **Git** — version control is the audit trail. Anything an agent does is reviewable.
 
 Narrow permission patterns (the old approach) created friction — every new command triggered a prompt, blocked legitimate work, and didn't actually improve security. Hookify rules enforce intent; permissions enforce scope.
@@ -111,12 +111,12 @@ Narrow permission patterns (the old approach) created friction — every new com
 
 | Directory | What | Example |
 |-----------|------|---------|
-| `claude/tools/` | CLI tools with logging and telemetry | `dispatch`, `flag`, `handoff`, `git-safe-commit` |
-| `claude/hookify/` | Behavioral rules (warn/block) | `hookify.block-git-safe-commit.md` |
-| `claude/REFERENCE-*.md` | Reference docs (injected on demand) | `REFERENCE-QUALITY-GATE.md`, `REFERENCE-ISCP-PROTOCOL.md` |
-| `claude/agents/` | Agent class definitions | `captain/agent.md`, `tech-lead/agent.md` |
-| `claude/hooks/` | Session lifecycle hooks | `ref-injector.sh` |
-| `claude/config/agency.yaml` | Principal mapping, providers, collaboration repos | configured during init |
+| `agency/tools/` | CLI tools with logging and telemetry | `dispatch`, `flag`, `handoff`, `git-safe-commit` |
+| `agency/hookify/` | Behavioral rules (warn/block) | `hookify.block-git-safe-commit.md` |
+| `agency/REFERENCE-*.md` | Reference docs (injected on demand) | `REFERENCE-QUALITY-GATE.md`, `REFERENCE-ISCP-PROTOCOL.md` |
+| `agency/agents/` | Agent class definitions | `captain/agent.md`, `tech-lead/agent.md` |
+| `agency/hooks/` | Session lifecycle hooks | `ref-injector.sh` |
+| `agency/config/agency.yaml` | Principal mapping, providers, collaboration repos | configured during init |
 | `.claude/skills/` | Skills (invoke via `/`) | `/handoff`, `/discuss`, `/define` |
 | `.claude/agents/{P}/` | Agent registrations (launch via `claude --agent {P}/{A}`) | `jordan/captain.md` |
 | `usr/{principal}/{agent}/` | Agent sandbox (slim: tmp/, tools/, history/) | `usr/jordan/captain/` |
@@ -140,7 +140,7 @@ Once you've captured an idea and started a PVR:
 - **Implement it:** Work through iterations, running quality gates at every commit boundary
 - **Ship it:** Captain manages PRs, pushes to origin, dispatches release notes to consumers
 
-Read `claude/README-THEAGENCY.md` for the full methodology — what each stage does and why.
+Read `agency/README-THEAGENCY.md` for the full methodology — what each stage does and why.
 
 ## Safe Tools — No Raw Git
 
@@ -148,12 +148,12 @@ TheAgency enforces safe alternatives to raw shell commands. The most important:
 
 | Don't use | Use instead | Why |
 |-----------|-------------|-----|
-| `git commit` | `/git-safe-commit` or `./claude/tools/git-safe-commit` | Runs quality gate, writes QGR receipt |
+| `git commit` | `/git-safe-commit` or `./agency/tools/git-safe-commit` | Runs quality gate, writes QGR receipt |
 | `git push` | `/sync` | Only authorized push command — handles branch checks |
-| `cp` | `./claude/tools/cp-safe` | Provenance-aware copy with logging |
+| `cp` | `./agency/tools/cp-safe` | Provenance-aware copy with logging |
 | `gh pr create` | `/release` | QG + code review before PR creation |
 
-Hookify rules **hard-block** the raw alternatives (not just warn — they cancel the command). Also blocked: `gh pr merge` (use `/pr-merge`) and `gh release create` (use `/post-merge`). See `claude/README-ENFORCEMENT.md` for the full list.
+Hookify rules **hard-block** the raw alternatives (not just warn — they cancel the command). Also blocked: `gh pr merge` (use `/pr-merge`) and `gh release create` (use `/post-merge`). See `agency/README-ENFORCEMENT.md` for the full list.
 
 ## Branch Protection
 

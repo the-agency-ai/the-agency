@@ -7,9 +7,9 @@ date: 2026-04-12
 started: 2026-04-12
 status: active
 related:
-  - claude/workstreams/agency/seeds/workshop-outline-republic-poly-20260410.md
-  - claude/workstreams/agency/seeds/workshop-setup-guide-20260410.md
-  - claude/workstreams/mdslidepal/plan-b/sample-workshop.md
+  - agency/workstreams/agency/seeds/workshop-outline-republic-poly-20260410.md
+  - agency/workstreams/agency/seeds/workshop-setup-guide-20260410.md
+  - agency/workstreams/mdslidepal/plan-b/sample-workshop.md
   - usr/jordan/captain/transcripts/contribution-model-three-rings-20260411.md (case study source)
 ---
 
@@ -20,7 +20,7 @@ related:
 - Workshop outline drafted yesterday (2026-04-10)
 - Setup guide + bootstrap script + start script exist
 - 22 invites sent; Kiren Kumar (DCEO IMDA) + 2 officers confirmed
-- Plan B slide deck (reveal.js) committed and working at `claude/workstreams/mdslidepal/plan-b/`
+- Plan B slide deck (reveal.js) committed and working at `agency/workstreams/mdslidepal/plan-b/`
 - mdslidepal-web agent spinning up for Saturday sprint (proper slide tool)
 - mdslidepal-mac agent spinning up at proper pace
 - Yesterday's session is being used as a **case study** for the workshop

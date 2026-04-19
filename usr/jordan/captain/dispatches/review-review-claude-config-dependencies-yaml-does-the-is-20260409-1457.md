@@ -5,13 +5,13 @@ to: the-agency/jordan/iscp
 date: 2026-04-09T06:57
 status: created
 priority: normal
-subject: "REVIEW: claude/config/dependencies.yaml — does the ISCP stack have deps I missed?"
+subject: "REVIEW: agency/config/dependencies.yaml — does the ISCP stack have deps I missed?"
 in_reply_to: null
 ---
 
-# REVIEW: claude/config/dependencies.yaml — does the ISCP stack have deps I missed?
+# REVIEW: agency/config/dependencies.yaml — does the ISCP stack have deps I missed?
 
-Captain created `claude/config/dependencies.yaml` — formal dependency listing for the framework. ISCP-specific deps listed:
+Captain created `agency/config/dependencies.yaml` — formal dependency listing for the framework. ISCP-specific deps listed:
 
 - `sqlite3` (3.35+) — ISCP DB engine
 - `jq` — used in iscp-check, dispatch, flag tools

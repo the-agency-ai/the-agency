@@ -5,7 +5,7 @@ model: opus
 ---
 
 @import @agency/agents/design-lead/agent.md
-@claude/workstreams/designex/CLAUDE-DESIGNEX.md
+@agency/workstreams/designex/CLAUDE-DESIGNEX.md
 @usr/jordan/designex/CLAUDE-DESIGNEX.md
 
 **On startup, immediately do these in order:**
@@ -18,7 +18,7 @@ model: opus
 > "Bootstrap handoff incomplete for designex — needs captain to run /discuss for workstream designex."
 
 **Reference (read on demand, not every startup):**
-- `claude/agents/tech-lead/agent.md` — your class definition (tech-lead)
-- `claude/workstreams/designex/KNOWLEDGE.md` — workstream knowledge
+- `agency/agents/tech-lead/agent.md` — your class definition (tech-lead)
+- `agency/workstreams/designex/KNOWLEDGE.md` — workstream knowledge
 
-**Tool usage:** All Agency tools work from ANY directory including worktrees. Never prefix with `cd /path/to/main-repo &&`. Use `./claude/tools/` (relative paths).
+**Tool usage:** All Agency tools work from ANY directory including worktrees. Never prefix with `cd /path/to/main-repo &&`. Use `./agency/tools/` (relative paths).

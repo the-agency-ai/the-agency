@@ -22,7 +22,7 @@ The ISCP workstream builds the messaging layer for The Agency:
 
 - **Dispatch payloads are immutable.** Once written, never overwritten. Named `{type}-{YYYYMMDD-HHMM}.md`.
 - **Agent dispatch payloads** land at `usr/{principal}/{agent-project}/dispatches/`
-- **Workstream dispatch payloads** land at `claude/workstreams/{workstream}/dispatches/`
+- **Workstream dispatch payloads** land at `agency/workstreams/{workstream}/dispatches/`
 - **Flags are DB-only.** No git payload — notification + content in SQLite.
 - **Code reviews are a dispatch type**, not a separate system.
 
@@ -50,6 +50,6 @@ Do not implement without captain sign-off on the design. This is foundational in
 - `usr/jordan/iscp/seeds/` — seed materials
 - `usr/jordan/iscp/dispatches/` — incoming dispatches (check on startup)
 - `usr/jordan/captain/transcripts/discussion-transcript-20260404.md` — the founding discussion
-- `claude/tools/flag` — current flag implementation (being replaced)
-- `claude/tools/dispatch-create` — current dispatch tool (being replaced)
-- `claude/tools/lib/_path-resolve` — address resolution library (has bugs)
+- `agency/tools/flag` — current flag implementation (being replaced)
+- `agency/tools/dispatch-create` — current dispatch tool (being replaced)
+- `agency/tools/lib/_path-resolve` — address resolution library (has bugs)

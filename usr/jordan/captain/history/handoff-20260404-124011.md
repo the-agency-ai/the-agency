@@ -83,7 +83,7 @@ Responded with initial reactions on all 6 items: `dispatch-devex-bootstrap-ack-2
 
 ## Flag Queue
 
-11 items from session 17 (run `./claude/tools/flag list` to see). Includes:
+11 items from session 17 (run `./agency/tools/flag list` to see). Includes:
 - Dispatch read/list tools across worktrees
 - Transcript review automation
 - Test isolation bug (BATS tests polluting INDEX.md and releases.md)
@@ -94,12 +94,12 @@ Responded with initial reactions on all 6 items: `dispatch-devex-bootstrap-ack-2
 
 | File | Change |
 |------|--------|
-| `claude/tools/agent-create` | v2.0.0 — full rewrite (paths, scaffolding, registration, principal resolution fix) |
+| `agency/tools/agent-create` | v2.0.0 — full rewrite (paths, scaffolding, registration, principal resolution fix) |
 | `.claude/skills/workstream-create/SKILL.md` | Two-phase skill (scaffold + guided discussion) |
-| `claude/hookify/hookify.warn-script-persistence.md` | NEW — script discipline nudge |
+| `agency/hookify/hookify.warn-script-persistence.md` | NEW — script discipline nudge |
 | `claude/hooks/tool-telemetry.sh` | Agent-script detection from usr/*/tools/ |
-| `claude/tools/safe-extract` | NEW — unzip with path traversal + symlink validation |
-| `claude/config/settings-template.json` | Added safe-extract, worktree-sync, scoped unzip, Read/Glob permissions |
+| `agency/tools/safe-extract` | NEW — unzip with path traversal + symlink validation |
+| `agency/config/settings-template.json` | Added safe-extract, worktree-sync, scoped unzip, Read/Glob permissions |
 | `.claude/settings.json` | Same permission additions |
 | `.claude/skills/worktree-sync/SKILL.md` | Enhanced with dispatch check guidance |
 | `tests/tools/agent-create.bats` | NEW — 13 tests |

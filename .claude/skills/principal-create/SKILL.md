@@ -12,7 +12,7 @@ description: Onboard a new principal to the current repo — scaffold sandbox, r
 # Principal Create
 
 End-to-end onboarding for a new principal joining an agency-init'd repo.
-Wraps `./claude/tools/principal-onboard` which orchestrates: directory
+Wraps `./agency/tools/principal-onboard` which orchestrates: directory
 scaffold (via existing `principal-create` tool), template substitution
 (CLAUDE-PRINCIPAL.md, bootstrap handoff), agent registration
 (`.claude/agents/{name}-captain.md`), and `agency.yaml` mutation.
@@ -50,7 +50,7 @@ invoking the tool.
 
 ### Step 1: Pre-flight
 
-1. Confirm we're in an agency-init'd repo: `claude/config/agency.yaml` exists.
+1. Confirm we're in an agency-init'd repo: `agency/config/agency.yaml` exists.
 2. If `$ARGUMENTS` is empty or missing required fields, gather via 1B1:
    - "What's the principal's slug?" (lowercase, alphanumeric/hyphens/underscores)
    - "What's their system $USER?" (the value of `echo $USER` on their machine)
@@ -64,7 +64,7 @@ invoking the tool.
 Invoke:
 
 ```
-./claude/tools/principal-onboard <name> --user <sysuser> --display-name "..." \
+./agency/tools/principal-onboard <name> --user <sysuser> --display-name "..." \
     --email ... --github-user ... --dry-run --verbose
 ```
 
@@ -79,7 +79,7 @@ Drop `--dry-run`. Re-run with the same args.
 1. `cat usr/<name>/CLAUDE-PRINCIPAL.md | head -30` — confirm template substituted correctly.
 2. `cat usr/<name>/captain/captain-handoff.md | head -20` — confirm bootstrap handoff readable.
 3. `cat .claude/agents/<name>-captain.md` — confirm agent registration present.
-4. `grep -A 4 "^  <sysuser>:" claude/config/agency.yaml` — confirm YAML entry.
+4. `grep -A 4 "^  <sysuser>:" agency/config/agency.yaml` — confirm YAML entry.
 
 ### Step 5: Commit (coordination artifact)
 
@@ -100,7 +100,7 @@ Tell the new principal:
 You're set up. To start working as <display_name>:
 
 1. On your machine: export AGENCY_PRINCIPAL=<name>
-2. Verify: ./claude/tools/principal  (should print <name>)
+2. Verify: ./agency/tools/principal  (should print <name>)
 3. Launch your captain: claude --agent <name>-captain
 4. In Claude, run: /session-resume
    (reads your bootstrap handoff at usr/<name>/captain/captain-handoff.md)
@@ -127,10 +127,10 @@ principal's captain:
 
 ## Reference
 
-- Tool: `claude/tools/principal-onboard`
-- Templates: `claude/templates/principal-v2/`
-- Schema: `claude/config/agency.yaml` (`principals:` block)
-- Concept: `claude/REFERENCE-AGENT-ADDRESSING.md`
+- Tool: `agency/tools/principal-onboard`
+- Templates: `agency/templates/principal-v2/`
+- Schema: `agency/config/agency.yaml` (`principals:` block)
+- Concept: `agency/REFERENCE-AGENT-ADDRESSING.md`
 - Worknote: `claude/docs/worknotes/WORKNOTE-principal-tooling.md`
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

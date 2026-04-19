@@ -10,7 +10,7 @@
 #
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
-TOOL="${REPO_ROOT}/claude/tools/pr-merge"
+TOOL="${REPO_ROOT}/agency/tools/pr-merge"
 
 @test "pr-merge: --help works" {
     run bash "$TOOL" --help

@@ -22,8 +22,8 @@ resolved_at: 2026-04-02T10:00
 - **sandbox-sync** tool: bulk symlink activation for commands, hookify rules, hooks, agents, settings.local.json from user sandboxes to `.claude/` discovery locations
 - **ghostty-claude-hook**: Ghostty terminal tab indicators (○/◑/⚠) + background color tints (blue/green/red) for multi-session visual feedback
 - **ghostty-config, ghostty-integration, ghostty-setup, ghostty-debug-hook**: Full Ghostty terminal integration suite
-- **/handoff** skill: wraps `claude/tools/handoff` for session continuity
-- **/dispatch** skill: wraps `claude/tools/dispatch` for inter-agent communication
+- **/handoff** skill: wraps `agency/tools/handoff` for session continuity
+- **/dispatch** skill: wraps `agency/tools/dispatch` for inter-agent communication
 - **CLAUDE-THEAGENCY.md**: enforced handoff tool usage ("always use the handoff tool")
 
 ### PR #23 — DevEx Service Composition A&D

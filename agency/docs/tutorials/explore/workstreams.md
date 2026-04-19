@@ -17,7 +17,7 @@ Think of them as:
 Show them a workstream directory:
 
 ```bash
-ls -la claude/workstreams/housekeeping/
+ls -la agency/workstreams/housekeeping/
 ```
 
 Explain what they'll see:
@@ -33,7 +33,7 @@ Walk through creating a workstream:
 
 Show what was created:
 ```bash
-ls -la claude/workstreams/demo/
+ls -la agency/workstreams/demo/
 ```
 
 ## Workstream Patterns
@@ -79,7 +79,7 @@ Workstreams organize work into sprints:
 
 Creates:
 ```
-claude/workstreams/web/sprints/2026-01/
+agency/workstreams/web/sprints/2026-01/
   ├── README.md - Sprint goals
   └── ... work items ...
 ```

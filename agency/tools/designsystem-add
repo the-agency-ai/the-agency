@@ -2,8 +2,8 @@
 # designsystem-add - Create a new design system documentation structure
 #
 # Usage:
-#   ./claude/tools/designsystem-add <brand-name> <version>
-#   ./claude/tools/designsystem-add acme 001
+#   ./agency/tools/designsystem-add <brand-name> <version>
+#   ./agency/tools/designsystem-add acme 001
 #
 # Creates: claude/knowledge/design-systems/<brand-name>-<version>/
 
@@ -49,7 +49,7 @@ show_help() {
     echo "designsystem-add - Create a new design system documentation structure"
     echo ""
     echo "Usage:"
-    echo "  ./claude/tools/designsystem-add <brand-name> <version>"
+    echo "  ./agency/tools/designsystem-add <brand-name> <version>"
     echo ""
     echo "Arguments:"
     echo "  brand-name    Name of the brand/project (lowercase, no spaces)"
@@ -61,8 +61,8 @@ show_help() {
     echo "  --verbose     Enable verbose logging"
     echo ""
     echo "Examples:"
-    echo "  ./claude/tools/designsystem-add acme 001"
-    echo "  ./claude/tools/designsystem-add my-brand 002"
+    echo "  ./agency/tools/designsystem-add acme 001"
+    echo "  ./agency/tools/designsystem-add my-brand 002"
     echo ""
     echo "Creates:"
     echo "  claude/knowledge/design-systems/<brand-name>-<version>/"
@@ -99,7 +99,7 @@ done
 if [[ $# -lt 2 ]]; then
     echo -e "${RED}Error: Missing required arguments${NC}"
     echo ""
-    echo "Usage: ./claude/tools/designsystem-add <brand-name> <version>"
+    echo "Usage: ./agency/tools/designsystem-add <brand-name> <version>"
     echo ""
     echo "Run with --help for more information."
     exit 1
@@ -200,7 +200,7 @@ main() {
     echo "     - spacing.md (spacing scale)"
     echo "     - tailwind-config.md (Tailwind theme)"
     echo "  4. Track unknowns in GAPS.md"
-    echo "  5. Validate: ./claude/tools/designsystem-validate $TARGET_DIR"
+    echo "  5. Validate: ./agency/tools/designsystem-validate $TARGET_DIR"
     echo ""
     echo "Template placeholders to replace:"
     echo "  - [Font Family] - Primary font name"

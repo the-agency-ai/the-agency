@@ -5,7 +5,7 @@ captain: the-agency/jordan/captain
 date_filed: 2026-04-11
 anthropic_feedback_id: cc00b303-5710-4e23-862e-882d6db8c7e0
 github_issue: https://github.com/anthropics/claude-code/issues/46546
-seed: claude/workstreams/agency/seeds/seed-content-filter-opacity-20260411.md
+seed: agency/workstreams/agency/seeds/seed-content-filter-opacity-20260411.md
 related_report: usr/jordan/reports/report-feedback-comms-gap-20260411.md
 status: filed
 ---
@@ -15,7 +15,7 @@ status: filed
 **Filed to Anthropic via `/feedback`:** 2026-04-11
 **Feedback ID:** `cc00b303-5710-4e23-862e-882d6db8c7e0`
 **Filed to GitHub:** https://github.com/anthropics/claude-code/issues/46546
-**Internal seed:** `claude/workstreams/agency/seeds/seed-content-filter-opacity-20260411.md`
+**Internal seed:** `agency/workstreams/agency/seeds/seed-content-filter-opacity-20260411.md`
 **Public record:** [@AgencyGroupAI tweet 2026-04-11](https://twitter.com/AgencyGroupAI)
 **Related filing:** [report-feedback-comms-gap-20260411](report-feedback-comms-gap-20260411.md) — sibling silent-failure pattern filed as [#46531](https://github.com/anthropics/claude-code/issues/46531)
 

@@ -88,8 +88,8 @@ Three patterns in use:
 |---|---|---|
 | Figma workflow guide | `/Users/jdm/code/the-agency/claude/knowledge/ui-development/figma-workflow.md` | **Web-only.** References Tailwind, `md:`/`lg:` breakpoints, `hover:`, semantic HTML, `role=`, desktop browser screenshots. Zero RN content. |
 | Design system example | `/Users/jdm/code/the-agency/claude/knowledge/design-systems/ordinaryfolk-003/` | **Web-only.** Emits `tailwind-config.md`. No RN theme object, no `@1x/@2x/@3x` asset story, no `StyleSheet` export. |
-| Figma extractor | `/Users/jdm/code/the-agency/claude/tools/figma-extract` | **Web-only.** Generates Tailwind config. No RN theme emit option. |
-| UX-dev agent template | `/Users/jdm/code/the-agency/claude/agents/templates/ux-dev/agent.md` | **Platform-agnostic in language, web-only in practice.** No RN toolchain, no Expo/Metro, no simulator awareness. |
+| Figma extractor | `/Users/jdm/code/the-agency/agency/tools/figma-extract` | **Web-only.** Generates Tailwind config. No RN theme emit option. |
+| UX-dev agent template | `/Users/jdm/code/the-agency/agency/agents/templates/ux-dev/agent.md` | **Platform-agnostic in language, web-only in practice.** No RN toolchain, no Expo/Metro, no simulator awareness. |
 
 **Nothing in the-agency is currently RN-aware.** Not a bug — framework has focused on web — but monofolk is explicitly multi-platform and will need this soon.
 

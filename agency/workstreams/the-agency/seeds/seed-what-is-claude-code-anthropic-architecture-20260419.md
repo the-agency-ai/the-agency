@@ -133,7 +133,7 @@ The-agency adds layers on top of Claude Code's primitives:
 | Skills | v2 bundle structure (SKILL.md + reference.md + examples.md + scripts/ + assets/) |
 | Subagents | captain orchestration + worktree agents + MAR pattern |
 | Hooks | hookify Enforcement Triangle (block / warn / inform) |
-| AGENTS.md | agent classes in `claude/agents/<class>/agent.md` + principal-scoped registrations |
+| AGENTS.md | agent classes in `agency/agents/<class>/agent.md` + principal-scoped registrations |
 
 ## Related
 

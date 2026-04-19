@@ -17,7 +17,7 @@
 # instrumentation so every directory-scoped execution is observable.
 #
 # The enforcement triangle:
-#   Tool:    this file (claude/tools/run-in)
+#   Tool:    this file (agency/tools/run-in)
 #   Skill:   /run-in
 #   Hookify: block-compound-bash (blocks &&, ||, ;, pipes in Bash tool calls)
 #
@@ -28,7 +28,7 @@
 #
 # Examples:
 #   run-in /path/to/other-repo -- git status
-#   run-in ~/code/presence-detect -- ./claude/tools/agency verify
+#   run-in ~/code/presence-detect -- ./agency/tools/agency verify
 #   run-in .claude/worktrees/devex -- ./claude/tools/dispatch list
 #
 # Written: 2026-04-09 during captain Day 34 (run-in Triangle build)
@@ -61,11 +61,11 @@ BEHAVIOR
 WHY
   Compound bash commands ("cd foo && bar && cd -") are blocked by the
   block-compound-bash hookify rule. Use run-in instead. See
-  claude/hookify/hookify.block-compound-bash.md for the full rationale.
+  agency/hookify/hookify.block-compound-bash.md for the full rationale.
 
 EXAMPLES
   run-in /path/to/other-repo -- git status
-  run-in ~/code/presence-detect -- ./claude/tools/agency verify
+  run-in ~/code/presence-detect -- ./agency/tools/agency verify
   run-in .claude/worktrees/devex -- ./claude/tools/dispatch list
 
 OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!

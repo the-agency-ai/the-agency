@@ -27,10 +27,10 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/workstreams/the-agency/ad-the-agency-structural-reset-20260419.md
-claude/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md
-claude/workstreams/the-agency/pvr-the-agency-structural-reset-20260419.md
-claude/workstreams/the-agency/research/mar-ad-structural-reset-20260419.md
-claude/workstreams/the-agency/research/mar-pvr-structural-reset-20260419.md
+agency/workstreams/the-agency/ad-the-agency-structural-reset-20260419.md
+agency/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md
+agency/workstreams/the-agency/pvr-the-agency-structural-reset-20260419.md
+agency/workstreams/the-agency/research/mar-ad-structural-reset-20260419.md
+agency/workstreams/the-agency/research/mar-pvr-structural-reset-20260419.md
 usr/jordan/claude-tools-worktree-sync/dispatches/commit-to-captain-committed-2d0d6cf7-on-contrib-claude-tools-worktre-20260419-1938.md
 ```

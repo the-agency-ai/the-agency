@@ -46,7 +46,7 @@ migrated_by: the-agency/jordan/captain
 25. **the-agency-starter repo sunset** — agency-init replaces it — `2026-04-04`
 26. **Kill /agency dispatcher skill** — old model — `2026-04-04`
 27. **agency init runs BEFORE claude init** — git init → agency init → claude init — `2026-04-04`
-28. **Seeds live in workstream dir** — `claude/workstreams/{name}/seeds/` — `2026-04-04`
+28. **Seeds live in workstream dir** — `agency/workstreams/{name}/seeds/` — `2026-04-04`
 29. **Transcript skill silent** — don't echo captured content, just confirm — `2026-04-04`
 
 ## Tool Gaps (10)

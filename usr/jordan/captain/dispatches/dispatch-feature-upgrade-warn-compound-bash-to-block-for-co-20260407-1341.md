@@ -62,7 +62,7 @@ Per directive #111, **enter plan mode first**. Investigate:
 ## Reference
 
 - Friction analysis: usr/jordan/captain/transcripts/agent-session-friction-20260407.md (P4)
-- Existing rule: claude/hookify/hookify.warn-compound-bash.md
+- Existing rule: agency/hookify/hookify.warn-compound-bash.md
 - Already-blocked patterns: block-cd-to-main, block-git-safe-commit, block-raw-handoff, block-raw-git-merge-master
 
 This is your fourth dispatch (#109, #110, #111, this one). Plan mode for all of them. Take your time.

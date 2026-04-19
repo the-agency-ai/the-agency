@@ -42,7 +42,7 @@ If there are uncommitted changes (modified, staged, or untracked files):
 ### Step 3: Archive and get handoff path
 
 ```
-./claude/tools/handoff write --trigger session-compact
+./agency/tools/handoff write --trigger session-compact
 ```
 
 The tool archives the current handoff and reports the path for the new one.
@@ -62,7 +62,7 @@ Frame the handoff for **continuation**, not resumption. The agent will keep work
 ### Step 5: Verify handoff
 
 ```
-./claude/tools/handoff read
+./agency/tools/handoff read
 ```
 
 Confirm the handoff was written correctly.

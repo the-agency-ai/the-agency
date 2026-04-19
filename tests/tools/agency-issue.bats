@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for claude/tools/agency-issue
+# Tests for agency/tools/agency-issue
 #
 # Covers --version, --help, and the error paths that do not require
 # network access. The verbs that actually hit GitHub (file/list/view/

@@ -31,7 +31,7 @@ Ghostty config at `~/.config/ghostty/config` had bare hex color values (`backgro
 **Found by:** captain
 **Status:** Resolved (directory removed), tool not yet fixed
 
-`./tools/workstream-create --help` created a `claude/workstreams/--help/` directory with KNOWLEDGE.md and epic stubs instead of showing help text. The tool's `--help` flag is not being parsed before directory creation.
+`./tools/workstream-create --help` created a `agency/workstreams/--help/` directory with KNOWLEDGE.md and epic stubs instead of showing help text. The tool's `--help` flag is not being parsed before directory creation.
 
 **Fix applied:** Removed the errant directory manually.
 
@@ -102,7 +102,7 @@ The CoS session briefing files (`guide-cos-session-briefing-20260329.md`, `devex
 `./tools/agent-create` creates Agency-level agent directories (`claude/agents/{name}/agent.md`, KNOWLEDGE.md, etc.) but does not register the agent in `.claude/settings.json` under the `"agents"` key. This means `claude --agent markdown-pal` doesn't work — Claude Code doesn't know about Agency agents.
 
 Two systems exist side by side:
-- **Agency agents** — `claude/agents/{name}/agent.md` (identity, responsibilities, seed files)
+- **Agency agents** — `agency/agents/{name}/agent.md` (identity, responsibilities, seed files)
 - **Claude Code agents** — `settings.json` `"agents"` key or `--agents` CLI flag (what `claude --agent` resolves)
 
 `agent-create` should bridge these by generating a Claude Code agent entry in settings.json that references the Agency agent definition. The agent's `prompt` field should instruct Claude to read its `agent.md` and relevant seed files.

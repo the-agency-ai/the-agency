@@ -17,7 +17,7 @@ THE META-INSIGHT: the Bash tool log is a list of the tools we haven't built yet.
 
 ## 10:18:24 — build
 
-run-in Triangle: claude/tools/run-in (subshell isolation, parent CWD untouched) + /run-in skill + hookify.block-compound-bash (wide block on &&/||/;/|/subshells/cd X && with educative WHY). 11 BATS tests green. First tool built under the telemetry-driven tool discovery discipline.
+run-in Triangle: agency/tools/run-in (subshell isolation, parent CWD untouched) + /run-in skill + hookify.block-compound-bash (wide block on &&/||/;/|/subshells/cd X && with educative WHY). 11 BATS tests green. First tool built under the telemetry-driven tool discovery discipline.
 
 ## 10:18:33 — milestone
 
@@ -49,7 +49,7 @@ Knocked out #65 + #62 in one bundle commit (79805a3). #65: worktree-sync detects
 
 ## 13:02:53 — learning
 
-THE REFRAME: 'Be the Man Who Was Too Lazy to Fail.' When I flagged myself as 'lazy' for bypassing /post-merge, Jordan corrected: manual steps are MORE work, not less. True laziness invests in the Triangle once so no task is ever done twice. This is the one-line framing of the entire framework thesis — captured at claude/workstreams/agency/references/too-lazy-to-fail-20260409.md. Articulates from the operator's angle what telemetry-driven tool discovery says from the framework's angle and what Gary Tan says from the principal's angle. All three converge: the valuable asset is the codified capability, not heroic manual execution. Shame is the wrong signal; calibration (tokens/time/attention burned) is the right signal.
+THE REFRAME: 'Be the Man Who Was Too Lazy to Fail.' When I flagged myself as 'lazy' for bypassing /post-merge, Jordan corrected: manual steps are MORE work, not less. True laziness invests in the Triangle once so no task is ever done twice. This is the one-line framing of the entire framework thesis — captured at agency/workstreams/agency/references/too-lazy-to-fail-20260409.md. Articulates from the operator's angle what telemetry-driven tool discovery says from the framework's angle and what Gary Tan says from the principal's angle. All three converge: the valuable asset is the codified capability, not heroic manual execution. Shame is the wrong signal; calibration (tokens/time/attention burned) is the right signal.
 
 ## 18:54:47 — milestone
 

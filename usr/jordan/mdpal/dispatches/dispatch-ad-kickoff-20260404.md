@@ -59,7 +59,7 @@ You're not waiting on me — you're collaborating with me. The API contract affe
 - PVR: `usr/jordan/mdpal/pvr-mdpal-20260403-1447.md`
 - My discussion transcript: `usr/jordan/mdpal/transcripts/discuss-swift-crossplatform-20260403.md`
 - Your discussion transcript: `usr/jordan/mdpal/transcripts/dialogue-transcript-20260403.md`
-- Seeds: `claude/workstreams/mdpal/seeds/` (especially the CLI spec and design doc)
+- Seeds: `agency/workstreams/mdpal/seeds/` (especially the CLI spec and design doc)
 
 ## My Technical Thinking (preview)
 

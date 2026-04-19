@@ -57,7 +57,7 @@ set_origin_head() {
 # The helper defines a function; the subshell pattern isolates it.
 detect() {
     local repo="$1"
-    bash -c "source \"${REPO_ROOT:-$(pwd)}/claude/tools/lib/_detect-main-branch\" && detect_main_branch \"$repo\""
+    bash -c "source \"${REPO_ROOT:-$(pwd)}/agency/tools/lib/_detect-main-branch\" && detect_main_branch \"$repo\""
 }
 
 @test "detect_main_branch: fails loudly when called with no argument" {

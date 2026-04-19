@@ -30,7 +30,7 @@ If you want machine-readability sooner, add a structured YAML frontmatter block 
 
 Subagents for V2, dispatches for V3. This is the right call. Within-session subagents are simpler, cheaper, and don't need ISCP infrastructure. The V3 transition to dispatches is straightforward — the MARFI brief output format stays the same, only the coordination mechanism changes.
 
-One concern: subagent results need to be captured somewhere durable. If the session crashes mid-MARFI, the research is lost. Recommendation: subagents write their output to `claude/workstreams/{ws}/seeds/marfi-{agent}-{date}.md` before returning. Then the driving agent synthesizes. This gives you durability without dispatch overhead.
+One concern: subagent results need to be captured somewhere durable. If the session crashes mid-MARFI, the research is lost. Recommendation: subagents write their output to `agency/workstreams/{ws}/seeds/marfi-{agent}-{date}.md` before returning. Then the driving agent synthesizes. This gives you durability without dispatch overhead.
 
 **Q (Section 5): Commit dispatches carrying stage-hash?**
 

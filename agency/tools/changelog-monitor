@@ -11,7 +11,7 @@
 # and surfaces what matters.
 #
 # Usage: With Monitor tool — "monitor Claude Code changelog for new releases"
-# Standalone: ./claude/tools/changelog-monitor [--interval N]
+# Standalone: ./agency/tools/changelog-monitor [--interval N]
 #
 # Written: 2026-04-10 during captain session (35.2 — changelog awareness)
 

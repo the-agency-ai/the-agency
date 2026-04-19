@@ -1,0 +1,60 @@
+---
+# Combined manifest for Phase 4 captain-solo sweep
+# (simplified from 5-subagent parallel; autonomous-overnight pragmatism)
+# Authored: 2026-04-20 during v46.0 Phase 4 execution
+#
+# Scope: ALL tracked files (git ls-files default), with out-of-scope excludes
+# applied via Principle 9 (history/**, src/archive/**, usr/**, test-fixture).
+#
+# Substitutions consolidated from manifests A-E.
+# Rejected patterns assert nothing touches sacred paths.
+
+subagent: combined
+ownership_priority: 0  # solo, no overlap handling needed
+
+# No files: key — defaults to all tracked files under repo root.
+
+allowed_substitutions:
+  # Paths that move from claude/ → agency/
+  - pattern: "claude/tools/"
+    replacement: "agency/tools/"
+  - pattern: "claude/hooks/"
+    replacement: "agency/hooks/"
+  - pattern: "claude/hookify/"
+    replacement: "agency/hookify/"
+  - pattern: "claude/agents/"
+    replacement: "agency/agents/"
+  - pattern: "claude/config/"
+    replacement: "agency/config/"
+  - pattern: "claude/data/"
+    replacement: "agency/data/"
+  - pattern: "claude/templates/"
+    replacement: "agency/templates/"
+  - pattern: "claude/workstreams/"
+    replacement: "agency/workstreams/"
+  - pattern: "claude/lib/"
+    replacement: "agency/lib/"
+  - pattern: "claude/REFERENCE"
+    replacement: "agency/REFERENCE"
+  - pattern: "claude/README"
+    replacement: "agency/README"
+  - pattern: "claude/CLAUDE-THEAGENCY"
+    replacement: "agency/CLAUDE-THEAGENCY"
+  - pattern: "claude/assets/"
+    replacement: "agency/assets/"
+  - pattern: "claude/receipts/"
+    replacement: "agency/receipts/"
+  - pattern: "@claude/"
+    replacement: "@agency/"
+  # Hook command substitution inside settings.json-like files
+  - pattern: "CLAUDE_PROJECT_DIR/claude/"
+    replacement: "CLAUDE_PROJECT_DIR/agency/"
+
+rejected_substitutions:
+  # These MUST NOT change — sacred paths preserved. Patterns use single
+  # backslash (the YAML parser is minimal; quoted strings pass through verbatim).
+  - "\.claude/"
+  - "CLAUDE\.md"
+  - "claude-code"
+
+expected_changes: null

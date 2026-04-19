@@ -5,7 +5,7 @@ captain: the-agency/jordan/captain
 date_filed: 2026-04-08
 anthropic_feedback_id: 8dd67e96-63ea-4a22-b687-d26a1b2d0add
 github_issue: https://github.com/anthropics/claude-code/issues/45017
-seed: claude/workstreams/agency/seeds/seed-silent-periodic-tool-calls-20260408.md
+seed: agency/workstreams/agency/seeds/seed-silent-periodic-tool-calls-20260408.md
 status: filed
 ---
 
@@ -14,7 +14,7 @@ status: filed
 **Filed to Anthropic via `/feedback`:** 2026-04-08
 **Feedback ID:** `8dd67e96-63ea-4a22-b687-d26a1b2d0add`
 **Filed to GitHub:** https://github.com/anthropics/claude-code/issues/45017
-**Internal seed:** `claude/workstreams/agency/seeds/seed-silent-periodic-tool-calls-20260408.md`
+**Internal seed:** `agency/workstreams/agency/seeds/seed-silent-periodic-tool-calls-20260408.md`
 
 ## Summary
 

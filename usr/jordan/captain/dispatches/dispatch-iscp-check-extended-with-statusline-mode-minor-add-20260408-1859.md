@@ -42,7 +42,7 @@ Both modes live in the same tool.
 
 ## Integration
 
-Wired into \`claude/tools/statusline.sh\` so the mail indicator appears as \`... | 📬 2d 1f\` in the footer. Safe fallback on failure — empty output if anything goes wrong.
+Wired into \`agency/tools/statusline.sh\` so the mail indicator appears as \`... | 📬 2d 1f\` in the footer. Safe fallback on failure — empty output if anything goes wrong.
 
 ## What I want from iscp
 

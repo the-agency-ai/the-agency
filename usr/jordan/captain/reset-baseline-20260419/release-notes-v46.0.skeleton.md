@@ -31,12 +31,12 @@ not a pattern. References captain-private alias-shim approach (Principle 12).>
   - Adopter impact: if your repo registers a design agent, consider
     `@import @agency/agents/design-lead/agent.md` as the new canonical.
     Legacy `agency/agents/designex/` class directory replaced;
-    `agency-migrate-prep` rewrites `@import @claude/agents/designex` references automatically.
+    `agency-migrate-prep` rewrites `@import @agency/agents/designex` references automatically.
 - **Agent templates relocated from `agency/agents/templates/` to `agency/templates/`**
   - Adopter impact: any reference to `agency/agents/templates/` swept automatically
 - **9 non-class agents archived to `src/archive/agents/`**: apple, cos, discord,
   gumroad, iscp, marketing-lead, platform-specialist, project-manager, testname
-  - Adopter impact: if your repo has `@import @claude/agents/{name}` OR
+  - Adopter impact: if your repo has `@import @agency/agents/{name}` OR
     `.claude/agents/*/{name}.md`, see runbook § agent-migration
 
 ## What's preserved
@@ -58,19 +58,19 @@ not a pattern. References captain-private alias-shim approach (Principle 12).>
    - After: `$CLAUDE_PROJECT_DIR/agency/hooks/foo.sh`
 
 2. **Root `CLAUDE.md` @imports**
-   - Before: `@claude/CLAUDE-THEAGENCY.md`
+   - Before: `@agency/CLAUDE-THEAGENCY.md`
    - After: `@agency/CLAUDE-THEAGENCY.md`
 
 3. **Skill `required_reading:` frontmatter**
-   - Before: `required_reading: claude/REFERENCE-QUALITY-GATE.md`
+   - Before: `required_reading: agency/REFERENCE-QUALITY-GATE.md`
    - After: `required_reading: agency/REFERENCE-QUALITY-GATE.md`
 
 4. **Agent registration `@import` headers**
-   - Before: `@import @claude/agents/captain/agent.md`
+   - Before: `@import @agency/agents/captain/agent.md`
    - After: `@import @agency/agents/captain/agent.md`
 
 5. **Tool invocation paths (examples)**
-   - Before: `./claude/tools/handoff`
+   - Before: `./agency/tools/handoff`
    - After: `./agency/tools/handoff`
 
 ## Migration summary
@@ -86,7 +86,7 @@ See `migration-runbook-v46.0.md` for step-by-step prep + update + verify + rollb
 
 ## Known diagnostic signatures (post-migration failures)
 
-- `Hook fire ENOENT claude/hooks/*.sh` → settings.json not rewritten
+- `Hook fire ENOENT agency/hooks/*.sh` → settings.json not rewritten
 - `@import resolve error` at session start → CLAUDE.md @import stale
 - `required_reading not found` → skill frontmatter stale
 - `agency-verify-v46 --customer` exit 10..14 → tree/settings/registration/ISCP anomaly

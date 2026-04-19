@@ -12,10 +12,10 @@
 # Written: 2026-04-07 during devex Phase 122 (Day/Phase commit prefix enforcement)
 
 # Validate a commit message's first line against the Day/Phase convention.
-# Reads commits.require_day_prefix from agency.yaml via ./claude/tools/config.
+# Reads commits.require_day_prefix from agency.yaml via ./agency/tools/config.
 #
 # Usage:
-#   source claude/tools/lib/_commit-prefix
+#   source agency/tools/lib/_commit-prefix
 #   validate_commit_prefix "$message" || exit 1
 #
 # Returns 0 if valid (or check disabled), 1 if invalid.
@@ -26,7 +26,7 @@ validate_commit_prefix() {
     # Resolve repo root
     local repo_root
     repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-    local config_file="$repo_root/claude/config/agency.yaml"
+    local config_file="$repo_root/agency/config/agency.yaml"
 
     # Read flag directly from agency.yaml — no Python/pyyaml dependency.
     # Pattern: under 'commits:' section, find 'require_day_prefix: <value>'.
@@ -73,7 +73,7 @@ validate_commit_prefix() {
   Fix: rewrite the commit message to start with one of these prefixes.
 
   This check is enforced because commits.require_day_prefix=true in
-  claude/config/agency.yaml. Set it to false to disable.
+  agency/config/agency.yaml. Set it to false to disable.
 
 EOF
     return 1

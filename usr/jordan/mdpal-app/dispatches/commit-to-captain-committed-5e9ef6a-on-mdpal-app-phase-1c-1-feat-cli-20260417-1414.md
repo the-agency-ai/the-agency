@@ -32,6 +32,6 @@ apps/mdpal-app/Sources/MarkdownPalApp/Services/CLIServiceFactory.swift
 apps/mdpal-app/Sources/MarkdownPalApp/Views/CLIServiceBanner.swift
 apps/mdpal-app/Sources/MarkdownPalApp/Views/ContentView.swift
 apps/mdpal-app/Tests/MarkdownPalAppTests/ModelTests.swift
-claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1414-33b4423.md
+agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1414-33b4423.md
 usr/jordan/mdpal-app/mdpal-app-phase-1C-plan.md
 ```

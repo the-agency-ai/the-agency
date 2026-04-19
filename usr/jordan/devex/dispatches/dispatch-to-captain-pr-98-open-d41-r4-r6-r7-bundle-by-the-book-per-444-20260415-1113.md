@@ -19,7 +19,7 @@ PR #98 ready for your review + principal approval.
 - /pr-prep invoked with full QG (4 parallel reviewer agents + own review)
 - 16 findings consolidated; 7 fixed in-PR (including one reviewer-design MAJOR — cross-ref gap in docs), 9 deferred with written triage
 - 85/85 BATS pass across the touched tooling + skill validation
-- QGR receipt: claude/receipts/the-agency-jordan-devex-devex-safe-tools-bundle-qgr-598cba2-20260415-1112.md
+- QGR receipt: agency/receipts/the-agency-jordan-devex-devex-safe-tools-bundle-qgr-598cba2-20260415-1112.md
 - Five-hash chain complete (A=80d395a → B=ca3315e → C=5ac5846 → D=C auto-approved → E=598cba2)
 - Manifest bumped 41.10 → 41.11
 - Merged origin/main (v41.10 captain hotfix) with conflicts in _agency-update and manifest.json resolved cleanly

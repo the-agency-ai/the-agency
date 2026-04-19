@@ -13,7 +13,7 @@ Both are embedded services within `agency-service` at port 3141.
 
 ### Per-Service Database Isolation
 
-Each embedded service has its own SQLite database file in `claude/data/`:
+Each embedded service has its own SQLite database file in `agency/data/`:
 
 | Service | DB File | Tables |
 |---------|---------|--------|
@@ -64,28 +64,28 @@ POST /api/message/delete/:id        — Delete message
 GET  /api/message/stats             — Statistics
 ```
 
-### CLI Tool: `./claude/tools/msg`
+### CLI Tool: `./agency/tools/msg`
 
 ```bash
-./claude/tools/msg send research "Review needed" "Please check the PR"
-./claude/tools/msg send captain "Re: Review" "Looks good" --ref <msg-id>
-./claude/tools/msg broadcast "Convention change" "Use explicit operations"
-./claude/tools/msg read                    # Unread messages
-./claude/tools/msg read --all              # All messages
-./claude/tools/msg thread <msg-id>         # Message chain
-./claude/tools/msg ack <msg-id>            # Mark as read
+./agency/tools/msg send research "Review needed" "Please check the PR"
+./agency/tools/msg send captain "Re: Review" "Looks good" --ref <msg-id>
+./agency/tools/msg broadcast "Convention change" "Use explicit operations"
+./agency/tools/msg read                    # Unread messages
+./agency/tools/msg read --all              # All messages
+./agency/tools/msg thread <msg-id>         # Message chain
+./agency/tools/msg ack <msg-id>            # Mark as read
 ```
 
 ### Migration from Old Systems
 
 | Old System | New Equivalent | Notes |
 |------------|----------------|-------|
-| `./claude/tools/collaborate` | `./claude/tools/msg send <agent> "subject" "body"` | Wrapper delegates to msg |
-| `./claude/tools/collaboration-respond` | `./claude/tools/msg send <agent> "Re: subject" "body" --ref <id>` | Old file format retired |
-| `./claude/tools/news-post` | `./claude/tools/msg broadcast "subject" "body"` | Wrapper delegates to msg |
-| `./claude/tools/news-read` | `./claude/tools/msg read` | Falls back to legacy if service down |
-| `./claude/tools/message-send` | `./claude/tools/msg send` | Wrapper delegates to msg |
-| `./claude/tools/message-read` | `./claude/tools/msg read` | Wrapper delegates to msg |
+| `./agency/tools/collaborate` | `./agency/tools/msg send <agent> "subject" "body"` | Wrapper delegates to msg |
+| `./agency/tools/collaboration-respond` | `./agency/tools/msg send <agent> "Re: subject" "body" --ref <id>` | Old file format retired |
+| `./agency/tools/news-post` | `./agency/tools/msg broadcast "subject" "body"` | Wrapper delegates to msg |
+| `./agency/tools/news-read` | `./agency/tools/msg read` | Falls back to legacy if service down |
+| `./agency/tools/message-send` | `./agency/tools/msg send` | Wrapper delegates to msg |
+| `./agency/tools/message-read` | `./agency/tools/msg read` | Wrapper delegates to msg |
 
 Old tools are preserved as `*.legacy` files. Wrappers maintain backward compatibility.
 
@@ -143,21 +143,21 @@ POST /api/dispatch/instance/release-all/:id  — Release all claims
 GET  /api/dispatch/instance/list             — List instances
 ```
 
-### CLI Tool: `./claude/tools/dispatch`
+### CLI Tool: `./agency/tools/dispatch`
 
 ```bash
-./claude/tools/dispatch enqueue --agent captain "Fix bug" "Investigate the crash"
-./claude/tools/dispatch enqueue --shared "Review PR" "Check PR #42" --priority 10
-./claude/tools/dispatch enqueue --request REQUEST-jordan-0065 --agent captain
-./claude/tools/dispatch claim                    # Claim next item
-./claude/tools/dispatch complete <item-id>       # Mark done
-./claude/tools/dispatch fail <item-id> "reason"  # Mark failed
-./claude/tools/dispatch status                   # Queue depth
-./claude/tools/dispatch list --status pending    # List items
-./claude/tools/dispatch instances                # Active instances
+./agency/tools/dispatch enqueue --agent captain "Fix bug" "Investigate the crash"
+./agency/tools/dispatch enqueue --shared "Review PR" "Check PR #42" --priority 10
+./agency/tools/dispatch enqueue --request REQUEST-jordan-0065 --agent captain
+./agency/tools/dispatch claim                    # Claim next item
+./agency/tools/dispatch complete <item-id>       # Mark done
+./agency/tools/dispatch fail <item-id> "reason"  # Mark failed
+./agency/tools/dispatch status                   # Queue depth
+./agency/tools/dispatch list --status pending    # List items
+./agency/tools/dispatch instances                # Active instances
 ```
 
-Shortcut: `./claude/tools/dispatch-request REQUEST-jordan-0065 [--agent captain]`
+Shortcut: `./agency/tools/dispatch-request REQUEST-jordan-0065 [--agent captain]`
 
 ## Hook Integration
 

@@ -28,11 +28,11 @@ Also update `/post-merge` skill (Step 7) to document the new flag for the canoni
 
 ## File-level changes
 
-### 1. `claude/tools/git-captain` — `cmd_branch_delete` (lines 296–319)
+### 1. `agency/tools/git-captain` — `cmd_branch_delete` (lines 296–319)
 
 Parse `--force` / `-f` flag. With flag: `git branch -D`. Without: existing `git branch -d` behavior. Same protections (cannot delete main, cannot delete current branch) apply in both modes.
 
-### 2. `claude/tools/git-captain` — usage block (line 62)
+### 2. `agency/tools/git-captain` — usage block (line 62)
 
 Update to: `branch-delete <name> [--force]   Safe-delete a branch (-d). With --force, force-delete (-D) — for post-merge cleanup of branches with unreachable commits.`
 
@@ -49,7 +49,7 @@ Add cases:
 
 Update the "Clean up PR branch" step to use `git-captain branch-delete --force {branch}` since that's the canonical scenario the flag was added for.
 
-### 5. `claude/config/manifest.json`
+### 5. `agency/config/manifest.json`
 
 Bump `agency_version: 41.20 → 41.21`.
 
@@ -61,16 +61,16 @@ Bump `agency_version: 41.20 → 41.21`.
 
 ## Critical files
 
-- `/Users/jdm/code/the-agency/claude/tools/git-captain` (lines 62, 296–319)
+- `/Users/jdm/code/the-agency/agency/tools/git-captain` (lines 62, 296–319)
 - `/Users/jdm/code/the-agency/tests/tools/git-captain.bats` (extend branch-delete section ~line 310)
 - `/Users/jdm/code/the-agency/.claude/skills/post-merge/SKILL.md` (Step 7)
-- `/Users/jdm/code/the-agency/claude/config/manifest.json`
+- `/Users/jdm/code/the-agency/agency/config/manifest.json`
 
 ## Verification
 
 1. `bats tests/tools/git-captain.bats` — all green (existing 6 + new 5)
-2. Manual: `./claude/tools/git-captain branch-delete jordandm-d41-r19` (current orphan branch on main checkout) → fails as expected
-3. Manual: `./claude/tools/git-captain branch-delete jordandm-d41-r19 --force` → succeeds, branch deleted
+2. Manual: `./agency/tools/git-captain branch-delete jordandm-d41-r19` (current orphan branch on main checkout) → fails as expected
+3. Manual: `./agency/tools/git-captain branch-delete jordandm-d41-r19 --force` → succeeds, branch deleted
 4. RGR signed via receipt-sign, pr-create verifies hash
 
 ## Flow

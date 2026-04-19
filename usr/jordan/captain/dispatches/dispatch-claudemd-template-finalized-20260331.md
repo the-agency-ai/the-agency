@@ -13,8 +13,8 @@
 The CLAUDE-THEAGENCY.md template and README-THEAGENCY.md have been through a full development cycle: section-by-section 1B1 review (14 sections), three rounds of multi-agent design review, revision cycles, and path restructuring to adopt the `claude/` single namespace from the agency-init dispatch. Both files are finalized and ready for incorporation into the-agency framework.
 
 **Source files (in this repo):**
-- `claude/CLAUDE-THEAGENCY.md` (286 lines) — the finalized template, ready to install
-- `claude/README-THEAGENCY.md` (655 lines) — already updated in working copy
+- `agency/CLAUDE-THEAGENCY.md` (286 lines) — the finalized template, ready to install
+- `agency/README-THEAGENCY.md` (655 lines) — already updated in working copy
 - `claude/docs/QUALITY-GATE-MONOFOLK.md` — updated QG reference with QGR receipt convention
 - `usr/jordan/captain/dispatches/monofolk-skills/` — all skills, agent defs, tests:
   - `quality-gate.md` — `/quality-gate` skill with Step 10 (QGR file writing)
@@ -38,8 +38,8 @@ The CLAUDE-THEAGENCY.md template and README-THEAGENCY.md have been through a ful
   - `TOOLS-DOCUMENTATION.md` — **full documentation of all tools, how they work, and how skills use them**
 
 **Target locations (in the-agency, after incorporation):**
-- `claude/CLAUDE-THEAGENCY.md` — framework tier (always overwritten by agency-update)
-- `claude/README-THEAGENCY.md` — framework tier
+- `agency/CLAUDE-THEAGENCY.md` — framework tier (always overwritten by agency-update)
+- `agency/README-THEAGENCY.md` — framework tier
 
 ---
 
@@ -58,7 +58,7 @@ Previously, the Agency methodology lived in `usr/{principal}/claude/CLAUDE.md` �
 | 3 | Quality Gate Protocol | 25 | `/quality-gate` skill, `claude/docs/QUALITY-GATE.md` |
 | 4 | Development Methodology | 40 | `claude/docs/DEVELOPMENT-METHODOLOGY.md` |
 | 5 | Worktrees & Master | 22 | Captain agent definition |
-| 6 | Session Handoff | 10 | `claude/tools/handoff`, hooks |
+| 6 | Session Handoff | 10 | `agency/tools/handoff`, hooks |
 | 7 | Discussion Protocol | 10 | `/discuss` skill |
 | 8 | Feedback & Bug Reports | 4 | `claude/docs/FEEDBACK-FORMAT.md` |
 | 9 | Testing & Quality | 19 | README (philosophy) |
@@ -90,7 +90,7 @@ Project CLAUDE.md files import the Agency template:
 ## Project Overview
 ...project-specific content...
 
-@claude/CLAUDE-THEAGENCY.md
+@agency/CLAUDE-THEAGENCY.md
 ```
 
 Claude Code expands `@path/to/file.md` at session launch, recursively up to 5 levels. Two physical files, one logical CLAUDE.md. The project team maintains their CLAUDE.md; the Agency framework maintains CLAUDE-THEAGENCY.md.
@@ -101,21 +101,21 @@ Claude Code expands `@path/to/file.md` at session launch, recursively up to 5 le
 
 ### 1. Install CLAUDE-THEAGENCY.md as framework file
 
-Copy `proposed-CLAUDE-THEAGENCY.md` from monofolk to `claude/CLAUDE-THEAGENCY.md` in the-agency. Framework tier — always overwritten by `agency-update`.
+Copy `proposed-CLAUDE-THEAGENCY.md` from monofolk to `agency/CLAUDE-THEAGENCY.md` in the-agency. Framework tier — always overwritten by `agency-update`.
 
 ### 2. Update `agency-init` to install and wire the template
 
-`claude/tools/agency-init` should:
-- Copy `claude/CLAUDE-THEAGENCY.md` to the target repo
+`agency/tools/agency-init` should:
+- Copy `agency/CLAUDE-THEAGENCY.md` to the target repo
 - Add `@claude/CLAUDE-THEAGENCY.md` to the scaffolded project `CLAUDE.md`
-- Copy `claude/README-THEAGENCY.md` and `claude/README-GETTINGSTARTED.md`
+- Copy `agency/README-THEAGENCY.md` and `agency/README-GETTINGSTARTED.md`
 
 ### 3. Update `agency-update` tier assignments
 
 Ensure the manifest assigns:
-- `claude/CLAUDE-THEAGENCY.md` → framework tier (always overwrite)
-- `claude/README-THEAGENCY.md` → framework tier
-- `claude/README-GETTINGSTARTED.md` → framework tier
+- `agency/CLAUDE-THEAGENCY.md` → framework tier (always overwrite)
+- `agency/README-THEAGENCY.md` → framework tier
+- `agency/README-GETTINGSTARTED.md` → framework tier
 
 ### 4. Update `ref-injector.sh` paths
 
@@ -131,7 +131,7 @@ The ref-injector hook must be updated to look in `claude/docs/` instead of `refs
 
 The `usr/` → `claude/usr/` migration affects any tool that resolves principal/project paths:
 - `claude/tools/handoff` — resolves `usr/{principal}/{project}/handoff.md`
-- `claude/tools/plan-capture` — may reference plan file locations
+- `agency/tools/plan-capture` — may reference plan file locations
 - Session hooks — session-handoff.sh, ref-injector.sh
 - Any tool using `_path-resolve`
 
@@ -225,7 +225,7 @@ The following monofolk tooling was built or updated during this session and need
 
 ### Port instructions
 These need to be adapted to the-agency's conventions:
-- TypeScript tools (`stage-hash.ts`) → `claude/tools/stage-hash` (bash wrapper or native port)
+- TypeScript tools (`stage-hash.ts`) → `agency/tools/stage-hash` (bash wrapper or native port)
 - Monofolk-specific paths in skills → parameterized with `{{principal}}`
 - Skills in `usr/jordan/claude/commands/` → `claude/tools/` or `.claude/skills/` per agency-init design
 - Tests → `tests/tools/` or `claude/src/tests/` per the `--dev` convention

@@ -16,7 +16,7 @@ in_reply_to: null
 mdpal-app reports git-safe-commit destroys the index when run from a worktree (#155). Reproduces reliably. This blocks /iteration-complete and /phase-complete in **every** worktree — including yours, since you're about to hit iteration boundaries on Item 1.
 
 ## Symptom
-From a worktree, running `./claude/tools/git-safe-commit "msg"`:
+From a worktree, running `./agency/tools/git-safe-commit "msg"`:
 - Prints `commit [run: <uuid>]`, exits 1
 - HEAD does not advance
 - `git status` shows ~1280 files as deleted (entire HEAD tree)

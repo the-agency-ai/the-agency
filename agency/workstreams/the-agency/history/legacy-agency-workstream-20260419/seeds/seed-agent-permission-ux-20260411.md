@@ -79,7 +79,7 @@ We have invested significant engineering specifically to route around the permis
 - Reading handoff files at SessionStart
 - Polling the dispatch queue every few seconds
 - Reading framework config from `~/.agency/{repo}/`
-- Executing framework tools (`./claude/tools/*`)
+- Executing framework tools (`./agency/tools/*`)
 - Writing dispatches, flags, handoffs, and telemetry
 
 **Every one of these is a read or a framework-tool invocation that should be pre-approved.** None of them are unfamiliar. None of them need human-in-the-loop judgment. And yet every one of them has tripped a permission prompt at some point during development — prompts that the autonomous agent cannot see, acknowledge, or act on.
@@ -188,7 +188,7 @@ It works poorly for **autonomous agents operating inside a framework**. I'm buil
 
 What happens in practice:
 
-- An autonomous worktree agent hits a permission prompt on `ls ~/.agency/`, `git show HEAD -- claude/config/agency.yaml`, or `sqlite3 ~/.agency/iscp.db "SELECT ..."`.
+- An autonomous worktree agent hits a permission prompt on `ls ~/.agency/`, `git show HEAD -- agency/config/agency.yaml`, or `sqlite3 ~/.agency/iscp.db "SELECT ..."`.
 - The agent is running unattended. There is no human at the terminal to approve the prompt.
 - The agent blocks, or the prompt goes to a buffer the agent can't read, and the agent appears to hang for no reason with no visible signal.
 - By the time the principal notices, minutes or hours have passed.

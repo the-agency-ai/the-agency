@@ -33,11 +33,11 @@ plan: monofolk-dispatch-incorporation
 - `.claude/skills/crawl-sites/SKILL.md` — provider-dispatch to `crawl-{provider}` tools
 
 ### Tools Created (2)
-- `claude/tools/skill-verify` — validates all skills have SKILL.md with allowed-tools frontmatter
-- `claude/tools/web-fetch` — curl-based fetch with JS-heavy site detection and Playwright fallback guidance
+- `agency/tools/skill-verify` — validates all skills have SKILL.md with allowed-tools frontmatter
+- `agency/tools/web-fetch` — curl-based fetch with JS-heavy site detection and Playwright fallback guidance
 
 ### Config Updated
-- `claude/config/agency.yaml` — added `preview`, `deploy`, `crawl` provider sections
+- `agency/config/agency.yaml` — added `preview`, `deploy`, `crawl` provider sections
 - `.claude/settings.json` — added permissions for new tools (crawl-*, deploy-*, preview-*, settings-merge, skill-verify, web-fetch)
 - `.claude/skills/quality-gate/SKILL.md` — added skill-verify precondition check (Step 0.2)
 

@@ -30,14 +30,14 @@ If empty, defaults to `check`.
 
 ### check (default)
 
-Run `./claude/tools/collaboration check` — pulls latest from all configured repos and reports unread dispatches. Silent when empty. This runs automatically on SessionStart via hook.
+Run `./agency/tools/collaboration check` — pulls latest from all configured repos and reports unread dispatches. Silent when empty. This runs automatically on SessionStart via hook.
 
 ### read
 
 Read a specific dispatch and mark it as read:
 
 ```
-./claude/tools/collaboration read <repo> <filename>
+./agency/tools/collaboration read <repo> <filename>
 ```
 
 Summarize the content for the principal.
@@ -47,8 +47,8 @@ Summarize the content for the principal.
 Mark dispatches as resolved after processing:
 
 ```
-./claude/tools/collaboration resolve <repo> <filename>
-./claude/tools/collaboration resolve <repo> --all-resolved
+./agency/tools/collaboration resolve <repo> <filename>
+./agency/tools/collaboration resolve <repo> --all-resolved
 ```
 
 `--all-resolved` marks all dispatches with `status: read` as resolved. Does NOT touch unread dispatches.
@@ -58,7 +58,7 @@ Mark dispatches as resolved after processing:
 Write a reply dispatch to the outbound directory:
 
 ```
-./claude/tools/collaboration reply <repo> --to <original-file> --subject "Re: subject" --body "response content"
+./agency/tools/collaboration reply <repo> --to <original-file> --subject "Re: subject" --body "response content"
 ```
 
 This also marks the original dispatch as resolved. The reply is written to the outbound directory but NOT pushed — run `push` separately.
@@ -68,8 +68,8 @@ This also marks the original dispatch as resolved. The reply is written to the o
 Commit and push all pending changes (status updates + reply dispatches):
 
 ```
-./claude/tools/collaboration push <repo>
-./claude/tools/collaboration push <repo> --message "custom commit message"
+./agency/tools/collaboration push <repo>
+./agency/tools/collaboration push <repo> --message "custom commit message"
 ```
 
 ## Workflow
@@ -82,7 +82,7 @@ Commit and push all pending changes (status updates + reply dispatches):
 
 ## Configuration
 
-Collaboration repos are configured in `claude/config/agency.yaml`:
+Collaboration repos are configured in `agency/config/agency.yaml`:
 
 ```yaml
 collaboration:

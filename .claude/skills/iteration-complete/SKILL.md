@@ -29,7 +29,7 @@ Run this after completing each iteration. Invokes `/quality-gate` for the review
 
 The QG's Hash A/Hash E diff is computed against the **prior iteration commit** (or the phase-start commit if this is the first iteration in the phase). Determine it as follows, in order:
 
-1. **Read the plan file** in `docs/plans/` (or `claude/workstreams/*/`) for an iteration history / status table. The most recent prior iteration's commit SHA is the base. Many plans record this under "Quality Gate Reports" or a status table.
+1. **Read the plan file** in `docs/plans/` (or `agency/workstreams/*/`) for an iteration history / status table. The most recent prior iteration's commit SHA is the base. Many plans record this under "Quality Gate Reports" or a status table.
 2. **Grep git log** for the prior iteration's commit: `git log --oneline --grep="Phase <P>\\." | head` — e.g., for iteration 1.3, the base is the SHA of the commit titled "Phase 1.2: ...". If this is iteration X.1 (first iteration in the phase), use the phase-start tag / commit (e.g., `v{phase}.0` or the commit titled "Phase <P-1>: ..." if no tag).
 3. **Fallback:** `HEAD~1` — use only if steps 1 and 2 yield nothing, and note this in the handoff update as a fallback used.
 
@@ -47,7 +47,7 @@ For example: `iteration-complete 1.2: parser edge cases --base abc1234`.
 
 The leading `iteration-complete <phase-iter>` tells `/quality-gate` the boundary type (used in the receipt filename). The `--base <ref>` tells `/quality-gate` what baseline to use for Hash A / Hash E via `diff-hash --base`.
 
-This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt via `receipt-sign` (five-hash chain, written to `claude/workstreams/{W}/qgr/`). Iteration-complete is auto-approved — Hash D = Hash C.
+This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt via `receipt-sign` (five-hash chain, written to `agency/workstreams/{W}/qgr/`). Iteration-complete is auto-approved — Hash D = Hash C.
 
 Wait for the QGR to be presented and the receipt signed before proceeding.
 

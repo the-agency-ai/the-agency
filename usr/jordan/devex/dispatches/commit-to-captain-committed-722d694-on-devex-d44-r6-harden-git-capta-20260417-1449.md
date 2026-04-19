@@ -132,8 +132,8 @@ Tests: 58/58 git-captain.bats (+7 new). No regressions.
 
 ### Files Changed
 ```
-claude/REFERENCE-SAFE-TOOLS.md
-claude/tools/git-captain
+agency/REFERENCE-SAFE-TOOLS.md
+agency/tools/git-captain
 tests/tools/git-captain.bats
 usr/jordan/devex/dispatches/commit-to-captain-committed-d650f09-on-devex-d44-r5-fix-skill-verify-20260417-1443.md
 ```

@@ -172,7 +172,7 @@ if [ -n "$vim_mode" ]; then
 fi
 
 # --- Agency framework version ---
-# Reads agency_version from claude/config/manifest.json via agency-version tool.
+# Reads agency_version from agency/config/manifest.json via agency-version tool.
 # Silent when missing (tool prints nothing in --statusline mode).
 av_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 agency_ver=""

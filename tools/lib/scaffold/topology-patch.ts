@@ -1,5 +1,5 @@
 /**
- * topology-patch — idempotent adder for claude/config/topology.yaml.
+ * topology-patch — idempotent adder for agency/config/topology.yaml.
  *
  * Adds a service entry (compute|frontend|db|...) to the topology manifest.
  * Preserves file formatting as much as possible. Safe to re-run:

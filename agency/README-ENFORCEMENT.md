@@ -10,10 +10,10 @@ Enforcement in TheAgency operates at **five layers**, from soft to hard:
 
 | Layer | Mechanism | What | Examples |
 |-------|-----------|------|----------|
-| 1. Documentation | Markdown in `claude/REFERENCE-*.md`, `CLAUDE-THEAGENCY.md` | Human and agent readable conventions | Methodology, address format |
+| 1. Documentation | Markdown in `agency/REFERENCE-*.md`, `CLAUDE-THEAGENCY.md` | Human and agent readable conventions | Methodology, address format |
 | 2. Skills | `.claude/skills/{name}/SKILL.md` | Discoverable invocations of conventions | `/handoff`, `/iteration-complete` |
-| 3. Tools | `claude/tools/{name}` | Mechanical capabilities with logging and telemetry | `dispatch`, `git-safe-commit`, `stage-hash` |
-| 4. Hookify rules | `claude/hookify/hookify.{name}.md` | PreToolUse hooks that block or warn on patterns | `block-git-safe-commit`, `warn-compound-bash` |
+| 3. Tools | `agency/tools/{name}` | Mechanical capabilities with logging and telemetry | `dispatch`, `git-safe-commit`, `stage-hash` |
+| 4. Hookify rules | `agency/hookify/hookify.{name}.md` | PreToolUse hooks that block or warn on patterns | `block-git-safe-commit`, `warn-compound-bash` |
 | 5. Lifecycle hooks | `.claude/settings.json` hooks | Claude Code lifecycle events that fire scripts | `iscp-check`, `quality-check`, `ref-injector` |
 
 Each layer addresses the bypass discovered in the previous layer. Quality gates run on top of all of them.
@@ -24,9 +24,9 @@ The Triangle is the **per-capability structural pattern**. Every Agency capabili
 
 | Layer | What | Why |
 |-------|------|-----|
-| **Tool** (`claude/tools/{name}`) | Does the work. Pre-approved in `settings.json`. | Permissions. No prompts for approved operations. |
+| **Tool** (`agency/tools/{name}`) | Does the work. Pre-approved in `settings.json`. | Permissions. No prompts for approved operations. |
 | **Skill** (`.claude/skills/{name}/SKILL.md`) | Tells the agent when and how to use the tool. | Discovery. Agents find it via `/` autocomplete. |
-| **Hookify rule** (`claude/hookify/`) | Blocks the raw alternative. Points to the skill. | Compliance. Can't bypass. |
+| **Hookify rule** (`agency/hookify/`) | Blocks the raw alternative. Points to the skill. | Compliance. Can't bypass. |
 
 When building a new capability: build the tool, wrap it in a skill, block the raw alternative with a hookify rule. All three. Not one, not two. The tool handles permissions, the skill handles discovery, the hookify rule handles compliance.
 
@@ -56,7 +56,7 @@ The Ladder is the **per-capability adoption progression**. Different capabilitie
 
 Claude Code fires hooks at well-defined lifecycle events. TheAgency uses these to inject context, check messages, validate state, and run telemetry. Hooks live in `claude/hooks/` and are wired in `.claude/settings.json`.
 
-**Shipped template** (`claude/config/settings-template.json`) — what new adopters get on `agency init`:
+**Shipped template** (`agency/config/settings-template.json`) — what new adopters get on `agency init`:
 
 | Event | What's Wired |
 |-------|--------------|
@@ -67,7 +67,7 @@ Claude Code fires hooks at well-defined lifecycle events. TheAgency uses these t
 
 The shipped template is intentionally minimal. Projects extend it for their own concerns. The current the-agency repo's local `.claude/settings.json` adds: `session-start.sh`, `branch-freshness.sh`, `session-handoff.sh`, `ghostty-status.sh`, `quality-check.sh`, `stop-check.py`, `tool-telemetry.sh`, `plan-capture.sh`/`.py`, `session-backup`, `session-end.sh`. These are local additions, not shipped.
 
-**Available hooks in `claude/hooks/`** (any project can wire these):
+**Available hooks in `agency/hooks/`** (any project can wire these):
 
 | Hook | Purpose |
 |------|---------|
@@ -83,9 +83,9 @@ The shipped template is intentionally minimal. Projects extend it for their own 
 
 | Tool | Purpose |
 |------|---------|
-| `claude/tools/iscp-check` | "You got mail" notification — fires on SessionStart, UserPromptSubmit, Stop |
-| `claude/tools/collaboration check` | Pull cross-repo dispatches and surface unread items |
-| `claude/tools/worktree-cwd-check` | Verify the agent's CWD matches their worktree at session start (Layer 1 of cd-stays-in-worktree) |
+| `agency/tools/iscp-check` | "You got mail" notification — fires on SessionStart, UserPromptSubmit, Stop |
+| `agency/tools/collaboration check` | Pull cross-repo dispatches and surface unread items |
+| `agency/tools/worktree-cwd-check` | Verify the agent's CWD matches their worktree at session start (Layer 1 of cd-stays-in-worktree) |
 
 **Git hook templates:**
 
@@ -120,18 +120,18 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 
 | Rule | Type | What It Does | Use Instead |
 |------|------|-------------|-------------|
-| `block-git-safe-commit` | Block | Blocks raw `git commit` | `/git-safe-commit` skill or `./claude/tools/git-safe-commit` |
+| `block-git-safe-commit` | Block | Blocks raw `git commit` | `/git-safe-commit` skill or `./agency/tools/git-safe-commit` |
 | `block-raw-push` | Block | Blocks ALL raw `git push` | Use `/sync` (the only authorized push command) |
-| `block-raw-cp` | Block | Blocks raw `cp` commands | `./claude/tools/cp-safe` |
+| `block-raw-cp` | Block | Blocks raw `cp` commands | `./agency/tools/cp-safe` |
 | `block-raw-pr-create` | Block | Blocks raw `gh pr create` | `/release` skill |
-| `block-cd-to-main` | Block | Blocks `cd /Users/...` and absolute paths to tools | `./claude/tools/{name}` (relative paths from worktree) |
+| `block-cd-to-main` | Block | Blocks `cd /Users/...` and absolute paths to tools | `./agency/tools/{name}` (relative paths from worktree) |
 | `block-cd-outside-worktree` | Block | Blocks any `cd` that takes the agent outside their worktree | Stay in worktree, use absolute paths via Read/Write tools |
 | `block-git-add-and-commit` | Block | Blocks the compound `git add ... && git commit` form | `/git-safe-commit` skill (separate Bash calls if you must) |
-| `block-raw-handoff` | Block | Blocks raw `claude/tools/handoff` invocations | `/handoff` skill |
+| `block-raw-handoff` | Block | Blocks raw `agency/tools/handoff` invocations | `/handoff` skill |
 | `block-no-verify` | Block | Blocks `git commit --no-verify` and similar bypasses | Fix the underlying issue |
 | `block-raw-git-config-user-in-tests` | Block | Blocks bare `git config user.*` in BATS tests | Use `test_isolation_setup` from `test_helper.bash` |
 | `require-qgr` | Block *(planned)* | Will block commits without a matching QGR receipt — not yet wired | Run `/iteration-complete` or `/phase-complete` |
-| `require-plan-update` | Warn | Warns when committing without updating the plan file | Update `claude/workstreams/{W}/plan-{W}-{slug}-*.md` |
+| `require-plan-update` | Warn | Warns when committing without updating the plan file | Update `agency/workstreams/{W}/plan-{W}-{slug}-*.md` |
 | `directive-authority` | Block | Only captain can create `--type directive` dispatches | Use a different dispatch type |
 | `review-authority` | Block | Only captain can create `--type review` dispatches | Use a different dispatch type |
 
@@ -141,20 +141,20 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 
 | Rule | What It Blocks | Use Instead |
 |------|---------------|-------------|
-| `block-cd-to-main` | `cd /Users/.../the-agency &&` and absolute paths to `claude/tools/` | `./claude/tools/{name}` |
+| `block-cd-to-main` | `cd /Users/.../the-agency &&` and absolute paths to `agency/tools/` | `./agency/tools/{name}` |
 | `block-cd-outside-worktree` | Any `cd` that resolves to a path outside the agent's worktree | Stay in worktree; use absolute paths to Read/Write outside |
 | `block-git-add-and-commit` | The compound `git add ... && git commit ...` pattern | `/git-safe-commit` skill (or separate Bash calls if you must) |
 | `block-git-safe-commit` | Raw `git commit` | `/git-safe-commit` skill |
 | `block-no-verify` | `--no-verify`, `--no-gpg-sign`, etc. | Fix the underlying issue |
-| `block-raw-cp` | Raw `cp` commands | `./claude/tools/cp-safe` |
+| `block-raw-cp` | Raw `cp` commands | `./agency/tools/cp-safe` |
 | `block-raw-git-config-user-in-tests` | Bare `git config user.name`/`user.email` in BATS test files | Use `test_isolation_setup` from `test_helper.bash` |
 | `block-raw-git-merge-master` | Raw `git merge master` | `/sync-all` skill |
-| `block-raw-handoff` | Raw `claude/tools/handoff` | `/handoff` skill |
+| `block-raw-handoff` | Raw `agency/tools/handoff` | `/handoff` skill |
 | `block-raw-pr-create` | Raw `gh pr create` | `/release` skill |
 | `block-raw-push` | ALL `git push` commands | `/sync` skill (the only authorized push command) |
 | `block-system-install` | `brew install`, `apt install`, etc. | Ask principal first |
 | `block-testuser-paths` | Writes to `usr/testuser/` | Use `usr/{actual-principal}/` |
-| `block-raw-gh-pr-merge` | Raw `gh pr merge` | `./claude/tools/pr-merge` via `/pr-merge` skill |
+| `block-raw-gh-pr-merge` | Raw `gh pr merge` | `./agency/tools/pr-merge` via `/pr-merge` skill |
 | `block-raw-gh-release` | Raw `gh release create` | `/post-merge` skill (creates release after PR merge) |
 | `block-raw-tools` | Raw invocation of tools that have skill wrappers | Use the corresponding `/` skill |
 
@@ -167,7 +167,7 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 | `warn-enter-worktree` | `cd .claude/worktrees/{name}` from main | Launch a separate session |
 | `warn-env-files` | Writing or staging `.env` files | Use the secret tool |
 | `warn-external-git-actions` | Git operations against unrelated repos | Use the collaboration tool |
-| `warn-external-paths` | Bash commands touching collaboration repos directly | Use `./claude/tools/collaboration` |
+| `warn-external-paths` | Bash commands touching collaboration repos directly | Use `./agency/tools/collaboration` |
 | `warn-multi-item-response` | Long responses with multiple unrelated items | Use 1B1 protocol via `/discuss` |
 | `warn-npm` | Direct `npm` usage | Verify it's the right package manager |
 | `warn-npx` | Direct `npx` usage | Verify it's the right invocation |
@@ -199,7 +199,7 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 
 ## Quality Gates
 
-Quality gates are tiered checkpoints that run at every commit boundary. Each tier has a different scope and time budget. See `claude/REFERENCE-QUALITY-GATE.md` for the full protocol.
+Quality gates are tiered checkpoints that run at every commit boundary. Each tier has a different scope and time budget. See `agency/REFERENCE-QUALITY-GATE.md` for the full protocol.
 
 | Tier | Boundary | Checks | Time budget | Skill |
 |------|----------|--------|-------------|-------|
@@ -208,7 +208,7 @@ Quality gates are tiered checkpoints that run at every commit boundary. Each tie
 | **T3** | Phase complete | Full test suite + MAR on phase artifacts | <5min | `/phase-complete` (deep QG) |
 | **T4** | Pre-PR | Full diff QG vs origin/main | <5min | `/pr-prep` |
 
-Each gate produces a **QGR (Quality Gate Report)** receipt at `claude/workstreams/{ws}/qgr/{org}-{principal}-{agent}-{ws}-{proj}-qgr-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md`. The receipt is signed via `receipt-sign` with a five-hash chain of trust. `pr-create` calls `receipt-verify` and blocks if no valid receipt matches the current diff.
+Each gate produces a **QGR (Quality Gate Report)** receipt at `agency/workstreams/{ws}/qgr/{org}-{principal}-{agent}-{ws}-{proj}-qgr-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md`. The receipt is signed via `receipt-sign` with a five-hash chain of trust. `pr-create` calls `receipt-verify` and blocks if no valid receipt matches the current diff.
 
 ## Permission Model
 
@@ -239,15 +239,15 @@ Narrow permission patterns (the old approach) created friction — every new com
 
 Every new capability needs three parts:
 
-1. **Tool** — `claude/tools/{name}` does the work
+1. **Tool** — `agency/tools/{name}` does the work
 2. **Skill** — `.claude/skills/{name}/SKILL.md` tells the agent when and how
-3. **Hookify rule** — `claude/hookify/hookify.raw-{name}-block.md` blocks the bypass (noun-verb naming: noun first, action last)
+3. **Hookify rule** — `agency/hookify/hookify.raw-{name}-block.md` blocks the bypass (noun-verb naming: noun first, action last)
 
 Build all three. The tool handles permissions, the skill handles discovery, the hookify rule handles compliance.
 
 ## Adding a New Hookify Rule
 
-1. Create `claude/hookify/hookify.{name}.md` with frontmatter:
+1. Create `agency/hookify/hookify.{name}.md` with frontmatter:
    ```yaml
    ---
    trigger: PreToolUse

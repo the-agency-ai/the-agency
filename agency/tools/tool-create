@@ -2,7 +2,7 @@
 # tool-new - Create a new tool from template
 #
 # Usage:
-#   ./claude/tools/tool-create <name> "<description>"
+#   ./agency/tools/tool-create <name> "<description>"
 #
 # Creates a new tool that:
 # - Uses context-efficient logging (1-line output)
@@ -28,10 +28,10 @@ VERBOSE=false
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TEMPLATE_FILE="$PROJECT_ROOT/claude/templates/TOOL.sh"
-PROVIDER_TEMPLATE_FILE="$PROJECT_ROOT/claude/templates/PROVIDER.sh"
+TEMPLATE_FILE="$PROJECT_ROOT/agency/templates/TOOL.sh"
+PROVIDER_TEMPLATE_FILE="$PROJECT_ROOT/agency/templates/PROVIDER.sh"
 TOOLS_DIR="$PROJECT_ROOT/claude/tools"
-BUILD_FILE="$PROJECT_ROOT/claude/data/tool-build-number"
+BUILD_FILE="$PROJECT_ROOT/agency/data/tool-build-number"
 
 # Provider pattern naming conventions (section -> tool prefix)
 # Usage: tool-new --provider=secrets my-backend "My secrets backend"
@@ -120,18 +120,18 @@ main() {
         echo "tool-new - Create a new tool from template"
         echo ""
         echo "Usage:"
-        echo "  ./claude/tools/tool-create <name> \"<description>\""
-        echo "  ./claude/tools/tool-create --provider=<pattern> <name> \"<description>\""
+        echo "  ./agency/tools/tool-create <name> \"<description>\""
+        echo "  ./agency/tools/tool-create --provider=<pattern> <name> \"<description>\""
         echo ""
         echo "Options:"
         echo "  --provider=<pattern>  Create a provider tool (secrets, terminal, platform, design)"
         echo "  --verbose             Show detailed output"
         echo ""
         echo "Examples:"
-        echo "  ./claude/tools/tool-create sync-data \"Sync data between environments\""
-        echo "  ./claude/tools/tool-create --python my-tool \"My Python tool\""
+        echo "  ./agency/tools/tool-create sync-data \"Sync data between environments\""
+        echo "  ./agency/tools/tool-create --python my-tool \"My Python tool\""
         echo "    → creates tools/my-tool from TOOL.py template"
-        echo "  ./claude/tools/tool-create --provider=secrets aws \"AWS Secrets Manager provider\""
+        echo "  ./agency/tools/tool-create --provider=secrets aws \"AWS Secrets Manager provider\""
         echo "    → creates tools/secret-aws"
         trap - EXIT
         log_end "$RUN_ID" "success" 0 0 "Help displayed" 2>/dev/null || true
@@ -149,7 +149,7 @@ main() {
     # Python mode: use Python template
     local actual_template="$TEMPLATE_FILE"
     if [[ "$PYTHON_MODE" == "true" ]]; then
-        actual_template="$PROJECT_ROOT/claude/templates/TOOL.py"
+        actual_template="$PROJECT_ROOT/agency/templates/TOOL.py"
     fi
 
     # Provider mode: remap tool name and select provider template
@@ -244,8 +244,8 @@ main() {
     verbose_echo ""
     verbose_echo "Next steps:"
     verbose_echo "  1. Edit $tool_file and add your logic"
-    verbose_echo "  2. Test with: ./claude/tools/$tool_name --verbose"
-    verbose_echo "  3. Test logging: ./claude/tools/$tool_name"
+    verbose_echo "  2. Test with: ./agency/tools/$tool_name --verbose"
+    verbose_echo "  3. Test logging: ./agency/tools/$tool_name"
 
     trap - EXIT
     log_end "$RUN_ID" "success" 0 0 "Created $tool_name" 2>/dev/null || true

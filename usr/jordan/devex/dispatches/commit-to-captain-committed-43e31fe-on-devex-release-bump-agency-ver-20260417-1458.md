@@ -27,6 +27,6 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/config/manifest.json
+agency/config/manifest.json
 usr/jordan/devex/dispatches/commit-to-captain-committed-a31f1c2-on-devex-housekeeping-devex-misc-20260417-1457.md
 ```

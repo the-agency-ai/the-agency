@@ -18,7 +18,7 @@
 
 Run each shell command as a **single, simple command** — no `&&`, `||`, `;`, pipes, subshells, or `$(...)` substitutions. These bypass the allowed-tools list, triggering extra permission prompts. Use separate Bash tool calls (parallel when independent, sequential when dependent). Use dedicated tools: Grep not `grep`, Glob not `find`, Read not `cat`, Write not `echo`, `/git-safe-commit` not `git commit`.
 
-**Before writing bash, check if a tool already exists.** Tools in `claude/tools/` have built-in logging, telemetry, and structured output — they're more token-efficient and observable than inline bash. See `claude/README-THEAGENCY.md` for the full alternatives table and the tool ecosystem.
+**Before writing bash, check if a tool already exists.** Tools in `agency/tools/` have built-in logging, telemetry, and structured output — they're more token-efficient and observable than inline bash. See `agency/README-THEAGENCY.md` for the full alternatives table and the tool ecosystem.
 
 ### Provenance Headers
 
@@ -68,13 +68,13 @@ import sys
 if sys.version_info < (3, 13):
     sys.exit(
         f"Python 3.13+ required (got {sys.version_info.major}.{sys.version_info.minor}). "
-        "See claude/config/dependencies.yaml."
+        "See agency/config/dependencies.yaml."
     )
 ```
 
 ### Language Choice for Tools
 
-Both bash and Python 3.13+ are valid languages for tools in `claude/tools/`.
+Both bash and Python 3.13+ are valid languages for tools in `agency/tools/`.
 
 | Use bash when | Use Python when |
 |---------------|-----------------|
@@ -86,7 +86,7 @@ Both bash and Python 3.13+ are valid languages for tools in `claude/tools/`.
 
 **Python constraints:** stdlib only for framework tools in `claude/tools/` (no pip/virtualenv). Python **3.13+** floor per D45-R1 directive (supersedes D44-R6 3.12 floor). Use native `match`, PEP 604 unions, `typing.Self` — no `from __future__ import annotations` backports needed. Services (iscp dispatch-hub, etc.) may use pip deps. **Shebang:** `#!/usr/bin/env python3` + runtime `sys.version_info < (3, 13)` guard — do NOT use `#!/usr/bin/env python3.13` (hard-coded minor names break pyenv/nix/conda installs; see `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md`).
 
-Templates: `claude/templates/TOOL.sh` (bash), `claude/templates/TOOL.py` (Python).
+Templates: `agency/templates/TOOL.sh` (bash), `agency/templates/TOOL.py` (Python).
 
 The **What Problem** forces intent articulation. "What it does" is readable from the code. "What problem it solves" is not — and it's the thing that tells a future reader whether this code is still relevant.
 
@@ -117,7 +117,7 @@ Every script — whether part of a plan or written ad hoc — must follow two ru
 
 | Scope | Location | Lifecycle |
 |-------|----------|-----------|
-| **Framework tool** (plan work, shipped to all projects) | `claude/tools/` | Committed, reviewed, permanent |
+| **Framework tool** (plan work, shipped to all projects) | `agency/tools/` | Committed, reviewed, permanent |
 | **Agent script** (ad hoc, session work, one-off automation) | `usr/{principal}/{agent}/tools/` | Committed, reusable across sessions |
 | **Scratch** (truly ephemeral, intermediate output) | `usr/{principal}/{agent}/tmp/` | Gitignored, disposable |
 
@@ -126,7 +126,7 @@ Every script — whether part of a plan or written ad hoc — must follow two ru
 2. Write it to `usr/{principal}/{agent}/tools/` with a provenance header.
 3. Run it from there.
 4. If you need it again later in the session, it's already there — don't rewrite it.
-5. If it proves broadly useful, propose moving it to `claude/tools/`.
+5. If it proves broadly useful, propose moving it to `agency/tools/`.
 
 **Never write the same script twice.** If you wrote it once, it should be in `tools/` and runnable from there. Rewriting the same script multiple times in a session wastes tokens and context window — and signals that the script should have been persisted on first write.
 

@@ -90,7 +90,7 @@ After Ubuntu boots and you log in:
 2. Run this command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/claude/workstreams/agency/seeds/workshop-bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/workstreams/agency/seeds/workshop-bootstrap.sh | bash
 ```
 
 3. The script will install everything you need:

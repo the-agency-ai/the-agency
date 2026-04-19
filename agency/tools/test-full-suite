@@ -11,11 +11,11 @@
 # and /plan-complete as the T3 mechanism.
 #
 # Usage:
-#   ./claude/tools/test-full-suite              # auto-detect: Docker or fallback
-#   ./claude/tools/test-full-suite --docker     # force Docker (fail if unavailable)
-#   ./claude/tools/test-full-suite --local      # force in-process (skip Docker)
-#   ./claude/tools/test-full-suite --verbose    # show detailed output
-#   ./claude/tools/test-full-suite --version    # show version
+#   ./agency/tools/test-full-suite              # auto-detect: Docker or fallback
+#   ./agency/tools/test-full-suite --docker     # force Docker (fail if unavailable)
+#   ./agency/tools/test-full-suite --local      # force in-process (skip Docker)
+#   ./agency/tools/test-full-suite --verbose    # show detailed output
+#   ./agency/tools/test-full-suite --version    # show version
 #
 # Exit codes:
 #   0 = all tests passed

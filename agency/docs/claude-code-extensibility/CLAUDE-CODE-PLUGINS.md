@@ -188,7 +188,7 @@ skills/
 
 | Current Agency | Plugin Equivalent |
 |----------------|------------------|
-| `claude/agents/` | Plugin agents/ directory |
+| `agency/agents/` | Plugin agents/ directory |
 | `tools/` scripts | Plugin skills/ directory |
 | Agent KNOWLEDGE.md | Plugin skills with context |
 | MCP servers | Plugin mcpServers config |

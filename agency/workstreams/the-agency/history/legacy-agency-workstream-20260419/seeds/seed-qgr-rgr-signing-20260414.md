@@ -29,16 +29,16 @@ A complete signing infrastructure where:
 Computes a deterministic hash of the diff between current branch and origin/main, **excluding receipt files** (qgr-*.md, rgr-*.md). This is the stable "code fingerprint" that doesn't change when receipts are added.
 
 ```
-./claude/tools/diff-hash              # prints 7-char hash
-./claude/tools/diff-hash --json       # prints JSON with hash, file list, exclusions
+./agency/tools/diff-hash              # prints 7-char hash
+./agency/tools/diff-hash --json       # prints JSON with hash, file list, exclusions
 ```
 
 ### 2. `receipt-sign` tool
 Writes a signed QGR or RGR receipt file with the correct hash. Single tool for both gate types.
 
 ```
-./claude/tools/receipt-sign --type qgr --boundary pr-prep --scope "D40-R2 description"
-./claude/tools/receipt-sign --type rgr --boundary pvr --scope "mdpal PVR v2"
+./agency/tools/receipt-sign --type qgr --boundary pr-prep --scope "D40-R2 description"
+./agency/tools/receipt-sign --type rgr --boundary pvr --scope "mdpal PVR v2"
 ```
 
 Does:
@@ -51,8 +51,8 @@ Does:
 Verifies a receipt matches the current code. Used by `pr-create` and potentially by CI.
 
 ```
-./claude/tools/receipt-verify          # finds newest receipt, verifies hash
-./claude/tools/receipt-verify --file <path>   # verifies specific receipt
+./agency/tools/receipt-verify          # finds newest receipt, verifies hash
+./agency/tools/receipt-verify --file <path>   # verifies specific receipt
 ```
 
 Returns exit 0 if valid, exit 1 if stale/missing/mismatched.
@@ -61,7 +61,7 @@ Returns exit 0 if valid, exit 1 if stale/missing/mismatched.
 Calls `receipt-verify` instead of inline hash logic. Much simpler:
 
 ```bash
-./claude/tools/receipt-verify || { echo "BLOCKED: no valid receipt"; exit 1; }
+./agency/tools/receipt-verify || { echo "BLOCKED: no valid receipt"; exit 1; }
 ```
 
 ### 5. RG (Review Gate) for methodology artifacts

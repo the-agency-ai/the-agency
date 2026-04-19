@@ -2,9 +2,9 @@
 # bug-report - Report a bug to the BugBench tracker
 #
 # Usage:
-#   ./claude/tools/bug-report --workstream bench --summary "Build fails on M1"
-#   ./claude/tools/bug-report --workstream bench --summary "..." --description "Details..."
-#   ./claude/tools/bug-report --workstream bench --summary "..." --reporter "housekeeping" --assignee "housekeeping"
+#   ./agency/tools/bug-report --workstream bench --summary "Build fails on M1"
+#   ./agency/tools/bug-report --workstream bench --summary "..." --description "Details..."
+#   ./agency/tools/bug-report --workstream bench --summary "..." --reporter "housekeeping" --assignee "housekeeping"
 #
 # Options:
 #   --workstream, -w    Workstream name (required)
@@ -90,8 +90,8 @@ while [[ $# -gt 0 ]]; do
             echo "bug-report - Report a bug to the BugBench tracker"
             echo ""
             echo "Usage:"
-            echo "  ./claude/tools/bug-report --workstream bench --summary \"Build fails on M1\""
-            echo "  ./claude/tools/bug-report -w bench -s \"...\" -d \"Details...\""
+            echo "  ./agency/tools/bug-report --workstream bench --summary \"Build fails on M1\""
+            echo "  ./agency/tools/bug-report -w bench -s \"...\" -d \"Details...\""
             echo ""
             echo "Options:"
             echo "  --workstream, -w    Workstream name (required)"
@@ -125,8 +125,8 @@ fi
 
 # Auto-detect reporter if not provided
 if [[ -z "$REPORTER_NAME" ]]; then
-    if [[ -x "$PROJECT_ROOT/claude/tools/agency-whoami" ]]; then
-        WHOAMI_OUTPUT=$("$PROJECT_ROOT/claude/tools/agency-whoami" 2>/dev/null || true)
+    if [[ -x "$PROJECT_ROOT/agency/tools/agency-whoami" ]]; then
+        WHOAMI_OUTPUT=$("$PROJECT_ROOT/agency/tools/agency-whoami" 2>/dev/null || true)
         if [[ -n "$WHOAMI_OUTPUT" ]]; then
             # Parse whoami output - look for agent name
             REPORTER_NAME=$(echo "$WHOAMI_OUTPUT" | grep -E "^Agent:" | sed 's/Agent: *//' || true)
@@ -276,10 +276,10 @@ $DESCRIPTION"
 
     NOTIFY_BODY="$NOTIFY_BODY
 
-View in BugBench or run: ./claude/tools/show-bug $BUG_ID"
+View in BugBench or run: ./agency/tools/show-bug $BUG_ID"
 
-    if [[ -x "$PROJECT_ROOT/claude/tools/message-send" ]]; then
-        "$PROJECT_ROOT/claude/tools/message-send" --to "$NOTIFY_TO" --subject "$NOTIFY_SUBJECT" "$NOTIFY_BODY" >/dev/null 2>&1 && \
+    if [[ -x "$PROJECT_ROOT/agency/tools/message-send" ]]; then
+        "$PROJECT_ROOT/agency/tools/message-send" --to "$NOTIFY_TO" --subject "$NOTIFY_SUBJECT" "$NOTIFY_BODY" >/dev/null 2>&1 && \
             echo "  Notified: $NOTIFY_TO" || \
             echo "  Warning: Failed to notify assignee"
     fi

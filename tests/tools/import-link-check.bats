@@ -7,7 +7,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/import-link-check"
+    TOOL="$REPO_ROOT/agency/tools/import-link-check"
 
     TMP_REPO="$(mktemp -d -t ilc.XXXXXX)"
     cd "$TMP_REPO"

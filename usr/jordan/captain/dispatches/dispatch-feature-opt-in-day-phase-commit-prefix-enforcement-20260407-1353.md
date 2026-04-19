@@ -34,9 +34,9 @@ Default is `false` so enabling it is deliberate per project.
 
 ### 2. commit-precheck check
 
-Add a check to `claude/tools/commit-precheck`:
+Add a check to `agency/tools/commit-precheck`:
 
-- Read `commits.require_day_prefix` from `claude/config/agency.yaml`
+- Read `commits.require_day_prefix` from `agency/config/agency.yaml`
 - If true, validate the commit message first line against the regex
 - Allow: `Day N:`, `Phase X.Y:`, `Phase X.MN:`, `Merge ` (any merge commit)
 - Block with actionable message if doesn't match, showing:
@@ -50,7 +50,7 @@ Block message should be pedagogical — this is a *helper*, not a gotcha.
 
 Update the Day-PR Release Pattern section in README-THEAGENCY.md to note the opt-in mechanism. Something like:
 
-> Projects can enable mechanical enforcement of the Day/Phase prefix by setting `commits.require_day_prefix: true` in `claude/config/agency.yaml`. Defaults to off.
+> Projects can enable mechanical enforcement of the Day/Phase prefix by setting `commits.require_day_prefix: true` in `agency/config/agency.yaml`. Defaults to off.
 
 And reference it in README-ENFORCEMENT.md under the commit-precheck section.
 
@@ -75,6 +75,6 @@ Present a plan before implementing. This is your 6th dispatch (#109, #110, #111,
 
 ## Reference
 
-- Day-PR pattern doc: claude/README-THEAGENCY.md — 'The Day-PR Release Pattern' section
-- commit-precheck: claude/tools/commit-precheck
+- Day-PR pattern doc: agency/README-THEAGENCY.md — 'The Day-PR Release Pattern' section
+- commit-precheck: agency/tools/commit-precheck
 - Similar SPEC patterns: preview.provider, deploy.provider, secrets.provider in agency.yaml

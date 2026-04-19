@@ -21,7 +21,7 @@ ISCP v1 is live. Dispatches and flags work. But worktree agents face friction: `
 
 ### 1. `dispatch fetch <id>` — Read-only peek
 
-Add a `cmd_fetch` function to `claude/tools/dispatch`. Same logic as `cmd_read` (resolve payload path, read from main checkout or `git show main:path`) but **do not** update the dispatch status to `read`. This lets agents inspect a dispatch before committing to process it.
+Add a `cmd_fetch` function to `agency/tools/dispatch`. Same logic as `cmd_read` (resolve payload path, read from main checkout or `git show main:path`) but **do not** update the dispatch status to `read`. This lets agents inspect a dispatch before committing to process it.
 
 Usage: `dispatch fetch <id>`
 

@@ -44,8 +44,8 @@ The pipeline needs a redact step: either automated (regex patterns + named-entit
 
 Not every external material is a seed. Three categories:
 
-- **Seed material** — directly inspires PVR/discussion work; goes to `claude/workstreams/{ws}/seeds/`
-- **Reference** — context that informs decisions but isn't a starting point; goes to `claude/workstreams/{ws}/references/` or similar
+- **Seed material** — directly inspires PVR/discussion work; goes to `agency/workstreams/{ws}/seeds/`
+- **Reference** — context that informs decisions but isn't a starting point; goes to `agency/workstreams/{ws}/references/` or similar
 - **Ephemeral** — useful in the moment but not worth committing; goes to `usr/{principal}/{project}/tmp/` (gitignored)
 
 The pipeline asks the principal to classify on capture, with sensible defaults.
@@ -85,7 +85,7 @@ Also: continual learning depends on having historical context. When a future ses
 
 ## Spin-Up Notes
 
-When prioritized, this could become its own workstream (`claude/workstreams/granola/`) or live as an iteration in the agency workstream. Decision point: how big does the design get? If just a tool + convention, it's an iteration. If a full pipeline with API integration, classification UI, and continual learning hooks, it's a workstream.
+When prioritized, this could become its own workstream (`agency/workstreams/granola/`) or live as an iteration in the agency workstream. Decision point: how big does the design get? If just a tool + convention, it's an iteration. If a full pipeline with API integration, classification UI, and continual learning hooks, it's a workstream.
 
 Recommend starting as an iteration (tool + convention + redact step) and graduating to a workstream if the scope grows.
 

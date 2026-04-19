@@ -27,7 +27,7 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/config/manifest.json
-claude/receipts/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-8e9f295-20260415-1049.md
+agency/config/manifest.json
+agency/receipts/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-8e9f295-20260415-1049.md
 usr/jordan/mdpal-app/dispatches/commit-to-captain-committed-0e62ac8-on-mdpal-app-housekeeping-auto-d-20260415-1048.md
 ```

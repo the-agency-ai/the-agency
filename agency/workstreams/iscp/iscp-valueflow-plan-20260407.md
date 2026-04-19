@@ -5,9 +5,9 @@ workstream: iscp
 date: 2026-04-07
 status: draft — MAR reviewed (2 subagents, 19 findings, 15 autonomous, 2 disagree), revised
 author: the-agency/jordan/iscp
-master-plan: claude/workstreams/agency/valueflow-plan-20260407.md
-pvr: claude/workstreams/agency/valueflow-pvr-20260406.md
-ad: claude/workstreams/agency/valueflow-ad-20260406.md
+master-plan: agency/workstreams/agency/valueflow-plan-20260407.md
+pvr: agency/workstreams/agency/valueflow-pvr-20260406.md
+ad: agency/workstreams/agency/valueflow-ad-20260406.md
 mar-review: dispatch #100 (MAR response with 14 findings)
 plan-mar: 2 subagents (feasibility+scope, risk+dependency), 19 findings, 15 autonomous incorporated
 ---
@@ -203,7 +203,7 @@ Based on MAR review findings (dispatch #100):
 
 **Dependencies:** 
 - **Co-ship with 2.2** (dispatch authority). Land together — if 2.2's commit authority check is live but git-safe-commit isn't setting `ISCP_COMMIT_DISPATCH=1` yet, all manual commit dispatches break. No partial deployment.
-- Changes to `claude/tools/git-safe-commit` (shared tool — coordinate with captain for merge)
+- Changes to `agency/tools/git-safe-commit` (shared tool — coordinate with captain for merge)
 
 **Test cases (BATS):**
 - `dispatch-on-commit.bats`: mock git-safe-commit, verify dispatch created with correct metadata
@@ -222,7 +222,7 @@ Based on MAR review findings (dispatch #100):
 **Why:** A&D §10 + PVR SC7/SC8. The data is already in the DB (timestamps on dispatches and flags). This iteration surfaces it as queryable metrics. Captain's Phase 6.4 builds the presentation layer on top.
 
 **Delivers:**
-- New tool: `claude/tools/iscp-metrics`
+- New tool: `agency/tools/iscp-metrics`
 - Dispatch metrics:
   - Per-dispatch: `dispatch_id`, `created_at`, `read_at`, `resolved_at`, `lead_time_hours` (created→resolved), `response_time_hours` (created→read)
   - Aggregate: mean/median/p90 lead time, mean response time, dispatch volume by type

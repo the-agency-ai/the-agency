@@ -12,7 +12,7 @@ Two bugs reported by monofolk MAR, both blocking multi-principal agency setups:
 **Bug 1 — Engineer detection alphabetical fallback.**
 Previously when $USER didn't match any usr/<name>/ directory, sandbox-sync fell
 back to the first-alphabetical sandbox dir (gave 'jordan' to Peter in multi-
-principal setups). Now resolves via `claude/config/agency.yaml` using $USER
+principal setups). Now resolves via `agency/config/agency.yaml` using $USER
 as the key into the `principals:` block (the schema-supported approach).
 Refuses with a clear error if no mapping and no usr/$USER/ sandbox exists —
 no silent alphabetical fallback.
@@ -54,7 +54,7 @@ Two bugs reported by monofolk MAR, both blocking multi-principal agency setups:
 **Bug 1 — Engineer detection alphabetical fallback.**
 Previously when $USER didn't match any usr/<name>/ directory, sandbox-sync fell
 back to the first-alphabetical sandbox dir (gave 'jordan' to Peter in multi-
-principal setups). Now resolves via `claude/config/agency.yaml` using $USER
+principal setups). Now resolves via `agency/config/agency.yaml` using $USER
 as the key into the `principals:` block (the schema-supported approach).
 Refuses with a clear error if no mapping and no usr/$USER/ sandbox exists —
 no silent alphabetical fallback.
@@ -98,7 +98,7 @@ Two bugs reported by monofolk MAR, both blocking multi-principal agency setups:
 **Bug 1 — Engineer detection alphabetical fallback.**
 Previously when $USER didn't match any usr/<name>/ directory, sandbox-sync fell
 back to the first-alphabetical sandbox dir (gave 'jordan' to Peter in multi-
-principal setups). Now resolves via `claude/config/agency.yaml` using $USER
+principal setups). Now resolves via `agency/config/agency.yaml` using $USER
 as the key into the `principals:` block (the schema-supported approach).
 Refuses with a clear error if no mapping and no usr/$USER/ sandbox exists —
 no silent alphabetical fallback.
@@ -142,7 +142,7 @@ alignment pass, flagged for follow-up.
 ### Files Changed
 ```
 .claude/skills/sandbox-init/SKILL.md
-claude/tools/sandbox-sync
+agency/tools/sandbox-sync
 tests/tools/sandbox-sync.bats
 usr/jordan/devex/dispatches/commit-to-captain-committed-2f2dd02-on-devex-d44-r3-add-qgr-receipt--20260417-1324.md
 usr/jordan/devex/dispatches/dispatch-to-captain-d44-r3-pr-ready-for-merge-pr-182-20260417-1325.md

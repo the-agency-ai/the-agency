@@ -14,7 +14,7 @@ in_reply_to: null
 ## Bootloader Refactoring Complete (Dispatch #201 Priority 1)
 
 ### What shipped
-- **Bootloader**: claude/CLAUDE-THEAGENCY.md slimmed from ~6600 words (738 lines) to ~690 words (85 lines) — 89% reduction
+- **Bootloader**: agency/CLAUDE-THEAGENCY.md slimmed from ~6600 words (738 lines) to ~690 words (85 lines) — 89% reduction
 - **5 new ref docs**: AGENT-ADDRESSING.md, WORKTREE-DISCIPLINE.md, PROVENANCE-HEADERS.md, REPO-STRUCTURE.md, QUALITY-DISCIPLINE.md
 - **1 updated ref doc**: DEVELOPMENT-METHODOLOGY.md — added 9-step Valueflow, MAR/MARFI/MAP, three-bucket disposition, plan mode bias
 - **Ref-injector wiring**: 11 new case entries mapping 25+ skills to their ref docs

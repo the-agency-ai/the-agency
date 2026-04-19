@@ -58,7 +58,7 @@ The block-cd-to-main rule stays as a specific rule for the most common violation
 
 ## Reference
 
-- Existing rule for inspiration: claude/hookify/hookify.block-cd-to-main.md
+- Existing rule for inspiration: agency/hookify/hookify.block-cd-to-main.md
 - Friction analysis context: usr/jordan/captain/transcripts/agent-session-friction-20260407.md (P1 was the cd-to-main habit)
 - Flag #8 origin: ISCP agent self-corrected after wasting tool calls — proactive check would have caught it before the first command
 

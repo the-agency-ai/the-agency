@@ -31,7 +31,7 @@ Claude Code's extensibility features offer significant opportunities to enhance 
 ### 1. Native Subagents (Priority 1)
 
 **Current State:**
-- Agents defined in `claude/agents/*/agent.md`
+- Agents defined in `agency/agents/*/agent.md`
 - Launched via `./tools/myclaude`
 - KNOWLEDGE.md loaded manually
 
@@ -64,7 +64,7 @@ You are the captain agent...
 
 **Migration Path:**
 1. Create `.claude/agents/` directory
-2. Convert `claude/agents/*/agent.md` to new format
+2. Convert `agency/agents/*/agent.md` to new format
 3. Move KNOWLEDGE.md content to skills
 4. Update `./tools/myclaude` to use native invocation
 5. Deprecate old agent structure
@@ -162,10 +162,10 @@ Split into modular `.claude/rules/` with path-specific activation.
 │   ├── git-workflow.md         # Always loaded
 │   └── testing.md              # Always loaded
 ├── agents/
-│   ├── captain.md              # paths: claude/agents/captain/**
-│   └── research.md             # paths: claude/agents/research/**
+│   ├── captain.md              # paths: agency/agents/captain/**
+│   └── research.md             # paths: agency/agents/research/**
 └── workstreams/
-    └── housekeeping.md         # paths: claude/workstreams/housekeeping/**
+    └── housekeeping.md         # paths: agency/workstreams/housekeeping/**
 ```
 
 **Path-Specific Example:**
@@ -174,7 +174,7 @@ Split into modular `.claude/rules/` with path-specific activation.
 # .claude/rules/agents/captain.md
 ---
 paths:
-  - "claude/agents/captain/**"
+  - "agency/agents/captain/**"
   - "tools/myclaude"
 ---
 # Captain-Specific Rules

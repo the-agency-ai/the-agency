@@ -87,7 +87,7 @@ unrescuable=0
 
 if [[ -d "$ROOT/agency" ]]; then
     while IFS= read -r -d '' dispatch; do
-        # Attempt to map agency/workstreams/.../dispatch-* → claude/workstreams/.../dispatch-*
+        # Attempt to map agency/workstreams/.../dispatch-* → agency/workstreams/.../dispatch-*
         rel="${dispatch#$ROOT/}"
         target="${rel/agency\//claude\/}"
         target_dir="$ROOT/$(dirname "$target")"

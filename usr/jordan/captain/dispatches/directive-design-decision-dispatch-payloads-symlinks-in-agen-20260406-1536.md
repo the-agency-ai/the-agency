@@ -40,7 +40,7 @@ Captain explored alternatives:
 
 ```
 ~/.agency/the-agency/dispatches/
-  dispatch-001.md → /Users/jdm/code/the-agency/claude/workstreams/agency/valueflow-pvr-20260406.md
+  dispatch-001.md → /Users/jdm/code/the-agency/agency/workstreams/agency/valueflow-pvr-20260406.md
   dispatch-002.md → /Users/jdm/code/the-agency/.claude/worktrees/devex/usr/jordan/devex/some-artifact.md
 ```
 
@@ -67,7 +67,7 @@ Captain explored alternatives:
 
 ## Action
 
-Design and implement this. This replaces your current payload resolution strategy. Update A&D Section 8 when you review `claude/workstreams/agency/valueflow-ad-20260406.md`.
+Design and implement this. This replaces your current payload resolution strategy. Update A&D Section 8 when you review `agency/workstreams/agency/valueflow-ad-20260406.md`.
 
 ## Acceptance Criteria
 

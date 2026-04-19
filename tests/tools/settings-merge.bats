@@ -16,12 +16,12 @@ setup() {
     # Create a minimal project structure
     mkdir -p "${BATS_TEST_TMPDIR}/.claude"
     mkdir -p "${BATS_TEST_TMPDIR}/claude/config"
-    mkdir -p "${BATS_TEST_TMPDIR}/claude/tools/lib"
+    mkdir -p "${BATS_TEST_TMPDIR}/agency/tools/lib"
 
     # Copy the tools we need
-    cp "${TOOLS_DIR}/settings-merge" "${BATS_TEST_TMPDIR}/claude/tools/settings-merge"
-    cp "${TOOLS_DIR}/lib/_log-helper" "${BATS_TEST_TMPDIR}/claude/tools/lib/_log-helper"
-    chmod +x "${BATS_TEST_TMPDIR}/claude/tools/settings-merge"
+    cp "${TOOLS_DIR}/settings-merge" "${BATS_TEST_TMPDIR}/agency/tools/settings-merge"
+    cp "${TOOLS_DIR}/lib/_log-helper" "${BATS_TEST_TMPDIR}/agency/tools/lib/_log-helper"
+    chmod +x "${BATS_TEST_TMPDIR}/agency/tools/settings-merge"
 
     cd "${BATS_TEST_TMPDIR}"
 }
@@ -48,7 +48,7 @@ teardown() {
   "permissions": {"allow": []}
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {
     "PreToolUse": [
@@ -59,7 +59,7 @@ JSON
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
 
     # Verify the hook was replaced
@@ -84,7 +84,7 @@ JSON
   "permissions": {"allow": []}
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {
     "PreToolUse": [
@@ -95,7 +95,7 @@ JSON
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
 
     # Framework hook replaced
@@ -123,7 +123,7 @@ JSON
   "permissions": {"allow": []}
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {
     "PreToolUse": [
@@ -134,7 +134,7 @@ JSON
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
 
     # SessionStart hook preserved (not in template)
@@ -157,16 +157,16 @@ JSON
   }
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {},
   "permissions": {
-    "allow": ["Bash(./claude/tools/*:*)"]
+    "allow": ["Bash(./agency/tools/*:*)"]
   }
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
 
     # deny preserved
@@ -192,14 +192,14 @@ JSON
   "enabledPlugins": ["my-plugin"]
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {},
   "permissions": {"allow": []}
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
 
     local plugin
@@ -213,14 +213,14 @@ JSON
 
 @test "settings-merge: creates settings.json from template when missing" {
     rm -f .claude/settings.json
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {},
-  "permissions": {"allow": ["Bash(./claude/tools/*:*)"]}
+  "permissions": {"allow": ["Bash(./agency/tools/*:*)"]}
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
     assert_file_exists .claude/settings.json
 }
@@ -232,7 +232,7 @@ JSON
   "permissions": {"allow": ["existing"]}
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {},
   "permissions": {"allow": ["new-perm"]}
@@ -242,7 +242,7 @@ JSON
     local before
     before=$(cat .claude/settings.json)
 
-    run ./claude/tools/settings-merge --dry-run
+    run ./agency/tools/settings-merge --dry-run
     assert_success
 
     local after
@@ -261,14 +261,14 @@ JSON
   "permissions": {"allow": []}
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {},
   "permissions": {"allow": ["Bash(unzip -d usr/*:*)", "Bash(./claude/tools/*:*)"]}
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
     jq -e '.permissions.allow | index("Bash(unzip -d usr/*:*)")' .claude/settings.json > /dev/null
 }
@@ -280,17 +280,17 @@ JSON
   "permissions": {"allow": ["Bash(unzip:*)"]}
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {},
   "permissions": {"allow": ["Bash(unzip -d usr/*:*)"]}
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
     # The wildcard should survive (union), but it should NOT be in the template
-    ! jq -e '.permissions.allow | index("Bash(unzip:*)")' claude/config/settings-template.json > /dev/null
+    ! jq -e '.permissions.allow | index("Bash(unzip:*)")' agency/config/settings-template.json > /dev/null
 }
 
 @test "settings-merge: Read(usr/**) permission present" {
@@ -300,14 +300,14 @@ JSON
   "permissions": {"allow": []}
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {},
   "permissions": {"allow": ["Read(usr/**)", "Glob(usr/**)"]}
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
     jq -e '.permissions.allow | index("Read(usr/**)")' .claude/settings.json > /dev/null
     jq -e '.permissions.allow | index("Glob(usr/**)")' .claude/settings.json > /dev/null
@@ -320,16 +320,16 @@ JSON
   "permissions": {"allow": []}
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {},
   "permissions": {"allow": ["Bash(unzip -d usr/*:*)", "Bash(./claude/tools/*:*)"]}
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
 
     # Count occurrences of unzip permission — should be exactly 1
@@ -353,7 +353,7 @@ JSON
   "permissions": {"allow": []}
 }
 JSON
-    cat > claude/config/settings-template.json << 'JSON'
+    cat > agency/config/settings-template.json << 'JSON'
 {
   "hooks": {
     "SessionEnd": [
@@ -364,7 +364,7 @@ JSON
 }
 JSON
 
-    run ./claude/tools/settings-merge
+    run ./agency/tools/settings-merge
     assert_success
 
     # Hook without matcher should be replaced (matched by empty matcher)

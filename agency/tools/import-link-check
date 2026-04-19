@@ -2,7 +2,7 @@
 #
 # import-link-check — Verify @import / required_reading targets resolve
 #
-# What Problem: The v46.0 rename rewrites every `@claude/` → `@agency/` path
+# What Problem: The v46.0 rename rewrites every `@agency/` → `@agency/` path
 # in every `@import` and every `required_reading:` frontmatter. If any hit
 # is missed, Claude Code will ENOENT at session start and the framework
 # breaks silently until a skill runs and fails. We need a static check

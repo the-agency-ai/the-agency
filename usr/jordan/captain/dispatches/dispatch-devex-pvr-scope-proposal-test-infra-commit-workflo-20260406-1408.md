@@ -41,9 +41,9 @@ This was exposed during the ISCP rollout (2026-04-05/06) when captain operations
 
 ## Source Materials
 
-- Seed: claude/workstreams/devex/seeds/seed-devex-kickoff-20260406.md
+- Seed: agency/workstreams/devex/seeds/seed-devex-kickoff-20260406.md
 - Friction points: usr/jordan/captain/friction-points-20260405.md (T3, T5, P1-P5)
-- Existing code: tests/tools/test_helper.bash, tests/Dockerfile, tests/docker-test.sh, claude/tools/commit-precheck
+- Existing code: tests/tools/test_helper.bash, tests/Dockerfile, tests/docker-test.sh, agency/tools/commit-precheck
 
 ## Request
 

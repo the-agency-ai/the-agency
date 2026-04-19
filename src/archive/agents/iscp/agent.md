@@ -26,11 +26,11 @@ claude --agent {P}/iscp
 
 ## Key Directories
 
-- `claude/agents/iscp/` — agent identity
-- `claude/workstreams/iscp/` — workstream artifacts (KNOWLEDGE.md, seeds, reviews)
+- `agency/agents/iscp/` — agent identity
+- `agency/workstreams/iscp/` — workstream artifacts (KNOWLEDGE.md, seeds, reviews)
 - `usr/jordan/iscp/` — agent sandbox (slim: tmp/, tools/, history/, history/flotsam/)
 
 ## Seed Files
 
-- `claude/workstreams/iscp/` — shared workstream content (seeds, reviews, transcripts)
+- `agency/workstreams/iscp/` — shared workstream content (seeds, reviews, transcripts)
 - `claude/workstreams/iscp/transcripts/discussion-transcript-20260404.md` — Item 2 decisions on flag/dispatch/ISCP

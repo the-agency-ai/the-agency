@@ -157,7 +157,7 @@ When a captain delegates to a worktree agent, the worktree agent is ephemeral �
 
 ## 2. Tooling Impact
 
-### New: `claude/tools/lib/_address-parse`
+### New: `agency/tools/lib/_address-parse`
 
 **Create a canonical address parsing library.** All tools source this instead of reimplementing parsing.
 
@@ -167,7 +167,7 @@ Functions:
 - `address_format <repo> <principal> <agent>` — produce fully qualified form
 - `address_validate_component <name> [--level org|repo|principal|agent]` — reject path traversal (`..`, `/`, null bytes). For org level: `[A-Za-z0-9-]+` (case-preserved). For all other levels: `[a-z0-9][a-z0-9_-]*` (lowercase only). Reject reserved names (`_`, `system`, `shared`, `all`, `default`). Max 32 chars per component.
 
-### Update: `claude/tools/lib/_path-resolve`
+### Update: `agency/tools/lib/_path-resolve`
 
 **Add `_validate_name()`.** Reject any name component containing `/`, `..`, null bytes, or characters outside `[a-z0-9_-]`. Apply in every function that constructs filesystem paths from names. This fixes the existing path traversal vulnerability.
 
@@ -175,7 +175,7 @@ Functions:
 
 **Rewrite `_pr_yaml_get` for nested YAML.** The current parser only handles flat `key: value` pairs under a section. The new `principals` structure is nested (key → object with `name`, `display_name`, `platforms`). Either rewrite `_pr_yaml_get` to handle nested structures, or have `_address-parse` handle all principal resolution and deprecate direct `_pr_yaml_get` calls for principal lookups.
 
-### Update: `claude/tools/dispatch-create`
+### Update: `agency/tools/dispatch-create`
 
 **Current:** `From: ${PRINCIPAL}/captain` — missing repo, bare form, hardcodes `captain`.
 **Change:** Compute `from:` automatically — repo from git, principal from agency.yaml, agent from context (default: `captain`, detect from session if possible).
@@ -197,7 +197,7 @@ in_reply_to: "dispatch-code-review-findings-20260401-1430.md"
 
 The `in_reply_to` field is the originating dispatch filename (without path).
 
-### Update: `claude/tools/handoff`
+### Update: `agency/tools/handoff`
 
 **Add `agent` field** to frontmatter. Computed from local context (not self-asserted).
 
@@ -213,7 +213,7 @@ trigger: monofolk-plan-complete
 
 Existing handoffs without the `agent` field remain valid — backward compatible.
 
-### Update: `claude/config/agency.yaml`
+### Update: `agency/config/agency.yaml`
 
 **Restructure `principals` section** to include platform identity (merge `identity` into `principals` — one place for all principal metadata):
 
@@ -321,8 +321,8 @@ Then add:
 
 ## 4. Migration
 
-1. Create `claude/tools/lib/_address-parse` with validation, parsing, resolution
-2. Add `_validate_name()` to `claude/tools/lib/_path-resolve`
+1. Create `agency/tools/lib/_address-parse` with validation, parsing, resolution
+2. Add `_validate_name()` to `agency/tools/lib/_path-resolve`
 3. Update `dispatch-create` — computed `from:`, YAML frontmatter, `--to` flag
 4. Update `handoff` tool — add `agent` field
 5. Restructure `principals` in agency.yaml template (merge identity)
@@ -352,7 +352,7 @@ Addressing defines identity. ISCP defines local delivery. IACP defines cross-rep
 
 **Modifying `remotes` in agency.yaml is a privilege-sensitive operation** — changes should be reviewed in PRs, not auto-merged.
 
-**Platform identity is intentionally public** for open-source repos. For private repos, platform identity can be split into a local override file at `claude/config/agency.local.yaml` (gitignored). Merge precedence: local overrides committed. Tools check local first, fall back to committed. Implementation deferred — define the file path and merge rule now so the schema supports it.
+**Platform identity is intentionally public** for open-source repos. For private repos, platform identity can be split into a local override file at `agency/config/agency.local.yaml` (gitignored). Merge precedence: local overrides committed. Tools check local first, fall back to committed. Implementation deferred — define the file path and merge rule now so the schema supports it.
 
 ### Future: Enforcement Triangle
 

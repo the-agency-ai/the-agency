@@ -1,5 +1,5 @@
 ---
-allowed-tools: Read, Edit, Write, Glob, Grep, Bash(mkdir *), Bash(git branch *), Bash(git worktree *), Bash(git rev-parse *), Bash(bash scripts/worktree-bootstrap.sh *), Bash(bash */claude/tools/proto-module-scaffold *), Bash(pnpm --filter backend exec prisma generate*)
+allowed-tools: Read, Edit, Write, Glob, Grep, Bash(mkdir *), Bash(git branch *), Bash(git worktree *), Bash(git rev-parse *), Bash(bash scripts/worktree-bootstrap.sh *), Bash(bash */agency/tools/proto-module-scaffold *), Bash(pnpm --filter backend exec prisma generate*)
 description: Scaffold a new prototype (BE module, Prisma file, FE route, design spec, registry entry, git worktree)
 ---
 
@@ -162,7 +162,7 @@ Also create **`plan.md`** in the sandbox docs directory (`.worktrees/<name>/usr/
 Run the scaffold tool from the worktree:
 
 ```bash
-bash $WORKTREE/claude/tools/proto-module-scaffold <name> --description "<description from design spec>" --owner "$ENGINEER"
+bash $WORKTREE/agency/tools/proto-module-scaffold <name> --description "<description from design spec>" --owner "$ENGINEER"
 ```
 
 This generates:

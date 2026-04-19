@@ -147,7 +147,7 @@ iscp-migrate dispatches          # dispatches only
 
 ## Shared Library: `_iscp-db`
 
-All ISCP tools source `claude/tools/lib/_iscp-db`. It provides:
+All ISCP tools source `agency/tools/lib/_iscp-db`. It provides:
 
 | Function | Purpose |
 |----------|---------|
@@ -179,13 +179,13 @@ Stop:             stop-check.py → quality-check.sh → iscp-check → ghostty-
 ### Permissions (pre-approved)
 
 ```
-Bash(./claude/tools/agent-identity*)
-Bash(./claude/tools/iscp-check*)
-Bash(./claude/tools/iscp-migrate*)
-Bash(./claude/tools/flag *)
-Bash(./claude/tools/flag)
-Bash(./claude/tools/dispatch *)
-Bash(./claude/tools/dispatch-create*)
+Bash(./agency/tools/agent-identity*)
+Bash(./agency/tools/iscp-check*)
+Bash(./agency/tools/iscp-migrate*)
+Bash(./agency/tools/flag *)
+Bash(./agency/tools/flag)
+Bash(./agency/tools/dispatch *)
+Bash(./agency/tools/dispatch-create*)
 ```
 
 ---
@@ -311,26 +311,26 @@ All tests use HOME override for isolation — no test touches the real `~/.agenc
 
 | File | Purpose |
 |------|---------|
-| `claude/tools/lib/_iscp-db` | Shared SQLite library |
-| `claude/tools/agent-identity` | Identity resolution |
-| `claude/tools/dispatch` | Dispatch lifecycle (create/list/read/check/resolve/status) |
-| `claude/tools/dispatch-create` | Backward-compat wrapper → `dispatch create` |
-| `claude/tools/flag` | Flag capture and processing |
-| `claude/tools/iscp-check` | Notification hook |
-| `claude/tools/iscp-migrate` | Legacy data migration |
-| `claude/tools/lib/_address-parse` | Address resolution library |
-| `claude/tools/lib/_path-resolve` | Project root / agency.yaml resolution |
-| `claude/tools/lib/_log-helper` | Tool telemetry |
+| `agency/tools/lib/_iscp-db` | Shared SQLite library |
+| `agency/tools/agent-identity` | Identity resolution |
+| `agency/tools/dispatch` | Dispatch lifecycle (create/list/read/check/resolve/status) |
+| `agency/tools/dispatch-create` | Backward-compat wrapper → `dispatch create` |
+| `agency/tools/flag` | Flag capture and processing |
+| `agency/tools/iscp-check` | Notification hook |
+| `agency/tools/iscp-migrate` | Legacy data migration |
+| `agency/tools/lib/_address-parse` | Address resolution library |
+| `agency/tools/lib/_path-resolve` | Project root / agency.yaml resolution |
+| `agency/tools/lib/_log-helper` | Tool telemetry |
 | `.claude/settings.json` | Hook wiring + permissions |
-| `claude/hookify/hookify.dispatch-manual.md` | Enforcement: use dispatch tool |
-| `claude/hookify/hookify.flag-manual.md` | Enforcement: use flag tool |
-| `claude/hookify/hookify.directive-authority.md` | Enforcement: directive authority |
-| `claude/hookify/hookify.review-authority.md` | Enforcement: review authority |
-| `claude/hookify/hookify.session-start-mail.md` | Enforcement: process mail first |
-| `claude/workstreams/iscp/iscp-pvr-20260404.md` | Product Vision & Requirements |
-| `claude/workstreams/iscp/iscp-ad-20260404.md` | Architecture & Design |
-| `claude/workstreams/iscp/iscp-plan-20260404.md` | The Plan |
-| `claude/workstreams/iscp/iscp-reference-20260405.md` | This reference |
+| `agency/hookify/hookify.dispatch-manual.md` | Enforcement: use dispatch tool |
+| `agency/hookify/hookify.flag-manual.md` | Enforcement: use flag tool |
+| `agency/hookify/hookify.directive-authority.md` | Enforcement: directive authority |
+| `agency/hookify/hookify.review-authority.md` | Enforcement: review authority |
+| `agency/hookify/hookify.session-start-mail.md` | Enforcement: process mail first |
+| `agency/workstreams/iscp/iscp-pvr-20260404.md` | Product Vision & Requirements |
+| `agency/workstreams/iscp/iscp-ad-20260404.md` | Architecture & Design |
+| `agency/workstreams/iscp/iscp-plan-20260404.md` | The Plan |
+| `agency/workstreams/iscp/iscp-reference-20260405.md` | This reference |
 
 ---
 

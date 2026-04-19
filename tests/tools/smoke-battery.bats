@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/smoke-battery"
+    TOOL="$REPO_ROOT/agency/tools/smoke-battery"
 }
 
 @test "--help prints usage" {

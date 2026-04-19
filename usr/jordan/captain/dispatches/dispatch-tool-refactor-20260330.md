@@ -90,7 +90,7 @@ These enable cross-agent, cross-agency log aggregation later.
 
 ### 1. Update `_log-helper`
 
-The new `_log-helper` at `claude/tools/lib/_log-helper`:
+The new `_log-helper` at `agency/tools/lib/_log-helper`:
 - UUID7 run IDs (time-sortable)
 - Append-only JSONL at `.claude/logs/tool-runs.jsonl`
 - `tool_output()` for 3-line token-conserving stdout
@@ -98,7 +98,7 @@ The new `_log-helper` at `claude/tools/lib/_log-helper`:
 - Includes `agency`, `principal`, `agent` fields in every log entry
 - No agency-service dependency
 
-Migrate all tools to source `claude/tools/lib/_log-helper` instead of `tools/_log-helper`.
+Migrate all tools to source `agency/tools/lib/_log-helper` instead of `tools/_log-helper`.
 
 ### 2. Update telemetry hook
 
@@ -116,10 +116,10 @@ Rename tools:
 
 Update `settings.json` permissions.
 
-### 4. Move to `claude/tools/`
+### 4. Move to `agency/tools/`
 
-Framework tools that ship via `agency-init` move from `tools/` to `claude/tools/`:
-- Copy tool to `claude/tools/{new-name}`
+Framework tools that ship via `agency-init` move from `tools/` to `agency/tools/`:
+- Copy tool to `agency/tools/{new-name}`
 - Update source path for `_log-helper`
 - Update `settings.json` permissions
 - Keep old name as forwarding stub until all references updated
@@ -155,14 +155,14 @@ Reads `telemetry.jsonl`:
 3. Build `git-fetch` (new, no migration needed)
 4. Migrate `_log-helper` sourcing in existing tools
 5. Rename tools to noun-verb convention
-6. Move to `claude/tools/`
+6. Move to `agency/tools/`
 7. Update `settings.json` permissions
 8. Clean up forwarding stubs
 9. Build `telemetry` reader tool
 
 ## Acceptance Criteria
 
-- All tools source `claude/tools/lib/_log-helper`
+- All tools source `agency/tools/lib/_log-helper`
 - All tools produce 3-line token-conserving output
 - Every log entry includes `agency`, `principal`, `agent` fields
 - `settings.json` permissions match new tool names/paths

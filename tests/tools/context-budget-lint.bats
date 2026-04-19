@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for claude/tools/context-budget-lint
+# Tests for agency/tools/context-budget-lint
 #
 # What Problem: context-budget-lint resolves @-import chains and estimates token
 # cost. These tests verify import resolution, token estimation, budget checking,
@@ -13,7 +13,7 @@ setup() {
     test_isolation_setup
 
     export TEST_REPO="${BATS_TEST_TMPDIR}/test-repo"
-    mkdir -p "$TEST_REPO/claude/tools/lib"
+    mkdir -p "$TEST_REPO/agency/tools/lib"
     mkdir -p "$TEST_REPO/.claude/skills/simple/SKILL.md"
     mkdir -p "$TEST_REPO/.git"
 
@@ -21,12 +21,12 @@ setup() {
     git init --quiet --no-verify 2>/dev/null || git init --quiet
 
     # Copy the linter
-    cp "$REPO_ROOT/claude/tools/context-budget-lint" "$TEST_REPO/claude/tools/"
-    chmod +x "$TEST_REPO/claude/tools/context-budget-lint"
+    cp "$REPO_ROOT/agency/tools/context-budget-lint" "$TEST_REPO/agency/tools/"
+    chmod +x "$TEST_REPO/agency/tools/context-budget-lint"
 
     # Copy log helper
-    if [[ -f "$REPO_ROOT/claude/tools/lib/_log-helper" ]]; then
-        cp "$REPO_ROOT/claude/tools/lib/_log-helper" "$TEST_REPO/claude/tools/lib/"
+    if [[ -f "$REPO_ROOT/agency/tools/lib/_log-helper" ]]; then
+        cp "$REPO_ROOT/agency/tools/lib/_log-helper" "$TEST_REPO/agency/tools/lib/"
     fi
 }
 
@@ -51,7 +51,7 @@ create_skill() {
 @test "simple: small skill within budget" {
     cd "$TEST_REPO"
     create_skill "tiny" "This is a small skill with just a few words"
-    run ./claude/tools/context-budget-lint --skill tiny
+    run ./agency/tools/context-budget-lint --skill tiny
     [ "$status" -eq 0 ]
     [[ "$output" == *"✓ tiny"* ]]
     [[ "$output" == *"within budget"* ]]
@@ -66,7 +66,7 @@ create_skill() {
     done
     create_skill "big" "$big_content"
     # Use a tiny budget to force failure
-    run ./claude/tools/context-budget-lint --skill big --budget 100
+    run ./agency/tools/context-budget-lint --skill big --budget 100
     [ "$status" -eq 1 ]
     [[ "$output" == *"✗ big"* ]]
     [[ "$output" == *"OVER"* ]]
@@ -80,9 +80,9 @@ create_skill() {
     cd "$TEST_REPO"
     mkdir -p "$TEST_REPO/claude/docs"
     echo "some imported content with several words in it here" > "$TEST_REPO/claude/docs/imported.md"
-    create_skill "importer" "@claude/docs/imported.md
+    create_skill "importer" "@agency/docs/imported.md
 This skill imports another file"
-    run ./claude/tools/context-budget-lint --skill importer --verbose
+    run ./agency/tools/context-budget-lint --skill importer --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"claude/docs/imported.md"* ]]
 }
@@ -94,13 +94,13 @@ This skill imports another file"
 @test "circular: detects and skips circular imports" {
     cd "$TEST_REPO"
     mkdir -p "$TEST_REPO/claude/docs"
-    echo "@claude/docs/b.md
+    echo "@agency/docs/b.md
 Content of a" > "$TEST_REPO/claude/docs/a.md"
-    echo "@claude/docs/a.md
+    echo "@agency/docs/a.md
 Content of b" > "$TEST_REPO/claude/docs/b.md"
-    create_skill "circular" "@claude/docs/a.md
+    create_skill "circular" "@agency/docs/a.md
 Skill that starts a circular chain"
-    run ./claude/tools/context-budget-lint --skill circular --verbose
+    run ./agency/tools/context-budget-lint --skill circular --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"CIRCULAR"* ]]
 }
@@ -112,7 +112,7 @@ Skill that starts a circular chain"
 @test "budget: custom budget respected" {
     cd "$TEST_REPO"
     create_skill "medium" "one two three four five six seven eight nine ten eleven twelve"
-    run ./claude/tools/context-budget-lint --skill medium --budget 1
+    run ./agency/tools/context-budget-lint --skill medium --budget 1
     [ "$status" -eq 1 ]
     [[ "$output" == *"OVER"* ]]
 }
@@ -124,13 +124,13 @@ Skill that starts a circular chain"
 @test "no skills directory: exits cleanly" {
     cd "$TEST_REPO"
     rm -rf .claude/skills
-    run ./claude/tools/context-budget-lint
+    run ./agency/tools/context-budget-lint
     [ "$status" -eq 0 ]
     [[ "$output" == *"No skills directory"* ]]
 }
 
 @test "version flag works" {
-    run ./claude/tools/context-budget-lint --version
+    run ./agency/tools/context-budget-lint --version
     [ "$status" -eq 0 ]
     [[ "$output" == *"context-budget-lint"* ]]
 }

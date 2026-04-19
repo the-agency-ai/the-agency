@@ -1,7 +1,7 @@
 # Historical Path Note — legacy-captain-workstream-20260419
 
 Legacy workstream content from pre-v46.0 tree organization. Original location:
-`agency/workstreams/legacy-captain` (pre-rename: `claude/workstreams/legacy-captain`).
+`agency/workstreams/legacy-captain` (pre-rename: `agency/workstreams/legacy-captain`).
 
 Archived 2026-04-19 during v46.0 structural reset (Phase 3.5 / 3.6).
 

@@ -1,6 +1,6 @@
 # Reference: Receipt Infrastructure
 
-Source A&D: `claude/workstreams/agency/receipt-infrastructure-ad-20260414.md`
+Source A&D: `agency/workstreams/agency/receipt-infrastructure-ad-20260414.md`
 
 ---
 
@@ -14,9 +14,9 @@ All fields are required. Full provenance in every filename — too much informat
 
 **Examples:**
 ```
-claude/workstreams/devex/qgr/the-agency-jordan-devex-devex-git-safe-qgr-pr-prep-20260414-1835-a1b2c3d.md
-claude/workstreams/agency/rgr/the-agency-jordan-captain-agency-valueflow-rgr-plan-complete-20260414-1900-b2c3d4e.md
-claude/workstreams/ops/qgr/monofolk-jordan-captain-ops-infra-qgr-phase-complete-20260414-1930-c3d4e5f.md
+agency/workstreams/devex/qgr/the-agency-jordan-devex-devex-git-safe-qgr-pr-prep-20260414-1835-a1b2c3d.md
+agency/workstreams/agency/rgr/the-agency-jordan-captain-agency-valueflow-rgr-plan-complete-20260414-1900-b2c3d4e.md
+agency/workstreams/ops/qgr/monofolk-jordan-captain-ops-infra-qgr-phase-complete-20260414-1930-c3d4e5f.md
 ```
 
 The `{hash_e_short}` field is the 7-char truncation of Hash E (the final artifact hash). Date comes before hash for chronological `ls` sort.
@@ -49,7 +49,7 @@ When a principal 1B1 does occur:
 - Receipt field: `hash_d_source: "transcript"`
 - Receipt field: `hash_d_transcript: {path/to/transcript.md}`
 
-To audit all auto-approvals: grep `claude/workstreams/*/qgr/` for `hash_d_source: "auto-approved"`.
+To audit all auto-approvals: grep `agency/workstreams/*/qgr/` for `hash_d_source: "auto-approved"`.
 
 ---
 
@@ -63,12 +63,12 @@ To audit all auto-approvals: grep `claude/workstreams/*/qgr/` for `hash_d_source
 ### `diff-hash` Invocations
 
 ```bash
-./claude/tools/diff-hash                          # default: origin/main
-./claude/tools/diff-hash --base origin/main       # explicit baseline
-./claude/tools/diff-hash --base v39.1             # phase start tag
-./claude/tools/diff-hash --base abc1234           # prior iteration commit
-./claude/tools/diff-hash --file <path>            # single artifact file hash
-./claude/tools/diff-hash --json                   # JSON output with full SHA-256
+./agency/tools/diff-hash                          # default: origin/main
+./agency/tools/diff-hash --base origin/main       # explicit baseline
+./agency/tools/diff-hash --base v39.1             # phase start tag
+./agency/tools/diff-hash --base abc1234           # prior iteration commit
+./agency/tools/diff-hash --file <path>            # single artifact file hash
+./agency/tools/diff-hash --json                   # JSON output with full SHA-256
 ```
 
 Each receipt records which base was used: `diff_base: origin/main`.
@@ -80,7 +80,7 @@ Skills pass the appropriate base automatically:
 
 For RGR methodology artifacts, hash the file content directly:
 ```bash
-./claude/tools/diff-hash --file claude/workstreams/devex/git-safe-pvr-20260414.md
+./agency/tools/diff-hash --file agency/workstreams/devex/git-safe-pvr-20260414.md
 ```
 
 ### Exclusion
@@ -182,17 +182,17 @@ Find and verify receipts for the current PR content.
 
 | Invocation | Description |
 |------------|-------------|
-| `./claude/tools/receipt-verify --workstream <ws> --project <proj>` | Verify by workstream and project |
-| `./claude/tools/receipt-verify --file <path>` | Verify a specific receipt file |
+| `./agency/tools/receipt-verify --workstream <ws> --project <proj>` | Verify by workstream and project |
+| `./agency/tools/receipt-verify --file <path>` | Verify a specific receipt file |
 
 Matching algorithm:
-1. Filter `claude/workstreams/{W}/qgr/` by filename pattern `*-{workstream}-{project}-*`
+1. Filter `agency/workstreams/{W}/qgr/` by filename pattern `*-{workstream}-{project}-*`
 2. For each matching receipt, check Hash E against the current diff hash (QGR) or artifact hash (RGR)
 3. Match → valid. No match → blocked.
 
 Used in `pr-create`:
 ```bash
-./claude/tools/receipt-verify || { echo "BLOCKED"; exit 1; }
+./agency/tools/receipt-verify || { echo "BLOCKED"; exit 1; }
 ```
 
 ---

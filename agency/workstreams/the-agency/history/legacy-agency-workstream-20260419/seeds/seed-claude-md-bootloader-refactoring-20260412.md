@@ -13,7 +13,7 @@ executor: devex (captain supervises)
 
 ## What this is
 
-Refactor `claude/CLAUDE-THEAGENCY.md` from a monolithic ~4000-word constitution (eager-loaded into every agent's context on every session) into a ~200-300 word **bootloader** that orients a fresh agent and points to skills, hookify rules, and ref-injector-provided reference docs for everything else.
+Refactor `agency/CLAUDE-THEAGENCY.md` from a monolithic ~4000-word constitution (eager-loaded into every agent's context on every session) into a ~200-300 word **bootloader** that orients a fresh agent and points to skills, hookify rules, and ref-injector-provided reference docs for everything else.
 
 ## Why
 
@@ -37,15 +37,15 @@ CLAUDE-THEAGENCY.md becomes:
 
 | CLAUDE.md section | Current ~words | Destination | Mechanism |
 |---|---|---|---|
-| QG Protocol | ~400 | `/quality-gate` skill + `claude/REFERENCE-QUALITY-GATE.md` | ref-injector (already wired) |
+| QG Protocol | ~400 | `/quality-gate` skill + `agency/REFERENCE-QUALITY-GATE.md` | ref-injector (already wired) |
 | MAR / MARFI / MAP | ~300 | **New:** `/mar` skill + reference doc | ref-injector (new mapping) |
 | Three-bucket disposition | ~200 | Fold into `/mar` skill | ref-injector |
 | Valueflow methodology | ~500 | **New:** `/valueflow` ref doc or skill | ref-injector on `/define`, `/design`, `/plan` |
 | Discussion protocol (1B1) | ~200 | `/discuss` skill (already has detail) | ref-injector (already wired) |
-| Code review & PR lifecycle | ~400 | `/code-review` skill + `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md` | ref-injector (already wired) |
-| ISCP details | ~500 | Reference doc (already exists at `claude/workstreams/iscp/iscp-reference-20260405.md`) | ref-injector on dispatch/flag skills |
+| Code review & PR lifecycle | ~400 | `/code-review` skill + `agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md` | ref-injector (already wired) |
+| ISCP details | ~500 | Reference doc (already exists at `agency/workstreams/iscp/iscp-reference-20260405.md`) | ref-injector on dispatch/flag skills |
 | Session handoff | ~300 | `/handoff` skill + tool | ref-injector |
-| Feedback format | ~200 | `/feedback-draft` skill + `claude/REFERENCE-FEEDBACK-FORMAT.md` | ref-injector |
+| Feedback format | ~200 | `/feedback-draft` skill + `agency/REFERENCE-FEEDBACK-FORMAT.md` | ref-injector |
 | Git & remote discipline | ~400 | `/git-safe-commit` skill + hookify rules (most already enforced) | hookify blocks violations; skill provides format on demand |
 | Worktrees & master | ~400 | `/worktree-create`, `/worktree-sync` skills | ref-injector on worktree skills |
 | Enforcement Triangle/Ladder | ~200 | Reference doc or `/enforcement` skill | ref-injector when building new capabilities |

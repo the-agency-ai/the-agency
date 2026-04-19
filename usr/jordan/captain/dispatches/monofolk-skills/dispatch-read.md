@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(bash claude/tools/dispatch *), Read, Grep, Glob
+allowed-tools: Bash(bash agency/tools/dispatch *), Read, Grep, Glob
 description: Read a dispatch from master and mark it as read — no merge needed
 ---
 
@@ -17,13 +17,13 @@ Read a dispatch file from master without merging. Marks the dispatch as read on 
 
 If `$ARGUMENTS` is empty:
 
-1. Run `bash claude/tools/dispatch list` to show dispatches for the current project.
-2. If no dispatches, try `bash claude/tools/dispatch list --all` for all projects.
+1. Run `bash agency/tools/dispatch list` to show dispatches for the current project.
+2. If no dispatches, try `bash agency/tools/dispatch list --all` for all projects.
 3. Ask which dispatch to read.
 
 If `$ARGUMENTS` is provided:
 
-1. Run `bash claude/tools/dispatch read $ARGUMENTS` to display the dispatch and mark it as read.
+1. Run `bash agency/tools/dispatch read $ARGUMENTS` to display the dispatch and mark it as read.
 
 ### Step 2: Evaluate findings
 
@@ -45,7 +45,7 @@ For each valid finding, follow the red→green cycle:
 
 After all findings are addressed:
 
-1. Run `bash claude/tools/dispatch resolve $ARGUMENTS` to mark as resolved on master.
+1. Run `bash agency/tools/dispatch resolve $ARGUMENTS` to mark as resolved on master.
 2. Write a Resolution table directly to the dispatch file on master:
 
 ```bash

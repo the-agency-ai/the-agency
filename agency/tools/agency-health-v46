@@ -3,13 +3,13 @@
 # agency-health-v46 — Broken-state detector for post-v46.0 customer repos
 #
 # What Problem: After migration, some repos end up in hybrid state: v46 tree
-# shape (agency/) but v45 settings.json (referring to claude/hooks/), or
+# shape (agency/) but v45 settings.json (referring to agency/hooks/), or
 # vice versa. We need a focused detector that surfaces these specific
 # post-migration anomalies.
 #
 # How & Why: Inspect four signals:
 #   1) residual claude/ dir + v46 settings = broken (half-migrated)
-#   2) agency/ present but @import references still say @claude/
+#   2) agency/ present but @import references still say @agency/
 #   3) hook paths in settings.json point to missing files
 #   4) agent registration path mismatches
 #
@@ -71,15 +71,15 @@ fi
 # Signal 2: v46 tree but v45 settings
 if [[ -d "$ROOT/agency" && -f "$ROOT/.claude/settings.json" ]]; then
     if grep -q 'claude/hooks/' "$ROOT/.claude/settings.json" 2>/dev/null; then
-        emit "BROKEN" "v46 tree but settings.json still references claude/hooks/"
+        emit "BROKEN" "v46 tree but settings.json still references agency/hooks/"
         broken=1
     fi
 fi
 
-# Signal 3: agent registrations still say @claude/
+# Signal 3: agent registrations still say @agency/
 while IFS= read -r -d '' f; do
-    if grep -q '@claude/agents/' "$f" 2>/dev/null; then
-        emit "BROKEN" "$f references @claude/agents/ (v45 path)"
+    if grep -q '@agency/agents/' "$f" 2>/dev/null; then
+        emit "BROKEN" "$f references @agency/agents/ (v45 path)"
         broken=1
     fi
 done < <(find "$ROOT/.claude/agents" -name '*.md' -print0 2>/dev/null)

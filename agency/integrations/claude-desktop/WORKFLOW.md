@@ -65,9 +65,9 @@ The Agency uses a structured handoff protocol:
 | Document | Destination | Purpose |
 |----------|-------------|---------|
 | Epic Plans | `claude/epics/epic###/` | Cross-workstream coordination |
-| Sprint Plans | `claude/workstreams/{ws}/epic###/sprint###/` | Implementation roadmap |
+| Sprint Plans | `agency/workstreams/{ws}/epic###/sprint###/` | Implementation roadmap |
 | Iteration Handoffs | Same directory | Specific work packages |
-| Design Docs | `claude/workstreams/{workstream}/` | Evergreen references |
+| Design Docs | `agency/workstreams/{workstream}/` | Evergreen references |
 
 ### What Claude Code Creates
 
@@ -168,11 +168,11 @@ sprint001-iteration001-web-plan.md # Iteration handoff
 
 | Document | Destination |
 |----------|-------------|
-| Epic Plans | `claude/epics/epic###/` or `claude/workstreams/{ws}/epic###/` |
-| Sprint Plans | `claude/workstreams/{workstream}/epic###/sprint###/` |
-| Design Docs | `claude/workstreams/{workstream}/` (root level) |
+| Epic Plans | `claude/epics/epic###/` or `agency/workstreams/{ws}/epic###/` |
+| Sprint Plans | `agency/workstreams/{workstream}/epic###/sprint###/` |
+| Design Docs | `agency/workstreams/{workstream}/` (root level) |
 | Process Docs | `claude/process/` |
-| Agent Identity | `claude/agents/{agentname}/` |
+| Agent Identity | `agency/agents/{agentname}/` |
 
 ---
 

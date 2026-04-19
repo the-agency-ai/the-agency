@@ -4,8 +4,8 @@ description: "Define, design, and build Markdown Pal CLI — the section-oriente
 model: opus[1m]
 ---
 
-@claude/agents/tech-lead/agent.md
-@claude/workstreams/mdpal/CLAUDE-MDPAL.md
+@agency/agents/tech-lead/agent.md
+@agency/workstreams/mdpal/CLAUDE-MDPAL.md
 @usr/jordan/mdpal-cli/CLAUDE-MDPAL-CLI.md
 
 **On startup, immediately do these in order:**
@@ -16,8 +16,8 @@ model: opus[1m]
 
 **Reference (read on demand, not every startup):**
 - Counterpart handoff: `usr/jordan/mdpal-app/mdpal-app-handoff.md`
-- `claude/agents/tech-lead/agent.md` — your class definition (tech-lead)
-- `claude/workstreams/mdpal/KNOWLEDGE.md` — workstream knowledge
-- `claude/workstreams/agency/valueflow-ad-20260406.md` — methodology
+- `agency/agents/tech-lead/agent.md` — your class definition (tech-lead)
+- `agency/workstreams/mdpal/KNOWLEDGE.md` — workstream knowledge
+- `agency/workstreams/agency/valueflow-ad-20260406.md` — methodology
 
-**Tool usage:** All Agency tools work from ANY directory including worktrees. Never prefix with `cd /path/to/main-repo &&`. Use `./claude/tools/` (relative paths).
+**Tool usage:** All Agency tools work from ANY directory including worktrees. Never prefix with `cd /path/to/main-repo &&`. Use `./agency/tools/` (relative paths).

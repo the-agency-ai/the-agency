@@ -71,7 +71,7 @@ The Agency ships as a self-bootstrapping framework: `agency-init` creates a work
 |----|-------------|--------|
 | R7 | SessionStart hook: mechanical startup, validate principal, usr/, tools, agency.yaml | Item 5 |
 | R8 | Handoff multi-agent: `{agent}-handoff.md` per agent, workstream-create scaffolds | Item 8 |
-| R9 | Transcript mining tool: formalize to `claude/tools/`, feed permissions discovery and friction detection | Item 9 |
+| R9 | Transcript mining tool: formalize to `agency/tools/`, feed permissions discovery and friction detection | Item 9 |
 | R10 | Dispatch auto-read: abstraction layer now (file-rename), ISCP replaces implementation later | Item 10 |
 | R11 | Hookify rules terse: one-liner + doc ref + kittens as standard pattern, audit remaining | Item 11 |
 | R12 | Handoff typed frontmatter: session-restore, agency-bootstrap, agent-bootstrap types | Item 12 |
@@ -144,7 +144,7 @@ The Agency ships as a self-bootstrapping framework: `agency-init` creates a work
 | `/pr` not `/push` | Push is an implementation step inside the PR skill, not a standalone action |
 | Docker for test isolation | Same behavior locally and CI. Enforcement Triangle for test execution |
 | age over GPG for local secrets | Simple (one command encrypt/decrypt), no key servers, no config |
-| Seeds at workstream level | `claude/workstreams/{name}/seeds/` — belong to workstream, not agent |
+| Seeds at workstream level | `agency/workstreams/{name}/seeds/` — belong to workstream, not agent |
 | `git init → agency init → claude` | Already settled, not reopened |
 | Content in separate private repo | the-agency-ai/the-agency-content, agency model |
 | Dispatch types: 9 typed + flag as separate primitive | directive, seed, review, review-response, commit, master-updated, escalation, dispatch (generic). Flag stays separate — zero-ceremony capture |

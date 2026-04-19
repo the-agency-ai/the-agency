@@ -33,5 +33,5 @@ apps/mdpal-app/Sources/MarkdownPalApp/Services/RealCLIService.swift
 apps/mdpal-app/Sources/MarkdownPalApp/Views/MarkdownDocument.swift
 apps/mdpal-app/Sources/MarkdownPalApp/Views/SectionReaderView.swift
 apps/mdpal-app/Tests/MarkdownPalAppTests/ModelTests.swift
-claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1334-245f68e.md
+agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1334-245f68e.md
 ```

@@ -4,7 +4,7 @@
 
 1. Launch the agent:
    ```bash
-   ./claude/tools/myclaude iscp iscp
+   ./agency/tools/myclaude iscp iscp
    ```
 
 2. Review current work:
@@ -15,8 +15,8 @@
 
 ## Key Resources
 
-- Agent directory: `claude/agents/iscp/`
-- Workstream: `claude/workstreams/iscp/`
+- Agent directory: `agency/agents/iscp/`
+- Workstream: `agency/workstreams/iscp/`
 ## Getting Help
 
 Write a dispatch to the captain agent for cross-workstream coordination.

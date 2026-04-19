@@ -5,7 +5,7 @@ matcher: Bash
 
 # Block: raw handoff tool — use /handoff skill
 
-If the Bash command contains `claude/tools/handoff` (with or without path prefix, with or without `bash` prefix), BLOCK it.
+If the Bash command contains `agency/tools/handoff` (with or without path prefix, with or without `bash` prefix), BLOCK it.
 
 **Why:** The `/handoff` skill handles archiving, path resolution, and content guidance. The raw tool bypasses skill orchestration and agents consistently misuse it (wrong CWD, wrong flags, writing files manually after).
 

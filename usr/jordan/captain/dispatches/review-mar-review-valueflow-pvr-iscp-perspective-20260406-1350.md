@@ -11,4 +11,4 @@ in_reply_to: null
 
 # MAR: Review Valueflow PVR — ISCP perspective
 
-Valueflow PVR at claude/workstreams/agency/valueflow-pvr-20260406.md defines TheAgency's AIADLC. You own ISCP — the messaging backbone. Review from your perspective: does the dispatch-on-commit flow work? Is the captain loop realistic? Are the MARFI/MAR/MAP group definitions compatible with ISCP primitives? Does the three-bucket pattern align with flag triage? Three-bucket response: (1) disagree, (2) agree, (3) discuss. Reply via dispatch.
+Valueflow PVR at agency/workstreams/agency/valueflow-pvr-20260406.md defines TheAgency's AIADLC. You own ISCP — the messaging backbone. Review from your perspective: does the dispatch-on-commit flow work? Is the captain loop realistic? Are the MARFI/MAR/MAP group definitions compatible with ISCP primitives? Does the three-bucket pattern align with flag triage? Three-bucket response: (1) disagree, (2) agree, (3) discuss. Reply via dispatch.

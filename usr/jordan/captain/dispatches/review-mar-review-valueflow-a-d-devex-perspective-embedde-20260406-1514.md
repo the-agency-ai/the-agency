@@ -11,4 +11,4 @@ in_reply_to: null
 
 # MAR: Review Valueflow A&D — DevEx perspective, embedded questions for you
 
-A&D at claude/workstreams/agency/valueflow-ad-20260406.md. Has embedded questions targeted at you: changed-file test mapping mechanism, stage-hash semantic diff, context budget linter, enforcement registry audit tool. Give raw findings. Merge main first.
+A&D at agency/workstreams/agency/valueflow-ad-20260406.md. Has embedded questions targeted at you: changed-file test mapping mechanism, stage-hash semantic diff, context budget linter, enforcement registry audit tool. Give raw findings. Merge main first.

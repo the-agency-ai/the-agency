@@ -19,7 +19,7 @@ Session delivered **Phase 1B + Phase 1C** back-to-back:
 - Phase 1B: 7 iterations + phase-complete + PR #183 created
 - Phase 1C: 6 iterations + phase-complete (commits stacked on same branch)
 - 60 → 139 tests (+79)
-- 16 signed receipts under `claude/workstreams/mdpal/qgr/`
+- 16 signed receipts under `agency/workstreams/mdpal/qgr/`
 
 **Awaiting reviewer decision** on PR scope (three choices documented in the handoff before this compact):
 1. Merge #183 with expanded 1B+1C scope
@@ -80,7 +80,7 @@ All 4 items filed to mdpal-cli (#575) came back resolved in #579 (Phase 2.3). Al
 
 ## Key patterns / decisions to survive compact
 
-- **`receipt-sign` v1** writes to `claude/workstreams/{W}/qgr/`. `git-safe-commit --no-verify` bypasses the stale retired-path check that git-safe-commit still globs.
+- **`receipt-sign` v1** writes to `agency/workstreams/{W}/qgr/`. `git-safe-commit --no-verify` bypasses the stale retired-path check that git-safe-commit still globs.
 - **No-squash policy this session**: preserved all 14 iteration commits with their receipts through phase-complete. The 2 phase-complete receipts are additive documentation, not replacements.
 - **`bundleConflict` distinct from generic failure** (1C.4): in DocumentModel.createRevision, bundleConflict rethrows WITHOUT populating lastError so the UI can surface a reload/overwrite dialog; generic failures pave lastError AND rethrow.
 - **`--text-stdin` threshold = 16 KiB UTF-8** (1C.6). Under threshold uses `--text <value>`; over uses `--text-stdin` + stdin. Same for `--response-stdin`. Thresholds are private `Self.stdinThresholdBytes` in RealCLIService.

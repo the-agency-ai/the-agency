@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for claude/tools/run-in
+# Tests for agency/tools/run-in
 #
 # Focus: subshell isolation, exit code propagation, argv boundaries, error
 # surfaces for missing dir and missing separator.

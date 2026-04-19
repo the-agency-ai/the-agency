@@ -25,25 +25,25 @@ setup() {
 
     # Mock two-principal repo
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
-    mkdir -p "$MOCK_REPO/claude/tools/lib"
+    mkdir -p "$MOCK_REPO/agency/tools/lib"
     mkdir -p "$MOCK_REPO/claude/config"
     mkdir -p "$MOCK_REPO/usr/jordan/captain"
     mkdir -p "$MOCK_REPO/usr/peter/captain"
 
     # Copy real tools + libs
-    cp "$REPO_ROOT/claude/tools/agent-bootstrap" "$MOCK_REPO/claude/tools/"
-    cp "$REPO_ROOT/claude/tools/agent-identity"  "$MOCK_REPO/claude/tools/"
-    chmod +x "$MOCK_REPO/claude/tools/"*
-    cp "$REPO_ROOT/claude/tools/lib/_address-parse" "$MOCK_REPO/claude/tools/lib/"
-    cp "$REPO_ROOT/claude/tools/lib/_path-resolve"  "$MOCK_REPO/claude/tools/lib/"
-    cp "$REPO_ROOT/claude/tools/lib/_log-helper"    "$MOCK_REPO/claude/tools/lib/"
+    cp "$REPO_ROOT/agency/tools/agent-bootstrap" "$MOCK_REPO/agency/tools/"
+    cp "$REPO_ROOT/agency/tools/agent-identity"  "$MOCK_REPO/agency/tools/"
+    chmod +x "$MOCK_REPO/agency/tools/"*
+    cp "$REPO_ROOT/agency/tools/lib/_address-parse" "$MOCK_REPO/agency/tools/lib/"
+    cp "$REPO_ROOT/agency/tools/lib/_path-resolve"  "$MOCK_REPO/agency/tools/lib/"
+    cp "$REPO_ROOT/agency/tools/lib/_log-helper"    "$MOCK_REPO/agency/tools/lib/"
 
     cd "$MOCK_REPO"
     git init --quiet
     git config user.email "test@example.com"
     git config user.name "Test User"
 
-    cat > "$MOCK_REPO/claude/config/agency.yaml" <<'YAML'
+    cat > "$MOCK_REPO/agency/config/agency.yaml" <<'YAML'
 principals:
   jdm: jordan
   pyg: peter
@@ -85,20 +85,20 @@ teardown() {
 @test "agent-bootstrap retired: exits 0 with deprecation — D42-R3" {
     cd "$MOCK_REPO"
     export USER="jdm"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
+    run "$MOCK_REPO/agency/tools/agent-bootstrap"
     assert_success
 }
 
 @test "agent-bootstrap retired: any args still exit 0 — D42-R3" {
     cd "$MOCK_REPO"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent captain --verbose
+    run "$MOCK_REPO/agency/tools/agent-bootstrap" --agent captain --verbose
     assert_success
 }
 
 @test "agent-bootstrap retired: unknown user still exit 0 — D42-R3" {
     cd "$MOCK_REPO"
     export USER="nobody"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
+    run "$MOCK_REPO/agency/tools/agent-bootstrap"
     assert_success
 }
 
@@ -112,26 +112,26 @@ teardown() {
     # works from any user context without crashing.
     cd "$MOCK_REPO"
     export USER="pyg"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
+    run "$MOCK_REPO/agency/tools/agent-bootstrap"
     assert_success
 }
 
 @test "regression anchor — universal reference doc contains Two Standing Priorities" {
     # D41-R19: these rules are universal (every agent), relocated to
-    # claude/REFERENCE-AGENT-DISCIPLINE.md so every agent loads them via
+    # agency/REFERENCE-AGENT-DISCIPLINE.md so every agent loads them via
     # the bootloader chain, not just captain.
-    run grep -F "The Two Standing Priorities" "$REPO_ROOT/claude/REFERENCE-AGENT-DISCIPLINE.md"
+    run grep -F "The Two Standing Priorities" "$REPO_ROOT/agency/REFERENCE-AGENT-DISCIPLINE.md"
     assert_success
 }
 
 @test "regression anchor — universal reference doc contains Over/Over-and-Out protocol" {
-    run grep -F "Communication Protocol — Over / Over-and-Out" "$REPO_ROOT/claude/REFERENCE-AGENT-DISCIPLINE.md"
+    run grep -F "Communication Protocol — Over / Over-and-Out" "$REPO_ROOT/agency/REFERENCE-AGENT-DISCIPLINE.md"
     assert_success
 }
 
 @test "regression anchor — bootloader references REFERENCE-AGENT-DISCIPLINE" {
     # Verifies the bootloader chain reaches the universal rules doc.
-    run grep -F "REFERENCE-AGENT-DISCIPLINE.md" "$REPO_ROOT/claude/CLAUDE-THEAGENCY.md"
+    run grep -F "REFERENCE-AGENT-DISCIPLINE.md" "$REPO_ROOT/agency/CLAUDE-THEAGENCY.md"
     assert_success
 }
 
@@ -155,7 +155,7 @@ teardown() {
     rm "$MOCK_REPO/usr/jordan/captain/captain-handoff.md"
 
     # Stage the helper library + required log-helper companion
-    cp "$REPO_ROOT/claude/tools/lib/_health-agent" "$MOCK_REPO/claude/tools/lib/"
+    cp "$REPO_ROOT/agency/tools/lib/_health-agent" "$MOCK_REPO/agency/tools/lib/"
 
     # Probe: run a tiny harness that sources the lib and verifies $handoff
     # resolves to peter's file when jordan's is absent.
@@ -263,7 +263,7 @@ teardown() {
 @test "agent-bootstrap retired: --agent flag exits 0 — D42-R3" {
     cd "$MOCK_REPO"
     export USER="jdm"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap" --agent foo
+    run "$MOCK_REPO/agency/tools/agent-bootstrap" --agent foo
     assert_success
 }
 
@@ -271,7 +271,7 @@ teardown() {
     cd "$MOCK_REPO"
     export USER="jdm"
     export CLAUDE_AGENT_NAME="captain"
-    run "$MOCK_REPO/claude/tools/agent-bootstrap"
+    run "$MOCK_REPO/agency/tools/agent-bootstrap"
     assert_success
 }
 

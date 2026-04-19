@@ -27,14 +27,14 @@ in_reply_to: null
 
 ### Files Changed
 ```
-claude/tools/agency-health
-claude/tools/git-safe
-claude/tools/lib/_detect-main-branch
-claude/tools/lib/_health-worktree
-claude/tools/pr-build
-claude/tools/pr-create
-claude/tools/tests/test-worktree-sync.sh
-claude/tools/worktree-sync
+agency/tools/agency-health
+agency/tools/git-safe
+agency/tools/lib/_detect-main-branch
+agency/tools/lib/_health-worktree
+agency/tools/pr-build
+agency/tools/pr-create
+agency/tools/tests/test-worktree-sync.sh
+agency/tools/worktree-sync
 tests/tools/_detect-main-branch.bats
 tests/tools/git-safe-commit-merge.bats
 tests/tools/git-safe.bats

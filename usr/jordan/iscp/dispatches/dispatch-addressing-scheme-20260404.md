@@ -28,7 +28,7 @@ Uses the existing Agency hierarchy:
 
 ### Workstream Addressing
 
-New. Repo-level, no principal scoping — matches `claude/workstreams/{name}/` hierarchy:
+New. Repo-level, no principal scoping — matches `agency/workstreams/{name}/` hierarchy:
 
 ```
 {repo}/{workstream}
@@ -37,7 +37,7 @@ New. Repo-level, no principal scoping — matches `claude/workstreams/{name}/` h
 - Bare: `iscp` — resolve repo from context
 - Fully qualified: `the-agency/iscp`
 
-**Payload location:** `claude/workstreams/{workstream}/dispatches/`
+**Payload location:** `agency/workstreams/{workstream}/dispatches/`
 
 ### Flag vs Dispatch
 
@@ -47,14 +47,14 @@ New. Repo-level, no principal scoping — matches `claude/workstreams/{name}/` h
 ### Disambiguation
 
 Bare form `iscp` could be agent or workstream. Resolution order:
-1. Check `claude/workstreams/{name}/` — if exists, it's a workstream
+1. Check `agency/workstreams/{name}/` — if exists, it's a workstream
 2. Check agent registrations — if exists, it's an agent
 3. Fail with actionable error
 
 ### Reference
 
 - CLAUDE-THEAGENCY.md § "Agent & Principal Addressing" — full hierarchy definition
-- `claude/tools/lib/_path-resolve` — current resolution library (has env leak bugs to fix)
+- `agency/tools/lib/_path-resolve` — current resolution library (has env leak bugs to fix)
 
 ## Action
 

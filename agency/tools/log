@@ -4,21 +4,21 @@
 # Query logs, view statistics, and manage tool run tracking.
 #
 # Usage:
-#   ./claude/tools/log                                     # Recent logs (all)
-#   ./claude/tools/log --service bug-service               # Filter by service
-#   ./claude/tools/log --level error                       # Filter by level
-#   ./claude/tools/log --since 1h                          # Time range (1h, 24h, 7d)
-#   ./claude/tools/log --search "failed"                   # Full-text search
-#   ./claude/tools/log --run-id abc123                     # Filter by run ID
-#   ./claude/tools/log stats                               # Log statistics
-#   ./claude/tools/log services                            # List services with logs
-#   ./claude/tools/log tools                               # Tool usage telemetry
-#   ./claude/tools/log commands                            # External command telemetry
-#   ./claude/tools/log failures                            # Recent tool failures
-#   ./claude/tools/log run start <tool> [options]          # Start tool run
-#   ./claude/tools/log run end <runId> --status=success    # End tool run
-#   ./claude/tools/log run get <runId>                     # Get run details
-#   ./claude/tools/log run errors <runId>                  # Get errors for run
+#   ./agency/tools/log                                     # Recent logs (all)
+#   ./agency/tools/log --service bug-service               # Filter by service
+#   ./agency/tools/log --level error                       # Filter by level
+#   ./agency/tools/log --since 1h                          # Time range (1h, 24h, 7d)
+#   ./agency/tools/log --search "failed"                   # Full-text search
+#   ./agency/tools/log --run-id abc123                     # Filter by run ID
+#   ./agency/tools/log stats                               # Log statistics
+#   ./agency/tools/log services                            # List services with logs
+#   ./agency/tools/log tools                               # Tool usage telemetry
+#   ./agency/tools/log commands                            # External command telemetry
+#   ./agency/tools/log failures                            # Recent tool failures
+#   ./agency/tools/log run start <tool> [options]          # Start tool run
+#   ./agency/tools/log run end <runId> --status=success    # End tool run
+#   ./agency/tools/log run get <runId>                     # Get run details
+#   ./agency/tools/log run errors <runId>                  # Get errors for run
 
 set -euo pipefail
 
@@ -82,7 +82,7 @@ is_service_running() {
 ensure_service() {
     if ! is_service_running; then
         log_error "Log Service not running at ${LOG_SERVICE_URL}"
-        echo "Start it with: ./claude/tools/telemetry --recent"
+        echo "Start it with: ./agency/tools/telemetry --recent"
         exit 1
     fi
 }
@@ -348,9 +348,9 @@ cmd_commands() {
     if [[ "$total_runs" == "0" ]]; then
         echo "No external command runs recorded."
         echo ""
-        echo "Use ./claude/tools/run to execute commands with telemetry:"
-        echo "  ./claude/tools/run git status"
-        echo "  ./claude/tools/run npm install"
+        echo "Use ./agency/tools/run to execute commands with telemetry:"
+        echo "  ./agency/tools/run git status"
+        echo "  ./agency/tools/run npm install"
         return
     fi
 
@@ -432,7 +432,7 @@ cmd_run_start() {
 
     if [[ -z "$tool" ]]; then
         log_error "Tool name required"
-        echo "Usage: ./claude/tools/log run start <tool> [--type=agency-tool|bash|mcp] [--agent=X] [--workstream=X]"
+        echo "Usage: ./agency/tools/log run start <tool> [--type=agency-tool|bash|mcp] [--agent=X] [--workstream=X]"
         exit 1
     fi
 
@@ -499,7 +499,7 @@ cmd_run_end() {
 
     if [[ -z "$run_id" ]]; then
         log_error "Run ID required"
-        echo "Usage: ./claude/tools/log run end <runId> --status=success|failure [--exit-code=0] [--output-size=1234]"
+        echo "Usage: ./agency/tools/log run end <runId> --status=success|failure [--exit-code=0] [--output-size=1234]"
         exit 1
     fi
 
@@ -533,7 +533,7 @@ cmd_run_get() {
 
     if [[ -z "$run_id" ]]; then
         log_error "Run ID required"
-        echo "Usage: ./claude/tools/log run get <runId>"
+        echo "Usage: ./agency/tools/log run get <runId>"
         exit 1
     fi
 
@@ -595,7 +595,7 @@ cmd_run_errors() {
 
     if [[ -z "$run_id" ]]; then
         log_error "Run ID required"
-        echo "Usage: ./claude/tools/log run errors <runId>"
+        echo "Usage: ./agency/tools/log run errors <runId>"
         exit 1
     fi
 
@@ -614,46 +614,46 @@ show_help() {
     echo "log - CLI for The Agency Log Service"
     echo ""
     echo "Query Logs:"
-    echo "  ./claude/tools/log                                     Recent logs (all)"
-    echo "  ./claude/tools/log --service bug-service               Filter by service"
-    echo "  ./claude/tools/log --level error                       Filter by level (error, warn, info, debug)"
-    echo "  ./claude/tools/log --since 1h                          Time range (1h, 24h, 7d)"
-    echo "  ./claude/tools/log --search \"failed\"                   Full-text search"
-    echo "  ./claude/tools/log --run-id abc123                     Filter by run ID"
-    echo "  ./claude/tools/log --limit 50                          Limit results"
-    echo "  ./claude/tools/log --raw                               Output raw JSON"
+    echo "  ./agency/tools/log                                     Recent logs (all)"
+    echo "  ./agency/tools/log --service bug-service               Filter by service"
+    echo "  ./agency/tools/log --level error                       Filter by level (error, warn, info, debug)"
+    echo "  ./agency/tools/log --since 1h                          Time range (1h, 24h, 7d)"
+    echo "  ./agency/tools/log --search \"failed\"                   Full-text search"
+    echo "  ./agency/tools/log --run-id abc123                     Filter by run ID"
+    echo "  ./agency/tools/log --limit 50                          Limit results"
+    echo "  ./agency/tools/log --raw                               Output raw JSON"
     echo ""
     echo "Statistics:"
-    echo "  ./claude/tools/log stats                               Error counts, service counts"
-    echo "  ./claude/tools/log services                            List services with logs"
+    echo "  ./agency/tools/log stats                               Error counts, service counts"
+    echo "  ./agency/tools/log services                            List services with logs"
     echo ""
     echo "Tool Telemetry:"
-    echo "  ./claude/tools/log tools                               Tool usage statistics (last 7d)"
-    echo "  ./claude/tools/log tools <name>                        Stats for a specific tool"
-    echo "  ./claude/tools/log tools --since 24h                   Stats for a time period"
-    echo "  ./claude/tools/log failures                            Recent tool failures"
-    echo "  ./claude/tools/log failures --limit 10                 Limit results"
+    echo "  ./agency/tools/log tools                               Tool usage statistics (last 7d)"
+    echo "  ./agency/tools/log tools <name>                        Stats for a specific tool"
+    echo "  ./agency/tools/log tools --since 24h                   Stats for a time period"
+    echo "  ./agency/tools/log failures                            Recent tool failures"
+    echo "  ./agency/tools/log failures --limit 10                 Limit results"
     echo ""
     echo "External Command Telemetry:"
-    echo "  ./claude/tools/log commands                            External command stats (last 7d)"
-    echo "  ./claude/tools/log commands git                        Stats for a specific command"
-    echo "  ./claude/tools/log commands --recent                   Stats for last 24h"
-    echo "  ./claude/tools/log commands --since 1h                 Stats for a time period"
+    echo "  ./agency/tools/log commands                            External command stats (last 7d)"
+    echo "  ./agency/tools/log commands git                        Stats for a specific command"
+    echo "  ./agency/tools/log commands --recent                   Stats for last 24h"
+    echo "  ./agency/tools/log commands --since 1h                 Stats for a time period"
     echo ""
     echo "Tool Run Tracking:"
-    echo "  ./claude/tools/log run start <tool> [options]          Start a tool run"
+    echo "  ./agency/tools/log run start <tool> [options]          Start a tool run"
     echo "    --type=agency-tool|bash|mcp                   Tool type"
     echo "    --agent=<name>                                Agent name"
     echo "    --workstream=<name>                           Workstream name"
     echo ""
-    echo "  ./claude/tools/log run end <runId> --status=<status>   End a tool run"
+    echo "  ./agency/tools/log run end <runId> --status=<status>   End a tool run"
     echo "    --status=success|failure                      Run status (required)"
     echo "    --exit-code=<code>                            Process exit code"
     echo "    --output-size=<bytes>                         Output size in bytes"
     echo "    --error=\"<message>\"                           Error message"
     echo ""
-    echo "  ./claude/tools/log run get <runId>                     Get run details with logs"
-    echo "  ./claude/tools/log run errors <runId>                  Get only errors for a run"
+    echo "  ./agency/tools/log run get <runId>                     Get run details with logs"
+    echo "  ./agency/tools/log run errors <runId>                  Get only errors for a run"
     echo ""
     echo "Options:"
     echo "  --version, -v                                   Show version"
@@ -711,7 +711,7 @@ main() {
                     ;;
                 *)
                     log_error "Unknown run command: ${2:-}"
-                    echo "Usage: ./claude/tools/log run <start|end|get|errors> ..."
+                    echo "Usage: ./agency/tools/log run <start|end|get|errors> ..."
                     exit 1
                     ;;
             esac
@@ -726,7 +726,7 @@ main() {
             ;;
         *)
             log_error "Unknown command: $1"
-            echo "Run './claude/tools/log --help' for usage"
+            echo "Run './agency/tools/log --help' for usage"
             exit 1
             ;;
     esac

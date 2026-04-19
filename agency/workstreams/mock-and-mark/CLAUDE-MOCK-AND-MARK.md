@@ -28,7 +28,7 @@ Workstream exists but dormant. Needs a reactivation decision: either formally re
 
 ## Related
 
-- `claude/workstreams/mock-and-mark/LICENSE` — Reference Source License
+- `agency/workstreams/mock-and-mark/LICENSE` — Reference Source License
 - PVR, A&D, Plan at the workstream root (status unknown until reactivation review)
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

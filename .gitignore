@@ -28,15 +28,15 @@ services/*/logs/*.log
 services/*/logs/*.json
 
 # Database files
-claude/data/*.db
-claude/data/*.db-wal
-claude/data/*.db-shm
+agency/data/*.db
+agency/data/*.db-wal
+agency/data/*.db-shm
 
 # Instance tracking (ephemeral runtime state)
-claude/data/instances/
+agency/data/instances/
 
 # Service PID files (runtime)
-claude/data/*.pid
+agency/data/*.pid
 
 # Agency service logs (but keep reviews for findings history)
 claude/logs/*
@@ -66,8 +66,8 @@ test/
 .worktrees/
 
 # Session backups (ephemeral state - not versioned)
-claude/agents/*/backups/latest/
-claude/agents/*/backups/archive/
+agency/agents/*/backups/latest/
+agency/agents/*/backups/archive/
 
 # Services (local development - root level only, not source/services)
 /services/

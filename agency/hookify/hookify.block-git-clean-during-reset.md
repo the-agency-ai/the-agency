@@ -58,7 +58,7 @@ PCRE negative-lookahead.)
 - Decision: `block`
 - Exit code: 2
 - Message: "🚫 BLOCKED: `git clean -fd` during v46.0 reset would destroy the
-  Phase-1 alias-shim. Use `./claude/tools/reset-rollback` for safe rollback
+  Phase-1 alias-shim. Use `./agency/tools/reset-rollback` for safe rollback
   during reset. If you truly need `git clean -fd` pass
   `-e usr/jordan/captain/reset-baseline-20260419` to exclude the shim + baseline."
 
@@ -69,7 +69,7 @@ rule is a no-op (returns exit 0).
 
 ## Related
 
-- `claude/tools/reset-rollback` — safe rollback wrapper (ALWAYS use this during reset)
+- `agency/tools/reset-rollback` — safe rollback wrapper (ALWAYS use this during reset)
 - Plan v4 Principle 12 — shim resilience
 - Plan v4 §3 Phase 0b — this rule added
 - Plan v4 v3 R-3 HIGH — shim-destruction via cleanup is the underlying risk

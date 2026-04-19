@@ -1,6 +1,6 @@
 ## ISCP Protocol — Dispatch, Flag, and Notification
 
-ISCP (Inter-Session Communication Protocol) is the notification and messaging backbone. Every agent has automatic mail. Full reference: `claude/workstreams/iscp/iscp-reference-20260405.md`.
+ISCP (Inter-Session Communication Protocol) is the notification and messaging backbone. Every agent has automatic mail. Full reference: `agency/workstreams/iscp/iscp-reference-20260405.md`.
 
 ### Architecture
 
@@ -55,7 +55,7 @@ Fully qualified: `{repo}/{principal}/{agent}`. Tools write fully qualified, acce
 
 ### Dispatch Payloads
 
-Payloads are immutable markdown files in git at `claude/data/dispatches/`. Named `{type}-{slug}-{YYYYMMDD-HHMM}.md`. The DB stores the notification (status, timestamps); git stores the content.
+Payloads are immutable markdown files in git at `agency/data/dispatches/`. Named `{type}-{slug}-{YYYYMMDD-HHMM}.md`. The DB stores the notification (status, timestamps); git stores the content.
 
 ### Notification Hook
 
@@ -85,17 +85,17 @@ Dispatch-on-commit is fire-and-forget from the committing agent's perspective �
 
 **Preferred: Monitor tool (96% token savings, 10-second latency):**
 
-Use the `/monitor-dispatches` skill at session start. It runs `./claude/tools/dispatch-monitor --include-collab` in the background persistently via the Monitor tool. Completely silent when no dispatches; outputs when items arrive. The `--include-collab` flag also checks cross-repo collaboration dispatches.
+Use the `/monitor-dispatches` skill at session start. It runs `./agency/tools/dispatch-monitor --include-collab` in the background persistently via the Monitor tool. Completely silent when no dispatches; outputs when items arrive. The `--include-collab` flag also checks cross-repo collaboration dispatches.
 
 **Fallback: `/loop` polling (if Monitor is unavailable, Claude Code < v2.1.98):**
 
 ```
-/loop 5m Run: ./claude/tools/dispatch list --status unread
+/loop 5m Run: ./agency/tools/dispatch list --status unread
 (silent when clean, act on unread)
 ```
 
 ```
-/loop 30m NAG CHECK: Run ./claude/tools/dispatch list --status unread
+/loop 30m NAG CHECK: Run ./agency/tools/dispatch list --status unread
 (visible alert if items sitting 30+ minutes)
 ```
 
@@ -103,7 +103,7 @@ Use the `/monitor-dispatches` skill at session start. It runs `./claude/tools/di
 
 ISCP is local to each repo (the SQLite DB lives at `~/.agency/{repo-name}/iscp.db`). Cross-repo dispatches use **collaboration repos** — git-file-based messaging since the two repos don't share a DB.
 
-**The collaboration tool** (`claude/tools/collaboration`) is captain-only. It manages cross-repo dispatch lifecycle:
+**The collaboration tool** (`agency/tools/collaboration`) is captain-only. It manages cross-repo dispatch lifecycle:
 
 ```bash
 collaboration check                    # Pull all repos, scan for unread
@@ -114,7 +114,7 @@ collaboration resolve <repo> <file>    # Mark resolved
 collaboration push <repo>             # Commit and push status updates + replies
 ```
 
-**Configuration** in `claude/config/agency.yaml`:
+**Configuration** in `agency/config/agency.yaml`:
 ```yaml
 collaboration:
   repos:
@@ -132,7 +132,7 @@ The ISCP DB uses SQLite's `PRAGMA user_version` for schema versioning. The frame
 
 **How to add a new migration:**
 
-1. Bump `ISCP_SCHEMA_VERSION` constant in `claude/tools/lib/_iscp-db`
+1. Bump `ISCP_SCHEMA_VERSION` constant in `agency/tools/lib/_iscp-db`
 2. Define `_iscp_migration_v<N>()` returning the SQL (heredoc)
 3. The runner picks it up automatically on next `iscp_db_init` call
 
@@ -146,7 +146,7 @@ The ISCP DB uses SQLite's `PRAGMA user_version` for schema versioning. The frame
 
 A cloud-hosted agent messaging service is in design to replace the collaboration-repo mechanism for cross-agency dispatches. The seed and PVR are in the iscp workstream:
 
-- Seed: `claude/workstreams/iscp/seeds/seed-dispatch-service-20260414.md`
-- PVR: `claude/workstreams/iscp/dispatch-service-pvr-20260414.md` (when complete)
+- Seed: `agency/workstreams/iscp/seeds/seed-dispatch-service-20260414.md`
+- PVR: `agency/workstreams/iscp/dispatch-service-pvr-20260414.md` (when complete)
 
 The dispatch service will provide a durable, real-time message bus between agency instances — eliminating the need to push/pull collaboration repos for cross-repo communication. Local ISCP (SQLite DB) remains unchanged for intra-repo messaging; the service handles inter-repo and cross-machine dispatches.

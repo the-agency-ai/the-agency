@@ -13,7 +13,7 @@
 #
 # Written: 2026-04-07 during devex Phase 1.3 (commit-precheck rewrite)
 #
-# Usage: ./claude/tools/commit-precheck [options]
+# Usage: ./agency/tools/commit-precheck [options]
 #   --verbose    Show detailed output
 #   --dry-run    Show what would run without executing
 #   --version    Show version
@@ -133,8 +133,8 @@ classify_staged() {
         return
     fi
 
-    # Check for tool/test code (bash scripts in claude/tools/ or tests/)
-    if echo "$staged_files" | grep -qE '^(claude/tools/|tests/)'; then
+    # Check for tool/test code (bash scripts in agency/tools/ or tests/)
+    if echo "$staged_files" | grep -qE '^(agency/tools/|tests/)'; then
         echo "tool-code"
         return
     fi
@@ -197,12 +197,12 @@ main() {
     # Defaults: warn at 1 MB, block at 10 MB.
     # Env overrides: LARGE_FILE_WARN_BYTES, LARGE_FILE_BLOCK_BYTES.
     # Bypass: ALLOW_LARGE_COMMIT=1 (set by git-safe-commit --allow-large).
-    # Exceptions: claude/config/large-file-exceptions.txt (one glob per line).
+    # Exceptions: agency/config/large-file-exceptions.txt (one glob per line).
     # ────────────────────────────────────────────────────────────────────────
     check_large_files() {
         local warn_bytes="${LARGE_FILE_WARN_BYTES:-1048576}"     # 1 MB
         local block_bytes="${LARGE_FILE_BLOCK_BYTES:-10485760}"  # 10 MB
-        local exceptions_file="$REPO_ROOT/claude/config/large-file-exceptions.txt"
+        local exceptions_file="$REPO_ROOT/agency/config/large-file-exceptions.txt"
         local exceptions=()
         if [[ -f "$exceptions_file" ]]; then
             while IFS= read -r line; do
@@ -278,8 +278,8 @@ main() {
 
 If this is intentional:
   1. Use Git LFS:      git lfs track '*.bin' && git add .gitattributes
-  2. Override once:    ./claude/tools/git-safe-commit --allow-large ...
-  3. Permanent exempt: add glob to claude/config/large-file-exceptions.txt
+  2. Override once:    ./agency/tools/git-safe-commit --allow-large ...
+  3. Permanent exempt: add glob to agency/config/large-file-exceptions.txt
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
 EOF

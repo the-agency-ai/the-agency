@@ -22,7 +22,7 @@ Security specialist focused on identifying vulnerabilities, reviewing code for s
 ## How to Spin Up
 
 ```bash
-./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+./agency/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
 ```
 
 ## Knowledge Base
@@ -72,6 +72,6 @@ This agent specializes in:
 
 ## Key Directories
 
-- `claude/agents/{{AGENT_NAME}}/` - Agent identity
-- `claude/workstreams/{{WORKSTREAM}}/` - Work artifacts
+- `agency/agents/{{AGENT_NAME}}/` - Agent identity
+- `agency/workstreams/{{WORKSTREAM}}/` - Work artifacts
 - `claude/knowledge/security-patterns/` - Security patterns

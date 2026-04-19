@@ -13,7 +13,7 @@ setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
     test_isolation_setup
     cd "${REPO_ROOT}"
-    export BUILD_FILE="${REPO_ROOT}/claude/data/tool-build-number"
+    export BUILD_FILE="${REPO_ROOT}/agency/data/tool-build-number"
     if [[ -f "$BUILD_FILE" ]]; then
         cp "$BUILD_FILE" "${BATS_TEST_TMPDIR}/build-number-backup"
     fi
@@ -55,7 +55,7 @@ teardown() {
 @test "tool-create --provider=secrets: template has correct dispatcher" {
     run_tool tool-create --provider=secrets test-s3 "Test secrets provider"
     assert_success
-    assert_file_contains "${TOOLS_DIR}/secret-test-s3" "Dispatched via: ./claude/tools/secret"
+    assert_file_contains "${TOOLS_DIR}/secret-test-s3" "Dispatched via: ./agency/tools/secret"
     rm -f "${TOOLS_DIR}/secret-test-s3"
 }
 

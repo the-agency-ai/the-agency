@@ -29,5 +29,5 @@ in_reply_to: null
 ```
 apps/mdpal-app/Sources/MarkdownPalApp/Services/RealCLIService.swift
 apps/mdpal-app/Tests/MarkdownPalAppTests/ModelTests.swift
-claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1340-23bc61b.md
+agency/workstreams/mdpal/qgr/the-agency-jordan-mdpal-app-mdpal-mdpal-app-qgr-iteration-complete-20260417-1340-23bc61b.md
 ```

@@ -107,8 +107,8 @@ is **basically right** if you read "what" as **project goals/structure/conventio
 ### CLAUDE.md layering (policy-level HOW)
 
 - Root `CLAUDE.md` — project-specific (for the-agency: "This is the framework development repo")
-- `@claude/CLAUDE-THEAGENCY.md` — framework-wide bootloader (methodology, discipline, safe-tools family)
-- `@claude/REFERENCE-AGENT-DISCIPLINE.md` — agent-class discipline (Two Priorities + Over/Over-and-out)
+- `@agency/CLAUDE-THEAGENCY.md` — framework-wide bootloader (methodology, discipline, safe-tools family)
+- `@agency/REFERENCE-AGENT-DISCIPLINE.md` — agent-class discipline (Two Priorities + Over/Over-and-out)
 - `@usr/{principal}/{agent}/CLAUDE-{agent}.md` — personal overlay per principal-agent
 
 ### Skills as HOW (v2 spec)
@@ -126,7 +126,7 @@ Andrew's `CLAUDE.md` is a placeholder stub (20 lines, all `<!-- comment -->` bla
 
 Fix direction: `agency init` should rewrite CLAUDE.md from a template that:
 1. Names the project + principal
-2. Imports framework bootloader (`@claude/CLAUDE-THEAGENCY.md` or future `@agency/CLAUDE-AGENCY.md`)
+2. Imports framework bootloader (`@agency/CLAUDE-THEAGENCY.md` or future `@agency/CLAUDE-AGENCY.md`)
 3. Reserves sections for project-specific WHY/WHAT/HOW the adopter fills in
 4. Links to their workstreams + agent classes
 

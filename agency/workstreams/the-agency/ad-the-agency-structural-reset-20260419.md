@@ -8,8 +8,8 @@ date_started: 2026-04-19
 stage: design
 status: in-progress
 next_stage: plan
-pvr: claude/workstreams/the-agency/pvr-the-agency-structural-reset-20260419.md
-pvr_mar: claude/workstreams/the-agency/research/mar-pvr-structural-reset-20260419.md
+pvr: agency/workstreams/the-agency/pvr-the-agency-structural-reset-20260419.md
+pvr_mar: agency/workstreams/the-agency/research/mar-pvr-structural-reset-20260419.md
 related_issues: [270, 287, 332, 333, 334, 335, 336, 337]
 ---
 
@@ -41,7 +41,7 @@ Per MAR A3: explicit principle captured:
 
 ### 0.3. `agency/config/` preserved
 
-Per MAR A1: `agency/config/` (currently `claude/config/`) stays intact — holds `agency.yaml`, `manifest.json`, `settings-template.json`. Reserves future home for `install-manifest.yaml` (#337). No restructure in this reset.
+Per MAR A1: `agency/config/` (currently `agency/config/`) stays intact — holds `agency.yaml`, `manifest.json`, `settings-template.json`. Reserves future home for `install-manifest.yaml` (#337). No restructure in this reset.
 
 ### 0.4. Atomic single-PR delivery
 
@@ -99,7 +99,7 @@ AGENCY_ALLOW_RAW=1 git mv claude agency
 **Commit 1:** "feat(v46.0): Great Rename — claude/ → agency/ (pure move, no content edits)"
 
 **Gate 1 (MAR A4 / V6 alignment):**
-- `git log --follow agency/tools/git-safe` resolves history back through `claude/tools/git-safe` (5 canary files validated)
+- `git log --follow agency/tools/git-safe` resolves history back through `agency/tools/git-safe` (5 canary files validated)
 - `git status --porcelain` clean
 - `ls agency/` shows expected tree
 
@@ -123,7 +123,7 @@ AGENCY_ALLOW_RAW=1 git mv agency/README-RECEIPT-INFRASTRUCTURE.md agency/README/
 - `ls agency/REFERENCE/ | wc -l` == 36
 - `ls agency/README/ | wc -l` == 3
 - `ls agency/*.md` shows only `README-THEAGENCY.md`, `README-GETTINGSTARTED.md`, `CLAUDE-THEAGENCY.md`
-- `git log --follow agency/REFERENCE/REFERENCE-AGENT-DISCIPLINE.md` resolves back through `claude/REFERENCE-AGENT-DISCIPLINE.md`
+- `git log --follow agency/REFERENCE/REFERENCE-AGENT-DISCIPLINE.md` resolves back through `agency/REFERENCE-AGENT-DISCIPLINE.md`
 
 ### Phase 3 — Cruft removal + archive-to-flotsam (~10 min)
 
@@ -224,13 +224,13 @@ Per MAR R6: this is the LAST step. No subagents beyond this point.
 **Files rewritten:**
 - `.claude/settings.json` — hook paths: `$CLAUDE_PROJECT_DIR/claude/hooks/X.sh` → `$CLAUDE_PROJECT_DIR/agency/hooks/X.sh`
 - `CLAUDE.md` — `@claude/CLAUDE-THEAGENCY.md` → `@agency/CLAUDE-THEAGENCY.md`
-- `agency/CLAUDE-THEAGENCY.md` — internal `@claude/REFERENCE-*.md` → `@agency/REFERENCE/REFERENCE-*.md`
+- `agency/CLAUDE-THEAGENCY.md` — internal `@agency/REFERENCE-*.md` → `@agency/REFERENCE/REFERENCE-*.md`
 - `agency/agents/*/agent.md` — any `@` imports referencing old paths
 
 **Commit 6:** "feat(v46.0): finalize @import resolution — CLAUDE.md + settings.json point at agency/"
 
 **Gate 4.5 (captain smoke battery per MAR V7):**
-- `./claude/tools/handoff read` succeeds (→ post-reset: `./agency/tools/handoff read`)
+- `./agency/tools/handoff read` succeeds (→ post-reset: `./agency/tools/handoff read`)
 - `./agency/tools/dispatch list` succeeds
 - `./agency/tools/flag list` succeeds
 - `./agency/tools/agency-health` returns clean

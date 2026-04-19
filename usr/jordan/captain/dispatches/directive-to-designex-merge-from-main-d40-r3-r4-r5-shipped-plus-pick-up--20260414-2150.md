@@ -14,11 +14,11 @@ in_reply_to: null
 Main has significant new work. Please merge from main:
 
 ```
-./claude/tools/git-safe merge-from-master
+./agency/tools/git-safe merge-from-master
 ```
 
 What's new on main since your last sync:
-- **Receipt infrastructure** (D40-R3): diff-hash, receipt-sign, receipt-verify, claude/receipts/, five-hash chain
+- **Receipt infrastructure** (D40-R3): diff-hash, receipt-sign, receipt-verify, agency/receipts/, five-hash chain
 - **git-safe family** (D40-R3): git-safe, git-captain, git-safe-commit (rename from git-commit)
 - **Hookify enforcement fix** (D40-R4): blocks now actually block (decision:block+exit 2)
 - **git-captain switch-branch** (D40-R5): switch to existing branches including main

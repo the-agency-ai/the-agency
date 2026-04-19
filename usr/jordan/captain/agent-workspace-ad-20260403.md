@@ -30,7 +30,7 @@ handoff tool, dispatch-create, workstream-create, agent-create
 
 ### 2.1 agent-create Updates (R1, R5)
 
-**Current state:** `claude/tools/agent-create` (346 lines, v1.2.0). Scaffolds agent class directory and registration. Uses stale `claude/principals/` path. Does NOT scaffold `tools/` or `tmp/`.
+**Current state:** `agency/tools/agent-create` (346 lines, v1.2.0). Scaffolds agent class directory and registration. Uses stale `claude/principals/` path. Does NOT scaffold `tools/` or `tmp/`.
 
 **Changes:**
 
@@ -137,8 +137,8 @@ This keeps the handoff tool simple and branch-scoped. Bootstrap handoffs don't n
 
 **Changes:**
 
-1. **Verify tool exists:** `claude/tools/worktree-sync` — confirm it works, has `_log-helper` integration
-2. **Add permission:** `Bash(./claude/tools/worktree-sync*)` to settings-template.json (if not already)
+1. **Verify tool exists:** `agency/tools/worktree-sync` — confirm it works, has `_log-helper` integration
+2. **Add permission:** `Bash(./agency/tools/worktree-sync*)` to settings-template.json (if not already)
 3. **Enhance logging:** After merge, log diff stats for `claude/`, `.claude/`, `CLAUDE.md` to handoff (observability per DD3)
 4. **Skill update:** Ensure worktree-sync skill mentions reading new dispatches after sync
 
@@ -161,13 +161,13 @@ This keeps the handoff tool simple and branch-scoped. Bootstrap handoffs don't n
 
 ### 2.6 Ad-Hoc Tool Telemetry (R3)
 
-**Current state:** `claude/hooks/tool-telemetry.sh` logs all tool invocations. For Bash, logs only the binary name (first token).
+**Current state:** `agency/hooks/tool-telemetry.sh` logs all tool invocations. For Bash, logs only the binary name (first token).
 
 **Changes:**
 
 1. In the Bash branch, check if the command path matches `usr/*/tools/*` or `*/usr/*/tools/*`
 2. If match, add `"source": "agent-script", "script_path": "<relative path>"` to the JSONL entry
-3. Periodic mining script (captain tool): scan telemetry JSONL for script paths that appear across multiple sessions → candidates for promotion to `claude/tools/`
+3. Periodic mining script (captain tool): scan telemetry JSONL for script paths that appear across multiple sessions → candidates for promotion to `agency/tools/`
 
 **Minimal change** — ~10 lines in tool-telemetry.sh.
 
@@ -222,12 +222,12 @@ The `main`/`master` → `captain` fix already shipped this session.
 
 | File | Change | Section |
 |------|--------|---------|
-| `claude/tools/agent-create` | Fix paths, scaffold tools/tmp, handoff template, registration template | 2.1 |
+| `agency/tools/agent-create` | Fix paths, scaffold tools/tmp, handoff template, registration template | 2.1 |
 | `.claude/skills/workstream-create/SKILL.md` | Two-phase: scaffold + guided discussion | 2.2 |
-| `claude/tools/handoff` | `--agent` flag for per-agent handoffs | 2.3 |
+| `agency/tools/handoff` | `--agent` flag for per-agent handoffs | 2.3 |
 | `.claude/skills/worktree-sync/SKILL.md` | Enhanced logging, dispatch mention | 2.4 |
-| `claude/tools/worktree-sync` | Post-merge diff logging (if tool exists) | 2.4 |
-| `claude/hookify/hookify.warn-script-persistence.md` | NEW — warn on scripts not saved to tools/ | 2.5 |
+| `agency/tools/worktree-sync` | Post-merge diff logging (if tool exists) | 2.4 |
+| `agency/hookify/hookify.warn-script-persistence.md` | NEW — warn on scripts not saved to tools/ | 2.5 |
 | `claude/hooks/tool-telemetry.sh` | Detect `usr/*/tools/*` runs, add source field | 2.6 |
 | `claude/config/settings-template.json` | Add unzip/tar permissions scoped to usr/ | 2.7 |
 | `.claude/settings.json` | Same permission additions | 2.7 |

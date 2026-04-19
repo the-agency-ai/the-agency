@@ -18,7 +18,7 @@ Capture emerging principles that guide how we build:
 
 ## Development Workflow
 
-Formalize what was designed in the Git Discipline v2 / Development Workflow seed (`claude/workstreams/iscp/seeds/seed-git-discipline-v2-20260405.md`):
+Formalize what was designed in the Git Discipline v2 / Development Workflow seed (`agency/workstreams/iscp/seeds/seed-git-discipline-v2-20260405.md`):
 
 - Agents commit freely at boundaries with QG/MAR enforcement
 - Captain auto-merges clean merges on `commit` dispatch

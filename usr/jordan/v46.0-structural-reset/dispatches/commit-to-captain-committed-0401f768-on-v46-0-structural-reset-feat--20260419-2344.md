@@ -93,10 +93,10 @@ No regressions in existing BATS. Plan v4 Principle 8: tool-with-BATS-before-invo
 
 ### Files Changed
 ```
-claude/tools/git-rename-tree
-claude/tools/git-safe
-claude/tools/ref-inventory-gen
-claude/tools/ref-sweep-allowlist.txt
+agency/tools/git-rename-tree
+agency/tools/git-safe
+agency/tools/ref-inventory-gen
+agency/tools/ref-sweep-allowlist.txt
 tests/tools/git-rename-tree.bats
 tests/tools/git-safe-ls-files.bats
 tests/tools/ref-inventory-gen.bats

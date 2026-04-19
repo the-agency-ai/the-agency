@@ -15,16 +15,16 @@ Capture the methodology, primitives, and patterns that make TheAgency work. The 
 
 ## Conventions
 
-- **Seeds live at** `claude/workstreams/agency/seeds/` — captured insights that may become references, tools, or framework rules.
-- **References live at** `claude/workstreams/agency/references/` — externally-sourced material (articles, talks, other frameworks) with commentary for use in TheAgency's own articles and book.
-- **Reviews live at** `claude/workstreams/agency/reviews/` — MAR reviews of framework-level artifacts.
+- **Seeds live at** `agency/workstreams/agency/seeds/` — captured insights that may become references, tools, or framework rules.
+- **References live at** `agency/workstreams/agency/references/` — externally-sourced material (articles, talks, other frameworks) with commentary for use in TheAgency's own articles and book.
+- **Reviews live at** `agency/workstreams/agency/reviews/` — MAR reviews of framework-level artifacts.
 - **Everything committed, everything attributed.** The agency workstream's git history is part of the framework's own learning record.
 
 ## Related
 
-- `claude/CLAUDE-THEAGENCY.md` — the main framework CLAUDE file imported above
-- `claude/README-THEAGENCY.md` — human-readable framework orientation
-- `claude/README-ENFORCEMENT.md` — Triangle + Ladder reference
-- `claude/REFERENCE-DEVELOPMENT-METHODOLOGY.md` — Valueflow lifecycle
+- `agency/CLAUDE-THEAGENCY.md` — the main framework CLAUDE file imported above
+- `agency/README-THEAGENCY.md` — human-readable framework orientation
+- `agency/README-ENFORCEMENT.md` — Triangle + Ladder reference
+- `agency/REFERENCE-DEVELOPMENT-METHODOLOGY.md` — Valueflow lifecycle
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

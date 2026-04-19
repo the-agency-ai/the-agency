@@ -48,7 +48,7 @@ At `usr/jordan/captain/reset-baseline-20260419/`:
 
 ### Phase 0b — 20 tools + 1 hookify rule + allowlist (all BATS-green)
 
-All tools ship at `claude/tools/` with BATS at `tests/tools/`. Each meets or exceeds the min-test-count declared in Plan v4 §3 Phase 0b table.
+All tools ship at `agency/tools/` with BATS at `tests/tools/`. Each meets or exceeds the min-test-count declared in Plan v4 §3 Phase 0b table.
 
 | # | Tool | BATS tests (min) |
 |---|---|---|
@@ -74,7 +74,7 @@ All tools ship at `claude/tools/` with BATS at `tests/tools/`. Each meets or exc
 | 20 | `reset-rollback` | 6 (6) |
 | 21 | `hookify.block-git-clean-during-reset` rule + canary | canary PASS via hookify-rule-canary |
 
-**Allowlist file:** `claude/tools/ref-sweep-allowlist.txt` (19 entries with rationale, min 14).
+**Allowlist file:** `agency/tools/ref-sweep-allowlist.txt` (19 entries with rationale, min 14).
 
 **Plan v4 Principle 8 honored:** every tool has BATS coverage before any invocation.
 
@@ -97,7 +97,7 @@ At `usr/jordan/captain/reset-baseline-20260419/subagent-manifests/`:
 
 ### Gate 0 check — PASS
 
-`./claude/tools/gate-check 0` returns 0 with all 10 criteria green against the real baseline.
+`./agency/tools/gate-check 0` returns 0 with all 10 criteria green against the real baseline.
 
 ## What is NOT done (deferred to morning principal 1B1)
 
@@ -108,7 +108,7 @@ At `usr/jordan/captain/reset-baseline-20260419/subagent-manifests/`:
 2. `AGENCY_ALLOW_RAW=1 git mv claude agency` (atomic dir rename)
 3. Verify 10 canaries via `git log --follow`
 4. One commit: `feat(v46.0): Phase 1 — Great Rename claude/ → agency/`
-5. Run `./claude/tools/gate-check 1`
+5. Run `./agency/tools/gate-check 1`
 
 **Why I stopped at Phase 0 exit:**
 
@@ -178,7 +178,7 @@ After overnight processing:
 
 ## Files added this overnight session (summary)
 
-**New tools** (`claude/tools/`):
+**New tools** (`agency/tools/`):
 - git-rename-tree, ref-inventory-gen, agency-sweep, import-link-check,
   subagent-scope-check, subagent-diff-verify, subagent-overlap-check,
   audit-log-merge, audit-log-reconcile, hookify-rule-canary,
@@ -187,12 +187,12 @@ After overnight processing:
   gate-check, smoke-battery, reset-rollback, ref-sweep-allowlist.txt
 
 **Modified**:
-- `claude/tools/git-safe` — added `ls-files` subcommand
+- `agency/tools/git-safe` — added `ls-files` subcommand
 
 **New BATS** (`tests/tools/`): one per tool, all green
 
 **New hookify**:
-- `claude/hookify/hookify.block-git-clean-during-reset.md` + `.canary`
+- `agency/hookify/hookify.block-git-clean-during-reset.md` + `.canary`
 
 **Baseline** (`usr/jordan/captain/reset-baseline-20260419/`):
 - PHASE-CURSOR.txt (with chain-hash entries for phase-0a-init + phase-0-done)

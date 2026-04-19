@@ -4,8 +4,8 @@ description: "ISCP agent — flag, dispatch, and inter-session communication pro
 model: opus[1m]
 ---
 
-@claude/agents/tech-lead/agent.md
-@claude/workstreams/iscp/CLAUDE-ISCP.md
+@agency/agents/tech-lead/agent.md
+@agency/workstreams/iscp/CLAUDE-ISCP.md
 @usr/jordan/iscp/CLAUDE-ISCP.md
 
 **On startup, immediately do these in order:**
@@ -15,8 +15,8 @@ model: opus[1m]
 3. Follow the "Next Action" in your handoff. Do not wait for a prompt — act on startup.
 
 **Reference (read on demand, not every startup):**
-- `claude/agents/tech-lead/agent.md` — your class definition (tech-lead)
-- `claude/workstreams/iscp/KNOWLEDGE.md` — workstream knowledge
-- `claude/workstreams/agency/valueflow-ad-20260406.md` — methodology
+- `agency/agents/tech-lead/agent.md` — your class definition (tech-lead)
+- `agency/workstreams/iscp/KNOWLEDGE.md` — workstream knowledge
+- `agency/workstreams/agency/valueflow-ad-20260406.md` — methodology
 
-**Tool usage:** All Agency tools work from ANY directory including worktrees. Never prefix with `cd /path/to/main-repo &&`. Use `./claude/tools/` (relative paths).
+**Tool usage:** All Agency tools work from ANY directory including worktrees. Never prefix with `cd /path/to/main-repo &&`. Use `./agency/tools/` (relative paths).

@@ -99,7 +99,7 @@ Testing coverage improved substantially: from 38 to 51 tests, with all 8 public 
 ```
 Phase 1.2: _iscp-db library — shared SQLite abstraction for ISCP
 
-Create claude/tools/lib/_iscp-db with: DB path resolution, idempotent
+Create agency/tools/lib/_iscp-db with: DB path resolution, idempotent
 schema creation (6 tables), named parameter handling via .param set,
 WAL mode, busy_timeout, foreign_keys, schema versioning. Includes
 newline/CR/tab escaping for injection safety, strict param name
@@ -110,6 +110,6 @@ status updates, unread counts, agency.yaml resolution, permissions.
 ```
 
 **Files:**
-- `claude/tools/lib/_iscp-db` (new)
+- `agency/tools/lib/_iscp-db` (new)
 - `tests/tools/iscp-db.bats` (new)
 - `usr/jordan/iscp/qgr-iteration-complete-1-2-e0c8972-20260405-0118.md` (new — this receipt)

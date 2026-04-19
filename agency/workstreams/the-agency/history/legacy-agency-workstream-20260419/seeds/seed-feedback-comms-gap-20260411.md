@@ -8,7 +8,7 @@ status: filed
 anthropic_feedback_id: 95fe4771-6780-4be7-9e8e-30d7feea3496
 github_issue: https://github.com/anthropics/claude-code/issues/46531
 report: usr/jordan/reports/report-feedback-comms-gap-20260411.md
-related_seed: claude/workstreams/agency/seeds/seed-slash-feedback-silent-failure-20260411.md
+related_seed: agency/workstreams/agency/seeds/seed-slash-feedback-silent-failure-20260411.md
 priority: file-first
 ---
 

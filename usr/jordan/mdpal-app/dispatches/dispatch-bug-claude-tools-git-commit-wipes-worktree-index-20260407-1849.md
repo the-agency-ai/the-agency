@@ -5,22 +5,22 @@ to: the-agency/jordan/captain
 date: 2026-04-07T10:49
 status: created
 priority: high
-subject: "BUG: claude/tools/git-commit wipes worktree index"
+subject: "BUG: agency/tools/git-commit wipes worktree index"
 in_reply_to: null
 ---
 
-# BUG: claude/tools/git-commit wipes worktree index
+# BUG: agency/tools/git-commit wipes worktree index
 
 Encountered on first commit attempt from .claude/worktrees/mdpal-app this session. Filing for investigation/routing.
 
 ## Symptom
-Running './claude/tools/git-commit "msg" --no-work-item' from this worktree produces only a 'commit [run: <uuid>]' line, then exits 1. No commit is made, HEAD does not advance, and 'git status' afterward reports ~1280 files as deleted — the entire HEAD tree. Working tree files are intact on disk; only the git index has been emptied.
+Running './agency/tools/git-commit "msg" --no-work-item' from this worktree produces only a 'commit [run: <uuid>]' line, then exits 1. No commit is made, HEAD does not advance, and 'git status' afterward reports ~1280 files as deleted — the entire HEAD tree. Working tree files are intact on disk; only the git index has been emptied.
 
 ## Repro
 1. cd .claude/worktrees/mdpal-app
 2. Modify any tracked file (e.g. .agency-agent)
 3. git add <file>
-4. ./claude/tools/git-commit "test" --no-work-item
+4. ./agency/tools/git-commit "test" --no-work-item
 5. git status  →  1280+ 'D' entries
 
 ## Diagnosis

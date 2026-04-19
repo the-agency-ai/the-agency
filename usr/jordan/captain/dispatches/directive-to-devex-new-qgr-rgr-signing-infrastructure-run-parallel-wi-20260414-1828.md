@@ -13,7 +13,7 @@ in_reply_to: null
 
 New mission, run in PARALLEL with git-safe. Do not queue behind it.
 
-**Seed location:** claude/workstreams/agency/seeds/seed-qgr-rgr-signing-20260414.md
+**Seed location:** agency/workstreams/agency/seeds/seed-qgr-rgr-signing-20260414.md
 
 **Summary:** Build the signing infrastructure for quality gate and review gate receipts. Three tools (diff-hash, receipt-sign, receipt-verify) + Review Gate for PVR/A&D/Plan artifacts. The current receipt system is fragile — hashes computed manually, no proper tooling.
 

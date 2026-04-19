@@ -29,7 +29,7 @@
 _pr_find_root() {
     local dir="${1:-$(pwd)}"
     while [[ "$dir" != "/" ]]; do
-        if [[ -f "$dir/claude/config/agency.yaml" ]]; then
+        if [[ -f "$dir/agency/config/agency.yaml" ]]; then
             echo "$dir"
             return 0
         fi
@@ -167,7 +167,7 @@ _pr_resolve() {
         AGENCY_PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-.}"
     }
 
-    local yaml="$AGENCY_PROJECT_ROOT/claude/config/agency.yaml"
+    local yaml="$AGENCY_PROJECT_ROOT/agency/config/agency.yaml"
 
     # ALWAYS resolve principal from agency.yaml via $USER.
     # Never trust a pre-set AGENCY_PRINCIPAL — it leaks from test suites,

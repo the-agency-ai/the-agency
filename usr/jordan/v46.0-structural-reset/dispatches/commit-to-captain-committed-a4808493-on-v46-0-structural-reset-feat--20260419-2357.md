@@ -144,12 +144,12 @@ pair + hookify-rule-canary + agency-* tools next.
 
 ### Files Changed
 ```
-claude/tools/agency-sweep
-claude/tools/import-link-check
-claude/tools/secret-test-help
-claude/tools/subagent-diff-verify
-claude/tools/subagent-overlap-check
-claude/tools/subagent-scope-check
+agency/tools/agency-sweep
+agency/tools/import-link-check
+agency/tools/secret-test-help
+agency/tools/subagent-diff-verify
+agency/tools/subagent-overlap-check
+agency/tools/subagent-scope-check
 tests/tools/agency-sweep.bats
 tests/tools/import-link-check.bats
 tests/tools/subagent-diff-verify.bats

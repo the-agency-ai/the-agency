@@ -2,9 +2,9 @@
 # ui-add — add a frontend app to an existing workstream
 #
 # Thin wrapper around tools/ui-add.ts — keeps the tool discoverable under
-# claude/tools/ alongside other framework tools.
+# agency/tools/ alongside other framework tools.
 #
-# Usage: ./claude/tools/ui-add <name> --workstream <ws> [options]
+# Usage: ./agency/tools/ui-add <name> --workstream <ws> [options]
 # See:   claude/starter-packs/nextjs-app/README.md
 
 set -euo pipefail

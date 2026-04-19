@@ -16,10 +16,10 @@
 ## How to Spin Up
 
 ```bash
-./claude/tools/myclaude housekeeping testname
+./agency/tools/myclaude housekeeping testname
 ```
 
 ## Key Directories
 
-- `claude/agents/testname/` - Agent identity
-- `claude/workstreams/housekeeping/` - Work artifacts (shared with other housekeeping agents)
+- `agency/agents/testname/` - Agent identity
+- `agency/workstreams/housekeeping/` - Work artifacts (shared with other housekeeping agents)

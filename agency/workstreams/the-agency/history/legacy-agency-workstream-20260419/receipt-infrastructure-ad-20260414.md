@@ -4,7 +4,7 @@ project: receipt-infrastructure
 workstream: agency
 date: 2026-04-14
 status: reviewed
-seed: claude/workstreams/agency/seeds/seed-qgr-rgr-signing-20260414.md
+seed: agency/workstreams/agency/seeds/seed-qgr-rgr-signing-20260414.md
 resolved-by: captain/principal 1B1 — Day 40
 mar: 2 rounds (initial + 3-item 1B1 resolution)
 transcript: usr/jordan/captain/transcripts/design-transcript-20260414.md
@@ -25,7 +25,7 @@ Transitions: Commits → QG/RG gate → PRs → PR gate → Builds/Deployments
 
 ## 2. Receipt Location
 
-**`claude/receipts/`** — flat directory, framework-level. One place for all receipts across all agents, all workstreams, all agencies.
+**`agency/receipts/`** — flat directory, framework-level. One place for all receipts across all agents, all workstreams, all agencies.
 
 No subdirectories. The filename IS the hierarchy. `diff-hash` excludes this directory from all hash computations.
 
@@ -39,9 +39,9 @@ Full provenance in every filename. Too much information is better than not enoug
 
 Examples:
 ```
-claude/receipts/the-agency-jordan-devex-devex-git-safe-qgr-a1b2c3d-20260414-1835.md
-claude/receipts/the-agency-jordan-captain-agency-valueflow-rgr-b2c3d4e-20260414-1900.md
-claude/receipts/monofolk-jordan-captain-ops-infra-qgr-c3d4e5f-20260414-1930.md
+agency/receipts/the-agency-jordan-devex-devex-git-safe-qgr-a1b2c3d-20260414-1835.md
+agency/receipts/the-agency-jordan-captain-agency-valueflow-rgr-b2c3d4e-20260414-1900.md
+agency/receipts/monofolk-jordan-captain-ops-infra-qgr-c3d4e5f-20260414-1930.md
 ```
 
 ## 4. Five-Hash Chain of Trust
@@ -86,12 +86,12 @@ Cannot produce Hash C without Hash B existing. Cannot produce Hash E without Has
 Parameterized baseline — not always origin/main:
 
 ```
-./claude/tools/diff-hash                          # default: origin/main
-./claude/tools/diff-hash --base origin/main       # explicit
-./claude/tools/diff-hash --base v39.1             # phase start tag
-./claude/tools/diff-hash --base abc1234           # prior iteration commit
-./claude/tools/diff-hash --file <path>            # single artifact file hash
-./claude/tools/diff-hash --json                   # JSON with full SHA-256
+./agency/tools/diff-hash                          # default: origin/main
+./agency/tools/diff-hash --base origin/main       # explicit
+./agency/tools/diff-hash --base v39.1             # phase start tag
+./agency/tools/diff-hash --base abc1234           # prior iteration commit
+./agency/tools/diff-hash --file <path>            # single artifact file hash
+./agency/tools/diff-hash --json                   # JSON with full SHA-256
 ```
 
 Skills pass the appropriate base:
@@ -101,14 +101,14 @@ Skills pass the appropriate base:
 
 **Internal:** Full SHA-256. **Display/filename:** 7-char truncation.
 
-**Exclusion:** `claude/receipts/` excluded from ALL hash computations.
+**Exclusion:** `agency/receipts/` excluded from ALL hash computations.
 
 The receipt records which base was used: `diff_base: origin/main`.
 
 ### For methodology artifacts (RGR)
 Hash the artifact file content directly:
 ```
-./claude/tools/diff-hash --file claude/workstreams/devex/git-safe-pvr-20260414.md
+./agency/tools/diff-hash --file agency/workstreams/devex/git-safe-pvr-20260414.md
 ```
 
 ## 6. Stale Receipt Policy
@@ -132,7 +132,7 @@ A phase with 3 iterations produces 4 receipts:
 ## 8. Receipt Matching Algorithm (`receipt-verify`)
 
 1. Parse the current branch for workstream and project context
-2. Filter `claude/receipts/` by filename: `*-{workstream}-{project}-*`
+2. Filter `agency/receipts/` by filename: `*-{workstream}-{project}-*`
 3. For each matching receipt, check Hash E against current diff hash (for QGR) or artifact hash (for RGR)
 4. Match → valid. No match → blocked.
 
@@ -203,7 +203,7 @@ Find and verify receipts for current PR content. Checks all artifact types prese
 
 ### Updated `pr-create`
 ```bash
-./claude/tools/receipt-verify || { echo "BLOCKED"; exit 1; }
+./agency/tools/receipt-verify || { echo "BLOCKED"; exit 1; }
 ```
 
 ## 12. Implementation Phases
@@ -212,7 +212,7 @@ Find and verify receipts for current PR content. Checks all artifact types prese
 - `diff-hash` (parameterized base, file mode, JSON output)
 - `receipt-sign` (five-hash chain, full naming convention)
 - `receipt-verify` (matching algorithm, mixed PR support)
-- `claude/receipts/` directory
+- `agency/receipts/` directory
 - BATS tests
 - Update `pr-create`
 

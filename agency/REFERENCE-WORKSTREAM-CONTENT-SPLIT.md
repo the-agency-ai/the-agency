@@ -13,12 +13,12 @@
 | `{A}` | **Agent** — principal-owned instance | `captain`, `folio`, `of-mobile` |
 | `{W}` | **Workstream** — the shared work domain | `folio`, `of-mobile`, `monofolk` |
 
-## Shared Workstream — `claude/workstreams/{W}/`
+## Shared Workstream — `agency/workstreams/{W}/`
 
 Visible to every principal's agent working this workstream.
 
 ```
-claude/workstreams/{W}/
+agency/workstreams/{W}/
   CLAUDE-{W}.md                          # workstream CLAUDE.md
   KNOWLEDGE.md                           # accumulated patterns + decisions
   pvr-{W}-{slug}-{YYYYMMDD}.md           # current PVR(s) — flat at root
@@ -57,8 +57,8 @@ Nothing about the workstream's shared knowledge lives here.
 Principal-scoped. Invocation: `claude --agent {P}/{A}` (e.g., `claude --agent jordan/captain`).
 
 Each registration contains:
-- `@import` of class doc: `@claude/agents/{class}/agent.md`
-- `@import` of workstream CLAUDE: `@claude/workstreams/{W}/CLAUDE-{W}.md`
+- `@import` of class doc: `@agency/agents/{class}/agent.md`
+- `@import` of workstream CLAUDE: `@agency/workstreams/{W}/CLAUDE-{W}.md`
 - `@import` of personal overlay: `@usr/{P}/{A}/CLAUDE-{A}.md`
 - Startup steps (handoff read, dispatch check)
 
@@ -66,18 +66,18 @@ Each registration contains:
 
 `{org}-{principal}-{agent}-{workstream}-{project}-{type}-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md`
 
-Written to `claude/workstreams/{W}/qgr/` or `claude/workstreams/{W}/rgr/`.
+Written to `agency/workstreams/{W}/qgr/` or `agency/workstreams/{W}/rgr/`.
 
 ## Draft → Ratified Flow
 
-1. Draft at `claude/workstreams/{W}/drafts/{P}-{A}/{type}-draft-{W}-{slug}-{YYYYMMDD}.md`
+1. Draft at `agency/workstreams/{W}/drafts/{P}-{A}/{type}-draft-{W}-{slug}-{YYYYMMDD}.md`
 2. 1B1 review or principal approval
 3. Move to workstream root (drops `{P}-{A}` attribution — now shared canon)
 4. Superseded versions → `history/`
 
 ## Repo-Level Workstream
 
-Every repo has one, owned by captain: `claude/workstreams/{repo-name}/`. Cross-cutting plans, research, transcripts, receipts.
+Every repo has one, owned by captain: `agency/workstreams/{repo-name}/`. Cross-cutting plans, research, transcripts, receipts.
 
 ## Frontmatter
 
@@ -98,5 +98,5 @@ date: 2026-04-16
 
 - Issue #121 — original proposal
 - Issue #130 — `git-safe mv` (migration prerequisite)
-- `claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md` — five-hash chain details
-- `claude/REFERENCE-REPO-STRUCTURE.md` — full directory tree
+- `agency/REFERENCE-RECEIPT-INFRASTRUCTURE.md` — five-hash chain details
+- `agency/REFERENCE-REPO-STRUCTURE.md` — full directory tree

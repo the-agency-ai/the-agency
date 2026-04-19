@@ -1,5 +1,5 @@
 // What Problem: We need a TypeScript type that mirrors the shared theme JSON
-// schema at claude/workstreams/mdslidepal/themes/theme-schema.json, so the
+// schema at agency/workstreams/mdslidepal/themes/theme-schema.json, so the
 // theme loader and CSS emitter can work with typed data.
 //
 // How & Why: A structural interface that matches the JSON shape. No runtime

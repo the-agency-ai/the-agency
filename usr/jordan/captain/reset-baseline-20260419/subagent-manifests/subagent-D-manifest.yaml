@@ -21,19 +21,19 @@ excludes:
   - src/archive/**
 
 allowed_substitutions:
-  - pattern: "claude/tools/"
+  - pattern: "agency/tools/"
     replacement: "agency/tools/"
-  - pattern: "claude/hooks/"
+  - pattern: "agency/hooks/"
     replacement: "agency/hooks/"
-  - pattern: "claude/hookify/"
+  - pattern: "agency/hookify/"
     replacement: "agency/hookify/"
-  - pattern: "@claude/"
+  - pattern: "@agency/"
     replacement: "@agency/"
-  - pattern: "claude/config/"
+  - pattern: "agency/config/"
     replacement: "agency/config/"
-  - pattern: "claude/templates/"
+  - pattern: "agency/templates/"
     replacement: "agency/templates/"
-  - pattern: "claude/agents/"
+  - pattern: "agency/agents/"
     replacement: "agency/agents/"
 
 rejected_substitutions:

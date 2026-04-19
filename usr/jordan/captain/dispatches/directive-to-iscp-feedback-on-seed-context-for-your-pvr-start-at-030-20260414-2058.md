@@ -25,7 +25,7 @@ Substantive feedback for your PVR work:
 **New context since the seed was written:**
 - Receipt infrastructure Phase 1 shipped today: diff-hash, receipt-sign, receipt-verify
 - Five-hash chain of trust: original→findings→triage→principal→final
-- Receipts go in claude/receipts/ with full provenance naming
+- Receipts go in agency/receipts/ with full provenance naming
 - The dispatch service will eventually carry receipts cross-agency too
 
 **Stream model (new terminology):**

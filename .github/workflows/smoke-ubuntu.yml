@@ -33,13 +33,13 @@ jobs:
             "README.md"
             "LICENSE"
             ".claude/settings.json"
-            "claude/agents/captain/agent.md"
-            "claude/config/agency.yaml"
-            "claude/CLAUDE-THEAGENCY.md"
-            "claude/tools/agency"
-            "claude/tools/handoff"
-            "claude/tools/git-safe-commit"
-            "claude/hooks/ref-injector.sh"
+            "agency/agents/captain/agent.md"
+            "agency/config/agency.yaml"
+            "agency/CLAUDE-THEAGENCY.md"
+            "agency/tools/agency"
+            "agency/tools/handoff"
+            "agency/tools/git-safe-commit"
+            "agency/hooks/ref-injector.sh"
           )
           for f in "${required_files[@]}"; do
             [ -e "$f" ] || { echo "Missing: $f"; exit 1; }
@@ -48,7 +48,7 @@ jobs:
 
       - name: Verify tools are executable
         run: |
-          for tool in claude/tools/*; do
+          for tool in agency/tools/*; do
             if [ -f "$tool" ] && head -1 "$tool" | grep -q '^#!'; then
               [ -x "$tool" ] || { echo "Not executable: $tool"; exit 1; }
             fi
@@ -57,7 +57,7 @@ jobs:
 
       - name: Verify hooks are executable
         run: |
-          for hook in claude/hooks/*.sh; do
+          for hook in agency/hooks/*.sh; do
             [ -f "$hook" ] && [ ! -x "$hook" ] && { echo "Not executable: $hook"; exit 1; }
           done
           echo "All hooks are executable"
@@ -70,7 +70,7 @@ jobs:
 
       - name: Validate shell tool syntax
         run: |
-          for tool in claude/tools/*; do
+          for tool in agency/tools/*; do
             if [ -f "$tool" ] && head -1 "$tool" | grep -q '^#!/.*bash'; then
               bash -n "$tool" || { echo "Syntax error in $tool"; exit 1; }
             fi
@@ -87,6 +87,6 @@ jobs:
         run: |
           # Key tools should respond to --help without error
           for tool in agency handoff git-safe-commit dispatch flag; do
-            ./claude/tools/$tool --help > /dev/null 2>&1 || echo "Warning: $tool --help failed (may not support --help)"
+            ./agency/tools/$tool --help > /dev/null 2>&1 || echo "Warning: $tool --help failed (may not support --help)"
           done
           echo "Tool help smoke test complete"

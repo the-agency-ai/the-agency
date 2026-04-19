@@ -93,71 +93,71 @@ Suites define groups of tests:
 
 ```bash
 # Run all tests
-./claude/tools/agency-service test run
+./agency/tools/agency-service test run
 
 # Run specific suite
-./claude/tools/agency-service test run core
+./agency/tools/agency-service test run core
 
 # Run with CI trigger
-./claude/tools/agency-service test run all ci github-actions
+./agency/tools/agency-service test run all ci github-actions
 ```
 
 ### Viewing Results
 
 ```bash
 # Get latest test run
-./claude/tools/agency-service test latest
+./agency/tools/agency-service test latest
 
 # Get specific test run
-./claude/tools/agency-service test get <run-id>
+./agency/tools/agency-service test get <run-id>
 
 # Get only failures
-./claude/tools/agency-service test get <run-id> failures
+./agency/tools/agency-service test get <run-id> failures
 
 # List recent runs
-./claude/tools/agency-service test list
+./agency/tools/agency-service test list
 
 # Filter by suite/status
-./claude/tools/agency-service test list --suite core --status failed
+./agency/tools/agency-service test list --suite core --status failed
 ```
 
 ### Statistics
 
 ```bash
 # Overall stats
-./claude/tools/agency-service test stats
+./agency/tools/agency-service test stats
 
 # Stats for suite
-./claude/tools/agency-service test stats core
+./agency/tools/agency-service test stats core
 
 # Find flaky tests
-./claude/tools/agency-service test flaky
+./agency/tools/agency-service test flaky
 ```
 
 ### Configuration Management
 
 ```bash
 # Show configuration
-./claude/tools/agency-service test config
+./agency/tools/agency-service test config
 
 # List targets
-./claude/tools/agency-service test targets
+./agency/tools/agency-service test targets
 
 # List runners
-./claude/tools/agency-service test runners
+./agency/tools/agency-service test runners
 ```
 
 ### Suite Discovery
 
 ```bash
 # Discover all suites
-./claude/tools/agency-service test discover
+./agency/tools/agency-service test discover
 
 # Discover in specific target
-./claude/tools/agency-service test discover agency-service
+./agency/tools/agency-service test discover agency-service
 
 # Register a discovered suite
-./claude/tools/agency-service test register my-suite "My Suite" agency-service tests/my-suite
+./agency/tools/agency-service test register my-suite "My Suite" agency-service tests/my-suite
 ```
 
 ## API Reference
@@ -204,14 +204,14 @@ Suites define groups of tests:
 
 1. **Discover test directories**:
    ```bash
-   ./claude/tools/agency-service test discover
+   ./agency/tools/agency-service test discover
    ```
 
 2. **Review discovered suites** - Shows unregistered suites
 
 3. **Register desired suites**:
    ```bash
-   ./claude/tools/agency-service test register my-suite "My Suite" agency-service tests/my-suite
+   ./agency/tools/agency-service test register my-suite "My Suite" agency-service tests/my-suite
    ```
 
 4. **Configuration is saved** - Suite added to `.agency/test-config.yaml`

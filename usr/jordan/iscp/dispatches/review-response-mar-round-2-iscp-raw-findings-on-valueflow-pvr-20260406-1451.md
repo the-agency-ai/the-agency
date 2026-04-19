@@ -30,7 +30,7 @@ Focus areas: enforcement ladder, quality gates, pre-commit scope, permission mod
 
 **"Gate scope matches change scope" is the right direction but needs mechanism.** FR6 says pre-commit runs tests relevant to changed files, not the full suite. This is critical — we're living the pain of this right now. Our pre-commit hook runs ALL bats tests including secret.bats, scaffolding.bats, and platform-setup.bats, which fail because those tools don't exist on the iscp worktree. The gate blocks valid commits for unrelated reasons.
 
-**The mechanism question: how does a gate know what's relevant?** Options: file-path matching (changes in `claude/tools/flag` → run `tests/tools/flag.bats`), explicit manifest (tool declares its test file), or test tagging. The PVR should state a preference or mark this as an A&D question.
+**The mechanism question: how does a gate know what's relevant?** Options: file-path matching (changes in `agency/tools/flag` → run `tests/tools/flag.bats`), explicit manifest (tool declares its test file), or test tagging. The PVR should state a preference or mark this as an A&D question.
 
 **Stage-hash gating needs a failure mode.** What happens when the stage-hash doesn't match any QGR? Currently it blocks. But if you've amended a typo in a comment after running QG, the hash changes. Do you re-run the full QG for a comment typo? The cost/benefit is wrong. Consider: if the delta between the QGR hash and current hash is below a threshold (e.g., only non-code files changed, or changes within N lines), allow with a warning.
 

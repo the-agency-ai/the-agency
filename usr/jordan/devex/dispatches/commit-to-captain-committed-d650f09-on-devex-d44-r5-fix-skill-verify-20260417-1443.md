@@ -114,7 +114,7 @@ Fixes flag #163.
 
 ### Files Changed
 ```
-claude/tools/skill-verify
+agency/tools/skill-verify
 tests/tools/skill-verify.bats
 usr/jordan/devex/dispatches/commit-to-captain-committed-94e2667-on-devex-d44-r4-feat-sandbox-syn-20260417-1438.md
 ```

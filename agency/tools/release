@@ -2,11 +2,11 @@
 # Cut a release for The Agency
 #
 # Usage:
-#   ./claude/tools/release 0.6.0              # Create v0.6.0 release
-#   ./claude/tools/release 0.6.0-rc1          # Create v0.6.0-rc1 release candidate
-#   ./claude/tools/release patch              # Auto-increment patch (0.6.0 -> 0.6.1)
-#   ./claude/tools/release minor              # Auto-increment minor (0.6.0 -> 0.7.0)
-#   ./claude/tools/release major              # Auto-increment major (0.6.0 -> 1.0.0)
+#   ./agency/tools/release 0.6.0              # Create v0.6.0 release
+#   ./agency/tools/release 0.6.0-rc1          # Create v0.6.0-rc1 release candidate
+#   ./agency/tools/release patch              # Auto-increment patch (0.6.0 -> 0.6.1)
+#   ./agency/tools/release minor              # Auto-increment minor (0.6.0 -> 0.7.0)
+#   ./agency/tools/release major              # Auto-increment major (0.6.0 -> 1.0.0)
 #
 # Options:
 #   --push         Push tag to remote after creating
@@ -100,7 +100,7 @@ VERSION_ARG="${1:-}"
 
 if [ -z "$VERSION_ARG" ]; then
     log_error "Version required"
-    echo "Usage: ./claude/tools/release <version|patch|minor|major> [--verbose]"
+    echo "Usage: ./agency/tools/release <version|patch|minor|major> [--verbose]"
     exit 1
 fi
 

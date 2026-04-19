@@ -13,8 +13,8 @@ in_reply_to: null
 
 ## MAR: git-safe + git-captain + git-safe-commit A&D
 
-A&D is at: claude/workstreams/devex/git-safe-ad-20260414.md
-PVR is at: claude/workstreams/devex/git-safe-pvr-20260414.md
+A&D is at: agency/workstreams/devex/git-safe-ad-20260414.md
+PVR is at: agency/workstreams/devex/git-safe-pvr-20260414.md
 
 ### Key design decisions for review
 
@@ -32,7 +32,7 @@ PVR is at: claude/workstreams/devex/git-safe-pvr-20260414.md
 
 **DD-9: No internal tool migration** — hookify fires on PreToolUse (agent Bash calls), not on subprocesses inside framework tools. worktree-sync, collaboration, upstream-port etc keep using raw git internally.
 
-**DD-10: Rename scope** — 181 files, 100+ references. git mv for files, sed for content. Three patterns: /git-safe-commit → /git-safe-commit, claude/tools/git-safe-commit → claude/tools/git-safe-commit, bare git-safe-commit → git-safe-commit.
+**DD-10: Rename scope** — 181 files, 100+ references. git mv for files, sed for content. Three patterns: /git-safe-commit → /git-safe-commit, agency/tools/git-safe-commit → agency/tools/git-safe-commit, bare git-safe-commit → git-safe-commit.
 
 ### Questions for captain
 

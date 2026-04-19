@@ -117,7 +117,7 @@ Block of text that I selected
 - Decision Record
 - Agent Knowledge
 - Sprint Plan
-- (others as defined in `claude/templates/`)
+- (others as defined in `agency/templates/`)
 
 **Workflow:**
 1. User selects "Create Document"

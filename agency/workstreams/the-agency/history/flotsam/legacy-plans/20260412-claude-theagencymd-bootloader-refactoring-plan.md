@@ -18,7 +18,7 @@ tags: [Infra]
 
 ## Context
 
-`claude/CLAUDE-THEAGENCY.md` is a ~6600-word monolith loaded into every agent's context on every session. Most of its content is protocol detail already enforced by hookify rules (40 rules) and/or available via skills (57 skills). Token cost is ~8K tokens per session, per agent. The mechanisms to replace it already exist — we just haven't used them to slim the monolith.
+`agency/CLAUDE-THEAGENCY.md` is a ~6600-word monolith loaded into every agent's context on every session. Most of its content is protocol detail already enforced by hookify rules (40 rules) and/or available via skills (57 skills). Token cost is ~8K tokens per session, per agent. The mechanisms to replace it already exist — we just haven't used them to slim the monolith.
 
 **Goal:** Slim to ~200-300 word bootloader. Every extracted rule remains reachable via skill invocation (which triggers ref-injector) or hookify enforcement. Nothing lost.
 
@@ -68,7 +68,7 @@ All independent — can parallelize.
 
 ## Phase 2: Wire ref-injector Mappings
 
-**File:** `claude/hooks/ref-injector.sh`
+**File:** `agency/hooks/ref-injector.sh`
 
 New/updated case entries:
 
@@ -86,7 +86,7 @@ New/updated case entries:
 
 ## Phase 3: Write the Bootloader
 
-**File:** `claude/CLAUDE-THEAGENCY.md` — replace 738 lines with ~50 lines (~250 words)
+**File:** `agency/CLAUDE-THEAGENCY.md` — replace 738 lines with ~50 lines (~250 words)
 
 **Structure:**
 1. **What this is** (2 sentences) — framework dev repo, open core MIT + RSL
@@ -113,7 +113,7 @@ New/updated case entries:
 
 1. Run `bats tests/tools/` — no test regressions
 2. Verify ref-injector fires correctly: check that skill invocation outputs include injected docs
-3. Word count check: `wc -w claude/CLAUDE-THEAGENCY.md` should be ~250
+3. Word count check: `wc -w agency/CLAUDE-THEAGENCY.md` should be ~250
 4. Coverage audit: grep each major keyword from old monolith, verify it appears in a ref doc
 5. Hookify pointer check: verify hookify.whw-header-warn.md points to new PROVENANCE-HEADERS.md
 

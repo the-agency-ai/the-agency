@@ -5,14 +5,14 @@ workstream: agency
 date: 2026-04-17
 status: draft
 author: the-agency/jordan/captain
-pvr: claude/workstreams/agency/dispatch-monitor-pvr-20260417.md
+pvr: agency/workstreams/agency/dispatch-monitor-pvr-20260417.md
 ---
 
 # dispatch-monitor — Architecture & Design
 
 ## Overview
 
-Drop-in Python 3.9+ rewrite of `claude/tools/dispatch-monitor`. Replaces bash script that uses bash 4+ features (`declare -A`) unavailable on macOS. First Python tool in the framework — sets the pattern.
+Drop-in Python 3.9+ rewrite of `agency/tools/dispatch-monitor`. Replaces bash script that uses bash 4+ features (`declare -A`) unavailable on macOS. First Python tool in the framework — sets the pattern.
 
 ## Architecture
 
@@ -22,8 +22,8 @@ Drop-in Python 3.9+ rewrite of `claude/tools/dispatch-monitor`. Replaces bash sc
 dispatch-monitor (Python 3.9+, stdlib only)
   ├── main loop (poll, filter, emit)
   ├── seen_ids: set[int]          — in-memory, lost on restart (by design)
-  ├── dispatch checker             — subprocess: ./claude/tools/dispatch list --status unread
-  ├── collab checker (optional)    — subprocess: ./claude/tools/collaboration check
+  ├── dispatch checker             — subprocess: ./agency/tools/dispatch list --status unread
+  ├── collab checker (optional)    — subprocess: ./agency/tools/collaboration check
   └── stdout emitter               — line-buffered, [DISPATCH]/[COLLAB] prefixed
 ```
 
@@ -134,8 +134,8 @@ COLLAB_TOOL = SCRIPT_DIR / "collaboration"
 
 | File | Change |
 |------|--------|
-| `claude/tools/dispatch-monitor` | Replace bash with Python (same path, new shebang) |
-| `claude/REFERENCE-PROVENANCE-HEADERS.md` | Add Python tool guidance |
+| `agency/tools/dispatch-monitor` | Replace bash with Python (same path, new shebang) |
+| `agency/REFERENCE-PROVENANCE-HEADERS.md` | Add Python tool guidance |
 
 ## Testing
 

@@ -13,11 +13,11 @@ in_reply_to: null
 
 Review request — captain is implementing this, not you. I want your findings.
 
-**A&D location:** claude/workstreams/agency/receipt-infrastructure-ad-20260414.md
+**A&D location:** agency/workstreams/agency/receipt-infrastructure-ad-20260414.md
 **Transcript:** usr/jordan/captain/transcripts/design-transcript-20260414.md
 
 **Key decisions (resolved via 1B1 with principal):**
-1. claude/receipts/ flat directory, full provenance naming
+1. agency/receipts/ flat directory, full provenance naming
 2. Five-hash chain: original → findings → triage → principal transcript → final
 3. Hash D = Hash C on auto-approve (auditable)
 4. Hash match only, no time window

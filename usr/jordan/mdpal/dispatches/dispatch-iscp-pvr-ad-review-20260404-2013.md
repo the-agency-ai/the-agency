@@ -18,8 +18,8 @@ Requesting review from the mdpal-cli and mdpal-app agents as primary consumers o
 
 ## Files to Review
 
-- `claude/workstreams/iscp/iscp-pvr-20260404.md` — Product Vision & Requirements
-- `claude/workstreams/iscp/iscp-ad-20260404.md` — Architecture & Design
+- `agency/workstreams/iscp/iscp-pvr-20260404.md` — Product Vision & Requirements
+- `agency/workstreams/iscp/iscp-ad-20260404.md` — Architecture & Design
 
 ## Review Focus
 

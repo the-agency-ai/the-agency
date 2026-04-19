@@ -77,7 +77,7 @@ Projects adopting this pattern should update their CLAUDE-THEAGENCY.md `Git & Re
 
 ```markdown
 - **Never `reset --hard origin/*`.** This drops all local commits not on origin, including framework files. Mechanically blocked by `block-reset-to-origin` hookify rule.
-- **Never `git rebase`.** All branch sync uses merge. Rebase rewrites history and breaks worktree merge-bases. Mechanically blocked by `block-raw-rebase` hookify rule. See `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
+- **Never `git rebase`.** All branch sync uses merge. Rebase rewrites history and breaks worktree merge-bases. Mechanically blocked by `block-raw-rebase` hookify rule. See `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
 - **`/sync-all` and `/sync` are merge-based.** `/sync-all` merges origin into local master (never pushes). `/sync` merges and pushes (the only push command).
 ```
 

@@ -11,10 +11,10 @@ disable-model-invocation: false
 # devex dispatch #171). Every tool this skill invokes is already in the safe-tools
 # family (git-safe, git-captain, dispatch, flag, collaboration, agency-health).
 required_reading:
-  - claude/REFERENCE-ISCP-PROTOCOL.md
-  - claude/REFERENCE-WORKTREE-DISCIPLINE.md
-  - claude/REFERENCE-HANDOFF-SPEC.md
-  - claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md
+  - agency/REFERENCE-ISCP-PROTOCOL.md
+  - agency/REFERENCE-WORKTREE-DISCIPLINE.md
+  - agency/REFERENCE-HANDOFF-SPEC.md
+  - agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md
 ---
 
 <!--
@@ -57,7 +57,7 @@ Before composing the report, read the framework reference docs listed in `requir
 
 - Running from captain (or an agent with read access to the full repo + cross-repo collab dir). Fleet-report aggregates across all worktrees / agents / workstreams.
 - `gh` CLI authenticated (needed for PR list + recent merges).
-- `agency-health` tool available in `claude/tools/` (required).
+- `agency-health` tool available in `agency/tools/` (required).
 - Cross-repo collaboration dir exists if `collaboration` step should fire; otherwise step silently no-ops.
 
 None of these are checked by the skill — they are environmental assumptions. Failures surface as individual step errors (see Failure modes).
@@ -67,7 +67,7 @@ None of these are checked by the skill — they are environmental assumptions. F
 ### Step 1 — Health
 
 ```
-./claude/tools/agency-health --json all
+./agency/tools/agency-health --json all
 ```
 
 Capture the JSON; extract overall warnings/critical counts + per-dimension details. Preserve for Step 6.
@@ -84,9 +84,9 @@ Flag PRs whose `updatedAt` > 72h ago as "stale". Note draft vs ready status.
 ### Step 3 — Dispatches + flags
 
 ```
-./claude/tools/dispatch list --all --status unread
-./claude/tools/flag list
-./claude/tools/collaboration check
+./agency/tools/dispatch list --all --status unread
+./agency/tools/flag list
+./agency/tools/collaboration check
 ```
 
 Aggregate: total unread dispatches, per-agent breakdown, total unread flags, per-agent breakdown, cross-repo unread count per repo.
@@ -100,7 +100,7 @@ For each agent (glob `usr/*/*/captain-handoff.md` + `usr/*/*/<agent>-handoff.md`
 For each worktree reported by `agency-health`:
 
 ```
-./claude/tools/git-safe log --oneline -5
+./agency/tools/git-safe log --oneline -5
 ```
 
 Capture last commit hash + message per worktree. Note commits-ahead-of-main count from Step 1's health JSON.

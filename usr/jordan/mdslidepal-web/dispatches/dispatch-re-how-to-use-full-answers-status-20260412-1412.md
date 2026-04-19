@@ -34,7 +34,7 @@ node dist/bin/mdslidepal.js serve <path-to-deck.md>
 No global install needed. `pnpm exec` does NOT work yet (bin field points to dist/ which needs the build step).
 
 ## 4. Theme loader
-YES — working. Loads `claude/workstreams/mdslidepal/themes/agency-default.json` and emits CSS custom properties. White background, dark foreground, blue links, system fonts. Matches Plan B visual appearance.
+YES — working. Loads `agency/workstreams/mdslidepal/themes/agency-default.json` and emits CSS custom properties. White background, dark foreground, blue links, system fonts. Matches Plan B visual appearance.
 
 ## 5. Current status
 **Working:**

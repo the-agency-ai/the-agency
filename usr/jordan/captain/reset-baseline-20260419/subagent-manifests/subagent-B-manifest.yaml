@@ -24,25 +24,25 @@ excludes:
   - agency/workstreams/*/transcripts/**
 
 allowed_substitutions:
-  - pattern: "claude/tools/"
+  - pattern: "agency/tools/"
     replacement: "agency/tools/"
-  - pattern: "claude/hooks/"
+  - pattern: "agency/hooks/"
     replacement: "agency/hooks/"
-  - pattern: "claude/hookify/"
+  - pattern: "agency/hookify/"
     replacement: "agency/hookify/"
-  - pattern: "claude/agents/"
+  - pattern: "agency/agents/"
     replacement: "agency/agents/"
   - pattern: "claude/skills/"
     replacement: ".claude/skills/"      # skills live under .claude/ (Anthropic)
-  - pattern: "claude/config/"
+  - pattern: "agency/config/"
     replacement: "agency/config/"
-  - pattern: "claude/data/"
+  - pattern: "agency/data/"
     replacement: "agency/data/"
-  - pattern: "claude/templates/"
+  - pattern: "agency/templates/"
     replacement: "agency/templates/"
-  - pattern: "claude/workstreams/"
+  - pattern: "agency/workstreams/"
     replacement: "agency/workstreams/"
-  - pattern: "@claude/"
+  - pattern: "@agency/"
     replacement: "@agency/"
 
 rejected_substitutions:

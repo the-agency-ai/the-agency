@@ -35,7 +35,7 @@ If only one commit or no prior iteration commits, skip this step.
 
 The QG's Hash A/Hash E diff is computed against the **phase-start tag** (or commit). Determine as follows, in order:
 
-1. **Read the plan file** in `docs/plans/` (or `claude/workstreams/*/`) for a phase-start tag — most plans record `tag: v<phase>.0` or similar on the phase header (e.g., Phase 1 starts at `v40.1`).
+1. **Read the plan file** in `docs/plans/` (or `agency/workstreams/*/`) for a phase-start tag — most plans record `tag: v<phase>.0` or similar on the phase header (e.g., Phase 1 starts at `v40.1`).
 2. **Check for a git tag** matching the phase: `git tag --list 'v*' --sort=-v:refname | head` — use the tag that marks the start of this phase.
 3. **Fallback:** `git merge-base main HEAD` — the divergence point from master. Note in the handoff if fallback was used.
 
@@ -53,7 +53,7 @@ For example: `phase-complete 1: types and parser --base v40.1`.
 
 The leading `phase-complete <phase>` tells `/quality-gate` the boundary type (used in the receipt filename). The `--base <ref>` tells `/quality-gate` what baseline to use for Hash A / Hash E via `diff-hash --base`.
 
-This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt via `receipt-sign` (five-hash chain, written to `claude/workstreams/{W}/qgr/`).
+This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt via `receipt-sign` (five-hash chain, written to `agency/workstreams/{W}/qgr/`).
 
 The QG is scoped to the **full phase's work** (all changes since divergence from master, or since the last phase commit). This is a deep review — broader scope than the iteration-level gate.
 

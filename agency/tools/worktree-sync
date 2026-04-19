@@ -14,7 +14,7 @@
 #   2 — dirty tree refused (manual mode only)
 #
 # The enforcement triangle:
-#   Tool: this file (claude/tools/worktree-sync)
+#   Tool: this file (agency/tools/worktree-sync)
 #   Skill: /worktree-sync, /session-resume, /session-end
 #   Hookify: block-raw-git-merge-master
 
@@ -94,7 +94,7 @@ fi
 
 # Determine the main branch — a property of the REPO, never whatever the
 # captain happens to have checked out. Uses the shared helper.
-# See claude/tools/lib/_detect-main-branch for resolution order + safety
+# See agency/tools/lib/_detect-main-branch for resolution order + safety
 # guard. Incident that drove this: Day 42 designex — captain on feature
 # branch caused every worktree to merge that feature branch via rev-parse
 # --abbrev-ref HEAD. Issues: the-agency#267, #292. Helper extracted D45-R3.
@@ -214,8 +214,8 @@ fi
 
 # --- Run sandbox-sync ---
 SANDBOX_MSG=""
-if [[ -x "$ROOT/claude/tools/sandbox-sync" ]]; then
-    SANDBOX_OUTPUT=$("$ROOT/claude/tools/sandbox-sync" --quiet 2>&1) || true
+if [[ -x "$ROOT/agency/tools/sandbox-sync" ]]; then
+    SANDBOX_OUTPUT=$("$ROOT/agency/tools/sandbox-sync" --quiet 2>&1) || true
     if [[ -n "$SANDBOX_OUTPUT" ]]; then
         SANDBOX_MSG="$SANDBOX_OUTPUT"
     fi

@@ -6,7 +6,7 @@
 
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-    TOOL="$REPO_ROOT/claude/tools/reset-rollback"
+    TOOL="$REPO_ROOT/agency/tools/reset-rollback"
 
     TMP_REPO="$(mktemp -d -t rr.XXXXXX)"
     cd "$TMP_REPO"

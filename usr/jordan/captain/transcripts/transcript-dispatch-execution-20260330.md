@@ -39,12 +39,12 @@ One PR branch per dispatch.
 ## Decisions
 
 ### D-001: Tool location clarification
-- `claude/tools/` — tools shipped as part of the-agency framework (copied by agency-init)
-- `claude/tools/lib/` — libs those shipped tools use
+- `agency/tools/` — tools shipped as part of the-agency framework (copied by agency-init)
+- `agency/tools/lib/` — libs those shipped tools use
 - `tools/` — internal tools used within this repo only
 - Where a tool lives depends on its target audience
 
-**Implication for plugin framework:** `_provider-resolve` goes in `claude/tools/lib/` (it's a lib for shipped tools). Dispatchers and providers that ship with the framework go in `claude/tools/`. Internal-only tools stay in `tools/`.
+**Implication for plugin framework:** `_provider-resolve` goes in `agency/tools/lib/` (it's a lib for shipped tools). Dispatchers and providers that ship with the framework go in `agency/tools/`. Internal-only tools stay in `tools/`.
 
 ### D-002: PR strategy
 - One branch per dispatch
@@ -60,11 +60,11 @@ One PR branch per dispatch.
 
 ### Phases
 
-1. **Infrastructure** — Create `claude/tools/lib/_provider-resolve` (sourceable bash lib, follows `_path-resolve` pattern). Add terminal/platform/design provider sections to agency.yaml.
+1. **Infrastructure** — Create `agency/tools/lib/_provider-resolve` (sourceable bash lib, follows `_path-resolve` pattern). Add terminal/platform/design provider sections to agency.yaml.
 2. **Secrets Dispatcher** — Create `.claude/commands/secret.md` skill. Thin dispatcher: reads `secrets.provider` from agency.yaml, delegates to `./tools/secret-{provider}`.
 3. **Terminal Provider** — Copy `ghostty-setup` → `terminal-setup-ghostty`. Create `terminal-setup` dispatcher (auto-detects from `$TERM_PROGRAM`). Old name becomes deprecation shim.
 4. **Platform Provider** — Copy `mac-setup` → `platform-setup-macos`, `linux-setup` → `platform-setup-linux`. Create `platform-setup` dispatcher (auto-detects from `uname -s`). Old names become shims.
-5. **Scaffolding & Verification** — Create `claude/templates/PROVIDER.sh`, add `--provider` flag to `tool-new`, create `tools/agency-verify`.
+5. **Scaffolding & Verification** — Create `agency/templates/PROVIDER.sh`, add `--provider` flag to `tool-new`, create `tools/agency-verify`.
 6. **agency-init Updates** — Ship new files: `_provider-resolve`, dispatchers, providers. Don't ship deprecation shims.
 7. **Permissions** — Add new tool permissions to settings.json.
 

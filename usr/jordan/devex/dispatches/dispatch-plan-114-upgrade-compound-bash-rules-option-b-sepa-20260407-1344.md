@@ -48,8 +48,8 @@ action: block
 When you cd then run a tool, the tool reads the new directory's git context.
 Worktree agents must run tools from their worktree CWD with relative paths.
 
-Wrong: `cd /Users/jdm/code/the-agency && ./claude/tools/handoff write`
-Right: `./claude/tools/handoff write` (from worktree CWD)
+Wrong: `cd /Users/jdm/code/the-agency && ./agency/tools/handoff write`
+Right: `./agency/tools/handoff write` (from worktree CWD)
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
 ```
@@ -94,7 +94,7 @@ For all other compound patterns. The two new block rules handle the high-confide
 2. Try compound `cd && tool` from a test agent — should block
 3. Try compound `git add && git commit` — should block
 4. Try benign `echo a | grep b | head -1` — should warn (not block)
-5. Try single `./claude/tools/foo` — should not trigger any rule
+5. Try single `./agency/tools/foo` — should not trigger any rule
 6. Check tool-runs.jsonl after a session for evidence the rules are firing
 
 ## Telemetry check

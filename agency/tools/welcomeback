@@ -1,6 +1,6 @@
 #!/bin/bash
 # Welcome back prompt for agent session startup
-# Usage: ./claude/tools/welcomeback [--verbose]
+# Usage: ./agency/tools/welcomeback [--verbose]
 #
 # This tool provides a friendly prompt to start an agent session.
 # It triggers the agent to restore context from system reminders
@@ -32,7 +32,7 @@ for arg in "$@"; do
             echo "welcomeback - Start an agent session"
             echo ""
             echo "Usage:"
-            echo "  ./claude/tools/welcomeback [--verbose]"
+            echo "  ./agency/tools/welcomeback [--verbose]"
             echo ""
             echo "Options:"
             echo "  --verbose     Show detailed logging"

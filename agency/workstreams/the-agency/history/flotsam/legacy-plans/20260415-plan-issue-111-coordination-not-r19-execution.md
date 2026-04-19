@@ -35,9 +35,9 @@ From Explore agent survey of `/Users/jdm/code/the-agency`:
 - `claude/tools/commit-precheck:491` — `ls usr/jordan/*/qgr-*-"$current_hash"-*.md` (NOT mentioned in monofolk's dispatch)
 
 **Framework-tool false positives (not bugs):**
-- `claude/tools/safe-extract:37` — example text
-- `claude/tools/iscp-migrate:5,372` — migration-legacy
-- `claude/tools/tests/test-worktree-sync.sh:282-283` — test fixture
+- `agency/tools/safe-extract:37` — example text
+- `agency/tools/iscp-migrate:5,372` — migration-legacy
+- `agency/tools/tests/test-worktree-sync.sh:282-283` — test fixture
 
 **Doc references (all illustrative placeholders, no action):**
 - `claude/docs/REFERENCE-HANDOFF-SPEC.md:12`, `README-THEAGENCY.md:563,611-612`, `iscp-plan-20260404.md:165`
@@ -48,7 +48,7 @@ From Explore agent survey of `/Users/jdm/code/the-agency`:
 Key discovery (Explore agent): **these ARE framework artifacts** — `claude/tools/lib/_agency-init:215-227` symlinks `.claude/agents/` from framework into adopter repos. `principal-onboard` generates per-principal-prefixed versions. Monofolk's dispatch references `claude/templates/agents/{captain,of-mobile,healthos}.md` — **we don't have that directory** — ambiguity to clarify.
 
 **Existing helpers to reuse:**
-- `claude/tools/lib/_path-resolve` exports `AGENCY_PRINCIPAL`, `AGENCY_PRINCIPAL_DIR`, `AGENCY_REFS_DIR`, `AGENCY_PROJECT_ROOT`
+- `agency/tools/lib/_path-resolve` exports `AGENCY_PRINCIPAL`, `AGENCY_PRINCIPAL_DIR`, `AGENCY_REFS_DIR`, `AGENCY_PROJECT_ROOT`
 - Multi-principal iteration pattern already used in: `handoff:118`, `instruction-show:90` — `for dir in "$PROJECT_ROOT"/usr/*/; do ... principal=$(basename "$dir")`
 
 **Tests:**
@@ -90,7 +90,7 @@ If monofolk's PR is scoped narrower (e.g., only the 3 files they mentioned, not 
 
 **Q2 (commit-precheck):** Line 491 of `claude/tools/commit-precheck` does `ls usr/jordan/*/qgr-*-"$current_hash"-*.md` — also a principal hardcode in receipt lookup. In scope for your PR, or should the-agency handle as fast-follow?
 
-**Q3 (`./claude/tools/principal`):** Your dispatch says "runtime tool call to `./claude/tools/principal`". That tool doesn't exist in framework HEAD — did you mean `principal-onboard`, or is this a new tool your PR will add?
+**Q3 (`./agency/tools/principal`):** Your dispatch says "runtime tool call to `./agency/tools/principal`". That tool doesn't exist in framework HEAD — did you mean `principal-onboard`, or is this a new tool your PR will add?
 
 **Q4 (options mapping):** The issue proposed A=SessionStart-stamping, B=user-level-overrides, C=prefixed-names, D=petition-Anthropic. Your dispatch says "Options A + B hybrid — no SessionStart hook needed, just runtime tool calls". Your A/B appear to be different — confirm your A=dynamic-import-via-tool and B=tool-based-resolution and there's no drift between our vocabularies.
 
@@ -105,7 +105,7 @@ If monofolk's PR is scoped narrower (e.g., only the 3 files they mentioned, not 
 
 ## Verification
 
-- Cross-repo dispatch sent via `./claude/tools/collaboration send monofolk ...`
+- Cross-repo dispatch sent via `./agency/tools/collaboration send monofolk ...`
 - #111 comment posted via `gh issue comment 111 ...`
 - Monofolk's PR reviewed on arrival against Phase-1 findings
 - Collab dispatch resolved after PR merges

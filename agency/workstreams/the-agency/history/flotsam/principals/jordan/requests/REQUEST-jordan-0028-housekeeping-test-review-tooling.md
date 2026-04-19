@@ -48,8 +48,8 @@ Test review happens but findings not persisted.
 ### 2026-01-20 - Closed
 - Verified existing tooling addresses core workflow:
   - `./tools/review-spawn REQUEST test` - triggers test reviews
-  - `claude/templates/prompts/test-review.md` - reviewer prompt
-  - `claude/templates/prompts/consolidation.md` - merge findings
+  - `agency/templates/prompts/test-review.md` - reviewer prompt
+  - `agency/templates/prompts/consolidation.md` - merge findings
   - CLAUDE.md documents the full process
 - Persistence/tracking deferred to REQUEST-jordan-0066 (Findings Consolidation)
 

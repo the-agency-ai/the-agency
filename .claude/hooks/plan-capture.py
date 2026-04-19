@@ -190,7 +190,7 @@ def main():
     workstream = _resolve_workstream(project_dir)
     repo_name = Path(project_dir).name
 
-    # D42-R7: write to claude/workstreams/{W}/ root (per content split spec)
+    # D42-R7: write to agency/workstreams/{W}/ root (per content split spec)
     plans_dir = Path(project_dir) / "claude" / "workstreams" / workstream
     plans_dir.mkdir(parents=True, exist_ok=True)
     history_dir = plans_dir / "history"
@@ -294,7 +294,7 @@ slug: {slug}
     plan_path.write_text(artifact_content)
 
     # Feed back to Claude
-    print(f"plan-capture: saved → claude/workstreams/{workstream}/{filename}")
+    print(f"plan-capture: saved → agency/workstreams/{workstream}/{filename}")
     sys.exit(0)
 
 

@@ -23,7 +23,7 @@ When invoked:
 1. **Establish context.** If a project name or seed file is provided, read it. If not, ask: "What are we defining?" Get a one-sentence answer before proceeding.
 
 2. **Scan for existing work.** Check for an existing PVR in:
-   - `claude/workstreams/{workstream}/` (shared, post-implementation)
+   - `agency/workstreams/{workstream}/` (shared, post-implementation)
    - `usr/{principal}/{agent}/` (instance, pre-implementation)
      If found, load it and identify gaps against the checklist.
 
@@ -116,4 +116,4 @@ The PVR is written progressively as items resolve. Structure:
 | PVR        | `usr/{principal}/{agent}/{project}-pvr-YYYYMMDD.md` (pre-impl) | Progressively              |
 | Transcript | `usr/{principal}/{agent}/transcripts/`                         | Progressively via /discuss |
 
-When implementation launches, the PVR moves to `claude/workstreams/{workstream}/`.
+When implementation launches, the PVR moves to `agency/workstreams/{workstream}/`.
