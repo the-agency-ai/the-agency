@@ -33,15 +33,23 @@ fi
 
 die() { echo "${RED}[ERROR]${NC} $1" >&2; exit 1; }
 
-# Detect main branch name
-detect_main_branch() {
-    if git show-ref --verify refs/heads/main &>/dev/null; then
-        echo "main"
-    elif git show-ref --verify refs/heads/master &>/dev/null; then
-        echo "master"
-    else
-        die "Cannot find main or master branch."
-    fi
+# Shared MAIN_BRANCH resolver (D45-R3 refactor). Replaces former inline
+# show-ref ladder with the canonical helper used by worktree-sync, git-safe,
+# pr-create, pr-build, and agency-health. Single source of truth. Helper
+# whitelists main/master and rejects anything else (e.g., trunk) with a
+# loud failure — matches framework floor. No bug left behind.
+if [[ -f "$SCRIPT_DIR/lib/_detect-main-branch" ]]; then
+    # shellcheck source=/dev/null
+    source "$SCRIPT_DIR/lib/_detect-main-branch"
+else
+    die "_detect-main-branch helper missing at $SCRIPT_DIR/lib/_detect-main-branch"
+fi
+
+# Wrapper: git-captain operates on the current repo (main checkout), so
+# we pass "." to the helper. Preserves call-site signature of the former
+# bare detect_main_branch() at all existing use sites in this file.
+_git_captain_main_branch() {
+    detect_main_branch "."
 }
 
 usage() {
@@ -83,7 +91,7 @@ cmd_merge_to_master() {
 
     local branch="$1"
     local main_branch
-    main_branch=$(detect_main_branch)
+    main_branch=$(_git_captain_main_branch)
 
     local current_branch
     current_branch=$(git branch --show-current)
@@ -182,7 +190,7 @@ cmd_sync_main() {
     [[ $# -gt 0 ]] && die "Usage: git-captain sync-main (takes no arguments)"
 
     local main_branch
-    main_branch=$(detect_main_branch)
+    main_branch=$(_git_captain_main_branch)
 
     local current_branch
     current_branch=$(git branch --show-current)
@@ -222,7 +230,7 @@ cmd_merge_from_origin() {
     [[ $# -gt 0 ]] && die "Usage: git-captain merge-from-origin (takes no arguments)"
 
     local main_branch
-    main_branch=$(detect_main_branch)
+    main_branch=$(_git_captain_main_branch)
 
     local current_branch
     current_branch=$(git branch --show-current)
@@ -342,7 +350,7 @@ cmd_push() {
     local current_branch
     current_branch=$(git branch --show-current)
     local main_branch
-    main_branch=$(detect_main_branch)
+    main_branch=$(_git_captain_main_branch)
 
     # Block push to main/master
     # Check if any argument explicitly names main/master as the refspec target
@@ -472,7 +480,7 @@ cmd_branch_delete() {
     [[ -z "$name" ]] && die "Usage: git-captain branch-delete <name> [--force]"
 
     local main_branch
-    main_branch=$(detect_main_branch)
+    main_branch=$(_git_captain_main_branch)
 
     # Same protections apply with or without --force
     if [[ "$name" == "$main_branch" ]]; then
