@@ -1,0 +1,154 @@
+#!/bin/bash
+#
+# git-rename-tree — Enumerate-and-move wrapper for structural renames
+#
+# What Problem: The v46.0 structural reset renames the entire `claude/` tree
+# to `agency/` (and other subtree moves). Raw `git mv` on a directory handles
+# many cases but misses unusual filenames (dotfiles, paths containing semicolons
+# or spaces, embedded fixture paths) unless called carefully. Shell globs are
+# fragile and unsafe (blocker #8 — principle 6). Framework-wide renames need
+# a deterministic, audited path.
+#
+# How & Why: Enumerate the tracked files via `git-safe ls-files` (safe, read-only),
+# then `git mv` each path one at a time. Every move is individually logged to the
+# audit JSONL. The caller sees one `git-rename-tree` invocation; internally we
+# emit N `AGENCY_ALLOW_RAW=1 git mv` calls with per-file rationale.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+#
+# Usage:
+#   git-rename-tree <src> <dst> [--rationale <text>]
+#
+# Behavior:
+#   - Src may be a directory (rename whole subtree) or a single tracked file.
+#   - Dst must not already exist as a tracked file.
+#   - Preserves file mode and history (git-follow intact).
+#   - Exits nonzero on any per-file `git mv` failure.
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+die() { echo "[ERROR] $*" >&2; exit 1; }
+
+usage() {
+    cat <<'USAGE'
+git-rename-tree — Enumerate-and-move wrapper (v46.0 reset tooling)
+
+Usage:
+  git-rename-tree <src> <dst> [--rationale <text>]
+
+Arguments:
+  <src>                     Tracked path (file or directory) to move
+  <dst>                     Destination path (file or directory)
+  --rationale <text>        Audit-log rationale (default: "structural-reset rename")
+
+Options:
+  --help                    Show this help
+  --version                 Show version
+
+Notes:
+  - Enumerates files via `git-safe ls-files` (no shell globs)
+  - Each file's `git mv` is called with AGENCY_ALLOW_RAW=1
+  - Audit log path: $AGENCY_AUDIT_LOG (default usr/jordan/captain/reset-baseline-20260419/audit-log.jsonl)
+  - Destination directories are created by `git mv` as needed
+USAGE
+    exit 0
+}
+
+# --- Parse args ---
+SRC=""
+DST=""
+RATIONALE="structural-reset rename"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "git-rename-tree $TOOL_VERSION"; exit 0 ;;
+        --rationale) shift; RATIONALE="${1:-}"; [[ -z "$RATIONALE" ]] && die "--rationale requires a value"; shift ;;
+        --*) die "Unknown flag: $1" ;;
+        *)
+            if [[ -z "$SRC" ]]; then
+                SRC="$1"
+            elif [[ -z "$DST" ]]; then
+                DST="$1"
+            else
+                die "Too many positional args (expect exactly 2: <src> <dst>)"
+            fi
+            shift
+            ;;
+    esac
+done
+
+[[ -z "$SRC" || -z "$DST" ]] && die "Usage: git-rename-tree <src> <dst>"
+
+# --- Audit log ---
+DEFAULT_AUDIT_LOG="$(cd "$SCRIPT_DIR/../.." && pwd)/usr/jordan/captain/reset-baseline-20260419/audit-log.jsonl"
+AUDIT_LOG="${AGENCY_AUDIT_LOG:-$DEFAULT_AUDIT_LOG}"
+mkdir -p "$(dirname "$AUDIT_LOG")"
+
+audit_entry() {
+    local cmd="$1" src="$2" dst="$3" status="$4"
+    local ts
+    ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+    printf '{"ts":"%s","tool":"git-rename-tree","cmd":"%s","src":"%s","dst":"%s","rationale":"%s","exit":%s}\n' \
+        "$ts" "$cmd" "$src" "$dst" "$RATIONALE" "$status" >> "$AUDIT_LOG"
+}
+
+# --- Enumerate files ---
+# Read-only `git ls-files` is safe to invoke directly from a framework tool
+# (no hookify agent-level block applies inside a tool subshell). Keeping the
+# tool self-contained — no git-safe sibling dependency — simplifies BATS
+# fixtures and reduces path-resolution coupling during v46.0 reset.
+
+# Normalize: strip trailing slash for consistency
+SRC="${SRC%/}"
+DST="${DST%/}"
+
+# Enumerate tracked files under SRC into an array (bash 3.2 compatible — no
+# mapfile). `ls-files -- <path>` lists the path itself if it's a tracked file,
+# or every tracked file under it if it's a directory.
+FILES=()
+# Use -z to avoid octal-quoting of unicode/special-char paths (e.g. 世界.txt).
+# Read with NUL separator (IFS= + -d ''); bash 3.2 compatible.
+while IFS= read -r -d '' line; do
+    [[ -n "$line" ]] && FILES+=("$line")
+done < <(git ls-files -z -- "$SRC")
+
+[[ ${#FILES[@]} -eq 0 ]] && die "No tracked files match '$SRC' — nothing to move."
+
+# --- Move each file ---
+moved=0
+failed=0
+for f in "${FILES[@]}"; do
+    # Compute relative path of f under SRC (handles SRC being a directory or exact file)
+    if [[ "$f" == "$SRC" ]]; then
+        # Single-file move: dst is the literal dst
+        target="$DST"
+    else
+        rel="${f#"$SRC/"}"
+        target="$DST/$rel"
+    fi
+
+    # Ensure target parent dir exists
+    target_parent="$(dirname "$target")"
+    mkdir -p "$target_parent"
+
+    # Move the file with bypass
+    if AGENCY_ALLOW_RAW=1 git mv -- "$f" "$target" 2>/dev/null; then
+        audit_entry "git mv" "$f" "$target" 0
+        moved=$((moved + 1))
+    else
+        audit_entry "git mv" "$f" "$target" 1
+        failed=$((failed + 1))
+        echo "[FAIL] git mv '$f' → '$target'" >&2
+    fi
+done
+
+echo "git-rename-tree: moved=$moved failed=$failed src=$SRC dst=$DST"
+[[ $failed -eq 0 ]] || exit 1
+exit 0

@@ -1,0 +1,239 @@
+#!/bin/bash
+#
+# ref-inventory-gen — Reference inventory manifest for the v46.0 rename
+#
+# What Problem: The v46.0 reset renames `claude/<subdir>/` → `agency/<subdir>/`
+# across ~2200 tracked files. Before the rename, we must capture every file
+# that references the legacy `claude/` path — split into rename-target hits
+# (will be swept) and allowlisted hits (preserved intentionally). After the
+# rename+sweep, the same inventory must show zero "unknown" classifications.
+#
+# How & Why: Enumerate all tracked files (minus declared excludes), grep each
+# for regex patterns, and classify each hit as {rename-target, allowlisted,
+# unknown}. Emit a stable deterministic manifest to stdout (or --output FILE).
+# `--strict` exits nonzero if any hit classifies as "unknown" — Gate 4 uses
+# this to block merge on untracked residual refs.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+#
+# Usage:
+#   ref-inventory-gen [--pre|--post] [--output FILE] [--strict] \
+#       [--allowlist FILE] [--exclude GLOB]... [--root DIR]
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+ref-inventory-gen — v46.0 rename reference manifest
+
+Usage:
+  ref-inventory-gen [--pre|--post] [--output FILE] [--strict]
+                    [--allowlist FILE] [--exclude GLOB]... [--root DIR]
+
+Options:
+  --pre                  Pre-rename snapshot (classify `claude/...` patterns)
+  --post                 Post-rename snapshot (classify `agency/...` patterns)
+  --output FILE          Write output to FILE (default: stdout)
+  --strict               Exit nonzero if any hit classifies as "unknown"
+  --allowlist FILE       Path to allowlist (default: claude/tools/ref-sweep-allowlist.txt)
+  --exclude GLOB         Path glob to exclude (repeatable; stacks with defaults)
+  --root DIR             Repo root (default: auto-detect via git)
+  --help                 Show this help
+  --version              Show version
+
+Default excludes (always applied):
+  src/archive/**
+  history/**
+  usr/**
+  test/test-agency-project/**
+
+Output format (tab-separated):
+  CLASSIFICATION  FILE  LINE  PATTERN
+
+CLASSIFICATION ∈ { rename-target, allowlisted, unknown }.
+USAGE
+    exit 0
+}
+
+# --- Parse args ---
+MODE="pre"
+OUTPUT=""
+STRICT=0
+ALLOWLIST=""
+EXTRA_EXCLUDES=()
+REPO_ROOT=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "ref-inventory-gen $TOOL_VERSION"; exit 0 ;;
+        --pre) MODE="pre"; shift ;;
+        --post) MODE="post"; shift ;;
+        --output) shift; OUTPUT="${1:-}"; [[ -z "$OUTPUT" ]] && die "--output needs a file"; shift ;;
+        --strict) STRICT=1; shift ;;
+        --allowlist) shift; ALLOWLIST="${1:-}"; [[ -z "$ALLOWLIST" ]] && die "--allowlist needs a file"; shift ;;
+        --exclude) shift; [[ -z "${1:-}" ]] && die "--exclude needs a glob"; EXTRA_EXCLUDES+=("$1"); shift ;;
+        --root) shift; REPO_ROOT="${1:-}"; [[ -z "$REPO_ROOT" ]] && die "--root needs a dir"; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+# --- Resolve repo root ---
+if [[ -z "$REPO_ROOT" ]]; then
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not in a git repo"
+fi
+cd "$REPO_ROOT" || die "cannot cd to $REPO_ROOT"
+
+# --- Resolve allowlist ---
+if [[ -z "$ALLOWLIST" ]]; then
+    # Allowlist may live in claude/tools/ (pre-rename) OR agency/tools/ (post-rename)
+    if [[ -f "$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt" ]]; then
+        ALLOWLIST="$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt"
+    elif [[ -f "$REPO_ROOT/claude/tools/ref-sweep-allowlist.txt" ]]; then
+        ALLOWLIST="$REPO_ROOT/claude/tools/ref-sweep-allowlist.txt"
+    fi
+fi
+
+# Load allowlist patterns (tab-or-whitespace-separated: "<regex>\t<rationale>")
+ALLOWLIST_PATTERNS=()
+if [[ -n "$ALLOWLIST" && -f "$ALLOWLIST" ]]; then
+    while IFS= read -r line; do
+        # Skip blank lines + comments
+        [[ -z "$line" || "$line" =~ ^\# ]] && continue
+        # Take everything before first tab (or whole line if no tab)
+        pattern="${line%%$'\t'*}"
+        # Trim leading/trailing whitespace
+        pattern="${pattern#"${pattern%%[![:space:]]*}"}"
+        pattern="${pattern%"${pattern##*[![:space:]]}"}"
+        [[ -n "$pattern" ]] && ALLOWLIST_PATTERNS+=("$pattern")
+    done < "$ALLOWLIST"
+fi
+
+# --- Rename-target patterns (fully-qualified claude/<known-subdir>/) ---
+# Known subdirs under claude/ at the time of Plan v4 — matches Principle 4.
+# Any claude/... hit that maps to one of these subdirs is a "rename-target".
+# (Post-rename mode flips to agency/<subdir>/ for post-rename validation.)
+RENAME_SUBDIRS=(
+    tools hooks hookify agents skills commands templates workstreams
+    config data receipts principals plans proposals reviews knowledge
+    assets REFERENCE README-ENFORCEMENT CHANGELOG CLAUDE-THEAGENCY
+)
+
+# Build rename-target regex alternation
+RENAME_ALT="$(IFS='|'; echo "${RENAME_SUBDIRS[*]}")"
+if [[ "$MODE" == "pre" ]]; then
+    RENAME_REGEX="claude/($RENAME_ALT)"
+    SEARCH_REGEX="claude/"
+else
+    RENAME_REGEX="agency/($RENAME_ALT)"
+    SEARCH_REGEX="agency/"
+fi
+
+# --- Default excludes ---
+EXCLUDES=(
+    'src/archive/**'
+    'history/**'
+    'usr/**'
+    'test/test-agency-project/**'
+)
+if [[ ${#EXTRA_EXCLUDES[@]} -gt 0 ]]; then
+    for e in "${EXTRA_EXCLUDES[@]}"; do
+        EXCLUDES+=("$e")
+    done
+fi
+
+# Convert excludes to `git ls-files :(exclude,glob)` pathspecs
+PATHSPECS=()
+for e in "${EXCLUDES[@]}"; do
+    PATHSPECS+=(":(exclude,glob)$e")
+done
+
+# --- Helpers ---
+is_allowlisted() {
+    local s="$1"
+    for p in "${ALLOWLIST_PATTERNS[@]}"; do
+        # Allow regex fragments (simple ERE) via grep -qE
+        if printf '%s' "$s" | grep -qE -- "$p"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# --- Scan ---
+# Enumerate tracked files within scope. For each file, grep for SEARCH_REGEX
+# and classify each hit.
+: > "${OUTPUT:-/dev/stdout}" 2>/dev/null || true
+
+# Write header
+if [[ -n "$OUTPUT" ]]; then
+    {
+        echo "# ref-inventory-gen mode=$MODE ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "# CLASSIFICATION	FILE	LINE	MATCH"
+    } > "$OUTPUT"
+else
+    echo "# ref-inventory-gen mode=$MODE ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "# CLASSIFICATION	FILE	LINE	MATCH"
+fi
+
+unknown_count=0
+total_count=0
+
+emit() {
+    if [[ -n "$OUTPUT" ]]; then
+        printf '%s\n' "$1" >> "$OUTPUT"
+    else
+        printf '%s\n' "$1"
+    fi
+}
+
+# Use -z for safe pathname handling
+FILES=()
+while IFS= read -r -d '' f; do
+    FILES+=("$f")
+done < <(git ls-files -z -- "${PATHSPECS[@]}")
+
+for f in "${FILES[@]}"; do
+    # Skip binary files (grep flags -I)
+    # grep -n prints line-numbers; -E for ERE; -I to skip binary; -H force filename
+    if ! grep -IEn -- "$SEARCH_REGEX" "$f" 2>/dev/null > /tmp/rig.$$; then
+        continue
+    fi
+    while IFS= read -r hit; do
+        [[ -z "$hit" ]] && continue
+        # Parse grep output: LINE:MATCH
+        line="${hit%%:*}"
+        rest="${hit#*:}"
+
+        # Classify
+        if is_allowlisted "$rest"; then
+            classification="allowlisted"
+        elif printf '%s' "$rest" | grep -qE -- "$RENAME_REGEX"; then
+            classification="rename-target"
+        else
+            classification="unknown"
+            unknown_count=$((unknown_count + 1))
+        fi
+
+        total_count=$((total_count + 1))
+        emit "${classification}	${f}	${line}	${rest}"
+    done < /tmp/rig.$$
+    rm -f /tmp/rig.$$
+done
+
+# Summary to stderr
+echo "# total=$total_count unknown=$unknown_count (mode=$MODE)" >&2
+
+if [[ $STRICT -eq 1 && $unknown_count -gt 0 ]]; then
+    exit 1
+fi
+
+exit 0

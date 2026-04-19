@@ -48,6 +48,7 @@ Subcommands (read-only):
   branch                 Show current branch name
   show [args]            git show
   blame [args]           git blame
+  ls-files [args]        git ls-files (tracked-file enumeration for pipelines)
 
 Subcommands (guarded write):
   add <file> [file...]         Stage explicit file paths (blocks -A, --all, ., wildcards)
@@ -113,6 +114,14 @@ cmd_show() {
 # --- Subcommand: blame ---
 cmd_blame() {
     git blame "$@"
+}
+
+# --- Subcommand: ls-files ---
+# Read-only. Emits tracked-file paths suitable for pipelines (v46.0 reset
+# tooling consumes this for git-rename-tree, ref-inventory-gen, etc.).
+# Supports common pathspec forms incl. `-- <path>` for single-file lookup.
+cmd_ls_files() {
+    git ls-files "$@"
 }
 
 # --- Subcommand: add ---
@@ -465,6 +474,7 @@ case "$1" in
     branch)       shift; cmd_branch "$@" ;;
     show)         shift; cmd_show "$@" ;;
     blame)        shift; cmd_blame "$@" ;;
+    ls-files)     shift; cmd_ls_files "$@" ;;
     add)              shift; cmd_add "$@" ;;
     rm)               shift; cmd_rm "$@" ;;
     resolve-conflict) shift; cmd_resolve_conflict "$@" ;;
