@@ -60,6 +60,56 @@ struct AnyCodable: Encodable {
 
 extension ErrorEnvelope {
 
+    /// **Phase 3 iter 3.5.** Scrub an absolute path for safe inclusion
+    /// in error messages and telemetry. Returns a path display string
+    /// where well-known prefixes are replaced with sigils:
+    ///
+    /// 1. If MDPAL_ROOT is set and the absolute path is inside it,
+    ///    returns `<MDPAL_ROOT>/<relative-path>`.
+    /// 2. Else if the path is inside the user's home directory, returns
+    ///    `~/<relative-path>`.
+    /// 3. Otherwise returns the basename (last path component) only.
+    ///
+    /// Closes Sec-2 from Phase 2 phase-complete backlog. Strategy:
+    /// `details.path` retains the absolute path (unchanged for caller
+    /// backwards compat). New `details.relativePath` carries the scrubbed
+    /// form. Envelope `message` uses the scrubbed form so stderr logs
+    /// and downstream UI surfaces don't leak filesystem layout.
+    static func scrubPath(_ absolutePath: String) -> String {
+        let env = ProcessInfo.processInfo.environment
+        if let rawRoot = env["MDPAL_ROOT"], !rawRoot.isEmpty {
+            let rootCanonical = canonicalizeForScrub(rawRoot)
+            let rootWithSlash = rootCanonical.hasSuffix("/") ? rootCanonical : rootCanonical + "/"
+            if absolutePath == rootCanonical {
+                return "<MDPAL_ROOT>"
+            }
+            if absolutePath.hasPrefix(rootWithSlash) {
+                return "<MDPAL_ROOT>/" + String(absolutePath.dropFirst(rootWithSlash.count))
+            }
+        }
+        let home = NSHomeDirectory()
+        let homeWithSlash = home.hasSuffix("/") ? home : home + "/"
+        if absolutePath == home {
+            return "~"
+        }
+        if absolutePath.hasPrefix(homeWithSlash) {
+            return "~/" + String(absolutePath.dropFirst(homeWithSlash.count))
+        }
+        // Fall back to basename only — keeps the type of file visible
+        // (e.g., "V0001.0001.20260101T0000Z.md") without leaking the
+        // containing directory tree.
+        return (absolutePath as NSString).lastPathComponent
+    }
+
+    /// Lightweight canonicalization for scrubPath — tilde-expand +
+    /// absolute. Doesn't try to resolve symlinks (path may not exist).
+    private static func canonicalizeForScrub(_ path: String) -> String {
+        let expanded = (path as NSString).expandingTildeInPath
+        if expanded.hasPrefix("/") { return expanded }
+        let cwd = FileManager.default.currentDirectoryPath
+        return (cwd as NSString).appendingPathComponent(expanded)
+    }
+
     /// D4 (phase-complete): factory for the `invalidArgument` envelope.
     /// Three CLI sites previously inlined the literal "invalidArgument"
     /// string + an ad-hoc details dict. Centralizing both the
@@ -246,14 +296,19 @@ enum EngineErrorMapper {
                 .bundleConflict
             )
         case .invalidBundlePath(let path, let reason):
+            // Phase 3 iter 3.5: scrub absolute path for safe display in
+            // message; retain absolute in details.path for backwards
+            // compat; add details.relativePath as the new safe field.
+            let scrubbed = ErrorEnvelope.scrubPath(path)
             let details: [String: AnyCodable] = [
                 "path": AnyCodable(path),
+                "relativePath": AnyCodable(scrubbed),
                 "reason": AnyCodable(reason),
             ]
             return (
                 ErrorEnvelope(
                     error: "invalidBundlePath",
-                    message: "Invalid bundle path '\(path)': \(reason)",
+                    message: "Invalid bundle path '\(scrubbed)': \(reason)",
                     details: details
                 ),
                 .generalError
@@ -277,14 +332,17 @@ enum EngineErrorMapper {
                 .generalError
             )
         case .fileError(let path, let description):
+            // Phase 3 iter 3.5: scrub for message; retain absolute in details.
+            let scrubbed = ErrorEnvelope.scrubPath(path)
             let details: [String: AnyCodable] = [
                 "path": AnyCodable(path),
+                "relativePath": AnyCodable(scrubbed),
                 "description": AnyCodable(description),
             ]
             return (
                 ErrorEnvelope(
                     error: "fileError",
-                    message: "File error at '\(path)': \(description)",
+                    message: "File error at '\(scrubbed)': \(description)",
                     details: details
                 ),
                 .generalError
@@ -301,15 +359,18 @@ enum EngineErrorMapper {
                 .generalError
             )
         case .fileTooLarge(let path, let sizeBytes, let limitBytes):
+            // Phase 3 iter 3.5: scrub for message; retain absolute in details.
+            let scrubbed = ErrorEnvelope.scrubPath(path)
             let details: [String: AnyCodable] = [
                 "path": AnyCodable(path),
+                "relativePath": AnyCodable(scrubbed),
                 "sizeBytes": AnyCodable(sizeBytes),
                 "limitBytes": AnyCodable(limitBytes),
             ]
             return (
                 ErrorEnvelope(
                     error: "fileTooLarge",
-                    message: "File at '\(path)' exceeds the \(limitBytes)-byte ceiling (observed \(sizeBytes))",
+                    message: "File at '\(scrubbed)' exceeds the \(limitBytes)-byte ceiling (observed \(sizeBytes))",
                     details: details
                 ),
                 .sizeLimitExceeded
