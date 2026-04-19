@@ -4,7 +4,7 @@ description: "Design Experience — Figma-to-code pipeline, design tokens, compo
 model: opus
 ---
 
-@claude/agents/tech-lead/agent.md
+@import @agency/agents/design-lead/agent.md
 @claude/workstreams/designex/CLAUDE-DESIGNEX.md
 @usr/jordan/designex/CLAUDE-DESIGNEX.md
 
