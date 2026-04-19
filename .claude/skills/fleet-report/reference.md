@@ -25,7 +25,7 @@ The captain inference at the bottom of the report is **strictly derived from obs
 3. **Stale handoff** → "<agent> handoff N days old — consider status check"
 4. **Large unread dispatch backlog (>5 per agent)** → "<agent> has N unread — triage or reassign"
 5. **Diverging worktree (>50 commits behind main)** → "<agent> worktree N behind main — sync or close"
-6. **Cross-repo unread > 0** → "monofolk: N unread collab dispatches — review"
+6. **Cross-repo unread > 0** → "<partner-repo>: N unread collab dispatches — review"
 7. **No findings** → "NEXT ACTIONS: none — fleet is quiet"
 
 Do NOT invent actions the data doesn't support. If the fleet is quiet, say so.

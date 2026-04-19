@@ -43,12 +43,12 @@ RECENT COMMITS (per worktree)
   …
 
 CROSS-REPO
-  monofolk:    2 unread (1 @designex, 1 @captain)
+  partner-a:   2 unread (1 @designex, 1 @captain)
 
 ─────────
 NEXT ACTIONS (captain inference)
   1. designex 2 behind main — sync-all will catch it up
-  2. monofolk: 2 unread collab dispatches — review
+  2. partner-a: 2 unread collab dispatches — review
   3. captain: 3 unread flags — run /flag-triage
 ```
 

@@ -1,19 +1,5 @@
 # The Agency Command Dispatcher
 
-Display the help text:
+`/agency` is an alias for `/agency-help`. Run `/agency-help` (or invoke the Skill tool with `agency-help`) to see the full command list + documentation pointers.
 
-```
-The Agency Commands
-
-Quick Captures:
-  /agency-bug [summary]         Report a bug quickly
-  /agency-request [summary]     Create a REQUEST
-
-Onboarding:
-  /agency-welcome               Guided tour of The Agency
-  /agency-tutorial [cmd]        Tutorial navigation
-
-Meta:
-  /agency-help                  Show this help
-  /agency                       Same as /agency-help
-```
+Do not duplicate the help text here — a single source of truth in `/agency-help` prevents drift between the two.

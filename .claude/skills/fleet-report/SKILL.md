@@ -145,7 +145,7 @@ RECENT COMMITS (per worktree)
   …
 
 CROSS-REPO
-  monofolk:    N unread collab dispatches
+  <partner-repo>: N unread collab dispatches
 
 ─────────
 NEXT ACTIONS (captain inference)
@@ -207,14 +207,14 @@ Global principle: **fleet-report never aborts mid-flight**. A data source going 
 
 ## Status
 
-**pilot** — first v2 skill authored under the monofolk v2 methodology (REFERENCE-SKILL-AUTHORING.md, PR #309). Shipped 2026-04-19 during D45-R3 session as the principal-directed fleet-briefing capability. Dogfooding in progress; will promote to `active` once used in 3+ sessions without needing changes.
+**pilot** — first v2 skill authored under the v2 authoring methodology (REFERENCE-SKILL-AUTHORING.md, upstream PR #309). Shipped 2026-04-19 during D45-R3 session as the principal-directed fleet-briefing capability. Dogfooding in progress; will promote to `active` once used in 3+ sessions without needing changes.
 
 ## Related
 
 - `agency-health` — the underlying structural check (skill + tool)
 - `dispatch`, `flag`, `collaboration` — ISCP + cross-repo surfaces
 - Seed: make `/fleet-report` the default output of `/session-resume` Step 4
-- Upstream spec: monofolk PR #309 (`REFERENCE-SKILL-AUTHORING.md`)
+- Upstream spec: PR #309 (`REFERENCE-SKILL-AUTHORING.md`)
 - Flag #51 — the original fleet-audit request that seeded `agency-health` (foundation for this)
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
