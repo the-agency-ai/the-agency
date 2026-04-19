@@ -55,6 +55,15 @@ public enum MetadataSerializer {
 
     // MARK: - Encode
 
+    /// Top-level YAML keys the engine knows how to interpret.
+    /// Anything outside this set is captured into
+    /// `DocumentMetadata.unknownTopLevelYAML` on decode and re-emitted
+    /// verbatim on encode (Phase 3 iter 3.1 — round-trip preservation
+    /// for additive metadata like mdpal-app's `review:` block).
+    private static let knownTopLevelKeys: Set<String> = [
+        "document", "flags", "unresolved", "resolved",
+    ]
+
     /// Encode DocumentMetadata as a deterministic YAML string.
     public static func encode(_ metadata: DocumentMetadata) throws -> String {
         // Use an ordered Node mapping so key order is stable across runs.
@@ -74,6 +83,31 @@ public enum MetadataSerializer {
                 Node("resolved"),
                 Node(metadata.resolvedComments.map { encodeComment($0) })
             ))
+        }
+        // Phase 3 iter 3.1: re-emit unknown top-level keys captured at
+        // decode time. Sort by key for deterministic output. Each value
+        // is a YAML-serialized subtree captured verbatim from the source.
+        for key in metadata.unknownTopLevelYAML.keys.sorted() {
+            let serializedSubtree = metadata.unknownTopLevelYAML[key]!
+            // Re-parse the captured YAML into a Node so it nests as a
+            // proper mapping/scalar/sequence under the top-level key.
+            // (Storing as raw String would force us to splice text with
+            // the right indentation; a Node round-trip via Yams is
+            // safer and preserves the original structure.)
+            do {
+                guard let node = try Yams.compose(yaml: serializedSubtree) else {
+                    // Malformed captured subtree — skip rather than
+                    // corrupt the whole metadata block. This shouldn't
+                    // happen in practice (we serialized it ourselves on
+                    // decode) but we defend against it anyway.
+                    continue
+                }
+                topLevel.append((Node(key), node))
+            } catch {
+                throw EngineError.metadataError(
+                    "Failed to re-emit unknown YAML key '\(key)': \(error)"
+                )
+            }
         }
         let root = Node.mapping(orderedMapping(topLevel))
 
@@ -181,11 +215,42 @@ public enum MetadataSerializer {
             resolved = []
         }
 
+        // Phase 3 iter 3.1: capture unknown top-level keys for
+        // round-trip preservation. Re-parse the same YAML via Yams.compose
+        // so we get Node objects for each unknown key (Yams.load returns
+        // generic Any which can't be cleanly re-serialized to YAML
+        // preserving types). Each captured subtree is serialized back to
+        // YAML for storage on DocumentMetadata; encode re-parses and
+        // emits as a proper nested mapping.
+        var unknownTopLevelYAML: [String: String] = [:]
+        let composed: Node?
+        do {
+            composed = try Yams.compose(yaml: yaml)
+        } catch {
+            // Compose failed but load succeeded — extremely unlikely
+            // (same parser). Fall back to no preservation rather than
+            // erroring; the decode still succeeds with known fields.
+            composed = nil
+        }
+        if let mapping = composed?.mapping {
+            for (k, v) in mapping {
+                guard let key = k.string else { continue }
+                if knownTopLevelKeys.contains(key) { continue }
+                do {
+                    let subtreeYAML = try Yams.serialize(node: v)
+                    unknownTopLevelYAML[key] = subtreeYAML
+                } catch {
+                    continue
+                }
+            }
+        }
+
         return DocumentMetadata(
             document: document,
             unresolvedComments: unresolved,
             resolvedComments: resolved,
-            flags: flags
+            flags: flags,
+            unknownTopLevelYAML: unknownTopLevelYAML
         )
     }
 

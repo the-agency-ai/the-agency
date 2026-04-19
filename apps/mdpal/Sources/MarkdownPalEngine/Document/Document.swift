@@ -79,15 +79,16 @@ public final class Document {
     /// CLI mode: read the file from disk and parse it.
     ///
     /// Resolves the parser via `ParserRegistry.shared` based on the file
-    /// extension. Throws `.unsupportedFormat` if no parser matches and
-    /// `.fileError` if the file cannot be read.
+    /// extension. Throws `.unsupportedFormat` if no parser matches,
+    /// `.fileError` if the file cannot be read, and `.fileTooLarge` if
+    /// the file exceeds the engine's defensive 16 MiB ceiling (matches
+    /// the `revision create --stdin` cap so anything writable is also
+    /// readable).
     public convenience init(contentsOfFile path: String) throws {
-        let content: String
-        do {
-            content = try String(contentsOfFile: path, encoding: .utf8)
-        } catch {
-            throw EngineError.fileError(path: path, description: "\(error)")
-        }
+        // Capped read — defends against accidental or hostile multi-GB
+        // revision files. Limit is the same as StdinReader's cap so a
+        // bundle written by THIS engine is always readable by THIS engine.
+        let content = try SizedFileReader.readRevisionUTF8(at: path)
 
         let pathExtension = (path as NSString).pathExtension
         guard !pathExtension.isEmpty else {
@@ -109,6 +110,62 @@ public final class Document {
         let body = try parser.serialize(sections)
         let yaml = try MetadataSerializer.encode(metadata)
         return parser.writeMetadataBlock(yaml, into: body)
+    }
+
+    /// **Phase 3 iter 3.3.** Flatten the document to plain Markdown
+    /// (pancake form). Returns the parsed section body without the
+    /// engine's metadata block. Optionally appends comments and/or flags
+    /// as separate Markdown sections at the end so the output stays
+    /// valid Markdown a downstream tool can read.
+    ///
+    /// Empty body → single newline (POSIX text-file convention).
+    ///
+    /// - Parameters:
+    ///   - includeComments: When true, appends a `## Comments` section
+    ///     listing each comment as a sub-block with id / type / author
+    ///     / text / context. Resolved comments include the resolution.
+    ///   - includeFlags: When true, appends a `## Flags` section listing
+    ///     each flag as `- <slug>: <author> — <note>` lines.
+    /// - Returns: pancake Markdown string.
+    public func flatten(includeComments: Bool = false, includeFlags: Bool = false) throws -> String {
+        var output = try parser.serialize(sections)
+
+        // Empty body convention: single newline (POSIX text-file).
+        if output.isEmpty {
+            output = "\n"
+        }
+
+        if includeComments && !metadata.allComments.isEmpty {
+            // Trim trailing newlines so the spacing between body and
+            // appended sections is consistent.
+            while output.hasSuffix("\n") { output.removeLast() }
+            output += "\n\n## Comments\n\n"
+            for comment in metadata.allComments {
+                output += "### \(comment.id) (\(comment.type.rawValue), \(comment.author))\n\n"
+                output += "Section: `\(comment.sectionSlug)`  \n"
+                output += "Context: \(comment.context)\n\n"
+                output += "\(comment.text)\n\n"
+                if let resolution = comment.resolution {
+                    output += "**Resolved by \(resolution.resolvedBy):** \(resolution.response)\n\n"
+                }
+            }
+        }
+
+        if includeFlags && !metadata.flags.isEmpty {
+            while output.hasSuffix("\n") { output.removeLast() }
+            output += "\n\n## Flags\n\n"
+            for flag in metadata.flags {
+                let noteSuffix = flag.note.map { " — \($0)" } ?? ""
+                output += "- `\(flag.sectionSlug)` (\(flag.author))\(noteSuffix)\n"
+            }
+            output += "\n"
+        }
+
+        // Always end with exactly one trailing newline.
+        while output.hasSuffix("\n\n") { output.removeLast() }
+        if !output.hasSuffix("\n") { output += "\n" }
+
+        return output
     }
 
     /// Write the document back to its source file path (CLI mode only).

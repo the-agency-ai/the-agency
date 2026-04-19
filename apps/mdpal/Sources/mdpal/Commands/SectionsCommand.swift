@@ -31,8 +31,7 @@ struct SectionsCommand: ParsableCommand {
     @Argument(help: "Path to the .mdpal bundle directory.")
     var bundle: String
 
-    @Option(name: .long, help: "Output format: json (default) or text.")
-    var format: OutputFormat = .json
+    @OptionGroup var output: GlobalOutputOptions
 
     func run() throws {
         do {
@@ -41,7 +40,7 @@ struct SectionsCommand: ParsableCommand {
             let sections = document.listSections()
             let versionId = try resolvedBundle.latestRevision()?.versionId ?? ""
 
-            switch format {
+            switch output.format {
             case .json:
                 let tree = SectionTreeBuilder.build(from: sections)
                 let payload = SectionsPayload(
@@ -62,7 +61,7 @@ struct SectionsCommand: ParsableCommand {
             }
         } catch let error as EngineError {
             let (envelope, exit) = EngineErrorMapper.envelope(for: error)
-            envelope.emit(format: format)
+            envelope.emit(format: output.format)
             throw exit.argumentParserCode
         }
     }

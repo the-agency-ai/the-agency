@@ -301,9 +301,17 @@ public struct MarkdownParser: DocumentParser {
         // 2. Lowercase
         result = result.lowercased()
 
-        // 3. Replace spaces and special chars with hyphens
+        // 3. Replace whitespace and punctuation with hyphens — but keep
+        //    Unicode letters and numbers (any script). The previous regex
+        //    `[^a-z0-9\-]` stripped ALL non-ASCII letters, producing empty
+        //    slugs for headings like `# 中文` or `# Café` (H3 in Phase 1
+        //    deferred backlog). NSRegularExpression's `\p{L}` (any letter)
+        //    and `\p{N}` (any number) are Unicode-aware, so non-Latin
+        //    headings now produce sensible slugs while ASCII behavior is
+        //    unchanged for the existing 8 slug tests (they only exercise
+        //    ASCII punctuation, which `\p{L}\p{N}` excludes identically).
         result = result.replacingOccurrences(
-            of: #"[^a-z0-9\-]"#,
+            of: #"[^\p{L}\p{N}\-]"#,
             with: "-",
             options: .regularExpression
         )

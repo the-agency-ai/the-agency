@@ -94,10 +94,18 @@ OAuth flow.
     #expect(result.exitCode == 0)
     #expect(result.stdout.contains("sections"))
     #expect(result.stdout.contains("read"))
-    // `version` should NOT be a subcommand — it's reserved for
-    // document-version operations (later iteration). Tool version is
-    // the --version flag.
-    #expect(!result.stdout.contains("\n  version "))
+    // Iter 2.4 adds the bundle-management commands; check a representative
+    // subset surfaces in --help.
+    #expect(result.stdout.contains("create"))
+    #expect(result.stdout.contains("history"))
+    #expect(result.stdout.contains("version"))
+    #expect(result.stdout.contains("revision"))
+    #expect(result.stdout.contains("diff"))
+    #expect(result.stdout.contains("prune"))
+    #expect(result.stdout.contains("refresh"))
+    // The tool version is also exposed via the --version flag (separate
+    // from the `version` subcommand group, which targets DOCUMENT versions).
+    #expect(result.stdout.contains("--version"))
 }
 
 @Test func rootVersionFlagPrintsToolVersion() throws {

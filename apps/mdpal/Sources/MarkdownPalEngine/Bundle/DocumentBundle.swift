@@ -59,12 +59,9 @@ public final class DocumentBundle {
         try Self.validateBundlePath(path, fileManager: fileManager)
 
         let configPath = Self.configPath(forBundle: path)
-        let yaml: String
-        do {
-            yaml = try String(contentsOfFile: configPath, encoding: .utf8)
-        } catch {
-            throw EngineError.fileError(path: configPath, description: "\(error)")
-        }
+        // Capped read — bundle config is tiny by design; refuse to load
+        // anything large enough to indicate corruption or tampering.
+        let yaml = try SizedFileReader.readConfigUTF8(at: configPath)
         self.config = try BundleConfig.fromYAML(yaml)
 
         // Reconcile dual-latest if symlink and pointer file disagree.
@@ -73,6 +70,81 @@ public final class DocumentBundle {
         // pointer file to match the symlink. (This must come AFTER config
         // load so we have a stable bundle to reconcile.)
         try Self.reconcileLatest(bundlePath: path, fileManager: fileManager)
+
+        // C-2: reap orphan `.tmp.<uuid>` files. The link(2)-based atomic
+        // create writes a temp file then hardlinks to the final path; if
+        // the writer was killed between the temp write and the link, the
+        // temp file leaks. Bundle open is the natural reaping seam — list
+        // the bundle root, delete entries matching the temp pattern.
+        try Self.reapOrphanTempFiles(bundlePath: path, fileManager: fileManager)
+    }
+
+    /// Create a new bundle directory with an initial revision and an
+    /// optional set of additive top-level metadata extensions.
+    ///
+    /// `metadataExtensions` is a map of unknown top-level YAML keys to
+    /// their YAML-serialized values, embedded into the first revision's
+    /// metadata block via the parser. mdpal-app's inbox/reply flow uses
+    /// this to seed `review:` metadata at wrap time.
+    ///
+    /// **Phase 3 iter 3.2.** Additive extension over the base
+    /// `create(name:initialContent:at:timestamp:)` API; default empty
+    /// dict produces byte-identical output to the base call.
+    @discardableResult
+    public static func create(
+        name: String,
+        initialContent: String,
+        metadataExtensions: [String: String],
+        at directory: String,
+        timestamp: Date = Date()
+    ) throws -> DocumentBundle {
+        // If no extensions, fall back to the base path.
+        guard !metadataExtensions.isEmpty else {
+            return try create(
+                name: name,
+                initialContent: initialContent,
+                at: directory,
+                timestamp: timestamp
+            )
+        }
+        // Construct an augmented initialContent with the metadata block
+        // embedded. We construct a Document, set unknownTopLevelYAML,
+        // and serialize — that gives us the canonical placement (after
+        // the body, inside the markdown-pal-meta fence).
+        let parser = MarkdownParser()
+        // Parse for validation only — wrap rejects unparseable source.
+        _ = try parser.parse(initialContent)
+        let documentInfo = DocumentInfo(
+            versionId: VersionId.format(version: 1, revision: 1, timestamp: timestamp),
+            version: 1,
+            revision: 1,
+            timestamp: timestamp,
+            created: timestamp,
+            authors: ["mdpal-cli"]
+        )
+        let metadata = DocumentMetadata(
+            document: documentInfo,
+            unknownTopLevelYAML: metadataExtensions
+        )
+        let yaml = try MetadataSerializer.encode(metadata)
+        // The body is the original content minus any pre-existing
+        // metadata block (wrap source files are pancakes, so this is
+        // typically a no-op).
+        let body: String
+        if let range = parser.findMetadataBlock(in: initialContent) {
+            var stripped = initialContent
+            stripped.removeSubrange(range.outerRange)
+            body = stripped
+        } else {
+            body = initialContent
+        }
+        let augmentedContent = parser.writeMetadataBlock(yaml, into: body)
+        return try create(
+            name: name,
+            initialContent: augmentedContent,
+            at: directory,
+            timestamp: timestamp
+        )
     }
 
     /// Create a new bundle directory with an initial revision.
@@ -93,7 +165,14 @@ public final class DocumentBundle {
                 reason: "Bundle directory must end in .mdpal"
             )
         }
-        if fileManager.fileExists(atPath: directory) {
+        // Sec-5 (phase-complete): use attributesOfItem so we DETECT
+        // a symlink at the target path (and refuse to overwrite it),
+        // rather than fileExists which silently follows symlinks.
+        // `attributesOfItem` itself returns symlink-own attributes
+        // (does not follow), so a symlink at `directory` returns
+        // `.typeSymbolicLink` here. We refuse all pre-existing entries
+        // including symlinks.
+        if (try? fileManager.attributesOfItem(atPath: directory)) != nil {
             throw EngineError.invalidBundlePath(
                 path: directory,
                 reason: "Target path already exists"
@@ -150,6 +229,20 @@ public final class DocumentBundle {
             throw EngineError.bundleConflict("Bundle has no revisions: \(path)")
         }
         return try Document(contentsOfFile: revision.filePath)
+    }
+
+    /// Read a revision file's raw bytes through the engine's defensive
+    /// size cap. Use this when verbatim content is required (e.g.,
+    /// `version bump` carrying the prior latest forward without the
+    /// re-serialize round-trip that would normalize body whitespace and
+    /// metadata key order). Reads through `SizedFileReader.readRevisionUTF8`
+    /// so the same cap applied to writes is applied to reads.
+    public func rawRevisionContent(versionId: String) throws -> String {
+        let revisions = try listRevisions()
+        guard let info = revisions.first(where: { $0.versionId == versionId }) else {
+            throw EngineError.bundleConflict("Revision not found in bundle: '\(versionId)'")
+        }
+        return try SizedFileReader.readRevisionUTF8(at: info.filePath)
     }
 
     /// Return the latest revision info, or nil if the bundle is empty.
@@ -213,9 +306,35 @@ public final class DocumentBundle {
 
     /// Create a new revision from modified content.
     /// Increments the revision number and updates both latest pointers.
+    ///
+    /// When `expectedBase` is supplied, the bundle's current latest revision
+    /// must equal it exactly OR `EngineError.bundleConflict` is thrown
+    /// BEFORE the new file is written. This closes the TOCTOU window
+    /// between the caller's "I last saw revision X" check and this method's
+    /// own latest-discovery in `listRevisions`. Pass nil (the default) to
+    /// retain the existing append-anything semantics.
     @discardableResult
-    public func createRevision(content: String, timestamp: Date = Date()) throws -> RevisionInfo {
+    public func createRevision(
+        content: String,
+        timestamp: Date = Date(),
+        expectedBase: String? = nil
+    ) throws -> RevisionInfo {
         let revisions = try listRevisions()
+
+        // Optimistic concurrency: if the caller named the base they expect,
+        // verify the bundle hasn't moved underneath them. Done INSIDE the
+        // engine so the file-existence check at writeRevision time and the
+        // base check share the same `revisions` snapshot.
+        if let expectedBase {
+            let currentBase = revisions.last?.versionId ?? ""
+            if currentBase != expectedBase {
+                throw EngineError.bundleBaseConflict(
+                    expected: expectedBase,
+                    actual: currentBase
+                )
+            }
+        }
+
         let nextVersion: Int
         let nextRevision: Int
         if let latest = revisions.last {
@@ -234,9 +353,28 @@ public final class DocumentBundle {
     }
 
     /// Bump the version number and reset the revision counter to 1.
+    ///
+    /// When `expectedBase` is supplied, the bundle's current latest revision
+    /// must equal it exactly OR `EngineError.bundleBaseConflict` is thrown
+    /// BEFORE the new file is written. F2 (phase-complete): every write
+    /// path supports optimistic concurrency uniformly. Pass nil (the
+    /// default) to retain the existing append-anything semantics.
     @discardableResult
-    public func bumpVersion(content: String, timestamp: Date = Date()) throws -> RevisionInfo {
+    public func bumpVersion(
+        content: String,
+        timestamp: Date = Date(),
+        expectedBase: String? = nil
+    ) throws -> RevisionInfo {
         let revisions = try listRevisions()
+        if let expectedBase {
+            let currentBase = revisions.last?.versionId ?? ""
+            if currentBase != expectedBase {
+                throw EngineError.bundleBaseConflict(
+                    expected: expectedBase,
+                    actual: currentBase
+                )
+            }
+        }
         let nextVersion = (revisions.last?.version ?? 0) + 1
         return try writeRevision(
             version: nextVersion,
@@ -256,22 +394,58 @@ public final class DocumentBundle {
         let filename = "\(versionId).md"
         let revisionPath = "\(path)/\(filename)"
 
-        // Refuse to overwrite an existing revision file. Revision IDs encode
-        // version + revision + minute-resolution timestamp; collisions can
-        // occur if two writers race within the same minute or if a single
-        // process calls createRevision twice with the same explicit timestamp.
-        // Silent overwrite would lose data — surface as a bundleConflict so
-        // the caller can retry with a distinct timestamp.
-        if fileManager.fileExists(atPath: revisionPath) {
-            throw EngineError.bundleConflict(
-                "Revision already exists: \(versionId). Wait until the next minute or pass a distinct timestamp."
-            )
-        }
-
+        // Atomic create-or-fail. The previous implementation used
+        //   if fileExists(...) { throw }
+        //   write(toFile:atomically:true)
+        // which had two races: (1) TOCTOU between the fileExists check
+        // and the write, (2) write(toFile:atomically:) uses temp+rename
+        // and POSIX rename atomically REPLACES — so two concurrent
+        // writers both produce successful renames, with last-rename-wins
+        // silently overwriting the loser. The concurrent-CLI test caught
+        // both processes succeeding with exit 0; bundle integrity broken.
+        //
+        // Fix: write content to a temp file in the same directory, then
+        // use link(2) to atomically create the final name. link(2) is
+        // POSIX-atomic and fails with EEXIST if the destination exists.
+        // Same-minute collisions, multi-process races, and TOCTOU swaps
+        // all produce a clean EEXIST → bundleConflict, with the loser's
+        // temp file cleaned up by the defer.
+        let tempPath = "\(revisionPath).tmp.\(UUID().uuidString)"
         do {
-            try content.write(toFile: revisionPath, atomically: true, encoding: .utf8)
+            try content.write(toFile: tempPath, atomically: false, encoding: .utf8)
         } catch {
-            throw EngineError.fileError(path: revisionPath, description: "\(error)")
+            throw EngineError.fileError(path: tempPath, description: "\(error)")
+        }
+        defer { try? fileManager.removeItem(atPath: tempPath) }
+
+        if link(tempPath, revisionPath) != 0 {
+            let savedErrno = errno
+            if savedErrno == EEXIST {
+                throw EngineError.bundleConflict(
+                    "Revision already exists: \(versionId). Wait until the next minute or pass a distinct timestamp."
+                )
+            }
+            // C-16: distinguish resource exhaustion from generic I/O.
+            // ENOSPC (no space) and EDQUOT (disk quota) are recoverable
+            // by freeing space, not by retrying — surface as fileError
+            // with explicit "disk full / quota exceeded" message so
+            // callers can route appropriately. (We keep fileError as the
+            // discriminator rather than adding a new case because the
+            // recovery action — "free space" — is a user / system task,
+            // not an engine retry.)
+            let errStr = String(cString: strerror(savedErrno))
+            let detail: String
+            if savedErrno == ENOSPC {
+                detail = "no space left on device (ENOSPC): \(errStr)"
+            } else if savedErrno == EDQUOT {
+                detail = "disk quota exceeded (EDQUOT): \(errStr)"
+            } else {
+                detail = "link(temp, final) failed: \(errStr)"
+            }
+            throw EngineError.fileError(
+                path: revisionPath,
+                description: detail
+            )
         }
 
         try Self.updateLatest(bundlePath: path, to: filename, fileManager: fileManager)
@@ -279,9 +453,14 @@ public final class DocumentBundle {
         // Auto-prune if configured. Auto-prune failures are non-fatal but
         // are surfaced via stderr so the user/agent learns about silent
         // degradation rather than wondering why the bundle keeps growing.
+        //
+        // mergeForward: false — see F1 fix in `prune(keep:mergeForward:)`.
+        // Auto-prune must NOT mutate the just-created latest file; doing
+        // so weakens the link(2) atomic-create promise for any concurrent
+        // reader.
         if config.prune.auto {
             do {
-                _ = try prune(keep: config.prune.keep)
+                _ = try prune(keep: config.prune.keep, mergeForward: false)
             } catch {
                 FileHandle.standardError.write(
                     Data("mdpal: auto-prune failed: \(error)\n".utf8)
@@ -317,8 +496,21 @@ public final class DocumentBundle {
     /// Prune old revisions, keeping the most recent N. Merges forward
     /// any resolved comments from pruned revisions into the latest revision
     /// so no comment history is lost.
+    ///
+    /// When `mergeForward` is `false`, the latest revision file is NOT
+    /// touched — only old revisions are deleted. This is the correct
+    /// behavior for auto-prune triggered immediately after `writeRevision`,
+    /// where the just-created latest already contains every resolved
+    /// comment that was visible in the parent Document. Mutating that
+    /// freshly link(2)-created file post-create weakens the atomic-create
+    /// guarantee for any concurrent reader who observed the file between
+    /// the link and the rename. (Phase 2 phase-complete F1 fix.)
+    ///
+    /// When `mergeForward` is `true` (the default — manual `mdpal prune`),
+    /// the metadata splice is performed against the latest revision so
+    /// resolved comments orphaned in pruned revisions are preserved.
     @discardableResult
-    public func prune(keep: Int) throws -> PruneResult {
+    public func prune(keep: Int, mergeForward: Bool = true) throws -> PruneResult {
         guard keep > 0 else {
             throw EngineError.bundleConflict("prune.keep must be > 0; got \(keep)")
         }
@@ -393,18 +585,21 @@ public final class DocumentBundle {
         //
         // Fix: read the raw file, encode the updated metadata to YAML, and
         // splice it into the raw content via `writeMetadataBlock`.
-        if mergedCount > 0 {
+        //
+        // F1 (phase-complete): only mutate the latest file when
+        // `mergeForward` is true. Auto-prune passes `false` because the
+        // just-created latest was serialized from a Document that already
+        // carried every visible resolved comment forward — there is
+        // nothing legitimate to merge that could not be reproduced via
+        // a manual `mdpal prune` later.
+        if mergeForward, mergedCount > 0 {
             // Order resolved comments by id for stable output.
             latestDoc.metadata.resolvedComments = latestResolvedById.values
                 .sorted(by: { $0.id < $1.id })
 
-            // Read the raw file content to preserve body verbatim.
-            let rawContent: String
-            do {
-                rawContent = try String(contentsOfFile: latest.filePath, encoding: .utf8)
-            } catch {
-                throw EngineError.fileError(path: latest.filePath, description: "\(error)")
-            }
+            // Read the raw file content to preserve body verbatim. Capped
+            // read for the same defense-in-depth reasons as Document(contentsOfFile:).
+            let rawContent = try SizedFileReader.readRevisionUTF8(at: latest.filePath)
 
             // Encode the updated metadata and splice it into the raw content.
             let updatedYAML = try MetadataSerializer.encode(latestDoc.metadata)
@@ -508,6 +703,71 @@ public final class DocumentBundle {
         }
     }
 
+    /// Reap orphan `.tmp.<uuid>` files in the bundle root.
+    ///
+    /// The link(2)-based atomic create writes `<revision>.tmp.<UUID>`,
+    /// then hardlinks it to the final revision name, then unlinks the
+    /// temp. If the writer was killed between the temp write and the
+    /// link, OR between the link and the unlink, the temp leaks. This
+    /// reaper runs at bundle open and removes any matching files,
+    /// preventing unbounded accumulation.
+    ///
+    /// Pattern: any `.md.tmp.*` filename in the bundle root. We scope to
+    /// `.md.tmp.*` (not just `.tmp.*`) so we never delete an unrelated
+    /// file a user might have placed in the bundle directory.
+    ///
+    /// **F3 / Sec-3 (phase-complete):** two safety gates:
+    ///   1. `mtime > now - reaperAgeThresholdSeconds` → skip. Otherwise
+    ///      a process A mid-`writeRevision` (between the temp write and
+    ///      the link(2)) loses its temp file when process B opens the
+    ///      bundle, causing A's link to fail with ENOENT. The age guard
+    ///      gives in-flight writers a window measured in minutes — far
+    ///      longer than any single createRevision call but still short
+    ///      enough that a real orphan from a killed writer gets reaped
+    ///      on the next bundle open.
+    ///   2. Stat the candidate and refuse to `removeItem` anything that
+    ///      isn't a regular file. A malicious bundle could ship
+    ///      `…tmp.X` as a directory or symlink; deleting either could
+    ///      cause unintended state loss. (`removeItem` on a symlink only
+    ///      unlinks the symlink, not its target — so direct exfil isn't
+    ///      possible — but the type guard tightens the seam regardless.)
+    ///
+    /// Failures are silent: the reaper is best-effort. A locked or
+    /// permission-denied removal doesn't block bundle open.
+    static let reaperAgeThresholdSeconds: TimeInterval = 60 * 60  // 1 hour
+
+    private static func reapOrphanTempFiles(
+        bundlePath: String,
+        fileManager: FileManager
+    ) throws {
+        let entries: [String]
+        do {
+            entries = try fileManager.contentsOfDirectory(atPath: bundlePath)
+        } catch {
+            // Don't block bundle open on a directory-listing failure;
+            // the rest of the engine will surface a clearer error if
+            // the bundle is genuinely unreadable.
+            return
+        }
+        let now = Date()
+        for entry in entries where entry.contains(".md.tmp.") {
+            let entryPath = "\(bundlePath)/\(entry)"
+            // Stat once: get type AND mtime in a single syscall.
+            guard let attrs = try? fileManager.attributesOfItem(atPath: entryPath) else {
+                continue
+            }
+            // Type guard: only regular files. (Sec-3.)
+            let type = attrs[.type] as? FileAttributeType
+            guard type == .typeRegular else { continue }
+            // Age guard: skip files modified within the threshold. (F3.)
+            if let mtime = attrs[.modificationDate] as? Date,
+               now.timeIntervalSince(mtime) < reaperAgeThresholdSeconds {
+                continue
+            }
+            try? fileManager.removeItem(atPath: entryPath)
+        }
+    }
+
     /// Reconcile the dual-latest mechanism on bundle open.
     /// If the symlink and the pointer file disagree (e.g., from a crash
     /// between updates), the symlink wins and the pointer file is rewritten.
@@ -525,19 +785,58 @@ public final class DocumentBundle {
             return
         }
         let pointerPath = pointerPath(forBundle: bundlePath)
-        let pointerContents = (try? String(contentsOfFile: pointerPath, encoding: .utf8))?
+        // D-1 fix: route through SizedFileReader so a malicious or
+        // corrupt pointer (multi-GB file) doesn't OOM the engine on
+        // bundle open. We discard the read result on failure (still
+        // tolerate missing/unreadable pointer for crash-recovery
+        // resilience), but we no longer trust an unbounded read.
+        let pointerContents = (try? SizedFileReader.readPointerUTF8(at: pointerPath))?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if pointerContents != symlinkDest {
-            try? symlinkDest.write(toFile: pointerPath, atomically: true, encoding: .utf8)
+            // Sec-4 (phase-complete): validate the symlink destination
+            // before writing it to the pointer file. A planted bundle
+            // can ship `latest.md` as a symlink whose destination is
+            // `../../etc/shadow` or arbitrary non-revision text; without
+            // this gate the reconciler would happily persist the bad
+            // bytes into the pointer file. Subsequent reads validate the
+            // pointer (via readPointerFile), so the bad bytes never
+            // dictate behavior — but we should not write them in the
+            // first place. If the symlink dest is invalid, leave the
+            // pointer alone (silent best-effort matches the rest of the
+            // reconciler's contract).
+            do {
+                try Self.validatePointerContents(symlinkDest, pointerPath: pointerPath)
+                try? symlinkDest.write(toFile: pointerPath, atomically: true, encoding: .utf8)
+            } catch {
+                // Symlink destination is malformed; leave pointer
+                // untouched. Subsequent listRevisions / readPointerFile
+                // will surface clearer errors if the symlink is hostile.
+                return
+            }
         }
     }
 
     // MARK: - Path helpers
 
     private static func validateBundlePath(_ path: String, fileManager: FileManager) throws {
-        var isDir: ObjCBool = false
-        guard fileManager.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else {
-            throw EngineError.fileError(path: path, description: "Bundle path is not a directory")
+        // Sec-5 (phase-complete): use attributesOfItem instead of
+        // fileExists(atPath:isDirectory:). The latter follows symlinks,
+        // so a bundle path that is itself a symlink to ~/.ssh would
+        // pass the isDir check (a probe oracle: attacker learns whether
+        // the symlink target is a directory + ends in .mdpal). The
+        // attributesOfItem path returns the link's own attributes
+        // (NOT followed). Reject anything that isn't a real directory.
+        let attrs: [FileAttributeKey: Any]
+        do {
+            attrs = try fileManager.attributesOfItem(atPath: path)
+        } catch {
+            throw EngineError.fileError(path: path, description: "Bundle path is not accessible: \(error)")
+        }
+        guard (attrs[.type] as? FileAttributeType) == .typeDirectory else {
+            throw EngineError.fileError(
+                path: path,
+                description: "Bundle path is not a directory (or is a symlink — refused)"
+            )
         }
         guard path.hasSuffix(".mdpal") else {
             throw EngineError.invalidBundlePath(
@@ -569,14 +868,79 @@ public final class DocumentBundle {
     /// Read the pointer file (`.mdpal/latest`). Returns the filename of the
     /// current revision (e.g., `V0001.0003.20260404T1200Z.md`), or nil if
     /// the pointer file is missing.
+    ///
+    /// The contents are validated against the canonical revision-filename
+    /// pattern (`V{NNNN}.{NNNN}.{YYYYMMDD}T{HHMM}Z.md`). A pointer file
+    /// containing anything else — random text, a path traversal payload
+    /// (`../../etc/passwd`), absolute path, multiple lines, etc. — is
+    /// rejected as `EngineError.metadataError`. This blocks the
+    /// "tampered pointer file" attack: a malicious or corrupt pointer
+    /// would otherwise dictate which file `currentDocument()` reads (if
+    /// callers ever route through the pointer rather than the symlink).
     public func readPointerFile() throws -> String? {
         let pointerPath = Self.pointerPath(forBundle: path)
         guard fileManager.fileExists(atPath: pointerPath) else { return nil }
+        // C-6 fix: catch fileTooLarge and rewrap as metadataError. The
+        // pointer file is part of the bundle metadata; mdpal-app expects
+        // pointer corruption to surface as `metadataError`, not the
+        // generic `fileTooLarge` discriminator.
+        let contents: String
         do {
-            return try String(contentsOfFile: pointerPath, encoding: .utf8)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        } catch {
-            throw EngineError.fileError(path: pointerPath, description: "\(error)")
+            contents = try SizedFileReader.readPointerUTF8(at: pointerPath)
+        } catch let error as EngineError {
+            if case .fileTooLarge(_, let sizeBytes, let limitBytes) = error {
+                throw EngineError.metadataError(
+                    "Pointer file at \(pointerPath) is \(sizeBytes) bytes, exceeds the \(limitBytes)-byte cap (likely corrupt or tampered)"
+                )
+            }
+            throw error
+        }
+        let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+        try Self.validatePointerContents(trimmed, pointerPath: pointerPath)
+        return trimmed
+    }
+
+    /// Reject pointer files that don't look like a single canonical
+    /// revision filename. Same regex shape as VersionId.parse + ".md".
+    private static func validatePointerContents(
+        _ contents: String,
+        pointerPath: String
+    ) throws {
+        // Reject empty contents — pointer file should be missing entirely
+        // if there's nothing to point at, not present-but-empty.
+        if contents.isEmpty {
+            throw EngineError.metadataError(
+                "Pointer file is empty: \(pointerPath)"
+            )
+        }
+        // Reject path separators and any traversal markers — the pointer
+        // names a file in the bundle root, never a path.
+        if contents.contains("/") || contents.contains("\\") || contents.contains("..") {
+            throw EngineError.metadataError(
+                "Pointer file contains path separator or traversal marker: \(pointerPath)"
+            )
+        }
+        // C-12: explicit NUL / control character rejection. VersionId.parse
+        // catches these implicitly via its strict-format gate, but a future
+        // refactor that loosens parse should not silently accept embedded
+        // NULs (which Foundation truncates) or other control chars.
+        if contents.unicodeScalars.contains(where: { $0.value < 0x20 || $0.value == 0x7F }) {
+            throw EngineError.metadataError(
+                "Pointer file contains control characters: \(pointerPath)"
+            )
+        }
+        // Reject anything not matching V{4}.{4}.{YYYYMMDD}T{HHMM}Z.md.
+        // Full regex: V[0-9]{4}\.[0-9]{4}\.[0-9]{8}T[0-9]{4}Z\.md
+        guard contents.hasSuffix(".md") else {
+            throw EngineError.metadataError(
+                "Pointer file does not name a .md revision: \(pointerPath)"
+            )
+        }
+        let stem = String(contents.dropLast(3))
+        guard VersionId.parse(stem) != nil else {
+            throw EngineError.metadataError(
+                "Pointer file does not name a canonical revision (V{4}.{4}.{YYYYMMDD}T{HHMM}Z.md): \(pointerPath)"
+            )
         }
     }
 }

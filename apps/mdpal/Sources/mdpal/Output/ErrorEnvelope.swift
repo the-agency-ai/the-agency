@@ -60,6 +60,83 @@ struct AnyCodable: Encodable {
 
 extension ErrorEnvelope {
 
+    /// **Phase 3 iter 3.5.** Scrub an absolute path for safe inclusion
+    /// in error messages and telemetry. Returns a path display string
+    /// where well-known prefixes are replaced with sigils:
+    ///
+    /// 1. If MDPAL_ROOT is set and the absolute path is inside it,
+    ///    returns `<MDPAL_ROOT>/<relative-path>`.
+    /// 2. Else if the path is inside the user's home directory, returns
+    ///    `~/<relative-path>`.
+    /// 3. Otherwise returns the basename (last path component) only.
+    ///
+    /// Closes Sec-2 from Phase 2 phase-complete backlog. Strategy:
+    /// `details.path` retains the absolute path (unchanged for caller
+    /// backwards compat). New `details.relativePath` carries the scrubbed
+    /// form. Envelope `message` uses the scrubbed form so stderr logs
+    /// and downstream UI surfaces don't leak filesystem layout.
+    static func scrubPath(_ absolutePath: String) -> String {
+        let env = ProcessInfo.processInfo.environment
+        if let rawRoot = env["MDPAL_ROOT"], !rawRoot.isEmpty {
+            let rootCanonical = canonicalizeForScrub(rawRoot)
+            let rootWithSlash = rootCanonical.hasSuffix("/") ? rootCanonical : rootCanonical + "/"
+            if absolutePath == rootCanonical {
+                return "<MDPAL_ROOT>"
+            }
+            if absolutePath.hasPrefix(rootWithSlash) {
+                return "<MDPAL_ROOT>/" + String(absolutePath.dropFirst(rootWithSlash.count))
+            }
+        }
+        let home = NSHomeDirectory()
+        let homeWithSlash = home.hasSuffix("/") ? home : home + "/"
+        if absolutePath == home {
+            return "~"
+        }
+        if absolutePath.hasPrefix(homeWithSlash) {
+            return "~/" + String(absolutePath.dropFirst(homeWithSlash.count))
+        }
+        // Fall back to basename only — keeps the type of file visible
+        // (e.g., "V0001.0001.20260101T0000Z.md") without leaking the
+        // containing directory tree.
+        return (absolutePath as NSString).lastPathComponent
+    }
+
+    /// Lightweight canonicalization for scrubPath — tilde-expand +
+    /// absolute. Doesn't try to resolve symlinks (path may not exist).
+    private static func canonicalizeForScrub(_ path: String) -> String {
+        let expanded = (path as NSString).expandingTildeInPath
+        if expanded.hasPrefix("/") { return expanded }
+        let cwd = FileManager.default.currentDirectoryPath
+        return (cwd as NSString).appendingPathComponent(expanded)
+    }
+
+    /// D4 (phase-complete): factory for the `invalidArgument` envelope.
+    /// Three CLI sites previously inlined the literal "invalidArgument"
+    /// string + an ad-hoc details dict. Centralizing both the
+    /// discriminator and the details shape eliminates copy-paste drift
+    /// when a fourth command needs to reject an argument value.
+    ///
+    /// Returns the envelope and the appropriate exit code as a tuple
+    /// matching the EngineErrorMapper shape.
+    static func invalidArgument(
+        name: String,
+        value: String,
+        validValues: [String]
+    ) -> (envelope: ErrorEnvelope, exit: MdpalExitCode) {
+        let details: [String: AnyCodable] = [
+            "argument": AnyCodable(name),
+            "value": AnyCodable(value),
+            "validValues": AnyCodable(validValues),
+        ]
+        let validList = validValues.joined(separator: ", ")
+        let envelope = ErrorEnvelope(
+            error: "invalidArgument",
+            message: "Invalid value '\(value)' for --\(name); expected one of: \(validList)",
+            details: details
+        )
+        return (envelope, .generalError)
+    }
+
     /// Emit this envelope to stderr. JSON form by default; text form
     /// is `<error>: <message>\n` (single line, machine-parseable).
     ///
@@ -119,6 +196,35 @@ private enum JSONString {
 /// dispatched spec). mdpal-app's RealCLIService switches on these.
 enum EngineErrorMapper {
 
+    /// D3 (phase-complete): caller-side context that some commands
+    /// need to inject into the envelope. The base `envelope(for:)`
+    /// path produces the engine-only shape; the context-aware overload
+    /// merges supplementary fields into `details` on top of whatever
+    /// the engine produced.
+    ///
+    /// EditCommand uses this to inject `versionId` (the bundle's
+    /// current latest revision id, only known at the CLI layer) into
+    /// a `versionConflict` envelope without duplicating the entire
+    /// switch. Future commands needing the same pattern call this
+    /// instead of hand-rolling the envelope.
+    static func envelope(
+        for error: EngineError,
+        additionalDetails: [String: AnyCodable]?
+    ) -> (envelope: ErrorEnvelope, exit: MdpalExitCode) {
+        let (base, exit) = envelope(for: error)
+        guard let extras = additionalDetails, !extras.isEmpty else {
+            return (base, exit)
+        }
+        var merged: [String: AnyCodable] = base.details ?? [:]
+        for (key, value) in extras {
+            merged[key] = value
+        }
+        return (
+            ErrorEnvelope(error: base.error, message: base.message, details: merged),
+            exit
+        )
+    }
+
     static func envelope(for error: EngineError) -> (envelope: ErrorEnvelope, exit: MdpalExitCode) {
         switch error {
         case .parseError(let message, let line, let column):
@@ -171,15 +277,38 @@ enum EngineErrorMapper {
                 ErrorEnvelope(error: "bundleConflict", message: message),
                 .bundleConflict
             )
+        case .bundleBaseConflict(let expected, let actual):
+            // Spec wire shape (line 384-392 of dispatch-cli-json-output-shapes):
+            // {error: "bundleConflict", details: {baseRevision, currentRevision}}.
+            // Discriminator stays "bundleConflict" so mdpal-app's switch is
+            // unchanged; structured fields land in details for callers that
+            // need to re-fetch and merge.
+            let details: [String: AnyCodable] = [
+                "baseRevision": AnyCodable(expected),
+                "currentRevision": AnyCodable(actual),
+            ]
+            return (
+                ErrorEnvelope(
+                    error: "bundleConflict",
+                    message: "Base revision \(expected) does not match current latest \(actual)",
+                    details: details
+                ),
+                .bundleConflict
+            )
         case .invalidBundlePath(let path, let reason):
+            // Phase 3 iter 3.5: scrub absolute path for safe display in
+            // message; retain absolute in details.path for backwards
+            // compat; add details.relativePath as the new safe field.
+            let scrubbed = ErrorEnvelope.scrubPath(path)
             let details: [String: AnyCodable] = [
                 "path": AnyCodable(path),
+                "relativePath": AnyCodable(scrubbed),
                 "reason": AnyCodable(reason),
             ]
             return (
                 ErrorEnvelope(
                     error: "invalidBundlePath",
-                    message: "Invalid bundle path '\(path)': \(reason)",
+                    message: "Invalid bundle path '\(scrubbed)': \(reason)",
                     details: details
                 ),
                 .generalError
@@ -203,14 +332,17 @@ enum EngineErrorMapper {
                 .generalError
             )
         case .fileError(let path, let description):
+            // Phase 3 iter 3.5: scrub for message; retain absolute in details.
+            let scrubbed = ErrorEnvelope.scrubPath(path)
             let details: [String: AnyCodable] = [
                 "path": AnyCodable(path),
+                "relativePath": AnyCodable(scrubbed),
                 "description": AnyCodable(description),
             ]
             return (
                 ErrorEnvelope(
                     error: "fileError",
-                    message: "File error at '\(path)': \(description)",
+                    message: "File error at '\(scrubbed)': \(description)",
                     details: details
                 ),
                 .generalError
@@ -225,6 +357,23 @@ enum EngineErrorMapper {
             return (
                 ErrorEnvelope(error: "noFilePath", message: "Document was created without a file path"),
                 .generalError
+            )
+        case .fileTooLarge(let path, let sizeBytes, let limitBytes):
+            // Phase 3 iter 3.5: scrub for message; retain absolute in details.
+            let scrubbed = ErrorEnvelope.scrubPath(path)
+            let details: [String: AnyCodable] = [
+                "path": AnyCodable(path),
+                "relativePath": AnyCodable(scrubbed),
+                "sizeBytes": AnyCodable(sizeBytes),
+                "limitBytes": AnyCodable(limitBytes),
+            ]
+            return (
+                ErrorEnvelope(
+                    error: "fileTooLarge",
+                    message: "File at '\(scrubbed)' exceeds the \(limitBytes)-byte ceiling (observed \(sizeBytes))",
+                    details: details
+                ),
+                .sizeLimitExceeded
             )
         }
     }
