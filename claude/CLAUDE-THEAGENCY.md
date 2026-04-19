@@ -108,6 +108,12 @@ Injected automatically when relevant skills run. Read directly when you need the
 - **Plan before you build.** Use plan mode for non-trivial tasks.
 - **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-safe-commit` — never raw `git commit`.
 
+## Runtime Floor
+
+- **Python: 3.13+.** Framework tools, hooks, and services target modern Python. Set in D45-R1 per principal directive, superseding the D44-R6 3.12 floor. Rationale: brew default is 3.13 so adopters get the floor for free; 3.13 adds nothing we must opt into (PEP 703 no-GIL and PEP 744 JIT are opt-in). Shebang convention: `#!/usr/bin/env python3` + runtime `sys.version_info` guard (NOT `python3.13` — hard-coded minor names break pyenv/nix/conda/Apple-stock installs; see `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md`). Framework tools in `claude/tools/` remain **zero-pip**: stdlib only. Services (iscp dispatch-hub, etc.) may use pip deps.
+- **Bash: 3.2** (macOS default) — framework tools avoid 4.0+ features for portability.
+- **Node: 18+** — Claude Code CLI requirement.
+
 ## Universal Agent Discipline
 
 Every agent — captain, worktree, subagent — follows two standing priorities and the Over / Over-and-out protocol. Full spec: `claude/REFERENCE-AGENT-DISCIPLINE.md` (read on demand).

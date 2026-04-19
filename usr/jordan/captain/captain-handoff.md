@@ -2,74 +2,135 @@
 type: session
 agent: the-agency/jordan/captain
 workstream: housekeeping
-date: 2026-04-17
-trigger: session-compact
+date: 2026-04-18
+trigger: pre-principal-wake
 ---
 
-## D44 — mid-session compact
+## On principal wake — Morning 1B1 agenda
 
-### Context shape
-Pre-compact mid-day on D44. Major release cadence hit: v44.1 → v44.2 → v44.3 → v44.4 all shipped today. Fleet is active and self-scheduling.
+Open in this order. 0 is time-sensitive; the rest can run in any order but the sequence
+below is what the D44 end-of-day briefing committed us to.
 
-### Released today
-| Version | PR | What |
-|---------|-----|------|
-| v44.1 | #162 | dispatch-monitor Python rewrite (first Python tool) + CI release-tag-check fix (#159) |
-| v44.2 | #175 | 9-issue batch — session-resume git-safe, git-captain merge-from-origin, git-safe-commit MERGE_HEAD auto-no-verify, agency update handoff preservation, 6 closed as already-fixed |
-| v44.3 | #179 | mdpal Phase 1 — Swift engine library + CLI (180 tests) |
-| v44.4 | #182 | git-captain checkout-branch regex widened to accept uppercase (closes #428 item 1) |
+0. **Review + merge PR #213** (Python 3.13 floor). QGR receipt signed, QG clean, 4 BATS tests pass. Then `/post-merge` (creates v45.1 release). Then authorize fleet broadcast (drafts at `usr/jordan/captain/dispatches/drafts/d45-r1-python-3.13-broadcast-draft.md` + `-body.md`).
+1. **1B1 Close Issues** (7 themes, 73 flags). Briefing at `usr/jordan/captain/briefings/close-issues-briefing-20260418.md`.
+2. **Ratify flag→issue rule** — rewrite `/flag-triage` skill so outcomes are `close` / `do now` / `file issue`. No "defer" state.
+3. **Install-vs-repo boundary discussion** (flag #146 / #165). Open question — needs a decision on where the line between `agency init` install surface and dev-repo-only surface lives. Candidate outcome: new GH issue captures scope; maybe a CONTRIBUTING.md + INSTALLED-SURFACE.md split.
+4. **HIP Sprint FIFO** (epic #215, children #216–#228). Lead item #222 (git-safe-commit receipt glob) first.
+5. **Release notes mechanism** — start `/define` (PVR) on issue #214 after HIP work is in flight.
 
-### In flight / awaiting
-- **v44.5 slot** — designex Phase 1 (Enforcement Triangle, DTCG + SD v4) — dispatched #565 to run `/phase-complete`, no PR yet
-- **mdpal-cli Phase 2** — active, shipping many commits; will PR at natural boundary
-- **mdpal-app Phase 1B** — iterating (1B.3 landed, more coming)
-- **iscp** — repaired successfully (captain-side external surgery), should be committing her pending work via /iteration-complete
+## 0300 autonomous setup — what was executed
 
-### Fleet status
-- iscp unblocked — captain externally repaired her worktree (unstaged designex cross-contamination, stashed her work, merged origin/main, popped stash). She confirmed repair landed cleanly, found new bug #181 (cross-worktree dispatch delivery corrupts 'from' field).
-- monofolk collaboration — designex↔of-mobile-web channel opened. Pilot Phase 0 (read-only diff this week) proposed to monofolk. Waiting their designex response.
-- devex shipped D44-R3 and is likely idle
-- designex Phase 1.4 complete, PR pending after principal signoff
+Executed per runbook `usr/jordan/captain/briefings/0300-runbook-20260418.md` (commit `237245ed`). All 9 workstreams A–I landed. Setup only — no PR merges, no broadcasts.
 
-### Issues filed today
-- #159 (CI release-tag-check noise), #160 (agency update handoff overwrite), #161 (session-resume raw git), #163-166 (agency update + collab + dispatch bugs — closed as already-fixed), #167-170 (various), #171-173 (git-safe family, #173 closed already-impl), #176 (/fleet-report skill), #177 (agent duty register), #180 (Monitor for test runs, assigned to devex), #181 (cross-worktree dispatch 'from' corruption)
-- anthropics/claude-code#49712 (session name auto-rename — filed by principal via /feedback, ID 61261384)
+| WS | Output | State on wake |
+|---|---|---|
+| A | D45-R1 PR #213 (Python 3.13 floor) | **OPEN**, QGR signed, unmerged. Awaits review. |
+| B | Shebang briefing written | `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md` (B2 shipped, B3 deferred per briefing). |
+| C | Release notes mechanism GH issue | **#214** filed, labeled `enhancement`. |
+| D | HIP Sprint epic + 13 children | Epic **#215**; children **#216–#228**. Comment on #215 lists children. |
+| E | ~40 defer→issue filings | **#229–#269** (41 issues across Pass 1 + Pass 2). See "Workstream E issues" below for groupings. |
+| F | Close Issues briefing | `usr/jordan/captain/briefings/close-issues-briefing-20260418.md`. |
+| G | Fleet broadcast drafts | `usr/jordan/captain/dispatches/drafts/d45-r1-python-3.13-broadcast-draft.md` + `-body.md`. **HOLD — do NOT send without principal authorization.** |
+| H | Dispatch monitor | Running since session resume. Task `b2szksh2h` (persistent, python3.13 shim workaround). |
+| I | Handoff refresh | This file. |
 
-### Infrastructure landed today
-- `~/code/the-agency/usr/jordan/captain/outbound/` — sent correspondence archive (Raj Mukherjee WhatsApp)
-- `~/code/the-agency/usr/jordan/captain/feedback/` — Anthropic feedback tracking (registry + detail files, 25 entries)
-- `~/code/the-agency-group/usr/jordan/captain/workshops/mapletree-reit-workshop-pitch.md` — canonical workshop pitch
+**Cron:** task `ac8b0716` — fired on schedule, now consumed.
 
-### Key decisions
-1. **Python 3.9+ is official** for framework tools. stdlib only, no pip. dispatch-monitor was first. ISCP directive #521 dispatched.
-2. **Multiple small releases** per principal directive — don't bundle, ship as each PR lands.
-3. **Captain doesn't file on external repos** — principal files anthropics/* and other orgs. Captain prepares drafts.
-4. **Path convention** — use `~/code/...` paths, lead with repo name. Added to CLAUDE-CAPTAIN.md overlay.
-5. **Silent resolve for routine commit dispatches** — don't emit chat message for every fleet heartbeat. Only surface PR-ready, escalations, cross-repo, principal input needed.
+## PR #213 — review checklist for principal
 
-### Behavioral notes
-- NEVER file on anthropics/claude-code — that's principal-only
-- Lead file references with repo name, use `~/code/` paths
-- Silent resolve commit dispatches
-- Over/Over-and-out protocol
-- Principal filing preferred — captain drafts
+- **Branch:** `release/python-3.13-floor`
+- **Commits:** `9245a4fa` (fix + migration) → `a31ca6dd` (QGR receipt) → `b941041f` (close-issues briefing + broadcast draft)
+- **QGR:** `claude/workstreams/the-agency/qgr/the-agency-jordan-captain-the-agency-python-3.13-floor-qgr-pr-prep-20260418-0509-d406320.md`
+- **Reviewers:** 4 parallel (code/security/design/test) + haiku scorer + own review. 8 findings scored; 6 passed ≥50 threshold. 3 accepted + fixed in-PR (agency-dependencies brew formula, stale `__future__` import, runtime-guard test coverage). 3 tracked as follow-ups (below).
+- **Tests:** `bats tests/tools/python-floor-guard.bats` = 4/4 pass. Regression `bats tests/tools/dispatch.bats` = 48/48 pass. `commit-precheck` clean.
+- **Smoke:** `/opt/homebrew/bin/python3.13 ./claude/tools/dispatch-monitor --help` runs; `/usr/bin/python3 ./claude/tools/dispatch-monitor --help` exits 1 with guard message.
+- **Files:** 10 (7 modified + 3 new). See PR body for full list.
 
-### Open issues for follow-up
-- **#146** — Block AGENCY_ALLOW_RAW, waiting on #171/#172/#173 prerequisites (#171/#172 done today, #173 closed as already-impl, so prerequisites are met — ready to implement Option B when monofolk is ready)
-- **#176** — /fleet-report skill (deferred)
-- **#177** — Agent duty register (deferred)
-- **#150** — Linux deps (deferred to weekend)
-- **#157** — D-R version format display (quick win)
-- **#181** — cross-worktree dispatch 'from' field corruption (ISCP territory)
+After merge: `/post-merge` (creates v45.1 GH release), then authorize broadcast send. The Monitor shim (`/opt/homebrew/bin/python3.13 ...`) can be retired once the new shebang is on main.
 
-### Monitor state
-- dispatch-monitor running (task bkdquuee6, Python, --include-collab)
-- Dispatch stream steady — mdpal-cli + mdpal-app + devex producing commit heartbeat
-- No blocking issues
+## Follow-up issues from the QG (NOT blocking D45-R1 merge)
 
-### Next session actions
-1. Check for designex `/phase-complete` PR → v44.5
-2. Watch for mdpal-cli Phase 2 PR
-3. Watch for mdpal-app Phase 1B phase boundary
-4. If iscp didn't land her work: check status, possibly dispatch
-5. Eventually tackle #157 (D-R format), #176 (/fleet-report)
+These were accepted as follow-up during triage. File them as new GH issues when convenient:
+- Propagate runtime guard to `.claude/hooks/stop-check.py`, `.claude/hooks/plan-capture.py`, `tests/schemas/validate-schema.py`, `usr/jordan/captain/tools/strip-skill-allowed-tools`.
+- `agency-health`: add `python3 >= 3.13` check. See **#209** — that issue already exists but says "< 3.12"; needs an update comment bumping to 3.13.
+- `_agency-deps`: teach it to consume `min_version` + `version_cmd` from `dependencies.yaml`. Pre-existing gap.
+
+## Workstream E issues — grouped
+
+**Pass 1 (defer→issue, infrastructure + gaps):**
+- **Agent identity + naming:** #229 (ident cross-contamination watch), #230 (naming convention enforcement)
+- **Dispatch features:** #231 (SMS-style dispatches), #251 (dispatch body validation)
+- **Captain process:** #232 (captains log formalize), #233 (friction→toolification pattern)
+- **Services / infra:** #234 (agent mail service)
+- **Docs:** #235 (telemetry-driven tool discovery), #253 (REFERENCE-RECEIPT-INFRA §6 fix), #239 (Over/Over-and-out protocol)
+- **Tooling bugs:** #236 (commit-precheck end events), #254 (diff-hash fail-loud), #258 (git-commit worktree wipe), #267 (worktree-sync hardcoded master — BLOCKING), #268 (detect_main_branch unreachable)
+- **Skills:** #237 (/why-did-this-fail), #240 (/make-slides), #269 (/feedback-submit sibling to #170)
+- **mdslidepal:** #241 (smart quotes), #242 (Fixture 08 count)
+- **Enforcement:** #243 (full git-op audit + Triangle), #244 (dispatch service), #245 (RG on QGR), #249 (CRITICAL — hookify block doesn't stop), #252 (skill-vs-tool gap)
+- **Naming + receipts:** #246 (universal artifact naming), #248 (pr-create boundary-specific receipt), #255 (gh-safe / captain-gh)
+- **Friction / permissions:** #247 (Edit on .claude/skills/), #250 (git-safe switch subcommand), #257 (git-safe unstage)
+- **Process:** #238 (D-counter correction), #256 (Claude Code Routines adoption)
+
+**Pass 2 (was-seed, discuss/research):**
+- #259 (agency-gtm vouch model), #260 (MAR raw findings), #261 (MAR skill blunt instruction), #262 (day counting convention), #263 (adopter permission scoping), #264 (Docker daemon self-heal), #265 (cross-repo evolution articles), #266 (pre-history articles)
+
+**Skipped as dupes / noise:**
+- #126 → dupe of #206 (sync-main)
+- #118, #124, #125 → dupe of #210 (commit-dispatch loop)
+- #107 → dupe of HIP #227 (receipt chain-verify)
+- #47 → already dispatched to designex
+- #43, #44, #45, #48, #80 → Close-Issues Theme 6 (test noise)
+- #5, #32 → in HIP (#225, #226)
+- #62 → fixed (coord-commit allowed-tools)
+- #33 → folded into #229 (identity)
+
+## Repo state
+
+- **Branch:** `main` (clean tree, before this handoff commit).
+- **Release branch `release/python-3.13-floor`:** pushed, PR #213 OPEN.
+- **Local main commits ahead of origin/main:** 4 (coord commits from D44 end + runbook + two handoffs). Do NOT push. These will land via a separate captain push after principal authorizes — or be rebased past if we go through PR #213 first.
+- **Branch-topology note:** release/python-3.13-floor is branched FROM main at commit `e4f666c5` (pre-session-end handoff). When PR merges, main gains the release branch contents including this morning's close-issues briefing + broadcast draft.
+
+## Dispatches & flags at handoff
+
+- **Dispatches:** queue clean. Monitor running (`b2szksh2h`).
+- **Flags:** 1 unread at 0300 start — #170 from principal last session ("Review the agency commands and clean up"). Queued for 1B1 as a standalone agenda item beyond the 5 above.
+- **Cross-repo collab:** stale `dispatch-patch-incoming-issue-111-principal-scope-20260415.md: needs merge` — 3 days old, dedup'd by Monitor.
+
+## Fleet status
+
+Unchanged from D44 end-of-day. Fleet sync deferred to `/session-resume` on individual agent wake.
+
+| Agent | Branch | Ahead | Behind | Dirty |
+|---|---|---|---|---|
+| designex | designex | varied | ~136 | some |
+| devex | devex (merged) | 10 | 0 | 1 |
+| iscp | iscp | 24 | 0 | 7 |
+| mdpal-app | mdpal-app | 1 | many | 3 |
+| mdpal-cli | mdpal-cli | 13 | 71 | 31 |
+| mdslidepal-mac | | 9 | 338 | 6 |
+| mdslidepal-web | | 4 | 163 | 1 |
+| mock-and-mark | (empty) | — | — | — |
+
+## Release summary carryover
+
+D44 (fifteen releases): v44.1–v44.4, v44.pr183, v44.pr185–pr193, v44.6, v44.7 (3.12 floor — **superseded by pending v45.1**).
+
+D45 (pending): v45.1 — Python 3.13 floor (PR #213).
+
+## Model + session state
+
+- **Model:** `opus-4-6` (successfully switched after last /exit+/resume). 1M context.
+- **Session alive** through 0300 cron fire. Monitor persistent (`b2szksh2h`). Cron `ac8b0716` one-shot fired successfully.
+- **No new cron needed** — 0300 work complete; next scheduled action is principal-driven on wake.
+
+## Principal action items (short list)
+
+1. Review PR #213; merge when satisfied (or request changes — feedback welcome on the shebang decision specifically).
+2. Authorize broadcast send after merge (or not — fleet can pick up on `/session-resume` organically; broadcast is a belt+suspenders).
+3. Work through the morning 1B1 agenda (5 items + flag #170).
+4. Optionally: batch-update #209's comment with the 3.13 bump note so we don't fork the B3 follow-up story.
+
+---
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

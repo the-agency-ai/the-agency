@@ -17,9 +17,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/_log-helper" 2>/dev/null || true
+
+# Capture the operator-set override BEFORE sourcing _path-resolve, because
+# _path-resolve always recomputes AGENCY_PROJECT_ROOT from its own script
+# location (the framework lib dir) and would overwrite a test-fixture or
+# adopter project's explicit override otherwise.
+_OVERRIDE_PROJECT_ROOT="${AGENCY_PROJECT_ROOT:-}"
 source "$SCRIPT_DIR/lib/_path-resolve" 2>/dev/null || true
 
-PROJECT_ROOT="${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+PROJECT_ROOT="${_OVERRIDE_PROJECT_ROOT:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
 SKILLS_DIR="$PROJECT_ROOT/.claude/skills"
 QUIET=false
 
@@ -45,7 +51,12 @@ CHECKED=0
 MISSING=()
 INVALID=()
 
-# Check each skill directory has a non-empty SKILL.md with allowed-tools
+# Check each skill directory has a non-empty SKILL.md with a valid frontmatter
+# block that declares a `description:` field. The `allowed-tools:` field is
+# intentionally NOT required — per flag #62/#63 (devex dispatch #171) skills
+# inherit Bash(*) from .claude/settings.json, and restricting to specific
+# subcommand patterns silently blocks agents on permission prompts they cannot
+# see. Requiring allowed-tools here would block every shipping skill.
 if [ -d "$SKILLS_DIR" ]; then
   for skill_dir in "$SKILLS_DIR"/*/; do
     [ -d "$skill_dir" ] || continue
@@ -65,9 +76,20 @@ if [ -d "$SKILLS_DIR" ]; then
       continue
     fi
 
-    # Check for allowed-tools frontmatter
-    if ! head -5 "$skill_file" | grep -q "allowed-tools:"; then
-      INVALID+=("$skill_name (missing allowed-tools)")
+    # Check first line is frontmatter delimiter '---'
+    first_line=$(head -1 "$skill_file")
+    if [ "$first_line" != "---" ]; then
+      INVALID+=("$skill_name (missing frontmatter — first line must be '---')")
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
+
+    # Check frontmatter contains a non-empty `description:` field. Frontmatter
+    # lives between the first two '---' lines; limit search to a reasonable
+    # head slice so we don't scan the whole file for a field that should be
+    # at the top.
+    if ! head -20 "$skill_file" | grep -qE '^description: [^ ].*'; then
+      INVALID+=("$skill_name (missing or empty description)")
       ERRORS=$((ERRORS + 1))
       continue
     fi

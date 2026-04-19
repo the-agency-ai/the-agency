@@ -51,17 +51,30 @@ What Problem: Dispatch polling via /loop costs ~82,000 tokens/day and has
 5-minute latency. The Monitor tool can watch a background script and react
 to output in real-time, but the bash implementation requires bash 4+.
 
-How & Why: Python 3.9+ rewrite using stdlib only. Python gives us native
-set() for seen-ID tracking, proper subprocess error handling, and signal-
-based clean shutdown. No external dependencies.
+How & Why: Python rewrite using stdlib only. Python gives us native set()
+for seen-ID tracking, proper subprocess error handling, and signal-based
+clean shutdown. No external dependencies.
+
+Python: 3.13+ (framework floor per D45-R1). Shebang uses `python3` +
+runtime sys.version_info guard (not `python3.13` — hard-coded minor names
+break pyenv/nix/conda installs). See
+usr/jordan/captain/briefings/python-shebang-investigation-20260418.md.
 
 Written: 2026-04-17 D44 — first Python tool in the framework
+Updated: 2026-04-18 D45-R1 — shebang flexibility (Monitor 127 incident)
 """
+
+import sys
+if sys.version_info < (3, 13):
+    sys.exit(
+        f"Python 3.13+ required (got {sys.version_info.major}.{sys.version_info.minor}). "
+        "See claude/config/dependencies.yaml."
+    )
 ```
 
 ### Language Choice for Tools
 
-Both bash and Python 3.9+ are valid languages for tools in `claude/tools/`.
+Both bash and Python 3.13+ are valid languages for tools in `claude/tools/`.
 
 | Use bash when | Use Python when |
 |---------------|-----------------|
@@ -69,9 +82,9 @@ Both bash and Python 3.9+ are valid languages for tools in `claude/tools/`.
 | Git operations via git-safe | Long-running processes |
 | Simple file/path manipulation | Complex string parsing or JSON processing |
 | Interop with existing bash tools | Error handling needs try/except |
-| Shebang: `#!/usr/bin/env bash` | Shebang: `#!/usr/bin/env python3` |
+| Shebang: `#!/usr/bin/env bash` | Shebang: `#!/usr/bin/env python3` + runtime `sys.version_info` guard |
 
-**Python constraints:** stdlib only (no pip/virtualenv). Python 3.9+ floor (matches macOS system Python). Use `from __future__ import annotations` for modern type hint syntax on 3.9.
+**Python constraints:** stdlib only for framework tools in `claude/tools/` (no pip/virtualenv). Python **3.13+** floor per D45-R1 directive (supersedes D44-R6 3.12 floor). Use native `match`, PEP 604 unions, `typing.Self` — no `from __future__ import annotations` backports needed. Services (iscp dispatch-hub, etc.) may use pip deps. **Shebang:** `#!/usr/bin/env python3` + runtime `sys.version_info < (3, 13)` guard — do NOT use `#!/usr/bin/env python3.13` (hard-coded minor names break pyenv/nix/conda installs; see `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md`).
 
 Templates: `claude/templates/TOOL.sh` (bash), `claude/templates/TOOL.py` (Python).
 

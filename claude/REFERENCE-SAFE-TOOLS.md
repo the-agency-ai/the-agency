@@ -121,7 +121,8 @@ Creates and switches to a new branch.
 
 Checks (each exits 1 on failure):
 1. Name must match `[a-zA-Z0-9][a-zA-Z0-9._/-]*` (ASCII letters + digits, leading letter or digit, subsequent chars may also include `.`, `_`, `/`, `-`)
-2. Branch must not already exist (use `switch-branch` for existing branches)
+2. Name must not contain `..`, end with `/`, `.`, `-`, or `.lock` (per `git check-ref-format`)
+3. Branch must not already exist (use `switch-branch` for existing branches)
 
 **`switch-branch <name>`**
 
