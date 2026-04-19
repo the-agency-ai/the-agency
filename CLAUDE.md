@@ -4,7 +4,7 @@ This is the **framework development repo** — TheAgency itself. You are buildin
 
 ## This Repo
 
-- **Framework code:** `claude/` (tools, agents, docs, hooks, skills, templates, starter packs)
+- **Framework code:** `agency/` (tools, agents, docs, hooks, skills, templates, starter packs)
 - **App workstreams:** `agency/workstreams/mdpal/`, `agency/workstreams/mock-and-mark/` (Reference Source License)
 - **Test fixtures:** `test/test-agency-project/` (embedded git repo — commit inside it separately)
 - **Principal sandbox:** `usr/jordan/` (captain instance, dispatches, transcripts)
