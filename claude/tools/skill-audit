@@ -494,23 +494,62 @@ fi
 # ── Report ───────────────────────────────────────────────────────────────────
 
 if [[ "$JSON" = true ]]; then
-  printf '{\n'
-  printf '  "audited": %d,\n' "$AUDIT_COUNT"
-  printf '  "clean": %d,\n' "$CLEAN_COUNT"
-  printf '  "drift": %d,\n' "$DRIFT_COUNT"
-  printf '  "noncompliant": %d,\n' "$NONCOMPLIANT_COUNT"
-  printf '  "fixed": %d,\n' "$FIXED_COUNT"
-  printf '  "issues": ['
-  first=true
-  if [[ ${#ISSUES[@]} -gt 0 ]]; then
-    for issue in "${ISSUES[@]}"; do
-      if [[ "$first" = true ]]; then first=false; else printf ','; fi
-      escaped=$(printf '%s' "$issue" | sed 's/"/\\"/g')
-      printf '\n    "%s"' "$escaped"
-    done
+  # Finding #12 (T10 / retro-MAR 2026-04-19): emit JSON via python's json.dumps
+  # instead of hand-rolled printf. Prior implementation only escaped `"` via
+  # `sed 's/"/\\"/g'`, which broke on backslashes, control chars, multibyte
+  # characters, and newlines — producing invalid JSON when an issue string
+  # contained any of these (e.g., file paths on Windows, kebab names with
+  # unicode escapes, etc.). Proper JSON emitter ensures downstream consumers
+  # (`jq`, python `json.load`, any schema validator) parse successfully.
+  #
+  # Pass counts + issues via env vars (the ccf054ad-style env-var pattern,
+  # never f-string interpolation — the issue strings are agent-controlled
+  # data and must not flow through code interpolation).
+  if command -v python3 >/dev/null 2>&1; then
+    # Serialize issues array through a NUL-delimited stream to preserve any
+    # embedded chars safely (newlines, quotes, backslashes).
+    # Build the NUL stream once, pass via fd via process substitution.
+    _issues_nul=$(printf '%s\0' "${ISSUES[@]+"${ISSUES[@]}"}")
+    AUDITED="$AUDIT_COUNT" CLEAN="$CLEAN_COUNT" DRIFT="$DRIFT_COUNT" \
+    NONCOMPLIANT="$NONCOMPLIANT_COUNT" FIXED="$FIXED_COUNT" \
+    ISSUES_NUL="$_issues_nul" \
+    python3 -c '
+import os, sys, json
+issues_raw = os.environ.get("ISSUES_NUL", "")
+# NUL-delimited; filter empty trailing split
+issues = [s for s in issues_raw.split("\x00") if s]
+out = {
+    "audited": int(os.environ["AUDITED"]),
+    "clean": int(os.environ["CLEAN"]),
+    "drift": int(os.environ["DRIFT"]),
+    "noncompliant": int(os.environ["NONCOMPLIANT"]),
+    "fixed": int(os.environ["FIXED"]),
+    "issues": issues,
+}
+print(json.dumps(out, indent=2, ensure_ascii=False))
+'
+  else
+    # Fallback: legacy printf path for systems without python3 (rare; we
+    # require python3 for the frontmatter parser anyway, so this is safety
+    # net only). Known limitations documented in retro-MAR T10.
+    printf '{\n'
+    printf '  "audited": %d,\n' "$AUDIT_COUNT"
+    printf '  "clean": %d,\n' "$CLEAN_COUNT"
+    printf '  "drift": %d,\n' "$DRIFT_COUNT"
+    printf '  "noncompliant": %d,\n' "$NONCOMPLIANT_COUNT"
+    printf '  "fixed": %d,\n' "$FIXED_COUNT"
+    printf '  "issues": ['
+    first=true
+    if [[ ${#ISSUES[@]} -gt 0 ]]; then
+      for issue in "${ISSUES[@]}"; do
+        if [[ "$first" = true ]]; then first=false; else printf ','; fi
+        escaped=$(printf '%s' "$issue" | sed 's/"/\\"/g')
+        printf '\n    "%s"' "$escaped"
+      done
+    fi
+    printf '\n  ]\n'
+    printf '}\n'
   fi
-  printf '\n  ]\n'
-  printf '}\n'
 else
   # Always print fixes when --fix used, even in --quiet mode
   local_print=false

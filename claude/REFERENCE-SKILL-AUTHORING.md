@@ -133,21 +133,34 @@ The `skill-audit` tool enforces both presence and order; out-of-order sections f
 
 **Retroactive note (MAR 2026-04-19):** earlier drafts of this spec had Usage at position 2 and Required reading at position 3. The case-study skills all adopted the opposite order independently for pedagogical reasons (deps before syntax), and `skill-audit`'s REQUIRED_SECTIONS array matches the case-study order. The spec now matches the audit + case-study reality.
 
-### 6. Naming — noun-verb, with noun-actor-verb for scoped skills
+### 6. Naming — noun-verb, with actor qualifier for scoped skills
 
-**Rules:**
+**Three valid forms (in preference order):**
 
-- **Primary form: `noun-verb`.** Verbs include imperative actions (`-create`, `-land`, `-merge`) and state-transition verbs (`-complete` = "complete this X"; `-review`; `-prepare`).
-- **When scoped to a specific actor, use `noun-actor-verb`.** Example: `pr-captain-land` (pr = noun, captain = actor, land = verb).
-- **Default actor (agent / anyone) gets no qualifier.** Only non-default actors (captain, or future specialized roles) need explicit names.
+1. **`noun-verb`** — the default. Verbs include imperative actions (`-create`, `-land`, `-merge`) and state-transition verbs (`-complete` = "complete this X"; `-review`; `-prepare`).
+2. **`noun-actor-verb`** — use when the skill is scoped to a specific actor AND has a clear noun. Example: `pr-captain-land` (pr = noun, captain = actor, land = verb).
+3. **`actor-verb`** — use when the skill is scoped to a specific actor BUT has no clear noun (i.e., the verb itself stands for the full action). Examples: `captain-release`, `captain-review`, `captain-sync-all`, `captain-log`.
+
+**Which form to use:**
+
+- Default actor (agent / anyone) never needs an actor qualifier → use form 1 (`noun-verb`)
+- Captain-scoped skill with a clear noun → use form 2 (`noun-captain-verb`, e.g. `pr-captain-land`)
+- Captain-scoped skill where noun ≡ verb or is awkward to separate → use form 3 (`captain-verb`, e.g. `captain-release`)
 
 Examples:
-- `pr-submit` — agent submits their branch for captain landing. Default actor; no qualifier.
-- `pr-captain-land` — captain lands an agent's branch. Captain-only; qualifier.
-- `iteration-complete` — any agent completes an iteration. Default actor; no qualifier.
-- `captain-review` — captain reviews. Could be `pr-captain-review` in v2 if it's specifically PR review.
+- `pr-submit` — form 1. Agent submits their branch. Default actor; no qualifier.
+- `pr-captain-land` — form 2. Captain lands a PR. Noun = pr, actor = captain, verb = land.
+- `pr-captain-merge` — form 2. Captain merges a PR. Same structure.
+- `captain-release` — form 3. Captain does a release. "release" is both noun and verb; inserting a separate noun (like `pr-captain-release`) is awkward when the release is the PR-landing step, not a PR noun itself.
+- `captain-sync-all` — form 3. Captain syncs the fleet. No single noun naturally precedes.
+- `captain-log` — form 3. Captain logs an entry. "log" is the verb-on-the-noun.
+- `iteration-complete` — form 1. Any agent completes an iteration. Default actor.
 
-**Grouping effect:** `noun-` prefix groups related skills in autocomplete. `/pr<tab>` shows the full PR toolkit.
+**When in doubt, prefer form 2 over form 3.** If a noun exists and isn't awkward, surface it. Form 3 is legitimate but only when inserting a noun would force an artificial hyphenation.
+
+**Grouping effect:** `noun-` prefix groups related skills in autocomplete. `/pr<tab>` shows the full PR toolkit. `captain-` prefix also groups, but captain-only operations — see `captain-<tab>` for the captain's toolkit.
+
+**Audit enforcement:** `skill-audit` does NOT enforce naming form — naming is an authoring guideline, not a correctness invariant. It DOES enforce that skills named with a `captain-` prefix or `-captain-` infix have the captain-only four-layer defense (`paths: []` + `disable-model-invocation: true`).
 
 ### 7. Registry row
 

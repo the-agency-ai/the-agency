@@ -1,0 +1,179 @@
+#!/bin/bash
+#
+# lint-embedded-python — Syntax-check Python heredocs embedded in bash scripts
+#
+# WHAT: Scans bash scripts for `python3 <<'PYEOF' ... PYEOF` and
+# `python3 -c '... '` blocks, extracts the Python source, and validates
+# it via `python3 -c "import ast; ast.parse(src)"`. Catches typos inside
+# embedded Python at commit time instead of at runtime.
+#
+# WHY: Finding #10 (T4 / the-agency#320 retro-MAR 2026-04-19) — ~100 lines
+# of Python embedded in bash tools (skill-audit, skill-create, skill-upgrade,
+# pr-captain-land) had no syntax-check at commit time. A typo inside a
+# heredoc was only surfaced at runtime, potentially in production.
+#
+# USAGE:
+#   lint-embedded-python [file1.sh file2.sh ...]
+#   lint-embedded-python --help
+#
+# With no args, lints a curated list of known-to-contain-Python tools.
+# With args, lints exactly those files.
+#
+# Designed to be hooked into pre-commit or CI.
+#
+# EXIT CODES:
+#   0 — all embedded Python parses cleanly
+#   1 — one or more syntax errors found
+#   2 — tool / invocation error
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${CLAUDE_PROJECT_DIR:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
+
+if [[ "${1:-}" = "--help" || "${1:-}" = "-h" ]]; then
+  cat <<'EOF'
+Usage: lint-embedded-python [file1.sh file2.sh ...]
+
+Scans bash scripts for embedded Python (heredocs and `python3 -c` blocks)
+and syntax-checks them via `python3 -m py_compile` / ast.parse.
+
+With no args, lints a curated default list of known-containing tools:
+  - claude/tools/skill-audit
+  - claude/tools/skill-create
+  - claude/tools/skill-upgrade
+  - .claude/skills/pr-captain-land/scripts/pr-captain-land
+
+With args, lints exactly those files.
+
+Exit codes:
+  0 — all clean
+  1 — syntax error(s) found
+  2 — tool / invocation error
+
+Install to pre-commit via:
+  bash claude/tools/lint-embedded-python
+EOF
+  exit 0
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "lint-embedded-python: python3 not available; cannot validate" >&2
+  exit 2
+fi
+
+# Determine files to check
+declare -a FILES
+if [[ $# -gt 0 ]]; then
+  FILES=("$@")
+else
+  # Default list — known-containing tools
+  FILES=(
+    "$REPO_ROOT/claude/tools/skill-audit"
+    "$REPO_ROOT/claude/tools/skill-create"
+    "$REPO_ROOT/claude/tools/skill-upgrade"
+    "$REPO_ROOT/.claude/skills/pr-captain-land/scripts/pr-captain-land"
+  )
+fi
+
+TOTAL_BLOCKS=0
+TOTAL_ERRORS=0
+FAILED_FILES=()
+
+# For each file, extract embedded python via python3 itself (safer than
+# grep-and-split shell acrobatics — we already depend on python3, lean
+# into it).
+for FILE in "${FILES[@]}"; do
+  if [[ ! -f "$FILE" ]]; then
+    echo "lint-embedded-python: skipping missing file: $FILE" >&2
+    continue
+  fi
+
+  # Export path for the python extractor; it reads and finds Python blocks
+  result=$(FILE="$FILE" python3 <<'PYEOF'
+import os, sys, re, ast
+
+path = os.environ["FILE"]
+with open(path, "r", encoding="utf-8", errors="replace") as f:
+    src = f.read()
+
+blocks = []
+
+# Pattern 1: heredocs — <<'PYEOF' ... PYEOF (single-quoted delimiter means
+# no shell expansion; we need a matching terminator on its own line).
+# Support common delimiters: PYEOF, EOF, PYTHON, PY.
+heredoc_pat = re.compile(
+    r"<<[-]?[\t ]*[\'\"]?(PYEOF|PY|PYTHON|EOF)[\'\"]?\s*\n(.*?)\n[\t ]*\1\b",
+    re.DOTALL,
+)
+for m in heredoc_pat.finditer(src):
+    delim, body = m.group(1), m.group(2)
+    # Only treat as python if the body contains obvious python signals
+    if re.search(r"^(import |from |def |class |print\(|sys\.exit)", body, re.M):
+        blocks.append(("heredoc/"+delim, m.start(2), body))
+
+# Pattern 2: python3 -c '...' with single-quoted body.
+# Find `python3 -c '` and match to next `'` that is not escaped.
+# Bash single-quoted strings cannot contain escaped quotes — so the first `'`
+# always terminates. Works reliably here.
+inline_pat = re.compile(
+    r"python3\s+-c\s+\'(.*?)\'",
+    re.DOTALL,
+)
+for m in inline_pat.finditer(src):
+    body = m.group(1)
+    if re.search(r"(import |print\()", body):
+        blocks.append(("python3 -c", m.start(1), body))
+
+errors = []
+for kind, offset, body in blocks:
+    try:
+        ast.parse(body)
+    except SyntaxError as e:
+        # Convert offset to line number in the source file for reporting
+        line_before = src.count("\n", 0, offset) + 1
+        errors.append({
+            "kind": kind,
+            "file_line": line_before + (e.lineno or 1) - 1,
+            "file_line_block_start": line_before,
+            "msg": str(e.msg),
+            "block_line": e.lineno,
+            "offset": e.offset,
+        })
+
+print(f"{len(blocks)}|{len(errors)}")
+for e in errors:
+    print(f"  ERROR: {e['kind']} starting at line {e['file_line_block_start']}: "
+          f"{e['msg']} (block line {e['block_line']}, col {e['offset']})")
+PYEOF
+)
+  blocks_count=$(echo "$result" | head -n1 | cut -d'|' -f1)
+  errors_count=$(echo "$result" | head -n1 | cut -d'|' -f2)
+  TOTAL_BLOCKS=$((TOTAL_BLOCKS + blocks_count))
+  TOTAL_ERRORS=$((TOTAL_ERRORS + errors_count))
+
+  if [[ "$errors_count" -gt 0 ]]; then
+    echo "✗ $FILE — $errors_count error(s) in $blocks_count block(s)" >&2
+    echo "$result" | tail -n +2 >&2
+    FAILED_FILES+=("$FILE")
+  else
+    echo "✓ $FILE — $blocks_count embedded python block(s) clean"
+  fi
+done
+
+echo ""
+echo "── Summary ──"
+echo "  Files scanned:  ${#FILES[@]}"
+echo "  Python blocks:  $TOTAL_BLOCKS"
+echo "  Syntax errors:  $TOTAL_ERRORS"
+
+if [[ $TOTAL_ERRORS -gt 0 ]]; then
+  echo ""
+  echo "Failed files:"
+  for f in "${FAILED_FILES[@]}"; do
+    echo "  - $f"
+  done
+  exit 1
+fi
+
+exit 0

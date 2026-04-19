@@ -17,6 +17,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOOLS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TOOL="$TOOLS_DIR/skill-create"
+UPGRADE_TOOL="$TOOLS_DIR/skill-upgrade"
 
 PASS=0
 FAIL=0
@@ -186,7 +187,7 @@ repo=$(setup_repo)
 make_v1_skill "$repo" "test-skill-1"
 # Marker file proves the directory survived
 echo "MARKER" > "$repo/.claude/skills/test-skill-1/MARKER"
-CLAUDE_PROJECT_DIR="$repo" "$TOOL" --upgrade test-skill-1 >/dev/null 2>&1 || true
+CLAUDE_PROJECT_DIR="$repo" "$UPGRADE_TOOL" test-skill-1 >/dev/null 2>&1 || true
 assert_file_exists "t1.1 SKILL.md survives --upgrade" "$repo/.claude/skills/test-skill-1/SKILL.md"
 assert_file_exists "t1.2 MARKER file survives --upgrade" "$repo/.claude/skills/test-skill-1/MARKER"
 cleanup
@@ -201,7 +202,7 @@ echo ""
 echo "Test 2: --upgrade scaffolds missing bundle files"
 repo=$(setup_repo)
 make_v1_skill "$repo" "test-skill-2"
-CLAUDE_PROJECT_DIR="$repo" "$TOOL" --upgrade test-skill-2 >/dev/null 2>&1 || true
+CLAUDE_PROJECT_DIR="$repo" "$UPGRADE_TOOL" test-skill-2 >/dev/null 2>&1 || true
 assert_file_exists "t2.1 reference.md created" "$repo/.claude/skills/test-skill-2/reference.md"
 assert_file_exists "t2.2 examples.md created" "$repo/.claude/skills/test-skill-2/examples.md"
 assert_file_exists "t2.3 scripts/README.md created" "$repo/.claude/skills/test-skill-2/scripts/README.md"
@@ -217,7 +218,7 @@ echo ""
 echo "Test 3: --upgrade adds missing v2 frontmatter fields"
 repo=$(setup_repo)
 make_v1_skill "$repo" "test-skill-3"
-CLAUDE_PROJECT_DIR="$repo" "$TOOL" --upgrade test-skill-3 >/dev/null 2>&1 || true
+CLAUDE_PROJECT_DIR="$repo" "$UPGRADE_TOOL" test-skill-3 >/dev/null 2>&1 || true
 fm=$(cat "$repo/.claude/skills/test-skill-3/SKILL.md")
 assert_contains "t3.1 name preserved" "name: test-skill-3" "$fm"
 assert_contains "t3.2 description preserved" "A v1 skill for testing" "$fm"
@@ -238,7 +239,7 @@ echo "Test 4: --upgrade on v2 skill is idempotent (detects existing v2)"
 repo=$(setup_repo)
 make_v2_skill "$repo" "test-skill-4"
 before_sha=$(shasum "$repo/.claude/skills/test-skill-4/SKILL.md" | awk '{print $1}')
-out=$(CLAUDE_PROJECT_DIR="$repo" "$TOOL" --upgrade test-skill-4 2>&1 || true)
+out=$(CLAUDE_PROJECT_DIR="$repo" "$UPGRADE_TOOL" test-skill-4 2>&1 || true)
 after_sha=$(shasum "$repo/.claude/skills/test-skill-4/SKILL.md" | awk '{print $1}')
 assert_contains "t4.1 announces no frontmatter changes needed" "already agency-skill-version 2" "$out"
 # Must detect v2 and NOT touch the file (pre-fix: _existing returned "" for int, silent re-write)
@@ -254,7 +255,7 @@ echo ""
 echo "Test 5: --upgrade on missing skill exits 3"
 repo=$(setup_repo)
 set +e
-CLAUDE_PROJECT_DIR="$repo" "$TOOL" --upgrade nonexistent-skill >/dev/null 2>&1
+CLAUDE_PROJECT_DIR="$repo" "$UPGRADE_TOOL" nonexistent-skill >/dev/null 2>&1
 ec=$?
 set -e
 assert_exit_code "t5.1 exit code 3 on missing skill" "3" "$ec"
@@ -269,7 +270,7 @@ echo "Test 6: --upgrade on skill with no SKILL.md exits 3"
 repo=$(setup_repo)
 mkdir -p "$repo/.claude/skills/empty-skill"
 set +e
-CLAUDE_PROJECT_DIR="$repo" "$TOOL" --upgrade empty-skill >/dev/null 2>&1
+CLAUDE_PROJECT_DIR="$repo" "$UPGRADE_TOOL" empty-skill >/dev/null 2>&1
 ec=$?
 set -e
 assert_exit_code "t6.1 exit code 3 on missing SKILL.md" "3" "$ec"
@@ -293,7 +294,7 @@ just a body, no frontmatter
 EOF
 printf '| broken-skill | no frontmatter | 1 | agent | active | SKILL-AUTHORING |\n' >> "$repo/claude/REFERENCE-SKILLS-INDEX.md"
 set +e
-CLAUDE_PROJECT_DIR="$repo" "$TOOL" --upgrade broken-skill >/dev/null 2>&1
+CLAUDE_PROJECT_DIR="$repo" "$UPGRADE_TOOL" broken-skill >/dev/null 2>&1
 ec=$?
 set -e
 # Pre-fix: set -e kills the script before UPGRADE_FM_EXIT=$? captures, so exit
@@ -345,6 +346,50 @@ set -e
 assert_exit_code "t9.1 newline in description rejected" "2" "$ec_nl"
 assert_exit_code "t9.2 pipe in description rejected" "2" "$ec_pipe"
 cleanup
+
+# ============================================================================
+# Test 10: skill-create --upgrade now redirects to skill-upgrade
+# (backwards-compat shim with deprecation warning).
+# Maps to the-agency#320 D5 finding — mode-flag → subcommand split.
+# ============================================================================
+
+echo ""
+echo "Test 10: skill-create --upgrade redirects to skill-upgrade with deprecation warning"
+repo=$(setup_repo)
+make_v1_skill "$repo" "redirect-test"
+out=$(CLAUDE_PROJECT_DIR="$repo" "$TOOL" --upgrade redirect-test 2>&1 || true)
+assert_contains "t10.1 deprecation warning shown" "DEPRECATED" "$out"
+assert_contains "t10.2 redirect happens" "Redirecting to skill-upgrade" "$out"
+assert_file_exists "t10.3 upgrade still worked via redirect" "$repo/.claude/skills/redirect-test/reference.md"
+cleanup
+
+# ============================================================================
+# Test 11: skill-upgrade rejects bad names (same validation as skill-create).
+# ============================================================================
+
+echo ""
+echo "Test 11: skill-upgrade rejects invalid names"
+repo=$(setup_repo)
+set +e
+CLAUDE_PROJECT_DIR="$repo" "$UPGRADE_TOOL" "../etc/passwd" >/dev/null 2>&1
+ec_traversal=$?
+CLAUDE_PROJECT_DIR="$repo" "$UPGRADE_TOOL" "UPPER" >/dev/null 2>&1
+ec_upper=$?
+set -e
+assert_exit_code "t11.1 traversal rejected" "2" "$ec_traversal"
+assert_exit_code "t11.2 uppercase rejected" "2" "$ec_upper"
+cleanup
+
+# ============================================================================
+# Test 12: skill-upgrade --help shows independent help (not skill-create's).
+# ============================================================================
+
+echo ""
+echo "Test 12: skill-upgrade has its own --help and --version"
+out=$("$UPGRADE_TOOL" --help 2>&1)
+assert_contains "t12.1 help mentions v1→v2 retrofit" "v1 skill to v2" "$out"
+ver=$("$UPGRADE_TOOL" --version 2>&1)
+assert_contains "t12.2 version reported" "skill-upgrade" "$ver"
 
 # --- Report ---
 echo ""
