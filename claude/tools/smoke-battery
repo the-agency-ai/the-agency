@@ -1,0 +1,176 @@
+#!/bin/bash
+#
+# smoke-battery — Post-reset smoke test suite
+#
+# Phase 6 smoke wrapper: runs scripted assertions across the captain smoke
+# surface. Each item is a single assertion with explicit expected behavior.
+# Exit 0 only if ALL assertions pass.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+smoke-battery — Post-reset smoke test suite
+
+Usage:
+  smoke-battery [--item <name>] [--root DIR] [--skip <item>] [--json]
+
+Options:
+  --item NAME         Run ONLY the named item (handoff, dispatch, flag,
+                      agency-health, session-resume, bats, ref-injector,
+                      commit-precheck, iscp, skill-validate, skill-verify)
+  --skip NAME         Skip the named item (repeatable)
+  --root DIR          Repo root (default: auto-detect)
+  --json              Machine-readable output
+  --help / --version
+USAGE
+    exit 0
+}
+
+ONLY=""
+SKIPS=()
+ROOT=""
+AS_JSON=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "smoke-battery $TOOL_VERSION"; exit 0 ;;
+        --item) shift; ONLY="${1:-}"; shift ;;
+        --skip) shift; SKIPS+=("${1:-}"); shift ;;
+        --root) shift; ROOT="${1:-}"; shift ;;
+        --json) AS_JSON=1; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$ROOT" ]] && ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || :
+[[ -z "$ROOT" ]] && die "not in a git repo"
+cd "$ROOT"
+
+fails=0
+
+emit() {
+    local item="$1" status="$2" message="$3"
+    if [[ $AS_JSON -eq 1 ]]; then
+        printf '{"item":"%s","status":"%s","message":"%s"}\n' "$item" "$status" "$message"
+    else
+        echo "[$status] $item: $message"
+    fi
+}
+
+should_skip() {
+    local name="$1"
+    if [[ -n "$ONLY" && "$ONLY" != "$name" ]]; then return 0; fi
+    for s in "${SKIPS[@]+"${SKIPS[@]}"}"; do
+        [[ "$s" == "$name" ]] && return 0
+    done
+    return 1
+}
+
+check() {
+    local name="$1" ; shift
+    if should_skip "$name"; then return; fi
+    if "$@" >/dev/null 2>&1; then
+        emit "$name" "OK" "passed"
+    else
+        emit "$name" "FAIL" "assertion failed"
+        fails=$((fails + 1))
+    fi
+}
+
+# --- Smoke items ---
+
+smoke_handoff() {
+    local tool="$ROOT/claude/tools/handoff"
+    [[ -x "$tool" ]] || tool="$ROOT/agency/tools/handoff"
+    [[ -x "$tool" ]] || return 1
+    "$tool" --version >/dev/null 2>&1
+}
+
+smoke_dispatch() {
+    local tool="$ROOT/claude/tools/dispatch"
+    [[ -x "$tool" ]] || tool="$ROOT/agency/tools/dispatch"
+    [[ -x "$tool" ]] || return 1
+    "$tool" --version >/dev/null 2>&1
+}
+
+smoke_flag() {
+    local tool="$ROOT/claude/tools/flag"
+    [[ -x "$tool" ]] || tool="$ROOT/agency/tools/flag"
+    [[ -x "$tool" ]] || return 1
+    "$tool" --version >/dev/null 2>&1 || "$tool" count >/dev/null 2>&1
+}
+
+smoke_agency_health() {
+    local tool="$ROOT/claude/tools/agency-health"
+    [[ -x "$tool" ]] || tool="$ROOT/agency/tools/agency-health"
+    [[ -x "$tool" ]] || return 1
+    "$tool" --version >/dev/null 2>&1
+}
+
+smoke_session_resume() {
+    # Dry-run: just check the skill file exists
+    [[ -f "$ROOT/.claude/skills/session-resume/SKILL.md" ]]
+}
+
+smoke_bats() {
+    command -v bats >/dev/null 2>&1
+}
+
+smoke_ref_injector() {
+    local hook="$ROOT/claude/hooks/ref-injector.sh"
+    [[ -x "$hook" ]] || hook="$ROOT/agency/hooks/ref-injector.sh"
+    [[ -f "$hook" ]]
+}
+
+smoke_commit_precheck() {
+    local tool="$ROOT/claude/tools/commit-precheck"
+    [[ -x "$tool" ]] || tool="$ROOT/agency/tools/commit-precheck"
+    [[ -f "$tool" ]]
+}
+
+smoke_iscp() {
+    # Check agent-identity tool resolves
+    local tool="$ROOT/claude/tools/agent-identity"
+    [[ -x "$tool" ]] || tool="$ROOT/agency/tools/agent-identity"
+    [[ -x "$tool" ]] || return 1
+    "$tool" --version >/dev/null 2>&1 || "$tool" --self >/dev/null 2>&1
+}
+
+smoke_skill_validate() {
+    local tool="$ROOT/claude/tools/skill-validate"
+    [[ -x "$tool" ]] || tool="$ROOT/agency/tools/skill-validate"
+    [[ -f "$tool" ]]
+}
+
+smoke_skill_verify() {
+    local tool="$ROOT/claude/tools/skill-verify"
+    [[ -x "$tool" ]] || tool="$ROOT/agency/tools/skill-verify"
+    [[ -f "$tool" ]]
+}
+
+# --- Run battery ---
+check "handoff"          smoke_handoff
+check "dispatch"         smoke_dispatch
+check "flag"             smoke_flag
+check "agency-health"    smoke_agency_health
+check "session-resume"   smoke_session_resume
+check "bats"             smoke_bats
+check "ref-injector"     smoke_ref_injector
+check "commit-precheck"  smoke_commit_precheck
+check "iscp"             smoke_iscp
+check "skill-validate"   smoke_skill_validate
+check "skill-verify"     smoke_skill_verify
+
+if [[ $fails -gt 0 ]]; then
+    echo "# smoke battery: $fails fail(s)" >&2
+    exit 1
+fi
+echo "# smoke battery: all passed"
+exit 0

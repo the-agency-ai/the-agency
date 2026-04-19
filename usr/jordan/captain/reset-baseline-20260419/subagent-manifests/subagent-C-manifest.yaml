@@ -1,0 +1,39 @@
+---
+# Subagent C — Tests
+# v46.0 structural reset Phase 4 fan-out
+# Authored: 2026-04-19 per Plan v4 §3 Phase 0c
+#
+# Scope: tests/** (excluding embedded fixture). Content: test file bodies
+# that reference claude/... paths get rewritten to agency/... paths.
+# Ownership priority: 3.
+
+subagent: C
+ownership_priority: 3
+
+files:
+  - tests/**/*.bats
+  - tests/**/*.sh
+  - tests/**/*.md
+  - tests/**/*.yaml
+  - tests/**/*.json
+
+excludes:
+  - test/test-agency-project/**    # fixture with embedded .git/ — Principle 9
+  - src/archive/tests/**
+
+allowed_substitutions:
+  - pattern: "claude/tools/"
+    replacement: "agency/tools/"
+  - pattern: "claude/hooks/"
+    replacement: "agency/hooks/"
+  - pattern: "claude/hookify/"
+    replacement: "agency/hookify/"
+  - pattern: "claude/config/"
+    replacement: "agency/config/"
+
+rejected_substitutions:
+  - "\\.claude/"
+  - "CLAUDE\\.md"
+  - "test/test-agency-project/"    # fixture paths must not be touched
+
+expected_changes: null

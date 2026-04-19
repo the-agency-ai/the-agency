@@ -1,0 +1,79 @@
+#!/bin/bash
+#
+# agency-update-migrate — Gated v45 → v46 migration
+#
+# Refuses without both --migrate flag AND the Phase-0b prep marker
+# .agency/migrate-prep-v46.ok. Surfaces runbook pointer on refusal.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+# Reserved exit codes per Plan v4 §6:
+# 10=version gate refused (no --migrate)
+# 11=prep marker missing
+# 12=mid-update integrity check failed
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+agency-update-migrate — Gated v45 → v46 migration
+
+Usage:
+  agency-update-migrate --migrate [--root DIR] [--json]
+
+Without --migrate, exits nonzero + runbook pointer.
+Without .agency/migrate-prep-v46.ok, exits nonzero (run agency-migrate-prep first).
+USAGE
+    exit 0
+}
+
+MIGRATE=0
+ROOT=""
+AS_JSON=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "agency-update-migrate $TOOL_VERSION"; exit 0 ;;
+        --migrate) MIGRATE=1; shift ;;
+        --root) shift; ROOT="${1:-}"; shift ;;
+        --json) AS_JSON=1; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$ROOT" ]] && ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || :
+[[ -z "$ROOT" ]] && die "not in a git repo"
+
+emit() {
+    local sev="$1" msg="$2"
+    if [[ $AS_JSON -eq 1 ]]; then
+        printf '{"severity":"%s","message":"%s"}\n' "$sev" "$msg"
+    else
+        echo "[$sev] $msg"
+    fi
+}
+
+if [[ $MIGRATE -ne 1 ]]; then
+    emit "FAIL" "v45 → v46 requires --migrate flag. See migration-runbook-v46.0.md for details."
+    exit 10
+fi
+
+MARKER="$ROOT/.agency/migrate-prep-v46.ok"
+if [[ ! -f "$MARKER" ]]; then
+    emit "FAIL" "prep marker missing: run agency-migrate-prep --apply --yes first"
+    exit 11
+fi
+
+# Simple migration integrity check: after prep, the tree should have agency/
+# OR the sweep should have been applied. If agency/ is missing AND claude/ still
+# exists, something went wrong.
+if [[ ! -d "$ROOT/agency" && -d "$ROOT/claude" ]]; then
+    emit "FAIL" "tree-shape after prep is inconsistent — both claude/ present and agency/ missing"
+    exit 12
+fi
+
+emit "OK" "migration complete (marker valid)"
+exit 0

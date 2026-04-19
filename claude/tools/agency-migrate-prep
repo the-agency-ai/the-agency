@@ -1,0 +1,153 @@
+#!/bin/bash
+#
+# agency-migrate-prep — Adopter-side v45 → v46 migration preparation
+#
+# What Problem: When an adopter runs `agency update` to v46.0, their tree
+# still has v45 paths (claude/). Update-time path rewrites would conflict
+# with local edits. Prep-run captures local state + generates a patch that
+# agency update --migrate will apply atomically.
+#
+# How & Why: (1) create local rollback tag v45.3-pre-reset-local; (2) run
+# agency-sweep --dry-run to preview; (3) with confirmation, --apply; (4)
+# write prep marker `.agency/migrate-prep-v46.ok`. Idempotent. Dry-run-first.
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+# Reserved exit codes per Plan v4 §6:
+# 10=prep marker already present (idempotent noop warning)
+# 11=sweep dry-run found unresolvable pattern
+# 12=config update failed
+# 13=backup tag creation failed
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+agency-migrate-prep — Adopter v45 → v46 migration prep
+
+Usage:
+  agency-migrate-prep [--dry-run|--apply] [--yes] [--root DIR] [--json]
+
+Options:
+  --dry-run        Preview without applying (default)
+  --apply          Apply after confirmation (or with --yes for CI)
+  --yes            Skip confirmation prompt (for automation)
+  --root DIR       Repo to migrate (default: auto-detect)
+  --json           Machine-readable output
+  --help / --version
+
+Exit codes:
+  0   success
+  10  prep marker already present (idempotent noop)
+  11  sweep dry-run found unresolvable pattern
+  12  config update failed
+  13  backup tag creation failed
+  2   framework / usage error
+USAGE
+    exit 0
+}
+
+MODE="dry-run"
+YES=0
+ROOT=""
+AS_JSON=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "agency-migrate-prep $TOOL_VERSION"; exit 0 ;;
+        --dry-run) MODE="dry-run"; shift ;;
+        --apply) MODE="apply"; shift ;;
+        --yes) YES=1; shift ;;
+        --root) shift; ROOT="${1:-}"; shift ;;
+        --json) AS_JSON=1; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$ROOT" ]] && ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || :
+[[ -z "$ROOT" ]] && die "not in a git repo and --root not supplied"
+cd "$ROOT"
+
+emit() {
+    local sev="$1" msg="$2"
+    if [[ $AS_JSON -eq 1 ]]; then
+        printf '{"severity":"%s","message":"%s"}\n' "$sev" "$msg"
+    else
+        echo "[$sev] $msg"
+    fi
+}
+
+MARKER="$ROOT/.agency/migrate-prep-v46.ok"
+
+# Idempotent check
+if [[ -f "$MARKER" ]]; then
+    emit "INFO" "prep marker already present: $MARKER"
+    exit 10
+fi
+
+# Create rollback tag
+if ! git tag v45.3-pre-reset-local 2>/dev/null; then
+    # Tag may already exist (re-run after prep cleared). Idempotent ok.
+    if ! git rev-parse v45.3-pre-reset-local >/dev/null 2>&1; then
+        emit "FAIL" "could not create backup tag"
+        exit 13
+    fi
+fi
+emit "OK" "backup tag v45.3-pre-reset-local present"
+
+# Dry-run the sweep
+SWEEP_TOOL=""
+if [[ -x "$ROOT/claude/tools/agency-sweep" ]]; then
+    SWEEP_TOOL="$ROOT/claude/tools/agency-sweep"
+elif [[ -x "$ROOT/agency/tools/agency-sweep" ]]; then
+    SWEEP_TOOL="$ROOT/agency/tools/agency-sweep"
+fi
+
+if [[ -z "$SWEEP_TOOL" ]]; then
+    emit "WARN" "agency-sweep not found — skipping sweep step"
+else
+    emit "INFO" "agency-sweep --dry-run..."
+    "$SWEEP_TOOL" --dry-run >/dev/null 2>&1 || {
+        emit "FAIL" "sweep dry-run returned nonzero"
+        exit 11
+    }
+    emit "OK" "sweep dry-run clean"
+fi
+
+if [[ "$MODE" == "dry-run" ]]; then
+    emit "INFO" "dry-run complete — re-run with --apply to finalize"
+    exit 0
+fi
+
+# Apply mode — confirm
+if [[ $YES -ne 1 ]]; then
+    # TTY confirm; in non-TTY (tests), require --yes
+    if [[ -t 0 ]]; then
+        echo "[CONFIRM] Apply migration prep? Tree will be modified. [y/N] "
+        read -r answer
+        case "$answer" in y|Y|yes|YES) ;; *) emit "INFO" "cancelled by user"; exit 0 ;; esac
+    else
+        emit "FAIL" "non-TTY --apply without --yes — refusing to proceed"
+        exit 2
+    fi
+fi
+
+# Run the sweep for real
+if [[ -n "$SWEEP_TOOL" ]]; then
+    "$SWEEP_TOOL" --apply >/dev/null 2>&1 || {
+        emit "FAIL" "sweep --apply failed"
+        exit 12
+    }
+fi
+
+# Write prep marker
+mkdir -p "$ROOT/.agency"
+printf 'v46.0 prep complete\nts=%s\nbranch=%s\n' \
+    "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+    "$(git rev-parse --abbrev-ref HEAD 2>/dev/null)" \
+    > "$MARKER"
+
+emit "OK" "migration prep complete — run 'agency update --migrate' next"
+exit 0

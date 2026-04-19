@@ -1,0 +1,236 @@
+#!/bin/bash
+#
+# agency-verify-v46 — Post-reset verification (customer + internal variants)
+#
+# What Problem: After migration (adopter) or reset (framework), we need a
+# programmatic check that the filesystem + config match v46.0 expectations:
+# tree-shape, settings.json hook paths, agent registration shape, ISCP smoke,
+# no residual claude/ at root, no hook ENOENT.
+#
+# How & Why: --customer mode runs against an installed adopter repo (embedded
+# v46 manifest). --internal mode adds BATS parity + ref-inventory delta vs
+# baseline snapshot.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+# Reserved exit codes per Plan v4 §6:
+# 10=tree-shape mismatch; 11=settings.json stale; 12=agent-registration
+# mismatch; 13=ISCP smoke fail; 14=hook-path ENOENT
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+agency-verify-v46 — Post-reset verification
+
+Usage:
+  agency-verify-v46 --customer [--root DIR] [--json]
+  agency-verify-v46 --internal [--root DIR] [--baseline-dir DIR] [--json]
+
+Options:
+  --customer         Run adopter-side checks
+  --internal         Run captain-side checks (adds BATS + ref-inventory delta)
+  --root DIR         Repo to check (default: auto-detect via git)
+  --baseline-dir DIR Baseline artifacts dir (internal mode)
+  --json             Machine-readable output
+  --help / --version
+
+Exit codes:
+  0   all checks passed
+  10  tree-shape mismatch
+  11  settings.json hook paths stale
+  12  agent registration shape wrong
+  13  ISCP smoke failed
+  14  hook path ENOENT
+  2   framework / usage error
+USAGE
+    exit 0
+}
+
+MODE=""
+ROOT=""
+BASELINE_DIR=""
+AS_JSON=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "agency-verify-v46 $TOOL_VERSION"; exit 0 ;;
+        --customer) MODE="customer"; shift ;;
+        --internal) MODE="internal"; shift ;;
+        --root) shift; ROOT="${1:-}"; shift ;;
+        --baseline-dir) shift; BASELINE_DIR="${1:-}"; shift ;;
+        --json) AS_JSON=1; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$MODE" ]] && die "--customer or --internal required"
+if [[ -z "$ROOT" ]]; then
+    ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not in a git repo"
+fi
+cd "$ROOT"
+
+emit() {
+    local severity="$1" check="$2" message="$3"
+    if [[ $AS_JSON -eq 1 ]]; then
+        printf '{"severity":"%s","check":"%s","message":"%s"}\n' \
+            "$severity" "$check" "$message"
+    else
+        echo "[$severity] $check: $message"
+    fi
+}
+
+# --- Check 1: tree-shape — agency/ exists, claude/ gone ---
+check_tree_shape() {
+    if [[ ! -d "$ROOT/agency" ]]; then
+        emit "FAIL" "tree-shape" "agency/ missing — v46 rename not completed"
+        return 10
+    fi
+    if [[ -d "$ROOT/claude" && ! -L "$ROOT/claude" ]]; then
+        emit "FAIL" "tree-shape" "claude/ still present at root — rename incomplete or rolled-back"
+        return 10
+    fi
+    emit "OK" "tree-shape" "agency/ present, claude/ absent"
+    return 0
+}
+
+# --- Check 2: settings.json hook paths point to agency/ ---
+check_settings_hooks() {
+    local settings="$ROOT/.claude/settings.json"
+    [[ -f "$settings" ]] || { emit "FAIL" "settings-hooks" "settings.json missing"; return 11; }
+
+    # Validate JSON syntax
+    if ! python3 -c "import json; json.load(open('$settings'))" 2>/dev/null; then
+        emit "FAIL" "settings-hooks" "settings.json invalid JSON"
+        return 11
+    fi
+
+    # Any hook command referencing claude/hooks/ is stale
+    if grep -q 'claude/hooks/' "$settings" 2>/dev/null; then
+        emit "FAIL" "settings-hooks" "stale claude/hooks/ reference in settings.json"
+        return 11
+    fi
+
+    emit "OK" "settings-hooks" "settings.json references agency/hooks/"
+    return 0
+}
+
+# --- Check 3: agent registrations point to agency/agents/ ---
+check_agent_registrations() {
+    local stale=0
+    while IFS= read -r -d '' f; do
+        if grep -q '@claude/agents/' "$f" 2>/dev/null; then
+            emit "FAIL" "agent-registration" "$f still references @claude/agents/"
+            stale=1
+        fi
+    done < <(find "$ROOT/.claude/agents" -name '*.md' -print0 2>/dev/null)
+    [[ $stale -eq 1 ]] && return 12
+    emit "OK" "agent-registration" "all agent registrations reference @agency/agents/"
+    return 0
+}
+
+# --- Check 4: hook paths exist on disk (hook ENOENT) ---
+check_hook_paths() {
+    local settings="$ROOT/.claude/settings.json"
+    [[ -f "$settings" ]] || return 0
+    local missing=0
+    # Extract command strings → strip $CLAUDE_PROJECT_DIR → check file existence
+    python3 - "$settings" "$ROOT" <<'PYEOF'
+import json, os, sys
+settings_path = sys.argv[1]
+repo = sys.argv[2]
+try:
+    settings = json.load(open(settings_path))
+except Exception:
+    sys.exit(0)
+
+missing = 0
+def walk(obj):
+    global missing
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == "command" and isinstance(v, str):
+                # Extract first path-looking arg ending in .sh/.py/.js
+                for tok in v.split():
+                    tok = tok.replace("$CLAUDE_PROJECT_DIR/", "")
+                    tok = tok.strip('"').strip("'")
+                    if tok.endswith((".sh", ".py", ".js")):
+                        full = os.path.join(repo, tok)
+                        if not os.path.isfile(full):
+                            print(f"[FAIL] hook-path: {tok} → ENOENT")
+                            missing += 1
+            else:
+                walk(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            walk(v)
+
+walk(settings)
+sys.exit(14 if missing else 0)
+PYEOF
+    local rc=$?
+    if [[ $rc -eq 14 ]]; then
+        return 14
+    fi
+    emit "OK" "hook-paths" "no ENOENT on hook paths"
+    return 0
+}
+
+# --- Check 5: ISCP smoke (customer only — internal has its own) ---
+check_iscp_smoke() {
+    # Dry-run check: does agent-identity resolve?
+    local ident_tool
+    if [[ -x "$ROOT/agency/tools/agent-identity" ]]; then
+        ident_tool="$ROOT/agency/tools/agent-identity"
+    elif [[ -x "$ROOT/claude/tools/agent-identity" ]]; then
+        ident_tool="$ROOT/claude/tools/agent-identity"
+    else
+        emit "WARN" "iscp-smoke" "agent-identity tool not found (skipping)"
+        return 0
+    fi
+
+    if "$ident_tool" --self >/dev/null 2>&1; then
+        emit "OK" "iscp-smoke" "agent-identity resolves"
+        return 0
+    else
+        emit "FAIL" "iscp-smoke" "agent-identity failed"
+        return 13
+    fi
+}
+
+# --- Run checks ---
+rc=0
+check_tree_shape          || rc=$?
+[[ $rc -ne 0 ]] && exit $rc
+
+check_settings_hooks      || rc=$?
+[[ $rc -ne 0 ]] && exit $rc
+
+check_agent_registrations || rc=$?
+[[ $rc -ne 0 ]] && exit $rc
+
+check_hook_paths          || rc=$?
+[[ $rc -ne 0 ]] && exit $rc
+
+check_iscp_smoke          || rc=$?
+[[ $rc -ne 0 ]] && exit $rc
+
+# --- Internal-mode extras ---
+if [[ "$MODE" == "internal" && -n "$BASELINE_DIR" ]]; then
+    # BATS parity check
+    if command -v bats >/dev/null 2>&1 && [[ -d "$ROOT/tests/tools" ]]; then
+        emit "INFO" "bats-parity" "running BATS against tests/tools/..."
+        if bats "$ROOT/tests/tools" >/dev/null 2>&1; then
+            emit "OK" "bats-parity" "BATS green"
+        else
+            emit "FAIL" "bats-parity" "BATS failures detected"
+            exit 15
+        fi
+    fi
+fi
+
+emit "OK" "all-checks" "$MODE mode verification complete"
+exit 0

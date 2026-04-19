@@ -492,3 +492,746 @@ ok 490 switch-branch: requires name argument
 ok 491 push: from main is blocked
 ok 492 push: explicit main target blocked
 ok 493 push: bare --force is blocked (no --force-with-lease)
+ok 494 push: -f shorthand is blocked
+ok 495 push: --force-with-lease is allowed past guard
+ok 496 push: to feature branch passes guards (no remote causes git failure)
+ok 497 fetch: invokes git fetch origin (graceful on no remote)
+ok 498 tag: creates annotated tag
+ok 499 tag: creates annotated tag with -m message
+ok 500 tag: duplicate tag fails
+ok 501 tag: requires name argument
+ok 502 branch-delete: safe-deletes merged branch
+ok 503 branch-delete: deleting main is blocked
+ok 504 branch-delete: deleting master is blocked (when master is main)
+ok 505 branch-delete: deleting current branch is blocked
+ok 506 branch-delete: unmerged branch fails (safe -d)
+ok 507 branch-delete: requires name argument
+ok 508 branch-delete --force: deletes unmerged branch (post-merge cleanup case)
+ok 509 branch-delete -f: short form works the same way
+ok 510 branch-delete --force: still refuses to delete main
+ok 511 branch-delete --force: still refuses to delete current branch
+ok 512 branch-delete: error message points at --force when safe-delete fails
+ok 513 branch-delete: --help mentions --force flag
+ok 514 branch-delete: rejects unknown flag
+ok 515 reset-soft: default undoes last local commit, keeps changes staged
+ok 516 reset-soft: refuses when ref does not resolve
+ok 517 git-captain --help mentions reset-soft — D41-R28
+ok 518 commit: --version shows version
+ok 519 commit: --help shows usage
+ok 520 commit: -h shows usage
+ok 521 commit: requires message argument
+ok 522 commit: accepts -m flag for message
+ok 523 commit: accepts --message flag
+ok 524 commit: accepts work item with -w flag
+ok 525 commit: accepts --work-item flag
+ok 526 commit: accepts stage with -s flag
+ok 527 commit: accepts --stage flag
+ok 528 commit: validates stage values
+ok 529 commit: --dry-run flag is recognized
+ok 530 commit: requires work item OR --no-work-item flag
+ok 531 commit: --no-work-item flag accepted as escape hatch
+ok 532 commit: --adhoc flag rejected as unknown
+ok 533 commit: validates work item format - accepts REQUEST
+ok 534 commit: validates work item format - accepts BUG
+ok 535 commit: validates work item format - accepts TASK
+ok 536 commit: validates work item format - rejects invalid
+ok 537 commit: validates work item format - rejects empty
+ok 538 commit: --work-item requires value
+ok 539 commit: --stage requires value
+ok 540 tag: --version shows version
+ok 541 tag: --help shows usage
+ok 542 tag: requires arguments
+ok 543 tag: accepts work-item and stage
+ok 544 tag: validates stage format
+ok 545 tag: accepts release type
+ok 546 tag: --skip-tests flag is recognized
+ok 547 tag: --push flag is recognized
+ok 548 tag: --skip-order flag is recognized
+ok 549 tag: --force flag is recognized
+ok 550 tag: --message requires value
+ok 551 tag: stage order enforcement - review requires impl
+ok 552 tag: stage order enforcement - impl has no prerequisite
+ok 553 tag: --skip-order bypasses stage order check
+ok 554 sync: --version shows version
+ok 555 sync: --help shows usage
+ok 556 sync: -h shows usage
+ok 557 sync: --check flag is recognized
+ok 558 sync: --force flag is recognized
+ok 559 sync: --verbose flag is recognized
+ok 560 workflow-check: --version shows version
+ok 561 workflow-check: --help shows usage
+ok 562 workflow-check: -h shows usage
+ok 563 workflow-check: requires work item argument
+ok 564 workflow-check: --quiet flag is recognized
+ok 565 workflow-check: shows workflow status
+ok 566 workflow-check: identifies next stage correctly
+ok 567 commit: detects non-git directory
+ok 568 tag: works in mock git repo context
+ok 569 sync: detects clean vs dirty working tree
+ok 570 git-push: blocks main
+ok 571 git-push: blocks master
+ok 572 git-push: accepts --force-with-lease without treating as branch
+ok 573 moves a single tracked file
+ok 574 moves a directory recursively
+ok 575 canary: moves .gitkeep dotfile
+ok 576 canary: moves .gitignore dotfile
+ok 577 canary: moves .hidden-example dotfile
+ok 578 canary: deep-nested path (5 levels)
+ok 579 canary: unicode filename
+ok 580 canary: embedded-semicolon path 'test; rm -rf /'
+ok 581 audit log records per-file moves as JSONL
+ok 582 rationale flag records in audit entry
+ok 583 refuses when src has no tracked files
+ok 584 --version prints version
+ok 585 git-safe-commit detects MERGE_HEAD and blocks with unresolved conflicts
+ok 586 git-safe-commit finalizes merge after resolve-conflict --ours
+ok 587 git-safe-commit finalizes merge after resolve-conflict --theirs
+ok 588 git-safe-commit merge-route does NOT require --no-work-item
+ok 589 ls-files returns tracked files
+ok 590 ls-files with explicit path filters to that subtree
+ok 591 ls-files on missing path returns empty, exit 0
+ok 592 ls-files respects pathspec pseudo-separator '--'
+ok 593 ls-files is enumerated in --help
+ok 594 git-safe --help shows usage
+ok 595 git-safe -h shows usage
+ok 596 git-safe with no args shows usage
+ok 597 git-safe --version shows version
+ok 598 git-safe unknown subcommand errors
+ok 599 git-safe status shows working tree status
+ok 600 git-safe status matches git status
+ok 601 git-safe log accepts --oneline -5
+ok 602 git-safe log without args works
+ok 603 git-safe diff works (empty when clean)
+ok 604 git-safe diff shows changes
+ok 605 git-safe branch returns current branch name
+ok 606 git-safe show HEAD shows latest commit
+ok 607 git-safe blame works on a tracked file
+ok 608 git-safe add stages a single explicit file
+ok 609 git-safe add stages multiple explicit files
+ok 610 git-safe add with no args errors
+ok 611 git-safe add -A is BLOCKED
+ok 612 git-safe add --all is BLOCKED
+ok 613 git-safe add . is BLOCKED
+ok 614 git-safe add ./ is BLOCKED
+ok 615 git-safe add .. is BLOCKED
+ok 616 git-safe add '*' is BLOCKED
+ok 617 git-safe add on a bare directory is BLOCKED
+ok 618 git-safe add blocks -A even when other files given
+ok 619 merge-from-master uses main when main branch exists
+ok 620 merge-from-master uses master when only master branch exists
+ok 621 merge-from-master refuses when already on main
+ok 622 merge-from-master refuses dirty working tree
+ok 623 merge-from-master refuses staged-but-uncommitted changes
+ok 624 rm removes a tracked file
+ok 625 rm blocks -r and --recursive
+ok 626 rm blocks -f
+ok 627 rm blocks bare directory
+ok 628 rm blocks wildcards and dot paths
+ok 629 merge-abort fails when no merge is in progress
+ok 630 resolve-conflict requires a file argument
+ok 631 resolve-conflict requires --ours or --theirs
+ok 632 resolve-conflict fails when no merge is in progress
+ok 633 resolve-conflict --ours picks main's version and stages it
+ok 634 resolve-conflict --theirs picks the incoming version and stages it
+ok 635 resolve-conflict rejects unknown flags
+ok 636 resolve-conflict rejects non-conflicted file
+ok 637 config --list: shows git config
+ok 638 config <key>: reads single key
+ok 639 config --local <key> <value>: sets allowed key in repo
+ok 640 config --local user.name 'Test Name': allowed key works
+ok 641 config --local refuses non-allowed key (remote.origin.url)
+ok 642 config --local refuses non-allowed key (core.hooksPath)
+ok 643 config --global refuses non-allowed key (credential.helper)
+ok 644 config: no args prints usage
+ok 645 config: rejects unknown flag
+ok 646 config --local: requires value
+ok 647 git-safe --help mentions config subcommand
+ok 648 git-safe-commit source: gpg-missing detection regex matches expected git output
+ok 649 stash: list works on empty repo — D41-R28
+ok 650 stash: unknown subcommand fails — D41-R28
+ok 651 stash: no args prints usage — D41-R28
+ok 652 git-safe --help mentions stash subcommand — D41-R28
+ok 653 clean: no warning when no impl files dirty
+ok 654 dirty: .py file triggers warning
+ok 655 dirty: .bats file triggers warning
+ok 656 dirty: claude/tools/ bash script triggers warning
+ok 657 clean: markdown changes don't trigger warning
+ok 658 clean: yaml config changes don't trigger warning
+ok 659 dirty: counts multiple impl files
+ok 660 handoff: --help mentions types
+ok 661 handoff: --version shows version
+ok 662 type-parse: extracts session type from frontmatter
+ok 663 type-parse: extracts agency-bootstrap type
+ok 664 type-parse: extracts agency-update type
+ok 665 type-parse: defaults to session when no type field
+ok 666 type-parse: defaults to session for no frontmatter
+ok 667 handoff: write output includes agent address
+ok 668 handoff: agent address is fully qualified (3 segments)
+ok 669 type-parse: handles type with extra whitespace
+ok 670 iscp-check: silent when no DB exists
+ok 671 iscp-check: silent when DB exists but empty
+ok 672 iscp-check: silent after all items are read/processed
+ok 673 iscp-check: reports unread dispatches
+ok 674 iscp-check: reports unread flags
+ok 675 iscp-check: reports combined counts
+ok 676 iscp-check: output is valid JSON with systemMessage
+ok 677 iscp-check: JSON has no extra keys
+ok 678 iscp-check: integration — dispatch create → check reports → read → check silent
+ok 679 iscp-check: integration — flag create → check reports → clear → check silent
+ok 680 iscp-check: graceful when identity resolution fails
+ok 681 iscp-check: --help shows usage
+ok 682 iscp-check: --version shows version
+ok 683 iscp_db_check_sqlite succeeds on this system
+ok 684 version comparison: equal versions
+ok 685 version comparison: newer major
+ok 686 version comparison: newer minor
+ok 687 version comparison: older version fails
+ok 688 version comparison: older minor fails
+ok 689 repo name resolves from git basename
+ok 690 repo name sanitized: uppercase to lowercase
+ok 691 repo name sanitized: special chars replaced
+ok 692 db path is under ~/.agency/
+ok 693 iscp_db_init creates database
+ok 694 iscp_db_init is idempotent
+ok 695 iscp_db_init creates all 6 tables
+ok 696 iscp_db_init sets schema version
+ok 697 iscp_db_init sets WAL mode
+ok 698 iscp_db_init creates directory with 700 permissions
+ok 699 iscp_db_init fails gracefully if newer schema version
+ok 700 flags rejects invalid status
+ok 701 dispatches rejects invalid type
+ok 702 dispatches accepts all 8 valid types
+ok 703 iscp_db_query with named parameters
+ok 704 parameter safety: single quotes in values
+ok 705 parameter safety: SQL injection attempt blocked
+ok 706 parameter name validation: rejects names without colon prefix
+ok 707 iscp_db_insert_flag returns new id
+ok 708 iscp_db_insert_flag stores all fields
+ok 709 iscp_db_update_status changes flag to read with timestamp
+ok 710 iscp_db_update_status changes flag to processed
+ok 711 iscp_db_update_status rejects unknown table
+ok 712 iscp_db_count_unread returns zeros when empty
+ok 713 iscp_db_count_unread counts flags
+ok 714 iscp_db_count_unread ignores read flags
+ok 715 iscp_db_count_unread returns zeros for nonexistent DB
+ok 716 dispatches rejects duplicate payload_path
+ok 717 subscriptions rejects duplicate subscriber+event+filter
+ok 718 flag handles UTF-8 content
+ok 719 parameter safety: double quotes in values
+ok 720 parameter safety: backslashes in values
+ok 721 parameter safety: newlines in values handled
+ok 722 parameter name validation: strict format
+ok 723 odd parameter count is rejected
+ok 724 iscp_db_insert_flag fails if DB not initialized
+ok 725 iscp_db_exec succeeds for INSERT
+ok 726 iscp_db_exec succeeds for UPDATE with params
+ok 727 iscp_db_insert_flag stores all fields with exact match
+ok 728 iscp_db_update_status works for dispatches
+ok 729 iscp_db_count_unread counts dispatches and dropbox
+ok 730 repo name resolves from agency.yaml
+ok 731 DB file permissions are restrictive
+ok 732 iscp_db_query fails if DB not initialized
+ok 733 iscp_db_exec fails if DB not initialized
+ok 734 migrate_v0_to_v1 outputs valid SQL
+ok 735 run_migrations v0 to v1 creates schema and sets version
+ok 736 run_migrations fails if migration function is missing
+ok 737 run_migrations handles multi-step upgrades
+ok 738 run_migrations preserves version on failure
+ok 739 iscp_db_init upgrades v0 DB via migration path
+ok 740 run_migrations is no-op when current equals target
+ok 741 migration preserves existing data
+ok 742 iscp-migrate flags: imports JSONL flags
+ok 743 iscp-migrate flags: preserves timestamp and branch
+ok 744 iscp-migrate flags: renames to .migrated
+ok 745 iscp-migrate flags: skips when no JSONL exists
+ok 746 iscp-migrate flags: handles .from field
+ok 747 iscp-migrate dispatches: imports dispatch with YAML frontmatter
+ok 748 iscp-migrate dispatches: imports dispatch with markdown headers (no frontmatter)
+ok 749 iscp-migrate dispatches: maps unknown type to dispatch
+ok 750 iscp-migrate dispatches: maps statuses correctly
+ok 751 iscp-migrate dispatches: idempotent — no duplicates on re-run
+ok 752 iscp-migrate dispatches: scans code-reviews/ directory
+ok 753 iscp-migrate: full migration runs both flags and dispatches
+ok 754 iscp-migrate: --help shows usage
+ok 755 iscp-migrate: --version shows version
+ok 756 _uuid7: generates a UUID
+ok 757 _uuid7: matches UUID format (8-4-4-4-12)
+ok 758 _uuid7: generates unique IDs
+ok 759 log_start: returns a run ID
+ok 760 log_start: writes start event to JSONL
+ok 761 log_start: records args
+ok 762 log_end: writes end event to JSONL
+ok 763 log_end: records exit code and duration
+ok 764 log_end: handles empty run_id gracefully
+ok 765 log_detail: writes detail event to JSONL
+ok 766 tool_output: prints standard 3-line format
+ok 767 tool_output: uses custom icon
+ok 768 tool_output: shows short run ID
+ok 769 agent-bootstrap retired: exits 0 with deprecation — D42-R3
+ok 770 agent-bootstrap retired: any args still exit 0 — D42-R3
+ok 771 agent-bootstrap retired: unknown user still exit 0 — D42-R3
+ok 772 regression anchor — agent-bootstrap retired, principal resolution is structural — D42-R3
+ok 773 regression anchor — universal reference doc contains Two Standing Priorities
+ok 774 regression anchor — universal reference doc contains Over/Over-and-Out protocol
+ok 775 regression anchor — bootloader references REFERENCE-AGENT-DISCIPLINE
+ok 776 regression anchor — CLAUDE-CAPTAIN.md no longer contains the moved protocol
+ok 777 regression anchor — _health-agent discovers peter's captain-handoff.md
+ok 778 regression anchor — commit-precheck glob covers usr/*/*/qgr-*
+ok 779 regression anchor — commit-precheck source file uses usr/*/*/ glob
+ok 780 regression anchor — legacy hardcoded usr/jordan glob would MISS peter's QGR
+ok 781 principal-scoped registration anchor — registrations at .claude/agents/{P}/{A}.md — D42-R3
+ok 782 agent-bootstrap retired: --agent flag exits 0 — D42-R3
+ok 783 agent-bootstrap retired: CLAUDE_AGENT_NAME irrelevant — D42-R3
+ok 784 registration files use structural principal paths — D42-R3
+ok 785 opportunities: --version shows version
+ok 786 opportunities: --help shows usage
+ok 787 opportunities: accepts --since parameter
+ok 788 opportunities: accepts --patterns flag
+ok 789 opportunities: accepts --output flag
+ok 790 opportunities: accepts --input flag
+ok 791 opportunities: accepts --failures flag
+ok 792 opportunities: accepts --all flag
+ok 793 opportunities: rejects unknown options
+ok 794 _path-resolve: sources without error
+ok 795 _path-resolve: exports AGENCY_PRINCIPAL
+ok 796 _path-resolve: exports AGENCY_PRINCIPAL_DIR
+ok 797 _path-resolve: exports AGENCY_REFS_DIR
+ok 798 _path-resolve: exports AGENCY_PROJECT_ROOT
+ok 799 _path-resolve: AGENCY_PRINCIPAL_DIR is under usr/
+ok 800 _path-resolve: AGENCY_REFS_DIR ends with claude/refs
+ok 801 _path-resolve: maps jdm user to jordan principal
+ok 802 _path-resolve: falls back to default mapping for unknown user
+ok 803 _path-resolve: AGENCY_PRINCIPAL env var is deprecated and ignored
+ok 804 _path-resolve: handles missing agency.yaml gracefully
+ok 805 _path-resolve: does not crash when agency.yaml is missing
+ok 806 _validate_name: accepts valid principal name
+ok 807 _validate_name: accepts leading digit
+ok 808 _validate_name: accepts underscores and hyphens
+ok 809 _validate_name: rejects empty
+ok 810 _validate_name: rejects path traversal (..)
+ok 811 _validate_name: rejects slash
+ok 812 _validate_name: rejects uppercase
+ok 813 _validate_name: rejects name over 32 chars
+ok 814 _validate_name: rejects reserved 'system' for principal
+ok 815 _validate_name: rejects reserved 'default' for agent
+ok 816 _validate_name: allows reserved 'system' for repo level
+ok 817 _validate_timezone: accepts standard timezone
+ok 818 _validate_timezone: accepts UTC
+ok 819 _validate_timezone: accepts offset format
+ok 820 _validate_timezone: rejects empty
+ok 821 _validate_timezone: rejects spaces
+ok 822 _validate_timezone: rejects over 64 chars
+ok 823 platform-setup: --version shows version
+ok 824 platform-setup: --help shows usage
+ok 825 platform-setup: dispatches based on config
+ok 826 platform-setup: auto resolves to macos on Darwin
+ok 827 platform-setup: handles missing provider tool
+ok 828 platform-setup-macos: --version shows version
+ok 829 platform-setup-linux: --version shows version
+ok 830 pr-merge: --help works
+ok 831 pr-merge: --version prints version
+ok 832 pr-merge: rejects --squash explicitly
+ok 833 pr-merge: rejects --rebase explicitly
+ok 834 pr-merge: rejects raw --admin (must use --principal-approved)
+ok 835 pr-merge: rejects unknown flag
+ok 836 pr-merge: missing pr-number errors
+ok 837 pr-merge: non-integer pr-number rejected
+ok 838 pr-merge: rejects multiple positional args
+ok 839 preview: defaults to docker-compose when no agency.yaml
+ok 840 preview: defaults to docker-compose when agency.yaml has no preview section
+ok 841 preview: reads provider from agency.yaml (quoted)
+ok 842 preview: reads provider from agency.yaml (unquoted)
+ok 843 preview: reads provider with inline comment
+ok 844 preview: dispatches to provider tool with no args
+ok 845 preview: forwards args to provider tool
+ok 846 preview: missing provider tool returns error with available providers
+ok 847 preview: missing provider lists available alternatives
+ok 848 preview: missing provider points at agency.yaml
+ok 849 preview: exit 0 on successful dispatch
+ok 850 preview: exit 1 on missing provider
+ok 851 preview: rejects provider name with path traversal (../)
+ok 852 preview: rejects provider name with slash
+ok 853 preview: rejects provider name with shell metacharacters
+ok 854 preview: accepts valid hyphenated provider name
+ok 855 preview: provider tool exists but not executable → error
+ok 856 preview: forwards exit code from provider tool (exec semantics)
+ok 857 preview: empty provider value falls back to default
+ok 858 preview: uses CLAUDE_PROJECT_DIR over git rev-parse
+ok 859 principal: --version shows version
+ok 860 principal: -v shows version
+ok 861 principal: --help shows usage
+ok 862 principal: -h shows usage
+ok 863 principal: --verbose flag is recognized
+ok 864 principal: returns a value
+ok 865 principal-create: --version shows version
+ok 866 principal-create: -v shows version
+ok 867 principal-create: no args shows usage
+ok 868 principal-create: requires principal name
+ok 869 principal-create: existing principal shows error
+ok 870 principal-create: --verbose flag is recognized
+not ok 871 add-principal: --version shows version
+# (from function `assert_success' in file tests/tools/test_helper.bash, line 98,
+#  in test file tests/tools/principal.bats, line 119)
+#   `assert_success' failed
+# Expected success (exit 0), got exit 127
+# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+not ok 872 add-principal: -v shows version
+# (from function `assert_success' in file tests/tools/test_helper.bash, line 98,
+#  in test file tests/tools/principal.bats, line 125)
+#   `assert_success' failed
+# Expected success (exit 0), got exit 127
+# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+not ok 873 add-principal: --help shows usage
+# (from function `assert_success' in file tests/tools/test_helper.bash, line 98,
+#  in test file tests/tools/principal.bats, line 131)
+#   `assert_success' failed
+# Expected success (exit 0), got exit 127
+# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+not ok 874 add-principal: -h shows usage
+# (from function `assert_success' in file tests/tools/test_helper.bash, line 98,
+#  in test file tests/tools/principal.bats, line 138)
+#   `assert_success' failed
+# Expected success (exit 0), got exit 127
+# Output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+ok 875 add-principal: --name flag is recognized
+ok 876 add-principal: --verbose flag is recognized
+ok 877 principal-create: handles special characters in name
+ok 878 principal-create: handles path traversal in name
+ok 879 principal-create: handles command injection in name
+ok 880 principal-create: handles backtick injection
+ok 881 add-principal: handles special characters in name
+ok 882 add-principal: handles path traversal in name
+ok 883 add-principal: handles command injection in name
+ok 884 principal: sources log helper
+ok 885 principal-create: sources log helper
+not ok 886 add-principal: sources log helper
+# (in test file tests/tools/principal.bats, line 229)
+#   `grep -q "_log-helper" "${TOOLS_DIR}/add-principal"' failed with status 2
+# grep: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+ok 887 principal: calls log_start
+ok 888 principal-create: calls log_start
+not ok 889 add-principal: calls log_start
+# (in test file tests/tools/principal.bats, line 241)
+#   `grep -q "log_start" "${TOOLS_DIR}/add-principal"' failed with status 2
+# grep: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+ok 890 principal: calls log_end
+ok 891 principal-create: calls log_end
+not ok 892 add-principal: calls log_end
+# (in test file tests/tools/principal.bats, line 253)
+#   `grep -q "log_end" "${TOOLS_DIR}/add-principal"' failed with status 2
+# grep: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+ok 893 principal: PRINCIPAL env var takes precedence
+ok 894 principal-create: -h shows usage
+ok 895 principal-create: --help shows usage
+ok 896 principal-create: rejects name starting with number
+ok 897 principal-create: converts uppercase to lowercase
+ok 898 principal-create: creates directory structure
+ok 899 principal-create: creates README.md
+not ok 900 add-principal: rejects name starting with number
+# (from function `assert_output_contains' in file tests/tools/test_helper.bash, line 89,
+#  in test file tests/tools/principal.bats, line 345)
+#   `assert_output_contains "Invalid principal name"' failed
+# Expected output to contain: Invalid principal name
+# Actual output: /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash: line 158: /Users/jdm/code/the-agency/claude/tools/add-principal: No such file or directory
+ok 901 add-principal: --no-set-current flag is recognized
+ok 902 principal-create: rejects name with newline
+ok 903 principal-create: rejects name with null byte
+ok 904 principal-create: rejects unicode characters
+ok 905 add-principal: rejects name with newline
+ok 906 principal-create: handles sed metacharacters safely
+ok 907 add-principal: handles sed metacharacters safely
+ok 908 _provider-resolve: sources without error
+ok 909 _provider-resolve: sources _path-resolve automatically
+ok 910 _provider-resolve: works with CLAUDE_PROJECT_DIR fallback
+ok 911 _provider_tool_name: secrets -> secret-{provider}
+ok 912 _provider_tool_name: terminal -> terminal-setup-{provider}
+ok 913 _provider_tool_name: platform -> platform-setup-{provider}
+ok 914 _provider_tool_name: design with verb -> design-{verb}-{provider}
+ok 915 _provider_tool_name: design without verb fails
+ok 916 _provider_tool_name: unknown section -> {section}-{provider}
+ok 917 get_provider_name: reads secrets provider from agency.yaml
+ok 918 get_provider_name: reads terminal provider from agency.yaml
+ok 919 get_provider_name: reads platform provider from agency.yaml
+ok 920 get_provider_name: fails for unconfigured section
+ok 921 get_provider_name: fails when agency.yaml missing
+ok 922 get_provider_name: strips quotes from provider value
+ok 923 get_provider_name: rejects path traversal attempt
+ok 924 get_provider_name: rejects uppercase provider names
+ok 925 get_provider_name: rejects provider with slashes
+ok 926 get_provider_name: accepts valid hyphenated names
+ok 927 resolve_provider: returns full path for secrets
+ok 928 resolve_provider: returns full path for terminal
+ok 929 resolve_provider: returns full path for design with verb
+ok 930 resolve_provider: exports AGENCY_PROVIDER
+ok 931 resolve_provider: exports AGENCY_PROVIDER_TOOL
+ok 932 resolve_provider: fails when tool not found
+ok 933 resolve_provider: fails when tool not executable
+ok 934 resolve_provider: fails for unconfigured section
+ok 935 runtime-guard: sub-3.13 interpreter emits guard message and exits non-zero
+ok 936 runtime-guard: 3.13+ interpreter does NOT emit guard message
+ok 937 runtime-guard: source of truth is claude/tools/dispatch-monitor
+ok 938 runtime-guard: template TOOL.py matches convention
+ok 939 receipt-sign: missing required args fails
+ok 940 receipt-sign: invalid type fails
+ok 941 receipt-sign: valid args produces receipt
+ok 942 receipt-sign: receipt contains version 1 — D42-R3 per-workstream path
+ok 943 receipt-sign: auto-approve when hash-d equals hash-c — D42-R3 per-workstream path
+ok 944 receipt-sign: --help shows usage
+ok 945 receipt-verify: no receipts = blocked
+ok 946 receipt-verify: --help shows usage
+ok 947 receipt-verify: --file on missing file fails
+ok 948 --help prints usage
+ok 949 --version prints version
+ok 950 pre mode classifies rename-target hits
+ok 951 pre mode classifies allowlisted hits
+ok 952 pre mode classifies unknown hits
+ok 953 --strict exits nonzero when unknown hits are present
+ok 954 --strict exits 0 when all hits are rename-target or allowlisted
+ok 955 --exclude skips matching file glob
+ok 956 --output writes inventory to file
+ok 957 post mode classifies agency/ patterns
+ok 958 binary files are skipped
+ok 959 release-plan: --version shows version
+ok 960 release-plan: --help shows usage
+ok 961 release-plan: unknown arg fails
+ok 962 release-plan: empty repo produces basic plan with no commits
+ok 963 release-plan: classifies methodology files correctly
+ok 964 release-plan: classifies tool files correctly
+ok 965 release-plan: classifies skill files correctly
+ok 966 release-plan: classifies workstream seeds correctly
+ok 967 release-plan: classifies coordination dispatches correctly
+ok 968 release-plan: excludes scratch files from commits
+ok 969 release-plan: pairs tool with matching skill into feature commit
+ok 970 release-plan: tool without matching skill stays in Tools group
+ok 971 release-plan: agency.yaml without feature stays in Config
+ok 972 release-plan: agency.yaml folds into feature when section matches tool
+ok 973 release-plan: --output writes to file
+ok 974 release-plan: --base changes base ref comparison
+ok 975 release: --version shows version
+ok 976 release: -v shows version
+ok 977 release: --help shows usage
+ok 978 release: -h shows usage
+ok 979 release: requires version argument
+ok 980 release: --dry-run flag is recognized
+ok 981 release: --push flag is recognized
+ok 982 release: --github flag is recognized
+ok 983 release: --changelog flag generates changelog only
+ok 984 release: --request flag is recognized
+ok 985 release: --verbose flag is recognized
+ok 986 release: accepts 'patch' as version
+ok 987 release: accepts 'minor' as version
+ok 988 release: accepts 'major' as version
+ok 989 release: accepts semver version
+ok 990 release: accepts release candidate version
+ok 991 release: handles special characters in version
+ok 992 release: handles spaces in version
+ok 993 run-in: --version prints version
+ok 994 run-in: --help shows usage
+ok 995 run-in: no args shows help and exits non-zero
+ok 996 run-in: runs command in target dir
+ok 997 run-in: parent shell CWD is unchanged after invocation
+ok 998 run-in: argv boundaries preserved for command with args
+ok 999 run-in: propagates non-zero exit code from command
+ok 1000 run-in: propagates zero exit code from successful command
+ok 1001 run-in: missing target dir fails with clear error
+ok 1002 run-in: missing -- separator fails with usage
+ok 1003 run-in: no command after -- fails with usage
+ok 1004 safe-extract: --version shows version
+ok 1005 safe-extract: --help shows usage
+ok 1006 safe-extract: no args shows help
+ok 1007 safe-extract: rejects non-usr/ destination
+ok 1008 safe-extract: rejects nonexistent archive
+ok 1009 safe-extract: extracts clean zip to usr/ path
+ok 1010 safe-extract: rejects zip with ../ path traversal
+ok 1011 safe-extract: rejects zip with symlink entries
+ok 1012 safe-extract: rejects tar archives with informative message
+ok 1013 safe-extract: rejects unknown formats
+ok 1014 sandbox-sync: resolves principal via agency.yaml for matching $USER
+ok 1015 sandbox-sync: refuses on unmapped $USER — no alphabetical fallback
+ok 1016 sandbox-sync: refuses when $USER maps to 'unknown' default sentinel
+ok 1017 sandbox-sync: PRINCIPAL env var overrides $USER lookup
+ok 1018 sandbox-sync: falls back to $USER if usr/$USER/ exists and no agency.yaml mapping
+ok 1019 sandbox-sync: refuses when resolved principal has no sandbox dir
+ok 1020 sandbox-sync: reads commands from usr/<principal>/commands/ (no claude/ prefix)
+ok 1021 sandbox-sync: ignores usr/<principal>/claude/commands/ (legacy path)
+ok 1022 sandbox-sync: reads hookify from usr/<principal>/hookify/ (no claude/ prefix)
+ok 1023 sandbox-sync: idempotent — second run reports existing, no changes
+ok 1024 sandbox-sync: --quiet suppresses output when no changes
+ok 1025 sandbox-sync: skips commands with '..' in filename (no symlink created)
+ok 1026 sandbox-sync: skips agent dirs with '..' in name
+ok 1027 sandbox-sync: leading-dot hidden files in commands/ are skipped
+ok 1028 agent-create: --version shows version
+ok 1029 agent-create: -v shows version
+ok 1030 agent-create: --help shows usage
+ok 1031 agent-create: -h shows usage
+ok 1032 agent-create: requires agent name
+ok 1033 agent-create: requires workstream
+ok 1034 agent-create: invalid workstream shows error
+ok 1035 agent-create: --type flag is recognized
+ok 1036 agent-create: --verbose flag is recognized
+ok 1037 agent-create: --list-types flag works
+ok 1038 workstream-create: --version shows version
+ok 1039 workstream-create: -v shows version
+ok 1040 workstream-create: requires name argument
+ok 1041 workstream-create: existing workstream shows error
+ok 1042 workstream-create: --verbose flag is recognized
+ok 1043 agent-create: handles special characters in agent name
+ok 1044 agent-create: handles path traversal in agent name
+ok 1045 workstream-create: handles special characters in name
+ok 1046 workstream-create: handles path traversal in name
+ok 1047 project-create: --version shows version
+ok 1048 project-create: -v shows version
+ok 1049 project-create: --help shows usage
+ok 1050 project-create: -h shows usage
+ok 1051 project-create: requires project path argument
+ok 1052 project-create: rejects existing directory
+ok 1053 project-create: --no-launch flag is recognized
+ok 1054 project-create: --verbose flag is recognized
+ok 1055 project-create: rejects invalid project names with special chars
+ok 1056 project-create: handles special characters safely
+ok 1057 secret: --version shows version
+ok 1058 secret: -v shows version
+ok 1059 secret: --help shows usage
+ok 1060 secret: -h shows usage
+ok 1061 secret: no arguments shows help
+ok 1062 secret: vault status attempts API call
+ok 1063 secret: vault with unknown subcommand shows usage
+ok 1064 secret: create requires name argument
+ok 1065 secret: create validates name format
+ok 1066 secret: get requires name argument
+ok 1067 secret: show requires name argument
+ok 1068 secret: delete requires name argument
+ok 1069 secret: rotate requires name argument
+ok 1070 secret: update requires name argument
+ok 1071 secret: tag without --tool fails
+ok 1072 secret: untag without --tool fails
+ok 1073 secret: grant requires name
+ok 1074 secret: grant requires --to identity
+ok 1075 secret: revoke requires name
+ok 1076 secret: revoke without --from fails
+ok 1077 secret: audit requires name
+ok 1078 secret: handles special characters in secret name
+ok 1079 secret: handles quotes in secret name
+ok 1080 secret: handles newlines in description
+ok 1081 secret: --json flag is accepted
+ok 1082 secret: --verbose flag enables verbose output
+ok 1083 secret: accepts --type option for create
+ok 1084 secret: accepts --service option for create
+ok 1085 secret: accepts --permission option for grant
+ok 1086 secret: unknown command shows error
+ok 1087 secret: service unavailable returns error
+ok 1088 session-handoff: main branch resolves to captain directory
+ok 1089 session-handoff: hook maps main to captain slug
+ok 1090 session-handoff: hook maps master to captain slug
+ok 1091 session-handoff: feature branch uses branch slug as directory
+ok 1092 session-handoff: hook handles agency-bootstrap type
+ok 1093 session-handoff: hook handles agency-update type
+ok 1094 settings-merge: framework hook updated when template changes
+ok 1095 settings-merge: project-specific hook preserved across merge
+ok 1096 settings-merge: hooks from non-template event types preserved
+ok 1097 settings-merge: permissions.deny preserved (F2 regression)
+ok 1098 settings-merge: enabledPlugins preserved
+ok 1099 settings-merge: creates settings.json from template when missing
+ok 1100 settings-merge: --dry-run does not modify files
+ok 1101 settings-merge: scoped unzip permission present after merge
+ok 1102 settings-merge: unzip wildcard NOT present
+ok 1103 settings-merge: Read(usr/**) permission present
+ok 1104 settings-merge: idempotent — merge twice, no duplicates
+ok 1105 settings-merge: hook with no matcher uses empty string as key
+ok 1106 skill-verify: accepts skill with description frontmatter and no allowed-tools
+ok 1107 skill-verify: accepts skill WITH allowed-tools (backward compat)
+ok 1108 skill-verify: rejects skill with no frontmatter (plain markdown)
+ok 1109 skill-verify: rejects skill with empty description
+ok 1110 skill-verify: rejects skill with missing description
+ok 1111 skill-verify: rejects empty SKILL.md
+ok 1112 skill-verify: reports missing SKILL.md file
+ok 1113 skill-verify: --quiet suppresses output on success
+ok 1114 skill-verify: --quiet still reports failures
+ok 1115 skill-verify: --help shows usage
+ok 1116 skill-verify: live framework skills pass validation (post flag #62/#63)
+ok 1117 terminal-setup: --version shows version
+ok 1118 terminal-setup: --help shows usage
+ok 1119 terminal-setup: dispatches to terminal-setup-ghostty
+ok 1120 terminal-setup: auto-detects ghostty from TERM_PROGRAM
+ok 1121 terminal-setup: fails when no provider and unknown TERM_PROGRAM
+ok 1122 ghostty-setup: runs without error
+ok 1123 terminal-setup-ghostty: --version shows version
+ok 1124 terminal-setup-ghostty: --help shows usage
+ok 1125 convention: tool maps to matching test file
+ok 1126 convention: tool with prefix matches gets all related tests
+ok 1127 convention: tool without test file produces no output
+ok 1128 dependency: lib file maps to direct-named test and dependents
+ok 1129 dependency: lib file finds test files that source it
+ok 1130 direct: .bats file maps to itself
+ok 1131 manifest: # Test: header overrides convention
+ok 1132 no-mapping: markdown file produces no output
+ok 1133 no-mapping: yaml config produces no output
+ok 1134 multi: multiple files deduplicates output
+ok 1135 multi: mixed files with some having no mapping
+ok 1136 empty input produces no output
+ok 1137 exit code is always 0
+ok 1138 package: apps/X/Sources/ → PACKAGE:apps/X/Tests
+ok 1139 package: no Tests dir → no mapping
+ok 1140 package: packages/X/src/ → PACKAGE:packages/X/tests
+ok 1141 tool-create --provider=secrets: creates secret-{name}
+ok 1142 tool-create --provider=secrets: template has correct tool name
+ok 1143 tool-create --provider=secrets: template has correct dispatcher
+ok 1144 tool-create --provider=terminal: creates terminal-setup-{name}
+ok 1145 tool-create --provider=platform: creates platform-setup-{name}
+ok 1146 tool-create --provider=design: creates design-{name}
+ok 1147 tool-create --provider: created tool is executable
+ok 1148 tool-create --provider: created tool has provider pattern in content
+ok 1149 tool-create --provider: created tool has set -euo pipefail
+ok 1150 tool-create --provider: created tool --help works
+ok 1151 tool-create --provider=invalid: rejects unknown pattern
+ok 1152 tool-create --provider: rejects if remapped tool already exists
+ok 1153 collapse: devex + devex → devex (exact match)
+ok 1154 collapse: iscp + iscp → iscp (exact match)
+ok 1155 collapse: mdpal + mdpal-app → mdpal-app (prefix match)
+ok 1156 collapse: mdpal + mdpal-cli → mdpal-cli (prefix match)
+ok 1157 no collapse: agency + captain → agency-captain
+ok 1158 no collapse: fleet + captain → fleet-captain
+ok 1159 edge: agent that contains workstream but doesn't start with it → no collapse
+ok 1160 edge: hyphenated workstream, matching agent → collapse
+ok 1161 edge: hyphenated workstream with prefixed agent → collapse
+ok 1162 edge: agent named like workstream but without hyphen → no collapse
+ok 1163 invalid: --workstream without --agent fails
+ok 1164 invalid: --agent without --workstream fails
+ok 1165 invalid: empty workstream fails
+ok 1166 invalid: empty agent fails
+ok 1167 positional mode: shows error when no name given
+ok 1168 positional mode: --help still works
+ok 1169 positional mode: --version shows new version
+ok 1170 help: includes collapse rule description
+ok 1171 help: includes example with --workstream
+ok 1172 invalid: positional + --workstream + --agent is ambiguous
+ok 1173 cwd at worktree root: no warning, exit 0
+ok 1174 cwd in worktree subdir: no warning, exit 0
+ok 1175 cwd in nested subdir: no warning, exit 0
+ok 1176 cwd outside any git repo: exit 0 (no check possible)
+ok 1177 --quiet: no output even on success
+ok 1178 version flag works
+ok 1179 worktree-sync: conflict-abort exits non-zero
+ok 1180 worktree-sync: conflict-abort message does NOT say bare 'Resolve manually'
+ok 1181 worktree-sync: conflict-abort message explains that merge was aborted
+ok 1182 worktree-sync: repo state is clean after conflict-abort (no MERGE_HEAD)
+ok 1183 worktree-sync: successfully merges 'main' branch (not just 'master')
+ok 1184 worktree-sync: detects MAIN_BRANCH dynamically from main checkout
+ok 1185 worktree-create: --version shows version
+ok 1186 worktree-create: -v shows version
+ok 1187 worktree-create: --help shows usage
+ok 1188 worktree-create: -h shows usage
+ok 1189 worktree-create: no args shows error
+ok 1190 worktree-create: invalid name starting with number shows error
+ok 1191 worktree-create: invalid name with special chars shows error
+ok 1192 worktree-create: unknown option shows error
+ok 1193 worktree-list: --version shows version
+ok 1194 worktree-list: -v shows version
+ok 1195 worktree-list: --help shows usage
+ok 1196 worktree-delete: --version shows version
+ok 1197 worktree-delete: -v shows version
+ok 1198 worktree-delete: --help shows usage
+ok 1199 worktree-sync: tool exists and is executable
+ok 1200 worktree-sync: --version shows version
+ok 1201 worktree-sync: --help shows usage
+ok 1202 worktree-sync: skill file mentions dispatch check

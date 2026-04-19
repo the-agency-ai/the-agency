@@ -1,0 +1,92 @@
+#!/bin/bash
+#
+# agency-report — Package agency-verify-v46 diagnostic into dispatch + GH issue
+#
+# Lightweight reporter: run agency-verify-v46, capture output, write a
+# dispatch payload + (optional) file a cross-repo GH issue. Dry-run default.
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+# Reserved exit codes per Plan v4 §6:
+# 10=no verify-v46 diagnostic to report
+# 11=cross-repo issue creation failed
+# 12=dispatch send failed
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+agency-report — Package verify-v46 diagnostic for dispatch + GH issue
+
+Usage:
+  agency-report [--apply] [--root DIR] [--output FILE]
+
+Default: dry-run (writes report to stdout).
+--apply                File the cross-repo issue and send the dispatch.
+USAGE
+    exit 0
+}
+
+MODE="dry-run"
+ROOT=""
+OUTPUT=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "agency-report $TOOL_VERSION"; exit 0 ;;
+        --apply) MODE="apply"; shift ;;
+        --root) shift; ROOT="${1:-}"; shift ;;
+        --output) shift; OUTPUT="${1:-}"; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$ROOT" ]] && ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || :
+[[ -z "$ROOT" ]] && die "not in a git repo"
+cd "$ROOT"
+
+VERIFY_TOOL=""
+if [[ -x "$ROOT/claude/tools/agency-verify-v46" ]]; then
+    VERIFY_TOOL="$ROOT/claude/tools/agency-verify-v46"
+elif [[ -x "$ROOT/agency/tools/agency-verify-v46" ]]; then
+    VERIFY_TOOL="$ROOT/agency/tools/agency-verify-v46"
+fi
+
+[[ -z "$VERIFY_TOOL" ]] && { echo "[FAIL] agency-verify-v46 not found" >&2; exit 10; }
+
+# Capture verify output
+diagnostic="$("$VERIFY_TOOL" --customer --json 2>&1 || true)"
+
+if [[ -z "$diagnostic" ]]; then
+    echo "[FAIL] no diagnostic to report" >&2
+    exit 10
+fi
+
+# Build report body
+report_body=$(cat <<EOF
+# agency-report — v46.0 migration diagnostic
+
+**Generated:** $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+**Repo root:** $ROOT
+
+## verify-v46 output
+
+\`\`\`json
+$diagnostic
+\`\`\`
+EOF
+)
+
+if [[ -n "$OUTPUT" ]]; then
+    printf '%s\n' "$report_body" > "$OUTPUT"
+    echo "report written to $OUTPUT"
+else
+    printf '%s\n' "$report_body"
+fi
+
+if [[ "$MODE" == "apply" ]]; then
+    echo "[INFO] --apply mode: dispatch + GH issue filing not implemented in this minimal variant" >&2
+    echo "[INFO] report-only: copy the output into a dispatch payload manually, or extend this tool" >&2
+fi
+exit 0

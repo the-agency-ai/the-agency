@@ -1,0 +1,54 @@
+---
+# Subagent B — Framework documentation
+# v46.0 structural reset Phase 4 fan-out
+# Authored: 2026-04-19 per Plan v4 §3 Phase 0c
+#
+# Scope: REFERENCE docs, READMEs, bootloader class doc. NOT the root CLAUDE.md
+# (owned exclusively by Phase 4.5).
+# Ownership priority: 2.
+
+subagent: B
+ownership_priority: 2
+
+files:
+  - agency/REFERENCE*.md
+  - agency/README*.md
+  - agency/CLAUDE-THEAGENCY.md
+  - .claude/commands/**/*.md      # user-invoked command docs
+
+excludes:
+  - CLAUDE.md                     # root bootloader — Phase 4.5 exclusive
+  - agency/workstreams/**
+  - src/archive/**
+  - agency/workstreams/*/history/**
+  - agency/workstreams/*/transcripts/**
+
+allowed_substitutions:
+  - pattern: "claude/tools/"
+    replacement: "agency/tools/"
+  - pattern: "claude/hooks/"
+    replacement: "agency/hooks/"
+  - pattern: "claude/hookify/"
+    replacement: "agency/hookify/"
+  - pattern: "claude/agents/"
+    replacement: "agency/agents/"
+  - pattern: "claude/skills/"
+    replacement: ".claude/skills/"      # skills live under .claude/ (Anthropic)
+  - pattern: "claude/config/"
+    replacement: "agency/config/"
+  - pattern: "claude/data/"
+    replacement: "agency/data/"
+  - pattern: "claude/templates/"
+    replacement: "agency/templates/"
+  - pattern: "claude/workstreams/"
+    replacement: "agency/workstreams/"
+  - pattern: "@claude/"
+    replacement: "@agency/"
+
+rejected_substitutions:
+  - "\\.claude/"
+  - "CLAUDE\\.md"
+  - "claude-code"
+  - "claude\\.com"
+
+expected_changes: null

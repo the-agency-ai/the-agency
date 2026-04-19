@@ -1,0 +1,134 @@
+#!/bin/bash
+#
+# reset-rollback — Safe rollback wrapper for v46.0 structural reset
+#
+# Principle 12: `git clean -fd` during reset is FORBIDDEN without explicit -e
+# exclusions covering the shim path + baseline dir. This wrapper encodes those
+# exclusions so callers never need to remember them.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+reset-rollback — Safe rollback wrapper
+
+Usage:
+  reset-rollback --pre-commit              # git reset --hard HEAD (shim-safe)
+  reset-rollback --post-commit-phase-revert
+                                           # git reset --hard HEAD^ (one commit back)
+  reset-rollback --full-reset-to-tag <tag> # git reset --hard <tag>
+
+Options:
+  --root DIR            Repo root (default: auto-detect)
+  --shim-path PATH      Shim path to preserve (default: usr/jordan/captain/reset-baseline-20260419/reset-shim.sh)
+  --baseline-dir DIR    Baseline dir to preserve (default: usr/jordan/captain/reset-baseline-20260419)
+  --help / --version
+
+The wrapper:
+  - NEVER runs `git clean -fd` without -e exclusions covering shim + baseline
+  - Uses `git reset --hard` only
+  - Emits audit entry per invocation
+USAGE
+    exit 0
+}
+
+MODE=""
+ROOT=""
+TAG=""
+SHIM_PATH="usr/jordan/captain/reset-baseline-20260419/reset-shim.sh"
+BASELINE_DIR="usr/jordan/captain/reset-baseline-20260419"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "reset-rollback $TOOL_VERSION"; exit 0 ;;
+        --pre-commit) MODE="pre-commit"; shift ;;
+        --post-commit-phase-revert) MODE="phase-revert"; shift ;;
+        --full-reset-to-tag) MODE="tag-reset"; shift; TAG="${1:-}"; shift ;;
+        --root) shift; ROOT="${1:-}"; shift ;;
+        --shim-path) shift; SHIM_PATH="${1:-}"; shift ;;
+        --baseline-dir) shift; BASELINE_DIR="${1:-}"; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$MODE" ]] && die "mode required (--pre-commit|--post-commit-phase-revert|--full-reset-to-tag)"
+[[ "$MODE" == "tag-reset" && -z "$TAG" ]] && die "--full-reset-to-tag requires tag name"
+
+[[ -z "$ROOT" ]] && ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || :
+[[ -z "$ROOT" ]] && die "not in a git repo"
+cd "$ROOT"
+
+# Audit log
+AUDIT_LOG="${AGENCY_AUDIT_LOG:-$ROOT/$BASELINE_DIR/audit-log.jsonl}"
+mkdir -p "$(dirname "$AUDIT_LOG")"
+
+audit_entry() {
+    local cmd="$1" status="$2"
+    local ts
+    ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+    printf '{"ts":"%s","tool":"reset-rollback","cmd":"%s","mode":"%s","tag":"%s","exit":%s}\n' \
+        "$ts" "$cmd" "$MODE" "$TAG" "$status" >> "$AUDIT_LOG"
+}
+
+# --- Modes ---
+do_pre_commit() {
+    # Resets HEAD state — does NOT touch the shim (untracked, session-scoped).
+    # Uses only `git reset --hard HEAD` — NEVER `git clean -fd`.
+    if AGENCY_ALLOW_RAW=1 git reset --hard HEAD 2>&1; then
+        audit_entry "git reset --hard HEAD" 0
+    else
+        audit_entry "git reset --hard HEAD" 1
+        return 1
+    fi
+}
+
+do_phase_revert() {
+    if AGENCY_ALLOW_RAW=1 git reset --hard HEAD^ 2>&1; then
+        audit_entry "git reset --hard HEAD^" 0
+    else
+        audit_entry "git reset --hard HEAD^" 1
+        return 1
+    fi
+}
+
+do_tag_reset() {
+    if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+        echo "[FAIL] tag not found: $TAG" >&2
+        audit_entry "git reset --hard $TAG" 2
+        return 1
+    fi
+    if AGENCY_ALLOW_RAW=1 git reset --hard "$TAG" 2>&1; then
+        audit_entry "git reset --hard $TAG" 0
+    else
+        audit_entry "git reset --hard $TAG" 1
+        return 1
+    fi
+}
+
+case "$MODE" in
+    pre-commit) do_pre_commit ;;
+    phase-revert) do_phase_revert ;;
+    tag-reset) do_tag_reset ;;
+    *) die "unhandled mode: $MODE" ;;
+esac
+rc=$?
+
+# Verify shim + baseline preserved
+if [[ -f "$ROOT/$SHIM_PATH" ]]; then
+    echo "[OK] shim preserved at $SHIM_PATH"
+else
+    echo "[INFO] shim absent (may not have been created yet): $SHIM_PATH"
+fi
+if [[ -d "$ROOT/$BASELINE_DIR" ]]; then
+    echo "[OK] baseline dir preserved at $BASELINE_DIR"
+else
+    echo "[INFO] baseline dir absent: $BASELINE_DIR"
+fi
+
+exit $rc

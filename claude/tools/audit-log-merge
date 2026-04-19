@@ -1,0 +1,96 @@
+#!/bin/bash
+#
+# audit-log-merge — Merge per-actor JSONL audit logs sorted by timestamp
+#
+# What Problem: Captain + 5 subagents all write JSONL audit entries during
+# the v46.0 reset. We need a single merged timeline for audit reconciliation
+# at Gate 6. Concatenation alone produces chronologically mangled output.
+#
+# How & Why: Read every input JSONL file, emit merged stream sorted by `ts`
+# field. Detect duplicate event-IDs (same ts+cmd from two actors — indicates
+# a concurrency anomaly).
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+audit-log-merge — Merge JSONL audit logs sorted by timestamp
+
+Usage:
+  audit-log-merge <log1> <log2> [<log3>...] [--output FILE]
+
+Options:
+  --output FILE      Write to FILE (default: stdout)
+  --help / --version
+USAGE
+    exit 0
+}
+
+LOGS=()
+OUTPUT=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "audit-log-merge $TOOL_VERSION"; exit 0 ;;
+        --output) shift; OUTPUT="${1:-}"; shift ;;
+        --*) die "Unknown flag: $1" ;;
+        *) LOGS+=("$1"); shift ;;
+    esac
+done
+
+[[ ${#LOGS[@]} -eq 0 ]] && die "at least one log file required"
+
+python3 - "${LOGS[@]}" "${OUTPUT:-}" <<'PYEOF'
+import json, sys
+
+logs = sys.argv[1:-1]
+output = sys.argv[-1]
+
+entries = []
+for path in logs:
+    try:
+        with open(path) as fh:
+            for lineno, line in enumerate(fh, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError as e:
+                    print(f"[WARN] {path}:{lineno} invalid JSON: {e}", file=sys.stderr)
+                    continue
+                entries.append(obj)
+    except (IOError, OSError) as e:
+        print(f"[ERROR] cannot read {path}: {e}", file=sys.stderr)
+        sys.exit(2)
+
+entries.sort(key=lambda e: (e.get("ts", ""), e.get("cmd", "")))
+
+# Detect duplicates (same ts + cmd)
+seen = {}
+dup_count = 0
+for e in entries:
+    key = (e.get("ts", ""), e.get("cmd", ""), e.get("src", ""), e.get("dst", ""))
+    if key in seen:
+        dup_count += 1
+        print(f"[WARN] duplicate event: {json.dumps(e)}", file=sys.stderr)
+    seen[key] = 1
+
+# Emit
+if output:
+    fh = open(output, "w")
+else:
+    fh = sys.stdout
+for e in entries:
+    fh.write(json.dumps(e, separators=(",", ":")) + "\n")
+if output:
+    fh.close()
+
+print(f"# merged={len(entries)} duplicates={dup_count}", file=sys.stderr)
+PYEOF

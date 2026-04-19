@@ -1,0 +1,43 @@
+---
+# Subagent D — Discovery-surface bodies
+# v46.0 structural reset Phase 4 fan-out
+# Authored: 2026-04-19 per Plan v4 §3 Phase 0c
+#
+# Scope: .claude/skills/, .claude/commands/ bodies, agency/agents/ bodies.
+# NOT the @import headers in .claude/agents/**/*.md (Phase 4.5 exclusive).
+# Ownership priority: 4.
+
+subagent: D
+ownership_priority: 4
+
+files:
+  - .claude/skills/**/*.md
+  - agency/agents/**/agent.md
+
+excludes:
+  - .claude/agents/**              # agent registrations — Phase 4.5 owns @imports
+  - .claude/commands/**            # commands — subagent B owns
+  - agency/workstreams/**
+  - src/archive/**
+
+allowed_substitutions:
+  - pattern: "claude/tools/"
+    replacement: "agency/tools/"
+  - pattern: "claude/hooks/"
+    replacement: "agency/hooks/"
+  - pattern: "claude/hookify/"
+    replacement: "agency/hookify/"
+  - pattern: "@claude/"
+    replacement: "@agency/"
+  - pattern: "claude/config/"
+    replacement: "agency/config/"
+  - pattern: "claude/templates/"
+    replacement: "agency/templates/"
+  - pattern: "claude/agents/"
+    replacement: "agency/agents/"
+
+rejected_substitutions:
+  - "\\.claude/"
+  - "CLAUDE\\.md"
+
+expected_changes: null

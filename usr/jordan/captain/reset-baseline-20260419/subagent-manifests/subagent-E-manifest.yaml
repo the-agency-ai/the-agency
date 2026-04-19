@@ -1,0 +1,45 @@
+---
+# Subagent E — Config
+# v46.0 structural reset Phase 4 fan-out
+# Authored: 2026-04-19 per Plan v4 §3 Phase 0c
+#
+# Scope: hooks/, hookify/, config/, package.json, .gitignore, .gitattributes,
+# + shared library _log-helper (broadest scope).
+# Ownership priority: 5.
+
+subagent: E
+ownership_priority: 5
+
+files:
+  - agency/hooks/**
+  - agency/hookify/**
+  - agency/config/**
+  - agency/tools/lib/**
+  - package.json
+  - .gitignore
+  - .gitattributes
+
+excludes:
+  - agency/workstreams/**
+  - src/archive/**
+
+allowed_substitutions:
+  - pattern: "claude/tools/"
+    replacement: "agency/tools/"
+  - pattern: "claude/hooks/"
+    replacement: "agency/hooks/"
+  - pattern: "claude/hookify/"
+    replacement: "agency/hookify/"
+  - pattern: "claude/config/"
+    replacement: "agency/config/"
+  - pattern: "claude/lib/"
+    replacement: "agency/lib/"
+  - pattern: "CLAUDE_PROJECT_DIR/claude/"
+    replacement: "CLAUDE_PROJECT_DIR/agency/"
+
+rejected_substitutions:
+  - "\\.claude/"
+  - "CLAUDE\\.md"
+  - "claude-code"
+
+expected_changes: null

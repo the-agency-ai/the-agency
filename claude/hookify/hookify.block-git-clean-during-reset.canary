@@ -1,0 +1,4 @@
+expected_decision: block
+expected_match: git clean
+---BODY---
+git clean -fd

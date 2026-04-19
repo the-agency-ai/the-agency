@@ -1,0 +1,124 @@
+#!/bin/bash
+#
+# agency-update-migrate-back — Rollback v46 → v45.3-pre-reset-local
+#
+# Restores from the v45.3-pre-reset-local tag. Refuses on dirty tree unless
+# --force. Clears prep marker. Rescues v46-format dispatches that were
+# created between migrate and rollback.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+# Reserved exit codes per Plan v4 §6:
+# 10=dirty tree refusal (use --force)
+# 11=no v45.3-pre-reset-local tag
+# 12=dispatch rescue had un-rescuable entries (non-fatal)
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+agency-update-migrate-back — Roll back v46 → v45 via local tag
+
+Usage:
+  agency-update-migrate-back [--force] [--root DIR] [--json]
+
+Options:
+  --force      Proceed even on dirty tree (DESTRUCTIVE — your changes may be lost)
+  --root DIR   Repo root (default: auto-detect)
+  --json       Machine-readable output
+
+Rescue: pre-existing v46-format dispatches at agency/workstreams/*/dispatch-*.md
+are renamed to v45-format paths before the tag reset. Un-rescuable entries
+are logged to .agency/migrate-back-rescue-v46.log.
+USAGE
+    exit 0
+}
+
+FORCE=0
+ROOT=""
+AS_JSON=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "agency-update-migrate-back $TOOL_VERSION"; exit 0 ;;
+        --force) FORCE=1; shift ;;
+        --root) shift; ROOT="${1:-}"; shift ;;
+        --json) AS_JSON=1; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$ROOT" ]] && ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || :
+[[ -z "$ROOT" ]] && die "not in a git repo"
+cd "$ROOT"
+
+emit() {
+    local sev="$1" msg="$2"
+    if [[ $AS_JSON -eq 1 ]]; then
+        printf '{"severity":"%s","message":"%s"}\n' "$sev" "$msg"
+    else
+        echo "[$sev] $msg"
+    fi
+}
+
+# Check tag exists
+if ! git rev-parse v45.3-pre-reset-local >/dev/null 2>&1; then
+    emit "FAIL" "v45.3-pre-reset-local tag not found — cannot roll back"
+    exit 11
+fi
+
+# Dirty tree check
+if [[ $FORCE -ne 1 ]]; then
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        emit "FAIL" "tree is dirty — commit, stash, or pass --force (destructive)"
+        exit 10
+    fi
+fi
+
+# Dispatch rescue: scan v46-format paths at agency/workstreams/*/dispatch-*.md
+RESCUE_LOG="$ROOT/.agency/migrate-back-rescue-v46.log"
+mkdir -p "$ROOT/.agency"
+: > "$RESCUE_LOG"
+rescued=0
+unrescuable=0
+
+if [[ -d "$ROOT/agency" ]]; then
+    while IFS= read -r -d '' dispatch; do
+        # Attempt to map agency/workstreams/.../dispatch-* → claude/workstreams/.../dispatch-*
+        rel="${dispatch#$ROOT/}"
+        target="${rel/agency\//claude\/}"
+        target_dir="$ROOT/$(dirname "$target")"
+        if mkdir -p "$target_dir" 2>/dev/null; then
+            if cp "$dispatch" "$ROOT/$target" 2>/dev/null; then
+                rescued=$((rescued + 1))
+                echo "RESCUED $rel → $target" >> "$RESCUE_LOG"
+            else
+                unrescuable=$((unrescuable + 1))
+                echo "UN-RESCUABLE $rel (copy failed)" >> "$RESCUE_LOG"
+            fi
+        else
+            unrescuable=$((unrescuable + 1))
+            echo "UN-RESCUABLE $rel (dest mkdir failed)" >> "$RESCUE_LOG"
+        fi
+    done < <(find "$ROOT/agency/workstreams" -type f -name 'dispatch-*.md' -print0 2>/dev/null || true)
+fi
+
+# Reset to tag
+git reset --hard v45.3-pre-reset-local >/dev/null 2>&1 || {
+    emit "FAIL" "git reset --hard v45.3-pre-reset-local failed"
+    exit 2
+}
+
+# Clear prep marker
+rm -f "$ROOT/.agency/migrate-prep-v46.ok"
+
+emit "OK" "rolled back to v45.3-pre-reset-local — rescued=$rescued un-rescuable=$unrescuable"
+
+if [[ $unrescuable -gt 0 ]]; then
+    emit "WARN" "review $RESCUE_LOG for un-rescuable entries requiring manual action"
+    exit 12
+fi
+exit 0
