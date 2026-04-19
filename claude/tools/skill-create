@@ -154,11 +154,18 @@ fi
 
 # Cleanup trap — handles BOTH partial scaffold AND mktemp tmp file (H14 from MAR).
 # Single trap, composes both concerns so one doesn't overwrite the other.
+# CRITICAL: the scaffold-removal arm is create-mode ONLY. In upgrade mode
+# the skill already exists with real content — deleting it on any exit path
+# would destroy work. Upgrade mode flags $UPGRADE_MODE=true to gate the arm.
 SUCCESS_MARK=false
 TMP_REG=""
 _cleanup_all() {
     if [[ -n "$TMP_REG" ]] && [[ -f "$TMP_REG" ]]; then
         rm -f "$TMP_REG"
+    fi
+    # NEVER delete in upgrade mode — the skill pre-exists, deletion is destructive.
+    if [[ "$UPGRADE_MODE" = true ]]; then
+        return
     fi
     if [[ "$SUCCESS_MARK" != "true" ]] && [[ -d "$SKILLS_DIR/$NAME" ]]; then
         rm -rf "$SKILLS_DIR/$NAME"
