@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3
 """
 What Problem: Dispatch polling via /loop costs ~82,000 tokens/day and has
 5-minute latency. The Monitor tool (Claude Code v2.1.98+) can watch a
@@ -28,15 +28,29 @@ Usage:
 
 Written: 2026-04-10 during captain session (Monitor tool adoption)
 Rewritten: 2026-04-17 D44 — Python rewrite (bash 3.2 compat, first Python tool)
+Shebang: 2026-04-18 D45-R1 — switched from `#!/usr/bin/env python3.12` to
+    `#!/usr/bin/env python3` + runtime guard per briefing
+    usr/jordan/captain/briefings/python-shebang-investigation-20260418.md.
+    D44's exact-minor shebang failed on hosts without `python3.12` on PATH
+    (incident: Monitor 127 on 2026-04-17 dev machine had 3.13 only).
 """
 
-from __future__ import annotations
+import sys
+
+# ── Runtime floor guard (D45 — Python 3.13+) ─────────────────────────────────
+# `python3` may resolve to any 3.x; the framework floor is 3.13. Fail fast
+# with a clear message rather than letting the tool run on an older interpreter
+# and surface cryptic syntax/API errors later.
+if sys.version_info < (3, 13):
+    sys.exit(
+        f"Python 3.13+ required (got {sys.version_info.major}.{sys.version_info.minor}). "
+        "See claude/config/dependencies.yaml."
+    )
 
 import argparse
 import re
 import signal
 import subprocess
-import sys
 import time
 from pathlib import Path
 from typing import Optional, Set, List
