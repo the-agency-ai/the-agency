@@ -1,0 +1,597 @@
+#!/bin/bash
+#
+# skill-audit — Audit framework skills for agency-skill-version 2 compliance
+#                + registry consistency
+#
+# WHAT: For each skill under .claude/skills/, checks:
+#   (a) structural validity (calls `skills validate` if skills-cli present)
+#   (b) agency-v2 compliance (required frontmatter fields, bundle files,
+#       body section headings)
+#   (c) required_reading paths resolve to real files
+#   (d) registry consistency — row in REFERENCE-SKILLS-INDEX.md exists and
+#       matches directory name
+#
+# WHY: the-agency#298 + #315 — automated audit of the v2 methodology rollout.
+# Manual drift detection doesn't scale past 60 skills.
+#
+# USAGE:
+#   skill-audit                    # audit all skills
+#   skill-audit <skill-name>       # audit one
+#   skill-audit --json             # machine-readable output
+#   skill-audit --fix              # auto-fix drift where safe
+#   skill-audit --quiet            # only print on issues
+#
+# EXIT CODES:
+#   0 — clean
+#   1 — drift (registry vs filesystem mismatch)
+#   2 — v2 non-compliance
+#   3 — tool error
+
+set -euo pipefail
+
+TOOL_VERSION="1.1.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${CLAUDE_PROJECT_DIR:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
+SKILLS_DIR="$REPO_ROOT/.claude/skills"
+REGISTRY="$REPO_ROOT/claude/REFERENCE-SKILLS-INDEX.md"
+
+# the-agency#320 item 3: structured telemetry
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+  # shellcheck source=./lib/_log-helper
+  source "$SCRIPT_DIR/lib/_log-helper"
+else
+  # No-op shims if helper missing — keep tool functional without telemetry
+  log_start() { echo ""; }
+  log_end()   { :; }
+fi
+
+# Required body-structure section headings per REFERENCE-SKILL-AUTHORING.md §5
+REQUIRED_SECTIONS=(
+  "## Why this exists"
+  "## Required reading"
+  "## Usage"
+  "## Preconditions"
+  "## Flow / Steps"
+  "## Failure modes"
+  "## What this does NOT do"
+  "## Status"
+  "## Related"
+)
+
+# ── Args ─────────────────────────────────────────────────────────────────────
+
+TARGET=""
+JSON=false
+FIX=false
+QUIET=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) JSON=true; shift ;;
+    --fix) FIX=true; shift ;;
+    --quiet|-q) QUIET=true; shift ;;
+    --version) echo "skill-audit $TOOL_VERSION"; exit 0 ;;
+    --help|-h)
+      cat <<'EOF'
+Usage: skill-audit [<skill-name>] [--json] [--fix] [--quiet]
+
+Audit framework skills for agency-skill-version 2 compliance + registry
+consistency. Checks structure, v2 frontmatter, bundle completeness,
+required_reading paths, body sections, and registry drift.
+
+Exit codes:
+  0 — clean
+  1 — drift (registry <-> filesystem mismatch)
+  2 — v2 non-compliance
+  3 — tool error
+
+See claude/REFERENCE-SKILL-AUTHORING.md for the v2 spec.
+EOF
+      exit 0
+      ;;
+    -*) echo "skill-audit: unknown flag: $1" >&2; exit 2 ;;
+    *) TARGET="$1"; shift ;;
+  esac
+done
+
+# ── Preconditions ────────────────────────────────────────────────────────────
+
+if [[ ! -d "$SKILLS_DIR" ]]; then
+  echo "skill-audit: skills directory not found at $SKILLS_DIR" >&2
+  exit 3
+fi
+
+if [[ ! -f "$REGISTRY" ]]; then
+  echo "skill-audit: registry not found at $REGISTRY" >&2
+  exit 3
+fi
+
+# If TARGET specified, validate it exists as a directory
+if [[ -n "$TARGET" && ! -d "$SKILLS_DIR/$TARGET" ]]; then
+  echo "skill-audit: skill '$TARGET' not found at $SKILLS_DIR/$TARGET" >&2
+  exit 3
+fi
+
+SKILLS_VALIDATE_AVAILABLE=false
+if command -v skills &>/dev/null; then
+  SKILLS_VALIDATE_AVAILABLE=true
+fi
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+# Extract a YAML frontmatter field value from a SKILL.md file.
+# Handles: scalar values, YAML lists (returns all list items, one per line).
+#
+# the-agency#320 item 2: YAML-aware parsing (PyYAML / yq) preferred over awk.
+# Fallback: awk (safe when skill content is well-formed; hardened by Anthropic
+# `skills validate` which runs as outer gate when skills-cli is installed).
+#
+# Strategy: try python3+yaml first (ubiquitous on macOS + most Linuxes),
+# then yq, then awk. If first parser succeeds, we get real YAML semantics:
+# block scalars, flow-style nested mappings, duplicate-key handling (YAML
+# takes last; awk took first — consistent YAML behavior matters for audit).
+_get_frontmatter() {
+  local file="$1" field="$2"
+  if [[ ! -f "$file" ]]; then
+    echo ""; return
+  fi
+
+  # Try python3+yaml (preferred — pure YAML semantics)
+  if command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1; then
+    FILE="$file" FIELD="$field" python3 -c '
+import os, sys, yaml
+path = os.environ["FILE"]
+field = os.environ["FIELD"]
+with open(path, "r", encoding="utf-8") as f:
+    txt = f.read()
+# Extract frontmatter between leading "---" and next "---"
+if not txt.startswith("---"):
+    sys.exit(0)
+end = txt.find("\n---", 3)
+if end < 0:
+    sys.exit(0)
+fm_src = txt[3:end].lstrip("\n")
+try:
+    fm = yaml.safe_load(fm_src) or {}
+except yaml.YAMLError:
+    sys.exit(0)
+if not isinstance(fm, dict) or field not in fm:
+    # Not declared — emit nothing so caller treats as missing
+    sys.exit(0)
+val = fm[field]
+if val is None:
+    # Declared but null — emit sentinel so caller distinguishes from missing
+    print("~")
+elif isinstance(val, list):
+    if len(val) == 0:
+        # Declared empty list — emit sentinel "[]" for parity with awk behavior
+        # (so audit sees "field declared" even when list is empty)
+        print("[]")
+    else:
+        for item in val:
+            print(item)
+elif isinstance(val, bool):
+    # YAML true/false as lowercase (awk emitted verbatim)
+    print("true" if val else "false")
+elif isinstance(val, (dict,)):
+    # Flow-style nested mapping — emit as YAML one-liner
+    print(yaml.safe_dump(val, default_flow_style=True).rstrip())
+else:
+    # Scalar (string/int/float). Empty string is declared-but-empty —
+    # emit sentinel "~" so shell caller sees non-empty.
+    if val == "":
+        print("~")
+    else:
+        print(val)
+' 2>/dev/null && return
+  fi
+
+  # Try yq (yq v4+)
+  if command -v yq >/dev/null 2>&1; then
+    # Extract frontmatter, then eval field. `yq` on plain YAML file only.
+    local tmp_fm
+    tmp_fm=$(mktemp)
+    awk '/^---$/ { if (++i == 1) next; else exit } i==1' "$file" > "$tmp_fm"
+    local out
+    if out=$(yq eval ".${field}" "$tmp_fm" 2>/dev/null); then
+      rm -f "$tmp_fm"
+      if [[ "$out" == "null" ]]; then
+        return
+      fi
+      # yq emits list items as "- item"; strip to match python3 output
+      echo "$out" | sed -E 's/^- //'
+      return
+    fi
+    rm -f "$tmp_fm"
+  fi
+
+  # Fallback: awk (v1 behavior — may disagree with real YAML on edge cases)
+  awk -v field="$field" '
+    BEGIN { in_fm=0; in_list=0 }
+    /^---$/ { if (in_fm==0) { in_fm=1; next } else { exit } }
+    in_fm==1 {
+      # Match "field:" followed by space or end-of-line (not field_other:)
+      if ($0 ~ "^"field":([ \t]|$)") {
+        sub("^"field":[ \t]*", "", $0)
+        if ($0 == "") { in_list=1 } else { print $0; exit }
+      } else if (in_list==1) {
+        # List continuation: indented lines; stop on any top-level key
+        if ($0 ~ /^[ \t]/) {
+          print $0
+        } else {
+          in_list=0
+        }
+      }
+    }
+  ' "$file"
+}
+
+_get_version() {
+  _get_frontmatter "$1" "agency-skill-version" | tr -d ' '
+}
+
+# ── Audit state ──────────────────────────────────────────────────────────────
+
+AUDIT_COUNT=0
+CLEAN_COUNT=0
+DRIFT_COUNT=0
+NONCOMPLIANT_COUNT=0
+FIXED_COUNT=0
+
+ISSUES=()
+
+# ── Audit a single skill ─────────────────────────────────────────────────────
+
+_audit_skill() {
+  local skill_name="$1"
+  local skill_dir="$SKILLS_DIR/$skill_name"
+  local skill_file="$skill_dir/SKILL.md"
+  local version
+  local issues_for_skill=0
+
+  AUDIT_COUNT=$((AUDIT_COUNT + 1))
+
+  if [[ ! -f "$skill_file" ]]; then
+    ISSUES+=("$skill_name: missing SKILL.md")
+    NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+    return
+  fi
+
+  version=$(_get_version "$skill_file")
+
+  # v1 skills: only registry check applies
+  if [[ "$version" != "2" ]]; then
+    if ! grep -qF "| $skill_name " "$REGISTRY" 2>/dev/null; then
+      ISSUES+=("$skill_name (v${version:-1}): not in registry")
+      DRIFT_COUNT=$((DRIFT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    fi
+    if [[ $issues_for_skill -eq 0 ]]; then
+      CLEAN_COUNT=$((CLEAN_COUNT + 1))
+    fi
+    return
+  fi
+
+  # === v2 compliance ===
+
+  # 1. Bundle completeness (5 required paths)
+  local required_paths=(
+    "$skill_dir/SKILL.md"
+    "$skill_dir/reference.md"
+    "$skill_dir/examples.md"
+    "$skill_dir/scripts"
+    "$skill_dir/assets"
+  )
+  for p in "${required_paths[@]}"; do
+    if [[ ! -e "$p" ]]; then
+      local rel="${p#"$skill_dir/"}"
+      ISSUES+=("$skill_name (v2): missing $rel")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+      if [[ "$FIX" = true ]]; then
+        case "$rel" in
+          reference.md)
+            printf "# %s — unique protocol\n\nTODO: fill or note empty\n" "$skill_name" > "$p"
+            FIXED_COUNT=$((FIXED_COUNT + 1))
+            ;;
+          examples.md)
+            printf "# %s — examples\n\n## Happy-path\n\n## Edge-case\n\n## Integration\n" "$skill_name" > "$p"
+            FIXED_COUNT=$((FIXED_COUNT + 1))
+            ;;
+          scripts)
+            mkdir -p "$p"
+            printf "# scripts/\n\nTODO: describe or note empty\n" > "$p/README.md"
+            FIXED_COUNT=$((FIXED_COUNT + 1))
+            ;;
+          assets)
+            mkdir -p "$p"
+            printf "# assets/\n\nTODO: describe or note empty\n" > "$p/README.md"
+            FIXED_COUNT=$((FIXED_COUNT + 1))
+            ;;
+        esac
+      fi
+    fi
+  done
+
+  # 2. Required frontmatter fields
+  local required_fields=(
+    "name"
+    "description"
+    "agency-skill-version"
+    "when_to_use"
+    "argument-hint"
+    "paths"
+    "required_reading"
+  )
+  for f in "${required_fields[@]}"; do
+    local val
+    val=$(_get_frontmatter "$skill_file" "$f")
+    # Finding #4 (code-9 / retro-MAR): reject sentinels "~" (declared null /
+    # declared empty string) and "[]" (declared empty list) for fields where
+    # empty is not meaningful content. Exception: `paths` can legitimately be
+    # `[]` for captain-only skills (four-layer defense — see D8).
+    if [[ -z "$val" ]]; then
+      ISSUES+=("$skill_name (v2): missing frontmatter field '$f'")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    elif [[ "$val" = "~" ]]; then
+      # Declared but null or empty-string — not acceptable for required content fields
+      ISSUES+=("$skill_name (v2): frontmatter field '$f' is empty/null (declared but no value)")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    elif [[ "$val" = "[]" && "$f" != "paths" ]]; then
+      # Empty list is only valid for `paths` (captain-only four-layer defense).
+      # All other list fields (required_reading) must have at least one entry.
+      ISSUES+=("$skill_name (v2): frontmatter field '$f' is an empty list (must have at least one entry)")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    fi
+  done
+
+  # 3. Name matches dir
+  local declared_name
+  declared_name=$(_get_frontmatter "$skill_file" "name" | tr -d ' ')
+  if [[ "$declared_name" != "$skill_name" && -n "$declared_name" ]]; then
+    ISSUES+=("$skill_name (v2): frontmatter name='$declared_name' doesn't match directory")
+    NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+    issues_for_skill=$((issues_for_skill + 1))
+  fi
+
+  # 3b. Captain-only cross-field consistency (finding #9 / D8 from retro-MAR).
+  # Three distinct scoping patterns on v2 skills:
+  #
+  #   (a) Agent-scoped:       paths: .claude/worktrees/**, no DMI
+  #   (b) Default-actor safe: paths: [], DMI: true, no captain- prefix
+  #                           (e.g., `sync` — high-risk default-actor that
+  #                           needs explicit confirmation)
+  #   (c) Captain-only:       paths: [], DMI: true, captain- in name
+  #
+  # The rule we enforce: IF name contains `captain-`, THEN paths MUST be [] AND
+  # DMI MUST be true. Converse does NOT hold (sync is (b), not captain-only).
+  local dmi paths_val
+  dmi=$(_get_frontmatter "$skill_file" "disable-model-invocation")
+  paths_val=$(_get_frontmatter "$skill_file" "paths")
+  local has_dmi_true=false has_empty_paths=false has_captain_name=false
+  [[ "$dmi" = "true" || "$dmi" = "True" ]] && has_dmi_true=true
+  [[ "$paths_val" = "[]" ]] && has_empty_paths=true
+  [[ "$skill_name" =~ ^captain-|-captain- ]] && has_captain_name=true
+
+  if [[ "$has_captain_name" = true ]]; then
+    local missing_layers=""
+    [[ "$has_dmi_true" = false ]] && missing_layers="${missing_layers}disable-model-invocation:true, "
+    [[ "$has_empty_paths" = false ]] && missing_layers="${missing_layers}paths:[], "
+    missing_layers="${missing_layers%, }"
+    if [[ -n "$missing_layers" ]]; then
+      ISSUES+=("$skill_name (v2): captain-named skill missing defense layers: $missing_layers")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    fi
+  fi
+
+  # 4. required_reading paths resolve to real files
+  local rr
+  rr=$(_get_frontmatter "$skill_file" "required_reading")
+  if [[ -n "$rr" ]]; then
+    while IFS= read -r rr_line; do
+      local rr_path
+      rr_path=$(echo "$rr_line" | sed 's/^[ \t]*-[ \t]*//')
+      [[ -z "$rr_path" || "$rr_path" =~ ^# ]] && continue
+      if [[ ! -f "$REPO_ROOT/$rr_path" ]]; then
+        ISSUES+=("$skill_name (v2): required_reading path not found: $rr_path")
+        NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+        issues_for_skill=$((issues_for_skill + 1))
+      fi
+    done <<< "$rr"
+  fi
+
+  # 5. Body section headings (9 required per v2 spec, IN ORDER)
+  # Use anchored regex (-E + ^) to avoid matching H3 (### Foo) as H2 (## Foo).
+  # Fix for H5 from MAR 2026-04-19 — grep -F substring match was too lenient.
+  # ORDER enforcement added per finding #7 (D1+D2 dedup) from retro-MAR.
+  if [[ -f "$skill_file" ]]; then
+    # Presence check (existing behavior)
+    for section in "${REQUIRED_SECTIONS[@]}"; do
+      # Escape regex metacharacters in section name for safe grep -E.
+      # Required sections use '##', '/', and spaces — / and space are literal in ERE.
+      local pattern="^${section//\//\\/}\$"
+      if ! grep -qE "$pattern" "$skill_file" 2>/dev/null; then
+        # Also accept the heading with trailing content (e.g., "## Usage — notes")
+        local pattern_loose="^${section//\//\\/}( |\$)"
+        if ! grep -qE "$pattern_loose" "$skill_file" 2>/dev/null; then
+          ISSUES+=("$skill_name (v2): missing body section '$section'")
+          NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+          issues_for_skill=$((issues_for_skill + 1))
+        fi
+      fi
+    done
+
+    # Order check — extract all H2 headings with line numbers, filter to
+    # required ones (accepting loose-match variants), assert sequence
+    # matches REQUIRED_SECTIONS order. Only runs if all required sections
+    # were present (order check on a file with missing sections is noisy).
+    local actual_order=""
+    actual_order=$(grep -En "^## " "$skill_file" 2>/dev/null | while IFS=: read -r ln heading; do
+      # Normalize: strip trailing "— notes" style suffixes for comparison
+      local base="${heading%% — *}"
+      for required in "${REQUIRED_SECTIONS[@]}"; do
+        if [[ "$base" == "$required" || "$heading" == "$required" ]]; then
+          echo "$required"
+          break
+        fi
+      done
+    done)
+
+    # Build expected sequence from REQUIRED_SECTIONS (array order)
+    local expected_seq=""
+    for s in "${REQUIRED_SECTIONS[@]}"; do
+      expected_seq="${expected_seq}${s}"$'\n'
+    done
+    expected_seq="${expected_seq%$'\n'}"
+
+    if [[ -n "$actual_order" && "$actual_order" != "$expected_seq" ]]; then
+      ISSUES+=("$skill_name (v2): body sections out of order (expected: Why → Required reading → Usage → Preconditions → Flow → Failure modes → NOT do → Status → Related)")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    fi
+  fi
+
+  # 6. Registry row
+  if ! grep -qF "| $skill_name " "$REGISTRY" 2>/dev/null; then
+    ISSUES+=("$skill_name (v2): not in registry (claude/REFERENCE-SKILLS-INDEX.md)")
+    DRIFT_COUNT=$((DRIFT_COUNT + 1))
+    issues_for_skill=$((issues_for_skill + 1))
+  fi
+
+  # 7. Anthropic skills validate
+  if [[ "$SKILLS_VALIDATE_AVAILABLE" = true ]]; then
+    if ! skills validate "$skill_dir" &>/dev/null; then
+      ISSUES+=("$skill_name (v2): skills validate reports structural issue")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    fi
+  fi
+
+  if [[ $issues_for_skill -eq 0 ]]; then
+    CLEAN_COUNT=$((CLEAN_COUNT + 1))
+  fi
+}
+
+# ── Audit loop ───────────────────────────────────────────────────────────────
+
+# the-agency#320 item 3: structured run telemetry
+RUN_ID=$(log_start "skill-audit" "$@" 2>/dev/null || echo "")
+
+if [[ -n "$TARGET" ]]; then
+  _audit_skill "$TARGET"
+else
+  for d in "$SKILLS_DIR"/*/; do
+    [[ -d "$d" ]] || continue
+    _audit_skill "$(basename "$d")"
+  done
+fi
+
+# ── Report ───────────────────────────────────────────────────────────────────
+
+if [[ "$JSON" = true ]]; then
+  # Finding #12 (T10 / retro-MAR 2026-04-19): emit JSON via python's json.dumps
+  # instead of hand-rolled printf. Prior implementation only escaped `"` via
+  # `sed 's/"/\\"/g'`, which broke on backslashes, control chars, multibyte
+  # characters, and newlines — producing invalid JSON when an issue string
+  # contained any of these (e.g., file paths on Windows, kebab names with
+  # unicode escapes, etc.). Proper JSON emitter ensures downstream consumers
+  # (`jq`, python `json.load`, any schema validator) parse successfully.
+  #
+  # Pass counts + issues via env vars (the ccf054ad-style env-var pattern,
+  # never f-string interpolation — the issue strings are agent-controlled
+  # data and must not flow through code interpolation).
+  if command -v python3 >/dev/null 2>&1; then
+    # Serialize issues array through a NUL-delimited stream to preserve any
+    # embedded chars safely (newlines, quotes, backslashes).
+    # Build the NUL stream once, pass via fd via process substitution.
+    _issues_nul=$(printf '%s\0' "${ISSUES[@]+"${ISSUES[@]}"}")
+    AUDITED="$AUDIT_COUNT" CLEAN="$CLEAN_COUNT" DRIFT="$DRIFT_COUNT" \
+    NONCOMPLIANT="$NONCOMPLIANT_COUNT" FIXED="$FIXED_COUNT" \
+    ISSUES_NUL="$_issues_nul" \
+    python3 -c '
+import os, sys, json
+issues_raw = os.environ.get("ISSUES_NUL", "")
+# NUL-delimited; filter empty trailing split
+issues = [s for s in issues_raw.split("\x00") if s]
+out = {
+    "audited": int(os.environ["AUDITED"]),
+    "clean": int(os.environ["CLEAN"]),
+    "drift": int(os.environ["DRIFT"]),
+    "noncompliant": int(os.environ["NONCOMPLIANT"]),
+    "fixed": int(os.environ["FIXED"]),
+    "issues": issues,
+}
+print(json.dumps(out, indent=2, ensure_ascii=False))
+'
+  else
+    # Fallback: legacy printf path for systems without python3 (rare; we
+    # require python3 for the frontmatter parser anyway, so this is safety
+    # net only). Known limitations documented in retro-MAR T10.
+    printf '{\n'
+    printf '  "audited": %d,\n' "$AUDIT_COUNT"
+    printf '  "clean": %d,\n' "$CLEAN_COUNT"
+    printf '  "drift": %d,\n' "$DRIFT_COUNT"
+    printf '  "noncompliant": %d,\n' "$NONCOMPLIANT_COUNT"
+    printf '  "fixed": %d,\n' "$FIXED_COUNT"
+    printf '  "issues": ['
+    first=true
+    if [[ ${#ISSUES[@]} -gt 0 ]]; then
+      for issue in "${ISSUES[@]}"; do
+        if [[ "$first" = true ]]; then first=false; else printf ','; fi
+        escaped=$(printf '%s' "$issue" | sed 's/"/\\"/g')
+        printf '\n    "%s"' "$escaped"
+      done
+    fi
+    printf '\n  ]\n'
+    printf '}\n'
+  fi
+else
+  # Always print fixes when --fix used, even in --quiet mode
+  local_print=false
+  if [[ "$QUIET" = false ]] || [[ ${#ISSUES[@]} -gt 0 ]] || [[ "$FIX" = true && "$FIXED_COUNT" -gt 0 ]]; then
+    local_print=true
+  fi
+
+  if [[ "$local_print" = true ]]; then
+    echo ""
+    echo "Skill Audit — $AUDIT_COUNT skills audited"
+    echo "-----------------------------------------"
+    echo "  [ok]   Clean:         $CLEAN_COUNT"
+    echo "  [warn] Drift:         $DRIFT_COUNT"
+    echo "  [fail] Non-compliant: $NONCOMPLIANT_COUNT"
+    if [[ "$FIX" = true ]]; then
+      echo "  [fix]  Auto-fixed:    $FIXED_COUNT"
+    fi
+    echo ""
+    if [[ ${#ISSUES[@]} -gt 0 ]]; then
+      echo "Issues:"
+      for issue in "${ISSUES[@]}"; do
+        echo "  - $issue"
+      done
+      echo ""
+    fi
+  fi
+fi
+
+# ── Exit code ────────────────────────────────────────────────────────────────
+
+_final_exit() {
+  local code="$1"
+  local summary="audited=$AUDIT_COUNT clean=$CLEAN_COUNT drift=$DRIFT_COUNT noncompliant=$NONCOMPLIANT_COUNT fixed=$FIXED_COUNT"
+  if [[ -n "$RUN_ID" ]]; then
+    log_end "$RUN_ID" "success" "$code" "0" "$summary" 2>/dev/null || :
+  fi
+  exit "$code"
+}
+
+if [[ "$NONCOMPLIANT_COUNT" -gt 0 ]]; then
+  _final_exit 2
+elif [[ "$DRIFT_COUNT" -gt 0 ]]; then
+  _final_exit 1
+fi
+_final_exit 0

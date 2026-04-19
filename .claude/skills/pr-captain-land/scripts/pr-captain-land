@@ -1,0 +1,316 @@
+#!/usr/bin/env bash
+#
+# pr-captain-land — Captain lands an agent's prepared branch as a PR + release
+#
+# WHAT: Captain runs this in the main checkout to own the full PR lifecycle
+# for a branch prepared by an agent via /submit-for-pr. Switches to the
+# branch, verifies the QGR receipt, bumps the version, creates the PR with
+# a captain-authored description, watches CI, merges, cuts the release, and
+# dispatches the agent with the outcome.
+#
+# WHY: Addresses the-agency#296 — single serialization point for version
+# bumps + PR creation + release creation. Eliminates version-bump races,
+# QGR hash races, and split responsibility.
+#
+# SCOPE: Phase 1 pilot — sandbox tool in usr/jordan/captain/tools/. Tested
+# by dogfooding on one captain-driven PR before promotion to .claude/skills/.
+#
+# USAGE:
+#   pr-captain-land <agent-branch> [--dry-run] [--title "..."] [--no-release]
+#
+# PRECONDITIONS (tool enforces):
+#   - Running in main checkout on master
+#   - Tree is clean
+#   - <agent-branch> exists on origin
+#   - <agent-branch> has a valid QGR receipt
+#
+# WRITTEN: 2026-04-19 (Phase 1 pilot, the-agency#296)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "pr-captain-land: not in a git repository" >&2
+    exit 1
+}
+
+# ── Args ─────────────────────────────────────────────────────────────────────
+
+AGENT_BRANCH=""
+DRY_RUN=false
+CUSTOM_TITLE=""
+SKIP_RELEASE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run) DRY_RUN=true; shift ;;
+        --title) CUSTOM_TITLE="$2"; shift 2 ;;
+        --no-release) SKIP_RELEASE=true; shift ;;
+        --help|-h)
+            echo "Usage: $0 <agent-branch> [--dry-run] [--title \"...\"] [--no-release]"
+            exit 0
+            ;;
+        -*) echo "pr-captain-land: unknown flag: $1" >&2; exit 2 ;;
+        *) AGENT_BRANCH="$1"; shift ;;
+    esac
+done
+
+if [[ -z "$AGENT_BRANCH" ]]; then
+    echo "pr-captain-land: <agent-branch> is required" >&2
+    exit 2
+fi
+
+# Security: validate branch name (F-SEC-2 from MAR 2026-04-19).
+# $AGENT_BRANCH flows into git/gh commands + dispatch --to routing.
+# Reject anything that could escape quoting or traverse paths.
+# Git ref-name constraints + defense-in-depth for our contexts.
+if ! [[ "$AGENT_BRANCH" =~ ^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$ ]]; then
+    echo "pr-captain-land: invalid branch name '$AGENT_BRANCH' — must be [a-zA-Z0-9][a-zA-Z0-9/_.-]*" >&2
+    exit 2
+fi
+if [[ "$AGENT_BRANCH" == *..* ]] || [[ "$AGENT_BRANCH" == -* ]]; then
+    echo "pr-captain-land: branch name '$AGENT_BRANCH' contains forbidden sequence (.. or leading -)" >&2
+    exit 2
+fi
+
+# ── Precondition: in main checkout on master ────────────────────────────────
+
+MAIN_CHECKOUT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
+if [[ "$REPO_ROOT" != "$MAIN_CHECKOUT" ]]; then
+    echo "pr-captain-land: must run from main checkout (you're in a worktree)." >&2
+    echo "  Main checkout: $MAIN_CHECKOUT" >&2
+    echo "  Current:       $REPO_ROOT" >&2
+    exit 1
+fi
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [[ "$CURRENT_BRANCH" != "master" && "$CURRENT_BRANCH" != "main" ]]; then
+    echo "pr-captain-land: captain must be on master (you're on $CURRENT_BRANCH)." >&2
+    exit 1
+fi
+
+# ── Precondition: clean tree ─────────────────────────────────────────────────
+
+DIRTY=$(git status --porcelain 2>/dev/null)
+if [[ -n "$DIRTY" ]]; then
+    echo "pr-captain-land: master tree dirty — commit or stash first." >&2
+    echo "$DIRTY" | head -5 | sed 's/^/  /' >&2
+    exit 1
+fi
+
+# ── Precondition: agent branch exists on origin ─────────────────────────────
+
+bash "$REPO_ROOT/claude/tools/git-captain" fetch >/dev/null 2>&1 || true
+
+if ! git show-ref --verify --quiet "refs/remotes/origin/$AGENT_BRANCH"; then
+    echo "pr-captain-land: branch '$AGENT_BRANCH' not found on origin." >&2
+    exit 1
+fi
+
+# ── Switch to agent branch ───────────────────────────────────────────────────
+
+echo "→ Switching to $AGENT_BRANCH..."
+bash "$REPO_ROOT/claude/tools/git-captain" switch-branch "$AGENT_BRANCH" >/dev/null
+
+# ── Verify QGR receipt ───────────────────────────────────────────────────────
+
+DIFF_HASH_FULL=$(bash "$REPO_ROOT/claude/tools/diff-hash" --base origin/master --json 2>/dev/null | \
+                 python3 -c "import sys, json; d=json.load(sys.stdin); print(d.get('full_hash',''))" 2>/dev/null || \
+                 echo "")
+DIFF_HASH_SHORT="${DIFF_HASH_FULL:0:7}"
+
+RECEIPT=$(find "$REPO_ROOT/claude/workstreams" -name "*qgr-pr-prep-*-$DIFF_HASH_SHORT.md" 2>/dev/null | head -1 || echo "")
+if [[ -z "$RECEIPT" ]]; then
+    echo "pr-captain-land: no QGR receipt matching hash $DIFF_HASH_SHORT on branch $AGENT_BRANCH." >&2
+    echo "  Agent must run /pr-prep to produce a receipt before submitting." >&2
+    # Switch back to master before exit
+    bash "$REPO_ROOT/claude/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
+    exit 1
+fi
+
+RECEIPT_REL="${RECEIPT#$REPO_ROOT/}"
+echo "→ Receipt: $RECEIPT_REL (hash: $DIFF_HASH_SHORT)"
+
+# ── Bump monofolk_version on the branch ─────────────────────────────────────
+
+MANIFEST="$REPO_ROOT/claude/config/manifest.json"
+# Security: pass values via env, never string-interpolate into python source
+# (F-SEC-1 / CRITICAL-3 from MAR 2026-04-19). Prevents RCE if manifest is
+# ever attacker-controllable.
+CURRENT_VER=$(MANIFEST="$MANIFEST" python3 -c '
+import json, os
+print(json.load(open(os.environ["MANIFEST"]))["monofolk_version"])
+')
+
+# Parse and bump — value via env, not f-string
+NEW_VER=$(CURRENT_VER="$CURRENT_VER" python3 -c '
+import os, sys
+v = os.environ["CURRENT_VER"]
+parts = v.split(".")
+if len(parts) == 2:
+    major, minor = int(parts[0]), int(parts[1])
+    print(f"{major}.{minor+1}")
+elif len(parts) == 1:
+    print(f"{int(parts[0])+1}")
+else:
+    print(v)
+    sys.exit(1)
+')
+
+if [[ -z "$NEW_VER" || "$NEW_VER" == "$CURRENT_VER" ]]; then
+    echo "pr-captain-land: could not bump version from $CURRENT_VER" >&2
+    bash "$REPO_ROOT/claude/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
+    exit 1
+fi
+
+echo "→ Bumping monofolk_version $CURRENT_VER → $NEW_VER"
+
+if [[ "$DRY_RUN" == false ]]; then
+    # Security: env vars, not string interpolation (F-SEC-1)
+    MANIFEST="$MANIFEST" NEW_VER="$NEW_VER" python3 -c '
+import json, os
+from datetime import datetime, timezone
+path = os.environ["MANIFEST"]
+m = json.load(open(path))
+m["monofolk_version"] = os.environ["NEW_VER"]
+m["project"]["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+json.dump(m, open(path, "w"), indent=2)
+'
+    bash "$REPO_ROOT/claude/tools/git-safe" add claude/config/manifest.json
+    bash "$REPO_ROOT/claude/tools/git-safe-commit" \
+        "chore(manifest): bump monofolk_version $CURRENT_VER → $NEW_VER for PR landing (captain)" \
+        --no-work-item >/dev/null
+
+    bash "$REPO_ROOT/claude/tools/git-push" "$AGENT_BRANCH" >/dev/null
+    echo "→ Version bumped + pushed"
+fi
+
+# ── Create PR ────────────────────────────────────────────────────────────────
+
+PR_TITLE="${CUSTOM_TITLE:-$AGENT_BRANCH}"
+PR_BODY=$(cat <<EOF
+Captain-landed PR via pr-captain-land (the-agency#296 Phase 1 pilot).
+
+Branch prepared by agent via /submit-for-pr. Captain owns the landing lifecycle:
+- Switched to \`$AGENT_BRANCH\`
+- Verified QGR receipt \`$RECEIPT_REL\` (hash \`$DIFF_HASH_SHORT\`)
+- Bumped \`monofolk_version\` $CURRENT_VER → $NEW_VER
+- Will merge when CI is green
+- Will create release v$NEW_VER
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)
+
+if [[ "$DRY_RUN" == true ]]; then
+    echo "→ [DRY-RUN] Would create PR:"
+    echo "    Title: $PR_TITLE"
+    echo "    Body:  (see stdout)"
+    # Switch back to master
+    bash "$REPO_ROOT/claude/tools/git-captain" switch-branch master >/dev/null
+    echo "pr-captain-land: dry-run complete"
+    exit 0
+fi
+
+echo "→ Creating PR..."
+PR_URL=$(bash "$REPO_ROOT/claude/tools/pr-create" --title "$PR_TITLE" --body "$PR_BODY" 2>&1 | \
+         tail -1 | grep -oE 'https://github.com/[^ ]+' || echo "")
+
+if [[ -z "$PR_URL" ]]; then
+    echo "pr-captain-land: pr-create did not return a URL — check output above" >&2
+    bash "$REPO_ROOT/claude/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
+    exit 1
+fi
+
+PR_NUM=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+echo "→ PR created: $PR_URL (#$PR_NUM)"
+
+# ── Back to master for merge ────────────────────────────────────────────────
+
+bash "$REPO_ROOT/claude/tools/git-captain" switch-branch master >/dev/null
+echo "→ Back on master"
+
+# ── Wait for CI ──────────────────────────────────────────────────────────────
+
+echo "→ Waiting for CI..."
+ATTEMPTS=0
+MAX_ATTEMPTS=30  # 30 × 20s = 10 minutes
+while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
+    STATE=$(gh pr view "$PR_NUM" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name=="lint-and-test") | .conclusion' 2>/dev/null || echo "")
+    if [[ "$STATE" == "SUCCESS" ]]; then
+        echo "→ lint-and-test: PASSED"
+        break
+    fi
+    if [[ "$STATE" == "FAILURE" ]]; then
+        echo "pr-captain-land: lint-and-test FAILED on PR #$PR_NUM" >&2
+        echo "  Agent must fix, push, and re-submit via /submit-for-pr." >&2
+        exit 1
+    fi
+    sleep 20
+    ATTEMPTS=$((ATTEMPTS + 1))
+done
+
+if [[ $ATTEMPTS -eq $MAX_ATTEMPTS ]]; then
+    echo "pr-captain-land: CI timeout on PR #$PR_NUM — check manually" >&2
+    exit 1
+fi
+
+# ── Merge ────────────────────────────────────────────────────────────────────
+
+echo "→ Merging PR #$PR_NUM..."
+bash "$REPO_ROOT/claude/tools/pr-merge" "$PR_NUM" --principal-approved >/dev/null 2>&1 || {
+    echo "pr-captain-land: pr-merge failed — check manually" >&2
+    exit 1
+}
+
+# ── Sync master ──────────────────────────────────────────────────────────────
+
+bash "$REPO_ROOT/claude/tools/git-captain" fetch >/dev/null 2>&1
+bash "$REPO_ROOT/claude/tools/git-captain" merge-from-origin >/dev/null 2>&1
+
+# ── Create release ───────────────────────────────────────────────────────────
+
+if [[ "$SKIP_RELEASE" == false ]]; then
+    echo "→ Creating release v$NEW_VER..."
+    bash "$REPO_ROOT/claude/tools/gh-release" create "v$NEW_VER" \
+        --target master \
+        --title "v$NEW_VER — $PR_TITLE" \
+        --notes "Captain-landed via pr-captain-land (the-agency#296 Phase 1 pilot). See PR #$PR_NUM." \
+        >/dev/null 2>&1 || {
+        echo "pr-captain-land: gh-release failed — create manually" >&2
+    }
+fi
+
+# ── Dispatch agent with outcome ─────────────────────────────────────────────
+
+# Agent is encoded in the branch name or retrievable from the branch's commits
+# For Phase 1 pilot: assume branch name hints at agent (e.g., captain-X, devex-Y)
+# Full lookup happens when promoted to .claude/skills/
+
+AGENT_HINT="${AGENT_BRANCH%%-*}"  # naive parse: prefix before first dash
+echo "→ Dispatching $AGENT_HINT agent with merge outcome..."
+
+bash "$REPO_ROOT/claude/tools/dispatch" create \
+    --type master-updated \
+    --to "monofolk/jordan/$AGENT_HINT" \
+    --subject "PR #$PR_NUM landed — v$NEW_VER released (pr-captain-land)" \
+    --body "Captain-landed your branch \`$AGENT_BRANCH\` via the-agency#296 Phase 1 pilot flow.
+
+- PR: $PR_URL
+- Release: https://github.com/ordinaryfolk/monofolk/releases/tag/v$NEW_VER
+- Version: $CURRENT_VER → $NEW_VER
+
+Your branch is merged to master. Run /session-resume to pick up on your next cycle.
+
+Phase 1 pilot feedback: did anything feel off about the handoff? Reply dispatch.
+
+-- monofolk/jordan/captain" \
+    >/dev/null 2>&1 || true
+
+# ── Done ─────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "pr-captain-land: complete"
+echo "  PR:      $PR_URL"
+echo "  Release: v$NEW_VER"
+echo "  Merged:  ✓"

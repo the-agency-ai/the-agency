@@ -1,97 +1,203 @@
 ---
-description: Run the full quality gate after completing an implementation phase — review, fix, test, report, commit
+name: phase-complete
+description: Run the full deep quality gate after completing an implementation phase — review, fix, test, report, squash-commit. Principal approval REQUIRED before commit (phase boundary is NOT auto-approved). Auto-emits phase-complete dispatch to captain for PR landing.
+agency-skill-version: 2
+when_to_use: After completing a full phase of work — all iterations in the phase closed. For iteration boundaries within a phase use /iteration-complete. For final plan delivery use /plan-complete.
+argument-hint: "<phase>: <description>"
+paths:
+  - .claude/worktrees/**
+required_reading:
+  - claude/REFERENCE-QUALITY-GATE.md
+  - claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md
 ---
 
 <!--
-  Flag #62/#63: allowed-tools removed. Inherits Bash(*) from
-  .claude/settings.json. Restricting to specific subcommand patterns at the
-  skill level silently blocks agents on permission prompts the agent cannot
-  see — see dispatch #171 for the devex incident that surfaced this trap.
+  allowed-tools intentionally omitted — inherits Bash(*). See sibling
+  iteration-complete for full rationale (flag #62/#63; devex dispatch #171;
+  the-agency#298 refactor caveat). Broad tool surface makes subcommand-level
+  narrowing brittle.
 -->
 
-# Phase Complete — Quality Gate + Sprint Review
+# phase-complete
 
-Run this after completing each implementation phase. Invokes `/quality-gate` for the review+fix cycle, then presents results for principal approval before committing. Do not proceed to the next phase until the gate passes and the user approves.
+Run this after completing each implementation phase (the collection of iterations that delivered a logical unit of work). Runs the full deep quality gate, presents results for principal approval (Sprint Review), commits the squash-rollup of iterations on approval, and emits a dispatch to captain for PR landing.
 
-## Arguments
+## Why this exists
 
-- $ARGUMENTS: Description of what was completed. Must include boundary type and phase (e.g., "phase-complete 1: types and parser"). If empty or missing phase number, ask the user before proceeding.
+Phases are larger boundary events than iterations — a full sub-deliverable (parser + lexer + AST; or data model + migration + seed; etc.). The QG at this boundary is deeper than iteration-complete's (full phase scope, not just since-last-iteration). Principal approval is REQUIRED — phases are the Sprint-Review moment where the principal decides whether the body of work is good enough to carry forward. Without a dedicated skill, phases drift into ad-hoc "I think we're done" claims; `/phase-complete` enforces the gate + approval + squash + dispatch in sequence.
 
-## Steps
+Squash discipline matters at phase boundaries: iterations are individually meaningful during development but collapse to a single phase-commit in the durable record so master history stays readable. Iterations remain in reflog / tags if anyone needs to replay them.
 
-### Step 1: Preconditions
+## Required reading
 
-1. If `$ARGUMENTS` is empty, ask the user what was completed before proceeding.
-2. Run `git diff --stat HEAD` and `git status`. If no changed files, tell the user "Nothing to gate — no changes since last commit" and stop.
-3. Identify the plan file in `docs/plans/` that this work belongs to. If none exists, note "no plan file" — the commit message will omit the Plan: line.
+Read the files listed in `required_reading:` frontmatter. `REFERENCE-QUALITY-GATE.md` is the deep QG protocol. `REFERENCE-RECEIPT-INFRASTRUCTURE.md` covers the five-hash receipt chain signed at Step 4.
+
+## Usage
+
+```
+/phase-complete <phase>: <description>
+```
+
+Example: `/phase-complete 1: types and parser`
+
+- `<phase>`: numeric phase identifier (e.g., `1`)
+- `<description>`: one-line summary of what the phase delivered
+
+If invoked with empty args, ask what was completed before proceeding.
+
+## Preconditions
+
+- On a worktree branch (not master).
+- Changed files present OR prior iteration commits within this phase (both acceptable — Step 2 squash handles the multi-iteration case).
+- Plan file identifiable (phase info, iteration history, phase-start tag preferred).
+- Principal available for Sprint Review (Step 5 blocks on their approval; do not phase-complete when principal is offline unless you're OK waiting).
+- 1B1 transcript file path known (or willing to start one mid-skill — QG's Hash D uses the transcript hash for phase/plan boundaries; auto-approval only applies at iteration boundary).
+
+## Flow / Steps
+
+### Step 1: Preflight
+
+1. If args empty, ask what was completed.
+2. `git status` + `git diff --stat HEAD`. Combined with prior-phase iteration commits, there should be something to gate. Empty = stop.
+3. Identify the plan file.
 
 ### Step 2: Squash iterations (if applicable)
 
-If this phase had multiple iterations committed separately, squash them into a single phase commit before running the gate. Use `git reset --soft` to the commit before the first iteration, then re-stage all changes.
+If this phase had multiple iterations committed separately:
+
+```
+git reset --soft <commit-before-first-iteration-in-this-phase>
+```
+
+Then re-stage all changes. They're now uncommitted, ready for a single phase commit in Step 6.
 
 If only one commit or no prior iteration commits, skip this step.
 
-### Step 3: Determine the phase-start base ref
+### Step 3: Determine phase-start base ref
 
-The QG's Hash A/Hash E diff is computed against the **phase-start tag** (or commit). Determine as follows, in order:
+The deep QG diff is computed against the phase-start tag/commit. Resolution order:
 
-1. **Read the plan file** in `docs/plans/` (or `claude/workstreams/*/`) for a phase-start tag — most plans record `tag: v<phase>.0` or similar on the phase header (e.g., Phase 1 starts at `v40.1`).
-2. **Check for a git tag** matching the phase: `git tag --list 'v*' --sort=-v:refname | head` — use the tag that marks the start of this phase.
-3. **Fallback:** `git merge-base main HEAD` — the divergence point from master. Note in the handoff if fallback was used.
+1. Read plan file for `tag: v<phase>.0` or similar in phase header (e.g., Phase 1 starts at `v40.1`).
+2. `git tag --list 'v*' --sort=-v:refname | head` — use the tag marking this phase's start.
+3. Fallback: `git merge-base main HEAD`. Note in handoff if fallback was used.
 
-Capture the tag/SHA as `$BASE_REF`.
+Capture as `$BASE_REF`.
 
-### Step 4: Run the quality gate
-
-Invoke `/quality-gate` via the Skill tool, passing arguments that include both the boundary description AND the base ref:
+### Step 4: Run the deep quality gate
 
 ```
-phase-complete 1: types and parser --base <BASE_REF>
+/quality-gate phase-complete <phase>: <description> --base <BASE_REF>
 ```
 
-For example: `phase-complete 1: types and parser --base v40.1`.
+Full QG protocol — parallel review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt (five-hash chain at `claude/workstreams/{W}/qgr/`).
 
-The leading `phase-complete <phase>` tells `/quality-gate` the boundary type (used in the receipt filename). The `--base <ref>` tells `/quality-gate` what baseline to use for Hash A / Hash E via `diff-hash --base`.
+Scope: **full phase's work** (all changes since `$BASE_REF`). Deeper than iteration-level.
 
-This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt via `receipt-sign` (five-hash chain, written to `claude/workstreams/{W}/qgr/`).
+**Phase-complete requires principal 1B1** — pass the 1B1 transcript path to `/quality-gate` so Step 10 records Hash D as the transcript hash (NOT auto-approved like iteration-complete).
 
-The QG is scoped to the **full phase's work** (all changes since divergence from master, or since the last phase commit). This is a deep review — broader scope than the iteration-level gate.
+Wait for QGR presented + receipt signed before proceeding.
 
-Phase-complete requires principal 1B1 — capture the 1B1 transcript path so `/quality-gate` Step 10 can record Hash D as the transcript hash (not auto-approved).
+### Step 5: Sprint Review — wait for approval
 
-Wait for the QGR to be presented and the receipt signed before proceeding.
-
-### Step 5: Sprint Review — Wait for approval
-
-Present the QGR and proposed commit message to the user. This is a Sprint Review — the principal reviews the body of work.
+Present the QGR + proposed commit message to the principal. This IS the Sprint Review.
 
 **Do not commit without explicit principal approval.**
 
-If the principal requests changes, make them and re-run the relevant QG steps.
+If principal requests changes:
+- Make the changes
+- Re-run the relevant QG step(s)
+- Re-present
+
+Loop until approval.
 
 ### Step 6: Commit with approval
 
-Once approved, re-run `git status` to capture any new files written during the QG fix cycle (bug-exposing tests, coverage tests). Use `/git-safe-commit` via the Skill tool, staging all relevant files. Pass it the full structured commit message from the QGR's "Proposed Commit" section.
+Once approved, `git status` to capture any QG-phase-added files (bug-exposing tests, coverage tests). Use `/git-safe-commit` via Skill tool, staging all relevant files. Pass the full structured commit message from the QGR's "Proposed Commit" section. Message leads with `Phase <N>: <description>` per framework convention.
 
-### Step 7: Update the plan
+### Step 7: Update plan file
 
-After committing, update the plan file in `docs/plans/` to reflect:
+Under "Quality Gate Reports":
 
-- What was done in this phase (phase status change)
-- What the quality gate found (bugs fixed, test gaps closed)
-- Any changes to the plan itself (scope adjustments, reordering, new findings)
-- **Append the full QGR** under a "Quality Gate Reports" section. Each phase gets its own subsection.
+- Phase status change (e.g., "Phase 1: complete")
+- What QG found + fixed
+- Plan changes
+- Append full QGR
 
 ### Step 8: Update handoff
 
-Locate the handoff file for this project (glob `usr/*/*/handoff.md` or `usr/*/captain/handoff.md`). Update with:
+Update worktree handoff:
 
 - Phase completion status
-- What was committed (summary of the phase's work)
-- What's next (next phase, or plan-complete if this was the last phase)
-- Key decisions, trade-offs, or context from this phase
-- Any open items or known issues carried forward
+- What was committed (phase summary)
+- What's next (next phase, or `/plan-complete` if last phase)
+- Key decisions / trade-offs / open items
 
-### Note: Multi-iteration phases
+### Step 9: Emit phase-complete dispatch to captain
 
-If this phase had multiple iterations that were each committed separately, the phase-complete commit should squash the iteration commits into a single phase commit. Step 2 handles this — use `git reset --soft` to combine them before running the gate.
+Structured dispatch for captain's auto-ship daemon.
+
+Capture:
+- `PHASE_SLUG`
+- `BRANCH`
+- `COMMIT_HASH` (Step 6 commit)
+- `SUMMARY`
+- `RECEIPT_PATH`
+
+Emit:
+
+```
+bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch create \
+  --to {repo}/{principal}/captain \
+  --type phase-complete \
+  --subject "Phase {PHASE_SLUG} complete on {BRANCH}" \
+  --body "<yaml body>"
+```
+
+Body:
+
+```yaml
+event: phase-complete
+phase: {PHASE_SLUG}
+branch: {BRANCH}
+commit_hash: {COMMIT_HASH}
+summary: {SUMMARY}
+qgr_receipt: {RECEIPT_PATH}
+emitted_at: {ISO-8601 timestamp}
+```
+
+Cascade isolation: `AGENCY_SKILL_BYPASS_CASCADE=1` in environment.
+
+## Failure modes
+
+- **Nothing to gate** (Step 1): skill stops cleanly.
+- **Squash conflicts** (Step 2): rare (reset --soft doesn't conflict), but if the pre-phase state is unclear, skill halts — principal investigates.
+- **QG fails** (Step 4): fix-and-retry per QG protocol.
+- **Principal rejects at Sprint Review** (Step 5): make changes, re-run relevant QG steps, re-present. No time limit on this loop.
+- **Commit fails after approval** (Step 6): pre-commit hook (lint-staged, oxfmt). Fix the blocking issue, re-run from Step 6 (QG stays valid).
+- **Dispatch emission fails** (Step 9): warn, exit 0. Commit is the authoritative record.
+
+## What this does NOT do
+
+- **Does not auto-approve** — principal 1B1 + explicit approval required. Iteration boundaries auto-approve; phase boundaries do not.
+- **Does not push or open a PR** — that's captain's job via `/pr-captain-land` after consuming the Step 9 dispatch (or direct via `/pr-submit`).
+- **Does not squash across phases** — squash is within-phase only. Prior phases stay as distinct commits.
+- **Does not bump manifest versions** — versioning happens at PR-landing time (captain's flow).
+
+## Status
+
+`active` (v2, body retrofit from Arguments/Steps pattern to 9-section structure 2026-04-19).
+
+## Related
+
+- `/quality-gate` — deep QG protocol invoked in Step 4
+- `/iteration-complete` — sibling skill for iteration boundaries (auto-approved, lighter QG)
+- `/plan-complete` — sibling skill for plan delivery (final deep QG + A&D)
+- `/pr-submit` — agent's hand-off to captain; runs after phase-complete when ready to land
+- `/pr-captain-land` — captain's counterpart; consumes Step 9's dispatch
+- `claude/tools/receipt-sign` — signs the five-hash receipt at phase boundary
+- `claude/workstreams/captain/small-batch-cadence-*.md` — auto-ship daemon design
+- the-agency#296 — PR lifecycle ownership
+- the-agency#298 — skill refactor recommendation
+- the-agency#315 — V1→V2 migration (this skill's retrofit lives in Tier 1)
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
