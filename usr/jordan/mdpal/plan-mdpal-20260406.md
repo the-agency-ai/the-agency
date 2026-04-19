@@ -642,12 +642,12 @@ Phase 3 covers (a) the engine surface mdpal-app needs for its inbox/reply flow a
 - New CLI commands (`wrap`, `flatten`) need wire-format additions to dispatch #635 spec.
 - Will dispatch coord update to mdpal-app when iter 3.2 / 3.3 ship.
 
-### Open questions for Jordan (1B1 candidates)
+### Decisions (autonomous, applied 2026-04-19)
 
-1. **Phase 3 iteration order.** Recommend 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6. Alternative: 3.4/3.5 first (security) then 3.1-3.3 (mdpal-app unblock). Trade-off: faster mdpal-app unblock vs. tighter security baseline first.
-2. **`mdpal wrap` source-as-directory.** PVR Rev 2 §92 implies single-file. Confirm directory wrapping is V2 deferral?
-3. **`MDPAL_ROOT` precedence.** When set, should it OVERRIDE explicit `<bundle>` paths that escape it (reject), or AUGMENT (resolve `<bundle>` relative to `MDPAL_ROOT` if not absolute)?
-4. **Path scrubbing default.** Should `relativePath` be the default `path` field with `absolutePath` opt-in via flag, or vice versa? (Backwards compat for mdpal-app's existing decoder vs telemetry safety.)
+1. **Phase 3 iteration order:** 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6. mdpal-app unblock first; security backlog follows. Rationale: mdpal-app is downstream-blocked on iters 3.1-3.3; security backlog (Sec-1, Sec-2) has been deferred for several iterations already and one more isn't material.
+2. **`mdpal wrap` source-as-directory:** REJECTED for V1. Directory wrapping is V2 (deferred). PVR Rev 2 §92 implied single-file; confirmed. `<source>` argument MUST be a single `.md` file.
+3. **`MDPAL_ROOT` precedence:** REJECT mode. When set, `BundleResolver.resolve` rejects any canonicalized `<bundle>` path that does not share the `MDPAL_ROOT` prefix. Symlinks resolved via `realpath` BEFORE the prefix check. No augmentation / relative-resolution magic — explicit error if the bundle path escapes the sandbox.
+4. **Path scrubbing default:** `relativePath` becomes the canonical `path` value in error envelopes' `message` and primary `details.path`. `absolutePath` is added as an OPT-IN field via `--full-paths` CLI flag (or `MDPAL_FULL_PATHS=1` env var) for local debugging. mdpal-app should never request `--full-paths` in production. Backwards compat: existing consumers that read `details.path` continue to work; the value just becomes relative — so a regression is "consumer sees a shorter string," not a missing field.
 
 ### Phase 4+ (V2 horizon, not planned in detail)
 
