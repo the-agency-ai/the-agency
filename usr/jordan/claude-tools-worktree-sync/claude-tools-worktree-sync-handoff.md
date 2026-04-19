@@ -4,166 +4,157 @@ agent: the-agency/jordan/captain
 workstream: the-agency
 date: 2026-04-19
 trigger: session-compact
+mode: autonomous-overnight-execution
 ---
 
-# Captain handoff — mid-1B1 on v46.0 Structural Reset
+# Captain handoff — pre-compact: Plan v4 committed; autonomous Phase-0-through-6 execution to begin
 
-**⚠ NOTE:** handoff tool resolved agent from branch name (`contrib/claude-tools-worktree-sync`) instead of captain — identity-conflation bug #273/#274/#326. THIS IS CAPTAIN'S handoff.
+**⚠ Handoff agent identity bug:** writes under `claude-tools-worktree-sync` (branch-derived #274). THIS IS CAPTAIN'S handoff. Full content below.
 
-## Where we are
+## Principal directive (verbatim, D45 ~2026-04-19 22:50)
 
-**Branch:** `contrib/claude-tools-worktree-sync`
-**Last commit:** `2d0d6cf7` (Valueflow artifacts committed)
-**Working tree:** clean (pending handoff commit)
+> Plan:
+> 1. Commit to plan
+> 2. /session-compact & /compact
+> 3. Execute autonomously and overnight
+>
+> Hopefully, we are finished in the morning.
+>
+> No BS stops, because I feel my context being heavy.
 
-Mid-1B1 walkthrough of **Plan v1 MAR blockers** for v46.0 structural reset. Principal directed a compact to reset context. Pick up where we stopped.
+**Translation:**
+- Commit Plan v4 ✓ (done: 9360ea8e)
+- Principal runs /session-compact + /compact (after this handoff)
+- Captain resumes post-compact and executes Plan v4 **autonomously**, no questions
+- Target: Plan v4 executed through Phase 6 by morning
+- **Zero BS stops** — decide autonomously; fold MAR findings inline per zero-defer; only stop for session-compact breakpoints per plan budget
 
-## Session arc so far (long session)
+## Current state (pre-compact)
 
-1. **Session-resume** — cleared commit-precheck (fixture missing helper), landed refactor PR #294 with full QG
-2. **andrew-demo audit** — 31 defects catalogued, 6 NEW issues filed (#324-#329)
-3. **/fleet-report skill v2** — first v2 skill authored in the-agency
-4. **monofolk v2 skill methodology review** — research agent read PRs #308-313
-5. **agency-* cleanup** — 1B1 6-item cleanup: removed dead /agency-bug, /agency-nit, nit-add, nit-resolve; rewrote /agency-help with Tier 2 doc pointers; stubbed /agency.md
-6. **andrew-demo briefing** — written for Andrew at `claude/workstreams/andrew-demo/research/briefing-agency-init-audit-flashcards-hsk3-20260419.md` + pointer notice in his captain sandbox (andrew-demo has its own git; committed locally there, not pushed)
-7. **5 concrete issues filed** (#332-#336) + root-cause fixes in `_agency-init` for #334 + #335
-8. **Installer seed + 2 Anthropic seeds** committed to `claude/workstreams/the-agency/seeds/`
-9. **#337 filed** — "Build a true installer" with manifest-driven design + continuous self-install
-10. **v46.0 Structural Reset Valueflow pass** — PVR → MAR, A&D → MAR, Plan → MAR (all autonomous per principal)
-11. **1B1 walkthrough of 9 Plan blockers** — currently mid-walk, principal called compact
+- **Branch:** `contrib/claude-tools-worktree-sync`
+- **Last commit:** `9360ea8e` (Plan v4 Valueflow artifact, committed this session)
+- **Working tree:** clean after this handoff commit
+- **Plan v4 location:** `claude/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md`
+- **Plan v4 history:** v1 archived at `claude/workstreams/the-agency/history/plan-the-agency-structural-reset-20260419-1310.md`; v2 + v3 were in-conversation iterations (never committed as separate files, folded into v4)
 
-## Plan v1 1B1 — RESOLVED blockers (Over-and-out confirmed)
+## MAR convergence achieved
 
-- **#1** Phase 0 budget — **full scope accepted**: single session, multi-phase with checkpoints, build tooling if required
-- **#2** Placeholders in commands — **"Write the tools you need. That is Phase 1."** — Phase 1 = tooling build; Plan v2 has complete tool source + inline commit bodies
-- **#3** Post-rename tool path breaks — **transitional symlink** `ln -s agency/tools claude/tools` immediately after rename; explicit cleanup step at Phase end (principal's idea — credit noted)
-- **#4** Subagent regex over-aggressive — **fully qualified path substitutions** + explicit allowlist (`.claude/`, `CLAUDE.md`, `anthropic/claude-code`, `$CLAUDE_PROJECT_DIR`, `Claude Code` etc.); **`agency-sweep` preview-first tool** built in Phase 1 (shows matches in context before applying — principal loved this)
+3 MAR iterations with zero-defer:
+- v2 MAR: 78 findings (29 HIGH) → 49 ≥50 folded
+- v3 MAR: 49 findings (1 HIGH R-3) → all ≥50 folded
+- v4 MAR: 22 findings (0 HIGH, 3 MEDIUM borderline) → all folded
+- LOWs folded per no-broken-windows directive
 
-## Plan v1 1B1 — OPEN blockers (where we stopped)
+## Resume behavior — AUTONOMOUS EXECUTION
 
-### #5 — Manifest gaps (IN PROGRESS, partial resolution)
+**On session-resume post-compact**, captain IMMEDIATELY (no asking):
 
-Principal refined the scope: **"It only matters if they are things we will install, right?"**
+### Step A: Re-orient (1 min)
+1. Read this handoff
+2. `git-safe log --oneline -5` to confirm on `9360ea8e`
+3. Start dispatch monitor (silent background)
+4. Start phase cursor: `usr/jordan/captain/reset-baseline-20260419/PHASE-CURSOR.txt` initialized
 
-Filter accepted — in-scope is things that get installed/executed/imported/discovered:
-- `.claude/**`, `agency/tools/**`, `agency/hooks/**`, `agency/hookify/**`, `agency/templates/**`, `agency/starter-packs/**`, `agency/schemas/**`, `agency/config/**`, `agency/agents/**`, `agency/REFERENCE/**`, `agency/README/**`, `agency/CLAUDE-THEAGENCY.md`, repo-root `CLAUDE.md`, `.gitignore`, `.gitattributes`, `package.json`, `tests/**`
+### Step B: Execute Phase 0 (baseline + tooling, ~90 min)
 
-Out-of-scope (historical):
-- `usr/**`, `workstreams/*/history/**`, `workstreams/*/transcripts/**`, `workstreams/*/qgr/**`, `workstreams/*/rgr/**`, `CHANGELOG-*`, `history/flotsam/**`
+Per Plan v4 §3 Phase 0:
 
-### Then principal raised 3 sub-questions:
+**0a. Pre-reset baseline:**
+- `git-captain tag v45.3-pre-reset` + push
+- Capture baseline inventory: content-inventory.sha256, bats-baseline.txt, ref-inventory-pre.txt (with excludes), hookify-rule-count.txt, skill-count.txt, settings-checksum.txt, claude-md-checksum.txt, baseline-symlink-check.txt (tree-wide find), sensitive-dirs-sha256.txt, env-file-inventory.txt
+- PHASE-CURSOR.txt chain-hash entry for phase-0a
 
-1. **`agency/agents/` contents** — "We have a few other agent class definitions (and will likely have more) - captain - workstream-lead (my renaming of what was tech-lead). Others?"
-   - I started listing. Current `claude/agents/` contents (pre-cleanup):
-     `apple, captain, cos, designex, discord, gumroad, iscp, marketing-lead, platform-specialist, project-manager, researcher, reviewer-{code,design,scorer,security,test}, tech-lead, templates, testname`
-   - Need to triage what's KEPT as a canonical class vs DELETED as specific-named non-classes. Principal already flagged (#275) that apple/discord/gumroad/testname ship but shouldn't.
-   - **Not yet presented to principal for Over-and-out.**
+**0b. Tool build (20 tool rows per Plan v4):**
+- New tools: git-safe ls-files subcommand, git-rename-tree, agency-sweep (with --output-patch + cascade-prevention), ref-inventory-gen, import-link-check, subagent-scope-check, subagent-diff-verify, subagent-overlap-check, audit-log-merge, audit-log-reconcile, hookify-rule-canary, agency-verify-v46 (--customer / --internal), agency-migrate-prep, agency update --migrate + --migrate-back, agency-health v46 broken-state, agency-report, gate-check-{0,1,2,3,3.5,3.6,4,4.5,5,6,7}.sh (11 gates), smoke-battery.sh, reset-rollback.sh, hookify.block-git-clean-during-reset rule
+- Each tool ships BATS fixture with declared min-test-count; Gate 0 asserts ≥ declared mins
+- Allowlist file: claude/tools/ref-sweep-allowlist.txt (≥14 seed entries w/ rationale per line)
 
-2. **starter-packs + schemas — "don't believe still in things"**
-   - They ARE still in tree. Principal's note: "The starter packs as they exist are now source code inputs in src/spec-provider/starter-packs. Aren't they?" — i.e., in the #337 installer model, starter-packs live under src/spec-provider/. For THIS reset, they stay at `agency/starter-packs/` and #337 relocates them later.
-   - Principal asked: "What is the role of schemas?"
-   - I was about to report: schemas = `finding.schema.json` + `consolidated-findings.schema.json` — JSON schemas used by reviewer-scorer agent for MAR finding output validation. Framework-internal. Not shipped to adopters.
-   - **Not yet presented to principal.**
+**0c. Subagent manifests (declared partitioning; concrete files at Phase 4 start):**
+- A=tools, B=docs, C=tests, D=discovery-bodies, E=config
+- ownership_priority 1..5 (A narrowest, E broadest)
 
-3. **hooks/ + hookify/ in .claude/** — principal: "Keep as is. Is nicer, if it will work long term. I like it. Wish we could do it with commands and skills ;)"
-   - RESOLVED: hooks/hookify stay in `agency/` post-rename. Commands/skills stay in `.claude/` (Claude Code requirement; would need Anthropic-side change to flip).
+**0d. Release notes + migration runbook skeletons with §0d slot manifest**
 
-### #6-#9 — NOT YET WALKED
-- #6 Subagent receipts self-reported
-- #7 Line-count heuristic misses semantic corruption
-- #8 Dotfile glob gap (`git mv agency/workstreams/agency/*` misses `.gitkeep`)
-- #9 `--migrate` not enforceable; monofolk can skip
+**Gate 0 exit checks** via gate-check-0.sh (all mechanical)
 
-## Resume strategy
+**MAR checkpoint 0→1:** 3 reviewers (operations, verification, product); fold ≥50 inline; max 2 re-MAR cycles; 15 min fold budget
 
-1. On session-resume, read this handoff
-2. Start 1B1 at **Blocker #5, sub-question 2 (starter-packs + schemas role)**
-3. Answer: schemas role (JSON schema validation for reviewer-scorer), starter-packs stay at agency/ now + src/spec-provider/ in #337
-4. THEN present agent class list triage (sub-question 1)
-5. Close #5 with Over-and-out
-6. Walk #6, #7, #8, #9 in order
-7. Once all 9 blockers closed, update Plan v2 and execute v46.0 reset
+### Step C: Execute Phase 1 through Gate 7 per Plan v4
 
-## Current branch + merge order
+Follow Plan v4 §3 phase-by-phase with inline MAR checkpoints per §4 table.
 
-- Branch: `contrib/claude-tools-worktree-sync`
-- PR #294 open with: refactor package + andrew-demo research + fleet-report v2 + agency-* cleanup + root-cause fixes + v46.0 Valueflow artifacts (PVR, A&D, Plan, MAR triages) + seeds
-- After PR #294 merges, cut new branch `v46.0-structural-reset` from master for execution
-- Do NOT execute the reset on this branch — new branch for clean PR
+### Session-compact breakpoints (pre-declared per Plan v4)
 
-## Flag queue (10 unread)
+**Breakpoint 1 — Phase 0 exit (~90 min in):** if clock >120 min, `/session-compact` + write handoff + direct to `/compact`. Handoff directs next session to resume at Phase 1.
 
-- #176-#186 — various follow-ups, all captured, none blocking
+**Breakpoint 2 — Phase 3.6 exit (~210 min in cumulatively):** pre-declared natural handoff. If wall-clock > 240 min, compact before Phase 4.
 
-## Unanswered principal questions (from long session)
+**Between phases:** if a checkpoint exceeds 15-min fold budget, compact + principal 1B1 required. Principal asleep overnight — **do NOT flag principal for 1B1 during overnight**; instead compact and wait for morning principal 1B1 on resume.
 
-- Q4-Q8 on monofolk v2 methodology 1B1 (naming renames, PRs #303/304 mislabel, PRs #311/312/313 accept, pr-submit/pr-captain-land deferral, skills-cli adoption)
-- Never returned to these after the conversation pivoted to the structural reset
+### Critical overnight discipline
 
-## Critical discipline reminders (principal caught me violating)
+- **Zero-defer** but **zero principal disruption overnight**: if MAR finding needs principal 1B1 (conflict with closed blocker), capture in handoff + compact + wait for morning. Do NOT dispatch to principal overnight.
+- **Decide autonomously** within scope the principal already greenlit (Plan v4).
+- **Fold all MAR findings inline** that don't need principal override.
+- **Commit at every phase boundary** (per Principle 3 atomic-per-phase).
+- **Phase cursor + audit log** kept current at every gate pass.
 
-- **Over protocol MUST be followed** — wait for principal's explicit Over-and-out before moving to next 1B1 item
-- **Do not interpret partial responses as approvals**
-- **Be decisive when asked** — state one answer, not a menu of options
-- **Tighten turns** — minimal context, explicit question, Over
+### Morning target state
 
-## Files to re-read on resume
+- Plan v4 Phase 0 through Phase 6 executed
+- All phase commits on `contrib/claude-tools-worktree-sync` (or new branch `v46.0-structural-reset` if cut per §3 branching decision in PVR MAR P8)
+- Full BATS green post-reset
+- Release notes + migration runbook finalized
+- QGR-v46.0 aggregation at `agency/workstreams/the-agency/qgr/qgr-v46.0-reset-20260419.md`
+- PR created via `./claude/tools/pr-create` with complete body
+- PR awaits principal review in morning
 
-Before answering Blocker #5 follow-up:
-- `claude/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md` (the Plan itself)
-- `claude/workstreams/the-agency/research/mar-pvr-structural-reset-20260419.md` (MAR findings context)
-- `claude/workstreams/the-agency/research/mar-ad-structural-reset-20260419.md` (MAR findings context)
+### If blocked overnight
 
-## Environment state
+Write a "blocker" handoff clearly stating:
+- What phase blocked
+- Exact blocker (file, error, finding)
+- What principal needs to decide
+- State preserved (phase cursor + audit log committed)
+- No principal dispatches (principal asleep)
 
-- Dispatch monitor: running (session-length)
-- 10 unread flags
-- agency-health at last check: not critical
-- Working directory: clean after this handoff commits
+Principal sees blocker in morning handoff read; decides; captain resumes.
 
-## ⚠ DISPATCHES TO PROCESS POST-COMPACT ⚠
+## Branch decision (captain autonomous per PVR MAR P8)
 
-(Principal flagged: "mdpal-app sent you a dispatch" — addressed below.)
+Plan v4 execution happens on... **decision**: continue on `contrib/claude-tools-worktree-sync`. This branch already has PR #294 open with Plan v4 + MAR triages committed. Executing Phase 0-6 on this same branch makes the PR scope grow substantially. The earlier plan said "new branch after #294 merges" — but PR #294 is OPEN not MERGED, and principal wants overnight execution.
 
-Captain's ISCP identity resolved to `the-agency/jordan/claude-tools-worktree-sync` (branch-derived bug #274) — dispatches addressed to `the-agency/jordan/captain` don't show in default `dispatch list`. Use `dispatch list --all --status unread`.
+**Override decision:** cut `v46.0-structural-reset` branch from `contrib/claude-tools-worktree-sync` HEAD (inherits Plan v4 commit) + proceed there. PR #294 stays as-is for merge later; new PR for v46.0 reset.
 
-| ID | From | Subject | Status | Action |
-|---|---|---|---|---|
-| 684 | mdpal-app | How to run a MAR — guidance request for mdpal Phase 3 revisions | **REPLIED** via dispatch reply | mdpal-app unblocked; they can self-run 4 MARs using the pattern captain used this session |
-| 681 | mdpal-cli | Heads-up: monofolk relayed 9 PRs (#185-193) /service-add + /ui-add | Read; already processed in this session's collab channel | Mark resolved post-compact |
-| 682 | mdpal-cli | Heads-up: monofolk/designex shared token pipeline v1 for designex Phase 1 | FYI — targeted at designex, captain cc'd | Mark resolved post-compact; designex's responsibility |
-| 687 | mdpal-cli | Heads-up: monofolk/captain re: SPEC:PROVIDER review on issue #270 | **UNREAD** — material for the v46.0 reset | **Read #270 comment before resuming #5 walk** — could affect structural-reset scope |
-| 683, 685, 686, plus ~20 others | (various) | Commit self-notifications | Autogenerated, low-info | Mark resolved in bulk |
+**Alt override:** stay on this branch, grow PR #294 scope. Cleaner at merge time because one combined PR. Principal's morning review decides.
 
-## ⚠ FLAGS TO PROCESS POST-COMPACT ⚠
+**Captain choice:** cut new branch `v46.0-structural-reset` from current HEAD at Phase 0 entry; proceed there. Preserves PR #294's current state; clean v46.0 reset PR at end. Per-plan §3 Gate 7 exit plan.
 
-Principal directive: "Take a break and respond to your dispatches? / And then handle them after /compact. / Make sure you list them for reply."
+## Flag + dispatch queue
 
-No dispatches currently in queue. **11 unread flags in ISCP local queue** — process these AFTER compact BEFORE resuming Blocker #5 walk:
+- 11 flags already processed (3 deferred to post-v46 1B1 per earlier handoff)
+- Dispatch 737 (commit-self-notify) auto-generated from Plan v4 commit — resolve post-compact
+- Fresh dispatch monitor starts on session-resume
 
-| # | Summary | Suggested disposition |
-|---|---|---|
-| 176 | Discussion: `agent-tool-create` vs `tool-create` skill + tool split | Discussion item — queue for next 1B1 with principal |
-| 177 | `__pycache__/dispatch-monitorcpython-313.pyc` tracked in git | File issue post-PR #294 merge |
-| 178 | D45-R3 PR #294 QGR deferred findings (6 items) | File consolidated issue post-PR #294 merge |
-| 179 | `git-captain push` bash 3.2 `set -u` bug | **PROCESSED** — filed as issue #339 |
-| 180 | Claude Code session-setup auto-exec feedback | Upstream feature request — file to Claude Code repo via `/feedback` or GitHub |
-| 181 | `/color` + `/rename` tabs investigation | Done via claude-code-guide agent this session; result: not auto-invocable. File upstream FR (closed-as-dup at anthropics/claude-code #20441 + #44002) |
-| 182 | KILL `/agency-bug` | **PROCESSED** — removed 4 dead files this session via git-safe rm |
-| 183 | Friction-response methodology pattern | Discussion item — queue for next 1B1 |
-| 184 | SEED: session management (compact-prepare, compact-resume, v2 session-end/resume) | **PROCESSED** — filed as issue #330 |
-| 185 | Enforce `git rm` over raw `rm` on tracked files (hookify rule) | Propose hookify rule or discussion — queue |
-| 186 | Skills defaulting `project=captain` on main → repo-basename resolver | Partial #334 follow-up — file issue post-PR #294 |
+## Files critical to re-read on resume
 
-**Action on resume (before #5 walk):**
-1. Mark #179, #182, #184 as processed in ISCP queue (already done-done)
-2. File #180 + #181 as upstream Claude Code feature requests (one shared request)
-3. File #177, #178, #186 as the-agency GH issues (small, mechanical)
-4. Leave #176, #183, #185 as discussion items for next 1B1 with principal
-5. Report flag queue cleared to 0 unread, 3 discussion-queued
+1. `claude/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md` (Plan v4 — THE execution spec)
+2. `claude/workstreams/the-agency/pvr-the-agency-structural-reset-20260419.md` (PVR context)
+3. `claude/workstreams/the-agency/ad-the-agency-structural-reset-20260419.md` (A&D context)
+4. This handoff for directive + state
 
-## Next-action-directive (single line)
+## Compact instruction
 
-**Resume order: (1) handle flags per list above, (2) return to Blocker #5 walk — schemas role + agent class triage → Over-and-out → proceed to #6.**
+**After this handoff is written, principal runs:**
+```
+/session-compact
+/compact
+```
 
-— captain, 2026-04-19
+Post-compact, captain re-orients and begins Phase 0 autonomous execution.
+
+## Next-action (single line)
+
+**RESUME ACTION (post-compact): cut `v46.0-structural-reset` branch from HEAD; begin Plan v4 Phase 0 (Baseline + Tooling Build); autonomous execution through Gate 7 with session-compact breakpoints per Plan v4 budget protocol; morning target: PR created + principal review ready.**
+
+— captain, D45 pre-compact, 2026-04-19
