@@ -538,9 +538,29 @@ main() {
         DISPATCH_TOOL="$SCRIPT_DIR/dispatch"
         IDENTITY_TOOL="$SCRIPT_DIR/agent-identity"
         STAGE_HASH_TOOL="$SCRIPT_DIR/stage-hash"
+        #
+        # Cascade scope-out (small-batch-cadence Phase 0.5, 2026-04-17):
+        # Skip the commit-dispatch cascade for two cases:
+        #
+        # 1. Coord commits with --no-work-item — these are handoffs, dispatches,
+        #    config updates, receipt files. They don't need captain notification;
+        #    they amplify the #210 cascade bug (commit → dispatch file → commit →
+        #    dispatch file → …). Breaking that loop at its source restores
+        #    sanity for PR-prep and session-end workflows.
+        #
+        # 2. Skill-initiated commits that emit their own structured dispatch.
+        #    Detected via env var AGENCY_SKILL_BYPASS_CASCADE=1 (set by
+        #    /iteration-complete and /phase-complete skills). These skills emit
+        #    richer dispatches (type: iteration-complete | phase-complete) with
+        #    iteration/phase metadata — the coarser commit dispatch is redundant.
+        #
+        # Upstream to the-agency via #184. Skills themselves are still TBD
+        # (small-batch-cadence Phase 2.1 / 2.2).
         if [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]] \
            && [[ -x "$DISPATCH_TOOL" ]] \
-           && [[ -x "$IDENTITY_TOOL" ]]; then
+           && [[ -x "$IDENTITY_TOOL" ]] \
+           && [[ "$NO_WORK_ITEM" != "true" ]] \
+           && [[ "${AGENCY_SKILL_BYPASS_CASCADE:-0}" != "1" ]]; then
             MY_IDENTITY=$("$IDENTITY_TOOL" 2>/dev/null || echo "")
             if [[ -n "$MY_IDENTITY" ]]; then
                 # Resolve captain address: same repo/principal, agent=captain
