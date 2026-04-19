@@ -327,8 +327,23 @@ _audit_skill() {
   for f in "${required_fields[@]}"; do
     local val
     val=$(_get_frontmatter "$skill_file" "$f")
+    # Finding #4 (code-9 / retro-MAR): reject sentinels "~" (declared null /
+    # declared empty string) and "[]" (declared empty list) for fields where
+    # empty is not meaningful content. Exception: `paths` can legitimately be
+    # `[]` for captain-only skills (four-layer defense — see D8).
     if [[ -z "$val" ]]; then
       ISSUES+=("$skill_name (v2): missing frontmatter field '$f'")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    elif [[ "$val" = "~" ]]; then
+      # Declared but null or empty-string — not acceptable for required content fields
+      ISSUES+=("$skill_name (v2): frontmatter field '$f' is empty/null (declared but no value)")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    elif [[ "$val" = "[]" && "$f" != "paths" ]]; then
+      # Empty list is only valid for `paths` (captain-only four-layer defense).
+      # All other list fields (required_reading) must have at least one entry.
+      ISSUES+=("$skill_name (v2): frontmatter field '$f' is an empty list (must have at least one entry)")
       NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
       issues_for_skill=$((issues_for_skill + 1))
     fi
@@ -341,6 +356,37 @@ _audit_skill() {
     ISSUES+=("$skill_name (v2): frontmatter name='$declared_name' doesn't match directory")
     NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
     issues_for_skill=$((issues_for_skill + 1))
+  fi
+
+  # 3b. Captain-only cross-field consistency (finding #9 / D8 from retro-MAR).
+  # Three distinct scoping patterns on v2 skills:
+  #
+  #   (a) Agent-scoped:       paths: .claude/worktrees/**, no DMI
+  #   (b) Default-actor safe: paths: [], DMI: true, no captain- prefix
+  #                           (e.g., `sync` — high-risk default-actor that
+  #                           needs explicit confirmation)
+  #   (c) Captain-only:       paths: [], DMI: true, captain- in name
+  #
+  # The rule we enforce: IF name contains `captain-`, THEN paths MUST be [] AND
+  # DMI MUST be true. Converse does NOT hold (sync is (b), not captain-only).
+  local dmi paths_val
+  dmi=$(_get_frontmatter "$skill_file" "disable-model-invocation")
+  paths_val=$(_get_frontmatter "$skill_file" "paths")
+  local has_dmi_true=false has_empty_paths=false has_captain_name=false
+  [[ "$dmi" = "true" || "$dmi" = "True" ]] && has_dmi_true=true
+  [[ "$paths_val" = "[]" ]] && has_empty_paths=true
+  [[ "$skill_name" =~ ^captain-|-captain- ]] && has_captain_name=true
+
+  if [[ "$has_captain_name" = true ]]; then
+    local missing_layers=""
+    [[ "$has_dmi_true" = false ]] && missing_layers="${missing_layers}disable-model-invocation:true, "
+    [[ "$has_empty_paths" = false ]] && missing_layers="${missing_layers}paths:[], "
+    missing_layers="${missing_layers%, }"
+    if [[ -n "$missing_layers" ]]; then
+      ISSUES+=("$skill_name (v2): captain-named skill missing defense layers: $missing_layers")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    fi
   fi
 
   # 4. required_reading paths resolve to real files
@@ -359,10 +405,12 @@ _audit_skill() {
     done <<< "$rr"
   fi
 
-  # 5. Body section headings (9 required per v2 spec)
+  # 5. Body section headings (9 required per v2 spec, IN ORDER)
   # Use anchored regex (-E + ^) to avoid matching H3 (### Foo) as H2 (## Foo).
   # Fix for H5 from MAR 2026-04-19 — grep -F substring match was too lenient.
+  # ORDER enforcement added per finding #7 (D1+D2 dedup) from retro-MAR.
   if [[ -f "$skill_file" ]]; then
+    # Presence check (existing behavior)
     for section in "${REQUIRED_SECTIONS[@]}"; do
       # Escape regex metacharacters in section name for safe grep -E.
       # Required sections use '##', '/', and spaces — / and space are literal in ERE.
@@ -377,6 +425,35 @@ _audit_skill() {
         fi
       fi
     done
+
+    # Order check — extract all H2 headings with line numbers, filter to
+    # required ones (accepting loose-match variants), assert sequence
+    # matches REQUIRED_SECTIONS order. Only runs if all required sections
+    # were present (order check on a file with missing sections is noisy).
+    local actual_order=""
+    actual_order=$(grep -En "^## " "$skill_file" 2>/dev/null | while IFS=: read -r ln heading; do
+      # Normalize: strip trailing "— notes" style suffixes for comparison
+      local base="${heading%% — *}"
+      for required in "${REQUIRED_SECTIONS[@]}"; do
+        if [[ "$base" == "$required" || "$heading" == "$required" ]]; then
+          echo "$required"
+          break
+        fi
+      done
+    done)
+
+    # Build expected sequence from REQUIRED_SECTIONS (array order)
+    local expected_seq=""
+    for s in "${REQUIRED_SECTIONS[@]}"; do
+      expected_seq="${expected_seq}${s}"$'\n'
+    done
+    expected_seq="${expected_seq%$'\n'}"
+
+    if [[ -n "$actual_order" && "$actual_order" != "$expected_seq" ]]; then
+      ISSUES+=("$skill_name (v2): body sections out of order (expected: Why → Required reading → Usage → Preconditions → Flow → Failure modes → NOT do → Status → Related)")
+      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+      issues_for_skill=$((issues_for_skill + 1))
+    fi
   fi
 
   # 6. Registry row

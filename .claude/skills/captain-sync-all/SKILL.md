@@ -3,7 +3,7 @@ name: captain-sync-all
 description: Captain-only. Fetch, merge origin into master, merge unique worktree work into master, and sync all worktrees. The daily rhythm command. NEVER pushes to remote. NEVER rebases. NEVER resets to origin. Formerly `/sync-all` — v2 rename to captain-actor-verb.
 agency-skill-version: 2
 when_to_use: Captain on master in main checkout, starting a captain session or after a PR has merged (to propagate to the fleet). NEVER from a worktree. NEVER auto-invoked.
-argument-hint: ""
+argument-hint: "(no args)"
 paths: []
 disable-model-invocation: true
 required_reading:

@@ -213,6 +213,10 @@ if [[ "$UPGRADE_MODE" = true ]]; then
   echo "[skill-create --upgrade] Retrofitting $NAME to v2 compliance..."
 
   # Read existing frontmatter fields (best-effort via python3+yaml)
+  # Finding #2 (code-2 / the-agency#320 retro-MAR): emit str(val) unconditionally.
+  # Prior implementation `print(val if isinstance(val, str) else "")` returned
+  # empty for non-string scalars, so an `agency-skill-version: 2` (int) value
+  # read as "" and the EXISTING_VERSION v2-detect below always missed.
   _existing() {
     local field="$1"
     if command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1; then
@@ -232,7 +236,11 @@ except yaml.YAMLError:
 val = fm.get(os.environ["FIELD"])
 if val is None:
     sys.exit(0)
-print(val if isinstance(val, str) else "")
+# Emit as string for shell consumption; YAML ints + floats stringify cleanly.
+# Lists/dicts collapse to repr — callers of _existing today only ask for
+# scalar fields, so this is adequate. If a future caller wants list support,
+# use the python3+yaml path in skill-audit._get_frontmatter instead.
+print(val if not isinstance(val, (list, dict)) else "")
 ' 2>/dev/null
     fi
   }
@@ -269,6 +277,12 @@ print(val if isinstance(val, str) else "")
   # Preserves existing name/description/body content. Only adds TODO placeholders
   # for v2-required fields that don't exist.
   if command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1; then
+    # Finding #1 (code-1 / the-agency#320 retro-MAR): under `set -e`, python's
+    # non-zero exit killed the script BEFORE `UPGRADE_FM_EXIT=$?` ran, making
+    # the intended 3-way branching (0 ok / 4 hard fail / other warn+continue)
+    # dead code. Wrap with set +e so the exit-code inspection actually runs,
+    # then re-enable set -e afterwards.
+    set +e
     FILE="$SKILL_FILE" NAME="$NAME" python3 <<'PYEOF'
 import os, sys, yaml
 path = os.environ["FILE"]
@@ -334,6 +348,7 @@ with open(path, "w", encoding="utf-8") as f:
 print("[skill-create --upgrade] frontmatter updated (added missing v2 fields)")
 PYEOF
     UPGRADE_FM_EXIT=$?
+    set -e
     if [[ $UPGRADE_FM_EXIT -ne 0 && $UPGRADE_FM_EXIT -ne 4 ]]; then
       echo "[skill-create --upgrade] frontmatter update errored (exit $UPGRADE_FM_EXIT), continuing" >&2
     elif [[ $UPGRADE_FM_EXIT -eq 4 ]]; then

@@ -118,8 +118,8 @@ When Claude Code adds `@path` support, migrating from `required_reading:` to inl
 Every v2 SKILL.md body has these sections, in this order. Empty sections get explicit "N/A because …" content.
 
 1. **Why this exists** — the pain addressed
-2. **Usage** — invocation syntax
-3. **Required reading** — directs agent to Read the `required_reading:` frontmatter files
+2. **Required reading** — directs agent to Read the `required_reading:` frontmatter files **before** invocation syntax (agent learns dependencies before learning how to call)
+3. **Usage** — invocation syntax
 4. **Preconditions** — what must be true before running (or "None — …")
 5. **Flow / Steps** — numbered step-by-step (or "Single step — …")
 6. **Failure modes** — per-step what can go wrong + recovery (or "No destructive operations; failures are benign")
@@ -127,7 +127,11 @@ Every v2 SKILL.md body has these sections, in this order. Empty sections get exp
 8. **Status** — `active | pilot | deprecated | experimental | retired`
 9. **Related** — companion skills, reference docs, upstream issues
 
-All 9 headings are REQUIRED. "Required reading" is the v2-added section that directs the agent to Read the `required_reading:` frontmatter entries before acting.
+All 9 headings are REQUIRED, in this order. "Required reading" is the v2-added section that directs the agent to Read the `required_reading:` frontmatter entries before acting. Putting it at position 2 (before Usage) ensures the agent loads dependencies into context before reading invocation syntax.
+
+The `skill-audit` tool enforces both presence and order; out-of-order sections fail the audit as noncompliant.
+
+**Retroactive note (MAR 2026-04-19):** earlier drafts of this spec had Usage at position 2 and Required reading at position 3. The case-study skills all adopted the opposite order independently for pedagogical reasons (deps before syntax), and `skill-audit`'s REQUIRED_SECTIONS array matches the case-study order. The spec now matches the audit + case-study reality.
 
 ### 6. Naming — noun-verb, with noun-actor-verb for scoped skills
 
