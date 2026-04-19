@@ -33,6 +33,12 @@ struct FlagCommand: ParsableCommand {
     @Option(name: .long, help: "Optional note explaining the flag.")
     var note: String?
 
+    @Option(
+        name: .long,
+        help: "Bundle revision id you last saw. If supplied, the create fails with bundleConflict if another writer landed first."
+    )
+    var baseRevision: String?
+
     @OptionGroup var output: GlobalOutputOptions
 
     func run() throws {
@@ -43,7 +49,10 @@ struct FlagCommand: ParsableCommand {
             let flag = try document.flagSection(slug, author: author, note: note)
 
             let serialized = try document.serialize()
-            _ = try resolvedBundle.createRevision(content: serialized)
+            _ = try resolvedBundle.createRevision(
+                content: serialized,
+                expectedBase: baseRevision
+            )
 
             switch output.format {
             case .json:

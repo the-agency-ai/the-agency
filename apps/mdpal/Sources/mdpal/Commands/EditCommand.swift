@@ -44,6 +44,12 @@ struct EditCommand: ParsableCommand {
     @Option(name: .long, help: "The version hash you observed from a prior read.")
     var version: String
 
+    @Option(
+        name: .long,
+        help: "Bundle revision id you last saw. If supplied, the create fails with bundleConflict if another writer landed first."
+    )
+    var baseRevision: String?
+
     @Option(name: .long, help: "New section content (mutually exclusive with --stdin).")
     var content: String?
 
@@ -104,7 +110,10 @@ struct EditCommand: ParsableCommand {
             // invocation (process exits); flagged for future long-lived
             // contexts.
             let serialized = try document.serialize()
-            let revision = try resolvedBundle.createRevision(content: serialized)
+            let revision = try resolvedBundle.createRevision(
+                content: serialized,
+                expectedBase: baseRevision
+            )
 
             // Report on-disk size, not in-memory string byte count.
             // attributesOfItem returns the actual file length the consumer
@@ -132,22 +141,40 @@ struct EditCommand: ParsableCommand {
             // versionId per the dispatched spec — the engine error doesn't
             // carry it (Document doesn't know bundle metadata), so we add
             // it here at the boundary where both contexts are available.
-            if case .versionConflict(let slug, let expected, let actual, let currentContent) = error {
-                let versionId = (try? resolvedBundle.latestRevision()?.versionId) ?? ""
-                let details: [String: AnyCodable] = [
-                    "slug": AnyCodable(slug),
-                    "expectedHash": AnyCodable(expected),
-                    "currentHash": AnyCodable(actual),
-                    "currentContent": AnyCodable(currentContent),
-                    "versionId": AnyCodable(versionId),
+            //
+            // F5 (phase-complete): the prior implementation used
+            //   (try? resolvedBundle.latestRevision()?.versionId) ?? ""
+            // which silently swallowed bundle-level errors and emitted an
+            // empty `versionId` — breaking mdpal-app's downstream merge
+            // logic. Now we surface latestRevision failures as a chained
+            // bundleConflict; on success we use the real versionId.
+            //
+            // D3 (phase-complete): use EngineErrorMapper.envelope(for:
+            // additionalDetails:) instead of hand-rolling the envelope —
+            // closes the copy-paste hazard for future commands needing
+            // boundary-context injection.
+            if case .versionConflict = error {
+                let actualVersionId: String
+                do {
+                    actualVersionId = try resolvedBundle.latestRevision()?.versionId ?? ""
+                } catch let inner as EngineError {
+                    // Could not read the bundle to resolve current latest;
+                    // surface the inner error so the caller learns WHY we
+                    // can't return a meaningful versionId, instead of
+                    // silently emitting empty string.
+                    let (innerEnvelope, innerExit) = EngineErrorMapper.envelope(for: inner)
+                    innerEnvelope.emit(format: output.format)
+                    throw innerExit.argumentParserCode
+                }
+                let extras: [String: AnyCodable] = [
+                    "versionId": AnyCodable(actualVersionId),
                 ]
-                let envelope = ErrorEnvelope(
-                    error: "versionConflict",
-                    message: "Section '\(slug)' was modified — expected hash \(expected), got \(actual)",
-                    details: details
+                let (envelope, exit) = EngineErrorMapper.envelope(
+                    for: error,
+                    additionalDetails: extras
                 )
                 envelope.emit(format: output.format)
-                throw MdpalExitCode.versionConflict.argumentParserCode
+                throw exit.argumentParserCode
             }
             let (envelope, exit) = EngineErrorMapper.envelope(for: error)
             envelope.emit(format: output.format)

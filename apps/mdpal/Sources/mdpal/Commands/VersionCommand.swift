@@ -98,6 +98,12 @@ struct VersionBumpCommand: ParsableCommand {
     @Argument(help: "Path to the .mdpal bundle directory.")
     var bundle: String
 
+    @Option(
+        name: .long,
+        help: "Bundle revision id you last saw. If supplied, the bump fails with bundleConflict if another writer landed first."
+    )
+    var baseRevision: String?
+
     @OptionGroup var output: GlobalOutputOptions
 
     func run() throws {
@@ -117,7 +123,13 @@ struct VersionBumpCommand: ParsableCommand {
             // to be byte-identical to the prior latest. The bundle helper
             // applies the engine's revision-size cap.
             let content = try resolvedBundle.rawRevisionContent(versionId: priorLatest.versionId)
-            let newRevision = try resolvedBundle.bumpVersion(content: content)
+            // F2 (phase-complete): optimistic-concurrency surface uniform
+            // across all write paths. If --base-revision was supplied,
+            // the engine throws bundleBaseConflict before writing.
+            let newRevision = try resolvedBundle.bumpVersion(
+                content: content,
+                expectedBase: baseRevision
+            )
 
             switch output.format {
             case .json:

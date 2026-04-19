@@ -1,6 +1,6 @@
 // What Problem: Multiple commands accept content via stdin (`mdpal edit
-// --stdin`, `mdpal revision create --stdin`, `mdpal comment --text-stdin`,
-// `mdpal resolve --response-stdin`). Each one originally hand-rolled the
+// --stdin`, `mdpal revision create --stdin`, `mdpal comment --stdin`,
+// `mdpal resolve --stdin`). Each one originally hand-rolled the
 // FileHandle.standardInput.readDataToEndOfFile() + UTF-8 decode + isatty
 // dance. Two issues result: (a) duplication invites drift between commands,
 // and (b) the unbounded read is a denial-of-service vector — a multi-GB
@@ -25,11 +25,18 @@
 // Written: 2026-04-17 during mdpal-cli session (Phase 2 iteration 2.4 QG fix D2)
 
 import Foundation
+import MarkdownPalEngine
 
 enum StdinReader {
 
     /// Default ceiling on stdin reads (16 MiB).
-    static let defaultMaxBytes: Int = 16 * 1024 * 1024
+    ///
+    /// D8 (phase-complete): single source of truth lives in
+    /// `SizedFileReader.revisionMaxBytes`. The previous duplicate
+    /// literal `16 * 1024 * 1024` directly contradicted the
+    /// "do NOT duplicate" comment in SizedFileReader. Now any change
+    /// to the engine's read cap automatically flows here.
+    static let defaultMaxBytes: Int = SizedFileReader.revisionMaxBytes
 
     /// Failure modes — each carries its own error envelope so callers can
     /// `emit` and `throw` from a single switch.

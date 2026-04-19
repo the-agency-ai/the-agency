@@ -97,7 +97,14 @@ public final class DocumentBundle {
                 reason: "Bundle directory must end in .mdpal"
             )
         }
-        if fileManager.fileExists(atPath: directory) {
+        // Sec-5 (phase-complete): use attributesOfItem so we DETECT
+        // a symlink at the target path (and refuse to overwrite it),
+        // rather than fileExists which silently follows symlinks.
+        // `attributesOfItem` itself returns symlink-own attributes
+        // (does not follow), so a symlink at `directory` returns
+        // `.typeSymbolicLink` here. We refuse all pre-existing entries
+        // including symlinks.
+        if (try? fileManager.attributesOfItem(atPath: directory)) != nil {
             throw EngineError.invalidBundlePath(
                 path: directory,
                 reason: "Target path already exists"
@@ -278,9 +285,28 @@ public final class DocumentBundle {
     }
 
     /// Bump the version number and reset the revision counter to 1.
+    ///
+    /// When `expectedBase` is supplied, the bundle's current latest revision
+    /// must equal it exactly OR `EngineError.bundleBaseConflict` is thrown
+    /// BEFORE the new file is written. F2 (phase-complete): every write
+    /// path supports optimistic concurrency uniformly. Pass nil (the
+    /// default) to retain the existing append-anything semantics.
     @discardableResult
-    public func bumpVersion(content: String, timestamp: Date = Date()) throws -> RevisionInfo {
+    public func bumpVersion(
+        content: String,
+        timestamp: Date = Date(),
+        expectedBase: String? = nil
+    ) throws -> RevisionInfo {
         let revisions = try listRevisions()
+        if let expectedBase {
+            let currentBase = revisions.last?.versionId ?? ""
+            if currentBase != expectedBase {
+                throw EngineError.bundleBaseConflict(
+                    expected: expectedBase,
+                    actual: currentBase
+                )
+            }
+        }
         let nextVersion = (revisions.last?.version ?? 0) + 1
         return try writeRevision(
             version: nextVersion,
@@ -359,9 +385,14 @@ public final class DocumentBundle {
         // Auto-prune if configured. Auto-prune failures are non-fatal but
         // are surfaced via stderr so the user/agent learns about silent
         // degradation rather than wondering why the bundle keeps growing.
+        //
+        // mergeForward: false — see F1 fix in `prune(keep:mergeForward:)`.
+        // Auto-prune must NOT mutate the just-created latest file; doing
+        // so weakens the link(2) atomic-create promise for any concurrent
+        // reader.
         if config.prune.auto {
             do {
-                _ = try prune(keep: config.prune.keep)
+                _ = try prune(keep: config.prune.keep, mergeForward: false)
             } catch {
                 FileHandle.standardError.write(
                     Data("mdpal: auto-prune failed: \(error)\n".utf8)
@@ -397,8 +428,21 @@ public final class DocumentBundle {
     /// Prune old revisions, keeping the most recent N. Merges forward
     /// any resolved comments from pruned revisions into the latest revision
     /// so no comment history is lost.
+    ///
+    /// When `mergeForward` is `false`, the latest revision file is NOT
+    /// touched — only old revisions are deleted. This is the correct
+    /// behavior for auto-prune triggered immediately after `writeRevision`,
+    /// where the just-created latest already contains every resolved
+    /// comment that was visible in the parent Document. Mutating that
+    /// freshly link(2)-created file post-create weakens the atomic-create
+    /// guarantee for any concurrent reader who observed the file between
+    /// the link and the rename. (Phase 2 phase-complete F1 fix.)
+    ///
+    /// When `mergeForward` is `true` (the default — manual `mdpal prune`),
+    /// the metadata splice is performed against the latest revision so
+    /// resolved comments orphaned in pruned revisions are preserved.
     @discardableResult
-    public func prune(keep: Int) throws -> PruneResult {
+    public func prune(keep: Int, mergeForward: Bool = true) throws -> PruneResult {
         guard keep > 0 else {
             throw EngineError.bundleConflict("prune.keep must be > 0; got \(keep)")
         }
@@ -473,7 +517,14 @@ public final class DocumentBundle {
         //
         // Fix: read the raw file, encode the updated metadata to YAML, and
         // splice it into the raw content via `writeMetadataBlock`.
-        if mergedCount > 0 {
+        //
+        // F1 (phase-complete): only mutate the latest file when
+        // `mergeForward` is true. Auto-prune passes `false` because the
+        // just-created latest was serialized from a Document that already
+        // carried every visible resolved comment forward — there is
+        // nothing legitimate to merge that could not be reproduced via
+        // a manual `mdpal prune` later.
+        if mergeForward, mergedCount > 0 {
             // Order resolved comments by id for stable output.
             latestDoc.metadata.resolvedComments = latestResolvedById.values
                 .sorted(by: { $0.id < $1.id })
@@ -597,8 +648,26 @@ public final class DocumentBundle {
     /// `.md.tmp.*` (not just `.tmp.*`) so we never delete an unrelated
     /// file a user might have placed in the bundle directory.
     ///
+    /// **F3 / Sec-3 (phase-complete):** two safety gates:
+    ///   1. `mtime > now - reaperAgeThresholdSeconds` → skip. Otherwise
+    ///      a process A mid-`writeRevision` (between the temp write and
+    ///      the link(2)) loses its temp file when process B opens the
+    ///      bundle, causing A's link to fail with ENOENT. The age guard
+    ///      gives in-flight writers a window measured in minutes — far
+    ///      longer than any single createRevision call but still short
+    ///      enough that a real orphan from a killed writer gets reaped
+    ///      on the next bundle open.
+    ///   2. Stat the candidate and refuse to `removeItem` anything that
+    ///      isn't a regular file. A malicious bundle could ship
+    ///      `…tmp.X` as a directory or symlink; deleting either could
+    ///      cause unintended state loss. (`removeItem` on a symlink only
+    ///      unlinks the symlink, not its target — so direct exfil isn't
+    ///      possible — but the type guard tightens the seam regardless.)
+    ///
     /// Failures are silent: the reaper is best-effort. A locked or
     /// permission-denied removal doesn't block bundle open.
+    static let reaperAgeThresholdSeconds: TimeInterval = 60 * 60  // 1 hour
+
     private static func reapOrphanTempFiles(
         bundlePath: String,
         fileManager: FileManager
@@ -612,8 +681,22 @@ public final class DocumentBundle {
             // the bundle is genuinely unreadable.
             return
         }
+        let now = Date()
         for entry in entries where entry.contains(".md.tmp.") {
-            try? fileManager.removeItem(atPath: "\(bundlePath)/\(entry)")
+            let entryPath = "\(bundlePath)/\(entry)"
+            // Stat once: get type AND mtime in a single syscall.
+            guard let attrs = try? fileManager.attributesOfItem(atPath: entryPath) else {
+                continue
+            }
+            // Type guard: only regular files. (Sec-3.)
+            let type = attrs[.type] as? FileAttributeType
+            guard type == .typeRegular else { continue }
+            // Age guard: skip files modified within the threshold. (F3.)
+            if let mtime = attrs[.modificationDate] as? Date,
+               now.timeIntervalSince(mtime) < reaperAgeThresholdSeconds {
+                continue
+            }
+            try? fileManager.removeItem(atPath: entryPath)
         }
     }
 
@@ -642,16 +725,50 @@ public final class DocumentBundle {
         let pointerContents = (try? SizedFileReader.readPointerUTF8(at: pointerPath))?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if pointerContents != symlinkDest {
-            try? symlinkDest.write(toFile: pointerPath, atomically: true, encoding: .utf8)
+            // Sec-4 (phase-complete): validate the symlink destination
+            // before writing it to the pointer file. A planted bundle
+            // can ship `latest.md` as a symlink whose destination is
+            // `../../etc/shadow` or arbitrary non-revision text; without
+            // this gate the reconciler would happily persist the bad
+            // bytes into the pointer file. Subsequent reads validate the
+            // pointer (via readPointerFile), so the bad bytes never
+            // dictate behavior — but we should not write them in the
+            // first place. If the symlink dest is invalid, leave the
+            // pointer alone (silent best-effort matches the rest of the
+            // reconciler's contract).
+            do {
+                try Self.validatePointerContents(symlinkDest, pointerPath: pointerPath)
+                try? symlinkDest.write(toFile: pointerPath, atomically: true, encoding: .utf8)
+            } catch {
+                // Symlink destination is malformed; leave pointer
+                // untouched. Subsequent listRevisions / readPointerFile
+                // will surface clearer errors if the symlink is hostile.
+                return
+            }
         }
     }
 
     // MARK: - Path helpers
 
     private static func validateBundlePath(_ path: String, fileManager: FileManager) throws {
-        var isDir: ObjCBool = false
-        guard fileManager.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else {
-            throw EngineError.fileError(path: path, description: "Bundle path is not a directory")
+        // Sec-5 (phase-complete): use attributesOfItem instead of
+        // fileExists(atPath:isDirectory:). The latter follows symlinks,
+        // so a bundle path that is itself a symlink to ~/.ssh would
+        // pass the isDir check (a probe oracle: attacker learns whether
+        // the symlink target is a directory + ends in .mdpal). The
+        // attributesOfItem path returns the link's own attributes
+        // (NOT followed). Reject anything that isn't a real directory.
+        let attrs: [FileAttributeKey: Any]
+        do {
+            attrs = try fileManager.attributesOfItem(atPath: path)
+        } catch {
+            throw EngineError.fileError(path: path, description: "Bundle path is not accessible: \(error)")
+        }
+        guard (attrs[.type] as? FileAttributeType) == .typeDirectory else {
+            throw EngineError.fileError(
+                path: path,
+                description: "Bundle path is not a directory (or is a symlink — refused)"
+            )
         }
         guard path.hasSuffix(".mdpal") else {
             throw EngineError.invalidBundlePath(

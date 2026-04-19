@@ -60,6 +60,33 @@ struct AnyCodable: Encodable {
 
 extension ErrorEnvelope {
 
+    /// D4 (phase-complete): factory for the `invalidArgument` envelope.
+    /// Three CLI sites previously inlined the literal "invalidArgument"
+    /// string + an ad-hoc details dict. Centralizing both the
+    /// discriminator and the details shape eliminates copy-paste drift
+    /// when a fourth command needs to reject an argument value.
+    ///
+    /// Returns the envelope and the appropriate exit code as a tuple
+    /// matching the EngineErrorMapper shape.
+    static func invalidArgument(
+        name: String,
+        value: String,
+        validValues: [String]
+    ) -> (envelope: ErrorEnvelope, exit: MdpalExitCode) {
+        let details: [String: AnyCodable] = [
+            "argument": AnyCodable(name),
+            "value": AnyCodable(value),
+            "validValues": AnyCodable(validValues),
+        ]
+        let validList = validValues.joined(separator: ", ")
+        let envelope = ErrorEnvelope(
+            error: "invalidArgument",
+            message: "Invalid value '\(value)' for --\(name); expected one of: \(validList)",
+            details: details
+        )
+        return (envelope, .generalError)
+    }
+
     /// Emit this envelope to stderr. JSON form by default; text form
     /// is `<error>: <message>\n` (single line, machine-parseable).
     ///
@@ -118,6 +145,35 @@ private enum JSONString {
 /// Error discriminator values are camelCase symbol-style (matches the
 /// dispatched spec). mdpal-app's RealCLIService switches on these.
 enum EngineErrorMapper {
+
+    /// D3 (phase-complete): caller-side context that some commands
+    /// need to inject into the envelope. The base `envelope(for:)`
+    /// path produces the engine-only shape; the context-aware overload
+    /// merges supplementary fields into `details` on top of whatever
+    /// the engine produced.
+    ///
+    /// EditCommand uses this to inject `versionId` (the bundle's
+    /// current latest revision id, only known at the CLI layer) into
+    /// a `versionConflict` envelope without duplicating the entire
+    /// switch. Future commands needing the same pattern call this
+    /// instead of hand-rolling the envelope.
+    static func envelope(
+        for error: EngineError,
+        additionalDetails: [String: AnyCodable]?
+    ) -> (envelope: ErrorEnvelope, exit: MdpalExitCode) {
+        let (base, exit) = envelope(for: error)
+        guard let extras = additionalDetails, !extras.isEmpty else {
+            return (base, exit)
+        }
+        var merged: [String: AnyCodable] = base.details ?? [:]
+        for (key, value) in extras {
+            merged[key] = value
+        }
+        return (
+            ErrorEnvelope(error: base.error, message: base.message, details: merged),
+            exit
+        )
+    }
 
     static func envelope(for error: EngineError) -> (envelope: ErrorEnvelope, exit: MdpalExitCode) {
         switch error {

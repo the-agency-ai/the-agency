@@ -208,3 +208,94 @@ import Foundation
     let finalRead = try CLISupport.runCLI(["read", firstSlug, bundlePath])
     #expect(finalRead.exitCode == 0, "final read stderr: \(finalRead.stderr)")
 }
+
+// T10 (phase-complete): the main e2e never exercises --stdin. A
+// regression that broke StdinReader (TTY guard, size cap, UTF-8 decode)
+// while leaving --content paths intact would NOT fail e2e. This second
+// pass exercises the full lifecycle through the stdin variant of every
+// stdin-capable command (edit, comment, resolve, revision-create), plus
+// asserts a sample error-envelope path (sectionNotFound).
+@Test func e2eStdinPathLifecycle() throws {
+    let parentDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("mdpal-e2e-stdin-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: parentDir) }
+
+    // 1. Create bundle.
+    let createResult = try CLISupport.runCLI([
+        "create", "stdin-doc",
+        "--dir", parentDir.path,
+        "--content", "# Intro\n\nbody.\n",
+    ])
+    #expect(createResult.exitCode == 0, "create stderr: \(createResult.stderr)")
+    let createPayload = try TestJSON.parse(createResult.stdout)
+    let bundlePath = try #require(createPayload["path"] as? String)
+
+    // 2. Read introduction → versionHash.
+    let readResult = try CLISupport.runCLI(["read", "intro", bundlePath])
+    let readPayload = try TestJSON.parse(readResult.stdout)
+    let introHash = try #require(readPayload["versionHash"] as? String)
+
+    // 3. edit --stdin: large body via pipe.
+    let largeBody = String(repeating: "Lorem ipsum dolor sit amet. ", count: 2000)
+    let editResult = try CLISupport.runCLI(
+        [
+            "edit", "intro", bundlePath,
+            "--version", introHash, "--stdin",
+        ],
+        stdin: largeBody
+    )
+    #expect(editResult.exitCode == 0, "edit --stdin stderr: \(editResult.stderr)")
+    let editPayload = try TestJSON.parse(editResult.stdout)
+    #expect((editPayload["bytesWritten"] as? Int ?? 0) > 50_000,
+            "expected large bytesWritten via --stdin path; got \(editPayload["bytesWritten"] ?? "nil")")
+
+    // 4. comment --stdin: long comment text via pipe.
+    let longText = String(repeating: "Discussion. ", count: 1500)
+    let commentResult = try CLISupport.runCLI(
+        [
+            "comment", "intro", bundlePath,
+            "--type", "note", "--author", "alice", "--stdin",
+        ],
+        stdin: longText
+    )
+    #expect(commentResult.exitCode == 0, "comment --stdin stderr: \(commentResult.stderr)")
+    let commentPayload = try TestJSON.parse(commentResult.stdout)
+    let commentId = try #require(commentPayload["commentId"] as? String)
+    let commentText = try #require(commentPayload["text"] as? String)
+    #expect(commentText.count > 10_000, "expected long text via --stdin; got \(commentText.count)")
+
+    // 5. resolve --stdin: long resolution body via pipe.
+    let longResponse = String(repeating: "Resolved with details. ", count: 800)
+    let resolveResult = try CLISupport.runCLI(
+        [
+            "resolve", commentId, bundlePath,
+            "--by", "bob", "--stdin",
+        ],
+        stdin: longResponse
+    )
+    #expect(resolveResult.exitCode == 0, "resolve --stdin stderr: \(resolveResult.stderr)")
+
+    // 6. revision create --stdin: pipe a whole document.
+    let newRevContent = "# Intro\n\nFresh body via stdin.\n# Added\n\nNew section.\n"
+    let revResult = try CLISupport.runCLI(
+        [
+            "revision", "create", bundlePath, "--stdin",
+        ],
+        stdin: newRevContent
+    )
+    #expect(revResult.exitCode == 0, "revision create --stdin stderr: \(revResult.stderr)")
+
+    // 7. Error envelope path: read a non-existent slug. Exit 3,
+    // sectionNotFound discriminator, availableSlugs detail.
+    let missingResult = try CLISupport.runCLI([
+        "read", "no-such-slug", bundlePath,
+    ])
+    #expect(missingResult.exitCode == 3,
+            "expected exit 3 (notFound) for missing slug; got \(missingResult.exitCode), stderr=\(missingResult.stderr.prefix(200))")
+    let envelope = try TestJSON.parse(missingResult.stderr)
+    #expect(envelope["error"] as? String == "sectionNotFound")
+    let details = try #require(envelope["details"] as? [String: Any])
+    #expect(details["slug"] as? String == "no-such-slug")
+    #expect(details["availableSlugs"] is [String])
+}

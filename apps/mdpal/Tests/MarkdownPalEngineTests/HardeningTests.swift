@@ -227,6 +227,273 @@ private func makeFreshBundleDir() throws -> (tempDir: URL, bundlePath: String) {
     #expect(pruneElapsed < 15.0, "prune of 90 revisions took \(pruneElapsed)s — should be < 15s")
 }
 
+// MARK: - Phase 2 phase-complete additions
+
+// T1: SizedFileReader generic readUTF8 — non-UTF8 + size-attr fallback.
+
+@Test func sizedReadRejectsNonUTF8Bytes() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    // Write raw bytes that are NOT valid UTF-8 (lone continuation bytes
+    // 0xFF 0xFE 0xFD form no valid scalar).
+    let path = "\(setup.bundlePath)/V0001.0002.20260101T0000Z.md"
+    try Data([0xFF, 0xFE, 0xFD]).write(to: URL(fileURLWithPath: path))
+
+    do {
+        _ = try SizedFileReader.readRevisionUTF8(at: path)
+        Issue.record("expected fileError on non-UTF-8 bytes but call succeeded")
+    } catch let error as EngineError {
+        if case .fileError = error {
+            // Hot path (size attr available): String(contentsOfFile:encoding:.utf8)
+            // throws an NSCocoaErrorDomain "isn't in the correct format" error
+            // (Cocoa Code 259). Fallback path: explicit "non-UTF-8 bytes".
+            // Either presents as fileError; the discriminator is what mdpal-app
+            // routes on, so the message form is best-effort.
+        } else {
+            Issue.record("expected .fileError, got \(error)")
+        }
+    }
+}
+
+// T2: rawRevisionContent — verbatim bytes + unknown-versionId rejection.
+
+@Test func rawRevisionContentRejectsUnknownVersionId() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    let bundle = try DocumentBundle(at: setup.bundlePath)
+    do {
+        _ = try bundle.rawRevisionContent(versionId: "V0099.0099.20260101T0000Z")
+        Issue.record("expected bundleConflict on unknown versionId")
+    } catch let error as EngineError {
+        if case .bundleConflict = error {
+            // expected
+        } else {
+            Issue.record("expected .bundleConflict, got \(error)")
+        }
+    }
+}
+
+@Test func rawRevisionContentReturnsBytesVerbatim() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    // Write a revision file with unusual whitespace and ordering that
+    // Document.serialize() would normalize. rawRevisionContent must
+    // return the exact bytes on disk.
+    let bundle = try DocumentBundle(at: setup.bundlePath)
+    let raw = "# Intro\n\n\n\n  weird   spacing   .\n\n"
+    let pinnedTs = Date(timeIntervalSince1970: 1_775_001_000)
+    let revision = try bundle.createRevision(content: raw, timestamp: pinnedTs)
+
+    let readBack = try bundle.rawRevisionContent(versionId: revision.versionId)
+    #expect(readBack == raw,
+            "rawRevisionContent must return verbatim bytes — got: \(readBack.debugDescription)")
+}
+
+// T3: Orphan-temp reaper — age guard + regular-file check.
+
+@Test func bundleOpenReapsAgedOrphanTempFiles() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    // Plant an orphan .tmp.* file and backdate its mtime to >1 hour ago,
+    // past the reaper age threshold. Bundle open should remove it.
+    let orphanPath = "\(setup.bundlePath)/V0001.0002.20260101T0000Z.md.tmp.deadbeef"
+    try "orphan content".write(toFile: orphanPath, atomically: true, encoding: .utf8)
+    let oldDate = Date().addingTimeInterval(-7200) // 2 hours ago
+    try FileManager.default.setAttributes(
+        [.modificationDate: oldDate],
+        ofItemAtPath: orphanPath
+    )
+
+    _ = try DocumentBundle(at: setup.bundlePath)
+    #expect(!FileManager.default.fileExists(atPath: orphanPath),
+            "Aged orphan .tmp.* should be reaped at bundle open")
+}
+
+@Test func bundleOpenSkipsFreshOrphanTempFiles() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    // F3 (phase-complete): plant a temp file with a CURRENT mtime —
+    // simulates a writer mid-flight. The reaper must skip it so we don't
+    // race the in-flight link(2) into ENOENT.
+    let freshPath = "\(setup.bundlePath)/V0001.0003.20260101T0000Z.md.tmp.cafebabe"
+    try "in-flight content".write(toFile: freshPath, atomically: true, encoding: .utf8)
+    // mtime defaults to now — no setAttributes needed.
+
+    _ = try DocumentBundle(at: setup.bundlePath)
+    #expect(FileManager.default.fileExists(atPath: freshPath),
+            "Fresh orphan .tmp.* (within age threshold) must be left alone — racing in-flight writer")
+}
+
+@Test func bundleOpenSkipsNonRegularOrphanCandidates() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    // Sec-3 (phase-complete): plant a DIRECTORY at a name matching the
+    // reaper pattern. The type guard must reject it so we never
+    // removeItem on it (recursive directory delete via reaper would be
+    // unintended state loss).
+    let dirPath = "\(setup.bundlePath)/V0001.0004.20260101T0000Z.md.tmp.dirtype"
+    try FileManager.default.createDirectory(atPath: dirPath, withIntermediateDirectories: false)
+    let oldDate = Date().addingTimeInterval(-7200)
+    try FileManager.default.setAttributes(
+        [.modificationDate: oldDate],
+        ofItemAtPath: dirPath
+    )
+
+    _ = try DocumentBundle(at: setup.bundlePath)
+    #expect(FileManager.default.fileExists(atPath: dirPath),
+            "Directory matching .tmp.* pattern must NOT be reaped (regular-file guard)")
+}
+
+// T6: Pointer file rejects control characters (NUL, BEL).
+
+@Test func pointerFileRejectsEmbeddedNUL() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    let bundle = try DocumentBundle(at: setup.bundlePath)
+    let pointerPath = "\(setup.bundlePath)/.mdpal/latest"
+    // Embed NUL in a string. Foundation may truncate at NUL on read,
+    // but the validatePointerContents check on unicodeScalars catches
+    // it explicitly.
+    let nul = String(UnicodeScalar(0x00)!)
+    let payload = "V0001.0001.20260404T1200Z\(nul).md"
+    try payload.write(toFile: pointerPath, atomically: true, encoding: .utf8)
+
+    do {
+        _ = try bundle.readPointerFile()
+        Issue.record("expected metadataError on embedded NUL")
+    } catch let error as EngineError {
+        if case .metadataError = error {
+            // expected
+        } else {
+            Issue.record("expected .metadataError, got \(error)")
+        }
+    }
+}
+
+@Test func pointerFileRejectsEmbeddedBEL() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    let bundle = try DocumentBundle(at: setup.bundlePath)
+    let pointerPath = "\(setup.bundlePath)/.mdpal/latest"
+    let bel = String(UnicodeScalar(0x07)!)
+    let payload = "V0001.0001.\(bel)20260404T1200Z.md"
+    try payload.write(toFile: pointerPath, atomically: true, encoding: .utf8)
+
+    do {
+        _ = try bundle.readPointerFile()
+        Issue.record("expected metadataError on embedded BEL")
+    } catch let error as EngineError {
+        if case .metadataError = error {
+            // expected
+        } else {
+            Issue.record("expected .metadataError, got \(error)")
+        }
+    }
+}
+
+// F1: auto-prune does NOT mutate the just-created revision file.
+
+@Test func autoPruneDoesNotMutateJustCreatedRevisionFile() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    // Configure auto-prune to keep 1, so any new revision triggers
+    // pruning of all older revisions.
+    let bundle = try DocumentBundle(at: setup.bundlePath)
+    var cfg = bundle.config
+    cfg.prune.auto = true
+    cfg.prune.keep = 1
+    try bundle.updateConfig(cfg)
+
+    // Add 2 more revisions to give prune something to merge forward.
+    let baseTs = Date(timeIntervalSince1970: 1_775_001_000)
+    _ = try bundle.createRevision(
+        content: "# Intro\n\nrev2.\n",
+        timestamp: baseTs
+    )
+    _ = try bundle.createRevision(
+        content: "# Intro\n\nrev3.\n",
+        timestamp: baseTs.addingTimeInterval(120)
+    )
+
+    // After auto-prune (keep:1), only the latest remains.
+    let revisions = try bundle.listRevisions()
+    #expect(revisions.count == 1, "auto-prune should reduce to 1 revision")
+
+    // The just-created revision file's bytes must be exactly what we
+    // wrote — auto-prune must NOT have re-spliced metadata into it.
+    let latest = try #require(revisions.last)
+    let onDisk = try SizedFileReader.readRevisionUTF8(at: latest.filePath)
+    #expect(onDisk == "# Intro\n\nrev3.\n",
+            "Auto-prune mutated the just-created revision; F1 regression. On disk: \(onDisk.debugDescription)")
+}
+
+// Sec-4: reconcileLatest refuses to write a malformed symlink dest.
+
+@Test func reconcileLatestRejectsMaliciousSymlinkDestination() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    // Tamper: replace latest.md symlink with one whose destination is a
+    // path-traversal payload. Then re-open the bundle and observe that
+    // reconcileLatest LEAVES the pointer file untouched (rather than
+    // writing the bad bytes).
+    let symlinkPath = "\(setup.bundlePath)/latest.md"
+    try FileManager.default.removeItem(atPath: symlinkPath)
+    try FileManager.default.createSymbolicLink(
+        atPath: symlinkPath,
+        withDestinationPath: "../../etc/shadow"
+    )
+
+    // Capture pointer contents before re-open.
+    let pointerPath = "\(setup.bundlePath)/.mdpal/latest"
+    let beforeBytes = try String(contentsOfFile: pointerPath, encoding: .utf8)
+
+    // Re-open. reconcileLatest sees mismatch (pointer != symlinkDest)
+    // but the dest is invalid → must not write.
+    _ = try DocumentBundle(at: setup.bundlePath)
+
+    let afterBytes = try String(contentsOfFile: pointerPath, encoding: .utf8)
+    #expect(beforeBytes == afterBytes,
+            "reconcileLatest wrote malformed symlink dest into pointer file (Sec-4 regression)")
+}
+
+// Sec-5: validateBundlePath rejects a symlink-as-bundle.
+
+@Test func validateBundlePathRejectsSymlinkAsBundle() throws {
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    // Create a symlink that points to the real bundle, but with a
+    // .mdpal-suffixed name. Old fileExists(_:isDirectory:) would follow
+    // the symlink and report (true, isDir=true), so the open would
+    // succeed; new attributesOfItem-based check rejects.
+    let aliasPath = setup.tempDir.appendingPathComponent("alias.mdpal").path
+    try FileManager.default.createSymbolicLink(
+        atPath: aliasPath,
+        withDestinationPath: setup.bundlePath
+    )
+
+    do {
+        _ = try DocumentBundle(at: aliasPath)
+        Issue.record("expected fileError on symlink-as-bundle path; open succeeded")
+    } catch let error as EngineError {
+        if case .fileError = error {
+            // expected
+        } else {
+            Issue.record("expected .fileError, got \(error)")
+        }
+    }
+}
+
 // MARK: - Concurrent CLI race simulation
 
 // The engine's atomic-create check (link(2) → EEXIST) fires when two

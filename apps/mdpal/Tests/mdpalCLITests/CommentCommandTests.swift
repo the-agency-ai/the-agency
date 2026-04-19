@@ -214,7 +214,8 @@ Design here.
     #expect(tags.count == 2)
 }
 
-// mdpal-app coord item #4: --text-stdin avoids ARG_MAX limits
+// mdpal-app coord item #4: --stdin avoids ARG_MAX limits.
+// D1 (phase-complete): renamed --text-stdin → --stdin for parity.
 @Test func commentTextViaStdin() throws {
     let fixture = try CLISupport.makeFixture(name: "comment-stdin", content: fixtureContent)
     defer { CLISupport.cleanup(fixture) }
@@ -223,7 +224,7 @@ Design here.
     let result = try CLISupport.runCLI(
         [
             "comment", "introduction", fixture.bundlePath,
-            "--type", "note", "--author", "alice", "--text-stdin",
+            "--type", "note", "--author", "alice", "--stdin",
         ],
         stdin: longText
     )
@@ -234,13 +235,13 @@ Design here.
     #expect(text.count > 10_000, "expected long text round-tripped intact, got \(text.count) chars")
 }
 
-@Test func commentRejectsBothTextAndTextStdin() throws {
+@Test func commentRejectsBothTextAndStdin() throws {
     let fixture = try CLISupport.makeFixture(name: "comment-both", content: fixtureContent)
     defer { CLISupport.cleanup(fixture) }
     let result = try CLISupport.runCLI(
         [
             "comment", "introduction", fixture.bundlePath,
-            "--type", "note", "--author", "alice", "--text", "x", "--text-stdin",
+            "--type", "note", "--author", "alice", "--text", "x", "--stdin",
         ],
         stdin: "y"
     )
@@ -260,7 +261,7 @@ Design here.
     let result = try CLISupport.runCLI(
         [
             "resolve", cid, fixture.bundlePath,
-            "--response-stdin", "--by", "bob",
+            "--stdin", "--by", "bob",
         ],
         stdin: "Long resolution explanation."
     )

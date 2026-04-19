@@ -55,14 +55,16 @@ struct CommentsCommand: ParsableCommand {
             // engine-side (CommentType.init returns nil for unknown).
             let filterType: CommentType?
             if let type {
+                // D4 (phase-complete): use the shared invalidArgument
+                // factory.
                 guard let t = CommentType(rawValue: type) else {
-                    let envelope = ErrorEnvelope(
-                        error: "invalidArgument",
-                        message: "Unknown comment type '\(type)'. Valid: question, suggestion, note, directive, decision.",
-                        details: ["argument": AnyCodable("type"), "value": AnyCodable(type)]
+                    let (envelope, exit) = ErrorEnvelope.invalidArgument(
+                        name: "type",
+                        value: type,
+                        validValues: ["question", "suggestion", "note", "directive", "decision"]
                     )
                     envelope.emit(format: output.format)
-                    throw MdpalExitCode.generalError.argumentParserCode
+                    throw exit.argumentParserCode
                 }
                 filterType = t
             } else {

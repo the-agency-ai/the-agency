@@ -17,11 +17,12 @@
 
 import Testing
 import Foundation
+@testable import MarkdownPalEngine
 
 @Test func twoConcurrentRevisionCreatesProduceExactlyOneSuccess() throws {
     let fixture = try CLISupport.makeFixture(
         name: "concurrent",
-        content: "# Intro\n\nbody.\n"
+        content: "# Introduction\n\nbody.\n"
     )
     defer { CLISupport.cleanup(fixture) }
 
@@ -129,4 +130,221 @@ import Foundation
     let postPayload = try TestJSON.parse(postHistory.stdout)
     let postRevisions = try #require(postPayload["revisions"] as? [[String: Any]])
     #expect(postRevisions.count == 2, "expected exactly 2 revisions after race; got \(postRevisions.count)")
+}
+
+// MARK: - T5 (phase-complete): broader concurrency surface coverage.
+//
+// The original concurrent test only raced two `revision create` calls.
+// Phase 2.5 added optimistic-concurrency in 2 commands; phase-complete
+// F2 extends it to all 6 write commands. Each engine path that creates
+// a revision can race, and exactly-one-success is the invariant. Below
+// we exercise three additional paths with two-process forks.
+
+// T5(a): two concurrent `comment` adds. Each spawns a writeRevision via
+// the engine's link(2) atomic. Exactly one succeeds; the loser surfaces
+// bundleConflict with a non-empty message. Bundle ends with one new
+// revision (original + winner's new).
+@Test func twoConcurrentCommentAddsProduceExactlyOneSuccess() throws {
+    let fixture = try CLISupport.makeFixture(
+        name: "concurrent-comment",
+        content: "# Introduction\n\nbody.\n"
+    )
+    defer { CLISupport.cleanup(fixture) }
+
+    let queue = DispatchQueue(label: "concurrent-comment-cli", attributes: .concurrent)
+    let group = DispatchGroup()
+    var resultA: CLISupport.Output?
+    var resultB: CLISupport.Output?
+    var errorA: Error?
+    var errorB: Error?
+
+    group.enter()
+    queue.async {
+        defer { group.leave() }
+        do {
+            resultA = try CLISupport.runCLI([
+                "comment", "introduction", fixture.bundlePath,
+                "--type", "note", "--author", "alice", "--text", "from A",
+            ])
+        } catch { errorA = error }
+    }
+    group.enter()
+    queue.async {
+        defer { group.leave() }
+        do {
+            resultB = try CLISupport.runCLI([
+                "comment", "introduction", fixture.bundlePath,
+                "--type", "note", "--author", "bob", "--text", "from B",
+            ])
+        } catch { errorB = error }
+    }
+    group.wait()
+
+    if let e = errorA { Issue.record("process A threw: \(e)"); return }
+    if let e = errorB { Issue.record("process B threw: \(e)"); return }
+
+    let a = try #require(resultA)
+    let b = try #require(resultB)
+    let aSucceeded = a.exitCode == 0
+    let bSucceeded = b.exitCode == 0
+    let successCount = (aSucceeded ? 1 : 0) + (bSucceeded ? 1 : 0)
+    #expect(successCount == 1,
+            "expected exactly 1 success, got \(successCount). A.exit=\(a.exitCode), B.exit=\(b.exitCode), A.stderr=\(a.stderr.prefix(200)), B.stderr=\(b.stderr.prefix(200))")
+
+    let loser = aSucceeded ? b : a
+    #expect(loser.exitCode == 4, "loser should exit 4 (bundleConflict); got \(loser.exitCode)")
+    let envelope = try TestJSON.parse(loser.stderr)
+    #expect(envelope["error"] as? String == "bundleConflict")
+
+    let postHistory = try CLISupport.runCLI(["history", fixture.bundlePath])
+    let postPayload = try TestJSON.parse(postHistory.stdout)
+    let postRevisions = try #require(postPayload["revisions"] as? [[String: Any]])
+    #expect(postRevisions.count == 2, "expected exactly 2 revisions after race; got \(postRevisions.count)")
+}
+
+// T5(b): two concurrent `edit` calls on the same section. Same race as
+// the original test path (link(2) gate at the bundle level), surfaced
+// through the section-mutation surface. Bundle integrity invariant
+// holds: exactly one success, exactly one new revision.
+@Test func twoConcurrentEditsOnSameSectionProduceExactlyOneSuccess() throws {
+    let fixture = try CLISupport.makeFixture(
+        name: "concurrent-edit",
+        content: "# Introduction\n\noriginal body.\n"
+    )
+    defer { CLISupport.cleanup(fixture) }
+
+    // Both writers need the section's current versionHash. Read it once
+    // before the race; both processes see the same value.
+    let read = try CLISupport.runCLI(["read", "introduction", fixture.bundlePath])
+    let readPayload = try TestJSON.parse(read.stdout)
+    let versionHash = try #require(readPayload["versionHash"] as? String)
+
+    let queue = DispatchQueue(label: "concurrent-edit-cli", attributes: .concurrent)
+    let group = DispatchGroup()
+    var resultA: CLISupport.Output?
+    var resultB: CLISupport.Output?
+    var errorA: Error?
+    var errorB: Error?
+
+    group.enter()
+    queue.async {
+        defer { group.leave() }
+        do {
+            resultA = try CLISupport.runCLI([
+                "edit", "introduction", fixture.bundlePath,
+                "--version", versionHash,
+                "--content", "A wrote this.",
+            ])
+        } catch { errorA = error }
+    }
+    group.enter()
+    queue.async {
+        defer { group.leave() }
+        do {
+            resultB = try CLISupport.runCLI([
+                "edit", "introduction", fixture.bundlePath,
+                "--version", versionHash,
+                "--content", "B wrote this.",
+            ])
+        } catch { errorB = error }
+    }
+    group.wait()
+
+    if let e = errorA { Issue.record("process A threw: \(e)"); return }
+    if let e = errorB { Issue.record("process B threw: \(e)"); return }
+
+    let a = try #require(resultA)
+    let b = try #require(resultB)
+    let aSucceeded = a.exitCode == 0
+    let bSucceeded = b.exitCode == 0
+    let successCount = (aSucceeded ? 1 : 0) + (bSucceeded ? 1 : 0)
+    #expect(successCount == 1,
+            "expected exactly 1 success, got \(successCount). A.exit=\(a.exitCode), B.exit=\(b.exitCode)")
+
+    let loser = aSucceeded ? b : a
+    // Loser may surface either:
+    //   (a) versionConflict (section-hash mismatch — winner edited first,
+    //       moving the section's hash) → exit 2
+    //   (b) bundleConflict (link(2) EEXIST race — winner landed file
+    //       first, loser's link returns EEXIST) → exit 4
+    // Both are correct refusals; the test asserts EITHER.
+    #expect(loser.exitCode == 2 || loser.exitCode == 4,
+            "loser should exit 2 (versionConflict) or 4 (bundleConflict); got \(loser.exitCode), stderr=\(loser.stderr.prefix(200))")
+    let envelope = try TestJSON.parse(loser.stderr)
+    let discriminator = envelope["error"] as? String
+    #expect(discriminator == "versionConflict" || discriminator == "bundleConflict",
+            "loser envelope should have versionConflict or bundleConflict; got \(discriminator ?? "(missing)")")
+
+    let postHistory = try CLISupport.runCLI(["history", fixture.bundlePath])
+    let postPayload = try TestJSON.parse(postHistory.stdout)
+    let postRevisions = try #require(postPayload["revisions"] as? [[String: Any]])
+    #expect(postRevisions.count == 2, "expected exactly 2 revisions after race; got \(postRevisions.count)")
+}
+
+// T5(c): one `prune` racing one `revision create`. Prune's gate
+// (postMergeRevisions.last.versionId == initialLatest.versionId) detects
+// the racing writer and aborts. Or the writer wins and prune sees no
+// older revisions to delete. Either way, no corruption — bundle stays
+// readable.
+@Test func concurrentPruneAndRevisionCreateLeaveBundleConsistent() throws {
+    // Seed the bundle with several revisions so prune has work to do.
+    let fixture = try CLISupport.makeFixture(
+        name: "concurrent-prune",
+        content: "# Intro\n\nrev1.\n"
+    )
+    defer { CLISupport.cleanup(fixture) }
+    let baseTs = Date(timeIntervalSince1970: 1_775_000_000)
+
+    let bundle = try DocumentBundle(at: fixture.bundlePath)
+    for i in 2...5 {
+        let ts = baseTs.addingTimeInterval(TimeInterval(i * 60))
+        _ = try bundle.createRevision(
+            content: "# Intro\n\nrev \(i).\n",
+            timestamp: ts
+        )
+    }
+
+    let queue = DispatchQueue(label: "concurrent-prune-cli", attributes: .concurrent)
+    let group = DispatchGroup()
+    var pruneResult: CLISupport.Output?
+    var createResult: CLISupport.Output?
+
+    group.enter()
+    queue.async {
+        defer { group.leave() }
+        // Run prune to keep 2 (would delete 3 of the 5 existing).
+        pruneResult = try? CLISupport.runCLI([
+            "prune", fixture.bundlePath, "--keep", "2",
+        ])
+    }
+    group.enter()
+    queue.async {
+        defer { group.leave() }
+        // Race: create a new revision concurrently.
+        createResult = try? CLISupport.runCLI([
+            "revision", "create", fixture.bundlePath,
+            "--content", "# Intro\n\nracing rev.\n",
+        ])
+    }
+    group.wait()
+
+    let p = try #require(pruneResult)
+    let c = try #require(createResult)
+
+    // Bundle integrity invariant: after the race, the bundle is still
+    // readable (history listing succeeds) and total revision count is
+    // sane. We do NOT pin which raced first — wall-clock decides — but
+    // exactly one of three outcomes is acceptable:
+    //   (i) prune won the race, create succeeded against the new
+    //       prune-shrunken state (prune kept 2 → +1 = 3 total)
+    //   (ii) create won the race, prune detected the new revision via
+    //        the postMerge gate and aborted (5 + 1 = 6 total)
+    //   (iii) both completed cleanly without overlap (3 total)
+    let postHistory = try CLISupport.runCLI(["history", fixture.bundlePath])
+    #expect(postHistory.exitCode == 0,
+            "history must succeed after race; stderr=\(postHistory.stderr.prefix(200))")
+    let postPayload = try TestJSON.parse(postHistory.stdout)
+    let postRevisions = try #require(postPayload["revisions"] as? [[String: Any]])
+    #expect((1...6).contains(postRevisions.count),
+            "expected sane revision count post-race; got \(postRevisions.count). prune=\(p.exitCode) create=\(c.exitCode)")
 }

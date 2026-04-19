@@ -26,6 +26,12 @@ struct ClearFlagCommand: ParsableCommand {
     @Argument(help: "Path to the .mdpal bundle directory.")
     var bundle: String
 
+    @Option(
+        name: .long,
+        help: "Bundle revision id you last saw. If supplied, the create fails with bundleConflict if another writer landed first."
+    )
+    var baseRevision: String?
+
     @OptionGroup var output: GlobalOutputOptions
 
     func run() throws {
@@ -36,7 +42,10 @@ struct ClearFlagCommand: ParsableCommand {
             try document.clearFlag(slug)
 
             let serialized = try document.serialize()
-            _ = try resolvedBundle.createRevision(content: serialized)
+            _ = try resolvedBundle.createRevision(
+                content: serialized,
+                expectedBase: baseRevision
+            )
 
             switch output.format {
             case .json:

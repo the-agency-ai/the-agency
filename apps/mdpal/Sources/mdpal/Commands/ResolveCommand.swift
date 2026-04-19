@@ -28,23 +28,33 @@ struct ResolveCommand: ParsableCommand {
     @Argument(help: "Path to the .mdpal bundle directory.")
     var bundle: String
 
-    @Option(name: .long, help: "Response text (mutually exclusive with --response-stdin).")
+    @Option(name: .long, help: "Response text (mutually exclusive with --stdin).")
     var response: String?
 
-    @ArgumentParser.Flag(name: .long, help: "Read response text from stdin (avoids ARG_MAX limits).")
-    var responseStdin: Bool = false
+    @ArgumentParser.Flag(
+        name: [.customLong("stdin"), .customLong("response-stdin")],
+        help: "Read response text from stdin (avoids ARG_MAX limits). --response-stdin is the deprecated alias retained for mdpal-app backward-compat."
+    )
+    var stdin: Bool = false
 
     @Option(name: .long, help: "Who is resolving the comment.")
     var by: String
 
+    @Option(
+        name: .long,
+        help: "Bundle revision id you last saw. If supplied, the create fails with bundleConflict if another writer landed first."
+    )
+    var baseRevision: String?
+
     @OptionGroup var output: GlobalOutputOptions
 
     func validate() throws {
-        if response != nil && responseStdin {
-            throw ValidationError("Specify either --response or --response-stdin, not both.")
+        // D1 (phase-complete): renamed --response-stdin → --stdin for parity.
+        if response != nil && stdin {
+            throw ValidationError("Specify either --response or --stdin, not both.")
         }
-        if response == nil && !responseStdin {
-            throw ValidationError("One of --response or --response-stdin is required.")
+        if response == nil && !stdin {
+            throw ValidationError("One of --response or --stdin is required.")
         }
     }
 
@@ -72,7 +82,10 @@ struct ResolveCommand: ParsableCommand {
             )
 
             let serialized = try document.serialize()
-            _ = try resolvedBundle.createRevision(content: serialized)
+            _ = try resolvedBundle.createRevision(
+                content: serialized,
+                expectedBase: baseRevision
+            )
 
             switch output.format {
             case .json:

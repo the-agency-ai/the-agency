@@ -45,11 +45,14 @@ struct CommentCommand: ParsableCommand {
     @Option(name: .long, help: "Comment author.")
     var author: String
 
-    @Option(name: .long, help: "Comment body text (mutually exclusive with --text-stdin).")
+    @Option(name: .long, help: "Comment body text (mutually exclusive with --stdin).")
     var text: String?
 
-    @ArgumentParser.Flag(name: .long, help: "Read comment text from stdin (avoids ARG_MAX limits for long bodies).")
-    var textStdin: Bool = false
+    @ArgumentParser.Flag(
+        name: [.customLong("stdin"), .customLong("text-stdin")],
+        help: "Read comment text from stdin (avoids ARG_MAX limits for long bodies). --text-stdin is the deprecated alias retained for mdpal-app backward-compat."
+    )
+    var stdin: Bool = false
 
     @Option(name: .long, help: "Override the auto-captured section context.")
     var context: String?
@@ -60,14 +63,23 @@ struct CommentCommand: ParsableCommand {
     @Option(name: .long, help: "Tag to apply to the comment. Repeat for multiple tags (e.g., --tag perf --tag phase2).")
     var tag: [String] = []
 
+    @Option(
+        name: .long,
+        help: "Bundle revision id you last saw. If supplied, the create fails with bundleConflict if another writer landed first."
+    )
+    var baseRevision: String?
+
     @OptionGroup var output: GlobalOutputOptions
 
     func validate() throws {
-        if text != nil && textStdin {
-            throw ValidationError("Specify either --text or --text-stdin, not both.")
+        // D1 (phase-complete): renamed --text-stdin → --stdin for parity
+        // with edit/revision-create. Pre-1.0 normalization. mdpal-app's
+        // RealCLIService updated via dispatch.
+        if text != nil && stdin {
+            throw ValidationError("Specify either --text or --stdin, not both.")
         }
-        if text == nil && !textStdin {
-            throw ValidationError("One of --text or --text-stdin is required.")
+        if text == nil && !stdin {
+            throw ValidationError("One of --text or --stdin is required.")
         }
     }
 
@@ -89,26 +101,30 @@ struct CommentCommand: ParsableCommand {
                 }
             }
 
+            // D4 (phase-complete): use ErrorEnvelope.invalidArgument
+            // factory rather than inlining the discriminator + details
+            // shape — the factory centralizes the wire format so a future
+            // command needing the same envelope cannot drift.
             guard let commentType = CommentType(rawValue: type) else {
-                let envelope = ErrorEnvelope(
-                    error: "invalidArgument",
-                    message: "Unknown comment type '\(type)'. Valid: question, suggestion, note, directive, decision.",
-                    details: ["argument": AnyCodable("type"), "value": AnyCodable(type)]
+                let (envelope, exit) = ErrorEnvelope.invalidArgument(
+                    name: "type",
+                    value: type,
+                    validValues: ["question", "suggestion", "note", "directive", "decision"]
                 )
                 envelope.emit(format: output.format)
-                throw MdpalExitCode.generalError.argumentParserCode
+                throw exit.argumentParserCode
             }
 
             let parsedPriority: Priority?
             if let priority {
                 guard let p = Priority(rawValue: priority) else {
-                    let envelope = ErrorEnvelope(
-                        error: "invalidArgument",
-                        message: "Unknown priority '\(priority)'. Valid: low, normal, high.",
-                        details: ["argument": AnyCodable("priority"), "value": AnyCodable(priority)]
+                    let (envelope, exit) = ErrorEnvelope.invalidArgument(
+                        name: "priority",
+                        value: priority,
+                        validValues: ["low", "normal", "high"]
                     )
                     envelope.emit(format: output.format)
-                    throw MdpalExitCode.generalError.argumentParserCode
+                    throw exit.argumentParserCode
                 }
                 parsedPriority = p
             } else {
@@ -130,7 +146,10 @@ struct CommentCommand: ParsableCommand {
 
             // Persist as a new revision.
             let serialized = try document.serialize()
-            _ = try resolvedBundle.createRevision(content: serialized)
+            _ = try resolvedBundle.createRevision(
+                content: serialized,
+                expectedBase: baseRevision
+            )
 
             switch output.format {
             case .json:
