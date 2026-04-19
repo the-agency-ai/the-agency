@@ -30,9 +30,11 @@ Real-time conversation capture tool. Records dialogue and decisions as they happ
 
 ## Project Detection
 
-If `--project` not specified, derive from branch name:
-- Take the last segment after `/` (e.g., `proto/folio` → `folio`)
-- Default to `captain` if on master
+If `--project` not specified, derive as follows:
+- In a worktree on a feature branch: take the last segment of the branch name after `/` (e.g., `proto/folio` → `folio`)
+- On master (or main checkout): use the basename of `$CLAUDE_PROJECT_DIR` (e.g., `/Users/x/code/monofolk` → `monofolk`)
+
+This matches the `_agency-init` Step 5b resolver — every skill defaulting a project/workstream name should use the same basename rule so fleet paths stay consistent. (the-agency#343)
 
 ## File Location
 
