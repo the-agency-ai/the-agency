@@ -1,0 +1,713 @@
+#!/bin/bash
+#
+# What Problem: Every ISCP tool (flag, dispatch, dropbox, transcript, subscribe,
+# iscp-check) needs to access the same SQLite database with consistent setup —
+# WAL mode, foreign keys, busy timeout, named parameters, schema versioning.
+# Without a shared library, each tool would duplicate DB init, parameter handling,
+# and version checking — 8 tools x same boilerplate = maintenance nightmare.
+#
+# How & Why: Bash library sourced by all ISCP tools. Uses sqlite3 CLI (ships with
+# macOS/Linux) rather than an embedded library because framework convention is bash
+# tools and the ~10ms fork overhead is negligible against the 200ms hook budget.
+# Named parameters via .param set (SQLite 3.38+) for SQL injection safety — never
+# interpolate variables into SQL. Single DB (not per-primitive) because the ISCP
+# hook needs one-pass queries across all notification types. PRAGMA output is
+# suppressed via .output /dev/null so it doesn't pollute query results.
+#
+# Written: 2026-04-04 during iscp session (Phase 1, Iteration 1.2)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Constants
+# ─────────────────────────────────────────────────────────────────────────────
+
+readonly ISCP_SCHEMA_VERSION=1
+readonly ISCP_MIN_SQLITE_VERSION="3.38.0"
+readonly ISCP_BUSY_TIMEOUT=1000
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Internal: version comparison
+# ─────────────────────────────────────────────────────────────────────────────
+
+# _iscp_version_gte <actual> <minimum>
+# Returns 0 if actual >= minimum (semver-style dotted version)
+_iscp_version_gte() {
+    local actual="$1"
+    local minimum="$2"
+
+    local IFS='.'
+    read -ra a_parts <<< "$actual"
+    read -ra m_parts <<< "$minimum"
+
+    local max=${#a_parts[@]}
+    [[ ${#m_parts[@]} -gt $max ]] && max=${#m_parts[@]}
+
+    for ((i = 0; i < max; i++)); do
+        local a=${a_parts[i]:-0}
+        local m=${m_parts[i]:-0}
+        if ((a > m)); then return 0; fi
+        if ((a < m)); then return 1; fi
+    done
+    return 0
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Internal: resolve repo name
+# ─────────────────────────────────────────────────────────────────────────────
+
+# _iscp_resolve_repo_name
+# Outputs sanitized repo name from agency.yaml or git remote
+_iscp_resolve_repo_name() {
+    local project_root="${AGENCY_PROJECT_ROOT:-${CLAUDE_PROJECT_DIR:-.}}"
+    local yaml="$project_root/claude/config/agency.yaml"
+    local repo_name=""
+
+    # Try agency.yaml repo.name first
+    if [[ -f "$yaml" ]]; then
+        local in_repo=false
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^repo: ]]; then
+                in_repo=true
+                continue
+            fi
+            if [[ "$in_repo" == "true" ]]; then
+                if [[ "$line" =~ ^[a-zA-Z] ]]; then
+                    in_repo=false
+                    continue
+                fi
+                if [[ "$line" =~ ^[[:space:]]+name:[[:space:]]+(.+) ]]; then
+                    repo_name="${BASH_REMATCH[1]}"
+                    repo_name="${repo_name%%#*}"
+                    repo_name="${repo_name## }"
+                    repo_name="${repo_name%% }"
+                    repo_name="${repo_name#\"}"
+                    repo_name="${repo_name%\"}"
+                    break
+                fi
+            fi
+        done < "$yaml"
+    fi
+
+    # Fallback: git remote or toplevel basename
+    if [[ -z "$repo_name" ]]; then
+        repo_name=$(git remote get-url origin 2>/dev/null) || true
+        if [[ -n "$repo_name" ]]; then
+            repo_name="${repo_name%.git}"   # strip .git suffix
+            repo_name="${repo_name##*/}"    # strip everything before last /
+        fi
+    fi
+    if [[ -z "$repo_name" ]]; then
+        repo_name=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null) || true
+    fi
+    if [[ -z "$repo_name" ]]; then
+        repo_name="unknown"
+    fi
+
+    # Sanitize: lowercase, replace non-alphanum with dash, strip leading/trailing dashes
+    # Note: bash 3.2 (macOS) doesn't support ${var,,} or character-class replacement,
+    # so we use tr for lowercase and sed for char replacement in one invocation each.
+    repo_name=$(echo "$repo_name" | tr '[:upper:]' '[:lower:]')
+    repo_name=$(echo "$repo_name" | sed 's/[^a-z0-9_-]/-/g; s/^-*//; s/-*$//')
+
+    # Validate: no path traversal, non-empty after sanitization
+    if [[ -z "$repo_name" || "$repo_name" == *".."* || "$repo_name" == *"/"* ]]; then
+        echo "iscp-db: FATAL: repo name failed sanitization: '$repo_name'" >&2
+        return 1
+    fi
+
+    echo "$repo_name"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Internal: schema DDL
+# ─────────────────────────────────────────────────────────────────────────────
+
+_iscp_schema_ddl() {
+    cat << 'SCHEMA'
+-- Flags: quick-capture observations (DB-only, no git payload)
+CREATE TABLE IF NOT EXISTS flags (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    from_agent TEXT NOT NULL,
+    to_agent TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'unread' CHECK(status IN ('unread', 'read', 'processed')),
+    read_at TEXT,
+    processed_at TEXT,
+    session_id TEXT,
+    branch TEXT
+);
+
+-- Dispatches: structured messages with git payloads
+CREATE TABLE IF NOT EXISTS dispatches (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    from_agent TEXT NOT NULL,
+    to_agent TEXT NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('directive', 'seed', 'review', 'review-response', 'commit', 'master-updated', 'escalation', 'dispatch', 'iteration-complete', 'phase-complete')),
+    priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('low', 'normal', 'high')),
+    subject TEXT NOT NULL,
+    payload_path TEXT NOT NULL,
+    in_reply_to INTEGER REFERENCES dispatches(id),
+    status TEXT NOT NULL DEFAULT 'unread' CHECK(status IN ('unread', 'read', 'resolved')),
+    read_at TEXT,
+    read_by TEXT,
+    resolved_at TEXT
+);
+
+-- Transcripts: session dialogue metadata (payload in git)
+CREATE TABLE IF NOT EXISTS transcripts (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    agent TEXT NOT NULL,
+    session_id TEXT,
+    payload_path TEXT NOT NULL,
+    summary TEXT,
+    status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'complete')),
+    completed_at TEXT
+);
+
+-- Dropbox items: universal intake (payload on filesystem outside git)
+CREATE TABLE IF NOT EXISTS dropbox_items (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    to_agent TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    filesystem_path TEXT NOT NULL,
+    source TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'fetched')),
+    fetched_at TEXT,
+    fetched_by TEXT
+);
+
+-- Subscriptions: event-driven notification rules
+-- filter defaults to '' (not NULL) so the UNIQUE index works correctly
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    subscriber TEXT NOT NULL,
+    event_pattern TEXT NOT NULL,
+    filter TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'paused', 'expired'))
+);
+
+-- Notifications: triggered subscription events
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    subscription_id INTEGER REFERENCES subscriptions(id),
+    to_agent TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    summary TEXT,
+    reference_type TEXT CHECK(reference_type IN ('flag', 'dispatch', 'transcript', 'dropbox')),
+    reference_id INTEGER,
+    status TEXT NOT NULL DEFAULT 'unread' CHECK(status IN ('unread', 'read')),
+    read_at TEXT
+);
+
+-- Indexes: covering queries for ISCP hook (agent + status lookups)
+CREATE INDEX IF NOT EXISTS idx_flags_to_status ON flags(to_agent, status);
+CREATE INDEX IF NOT EXISTS idx_dispatches_to_status ON dispatches(to_agent, status);
+CREATE INDEX IF NOT EXISTS idx_dispatches_type ON dispatches(type);
+CREATE INDEX IF NOT EXISTS idx_dispatches_reply ON dispatches(in_reply_to);
+CREATE INDEX IF NOT EXISTS idx_dropbox_to_status ON dropbox_items(to_agent, status);
+CREATE INDEX IF NOT EXISTS idx_transcripts_agent ON transcripts(agent);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_subscriber ON subscriptions(subscriber, status);
+CREATE INDEX IF NOT EXISTS idx_notifications_to_status ON notifications(to_agent, status);
+
+-- Uniqueness: prevent duplicate dispatches and subscriptions
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dispatches_payload ON dispatches(payload_path);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_unique ON subscriptions(subscriber, event_pattern, filter);
+SCHEMA
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Internal: Schema migrations
+# ─────────────────────────────────────────────────────────────────────────────
+
+# _iscp_migrate_v0_to_v1
+# What Problem: Need a migration path from an empty/pre-versioned DB to v1 schema.
+# How & Why: Outputs the full v1 DDL. Used by the migration framework when
+# upgrading from version 0 (unversioned) to version 1 (initial schema).
+# CREATE IF NOT EXISTS is safe even if some tables already exist.
+# Written: 2026-04-07 during ISCP Phase 2, Iteration 2.0
+_iscp_migrate_v0_to_v1() {
+    _iscp_schema_ddl
+}
+
+# _iscp_run_migrations <db_path> <current_version> <target_version>
+# What Problem: Schema evolution — adding columns, tables, or indexes to an
+# existing ISCP database without losing data. CREATE TABLE IF NOT EXISTS can't
+# add new columns to existing tables.
+# How & Why: Sequential migration runner. Each migration function
+# (_iscp_migrate_vN_to_vN+1) outputs SQL to stdout. The runner wraps each
+# step in a transaction and bumps PRAGMA user_version on success. If a step
+# fails, the DB stays at the last successful version — partial progress is
+# preserved, and the next run resumes from where it left off.
+# Written: 2026-04-07 during ISCP Phase 2, Iteration 2.0
+_iscp_run_migrations() {
+    local db_path="$1"
+    local current="$2"
+    local target="$3"
+
+    local preamble
+    preamble=$(_iscp_pragma_preamble)
+
+    local v
+    for ((v = current; v < target; v++)); do
+        local next=$((v + 1))
+        local fn="_iscp_migrate_v${v}_to_v${next}"
+
+        # Verify migration function exists
+        if ! declare -f "$fn" > /dev/null 2>&1; then
+            echo "iscp-db: FATAL: migration function $fn not found. Cannot upgrade from v${v} to v${next}." >&2
+            return 1
+        fi
+
+        # Get migration SQL from the function
+        local migration_sql
+        migration_sql=$("$fn") || {
+            echo "iscp-db: FATAL: migration function $fn failed to produce SQL." >&2
+            return 1
+        }
+
+        # Execute migration in a transaction with version bump
+        sqlite3 "$db_path" << SQL
+${preamble}
+BEGIN;
+${migration_sql}
+PRAGMA user_version=${next};
+COMMIT;
+SQL
+        local rc=$?
+        if [[ $rc -ne 0 ]]; then
+            echo "iscp-db: FATAL: migration v${v} → v${next} failed (sqlite3 exit $rc). DB remains at version ${v}." >&2
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Internal: PRAGMA preamble (suppresses output via .output /dev/null)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# _iscp_pragma_preamble
+# Returns the sqlite3 dot-commands to set pragmas without stdout pollution
+_iscp_pragma_preamble() {
+    cat << PREAMBLE
+.output /dev/null
+PRAGMA journal_mode=WAL;
+PRAGMA busy_timeout=${ISCP_BUSY_TIMEOUT};
+PRAGMA foreign_keys=ON;
+PRAGMA synchronous=NORMAL;
+.output stdout
+PREAMBLE
+}
+
+# _iscp_pragma_preamble_light
+# Lighter preamble for queries (skip WAL and synchronous — they persist)
+_iscp_pragma_preamble_light() {
+    cat << PREAMBLE
+.output /dev/null
+PRAGMA busy_timeout=${ISCP_BUSY_TIMEOUT};
+PRAGMA foreign_keys=ON;
+.output stdout
+PREAMBLE
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Internal: escape value for .param set (double-quote style)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# _iscp_escape_param <value>
+# Escapes a value for use in: .param set :name "<escaped>"
+# Handles: backslashes, double quotes, newlines, carriage returns, tabs.
+# sqlite3's .param set with double quotes interprets \n, \r, \t, \\, \"
+# as escape sequences — so we convert literal chars to their escape form.
+# Order matters: backslashes first (so we don't double-escape later ones).
+_iscp_escape_param() {
+    local val="$1"
+    # Escape backslashes first (must be before all others)
+    val="${val//\\/\\\\}"
+    # Escape double quotes
+    val="${val//\"/\\\"}"
+    # Escape newlines (literal newline → \n two-char sequence)
+    val="${val//$'\n'/\\n}"
+    # Escape carriage returns
+    val="${val//$'\r'/\\r}"
+    # Escape tabs
+    val="${val//$'\t'/\\t}"
+    # Use printf '%s' not echo — echo strips trailing newlines (M2 fix)
+    printf '%s' "$val"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Internal: build .param set commands from pairs
+# ─────────────────────────────────────────────────────────────────────────────
+
+# _iscp_build_params <pairs...>
+# Takes pairs of ":name" "value" and emits .param set lines
+# Returns 0 on success, 1 on invalid param name (error to stderr)
+_iscp_build_params() {
+    # Reject odd argument count (params must come in name/value pairs)
+    if (( $# % 2 != 0 )); then
+        echo "iscp-db: ERROR: parameters must be name/value pairs — got odd count ($#)" >&2
+        return 1
+    fi
+    local result=""
+    while [[ $# -ge 2 ]]; do
+        local pname="$1"
+        local pvalue="$2"
+        shift 2
+        # Strict validation: must match :identifier pattern (prevents dot-command injection)
+        if [[ ! "$pname" =~ ^:[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+            echo "iscp-db: ERROR: parameter name must match ^:[a-zA-Z_][a-zA-Z0-9_]*$ — got '$pname'" >&2
+            return 1
+        fi
+        local escaped
+        escaped=$(_iscp_escape_param "$pvalue")
+        result="${result}.param set ${pname} \"${escaped}\"
+"
+    done
+    echo "$result"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Public API
+# ─────────────────────────────────────────────────────────────────────────────
+
+# iscp_db_check_sqlite
+# Verify sqlite3 is available and meets minimum version requirement.
+# Returns 0 on success, 1 on failure (with error to stderr).
+iscp_db_check_sqlite() {
+    if ! command -v sqlite3 &>/dev/null; then
+        echo "iscp-db: FATAL: sqlite3 not found. Install sqlite3 (macOS ships it; Linux: apt install sqlite3)." >&2
+        return 1
+    fi
+
+    local version
+    version=$(sqlite3 --version 2>/dev/null | awk '{print $1}')
+    if [[ -z "$version" ]]; then
+        echo "iscp-db: FATAL: could not determine sqlite3 version." >&2
+        return 1
+    fi
+
+    if ! _iscp_version_gte "$version" "$ISCP_MIN_SQLITE_VERSION"; then
+        echo "iscp-db: FATAL: sqlite3 $version is too old. ISCP requires >= $ISCP_MIN_SQLITE_VERSION (for .param set). Installed: $version." >&2
+        return 1
+    fi
+
+    return 0
+}
+
+# iscp_db_path
+# Output the absolute path to the ISCP database file.
+# Does NOT create the file or directory — use iscp_db_init for that.
+iscp_db_path() {
+    # ISCP_DB_PATH override — explicit path takes precedence over all resolution.
+    # What Problem: Tests need guaranteed isolation from the live DB. Even with
+    # HOME override, edge cases (wrong CWD, tool re-sourcing) can leak.
+    # How & Why: Single env var check at the chokepoint — every DB operation
+    # goes through iscp_db_path(), so overriding here isolates everything.
+    # Written: 2026-04-06 — test isolation fix (dispatch #16)
+    if [[ -n "${ISCP_DB_PATH:-}" ]]; then
+        echo "$ISCP_DB_PATH"
+        return 0
+    fi
+
+    local repo_name
+    repo_name=$(_iscp_resolve_repo_name) || return 1
+
+    local db_dir="$HOME/.agency/$repo_name"
+    local db_path="$db_dir/iscp.db"
+
+    # Safety: verify the path starts with $HOME/.agency/
+    # The repo_name is already validated against [a-z0-9_-]+ (no .. or /),
+    # so the path is safe by construction. This is a belt-and-suspenders check.
+    case "$db_dir" in
+        "$HOME/.agency/"*) ;;  # Good — under ~/.agency/
+        *)
+            echo "iscp-db: FATAL: resolved DB path '$db_path' is not under ~/.agency/. Possible path traversal." >&2
+            return 1
+            ;;
+    esac
+
+    echo "$db_path"
+}
+
+# iscp_db_init
+# Initialize the ISCP database: create directory, set pragmas, create schema.
+# Idempotent — safe to call on every tool invocation.
+# Returns 0 on success, 1 on failure.
+iscp_db_init() {
+    iscp_db_check_sqlite || return 1
+
+    local db_path
+    db_path=$(iscp_db_path) || return 1
+    local db_dir
+    db_dir=$(dirname "$db_path")
+
+    # Create directory with user-only permissions
+    if [[ ! -d "$db_dir" ]]; then
+        mkdir -p "$db_dir" || {
+            echo "iscp-db: FATAL: could not create directory: $db_dir" >&2
+            return 1
+        }
+        chmod 700 "$db_dir"
+    fi
+
+    # Check schema version if DB already exists
+    if [[ -f "$db_path" ]]; then
+        local current_version
+        current_version=$(sqlite3 "$db_path" "PRAGMA user_version;" 2>/dev/null) || current_version=0
+
+        if [[ "$current_version" -gt "$ISCP_SCHEMA_VERSION" ]]; then
+            echo "iscp-db: FATAL: DB schema version $current_version is newer than expected $ISCP_SCHEMA_VERSION. Update your tools." >&2
+            return 1
+        fi
+
+        # If already at current version, just set pragmas and return
+        if [[ "$current_version" -eq "$ISCP_SCHEMA_VERSION" ]]; then
+            local preamble
+            preamble=$(_iscp_pragma_preamble)
+            sqlite3 "$db_path" << SQL
+${preamble}
+SQL
+            return 0
+        fi
+
+        # DB exists but at older version — run migrations
+        _iscp_run_migrations "$db_path" "$current_version" "$ISCP_SCHEMA_VERSION" || return 1
+        return 0
+    fi
+
+    # Fresh install — create schema from scratch
+    # Set restrictive umask so DB file is created with 600 permissions
+    local old_umask
+    old_umask=$(umask)
+    umask 077
+
+    local preamble
+    preamble=$(_iscp_pragma_preamble)
+    local schema
+    schema=$(_iscp_schema_ddl)
+
+    sqlite3 "$db_path" << SQL
+${preamble}
+${schema}
+PRAGMA user_version=${ISCP_SCHEMA_VERSION};
+SQL
+
+    local rc=$?
+    umask "$old_umask"
+
+    if [[ $rc -ne 0 ]]; then
+        echo "iscp-db: FATAL: schema creation failed (sqlite3 exit $rc)." >&2
+        return 1
+    fi
+
+    return 0
+}
+
+# iscp_db_query <sql> [<param_name> <param_value> ...]
+# Execute a read query with named parameters.
+# Parameters are passed as pairs: ":name" "value"
+# Output: query results (default sqlite3 formatting)
+#
+# Example:
+#   iscp_db_query "SELECT count(*) FROM flags WHERE to_agent = :agent AND status = 'unread'" \
+#     ":agent" "the-agency/jordan/captain"
+iscp_db_query() {
+    local sql="$1"
+    shift
+
+    local db_path
+    db_path=$(iscp_db_path) || return 1
+
+    if [[ ! -f "$db_path" ]]; then
+        echo "iscp-db: ERROR: DB not initialized. Call iscp_db_init first." >&2
+        return 1
+    fi
+
+    local param_cmds=""
+    if [[ $# -gt 0 ]]; then
+        param_cmds=$(_iscp_build_params "$@") || return 1
+    fi
+
+    local preamble
+    preamble=$(_iscp_pragma_preamble_light)
+
+    sqlite3 "$db_path" << SQL
+${preamble}
+${param_cmds}
+${sql};
+.param clear
+SQL
+}
+
+# iscp_db_exec <sql> [<param_name> <param_value> ...]
+# Execute a write statement (INSERT, UPDATE, DELETE) with named parameters.
+# Same parameter interface as iscp_db_query.
+# Returns 0 on success, 1 on failure.
+iscp_db_exec() {
+    local sql="$1"
+    shift
+
+    local db_path
+    db_path=$(iscp_db_path) || return 1
+
+    if [[ ! -f "$db_path" ]]; then
+        echo "iscp-db: ERROR: DB not initialized. Call iscp_db_init first." >&2
+        return 1
+    fi
+
+    local param_cmds=""
+    if [[ $# -gt 0 ]]; then
+        param_cmds=$(_iscp_build_params "$@") || return 1
+    fi
+
+    local preamble
+    preamble=$(_iscp_pragma_preamble_light)
+
+    sqlite3 "$db_path" << SQL
+${preamble}
+${param_cmds}
+${sql};
+.param clear
+SQL
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Convenience: insert helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+# iscp_db_insert_flag <from> <to> <message> [<session_id>] [<branch>]
+# Returns: the new row id
+iscp_db_insert_flag() {
+    local from="$1"
+    local to="$2"
+    local message="$3"
+    local session_id="${4:-}"
+    local branch="${5:-}"
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+    local db_path
+    db_path=$(iscp_db_path) || return 1
+
+    local preamble
+    preamble=$(_iscp_pragma_preamble_light)
+
+    local params
+    params=$(_iscp_build_params \
+        ":from_agent" "$from" \
+        ":to_agent" "$to" \
+        ":message" "$message" \
+        ":session_id" "$session_id" \
+        ":branch" "$branch" \
+        ":now" "$now") || return 1
+
+    sqlite3 "$db_path" << SQL
+${preamble}
+${params}
+INSERT INTO flags (created_at, from_agent, to_agent, message, status, session_id, branch)
+VALUES (:now, :from_agent, :to_agent, :message, 'unread', :session_id, :branch);
+SELECT last_insert_rowid();
+.param clear
+SQL
+}
+
+# iscp_db_update_status <table> <id> <new_status>
+# Update the status of a record. Also sets the appropriate timestamp column.
+iscp_db_update_status() {
+    local table="$1"
+    local id="$2"
+    local new_status="$3"
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+    # Validate table name (prevent injection — only allow known tables)
+    case "$table" in
+        flags|dispatches|transcripts|dropbox_items|subscriptions|notifications) ;;
+        *)
+            echo "iscp-db: ERROR: unknown table '$table'" >&2
+            return 1
+            ;;
+    esac
+
+    # Determine timestamp column based on table and status
+    local ts_col=""
+    case "$table:$new_status" in
+        flags:read) ts_col="read_at" ;;
+        flags:processed) ts_col="processed_at" ;;
+        dispatches:read) ts_col="read_at" ;;
+        dispatches:resolved) ts_col="resolved_at" ;;
+        dropbox_items:fetched) ts_col="fetched_at" ;;
+        transcripts:complete) ts_col="completed_at" ;;
+        notifications:read) ts_col="read_at" ;;
+    esac
+
+    local db_path
+    db_path=$(iscp_db_path) || return 1
+
+    local preamble
+    preamble=$(_iscp_pragma_preamble_light)
+
+    local params
+    params=$(_iscp_build_params ":id" "$id" ":status" "$new_status" ":now" "$now") || return 1
+
+    # NOTE: $table and $ts_col are interpolated as identifiers (not parameterizable
+    # in sqlite3 .param set). Safe because both are derived from hardcoded case
+    # statements above — never from user input.
+    if [[ -n "$ts_col" ]]; then
+        sqlite3 "$db_path" << SQL
+${preamble}
+${params}
+UPDATE $table SET status = :status, $ts_col = :now WHERE id = :id;
+.param clear
+SQL
+    else
+        sqlite3 "$db_path" << SQL
+${preamble}
+${params}
+UPDATE $table SET status = :status WHERE id = :id;
+.param clear
+SQL
+    fi
+}
+
+# iscp_db_count_unread <agent>
+# Quick count of all unread items for an agent. Used by iscp-check.
+# Output: pipe-separated counts: flags|dispatches|dropbox|notifications
+# Returns "0|0|0|0" if no unread items.
+iscp_db_count_unread() {
+    local agent="$1"
+    local db_path
+    db_path=$(iscp_db_path) || return 1
+
+    if [[ ! -f "$db_path" ]]; then
+        echo "0|0|0|0"
+        return 0
+    fi
+
+    local preamble
+    preamble=$(_iscp_pragma_preamble_light)
+
+    local params
+    params=$(_iscp_build_params ":agent" "$agent") || return 1
+
+    sqlite3 "$db_path" << SQL
+${preamble}
+${params}
+SELECT
+    COALESCE((SELECT count(*) FROM flags WHERE to_agent = :agent AND status = 'unread'), 0)
+    || '|' ||
+    COALESCE((SELECT count(*) FROM dispatches WHERE to_agent = :agent AND status = 'unread'), 0)
+    || '|' ||
+    COALESCE((SELECT count(*) FROM dropbox_items WHERE to_agent = :agent AND status = 'pending'), 0)
+    || '|' ||
+    COALESCE((SELECT count(*) FROM notifications WHERE to_agent = :agent AND status = 'unread'), 0);
+.param clear
+SQL
+}
