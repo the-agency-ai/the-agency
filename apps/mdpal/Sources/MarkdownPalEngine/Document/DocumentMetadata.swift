@@ -25,16 +25,31 @@ public struct DocumentMetadata: Equatable, Sendable {
     /// Section flags.
     public var flags: [Flag]
 
+    /// Unknown top-level YAML keys captured at decode time and re-emitted
+    /// verbatim on encode. **Phase 3 iter 3.1.** Closes the gap where
+    /// inbound bundles with additive metadata (e.g., `review:` block from
+    /// mdpal-app's inbox flow) lost their custom keys on the next
+    /// `Document.serialize() -> DocumentBundle.createRevision` round-trip.
+    ///
+    /// Map shape: `key -> Yams-serialized YAML for that subtree`.
+    /// Sort by key on encode for deterministic output. Engine does not
+    /// interpret these values — they are opaque preservation only.
+    /// Mutation of these values is the consumer's responsibility (e.g.,
+    /// mdpal-app updates `review:` directly via writing a new bundle).
+    public var unknownTopLevelYAML: [String: String]
+
     public init(
         document: DocumentInfo,
         unresolvedComments: [Comment] = [],
         resolvedComments: [Comment] = [],
-        flags: [Flag] = []
+        flags: [Flag] = [],
+        unknownTopLevelYAML: [String: String] = [:]
     ) {
         self.document = document
         self.unresolvedComments = unresolvedComments
         self.resolvedComments = resolvedComments
         self.flags = flags
+        self.unknownTopLevelYAML = unknownTopLevelYAML
     }
 
     /// A blank metadata block for new documents.

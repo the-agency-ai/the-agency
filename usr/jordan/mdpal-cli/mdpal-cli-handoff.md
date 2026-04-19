@@ -90,24 +90,20 @@ Jordan said autonomous on phase-complete, no 1B1 needed. Hash D = Hash C, auto-a
 
 ## Next action — IN THE MORNING
 
-Multiple options, sequence depends on Jordan's priority:
+Forward progress made post-phase-complete (this session, autonomous per Jordan's "keep moving forward"):
+- **PR #344 OPEN** — https://github.com/the-agency-ai/the-agency/pull/344 — Phase 2 phase-complete + iters 2.2-2.5 (PR #179 merged with iter 2.1 only). Receipt 32a55cb. Awaiting captain review.
+- **Phase 3 plan DRAFTED** — appended to plan-mdpal-20260406.md; 6 iterations covering MetadataSerializer round-trip, `mdpal wrap`, `mdpal flatten`, BundleResolver sandbox-root, path scrubbing, perf benchmarks. Dispatched to mdpal-app (#726) for awareness.
+- **Iter 3.1 STARTED** (or in progress) — MetadataSerializer unknown-field round-trip. Scope clear, no Jordan input needed, unblocks mdpal-app's inbox/reply flow.
 
-**(A) PR #179 next steps (recommended first).** Phase 2 is done. The PR holds Phase 1 + Phase 2 work. Choices:
-- Merge phase-complete commit into PR #179 (push update)
-- Close PR #179 + open new PR with cleaner squashed history
-- Captain may have an opinion (check captain dispatches before deciding)
+**Open Phase 3 plan questions for Jordan 1B1 (in plan file):**
+1. Iteration order — recommend 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6. Alternative: security first.
+2. `mdpal wrap` source-as-directory — V2 deferral confirm?
+3. `MDPAL_ROOT` precedence — override vs augment.
+4. Path scrubbing default — `relativePath` default vs opt-in.
 
-**(B) Phase 3 plan revision.** mdpal-app's pre-MAR coordination (dispatches #690/#696/#697) named three engine-side iterations:
-- Iter 3.1: MetadataSerializer unknown-field round-trip (HIGH prerequisite for mdpal-app inbox)
-- Iter 3.2: `mdpal wrap` (pancake → packaged)
-- Iter 3.3: `mdpal flatten` (packaged → pancake)
-Plus Phase 1.5 backlog promotion (Sec-1 sandbox-root, Sec-2 path scrubbing).
-
-Draft Phase 3 plan, dispatch to mdpal-app for awareness, await formal MAR completion.
-
-**(C) Wait for mdpal-app's formal MAR completion** before starting Phase 3 implementation (they need to integrate my pre-MAR feedback first).
-
-Recommended sequence: A → B → C.
+**Awaiting:**
+- Captain review of PR #344
+- mdpal-app's formal MAR feedback on Phase 3 plan (low priority — work-in-progress can proceed)
 
 ## Open coordination
 

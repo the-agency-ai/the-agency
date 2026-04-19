@@ -969,3 +969,218 @@ import Foundation
         Issue.record("Expected parseError")
     }
 }
+
+// MARK: - Phase 3 iter 3.1: Unknown YAML key round-trip preservation
+
+// Bug-exposing test: an inbound metadata block with an additive `review:`
+// block (mdpal-app's inbox metadata) round-trips through encode→decode→encode
+// and the `review:` block survives intact. PRE-FIX BEHAVIOR: the engine
+// silently drops `review:` because MetadataSerializer.decode hard-switches
+// on {document, flags, unresolved, resolved}.
+@Test func metadataSerializerPreservesUnknownTopLevelKeys() throws {
+    let original = """
+    document:
+      version_id: "V0001.0001.20260101T0000Z"
+      version: 1
+      revision: 1
+      timestamp: 2026-01-01T00:00:00Z
+      created: 2026-01-01T00:00:00Z
+      authors:
+      - jordan
+    review:
+      origin: the-agency/jordan/captain
+      artifactType: pvr
+      reviewRound: 2
+      correlationId: c-abc123
+    """
+
+    let decoded = try MetadataSerializer.decode(original)
+    // Verify capture happened
+    #expect(decoded.unknownTopLevelYAML["review"] != nil,
+            "decode should capture unknown top-level key 'review'")
+    let captured = try #require(decoded.unknownTopLevelYAML["review"])
+    #expect(captured.contains("origin"))
+    #expect(captured.contains("artifactType"))
+    #expect(captured.contains("reviewRound"))
+    #expect(captured.contains("correlationId"))
+
+    // Re-encode and verify the unknown block survives
+    let reEncoded = try MetadataSerializer.encode(decoded)
+    #expect(reEncoded.contains("review:"), "encoded YAML should re-emit 'review:' block")
+    #expect(reEncoded.contains("origin"))
+    #expect(reEncoded.contains("the-agency/jordan/captain"))
+    #expect(reEncoded.contains("artifactType"))
+    #expect(reEncoded.contains("pvr"))
+    #expect(reEncoded.contains("reviewRound"))
+    #expect(reEncoded.contains("correlationId"))
+    #expect(reEncoded.contains("c-abc123"))
+
+    // Full round-trip integrity: decode the re-encoded YAML and verify
+    // unknownTopLevelYAML survives a second cycle.
+    let decoded2 = try MetadataSerializer.decode(reEncoded)
+    #expect(decoded2.unknownTopLevelYAML["review"] != nil,
+            "second-cycle decode should still capture 'review'")
+}
+
+@Test func metadataSerializerPreservesMultipleUnknownKeys() throws {
+    let original = """
+    document:
+      version_id: "V0001.0001.20260101T0000Z"
+      version: 1
+      revision: 1
+      timestamp: 2026-01-01T00:00:00Z
+      created: 2026-01-01T00:00:00Z
+      authors:
+      - jordan
+    review:
+      origin: agent-a
+    workflow:
+      stage: draft
+      assignee: bob
+    """
+    let decoded = try MetadataSerializer.decode(original)
+    #expect(decoded.unknownTopLevelYAML.count == 2)
+    #expect(decoded.unknownTopLevelYAML["review"] != nil)
+    #expect(decoded.unknownTopLevelYAML["workflow"] != nil)
+
+    let reEncoded = try MetadataSerializer.encode(decoded)
+    #expect(reEncoded.contains("review:"))
+    #expect(reEncoded.contains("workflow:"))
+    #expect(reEncoded.contains("origin"))
+    #expect(reEncoded.contains("stage"))
+    #expect(reEncoded.contains("assignee"))
+}
+
+@Test func metadataSerializerEmitsUnknownKeysAfterKnownKeys() throws {
+    // Determinism: known keys (document, flags, unresolved, resolved) come
+    // FIRST in deterministic order. Unknown keys come AFTER, sorted
+    // alphabetically. This stable ordering is what mdpal-app relies on for
+    // wire-format goldens.
+    let original = """
+    document:
+      version_id: "V0001.0001.20260101T0000Z"
+      version: 1
+      revision: 1
+      timestamp: 2026-01-01T00:00:00Z
+      created: 2026-01-01T00:00:00Z
+      authors:
+      - jordan
+    workflow:
+      stage: draft
+    review:
+      origin: a
+    """
+    let decoded = try MetadataSerializer.decode(original)
+    let reEncoded = try MetadataSerializer.encode(decoded)
+
+    let documentIdx = reEncoded.range(of: "document:")?.lowerBound
+    let reviewIdx = reEncoded.range(of: "review:")?.lowerBound
+    let workflowIdx = reEncoded.range(of: "workflow:")?.lowerBound
+
+    #expect(documentIdx != nil)
+    #expect(reviewIdx != nil)
+    #expect(workflowIdx != nil)
+
+    // document comes first
+    #expect(documentIdx! < reviewIdx!)
+    #expect(documentIdx! < workflowIdx!)
+    // unknown keys are sorted alphabetically (review before workflow)
+    #expect(reviewIdx! < workflowIdx!)
+}
+
+@Test func metadataSerializerRoundTripWithNoUnknownKeysIsClean() throws {
+    // Negative case: a metadata block with NO unknown keys should not emit
+    // any extra blocks, and unknownTopLevelYAML should be empty.
+    let original = """
+    document:
+      version_id: "V0001.0001.20260101T0000Z"
+      version: 1
+      revision: 1
+      timestamp: 2026-01-01T00:00:00Z
+      created: 2026-01-01T00:00:00Z
+      authors:
+      - jordan
+    """
+    let decoded = try MetadataSerializer.decode(original)
+    #expect(decoded.unknownTopLevelYAML.isEmpty)
+    let reEncoded = try MetadataSerializer.encode(decoded)
+    #expect(!reEncoded.contains("review:"))
+    #expect(!reEncoded.contains("workflow:"))
+}
+
+// Integration test: bundle round-trip with unknown metadata via real
+// engine + bundle ops (not just MetadataSerializer in isolation). This is
+// the mdpal-app integration scenario: receive a bundle with `review:`,
+// add a comment via the engine, write a new revision, verify `review:`
+// survived.
+@Test func bundleRoundTripPreservesUnknownMetadataAcrossMutation() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("mdpal-roundtrip-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let bundlePath = tempDir.appendingPathComponent("test.mdpal").path
+    // Construct a bundle whose initial revision contains `review:` metadata
+    // (as if mdpal-app received it via inbox).
+    let initialContent = """
+    # Introduction
+
+    body.
+
+    <!-- begin:markdown-pal-meta
+    ```yaml
+    document:
+      version_id: "V0001.0001.20260101T0000Z"
+      version: 1
+      revision: 1
+      timestamp: 2026-01-01T00:00:00Z
+      created: 2026-01-01T00:00:00Z
+      authors:
+      - jordan
+    review:
+      origin: the-agency/jordan/captain
+      artifactType: pvr
+      reviewRound: 2
+    ```
+    end:markdown-pal-meta -->
+    """
+    _ = try DocumentBundle.create(
+        name: "test",
+        initialContent: initialContent,
+        at: bundlePath,
+        timestamp: Date(timeIntervalSince1970: 1_775_000_000)
+    )
+
+    // Open the bundle, mutate via the engine (add a comment), write a new
+    // revision. The pre-fix engine would silently drop `review:` in the
+    // new revision.
+    let bundle = try DocumentBundle(at: bundlePath)
+    let document = try bundle.currentDocument()
+    #expect(document.metadata.unknownTopLevelYAML["review"] != nil,
+            "loaded document should preserve `review:` from initialContent")
+
+    let _ = try document.addComment(NewComment(
+        type: .note,
+        author: "alice",
+        sectionSlug: "introduction",
+        text: "test comment",
+        context: nil,
+        priority: nil,
+        tags: nil
+    ))
+    let serialized = try document.serialize()
+    let revision = try bundle.createRevision(content: serialized)
+
+    // Read back the new revision and verify `review:` survived.
+    let reloaded = try Document(contentsOfFile: revision.filePath)
+    #expect(reloaded.metadata.unknownTopLevelYAML["review"] != nil,
+            "after engine mutation + revision write, `review:` should still be there")
+    let captured = try #require(reloaded.metadata.unknownTopLevelYAML["review"])
+    #expect(captured.contains("origin"))
+    #expect(captured.contains("the-agency/jordan/captain"))
+    #expect(captured.contains("artifactType"))
+    #expect(captured.contains("pvr"))
+    #expect(captured.contains("reviewRound"))
+    // And the comment we added is also present.
+    #expect(reloaded.metadata.unresolvedComments.count == 1)
+}
