@@ -4,132 +4,15 @@
     "command": "bash \"$CLAUDE_PROJECT_DIR\"/claude/tools/statusline.sh"
   },
   "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check --force"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/collaboration check"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/worktree-cwd-check"
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/session-backup"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-end.sh"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Skill",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ref-injector.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/block-raw-tools.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "ExitPlanMode",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/plan-capture.sh"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/tool-telemetry.sh"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
-          }
-        ]
-      }
-    ],
+    "SessionStart": [],
+    "SessionEnd": [],
+    "UserPromptSubmit": [],
+    "PreToolUse": [],
+    "PostToolUse": [],
     "PermissionRequest": [],
-    "TaskCompleted": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/plan-capture.py",
-            "timeout": 15
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/idle-mail-check.sh"
-          }
-        ]
-      }
-    ]
+    "TaskCompleted": [],
+    "Stop": [],
+    "Notification": []
   },
   "enabledPlugins": {
     "hookify@claude-plugins-official": false
@@ -147,5 +30,6 @@
       "Write(/tmp/**)",
       "Write(/var/folders/**)"
     ]
-  }
+  },
+  "_reset_window_note": "hooks temporarily disabled for v46.0 reset window (Phase 1 entry → Phase 4.5 exit). Restore from usr/jordan/captain/reset-baseline-20260419/.claude-settings.pre-phase-1.json (adjusted to agency/ paths) at Phase 4.5."
 }
