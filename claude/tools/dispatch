@@ -52,7 +52,11 @@ source "$SCRIPT_DIR/lib/_address-parse"
 source "$SCRIPT_DIR/lib/_iscp-db"
 
 # Valid dispatch types (must match _iscp-db CHECK constraint)
-VALID_TYPES="directive seed review review-response commit master-updated escalation dispatch"
+# iteration-complete + phase-complete added 2026-04-17 for small-batch-cadence
+# (monofolk PVR v1.1 / A&D v1.1). Requires DB migration — run:
+#   ./usr/jordan/captain/tools/migrate-iscp-types.sh
+# Upstream to the-agency via #184.
+VALID_TYPES="directive seed review review-response commit master-updated escalation dispatch iteration-complete phase-complete"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
