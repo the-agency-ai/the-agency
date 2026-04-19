@@ -177,6 +177,139 @@ Captain observations:
 - **Fleet implications** — every worktree currently has `.claude/` copy because `worktree-sync` syncs it. If `.claude/` becomes generated-from-src, worktree-sync runs the install step instead of copying.
 - **Testing implications** — skill changes would have source-side tests + install-step validation. Current test runner runs against installed location; after the migration, tests should exercise source.
 
+## Principal's design direction (added 2026-04-19 T18:40)
+
+> **RE: Installer** — *"I suggest we have a yaml file that describes where to find items and where to put them and use that to drive creation of directories and rsync operations or some such."*
+
+**Manifest-driven install** — the yaml becomes the single source-of-truth for:
+
+- **Source locations** — where each installable thing lives in the framework tree (e.g., `src/skills/<name>/`, `src/agents/<class>/agent.md`, `src/hooks/<name>.sh`)
+- **Destination locations** — where it lands in the target (e.g., `.claude/skills/<name>/`, `.claude/agents/<principal>/<agent>.md`, `claude/hooks/<name>.sh`)
+- **Install operation** — copy vs symlink vs rsync vs template-expand
+- **Scope** — `framework-dev` (the-agency clone), `adopter` (agency init target), `both`
+- **Ownership** — framework-owned (never overwrite user edits) vs user-owned (preserve user customizations)
+- **Version / pinning** — per-entry minimum framework version required
+
+### Example manifest shape (captain strawman)
+
+```yaml
+# agency/install-manifest.yaml (or similar)
+version: 1
+entries:
+  - id: skill.fleet-report
+    kind: skill
+    source: src/skills/fleet-report/
+    destination: .claude/skills/fleet-report/
+    op: rsync                     # rsync --delete-excluded (respect user-owned files per ownership rules)
+    scope: [framework-dev, adopter]
+    ownership: framework           # re-install clobbers (user customizes via usr/*/tools/ sandbox instead)
+    min_framework_version: "45.2"
+
+  - id: hook.block-raw-tools
+    kind: hook
+    source: src/hooks/block-raw-tools.sh
+    destination: claude/hooks/block-raw-tools.sh
+    op: copy
+    scope: [framework-dev, adopter]
+    ownership: framework
+
+  - id: agent.captain
+    kind: agent
+    source: src/agents/captain/agent.md
+    destination_template: ".claude/agents/{principal}/captain.md"
+    op: template-expand
+    scope: [framework-dev, adopter]
+    ownership: principal-scoped
+    template_vars: [principal, project, workstream]
+
+  - id: settings.json
+    kind: config
+    source: src/config/settings.template.json
+    destination: .claude/settings.json
+    op: three-way-merge            # preserve user customizations on update
+    scope: [adopter]
+    ownership: user-owned
+    merge_strategy: jq-patch       # or whatever we land on
+
+  - id: claude-md
+    kind: config
+    source: src/templates/CLAUDE.md.template
+    destination: CLAUDE.md
+    op: template-expand            # only on init; never overwrite on update
+    scope: [adopter]
+    ownership: user-owned
+    condition: on_init_only
+
+  - id: workstream.{repo}
+    kind: workstream
+    source: src/templates/workstream/
+    destination_template: "claude/workstreams/{repo}/"
+    op: template-expand
+    scope: [adopter]
+    ownership: user-owned
+    template_vars: [repo]
+    condition: on_init_only
+```
+
+### Install operations
+
+- **`copy`** — plain file copy. Framework-owned; clobbers on re-install.
+- **`rsync`** — rsync with declared flags. Good for directory trees with excludes.
+- **`symlink`** — for bootstrap scenario — the-agency developers want edits in `src/` to be LIVE in `.claude/` without a re-install step. `op: symlink` gives that.
+- **`template-expand`** — source is a template with `{placeholders}`; installer fills from `template_vars` context. Used for CLAUDE.md, agent-per-principal registrations, workstream scaffold.
+- **`three-way-merge`** — for config files like settings.json where adopters customize. Framework proposes new content, adopter's customizations survive. Merge tool (jq, yq, manual) depends on file type.
+
+### Why this is the right design
+
+- **Single source of truth** — one yaml describes the entire install surface. No more "wonder what agency init does" or "where should this live" — the manifest answers.
+- **Testable** — CI can validate the manifest + dry-run the install. Adopter installs become reproducible.
+- **Scope-aware** — same manifest drives `agency init` (adopter scope) and `agency install` / `agency sync` (framework-dev scope). One tool, one spec.
+- **Ownership-aware** — clear rules for what the installer can and can't overwrite. No more clobbering user edits.
+- **Upgrade path** — `agency update` reads the new manifest, diffs against installed state, applies delta. Per-entry `min_framework_version` gates which entries to touch.
+- **Bootstrap-ready** — with `op: symlink` for framework-dev scope, the-agency developers get live edits without re-install loops.
+
+### Captain additions to the manifest design
+
+1. **Rsync flags declared per-entry** — some entries need `--delete-excluded`, some don't. Don't hardcode across the installer.
+2. **Hash-based integrity check** — per-entry expected hash; re-install warns if installed state diverged (user customized a framework-owned file).
+3. **Uninstall manifest entries** — when a skill is retired (e.g., `/agency-bug` this session), the manifest tombstones it so `agency update` can clean up.
+4. **Preview mode** — `agency install --dry-run` reports exactly what would change before any operation.
+5. **Per-adopter manifest overlay** — adopters can declare `usr/<principal>/install-overlay.yaml` that adds their own entries without modifying the framework manifest. Use case: adopter skills they built themselves.
+
+## Principal's design direction — continuous self-install (added 2026-04-19 T18:45)
+
+> **"And we use the installer to keep the-agency repo up to date with the latest versions (development) of the agency."**
+
+**The installer runs against the-agency repo itself, continuously, during development.** This is the bootstrap paradox's operational answer:
+
+- **Other frameworks:** source lives in one tree, installed copy lives in another. Clean separation.
+- **The-agency:** source AND installed copy live in the SAME repo. We're both author and consumer.
+- **The installer's job for the-agency repo (framework-dev scope):** edit in `src/` → installer syncs to `.claude/` → Claude Code picks up live changes → we dogfood our own changes in the same session.
+
+### What this enables
+
+1. **Zero-latency bootstrap** — edit a skill in `src/skills/<name>/`, run (or auto-watch) installer, skill is live for Claude Code in the same session. No "commit + reinstall + restart" loop.
+2. **Guaranteed parity** — the same installer + manifest that ships to adopters is what keeps the-agency itself consistent. If the installer is wrong, we feel it first. Stops the "it works for us but not for adopters" class of bugs at the source.
+3. **Continuous validation** — every framework-dev session IS an installer regression test. If the installer breaks, captain can't operate, and we fix it immediately.
+4. **Single mental model** — "installer keeps installed state matching source" is true for both the-agency AND adopters. One abstraction, two audiences.
+
+### Mechanics for framework-dev scope
+
+- **Watch mode** — `agency install --watch` monitors `src/` + manifest, re-runs entries on change. Claude Code picks up within ~1s of a save.
+- **Symlink op** — per the manifest, `op: symlink` entries bypass copy altogether — the `.claude/skills/<name>/` IS the `src/skills/<name>/` (live, always). Fastest, but requires Claude Code to tolerate symlinks in the discovery path.
+- **Copy-on-change op** — `op: rsync` or `op: copy` re-runs only when source changes. Slightly slower but semantics are identical to adopter install. Good for parity testing.
+
+### Adopter scope vs framework-dev scope — one manifest, two behaviors
+
+The same yaml describes both. Difference is the **scope** declared per entry + any CLI flags:
+
+- `agency install` on **adopter repo** → runs entries with scope `adopter` or `both`. Template-expand on init, three-way-merge on update. Never touches `src/` (doesn't exist in adopter repo).
+- `agency install` on **the-agency repo** → runs entries with scope `framework-dev` or `both`. Symlink mode default for fast iteration. Manifest-driven.
+
+### Captain addition
+
+6. **Framework-dev CI should run adopter-scope install AS WELL** — `agency install --scope adopter --target /tmp/test-install` produces what an adopter would get. CI can diff that against expected output. Catches "we edited src/ but forgot to update the manifest" regressions before adopters hit them.
+
 ## Sequencing (captain recommendation)
 
 1. **Tonight:** file agency issue capturing this seed + principal intent. Link to #287 as parent. Tag `discuss`. 
