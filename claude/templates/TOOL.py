@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3
 """
 What Problem: {{TOOL_DESCRIPTION}}
 
@@ -7,16 +7,30 @@ How & Why: [Explain the approach and rationale]
 Usage:
     ./claude/tools/{{TOOL_NAME}} [options] <args>
 
-Python: 3.12+ (framework floor per D44). Stdlib only for framework tools
+Python: 3.13+ (framework floor per D45). Stdlib only for framework tools
 (ZERO-PIP CONSTRAINT). Services may use pip deps.
+
+Shebang convention: `#!/usr/bin/env python3` + runtime `sys.version_info`
+guard (not `python3.13`) — brew default is `python3`, pyenv/nix/conda
+install as `python3`, and hard-coding the exact minor name breaks any
+install that doesn't create the per-minor symlink. See
+usr/jordan/captain/briefings/python-shebang-investigation-20260418.md.
 
 Written: {{TOOL_DATE}} by {{TOOL_AUTHOR}}
 """
 
+import sys
+
+# ── Runtime floor guard (D45 — Python 3.13+) ─────────────────────────────────
+if sys.version_info < (3, 13):
+    sys.exit(
+        f"Python 3.13+ required (got {sys.version_info.major}.{sys.version_info.minor}). "
+        "See claude/config/dependencies.yaml."
+    )
+
 import argparse
 import json
 import os
-import sys
 import time
 import uuid
 from datetime import datetime, timezone

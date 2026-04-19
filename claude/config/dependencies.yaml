@@ -69,16 +69,17 @@ required:
     why: "Claude Code is a Node.js tool; node 18+ for ES module support"
 
   python3:
-    brew: python@3.12
-    min_version: "3.12"
-    version_cmd: "python3.12 --version | grep -oE '[0-9]+\\.[0-9]+'"
+    brew: python
+    brew_alt: python@3.13
+    min_version: "3.13"
+    version_cmd: "python3 --version | grep -oE '[0-9]+\\.[0-9]+'"
     used_by:
       - "claude/hooks/stop-check.py, .claude/hooks/plan-capture.py"
       - "claude/tools/dispatch-monitor (D44-R1 Python rewrite)"
       - "usr/jordan/captain/tools/strip-skill-allowed-tools"
       - "iscp dispatch-hub service (FastAPI + SQLAlchemy 2.0 + Alembic)"
-    why: "framework tools, hooks, and services target modern Python. 3.12 buys native match, PEP 604 union types, PEP 695 generics, typing.Self, tomllib, ~10-15% perf."
-    note: "ZERO-PIP CONSTRAINT for framework tools in claude/tools/ — stdlib only, no pip deps (pyyaml, jsonschema, etc.). Services (iscp dispatch-hub, etc.) may use pip. Floor raised from 3.9 → 3.12 in D44 per principal directive — 'If people don't like it, they can not use our stuff.' Adopters who can't run 3.12 aren't our target audience. Shebang convention: #!/usr/bin/env python3.12 (explicit floor — requires python@3.12 on PATH; brew and deadsnakes PPA both install this name)."
+    why: "framework tools, hooks, and services target modern Python. 3.13 is the brew default, so adopters get the floor for free. 3.13 adds opt-in features (PEP 703 no-GIL, PEP 744 JIT) that we do not require — the floor is set for toolchain modernity, not for runtime features."
+    note: "ZERO-PIP CONSTRAINT for framework tools in claude/tools/ — stdlib only, no pip deps (pyyaml, jsonschema, etc.). Services (iscp dispatch-hub, etc.) may use pip. Floor raised 3.9 → 3.12 (D44-R6, superseded) → 3.13 (D45-R1) — rationale: brew default is 3.13, 3.13 adds nothing we must opt into, and 3.12 was never installed on the dev machine (Monitor exit-127 incident on 2026-04-17 proved the fragility of exact-minor shebangs). Shebang convention: `#!/usr/bin/env python3` + runtime `sys.version_info` guard (NOT `python3.13` — hard-coded minor names break pyenv/nix/conda/Apple-stock installs that don't create the per-minor symlink). See briefing usr/jordan/captain/briefings/python-shebang-investigation-20260418.md."
 
   curl:
     brew: curl
@@ -183,7 +184,7 @@ system_linux:
 # Install commands (convenience — generated from the lists above)
 # ─────────────────────────────────────────────────────────────────────────────
 install:
-  brew_required: "brew install git bash jq sqlite node python@3.12 curl rsync gh"
+  brew_required: "brew install git bash jq sqlite node python curl rsync gh"
   brew_testing: "brew install bats-core"
   brew_optional: "brew install ripgrep fd tree yq"
   apt_system: "sudo apt install -y build-essential openssh-server locales"
