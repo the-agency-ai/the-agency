@@ -516,13 +516,25 @@ YAML_EOF
     # =====================================================================
     # Step 5b: Repo-level workstream (captain's shared space)
     # =====================================================================
-    log_step "Creating repo-level workstream: claude/workstreams/$PROJECT_NAME/"
+    # The repo-level workstream is named after the REPO (directory basename),
+    # NOT after $PROJECT_NAME. This matches the-agency's own convention where
+    # the framework's repo-level workstream is `claude/workstreams/the-agency/`,
+    # not keyed on a --project flag. The old behavior used $PROJECT_NAME,
+    # producing `claude/workstreams/myapp/` when the adopter ran
+    # `agency init --project myapp` on a repo called `andrew-demo` — auto-
+    # scaffolded but never used because real work went to a differently-named
+    # workstream. Fixed 2026-04-19 per #334. See also #282 for the related
+    # "--project scaffolds an unused workstream" gap.
+    local REPO_NAME
+    REPO_NAME="$(basename "$TARGET_DIR")"
 
-    mkdir -p "$TARGET_DIR/claude/workstreams/$PROJECT_NAME"/{qgr,rgr,drafts,research,transcripts,history/flotsam}
+    log_step "Creating repo-level workstream: claude/workstreams/$REPO_NAME/"
 
-    if [[ ! -f "$TARGET_DIR/claude/workstreams/$PROJECT_NAME/KNOWLEDGE.md" ]]; then
-        cat > "$TARGET_DIR/claude/workstreams/$PROJECT_NAME/KNOWLEDGE.md" << KNOWLEDGE_EOF
-# $PROJECT_NAME — Workstream Knowledge
+    mkdir -p "$TARGET_DIR/claude/workstreams/$REPO_NAME"/{qgr,rgr,drafts,research,transcripts,history/flotsam}
+
+    if [[ ! -f "$TARGET_DIR/claude/workstreams/$REPO_NAME/KNOWLEDGE.md" ]]; then
+        cat > "$TARGET_DIR/claude/workstreams/$REPO_NAME/KNOWLEDGE.md" << KNOWLEDGE_EOF
+# $REPO_NAME — Workstream Knowledge
 
 ## Patterns and Conventions
 
@@ -588,9 +600,13 @@ KNOWLEDGE_EOF
     fi
 
     # =====================================================================
-    # Step 7: Plans directory and .gitignore
+    # Step 7: .gitignore
     # =====================================================================
-    mkdir -p "$TARGET_DIR/docs/plans"
+    # Note: `docs/plans/` scaffolding was REMOVED 2026-04-19 per #335. Plans
+    # live in `claude/workstreams/{W}/plan-{W}-{slug}-{YYYYMMDD}.md` per
+    # D42-R3 Workstream Content Split (REFERENCE-WORKSTREAM-CONTENT-SPLIT.md).
+    # The old `docs/plans/` scaffold left an empty directory in every new
+    # adopter install. Fixed here.
 
     log_step "Updating .gitignore"
 
@@ -612,7 +628,8 @@ KNOWLEDGE_EOF
 
     cd "$TARGET_DIR"
     # Stage only Agency-created paths (not user files that may already exist)
-    git add CLAUDE.md .claude/ claude/ usr/ docs/plans/ .gitignore
+    # docs/plans/ removed 2026-04-19 per #335 (D42-R3 deprecated that path).
+    git add CLAUDE.md .claude/ claude/ usr/ .gitignore
     git commit -m "feat: initialize Agency 2.0 framework
 
 Agency 2.0 initialized via agency init. Includes:

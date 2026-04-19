@@ -2,15 +2,20 @@
 type: research
 workstream: the-agency
 topic: andrew-demo-root-cause
+slug: andrew-demo-root-cause
 principal: jordan
 agent: the-agency/jordan/captain
 date: 2026-04-19
+project_audited: flashcards-hsk3 (Chinese Vocabulary Flashcards, HSK-3, trilingual ZH→EN+FR — the framework-demo artifact in andrew-demo repo)
 source: sub-agent investigation (general-purpose)
 inputs:
   - /Users/jdm/code/andrew-demo/claude/workstreams/captain/transcripts/dialogue-transcript-20260418.md
   - /Users/jdm/code/andrew-demo/usr/andrew/captain/captain-handoff.md
   - /Users/jdm/code/andrew-demo/usr/jdm/captain/captain-handoff.md
   - /Users/jdm/code/andrew-demo/usr/jdm/reports/REPORTS-INDEX.md
+  - /Users/jdm/code/andrew-demo/claude/workstreams/flashcards/pvr-flashcards-hsk3-20260418.md
+  - /Users/jdm/code/andrew-demo/claude/workstreams/flashcards/ad-flashcards-hsk3-20260418.md
+  - /Users/jdm/code/andrew-demo/claude/workstreams/flashcards/plan-flashcards-hsk3-20260418.md
   - /Users/jdm/code/andrew-demo full tree
 ---
 
