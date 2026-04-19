@@ -1,0 +1,135 @@
+#!/bin/bash
+#
+# subagent-overlap-check — Detect file-scope overlap across subagent manifests
+#
+# What Problem: Five subagents each claim disjoint file globs. If two manifests
+# resolve to overlapping files (e.g., a test fixture embedding a tool-script
+# snippet), we risk merge conflicts or lost edits.
+#
+# How & Why: Load each manifest's files: globs, enumerate tracked files per
+# manifest, intersect pairwise. Any overlapping file is reported with both
+# subagent labels + `ownership_priority` values. If an ownership_priority
+# tie-break can resolve it, emit the suggested plan; else exit nonzero.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+subagent-overlap-check — Scan subagent manifests for file-scope overlap
+
+Usage:
+  subagent-overlap-check <manifest1> <manifest2> [<manifest3>...] [--json]
+
+Options:
+  --json                JSON output
+  --help / --version
+USAGE
+    exit 0
+}
+
+MANIFESTS=()
+AS_JSON=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "subagent-overlap-check $TOOL_VERSION"; exit 0 ;;
+        --json) AS_JSON=1; shift ;;
+        --*) die "Unknown flag: $1" ;;
+        *) MANIFESTS+=("$1"); shift ;;
+    esac
+done
+
+[[ ${#MANIFESTS[@]} -lt 2 ]] && die "at least 2 manifests required"
+
+# Parse each manifest
+SUBAGENTS=()
+PRIORITIES=()
+FILES_PER_AGENT=()
+
+for m in "${MANIFESTS[@]}"; do
+    [[ -f "$m" ]] || die "manifest not found: $m"
+    name=""
+    priority=""
+    globs=()
+    in_files=0
+    while IFS= read -r line; do
+        case "$line" in \#*) continue ;; esac
+        if [[ "$line" =~ ^subagent:[[:space:]]+(.+)$ ]]; then
+            name="${BASH_REMATCH[1]}"
+            name="${name%"${name##*[![:space:]]}"}"
+            name="${name#\"}"; name="${name%\"}"
+        elif [[ "$line" =~ ^ownership_priority:[[:space:]]+([0-9]+) ]]; then
+            priority="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^files: ]]; then
+            in_files=1
+        elif [[ "$line" =~ ^[^[:space:]] ]]; then
+            in_files=0
+        fi
+        if [[ $in_files -eq 1 && "$line" =~ ^[[:space:]]*-[[:space:]]+(.+)$ ]]; then
+            val="${BASH_REMATCH[1]}"
+            val="${val#\"}"; val="${val%\"}"
+            globs+=("$val")
+        fi
+    done < "$m"
+
+    [[ -z "$name" ]] && name="$(basename "$m" .yaml)"
+
+    SUBAGENTS+=("$name")
+    PRIORITIES+=("${priority:-999}")
+
+    # Enumerate files matching globs
+    files_list=""
+    for g in "${globs[@]+"${globs[@]}"}"; do
+        while IFS= read -r -d '' f; do
+            files_list+="$f"$'\n'
+        done < <(git ls-files -z -- "$g" 2>/dev/null)
+    done
+    FILES_PER_AGENT+=("$files_list")
+done
+
+# Pairwise overlap detection
+overlaps=0
+n=${#SUBAGENTS[@]}
+for ((i=0; i<n; i++)); do
+    for ((j=i+1; j<n; j++)); do
+        # Intersection: files in both
+        common="$(printf '%s' "${FILES_PER_AGENT[$i]}" | grep -Fxf <(printf '%s' "${FILES_PER_AGENT[$j]}") 2>/dev/null || true)"
+        if [[ -n "$common" ]]; then
+            while IFS= read -r overlap_file; do
+                [[ -z "$overlap_file" ]] && continue
+                overlaps=$((overlaps + 1))
+                a_name="${SUBAGENTS[$i]}"
+                b_name="${SUBAGENTS[$j]}"
+                a_prio="${PRIORITIES[$i]}"
+                b_prio="${PRIORITIES[$j]}"
+                if [[ "$a_prio" -lt "$b_prio" ]]; then
+                    winner="$a_name"; loser="$b_name"
+                elif [[ "$b_prio" -lt "$a_prio" ]]; then
+                    winner="$b_name"; loser="$a_name"
+                else
+                    winner="tie"; loser="tie"
+                fi
+                if [[ $AS_JSON -eq 1 ]]; then
+                    printf '{"file":"%s","a":"%s","a_priority":%s,"b":"%s","b_priority":%s,"winner":"%s"}\n' \
+                        "$overlap_file" "$a_name" "$a_prio" "$b_name" "$b_prio" "$winner"
+                else
+                    echo "[OVERLAP] $overlap_file  a=$a_name(p=$a_prio)  b=$b_name(p=$b_prio)  winner=$winner"
+                fi
+            done <<< "$common"
+        fi
+    done
+done
+
+if [[ $overlaps -gt 0 ]]; then
+    echo "# total overlaps: $overlaps" >&2
+    exit 1
+fi
+
+echo "[OK] no overlap detected across ${#MANIFESTS[@]} manifests"
+exit 0

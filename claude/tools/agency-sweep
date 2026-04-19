@@ -1,0 +1,333 @@
+#!/bin/bash
+#
+# agency-sweep — Path-substitution engine for the v46.0 reference sweep
+#
+# What Problem: After Phase 1 renames claude/ → agency/, ~2000 files still
+# reference `claude/<subdir>/` paths in their content. These must be rewritten
+# to `agency/<subdir>/` in a single controlled pass, respecting an allowlist
+# of intentionally-preserved references (e.g., `.claude/` Anthropic discovery,
+# `CLAUDE.md`, `claude-code` product refs). The sweep also must NOT cascade
+# — once a pattern matches and is replaced, the replacement must not itself
+# re-trigger another substitution on the same line.
+#
+# How & Why: Read a YAML manifest of allowed_substitutions (pattern→replacement
+# pairs) and rejected_substitutions (must-not-match assertions). Walk every
+# tracked file in scope (or the manifest's file list), apply substitutions in
+# manifest order with cascade-prevention (track output regions that were
+# already substituted this pass). `--dry-run` default prints a diff preview
+# without modifying the tree. `--apply` writes changes. `--output-patch`
+# emits a unified diff that `git apply --check` accepts.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+#
+# Usage:
+#   agency-sweep [--manifest FILE] [--apply|--dry-run|--output-patch]
+#                [--allowlist FILE] [--no-allowlist] [--files FILE]
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+agency-sweep — v46.0 reference sweep engine
+
+Usage:
+  agency-sweep [--manifest FILE] [--apply|--dry-run|--output-patch]
+               [--allowlist FILE] [--no-allowlist]
+
+Options:
+  --manifest FILE          YAML manifest with allowed_substitutions + files scope
+  --files FILE             Newline-separated file list to operate on (bypasses
+                           ls-files discovery; still applies manifest substitutions)
+  --apply                  Write substitutions to disk
+  --dry-run                Preview without writing (default)
+  --output-patch           Emit unified diff to stdout (no file writes)
+  --allowlist FILE         Allowlist (default: claude/tools/ref-sweep-allowlist.txt)
+  --no-allowlist           Ignore allowlist (dangerous; test-only)
+  --help                   Show this help
+  --version                Show version
+
+Cascade prevention: post-substitution output is NOT re-scanned for patterns.
+Overlapping patterns: first-match-wins by manifest order.
+USAGE
+    exit 0
+}
+
+# --- Parse args ---
+MANIFEST=""
+FILES=""
+MODE="dry-run"
+ALLOWLIST=""
+USE_ALLOWLIST=1
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "agency-sweep $TOOL_VERSION"; exit 0 ;;
+        --manifest) shift; MANIFEST="${1:-}"; [[ -z "$MANIFEST" ]] && die "--manifest needs a file"; shift ;;
+        --files) shift; FILES="${1:-}"; [[ -z "$FILES" ]] && die "--files needs a file"; shift ;;
+        --apply) MODE="apply"; shift ;;
+        --dry-run) MODE="dry-run"; shift ;;
+        --output-patch) MODE="output-patch"; shift ;;
+        --allowlist) shift; ALLOWLIST="${1:-}"; [[ -z "$ALLOWLIST" ]] && die "--allowlist needs a file"; shift ;;
+        --no-allowlist) USE_ALLOWLIST=0; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+# --- Resolve repo root + allowlist ---
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not in a git repo"
+cd "$REPO_ROOT"
+
+if [[ $USE_ALLOWLIST -eq 1 && -z "$ALLOWLIST" ]]; then
+    if [[ -f "$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt" ]]; then
+        ALLOWLIST="$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt"
+    elif [[ -f "$REPO_ROOT/claude/tools/ref-sweep-allowlist.txt" ]]; then
+        ALLOWLIST="$REPO_ROOT/claude/tools/ref-sweep-allowlist.txt"
+    fi
+fi
+
+ALLOWLIST_PATTERNS=()
+if [[ $USE_ALLOWLIST -eq 1 && -n "$ALLOWLIST" && -f "$ALLOWLIST" ]]; then
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" =~ ^\# ]] && continue
+        pattern="${line%%$'\t'*}"
+        pattern="${pattern#"${pattern%%[![:space:]]*}"}"
+        pattern="${pattern%"${pattern##*[![:space:]]}"}"
+        [[ -n "$pattern" ]] && ALLOWLIST_PATTERNS+=("$pattern")
+    done < "$ALLOWLIST"
+fi
+
+# --- Parse manifest ---
+# Minimal YAML parse for the subset we use. We accept exactly this shape:
+#   subagent: A
+#   files:
+#     - <glob>
+#   allowed_substitutions:
+#     - pattern: "foo"
+#       replacement: "bar"
+#   rejected_substitutions:
+#     - "<regex>"
+# Patterns and replacements are literal strings (not regex), applied sed-style.
+
+MANIFEST_FILES=()
+ALLOWED_PATTERNS=()
+ALLOWED_REPLACEMENTS=()
+REJECTED_PATTERNS=()
+
+if [[ -n "$MANIFEST" && -f "$MANIFEST" ]]; then
+    section=""
+    item_pattern=""
+    while IFS= read -r line; do
+        # Strip comments
+        case "$line" in
+            \#*) continue ;;
+            '') continue ;;
+        esac
+
+        if [[ "$line" =~ ^files: ]]; then section="files"; continue; fi
+        if [[ "$line" =~ ^allowed_substitutions: ]]; then section="allowed"; continue; fi
+        if [[ "$line" =~ ^rejected_substitutions: ]]; then section="rejected"; continue; fi
+
+        # Item lines
+        if [[ "$section" == "files" ]]; then
+            if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+(.+)$ ]]; then
+                val="${BASH_REMATCH[1]}"
+                val="${val%\"}"; val="${val#\"}"
+                MANIFEST_FILES+=("$val")
+            fi
+        elif [[ "$section" == "allowed" ]]; then
+            if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+pattern:[[:space:]]+\"(.+)\" ]]; then
+                item_pattern="${BASH_REMATCH[1]}"
+            elif [[ "$line" =~ ^[[:space:]]+replacement:[[:space:]]+\"(.+)\" ]]; then
+                ALLOWED_PATTERNS+=("$item_pattern")
+                ALLOWED_REPLACEMENTS+=("${BASH_REMATCH[1]}")
+                item_pattern=""
+            fi
+        elif [[ "$section" == "rejected" ]]; then
+            if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+\"(.+)\" ]]; then
+                REJECTED_PATTERNS+=("${BASH_REMATCH[1]}")
+            fi
+        fi
+    done < "$MANIFEST"
+fi
+
+# --- Helper: is_allowlisted <line> ---
+is_allowlisted() {
+    local s="$1"
+    if [[ $USE_ALLOWLIST -eq 0 || ${#ALLOWLIST_PATTERNS[@]} -eq 0 ]]; then
+        return 1
+    fi
+    local p
+    for p in "${ALLOWLIST_PATTERNS[@]}"; do
+        if printf '%s' "$s" | grep -qE -- "$p"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# --- Helper: sweep_file <path> → writes processed content to stdout ---
+# Applies allowed_substitutions in manifest order with cascade-prevention.
+sweep_file() {
+    local f="$1"
+    python3 - "$f" <<'PYEOF' "${ALLOWED_PATTERNS[@]+"${ALLOWED_PATTERNS[@]}"}" "|||" "${ALLOWED_REPLACEMENTS[@]+"${ALLOWED_REPLACEMENTS[@]}"}" "|||" "${ALLOWLIST_PATTERNS[@]+"${ALLOWLIST_PATTERNS[@]}"}"
+import sys, re
+
+fpath = sys.argv[1]
+args = sys.argv[2:]
+# Split argv by "|||" sentinels
+sep_positions = [i for i, a in enumerate(args) if a == "|||"]
+patterns = args[:sep_positions[0]]
+replacements = args[sep_positions[0]+1:sep_positions[1]]
+allowlist = args[sep_positions[1]+1:]
+
+# Compile allowlist regex (ERE-style alternatives)
+allow_re = None
+if allowlist:
+    try:
+        allow_re = re.compile("|".join(allowlist))
+    except re.error:
+        allow_re = None
+
+try:
+    with open(fpath, "r", encoding="utf-8", errors="replace") as fh:
+        content = fh.read()
+except (IOError, OSError):
+    sys.exit(0)
+
+def process_line(line):
+    # Skip allowlist-only lines untouched (preserves product refs, CLAUDE.md, etc.)
+    if allow_re and allow_re.search(line):
+        return line
+    # Apply substitutions in order with cascade-prevention:
+    # We track substitution output regions so a replacement that happens to
+    # contain another pattern's source doesn't get re-transformed.
+    out = []
+    i = 0
+    while i < len(line):
+        matched = False
+        for pat, rep in zip(patterns, replacements):
+            if line[i:i+len(pat)] == pat:
+                out.append(rep)
+                i += len(pat)
+                matched = True
+                break
+        if not matched:
+            out.append(line[i])
+            i += 1
+    return "".join(out)
+
+result = "".join(process_line(ln) for ln in content.splitlines(keepends=True))
+sys.stdout.write(result)
+PYEOF
+}
+
+# --- Rejected-pattern assertion ---
+check_rejected() {
+    local f="$1"
+    if [[ ${#REJECTED_PATTERNS[@]} -eq 0 ]]; then return 0; fi
+    local p
+    for p in "${REJECTED_PATTERNS[@]}"; do
+        if grep -qE -- "$p" "$f" 2>/dev/null; then
+            # Check if ALL hits are allowlisted
+            local has_unallowed=0
+            while IFS= read -r hit; do
+                if ! is_allowlisted "$hit"; then
+                    has_unallowed=1
+                    break
+                fi
+            done < <(grep -E -- "$p" "$f" 2>/dev/null || true)
+            if [[ $has_unallowed -eq 1 ]]; then
+                echo "[REJECTED-SUBSTITUTION] $f: pattern '$p' found unallowlisted — aborting" >&2
+                return 1
+            fi
+        fi
+    done
+    return 0
+}
+
+# --- Enumerate target files ---
+TARGETS=()
+if [[ -n "$FILES" && -f "$FILES" ]]; then
+    while IFS= read -r f; do
+        [[ -n "$f" ]] && TARGETS+=("$f")
+    done < "$FILES"
+elif [[ ${#MANIFEST_FILES[@]} -gt 0 ]]; then
+    # Use manifest file globs to enumerate
+    for glob in "${MANIFEST_FILES[@]}"; do
+        while IFS= read -r -d '' f; do
+            [[ -n "$f" ]] && TARGETS+=("$f")
+        done < <(git ls-files -z -- "$glob" 2>/dev/null)
+    done
+else
+    # Default: all tracked files
+    while IFS= read -r -d '' f; do
+        [[ -n "$f" ]] && TARGETS+=("$f")
+    done < <(git ls-files -z 2>/dev/null)
+fi
+
+if [[ ${#TARGETS[@]} -eq 0 ]]; then
+    echo "[WARN] no target files found" >&2
+    exit 0
+fi
+
+# --- Sweep loop ---
+changes=0
+for f in "${TARGETS[@]}"; do
+    [[ -f "$f" ]] || continue
+
+    # Skip binary files (we match how git-grep treats them)
+    if grep -Iq -- '.' "$f" 2>/dev/null; then : ; else continue; fi
+
+    # Rejected pattern assertion (pre-sweep)
+    if ! check_rejected "$f"; then exit 3; fi
+
+    # Generate swept content
+    if [[ ${#ALLOWED_PATTERNS[@]} -eq 0 ]]; then
+        # No substitutions declared — nothing to do
+        continue
+    fi
+
+    tmpfile="$(mktemp -t ag-sweep.XXXXXX)"
+    sweep_file "$f" > "$tmpfile"
+
+    if ! diff -q "$f" "$tmpfile" >/dev/null 2>&1; then
+        changes=$((changes + 1))
+        case "$MODE" in
+            apply)
+                cp "$tmpfile" "$f"
+                ;;
+            output-patch)
+                # diff exits 1 when files differ — that's the happy path here.
+                # Capture and emit without tripping `set -e`.
+                diff_out="$(diff -u "$f" "$tmpfile" 2>/dev/null || true)"
+                # Rewrite tmpfile path in the +++ header to the logical b/<f>
+                # for `git apply` compatibility. Use printf+sed to avoid regex
+                # metachar issues in f/tmpfile.
+                printf '%s\n' "$diff_out" | awk -v old="$f" -v new="$tmpfile" '
+                    {
+                        if ($0 ~ "^--- ") { sub("^--- .*", "--- a/" old); }
+                        else if ($0 ~ "^\\+\\+\\+ ") { sub("^\\+\\+\\+ .*", "+++ b/" old); }
+                        print
+                    }
+                '
+                ;;
+            dry-run)
+                echo "[WOULD-CHANGE] $f"
+                ;;
+        esac
+    fi
+
+    rm -f "$tmpfile"
+done
+
+echo "agency-sweep: mode=$MODE changes=$changes" >&2
+exit 0

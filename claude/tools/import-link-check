@@ -1,0 +1,212 @@
+#!/bin/bash
+#
+# import-link-check — Verify @import / required_reading targets resolve
+#
+# What Problem: The v46.0 rename rewrites every `@claude/` → `@agency/` path
+# in every `@import` and every `required_reading:` frontmatter. If any hit
+# is missed, Claude Code will ENOENT at session start and the framework
+# breaks silently until a skill runs and fails. We need a static check
+# that every import-like reference resolves to a real file.
+#
+# How & Why: Scan every `.md` / `.json` / skill / agent / hookify file for:
+#   1) `@import <path>` (bare or inside a `<!-- @import ... -->` comment)
+#   2) `required_reading: <path>` frontmatter key (YAML)
+#   3) Inline `<!-- @import <path> -->` comments
+# For each, expand `@` → repo-root and `$CLAUDE_PROJECT_DIR` → repo-root,
+# then `test -f` the resolved path. Report orphans with file:line; exit
+# nonzero if any orphan is found.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+import-link-check — Verify @import / required_reading targets resolve
+
+Usage:
+  import-link-check [--scope GLOB]... [--root DIR] [--json]
+
+Options:
+  --scope GLOB      Additional glob to check (stacks with defaults)
+  --root DIR        Repo root (default: auto-detect via git)
+  --json            Emit machine-readable JSON
+  --help / --version
+
+Default scopes:
+  .claude/**        (skills, commands, agent registrations, settings)
+  agency/**         (post-rename framework)
+  claude/**         (pre-rename framework — if present)
+  CLAUDE.md         (root bootloader)
+USAGE
+    exit 0
+}
+
+ROOT=""
+SCOPES=()
+AS_JSON=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "import-link-check $TOOL_VERSION"; exit 0 ;;
+        --scope) shift; SCOPES+=("${1:-}"); shift ;;
+        --root) shift; ROOT="${1:-}"; shift ;;
+        --json) AS_JSON=1; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+if [[ -z "$ROOT" ]]; then
+    ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not in a git repo"
+fi
+cd "$ROOT"
+
+# Default scopes
+if [[ ${#SCOPES[@]} -eq 0 ]]; then
+    SCOPES=('.claude/**' 'agency/**' 'claude/**' 'CLAUDE.md')
+fi
+
+# Build pathspec list
+PATHSPECS=()
+for s in "${SCOPES[@]}"; do
+    PATHSPECS+=("$s")
+done
+
+FILES=()
+while IFS= read -r -d '' f; do
+    FILES+=("$f")
+done < <(git ls-files -z -- "${PATHSPECS[@]}" 2>/dev/null)
+
+# Resolve @path | $CLAUDE_PROJECT_DIR/path | relative → absolute
+resolve_target() {
+    local raw="$1" src_file="$2"
+    local p="$raw"
+    # Strip leading @
+    p="${p#@}"
+    # Expand $CLAUDE_PROJECT_DIR
+    p="${p//\$CLAUDE_PROJECT_DIR\//}"
+    p="${p//\$CLAUDE_PROJECT_DIR/}"
+    # Drop any trailing whitespace/punctuation
+    p="${p%%[[:space:]]*}"
+    p="${p%>}"
+    p="${p%\)}"
+    p="${p%\"}"
+    p="${p%\'}"
+
+    # Absolute path already?
+    if [[ "$p" = /* ]]; then
+        echo "$p"; return
+    fi
+    # Repo-root relative
+    echo "$ROOT/$p"
+}
+
+orphans=0
+checked=0
+
+emit_orphan() {
+    local file="$1" line="$2" kind="$3" target="$4" resolved="$5"
+    if [[ $AS_JSON -eq 1 ]]; then
+        printf '{"file":"%s","line":%s,"kind":"%s","target":"%s","resolved":"%s"}\n' \
+            "$file" "$line" "$kind" "$target" "$resolved"
+    else
+        echo "[ORPHAN] $file:$line  $kind $target → $resolved"
+    fi
+}
+
+for f in "${FILES[@]}"; do
+    [[ -f "$f" ]] || continue
+
+    # Pattern 1: @import <path>  (markdown / CLAUDE.md)
+    # Pattern 2: <!-- @import <path> -->
+    # Pattern 3: required_reading: <path> (inline) or list form:
+    #           required_reading:
+    #             - path1
+    #             - path2
+    # We track a state var: RR_LIST_ACTIVE is set when we see a bare
+    # `required_reading:` (no inline value). Subsequent dash-list items are
+    # treated as required_reading entries until a non-list line is seen.
+    RR_LIST_ACTIVE=0
+    line_num=0
+    while IFS= read -r raw_line; do
+        line_num=$((line_num + 1))
+        # Extract target path after @import or required_reading:
+        target=""
+        kind=""
+        content="$raw_line"
+        line="$line_num"
+        # @import <path> — match up to next whitespace or HTML comment close
+        if [[ "$content" =~ @import[[:space:]]+([^[:space:]]+) ]]; then
+            target="${BASH_REMATCH[1]}"
+            # Drop trailing HTML comment close, punctuation we don't want
+            target="${target%-->}"
+            target="${target%\>}"
+            target="${target%\"}"
+            target="${target%\'}"
+            target="${target%)}"
+            target="${target%,}"
+            target="${target%:}"
+            kind="@import"
+        elif [[ "$content" =~ required_reading:[[:space:]]*(.*) ]]; then
+            rest="${BASH_REMATCH[1]}"
+            # Trim whitespace
+            rest="${rest#"${rest%%[![:space:]]*}"}"
+            rest="${rest%"${rest##*[![:space:]]}"}"
+            if [[ -z "$rest" ]]; then
+                # Bare `required_reading:` → list form will follow
+                RR_LIST_ACTIVE=1
+                continue
+            fi
+            # Inline `required_reading: path` — strip leading dash/quotes
+            rest="${rest#-}"
+            rest="${rest#"${rest%%[![:space:]]*}"}"
+            rest="${rest#\"}"
+            rest="${rest#\'}"
+            rest="${rest%\"}"
+            rest="${rest%\'}"
+            target="$rest"
+            kind="required_reading"
+            RR_LIST_ACTIVE=0
+        elif [[ $RR_LIST_ACTIVE -eq 1 && "$content" =~ ^[[:space:]]*-[[:space:]]+(.+)$ ]]; then
+            # Continuation of required_reading: list form
+            rest="${BASH_REMATCH[1]}"
+            rest="${rest#\"}"
+            rest="${rest#\'}"
+            rest="${rest%\"}"
+            rest="${rest%\'}"
+            target="$rest"
+            kind="required_reading"
+        else
+            # Any non-list, non-blank line ends the RR list state
+            [[ -n "$content" && ! "$content" =~ ^[[:space:]]*$ ]] && RR_LIST_ACTIVE=0
+        fi
+        [[ -z "$target" ]] && continue
+
+        # Skip obviously non-path targets (URLs, empty, schemes)
+        case "$target" in
+            http://*|https://*|'') continue ;;
+            *://*) continue ;;
+            '-'*) continue ;;
+        esac
+
+        checked=$((checked + 1))
+        resolved="$(resolve_target "$target" "$f")"
+        if [[ ! -f "$resolved" && ! -d "$resolved" ]]; then
+            orphans=$((orphans + 1))
+            emit_orphan "$f" "$line" "$kind" "$target" "$resolved"
+        fi
+    done < "$f"
+done
+
+echo "# checked=$checked orphans=$orphans" >&2
+[[ $orphans -eq 0 ]] || exit 1
+exit 0

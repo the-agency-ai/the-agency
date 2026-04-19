@@ -1,0 +1,494 @@
+1..1202
+ok 1 detect_main_branch: fails loudly when called with no argument
+ok 2 detect_main_branch: fails loudly on non-git directory
+ok 3 detect_main_branch: resolves via origin/HEAD symbolic-ref (main)
+ok 4 detect_main_branch: resolves via origin/HEAD symbolic-ref (master)
+ok 5 detect_main_branch: falls back to local main when no origin/HEAD
+ok 6 detect_main_branch: falls back to local master when no main and no origin/HEAD
+ok 7 detect_main_branch: prefers main over master when both exist (mid-rename scenario)
+ok 8 detect_main_branch: safety guard refuses when origin/HEAD points to non-main/master (e.g., trunk)
+ok 9 detect_main_branch: fails loudly when no branches and no origin/HEAD
+ok 10 detect_main_branch: ignores origin/HEAD pointing to branch with no local ref, falls through to local
+ok 11 detect_main_branch: handles repo path with spaces (quoting correctness)
+ok 12 _address-parse: sources without error
+ok 13 _address-parse: functions are available after sourcing
+ok 14 address_parse: bare (1 segment)
+ok 15 address_parse: principal/agent (2 segments)
+ok 16 address_parse: repo/principal/agent (3 segments)
+ok 17 address_parse: org/repo/principal/agent (4 segments)
+ok 18 address_parse: rejects empty
+ok 19 address_parse: rejects path traversal
+ok 20 address_parse: rejects leading slash
+ok 21 address_parse: rejects trailing slash
+ok 22 address_parse: rejects double slash
+ok 23 address_parse: rejects too many segments (5+)
+ok 24 validate_component: valid principal
+ok 25 validate_component: valid agent with digits and hyphens
+ok 26 validate_component: valid agent with underscore
+ok 27 validate_component: org preserves case
+ok 28 validate_component: org rejects underscore
+ok 29 validate_component: rejects uppercase for principal
+ok 30 validate_component: rejects reserved name 'system'
+ok 31 validate_component: rejects reserved name 'default'
+ok 32 validate_component: rejects reserved name 'all'
+ok 33 validate_component: reserved names NOT checked for repo level
+ok 34 validate_component: rejects empty
+ok 35 validate_component: rejects path traversal in component
+ok 36 validate_component: rejects name exceeding 32 chars
+ok 37 validate_component: accepts name at exactly 32 chars
+ok 38 URL parse: GitHub SSH
+ok 39 URL parse: GitHub HTTPS with .git
+ok 40 URL parse: GitHub HTTPS without .git
+ok 41 URL parse: GitLab nested groups (leaf name)
+ok 42 URL org: GitHub SSH
+ok 43 URL org: GitHub HTTPS
+ok 44 address_resolve: bare name resolves repo and principal
+ok 45 address_resolve: 2-segment resolves repo
+ok 46 address_resolve: 3-segment passes through
+ok 47 address_format: produces fully qualified string
+ok 48 address_format: uses ADDR_ globals when args omitted
+ok 49 address_format: fails when component missing
+ok 50 principal detection: flat format (jdm: jordan)
+ok 51 principal detection: AGENCY_PRINCIPAL env var is deprecated and ignored
+ok 52 repo detection: detects from git remote
+ok 53 principal detection: YAML with colon in display_name does not break parsing
+ok 54 agency-health: --version shows version
+ok 55 agency-health: --help shows usage
+ok 56 agency-health: unknown arg exits non-zero with usage
+ok 57 agency-health: worktree runs without crash
+ok 58 agency-health: agent runs without crash
+ok 59 agency-health: workstream runs without crash
+ok 60 agency-health: all runs without crash and shows three sections
+ok 61 agency-health: all (explicit) runs the same as bare
+ok 62 agency-health: workstream <name> scopes to single workstream
+ok 63 agency-health: worktree <name> nonexistent surfaces critical
+ok 64 agency-health: --json produces JSON output
+ok 65 agency init: --help shows usage
+ok 66 agency init: unknown flag fails
+ok 67 agency init: fails without .git directory
+ok 68 agency init: succeeds on bare repo without .claude directory
+ok 69 agency init: fails when already initialized
+ok 70 agency init: --principal requires value
+ok 71 agency init: --project requires value
+ok 72 agency init: --timezone requires value
+ok 73 agency update: --help shows usage
+ok 74 agency update: fails when not initialized
+ok 75 agency update: --dry-run succeeds on this repo
+ok 76 agency update: unknown flag fails
+ok 77 agency-issue: --version shows version
+ok 78 agency-issue: --help shows usage
+ok 79 agency-issue: -h shows usage
+ok 80 agency-issue: no args shows help
+ok 81 agency-issue: unknown verb fails with error
+ok 82 agency-issue: file without --type fails
+ok 83 agency-issue: file without --title fails
+ok 84 agency-issue: file without --body or --body-file fails
+ok 85 agency-issue: file rejects invalid --type
+ok 86 agency-issue: file accepts type=bug
+ok 87 agency-issue: file accepts type=feature
+ok 88 agency-issue: file accepts type=friction
+ok 89 agency-issue: file accepts type=question
+ok 90 agency-issue: file accepts type=docs
+ok 91 agency-issue: list rejects invalid state
+ok 92 agency-issue: view without id fails
+ok 93 agency-issue: comment without id fails
+ok 94 agency-issue: comment without body fails
+ok 95 agency-issue: close without id fails
+ok 96 agency update: --help shows --force option
+ok 97 agency update: unknown flag fails
+ok 98 agency update: dirty tree under claude/ blocks with remediation message
+ok 99 agency update: dirty tree under .claude/ also blocks
+ok 100 agency update: --force bypasses dirty-tree gate
+ok 101 agency update: clean tree proceeds past gate
+ok 102 agency update: dirty tree OUTSIDE claude/ does not block
+ok 103 agency update: dry-run skips dirty-tree gate
+ok 104 agency update: --help documents --prune and --yes
+ok 105 agency update: default (no --prune) does NOT delete orphaned target files
+ok 106 agency update: --prune --dry-run previews deletions but does not delete
+ok 107 agency update: --prune --yes deletes orphaned target files
+ok 108 agency update: --prune --yes preserves usr/ and workstreams/
+ok 109 agency update: --help documents new default and @latest opt-in
+ok 110 agency update: --help no longer claims 'latest tag' as default
+ok 111 agency update: --from-github with no ref falls through to main resolution
+ok 112 agency update: --from-github @latest opt-in attempts release-tag resolution
+ok 113 agency update: legacy --from-github latest emits deprecation warning
+ok 114 release-tag-check workflow file exists and references manifest version
+ok 115 release-tag-check workflow only fires on push to main
+ok 116 release-tag-check workflow skips non-merge commits (single-parent)
+ok 117 agency init --help documents --from-github
+ok 118 agency init --from-github parses the flag (no value = main default)
+ok 119 agency init --from-github @latest enters release-tag resolution path
+ok 120 agency init --from-github= equals form works
+ok 121 agency-bootstrap.sh exists and is executable
+ok 122 agency-bootstrap.sh --help works without network
+ok 123 agency-bootstrap.sh --version prints version
+ok 124 agency-bootstrap.sh: refuses non-git-repo
+ok 125 agency init: installs all canonical tools (not a hardcoded subset)
+ok 126 agency init: installs canonical libs (not a hardcoded subset)
+ok 127 agency init: installs ALL hooks (not hardcoded subset) — D41-R26
+ok 128 agency init: installs ALL agent classes (not hardcoded 8) — D41-R26
+ok 129 agency init: installs ALL REFERENCE-*.md docs — D41-R26
+ok 130 agency init: installs ALL README-*.md docs — D41-R26
+ok 131 agency init: installs ALL commands — D41-R26
+ok 132 agency init: installs framework .gitignore block — D41-R27
+ok 133 agency init: gitignore merge is idempotent — D41-R27
+ok 134 agency update: dirty-tree gate ignores .claude/logs/* — D41-R27
+ok 135 post-merge skill marks release-tag step as MANDATORY with hard verify
+ok 136 agency verify: --help shows usage
+ok 137 agency verify: passes on the-agency repo
+ok 138 agency verify: verbose shows individual checks
+ok 139 agency verify: reports secrets provider
+ok 140 agency verify: reports terminal provider
+ok 141 agency verify: reports platform provider (auto-detected)
+ok 142 agency verify: reports design providers as deferred warnings
+ok 143 agency verify: checks required directories
+ok 144 agency verify: checks agency CLI exists
+ok 145 agency help: shows usage
+ok 146 agency version: shows version
+ok 147 agency whoami: returns agent name
+ok 148 agency: unknown subcommand fails
+ok 149 path integrity: no claude/usr/ references in live tools
+ok 150 agency-version: --help shows usage
+ok 151 agency-version: -h shows usage
+ok 152 agency-version: default prints version from manifest
+ok 153 agency-version: print verb prints version
+ok 154 agency-version: --statusline prints bare version
+ok 155 agency-version: --statusline is silent when manifest missing
+ok 156 agency-version: --json prints JSON object
+ok 157 agency-version: --json fails when field missing
+ok 158 agency-version: unknown arg exits non-zero
+ok 159 agency-version: default fails when manifest missing
+ok 160 agency-version: default fails when field missing
+ok 161 agent-create: scaffolds tools/ in principal sandbox
+ok 162 agent-create: scaffolds tmp/ with .gitignore
+ok 163 agent-create: writes bootstrap handoff with TODO placeholders
+ok 164 agent-create: bootstrap handoff has required frontmatter
+ok 165 agent-create: registration at principal-scoped path — D42-R3
+ok 166 agent-create: registration uses @import pattern — D42-R3
+ok 167 agent-create: registration contains TODO guard
+ok 168 agent-create: registration contains act-on-startup directive
+ok 169 agent-create: rejects name over 32 characters
+ok 170 agent-create: rejects uppercase name
+ok 171 agent-create: rejects path traversal name
+ok 172 agent-create: rejects name with special characters
+ok 173 agent-create: no claude/principals/ references in tool
+ok 174 agent-create: no myclaude references in tool
+ok 175 resolves captain on main branch
+ok 176 resolves agent name from branch
+ok 177 strips worktree- prefix from branch name
+ok 178 CLAUDE_AGENT_NAME overrides branch detection
+ok 179 resolves with different principal mapping
+ok 180 --agent outputs bare agent name
+ok 181 --principal outputs bare principal name
+ok 182 --repo outputs bare repo name
+ok 183 --json outputs valid JSON
+ok 184 creates cache file on first run
+ok 185 cache is branch-scoped (different branches get different caches)
+ok 186 second run uses cache (produces same output)
+ok 187 --help shows usage
+ok 188 --version shows version
+ok 189 unknown option fails
+ok 190 captain/ prefix branch resolves to captain
+ok 191 pr/ prefix branch resolves to captain
+ok 192 release/ prefix branch resolves to captain
+ok 193 .agency-agent file takes priority over branch detection
+ok 194 .agency-agent file overrides branch name
+ok 195 CLAUDE_AGENT_NAME overrides .agency-agent file
+ok 196 CLAUDE_PROJECT_DIR overrides SCRIPT_DIR-derived project root
+ok 197 _update_frontmatter_status: replaces existing status in frontmatter
+ok 198 _update_frontmatter_status: inserts status when absent (before closing ---)
+ok 199 _update_frontmatter_status: ignores body lines that look like frontmatter
+ok 200 _update_frontmatter_status: missing file returns error
+ok 201 frontmatter-scoped unread detection: body 'status: resolved' does not mark read
+ok 202 frontmatter-scoped unread detection: explicit unread is detected
+ok 203 path-traversal: accepts a normal filename
+ok 204 path-traversal: rejects ../ traversal
+ok 205 path-traversal: rejects absolute path
+ok 206 path-traversal: rejects backslash
+ok 207 path-traversal: rejects parent dir literal
+ok 208 path-traversal: rejects current dir literal
+ok 209 path-traversal: rejects hidden file
+ok 210 path-traversal: rejects shell metacharacters
+ok 211 path-traversal: rejects spaces
+ok 212 path-traversal: rejects empty filename
+ok 213 path-traversal: rejects when inbound directory missing
+ok 214 path-traversal: contains traversal sequence inside name
+ok 215 no staged changes exits cleanly
+ok 216 docs-only: markdown files take fast path
+ok 217 docs-only: yaml config takes fast path
+ok 218 tool-code: files in claude/tools/ classified correctly
+ok 219 tool-code: test files classified as tool-code
+ok 220 app-code: TypeScript files classified correctly
+ok 221 app-code: Python files classified correctly
+ok 222 dry-run: shows classification without executing
+ok 223 version flag works
+ok 224 help flag works
+ok 225 mixed: tool + markdown classified as tool-code
+ok 226 mixed: app-code + tool classified as app-code
+ok 227 large-file: small file passes
+ok 228 large-file: warn threshold prints warning but does not block
+ok 229 large-file: block threshold exits 2 with remediation message
+ok 230 large-file: ALLOW_LARGE_COMMIT=1 bypasses the block
+ok 231 large-file: exception glob exempts matching file
+ok 232 large-file: deleted file is not size-checked
+ok 233 disabled: any prefix passes
+ok 234 disabled: empty message passes
+ok 235 enabled: Day N: passes
+ok 236 enabled: Phase X.Y: passes
+ok 237 enabled: Phase X.MN: passes
+ok 238 enabled: Phase X (no .Y): passes
+ok 239 enabled: Merge commit passes
+ok 240 enabled: Revert commit passes
+ok 241 enabled: bare 'fix bug' fails
+ok 242 enabled: workstream/agent prefix fails
+ok 243 enabled: lowercase day fails
+ok 244 enabled: multi-line with valid first line passes
+ok 245 enabled: multi-line with invalid first line fails
+ok 246 config: --version shows version
+ok 247 config: -v shows version
+ok 248 config: --help shows usage
+ok 249 config: -h shows usage
+ok 250 config: help shows usage
+ok 251 config: unknown action shows error
+ok 252 config: list action works
+ok 253 config: get-principal action works
+ok 254 config: get action requires key
+ok 255 config: --verbose flag is recognized
+ok 256 config: get with valid key returns value
+ok 257 config: get with invalid key shows error
+ok 258 config: handles special characters in key
+ok 259 config: handles command substitution in key
+ok 260 simple: small skill within budget
+ok 261 simple: over-budget skill detected
+ok 262 import: resolves @-import chain
+ok 263 circular: detects and skips circular imports
+ok 264 budget: custom budget respected
+ok 265 no skills directory: exits cleanly
+ok 266 version flag works
+ok 267 cp-safe: same worktree copy succeeds
+ok 268 cp-safe: cross-worktree copy blocked
+ok 269 cp-safe: no args shows usage
+ok 270 cp-safe: one arg shows error
+ok 271 cp-safe: multi-source rejected
+ok 272 cp-safe: recursive flag works
+ok 273 cp-safe: dest outside git blocked
+ok 274 cp-safe: source outside git blocked
+ok 275 deploy: defaults to fly when no agency.yaml
+ok 276 deploy: defaults to fly when agency.yaml has no deploy section
+ok 277 deploy: reads provider from agency.yaml (quoted)
+ok 278 deploy: reads provider from agency.yaml (unquoted)
+ok 279 deploy: reads provider with inline comment
+ok 280 deploy: dispatches to provider tool with no args
+ok 281 deploy: forwards args to provider tool
+ok 282 deploy: missing provider tool returns error
+ok 283 deploy: missing provider lists available alternatives
+ok 284 deploy: missing provider points at agency.yaml
+ok 285 deploy: exit 0 on successful dispatch
+ok 286 deploy: exit 1 on missing provider
+ok 287 deploy: rejects provider name with path traversal (../)
+ok 288 deploy: rejects provider name with slash
+ok 289 deploy: rejects provider name with shell metacharacters
+ok 290 deploy: accepts valid hyphenated provider name
+ok 291 deploy: provider tool exists but not executable → error
+ok 292 deploy: forwards exit code from provider tool (exec semantics)
+ok 293 deploy: empty provider value falls back to default
+ok 294 deploy: uses CLAUDE_PROJECT_DIR over git rev-parse
+ok 295 diff-hash: produces 7-char hash (isolated)
+ok 296 diff-hash: --json produces valid JSON (isolated)
+ok 297 diff-hash: same input produces same hash (isolated)
+ok 298 diff-hash: different content produces different hash (isolated)
+ok 299 diff-hash: no diff returns error (isolated)
+ok 300 diff-hash: --file hashes a single file
+ok 301 diff-hash: --file on missing file fails
+ok 302 diff-hash: --file --json produces file mode
+ok 303 diff-hash: --help shows usage
+ok 304 dispatch create: --help shows usage
+ok 305 dispatch create: fails without --to
+ok 306 dispatch create: fails without --subject
+ok 307 dispatch create: creates file and DB record
+ok 308 dispatch create: DB record has correct fields
+ok 309 dispatch create: payload file exists with correct frontmatter
+ok 310 dispatch create: default type is dispatch
+ok 311 dispatch create: slug in filename comes from subject
+ok 312 dispatch create: type prefix in filename
+ok 313 dispatch create: validates type against enum
+ok 314 dispatch create: accepts all valid types
+ok 315 dispatch create: rejects invalid priority
+ok 316 dispatch create: --reply-to with integer sets in_reply_to FK
+ok 317 dispatch-create wrapper: works as before
+ok 318 dispatch-create wrapper: --help works
+ok 319 dispatch: --help shows all subcommands
+ok 320 dispatch: --version shows version
+ok 321 dispatch list: shows no dispatches when empty
+ok 322 dispatch list: shows dispatches for current agent
+ok 323 dispatch list: --status filters by status
+ok 324 dispatch list: --type filters by type
+ok 325 dispatch list: --all shows dispatches for all agents
+ok 326 dispatch read: shows dispatch and marks as read
+ok 327 dispatch read: sets read_by and read_at
+ok 328 dispatch read: does not re-mark already-read dispatch
+ok 329 dispatch read: fails for nonexistent ID
+ok 330 dispatch read: requires integer ID
+ok 331 dispatch check: silent when no unread
+ok 332 dispatch check: silent when no DB exists
+ok 333 dispatch check: reports unread dispatches as JSON
+ok 334 dispatch check: silent after all dispatches read
+ok 335 dispatch resolve: marks as resolved
+ok 336 dispatch resolve: fails for nonexistent ID
+ok 337 dispatch status: shows full record
+ok 338 dispatch status: fails for nonexistent ID
+ok 339 dispatch fetch: displays dispatch without changing status
+ok 340 dispatch fetch: does not say 'marked as read'
+ok 341 dispatch fetch: fails for nonexistent ID
+ok 342 dispatch fetch: requires integer ID
+ok 343 dispatch fetch: works on already-read dispatch
+ok 344 dispatch reply: creates reply addressed to original sender
+ok 345 dispatch reply: sets in_reply_to FK
+ok 346 dispatch reply: prefixes subject with Re:
+ok 347 dispatch reply: does not double-prefix Re:
+ok 348 dispatch reply: fails for nonexistent ID
+ok 349 dispatch reply: requires message
+ok 350 dispatch reply: requires integer ID
+ok 351 dispatch reply: rejects --subject flag (issue #119 bug 4)
+ok 352 dispatch reply: rejects --body flag
+ok 353 dispatch reply: rejects arbitrary unknown flag
+ok 354 dispatch reply: rejects extra positional args
+ok 355 dispatch reply: regression — legitimate call with just id and message still works
+ok 356 dispatch reply: writes payload file with message body
+ok 357 dispatch create: fails without --body or --template
+ok 358 dispatch create: succeeds with --body
+ok 359 dispatch create: --template writes placeholder file
+ok 360 dispatch create: --body and --template together uses body
+ok 361 dispatch create: creates symlink in dispatches dir
+ok 362 dispatch read: resolves payload via symlink
+ok 363 dispatch read: reports dangling symlink
+ok 364 dispatch reply: creates symlink for reply
+ok 365 docker_heal: returns 0 when docker already reachable (default path)
+ok 366 docker_heal: does NOT set DOCKER_HOST when default already works
+ok 367 docker_heal: recovers via macOS Desktop socket (GH #58)
+ok 368 docker_heal: prints auto-detected socket path on recovery
+ok 369 docker_heal: tries multiple candidates in order
+ok 370 docker_heal: returns 1 when no candidate works
+ok 371 docker_heal: prints actionable remediation on failure
+ok 372 docker_heal: actionable error includes candidates tried
+ok 373 docker_heal: unsets DOCKER_HOST on failure (no broken value leaks)
+ok 374 docker_heal: macOS remediation mentions Docker Desktop and context
+ok 375 docker_heal: empty candidate list → fails cleanly
+ok 376 docker_heal: lib is sourceable without docker binary
+ok 377 valid: level 1 capability with doc passes
+ok 378 valid: level 3 capability with all artifacts passes
+ok 379 missing: level 2 without skill fails
+ok 380 missing: level 3 with missing tool file fails
+ok 381 mixed: reports correct pass/fail count
+ok 382 missing registry file fails
+ok 383 version flag works
+ok 384 findings-save: shows help with --help
+ok 385 findings-save: fails without arguments
+ok 386 findings-save: fails with invalid stage
+ok 387 findings-save: fails with invalid review type
+ok 388 findings-save: fails with invalid JSON
+ok 389 findings-save: fails with empty stdin
+ok 390 findings-save: rejects path traversal in work item
+ok 391 findings-save: rejects invalid work item format
+ok 392 findings-save: dry-run shows output path # skip jsonschema not available under test isolation
+ok 393 findings-save: validates against schema
+ok 394 findings-save: --no-validate skips schema validation
+ok 395 findings-save: creates output directory
+ok 396 findings-save: auto-increments file number
+ok 397 findings-consolidate: shows help with --help
+ok 398 findings-consolidate: fails without arguments
+ok 399 findings-consolidate: fails with invalid stage
+ok 400 findings-consolidate: rejects path traversal in work item
+ok 401 findings-consolidate: rejects invalid work item format
+ok 402 findings-consolidate: --list shows review files
+ok 403 findings-consolidate: fails when no reviews directory
+ok 404 findings-consolidate: requires stdin input (no --list)
+ok 405 findings-consolidate: validates against schema
+ok 406 findings-consolidate: dry-run shows output path # skip jsonschema not available under test isolation
+ok 407 findings-save: writes file and preserves content
+ok 408 findings-save: creates separate files for different review types
+ok 409 flag: captures message to self
+ok 410 flag: stores correct fields in DB
+ok 411 flag --to: routes to specific agent
+ok 412 flag: empty message fails
+ok 413 flag list: shows flags and marks as read
+ok 414 flag list: empty queue handled
+ok 415 flag count: returns unread count
+ok 416 flag count: 0 when empty
+ok 417 flag discuss: formats agenda and marks processed
+ok 418 flag discuss: empty queue handled
+ok 419 flag clear: marks all as processed
+ok 420 flag clear: nothing to clear when empty
+ok 421 flag resolve: marks specific flag as processed
+ok 422 flag resolve: handles multiple IDs
+ok 423 flag resolve: fails for nonexistent ID
+ok 424 flag resolve: requires at least one ID
+ok 425 flag --help shows usage
+ok 426 flag --version shows version
+ok 427 gh: --version shows wrapper version
+ok 428 gh: -v shows wrapper version
+ok 429 gh: --help shows wrapper help
+ok 430 gh: --help shows security note
+ok 431 gh: dry-run does not leak token value
+ok 432 gh: dry-run shows token source as environment
+ok 433 gh: GH_SECRET_NAME environment variable is documented
+ok 434 gh: --dry-run shows command without executing
+ok 435 gh: --dry-run shows run ID
+ok 436 gh: warning shown when no token available
+ok 437 gh-pr: --version shows gh-pr version
+ok 438 gh-pr: --help shows PR commands
+ok 439 gh-pr: no args shows help
+ok 440 gh-release: --version shows gh-release version
+ok 441 gh-release: --help shows release commands
+ok 442 gh-release: --help mentions ./claude/tools/release
+ok 443 gh-release: no args shows help
+ok 444 gh-api: --version shows gh-api version
+ok 445 gh-api: --help shows API usage
+ok 446 gh-api: no args shows help
+ok 447 gh-pr: delegates to gh wrapper
+ok 448 gh-release: delegates to gh wrapper
+ok 449 gh-api: delegates to gh wrapper
+ok 450 gh: defines log_end fallback when helper missing
+ok 451 sync-main: rejects extra args
+ok 452 sync-main: errors when not on main
+ok 453 sync-main: errors when tree is dirty
+ok 454 sync-main: errors when HEAD is detached
+ok 455 sync-main: errors when origin/main ref missing
+ok 456 sync-main: happy path fast-forwards to origin/main
+ok 457 sync-main: no-op when already at origin/main
+ok 458 sync-main: fails on diverged history
+ok 459 git-captain --help shows usage
+ok 460 git-captain --version shows version
+ok 461 git-captain with no args shows usage
+ok 462 git-captain unknown subcommand fails
+ok 463 merge-to-master: on main, merges named branch with --no-ff
+ok 464 merge-to-master: NOT on main refuses with clear message
+ok 465 merge-to-master: nonexistent branch fails
+ok 466 merge-to-master: requires branch argument
+ok 467 checkout-branch: valid name feature/foo succeeds
+ok 468 checkout-branch: valid name test-branch succeeds and creates the branch
+ok 469 checkout-branch: uppercase name succeeds (D44-R3 / issue #428)
+ok 470 checkout-branch: mixed-case release name D7-R1 succeeds (D44-R3 / issue #428)
+ok 471 checkout-branch: nested uppercase path Feature/ABC succeeds (D44-R3 / issue #428)
+ok 472 checkout-branch: digits-only name succeeds (D44-R3 coverage)
+ok 473 checkout-branch: non-ASCII letters rejected (D44-R3 coverage)
+ok 474 checkout-branch: invalid characters still fail after D44-R3 widening
+ok 475 checkout-branch: rejects '..' sequences (D44-R6 / git ref-format)
+ok 476 checkout-branch: rejects trailing '.lock' suffix (D44-R6 / git ref lockfiles)
+ok 477 checkout-branch: rejects trailing hyphen (D44-R6 / git ref-format)
+ok 478 checkout-branch: rejects trailing dot (D44-R6 / git ref-format)
+ok 479 checkout-branch: rejects trailing slash (D44-R6 / git ref-format)
+ok 480 checkout-branch: accepts dotted version name v1.0 (D44-R6 coverage)
+ok 481 checkout-branch: accepts underscored name my_branch (D44-R6 coverage)
+ok 482 checkout-branch: accepts 'lock' (no dot) — only '.lock' suffix is forbidden
+ok 483 checkout-branch: accepts '.lock' mid-name (e.g. foo.lock-bar) — only suffix is forbidden
+ok 484 checkout-branch: name starting with hyphen fails
+ok 485 checkout-branch: name with spaces fails
+ok 486 checkout-branch: requires name argument
+ok 487 switch-branch: switches to existing branch
+ok 488 switch-branch: can switch to main
+ok 489 switch-branch: nonexistent branch fails
+ok 490 switch-branch: requires name argument
+ok 491 push: from main is blocked
+ok 492 push: explicit main target blocked
+ok 493 push: bare --force is blocked (no --force-with-lease)

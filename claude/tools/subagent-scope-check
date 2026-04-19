@@ -1,0 +1,130 @@
+#!/bin/bash
+#
+# subagent-scope-check — Verify a subagent's branch stayed within its manifest scope
+#
+# What Problem: In Phase 4 of v46.0 reset, 5 subagents each own a disjoint
+# slice of files. A subagent that touches a file outside its manifest would
+# collide with another subagent's work. Before captain merges a subagent
+# branch, verify every changed file is in that subagent's manifest scope.
+#
+# How & Why: Read manifest YAML (files: list). Compute the set of changed
+# files vs a base ref (default origin/main). Every changed file must match
+# at least one manifest glob. Additionally, assert the set is non-empty
+# unless manifest declares `expected_changes: 0` (catch silent-no-op bugs).
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+subagent-scope-check — Verify subagent branch stayed in scope
+
+Usage:
+  subagent-scope-check --manifest FILE --branch BRANCH [--base REF]
+                       [--work-tree DIR]
+
+Options:
+  --manifest FILE       Manifest YAML with files: list + expected_changes
+  --branch BRANCH       Branch to inspect
+  --base REF            Base ref (default: origin/main)
+  --work-tree DIR       Git dir to operate in (default: current)
+  --help / --version
+USAGE
+    exit 0
+}
+
+MANIFEST=""
+BRANCH=""
+BASE="origin/main"
+WORKTREE=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "subagent-scope-check $TOOL_VERSION"; exit 0 ;;
+        --manifest) shift; MANIFEST="${1:-}"; shift ;;
+        --branch) shift; BRANCH="${1:-}"; shift ;;
+        --base) shift; BASE="${1:-}"; shift ;;
+        --work-tree) shift; WORKTREE="${1:-}"; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$MANIFEST" ]] && die "--manifest required"
+[[ -z "$BRANCH" ]] && die "--branch required"
+[[ -f "$MANIFEST" ]] || die "manifest not found: $MANIFEST"
+
+if [[ -n "$WORKTREE" ]]; then cd "$WORKTREE"; fi
+
+# Parse manifest: extract files globs + expected_changes
+FILES_GLOBS=()
+EXPECTED_CHANGES=""
+in_files=0
+while IFS= read -r line; do
+    case "$line" in
+        \#*|'') continue ;;
+    esac
+    if [[ "$line" =~ ^files: ]]; then in_files=1; continue; fi
+    if [[ "$line" =~ ^[^[:space:]] ]]; then in_files=0; fi
+    if [[ $in_files -eq 1 && "$line" =~ ^[[:space:]]*-[[:space:]]+(.+)$ ]]; then
+        val="${BASH_REMATCH[1]}"
+        val="${val%\"}"; val="${val#\"}"
+        FILES_GLOBS+=("$val")
+    fi
+    if [[ "$line" =~ ^expected_changes:[[:space:]]*(.+)$ ]]; then
+        EXPECTED_CHANGES="${BASH_REMATCH[1]}"
+        EXPECTED_CHANGES="${EXPECTED_CHANGES%"${EXPECTED_CHANGES##*[![:space:]]}"}"
+    fi
+done < "$MANIFEST"
+
+# Get changed-file list
+CHANGED=()
+while IFS= read -r -d '' f; do
+    CHANGED+=("$f")
+done < <(git diff --name-only -z "$BASE".."$BRANCH" 2>/dev/null)
+
+# Non-empty assertion
+if [[ ${#CHANGED[@]} -eq 0 && "$EXPECTED_CHANGES" != "0" ]]; then
+    echo "[FAIL] Branch '$BRANCH' made zero changes and manifest does not declare expected_changes: 0" >&2
+    exit 1
+fi
+
+# Match each changed file against at least one glob
+out_of_scope=()
+# Guard empty-array expansion under set -u (bash 3.2 compatible)
+if [[ ${#CHANGED[@]} -eq 0 ]]; then
+    echo "[OK] subagent '$BRANCH' touched 0 file(s) (expected_changes: 0)"
+    exit 0
+fi
+for f in "${CHANGED[@]}"; do
+    matched=0
+    for g in "${FILES_GLOBS[@]}"; do
+        # Use bash globbing via [[ ]] + pattern — approximate glob match
+        # Convert ** → * at start for simplicity (we don't fully implement ** semantics)
+        pattern="${g//\*\*\//}"
+        case "$f" in
+            $g|$pattern*)
+                matched=1; break ;;
+        esac
+        # Try direct filename match inside a parent glob
+        case "$f" in
+            $g)  matched=1; break ;;
+        esac
+    done
+    [[ $matched -eq 0 ]] && out_of_scope+=("$f")
+done
+
+if [[ ${#out_of_scope[@]} -gt 0 ]]; then
+    echo "[OUT-OF-SCOPE] subagent '$BRANCH' touched files outside manifest:" >&2
+    for f in "${out_of_scope[@]}"; do
+        echo "  $f" >&2
+    done
+    exit 1
+fi
+
+echo "[OK] subagent '$BRANCH' touched ${#CHANGED[@]} file(s), all in-scope"
+exit 0
