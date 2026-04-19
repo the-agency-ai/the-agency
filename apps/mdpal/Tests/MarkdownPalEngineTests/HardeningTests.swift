@@ -172,6 +172,64 @@ private func makeFreshBundleDir() throws -> (tempDir: URL, bundlePath: String) {
 // thresholds in <100ms; loaded CI runners can blow past them. Run with:
 //   MDPAL_RUN_BENCHMARKS=1 swift test --filter bundleWith100Revisions
 
+// **Phase 3 iter 3.6.** Scale benchmark at 1000 revisions. Same gate as
+// the 100-revision test (MDPAL_RUN_BENCHMARKS=1); same shape but with
+// looser thresholds proportional to scale. Catches pathological N^2
+// regressions that wouldn't show at 100 revisions.
+@Test func bundleWith1000RevisionsPerformsAcceptably() throws {
+    guard ProcessInfo.processInfo.environment["MDPAL_RUN_BENCHMARKS"] == "1" else {
+        // Skipped silently in default runs; opt in via env var.
+        // Skipped by default since 1000-revision setup is slow on its own.
+        return
+    }
+    let setup = try makeFreshBundleDir()
+    defer { try? FileManager.default.removeItem(at: setup.tempDir) }
+
+    let bundle = try DocumentBundle(at: setup.bundlePath)
+    let baseTime = Date(timeIntervalSince1970: 1_775_000_000)
+
+    // Append 999 revisions (1 + 999 = 1000 total).
+    for i in 2...1000 {
+        let ts = baseTime.addingTimeInterval(TimeInterval(i * 60))
+        _ = try bundle.createRevision(
+            content: "# Intro\n\nrev \(i).\n",
+            timestamp: ts
+        )
+    }
+
+    // Hot paths: listRevisions and currentDocument should stay O(n)
+    // per call. Linear over 1000 should comfortably fit in 30s on
+    // any plausibly-loaded CI runner.
+    let listStart = Date()
+    let revisions = try bundle.listRevisions()
+    let listElapsed = Date().timeIntervalSince(listStart)
+    #expect(revisions.count == 1000)
+    #expect(listElapsed < 30.0, "listRevisions on 1000-rev bundle took \(listElapsed)s — should be < 30s")
+
+    let currentStart = Date()
+    let doc = try bundle.currentDocument()
+    let currentElapsed = Date().timeIntervalSince(currentStart)
+    #expect(!doc.listSections().isEmpty)
+    #expect(currentElapsed < 30.0, "currentDocument on 1000-rev bundle took \(currentElapsed)s — should be < 30s")
+
+    // Diff across the full range — N^2 territory if implemented poorly.
+    let diffStart = Date()
+    let firstId = try #require(revisions.first?.versionId)
+    let lastId = try #require(revisions.last?.versionId)
+    let diffs = try bundle.diff(baseRevision: firstId, targetRevision: lastId)
+    let diffElapsed = Date().timeIntervalSince(diffStart)
+    #expect(!diffs.isEmpty)
+    #expect(diffElapsed < 60.0, "diff across 1000-rev range took \(diffElapsed)s — should be < 60s")
+
+    // Prune to keep 100 — exercises the merge-forward path under load.
+    let pruneStart = Date()
+    let pruneResult = try bundle.prune(keep: 100)
+    let pruneElapsed = Date().timeIntervalSince(pruneStart)
+    #expect(pruneResult.remainingRevisions == 100)
+    #expect(pruneResult.prunedRevisions.count == 900)
+    #expect(pruneElapsed < 120.0, "prune of 900 revisions took \(pruneElapsed)s — should be < 120s")
+}
+
 @Test func bundleWith100RevisionsPerformsAcceptably() throws {
     guard ProcessInfo.processInfo.environment["MDPAL_RUN_BENCHMARKS"] == "1" else {
         // Skipped silently in default runs; opt in via env var.
