@@ -92,6 +92,47 @@ Locate the handoff file for this project (glob `usr/*/*/handoff.md` or `usr/*/ca
 - Key decisions, trade-offs, or context from this phase
 - Any open items or known issues carried forward
 
+### Step 9: Emit phase-complete dispatch to captain (NEW — small-batch cadence)
+
+Structured dispatch so captain's `auto-ship` daemon can open the PR, wait for CI, and merge on green. **Must run AFTER the commit (Step 6) so `commit_hash` is current.**
+
+Capture these values:
+- `PHASE_SLUG` — from `$ARGUMENTS` (e.g., "1" for Phase 1)
+- `BRANCH` — current branch via `git branch --show-current`
+- `COMMIT_HASH` — the commit you just made
+- `SUMMARY` — one-line phase summary from the commit's first line
+- `RECEIPT_PATH` — the QGR receipt path from Step 3
+
+Resolve captain's address: glob `usr/*/captain/` for the principal directory name, then captain address is `{repo}/{principal}/captain`.
+
+Emit the dispatch:
+
+```
+bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch create \
+  --to {repo}/{principal}/captain \
+  --type phase-complete \
+  --subject "Phase {PHASE_SLUG} complete on {BRANCH}" \
+  --body "<structured YAML>"
+```
+
+Body format:
+
+```yaml
+event: phase-complete
+phase: {PHASE_SLUG}
+branch: {BRANCH}
+commit_hash: {COMMIT_HASH}
+summary: {SUMMARY}
+qgr_receipt: {RECEIPT_PATH}
+emitted_at: {ISO-8601 timestamp}
+```
+
+**Cascade isolation:** set `AGENCY_SKILL_BYPASS_CASCADE=1` in the environment so `git-safe-commit`'s commit-dispatch hook doesn't double-emit.
+
 ### Note: Multi-iteration phases
 
 If this phase had multiple iterations that were each committed separately, the phase-complete commit should squash the iteration commits into a single phase commit. Step 2 handles this — use `git reset --soft` to combine them before running the gate.
+
+### Cadence note (small-batch-cadence project)
+
+Step 9's phase-complete dispatch triggers captain's `auto-ship` daemon. Unlike iteration-complete, phase-complete represents a bigger landmark — but the flow is the same: PR → QG → CI gate → merge → release → fleet broadcast. Principal approval required for the squash/phase-commit authorship (Step 5) but NOT for the merge itself (CI-gated per PVR v1.1 R1). See `claude/workstreams/captain/small-batch-cadence-*.md`.
