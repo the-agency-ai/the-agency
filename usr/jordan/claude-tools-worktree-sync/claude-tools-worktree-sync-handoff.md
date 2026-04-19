@@ -1,128 +1,128 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-workstream: housekeeping
+workstream: the-agency
 date: 2026-04-19
 trigger: session-compact
-note: handoff tool resolved agent from branch name (contrib/claude-tools-worktree-sync) instead of captain — known identity-conflation bug (#273/#274). This IS captain's handoff.
 ---
 
-# Captain handoff — mid-session compact
+# Captain handoff — mid-1B1 on v46.0 Structural Reset
 
-**⚠ IMPORTANT ⚠ — UNCOMMITTED WORK ON DISK.** Tree is dirty. Session compacted while commit-precheck was failing to complete. All work is staged and files exist on disk, but the commit didn't land. Do NOT lose these changes.
+**⚠ NOTE:** handoff tool resolved agent from branch name (`contrib/claude-tools-worktree-sync`) instead of captain — identity-conflation bug #273/#274/#326. THIS IS CAPTAIN'S handoff.
 
-## On resume — IMMEDIATE ACTIONS
+## Where we are
 
-### 1. Verify branch + state
+**Branch:** `contrib/claude-tools-worktree-sync`
+**Last commit:** `2d0d6cf7` (Valueflow artifacts committed)
+**Working tree:** clean (pending handoff commit)
 
-```
-./claude/tools/git-safe branch           # expect: contrib/claude-tools-worktree-sync
-./claude/tools/git-safe status --porcelain
-```
+Mid-1B1 walkthrough of **Plan v1 MAR blockers** for v46.0 structural reset. Principal directed a compact to reset context. Pick up where we stopped.
 
-Expected staged/modified files:
-- `claude/tools/agency-health` (modified — sources helper)
-- `claude/tools/git-safe` (modified — sub-agent retrofit)
-- `claude/tools/lib/_detect-main-branch` (new — the helper)
-- `claude/tools/lib/_health-worktree` (modified — uses helper)
-- `claude/tools/pr-build` (modified — sub-agent retrofit)
-- `claude/tools/pr-create` (modified — sub-agent retrofit)
-- `claude/tools/tests/test-worktree-sync.sh` (modified — Test 15 from monofolk PR #295)
-- `claude/tools/worktree-sync` (modified — uses helper, monofolk fix preserved in cc907ddb commit history)
-- `tests/tools/_detect-main-branch.bats` (new — 10 BATS for helper)
-- `tests/tools/git-safe.bats` (modified — fixture copies helper)
+## Session arc so far (long session)
 
-### 2. Diagnose commit-precheck failure
+1. **Session-resume** — cleared commit-precheck (fixture missing helper), landed refactor PR #294 with full QG
+2. **andrew-demo audit** — 31 defects catalogued, 6 NEW issues filed (#324-#329)
+3. **/fleet-report skill v2** — first v2 skill authored in the-agency
+4. **monofolk v2 skill methodology review** — research agent read PRs #308-313
+5. **agency-* cleanup** — 1B1 6-item cleanup: removed dead /agency-bug, /agency-nit, nit-add, nit-resolve; rewrote /agency-help with Tier 2 doc pointers; stubbed /agency.md
+6. **andrew-demo briefing** — written for Andrew at `claude/workstreams/andrew-demo/research/briefing-agency-init-audit-flashcards-hsk3-20260419.md` + pointer notice in his captain sandbox (andrew-demo has its own git; committed locally there, not pushed)
+7. **5 concrete issues filed** (#332-#336) + root-cause fixes in `_agency-init` for #334 + #335
+8. **Installer seed + 2 Anthropic seeds** committed to `claude/workstreams/the-agency/seeds/`
+9. **#337 filed** — "Build a true installer" with manifest-driven design + continuous self-install
+10. **v46.0 Structural Reset Valueflow pass** — PVR → MAR, A&D → MAR, Plan → MAR (all autonomous per principal)
+11. **1B1 walkthrough of 9 Plan blockers** — currently mid-walk, principal called compact
 
-`commit-precheck` fails with "Scoped tests failed" but visible tests 71–90 all pass. Earlier tests (1–70) must be failing but aren't shown in truncated output. Investigate:
+## Plan v1 1B1 — RESOLVED blockers (Over-and-out confirmed)
 
-```
-./claude/tools/commit-precheck --verbose 2>&1 | head -200
-```
+- **#1** Phase 0 budget — **full scope accepted**: single session, multi-phase with checkpoints, build tooling if required
+- **#2** Placeholders in commands — **"Write the tools you need. That is Phase 1."** — Phase 1 = tooling build; Plan v2 has complete tool source + inline commit bodies
+- **#3** Post-rename tool path breaks — **transitional symlink** `ln -s agency/tools claude/tools` immediately after rename; explicit cleanup step at Phase end (principal's idea — credit noted)
+- **#4** Subagent regex over-aggressive — **fully qualified path substitutions** + explicit allowlist (`.claude/`, `CLAUDE.md`, `anthropic/claude-code`, `$CLAUDE_PROJECT_DIR`, `Claude Code` etc.); **`agency-sweep` preview-first tool** built in Phase 1 (shows matches in context before applying — principal loved this)
 
-Or run specific BATS files directly:
-```
-bats tests/tools/git-safe.bats
-bats tests/tools/_detect-main-branch.bats
-bats tests/tools/worktree-sync.bats
-```
+## Plan v1 1B1 — OPEN blockers (where we stopped)
 
-Likely culprits: other .bats files may also need the helper copy in their fixture (like `tests/tools/git-safe.bats` did — I added the fixture line for it, but pr-create, pr-build, worktree-sync likely have similar fixtures that need the same copy line).
+### #5 — Manifest gaps (IN PROGRESS, partial resolution)
 
-Once test fixtures are fully updated, `git-safe-commit` should land.
+Principal refined the scope: **"It only matters if they are things we will install, right?"**
 
-### 3. Once commit lands, push + continue Phase 2
+Filter accepted — in-scope is things that get installed/executed/imported/discovered:
+- `.claude/**`, `agency/tools/**`, `agency/hooks/**`, `agency/hookify/**`, `agency/templates/**`, `agency/starter-packs/**`, `agency/schemas/**`, `agency/config/**`, `agency/agents/**`, `agency/REFERENCE/**`, `agency/README/**`, `agency/CLAUDE-THEAGENCY.md`, repo-root `CLAUDE.md`, `.gitignore`, `.gitattributes`, `package.json`, `tests/**`
 
-Phase 2 remaining work:
-- **git-captain retrofit** — sub-agent was REJECTED by principal mid-dispatch (connection interrupt). Need to re-dispatch OR do manually.
-- Full BATS across all 6 tools
-- Combined MAR on the whole package
-- QGR + PR update + release
+Out-of-scope (historical):
+- `usr/**`, `workstreams/*/history/**`, `workstreams/*/transcripts/**`, `workstreams/*/qgr/**`, `workstreams/*/rgr/**`, `CHANGELOG-*`, `history/flotsam/**`
 
-### 4. Continue principal's queued work after Phase 3
+### Then principal raised 3 sub-questions:
 
-After the refactor package is in a PR:
-1. `andrew-demo` root-cause investigation (what did `agency init` + run actually do to that repo; tie observed repo + transcript to open issues)
-2. Create `fleet-report` skill + command
-3. Report "what's next" for captain + "what's next" for the fleet
+1. **`agency/agents/` contents** — "We have a few other agent class definitions (and will likely have more) - captain - workstream-lead (my renaming of what was tech-lead). Others?"
+   - I started listing. Current `claude/agents/` contents (pre-cleanup):
+     `apple, captain, cos, designex, discord, gumroad, iscp, marketing-lead, platform-specialist, project-manager, researcher, reviewer-{code,design,scorer,security,test}, tech-lead, templates, testname`
+   - Need to triage what's KEPT as a canonical class vs DELETED as specific-named non-classes. Principal already flagged (#275) that apple/discord/gumroad/testname ship but shouldn't.
+   - **Not yet presented to principal for Over-and-out.**
 
-## Key decisions from this session (don't lose)
+2. **starter-packs + schemas — "don't believe still in things"**
+   - They ARE still in tree. Principal's note: "The starter packs as they exist are now source code inputs in src/spec-provider/starter-packs. Aren't they?" — i.e., in the #337 installer model, starter-packs live under src/spec-provider/. For THIS reset, they stay at `agency/starter-packs/` and #337 relocates them later.
+   - Principal asked: "What is the role of schemas?"
+   - I was about to report: schemas = `finding.schema.json` + `consolidated-findings.schema.json` — JSON schemas used by reviewer-scorer agent for MAR finding output validation. Framework-internal. Not shipped to adopters.
+   - **Not yet presented to principal.**
 
-### Releases + PRs
+3. **hooks/ + hookify/ in .claude/** — principal: "Keep as is. Is nicer, if it will work long term. I like it. Wish we could do it with commands and skills ;)"
+   - RESOLVED: hooks/hookify stay in `agency/` post-rename. Commands/skills stay in `.claude/` (Claude Code requirement; would need Anthropic-side change to flip).
 
-- **v45.1 SHIPPED** this morning. PR #213 merged (Python 3.13 floor). Release created. Issue #271 closed with "Fixed in v45.1".
-- **PR #299** OPEN — D45-R2 agency update --prune safety fix (#297 BUG 1). Version bumped to 45.2. Awaits principal merge.
-- **PR #294** OPEN — this branch will update it. Scope grew from "port worktree-sync" to "helper extraction + 4 sibling retrofits + health-worktree fix". Will supersede PR #295 (test content merged here).
-- **PR #295** will close as "superseded by #294" when the expanded PR merges.
+### #6-#9 — NOT YET WALKED
+- #6 Subagent receipts self-reported
+- #7 Line-count heuristic misses semantic corruption
+- #8 Dotfile glob gap (`git mv agency/workstreams/agency/*` misses `.gitkeep`)
+- #9 `--migrate` not enforceable; monofolk can skip
 
-### Principles captured this session
+## Resume strategy
 
-- **Visibility, transparency, traceability** (from Q1 answer on monofolk PR revision approach)
-- **No bug left behind** (fix all instances of a bug class)
-- **No broken windows** (fix visible defects; don't grow duplication)
+1. On session-resume, read this handoff
+2. Start 1B1 at **Blocker #5, sub-question 2 (starter-packs + schemas role)**
+3. Answer: schemas role (JSON schema validation for reviewer-scorer), starter-packs stay at agency/ now + src/spec-provider/ in #337
+4. THEN present agent class list triage (sub-question 1)
+5. Close #5 with Over-and-out
+6. Walk #6, #7, #8, #9 in order
+7. Once all 9 blockers closed, update Plan v2 and execute v46.0 reset
 
-### Discipline captured
+## Current branch + merge order
 
-- GH `Closes #N, #M, #K` only auto-closes the FIRST issue. Must say `Closes #N. Closes #M.` individually.
-- Every PR ships closing comments on its issues naming the release version: "Fixed in v45.X".
+- Branch: `contrib/claude-tools-worktree-sync`
+- PR #294 open with: refactor package + andrew-demo research + fleet-report v2 + agency-* cleanup + root-cause fixes + v46.0 Valueflow artifacts (PVR, A&D, Plan, MAR triages) + seeds
+- After PR #294 merges, cut new branch `v46.0-structural-reset` from master for execution
+- Do NOT execute the reset on this branch — new branch for clean PR
 
-### Flags filed this session
+## Flag queue (10 unread)
 
-- **#171** Refactor skill + sub-agent pattern (research upstream agency-skills-v2 from monofolk)
-- **#172** Refactor all skills to agency-skills-v2 model once integrated
-- **#173** Create skills for each Valueflow step (skill-per-step discipline)
-- **#174** Enforcement Triangle rebalance with agency-skills-v2
-- **#176** agent-tool-create vs tool-create skill discussion
+- #176-#186 — various follow-ups, all captured, none blocking
 
-### 1B1 resolutions (Items 1-4 on monofolk PR review)
+## Unanswered principal questions (from long session)
 
-1. `_health-worktree` same-bug fix → YES, include in this package ✓ (done)
-2. Extract `_main-branch-resolve` helper → BUILD + USE NOW, retrofit siblings via sub-agents ✓ (Phase 1 done, Phase 2 partial)
-3. Shell test file rot (Tests 6, 14 pre-existing failures) → leave for now, file separate ticket
-4. Framework posture on non-main/master → helper whitelists main/master; tools that care get safety, tools that don't can ignore
+- Q4-Q8 on monofolk v2 methodology 1B1 (naming renames, PRs #303/304 mislabel, PRs #311/312/313 accept, pr-submit/pr-captain-land deferral, skills-cli adoption)
+- Never returned to these after the conversation pivoted to the structural reset
 
-## MAR captured at
+## Critical discipline reminders (principal caught me violating)
 
-`claude/workstreams/the-agency/research/mar-worktree-sync-port-294-295-20260419.md` (commit `1b196102` on main — already merged into this branch via merge-from-main).
+- **Over protocol MUST be followed** — wait for principal's explicit Over-and-out before moving to next 1B1 item
+- **Do not interpret partial responses as approvals**
+- **Be decisive when asked** — state one answer, not a menu of options
+- **Tighten turns** — minimal context, explicit question, Over
 
-## Principal's queued work items (in order)
+## Files to re-read on resume
 
-1. Finish Phase 2 + 3 of refactor package (git-captain retrofit + BATS + MAR + PR)
-2. `andrew-demo` root-cause investigation
-3. `/fleet-report` skill + command
-4. "What's next" for captain + fleet
+Before answering Blocker #5 follow-up:
+- `claude/workstreams/the-agency/plan-the-agency-structural-reset-20260419.md` (the Plan itself)
+- `claude/workstreams/the-agency/research/mar-pvr-structural-reset-20260419.md` (MAR findings context)
+- `claude/workstreams/the-agency/research/mar-ad-structural-reset-20260419.md` (MAR findings context)
 
-## Captain on compact — state of things
+## Environment state
 
-- **Branch:** `contrib/claude-tools-worktree-sync` (PR #294's branch)
-- **Dirty tree:** YES — 10 files staged/modified. COMMIT BLOCKED BY commit-precheck (scoped tests fail but visible tests pass).
-- **Last landed commit:** `1b196102` (MAR triage doc on main, merged into this branch via `7a8cba2b`)
-- **Monitor running:** `b2szksh2h` (dispatch-monitor, python3.13 shim — retirable once v45.2 ships the new shebang path)
-- **PRs in flight:**
-  - #213 MERGED → v45.1
-  - #299 OPEN — agency update --prune safety (D45-R2)
-  - #294 OPEN — about to expand to the whole refactor package (D45-R3)
-  - #295 OPEN — superseded-by-#294 after merge
-  - #300-#305 OPEN — remaining monofolk incoming PRs (not yet touched)
+- Dispatch monitor: running (session-length)
+- 10 unread flags
+- agency-health at last check: not critical
+- Working directory: clean after this handoff commits
 
-*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+## Next-action-directive (single line)
+
+**Resume with Blocker #5 walk: schemas role + agent class triage → Over-and-out → proceed to #6.**
+
+— captain, 2026-04-19
