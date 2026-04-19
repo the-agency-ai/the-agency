@@ -490,3 +490,42 @@ After each phase:
 2. Coverage meets targets
 3. Performance benchmarks within envelope
 4. Dispatch to mdpal-app with completion status
+
+---
+
+## Phase 2 — COMPLETE (phase-complete commit f31f6687, 2026-04-19)
+
+Phase 2 shipped the full mdpal CLI surface: 16 subcommands implementing the entire dispatched JSON spec, engine Diff API, link(2) atomic-create-or-fail, SizedFileReader, pointer-file validation, optimistic concurrency uniform across all 6 write commands, 18-discriminator error vocabulary, exit codes 0–5, wire-format goldens covering all 16 commands.
+
+**Iterations:**
+| Iter | Commit | Tests | Content |
+|------|--------|-------|---------|
+| 2.1 | `94d0169` | 193 | CLI scaffold (read, sections, version) |
+| 2.1 QG | `874ae16` | 192 | camelCase, error field, recursive tree |
+| 2.2 | `f444ded` | 199 | edit + GlobalOutputOptions |
+| 2.2 QG | `0b26f86` | 204 | versionId in conflict envelope, TTY/encoding hardening |
+| 2.3 | `6b312ad` | 221 | comment + flag lifecycle (6 commands) |
+| 2.3 follow-up | `51e088e` | 225 | --tag (repeatable) + --text-stdin / --response-stdin |
+| 2.4 | `8c8dbe1` | 291 | bundle commands + Diff API + Unicode slugs + 12 QG fixes |
+| 2.5 | `9b20e8a` | 332 | Phase 2 hardening + 20 QG fixes |
+| **Phase 2 phase-complete** | **`f31f668`** | **338** | **link(2) atomic + uniform optimistic concurrency + 19 deep-QG findings** |
+
+**Phase 2 phase-complete QG (deep gate):** 4 parallel reviewer agents (code, security, design, test) + own review + scorer. 36 findings raised, 19 accepted (≥50 score, "no defer" rule applied), 18 rejected with documented rationale (each captured in commit message). Receipt: `claude/workstreams/mdpal/qgr/the-agency-jordan-mdpal-cli-mdpal-mdpal-qgr-phase-complete-20260419-2206-5dacf2c.md`.
+
+**Phase 1.5 backlog deferred to Phase 3:**
+- Sec-1 BundleResolver sandbox-root policy (env var or config-driven `MDPAL_ROOT`)
+- Sec-2 Path scrubbing in error messages (relative-to-bundle in message; preserve absolute in details for local use)
+- H1 Revision metadata drift (resolved through F1 + F6 fixes; verify)
+- H4 Slug suffix scheme drift
+
+**Phase 3 emerged from mdpal-app pre-MAR coordination (dispatches #690/#696/#697):**
+- Iter 3.1: MetadataSerializer unknown-field round-trip — engine drops unknown YAML keys today; preventing inbox metadata loss requires this fix. **Hard prerequisite for mdpal-app's inbox/reply flow.**
+- Iter 3.2: `mdpal wrap <source> <bundle-name>` — pancake → packaged conversion (engine + CLI).
+- Iter 3.3: `mdpal flatten <bundle> [--include-comments] [--include-flags]` — packaged → pancake conversion.
+
+Phase 3 plan revision lands separately (after mdpal-app's Plan MAR completes).
+
+**mdpal-app coordination:**
+- Pre-MAR responses sent: PVR Rev 2 (#704), A&D Rev 2 (#706), Plan (#707).
+- All three ≤500 words, all four (3) questions per dispatch addressed.
+- Approved for MAR. mdpal-app will integrate, run formal 4-lens MAR, then move to implementation.
