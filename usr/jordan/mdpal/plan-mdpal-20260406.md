@@ -529,3 +529,130 @@ Phase 3 plan revision lands separately (after mdpal-app's Plan MAR completes).
 - Pre-MAR responses sent: PVR Rev 2 (#704), A&D Rev 2 (#706), Plan (#707).
 - All three ≤500 words, all four (3) questions per dispatch addressed.
 - Approved for MAR. mdpal-app will integrate, run formal 4-lens MAR, then move to implementation.
+
+---
+
+## Phase 3 — DRAFT (planned, awaiting mdpal-app's formal MAR for Plan integration)
+
+Phase 3 covers (a) the engine surface mdpal-app needs for its inbox/reply flow and pancake mode, plus (b) the Phase 1.5 security backlog that "no defer" promoted forward.
+
+**Tag at start:** `v45.2` (Phase 2 phase-complete release; PR #344).
+
+### Iterations
+
+| Iter | Scope | Engine/CLI | Hard prereq for |
+|------|-------|------------|-----------------|
+| 3.1 | MetadataSerializer unknown-field round-trip | engine | mdpal-app inbox/reply (HIGH) |
+| 3.2 | `mdpal wrap <source> <bundle-name>` | engine + CLI | mdpal-app Phase 3.6 (Reply) |
+| 3.3 | `mdpal flatten <bundle>` | engine + CLI | mdpal-app Phase 3.7 (Send flattened) |
+| 3.4 | BundleResolver sandbox-root policy | engine | (Phase 1.5 backlog Sec-1) |
+| 3.5 | Path scrubbing in error envelope messages | engine + CLI | (Phase 1.5 backlog Sec-2) |
+| 3.6 | Performance benchmarks at 1000-revision scale | tests | scale validation |
+
+#### 3.1 MetadataSerializer unknown-field round-trip
+
+**Problem:** `MetadataSerializer.decode` (apps/mdpal/Sources/MarkdownPalEngine/Metadata/MetadataSerializer.swift:146-180) hard-switches on the four known top-level YAML keys (`document`, `flags`, `unresolved`, `resolved`) and drops everything else. Same drop happens at the per-record level. An inbound bundle with `review:` metadata (origin, artifact type, review round, correlation id) loses the `review:` block on the next `Document.serialize() → DocumentBundle.createRevision`.
+
+**Fix shape:** extend `MetadataSerializer` to capture unknown top-level keys + unknown per-record keys as a side-band dictionary on `DocumentMetadata` / `Comment` / `Flag`, re-emit them on encode in deterministic position (after known keys). Same approach to per-comment unknown fields.
+
+**Tests:** round-trip a bundle with arbitrary `review: { ... }` block through one full mutation cycle (load → addComment → save → reload), assert `review:` survives byte-equal.
+
+**Estimated:** 1 iteration, 4-6 new tests.
+
+#### 3.2 `mdpal wrap <source> <bundle-name> [--review-metadata <yaml>]`
+
+**Pre-condition: 3.1 lands first** (so `--review-metadata` survives subsequent mutations).
+
+**Problem:** No CLI primitive to convert pancake (.md) into packaged (.mdpal). Currently agents call `DocumentBundle.create(initialContent:)` programmatically.
+
+**Engine:** Add `DocumentBundle.create(name:initialContentFromFile:reviewMetadata:at:timestamp:)`. Reads the source `.md` file via `SizedFileReader.readRevisionUTF8` (defensive size cap), creates the bundle, optionally injects `review:` block.
+
+**CLI:** `mdpal wrap <source> <bundle-name> --dir <parent-dir> [--review-metadata <yaml-file-path>]`. Outputs the standard `CreatePayload` (existing wire shape).
+
+**Edge cases pinned:**
+- Source must be a single `.md` file (NOT a directory). Directory wrapping is an explicit V2 deferral.
+- Wrap-over-existing-bundle → `bundleConflict` exit 4 (existing `invalidBundlePath` re-mapped at CLI layer).
+- Empty source `.md` → bundle with empty initial revision (single newline content per POSIX text-file convention).
+- `--review-metadata` value must be a path to a YAML file (NOT inline YAML on argv — ARG_MAX risk).
+
+**Tests:** golden wire shape, round-trip with review-metadata, error envelopes for malformed sources.
+
+**Estimated:** 1 iteration, ~12 new tests, 1 new wire golden.
+
+#### 3.3 `mdpal flatten <bundle> [--output <path>] [--include-comments] [--include-flags]`
+
+**Problem:** No CLI primitive to convert packaged (.mdpal) into pancake (.md).
+
+**Engine:** Add `Document.flatten(includeComments:includeFlags:) -> String`. Returns body-only by default; with flags, appends comments/flags as separate fenced sections after the body so the output stays valid Markdown.
+
+**CLI:** `mdpal flatten <bundle> [--output <path>]` (default: stdout). `--include-comments` and `--include-flags` are independent flags.
+
+**Edge cases pinned:**
+- Empty bundle (no revisions) → `bundleConflict` exit 4.
+- Latest revision with empty body → output is single newline.
+- `--include-comments` with no comments → no comment block emitted (silent omission, not header-only).
+
+**Tests:** golden text output, byte-equal round-trip wrap-then-flatten on body-only data.
+
+**Estimated:** 1 iteration, ~10 new tests, 1 new wire golden.
+
+#### 3.4 BundleResolver sandbox-root policy
+
+**Problem (Sec-1 from Phase 2 phase-complete):** `BundleResolver` accepts absolute paths, `~/`, `..` traversal. CLI commands targeting `<bundle>` argument can read any `.mdpal` directory the process user can read. Combined with `mdpal read` / `mdpal history` returning revision contents, this is an arbitrary-bundle-read primitive when mdpal is invoked indirectly.
+
+**Fix shape:** Optional sandbox via `MDPAL_ROOT` env var. When set, `BundleResolver.resolve` rejects any canonicalized bundle path that doesn't share that prefix. When unset (default), legacy behavior — backwards compatible.
+
+**Tests:** sandbox-enforced rejection cases, sandbox-disabled passes-through, symlink-into-sandbox rejection (canonicalize-then-check).
+
+**Estimated:** 1 iteration, ~6 new tests.
+
+#### 3.5 Path scrubbing in error envelope messages
+
+**Problem (Sec-2 from Phase 2 phase-complete):** `EngineError.fileError`, `invalidBundlePath`, `fileTooLarge` envelopes echo absolute filesystem paths in `message` and `details.path`. When forwarded to telemetry / logs / IPC, this leaks user home directory + bundle layout + tmp UUID names.
+
+**Fix shape:** `ErrorEnvelope.scrub(_:relativeTo:)` helper that converts absolute paths to bundle-relative form for the `message` field. `details.path` retains absolute path (for local routing) — separated into `details.absolutePath` (kept) and `details.relativePath` (new). mdpal-app forwards only `relativePath` to telemetry.
+
+**Tests:** envelope scrubbing across all four affected `EngineError` cases, mdpal-app integration test (decode `relativePath`, ensure `absolutePath` not in telemetry payload).
+
+**Estimated:** 1 iteration, ~8 new tests.
+
+#### 3.6 Performance benchmarks at 1000-revision scale
+
+**Problem:** Existing performance tests are gated at 100 revisions and only run via `MDPAL_RUN_BENCHMARKS=1`. Production use (long-lived collaboration documents) may hit 1000+ revisions over months. We don't know the engine's behavior at that scale.
+
+**Fix shape:** Extend `bundleWith100RevisionsPerformsAcceptably` to a `bundleWith1000RevisionsPerformsAcceptably` variant. Tighter thresholds where they make sense (linear ops should stay O(n); pruning across 900 revisions should stay sub-30s). Same gate behind `MDPAL_RUN_BENCHMARKS=1`.
+
+**Tests:** 1 new test (benchmark-gated).
+
+**Estimated:** 0.5 iteration.
+
+### Coordination
+
+**With mdpal-app:**
+- mdpal-app's Phase 3 iters 3.1-3.5 (browser shell, tab bar, watched dirs, menu-bar, inbox subscription) have NO engine dependency — can proceed in parallel.
+- mdpal-app's iter 3.6 (Reply) depends on **mdpal-cli iter 3.1 + 3.2** (round-trip + wrap).
+- mdpal-app's iter 3.7 (Send flattened) depends on **mdpal-cli iter 3.3** (flatten).
+- Sequencing: mdpal-cli iters 3.1-3.3 ship first; mdpal-app iters 3.6-3.7 follow. R3 risk LOW per dispatch #707.
+
+**With ISCP:**
+- mdpal-app's inbox uses ISCP's new dispatch mechanism (spec pending from #631/#632).
+- No mdpal-cli engine impact — engine is dispatch-mechanism-agnostic.
+
+**Wire format coordination:**
+- New CLI commands (`wrap`, `flatten`) need wire-format additions to dispatch #635 spec.
+- Will dispatch coord update to mdpal-app when iter 3.2 / 3.3 ship.
+
+### Open questions for Jordan (1B1 candidates)
+
+1. **Phase 3 iteration order.** Recommend 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6. Alternative: 3.4/3.5 first (security) then 3.1-3.3 (mdpal-app unblock). Trade-off: faster mdpal-app unblock vs. tighter security baseline first.
+2. **`mdpal wrap` source-as-directory.** PVR Rev 2 §92 implies single-file. Confirm directory wrapping is V2 deferral?
+3. **`MDPAL_ROOT` precedence.** When set, should it OVERRIDE explicit `<bundle>` paths that escape it (reject), or AUGMENT (resolve `<bundle>` relative to `MDPAL_ROOT` if not absolute)?
+4. **Path scrubbing default.** Should `relativePath` be the default `path` field with `absolutePath` opt-in via flag, or vice versa? (Backwards compat for mdpal-app's existing decoder vs telemetry safety.)
+
+### Phase 4+ (V2 horizon, not planned in detail)
+
+- CRDT-friendly section identity (deferred A&D consideration)
+- MCP / LSP adapter exploration (deferred)
+- Cross-machine inbox dispatch (depends on ISCP P2P)
+- DocumentBundle internal split (D6 from phase-complete — refactor judgment call, not blocking)
+- Table-driven `EngineError ↔ MdpalExitCode` mapping (D5 from phase-complete — polish)
