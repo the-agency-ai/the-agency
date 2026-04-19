@@ -112,6 +112,62 @@ public final class Document {
         return parser.writeMetadataBlock(yaml, into: body)
     }
 
+    /// **Phase 3 iter 3.3.** Flatten the document to plain Markdown
+    /// (pancake form). Returns the parsed section body without the
+    /// engine's metadata block. Optionally appends comments and/or flags
+    /// as separate Markdown sections at the end so the output stays
+    /// valid Markdown a downstream tool can read.
+    ///
+    /// Empty body → single newline (POSIX text-file convention).
+    ///
+    /// - Parameters:
+    ///   - includeComments: When true, appends a `## Comments` section
+    ///     listing each comment as a sub-block with id / type / author
+    ///     / text / context. Resolved comments include the resolution.
+    ///   - includeFlags: When true, appends a `## Flags` section listing
+    ///     each flag as `- <slug>: <author> — <note>` lines.
+    /// - Returns: pancake Markdown string.
+    public func flatten(includeComments: Bool = false, includeFlags: Bool = false) throws -> String {
+        var output = try parser.serialize(sections)
+
+        // Empty body convention: single newline (POSIX text-file).
+        if output.isEmpty {
+            output = "\n"
+        }
+
+        if includeComments && !metadata.allComments.isEmpty {
+            // Trim trailing newlines so the spacing between body and
+            // appended sections is consistent.
+            while output.hasSuffix("\n") { output.removeLast() }
+            output += "\n\n## Comments\n\n"
+            for comment in metadata.allComments {
+                output += "### \(comment.id) (\(comment.type.rawValue), \(comment.author))\n\n"
+                output += "Section: `\(comment.sectionSlug)`  \n"
+                output += "Context: \(comment.context)\n\n"
+                output += "\(comment.text)\n\n"
+                if let resolution = comment.resolution {
+                    output += "**Resolved by \(resolution.resolvedBy):** \(resolution.response)\n\n"
+                }
+            }
+        }
+
+        if includeFlags && !metadata.flags.isEmpty {
+            while output.hasSuffix("\n") { output.removeLast() }
+            output += "\n\n## Flags\n\n"
+            for flag in metadata.flags {
+                let noteSuffix = flag.note.map { " — \($0)" } ?? ""
+                output += "- `\(flag.sectionSlug)` (\(flag.author))\(noteSuffix)\n"
+            }
+            output += "\n"
+        }
+
+        // Always end with exactly one trailing newline.
+        while output.hasSuffix("\n\n") { output.removeLast() }
+        if !output.hasSuffix("\n") { output += "\n" }
+
+        return output
+    }
+
     /// Write the document back to its source file path (CLI mode only).
     /// Throws `.noFilePath` if the document was created in library mode.
     public func save() throws {
