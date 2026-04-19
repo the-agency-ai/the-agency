@@ -35,6 +35,12 @@ if [[ -f "$LIB_DIR/_log-helper" ]]; then
     source "$LIB_DIR/_log-helper"
 fi
 
+# Source main-branch helper (used by _health-worktree for divergence check)
+if [[ -f "$LIB_DIR/_detect-main-branch" ]]; then
+    # shellcheck source=/dev/null
+    source "$LIB_DIR/_detect-main-branch"
+fi
+
 # Source health checkers
 for lib in "$LIB_DIR/_health-common" "$LIB_DIR/_health-worktree" "$LIB_DIR/_health-agent" "$LIB_DIR/_health-workstream"; do
     if [[ -f "$lib" ]]; then

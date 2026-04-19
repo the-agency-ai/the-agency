@@ -42,25 +42,11 @@ else
 fi
 
 # ─── Main branch detection ──────────────────────────────────────────────────
-# Detect whether the repo uses 'main' or 'master' as default branch.
-# Same pattern as worktree-sync (bug #65 fix).
-detect_main_branch() {
-    local branch
-    # Try symbolic ref first (most reliable)
-    branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||') || true
-    if [[ -n "$branch" ]]; then
-        echo "$branch"
-        return
-    fi
-    # Fallback: check which exists
-    if git rev-parse --verify origin/main >/dev/null 2>&1; then
-        echo "main"
-    elif git rev-parse --verify origin/master >/dev/null 2>&1; then
-        echo "master"
-    else
-        echo "main"  # default assumption
-    fi
-}
+# Shared resolver — origin/HEAD → local main → local master, verified local,
+# whitelist main/master. Replaces the inline no-fallback variant (D45-R3
+# helper extraction; see lib/_detect-main-branch for rationale).
+# shellcheck source=lib/_detect-main-branch
+source "$SCRIPT_DIR/lib/_detect-main-branch"
 
 MAIN_BRANCH=""
 
@@ -121,8 +107,12 @@ EOF
 
 # ─── Preconditions ───────────────────────────────────────────────────────────
 _preconditions() {
-    # Detect main branch
-    MAIN_BRANCH=$(detect_main_branch)
+    # Detect main branch via shared helper. pr-build is always invoked from
+    # the main checkout (the current-branch guard below enforces this), so
+    # the top-level of the current repo IS the main checkout.
+    local main_checkout
+    main_checkout=$(git rev-parse --show-toplevel)
+    MAIN_BRANCH=$(detect_main_branch "$main_checkout") || exit 1
 
     local current_branch
     current_branch=$(git rev-parse --abbrev-ref HEAD)

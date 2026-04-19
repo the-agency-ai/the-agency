@@ -19,6 +19,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+# shellcheck source=lib/_detect-main-branch
+source "$SCRIPT_DIR/lib/_detect-main-branch"
+
 # ── Step 1: Verify on a branch, not main ─────────────────────────────────
 
 BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)
@@ -71,23 +74,10 @@ fi
 # Detect the default branch so this works on repos using 'master' as well.
 # Issue #107 (monofolk hotfix): the hardcoded 'origin/main' caused false
 # "version not bumped" failures on repos where origin/master is the default.
-# Detection order:
-#   1. git symbolic-ref refs/remotes/origin/HEAD   (GitHub HEAD metadata)
-#   2. existence of refs/remotes/origin/main
-#   3. existence of refs/remotes/origin/master
-#   4. hard fail with clear message
-DEFAULT_BRANCH=$(git -C "$REPO_ROOT" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
-if [[ -z "$DEFAULT_BRANCH" ]]; then
-    if git -C "$REPO_ROOT" show-ref --verify --quiet refs/remotes/origin/main; then
-        DEFAULT_BRANCH="main"
-    elif git -C "$REPO_ROOT" show-ref --verify --quiet refs/remotes/origin/master; then
-        DEFAULT_BRANCH="master"
-    else
-        echo "BLOCKED: could not determine default branch (origin/main or origin/master)." >&2
-        echo "  Fix: git remote set-head origin -a   # to set origin/HEAD" >&2
-        exit 1
-    fi
-fi
+# D45-R3: resolver extracted to claude/tools/lib/_detect-main-branch —
+# canonical order is origin/HEAD → local main → local master, whitelisted
+# to main|master only.
+DEFAULT_BRANCH=$(detect_main_branch "$REPO_ROOT") || exit 1
 DEFAULT_REF="origin/$DEFAULT_BRANCH"
 
 MANIFEST_CHANGED=$(git -C "$REPO_ROOT" diff "$DEFAULT_REF"..HEAD --name-only -- claude/config/manifest.json 2>/dev/null || true)

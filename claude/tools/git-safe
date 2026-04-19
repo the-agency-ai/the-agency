@@ -23,6 +23,9 @@ if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
     source "$SCRIPT_DIR/lib/_log-helper"
 fi
 
+# shellcheck source=lib/_detect-main-branch
+source "$SCRIPT_DIR/lib/_detect-main-branch"
+
 # Colors
 if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
     source "$SCRIPT_DIR/lib/_colors"
@@ -298,15 +301,15 @@ cmd_stash() {
 
 # --- Subcommand: merge-from-master ---
 cmd_merge_from_master() {
-    # Auto-detect main branch name
-    local main_branch=""
-    if git show-ref --verify refs/heads/main &>/dev/null; then
-        main_branch="main"
-    elif git show-ref --verify refs/heads/master &>/dev/null; then
-        main_branch="master"
-    else
-        die "Cannot find main or master branch."
-    fi
+    # Resolve main-branch name via shared helper (D45-R3). The helper wants
+    # the path to the main checkout; in git-safe's context, that's the first
+    # worktree entry (which is always the main checkout per git's worktree model).
+    local main_checkout
+    main_checkout=$(git worktree list --porcelain | awk '/^worktree / {print $2; exit}')
+    [[ -n "$main_checkout" ]] || die "Cannot determine main checkout path from 'git worktree list'."
+
+    local main_branch
+    main_branch=$(detect_main_branch "$main_checkout") || exit 1
 
     local current_branch
     current_branch=$(git branch --show-current)

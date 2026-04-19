@@ -1,0 +1,99 @@
+# _detect-main-branch — shared MAIN_BRANCH resolver for framework tools.
+#
+# What Problem: six (and counting) framework tools each had an inline
+# MAIN_BRANCH resolver, all slightly different. The most dangerous variant
+# (`worktree-sync` pre-D45) read `git rev-parse --abbrev-ref HEAD` of the
+# main checkout — when the captain was on a feature branch, every worktree
+# merged that feature branch (the Day 42 designex incident, the-agency#291,
+# issues #267 + #292). Other variants (`git-captain`, `git-safe`, `pr-create`,
+# `pr-build`, `_health-worktree`) diverged on preference order, remote-vs-local
+# fallback, and failure semantics. "No bug left behind" requires fixing every
+# instance of the HEAD-read antipattern; "no broken windows" requires the
+# canonical implementation to be shared, not inlined.
+#
+# How & Why: this lib is sourced (not exec'd) by any tool that needs to know
+# the main-branch name. It defines a single function, detect_main_branch,
+# with a deterministic resolution order: (1) origin/HEAD symbolic-ref, then
+# (2) local main, then (3) local master. Each candidate is verified local
+# before returning (prevents silent no-op on fresh single-branch clones).
+# A safety guard refuses anything other than main/master — destructive
+# callers (worktree-sync) need that guard; read-only callers (health
+# reporting) benefit from it too since "unknown branch" is a signal worth
+# surfacing. On total failure, the function exits 1 with an actionable hint.
+#
+# Written: 2026-04-19 during D45-R3 — helper extraction on top of monofolk
+# upstream worktree-sync port (PR #294 + #295, monofolk PR #109).
+
+# detect_main_branch <main_checkout_path>
+#
+# Prints the resolved main-branch name (main or master) to stdout.
+# Exits 1 with stderr message if resolution fails.
+#
+# Example:
+#   MAIN_BRANCH=$(detect_main_branch "$MAIN_CHECKOUT") || exit 1
+detect_main_branch() {
+    local main_checkout="${1:-}"
+
+    if [[ -z "$main_checkout" ]]; then
+        echo "detect_main_branch: required argument <main_checkout_path> missing" >&2
+        return 1
+    fi
+
+    if [[ ! -d "$main_checkout/.git" ]] && ! git -C "$main_checkout" rev-parse --git-dir >/dev/null 2>&1; then
+        echo "detect_main_branch: '$main_checkout' is not a git repository" >&2
+        return 1
+    fi
+
+    local candidate=""
+
+    # --- Attempt 1: origin/HEAD symbolic-ref ---
+    # The canonical "what's the repo's default branch" query. Works when
+    # the remote has been initialized with origin/HEAD (standard via
+    # `git remote set-head origin -a` or automatic on `git clone`).
+    candidate=$(git -C "$main_checkout" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^refs/remotes/origin/||; s|^origin/||' || true)
+
+    # Verify the resolved candidate exists locally. A fresh single-branch
+    # clone can have origin/HEAD → main while local has no main ref yet.
+    if [[ -n "$candidate" ]] && ! git -C "$main_checkout" show-ref --verify --quiet "refs/heads/$candidate"; then
+        candidate=""
+    fi
+
+    # --- Attempt 2: fallback to local main, then master ---
+    if [[ -z "$candidate" ]]; then
+        local try
+        for try in main master; do
+            if git -C "$main_checkout" show-ref --verify --quiet "refs/heads/$try"; then
+                candidate="$try"
+                break
+            fi
+        done
+    fi
+
+    # --- Total failure ---
+    if [[ -z "$candidate" ]]; then
+        echo "detect_main_branch: cannot determine main branch for '$main_checkout'" >&2
+        echo "  No origin/HEAD symbolic-ref, and no local main or master branch found." >&2
+        echo "  If the repo has a remote, run: git remote set-head origin -a" >&2
+        echo "  Otherwise check that main or master exists: git branch" >&2
+        return 1
+    fi
+
+    # --- Safety guard: only main or master ---
+    # Defensive. If origin/HEAD points to something else (trunk, develop,
+    # custom default), callers that merge destructively into worktrees
+    # would silently do the wrong thing. Refuse rather than merge wrong.
+    # Read-only callers can ignore this exit 1 if they want; most should
+    # respect it as a "something unusual, escalate" signal.
+    case "$candidate" in
+        main|master)
+            printf '%s\n' "$candidate"
+            return 0
+            ;;
+        *)
+            echo "detect_main_branch: resolved branch '$candidate' is not main or master — refusing" >&2
+            echo "  If this repo uses a different default branch name (e.g. develop, trunk)," >&2
+            echo "  escalate to principal — the helper whitelists main/master only." >&2
+            return 1
+            ;;
+    esac
+}

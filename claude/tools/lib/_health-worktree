@@ -81,12 +81,17 @@ _health_check_one_worktree() {
     fi
 
     # ─── Check 3: Divergence from main branch ───
+    # MAIN_BRANCH is a REPO property, not whatever captain has checked out.
+    # Using `rev-parse --abbrev-ref HEAD` of the main checkout (prior code)
+    # reported every worktree as "behind <feature-branch>" whenever captain
+    # was on a feature branch — misleading fleet health. Same bug class as
+    # worktree-sync (fixed D45-R3 via shared helper). No bug left behind.
     local branch
     branch=$(git -C "$path" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
     local main_checkout
     main_checkout=$(git worktree list --porcelain 2>/dev/null | awk '/^worktree / {print $2; exit}')
     local main_branch
-    main_branch=$(git -C "$main_checkout" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    main_branch=$(detect_main_branch "$main_checkout" 2>/dev/null || echo "")
     if [[ -n "$branch" && -n "$main_branch" && "$branch" != "$main_branch" ]]; then
         local behind
         behind=$(git -C "$path" rev-list --count "HEAD..$main_branch" 2>/dev/null || echo 0)

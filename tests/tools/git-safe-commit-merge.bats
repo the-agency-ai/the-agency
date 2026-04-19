@@ -27,7 +27,7 @@ setup() {
         cp "${REPO_ROOT}/claude/tools/$t" "claude/tools/$t"
         chmod +x "claude/tools/$t"
     done
-    for lib in _log-helper _colors; do
+    for lib in _log-helper _colors _detect-main-branch; do
         cp "${REPO_ROOT}/claude/tools/lib/$lib" "claude/tools/lib/$lib" 2>/dev/null || true
     done
 

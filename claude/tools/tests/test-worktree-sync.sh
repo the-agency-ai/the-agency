@@ -289,6 +289,51 @@ assert_contains "dispatch detected" "dispatch" "$OUTPUT"
 cleanup
 echo ""
 
+# --- Test 15: regression — captain on feature branch must NOT poison MAIN_BRANCH ---
+# This is the Day 42 designex incident in test form. Before this fix,
+# worktree-sync read `rev-parse --abbrev-ref HEAD` of the main checkout
+# to determine MAIN_BRANCH. When the captain had a feature branch
+# checked out (routine during PR prep), the feature branch was merged
+# into every agent's worktree that synced in that window.
+#
+# Correct behavior: MAIN_BRANCH resolves to master regardless of what
+# the captain has checked out, and the feature branch's unique content
+# does NOT leak into the worktree.
+echo "Test: regression — captain on feature branch does not poison MAIN_BRANCH"
+setup_repo
+# Simulate the bug: captain checks out a feature branch in the MAIN checkout
+cd "$TMPBASE/main"
+git checkout -b captain-feature --quiet
+echo "feature-only content" > feature-only.txt
+git add feature-only.txt
+git commit -m "captain work in progress" --quiet
+# Add a master-side commit too (so worktree-sync has a real reason to merge)
+git checkout master --quiet
+echo "real master work" > real-master.txt
+git add real-master.txt
+git commit -m "actual master commit" --quiet
+# Captain stays on the feature branch (this is the bug condition)
+git checkout captain-feature --quiet
+# Peer agent runs worktree-sync from the worktree
+cd "$TMPBASE/worktree"
+OUTPUT=$(bash claude/tools/worktree-sync 2>&1)
+EXIT=$?
+assert_eq "exit code 0" "0" "$EXIT"
+assert_contains "merged master, not feature branch" "merged master" "$OUTPUT"
+# Critical: feature-only file must NOT appear in worktree
+if [ -f feature-only.txt ]; then
+    FAIL=$((FAIL + 1))
+    ERRORS="${ERRORS}\n  FAIL: feature-only content leaked into worktree\n    feature-only.txt should not exist but does"
+    printf "  ✗ feature-only content did not leak\n"
+else
+    PASS=$((PASS + 1))
+    printf "  ✓ feature-only content did not leak\n"
+fi
+# Positive: the master-side commit IS present
+assert_eq "master-side commit did merge" "real master work" "$(cat real-master.txt 2>/dev/null || echo 'missing')"
+cleanup
+echo ""
+
 # ========================================
 echo ""
 echo "=== Results ==="

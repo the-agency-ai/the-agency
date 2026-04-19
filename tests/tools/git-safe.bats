@@ -29,6 +29,7 @@ setup() {
     chmod +x claude/tools/git-safe
     cp "${REPO_ROOT}/claude/tools/lib/_log-helper" claude/tools/lib/_log-helper 2>/dev/null || true
     cp "${REPO_ROOT}/claude/tools/lib/_colors" claude/tools/lib/_colors 2>/dev/null || true
+    cp "${REPO_ROOT}/claude/tools/lib/_detect-main-branch" claude/tools/lib/_detect-main-branch 2>/dev/null || true
 
     # Seed an initial commit
     echo "# Test" > README.md
@@ -311,6 +312,7 @@ teardown() {
     chmod +x claude/tools/git-safe
     cp "${REPO_ROOT}/claude/tools/lib/_log-helper" claude/tools/lib/_log-helper 2>/dev/null || true
     cp "${REPO_ROOT}/claude/tools/lib/_colors" claude/tools/lib/_colors 2>/dev/null || true
+    cp "${REPO_ROOT}/claude/tools/lib/_detect-main-branch" claude/tools/lib/_detect-main-branch 2>/dev/null || true
 
     echo "master readme" > README.md
     git add README.md

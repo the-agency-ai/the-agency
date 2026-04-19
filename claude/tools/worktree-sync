@@ -93,38 +93,14 @@ if [[ -z "$MAIN_CHECKOUT" ]] || [[ ! -d "$MAIN_CHECKOUT" ]]; then
 fi
 
 # Determine the main branch — a property of the REPO, never whatever the
-# captain happens to have checked out. Resolution order: origin/HEAD
-# symbolic-ref, then first existing local branch in [main, master].
-# See claude/REFERENCE-WORKTREE-DISCIPLINE.md for incident history (Day 42
-# designex incident, the-agency#291). main-first fallback order matches
-# pr-create / git-captain / git-safe convention and picks the live branch
-# in repos mid-rename (stale master + live main).
-MAIN_BRANCH=$(git -C "$MAIN_CHECKOUT" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
-if [[ -z "$MAIN_BRANCH" ]]; then
-    for candidate in main master; do
-        if git -C "$MAIN_CHECKOUT" show-ref --verify --quiet "refs/heads/$candidate"; then
-            MAIN_BRANCH="$candidate"
-            break
-        fi
-    done
-fi
-if [[ -z "$MAIN_BRANCH" ]]; then
-    echo "worktree-sync: cannot determine main branch (no origin/HEAD symbolic-ref, no main/master local branch in $MAIN_CHECKOUT)" >&2
-    echo "  Hint: run 'git remote set-head origin -a' to populate origin/HEAD" >&2
-    exit 1
-fi
-
-# Safety guard: if MAIN_BRANCH resolves to something other than master/main
-# (e.g., someone renamed the default or the heuristic above went sideways),
-# refuse rather than silently merge a wrong branch into the agent's worktree.
-case "$MAIN_BRANCH" in
-    master|main) ;;
-    *)
-        echo "worktree-sync: resolved MAIN_BRANCH='$MAIN_BRANCH', which is not master or main — refusing to merge." >&2
-        echo "  If this repo uses a different default branch name, update worktree-sync's safety guard." >&2
-        exit 1
-        ;;
-esac
+# captain happens to have checked out. Uses the shared helper.
+# See claude/tools/lib/_detect-main-branch for resolution order + safety
+# guard. Incident that drove this: Day 42 designex — captain on feature
+# branch caused every worktree to merge that feature branch via rev-parse
+# --abbrev-ref HEAD. Issues: the-agency#267, #292. Helper extracted D45-R3.
+# shellcheck source=lib/_detect-main-branch
+source "$SCRIPT_DIR/lib/_detect-main-branch"
+MAIN_BRANCH=$(detect_main_branch "$MAIN_CHECKOUT") || exit 1
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 

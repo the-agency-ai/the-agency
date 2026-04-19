@@ -1,0 +1,128 @@
+---
+type: session
+agent: the-agency/jordan/captain
+workstream: housekeeping
+date: 2026-04-19
+trigger: session-compact
+note: handoff tool resolved agent from branch name (contrib/claude-tools-worktree-sync) instead of captain — known identity-conflation bug (#273/#274). This IS captain's handoff.
+---
+
+# Captain handoff — mid-session compact
+
+**⚠ IMPORTANT ⚠ — UNCOMMITTED WORK ON DISK.** Tree is dirty. Session compacted while commit-precheck was failing to complete. All work is staged and files exist on disk, but the commit didn't land. Do NOT lose these changes.
+
+## On resume — IMMEDIATE ACTIONS
+
+### 1. Verify branch + state
+
+```
+./claude/tools/git-safe branch           # expect: contrib/claude-tools-worktree-sync
+./claude/tools/git-safe status --porcelain
+```
+
+Expected staged/modified files:
+- `claude/tools/agency-health` (modified — sources helper)
+- `claude/tools/git-safe` (modified — sub-agent retrofit)
+- `claude/tools/lib/_detect-main-branch` (new — the helper)
+- `claude/tools/lib/_health-worktree` (modified — uses helper)
+- `claude/tools/pr-build` (modified — sub-agent retrofit)
+- `claude/tools/pr-create` (modified — sub-agent retrofit)
+- `claude/tools/tests/test-worktree-sync.sh` (modified — Test 15 from monofolk PR #295)
+- `claude/tools/worktree-sync` (modified — uses helper, monofolk fix preserved in cc907ddb commit history)
+- `tests/tools/_detect-main-branch.bats` (new — 10 BATS for helper)
+- `tests/tools/git-safe.bats` (modified — fixture copies helper)
+
+### 2. Diagnose commit-precheck failure
+
+`commit-precheck` fails with "Scoped tests failed" but visible tests 71–90 all pass. Earlier tests (1–70) must be failing but aren't shown in truncated output. Investigate:
+
+```
+./claude/tools/commit-precheck --verbose 2>&1 | head -200
+```
+
+Or run specific BATS files directly:
+```
+bats tests/tools/git-safe.bats
+bats tests/tools/_detect-main-branch.bats
+bats tests/tools/worktree-sync.bats
+```
+
+Likely culprits: other .bats files may also need the helper copy in their fixture (like `tests/tools/git-safe.bats` did — I added the fixture line for it, but pr-create, pr-build, worktree-sync likely have similar fixtures that need the same copy line).
+
+Once test fixtures are fully updated, `git-safe-commit` should land.
+
+### 3. Once commit lands, push + continue Phase 2
+
+Phase 2 remaining work:
+- **git-captain retrofit** — sub-agent was REJECTED by principal mid-dispatch (connection interrupt). Need to re-dispatch OR do manually.
+- Full BATS across all 6 tools
+- Combined MAR on the whole package
+- QGR + PR update + release
+
+### 4. Continue principal's queued work after Phase 3
+
+After the refactor package is in a PR:
+1. `andrew-demo` root-cause investigation (what did `agency init` + run actually do to that repo; tie observed repo + transcript to open issues)
+2. Create `fleet-report` skill + command
+3. Report "what's next" for captain + "what's next" for the fleet
+
+## Key decisions from this session (don't lose)
+
+### Releases + PRs
+
+- **v45.1 SHIPPED** this morning. PR #213 merged (Python 3.13 floor). Release created. Issue #271 closed with "Fixed in v45.1".
+- **PR #299** OPEN — D45-R2 agency update --prune safety fix (#297 BUG 1). Version bumped to 45.2. Awaits principal merge.
+- **PR #294** OPEN — this branch will update it. Scope grew from "port worktree-sync" to "helper extraction + 4 sibling retrofits + health-worktree fix". Will supersede PR #295 (test content merged here).
+- **PR #295** will close as "superseded by #294" when the expanded PR merges.
+
+### Principles captured this session
+
+- **Visibility, transparency, traceability** (from Q1 answer on monofolk PR revision approach)
+- **No bug left behind** (fix all instances of a bug class)
+- **No broken windows** (fix visible defects; don't grow duplication)
+
+### Discipline captured
+
+- GH `Closes #N, #M, #K` only auto-closes the FIRST issue. Must say `Closes #N. Closes #M.` individually.
+- Every PR ships closing comments on its issues naming the release version: "Fixed in v45.X".
+
+### Flags filed this session
+
+- **#171** Refactor skill + sub-agent pattern (research upstream agency-skills-v2 from monofolk)
+- **#172** Refactor all skills to agency-skills-v2 model once integrated
+- **#173** Create skills for each Valueflow step (skill-per-step discipline)
+- **#174** Enforcement Triangle rebalance with agency-skills-v2
+- **#176** agent-tool-create vs tool-create skill discussion
+
+### 1B1 resolutions (Items 1-4 on monofolk PR review)
+
+1. `_health-worktree` same-bug fix → YES, include in this package ✓ (done)
+2. Extract `_main-branch-resolve` helper → BUILD + USE NOW, retrofit siblings via sub-agents ✓ (Phase 1 done, Phase 2 partial)
+3. Shell test file rot (Tests 6, 14 pre-existing failures) → leave for now, file separate ticket
+4. Framework posture on non-main/master → helper whitelists main/master; tools that care get safety, tools that don't can ignore
+
+## MAR captured at
+
+`claude/workstreams/the-agency/research/mar-worktree-sync-port-294-295-20260419.md` (commit `1b196102` on main — already merged into this branch via merge-from-main).
+
+## Principal's queued work items (in order)
+
+1. Finish Phase 2 + 3 of refactor package (git-captain retrofit + BATS + MAR + PR)
+2. `andrew-demo` root-cause investigation
+3. `/fleet-report` skill + command
+4. "What's next" for captain + fleet
+
+## Captain on compact — state of things
+
+- **Branch:** `contrib/claude-tools-worktree-sync` (PR #294's branch)
+- **Dirty tree:** YES — 10 files staged/modified. COMMIT BLOCKED BY commit-precheck (scoped tests fail but visible tests pass).
+- **Last landed commit:** `1b196102` (MAR triage doc on main, merged into this branch via `7a8cba2b`)
+- **Monitor running:** `b2szksh2h` (dispatch-monitor, python3.13 shim — retirable once v45.2 ships the new shebang path)
+- **PRs in flight:**
+  - #213 MERGED → v45.1
+  - #299 OPEN — agency update --prune safety (D45-R2)
+  - #294 OPEN — about to expand to the whole refactor package (D45-R3)
+  - #295 OPEN — superseded-by-#294 after merge
+  - #300-#305 OPEN — remaining monofolk incoming PRs (not yet touched)
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
