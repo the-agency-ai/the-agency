@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "agency_version": "45.1",
+  "agency_version": "45.2",
   "project": {
     "name": "the-agency",
     "created_at": "2026-01-15T04:54:46Z",
@@ -1685,5 +1685,6 @@
       "modified": false,
       "version": "1.0.3"
     }
-  }
+  },
+  "updated_at": "2026-04-19T14:26:35Z"
 }
