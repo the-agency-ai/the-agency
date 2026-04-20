@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: dispatch create --type directive
+---BODY---
+./agency/tools/dispatch create --type directive --to worktree:alpha

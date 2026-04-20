@@ -1,0 +1,4 @@
+expected_decision: block
+expected_match: git reset --hard origin
+---BODY---
+git reset --hard origin/master

@@ -1,0 +1,4 @@
+expected_decision: block
+expected_match: git commit
+---BODY---
+git commit -m "msg"

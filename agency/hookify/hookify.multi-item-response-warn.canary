@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: Item
+---BODY---
+'Item 1 Item 2'

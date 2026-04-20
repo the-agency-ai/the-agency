@@ -25,7 +25,7 @@ fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 TESTS_DIR="$REPO_ROOT/tests/tools"
-TOOLS_DIR="$REPO_ROOT/claude/tools"
+TOOLS_DIR="$REPO_ROOT/agency/tools"
 
 # Parse arguments
 VERBOSE=false
@@ -235,6 +235,14 @@ check_package() {
 while IFS= read -r file; do
     # Skip empty lines
     [[ -z "$file" ]] && continue
+
+    # Skip archived content — src/archive/** holds v45/retired code whose
+    # tests reference moved/deleted helpers. These should never trigger
+    # on commit. Added D45-v46.0 as part of Phase 4 residual cleanup.
+    if [[ "$file" == src/archive/* ]]; then
+        verbose "archive-skip: $file"
+        continue
+    fi
 
     # Try strategies in priority order
     check_manifest "$file" && continue

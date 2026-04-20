@@ -1,0 +1,4 @@
+expected_decision: block
+expected_match: git config user.email
+---BODY---
+git config user.email "test@example.com"

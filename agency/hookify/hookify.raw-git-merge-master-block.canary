@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: git merge master
+---BODY---
+git merge master
