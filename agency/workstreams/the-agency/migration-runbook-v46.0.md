@@ -72,7 +72,7 @@ Exit 0 means all five structural checks pass. If non-zero, match the code to the
 | 10 | tree-shape mismatch (`claude/` still present OR `agency/` missing) | Re-run prep; investigate if prep says complete but check fails |
 | 11 | settings.json references `/claude/hooks/` (stale v45 paths) | `sed -i '' 's\|/claude/hooks/\|/agency/hooks/\|g' .claude/settings.json` OR re-run prep |
 | 12 | Agent registration uses `@claude/agents/` | `sed -i '' 's\|@claude/agents/\|@agency/agents/\|g' .claude/agents/**/*.md` OR re-run prep |
-| 13 | ISCP smoke fails (agent-identity doesn't resolve) | Known identity bug in some worktree configurations; see captain flag #194 |
+| 13 | ISCP smoke fails (agent-identity doesn't resolve) | Re-run `agency-migrate-prep` to refresh agent registration and re-derive identity |
 | 14 | Hook path ENOENT — settings.json references a file that doesn't exist | Inspect the flagged path; confirm the sweep applied to it |
 
 ## Common failure modes
@@ -122,6 +122,6 @@ Support channel: `the-agency/captain` (cross-repo dispatch routing).
 
 ## Known captain-side issues (not adopter-blocking)
 
-- **Agent-identity branch-name bug (#194):** if captain runs from the main checkout on a non-default branch, agent-identity resolves from the branch name rather than the agent registration. Workaround: `AGENCY_ALLOW_RAW=1 git push …` until fixed post-v46.
 - **Phase 4 sweep residual misses (#195):** cosmetic comments + examples in a few framework tools retain v45 path references. No runtime impact on adopters.
 - **Canary coverage gap (#350):** 6 of 42 hookify rules un-synthesizable by the current canary harness. Rules fire correctly at runtime; only test coverage is gapped.
+- **`git-captain push` no-arg form (#196):** errors under `set -u` when invoked without an explicit remote + branch. Use `git-captain push origin <branch>`. Low priority.

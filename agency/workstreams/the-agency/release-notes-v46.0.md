@@ -66,6 +66,7 @@ The five categories in the table above. Every category has a before/after above;
 
 - **Hookify canary:** 36 of 42 rules have `.canary` fixtures verifying they fire correctly. 6 rules un-synthesizable under the current canary runner (prose bodies, PCRE lookbehinds, glob patterns). Tracked in issue #350. Not a runtime risk — the rules themselves fire correctly; only the test harness can't exercise them.
 - **Phase 4 sweep residual misses:** a small set of framework tools still contain v45-path references (cosmetic comments, examples in `run-in`, `safe-extract`, `release-plan`; migration-critical dual-path handling in `_agency-update`). Flagged at captain flag #195. No adopter impact — these are framework-internal docs and comments.
+- **`git-captain push` with no args:** errors with `push_args[@]: unbound variable` under `set -u` (flag #196). Use explicit form `git-captain push origin <branch>`. Low priority; explicit form works.
 
 ## Rollback (3 paths)
 
