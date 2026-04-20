@@ -46,7 +46,9 @@ fi
 TRIMMED_CMD=$(echo "$COMMAND" | sed 's/^[[:space:]]*//')
 if [[ "$TRIMMED_CMD" =~ ^git-captain([[:space:]]|$) ]] || [[ "$TRIMMED_CMD" =~ ^\./agency/tools/git-captain([[:space:]]|$) ]]; then
     # Resolve identity — if not captain, block
-    agent_name=$(./agency/tools/agent-identity --field agent 2>/dev/null || echo "")
+    # Flag is --agent (bare name), not --field agent — the latter fails silently
+    # and makes the gate always block. Fixed v46.0-R2 per flag #194.
+    agent_name=$(./agency/tools/agent-identity --agent 2>/dev/null || echo "")
     if [[ "$agent_name" != "captain" ]]; then
         printf '{"decision":"block","reason":"BLOCKED: git-captain is captain-only. Agents use /git-safe for git operations.\\n\\n*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*"}'
         exit 2

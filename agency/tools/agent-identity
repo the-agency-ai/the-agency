@@ -120,6 +120,26 @@ if [[ -z "$AGENT_NAME" && -f "$PROJECT_ROOT/.agency-agent" ]]; then
     AGENT_NAME=$(cat "$PROJECT_ROOT/.agency-agent" 2>/dev/null | tr -d '[:space:]')
 fi
 
+# Main-checkout detection (captain-is-main).
+# What Problem: branch-based detection below picks up arbitrary non-default
+# branch names (v46.0-structural-reset, feat/foo, etc.) as agent names when
+# captain is working on a feature branch from the main checkout. This blocks
+# captain-only tools (git-captain, dispatch write-as-captain) with "agents
+# use /git-safe" errors. Flag #194.
+# How & Why: A linked worktree's git-dir points inside
+# .git/worktrees/{worktree-name}/ while the main checkout's git-dir equals
+# its git-common-dir. Equality = main checkout = captain by framework
+# convention. Overrides: still honored via CLAUDE_AGENT_NAME or .agency-agent
+# above, so non-default ownership of the main checkout can opt out.
+# Written: 2026-04-20 during v46.0-R2 (Phase 6 follow-up fixing flag #194).
+if [[ -z "$AGENT_NAME" ]]; then
+    _git_dir=$(git -C "$PROJECT_ROOT" rev-parse --git-dir 2>/dev/null || echo "")
+    _git_common_dir=$(git -C "$PROJECT_ROOT" rev-parse --git-common-dir 2>/dev/null || echo "")
+    if [[ -n "$_git_dir" && "$_git_dir" = "$_git_common_dir" ]]; then
+        AGENT_NAME="captain"
+    fi
+fi
+
 # Fallback: branch detection with improved patterns
 if [[ -z "$AGENT_NAME" ]]; then
     local_branch=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
