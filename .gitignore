@@ -68,6 +68,9 @@ test/
 # Session backups (ephemeral state - not versioned)
 claude/agents/*/backups/latest/
 claude/agents/*/backups/archive/
+agency/agents/*/backups/
+agency/agents/*/logs/
+agency/agents/unknown/
 
 # Services (local development - root level only, not source/services)
 /services/
