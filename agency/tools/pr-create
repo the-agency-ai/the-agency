@@ -32,23 +32,28 @@ echo "✓ On branch: $BRANCH"
 
 # ── Step 2: Verify receipt ───────────────────────────────────────────────
 
-# D42-R3: three-tier receipt search (workstream → claude/receipts/ → usr/)
-# Tier 1: per-workstream qgr/ and rgr/
-NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
+# D42-R3 / v46.1-R1: four-tier receipt search
+# Tier 1: per-workstream qgr/ and rgr/ (post-v46 canonical)
+NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
-    # Tier 2: legacy claude/receipts/
-    NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+    # Tier 2: legacy v45 workstream layout (during transition)
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
 fi
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
-    # Tier 3: old usr/ location
+    # Tier 3: legacy flat receipts dir
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+fi
+
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    # Tier 4: old usr/ location
     NEWEST_RECEIPT=$(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
 fi
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
     echo "BLOCKED: No receipt found." >&2
-    echo "  Searched: claude/workstreams/*/qgr/, claude/receipts/, usr/**/qgr-*.md" >&2
+    echo "  Searched: agency/workstreams/*/qgr/, claude/workstreams/*/qgr/ (legacy), agency/receipts/, usr/**/qgr-*.md" >&2
     echo "  Run /pr-prep first." >&2
     exit 1
 fi
@@ -61,7 +66,7 @@ fi
 
 # ── Step 3: Verify version was bumped ────────────────────────────────────
 
-MANIFEST="$REPO_ROOT/claude/config/manifest.json"
+MANIFEST="$REPO_ROOT/agency/config/manifest.json"
 
 if [[ ! -f "$MANIFEST" ]]; then
     echo "BLOCKED: manifest.json not found at $MANIFEST" >&2
