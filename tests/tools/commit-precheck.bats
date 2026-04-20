@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for claude/tools/commit-precheck — pre-commit quality gate
+# Tests for agency/tools/commit-precheck — pre-commit quality gate
 #
 # What Problem: commit-precheck needs to correctly classify staged files and
 # scope tests. These tests verify the classification logic, fast paths, timeout
@@ -14,7 +14,7 @@ setup() {
 
     # Create a test repo with git initialized
     export TEST_REPO="${BATS_TEST_TMPDIR}/test-repo"
-    mkdir -p "$TEST_REPO/claude/tools/lib"
+    mkdir -p "$TEST_REPO/agency/tools/lib"
     mkdir -p "$TEST_REPO/tests/tools"
     mkdir -p "$TEST_REPO/usr/jordan/devex"
 
@@ -29,14 +29,14 @@ setup() {
     git commit -m "init" --quiet --no-verify
 
     # Copy commit-precheck and test-scoper
-    cp "$REPO_ROOT/claude/tools/commit-precheck" "$TEST_REPO/claude/tools/commit-precheck"
-    cp "$REPO_ROOT/claude/tools/test-scoper" "$TEST_REPO/claude/tools/test-scoper"
-    chmod +x "$TEST_REPO/claude/tools/commit-precheck"
-    chmod +x "$TEST_REPO/claude/tools/test-scoper"
+    cp "$REPO_ROOT/agency/tools/commit-precheck" "$TEST_REPO/agency/tools/commit-precheck"
+    cp "$REPO_ROOT/agency/tools/test-scoper" "$TEST_REPO/agency/tools/test-scoper"
+    chmod +x "$TEST_REPO/agency/tools/commit-precheck"
+    chmod +x "$TEST_REPO/agency/tools/test-scoper"
 
     # Copy log helper if it exists (for telemetry stubs)
-    if [[ -f "$REPO_ROOT/claude/tools/lib/_log-helper" ]]; then
-        cp "$REPO_ROOT/claude/tools/lib/_log-helper" "$TEST_REPO/claude/tools/lib/_log-helper"
+    if [[ -f "$REPO_ROOT/agency/tools/lib/_log-helper" ]]; then
+        cp "$REPO_ROOT/agency/tools/lib/_log-helper" "$TEST_REPO/agency/tools/lib/_log-helper"
     fi
 }
 
@@ -50,7 +50,7 @@ teardown() {
 
 @test "no staged changes exits cleanly" {
     cd "$TEST_REPO"
-    run ./claude/tools/commit-precheck
+    run ./agency/tools/commit-precheck
     [ "$status" -eq 0 ]
     [[ "$output" == *"No staged changes"* ]]
     [[ "$output" == *"✓"* ]]
@@ -64,7 +64,7 @@ teardown() {
     cd "$TEST_REPO"
     echo "# Hello" > doc.md
     git add doc.md
-    run ./claude/tools/commit-precheck --verbose
+    run ./agency/tools/commit-precheck --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"docs-only"* ]]
     [[ "$output" == *"✓"* ]]
@@ -74,7 +74,7 @@ teardown() {
     cd "$TEST_REPO"
     echo "key: value" > config.yaml
     git add config.yaml
-    run ./claude/tools/commit-precheck --verbose
+    run ./agency/tools/commit-precheck --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"docs-only"* ]]
 }
@@ -83,11 +83,11 @@ teardown() {
 # Classification: tool-code
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "tool-code: files in claude/tools/ classified correctly" {
+@test "tool-code: files in agency/tools/ classified correctly" {
     cd "$TEST_REPO"
-    echo '#!/bin/bash' > claude/tools/my-tool
-    git add claude/tools/my-tool
-    run ./claude/tools/commit-precheck --dry-run --verbose
+    echo '#!/bin/bash' > agency/tools/my-tool
+    git add agency/tools/my-tool
+    run ./agency/tools/commit-precheck --dry-run --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"tool-code"* ]]
 }
@@ -96,7 +96,7 @@ teardown() {
     cd "$TEST_REPO"
     echo '@test "x" { true; }' > tests/tools/my.bats
     git add tests/tools/my.bats
-    run ./claude/tools/commit-precheck --dry-run --verbose
+    run ./agency/tools/commit-precheck --dry-run --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"tool-code"* ]]
 }
@@ -109,7 +109,7 @@ teardown() {
     cd "$TEST_REPO"
     echo "const x = 1;" > app.ts
     git add app.ts
-    run ./claude/tools/commit-precheck --dry-run --verbose
+    run ./agency/tools/commit-precheck --dry-run --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"app-code"* ]]
 }
@@ -118,7 +118,7 @@ teardown() {
     cd "$TEST_REPO"
     echo "x = 1" > app.py
     git add app.py
-    run ./claude/tools/commit-precheck --dry-run --verbose
+    run ./agency/tools/commit-precheck --dry-run --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"app-code"* ]]
 }
@@ -129,9 +129,9 @@ teardown() {
 
 @test "dry-run: shows classification without executing" {
     cd "$TEST_REPO"
-    echo '#!/bin/bash' > claude/tools/my-tool
-    git add claude/tools/my-tool
-    run ./claude/tools/commit-precheck --dry-run
+    echo '#!/bin/bash' > agency/tools/my-tool
+    git add agency/tools/my-tool
+    run ./agency/tools/commit-precheck --dry-run
     [ "$status" -eq 0 ]
     [[ "$output" == *"[dry-run]"* ]]
     [[ "$output" == *"✓"* ]]
@@ -142,14 +142,14 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "version flag works" {
-    run ./claude/tools/commit-precheck --version
+    run ./agency/tools/commit-precheck --version
     [ "$status" -eq 0 ]
     [[ "$output" == *"commit-precheck"* ]]
     [[ "$output" == *"3.0.0"* ]]
 }
 
 @test "help flag works" {
-    run ./claude/tools/commit-precheck --help
+    run ./agency/tools/commit-precheck --help
     [ "$status" -eq 0 ]
     [[ "$output" == *"Usage"* ]]
 }
@@ -160,10 +160,10 @@ teardown() {
 
 @test "mixed: tool + markdown classified as tool-code" {
     cd "$TEST_REPO"
-    echo '#!/bin/bash' > claude/tools/my-tool
+    echo '#!/bin/bash' > agency/tools/my-tool
     echo "# doc" > doc.md
-    git add claude/tools/my-tool doc.md
-    run ./claude/tools/commit-precheck --dry-run --verbose
+    git add agency/tools/my-tool doc.md
+    run ./agency/tools/commit-precheck --dry-run --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"tool-code"* ]]
 }
@@ -171,9 +171,9 @@ teardown() {
 @test "mixed: app-code + tool classified as app-code" {
     cd "$TEST_REPO"
     echo "const x = 1;" > app.ts
-    echo '#!/bin/bash' > claude/tools/my-tool
-    git add app.ts claude/tools/my-tool
-    run ./claude/tools/commit-precheck --dry-run --verbose
+    echo '#!/bin/bash' > agency/tools/my-tool
+    git add app.ts agency/tools/my-tool
+    run ./agency/tools/commit-precheck --dry-run --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"app-code"* ]]
 }
@@ -188,7 +188,7 @@ teardown() {
     dd if=/dev/zero of=small.bin bs=1024 count=100 2>/dev/null
     git add small.bin
     LARGE_FILE_WARN_BYTES=1048576 LARGE_FILE_BLOCK_BYTES=10485760 \
-        run ./claude/tools/commit-precheck
+        run ./agency/tools/commit-precheck
     [ "$status" -eq 0 ]
 }
 
@@ -201,7 +201,7 @@ teardown() {
     # pass --separate-stderr), so assert against $output only. The previous
     # `|| $stderr` branch was dead code.
     LARGE_FILE_WARN_BYTES=1048576 LARGE_FILE_BLOCK_BYTES=10485760 \
-        run ./claude/tools/commit-precheck
+        run ./agency/tools/commit-precheck
     [ "$status" -eq 0 ]
     [[ "$output" == *"Large file warning"* ]]
 }
@@ -212,7 +212,7 @@ teardown() {
     dd if=/dev/zero of=big.bin bs=1024 count=100 2>/dev/null
     git add big.bin
     LARGE_FILE_WARN_BYTES=1024 LARGE_FILE_BLOCK_BYTES=10240 \
-        run ./claude/tools/commit-precheck
+        run ./agency/tools/commit-precheck
     [ "$status" -eq 2 ]
     [[ "$output" == *"BLOCKED"* ]]
     [[ "$output" == *"Git LFS"* ]]
@@ -225,7 +225,7 @@ teardown() {
     git add big.bin
     LARGE_FILE_WARN_BYTES=1024 LARGE_FILE_BLOCK_BYTES=10240 \
     ALLOW_LARGE_COMMIT=1 \
-        run ./claude/tools/commit-precheck
+        run ./agency/tools/commit-precheck
     [ "$status" -eq 0 ]
     [[ "$output" == *"ALLOW_LARGE_COMMIT=1"* ]]
 }
@@ -233,14 +233,14 @@ teardown() {
 @test "large-file: exception glob exempts matching file" {
     cd "$TEST_REPO"
     mkdir -p claude/config
-    cat > claude/config/large-file-exceptions.txt <<'EOF'
+    cat > agency/config/large-file-exceptions.txt <<'EOF'
 # test exceptions
 *.bin
 EOF
     dd if=/dev/zero of=big.bin bs=1024 count=100 2>/dev/null
-    git add big.bin claude/config/large-file-exceptions.txt
+    git add big.bin agency/config/large-file-exceptions.txt
     LARGE_FILE_WARN_BYTES=1024 LARGE_FILE_BLOCK_BYTES=10240 \
-        run ./claude/tools/commit-precheck
+        run ./agency/tools/commit-precheck
     [ "$status" -eq 0 ]
     [[ "$output" != *"BLOCKED"* ]]
 }
@@ -253,6 +253,6 @@ EOF
     git commit -m "add" --quiet --no-verify
     git rm todelete.txt --quiet
     LARGE_FILE_WARN_BYTES=1024 LARGE_FILE_BLOCK_BYTES=10240 \
-        run ./claude/tools/commit-precheck
+        run ./agency/tools/commit-precheck
     [ "$status" -eq 0 ]
 }

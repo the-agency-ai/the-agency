@@ -8,7 +8,7 @@
 
 load 'test_helper'
 
-LIB_DIR="${REPO_ROOT}/claude/tools/lib"
+LIB_DIR="${REPO_ROOT}/agency/tools/lib"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sourcing
@@ -351,8 +351,8 @@ LIB_DIR="${REPO_ROOT}/claude/tools/lib"
     # Create a test agency.yaml with colon-containing display_name
     local yaml="${BATS_TEST_TMPDIR}/agency.yaml"
     mkdir -p "${BATS_TEST_TMPDIR}/claude/config"
-    cp "$yaml" "${BATS_TEST_TMPDIR}/claude/config/agency.yaml" 2>/dev/null || true
-    cat > "${BATS_TEST_TMPDIR}/claude/config/agency.yaml" << 'YAML'
+    cp "$yaml" "${BATS_TEST_TMPDIR}/agency/config/agency.yaml" 2>/dev/null || true
+    cat > "${BATS_TEST_TMPDIR}/agency/config/agency.yaml" << 'YAML'
 principals:
   testuser:
     name: testprincipal
@@ -363,7 +363,7 @@ YAML
     run env USER=testuser AGENCY_PRINCIPAL= CLAUDE_PROJECT_DIR="${BATS_TEST_TMPDIR}" SCRIPT_DIR="${BATS_TEST_TMPDIR}" bash -c "
         cd '${BATS_TEST_TMPDIR}'
         source '${LIB_DIR}/_path-resolve'
-        _pr_yaml_get 'principals' 'testuser' '${BATS_TEST_TMPDIR}/claude/config/agency.yaml'
+        _pr_yaml_get 'principals' 'testuser' '${BATS_TEST_TMPDIR}/agency/config/agency.yaml'
     "
     assert_success
     [[ "$output" == "testprincipal" ]]

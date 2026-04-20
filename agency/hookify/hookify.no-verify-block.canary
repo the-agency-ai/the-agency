@@ -1,0 +1,4 @@
+expected_decision: block
+expected_match: --no-verify
+---BODY---
+git commit --no-verify -m "msg"

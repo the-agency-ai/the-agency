@@ -1,0 +1,246 @@
+#!/bin/bash
+#
+# agent-identity — Resolve the current agent's fully qualified ISCP address
+#
+# What Problem: Every ISCP tool needs to know "who am I?" — the agent's
+# fully qualified address (repo/principal/agent). Previously, each tool
+# reinvented this detection inline (dispatch-create lines 87-96, dispatch
+# lines 153-174). The results were inconsistent and there was no caching.
+# This tool unifies identity resolution behind one interface.
+#
+# How & Why: Resolution chain: (1) CLAUDE_AGENT_NAME env var override,
+# (2) git branch detection (main/master → captain, worktree branch → slug),
+# (3) address_resolve() for full qualification. Cache keyed by branch hash
+# to prevent worktree agents from reading each other's cached identity.
+# Written as a standalone tool (not library function) so it gets its own
+# permission entry, can be called from skills, and has clean tool_output.
+#
+# Written: 2026-04-05 during ISCP Iteration 1.3
+#
+# Usage:
+#   agent-identity                  # outputs: repo/principal/agent
+#   agent-identity --agent          # outputs: agent (bare name)
+#   agent-identity --principal      # outputs: principal (bare name)
+#   agent-identity --repo           # outputs: repo (bare name)
+#   agent-identity --json           # outputs: {"repo":"...","principal":"...","agent":"..."}
+#   agent-identity --help           # show usage
+#   agent-identity --version        # show version
+#
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.1"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# What Problem: Worktree agents cd to main checkout and run dispatch tools.
+# SCRIPT_DIR resolves to main's tools → PROJECT_ROOT = main → branch = main
+# → identity = captain. Agent sends dispatches as captain, never sees own mail.
+# How & Why: Three-tier resolution: (1) CLAUDE_PROJECT_DIR env var (set by
+# Claude Code hooks — authoritative when available), (2) git rev-parse
+# --show-toplevel from PWD (detects worktree context when CLAUDE_PROJECT_DIR
+# is unset — which it always is in Bash tool calls), (3) SCRIPT_DIR fallback
+# (last resort for non-git contexts). The PWD tier was added because
+# CLAUDE_PROJECT_DIR is only set inside hooks, not in agent Bash tool calls,
+# so worktree agents always fell through to SCRIPT_DIR which resolves to the
+# main checkout → wrong branch → wrong identity → wrong dispatches.
+# Written: 2026-04-06 — escalation #90 (three identity bugs)
+# Updated: 2026-04-07 — PWD-based worktree detection (flag #33)
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+elif _pwd_toplevel="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    PROJECT_ROOT="$_pwd_toplevel"
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+# Source helpers — _path-resolve MUST be sourced explicitly before _address-parse.
+# If AGENCY_PROJECT_ROOT is already set, _address-parse skips sourcing _path-resolve,
+# which means _pr_yaml_get is undefined and principal mapping fails silently.
+source "$SCRIPT_DIR/lib/_log-helper"
+source "$SCRIPT_DIR/lib/_path-resolve"
+source "$SCRIPT_DIR/lib/_address-parse"
+
+# --- Parse args ---
+OUTPUT_MODE="full"  # full, agent, principal, repo, json
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --agent)     OUTPUT_MODE="agent"; shift ;;
+        --principal) OUTPUT_MODE="principal"; shift ;;
+        --repo)      OUTPUT_MODE="repo"; shift ;;
+        --json)      OUTPUT_MODE="json"; shift ;;
+        --help|-h)
+            cat <<'USAGE'
+Usage: agent-identity [--agent|--principal|--repo|--json]
+
+Resolve the current agent's fully qualified ISCP address.
+
+Options:
+  --agent       Output bare agent name only
+  --principal   Output bare principal name only
+  --repo        Output bare repo name only
+  --json        Output all components as JSON
+  --help        Show this help
+  --version     Show version
+
+Resolution order:
+  1. CLAUDE_AGENT_NAME env var (if set)
+  2. Git branch detection (main/master → captain, worktree → branch slug)
+  3. address_resolve() for full qualification via agency.yaml + git remote
+
+Cache: Results cached at ~/.agency/{repo}/.agent-identity-{branch-hash}
+USAGE
+            exit 0 ;;
+        --version)
+            echo "agent-identity $TOOL_VERSION"
+            exit 0 ;;
+        *)
+            echo "Error: unknown option: $1" >&2
+            echo "Run: agent-identity --help" >&2
+            exit 1 ;;
+    esac
+done
+
+RUN_ID=$(log_start "agent-identity" "$OUTPUT_MODE")
+
+# --- Detect agent name ---
+# What Problem: PR branches (captain/valueflow-pvr-20260406) get branch slug
+# as agent name instead of captain. Causes wrong from_agent, wrong payload
+# directory, garbage directories in usr/.
+# How & Why: Resolution chain: (1) env var, (2) .agency-agent file (worktrees
+# AND main checkout), (3) branch detection with captain-prefix awareness.
+# .agency-agent is the definitive source — branch detection is fallback only.
+# Written: 2026-04-06 — PR branch identity fix (escalation #63)
+#
+# Priority: env var > .agency-agent file > branch detection
+AGENT_NAME="${CLAUDE_AGENT_NAME:-}"
+
+# Check .agency-agent file (definitive identity marker)
+if [[ -z "$AGENT_NAME" && -f "$PROJECT_ROOT/.agency-agent" ]]; then
+    AGENT_NAME=$(cat "$PROJECT_ROOT/.agency-agent" 2>/dev/null | tr -d '[:space:]')
+fi
+
+# Main-checkout detection (captain-is-main).
+# What Problem: branch-based detection below picks up arbitrary non-default
+# branch names (v46.0-structural-reset, feat/foo, etc.) as agent names when
+# captain is working on a feature branch from the main checkout. This blocks
+# captain-only tools (git-captain, dispatch write-as-captain) with "agents
+# use /git-safe" errors. Flag #194.
+# How & Why: A linked worktree's git-dir points inside
+# .git/worktrees/{worktree-name}/ while the main checkout's git-dir equals
+# its git-common-dir. Equality = main checkout = captain by framework
+# convention. Overrides: still honored via CLAUDE_AGENT_NAME or .agency-agent
+# above, so non-default ownership of the main checkout can opt out.
+# Written: 2026-04-20 during v46.0-R2 (Phase 6 follow-up fixing flag #194).
+if [[ -z "$AGENT_NAME" ]]; then
+    _git_dir=$(git -C "$PROJECT_ROOT" rev-parse --git-dir 2>/dev/null || echo "")
+    _git_common_dir=$(git -C "$PROJECT_ROOT" rev-parse --git-common-dir 2>/dev/null || echo "")
+    if [[ -n "$_git_dir" && "$_git_dir" = "$_git_common_dir" ]]; then
+        AGENT_NAME="captain"
+    fi
+fi
+
+# Fallback: branch detection with improved patterns
+if [[ -z "$AGENT_NAME" ]]; then
+    local_branch=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    case "$local_branch" in
+        # Main/master branches → captain
+        main|master) AGENT_NAME="captain" ;;
+        # PR branches created by captain (captain/*, pr/*, release/*)
+        captain/*|pr/*|release/*) AGENT_NAME="captain" ;;
+        *)
+            # Strip any path prefix (e.g., worktree-iscp → iscp, feat/foo → foo)
+            local_branch="${local_branch##*/}"
+            # Strip worktree- prefix if present
+            local_branch="${local_branch#worktree-}"
+            AGENT_NAME="$local_branch"
+            ;;
+    esac
+fi
+
+# --- Resolve to fully qualified address ---
+# Check cache first
+_cache_dir=""
+_cache_file=""
+
+# Resolve repo name for cache path (best-effort, don't fail if we can't cache)
+_repo_name=""
+if _repo_name="$(_address_detect_repo 2>/dev/null)"; then
+    _cache_dir="$HOME/.agency/$_repo_name"
+    # Cache key includes branch to prevent worktree collision (MAR F-4)
+    _branch_key=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    _branch_hash=$(printf '%s' "$_branch_key" | cksum | cut -d' ' -f1)
+    _cache_file="$_cache_dir/.agent-identity-$_branch_hash"
+fi
+
+# Try reading from cache
+if [[ -n "$_cache_file" && -f "$_cache_file" ]]; then
+    _cached=$(cat "$_cache_file")
+    # Parse the cached address
+    if address_parse "$_cached" 2>/dev/null; then
+        # Verify agent name matches (cache could be stale if CLAUDE_AGENT_NAME changed)
+        if [[ "$ADDR_AGENT" == "$AGENT_NAME" ]]; then
+            # Cache hit — use it
+            case "$OUTPUT_MODE" in
+                full)
+                    echo "$_cached"
+                    ;;
+                agent)
+                    echo "$ADDR_AGENT"
+                    ;;
+                principal)
+                    echo "$ADDR_PRINCIPAL"
+                    ;;
+                repo)
+                    echo "$ADDR_REPO"
+                    ;;
+                json)
+                    # Use printf for JSON safety (no jq dependency for this tool)
+                    printf '{"repo":"%s","principal":"%s","agent":"%s"}\n' \
+                        "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT"
+                    ;;
+            esac
+            log_end "$RUN_ID" "success" "0" "0" "cache hit: $_cached"
+            exit 0
+        fi
+    fi
+fi
+
+# Cache miss — resolve fresh
+address_resolve "$AGENT_NAME" || {
+    log_end "$RUN_ID" "error" "1" "0" "cannot resolve identity for '$AGENT_NAME'"
+    echo "Error: cannot resolve agent identity for '$AGENT_NAME'" >&2
+    echo "Check: agency.yaml principals section, git remote" >&2
+    exit 1
+}
+
+FULL_ADDRESS=$(address_format)
+
+# Write cache (best-effort — don't fail if we can't cache)
+if [[ -n "$_cache_file" ]]; then
+    mkdir -p "$_cache_dir" 2>/dev/null || true
+    # Restrictive permissions — identity cache is sensitive (agent impersonation)
+    (umask 077 && echo "$FULL_ADDRESS" > "$_cache_file") 2>/dev/null || true
+fi
+
+# --- Output ---
+case "$OUTPUT_MODE" in
+    full)
+        echo "$FULL_ADDRESS"
+        ;;
+    agent)
+        echo "$ADDR_AGENT"
+        ;;
+    principal)
+        echo "$ADDR_PRINCIPAL"
+        ;;
+    repo)
+        echo "$ADDR_REPO"
+        ;;
+    json)
+        printf '{"repo":"%s","principal":"%s","agent":"%s"}\n' \
+            "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT"
+        ;;
+esac
+
+log_end "$RUN_ID" "success" "0" "0" "$FULL_ADDRESS"

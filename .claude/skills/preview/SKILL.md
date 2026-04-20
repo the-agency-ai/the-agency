@@ -25,7 +25,7 @@ Launch a local or remote preview of the project using the configured infrastruct
 
 ### Step 1: Resolve Provider
 
-Read the preview provider from `claude/config/agency.yaml` under `preview.provider`.
+Read the preview provider from `agency/config/agency.yaml` under `preview.provider`.
 
 ```yaml
 # agency.yaml
@@ -33,18 +33,18 @@ preview:
   provider: "docker-compose"  # or "fly", "vercel", "cloudflare"
 ```
 
-The provider maps to a tool: `./claude/tools/preview-{provider}`
+The provider maps to a tool: `./agency/tools/preview-{provider}`
 
 ### Step 2: Check Provider Tool Exists
 
-Verify `./claude/tools/preview-{provider}` exists and is executable. If not:
-- List available preview tools: `ls ./claude/tools/preview-*`
+Verify `./agency/tools/preview-{provider}` exists and is executable. If not:
+- List available preview tools: `ls ./agency/tools/preview-*`
 - Tell the user which providers are available
 - Suggest adding the provider tool if none exist
 
 ### Step 3: Dispatch to Provider
 
-Execute: `./claude/tools/preview-{provider} {verb} {args}`
+Execute: `./agency/tools/preview-{provider} {verb} {args}`
 
 Where verb is one of: `start`, `stop`, `status`, `logs` (mapped from flags above, default: `start`).
 

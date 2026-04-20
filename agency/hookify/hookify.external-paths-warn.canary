@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: collaboration-monofolk
+---BODY---
+cp something collaboration-monofolk/output

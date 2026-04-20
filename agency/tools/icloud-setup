@@ -1,0 +1,209 @@
+#!/bin/bash
+# Set up iCloud cloud storage integration for a project
+#
+# Usage: ./agency/tools/icloud-setup <projectname> <principalname>
+#
+# Creates:
+#   ~/Library/Mobile Documents/com~apple~CloudDocs/claude/{projectname}/
+#     - misc/
+#     - {agent folders as they are created}
+#
+# Creates symlink:
+#   claude/principals/{principalname}/resources/cloud -> iCloud claude/{projectname}/
+
+set -euo pipefail
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "icloud-setup" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.1-20260114-000004"
+
+# Defaults
+VERBOSE=false
+
+# Colors
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="[0;31m" GREEN="[0;32m" YELLOW="[1;33m" BLUE="[0;34m" NC="[0m"
+fi
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Parse arguments
+PROJECTNAME=""
+PRINCIPALNAME=""
+
+for arg in "$@"; do
+    case $arg in
+        --version|-v)
+            echo "icloud-setup $TOOL_VERSION"
+            exit 0
+            ;;
+        --verbose)
+            VERBOSE=true
+            ;;
+        --help|-h)
+            echo "icloud-setup - Set up iCloud cloud storage integration"
+            echo ""
+            echo "Usage: ./agency/tools/icloud-setup <projectname> <principalname>"
+            echo ""
+            echo "Examples:"
+            echo "  ./agency/tools/icloud-setup the-agency jordan"
+            echo "  ./agency/tools/icloud-setup ordinaryfolk-nextgen jordan"
+            echo ""
+            echo "This creates:"
+            echo "  1. iCloud Drive/claude/{projectname}/ folder"
+            echo "  2. Symlink from principals/{principalname}/resources/cloud to iCloud"
+            echo ""
+            echo "Options:"
+            echo "  --verbose      Show verbose output"
+            echo "  --version, -v  Show tool version"
+            echo "  --help, -h     Show this help"
+            exit 0
+            ;;
+        *)
+            if [ -z "$PROJECTNAME" ]; then
+                PROJECTNAME="$arg"
+            elif [ -z "$PRINCIPALNAME" ]; then
+                PRINCIPALNAME="$arg"
+            fi
+            ;;
+    esac
+done
+
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "icloud-setup [run: ${RUN_ID:-none}]"
+
+    if [ -z "$PROJECTNAME" ] || [ -z "$PRINCIPALNAME" ]; then
+        log_error "Missing required arguments"
+        echo ""
+        echo "Usage: ./agency/tools/icloud-setup <projectname> <principalname>"
+        echo ""
+        echo "Examples:"
+        echo "  ./agency/tools/icloud-setup the-agency jordan"
+        echo "  ./agency/tools/icloud-setup ordinaryfolk-nextgen jordan"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Missing arguments"
+        exit 1
+    fi
+
+    # Validate names to prevent path traversal
+    if [[ "$PROJECTNAME" =~ [/.] ]] || [[ "$PRINCIPALNAME" =~ [/.] ]]; then
+        log_error "Invalid name: names cannot contain / or ."
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Invalid name"
+        exit 1
+    fi
+
+    ICLOUD_BASE="$HOME/Library/Mobile Documents/com~apple~CloudDocs"
+    ICLOUD_CLAUDE="$ICLOUD_BASE/claude"
+    ICLOUD_PROJECT="$ICLOUD_CLAUDE/$PROJECTNAME"
+    PRINCIPAL_DIR="claude/principals/$PRINCIPALNAME"
+    RESOURCES_DIR="$PRINCIPAL_DIR/resources"
+    CLOUD_LINK="$RESOURCES_DIR/cloud"
+
+    # Check iCloud Drive exists
+    if [ ! -d "$ICLOUD_BASE" ]; then
+        log_error "iCloud Drive not found at $ICLOUD_BASE"
+        echo "Make sure iCloud Drive is enabled on this Mac."
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "iCloud Drive not found"
+        exit 1
+    fi
+
+    # Check principal exists
+    if [ ! -d "$PRINCIPAL_DIR" ]; then
+        log_error "Principal '$PRINCIPALNAME' not found at $PRINCIPAL_DIR"
+        echo ""
+        echo "Create principal first or check the name."
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Principal not found"
+        exit 1
+    fi
+
+    # Create iCloud claude directory if needed
+    if [ ! -d "$ICLOUD_CLAUDE" ]; then
+        log_step "Creating iCloud claude directory"
+        mkdir -p "$ICLOUD_CLAUDE"
+        verbose_echo "Created: $ICLOUD_CLAUDE"
+    fi
+
+    # Create project directory in iCloud
+    if [ ! -d "$ICLOUD_PROJECT" ]; then
+        log_step "Creating iCloud project directory: $ICLOUD_PROJECT"
+        mkdir -p "$ICLOUD_PROJECT/misc"
+
+        # Create folders for existing agents
+        if [ -d "agency/agents" ]; then
+            for agent_dir in agency/agents/*/; do
+                agent_name=$(basename "$agent_dir")
+                if [ "$agent_name" != "*" ]; then
+                    verbose_echo "Creating agent folder: $agent_name"
+                    mkdir -p "$ICLOUD_PROJECT/$agent_name"
+                fi
+            done
+        fi
+    else
+        verbose_echo "iCloud project directory already exists: $ICLOUD_PROJECT"
+    fi
+
+    # Create resources directory if needed
+    if [ ! -d "$RESOURCES_DIR" ]; then
+        log_step "Creating resources directory: $RESOURCES_DIR"
+        mkdir -p "$RESOURCES_DIR"
+    fi
+
+    # Create or update symlink
+    if [ -L "$CLOUD_LINK" ]; then
+        echo "Symlink already exists: $CLOUD_LINK"
+        echo "  Points to: $(readlink "$CLOUD_LINK")"
+        read -p "Replace symlink? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            rm "$CLOUD_LINK"
+        else
+            echo "Keeping existing symlink."
+            trap - EXIT
+            log_end "$RUN_ID" "success" 0 0 "Symlink already exists"
+            exit 0
+        fi
+    elif [ -d "$CLOUD_LINK" ]; then
+        log_error "$CLOUD_LINK is a directory, not a symlink"
+        echo "Please remove it manually if you want to create the symlink."
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Cloud link is a directory"
+        exit 1
+    fi
+
+    # Create the symlink
+    log_step "Creating symlink: $CLOUD_LINK -> $ICLOUD_PROJECT"
+    ln -s "$ICLOUD_PROJECT" "$CLOUD_LINK"
+
+    echo ""
+    echo "iCloud integration set up successfully!"
+    echo ""
+    echo "Structure:"
+    echo "  iCloud: ~/Library/Mobile Documents/com~apple~CloudDocs/claude/$PROJECTNAME/"
+    echo "  Symlink: $CLOUD_LINK -> iCloud"
+    echo ""
+    echo "Files placed in $CLOUD_LINK will sync to iCloud."
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "iCloud integration complete"
+}
+
+main

@@ -11,7 +11,7 @@ description: Secret Management — set, get, list, delete, rotate, scan via conf
 
 # Secret Management
 
-Manage secrets through the configured provider (SPEC-PROVIDER pattern). Generic skill that dispatches to a provider tool based on `claude/config/agency.yaml`.
+Manage secrets through the configured provider (SPEC-PROVIDER pattern). Generic skill that dispatches to a provider tool based on `agency/config/agency.yaml`.
 
 ## Arguments
 
@@ -27,21 +27,21 @@ Manage secrets through the configured provider (SPEC-PROVIDER pattern). Generic 
 
 ### Step 1: Resolve the provider
 
-Read `claude/config/agency.yaml` for the secrets provider:
+Read `agency/config/agency.yaml` for the secrets provider:
 
 ```yaml
 secrets:
   provider: "vault"  # or "aws", "1password", etc.
 ```
 
-The provider maps to a tool: `./claude/tools/secret-{provider}`
+The provider maps to a tool: `./agency/tools/secret-{provider}`
 
 If no provider is configured, default to `vault`.
 
 ### Step 2: Verify the provider tool exists
 
-Check `./claude/tools/secret-{provider}` exists and is executable. If not:
-- List available provider tools: list files matching `./claude/tools/secret-*`
+Check `./agency/tools/secret-{provider}` exists and is executable. If not:
+- List available provider tools: list files matching `./agency/tools/secret-*`
 - Tell the user which providers are available
 - Suggest configuring a different provider in `agency.yaml`
 
@@ -49,24 +49,24 @@ Check `./claude/tools/secret-{provider}` exists and is executable. If not:
 
 Different providers use different verbs:
 
-- **vault provider** (`./claude/tools/secret-vault`):
+- **vault provider** (`./agency/tools/secret-vault`):
   - `set` → maps to `create`
   - `get`, `list`, `delete`, `rotate` pass through directly
-- **other providers** (`./claude/tools/secret-{provider}`):
+- **other providers** (`./agency/tools/secret-{provider}`):
   - all verbs pass through directly
-- **scan verb** (any provider): use `./claude/tools/secrets-scan` directly
+- **scan verb** (any provider): use `./agency/tools/secrets-scan` directly
 
 ### Step 4: Execute
 
 Run the provider tool with the mapped verb:
 
 ```bash
-./claude/tools/secret-vault create api-key
-./claude/tools/secret-{provider} get database-url
-./claude/tools/secrets-scan
+./agency/tools/secret-vault create api-key
+./agency/tools/secret-{provider} get database-url
+./agency/tools/secrets-scan
 ```
 
-**Use relative paths** — never `$CLAUDE_PROJECT_DIR/claude/tools/...` (the env var is empty in agent Bash calls).
+**Use relative paths** — never `$CLAUDE_PROJECT_DIR/agency/tools/...` (the env var is empty in agent Bash calls).
 
 ### Step 5: Report
 
@@ -75,7 +75,7 @@ Show the user the result. Never echo secret values to the conversation — pipe 
 ## Error Handling
 
 - **No provider configured:** default to `vault`, warn the user they should set `secrets.provider` in `agency.yaml`
-- **Provider tool missing:** list `./claude/tools/secret-*` files, suggest alternatives
+- **Provider tool missing:** list `./agency/tools/secret-*` files, suggest alternatives
 - **Verb not supported:** show the provider's `--help` output
 - **Secret not found:** clear error message, do not invent values
 
@@ -88,6 +88,6 @@ Show the user the result. Never echo secret values to the conversation — pipe 
 
 ## SPEC-PROVIDER Pattern
 
-This skill is one of several using the SPEC-PROVIDER pattern (see `claude/README-THEAGENCY.md` SPEC-PROVIDER section). The skill is generic; the provider implements the contract. Add new providers by creating `./claude/tools/secret-{name}` that supports the standard verbs.
+This skill is one of several using the SPEC-PROVIDER pattern (see `claude/README-THEAGENCY.md` SPEC-PROVIDER section). The skill is generic; the provider implements the contract. Add new providers by creating `./agency/tools/secret-{name}` that supports the standard verbs.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

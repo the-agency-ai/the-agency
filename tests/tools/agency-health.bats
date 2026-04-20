@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for claude/tools/agency-health
+# Tests for agency/tools/agency-health
 #
 # Strategy: smoke-test the tool shape (version, help, exit codes, dimension
 # dispatch, JSON mode) against the LIVE repo. The health checkers run on

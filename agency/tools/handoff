@@ -1,0 +1,385 @@
+#!/bin/bash
+#
+# handoff — First-class Agency primitive for context bootstrapping
+#
+# Usage:
+#   handoff write [--trigger <name>] [--type <type>]  — auto-archive + signal agent to write
+#   handoff write --lightweight [--trigger <name>]    — append status line (no archive)
+#   handoff read                                      — output current handoff content
+#   handoff path                                      — output handoff file path
+#   handoff archive                                   — archive current handoff to history/
+#   handoff --version                                 — show version
+#   handoff --help                                    — show help
+#
+# Types (--type):
+#   session          — normal session handoff (default)
+#   agency-bootstrap — written by agency init, triggers onboarding
+#   agency-update    — written by agency update, triggers verification
+#
+# Handoffs are not just session continuity — they bootstrap context for any
+# purpose: agent-to-agent, cold start, project setup, compaction survival.
+#
+# The tool handles infrastructure (path resolution, archival, signaling).
+# The agent writes the actual content.
+
+set -euo pipefail
+
+VERSION="2.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper if available
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# Source address-parse for fully qualified agent address
+if [[ -f "$SCRIPT_DIR/lib/_address-parse" ]]; then
+    source "$SCRIPT_DIR/lib/_address-parse"
+fi
+
+# --- PATH resolution ---
+[ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
+[ -d "$HOME/.asdf/shims" ] && export PATH="$HOME/.asdf/shims:$PATH"
+
+# --- Help ---
+show_help() {
+    echo "Usage: handoff <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  write [--trigger <name>] [--type <type>]  Auto-archive + signal agent to write"
+    echo "  write --lightweight [--trigger <name>]       Append status line (no archive)"
+    echo "  read                                Output current handoff content"
+    echo "  path                                Output handoff file path"
+    echo "  archive                             Archive current handoff to history/"
+    echo ""
+    echo "Options:"
+    echo "  --version                  Show version"
+    echo "  --help                     Show this help"
+    echo ""
+    echo "Types: session (default), agency-bootstrap, agency-update"
+    echo ""
+    echo "Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete, plan-complete"
+}
+
+# --- Resolve handoff path ---
+# What Problem: Handoff tool was using branch name to derive agent identity
+# and writing to a generic handoff.md. This caused cross-contamination —
+# agents could write to each other's handoff files when branch names didn't
+# match agent names (e.g., iscp branch writing to captain's handoff).
+#
+# How & Why: Now uses agent-identity tool (the single source of truth for
+# "who am I") and writes to {agent}-handoff.md (matching what agent-create
+# scaffolds). Falls back to branch detection only if agent-identity fails.
+#
+# Written: 2026-04-06 — fix handoff cross-contamination bug
+resolve_path() {
+    local project_dir
+    if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+        project_dir="$CLAUDE_PROJECT_DIR"
+    else
+        project_dir=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    fi
+
+    # Resolve agent name via agent-identity (single source of truth)
+    local agent_name=""
+    local identity_tool="$SCRIPT_DIR/agent-identity"
+    if [[ -x "$identity_tool" ]]; then
+        agent_name=$("$identity_tool" --agent 2>/dev/null || echo "")
+    fi
+
+    # Fallback: branch detection (legacy, only if agent-identity unavailable)
+    if [[ -z "$agent_name" ]]; then
+        local branch
+        branch=$(git -C "$project_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        if [ -z "$branch" ] || [ "$branch" = "HEAD" ]; then
+            echo ""
+            return
+        fi
+        agent_name="${branch##*/}"
+        agent_name="${agent_name#worktree-}"
+        case "$agent_name" in
+            main|master) agent_name="captain" ;;
+        esac
+    fi
+
+    # Resolve principal via agent-identity or fall back to $USER
+    local principal=""
+    if [[ -x "$identity_tool" ]]; then
+        principal=$("$identity_tool" --principal 2>/dev/null || echo "")
+    fi
+    if [[ -z "$principal" ]]; then
+        # Fall back: $USER match or first found
+        if [ -d "$project_dir/usr/${USER:-}" ]; then
+            principal="$USER"
+        else
+            local _old_nullglob
+            _old_nullglob=$(shopt -p nullglob 2>/dev/null || true)
+            shopt -s nullglob
+            for dir in "$project_dir"/usr/*/; do
+                [ -d "$dir" ] || continue
+                local name
+                name=$(basename "$dir")
+                [ "$name" = "README.md" ] && continue
+                principal="$name"
+                break
+            done
+            eval "$_old_nullglob" 2>/dev/null || true
+        fi
+    fi
+
+    if [ -z "$principal" ]; then
+        echo ""
+        return
+    fi
+
+    # Resolve project dir name — use agent name as project slug
+    # (matches convention: usr/{principal}/{agent}/)
+    local project_slug="$agent_name"
+
+    # Write to {agent}-handoff.md (matches agent-create scaffold)
+    echo "$project_dir/usr/$principal/$project_slug/${agent_name}-handoff.md"
+}
+
+# Export agent name for use by other functions
+_RESOLVED_AGENT_NAME=""
+
+# --- Parse args ---
+COMMAND="${1:-}"
+shift 2>/dev/null || true
+
+case "$COMMAND" in
+    --version|-v)
+        echo "handoff $VERSION"
+        exit 0
+        ;;
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+    "")
+        show_help
+        exit 1
+        ;;
+esac
+
+HANDOFF_PATH=$(resolve_path)
+if [ -z "$HANDOFF_PATH" ]; then
+    echo "Error: no principal sandbox found in usr/" >&2
+    exit 1
+fi
+
+# --- Compute fully qualified agent address ---
+AGENT_ADDRESS=""
+IDENTITY_TOOL="$SCRIPT_DIR/agent-identity"
+if [[ -x "$IDENTITY_TOOL" ]]; then
+    AGENT_ADDRESS=$("$IDENTITY_TOOL" 2>/dev/null || echo "")
+elif type address_resolve &>/dev/null; then
+    # Fallback if agent-identity not available
+    _agent_name="${CLAUDE_AGENT_NAME:-captain}"
+    if address_resolve "$_agent_name" 2>/dev/null; then
+        AGENT_ADDRESS=$(address_format 2>/dev/null) || true
+    fi
+fi
+
+TRIGGER=""
+LIGHTWEIGHT=false
+HANDOFF_TYPE="session"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --trigger)
+            [[ -n "${2:-}" ]] || { echo "Error: --trigger requires a value" >&2; exit 1; }
+            # Sanitize trigger to alphanumeric, hyphens, underscores only
+            TRIGGER=$(printf '%s' "$2" | tr -cd 'A-Za-z0-9_-')
+            shift 2
+            ;;
+        --type)
+            [[ -n "${2:-}" ]] || { echo "Error: --type requires a value" >&2; exit 1; }
+            HANDOFF_TYPE="$2"
+            shift 2
+            ;;
+        --lightweight) LIGHTWEIGHT=true; shift ;;
+        *) shift ;;
+    esac
+done
+
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
+
+# --- Start logging at top level (consistent with agent-define pattern) ---
+RUN_ID=""
+if type log_start &>/dev/null; then
+    RUN_ID=$(log_start "handoff" "$COMMAND --trigger ${TRIGGER:-manual}")
+fi
+
+# --- Helper: archive existing handoff ---
+_do_archive() {
+    if [ -f "$HANDOFF_PATH" ]; then
+        local history_dir
+        history_dir="$(dirname "$HANDOFF_PATH")/history"
+        mkdir -p "$history_dir"
+        local archive_name="handoff-$(date '+%Y%m%d-%H%M%S').md"
+        cp "$HANDOFF_PATH" "$history_dir/$archive_name"
+    fi
+}
+
+# Detect uncommitted implementation files at handoff write time.
+# Returns a multi-line message describing the dirty state, or empty string if clean.
+# Used to warn the agent (via the write signal) that the handoff is being written
+# while real code is uncommitted — preventing the P7 friction (handoff claims
+# 'complete' for work that doesn't exist in git).
+_dirty_impl_warning() {
+    # Only check if we're inside a git repo
+    git rev-parse --show-toplevel >/dev/null 2>&1 || return 0
+
+    # Use the same categorization as stop-check.py — match impl extensions and paths
+    # We only care about staged + unstaged modifications, NOT untracked files
+    # (untracked are usually scratch/temp; modified is "I touched real code").
+    local impl_files
+    impl_files=$(git status --porcelain 2>/dev/null \
+        | grep -vE '^\?\?' \
+        | sed 's/^...//' \
+        | grep -E '\.(ts|tsx|js|jsx|py|rs|go|java|swift|kt|sh|bash|bats)$|^agency/tools/[^/]+$|^agency/tools/lib/|^\.claude/hooks/' \
+        || true)
+
+    if [[ -z "$impl_files" ]]; then
+        return 0
+    fi
+
+    local count
+    count=$(echo "$impl_files" | wc -l | tr -d ' ')
+    echo "WARNING: ${count} uncommitted implementation file(s) at handoff time:"
+    echo "$impl_files" | head -5 | sed 's/^/  - /'
+    if [[ "$count" -gt 5 ]]; then
+        echo "  ... and $((count - 5)) more"
+    fi
+    echo ""
+    echo "Include this WARNING block in the handoff Current State section."
+    echo "Do NOT claim 'complete' for uncommitted work."
+}
+
+case "$COMMAND" in
+    write)
+        if [ "$LIGHTWEIGHT" = true ]; then
+            # Lightweight mode: append/update status line, no archive
+            if [ -f "$HANDOFF_PATH" ]; then
+                sync_line="Last sync: ${TIMESTAMP} (via ${TRIGGER:-manual})"
+                if grep -q "^Last sync:" "$HANDOFF_PATH" 2>/dev/null; then
+                    tmp=$(mktemp "$(dirname "$HANDOFF_PATH")/handoff.XXXXXX")
+                    trap 'rm -f "$tmp"' EXIT
+                    if sed "s|^Last sync:.*|${sync_line}|" "$HANDOFF_PATH" > "$tmp"; then
+                        mv "$tmp" "$HANDOFF_PATH"
+                    else
+                        rm -f "$tmp"
+                    fi
+                    trap - EXIT
+                else
+                    printf '\n%s\n' "$sync_line" >> "$HANDOFF_PATH"
+                fi
+            fi
+            if [ -n "$RUN_ID" ]; then
+                tool_output "handoff" "$RUN_ID" "Sync: ${HANDOFF_PATH##*/usr/}"
+            else
+                echo "handoff"
+                echo "Sync: ${HANDOFF_PATH##*/usr/}"
+                echo "✓"
+            fi
+        else
+            # Full write: auto-archive existing, then signal agent
+            _do_archive
+
+            # Detect uncommitted impl files and build warning if any
+            DIRTY_WARNING=$(_dirty_impl_warning)
+
+            # For hook triggers, output JSON systemMessage
+            if [ "$TRIGGER" = "SessionEnd" ] || [ "$TRIGGER" = "PreCompact" ]; then
+                AGENT_MSG=""
+                if [ -n "$AGENT_ADDRESS" ]; then
+                    AGENT_MSG=" Include agent: ${AGENT_ADDRESS} in YAML frontmatter."
+                fi
+                MSG="Handoff trigger: ${TRIGGER} at ${TIMESTAMP}. Update ${HANDOFF_PATH##*/usr/} with current session state before the session ends. Use type: ${HANDOFF_TYPE} in YAML frontmatter.${AGENT_MSG}"
+                if [ -n "$DIRTY_WARNING" ]; then
+                    MSG="${MSG}"$'\n\n'"${DIRTY_WARNING}"
+                fi
+                command -v jq >/dev/null 2>&1 && {
+                    printf '{"systemMessage":%s}' "$(printf '%s' "$MSG" | jq -Rs '.')"
+                } || {
+                    printf '{"systemMessage":"%s"}' "$MSG"
+                }
+            else
+                # For manual/command triggers, plain output
+                AGENT_INFO=""
+                if [ -n "$AGENT_ADDRESS" ]; then
+                    AGENT_INFO=", agent: ${AGENT_ADDRESS}"
+                fi
+                if [ -n "$RUN_ID" ]; then
+                    tool_output "handoff" "$RUN_ID" "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual}, type: ${HANDOFF_TYPE}${AGENT_INFO})"
+                else
+                    echo "handoff [run: ${RUN_ID:-none}]"
+                    echo "Write: ${HANDOFF_PATH##*/usr/} (trigger: ${TRIGGER:-manual}, type: ${HANDOFF_TYPE}${AGENT_INFO})"
+                    echo "✓"
+                fi
+                # Print dirty warning to stderr so the agent sees it
+                if [ -n "$DIRTY_WARNING" ]; then
+                    echo "" >&2
+                    echo "$DIRTY_WARNING" >&2
+                fi
+            fi
+        fi
+
+        # log_end unconditionally — covers both hook and non-hook paths
+        if [ -n "$RUN_ID" ]; then
+            log_end "$RUN_ID" "success" 0 0 "write triggered (${TRIGGER:-manual})"
+        fi
+        ;;
+
+    read)
+        if [ -f "$HANDOFF_PATH" ]; then
+            cat "$HANDOFF_PATH"
+            if [ -n "$RUN_ID" ]; then
+                log_end "$RUN_ID" "success" 0 0 "read handoff"
+            fi
+        else
+            echo "No handoff found at ${HANDOFF_PATH##*/usr/}"
+            if [ -n "$RUN_ID" ]; then
+                log_end "$RUN_ID" "failure" 1 0 "no handoff found"
+            fi
+            exit 1
+        fi
+        ;;
+
+    path)
+        echo "$HANDOFF_PATH"
+        if [ -n "$RUN_ID" ]; then
+            log_end "$RUN_ID" "success" 0 0 "path resolved"
+        fi
+        ;;
+
+    archive)
+        if [ ! -f "$HANDOFF_PATH" ]; then
+            echo "No handoff to archive at ${HANDOFF_PATH##*/usr/}"
+            if [ -n "$RUN_ID" ]; then
+                log_end "$RUN_ID" "failure" 1 0 "no handoff to archive"
+            fi
+            exit 1
+        fi
+
+        _do_archive
+        ARCHIVE_NAME="handoff-$(date '+%Y%m%d-%H%M%S').md"
+
+        if [ -n "$RUN_ID" ]; then
+            log_end "$RUN_ID" "success" 0 0 "archived to history/"
+            tool_output "handoff" "$RUN_ID" "Archived: history/$ARCHIVE_NAME"
+        else
+            echo "handoff"
+            echo "Archived: history/$ARCHIVE_NAME"
+            echo "✓"
+        fi
+        ;;
+
+    *)
+        echo "Error: unknown command '$COMMAND'" >&2
+        show_help >&2
+        exit 1
+        ;;
+esac
+
+exit 0

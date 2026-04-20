@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: cat
+---BODY---
+cat /tmp/foo

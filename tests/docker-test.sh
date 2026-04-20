@@ -32,12 +32,12 @@ IMAGE_TAG="full"
 # exposes its socket at $HOME/.docker/run/docker.sock rather than the default
 # /var/run/docker.sock — without this, the CLI fails with "dial unix ...: no
 # such file or directory" even though Docker Desktop is running. See GH #58
-# and claude/tools/lib/_docker-heal for the full remediation logic.
+# and agency/tools/lib/_docker-heal for the full remediation logic.
 #
 # docker_heal returns 0 if docker is reachable (either already or after
 # setting DOCKER_HOST) and 1 with an actionable error. We check the exit
 # explicitly so the error message comes through cleanly.
-source "$REPO_ROOT/claude/tools/lib/_docker-heal"
+source "$REPO_ROOT/agency/tools/lib/_docker-heal"
 if ! docker_heal; then
     exit 1
 fi

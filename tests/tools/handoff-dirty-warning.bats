@@ -12,7 +12,7 @@ setup() {
     test_isolation_setup
 
     export TEST_REPO="${BATS_TEST_TMPDIR}/test-repo"
-    mkdir -p "$TEST_REPO/claude/tools/lib"
+    mkdir -p "$TEST_REPO/agency/tools/lib"
     mkdir -p "$TEST_REPO/usr/jordan/devex"
     cd "$TEST_REPO"
     git init --quiet --no-verify 2>/dev/null || git init --quiet
@@ -23,13 +23,13 @@ setup() {
     git commit --quiet --no-verify -m "init"
 
     # Copy the handoff tool
-    cp "$REPO_ROOT/claude/tools/handoff" "$TEST_REPO/claude/tools/"
-    chmod +x "$TEST_REPO/claude/tools/handoff"
-    if [[ -f "$REPO_ROOT/claude/tools/lib/_log-helper" ]]; then
-        cp "$REPO_ROOT/claude/tools/lib/_log-helper" "$TEST_REPO/claude/tools/lib/"
+    cp "$REPO_ROOT/agency/tools/handoff" "$TEST_REPO/agency/tools/"
+    chmod +x "$TEST_REPO/agency/tools/handoff"
+    if [[ -f "$REPO_ROOT/agency/tools/lib/_log-helper" ]]; then
+        cp "$REPO_ROOT/agency/tools/lib/_log-helper" "$TEST_REPO/agency/tools/lib/"
     fi
-    if [[ -f "$REPO_ROOT/claude/tools/lib/_address-parse" ]]; then
-        cp "$REPO_ROOT/claude/tools/lib/_address-parse" "$TEST_REPO/claude/tools/lib/"
+    if [[ -f "$REPO_ROOT/agency/tools/lib/_address-parse" ]]; then
+        cp "$REPO_ROOT/agency/tools/lib/_address-parse" "$TEST_REPO/agency/tools/lib/"
     fi
 
     # Create an existing handoff so the tool has something to archive
@@ -48,7 +48,7 @@ teardown() {
 
 @test "clean: no warning when no impl files dirty" {
     cd "$TEST_REPO"
-    run bash -c './claude/tools/handoff write --trigger test 2>&1'
+    run bash -c './agency/tools/handoff write --trigger test 2>&1'
     [ "$status" -eq 0 ]
     [[ "$output" != *"WARNING"* ]]
 }
@@ -61,7 +61,7 @@ teardown() {
     cd "$TEST_REPO"
     echo "x = 1" > foo.py
     git add foo.py
-    run bash -c './claude/tools/handoff write --trigger test 2>&1'
+    run bash -c './agency/tools/handoff write --trigger test 2>&1'
     [ "$status" -eq 0 ]
     [[ "$output" == *"WARNING"* ]]
     [[ "$output" == *"foo.py"* ]]
@@ -72,18 +72,18 @@ teardown() {
     mkdir -p tests/tools
     echo '@test "x" { true; }' > tests/tools/foo.bats
     git add tests/tools/foo.bats
-    run bash -c './claude/tools/handoff write --trigger test 2>&1'
+    run bash -c './agency/tools/handoff write --trigger test 2>&1'
     [ "$status" -eq 0 ]
     [[ "$output" == *"WARNING"* ]]
     [[ "$output" == *"foo.bats"* ]]
 }
 
-@test "dirty: claude/tools/ bash script triggers warning" {
+@test "dirty: agency/tools/ bash script triggers warning" {
     cd "$TEST_REPO"
     mkdir -p claude/tools
-    echo '#!/bin/bash' > claude/tools/my-tool
-    git add claude/tools/my-tool
-    run bash -c './claude/tools/handoff write --trigger test 2>&1'
+    echo '#!/bin/bash' > agency/tools/my-tool
+    git add agency/tools/my-tool
+    run bash -c './agency/tools/handoff write --trigger test 2>&1'
     [ "$status" -eq 0 ]
     [[ "$output" == *"WARNING"* ]]
     [[ "$output" == *"my-tool"* ]]
@@ -97,7 +97,7 @@ teardown() {
     cd "$TEST_REPO"
     echo "# new doc" > doc.md
     git add doc.md
-    run bash -c './claude/tools/handoff write --trigger test 2>&1'
+    run bash -c './agency/tools/handoff write --trigger test 2>&1'
     [ "$status" -eq 0 ]
     [[ "$output" != *"WARNING"* ]]
 }
@@ -106,7 +106,7 @@ teardown() {
     cd "$TEST_REPO"
     echo "k: v" > config.yaml
     git add config.yaml
-    run bash -c './claude/tools/handoff write --trigger test 2>&1'
+    run bash -c './agency/tools/handoff write --trigger test 2>&1'
     [ "$status" -eq 0 ]
     [[ "$output" != *"WARNING"* ]]
 }
@@ -121,7 +121,7 @@ teardown() {
     echo "x" > b.py
     echo "x" > c.py
     git add a.py b.py c.py
-    run bash -c './claude/tools/handoff write --trigger test 2>&1'
+    run bash -c './agency/tools/handoff write --trigger test 2>&1'
     [ "$status" -eq 0 ]
     [[ "$output" == *"3 uncommitted"* ]]
 }

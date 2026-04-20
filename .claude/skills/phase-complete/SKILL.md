@@ -89,7 +89,7 @@ Capture as `$BASE_REF`.
 /quality-gate phase-complete <phase>: <description> --base <BASE_REF>
 ```
 
-Full QG protocol — parallel review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt (five-hash chain at `claude/workstreams/{W}/qgr/`).
+Full QG protocol — parallel review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt (five-hash chain at `agency/workstreams/{W}/qgr/`).
 
 Scope: **full phase's work** (all changes since `$BASE_REF`). Deeper than iteration-level.
 
@@ -146,7 +146,7 @@ Capture:
 Emit:
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch create \
+bash $CLAUDE_PROJECT_DIR/agency/tools/dispatch create \
   --to {repo}/{principal}/captain \
   --type phase-complete \
   --subject "Phase {PHASE_SLUG} complete on {BRANCH}" \
@@ -194,8 +194,8 @@ Cascade isolation: `AGENCY_SKILL_BYPASS_CASCADE=1` in environment.
 - `/plan-complete` — sibling skill for plan delivery (final deep QG + A&D)
 - `/pr-submit` — agent's hand-off to captain; runs after phase-complete when ready to land
 - `/pr-captain-land` — captain's counterpart; consumes Step 9's dispatch
-- `claude/tools/receipt-sign` — signs the five-hash receipt at phase boundary
-- `claude/workstreams/captain/small-batch-cadence-*.md` — auto-ship daemon design
+- `agency/tools/receipt-sign` — signs the five-hash receipt at phase boundary
+- `agency/workstreams/captain/small-batch-cadence-*.md` — auto-ship daemon design
 - the-agency#296 — PR lifecycle ownership
 - the-agency#298 — skill refactor recommendation
 - the-agency#315 — V1→V2 migration (this skill's retrofit lives in Tier 1)

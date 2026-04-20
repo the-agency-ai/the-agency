@@ -28,7 +28,7 @@ If `--from` specified, read the PVR. If `--continue`, read the existing A&D. If 
 
 ### Step 2: Scan for existing work
 
-Glob `claude/workstreams/*/ad-*.md` for existing A&D files. If found, offer to continue.
+Glob `agency/workstreams/*/ad-*.md` for existing A&D files. If found, offer to continue.
 
 ### Step 3: Build discussion agenda
 
@@ -42,7 +42,7 @@ Invoke `/discuss` via the Skill tool, passing the agenda items.
 
 After each item resolves, update the A&D file. Also update the PVR if design decisions reveal requirement changes.
 
-A&D location: `claude/workstreams/{workstream}/ad-{workstream}-{slug}-{YYYYMMDD}.md`.
+A&D location: `agency/workstreams/{workstream}/ad-{workstream}-{slug}-{YYYYMMDD}.md`.
 
 ### Step 6: Present completeness scorecard
 

@@ -1,0 +1,1690 @@
+{
+  "schema_version": "1.0",
+  "agency_version": "46.1",
+  "project": {
+    "name": "the-agency",
+    "created_at": "2026-01-15T04:54:46Z",
+    "framework_version": "46.1",
+    "updated_at": "2026-04-20T13:55:00Z"
+  },
+  "source": {
+    "type": "local",
+    "path": "/Users/jdm/code/the-agency"
+  },
+  "components": {
+    "core": {
+      "version": "1.2.0",
+      "status": "installed",
+      "dependencies": "none",
+      "installed_at": "2026-01-15T04:54:46Z"
+    },
+    "tools": {
+      "version": "1.2.0",
+      "status": "installed",
+      "dependencies": "none",
+      "installed_at": "2026-01-15T04:54:46Z"
+    },
+    "captain": {
+      "version": "1.2.0",
+      "status": "installed",
+      "dependencies": "none",
+      "installed_at": "2026-01-15T04:54:46Z"
+    },
+    "housekeeping": {
+      "version": "1.2.0",
+      "status": "installed",
+      "dependencies": "none",
+      "installed_at": "2026-01-15T04:54:46Z"
+    },
+    "agency-service": {
+      "version": "1.0.0",
+      "status": "installed",
+      "dependencies": "pending",
+      "installed_at": "2026-01-15T04:54:46Z"
+    },
+    "starter-packs": {
+      "version": "1.0.0",
+      "status": "installed",
+      "dependencies": "none",
+      "installed_at": "2026-01-15T04:54:46Z"
+    }
+  },
+  "files": {
+    "claude/.DS_Store": {
+      "hash": "acb421675f314dac2093603ce2b1679a549bf853ab26b836c45e8eb04ab55a30",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/SESSION-2026-01-09-sync.md": {
+      "hash": "44cab5d98ea1859b584e9e10fb1fa6cf2327bb1deaa1c05dbc8182de35ec6a90",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/SESSION-BACKUP-2026-01-06-2145.md": {
+      "hash": "295d27115517816677b7b0303b9dbcdb572e3099f2d20aeae3c84c0760ba9dca",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/SESSION-BACKUP-2026-01-08-afternoon.md": {
+      "hash": "d246c24e759a87c131bafa4754c40048109b944c23df566fdc0df8c0c364cd43",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/SESSION-BACKUP-2026-01-08-phase2.md": {
+      "hash": "118ffecb23fdaa653818c1c498c4b28053ce7eddf915a3a0d105cb4ba5d87ad4",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/SESSION-BACKUP-2026-01-08.md": {
+      "hash": "444533a07dc11e1f973fc22d86f75e76c9dd18fe0a59661b39fd68da74d0d208",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/agent.md": {
+      "hash": "94b683826053becdf46ffc31491dad891610a1f545c65afca998a814727ba5b5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1767685834/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1767685834/session-info.json": {
+      "hash": "5687367de257c1df8b2ff3cc4d0c670f70d879821ea9bc50249dafb29565e701",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1767685834/status.txt": {
+      "hash": "c1f95dc9507caadae168134b91444fe0265f2080627baf85804f8cf38cedc74e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768271131/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768271131/session-info.json": {
+      "hash": "73e94d364e8b6e11114ef0a90444810a3eb7c35512819096141fada26bd1cc42",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768271131/status.txt": {
+      "hash": "243891b91b0300011622bd825d4f2d56b954bc55c2ce39f203b001c8246d373f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768271131/uncommitted.patch": {
+      "hash": "4957af027a837d907ee521bf367e801f98446905d7e1a885eac7076e98e10b5c",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768355874/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768355874/session-info.json": {
+      "hash": "6d604f0f53999d2264d2c17075a542735f9e553c7b82bc59efc91ba3f47359c8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768355874/status.txt": {
+      "hash": "5961e92ec6cabf800994b167e7343aafe7c28de621ac7ee3bca8d741a1879a6d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768355874/uncommitted.patch": {
+      "hash": "e501ff7290e0fc7ec15affedf6757bac8eb5466bb50dfc21b9981f33fd7a9f28",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768356146/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768356146/session-info.json": {
+      "hash": "61a594327cb13e8d182bffd5d13362368bea3e44566b1dee00dba7096953446f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768356146/status.txt": {
+      "hash": "f853e056e729074830966c5a16aa521dcd0c0b5349513f8cf2f20a1a724005a0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768356146/uncommitted.patch": {
+      "hash": "966367bd961438a1d603793337d3177884513846823e56faf45f898dd7b6cd03",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768373230/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768373230/session-info.json": {
+      "hash": "e9220a5e5a512891a2389b7035844050878ecb258d85dfb7f758bfb6659fd087",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768373230/status.txt": {
+      "hash": "ef10a185cbc07c9dfa09dc5d673ca5f225ad7cb2f64bf8085757523bb6202e2d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768373230/uncommitted.patch": {
+      "hash": "96cb76a414c06c1006f8c6771c00e8e3d47b7ef99781853a33483fabb6bfb4ad",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768377445/context.jsonl": {
+      "hash": "8e71d812a71ac68735e1559108210461a023754a651d52b057f3f1422f5e71a0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768377445/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768377445/session-info.json": {
+      "hash": "7d13addda6a7eca54392cbcd528d437643922295cee98ce1fd903d2777b07c21",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768377445/status.txt": {
+      "hash": "67be365f90b5a6c2f64d6598f02608bda33c52f4c2dc75456b3aca8670b05d66",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768377445/uncommitted.patch": {
+      "hash": "ccfc4266396890a50a219c41c449f73feb52e87c77aaeec6759dbda4636ac8b5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768394132/context.jsonl": {
+      "hash": "f36217b4f6247b231ed4ef1af77bfb940c9ced318e370d29bc73844db7f5ea45",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768394132/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768394132/session-info.json": {
+      "hash": "f05dae374d3b44c7152043492081b5b120bc5bf6cbc4be3d7590abd440ac6c45",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768394132/status.txt": {
+      "hash": "b6b94893d595a1ad628f1f8c7e3cc3876880f360b01d1a76f340d4cffd630bea",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/archive/session-1768394132/uncommitted.patch": {
+      "hash": "01c32231bbe3b96f58436348755626720ad77e4dcd127c584c64ebab0b69fda9",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/latest/context.jsonl": {
+      "hash": "0bcd3b92bd61d9518db287ded2fafdcb912c89c591035c074272e237fdb7451a",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/latest/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/latest/session-info.json": {
+      "hash": "f05dae374d3b44c7152043492081b5b120bc5bf6cbc4be3d7590abd440ac6c45",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/latest/status.txt": {
+      "hash": "b6b94893d595a1ad628f1f8c7e3cc3876880f360b01d1a76f340d4cffd630bea",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/backups/latest/uncommitted.patch": {
+      "hash": "01c32231bbe3b96f58436348755626720ad77e4dcd127c584c64ebab0b69fda9",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/logs/permissions.md": {
+      "hash": "2674b40bc86a9309a95dfb93739f9517fa2a5852863cfba00b7b1e00e5ded492",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/notes/INSTR-ordinaryfolk-nextgen-apply-v003-design-system.md": {
+      "hash": "7cbbc153694bb7baa03e7a0f7df01b9ff73270dbf84af82454a83cc20ff628b8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/notes/NOTE-2026-01-13-claude-code-friendly-design-systems.md": {
+      "hash": "b20e64651b7b8ef8ba89a6aaefab95ce17a52c15a890fe32ba8ec8b80aebff5a",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/captain/notes/NOTE-2026-01-13-hybrid-design-system-extraction.md": {
+      "hash": "eac027c9ba801907eb62ca77ef2d8d04f8b54f47616df1b893d4099390348b36",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/collaboration/.gitkeep": {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/collaboration/CODE-REVIEW-0015-agency-service.md": {
+      "hash": "1e4258330ca0cceb5fc48129fcbde0ac52a3c02077f38a225f2dbef1054b72a3",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0001-2026-01-15.md": {
+      "hash": "a465fb7ed515442b788fdb9f4d5e8be94cecdc23f7c78e1cf156634c157e9869",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0002-2026-01-15.md": {
+      "hash": "4d597c9df90fe9b5cd5f45af27a4f2192c70d878e08e1b29921488c795377d72",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/collaboration/NEWS.md": {
+      "hash": "190fbfe64bfce72811db43a75039adf2cba38d9d4749beb1984ca827ebbc2522",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/foundation-alpha/IDEAS.md": {
+      "hash": "b6efe2c5cae719e8820a644682edeaf4fc3ec44bd92455fe8fea36478c717531",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/foundation-alpha/ONBOARDING.md": {
+      "hash": "3f522f32e6a09896deac0cb380a70e37e96c51e0589e3ae5900dfec6f08d3398",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/foundation-alpha/agent.md": {
+      "hash": "34209d45859017d310e5a569ffb8debc227f281cc376e1cef3c0b46fec26a6fc",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/foundation-alpha/logs/permissions.md": {
+      "hash": "24aa5ff22463313adb285821affc745a4e1079b11b0996ae4587647759bbf3a3",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/foundation-beta/IDEAS.md": {
+      "hash": "b36bc3328790c6f45327afc3610718e0983493984cbe58e3e805539914f55894",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/foundation-beta/ONBOARDING.md": {
+      "hash": "1f37d43b06eeacc58ec301a9a2f33928df0581c4a9460da15f68aa4f371ee36f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/foundation-beta/agent.md": {
+      "hash": "504d0b8cb5669c06bd535c8157be01a6af131703cdbbf24b1b54a2e20182251f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/foundation-beta/logs/permissions.md": {
+      "hash": "c8cb4c5baa7ebc05c30c1b161f750333df63976ae3e822a66b586edf63be1486",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768390651/context.jsonl": {
+      "hash": "fc111d51afad474e57549b4e66917b300ceea1b938c7593ffc859f57952599ce",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768390651/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768390651/session-info.json": {
+      "hash": "b10f39e098ff25d0c99059d598a0c060bb774978f1a847fe4e7b06e40d73ded0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768390651/status.txt": {
+      "hash": "9e1b3fef33834f90db9cb3359f2c857a06be3784d382569c8b812e0a458e75b6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393416/context.jsonl": {
+      "hash": "be9bd84af9ed5f2957557d3eb24b1dbf485e992b57682496961a926e5064e252",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393416/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393416/session-info.json": {
+      "hash": "20a4d8d1422b6cd6946dd770763d73ddce8babb89c518850a126bca6eeae5366",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393416/status.txt": {
+      "hash": "7817b9ed40b56810c0bafb5c987f1f1cbdd53045745004108756d5d2e2694462",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393606/context.jsonl": {
+      "hash": "a13e5b8ff9cf9db00f7a670e71af1efc668d5d8bca34305b98c071c7cb5ef4b8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393606/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393606/session-info.json": {
+      "hash": "804dd696e9d055008671fd7228ea81c567bae34c6a79f70aaf0d923218df3ab3",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393606/status.txt": {
+      "hash": "b630186089fca340b13961e5feda533e3fed9dcf8dd95507073093834a327ad6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393679/context.jsonl": {
+      "hash": "a13e5b8ff9cf9db00f7a670e71af1efc668d5d8bca34305b98c071c7cb5ef4b8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393679/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393679/session-info.json": {
+      "hash": "342b5dec733e8369c6eb6509778598fb422ed87a46bf70a5f96ccd3135a9658b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/archive/session-1768393679/status.txt": {
+      "hash": "b630186089fca340b13961e5feda533e3fed9dcf8dd95507073093834a327ad6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/latest/context.jsonl": {
+      "hash": "a13e5b8ff9cf9db00f7a670e71af1efc668d5d8bca34305b98c071c7cb5ef4b8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/latest/current-branch.txt": {
+      "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/latest/session-info.json": {
+      "hash": "342b5dec733e8369c6eb6509778598fb422ed87a46bf70a5f96ccd3135a9658b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/housekeeping/backups/latest/status.txt": {
+      "hash": "b630186089fca340b13961e5feda533e3fed9dcf8dd95507073093834a327ad6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/INDEX.md": {
+      "hash": "6f79f8dc01220a285b65c8a6db7075b49cd244bc3ea1e52fced54790a2bd8725",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/design-system/agent.md": {
+      "hash": "ef331f25b5eaf94620ada7f08c356cb2b6215d6389730d0afd813475ae2a8b16",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/docs/agent.md": {
+      "hash": "fdb3f8ce0e18107ae9b797a6cbabdd4f83887f80f5fe9d8a15dba0e16132e579",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/generic/ONBOARDING.md": {
+      "hash": "7d01b23140f970be3e91de9f73d7391306bd3a2f33df7549c070b47650b1f07e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/generic/agent.md": {
+      "hash": "af76d9b2a2bab2d032c0cf99b421fab04f6de27f2a9b0cb103708fd1c81d1916",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/reviewer/agent.md": {
+      "hash": "21ef1d2a588f90e12d786c93f3e2b9ef66fdbcb7bc1aad09db321aada3a03997",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/security/agent.md": {
+      "hash": "ac0a0485ff8c114d3e54f1c61bc712db1eaa94105794b17c3a3eaba9c45ca1bf",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/services/agent.md": {
+      "hash": "d3dfa47a358076bfd267e02f66189b1ce8e7a79b42685ade12df25fa17b0cbe9",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/tester/agent.md": {
+      "hash": "0a6598a0ce8d087b997887fb88d308e77e76c0f7fa918b57564f65ba70c001a8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/ux-dev/ONBOARDING.md": {
+      "hash": "4fa0cd2696b3e3f7d657dbb902378814eb8f5bfb43ec86b6cee1b6e845058067",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/templates/ux-dev/agent.md": {
+      "hash": "35bf1e025b0e30fc4cb260c9c35b00368fc5e533f33fdacc9e62c84bfdebd355",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/agents/unknown/logs/permissions.md": {
+      "hash": "0dfd71c7b75fad456580b7b8a65a4b68d363d626e9e22a923dc924445455d38f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/assets/theagency-logo-constellation.svg": {
+      "hash": "59ac9fb309b6c68389c1d2c2dc3d86113b732cf4898dc87d404a5896bf8d53d8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/config/agency.yaml": {
+      "hash": "944b240632537883d5cfcc05989ea97f268858c2f351e3e3ee25418c899e3faa",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/data/agency-service.pid": {
+      "hash": "e9620f9011c444a070fee98e3063aec0eaf451e898630109e0d08cc6ec4b2cc2",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/data/agency.db": {
+      "hash": "8f19c5e2cf37b9a04fae5c9b652bca0393ef2409b5330e1c9cc0c343318a2abc",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/data/agency.db-shm": {
+      "hash": "ecd16b056675feedf32c8741305d7182c7961c2e7b063b845b25afe5765c92b0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/data/agency.db-wal": {
+      "hash": "55d2fd47f8b2db79d4410503c15d1d6c34b84b056a0a93a6dd4fe1bd1ad2db59",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/data/bugs.db": {
+      "hash": "1e4f76ce58fcc660375052b076362ae161d456277c5169b7bdcd760e7ac67650",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/data/messages.db": {
+      "hash": "ca08bcaf27d9d1ddc165c1f192a829981feec92580047c239f65f6880e29c58e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/data/queue.db": {
+      "hash": "7cde8b7955d831e75e3d8a2d51cfe759aee3a432bae5724a107ce5348e1ee3cb",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/data/queue.db-shm": {
+      "hash": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/data/queue.db-wal": {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/data/tool-build-number": {
+      "hash": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/CONCEPTS.md": {
+      "hash": "4859beb481b19657c3a1f63ed93777c6f9c0e0360bc626851b375fb00dee1169",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/EXTRACTION_PLAN.md": {
+      "hash": "1654d9b80dd6de5d9375bdfc9d344043124dc0350cfca06b2b454d40527158a1",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/FIRST-LAUNCH-CONTEXT.jsonl": {
+      "hash": "03033a14bd1936921463d2809f88d5377272237a7213e22641d20b1d72570351",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/FIRST-LAUNCH.md": {
+      "hash": "60fe649f2c7d0cf2dc280a70d87a4ca00c63bcca35a6bfcabaa92ad75c666869",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/PERMISSIONS.md": {
+      "hash": "f03eb1db3835103caa385024b7f9c4cfb826415331e1c531d9499853ce903608",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/REPO-RELATIONSHIP.md": {
+      "hash": "d690c048f9fb9afe93cf60c84ca57c25f285c425803d6fcb4067044ede058b3c",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/SECRETS.md": {
+      "hash": "41cbf50d18402f79b7e6386d8151bfa7634a79e5ea75ac3e1f796046ad012a3c",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/STARTER-PACK-INTEGRATION.md": {
+      "hash": "a17e54f52f3dfef39e2dd15a9cf35762d3bbfb222d2b729b0557b5d8681a8cd0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/TERMINAL-INTEGRATION.md": {
+      "hash": "7c87591f0723bc642c478fe335ddec19159294e98faff05cc6529ad340a043a8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/TOOL-LOGGING-PATTERN.md": {
+      "hash": "785a9146b09ac24b6a257c37c4674b95e9dd2e4d56d7323ce83ad4f08f56fdf9",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/WORKNOTE-mvh-build.md": {
+      "hash": "75d4da406d598ee46d8459a7b0ccf60f1e0a371ca3d1862d85a9546c772efc76",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/WORKNOTE-parallel-agent-case-study.md": {
+      "hash": "e38b750aac8cfbbbc5c9f523b399fb1f72c1728ee6a52fae5f939507a2f65b4d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/COOKBOOK-SUMMARY.md": {
+      "hash": "f3046edf20930174a1a5569816c6fea213a8c5c59ba1ba990d80f23f879a4979",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/extended-thinking/extended-thinking-with-tool-use.md": {
+      "hash": "0571762163095d4f8d69cb3877a1ef86f1c9eb8d01a8dbc782db3fc2f55e5aa3",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/extended-thinking/extended-thinking.md": {
+      "hash": "5990dc4732b417d498726147999274cb58908d702fc43aabca3d854343197b9a",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/optimization/batch-processing.md": {
+      "hash": "4cce2be195a4876ac4a938d865cf2c52080de9dfd42af86b5d0b67ce3087b014",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/optimization/prompt-caching.md": {
+      "hash": "1de822f09020d98e6ce72efb699c4d96bdd8ceac668e067c09d8969bbc5f46ed",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/tools/automatic-context-compaction.md": {
+      "hash": "9c2ded3e0eb2427c54c2c08680e3301721f4c26bb247a33b629d8b6a003b5a07",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/tools/programmatic-tool-calling.md": {
+      "hash": "d15cdb593a56422bebe67e8581baaef8d6ca30004d13ab1e76a545cae24f09af",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/tools/tool-search-with-embeddings.md": {
+      "hash": "241ba07810f6e76f632735d51dc8e10fb6ccf0527dbc190ce871f3a162a8bacb",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/workflows/basic-workflows.md": {
+      "hash": "e7e337eca5aa5ad13b86de70f6460e6025d5828d88969c0a1e9c8544070e3339",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/workflows/evaluator-optimizer.md": {
+      "hash": "adb5fae8116f5be465cbf01256087dd37960087d3b93257a49be647fbb8a2b6d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/cookbooks/workflows/orchestrator-workers.md": {
+      "hash": "fbbfe47ab51068e587032ae5b01830ce48a3a1afe6c040af46bbbb2a6aaa75fa",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/guides/.gitkeep": {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/guides/autonomous-execution.md": {
+      "hash": "fd824bd586c5ca5ba305760a25168fcf5485c76a4cc185668a84dacb3d0c736f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/guides/model-selection.md": {
+      "hash": "fc263f4b602d4980e22ae19f9c16728360316b1da22544af729fa63995aa02b8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/guides/naming-conventions.md": {
+      "hash": "8fe59e84ca902a05ba585900c4b0d1b691246751f8d883f6b706e6df3d199630",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/guides/pre-commit-workflow.md": {
+      "hash": "a7e1a0f9378a98ef3c7cf65d54d8840352de6a8691f574c0a5f18f2bd76143cb",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/reference/.gitkeep": {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/schemas/README.md": {
+      "hash": "1a59cd6364499d239712677106e4d9bc2572005306c1ada0063c96fe3a4eb271",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/schemas/manifest.schema.json": {
+      "hash": "292bb97b1ae2e756e7a1bd6070359fd5c448d775b3d15e7018bf86da5c98c0f2",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/schemas/projects.schema.json": {
+      "hash": "4cac7fd2db921ae2725173e5b72dae65345a4c4bd26c896c821b9d90bc5b4f98",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/schemas/registry.schema.json": {
+      "hash": "5c5faa731053e15a77be023052e8c5ae98e107bb996a09451eea90eba00cab94",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/tutorials/concepts/agents.md": {
+      "hash": "89b7731ed3050cb8dcd0601b75ca9197556c1d2ced85c96e91c8e00327901fee",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/tutorials/concepts/principals.md": {
+      "hash": "ddff9602e67541831ca4a24b5530325f0d0d939c523a0b350d6ac5a4b443978a",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/tutorials/concepts/workstreams.md": {
+      "hash": "196a801036650f3f9fc5e2570fafc2f5c7599d2e294050f3fd206236e4626dd5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/tutorials/existing-codebase.md": {
+      "hash": "1ac89d1c21948520a699cb0bee90cf5da0a41184286e5b5aa185cc0096f4cc9d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/tutorials/explore/agents.md": {
+      "hash": "c992114fa0ab31c1700573a5e1f3417976d85f9a1e781fdacc9c5d9de440993e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/tutorials/explore/collaboration.md": {
+      "hash": "bbb515b74e34c231b38e40042272e73baea015b911803178d0a870f356a7f9ec",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/tutorials/explore/tools.md": {
+      "hash": "0788413a7e362623ca8a8751aa1876159a0a422f801624855d18434b3d38c43f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/tutorials/explore/workstreams.md": {
+      "hash": "cbe6df08b688a45faaacb7abe1fab0d34ec3b7478c148aeba7c046f8e0fb6a24",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/tutorials/new-project.md": {
+      "hash": "edd11a12365bd6071f8596bfe21670f2a493726bcb304e2d50d91698aba5c4b5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/docs/tutorials/quick-setup.md": {
+      "hash": "efb2c798ac1c2eb43c1c3c49dbe08bd5def6382c7ca3a135cc8bb010c1011666",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/integrations/claude-desktop/CHROME_INTEGRATION.md": {
+      "hash": "ca4f5240e31da815888788011c80f40a091902ea2517cb6d6c41fc201c464bdd",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/integrations/claude-desktop/FEATURE_REQUEST.md": {
+      "hash": "b52f9f9a0f3318101794c17d8f8a2870de5a922b3016f6fa65e409ff10df8f5f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/integrations/claude-desktop/README.md": {
+      "hash": "666d7c45b706dfce87c34ccefc7784a074d51cb214e95c05a6a03baca9e93fc6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/integrations/claude-desktop/WORKFLOW.md": {
+      "hash": "9839d38fe8cfc0159f78cf4fad3b00f03f4d9b5a438a242ba7ca994b6d723437",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/integrations/claude-desktop/agency-server/index.ts": {
+      "hash": "ae0f9a332d99520ac8790fb6b6a01e3eb20a5157e7fbf9258584805a3f14afe6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/integrations/claude-desktop/agency-server/package.json": {
+      "hash": "242183acbe1bc044e7ac7484da6d6774b8b958da6887a202d3b9a877fa05cd94",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/INDEX.md": {
+      "hash": "edf07baa4f050c7ff17fd57798e0b737ff1ceb665f96e047b406da41856a0833",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/claude-code-startup-behavior.md": {
+      "hash": "59a8b790e2b838d91e54e5e3ac827831f03d857d6b365316df5a7a566975d57c",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/claude-code/01-overview.md": {
+      "hash": "f0bab844cbbc7c8ccff1d20d6fe404c1c4a3452fa159ff194cf5aa889f47deaa",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/claude-code/02-installation.md": {
+      "hash": "233785fa51ac1c4996351240ff7550dbcdee990e54b308f0a12d000a28a2eb1b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/claude-code/03-quickstart.md": {
+      "hash": "be73f5615a2ee967ebf4aa33e42708aa2fd535e307f27b6b5be42e9393b389b1",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/claude-code/04-commands.md": {
+      "hash": "460b268993d60ed7a3f7dcf773565b801794a63f8805f0c29ccf4dcea59a92ed",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/claude-code/05-configuration.md": {
+      "hash": "ad60c337157f22cd6d05bc4ed36e1fda923c88f9324296aad69fff7355cdf44b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/claude-code/06-best-practices.md": {
+      "hash": "64e047b4630c1187cadddde2a44c3a1bb195afa137b6203f523ee8d4f260a8c2",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/claude-code/07-advanced.md": {
+      "hash": "92a1117832f4a9b1e83c8aa6a9f85ba1484309c420c23c2cc821a6687c51b42e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/claude-code/INDEX.md": {
+      "hash": "a279d37d5463f837ff66ec82c86d30750b90ab9ec3b576f703310836cd3d68b0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/INDEX.md": {
+      "hash": "ce82bd8b8508875a9e0640021c1c873e483a28ab98081c028c052c2831768d16",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/_template/EXTRACTION-GUIDE.md": {
+      "hash": "effb83d45b66d1f4caac9af422b32d0674245235276cb4565461e78bb3b12cc5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/_template/GAP-RESOLUTION.md": {
+      "hash": "13296e48def5d2ea6b4d1e9ded4c0a1abbf8ec4c822bbccfcd2294b5464e67b2",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/_template/GAPS.md": {
+      "hash": "7d46e9c3f940d0d3575874af56f591a6e82467db3d1b935b9170fd1ee59b788f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/_template/INDEX.md": {
+      "hash": "2d8419f4613c77541947467b8b175844b353a52787320bde988db84dbadf192d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/_template/assets.md": {
+      "hash": "c4ddb97c457763da522e4da954495e27340dfbb3a51be3c955d1187bec3e69dc",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/_template/colors.md": {
+      "hash": "b99586e3f70324aea568015ff92f3578c8bddeb1a92759e9dd34855ec172c77d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/_template/effects.md": {
+      "hash": "6bf6aeaa01b65562ae10bd4ad2f5b274783e69cd3d0bb1c5d764ab67e8df4e9c",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/_template/spacing.md": {
+      "hash": "05d16c205c8384349ff5706092fe9ccdd5f2e5c4765f1cee394d24d5536abbab",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/_template/tailwind-config.md": {
+      "hash": "6c6b6ed6e7a9f08c11baf16cc67a714b97172e737ea57a015541ba3fcee15070",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/_template/typography.md": {
+      "hash": "6a2e2f70a297349a83d3ab0475c39e2e17bb12bf27240b1125e9159f8fc301bd",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/GAP-RESOLUTION.md": {
+      "hash": "5d10c7290cf817fd9b80b4f1cdc5144258537c9a3ba272ec4bf53f61819c3ca4",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/GAPS.md": {
+      "hash": "26676668bc6b402246b3031c7c4f83fa9789a316a811578a067e86ba933ac1f9",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/INDEX.md": {
+      "hash": "da8dfd4c34f897043ac8d75518a6295d0d2bb189f71f48141289056e827368a4",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/assets.md": {
+      "hash": "202b95e4fbfa9a90171a77dce60288754c2e88de7af56f00531c6b1fb6d2e458",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/colors.md": {
+      "hash": "221179e167fc6466db939759e9624af13e4d5fbbc6dffa8f722201c40c8e8814",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/effects.md": {
+      "hash": "bc45612a01c65f0408bc58b2290338f14fc03e848f2c4f957407a7ed2b4375e6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/source/colors.json": {
+      "hash": "f511b38b9992dbb7465fd6a08fc57055580325e9828acc81d040456ea2973e34",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/source/figma-file.json": {
+      "hash": "67660d9e8b357a8336e1e04860f61df34dd1f7beaf4544277ae3bb34a871389e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/source/figma-styles.json": {
+      "hash": "9c14b97c61d39df78e365ecf90fcc461a9a8c70986f3ce0b53898310e13bf326",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/spacing.md": {
+      "hash": "d69add034c091066fb680042616685790b804ed9d94e618d08a504fc9e11e8f4",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/tailwind-config.md": {
+      "hash": "5de34f5f1eb7e119ef4dc5f58111a3faa8f6adc24e3d7f10b1a6406b1bec9c30",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/design-systems/ordinaryfolk-003/typography.md": {
+      "hash": "c64a6036cffb0b6632c9f4844a17739b8fd0cc68b400b09f45c2da461ef6289b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/ui-development/INDEX.md": {
+      "hash": "2eda5538976c19fb90a06c4545fa8256a284c25466bfb3c17f5a4a126c67d850",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/ui-development/figma-workflow.md": {
+      "hash": "fe6207ea57e181be471e8496882e25f83d279a7ad3536d5339c9cbab687881aa",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/ui-development/high-fidelity-implementation.md": {
+      "hash": "a668e17558ba05a2410fc833f1e6483676fe7cdc3be701be9e5dc8c8e926b6ea",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/ui-development/responsive-design.md": {
+      "hash": "f7b043f1588f24099ab4d7e0ee32dd65858b3a49778f468b50c993d5d6ee52b4",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/ui-development/tailwind-patterns.md": {
+      "hash": "4d3510ed4374e1b901d69f52d1c3be151330decbf9a3d6b65047cd2b988b78d8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/knowledge/ui-development/visual-qa-checklist.md": {
+      "hash": "e9c22d734b027e959c3d112ac358b9650a47a86e1a996ff0b04b5e8a5e076745",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/logs/compare-starter-20260110-170801.log": {
+      "hash": "efa270f4ea454f30fefeb7150d6ca8ce784afd0e9cd7a0c0ed9e056051a53f84",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/logs/compare-starter-20260110-171920.log": {
+      "hash": "5aa686ecf2989cec5c87854ecfdc3ac5bcb65b3ccbbfe9c4b25e0eea197b03c4",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/logs/compare-starter-20260110-172247.log": {
+      "hash": "bb7506bd0ef8f5df623a4265497737e23ba7ef923722a9a8f326548ef179e8db",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/logs/compare-starter-20260110-175321.log": {
+      "hash": "e71e5da61b4ee0cacbb7d7af05b7d92ce18f1414d2c5789b8b8db9ed329f189a",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/philosophy/PROP-0016-right-way-fast-way.md": {
+      "hash": "77929e6144cb7dd5391f9123b057941f42beccc8bad14a4b8583556b7ed5b0b7",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/.prop-counter": {
+      "hash": "238903180cc104ec2c5d8b3f20c5bc61b389ec0a967df8cc208cdc7cd454174f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/INDEX.md": {
+      "hash": "38298b8037cf5d6a79251350e857111861ea43a453793db8bda3ab8c76b88110",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0001-tool-ecosystem.md": {
+      "hash": "63784ce06af74e2761af29319748d230e7030f8cfb5f9413786e8ffbbc90875e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0002-work-lifecycle.md": {
+      "hash": "fc9fa1602d509cbeb32fef2f8de4d211e5e01378612aea93019c0cd4ddc8896a",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0003-context-stack.md": {
+      "hash": "35452d80d08cfa37896b1163cb81aceeab702f339cfdcb83a2916bf4c034c8cd",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0004-hello-world.md": {
+      "hash": "f476ac3452e3c07c5e768430461663f616e93c054d1fde70d0725983dd83000e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0005-path-resolution.md": {
+      "hash": "cd856a65736a8fe883c571ac05454bb092f27d3a7ade203b751e723f91b828db",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0006-distribution-structure.md": {
+      "hash": "3b31263668383bd52adc05b99a6543ed70a8a1c4a471cd1cfbe528f2ac7d42b1",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0007-session-capture-book.md": {
+      "hash": "0bbc69f9b4f048eca0c5e149d4ffa2c06372f321277a37406953c032e6299c3f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0008-markdown-manager.md": {
+      "hash": "48a1231de0799d9105c9d276c753841420ce523a677d48bb1b26c4e41898d36e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0009-proposal-system.md": {
+      "hash": "6a66b62b6a9450ad4ef2e805d095a1689ea3e3e15c205fcda9253acf73c40705",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0010-pricing-model.md": {
+      "hash": "a9cdf38ffb84ab68b89baffc7222dbf50b1b5935c108c708bbde04a191f18ebc",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0011-workbench.md": {
+      "hash": "6de1fa20562a7769a1ba3b271b87737fc843b29e4eec47ee3a7a7a44af1925d8",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0012-open-feedback.md": {
+      "hash": "06d16a6fce75544f495f422785aaf32d49faeb241acd59bdec7e128e42d35f84",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0013-open-webpage.md": {
+      "hash": "eadf87234777ede46a1f6f45cad7182970594b171c127f72dab527254d116fc6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0014-knowledge-indexer.md": {
+      "hash": "7a784fe01bd728db70814777e97d5f18413de46813e954714cac390c51db8a2f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0015-capture-web-content.md": {
+      "hash": "196f141b53e1698245b44d04a6d072234a94166ea1c418518fcff63c54e9aaa9",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0017-narrowcast-messages.md": {
+      "hash": "c6289fd0914bcb935fab7717a37f1367e781f948efe47ff1993f47f57373c297",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/proposals/projects/agency/PROP-0018-cli-integrations.md": {
+      "hash": "f1ddbce5fbead975511c788c1a69292a5d223be159fc260070b31a359c6bb236",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/README.md": {
+      "hash": "b0c1ff1ef85d83aa5dc50366c3125ae2d46d5f7345ba46d04e324b96b1383499",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/github-ci/README.md": {
+      "hash": "185d68dda908f51895a1fc380f36ce7873486baa761bafeb34e40476ae92f9b0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/github-ci/SETUP.md": {
+      "hash": "c90f1641c18a80365c242c297ee375f1329602ce0796b83dd45c9e94746eef58",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/github-ci/VERIFY.md": {
+      "hash": "9d5f71e9fee4a2cf9024691dc5340d4646e0e7a42c4fff2b89ccf30aa00f5de6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/github-ci/install.sh": {
+      "hash": "c520474512b812ec644d61ece36cd485b82aa536848128b4abefdec435322381",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/node-base/INTEGRATE.md": {
+      "hash": "a095ed7f7ca92f44506ede7950f11eae9b4f58041a33dffc1b54649f058cdbff",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/node-base/PREREQUISITES.md": {
+      "hash": "7cc7ab234a1ebc598cce09286edfe1d75c4b409eeae37f5330f387117eeb409e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/node-base/README.md": {
+      "hash": "5c65bae4fd7810debd1f0af676a83db39548043dd8286b14a23cafd7c490277b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/node-base/SETUP.md": {
+      "hash": "37d282a547366013fcb6564284150ce8afcc37f7b306fe79c8d61080b26f203c",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/node-base/VERIFY.md": {
+      "hash": "1aa6d4e8148598471d571808e633614e1845b894bf15a3b8104bead7387eee14",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/posthog-analytics/INTEGRATE.md": {
+      "hash": "3f12ff9cdd1edac93e9b3a56d197c2fe9ac7bb3a2b149a12f61bd1a876fe6790",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/posthog-analytics/PREREQUISITES.md": {
+      "hash": "a94ae922dd700e70583efcfee66673f780eb2be1d7b7ee006e500d462d5604c5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/posthog-analytics/README.md": {
+      "hash": "f65679f5afab68937c7e0b6ded7851ca68a6a9df0d4363c06695a777fdd842a0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/posthog-analytics/SETUP.md": {
+      "hash": "606abde50f665b2773fba65e771eb74c7b694425db90c6a4d5b9674670d95a28",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/posthog-analytics/VERIFY.md": {
+      "hash": "0577c358825b551367a64e268d15d399c04521f00cc8289f885f6294d589101e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/react-app/INTEGRATE.md": {
+      "hash": "86b18c26c2b1b0e1f37a745a48d64877cbfcb52a8da40e7978897ad4aa942294",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/react-app/PREREQUISITES.md": {
+      "hash": "d7acc4560c3fafc97a70030deb02ea4afa8af83e68c79cbd4456234bd306da05",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/react-app/README.md": {
+      "hash": "e5d89c352ce244417ff0044805c093daa2b42299ed2418cbc9f4948336811ce7",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/react-app/SETUP.md": {
+      "hash": "b7be53280110cc83d4cb61d53249c646448e26f7dcba74654c49f5e885eaeaa9",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/react-app/VERIFY.md": {
+      "hash": "c17c69cb97d44922fbcbfce94f0b1e2878efe53c93fb0662b2707315f2b186e3",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/supabase-auth/README.md": {
+      "hash": "2b4fec8dc30b71435c5faaf388b2605d472e2367a07597f9787e7c0b8f4fa59b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/supabase-auth/SETUP.md": {
+      "hash": "04b5ec353382035573e0bd3f25b4e7be7d389a7f7aaccd1baabf5e97a61758bb",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/supabase-auth/VERIFY.md": {
+      "hash": "172d9c9d661a6424b1235514ff0c2b4a6abacaf29017ba74780b8c9c634f6153",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/vercel/INTEGRATE.md": {
+      "hash": "11b028ffcbadfc4a9dcb97b0a9ebd8c47273c18c8e3f9a6642537160351d1953",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/vercel/PREREQUISITES.md": {
+      "hash": "1a366cd603e7e7626fcc684ec6b50356c6fb802933288672357d4da6ec26eba5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/vercel/README.md": {
+      "hash": "7c1e56e5c3ef5890b9a68ff7b03683d3380bece037fca85abdd22135f2336bd3",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/vercel/SETUP.md": {
+      "hash": "aa845fb37511f1c3306c9b526c19157a82b6ce4ae259ddc8a8104c85e9e57596",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/vercel/VERIFY.md": {
+      "hash": "433294f2779a503c8ced84e66fb0793ad5acd977c0f74903d90aa6123ec1a3c0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/starter-packs/vercel/install.sh": {
+      "hash": "b62a8ed8a300a69eef22b68175b3078debdadc6da7e1be196371efc6e20b97d0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/templates/IDEA.md": {
+      "hash": "17f9e0901d74ba165afef4353a0450bb0b8085316b98608ae08d00b0f69208f5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/templates/OBSERVE.md": {
+      "hash": "c5f9e4e4b98c747c9dcd25452fce925171df64e6e5f5dac9bc28e77dd402dc56",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/templates/REQUEST.md": {
+      "hash": "8f95b784a3a7f0f13b5a4edb1fdde32708a56f53716f92373f1bc022a5f938c6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/templates/TOOL.sh": {
+      "hash": "2d1f60c55edcb3ded0007961cba37a69bd11434183ff047173fa56d9c66df320",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "claude/workstream-agent-nits.md": {
+      "hash": "930723193874f78afceaecd1a54aa52f01cfbe7f060b7bd3dd31961249db714c",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "agency/workstreams/housekeeping/.gitkeep": {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/_log-helper": {
+      "hash": "d9bc4f8871bee8d78358f5a61ac4eb6f7cab00737655e1b148a3a9b461c10100",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/agency-feedback": {
+      "hash": "12ba2d32359f9ead9b112d84f779a2ed545af6251aafde5feaccea1b133eb8c0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/agency-service": {
+      "hash": "07d2308b2ff0468b591e46828d8d06273db6f616a6fe3e866682b9a080962551",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/agent-create": {
+      "hash": "085954b22dbff2e68c32c13e93f503a613bf92e8730acc1e8882e33906a655d2",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/agentname": {
+      "hash": "1ceacdfdbfceb5f65aaa4858cf2218c31260a9c6e225d89828621718b551b240",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/artifact-capture": {
+      "hash": "e4e327c953b9a4293795bbb6fa86fbbc6ef1695bf960621780a35b0e7825984f",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/artifact-index-update": {
+      "hash": "f09d73d71b7d3cdadf7fdf58b2b4f2a3c17573f0c4d03c0f38c0307b08609fe9",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/artifact-list": {
+      "hash": "732beb65ddeb51b6895e0520cbb03629cad2079c1b02e8a0ff58286fd8d1ae2c",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/browser": {
+      "hash": "4830fbf0cb0c3da26c71014d4717d355711aabb99b5748a9d4251f243d2ef32c",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/bug-report": {
+      "hash": "f5f0d31a131ea8060a65e3167f6b98f12ff32bf915ecc27de79f33e79498bc2d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/code-review": {
+      "hash": "c4346f07157f61267013305c2e4fdc1c12bb549e35c657b842d4e9e7c24b57a0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/collaborate": {
+      "hash": "b4d80c6fde0c75c3e417890420070fd782cb0061089bb1d42ac93f8385aaefc5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/collaboration-respond": {
+      "hash": "282838b2a84358e30a6587a05a4ee1bcb1a29bb8f9184de8bbb6416b86a35d79",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/commit": {
+      "hash": "503a487b5416457212548be65c6c80671db0ec5997f3d6175e9bd3a0a931be2d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/commit-precheck": {
+      "hash": "bcf031ebe0b06b09cf8678c1d6add5c5b7a86514df6f8aa79a71804db73fab6a",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/commit-prefix": {
+      "hash": "95ae91cca7fe30a7dcb21e27cc8ccb5766c7ecc852b36d6a5bd13f00d46d9872",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/config": {
+      "hash": "4dd3400859a653c85651a285d07535e96db21815954ab3c6ae8f24e29e6841e7",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/context-review": {
+      "hash": "efafb363d30329b3d12a4d8ee89dcbfdff8eafeb83d14ab00663c6a321511009",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/context-save": {
+      "hash": "25b3d758a022d8ab06a3c960cdf0687ad7174cf1332428ff1f9b910cac17634d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/designsystem-add": {
+      "hash": "05d51dfb0dc82ee5cefd872ff770373e7bf3bd68d477d7194db404b6c65dd852",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/designsystem-validate": {
+      "hash": "9da812e1edad72027a35ca6120f57622d63ca67332b255a4440c7b7b86aed19b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/epic-create": {
+      "hash": "9ce51f9f360bd8a8de493cc935ac0a902a64719dfd99b50e16273217e07cd0ff",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/figma-diff": {
+      "hash": "45a19e7c9df1fb8654db52f097534fcd8646ffc82088e8e8e76201d95e92ce5d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/figma-extract": {
+      "hash": "446934909ca4bd6eb53153e40a245640f93bc36f0b06cd06a96c2ea108eb13ac",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/hello": {
+      "hash": "74332be4f44a37f65b4301c8621199361989a5a0f17f8f80d6928e7fce2442d5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/hi": {
+      "hash": "35c0102bb4403feb21bd2825aa81f420a545c6d18e6c990fafedbfa948cf07b0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/icloud-setup": {
+      "hash": "d80b35db9c6335e8f5cdb2c7be99e51dd5494711ef45b2c14d28502166253cc7",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/instruction-capture": {
+      "hash": "c1cd9ec0f551a51c7fa950b0a70cc040353a7e11dd744fb926b3bc244faa4094",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/instruction-complete": {
+      "hash": "c85d49c5f454a146562507cc2eefdcaa4ce33a45755d3a07371dc328f71f0706",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/instruction-index-update": {
+      "hash": "937d713e640776ea6efa9cd68d00179b8961f1e8d323e76f8767a923635842f5",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/instruction-list": {
+      "hash": "f58625903c19026c6c8b0744feccb4c19d0d127ac7370769e44838257de7a50d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/instruction-show": {
+      "hash": "09249cbe66df53c85988df8d1647c761b94fddd680e60710fbf9e558ce8d98d4",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/iterm-setup": {
+      "hash": "e9eae76a774a267d2f0f33528bb9dd34f0839ef9729792209ae095a667a35bf4",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/linux-setup": {
+      "hash": "2d2632a065110adbae6cad6ec156aca8c6a365338cc9ab66080120d40fb5b941",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/log": {
+      "hash": "baf2a123b924c0a247eafe357dcb620aa5a560431581c91c1421bd86fd677f92",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/mac-setup": {
+      "hash": "fa36761fa6fe74fa143497b86730b1e6ecd188a7b58192eaf68a6eaf55ee661b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/message-read": {
+      "hash": "7a5db4bc3e4fd29c5f7fdb6687dfa914bb1b3a2d3e844a05b3fa13602034ff7d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/message-send": {
+      "hash": "a3665d33b058dfbdd63cc576879bf442c720297e52eff25244c300c37b8cd38e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/myclaude": {
+      "hash": "ea1b194f421990cce856495c1a63664acd3e1be90193c46dc715d76de25198fc",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/news-post": {
+      "hash": "bc19fa9457b84a88268476c5548ac338b8b77b0a397650bdedaa3913e7be1a0a",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/news-read": {
+      "hash": "7ec32735ac83765c95deece7bc237add2baac3e7592ac520e8d6348dab6c53cc",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/nit-add": {
+      "hash": "53b83f4c4575d5512bfbd08a26c5eb196f8bc10fbf4feed5e2ba0702897c8106",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/nit-resolve": {
+      "hash": "10d8a37925665931abe88bb866afed2bd8dc45c28b72b57ba3c8dfca62152c2b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/now": {
+      "hash": "6687a4460049ec431d01d0cff7bbbe2301cdcae2f09564d78fe7cb43e1d0c4da",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/observe": {
+      "hash": "b7b469750bee54808a704b1b4fa135926699529deaf2cb4e16335297804f9908",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/principal": {
+      "hash": "cb0ac540bee167b7c8ce7a2d66d31de30821f0bd0ed5fbea0dfdaf021bad10c2",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/principal-create": {
+      "hash": "f55d0cc10f005527a29b1877adc1b14bd38f37078c1be73fb717c5c61c8033a6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/project-create": {
+      "hash": "add72bca45ae31aeb548b43fcde776e82a804e1684baa52af7c90bc292ec75af",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/proposal-capture": {
+      "hash": "6b4b0607d05a73c44e483746f545460dcec6cabc1c3ae56618abc1b306b3305e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/recipes/README.md": {
+      "hash": "bf9d855db6f76db3cef48661099abcdba821955c4159e16cb02066bf2f3cc42b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/release": {
+      "hash": "fa61274d7c0eae7eb0902606d38e17a5915979c6c036870ce0379df66d7a9c02",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/request": {
+      "hash": "9a3a45074c88f49849df09402560052b48058ad0401534820842c09574ccfcd1",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/request-complete": {
+      "hash": "397b95919e7c32f0af696e76ecf991b4573266157629c5505f7b83f71796b571",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/requests": {
+      "hash": "e2885e771973c0cc700ba376419275996f6e9056d78975940e9b088d4b39310d",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/restore": {
+      "hash": "cf110e89e48b909de7f4e910eebceae198a2e01b07330dd56b2cdedf685c3082",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/run": {
+      "hash": "66f22e916e70f3dd62c968d69c22ef5e589174b87243212b29c155c870ac9302",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/secret-vault": {
+      "hash": "35737d7ba1f7259004906348f537a769cc72280b1af5333be55c3f35c079143b",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/secret-migrate": {
+      "hash": "0b4ce92af484e86a29fb8ec0c128f612eccb2a82f5505b6e76e61835cc8e9813",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/session-archive": {
+      "hash": "9b6330ffe0b81e3e3f0270ea41726a966cd85509df4fc283c554e2a6d64f8e1e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/session-backup": {
+      "hash": "ba69cf36345401adbf0ad8764e9d55aeca5dc8254807bc16939ee30872c181a6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/sprint-create": {
+      "hash": "c6ac2185577a2d3db524121ff8223c0e34059abeceef41ecb495f543f1385bbf",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/starter-cleanup": {
+      "hash": "ca4ee9491a912b32b75c8000e299aa98698a3cf3dfb269aa3abc11b188169577",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/starter-compare": {
+      "hash": "89c2726b4a15c079b8049c40720bca8f30cbc04e483f591d67558856528cf3ad",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/starter-test": {
+      "hash": "62cff5a24ccafcaea881d94cd514fcce9617dfcd4eb18ed4ac807591541a0dbd",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/starter-verify": {
+      "hash": "76cceb7da8c0921c06a0d42786316cc2bf44f75e0a27e5d188d10c182ecb3e27",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/sync": {
+      "hash": "d828095d902c051b37825845d706f258d304af50045da6e5a4bcbdfd59c2ead0",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/tab-status": {
+      "hash": "1b12b22a42b82f2b0ec00e80c1f66a97d2805a3c1cd88b6b697db2c533eac7ae",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/tag": {
+      "hash": "7732b9bcb54a92ae163cc104dfb34fc6fefd41da1c794dd6acb90172c4a6df64",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/test-run": {
+      "hash": "857f065f7dfb60ac447a26c0c535a3acde66a2b6f5569009a8db8a58bb4a348e",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/tool-find": {
+      "hash": "29f1b18126b36b016f14e2b7c572580a37ab57351ad1cde10f28d722ec111875",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/tool-new": {
+      "hash": "089747ff78a4223c78a6bcc30e7b56a4823bcd389db0518ce97c2770c9eae112",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/tool-version-add": {
+      "hash": "8b20a6a46df795931ac4a9dc72817e9d5dc3298e6488af98c57353e160e644ea",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/version-bump": {
+      "hash": "d2806ceffe7dc77f004b6951ea55ea6aa3efd1c1623c63ab664fed6f387c1543",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/version-next": {
+      "hash": "3ac7f42d121aad80a149526eb84a3166afd76c0489e2e753b4861f5271ec1650",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/welcomeback": {
+      "hash": "04fc0bce8fb2b8fd2a4d5ef98d42aa4a8b9b938c29ec3b0ecad08098f92ea0f6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/whoami": {
+      "hash": "49440ae01d493c6a4d689e2e282310b32793b04e55be61e81a3c6cf5a82f4257",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/workstream": {
+      "hash": "7eb2b01eedd237c8f216e19da5e550687caad97f0bb41f2c5dff5768aa8ecca6",
+      "modified": false,
+      "version": "1.0.3"
+    },
+    "tools/workstream-create": {
+      "hash": "2956eb1ac6aaba747f632598a84772bcaa7e5226ae3a898b0398f4dd446e0be8",
+      "modified": false,
+      "version": "1.0.3"
+    }
+  },
+  "updated_at": "2026-04-19T14:26:35Z"
+}

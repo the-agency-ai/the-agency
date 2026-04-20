@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: git commit
+---BODY---
+'git commit' -m "msg"

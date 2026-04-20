@@ -14,12 +14,12 @@ The skill's `argument-hint` frontmatter mirrors this CLI.
 
 ### What it does
 
-1. Resolves agent identity (`./claude/tools/agent-identity`) — aborts outside an agent worktree
+1. Resolves agent identity (`./agency/tools/agent-identity`) — aborts outside an agent worktree
 2. Verifies tree clean, branch pushed, origin matches HEAD
-3. Computes `./claude/tools/diff-hash --base origin/master --json` for the receipt lookup
-4. Globs `claude/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`, picks most recent if multiple
+3. Computes `./agency/tools/diff-hash --base origin/master --json` for the receipt lookup
+4. Globs `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`, picks most recent if multiple
 5. Composes the dispatch body per `../reference.md` schema
-6. Emits via `./claude/tools/dispatch create --to monofolk/{principal}/captain --type pr-submit --subject "..." --body "..."`
+6. Emits via `./agency/tools/dispatch create --to monofolk/{principal}/captain --type pr-submit --subject "..." --body "..."`
 7. Captures and reports the dispatch ID
 
 ### Exit codes
@@ -40,4 +40,4 @@ Multiple preflight checks + hash computation + glob lookup + dispatch emission i
 
 ## Skill-tools versioning
 
-The `scripts/` directory pattern is part of the v2 bundle structure (see `claude/REFERENCE-SKILL-AUTHORING.md` §5). Each skill gets its own `scripts/` namespace; no global `claude/tools/` collision.
+The `scripts/` directory pattern is part of the v2 bundle structure (see `claude/REFERENCE-SKILL-AUTHORING.md` §5). Each skill gets its own `scripts/` namespace; no global `agency/tools/` collision.

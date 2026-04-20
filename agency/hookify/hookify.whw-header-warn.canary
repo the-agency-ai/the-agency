@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: .sh
+---BODY---
+usr/jordan/tools/new-script.sh

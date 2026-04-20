@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: doppler secrets
+---BODY---
+doppler secrets list

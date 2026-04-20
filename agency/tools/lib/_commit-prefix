@@ -1,0 +1,80 @@
+#!/bin/bash
+# What Problem: Multiple tools need to validate commit message prefixes against
+# the Day/Phase convention (Day N:, Phase X.Y:, Phase X.MN:). Without a shared
+# library, the regex and the helpful error message would be duplicated in
+# git-safe-commit, the commit-msg hook, and any future caller. Drift would follow.
+#
+# How & Why: Sourced library exposing validate_commit_prefix(). Reads the
+# opt-in flag from agency.yaml via the config tool. Returns 0 if the message
+# is valid (or check disabled), 1 with a pedagogical error message to stderr
+# if invalid. Pure bash, no external deps beyond the config tool itself.
+#
+# Written: 2026-04-07 during devex Phase 122 (Day/Phase commit prefix enforcement)
+
+# Validate a commit message's first line against the Day/Phase convention.
+# Reads commits.require_day_prefix from agency.yaml via ./claude/tools/config.
+#
+# Usage:
+#   source claude/tools/lib/_commit-prefix
+#   validate_commit_prefix "$message" || exit 1
+#
+# Returns 0 if valid (or check disabled), 1 if invalid.
+validate_commit_prefix() {
+    local message="$1"
+    local first_line="${message%%$'\n'*}"
+
+    # Resolve repo root
+    local repo_root
+    repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    local config_file="$repo_root/agency/config/agency.yaml"
+
+    # Read flag directly from agency.yaml — no Python/pyyaml dependency.
+    # Pattern: under 'commits:' section, find 'require_day_prefix: <value>'.
+    # Fail open (return 0) if config file is missing.
+    [[ -f "$config_file" ]] || return 0
+
+    local enabled
+    enabled=$(awk '
+        /^commits:/ { in_commits = 1; next }
+        /^[a-z]/ && !/^commits:/ { in_commits = 0 }
+        in_commits && /require_day_prefix:/ {
+            sub(/.*require_day_prefix:[[:space:]]*/, "")
+            sub(/[[:space:]]*#.*/, "")
+            print
+            exit
+        }
+    ' "$config_file" 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -d '"' | tr -d "'")
+
+    [[ "$enabled" != "true" ]] && return 0  # opt-in: disabled = pass
+
+    # Allowed prefix patterns
+    # - Day N: (any positive integer)
+    # - Phase X.Y: or Phase X.MN: (X any positive int, Y any positive int, MN milestone)
+    # - Merge ... (any merge commit)
+    # - Revert ... (any revert commit)
+    local pattern='^(Day [0-9]+|Phase [0-9]+(\.[0-9]+|\.M[0-9]+)?|Merge |Revert )'
+    if [[ "$first_line" =~ $pattern ]]; then
+        return 0
+    fi
+
+    # Pedagogical error message
+    cat >&2 <<EOF
+✗ Commit message prefix not recognized.
+
+  First line: "$first_line"
+
+  Expected one of:
+    Day N: <summary>           e.g., "Day 32: fix worktree identity bug"
+    Phase X.Y: <summary>       e.g., "Phase 1.3: rewrite commit-precheck"
+    Phase X.MN: <summary>      e.g., "Phase 2.M1: docker T3 milestone"
+    Merge ...                  (any merge commit, allowed unconditionally)
+    Revert ...                 (any revert commit, allowed unconditionally)
+
+  Fix: rewrite the commit message to start with one of these prefixes.
+
+  This check is enforced because commits.require_day_prefix=true in
+  agency/config/agency.yaml. Set it to false to disable.
+
+EOF
+    return 1
+}

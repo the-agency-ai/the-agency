@@ -99,7 +99,7 @@ Captain's coord commits landed on master between agent's `/pr-prep` and captain'
 [pr-captain-land] Preflight OK
 [pr-captain-land] Switched to jordan-devex-d12-r3
 [pr-captain-land] ERROR: No receipt matches current diff-hash (c1d2e3f).
-  Searched: claude/workstreams/**/qgr/*qgr-pr-prep-*-c1d2e3f.md (0 matches)
+  Searched: agency/workstreams/**/qgr/*qgr-pr-prep-*-c1d2e3f.md (0 matches)
   The agent's receipt was signed against an older origin/master baseline.
 [pr-captain-land] Switching back to master.
 [pr-captain-land] Dispatching agent: "Receipt stale — re-run /pr-prep + /pr-submit."

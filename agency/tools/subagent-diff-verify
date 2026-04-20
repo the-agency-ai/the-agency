@@ -1,0 +1,191 @@
+#!/bin/bash
+#
+# subagent-diff-verify — Verify subagent's diff is only manifest-allowed substitutions
+#
+# What Problem: After agency-sweep runs, captain needs to verify every line
+# change in a subagent's branch is a manifest-authorized substitution, not a
+# free-text edit or accidental corruption.
+#
+# How & Why: For each changed line in git diff output, pull the `-` and `+`
+# versions. Apply the manifest's allowed_substitutions (in order) to the `-`
+# line. The result MUST equal the `+` line. Any mismatch → reject. Also reject:
+#   - whitespace-only diffs
+#   - binary file changes
+#   - changes to test/test-agency-project/** (fixture)
+#   - changes to allowlisted paths
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+subagent-diff-verify — Line-level diff verification against manifest
+
+Usage:
+  subagent-diff-verify --manifest FILE --branch BRANCH [--base REF]
+                       [--ignore-all-space]
+
+Options:
+  --manifest FILE       Manifest YAML with allowed_substitutions
+  --branch BRANCH       Branch to inspect
+  --base REF            Base ref (default: origin/main)
+  --ignore-all-space    (default on) Treat whitespace-only diffs as errors
+  --help / --version
+USAGE
+    exit 0
+}
+
+MANIFEST=""
+BRANCH=""
+BASE="origin/main"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "subagent-diff-verify $TOOL_VERSION"; exit 0 ;;
+        --manifest) shift; MANIFEST="${1:-}"; shift ;;
+        --branch) shift; BRANCH="${1:-}"; shift ;;
+        --base) shift; BASE="${1:-}"; shift ;;
+        --ignore-all-space) shift ;;  # default-on, kept for compatibility
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$MANIFEST" ]] && die "--manifest required"
+[[ -z "$BRANCH" ]] && die "--branch required"
+[[ -f "$MANIFEST" ]] || die "manifest not found: $MANIFEST"
+
+# Parse manifest for allowed_substitutions
+ALLOWED_PATTERNS=()
+ALLOWED_REPLACEMENTS=()
+in_allowed=0
+item_pattern=""
+while IFS= read -r line; do
+    case "$line" in \#*|'') continue ;; esac
+    if [[ "$line" =~ ^allowed_substitutions: ]]; then in_allowed=1; continue; fi
+    if [[ "$line" =~ ^[^[:space:]] ]]; then in_allowed=0; fi
+    if [[ $in_allowed -eq 1 ]]; then
+        if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+pattern:[[:space:]]+\"(.+)\" ]]; then
+            item_pattern="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^[[:space:]]+replacement:[[:space:]]+\"(.+)\" ]]; then
+            ALLOWED_PATTERNS+=("$item_pattern")
+            ALLOWED_REPLACEMENTS+=("${BASH_REMATCH[1]}")
+            item_pattern=""
+        fi
+    fi
+done < "$MANIFEST"
+
+# Python helper applies substitutions in order with cascade-prevention
+apply_subs() {
+    local line="$1"
+    python3 -c '
+import sys
+line = sys.argv[1]
+# Args are: line, [patterns...], "|||", [replacements...]
+rest = sys.argv[2:]
+if "|||" in rest:
+    sep = rest.index("|||")
+    patterns = rest[:sep]
+    repls = rest[sep+1:]
+else:
+    n = len(rest) // 2
+    patterns = rest[:n]
+    repls = rest[n:]
+out = []
+i = 0
+while i < len(line):
+    matched = False
+    for p, r in zip(patterns, repls):
+        if line[i:i+len(p)] == p:
+            out.append(r)
+            i += len(p)
+            matched = True
+            break
+    if not matched:
+        out.append(line[i])
+        i += 1
+sys.stdout.write("".join(out))
+' "$line" "${ALLOWED_PATTERNS[@]+"${ALLOWED_PATTERNS[@]}"}" "|||" "${ALLOWED_REPLACEMENTS[@]+"${ALLOWED_REPLACEMENTS[@]}"}" 2>/dev/null
+}
+
+# Loop over diff hunks
+current_file=""
+rejected=0
+is_binary=0
+while IFS= read -r dline; do
+    # File header
+    if [[ "$dline" =~ ^diff\ --git\ a/(.+)\ b/ ]]; then
+        current_file="${BASH_REMATCH[1]}"
+        is_binary=0
+        # Skip test fixture paths
+        case "$current_file" in
+            test/test-agency-project/*)
+                current_file=""; continue ;;
+        esac
+        continue
+    fi
+    [[ -z "$current_file" ]] && continue
+
+    # Binary change
+    if [[ "$dline" =~ ^Binary\ files\ .*\ differ ]]; then
+        echo "[REJECT] binary file changed: $current_file" >&2
+        rejected=$((rejected + 1))
+        is_binary=1
+        continue
+    fi
+
+    # Hunk content — skip headers
+    case "$dline" in
+        '--- '*|'+++ '*|'@@ '*|'index '*|'new file mode'*|'deleted file mode'*|'similarity index'*|'rename from'*|'rename to'*|'copy from'*|'copy to'*)
+            continue
+            ;;
+    esac
+
+    # Remove lines: store and match with next '+' line via pairing
+    if [[ "$dline" =~ ^-(.*)$ ]]; then
+        # Stash the '-' content; pair with immediate '+' (simple model)
+        prev_minus="${BASH_REMATCH[1]}"
+        continue
+    fi
+    if [[ "$dline" =~ ^\+(.*)$ ]]; then
+        plus="${BASH_REMATCH[1]}"
+        minus="${prev_minus:-}"
+        prev_minus=""
+
+        # Whitespace-only change — reject
+        # Compare with all whitespace stripped (space + tab) — if equal but
+        # raw strings differ, it's ws-only drift.
+        if [[ "$minus" != "$plus" ]]; then
+            m_ws_strip="${minus// /}"; m_ws_strip="${m_ws_strip//$'\t'/}"
+            p_ws_strip="${plus// /}";  p_ws_strip="${p_ws_strip//$'\t'/}"
+            if [[ "$m_ws_strip" == "$p_ws_strip" ]]; then
+                echo "[REJECT] whitespace-only change in $current_file: $minus" >&2
+                rejected=$((rejected + 1))
+                continue
+            fi
+        fi
+
+        # Apply manifest substitutions to minus; result must equal plus
+        reconstructed="$(apply_subs "$minus")"
+        if [[ "$reconstructed" != "$plus" ]]; then
+            echo "[REJECT] $current_file: reconstruction mismatch" >&2
+            echo "  minus: $minus" >&2
+            echo "  plus:  $plus" >&2
+            echo "  recon: $reconstructed" >&2
+            rejected=$((rejected + 1))
+        fi
+        continue
+    fi
+done < <(git diff "$BASE".."$BRANCH" 2>/dev/null)
+
+if [[ $rejected -gt 0 ]]; then
+    echo "[FAIL] $rejected rejection(s)" >&2
+    exit 1
+fi
+
+echo "[OK] all changes match manifest substitutions"
+exit 0

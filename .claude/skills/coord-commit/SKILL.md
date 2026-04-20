@@ -26,15 +26,15 @@ D41-R5 fix: instructions now use the safe-tool family. Bare `git` is
 hookify-blocked for agents (block-raw-tools.sh). Use `git-safe` /
 `git-safe-commit` per the standard discipline.
 
-1. Run `./claude/tools/git-safe status` to see changes
+1. Run `./agency/tools/git-safe status` to see changes
 2. Identify which changed files are coordination artifacts (handoffs, dispatches, seeds, config, hookify, CLAUDE*.md, tools in `usr/{principal}/{agent}/tools/`)
 3. Stage ONLY coordination artifacts — never stage application code
-4. Run `./claude/tools/git-safe diff --cached --stat` to verify what's staged
-5. Run `./claude/tools/git-safe log --oneline -3` for commit message style
+4. Run `./agency/tools/git-safe diff --cached --stat` to verify what's staged
+5. Run `./agency/tools/git-safe log --oneline -3` for commit message style
 6. Generate a commit message with `misc:` prefix
-7. Run `./claude/tools/git-safe add` for each file separately (the tool blocks `-A`, `--all`, `.`, and wildcards by design)
-8. Run `./claude/tools/git-safe-commit "message" --no-work-item` to commit — never raw `git commit`. Coordination artifacts skip QG (no QGR receipt required) but still go through the safe wrapper.
-9. Run `./claude/tools/git-safe status` to verify
+7. Run `./agency/tools/git-safe add` for each file separately (the tool blocks `-A`, `--all`, `.`, and wildcards by design)
+8. Run `./agency/tools/git-safe-commit "message" --no-work-item` to commit — never raw `git commit`. Coordination artifacts skip QG (no QGR receipt required) but still go through the safe wrapper.
+9. Run `./agency/tools/git-safe status` to verify
 
 ## What is a coordination artifact?
 
@@ -43,8 +43,8 @@ hookify-blocked for agents (block-raw-tools.sh). Use `git-safe` /
 - `usr/{principal}/*/seeds/*`
 - `usr/{principal}/{agent}/tools/*`
 - `usr/{principal}/*/CLAUDE-*.md`
-- `claude/config/*`
-- `claude/CLAUDE-THEAGENCY.md`
+- `agency/config/*`
+- `agency/CLAUDE-THEAGENCY.md`
 - `.claude/settings.json`
 - `.claude/skills/*/SKILL.md`
 - `.gitignore`
@@ -55,4 +55,4 @@ hookify-blocked for agents (block-raw-tools.sh). Use `git-safe` /
 - `apps/**` — application code → needs QG
 - `packages/**` — library code → needs QG
 - `tools/**` (project root) — project tools → needs QG
-- `claude/tools/*` — framework tools → needs QG (unless just copying from the-agency)
+- `agency/tools/*` — framework tools → needs QG (unless just copying from the-agency)

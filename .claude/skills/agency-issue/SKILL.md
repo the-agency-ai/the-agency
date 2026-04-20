@@ -16,7 +16,7 @@ Every filed issue writes a markdown report to `usr/{principal}/reports/` with fr
 ### File a new issue
 
 ```bash
-./claude/tools/agency-issue file \
+./agency/tools/agency-issue file \
   --type bug \
   --title "Concise one-line title" \
   --body-file /path/to/issue-body.md
@@ -25,7 +25,7 @@ Every filed issue writes a markdown report to `usr/{principal}/reports/` with fr
 Or with inline body:
 
 ```bash
-./claude/tools/agency-issue file \
+./agency/tools/agency-issue file \
   --type friction \
   --title "Hookify rule X blocks legitimate workflow Y" \
   --body "When I do X, hookify rule Y triggers and blocks me. The rule is correct in spirit but the heuristic is too broad..."
@@ -41,15 +41,15 @@ Or with inline body:
 ### List open issues
 
 ```bash
-./claude/tools/agency-issue list
-./claude/tools/agency-issue list --state closed --limit 50
-./claude/tools/agency-issue list --state all
+./agency/tools/agency-issue list
+./agency/tools/agency-issue list --state closed --limit 50
+./agency/tools/agency-issue list --state all
 ```
 
 ### View a specific issue
 
 ```bash
-./claude/tools/agency-issue view 47
+./agency/tools/agency-issue view 47
 ```
 
 Shows the issue body, metadata, and all comments.
@@ -57,15 +57,15 @@ Shows the issue body, metadata, and all comments.
 ### Comment on an issue
 
 ```bash
-./claude/tools/agency-issue comment 47 --body "Reproduced in another repo too. Adding context: ..."
-./claude/tools/agency-issue comment 47 --body-file my-comment.md
+./agency/tools/agency-issue comment 47 --body "Reproduced in another repo too. Adding context: ..."
+./agency/tools/agency-issue comment 47 --body-file my-comment.md
 ```
 
 ### Close an issue
 
 ```bash
-./claude/tools/agency-issue close 47
-./claude/tools/agency-issue close 47 --comment "Fixed in #52, shipped in Day 33 R2."
+./agency/tools/agency-issue close 47
+./agency/tools/agency-issue close 47 --comment "Fixed in #52, shipped in Day 33 R2."
 ```
 
 ## Issue body format
@@ -87,7 +87,7 @@ Delegated to GitHub via `gh`. Anyone with `gh auth` can file. Comment and close 
 
 ## Configuration
 
-Target repo lives in `claude/config/agency.yaml`:
+Target repo lives in `agency/config/agency.yaml`:
 
 ```yaml
 issues:

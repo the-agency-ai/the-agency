@@ -61,7 +61,7 @@ run_agency() {
     git -C "$tmpdir" init -b main 2>/dev/null
     git -C "$tmpdir" commit --allow-empty -m "init" 2>/dev/null
     mkdir -p "$tmpdir/.claude" "$tmpdir/claude/config"
-    echo "framework:" > "$tmpdir/claude/config/agency.yaml"
+    echo "framework:" > "$tmpdir/agency/config/agency.yaml"
     run_agency init "$tmpdir"
     assert_failure
     assert_output_contains "already initialized"

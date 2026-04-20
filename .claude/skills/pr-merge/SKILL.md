@@ -55,19 +55,19 @@ This skill exists because raw `gh pr merge` is too easy to misuse:
 ### Step 2: Invoke the tool
 
 ```
-./claude/tools/pr-merge <N>
+./agency/tools/pr-merge <N>
 ```
 
 Or with explicit principal approval (only if they verbally OK'd):
 
 ```
-./claude/tools/pr-merge <N> --principal-approved
+./agency/tools/pr-merge <N> --principal-approved
 ```
 
 ### Step 3: Handle the outcome
 
 **On success:** report the merge URL and the next-steps (sync local main via
-`./claude/tools/_sync-main-ref` or wait for next captain `/post-merge`).
+`./agency/tools/_sync-main-ref` or wait for next captain `/post-merge`).
 
 **On branch-protection block (exit 3):** the tool prints the gate that's
 blocking. Two paths:
@@ -80,19 +80,19 @@ blocking. Two paths:
 
 ```
 gh pr checkout <N>
-./claude/tools/git-safe merge-from-master --remote
+./agency/tools/git-safe merge-from-master --remote
 # resolve conflicts in working tree
-./claude/tools/git-safe add <files>
-./claude/tools/git-captain merge-continue
-./claude/tools/git-push <branch>
+./agency/tools/git-safe add <files>
+./agency/tools/git-captain merge-continue
+./agency/tools/git-push <branch>
 # then retry
-./claude/tools/pr-merge <N>
+./agency/tools/pr-merge <N>
 ```
 
 ### Step 4: Post-merge
 
 After a successful merge:
-- Sync local main: `./claude/tools/_sync-main-ref`
+- Sync local main: `./agency/tools/_sync-main-ref`
 - Create the GitHub release (if this is a release PR): `gh release create v<version> --target main --notes ...`
 - Notify fleet (if relevant): `/dispatch` to affected agents
 - Notify cross-repo collaborators (if relevant): `/collaborate send`
@@ -119,8 +119,8 @@ have to read the same history.
 
 ## Reference
 
-- Tool: `claude/tools/pr-merge`
-- Hookify: `claude/hookify/hookify.block-raw-gh-pr-merge.md` (blocks bare `gh pr merge`)
+- Tool: `agency/tools/pr-merge`
+- Hookify: `agency/hookify/hookify.block-raw-gh-pr-merge.md` (blocks bare `gh pr merge`)
 - Discipline: `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

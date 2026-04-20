@@ -30,7 +30,7 @@ Show all active sandbox symlinks across all engineers.
    Symlink                                        Source                                     Status
    ─────────────────────────────────────────────────────────────────────────────────────────────────
    .claude/commands/usr-alice.my-thing.md           usr/alice/claude/commands/my-thing.md       OK
-   .claude/hookify.usr-alice.strict.local.md       usr/alice/claude/hookify/strict.md          OK
+   .claude/hookify.usr-alice.strict.local.md       usr/alice/agency/hookify/strict.md          OK
    .claude/commands/usr-bob.quick-deploy.md        usr/bob/claude/commands/quick-deploy.md     BROKEN
    ```
 

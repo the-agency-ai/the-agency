@@ -19,7 +19,7 @@ Alternative (rebase-before-push) is BANNED by framework per `REFERENCE-GIT-MERGE
 
 ## The `git-push` tool as the authorized path
 
-`claude/tools/git-push` is the only permitted push invocation. It:
+`agency/tools/git-push` is the only permitted push invocation. It:
 
 - Blocks pushes to `main` / `master` branches (hard refusal)
 - Requires `--force-with-lease` for any force push (blocks bare `--force`)
@@ -34,7 +34,7 @@ Hookify rules `block-raw-tools.sh` ensures bare `git push` is blocked at the she
 
 1. QG → 2. commit → 3. confirm push → 4. `git-push` → 5. PR create → 6. version bump → 7. push version bump
 
-The inner push steps (4 and 7) both use the underlying `claude/tools/git-push`. `/sync` provides a standalone invocation of the same primitive for cases where captain has already committed separately and just needs to push.
+The inner push steps (4 and 7) both use the underlying `agency/tools/git-push`. `/sync` provides a standalone invocation of the same primitive for cases where captain has already committed separately and just needs to push.
 
 ## Force-with-lease vs force
 

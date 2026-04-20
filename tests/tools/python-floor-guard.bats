@@ -6,7 +6,7 @@
 # (wrong tuple, wrong message, or accidental removal of the guard) would
 # ship silently — the exact class of failure the guard exists to prevent.
 #
-# How & Why: Invoke claude/tools/dispatch-monitor under `/usr/bin/python3`
+# How & Why: Invoke agency/tools/dispatch-monitor under `/usr/bin/python3`
 # (Apple stock Python on macOS, always < 3.13 on supported macOS versions).
 # Assert the tool exits non-zero with the expected guard message. Also
 # assert that invoking under a 3.13+ interpreter does NOT emit the guard
@@ -23,7 +23,7 @@ load 'test_helper'
 
 setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
-    SCRIPT="${REPO_ROOT:-$(pwd)}/claude/tools/dispatch-monitor"
+    SCRIPT="${REPO_ROOT:-$(pwd)}/agency/tools/dispatch-monitor"
 }
 
 teardown() {
@@ -48,7 +48,7 @@ teardown() {
     run "$SUB_PY" "$SCRIPT" --help
     [ "$status" -ne 0 ]
     [[ "$output" == *"Python 3.13+ required"* ]]
-    [[ "$output" == *"See claude/config/dependencies.yaml"* ]]
+    [[ "$output" == *"See agency/config/dependencies.yaml"* ]]
 }
 
 @test "runtime-guard: 3.13+ interpreter does NOT emit guard message" {
@@ -75,7 +75,7 @@ teardown() {
     [[ "$output" != *"Python 3.13+ required"* ]]
 }
 
-@test "runtime-guard: source of truth is claude/tools/dispatch-monitor" {
+@test "runtime-guard: source of truth is agency/tools/dispatch-monitor" {
     # Sanity: the shebang is python3 (not python3.13, not python3.12), and the
     # guard tuple is (3, 13). A regression that flips either flag would be
     # caught here before merge.

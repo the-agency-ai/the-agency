@@ -69,8 +69,8 @@ Over.
 |---|---|---|---|
 | `branch` | string | `git rev-parse --abbrev-ref HEAD` | Not `master`, not `HEAD` (detached) |
 | `sha` | string (40 char hex) | `git rev-parse HEAD` | Must equal `origin/{branch}` |
-| `diff-hash` | string (7 char hex) | `./claude/tools/diff-hash --base origin/master --json` | First 7 of full SHA-256 |
-| `receipt-path` | string | Glob `claude/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md` | Must exist, must match hash |
+| `diff-hash` | string (7 char hex) | `./agency/tools/diff-hash --base origin/master --json` | First 7 of full SHA-256 |
+| `receipt-path` | string | Glob `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md` | Must exist, must match hash |
 | `scope` | string | `--scope` flag | Required, non-empty |
 | `priority` | enum | `--priority` flag | `normal` (default) or `high` |
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for ./claude/tools/preview — SPEC-PROVIDER wrapper
+# Tests for ./agency/tools/preview — SPEC-PROVIDER wrapper
 #
 # Tests provider resolution from agency.yaml, default fallback, exec dispatch
 # to provider tool, and the missing-provider error path.
@@ -22,8 +22,8 @@ setup() {
     git init --quiet
 
     # Copy the wrapper under test
-    cp "${REPO_ROOT}/claude/tools/preview" "$TEST_REPO/claude/tools/"
-    chmod +x "$TEST_REPO/claude/tools/preview"
+    cp "${REPO_ROOT}/agency/tools/preview" "$TEST_REPO/agency/tools/"
+    chmod +x "$TEST_REPO/agency/tools/preview"
 }
 
 teardown() {
@@ -33,7 +33,7 @@ teardown() {
 # Helper: write an agency.yaml with a specific provider
 _write_yaml() {
     local provider="$1"
-    cat > "$TEST_REPO/claude/config/agency.yaml" <<YAML
+    cat > "$TEST_REPO/agency/config/agency.yaml" <<YAML
 preview:
   provider: "${provider}"
 YAML
@@ -42,12 +42,12 @@ YAML
 # Helper: install a mock provider tool that just echoes its name and args
 _install_mock_provider() {
     local name="$1"
-    cat > "$TEST_REPO/claude/tools/preview-$name" <<'PROVIDER'
+    cat > "$TEST_REPO/agency/tools/preview-$name" <<'PROVIDER'
 #!/bin/bash
 echo "mock-preview-$(basename "$0" | sed 's/preview-//') invoked with: $*"
 exit 0
 PROVIDER
-    chmod +x "$TEST_REPO/claude/tools/preview-$name"
+    chmod +x "$TEST_REPO/agency/tools/preview-$name"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -56,19 +56,19 @@ PROVIDER
 
 @test "preview: defaults to docker-compose when no agency.yaml" {
     cd "$TEST_REPO"
-    rm -f claude/config/agency.yaml
-    run ./claude/tools/preview
+    rm -f agency/config/agency.yaml
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"docker-compose"* ]]
 }
 
 @test "preview: defaults to docker-compose when agency.yaml has no preview section" {
     cd "$TEST_REPO"
-    cat > claude/config/agency.yaml <<'YAML'
+    cat > agency/config/agency.yaml <<'YAML'
 project:
   name: "test"
 YAML
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"docker-compose"* ]]
 }
@@ -80,29 +80,29 @@ YAML
 @test "preview: reads provider from agency.yaml (quoted)" {
     cd "$TEST_REPO"
     _write_yaml "fly"
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"preview-fly"* ]]
 }
 
 @test "preview: reads provider from agency.yaml (unquoted)" {
     cd "$TEST_REPO"
-    cat > claude/config/agency.yaml <<'YAML'
+    cat > agency/config/agency.yaml <<'YAML'
 preview:
   provider: vercel
 YAML
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"preview-vercel"* ]]
 }
 
 @test "preview: reads provider with inline comment" {
     cd "$TEST_REPO"
-    cat > claude/config/agency.yaml <<'YAML'
+    cat > agency/config/agency.yaml <<'YAML'
 preview:
   provider: "cloudflare"  # Default. Alternatives: fly, vercel
 YAML
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"preview-cloudflare"* ]]
 }
@@ -115,7 +115,7 @@ YAML
     cd "$TEST_REPO"
     _write_yaml "test"
     _install_mock_provider "test"
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 0 ]
     [[ "$output" == *"mock-preview-test invoked with:"* ]]
 }
@@ -124,7 +124,7 @@ YAML
     cd "$TEST_REPO"
     _write_yaml "test"
     _install_mock_provider "test"
-    run ./claude/tools/preview start --port 8080
+    run ./agency/tools/preview start --port 8080
     [ "$status" -eq 0 ]
     [[ "$output" == *"start --port 8080"* ]]
 }
@@ -136,7 +136,7 @@ YAML
 @test "preview: missing provider tool returns error with available providers" {
     cd "$TEST_REPO"
     _write_yaml "missing"
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"Error"* ]]
     [[ "$output" == *"missing"* ]]
@@ -147,7 +147,7 @@ YAML
     _write_yaml "missing"
     _install_mock_provider "alpha"
     _install_mock_provider "beta"
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"alpha"* ]]
     [[ "$output" == *"beta"* ]]
@@ -156,7 +156,7 @@ YAML
 @test "preview: missing provider points at agency.yaml" {
     cd "$TEST_REPO"
     _write_yaml "missing"
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"agency.yaml"* ]]
     [[ "$output" == *"preview.provider"* ]]
@@ -170,14 +170,14 @@ YAML
     cd "$TEST_REPO"
     _write_yaml "test"
     _install_mock_provider "test"
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 0 ]
 }
 
 @test "preview: exit 1 on missing provider" {
     cd "$TEST_REPO"
     _write_yaml "missing"
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
 }
 
@@ -188,7 +188,7 @@ YAML
 @test "preview: rejects provider name with path traversal (../)" {
     cd "$TEST_REPO"
     _write_yaml "../../../tmp/evil"
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid provider"* ]] || [[ "$output" == *"invalid"* ]]
 }
@@ -196,7 +196,7 @@ YAML
 @test "preview: rejects provider name with slash" {
     cd "$TEST_REPO"
     _write_yaml "foo/bar"
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid provider"* ]] || [[ "$output" == *"invalid"* ]]
 }
@@ -204,7 +204,7 @@ YAML
 @test "preview: rejects provider name with shell metacharacters" {
     cd "$TEST_REPO"
     _write_yaml 'foo;rm'
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid provider"* ]] || [[ "$output" == *"invalid"* ]]
 }
@@ -213,7 +213,7 @@ YAML
     cd "$TEST_REPO"
     _write_yaml "docker-compose"
     _install_mock_provider "docker-compose"
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 0 ]
     [[ "$output" == *"mock-preview-docker-compose"* ]]
 }
@@ -226,9 +226,9 @@ YAML
     cd "$TEST_REPO"
     _write_yaml "broken"
     # Create a file matching the provider name but not executable
-    echo '#!/bin/bash' > claude/tools/preview-broken
+    echo '#!/bin/bash' > agency/tools/preview-broken
     # Intentionally NO chmod +x
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"broken"* ]]
 }
@@ -236,22 +236,22 @@ YAML
 @test "preview: forwards exit code from provider tool (exec semantics)" {
     cd "$TEST_REPO"
     _write_yaml "test"
-    cat > claude/tools/preview-test <<'PROVIDER'
+    cat > agency/tools/preview-test <<'PROVIDER'
 #!/bin/bash
 exit 42
 PROVIDER
-    chmod +x claude/tools/preview-test
-    run ./claude/tools/preview
+    chmod +x agency/tools/preview-test
+    run ./agency/tools/preview
     [ "$status" -eq 42 ]
 }
 
 @test "preview: empty provider value falls back to default" {
     cd "$TEST_REPO"
-    cat > claude/config/agency.yaml <<'YAML'
+    cat > agency/config/agency.yaml <<'YAML'
 preview:
   provider: ""
 YAML
-    run ./claude/tools/preview
+    run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"docker-compose"* ]]
 }
@@ -261,11 +261,11 @@ YAML
     # Create an isolated project root with a different config
     local alt="$BATS_TEST_TMPDIR/alt-root"
     mkdir -p "$alt/claude/config"
-    cat > "$alt/claude/config/agency.yaml" <<'YAML'
+    cat > "$alt/agency/config/agency.yaml" <<'YAML'
 preview:
   provider: "alt-provider"
 YAML
-    CLAUDE_PROJECT_DIR="$alt" run ./claude/tools/preview
+    CLAUDE_PROJECT_DIR="$alt" run ./agency/tools/preview
     [ "$status" -eq 1 ]
     [[ "$output" == *"alt-provider"* ]]
 }

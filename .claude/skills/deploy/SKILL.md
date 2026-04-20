@@ -26,7 +26,7 @@ Deploy the project to the configured platform.
 
 ### Step 1: Resolve Provider
 
-Read the deploy provider from `claude/config/agency.yaml` under `deploy.provider`.
+Read the deploy provider from `agency/config/agency.yaml` under `deploy.provider`.
 
 ```yaml
 # agency.yaml
@@ -34,12 +34,12 @@ deploy:
   provider: "fly"  # or "aws", "vercel", "cloudflare", "railway"
 ```
 
-The provider maps to a tool: `./claude/tools/deploy-{provider}`
+The provider maps to a tool: `./agency/tools/deploy-{provider}`
 
 ### Step 2: Check Provider Tool Exists
 
-Verify `./claude/tools/deploy-{provider}` exists and is executable. If not:
-- List available deploy tools: `ls ./claude/tools/deploy-*`
+Verify `./agency/tools/deploy-{provider}` exists and is executable. If not:
+- List available deploy tools: `ls ./agency/tools/deploy-*`
 - Tell the user which providers are available
 - Suggest adding the provider tool if none exist
 
@@ -52,7 +52,7 @@ Before deploying:
 
 ### Step 4: Dispatch to Provider
 
-Execute: `./claude/tools/deploy-{provider} {verb} {args}`
+Execute: `./agency/tools/deploy-{provider} {verb} {args}`
 
 Where verb is one of: `deploy`, `status`, `rollback`, `logs` (mapped from flags above, default: `deploy`).
 

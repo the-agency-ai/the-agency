@@ -69,10 +69,10 @@ run_agency() {
 @test "agency verify: checks required directories" {
     run_agency verify --verbose
     assert_success
-    assert_output_contains "directory: claude/config/"
-    assert_output_contains "directory: claude/agents/"
+    assert_output_contains "directory: agency/config/"
+    assert_output_contains "directory: agency/agents/"
     assert_output_contains "directory: claude/docs/"
-    assert_output_contains "directory: claude/hooks/"
+    assert_output_contains "directory: agency/hooks/"
 }
 
 @test "agency verify: checks agency CLI exists" {

@@ -1,0 +1,126 @@
+#!/bin/bash
+#
+# agency-health-v46 — Broken-state detector for post-v46.0 customer repos
+#
+# What Problem: After migration, some repos end up in hybrid state: v46 tree
+# shape (agency/) but v45 settings.json (referring to claude/hooks/), or
+# vice versa. We need a focused detector that surfaces these specific
+# post-migration anomalies.
+#
+# How & Why: Inspect four signals:
+#   1) residual claude/ dir + v46 settings = broken (half-migrated)
+#   2) agency/ present but @import references still say @claude/
+#   3) hook paths in settings.json point to missing files
+#   4) agent registration path mismatches
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+agency-health-v46 — Detect post-migration broken states
+
+Usage:
+  agency-health-v46 [--root DIR] [--json]
+
+Exit:
+  0  healthy
+  1  broken state detected
+USAGE
+    exit 0
+}
+
+ROOT=""
+AS_JSON=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "agency-health-v46 $TOOL_VERSION"; exit 0 ;;
+        --root) shift; ROOT="${1:-}"; shift ;;
+        --json) AS_JSON=1; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$ROOT" ]] && ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || :
+[[ -z "$ROOT" ]] && die "not in a git repo"
+cd "$ROOT"
+
+emit() {
+    local sev="$1" msg="$2"
+    if [[ $AS_JSON -eq 1 ]]; then
+        printf '{"severity":"%s","message":"%s"}\n' "$sev" "$msg"
+    else
+        echo "[$sev] $msg"
+    fi
+}
+
+broken=0
+
+# Signal 1: half-migrated tree
+if [[ -d "$ROOT/agency" && -d "$ROOT/claude" ]]; then
+    emit "BROKEN" "half-migrated: both agency/ and claude/ present at root"
+    broken=1
+fi
+
+# Signal 2: v46 tree but v45 settings
+if [[ -d "$ROOT/agency" && -f "$ROOT/.claude/settings.json" ]]; then
+    # Leading slash excludes .claude/hooks/ (Claude Code's global hook dir)
+    if grep -q '/claude/hooks/' "$ROOT/.claude/settings.json" 2>/dev/null; then
+        emit "BROKEN" "v46 tree but settings.json still references /claude/hooks/ (v45 path)"
+        broken=1
+    fi
+fi
+
+# Signal 3: agent registrations still say @claude/ (v45 path)
+while IFS= read -r -d '' f; do
+    if grep -q '@claude/agents/' "$f" 2>/dev/null; then
+        emit "BROKEN" "$f references @claude/agents/ (v45 path)"
+        broken=1
+    fi
+done < <(find "$ROOT/.claude/agents" -name '*.md' -print0 2>/dev/null)
+
+# Signal 4: hook ENOENT
+if [[ -f "$ROOT/.claude/settings.json" ]]; then
+    python3 - "$ROOT/.claude/settings.json" "$ROOT" <<'PYEOF' 2>/dev/null || broken=1
+import json, os, sys
+try:
+    s = json.load(open(sys.argv[1]))
+except Exception:
+    print(f"[BROKEN] settings.json invalid JSON")
+    sys.exit(1)
+missing = 0
+def walk(o):
+    global missing
+    if isinstance(o, dict):
+        for k, v in o.items():
+            if k == "command" and isinstance(v, str):
+                for tok in v.split():
+                    # Handle both "$CLAUDE_PROJECT_DIR"/ (quoted) and $CLAUDE_PROJECT_DIR/ (bare)
+                    tok = tok.replace('"$CLAUDE_PROJECT_DIR"/', "")
+                    tok = tok.replace("$CLAUDE_PROJECT_DIR/", "")
+                    tok = tok.strip('"').strip("'")
+                    if tok.endswith((".sh", ".py", ".js")):
+                        if not os.path.isfile(os.path.join(sys.argv[2], tok)):
+                            print(f"[BROKEN] hook ENOENT: {tok}")
+                            missing += 1
+            else:
+                walk(v)
+    elif isinstance(o, list):
+        for v in o:
+            walk(v)
+walk(s)
+sys.exit(1 if missing else 0)
+PYEOF
+fi
+
+if [[ $broken -eq 0 ]]; then
+    emit "OK" "no v46 broken-state detected"
+    exit 0
+fi
+exit 1

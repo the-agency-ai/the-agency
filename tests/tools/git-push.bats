@@ -4,7 +4,7 @@
 #
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
-GIT_PUSH="${REPO_ROOT}/claude/tools/git-push"
+GIT_PUSH="${REPO_ROOT}/agency/tools/git-push"
 
 @test "git-push: blocks main" {
     run bash "$GIT_PUSH" main

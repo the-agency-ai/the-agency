@@ -50,13 +50,13 @@ Exit codes: `0 = all healthy (or attention only)`, `1 = warnings`, `2 = critical
 ## Invocations
 
 ```bash
-./claude/tools/agency-health                     # full fleet report
-./claude/tools/agency-health all                 # same
-./claude/tools/agency-health worktree            # only worktree dimension
-./claude/tools/agency-health agent devex         # only devex agent
-./claude/tools/agency-health workstream iscp     # only iscp workstream
-./claude/tools/agency-health --json all          # JSON for downstream consumers
-./claude/tools/agency-health --help              # full help
+./agency/tools/agency-health                     # full fleet report
+./agency/tools/agency-health all                 # same
+./agency/tools/agency-health worktree            # only worktree dimension
+./agency/tools/agency-health agent devex         # only devex agent
+./agency/tools/agency-health workstream iscp     # only iscp workstream
+./agency/tools/agency-health --json all          # JSON for downstream consumers
+./agency/tools/agency-health --help              # full help
 ```
 
 ## Example output (human mode)

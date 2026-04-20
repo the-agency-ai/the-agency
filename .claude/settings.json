@@ -1,7 +1,7 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "bash \"$CLAUDE_PROJECT_DIR\"/claude/tools/statusline.sh"
+    "command": "bash \"$CLAUDE_PROJECT_DIR\"/agency/tools/statusline.sh"
   },
   "hooks": {
     "SessionStart": [
@@ -9,15 +9,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check --force"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/tools/iscp-check --force"
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/collaboration check"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/tools/collaboration check"
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/worktree-cwd-check"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/tools/worktree-cwd-check"
           }
         ]
       }
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/session-backup"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/tools/session-backup"
           },
           {
             "type": "command",
@@ -35,7 +35,7 @@
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/hooks/ghostty-status.sh"
           }
         ]
       }
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/tools/iscp-check"
           }
         ]
       }
@@ -56,7 +56,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ref-injector.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/hooks/ref-injector.sh"
           }
         ]
       },
@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/block-raw-tools.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/hooks/block-raw-tools.sh"
           }
         ]
       },
@@ -74,7 +74,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/plan-capture.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/hooks/plan-capture.sh"
           }
         ]
       }
@@ -85,11 +85,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/tool-telemetry.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/hooks/tool-telemetry.sh"
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/hooks/ghostty-status.sh"
           }
         ]
       }
@@ -111,7 +111,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/tools/iscp-check"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/tools/iscp-check"
           }
         ]
       }
@@ -121,11 +121,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/ghostty-status.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/hooks/ghostty-status.sh"
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/claude/hooks/idle-mail-check.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/agency/hooks/idle-mail-check.sh"
           }
         ]
       }

@@ -21,7 +21,7 @@ Structured review session for accumulated flags. Agent pre-categorizes into thre
 
 ### Step 1: Gather flags
 
-Run `bash $CLAUDE_PROJECT_DIR/claude/tools/flag list` to get all unread/read flags.
+Run `bash $CLAUDE_PROJECT_DIR/agency/tools/flag list` to get all unread/read flags.
 
 If no flags are waiting, report "No flags to triage" and stop.
 
@@ -69,7 +69,7 @@ Do NOT proceed until the principal approves the bucket assignments.
 ### Step 4: Process Bucket 1 (Resolved)
 
 For each approved Bucket 1 item:
-- Run `bash $CLAUDE_PROJECT_DIR/claude/tools/flag clear` if all flags are being resolved
+- Run `bash $CLAUDE_PROJECT_DIR/agency/tools/flag clear` if all flags are being resolved
 - Report: "[n] items marked resolved"
 
 ### Step 5: Process Bucket 2 (Autonomous)
@@ -109,7 +109,7 @@ After all buckets are processed, report:
 - Total: [N] flags processed
 ```
 
-Run `bash $CLAUDE_PROJECT_DIR/claude/tools/flag clear` to mark all processed flags.
+Run `bash $CLAUDE_PROJECT_DIR/agency/tools/flag clear` to mark all processed flags.
 
 ## Key Rules
 

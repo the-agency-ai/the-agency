@@ -23,8 +23,8 @@ Wire up a sandbox item so Claude Code discovers and uses it.
 
 2. **Find the item** by searching `usr/<engineer>/` for files matching `<name>`:
    - `usr/<engineer>/claude/commands/<name>.md` → command
-   - `usr/<engineer>/claude/hooks/<name>.sh` → hook
-   - `usr/<engineer>/claude/hookify/<name>.md` → hookify
+   - `usr/<engineer>/agency/hooks/<name>.sh` → hook
+   - `usr/<engineer>/agency/hookify/<name>.md` → hookify
    - `usr/<engineer>/tools/<name>.*` → tool
    - `usr/<engineer>/scripts/<name>.*` → script
 
@@ -32,7 +32,7 @@ Wire up a sandbox item so Claude Code discovers and uses it.
 
 4. **Create symlink** based on type:
    - command: `ln -sf ../../usr/<engineer>/claude/commands/<name>.md .claude/commands/usr-<engineer>.<name>.md`
-   - hookify: `ln -sf ../usr/<engineer>/claude/hookify/<name>.md .claude/hookify.usr-<engineer>.<name>.local.md`
+   - hookify: `ln -sf ../usr/<engineer>/agency/hookify/<name>.md .claude/hookify.usr-<engineer>.<name>.local.md`
    - hook: create symlink + print the settings.local.json entry needed for manual wiring
    - tool/script: print PATH instruction
 

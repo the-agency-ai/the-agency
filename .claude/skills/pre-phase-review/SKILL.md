@@ -23,8 +23,8 @@ Review the living artifacts (PVR, Architecture & Design, Plan) before starting a
 
 Search for the three artifact types:
 
-1. **PVR** — Glob `claude/workstreams/*/**/*-pvr-*.md` and `usr/*/**/*-pvr-*.md` for Product Vision & Requirements files.
-2. **A&D** — Glob `claude/workstreams/*/**/*-architecture-*.md`, `claude/workstreams/*/**/*-ad-*.md`, and `docs/plans/*-architecture-*.md` for Architecture & Design files.
+1. **PVR** — Glob `agency/workstreams/*/**/*-pvr-*.md` and `usr/*/**/*-pvr-*.md` for Product Vision & Requirements files.
+2. **A&D** — Glob `agency/workstreams/*/**/*-architecture-*.md`, `agency/workstreams/*/**/*-ad-*.md`, and `docs/plans/*-architecture-*.md` for Architecture & Design files.
 3. **Plan** — Glob `docs/plans/*.md` and pick the most recently modified plan file.
 
 If any artifact is missing, note it ("PVR not found — skipping PVR review") but continue with whatever exists. If none are found, tell the user and stop.

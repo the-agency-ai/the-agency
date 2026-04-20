@@ -25,7 +25,7 @@ Move an item from an engineer's sandbox to the shared location, making it team-w
    - command: `.claude/commands/<name>.md`
    - hookify: `.claude/hookify.<name>.local.md`
    - hook: `.claude/hooks/<name>.sh`
-   - tool: `claude/tools/<name>`
+   - tool: `agency/tools/<name>`
    - script: `scripts/<name>.sh`
 
 3. **Collision check** against destination.

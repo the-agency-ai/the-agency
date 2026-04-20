@@ -7,7 +7,7 @@
 #
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
-GIT_CAPTAIN="${REPO_ROOT}/claude/tools/git-captain"
+GIT_CAPTAIN="${REPO_ROOT}/agency/tools/git-captain"
 
 # Create an isolated repo+origin pair for sync-main scenarios.
 # Returns: prints path to the worktree clone. Origin is at <clone>/../origin.git.

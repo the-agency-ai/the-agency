@@ -64,7 +64,7 @@ The script enforces all of these before dispatching; any failure exits non-zero 
 2. Current branch is not `master` / `main` / `HEAD` (not detached).
 3. Tree is clean — `git status --porcelain` empty.
 4. Current branch is pushed to origin and `origin/<branch>` equals local `HEAD`.
-5. A QGR receipt exists at `claude/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md` where `{hash}` matches the current `diff-hash` against `origin/master`.
+5. A QGR receipt exists at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md` where `{hash}` matches the current `diff-hash` against `origin/master`.
 
 If preconditions 3 or 4 fail, fix them (commit/push via `/git-safe-commit` or `/sync`) and retry. If precondition 5 fails, you need to re-run `/pr-prep` to sign a fresh receipt.
 
@@ -76,7 +76,7 @@ If preconditions 3 or 4 fail, fix them (commit/push via `/git-safe-commit` or `/
 
 ### Step 2: Resolve identity + branch state
 
-1. Resolve agent identity via `./claude/tools/agent-identity` (principal + agent + repo).
+1. Resolve agent identity via `./agency/tools/agent-identity` (principal + agent + repo).
 2. Capture `BRANCH` = `git rev-parse --abbrev-ref HEAD`.
 3. Capture `SHA` = `git rev-parse HEAD`.
 4. Verify `git rev-parse "origin/$BRANCH"` equals `SHA`.
@@ -84,14 +84,14 @@ If preconditions 3 or 4 fail, fix them (commit/push via `/git-safe-commit` or `/
 ### Step 3: Compute diff-hash
 
 ```
-./claude/tools/diff-hash --base origin/master --json
+./agency/tools/diff-hash --base origin/master --json
 ```
 
 Capture the full SHA-256 and the 7-char short form. The 7-char short form is what matches the receipt filename suffix.
 
 ### Step 4: Locate receipt
 
-Glob for `claude/workstreams/**/qgr/*qgr-pr-prep-*-{hash-short}.md`. Exactly one receipt should match. If zero, exit 1 — agent must re-run `/pr-prep`. If multiple, pick the most recent and warn.
+Glob for `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash-short}.md`. Exactly one receipt should match. If zero, exit 1 — agent must re-run `/pr-prep`. If multiple, pick the most recent and warn.
 
 ### Step 5: Compose dispatch payload
 
@@ -109,7 +109,7 @@ Body is the markdown template in `reference.md` — branch, SHA, diff-hash, rece
 ### Step 6: Emit dispatch
 
 ```
-./claude/tools/dispatch create \
+./agency/tools/dispatch create \
   --to monofolk/{principal}/captain \
   --type pr-submit \
   --subject "<subject>" \
@@ -132,7 +132,7 @@ Agent stands by to respond to review comments via `/pr-respond` if any come. On 
 ## Failure modes
 
 - **Preflight fails** (Step 1): exit 1 with the failing precondition. No mutation, no dispatch. Fix the precondition and retry.
-- **Origin mismatch** (Step 2.4): local HEAD and `origin/<branch>` diverge. Push or pull first (`./claude/tools/git-push <branch>` or `git-safe fetch` + merge).
+- **Origin mismatch** (Step 2.4): local HEAD and `origin/<branch>` diverge. Push or pull first (`./agency/tools/git-push <branch>` or `git-safe fetch` + merge).
 - **Receipt missing** (Step 4): no QGR matching current diff-hash. Re-run `/pr-prep` to regenerate.
 - **Dispatch emission fails** (Step 6): ISCP tool error. Script exits 1; agent retries. Dispatch creation is idempotent-safe (duplicate dispatches just clutter the queue — captain can resolve).
 - **Captain never picks up**: a non-failure but a stall. Agent can re-dispatch with `--priority high` or flag the captain directly.
@@ -154,9 +154,9 @@ Agent stands by to respond to review comments via `/pr-respond` if any come. On 
 - `/pr-captain-land` — captain-side companion; consumes this skill's dispatch
 - `/pr-prep` — the QG-before-PR-create that produces the receipt this skill verifies
 - `/pr-respond` — agent-side skill for handling captain review comments (planned)
-- `claude/tools/dispatch` — the ISCP tool this skill wraps for emission
-- `claude/tools/diff-hash` — receipt-matching hash
-- `claude/tools/agent-identity` — principal/agent/repo resolution
+- `agency/tools/dispatch` — the ISCP tool this skill wraps for emission
+- `agency/tools/diff-hash` — receipt-matching hash
+- `agency/tools/agent-identity` — principal/agent/repo resolution
 - `reference.md` — dispatch payload schema (protocol v1.0)
 - `examples.md` — happy-path + failure-mode examples
 - the-agency#296 — PR lifecycle ownership design

@@ -5,7 +5,7 @@
 # Tests CLI argument parsing, input validation, and error handling.
 # Uses mock responses where service interaction is needed.
 #
-# Un-quarantined 2026-04-07 (Day 33) when claude/tools/secret merged from
+# Un-quarantined 2026-04-07 (Day 33) when agency/tools/secret merged from
 # main into devex. The earlier quarantine (Day 32) was because the tool was
 # only on main, not devex.
 #

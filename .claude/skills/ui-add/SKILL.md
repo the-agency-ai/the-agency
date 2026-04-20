@@ -30,7 +30,7 @@ Uses the SPEC-PROVIDER pattern: the **SPEC** is the skill invocation (name + wor
 1. Validates name (kebab-case, not reserved), workstream (exists), starter pack (exists), no collision (`apps/<name>/` must not exist)
 2. Allocates a free port in the frontend range (4100–4199) by scanning `docker-compose.dev.yml`, unless `--port` is provided
 3. Invokes the starter pack's `install.sh` which scaffolds the app files
-4. Updates `claude/config/topology.yaml` — adds a `frontend` service entry with `wires_from: [backend]`
+4. Updates `agency/config/topology.yaml` — adds a `frontend` service entry with `wires_from: [backend]`
 5. Reports next steps (e.g. pnpm install, pnpm dev — actual commands depend on your configured package manager)
 
 ## What it does NOT do (v1)
@@ -55,7 +55,7 @@ Uses the SPEC-PROVIDER pattern: the **SPEC** is the skill invocation (name + wor
 
 ### Step 1: Parse and validate
 
-Run `./claude/tools/ui-add $ARGUMENTS` and relay the output.
+Run `./agency/tools/ui-add $ARGUMENTS` and relay the output.
 
 The tool handles validation. If it fails, relay the error verbatim.
 
@@ -70,6 +70,6 @@ List the files the scaffold created/modified so the principal can review before 
 Changed files for a non-dry-run:
 
 - `apps/<name>/` (new directory, 9 files)
-- `claude/config/topology.yaml` (modified — new frontend entry)
+- `agency/config/topology.yaml` (modified — new frontend entry)
 
 The principal decides whether to run `/iteration-complete` immediately, extend `docker-compose.dev.yml` to include the new app first, or fold the scaffold into a larger iteration.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for claude/tools/worktree-cwd-check
+# Tests for agency/tools/worktree-cwd-check
 #
 # What Problem: worktree-cwd-check warns when CWD is outside the current
 # worktree root. These tests verify it correctly detects mismatch and stays
@@ -24,8 +24,8 @@ setup() {
 
     # Copy the tool
     mkdir -p "$TEST_REPO/claude/tools"
-    cp "$REPO_ROOT/claude/tools/worktree-cwd-check" "$TEST_REPO/claude/tools/"
-    chmod +x "$TEST_REPO/claude/tools/worktree-cwd-check"
+    cp "$REPO_ROOT/agency/tools/worktree-cwd-check" "$TEST_REPO/agency/tools/"
+    chmod +x "$TEST_REPO/agency/tools/worktree-cwd-check"
 }
 
 teardown() {
@@ -38,21 +38,21 @@ teardown() {
 
 @test "cwd at worktree root: no warning, exit 0" {
     cd "$TEST_REPO"
-    run ./claude/tools/worktree-cwd-check
+    run ./agency/tools/worktree-cwd-check
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
 
 @test "cwd in worktree subdir: no warning, exit 0" {
     cd "$TEST_REPO/subdir"
-    run ../claude/tools/worktree-cwd-check
+    run ../agency/tools/worktree-cwd-check
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
 
 @test "cwd in nested subdir: no warning, exit 0" {
     cd "$TEST_REPO/subdir/nested"
-    run ../../claude/tools/worktree-cwd-check
+    run ../../agency/tools/worktree-cwd-check
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
@@ -66,7 +66,7 @@ teardown() {
     local nongit
     nongit=$(mktemp -d "${BATS_TEST_TMPDIR}/nongit.XXXXXX")
     cd "$nongit"
-    run "$TEST_REPO/claude/tools/worktree-cwd-check"
+    run "$TEST_REPO/agency/tools/worktree-cwd-check"
     [ "$status" -eq 0 ]
 }
 
@@ -76,7 +76,7 @@ teardown() {
 
 @test "--quiet: no output even on success" {
     cd "$TEST_REPO"
-    run ./claude/tools/worktree-cwd-check --quiet
+    run ./agency/tools/worktree-cwd-check --quiet
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
@@ -86,7 +86,7 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "version flag works" {
-    run ./claude/tools/worktree-cwd-check --version
+    run ./agency/tools/worktree-cwd-check --version
     [ "$status" -eq 0 ]
     [[ "$output" == *"worktree-cwd-check"* ]]
 }

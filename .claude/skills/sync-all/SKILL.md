@@ -62,7 +62,7 @@ If any worktree work was merged in Step 5, dispatch `main-updated` to all agents
 
 For each worktree agent that was synced:
 ```
-./claude/tools/dispatch create --type main-updated --to {repo}/{principal}/{agent} --subject "Main updated — new work merged"
+./agency/tools/dispatch create --type main-updated --to {repo}/{principal}/{agent} --subject "Main updated — new work merged"
 ```
 
 This notifies agents that main has new content. They'll see it on their next `iscp-check`.

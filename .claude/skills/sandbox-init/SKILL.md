@@ -45,7 +45,7 @@ Set up a per-engineer sandbox for Claude Code tooling development.
 
    > D44-R4 (#420): `commands/`, `hooks/`, `hookify/`, `agents/` live at the
    > sandbox root — NOT under a `claude/` subdirectory. This matches what
-   > `claude/tools/sandbox-sync` reads from (it symlinks these into
+   > `agency/tools/sandbox-sync` reads from (it symlinks these into
    > `.claude/` discovery locations). `CLAUDE.md` and `settings.local.json`
    > also live at the sandbox root so `sandbox-sync` can find
    > `settings.local.json` at `usr/<name>/settings.local.json`.

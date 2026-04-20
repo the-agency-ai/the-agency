@@ -20,15 +20,15 @@ setup() {
 
     # Create a mock git repo with agency.yaml
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
-    mkdir -p "$MOCK_REPO/claude/tools/lib"
+    mkdir -p "$MOCK_REPO/agency/tools/lib"
     mkdir -p "$MOCK_REPO/claude/config"
 
     # Copy the real tools and libs into mock repo
-    cp "$REPO_ROOT/claude/tools/agent-identity" "$MOCK_REPO/claude/tools/"
-    chmod +x "$MOCK_REPO/claude/tools/agent-identity"
-    cp "$REPO_ROOT/claude/tools/lib/_address-parse" "$MOCK_REPO/claude/tools/lib/"
-    cp "$REPO_ROOT/claude/tools/lib/_path-resolve" "$MOCK_REPO/claude/tools/lib/"
-    cp "$REPO_ROOT/claude/tools/lib/_log-helper" "$MOCK_REPO/claude/tools/lib/"
+    cp "$REPO_ROOT/agency/tools/agent-identity" "$MOCK_REPO/agency/tools/"
+    chmod +x "$MOCK_REPO/agency/tools/agent-identity"
+    cp "$REPO_ROOT/agency/tools/lib/_address-parse" "$MOCK_REPO/agency/tools/lib/"
+    cp "$REPO_ROOT/agency/tools/lib/_path-resolve" "$MOCK_REPO/agency/tools/lib/"
+    cp "$REPO_ROOT/agency/tools/lib/_log-helper" "$MOCK_REPO/agency/tools/lib/"
 
     cd "$MOCK_REPO"
     git init --quiet
@@ -36,7 +36,7 @@ setup() {
     git config user.name "Test User"
 
     # agency.yaml with principal mapping
-    cat > "$MOCK_REPO/claude/config/agency.yaml" <<'YAML'
+    cat > "$MOCK_REPO/agency/config/agency.yaml" <<'YAML'
 principals:
   testuser: testprincipal
   jdm: jordan
@@ -72,7 +72,7 @@ teardown() {
 
 @test "resolves captain on main branch" {
     cd "$MOCK_REPO"
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/captain"
 }
@@ -80,7 +80,7 @@ teardown() {
 @test "resolves agent name from branch" {
     cd "$MOCK_REPO"
     git checkout -b iscp --quiet
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/iscp"
 }
@@ -88,7 +88,7 @@ teardown() {
 @test "strips worktree- prefix from branch name" {
     cd "$MOCK_REPO"
     git checkout -b worktree-mdpal --quiet
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/mdpal"
 }
@@ -96,7 +96,7 @@ teardown() {
 @test "CLAUDE_AGENT_NAME overrides branch detection" {
     cd "$MOCK_REPO"
     export CLAUDE_AGENT_NAME="custom-agent"
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/custom-agent"
 }
@@ -104,7 +104,7 @@ teardown() {
 @test "resolves with different principal mapping" {
     cd "$MOCK_REPO"
     export USER="jdm"
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/jordan/captain"
 }
@@ -115,28 +115,28 @@ teardown() {
 
 @test "--agent outputs bare agent name" {
     cd "$MOCK_REPO"
-    run "$MOCK_REPO/claude/tools/agent-identity" --agent
+    run "$MOCK_REPO/agency/tools/agent-identity" --agent
     assert_success
     [[ "$output" == "captain" ]]
 }
 
 @test "--principal outputs bare principal name" {
     cd "$MOCK_REPO"
-    run "$MOCK_REPO/claude/tools/agent-identity" --principal
+    run "$MOCK_REPO/agency/tools/agent-identity" --principal
     assert_success
     [[ "$output" == "testprincipal" ]]
 }
 
 @test "--repo outputs bare repo name" {
     cd "$MOCK_REPO"
-    run "$MOCK_REPO/claude/tools/agent-identity" --repo
+    run "$MOCK_REPO/agency/tools/agent-identity" --repo
     assert_success
     [[ "$output" == "test-repo" ]]
 }
 
 @test "--json outputs valid JSON" {
     cd "$MOCK_REPO"
-    run "$MOCK_REPO/claude/tools/agent-identity" --json
+    run "$MOCK_REPO/agency/tools/agent-identity" --json
     assert_success
     # Validate JSON structure
     echo "$output" | jq -e '.repo' > /dev/null
@@ -151,7 +151,7 @@ teardown() {
 
 @test "creates cache file on first run" {
     cd "$MOCK_REPO"
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     # Cache should exist under ~/.agency/test-repo/
     local cache_dir="$HOME/.agency/test-repo"
@@ -164,13 +164,13 @@ teardown() {
 @test "cache is branch-scoped (different branches get different caches)" {
     cd "$MOCK_REPO"
     # Run on main
-    "$MOCK_REPO/claude/tools/agent-identity" > /dev/null
+    "$MOCK_REPO/agency/tools/agent-identity" > /dev/null
     local main_caches
     main_caches=$(ls "$HOME/.agency/test-repo/"/.agent-identity-* 2>/dev/null)
 
     # Switch branch and run again
     git checkout -b iscp --quiet
-    "$MOCK_REPO/claude/tools/agent-identity" > /dev/null
+    "$MOCK_REPO/agency/tools/agent-identity" > /dev/null
     local all_caches
     all_caches=$(ls "$HOME/.agency/test-repo/"/.agent-identity-* 2>/dev/null | wc -l)
 
@@ -180,11 +180,11 @@ teardown() {
 
 @test "second run uses cache (produces same output)" {
     cd "$MOCK_REPO"
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     local first_output="$output"
 
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     [[ "$output" == "$first_output" ]]
 }
@@ -194,19 +194,19 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "--help shows usage" {
-    run "$MOCK_REPO/claude/tools/agent-identity" --help
+    run "$MOCK_REPO/agency/tools/agent-identity" --help
     assert_success
     assert_output_contains "Usage"
 }
 
 @test "--version shows version" {
-    run "$MOCK_REPO/claude/tools/agent-identity" --version
+    run "$MOCK_REPO/agency/tools/agent-identity" --version
     assert_success
     assert_output_contains "agent-identity"
 }
 
 @test "unknown option fails" {
-    run "$MOCK_REPO/claude/tools/agent-identity" --bad-flag
+    run "$MOCK_REPO/agency/tools/agent-identity" --bad-flag
     assert_failure
     assert_output_contains "unknown option"
 }
@@ -218,7 +218,7 @@ teardown() {
 @test "captain/ prefix branch resolves to captain" {
     cd "$MOCK_REPO"
     git checkout -b captain/valueflow-pvr-20260406 --quiet
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/captain"
 }
@@ -226,7 +226,7 @@ teardown() {
 @test "pr/ prefix branch resolves to captain" {
     cd "$MOCK_REPO"
     git checkout -b pr/fix-something --quiet
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/captain"
 }
@@ -234,7 +234,7 @@ teardown() {
 @test "release/ prefix branch resolves to captain" {
     cd "$MOCK_REPO"
     git checkout -b release/v2.0 --quiet
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/captain"
 }
@@ -243,7 +243,7 @@ teardown() {
     cd "$MOCK_REPO"
     git checkout -b captain/some-pr --quiet
     echo "captain" > "$MOCK_REPO/.agency-agent"
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/captain"
     rm -f "$MOCK_REPO/.agency-agent"
@@ -253,7 +253,7 @@ teardown() {
     cd "$MOCK_REPO"
     git checkout -b random-branch --quiet
     echo "devex" > "$MOCK_REPO/.agency-agent"
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/devex"
     rm -f "$MOCK_REPO/.agency-agent"
@@ -263,7 +263,7 @@ teardown() {
     cd "$MOCK_REPO"
     echo "devex" > "$MOCK_REPO/.agency-agent"
     export CLAUDE_AGENT_NAME="override-agent"
-    run "$MOCK_REPO/claude/tools/agent-identity"
+    run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/override-agent"
     rm -f "$MOCK_REPO/.agency-agent"
@@ -276,17 +276,17 @@ teardown() {
 @test "CLAUDE_PROJECT_DIR overrides SCRIPT_DIR-derived project root" {
     # Create a second mock repo simulating main checkout
     local MAIN_REPO="$BATS_TEST_TMPDIR/main-repo"
-    mkdir -p "$MAIN_REPO/claude/tools/lib" "$MAIN_REPO/claude/config"
-    cp "$REPO_ROOT/claude/tools/agent-identity" "$MAIN_REPO/claude/tools/"
-    chmod +x "$MAIN_REPO/claude/tools/agent-identity"
-    cp "$REPO_ROOT/claude/tools/lib/_address-parse" "$MAIN_REPO/claude/tools/lib/"
-    cp "$REPO_ROOT/claude/tools/lib/_path-resolve" "$MAIN_REPO/claude/tools/lib/"
-    cp "$REPO_ROOT/claude/tools/lib/_log-helper" "$MAIN_REPO/claude/tools/lib/"
+    mkdir -p "$MAIN_REPO/agency/tools/lib" "$MAIN_REPO/claude/config"
+    cp "$REPO_ROOT/agency/tools/agent-identity" "$MAIN_REPO/agency/tools/"
+    chmod +x "$MAIN_REPO/agency/tools/agent-identity"
+    cp "$REPO_ROOT/agency/tools/lib/_address-parse" "$MAIN_REPO/agency/tools/lib/"
+    cp "$REPO_ROOT/agency/tools/lib/_path-resolve" "$MAIN_REPO/agency/tools/lib/"
+    cp "$REPO_ROOT/agency/tools/lib/_log-helper" "$MAIN_REPO/agency/tools/lib/"
     cd "$MAIN_REPO"
     git init --quiet
     git config user.email "test@example.com"
     git config user.name "Test User"
-    cp "$MOCK_REPO/claude/config/agency.yaml" "$MAIN_REPO/claude/config/"
+    cp "$MOCK_REPO/agency/config/agency.yaml" "$MAIN_REPO/agency/config/"
     git add -A && git commit -m "init" --quiet
     git remote add origin https://github.com/test-org/test-repo.git 2>/dev/null || true
 
@@ -299,7 +299,7 @@ teardown() {
     # Run from main checkout but with CLAUDE_PROJECT_DIR pointing to worktree
     export CLAUDE_PROJECT_DIR="$MOCK_REPO"
     cd "$MAIN_REPO"
-    run "$MAIN_REPO/claude/tools/agent-identity"
+    run "$MAIN_REPO/agency/tools/agent-identity"
     assert_success
     # Should resolve as iscp (from worktree), NOT captain (from main)
     assert_output_contains "test-repo/testprincipal/iscp"

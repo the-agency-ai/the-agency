@@ -1,0 +1,4 @@
+expected_decision: block
+expected_match: gh pr create
+---BODY---
+'gh pr create' --title foo

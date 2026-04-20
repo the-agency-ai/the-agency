@@ -7,7 +7,7 @@
 
 load 'test_helper'
 
-SKILL_VERIFY="${REPO_ROOT}/claude/tools/skill-verify"
+SKILL_VERIFY="${REPO_ROOT}/agency/tools/skill-verify"
 
 # Build an isolated fixture with a .claude/skills/ layout we control.
 _fixture() {

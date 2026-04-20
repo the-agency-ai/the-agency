@@ -23,15 +23,15 @@ Read a dispatch by ID, display its contents, and mark as read. Payloads resolve 
 
 If `$ARGUMENTS` is empty:
 
-1. Run `./claude/tools/dispatch list` to show dispatches for the current agent.
-2. If no dispatches, try `./claude/tools/dispatch list --all` for all agents.
+1. Run `./agency/tools/dispatch list` to show dispatches for the current agent.
+2. If no dispatches, try `./agency/tools/dispatch list --all` for all agents.
 3. Ask which dispatch to read.
 
 If `$ARGUMENTS` is an integer ID:
 
-1. Run `./claude/tools/dispatch read $ARGUMENTS` to display and mark as read.
+1. Run `./agency/tools/dispatch read $ARGUMENTS` to display and mark as read.
 
-To peek without marking as read, use `./claude/tools/dispatch fetch $ARGUMENTS` instead.
+To peek without marking as read, use `./agency/tools/dispatch fetch $ARGUMENTS` instead.
 
 ### Step 2: Evaluate findings
 
@@ -54,6 +54,6 @@ For directives, execute the work as specified.
 
 After all items are addressed:
 
-1. Run `./claude/tools/dispatch reply <id> "summary of what was done"` to send a response.
-2. Run `./claude/tools/dispatch resolve <id> --response <reply-id>` to mark as resolved.
+1. Run `./agency/tools/dispatch reply <id> "summary of what was done"` to send a response.
+2. Run `./agency/tools/dispatch resolve <id> --response <reply-id>` to mark as resolved.
 3. Run `/iteration-complete` to commit your code changes.
