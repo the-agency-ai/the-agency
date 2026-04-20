@@ -5,30 +5,42 @@
 #
 # How & Why: Wraps cp with worktree boundary validation. Resolves the real
 # paths of source and destination, checks they're in the same worktree (or
-# both in the main checkout). Blocks cross-worktree copies. For syncing
-# between worktrees, use /worktree-sync instead.
+# both in the main checkout). Blocks cross-worktree copies (within one
+# repo). For syncing between worktrees, use /worktree-sync instead.
+#
+# Cross-REPO copies (e.g., monofolk → the-agency upstream-port) are legitimate
+# but distinct from cross-worktree. They require an explicit --cross-repo
+# flag so they're visible in the audit trail.
 #
 # Usage: ./claude/tools/cp-safe <source> <dest>
 #        ./claude/tools/cp-safe -r <source-dir> <dest-dir>
+#        ./claude/tools/cp-safe --cross-repo <source> <peer-repo-dest>
 #
 # Written: 2026-04-14 during captain session (worktree discipline enforcement)
 # QG: fixed multi-source drop (#4), non-existent dest bypass (#2)
+# 2026-04-20: added --cross-repo flag for peer-repo workflows (agency#361)
 
 set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
-    echo "Usage: cp-safe [-r] <source> <dest>" >&2
+    echo "Usage: cp-safe [-r] [--cross-repo] <source> <dest>" >&2
     echo "  Copies files within the same worktree. Blocks cross-worktree copies." >&2
     echo "  For syncing between worktrees, use /worktree-sync." >&2
+    echo "  For cross-repo ports (e.g., monofolk → the-agency), pass --cross-repo." >&2
     exit 1
 fi
 
 # Collect flags and positional arguments
 CP_FLAGS=()
 POSITIONALS=()
+CROSS_REPO=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --cross-repo)
+            CROSS_REPO=true
+            shift
+            ;;
         -r|-R|--recursive|-a)
             CP_FLAGS+=("$1")
             shift
@@ -118,14 +130,50 @@ if [[ -z "$DEST_ROOT" ]]; then
     exit 1
 fi
 
-# Check same worktree
+# Distinguish cross-worktree (same repo, different checkout) from cross-repo
+# (entirely separate repo). A cross-worktree dest lives under the source
+# repo's .claude/worktrees/ tree; a cross-repo dest doesn't.
+is_cross_worktree_same_repo() {
+    # If DEST_ROOT is under SOURCE_ROOT's .claude/worktrees/, it's a
+    # sibling worktree of the same repo. Same check symmetric on SOURCE.
+    [[ "$DEST_ROOT" = "$SOURCE_ROOT"/.claude/worktrees/* ]] && return 0
+    [[ "$SOURCE_ROOT" = "$DEST_ROOT"/.claude/worktrees/* ]] && return 0
+    return 1
+}
+
 if [[ "$SOURCE_ROOT" != "$DEST_ROOT" ]]; then
-    echo "BLOCKED: Cross-worktree copy detected." >&2
-    echo "  Source:  $SOURCE_ABS (worktree: $SOURCE_ROOT)" >&2
-    echo "  Dest:    $DEST_ABS (worktree: $DEST_ROOT)" >&2
-    echo "" >&2
-    echo "Use /worktree-sync to sync between worktrees, or Write/Edit tools." >&2
-    exit 1
+    if is_cross_worktree_same_repo; then
+        # Same repo, different worktree — the original discipline holds.
+        echo "BLOCKED: Cross-worktree copy detected (same repo)." >&2
+        echo "  Source:  $SOURCE_ABS (worktree: $SOURCE_ROOT)" >&2
+        echo "  Dest:    $DEST_ABS (worktree: $DEST_ROOT)" >&2
+        echo "" >&2
+        echo "Use /worktree-sync to sync between worktrees, or Write/Edit tools." >&2
+        exit 1
+    fi
+
+    # Cross-repo — legitimate for upstream-port / peer-repo workflows,
+    # but requires explicit --cross-repo flag for audit trail visibility.
+    if [[ "$CROSS_REPO" != "true" ]]; then
+        echo "BLOCKED: Cross-repo copy detected (different git repositories)." >&2
+        echo "  Source:  $SOURCE_ABS (repo: $SOURCE_ROOT)" >&2
+        echo "  Dest:    $DEST_ABS (repo: $DEST_ROOT)" >&2
+        echo "" >&2
+        echo "Cross-repo copies are allowed for upstream-port and peer-repo workflows," >&2
+        echo "but require the --cross-repo flag so they're explicit in the audit trail:" >&2
+        echo "" >&2
+        echo "  ./claude/tools/cp-safe --cross-repo ${CP_FLAGS[*]:-} \"$SOURCE\" \"$DEST\"" >&2
+        exit 1
+    fi
+
+    # --cross-repo passed — allow + emit audit note
+    if [[ ${#CP_FLAGS[@]} -gt 0 ]]; then
+        cp "${CP_FLAGS[@]}" "$SOURCE" "$DEST"
+    else
+        cp "$SOURCE" "$DEST"
+    fi
+    echo "✓ Cross-repo copy: $(basename "$SOURCE_ROOT") → $(basename "$DEST_ROOT")"
+    exit 0
 fi
 
 # Same worktree — allow the copy
