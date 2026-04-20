@@ -43,11 +43,11 @@ jobs:
         id: ver
         if: steps.ismerge.outputs.parents == '2'
         run: |
-          if [[ ! -f claude/config/manifest.json ]]; then
-            echo "::error::claude/config/manifest.json missing"
+          if [[ ! -f agency/config/manifest.json ]]; then
+            echo "::error::agency/config/manifest.json missing"
             exit 1
           fi
-          v=$(jq -r .agency_version claude/config/manifest.json)
+          v=$(jq -r .agency_version agency/config/manifest.json)
           if [[ -z "$v" || "$v" == "null" ]]; then
             echo "::error::Could not read agency_version from manifest.json"
             exit 1
@@ -74,7 +74,7 @@ jobs:
               sleep 10
             fi
           done
-          echo "::error file=claude/config/manifest.json::Merge commit $(git rev-parse --short HEAD) landed without release tag v${v} after 120s grace period. Captain must run /post-merge to cut the release. See issue #113."
+          echo "::error file=agency/config/manifest.json::Merge commit $(git rev-parse --short HEAD) landed without release tag v${v} after 120s grace period. Captain must run /post-merge to cut the release. See issue #113."
           exit 1
 
       - name: Skip (non-merge commit)
