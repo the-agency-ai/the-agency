@@ -219,12 +219,12 @@ gate_4() {
 gate_4_5() {
     check_not_exists "claude" "claude-absent"
     # settings.json references agency, not claude
-    if [[ -f ".claude/settings.json" ]] && ! grep -q 'claude/hooks/' ".claude/settings.json" 2>/dev/null; then
+    if [[ -f ".claude/settings.json" ]] && ! grep -q '/claude/hooks/' ".claude/settings.json" 2>/dev/null; then
         emit_ok "settings-hooks-rewritten"
     else
-        emit_fail "settings-hooks-rewritten" "settings.json still references agency/hooks/ or missing"
+        emit_fail "settings-hooks-rewritten" "settings.json still references claude/hooks/ (v45 path) or missing"
     fi
-    # CLAUDE.md references @agency
+    # CLAUDE.md has no @claude/ imports (v45 path) — all @import use @agency/
     if [[ ! -f "CLAUDE.md" ]] || ! grep -q '@claude/' "CLAUDE.md" 2>/dev/null; then
         emit_ok "claude-md-rewritten"
     else

@@ -148,7 +148,7 @@ main() {
         mkdir -p "$ICLOUD_PROJECT/misc"
 
         # Create folders for existing agents
-        if [ -d "claude/agents" ]; then
+        if [ -d "agency/agents" ]; then
             for agent_dir in agency/agents/*/; do
                 agent_name=$(basename "$agent_dir")
                 if [ "$agent_name" != "*" ]; then

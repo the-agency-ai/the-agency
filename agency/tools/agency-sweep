@@ -89,8 +89,6 @@ cd "$REPO_ROOT"
 if [[ $USE_ALLOWLIST -eq 1 && -z "$ALLOWLIST" ]]; then
     if [[ -f "$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt" ]]; then
         ALLOWLIST="$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt"
-    elif [[ -f "$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt" ]]; then
-        ALLOWLIST="$REPO_ROOT/agency/tools/ref-sweep-allowlist.txt"
     fi
 fi
 

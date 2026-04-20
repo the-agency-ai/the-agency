@@ -447,7 +447,7 @@ EOF
     local run_skill_validation=false
 
     # Run skill validation if any skill, hookify, or framework file changed
-    if echo "$staged_files" | grep -qE '^\.claude/skills/|^claude/hookify/|^claude/hooks/|^claude/tools/|^claude/CLAUDE-'; then
+    if echo "$staged_files" | grep -qE '^\.claude/skills/|^agency/hookify/|^agency/hooks/|^agency/tools/|^agency/CLAUDE-'; then
         run_skill_validation=true
     fi
 
