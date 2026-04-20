@@ -25,7 +25,7 @@ fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 TESTS_DIR="$REPO_ROOT/tests/tools"
-TOOLS_DIR="$REPO_ROOT/claude/tools"
+TOOLS_DIR="$REPO_ROOT/agency/tools"
 
 # Parse arguments
 VERBOSE=false
@@ -39,7 +39,7 @@ test-scoper — map changed files to relevant test files
 
 Usage:
   git diff --cached --name-only | test-scoper
-  echo "claude/tools/flag" | test-scoper
+  echo "agency/tools/flag" | test-scoper
   test-scoper --help
 
 Reads file paths from stdin (one per line), outputs relevant .bats test
@@ -48,8 +48,8 @@ no tests matched (not an error).
 
 Mapping strategies (in priority order):
   1. Manifest: "# Test: path/to/test.bats" header in source file
-  2. Convention: claude/tools/{name} → tests/tools/{name}.bats
-  3. Dependency: claude/tools/lib/{name} → all .bats sourcing {name}
+  2. Convention: agency/tools/{name} → tests/tools/{name}.bats
+  3. Dependency: agency/tools/lib/{name} → all .bats sourcing {name}
   4. Direct: tests/**/*.bats → itself
   5. Package: apps/{pkg}/Sources/... → PACKAGE:apps/{pkg}/Tests
              (Swift/Rust/Go non-mirrored layouts; caller dispatches to runner)
@@ -99,8 +99,8 @@ check_manifest() {
 check_convention() {
     local file="$1"
 
-    # claude/tools/{name} → tests/tools/{name}.bats + tests/tools/{name}-*.bats
-    if [[ "$file" =~ ^claude/tools/([^/]+)$ ]]; then
+    # agency/tools/{name} → tests/tools/{name}.bats + tests/tools/{name}-*.bats
+    if [[ "$file" =~ ^agency/tools/([^/]+)$ ]]; then
         local name="${BASH_REMATCH[1]}"
         local found=false
 
@@ -138,8 +138,8 @@ check_convention() {
 check_dependency() {
     local file="$1"
 
-    # claude/tools/lib/{_name} → grep all .bats for source.*{_name}
-    if [[ "$file" =~ ^claude/tools/lib/(_?[^/]+)$ ]]; then
+    # agency/tools/lib/{_name} → grep all .bats for source.*{_name}
+    if [[ "$file" =~ ^agency/tools/lib/(_?[^/]+)$ ]]; then
         local lib_name="${BASH_REMATCH[1]}"
 
         # First check direct name match (strip underscore)
@@ -235,6 +235,14 @@ check_package() {
 while IFS= read -r file; do
     # Skip empty lines
     [[ -z "$file" ]] && continue
+
+    # Skip archived content — src/archive/** holds v45/retired code whose
+    # tests reference moved/deleted helpers. These should never trigger
+    # on commit. Added D45-v46.0 as part of Phase 4 residual cleanup.
+    if [[ "$file" == src/archive/* ]]; then
+        verbose "archive-skip: $file"
+        continue
+    fi
 
     # Try strategies in priority order
     check_manifest "$file" && continue

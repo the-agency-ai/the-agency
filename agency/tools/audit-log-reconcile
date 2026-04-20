@@ -1,0 +1,141 @@
+#!/bin/bash
+#
+# audit-log-reconcile — Validate audit log vs commit history
+#
+# What Problem: The audit log claims every structural write (git mv, git rm,
+# git-rename-tree, git-safe add) was intentional. We need to verify that:
+#  (a) every commit on the reset branch has at least one audit entry
+#  (b) every write-producing audit entry has a matching commit name-status
+# Missing either direction is a silent integrity failure at Gate 6.
+#
+# How & Why: Parse the merged audit log (JSONL) + iterate commits on the
+# reset range via `git log --format --name-status`. Build two sets:
+#   WRITE_OPS = events from audit with cmd ∈ {git mv, git rm, git-rename-tree,
+#                git-safe add}
+#   COMMIT_OPS = commit name-status lines (R/D/A) for any commit
+# Reconcile as set-based: emit deltas in either direction. `--exit-nonzero-on-delta`
+# returns exit 1 on any delta.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+audit-log-reconcile — Reconcile audit log vs commit history
+
+Usage:
+  audit-log-reconcile --log FILE --range REF..REF [--exit-nonzero-on-delta]
+
+Options:
+  --log FILE                   Merged audit JSONL log
+  --range A..B                 Commit range to check (e.g., master..reset-branch)
+  --exit-nonzero-on-delta      Exit 1 if any delta found (Gate 6 gate)
+  --help / --version
+USAGE
+    exit 0
+}
+
+LOG=""
+RANGE=""
+STRICT=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "audit-log-reconcile $TOOL_VERSION"; exit 0 ;;
+        --log) shift; LOG="${1:-}"; shift ;;
+        --range) shift; RANGE="${1:-}"; shift ;;
+        --exit-nonzero-on-delta) STRICT=1; shift ;;
+        *) die "Unknown flag: $1" ;;
+    esac
+done
+
+[[ -z "$LOG" ]] && die "--log required"
+[[ -z "$RANGE" ]] && die "--range required"
+[[ -f "$LOG" ]] || die "log not found: $LOG"
+
+# Collect audit WRITE operations (as "cmd|src" or "cmd|src|dst")
+python3 - "$LOG" <<'PYEOF' > /tmp/audit-ops.$$ 2>/dev/null
+import json, sys
+with open(sys.argv[1]) as fh:
+    for line in fh:
+        try:
+            e = json.loads(line.strip())
+        except Exception:
+            continue
+        cmd = e.get("cmd", "")
+        if cmd in ("git mv", "git rm", "git-rename-tree", "git-safe add"):
+            key = f"{cmd}|{e.get('src','')}|{e.get('dst','')}"
+            print(key)
+PYEOF
+
+# Collect commit operations via `git log --name-status`
+commits="$(git log --format='COMMIT %H' --name-status "$RANGE" 2>/dev/null)"
+commits_with_audit=0
+commits_without_audit=0
+current_commit=""
+
+# Track counts — we do not require per-commit file-for-file; we require:
+#   Every commit has at least one audit entry WITHIN its time window.
+# Simplified: for every commit hash in range, check if any audit line has
+# cmd matching ONE of the commit's name-status entries.
+
+# Put commit file-list into a temp set
+: > /tmp/commit-ops.$$
+
+while IFS= read -r line; do
+    if [[ "$line" =~ ^COMMIT\ ([a-f0-9]+) ]]; then
+        current_commit="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^R[0-9]+[[:space:]]+(.+)[[:space:]]+(.+) ]]; then
+        # rename: "R100  src  dst"
+        src="${BASH_REMATCH[1]}"
+        dst="${BASH_REMATCH[2]}"
+        echo "git mv|$src|$dst" >> /tmp/commit-ops.$$
+        echo "git-rename-tree|$src|$dst" >> /tmp/commit-ops.$$
+    elif [[ "$line" =~ ^D[[:space:]]+(.+) ]]; then
+        echo "git rm|${BASH_REMATCH[1]}|" >> /tmp/commit-ops.$$
+    elif [[ "$line" =~ ^A[[:space:]]+(.+) ]]; then
+        echo "git-safe add|${BASH_REMATCH[1]}|" >> /tmp/commit-ops.$$
+    fi
+done <<< "$commits"
+
+sort -u /tmp/audit-ops.$$ > /tmp/audit-sorted.$$
+sort -u /tmp/commit-ops.$$ > /tmp/commit-sorted.$$
+
+# audit - commit (audit has entry not in commits)
+audit_only="$(comm -23 /tmp/audit-sorted.$$ /tmp/commit-sorted.$$ 2>/dev/null || true)"
+# commit - audit (commit has op not in audit)
+commit_only="$(comm -13 /tmp/audit-sorted.$$ /tmp/commit-sorted.$$ 2>/dev/null || true)"
+
+audit_only_count="$(echo -n "$audit_only" | grep -c '' 2>/dev/null || echo 0)"
+commit_only_count="$(echo -n "$commit_only" | grep -c '' 2>/dev/null || echo 0)"
+# Trim newlines
+audit_only_count="${audit_only_count//[^0-9]/}"
+commit_only_count="${commit_only_count//[^0-9]/}"
+
+[[ -z "$audit_only_count" ]] && audit_only_count=0
+[[ -z "$commit_only_count" ]] && commit_only_count=0
+
+if [[ -n "$audit_only" ]]; then
+    echo "[AUDIT-ONLY] entries in audit but not in commit history:" >&2
+    echo "$audit_only" >&2
+fi
+if [[ -n "$commit_only" ]]; then
+    echo "[COMMIT-ONLY] entries in commits but not in audit log:" >&2
+    echo "$commit_only" >&2
+fi
+
+rm -f /tmp/audit-ops.$$ /tmp/commit-ops.$$ /tmp/audit-sorted.$$ /tmp/commit-sorted.$$
+
+echo "# audit_only=$audit_only_count commit_only=$commit_only_count" >&2
+
+if [[ $STRICT -eq 1 ]]; then
+    if [[ $audit_only_count -gt 0 || $commit_only_count -gt 0 ]]; then
+        exit 1
+    fi
+fi
+exit 0

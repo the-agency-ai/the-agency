@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: EnterWorktree
+---BODY---
+EnterWorktree alpha

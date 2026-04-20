@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: grep
+---BODY---
+grep foo bar.txt

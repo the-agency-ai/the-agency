@@ -1,0 +1,4 @@
+expected_decision: block
+expected_match: usr/testuser
+---BODY---
+./agency/tools/flag "note" --principal usr/testuser

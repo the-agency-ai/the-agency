@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: dispatch create --type review
+---BODY---
+./agency/tools/dispatch create --type review --to worktree:alpha

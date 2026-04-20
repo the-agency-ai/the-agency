@@ -237,7 +237,7 @@ _dirty_impl_warning() {
     impl_files=$(git status --porcelain 2>/dev/null \
         | grep -vE '^\?\?' \
         | sed 's/^...//' \
-        | grep -E '\.(ts|tsx|js|jsx|py|rs|go|java|swift|kt|sh|bash|bats)$|^claude/tools/[^/]+$|^claude/tools/lib/|^\.claude/hooks/' \
+        | grep -E '\.(ts|tsx|js|jsx|py|rs|go|java|swift|kt|sh|bash|bats)$|^agency/tools/[^/]+$|^agency/tools/lib/|^\.claude/hooks/' \
         || true)
 
     if [[ -z "$impl_files" ]]; then

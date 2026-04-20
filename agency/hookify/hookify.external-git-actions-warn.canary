@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: git push
+---BODY---
+git push origin main

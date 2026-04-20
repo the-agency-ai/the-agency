@@ -1,0 +1,4 @@
+expected_decision: block
+expected_match: git rebase
+---BODY---
+git rebase master

@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: .sh
+---BODY---
+/tmp/adhoc-fix.sh

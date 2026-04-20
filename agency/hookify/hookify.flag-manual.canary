@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: flag-queue.jsonl
+---BODY---
+usr/jordan/captain/flag-queue.jsonl

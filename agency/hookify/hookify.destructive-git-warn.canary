@@ -1,0 +1,4 @@
+expected_decision: warn
+expected_match: git reset --hard
+---BODY---
+git reset --hard HEAD~1

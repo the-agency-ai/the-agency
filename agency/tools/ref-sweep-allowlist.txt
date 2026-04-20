@@ -1,0 +1,27 @@
+# ref-sweep-allowlist.txt — v46.0 structural reset
+#
+# Each line: <regex>\t<rationale> (tab-separated).
+# Blank lines and lines starting with # are ignored.
+# Patterns match against file content lines; any content line whose match
+# falls in this allowlist is reported as "allowlisted", not "unknown".
+#
+# NOTE: patterns apply to BOTH pre-rename and post-rename inventory scans.
+#
+\.claude/	Anthropic Claude Code discovery dir — never renamed
+CLAUDE\.md	Root bootloader filename (any context — ERE-compatible broad match)
+anthropic/claude-code	Upstream project reference
+\$CLAUDE_PROJECT_DIR	Environment variable reference
+CLAUDE_PROJECT_DIR	Environment variable reference (unsymbol'd)
+"Claude Code"	Product name in quoted form
+claude-code/CHANGELOG	Anthropic changelog reference
+Claude Code	Product name (unquoted)
+claude\.com	Company domain reference
+@claude\.com	Anthropic email domain reference
+test/test-agency-project/	Test fixture with embedded .git/ — fixture content preserved verbatim
+src/archive/	Archived content retains historical refs (Principle 9)
+history/	Historical content retains refs (Principle 9)
+usr/	Principal sandbox retains refs (Principle 9)
+workstreams/.*/transcripts/	Transcripts retain refs verbatim (Principle 9)
+workstreams/.*/history/	Per-workstream history retains refs (Principle 9)
+claude-code	Generic Claude Code product reference (lowercase variant)
+@anthropic\.com	Anthropic email domain
