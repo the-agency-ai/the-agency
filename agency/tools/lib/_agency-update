@@ -107,7 +107,7 @@ _update_main() {
     }
 
     # --- Precondition: initialized ---
-    if [[ ! -f "$TARGET_DIR/claude/config/agency.yaml" ]]; then
+    if [[ ! -f "$TARGET_DIR/agency/config/agency.yaml" ]]; then
         log_error "Agency not initialized in $TARGET_DIR"
         echo "Run 'agency init' first."
         exit 1
@@ -210,14 +210,14 @@ _update_main() {
         log_info "Source: $SOURCE_DIR (shallow clone, will be removed)"
     elif [[ -n "${AGENCY_SOURCE:-}" ]]; then
         SOURCE_DIR="$AGENCY_SOURCE"
-    elif [[ -f "$TARGET_DIR/../the-agency/claude/config/agency.yaml" ]]; then
+    elif [[ -f "$TARGET_DIR/../the-agency/agency/config/agency.yaml" ]]; then
         SOURCE_DIR="$(cd "$TARGET_DIR/../the-agency" && pwd)"
-    elif [[ -f "$AGENCY_DIR/../claude/config/agency.yaml" ]]; then
+    elif [[ -f "$AGENCY_DIR/../agency/config/agency.yaml" ]]; then
         # Running from the framework itself — AGENCY_DIR points to claude/
         SOURCE_DIR="$(cd "$AGENCY_DIR/.." && pwd)"
     fi
 
-    if [[ -z "$SOURCE_DIR" ]] || [[ ! -f "$SOURCE_DIR/claude/config/agency.yaml" ]]; then
+    if [[ -z "$SOURCE_DIR" ]] || [[ ! -f "$SOURCE_DIR/agency/config/agency.yaml" ]]; then
         log_error "Agency source not found."
         echo ""
         echo "Three ways to provide source:"
@@ -239,7 +239,7 @@ _update_main() {
 
     # --- Resolve versions ---
     local from_commit to_commit from_version to_version
-    from_commit=$(grep '^  source_commit:' "$TARGET_DIR/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
+    from_commit=$(grep '^  source_commit:' "$TARGET_DIR/agency/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
     from_version=$(jq -r '.agency_version // "unknown"' "$TARGET_DIR/claude/config/manifest.json" 2>/dev/null || echo "unknown")
     to_commit=$(git -C "$SOURCE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
     to_version=$(jq -r '.agency_version // "unknown"' "$SOURCE_DIR/claude/config/manifest.json" 2>/dev/null || echo "unknown")
@@ -450,8 +450,8 @@ _update_main() {
     log_step "Updating agency.yaml"
 
     if [[ "$DRY_RUN" == "false" ]]; then
-        local yaml_file="$TARGET_DIR/claude/config/agency.yaml"
-        local src_yaml="$SOURCE_DIR/claude/config/agency.yaml"
+        local yaml_file="$TARGET_DIR/agency/config/agency.yaml"
+        local src_yaml="$SOURCE_DIR/agency/config/agency.yaml"
         local updated_at
         updated_at=$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')
 

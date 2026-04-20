@@ -48,7 +48,7 @@ check_warn() {
 echo "agency verify [run: ${RUN_ID:-none}]"
 
 # --- Check agency.yaml ---
-YAML="$PROJECT_ROOT/claude/config/agency.yaml"
+YAML="$PROJECT_ROOT/agency/config/agency.yaml"
 if [[ -f "$YAML" ]]; then
     check_pass "agency.yaml exists"
 else

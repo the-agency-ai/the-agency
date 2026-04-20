@@ -61,7 +61,7 @@ _provider_tool_name() {
 # Read provider name from agency.yaml for a given section
 get_provider_name() {
     local section="$1"
-    local yaml="${AGENCY_PROJECT_ROOT}/claude/config/agency.yaml"
+    local yaml="${AGENCY_PROJECT_ROOT}/agency/config/agency.yaml"
 
     if [[ ! -f "$yaml" ]]; then
         echo "_provider-resolve: agency.yaml not found at $yaml" >&2

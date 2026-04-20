@@ -164,14 +164,14 @@ _init_main() {
     fi
 
     # --- Precondition 4: not already initialized ---
-    if [[ -f "$TARGET_DIR/claude/config/agency.yaml" ]]; then
+    if [[ -f "$TARGET_DIR/agency/config/agency.yaml" ]]; then
         log_warn "Agency already initialized in $TARGET_DIR"
         echo "Use 'agency update' to update an existing installation."
         exit 1
     fi
 
     # --- Validate agency source ---
-    if [[ ! -f "$AGENCY_SOURCE/claude/config/agency.yaml" ]]; then
+    if [[ ! -f "$AGENCY_SOURCE/agency/config/agency.yaml" ]]; then
         log_error "Agency source not found at: $AGENCY_SOURCE"
         echo "Set AGENCY_SOURCE to the-agency repo path."
         exit 1
@@ -225,7 +225,7 @@ _init_main() {
     source_commit=$(git -C "$AGENCY_SOURCE" rev-parse HEAD 2>/dev/null || echo "unknown")
     local framework_version
     # Read version from the source agency.yaml framework section
-    framework_version=$(grep '^  version:' "$AGENCY_SOURCE/claude/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "2.0.0")
+    framework_version=$(grep '^  version:' "$AGENCY_SOURCE/agency/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "2.0.0")
     framework_version="${framework_version:-2.0.0}"
 
     echo ""
@@ -326,7 +326,7 @@ _init_main() {
 
     # Config
     mkdir -p "$TARGET_DIR/claude/config"
-    cat > "$TARGET_DIR/claude/config/agency.yaml" << YAML_EOF
+    cat > "$TARGET_DIR/agency/config/agency.yaml" << YAML_EOF
 # Agency Configuration for $PROJECT_NAME
 
 principals:

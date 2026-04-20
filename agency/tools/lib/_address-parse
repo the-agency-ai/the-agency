@@ -287,7 +287,7 @@ address_validate_component() {
 # ─────────────────────────────────────────────────────────────────────────────
 _address_detect_repo() {
     local project_root="${AGENCY_PROJECT_ROOT:-.}"
-    local yaml="$project_root/claude/config/agency.yaml"
+    local yaml="$project_root/agency/config/agency.yaml"
 
     # Check agency.yaml override first
     if [[ -f "$yaml" ]]; then
@@ -353,7 +353,7 @@ _address_parse_repo_url() {
 # ─────────────────────────────────────────────────────────────────────────────
 _address_detect_org() {
     local project_root="${AGENCY_PROJECT_ROOT:-.}"
-    local yaml="$project_root/claude/config/agency.yaml"
+    local yaml="$project_root/agency/config/agency.yaml"
 
     # Check agency.yaml override first
     if [[ -f "$yaml" ]]; then
@@ -412,7 +412,7 @@ _address_parse_org_url() {
 # ─────────────────────────────────────────────────────────────────────────────
 _address_detect_principal() {
     local project_root="${AGENCY_PROJECT_ROOT:-.}"
-    local yaml="$project_root/claude/config/agency.yaml"
+    local yaml="$project_root/agency/config/agency.yaml"
 
     if [[ ! -f "$yaml" ]]; then
         return 1
@@ -462,7 +462,7 @@ _address_is_known_org() {
     }
 
     # Check remotes section in agency.yaml for URL-embedded org names
-    local yaml="$project_root/claude/config/agency.yaml"
+    local yaml="$project_root/agency/config/agency.yaml"
     if [[ -f "$yaml" ]]; then
         # Look for remotes section URLs containing the name as an org
         local in_remotes=false
