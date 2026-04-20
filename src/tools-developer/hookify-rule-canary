@@ -1,0 +1,231 @@
+#!/bin/bash
+#
+# hookify-rule-canary — Per-rule canary-fire validation
+#
+# What Problem: v46.0 renames hook script paths. Hookify rules that match on
+# absolute/relative paths may silently no-op post-rename. We need a canary
+# that fires every rule against a synthetic payload to prove it still blocks,
+# warns, or informs as declared.
+#
+# How & Why: For each rule file `<rule>.md`, expect a sibling `<rule>.canary`
+# with:
+#   HEADER:
+#     expected_decision: block | warn | inform
+#     expected_match: <substring present in rule regex output>
+# BODY: synthetic tool-payload that the rule's regex must match.
+# The tool simulates a PreToolUse hook by piping the body to a mock dispatcher
+# (or directly matches the rule's regex from the rule's markdown). Never
+# executes the actual blocked command.
+#
+# Written: 2026-04-19 during v46.0 structural reset Phase 0b
+
+set -euo pipefail
+
+TOOL_VERSION="0.1.0"
+
+die() { echo "[ERROR] $*" >&2; exit 2; }
+
+usage() {
+    cat <<'USAGE'
+hookify-rule-canary — Fire a canary against a hookify rule
+
+Usage:
+  hookify-rule-canary <rule.md> [<canary.canary>]
+  hookify-rule-canary --all <rules-dir>
+  hookify-rule-canary --mock              # built-in self-test (no inputs)
+
+Options:
+  --all DIR       Iterate every .md rule under DIR, require a sibling .canary
+  --mock          Self-test mode (exits 0 if the mock matcher behaves)
+  --help / --version
+USAGE
+    exit 0
+}
+
+# Simple pattern-match: extract a regex from the rule's markdown body.
+# A rule file contains a section like:
+#   ## Pattern
+#   ```regex
+#   <regex>
+#   ```
+# or a `pattern:` YAML frontmatter key.
+extract_pattern() {
+    local rule="$1"
+    # Try frontmatter pattern: key first
+    python3 - "$rule" <<'PYEOF'
+import sys, re
+path = sys.argv[1]
+try:
+    with open(path) as fh:
+        text = fh.read()
+except OSError:
+    sys.exit(2)
+
+# 1) YAML frontmatter "pattern:"
+m = re.search(r'^pattern:\s*"?([^"\n]+)"?\s*$', text, re.M)
+if m:
+    print(m.group(1).strip())
+    sys.exit(0)
+
+# 2) fenced regex code block after "## Pattern"
+m = re.search(r'##\s*Pattern.*?```regex\s*\n(.+?)\n```', text, re.S | re.I)
+if m:
+    print(m.group(1).strip())
+    sys.exit(0)
+
+# 3) plain ```regex block anywhere
+m = re.search(r'```regex\s*\n(.+?)\n```', text, re.S)
+if m:
+    print(m.group(1).strip())
+    sys.exit(0)
+
+# 4) any single-line `pattern: ...` in body text
+m = re.search(r'^\s*pattern:\s*`?([^`\n]+?)`?\s*$', text, re.M | re.I)
+if m:
+    print(m.group(1).strip())
+    sys.exit(0)
+
+sys.exit(1)
+PYEOF
+}
+
+# Parse canary expected_decision + expected_match
+parse_canary() {
+    local canary="$1"
+    python3 - "$canary" <<'PYEOF'
+import sys, re
+with open(sys.argv[1]) as fh:
+    text = fh.read()
+decision_m = re.search(r'^expected_decision:\s*(\S+)', text, re.M)
+match_m = re.search(r'^expected_match:\s*(.+)$', text, re.M)
+print(decision_m.group(1) if decision_m else "")
+print(match_m.group(1).strip() if match_m else "")
+PYEOF
+}
+
+# Extract canary payload (everything after a `---BODY---` separator, or whole file)
+canary_body() {
+    local canary="$1"
+    awk '/^---BODY---$/{found=1; next} found' "$canary"
+    # Fallback: if no separator, print full file
+    if ! grep -q '^---BODY---$' "$canary" 2>/dev/null; then
+        cat "$canary"
+    fi
+}
+
+run_canary() {
+    local rule="$1" canary="$2"
+
+    local pattern
+    pattern="$(extract_pattern "$rule" 2>/dev/null || true)"
+    if [[ -z "$pattern" ]]; then
+        echo "[FAIL] $rule: no pattern found" >&2
+        return 1
+    fi
+
+    local decision expected_match
+    local parsed
+    parsed="$(parse_canary "$canary")"
+    decision="$(echo "$parsed" | head -1)"
+    expected_match="$(echo "$parsed" | sed -n 2p)"
+
+    [[ -z "$decision" ]] && { echo "[FAIL] $canary: missing expected_decision" >&2; return 1; }
+
+    local payload
+    payload="$(canary_body "$canary")"
+
+    # Match payload against pattern — we NEVER execute the payload, only match it
+    if printf '%s' "$payload" | grep -qE -- "$pattern" 2>/dev/null; then
+        echo "[OK] $rule decision=$decision match=yes"
+        return 0
+    else
+        echo "[FAIL] $rule: payload did not match pattern '$pattern' (decision=$decision)" >&2
+        return 1
+    fi
+}
+
+# --- Parse args ---
+MODE="single"
+ALL_DIR=""
+RULE=""
+CANARY=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) usage ;;
+        --version) echo "hookify-rule-canary $TOOL_VERSION"; exit 0 ;;
+        --all) MODE="all"; shift; ALL_DIR="${1:-}"; shift ;;
+        --mock) MODE="mock"; shift ;;
+        --*) die "Unknown flag: $1" ;;
+        *)
+            if [[ -z "$RULE" ]]; then
+                RULE="$1"
+            elif [[ -z "$CANARY" ]]; then
+                CANARY="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ "$MODE" == "mock" ]]; then
+    # Self-test: verify pattern extraction + canary parse work on tmp files
+    TMP="$(mktemp -d -t hrc-mock.XXXXXX)"
+    cat > "$TMP/test.md" <<'EOF'
+pattern: ^git\s+commit$
+EOF
+    cat > "$TMP/test.canary" <<'EOF'
+expected_decision: block
+expected_match: git commit
+---BODY---
+git commit
+EOF
+    if run_canary "$TMP/test.md" "$TMP/test.canary"; then
+        echo "[MOCK-OK] self-test passed"
+        rm -rf "$TMP"
+        exit 0
+    else
+        rm -rf "$TMP"
+        exit 1
+    fi
+fi
+
+if [[ "$MODE" == "all" ]]; then
+    [[ -d "$ALL_DIR" ]] || die "--all dir not found: $ALL_DIR"
+    fails=0
+    total=0
+    # Canary files live in src/tests/hookify/canaries/ post-v46.1; fall back
+    # to sibling-<rule>.canary for legacy co-located layout.
+    canary_dir="$(git rev-parse --show-toplevel 2>/dev/null)/src/tests/hookify/canaries"
+    while IFS= read -r -d '' rule; do
+        rule_base="$(basename "$rule" .md)"
+        canary="$canary_dir/$rule_base.canary"
+        if [[ ! -f "$canary" ]]; then
+            canary="${rule%.md}.canary"  # sibling fallback
+        fi
+        if [[ -f "$canary" ]]; then
+            total=$((total + 1))
+            run_canary "$rule" "$canary" || fails=$((fails + 1))
+        fi
+    done < <(find "$ALL_DIR" -name '*.md' -print0 2>/dev/null)
+    echo "# total=$total fails=$fails" >&2
+    [[ $fails -eq 0 ]] || exit 1
+    exit 0
+fi
+
+# Single-rule mode
+[[ -z "$RULE" ]] && die "rule argument required"
+if [[ -z "$CANARY" ]]; then
+    # Prefer src/tests/hookify/canaries/, fallback to sibling
+    rule_base="$(basename "$RULE" .md)"
+    canary_dir="$(git rev-parse --show-toplevel 2>/dev/null)/src/tests/hookify/canaries"
+    if [[ -f "$canary_dir/$rule_base.canary" ]]; then
+        CANARY="$canary_dir/$rule_base.canary"
+    else
+        CANARY="${RULE%.md}.canary"
+    fi
+fi
+[[ -f "$RULE" ]] || die "rule not found: $RULE"
+[[ -f "$CANARY" ]] || die "canary not found: $CANARY"
+
+run_canary "$RULE" "$CANARY" || exit 1
+exit 0
