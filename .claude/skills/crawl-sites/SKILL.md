@@ -25,7 +25,7 @@ Crawl configured sites and extract structured content using the configured crawl
 
 ### Step 1: Resolve Provider
 
-Read the crawl provider from `claude/config/agency.yaml` under `crawl.provider`.
+Read the crawl provider from `agency/config/agency.yaml` under `crawl.provider`.
 
 ```yaml
 # agency.yaml
@@ -40,13 +40,13 @@ crawl:
       patterns: ["/posts/*"]
 ```
 
-The provider maps to a tool: `./claude/tools/crawl-{provider}`
+The provider maps to a tool: `./agency/tools/crawl-{provider}`
 
 ### Step 2: Check Provider Tool Exists
 
-Verify `./claude/tools/crawl-{provider}` exists and is executable. If not:
+Verify `./agency/tools/crawl-{provider}` exists and is executable. If not:
 - For `webfetch` provider: use the built-in WebFetch tool directly (no external tool needed)
-- List available crawl tools: `ls ./claude/tools/crawl-*`
+- List available crawl tools: `ls ./agency/tools/crawl-*`
 - Tell the user which providers are available
 
 ### Step 3: Read Site Configuration
@@ -60,7 +60,7 @@ If `--site` specified, filter to that site only.
 
 ### Step 4: Dispatch to Provider
 
-For each site, execute: `./claude/tools/crawl-{provider} {url} {patterns} {output}`
+For each site, execute: `./agency/tools/crawl-{provider} {url} {patterns} {output}`
 
 Or for `webfetch` provider, use the WebFetch tool directly with each URL.
 

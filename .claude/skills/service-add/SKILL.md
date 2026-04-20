@@ -11,7 +11,7 @@ Uses the SPEC-PROVIDER pattern: the **SPEC** is the skill invocation (name + wor
 ## Arguments
 
 - $ARGUMENTS: `<name>` — kebab-case service name. Followed by:
-  - `--workstream <ws>` — existing workstream name (claude/workstreams/<ws>/) **[required]**
+  - `--workstream <ws>` — existing workstream name (agency/workstreams/<ws>/) **[required]**
   - `--type <provider>` — starter pack [default: `nestjs-prototype`]
   - `--description <text>` — scaffold/registry description
   - `--owner <text>` — owner attribution in registry
@@ -56,7 +56,7 @@ To add a new starter pack, see `claude/starter-packs/README.md`.
 
 ### Step 1: Parse and validate
 
-Run `./claude/tools/service-add $ARGUMENTS` and relay the output.
+Run `./agency/tools/service-add $ARGUMENTS` and relay the output.
 
 The tool handles validation. If it fails, relay the error to the user verbatim.
 

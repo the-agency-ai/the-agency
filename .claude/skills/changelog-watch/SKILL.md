@@ -19,7 +19,7 @@ Monitor Claude Code's changelog for new releases and features. Uses the Monitor 
 Use the Monitor tool to run the changelog-monitor script in the background:
 
 ```
-Monitor the Claude Code changelog for new releases. Run ./claude/tools/changelog-monitor in the background. When a new version is detected, summarize what changed and flag anything relevant to our workflow.
+Monitor the Claude Code changelog for new releases. Run ./agency/tools/changelog-monitor in the background. When a new version is detected, summarize what changed and flag anything relevant to our workflow.
 ```
 
 The script:

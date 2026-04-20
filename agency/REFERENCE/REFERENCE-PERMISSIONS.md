@@ -9,7 +9,7 @@ The Agency uses a layered permissions model for Claude Code that separates frame
 **Purpose:** Versioned with The Agency, contains framework-level permissions and hooks.
 
 **Contains:**
-- Agency tool permissions (`Bash(./claude/tools/*)`)
+- Agency tool permissions (`Bash(./agency/tools/*)`)
 - Framework hooks (ghostty-status, session-backup, check-messages)
 - Standard terminal operations
 
@@ -57,7 +57,7 @@ Your local settings override framework defaults, allowing you to customize witho
     "allow": [
       "Bash(git status:*)",      // Exact match with wildcard
       "Bash(npm run:*)",          // Package manager commands
-      "Bash(./claude/tools/*)"           // All Agency tools
+      "Bash(./agency/tools/*)"           // All Agency tools
     ],
     "deny": [
       "Bash(rm -rf:*)",           // Dangerous operations
@@ -211,7 +211,7 @@ When you update The Agency framework:
 ## Troubleshooting
 
 **Permission prompts for Agency tools:**
-- Verify `Bash(./claude/tools/*)` is in `.claude/settings.json`
+- Verify `Bash(./agency/tools/*)` is in `.claude/settings.json`
 - Check that the settings file is valid JSON
 
 **Custom permissions not working:**

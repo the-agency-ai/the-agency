@@ -94,9 +94,9 @@ Two addressing targets: **agents** (principal-scoped) and **workstreams** (repo-
 | Repo | Repository short name | Same as agent addressing | `the-agency`, `monofolk` |
 | Workstream | Workstream name | `[a-z0-9][a-z0-9_-]*` | `iscp`, `mdpal`, `mock-and-mark` |
 
-Workstreams are repo-level concepts — they match `claude/workstreams/{name}/`. No principal scoping.
+Workstreams are repo-level concepts — they match `agency/workstreams/{name}/`. No principal scoping.
 
-**Disambiguation:** A bare name (e.g., `iscp`) could be an agent or a workstream. Resolution order: (1) check `claude/workstreams/{name}/` — if exists, it's a workstream; (2) check agent registrations — if exists, it's an agent; (3) fail with actionable error.
+**Disambiguation:** A bare name (e.g., `iscp`) could be an agent or a workstream. Resolution order: (1) check `agency/workstreams/{name}/` — if exists, it's a workstream; (2) check agent registrations — if exists, it's an agent; (3) fail with actionable error.
 
 Repo short names are the leaf name only — no org prefix, no nested group paths. For GitLab nested groups (`org/subgroup/repo`), the short name is `repo`. The `remotes` registry handles full path resolution.
 
@@ -159,7 +159,7 @@ Addresses resolve to physical locations for dispatch payloads:
 | Target type | Address pattern | Dispatch payload location |
 |-------------|----------------|--------------------------|
 | Agent | `{repo}/{principal}/{agent}` | `claude/data/dispatches/` |
-| Workstream | `{repo}/{workstream}` | `claude/workstreams/{workstream}/dispatches/` |
+| Workstream | `{repo}/{workstream}` | `agency/workstreams/{workstream}/dispatches/` |
 
 A **dispatch** is a structured message between agents or from principal to agent. It consists of a notification pointing to a payload file in git at the resolved location above. Dispatch payloads are immutable once written. Named `{type}-{slug}-{YYYYMMDD-HHMM}.md`.
 
@@ -167,7 +167,7 @@ Dispatches are managed by the `dispatch` tool — never created manually. The to
 
 A **flag** is a quick-capture observation for later discussion. Flags are DB-only — no git payload, instant capture from any worktree. Agent-addressable: `flag <message>` (self), `flag --to <agent> <message>` (specific agent). Three-state lifecycle: unread → read (on `flag list`) → processed (on `flag discuss` or `flag clear`).
 
-Both dispatch notifications and flags are persisted in a SQLite database at `~/.agency/{repo-name}/iscp.db` (outside git). The DB stores notification metadata and mutable state (read/unread, timestamps). Dispatch payloads remain as immutable markdown files in git. Flags are DB-only (no git payload). See the ISCP reference: `claude/workstreams/iscp/iscp-reference-20260405.md`.
+Both dispatch notifications and flags are persisted in a SQLite database at `~/.agency/{repo-name}/iscp.db` (outside git). The DB stores notification metadata and mutable state (read/unread, timestamps). Dispatch payloads remain as immutable markdown files in git. Flags are DB-only (no git payload). See the ISCP reference: `agency/workstreams/iscp/iscp-reference-20260405.md`.
 
 ### Commit Messages
 

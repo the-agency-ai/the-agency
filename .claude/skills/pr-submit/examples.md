@@ -15,7 +15,7 @@ Expected:
 ```
 [pr-submit] Preflight OK: worktree=devex, branch=jordan-devex-d12-r3, sha=a3f9b21, pushed=ok
 [pr-submit] Diff hash: 8b4c2e1 (vs origin/master)
-[pr-submit] Receipt: claude/workstreams/devex/qgr/monofolk-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md
+[pr-submit] Receipt: agency/workstreams/devex/qgr/monofolk-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md
 [pr-submit] Dispatched to monofolk/jordan/captain as d-019da47f-8b4c
 → Captain will run /pr-captain-land jordan-devex-d12-r3
 → You'll receive a master-updated dispatch when the PR lands.
@@ -72,7 +72,7 @@ Exit 1.
 [pr-submit] ERROR: Preflight failed — local HEAD and origin/<branch> diverge.
   local:  a3f9b21
   origin: e47ce53
-  Fix: run /sync or push via ./claude/tools/git-push <branch>.
+  Fix: run /sync or push via ./agency/tools/git-push <branch>.
 ```
 
 Exit 1.
@@ -81,7 +81,7 @@ Exit 1.
 
 ```
 [pr-submit] ERROR: Preflight failed — no QGR receipt matches current diff-hash (8b4c2e1).
-  Searched: claude/workstreams/**/qgr/*qgr-pr-prep-*-8b4c2e1.md
+  Searched: agency/workstreams/**/qgr/*qgr-pr-prep-*-8b4c2e1.md
   Fix: run /pr-prep to sign a fresh receipt, then re-try /pr-submit.
 ```
 
@@ -93,7 +93,7 @@ Rare — two `/pr-prep` runs produced matching hashes (e.g., no change between r
 
 ```
 [pr-submit] WARN: 2 receipts match diff-hash 8b4c2e1. Using most recent:
-  claude/workstreams/devex/qgr/monofolk-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md
+  agency/workstreams/devex/qgr/monofolk-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md
 [pr-submit] Dispatched to captain as d-019da47f-8b4c
 ```
 
@@ -116,7 +116,7 @@ The dispatch body that lands in captain's inbox (see `reference.md` for full sch
 
 ## QGR receipt
 
-- **Path:** `claude/workstreams/devex/qgr/monofolk-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md`
+- **Path:** `agency/workstreams/devex/qgr/monofolk-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md`
 - **Verified:** local receipt file matches current state
 
 ## Scope summary

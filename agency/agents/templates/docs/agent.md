@@ -21,7 +21,7 @@ Documentation specialist focused on creating clear, comprehensive, and maintaina
 ## How to Spin Up
 
 ```bash
-./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+./agency/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
 ```
 
 ## Knowledge Base
@@ -77,11 +77,11 @@ This agent specializes in:
 |------|---------|
 | Read | Review code for documentation |
 | Write | Create/update documentation |
-| `./claude/tools/git-safe-commit` | Commit documentation changes |
+| `./agency/tools/git-safe-commit` | Commit documentation changes |
 
 ## Key Directories
 
-- `claude/agents/{{AGENT_NAME}}/` - Agent identity
-- `claude/workstreams/{{WORKSTREAM}}/` - Work artifacts
+- `agency/agents/{{AGENT_NAME}}/` - Agent identity
+- `agency/workstreams/{{WORKSTREAM}}/` - Work artifacts
 - `claude/knowledge/documentation-patterns/` - Documentation patterns
 - `claude/REFERENCE-*.md` - Agency documentation

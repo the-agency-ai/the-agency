@@ -26,7 +26,7 @@ The previous response said "port decisions as documentation, not the artifacts."
 The Reference is the terminal artifact in the methodology lifecycle (Seed → Discussion → PVR → A&D → Plan → Reference). For upstream ports, the PVR/A&D/Plan stay in the source project. But the Reference — the distilled, reusable documentation — belongs in the framework.
 
 **Where it goes:**
-- Pattern documentation → update `claude/CLAUDE-THEAGENCY.md` (methodology section)
+- Pattern documentation → update `agency/CLAUDE-THEAGENCY.md` (methodology section)
 - Protocol documentation → `claude/docs/{PROTOCOL-NAME}.md` (reference doc, injected by ref-injector)
 - Design reference → `claude/docs/references/{name}.md` (for designs that inform but don't prescribe)
 

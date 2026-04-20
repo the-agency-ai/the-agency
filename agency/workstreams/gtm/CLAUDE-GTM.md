@@ -13,7 +13,7 @@ Turn TheAgency from an internal framework into something other teams adopt, talk
 
 ## Conventions
 
-- **Seeds for gtm** live at `claude/workstreams/gtm/seeds/` — launch ideas, messaging drafts, community observations.
+- **Seeds for gtm** live at `agency/workstreams/gtm/seeds/` — launch ideas, messaging drafts, community observations.
 - **Business opportunities** flagged for gtm follow the format: origin (who brought it up), opportunity shape, effort required, go/defer decision.
 - **External artifacts** (tweets, blog drafts, talks) captured with timestamps and author attribution so the git history shows the editorial pipeline.
 
@@ -24,7 +24,7 @@ Early. Most work today captured as flags and seeds pending triage. First major m
 ## Related
 
 - Flag queue items tagged `gtm` or `SEED: agency-gtm`
-- `claude/workstreams/agency/references/` — framework philosophy pieces that will become launch content
+- `agency/workstreams/agency/references/` — framework philosophy pieces that will become launch content
 - Monofolk graduation (2026-04-09) is the first real adoption case study
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

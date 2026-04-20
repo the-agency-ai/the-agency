@@ -117,7 +117,7 @@ Multi-verb via argument: `compute-fly setup`, `compute-fly provision`, `compute-
 
 Because it describes the **application** (services, dependencies, build paths), not the **Agency config** (providers, environments).
 
-Lives at `claude/config/topology.yaml`. Read by `topology-resolve`.
+Lives at `agency/config/topology.yaml`. Read by `topology-resolve`.
 
 ### Computed wiring via template interpolation
 

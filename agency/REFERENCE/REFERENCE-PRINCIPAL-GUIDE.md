@@ -35,9 +35,9 @@ Human stakeholders who provide direction:
 
 ### Collaboration
 Agents communicate via:
-- `./claude/tools/collaborate` - Request help from another agent
-- `./claude/tools/news-post` / `./claude/tools/news-read` - Broadcast updates
-- `./claude/tools/nit-add` - Flag issues for later
+- `./agency/tools/collaborate` - Request help from another agent
+- `./agency/tools/news-post` / `./agency/tools/news-read` - Broadcast updates
+- `./agency/tools/nit-add` - Flag issues for later
 
 ## Directory Structure
 
@@ -59,38 +59,38 @@ tools/                       # CLI tools for The Agency
 ## Tools
 
 **Session:**
-- `./claude/tools/myclaude WORKSTREAM AGENT` - Launch an agent
-- `./claude/tools/welcomeback` - Session restoration
-- `./claude/tools/session-backup` - Save session context
+- `./agency/tools/myclaude WORKSTREAM AGENT` - Launch an agent
+- `./agency/tools/welcomeback` - Session restoration
+- `./agency/tools/session-backup` - Save session context
 
 **Scaffolding:**
-- `./claude/tools/workstream-create` - Add a new workstream
-- `./claude/tools/agent-create` - Add a new agent
-- `./claude/tools/epic-create` - Plan major work
-- `./claude/tools/sprint-create` - Plan sprint work
+- `./agency/tools/workstream-create` - Add a new workstream
+- `./agency/tools/agent-create` - Add a new agent
+- `./agency/tools/epic-create` - Plan major work
+- `./agency/tools/sprint-create` - Plan sprint work
 
 **Collaboration:**
-- `./claude/tools/collaborate` - Request help
-- `./claude/tools/collaboration-respond` - Respond to requests
-- `./claude/tools/news-post` / `./claude/tools/news-read` - Broadcasts
+- `./agency/tools/collaborate` - Request help
+- `./agency/tools/collaboration-respond` - Respond to requests
+- `./agency/tools/news-post` / `./agency/tools/news-read` - Broadcasts
 
 **Quality:**
-- `./claude/tools/commit-precheck` - Run quality gates
-- `./claude/tools/test-run` - Run tests
-- `./claude/tools/code-review` - Automated code review
-- `./claude/tools/review-spawn` - Generate review subagent prompts
-- `./claude/tools/install-hooks` - Install git pre-commit hooks
+- `./agency/tools/commit-precheck` - Run quality gates
+- `./agency/tools/test-run` - Run tests
+- `./agency/tools/code-review` - Automated code review
+- `./agency/tools/review-spawn` - Generate review subagent prompts
+- `./agency/tools/install-hooks` - Install git pre-commit hooks
 
 **Git:**
-- `./claude/tools/git-safe-commit` - Create properly formatted commits
-- `./claude/tools/git-tag` - Tag work item stages (verifies tests pass)
-- `./claude/tools/git-sync` - Push with pre-commit checks
+- `./agency/tools/git-safe-commit` - Create properly formatted commits
+- `./agency/tools/git-tag` - Tag work item stages (verifies tests pass)
+- `./agency/tools/git-sync` - Push with pre-commit checks
 
 **GitHub:**
-- `./claude/tools/gh` - GitHub CLI wrapper (auto token injection + logging)
-- `./claude/tools/gh-pr` - PR operations (list, create, merge, etc.)
-- `./claude/tools/gh-release` - Release operations (list, create, view)
-- `./claude/tools/gh-api` - API operations (REST and GraphQL)
+- `./agency/tools/gh` - GitHub CLI wrapper (auto token injection + logging)
+- `./agency/tools/gh-pr` - PR operations (list, create, merge, etc.)
+- `./agency/tools/gh-release` - Release operations (list, create, view)
+- `./agency/tools/gh-api` - API operations (REST and GraphQL)
 
 ## Terminal Integration
 
@@ -121,8 +121,8 @@ See `PERMISSIONS.md` for the full model and examples.
 
 If the vault is locked or uninitialized:
 ```bash
-./claude/tools/secret vault unlock    # Unlock for session
-./claude/tools/secret vault init      # First-time initialization
+./agency/tools/secret vault unlock    # Unlock for session
+./agency/tools/secret vault init      # First-time initialization
 ```
 
 See `SECRETS.md` for complete reference (vault management, access control, audit logging, migration).
@@ -161,20 +161,20 @@ When adding new features to the-agency:
 Before any starter release:
 ```bash
 # 1. Run full test suite
-./claude/tools/starter-test --local
+./agency/tools/starter-test --local
 
 # 2. Verify installation
-./claude/tools/starter-verify --install
+./agency/tools/starter-verify --install
 
 # 3. Compare files
-./claude/tools/starter-compare --install
+./agency/tools/starter-compare --install
 ```
 
 All tests must pass and no unexpected differences before proceeding.
 
 See `STARTER-RELEASE-PROCESS.md` for the complete workflow including:
 - Pre-release checks
-- Cutting releases with `./claude/tools/starter-release`
+- Cutting releases with `./agency/tools/starter-release`
 - Post-release verification
 - What gets synced and cleaned
 
@@ -183,12 +183,12 @@ See `STARTER-RELEASE-PROCESS.md` for the complete workflow including:
 The captain is always available to help:
 
 ```bash
-./claude/tools/myclaude housekeeping captain "I need help with..."
+./agency/tools/myclaude housekeeping captain "I need help with..."
 ```
 
 For first-time users, try the interactive tour:
 ```bash
-./claude/tools/myclaude housekeeping captain
+./agency/tools/myclaude housekeeping captain
 # Then type: /agency-welcome
 ```
 

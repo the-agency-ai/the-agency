@@ -21,7 +21,7 @@ This is **TheAgency framework development repo** — open core (MIT framework, R
 - `claude/` — framework: tools, agents, docs, hooks, hookify rules, config, skills, templates
 - `usr/` — principal sandboxes (at **project root**, NOT under `claude/`)
 - `.claude/skills/` — skill definitions (discover via `/` autocomplete)
-- `claude/hookify/` — behavioral enforcement rules (40 rules — blocks, warns, informs)
+- `agency/hookify/` — behavioral enforcement rules (40 rules — blocks, warns, informs)
 - `claude/REFERENCE-*.md` — reference docs (injected on demand by `ref-injector.sh` when skills run)
 
 ## How You Work
@@ -29,7 +29,7 @@ This is **TheAgency framework development repo** — open core (MIT framework, R
 1. **Skills are the interface.** Use `/` autocomplete to discover capabilities. Skills invoke tools with correct parameters and trigger ref-injector to provide protocol docs when needed.
 2. **Hookify enforces mechanically.** If you try something wrong (raw `git commit`, compound bash, force push, cd to main), a hookify rule blocks you with guidance on what to do instead.
 3. **Ref-injector provides context on demand.** When you invoke a skill, the hook injects the relevant reference doc into your context — full protocol detail exactly when you need it.
-4. **Handoff tool for session context.** Use `/handoff` or `./claude/tools/handoff write` — never write handoff files manually.
+4. **Handoff tool for session context.** Use `/handoff` or `./agency/tools/handoff write` — never write handoff files manually.
 5. **ISCP for communication.** Dispatches and flags via `/dispatch` and `/flag` skills. Start `/monitor-dispatches` at session start for real-time notification.
 
 ## Key Skills
@@ -59,9 +59,9 @@ All commands in the table below are blocked by hookify (decision:block + exit 2 
 | Blocked command | Safe alternative | Why |
 |----------------|-----------------|-----|
 | `git *` (all subcommands) | `git-safe` (read + merge ops), `git-captain` (captain-only: push, fetch, tag, merge-to-master, switch-branch), `/git-safe-commit` (commits) | Role-scoped git access |
-| `git push` | `./claude/tools/git-push` (via `/sync`, `/release`) | All pushes go through PRs |
-| `cp` | `./claude/tools/cp-safe` | Blocks cross-worktree copies |
-| `gh pr create` | `./claude/tools/pr-create` (via `/release`) | Requires QGR + version bump |
+| `git push` | `./agency/tools/git-push` (via `/sync`, `/release`) | All pushes go through PRs |
+| `cp` | `./agency/tools/cp-safe` | Blocks cross-worktree copies |
+| `gh pr create` | `./agency/tools/pr-create` (via `/release`) | Requires QGR + version bump |
 
 ## Valueflow Stream Model
 
@@ -110,7 +110,7 @@ Injected automatically when relevant skills run. Read directly when you need the
 
 ## Runtime Floor
 
-- **Python: 3.13+.** Framework tools, hooks, and services target modern Python. Set in D45-R1 per principal directive, superseding the D44-R6 3.12 floor. Rationale: brew default is 3.13 so adopters get the floor for free; 3.13 adds nothing we must opt into (PEP 703 no-GIL and PEP 744 JIT are opt-in). Shebang convention: `#!/usr/bin/env python3` + runtime `sys.version_info` guard (NOT `python3.13` — hard-coded minor names break pyenv/nix/conda/Apple-stock installs; see `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md`). Framework tools in `claude/tools/` remain **zero-pip**: stdlib only. Services (iscp dispatch-hub, etc.) may use pip deps.
+- **Python: 3.13+.** Framework tools, hooks, and services target modern Python. Set in D45-R1 per principal directive, superseding the D44-R6 3.12 floor. Rationale: brew default is 3.13 so adopters get the floor for free; 3.13 adds nothing we must opt into (PEP 703 no-GIL and PEP 744 JIT are opt-in). Shebang convention: `#!/usr/bin/env python3` + runtime `sys.version_info` guard (NOT `python3.13` — hard-coded minor names break pyenv/nix/conda/Apple-stock installs; see `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md`). Framework tools in `agency/tools/` remain **zero-pip**: stdlib only. Services (iscp dispatch-hub, etc.) may use pip deps.
 - **Bash: 3.2** (macOS default) — framework tools avoid 4.0+ features for portability.
 - **Node: 18+** — Claude Code CLI requirement.
 

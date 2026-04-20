@@ -141,7 +141,7 @@ The existing `_pr_yaml_get` already handles nested format (lines 74-90 of `_path
 
 Conservative bootstrap skips config-tier files (hooks) — but hooks are what most need updating. Path-to-tier inference heuristic ("infer from path") is not specified.
 
-**Recommendation:** Specify path-to-tier rules explicitly (e.g., `claude/hooks/` → config, `claude/tools/lib/` → framework). Add `--force-config` flag for explicit override. Log clear warning in bootstrap mode.
+**Recommendation:** Specify path-to-tier rules explicitly (e.g., `agency/hooks/` → config, `agency/tools/lib/` → framework). Add `--force-config` flag for explicit override. Log clear warning in bootstrap mode.
 
 ### F13: `_validate_name` dead code + leading-digit policy gap (conf 78)
 

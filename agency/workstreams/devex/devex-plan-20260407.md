@@ -6,7 +6,7 @@ date: 2026-04-07
 status: active
 author: the-agency/jordan/devex
 pvr: usr/jordan/devex/devex-pvr-20260406.md
-ad: claude/workstreams/devex/devex-ad-20260407.md
+ad: agency/workstreams/devex/devex-ad-20260407.md
 ---
 
 # DevEx — Implementation Plan
@@ -24,7 +24,7 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 - Keep `iscp_*` as aliases for backward compatibility
 - Make `setup()` in test_helper call `test_isolation_setup` by default
 - Add `SKIP_ISOLATION=1` opt-out mechanism
-- Add filesystem debris detection in teardown (targeted `ls` on `claude/agents/`, `.claude/agents/`, `claude/workstreams/`)
+- Add filesystem debris detection in teardown (targeted `ls` on `agency/agents/`, `.claude/agents/`, `agency/workstreams/`)
 - Update all 25 non-ISCP BATS files to work with universal isolation
 - Fix any tests that break due to isolation (fake HOME, git config)
 
@@ -37,26 +37,26 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 
 ### Iteration 1.2: Test Scoper
 
-**Scope:** Build `claude/tools/test-scoper` — maps changed files to relevant test files.
+**Scope:** Build `agency/tools/test-scoper` — maps changed files to relevant test files.
 
 **Work:**
-- Convention mapping: `claude/tools/{name}` → `tests/tools/{name}.bats`
-- Package fallback: `claude/tools/lib/{name}` → grep all `.bats` for `source.*{name}`
+- Convention mapping: `agency/tools/{name}` → `tests/tools/{name}.bats`
+- Package fallback: `agency/tools/lib/{name}` → grep all `.bats` for `source.*{name}`
 - Direct test changes: `tests/**/*.bats` → run the changed file
 - Manifest override: `# Test: path/to/test.bats` header comment
 - No mapping → warn, output nothing (not an error)
 - Stdin interface: reads file list from stdin, outputs test files to stdout
 
 **Acceptance:**
-- `echo "claude/tools/flag" | test-scoper` outputs `tests/tools/flag.bats`
-- `echo "claude/tools/lib/_iscp-db" | test-scoper` outputs all BATS files that source `_iscp-db`
+- `echo "agency/tools/flag" | test-scoper` outputs `tests/tools/flag.bats`
+- `echo "agency/tools/lib/_iscp-db" | test-scoper` outputs all BATS files that source `_iscp-db`
 - `echo "tests/tools/flag.bats" | test-scoper` outputs `tests/tools/flag.bats`
 - `echo "usr/jordan/devex/devex-handoff.md" | test-scoper` outputs nothing (no mapping, exit 0)
 - Tool has provenance header and `_log-helper` integration
 
 ### Iteration 1.3: Commit-Precheck Rewrite
 
-**Scope:** Rewrite `claude/tools/commit-precheck` with smart scoping, non-code skip, 60s timeout, and stage-hash verification.
+**Scope:** Rewrite `agency/tools/commit-precheck` with smart scoping, non-code skip, 60s timeout, and stage-hash verification.
 
 **Work:**
 - Stage classifier: categorize staged files (markdown-only, non-code, tool-change, app-code)
@@ -71,7 +71,7 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 
 **Acceptance:**
 - Markdown-only commit completes in <5s (no tests)
-- Single tool change (`claude/tools/flag`) runs only `tests/tools/flag.bats`, completes in <60s
+- Single tool change (`agency/tools/flag`) runs only `tests/tools/flag.bats`, completes in <60s
 - Timeout at 60s produces warning, allows commit
 - No `.git/config` corruption (isolation via test-scoper → BATS → universal isolation)
 - `--dry-run` shows what would execute without running
@@ -119,7 +119,7 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 **Scope:** Wire Docker runner as the T3 mechanism. Implement in-process fallback.
 
 **Work:**
-- T3 entry point: `claude/tools/test-full-suite` — tries Docker, falls back to in-process
+- T3 entry point: `agency/tools/test-full-suite` — tries Docker, falls back to in-process
 - Docker check: `docker info` succeeds → use Docker
 - Fallback: run all 32 files in-process with universal isolation, emit warning
 - Integrate with phase-complete flow (called by `/phase-complete`)
@@ -138,10 +138,10 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 
 ### Iteration 3.1: Permission Model Audit
 
-**Scope:** Audit `claude/config/settings-template.json` against all safe operations. (FR7, dispatch #36)
+**Scope:** Audit `agency/config/settings-template.json` against all safe operations. (FR7, dispatch #36)
 
 **Work:**
-- Catalog all tools in `claude/tools/` and their system calls
+- Catalog all tools in `agency/tools/` and their system calls
 - Catalog all read-only operations agents perform (ls, git show, sqlite3, etc.)
 - Catalog all framework paths that need read access (`claude/`, `usr/`, `.claude/`, `~/.agency/`)
 - Update `settings-template.json` with comprehensive safe-op permissions
@@ -149,7 +149,7 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 - Exclude: destructive ops (push, reset --hard, rm -rf)
 
 **Acceptance:**
-- All tools in `claude/tools/` have their operations pre-approved
+- All tools in `agency/tools/` have their operations pre-approved
 - Read operations on `claude/`, `usr/`, `.claude/`, `~/.agency/` pre-approved
 - ISCP tools (flag, dispatch list/read, iscp-check) pre-approved
 - No destructive operations pre-approved
@@ -157,7 +157,7 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 
 ### Iteration 3.2: Enforcement Registry + Audit Tool
 
-**Scope:** Build `claude/config/enforcement.yaml` and `claude/tools/enforcement-audit`. (FR8, Valueflow A&D §4)
+**Scope:** Build `agency/config/enforcement.yaml` and `agency/tools/enforcement-audit`. (FR8, Valueflow A&D §4)
 
 **Work:**
 - Define YAML schema for enforcement registry (version, capabilities, workstreams)
@@ -175,7 +175,7 @@ ad: claude/workstreams/devex/devex-ad-20260407.md
 
 ### Iteration 3.3: Context Budget Linter
 
-**Scope:** Build `claude/tools/context-budget-lint`. (FR9, Valueflow A&D §9)
+**Scope:** Build `agency/tools/context-budget-lint`. (FR9, Valueflow A&D §9)
 
 **Work:**
 - Resolve `@`-import chains from skill files (recursive — imports can import)

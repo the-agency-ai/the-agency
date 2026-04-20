@@ -8,7 +8,7 @@
 
 load 'test_helper'
 
-DIFF_HASH="${REPO_ROOT}/claude/tools/diff-hash"
+DIFF_HASH="${REPO_ROOT}/agency/tools/diff-hash"
 
 setup() {
     test_isolation_setup

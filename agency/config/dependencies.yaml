@@ -34,7 +34,7 @@ required:
     brew: bash
     min_version: "3.2"
     used_by:
-      - "all tools in claude/tools/"
+      - "all tools in agency/tools/"
     why: "framework tools are written to be bash 3.2 compatible (macOS default). brew bash gives 5.x."
     note: "tools avoid 4.0+ features (associative arrays, mapfile) for macOS compatibility"
 
@@ -74,12 +74,12 @@ required:
     min_version: "3.13"
     version_cmd: "python3 --version | grep -oE '[0-9]+\\.[0-9]+'"
     used_by:
-      - "claude/hooks/stop-check.py, .claude/hooks/plan-capture.py"
-      - "claude/tools/dispatch-monitor (D44-R1 Python rewrite)"
+      - "agency/hooks/stop-check.py, .claude/hooks/plan-capture.py"
+      - "agency/tools/dispatch-monitor (D44-R1 Python rewrite)"
       - "usr/jordan/captain/tools/strip-skill-allowed-tools"
       - "iscp dispatch-hub service (FastAPI + SQLAlchemy 2.0 + Alembic)"
     why: "framework tools, hooks, and services target modern Python. 3.13 is the brew default, so adopters get the floor for free. 3.13 adds opt-in features (PEP 703 no-GIL, PEP 744 JIT) that we do not require — the floor is set for toolchain modernity, not for runtime features."
-    note: "ZERO-PIP CONSTRAINT for framework tools in claude/tools/ — stdlib only, no pip deps (pyyaml, jsonschema, etc.). Services (iscp dispatch-hub, etc.) may use pip. Floor raised 3.9 → 3.12 (D44-R6, superseded) → 3.13 (D45-R1) — rationale: brew default is 3.13, 3.13 adds nothing we must opt into, and 3.12 was never installed on the dev machine (Monitor exit-127 incident on 2026-04-17 proved the fragility of exact-minor shebangs). Shebang convention: `#!/usr/bin/env python3` + runtime `sys.version_info` guard (NOT `python3.13` — hard-coded minor names break pyenv/nix/conda/Apple-stock installs that don't create the per-minor symlink). See briefing usr/jordan/captain/briefings/python-shebang-investigation-20260418.md."
+    note: "ZERO-PIP CONSTRAINT for framework tools in agency/tools/ — stdlib only, no pip deps (pyyaml, jsonschema, etc.). Services (iscp dispatch-hub, etc.) may use pip. Floor raised 3.9 → 3.12 (D44-R6, superseded) → 3.13 (D45-R1) — rationale: brew default is 3.13, 3.13 adds nothing we must opt into, and 3.12 was never installed on the dev machine (Monitor exit-127 incident on 2026-04-17 proved the fragility of exact-minor shebangs). Shebang convention: `#!/usr/bin/env python3` + runtime `sys.version_info` guard (NOT `python3.13` — hard-coded minor names break pyenv/nix/conda/Apple-stock installs that don't create the per-minor symlink). See briefing usr/jordan/captain/briefings/python-shebang-investigation-20260418.md."
 
   curl:
     brew: curl
@@ -90,7 +90,7 @@ required:
   rsync:
     brew: rsync
     used_by:
-      - "claude/tools/lib/_agency-update"
+      - "agency/tools/lib/_agency-update"
     why: "framework file sync during agency update — rsync excludes are how we protect user config"
 
   gh:
@@ -131,7 +131,7 @@ testing:
   md5:
     brew: null
     used_by:
-      - "claude/tools/lib/_test-isolation — .git/config hash verification"
+      - "agency/tools/lib/_test-isolation — .git/config hash verification"
     why: "test isolation teardown hashes .git/config before/after to detect pollution"
     note: "macOS has md5 -q; Linux has md5sum. Both pre-installed. Listed for completeness."
 

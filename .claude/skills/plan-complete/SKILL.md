@@ -54,14 +54,14 @@ Present the QGR to the principal. **Do not proceed without explicit approval.** 
 
 ### Step 5: Finalize the A&D
 
-1. Locate the A&D document (search `claude/workstreams/*/` and `docs/plans/`)
+1. Locate the A&D document (search `agency/workstreams/*/` and `docs/plans/`)
 2. Review: does it reflect reality, not aspirations?
 3. Update any design decisions that changed during implementation
 4. Mark any decisions that were deferred or abandoned
 
 ### Step 6: Finalize the PVR
 
-1. Locate the PVR document (search `claude/workstreams/*/`)
+1. Locate the PVR document (search `agency/workstreams/*/`)
 2. Review: are all requirements addressed?
 3. Note any requirements that were descoped or deferred
 4. Update success criteria with actual results

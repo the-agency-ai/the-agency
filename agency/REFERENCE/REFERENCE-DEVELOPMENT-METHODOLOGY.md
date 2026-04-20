@@ -126,7 +126,7 @@ Before starting any new phase, conduct a structured review of all living artifac
 
 ### File Organization
 
-Agent sandboxes live in `usr/{principal}/{agent}/`. Shared workstream content lives in `claude/workstreams/{workstream}/`.
+Agent sandboxes live in `usr/{principal}/{agent}/`. Shared workstream content lives in `agency/workstreams/{workstream}/`.
 
 ```
 usr/{principal}/{agent}/          — agent sandbox (slim)
@@ -135,7 +135,7 @@ usr/{principal}/{agent}/          — agent sandbox (slim)
   history/                        — archived handoffs and artifacts
     flotsam/                      — discarded drafts and experiments
 
-claude/workstreams/{workstream}/  — shared workstream content
+agency/workstreams/{workstream}/  — shared workstream content
   qgr/                            — quality gate reports and review dispatches
   rgr/                            — release gate reports
   drafts/                         — work-in-progress documents

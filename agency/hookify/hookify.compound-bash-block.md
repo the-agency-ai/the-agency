@@ -18,7 +18,7 @@ You wrote a bash command with `&&`, `||`, `;`, `|`, `$(…)`, backticks, or `cd 
 
 3. **Observability loss.** Each Agency tool logs its runs via `log_start` / `log_end`. A compound command is opaque — the telemetry sees one `bash` call, not the three things that happened inside it. We lose the audit trail at the exact point we need it most (when something breaks).
 
-4. **Bypass of the tool ecosystem.** Many compound patterns exist because the agent didn't know there's already a purpose-built tool. `grep foo | head` should be a single `Grep` tool call with `head_limit`. `cd repo && git status` should be `./claude/tools/run-in repo -- git status`. The block forces you to find the right primitive instead of papering over with shell plumbing.
+4. **Bypass of the tool ecosystem.** Many compound patterns exist because the agent didn't know there's already a purpose-built tool. `grep foo | head` should be a single `Grep` tool call with `head_limit`. `cd repo && git status` should be `./agency/tools/run-in repo -- git status`. The block forces you to find the right primitive instead of papering over with shell plumbing.
 
 5. **Hermeticity for tests and subprocess correctness.** `$(…)` and backticks run a subshell that inherits environment, which can leak env vars into BATS tests or other sensitive contexts. Splitting the work into explicit steps keeps every subprocess boundary visible.
 
@@ -26,8 +26,8 @@ You wrote a bash command with `&&`, `||`, `;`, `|`, `$(…)`, backticks, or `cd 
 
 | You wanted to write… | Use instead |
 |----------------------|-------------|
-| `cd X && cmd`        | `./claude/tools/run-in X -- cmd` |
-| `cd X && cmd && cd -`| `./claude/tools/run-in X -- cmd` (parent CWD never changes — no restore needed) |
+| `cd X && cmd`        | `./agency/tools/run-in X -- cmd` |
+| `cd X && cmd && cd -`| `./agency/tools/run-in X -- cmd` (parent CWD never changes — no restore needed) |
 | `cmd1 && cmd2`       | Two separate Bash tool calls (parallel if independent, sequential if dependent) |
 | `cmd1 ; cmd2`        | Two separate Bash tool calls |
 | `cmd \| head`        | Grep tool with `head_limit`, or separate `cmd` + Read |
@@ -38,7 +38,7 @@ You wrote a bash command with `&&`, `||`, `;`, `|`, `$(…)`, backticks, or `cd 
 
 ## Related
 
-- Tool: `claude/tools/run-in` (replacement for the `cd X && cmd` pattern)
+- Tool: `agency/tools/run-in` (replacement for the `cd X && cmd` pattern)
 - Skill: `/run-in`
 - Reference: `claude/REFERENCE-PROVENANCE-HEADERS.md`
 - Companion workstream: telemetry analysis of compound command patterns (flag #54) — mines the log of compound command attempts to identify which OTHER patterns deserve their own purpose-built tool

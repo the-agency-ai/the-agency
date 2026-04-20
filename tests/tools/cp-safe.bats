@@ -4,7 +4,7 @@
 #
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
-CP_SAFE="${REPO_ROOT}/claude/tools/cp-safe"
+CP_SAFE="${REPO_ROOT}/agency/tools/cp-safe"
 
 setup() {
     # Create two fake worktrees with .git markers

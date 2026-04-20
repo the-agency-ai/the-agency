@@ -19,8 +19,8 @@ Show what's in every engineer's sandbox, with activation status.
 
 2. **Scan all sandboxes** for items:
    - `usr/<name>/claude/commands/*.md`
-   - `usr/<name>/claude/hooks/*.sh`
-   - `usr/<name>/claude/hookify/*.md`
+   - `usr/<name>/agency/hooks/*.sh`
+   - `usr/<name>/agency/hookify/*.md`
    - `usr/<name>/tools/*`
    - `usr/<name>/scripts/*`
    - Skip `.gitkeep` files

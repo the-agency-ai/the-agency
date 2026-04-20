@@ -8,9 +8,9 @@ This document defines what testing happens at each commit boundary in TheAgency,
 
 | Tier | When | Scope | Budget | Tool | Failure mode |
 |------|------|-------|--------|------|--------------|
-| **T1** | Pre-commit (every `git commit`) | Stage-hash + compile + format + tests relevant to staged files | 60s | `claude/tools/commit-precheck` (via `.git/hooks/pre-commit`) | Block on failure, warn on timeout |
+| **T1** | Pre-commit (every `git commit`) | Stage-hash + compile + format + tests relevant to staged files | 60s | `agency/tools/commit-precheck` (via `.git/hooks/pre-commit`) | Block on failure, warn on timeout |
 | **T2** | Iteration boundary (`/iteration-complete`) | T1 + full relevant unit tests (changed-file scoping) | <2 min | `/iteration-complete` skill | Block on failure |
-| **T3** | Phase boundary (`/phase-complete`) | **Full** suite, all BATS files + MAR on phase artifacts | <5 min | `claude/tools/test-full-suite` (Docker preferred, in-process fallback) | Block on failure |
+| **T3** | Phase boundary (`/phase-complete`) | **Full** suite, all BATS files + MAR on phase artifacts | <5 min | `agency/tools/test-full-suite` (Docker preferred, in-process fallback) | Block on failure |
 | **T4** | Pre-PR (`/pr-prep`) | Full diff QG vs origin/main | <5 min | `/pr-prep` skill | Block on failure |
 
 Source: Valueflow A&D §6 "Quality Gate Architecture".
@@ -20,16 +20,16 @@ Source: Valueflow A&D §6 "Quality Gate Architecture".
 **Goal:** fast feedback on what the agent just changed. Never run irrelevant tests.
 
 ### How it works
-1. `git commit` triggers `.git/hooks/pre-commit` → `claude/tools/commit-precheck`
+1. `git commit` triggers `.git/hooks/pre-commit` → `agency/tools/commit-precheck`
 2. `commit-precheck` classifies staged files into one of:
    - `docs-only` — `.md`, `.txt`, `.json`, `.yaml`, `.yml` → **fast path, no tests**
-   - `config-only` — config files outside `claude/tools/` → **fast path, no tests**
-   - `tool-code` — bash/test files in `claude/tools/` or `tests/` → **scoped tests**
+   - `config-only` — config files outside `agency/tools/` → **fast path, no tests**
+   - `tool-code` — bash/test files in `agency/tools/` or `tests/` → **scoped tests**
    - `app-code` — `.ts/.js/.py/.rs/.go/.java/.swift` → **scoped tests + format/lint/typecheck**
-3. For tool-code and app-code: `commit-precheck` pipes staged file paths to `claude/tools/test-scoper`, which maps them to relevant test files via four strategies:
+3. For tool-code and app-code: `commit-precheck` pipes staged file paths to `agency/tools/test-scoper`, which maps them to relevant test files via four strategies:
    - **Manifest:** `# Test: tests/tools/foo.bats` header in source file (highest priority)
-   - **Convention:** `claude/tools/{name}` → `tests/tools/{name}.bats` + `tests/tools/{name}-*.bats`
-   - **Dependency:** `claude/tools/lib/{_name}` → all `tests/tools/*.bats` that source `{_name}`
+   - **Convention:** `agency/tools/{name}` → `tests/tools/{name}.bats` + `tests/tools/{name}-*.bats`
+   - **Dependency:** `agency/tools/lib/{_name}` → all `tests/tools/*.bats` that source `{_name}`
    - **Direct:** `tests/**/*.bats` → itself
 4. `commit-precheck` runs only the matched test files via `bats <files>`.
 5. 60s budget. On timeout: warn but allow commit (graceful degradation). On test failure: block.
@@ -41,11 +41,11 @@ Source: Valueflow A&D §6 "Quality Gate Architecture".
 
 | Staged file | Scoped tests |
 |-------------|-------------|
-| `claude/tools/flag` | `tests/tools/flag.bats` |
-| `claude/tools/dispatch` | `tests/tools/dispatch.bats` + `tests/tools/dispatch-create.bats` |
-| `claude/tools/lib/_iscp-db` | `tests/tools/iscp-db.bats` (direct) + all `.bats` files that source `_iscp-db` |
+| `agency/tools/flag` | `tests/tools/flag.bats` |
+| `agency/tools/dispatch` | `tests/tools/dispatch.bats` + `tests/tools/dispatch-create.bats` |
+| `agency/tools/lib/_iscp-db` | `tests/tools/iscp-db.bats` (direct) + all `.bats` files that source `_iscp-db` |
 | `usr/jordan/devex/devex-handoff.md` | nothing (docs-only fast path) |
-| `claude/config/agency.yaml` | nothing (config-only fast path) |
+| `agency/config/agency.yaml` | nothing (config-only fast path) |
 
 ## T2 — Iteration Boundary
 
@@ -55,7 +55,7 @@ Source: Valueflow A&D §6 "Quality Gate Architecture".
 1. Agent runs `/iteration-complete` skill
 2. Skill calls `commit-precheck` (full path: classify → scope → run)
 3. Skill calls format/lint/typecheck for app-code projects (when scripts exist in `package.json`)
-4. On clean: auto-commits via `claude/tools/git-safe-commit` with the iteration prefix
+4. On clean: auto-commits via `agency/tools/git-safe-commit` with the iteration prefix
 5. On failure: blocks, surfaces findings, agent fixes and re-runs
 
 T2 exists primarily to enforce the boundary commit ritual — it doesn't add test coverage beyond T1, it adds the surrounding hygiene.
@@ -67,7 +67,7 @@ T2 exists primarily to enforce the boundary commit ritual — it doesn't add tes
 ### How it works
 1. Agent runs `/phase-complete` skill
 2. Skill runs the multi-agent quality gate (parallel review agents)
-3. Skill calls `claude/tools/test-full-suite` for the full test execution
+3. Skill calls `agency/tools/test-full-suite` for the full test execution
 4. `test-full-suite` decides between Docker and in-process:
    - **Docker available** (`docker info` succeeds): runs `tests/docker-test.sh` which mounts the repo read-only and runs all BATS files in container isolation. Zero host contamination possible.
    - **Docker not available**: runs in-process via `bats <all files>` with universal isolation from `tests/tools/test_helper.bash`. Emits a warning that protection is good-but-not-perfect.
@@ -94,10 +94,10 @@ T4 is captain-driven in the standard flow — agents land work via T3 (`/phase-c
 
 | Tool | Location | Purpose |
 |------|----------|---------|
-| `commit-precheck` | `claude/tools/commit-precheck` | T1 orchestrator (classify → scope → run) |
-| `test-scoper` | `claude/tools/test-scoper` | File → test mapping (4 strategies) |
-| `test-full-suite` | `claude/tools/test-full-suite` | T3 orchestrator (Docker or fallback) |
-| `test-run` | `claude/tools/test-run` | Reads `agency.yaml` `testing.suites`, runs all configured suites. Used outside the boundary flow. |
+| `commit-precheck` | `agency/tools/commit-precheck` | T1 orchestrator (classify → scope → run) |
+| `test-scoper` | `agency/tools/test-scoper` | File → test mapping (4 strategies) |
+| `test-full-suite` | `agency/tools/test-full-suite` | T3 orchestrator (Docker or fallback) |
+| `test-run` | `agency/tools/test-run` | Reads `agency.yaml` `testing.suites`, runs all configured suites. Used outside the boundary flow. |
 | `tests/docker-test.sh` | `tests/docker-test.sh` | Container runner for T3. `--iscp-only` for backward compat, `--file <path>` for single file, default = all files. |
 | `tests/tools/test_helper.bash` | `tests/tools/test_helper.bash` | Universal test isolation: fake HOME, GIT_DIR/_*/_AUTHOR_* unset, teardown guards for `.git/config` pollution and working-tree debris. |
 
@@ -120,7 +120,7 @@ Every BATS test inherits the default `setup()` from `test_helper.bash`, which ca
 - `export ISCP_DB_PATH="$BATS_TEST_TMPDIR/test-iscp.db"` — explicit override
 - `export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null` — blocks writes to user/system git config
 - Snapshot live `.git/config` checksum for teardown validation
-- Snapshot key directories (`claude/agents/`, `.claude/agents/`) for debris detection
+- Snapshot key directories (`agency/agents/`, `.claude/agents/`) for debris detection
 
 `test_isolation_teardown` verifies the snapshots and fails loudly if anything leaked. Tests can opt out via `SKIP_ISOLATION=1` for the rare case that needs real environment access.
 
@@ -136,6 +136,6 @@ Every BATS test inherits the default `setup()` from `test_helper.bash`, which ca
 
 ## Related
 
-- `claude/workstreams/devex/devex-ad-20260407.md` §4 (enforcement ladder) and §6 (QG tiers)
-- `claude/workstreams/devex/devex-plan-20260407.md` Phase 1 (test scoping + commit-precheck rewrite) and Phase 2 (Docker T3)
+- `agency/workstreams/devex/devex-ad-20260407.md` §4 (enforcement ladder) and §6 (QG tiers)
+- `agency/workstreams/devex/devex-plan-20260407.md` Phase 1 (test scoping + commit-precheck rewrite) and Phase 2 (Docker T3)
 - Legacy flag #1 — original ask, now closed by this document

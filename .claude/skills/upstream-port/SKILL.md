@@ -22,22 +22,22 @@ Port tools, skills, hookify rules, and docs from a source repo to the-agency fra
 ### Step 1: Run the tool
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port $ARGUMENTS
+bash $CLAUDE_PROJECT_DIR/agency/tools/upstream-port $ARGUMENTS
 ```
 
 Common patterns:
 ```
 # Port a tool
-bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port claude/tools/flag
+bash $CLAUDE_PROJECT_DIR/agency/tools/upstream-port agency/tools/flag
 
 # Port a skill (auto-maps commands/X.md → .claude/skills/X/SKILL.md)
-bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port usr/{principal}/commands/flag.md
+bash $CLAUDE_PROJECT_DIR/agency/tools/upstream-port usr/{principal}/commands/flag.md
 
 # Port with auto-merge
-bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port claude/tools/flag --auto-merge
+bash $CLAUDE_PROJECT_DIR/agency/tools/upstream-port agency/tools/flag --auto-merge
 
 # Port to custom path
-bash $CLAUDE_PROJECT_DIR/claude/tools/upstream-port docs/design.md --target claude/docs/design/design.md
+bash $CLAUDE_PROJECT_DIR/agency/tools/upstream-port docs/design.md --target claude/docs/design/design.md
 ```
 
 ### Step 2: Verify

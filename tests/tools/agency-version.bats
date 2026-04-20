@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for claude/tools/agency-version
+# Tests for agency/tools/agency-version
 #
 # Covers the three verbs (print / --statusline / --json), help, unknown args,
 # and the missing-manifest / missing-field error paths. No network.
@@ -69,8 +69,8 @@ teardown() {
     # Point tool at a fake project root with no manifest
     fake_root="${BATS_TEST_TMPDIR}/fake"
     mkdir -p "${fake_root}/claude/tools" "${fake_root}/claude/config"
-    cp "${REPO_ROOT}/claude/tools/agency-version" "${fake_root}/claude/tools/"
-    run bash "${fake_root}/claude/tools/agency-version" --statusline
+    cp "${REPO_ROOT}/agency/tools/agency-version" "${fake_root}/agency/tools/"
+    run bash "${fake_root}/agency/tools/agency-version" --statusline
     assert_success
     [[ -z "$output" ]]
 }
@@ -88,9 +88,9 @@ teardown() {
 @test "agency-version: --json fails when field missing" {
     fake_root="${BATS_TEST_TMPDIR}/fake"
     mkdir -p "${fake_root}/claude/tools" "${fake_root}/claude/config"
-    cp "${REPO_ROOT}/claude/tools/agency-version" "${fake_root}/claude/tools/"
-    echo '{"schema_version":"1.0"}' > "${fake_root}/claude/config/manifest.json"
-    run bash "${fake_root}/claude/tools/agency-version" --json
+    cp "${REPO_ROOT}/agency/tools/agency-version" "${fake_root}/agency/tools/"
+    echo '{"schema_version":"1.0"}' > "${fake_root}/agency/config/manifest.json"
+    run bash "${fake_root}/agency/tools/agency-version" --json
     [[ "$status" -ne 0 ]]
 }
 
@@ -106,16 +106,16 @@ teardown() {
 @test "agency-version: default fails when manifest missing" {
     fake_root="${BATS_TEST_TMPDIR}/fake"
     mkdir -p "${fake_root}/claude/tools" "${fake_root}/claude/config"
-    cp "${REPO_ROOT}/claude/tools/agency-version" "${fake_root}/claude/tools/"
-    run bash "${fake_root}/claude/tools/agency-version"
+    cp "${REPO_ROOT}/agency/tools/agency-version" "${fake_root}/agency/tools/"
+    run bash "${fake_root}/agency/tools/agency-version"
     [[ "$status" -ne 0 ]]
 }
 
 @test "agency-version: default fails when field missing" {
     fake_root="${BATS_TEST_TMPDIR}/fake"
     mkdir -p "${fake_root}/claude/tools" "${fake_root}/claude/config"
-    cp "${REPO_ROOT}/claude/tools/agency-version" "${fake_root}/claude/tools/"
-    echo '{"schema_version":"1.0"}' > "${fake_root}/claude/config/manifest.json"
-    run bash "${fake_root}/claude/tools/agency-version"
+    cp "${REPO_ROOT}/agency/tools/agency-version" "${fake_root}/agency/tools/"
+    echo '{"schema_version":"1.0"}' > "${fake_root}/agency/config/manifest.json"
+    run bash "${fake_root}/agency/tools/agency-version"
     [[ "$status" -ne 0 ]]
 }

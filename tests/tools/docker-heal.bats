@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for claude/tools/lib/_docker-heal — Docker socket reachability helper
+# Tests for agency/tools/lib/_docker-heal — Docker socket reachability helper
 #
 # What Problem: Bug-expose GH issue #58 — on macOS, Docker Desktop exposes its
 # socket at $HOME/.docker/run/docker.sock rather than /var/run/docker.sock,
@@ -28,7 +28,7 @@ setup() {
     export DOCKER_HEAL_TEST_MODE=1
 
     # Path to the lib being tested (from the real repo, sourced under test)
-    export DOCKER_HEAL_LIB="$REPO_ROOT/claude/tools/lib/_docker-heal"
+    export DOCKER_HEAL_LIB="$REPO_ROOT/agency/tools/lib/_docker-heal"
 }
 
 teardown() {

@@ -5,12 +5,12 @@ Pre-defined templates for specialized agent types.
 ## Usage
 
 ```bash
-./claude/tools/agent-create <name> <workstream> [--type=<template>]
+./agency/tools/agent-create <name> <workstream> [--type=<template>]
 
 # Examples:
-./claude/tools/agent-create my-ui web --type=ux-dev
-./claude/tools/agent-create ds-extractor design --type=design-system
-./claude/tools/agent-create backend api                    # Uses generic (default)
+./agency/tools/agent-create my-ui web --type=ux-dev
+./agency/tools/agent-create ds-extractor design --type=design-system
+./agency/tools/agent-create backend api                    # Uses generic (default)
 ```
 
 ## Available Templates
@@ -48,7 +48,7 @@ Templates use these placeholders (replaced during creation):
 
 ## Creating New Templates
 
-1. Create directory: `claude/agents/templates/<type>/`
+1. Create directory: `agency/agents/templates/<type>/`
 2. Add `agent.md` with placeholders
 3. Optionally add `ONBOARDING.md`
 5. Update this INDEX.md
@@ -56,4 +56,4 @@ Templates use these placeholders (replaced during creation):
 ## Related
 
 - `claude/knowledge/` - Knowledge bases that templates reference
-- `./claude/tools/agent-create` - Tool that uses these templates
+- `./agency/tools/agent-create` - Tool that uses these templates

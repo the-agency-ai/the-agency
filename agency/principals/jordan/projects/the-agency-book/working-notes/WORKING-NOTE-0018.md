@@ -23,7 +23,7 @@ Consolidated list of items that MUST be complete before book publication. Extrac
 | **All 35+ tools present** | 🔴 Needed | Tools referenced throughout the book |
 | **CLAUDE.md template** | 🔴 Needed | The constitution |
 | **Directory structure** | 🔴 Needed | agents/, principals/, workstreams/, docs/ |
-| **Housekeeping agent template** | 🔴 Needed | `claude/agents/housekeeping/agent.md` |
+| **Housekeeping agent template** | 🔴 Needed | `agency/agents/housekeeping/agent.md` |
 
 ### 2. Content Placeholders to Replace
 

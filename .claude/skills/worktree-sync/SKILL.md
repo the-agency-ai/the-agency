@@ -22,7 +22,7 @@ Sync your worktree branch with master. Merges master, copies settings.json from 
 ### Step 1: Run the tool
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/worktree-sync
+bash $CLAUDE_PROJECT_DIR/agency/tools/worktree-sync
 ```
 
 If your working tree is dirty, commit or stash first — the tool will refuse.

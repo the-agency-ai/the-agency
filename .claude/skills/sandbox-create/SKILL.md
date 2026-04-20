@@ -26,8 +26,8 @@ Scaffold a new item in your sandbox with collision detection.
 2. **Detect engineer:** Scan `usr/*/` directories. If only one, use it. If multiple, match against `git config user.name`.
 
 3. **Collision check:** Search ALL locations for the same name:
-   - Shared: `.claude/commands/`, `.claude/hooks/`, `.claude/hookify.*`, `claude/tools/`
-   - All sandboxes: `usr/*/claude/commands/`, `usr/*/claude/hooks/`, `usr/*/claude/hookify/`, `usr/*/tools/`, `usr/*/scripts/`
+   - Shared: `.claude/commands/`, `.claude/hooks/`, `.claude/hookify.*`, `agency/tools/`
+   - All sandboxes: `usr/*/claude/commands/`, `usr/*/agency/hooks/`, `usr/*/agency/hookify/`, `usr/*/tools/`, `usr/*/scripts/`
    - If collision found: report WHERE and ask to continue or rename
 
 4. **Scaffold the item** based on type with appropriate template (command .md, hook .sh, hookify .md, tool .ts, script .sh).

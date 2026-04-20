@@ -2,7 +2,7 @@
 
 <!-- What Problem: Two agent-behavior policies were historically written as if
 they applied only to captain (in usr/{principal}/captain/CLAUDE-CAPTAIN.md and
-claude/agents/captain/agent.md): "The Two Standing Priorities" and the
+agency/agents/captain/agent.md): "The Two Standing Priorities" and the
 "Over / Over-and-out" protocol. In practice every agent should follow them —
 every agent reads dispatches, every agent drops current work when the
 principal speaks, every agent in a 1B1 should use Over/Out.
@@ -56,16 +56,16 @@ Canonical substitutions:
 
 | Don't | Do | Why |
 |---|---|---|
-| `git commit` raw | `./claude/tools/git-safe-commit` (via `/git-safe-commit`, `/iteration-complete`, `/phase-complete`) | QG receipt check, provenance, commit-log hygiene |
-| `git push` raw | `./claude/tools/git-push` (via `/sync`, `/release`) | Blocks main/master, requires PR path |
-| `gh pr create` | `./claude/tools/pr-create` (via `/release`) | Requires RGR + version bump |
-| `gh pr merge` | `./claude/tools/pr-merge` (via `/pr-merge`) | Refuses `--squash`/`--rebase`; enforces `--merge` + `--principal-approved` |
-| Hand-written agent registration | `./claude/tools/agent-create` | Correct scaffolding, provenance, permissions |
+| `git commit` raw | `./agency/tools/git-safe-commit` (via `/git-safe-commit`, `/iteration-complete`, `/phase-complete`) | QG receipt check, provenance, commit-log hygiene |
+| `git push` raw | `./agency/tools/git-push` (via `/sync`, `/release`) | Blocks main/master, requires PR path |
+| `gh pr create` | `./agency/tools/pr-create` (via `/release`) | Requires RGR + version bump |
+| `gh pr merge` | `./agency/tools/pr-merge` (via `/pr-merge`) | Refuses `--squash`/`--rebase`; enforces `--merge` + `--principal-approved` |
+| Hand-written agent registration | `./agency/tools/agent-create` | Correct scaffolding, provenance, permissions |
 | Hand-written workstream | `/workstream-create` | Directory structure, agent reg, worktree, sandbox |
-| Hand-written worktree | `./claude/tools/worktree-create` | Branch wiring, settings copy, identity file |
-| Hand-written handoff | `./claude/tools/handoff write` (via `/handoff`) | Archive + rotate + stamp |
-| Hand-written dispatch | `./claude/tools/dispatch create` (via `/dispatch`) | DB record + git payload + addressing |
-| Hand-written QGR receipt | `./claude/tools/receipt-sign` (via `/quality-gate`) | Five-hash chain of trust |
+| Hand-written worktree | `./agency/tools/worktree-create` | Branch wiring, settings copy, identity file |
+| Hand-written handoff | `./agency/tools/handoff write` (via `/handoff`) | Archive + rotate + stamp |
+| Hand-written dispatch | `./agency/tools/dispatch create` (via `/dispatch`) | DB record + git payload + addressing |
+| Hand-written QGR receipt | `./agency/tools/receipt-sign` (via `/quality-gate`) | Five-hash chain of trust |
 
 Hand-crafting a file that a tool creates is a **process violation**. It bypasses the consistency guarantees, skips provenance, and creates drift. If a tool gets in your way, fix the tool or flag the friction — don't route around it.
 

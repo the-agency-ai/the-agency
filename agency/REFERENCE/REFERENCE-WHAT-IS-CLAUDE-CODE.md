@@ -2,7 +2,7 @@
 
 A grounding reference on Claude Code's architecture: what it is, what the primitives are, and how they compose. Load before reasoning about skills, CLAUDE.md, hooks, subagents, or tools. Particularly important for agents authoring or reviewing skill methodology (see `REFERENCE-SKILL-AUTHORING.md`).
 
-**Source consolidation:** compiled 2026-04-19 from Anthropic platform docs (platform.claude.com, code.claude.com, resources.anthropic.com), GitHub public repos (anthropics/claude-code, anthropics/skills), and community first-party writeups. Per-claim citations in the original research thread in `claude/workstreams/captain/transcripts/design-transcript-20260419.md`.
+**Source consolidation:** compiled 2026-04-19 from Anthropic platform docs (platform.claude.com, code.claude.com, resources.anthropic.com), GitHub public repos (anthropics/claude-code, anthropics/skills), and community first-party writeups. Per-claim citations in the original research thread in `agency/workstreams/captain/transcripts/design-transcript-20260419.md`.
 
 ## Core platform components
 
@@ -154,7 +154,7 @@ The-agency (and AIADLC methodology) extends Claude Code's primitives with framew
 - **Worktrees** — multi-agent per-workstream isolation, all sharing one `.git/`.
 - **Quality gate** — subagent-based parallel review before commits cross boundaries.
 
-See `claude/CLAUDE-THEAGENCY.md` for the-agency's own bootloader.
+See `agency/CLAUDE-THEAGENCY.md` for the-agency's own bootloader.
 
 ## For agents reading this: what to do with it
 

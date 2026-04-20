@@ -31,7 +31,7 @@ For each PR, invoke `/code-review` via the Skill tool with the PR number.
 
 ### Step 3: Generate dispatch files
 
-For each project with findings, create a dispatch file at `claude/workstreams/{workstream}/code-reviews/{workstream}-dispatch-{YYYYMMDD-HHMM}.md` containing:
+For each project with findings, create a dispatch file at `agency/workstreams/{workstream}/code-reviews/{workstream}-dispatch-{YYYYMMDD-HHMM}.md` containing:
 
 - PR reference
 - Findings grouped by file
@@ -49,8 +49,8 @@ Captain Review Complete:
 
 Project          PR    Findings   Dispatch
 ─────────────────────────────────────────────
-mdpal            #12   8 issues   claude/workstreams/mdpal/code-reviews/mdpal-dispatch-20260401-1430.md
-mock-and-mark    #15   3 issues   claude/workstreams/mock-and-mark/code-reviews/mock-and-mark-dispatch-20260401-1430.md
+mdpal            #12   8 issues   agency/workstreams/mdpal/code-reviews/mdpal-dispatch-20260401-1430.md
+mock-and-mark    #15   3 issues   agency/workstreams/mock-and-mark/code-reviews/mock-and-mark-dispatch-20260401-1430.md
 ```
 
 ### Step 5: Commit review and dispatch files

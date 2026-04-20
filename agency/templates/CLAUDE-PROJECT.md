@@ -19,4 +19,4 @@
 
 <!-- Language, framework, linting, formatting conventions -->
 
-@claude/CLAUDE-THEAGENCY.md
+@agency/CLAUDE-THEAGENCY.md

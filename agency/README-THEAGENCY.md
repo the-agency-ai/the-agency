@@ -37,15 +37,15 @@ TheAgency: Multiple AI agents work in parallel as first-class developers. Agents
 ### Tooling
 - **Scaffold tools** — workstream-create, worktree-create, agent-define
 - **Context tools** — handoff (read/write/archive), plan-capture
-- **Observability** — tool-runs.jsonl (`.claude/logs/tool-runs.jsonl`), telemetry (daily JSONL at `~/.claude/telemetry/{date}.jsonl`, read via `./claude/tools/telemetry`), statusline integration
+- **Observability** — tool-runs.jsonl (`.claude/logs/tool-runs.jsonl`), telemetry (daily JSONL at `~/.claude/telemetry/{date}.jsonl`, read via `./agency/tools/telemetry`), statusline integration
 - **Review agents** — code-reviewer, security-reviewer, design-reviewer, test-reviewer, scorer
 - **Safe tools family** — role-scoped git access (git-safe for read+merge, git-captain for captain-only ops), git-push (via /sync and /release), cp-safe (blocks cross-worktree copies), pr-create (requires QGR + version bump). All blocked from direct bypass via hookify (decision:block + exit 2).
-- **Receipt infrastructure** — five-hash chain linking staged content to QGR receipt. Tools: receipt-sign, receipt-verify. Receipts live at `claude/workstreams/{W}/qgr/` and `rgr/` (per-workstream).
+- **Receipt infrastructure** — five-hash chain linking staged content to QGR receipt. Tools: receipt-sign, receipt-verify. Receipts live at `agency/workstreams/{W}/qgr/` and `rgr/` (per-workstream).
 
 ### Agent Definitions
-- **Class/instance model** — `claude/agents/{class}/agent.md` defines roles; `.claude/agents/{P}/{A}.md` is the principal-scoped registration; `usr/{P}/{A}/` is the agent sandbox
+- **Class/instance model** — `agency/agents/{class}/agent.md` defines roles; `.claude/agents/{P}/{A}.md` is the principal-scoped registration; `usr/{P}/{A}/` is the agent sandbox
 - **Standard classes** — captain, tech-lead, marketing-lead, platform-specialist, researcher
-- **Workstream model** — agents work on workstreams with shared artifacts in `claude/workstreams/{W}/` (seeds, PVR, A&D, Plan, receipts, research, transcripts)
+- **Workstream model** — agents work on workstreams with shared artifacts in `agency/workstreams/{W}/` (seeds, PVR, A&D, Plan, receipts, research, transcripts)
 
 ### Operational Conventions
 - **Sandbox principle** — per-principal workspace (`usr/{principal}/`), zero team impact, opt-in adoption
@@ -143,8 +143,8 @@ Three layers:
 
 | Layer | What | Where |
 |-------|------|-------|
-| **Spec** | Declares which provider to use | `claude/config/agency.yaml` |
-| **Provider** | Tool that implements a contract for one backend | `claude/tools/{capability}-{provider}` |
+| **Spec** | Declares which provider to use | `agency/config/agency.yaml` |
+| **Provider** | Tool that implements a contract for one backend | `agency/tools/{capability}-{provider}` |
 | **Skill** | Generic dispatcher that reads the spec and calls the provider | `.claude/skills/{capability}/SKILL.md` |
 
 ### Example: Preview
@@ -155,7 +155,7 @@ preview:
   provider: "docker-compose"   # or "fly", "vercel", "cloudflare"
 ```
 
-**Provider** at `claude/tools/preview-docker-compose` implements the contract:
+**Provider** at `agency/tools/preview-docker-compose` implements the contract:
 ```bash
 preview-docker-compose start    # launch, print URL
 preview-docker-compose stop     # tear down
@@ -178,7 +178,7 @@ preview-docker-compose logs     # stream recent logs
 |-----------|-------|--------------|----------|----------------|
 | Preview | `/preview` | *(planned)* | `preview.provider` | `preview-{provider}` |
 | Deploy | `/deploy` | *(planned)* | `deploy.provider` | `deploy-{provider}` |
-| Security/Secrets | `/secret` | `claude/tools/secret` ✅ | `secrets.provider` | `secret-{provider}` |
+| Security/Secrets | `/secret` | `agency/tools/secret` ✅ | `secrets.provider` | `secret-{provider}` |
 | Prototype scaffolding | `/prototype-create` | *(planned)* | `prototype.providers` | `prototype-{provider}` |
 
 ### The Three-Layer Triangle for SPEC-PROVIDER
@@ -186,8 +186,8 @@ preview-docker-compose logs     # stream recent logs
 Each SPEC-PROVIDER capability has three layers:
 
 1. **Skill** (`.claude/skills/{name}/SKILL.md`) — agent invocation via `/`. Reads `agency.yaml`, dispatches to the provider tool. The discovery + agent-context layer.
-2. **Tool wrapper** (`claude/tools/{name}`) — CLI dispatcher for non-agent contexts (shell scripts, CI, dev tools). Same logic as the skill: reads `agency.yaml`, execs the provider tool. The mechanical layer.
-3. **Provider tool** (`claude/tools/{name}-{provider}`) — actual implementation for a specific backend (vault, doppler, vercel, etc.). The implementation layer.
+2. **Tool wrapper** (`agency/tools/{name}`) — CLI dispatcher for non-agent contexts (shell scripts, CI, dev tools). Same logic as the skill: reads `agency.yaml`, execs the provider tool. The mechanical layer.
+3. **Provider tool** (`agency/tools/{name}-{provider}`) — actual implementation for a specific backend (vault, doppler, vercel, etc.). The implementation layer.
 
 The first capability with all three layers complete is `/secret` (in R3). `/preview`, `/deploy`, and `/prototype-create` currently have only the skill + provider layers; the tool wrapper for each is planned. **The structural question of how to organize providers × environments × services is being explored** (see captain's discussion thread with monofolk/devex).
 
@@ -195,7 +195,7 @@ The first capability with all three layers complete is `/secret` (in R3). `/prev
 
 Each provider tool is a CLI that accepts standardized verbs. The skill defines the contract for its capability — providers implement it. New providers added by:
 
-1. Creating `claude/tools/{capability}-{name}` that supports the verbs
+1. Creating `agency/tools/{capability}-{name}` that supports the verbs
 2. Documenting the verbs in the tool's `--help`
 3. Listing the provider as a valid value in the agency.yaml schema (optional)
 
@@ -280,7 +280,7 @@ Tests: 334 passing (21 new: 8 bug-exposing, 13 coverage), 0 failing
 Each gate writes a standalone receipt file via `receipt-sign`:
 
 ```
-claude/workstreams/{ws}/qgr/{org}-{principal}-{agent}-{ws}-{proj}-qgr-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md
+agency/workstreams/{ws}/qgr/{org}-{principal}-{agent}-{ws}-{proj}-qgr-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md
 ```
 
 The receipt contains a five-hash chain of trust (A through E) linking the original artifact to the final reviewed state. `pr-create` calls `receipt-verify` and blocks if no valid receipt matches the current diff.
@@ -344,14 +344,14 @@ Handoff files are a first-class Agency primitive. They serve multiple purposes b
 
 ### How It Works
 
-Handoff files live at `usr/{principal}/{agent}/{agent}-handoff.md` — one per agent (e.g., `captain-handoff.md`, `iscp-handoff.md`, `devex-handoff.md`). The `claude/tools/handoff` tool manages the lifecycle and uses `agent-identity` to resolve which file to write based on the current branch/worktree.
+Handoff files live at `usr/{principal}/{agent}/{agent}-handoff.md` — one per agent (e.g., `captain-handoff.md`, `iscp-handoff.md`, `devex-handoff.md`). The `agency/tools/handoff` tool manages the lifecycle and uses `agent-identity` to resolve which file to write based on the current branch/worktree.
 
 - **`handoff write`** — auto-archives the existing handoff to `history/handoff-YYYYMMDD-HHMMSS.md`, then signals the agent to write new content (the history dir is per-agent — `usr/{principal}/{agent}/history/` — so archive names don't collide across agents)
 - **`handoff write --lightweight`** — appends/updates a status line without archiving (for `/sync-all`)
 - **`handoff read`** — outputs current handoff content
 - **`handoff archive`** — manually archive without writing
 
-The tool resolves paths automatically from the worktree branch and principal directory. Handoff writing is **manual** — agents must invoke the `/handoff` skill (or run `./claude/tools/handoff write`) at the appropriate trigger points below. There is no automatic handoff hook today; the `Stop` hook checks for uncommitted changes but does not write handoffs.
+The tool resolves paths automatically from the worktree branch and principal directory. Handoff writing is **manual** — agents must invoke the `/handoff` skill (or run `./agency/tools/handoff write`) at the appropriate trigger points below. There is no automatic handoff hook today; the `Stop` hook checks for uncommitted changes but does not write handoffs.
 
 **Always invoke via the `/handoff` skill** — never write handoff files directly, never run the raw tool with `cd /path/to/main &&` (that breaks identity resolution and writes to the wrong agent's file). The `block-raw-handoff` hookify rule enforces this.
 
@@ -384,7 +384,7 @@ The 1B1 (one-by-one) protocol is how agents present information to principals. I
 
 The core idea: when there are multiple items to discuss, address each one individually. Present → get feedback → confirm understanding (reflective listening) → revise → iterate → resolve → confirm resolution → next item. Never skip the "confirm understanding" step — it's the one agents skip most, and skipping it leads to wasted revision cycles.
 
-The `/discuss` skill implements the full 8-step cycle and auto-starts a `/transcript` to capture decisions as they're made. The discussion IS the record. Transcripts live at `claude/workstreams/{W}/transcripts/` (shared) and persist decisions, rationale, and context that would otherwise be lost when the conversation scrolls off-screen or the session ends.
+The `/discuss` skill implements the full 8-step cycle and auto-starts a `/transcript` to capture decisions as they're made. The discussion IS the record. Transcripts live at `agency/workstreams/{W}/transcripts/` (shared) and persist decisions, rationale, and context that would otherwise be lost when the conversation scrolls off-screen or the session ends.
 
 The 1B1 protocol applies to ALL structured discussions, not just when `/discuss` is explicitly invoked. It is the default way agents present information to principals.
 
@@ -432,7 +432,7 @@ Run each shell command as a single, simple command — no `&&`, `||`, `;`, pipes
 
 ### The Bigger Picture: Tools Over Inline Bash
 
-TheAgency encourages building **tools** (`tools/`, `claude/tools/`) rather than writing inline bash. This is about more than style:
+TheAgency encourages building **tools** (`tools/`, `agency/tools/`) rather than writing inline bash. This is about more than style:
 
 - **Observability.** Tools built with `_log-helper` emit structured telemetry to `tool-runs.jsonl` — who ran what, when, how long, what happened. Inline bash is invisible.
 - **Token economics.** A tool that does the right thing in one call saves tokens compared to multi-step bash sequences with error handling at each step. The tool absorbs the complexity; the agent pays one invocation.
@@ -440,7 +440,7 @@ TheAgency encourages building **tools** (`tools/`, `claude/tools/`) rather than 
 - **Testability.** Tools can have tests (`tests/tools/`). Inline bash can't.
 - **Learning.** This connects to the pattern gstack calls "learnings" — capturing what works into durable artifacts that compound over time. A tool is a crystallized learning: "this is the right way to do X."
 
-When an agent needs to do something, the first question should be: **does a tool already exist?** Check `tools/`, `claude/tools/`, and the tool registry before writing bash. If no tool exists and the task will recur, consider building one.
+When an agent needs to do something, the first question should be: **does a tool already exist?** Check `tools/`, `agency/tools/`, and the tool registry before writing bash. If no tool exists and the task will recur, consider building one.
 
 ## Web Content Retrieval
 
@@ -602,7 +602,7 @@ Sandbox items live in `usr/{principal}/claude/` (the source). To activate them, 
 
 ```
 .claude/commands/usr-jordan.quality-gate.md → ../../usr/jordan/claude/commands/quality-gate.md
-.claude/hookify.require-qgr.local.md → usr/jordan/claude/hookify/hookify.require-qgr.local.md
+.claude/hookify.require-qgr.local.md → usr/jordan/agency/hookify/hookify.require-qgr.local.md
 ```
 
 The symlinks are gitignored — they exist only on your machine. This is the key: the source files are committed and shared, but the activation is local.
@@ -621,7 +621,7 @@ Hookify rules have three tiers, each with different visibility:
 
 | Location | Scope | Git Status | Who sees it |
 |----------|-------|------------|-------------|
-| `usr/{principal}/claude/hookify/` | Sandbox | Committed | Only the engineer who activates it |
+| `usr/{principal}/agency/hookify/` | Sandbox | Committed | Only the engineer who activates it |
 | `.claude/hookify.foo.local.md` | Shared (adopted) | Committed | Everyone |
 | `.claude/hookify.foo.user.local.md` | Personal | Gitignored | Only one machine |
 
@@ -708,8 +708,8 @@ Day 32:
   ... work happens, commits accumulate ...
   gh pr create --draft --title "Day 32 - Release 1: ..."
   ... doc passes, friction triage, more commits ...
-  ./claude/tools/collaboration reply monofolk --to ... # release dispatch
-  ./claude/tools/collaboration push monofolk
+  ./agency/tools/collaboration reply monofolk --to ... # release dispatch
+  ./agency/tools/collaboration push monofolk
   gh pr ready 46                       # out of draft
   gh pr merge 46                       # merge to main
   git checkout main && git pull        # local main matches origin/main
@@ -738,7 +738,7 @@ Agents use their judgment — a dispatch is review input, not an action list. Fi
 Review files live in the workstream shared space:
 
 ```
-claude/workstreams/{W}/
+agency/workstreams/{W}/
   qgr/    — quality gate receipts (five-hash chain)
   rgr/    — review gate receipts
 ```
@@ -751,9 +751,9 @@ Receipt filenames carry full provenance and timestamps for uniqueness. These fil
 
 ### Agent Definitions
 
-- **Class/instance model** — `claude/agents/{class}/agent.md` defines the role; `.claude/agents/{P}/{A}.md` is the principal-scoped registration; `usr/{P}/{A}/` is the agent sandbox (slim: tmp/, tools/, history/)
+- **Class/instance model** — `agency/agents/{class}/agent.md` defines the role; `.claude/agents/{P}/{A}.md` is the principal-scoped registration; `usr/{P}/{A}/` is the agent sandbox (slim: tmp/, tools/, history/)
 - **Standard classes** — captain (coordination), tech-lead (architecture), marketing-lead (content), platform-specialist (infrastructure), researcher (investigation)
-- **Workstream model** — agents work on workstreams. Shared artifacts (seeds, PVR, A&D, Plan, receipts, research, transcripts) live in `claude/workstreams/{W}/`
+- **Workstream model** — agents work on workstreams. Shared artifacts (seeds, PVR, A&D, Plan, receipts, research, transcripts) live in `agency/workstreams/{W}/`
 
 ### TheAgency Default Structure
 
@@ -762,7 +762,7 @@ When a project adopts TheAgency, the framework adds a layer alongside the projec
 ```
 my-project/
 ├── README.md                    — project README (scaffold)
-├── CLAUDE.md                    — project CLAUDE.md (scaffold) — @imports claude/CLAUDE-THEAGENCY.md
+├── CLAUDE.md                    — project CLAUDE.md (scaffold) — @imports agency/CLAUDE-THEAGENCY.md
 │
 ├── .claude/                     — CLAUDE CODE DISCOVERY LOCATION
 │   ├── agents/{P}/{A}.md        — principal-scoped agent registrations
@@ -831,7 +831,7 @@ my-project/
 
 - **`claude/`** is the single Agency namespace. Everything Agency-related lives here. Good neighbor in someone else's repo.
 - **`.claude/`** is Claude Code's discovery location. Mix of framework files and personal symlinks.
-- **`claude/tools/`** is all tools — language-agnostic. No separate `scripts/` or `tools/` at repo root.
+- **`agency/tools/`** is all tools — language-agnostic. No separate `scripts/` or `tools/` at repo root.
 - **`usr/{principal}/`** is the sandbox. Per-engineer. Committed but only activated locally via symlinks.
 - **Git is the rollback.** Updates don't auto-commit. `git checkout -- claude/` undoes any botched update.
 - **Your project's directories** (`apps/`, `packages/`, `docs/`, etc.) are untouched. TheAgency is additive.
@@ -854,16 +854,16 @@ MonoFolk is OrdinaryFolk's Turborepo monorepo...
 
 ---
 
-@claude/CLAUDE-THEAGENCY.md
+@agency/CLAUDE-THEAGENCY.md
 ```
 
-The project `CLAUDE.md` owns the project context — what this repo is, how to build it, what tools it uses. The `@` import at the bottom pulls in the full Agency methodology from `claude/CLAUDE-THEAGENCY.md`. Two physical files, one logical CLAUDE.md.
+The project `CLAUDE.md` owns the project context — what this repo is, how to build it, what tools it uses. The `@` import at the bottom pulls in the full Agency methodology from `agency/CLAUDE-THEAGENCY.md`. Two physical files, one logical CLAUDE.md.
 
 This separation means:
 - **The project team** maintains `CLAUDE.md` with project-specific content. They don't touch the Agency file.
-- **TheAgency framework** maintains `claude/CLAUDE-THEAGENCY.md` with methodology. It's the same across repos (installed by `agency init`).
-- **Updates to the methodology** propagate to all projects by updating `claude/CLAUDE-THEAGENCY.md` — no changes to individual project CLAUDE.md files needed.
-- **`usr/{principal}/claude/CLAUDE.md` (the personal user-level file) goes to zero** — everything it contained is now in either the project CLAUDE.md or the Agency template.
+- **TheAgency framework** maintains `agency/CLAUDE-THEAGENCY.md` with methodology. It's the same across repos (installed by `agency init`).
+- **Updates to the methodology** propagate to all projects by updating `agency/CLAUDE-THEAGENCY.md` — no changes to individual project CLAUDE.md files needed.
+- **`usr/{principal}/agency/CLAUDE.md` (the personal user-level file) goes to zero** — everything it contained is now in either the project CLAUDE.md or the Agency template.
 
 ## How Our Principals Work
 

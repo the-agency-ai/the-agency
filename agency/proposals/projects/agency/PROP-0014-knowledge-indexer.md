@@ -11,8 +11,8 @@
 The Agency accumulates knowledge in various directories:
 - `claude/knowledge/` - Curated knowledge bases
 - `claude/docs/` - Guides and documentation
-- `claude/agents/*/KNOWLEDGE.md` - Agent-specific knowledge
-- `claude/workstreams/*/KNOWLEDGE.md` - Workstream knowledge
+- `agency/agents/*/KNOWLEDGE.md` - Agent-specific knowledge
+- `agency/workstreams/*/KNOWLEDGE.md` - Workstream knowledge
 
 Finding specific information requires scanning through files. Agents waste tokens exploring when they could just ask "where do I find X?"
 
@@ -112,8 +112,8 @@ TheCaptain: Based on the knowledge index, MCP server documentation is in:
 |-----------|------|---------|
 | `claude/knowledge/*/` | Curated knowledge bases | All .md files |
 | `claude/docs/guides/` | Developer guides | All .md files |
-| `claude/agents/*/KNOWLEDGE.md` | Agent knowledge | KNOWLEDGE.md only |
-| `claude/workstreams/*/KNOWLEDGE.md` | Workstream knowledge | KNOWLEDGE.md only |
+| `agency/agents/*/KNOWLEDGE.md` | Agent knowledge | KNOWLEDGE.md only |
+| `agency/workstreams/*/KNOWLEDGE.md` | Workstream knowledge | KNOWLEDGE.md only |
 | `.claude/` | Project config | CLAUDE.md only |
 
 ### TheCaptain Integration

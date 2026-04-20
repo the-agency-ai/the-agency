@@ -5,7 +5,7 @@ What Problem: {{TOOL_DESCRIPTION}}
 How & Why: [Explain the approach and rationale]
 
 Usage:
-    ./claude/tools/{{TOOL_NAME}} [options] <args>
+    ./agency/tools/{{TOOL_NAME}} [options] <args>
 
 Python: 3.13+ (framework floor per D45). Stdlib only for framework tools
 (ZERO-PIP CONSTRAINT). Services may use pip deps.
@@ -25,7 +25,7 @@ import sys
 if sys.version_info < (3, 13):
     sys.exit(
         f"Python 3.13+ required (got {sys.version_info.major}.{sys.version_info.minor}). "
-        "See claude/config/dependencies.yaml."
+        "See agency/config/dependencies.yaml."
     )
 
 import argparse

@@ -55,447 +55,447 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/SESSION-2026-01-09-sync.md": {
+    "agency/agents/captain/SESSION-2026-01-09-sync.md": {
       "hash": "44cab5d98ea1859b584e9e10fb1fa6cf2327bb1deaa1c05dbc8182de35ec6a90",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/SESSION-BACKUP-2026-01-06-2145.md": {
+    "agency/agents/captain/SESSION-BACKUP-2026-01-06-2145.md": {
       "hash": "295d27115517816677b7b0303b9dbcdb572e3099f2d20aeae3c84c0760ba9dca",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/SESSION-BACKUP-2026-01-08-afternoon.md": {
+    "agency/agents/captain/SESSION-BACKUP-2026-01-08-afternoon.md": {
       "hash": "d246c24e759a87c131bafa4754c40048109b944c23df566fdc0df8c0c364cd43",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/SESSION-BACKUP-2026-01-08-phase2.md": {
+    "agency/agents/captain/SESSION-BACKUP-2026-01-08-phase2.md": {
       "hash": "118ffecb23fdaa653818c1c498c4b28053ce7eddf915a3a0d105cb4ba5d87ad4",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/SESSION-BACKUP-2026-01-08.md": {
+    "agency/agents/captain/SESSION-BACKUP-2026-01-08.md": {
       "hash": "444533a07dc11e1f973fc22d86f75e76c9dd18fe0a59661b39fd68da74d0d208",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/agent.md": {
+    "agency/agents/captain/agent.md": {
       "hash": "94b683826053becdf46ffc31491dad891610a1f545c65afca998a814727ba5b5",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1767685834/current-branch.txt": {
+    "agency/agents/captain/backups/archive/session-1767685834/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1767685834/session-info.json": {
+    "agency/agents/captain/backups/archive/session-1767685834/session-info.json": {
       "hash": "5687367de257c1df8b2ff3cc4d0c670f70d879821ea9bc50249dafb29565e701",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1767685834/status.txt": {
+    "agency/agents/captain/backups/archive/session-1767685834/status.txt": {
       "hash": "c1f95dc9507caadae168134b91444fe0265f2080627baf85804f8cf38cedc74e",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768271131/current-branch.txt": {
+    "agency/agents/captain/backups/archive/session-1768271131/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768271131/session-info.json": {
+    "agency/agents/captain/backups/archive/session-1768271131/session-info.json": {
       "hash": "73e94d364e8b6e11114ef0a90444810a3eb7c35512819096141fada26bd1cc42",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768271131/status.txt": {
+    "agency/agents/captain/backups/archive/session-1768271131/status.txt": {
       "hash": "243891b91b0300011622bd825d4f2d56b954bc55c2ce39f203b001c8246d373f",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768271131/uncommitted.patch": {
+    "agency/agents/captain/backups/archive/session-1768271131/uncommitted.patch": {
       "hash": "4957af027a837d907ee521bf367e801f98446905d7e1a885eac7076e98e10b5c",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768355874/current-branch.txt": {
+    "agency/agents/captain/backups/archive/session-1768355874/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768355874/session-info.json": {
+    "agency/agents/captain/backups/archive/session-1768355874/session-info.json": {
       "hash": "6d604f0f53999d2264d2c17075a542735f9e553c7b82bc59efc91ba3f47359c8",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768355874/status.txt": {
+    "agency/agents/captain/backups/archive/session-1768355874/status.txt": {
       "hash": "5961e92ec6cabf800994b167e7343aafe7c28de621ac7ee3bca8d741a1879a6d",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768355874/uncommitted.patch": {
+    "agency/agents/captain/backups/archive/session-1768355874/uncommitted.patch": {
       "hash": "e501ff7290e0fc7ec15affedf6757bac8eb5466bb50dfc21b9981f33fd7a9f28",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768356146/current-branch.txt": {
+    "agency/agents/captain/backups/archive/session-1768356146/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768356146/session-info.json": {
+    "agency/agents/captain/backups/archive/session-1768356146/session-info.json": {
       "hash": "61a594327cb13e8d182bffd5d13362368bea3e44566b1dee00dba7096953446f",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768356146/status.txt": {
+    "agency/agents/captain/backups/archive/session-1768356146/status.txt": {
       "hash": "f853e056e729074830966c5a16aa521dcd0c0b5349513f8cf2f20a1a724005a0",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768356146/uncommitted.patch": {
+    "agency/agents/captain/backups/archive/session-1768356146/uncommitted.patch": {
       "hash": "966367bd961438a1d603793337d3177884513846823e56faf45f898dd7b6cd03",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768373230/current-branch.txt": {
+    "agency/agents/captain/backups/archive/session-1768373230/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768373230/session-info.json": {
+    "agency/agents/captain/backups/archive/session-1768373230/session-info.json": {
       "hash": "e9220a5e5a512891a2389b7035844050878ecb258d85dfb7f758bfb6659fd087",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768373230/status.txt": {
+    "agency/agents/captain/backups/archive/session-1768373230/status.txt": {
       "hash": "ef10a185cbc07c9dfa09dc5d673ca5f225ad7cb2f64bf8085757523bb6202e2d",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768373230/uncommitted.patch": {
+    "agency/agents/captain/backups/archive/session-1768373230/uncommitted.patch": {
       "hash": "96cb76a414c06c1006f8c6771c00e8e3d47b7ef99781853a33483fabb6bfb4ad",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768377445/context.jsonl": {
+    "agency/agents/captain/backups/archive/session-1768377445/context.jsonl": {
       "hash": "8e71d812a71ac68735e1559108210461a023754a651d52b057f3f1422f5e71a0",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768377445/current-branch.txt": {
+    "agency/agents/captain/backups/archive/session-1768377445/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768377445/session-info.json": {
+    "agency/agents/captain/backups/archive/session-1768377445/session-info.json": {
       "hash": "7d13addda6a7eca54392cbcd528d437643922295cee98ce1fd903d2777b07c21",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768377445/status.txt": {
+    "agency/agents/captain/backups/archive/session-1768377445/status.txt": {
       "hash": "67be365f90b5a6c2f64d6598f02608bda33c52f4c2dc75456b3aca8670b05d66",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768377445/uncommitted.patch": {
+    "agency/agents/captain/backups/archive/session-1768377445/uncommitted.patch": {
       "hash": "ccfc4266396890a50a219c41c449f73feb52e87c77aaeec6759dbda4636ac8b5",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768394132/context.jsonl": {
+    "agency/agents/captain/backups/archive/session-1768394132/context.jsonl": {
       "hash": "f36217b4f6247b231ed4ef1af77bfb940c9ced318e370d29bc73844db7f5ea45",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768394132/current-branch.txt": {
+    "agency/agents/captain/backups/archive/session-1768394132/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768394132/session-info.json": {
+    "agency/agents/captain/backups/archive/session-1768394132/session-info.json": {
       "hash": "f05dae374d3b44c7152043492081b5b120bc5bf6cbc4be3d7590abd440ac6c45",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768394132/status.txt": {
+    "agency/agents/captain/backups/archive/session-1768394132/status.txt": {
       "hash": "b6b94893d595a1ad628f1f8c7e3cc3876880f360b01d1a76f340d4cffd630bea",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/archive/session-1768394132/uncommitted.patch": {
+    "agency/agents/captain/backups/archive/session-1768394132/uncommitted.patch": {
       "hash": "01c32231bbe3b96f58436348755626720ad77e4dcd127c584c64ebab0b69fda9",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/latest/context.jsonl": {
+    "agency/agents/captain/backups/latest/context.jsonl": {
       "hash": "0bcd3b92bd61d9518db287ded2fafdcb912c89c591035c074272e237fdb7451a",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/latest/current-branch.txt": {
+    "agency/agents/captain/backups/latest/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/latest/session-info.json": {
+    "agency/agents/captain/backups/latest/session-info.json": {
       "hash": "f05dae374d3b44c7152043492081b5b120bc5bf6cbc4be3d7590abd440ac6c45",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/latest/status.txt": {
+    "agency/agents/captain/backups/latest/status.txt": {
       "hash": "b6b94893d595a1ad628f1f8c7e3cc3876880f360b01d1a76f340d4cffd630bea",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/backups/latest/uncommitted.patch": {
+    "agency/agents/captain/backups/latest/uncommitted.patch": {
       "hash": "01c32231bbe3b96f58436348755626720ad77e4dcd127c584c64ebab0b69fda9",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/logs/permissions.md": {
+    "agency/agents/captain/logs/permissions.md": {
       "hash": "2674b40bc86a9309a95dfb93739f9517fa2a5852863cfba00b7b1e00e5ded492",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/notes/INSTR-ordinaryfolk-nextgen-apply-v003-design-system.md": {
+    "agency/agents/captain/notes/INSTR-ordinaryfolk-nextgen-apply-v003-design-system.md": {
       "hash": "7cbbc153694bb7baa03e7a0f7df01b9ff73270dbf84af82454a83cc20ff628b8",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/notes/NOTE-2026-01-13-claude-code-friendly-design-systems.md": {
+    "agency/agents/captain/notes/NOTE-2026-01-13-claude-code-friendly-design-systems.md": {
       "hash": "b20e64651b7b8ef8ba89a6aaefab95ce17a52c15a890fe32ba8ec8b80aebff5a",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/captain/notes/NOTE-2026-01-13-hybrid-design-system-extraction.md": {
+    "agency/agents/captain/notes/NOTE-2026-01-13-hybrid-design-system-extraction.md": {
       "hash": "eac027c9ba801907eb62ca77ef2d8d04f8b54f47616df1b893d4099390348b36",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/collaboration/.gitkeep": {
+    "agency/agents/collaboration/.gitkeep": {
       "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/collaboration/CODE-REVIEW-0015-agency-service.md": {
+    "agency/agents/collaboration/CODE-REVIEW-0015-agency-service.md": {
       "hash": "1e4258330ca0cceb5fc48129fcbde0ac52a3c02077f38a225f2dbef1054b72a3",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0001-2026-01-15.md": {
+    "agency/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0001-2026-01-15.md": {
       "hash": "a465fb7ed515442b788fdb9f4d5e8be94cecdc23f7c78e1cf156634c157e9869",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0002-2026-01-15.md": {
+    "agency/agents/collaboration/FROM-housekeeping-captain-COLLABORATE-0002-2026-01-15.md": {
       "hash": "4d597c9df90fe9b5cd5f45af27a4f2192c70d878e08e1b29921488c795377d72",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/collaboration/NEWS.md": {
+    "agency/agents/collaboration/NEWS.md": {
       "hash": "190fbfe64bfce72811db43a75039adf2cba38d9d4749beb1984ca827ebbc2522",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-alpha/IDEAS.md": {
+    "agency/agents/foundation-alpha/IDEAS.md": {
       "hash": "b6efe2c5cae719e8820a644682edeaf4fc3ec44bd92455fe8fea36478c717531",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-alpha/ONBOARDING.md": {
+    "agency/agents/foundation-alpha/ONBOARDING.md": {
       "hash": "3f522f32e6a09896deac0cb380a70e37e96c51e0589e3ae5900dfec6f08d3398",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-alpha/agent.md": {
+    "agency/agents/foundation-alpha/agent.md": {
       "hash": "34209d45859017d310e5a569ffb8debc227f281cc376e1cef3c0b46fec26a6fc",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-alpha/logs/permissions.md": {
+    "agency/agents/foundation-alpha/logs/permissions.md": {
       "hash": "24aa5ff22463313adb285821affc745a4e1079b11b0996ae4587647759bbf3a3",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-beta/IDEAS.md": {
+    "agency/agents/foundation-beta/IDEAS.md": {
       "hash": "b36bc3328790c6f45327afc3610718e0983493984cbe58e3e805539914f55894",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-beta/ONBOARDING.md": {
+    "agency/agents/foundation-beta/ONBOARDING.md": {
       "hash": "1f37d43b06eeacc58ec301a9a2f33928df0581c4a9460da15f68aa4f371ee36f",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-beta/agent.md": {
+    "agency/agents/foundation-beta/agent.md": {
       "hash": "504d0b8cb5669c06bd535c8157be01a6af131703cdbbf24b1b54a2e20182251f",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/foundation-beta/logs/permissions.md": {
+    "agency/agents/foundation-beta/logs/permissions.md": {
       "hash": "c8cb4c5baa7ebc05c30c1b161f750333df63976ae3e822a66b586edf63be1486",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768390651/context.jsonl": {
+    "agency/agents/housekeeping/backups/archive/session-1768390651/context.jsonl": {
       "hash": "fc111d51afad474e57549b4e66917b300ceea1b938c7593ffc859f57952599ce",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768390651/current-branch.txt": {
+    "agency/agents/housekeeping/backups/archive/session-1768390651/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768390651/session-info.json": {
+    "agency/agents/housekeeping/backups/archive/session-1768390651/session-info.json": {
       "hash": "b10f39e098ff25d0c99059d598a0c060bb774978f1a847fe4e7b06e40d73ded0",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768390651/status.txt": {
+    "agency/agents/housekeeping/backups/archive/session-1768390651/status.txt": {
       "hash": "9e1b3fef33834f90db9cb3359f2c857a06be3784d382569c8b812e0a458e75b6",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393416/context.jsonl": {
+    "agency/agents/housekeeping/backups/archive/session-1768393416/context.jsonl": {
       "hash": "be9bd84af9ed5f2957557d3eb24b1dbf485e992b57682496961a926e5064e252",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393416/current-branch.txt": {
+    "agency/agents/housekeeping/backups/archive/session-1768393416/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393416/session-info.json": {
+    "agency/agents/housekeeping/backups/archive/session-1768393416/session-info.json": {
       "hash": "20a4d8d1422b6cd6946dd770763d73ddce8babb89c518850a126bca6eeae5366",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393416/status.txt": {
+    "agency/agents/housekeeping/backups/archive/session-1768393416/status.txt": {
       "hash": "7817b9ed40b56810c0bafb5c987f1f1cbdd53045745004108756d5d2e2694462",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393606/context.jsonl": {
+    "agency/agents/housekeeping/backups/archive/session-1768393606/context.jsonl": {
       "hash": "a13e5b8ff9cf9db00f7a670e71af1efc668d5d8bca34305b98c071c7cb5ef4b8",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393606/current-branch.txt": {
+    "agency/agents/housekeeping/backups/archive/session-1768393606/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393606/session-info.json": {
+    "agency/agents/housekeeping/backups/archive/session-1768393606/session-info.json": {
       "hash": "804dd696e9d055008671fd7228ea81c567bae34c6a79f70aaf0d923218df3ab3",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393606/status.txt": {
+    "agency/agents/housekeeping/backups/archive/session-1768393606/status.txt": {
       "hash": "b630186089fca340b13961e5feda533e3fed9dcf8dd95507073093834a327ad6",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393679/context.jsonl": {
+    "agency/agents/housekeeping/backups/archive/session-1768393679/context.jsonl": {
       "hash": "a13e5b8ff9cf9db00f7a670e71af1efc668d5d8bca34305b98c071c7cb5ef4b8",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393679/current-branch.txt": {
+    "agency/agents/housekeeping/backups/archive/session-1768393679/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393679/session-info.json": {
+    "agency/agents/housekeeping/backups/archive/session-1768393679/session-info.json": {
       "hash": "342b5dec733e8369c6eb6509778598fb422ed87a46bf70a5f96ccd3135a9658b",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/archive/session-1768393679/status.txt": {
+    "agency/agents/housekeeping/backups/archive/session-1768393679/status.txt": {
       "hash": "b630186089fca340b13961e5feda533e3fed9dcf8dd95507073093834a327ad6",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/latest/context.jsonl": {
+    "agency/agents/housekeeping/backups/latest/context.jsonl": {
       "hash": "a13e5b8ff9cf9db00f7a670e71af1efc668d5d8bca34305b98c071c7cb5ef4b8",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/latest/current-branch.txt": {
+    "agency/agents/housekeeping/backups/latest/current-branch.txt": {
       "hash": "6403203dd5a0867eb14d104ee8a73730bd72dd9ad92e78d996a6dba0a5dcfc01",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/latest/session-info.json": {
+    "agency/agents/housekeeping/backups/latest/session-info.json": {
       "hash": "342b5dec733e8369c6eb6509778598fb422ed87a46bf70a5f96ccd3135a9658b",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/housekeeping/backups/latest/status.txt": {
+    "agency/agents/housekeeping/backups/latest/status.txt": {
       "hash": "b630186089fca340b13961e5feda533e3fed9dcf8dd95507073093834a327ad6",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/INDEX.md": {
+    "agency/agents/templates/INDEX.md": {
       "hash": "6f79f8dc01220a285b65c8a6db7075b49cd244bc3ea1e52fced54790a2bd8725",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/design-system/agent.md": {
+    "agency/agents/templates/design-system/agent.md": {
       "hash": "ef331f25b5eaf94620ada7f08c356cb2b6215d6389730d0afd813475ae2a8b16",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/docs/agent.md": {
+    "agency/agents/templates/docs/agent.md": {
       "hash": "fdb3f8ce0e18107ae9b797a6cbabdd4f83887f80f5fe9d8a15dba0e16132e579",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/generic/ONBOARDING.md": {
+    "agency/agents/templates/generic/ONBOARDING.md": {
       "hash": "7d01b23140f970be3e91de9f73d7391306bd3a2f33df7549c070b47650b1f07e",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/generic/agent.md": {
+    "agency/agents/templates/generic/agent.md": {
       "hash": "af76d9b2a2bab2d032c0cf99b421fab04f6de27f2a9b0cb103708fd1c81d1916",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/reviewer/agent.md": {
+    "agency/agents/templates/reviewer/agent.md": {
       "hash": "21ef1d2a588f90e12d786c93f3e2b9ef66fdbcb7bc1aad09db321aada3a03997",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/security/agent.md": {
+    "agency/agents/templates/security/agent.md": {
       "hash": "ac0a0485ff8c114d3e54f1c61bc712db1eaa94105794b17c3a3eaba9c45ca1bf",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/services/agent.md": {
+    "agency/agents/templates/services/agent.md": {
       "hash": "d3dfa47a358076bfd267e02f66189b1ce8e7a79b42685ade12df25fa17b0cbe9",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/tester/agent.md": {
+    "agency/agents/templates/tester/agent.md": {
       "hash": "0a6598a0ce8d087b997887fb88d308e77e76c0f7fa918b57564f65ba70c001a8",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/ux-dev/ONBOARDING.md": {
+    "agency/agents/templates/ux-dev/ONBOARDING.md": {
       "hash": "4fa0cd2696b3e3f7d657dbb902378814eb8f5bfb43ec86b6cee1b6e845058067",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/templates/ux-dev/agent.md": {
+    "agency/agents/templates/ux-dev/agent.md": {
       "hash": "35bf1e025b0e30fc4cb260c9c35b00368fc5e533f33fdacc9e62c84bfdebd355",
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/agents/unknown/logs/permissions.md": {
+    "agency/agents/unknown/logs/permissions.md": {
       "hash": "0dfd71c7b75fad456580b7b8a65a4b68d363d626e9e22a923dc924445455d38f",
       "modified": false,
       "version": "1.0.3"
@@ -505,7 +505,7 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/config/agency.yaml": {
+    "agency/config/agency.yaml": {
       "hash": "944b240632537883d5cfcc05989ea97f268858c2f351e3e3ee25418c899e3faa",
       "modified": false,
       "version": "1.0.3"
@@ -1290,7 +1290,7 @@
       "modified": false,
       "version": "1.0.3"
     },
-    "claude/workstreams/housekeeping/.gitkeep": {
+    "agency/workstreams/housekeeping/.gitkeep": {
       "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "modified": false,
       "version": "1.0.3"

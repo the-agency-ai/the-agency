@@ -2,10 +2,10 @@
 # {{TOOL_NAME}} — {{TOOL_DESCRIPTION}}
 #
 # Provider for the {{PROVIDER_PATTERN}} plugin pattern.
-# Dispatched via: ./claude/tools/{{DISPATCHER_NAME}}
+# Dispatched via: ./agency/tools/{{DISPATCHER_NAME}}
 #
 # Usage:
-#   ./claude/tools/{{TOOL_NAME}} <verb> [args...]
+#   ./agency/tools/{{TOOL_NAME}} <verb> [args...]
 #
 # Standard verbs:
 #   set <name> [value]   Store/create an item
@@ -45,7 +45,7 @@ for arg in "$@"; do
         --help|-h)
             echo "{{TOOL_NAME}} — {{TOOL_DESCRIPTION}}"
             echo ""
-            echo "Usage: ./claude/tools/{{TOOL_NAME}} <verb> [args...]"
+            echo "Usage: ./agency/tools/{{TOOL_NAME}} <verb> [args...]"
             echo ""
             echo "Verbs:"
             echo "  set <name> [value]   Store/create an item"

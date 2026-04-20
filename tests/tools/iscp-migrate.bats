@@ -22,17 +22,17 @@ setup() {
     iscp_test_isolation_setup
 
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
-    mkdir -p "$MOCK_REPO/claude/tools/lib" "$MOCK_REPO/claude/config"
+    mkdir -p "$MOCK_REPO/agency/tools/lib" "$MOCK_REPO/claude/config"
 
     for tool in iscp-migrate agent-identity dispatch flag; do
-        cp "$REPO_ROOT/claude/tools/$tool" "$MOCK_REPO/claude/tools/"
-        chmod +x "$MOCK_REPO/claude/tools/$tool"
+        cp "$REPO_ROOT/agency/tools/$tool" "$MOCK_REPO/agency/tools/"
+        chmod +x "$MOCK_REPO/agency/tools/$tool"
     done
-    cp "$REPO_ROOT/claude/tools/dispatch-create" "$MOCK_REPO/claude/tools/"
-    chmod +x "$MOCK_REPO/claude/tools/dispatch-create"
+    cp "$REPO_ROOT/agency/tools/dispatch-create" "$MOCK_REPO/agency/tools/"
+    chmod +x "$MOCK_REPO/agency/tools/dispatch-create"
 
     for lib in _iscp-db _address-parse _path-resolve _log-helper; do
-        cp "$REPO_ROOT/claude/tools/lib/$lib" "$MOCK_REPO/claude/tools/lib/"
+        cp "$REPO_ROOT/agency/tools/lib/$lib" "$MOCK_REPO/agency/tools/lib/"
     done
 
     cd "$MOCK_REPO"
@@ -40,7 +40,7 @@ setup() {
     git config user.email "test@example.com"
     git config user.name "Test User"
 
-    cat > "$MOCK_REPO/claude/config/agency.yaml" <<'YAML'
+    cat > "$MOCK_REPO/agency/config/agency.yaml" <<'YAML'
 principals:
   testuser: testprincipal
 YAML
@@ -55,7 +55,7 @@ YAML
     export USER="testuser"
     unset CLAUDE_AGENT_NAME
 
-    MIGRATE="$MOCK_REPO/claude/tools/iscp-migrate"
+    MIGRATE="$MOCK_REPO/agency/tools/iscp-migrate"
 }
 
 teardown() {

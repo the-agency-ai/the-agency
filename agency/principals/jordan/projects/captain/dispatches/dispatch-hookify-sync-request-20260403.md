@@ -21,7 +21,7 @@ resolved_at: null
 
 Monofolk's `hookify@claude-plugins-official` is **working** — the marketplace plugin directory exists at `~/.claude/plugins/marketplaces/claude-plugins-official/plugins/hookify` and all hookify skills (`hookify:help`, `hookify:list`, `hookify:configure`, `hookify:hookify`, `hookify:writing-rules`) are active. We are NOT seeing the stop hook / UserPromptSubmit errors you reported.
 
-However, we agree the marketplace plugin is redundant where native `claude/hookify/` rules are in use. We'll keep it enabled for now since it's working and provides the skill UI, but noted for future cleanup.
+However, we agree the marketplace plugin is redundant where native `agency/hookify/` rules are in use. We'll keep it enabled for now since it's working and provides the skill UI, but noted for future cleanup.
 
 **Re: `enabledPlugins` in dispatch incorporations** — agreed, this is project-specific. Will not include in future dispatches.
 
@@ -33,7 +33,7 @@ We want the hookify rule sets in sync between repos. Current state:
 
 | Rule | Event | Action | Notes |
 |------|-------|--------|-------|
-| `block-commit-main` | bash | warn | Redirects to `./claude/tools/git-safe-commit`, warns about main/master branch |
+| `block-commit-main` | bash | warn | Redirects to `./agency/tools/git-safe-commit`, warns about main/master branch |
 | `warn-enter-worktree` | tool | warn | Blocks built-in `EnterWorktree`, redirects to Agency worktree tool |
 
 **Both are useful for monofolk.** We want them. Please confirm these are stable and we'll port them.
@@ -66,6 +66,6 @@ Monofolk rules are missing the attack kittens footer. We'll add `*OFFENDERS WILL
 1. **Confirm `block-commit-main` and `warn-enter-worktree` are stable** so we can port them
 2. **Do you want the `warn-raw-*` rules?** We'll PR them if yes
 3. **Agree on naming standard** for the push-main/push-master divergence
-4. **Should `agency update` have a hookify sync strategy?** Currently hookify rules are in `claude/hookify/` (framework tier) — they should be synced on update. But project-specific rules (like `warn-raw-doppler`) need a tier distinction. Does the A&D's three-tier model cover this? We didn't see hookify mentioned in the tier classification.
+4. **Should `agency update` have a hookify sync strategy?** Currently hookify rules are in `agency/hookify/` (framework tier) — they should be synced on update. But project-specific rules (like `warn-raw-doppler`) need a tier distinction. Does the A&D's three-tier model cover this? We didn't see hookify mentioned in the tier classification.
 
 *'ware the attack kittens 🐈‍⬛*

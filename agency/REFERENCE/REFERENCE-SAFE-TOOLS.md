@@ -1,6 +1,6 @@
 # Safe Tools — Full Reference
 
-Tool path root: `./claude/tools/`
+Tool path root: `./agency/tools/`
 
 ---
 
@@ -8,7 +8,7 @@ Tool path root: `./claude/tools/`
 
 Safe git operations for all agents. Hookify blocks raw `git add -A`, `git add .`, and `git rebase`; this tool provides the approved read and limited-write path.
 
-**Usage:** `./claude/tools/git-safe <subcommand> [args...]`
+**Usage:** `./agency/tools/git-safe <subcommand> [args...]`
 
 ### Subcommands
 
@@ -101,7 +101,7 @@ Aborts an in-progress merge by wrapping `git merge --abort`. Exits 1 if MERGE_HE
 
 Captain-only privileged git operations. Wraps merge-to-master, branch management, push, fetch, and tagging with safety checks.
 
-**Usage:** `./claude/tools/git-captain <subcommand> [args...]`
+**Usage:** `./agency/tools/git-captain <subcommand> [args...]`
 
 ### Subcommands
 
@@ -183,9 +183,9 @@ Checks (each exits 1 on failure):
 
 QG-aware commit wrapper. Enforces work item tracking, builds structured commit messages, adds per-agent attribution, and dispatches a commit notification to captain.
 
-**Usage:** `./claude/tools/git-safe-commit "<message>" --work-item <ID> --stage <stage>`
+**Usage:** `./agency/tools/git-safe-commit "<message>" --work-item <ID> --stage <stage>`
 
-**Escape hatch:** `./claude/tools/git-safe-commit "<message>" --no-work-item`
+**Escape hatch:** `./agency/tools/git-safe-commit "<message>" --no-work-item`
 
 ### Options
 
@@ -270,7 +270,7 @@ The pre-commit hook runs `commit-precheck`, which stats every staged file and en
 
 **Bypass:** `git-safe-commit --allow-large` (one-shot) or export `ALLOW_LARGE_COMMIT=1`.
 
-**Permanent exemptions:** add one glob per line to `claude/config/large-file-exceptions.txt`. Matching is against full path or basename, `#` comments and blank lines ignored. Prefer narrow globs; use Git LFS for recurring large binaries.
+**Permanent exemptions:** add one glob per line to `agency/config/large-file-exceptions.txt`. Matching is against full path or basename, `#` comments and blank lines ignored. Prefer narrow globs; use Git LFS for recurring large binaries.
 
 Rationale: GitHub soft-caps at 50 MB (warn) / 100 MB (reject). By then the commit is already local and requires history rewrite to remove. Catching at commit time avoids that.
 
@@ -280,7 +280,7 @@ Rationale: GitHub soft-caps at 50 MB (warn) / 100 MB (reject). By then the commi
 
 Thin push wrapper. Blocks pushes to main/master. The only approved push path when hookify blocks raw `git push`.
 
-**Usage:** `./claude/tools/git-push [--force-with-lease] [branch]`
+**Usage:** `./agency/tools/git-push [--force-with-lease] [branch]`
 
 ### Arguments
 
@@ -308,7 +308,7 @@ Thin push wrapper. Blocks pushes to main/master. The only approved push path whe
 
 Worktree-boundary-aware file copy. Blocks cross-worktree copies that would bypass git change tracking.
 
-**Usage:** `./claude/tools/cp-safe [-r] <source> <dest>`
+**Usage:** `./agency/tools/cp-safe [-r] <source> <dest>`
 
 ### Arguments
 
@@ -347,7 +347,7 @@ For cross-worktree sync, use `/worktree-sync`.
 
 QG-gated PR creation. Wraps `gh pr create` with three mandatory checks. Hookify blocks raw `gh pr create`.
 
-**Usage:** `./claude/tools/pr-create --title "title" --body "body" [gh pr create flags...]`
+**Usage:** `./agency/tools/pr-create --title "title" --body "body" [gh pr create flags...]`
 
 All flags after validation are passed through to `gh pr create`.
 
@@ -359,13 +359,13 @@ Exits 1 if currently on `main` or `master`. Must be on a feature branch.
 
 **Step 2 — Receipt check**
 
-Finds the newest receipt file via three-tier search: `claude/workstreams/*/qgr/*.md` and `*/rgr/*.md` (checked first) → `claude/receipts/*.md` (legacy) → `usr/**/qgr-*.md` (old-old). Runs `./claude/tools/receipt-verify --file <receipt>`. Exits 1 if no receipt exists or receipt verification fails.
+Finds the newest receipt file via three-tier search: `agency/workstreams/*/qgr/*.md` and `*/rgr/*.md` (checked first) → `claude/receipts/*.md` (legacy) → `usr/**/qgr-*.md` (old-old). Runs `./agency/tools/receipt-verify --file <receipt>`. Exits 1 if no receipt exists or receipt verification fails.
 
 A receipt is produced by the Quality Gate (`/quality-gate`, `/pr-prep`, or `/release`). See `claude/README-RECEIPT-INFRASTRUCTURE.md` for receipt format details.
 
 **Step 3 — Version bump check**
 
-Checks that `claude/config/manifest.json` differs from `origin/main` (committed, staged, or unstaged). Exits 1 if the manifest has not changed.
+Checks that `agency/config/manifest.json` differs from `origin/main` (committed, staged, or unstaged). Exits 1 if the manifest has not changed.
 
 The manifest must have an updated `agency_version` and `updated_at` timestamp. The `/release` skill handles this automatically.
 

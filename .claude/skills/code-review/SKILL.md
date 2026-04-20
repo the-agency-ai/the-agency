@@ -58,7 +58,7 @@ Remove findings with score < 80. Deduplicate.
 
 Derive the project name from the branch (last segment after `/`, or the branch name itself).
 
-Save to `claude/workstreams/{workstream}/code-reviews/{workstream}-review-{YYYYMMDD-HHMM}.md` where `{workstream}` is derived from the branch name (segment before `/`).
+Save to `agency/workstreams/{workstream}/code-reviews/{workstream}-review-{YYYYMMDD-HHMM}.md` where `{workstream}` is derived from the branch name (segment before `/`).
 
 ### Step 8: Post to GitHub (if PR exists)
 

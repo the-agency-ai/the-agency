@@ -86,10 +86,10 @@ Captain initially proposed several options but eventually recognized this wasn't
 
 **Resolution:** Two different kinds of things, two different loci.
 
-- **Workstream** (`claude/workstreams/mdslidepal/`) = **how we manage things** — contract, themes, fixtures, plan-b safety net, plans, reconciliation receipts. Coordination artifacts.
+- **Workstream** (`agency/workstreams/mdslidepal/`) = **how we manage things** — contract, themes, fixtures, plan-b safety net, plans, reconciliation receipts. Coordination artifacts.
 - **Source trees** (`apps/mdslidepal-web/`, `apps/mdslidepal-mac/`) = **where we put the code** — actual implementations, each with own build config and local `claude/` agency config.
 
-This matches the existing `apps/mdpal-app/` ↔ `claude/workstreams/mdpal/` precedent.
+This matches the existing `apps/mdpal-app/` ↔ `agency/workstreams/mdpal/` precedent.
 
 ### Decision 4 — Mac CLI: **Option A (GUI only for MVP)**
 
@@ -129,7 +129,7 @@ The following items were flagged in agent plans but resolved autonomously with c
 
 ## Plan B safety net preserved
 
-Plan B at `claude/workstreams/mdslidepal/plan-b/` is untouched and remains operational. reveal.js 5.2.1 is already vendored. Jordan can double-click `plan-b/reveal-js-template.html` right now and present the workshop deck from `plan-b/sample-workshop.md`. Web Iteration 1 builds ON TOP OF Plan B; it does not replace it. Plan C (Marp CLI) is documented as a secondary fallback.
+Plan B at `agency/workstreams/mdslidepal/plan-b/` is untouched and remains operational. reveal.js 5.2.1 is already vendored. Jordan can double-click `plan-b/reveal-js-template.html` right now and present the workshop deck from `plan-b/sample-workshop.md`. Web Iteration 1 builds ON TOP OF Plan B; it does not replace it. Plan C (Marp CLI) is documented as a secondary fallback.
 
 ## Next steps
 

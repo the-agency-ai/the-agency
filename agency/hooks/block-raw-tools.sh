@@ -36,7 +36,7 @@ fi
 # Allow framework tools to use whatever they need internally
 # (e.g., dispatch-monitor uses grep internally, that's fine)
 # MUST come before all content checks — tools are always exempt.
-if [[ "$COMMAND" =~ ^\./claude/tools/ ]] || [[ "$COMMAND" =~ ^\"?\$CLAUDE_PROJECT_DIR ]]; then
+if [[ "$COMMAND" =~ ^\./agency/tools/ ]] || [[ "$COMMAND" =~ ^\"?\$CLAUDE_PROJECT_DIR ]]; then
     printf '{}'
     exit 0
 fi

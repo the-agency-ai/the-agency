@@ -43,7 +43,7 @@ Current ISCP addressing (`the-agency/jordan/captain`) is 3-segment (repo level).
 3-segment addresses are ambiguous — could be local repo or remote. Resolution uses a **known-local-repos registry** (in agency config), not segment counting alone:
 
 1. Parse the first segment as repo name
-2. Check `claude/config/agency.yaml` for registered local repos
+2. Check `agency/config/agency.yaml` for registered local repos
 3. If repo is local → route via local ISCP
 4. If repo is unknown → route via cloud service
 5. If ambiguous → fail with actionable error, never guess
@@ -153,7 +153,7 @@ Decision criteria: must allow self-hosting, must prevent cloud resale without co
 
 ## Replaces
 
-- `claude/tools/collaboration` — git-file-based cross-repo dispatches
+- `agency/tools/collaboration` — git-file-based cross-repo dispatches
 - Collaboration repos (`collaboration-monofolk`, etc.)
 - Manual git commit/push/pull for inter-agency messaging
 

@@ -50,13 +50,13 @@ load 'test_helper'
 
 @test "platform-setup: handles missing provider tool" {
     local fixture="${BATS_TEST_TMPDIR}/project"
-    mkdir -p "$fixture/claude/config" "$fixture/claude/tools/lib" "$fixture/tools"
+    mkdir -p "$fixture/claude/config" "$fixture/agency/tools/lib" "$fixture/tools"
     cp "${TOOLS_DIR}/lib/_path-resolve" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_path-resolve" "$fixture/tools/" 2>/dev/null || true
     cp "${TOOLS_DIR}/lib/_log-helper" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
-    cp "${REPO_ROOT}/claude/tools/lib/_provider-resolve" "$fixture/claude/tools/lib/"
+    cp "${REPO_ROOT}/agency/tools/lib/_provider-resolve" "$fixture/agency/tools/lib/"
     cp "${TOOLS_DIR}/platform-setup" "$fixture/tools/"
 
-    cat > "$fixture/claude/config/agency.yaml" << 'EOF'
+    cat > "$fixture/agency/config/agency.yaml" << 'EOF'
 principals:
   default: unknown
 platform:

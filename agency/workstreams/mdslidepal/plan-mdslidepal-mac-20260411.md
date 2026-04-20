@@ -73,7 +73,7 @@ Derived from contract §1–§12. Mac MVP is the full contract:
 ### 1.6 Acceptance criteria
 
 MVP is complete when:
-1. All 8 fixtures in `claude/workstreams/mdslidepal/fixtures/` open, parse, and render without errors.
+1. All 8 fixtures in `agency/workstreams/mdslidepal/fixtures/` open, parse, and render without errors.
 2. Fixture 06 (front-matter) exposes `title`, `author`, `theme`, `date` to the theme engine and honors `theme: agency-dark` as a theme switch.
 3. Fixture 07 (speaker notes) shows notes in presenter view and NEVER in the audience view.
 4. Fixture 08 (edge cases) produces the expected slide count (no phantom empty slides from trailing `---`, no slide breaks from `---` inside fenced code blocks).
@@ -288,7 +288,7 @@ apps/mdslidepal-mac/                    (Mac app lives in apps/, not workstreams
         └── FixtureAcceptanceTests.swift      (all 8 fixtures, slide-count + structural)
 ```
 
-**Resource symlinks to workstream themes:** the build script copies (or symlinks at dev time) `claude/workstreams/mdslidepal/themes/*.json` into `Resources/Themes/` so the `.app` bundle ships them. Source of truth remains the workstream directory (contract §9).
+**Resource symlinks to workstream themes:** the build script copies (or symlinks at dev time) `agency/workstreams/mdslidepal/themes/*.json` into `Resources/Themes/` so the `.app` bundle ships them. Source of truth remains the workstream directory (contract §9).
 
 ---
 
@@ -376,7 +376,7 @@ Phase 4 can begin in parallel with late Phase 3 (PDF export only needs the rende
 
 ## 4. Open questions for the principal
 
-1. **App bundle location in repo.** Plan puts the Mac app at `apps/mdslidepal-mac/`. Contract does not mandate a location. Is `apps/` the right top-level for platform implementations, or should they live under `claude/workstreams/mdslidepal/mac/`? (The workstream location mingles framework and app code; `apps/` keeps them cleanly separated. Check with licensing model — Reference Source License for apps per repo CLAUDE.md.)
+1. **App bundle location in repo.** Plan puts the Mac app at `apps/mdslidepal-mac/`. Contract does not mandate a location. Is `apps/` the right top-level for platform implementations, or should they live under `agency/workstreams/mdslidepal/mac/`? (The workstream location mingles framework and app code; `apps/` keeps them cleanly separated. Check with licensing model — Reference Source License for apps per repo CLAUDE.md.)
 
 2. **Licensing.** Contract sets `license: MIT` for mdslidepal. Repo CLAUDE.md says "App workstreams (mdpal, mock-and-mark) — Reference Source License." Is mdslidepal framework-tier (MIT) or app-tier (RSL)? This plan assumes MIT per contract; confirm or correct.
 

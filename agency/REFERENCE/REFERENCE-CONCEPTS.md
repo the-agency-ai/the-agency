@@ -27,7 +27,7 @@ Agents don't assume shared knowledge. They use collaboration tools to request he
 An **agent** is a Claude Code instance with:
 
 ```
-claude/agents/{agentname}/
+agency/agents/{agentname}/
   agent.md           # Identity, purpose, capabilities
   IDEAS.md           # Future possibilities
   ONBOARDING.md      # How to onboard to this agent
@@ -44,7 +44,7 @@ claude/agents/{agentname}/
 A **workstream** organizes related work:
 
 ```
-claude/workstreams/{workstream}/
+agency/workstreams/{workstream}/
   epic001/                  # Major initiative
     sprint001/              # Time-boxed work
       plan.md
@@ -137,12 +137,12 @@ Agents communicate via explicit tools:
 
 | Tool | Purpose |
 |------|---------|
-| `./claude/tools/collaborate` | Request help from another agent |
-| `./claude/tools/collaboration-respond` | Respond to a request |
-| `./claude/tools/news-post` | Broadcast an update |
-| `./claude/tools/news-read` | Check for broadcasts |
-| `./claude/tools/nit-add` | Flag an issue for later |
-| `./claude/tools/dispatch-collaborations` | Launch agents for pending requests |
+| `./agency/tools/collaborate` | Request help from another agent |
+| `./agency/tools/collaboration-respond` | Respond to a request |
+| `./agency/tools/news-post` | Broadcast an update |
+| `./agency/tools/news-read` | Check for broadcasts |
+| `./agency/tools/nit-add` | Flag an issue for later |
+| `./agency/tools/dispatch-collaborations` | Launch agents for pending requests |
 
 **Collaboration files** (legacy — v1 collaboration inbox has been removed).
 
@@ -181,7 +181,7 @@ Using zod for schema validation, recommend same on server.
 
 ### Session Start
 
-1. Agent launches via `./claude/tools/myclaude {workstream} {agent}`
+1. Agent launches via `./agency/tools/myclaude {workstream} {agent}`
 2. Session hook provides context (last work, uncommitted changes, instructions)
 3. Agent tells user what they were working on
 4. Agent asks what to work on next
@@ -196,9 +196,9 @@ Using zod for schema validation, recommend same on server.
 ### Collaboration Flow
 
 1. Agent A identifies need for Agent B's help
-2. Agent A creates collaboration: `./claude/tools/collaborate {agent} "subject" "request"`
+2. Agent A creates collaboration: `./agency/tools/collaborate {agent} "subject" "request"`
 3. Agent B is launched, reads collaboration file
-4. Agent B does work, responds: `./claude/tools/collaboration-respond {file} "response"`
+4. Agent B does work, responds: `./agency/tools/collaboration-respond {file} "response"`
 5. Agent A sees response, integrates work
 
 ### Instruction Flow
@@ -220,13 +220,13 @@ Pre-commit hooks enforce standards:
 5. **Code review** - Automated security/quality checks
 
 **Tools:**
-- `./claude/tools/commit-precheck` - Run all gates
-- `./claude/tools/test-run` - Just tests
-- `./claude/tools/code-review` - Just review
+- `./agency/tools/commit-precheck` - Run all gates
+- `./agency/tools/test-run` - Just tests
+- `./agency/tools/code-review` - Just review
 
 ## Git Discipline
 
-- **Push via:** `./claude/tools/git-sync` only (runs quality gates)
+- **Push via:** `./agency/tools/git-sync` only (runs quality gates)
 - **Stay on HEAD:** `git fetch && git pull --rebase` at session start
 - **Push frequently:** Other agents need your work
 - **Commit format:**
@@ -312,7 +312,7 @@ Every Agency project has a `housekeeping` agent:
 - **Always available**: Your guide when you're unsure
 - **Dogfooding**: Uses Agency patterns to maintain Agency
 
-Launch: `./claude/tools/myclaude housekeeping captain`
+Launch: `./agency/tools/myclaude housekeeping captain`
 
 ---
 

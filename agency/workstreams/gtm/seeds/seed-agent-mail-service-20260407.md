@@ -89,7 +89,7 @@ When this ships, every commit's agent co-author becomes a real, deliverable, rep
 
 ## Related
 
-- Day 32 Per-Agent Commit Attribution implementation: `claude/tools/git-safe-commit` (commit `03d3ed6`)
+- Day 32 Per-Agent Commit Attribution implementation: `agency/tools/git-safe-commit` (commit `03d3ed6`)
 - Discussion record: `usr/jordan/captain/transcripts/agent-attribution-model-20260407.md`
 - README-THEAGENCY.md "Per-Agent Commit Attribution" subsection
 

@@ -255,7 +255,7 @@ Create or enhance agents for UI work:
 
 **Agent Definition:**
 ```
-claude/agents/ui-dev/
+agency/agents/ui-dev/
 ├── agent.md
 ├── KNOWLEDGE.md → imports from claude/knowledge/ui-development/
 ├── WORKLOG.md

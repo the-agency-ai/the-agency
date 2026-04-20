@@ -10,7 +10,7 @@ The Agency provides a guided first-launch experience using the session context r
 
 The Agency includes a session context system that captures conversational context throughout a session:
 
-1. **Context Capture** - Agents use `./claude/tools/context-save` to save important milestones
+1. **Context Capture** - Agents use `./agency/tools/context-save` to save important milestones
 2. **Automatic Backup** - SessionEnd hook archives context on session exit
 3. **Automatic Restoration** - SessionStart hook displays context on session start
 
@@ -19,7 +19,7 @@ The Agency includes a session context system that captures conversational contex
 For new projects, the-agency-starter ships with a pre-populated context file:
 
 ```
-claude/agents/captain/backups/latest/context.jsonl
+agency/agents/captain/backups/latest/context.jsonl
 ```
 
 This file contains welcome messages and onboarding guidance that appear on the very first session launch.
@@ -35,8 +35,8 @@ On first launch after installation:
 ✓ Project structure created - agents, workstreams, and tools are configured
 ✓ Review CLAUDE.md for the complete framework guide
 • Next step: Configure permissions in .claude/settings.local.json (copy from .example file)
-• Next step: Initialize secrets if needed: ./claude/tools/secret vault init
-• Next step: Launch captain agent: ./claude/tools/myclaude housekeeping captain
+• Next step: Initialize secrets if needed: ./agency/tools/secret vault init
+• Next step: Launch captain agent: ./agency/tools/myclaude housekeeping captain
 • Quick start: Ask the captain 'Help me set up my project' or try '/welcome' for the interactive tour
 ⏸ PARKED: This welcome context will be replaced with your actual work context as you use the system
 
@@ -95,7 +95,7 @@ the-agency-starter/
 ### Natural Replacement
 
 As soon as the user starts working:
-- They use `./claude/tools/context-save` to capture their actual work
+- They use `./agency/tools/context-save` to capture their actual work
 - The first-launch content is replaced with real session context
 - Subsequent sessions show their actual work history
 
@@ -121,7 +121,7 @@ Projects can customize their first-launch experience by:
 ```json
 {"timestamp":"2026-01-01 00:00:00 +00","type":"checkpoint","content":"Welcome to Acme Corp's multi-agent platform"}
 {"timestamp":"2026-01-01 00:00:01 +00","type":"append","content":"Review docs/ENGINEERING.md for team conventions"}
-{"timestamp":"2026-01-01 00:00:02 +00","type":"append","content":"Request access to AWS resources: ./claude/tools/aws-setup"}
+{"timestamp":"2026-01-01 00:00:02 +00","type":"append","content":"Request access to AWS resources: ./agency/tools/aws-setup"}
 {"timestamp":"2026-01-01 00:00:03 +00","type":"park","content":"Contact @platform-team on Slack if you need help"}
 ```
 

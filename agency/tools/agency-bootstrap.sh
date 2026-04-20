@@ -2,11 +2,11 @@
 #
 # agency-bootstrap.sh — One-liner bootstrap for bare repos.
 #
-# What Problem: `agency init` requires `./claude/tools/agency` to already
+# What Problem: `agency init` requires `./agency/tools/agency` to already
 # exist in the target repo (chicken-and-egg). A truly bare repo can't run
 # `agency init --from-github` because the tool itself isn't present yet.
 # Adopters had to do a two-step dance: `git clone --depth 1 the-agency /tmp/...`
-# then `AGENCY_SOURCE=/tmp/... /tmp/.../claude/tools/agency init`. Brittle,
+# then `AGENCY_SOURCE=/tmp/... /tmp/.../agency/tools/agency init`. Brittle,
 # easy to get wrong, and not copy-pasteable in a chat or doc.
 #
 # How & Why: This script is meant to be fetched via curl and piped to bash.
@@ -18,13 +18,13 @@
 #
 # Usage:
 #   # From anywhere (curl one-liner):
-#   curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/claude/tools/agency-bootstrap.sh | bash
+#   curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/tools/agency-bootstrap.sh | bash
 #
 #   # With args (pass extras after --):
 #   curl -sL https://.../agency-bootstrap.sh | bash -s -- --principal alex --project myapp
 #
 #   # Local (from a cloned copy of the-agency):
-#   ./claude/tools/agency-bootstrap.sh
+#   ./agency/tools/agency-bootstrap.sh
 
 set -euo pipefail
 
@@ -39,9 +39,9 @@ for arg in "$@"; do
 agency-bootstrap.sh — One-liner bootstrap for bare repos
 
 Usage:
-  curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/claude/tools/agency-bootstrap.sh | bash
+  curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/tools/agency-bootstrap.sh | bash
   curl -sL .../agency-bootstrap.sh | bash -s -- --principal alex --project myapp
-  ./claude/tools/agency-bootstrap.sh [agency init args...]
+  ./agency/tools/agency-bootstrap.sh [agency init args...]
 
 Accepts all flags that `agency init --from-github` accepts. The --from-github
 flag is added automatically (you don't need to pass it).
@@ -76,4 +76,4 @@ fi
 # temp dir is used as the authoritative source (consistent with how adopters
 # run agency init thereafter).
 echo "Running agency init --from-github in $(pwd) ..."
-exec "$TMP/claude/tools/agency" init --from-github "$@"
+exec "$TMP/agency/tools/agency" init --from-github "$@"

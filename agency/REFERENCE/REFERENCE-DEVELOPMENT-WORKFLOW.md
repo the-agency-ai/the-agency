@@ -23,11 +23,11 @@ Implementation → Code Review + Security Review → Test Review → Complete
 # ... make changes ...
 
 # 2. Run tests - must be GREEN
-./claude/tools/test-run
+./agency/tools/test-run
 # Output: All tests passed
 
 # 3. Commit using the commit tool
-./claude/tools/git-safe-commit "add Red-Green development cycle docs" \
+./agency/tools/git-safe-commit "add Red-Green development cycle docs" \
   --work-item REQUEST-jordan-0065 \
   --stage impl \
   --body "Updated CLAUDE.md with explicit workflow documentation including:
@@ -36,7 +36,7 @@ Implementation → Code Review + Security Review → Test Review → Complete
 - Code review process clarification"
 
 # 4. Tag implementation complete
-./claude/tools/git-tag REQUEST-jordan-0065 impl
+./agency/tools/git-tag REQUEST-jordan-0065 impl
 ```
 
 ### Phase 2: Code Review + Security Review
@@ -83,10 +83,10 @@ Return findings with severity (Critical/High/Medium/Low) and CWE IDs."
 # ... make changes ...
 
 # 6. Run tests - must be GREEN
-./claude/tools/test-run
+./agency/tools/test-run
 
 # 7. Commit using the commit tool
-./claude/tools/git-safe-commit "apply code review findings" \
+./agency/tools/git-safe-commit "apply code review findings" \
   --work-item REQUEST-jordan-0065 \
   --stage review \
   --body "Applied consolidated review findings:
@@ -95,7 +95,7 @@ Return findings with severity (Critical/High/Medium/Low) and CWE IDs."
 - Security fix: description"
 
 # 8. Tag review complete
-./claude/tools/git-tag REQUEST-jordan-0065 review
+./agency/tools/git-tag REQUEST-jordan-0065 review
 ```
 
 ### Phase 3: Test Review
@@ -130,10 +130,10 @@ Return a list of test improvements needed."
 # ... add/modify tests ...
 
 # 5. Run tests - must be GREEN
-./claude/tools/test-run
+./agency/tools/test-run
 
 # 6. Commit using the commit tool
-./claude/tools/git-safe-commit "add tests from review findings" \
+./agency/tools/git-safe-commit "add tests from review findings" \
   --work-item REQUEST-jordan-0065 \
   --stage tests \
   --body "Added tests from consolidated test review:
@@ -142,17 +142,17 @@ Return a list of test improvements needed."
 - Test 3: edge case coverage"
 
 # 7. Tag tests complete
-./claude/tools/git-tag REQUEST-jordan-0065 tests
+./agency/tools/git-tag REQUEST-jordan-0065 tests
 ```
 
 ### Phase 4: Complete
 
 ```bash
 # Tag work item complete (no commit needed)
-./claude/tools/git-tag REQUEST-jordan-0065 complete
+./agency/tools/git-tag REQUEST-jordan-0065 complete
 
 # If this is a release point:
-./claude/tools/release 1.3.0 --push --github
+./agency/tools/release 1.3.0 --push --github
 ```
 
 ## Commit Message Format
@@ -185,17 +185,17 @@ SPRINT-web-2026w03 - web/frontend for jordan: complete sprint deliverables
 housekeeping/captain: update README formatting
 ```
 
-**Using ./claude/tools/git-safe-commit:**
+**Using ./agency/tools/git-safe-commit:**
 ```bash
 # With work item
-./claude/tools/git-safe-commit "add Red-Green workflow docs" --work-item REQUEST-jordan-0065 --stage impl
+./agency/tools/git-safe-commit "add Red-Green workflow docs" --work-item REQUEST-jordan-0065 --stage impl
 
 # With body
-./claude/tools/git-safe-commit "fix path traversal" --work-item BUG-0042 --stage review \
+./agency/tools/git-safe-commit "fix path traversal" --work-item BUG-0042 --stage review \
   --body "Sanitized user input before file operations"
 
 # Simple commit (no work item)
-./claude/tools/git-safe-commit "update README formatting"
+./agency/tools/git-safe-commit "update README formatting"
 ```
 
 ## Key Rules

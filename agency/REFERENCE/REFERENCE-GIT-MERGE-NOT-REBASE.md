@@ -148,7 +148,7 @@ Create `pr-scopes.json` in your principal's scripts directory (e.g., `usr/{princ
 ### Rules
 
 1. **Every worktree gets a scope.** When you create a worktree, add a scope to pr-scopes.json with its paths.
-2. **Include Agency artifacts.** Each scope should include `usr/{principal}/{agent}/` and `claude/workstreams/{workstream}/` so handoffs, QGRs, and dispatches travel with the feature code.
+2. **Include Agency artifacts.** Each scope should include `usr/{principal}/{agent}/` and `agency/workstreams/{workstream}/` so handoffs, QGRs, and dispatches travel with the feature code.
 3. **The EXCLUDE scope catches everything else.** Shared files (root package.json, framework updates, CLAUDE.md changes) land in the EXCLUDE scope. Update its exclude list when adding new INCLUDE scopes.
 4. **Paths that don't exist are silently skipped.** This is expected — a scope may include paths that only exist after the feature is built.
 

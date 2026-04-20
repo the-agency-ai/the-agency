@@ -40,25 +40,25 @@ Remove sensitive/project-specific content from `/Users/jdm/code/the-agency-start
 
 **Delete entirely:**
 - `claude/principals/jordan/` (~75 files) - entire directory
-- `claude/agents/housekeeping/SESSION-*.md` (~7 files)
-- `claude/agents/housekeeping/backups/` directory
-- `claude/agents/collaboration/CODE-REVIEW-*.md`
+- `agency/agents/housekeeping/SESSION-*.md` (~7 files)
+- `agency/agents/housekeeping/backups/` directory
+- `agency/agents/collaboration/CODE-REVIEW-*.md`
 
 **Keep:**
-- `claude/agents/housekeeping/KNOWLEDGE.md` (general framework knowledge)
-- `claude/agents/housekeeping/agent.md`
+- `agency/agents/housekeeping/KNOWLEDGE.md` (general framework knowledge)
+- `agency/agents/housekeeping/agent.md`
 
 **Modify:**
 - `claude/config.yaml` - Remove `jdm: jordan` mapping
-- `claude/config/agency.yaml` - Remove `jdm: jordan` mapping
+- `agency/config/agency.yaml` - Remove `jdm: jordan` mapping
 - Documentation - Replace `jordan`/`jdm` with generic examples
-- `claude/agents/housekeeping/ADHOC-WORKLOG.md` - Reset to empty template
+- `agency/agents/housekeeping/ADHOC-WORKLOG.md` - Reset to empty template
 
 **Result:** `claude/principals/` should be empty (onboarding creates principal on first run)
 
 ### Step 3: Create Build Tooling
 
-#### 3.1 Create Manifest (`claude/config/starter-manifest.yaml`)
+#### 3.1 Create Manifest (`agency/config/starter-manifest.yaml`)
 YAML file defining what gets copied from the-agency to the-agency-starter:
 ```yaml
 # What to include from the-agency
@@ -66,8 +66,8 @@ include:
   - tools/
   - apps/agency-bench/
   - services/agency-service/
-  - claude/agents/housekeeping/agent.md
-  - claude/agents/housekeeping/KNOWLEDGE.md
+  - agency/agents/housekeeping/agent.md
+  - agency/agents/housekeeping/KNOWLEDGE.md
   - claude/templates/
   - claude/docs/
   - claude/starter-packs/
@@ -84,8 +84,8 @@ exclude:
   - claude/principals/*/artifacts/
   - claude/principals/*/projects/
   - claude/principals/*/resources/secrets/
-  - claude/agents/*/SESSION-*.md
-  - claude/agents/*/backups/
+  - agency/agents/*/SESSION-*.md
+  - agency/agents/*/backups/
   - "*.env"
   # ... etc
 

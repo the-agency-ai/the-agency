@@ -43,7 +43,7 @@ Building real applications in the-agency repo — NestJS backends, React/Next.js
 
 ## 4. Functional Requirements
 
-### FR1: `claude/tools/scaffold` — SPEC:PROVIDER wrapper
+### FR1: `agency/tools/scaffold` — SPEC:PROVIDER wrapper
 
 Top-level dispatcher following the established pattern (secret, preview, deploy). Reads provider config from `agency.yaml`:
 
@@ -62,7 +62,7 @@ Verb contract:
 
 The wrapper has two dispatch keys (backend/frontend) rather than one, which is a slight extension of the single-provider wrappers (secret, preview, deploy). The first positional arg selects the facet, the second is the app name, and remaining args pass through.
 
-### FR2: `claude/tools/scaffold-backend-nestjs` — NestJS provider
+### FR2: `agency/tools/scaffold-backend-nestjs` — NestJS provider
 
 Scaffolds a NestJS service at `apps/<name>/` with:
 - TypeScript strict mode
@@ -72,7 +72,7 @@ Scaffolds a NestJS service at `apps/<name>/` with:
 - `package.json` with scripts: `build`, `start`, `start:dev`, `test`, `lint`
 - `.gitignore` for node_modules, dist, coverage
 
-### FR3: `claude/tools/scaffold-frontend-nextjs` — Next.js provider
+### FR3: `agency/tools/scaffold-frontend-nextjs` — Next.js provider
 
 Scaffolds a Next.js 14+ app at `apps/<name>/` with:
 - App Router (`app/` directory)
@@ -94,7 +94,7 @@ Both providers create a `CLAUDE.md` in the app directory containing:
 
 ### FR5: Test-scoper integration
 
-Both providers add the new app to the plan's test-scoper mappings so that changes in `apps/<name>/` trigger the correct test suite. The mapping is appended to `claude/config/agency.yaml` under the `testing.suites` section:
+Both providers add the new app to the plan's test-scoper mappings so that changes in `apps/<name>/` trigger the correct test suite. The mapping is appended to `agency/config/agency.yaml` under the `testing.suites` section:
 
 ```yaml
 testing:
@@ -146,7 +146,7 @@ Both need identical scaffolding patterns, which is exactly the "two instances pr
 
 - Ships on the devex branch (standard worktree workflow)
 - Must not modify existing app directories
-- Provider tools are Bash scripts in `claude/tools/` following the established pattern
+- Provider tools are Bash scripts in `agency/tools/` following the established pattern
 - Template files live in `claude/templates/scaffold/` (new directory)
 - Must work in worktrees and main checkout
 

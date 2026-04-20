@@ -21,7 +21,7 @@ The only way to run `git commit`. Never run raw `git commit` — always use this
 
 Before committing, verify that a Quality Gate has been run for the staged changes.
 
-1. Run `./claude/tools/stage-hash` to compute the stage hash of currently staged files.
+1. Run `./agency/tools/stage-hash` to compute the stage hash of currently staged files.
 2. Glob for `usr/*/*/qgr-*-{stage-hash}-*.md` where `{stage-hash}` is the hash from step 1.
 3. **If a matching QGR file is found:** Report "QGR receipt found: `{path}`" and proceed to Step 2.
 4. **If no matching QGR file is found AND `--force` was NOT passed:** Stop and ask:

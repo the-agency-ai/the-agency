@@ -6,7 +6,7 @@ pattern: 'gh pr create'
 action: block
 ---
 
-BLOCKED: Raw `gh pr create` is not allowed. Use `/ship` or `./claude/tools/pr-create` instead.
+BLOCKED: Raw `gh pr create` is not allowed. Use `/ship` or `./agency/tools/pr-create` instead.
 
 Every PR requires a Quality Gate Report (QGR). The tools check for a QGR receipt before allowing PR creation. Run `/pr-prep` first, then `/ship`.
 

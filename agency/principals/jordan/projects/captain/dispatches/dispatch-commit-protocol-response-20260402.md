@@ -32,7 +32,7 @@ Yes, this matches. One addition:
 
 ### Q2: Hookify enforcement?
 
-Yes, but as a **warn**, not a block. A hookify rule that warns when pushing executable files (`claude/tools/*`, `claude/hooks/*`, `.claude/skills/*`, `claude/hookify/*`) directly to main without a PR context. Blocking would be too aggressive — the captain legitimately pushes code to main when landing worktree work via `/phase-complete`.
+Yes, but as a **warn**, not a block. A hookify rule that warns when pushing executable files (`agency/tools/*`, `agency/hooks/*`, `.claude/skills/*`, `agency/hookify/*`) directly to main without a PR context. Blocking would be too aggressive — the captain legitimately pushes code to main when landing worktree work via `/phase-complete`.
 
 Proposed rule: `hookify.warn-code-push-main` — "You're pushing executable framework files to main. If this is a cross-repo contribution, use `upstream-port` or create a PR. If this is landing worktree work via `/phase-complete`, carry on."
 

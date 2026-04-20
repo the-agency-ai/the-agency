@@ -24,7 +24,7 @@ On SessionStart, Steps 1-2 run automatically via hooks (worktree-sync + session-
 ### Step 1: Sync with master
 
 ```
-bash ./claude/tools/worktree-sync --auto
+bash ./agency/tools/worktree-sync --auto
 ```
 
 This stashes dirty work if needed, merges master, copies settings, runs sandbox-sync, and unstashes. If on master, it silently skips.
@@ -32,7 +32,7 @@ This stashes dirty work if needed, merges master, copies settings, runs sandbox-
 ### Step 2: Read the handoff
 
 ```
-bash ./claude/tools/handoff read
+bash ./agency/tools/handoff read
 ```
 
 Display the handoff contents. This is your context for what was happening before this session.
@@ -40,7 +40,7 @@ Display the handoff contents. This is your context for what was happening before
 ### Step 3: Check for dispatches
 
 ```
-bash ./claude/tools/dispatch check
+bash ./agency/tools/dispatch check
 ```
 
 Surface any unread dispatches. If found, list them with `dispatch list` and read with `dispatch read <id>`.
@@ -48,9 +48,9 @@ Surface any unread dispatches. If found, list them with `dispatch list` and read
 ### Step 4: Report session state
 
 Report to the user:
-- **Branch:** `./claude/tools/git-safe branch --show-current`
-- **Last commit:** `./claude/tools/git-safe log --oneline -1`
-- **Dirty files:** `./claude/tools/git-safe status --porcelain` (0 lines = clean)
+- **Branch:** `./agency/tools/git-safe branch --show-current`
+- **Last commit:** `./agency/tools/git-safe log --oneline -1`
+- **Dirty files:** `./agency/tools/git-safe status --porcelain` (0 lines = clean)
 - **Sync result:** what changed from Step 1
 - **Handoff summary:** key points from Step 2
 - **Dispatches:** any unread from Step 3
@@ -58,7 +58,7 @@ Report to the user:
 ### Step 5: Session preflight
 
 ```
-bash ./claude/tools/session-preflight
+bash ./agency/tools/session-preflight
 ```
 
 This runs the preflight checklist: clean tree, synced with main, handoff loaded, dispatches processed, dispatch monitor running. If any check fails, **fix it before proceeding.** Do not skip failures.
@@ -66,7 +66,7 @@ This runs the preflight checklist: clean tree, synced with main, handoff loaded,
 If the dispatch monitor is not running, start it now:
 
 ```
-Monitor dispatches using ./claude/tools/dispatch-monitor --include-collab (persistent, session-length)
+Monitor dispatches using ./agency/tools/dispatch-monitor --include-collab (persistent, session-length)
 ```
 
 The session is not ready until preflight passes.

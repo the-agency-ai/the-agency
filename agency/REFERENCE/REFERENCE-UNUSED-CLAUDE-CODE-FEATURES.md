@@ -8,7 +8,7 @@ Analysis of Claude Code features The Agency is **not currently using** that coul
 
 ### 1. Custom Agents (`.claude/agents/` directory)
 
-Claude Code supports defining custom subagent types with frontmatter (model, tools, skills, spawn-mode, memory). The Agency has agent identity docs in `claude/agents/`, but doesn't use Claude Code's native `.claude/agents/*.md` agent definitions. This would enable:
+Claude Code supports defining custom subagent types with frontmatter (model, tools, skills, spawn-mode, memory). The Agency has agent identity docs in `agency/agents/`, but doesn't use Claude Code's native `.claude/agents/*.md` agent definitions. This would enable:
 
 - Restrict tools per agent type (e.g., research agent can't edit files)
 - Set different models per agent (haiku for simple tasks, opus for complex)

@@ -9,7 +9,7 @@ You need:
 - The right branch (not main)
 - A clean working tree
 
-If you are just starting: `./claude/tools/git-captain checkout-branch feat/my-change`
+If you are just starting: `./agency/tools/git-captain checkout-branch feat/my-change`
 
 ---
 
@@ -18,8 +18,8 @@ If you are just starting: `./claude/tools/git-captain checkout-branch feat/my-ch
 Edit files normally using the Edit or Write tools. When you are done, verify the state of the working tree:
 
 ```bash
-./claude/tools/git-safe status
-./claude/tools/git-safe diff
+./agency/tools/git-safe status
+./agency/tools/git-safe diff
 ```
 
 ---
@@ -29,13 +29,13 @@ Edit files normally using the Edit or Write tools. When you are done, verify the
 Stage explicit file paths. Do not use `git add -A` or `git add .` — hookify blocks these, and they risk staging secrets or generated files.
 
 ```bash
-./claude/tools/git-safe add claude/tools/my-tool
-./claude/tools/git-safe add claude/docs/my-doc.md
+./agency/tools/git-safe add agency/tools/my-tool
+./agency/tools/git-safe add claude/docs/my-doc.md
 ```
 
 Stage each file by name. For multiple files, list them all in one call or call `git-safe add` once per file.
 
-**Common pitfall:** Passing a directory path (e.g., `git-safe add claude/tools/`) is blocked. Always use individual file paths.
+**Common pitfall:** Passing a directory path (e.g., `git-safe add agency/tools/`) is blocked. Always use individual file paths.
 
 ---
 
@@ -44,7 +44,7 @@ Stage each file by name. For multiple files, list them all in one call or call `
 Use the commit tool with a work item reference:
 
 ```bash
-./claude/tools/git-safe-commit "add my-tool with worktree boundary check" \
+./agency/tools/git-safe-commit "add my-tool with worktree boundary check" \
   --work-item TASK-devex-007 \
   --stage impl
 ```
@@ -52,7 +52,7 @@ Use the commit tool with a work item reference:
 For a change with no work item (housekeeping, doc fix):
 
 ```bash
-./claude/tools/git-safe-commit "fix typo in README" --no-work-item
+./agency/tools/git-safe-commit "fix typo in README" --no-work-item
 ```
 
 The tool builds a structured commit message, adds per-agent attribution trailers, and dispatches a notification to captain. You do not write the commit message format by hand.
@@ -88,7 +88,7 @@ The quality gate runs parallel agent reviews covering logic, security, tests, an
 Confirm the receipt is valid before proceeding:
 
 ```bash
-./claude/tools/receipt-verify
+./agency/tools/receipt-verify
 ```
 
 Exit 0 means the receipt is current and the hash matches the code state. Exit 1 means the receipt is stale or missing — run `/pr-prep` again.
@@ -102,7 +102,7 @@ Exit 0 means the receipt is current and the hash matches the code state. Exit 1 
 If you committed directly on main (don't — but if you did), or if you need a fresh branch:
 
 ```bash
-./claude/tools/git-captain checkout-branch feat/my-change
+./agency/tools/git-captain checkout-branch feat/my-change
 ```
 
 Branch names must be lowercase and match `[a-z0-9][a-z0-9._/-]*`. No uppercase, no leading hyphens.
@@ -113,15 +113,15 @@ Branch names must be lowercase and match `[a-z0-9][a-z0-9._/-]*`. No uppercase, 
 
 ## Step 7 — Bump the Version
 
-Every PR is a release. Update `claude/config/manifest.json`:
+Every PR is a release. Update `agency/config/manifest.json`:
 
 - Increment `agency_version` (e.g., `40.1` → `40.2`)
 - Update `updated_at` to today's date
 
 ```bash
 # Edit the manifest, then stage and commit it
-./claude/tools/git-safe add claude/config/manifest.json
-./claude/tools/git-safe-commit "bump version to 40.2" --no-work-item
+./agency/tools/git-safe add agency/config/manifest.json
+./agency/tools/git-safe-commit "bump version to 40.2" --no-work-item
 ```
 
 The `/release` skill handles version bumping automatically. If you use `/release`, skip this step — it does it for you.
@@ -133,13 +133,13 @@ The `/release` skill handles version bumping automatically. If you use `/release
 ## Step 8 — Push the Branch
 
 ```bash
-./claude/tools/git-push feat/my-change
+./agency/tools/git-push feat/my-change
 ```
 
 Or simply:
 
 ```bash
-./claude/tools/git-push
+./agency/tools/git-push
 ```
 
 (Defaults to the current branch.) The tool sets upstream (`-u`) automatically. Use `--force-with-lease` if you need to update an already-pushed branch after a rebase-equivalent merge.
@@ -151,7 +151,7 @@ Or simply:
 ## Step 9 — Create the PR
 
 ```bash
-./claude/tools/pr-create \
+./agency/tools/pr-create \
   --title "feat: add my-tool with worktree boundary check" \
   --body "$(cat <<'EOF'
 ## Summary
@@ -216,10 +216,10 @@ This verifies the merge happened, merges origin/main into your local main, and c
 |---|---|---|
 | Forgetting version bump | `pr-create` blocks at step 9 | Update `manifest.json`, commit, push |
 | Stale receipt | `pr-create` blocks at step 9 | Run `/pr-prep` again, do not change code after |
-| Raw `git commit` | Hookify blocks it | Use `./claude/tools/git-safe-commit` |
-| Raw `git push` | Hookify blocks it | Use `./claude/tools/git-push` |
-| Raw `gh pr create` | Hookify blocks it | Use `./claude/tools/pr-create` |
-| `git add .` or `git add -A` | Hookify blocks it | Use `./claude/tools/git-safe add <files>` |
+| Raw `git commit` | Hookify blocks it | Use `./agency/tools/git-safe-commit` |
+| Raw `git push` | Hookify blocks it | Use `./agency/tools/git-push` |
+| Raw `gh pr create` | Hookify blocks it | Use `./agency/tools/pr-create` |
+| `git add .` or `git add -A` | Hookify blocks it | Use `./agency/tools/git-safe add <files>` |
 | Pushing to main directly | `git-push` blocks it | Create a branch, use PR flow |
 | Cross-worktree cp | `cp-safe` blocks it | Use `/worktree-sync` |
 | QG after code change | Receipt becomes stale | Always QG last, before PR |

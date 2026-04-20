@@ -238,7 +238,7 @@ All three are living documents during active work. Update architecture and desig
   - `/pr-prep` — QG scoped to full diff vs origin/master, before PR creation
   - `/pre-phase-review` — multi-agent review of PVR, A&D, Plan before starting a new phase
 - **Stage hash utility** — `tools/lib/stage-hash.ts` + CLI `tools/stage-hash.ts`: computes deterministic 7-char hash from git staging area (SHA-256 of sorted index entries). Used for QGR receipt filenames.
-- **QGR receipt files** — standalone files at `claude/workstreams/{workstream}/qgr/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md`. Written by `/quality-gate` Step 10. `/git-safe-commit` checks for a matching receipt before committing.
+- **QGR receipt files** — standalone files at `agency/workstreams/{workstream}/qgr/qgr-{boundary}-{phase-iter}-{stage-hash}-YYYYMMDD-HHMM.md`. Written by `/quality-gate` Step 10. `/git-safe-commit` checks for a matching receipt before committing.
 - **`/git-safe-commit` QG-awareness** — computes stage hash, globs for matching QGR receipt. Found = proceed. Not found = warn and ask. `--force` skips the check for non-QG commits.
 - **Hookify enforcement rules:**
   - `hookify.require-qgr.md` — warns on `git commit` if QGR checklist not completed

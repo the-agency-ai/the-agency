@@ -47,8 +47,8 @@ At PR/release time, `receipt-verify` finds all receipts for the current workstre
 Receipts are written to **per-workstream directories**:
 
 ```
-claude/workstreams/{W}/qgr/    — quality gate receipts
-claude/workstreams/{W}/rgr/    — review gate receipts
+agency/workstreams/{W}/qgr/    — quality gate receipts
+agency/workstreams/{W}/rgr/    — review gate receipts
 ```
 
 The filename carries full provenance:
@@ -63,7 +63,7 @@ Receipt directories (`qgr/` and `rgr/`) are excluded from all hash computations 
 
 `receipt-verify` and `pr-create` search receipts in this order:
 
-1. `claude/workstreams/*/qgr/` and `rgr/` (current — checked first)
+1. `agency/workstreams/*/qgr/` and `rgr/` (current — checked first)
 2. `claude/receipts/` (legacy fallback)
 3. `usr/**/qgr-*.md` (old-old fallback — sunsets when all migrated)
 

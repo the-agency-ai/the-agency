@@ -24,7 +24,7 @@ Zero-friction capture of observations during work. Flag something now, discuss i
 If `$ARGUMENTS` is a message (not a subcommand):
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/flag "$ARGUMENTS"
+bash $CLAUDE_PROJECT_DIR/agency/tools/flag "$ARGUMENTS"
 ```
 
 Confirm: "Flagged: [message summary]"
@@ -34,7 +34,7 @@ Confirm: "Flagged: [message summary]"
 If `$ARGUMENTS` starts with `--to`:
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/flag --to <agent-address> "message"
+bash $CLAUDE_PROJECT_DIR/agency/tools/flag --to <agent-address> "message"
 ```
 
 The agent address must be fully qualified (`repo/principal/agent`). The flag appears in the target agent's queue on their next `flag list` or `iscp-check`.
@@ -44,7 +44,7 @@ The agent address must be fully qualified (`repo/principal/agent`). The flag app
 If `$ARGUMENTS` is `list`:
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/flag list
+bash $CLAUDE_PROJECT_DIR/agency/tools/flag list
 ```
 
 Displays all unread flags and marks them as `read` (Slack-style seen behavior). Three-state lifecycle: unread → read (on list) → processed (on discuss/clear).
@@ -54,7 +54,7 @@ Displays all unread flags and marks them as `read` (Slack-style seen behavior). 
 If `$ARGUMENTS` is `count`:
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/flag count
+bash $CLAUDE_PROJECT_DIR/agency/tools/flag count
 ```
 
 Returns unread count only.
@@ -64,7 +64,7 @@ Returns unread count only.
 If `$ARGUMENTS` is `clear`:
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/flag clear
+bash $CLAUDE_PROJECT_DIR/agency/tools/flag clear
 ```
 
 Marks all flags as `processed`.
@@ -74,7 +74,7 @@ Marks all flags as `processed`.
 If `$ARGUMENTS` is `discuss`:
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/flag discuss
+bash $CLAUDE_PROJECT_DIR/agency/tools/flag discuss
 ```
 
 Outputs the queue as a numbered 1B1 agenda and marks all as `processed`. Then invoke `/discuss` with the agenda items for structured resolution.

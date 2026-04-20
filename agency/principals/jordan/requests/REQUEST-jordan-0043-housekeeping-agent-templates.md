@@ -26,9 +26,9 @@ The `./tools/agent-create` tool creates generic agents with placeholder content:
 ```
 
 Creates:
-- `claude/agents/my-agent/agent.md` - Generic placeholder content
-- `claude/agents/my-agent/WORKLOG.md`
-- `claude/agents/my-agent/ADHOC-WORKLOG.md`
+- `agency/agents/my-agent/agent.md` - Generic placeholder content
+- `agency/agents/my-agent/WORKLOG.md`
+- `agency/agents/my-agent/ADHOC-WORKLOG.md`
 - etc.
 
 ### Problem
@@ -49,7 +49,7 @@ Create an agent template system with pre-defined agent types.
 ### 1. Template Directory Structure
 
 ```
-claude/agents/templates/
+agency/agents/templates/
 ├── INDEX.md              # Template directory overview
 ├── generic/              # Default template (current behavior)
 │   ├── agent.md
@@ -74,7 +74,7 @@ claude/agents/templates/
 ```
 
 **Behavior:**
-1. Look for template in `claude/agents/templates/<type>/`
+1. Look for template in `agency/agents/templates/<type>/`
 2. If not found, use `generic/` template
 3. Replace placeholders: `{{AGENT_NAME}}`, `{{WORKSTREAM}}`, `{{TIMESTAMP}}`
 4. Create agent directory with populated files
@@ -151,7 +151,7 @@ UX/UI development specialist focused on implementing designs with pixel-perfect 
 ## Implementation Plan
 
 ### Step 1: Create Template Directory
-- Create `claude/agents/templates/`
+- Create `agency/agents/templates/`
 - Create `INDEX.md` documentation
 - Create `generic/` template from current behavior
 

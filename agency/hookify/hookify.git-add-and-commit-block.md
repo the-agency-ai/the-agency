@@ -8,7 +8,7 @@ action: block
 
 **BLOCKED: `git add ... && git commit ...` bypasses /git-safe-commit skill.**
 
-The `/git-safe-commit` skill (and the `claude/tools/git-safe-commit` tool it wraps)
+The `/git-safe-commit` skill (and the `agency/tools/git-safe-commit` tool it wraps)
 enforces:
 - QGR receipt check before commit
 - Commit notification dispatch to captain
@@ -27,7 +27,7 @@ lets the compound HEREDOC form sneak through. This rule closes that gap.
 Or, for simple cases:
 
 ```bash
-./claude/tools/git-safe-commit "Phase X.Y: short description" --no-work-item
+./agency/tools/git-safe-commit "Phase X.Y: short description" --no-work-item
 ```
 
 (No compound. Two separate steps. Real telemetry.)

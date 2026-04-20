@@ -325,11 +325,11 @@ my-project/
 
 **tools/** — Shell scripts that agents (and you) use constantly. Session management, collaboration, quality checks, git operations. You'll learn these as you go.
 
-**claude/agents/** — Each agent gets a directory. The `agent.md` file defines who they are. The knowledge and worklog files persist across sessions.
+**agency/agents/** — Each agent gets a directory. The `agent.md` file defines who they are. The knowledge and worklog files persist across sessions.
 
 **claude/principals/** — That's you (and any other humans). Instructions you give agents go here. Artifacts they produce for you go here.
 
-**claude/workstreams/** — Areas of work. The `general` workstream is created by default. You'll add more as your project grows — `web`, `api`, `infrastructure`, whatever makes sense.
+**agency/workstreams/** — Areas of work. The `general` workstream is created by default. You'll add more as your project grows — `web`, `api`, `infrastructure`, whatever makes sense.
 
 ### What You Get vs. Vanilla Claude Code
 

@@ -153,9 +153,9 @@ EXPECTED_SKILL_MIN=50
     for skill_dir in "$SKILLS_DIR"/*/; do
         local name
         name=$(basename "$skill_dir")
-        # Extract tool names from Bash(./claude/tools/{name}*) patterns
+        # Extract tool names from Bash(./agency/tools/{name}*) patterns
         local tools
-        tools=$(grep -o 'Bash(\./claude/tools/[a-z_-]*' "$skill_dir/SKILL.md" 2>/dev/null | sed 's|Bash(\./claude/tools/||' || true)
+        tools=$(grep -o 'Bash(\./agency/tools/[a-z_-]*' "$skill_dir/SKILL.md" 2>/dev/null | sed 's|Bash(\./agency/tools/||' || true)
         for tool in $tools; do
             # Provider-dispatch tools use wildcards (e.g., deploy-*) — check for any matching tool
             if echo "$tool" | grep -q -- '-$'; then
@@ -163,7 +163,7 @@ EXPECTED_SKILL_MIN=50
                 # Skip validation — actual tool depends on configured provider
                 continue
             fi
-            if [ ! -f "$REPO_ROOT/claude/tools/$tool" ]; then
+            if [ ! -f "$REPO_ROOT/agency/tools/$tool" ]; then
                 failures="${failures}$name references missing tool: $tool\n"
             fi
         done
@@ -179,7 +179,7 @@ EXPECTED_SKILL_MIN=50
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "ref-injector: uses exact skill name matching (no substring leakage)" {
-    local ref_injector="$REPO_ROOT/claude/hooks/ref-injector.sh"
+    local ref_injector="$REPO_ROOT/agency/hooks/ref-injector.sh"
     [ -f "$ref_injector" ] || skip "ref-injector.sh not found"
     # Should NOT contain wildcard patterns like *quality-gate*
     if grep -q '\*[a-z-]*\*' "$ref_injector"; then

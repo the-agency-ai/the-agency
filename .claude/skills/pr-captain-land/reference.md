@@ -12,7 +12,7 @@ Before any mutation, the script must verify ALL of these:
 | 2 | Current branch is `master` or `main` | exit 1, ask captain to switch |
 | 3 | `git status --porcelain` empty | exit 1, list dirty files |
 | 4 | `<agent-branch>` exists on origin | exit 1, list suggestion |
-| 5 | Diff-hash of `<agent-branch>` matches a QGR receipt at `claude/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md` | exit 1, tell agent to re-prep |
+| 5 | Diff-hash of `<agent-branch>` matches a QGR receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md` | exit 1, tell agent to re-prep |
 
 Any failure => zero mutation, clean error message.
 
@@ -21,7 +21,7 @@ Any failure => zero mutation, clean error message.
 ### Step 1 — Switch to agent branch
 
 ```
-./claude/tools/git-captain switch-branch <agent-branch>
+./agency/tools/git-captain switch-branch <agent-branch>
 ```
 
 Current working branch becomes the agent's. Main checkout is now sitting on agent's branch.
@@ -33,7 +33,7 @@ Current working branch becomes the agent's. Main checkout is now sitting on agen
 Compute current diff-hash against `origin/master`. Find receipt matching that hash.
 
 ```
-./claude/tools/diff-hash --base origin/master --json
+./agency/tools/diff-hash --base origin/master --json
 # extract hash
 find claude/workstreams -name "*qgr-pr-prep-*-{hash}.md"
 ```
@@ -42,7 +42,7 @@ find claude/workstreams -name "*qgr-pr-prep-*-{hash}.md"
 
 ### Step 3 — Bump `monofolk_version`
 
-Read current version from `claude/config/manifest.json`. Bump minor (e.g., 1.8 → 1.9). Write back with `updated_at` refreshed to current UTC timestamp.
+Read current version from `agency/config/manifest.json`. Bump minor (e.g., 1.8 → 1.9). Write back with `updated_at` refreshed to current UTC timestamp.
 
 Commit via `git-safe-commit` with message:
 ```
@@ -56,7 +56,7 @@ Push to origin.
 ### Step 4 — Create PR
 
 ```
-./claude/tools/pr-create --title "{title}" --body "{body}"
+./agency/tools/pr-create --title "{title}" --body "{body}"
 ```
 
 Title: `--title` flag value, or `<agent-branch>` as fallback. Body: captain-authored fleet-aware description that wraps the agent's scope with:
@@ -69,7 +69,7 @@ Title: `--title` flag value, or `<agent-branch>` as fallback. Body: captain-auth
 ### Step 5 — Switch back to master
 
 ```
-./claude/tools/git-captain switch-branch master
+./agency/tools/git-captain switch-branch master
 ```
 
 Captain should sit on master for the wait-and-merge phase. Avoids any accidental commit landing on the PR branch.
@@ -91,7 +91,7 @@ Max 30 attempts = 10 minutes. On timeout, exit 1.
 ### Step 7 — Merge
 
 ```
-./claude/tools/pr-merge {pr-num} --principal-approved
+./agency/tools/pr-merge {pr-num} --principal-approved
 ```
 
 Uses admin merge (principal-approved flag gated). True merge commit — never squash, never rebase per framework discipline.
@@ -101,9 +101,9 @@ Uses admin merge (principal-approved flag gated). True merge commit — never sq
 ### Step 8 — Sync master + create release
 
 ```
-./claude/tools/git-captain fetch
-./claude/tools/git-captain merge-from-origin
-./claude/tools/gh-release create v{new-version} --target master --title "..." --notes "..."
+./agency/tools/git-captain fetch
+./agency/tools/git-captain merge-from-origin
+./agency/tools/gh-release create v{new-version} --target master --title "..." --notes "..."
 ```
 
 Release notes: captain-authored, references the PR number and agent.

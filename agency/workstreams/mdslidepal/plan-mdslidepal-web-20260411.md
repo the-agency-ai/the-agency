@@ -15,7 +15,7 @@ contract_version: v1.2
 
 **Hard deadline:** Saturday 2026-04-11 night (MVP ready) → Sunday dry-run buffer → **Monday 2026-04-13 09:00 Republic Polytechnic workshop.**
 
-This plan extends the shared contract at `claude/workstreams/mdslidepal/seed-mdslidepal-contract-20260411.md` (v1.2). Every constraint cited here references a contract section by number. It is deliberately the smallest possible wrapper over the already-vendored Plan B template in `claude/workstreams/mdslidepal/plan-b/`.
+This plan extends the shared contract at `agency/workstreams/mdslidepal/seed-mdslidepal-contract-20260411.md` (v1.2). Every constraint cited here references a contract section by number. It is deliberately the smallest possible wrapper over the already-vendored Plan B template in `agency/workstreams/mdslidepal/plan-b/`.
 
 ---
 
@@ -41,7 +41,7 @@ One command: `mdslidepal serve sample-workshop.md`. The CLI reads the markdown, 
 | F4 | Syntax highlighting for bash, typescript, python, swift, json, yaml, html, css, markdown via reveal.js's built-in `RevealHighlight` (highlight.js) | §6 |
 | F5 | Local image resolution relative to the source `.md` — images copied alongside the markdown into the output directory | §5 |
 | F6 | GFM tables, task lists, strikethrough, autolinks render (free via reveal.js markdown plugin; highlight.js handles code) | §1 |
-| F7 | Theme loader reads `claude/workstreams/mdslidepal/themes/agency-default.json`, emits CSS custom properties (`--r-main-color`, `--r-heading-color`, `--r-link-color`, plus mdslidepal-scoped vars) | §9 |
+| F7 | Theme loader reads `agency/workstreams/mdslidepal/themes/agency-default.json`, emits CSS custom properties (`--r-main-color`, `--r-heading-color`, `--r-link-color`, plus mdslidepal-scoped vars) | §9 |
 | F8 | Output is fully self-contained — vendored reveal.js, no CDN references anywhere | §8, §mdslidepal-web |
 | F9 | Output runs from `file://` with no local server (verified in smoke test) | §mdslidepal-web |
 | F10 | Keyboard navigation: arrows/space/home/end/esc/f/b/. /?  — all inherited from reveal.js | §10 |
@@ -166,10 +166,10 @@ Iteration 1 is "done" when **all** of the following are true:
 
 ### 2.3 File layout
 
-Project lives at `claude/workstreams/mdslidepal/web/` (NEW directory — not inside `plan-b/`, which stays untouched as the fallback).
+Project lives at `agency/workstreams/mdslidepal/web/` (NEW directory — not inside `plan-b/`, which stays untouched as the fallback).
 
 ```
-claude/workstreams/mdslidepal/web/
+agency/workstreams/mdslidepal/web/
 ├── package.json              # name: mdslidepal, bin: mdslidepal → dist/bin/mdslidepal.js
 ├── tsconfig.json
 ├── pnpm-lock.yaml
@@ -361,7 +361,7 @@ Should Iteration 1 ship the `--inline` mode that inlines markdown into the HTML 
 
 ### 4.3 Where does the `web/` package live?
 
-Plan says `claude/workstreams/mdslidepal/web/`. Alternative is a sibling repo or a top-level `apps/mdslidepal-web/`. The workstream-internal location matches the contract's workstream-level themes and fixtures, and keeps the Plan B relationship clean. **Recommend: workstream-internal unless principal has a reason otherwise.**
+Plan says `agency/workstreams/mdslidepal/web/`. Alternative is a sibling repo or a top-level `apps/mdslidepal-web/`. The workstream-internal location matches the contract's workstream-level themes and fixtures, and keeps the Plan B relationship clean. **Recommend: workstream-internal unless principal has a reason otherwise.**
 
 ### 4.4 Global install
 

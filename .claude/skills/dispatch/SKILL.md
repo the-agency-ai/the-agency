@@ -35,14 +35,14 @@ If empty, defaults to `list`.
 
 ### list
 
-Run `bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch list $ARGUMENTS` and display results.
+Run `bash $CLAUDE_PROJECT_DIR/agency/tools/dispatch list $ARGUMENTS` and display results.
 
 ### read / fetch
 
 - `read <id>` — displays the dispatch and marks it as read. Use when you're committing to process it.
 - `fetch <id>` — displays the dispatch without changing status. Use to peek before deciding.
 
-Run `bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch read <id>` or `fetch <id>`.
+Run `bash $CLAUDE_PROJECT_DIR/agency/tools/dispatch read <id>` or `fetch <id>`.
 Summarize the content for the user.
 
 ### reply
@@ -50,7 +50,7 @@ Summarize the content for the user.
 Quick response to an existing dispatch. Auto-resolves the recipient from the original sender, prefixes subject with "Re:", and sets the in_reply_to FK.
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch reply <id> "Your response message"
+bash $CLAUDE_PROJECT_DIR/agency/tools/dispatch reply <id> "Your response message"
 ```
 
 ### create
@@ -58,7 +58,7 @@ bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch reply <id> "Your response message
 Create a new dispatch. The `--to` address must be fully qualified (`repo/principal/agent`).
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch create --to <addr> --subject <text> [--body <text>] [--type <type>] [--priority <p>]
+bash $CLAUDE_PROJECT_DIR/agency/tools/dispatch create --to <addr> --subject <text> [--body <text>] [--type <type>] [--priority <p>]
 ```
 
 - Without `--body`: writes a template payload (warns about placeholders — edit before committing)
@@ -71,7 +71,7 @@ bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch create --to <addr> --subject <tex
 Mark a dispatch as resolved, optionally linking a response dispatch:
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch resolve <id> [--response <id>]
+bash $CLAUDE_PROJECT_DIR/agency/tools/dispatch resolve <id> [--response <id>]
 ```
 
 ### check
@@ -83,7 +83,7 @@ Silent check for unread items. Returns JSON `{"systemMessage": "..."}` when item
 Show the full record for a dispatch including timestamps, read_by, and payload path:
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch status <id>
+bash $CLAUDE_PROJECT_DIR/agency/tools/dispatch status <id>
 ```
 
 ## Dispatch Workflow

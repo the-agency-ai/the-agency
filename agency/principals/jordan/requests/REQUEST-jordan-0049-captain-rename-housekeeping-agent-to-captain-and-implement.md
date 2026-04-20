@@ -57,7 +57,7 @@ The captain agent is the multi-faceted leader of The Agency with these responsib
 ### Scope
 
 **Phase 1: Core Rename**
-- Rename `claude/agents/housekeeping/` → `claude/agents/captain/`
+- Rename `agency/agents/housekeeping/` → `agency/agents/captain/`
 - Update all tool references (myclaude, commit, session-start hook, iterm-setup)
 - Update configuration files (iTerm profiles)
 - Update documentation (CLAUDE.md, README.md, FIRST-LAUNCH.md)
@@ -132,8 +132,8 @@ The Captain's Tour implementation fulfills REQUEST-jordan-0034 (interactive onbo
 **Commit:** `f5964db` - housekeeping/captain: refactor: Rename housekeeping agent to captain (Phase 1)
 
 **Changes:**
-- Renamed agent directory: `claude/agents/housekeeping/` → `claude/agents/captain/`
-- Rewrote `claude/agents/captain/agent.md` with expanded leadership role:
+- Renamed agent directory: `agency/agents/housekeeping/` → `agency/agents/captain/`
+- Rewrote `agency/agents/captain/agent.md` with expanded leadership role:
   * Onboarding & Guidance section
   * Project Management section
   * Infrastructure & Setup section
@@ -287,7 +287,7 @@ The Captain's Tour implementation fulfills REQUEST-jordan-0034 (interactive onbo
   * `.claude/hooks/session-start.sh`
   * `.claude/settings.json`
   * `.claude/settings.local.json.example`
-  * `claude/agents/captain/` (agent.md, KNOWLEDGE.md, ADHOC-WORKLOG.md)
+  * `agency/agents/captain/` (agent.md, KNOWLEDGE.md, ADHOC-WORKLOG.md)
   * `claude/docs/FIRST-LAUNCH-CONTEXT.jsonl`
   * `claude/docs/FIRST-LAUNCH.md`
   * `claude/docs/PERMISSIONS.md`

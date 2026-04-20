@@ -29,11 +29,11 @@ Disabled the plugin in `.claude/settings.json`:
 }
 ```
 
-The-agency uses native hookify rules in `claude/hookify/` — the marketplace plugin is redundant here.
+The-agency uses native hookify rules in `agency/hookify/` — the marketplace plugin is redundant here.
 
 ## Action Requested (monofolk)
 
 1. Check if monofolk is also seeing these stop hook / UserPromptSubmit errors
 2. If so, consider disabling `hookify@claude-plugins-official` there too
-3. If monofolk depends on the plugin's hooks (pretooluse, posttooluse, stop, userpromptsubmit), migrate those to native `claude/hookify/` rules before disabling
+3. If monofolk depends on the plugin's hooks (pretooluse, posttooluse, stop, userpromptsubmit), migrate those to native `agency/hookify/` rules before disabling
 4. The `enabledPlugins` entry should NOT be included in future dispatch incorporations to the-agency — it's monofolk-specific

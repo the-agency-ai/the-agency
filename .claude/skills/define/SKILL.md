@@ -28,7 +28,7 @@ If `--from` specified, read the seed file. If `--continue`, read the existing PV
 
 ### Step 2: Scan for existing work
 
-Glob `claude/workstreams/*/pvr-*.md` for existing PVR files. If found, offer to continue from the most recent one.
+Glob `agency/workstreams/*/pvr-*.md` for existing PVR files. If found, offer to continue from the most recent one.
 
 ### Step 3: Build discussion agenda
 
@@ -42,7 +42,7 @@ Invoke `/discuss` via the Skill tool, passing the agenda items. The 1B1 protocol
 
 After each item resolves, update the PVR file. Don't batch writes to the end.
 
-PVR location: `claude/workstreams/{workstream}/pvr-{workstream}-{slug}-{YYYYMMDD}.md`.
+PVR location: `agency/workstreams/{workstream}/pvr-{workstream}-{slug}-{YYYYMMDD}.md`.
 
 ### Step 6: Present completeness scorecard
 

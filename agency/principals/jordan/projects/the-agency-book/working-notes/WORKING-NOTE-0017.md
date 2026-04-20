@@ -238,7 +238,7 @@ Shows a session running: **"Reticulating... (1d 2h 47m - 2.4m tokens - thinking)
 | 5 | **Compounding Engineering** | `@claude` in PR reviews to update CLAUDE.md via GitHub action | Manual knowledge updates | PROP-0014 Knowledge Indexer | 🔴 Add GitHub action for auto CLAUDE.md updates |
 | 6 | **Plan Mode First** | shift+tab twice, iterate on plan, then auto-accept for 1-shot | We use plan mode | - | ✅ Parity achieved |
 | 7 | **Slash Commands** | `.claude/commands/` for inner loops, e.g., `/commit-push-pr` | `./tools/` directory with 50+ tools | - | ✅ We go further |
-| 8 | **Subagents** | `.claude/agents/` for code-simplifier, verify-app, etc. | `claude/agents/` with specialized agents | - | ✅ Parity achieved |
+| 8 | **Subagents** | `.claude/agents/` for code-simplifier, verify-app, etc. | `agency/agents/` with specialized agents | - | ✅ Parity achieved |
 | 9 | **PostToolUse Hooks** | Format on Write/Edit automatically | Pre-commit hooks (5-step) | - | 🤔 Add PostToolUse for instant formatting? |
 | 10 | **Permissions Pre-config** | `/permissions` to pre-allow safe commands, shared in settings.json | `.claude/settings.local.json` with extensive allow list | - | ✅ Parity achieved |
 | 11 | **MCP for External Tools** | Slack, BigQuery, Sentry via MCP servers | Limited MCP usage | - | 🔴 Document MCP patterns, add common servers |

@@ -21,23 +21,23 @@ setup() {
     git commit -m "Initial" --quiet
 
     # Create structure the hook expects
-    mkdir -p claude/tools/lib
+    mkdir -p agency/tools/lib
     mkdir -p claude/config
     mkdir -p usr/testuser/captain
 
     # Copy the hook
-    cp "${REPO_ROOT}/claude/hooks/session-handoff.sh" session-handoff.sh
+    cp "${REPO_ROOT}/agency/hooks/session-handoff.sh" session-handoff.sh
     chmod +x session-handoff.sh
 
     # Copy lib dependencies
-    cp "${REPO_ROOT}/claude/tools/lib/_log-helper" claude/tools/lib/_log-helper 2>/dev/null || true
-    cp "${REPO_ROOT}/claude/tools/lib/_path-resolve" claude/tools/lib/_path-resolve 2>/dev/null || true
-    if [[ -f "${REPO_ROOT}/claude/tools/now" ]]; then
-        cp "${REPO_ROOT}/claude/tools/now" claude/tools/now
-        chmod +x claude/tools/now
+    cp "${REPO_ROOT}/agency/tools/lib/_log-helper" agency/tools/lib/_log-helper 2>/dev/null || true
+    cp "${REPO_ROOT}/agency/tools/lib/_path-resolve" agency/tools/lib/_path-resolve 2>/dev/null || true
+    if [[ -f "${REPO_ROOT}/agency/tools/now" ]]; then
+        cp "${REPO_ROOT}/agency/tools/now" agency/tools/now
+        chmod +x agency/tools/now
     fi
 
-    cat > claude/config/agency.yaml << 'YAML'
+    cat > agency/config/agency.yaml << 'YAML'
 principals:
   testuser:
     name: testuser
@@ -71,12 +71,12 @@ teardown() {
 
 @test "session-handoff: hook maps main to captain slug" {
     # Verify the hook contains the main→captain mapping
-    grep -qE 'BRANCH_SLUG.*=.*"captain"' "${REPO_ROOT}/claude/hooks/session-handoff.sh" || \
-    grep -qE '"main".*"master"' "${REPO_ROOT}/claude/hooks/session-handoff.sh"
+    grep -qE 'BRANCH_SLUG.*=.*"captain"' "${REPO_ROOT}/agency/hooks/session-handoff.sh" || \
+    grep -qE '"main".*"master"' "${REPO_ROOT}/agency/hooks/session-handoff.sh"
 }
 
 @test "session-handoff: hook maps master to captain slug" {
-    grep -q '"master"' "${REPO_ROOT}/claude/hooks/session-handoff.sh"
+    grep -q '"master"' "${REPO_ROOT}/agency/hooks/session-handoff.sh"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -97,9 +97,9 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "session-handoff: hook handles agency-bootstrap type" {
-    grep -q 'agency-bootstrap' "${REPO_ROOT}/claude/hooks/session-handoff.sh"
+    grep -q 'agency-bootstrap' "${REPO_ROOT}/agency/hooks/session-handoff.sh"
 }
 
 @test "session-handoff: hook handles agency-update type" {
-    grep -q 'agency-update' "${REPO_ROOT}/claude/hooks/session-handoff.sh"
+    grep -q 'agency-update' "${REPO_ROOT}/agency/hooks/session-handoff.sh"
 }

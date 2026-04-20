@@ -50,17 +50,17 @@ One workstream = one PVR, one A&D, one Plan, one shared project sandbox, 1+ agen
 4. If `$ARGUMENTS` is empty, ask for a workstream name.
 5. Validate workstream name: must match `^[a-z0-9][a-z0-9_-]*$`, max 32 chars.
 6. Validate each agent name: same regex.
-7. Validate each agent class: check `claude/agents/<class>/agent.md` exists.
-8. Check `claude/workstreams/<name>/` doesn't already exist.
+7. Validate each agent class: check `agency/agents/<class>/agent.md` exists.
+8. Check `agency/workstreams/<name>/` doesn't already exist.
 
 ### Step 2: Detect principal
 
-Find the principal from `claude/config/agency.yaml` — match `$USER` key in `principals:` section, use its `name` field.
+Find the principal from `agency/config/agency.yaml` — match `$USER` key in `principals:` section, use its `name` field.
 
 ### Step 3: Create workstream directory
 
 ```
-claude/workstreams/<name>/
+agency/workstreams/<name>/
   qgr/                      — quality gate receipts
   rgr/                      — release gate receipts
   drafts/                   — WIP before ratification (per {P}-{A} subdir)
@@ -97,14 +97,14 @@ usr/<principal>/<agent>/
 
 Create `tmp/.gitignore` with `*` and `!.gitignore`.
 
-**Note:** Shared content (seeds, transcripts, research, receipts) lives in `claude/workstreams/<name>/`, NOT here. Per-agent handoffs are flat files: `{agent}-handoff.md` in the agent directory. Written by agent-create in Step 5.
+**Note:** Shared content (seeds, transcripts, research, receipts) lives in `agency/workstreams/<name>/`, NOT here. Per-agent handoffs are flat files: `{agent}-handoff.md` in the agent directory. Written by agent-create in Step 5.
 
 ### Step 5: Create per-agent registrations via agent-create
 
 For each `--agent name,class` flag, call the agent-create tool:
 
 ```bash
-./claude/tools/agent-create <agent-name> <workstream> --type=<class> --description="<description>"
+./agency/tools/agent-create <agent-name> <workstream> --type=<class> --description="<description>"
 ```
 
 **agent-create is the single write path** for `.claude/agents/` registrations, workspace scaffolding (tools/, tmp/), and bootstrap handoff templates. Do NOT write registrations inline — always delegate to agent-create.
@@ -114,7 +114,7 @@ For each `--agent name,class` flag, call the agent-create tool:
 If `--worktree` was passed:
 
 ```bash
-./claude/tools/worktree-create <name>
+./agency/tools/worktree-create <name>
 ```
 
 ### Step 7: Report + Phase B instruction
@@ -124,7 +124,7 @@ Output the scaffold summary:
 ```
 Workstream created: <name>
 
-  claude/workstreams/<name>/          — workstream directory
+  agency/workstreams/<name>/          — workstream directory
   usr/<principal>/<name>/             — shared project sandbox
   .claude/agents/<agent-1>.md         — agent registration (<class>)
   .claude/agents/<agent-2>.md         — agent registration (<class>)
@@ -149,7 +149,7 @@ If `--scaffold-only` was passed, append:
 
 ```
 Next steps:
-  1. Add seed materials to claude/workstreams/<name>/seeds/
+  1. Add seed materials to agency/workstreams/<name>/seeds/
   2. Fill in bootstrap handoffs at usr/<principal>/<name>/<agent>-handoff.md
   3. Launch an agent: claude --agent <agent-name>
 ```

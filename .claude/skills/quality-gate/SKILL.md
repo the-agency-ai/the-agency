@@ -32,10 +32,10 @@ Parse `--base <ref>` out of `$ARGUMENTS` at the start of Step 0. The remainder i
 ## Step 0: Preconditions
 
 1. If `$ARGUMENTS` (after stripping `--base`) is empty, stop and ask what was completed before proceeding.
-2. Run `./claude/tools/skill-verify --quiet`. If it fails, report the missing/invalid skills and stop — the framework is incomplete.
+2. Run `./agency/tools/skill-verify --quiet`. If it fails, report the missing/invalid skills and stop — the framework is incomplete.
 3. Run `git diff --stat HEAD` and `git status`. If no changed files, report "Nothing to gate — no changes since last commit" and stop.
 4. Collect the list of changed files (staged + unstaged + untracked). This is the review scope.
-5. **Capture Hash A** (original artifact into review): run `./claude/tools/diff-hash --base "$BASE_REF" --json` and capture the full SHA-256 from the JSON output. Record as `HASH_A`. This is the state of the code BEFORE any QG work begins.
+5. **Capture Hash A** (original artifact into review): run `./agency/tools/diff-hash --base "$BASE_REF" --json` and capture the full SHA-256 from the JSON output. Record as `HASH_A`. This is the state of the code BEFORE any QG work begins.
 
 ## Step 1: Parallel review — Formal agents + own review
 
@@ -77,11 +77,11 @@ The scorer rates each finding 0-100. **Filter out findings scored below 50.** (T
 
 Merge and deduplicate the surviving findings into a single prioritized list. Assign each an ID (1, 2, 3...).
 
-**Capture Hash B** (raw review findings): write the consolidated findings list (the post-scorer, deduplicated, prioritized list with IDs) to a temp file — e.g., `$(mktemp -t qg-findings)`. Then run `./claude/tools/diff-hash --file <temp-file> --json` and capture the full SHA-256 as `HASH_B`.
+**Capture Hash B** (raw review findings): write the consolidated findings list (the post-scorer, deduplicated, prioritized list with IDs) to a temp file — e.g., `$(mktemp -t qg-findings)`. Then run `./agency/tools/diff-hash --file <temp-file> --json` and capture the full SHA-256 as `HASH_B`.
 
 ### Capture Hash C (triage)
 
-After the findings list is finalized (post-scorer, deduplicated, with author triage decisions — what's accepted, what's rejected, what's deferred into a bucket), write the triage summary to a temp file — e.g., `$(mktemp -t qg-triage)`. Include per-finding disposition (accept / reject / defer / bucket) and any rationale. Then run `./claude/tools/diff-hash --file <temp-file> --json` and capture the full SHA-256 as `HASH_C`.
+After the findings list is finalized (post-scorer, deduplicated, with author triage decisions — what's accepted, what's rejected, what's deferred into a bucket), write the triage summary to a temp file — e.g., `$(mktemp -t qg-triage)`. Include per-finding disposition (accept / reject / defer / bucket) and any rationale. Then run `./agency/tools/diff-hash --file <temp-file> --json` and capture the full SHA-256 as `HASH_C`.
 
 ## Step 3: Write bug-exposing tests
 
@@ -89,7 +89,7 @@ For each code issue in the consolidated list, write a test that **exposes the bu
 
 - **Run the test and confirm it fails (red).** If the test passes, it doesn't expose the bug — rewrite it until it fails.
 - Issues in config/docs that can't be tested programmatically are marked N/A in the report.
-- Use the project's test infrastructure. Check for available test runners: `./claude/tools/test-run` if available, or the project's standard test command.
+- Use the project's test infrastructure. Check for available test runners: `./agency/tools/test-run` if available, or the project's standard test command.
 
 ## Step 4: Fix issues
 
@@ -122,10 +122,10 @@ If new tests expose problems, fix them.
 
 Run checks scoped to the changed files. Use the project's quality tooling:
 
-1. **Format check** — use `./claude/tools/commit-precheck` or the project's format command
+1. **Format check** — use `./agency/tools/commit-precheck` or the project's format command
 2. **Lint** — use the project's lint command
 3. **Typecheck** — if applicable
-4. **Tests** — run the appropriate test suite via `./claude/tools/test-run` or the project's test command
+4. **Tests** — run the appropriate test suite via `./agency/tools/test-run` or the project's test command
 
 Address any failures. Re-run until all pass. The Failing row must be 0.
 
@@ -159,28 +159,28 @@ In the "Stage 1 — Parallel Review" section, attribute findings to the formal a
 
 ## Step 10: Sign receipt (five-hash chain)
 
-After presenting the QGR, sign a receipt via `./claude/tools/receipt-sign`. Receipts live in `claude/workstreams/{W}/qgr/` (or `rgr/` for review gates) with full provenance naming and a five-hash chain of trust.
+After presenting the QGR, sign a receipt via `./agency/tools/receipt-sign`. Receipts live in `agency/workstreams/{W}/qgr/` (or `rgr/` for review gates) with full provenance naming and a five-hash chain of trust.
 
 ### Capture Hash D (principal 1B1)
 
-- **If principal 1B1 occurred** (this QG included a discussion/transcript with the principal, typically for `phase-complete` / `plan-complete` / `pr-prep`): hash the transcript file. Run `./claude/tools/diff-hash --file <transcript-path> --json` and capture the full SHA-256 as `HASH_D`. Record `HASH_D_SOURCE="transcript"` and `HASH_D_TRANSCRIPT=<transcript-path>`.
+- **If principal 1B1 occurred** (this QG included a discussion/transcript with the principal, typically for `phase-complete` / `plan-complete` / `pr-prep`): hash the transcript file. Run `./agency/tools/diff-hash --file <transcript-path> --json` and capture the full SHA-256 as `HASH_D`. Record `HASH_D_SOURCE="transcript"` and `HASH_D_TRANSCRIPT=<transcript-path>`.
 - **If auto-approved** (no 1B1 — typical for `iteration-complete`): set `HASH_D=$HASH_C` and `HASH_D_SOURCE="auto-approved — no principal 1B1"`. Omit `--hash-d-transcript`. (receipt-sign also auto-detects this when hash-d == hash-c.)
 
 ### Capture Hash E (final state)
 
-After Step 8 confirmed everything is clean and all fixes are staged/written to disk, run `./claude/tools/diff-hash --base "$BASE_REF" --json` and capture the full SHA-256 as `HASH_E`. This is the final artifact state — what will be committed.
+After Step 8 confirmed everything is clean and all fixes are staged/written to disk, run `./agency/tools/diff-hash --base "$BASE_REF" --json` and capture the full SHA-256 as `HASH_E`. This is the final artifact state — what will be committed.
 
 ### Parse boundary and metadata
 
 1. Parse the boundary type from `$ARGUMENTS` (first token after any `--base` is stripped): one of `iteration-complete`, `phase-complete`, `plan-complete`, `pr-prep`.
-2. Detect principal via `./claude/tools/agency whoami` (or glob `usr/*/`).
-3. Detect agent/workstream/project — from the agent's identity (`./claude/tools/agent-identity` if available) or from the caller's context. Workstream typically matches the current branch/worktree; project matches the active plan/A&D.
+2. Detect principal via `./agency/tools/agency whoami` (or glob `usr/*/`).
+3. Detect agent/workstream/project — from the agent's identity (`./agency/tools/agent-identity` if available) or from the caller's context. Workstream typically matches the current branch/worktree; project matches the active plan/A&D.
 4. Write a short `--summary` string derived from the description in `$ARGUMENTS` (the text after the boundary token).
 
 ### Call receipt-sign
 
 ```
-./claude/tools/receipt-sign \
+./agency/tools/receipt-sign \
   --type qgr \
   --boundary <iteration-complete|phase-complete|plan-complete|pr-prep> \
   --org the-agency \
@@ -199,11 +199,11 @@ After Step 8 confirmed everything is clean and all fixes are staged/written to d
   --summary "<short summary>"
 ```
 
-Capture the receipt path printed by `receipt-sign` (it writes to `claude/workstreams/{W}/qgr/` with the naming convention `{org}-{principal}-{agent}-{ws}-{proj}-qgr-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md`).
+Capture the receipt path printed by `receipt-sign` (it writes to `agency/workstreams/{W}/qgr/` with the naming convention `{org}-{principal}-{agent}-{ws}-{proj}-qgr-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md`).
 
 ### Report to caller
 
-Report: "Receipt signed: `claude/workstreams/{W}/qgr/{filename}`"
+Report: "Receipt signed: `agency/workstreams/{W}/qgr/{filename}`"
 
 ### Backward compatibility note
 

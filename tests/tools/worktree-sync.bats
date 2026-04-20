@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for claude/tools/worktree-sync
+# Tests for agency/tools/worktree-sync
 #
 # Focus: issue #57 — the "resolve manually" message after a successful
 # conflict-abort is misleading. After a conflict, worktree-sync internally
@@ -68,7 +68,7 @@ teardown() {
 
 @test "worktree-sync: conflict-abort exits non-zero" {
     cd "${WORKTREE_PATH}"
-    run bash "${REPO_ROOT}/claude/tools/worktree-sync" --auto
+    run bash "${REPO_ROOT}/agency/tools/worktree-sync" --auto
     [[ "$status" -ne 0 ]]
 }
 
@@ -77,7 +77,7 @@ teardown() {
     #   'merge conflict with master. Resolve manually.'
     # which is misleading because the merge was already aborted internally.
     cd "${WORKTREE_PATH}"
-    run bash "${REPO_ROOT}/claude/tools/worktree-sync" --auto
+    run bash "${REPO_ROOT}/agency/tools/worktree-sync" --auto
     [[ "$status" -ne 0 ]]
     # Must NOT contain the bare misleading phrase
     if echo "$output" | grep -qE 'Resolve manually\.?$'; then
@@ -89,7 +89,7 @@ teardown() {
 
 @test "worktree-sync: conflict-abort message explains that merge was aborted" {
     cd "${WORKTREE_PATH}"
-    run bash "${REPO_ROOT}/claude/tools/worktree-sync" --auto
+    run bash "${REPO_ROOT}/agency/tools/worktree-sync" --auto
     [[ "$status" -ne 0 ]]
     # Must contain a word indicating the merge was aborted / reverted
     if ! echo "$output" | grep -qiE 'abort|reverted|restored'; then
@@ -101,7 +101,7 @@ teardown() {
 
 @test "worktree-sync: repo state is clean after conflict-abort (no MERGE_HEAD)" {
     cd "${WORKTREE_PATH}"
-    run bash "${REPO_ROOT}/claude/tools/worktree-sync" --auto
+    run bash "${REPO_ROOT}/agency/tools/worktree-sync" --auto
     # MERGE_HEAD must not exist — proves the tool aborted its own merge
     [[ ! -f "${WORKTREE_PATH}/.git/MERGE_HEAD" ]] && [[ ! -f "${MOCK_ROOT}/.git/worktrees/mock-worktree/MERGE_HEAD" ]]
 }
@@ -158,7 +158,7 @@ teardown_main_branch_repo() {
     fi
     setup_main_branch_repo
     cd "${MAIN_WORKTREE_PATH}"
-    run bash "${REPO_ROOT}/claude/tools/worktree-sync" --auto
+    run bash "${REPO_ROOT}/agency/tools/worktree-sync" --auto
     teardown_main_branch_repo
     assert_success
     # Output should reference 'main', not 'master'
@@ -184,7 +184,7 @@ teardown_main_branch_repo() {
     setup_main_branch_repo
     # Invoke from the main checkout itself (should soft-skip in auto mode with 'main' in the message)
     cd "${MAIN_MOCK_ROOT}"
-    run bash "${REPO_ROOT}/claude/tools/worktree-sync" --auto
+    run bash "${REPO_ROOT}/agency/tools/worktree-sync" --auto
     teardown_main_branch_repo
     assert_success
     # The soft-skip message should mention 'main', not 'master'

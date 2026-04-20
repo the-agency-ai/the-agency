@@ -2,7 +2,7 @@
 
 These instructions apply to all projects on this machine.
 
-**Source of truth:** `usr/<your-username>/claude/CLAUDE.md` in the repo. Symlink to `~/.claude/CLAUDE.md` so it applies to all Claude Code sessions.
+**Source of truth:** `usr/<your-username>/agency/CLAUDE.md` in the repo. Symlink to `~/.claude/CLAUDE.md` so it applies to all Claude Code sessions.
 
 ## The Work Pattern
 
@@ -135,6 +135,6 @@ usr/<your-username>/
 
 | Location | Scope | Git Status |
 |----------|-------|------------|
-| `usr/<your-username>/claude/hookify/` | Sandbox (per-engineer) | Committed |
+| `usr/<your-username>/agency/hookify/` | Sandbox (per-engineer) | Committed |
 | `.claude/hookify.foo.local.md` | Shared (team-wide, adopted) | Committed |
 | `.claude/hookify.foo.user.local.md` | Personal (user-only) | Gitignored |

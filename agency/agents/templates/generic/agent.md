@@ -16,10 +16,10 @@
 ## How to Spin Up
 
 ```bash
-./claude/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
+./agency/tools/myclaude {{WORKSTREAM}} {{AGENT_NAME}}
 ```
 
 ## Key Directories
 
-- `claude/agents/{{AGENT_NAME}}/` - Agent identity
-- `claude/workstreams/{{WORKSTREAM}}/` - Work artifacts (shared with other {{WORKSTREAM}} agents)
+- `agency/agents/{{AGENT_NAME}}/` - Agent identity
+- `agency/workstreams/{{WORKSTREAM}}/` - Work artifacts (shared with other {{WORKSTREAM}} agents)

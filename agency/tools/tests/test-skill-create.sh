@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# test-skill-create.sh — Tests for claude/tools/skill-create (v2-compliant
+# test-skill-create.sh — Tests for agency/tools/skill-create (v2-compliant
 # skill bundle scaffolder + v1→v2 upgrade retrofitter).
 #
 # Purpose: pin regressions for bugs identified in the retroactive MAR run
 # at the-agency#314/#315/#320 cluster (commits c69ea338..HEAD on monofolk
 # master). Each test maps to a specific scorer-ranked finding.
 #
-# Run: bash claude/tools/tests/test-skill-create.sh
+# Run: bash agency/tools/tests/test-skill-create.sh
 #
 # Uses tempdirs to isolate from the real repo. Creates minimal skill and
 # registry fixtures; exercises --upgrade and create paths.

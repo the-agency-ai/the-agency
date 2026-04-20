@@ -55,7 +55,7 @@ If invoked with empty arguments, ask what was completed before proceeding.
 - Changed files present (`git status` non-empty).
 - On a worktree branch (not master — this skill is worktree-only).
 - Prior iteration's commit identifiable (or explicit `--base` passed). First iteration in a phase uses the phase-start commit.
-- A plan file should exist under `docs/plans/` or `claude/workstreams/*/`. If absent, skill proceeds with a "no plan file" note in the commit; handoff captures the omission.
+- A plan file should exist under `docs/plans/` or `agency/workstreams/*/`. If absent, skill proceeds with a "no plan file" note in the commit; handoff captures the omission.
 
 ## Flow / Steps
 
@@ -83,7 +83,7 @@ Capture as `$BASE_REF`.
 
 Leading `iteration-complete <phase.iter>` tells QG the boundary type (used in receipt filename). `--base` tells QG the baseline for Hash A/E via `diff-hash --base`.
 
-Full QG protocol runs: parallel review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt (five-hash chain at `claude/workstreams/{W}/qgr/`). Iteration-complete is auto-approved — Hash D = Hash C.
+Full QG protocol runs: parallel review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → sign receipt (five-hash chain at `agency/workstreams/{W}/qgr/`). Iteration-complete is auto-approved — Hash D = Hash C.
 
 Wait for receipt signed before proceeding.
 
@@ -128,7 +128,7 @@ Capture:
 Emit:
 
 ```
-bash $CLAUDE_PROJECT_DIR/claude/tools/dispatch create \
+bash $CLAUDE_PROJECT_DIR/agency/tools/dispatch create \
   --to {repo}/{principal}/captain \
   --type iteration-complete \
   --subject "Iteration {ITERATION_SLUG} complete on {BRANCH}" \
@@ -176,9 +176,9 @@ Cascade isolation: export `AGENCY_SKILL_BYPASS_CASCADE=1` at skill start and uns
 - `/plan-complete` — sibling skill for plan delivery (final deep QG + A&D)
 - `/pr-prep` — pre-PR gating for accumulated work
 - `/pr-submit` — agent's hand-off to captain for PR landing (runs AFTER iteration-complete when ready to ship)
-- `claude/tools/receipt-sign` — signs the five-hash receipt
-- `claude/tools/dispatch` — emits the Step 7 notification
-- `claude/workstreams/captain/small-batch-cadence-*.md` — design for the auto-ship daemon that consumes Step 7's dispatch
+- `agency/tools/receipt-sign` — signs the five-hash receipt
+- `agency/tools/dispatch` — emits the Step 7 notification
+- `agency/workstreams/captain/small-batch-cadence-*.md` — design for the auto-ship daemon that consumes Step 7's dispatch
 - the-agency#298 — skill refactor recommendation
 - the-agency#315 — V1→V2 migration
 

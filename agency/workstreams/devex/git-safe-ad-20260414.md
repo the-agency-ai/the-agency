@@ -4,7 +4,7 @@ project: git-safe
 workstream: devex
 date: 2026-04-14
 status: draft
-pvr: claude/workstreams/devex/git-safe-pvr-20260414.md
+pvr: agency/workstreams/devex/git-safe-pvr-20260414.md
 ---
 
 # A&D: git-safe + git-captain + git-safe-commit rename
@@ -34,7 +34,7 @@ Three components form the git-safe family:
 
 ## 2. Tool Design
 
-### DD-1: git-safe (claude/tools/git-safe)
+### DD-1: git-safe (agency/tools/git-safe)
 
 Bash script with subcommands. Passthrough wrapper for safe git operations.
 
@@ -54,7 +54,7 @@ Guards:
 - `git-safe merge-from-master` auto-detects main vs master branch name
 - Read-only subcommands pass args through directly (thin wrapper)
 
-### DD-2: git-captain (claude/tools/git-captain)
+### DD-2: git-captain (agency/tools/git-captain)
 
 Bash script with subcommands. Captain-only git operations.
 
@@ -76,7 +76,7 @@ Guards:
 
 ### DD-3: git-safe-commit (renamed from git-safe-commit)
 
-Existing tool at `claude/tools/git-safe-commit` → renamed to `claude/tools/git-safe-commit`.
+Existing tool at `agency/tools/git-safe-commit` → renamed to `agency/tools/git-safe-commit`.
 Existing skill at `.claude/skills/git-safe-commit/` → renamed to `.claude/skills/git-safe-commit/`.
 
 No functional changes — pure rename for naming consistency.
@@ -164,9 +164,9 @@ Tools that currently use raw git must call git-safe/git-captain internally:
 ## 6. Rename Scope (git-safe-commit → git-safe-commit)
 
 ### Files to rename/move
-- `claude/tools/git-safe-commit` → `claude/tools/git-safe-commit`
+- `agency/tools/git-safe-commit` → `agency/tools/git-safe-commit`
 - `.claude/skills/git-safe-commit/SKILL.md` → `.claude/skills/git-safe-commit/SKILL.md`
-- `claude/hookify/hookify.git-safe-commit-block.md` → removed (subsumed by raw-git-block)
+- `agency/hookify/hookify.git-safe-commit-block.md` → removed (subsumed by raw-git-block)
 
 ### References to update (181 files, 100+ occurrences)
 Categories:
@@ -187,7 +187,7 @@ Categories:
 2. `sed` find-and-replace for content references
 3. Three patterns to replace:
    - `/git-safe-commit` → `/git-safe-commit` (skill invocations)
-   - `claude/tools/git-safe-commit` → `claude/tools/git-safe-commit` (tool paths)
+   - `agency/tools/git-safe-commit` → `agency/tools/git-safe-commit` (tool paths)
    - `git-safe-commit` → `git-safe-commit` (bare name references, careful not to match `raw git commit`)
 
 ## 7. Trade-offs

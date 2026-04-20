@@ -28,7 +28,7 @@ This is Phase B of REQUEST-0052. The Hub Agent is the meta-agent that manages th
 | ID | Task | Description | Depends On | Status | Commit |
 |----|------|-------------|------------|--------|--------|
 | B1 | ./agency command | Create launcher script | - | Done | a3f4dea |
-| B2 | Hub Agent | Create `claude/agents/hub/agent.md`, `KNOWLEDGE.md` | - | Done | 55dd7ef |
+| B2 | Hub Agent | Create `agency/agents/hub/agent.md`, `KNOWLEDGE.md` | - | Done | 55dd7ef |
 | B3 | Update starter | Hub can git fetch/pull, handle conflicts | B1, B2 | Done | In KNOWLEDGE.md |
 | B4 | List projects | Hub shows all projects with status | B1, B2, A3 | Done | In KNOWLEDGE.md |
 | B5 | What's new | Hub reads CHANGELOG, shows updates | B1, B2 | Done | In KNOWLEDGE.md |
@@ -49,7 +49,7 @@ cd "$(dirname "$0")"
 ### B2: Hub Agent
 
 ```
-claude/agents/hub/
+agency/agents/hub/
   agent.md       # Identity: "I am the Hub Agent..."
   KNOWLEDGE.md   # How to manage starter and projects
 ```

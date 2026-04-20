@@ -14,7 +14,7 @@ Expected output:
 ```
 Merging PR #42...
 Merged successfully: https://github.com/org/repo/pull/42
-Next: sync master with `./claude/tools/_sync-main-ref` or run /pr-captain-post-merge
+Next: sync master with `./agency/tools/_sync-main-ref` or run /pr-captain-post-merge
 ```
 
 Exit 0. Branch protection respected (no admin bypass needed because GitHub review was present).
@@ -93,11 +93,11 @@ Expected output:
 MERGE CONFLICT: PR #42 cannot merge cleanly.
 Resolve locally:
   gh pr checkout 42
-  ./claude/tools/git-safe merge-from-master --remote
+  ./agency/tools/git-safe merge-from-master --remote
   # resolve conflicts
-  ./claude/tools/git-safe add <files>
-  ./claude/tools/git-captain merge-continue
-  ./claude/tools/git-push <branch>
+  ./agency/tools/git-safe add <files>
+  ./agency/tools/git-captain merge-continue
+  ./agency/tools/git-push <branch>
   # then retry /pr-captain-merge 42
 ```
 
@@ -107,7 +107,7 @@ Exit 1.
 
 Agent runs `/pr-captain-merge` from their worktree.
 
-Expected: skill's `paths: []` plus `disable-model-invocation: true` means it shouldn't auto-fire. If agent manually invokes, the underlying `claude/tools/pr-merge` checks context and refuses:
+Expected: skill's `paths: []` plus `disable-model-invocation: true` means it shouldn't auto-fire. If agent manually invokes, the underlying `agency/tools/pr-merge` checks context and refuses:
 
 ```
 REFUSED: pr-merge must be invoked from main checkout on master. You're in a worktree.

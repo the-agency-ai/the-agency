@@ -263,7 +263,7 @@ This informs our tooling and workflow choices.
 - `animation-specialist` - Motion design implementation
 
 **Implementation Path:**
-- Create agent definitions in `claude/agents/`
+- Create agent definitions in `agency/agents/`
 - Provide specialized KNOWLEDGE.md with patterns
 - Define collaboration handoff protocols
 

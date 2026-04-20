@@ -88,10 +88,10 @@ No optional frontmatter fields in v2. Every field MUST be present. If a field do
 **Critical discipline.** From flag #62/#63 and devex dispatch #171:
 
 - **Subcommand-level restriction silently blocks fleet agents.** Example of what NOT to do: `allowed-tools: Bash(git status *)`. The permission prompt fires for something Claude's matcher cannot see or surface; the agent hangs with no visible error. This burned fleet agents.
-- **Tool-level restriction is safe.** Example: `allowed-tools: Bash(claude/tools/git-safe:*), Bash(claude/tools/dispatch:*)`.
+- **Tool-level restriction is safe.** Example: `allowed-tools: Bash(agency/tools/git-safe:*), Bash(agency/tools/dispatch:*)`.
 - **When in doubt, inherit `Bash(*)` from `.claude/settings.json`** by omitting `allowed-tools` from the skill frontmatter. Include an inline comment explaining why — like iteration-complete + phase-complete do.
 
-**Path convention:** agency tools live at `claude/tools/` (future: `agency/tools/` when the rename lands). `.claude/tools/` is NOT the right path — that would be Claude Code's own space.
+**Path convention:** agency tools live at `agency/tools/` (future: `agency/tools/` when the rename lands). `.claude/tools/` is NOT the right path — that would be Claude Code's own space.
 
 ### 4. `required_reading` pattern (Option C until @path lands)
 
@@ -203,8 +203,8 @@ Examples are both human-readable AND signal for Claude's matcher. Good examples 
 
 ### `scripts/` — executable code specific to this skill
 
-- **Rule of thumb:** if called by more than one skill, the code lives in `claude/tools/`. If called by one skill only, it lives in that skill's `scripts/`.
-- Scripts invoke shared tools directly (e.g., `claude/tools/git-safe`) — don't wrap them.
+- **Rule of thumb:** if called by more than one skill, the code lives in `agency/tools/`. If called by one skill only, it lives in that skill's `scripts/`.
+- Scripts invoke shared tools directly (e.g., `agency/tools/git-safe`) — don't wrap them.
 - If no skill-specific scripts are needed, directory is empty with a short `README.md` explaining why.
 
 ### `assets/` — templates, static files

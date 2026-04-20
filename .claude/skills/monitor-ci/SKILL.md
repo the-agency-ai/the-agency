@@ -19,7 +19,7 @@ Set up event-driven CI monitoring using Claude Code's Monitor tool. Replaces Git
 Use the Monitor tool to run the ci-monitor script in the background:
 
 ```
-Monitor CI for me. Run ./claude/tools/ci-monitor in the background persistently.
+Monitor CI for me. Run ./agency/tools/ci-monitor in the background persistently.
 When output appears, investigate the failure and report.
 ```
 
@@ -32,8 +32,8 @@ The script:
 ### Options
 
 ```bash
-./claude/tools/ci-monitor --interval 30          # Poll every 30 seconds
-./claude/tools/ci-monitor --repo owner/repo      # Explicit repo (default: auto-detect)
+./agency/tools/ci-monitor --interval 30          # Poll every 30 seconds
+./agency/tools/ci-monitor --repo owner/repo      # Explicit repo (default: auto-detect)
 ```
 
 ### When output arrives

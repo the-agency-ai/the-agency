@@ -27,4 +27,4 @@ date: 2026-04-15T11:31
 - E (final): b3eca8b
 
 ## Review Summary
-D41-R12 hotfix: diff-hash excludes usr/**/dispatches/ (monofolk #99 unblock) + claude/tools/issue-monitor proper tool
+D41-R12 hotfix: diff-hash excludes usr/**/dispatches/ (monofolk #99 unblock) + agency/tools/issue-monitor proper tool
