@@ -1,5 +1,13 @@
 ---
-description: End a session cleanly — commit, write handoff, report readiness
+name: session-end
+description: Clean session teardown — commit all work, write a resumption-framed handoff, stop monitors, report readiness. Leaves a clean working tree. No asking.
+agency-skill-version: 2
+when_to_use: "End of a working session, switching to a different workstream or repo, or any point where the session will not be resumed in continuation. Anti-triggers: do NOT use mid-sprint when you plan to keep working after /compact (use /compact-prepare — it writes a continuation-framed handoff). Do NOT use for captain fleet-wide shutdown (there is no such skill — each worktree session ends independently)."
+argument-hint: "[trigger-reason]"
+paths: []
+required_reading:
+  - claude/REFERENCE-HANDOFF-SPEC.md
+  - claude/REFERENCE-SKILL-CONVENTIONS.md
 ---
 
 <!--
@@ -11,76 +19,95 @@ description: End a session cleanly — commit, write handoff, report readiness
 
 # Session End
 
-Clean session teardown. Commits all work, sends pending dispatches, writes the handoff, and reports readiness. **Leave a clean working tree. No asking — just do it.**
+## Why this exists
 
-## Arguments
+The next session starts from the handoff. A session that ends with a dirty tree, unsent dispatches, or a stale handoff leaves the next agent reverse-engineering what was in flight. This skill forces the three end-of-session preconditions and shells to `claude/tools/session-pause --framing resumption` for the mechanics — commit, archive, stop monitors, emit new handoff path.
 
-- `$ARGUMENTS`: Optional trigger reason (e.g., "end-of-day", "switching-context"). Defaults to "session-end".
+**PAUSE-for-end** surface. Paired with `/session-resume` on the other side.
 
-## Instructions
+## Required reading
 
-### Step 1: Send pending dispatches
+- `claude/REFERENCE-HANDOFF-SPEC.md` — handoff frontmatter, `mode: resumption` enum value.
+- `claude/REFERENCE-SKILL-CONVENTIONS.md` — primitive-composition pattern.
 
-Check for any unsent dispatches. If there are pending dispatches, send them now.
-
-### Step 2: Get clean
-
-Run `git status --porcelain`. If the tree is already clean, skip to Step 3.
-
-If there are uncommitted changes (modified, staged, or untracked files):
-
-1. Stage all relevant files
-2. Commit via `/git-safe-commit` with a descriptive message covering what's being committed
-3. Verify clean: `git status --porcelain` should return empty
-
-**Do not ask.** Do not warn and leave dirty. Commit everything and get clean. The next session starts from a clean tree.
-
-**Idempotent:** Running `/session-end` multiple times is safe. If already clean, it skips the commit. If a handoff already exists, it archives and writes a fresh one.
-
-### Step 3: Archive and get handoff path
+## Usage
 
 ```
-./agency/tools/handoff write --trigger session-end
+/session-end
+/session-end "end-of-day"
+/session-end "switching-context"
 ```
 
-The tool archives the current handoff and reports the path for the new one.
+`[trigger-reason]` (optional): short tag for telemetry + handoff frontmatter. Defaults to `session-end`.
 
-### Step 4: Write handoff content
+## Preconditions
 
-Write the handoff file at the path reported by the tool. Include:
-- Current phase/iteration status
-- What was done this session
-- What's next
-- Key decisions or context for a fresh session
-- Open items or blockers
+1. You're ending the session (or switching context). For mid-sprint refresh, use `/compact-prepare`.
+2. Uncommitted work is ready to commit as-is. The skill does not stash.
 
-### Step 5: Verify handoff
+**Idempotent:** safe to run multiple times. Archives + re-writes each run.
 
+## Flow / Steps
+
+### Step 1: Run session-pause primitive
+
+```bash
+./claude/tools/session-pause --framing resumption --trigger "${REASON:-session-end}"
 ```
-./agency/tools/handoff read
+
+`--framing resumption` tells the tool: stop monitors (registry-driven SIGTERM), fire SessionEnd hooks naturally on process exit, archive prior handoff, emit new path. If framework code is dirty, the tool force-commits the handoff alone first (`handoff_commit_sha` set), then aborts on the framework-code gate. Handoff is always persisted.
+
+Parse the emitted key=value output. Key fields: `handoff_path`, `archived_previous_handoff`, `commit_sha`, `handoff_commit_sha`, `status`.
+
+On `status=aborted`, surface `error_reason`. If `handoff_commit_sha` is non-none the handoff is safe — run `/quality-gate` + `/iteration-complete` on the framework code and re-run `/session-end`.
+
+### Step 2: Author resumption-framed handoff
+
+Write the handoff file at `handoff_path`. Frontmatter:
+
+- `type: session`
+- `agent: <org>/<principal>/<agent>`
+- `date: <UTC>`
+- `trigger: session-end`
+- `branch: <current>`
+- **`mode: resumption`** — REQUIRED. Tells `/session-resume` this is a fresh-session pickup.
+- **`next-action:`** — the concrete first step of the next session. Not a backlog.
+
+Body: phase/iteration status, what was done, what's next, decisions/context the next session needs, open blockers. Frame for **resumption** — a future session will read this after a break.
+
+### Step 3: Verify handoff + report
+
+```bash
+./claude/tools/handoff read
 ```
 
-Confirm the handoff was written correctly.
-
-### Step 6: Report readiness
-
-Report to the user:
-- **Branch:** `git branch --show-current`
-- **Last commit:** `git log --oneline -1`
-- **Dirty files:** 0 (must be 0 — Step 2 ensures this)
-- **Handoff:** written ✓
-
-### Step 7: Next action directive
-
-End with a clear directive:
+Report: branch, last commit, `handoff_path`, "Handoff: written ✓", then:
 
 > **Safe to `/compact` and/or `/exit`.**
 
-This tells the user their session state is preserved and they can:
-- `/compact` — refresh context and keep working
-- `/exit` — end the session
-- `/compact` then `/exit` — compact first, then end
+## Failure modes
 
-The handoff is written. Either action is safe.
+- **session-pause aborts on framework-code dirt**: tool already force-committed the handoff. Run `/quality-gate` + `/iteration-complete`, then re-run `/session-end`.
+- **Lock contention (exit 2)**: another PAUSE/PICKUP is running. Wait, retry.
+- **Handoff write permission error** (Step 2): session should not end without a handoff. Fix filesystem permission, retry.
+
+## What this does NOT do
+
+- **Does not invoke `/exit` or `/compact`.** It prepares; the user exits.
+- **Does not stash.** Resolve WIP first.
+- **Does not run the quality gate.** Framework code should have gone through QG at iteration boundaries.
+- **Does not push.** Push is `/sync` or `/release`.
+
+## Status
+
+`active` (v2 refactored in session-lifecycle-refactor Phase 3 Iteration 3.3 — body collapsed from ~145 lines to ~60, now shells to `session-pause`). Paired with `/session-resume`, `/compact-prepare`.
+
+## Related
+
+- `/session-resume` — fresh-session PICKUP (opposite bookend).
+- `/compact-prepare` — mid-session PAUSE (continuation framing).
+- `/compact-resume` — post-compact PICKUP.
+- `claude/tools/session-pause` — primitive this skill shells to.
+- `claude/tools/handoff` — handoff read/write tool.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

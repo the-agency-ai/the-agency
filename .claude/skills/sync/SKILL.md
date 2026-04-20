@@ -5,7 +5,6 @@ agency-skill-version: 2
 when_to_use: On any non-master branch (worktree agent branch OR captain-* branch), when ready to push committed work to origin. NEVER from master (use PR flow instead). NEVER for auto-invocation — always requires confirmation.
 argument-hint: "[<target-branch>]"
 paths: []
-disable-model-invocation: true
 required_reading:
   - claude/REFERENCE-GIT-MERGE-NOT-REBASE.md
   - claude/REFERENCE-SAFE-TOOLS.md
@@ -31,7 +30,7 @@ Pushing is a privileged action. Without a single authorized path:
 - Captain pushes to master accidentally (catastrophic — bypasses PR review)
 - Forced pushes overwrite teammates' work
 
-`sync` enforces: (a) not master, (b) clean tree, (c) single-worktree checkout, (d) confirmation before each destructive step, (e) merge not rebase. The underlying `agency/tools/git-push` tool adds its own layer of safety (blocks main/master, blocks bare `--force`).
+`sync` enforces: (a) not master, (b) clean tree, (c) single-worktree checkout, (d) confirmation before each destructive step, (e) merge not rebase. The underlying `claude/tools/git-push` tool adds its own layer of safety (blocks main/master, blocks bare `--force`).
 
 ## Required reading
 
@@ -62,7 +61,7 @@ Before proceeding, Read the files listed in `required_reading:` frontmatter.
 ### Step 2: Fetch
 
 ```
-./agency/tools/git-captain fetch
+./claude/tools/git-captain fetch
 ```
 
 ### Step 3: Show what will be pushed
@@ -93,7 +92,7 @@ If conflicts: show conflict files, ask principal to resolve or abort. No auto-re
 ### Step 6: Push
 
 ```
-./agency/tools/git-push <branch>
+./claude/tools/git-push <branch>
 ```
 
 **Never raw `git push`** — blocked by hookify. `git-push` tool validates target (refuses main/master), checks force-with-lease semantics, and is the only authorized push path in the framework.
@@ -138,8 +137,8 @@ Pushing is destructive and requires principal confirmation. Model auto-invocatio
 - `/pr-captain-land` — captain's lifecycle for agent-owned branches
 - `/captain-sync-all` — captain's master-sync (never pushes; different scope)
 - `/worktree-sync` — worktree sync (never pushes; local master merge only)
-- `agency/tools/git-push` — underlying authorized push tool
-- `agency/hookify/hookify.block-raw-git-push.md` — blocks raw `git push`
+- `claude/tools/git-push` — underlying authorized push tool
+- `claude/hookify/hookify.block-raw-git-push.md` — blocks raw `git push`
 - `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` — merge discipline
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

@@ -359,34 +359,34 @@ _audit_skill() {
   fi
 
   # 3b. Captain-only cross-field consistency (finding #9 / D8 from retro-MAR).
-  # Three distinct scoping patterns on v2 skills:
+  # Two distinct scoping patterns on v2 skills (as of 2026-04-20 correction):
   #
-  #   (a) Agent-scoped:       paths: .claude/worktrees/**, no DMI
-  #   (b) Default-actor safe: paths: [], DMI: true, no captain- prefix
-  #                           (e.g., `sync` — high-risk default-actor that
-  #                           needs explicit confirmation)
-  #   (c) Captain-only:       paths: [], DMI: true, captain- in name
+  #   (a) Agent-scoped:   paths: .claude/worktrees/**
+  #   (b) Unscoped:       paths: []  (universally discoverable)
   #
-  # The rule we enforce: IF name contains `captain-`, THEN paths MUST be [] AND
-  # DMI MUST be true. Converse does NOT hold (sync is (b), not captain-only).
-  local dmi paths_val
-  dmi=$(_get_frontmatter "$skill_file" "disable-model-invocation")
+  # captain-* skills are pattern (b) — the captain session IS the principal's
+  # session, and disable-model-invocation would block the captain from its
+  # own skills. Previous (incorrect) rule required disable-model-invocation:
+  # true on captain-* skills; that blocked /captain-sync-all from being
+  # invoked by the captain and was rolled back.
+  #
+  # `disable-model-invocation: true` is still a valid per-skill flag for
+  # cases where a specific skill genuinely should never be auto-invoked
+  # (deprecation signposts like /rebase), but it's NOT a captain-family
+  # requirement.
+  #
+  # The rule we enforce: IF name contains `captain-`, THEN paths MUST be [].
+  # No DMI requirement.
+  local paths_val
   paths_val=$(_get_frontmatter "$skill_file" "paths")
-  local has_dmi_true=false has_empty_paths=false has_captain_name=false
-  [[ "$dmi" = "true" || "$dmi" = "True" ]] && has_dmi_true=true
+  local has_empty_paths=false has_captain_name=false
   [[ "$paths_val" = "[]" ]] && has_empty_paths=true
   [[ "$skill_name" =~ ^captain-|-captain- ]] && has_captain_name=true
 
-  if [[ "$has_captain_name" = true ]]; then
-    local missing_layers=""
-    [[ "$has_dmi_true" = false ]] && missing_layers="${missing_layers}disable-model-invocation:true, "
-    [[ "$has_empty_paths" = false ]] && missing_layers="${missing_layers}paths:[], "
-    missing_layers="${missing_layers%, }"
-    if [[ -n "$missing_layers" ]]; then
-      ISSUES+=("$skill_name (v2): captain-named skill missing defense layers: $missing_layers")
-      NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
-      issues_for_skill=$((issues_for_skill + 1))
-    fi
+  if [[ "$has_captain_name" = true && "$has_empty_paths" = false ]]; then
+    ISSUES+=("$skill_name (v2): captain-named skill must have paths: [] (universally discoverable)")
+    NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+    issues_for_skill=$((issues_for_skill + 1))
   fi
 
   # 4. required_reading paths resolve to real files
@@ -453,6 +453,68 @@ _audit_skill() {
       ISSUES+=("$skill_name (v2): body sections out of order (expected: Why → Required reading → Usage → Preconditions → Flow → Failure modes → NOT do → Status → Related)")
       NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
       issues_for_skill=$((issues_for_skill + 1))
+    fi
+  fi
+
+  # 5b. paths-vs-body consistency (F12a — agency#347 trap)
+  #
+  # If paths: has real scope entries (non-empty, not []), the body MUST NOT
+  # make cross-context claims. This catches the case where a scope filter
+  # silently contradicts a body promise of multi-context support — the
+  # monofolk session-resume regression 2026-04-19 motivated this rule.
+  #
+  # Closed phrase list (case-insensitive verbatim match). Adding phrases
+  # requires a fixture + test addition. See REFERENCE-SKILL-CONVENTIONS.md §6.
+  if [[ "$paths_val" != "[]" && -n "$paths_val" ]]; then
+    local body_start_line
+    body_start_line=$(awk '/^---$/ { if (++i == 2) { print NR; exit } }' "$skill_file")
+    if [[ -n "$body_start_line" ]]; then
+      local cross_context_phrases=(
+        "works on master"
+        "works on main"
+        "any branch"
+        "master-safe"
+        "checkout-agnostic"
+        "from any checkout"
+        "in any context"
+      )
+      local matched_phrase=""
+      local body_content
+      body_content=$(tail -n "+$((body_start_line + 1))" "$skill_file" 2>/dev/null)
+      for phrase in "${cross_context_phrases[@]}"; do
+        if echo "$body_content" | grep -qiF "$phrase" 2>/dev/null; then
+          matched_phrase="$phrase"
+          break
+        fi
+      done
+      if [[ -n "$matched_phrase" ]]; then
+        ISSUES+=("$skill_name (v2): paths: filter contradicts body claim of multi-context support (matched phrase: '$matched_phrase'). Set paths: [] OR remove the body claim. (F12 paths-vs-body-consistency; agency#347 trap)")
+        NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+        issues_for_skill=$((issues_for_skill + 1))
+      fi
+    fi
+  fi
+
+  # 5c. body line limit (F12b)
+  #
+  # Skill bodies should stay ≤200 lines (cognitive load). Warn at >200,
+  # fail at >300. Body = content after the frontmatter closing `---`.
+  # Warnings do NOT fail the audit or count as noncompliant; they surface
+  # in the issues list prefixed [WARN].
+  if [[ -f "$skill_file" ]]; then
+    local body_start_line2 total_lines body_line_count
+    body_start_line2=$(awk '/^---$/ { if (++i == 2) { print NR; exit } }' "$skill_file")
+    if [[ -n "$body_start_line2" ]]; then
+      total_lines=$(wc -l < "$skill_file" | tr -d ' ')
+      body_line_count=$((total_lines - body_start_line2))
+      if [[ $body_line_count -gt 300 ]]; then
+        ISSUES+=("$skill_name (v2): body line count $body_line_count exceeds hard limit 300 (F12 body-line-limit)")
+        NONCOMPLIANT_COUNT=$((NONCOMPLIANT_COUNT + 1))
+        issues_for_skill=$((issues_for_skill + 1))
+      elif [[ $body_line_count -gt 200 ]]; then
+        # Warning only: surfaces in issues list but does NOT fail audit
+        ISSUES+=("$skill_name (v2): [WARN] body line count $body_line_count exceeds target 200 (F12 body-line-limit; hard fail at >300)")
+      fi
     fi
   fi
 
