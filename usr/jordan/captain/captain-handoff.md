@@ -1,136 +1,132 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-workstream: housekeeping
-date: 2026-04-18
-trigger: pre-principal-wake
+workstream: the-agency
+date: 2026-04-20
+trigger: session-end
+mode: agency-v3-reset-phase-1-and-2-partial-landed
 ---
 
-## On principal wake — Morning 1B1 agenda
+# Captain handoff — agency-v3-reset branch, Phase 1 + Phase 2 partial landed
 
-Open in this order. 0 is time-sensitive; the rest can run in any order but the sequence
-below is what the D44 end-of-day briefing committed us to.
+## Session summary
 
-0. **Review + merge PR #213** (Python 3.13 floor). QGR receipt signed, QG clean, 4 BATS tests pass. Then `/post-merge` (creates v45.1 release). Then authorize fleet broadcast (drafts at `usr/jordan/captain/dispatches/drafts/d45-r1-python-3.13-broadcast-draft.md` + `-body.md`).
-1. **1B1 Close Issues** (7 themes, 73 flags). Briefing at `usr/jordan/captain/briefings/close-issues-briefing-20260418.md`.
-2. **Ratify flag→issue rule** — rewrite `/flag-triage` skill so outcomes are `close` / `do now` / `file issue`. No "defer" state.
-3. **Install-vs-repo boundary discussion** (flag #146 / #165). Open question — needs a decision on where the line between `agency init` install surface and dev-repo-only surface lives. Candidate outcome: new GH issue captures scope; maybe a CONTRIBUTING.md + INSTALLED-SURFACE.md split.
-4. **HIP Sprint FIFO** (epic #215, children #216–#228). Lead item #222 (git-safe-commit receipt glob) first.
-5. **Release notes mechanism** — start `/define` (PVR) on issue #214 after HIP work is in flight.
+Today was a **post-failure review + rework + initial execution** session for the v46.0-structural-reset that was abandoned due to overnight captain-solo shortcut. Out of it emerged:
 
-## 0300 autonomous setup — what was executed
+1. **AgencyV3 project branding** (V1 = the-agency-starter, V2 = v45.x, V3 = this — "true installer" threshold)
+2. **Release versioning = D.R** (today = **D46.R1** = v46.1); symbolic tag `agency-v3` at first-true-installer release
+3. **Plan v5** at `/Users/jdm/.claude/plans/melodic-inventing-platypus.md` — approved via plan mode + ExitPlanMode
+4. **Structural decisions** — comprehensive 1B1 covering everything in `agency/workstreams/the-agency/transcripts/dialogue-transcript-20260420.md`
+5. **Abandoned branch** `v46.0-structural-reset` tagged as `abandoned/v46.0-overnight-shortcut-20260420` and pushed
+6. **Fresh branch** `agency-v3-reset` cut from current `origin/main` HEAD (ed3af9ad)
 
-Executed per runbook `usr/jordan/captain/briefings/0300-runbook-20260418.md` (commit `237245ed`). All 9 workstreams A–I landed. Setup only — no PR merges, no broadcasts.
+## Branch state (agency-v3-reset)
 
-| WS | Output | State on wake |
+```
+7460fb1f feat(v46.1): Phase 2 partial — REFERENCE/ + README/ subdirs + data→config + receipts-to-workstream + LICENSE
+4c7d00e6 fix(v46.1): captain identity resolution (salvaged from abandoned branch)
+37091dc5 feat(v46.1): Phase 1 — Great Rename claude/ -> agency/ (atomic, history preserved)
+af5d26ff chore(v46.1): disable hooks for Phase 1-4.5 rename window
+ed3af9ad Merge pull request #346 from the-agency-ai/contrib/claude-skills-transcript-SKILL-md  [base = origin/main]
+```
+
+Pushed to origin. Branch clean.
+
+## Phase completion
+
+| Phase | Status | Notes |
 |---|---|---|
-| A | D45-R1 PR #213 (Python 3.13 floor) | **OPEN**, QGR signed, unmerged. Awaits review. |
-| B | Shebang briefing written | `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md` (B2 shipped, B3 deferred per briefing). |
-| C | Release notes mechanism GH issue | **#214** filed, labeled `enhancement`. |
-| D | HIP Sprint epic + 13 children | Epic **#215**; children **#216–#228**. Comment on #215 lists children. |
-| E | ~40 defer→issue filings | **#229–#269** (41 issues across Pass 1 + Pass 2). See "Workstream E issues" below for groupings. |
-| F | Close Issues briefing | `usr/jordan/captain/briefings/close-issues-briefing-20260418.md`. |
-| G | Fleet broadcast drafts | `usr/jordan/captain/dispatches/drafts/d45-r1-python-3.13-broadcast-draft.md` + `-body.md`. **HOLD — do NOT send without principal authorization.** |
-| H | Dispatch monitor | Running since session resume. Task `b2szksh2h` (persistent, python3.13 shim workaround). |
-| I | Handoff refresh | This file. |
+| Pre-Phase: plan v5 drafted + approved + ExitPlanMode | ✓ DONE | `/Users/jdm/.claude/plans/melodic-inventing-platypus.md` + `docs/plans/20260420-agencyv3-...` |
+| Phase -1: latent-tool-reference audit | **IN FLIGHT** | Subagent launched in background; report at `/tmp/phase-minus-1-audit-report.md` when complete. Covers whoami-class bugs. |
+| Phase 0: branch prep + tag abandoned + cut fresh | ✓ DONE | abandoned/v46.0-overnight-shortcut-20260420 tagged + pushed. agency-v3-reset cut from origin/main. |
+| Phase 1: Great Rename | ✓ DONE | commit `37091dc5`. 944 files renamed atomic. History preserved. |
+| Phase 2: Subdir reorg | **PARTIAL (2g, 2h, 2i, 2j, 2l done; 2a-f, 2k pending)** | commit `7460fb1f`. REFERENCE/, README/, data→config, receipts-to-workstream, LICENSE added. |
+| Phase 3: Archive + cruft removal | PENDING | Executes Phase -1 1B1 resolutions (docs→the-agency-group, integrations→src, assets→src, logs→delete, latent-tool-reference fixes, usr/test, tools/*.ts). |
+| Phase 3.5/3.6: Workstream consolidation + KNOWLEDGE.md retirement | PENDING | |
+| Phase 4: src/ source reorg | PENDING | git mv agency/ → src/agency/; .claude/shippable → src/claude/. Biggest structural step. |
+| Phase 5: Python build tool | PENDING | src/tools/build, Python 3.13+ stdlib. Full BATS coverage. |
+| Phase 6: First build | PENDING | Produces dual-tracked agency/ + .claude/ from src/. Stamp all at D46.R1. |
+| Phase 7: 5-subagent reference sweep | PENDING | Per plan v4 spec (properly this time). A=tools, B=docs, C=skills/commands/subagents, D=agents, E=hooks/hookify/config/.gitignore/package.json. Worktree-isolated. |
+| Phase 8: Rebuild + canary fill + verification | PENDING | Post-sweep rebuild; canaries completed (36/42 salvageable from abandoned); all verify green. |
+| Phase 9: Release cadence infrastructure | PENDING | .github/workflows/daily-release.yml cron (2300 SGT = 15:00 UTC). release-cut tool. agency-update self-update logic. |
+| Phase 10: Release notes + runbook + manifest lock | PENDING | Release-D46-R1-20260420.md — release notes + adopter migration runbook v45→v46.1. |
+| Phase 11: PR creation | PENDING | pr-create → PR → principal review. |
+| Phase 12: Merge + release v46.1 + agency-v3 tag | PENDING | pr-merge, release-cut D46.R1, tag agency-v3 at same commit. |
+| Phase 13: andrew-demo cleanup | PENDING | Subagent-delegable. agency update --migrate in andrew-demo repo. |
 
-**Cron:** task `ac8b0716` — fired on schedule, now consumed.
+## Key decisions captured today
 
-## PR #213 — review checklist for principal
+Full record: `agency/workstreams/the-agency/transcripts/dialogue-transcript-20260420.md`. Highlights:
 
-- **Branch:** `release/python-3.13-floor`
-- **Commits:** `9245a4fa` (fix + migration) → `a31ca6dd` (QGR receipt) → `b941041f` (close-issues briefing + broadcast draft)
-- **QGR:** `claude/workstreams/the-agency/qgr/the-agency-jordan-captain-the-agency-python-3.13-floor-qgr-pr-prep-20260418-0509-d406320.md`
-- **Reviewers:** 4 parallel (code/security/design/test) + haiku scorer + own review. 8 findings scored; 6 passed ≥50 threshold. 3 accepted + fixed in-PR (agency-dependencies brew formula, stale `__future__` import, runtime-guard test coverage). 3 tracked as follow-ups (below).
-- **Tests:** `bats tests/tools/python-floor-guard.bats` = 4/4 pass. Regression `bats tests/tools/dispatch.bats` = 48/48 pass. `commit-precheck` clean.
-- **Smoke:** `/opt/homebrew/bin/python3.13 ./claude/tools/dispatch-monitor --help` runs; `/usr/bin/python3 ./claude/tools/dispatch-monitor --help` exits 1 with guard message.
-- **Files:** 10 (7 modified + 3 new). See PR body for full list.
+- **Build boundary:** `src/` (sources) → `src/tools/build` (Python 3.13+ stdlib) → `agency/` + `.claude/` (dual-tracked output)
+- **`src/` layout:** destination-encoded. `src/claude/*` → `.claude/*`; `src/agency/*` → `agency/*`. Everything else in `src/` is dev-only.
+- **Versioning:** per-artifact D.R in YAML frontmatter (authoritative); `agency/config/manifest.json` as derived index.
+- **Release cadence:** daily cron at 2300 SGT (15:00 UTC). Empty days skip. Override A (manual mid-day cut via normal flow) + B (skip via `agency/workstreams/the-agency/releases/Release-Skip-{YYYYMMDD}.md` file).
+- **Release history dir:** `agency/workstreams/the-agency/releases/` holds per-event files (`Release-D{N}-R{n}-{YYYYMMDD}.md` for shipped, `Release-Skip-{YYYYMMDD}.md` for skipped).
+- **Distribution:** "rails init" model. `agency` tool single entry point. Default source = GitHub release tag; `--source` flag overrides to local clone.
+- **No tarballs.** Repo content at release tag IS the distribution.
+- **Decoupled PRs from releases.** PRs merge on QG pass; releases are a separate cadence.
+- **RGR = Review Gate Receipt** (seed/PVR/A&D/plan document reviews). **QGR = Quality Gate Receipt** (iteration/phase/plan-execution/pr-prep implementation gates).
+- **KNOWLEDGE.md retired** — subsumed into REFERENCE docs.
+- **Seed = single document** (Model A); supporting material in workstream `research/`.
 
-After merge: `/post-merge` (creates v45.1 GH release), then authorize broadcast send. The Monitor shim (`/opt/homebrew/bin/python3.13 ...`) can be retired once the new shebang is on main.
+## Salvage strategy (from abandoned v46.0-structural-reset branch)
 
-## Follow-up issues from the QG (NOT blocking D45-R1 merge)
+Only identity fix (agent-identity + block-raw-tools.sh) salvaged in commit `4c7d00e6`. Additional salvage pending:
 
-These were accepted as follow-up during triage. File them as new GH issues when convenient:
-- Propagate runtime guard to `.claude/hooks/stop-check.py`, `.claude/hooks/plan-capture.py`, `tests/schemas/validate-schema.py`, `usr/jordan/captain/tools/strip-skill-allowed-tools`.
-- `agency-health`: add `python3 >= 3.13` check. See **#209** — that issue already exists but says "< 3.12"; needs an update comment bumping to 3.13.
-- `_agency-deps`: teach it to consume `min_version` + `version_cmd` from `dependencies.yaml`. Pre-existing gap.
+| To salvage | Source | Location |
+|---|---|---|
+| 36 hookify `.canary` fixtures | abandoned @ commit `0cb4fc73`, paths `agency/hookify/*.canary` | Extract via `git show abandoned/...:path` |
+| Phase 0 reset tools | abandoned @ commits `0401f768`, `a4808493`, `044823f8` | `agency/tools/{git-rename-tree, agency-sweep, ref-inventory-gen, gate-check, subagent-*, audit-log-*, reset-rollback, etc.}` |
+| Test-scoper src/archive/** exclude | abandoned @ commit `0cb4fc73` | `agency/tools/test-scoper` |
+| commit-precheck + handoff + icloud-setup path fixes | abandoned @ commit `1880c40e` partial | Respective files |
+| pr-create receipt-search v46 path | abandoned @ `c554bb3b` | `agency/tools/pr-create` |
 
-## Workstream E issues — grouped
+Use `git show abandoned/v46.0-overnight-shortcut-20260420:{path}` to extract each file content, write to current branch, commit. Don't cherry-pick commits directly — path differences cause conflicts.
 
-**Pass 1 (defer→issue, infrastructure + gaps):**
-- **Agent identity + naming:** #229 (ident cross-contamination watch), #230 (naming convention enforcement)
-- **Dispatch features:** #231 (SMS-style dispatches), #251 (dispatch body validation)
-- **Captain process:** #232 (captains log formalize), #233 (friction→toolification pattern)
-- **Services / infra:** #234 (agent mail service)
-- **Docs:** #235 (telemetry-driven tool discovery), #253 (REFERENCE-RECEIPT-INFRA §6 fix), #239 (Over/Over-and-out protocol)
-- **Tooling bugs:** #236 (commit-precheck end events), #254 (diff-hash fail-loud), #258 (git-commit worktree wipe), #267 (worktree-sync hardcoded master — BLOCKING), #268 (detect_main_branch unreachable)
-- **Skills:** #237 (/why-did-this-fail), #240 (/make-slides), #269 (/feedback-submit sibling to #170)
-- **mdslidepal:** #241 (smart quotes), #242 (Fixture 08 count)
-- **Enforcement:** #243 (full git-op audit + Triangle), #244 (dispatch service), #245 (RG on QGR), #249 (CRITICAL — hookify block doesn't stop), #252 (skill-vs-tool gap)
-- **Naming + receipts:** #246 (universal artifact naming), #248 (pr-create boundary-specific receipt), #255 (gh-safe / captain-gh)
-- **Friction / permissions:** #247 (Edit on .claude/skills/), #250 (git-safe switch subcommand), #257 (git-safe unstage)
-- **Process:** #238 (D-counter correction), #256 (Claude Code Routines adoption)
+## Phase -1 audit subagent
 
-**Pass 2 (was-seed, discuss/research):**
-- #259 (agency-gtm vouch model), #260 (MAR raw findings), #261 (MAR skill blunt instruction), #262 (day counting convention), #263 (adopter permission scoping), #264 (Docker daemon self-heal), #265 (cross-repo evolution articles), #266 (pre-history articles)
+Background subagent launched for latent-tool-reference audit (task #33). Agent ID `af49156573260f89a`. Report expected at `/tmp/phase-minus-1-audit-report.md`. Will list latent tool-reference bugs (whoami class) with severity + fix options per each.
 
-**Skipped as dupes / noise:**
-- #126 → dupe of #206 (sync-main)
-- #118, #124, #125 → dupe of #210 (commit-dispatch loop)
-- #107 → dupe of HIP #227 (receipt chain-verify)
-- #47 → already dispatched to designex
-- #43, #44, #45, #48, #80 → Close-Issues Theme 6 (test noise)
-- #5, #32 → in HIP (#225, #226)
-- #62 → fixed (coord-commit allowed-tools)
-- #33 → folded into #229 (identity)
+## Next session resume steps
 
-## Repo state
+1. `/session-resume` — sync, handoff read, dispatches check
+2. Read this handoff + plan v5 at `/Users/jdm/.claude/plans/melodic-inventing-platypus.md`
+3. Read today's transcript at `agency/workstreams/the-agency/transcripts/dialogue-transcript-20260420.md`
+4. Check for Phase -1 audit subagent report (at `/tmp/phase-minus-1-audit-report.md` or via notification)
+5. **Decide execution chunk size** — plan v5 has 11 remaining phases; likely needs multiple sessions
+6. **Next execution chunk (suggested):**
+   - Phase 2 remainder: 2a establish src/ tree, 2b-f starter-packs/archives/agents/templates/designex, 2k apps→src/apps/
+   - Salvage from abandoned: Phase 0 reset tools (needed for Phase 7 sweep), canaries (for Phase 8), test-scoper + commit-precheck + handoff + icloud-setup fixes
+   - Phase 3: cruft removal (docs→the-agency-group, integrations→src, etc.)
+7. Continuing executions: Phase 3.5/3.6 → Phase 4 (src/ split) → Phase 5 (build tool) → Phase 6 (first build) → Phase 7 (sweep) → Phase 8 (verify) → Phase 9 (release infra) → Phase 10 (release notes) → Phase 11 (PR) → Phase 12 (merge + v46.1 + agency-v3) → Phase 13 (andrew-demo)
 
-- **Branch:** `main` (clean tree, before this handoff commit).
-- **Release branch `release/python-3.13-floor`:** pushed, PR #213 OPEN.
-- **Local main commits ahead of origin/main:** 4 (coord commits from D44 end + runbook + two handoffs). Do NOT push. These will land via a separate captain push after principal authorizes — or be rebased past if we go through PR #213 first.
-- **Branch-topology note:** release/python-3.13-floor is branched FROM main at commit `e4f666c5` (pre-session-end handoff). When PR merges, main gains the release branch contents including this morning's close-issues briefing + broadcast draft.
+## Pending ISCP items
 
-## Dispatches & flags at handoff
+- **Task #19** (pending) — Ship designex Phase 1.5 monofolk relay — SEPARATE from this reset; blocked on collab-monofolk wedge resolution.
+- **Task #48** (pending) — andrew-demo cleanup — Phase 13 of this plan.
+- **Issue #349** — t-shirt sizing / complexity / subagent-suitability skill (follow-up).
+- **Issue #350** — canary coverage gap (6 un-synthesizable rules).
 
-- **Dispatches:** queue clean. Monitor running (`b2szksh2h`).
-- **Flags:** 1 unread at 0300 start — #170 from principal last session ("Review the agency commands and clean up"). Queued for 1B1 as a standalone agenda item beyond the 5 above.
-- **Cross-repo collab:** stale `dispatch-patch-incoming-issue-111-principal-scope-20260415.md: needs merge` — 3 days old, dedup'd by Monitor.
+## What's working (captain can verify)
 
-## Fleet status
+- `./agency/tools/agent-identity` → `the-agency/jordan/captain` ✓
+- `./agency/tools/git-captain --help` → accessible ✓
+- `./agency/tools/git-captain push origin agency-v3-reset` → pushes cleanly ✓
+- Post-rename tree structure correct ✓
+- PVR §7 Success Criteria #2 + #3 satisfied (REFERENCE/ + README/ subdirs) ✓
 
-Unchanged from D44 end-of-day. Fleet sync deferred to `/session-resume` on individual agent wake.
+## What's broken / known gaps
 
-| Agent | Branch | Ahead | Behind | Dirty |
-|---|---|---|---|---|
-| designex | designex | varied | ~136 | some |
-| devex | devex (merged) | 10 | 0 | 1 |
-| iscp | iscp | 24 | 0 | 7 |
-| mdpal-app | mdpal-app | 1 | many | 3 |
-| mdpal-cli | mdpal-cli | 13 | 71 | 31 |
-| mdslidepal-mac | | 9 | 338 | 6 |
-| mdslidepal-web | | 4 | 163 | 1 |
-| mock-and-mark | (empty) | — | — | — |
+- Hooks are DISABLED (empty settings.json hooks arrays) — by design for Phase 1-4.5 window. Will be restored at Phase 4.5 or equivalent with agency/ paths.
+- `agency-whoami` still missing (latent bug, Phase -1 audit confirming scope)
+- Sweep misses throughout tools (Phase 7 covers)
+- No build tool yet (Phase 5)
+- No release infrastructure yet (Phase 9)
+- andrew-demo hasn't been touched yet (Phase 13)
 
-## Release summary carryover
+## Handoff quality
 
-D44 (fifteen releases): v44.1–v44.4, v44.pr183, v44.pr185–pr193, v44.6, v44.7 (3.12 floor — **superseded by pending v45.1**).
+This handoff is the authoritative continuation point. Plan v5 is the authoritative plan. Today's transcript is the authoritative decision record. Next session should be able to pick up Phase 2 remainder / salvage / Phase 3 with full context from these three documents.
 
-D45 (pending): v45.1 — Python 3.13 floor (PR #213).
-
-## Model + session state
-
-- **Model:** `opus-4-6` (successfully switched after last /exit+/resume). 1M context.
-- **Session alive** through 0300 cron fire. Monitor persistent (`b2szksh2h`). Cron `ac8b0716` one-shot fired successfully.
-- **No new cron needed** — 0300 work complete; next scheduled action is principal-driven on wake.
-
-## Principal action items (short list)
-
-1. Review PR #213; merge when satisfied (or request changes — feedback welcome on the shebang decision specifically).
-2. Authorize broadcast send after merge (or not — fleet can pick up on `/session-resume` organically; broadcast is a belt+suspenders).
-3. Work through the morning 1B1 agenda (5 items + flag #170).
-4. Optionally: batch-update #209's comment with the 3.13 bump note so we don't fork the B3 follow-up story.
-
----
-
-*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+— captain, 2026-04-20 session-end
