@@ -122,6 +122,12 @@ Propagates the merge to every worktree. Worktree-side agents pick up the new con
    ```
    If non-zero, the release was NOT created. Do NOT proceed to Step 7. Fix and retry.
 
+5. **Clear pending-post-merge state (C#372 Fix B).** Once the release is hard-verified:
+   ```
+   ./agency/tools/post-merge-state clear <pr-number>
+   ```
+   This unblocks the new-work captain skills (`/pr-captain-merge`, `/captain-release`, `/pr-captain-land`) that were refusing while this merge was in pending state. Clearing is tied to `gh release view` succeeding — NOT to the skill exiting — so a partial post-merge that created the release but failed later still unblocks correctly.
+
 If version format doesn't match `D#-R#` (e.g., hotfix PR), use `v<agency_version>.pr<N>` as fallback.
 
 **Never push directly to main.** If version is wrong, create a follow-up PR.

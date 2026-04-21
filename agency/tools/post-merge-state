@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# What Problem: Captain can merge a PR successfully and then forget to run
+# /pr-captain-post-merge (which cuts the release tag). 2026-04-21 incident
+# (issue #372): 8 PRs merged to main without any release tag between
+# 00:50–01:51 UTC. Fix A (pr-merge advisory nag) reduces the failure rate
+# but is discipline-dependent — captain can still forget with the advisory
+# on screen. Fix B (this tool) makes it structural: while a merge-to-main
+# is unreconciled, new-work captain skills refuse until post-merge runs.
+#
+# How & Why: State file at agency/config/post-merge-pending.json (gitignored,
+# per-checkout ephemeral state). Three operations: set (after pr-merge),
+# clear (after pr-captain-post-merge verifies release created), check (used
+# by new-work skills like /pr-captain-merge, /captain-release, /pr-captain-land).
+#
+# Reconciliation skills (/captain-sync-all, /pr-captain-post-merge) do NOT
+# refuse when pending — they're the path that CLEARS the pending state.
+#
+# Written: 2026-04-21 during C#372 Fix B of the 4-fix stack (A+B+C+D).
+# Companion: pr-merge (Fix A) sets state; pr-captain-post-merge skill
+# clears state on successful release view. Skills refuse via
+# `post-merge-state check`.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+STATE_FILE="$PROJECT_ROOT/agency/config/post-merge-pending.json"
+TOOL_VERSION="1.0.0-20260421-c372-fix-b"
+
+# Source helpers if available
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="" GREEN="" YELLOW="" BLUE="" NC=""
+fi
+
+usage() {
+    cat <<'USAGE'
+post-merge-state — Captain's pending-post-merge state tracker (C#372 Fix B)
+
+Usage:
+  post-merge-state set <pr-number> <base-ref>
+  post-merge-state clear <pr-number>
+  post-merge-state check              # exit 0 clean, exit 1 pending
+  post-merge-state get                # print JSON (empty if none pending)
+  post-merge-state --help | -h
+  post-merge-state --version
+
+Operations:
+  set <pr-number> <base-ref>
+      Record that PR <pr-number> merged to <base-ref>. Called by pr-merge
+      on successful merge to main/master. Overwrites any prior state
+      (another pending would already have blocked this merge).
+
+  clear <pr-number>
+      Clear pending state for PR <pr-number>. Called by
+      /pr-captain-post-merge skill after the GitHub release is verified
+      via `gh release view`. Safe if already clear.
+
+  check
+      Exit 0 if no pending post-merge; exit 1 if pending. Machine-readable:
+      used by /pr-captain-merge, /captain-release, /pr-captain-land as a
+      pre-flight gate. Human-readable message on stderr when pending.
+
+  get
+      Print the current state as JSON (or "{}" if nothing pending).
+
+State file: agency/config/post-merge-pending.json (gitignored).
+Single-PR state — two parallel pending merges would already have been blocked.
+
+Exit codes:
+  0 — operation succeeded (check: no pending)
+  1 — check returned pending (not an error — a signal)
+  2 — bad usage or bad args
+USAGE
+}
+
+die() { echo "${RED}[ERROR]${NC} $*" >&2; exit 2; }
+
+# ISO-8601 UTC timestamp
+now_utc() {
+    date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+cmd_set() {
+    local pr_number="$1"
+    local base_ref="$2"
+
+    [[ "$pr_number" =~ ^[0-9]+$ ]] || die "PR number must be integer (got: $pr_number)"
+    [[ -n "$base_ref" ]] || die "base-ref required"
+
+    mkdir -p "$(dirname "$STATE_FILE")"
+    cat >"$STATE_FILE" <<EOF
+{
+  "schema_version": 1,
+  "pr_number": $pr_number,
+  "base_ref": "$base_ref",
+  "merged_at": "$(now_utc)",
+  "tool_version": "$TOOL_VERSION"
+}
+EOF
+    echo "${GREEN}✓${NC} post-merge state set: PR #$pr_number on $base_ref"
+}
+
+cmd_clear() {
+    local pr_number="$1"
+    [[ "$pr_number" =~ ^[0-9]+$ ]] || die "PR number must be integer (got: $pr_number)"
+
+    if [[ ! -f "$STATE_FILE" ]]; then
+        # Idempotent: clearing nothing is fine
+        echo "${BLUE}(no pending state to clear)${NC}"
+        return 0
+    fi
+
+    # Verify the pending PR matches before clearing — guards against
+    # accidentally clearing the wrong PR's state (would unblock other work).
+    local current_pr
+    current_pr=$(python3 -c 'import json,sys
+try:
+    with open("'"$STATE_FILE"'") as f: print(json.load(f).get("pr_number",""))
+except Exception: print("")' 2>/dev/null || echo "")
+
+    if [[ -n "$current_pr" && "$current_pr" != "$pr_number" ]]; then
+        die "pending state is for PR #$current_pr, refusing to clear for PR #$pr_number (would unblock unrelated work)"
+    fi
+
+    rm -f "$STATE_FILE"
+    echo "${GREEN}✓${NC} post-merge state cleared: PR #$pr_number"
+}
+
+cmd_check() {
+    if [[ ! -f "$STATE_FILE" ]]; then
+        return 0  # no pending
+    fi
+
+    # Read PR number for the message
+    local pr_number
+    pr_number=$(python3 -c 'import json,sys
+try:
+    with open("'"$STATE_FILE"'") as f: print(json.load(f).get("pr_number","?"))
+except Exception: print("?")' 2>/dev/null || echo "?")
+
+    local base_ref
+    base_ref=$(python3 -c 'import json,sys
+try:
+    with open("'"$STATE_FILE"'") as f: print(json.load(f).get("base_ref","?"))
+except Exception: print("?")' 2>/dev/null || echo "?")
+
+    echo "${YELLOW}[post-merge-pending]${NC} PR #$pr_number on $base_ref — post-merge has not run yet." >&2
+    echo "  Run: ${GREEN}/pr-captain-post-merge $pr_number${NC}" >&2
+    echo "  (C#372 Fix B — new-work captain skills refuse until this completes.)" >&2
+    return 1
+}
+
+cmd_get() {
+    if [[ ! -f "$STATE_FILE" ]]; then
+        echo "{}"
+        return 0
+    fi
+    cat "$STATE_FILE"
+}
+
+# --- Main ---
+[[ $# -lt 1 ]] && { usage >&2; die "Missing subcommand"; }
+
+case "$1" in
+    --help|-h)  usage; exit 0 ;;
+    --version)  echo "post-merge-state $TOOL_VERSION"; exit 0 ;;
+    set)
+        shift
+        [[ $# -ne 2 ]] && die "set requires: <pr-number> <base-ref>"
+        cmd_set "$1" "$2"
+        ;;
+    clear)
+        shift
+        [[ $# -ne 1 ]] && die "clear requires: <pr-number>"
+        cmd_clear "$1"
+        ;;
+    check)
+        cmd_check
+        ;;
+    get)
+        cmd_get
+        ;;
+    *)
+        die "unknown subcommand: $1 (run --help)"
+        ;;
+esac

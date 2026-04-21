@@ -74,9 +74,10 @@ The script enforces **all** of these before any mutation; any failure exits non-
 1. Running in the **main checkout** (first entry of `git worktree list`). Not in a `.claude/worktrees/` path.
 2. Current branch is `master` or `main`.
 3. Master tree is clean (`git status --porcelain` empty).
-4. `<agent-branch>` exists on origin (`git ls-remote --heads origin <agent-branch>` non-empty).
-5. `<agent-branch>` passes safe-name validation: regex `^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`, no `..`, no leading `-`.
-6. Diff-hash of `<agent-branch>` vs `origin/master` matches a QGR receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`.
+4. **No pending post-merge (C#372 Fix B).** `./agency/tools/post-merge-state check` exits 0. If exit 1, a prior landed PR has not had its release cut — run `/pr-captain-post-merge <pending-PR>` first, then re-invoke.
+5. `<agent-branch>` exists on origin (`git ls-remote --heads origin <agent-branch>` non-empty).
+6. `<agent-branch>` passes safe-name validation: regex `^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`, no `..`, no leading `-`.
+7. Diff-hash of `<agent-branch>` vs `origin/master` matches a QGR receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`.
 
 Any failure → zero mutation, clean error message, exit 1.
 

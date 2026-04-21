@@ -219,6 +219,17 @@ if MERGE_OUT=$("${MERGE_CMD[@]}" 2>&1); then
         echo "       See issue #372 for the 2026-04-21 incident that surfaced this."
         echo ""
 
+        # Fix B: set pending-post-merge state. New-work captain skills
+        # (/pr-captain-merge, /captain-release, /pr-captain-land) check this
+        # state at pre-flight and refuse until /pr-captain-post-merge runs
+        # successfully (which clears the state after verifying the release).
+        # Reconciliation skills (/captain-sync-all, /pr-captain-post-merge)
+        # do NOT refuse — they are the path that unblocks.
+        if [[ -x "$SCRIPT_DIR/post-merge-state" ]]; then
+            "$SCRIPT_DIR/post-merge-state" set "$PR_NUMBER" "$PR_BASE_REF" >/dev/null 2>&1 || \
+                echo "  ${YELLOW}[warn]${NC} post-merge-state set failed — advisory stands but no structural gate" >&2
+        fi
+
         # Best-effort flag emission. Captures a queued reminder even if captain
         # closes the terminal. flag tool failures don't block (merge already done).
         FLAG_MSG="post-merge-pending PR #${PR_NUMBER} on ${PR_BASE_REF} — run /pr-captain-post-merge ${PR_NUMBER} to cut release. (C#372 Fix A auto-flag.)"
