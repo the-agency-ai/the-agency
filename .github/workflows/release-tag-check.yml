@@ -12,7 +12,23 @@
 # tag immediately after merge. Skips direct housekeeping coord-commits
 # (single-parent), since those aren't PRs and don't need releases.
 #
+# Relationship to C#372 Fix D (auto-release.yml) as of 2026-04-21:
+#   auto-release.yml now cuts the release tag within seconds of the merge
+#   commit landing on main. THIS workflow's role has shifted from "enforce
+#   captain runs /pr-captain-post-merge" to "belt-and-suspenders verifier
+#   that Fix D actually succeeded." The 120-second grace-period poll at the
+#   bottom accommodates Fix D's window. If Fix D fails (token outage,
+#   workflow bug, GitHub incident), THIS workflow goes red and is the
+#   visible alarm that captain needs to run /pr-captain-post-merge
+#   manually to fix.
+#   Both workflows live on the `push: branches: [main]` trigger; they
+#   run concurrently and check the same invariant from different angles.
+#   DO NOT delete this workflow. DO NOT add to required status checks
+#   (it runs post-merge, so it can't gate the merge itself; Fix C's
+#   release-version-precheck.yml is the pre-merge required check).
+#
 # Written: 2026-04-15 during D41-R20 — issue #113 enforcement half.
+# Updated: 2026-04-21 during C#372 Fix D — header note on new role.
 
 name: Release Tag Check
 

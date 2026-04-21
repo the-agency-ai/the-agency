@@ -57,17 +57,35 @@ print('ok')
     [ "$status" -eq 0 ]
 }
 
-@test "release-version-precheck: skips Dependabot + fork PRs" {
+@test "release-version-precheck: skips Dependabot + fork PRs at step level (NOT job level)" {
+    # QG round 1: the skip MUST live at step level, not job level — a
+    # job-level `if: false` makes the whole job "skipped", and a skipped
+    # required-status-check is treated by branch protection as "missing"
+    # → blocks the merge. The skip step must set an output, subsequent
+    # steps gate on `steps.skip_check.outputs.skip != 'true'`.
     run python3 -c "
 import yaml
 with open('.github/workflows/release-version-precheck.yml') as f: y = yaml.safe_load(f)
 job = y['jobs']['version-bump-check']
-cond = job.get('if', '')
-assert 'dependabot' in cond.lower(), f'missing dependabot skip: {cond}'
-assert 'head.repo.full_name' in cond, f'missing fork skip: {cond}'
+# Job-level if must NOT contain the Dependabot/fork guard (would trap at required-check level)
+job_if = job.get('if', '')
+assert 'dependabot' not in job_if.lower(), f'job-level if: contains dependabot skip — this is the #13 trap: {job_if}'
+# Skip must live in a step
+steps = job['steps']
+skip_step = next((s for s in steps if s.get('id') == 'skip_check'), None)
+assert skip_step is not None, 'no step with id=skip_check'
+cond = skip_step.get('if', '')
+assert 'dependabot' in cond.lower(), f'skip step missing dependabot condition: {cond}'
+assert 'head.repo.full_name' in cond, f'skip step missing fork condition: {cond}'
+# Subsequent steps must gate on steps.skip_check.outputs.skip
+non_skip_steps = [s for s in steps if s.get('id') != 'skip_check']
+for s in non_skip_steps:
+    step_if = s.get('if', '')
+    assert 'skip_check.outputs.skip' in step_if, f'step {s.get(\"name\")} missing skip_check guard: {step_if}'
 print('ok')
 "
     [ "$status" -eq 0 ]
+    [[ "$output" == "ok" ]]
 }
 
 @test "release-version-precheck: reads agency_version from manifest.json" {

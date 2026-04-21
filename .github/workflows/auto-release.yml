@@ -108,11 +108,24 @@ jobs:
           fi
 
           echo "Creating release v${v} at ${short}..."
-          gh release create "v${v}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --target "${sha}" \
-            --title "${title}" \
-            --generate-notes
+          # QG round 1 finding (reviewer-code #24): race-safe create.
+          # If captain manually ran /pr-captain-post-merge between our
+          # exists-check above and this create call, the create would fail
+          # with "tag already exists" (422). Swallow that specific failure
+          # mode — the release exists either way, which is the goal.
+          if ! gh release create "v${v}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "${sha}" \
+              --title "${title}" \
+              --generate-notes 2>&1 | tee /tmp/release-create.log; then
+            if grep -qiE '(already exists|Release.*already)' /tmp/release-create.log; then
+              echo "Race: release was created by another path between exists-check and create — continuing."
+            else
+              echo "::error::gh release create failed for v${v}"
+              cat /tmp/release-create.log
+              exit 1
+            fi
+          fi
 
           # Verify (redundant but fail-loud — matches pr-captain-post-merge
           # hard-verify pattern so a silent gh create-succeeds-but-isnt-there

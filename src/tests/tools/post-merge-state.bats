@@ -64,7 +64,7 @@ assert d["schema_version"] == 1, f"schema_version wrong: {d}"
 assert d["pr_number"] == 405, f"pr_number wrong: {d}"
 assert d["base_ref"] == "main", f"base_ref wrong: {d}"
 assert "merged_at" in d and d["merged_at"].endswith("Z"), f"merged_at wrong: {d}"
-assert d["tool_version"].startswith("1.0.0-"), f"tool_version wrong: {d}"
+assert d["tool_version"].startswith("1."), f"tool_version wrong: {d}"
 print("ok")
 '
     [ "$status" -eq 0 ]
@@ -137,11 +137,102 @@ print("ok")
     [ "$status" -eq 2 ]
     [[ "$output" == *"pending state is for PR #405"* ]]
     [[ "$output" == *"refusing to clear for PR #999"* ]]
+    [[ "$output" == *"--force"* ]]  # must advise the escape hatch
 
     # State should still be set
     [ -f agency/config/post-merge-pending.json ]
     run ./agency/tools/post-merge-state check
     [ "$status" -eq 1 ]
+}
+
+# QG round 1 (design F8, reviewer-design): --force escape hatch for stuck state.
+
+@test "post-merge-state: clear --force bypasses the wrong-PR guard" {
+    cd "${BATS_TEST_TMPDIR}"
+    ./agency/tools/post-merge-state set 405 main >/dev/null
+
+    run ./agency/tools/post-merge-state clear 999 --force
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--force given"* ]]
+    [ ! -f agency/config/post-merge-pending.json ]
+
+    # Clean after clear
+    run ./agency/tools/post-merge-state check
+    [ "$status" -eq 0 ]
+}
+
+@test "post-merge-state: clear accepts --force in either position" {
+    cd "${BATS_TEST_TMPDIR}"
+    ./agency/tools/post-merge-state set 405 main >/dev/null
+    # --force first, PR second
+    run ./agency/tools/post-merge-state clear --force 999
+    [ "$status" -eq 0 ]
+    [ ! -f agency/config/post-merge-pending.json ]
+}
+
+# QG round 1 (reviewer-code #7): corrupt state file must NOT silently clear.
+
+@test "post-merge-state: check on corrupt state file returns 1 + loud error" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p agency/config
+    echo '{"corrupt' > agency/config/post-merge-pending.json  # truncated JSON
+    run ./agency/tools/post-merge-state check
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"post-merge-corrupt"* ]] || [[ "$output" == *"cannot be parsed"* ]]
+    # State file must still exist — we refuse to silently delete
+    [ -f agency/config/post-merge-pending.json ]
+}
+
+@test "post-merge-state: clear on corrupt file without --force refuses (die)" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p agency/config
+    echo '{"corrupt' > agency/config/post-merge-pending.json
+    run ./agency/tools/post-merge-state clear 999
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"cannot be parsed"* ]] || [[ "$output" == *"--force"* ]]
+    # Refuse means the corrupt file is NOT deleted
+    [ -f agency/config/post-merge-pending.json ]
+}
+
+@test "post-merge-state: clear --force on corrupt file removes it" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p agency/config
+    echo '{"corrupt' > agency/config/post-merge-pending.json
+    run ./agency/tools/post-merge-state clear 999 --force
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"corrupt"* ]] || [[ "$output" == *"--force given"* ]]
+    [ ! -f agency/config/post-merge-pending.json ]
+}
+
+# QG round 1 (security F-2): base_ref validation.
+
+@test "post-merge-state: set rejects base_ref with invalid characters" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./agency/tools/post-merge-state set 405 'main; rm -rf /'
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"invalid characters"* ]]
+}
+
+@test "post-merge-state: set rejects base_ref with embedded quote" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./agency/tools/post-merge-state set 405 'main"break'
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"invalid characters"* ]]
+}
+
+# QG round 1 (reviewer-code #8): atomic write — tmp + mv — verify the
+# structural pattern is in place.
+
+@test "post-merge-state: source contains atomic tmp+mv write pattern" {
+    run grep -q 'mv -f "$tmp" "$STATE_FILE"' "${REPO_ROOT}/agency/tools/post-merge-state"
+    [ "$status" -eq 0 ]
+}
+
+# QG round 1 (reviewer-design F1): tool sources _log-helper for audit trail.
+
+@test "post-merge-state: sources _log-helper when present" {
+    run grep -q '_log-helper' "${REPO_ROOT}/agency/tools/post-merge-state"
+    [ "$status" -eq 0 ]
 }
 
 # ─── Bad args ─────────────────────────────────────────────────────────────
@@ -196,7 +287,8 @@ print("ok")
     run ./agency/tools/post-merge-state --version
     [ "$status" -eq 0 ]
     [[ "$output" == *"post-merge-state"* ]]
-    [[ "$output" == *"1.0.0"* ]]
+    # Matches 1.x.y — bumped to 1.1.0 during QG round 1
+    [[ "$output" =~ 1\.[0-9]+\.[0-9]+ ]]
 }
 
 # ─── Integration: full pr-merge → clear lifecycle ─────────────────────────

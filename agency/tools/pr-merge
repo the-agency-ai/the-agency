@@ -155,6 +155,14 @@ PR_STATUS=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.s
 PR_TITLE=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("title",""))' 2>/dev/null || echo "")
 PR_BASE_REF=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("baseRefName",""))' 2>/dev/null || echo "")
 
+# QG round 1 finding (reviewer-code #1): fail loud on malformed/missing
+# gh JSON rather than silently treat as empty. An empty PR_BASE_REF would
+# skip the post-merge advisory even though the merge landed on main —
+# exactly defeating Fix A. If gh ever starts returning a different shape
+# or the python parser fails, we want a hard error.
+[[ -z "$PR_STATE" ]]    && die "gh pr view returned empty PR_STATE — malformed response: $PR_INFO"
+[[ -z "$PR_BASE_REF" ]] && die "gh pr view returned empty PR_BASE_REF — malformed response: $PR_INFO"
+
 log "state=$PR_STATE mergeable=$PR_MERGEABLE status=$PR_STATUS"
 echo "  Title:  $PR_TITLE"
 echo "  State:  $PR_STATE  mergeable=$PR_MERGEABLE  status=$PR_STATUS"
@@ -225,9 +233,23 @@ if MERGE_OUT=$("${MERGE_CMD[@]}" 2>&1); then
         # successfully (which clears the state after verifying the release).
         # Reconciliation skills (/captain-sync-all, /pr-captain-post-merge)
         # do NOT refuse — they are the path that unblocks.
+        #
+        # QG round 1 finding (reviewer-code #3): state-set failure on a
+        # successful main/master merge is fatal, not advisory. Silent warn
+        # would defeat the structural gate — the very reason Fix B exists.
+        # The merge has already landed server-side; refusing to exit clean
+        # surfaces the problem loudly so captain investigates BEFORE starting
+        # new work. Fix A (advisory + flag queue) still emitted above.
         if [[ -x "$SCRIPT_DIR/post-merge-state" ]]; then
-            "$SCRIPT_DIR/post-merge-state" set "$PR_NUMBER" "$PR_BASE_REF" >/dev/null 2>&1 || \
-                echo "  ${YELLOW}[warn]${NC} post-merge-state set failed — advisory stands but no structural gate" >&2
+            if ! "$SCRIPT_DIR/post-merge-state" set "$PR_NUMBER" "$PR_BASE_REF" 2>/dev/null; then
+                echo "  ${RED}[ERROR]${NC} post-merge-state set failed — Fix B gate not engaged!" >&2
+                echo "  Merge completed on GitHub, but captain-side safety gate is missing." >&2
+                echo "  Investigate: ./agency/tools/post-merge-state get ; ls -la agency/config/" >&2
+                echo "  Retry: ./agency/tools/post-merge-state set $PR_NUMBER $PR_BASE_REF" >&2
+                exit 1
+            fi
+        else
+            echo "  ${YELLOW}[warn]${NC} post-merge-state tool not installed — Fix B gate not engaged" >&2
         fi
 
         # Best-effort flag emission. Captures a queued reminder even if captain

@@ -41,10 +41,23 @@ jobs:
     name: manifest version is bumped
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    # Skip Dependabot + fork PRs — they can't reasonably bump our version.
-    if: github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    # QG round 1 finding (reviewer-code #13): do NOT put the Dependabot
+    # and fork-PR skip at job-level `if:`. A job-level `if:` false makes
+    # the whole job "skipped", and a skipped required-status-check is
+    # treated by GitHub's branch protection as "missing" — which blocks
+    # the merge. By moving the skip to step-level, the job always runs
+    # and reports a successful completion, which the required-check
+    # treats as green. See the "early-exit skip step" below.
     steps:
+      - name: Skip (Dependabot / fork PR)
+        id: skip_check
+        if: github.actor == 'dependabot[bot]' || github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "Skipping version precheck — not applicable to Dependabot / fork PRs."
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
       - name: Checkout PR head
+        if: steps.skip_check.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -52,6 +65,7 @@ jobs:
 
       - name: Read PR's manifest version
         id: pr_ver
+        if: steps.skip_check.outputs.skip != 'true'
         run: |
           if [[ ! -f agency/config/manifest.json ]]; then
             echo "::error::agency/config/manifest.json missing in this PR"
@@ -67,23 +81,42 @@ jobs:
 
       - name: Read latest release tag
         id: latest_rel
+        if: steps.skip_check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # `gh release list --limit 1` returns the most recent non-draft
-          # release by published time. Tag format: v<day>.<release>.
-          latest=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
-          if [[ -z "$latest" ]]; then
+          # QG round 1 finding (reviewer-code #18): `gh release list --limit 1`
+          # returns the most recent by published-at time, NOT by semver. A
+          # hand-cut backport (e.g. v45.5 after v46.14) would temporarily become
+          # "latest". Instead, fetch all release tags and sort by semver-like
+          # version, picking the highest D.R tag. Non-D.R tags (pre-releases,
+          # symbolic) are filtered out at this stage.
+          all_tags=$(gh release list --json tagName --jq '.[].tagName' 2>/dev/null || echo "")
+          if [[ -z "$all_tags" ]]; then
             echo "No prior releases found — any version bump is valid."
             echo "latest=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Strip leading v
-          latest_stripped="${latest#v}"
-          echo "latest=$latest_stripped" >> "$GITHUB_OUTPUT"
-          echo "Latest release: $latest (stripped: $latest_stripped)"
+          # Filter to D.R tags only, sort numerically by major then minor, pick top.
+          # `sort -t. -k1,1n -k2,2n` → numeric sort on first then second dot-field.
+          latest=$(echo "$all_tags" \
+            | grep -E '^v[0-9]+\.[0-9]+$' \
+            | sed 's/^v//' \
+            | sort -t. -k1,1n -k2,2n \
+            | tail -1)
+          if [[ -z "$latest" ]]; then
+            # All tags are non-D.R (pre-releases, symbolic). QG reviewer-code #15:
+            # emit a visible workflow warning annotation so this doesn't silently
+            # pass the gate forever — a human should look.
+            echo "::warning::No D.R-format tags found among releases. Version-bump check cannot compare against a semver-ordered baseline; passing advisory-only. Tags seen: $(echo "$all_tags" | tr '\n' ' ')"
+            echo "latest=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "Latest D.R release (semver-ordered): v$latest"
 
       - name: Compare versions
+        if: steps.skip_check.outputs.skip != 'true'
         env:
           PR_VER: ${{ steps.pr_ver.outputs.version }}
           LATEST: ${{ steps.latest_rel.outputs.latest }}
@@ -118,7 +151,3 @@ jobs:
           echo "::error file=agency/config/manifest.json::PR's agency_version $PR_VER is NOT a bump from latest release $LATEST. Bump agency_version in manifest.json to a version greater than $LATEST before merging. (C#372 Fix C — every PR must be a release.)"
           exit 1
 
-      - name: Skip (Dependabot / fork PR)
-        if: github.actor == 'dependabot[bot]' || github.event.pull_request.head.repo.full_name != github.repository
-        run: |
-          echo "Skipping version precheck — not applicable to Dependabot / fork PRs."

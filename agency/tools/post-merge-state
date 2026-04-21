@@ -26,9 +26,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 STATE_FILE="$PROJECT_ROOT/agency/config/post-merge-pending.json"
-TOOL_VERSION="1.0.0-20260421-c372-fix-b"
+TOOL_VERSION="1.1.0-20260421-c372-fix-b-qg"
 
 # Source helpers if available
+[[ -f "$SCRIPT_DIR/lib/_log-helper" ]] && source "$SCRIPT_DIR/lib/_log-helper"
 if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
     source "$SCRIPT_DIR/lib/_colors"
 else
@@ -41,7 +42,7 @@ post-merge-state — Captain's pending-post-merge state tracker (C#372 Fix B)
 
 Usage:
   post-merge-state set <pr-number> <base-ref>
-  post-merge-state clear <pr-number>
+  post-merge-state clear <pr-number> [--force]
   post-merge-state check              # exit 0 clean, exit 1 pending
   post-merge-state get                # print JSON (empty if none pending)
   post-merge-state --help | -h
@@ -51,12 +52,16 @@ Operations:
   set <pr-number> <base-ref>
       Record that PR <pr-number> merged to <base-ref>. Called by pr-merge
       on successful merge to main/master. Overwrites any prior state
-      (another pending would already have blocked this merge).
+      (another pending would already have blocked this merge). Atomic
+      (tmp + mv rename).
 
-  clear <pr-number>
+  clear <pr-number> [--force]
       Clear pending state for PR <pr-number>. Called by
       /pr-captain-post-merge skill after the GitHub release is verified
-      via `gh release view`. Safe if already clear.
+      via `gh release view`. Safe if already clear (idempotent).
+      By default refuses if current state is for a different PR number.
+      Pass --force to override the refusal (recovery path for stuck state
+      — e.g. PR closed without merge, or state written by a lost session).
 
   check
       Exit 0 if no pending post-merge; exit 1 if pending. Machine-readable:
@@ -69,10 +74,15 @@ Operations:
 State file: agency/config/post-merge-pending.json (gitignored).
 Single-PR state — two parallel pending merges would already have been blocked.
 
+Recovery (stuck state):
+  1. ./agency/tools/post-merge-state get     — inspect current state
+  2. ./agency/tools/post-merge-state clear <pr> --force    — bypass race guard
+     OR: rm agency/config/post-merge-pending.json          — last resort
+
 Exit codes:
   0 — operation succeeded (check: no pending)
   1 — check returned pending (not an error — a signal)
-  2 — bad usage or bad args
+  2 — bad usage or bad args, OR corrupt state file, OR refused clear
 USAGE
 }
 
@@ -83,15 +93,48 @@ now_utc() {
     date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
 
+# QG fix: shared helper for reading a field from the state file. Returns
+# the value to stdout, or empty string if the file is missing. Emits
+# "CORRUPT" + non-zero exit if the file exists but cannot be parsed —
+# callers decide whether that is fatal (clear: yes) or a soft warning
+# (check/get: still show something human-readable).
+_read_state_field() {
+    local field="$1"
+    if [[ ! -f "$STATE_FILE" ]]; then
+        return 0  # nothing to read — caller handles empty
+    fi
+    python3 - "$STATE_FILE" "$field" <<'PY' 2>/dev/null
+import json, sys
+path, field = sys.argv[1], sys.argv[2]
+try:
+    with open(path) as f:
+        data = json.load(f)
+except Exception:
+    # Corrupt state file — signal via exit 3 so caller can distinguish.
+    sys.exit(3)
+v = data.get(field, "")
+print(v)
+PY
+}
+
 cmd_set() {
     local pr_number="$1"
     local base_ref="$2"
 
     [[ "$pr_number" =~ ^[0-9]+$ ]] || die "PR number must be integer (got: $pr_number)"
     [[ -n "$base_ref" ]] || die "base-ref required"
+    # QG security F-2: validate base_ref shape so hostile input can't
+    # break the JSON or inject path chars. Standard git branch-ref
+    # character set: alnum, /, _, ., -.
+    [[ "$base_ref" =~ ^[a-zA-Z0-9/_.-]+$ ]] || die "base-ref has invalid characters: $base_ref"
 
     mkdir -p "$(dirname "$STATE_FILE")"
-    cat >"$STATE_FILE" <<EOF
+
+    # QG fix (reviewer-code #8): atomic write via tmp + rename. Prevents
+    # a concurrent reader from seeing a half-written file during the
+    # cat >"$STATE_FILE" heredoc expansion.
+    local tmp="${STATE_FILE}.tmp.$$"
+    cat >"$tmp" <<EOF
 {
   "schema_version": 1,
   "pr_number": $pr_number,
@@ -100,11 +143,13 @@ cmd_set() {
   "tool_version": "$TOOL_VERSION"
 }
 EOF
+    mv -f "$tmp" "$STATE_FILE"
     echo "${GREEN}✓${NC} post-merge state set: PR #$pr_number on $base_ref"
 }
 
 cmd_clear() {
     local pr_number="$1"
+    local force="${2:-}"
     [[ "$pr_number" =~ ^[0-9]+$ ]] || die "PR number must be integer (got: $pr_number)"
 
     if [[ ! -f "$STATE_FILE" ]]; then
@@ -113,16 +158,32 @@ cmd_clear() {
         return 0
     fi
 
-    # Verify the pending PR matches before clearing — guards against
-    # accidentally clearing the wrong PR's state (would unblock other work).
+    # QG fix (reviewer-code #7): read the pending PR and distinguish
+    # three cases: (a) parse succeeds → compare PR numbers; (b) parse
+    # fails (exit 3 from helper) → DIE, don't silently clear; (c) no file
+    # → handled above.
     local current_pr
-    current_pr=$(python3 -c 'import json,sys
-try:
-    with open("'"$STATE_FILE"'") as f: print(json.load(f).get("pr_number",""))
-except Exception: print("")' 2>/dev/null || echo "")
+    set +e
+    current_pr=$(_read_state_field "pr_number")
+    local rc=$?
+    set -e
+
+    if [[ "$rc" -eq 3 ]]; then
+        if [[ "$force" == "--force" ]]; then
+            echo "${YELLOW}[warn]${NC} state file is corrupt — --force given, removing anyway" >&2
+            rm -f "$STATE_FILE"
+            echo "${GREEN}✓${NC} corrupted post-merge state cleared"
+            return 0
+        fi
+        die "state file exists but cannot be parsed — refusing to clear. Inspect with: cat $STATE_FILE ; or recover with: post-merge-state clear $pr_number --force"
+    fi
 
     if [[ -n "$current_pr" && "$current_pr" != "$pr_number" ]]; then
-        die "pending state is for PR #$current_pr, refusing to clear for PR #$pr_number (would unblock unrelated work)"
+        if [[ "$force" == "--force" ]]; then
+            echo "${YELLOW}[warn]${NC} pending state is for PR #$current_pr, --force given, clearing anyway" >&2
+        else
+            die "pending state is for PR #$current_pr, refusing to clear for PR #$pr_number (would unblock unrelated work). Pass --force to override."
+        fi
     fi
 
     rm -f "$STATE_FILE"
@@ -134,18 +195,24 @@ cmd_check() {
         return 0  # no pending
     fi
 
-    # Read PR number for the message
-    local pr_number
-    pr_number=$(python3 -c 'import json,sys
-try:
-    with open("'"$STATE_FILE"'") as f: print(json.load(f).get("pr_number","?"))
-except Exception: print("?")' 2>/dev/null || echo "?")
+    # QG fix: if the state file is corrupt, treat as pending with
+    # unknown-PR message. Don't silently pass — captain must investigate.
+    local pr_number base_ref
+    set +e
+    pr_number=$(_read_state_field "pr_number")
+    local rc=$?
+    set -e
+    if [[ "$rc" -eq 3 ]]; then
+        echo "${RED}[post-merge-corrupt]${NC} state file exists but cannot be parsed — refusing to mark clean." >&2
+        echo "  Inspect: cat $STATE_FILE" >&2
+        echo "  Recover: post-merge-state clear <pr> --force  (if you know the PR)" >&2
+        echo "      or:  rm $STATE_FILE  (last resort)" >&2
+        return 1
+    fi
 
-    local base_ref
-    base_ref=$(python3 -c 'import json,sys
-try:
-    with open("'"$STATE_FILE"'") as f: print(json.load(f).get("base_ref","?"))
-except Exception: print("?")' 2>/dev/null || echo "?")
+    base_ref=$(_read_state_field "base_ref")
+    : "${pr_number:=?}"
+    : "${base_ref:=?}"
 
     echo "${YELLOW}[post-merge-pending]${NC} PR #$pr_number on $base_ref — post-merge has not run yet." >&2
     echo "  Run: ${GREEN}/pr-captain-post-merge $pr_number${NC}" >&2
@@ -174,8 +241,18 @@ case "$1" in
         ;;
     clear)
         shift
-        [[ $# -ne 1 ]] && die "clear requires: <pr-number>"
-        cmd_clear "$1"
+        # Accept: clear <pr> | clear <pr> --force | clear --force <pr>
+        # (no `local` here — we're in the top-level case, not a function)
+        force_flag=""
+        pr_arg=""
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --force) force_flag="--force"; shift ;;
+                *)       pr_arg="$1"; shift ;;
+            esac
+        done
+        [[ -z "$pr_arg" ]] && die "clear requires: <pr-number> [--force]"
+        cmd_clear "$pr_arg" "$force_flag"
         ;;
     check)
         cmd_check
