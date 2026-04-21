@@ -1,0 +1,153 @@
+# What Problem: PRs that merge to main without bumping agency_version in
+# manifest.json create the "PR merged without release" failure mode
+# (2026-04-21 incident, issue #372). release-tag-check catches it post-
+# facto but runs on `push: branches: [main]` — by then the merge already
+# happened. We need a pre-merge gate: the PR must contain a manifest
+# version bump, or it can't be merged.
+#
+# How & Why: On every pull_request targeting main/master, read the PR's
+# agency/config/manifest.json → agency_version, compare to the latest
+# GitHub release tag on the repo. Fail the check if the PR's version
+# is <= the latest release version (no bump, or stale). Pass if the
+# PR's version is strictly greater (a real bump is in the PR).
+#
+# Combined with branch protection's required status checks, this workflow
+# PREVENTS the 2026-04-21 failure mode: no PR lands on main unless a
+# version bump is in the PR itself. post-merge cutting the tag then has
+# a valid target.
+#
+# Scope note: fires on every PR-to-main. Coord-only PRs (handoffs,
+# dispatches) still need version bumps — every PR is a release per
+# framework discipline. Dependabot / fork PRs skipped (they can't be
+# expected to follow framework discipline). See agency/REFERENCE-
+# CODE-REVIEW-LIFECYCLE.md.
+#
+# Written: 2026-04-21 during C#372 Fix C. Part of the 4-fix stack
+# (A+B+C+D). Companion to release-tag-check.yml (post-merge check,
+# kept for visibility on the main branch badge but not required).
+
+name: Release Version Precheck
+
+on:
+  pull_request:
+    branches: [main, master]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  version-bump-check:
+    name: manifest version is bumped
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # QG round 1 finding (reviewer-code #13): do NOT put the Dependabot
+    # and fork-PR skip at job-level `if:`. A job-level `if:` false makes
+    # the whole job "skipped", and a skipped required-status-check is
+    # treated by GitHub's branch protection as "missing" — which blocks
+    # the merge. By moving the skip to step-level, the job always runs
+    # and reports a successful completion, which the required-check
+    # treats as green. See the "early-exit skip step" below.
+    steps:
+      - name: Skip (Dependabot / fork PR)
+        id: skip_check
+        if: github.actor == 'dependabot[bot]' || github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "Skipping version precheck — not applicable to Dependabot / fork PRs."
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout PR head
+        if: steps.skip_check.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Read PR's manifest version
+        id: pr_ver
+        if: steps.skip_check.outputs.skip != 'true'
+        run: |
+          if [[ ! -f agency/config/manifest.json ]]; then
+            echo "::error::agency/config/manifest.json missing in this PR"
+            exit 1
+          fi
+          v=$(jq -r .agency_version agency/config/manifest.json)
+          if [[ -z "$v" || "$v" == "null" ]]; then
+            echo "::error::Could not read agency_version from manifest.json"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "PR's agency_version: $v"
+
+      - name: Read latest release tag
+        id: latest_rel
+        if: steps.skip_check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # QG round 1 finding (reviewer-code #18): `gh release list --limit 1`
+          # returns the most recent by published-at time, NOT by semver. A
+          # hand-cut backport (e.g. v45.5 after v46.14) would temporarily become
+          # "latest". Instead, fetch all release tags and sort by semver-like
+          # version, picking the highest D.R tag. Non-D.R tags (pre-releases,
+          # symbolic) are filtered out at this stage.
+          all_tags=$(gh release list --json tagName --jq '.[].tagName' 2>/dev/null || echo "")
+          if [[ -z "$all_tags" ]]; then
+            echo "No prior releases found — any version bump is valid."
+            echo "latest=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Filter to D.R tags only, sort numerically by major then minor, pick top.
+          # `sort -t. -k1,1n -k2,2n` → numeric sort on first then second dot-field.
+          latest=$(echo "$all_tags" \
+            | grep -E '^v[0-9]+\.[0-9]+$' \
+            | sed 's/^v//' \
+            | sort -t. -k1,1n -k2,2n \
+            | tail -1)
+          if [[ -z "$latest" ]]; then
+            # All tags are non-D.R (pre-releases, symbolic). QG reviewer-code #15:
+            # emit a visible workflow warning annotation so this doesn't silently
+            # pass the gate forever — a human should look.
+            echo "::warning::No D.R-format tags found among releases. Version-bump check cannot compare against a semver-ordered baseline; passing advisory-only. Tags seen: $(echo "$all_tags" | tr '\n' ' ')"
+            echo "latest=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "Latest D.R release (semver-ordered): v$latest"
+
+      - name: Compare versions
+        if: steps.skip_check.outputs.skip != 'true'
+        env:
+          PR_VER: ${{ steps.pr_ver.outputs.version }}
+          LATEST: ${{ steps.latest_rel.outputs.latest }}
+        run: |
+          # If no prior releases, any PR version is valid.
+          if [[ -z "$LATEST" ]]; then
+            echo "✓ No prior releases — PR version $PR_VER is valid."
+            exit 0
+          fi
+
+          # Parse D.R from both. Reject if either isn't D.R.
+          if [[ ! "$PR_VER" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error file=agency/config/manifest.json::PR's agency_version '$PR_VER' is not in D.R format (e.g., 46.14)"
+            exit 1
+          fi
+          pr_d=${BASH_REMATCH[1]}
+          pr_r=${BASH_REMATCH[2]}
+
+          if [[ ! "$LATEST" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::warning::Latest release tag '$LATEST' is not in D.R format — cannot compare. Skipping."
+            exit 0
+          fi
+          lt_d=${BASH_REMATCH[1]}
+          lt_r=${BASH_REMATCH[2]}
+
+          # PR's version must be strictly greater than latest release.
+          if [[ "$pr_d" -gt "$lt_d" ]] || { [[ "$pr_d" -eq "$lt_d" ]] && [[ "$pr_r" -gt "$lt_r" ]]; }; then
+            echo "✓ PR bumps agency_version: $LATEST → $PR_VER"
+            exit 0
+          fi
+
+          echo "::error file=agency/config/manifest.json::PR's agency_version $PR_VER is NOT a bump from latest release $LATEST. Bump agency_version in manifest.json to a version greater than $LATEST before merging. (C#372 Fix C — every PR must be a release.)"
+          exit 1
+

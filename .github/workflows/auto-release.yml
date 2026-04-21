@@ -1,0 +1,146 @@
+# What Problem: Even with Fix A (pr-merge advisory nag), Fix B (post-
+# merge-state refuse gate), and Fix C (release-version-precheck PR-time
+# check), cutting the release tag is still a captain-run step. A human
+# step that fires after every PR merge is still a discipline-dependent
+# step. If captain closes the terminal, walks away, or the post-merge
+# skill hits a transient gh-release error, the tag is missing and
+# release-tag-check goes red. Fix D removes the human step entirely.
+#
+# How & Why: On every push to main that is a merge commit (two parents),
+# this workflow reads agency/config/manifest.json → agency_version and
+# creates `v<version>` if it doesn't already exist. GitHub's auto-
+# generated release notes (--generate-notes) capture the PR titles /
+# commits since the last tag. Combined with Fix C (PR-time version-bump
+# check), the version is always bumped before merge, so this workflow
+# always has a valid target tag to cut.
+#
+# Idempotent: if the release already exists (e.g. captain ran
+# /pr-captain-post-merge manually first, or the workflow re-ran),
+# nothing happens and exit is clean. This lets pr-captain-post-merge
+# continue to work as a fallback for the rare case Fix D fails.
+#
+# Interaction with release-tag-check.yml (post-merge):
+# - Fix D cuts the release within seconds of the merge.
+# - release-tag-check polls for up to 120s with the release grace period,
+#   so it passes cleanly.
+# - release-tag-check stays around as the belt-and-suspenders check:
+#   if Fix D fails for any reason (permissions, outage, bug), the post-
+#   merge red CI is the visible alarm.
+#
+# Written: 2026-04-21 during C#372 Fix D. Part of the 4-fix stack (A+B+C+D).
+
+name: Auto Release
+
+on:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: write  # needed to create releases
+
+jobs:
+  auto-release:
+    name: auto-cut release from manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need parents to detect merge commits
+
+      - name: Detect merge commit
+        id: ismerge
+        run: |
+          parent_count=$(git rev-list --parents -n 1 HEAD | awk '{print NF-1}')
+          echo "parents=$parent_count" >> "$GITHUB_OUTPUT"
+          if [[ "$parent_count" != "2" ]]; then
+            echo "Not a merge commit — skipping auto-release."
+          fi
+
+      - name: Read manifest version
+        id: ver
+        if: steps.ismerge.outputs.parents == '2'
+        run: |
+          if [[ ! -f agency/config/manifest.json ]]; then
+            echo "::error::agency/config/manifest.json missing"
+            exit 1
+          fi
+          v=$(jq -r .agency_version agency/config/manifest.json)
+          if [[ -z "$v" || "$v" == "null" ]]; then
+            echo "::error::Could not read agency_version from manifest.json"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Manifest version: v${v}"
+
+      - name: Check if release already exists
+        id: exists
+        if: steps.ismerge.outputs.parents == '2'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          v="${{ steps.ver.outputs.version }}"
+          if gh release view "v${v}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "Release v${v} already exists — skipping create (idempotent)."
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+            echo "Release v${v} does not exist yet — will create."
+          fi
+
+      - name: Create release
+        if: steps.ismerge.outputs.parents == '2' && steps.exists.outputs.already == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          v="${{ steps.ver.outputs.version }}"
+          sha=$(git rev-parse HEAD)
+          short=$(git rev-parse --short HEAD)
+
+          # Try to derive a meaningful title from the merge commit message.
+          # Format is typically "Merge pull request #N from branch-name"
+          merge_msg=$(git log -1 --pretty=%s HEAD)
+          # Fall back to just the version if we can't extract anything nicer.
+          title="v${v}"
+          if [[ "$merge_msg" =~ "Merge pull request #"([0-9]+) ]]; then
+            pr_num="${BASH_REMATCH[1]}"
+            title="v${v} (PR #${pr_num})"
+          fi
+
+          echo "Creating release v${v} at ${short}..."
+          # QG round 1 finding (reviewer-code #24): race-safe create.
+          # If captain manually ran /pr-captain-post-merge between our
+          # exists-check above and this create call, the create would fail
+          # with "tag already exists" (422). Swallow that specific failure
+          # mode — the release exists either way, which is the goal.
+          if ! gh release create "v${v}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "${sha}" \
+              --title "${title}" \
+              --generate-notes 2>&1 | tee /tmp/release-create.log; then
+            if grep -qiE '(already exists|Release.*already)' /tmp/release-create.log; then
+              echo "Race: release was created by another path between exists-check and create — continuing."
+            else
+              echo "::error::gh release create failed for v${v}"
+              cat /tmp/release-create.log
+              exit 1
+            fi
+          fi
+
+          # Verify (redundant but fail-loud — matches pr-captain-post-merge
+          # hard-verify pattern so a silent gh create-succeeds-but-isnt-there
+          # GitHub bug would catch us here too).
+          gh release view "v${v}" --repo "${GITHUB_REPOSITORY}" >/dev/null
+          echo "✓ Release v${v} created and verified."
+
+      - name: Skip (non-merge commit)
+        if: steps.ismerge.outputs.parents != '2'
+        run: |
+          echo "Not a merge commit — auto-release skipped."
+          echo "(Auto-release runs only on PR merge commits, which are two-parent.)"
+
+      - name: Skip (already exists)
+        if: steps.ismerge.outputs.parents == '2' && steps.exists.outputs.already == 'true'
+        run: |
+          echo "Release already exists — idempotent skip."
+          echo "(Probably captain ran /pr-captain-post-merge manually before this workflow fired, or this workflow is re-running.)"

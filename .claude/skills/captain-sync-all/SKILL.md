@@ -2,7 +2,13 @@
 name: captain-sync-all
 description: Captain-only. Fetch, merge origin into master, merge unique worktree work into master, and sync all worktrees. The daily rhythm command. NEVER pushes to remote. NEVER rebases. NEVER resets to origin. Formerly `/sync-all` — v2 rename to captain-actor-verb.
 agency-skill-version: 2
-when_to_use: Captain on master in main checkout, starting a captain session or after a PR has merged (to propagate to the fleet). NEVER from a worktree. NEVER auto-invoked.
+when_to_use: |
+  Captain on master in main checkout, NEVER from a worktree. Invoke after ANY of these triggers:
+    - PR merge (called automatically as Step 5 of /pr-captain-post-merge)
+    - Agent /iteration-complete, /phase-complete, /plan-complete in any worktree
+    - Agent /seed, /define, /design, /plan completion in any worktree
+    - Start of a captain session, to catch overnight drift
+  Not auto-invoked — captain types it. See CLAUDE-CAPTAIN.md "Standing Duty — Worktree Integration Rhythm".
 argument-hint: "(no args)"
 paths: []
 required_reading:
@@ -22,6 +28,27 @@ required_reading:
 Captain's daily master-sync rhythm command. Reconciles master with origin, merges any unique worktree work into master (with confirmation), and syncs every worktree to the updated master. **Never pushes.** Push is a separate concern (merged PRs land on master server-side).
 
 **Name pattern:** `captain-` actor prefix (captain-only) + `sync-all` (compound noun-verb, the action). Grouped with `captain-release`, `captain-log`, `captain-review` in the captain family.
+
+## When to invoke — the trigger list
+
+Captain runs `/captain-sync-all` after **any** of these events:
+
+| Trigger | Emitted by | Scope |
+|---|---|---|
+| PR merge | GitHub | Automatic — `/pr-captain-post-merge` invokes this as its Step 5 |
+| `/iteration-complete` | worktree agent | Integrate committed iteration work |
+| `/phase-complete` | worktree agent | Integrate principal-approved phase commit |
+| `/plan-complete` | worktree agent | Integrate plan-level milestone |
+| `/seed` completion | worktree agent | Share seed artifact with fleet |
+| `/define` completion | worktree agent | Share PVR with fleet |
+| `/design` completion | worktree agent | Share A&D with fleet |
+| `/plan` completion | worktree agent | Share plan with fleet |
+| Session start | captain | Catch overnight drift before other work |
+
+Two critical distinctions, mirrored in CLAUDE-CAPTAIN.md "Standing Duty":
+
+1. **Dirty files ≠ no committed work.** A worktree can be dirty (WIP) AND have commits ahead of master. The WIP stays; the commits integrate. Do not skip a worktree just because it's dirty.
+2. **Parked worktrees are intentional.** Worktrees with tracked structural debt (e.g., Great-Rename path debt on 5 branches under Bucket G #402) MUST NOT be merged — conflicts are known and handled by the dedicated workstream's tooling, not by this skill.
 
 ## Why this exists
 

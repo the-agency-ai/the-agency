@@ -56,6 +56,7 @@ Before proceeding, Read the files listed in `required_reading:` frontmatter.
 1. Check current branch. If master, **abort**.
 2. Show `git status` + `git diff --stat HEAD`.
 3. If no changes, inform user and stop.
+4. **Check for pending post-merge (C#372 Fix B).** Run `./agency/tools/post-merge-state check`. If exit 1, STOP — a prior PR is in pending-post-merge state (merged but release not yet cut). Run `/pr-captain-post-merge <pending-PR>` first, then re-invoke this skill. A release cannot start while the last release is incomplete. Exit 0 → continue.
 
 ### Step 2: Quality gate
 

@@ -38,6 +38,9 @@ agency/config/instances/
 # Service PID files (runtime)
 agency/config/*.pid
 
+# C#372 Fix B — pending-post-merge state (captain-local ephemeral state)
+agency/config/post-merge-pending.json
+
 # Agency service logs (but keep reviews for findings history)
 agency/logs/*
 !agency/logs/reviews/

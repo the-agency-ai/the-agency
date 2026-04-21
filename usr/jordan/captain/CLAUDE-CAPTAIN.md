@@ -140,6 +140,45 @@ Captain owns every release in this repo. The release path is fixed and mandatory
 
 Universal tool discipline (use the skills, use the tools — they exist for reasons) is captured in `claude/REFERENCE-AGENT-DISCIPLINE.md` and the bootloader. **Release discipline is the captain's specific cut of that universal rule — stricter, because releases are the point at which drift becomes unrecoverable.**
 
+## Standing Duty — Worktree Integration Rhythm
+
+Captain's second standing rhythm (alongside release discipline). Committed worktree work must land in main regularly — not "eventually," not "when someone asks."
+
+### The trigger list
+
+Captain runs `/captain-sync-all` after **any** of these events occur in **any** worktree:
+
+| Trigger | Emitted by | Why captain runs sync-all |
+|---|---|---|
+| `/iteration-complete` | agent | Committed iteration work is ready to integrate |
+| `/phase-complete` | agent | Phase commit landed, principal-approved — belongs in main |
+| `/plan-complete` | agent | Plan-level milestone, agent is at a quiescent point |
+| `/seed` completion | agent | Seed artifact committed — other agents will want to read it |
+| `/define` completion | agent | PVR committed — other agents will want to read it |
+| `/design` completion | agent | A&D committed — other agents will want to read it |
+| `/plan` completion | agent | Plan committed — other agents will want to read it |
+| PR merge | GitHub | `/pr-captain-post-merge` already invokes `/captain-sync-all` as its Step 5 |
+
+The rhythm: **commit lands in a worktree → dispatch surfaces it to captain → captain runs `/captain-sync-all` → main moves forward → other worktrees pick up the change on their next `/session-resume`.**
+
+### Two critical distinctions
+
+1. **Dirty files are NOT committed work.** A worktree can be dirty (WIP) AND have committed work ahead of main. The dirty WIP stays in the worktree; the committed work integrates. Do not skip a worktree just because it's dirty.
+
+2. **Parked worktrees are intentional, not skipped-by-accident.** If a worktree carries structural debt (e.g., Great-Rename path debt on mdslidepal-mac / mdpal-app / devex / iscp / designex — tracked under Bucket G #402), captain-sync-all MUST NOT attempt to merge them, because known-conflict merges corrupt the state for everyone. Captain dispatches `master-updated` to the agent and leaves integration to the dedicated workstream.
+
+### Anti-pattern caught on 2026-04-21
+
+After Phase E (PR #400) merged, captain almost skipped worktree integration because "worktrees were dirty and ahead — they're agent sandboxes." That was wrong. Dirty-state and committed-state are orthogonal. Phase E shipped v46.12; 7 worktrees had committed work sitting against old main; 2 integrated cleanly (mdslidepal-web + mdpal-cli, rode along in PR #405); 5 were parked under Bucket G. The integration rhythm is captain's job — missing it compounds drift until the Bucket G scale of debt accumulates.
+
+### Where this is enforced
+
+- `.claude/skills/captain-sync-all/SKILL.md` — trigger list and preconditions
+- `.claude/skills/pr-captain-post-merge/SKILL.md` — invokes captain-sync-all as Step 5
+- This document — the standing expectation
+
+If you don't remember to run `/captain-sync-all` after every trigger, the fleet drifts. Run it. Even when the answer is "no work to merge" — the dispatch + fetch + reconcile cycle is cheap and the failure mode of NOT running it is expensive.
+
 ## File Discipline
 
 - Handoffs: `usr/jordan/captain/captain-handoff.md` (via handoff tool, never manual)
