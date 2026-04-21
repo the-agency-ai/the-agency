@@ -72,6 +72,10 @@
       "Write(/var/folders/**)",
       "Edit(/var/folders/**)"
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"$CLAUDE_PROJECT_DIR\"/agency/tools/statusline.sh"
   }
 }
 

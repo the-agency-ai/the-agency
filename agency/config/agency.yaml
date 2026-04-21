@@ -127,7 +127,7 @@ testing:
   provider: "multi"  # multi = run all configured suites
   suites:
     tools:
-      command: "bats tests/tools/"
+      command: "bats src/tests/tools/"
       description: "BATS tool tests (framework tools, ISCP)"
     mdpal:
       command: "cd apps/mdpal && swift test 2>/dev/null || true"

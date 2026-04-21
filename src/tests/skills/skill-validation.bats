@@ -10,7 +10,7 @@
 #   - Valid SKILL.md frontmatter (has allowed-tools line)
 #
 
-REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/../.." && pwd)"
 SKILLS_DIR="${REPO_ROOT}/.claude/skills"
 
 # Minimum expected framework skills (threshold, not exact count)

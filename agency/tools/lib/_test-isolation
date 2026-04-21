@@ -45,7 +45,8 @@ if [[ -z "${REPO_ROOT:-}" ]]; then
 fi
 
 # Convenience: TOOLS_DIR points at the framework tools.
-export TOOLS_DIR="${TOOLS_DIR:-${REPO_ROOT}/claude/tools}"
+# v46.1 Great Rename: claude/tools/ → agency/tools/.
+export TOOLS_DIR="${TOOLS_DIR:-${REPO_ROOT}/agency/tools}"
 
 # Disable telemetry during tests so test runs don't pollute log-service.
 export LOG_SERVICE_URL=""

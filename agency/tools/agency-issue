@@ -85,7 +85,16 @@ if PRINCIPAL=$("$SCRIPT_DIR/agent-identity" --principal 2>/dev/null); then
     :
 fi
 if [[ -z "$PRINCIPAL" ]]; then
-    PRINCIPAL="${USER:-default}"
+    # Issue #332: never fall back to $USER — that creates usr/{$USER}/ dirs
+    # when the git user isn't this repo's principal (e.g., Jordan auditing
+    # Andrew's repo from his machine). Resolve from the on-disk principal
+    # sandbox instead: the first usr/*/ directory is this repo's principal.
+    for _udir in "$PROJECT_ROOT"/usr/*/; do
+        [[ -d "$_udir" ]] || continue
+        PRINCIPAL="$(basename "$_udir")"
+        break
+    done
+    PRINCIPAL="${PRINCIPAL:-default}"
 fi
 REPORTS_DIR="$PROJECT_ROOT/usr/$PRINCIPAL/reports"
 REPORTS_INDEX="$REPORTS_DIR/REPORTS-INDEX.md"

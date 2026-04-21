@@ -108,23 +108,23 @@ resolve_path() {
         principal=$("$identity_tool" --principal 2>/dev/null || echo "")
     fi
     if [[ -z "$principal" ]]; then
-        # Fall back: $USER match or first found
-        if [ -d "$project_dir/usr/${USER:-}" ]; then
-            principal="$USER"
-        else
-            local _old_nullglob
-            _old_nullglob=$(shopt -p nullglob 2>/dev/null || true)
-            shopt -s nullglob
-            for dir in "$project_dir"/usr/*/; do
-                [ -d "$dir" ] || continue
-                local name
-                name=$(basename "$dir")
-                [ "$name" = "README.md" ] && continue
-                principal="$name"
-                break
-            done
-            eval "$_old_nullglob" 2>/dev/null || true
-        fi
+        # Issue #332: never fall back to $USER — that creates usr/{$USER}/
+        # dirs when the git user isn't this repo's principal (e.g. Jordan
+        # auditing Andrew's repo from his machine). Resolve from the on-disk
+        # principal sandbox instead: the first usr/*/ directory is this
+        # repo's principal.
+        local _old_nullglob
+        _old_nullglob=$(shopt -p nullglob 2>/dev/null || true)
+        shopt -s nullglob
+        for dir in "$project_dir"/usr/*/; do
+            [ -d "$dir" ] || continue
+            local name
+            name=$(basename "$dir")
+            [ "$name" = "README.md" ] && continue
+            principal="$name"
+            break
+        done
+        eval "$_old_nullglob" 2>/dev/null || true
     fi
 
     if [ -z "$principal" ]; then

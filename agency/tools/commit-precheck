@@ -133,8 +133,8 @@ classify_staged() {
         return
     fi
 
-    # Check for tool/test code (bash scripts in agency/tools/ or tests/)
-    if echo "$staged_files" | grep -qE '^(agency/tools/|tests/)'; then
+    # Check for tool/test code (bash scripts in agency/tools/ or src/tests/)
+    if echo "$staged_files" | grep -qE '^(agency/tools/|src/tests/)'; then
         echo "tool-code"
         return
     fi
@@ -452,7 +452,7 @@ EOF
     fi
 
     if [[ "$run_skill_validation" == "true" ]]; then
-        local skill_validation="$REPO_ROOT/tests/skills/skill-validation.bats"
+        local skill_validation="$REPO_ROOT/src/tests/skills/skill-validation.bats"
         if [[ -f "$skill_validation" ]]; then
             if [[ "$DRY_RUN" == "true" ]]; then
                 echo "[dry-run] Would run: skill-validation.bats"

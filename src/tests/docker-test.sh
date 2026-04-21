@@ -12,10 +12,10 @@
 # and defaults to all BATS files for full-suite T3 runs.
 #
 # Usage:
-#   ./tests/docker-test.sh                         # run ALL test files (T3)
-#   ./tests/docker-test.sh --iscp-only             # run only ISCP tests
-#   ./tests/docker-test.sh --file tests/tools/flag.bats  # run specific file
-#   ./tests/docker-test.sh tests/tools/flag.bats   # positional arg (legacy)
+#   ./src/tests/docker-test.sh                         # run ALL test files (T3)
+#   ./src/tests/docker-test.sh --iscp-only             # run only ISCP tests
+#   ./src/tests/docker-test.sh --file src/tests/tools/flag.bats  # run specific file
+#   ./src/tests/docker-test.sh src/tests/tools/flag.bats   # positional arg (legacy)
 #
 # Written: 2026-04-06 — Docker test isolation (dispatches #16, #17)
 # Updated: 2026-04-07 — Phase 2.1: extend to all BATS files, add --iscp-only
@@ -44,13 +44,13 @@ fi
 
 # ISCP-only test files (original 7)
 ISCP_FILES=(
-    tests/tools/iscp-db.bats
-    tests/tools/agent-identity.bats
-    tests/tools/dispatch-create.bats
-    tests/tools/dispatch.bats
-    tests/tools/flag.bats
-    tests/tools/iscp-check.bats
-    tests/tools/iscp-migrate.bats
+    src/tests/tools/iscp-db.bats
+    src/tests/tools/agent-identity.bats
+    src/tests/tools/dispatch-create.bats
+    src/tests/tools/dispatch.bats
+    src/tests/tools/flag.bats
+    src/tests/tools/iscp-check.bats
+    src/tests/tools/iscp-migrate.bats
 )
 
 # Parse arguments
@@ -91,7 +91,7 @@ else
     TEST_ARGS=()
     while IFS= read -r f; do
         TEST_ARGS+=("$f")
-    done < <(find tests/tools -name '*.bats' -type f | sort)
+    done < <(find src/tests/tools -name '*.bats' -type f | sort)
 fi
 
 TEST_COUNT=${#TEST_ARGS[@]}

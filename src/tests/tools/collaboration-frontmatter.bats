@@ -8,7 +8,7 @@
 # without spinning up a full repo + collaboration check.
 #
 
-REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/../.." && pwd)"
 COLLAB="${REPO_ROOT}/agency/tools/collaboration"
 
 setup() {

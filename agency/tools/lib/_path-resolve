@@ -142,6 +142,18 @@ _validate_name() {
             system|shared|all|default) echo "Name '$name' is reserved" >&2; return 1 ;;
         esac
     fi
+    # Reject well-known placeholder / example values that adopters copy-paste
+    # from docs by mistake. Issue #286: principal renamed from alex → andrew on
+    # andrew-demo after the adopter copy-pasted the help-text example verbatim.
+    # Failing loud here forces adopters to supply their actual identity.
+    if [[ "$level" == "principal" || "$level" == "agent" ]]; then
+        case "$name" in
+            alex|alice|bob|charlie|dave|eve|foo|bar|baz|qux|example|your-name|yourname|myapp|myproject)
+                echo "Name '$name' is a doc-example placeholder; supply your actual $level name" >&2
+                return 1
+                ;;
+        esac
+    fi
     return 0
 }
 

@@ -6,7 +6,7 @@
 # subcommands is a separate, pre-existing gap (flag #128).
 #
 
-REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/../.." && pwd)"
 GIT_CAPTAIN="${REPO_ROOT}/agency/tools/git-captain"
 
 # Create an isolated repo+origin pair for sync-main scenarios.

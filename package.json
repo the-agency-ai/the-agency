@@ -1,0 +1,32 @@
+{
+  "name": "the-agency",
+  "version": "46.5.0",
+  "private": true,
+  "description": "TheAgency — opinionated multi-agent development framework for Claude Code. Framework-dev monorepo declaring pnpm workspaces for src/apps/*.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/the-agency-ai/the-agency.git"
+  },
+  "homepage": "https://github.com/the-agency-ai/the-agency#readme",
+  "bugs": {
+    "url": "https://github.com/the-agency-ai/the-agency/issues"
+  },
+  "workspaces": [
+    "src/apps/*",
+    "src/apps/*/services/*"
+  ],
+  "scripts": {
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "bats": "bats src/tests/tools/",
+    "bats:all": "bats src/tests/tools/ src/tests/skills/ src/tests/agents/ src/tests/docs/"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
