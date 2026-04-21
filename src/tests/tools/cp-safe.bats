@@ -235,3 +235,61 @@ teardown() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"Cross-worktree"* ]]
 }
+
+# ---- symlink escape prevention (S-NEW-1, S-NEW-2 from PR #397 regate) ----
+
+@test "cp-safe: rejects symlink source (exfiltration guard)" {
+    # A crafted symlink inside a worktree, pointing at /etc/passwd (or any
+    # out-of-worktree file). Without the symlink-source guard, cp-safe
+    # would follow the link and copy the external file INTO the repo.
+    VICTIM_DIR=$(mktemp -d)
+    echo "sensitive external content" > "$VICTIM_DIR/secret.txt"
+    ln -s "$VICTIM_DIR/secret.txt" "$REPO_A/evil-link"
+
+    run bash "$CP_SAFE" "$REPO_A/evil-link" "$REPO_A/exfil.txt"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Source is a symlink"* ]] || [[ "$output" == *"symlink sources"* ]]
+    # The external file content must NOT be in the repo
+    [[ ! -f "$REPO_A/exfil.txt" ]]
+    # Confirm the victim file is untouched
+    run cat "$VICTIM_DIR/secret.txt"
+    [ "$output" = "sensitive external content" ]
+
+    rm -rf "$VICTIM_DIR"
+}
+
+@test "cp-safe: rejects existing symlink destination (clobber guard)" {
+    # A pre-existing symlink in the worktree, pointing to an external
+    # file. Without the dest-symlink guard, cp-safe would follow the
+    # symlink and overwrite the external target — even though the dest
+    # entry itself looks like it's inside the repo.
+    VICTIM_DIR=$(mktemp -d)
+    echo "victim content (must survive)" > "$VICTIM_DIR/target.txt"
+    ln -s "$VICTIM_DIR/target.txt" "$REPO_A/dest-trap"
+
+    run bash "$CP_SAFE" "$REPO_A/file.txt" "$REPO_A/dest-trap"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"symlink"* ]]
+    [[ "$output" == *"clobber"* ]] || [[ "$output" == *"existing"* ]]
+    # Confirm the external target is UNTOUCHED
+    run cat "$VICTIM_DIR/target.txt"
+    [ "$output" = "victim content (must survive)" ]
+
+    rm -rf "$VICTIM_DIR"
+}
+
+@test "cp-safe: rejects symlink source even with --cross-repo" {
+    # --cross-repo must NOT provide an escape hatch around the symlink
+    # guard (defense-in-depth — symlink source is always wrong, regardless
+    # of cross-repo intent).
+    VICTIM_DIR=$(mktemp -d)
+    echo "secret" > "$VICTIM_DIR/secret.txt"
+    ln -s "$VICTIM_DIR/secret.txt" "$REPO_A/evil-link"
+
+    run bash "$CP_SAFE" --cross-repo "$REPO_A/evil-link" "$REPO_B/exfil.txt"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"symlink"* ]]
+    [[ ! -f "$REPO_B/exfil.txt" ]]
+
+    rm -rf "$VICTIM_DIR"
+}

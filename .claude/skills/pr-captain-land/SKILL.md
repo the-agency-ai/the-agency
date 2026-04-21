@@ -208,7 +208,7 @@ Agent picks up on next `/session-resume` or via dispatch monitor.
 - **Does not modify agent's existing commits.** Only appends the version-bump commit.
 - **Does not squash or rebase.** `pr-captain-merge` enforces true merge commit per framework discipline.
 - **Does not auto-retry on failure.** Failures need captain attention; no silent retries that mask real issues.
-- **Does not fire from an agent context.** Four-layer defense (below) makes this impossible.
+- **Does not fire from an agent context.** Three-layer defense (below) makes this impossible.
 
 ## Captain-only — three-layer defense
 

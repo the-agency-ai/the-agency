@@ -87,6 +87,34 @@ fi
 SOURCE="${POSITIONALS[0]}"
 DEST="${POSITIONALS[1]}"
 
+# Reject symlink source. `cp` follows symlinks by default, which means a
+# crafted symlink inside a worktree (e.g. evil → /etc/passwd) would
+# exfiltrate the target's content into the repo — the worktree/repo check
+# validates the *location* of the symlink, not the target it points to.
+# Fleet does not need to copy symlinks through cp-safe; if you really need
+# the target, resolve it first (readlink -f) and pass the resolved path.
+# (finding S-NEW-1 — symlink source escape)
+if [[ -L "$SOURCE" ]]; then
+    echo "BLOCKED: Source is a symlink — cp-safe refuses symlink sources." >&2
+    echo "  Source: $SOURCE" >&2
+    echo "  (Target: $(readlink -- "$SOURCE" 2>/dev/null || echo '?'))" >&2
+    echo "  Resolve to the physical path first if the copy is intentional." >&2
+    exit 1
+fi
+
+# Reject existing symlink destination. `cp` follows dest symlinks and
+# overwrites the target, so `cp source.txt dest-trap` where
+# `dest-trap → /tmp/victim/target.txt` clobbers the external file even
+# though the dest entry itself is inside the worktree.
+# (finding S-NEW-2 — symlink dest escape)
+if [[ -L "$DEST" ]]; then
+    echo "BLOCKED: Destination is an existing symlink — would clobber its target." >&2
+    echo "  Dest:   $DEST" >&2
+    echo "  (Target: $(readlink -- "$DEST" 2>/dev/null || echo '?'))" >&2
+    echo "  Remove the symlink or pick a non-symlink destination." >&2
+    exit 1
+fi
+
 # Find the nearest existing directory for a path. For an existing file,
 # return its parent. For an existing dir, return it. For a non-existent
 # path (typical for dest), walk up to the first existing directory.
