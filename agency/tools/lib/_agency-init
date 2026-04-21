@@ -616,11 +616,11 @@ KNOWLEDGE_EOF
 
     cd "$TARGET_DIR"
     # Stage only Agency-created paths (not user files that may already exist)
-    git add CLAUDE.md .claude/ claude/ usr/ docs/plans/ .gitignore
+    git add CLAUDE.md .claude/ agency/ usr/ docs/plans/ .gitignore
     git commit -m "feat: initialize Agency 2.0 framework
 
 Agency 2.0 initialized via agency init. Includes:
-- CLAUDE.md with @claude/CLAUDE-THEAGENCY.md import (methodology)
+- CLAUDE.md with @agency/CLAUDE-THEAGENCY.md import (methodology)
 - ${skill_count} skills, ${command_count} commands, ${agent_count} agent classes
 - ${hook_count} hooks (ref-injector, session-handoff, quality-check, plan-capture,
   branch-freshness, tool-telemetry, ghostty-status)

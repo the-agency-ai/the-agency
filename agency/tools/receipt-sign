@@ -127,8 +127,10 @@ SHORT_HASH_E="${HASH_E:0:7}"
 
 # D42-R3: per-workstream receipt paths + revised naming
 # New: {org}-{principal}-{agent}-{workstream}-{project}-{type}-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md
-# Write to: claude/workstreams/{W}/qgr/ or rgr/
-RECEIPTS_DIR="$REPO_ROOT/claude/workstreams/$WORKSTREAM/$TYPE"
+# Write to: agency/workstreams/{W}/qgr/ or rgr/ (v46.1: claude/→agency/ Great Rename).
+# Previous claude/workstreams/ path was a residual sweep miss that leaked
+# duplicate receipt trees into adopter repos — see #368 (this fix).
+RECEIPTS_DIR="$REPO_ROOT/agency/workstreams/$WORKSTREAM/$TYPE"
 FILENAME="${ORG}-${PRINCIPAL}-${AGENT}-${WORKSTREAM}-${PROJECT}-${TYPE}-${BOUNDARY}-${TIMESTAMP}-${SHORT_HASH_E}.md"
 FILEPATH="$RECEIPTS_DIR/$FILENAME"
 
