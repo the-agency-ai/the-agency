@@ -1,128 +1,134 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-04-21T02:30:00Z
-trigger: compact-prepare
-branch: fix/workstream-rename-agency
-mode: continuation
-next-action: Await principal's decision on filing option for the v46.1 tool sweep-miss inventory (~30+ tools still resolving $PROJECT_ROOT/claude/* paths). My recommendation was option 2 — file umbrella issue with full inventory, prioritize by adopter-visible impact. Once principal answers, act on their choice.
-pause_commit_sha: d7ec902a2947c479e6666f6ac0a6cd17978190d9
+date: 2026-04-21T05:03:00Z
+trigger: session-end
+branch: main
+mode: resumption
+next-action: Start a fresh session and decide whether to begin Plan v5 Phase 4+ work (Stage D — start with issue #374 install-surface manifest schema) or pick up one of the stabilization items (#55 CI build-out, #384 BATS Docker, #387 _test-isolation leak, #385 commit-precheck hang). Principal already approved the staging layout; next session can just execute the chosen lane. Before starting, run /session-resume which will sync + surface any new dispatches.
+pause_commit_sha: none
 ---
 
-# Captain handoff — mid-session continuation (compact-prepare)
+# Captain handoff — session end 2026-04-21
 
 ## Session headline
 
-Started morning as "fix #364 agency update." Became a ~4-hour sweep of v46.1 adopter-tooling restoration + architectural issue filing.
+6-hour day-shift session. Two PRs merged, two releases cut, eleven GitHub issues filed, one adopter repo brought current, two cross-repo dispatches sent, dispatch queue fully drained.
 
-## Shipped this session (9 PRs merged, 2 releases cut)
+## Shipped this session
 
-| PR | Title | Closes |
+### PRs merged + releases
+
+| PR | Content | Release |
 |---|---|---|
-| #362 | Port monofolk v2.0 session-lifecycle refactor (PAUSE/PICKUP primitives + captain defense-layer fix) | #352 #354 #355 |
-| #365 | fix(#364): agency update working on v46.1 — adopters can update again | #364 |
-| #366 | fix(#360): agency verify stale claude/→agency/ paths | #360 |
-| #367 | fix: delete duplicate claude/ at repo root + fix receipt-sign stale write path | — |
-| #368 | fix(v46.1): agency init ~50 claude/→agency/ path sweep | — |
-| #369 | fix: repo root cleanup (Plan v5) + 7 agency init/update bug fixes | #281 #286 #272 #324 #325 #332 #333 #335 |
-| #370 | fix(#157): agency update version display → D{day}-R{release} format | #157 |
-| #371 | fix: package.json workspaces tighten to src/apps/mdslidepal-web only | — |
-| #373 | refactor: rename workstream the-agency → agency | — |
+| **#386** | v46 sweep-miss — 162 files, final claude/ → agency/ pass + smoke.yml CI stub | **v46.10** |
+| **#391** | Purge test-pollution from main + .gitignore guards | **v46.11** |
 
-**Releases:** v46.1 (pre-session) → v46.8 (midway — 45 commits of unreleased fixes, filed #372 for the gap) → v46.9 (rename).
+### Adopter sync
 
-**Bonus fix** landed mid-flight: `_test-isolation` TOOLS_DIR stale path (was breaking agency-health.bats + agency-init.bats).
+- **andrew-demo**: bootstrap-rsync'd to v46.11 (local commit 1b7ddc7); manifest bumped; `agency verify` now 10/12 (2 deferred figma warnings unrelated). Not yet pushed to andrew-demo's GitHub remote.
 
-## Plan v5 / Agency installer roadmap — 9 issues filed
+### Cross-repo (monofolk)
 
-Principal corrected sequencing: #374 first (manifest is foundational; release automation builds on top of it, not before).
+- Dispatch: **monitor-register re-implementation** — asked for review / adoption / joint contract
+- Dispatch: **designex Phase 1.5 diff report + asks (2)(3) reply** — closes the-agency task #19, unblocks designex agent
+- Dispatch: **the-agency#342 ETA — state-report (not estimate)** per monofolk's "stop-estimating" directive — 6 deferred cleanups reported as "parked in queue, not forgotten"
 
-**Track M — manifest-driven installer (no src/ split needed):**
+### Issues filed (session-wide)
 
-- **#374** install-surface manifest schema + populate ← FIRST
-- **#375** init manifest-driven (depends #374)
-- **#376** update manifest-driven (depends #374)
-- **#377** drift detection (depends #374, closes #329)
-- **#372** release automation (after manifest exists so releases can carry manifest provenance)
+| # | Subject |
+|---|---|
+| #382 | v46 sweep-miss umbrella (CLOSED by #386) |
+| #383 | presence-detect status line missing framework version |
+| #384 | BATS tests must run in Docker (test isolation) |
+| #385 | commit-precheck scoped-bats hangs on large PRs |
+| #387 | `_test-isolation` leaks into real tree |
+| #388 | `git-safe add` rejects directory paths (DX) |
+| #389 | `git-safe unstage` shell-meta path gap |
+| #390 | Post-mortem: #386 merge baked pathological files (CLOSED by #391) |
+| #392 | agency update chicken-egg (v46 adopters can't sync agency/ tree) |
 
-**Track S — Plan v5 Phases 4-8 (structural refactor):**
+Plus internal task #55: **CI build-out** — real `smoke` battery + lint + typecheck + vitest.
 
-- **#378** Phase 4: `src/agency/` + `src/claude/` source-tree establishment
-- **#379** Phase 5: Python build tool at `src/tools/build` (depends #378)
-- **#380** Phase 6: first build + commit dual-tracked output (depends #379)
-- **#381** Phase 8: post-refactor full verification (depends #380)
+### Dispatch queue processed
 
-Dependency graph documented in the GitHub issue bodies.
+- **107 commit-notify dispatches** bulk-resolved (Python loop over `dispatch resolve`)
+- **4 stale dispatches** resolved (Python friction, iscp FYI, superseded PR notification, old master-sync request)
+- **3 live dispatches acted on** — designex Phase 1.5 relayed, #342 ETA state-reported, monofolk routing-check cleared
+- **0 unread** at session end
 
-## Right-now context (what I was last doing)
+## Key decisions captured
 
-Just discovered and reported to principal that **~30+ tools in `agency/tools/` still reference `$PROJECT_ROOT/claude/*` or `$REPO_ROOT/claude/*` paths** that don't exist on v46.1 adopters. Sample from first 30 grep hits:
+1. **`--no-verify` is acceptable for mechanical sweeps** when foreground tests are already green AND the scoped-bats timeout would block (#385). Principal authorized for today's #386; should remain rare.
 
-- receipt-verify:21 — RECEIPTS_DIR claude/receipts
-- agency-version:21 — MANIFEST path
-- settings-merge:23 — TEMPLATE path
-- agent-create:37 — TEMPLATE_DIR
-- pr-create:41 — receipt search fallback
-- collaboration:45, secret:64, deploy:61, config:43, principal-onboard:39/229/284 — all hit claude/config/agency.yaml
-- git-safe-commit:430 — same yaml path
-- artifact-capture:51, artifact-list:33, issue-monitor:42 — claude/principals + claude/data
-- figma-diff:79/179/181/198 — multiple claude/* refs
-- terminal-setup-ghostty:109-110, dependencies-check:33
+2. **`smoke.yml` placeholder is fine short-term** as long as CI build-out (#55) lands soon. Real battery replaces the stub.
 
-Every one of these silently fails or errors on a v46.1 adopter.
+3. **Plan v5 Phase 4+ staging confirmed** — principal approved the C/A/B/D layout:
+   - **C** Andrew-demo update ✅
+   - **A** Monofolk monitor-register dispatch ✅
+   - **B** Dispatch backlog ✅
+   - **D** Plan v5 Phase 4+ — not started, is the next session's open lane
 
-**Asked principal** which of three filing options:
-1. One big sweep PR (risky, ~30 files in one commit)
-2. Umbrella issue + staged PRs (inventory + chip away)
-3. Leave until Track M (#375/#376) lands (manifest-driven will rediscover them)
+4. **"Stop estimating" directive internalized** (from monofolk/jordan). Captain reports state (planned/parked/in-flight) — never estimates timelines.
 
-My recommendation: **option 2**. Inventory needs to exist; prioritize by adopter-visible impact (receipt-verify, settings-merge, agency-version first; figma-diff later).
+5. **Dispatch discipline reminder**: principal noted "when a dispatch sits, it blocks someone." Commit to `/monitor-dispatches` at every session-start next time.
 
-**Awaiting principal's choice.**
+## Right-now state
 
-## State at PAUSE
+- **Branch:** `main`
+- **Last commit:** `c77fce0c` (merge PR #391)
+- **Tree:** clean
+- **HEAD on origin:** `c77fce0c` (synced)
+- **v46.11 released on GitHub:** ✅ https://github.com/the-agency-ai/the-agency/releases/tag/v46.11
+- **0 unread dispatches, 0 new flags this session** (flag queue has 157 pre-existing items — seed/observation items tagged for later triage)
+- **andrew-demo** on v46.11 locally; GitHub remote still at v46.1 pending push
 
-- Branch: `fix/workstream-rename-agency` (the #373 branch, now merged; still locally checked out)
-- Last commit (coord checkpoint): `d7ec902a` from the session-pause
-- Tree: clean after checkpoint
-- Stashes preserved:
-  - `stash@{0}` — 0300-runbook handoff content (superseded by later activity, can drop)
-  - `stash@{1}` — residual sweep-miss fixes (collaboration + skill-audit; skill-audit fix landed in #365, can verify + drop)
-- Main: synced with origin (last sync was before the rename PR merged; may need pull)
-- Open PRs: none from us; #299 #351 #362 all closed; #362 merged; remaining open are elsewhere
+## Plan v5 status (Track M / Track S separation)
 
-## Open commitments / deferred items
+Per principal's correction last session: Phase 4 (src/ split) is **Track S**, NOT required for Track M. Track M = manifest-driven installer, can ship independently.
 
-- [ ] Umbrella issue for ~30 stray tool path refs (answer from principal → execute option 1/2/3)
-- [ ] Monofolk cross-repo dispatch: tell them we re-implemented monitor-register from call-site contracts; invite adoption upstream
-- [ ] Dispatch backlog: 114 unread + ~8 flags
-- [ ] Drop stashes or re-apply them
-- [ ] Decide on andrew-demo update (at v46.2 → could push to v46.9 via `agency update`)
+**Track M (manifest-driven installer):**
+- **#374** install-surface manifest schema + populate ← FIRST (gate)
+- #375 init manifest-driven (depends #374)
+- #376 update manifest-driven (depends #374)
+- #377 drift detection (depends #374, closes #329)
+- #372 release automation (after #375+#376)
 
-## Related issues (not in this session's PRs)
+**Track S (src/ split, deferred):**
+- #378 Phase 4 — establish `src/agency/` + `src/claude/` sources
+- #379 Phase 5 — Python build tool at `src/tools/build`
+- #380 Phase 6 — first build + dual-tracked output commit
+- #381 Phase 8 — post-refactor full verification
 
-- #287 "real installer gap" (Track M addresses)
-- #326 principal mapping `$USER` vs `.name` (adjacent to #332 which we fixed in #369)
-- #329 framework drift nudge (Track M's #377 closes)
-- #337 SEED: true installer
-- #350 hookify canaries (6 remaining un-synthesizable)
-- #372 release automation gap (filed this session)
+**Task #39** (Phase 4 src/ split) remains pending under Track S.
 
-## Key decisions captured this session
+## Stabilization backlog (not blocking next session)
 
-1. **9 PRs merged in one session.** Heavy day of adopter-tooling restoration. Fleet went from "agency init/update broken on v46.1" to "works end-to-end, validated via sandbox install + update-on-adopter smoke tests."
+- **#55** CI build-out (replace smoke.yml placeholder with real battery)
+- **#384** BATS Docker isolation (structural fix for test pollution)
+- **#387** `_test-isolation` leak (immediate companion to #384)
+- **#385** commit-precheck scoped-bats hang
+- **#383** presence-detect status line
+- **#388** git-safe add DX
+- **#389** git-safe unstage gap
+- **#392** agency update chicken-egg (NEW — high severity for v46 adopters)
 
-2. **Workstream renamed** `the-agency` → `agency` per principal — framework-dev workstream now at `agency/workstreams/agency/`. Separation of GitHub org/repo name (the-agency) from workstream name (agency).
+## Open coordination items
 
-3. **Plan v5 decomposed into 9 issues.** Principal wants manifest-driven installer (#374) BEFORE the src/ split (#378). Track M can ship without Track S.
-
-4. **Release cadence broken** (#372). pr-captain-post-merge skill not being invoked after merges; release-tag-check CI didn't fire. 8 PRs landed without releases until captain noticed. Documented in issue.
+- andrew-demo push to GitHub (local commit 1b7ddc7 hasn't been pushed to `https://github.com/the-agency-ai/andrew-demo.git`) — principal to decide whether to push or keep local
+- Flag backlog (157 items) — periodic triage via `/flag-triage` skill (not urgent)
 
 ## Recovery next session
 
-1. `/compact-resume` — pickup via session-pickup --from compact.
-2. Read this handoff, note `next-action`.
-3. Principal likely has answered the umbrella-issue question — act on that.
-4. If no answer, ping or pick up on another item from the deferred list.
+1. `/session-resume` — syncs master, reads this handoff, checks dispatches. Includes `session-preflight`.
+2. Start `/monitor-dispatches` **at session-start** (commitment from this session — don't let them pile up again).
+3. Review `next-action` — decide D lane vs stabilization item.
+4. Execute.
 
-— captain, mid-session continuation, 2026-04-21T02:30 UTC+8
+## Related transcripts / receipts
+
+- v46.10 QGR: `agency/workstreams/agency/qgr/the-agency-jordan-captain-agency-v46-claude-path-sweep-qgr-pr-prep-20260421-1230-e43a182.md`
+- v46.11 QGR: `agency/workstreams/agency/qgr/the-agency-jordan-captain-agency-purge-test-pollution-qgr-pr-prep-20260421-1244-bfa9fb9.md`
+- Sweep manifest: `usr/jordan/captain/sweep-manifest-v46-claude-paths.yaml`
+
+— captain, session-end, 2026-04-21T05:03 UTC (13:03 SGT)
