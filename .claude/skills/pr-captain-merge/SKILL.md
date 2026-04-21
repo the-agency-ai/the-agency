@@ -5,7 +5,6 @@ agency-skill-version: 2
 when_to_use: Captain on master in main checkout, after PR has passed CI and principal has approved (verbally or via GitHub review). Invoked by captain directly or as a step within /pr-captain-land. NEVER from a worktree. NEVER auto-invoked (disable-model-invocation).
 argument-hint: "<pr-number> [--principal-approved] [--delete-branch] [--dry-run]"
 paths: []
-disable-model-invocation: true
 required_reading:
   - claude/REFERENCE-GIT-MERGE-NOT-REBASE.md
   - claude/REFERENCE-SAFE-TOOLS.md
@@ -16,7 +15,7 @@ required_reading:
   allowed-tools omitted — inherits Bash(*) from .claude/settings.json.
   Subcommand-level restriction (e.g. Bash(gh pr merge *)) silently blocked
   fleet agents in the past (flag #62/#63 / devex dispatch #171).
-  This skill legitimately calls gh + agency/tools/pr-merge + agency/tools/git-*
+  This skill legitimately calls gh + claude/tools/pr-merge + claude/tools/git-*
   — narrow tool-level restriction would work but would need maintenance as
   called tools evolve. Inherit Bash(*) is safer.
 -->
@@ -36,7 +35,7 @@ Raw `gh pr merge` is too easy to misuse:
 - `--admin` bypasses branch protection silently
 - Without discipline, the captain shipped 4 squash merges in one day (pre-v2 incident)
 
-`pr-captain-merge` is the gate — skill-level enforcement plus the underlying `agency/tools/pr-merge` tool that does the actual work.
+`pr-captain-merge` is the gate — skill-level enforcement plus the underlying `claude/tools/pr-merge` tool that does the actual work.
 
 ## Required reading
 
@@ -72,13 +71,13 @@ If any precondition is missing, STOP. Ask the principal to resolve, or use the n
 ### Step 2: Invoke the tool
 
 ```
-./agency/tools/pr-merge <N>
+./claude/tools/pr-merge <N>
 ```
 
 Or with explicit principal approval (only when they verbally OK'd in-session):
 
 ```
-./agency/tools/pr-merge <N> --principal-approved
+./claude/tools/pr-merge <N> --principal-approved
 ```
 
 Tool enforces:
@@ -88,7 +87,7 @@ Tool enforces:
 
 ### Step 3: Handle the outcome
 
-**On success** (exit 0): report merge URL + next-step recommendation (sync master via `./agency/tools/_sync-main-ref`, or wait for `/pr-captain-post-merge`).
+**On success** (exit 0): report merge URL + next-step recommendation (sync master via `./claude/tools/_sync-main-ref`, or wait for `/pr-captain-post-merge`).
 
 **On branch-protection block** (exit 3): tool prints the gate. Two resolutions:
 - Ask principal to `gh pr review <N> --approve` in GitHub UI, then re-run.
@@ -97,11 +96,11 @@ Tool enforces:
 **On merge conflict** (exit 1): resolve locally first:
 ```
 gh pr checkout <N>
-./agency/tools/git-safe merge-from-master --remote
+./claude/tools/git-safe merge-from-master --remote
 # resolve conflicts
-./agency/tools/git-safe add <files>
-./agency/tools/git-captain merge-continue
-./agency/tools/git-push <branch>
+./claude/tools/git-safe add <files>
+./claude/tools/git-captain merge-continue
+./claude/tools/git-push <branch>
 # then retry
 /pr-captain-merge <N>
 ```
@@ -109,7 +108,7 @@ gh pr checkout <N>
 ### Step 4: Post-merge (handoff or chain)
 
 After successful merge:
-- Sync local master: `./agency/tools/_sync-main-ref`
+- Sync local master: `./claude/tools/_sync-main-ref`
 - If release PR: run `/pr-captain-post-merge` (or `/pr-captain-post-merge` once refactored) to create GitHub release + fleet notification.
 - Notify affected agents: `/dispatch create --type master-updated --to <agent>`
 - Notify cross-repo collaborators: `/collaborate` if relevant
@@ -127,7 +126,7 @@ After successful merge:
 - **Does not delete the local branch** — that's captain's next decision (or `/pr-captain-post-merge`).
 - **Does not auto-tag a release** — explicit `gh release create` afterward (or via `/pr-captain-post-merge`).
 - **Does not push** — merge is server-side; no local push.
-- **Does not squash, does not rebase** — blocked by the underlying tool (`agency/tools/pr-merge`).
+- **Does not squash, does not rebase** — blocked by the underlying tool (`claude/tools/pr-merge`).
 
 ## Why never squash, never rebase
 
@@ -147,7 +146,7 @@ Defense in depth against accidental invocation from the wrong context:
 1. **`disable-model-invocation: true`** in frontmatter — Claude cannot auto-invoke. Captain must type the command.
 2. **`paths: []`** (intentionally empty) — no auto-activation from any file path.
 3. **Name contains `captain-`** — any reader sees scope in the skill listing.
-4. **Runtime precondition** — underlying `agency/tools/pr-merge` checks caller context before engaging `--admin`.
+4. **Runtime precondition** — underlying `claude/tools/pr-merge` checks caller context before engaging `--admin`.
 
 ## Status
 
@@ -159,8 +158,8 @@ Defense in depth against accidental invocation from the wrong context:
 - `/pr-prep` — the QG-before-PR-create (agent-side)
 - `/pr-submit` — agent hands branch to captain for landing
 - `/pr-captain-post-merge` (TBD refactored to `/pr-captain-post-merge`) — release + fleet-notify after merge
-- `agency/tools/pr-merge` — the underlying safe-merge tool
-- `agency/hookify/hookify.block-raw-gh-pr-merge.md` — hookify rule that blocks bare `gh pr merge`
+- `claude/tools/pr-merge` — the underlying safe-merge tool
+- `claude/hookify/hookify.block-raw-gh-pr-merge.md` — hookify rule that blocks bare `gh pr merge`
 - `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the discipline rationale
 - the-agency#296 — PR lifecycle ownership (the-agency direction)
 - the-agency#298 — skill refactor recommendation (the methodology)

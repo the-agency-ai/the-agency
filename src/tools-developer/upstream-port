@@ -44,17 +44,23 @@ show_help() {
     echo "  --message <msg>       Custom commit message"
     echo "  --auto-merge          Squash-merge the PR immediately (default: create PR only)"
     echo ""
-    echo "Path mapping (auto):"
-    echo "  claude/tools/X                    → claude/tools/X"
-    echo "  claude/tools/tests/X              → claude/tools/tests/X"
+    echo "Path mapping (auto, v46.1 Great Rename):"
+    echo "  claude/tools/<framework-dev>      → src/tools-developer/X      # never-shipped devtools"
+    echo "  claude/tools/X                    → agency/tools/X             # customer runtime"
+    echo "  claude/tools/tests/X              → src/tests/tools/X          # BATS/sh tests"
+    echo "  claude/REFERENCE-X.md             → agency/REFERENCE/REFERENCE-X.md"
+    echo "  claude/CLAUDE-X.md                → agency/CLAUDE-X.md"
+    echo "  claude/README-X.md                → agency/README-X.md"
+    echo "  claude/hookify/X                  → agency/hookify/X"
+    echo "  claude/hooks/X                    → agency/hooks/X"
+    echo "  claude/agents/X                   → agency/agents/X"
+    echo "  claude/config/X                   → agency/config/X"
+    echo "  claude/docs/X                     → agency/docs/X"
+    echo "  .claude/skills/X/Y                → .claude/skills/X/Y         # source==installed in v46.1"
     echo "  usr/*/commands/X.md               → .claude/skills/X/SKILL.md (mkdir)"
     echo "  claude/usr/*/commands/X.md        → .claude/skills/X/SKILL.md (mkdir, legacy path)"
-    echo "  claude/hookify/X                  → claude/hookify/X"
-    echo "  usr/*/hookify/X                   → claude/hookify/X"
-    echo "  claude/usr/*/hookify/X            → claude/hookify/X (legacy path)"
-    echo "  claude/agents/X                   → claude/agents/X"
-    echo "  claude/docs/X                     → claude/docs/X"
-    echo "  claude/config/X                   → claude/config/X"
+    echo "  usr/*/hookify/X                   → agency/hookify/X"
+    echo "  claude/usr/*/hookify/X            → agency/hookify/X (legacy path)"
     echo ""
     echo "Options:"
     echo "  --version    Show version"
@@ -118,6 +124,20 @@ if ! command -v gh &>/dev/null; then
 fi
 
 # --- Path mapping ---
+#
+# v46.1 the-agency structure (updated 2026-04-20 for Great Rename + restructure):
+#   - Customer runtime tools live under agency/tools/ (was claude/tools/).
+#   - Customer-facing REFERENCE docs live under agency/REFERENCE/ (was claude/REFERENCE-*.md).
+#   - Framework-dev-only tools live under src/tools-developer/ (never shipped to adopters).
+#   - BATS/shell tests live under src/tests/tools/ (was claude/tools/tests/).
+#   - Skills (Claude Code discovery surface) still live at .claude/skills/ in both repos.
+#   - Hookify rules live at agency/hookify/ in the-agency (was claude/hookify/).
+#   - Agent definitions live at agency/agents/ (was claude/agents/).
+#   - Config lives at agency/config/ (was claude/config/).
+#
+# The v46.2+ build boundary will move sources into src/claude/ + src/agency/ and treat
+# agency/ + .claude/ as installed artifacts; this mapping is for v46.1 hybrid state where
+# agency/ + .claude/ is BOTH source-of-truth AND installed location.
 resolve_target() {
     local src="$1"
 
@@ -126,34 +146,56 @@ resolve_target() {
 
     case "$rel" in
         claude/tools/tests/*)
-            echo "claude/tools/tests/$(basename "$rel")"
+            echo "src/tests/tools/$(basename "$rel")"
+            ;;
+        claude/tools/skill-audit|claude/tools/skill-create|claude/tools/skill-upgrade|claude/tools/agency-verify*|claude/tools/agency-health*|claude/tools/upstream-port|claude/tools/tool-create|claude/tools/tool-version-add|claude/tools/service-add|claude/tools/ui-add|claude/tools/changelog-monitor|claude/tools/ci-monitor|claude/tools/audit-log-*|claude/tools/enforcement-audit|claude/tools/gate-check|claude/tools/git-rename-tree|claude/tools/hookify-rule-canary|claude/tools/iscp-migrate|claude/tools/lint-embedded-python|claude/tools/opportunities|claude/tools/ref-inventory-gen|claude/tools/ref-sweep-allowlist.txt|claude/tools/reset-rollback|claude/tools/subagent-diff-verify|claude/tools/subagent-overlap-check|claude/tools/subagent-scope-check|claude/tools/test-full-suite|claude/tools/agency-sweep|claude/tools/agent-bootstrap)
+            # Framework-dev-only tools — never shipped to adopters
+            echo "src/tools-developer/$(basename "$rel")"
             ;;
         claude/tools/*)
-            echo "claude/tools/$(basename "$rel")"
+            # Customer runtime tools
+            echo "agency/tools/$(basename "$rel")"
+            ;;
+        claude/REFERENCE-*.md)
+            # REFERENCE docs moved to agency/REFERENCE/ subdir on v46.1
+            echo "agency/REFERENCE/$(basename "$rel")"
+            ;;
+        claude/CLAUDE-*.md)
+            echo "agency/$(basename "$rel")"
+            ;;
+        claude/README-*.md)
+            echo "agency/$(basename "$rel")"
             ;;
         usr/*/commands/*.md|claude/usr/*/commands/*.md)
             # commands/X.md → .claude/skills/X/SKILL.md
             local name=$(basename "$rel" .md)
             echo ".claude/skills/$name/SKILL.md"
             ;;
+        .claude/skills/*/*)
+            # Skills stay at .claude/skills/ (source-of-truth + installed in v46.1)
+            echo "$rel"
+            ;;
         claude/hookify/*)
-            echo "claude/hookify/$(basename "$rel")"
+            echo "agency/hookify/$(basename "$rel")"
             ;;
         usr/*/hookify/*|claude/usr/*/hookify/*)
             # Sandbox hookify → shared framework hookify
             local name=$(basename "$rel")
-            # Strip .local from name if present
             name="${name%.local.md}.md"
-            echo "claude/hookify/$name"
+            echo "agency/hookify/$name"
+            ;;
+        claude/hooks/*)
+            echo "agency/hooks/$(basename "$rel")"
             ;;
         claude/agents/*)
-            echo "$rel"
+            echo "agency/agents/$(basename "$rel")"
             ;;
         claude/docs/*)
-            echo "$rel"
+            # docs moved under agency/ subtree — adjust if your layout differs
+            echo "agency/docs/$(basename "$rel")"
             ;;
         claude/config/*)
-            echo "$rel"
+            echo "agency/config/$(basename "$rel")"
             ;;
         *)
             # Unmapped — require --target
