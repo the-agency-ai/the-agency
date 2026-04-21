@@ -158,7 +158,7 @@ Addresses resolve to physical locations for dispatch payloads:
 
 | Target type | Address pattern | Dispatch payload location |
 |-------------|----------------|--------------------------|
-| Agent | `{repo}/{principal}/{agent}` | `claude/data/dispatches/` |
+| Agent | `{repo}/{principal}/{agent}` | `agency/config/dispatches/` |
 | Workstream | `{repo}/{workstream}` | `agency/workstreams/{workstream}/dispatches/` |
 
 A **dispatch** is a structured message between agents or from principal to agent. It consists of a notification pointing to a payload file in git at the resolved location above. Dispatch payloads are immutable once written. Named `{type}-{slug}-{YYYYMMDD-HHMM}.md`.

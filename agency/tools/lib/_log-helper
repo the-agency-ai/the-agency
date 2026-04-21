@@ -12,7 +12,7 @@
 #   log_detail "$RUN_ID" "stdout" "$captured_output"
 #
 # Writes to: .claude/logs/tool-runs.jsonl (append-only)
-# Read with: ./claude/tools/telemetry
+# Read with: ./agency/tools/telemetry
 
 _LOG_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/logs"
 _LOG_FILE="${_LOG_DIR}/tool-runs.jsonl"

@@ -47,9 +47,9 @@ I am a design system extraction specialist. I transform Figma designs into struc
 
 ## Knowledge
 
-- **Primary:** `claude/knowledge/design-systems/` - Design system documentation
-- **Reference:** `claude/knowledge/ui-development/` - Implementation patterns
-- **Templates:** `claude/knowledge/design-systems/_template/` - Standard structure
+- **Primary:** `agency/knowledge/design-systems/` - Design system documentation
+- **Reference:** `agency/knowledge/ui-development/` - Implementation patterns
+- **Templates:** `agency/knowledge/design-systems/_template/` - Standard structure
 
 ## Tools
 

@@ -5,7 +5,7 @@
 # no top-level framework version. Without it we can't show drift, can't answer
 # "is presence-detect current?", and can't display a version in the statusline.
 #
-# How & Why: Read agency_version from claude/config/manifest.json and print it.
+# How & Why: Read agency_version from agency/config/manifest.json and print it.
 # Verbs kept minimal for v1 — print, --statusline (silent on missing), --json.
 # Drift detection and audit verbs are deferred (flag #51 / audit tool). One
 # tool, one responsibility for now: "what version is this?"
@@ -18,7 +18,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-MANIFEST="$PROJECT_ROOT/claude/config/manifest.json"
+MANIFEST="$PROJECT_ROOT/agency/config/manifest.json"
 
 _usage() {
     cat <<'EOF'
@@ -31,7 +31,7 @@ USAGE
   agency-version --help       Show this help
 
 READS
-  claude/config/manifest.json → agency_version
+  agency/config/manifest.json → agency_version
 EOF
 }
 

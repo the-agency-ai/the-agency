@@ -48,7 +48,7 @@ usage() {
     cat <<'USAGE'
 git-captain — Captain-only git operations
 
-Usage: ./claude/tools/git-captain <subcommand> [args...]
+Usage: ./agency/tools/git-captain <subcommand> [args...]
 
 Subcommands:
   merge-to-master <branch>       Merge branch into main/master (--no-ff)

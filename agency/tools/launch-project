@@ -2,8 +2,8 @@
 # launch-project - Launch into a project in a new Ghostty tab
 #
 # Usage:
-#   ./claude/tools/launch-project /path/to/project
-#   ./claude/tools/launch-project my-project  # Looks up in projects.json
+#   ./agency/tools/launch-project /path/to/project
+#   ./agency/tools/launch-project my-project  # Looks up in projects.json
 #
 # Requires: macOS + Ghostty
 
@@ -24,8 +24,8 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || -z "${1:-}" ]]; then
     echo "launch-project - Launch into a project in a new Ghostty tab"
     echo ""
     echo "Usage:"
-    echo "  ./claude/tools/launch-project /path/to/project"
-    echo "  ./claude/tools/launch-project my-project  # Looks up in projects.json"
+    echo "  ./agency/tools/launch-project /path/to/project"
+    echo "  ./agency/tools/launch-project my-project  # Looks up in projects.json"
     echo ""
     echo "Requires: macOS + Ghostty"
     exit 0
@@ -77,7 +77,7 @@ echo -e "${GREEN}Path:${NC} $PROJECT_PATH"
 
 # Open new Ghostty window/tab via the CLI
 # ghostty +new-window spawns a new window; redirect stdin so it detaches cleanly
-ghostty --working-directory="$PROJECT_PATH" --command="bash -c 'exec ./claude/tools/myclaude housekeeping captain'" 2>/dev/null &
+ghostty --working-directory="$PROJECT_PATH" --command="bash -c 'exec ./agency/tools/myclaude housekeeping captain'" 2>/dev/null &
 disown 2>/dev/null || true
 
 echo -e "${GREEN}Done!${NC} Ghostty window opened for $PROJECT_NAME"

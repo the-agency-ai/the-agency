@@ -30,7 +30,7 @@ Stage explicit file paths. Do not use `git add -A` or `git add .` — hookify bl
 
 ```bash
 ./agency/tools/git-safe add agency/tools/my-tool
-./agency/tools/git-safe add claude/docs/my-doc.md
+./agency/tools/git-safe add agency/REFERENCE/my-doc.md
 ```
 
 Stage each file by name. For multiple files, list them all in one call or call `git-safe add` once per file.
@@ -77,7 +77,7 @@ Or via the pre-PR skill (preferred — it also runs tests):
 /pr-prep
 ```
 
-The quality gate runs parallel agent reviews covering logic, security, tests, and conventions. When it passes it writes a receipt to `claude/receipts/`.
+The quality gate runs parallel agent reviews covering logic, security, tests, and conventions. When it passes it writes a receipt to `agency/receipts/`.
 
 **Common pitfall:** Skipping the quality gate. The `pr-create` tool will block you at step 9 if no valid receipt exists.
 
@@ -169,7 +169,7 @@ EOF
 
 `pr-create` runs three pre-flight checks before calling `gh pr create`:
 1. You are on a branch (not main)
-2. A valid receipt exists in `claude/receipts/`
+2. A valid receipt exists in `agency/receipts/`
 3. `manifest.json` was bumped relative to `origin/main`
 
 If any check fails, the tool exits with a clear message explaining what to fix.
@@ -241,8 +241,8 @@ The release skill runs `/pr-prep` (quality gate + tests), bumps the version, com
 ## Reference
 
 - Safe tools full spec: `claude/REFERENCE-SAFE-TOOLS.md`
-- Safe tools overview: `claude/README-SAFE-TOOLS.md`
-- Receipt infrastructure: `claude/README-RECEIPT-INFRASTRUCTURE.md`
+- Safe tools overview: `agency/README-SAFE-TOOLS.md`
+- Receipt infrastructure: `agency/README-RECEIPT-INFRASTRUCTURE.md`
 - Quality gate protocol: `claude/REFERENCE-QUALITY-GATE.md`
 - Git discipline: `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`
 - Receipt infrastructure: `claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md`

@@ -1,10 +1,10 @@
 #!/bin/bash
 # Create a new principal (human stakeholder)
 #
-# Usage: ./claude/tools/principal-create <principalname> [projectname] [--verbose]
+# Usage: ./agency/tools/principal-create <principalname> [projectname] [--verbose]
 #
 # Creates:
-#   claude/principals/{principalname}/
+#   usr/{principalname}/
 #     - projects/, resources/, sessions/, config/
 #
 # Optional integrations (if projectname provided):
@@ -55,9 +55,9 @@ Options:
   -h, --help     - Show this help
 
 Examples:
-  ./claude/tools/principal-create jordan
-  ./claude/tools/principal-create jordan the-agency
-  ./claude/tools/principal-create alice --verbose
+  ./agency/tools/principal-create jordan
+  ./agency/tools/principal-create jordan the-agency
+  ./agency/tools/principal-create alice --verbose
 EOF
 }
 
@@ -106,8 +106,8 @@ fi
 PRINCIPALNAME=$(echo "$PRINCIPALNAME" | tr '[:upper:]' '[:lower:]')
 
 DIR="usr/$PRINCIPALNAME"
-LEGACY_DIR="claude/principals/$PRINCIPALNAME"
-TIMESTAMP=$(./claude/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
+LEGACY_DIR="usr/$PRINCIPALNAME"
+TIMESTAMP=$(./agency/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 
 # Main function
 main() {
@@ -132,7 +132,7 @@ main() {
     log_step "Creating principal: $PRINCIPALNAME"
 
     # Use v2 template if available, otherwise create minimal v2 structure
-    TEMPLATE_V2="claude/templates/principal-v2"
+    TEMPLATE_V2="agency/templates/principal-v2"
     if [[ -d "$TEMPLATE_V2" ]]; then
         log_info "Creating principal from v2 template (usr/{principal}/)..."
         mkdir -p "$DIR"
@@ -148,7 +148,7 @@ main() {
         done < <(find "$DIR" -name "*.md" -print0 2>/dev/null)
     else
         # Minimal v2 structure
-        mkdir -p "$DIR"/claude/{commands,hookify,hooks,agents,refs}
+        mkdir -p "$DIR"/{commands,hookify,hooks,agents,refs}
         mkdir -p "$DIR"/scripts
 
         # Create principal README
@@ -159,7 +159,7 @@ main() {
 
 ## Structure
 
-- \`claude/\` - Claude Code config (commands, hookify, hooks, agents, refs)
+- Claude Code config (commands, hookify, hooks, agents, refs) — lives directly under the principal dir
 - \`scripts/\` - Cross-cutting scripts
 - \`{project}/\` - One directory per project
 
@@ -170,7 +170,7 @@ All project artifacts follow: \`{project}-{artifact}-YYYYMMDD.md\`
 ## Getting Started
 
 1. Create a project: \`mkdir -p usr/$PRINCIPALNAME/my-project/{transcripts,code-reviews,history}\`
-2. Configure: \`claude/config/agency.yaml\` to map your system user
+2. Configure: \`agency/config/agency.yaml\` to map your system user
 EOF
     fi
 
@@ -180,11 +180,11 @@ EOF
     if [ -n "$PROJECTNAME" ]; then
       verbose_echo ""
       log_step "Setting up iCloud integration..."
-      ./claude/tools/icloud-setup "$PROJECTNAME" "$PRINCIPALNAME"
+      ./agency/tools/icloud-setup "$PROJECTNAME" "$PRINCIPALNAME"
     fi
 
     # Update principals index
-    INDEX="claude/principals/INDEX.md"
+    INDEX="usr/INDEX.md"
     if [ -f "$INDEX" ]; then
       if ! grep -q "| $PRINCIPALNAME |" "$INDEX"; then
         echo "| $PRINCIPALNAME | $TIMESTAMP | Active |" >> "$INDEX"
@@ -197,7 +197,7 @@ EOF
     echo ""
     echo "Next steps:"
     echo "  1. Review: $DIR/README.md"
-    echo "  2. Configure: claude/config/agency.yaml to map your system user"
+    echo "  2. Configure: agency/config/agency.yaml to map your system user"
     echo "  3. Create your first project: mkdir -p $DIR/my-project/{transcripts,code-reviews,history}"
 
     trap - EXIT

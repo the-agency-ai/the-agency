@@ -6,8 +6,8 @@
 .claude/logs/
 
 # Agency service logs (but keep reviews for findings history)
-claude/logs/*
-!claude/logs/reviews/
+agency/logs/*
+!agency/logs/reviews/
 
 # Principal scratch (gitignored intentionally — used for drafts, tmp files)
 usr/*/tmp/

@@ -7,7 +7,7 @@
 # before they cause downstream failures.
 #
 # Usage:
-#   ./claude/tools/skill-verify [--quiet]
+#   ./agency/tools/skill-verify [--quiet]
 #
 # Exit codes:
 #   0 — all skills present and valid

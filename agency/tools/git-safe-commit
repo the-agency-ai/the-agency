@@ -2,9 +2,9 @@
 # Create properly formatted commits for The Agency
 #
 # Usage:
-#   ./claude/tools/git-safe-commit "short summary" --work-item REQUEST-jordan-0065 --stage impl
-#   ./claude/tools/git-safe-commit "fix null handling" --work-item BUG-0042 --stage review
-#   ./claude/tools/git-safe-commit "quick doc fix" --no-work-item  # Escape hatch when no work item applies
+#   ./agency/tools/git-safe-commit "short summary" --work-item REQUEST-jordan-0065 --stage impl
+#   ./agency/tools/git-safe-commit "fix null handling" --work-item BUG-0042 --stage review
+#   ./agency/tools/git-safe-commit "quick doc fix" --no-work-item  # Escape hatch when no work item applies
 #
 # IMPORTANT: Work item OR --no-work-item is REQUIRED. Commits without either are blocked.
 #
@@ -48,7 +48,7 @@ TOOL_VERSION="2.0.0-20260120-000002"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Resolve project root for tools that need it (per-agent attribution lookup
-# reads agency.yaml at $PROJECT_ROOT/claude/config/agency.yaml). Prefer
+# reads agency.yaml at $PROJECT_ROOT/agency/config/agency.yaml). Prefer
 # CLAUDE_PROJECT_DIR (set in hooks), fall back to git rev-parse, then to
 # SCRIPT_DIR-based fallback. Without this, the per-agent attribution code
 # below silently fails with "PROJECT_ROOT: unbound variable" under set -u.
@@ -219,9 +219,9 @@ main() {
         # Verify no remaining conflicts
         if git ls-files -u | grep -q .; then
             log_error "Merge has unresolved conflicts. Resolve with:"
-            echo "  ./claude/tools/git-safe resolve-conflict <file> --ours|--theirs"
-            echo "  ./claude/tools/git-safe rm <file>       # delete-as-resolution"
-            echo "  ./claude/tools/git-safe merge-abort     # bail out"
+            echo "  ./agency/tools/git-safe resolve-conflict <file> --ours|--theirs"
+            echo "  ./agency/tools/git-safe rm <file>       # delete-as-resolution"
+            echo "  ./agency/tools/git-safe merge-abort     # bail out"
             trap - EXIT
             log_end "$RUN_ID" "failure" 1 0 "Merge has unresolved conflicts"
             exit 1
@@ -245,7 +245,7 @@ main() {
 
     if [ -z "$MESSAGE" ]; then
         log_error "Commit message required"
-        verbose_echo "Usage: ./claude/tools/git-safe-commit \"message\" --work-item WORK-ITEM --stage impl"
+        verbose_echo "Usage: ./agency/tools/git-safe-commit \"message\" --work-item WORK-ITEM --stage impl"
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "Missing commit message"
         exit 1
@@ -256,10 +256,10 @@ main() {
         log_error "Work item required"
         echo ""
         echo "Every commit must reference a work item:"
-        echo "  ./claude/tools/git-safe-commit \"message\" --work-item REQUEST-jordan-XXXX --stage impl"
+        echo "  ./agency/tools/git-safe-commit \"message\" --work-item REQUEST-jordan-XXXX --stage impl"
         echo ""
         echo "To skip (escape hatch):"
-        echo "  ./claude/tools/git-safe-commit \"message\" --no-work-item"
+        echo "  ./agency/tools/git-safe-commit \"message\" --no-work-item"
         echo ""
         echo "Valid work item types: REQUEST, BUG, TASK, PHASE, ITERATION, SPRINT"
         trap - EXIT
@@ -427,7 +427,7 @@ main() {
             # any repos[].org == _git_org. The principal key may differ from
             # the principal slug (e.g., key=jdm, name=jordan).
             _gh_username=""
-            _yaml="$PROJECT_ROOT/claude/config/agency.yaml"
+            _yaml="$PROJECT_ROOT/agency/config/agency.yaml"
             if [ -f "$_yaml" ] && [ -n "$_git_org" ]; then
                 _gh_username=$(awk -v want_principal="$_ai_principal" -v want_org="$_git_org" '
                     /^principals:/ { in_principals=1; next }
@@ -617,8 +617,8 @@ ${files_changed}
 ${RED}BLOCKED:${NC} git commit failed because commit.gpgsign=true but gpg is missing.
 
 Fix options:
-  1. Disable signing for this repo:    ./claude/tools/git-safe config --local commit.gpgsign false
-  2. Disable signing globally:         ./claude/tools/git-safe config --global commit.gpgsign false
+  1. Disable signing for this repo:    ./agency/tools/git-safe config --local commit.gpgsign false
+  2. Disable signing globally:         ./agency/tools/git-safe config --global commit.gpgsign false
   3. Install gpg (macOS):              brew install gnupg
 
 Current commit.gpgsign: ${current_gpgsign:-(unset, but likely set globally)}

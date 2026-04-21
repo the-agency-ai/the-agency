@@ -3,18 +3,18 @@
 # preview — Top-level wrapper for SPEC-PROVIDER preview management
 #
 # What Problem: The /preview skill (.claude/skills/preview/SKILL.md) dispatches
-# to ./claude/tools/preview-{provider} based on agency.yaml's preview.provider
+# to ./agency/tools/preview-{provider} based on agency.yaml's preview.provider
 # config — but only inside Claude Code sessions. Shell scripts, CI pipelines,
 # and dev tools that want to start/stop/inspect a project preview can't invoke
 # a skill. Without a top-level wrapper, the SPEC-PROVIDER pattern is incomplete:
 # the skill (discovery layer) exists, providers (implementation layer) will
 # exist, but there's no tool (mechanical layer) for non-agent contexts.
 #
-# How & Why: Thin pass-through dispatcher modeled exactly on claude/tools/secret
+# How & Why: Thin pass-through dispatcher modeled exactly on agency/tools/secret
 # (Day 32 R3, the reference SPEC-PROVIDER wrapper). Reads `preview.provider`
-# from claude/config/agency.yaml, defaults to `docker-compose` (matches the
+# from agency/config/agency.yaml, defaults to `docker-compose` (matches the
 # framework default in agency.yaml), then execs the corresponding provider tool
-# (`./claude/tools/preview-{provider}`) with all args forwarded. Using `exec`
+# (`./agency/tools/preview-{provider}`) with all args forwarded. Using `exec`
 # instead of subshell so signals (Ctrl+C, etc.) propagate correctly and the
 # wrapper has zero process overhead.
 #
@@ -23,8 +23,8 @@
 #
 # This completes the SPEC-PROVIDER triangle for the preview capability:
 #   - Skill:    .claude/skills/preview/SKILL.md       (agent invocation, /preview)
-#   - Tool:     claude/tools/preview                  (this file — CLI wrapper)
-#   - Provider: claude/tools/preview-{provider}       (docker-compose, fly, etc.)
+#   - Tool:     agency/tools/preview                  (this file — CLI wrapper)
+#   - Provider: agency/tools/preview-{provider}       (docker-compose, fly, etc.)
 #
 # The skill defines the verb contract: start, stop, status, logs. Provider
 # tools must implement those verbs.
@@ -58,7 +58,7 @@ fi
 # --- Resolve provider from agency.yaml ---
 # Looks for: preview.provider: "name" — handles quoted and unquoted forms.
 # Default: docker-compose (matches framework default).
-AGENCY_YAML="$PROJECT_ROOT/claude/config/agency.yaml"
+AGENCY_YAML="$PROJECT_ROOT/agency/config/agency.yaml"
 PROVIDER="docker-compose"
 
 if [[ -f "$AGENCY_YAML" ]]; then

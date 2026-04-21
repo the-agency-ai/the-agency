@@ -14,7 +14,7 @@
 # auth via existing login. 60-second cadence is well inside GitHub's
 # authenticated rate limit (5000/hr, this is 60/hr).
 #
-# State file lives at claude/data/issue-monitor.last (in the framework data
+# State file lives at agency/config/issue-monitor.last (in the framework data
 # dir, NOT /tmp) so it survives session restarts and reboots. Tracks last-seen
 # by issue number (monotonic, simpler than ISO timestamps, no clock-skew).
 #
@@ -22,9 +22,9 @@
 #   [ISSUE #N] author: title — captain: triage now (read, scope fix, dispatch)
 #
 # Usage: With Monitor tool — invoke as:
-#   ./claude/tools/issue-monitor [--repo owner/repo] [--interval N]
+#   ./agency/tools/issue-monitor [--repo owner/repo] [--interval N]
 # Standalone (debug):
-#   ./claude/tools/issue-monitor --once
+#   ./agency/tools/issue-monitor --once
 #
 # Written: 2026-04-15 (D41-R11 captain) — provenance per principal directive
 #          to capture What/How/Why before implementation. Replaces ad-hoc
@@ -39,7 +39,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 REPO="the-agency-ai/the-agency"
 INTERVAL=60
 ONCE=false
-STATE_DIR="$PROJECT_ROOT/claude/data"
+STATE_DIR="$PROJECT_ROOT/agency/config"
 STATE_FILE="$STATE_DIR/issue-monitor.last"
 MAX_TO_FETCH=20
 
@@ -50,7 +50,7 @@ usage() {
 issue-monitor — Stream new GitHub Issues against a repo as Monitor events
 
 Usage:
-  ./claude/tools/issue-monitor [--repo owner/repo] [--interval N] [--once]
+  ./agency/tools/issue-monitor [--repo owner/repo] [--interval N] [--once]
 
 Options:
   --repo <owner/repo>   Repo to watch (default: $REPO)
@@ -69,7 +69,7 @@ Behavior:
 
 State file:
   $STATE_FILE
-  (in claude/data/, survives reboots; first run initializes from current max)
+  (in agency/config/, survives reboots; first run initializes from current max)
 
 Designed for Claude Code's Monitor tool. Each stdout line becomes a
 notification to the agent.

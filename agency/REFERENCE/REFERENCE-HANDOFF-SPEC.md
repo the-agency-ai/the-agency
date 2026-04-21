@@ -6,7 +6,7 @@ Write your handoff now. This is the document that will bootstrap you on your nex
 
 Write to your handoff file using the handoff tool:
 ```
-bash ./claude/tools/handoff write --trigger reboot
+bash ./agency/tools/handoff write --trigger reboot
 ```
 
 Then edit the file at: `usr/jordan/{agent}/handoff.md`
@@ -32,8 +32,8 @@ The `mode:` field indicates the semantic framing of the handoff.
 
 | Value | Meaning | Set by |
 |-------|---------|--------|
-| `continuation` | Agent continues in the same process after `/compact`. Post-compact pickup uses trimmed preflight. | `/compact-prepare` (via `claude/tools/session-pause --framing continuation`) |
-| `resumption` | Session paused; next pickup is in a fresh process. Full sync + preflight on pickup. | `/session-end` (via `claude/tools/session-pause --framing resumption`) |
+| `continuation` | Agent continues in the same process after `/compact`. Post-compact pickup uses trimmed preflight. | `/compact-prepare` (via `agency/tools/session-pause --framing continuation`) |
+| `resumption` | Session paused; next pickup is in a fresh process. Full sync + preflight on pickup. | `/session-end` (via `agency/tools/session-pause --framing resumption`) |
 
 ### Migration (legacy handoffs)
 
@@ -74,9 +74,9 @@ Be specific: commit hashes, file paths, dispatch IDs.
 ## Valueflow Context
 
 The methodology you operate under:
-- PVR: claude/workstreams/agency/valueflow-pvr-20260406.md
-- A&D: claude/workstreams/agency/valueflow-ad-20260406.md
-- MAR dispositions: claude/workstreams/agency/reviews/
+- PVR: agency/workstreams/agency/valueflow-pvr-20260406.md
+- A&D: agency/workstreams/agency/valueflow-ad-20260406.md
+- MAR dispositions: agency/workstreams/agency/reviews/
 
 Read the A&D on startup — it defines how you work.
 
@@ -100,7 +100,7 @@ On your next startup, do these in order:
 1. Set dispatch loop: /loop 5m dispatch check
 2. Process unread dispatches: dispatch list
 3. Process unread flags: flag list
-4. Read the valueflow A&D: claude/workstreams/agency/valueflow-ad-20260406.md
+4. Read the valueflow A&D: agency/workstreams/agency/valueflow-ad-20260406.md
 5. Resume from [your specific next action]
 ```
 
@@ -114,13 +114,13 @@ Handoffs are manual — agents must call the tool explicitly. Write a handoff at
 - **At discussion milestones:** PVR draft, key A&D decision, plan revision
 - **Before context-heavy work:** Insurance against compaction or crash
 
-Always invoke the `/handoff` skill or run `./claude/tools/handoff write` — never write the file directly. The tool archives the previous handoff to `history/` with a timestamp.
+Always invoke the `/handoff` skill or run `./agency/tools/handoff write` — never write the file directly. The tool archives the previous handoff to `history/` with a timestamp.
 
-**Note:** Never use `$CLAUDE_PROJECT_DIR` in Bash tool calls — the variable is only set inside hooks, not in agent shell sessions. Use `./claude/tools/` (relative paths) instead.
+**Note:** Never use `$CLAUDE_PROJECT_DIR` in Bash tool calls — the variable is only set inside hooks, not in agent shell sessions. Use `./agency/tools/` (relative paths) instead.
 
 ## Rules
 
-1. **Be specific, not general.** "Working on tests" is useless. "Implementing convention-based test scoping in claude/tools/commit-precheck, T1 tier with 60s budget" is useful.
+1. **Be specific, not general.** "Working on tests" is useless. "Implementing convention-based test scoping in agency/tools/commit-precheck, T1 tier with 60s budget" is useful.
 
 2. **Include file paths.** A fresh instance doesn't know where things are. Give it paths.
 

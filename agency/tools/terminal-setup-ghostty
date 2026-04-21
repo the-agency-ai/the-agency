@@ -1,8 +1,8 @@
 #!/bin/bash
 # terminal-setup-ghostty — Ghostty terminal integration provider for Agency
 #
-# Usage: ./claude/tools/terminal-setup-ghostty [--verbose]
-#        ./claude/tools/terminal-setup [--verbose]  (dispatches here)
+# Usage: ./agency/tools/terminal-setup-ghostty [--verbose]
+#        ./agency/tools/terminal-setup [--verbose]  (dispatches here)
 #
 # Performs one-time setup:
 #   1. Verifies Ghostty is installed
@@ -59,7 +59,7 @@ for arg in "$@"; do
         --help|-h)
             echo "terminal-setup-ghostty - Set up Ghostty terminal integration for Agency"
             echo ""
-            echo "Usage: ./claude/tools/terminal-setup-ghostty [--verbose]"
+            echo "Usage: ./agency/tools/terminal-setup-ghostty [--verbose]"
             echo ""
             echo "Performs one-time setup:"
             echo "  1. Verifies Ghostty is installed"
@@ -106,8 +106,8 @@ main() {
     REPO_ROOT="${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
     GHOSTTY_CONFIG_DIR="$HOME/.config/ghostty"
     GHOSTTY_CONFIG_FILE="$GHOSTTY_CONFIG_DIR/config"
-    HOOK_SRC="$REPO_ROOT/claude/hooks/ghostty-status.sh"
-    INTEGRATION_SRC="$REPO_ROOT/claude/hooks/ghostty-status.sh"
+    HOOK_SRC="$REPO_ROOT/agency/hooks/ghostty-status.sh"
+    INTEGRATION_SRC="$REPO_ROOT/agency/hooks/ghostty-status.sh"
 
     # --- Step 2: Create/append Ghostty config fragment ---
     log_step "Setting up Ghostty config"
@@ -162,7 +162,7 @@ CONFIG_EOF
     log_step "Verifying Claude Code hook"
     if [[ ! -f "$HOOK_SRC" ]]; then
         log_error "Hook script not found at $HOOK_SRC"
-        log_error "Expected claude/hooks/ghostty-status.sh in the repo"
+        log_error "Expected agency/hooks/ghostty-status.sh in the repo"
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "Hook script missing" 2>/dev/null || true
         exit 1
@@ -216,7 +216,7 @@ SHELL_EOF
     echo ""
     echo "What was configured:"
     echo "  - Config fragment appended to $GHOSTTY_CONFIG_FILE"
-    echo "  - Hook script at claude/hooks/ghostty-status.sh"
+    echo "  - Hook script at agency/hooks/ghostty-status.sh"
     echo "  - Shell integration added to $ZSHRC"
     echo ""
     echo "Next steps:"

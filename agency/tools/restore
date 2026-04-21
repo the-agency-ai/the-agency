@@ -1,7 +1,7 @@
 #!/bin/bash
 # Restore session - apply backed-up changes to working directory
 #
-# Usage: ./claude/tools/restore [--verbose]
+# Usage: ./agency/tools/restore [--verbose]
 #
 # Why this exists:
 #   Manually restore uncommitted and staged changes from previous session
@@ -52,7 +52,7 @@ main() {
                 echo "restore - Restore session from backup"
                 echo ""
                 echo "Usage:"
-                echo "  ./claude/tools/restore [--verbose]"
+                echo "  ./agency/tools/restore [--verbose]"
                 echo ""
                 echo "Options:"
                 echo "  --verbose     Show detailed logging"
@@ -72,8 +72,8 @@ main() {
 
     verbose_echo "restore [run: ${RUN_ID:-none}]"
 
-    local AGENTNAME=$(./claude/tools/agency-whoami 2>/dev/null || echo 'unknown')
-    local BACKUP_DIR="claude/agents/$AGENTNAME/backups/latest"
+    local AGENTNAME=$(./agency/tools/agency-whoami 2>/dev/null || echo 'unknown')
+    local BACKUP_DIR="agency/agents/$AGENTNAME/backups/latest"
     local UNCOMMITTED_PATCH="$BACKUP_DIR/uncommitted.patch"
     local STAGED_PATCH="$BACKUP_DIR/staged.patch"
 

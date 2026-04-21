@@ -48,7 +48,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-PRINCIPALS_DIR="$REPO_ROOT/claude/principals"
+PRINCIPALS_DIR="$REPO_ROOT/usr"
 
 # Defaults
 VERBOSE=false

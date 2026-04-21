@@ -23,8 +23,8 @@ shift, etc.). seen_ids is memory-only (lost on restart, by design —
 restart should re-surface currently-unread items).
 
 Usage:
-    With Monitor tool: monitor dispatches using ./claude/tools/dispatch-monitor --include-collab
-    Standalone: ./claude/tools/dispatch-monitor [--interval N] [--include-collab]
+    With Monitor tool: monitor dispatches using ./agency/tools/dispatch-monitor --include-collab
+    Standalone: ./agency/tools/dispatch-monitor [--interval N] [--include-collab]
 
 Written: 2026-04-10 during captain session (Monitor tool adoption)
 Rewritten: 2026-04-17 D44 — Python rewrite (bash 3.2 compat, first Python tool)
@@ -44,7 +44,7 @@ import sys
 if sys.version_info < (3, 13):
     sys.exit(
         f"Python 3.13+ required (got {sys.version_info.major}.{sys.version_info.minor}). "
-        "See claude/config/dependencies.yaml."
+        "See agency/config/dependencies.yaml."
     )
 
 import argparse

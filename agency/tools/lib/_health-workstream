@@ -5,14 +5,14 @@
 # stale, CLAUDE-{WORKSTREAM}.md missing, agent registrations pointing at
 # workstreams that no longer exist, workstreams with no commits in weeks.
 #
-# How & Why: Enumerate workstreams from claude/workstreams/*/ directories.
+# How & Why: Enumerate workstreams from agency/workstreams/*/ directories.
 # For each: check CLAUDE-{NAME}.md presence, seed count + freshness, QGR
 # recency, last-modified-in-repo indicator.
 #
 # Written: 2026-04-09 during captain Day 34 — agency-health v1
 
 _health_workstream_list() {
-    local dir="${PROJECT_ROOT:-.}/claude/workstreams"
+    local dir="${PROJECT_ROOT:-.}/agency/workstreams"
     if [[ -d "$dir" ]]; then
         find "$dir" -maxdepth 1 -mindepth 1 -type d 2>/dev/null \
             | xargs -I{} basename {} 2>/dev/null \
@@ -22,7 +22,7 @@ _health_workstream_list() {
 
 _health_check_one_workstream() {
     local ws="$1"
-    local ws_dir="$PROJECT_ROOT/claude/workstreams/$ws"
+    local ws_dir="$PROJECT_ROOT/agency/workstreams/$ws"
     local dim="workstream"
     local worst="healthy"
     local summary_parts=()

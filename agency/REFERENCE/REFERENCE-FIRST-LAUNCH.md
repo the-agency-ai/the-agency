@@ -47,7 +47,7 @@ On first launch after installation:
 
 ### Example File
 
-See `claude/docs/FIRST-LAUNCH-CONTEXT.jsonl` for the reference template.
+See `agency/REFERENCE/FIRST-LAUNCH-CONTEXT.jsonl` for the reference template.
 
 ### JSONL Format
 
@@ -103,7 +103,7 @@ As soon as the user starts working:
 
 ### For Framework Maintainers
 
-Update `claude/docs/FIRST-LAUNCH-CONTEXT.jsonl` with:
+Update `agency/REFERENCE/FIRST-LAUNCH-CONTEXT.jsonl` with:
 - New onboarding steps
 - Updated guidance
 - Framework improvements

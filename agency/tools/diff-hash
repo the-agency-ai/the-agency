@@ -11,16 +11,16 @@
 #
 # How & Why: Computes deterministic SHA-256 hash of either a code diff
 # (branch vs base) or a single artifact file. Excludes:
-#   - claude/receipts/      (the receipts themselves — original fix)
+#   - agency/receipts/      (the receipts themselves — original fix)
 #   - usr/**/dispatches/    (auto-staged commit-announce dispatches — #99 fix)
 # from all diff computations to prevent chicken-and-egg. Full SHA-256
 # stored internally; 7-char truncation for display and filenames.
 #
 # Usage:
-#   ./claude/tools/diff-hash                      # diff against origin/main
-#   ./claude/tools/diff-hash --base v39.1         # diff against tag/commit
-#   ./claude/tools/diff-hash --file <path>        # single file hash
-#   ./claude/tools/diff-hash --json               # JSON output with full hash
+#   ./agency/tools/diff-hash                      # diff against origin/main
+#   ./agency/tools/diff-hash --base v39.1         # diff against tag/commit
+#   ./agency/tools/diff-hash --file <path>        # single file hash
+#   ./agency/tools/diff-hash --json               # JSON output with full hash
 #
 # Written: 2026-04-14 during captain session (receipt infrastructure Phase 1)
 
@@ -85,9 +85,9 @@ else
     # (both auto-mutate per commit; including them would make hashes circular)
     # D42-R3: added per-workstream qgr/rgr exclusions
     DIFF_OUTPUT=$(git diff "$BASE"..HEAD -- . \
-        ':(exclude)claude/receipts/' \
-        ':(exclude,glob)claude/workstreams/*/qgr/**' \
-        ':(exclude,glob)claude/workstreams/*/rgr/**' \
+        ':(exclude)agency/receipts/' \
+        ':(exclude,glob)agency/workstreams/*/qgr/**' \
+        ':(exclude,glob)agency/workstreams/*/rgr/**' \
         ':(exclude,glob)usr/*/*/dispatches/**' \
         ':(exclude,glob)usr/*/dispatches/**' \
         2>/dev/null)
@@ -100,7 +100,9 @@ else
     FULL_HASH=$(echo "$DIFF_OUTPUT" | shasum -a 256 | cut -d' ' -f1)
     SHORT_HASH="${FULL_HASH:0:7}"
     FILE_COUNT=$(git diff "$BASE"..HEAD --name-only -- . \
-        ':(exclude)claude/receipts/' \
+        ':(exclude)agency/receipts/' \
+        ':(exclude,glob)agency/workstreams/*/qgr/**' \
+        ':(exclude,glob)agency/workstreams/*/rgr/**' \
         ':(exclude,glob)usr/*/*/dispatches/**' \
         ':(exclude,glob)usr/*/dispatches/**' \
         2>/dev/null | wc -l | tr -d ' ')

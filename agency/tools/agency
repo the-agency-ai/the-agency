@@ -15,7 +15,7 @@
 #   help                                                       Show this help
 #
 # The Agency CLI replaces individual agency-* tools with a single entry point.
-# Subcommand logic lives in claude/tools/lib/_agency-* files.
+# Subcommand logic lives in agency/tools/lib/_agency-* files.
 
 set -euo pipefail
 
@@ -60,7 +60,7 @@ EOF
 _agency_version() {
     local project_root
     project_root="$(cd "$AGENCY_DIR/.." && pwd)"
-    local yaml="$project_root/claude/config/agency.yaml"
+    local yaml="$project_root/agency/config/agency.yaml"
 
     if [[ -f "$yaml" ]]; then
         # Read version and source_commit from agency.yaml

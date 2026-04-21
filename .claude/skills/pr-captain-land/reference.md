@@ -35,7 +35,7 @@ Compute current diff-hash against `origin/master`. Find receipt matching that ha
 ```
 ./agency/tools/diff-hash --base origin/master --json
 # extract hash
-find claude/workstreams -name "*qgr-pr-prep-*-{hash}.md"
+find agency/workstreams -name "*qgr-pr-prep-*-{hash}.md"
 ```
 
 **Failure:** no matching receipt. Branch state doesn't match what /pr-submit claimed. Switch back to master, exit 1. Agent must re-prep.

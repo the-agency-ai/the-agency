@@ -31,7 +31,7 @@ The Triangle is the **per-capability structural pattern**. Every Agency capabili
 
 When building a new capability: build the tool, wrap it in a skill, block the raw alternative with a hookify rule. All three. Not one, not two. The tool handles permissions, the skill handles discovery, the hookify rule handles compliance. *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
 
-**Full enforcement model:** See `claude/README-ENFORCEMENT.md` for the complete reference — Triangle, Ladder, lifecycle hooks, all 36 hookify rules, quality gate tiers, and the permission model. When a hookify rule blocks you, look it up in the README-ENFORCEMENT.md tables to understand what to do instead.
+**Full enforcement model:** See `agency/README-ENFORCEMENT.md` for the complete reference — Triangle, Ladder, lifecycle hooks, all 36 hookify rules, quality gate tiers, and the permission model. When a hookify rule blocks you, look it up in the README-ENFORCEMENT.md tables to understand what to do instead.
 
 ### The Enforcement Ladder
 

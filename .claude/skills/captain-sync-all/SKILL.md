@@ -6,9 +6,9 @@ when_to_use: Captain on master in main checkout, starting a captain session or a
 argument-hint: "(no args)"
 paths: []
 required_reading:
-  - claude/REFERENCE-GIT-MERGE-NOT-REBASE.md
-  - claude/REFERENCE-WORKTREE-DISCIPLINE.md
-  - claude/REFERENCE-SAFE-TOOLS.md
+  - agency/REFERENCE-GIT-MERGE-NOT-REBASE.md
+  - agency/REFERENCE-WORKTREE-DISCIPLINE.md
+  - agency/REFERENCE-SAFE-TOOLS.md
 ---
 
 <!--
@@ -58,7 +58,7 @@ No arguments. Skill is fully automatic; prompts for confirmation before merging 
 ### Step 2: Fetch origin
 
 ```
-./claude/tools/git-captain fetch
+./agency/tools/git-captain fetch
 ```
 
 ### Step 3: Divergence detection + reconcile
@@ -74,10 +74,10 @@ git log --oneline master..origin/master    # remote-only commits
 
 1. Verify merge-base exists: `git merge-base origin/master HEAD`. If fails, ABORT with recovery hint.
 2. Tag for recovery: `git tag sync/pre-merge-$(date +%Y%m%d-%H%M%S)`.
-3. Merge: `./claude/tools/git-captain merge-from-origin` (produces merge commit).
+3. Merge: `./agency/tools/git-captain merge-from-origin` (produces merge commit).
 4. If conflicts: halt, show files, ask principal to resolve.
 
-**If behind only:** `./claude/tools/git-captain merge-from-origin` fast-forwards.
+**If behind only:** `./agency/tools/git-captain merge-from-origin` fast-forwards.
 
 **Never `git reset --hard origin/master`. Never `git rebase origin/master`.**
 
@@ -98,7 +98,7 @@ For each worktree with commits ahead of master:
 If any worktree work merged into master in Step 5, dispatch `main-updated` to all agents with worktrees:
 
 ```
-./claude/tools/dispatch create --type main-updated --to <repo>/<principal>/<agent> --subject "Main updated — new work merged"
+./agency/tools/dispatch create --type main-updated --to <repo>/<principal>/<agent> --subject "Main updated — new work merged"
 ```
 
 Agents see this on their next `iscp-check` / `/session-resume`.
@@ -157,8 +157,8 @@ Light update to captain handoff: "what synced, what was merged into master, any 
 - `/pr-captain-post-merge` — invokes this as Step 5 after a merge
 - `/sync` — agent-side push skill (different scope entirely)
 - `/worktree-sync` — single-worktree sync (agent-side; this skill calls it across all worktrees)
-- `claude/tools/git-captain` — safe captain-side git operations
-- `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the merge discipline
-- `claude/REFERENCE-WORKTREE-DISCIPLINE.md` — worktree model
+- `agency/tools/git-captain` — safe captain-side git operations
+- `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the merge discipline
+- `agency/REFERENCE-WORKTREE-DISCIPLINE.md` — worktree model
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

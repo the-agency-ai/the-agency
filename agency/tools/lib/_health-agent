@@ -9,7 +9,7 @@
 # file is missing.
 #
 # How & Why: Enumerate registered agents from .claude/agents/ and
-# claude/agents/ directories. For each, run checks: registration file,
+# agency/agents/ directories. For each, run checks: registration file,
 # worktree presence, dispatch unread + age, handoff freshness, attribution
 # integrity (recent commits correctly authored), and identity consistency.
 #
@@ -60,11 +60,11 @@ _health_check_one_agent() {
     fi
 
     # ─── Check 2: Unread dispatches + age ───
-    if [[ -x "$PROJECT_ROOT/claude/tools/dispatch" ]]; then
+    if [[ -x "$PROJECT_ROOT/agency/tools/dispatch" ]]; then
         # dispatch list --to {agent-addr} --status unread — but tool may not
         # support --to filter in v1. Fall back to counting the list.
         local unread_count=0
-        unread_count=$("$PROJECT_ROOT/claude/tools/dispatch" list --status unread 2>/dev/null \
+        unread_count=$("$PROJECT_ROOT/agency/tools/dispatch" list --status unread 2>/dev/null \
             | grep -c "$agent" 2>/dev/null || echo 0)
         unread_count=$(echo "$unread_count" | tr -d '[:space:]')
         if [[ "$unread_count" -gt 3 ]]; then

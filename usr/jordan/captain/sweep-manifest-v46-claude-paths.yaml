@@ -1,0 +1,93 @@
+subagent: captain-sweep-v46-claude-paths
+# v46 sweep-miss: rewrite stale `claude/<subdir>/` refs → `agency/<subdir>/`
+#
+# Scope: framework files shipped to adopters via `agency init`/`agency update`,
+# plus the dev tree. Allowlist (ref-sweep-allowlist.txt) preserves:
+#   .claude/, CLAUDE.md, claude-code (product refs), CLAUDE_PROJECT_DIR,
+#   test/test-agency-project/, src/archive/, history/, usr/,
+#   workstreams/**/transcripts/, workstreams/**/history/
+# So we don't have to worry about clobbering those.
+#
+# Semantic rewrites NOT in this manifest — handled manually after the bulk:
+#   - claude/data/      → agency/config/   (merged in Phase 2i)
+#   - claude/receipts/  → agency/workstreams/{W}/qgr/   (moved in Phase 2l)
+#   - claude/principals/ → usr/{principal}/   (principals data now in usr/)
+#   - claude/integrations/ → src/integrations/   (not shipped)
+#   - claude/assets/    → src/assets/   (not shipped)
+#
+# Cascade-prevention in agency-sweep means a replacement output is not re-scanned.
+
+files:
+  - "agency/tools/**"
+  - "agency/templates/**"
+  - "agency/agents/**"
+  - "agency/hooks/**"
+  - "agency/hookify/**"
+  - "agency/REFERENCE/**"
+  - "agency/README/**"
+  - "agency/CLAUDE-THEAGENCY.md"
+  - "agency/README-GETTINGSTARTED.md"
+  - "agency/README-THEAGENCY.md"
+  - "README.md"
+  - "CLAUDE.md"
+
+allowed_substitutions:
+  # Round 1: simple 1:1 path rewrites (shipped dirs)
+  - pattern: "claude/tools/"
+    replacement: "agency/tools/"
+  - pattern: "claude/config/"
+    replacement: "agency/config/"
+  - pattern: "claude/hooks/"
+    replacement: "agency/hooks/"
+  - pattern: "claude/hookify/"
+    replacement: "agency/hookify/"
+  - pattern: "claude/workstreams/"
+    replacement: "agency/workstreams/"
+  - pattern: "claude/templates/"
+    replacement: "agency/templates/"
+  - pattern: "claude/agents/"
+    replacement: "agency/agents/"
+  - pattern: "claude/knowledge/"
+    replacement: "agency/knowledge/"
+  - pattern: "claude/REFERENCE/"
+    replacement: "agency/REFERENCE/"
+  - pattern: "claude/README/"
+    replacement: "agency/README/"
+  - pattern: "claude/README-"
+    replacement: "agency/README-"
+  - pattern: "claude/CLAUDE-"
+    replacement: "agency/CLAUDE-"
+  - pattern: "claude/docs/"
+    replacement: "agency/REFERENCE/"
+  - pattern: "claude/logs/"
+    replacement: "agency/logs/"
+  - pattern: "claude/reviews/"
+    replacement: "agency/reviews/"
+  # Round 2: semantic rewrites
+  # claude/data/ merged into agency/config/ in Phase 2i
+  - pattern: "claude/data/"
+    replacement: "agency/config/"
+  # claude/integrations/ moved to src/integrations/ (not shipped to adopters)
+  - pattern: "claude/integrations/"
+    replacement: "src/integrations/"
+  # claude/assets/ moved to src/assets/ (not shipped)
+  - pattern: "claude/assets/"
+    replacement: "src/assets/"
+  # claude/principals/{name}/ → usr/{name}/ (principal sandbox relocated)
+  - pattern: "claude/principals/"
+    replacement: "usr/"
+  # claude/receipts/ (flat) → agency/workstreams/*/qgr/ per workstream (Phase 2l)
+  # We keep the literal string 'claude/receipts/' visible in diagnostic/help
+  # messages so adopters with legacy receipts can still find them — but we
+  # rewrite the paths that the tool ACTUALLY reads/writes. For now, map it
+  # to agency/receipts/ (legacy-compat-only; tools will reject on v46.1).
+  - pattern: "claude/receipts/"
+    replacement: "agency/receipts/"
+  # claude/epics/ → agency/workstreams/epics/ (epics are workstream-scoped)
+  - pattern: "claude/epics/"
+    replacement: "agency/workstreams/epics/"
+  # claude/refs/ → usr/{principal}/refs/ (refs relocated to usr/ in v45.1)
+  # This is a prefix-only rewrite — the rest of the path should already be
+  # correct in the callers since they use $AGENCY_PRINCIPAL_DIR.
+  - pattern: "claude/refs/"
+    replacement: "refs/"

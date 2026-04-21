@@ -31,7 +31,7 @@ State: 3 dispatches arrived between `/compact-prepare`'s commit and this `/compa
 
 Expected:
 - session-pickup emits `dispatches_unread=3`, `dispatches_drift_since_pause=3`.
-- Skill Step 4: lists via `./claude/tools/dispatch list --status unread`.
+- Skill Step 4: lists via `./agency/tools/dispatch list --status unread`.
 - Report includes "Dispatches: 3 unread, 3 drifted since PAUSE — READ BEFORE RESUMING (unread dispatch = blocked person)."
 - Agent reads the drifted dispatches, then resumes.
 

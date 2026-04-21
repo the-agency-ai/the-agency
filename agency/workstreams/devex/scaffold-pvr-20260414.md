@@ -147,7 +147,7 @@ Both need identical scaffolding patterns, which is exactly the "two instances pr
 - Ships on the devex branch (standard worktree workflow)
 - Must not modify existing app directories
 - Provider tools are Bash scripts in `agency/tools/` following the established pattern
-- Template files live in `claude/templates/scaffold/` (new directory)
+- Template files live in `agency/templates/scaffold/` (new directory)
 - Must work in worktrees and main checkout
 
 ## 8. Success Criteria

@@ -77,7 +77,7 @@ The rest of The Agency's documentation lives in `claude/`:
 
 | Topic | Document |
 |-------|----------|
-| Agency bootloader (tools, skills, gates, principles) | `claude/CLAUDE-THEAGENCY.md` |
+| Agency bootloader (tools, skills, gates, principles) | `agency/CLAUDE-THEAGENCY.md` |
 | Repo structure | `claude/REFERENCE-REPO-STRUCTURE.md` |
 | Agent & principal addressing | `claude/REFERENCE-AGENT-ADDRESSING.md` |
 | Quality gate protocol | `claude/REFERENCE-QUALITY-GATE.md` |
@@ -88,7 +88,7 @@ The rest of The Agency's documentation lives in `claude/`:
 | Code review & PR lifecycle | `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md` |
 | Git discipline (merge, never rebase) | `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` |
 | Safe tools family | `claude/REFERENCE-SAFE-TOOLS.md` |
-| Enforcement model | `claude/README-ENFORCEMENT.md` |
+| Enforcement model | `agency/README-ENFORCEMENT.md` |
 
 Relevant docs are auto-injected when you invoke a skill. Read them directly when you're working outside a skill context.
 

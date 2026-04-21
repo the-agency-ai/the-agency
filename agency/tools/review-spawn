@@ -2,9 +2,9 @@
 # Spawn review subagents for the development workflow
 #
 # Usage:
-#   ./claude/tools/review-spawn REQUEST-jordan-0065 code      # Spawn 2 code reviewers + 1 security
-#   ./claude/tools/review-spawn REQUEST-jordan-0065 test      # Spawn 2 test reviewers
-#   ./claude/tools/review-spawn REQUEST-jordan-0065 --show    # Show prompts without spawning
+#   ./agency/tools/review-spawn REQUEST-jordan-0065 code      # Spawn 2 code reviewers + 1 security
+#   ./agency/tools/review-spawn REQUEST-jordan-0065 test      # Spawn 2 test reviewers
+#   ./agency/tools/review-spawn REQUEST-jordan-0065 --show    # Show prompts without spawning
 #
 # This tool generates the prompts for review subagents. The prompts are
 # designed to be used with Claude Code's Task tool (subagent_type=general-purpose).
@@ -73,11 +73,11 @@ REVIEW_TYPE="${2:-}"
 
 if [ -z "$WORK_ITEM" ] || [ -z "$REVIEW_TYPE" ]; then
     echo -e "${RED}Error: Missing arguments${NC}"
-    echo "Usage: ./claude/tools/review-spawn <work-item> <code|test> [--show]"
+    echo "Usage: ./agency/tools/review-spawn <work-item> <code|test> [--show]"
     echo ""
     echo "Examples:"
-    echo "  ./claude/tools/review-spawn REQUEST-jordan-0065 code"
-    echo "  ./claude/tools/review-spawn REQUEST-jordan-0065 test --show"
+    echo "  ./agency/tools/review-spawn REQUEST-jordan-0065 code"
+    echo "  ./agency/tools/review-spawn REQUEST-jordan-0065 test --show"
     exit 1
 fi
 
@@ -214,7 +214,7 @@ if [ "$REVIEW_TYPE" = "code" ]; then
     echo "4. Wait for all to complete"
     echo "5. Use consolidation template to merge findings"
     echo ""
-    echo -e "${YELLOW}Template: claude/templates/prompts/consolidation.md${NC}"
+    echo -e "${YELLOW}Template: agency/templates/prompts/consolidation.md${NC}"
 
 elif [ "$REVIEW_TYPE" = "test" ]; then
     # Test review prompts
@@ -233,5 +233,5 @@ elif [ "$REVIEW_TYPE" = "test" ]; then
     echo "3. Wait for all to complete"
     echo "4. Use consolidation template to merge findings"
     echo ""
-    echo -e "${YELLOW}Template: claude/templates/prompts/consolidation.md${NC}"
+    echo -e "${YELLOW}Template: agency/templates/prompts/consolidation.md${NC}"
 fi

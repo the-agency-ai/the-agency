@@ -11,7 +11,7 @@
 # the Playwright MCP tools (browser_snapshot, browser_screenshot).
 #
 # Usage:
-#   ./claude/tools/web-fetch <url> [--extract <selector>] [--raw]
+#   ./agency/tools/web-fetch <url> [--extract <selector>] [--raw]
 #
 # Options:
 #   --extract <sel>  CSS-like content hint (informational — curl can't use it)

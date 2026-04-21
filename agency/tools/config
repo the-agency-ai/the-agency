@@ -1,13 +1,13 @@
 #!/bin/bash
-# Read configuration values from claude/config/agency.yaml
+# Read configuration values from agency/config/agency.yaml
 #
 # Usage:
-#   ./claude/tools/config get principals.jdm [--verbose]   # Get value for a key path
-#   ./claude/tools/config get-principal [--verbose]        # Get principal for current $USER
-#   ./claude/tools/config get project.timezone [--verbose] # Get project timezone
-#   ./claude/tools/config list [--verbose]                 # Show all config
+#   ./agency/tools/config get principals.jdm [--verbose]   # Get value for a key path
+#   ./agency/tools/config get-principal [--verbose]        # Get principal for current $USER
+#   ./agency/tools/config get project.timezone [--verbose] # Get project timezone
+#   ./agency/tools/config list [--verbose]                 # Show all config
 #
-# The config file uses YAML format at claude/config/agency.yaml
+# The config file uses YAML format at agency/config/agency.yaml
 # Keys are accessed using dot notation: section.key or section.key.subkey
 
 set -euo pipefail
@@ -40,7 +40,7 @@ log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || tr
 verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-CONFIG_FILE="$REPO_ROOT/claude/config/agency.yaml"
+CONFIG_FILE="$REPO_ROOT/agency/config/agency.yaml"
 
 # Main function
 main() {
@@ -63,7 +63,7 @@ main() {
         shift
         ;;
       --help|-h|help)
-        echo "Usage: ./claude/tools/config <action> [key] [--verbose]"
+        echo "Usage: ./agency/tools/config <action> [key] [--verbose]"
         echo ""
         echo "Actions:"
         echo "  get <key.path>    Get a config value (dot notation)"
@@ -76,9 +76,9 @@ main() {
         echo "  --help, -h        Show this help"
         echo ""
         echo "Examples:"
-        echo "  ./claude/tools/config get principals.jdm"
-        echo "  ./claude/tools/config get project.timezone"
-        echo "  ./claude/tools/config get-principal"
+        echo "  ./agency/tools/config get principals.jdm"
+        echo "  ./agency/tools/config get project.timezone"
+        echo "  ./agency/tools/config get-principal"
         trap - EXIT
         log_end "$RUN_ID" "success" 0 0 "Help displayed" 2>/dev/null || true
         exit 0
@@ -128,7 +128,7 @@ case "$ACTION" in
   get)
     if [[ -z "$KEY_PATH" ]]; then
       log_error "No key path specified"
-      echo "Usage: ./claude/tools/config get <key.path>" >&2
+      echo "Usage: ./agency/tools/config get <key.path>" >&2
       trap - EXIT
       log_end "$RUN_ID" "failure" 1 0 "No key path"
       exit 1
@@ -199,7 +199,7 @@ PYTHON_EOF
     ;;
 
   help)
-    echo "Usage: ./claude/tools/config <action> [key] [--verbose]"
+    echo "Usage: ./agency/tools/config <action> [key] [--verbose]"
     echo ""
     echo "Actions:"
     echo "  get <key.path>    Get a config value (dot notation)"
@@ -212,14 +212,14 @@ PYTHON_EOF
     echo "  --help, -h        Show this help"
     echo ""
     echo "Examples:"
-    echo "  ./claude/tools/config get principals.jdm"
-    echo "  ./claude/tools/config get project.timezone"
-    echo "  ./claude/tools/config get-principal"
+    echo "  ./agency/tools/config get principals.jdm"
+    echo "  ./agency/tools/config get project.timezone"
+    echo "  ./agency/tools/config get-principal"
     ;;
 
   *)
     log_error "Unknown action: $ACTION"
-    echo "Use: ./claude/tools/config help" >&2
+    echo "Use: ./agency/tools/config help" >&2
     trap - EXIT
     log_end "$RUN_ID" "failure" 1 0 "Unknown action"
     exit 1

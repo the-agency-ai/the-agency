@@ -2,15 +2,15 @@
 # GitHub Release operations wrapper
 #
 # Usage:
-#   ./claude/tools/gh-release list
-#   ./claude/tools/gh-release create v1.0.0 --notes "Release notes"
-#   ./claude/tools/gh-release view v1.0.0
+#   ./agency/tools/gh-release list
+#   ./agency/tools/gh-release create v1.0.0 --notes "Release notes"
+#   ./agency/tools/gh-release view v1.0.0
 #
-# This is a convenience wrapper around ./claude/tools/gh release
+# This is a convenience wrapper around ./agency/tools/gh release
 # All operations are logged via the base gh wrapper.
 #
 # Note: For full release workflow (tagging, changelog, etc.),
-# use ./claude/tools/release instead. This is for direct gh release operations.
+# use ./agency/tools/release instead. This is for direct gh release operations.
 #
 # Related: REQUEST-jordan-0072
 
@@ -33,7 +33,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] || [[ $# -eq 0 ]]; then
 gh-release - GitHub Release operations
 
 Usage:
-  ./claude/tools/gh-release <command> [arguments...]
+  ./agency/tools/gh-release <command> [arguments...]
 
 Commands:
   list                    List releases
@@ -44,15 +44,15 @@ Commands:
   upload <tag> <files>    Upload assets to a release
 
 Examples:
-  ./claude/tools/gh-release list --limit 5
-  ./claude/tools/gh-release create v1.0.0 --title "Version 1.0" --notes "First release"
-  ./claude/tools/gh-release view v1.0.0
-  ./claude/tools/gh-release delete v1.0.0-beta --yes
+  ./agency/tools/gh-release list --limit 5
+  ./agency/tools/gh-release create v1.0.0 --title "Version 1.0" --notes "First release"
+  ./agency/tools/gh-release view v1.0.0
+  ./agency/tools/gh-release delete v1.0.0-beta --yes
 
 Note: For full release workflow with changelog and tagging,
-use ./claude/tools/release instead.
+use ./agency/tools/release instead.
 
-All operations use ./claude/tools/gh for token injection and logging.
+All operations use ./agency/tools/gh for token injection and logging.
 EOF
     exit 0
 fi

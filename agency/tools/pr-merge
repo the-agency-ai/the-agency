@@ -29,7 +29,7 @@
 # 1B1 prompt for the principal-approved flag.
 #
 # Usage:
-#   ./claude/tools/pr-merge <PR_NUMBER> [--principal-approved]
+#   ./agency/tools/pr-merge <PR_NUMBER> [--principal-approved]
 #                                       [--delete-branch]
 #                                       [--dry-run] [--verbose]
 #

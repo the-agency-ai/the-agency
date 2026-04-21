@@ -10,7 +10,7 @@
 # Without those, a fresh principal can't do useful work without manual editing.
 #
 # How & Why: Wraps principal-create and adds the missing scaffold steps using
-# template files at claude/templates/principal-v2/. Mustache-style substitution
+# template files at agency/templates/principal-v2/. Mustache-style substitution
 # (PRINCIPAL_NAME, PRINCIPAL_DISPLAY_NAME, REPO_NAME, TIMESTAMP) — no template
 # engine dependency, just sed.
 #
@@ -36,7 +36,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TEMPLATE_DIR="$PROJECT_ROOT/claude/templates/principal-v2"
+TEMPLATE_DIR="$PROJECT_ROOT/agency/templates/principal-v2"
 
 # Source helpers
 [[ -f "$SCRIPT_DIR/lib/_log-helper" ]] && source "$SCRIPT_DIR/lib/_log-helper"
@@ -140,7 +140,7 @@ if [[ -z "$REPO_NAME" ]]; then
 fi
 
 PRINCIPAL_DIR="$PROJECT_ROOT/usr/$PRINCIPAL_NAME"
-# Local time per project.timezone in agency.yaml (./claude/tools/now respects that).
+# Local time per project.timezone in agency.yaml (./agency/tools/now respects that).
 # Falls back to UTC if `now` isn't available (e.g. fresh init pre-tools).
 TIMESTAMP=$("$SCRIPT_DIR/now" 2>/dev/null || date -u +"%Y-%m-%d %H:%M:%S +00")
 
@@ -226,7 +226,7 @@ fi
 # --- Step 6: agency.yaml mutation ---
 if [[ "$WRITE_YAML" == "true" ]]; then
     say "${BLUE}step 6${NC}: agency.yaml entry"
-    YAML="$PROJECT_ROOT/claude/config/agency.yaml"
+    YAML="$PROJECT_ROOT/agency/config/agency.yaml"
     if [[ ! -f "$YAML" ]]; then
         say "  ${YELLOW}skipped${NC} — $YAML not found"
     elif grep -qE "^  $SYS_USER:" "$YAML"; then
@@ -281,11 +281,11 @@ say "Files:"
 say "  $PRINCIPAL_DIR/CLAUDE-PRINCIPAL.md"
 say "  $PRINCIPAL_DIR/captain/captain-handoff.md"
 say "  $PROJECT_ROOT/.claude/agents/$PRINCIPAL_NAME-captain.md"
-say "  $PROJECT_ROOT/claude/config/agency.yaml  (entry: $SYS_USER → $PRINCIPAL_NAME)"
+say "  $PROJECT_ROOT/agency/config/agency.yaml  (entry: $SYS_USER → $PRINCIPAL_NAME)"
 say ""
 say "Next steps for $DISPLAY_NAME:"
 say "  1. Set environment: export AGENCY_PRINCIPAL=$PRINCIPAL_NAME"
-say "  2. Verify identity: ./claude/tools/principal"
+say "  2. Verify identity: ./agency/tools/principal"
 say "  3. Launch captain: claude --agent $PRINCIPAL_NAME-captain"
 say "  4. (in claude) /session-resume — reads the bootstrap handoff"
 say ""

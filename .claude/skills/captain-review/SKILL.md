@@ -6,8 +6,8 @@ when_to_use: "Captain on master wants to triage the open draft-PR queue — eith
 argument-hint: "[<pr-number> | <project-name> | --all]"
 paths: []
 required_reading:
-  - claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md
-  - claude/REFERENCE-ISCP-PROTOCOL.md
+  - agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md
+  - agency/REFERENCE-ISCP-PROTOCOL.md
 ---
 
 <!--
@@ -38,8 +38,8 @@ The boundary is deliberate: this is a captain-side triage pass, not a gate. Boun
 
 Before running, Read the files listed in `required_reading:` frontmatter.
 
-- `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md` — distinguishes the review tools, PR lifecycle, review/dispatch file conventions.
-- `claude/REFERENCE-ISCP-PROTOCOL.md` — dispatch format, filenames, addressing; this skill emits dispatches.
+- `agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md` — distinguishes the review tools, PR lifecycle, review/dispatch file conventions.
+- `agency/REFERENCE-ISCP-PROTOCOL.md` — dispatch format, filenames, addressing; this skill emits dispatches.
 
 ## Usage
 
@@ -83,7 +83,7 @@ For each PR in scope, invoke `/code-review` via the Skill tool with the PR numbe
 For each workstream that produced findings, create a dispatch file at:
 
 ```
-claude/workstreams/{workstream}/code-reviews/{workstream}-dispatch-{YYYYMMDD-HHMM}.md
+agency/workstreams/{workstream}/code-reviews/{workstream}-dispatch-{YYYYMMDD-HHMM}.md
 ```
 
 Contents:
@@ -104,8 +104,8 @@ Captain Review Complete:
 
 Project          PR    Findings   Dispatch
 ─────────────────────────────────────────────
-mdpal            #12   8 issues   claude/workstreams/mdpal/code-reviews/mdpal-dispatch-20260401-1430.md
-mock-and-mark    #15   3 issues   claude/workstreams/mock-and-mark/code-reviews/mock-and-mark-dispatch-20260401-1430.md
+mdpal            #12   8 issues   agency/workstreams/mdpal/code-reviews/mdpal-dispatch-20260401-1430.md
+mock-and-mark    #15   3 issues   agency/workstreams/mock-and-mark/code-reviews/mock-and-mark-dispatch-20260401-1430.md
 ```
 
 ### Step 5: Commit review and dispatch files

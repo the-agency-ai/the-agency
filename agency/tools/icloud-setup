@@ -4,12 +4,12 @@
 # Usage: ./agency/tools/icloud-setup <projectname> <principalname>
 #
 # Creates:
-#   ~/Library/Mobile Documents/com~apple~CloudDocs/claude/{projectname}/
+#   ~/Library/Mobile Documents/com~apple~CloudDocs/agency/{projectname}/
 #     - misc/
 #     - {agent folders as they are created}
 #
 # Creates symlink:
-#   claude/principals/{principalname}/resources/cloud -> iCloud claude/{projectname}/
+#   usr/{principalname}/resources/cloud -> iCloud agency/{projectname}/
 
 set -euo pipefail
 
@@ -63,8 +63,8 @@ for arg in "$@"; do
             echo "  ./agency/tools/icloud-setup ordinaryfolk-nextgen jordan"
             echo ""
             echo "This creates:"
-            echo "  1. iCloud Drive/claude/{projectname}/ folder"
-            echo "  2. Symlink from principals/{principalname}/resources/cloud to iCloud"
+            echo "  1. iCloud Drive/agency/{projectname}/ folder"
+            echo "  2. Symlink from usr/{principalname}/resources/cloud to iCloud"
             echo ""
             echo "Options:"
             echo "  --verbose      Show verbose output"
@@ -112,7 +112,7 @@ main() {
     ICLOUD_BASE="$HOME/Library/Mobile Documents/com~apple~CloudDocs"
     ICLOUD_CLAUDE="$ICLOUD_BASE/claude"
     ICLOUD_PROJECT="$ICLOUD_CLAUDE/$PROJECTNAME"
-    PRINCIPAL_DIR="claude/principals/$PRINCIPALNAME"
+    PRINCIPAL_DIR="usr/$PRINCIPALNAME"
     RESOURCES_DIR="$PRINCIPAL_DIR/resources"
     CLOUD_LINK="$RESOURCES_DIR/cloud"
 
@@ -197,7 +197,7 @@ main() {
     echo "iCloud integration set up successfully!"
     echo ""
     echo "Structure:"
-    echo "  iCloud: ~/Library/Mobile Documents/com~apple~CloudDocs/claude/$PROJECTNAME/"
+    echo "  iCloud: ~/Library/Mobile Documents/com~apple~CloudDocs/agency/$PROJECTNAME/"
     echo "  Symlink: $CLOUD_LINK -> iCloud"
     echo ""
     echo "Files placed in $CLOUD_LINK will sync to iCloud."

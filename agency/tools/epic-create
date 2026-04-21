@@ -1,10 +1,10 @@
 #!/bin/bash
 # Create a new epic directory
 #
-# Usage: ./claude/tools/epic-create <number> [--verbose]
+# Usage: ./agency/tools/epic-create <number> [--verbose]
 #
 # Creates:
-#   claude/epics/epic{number}/
+#   agency/workstreams/epics/epic{number}/
 #     - feedback/
 #   Also creates epic{number}/ in all workstreams
 
@@ -44,7 +44,7 @@ fi
 
 # Help check
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    echo "Usage: ./claude/tools/epic-create <number> [--verbose]"
+    echo "Usage: ./agency/tools/epic-create <number> [--verbose]"
     echo ""
     echo "Create a new epic directory structure."
     echo ""
@@ -55,12 +55,12 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "  --verbose   Enable verbose logging"
     echo ""
     echo "Creates:"
-    echo "  claude/epics/epic{number}/"
+    echo "  agency/workstreams/epics/epic{number}/"
     echo "    - {epic}-plan.md"
     echo "    - feedback/"
     echo "  Also creates epic{number}/ in all workstreams"
     echo ""
-    echo "Example: ./claude/tools/epic-create 3"
+    echo "Example: ./agency/tools/epic-create 3"
     exit 0
 fi
 
@@ -87,15 +87,15 @@ done
 if [ -z "$NUM" ]; then
   log_error "Missing required argument"
   echo ""
-  echo "Usage: ./claude/tools/epic-create <number> [--verbose]"
+  echo "Usage: ./agency/tools/epic-create <number> [--verbose]"
   echo ""
-  echo "Example: ./claude/tools/epic-create 003"
+  echo "Example: ./agency/tools/epic-create 003"
   exit 1
 fi
 
 # Pad to 3 digits
 EPIC=$(printf "epic%03d" "$NUM")
-DIR="claude/epics/$EPIC"
+DIR="agency/workstreams/epics/$EPIC"
 
 # Get timezone from config or default to UTC
 TIMEZONE=$("$SCRIPT_DIR/config" get project.timezone 2>/dev/null || echo "UTC")
@@ -164,7 +164,7 @@ EOF
     # Create epic directory in all workstreams
     verbose_echo ""
     verbose_echo "Adding $EPIC/ to workstreams:"
-    for ws in claude/workstreams/*/; do
+    for ws in agency/workstreams/*/; do
       if [ -d "$ws" ]; then
         wsname=$(basename "$ws")
         if [ ! -d "$ws$EPIC" ]; then

@@ -1,7 +1,7 @@
 #!/bin/bash
 # terminal-setup — Dispatcher for terminal integration providers
 #
-# Usage: ./claude/tools/terminal-setup [--verbose] [provider-args...]
+# Usage: ./agency/tools/terminal-setup [--verbose] [provider-args...]
 #
 # Reads terminal.provider from agency.yaml and delegates to the
 # appropriate provider tool (e.g., terminal-setup-ghostty).
@@ -28,7 +28,7 @@ for arg in "$@"; do
         --help|-h)
             echo "terminal-setup — Set up terminal integration for Agency"
             echo ""
-            echo "Usage: ./claude/tools/terminal-setup [--verbose]"
+            echo "Usage: ./agency/tools/terminal-setup [--verbose]"
             echo ""
             echo "Reads terminal.provider from agency.yaml."
             echo "Auto-detects from \$TERM_PROGRAM if not configured."
@@ -41,8 +41,8 @@ done
 
 # Resolve provider
 PROVIDER_TOOL=""
-if [[ -f "$PROJECT_ROOT/claude/tools/lib/_provider-resolve" ]]; then
-    source "$PROJECT_ROOT/claude/tools/lib/_provider-resolve"
+if [[ -f "$PROJECT_ROOT/agency/tools/lib/_provider-resolve" ]]; then
+    source "$PROJECT_ROOT/agency/tools/lib/_provider-resolve"
     PROVIDER_TOOL=$(resolve_provider "terminal" 2>/dev/null) || true
 fi
 
@@ -55,7 +55,7 @@ if [[ -z "$PROVIDER_TOOL" ]]; then
         *)
             echo "terminal-setup [run: ${RUN_ID:-none}]"
             echo "No terminal provider configured and could not auto-detect from \$TERM_PROGRAM=${TERM_PROGRAM:-unset}"
-            echo "Set terminal.provider in claude/config/agency.yaml"
+            echo "Set terminal.provider in agency/config/agency.yaml"
             log_end "$RUN_ID" "failure" 1 0 "No provider" 2>/dev/null || true
             exit 1
             ;;

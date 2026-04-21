@@ -172,10 +172,10 @@ main() {
     # Configure principal with current user
     SYSTEM_USER=$(whoami)
     log_step "Configuring for user: $SYSTEM_USER"
-    if [ -f "claude/config/agency.yaml" ]; then
-        sed -i.bak "s/your_username: YourName/$SYSTEM_USER: $SYSTEM_USER/" claude/config/agency.yaml 2>/dev/null || \
-        sed -i '' "s/your_username: YourName/$SYSTEM_USER: $SYSTEM_USER/" claude/config/agency.yaml
-        rm -f claude/config/agency.yaml.bak
+    if [ -f "agency/config/agency.yaml" ]; then
+        sed -i.bak "s/your_username: YourName/$SYSTEM_USER: $SYSTEM_USER/" agency/config/agency.yaml 2>/dev/null || \
+        sed -i '' "s/your_username: YourName/$SYSTEM_USER: $SYSTEM_USER/" agency/config/agency.yaml
+        rm -f agency/config/agency.yaml.bak
     fi
 
     # Get starter version
@@ -210,8 +210,8 @@ print(json.dumps(components, indent=4))
         COMPONENTS_JSON='{}'
     fi
 
-    mkdir -p claude/config
-    cat > claude/config/manifest.json << EOF
+    mkdir -p agency/config
+    cat > agency/config/manifest.json << EOF
 {
   "schema_version": "1.0",
   "project": {
@@ -227,7 +227,7 @@ print(json.dumps(components, indent=4))
   "files": {}
 }
 EOF
-    verbose_echo "  Project manifest created: claude/config/manifest.json"
+    verbose_echo "  Project manifest created: agency/config/manifest.json"
 
     # Create .agency-version for update tracking
     echo "$STARTER_VERSION" > .agency-version
@@ -304,7 +304,7 @@ for name, info in data.get('components', {}).items():
                 if verbose:
                     print(f"    {name}: install hook completed")
                 # Update manifest to mark dependencies as installed
-                manifest_path = os.path.join(project_path, 'claude/config/manifest.json')
+                manifest_path = os.path.join(project_path, 'agency/config/manifest.json')
                 with open(manifest_path, 'r') as f:
                     manifest = json.load(f)
                 if name in manifest.get('components', {}):
@@ -335,7 +335,7 @@ EOF
         echo "To get started:"
         echo ""
         echo -e "  ${BLUE}cd $PROJECT_PATH${NC}"
-        echo -e "  ${BLUE}./claude/tools/myclaude housekeeping captain${NC}"
+        echo -e "  ${BLUE}./agency/tools/myclaude housekeeping captain${NC}"
         echo ""
         echo "Then type: /welcome"
         echo ""
@@ -361,13 +361,13 @@ EOF
             log_end "$RUN_ID" "success" 0 0 "Project $PROJECT_NAME created, launching agent"
 
             # Launch myclaude
-            exec ./claude/tools/myclaude housekeeping captain
+            exec ./agency/tools/myclaude housekeeping captain
         else
             echo ""
             echo "When you're ready:"
             echo ""
             echo -e "  ${BLUE}cd $PROJECT_PATH${NC}"
-            echo -e "  ${BLUE}./claude/tools/myclaude housekeeping captain${NC}"
+            echo -e "  ${BLUE}./agency/tools/myclaude housekeeping captain${NC}"
             echo ""
             echo "Then type: /welcome"
             echo ""

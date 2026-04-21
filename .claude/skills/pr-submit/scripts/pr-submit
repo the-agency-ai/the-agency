@@ -109,22 +109,22 @@ fi
 
 # ── Precondition: QGR receipt exists ─────────────────────────────────────────
 #
-# Receipt lives at claude/workstreams/{workstream}/qgr/*.md. We try to find
+# Receipt lives at agency/workstreams/{workstream}/qgr/*.md. We try to find
 # one matching the current diff hash against origin/master.
 
-DIFF_HASH_FULL=$(bash "$REPO_ROOT/claude/tools/diff-hash" --base origin/master --json 2>/dev/null | \
+DIFF_HASH_FULL=$(bash "$REPO_ROOT/agency/tools/diff-hash" --base origin/master --json 2>/dev/null | \
                  python3 -c "import sys, json; d=json.load(sys.stdin); print(d.get('full_hash',''))" 2>/dev/null || \
                  echo "")
 DIFF_HASH_SHORT="${DIFF_HASH_FULL:0:7}"
 
 if [[ -z "$DIFF_HASH_SHORT" ]]; then
     echo "submit-for-pr: could not compute diff hash against origin/master." >&2
-    echo "  Tool: $REPO_ROOT/claude/tools/diff-hash" >&2
+    echo "  Tool: $REPO_ROOT/agency/tools/diff-hash" >&2
     exit 1
 fi
 
 # Look for receipt matching this hash
-RECEIPT=$(find "$REPO_ROOT/claude/workstreams" -name "*qgr-pr-prep-*-$DIFF_HASH_SHORT.md" 2>/dev/null | head -1 || echo "")
+RECEIPT=$(find "$REPO_ROOT/agency/workstreams" -name "*qgr-pr-prep-*-$DIFF_HASH_SHORT.md" 2>/dev/null | head -1 || echo "")
 
 if [[ -z "$RECEIPT" ]]; then
     echo "submit-for-pr: no QGR receipt found matching current state (hash: $DIFF_HASH_SHORT)." >&2
@@ -139,8 +139,8 @@ RECEIPT_REL="${RECEIPT#$REPO_ROOT/}"
 AGENT=""
 if [[ -f "$REPO_ROOT/.claude/worktrees/$(basename "$REPO_ROOT")/.agency-agent" ]]; then
     AGENT=$(cat "$REPO_ROOT/.claude/worktrees/$(basename "$REPO_ROOT")/.agency-agent")
-elif command -v "$REPO_ROOT/claude/tools/agent-identity" &>/dev/null; then
-    AGENT=$("$REPO_ROOT/claude/tools/agent-identity" 2>/dev/null || echo "")
+elif command -v "$REPO_ROOT/agency/tools/agent-identity" &>/dev/null; then
+    AGENT=$("$REPO_ROOT/agency/tools/agent-identity" 2>/dev/null || echo "")
 fi
 if [[ -z "$AGENT" ]]; then
     AGENT=$(basename "$REPO_ROOT")  # fallback to worktree dir name
@@ -200,7 +200,7 @@ EOF
 
 # ── Send dispatch ────────────────────────────────────────────────────────────
 
-"$REPO_ROOT/claude/tools/dispatch" create \
+"$REPO_ROOT/agency/tools/dispatch" create \
     --type dispatch \
     --to "monofolk/$PRINCIPAL/captain" \
     --subject "Ready for PR landing: $BRANCH — $SCOPE" \

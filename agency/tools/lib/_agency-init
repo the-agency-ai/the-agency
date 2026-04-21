@@ -319,7 +319,7 @@ _init_main() {
     done
 
     # REFERENCE-*.md — D41-R26: the 39 framework reference docs are the
-    # authoritative guidance layer. Old code tried to copy /claude/docs/*.md
+    # authoritative guidance layer. Old code tried to copy /agency/REFERENCE/*.md
     # which doesn't exist — these live at /agency/REFERENCE/REFERENCE-*.md
     # (post-v46.1 layout). Every ref-injected skill assumes these are present.
     mkdir -p "$TARGET_DIR/agency/REFERENCE"
@@ -376,7 +376,7 @@ telemetry:
   providers: ["jsonl"]
 YAML_EOF
 
-    # Docs — legacy /claude/docs/ path (kept as no-op fallback; content
+    # Docs — legacy /agency/REFERENCE/ path (kept as no-op fallback; content
     # lives at /agency/REFERENCE/REFERENCE-*.md now, copied above in Step 3).
     # Post-v46.1: this block is effectively dead code since agency/docs/
     # doesn't exist in new layout. Preserved as safety net for any stray

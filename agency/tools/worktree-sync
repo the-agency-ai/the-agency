@@ -14,7 +14,7 @@
 #   2 — dirty tree refused (manual mode only)
 #
 # The enforcement triangle:
-#   Tool: this file (claude/tools/worktree-sync)
+#   Tool: this file (agency/tools/worktree-sync)
 #   Skill: /worktree-sync, /session-resume, /session-end
 #   Hookify: block-raw-git-merge-master
 
@@ -95,7 +95,7 @@ fi
 # Determine the main branch — a property of the REPO, never whatever the
 # captain happens to have checked out. Resolution order: origin/HEAD
 # symbolic-ref, then first existing local branch in [main, master].
-# See claude/REFERENCE-WORKTREE-DISCIPLINE.md for incident history (Day 42
+# See agency/REFERENCE/REFERENCE-WORKTREE-DISCIPLINE.md for incident history (Day 42
 # designex incident, the-agency#291). main-first fallback order matches
 # pr-create / git-captain / git-safe convention and picks the live branch
 # in repos mid-rename (stale master + live main).
@@ -238,8 +238,8 @@ fi
 
 # --- Run sandbox-sync ---
 SANDBOX_MSG=""
-if [[ -x "$ROOT/claude/tools/sandbox-sync" ]]; then
-    SANDBOX_OUTPUT=$("$ROOT/claude/tools/sandbox-sync" --quiet 2>&1) || true
+if [[ -x "$ROOT/agency/tools/sandbox-sync" ]]; then
+    SANDBOX_OUTPUT=$("$ROOT/agency/tools/sandbox-sync" --quiet 2>&1) || true
     if [[ -n "$SANDBOX_OUTPUT" ]]; then
         SANDBOX_MSG="$SANDBOX_OUTPUT"
     fi
@@ -251,8 +251,8 @@ CLAUDE_MD_CHANGED=false
 DISPATCHES=""
 
 if [[ "$MERGED" == true ]]; then
-    # Files changed in claude/ namespace
-    CHANGED_FILES=$(git diff "$PRE_MERGE_HEAD"..HEAD --name-only -- claude/ .claude/ CLAUDE.md 2>/dev/null || echo "")
+    # Files changed in agency/ namespace
+    CHANGED_FILES=$(git diff "$PRE_MERGE_HEAD"..HEAD --name-only -- agency/ .claude/ CLAUDE.md 2>/dev/null || echo "")
 
     # Check for CLAUDE.md changes
     if echo "$CHANGED_FILES" | grep -qE "CLAUDE\.md|CLAUDE-THEAGENCY\.md" 2>/dev/null; then

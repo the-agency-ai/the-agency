@@ -6,9 +6,9 @@
 # Useful for tracking external tool usage by agents.
 #
 # Usage:
-#   ./claude/tools/run git status
-#   ./claude/tools/run npm install
-#   ./claude/tools/run -- command --with-flags
+#   ./agency/tools/run git status
+#   ./agency/tools/run npm install
+#   ./agency/tools/run -- command --with-flags
 #
 # The command runs normally - this wrapper only adds telemetry.
 # If the log service isn't running, the command still executes.
@@ -31,13 +31,13 @@ show_help() {
 run - Execute external commands with telemetry
 
 Usage:
-  ./claude/tools/run <command> [args...]
-  ./claude/tools/run -- <command> [args...]
+  ./agency/tools/run <command> [args...]
+  ./agency/tools/run -- <command> [args...]
 
 Examples:
-  ./claude/tools/run git status
-  ./claude/tools/run npm install
-  ./claude/tools/run -- curl -s https://api.example.com
+  ./agency/tools/run git status
+  ./agency/tools/run npm install
+  ./agency/tools/run -- curl -s https://api.example.com
 
 Options:
   --help, -h      Show this help
@@ -77,7 +77,7 @@ done
 # Check for command
 if [[ $# -eq 0 ]]; then
     echo "Error: No command specified" >&2
-    echo "Usage: ./claude/tools/run <command> [args...]" >&2
+    echo "Usage: ./agency/tools/run <command> [args...]" >&2
     exit 1
 fi
 

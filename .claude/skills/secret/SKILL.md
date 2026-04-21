@@ -88,6 +88,6 @@ Show the user the result. Never echo secret values to the conversation — pipe 
 
 ## SPEC-PROVIDER Pattern
 
-This skill is one of several using the SPEC-PROVIDER pattern (see `claude/README-THEAGENCY.md` SPEC-PROVIDER section). The skill is generic; the provider implements the contract. Add new providers by creating `./agency/tools/secret-{name}` that supports the standard verbs.
+This skill is one of several using the SPEC-PROVIDER pattern (see `agency/README-THEAGENCY.md` SPEC-PROVIDER section). The skill is generic; the provider implements the contract. Add new providers by creating `./agency/tools/secret-{name}` that supports the standard verbs.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

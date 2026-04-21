@@ -44,7 +44,7 @@ Skills whose name starts with `captain-` (or contains `-captain-`) MUST carry:
 
 If a specific skill genuinely should never be auto-invocable by ANY model context — e.g., a deprecation signpost like `/rebase` — use `disable-model-invocation: true` on that individual skill. Don't apply it by family.
 
-**History (2026-04-20):** a previous version of this doc required `disable-model-invocation: true` on all captain-* skills; 7 skills picked up the flag (captain-log, captain-review, captain-release, captain-sync-all, pr-captain-land, pr-captain-merge, pr-captain-post-merge, and sync). Those flags were stripped when the rule was corrected. Enforcement at `claude/tools/skill-audit` §3b was relaxed accordingly.
+**History (2026-04-20):** a previous version of this doc required `disable-model-invocation: true` on all captain-* skills; 7 skills picked up the flag (captain-log, captain-review, captain-release, captain-sync-all, pr-captain-land, pr-captain-merge, pr-captain-post-merge, and sync). Those flags were stripped when the rule was corrected. Enforcement at `agency/tools/skill-audit` §3b was relaxed accordingly.
 
 ### `paths:` semantics and the agency#347 trap
 
@@ -94,16 +94,16 @@ Rationale for keeping the 9 sections: readers of ANY v2 skill should know where 
 
 ## §3 The tools-layer convention (internal tools)
 
-Bash tools under `claude/tools/` are not `/` autocomplete surface — they don't need an underscore prefix. When a tool is intended for composition use only (not principal-facing), signal via:
+Bash tools under `agency/tools/` are not `/` autocomplete surface — they don't need an underscore prefix. When a tool is intended for composition use only (not principal-facing), signal via:
 
 - `--help` text starts with "Internal — called from `/skill-foo`" (or similar).
 - This REFERENCE doc lists the tool as internal.
-- Optionally: a directory grouping (e.g., `claude/tools/internal/`) if the tools layer grows large enough to need taxonomy. Not currently required.
+- Optionally: a directory grouping (e.g., `agency/tools/internal/`) if the tools layer grows large enough to need taxonomy. Not currently required.
 
 **Current internal tools** (as of 2026-04-20):
-- `claude/tools/session-pause` — invoked from `/compact-prepare` and `/session-end` (session-lifecycle-refactor).
-- `claude/tools/session-pickup` — invoked from `/compact-resume` and `/session-resume`.
-- `claude/tools/monitor-register` — invoked from monitor-spawning skills on startup.
+- `agency/tools/session-pause` — invoked from `/compact-prepare` and `/session-end` (session-lifecycle-refactor).
+- `agency/tools/session-pickup` — invoked from `/compact-resume` and `/session-resume`.
+- `agency/tools/monitor-register` — invoked from monitor-spawning skills on startup.
 
 ## §4 Composition patterns
 
@@ -113,18 +113,18 @@ Skill bodies shell to tools:
 
 ```markdown
 ## Step 2: Run the primitive
-`./claude/tools/session-pause --framing continuation --trigger compact-prepare`
+`./agency/tools/session-pause --framing continuation --trigger compact-prepare`
 ```
 
-Precedent: `.claude/skills/pr-captain-land/SKILL.md` shells to `./claude/tools/pr-captain-merge`, `./claude/tools/quality-gate`, and others across its step list. This is THE established composition pattern in the framework.
+Precedent: `.claude/skills/pr-captain-land/SKILL.md` shells to `./agency/tools/pr-captain-merge`, `./agency/tools/quality-gate`, and others across its step list. This is THE established composition pattern in the framework.
 
 ### Tool → tool (established)
 
 Tools shell to other tools:
 
 ```bash
-./claude/tools/git-safe-commit "..." --no-work-item
-./claude/tools/handoff write --trigger ...
+./agency/tools/git-safe-commit "..." --no-work-item
+./agency/tools/handoff write --trigger ...
 ```
 
 ## §5 Discoverability
@@ -138,18 +138,18 @@ Principals should be able to find every skill they need via `/` autocomplete fro
 
 ## §6 Enforcement
 
-### `claude/tools/skill-verify`
+### `agency/tools/skill-verify`
 
 - Checks SKILL.md frontmatter against the regex contract (name, description, agency-skill-version, etc.).
 - Runs in fleet-gate.
-- Unit test: `claude/tools/tests/test-skill-verify.sh`.
+- Unit test: `agency/tools/tests/test-skill-verify.sh`.
 
-### `claude/tools/skill-audit`
+### `agency/tools/skill-audit`
 
 - Lint rules:
-  - **paths-vs-body-consistency** (F12, session-lifecycle-refactor Iteration 1.3): flags any skill where `paths:` is non-empty AND body contains a cross-context claim from the closed phrase list (see `claude/tools/skill-audit` source for current list).
+  - **paths-vs-body-consistency** (F12, session-lifecycle-refactor Iteration 1.3): flags any skill where `paths:` is non-empty AND body contains a cross-context claim from the closed phrase list (see `agency/tools/skill-audit` source for current list).
   - **body-line-limit** (F12): warn at >200 body lines (post-frontmatter), fail at >300.
-- Unit test: `claude/tools/tests/test-skill-audit.sh`.
+- Unit test: `agency/tools/tests/test-skill-audit.sh`.
 - Runs in fleet-gate.
 
 ### File:line citation rule
@@ -165,7 +165,7 @@ All three: confidence-without-verification on "framework precedents" drawn from 
 
 ## §7 Composition limitations (as of 2026-04-20)
 
-**Skill-to-skill composition via the Skill tool is NOT a supported framework feature.** Shared primitives in a skill family MUST live at the tool layer (`claude/tools/*`) and be invoked by the public skills via bash.
+**Skill-to-skill composition via the Skill tool is NOT a supported framework feature.** Shared primitives in a skill family MUST live at the tool layer (`agency/tools/*`) and be invoked by the public skills via bash.
 
 Filed upstream as agency#348 — requesting either (a) first-class skill composition, (b) a documented convention for composable-primitive skills, or (c) explicit documentation that composition is not supported.
 

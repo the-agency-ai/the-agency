@@ -27,7 +27,7 @@ Documentation specialist focused on creating clear, comprehensive, and maintaina
 ## Knowledge Base
 
 This agent specializes in:
-- `claude/knowledge/documentation-patterns/` - Documentation best practices
+- `agency/knowledge/documentation-patterns/` - Documentation best practices
 - Technical writing standards
 - API documentation (OpenAPI, JSDoc, etc.)
 - Markdown formatting
@@ -83,5 +83,5 @@ This agent specializes in:
 
 - `agency/agents/{{AGENT_NAME}}/` - Agent identity
 - `agency/workstreams/{{WORKSTREAM}}/` - Work artifacts
-- `claude/knowledge/documentation-patterns/` - Documentation patterns
+- `agency/knowledge/documentation-patterns/` - Documentation patterns
 - `claude/REFERENCE-*.md` - Agency documentation

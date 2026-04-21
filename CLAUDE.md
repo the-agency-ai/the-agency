@@ -5,7 +5,7 @@ This is the **framework development repo** — TheAgency itself. You are buildin
 ## This Repo
 
 - **Framework code:** `claude/` (tools, agents, docs, hooks, skills, templates, starter packs)
-- **App workstreams:** `claude/workstreams/mdpal/`, `claude/workstreams/mock-and-mark/` (Reference Source License)
+- **App workstreams:** `agency/workstreams/mdpal/`, `agency/workstreams/mock-and-mark/` (Reference Source License)
 - **Test fixtures:** `test/test-agency-project/` (embedded git repo — commit inside it separately)
 - **Principal sandbox:** `usr/jordan/` (captain instance, dispatches, transcripts)
 
@@ -24,10 +24,10 @@ Open core model:
 
 ## Repo-Specific Conventions
 
-- Tools live in `claude/tools/` — bash wrappers with `_log-helper` integration
+- Tools live in `agency/tools/` — bash wrappers with `_log-helper` integration
 - Skills live in `.claude/skills/{name}/SKILL.md` — auto-discovered by Claude Code
 - Commands live in `.claude/commands/{name}.md` — user-invoked via `/{name}`
-- Agent classes live in `claude/agents/{class}/agent.md`
+- Agent classes live in `agency/agents/{class}/agent.md`
 - Agent registrations live in `.claude/agents/{name}.md`
 
-@claude/CLAUDE-THEAGENCY.md
+@agency/CLAUDE-THEAGENCY.md

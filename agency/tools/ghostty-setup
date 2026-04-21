@@ -6,15 +6,15 @@
 #
 # Safe to re-run — idempotent.
 #
-# Usage: bash claude/tools/ghostty-setup
+# Usage: bash agency/tools/ghostty-setup
 
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 GHOSTTY_CONFIG_DIR="$HOME/.config/ghostty"
-GHOSTTY_CONFIG_SRC="$REPO_DIR/claude/tools/ghostty-config"
+GHOSTTY_CONFIG_SRC="$REPO_DIR/agency/tools/ghostty-config"
 GHOSTTY_CONFIG_DST="$GHOSTTY_CONFIG_DIR/config"
-ZSH_INTEGRATION_SRC="$REPO_DIR/claude/tools/ghostty-integration"
+ZSH_INTEGRATION_SRC="$REPO_DIR/agency/tools/ghostty-integration"
 ZSHRC="$HOME/.zshrc"
 
 echo "=== Ghostty Setup ==="

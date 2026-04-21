@@ -1,7 +1,7 @@
 #!/bin/bash
 # Fetch from remote and report branch status
 #
-# Usage: ./claude/tools/git-fetch [options]
+# Usage: ./agency/tools/git-fetch [options]
 #   --verbose  Show detailed output
 #
 # Token-conserving: 3-line output, details in log
@@ -25,7 +25,7 @@ while [[ $# -gt 0 ]]; do
         --help|-h)
             echo "git-fetch - Fetch from remote and report branch status"
             echo ""
-            echo "Usage: ./claude/tools/git-fetch [options]"
+            echo "Usage: ./agency/tools/git-fetch [options]"
             echo ""
             echo "Options:"
             echo "  --verbose      Show detailed output"

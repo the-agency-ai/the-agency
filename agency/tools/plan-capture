@@ -219,7 +219,7 @@ case "${1:-}" in
         ;;
     --from-hook)
         # ERR trap: emit warning on unexpected failure so agent knows capture failed
-        trap 'echo "{\"systemMessage\":\"Plan capture encountered an unexpected error. Run: bash claude/tools/plan-capture --manual '\''title'\'' to capture manually.\"}"; exit 0' ERR
+        trap 'echo "{\"systemMessage\":\"Plan capture encountered an unexpected error. Run: bash agency/tools/plan-capture --manual '\''title'\'' to capture manually.\"}"; exit 0' ERR
 
         INPUT=$(cat)
 
@@ -238,14 +238,14 @@ case "${1:-}" in
             fi
             if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
                 # No plan content found — emit warning
-                echo '{"systemMessage":"Plan mode exited but no plan content was captured. Run: bash claude/tools/plan-capture --manual '\''title'\''  to capture manually."}'
+                echo '{"systemMessage":"Plan mode exited but no plan content was captured. Run: bash agency/tools/plan-capture --manual '\''title'\''  to capture manually."}'
                 exit 0
             fi
             PLAN_CONTENT=$(extract_from_transcript "$TRANSCRIPT_PATH")
         fi
 
         if [ -z "$PLAN_CONTENT" ]; then
-            echo '{"systemMessage":"Plan mode exited but no plan content was captured. Run: bash claude/tools/plan-capture --manual '\''title'\'' to capture manually."}'
+            echo '{"systemMessage":"Plan mode exited but no plan content was captured. Run: bash agency/tools/plan-capture --manual '\''title'\'' to capture manually."}'
             exit 0
         fi
 

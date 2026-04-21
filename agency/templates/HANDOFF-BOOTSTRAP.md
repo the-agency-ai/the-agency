@@ -51,9 +51,9 @@ Then greet the principal warmly and orient them. Offer the guided tour first —
 
 ## Reference
 
-- `claude/README-GETTINGSTARTED.md` — adopter onboarding
-- `claude/README-THEAGENCY.md` — full orientation
-- `claude/README-ENFORCEMENT.md` — rules, hookify, quality gates
+- `agency/README-GETTINGSTARTED.md` — adopter onboarding
+- `agency/README-THEAGENCY.md` — full orientation
+- `agency/README-ENFORCEMENT.md` — rules, hookify, quality gates
 - `agency/CLAUDE-THEAGENCY.md` — methodology (loaded automatically via the import)
 
 ## House Rules
