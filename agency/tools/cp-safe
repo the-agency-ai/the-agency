@@ -111,21 +111,26 @@ find_nearest_existing_dir() {
     return 1
 }
 
-# Get the worktree root (canonical, absolute) for a path.
+# Get the worktree root (canonical physical path) for a path.
 # Worktree root is different for each sibling worktree of the same repo.
+# Uses pwd -P to resolve symlinks consistently — /tmp → /private/tmp on
+# macOS would otherwise produce different strings for the same directory
+# depending on whether git resolved it (physical) or we cd'd via user
+# input (logical).
 get_worktree_root() {
     local path="$1"
-    local dir
+    local dir top
     dir=$(find_nearest_existing_dir "$path") || return 1
-    # rev-parse --show-toplevel returns canonical absolute path of the
-    # current worktree's root; returns non-zero if $dir isn't in a git
-    # tree (handles .git forgery in /tmp — a bare `.git` file/dir without
-    # a real git backing won't satisfy git's own checks).
-    git -C "$dir" rev-parse --show-toplevel 2>/dev/null
+    # rev-parse --show-toplevel returns the current worktree's root;
+    # returns non-zero if $dir isn't in a git tree (handles .git forgery
+    # in /tmp — a bare `.git` file/dir without a real git backing won't
+    # satisfy git's own checks).
+    top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || return 1
+    ( cd "$top" && pwd -P )
 }
 
-# Get the repo root (canonical, absolute). For worktrees, this is the
-# main checkout root — SHARED across all worktrees of the same repo.
+# Get the repo root (canonical physical path). For worktrees, this is
+# the main checkout root — SHARED across all worktrees of the same repo.
 # This is what lets us detect sibling↔sibling same-repo copies that the
 # old string-prefix `is_cross_worktree_same_repo` missed (C-1).
 get_repo_root() {
@@ -135,9 +140,9 @@ get_repo_root() {
     # --git-common-dir returns the main .git directory; same for every
     # worktree of the repo. Its parent is the main checkout root.
     common=$(git -C "$dir" rev-parse --git-common-dir 2>/dev/null) || return 1
-    # Canonicalize: cd to dir context, resolve the (possibly relative)
-    # common-dir to its parent.
-    ( cd "$dir" && cd "$common/.." && pwd )
+    # Canonicalize via pwd -P so symlinked paths (e.g. /tmp vs /private/tmp
+    # on macOS) collapse to the same physical string for comparison.
+    ( cd "$dir" && cd "$common" && cd .. && pwd -P )
 }
 
 SOURCE_WORKTREE=$(get_worktree_root "$SOURCE" 2>/dev/null || true)
