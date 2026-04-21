@@ -112,12 +112,13 @@ Release complete:
 - **Does not push master** — master is pushed only via merged PRs.
 - **Does not land agent-owned work** — for that, agent uses `/pr-submit` → captain uses `/pr-captain-land`.
 
-## Captain-only — four-layer defense
+## Captain-only — three-layer defense
 
-1. `disable-model-invocation: true` — Claude can't auto-invoke.
-2. `paths: []` — no auto-activation.
-3. Name contains `captain-` — scope visible in listing.
-4. Step 1 precondition — captain must be on a captain-* branch, not master or agent branch.
+1. `paths: []` — no file-path auto-activation; universally discoverable for the captain but scoped out of worktree contexts.
+2. Name contains `captain-` — scope visible in listing.
+3. Step 1 precondition — captain must be on a captain-* branch, not master or agent branch.
+
+(Historically `disable-model-invocation: true` was a fourth layer. That flag was removed 2026-04-20 because the captain session IS the principal's session — DMI was blocking the captain from invoking captain-* skills. See `REFERENCE-SKILL-CONVENTIONS.md` §1.)
 
 ## Status
 
