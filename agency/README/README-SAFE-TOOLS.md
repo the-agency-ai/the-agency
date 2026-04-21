@@ -47,7 +47,7 @@ Wraps `cp` with worktree boundary validation. Resolves real paths for source and
 Wraps `gh pr create` with three mandatory checks before the PR is created:
 
 1. Must be on a branch (not main/master)
-2. A valid receipt must exist and pass `receipt-verify` (three-tier search: per-workstream `qgr/` → legacy `claude/receipts/` → old `usr/**/qgr-*.md`)
+2. A valid receipt must exist and pass `receipt-verify` (three-tier search: per-workstream `qgr/` → legacy `agency/receipts/` → old `usr/**/qgr-*.md`)
 3. `agency/config/manifest.json` must be changed (version bumped) relative to origin/main
 
 All `gh pr create` flags pass through after validation. Use via the `/release` skill for the full release flow.

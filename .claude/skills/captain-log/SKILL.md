@@ -6,7 +6,7 @@ when_to_use: "Capturing the narrative thread of a session as work happens — de
 argument-hint: "[entry text | -c <category> <text> | read [YYYYMMDD] | list | path]"
 paths: []
 required_reading:
-  - claude/REFERENCE-AGENT-DISCIPLINE.md
+  - agency/REFERENCE-AGENT-DISCIPLINE.md
 ---
 
 <!--
@@ -38,7 +38,7 @@ The richer the log, the more useful the mining. Log proactively; don't batch.
 
 Before running, Read the files listed in `required_reading:` frontmatter.
 
-- `claude/REFERENCE-AGENT-DISCIPLINE.md` — Two Priorities + Over/Over-and-out. The log is a working-session practice; it sits inside the agent-discipline frame.
+- `agency/REFERENCE-AGENT-DISCIPLINE.md` — Two Priorities + Over/Over-and-out. The log is a working-session practice; it sits inside the agent-discipline frame.
 
 ## Usage
 
@@ -57,12 +57,12 @@ Categories: `decision`, `friction`, `learning`, `milestone`, `observation` (defa
 Examples:
 
 ```bash
-./claude/tools/captain-log "noticed agents kept cd-ing to main checkout"
-./claude/tools/captain-log -c friction "permission prompt for chmod blocked agent boot"
-./claude/tools/captain-log -c decision "QGRs go in workstream/quality-gate-reports/, not usr/"
-./claude/tools/captain-log -c build "shipped /collaborate skill + tool + hookify warn"
-./claude/tools/captain-log read
-./claude/tools/captain-log read 20260406
+./agency/tools/captain-log "noticed agents kept cd-ing to main checkout"
+./agency/tools/captain-log -c friction "permission prompt for chmod blocked agent boot"
+./agency/tools/captain-log -c decision "QGRs go in workstream/quality-gate-reports/, not usr/"
+./agency/tools/captain-log -c build "shipped /collaborate skill + tool + hookify warn"
+./agency/tools/captain-log read
+./agency/tools/captain-log read 20260406
 ```
 
 ## Preconditions
@@ -86,7 +86,7 @@ The skill is **append-only** on writes and read-only on reads. Writes never rewr
 Invoke the tool with the entry text. Choose the category deliberately — the category is what makes the log mineable later:
 
 ```
-./claude/tools/captain-log -c <category> "<entry text>"
+./agency/tools/captain-log -c <category> "<entry text>"
 ```
 
 - Use `-c observation` (or omit `-c`) for general notes that don't fit another bucket.
@@ -115,7 +115,7 @@ The log is a **side-channel** practice — it never blocks the work. Capture the
 - **Read for a day with no entries**: tool reports "no log for that day" and exits non-zero. Confirm the date or use `list` to see what exists.
 - **Entry text contains shell metacharacters**: quote the argument so the shell passes it intact. Unquoted entries with `&`, `|`, `;`, or `*` will lose content.
 - **Wrong category**: log is append-only — there is no edit-in-place. File a new entry with a correction note, or leave it and move on (the mining step handles noise).
-- **Tool output suggests a bug**: do not fix it here — report it via `/flag` or `/agency-issue` per `claude/REFERENCE-AGENT-DISCIPLINE.md`.
+- **Tool output suggests a bug**: do not fix it here — report it via `/flag` or `/agency-issue` per `agency/REFERENCE-AGENT-DISCIPLINE.md`.
 
 ## What this does NOT do
 
@@ -128,7 +128,7 @@ The log is a **side-channel** practice — it never blocks the work. Capture the
 
 ## Status
 
-`active` (v2 migrated from v1 in monofolk V1→V2 migration). Stable surface; the underlying tool at `claude/tools/captain-log` has the same CLI it did pre-migration.
+`active` (v2 migrated from v1 in monofolk V1→V2 migration). Stable surface; the underlying tool at `agency/tools/captain-log` has the same CLI it did pre-migration.
 
 ## Related
 
@@ -136,6 +136,6 @@ The log is a **side-channel** practice — it never blocks the work. Capture the
 - `/flag` — ephemeral observation queue; route to discussion, log if the observation is closed.
 - `/transcript` — full dialogue capture; log is curated narrative, not verbatim.
 - `/dispatch` — cross-agent coordination; log captures local narrative, dispatches carry cross-agent findings.
-- `claude/tools/captain-log` — the underlying tool this skill invokes.
+- `agency/tools/captain-log` — the underlying tool this skill invokes.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

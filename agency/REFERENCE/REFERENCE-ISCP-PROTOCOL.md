@@ -55,7 +55,7 @@ Fully qualified: `{repo}/{principal}/{agent}`. Tools write fully qualified, acce
 
 ### Dispatch Payloads
 
-Payloads are immutable markdown files in git at `claude/data/dispatches/`. Named `{type}-{slug}-{YYYYMMDD-HHMM}.md`. The DB stores the notification (status, timestamps); git stores the content.
+Payloads are immutable markdown files in git at `agency/config/dispatches/`. Named `{type}-{slug}-{YYYYMMDD-HHMM}.md`. The DB stores the notification (status, timestamps); git stores the content.
 
 ### Notification Hook
 

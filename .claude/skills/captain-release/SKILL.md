@@ -6,9 +6,9 @@ when_to_use: Captain has staged coordination work on a captain-* branch and want
 argument-hint: "[--no-push] [--no-pr] <commit description>"
 paths: []
 required_reading:
-  - claude/REFERENCE-QUALITY-GATE.md
-  - claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md
-  - claude/REFERENCE-GIT-MERGE-NOT-REBASE.md
+  - agency/REFERENCE-QUALITY-GATE.md
+  - agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md
+  - agency/REFERENCE-GIT-MERGE-NOT-REBASE.md
 ---
 
 <!--
@@ -59,7 +59,7 @@ Before proceeding, Read the files listed in `required_reading:` frontmatter.
 
 ### Step 2: Quality gate
 
-Run `./claude/tools/commit-precheck`. Verify formatting, linting, tests pass. If fails, stop and report.
+Run `./agency/tools/commit-precheck`. Verify formatting, linting, tests pass. If fails, stop and report.
 
 ### Step 3: Commit
 
@@ -69,22 +69,22 @@ Invoke `/git-safe-commit` with the commit description from `<arguments>`. Produc
 
 1. Show commits that will be pushed.
 2. Ask for confirmation.
-3. `./claude/tools/git-push --force-with-lease <branch>`.
+3. `./agency/tools/git-push --force-with-lease <branch>`.
 
 ### Step 5: PR (unless `--no-pr` and push happened)
 
 1. Check if PR exists: `gh pr view <branch>`.
 2. If exists: report URL.
-3. If not: `./claude/tools/pr-create --title "..." --body "..."`.
+3. If not: `./agency/tools/pr-create --title "..." --body "..."`.
 
 **Never raw `gh pr create`.** The pr-create tool validates a QGR receipt before allowing PR creation.
 
 ### Step 6: Version bump
 
 1. Parse PR title for release version (D#-R# → version #.# OR monofolk_version increment).
-2. Update `claude/config/manifest.json`: bump appropriate version field + `updated_at`.
+2. Update `agency/config/manifest.json`: bump appropriate version field + `updated_at`.
 3. Commit the bump via `/git-safe-commit --no-work-item`.
-4. Push: `./claude/tools/git-push <branch>`.
+4. Push: `./agency/tools/git-push <branch>`.
 
 ### Step 7: Summary
 
@@ -130,8 +130,8 @@ Release complete:
 - `/pr-captain-land` — alternative flow when landing agent-owned work
 - `/pr-prep` — QG before this skill runs
 - `/git-safe-commit` — underlying commit tool
-- `claude/tools/pr-create` — underlying PR creation tool
-- `claude/tools/commit-precheck` — QG precheck
+- `agency/tools/pr-create` — underlying PR creation tool
+- `agency/tools/commit-precheck` — QG precheck
 - the-agency#296 — PR lifecycle ownership
 - the-agency#315 — V1→V2 migration
 

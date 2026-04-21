@@ -4,7 +4,7 @@
 #
 # Usage: agent-define <class-name> [--description "role description"]
 #
-# Creates a class definition at claude/agents/<class-name>/agent.md
+# Creates a class definition at agency/agents/<class-name>/agent.md
 # with the standard template. The class defines the role — instances
 # are created separately with agent-create.
 #
@@ -25,7 +25,7 @@ fi
 show_help() {
     echo "Usage: agent-define <class-name> [--description \"role description\"]"
     echo ""
-    echo "Creates a new agent class definition at claude/agents/<class-name>/agent.md"
+    echo "Creates a new agent class definition at agency/agents/<class-name>/agent.md"
     echo ""
     echo "Options:"
     echo "  --description, -d   One-line role description"
@@ -65,11 +65,11 @@ fi
 
 # Find project root
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-CLASS_DIR="$PROJECT_ROOT/claude/agents/$CLASS_NAME"
+CLASS_DIR="$PROJECT_ROOT/agency/agents/$CLASS_NAME"
 
 # Check if class already exists
 if [[ -d "$CLASS_DIR" ]]; then
-    echo "Error: agent class '$CLASS_NAME' already exists at claude/agents/$CLASS_NAME/" >&2
+    echo "Error: agent class '$CLASS_NAME' already exists at agency/agents/$CLASS_NAME/" >&2
     exit 1
 fi
 
@@ -95,7 +95,7 @@ I am a $CLASS_NAME — $DESCRIPTION
 ## Class
 
 This is an agent **class definition**. Instances are created per-principal per-workstream:
-- Class: \`claude/agents/$CLASS_NAME/agent.md\` (this file)
+- Class: \`agency/agents/$CLASS_NAME/agent.md\` (this file)
 - Instance registration: \`.claude/agents/{name}.md\`
 - Instance workspace: \`usr/{principal}/{agent}/\`
 
@@ -121,22 +121,22 @@ Before any work:
 1. Read \`handoff.md\` in your instance directory (\`usr/{principal}/{agent}/\`)
 2. Check for \`guide-*.md\` and \`dispatch-*.md\` files in your scope
 3. Enter your worktree (create one if needed) BEFORE starting \`/discuss\` or writing files
-4. Read your workstream KNOWLEDGE.md at \`claude/workstreams/{workstream}/KNOWLEDGE.md\`
-5. Read any seeds at \`claude/workstreams/{workstream}/seeds/\`
+4. Read your workstream KNOWLEDGE.md at \`agency/workstreams/{workstream}/KNOWLEDGE.md\`
+5. Read any seeds at \`agency/workstreams/{workstream}/seeds/\`
 
 ## Artifact Lifecycle
 
 **During discussion (pre-implementation):**
-- Seeds are in \`claude/workstreams/{workstream}/seeds/\`
+- Seeds are in \`agency/workstreams/{workstream}/seeds/\`
 - Transcripts go to \`usr/{principal}/{agent}/transcripts/\`
 - PVR and A&D drafts evolve in the agent instance space
 
 **At implementation launch:**
-- PVR, A&D, and Plan move to \`claude/workstreams/{workstream}/\`
+- PVR, A&D, and Plan move to \`agency/workstreams/{workstream}/\`
 - They become shared artifacts
 
 **During implementation:**
-- QGRs filed in \`claude/workstreams/{workstream}/reviews/\`
+- QGRs filed in \`agency/workstreams/{workstream}/reviews/\`
 - Plan updated after every commit
 - Handoff written at every session boundary
 
@@ -150,8 +150,8 @@ Triggers: SessionEnd, PreCompact, iteration-complete, phase-complete
 
 ## Key Directories
 
-- \`claude/agents/$CLASS_NAME/\` — this class definition
-- \`claude/workstreams/{workstream}/\` — shared workstream artifacts
+- \`agency/agents/$CLASS_NAME/\` — this class definition
+- \`agency/workstreams/{workstream}/\` — shared workstream artifacts
 - \`usr/{principal}/{agent}/\` — your instance workspace
 - \`.claude/agents/{name}.md\` — your Claude Code registration
 AGENTEOF
@@ -159,9 +159,9 @@ AGENTEOF
 # Output (token-conserving)
 if [[ -n "${RUN_ID:-}" ]]; then
     log_end "$RUN_ID" "success" 0 0 "Created class: $CLASS_NAME"
-    tool_output "agent-define" "$RUN_ID" "Created: claude/agents/$CLASS_NAME/agent.md"
+    tool_output "agent-define" "$RUN_ID" "Created: agency/agents/$CLASS_NAME/agent.md"
 else
     echo "agent-define"
-    echo "Created: claude/agents/$CLASS_NAME/agent.md"
+    echo "Created: agency/agents/$CLASS_NAME/agent.md"
     echo "✓"
 fi

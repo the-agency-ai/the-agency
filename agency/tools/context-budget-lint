@@ -18,11 +18,11 @@
 # Updated: 2026-04-07 — added size-sorted output and top-N offender summary
 #
 # Usage:
-#   ./claude/tools/context-budget-lint                    # lint all skills
-#   ./claude/tools/context-budget-lint --budget 6000      # custom token budget
-#   ./claude/tools/context-budget-lint --skill handoff    # lint specific skill
-#   ./claude/tools/context-budget-lint --verbose          # show per-file breakdown
-#   ./claude/tools/context-budget-lint --version          # show version
+#   ./agency/tools/context-budget-lint                    # lint all skills
+#   ./agency/tools/context-budget-lint --budget 6000      # custom token budget
+#   ./agency/tools/context-budget-lint --skill handoff    # lint specific skill
+#   ./agency/tools/context-budget-lint --verbose          # show per-file breakdown
+#   ./agency/tools/context-budget-lint --version          # show version
 #
 # Exit codes:
 #   0 = all skills within budget

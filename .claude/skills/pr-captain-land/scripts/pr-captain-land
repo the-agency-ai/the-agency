@@ -100,7 +100,7 @@ fi
 
 # ── Precondition: agent branch exists on origin ─────────────────────────────
 
-bash "$REPO_ROOT/claude/tools/git-captain" fetch >/dev/null 2>&1 || true
+bash "$REPO_ROOT/agency/tools/git-captain" fetch >/dev/null 2>&1 || true
 
 if ! git show-ref --verify --quiet "refs/remotes/origin/$AGENT_BRANCH"; then
     echo "pr-captain-land: branch '$AGENT_BRANCH' not found on origin." >&2
@@ -110,21 +110,21 @@ fi
 # ── Switch to agent branch ───────────────────────────────────────────────────
 
 echo "→ Switching to $AGENT_BRANCH..."
-bash "$REPO_ROOT/claude/tools/git-captain" switch-branch "$AGENT_BRANCH" >/dev/null
+bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$AGENT_BRANCH" >/dev/null
 
 # ── Verify QGR receipt ───────────────────────────────────────────────────────
 
-DIFF_HASH_FULL=$(bash "$REPO_ROOT/claude/tools/diff-hash" --base origin/master --json 2>/dev/null | \
+DIFF_HASH_FULL=$(bash "$REPO_ROOT/agency/tools/diff-hash" --base origin/master --json 2>/dev/null | \
                  python3 -c "import sys, json; d=json.load(sys.stdin); print(d.get('full_hash',''))" 2>/dev/null || \
                  echo "")
 DIFF_HASH_SHORT="${DIFF_HASH_FULL:0:7}"
 
-RECEIPT=$(find "$REPO_ROOT/claude/workstreams" -name "*qgr-pr-prep-*-$DIFF_HASH_SHORT.md" 2>/dev/null | head -1 || echo "")
+RECEIPT=$(find "$REPO_ROOT/agency/workstreams" -name "*qgr-pr-prep-*-$DIFF_HASH_SHORT.md" 2>/dev/null | head -1 || echo "")
 if [[ -z "$RECEIPT" ]]; then
     echo "pr-captain-land: no QGR receipt matching hash $DIFF_HASH_SHORT on branch $AGENT_BRANCH." >&2
     echo "  Agent must run /pr-prep to produce a receipt before submitting." >&2
     # Switch back to master before exit
-    bash "$REPO_ROOT/claude/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
+    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
     exit 1
 fi
 
@@ -133,7 +133,7 @@ echo "→ Receipt: $RECEIPT_REL (hash: $DIFF_HASH_SHORT)"
 
 # ── Bump monofolk_version on the branch ─────────────────────────────────────
 
-MANIFEST="$REPO_ROOT/claude/config/manifest.json"
+MANIFEST="$REPO_ROOT/agency/config/manifest.json"
 # Security: pass values via env, never string-interpolate into python source
 # (F-SEC-1 / CRITICAL-3 from MAR 2026-04-19). Prevents RCE if manifest is
 # ever attacker-controllable.
@@ -159,7 +159,7 @@ else:
 
 if [[ -z "$NEW_VER" || "$NEW_VER" == "$CURRENT_VER" ]]; then
     echo "pr-captain-land: could not bump version from $CURRENT_VER" >&2
-    bash "$REPO_ROOT/claude/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
+    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
     exit 1
 fi
 
@@ -176,12 +176,12 @@ m["monofolk_version"] = os.environ["NEW_VER"]
 m["project"]["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 json.dump(m, open(path, "w"), indent=2)
 '
-    bash "$REPO_ROOT/claude/tools/git-safe" add claude/config/manifest.json
-    bash "$REPO_ROOT/claude/tools/git-safe-commit" \
+    bash "$REPO_ROOT/agency/tools/git-safe" add agency/config/manifest.json
+    bash "$REPO_ROOT/agency/tools/git-safe-commit" \
         "chore(manifest): bump monofolk_version $CURRENT_VER → $NEW_VER for PR landing (captain)" \
         --no-work-item >/dev/null
 
-    bash "$REPO_ROOT/claude/tools/git-push" "$AGENT_BRANCH" >/dev/null
+    bash "$REPO_ROOT/agency/tools/git-push" "$AGENT_BRANCH" >/dev/null
     echo "→ Version bumped + pushed"
 fi
 
@@ -207,18 +207,18 @@ if [[ "$DRY_RUN" == true ]]; then
     echo "    Title: $PR_TITLE"
     echo "    Body:  (see stdout)"
     # Switch back to master
-    bash "$REPO_ROOT/claude/tools/git-captain" switch-branch master >/dev/null
+    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch master >/dev/null
     echo "pr-captain-land: dry-run complete"
     exit 0
 fi
 
 echo "→ Creating PR..."
-PR_URL=$(bash "$REPO_ROOT/claude/tools/pr-create" --title "$PR_TITLE" --body "$PR_BODY" 2>&1 | \
+PR_URL=$(bash "$REPO_ROOT/agency/tools/pr-create" --title "$PR_TITLE" --body "$PR_BODY" 2>&1 | \
          tail -1 | grep -oE 'https://github.com/[^ ]+' || echo "")
 
 if [[ -z "$PR_URL" ]]; then
     echo "pr-captain-land: pr-create did not return a URL — check output above" >&2
-    bash "$REPO_ROOT/claude/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
+    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
     exit 1
 fi
 
@@ -227,7 +227,7 @@ echo "→ PR created: $PR_URL (#$PR_NUM)"
 
 # ── Back to master for merge ────────────────────────────────────────────────
 
-bash "$REPO_ROOT/claude/tools/git-captain" switch-branch master >/dev/null
+bash "$REPO_ROOT/agency/tools/git-captain" switch-branch master >/dev/null
 echo "→ Back on master"
 
 # ── Wait for CI ──────────────────────────────────────────────────────────────
@@ -258,21 +258,21 @@ fi
 # ── Merge ────────────────────────────────────────────────────────────────────
 
 echo "→ Merging PR #$PR_NUM..."
-bash "$REPO_ROOT/claude/tools/pr-merge" "$PR_NUM" --principal-approved >/dev/null 2>&1 || {
+bash "$REPO_ROOT/agency/tools/pr-merge" "$PR_NUM" --principal-approved >/dev/null 2>&1 || {
     echo "pr-captain-land: pr-merge failed — check manually" >&2
     exit 1
 }
 
 # ── Sync master ──────────────────────────────────────────────────────────────
 
-bash "$REPO_ROOT/claude/tools/git-captain" fetch >/dev/null 2>&1
-bash "$REPO_ROOT/claude/tools/git-captain" merge-from-origin >/dev/null 2>&1
+bash "$REPO_ROOT/agency/tools/git-captain" fetch >/dev/null 2>&1
+bash "$REPO_ROOT/agency/tools/git-captain" merge-from-origin >/dev/null 2>&1
 
 # ── Create release ───────────────────────────────────────────────────────────
 
 if [[ "$SKIP_RELEASE" == false ]]; then
     echo "→ Creating release v$NEW_VER..."
-    bash "$REPO_ROOT/claude/tools/gh-release" create "v$NEW_VER" \
+    bash "$REPO_ROOT/agency/tools/gh-release" create "v$NEW_VER" \
         --target master \
         --title "v$NEW_VER — $PR_TITLE" \
         --notes "Captain-landed via pr-captain-land (the-agency#296 Phase 1 pilot). See PR #$PR_NUM." \
@@ -290,7 +290,7 @@ fi
 AGENT_HINT="${AGENT_BRANCH%%-*}"  # naive parse: prefix before first dash
 echo "→ Dispatching $AGENT_HINT agent with merge outcome..."
 
-bash "$REPO_ROOT/claude/tools/dispatch" create \
+bash "$REPO_ROOT/agency/tools/dispatch" create \
     --type master-updated \
     --to "monofolk/jordan/$AGENT_HINT" \
     --subject "PR #$PR_NUM landed — v$NEW_VER released (pr-captain-land)" \

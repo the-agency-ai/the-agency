@@ -1,10 +1,10 @@
 #!/bin/bash
 # Create a new workstream directory structure
 #
-# Usage: ./claude/tools/workstream-create <name> [--description=<text>] [--verbose]
+# Usage: ./agency/tools/workstream-create <name> [--description=<text>] [--verbose]
 #
 # Creates:
-#   claude/workstreams/{name}/
+#   agency/workstreams/{name}/
 #     - KNOWLEDGE.md
 #     - epic001/ (placeholder for past work)
 #     - epic002/ (current epic)
@@ -47,7 +47,7 @@ fi
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "workstream-create - Create a new workstream directory structure"
     echo ""
-    echo "Usage: ./claude/tools/workstream-create <name> [--description=<text>] [--verbose]"
+    echo "Usage: ./agency/tools/workstream-create <name> [--description=<text>] [--verbose]"
     echo ""
     echo "Arguments:"
     echo "  name    Name for the new workstream"
@@ -59,8 +59,8 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "  --help, -h            Show this help"
     echo ""
     echo "Examples:"
-    echo "  ./claude/tools/workstream-create billing"
-    echo "  ./claude/tools/workstream-create billing --description='Payment processing and invoicing'"
+    echo "  ./agency/tools/workstream-create billing"
+    echo "  ./agency/tools/workstream-create billing --description='Payment processing and invoicing'"
     exit 0
 fi
 
@@ -89,14 +89,14 @@ done
 if [ -z "$NAME" ]; then
   log_error "Missing required argument"
   echo ""
-  echo "Usage: ./claude/tools/workstream-create <name> [--description=<text>] [--verbose]"
+  echo "Usage: ./agency/tools/workstream-create <name> [--description=<text>] [--verbose]"
   echo ""
-  echo "Example: ./claude/tools/workstream-create billing"
+  echo "Example: ./agency/tools/workstream-create billing"
   exit 1
 fi
 
-DIR="claude/workstreams/$NAME"
-TIMESTAMP=$(./claude/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
+DIR="agency/workstreams/$NAME"
+TIMESTAMP=$(./agency/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 
 # Main function
 main() {
@@ -152,7 +152,7 @@ EOF
     verbose_echo "  $DIR/epic001/"
     verbose_echo "  $DIR/epic002/"
     echo ""
-    echo "Next: Create an agent with ./claude/tools/agent-create <name> $NAME"
+    echo "Next: Create an agent with ./agency/tools/agent-create <name> $NAME"
 
     trap - EXIT
     log_end "$RUN_ID" "success" 0 0 "Workstream $NAME created"

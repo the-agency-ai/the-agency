@@ -34,11 +34,11 @@ Expected:
 /compact-prepare
 ```
 
-State: handoff.md edited AND claude/tools/some-tool.sh edited.
+State: handoff.md edited AND agency/tools/some-tool.sh edited.
 
 Expected:
 - Step 1 detects both: stages handoff only, commits as `compact-prepare: persist handoff before framework-code QG gate`.
-- Step 2 session-pause runs; sees framework code still dirty → aborts with `status=aborted`, `error_reason=framework code uncommitted: claude/tools/some-tool.sh`.
+- Step 2 session-pause runs; sees framework code still dirty → aborts with `status=aborted`, `error_reason=framework code uncommitted: agency/tools/some-tool.sh`.
 - Skill surfaces error_reason to user. **Handoff is persisted** (Step 1 saved it) even though overall PAUSE aborted.
 - User runs `/quality-gate` + `/iteration-complete` on the framework code, then re-runs `/compact-prepare`.
 

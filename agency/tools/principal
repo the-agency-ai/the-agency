@@ -1,10 +1,10 @@
 #!/bin/bash
 # Get current principal name
 #
-# Usage: ./claude/tools/principal
+# Usage: ./agency/tools/principal
 #
 # Returns the principal name for the current system user,
-# as configured in claude/config/agency.yaml under principals.
+# as configured in agency/config/agency.yaml under principals.
 #
 # If PRINCIPAL is already set in environment, returns that.
 # Otherwise, looks up the current $USER in config.
@@ -12,7 +12,7 @@
 # Why this exists:
 #   - Maps system usernames to principal names
 #   - Allows multiple people to use same machine with different principals
-#   - Configured via claude/config/agency.yaml instead of hardcoding
+#   - Configured via agency/config/agency.yaml instead of hardcoding
 
 set -euo pipefail
 
@@ -56,7 +56,7 @@ for arg in "$@"; do
         --help|-h)
             echo "principal - Get current principal name"
             echo ""
-            echo "Usage: ./claude/tools/principal"
+            echo "Usage: ./agency/tools/principal"
             echo ""
             echo "Options:"
             echo "  --verbose      Show verbose output"
@@ -85,10 +85,10 @@ main() {
     fi
 
     # Otherwise, get from config
-    if [ -x "$REPO_ROOT/claude/tools/config" ]; then
+    if [ -x "$REPO_ROOT/agency/tools/config" ]; then
         verbose_echo "Looking up principal from config"
         local principal_name
-        principal_name=$("$REPO_ROOT/claude/tools/config" get-principal)
+        principal_name=$("$REPO_ROOT/agency/tools/config" get-principal)
         echo "$principal_name"
         trap - EXIT
         log_end "$RUN_ID" "success" 0 0 "Principal from config"

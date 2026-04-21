@@ -59,9 +59,9 @@ User installs starter → ./agency → Hub Agent manages everything
 #### Tasks Completed
 
 **A1, A2, A3: Schemas (captain)**
-- Created `claude/docs/schemas/manifest.schema.json`
-- Created `claude/docs/schemas/registry.schema.json`
-- Created `claude/docs/schemas/projects.schema.json`
+- Created `agency/REFERENCE/schemas/manifest.schema.json`
+- Created `agency/REFERENCE/schemas/registry.schema.json`
+- Created `agency/REFERENCE/schemas/projects.schema.json`
 - Created `registry.json` with component definitions
 - Commit: 86ba7ce
 
@@ -119,9 +119,9 @@ First use of multi-agent parallel work pattern:
 ### Schemas
 | File | Purpose |
 |------|---------|
-| `claude/docs/schemas/manifest.schema.json` | Project manifest structure |
-| `claude/docs/schemas/registry.schema.json` | Starter component registry |
-| `claude/docs/schemas/projects.schema.json` | Project tracking list |
+| `agency/REFERENCE/schemas/manifest.schema.json` | Project manifest structure |
+| `agency/REFERENCE/schemas/registry.schema.json` | Starter component registry |
+| `agency/REFERENCE/schemas/projects.schema.json` | Project tracking list |
 | `registry.json` | Actual component definitions |
 
 ### Agents Created
@@ -242,4 +242,4 @@ First use of multi-agent parallel work pattern:
 
 - REQUEST-jordan-0052: Master design document
 - WORKNOTE-parallel-agent-case-study.md: Parallel execution deep-dive
-- claude/docs/schemas/README.md: Schema documentation
+- agency/REFERENCE/schemas/README.md: Schema documentation

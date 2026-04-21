@@ -2,12 +2,12 @@
 # GitHub PR operations wrapper
 #
 # Usage:
-#   ./claude/tools/gh-pr list
-#   ./claude/tools/gh-pr create --title "My PR" --body "Description"
-#   ./claude/tools/gh-pr view 123
-#   ./claude/tools/gh-pr merge 123
+#   ./agency/tools/gh-pr list
+#   ./agency/tools/gh-pr create --title "My PR" --body "Description"
+#   ./agency/tools/gh-pr view 123
+#   ./agency/tools/gh-pr merge 123
 #
-# This is a convenience wrapper around ./claude/tools/gh pr
+# This is a convenience wrapper around ./agency/tools/gh pr
 # All operations are logged via the base gh wrapper.
 #
 # Related: REQUEST-jordan-0072
@@ -31,7 +31,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] || [[ $# -eq 0 ]]; then
 gh-pr - GitHub PR operations
 
 Usage:
-  ./claude/tools/gh-pr <command> [arguments...]
+  ./agency/tools/gh-pr <command> [arguments...]
 
 Commands:
   list              List PRs
@@ -45,12 +45,12 @@ Commands:
   comments <number> View PR comments
 
 Examples:
-  ./claude/tools/gh-pr list --state open
-  ./claude/tools/gh-pr create --title "Add feature" --body "Description"
-  ./claude/tools/gh-pr view 123
-  ./claude/tools/gh-pr merge 123 --squash
+  ./agency/tools/gh-pr list --state open
+  ./agency/tools/gh-pr create --title "Add feature" --body "Description"
+  ./agency/tools/gh-pr view 123
+  ./agency/tools/gh-pr merge 123 --squash
 
-All operations use ./claude/tools/gh for token injection and logging.
+All operations use ./agency/tools/gh for token injection and logging.
 EOF
     exit 0
 fi

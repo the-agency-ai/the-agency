@@ -6,20 +6,20 @@
 # Follows the same pattern as _path-resolve: sourced, silent, non-blocking.
 #
 # Usage:
-#   source "$PROJECT_ROOT/claude/tools/lib/_provider-resolve"
+#   source "$PROJECT_ROOT/agency/tools/lib/_provider-resolve"
 #
 #   # Resolve a provider:
 #   TOOL_PATH=$(resolve_provider "secrets")
-#   # Returns full path: /path/to/project/claude/tools/secret-vault
+#   # Returns full path: /path/to/project/agency/tools/secret-vault
 #
 #   # For design (needs verb):
 #   TOOL_PATH=$(resolve_provider "design" "diff")
-#   # Returns: /path/to/project/claude/tools/design-diff-figma
+#   # Returns: /path/to/project/agency/tools/design-diff-figma
 #
 # Resolution:
 #   1. Read {section}.provider from agency.yaml
 #   2. Map section + provider to tool name via naming convention
-#   3. Validate tool exists at $AGENCY_PROJECT_ROOT/claude/tools/{tool-name}
+#   3. Validate tool exists at $AGENCY_PROJECT_ROOT/agency/tools/{tool-name}
 #   4. Return full path on stdout; exit 1 if not found
 #
 # Requires _path-resolve to be sourceable (for AGENCY_PROJECT_ROOT and _pr_yaml_get).
@@ -101,7 +101,7 @@ resolve_provider() {
     local tool_name
     tool_name="$(_provider_tool_name "$section" "$provider" "$verb")" || return 1
 
-    local tool_path="${AGENCY_PROJECT_ROOT}/claude/tools/${tool_name}"
+    local tool_path="${AGENCY_PROJECT_ROOT}/agency/tools/${tool_name}"
 
     if [[ ! -f "$tool_path" ]]; then
         echo "_provider-resolve: provider tool not found: $tool_path" >&2

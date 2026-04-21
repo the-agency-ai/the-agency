@@ -2,8 +2,8 @@
 #
 # platform-setup-linux — Linux platform provider for Agency
 #
-# Usage: ./claude/tools/platform-setup-linux [--all]
-#        ./claude/tools/platform-setup [--all]  (dispatches here)
+# Usage: ./agency/tools/platform-setup-linux [--all]
+#        ./agency/tools/platform-setup [--all]  (dispatches here)
 #
 # Supports: apt (Debian/Ubuntu), dnf (Fedora), pacman (Arch)
 #
@@ -54,7 +54,7 @@ for arg in "$@"; do
         --help|-h)
             echo "platform-setup-linux - Setup CLI tools for The Agency on Linux"
             echo ""
-            echo "Usage: ./claude/tools/platform-setup-linux [--all]"
+            echo "Usage: ./agency/tools/platform-setup-linux [--all]"
             echo ""
             echo "Options:"
             echo "  --all          Install all recommended tools (default: essential only)"
@@ -179,7 +179,7 @@ main() {
 
     if [[ "$INSTALL_ALL" != "true" ]]; then
         echo "Run with --all to install enhanced tools:"
-        echo -e "  ${BLUE}./claude/tools/platform-setup-linux --all${NC}"
+        echo -e "  ${BLUE}./agency/tools/platform-setup-linux --all${NC}"
         echo ""
     fi
 

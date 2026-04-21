@@ -128,9 +128,9 @@ principal's captain:
 ## Reference
 
 - Tool: `agency/tools/principal-onboard`
-- Templates: `claude/templates/principal-v2/`
+- Templates: `agency/templates/principal-v2/`
 - Schema: `agency/config/agency.yaml` (`principals:` block)
-- Concept: `claude/REFERENCE-AGENT-ADDRESSING.md`
-- Worknote: `claude/docs/worknotes/WORKNOTE-principal-tooling.md`
+- Concept: `agency/REFERENCE-AGENT-ADDRESSING.md`
+- Worknote: `agency/docs/worknotes/WORKNOTE-principal-tooling.md`
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

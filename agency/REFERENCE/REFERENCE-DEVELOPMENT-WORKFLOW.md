@@ -217,4 +217,4 @@ housekeeping/captain: update README formatting
 ## See Also
 
 - `CLAUDE.md` - Development Cycle section
-- `claude/templates/REQUEST.md` - REQUEST template with workflow checklist
+- `agency/templates/REQUEST.md` - REQUEST template with workflow checklist

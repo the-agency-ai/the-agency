@@ -7,7 +7,7 @@
 # confirms the branch exists remotely or will be created, and pushes.
 # Hookify blocks raw "git push" but allows tool invocations.
 #
-# Usage: ./claude/tools/git-push [--force-with-lease] [branch]
+# Usage: ./agency/tools/git-push [--force-with-lease] [branch]
 #   branch defaults to current branch
 #   --force-with-lease enables safe force push (for PR branch updates)
 #

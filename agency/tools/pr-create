@@ -8,7 +8,7 @@
 # 3. agency_version must be bumped
 # Hookify blocks raw gh pr create.
 #
-# Usage: ./claude/tools/pr-create --title "title" --body "body"
+# Usage: ./agency/tools/pr-create --title "title" --body "body"
 #        All gh pr create flags are passed through after validation.
 #
 # Written: 2026-04-14 during captain session (PR discipline enforcement)
@@ -37,23 +37,18 @@ echo "✓ On branch: $BRANCH"
 NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
-    # Tier 2: legacy v45 workstream layout (during transition)
-    NEWEST_RECEIPT=$(find "$REPO_ROOT/claude/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
-fi
-
-if [[ -z "$NEWEST_RECEIPT" ]]; then
-    # Tier 3: legacy flat receipts dir
+    # Tier 2: legacy flat receipts dir
     NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
 fi
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
-    # Tier 4: old usr/ location
+    # Tier 3: old usr/ location
     NEWEST_RECEIPT=$(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
 fi
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
     echo "BLOCKED: No receipt found." >&2
-    echo "  Searched: agency/workstreams/*/qgr/, claude/workstreams/*/qgr/ (legacy), agency/receipts/, usr/**/qgr-*.md" >&2
+    echo "  Searched: agency/workstreams/*/qgr/, agency/receipts/, usr/**/qgr-*.md" >&2
     echo "  Run /pr-prep first." >&2
     exit 1
 fi

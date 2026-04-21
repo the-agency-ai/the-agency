@@ -347,7 +347,7 @@ _update_main() {
     [[ "$DRY_RUN" == "true" ]] && rsync_flags+=("--dry-run") && rsync_flags_extras+=("--dry-run")
 
     # --- D41-R16: opt-in --prune (rsync --delete with protected paths) ---
-    # v46.1: renamed source/target from claude/ to agency/ post-Great-Rename.
+    # v46.1+: source and target are agency/ (post-Great-Rename).
     if [[ "$PRUNE" == "true" ]]; then
         # First pass: dry-run with --delete to preview what would be removed
         local prune_preview
@@ -442,7 +442,7 @@ _update_main() {
     fi
 
     # Sync agency/ (excluding agency.yaml, protected paths, and workstreams).
-    # v46.1: source + target are agency/ (was claude/ pre-Great-Rename).
+    # v46.1+: source and target are agency/ (post-Great-Rename).
     local rsync_output
     rsync_output=$(rsync "${rsync_flags[@]}" \
         "${rsync_excludes[@]+"${rsync_excludes[@]}"}" \

@@ -72,7 +72,7 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 
 # --- Read suites from agency.yaml ---
 
-AGENCY_YAML="$REPO_ROOT/claude/config/agency.yaml"
+AGENCY_YAML="$REPO_ROOT/agency/config/agency.yaml"
 
 # Parse testing suites from agency.yaml
 # Returns lines of: suite_name|command|description
@@ -163,7 +163,7 @@ _run_fallback() {
         npm test
     else
         echo "No test configuration found."
-        echo "Configure testing in claude/config/agency.yaml or add a package.json test script."
+        echo "Configure testing in agency/config/agency.yaml or add a package.json test script."
         exit 0
     fi
 }

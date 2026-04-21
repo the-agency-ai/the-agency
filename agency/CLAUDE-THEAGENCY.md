@@ -93,7 +93,7 @@ Injected automatically when relevant skills run. Read directly when you need the
 | Feedback & bug report format | `claude/REFERENCE-FEEDBACK-FORMAT.md` |
 | Provenance headers & script discipline | `claude/REFERENCE-PROVENANCE-HEADERS.md` |
 | Testing & quality discipline | `claude/REFERENCE-QUALITY-DISCIPLINE.md` |
-| Enforcement model (Triangle, Ladder, all rules) | `claude/README-ENFORCEMENT.md` |
+| Enforcement model (Triangle, Ladder, all rules) | `agency/README-ENFORCEMENT.md` |
 | Contribution model (three rings of trust) | `claude/REFERENCE-CONTRIBUTION-MODEL.md` |
 | Concepts & onboarding | `claude/REFERENCE-CONCEPTS.md` |
 | Safe tools family (git-safe, git-captain, cp-safe, pr-create) | `claude/REFERENCE-SAFE-TOOLS.md` |

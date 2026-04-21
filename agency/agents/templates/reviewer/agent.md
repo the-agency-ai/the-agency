@@ -27,7 +27,7 @@ Code review specialist focused on ensuring code quality, maintainability, and ad
 ## Knowledge Base
 
 This agent specializes in:
-- `claude/knowledge/code-review-patterns/` - Review best practices
+- `agency/knowledge/code-review-patterns/` - Review best practices
 - Language-specific idioms and patterns
 - Project-specific conventions
 - Architecture patterns
@@ -95,4 +95,4 @@ This agent specializes in:
 
 - `agency/agents/{{AGENT_NAME}}/` - Agent identity
 - `agency/workstreams/{{WORKSTREAM}}/` - Work artifacts
-- `claude/knowledge/code-review-patterns/` - Review patterns
+- `agency/knowledge/code-review-patterns/` - Review patterns

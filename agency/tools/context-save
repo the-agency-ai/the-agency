@@ -2,10 +2,10 @@
 # context-save - Save conversational context during session
 #
 # Usage:
-#   ./claude/tools/context-save --append "text" [--verbose]     # Add progress note
-#   ./claude/tools/context-save --checkpoint "text" [--verbose] # Mark milestone
-#   ./claude/tools/context-save --park "text" [--verbose]       # Note something for later
-#   ./claude/tools/context-save --clear [--verbose]             # Clear context (new session)
+#   ./agency/tools/context-save --append "text" [--verbose]     # Add progress note
+#   ./agency/tools/context-save --checkpoint "text" [--verbose] # Mark milestone
+#   ./agency/tools/context-save --park "text" [--verbose]       # Note something for later
+#   ./agency/tools/context-save --clear [--verbose]             # Clear context (new session)
 #
 # Why this exists:
 #   Enables session continuity by capturing conversational context
@@ -61,10 +61,10 @@ main() {
                 echo "context-save - Save conversational context"
                 echo ""
                 echo "Usage:"
-                echo "  ./claude/tools/context-save --append \"text\" [--verbose]"
-                echo "  ./claude/tools/context-save --checkpoint \"text\" [--verbose]"
-                echo "  ./claude/tools/context-save --park \"text\" [--verbose]"
-                echo "  ./claude/tools/context-save --clear [--verbose]"
+                echo "  ./agency/tools/context-save --append \"text\" [--verbose]"
+                echo "  ./agency/tools/context-save --checkpoint \"text\" [--verbose]"
+                echo "  ./agency/tools/context-save --park \"text\" [--verbose]"
+                echo "  ./agency/tools/context-save --clear [--verbose]"
                 echo ""
                 echo "Options:"
                 echo "  --append      Add progress note"
@@ -96,15 +96,15 @@ main() {
 
     if [[ -z "$ACTION" ]]; then
         log_error "No action specified"
-        echo "Usage: ./claude/tools/context-save [--append|--checkpoint|--park|--clear] \"content\""
+        echo "Usage: ./agency/tools/context-save [--append|--checkpoint|--park|--clear] \"content\""
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "No action specified"
         exit 1
     fi
 
-    local AGENTNAME=$(./claude/tools/agency-whoami)
-    local CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
-    local TIMESTAMP=$(./claude/tools/now)
+    local AGENTNAME=$(./agency/tools/agency-whoami)
+    local CONTEXT_FILE="agency/agents/$AGENTNAME/backups/latest/context.jsonl"
+    local TIMESTAMP=$(./agency/tools/now)
 
     log_step "Ensuring directory exists"
     mkdir -p "$(dirname "$CONTEXT_FILE")"
@@ -119,7 +119,7 @@ main() {
             local TYPE="${ACTION#--}"
             if [[ -z "$CONTENT" ]]; then
                 log_error "Content required for $TYPE"
-                echo "Usage: ./claude/tools/context-save $ACTION \"content\""
+                echo "Usage: ./agency/tools/context-save $ACTION \"content\""
                 trap - EXIT
                 log_end "$RUN_ID" "failure" 1 0 "Content required"
                 exit 1

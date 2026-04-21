@@ -36,7 +36,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-PRINCIPALS_DIR="$REPO_ROOT/claude/principals"
+PRINCIPALS_DIR="$REPO_ROOT/usr"
 
 # Defaults
 VERBOSE=false
@@ -84,7 +84,7 @@ No artifacts yet.
 
 ---
 
-*Use \`./claude/tools/artifact-capture -p $principal -t "Title"\` to create an artifact.*
+*Use \`./agency/tools/artifact-capture -p $principal -t "Title"\` to create an artifact.*
 EOF
     return
   fi
@@ -135,8 +135,8 @@ EOF
 
 ---
 
-*Use \`./claude/tools/artifact-capture\` to create new artifacts.*
-*Use \`./claude/tools/artifact-list\` for filtered views.*
+*Use \`./agency/tools/artifact-capture\` to create new artifacts.*
+*Use \`./agency/tools/artifact-list\` for filtered views.*
 EOF
 
   verbose_echo "Updated: $INDEX_FILE ($TOTAL_COUNT artifacts)"

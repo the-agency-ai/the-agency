@@ -27,7 +27,7 @@ Testing specialist focused on test strategy, coverage analysis, and test impleme
 ## Knowledge Base
 
 This agent specializes in:
-- `claude/knowledge/testing-patterns/` - Testing best practices
+- `agency/knowledge/testing-patterns/` - Testing best practices
 - Framework-specific testing (Jest, Vitest, Playwright, pytest, etc.)
 - Test design patterns
 - Coverage analysis
@@ -82,4 +82,4 @@ This agent specializes in:
 
 - `agency/agents/{{AGENT_NAME}}/` - Agent identity
 - `agency/workstreams/{{WORKSTREAM}}/` - Work artifacts
-- `claude/knowledge/testing-patterns/` - Testing patterns
+- `agency/knowledge/testing-patterns/` - Testing patterns

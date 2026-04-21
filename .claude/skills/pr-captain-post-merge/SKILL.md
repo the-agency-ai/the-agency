@@ -6,9 +6,9 @@ when_to_use: Captain on master in main checkout, immediately after a PR has merg
 argument-hint: "<pr-number>"
 paths: []
 required_reading:
-  - claude/REFERENCE-GIT-MERGE-NOT-REBASE.md
-  - claude/REFERENCE-WORKTREE-DISCIPLINE.md
-  - claude/REFERENCE-SAFE-TOOLS.md
+  - agency/REFERENCE-GIT-MERGE-NOT-REBASE.md
+  - agency/REFERENCE-WORKTREE-DISCIPLINE.md
+  - agency/REFERENCE-SAFE-TOOLS.md
 ---
 
 <!--
@@ -57,7 +57,7 @@ If `<pr-number>` is omitted, the skill queries `gh pr list --state merged --limi
 - In the main checkout, NOT a worktree.
 - Working tree clean.
 - PR has actually merged on GitHub (`gh pr view <N>` returns state `MERGED`).
-- `claude/config/manifest.json` version was bumped BEFORE the PR was created (via `/pr-prep` or `/release` or `/pr-captain-land`). If not, skill stops and warns — do NOT push directly to main to fix; create a follow-up PR instead.
+- `agency/config/manifest.json` version was bumped BEFORE the PR was created (via `/pr-prep` or `/release` or `/pr-captain-land`). If not, skill stops and warns — do NOT push directly to main to fix; create a follow-up PR instead.
 
 ## Flow / Steps
 
@@ -78,7 +78,7 @@ Confirm `state` is `MERGED`. If not, stop.
 ### Step 3: Fetch origin
 
 ```
-./claude/tools/git-captain fetch origin
+./agency/tools/git-captain fetch origin
 ```
 
 ### Step 4: Merge origin/master
@@ -92,9 +92,9 @@ git rev-list --left-right --count origin/master...HEAD
 - **If diverged** (both sides > 0 — expected after squash or rebase PR):
   1. Verify merge-base exists: `git merge-base origin/master HEAD`. If fails, ABORT.
   2. Tag for recovery: `git tag sync/pre-merge-$(date +%Y%m%d-%H%M%S)`
-  3. Merge: `./claude/tools/git-captain merge-from-origin` (produces merge commit per framework discipline).
+  3. Merge: `./agency/tools/git-captain merge-from-origin` (produces merge commit per framework discipline).
   4. If conflicts: skill halts, reports, asks principal to resolve.
-- **If behind only**: `./claude/tools/git-captain merge-from-origin` fast-forwards cleanly.
+- **If behind only**: `./agency/tools/git-captain merge-from-origin` fast-forwards cleanly.
 
 **Never `git reset --hard origin/master`.** Per `REFERENCE-GIT-MERGE-NOT-REBASE.md`, we never rewrite history.
 
@@ -114,7 +114,7 @@ Propagates the merge to every worktree. Worktree-side agents pick up the new con
 2. Verify `manifest.json` version matches expectations (bumped before the PR was created).
 3. Create release:
    ```
-   ./claude/tools/gh-release create v<version> --target master --title "<title>" --notes "<notes>"
+   ./agency/tools/gh-release create v<version> --target master --title "<title>" --notes "<notes>"
    ```
 4. **Hard-verify** release exists (fail-loud, not optional):
    ```
@@ -131,7 +131,7 @@ If version format doesn't match `D#-R#` (e.g., hotfix PR), use `v<monofolk_versi
 If the PR's head branch still exists locally:
 
 ```
-./claude/tools/git-captain branch-delete <branch> --force
+./agency/tools/git-captain branch-delete <branch> --force
 ```
 
 `--force` required — the local PR branch typically has commits not reachable from main's history (QGR receipts, dispatch artifacts). Safe `-d` would refuse.
@@ -184,9 +184,9 @@ Post-merge complete:
 - `/pr-captain-land` — the full captain-owned PR lifecycle (this skill is Step 8 of that flow)
 - `/sync-all` — the fleet-sync sub-skill this calls in Step 5
 - `/release` (TBD refactored to `/captain-release`) — alternate entry point that runs /pr-captain-merge + this skill in one flow
-- `claude/tools/gh-release` — the release-creation tool
-- `claude/tools/git-captain` — safe captain-side git operations
-- `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the merge discipline
+- `agency/tools/gh-release` — the release-creation tool
+- `agency/tools/git-captain` — safe captain-side git operations
+- `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the merge discipline
 - the-agency#296 — PR lifecycle ownership (Phase 1 pilot context)
 - the-agency#315 — V1→V2 migration (this refactor lives under Tier 1)
 

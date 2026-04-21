@@ -2,9 +2,9 @@
 # context-review - Review saved session context
 #
 # Usage:
-#   ./claude/tools/context-review [--verbose]           # Formatted view
-#   ./claude/tools/context-review --raw [--verbose]     # Show raw JSONL
-#   ./claude/tools/context-review --summary [--verbose] # Last checkpoint + parked items
+#   ./agency/tools/context-review [--verbose]           # Formatted view
+#   ./agency/tools/context-review --raw [--verbose]     # Show raw JSONL
+#   ./agency/tools/context-review --summary [--verbose] # Last checkpoint + parked items
 #
 # Why this exists:
 #   Allows users and agents to review what context has been saved
@@ -58,9 +58,9 @@ main() {
                 echo "context-review - Review saved session context"
                 echo ""
                 echo "Usage:"
-                echo "  ./claude/tools/context-review [--verbose]"
-                echo "  ./claude/tools/context-review --raw [--verbose]"
-                echo "  ./claude/tools/context-review --summary [--verbose]"
+                echo "  ./agency/tools/context-review [--verbose]"
+                echo "  ./agency/tools/context-review --raw [--verbose]"
+                echo "  ./agency/tools/context-review --summary [--verbose]"
                 echo ""
                 echo "Options:"
                 echo "  --raw         Show raw JSONL"
@@ -84,8 +84,8 @@ main() {
         esac
     done
 
-    local AGENTNAME=$(./claude/tools/agency-whoami)
-    local CONTEXT_FILE="claude/agents/$AGENTNAME/backups/latest/context.jsonl"
+    local AGENTNAME=$(./agency/tools/agency-whoami)
+    local CONTEXT_FILE="agency/agents/$AGENTNAME/backups/latest/context.jsonl"
 
     log_step "Checking context file"
     if [[ ! -f "$CONTEXT_FILE" ]]; then

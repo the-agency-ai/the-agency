@@ -2,8 +2,8 @@
 # Check workflow stage status for a work item
 #
 # Usage:
-#   ./claude/tools/workflow-check REQUEST-jordan-0018
-#   ./claude/tools/workflow-check SPRINT-web-2026w03
+#   ./agency/tools/workflow-check REQUEST-jordan-0018
+#   ./agency/tools/workflow-check SPRINT-web-2026w03
 #
 # Shows:
 #   - Which stages are complete (have tags)
@@ -70,11 +70,11 @@ done
 WORK_ITEM="${1:-}"
 
 if [ -z "$WORK_ITEM" ]; then
-    echo "Usage: ./claude/tools/workflow-check <work-item>"
+    echo "Usage: ./agency/tools/workflow-check <work-item>"
     echo ""
     echo "Examples:"
-    echo "  ./claude/tools/workflow-check REQUEST-jordan-0018"
-    echo "  ./claude/tools/workflow-check SPRINT-web-2026w03"
+    echo "  ./agency/tools/workflow-check REQUEST-jordan-0018"
+    echo "  ./agency/tools/workflow-check SPRINT-web-2026w03"
     exit 1
 fi
 
@@ -177,7 +177,7 @@ fi
 if [ -z "$NEXT_STAGE" ]; then
     echo -e "${GREEN}All stages complete!${NC}"
 else
-    echo -e "Next: ${YELLOW}./claude/tools/git-tag $WORK_ITEM $NEXT_STAGE${NC}"
+    echo -e "Next: ${YELLOW}./agency/tools/git-tag $WORK_ITEM $NEXT_STAGE${NC}"
 fi
 
 echo "✓"

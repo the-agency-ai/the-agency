@@ -87,7 +87,7 @@ capabilities:
     level: 2
     description: "Multi-agent review at iteration/phase boundaries"
     artifacts:
-      doc: "claude/docs/QUALITY-GATE.md"
+      doc: "agency/REFERENCE/REFERENCE-QUALITY-GATE.md"
       skill: ".claude/skills/quality-gate/SKILL.md"
 
   iteration-complete:
@@ -109,7 +109,7 @@ capabilities:
     level: 3
     description: "7-agent parallel code review with confidence scoring"
     artifacts:
-      doc: "claude/docs/CODE-REVIEW-LIFECYCLE.md"
+      doc: "agency/REFERENCE/REFERENCE-CODE-REVIEW-LIFECYCLE.md"
       skill: ".claude/skills/code-review/SKILL.md"
       tool: "agency/tools/code-review"
 
@@ -120,7 +120,7 @@ capabilities:
     artifacts:
       doc: "agency/workstreams/devex/devex-ad-20260407.md"
       tool: "agency/tools/lib/_test-isolation"
-      template: "claude/templates/tests/test_helper.bash"
+      template: "agency/templates/tests/test_helper.bash"
 
   test-scoping:
     level: 1
@@ -194,7 +194,7 @@ capabilities:
     level: 3
     description: "Secret management via SPEC-PROVIDER wrapper (vault, doppler, etc.)"
     artifacts:
-      doc: "claude/README-ENFORCEMENT.md"
+      doc: "agency/README-ENFORCEMENT.md"
       skill: ".claude/skills/secret/SKILL.md"
       tool: "agency/tools/secret"
 
@@ -202,7 +202,7 @@ capabilities:
     level: 3
     description: "Project preview via SPEC-PROVIDER wrapper (docker-compose, fly, etc.)"
     artifacts:
-      doc: "claude/README-ENFORCEMENT.md"
+      doc: "agency/README-ENFORCEMENT.md"
       skill: ".claude/skills/preview/SKILL.md"
       tool: "agency/tools/preview"
 
@@ -210,7 +210,7 @@ capabilities:
     level: 3
     description: "Project deploy via SPEC-PROVIDER wrapper (fly, vercel, aws, etc.)"
     artifacts:
-      doc: "claude/README-ENFORCEMENT.md"
+      doc: "agency/README-ENFORCEMENT.md"
       skill: ".claude/skills/deploy/SKILL.md"
       tool: "agency/tools/deploy"
 

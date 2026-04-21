@@ -11,17 +11,17 @@
 # projects (monofolk, etc.) didn't get them via `agency update` because
 # `tests/` is a project-local path, not a framework path.
 #
-# How & Why: Extracted into a framework lib under `claude/tools/lib/` so
+# How & Why: Extracted into a framework lib under `agency/tools/lib/` so
 # `agency update` propagates the isolation helpers to every consuming project.
 # Adopter projects create their own `tests/*/test_helper.bash` that sources
 # this lib — one-line integration, zero duplication, same guarantees.
-# See `claude/templates/tests/test_helper.bash` for the template adopters
+# See `agency/templates/tests/test_helper.bash` for the template adopters
 # drop into their own `tests/` directory.
 #
 # Usage (adopter project):
 #   # tests/test_helper.bash
 #   REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
-#   source "$REPO_ROOT/claude/tools/lib/_test-isolation"
+#   source "$REPO_ROOT/agency/tools/lib/_test-isolation"
 #   # Optional: add project-specific helpers below
 #
 # Written: 2026-04-09 during devex fill-the-gap work (Jordan direct Q on
@@ -45,7 +45,7 @@ if [[ -z "${REPO_ROOT:-}" ]]; then
 fi
 
 # Convenience: TOOLS_DIR points at the framework tools.
-# v46.1 Great Rename: claude/tools/ → agency/tools/.
+# v46.1 Great Rename: agency/tools/ → agency/tools/.
 export TOOLS_DIR="${TOOLS_DIR:-${REPO_ROOT}/agency/tools}"
 
 # Disable telemetry during tests so test runs don't pollute log-service.
@@ -55,7 +55,7 @@ export LOG_SERVICE_URL=""
 # NOTE: this creates a known risk — framework tools named the same as system
 # commands (e.g. our `gh` wrapper) can shadow the real command. Tools that
 # need to invoke the real system binary must strip $TOOLS_DIR from PATH
-# before resolution (see claude/tools/gh for the pattern).
+# before resolution (see agency/tools/gh for the pattern).
 case ":${PATH}:" in
     *":${TOOLS_DIR}:"*) ;; # already present
     *) export PATH="${TOOLS_DIR}:${PATH}" ;;
@@ -106,8 +106,8 @@ test_isolation_setup() {
     # 5. Snapshot key framework directories for debris detection.
     # These directories exist in every project that uses the framework, so
     # the check is meaningful for adopters too.
-    if [[ -d "$REPO_ROOT/claude/agents" ]]; then
-        _TEST_AGENTS_SNAPSHOT=$(ls "$REPO_ROOT/claude/agents/" 2>/dev/null | sort)
+    if [[ -d "$REPO_ROOT/agency/agents" ]]; then
+        _TEST_AGENTS_SNAPSHOT=$(ls "$REPO_ROOT/agency/agents/" 2>/dev/null | sort)
     fi
     if [[ -d "$REPO_ROOT/.claude/agents" ]]; then
         _TEST_DOT_AGENTS_SNAPSHOT=$(ls "$REPO_ROOT/.claude/agents/" 2>/dev/null | sort)
@@ -141,11 +141,11 @@ test_isolation_teardown() {
     fi
 
     # Guard 2: verify no debris in key framework directories
-    if [[ -n "${_TEST_AGENTS_SNAPSHOT:-}" && -d "$REPO_ROOT/claude/agents" ]]; then
+    if [[ -n "${_TEST_AGENTS_SNAPSHOT:-}" && -d "$REPO_ROOT/agency/agents" ]]; then
         local current_agents
-        current_agents=$(ls "$REPO_ROOT/claude/agents/" 2>/dev/null | sort)
+        current_agents=$(ls "$REPO_ROOT/agency/agents/" 2>/dev/null | sort)
         if [[ "$current_agents" != "$_TEST_AGENTS_SNAPSHOT" ]]; then
-            echo "CRITICAL: BATS test left debris in claude/agents/! Before: $_TEST_AGENTS_SNAPSHOT After: $current_agents" >&2
+            echo "CRITICAL: BATS test left debris in agency/agents/! Before: $_TEST_AGENTS_SNAPSHOT After: $current_agents" >&2
             return 1
         fi
     fi

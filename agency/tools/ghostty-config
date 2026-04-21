@@ -1,8 +1,8 @@
 # Ghostty terminal configuration
 # Install: copy or symlink to ~/.config/ghostty/config
 #
-# Source of truth: claude/tools/ghostty-config in the repo.
-# To activate: ln -sf <repo>/claude/tools/ghostty-config ~/.config/ghostty/config
+# Source of truth: agency/tools/ghostty-config in the repo.
+# To activate: ln -sf <repo>/agency/tools/ghostty-config ~/.config/ghostty/config
 
 # --- Theme ---
 theme = GitHub Light Default

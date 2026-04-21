@@ -94,9 +94,9 @@ The coordinator (captain) is the **only agent that updates REQUEST files**. This
 - Commit: cda8f39
 
 **A1, A2, A3 (captain):** Completed - created all schemas
-- `claude/docs/schemas/manifest.schema.json`
-- `claude/docs/schemas/registry.schema.json`
-- `claude/docs/schemas/projects.schema.json`
+- `agency/REFERENCE/schemas/manifest.schema.json`
+- `agency/REFERENCE/schemas/registry.schema.json`
+- `agency/REFERENCE/schemas/projects.schema.json`
 - `registry.json` (actual component registry)
 - Commit: 86ba7ce
 

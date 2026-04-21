@@ -2,8 +2,8 @@
 #
 # platform-setup-macos — macOS platform provider for Agency
 #
-# Usage: ./claude/tools/platform-setup-macos [--all]
-#        ./claude/tools/platform-setup [--all]  (dispatches here)
+# Usage: ./agency/tools/platform-setup-macos [--all]
+#        ./agency/tools/platform-setup [--all]  (dispatches here)
 #
 # Without flags: installs essential tools only
 # With --all: installs all recommended tools
@@ -55,7 +55,7 @@ for arg in "$@"; do
         --help|-h)
             echo "platform-setup-macos - Setup CLI tools for The Agency on macOS"
             echo ""
-            echo "Usage: ./claude/tools/platform-setup-macos [--all]"
+            echo "Usage: ./agency/tools/platform-setup-macos [--all]"
             echo ""
             echo "Options:"
             echo "  --all          Install all recommended tools (default: essential only)"
@@ -149,7 +149,7 @@ main() {
 
     if [[ "$INSTALL_ALL" != "true" ]]; then
         echo "Run with --all to install enhanced tools:"
-        echo -e "  ${BLUE}./claude/tools/platform-setup-macos --all${NC}"
+        echo -e "  ${BLUE}./agency/tools/platform-setup-macos --all${NC}"
         echo ""
     fi
 
@@ -159,7 +159,7 @@ main() {
     echo "  tree   - Visualize project structure"
     if [[ "$INSTALL_ALL" == "true" ]]; then
         echo "  yq     - Edit YAML configs programmatically"
-        echo "  fzf    - Fuzzy search (try: ./claude/tools/tool-find | fzf)"
+        echo "  fzf    - Fuzzy search (try: ./agency/tools/tool-find | fzf)"
         echo "  bat    - Syntax-highlighted file viewing"
         echo "  rg     - Lightning-fast code search"
     fi

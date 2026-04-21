@@ -26,11 +26,11 @@
 #   1. methodology   — CLAUDE-*.md, README-*.md, docs/*, templates/CLAUDE-*
 #   2. config        — config/agency.yaml, config/manifest.json
 #   3. settings      — .claude/settings.json, config/settings-template.json
-#   4. hooks         — claude/hooks/*, .claude/hooks/*
-#   5. tools         — claude/tools/* (excluding lib/_*)
+#   4. hooks         — agency/hooks/*, .claude/hooks/*
+#   5. tools         — agency/tools/* (excluding lib/_*)
 #   6. skills        — .claude/skills/*
 #   7. tests         — src/tests/*
-#   8. workstream    — claude/workstreams/*/seeds/*, reviews/*, *-pvr-*, *-ad-*, *-plan-*
+#   8. workstream    — agency/workstreams/*/seeds/*, reviews/*, *-pvr-*, *-ad-*, *-plan-*
 #   9. coordination  — usr/*/dispatches/*, history/*, transcripts/*, code-reviews/*, *-handoff.md, reports/*
 #  10. scratch       — usr/*/tmp/* (excluded from plan)
 #  11. other         — anything that doesn't match (flagged for review)
@@ -198,33 +198,33 @@ classify() {
     local f="$1"
     # methodology
     case "$f" in
-        claude/CLAUDE-*.md|claude/README-*.md|claude/docs/*.md|usr/*/CLAUDE-*.md|claude/templates/CLAUDE-*|claude/templates/HANDOFF-*)
+        agency/CLAUDE-*.md|agency/README-*.md|agency/REFERENCE/*.md|usr/*/CLAUDE-*.md|agency/templates/CLAUDE-*|agency/templates/HANDOFF-*)
             echo "methodology|$f"; return ;;
     esac
     # config
     case "$f" in
-        claude/config/agency.yaml|claude/config/manifest.json)
+        agency/config/agency.yaml|agency/config/manifest.json)
             echo "config|$f"; return ;;
     esac
     # settings
     case "$f" in
-        .claude/settings.json|claude/config/settings-template.json)
+        .claude/settings.json|agency/config/settings-template.json)
             echo "settings|$f"; return ;;
     esac
     # hooks
     case "$f" in
-        claude/hooks/*|.claude/hooks/*)
+        agency/hooks/*|.claude/hooks/*)
             echo "hooks|$f"; return ;;
     esac
     # iscp-check is a tool but it's notification machinery — group with settings
     case "$f" in
-        claude/tools/iscp-check|claude/tools/collaboration|claude/tools/agent-identity)
+        agency/tools/iscp-check|agency/tools/collaboration|agency/tools/agent-identity)
             echo "settings|$f"; return ;;
     esac
     # tools
     case "$f" in
-        claude/tools/lib/_*) echo "tools|$f"; return ;;
-        claude/tools/*) echo "tools|$f"; return ;;
+        agency/tools/lib/_*) echo "tools|$f"; return ;;
+        agency/tools/*) echo "tools|$f"; return ;;
     esac
     # skills
     case "$f" in
@@ -236,7 +236,7 @@ classify() {
     esac
     # workstream artifacts
     case "$f" in
-        claude/workstreams/*) echo "workstream|$f"; return ;;
+        agency/workstreams/*) echo "workstream|$f"; return ;;
     esac
     # scratch (excluded)
     case "$f" in
@@ -284,8 +284,8 @@ FEATURES=$(detect_features)
 for feat in $FEATURES; do
     [[ -z "$feat" ]] && continue
     awk -v feat="$feat" -F'|' -v OFS='|' '
-        # Tool path: claude/tools/{feat}
-        $2 == "claude/tools/" feat { $1 = "feature:" feat; print; next }
+        # Tool path: agency/tools/{feat}
+        $2 == "agency/tools/" feat { $1 = "feature:" feat; print; next }
         # Skill path: .claude/skills/{feat}/...
         $2 ~ "^\\.claude/skills/" feat "/" { $1 = "feature:" feat; print; next }
         # Test path: src/tests/tools/{feat}.bats
@@ -317,12 +317,12 @@ feature_groups() {
 # contains "issue" (stem of "issues"). This handles plural→singular and
 # compound names like "agency-issue". First match wins; if nothing
 # matches, agency.yaml stays in "config".
-if grep -q "^config|claude/config/agency.yaml$" "$GROUPS_FILE"; then
+if grep -q "^config|agency/config/agency.yaml$" "$GROUPS_FILE"; then
     # Get the diff of agency.yaml vs HEAD (covers staged + unstaged changes)
-    agency_diff=$(g diff HEAD -- claude/config/agency.yaml 2>/dev/null || true)
+    agency_diff=$(g diff HEAD -- agency/config/agency.yaml 2>/dev/null || true)
     # If still empty (e.g., new untracked file), use cached diff against empty
     if [[ -z "$agency_diff" ]]; then
-        agency_diff=$(g diff --cached -- claude/config/agency.yaml 2>/dev/null || true)
+        agency_diff=$(g diff --cached -- agency/config/agency.yaml 2>/dev/null || true)
     fi
 
     # Extract top-level section names from the added lines (+{name}:).
@@ -363,7 +363,7 @@ if grep -q "^config|claude/config/agency.yaml$" "$GROUPS_FILE"; then
         if [[ -n "$match_feat" ]]; then
             # Reclassify agency.yaml into the matching feature group
             awk -v feat="$match_feat" -F'|' -v OFS='|' '
-                $2 == "claude/config/agency.yaml" { $1 = "feature:" feat; print; next }
+                $2 == "agency/config/agency.yaml" { $1 = "feature:" feat; print; next }
                 { print }
             ' "$GROUPS_FILE" > "${GROUPS_FILE}.tmp"
             mv "${GROUPS_FILE}.tmp" "$GROUPS_FILE"

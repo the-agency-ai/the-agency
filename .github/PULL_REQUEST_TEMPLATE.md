@@ -32,7 +32,7 @@ How did you test this change? Include commands you ran and what you observed.
 
 Example:
   - Ran `bats src/tests/tools/dispatch.bats` — all 24 tests pass
-  - Manually tested `./claude/tools/dispatch create --to foo --subject bar` — creates the expected file
+  - Manually tested `./agency/tools/dispatch create --to foo --subject bar` — creates the expected file
   - Verified the fix prevents the original error on my local repo
 -->
 

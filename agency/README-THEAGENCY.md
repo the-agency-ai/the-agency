@@ -285,7 +285,7 @@ agency/workstreams/{ws}/qgr/{org}-{principal}-{agent}-{ws}-{proj}-qgr-{boundary}
 
 The receipt contains a five-hash chain of trust (A through E) linking the original artifact to the final reviewed state. `pr-create` calls `receipt-verify` and blocks if no valid receipt matches the current diff.
 
-Receipt search is three-tier (backward compatible): per-workstream `qgr/`/`rgr/` → legacy `claude/receipts/` → old `usr/**/qgr-*.md`.
+Receipt search is three-tier (backward compatible): per-workstream `qgr/`/`rgr/` → legacy `agency/receipts/` → old `usr/**/qgr-*.md`.
 
 ## Development Methodology
 
@@ -507,7 +507,7 @@ Git discipline is enforced by hookify rules. The git-related rules:
 | `block-cd-to-main` | BLOCK | Prevents worktree agents from cd-ing to main repo |
 | `block-raw-git-merge-master` | BLOCK | Forces use of `/sync-all` instead of raw merge |
 
-For the complete enforcement model — Triangle, Ladder, lifecycle hooks, all 36 hookify rules, quality gate tiers, and the permission model — see `claude/README-ENFORCEMENT.md`.
+For the complete enforcement model — Triangle, Ladder, lifecycle hooks, all 36 hookify rules, quality gate tiers, and the permission model — see `agency/README-ENFORCEMENT.md`.
 
 ### Per-Agent Commit Attribution
 
@@ -945,7 +945,7 @@ Claude Code's architecture is a working model of an agent-native development lif
 
 - [ ] Add more detail on the comparison with gstack — what gstack does well (template system, learnings JSONL, confidence scoring), what TheAgency does differently
 - [ ] Add metaswarm comparison — BEADS task tracking, recursive orchestration, self-reflection patterns
-- [ ] Reference the FAANG AIADLC source material at `claude/docs/book-sources/SOURCE-faang-ai-workflow-reddit.md`
+- [ ] Reference the FAANG AIADLC source material at `agency/REFERENCE/book-sources/SOURCE-faang-ai-workflow-reddit.md`
 - [ ] Add the thesis statement: "The Agency represents the next evolution — from 'AI assists developers' to 'AI agents are developers, humans are principals.'"
 - [x] Add section on QG protocol, QGR format, commit message example, QGR receipt files
 - [x] Add sections mirroring CLAUDE.md structure (session handoff, discussion, feedback, testing & quality, bash, web content)

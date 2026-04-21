@@ -1,6 +1,6 @@
 #!/bin/bash
 # Returns current timestamp in local timezone
-# Usage: ./claude/tools/now
+# Usage: ./agency/tools/now
 #
 # Created because Claude Code cannot learn permission patterns for date commands.
 # Each variation (date, TZ='...' date, date +%Y-%m-%d, etc.) requires separate approval.

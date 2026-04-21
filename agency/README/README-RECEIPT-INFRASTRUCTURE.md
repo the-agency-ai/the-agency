@@ -64,7 +64,7 @@ Receipt directories (`qgr/` and `rgr/`) are excluded from all hash computations 
 `receipt-verify` and `pr-create` search receipts in this order:
 
 1. `agency/workstreams/*/qgr/` and `rgr/` (current — checked first)
-2. `claude/receipts/` (legacy fallback)
+2. `agency/receipts/` (legacy fallback)
 3. `usr/**/qgr-*.md` (old-old fallback — sunsets when all migrated)
 
 New receipts are always written to the per-workstream path via `receipt-sign`.

@@ -55,5 +55,5 @@ Templates use these placeholders (replaced during creation):
 
 ## Related
 
-- `claude/knowledge/` - Knowledge bases that templates reference
+- `agency/knowledge/` - Knowledge bases that templates reference
 - `./agency/tools/agent-create` - Tool that uses these templates

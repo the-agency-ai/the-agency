@@ -37,7 +37,7 @@ bash $CLAUDE_PROJECT_DIR/agency/tools/upstream-port usr/{principal}/commands/fla
 bash $CLAUDE_PROJECT_DIR/agency/tools/upstream-port agency/tools/flag --auto-merge
 
 # Port to custom path
-bash $CLAUDE_PROJECT_DIR/agency/tools/upstream-port docs/design.md --target claude/docs/design/design.md
+bash $CLAUDE_PROJECT_DIR/agency/tools/upstream-port docs/design.md --target agency/docs/design/design.md
 ```
 
 ### Step 2: Verify

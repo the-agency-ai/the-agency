@@ -11,7 +11,7 @@
 #   # After sourcing, these are available:
 #   echo "$AGENCY_PRINCIPAL"       # Principal name (e.g., "jordan")
 #   echo "$AGENCY_PRINCIPAL_DIR"   # Full path (e.g., "/path/to/project/usr/jordan")
-#   echo "$AGENCY_REFS_DIR"        # Refs dir (e.g., "/path/to/project/usr/jordan/claude/refs")
+#   echo "$AGENCY_REFS_DIR"        # Refs dir (e.g., "/path/to/project/usr/jordan/refs")
 #   echo "$AGENCY_PROJECT_ROOT"    # Project root
 #
 # Resolution order:
@@ -200,7 +200,7 @@ _pr_resolve() {
 
     # Set derived paths
     AGENCY_PRINCIPAL_DIR="$AGENCY_PROJECT_ROOT/usr/$AGENCY_PRINCIPAL"
-    AGENCY_REFS_DIR="$AGENCY_PRINCIPAL_DIR/claude/refs"
+    AGENCY_REFS_DIR="$AGENCY_PRINCIPAL_DIR/refs"
 }
 
 # Run resolution on source

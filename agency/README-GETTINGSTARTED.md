@@ -21,7 +21,7 @@ Before installing, here are the terms you'll see throughout the docs:
 - **Enforcement Triangle** — every capability has tool + skill + hookify rule
 - **Hookify** — behavioral rules (block/warn) enforced mechanically
 
-For the full methodology, read `claude/README-THEAGENCY.md`.
+For the full methodology, read `agency/README-THEAGENCY.md`.
 
 ## Install
 
@@ -102,7 +102,7 @@ The framework ships with broad permissions:
 **Why so broad?** The security model is layered:
 
 1. **Project boundary** — agents can read/write within the project, nothing outside it. The project root is the security perimeter.
-2. **Hookify rules** — behavioral enforcement happens at the rule layer, not the permission layer. Rules block raw `git commit`, prevent `cd` outside your worktree, force the use of skills over raw tools, enforce QGR receipts, etc. See `claude/README-ENFORCEMENT.md` for the full list (36 rules) and the complete enforcement model.
+2. **Hookify rules** — behavioral enforcement happens at the rule layer, not the permission layer. Rules block raw `git commit`, prevent `cd` outside your worktree, force the use of skills over raw tools, enforce QGR receipts, etc. See `agency/README-ENFORCEMENT.md` for the full list (36 rules) and the complete enforcement model.
 3. **Git** — version control is the audit trail. Anything an agent does is reviewable.
 
 Narrow permission patterns (the old approach) created friction — every new command triggered a prompt, blocked legitimate work, and didn't actually improve security. Hookify rules enforce intent; permissions enforce scope.
@@ -140,7 +140,7 @@ Once you've captured an idea and started a PVR:
 - **Implement it:** Work through iterations, running quality gates at every commit boundary
 - **Ship it:** Captain manages PRs, pushes to origin, dispatches release notes to consumers
 
-Read `claude/README-THEAGENCY.md` for the full methodology — what each stage does and why.
+Read `agency/README-THEAGENCY.md` for the full methodology — what each stage does and why.
 
 ## Safe Tools — No Raw Git
 
@@ -153,7 +153,7 @@ TheAgency enforces safe alternatives to raw shell commands. The most important:
 | `cp` | `./agency/tools/cp-safe` | Provenance-aware copy with logging |
 | `gh pr create` | `/release` | QG + code review before PR creation |
 
-Hookify rules **hard-block** the raw alternatives (not just warn — they cancel the command). Also blocked: `gh pr merge` (use `/pr-merge`) and `gh release create` (use `/post-merge`). See `claude/README-ENFORCEMENT.md` for the full list.
+Hookify rules **hard-block** the raw alternatives (not just warn — they cancel the command). Also blocked: `gh pr merge` (use `/pr-merge`) and `gh release create` (use `/post-merge`). See `agency/README-ENFORCEMENT.md` for the full list.
 
 ## Branch Protection
 

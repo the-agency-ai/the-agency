@@ -1,7 +1,7 @@
 #!/bin/bash
 # Automated code review using pattern-based checks
 #
-# Usage: ./claude/tools/code-review
+# Usage: ./agency/tools/code-review
 #
 # Checks:
 #   1. Hardcoded secrets (blocking)
@@ -16,7 +16,7 @@
 #
 # Output follows tool output standard (CLAUDE.md):
 #   stdout: minimal status (tool name, run ID, result)
-#   verbose: stored in log service, view with: ./claude/tools/telemetry --run {run-id}
+#   verbose: stored in log service, view with: ./agency/tools/telemetry --run {run-id}
 
 set -euo pipefail
 

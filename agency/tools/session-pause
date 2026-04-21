@@ -260,7 +260,7 @@ trap 'release_lock' EXIT
 # change the enforcement surface or ship application/framework code.
 #
 # Rules per A&D v3 §3.3 + 1.5 tightening, updated for v46.1 Great Rename
-# (claude/ → agency/) and Plan v5 src/ split:
+# (v46 Great Rename) and Plan v5 src/ split:
 #   - anything under usr/{PRINCIPAL}/ is coord (principal sandbox);
 #   - agency/config/**, agency/hookify/**, agency/CLAUDE-*.md are coord;
 #   - agency/workstreams/** is coord (workstream artifacts);

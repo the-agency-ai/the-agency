@@ -12,10 +12,10 @@
 # Written: 2026-04-07 during devex Phase 122 (Day/Phase commit prefix enforcement)
 
 # Validate a commit message's first line against the Day/Phase convention.
-# Reads commits.require_day_prefix from agency.yaml via ./claude/tools/config.
+# Reads commits.require_day_prefix from agency.yaml via ./agency/tools/config.
 #
 # Usage:
-#   source claude/tools/lib/_commit-prefix
+#   source agency/tools/lib/_commit-prefix
 #   validate_commit_prefix "$message" || exit 1
 #
 # Returns 0 if valid (or check disabled), 1 if invalid.

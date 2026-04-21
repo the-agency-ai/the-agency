@@ -225,6 +225,6 @@ When you update The Agency framework:
 
 ## Reference
 
-- Claude Code Docs: `claude/knowledge/claude-code/05-configuration.md`
-- Hook Events: `claude/knowledge/claude-code/07-advanced.md`
+- Claude Code Docs: `agency/knowledge/claude-code/05-configuration.md`
+- Hook Events: `agency/knowledge/claude-code/07-advanced.md`
 - Settings Priority: https://code.claude.com/docs/en/settings

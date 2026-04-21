@@ -1,7 +1,7 @@
 #!/bin/bash
 # platform-setup — Dispatcher for platform setup providers
 #
-# Usage: ./claude/tools/platform-setup [--all] [--verbose]
+# Usage: ./agency/tools/platform-setup [--all] [--verbose]
 #
 # Reads platform.provider from agency.yaml and delegates to the
 # appropriate provider tool. Supports "auto" for OS detection.
@@ -29,7 +29,7 @@ for arg in "$@"; do
         --help|-h)
             echo "platform-setup — Install platform dependencies for Agency"
             echo ""
-            echo "Usage: ./claude/tools/platform-setup [--all] [--verbose]"
+            echo "Usage: ./agency/tools/platform-setup [--all] [--verbose]"
             echo ""
             echo "Reads platform.provider from agency.yaml."
             echo "Set to 'auto' (default) to detect OS automatically."
@@ -44,8 +44,8 @@ done
 PROVIDER_TOOL=""
 PROVIDER_NAME=""
 
-if [[ -f "$PROJECT_ROOT/claude/tools/lib/_provider-resolve" ]]; then
-    source "$PROJECT_ROOT/claude/tools/lib/_provider-resolve"
+if [[ -f "$PROJECT_ROOT/agency/tools/lib/_provider-resolve" ]]; then
+    source "$PROJECT_ROOT/agency/tools/lib/_provider-resolve"
     PROVIDER_NAME=$(get_provider_name "platform" 2>/dev/null) || true
 fi
 

@@ -28,19 +28,19 @@ services/*/logs/*.log
 services/*/logs/*.json
 
 # Database files
-claude/data/*.db
-claude/data/*.db-wal
-claude/data/*.db-shm
+agency/config/*.db
+agency/config/*.db-wal
+agency/config/*.db-shm
 
 # Instance tracking (ephemeral runtime state)
-claude/data/instances/
+agency/config/instances/
 
 # Service PID files (runtime)
-claude/data/*.pid
+agency/config/*.pid
 
 # Agency service logs (but keep reviews for findings history)
-claude/logs/*
-!claude/logs/reviews/
+agency/logs/*
+!agency/logs/reviews/
 
 # Tool telemetry (local runtime logs)
 .claude/logs/
@@ -54,7 +54,7 @@ coverage/
 .cache/
 
 # Principal secrets (never commit)
-claude/principals/*/resources/secrets/
+usr/*/resources/secrets/
 claude/apps/AgencyBench.app
 test/
 
@@ -66,8 +66,8 @@ test/
 .worktrees/
 
 # Session backups (ephemeral state - not versioned)
-claude/agents/*/backups/latest/
-claude/agents/*/backups/archive/
+agency/agents/*/backups/latest/
+agency/agents/*/backups/archive/
 agency/agents/*/backups/
 agency/agents/*/logs/
 agency/agents/unknown/
@@ -98,8 +98,8 @@ __pycache__/
 .claude/logs/
 
 # Agency service logs (but keep reviews for findings history)
-claude/logs/*
-!claude/logs/reviews/
+agency/logs/*
+!agency/logs/reviews/
 
 # Principal scratch (gitignored intentionally — used for drafts, tmp files)
 usr/*/tmp/

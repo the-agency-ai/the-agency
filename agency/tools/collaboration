@@ -42,7 +42,7 @@ fi
 
 source "$SCRIPT_DIR/lib/_log-helper"
 
-AGENCY_YAML="$PROJECT_ROOT/claude/config/agency.yaml"
+AGENCY_YAML="$PROJECT_ROOT/agency/config/agency.yaml"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -665,7 +665,7 @@ Usage:
   collaboration --version                          Show version
   collaboration --help                             Show this help
 
-Configuration: claude/config/agency.yaml → collaboration.repos
+Configuration: agency/config/agency.yaml → collaboration.repos
 
 Captain-only tool — cross-repo coordination is a captain responsibility.
 HELP

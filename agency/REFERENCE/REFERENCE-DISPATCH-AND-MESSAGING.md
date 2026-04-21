@@ -13,7 +13,7 @@ Both are embedded services within `agency-service` at port 3141.
 
 ### Per-Service Database Isolation
 
-Each embedded service has its own SQLite database file in `claude/data/`:
+Each embedded service has its own SQLite database file in `agency/config/`:
 
 | Service | DB File | Tables |
 |---------|---------|--------|

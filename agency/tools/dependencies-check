@@ -30,7 +30,7 @@ fi
 VERBOSE=false
 FIX=false
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DEPS_FILE="$PROJECT_ROOT/claude/config/agency-dependencies.yaml"
+DEPS_FILE="$PROJECT_ROOT/agency/config/agency-dependencies.yaml"
 
 # Logging functions
 log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
@@ -198,7 +198,7 @@ main() {
         echo ""
         if [[ "$FIX" != "true" ]]; then
             echo "Run with --fix to attempt installation:"
-            echo "  ./claude/tools/dependencies-check --fix"
+            echo "  ./agency/tools/dependencies-check --fix"
         fi
         log_end "$RUN_ID" "failure" 1 0 "$missing dependencies missing" 2>/dev/null || true
         exit 1

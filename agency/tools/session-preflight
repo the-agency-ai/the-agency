@@ -8,7 +8,7 @@
 # step. Checks 5 conditions and reports pass/fail for each. Exits non-zero
 # if any check fails, so the calling skill knows to remediate.
 #
-# Usage: ./claude/tools/session-preflight [--quiet]
+# Usage: ./agency/tools/session-preflight [--quiet]
 #   --quiet  Only output failures (for scripted use)
 #
 # Written: 2026-04-14 during captain session (session lifecycle hardening)
@@ -96,7 +96,7 @@ if [[ -n "$handoff_output" && "$handoff_output" != *"No handoff found"* ]]; then
     report_pass "Handoff loaded"
 else
     report_fail "No handoff found" \
-        "Run: ./claude/tools/handoff read"
+        "Run: ./agency/tools/handoff read"
 fi
 
 # ── Check 4: No unread dispatches remaining ──────────────────────────────

@@ -28,7 +28,7 @@ Security specialist focused on identifying vulnerabilities, reviewing code for s
 ## Knowledge Base
 
 This agent specializes in:
-- `claude/knowledge/security-patterns/` - Security best practices
+- `agency/knowledge/security-patterns/` - Security best practices
 - OWASP guidelines and common vulnerabilities
 - Authentication/authorization patterns
 - Secrets management
@@ -74,4 +74,4 @@ This agent specializes in:
 
 - `agency/agents/{{AGENT_NAME}}/` - Agent identity
 - `agency/workstreams/{{WORKSTREAM}}/` - Work artifacts
-- `claude/knowledge/security-patterns/` - Security patterns
+- `agency/knowledge/security-patterns/` - Security patterns

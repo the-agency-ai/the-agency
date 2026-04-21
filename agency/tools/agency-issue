@@ -20,7 +20,7 @@
 # file action.
 #
 # Target repo resolution: reads `issues.github.target_repo` from
-# claude/config/agency.yaml. Defaults to `the-agency-ai/the-agency` if
+# agency/config/agency.yaml. Defaults to `the-agency-ai/the-agency` if
 # unconfigured. Same awk-parse approach as the secret tool — no yaml
 # library dependency.
 #
@@ -58,7 +58,7 @@ else
     PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 fi
 
-AGENCY_YAML="$PROJECT_ROOT/claude/config/agency.yaml"
+AGENCY_YAML="$PROJECT_ROOT/agency/config/agency.yaml"
 
 # --- Resolve target repo from agency.yaml ---
 # Looks for: issues.github.target_repo: "owner/repo"
@@ -144,7 +144,7 @@ Each row is one filing. Click through to the per-report markdown for full contex
 
 ## How to add an entry
 
-1. Draft the report with captain, following \`claude/docs/FEEDBACK-FORMAT.md\`
+1. Draft the report with captain, following \`agency/REFERENCE/FEEDBACK-FORMAT.md\`
 2. File via the appropriate channel:
    - \`agency-issue file\` → the-agency GitHub (auto-appends to this index)
    - \`/feedback\` → Anthropic Claude Code (manually create the report file + append a row)
@@ -231,7 +231,7 @@ _write_report_file() {
 ---
 report_type: agency-issue
 issue_type: $type
-filing_agent: $(./claude/tools/agent-identity 2>/dev/null || echo "$PRINCIPAL")
+filing_agent: $(./agency/tools/agent-identity 2>/dev/null || echo "$PRINCIPAL")
 filed_by: $PRINCIPAL
 date_filed: $(_today)
 target_repo: $TARGET_REPO
@@ -291,7 +291,7 @@ Optional for `file`:
   --body-file FILE   Read the body from a file (use - for stdin)
 
 Configuration:
-  Target repo: read from claude/config/agency.yaml under issues.github.target_repo
+  Target repo: read from agency/config/agency.yaml under issues.github.target_repo
   Default: the-agency-ai/the-agency
   Override: set issues.github.target_repo in agency.yaml
 

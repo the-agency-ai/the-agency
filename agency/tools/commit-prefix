@@ -1,8 +1,8 @@
 #!/bin/bash
 # Output the commit message prefix: {workstream}/{agentname}:
 #
-# Usage: ./claude/tools/commit-prefix
-#        MSG="$(./claude/tools/commit-prefix) your message here"
+# Usage: ./agency/tools/commit-prefix
+#        MSG="$(./agency/tools/commit-prefix) your message here"
 #
 # Returns: {workstream}/{agentname}:
 # Example: housekeeping/housekeeping:
@@ -49,7 +49,7 @@ for arg in "$@"; do
         --help|-h)
             echo "commit-prefix - Get commit message prefix"
             echo ""
-            echo "Usage: ./claude/tools/commit-prefix"
+            echo "Usage: ./agency/tools/commit-prefix"
             echo ""
             echo "Options:"
             echo "  --verbose      Show verbose output"
@@ -66,8 +66,8 @@ main() {
 
     verbose_echo "commit-prefix [run: ${RUN_ID:-none}]"
 
-    WORKSTREAM=$(./claude/tools/workstream 2>/dev/null || echo "unknown")
-    AGENTNAME=$(./claude/tools/agency-whoami 2>/dev/null || echo "unknown")
+    WORKSTREAM=$(./agency/tools/workstream 2>/dev/null || echo "unknown")
+    AGENTNAME=$(./agency/tools/agency-whoami 2>/dev/null || echo "unknown")
 
     verbose_echo "Workstream: $WORKSTREAM, Agent: $AGENTNAME"
 
