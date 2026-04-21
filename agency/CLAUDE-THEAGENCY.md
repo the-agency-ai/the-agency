@@ -108,6 +108,12 @@ Injected automatically when relevant skills run. Read directly when you need the
 - **Plan before you build.** Use plan mode for non-trivial tasks.
 - **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-safe-commit` — never raw `git commit`.
 
+## Don't Do This — 20,000-volt offenses
+
+See `agency/CLAUDE-DONT-DO-THIS.md` (included below via `@`). Core four: (1) don't push context-pressure on the principal, (2) don't give time estimates — use T-shirt-size + complexity-rating vocabulary, (3) don't bypass framework tools for raw commands, (4) don't open PRs from worktrees. Each offense = 20,000 volts to Jordan + yourself + the pride of Attack Kitties.
+
+@agency/CLAUDE-DONT-DO-THIS.md
+
 ## Runtime Floor
 
 - **Python: 3.13+.** Framework tools, hooks, and services target modern Python. Set in D45-R1 per principal directive, superseding the D44-R6 3.12 floor. Rationale: brew default is 3.13 so adopters get the floor for free; 3.13 adds nothing we must opt into (PEP 703 no-GIL and PEP 744 JIT are opt-in). Shebang convention: `#!/usr/bin/env python3` + runtime `sys.version_info` guard (NOT `python3.13` — hard-coded minor names break pyenv/nix/conda/Apple-stock installs; see `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md`). Framework tools in `agency/tools/` remain **zero-pip**: stdlib only. Services (iscp dispatch-hub, etc.) may use pip deps.
