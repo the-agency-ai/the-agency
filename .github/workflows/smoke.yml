@@ -1,0 +1,34 @@
+# Smoke — minimal CI check required by branch protection on `main`.
+#
+# This is a placeholder that passes unconditionally so the required status
+# context `smoke` reports a conclusion on every PR. The real smoke battery
+# (bats src/tests/tools/, agency verify on a fresh init sandbox, lint of
+# shipped scripts) is tracked as follow-up work in the-agency-ai/the-agency
+# CI build-out queue.
+#
+# Keep the job id == `smoke` — branch protection's required context matches
+# by the job's check-run name, which defaults to the job id.
+
+name: smoke
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Smoke passes
+        run: |
+          echo "smoke check: placeholder pass (real battery pending — tracked in CI build-out)"
+          echo "sha=${GITHUB_SHA}"
+          echo "ref=${GITHUB_REF}"
