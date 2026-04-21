@@ -2,10 +2,10 @@
 type: session
 agent: the-agency/jordan/captain
 date: 2026-04-22T00:00:00Z
-trigger: compact-prepare
+trigger: session-end
 branch: fix/great-rename-migrate-tool
-mode: continuation
-pause_commit_sha: none-pre-compact
+mode: resumption
+pause_commit_sha: 03453411
 next-action: "Commit the UNCOMMITTED tool + tests (agency/tools/great-rename-migrate + src/tests/tools/great-rename-migrate.bats — 19/19 BATS passing), bump manifest 46.14 → 46.15, PR to main, merge via pr-captain-merge --principal-approved, release v46.15, dispatch fleet with tool-usage instructions. HARD DEADLINE: fleet online by 0400. Then resume V5 phase-disciplined (Phase -1 audit → Phase 3 prune → land PR #397 → Phase 4+)."
 ---
 
