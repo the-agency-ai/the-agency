@@ -58,6 +58,25 @@ usr/*/resources/secrets/
 claude/apps/AgencyBench.app
 test/
 
+# BATS test pollution guards (#387, #384, #390)
+# These catch test leaks at the commit boundary so they can't reach git
+# even if a BATS helper escapes its sandbox. Until #384 (Docker-isolated
+# BATS) lands, these gitignore entries are the second line of defense.
+# If a test genuinely needs to create one of these paths, it should run
+# inside $BATS_TEST_TMPDIR, not in $REPO_ROOT.
+agency/agents/testname/
+usr/*/testname/
+usr/*/testjordan/
+.claude/agents/*/testname.md
+agency/workstreams/housekeeping/
+agency/workstreams/test*
+# Pathological test fixture names (leaked via unquoted command substitution)
+/On branch main*
+**/tmp.*/fixture/
+# Test-auto QGR fixtures (bats produces these on each run)
+agency/workstreams/*/qgr/test-*-test-auto-*.md
+agency/workstreams/*/rgr/test-*-test-auto-*.md
+
 # Claude Code local settings (user customizations)
 .claude/settings.local.json
 
