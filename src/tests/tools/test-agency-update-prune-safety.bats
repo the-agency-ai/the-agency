@@ -105,29 +105,45 @@ _run_update() {
 
 @test "default (no --prune): nothing deleted, including framework orphans, adopter-custom untouched" {
     run _run_update
+    # Exit-status lock: regression-catch for a silent abort before rsync ever ran.
+    [ "$status" -eq 0 ]
+    # No deletions anywhere in adopter content
     [ -f "$SANDBOX/target/agency/tools/adopter-tool" ]
     [ -f "$SANDBOX/target/.claude/skills/adopter-custom-skill/SKILL.md" ]
     [ -f "$SANDBOX/target/.claude/commands/adopter-custom-cmd.md" ]
     [ -f "$SANDBOX/target/tests/tools/adopter-custom.bats" ]
     [ -f "$SANDBOX/target/usr/adopter/notes.md" ]
     [ -f "$SANDBOX/target/agency/workstreams/adopter-ws/README.md" ]
+    # No error lines in output
+    ! echo "$output" | grep -q '\[ERROR\]'
 }
 
-@test "--prune --yes: extras dirs safe — adopter skills/commands/tests survive" {
+@test "--prune --yes: extras dirs safe — adopter skills/commands/tests survive (data-loss regression lock)" {
+    # Pre-seed: an adopter-custom file INSIDE agency/ that --prune WILL delete
+    # (to assert --prune actually works on the scope it's supposed to). Then
+    # the survivor-set assertions confirm the split rsync-flags arrays kept
+    # the extras dirs safe.
+    echo "#!/bin/bash # orphan-in-agency" > "$SANDBOX/target/agency/tools/orphan-not-in-source"
+
     run _run_update --prune
-    # The whole point of the fix: extras dirs are NEVER --deleted by --prune alone.
+    [ "$status" -eq 0 ]
+
+    # Positive: --prune DOES delete orphans in agency/ (scope it's supposed to act on)
+    [ ! -f "$SANDBOX/target/agency/tools/orphan-not-in-source" ]
+
+    # CORE REGRESSION LOCK: extras dirs are NEVER --deleted by --prune alone.
+    # If this fails, the shared-rsync_flags data-loss bug has regressed.
     [ -f "$SANDBOX/target/.claude/skills/adopter-custom-skill/SKILL.md" ]
     [ -f "$SANDBOX/target/.claude/commands/adopter-custom-cmd.md" ]
     [ -f "$SANDBOX/target/tests/tools/adopter-custom.bats" ]
     # Principal sandbox + workstreams always safe (excluded from rsync entirely)
     [ -f "$SANDBOX/target/usr/adopter/notes.md" ]
     [ -f "$SANDBOX/target/agency/workstreams/adopter-ws/README.md" ]
-    # agency/ adopter-tool is inside the --prune scope, MAY be deleted
-    # (no adopter-custom carve-out in agency/ by default). Not asserted.
 }
 
 @test "--prune-all --yes: extras dirs ARE pruned — adopter skills/commands/tests DELETED (per confirmed opt-in)" {
     run _run_update --prune-all
+    [ "$status" -eq 0 ]
     # With --prune-all, adopter-custom content in extras is deleted.
     # This is the explicit opt-in semantic — adopter asked for it.
     [ ! -f "$SANDBOX/target/.claude/skills/adopter-custom-skill/SKILL.md" ]

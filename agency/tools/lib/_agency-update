@@ -127,7 +127,7 @@ _update_main() {
 
     # --- Precondition: no interrupted prior update ---
     # If the target is a git repo and has uncommitted changes under the
-    # framework-managed paths (claude/, .claude/) OR the framework section of
+    # framework-managed paths (agency/, .claude/) OR the framework section of
     # agency.yaml is modified, a prior 'agency update' likely left work
     # uncommitted. Re-running in that state silently rewrites those changes
     # and has caused cross-repo confusion (monofolk escalation, D41).
@@ -135,14 +135,14 @@ _update_main() {
     if [[ "$DRY_RUN" == "false" ]] && git -C "$TARGET_DIR" rev-parse --git-dir >/dev/null 2>&1; then
         local dirty_framework dirty_all
         dirty_all=$(git -C "$TARGET_DIR" status --porcelain -- \
-            'claude/' '.claude/' 2>/dev/null || true)
+            'agency/' '.claude/' 2>/dev/null || true)
         # D41-R27 (live blocker 2026-04-15 ~21:00): filter out auto-appended
         # runtime state that should never trigger the gate. .claude/logs/ is
         # tool telemetry (every tool run appends; gitignored by the framework
         # template but may be tracked in adopter repos that init'd before the
-        # template existed). claude/logs/ same reason (agency service logs).
+        # template existed). agency/logs/ same reason (agency service logs).
         # These are NOT framework changes — exclude from dirty detection.
-        dirty_all=$(echo "$dirty_all" | grep -v -E '^ ?[A-Z?] (\.claude/logs/|claude/logs/)' || true)
+        dirty_all=$(echo "$dirty_all" | grep -v -E '^ ?[A-Z?] (\.claude/logs/|agency/logs/)' || true)
         # QG fix (D41-R4+R6+R7): count from the full porcelain output, then
         # truncate to 20 lines for display. Earlier code counted after head -20
         # which under-reported when more than 20 files were dirty.
@@ -151,9 +151,9 @@ _update_main() {
             local dirty_count
             dirty_count=$(echo "$dirty_all" | grep -c '^' || echo "0")
             echo -e "${RED}✗ agency update: $dirty_count uncommitted framework file(s) detected${NC}" >&2
-            echo "  → Looks like a prior 'agency update' left changes in claude/ or .claude/." >&2
+            echo "  → Looks like a prior 'agency update' left changes in agency/ or .claude/." >&2
             echo "  → Commit first — these are coordination artifacts, not app code:" >&2
-            echo "      ./claude/tools/git-safe-commit \"misc: prior agency update\" --no-work-item" >&2
+            echo "      ./agency/tools/git-safe-commit \"misc: prior agency update\" --no-work-item" >&2
             echo "  → Or re-run with --force to overwrite (will lose uncommitted local changes)." >&2
             echo "" >&2
             if [[ "$VERBOSE" == "true" ]]; then
@@ -225,7 +225,7 @@ _update_main() {
     elif [[ -f "$TARGET_DIR/../the-agency/agency/config/agency.yaml" ]]; then
         SOURCE_DIR="$(cd "$TARGET_DIR/../the-agency" && pwd)"
     elif [[ -f "$AGENCY_DIR/../agency/config/agency.yaml" ]]; then
-        # Running from the framework itself — AGENCY_DIR points to claude/
+        # Running from the framework itself — AGENCY_DIR points to agency/
         SOURCE_DIR="$(cd "$AGENCY_DIR/.." && pwd)"
     fi
 
@@ -252,9 +252,9 @@ _update_main() {
     # --- Resolve versions ---
     local from_commit to_commit from_version to_version
     from_commit=$(grep '^  source_commit:' "$TARGET_DIR/agency/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
-    from_version=$(jq -r '.agency_version // "unknown"' "$TARGET_DIR/claude/config/manifest.json" 2>/dev/null || echo "unknown")
+    from_version=$(jq -r '.agency_version // "unknown"' "$TARGET_DIR/agency/config/manifest.json" 2>/dev/null || echo "unknown")
     to_commit=$(git -C "$SOURCE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
-    to_version=$(jq -r '.agency_version // "unknown"' "$SOURCE_DIR/claude/config/manifest.json" 2>/dev/null || echo "unknown")
+    to_version=$(jq -r '.agency_version // "unknown"' "$SOURCE_DIR/agency/config/manifest.json" 2>/dev/null || echo "unknown")
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -303,7 +303,7 @@ _update_main() {
     local added=0 updated=0 removed=0
 
     # =====================================================================
-    # Step 1: Sync claude/ framework directory
+    # Step 1: Sync agency/ framework directory
     # =====================================================================
     log_step "Syncing framework files"
 
@@ -312,7 +312,7 @@ _update_main() {
     # DEFAULT: NO --delete flag. Sync is ADDITIVE — add new files, update
     # existing files, NEVER delete files that only exist in the target.
     # Project-specific tools (secret-local, provider tools, etc.) live in
-    # claude/tools/ alongside framework tools. A blind --delete would destroy them.
+    # agency/tools/ alongside framework tools. A blind --delete would destroy them.
     #
     # OPT-IN: --prune enables --delete with protected_paths enforced.
     # Adopters run it explicitly when they want orphan cleanup. Confirmation
@@ -401,7 +401,7 @@ _update_main() {
 
         if [[ "$extras_total" -gt 0 ]]; then
             echo ""
-            echo -e "${YELLOW}--prune-all: ${extras_total} orphan file(s) would be deleted from extras dirs:${NC}"
+            echo -e "${YELLOW}--prune-all: ${extras_total} orphan file(s) would be deleted from .claude/skills/, .claude/commands/, tests/tools/:${NC}"
             echo "$extras_preview_all" | head -30
             [[ "$extras_total" -gt 30 ]] && echo "  ... (use --verbose to see all)"
             echo ""
@@ -516,11 +516,11 @@ _update_main() {
     # =====================================================================
     log_step "Merging settings"
 
-    if [[ -f "$TARGET_DIR/claude/tools/settings-merge" ]]; then
+    if [[ -f "$TARGET_DIR/agency/tools/settings-merge" ]]; then
         if [[ "$DRY_RUN" == "true" ]]; then
-            bash "$TARGET_DIR/claude/tools/settings-merge" --dry-run 2>/dev/null || true
+            bash "$TARGET_DIR/agency/tools/settings-merge" --dry-run 2>/dev/null || true
         else
-            bash "$TARGET_DIR/claude/tools/settings-merge" 2>/dev/null || log_warn "settings-merge failed — settings.json unchanged"
+            bash "$TARGET_DIR/agency/tools/settings-merge" 2>/dev/null || log_warn "settings-merge failed — settings.json unchanged"
         fi
     else
         log_warn "settings-merge tool not found — skipping settings merge"
@@ -603,13 +603,13 @@ _update_main() {
     # =====================================================================
     log_step "Updating manifest"
 
-    if [[ "$DRY_RUN" == "false" ]] && [[ -f "$TARGET_DIR/claude/config/manifest.json" ]] && command -v jq >/dev/null 2>&1; then
+    if [[ "$DRY_RUN" == "false" ]] && [[ -f "$TARGET_DIR/agency/config/manifest.json" ]] && command -v jq >/dev/null 2>&1; then
         local tmp_manifest
         tmp_manifest=$(mktemp)
         jq --arg ver "$to_version" --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             '.project.framework_version = $ver | .project.updated_at = $ts' \
-            "$TARGET_DIR/claude/config/manifest.json" > "$tmp_manifest" 2>/dev/null && \
-            mv "$tmp_manifest" "$TARGET_DIR/claude/config/manifest.json"
+            "$TARGET_DIR/agency/config/manifest.json" > "$tmp_manifest" 2>/dev/null && \
+            mv "$tmp_manifest" "$TARGET_DIR/agency/config/manifest.json"
     fi
 
     log_info "Manifest updated"
@@ -621,7 +621,7 @@ _update_main() {
 
     if [[ "$DRY_RUN" == "false" ]]; then
         local handoff_path
-        handoff_path=$(bash "$TARGET_DIR/claude/tools/handoff" path 2>/dev/null || echo "")
+        handoff_path=$(bash "$TARGET_DIR/agency/tools/handoff" path 2>/dev/null || echo "")
 
         # Issue #160: never overwrite a session handoff. Prior behavior
         # archived + wrote an agency-update stub on every update, destroying
@@ -669,7 +669,7 @@ UPDATE_SECTION_EOF
 
             if [[ "$existing_type" == "agency-update" || "$existing_type" == "agency-bootstrap" || -z "$existing_type" ]]; then
                 # Existing handoff is a prior stub or has no type — safe to replace
-                bash "$TARGET_DIR/claude/tools/handoff" archive 2>/dev/null || true
+                bash "$TARGET_DIR/agency/tools/handoff" archive 2>/dev/null || true
                 mkdir -p "$(dirname "$handoff_path")"
                 cat > "$handoff_path" << UPDATE_STUB_EOF
 ---
@@ -726,11 +726,11 @@ UPDATE_STUB_EOF
     # =====================================================================
     if [[ "$DRY_RUN" == "false" && "${NO_COMMIT:-false}" != "true" ]] && \
        git -C "$TARGET_DIR" rev-parse --git-dir >/dev/null 2>&1; then
-        # Collect framework-only dirty paths (under claude/ or .claude/ but
-        # NOT under .claude/logs/ or claude/logs/ which are runtime state)
+        # Collect framework-only dirty paths (under agency/ or .claude/ but
+        # NOT under .claude/logs/ or agency/logs/ which are runtime state)
         local fw_dirty
-        fw_dirty=$(git -C "$TARGET_DIR" status --porcelain -- 'claude/' '.claude/' 2>/dev/null \
-            | grep -v -E '^ ?[A-Z?] (\.claude/logs/|claude/logs/)' || true)
+        fw_dirty=$(git -C "$TARGET_DIR" status --porcelain -- 'agency/' '.claude/' 2>/dev/null \
+            | grep -v -E '^ ?[A-Z?] (\.claude/logs/|agency/logs/)' || true)
 
         if [[ -n "$fw_dirty" ]]; then
             log_step "Auto-committing framework sync"
@@ -739,7 +739,7 @@ UPDATE_STUB_EOF
             local msg="misc: agency update — framework sync ${short_from} → ${short_to}"
             # Stage ONLY framework paths. Non-framework dirty files are left
             # untouched — the adopter's in-progress work is preserved.
-            ( cd "$TARGET_DIR" && git add claude/ .claude/ 2>/dev/null || true )
+            ( cd "$TARGET_DIR" && git add agency/ .claude/ 2>/dev/null || true )
             ( cd "$TARGET_DIR" && git commit -m "$msg" --no-verify >/dev/null 2>&1 ) || \
                 log_warn "Auto-commit failed — commit framework changes manually"
             log_info "Framework sync committed"
@@ -748,12 +748,12 @@ UPDATE_STUB_EOF
 
     # =====================================================================
     # D41-R27: merge framework .gitignore block (idempotent)
-    # Existing adopters that init'd before R27 don't have .claude/logs/ in
+    # Existing adopters that init'd before R27 don't have .claude/logs/ + agency/logs/ in
     # their .gitignore. On every `agency update`, ensure the framework block
     # is present. Marker string is used to detect existing block — if found,
     # leave alone (no-op). If absent, append.
     # =====================================================================
-    local gitignore_template="$SOURCE_DIR/claude/templates/gitignore-framework"
+    local gitignore_template="$SOURCE_DIR/agency/templates/gitignore-framework"
     local gitignore_target="$TARGET_DIR/.gitignore"
     if [[ "$DRY_RUN" == "false" && -f "$gitignore_template" ]]; then
         if [[ ! -f "$gitignore_target" ]] || ! grep -q "Agency framework-managed ignores" "$gitignore_target" 2>/dev/null; then
@@ -782,8 +782,8 @@ UPDATE_STUB_EOF
     if [[ "$DRY_RUN" == "false" ]]; then
         # Auto-verify after update — don't ask the adopter to do it
         log_step "Verifying installation"
-        if [[ -x "$TARGET_DIR/claude/tools/agency" ]]; then
-            ( cd "$TARGET_DIR" && ./claude/tools/agency verify ) || \
+        if [[ -x "$TARGET_DIR/agency/tools/agency" ]]; then
+            ( cd "$TARGET_DIR" && ./agency/tools/agency verify ) || \
                 log_warn "Verify reported issues — run 'agency verify --verbose' for details"
         fi
     fi
