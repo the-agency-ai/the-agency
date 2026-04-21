@@ -256,6 +256,21 @@ _update_main() {
     to_commit=$(git -C "$SOURCE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
     to_version=$(jq -r '.agency_version // "unknown"' "$SOURCE_DIR/agency/config/manifest.json" 2>/dev/null || echo "unknown")
 
+    # Issue #157: display raw {day}.{release} manifest versions as D{day}-R{release}
+    # for readability (matches release tag convention, e.g. 46.6 → D46-R6).
+    # Raw "unknown" or malformed values pass through unchanged.
+    _format_dr() {
+        local v="$1"
+        if [[ "$v" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+            printf 'D%s-R%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+        else
+            printf '%s' "$v"
+        fi
+    }
+    local from_version_display to_version_display
+    from_version_display=$(_format_dr "$from_version")
+    to_version_display=$(_format_dr "$to_version")
+
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BLUE}  Agency Update${NC}"
@@ -263,8 +278,8 @@ _update_main() {
     echo ""
     echo "  Target:  $TARGET_DIR"
     echo "  Source:  $SOURCE_DIR"
-    echo "  From:    ${from_version} (${from_commit:0:8})"
-    echo "  To:      ${to_version} (${to_commit:0:8})"
+    echo "  From:    ${from_version_display} (${from_commit:0:8})"
+    echo "  To:      ${to_version_display} (${to_commit:0:8})"
 
     # D41-R20: show "N commits ahead" when the incoming ref includes un-tagged
     # work. Helpful signal that adopters are pulling main HEAD vs a release tag.
@@ -775,8 +790,8 @@ UPDATE_STUB_EOF
     fi
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo "  From:    ${from_version} (${from_commit:0:8})"
-    echo "  To:      ${to_version} (${to_commit:0:8})"
+    echo "  From:    ${from_version_display} (${from_commit:0:8})"
+    echo "  To:      ${to_version_display} (${to_commit:0:8})"
     echo "  Changes: +$added ~$updated -$removed"
     echo ""
     if [[ "$DRY_RUN" == "false" ]]; then
