@@ -70,3 +70,39 @@ TOOL="${REPO_ROOT}/agency/tools/pr-merge"
     [ "$status" -ne 0 ]
     [[ "$output" == *"Unexpected positional arg"* ]]
 }
+
+# C#372 Fix A — post-merge advisory + auto-flag emission.
+# Live gh behavior can't be tested here, so we assert on presence + shape of
+# the advisory code path. If someone removes the advisory, this fails.
+
+@test "pr-merge: C#372 Fix A advisory block present in tool source" {
+    # The advisory block identifies itself via the comment marker.
+    run grep -q "C#372 FIX A — POST-MERGE ADVISORY" "$TOOL"
+    [ "$status" -eq 0 ]
+}
+
+@test "pr-merge: C#372 Fix A queries baseRefName (needed to gate advisory)" {
+    # baseRefName must be in the --json list or the advisory can't fire
+    # correctly (would fire on every merge, including to non-main branches).
+    run grep -q "baseRefName" "$TOOL"
+    [ "$status" -eq 0 ]
+}
+
+@test "pr-merge: C#372 Fix A gates advisory on main/master base ref" {
+    # The advisory block must guard on main/master base ref.
+    run grep -q 'PR_BASE_REF" == "main" || "$PR_BASE_REF" == "master"' "$TOOL"
+    [ "$status" -eq 0 ]
+}
+
+@test "pr-merge: --help mentions C#372 post-merge advisory" {
+    run bash "$TOOL" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"C#372"* ]] || [[ "$output" == *"/pr-captain-post-merge"* ]]
+}
+
+@test "pr-merge: --version bumped for Fix A (1.1.0+)" {
+    run bash "$TOOL" --version
+    [ "$status" -eq 0 ]
+    # Version string like "pr-merge 1.1.0-20260421-c372-fix-a"
+    [[ "$output" == *"1.1.0"* ]] || [[ "$output" == *"c372"* ]]
+}

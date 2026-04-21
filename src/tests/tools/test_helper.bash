@@ -128,3 +128,63 @@ create_mock_git_repo() {
     git commit -m "Initial commit" --quiet
     echo "$dir"
 }
+
+# Helper: Install git-safe + git-safe-commit suite into the current BATS
+# test dir (PWD) for hermetic BATS of those tools. Covers D-6: previously
+# duplicated between git-safe-commit-merge.bats and git-safe-commit-210.bats.
+#
+# Caller precondition: PWD is the test repo, git init has run, user/email
+# configured, an initial commit exists (or is about to be made).
+#
+# Effects:
+#   - Installs agency/tools/{git-safe,git-safe-commit} + lib deps
+#   - Installs stub agency/tools/{dispatch,agent-identity} when
+#     INSTALL_DISPATCH_STUBS=yes (writes invocation marker to
+#     $BATS_TEST_TMPDIR/dispatch-stub-invocations/calls.log)
+#   - Disables repo-local core.hooksPath so the real pre-commit hook
+#     doesn't fire during tests (T8: uses empty-string, more portable)
+#
+# Usage:
+#   install_git_safe_commit_suite
+#   install_git_safe_commit_suite --with-dispatch-stubs
+install_git_safe_commit_suite() {
+    local with_stubs="no"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --with-dispatch-stubs) with_stubs="yes"; shift ;;
+            *) echo "install_git_safe_commit_suite: unknown arg: $1" >&2; return 2 ;;
+        esac
+    done
+
+    mkdir -p agency/tools/lib
+    for t in git-safe git-safe-commit; do
+        cp "${REPO_ROOT}/agency/tools/$t" "agency/tools/$t"
+        chmod +x "agency/tools/$t"
+    done
+    for lib in _log-helper _colors; do
+        cp "${REPO_ROOT}/agency/tools/lib/$lib" "agency/tools/lib/$lib" 2>/dev/null || true
+    done
+
+    if [[ "$with_stubs" == "yes" ]]; then
+        # Dispatch stub: record each invocation to a marker file so tests
+        # can assert "dispatch ran" vs "guard fired and skipped dispatch".
+        cat > agency/tools/dispatch <<'STUB'
+#!/usr/bin/env bash
+marker_dir="${BATS_TEST_TMPDIR}/dispatch-stub-invocations"
+mkdir -p "$marker_dir"
+printf '%s\n' "$*" >> "$marker_dir/calls.log"
+echo "stub dispatch invoked: $*" >&2
+exit 0
+STUB
+        chmod +x agency/tools/dispatch
+
+        cat > agency/tools/agent-identity <<'STUB'
+#!/usr/bin/env bash
+echo "the-agency/jordan/testagent"
+STUB
+        chmod +x agency/tools/agent-identity
+    fi
+
+    # T8: disable pre-commit hook via empty-string (portable across git versions).
+    git config --local core.hooksPath "" 2>/dev/null || true
+}

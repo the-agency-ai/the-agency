@@ -106,23 +106,38 @@ git rev-list --left-right --count origin/master...HEAD
 
 Propagates the merge to every worktree. Worktree-side agents pick up the new content on their next `/session-resume`.
 
-### Step 6: Create GitHub release
+### Step 6: Create GitHub release (or verify Fix D auto-created it)
 
 **Every PR is a release.** MANDATORY. Mechanically enforced by `release-tag-check` workflow (the-agency equivalent of D41-R20).
 
-1. Parse PR title for release name (e.g., "D39-R1: ..." → version 39.1).
-2. Verify `manifest.json` version matches expectations (bumped before the PR was created).
-3. Create release:
+As of C#372 Fix D, the `auto-release.yml` GitHub Action cuts the release automatically within seconds of the merge. This skill's Step 6 now defers to that workflow and creates the release only as a fallback:
+
+1. Parse PR title + manifest to determine target `v<version>`.
+2. **Check if release already exists** — Fix D auto-release may have cut it:
+   ```
+   gh release view v<version> 2>/dev/null
+   ```
+   - If exit 0: release exists (Fix D succeeded). **Skip to step 6.4** (hard-verify + clear).
+   - If non-zero: release doesn't exist yet; continue to step 6.3.
+
+3. **Create release as fallback** (Fix D failed, transient outage, or this is a pre-Fix-D path):
    ```
    ./agency/tools/gh-release create v<version> --target master --title "<title>" --notes "<notes>"
    ```
+
 4. **Hard-verify** release exists (fail-loud, not optional):
    ```
    gh release view v<version>
    ```
    If non-zero, the release was NOT created. Do NOT proceed to Step 7. Fix and retry.
 
-If version format doesn't match `D#-R#` (e.g., hotfix PR), use `v<monofolk_version>.pr<N>` as fallback.
+5. **Clear pending-post-merge state (C#372 Fix B).** Once the release is hard-verified:
+   ```
+   ./agency/tools/post-merge-state clear <pr-number>
+   ```
+   This unblocks the new-work captain skills (`/pr-captain-merge`, `/captain-release`, `/pr-captain-land`) that were refusing while this merge was in pending state. Clearing is tied to `gh release view` succeeding — NOT to the skill exiting — so a partial post-merge that created the release but failed later still unblocks correctly.
+
+If version format doesn't match `D#-R#` (e.g., hotfix PR), use `v<agency_version>.pr<N>` as fallback.
 
 **Never push directly to main.** If version is wrong, create a follow-up PR.
 

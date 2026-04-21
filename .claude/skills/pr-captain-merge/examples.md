@@ -165,7 +165,7 @@ If merged PR affects cross-repo collaborators:
 
 ```
 /pr-captain-merge 42 --principal-approved
-/collaborate create the-agency --subject "monofolk PR #42 merged, includes framework port X"
+/collaborate create the-agency --subject "sister-repo PR #42 merged, includes framework port X"
 ```
 
 Cross-repo notice follows the merge.

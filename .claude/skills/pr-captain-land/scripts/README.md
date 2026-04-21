@@ -45,7 +45,7 @@ Implements the 9 steps from the skill's Flow:
 1. Preflight — checks main-checkout + branch=master + clean tree + remote-branch exists + branch-name-valid + receipt-found
 2. Switch to agent branch via `git-captain switch-branch`
 3. Verify receipt against current diff-hash
-4. Bump `monofolk_version` (security-hardened per above), commit, push
+4. Bump `agency_version` (security-hardened per above), commit, push
 5. Create PR via `pr-create`
 6. Switch back to master
 7. Watch CI (poll `gh pr view --json statusCheckRollup` every 20s, max 30 attempts)

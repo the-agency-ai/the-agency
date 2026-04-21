@@ -40,13 +40,13 @@ find agency/workstreams -name "*qgr-pr-prep-*-{hash}.md"
 
 **Failure:** no matching receipt. Branch state doesn't match what /pr-submit claimed. Switch back to master, exit 1. Agent must re-prep.
 
-### Step 3 — Bump `monofolk_version`
+### Step 3 — Bump `agency_version`
 
 Read current version from `agency/config/manifest.json`. Bump minor (e.g., 1.8 → 1.9). Write back with `updated_at` refreshed to current UTC timestamp.
 
 Commit via `git-safe-commit` with message:
 ```
-chore(manifest): bump monofolk_version {old} → {new} for PR landing (captain)
+chore(manifest): bump agency_version {old} → {new} for PR landing (captain)
 ```
 
 Push to origin.

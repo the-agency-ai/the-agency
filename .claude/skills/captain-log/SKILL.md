@@ -128,7 +128,7 @@ The log is a **side-channel** practice — it never blocks the work. Capture the
 
 ## Status
 
-`active` (v2 migrated from v1 in monofolk V1→V2 migration). Stable surface; the underlying tool at `agency/tools/captain-log` has the same CLI it did pre-migration.
+`active` (v2 migrated from v1 in the sister-repo V1→V2 migration). Stable surface; the underlying tool at `agency/tools/captain-log` has the same CLI it did pre-migration.
 
 ## Related
 

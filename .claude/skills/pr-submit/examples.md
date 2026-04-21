@@ -15,8 +15,8 @@ Expected:
 ```
 [pr-submit] Preflight OK: worktree=devex, branch=jordan-devex-d12-r3, sha=a3f9b21, pushed=ok
 [pr-submit] Diff hash: 8b4c2e1 (vs origin/master)
-[pr-submit] Receipt: agency/workstreams/devex/qgr/monofolk-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md
-[pr-submit] Dispatched to monofolk/jordan/captain as d-019da47f-8b4c
+[pr-submit] Receipt: agency/workstreams/devex/qgr/{repo}-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md
+[pr-submit] Dispatched to <org>/jordan/captain as d-019da47f-8b4c
 → Captain will run /pr-captain-land jordan-devex-d12-r3
 → You'll receive a master-updated dispatch when the PR lands.
 ```
@@ -45,7 +45,7 @@ Agent accidentally runs from main checkout:
 
 ```
 [pr-submit] ERROR: Preflight failed — not in an agent worktree.
-  Current: /Users/jordan_of/code/monofolk (main checkout)
+  Current: /Users/{principal}/code/{repo} (main checkout)
   Expected: .claude/worktrees/<name>/
   Fix: cd into the agent's worktree, or if you're captain, use /pr-captain-land instead.
 ```
@@ -93,7 +93,7 @@ Rare — two `/pr-prep` runs produced matching hashes (e.g., no change between r
 
 ```
 [pr-submit] WARN: 2 receipts match diff-hash 8b4c2e1. Using most recent:
-  agency/workstreams/devex/qgr/monofolk-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md
+  agency/workstreams/devex/qgr/{repo}-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md
 [pr-submit] Dispatched to captain as d-019da47f-8b4c
 ```
 
@@ -109,14 +109,14 @@ The dispatch body that lands in captain's inbox (see `reference.md` for full sch
 ## Branch ready
 
 - **Branch:** `jordan-devex-d12-r3`
-- **Agent:** monofolk/jordan/devex
+- **Agent:** <org>/jordan/devex
 - **HEAD:** `a3f9b21f...` (pushed to origin)
 - **Diff base:** `origin/master`
 - **Diff hash:** `8b4c2e1`
 
 ## QGR receipt
 
-- **Path:** `agency/workstreams/devex/qgr/monofolk-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md`
+- **Path:** `agency/workstreams/devex/qgr/{repo}-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md`
 - **Verified:** local receipt file matches current state
 
 ## Scope summary
@@ -129,17 +129,17 @@ Run /pr-captain-land on branch `jordan-devex-d12-r3`:
 
 1. Switch to `jordan-devex-d12-r3`
 2. Verify receipt against current state
-3. Bump `monofolk_version` in manifest (serialized — single writer)
+3. Bump `agency_version` in manifest (serialized — single writer)
 4. Create PR with captain-authored fleet-aware description
 5. Watch CI (`lint-and-test` gate)
 6. Merge when green
-7. Create GitHub release v{monofolk_version}
+7. Create GitHub release v{agency_version}
 8. Dispatch back with merge confirmation + release tag
 
 ## What I (agent) will NOT do
 
 - Create the PR myself
-- Bump `monofolk_version` myself
+- Bump `agency_version` myself
 - Merge myself
 - Create the release myself
 
@@ -147,7 +147,7 @@ Captain owns the PR lifecycle. I stand by to /pr-respond if review comments come
 
 Over.
 
--- monofolk/jordan/devex
+-- <org>/jordan/devex
 ```
 
 ## What to expect next

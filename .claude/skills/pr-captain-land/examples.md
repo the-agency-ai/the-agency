@@ -16,7 +16,7 @@ Expected flow:
 [pr-captain-land] Preflight OK: main-checkout=ok, branch=master, tree=clean, remote-branch=exists, receipt=found
 [pr-captain-land] Switched to jordan-devex-d12-r3
 [pr-captain-land] Receipt verified: hash 8b4c2e1 matches qgr-pr-prep-20260419-1430-8b4c2e1.md
-[pr-captain-land] Bumping monofolk_version 1.9 → 1.10
+[pr-captain-land] Bumping agency_version 1.9 → 1.10
 [pr-captain-land] Pushed chore(manifest) commit to origin/jordan-devex-d12-r3
 [pr-captain-land] Created PR #118: "devex: fix worktree-sync MAIN_BRANCH resolution"
 [pr-captain-land] Switched back to master
@@ -24,7 +24,7 @@ Expected flow:
 [pr-captain-land] Merging PR #118 via pr-merge --principal-approved
 [pr-captain-land] Merged. Syncing master... fetched + merged origin/master
 [pr-captain-land] Released v1.10 on GitHub
-[pr-captain-land] Dispatched monofolk/jordan/devex: "PR #118 landed — v1.10 released"
+[pr-captain-land] Dispatched <org>/jordan/devex: "PR #118 landed — v1.10 released"
 ✓ Land complete. Size: M, ~3-10 minutes (CI wait dominates).
 ```
 
@@ -68,7 +68,7 @@ Captain accidentally invokes from a worktree:
 
 ```
 [pr-captain-land] ERROR: Preflight failed — not in main checkout.
-  Current: /Users/jordan_of/code/monofolk/.claude/worktrees/devex
+  Current: /Users/{principal}/code/{repo}/.claude/worktrees/devex
   Expected: main checkout (first entry of `git worktree list`)
   Fix: cd to main checkout and re-run, OR use /pr-submit if you're an agent.
 ```
@@ -179,6 +179,6 @@ Defense in depth works.
 
 ## Concurrency note
 
-**Never run two `/pr-captain-land` simultaneously.** Phase 1 pilot enforces this by captain discipline (one captain, one sequential skill). Phase 2 adds a lockfile at `$HOME/.agency/monofolk/pr-captain-land.lock`.
+**Never run two `/pr-captain-land` simultaneously.** Phase 1 pilot enforces this by captain discipline (one captain, one sequential skill). Phase 2 adds a lockfile at `$HOME/.agency/{repo}/pr-captain-land.lock`.
 
 Captain CAN run other non-land work concurrently (dispatch reads, flag triage, reviewer-agent launches). Just not two lands.

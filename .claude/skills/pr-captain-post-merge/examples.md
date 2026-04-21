@@ -70,7 +70,7 @@ Captain merged PR #112 but version wasn't bumped before PR creation:
 
 Expected output:
 ```
-STOP: manifest.json shows monofolk_version 1.8. No bump detected for this PR.
+STOP: manifest.json shows agency_version 1.8. No bump detected for this PR.
   Version should have been bumped before PR creation (/pr-prep or /release).
   Do NOT push directly to main to fix.
   Create a follow-up PR that bumps to 1.9, then re-run /pr-captain-post-merge 112.
@@ -147,7 +147,7 @@ After a PR that affects cross-repo collaborators:
 
 ```
 /pr-captain-post-merge 110
-/collaborate create the-agency --subject "monofolk v1.8 shipped — /service-add + /ui-add"
+/collaborate create the-agency --subject "sister-repo v1.8 shipped — /service-add + /ui-add"
 ```
 
 Cross-repo dispatch follows the release.

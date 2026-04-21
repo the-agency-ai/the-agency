@@ -67,6 +67,7 @@ If any precondition is missing, STOP. Ask the principal to resolve, or use the n
 1. Confirm the PR number (ask if missing).
 2. Confirm you're not on the PR's branch — captain merges from master or any non-PR branch.
 3. If you're going to use `--principal-approved`, confirm the principal has authorized in THIS conversation. Don't infer from history.
+4. **Check for pending post-merge (C#372 Fix B).** Run `./agency/tools/post-merge-state check`. If exit 1, STOP — a prior PR was merged but its release hasn't been cut yet. Run `/pr-captain-post-merge <pending-PR>` first, then re-invoke this skill. New work cannot start while a prior PR is in pending state. Exit 0 → continue.
 
 ### Step 2: Invoke the tool
 

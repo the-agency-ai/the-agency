@@ -12,7 +12,7 @@
 # bumps + PR creation + release creation. Eliminates version-bump races,
 # QGR hash races, and split responsibility.
 #
-# SCOPE: Phase 1 pilot — sandbox tool in usr/jordan/captain/tools/. Tested
+# SCOPE: Phase 1 pilot — sandbox tool in usr/{principal}/captain/tools/. Tested
 # by dogfooding on one captain-driven PR before promotion to .claude/skills/.
 #
 # USAGE:
@@ -33,6 +33,22 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
     echo "pr-captain-land: not in a git repository" >&2
     exit 1
 }
+
+# ── Resolve ORG, REPO, PRINCIPAL ─────────────────────────────────────────────
+# Parse ORG and REPO from the origin remote URL (no network call). Supports
+# both git@github.com:ORG/REPO.git and https://github.com/ORG/REPO(.git).
+REMOTE_URL=$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || echo "")
+if [[ "$REMOTE_URL" =~ ^git@github\.com:([^/]+)/([^/.]+)(\.git)?$ ]]; then
+    ORG="${BASH_REMATCH[1]}"
+    REPO="${BASH_REMATCH[2]}"
+elif [[ "$REMOTE_URL" =~ ^https://github\.com/([^/]+)/([^/.]+?)(\.git)?/?$ ]]; then
+    ORG="${BASH_REMATCH[1]}"
+    REPO="${BASH_REMATCH[2]}"
+else
+    echo "pr-captain-land: cannot parse origin remote URL '$REMOTE_URL'" >&2
+    exit 1
+fi
+PRINCIPAL="jordan"  # TODO: resolve via agency whoami in v2 (matches pr-submit)
 
 # ── Args ─────────────────────────────────────────────────────────────────────
 
@@ -131,7 +147,7 @@ fi
 RECEIPT_REL="${RECEIPT#$REPO_ROOT/}"
 echo "→ Receipt: $RECEIPT_REL (hash: $DIFF_HASH_SHORT)"
 
-# ── Bump monofolk_version on the branch ─────────────────────────────────────
+# ── Bump agency_version on the branch ─────────────────────────────────────
 
 MANIFEST="$REPO_ROOT/agency/config/manifest.json"
 # Security: pass values via env, never string-interpolate into python source
@@ -139,7 +155,7 @@ MANIFEST="$REPO_ROOT/agency/config/manifest.json"
 # ever attacker-controllable.
 CURRENT_VER=$(MANIFEST="$MANIFEST" python3 -c '
 import json, os
-print(json.load(open(os.environ["MANIFEST"]))["monofolk_version"])
+print(json.load(open(os.environ["MANIFEST"]))["agency_version"])
 ')
 
 # Parse and bump — value via env, not f-string
@@ -163,7 +179,7 @@ if [[ -z "$NEW_VER" || "$NEW_VER" == "$CURRENT_VER" ]]; then
     exit 1
 fi
 
-echo "→ Bumping monofolk_version $CURRENT_VER → $NEW_VER"
+echo "→ Bumping agency_version $CURRENT_VER → $NEW_VER"
 
 if [[ "$DRY_RUN" == false ]]; then
     # Security: env vars, not string interpolation (F-SEC-1)
@@ -172,13 +188,13 @@ import json, os
 from datetime import datetime, timezone
 path = os.environ["MANIFEST"]
 m = json.load(open(path))
-m["monofolk_version"] = os.environ["NEW_VER"]
+m["agency_version"] = os.environ["NEW_VER"]
 m["project"]["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 json.dump(m, open(path, "w"), indent=2)
 '
     bash "$REPO_ROOT/agency/tools/git-safe" add agency/config/manifest.json
     bash "$REPO_ROOT/agency/tools/git-safe-commit" \
-        "chore(manifest): bump monofolk_version $CURRENT_VER → $NEW_VER for PR landing (captain)" \
+        "chore(manifest): bump agency_version $CURRENT_VER → $NEW_VER for PR landing (captain)" \
         --no-work-item >/dev/null
 
     bash "$REPO_ROOT/agency/tools/git-push" "$AGENT_BRANCH" >/dev/null
@@ -194,7 +210,7 @@ Captain-landed PR via pr-captain-land (the-agency#296 Phase 1 pilot).
 Branch prepared by agent via /submit-for-pr. Captain owns the landing lifecycle:
 - Switched to \`$AGENT_BRANCH\`
 - Verified QGR receipt \`$RECEIPT_REL\` (hash \`$DIFF_HASH_SHORT\`)
-- Bumped \`monofolk_version\` $CURRENT_VER → $NEW_VER
+- Bumped \`agency_version\` $CURRENT_VER → $NEW_VER
 - Will merge when CI is green
 - Will create release v$NEW_VER
 
@@ -292,19 +308,19 @@ echo "→ Dispatching $AGENT_HINT agent with merge outcome..."
 
 bash "$REPO_ROOT/agency/tools/dispatch" create \
     --type master-updated \
-    --to "monofolk/jordan/$AGENT_HINT" \
+    --to "$ORG/$PRINCIPAL/$AGENT_HINT" \
     --subject "PR #$PR_NUM landed — v$NEW_VER released (pr-captain-land)" \
     --body "Captain-landed your branch \`$AGENT_BRANCH\` via the-agency#296 Phase 1 pilot flow.
 
 - PR: $PR_URL
-- Release: https://github.com/ordinaryfolk/monofolk/releases/tag/v$NEW_VER
+- Release: https://github.com/$ORG/$REPO/releases/tag/v$NEW_VER
 - Version: $CURRENT_VER → $NEW_VER
 
 Your branch is merged to master. Run /session-resume to pick up on your next cycle.
 
 Phase 1 pilot feedback: did anything feel off about the handoff? Reply dispatch.
 
--- monofolk/jordan/captain" \
+-- $ORG/$PRINCIPAL/captain" \
     >/dev/null 2>&1 || true
 
 # ── Done ─────────────────────────────────────────────────────────────────────
