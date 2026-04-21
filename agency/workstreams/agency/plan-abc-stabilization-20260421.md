@@ -5,9 +5,9 @@ date: 2026-04-21
 day: D45
 principal: jordan
 captain: the-agency/jordan/captain
-status: draft-v2-post-mar
+status: approved-v3
 supersedes: none
-revision: v2 — revised from MAR
+revision: v3 — principal adjustments (Bucket D for #392; PR #397 placement)
 mar_reviews:
   - qgr/mar-plan-abc-architect-20260421.md
   - qgr/mar-plan-abc-devex-20260421.md
@@ -20,9 +20,15 @@ related:
 tags: [stabilization, session-lifecycle, python-runtime, ci, release-automation]
 ---
 
-# Plan — A-B-C Stabilization Push (2026-04-21) — v2
+# Plan — A-B-C-D Stabilization Push (2026-04-21) — v3
 
 ## Revision log
+
+**v2 → v3 changes from principal review:**
+
+1. **New Bucket D** = #392 (agency update chicken-egg) — moved out of B per principal direction. Monofolk works around it in their Great Rename; it's on the work plan but not a hotfix.
+2. **PR #397 placement confirmed:** after Bucket 0, before Bucket A. Clean push/release tooling before injecting external dependency.
+3. **Sequencing table updated.**
 
 **v1 → v2 changes from MAR review** (three agents — architect, devex, blindspots):
 
@@ -190,19 +196,7 @@ Blindspots says: `agency/tools/statusline.sh` lines 174–185 already wire `agen
 
 ---
 
-### B#392 — `agency update` chicken-egg  **[MOVED EARLIER — was v1 position 9]**
-**Severity:** High for adopters. **Rationale for earlier placement:** every PR this push merges produces a new version that adopters can't sync to until #392 ships. Earlier = less adopter lag.
-
-**Fix (from v1, unchanged):** detect + document + error. Manifest-driven rewrite is Phase 4c (#376) which will preserve/subsume this.
-
-**Principal decision** (architect F5): fix-now vs. defer to Phase 4c? Default: **fix-now** (adopter pain is real today; Phase 4c is weeks out).
-
-**Rewrite-preservation mechanism** (expands v1's Risk 1 hand-wave):
-- Include in B#392 commit message: `Phase-5-preserve: detect-and-document behavior must survive #376 manifest-driven rewrite.`
-- Add to `agency/workstreams/agency/research/phase-5-preserve-list.md` — an authoritative file Phase 5 plan must read before touching `_agency-update`.
-- Phase 5 plan template adds a required section: "Pre-rewrite audit — check phase-5-preserve-list.md for behaviors to carry through."
-
-This is the mechanism architect F5 asked for.
+### [MOVED TO BUCKET D] — see `## Bucket D` section below for #392. Placeholder kept here to avoid renumbering cross-refs elsewhere in this doc.
 
 ---
 
@@ -260,6 +254,42 @@ Actual fix: `cmd_unstage` already uses argv-safe passthrough (`git reset HEAD --
 
 ---
 
+## Bucket D — Adopter unblock (NEW in v3)
+
+### D#392 — `agency update` chicken-egg (adopter-side fix)
+**Severity:** Medium — monofolk works around it in their Great Rename; the-agency adopters on pre-v46.1 still need the bridge.
+
+**Status recap:**
+- Upstream rsync path already fixed (`agency/ → agency/`) during v46.1 Great Rename.
+- Adopter-side experience not fixed: stale local `_agency-update` silently no-ops.
+- Issue #392 remains OPEN on GitHub.
+
+**Fix — 4 parts:**
+
+1. **Migration doc** — `agency/REFERENCE/REFERENCE-MIGRATION-V46.md` with one-time bootstrap rsync command for adopters on pre-v46.1.
+2. **Upstream code fix** — current `agency/tools/lib/_agency-update` gets a source-tree shape check: if rsync source paths don't exist, fail loudly (not silent `|| true`). Protects against future renames.
+3. **Regression test** — BATS case simulating stale-source state, asserting loud failure.
+4. **Adopter communication** — migration doc linked from README; push notice to known adopters (you, andrew-demo).
+
+**Phase 5 interaction:** Phase 4c (#376) rewrites `_agency-update` manifest-driven. The shape-check from step 2 should survive that rewrite. Captured in `agency/workstreams/agency/research/phase-5-preserve-list.md`.
+
+**Files:**
+- `agency/REFERENCE/REFERENCE-MIGRATION-V46.md` (new)
+- `agency/tools/lib/_agency-update` (shape-check addition)
+- `src/tests/tools/_agency-update.bats` (new or augment)
+- `README.md` or similar (migration link)
+- `agency/workstreams/agency/research/phase-5-preserve-list.md` (new)
+
+**Complexity:** Moderate.
+
+**Exit criteria:**
+- [ ] `agency update` on a pre-v46.1 adopter emits clear error + link to migration doc (not silent no-op).
+- [ ] Migration doc includes copy-paste bootstrap one-liner.
+- [ ] BATS regression test fails on stale-source simulation.
+- [ ] Phase-5-preserve list records the shape-check invariant.
+
+---
+
 ### B#55 — CI build-out
 **Exit criteria coupling to B#384** (architect F7): if B#384 in, CI runs tests via `bats-docker` from day one; runtime budget 5 min becomes tight. If B#384 out, host-run BATS on CI (Ubuntu runner has its own isolation tier).
 
@@ -294,7 +324,8 @@ Actual fix: `cmd_unstage` already uses argv-safe passthrough (`git reset HEAD --
 |---|------|----------|-----------|
 | 0a | #339 git-captain push (bash 3.2) | Trivial fix + test | — |
 | 0b | #210 dispatch artifact loop | Diagnose + fix | — |
-| — | C#372 diagnosis | Research doc (no PR) | runs parallel with 0a, 0b, A |
+| — | C#372 diagnosis | Research doc (no PR) | runs parallel with 0a, 0b, A, PR#397 |
+| — | **PR #397** (external — monofolk contributor) | Review + merge + release v46.12 | between Bucket 0 and Bucket A |
 | 1 | A#395 `--coord` flag | Tool edit + tests | — |
 | 2 | A#393 session-end + compact-prepare (single PR) | Skill edits + tests (incl. integration) | — |
 | 3 | A#198 session-resume raw git fix | Skill edit + test | — |
@@ -302,11 +333,11 @@ Actual fix: `cmd_unstage` already uses argv-safe passthrough (`git reset HEAD --
 | 5 | A#394 Python launcher (scoped N=1) | New tool + shebang swap + tests + REFERENCE doc | — |
 | 6 | C#372 fix PR | Config/workflow fix + regression assertion | depends on C#372 diagnosis |
 | 7 | B#383 verify + regression test | Close or regression-test PR | verify-first |
-| 8 | B#392 agency update chicken-egg | Tool edit + REFERENCE doc + test | — |
-| 9 | B#388 + B#389 git-safe bundle | Tool edit + tests | — |
-| 10 | B#384 Docker BATS (IF IN-SCOPE) | Dockerfile + wrapper + CI wiring | Principal go/no-go |
-| 11 | B#385 commit-precheck timeouts | Tool edit + tests | depends on B#384 decision for mechanism |
-| 12 | B#55 CI build-out | Workflow update | depends on B#384 decision |
+| 8 | B#388 + B#389 git-safe bundle | Tool edit + tests | — |
+| 9 | B#384 Docker BATS (IF IN-SCOPE) | Dockerfile + wrapper + CI wiring | Principal go/no-go |
+| 10 | B#385 commit-precheck timeouts | Tool edit + tests | depends on B#384 decision for mechanism |
+| 11 | B#55 CI build-out | Workflow update | depends on B#384 decision |
+| 12 | **D#392** agency update chicken-egg | Tool edit + REFERENCE doc + test + preserve-list | — |
 
 **Push-level smoke ritual** runs at close of push (devex F7): `/session-end` → fresh shell → `/session-resume` → `/session-end` — verifies the incident chain is no longer reproducible.
 
@@ -318,11 +349,12 @@ Pre-specified boundaries (architect F6) — 4-5 releases total instead of 11:
 
 | Release | Covers | Rough version |
 |---------|--------|---------------|
-| R1 | Bucket 0 + A#395 | 46.12 |
-| R2 | A#393 + A#198 + A#199 + A#394 (session + Python lifecycle) | 46.13 |
-| R3 | C#372 fix (release automation restored) | 46.14 |
-| R4 | B bucket (B#383 verify, B#392, B#388+B#389, B#385, [B#384 if in]) | 46.15 |
-| R5 | B#55 + push-level smoke + any holdover | 46.16 |
+| R1 | Bucket 0 | 46.12 |
+| R2 | PR #397 (monofolk contributor) | 46.13 |
+| R3 | Bucket A (A#395 + A#393 + A#198 + A#199 + A#394) | 46.14 |
+| R4 | C#372 fix | 46.15 |
+| R5 | Bucket B (B#383 verify, B#388+B#389, B#385, [B#384]) | 46.16 |
+| R6 | Bucket D (D#392) + B#55 + push-level smoke | 46.17 |
 
 Each release cuts a `gh release create` + tag + release notes. Manifest bumps occur at PR merge (one per PR); release groups multiple merged commits into one release tag.
 
