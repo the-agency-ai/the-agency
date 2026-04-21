@@ -1,102 +1,188 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-04-21T15:00:00Z
-trigger: compact-prepare
-branch: fix/skill-validation-monofolk-cleanup
-mode: continuation
-pause_commit_sha: none
-next-action: "Push fix/skill-validation-monofolk-cleanup (Phase E) to origin and cut PR. Use `/pr-prep` → push → `pr-create` (or `/release` skill for the full flow). Target v46.12. After merge, resume the A-B-C-D push starting with Bucket 0a (#339) via `fix/bash32-git-captain-push-339` (stash `339-work-in-progress` has the work)."
+date: 2026-04-22T00:00:00Z
+trigger: session-end
+branch: fix/great-rename-migrate-tool
+mode: resumption
+pause_commit_sha: 03453411
+next-action: "Commit the UNCOMMITTED tool + tests (agency/tools/great-rename-migrate + src/tests/tools/great-rename-migrate.bats — 19/19 BATS passing), bump manifest 46.14 → 46.15, PR to main, merge via pr-captain-merge --principal-approved, release v46.15, dispatch fleet with tool-usage instructions. HARD DEADLINE: fleet online by 0400. Then resume V5 phase-disciplined (Phase -1 audit → Phase 3 prune → land PR #397 → Phase 4+)."
 ---
 
-# Handoff — Mid-Session Compact (Phase E landed locally, PR pending)
+# Handoff — Mid-session /compact-prepare (Fleet deadline 0400 + V5 resumption)
 
 ## Situation
 
-Executing A-B-C-D stabilization push per principal directive. Hit a blocker: `commit-precheck` was failing on every commit due to `skill-validation.bats` (monofolk + usr/jordan hardcoded refs in 21 skills). Principal directed: "add a phase to your plan and fix these" → added **Bucket E** to plan v3.1 as the new first bucket.
+Principal gave hard deadline: **fleet online by 0400**. 5 worktree agents (mdslidepal-mac, mdpal-app, devex, iscp, designex) pre-date the Great Rename and collide with path conflicts on worktree-sync. Two already explicitly blocked (DevEx #827 + DesignEx transcript). Dispatches #828-#837 sent with Option A manual mapping — but agents need a MECHANICAL tool, not manual walk-through.
 
-Phase E is **done locally** (committed, tests green) but not yet pushed or PR'd.
+**Pivot:** Paused V5 structural work (branch `agency-v3-installer` was cut earlier) → cut `fix/great-rename-migrate-tool` branch from main → built `agency/tools/great-rename-migrate` tool (Bucket G.1) → wrote 19 BATS tests — ALL PASSING. Currently uncommitted.
 
-## Where we are
+Compact triggered before commit could land.
 
-- **Branch:** `fix/skill-validation-monofolk-cleanup`
-- **HEAD:** `ae92ceb7 fix/skill-validation-monofolk: fix(phase-E): genericize skill docs — remove residual monofolk + usr/jordan hardcoding`
-- **Tree:** clean
-- **Plan:** v3.1 at `agency/workstreams/agency/plan-abc-stabilization-20260421.md` (committed on main at `e2ac7f68`)
+## What's been done this session (post-compact-prepare earlier)
 
-## What was done this session
+### V5 direction confirmed + pivoted
 
-1. **Session-resume** surfaced 3 errors → root-caused + filed #393, #394, #395.
-2. **Triaged** all 167 open issues → report at `agency/workstreams/agency/research/issues-triage-20260421.md` (44 FIX-NOW in 10 themes; 114 DEFER).
-3. **Drafted plan** v1 → v2 (MAR-revised) → v3 (principal adjustments: Bucket D = #392; PR #397 placement) → v3.1 (Bucket E).
-4. **MAR reviewed** plan v1 via 3 parallel agents (architect, devex, blindspots); findings at `agency/workstreams/agency/qgr/mar-plan-abc-*.md`.
-5. **PR #397** (monofolk contributor) light-reviewed — recommend merge; sequenced after Bucket 0 (between 0 and A).
-6. **Bucket 0a (#339)** — `git-captain push` bash 3.2 fix written on branch `fix/bash32-git-captain-push-339` (commit attempt blocked by precheck → work stashed as `339-work-in-progress`).
-7. **Bucket E** — genericized 21 skill files (monofolk → placeholders; usr/jordan → usr/{principal}). All 12 skill-validation tests pass. Committed `ae92ceb7`.
+- Principal chose **Option A — resume V5 AgencyV3 installer**
+- Answered "why stopped V5" honestly: ABC stabilization accretion, not V5 ordering
+- Confirmed V5 plan gets us to shippable `agency init` + `agency update` IF executed phase-disciplined (Phase -1 audit → Phase 3 prune FIRST, not skipped like abandoned v46.0 branch)
+- Acknowledged monofolk comparison honestly: they executed rename with discipline (pre-announce dispatch + migration tool + adopter hand-hold); we didn't. Not a "they did easy work" narrative — they did the HARD work RIGHT.
 
-## What's next (immediate — after /compact)
+### Fleet-online pivot (0400 deadline)
 
-1. **Push Phase E branch** to origin.
-2. **Run `/pr-prep`** (QG + QGR receipt).
-3. **`pr-create`** → PR for Phase E. Target: v46.12.
-4. **Principal review + merge** (`/pr-captain-merge` with `--principal-approved`).
-5. **Release** via `/pr-captain-post-merge` → v46.12.
-6. **Switch back to `fix/bash32-git-captain-push-339`**:
-   - `git-captain switch-branch fix/bash32-git-captain-push-339`
-   - `git-safe stash pop` (restores git-captain fix + bats setup fix + regression test)
-   - `git-safe merge-from-master` (pulls in Phase E)
-   - Re-run `bats src/tests/tools/git-captain.bats` → should be 60/60 green.
-   - `git-safe-commit` should now pass commit-precheck.
-7. **Continue A-B-C-D** per plan sequence: 0a → 0b → PR #397 → A → C → B → D.
+- Investigated GitHub state: PR #362 merged v2 base; PR #397 OPEN with QG follow-up findings — v2 PARTIAL on main
+- Sent fleet rename-dispatches #828-#837 with Option A per-file mapping
+- Built `agency/tools/great-rename-migrate` (bash, 250 lines): dry-run by default, --apply executes git-mv, --map custom mapping, longest-prefix-wins, refuses main/master, preserves history, skips target-exists collisions
+- Wrote `src/tests/tools/great-rename-migrate.bats`: 19 tests — ALL GREEN
 
-## Key decisions this session
+### Fleet/Dispatch state
 
-- **A-B-C-D-E** plan shape (not A-B-C alone). D = #392 (agency update adopter bug). E = skill-validation unblock.
-- **PR #397** slots between Bucket 0 and Bucket A (clean push/release tooling first, then contributor PR).
-- **Release cadence:** 4-5 natural boundaries not 11 per-PR (v46.12 → v46.18).
-- **B#389** mechanism corrected from v1 (devex F5) — fix is loosen input validation, NOT `update-index --force-remove`.
-- **A#393** deterministically covers compact-prepare, not conditionally (architect F3).
-- **A#394** scope is N=1 pilot on dispatch-monitor, not a framework-wide sweep (blindspots).
-- **Skill-contract fleet-wide test** (devex F1 class-fix) deferred to follow-up initiative.
-- **B#392 fix-now-vs-defer:** fix-now; preserve through Phase 4c via `phase-5-preserve-list.md` mechanism.
+- 10 outbound dispatches this session: #828-#835 (fleet), #836 (DevEx reply #827), #837 (DesignEx reply)
+- 0 unread dispatches in queue
 
-## Principal decision points still open (from plan §"Principal decision points")
+### Plan documents
 
-1. B#384 Docker BATS — in or out of this push?
-2. A#394 shebang strategy — bash launcher wrapper (my default) vs Python re-exec?
-3. A#395 `--no-work-item` deprecation — keep or phase out?
-4. C#372 diagnosis — parallel (my default) or serial?
-5. Release cadence — 4-5 (my default) or strict per-PR?
+- Plan v3.2 → v3.3 committed (6f36ca66) — Bucket G.1 accelerated to R4, fleet-rename gap logged
+- V5 plan at `/Users/jdm/.claude/plans/melodic-inventing-platypus.md` (melodic-inventing-platypus) — approved as Option A
+- No new V6 plan doc written yet
 
-Will raise in 1B1 after Phase E lands if principal hasn't addressed.
+## What's IN-FLIGHT right now
+
+### Uncommitted framework code
+
+Two files, ~400 lines, ALL TESTS PASSING. Status: staged-ready but NOT committed.
+
+```
+agency/tools/great-rename-migrate        (NEW, 250 lines, executable)
+src/tests/tools/great-rename-migrate.bats (NEW, 19 tests, all green)
+```
+
+Verified via `bats` run — 1..19, all ok.
+
+### Branches
+
+- `main` — 3 local-ahead coord commits (02ffe449, 1c7becf0, 6f36ca66) not on origin. Will merge naturally when next PR from this branch lands to main.
+- `agency-v3-installer` — cut at 6f36ca66 for V5 work. Nothing on it yet beyond parent.
+- `fix/great-rename-migrate-tool` — cut from main, where the uncommitted tool sits. **CURRENT BRANCH.**
+
+### Principal directives carrying forward
+
+- **Fleet online by 0400** — hard deadline. This is THE priority tonight.
+- **"Make it so."** — execute V5 Option A with discipline after fleet lands.
+- **"Don't stop mid-night with context heavy."** — keep working until actually done.
+- **"Attention to details."** — tree-level review, not plans; file-by-file pruning.
+- **"Give us more PRs."** — small PRs, frequent cadence.
+- **"No DEFER."** — ACCEPT or REJECT only.
+- **1B1 enforcement** — never bundle questions; one decision at a time.
+
+## Next-action (IMMEDIATELY after /compact)
+
+1. **Commit the uncommitted tool + tests:**
+   ```
+   /Users/jdm/code/the-agency/agency/tools/git-safe-commit \
+     "agency/bucket-g1: great-rename-migrate tool + 19 BATS tests — unblock fleet on claude/→agency/ + tests/→src/tests/ rename" \
+     --no-work-item
+   ```
+   (Principal rejected this commit earlier — INSTEAD they wanted /compact-prepare first. Now that compact-prepare is done, re-attempt.)
+
+2. **Bump manifest:** `agency/config/manifest.json` → `agency_version` 46.14 → 46.15, `project.framework_version` 46.14 → 46.15, `updated_at` to current UTC. Commit.
+
+3. **Push + PR:** 
+   ```
+   /Users/jdm/code/the-agency/agency/tools/git-push fix/great-rename-migrate-tool
+   /Users/jdm/code/the-agency/agency/tools/pr-create
+   ```
+   PR title: "fix(bucket-g1): great-rename-migrate tool — fleet unblock v46.15"
+
+4. **Merge + release:**
+   ```
+   /Users/jdm/code/the-agency/agency/tools/pr-merge <PR#> --principal-approved
+   ```
+   Auto-release via Fix D cuts v46.15 within seconds.
+
+5. **Dispatch fleet with TOOL INSTRUCTIONS:**
+   - Template: new dispatch to all 8 agents with `great-rename-migrate` usage
+   - They run `git pull` on main, switch to their feature branch, `./agency/tools/great-rename-migrate --dry-run` to see plan, `--apply` to execute, commit, `worktree-sync --auto`
+   - Expected: agents self-unblock within 30-60min each
+
+6. **Verify fleet progress:** poll `gh pr list` or wait for agent dispatches back confirming unblocked. Hand-hold ones that hit residual content conflicts.
+
+## After fleet online (V5 Phase -1)
+
+7. **Switch to `agency-v3-installer` branch**
+8. **Phase -1 audit:** latent-tool-reference grep + 13 residual open questions resolved in writing at `research/open-questions-resolutions-20260422.md`
+9. **Phase 3 prune** (now, not later — earlier inventory captured the crap):
+   - `agency/tools/__pycache__/dispatch-monitorcpython-313.pyc` (rm + gitignore)
+   - `agency/agents/testname/` (rm)
+   - `agency/agents/unknown/` (verify + rm if placeholder)
+   - `agency/config/{agency-dependencies.yaml,dependencies.yaml}` (diff + pick one)
+   - `agency/REFERENCE/REFERENCE-QUALITY-GATE-MONOFOLK.md` (rm)
+   - `agency/config/{issue-monitor.last,tool-build-number}` (gitignore)
+   - `.claude/settings.local.json`, `.claude/scheduled_tasks.lock` (gitignore)
+   - `usr/test/`, `usr/jordan/{jordandm-d42-*,testname,conference,valueflow-*,mdpal,mdslidepal,personal,reports}/` (rm or gitignore)
+   - `src/apps/mdpal-app/claude/` (rm stale pre-rename dir)
+   - `src/archive/docs-legacy/` subset prune
+   - `LICENSE` vs `agency/LICENSE.md` (diff + consolidate)
+
+10. **Land PR #397** — monofolk v2 complete on main before V5 structural work
+
+11. **Phase 4+**: src/ split, build tool, installer, adopter sweep, contributor polish
+
+## Key context that must survive compact
+
+### Tool design (great-rename-migrate)
+
+- Bash, Bash 3.2 compatible
+- Default rename map:
+  - `claude/ → agency/`
+  - `tests/ → src/tests/`
+- Longest-prefix-wins sorting
+- Refuses to run on main/master (this is a BRANCH migration tool)
+- Refuses on detached HEAD
+- Does NOT auto-commit — leaves staged for user review
+- `--dry-run` default, `--apply` executes, `--map <file>` custom map, `--include-untracked` opt-in
+- Version: 1.0.0-20260421-bucket-g1
+- Location: `agency/tools/great-rename-migrate`
+- Tests: `src/tests/tools/great-rename-migrate.bats` (19 tests, covers: version, help, unknown-flag, refuses-main/master, dry-run default, --apply execution, target-exists skip, longest-prefix-wins, --map custom, comments/blank ignore, empty-map refuse, no-auto-commit, content-preserve, history-preserve)
+
+### Release cadence after fleet lands
+
+| R | Ver | Covers |
+|---|---|---|
+| R4 | v46.15 | **Bucket G.1 — great-rename-migrate tool (this PR)** |
+| R5 | v46.16 | PR #397 monofolk v2 complete (drive to merge) |
+| R6 | v46.17 | Phase 3 prune PR (the crap inventoried above) |
+| R7+ | v46.18+ | V5 Phase 4-13 in order |
+
+### Discipline reminders for self
+
+- **NEVER** `cd /tmp && bats ...` — changes shell CWD, broke tool calls after. Use `bats <absolute-path>` from repo root.
+- **ALWAYS** use `/Users/jdm/code/the-agency/agency/tools/...` absolute paths when CWD is uncertain.
+- **Wait for "Over and out"** before executing principal directions on multi-option questions.
+- **1B1** — ONE decision at a time. Don't bundle.
+- **No DEFER** — accept or reject.
+- **Commit via git-safe-commit** — never raw git commit.
+
+## Open items
+
+- Uncommitted tool + tests (step 1 of next-action)
+- 3 local-ahead coord commits on main (will land via PR)
+- PR #397 has been OPEN since 2026-04-21 05:38Z — needs to land for monofolk v2 complete
+- Multiple adopter repos (andrew-demo, presence-detect) need `agency update` working once shipped
 
 ## Stashes
 
-- `339-work-in-progress` on branch `fix/bash32-git-captain-push-339` — git-captain bash 3.2 fix + bats setup `git add claude` → `git add agency` fix + new regression test.
-
-## Dispatches
-
-- 0 unread. Cross-repo: 0. Dispatch monitor armed via `/opt/homebrew/bin/python3.13 ./agency/tools/dispatch-monitor --include-collab` (Monitor tool, persistent).
-- PR #397 from monofolk captain remains open; light-review passed; recommend merge post-Bucket-0.
-
-## Open items / blockers
-
-- None blocking. Phase E on branch needs push + PR.
+- None (tool + tests uncommitted, not stashed — they will be the first commit on fix/great-rename-migrate-tool after compact)
 
 ## Related artifacts
 
-- Plan: `agency/workstreams/agency/plan-abc-stabilization-20260421.md` (v3.1, commit `e2ac7f68`)
-- Triage: `agency/workstreams/agency/research/issues-triage-20260421.md`
-- MAR reviews: `agency/workstreams/agency/qgr/mar-plan-abc-{architect,devex,blindspots}-20260421.md`
-- Triage x plan memo: `agency/workstreams/agency/research/triage-x-plan-memo-20260421.md`
-- Issue reports: `usr/jordan/reports/report-agency-issue-*.md` (3 new: #393, #394, #395)
+- Plan v3.3: `agency/workstreams/agency/plan-abc-stabilization-20260421.md`
+- V5 plan: `/Users/jdm/.claude/plans/melodic-inventing-platypus.md`
+- Fleet dispatches sent: #828-#837
+- DevEx incoming: #827 (answered via #836)
+- This handoff
 
-## Tasks (TaskList carrying state)
+## Tasks carrying state
 
-- #62 Bucket 0a #339 — IN PROGRESS (stashed on other branch)
-- #63 Bucket 0b #210 — pending
-- #64 PR #397 merge — pending
-- #65 C#372 diagnosis — pending
-- (Bucket E has no task ID yet; was unplanned scope-addition; now complete)
-
-Ready for /compact.
+- **IMMEDIATE: Commit tool, bump manifest, PR, merge, release v46.15, dispatch fleet (fleet online by 0400)**
+- After: Phase -1 audit + Phase 3 prune + PR #397 land + V5 Phase 4+
