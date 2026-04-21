@@ -2,66 +2,42 @@
 type: handoff
 agent: the-agency/jordan/mdslidepal-web
 workstream: mdslidepal
-date: 2026-04-12
-trigger: iteration-complete-1.1
+date: 2026-04-14
+trigger: session-end
 ---
 
-## Resume — mdslidepal-web Post Phase 1.1
+## Resume — mdslidepal-web
 
 ### Status
 
-**Phase 1.1 COMPLETE.** Committed as `9ece36d` on branch `mdslidepal-web`.
+**Phase 1.1 COMPLETE. Workshop delivered successfully. Idle awaiting Phase 2 direction.**
 
-### What was done
+### What was done this session
 
-Full MVP of mdslidepal-web — a CLI tool wrapping reveal.js for markdown-to-slides:
+1. **Built the full MVP from scratch** — `mdslidepal serve <file.md>` wraps reveal.js with theme loading, SmartyPants typography, image copying, port auto-increment, slide counter
+2. **35 tests** across 5 test files (theme, build, preprocess, assets, template)
+3. **Quality gate** — 4 parallel review agents found 11 issues, all fixed (path traversal, escaping, CRLF, code block protection, theme validation, dimensions from theme)
+4. **Fixtures 01-05, 08** build and render correctly
+5. **Image test deck** created (PNG, SVG architecture/workflow diagrams, terminal screenshot)
+6. **3 dispatches processed** — captain status checks (#206, #212, #219) + bootloader rollout (#244)
+7. **Workshop ran successfully** — Jordan confirmed "it worked beautifully"
 
-- `mdslidepal serve <file.md>` — builds self-contained output dir, starts sirv server, opens browser
-- Theme loader reads `agency-default.json`, emits CSS custom properties
-- SmartyPants pre-processor: curly quotes, em dashes, ellipsis (code/link protected)
-- Image asset scanner + copier with path traversal protection
-- Port auto-increment on EADDRINUSE
-- Custom slide counter ("1 of N") added by principal
-- Error handling: non-zero exit on missing file, usage on bad args, --help exits 0
-- 35 tests across 5 test files (theme, build, preprocess, assets, template)
-- Fixtures 01-05, 08 build and render correctly
-- RSL license, smoke test checklist, image test deck (PNG, SVG)
+### Commits on branch
 
-### QG findings fixed
-
-11 issues found and fixed during quality gate:
-- Path traversal in image copier (high)
-- CRLF line ending support
-- Unclosed code fence protection
-- Template HTML attribute escaping
-- Theme validation
-- Dimensions from theme.logical_dimensions
-- extractTitle scoped to first slide
-- Image ref title text handling
+- `9ece36d` — Phase 1.1: feat: mdslidepal-web MVP (27 files, 3083 lines)
+- `6157154` — housekeeping: handoff update
+- `617a67b` — housekeeping: dispatch replies
 
 ### What's next
 
-**Iteration 2 (Sunday buffer):** Absorb feedback from Jordan's Saturday-night dry-run.
-- Visual polish if needed
-- Bug fixes from dry-run
-- (Stretch) inline-markdown mode for file:// support
-- (Stretch) fixture 08 strict trailing-separator mode
+- **Awaiting principal direction on Phase 2** — plan has: front-matter (remark), speaker notes, render command, PDF export, agency-dark theme, directory loader
+- **Captain needs to merge** branch `mdslidepal-web` via PR
+- **Bootloader rollout acknowledged** — cycle session to pick up full benefits
 
-**Then:** Wait for captain to merge via PR. Workshop is Monday 13 April 9am.
+### Key context for next session
 
-### Key files
-
-- Source: `apps/mdslidepal-web/src/` (7 modules)
-- Tests: `apps/mdslidepal-web/test/` (5 test files, 35 tests)
-- CLI: `apps/mdslidepal-web/bin/mdslidepal.ts`
+- Source: `apps/mdslidepal-web/` (RSL licensed)
 - Plan: `claude/workstreams/mdslidepal/plan-mdslidepal-web-20260411.md`
+- Contract: `claude/workstreams/mdslidepal/seed-mdslidepal-contract-20260411.md` (v1.3)
 - QGR: `usr/jordan/mdslidepal-web/qgr-iteration-complete-1-1-54ad7db-20260412-2149.md`
-
-### How to run
-
-```bash
-cd apps/mdslidepal-web
-pnpm install
-pnpm run build
-node dist/bin/mdslidepal.js serve ../../claude/workstreams/mdslidepal/plan-b/sample-workshop.md
-```
+- Run: `cd apps/mdslidepal-web && pnpm install && pnpm run build && node dist/bin/mdslidepal.js serve <deck.md>`

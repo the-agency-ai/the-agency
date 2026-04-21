@@ -358,7 +358,24 @@ cmd_push() {
     fi
 
     echo "${BLUE}Pushing...${NC}"
-    git push "${push_args[@]}"
+    # BASH 3.2 EMPTY-ARRAY + SET -U IDIOM (issue #339)
+    #
+    # What Problem: macOS stock bash is 3.2. Under `set -u` (nounset, active
+    # via `set -euo pipefail` at top of this file), the common idiom
+    # `"${arr[@]}"` on an EMPTY array raises "unbound variable" and aborts
+    # the script. Observed every time `git-captain push` was invoked without
+    # explicit refs — i.e., the normal case.
+    #
+    # How & Why: Use `${arr[@]+"${arr[@]}"}` instead. The `+value` expansion
+    # emits `value` only if the parameter is set, else nothing. Safe on
+    # bash 3.2+. Applied here for `push_args` because that's the observed
+    # site; the same idiom should be used ANY time a local array is spread
+    # under `set -u` in this file (no other such site currently exists —
+    # audit before adding).
+    #
+    # Written: 2026-04-21 during Bucket 0a of A-B-C-D-E-F-G stabilization
+    # push. Regression test: src/tests/tools/git-captain.bats test #39.
+    git push ${push_args[@]+"${push_args[@]}"}
     echo "${GREEN}Push complete.${NC}"
 }
 

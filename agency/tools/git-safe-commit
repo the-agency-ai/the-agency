@@ -74,6 +74,42 @@ fi
 # Logging functions (quiet by default)
 log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
 log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+
+# _is_commit_notify_only — classify the HEAD commit's file list (#210 guard).
+#
+# What Problem: commit-to-captain dispatch writes a notify file after every
+# commit. If a commit ONLY touches notify files, dispatching again creates
+# another notify file → infinite cascade. See issue #210.
+#
+# How & Why: Query HEAD's changed files via `git diff-tree -z` (NUL-delimited,
+# safe against newline-in-filename — defense-in-depth per F1). Classify each
+# NUL-separated path against the notify regex. If every path matches AND the
+# list was non-empty, return 0 (all-notify, caller should skip dispatch).
+# Otherwise return 1.
+#
+# Notify-file naming convention SOURCE OF TRUTH: the file written by
+# `$SCRIPT_DIR/dispatch create --type commit` (see dispatch-create tool).
+# Pattern: usr/{principal}/{agent}/dispatches/commit-to-captain-committed-{short-sha}-on-{branch}-{msg-slug}-{YYYYMMDD-HHMM}.md
+#
+# Written: 2026-04-21 during Bucket 0b (#210 fix) + QG D-4 + QG F1.
+_is_commit_notify_only() {
+    # Use process substitution directly — bash variables cannot faithfully
+    # store NUL bytes, so we must stream `git diff-tree -z` into the read
+    # loop without an intermediate variable.
+    local notify_re='^usr/[^/]+/[^/]+/dispatches/commit-to-captain-committed-.*\.md$'
+    local path saw_any=0
+    while IFS= read -r -d '' path; do
+        saw_any=1
+        if [[ ! "$path" =~ $notify_re ]]; then
+            return 1  # at least one non-notify → not notify-only
+        fi
+    done < <(git diff-tree -z --no-commit-id --name-only -r HEAD 2>/dev/null)
+    # If we saw at least one path and every path matched → notify-only.
+    # If the commit was empty (no paths), saw_any=0 → return 1 (not notify-only)
+    # so outer caller doesn't suppress an already-absent dispatch.
+    [[ "$saw_any" -eq 1 ]]
+}
+
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
 log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
 verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
@@ -538,7 +574,17 @@ main() {
         DISPATCH_TOOL="$SCRIPT_DIR/dispatch"
         IDENTITY_TOOL="$SCRIPT_DIR/agent-identity"
         STAGE_HASH_TOOL="$SCRIPT_DIR/stage-hash"
-        if [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]] \
+        # Guard against commit-notify cascade (issue #210): if this commit ONLY
+        # touches dispatch-notify files that a prior commit created, dispatching
+        # AGAIN would just write another notify file → next commit would include
+        # THAT file → another dispatch, ad infinitum. Observed on mdpal-cli
+        # 2026-04-20 with a 3-deep "carry-over commit cascade" visible in the
+        # branch log. Detect + skip. Classifier extracted to helper (D-4) for
+        # reuse if other commit-time hooks land; uses NUL-delimited file list
+        # internally (F1) as defense-in-depth against weird filenames.
+        if _is_commit_notify_only; then
+            echo -e "${BLUE}[INFO]${NC} #210 guard — skipping commit-notify dispatch (all files in this commit are notify artifacts)"
+        elif [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]] \
            && [[ -x "$DISPATCH_TOOL" ]] \
            && [[ -x "$IDENTITY_TOOL" ]]; then
             MY_IDENTITY=$("$IDENTITY_TOOL" 2>/dev/null || echo "")

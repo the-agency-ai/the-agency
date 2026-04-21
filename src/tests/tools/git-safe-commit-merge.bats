@@ -21,18 +21,9 @@ setup() {
     git config commit.gpgsign false
     git config init.defaultBranch main
 
-    # Install git-safe and git-safe-commit (+ pre-commit hook deps minimal)
-    mkdir -p agency/tools/lib
-    for t in git-safe git-safe-commit; do
-        cp "${REPO_ROOT}/agency/tools/$t" "agency/tools/$t"
-        chmod +x "agency/tools/$t"
-    done
-    for lib in _log-helper _colors; do
-        cp "${REPO_ROOT}/agency/tools/lib/$lib" "agency/tools/lib/$lib" 2>/dev/null || true
-    done
-
-    # Disable the real pre-commit hook to keep tests fast and self-contained.
-    git config core.hooksPath /dev/null 2>/dev/null || true
+    # Install git-safe-commit suite (D-6: shared helper; no dispatch stubs
+    # needed for merge-route tests which don't exercise the notify path).
+    install_git_safe_commit_suite
 
     echo "base" > shared.txt
     git add shared.txt

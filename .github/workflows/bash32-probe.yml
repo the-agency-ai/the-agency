@@ -1,0 +1,102 @@
+# bash 3.2 probe — regression guard for the-agency#339 and adjacent bash-3.2
+# safety invariants on framework bash tools.
+#
+# What Problem: macOS stock ships with bash 3.2. Framework tools use
+# `set -euo pipefail` which makes `"${arr[@]}"` on empty arrays raise
+# "unbound variable" and abort. The `${arr[@]+"${arr[@]}"}` idiom is the
+# bash-3.2-safe form. We need CI to catch regressions against bash 3.2
+# specifically — our developer machines and `ubuntu-latest` runners ship
+# bash 5.x where the bug is latent.
+#
+# How & Why: macOS-latest runners carry /bin/bash @ 3.2.x (Apple won't
+# upgrade due to GPLv3 licensing). We run a targeted probe there: execute
+# the key idiom under `set -u`, plus bats tests on git-captain + the
+# `_is_commit_notify_only` classifier that exercises commit-time code paths.
+#
+# Written: 2026-04-21 during Bucket 0 QG (T2 accept). Tracked against
+# the-agency#55 (broader CI build-out).
+
+name: bash32-probe
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'agency/tools/**'
+      - 'src/tests/tools/**'
+      - '.github/workflows/bash32-probe.yml'
+  push:
+    branches: [main, master]
+    paths:
+      - 'agency/tools/**'
+      - 'src/tests/tools/**'
+      - '.github/workflows/bash32-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: bash 3.2 probe (macOS /bin/bash)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Record bash versions
+        run: |
+          echo "=== /bin/bash (Apple stock, expected 3.2.x) ==="
+          /bin/bash --version | head -1
+          echo "=== bash (PATH, may be 5.x via brew) ==="
+          bash --version | head -1
+
+      - name: Probe — empty-array expansion under set -u (issue #339)
+        run: |
+          /bin/bash -c '
+            set -euo pipefail
+            arr=()
+            # The bash-3.2-safe idiom: expansion only emitted when set.
+            # With `set -u` active, bare "${arr[@]}" on an empty array
+            # raises "unbound variable". The +value form is safe.
+            result=$(echo ${arr[@]+"${arr[@]}"})
+            [[ -z "$result" ]] || { echo "FAIL: expected empty result, got: $result"; exit 1; }
+            echo "PASS: empty-array idiom works under bash $BASH_VERSION + set -u"
+          '
+
+      - name: Probe — git-captain push -n args path compiles under bash 3.2
+        run: |
+          /bin/bash -n ./agency/tools/git-captain
+          /bin/bash -n ./agency/tools/git-safe-commit
+          echo "PASS: bash -n clean on git-captain + git-safe-commit under bash $BASH_VERSION"
+
+      - name: Install bats
+        run: |
+          brew install bats-core
+
+      - name: Run git-captain bats (exercises #339 regression under /bin/bash)
+        env:
+          BASH: /bin/bash
+        run: |
+          # bats itself is bash 4+; but the system-under-test (git-captain)
+          # runs via its own `#!/usr/bin/env bash` shebang which picks up
+          # PATH's bash. Force PATH to prepend /bin so the tool uses 3.2.
+          export PATH="/bin:$PATH"
+          hash -r
+          which bash
+          bash --version | head -1
+          bats src/tests/tools/git-captain.bats
+
+      - name: Run #210 guard bats (exercises classifier under /bin/bash)
+        env:
+          BASH: /bin/bash
+        run: |
+          export PATH="/bin:$PATH"
+          hash -r
+          bats src/tests/tools/git-safe-commit-210.bats
+
+      - name: Run git-safe-commit merge-route bats
+        run: |
+          export PATH="/bin:$PATH"
+          hash -r
+          bats src/tests/tools/git-safe-commit-merge.bats

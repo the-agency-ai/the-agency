@@ -5,9 +5,9 @@ date: 2026-04-21
 day: D45
 principal: jordan
 captain: the-agency/jordan/captain
-status: approved-v3.1
+status: in-flight-v3.2 (E shipped v46.12; 0a+0b on branch for v46.13)
 supersedes: none
-revision: v3.1 — principal adjustments (Bucket D = #392; PR #397 placement; Bucket E = skill-validation monofolk cleanup)
+revision: v3.2 — post-Phase-E merge findings (Bucket F = full-tree sweep #401; Bucket G = Great-Rename worktree integration #402, tool-first)
 mar_reviews:
   - qgr/mar-plan-abc-architect-20260421.md
   - qgr/mar-plan-abc-devex-20260421.md
@@ -20,9 +20,17 @@ related:
 tags: [stabilization, session-lifecycle, python-runtime, ci, release-automation]
 ---
 
-# Plan — A-B-C-D-E Stabilization Push (2026-04-21) — v3.1
+# Plan — A-B-C-D-E-F-G Stabilization Push (2026-04-21) — v3.2
 
 ## Revision log
+
+**v3.1 → v3.2 changes — surfaced post-Phase-E merge:**
+
+1. **Bucket E shipped** as v46.12 (PR #400 merged). Phase E was explicitly NARROW — targeted `skill-validation.bats` unblock on 21 skill files only. Full-tree audit deferred.
+2. **New Bucket F** (full-tree sweep) — issue #401. Post-#400 audit surfaced residue across customer-shipped surfaces (`agency/README-*`, `REFERENCE/`, `README/`, `config/`, `agents/`, `tools/`, `.claude/agents/`, `src/apps/**`) not covered by skill-validation. Layer 1 = customer-shipped, Layer 2 = framework-internal audit, Layer 3 = new `framework-validation.bats` to prevent regression. Slots between Bucket 0 and PR #397.
+3. **New Bucket G** (Great-Rename worktree integration) — issue #402. Routine post-merge worktree-to-main integration surfaced structural debt: 5 agent branches (mdslidepal-mac +9, mdpal-app +26, devex +27, iscp +39, designex +61) cut pre-Great-Rename, all added files under OLD path structure (`claude/`, `apps/`, `tests/`). Every merge produces `CONFLICT (file location)` per added file. **First item** of Bucket G = build `agency/tools/great-rename-migrate` (bash) — tool that applies path-rename map mechanically on agent branches + detects build artifacts. Then dispatch each of 5 agents to run tool + merge + resolve residual content conflicts + test + push + notify. Multi-release, starts after Bucket D.
+4. **Captain standing duty captured:** integrate worktree commits into main after every `/iteration-complete`, `/phase-complete`, `/plan-complete`, `/seed`, `/define`, `/design`, `/plan` completion. Flagged for CLAUDE-CAPTAIN.md update.
+5. **Sequencing + release cadence updated** — F inserted as R3, G as R8+ multi-release.
 
 **v3 → v3.1 changes — surfaced mid-execution:**
 
@@ -107,6 +115,33 @@ This plan covers Step 1 (A-B-C, now with a Bucket 0 pre-flight). Step 2 triage l
 - [ ] Remaining literal `monofolk` references are justified provenance/cross-repo refs only.
 
 **PR:** first PR of the push. R1. Bumps 46.11 → 46.12.
+
+---
+
+## Bucket F — Full-tree sweep (NEW in v3.2 — lands between Bucket 0 and PR #397)
+
+Issue #401. Post-Phase-E audit surfaced residue across customer-shipped surfaces not covered by `skill-validation.bats`.
+
+### F — Sweep monofolk + usr/jordan + {org} + ordinaryfolk across customer-shipped surfaces + add framework-validation.bats
+
+**Layer 1 (customer-shipped, priority):**
+- `agency/README-THEAGENCY.md`, `README-GETTINGSTARTED.md`, `CLAUDE-THEAGENCY.md`
+- `agency/REFERENCE/*` (14 docs), `agency/README/*`
+- `agency/config/agency.yaml`, `dependencies.yaml`, `agency-dependencies.yaml`, `manifest.json`
+- `agency/agents/captain/agent.md`
+- `agency/tools/*` (21 tools with residue)
+- `.claude/agents/jordan/*.md` (9 agent registrations)
+- `src/apps/mdpal/**` (~40 files, absolute `/Users/jordan/` paths — audit test-only vs. runtime)
+- `src/apps/mock-and-mark/tools/book-note`
+
+**Layer 2 (framework-internal, lower priority — audit intent):**
+- `src/tools-developer/*`, `src/tests/tools/*.bats`, `.github/workflows/release-tag-check.yml`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`
+
+**Layer 3 (tests):** new `src/tests/framework-validation.bats` covering all Layer 1 surfaces; asserts no `monofolk`, `usr/jordan/` (in shipped docs), `<org>`, `{org}`, `ordinaryfolk`. Bug-exposing test first (red against current main), then fixes (green).
+
+**Out of scope:** `src/archive/**`, `usr/jordan/**` history, `agency/workstreams/**/history/flotsam/**`, hookify canaries (intentional), today's QGR/plan/triage/MAR docs.
+
+**Gating:** MAR on sweep plan (catches runtime-literal traps like #400's `<org>` critical finding), bug-exposing test red→green, full bats green.
 
 ---
 
@@ -353,15 +388,56 @@ Actual fix: `cmd_unstage` already uses argv-safe passthrough (`git reset HEAD --
 
 ---
 
+## Bucket G — Great-Rename worktree integration (NEW in v3.2 — multi-release, starts after Bucket D)
+
+Issue #402. 5 agent branches cut pre-Great-Rename carry structural path debt. Every `git merge <branch>` into main produces `CONFLICT (file location)` per added file (old paths: `claude/`, `apps/`, `tests/`, `claude/workstreams/the-agency/`).
+
+### G.1 — Build `agency/tools/great-rename-migrate` (bash) + BATS tests (FIRST ITEM)
+
+Tool that runs on agent's worktree/branch. Applies rename map mechanically:
+- `claude/workstreams/the-agency/` → `agency/workstreams/agency/`
+- `claude/` → `agency/`
+- `apps/` → `src/apps/`
+- `tests/` → `src/tests/`
+
+Detects + cleans build artifacts (`**/*.app/`, `**/.build/`, `**/node_modules/`, `**/*.{o,so,dylib}`) via `git rm --cached` + `.gitignore` update. Collision detection (new path exists on main → halt, principal decides). Commits: `fix: migrate branch to post-Great-Rename path structure (Bucket G)`. Output is structured (moved/collisions/gitignored/commit-sha/next-step).
+
+**Refuses:** on main/master, on dirty tree, not in git repo.
+
+**Tests:** `src/tests/tools/great-rename-migrate.bats` — dry-run, --apply, collision halt, build-artifact cleanup, refuse-on-main, refuse-on-dirty-tree.
+
+### G.2 — Run tool on 5 agent branches (one dispatch per agent)
+
+Per-branch conflict details captured today (2026-04-21):
+
+| Branch | Ahead | Rename conflicts | Content conflicts | Special |
+|---|---|---|---|---|
+| mdslidepal-mac | +9 | 1 file | 0 | `.app` bundle to remove + gitignore |
+| mdpal-app | +26 | 6 files | 0 | — |
+| devex | +27 | 6 files | 1 (REPORTS-INDEX.md) | — |
+| iscp | +39 | 13 files | 0 | — |
+| designex | +61 | 13 files | 8 files (tools + bats + captain-handoff) | highest complexity |
+
+Dispatch template (per agent): run `great-rename-migrate` preview → `--apply` → `git-safe merge-from-master` → resolve content conflicts manually → agent's test suite must pass → push → dispatch captain. Captain merges clean branch into main.
+
+### G.3 — Framework learning capture
+
+Document the Great-Rename-era debt lesson for future major refactors: before any tree-wide path rename, either (a) merge all active worktree branches first, or (b) ship a migration tool concurrent with the rename and dispatch it to all agents on day-of. This is a retrospective artifact (no further PR).
+
+**Gating:** MAR on G plan before execution, plus `great-rename-migrate` gets its own QG pass.
+
+---
+
 ## Sequencing
 
 | # | Item | PR shape | Parallel? |
 |---|------|----------|-----------|
-| E | Skill validation — remove 19 files' monofolk refs | Multi-file edit + validation test | MUST land first; blocks commit-precheck |
+| E | Skill validation — remove 19 files' monofolk refs | Multi-file edit + validation test | ✅ SHIPPED v46.12 (PR #400) |
 | 0a | #339 git-captain push (bash 3.2) | Trivial fix + test | — |
 | 0b | #210 dispatch artifact loop | Diagnose + fix | — |
-| — | C#372 diagnosis | Research doc (no PR) | runs parallel with 0a, 0b, A, PR#397 |
-| — | **PR #397** (external — monofolk contributor) | Review + merge + release v46.12 | between Bucket 0 and Bucket A |
+| F | Full-tree sweep (#401) | MAR + bug-exposing test + multi-surface sweep + framework-validation.bats | — |
+| — | C#372 diagnosis | Research doc (no PR) | runs parallel with 0a, 0b, F, A, PR#397 |
+| — | **PR #397** (external — monofolk contributor) | Review + merge + release v46.15 | between Bucket F and Bucket A |
 | 1 | A#395 `--coord` flag | Tool edit + tests | — |
 | 2 | A#393 session-end + compact-prepare (single PR) | Skill edits + tests (incl. integration) | — |
 | 3 | A#198 session-resume raw git fix | Skill edit + test | — |
@@ -374,6 +450,9 @@ Actual fix: `cmd_unstage` already uses argv-safe passthrough (`git reset HEAD --
 | 10 | B#385 commit-precheck timeouts | Tool edit + tests | depends on B#384 decision for mechanism |
 | 11 | B#55 CI build-out | Workflow update | depends on B#384 decision |
 | 12 | **D#392** agency update chicken-egg | Tool edit + REFERENCE doc + test + preserve-list | — |
+| G.1 | `great-rename-migrate` tool + BATS | Tool build + tests (QG) | AFTER Bucket D |
+| G.2 | Run tool on 5 agent branches | 5 serial dispatches + per-branch merges | one at a time |
+| G.3 | Retrospective doc (pre-Rename debt lesson) | Workstream doc (no PR) | parallel with G.2 |
 
 **Push-level smoke ritual** runs at close of push (devex F7): `/session-end` → fresh shell → `/session-resume` → `/session-end` — verifies the incident chain is no longer reproducible.
 
@@ -385,13 +464,20 @@ Pre-specified boundaries (architect F6) — 4-5 releases total instead of 11:
 
 | Release | Covers | Rough version |
 |---------|--------|---------------|
-| R1 | Bucket E (skill validation unblock) | 46.12 |
-| R2 | Bucket 0 | 46.13 |
-| R3 | PR #397 (monofolk contributor) | 46.14 |
-| R4 | Bucket A (A#395 + A#393 + A#198 + A#199 + A#394) | 46.15 |
-| R5 | C#372 fix | 46.16 |
-| R6 | Bucket B (B#383 verify, B#388+B#389, B#385, [B#384]) | 46.17 |
-| R7 | Bucket D (D#392) + B#55 + push-level smoke | 46.18 |
+| R1 ✅ | Bucket E (skill validation unblock) | 46.12 |
+| R2 | Bucket 0 (#339 + #210) | 46.13 |
+| R3 | Bucket F (full-tree sweep #401) | 46.14 |
+| R4 | PR #397 (monofolk contributor) | 46.15 |
+| R5 | Bucket A (A#395 + A#393 + A#198 + A#199 + A#394) | 46.16 |
+| R6 | C#372 fix | 46.17 |
+| R7 | Bucket B (B#383 verify, B#388+B#389, B#385, [B#384]) | 46.18 |
+| R8 | Bucket D (D#392) + B#55 + push-level smoke | 46.19 |
+| R9 | Bucket G.1 — `great-rename-migrate` tool + BATS | 46.20 |
+| R10 | Bucket G.2a — mdslidepal-mac integration (+9 commits) | 46.21 |
+| R11 | Bucket G.2b — mdpal-app integration (+26 commits) | 46.22 |
+| R12 | Bucket G.2c — devex integration (+27 commits, +1 content conflict) | 46.23 |
+| R13 | Bucket G.2d — iscp integration (+39 commits) | 46.24 |
+| R14 | Bucket G.2e — designex integration (+61 commits, +8 content conflicts) | 46.25 |
 
 Each release cuts a `gh release create` + tag + release notes. Manifest bumps occur at PR merge (one per PR); release groups multiple merged commits into one release tag.
 
@@ -472,7 +558,7 @@ Blindspots found 12 items worth surfacing. Not all 12 are in-scope. In-scope: #3
 - **A#394** — Python tools launcher (N=1 pilot on dispatch-monitor)
 - **C#372** — release automation gap (diagnose + fix)
 - **B#383** — status-line framework version (re-verify)
-- **B#392** — agency update chicken-egg (adopter unblock)
+- **D#392** — agency update chicken-egg (adopter unblock) — moved from B to D per v3
 - **B#388** — git-safe add directory support (bundled)
 - **B#389** — git-safe unstage shell-meta (bundled, mechanism corrected)
 - **B#385** — commit-precheck timeouts (pgroup-aware)
@@ -481,4 +567,4 @@ Blindspots found 12 items worth surfacing. Not all 12 are in-scope. In-scope: #3
 
 ---
 
-*v3.1 — Bucket D (#392) + Bucket E (skill-validation unblock) added per principal. In execution: Bucket E on fix/skill-validation-monofolk-cleanup branch as of 2026-04-21T15:xx.*
+*v3.2 — Bucket F (#401, full-tree sweep) + Bucket G (#402, Great-Rename worktree integration with tool-first approach) added post-Phase-E merge. Bucket E shipped as v46.12 (PR #400 merged 2026-04-21T08:45 UTC). Captain standing duty captured: integrate worktree commits after iteration/phase/plan/seed/define/design/plan completions.*

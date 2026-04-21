@@ -18,11 +18,11 @@ This is **TheAgency framework development repo** — open core (MIT framework, R
 
 ## Where Things Live
 
-- `claude/` — framework: tools, agents, docs, hooks, hookify rules, config, skills, templates
-- `usr/` — principal sandboxes (at **project root**, NOT under `claude/`)
+- `agency/` — framework: tools, agents, docs, hooks, hookify rules, config, skills, templates
+- `usr/` — principal sandboxes (at **project root**, NOT under `agency/`)
 - `.claude/skills/` — skill definitions (discover via `/` autocomplete)
 - `agency/hookify/` — behavioral enforcement rules (40 rules — blocks, warns, informs)
-- `claude/REFERENCE-*.md` — reference docs (injected on demand by `ref-injector.sh` when skills run)
+- `agency/REFERENCE/REFERENCE-*.md` — reference docs (injected on demand by `ref-injector.sh` when skills run)
 
 ## How You Work
 
@@ -81,24 +81,24 @@ Injected automatically when relevant skills run. Read directly when you need the
 
 | Topic | Document |
 |-------|----------|
-| Repo structure & directory tree | `claude/REFERENCE-REPO-STRUCTURE.md` |
-| Agent & principal addressing | `claude/REFERENCE-AGENT-ADDRESSING.md` |
-| Quality gate protocol | `claude/REFERENCE-QUALITY-GATE.md` |
-| Development methodology (Valueflow, MAR, three-bucket) | `claude/REFERENCE-DEVELOPMENT-METHODOLOGY.md` |
-| Worktrees, master, and agent roles | `claude/REFERENCE-WORKTREE-DISCIPLINE.md` |
-| Session handoff spec | `claude/REFERENCE-HANDOFF-SPEC.md` |
-| ISCP protocol (dispatches & flags) | `claude/REFERENCE-ISCP-PROTOCOL.md` |
-| Code review & PR lifecycle | `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md` |
-| Git discipline (merge, never rebase) | `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` |
-| Feedback & bug report format | `claude/REFERENCE-FEEDBACK-FORMAT.md` |
-| Provenance headers & script discipline | `claude/REFERENCE-PROVENANCE-HEADERS.md` |
-| Testing & quality discipline | `claude/REFERENCE-QUALITY-DISCIPLINE.md` |
-| Enforcement model (Triangle, Ladder, all rules) | `agency/README-ENFORCEMENT.md` |
-| Contribution model (three rings of trust) | `claude/REFERENCE-CONTRIBUTION-MODEL.md` |
-| Concepts & onboarding | `claude/REFERENCE-CONCEPTS.md` |
-| Safe tools family (git-safe, git-captain, cp-safe, pr-create) | `claude/REFERENCE-SAFE-TOOLS.md` |
-| Receipt infrastructure (five-hash chain, receipt-sign, receipt-verify) | `claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md` |
-| Agent discipline — Two Priorities + Over/Over-and-out (universal) | `claude/REFERENCE-AGENT-DISCIPLINE.md` |
+| Repo structure & directory tree | `agency/REFERENCE/REFERENCE-REPO-STRUCTURE.md` |
+| Agent & principal addressing | `agency/REFERENCE/REFERENCE-AGENT-ADDRESSING.md` |
+| Quality gate protocol | `agency/REFERENCE/REFERENCE-QUALITY-GATE.md` |
+| Development methodology (Valueflow, MAR, three-bucket) | `agency/REFERENCE/REFERENCE-DEVELOPMENT-METHODOLOGY.md` |
+| Worktrees, master, and agent roles | `agency/REFERENCE/REFERENCE-WORKTREE-DISCIPLINE.md` |
+| Session handoff spec | `agency/REFERENCE/REFERENCE-HANDOFF-SPEC.md` |
+| ISCP protocol (dispatches & flags) | `agency/REFERENCE/REFERENCE-ISCP-PROTOCOL.md` |
+| Code review & PR lifecycle | `agency/REFERENCE/REFERENCE-CODE-REVIEW-LIFECYCLE.md` |
+| Git discipline (merge, never rebase) | `agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md` |
+| Feedback & bug report format | `agency/REFERENCE/REFERENCE-FEEDBACK-FORMAT.md` |
+| Provenance headers & script discipline | `agency/REFERENCE/REFERENCE-PROVENANCE-HEADERS.md` |
+| Testing & quality discipline | `agency/REFERENCE/REFERENCE-QUALITY-DISCIPLINE.md` |
+| Enforcement model (Triangle, Ladder, all rules) | `agency/README/README-ENFORCEMENT.md` |
+| Contribution model (three rings of trust) | `agency/REFERENCE/REFERENCE-CONTRIBUTION-MODEL.md` |
+| Concepts & onboarding | `agency/REFERENCE/REFERENCE-CONCEPTS.md` |
+| Safe tools family (git-safe, git-captain, cp-safe, pr-create) | `agency/REFERENCE/REFERENCE-SAFE-TOOLS.md` |
+| Receipt infrastructure (five-hash chain, receipt-sign, receipt-verify) | `agency/REFERENCE/REFERENCE-RECEIPT-INFRASTRUCTURE.md` |
+| Agent discipline — Two Priorities + Over/Over-and-out (universal) | `agency/REFERENCE/REFERENCE-AGENT-DISCIPLINE.md` |
 
 ## Core Principles
 
@@ -107,6 +107,12 @@ Injected automatically when relevant skills run. Read directly when you need the
 - **Never push without permission.** `/sync` and `/release` are the only push commands.
 - **Plan before you build.** Use plan mode for non-trivial tasks.
 - **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-safe-commit` — never raw `git commit`.
+
+## Don't Do This — 20,000-volt offenses
+
+Full content included verbatim below from `agency/CLAUDE-DONT-DO-THIS.md`:
+
+@agency/CLAUDE-DONT-DO-THIS.md
 
 ## Runtime Floor
 
