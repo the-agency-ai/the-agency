@@ -1,134 +1,102 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-04-21T05:03:00Z
-trigger: session-end
-branch: main
-mode: resumption
-next-action: Start a fresh session and decide whether to begin Plan v5 Phase 4+ work (Stage D — start with issue #374 install-surface manifest schema) or pick up one of the stabilization items (#55 CI build-out, #384 BATS Docker, #387 _test-isolation leak, #385 commit-precheck hang). Principal already approved the staging layout; next session can just execute the chosen lane. Before starting, run /session-resume which will sync + surface any new dispatches.
+date: 2026-04-21T15:00:00Z
+trigger: compact-prepare
+branch: fix/skill-validation-monofolk-cleanup
+mode: continuation
 pause_commit_sha: none
+next-action: "Push fix/skill-validation-monofolk-cleanup (Phase E) to origin and cut PR. Use `/pr-prep` → push → `pr-create` (or `/release` skill for the full flow). Target v46.12. After merge, resume the A-B-C-D push starting with Bucket 0a (#339) via `fix/bash32-git-captain-push-339` (stash `339-work-in-progress` has the work)."
 ---
 
-# Captain handoff — session end 2026-04-21
+# Handoff — Mid-Session Compact (Phase E landed locally, PR pending)
 
-## Session headline
+## Situation
 
-6-hour day-shift session. Two PRs merged, two releases cut, eleven GitHub issues filed, one adopter repo brought current, two cross-repo dispatches sent, dispatch queue fully drained.
+Executing A-B-C-D stabilization push per principal directive. Hit a blocker: `commit-precheck` was failing on every commit due to `skill-validation.bats` (monofolk + usr/jordan hardcoded refs in 21 skills). Principal directed: "add a phase to your plan and fix these" → added **Bucket E** to plan v3.1 as the new first bucket.
 
-## Shipped this session
+Phase E is **done locally** (committed, tests green) but not yet pushed or PR'd.
 
-### PRs merged + releases
+## Where we are
 
-| PR | Content | Release |
-|---|---|---|
-| **#386** | v46 sweep-miss — 162 files, final claude/ → agency/ pass + smoke.yml CI stub | **v46.10** |
-| **#391** | Purge test-pollution from main + .gitignore guards | **v46.11** |
-
-### Adopter sync
-
-- **andrew-demo**: bootstrap-rsync'd to v46.11 (local commit 1b7ddc7); manifest bumped; `agency verify` now 10/12 (2 deferred figma warnings unrelated). Not yet pushed to andrew-demo's GitHub remote.
-
-### Cross-repo (monofolk)
-
-- Dispatch: **monitor-register re-implementation** — asked for review / adoption / joint contract
-- Dispatch: **designex Phase 1.5 diff report + asks (2)(3) reply** — closes the-agency task #19, unblocks designex agent
-- Dispatch: **the-agency#342 ETA — state-report (not estimate)** per monofolk's "stop-estimating" directive — 6 deferred cleanups reported as "parked in queue, not forgotten"
-
-### Issues filed (session-wide)
-
-| # | Subject |
-|---|---|
-| #382 | v46 sweep-miss umbrella (CLOSED by #386) |
-| #383 | presence-detect status line missing framework version |
-| #384 | BATS tests must run in Docker (test isolation) |
-| #385 | commit-precheck scoped-bats hangs on large PRs |
-| #387 | `_test-isolation` leaks into real tree |
-| #388 | `git-safe add` rejects directory paths (DX) |
-| #389 | `git-safe unstage` shell-meta path gap |
-| #390 | Post-mortem: #386 merge baked pathological files (CLOSED by #391) |
-| #392 | agency update chicken-egg (v46 adopters can't sync agency/ tree) |
-
-Plus internal task #55: **CI build-out** — real `smoke` battery + lint + typecheck + vitest.
-
-### Dispatch queue processed
-
-- **107 commit-notify dispatches** bulk-resolved (Python loop over `dispatch resolve`)
-- **4 stale dispatches** resolved (Python friction, iscp FYI, superseded PR notification, old master-sync request)
-- **3 live dispatches acted on** — designex Phase 1.5 relayed, #342 ETA state-reported, monofolk routing-check cleared
-- **0 unread** at session end
-
-## Key decisions captured
-
-1. **`--no-verify` is acceptable for mechanical sweeps** when foreground tests are already green AND the scoped-bats timeout would block (#385). Principal authorized for today's #386; should remain rare.
-
-2. **`smoke.yml` placeholder is fine short-term** as long as CI build-out (#55) lands soon. Real battery replaces the stub.
-
-3. **Plan v5 Phase 4+ staging confirmed** — principal approved the C/A/B/D layout:
-   - **C** Andrew-demo update ✅
-   - **A** Monofolk monitor-register dispatch ✅
-   - **B** Dispatch backlog ✅
-   - **D** Plan v5 Phase 4+ — not started, is the next session's open lane
-
-4. **"Stop estimating" directive internalized** (from monofolk/jordan). Captain reports state (planned/parked/in-flight) — never estimates timelines.
-
-5. **Dispatch discipline reminder**: principal noted "when a dispatch sits, it blocks someone." Commit to `/monitor-dispatches` at every session-start next time.
-
-## Right-now state
-
-- **Branch:** `main`
-- **Last commit:** `c77fce0c` (merge PR #391)
+- **Branch:** `fix/skill-validation-monofolk-cleanup`
+- **HEAD:** `ae92ceb7 fix/skill-validation-monofolk: fix(phase-E): genericize skill docs — remove residual monofolk + usr/jordan hardcoding`
 - **Tree:** clean
-- **HEAD on origin:** `c77fce0c` (synced)
-- **v46.11 released on GitHub:** ✅ https://github.com/the-agency-ai/the-agency/releases/tag/v46.11
-- **0 unread dispatches, 0 new flags this session** (flag queue has 157 pre-existing items — seed/observation items tagged for later triage)
-- **andrew-demo** on v46.11 locally; GitHub remote still at v46.1 pending push
+- **Plan:** v3.1 at `agency/workstreams/agency/plan-abc-stabilization-20260421.md` (committed on main at `e2ac7f68`)
 
-## Plan v5 status (Track M / Track S separation)
+## What was done this session
 
-Per principal's correction last session: Phase 4 (src/ split) is **Track S**, NOT required for Track M. Track M = manifest-driven installer, can ship independently.
+1. **Session-resume** surfaced 3 errors → root-caused + filed #393, #394, #395.
+2. **Triaged** all 167 open issues → report at `agency/workstreams/agency/research/issues-triage-20260421.md` (44 FIX-NOW in 10 themes; 114 DEFER).
+3. **Drafted plan** v1 → v2 (MAR-revised) → v3 (principal adjustments: Bucket D = #392; PR #397 placement) → v3.1 (Bucket E).
+4. **MAR reviewed** plan v1 via 3 parallel agents (architect, devex, blindspots); findings at `agency/workstreams/agency/qgr/mar-plan-abc-*.md`.
+5. **PR #397** (monofolk contributor) light-reviewed — recommend merge; sequenced after Bucket 0 (between 0 and A).
+6. **Bucket 0a (#339)** — `git-captain push` bash 3.2 fix written on branch `fix/bash32-git-captain-push-339` (commit attempt blocked by precheck → work stashed as `339-work-in-progress`).
+7. **Bucket E** — genericized 21 skill files (monofolk → placeholders; usr/jordan → usr/{principal}). All 12 skill-validation tests pass. Committed `ae92ceb7`.
 
-**Track M (manifest-driven installer):**
-- **#374** install-surface manifest schema + populate ← FIRST (gate)
-- #375 init manifest-driven (depends #374)
-- #376 update manifest-driven (depends #374)
-- #377 drift detection (depends #374, closes #329)
-- #372 release automation (after #375+#376)
+## What's next (immediate — after /compact)
 
-**Track S (src/ split, deferred):**
-- #378 Phase 4 — establish `src/agency/` + `src/claude/` sources
-- #379 Phase 5 — Python build tool at `src/tools/build`
-- #380 Phase 6 — first build + dual-tracked output commit
-- #381 Phase 8 — post-refactor full verification
+1. **Push Phase E branch** to origin.
+2. **Run `/pr-prep`** (QG + QGR receipt).
+3. **`pr-create`** → PR for Phase E. Target: v46.12.
+4. **Principal review + merge** (`/pr-captain-merge` with `--principal-approved`).
+5. **Release** via `/pr-captain-post-merge` → v46.12.
+6. **Switch back to `fix/bash32-git-captain-push-339`**:
+   - `git-captain switch-branch fix/bash32-git-captain-push-339`
+   - `git-safe stash pop` (restores git-captain fix + bats setup fix + regression test)
+   - `git-safe merge-from-master` (pulls in Phase E)
+   - Re-run `bats src/tests/tools/git-captain.bats` → should be 60/60 green.
+   - `git-safe-commit` should now pass commit-precheck.
+7. **Continue A-B-C-D** per plan sequence: 0a → 0b → PR #397 → A → C → B → D.
 
-**Task #39** (Phase 4 src/ split) remains pending under Track S.
+## Key decisions this session
 
-## Stabilization backlog (not blocking next session)
+- **A-B-C-D-E** plan shape (not A-B-C alone). D = #392 (agency update adopter bug). E = skill-validation unblock.
+- **PR #397** slots between Bucket 0 and Bucket A (clean push/release tooling first, then contributor PR).
+- **Release cadence:** 4-5 natural boundaries not 11 per-PR (v46.12 → v46.18).
+- **B#389** mechanism corrected from v1 (devex F5) — fix is loosen input validation, NOT `update-index --force-remove`.
+- **A#393** deterministically covers compact-prepare, not conditionally (architect F3).
+- **A#394** scope is N=1 pilot on dispatch-monitor, not a framework-wide sweep (blindspots).
+- **Skill-contract fleet-wide test** (devex F1 class-fix) deferred to follow-up initiative.
+- **B#392 fix-now-vs-defer:** fix-now; preserve through Phase 4c via `phase-5-preserve-list.md` mechanism.
 
-- **#55** CI build-out (replace smoke.yml placeholder with real battery)
-- **#384** BATS Docker isolation (structural fix for test pollution)
-- **#387** `_test-isolation` leak (immediate companion to #384)
-- **#385** commit-precheck scoped-bats hang
-- **#383** presence-detect status line
-- **#388** git-safe add DX
-- **#389** git-safe unstage gap
-- **#392** agency update chicken-egg (NEW — high severity for v46 adopters)
+## Principal decision points still open (from plan §"Principal decision points")
 
-## Open coordination items
+1. B#384 Docker BATS — in or out of this push?
+2. A#394 shebang strategy — bash launcher wrapper (my default) vs Python re-exec?
+3. A#395 `--no-work-item` deprecation — keep or phase out?
+4. C#372 diagnosis — parallel (my default) or serial?
+5. Release cadence — 4-5 (my default) or strict per-PR?
 
-- andrew-demo push to GitHub (local commit 1b7ddc7 hasn't been pushed to `https://github.com/the-agency-ai/andrew-demo.git`) — principal to decide whether to push or keep local
-- Flag backlog (157 items) — periodic triage via `/flag-triage` skill (not urgent)
+Will raise in 1B1 after Phase E lands if principal hasn't addressed.
 
-## Recovery next session
+## Stashes
 
-1. `/session-resume` — syncs master, reads this handoff, checks dispatches. Includes `session-preflight`.
-2. Start `/monitor-dispatches` **at session-start** (commitment from this session — don't let them pile up again).
-3. Review `next-action` — decide D lane vs stabilization item.
-4. Execute.
+- `339-work-in-progress` on branch `fix/bash32-git-captain-push-339` — git-captain bash 3.2 fix + bats setup `git add claude` → `git add agency` fix + new regression test.
 
-## Related transcripts / receipts
+## Dispatches
 
-- v46.10 QGR: `agency/workstreams/agency/qgr/the-agency-jordan-captain-agency-v46-claude-path-sweep-qgr-pr-prep-20260421-1230-e43a182.md`
-- v46.11 QGR: `agency/workstreams/agency/qgr/the-agency-jordan-captain-agency-purge-test-pollution-qgr-pr-prep-20260421-1244-bfa9fb9.md`
-- Sweep manifest: `usr/jordan/captain/sweep-manifest-v46-claude-paths.yaml`
+- 0 unread. Cross-repo: 0. Dispatch monitor armed via `/opt/homebrew/bin/python3.13 ./agency/tools/dispatch-monitor --include-collab` (Monitor tool, persistent).
+- PR #397 from monofolk captain remains open; light-review passed; recommend merge post-Bucket-0.
 
-— captain, session-end, 2026-04-21T05:03 UTC (13:03 SGT)
+## Open items / blockers
+
+- None blocking. Phase E on branch needs push + PR.
+
+## Related artifacts
+
+- Plan: `agency/workstreams/agency/plan-abc-stabilization-20260421.md` (v3.1, commit `e2ac7f68`)
+- Triage: `agency/workstreams/agency/research/issues-triage-20260421.md`
+- MAR reviews: `agency/workstreams/agency/qgr/mar-plan-abc-{architect,devex,blindspots}-20260421.md`
+- Triage x plan memo: `agency/workstreams/agency/research/triage-x-plan-memo-20260421.md`
+- Issue reports: `usr/jordan/reports/report-agency-issue-*.md` (3 new: #393, #394, #395)
+
+## Tasks (TaskList carrying state)
+
+- #62 Bucket 0a #339 — IN PROGRESS (stashed on other branch)
+- #63 Bucket 0b #210 — pending
+- #64 PR #397 merge — pending
+- #65 C#372 diagnosis — pending
+- (Bucket E has no task ID yet; was unplanned scope-addition; now complete)
+
+Ready for /compact.
