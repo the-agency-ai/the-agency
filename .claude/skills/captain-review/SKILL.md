@@ -130,7 +130,7 @@ Stage and commit the review and dispatch files as coordination artifacts via `/g
 
 ## Status
 
-`active` (v2 migrated from v1 in monofolk v1→v2 Batch 8+9 captain cluster). Surface preserved from v1; behavior identical. Composes `/code-review` + dispatch file emission + coord commit.
+`active` (v2 migrated from v1 in the sister-repo v1→v2 Batch 8+9 captain cluster). Surface preserved from v1; behavior identical. Composes `/code-review` + dispatch file emission + coord commit.
 
 ## Related
 

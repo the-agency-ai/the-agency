@@ -78,7 +78,7 @@ Expected:
 ABORT: master working tree is dirty (2 uncommitted files).
   Commit or stash before sync:
     M claude/REFERENCE-X.md
-    ?? usr/jordan/captain/dispatches/new-one.md
+    ?? usr/{principal}/captain/dispatches/new-one.md
 ```
 
 Exit 1.

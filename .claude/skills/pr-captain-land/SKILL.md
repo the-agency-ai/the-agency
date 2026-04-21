@@ -1,6 +1,6 @@
 ---
 name: pr-captain-land
-description: Captain-only. Land an agent's prepared branch — switch, verify receipt, bump monofolk_version, create PR, watch CI, merge, release, notify agent. The single-writer serialization point for monofolk_version and PR creation. Companion to /pr-submit (the-agency#296 Phase 1 pilot). The `captain-` qualifier in the name signals scope at a glance (complements paths + disable-model-invocation enforcement).
+description: Captain-only. Land an agent's prepared branch — switch, verify receipt, bump agency_version, create PR, watch CI, merge, release, notify agent. The single-writer serialization point for agency_version and PR creation. Companion to /pr-submit (the-agency#296 Phase 1 pilot). The `captain-` qualifier in the name signals scope at a glance (complements paths + disable-model-invocation enforcement).
 agency-skill-version: 2
 when_to_use: Captain on master in main checkout, after a /pr-submit dispatch from an agent. NEVER from a worktree. NEVER auto-invoked (disable-model-invocation + empty paths).
 argument-hint: "<agent-branch> [--dry-run] [--title \"...\"] [--no-release]"
@@ -26,7 +26,7 @@ required_reading:
 
 # pr-captain-land
 
-Captain-side skill that lands an agent's prepared branch as a merged PR + GitHub release + fleet notification. Companion to `/pr-submit`. This is the single-writer serialization point for `monofolk_version` and PR creation — eliminates the version-bump and receipt-hash races the pre-v2 distributed model created.
+Captain-side skill that lands an agent's prepared branch as a merged PR + GitHub release + fleet notification. Companion to `/pr-submit`. This is the single-writer serialization point for `agency_version` and PR creation — eliminates the version-bump and receipt-hash races the pre-v2 distributed model created.
 
 **Name pattern:** `pr-` prefix groups with the PR skill family (so `/pr<tab>` autocomplete shows the full kit). `captain-` qualifier flags captain-only scope in the skill listing without requiring the reader to open SKILL.md.
 
@@ -36,7 +36,7 @@ Per the-agency#296 — one captain, one writer, one serialization point. Every P
 
 Pre-v2 (distributed PR ownership) failure modes this skill eliminates:
 
-- Agent A and agent B both run `/pr-prep` + `/pr-create` concurrently → both bump `monofolk_version` → one loses, the other's release tag is wrong.
+- Agent A and agent B both run `/pr-prep` + `/pr-create` concurrently → both bump `agency_version` → one loses, the other's release tag is wrong.
 - Captain lands a coord commit on master between an agent's `/pr-prep` and that agent's `/pr-create` → the receipt's diff-hash no longer matches → `pr-create` blocks with a confusing error.
 - Agent opens PR with a one-line body → fleet reviewers can't tell what changed without diving into diff.
 
@@ -104,7 +104,7 @@ Main checkout is now on agent's branch.
 
 Find receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`. If missing, agent's state drifted — switch back to master, exit 1, tell agent to re-run `/pr-prep` + `/pr-submit`.
 
-### Step 4: Bump `monofolk_version`
+### Step 4: Bump `agency_version`
 
 Read `agency/config/manifest.json`. Bump minor (e.g., `1.8 → 1.9`). Refresh `updated_at` to current UTC timestamp.
 
@@ -113,7 +113,7 @@ Read `agency/config/manifest.json`. Bump minor (e.g., `1.8 → 1.9`). Refresh `u
 Commit via `git-safe-commit`:
 
 ```
-chore(manifest): bump monofolk_version {old} → {new} for PR landing (captain)
+chore(manifest): bump agency_version {old} → {new} for PR landing (captain)
 ```
 
 Push to origin.

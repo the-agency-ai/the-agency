@@ -1,128 +1,102 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-04-21T02:30:00Z
+date: 2026-04-21T15:00:00Z
 trigger: compact-prepare
-branch: fix/workstream-rename-agency
+branch: fix/skill-validation-monofolk-cleanup
 mode: continuation
-next-action: Await principal's decision on filing option for the v46.1 tool sweep-miss inventory (~30+ tools still resolving $PROJECT_ROOT/claude/* paths). My recommendation was option 2 — file umbrella issue with full inventory, prioritize by adopter-visible impact. Once principal answers, act on their choice.
-pause_commit_sha: d7ec902a2947c479e6666f6ac0a6cd17978190d9
+pause_commit_sha: none
+next-action: "Push fix/skill-validation-monofolk-cleanup (Phase E) to origin and cut PR. Use `/pr-prep` → push → `pr-create` (or `/release` skill for the full flow). Target v46.12. After merge, resume the A-B-C-D push starting with Bucket 0a (#339) via `fix/bash32-git-captain-push-339` (stash `339-work-in-progress` has the work)."
 ---
 
-# Captain handoff — mid-session continuation (compact-prepare)
+# Handoff — Mid-Session Compact (Phase E landed locally, PR pending)
 
-## Session headline
+## Situation
 
-Started morning as "fix #364 agency update." Became a ~4-hour sweep of v46.1 adopter-tooling restoration + architectural issue filing.
+Executing A-B-C-D stabilization push per principal directive. Hit a blocker: `commit-precheck` was failing on every commit due to `skill-validation.bats` (monofolk + usr/jordan hardcoded refs in 21 skills). Principal directed: "add a phase to your plan and fix these" → added **Bucket E** to plan v3.1 as the new first bucket.
 
-## Shipped this session (9 PRs merged, 2 releases cut)
+Phase E is **done locally** (committed, tests green) but not yet pushed or PR'd.
 
-| PR | Title | Closes |
-|---|---|---|
-| #362 | Port monofolk v2.0 session-lifecycle refactor (PAUSE/PICKUP primitives + captain defense-layer fix) | #352 #354 #355 |
-| #365 | fix(#364): agency update working on v46.1 — adopters can update again | #364 |
-| #366 | fix(#360): agency verify stale claude/→agency/ paths | #360 |
-| #367 | fix: delete duplicate claude/ at repo root + fix receipt-sign stale write path | — |
-| #368 | fix(v46.1): agency init ~50 claude/→agency/ path sweep | — |
-| #369 | fix: repo root cleanup (Plan v5) + 7 agency init/update bug fixes | #281 #286 #272 #324 #325 #332 #333 #335 |
-| #370 | fix(#157): agency update version display → D{day}-R{release} format | #157 |
-| #371 | fix: package.json workspaces tighten to src/apps/mdslidepal-web only | — |
-| #373 | refactor: rename workstream the-agency → agency | — |
+## Where we are
 
-**Releases:** v46.1 (pre-session) → v46.8 (midway — 45 commits of unreleased fixes, filed #372 for the gap) → v46.9 (rename).
+- **Branch:** `fix/skill-validation-monofolk-cleanup`
+- **HEAD:** `ae92ceb7 fix/skill-validation-monofolk: fix(phase-E): genericize skill docs — remove residual monofolk + usr/jordan hardcoding`
+- **Tree:** clean
+- **Plan:** v3.1 at `agency/workstreams/agency/plan-abc-stabilization-20260421.md` (committed on main at `e2ac7f68`)
 
-**Bonus fix** landed mid-flight: `_test-isolation` TOOLS_DIR stale path (was breaking agency-health.bats + agency-init.bats).
+## What was done this session
 
-## Plan v5 / Agency installer roadmap — 9 issues filed
+1. **Session-resume** surfaced 3 errors → root-caused + filed #393, #394, #395.
+2. **Triaged** all 167 open issues → report at `agency/workstreams/agency/research/issues-triage-20260421.md` (44 FIX-NOW in 10 themes; 114 DEFER).
+3. **Drafted plan** v1 → v2 (MAR-revised) → v3 (principal adjustments: Bucket D = #392; PR #397 placement) → v3.1 (Bucket E).
+4. **MAR reviewed** plan v1 via 3 parallel agents (architect, devex, blindspots); findings at `agency/workstreams/agency/qgr/mar-plan-abc-*.md`.
+5. **PR #397** (monofolk contributor) light-reviewed — recommend merge; sequenced after Bucket 0 (between 0 and A).
+6. **Bucket 0a (#339)** — `git-captain push` bash 3.2 fix written on branch `fix/bash32-git-captain-push-339` (commit attempt blocked by precheck → work stashed as `339-work-in-progress`).
+7. **Bucket E** — genericized 21 skill files (monofolk → placeholders; usr/jordan → usr/{principal}). All 12 skill-validation tests pass. Committed `ae92ceb7`.
 
-Principal corrected sequencing: #374 first (manifest is foundational; release automation builds on top of it, not before).
+## What's next (immediate — after /compact)
 
-**Track M — manifest-driven installer (no src/ split needed):**
+1. **Push Phase E branch** to origin.
+2. **Run `/pr-prep`** (QG + QGR receipt).
+3. **`pr-create`** → PR for Phase E. Target: v46.12.
+4. **Principal review + merge** (`/pr-captain-merge` with `--principal-approved`).
+5. **Release** via `/pr-captain-post-merge` → v46.12.
+6. **Switch back to `fix/bash32-git-captain-push-339`**:
+   - `git-captain switch-branch fix/bash32-git-captain-push-339`
+   - `git-safe stash pop` (restores git-captain fix + bats setup fix + regression test)
+   - `git-safe merge-from-master` (pulls in Phase E)
+   - Re-run `bats src/tests/tools/git-captain.bats` → should be 60/60 green.
+   - `git-safe-commit` should now pass commit-precheck.
+7. **Continue A-B-C-D** per plan sequence: 0a → 0b → PR #397 → A → C → B → D.
 
-- **#374** install-surface manifest schema + populate ← FIRST
-- **#375** init manifest-driven (depends #374)
-- **#376** update manifest-driven (depends #374)
-- **#377** drift detection (depends #374, closes #329)
-- **#372** release automation (after manifest exists so releases can carry manifest provenance)
+## Key decisions this session
 
-**Track S — Plan v5 Phases 4-8 (structural refactor):**
+- **A-B-C-D-E** plan shape (not A-B-C alone). D = #392 (agency update adopter bug). E = skill-validation unblock.
+- **PR #397** slots between Bucket 0 and Bucket A (clean push/release tooling first, then contributor PR).
+- **Release cadence:** 4-5 natural boundaries not 11 per-PR (v46.12 → v46.18).
+- **B#389** mechanism corrected from v1 (devex F5) — fix is loosen input validation, NOT `update-index --force-remove`.
+- **A#393** deterministically covers compact-prepare, not conditionally (architect F3).
+- **A#394** scope is N=1 pilot on dispatch-monitor, not a framework-wide sweep (blindspots).
+- **Skill-contract fleet-wide test** (devex F1 class-fix) deferred to follow-up initiative.
+- **B#392 fix-now-vs-defer:** fix-now; preserve through Phase 4c via `phase-5-preserve-list.md` mechanism.
 
-- **#378** Phase 4: `src/agency/` + `src/claude/` source-tree establishment
-- **#379** Phase 5: Python build tool at `src/tools/build` (depends #378)
-- **#380** Phase 6: first build + commit dual-tracked output (depends #379)
-- **#381** Phase 8: post-refactor full verification (depends #380)
+## Principal decision points still open (from plan §"Principal decision points")
 
-Dependency graph documented in the GitHub issue bodies.
+1. B#384 Docker BATS — in or out of this push?
+2. A#394 shebang strategy — bash launcher wrapper (my default) vs Python re-exec?
+3. A#395 `--no-work-item` deprecation — keep or phase out?
+4. C#372 diagnosis — parallel (my default) or serial?
+5. Release cadence — 4-5 (my default) or strict per-PR?
 
-## Right-now context (what I was last doing)
+Will raise in 1B1 after Phase E lands if principal hasn't addressed.
 
-Just discovered and reported to principal that **~30+ tools in `agency/tools/` still reference `$PROJECT_ROOT/claude/*` or `$REPO_ROOT/claude/*` paths** that don't exist on v46.1 adopters. Sample from first 30 grep hits:
+## Stashes
 
-- receipt-verify:21 — RECEIPTS_DIR claude/receipts
-- agency-version:21 — MANIFEST path
-- settings-merge:23 — TEMPLATE path
-- agent-create:37 — TEMPLATE_DIR
-- pr-create:41 — receipt search fallback
-- collaboration:45, secret:64, deploy:61, config:43, principal-onboard:39/229/284 — all hit claude/config/agency.yaml
-- git-safe-commit:430 — same yaml path
-- artifact-capture:51, artifact-list:33, issue-monitor:42 — claude/principals + claude/data
-- figma-diff:79/179/181/198 — multiple claude/* refs
-- terminal-setup-ghostty:109-110, dependencies-check:33
+- `339-work-in-progress` on branch `fix/bash32-git-captain-push-339` — git-captain bash 3.2 fix + bats setup `git add claude` → `git add agency` fix + new regression test.
 
-Every one of these silently fails or errors on a v46.1 adopter.
+## Dispatches
 
-**Asked principal** which of three filing options:
-1. One big sweep PR (risky, ~30 files in one commit)
-2. Umbrella issue + staged PRs (inventory + chip away)
-3. Leave until Track M (#375/#376) lands (manifest-driven will rediscover them)
+- 0 unread. Cross-repo: 0. Dispatch monitor armed via `/opt/homebrew/bin/python3.13 ./agency/tools/dispatch-monitor --include-collab` (Monitor tool, persistent).
+- PR #397 from monofolk captain remains open; light-review passed; recommend merge post-Bucket-0.
 
-My recommendation: **option 2**. Inventory needs to exist; prioritize by adopter-visible impact (receipt-verify, settings-merge, agency-version first; figma-diff later).
+## Open items / blockers
 
-**Awaiting principal's choice.**
+- None blocking. Phase E on branch needs push + PR.
 
-## State at PAUSE
+## Related artifacts
 
-- Branch: `fix/workstream-rename-agency` (the #373 branch, now merged; still locally checked out)
-- Last commit (coord checkpoint): `d7ec902a` from the session-pause
-- Tree: clean after checkpoint
-- Stashes preserved:
-  - `stash@{0}` — 0300-runbook handoff content (superseded by later activity, can drop)
-  - `stash@{1}` — residual sweep-miss fixes (collaboration + skill-audit; skill-audit fix landed in #365, can verify + drop)
-- Main: synced with origin (last sync was before the rename PR merged; may need pull)
-- Open PRs: none from us; #299 #351 #362 all closed; #362 merged; remaining open are elsewhere
+- Plan: `agency/workstreams/agency/plan-abc-stabilization-20260421.md` (v3.1, commit `e2ac7f68`)
+- Triage: `agency/workstreams/agency/research/issues-triage-20260421.md`
+- MAR reviews: `agency/workstreams/agency/qgr/mar-plan-abc-{architect,devex,blindspots}-20260421.md`
+- Triage x plan memo: `agency/workstreams/agency/research/triage-x-plan-memo-20260421.md`
+- Issue reports: `usr/jordan/reports/report-agency-issue-*.md` (3 new: #393, #394, #395)
 
-## Open commitments / deferred items
+## Tasks (TaskList carrying state)
 
-- [ ] Umbrella issue for ~30 stray tool path refs (answer from principal → execute option 1/2/3)
-- [ ] Monofolk cross-repo dispatch: tell them we re-implemented monitor-register from call-site contracts; invite adoption upstream
-- [ ] Dispatch backlog: 114 unread + ~8 flags
-- [ ] Drop stashes or re-apply them
-- [ ] Decide on andrew-demo update (at v46.2 → could push to v46.9 via `agency update`)
+- #62 Bucket 0a #339 — IN PROGRESS (stashed on other branch)
+- #63 Bucket 0b #210 — pending
+- #64 PR #397 merge — pending
+- #65 C#372 diagnosis — pending
+- (Bucket E has no task ID yet; was unplanned scope-addition; now complete)
 
-## Related issues (not in this session's PRs)
-
-- #287 "real installer gap" (Track M addresses)
-- #326 principal mapping `$USER` vs `.name` (adjacent to #332 which we fixed in #369)
-- #329 framework drift nudge (Track M's #377 closes)
-- #337 SEED: true installer
-- #350 hookify canaries (6 remaining un-synthesizable)
-- #372 release automation gap (filed this session)
-
-## Key decisions captured this session
-
-1. **9 PRs merged in one session.** Heavy day of adopter-tooling restoration. Fleet went from "agency init/update broken on v46.1" to "works end-to-end, validated via sandbox install + update-on-adopter smoke tests."
-
-2. **Workstream renamed** `the-agency` → `agency` per principal — framework-dev workstream now at `agency/workstreams/agency/`. Separation of GitHub org/repo name (the-agency) from workstream name (agency).
-
-3. **Plan v5 decomposed into 9 issues.** Principal wants manifest-driven installer (#374) BEFORE the src/ split (#378). Track M can ship without Track S.
-
-4. **Release cadence broken** (#372). pr-captain-post-merge skill not being invoked after merges; release-tag-check CI didn't fire. 8 PRs landed without releases until captain noticed. Documented in issue.
-
-## Recovery next session
-
-1. `/compact-resume` — pickup via session-pickup --from compact.
-2. Read this handoff, note `next-action`.
-3. Principal likely has answered the umbrella-issue question — act on that.
-4. If no answer, ping or pick up on another item from the deferred list.
-
-— captain, mid-session continuation, 2026-04-21T02:30 UTC+8
+Ready for /compact.

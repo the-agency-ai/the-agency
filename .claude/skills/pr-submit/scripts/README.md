@@ -19,7 +19,7 @@ The skill's `argument-hint` frontmatter mirrors this CLI.
 3. Computes `./agency/tools/diff-hash --base origin/master --json` for the receipt lookup
 4. Globs `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`, picks most recent if multiple
 5. Composes the dispatch body per `../reference.md` schema
-6. Emits via `./agency/tools/dispatch create --to monofolk/{principal}/captain --type pr-submit --subject "..." --body "..."`
+6. Emits via `./agency/tools/dispatch create --to <org>/{principal}/captain --type pr-submit --subject "..." --body "..."`
 7. Captures and reports the dispatch ID
 
 ### Exit codes

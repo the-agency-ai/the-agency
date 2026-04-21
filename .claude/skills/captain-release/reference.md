@@ -4,9 +4,9 @@
 
 Resolution order:
 
-1. **D#-R# pattern** in PR title → map to `agency_version` or `monofolk_version` per repo convention
+1. **D#-R# pattern** in PR title → map to `agency_version` (or the adopter's equivalent framework-version field)
 2. **Release-type tag in PR body** (e.g., `Release-Type: minor`) → semver bump
-3. **Default** → increment the primary version field (`monofolk_version` in monofolk, `agency_version` in the-agency)
+3. **Default** → increment the primary version field (`agency_version`; adopters with a different field name update accordingly)
 
 The bump happens AFTER the PR is created (Step 6) so the PR's diff shows the actual substance, and the version bump is a follow-up commit on the same branch.
 
