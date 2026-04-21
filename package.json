@@ -13,8 +13,7 @@
     "url": "https://github.com/the-agency-ai/the-agency/issues"
   },
   "workspaces": [
-    "src/apps/*",
-    "src/apps/*/services/*"
+    "src/apps/mdslidepal-web"
   ],
   "scripts": {
     "test": "pnpm -r --if-present test",
