@@ -441,41 +441,41 @@ YAML_EOF
     # freeze was absent from fresh inits, breaking hooks and preflight on
     # first `claude --agent captain` run. Surfaced live in homekit-daikin-ac-bridge
     # init (2026-04-15 ~20:30 UTC). Now copies all top-level files under
-    # claude/tools/ and all libs under claude/tools/lib/ — new tools auto-install
+    # agency/tools/ and all libs under agency/tools/lib/ — new tools auto-install
     # with zero maintenance on this block.
     log_step "Installing tools"
 
-    mkdir -p "$TARGET_DIR/claude/tools/lib"
+    mkdir -p "$TARGET_DIR/agency/tools/lib"
 
     # Copy ALL libs from source. Skip subdirectories (e.g. tests/).
-    if [[ -d "$AGENCY_SOURCE/claude/tools/lib" ]]; then
+    if [[ -d "$AGENCY_SOURCE/agency/tools/lib" ]]; then
         local lib_file
-        for lib_file in "$AGENCY_SOURCE/claude/tools/lib/"*; do
+        for lib_file in "$AGENCY_SOURCE/agency/tools/lib/"*; do
             [[ -f "$lib_file" ]] || continue
-            cp "$lib_file" "$TARGET_DIR/claude/tools/lib/"
+            cp "$lib_file" "$TARGET_DIR/agency/tools/lib/"
         done
     fi
 
     # Copy test helper template (don't overwrite project customizations)
-    if [[ -f "$AGENCY_SOURCE/claude/templates/tests/test_helper.bash" ]]; then
+    if [[ -f "$AGENCY_SOURCE/agency/templates/tests/test_helper.bash" ]]; then
         mkdir -p "$TARGET_DIR/tests/tools"
         if [[ ! -f "$TARGET_DIR/tests/tools/test_helper.bash" ]]; then
-            cp "$AGENCY_SOURCE/claude/templates/tests/test_helper.bash" "$TARGET_DIR/tests/tools/test_helper.bash"
+            cp "$AGENCY_SOURCE/agency/templates/tests/test_helper.bash" "$TARGET_DIR/tests/tools/test_helper.bash"
         fi
     fi
 
     # Copy ALL top-level tools from source. Skip subdirectories (lib/ handled
     # above, tests/ is dev-only and not shipped to adopters).
-    if [[ -d "$AGENCY_SOURCE/claude/tools" ]]; then
+    if [[ -d "$AGENCY_SOURCE/agency/tools" ]]; then
         local tool_file
-        for tool_file in "$AGENCY_SOURCE/claude/tools/"*; do
+        for tool_file in "$AGENCY_SOURCE/agency/tools/"*; do
             [[ -f "$tool_file" ]] || continue
-            cp "$tool_file" "$TARGET_DIR/claude/tools/"
+            cp "$tool_file" "$TARGET_DIR/agency/tools/"
         done
     fi
 
-    chmod +x "$TARGET_DIR/claude/tools/"* 2>/dev/null || true
-    chmod +x "$TARGET_DIR/claude/tools/lib/"* 2>/dev/null || true
+    chmod +x "$TARGET_DIR/agency/tools/"* 2>/dev/null || true
+    chmod +x "$TARGET_DIR/agency/tools/lib/"* 2>/dev/null || true
 
     log_info "Installed all tools (directory-level copy)"
 
@@ -487,7 +487,7 @@ YAML_EOF
     # block the update via the dirty-tree gate. Merge idempotently: if the
     # block marker already exists, leave existing ignores alone.
     # =====================================================================
-    local gitignore_template="$AGENCY_SOURCE/claude/templates/gitignore-framework"
+    local gitignore_template="$AGENCY_SOURCE/agency/templates/gitignore-framework"
     local gitignore_target="$TARGET_DIR/.gitignore"
     if [[ -f "$gitignore_template" ]]; then
         if [[ ! -f "$gitignore_target" ]] || ! grep -q "Agency framework-managed ignores" "$gitignore_target" 2>/dev/null; then
@@ -503,7 +503,7 @@ YAML_EOF
     log_step "Scaffolding usr/$PRINCIPAL/"
 
     # D42-R3: slim scaffold — only personal state dirs
-    # Shared content goes in claude/workstreams/{W}/ (see Step 5b)
+    # Shared content goes in agency/workstreams/{W}/ (see Step 5b)
     mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{tools,tmp,history/flotsam}
     mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME"/{tools,tmp,history/flotsam}
 
@@ -520,12 +520,12 @@ YAML_EOF
     # =====================================================================
     # Step 5b: Repo-level workstream (captain's shared space)
     # =====================================================================
-    log_step "Creating repo-level workstream: claude/workstreams/$PROJECT_NAME/"
+    log_step "Creating repo-level workstream: agency/workstreams/$PROJECT_NAME/"
 
-    mkdir -p "$TARGET_DIR/claude/workstreams/$PROJECT_NAME"/{qgr,rgr,drafts,research,transcripts,history/flotsam}
+    mkdir -p "$TARGET_DIR/agency/workstreams/$PROJECT_NAME"/{qgr,rgr,drafts,research,transcripts,history/flotsam}
 
-    if [[ ! -f "$TARGET_DIR/claude/workstreams/$PROJECT_NAME/KNOWLEDGE.md" ]]; then
-        cat > "$TARGET_DIR/claude/workstreams/$PROJECT_NAME/KNOWLEDGE.md" << KNOWLEDGE_EOF
+    if [[ ! -f "$TARGET_DIR/agency/workstreams/$PROJECT_NAME/KNOWLEDGE.md" ]]; then
+        cat > "$TARGET_DIR/agency/workstreams/$PROJECT_NAME/KNOWLEDGE.md" << KNOWLEDGE_EOF
 # $PROJECT_NAME — Workstream Knowledge
 
 ## Patterns and Conventions
@@ -549,11 +549,11 @@ KNOWLEDGE_EOF
     local skill_count command_count agent_count hook_count
     skill_count=$(find "$TARGET_DIR/.claude/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
     command_count=$(find "$TARGET_DIR/.claude/commands" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-    agent_count=$(find "$TARGET_DIR/claude/agents" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
-    hook_count=$(find "$TARGET_DIR/claude/hooks" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
+    agent_count=$(find "$TARGET_DIR/agency/agents" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+    hook_count=$(find "$TARGET_DIR/agency/hooks" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
 
     mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"
-    local handoff_template="$AGENCY_SOURCE/claude/templates/HANDOFF-BOOTSTRAP.md"
+    local handoff_template="$AGENCY_SOURCE/agency/templates/HANDOFF-BOOTSTRAP.md"
     local handoff_target="$TARGET_DIR/usr/$PRINCIPAL/captain/captain-handoff.md"
 
     if [[ ! -f "$handoff_template" ]]; then
