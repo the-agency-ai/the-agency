@@ -5,7 +5,6 @@ agency-skill-version: 2
 when_to_use: Captain on master in main checkout, after a /pr-submit dispatch from an agent. NEVER from a worktree. NEVER auto-invoked (disable-model-invocation + empty paths).
 argument-hint: "<agent-branch> [--dry-run] [--title \"...\"] [--no-release]"
 paths: []
-disable-model-invocation: true
 required_reading:
   - claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md
   - claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md
@@ -77,7 +76,7 @@ The script enforces **all** of these before any mutation; any failure exits non-
 3. Master tree is clean (`git status --porcelain` empty).
 4. `<agent-branch>` exists on origin (`git ls-remote --heads origin <agent-branch>` non-empty).
 5. `<agent-branch>` passes safe-name validation: regex `^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`, no `..`, no leading `-`.
-6. Diff-hash of `<agent-branch>` vs `origin/master` matches a QGR receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`.
+6. Diff-hash of `<agent-branch>` vs `origin/master` matches a QGR receipt at `claude/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`.
 
 Any failure → zero mutation, clean error message, exit 1.
 
@@ -92,7 +91,7 @@ Verify all six preconditions. If any fail, exit 1.
 ### Step 2: Switch to agent branch
 
 ```
-./agency/tools/git-captain switch-branch <agent-branch>
+./claude/tools/git-captain switch-branch <agent-branch>
 ```
 
 Main checkout is now on agent's branch.
@@ -100,14 +99,14 @@ Main checkout is now on agent's branch.
 ### Step 3: Verify receipt against current state
 
 ```
-./agency/tools/diff-hash --base origin/master --json
+./claude/tools/diff-hash --base origin/master --json
 ```
 
-Find receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`. If missing, agent's state drifted — switch back to master, exit 1, tell agent to re-run `/pr-prep` + `/pr-submit`.
+Find receipt at `claude/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`. If missing, agent's state drifted — switch back to master, exit 1, tell agent to re-run `/pr-prep` + `/pr-submit`.
 
 ### Step 4: Bump `monofolk_version`
 
-Read `agency/config/manifest.json`. Bump minor (e.g., `1.8 → 1.9`). Refresh `updated_at` to current UTC timestamp.
+Read `claude/config/manifest.json`. Bump minor (e.g., `1.8 → 1.9`). Refresh `updated_at` to current UTC timestamp.
 
 **Security note:** version-bump is done via Python env-var substitution (`MANIFEST=... NEW_VER=... python3 -c '...os.environ[...]...'`), **not** f-string interpolation. This blocks code-injection via adversarial branch names. (Fix landed in `ccf054ad` per MAR finding F-SEC-1 / CRITICAL-3.)
 
@@ -122,7 +121,7 @@ Push to origin.
 ### Step 5: Create PR
 
 ```
-./agency/tools/pr-create --title "<title>" --body "<captain-authored fleet-aware body>"
+./claude/tools/pr-create --title "<title>" --body "<captain-authored fleet-aware body>"
 ```
 
 Title derives from agent's `--scope` or `--title` override. Body wraps agent's scope with:
@@ -134,7 +133,7 @@ Title derives from agent's `--scope` or `--title` override. Body wraps agent's s
 ### Step 6: Switch back to master
 
 ```
-./agency/tools/git-captain switch-branch master
+./claude/tools/git-captain switch-branch master
 ```
 
 Captain sits on master during the CI-wait phase. Avoids any accidental commit on the PR branch.
@@ -158,7 +157,7 @@ Max 30 attempts = 10 minutes. On timeout, exit 1.
 Merge:
 
 ```
-./agency/tools/pr-merge {pr-num} --principal-approved
+./claude/tools/pr-merge {pr-num} --principal-approved
 ```
 
 True merge commit — never squash, never rebase (enforced by `pr-captain-merge` / underlying `pr-merge`).
@@ -166,14 +165,14 @@ True merge commit — never squash, never rebase (enforced by `pr-captain-merge`
 Sync master:
 
 ```
-./agency/tools/git-captain fetch
-./agency/tools/git-captain merge-from-origin
+./claude/tools/git-captain fetch
+./claude/tools/git-captain merge-from-origin
 ```
 
 Release (unless `--no-release`):
 
 ```
-./agency/tools/gh-release create v{new-version} --target master --title "..." --notes "..."
+./claude/tools/gh-release create v{new-version} --target master --title "..." --notes "..."
 ```
 
 Release notes: captain-authored, references PR number + agent.
@@ -181,7 +180,7 @@ Release notes: captain-authored, references PR number + agent.
 ### Step 9: Dispatch agent
 
 ```
-./agency/tools/dispatch create \
+./claude/tools/dispatch create \
   --to <agent-address> \
   --type master-updated \
   --subject "PR #{num} landed — v{new} released" \
@@ -232,11 +231,11 @@ Any single layer failing is caught by the next. All four must fail simultaneousl
 - `/pr-captain-merge` — the merge primitive this skill calls at Step 8
 - `/pr-prep` — the QG-before-PR-create that signs the receipt this skill re-verifies
 - `/pr-captain-post-merge` — alternative entry for post-merge tasks (release + fleet-notify) when landing was done manually
-- `agency/tools/pr-create` — PR creation tool (receipt-aware)
-- `agency/tools/pr-merge` — safe-merge primitive (underlies `/pr-captain-merge`)
-- `agency/tools/gh-release` — release creation wrapper
-- `agency/tools/dispatch` — ISCP dispatch tool
-- `agency/tools/diff-hash` — receipt-matching hash
+- `claude/tools/pr-create` — PR creation tool (receipt-aware)
+- `claude/tools/pr-merge` — safe-merge primitive (underlies `/pr-captain-merge`)
+- `claude/tools/gh-release` — release creation wrapper
+- `claude/tools/dispatch` — ISCP dispatch tool
+- `claude/tools/diff-hash` — receipt-matching hash
 - `reference.md` — full step-by-step protocol + recovery flows
 - `examples.md` — happy-path + failure-mode examples
 - the-agency#296 — PR lifecycle ownership design

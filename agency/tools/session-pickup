@@ -1,0 +1,522 @@
+#!/usr/bin/env bash
+# session-pickup — the PICKUP half of the session PAUSE/PICKUP primitive pair.
+#
+# Internal tool invoked from skills (/compact-resume, /session-resume).
+# NOT intended for direct agent invocation — see
+# agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md §7 (primitives-as-tools pattern).
+#
+# What Problem: post-`/compact` and fresh-session startup duplicated a lot of
+# bespoke bash (read handoff, count unread dispatches, compute drift, probe
+# monitor health, conditionally sync + preflight). Skills cannot be composed
+# in this framework (agency#348), so the shared primitive has to live at the
+# tool layer. This tool is that primitive — the PICKUP counterpart to
+# session-pause.
+#
+# How & Why: One bash entry point, two --from modes.
+#   --from compact: post-/compact; report state, do NOT run worktree-sync
+#                   (master cannot have moved during in-process compact) and
+#                   do NOT re-run full preflight.
+#   --from fresh:   fresh session startup after restart; additionally runs
+#                   worktree-sync --auto and session-preflight. A failing
+#                   preflight surfaces as status=blocked.
+#
+# The tool is READ-MOSTLY — it inspects state and emits a key=value report.
+# The only mutations are (a) worktree-sync in --from fresh, and (b) the
+# advisory lock. Callers (skills) act on the report: relaunch dead monitors,
+# surface drifted dispatches, resume next_action.
+#
+# Locking: mkdir-based advisory lock on the handoff path, 5 second timeout.
+# Same deterministic lock key as session-pause so concurrent PAUSE/PICKUP on
+# the same handoff serialize correctly. macOS does not ship util-linux flock
+# and introducing fcntl.flock for every PICKUP is overkill; mkdir is POSIX
+# and atomic.
+#
+# Errors emit as status=aborted + error_reason= on stdout (not stderr) so
+# callers parse a single key=value stream. Intentional departure from the
+# repo's general "errors to stderr" convention — parity with session-pause.
+#
+# Outcomes:
+#   status=ok       — all checks passed; caller resumes next_action.
+#   status=blocked  — report emitted but caller should not resume as-is
+#                     (dirty tree, failing preflight). exit 1.
+#   status=aborted  — fatal early bail (bad args, missing handoff). exit 1.
+#   (lock timeout)  — exit 2, status=aborted.
+#
+# Written: 2026-04-20 during session-lifecycle-refactor Iteration 2.2.
+# A&D: usr/jordan/captain/session-lifecycle-refactor/and.md §4.
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+SCHEMA_VERSION="1"
+
+# ── Paths ───────────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    REPO_ROOT="$CLAUDE_PROJECT_DIR"
+else
+    REPO_ROOT="$(git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
+
+MONITOR_REGISTRY="$REPO_ROOT/agency/config/monitor-pids.json"
+LOCK_TIMEOUT_SECONDS=5
+
+# ── Output helpers ──────────────────────────────────────────────────────────
+emit() {
+    printf '%s=%s\n' "$1" "$2"
+}
+
+abort_with() {
+    local code="$1"
+    local reason="$2"
+    emit "status" "aborted"
+    emit "error_reason" "$reason"
+    exit "$code"
+}
+
+# ── Help ────────────────────────────────────────────────────────────────────
+show_help() {
+    cat <<'USAGE'
+Usage: session-pickup --from <compact|fresh>
+                      [--principal <name>] [--agent <name>]
+
+Internal primitive — called from skills (/compact-resume, /session-resume).
+See agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md §7.
+
+Required:
+  --from compact           — post-/compact pickup; no sync, no preflight.
+  --from fresh             — fresh session startup; runs worktree-sync --auto
+                             and session-preflight; preflight fail → blocked.
+
+Optional:
+  --principal <name>       — override agent-identity --principal resolution.
+  --agent <name>           — override agent-identity --agent resolution.
+
+Outputs (stdout, key=value lines):
+  schema_version=1
+  tool_version=<x.y.z>
+  handoff_path=<absolute path to current handoff file>
+  handoff_mode=<continuation|resumption|legacy|unknown>
+  pause_commit_sha=<SHA from handoff frontmatter, or fallback, or "none">
+  dispatches_unread=<count of unread dispatches addressed to this agent>
+  dispatches_drift_since_pause=<count created after pause_commit_sha time>
+  tree_state=<clean|dirty>
+  monitor_health_dispatch=<ok|dead|unknown>
+  monitor_health_ci=<ok|dead|unknown>
+  monitor_health_issue=<ok|dead|unknown>
+  next_action=<first line of handoff next-action frontmatter; may be truncated>
+  from=<compact|fresh>
+  status=<ok|blocked|aborted>
+  error_reason=<explanation, when status != ok>
+
+Exit codes:
+  0  success (status=ok)
+  1  report emitted but caller blocked, or fatal early-bail (status=blocked
+     / status=aborted; error_reason set)
+  2  lock contention timeout (status=aborted, error_reason set)
+
+Notes:
+  - handoff_mode=legacy is emitted for handoffs still carrying
+    `mode: resume` (pre-refactor spelling). Tolerated per A&D §6 migration.
+  - dispatches_drift_since_pause requires pause_commit_sha != none; otherwise
+    it reports 0 (no baseline to compare against).
+  - Monitor health probes three known types (dispatch, ci, issue). "unknown"
+    means the monitor type isn't in the registry at all. "dead" means it's
+    registered but the PID no longer matches (process exited or got
+    recycled). "ok" means monitor-register --verify succeeded.
+USAGE
+}
+
+# ── Arg parsing ─────────────────────────────────────────────────────────────
+FROM=""
+PRINCIPAL_OVERRIDE=""
+AGENT_OVERRIDE=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --from)
+            [[ -n "${2:-}" ]] || abort_with 1 "--from requires a value"
+            FROM="$2"
+            shift 2
+            ;;
+        --principal)
+            [[ -n "${2:-}" ]] || abort_with 1 "--principal requires a value"
+            PRINCIPAL_OVERRIDE="$2"
+            shift 2
+            ;;
+        --agent)
+            [[ -n "${2:-}" ]] || abort_with 1 "--agent requires a value"
+            AGENT_OVERRIDE="$2"
+            shift 2
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        --version)
+            echo "session-pickup $TOOL_VERSION"
+            exit 0
+            ;;
+        *)
+            abort_with 1 "unknown option: $1"
+            ;;
+    esac
+done
+
+# ── Validate args ───────────────────────────────────────────────────────────
+case "$FROM" in
+    compact|fresh) ;;
+    "")
+        abort_with 1 "--from required (compact or fresh)"
+        ;;
+    *)
+        abort_with 1 "invalid --from: '$FROM' (must be compact or fresh)"
+        ;;
+esac
+
+# ── Resolve identity ────────────────────────────────────────────────────────
+PRINCIPAL="$PRINCIPAL_OVERRIDE"
+AGENT="$AGENT_OVERRIDE"
+
+if [[ -z "$PRINCIPAL" && -x "$SCRIPT_DIR/agent-identity" ]]; then
+    PRINCIPAL="$("$SCRIPT_DIR/agent-identity" --principal 2>/dev/null || true)"
+fi
+if [[ -z "$AGENT" && -x "$SCRIPT_DIR/agent-identity" ]]; then
+    AGENT="$("$SCRIPT_DIR/agent-identity" --agent 2>/dev/null || true)"
+fi
+
+[[ -n "$PRINCIPAL" ]] || abort_with 1 "could not resolve principal (pass --principal)"
+[[ -n "$AGENT" ]] || abort_with 1 "could not resolve agent (pass --agent)"
+
+# Sec-2 parity: validate identity values against safe-name whitelist.
+# Prevents path traversal (--agent '../../etc'), quoting surprises, and
+# downstream injection via identity values. Allowed: alphanumerics, dash,
+# underscore; must start with alphanumeric; 1-64 chars. Mirrors session-pause.
+IDENTITY_RE='^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$'
+if [[ ! "$PRINCIPAL" =~ $IDENTITY_RE ]]; then
+    abort_with 1 "invalid --principal '$PRINCIPAL' (allowed: alphanum + _- ; 1-64 chars starting alphanum)"
+fi
+if [[ ! "$AGENT" =~ $IDENTITY_RE ]]; then
+    abort_with 1 "invalid --agent '$AGENT' (allowed: alphanum + _- ; 1-64 chars starting alphanum)"
+fi
+
+HANDOFF_DIR="$REPO_ROOT/usr/$PRINCIPAL/$AGENT"
+HANDOFF_PATH="$HANDOFF_DIR/${AGENT}-handoff.md"
+
+# Lock outside the working tree, same deterministic key as session-pause so
+# PAUSE + PICKUP on the same handoff serialize.
+LOCK_KEY="$(python3 -c 'import hashlib, sys; print(hashlib.sha1(sys.argv[1].encode()).hexdigest()[:16])' "$HANDOFF_PATH" 2>/dev/null || echo "${PRINCIPAL}-${AGENT}")"
+LOCK_DIR="${TMPDIR:-/tmp}/agency-session-pause-${LOCK_KEY}.lock"
+
+# ── Acquire lock (mkdir-based, POSIX-portable) ──────────────────────────────
+acquire_lock() {
+    local iterations=$((LOCK_TIMEOUT_SECONDS * 5))  # 200ms granularity
+    local count=0
+    while true; do
+        if mkdir "$LOCK_DIR" 2>/dev/null; then
+            echo "$$" > "$LOCK_DIR/pid" 2>/dev/null || true
+            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$LOCK_DIR/acquired_at" 2>/dev/null || true
+            return 0
+        fi
+        sleep 0.2
+        count=$((count + 1))
+        if (( count >= iterations )); then
+            return 1
+        fi
+    done
+}
+
+release_lock() {
+    rm -rf "$LOCK_DIR" 2>/dev/null || true
+}
+
+if ! acquire_lock; then
+    emit "status" "aborted"
+    emit "error_reason" "lock timeout (${LOCK_TIMEOUT_SECONDS}s) on $LOCK_DIR — inspect + remove manually: rm -rf '$LOCK_DIR'"
+    exit 2
+fi
+
+trap 'release_lock' EXIT
+
+# ── Sec-1 parity: refuse symlink handoffs ───────────────────────────────────
+# Reading a symlinked handoff could leak content from unrelated files
+# (e.g. ~/.ssh/id_rsa) into stdout or downstream frontmatter parsing.
+if [[ -L "$HANDOFF_PATH" ]]; then
+    abort_with 1 "handoff path is a symlink, refusing to read: $HANDOFF_PATH"
+fi
+
+# ── Verify handoff exists ───────────────────────────────────────────────────
+if [[ ! -f "$HANDOFF_PATH" ]]; then
+    emit "schema_version" "$SCHEMA_VERSION"
+    emit "tool_version" "$TOOL_VERSION"
+    emit "handoff_path" "$HANDOFF_PATH"
+    abort_with 1 "handoff file missing at $HANDOFF_PATH — run session-pause first"
+fi
+
+# ── Parse frontmatter ───────────────────────────────────────────────────────
+# Frontmatter is between the first two '---' lines. Extract once, then grep.
+# Uses awk (portable) rather than a YAML parser dep — the fields we care about
+# (mode, next-action, pause_commit_sha, commit_sha) are simple `key: value`
+# single-line entries.
+#
+# F3 fix: REQUIRE both opening AND closing delimiters — a handoff with only
+# one `---` would otherwise absorb the entire body into FRONTMATTER and let
+# body prose like "mode: X" falsely match a field. The awk script emits
+# content only when count reached 2 (closing delimiter seen).
+FRONTMATTER="$(awk '
+    BEGIN{count=0; in_fm=0; buf=""}
+    /^---[[:space:]]*$/{
+        count++
+        if(count==1){in_fm=1; next}
+        else if(count==2){in_fm=0; print buf; exit}
+    }
+    in_fm{buf = buf $0 "\n"}
+' "$HANDOFF_PATH" 2>/dev/null || true)"
+
+# F2 fix: strip inline YAML comments (` #...` tail) before value extraction.
+# Inline comments are legal YAML; without stripping, `mode: continuation # x`
+# would set MODE_RAW to "continuation # x" and fall through to "unknown".
+# The leading space before # is required so URLs / fragments with `#` in the
+# middle of a value don't get truncated.
+_strip_yaml_comment() {
+    # Read from stdin, emit to stdout with the ` #...` tail removed.
+    awk '{ sub(/[[:space:]]+#.*$/, ""); print }'
+}
+
+# mode: — accept continuation|resumption|legacy; tolerate `resume` as legacy
+# (§6 migration: pre-refactor handoffs carried `mode: resume`).
+MODE_RAW="$(printf '%s\n' "$FRONTMATTER" | awk '/^mode:/{sub(/^mode:[[:space:]]*/, ""); sub(/[[:space:]]+$/, ""); print; exit}' | _strip_yaml_comment)"
+case "$MODE_RAW" in
+    continuation|resumption|legacy) HANDOFF_MODE="$MODE_RAW" ;;
+    resume)                         HANDOFF_MODE="legacy" ;;
+    *)                              HANDOFF_MODE="unknown" ;;
+esac
+
+# next-action: — take everything after the colon on the first matching line.
+# Handoffs commonly put a long single-line action here; truncate at 200 chars
+# to keep stdout digestible for caller parsing. Longer content lives in the
+# handoff body anyway.
+NEXT_ACTION="$(printf '%s\n' "$FRONTMATTER" | awk '/^next-action:/{sub(/^next-action:[[:space:]]*/, ""); sub(/[[:space:]]+$/, ""); print; exit}')"
+# F4 fix: strip control characters BEFORE truncation so a control char in the
+# first 200 bytes can't survive into the emitted stdout. ANSI/OSC sequences
+# in next_action would leak into caller stdout and could hijack terminal
+# state on downstream display. Parity with session-pause Sec-3 discipline
+# (which rejects control chars in --trigger).
+NEXT_ACTION="$(printf '%s' "$NEXT_ACTION" | tr -d '[:cntrl:]')"
+if [[ ${#NEXT_ACTION} -gt 200 ]]; then
+    NEXT_ACTION="${NEXT_ACTION:0:197}..."
+fi
+
+# pause_commit_sha: — try explicit frontmatter first, then fall back to
+# `git log -1 --before=<handoff mtime>`. The fallback approximates "what was
+# HEAD when the PAUSE wrote this handoff."
+PAUSE_COMMIT_SHA_RAW="$(printf '%s\n' "$FRONTMATTER" | awk '/^(pause_commit_sha|commit_sha):/{sub(/^[^:]*:[[:space:]]*/, ""); sub(/[[:space:]]+$/, ""); print; exit}' | _strip_yaml_comment)"
+# F1 fix: validate SHA shape — anything else flows into `git log "$PAUSE_COMMIT_SHA"`
+# as a rev-ish, and while git won't execute arbitrary commands, a value
+# starting with `-` could land as a git flag (e.g. `--all`, `-S<pattern>`)
+# and change command semantics. Worse, the unvalidated value is emitted on
+# stdout, giving a malicious handoff a channel to pipe arbitrary text into
+# downstream caller parsers. Accept only hex-SHA (7-40 chars) or the
+# literal "none"; anything else falls through to the mtime-based fallback.
+#
+# Precedence chain:
+#   - RAW == "none"       → PAUSE_COMMIT_SHA="none" (explicit; authoritative)
+#   - RAW is 7-40 hex SHA → PAUSE_COMMIT_SHA=RAW
+#   - RAW is empty/junk   → mtime-based fallback, then HEAD fallback, then "none"
+if [[ "$PAUSE_COMMIT_SHA_RAW" == "none" ]]; then
+    PAUSE_COMMIT_SHA="none"
+elif [[ -n "$PAUSE_COMMIT_SHA_RAW" && "$PAUSE_COMMIT_SHA_RAW" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+    PAUSE_COMMIT_SHA="$PAUSE_COMMIT_SHA_RAW"
+else
+    # mtime fallback — `date -r FILE` on macOS/BSD, `date -r @EPOCH` on GNU;
+    # use python for portability.
+    # Append Z so git --before interprets as UTC (not local time).
+    MTIME_ISO="$(python3 -c 'import os,sys,datetime; t=os.path.getmtime(sys.argv[1]); print(datetime.datetime.utcfromtimestamp(t).strftime("%Y-%m-%dT%H:%M:%SZ"))' "$HANDOFF_PATH" 2>/dev/null || echo "")"
+    if [[ -n "$MTIME_ISO" ]]; then
+        FOUND_SHA="$(git -C "$REPO_ROOT" log -1 --format=%H --before="$MTIME_ISO" 2>/dev/null || echo "")"
+        if [[ -n "$FOUND_SHA" ]]; then
+            PAUSE_COMMIT_SHA="$FOUND_SHA"
+        else
+            # mtime-before query found nothing (e.g., handoff is older than
+            # all commits — can happen after a fresh git init). Fall back to
+            # HEAD so callers at least have a concrete anchor.
+            HEAD_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo "")"
+            if [[ -n "$HEAD_SHA" ]]; then
+                PAUSE_COMMIT_SHA="$HEAD_SHA"
+            else
+                PAUSE_COMMIT_SHA="none"
+            fi
+        fi
+    else
+        PAUSE_COMMIT_SHA="none"
+    fi
+fi
+
+# ── Tree state ──────────────────────────────────────────────────────────────
+cd "$REPO_ROOT" 2>/dev/null || abort_with 1 "cannot cd to REPO_ROOT=$REPO_ROOT"
+DIRTY_PORCELAIN="$(git status --porcelain 2>/dev/null || true)"
+if [[ -n "$DIRTY_PORCELAIN" ]]; then
+    TREE_STATE="dirty"
+else
+    TREE_STATE="clean"
+fi
+
+# ── Dispatch counts (unread + drift-since-pause) ────────────────────────────
+DISPATCHES_UNREAD=0
+DISPATCHES_DRIFT=0
+
+# Source the ISCP DB lib for repo-name + db-path resolution. Protected so a
+# missing or broken lib can't crash the pickup — counts degrade to 0.
+if [[ -f "$SCRIPT_DIR/lib/_iscp-db" ]]; then
+    # shellcheck source=/dev/null
+    set +e
+    source "$SCRIPT_DIR/lib/_iscp-db" 2>/dev/null
+    LIB_RC=$?
+    set -e
+    if [[ "$LIB_RC" -eq 0 ]]; then
+        DB_PATH=""
+        REPO_NAME=""
+        if command -v iscp_db_path >/dev/null 2>&1; then
+            DB_PATH="$(iscp_db_path 2>/dev/null || echo "")"
+        fi
+        if command -v _iscp_resolve_repo_name >/dev/null 2>&1; then
+            REPO_NAME="$(_iscp_resolve_repo_name 2>/dev/null || echo "")"
+        fi
+        if [[ -n "$DB_PATH" && -f "$DB_PATH" && -n "$REPO_NAME" ]]; then
+            AGENT_ADDR="$REPO_NAME/$PRINCIPAL/$AGENT"
+            # sqlite3 quoting: single-quote the string literal and double up
+            # any embedded single quotes. Identity values passed the
+            # whitelist above (alphanum + _-), so there's no ' to escape,
+            # but be defensive anyway.
+            AGENT_ADDR_SQL="${AGENT_ADDR//\'/\'\'}"
+            DISPATCHES_UNREAD="$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM dispatches WHERE to_agent='$AGENT_ADDR_SQL' AND status='unread'" 2>/dev/null || echo 0)"
+            # Normalize empty → 0
+            [[ -z "$DISPATCHES_UNREAD" ]] && DISPATCHES_UNREAD=0
+
+            # Drift requires a pause_commit_sha baseline. The dispatches
+            # table stores created_at in `%Y-%m-%dT%H:%M` (UTC, minute
+            # precision); truncate the commit's ISO time to the same
+            # precision for string-lexicographic comparison.
+            if [[ "$PAUSE_COMMIT_SHA" != "none" ]]; then
+                PAUSE_TIME_ISO="$(git -C "$REPO_ROOT" log -1 --format=%cI "$PAUSE_COMMIT_SHA" 2>/dev/null || echo "")"
+                if [[ -n "$PAUSE_TIME_ISO" ]]; then
+                    # Convert to UTC and truncate to 16 chars: YYYY-MM-DDTHH:MM
+                    PAUSE_TIME_UTC="$(python3 -c '
+import sys, datetime, re
+s = sys.argv[1]
+# Normalize "+00:00" / "Z" → UTC
+try:
+    dt = datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
+    dt_utc = dt.astimezone(datetime.timezone.utc)
+    print(dt_utc.strftime("%Y-%m-%dT%H:%M"))
+except Exception:
+    print("")
+' "$PAUSE_TIME_ISO" 2>/dev/null || echo "")"
+                    if [[ -n "$PAUSE_TIME_UTC" ]]; then
+                        PAUSE_TIME_SQL="${PAUSE_TIME_UTC//\'/\'\'}"
+                        DISPATCHES_DRIFT="$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM dispatches WHERE to_agent='$AGENT_ADDR_SQL' AND created_at > '$PAUSE_TIME_SQL'" 2>/dev/null || echo 0)"
+                        [[ -z "$DISPATCHES_DRIFT" ]] && DISPATCHES_DRIFT=0
+                    fi
+                fi
+            fi
+        fi
+    fi
+fi
+
+# ── Monitor health (dispatch, ci, issue) ────────────────────────────────────
+# For each well-known monitor type:
+#   ok      — registry has an entry AND monitor-register --verify succeeds.
+#   dead    — registry has an entry BUT verify fails (process gone or
+#             cmdline_hash changed; recycled PID).
+#   unknown — no registry file, or registry has no entry for this type.
+probe_monitor() {
+    local mt="$1"
+    local health="unknown"
+    if [[ -f "$MONITOR_REGISTRY" && -x "$SCRIPT_DIR/monitor-register" ]]; then
+        if "$SCRIPT_DIR/monitor-register" --verify "$mt" >/dev/null 2>&1; then
+            health="ok"
+        else
+            # Verify failed — distinguish "dead" (registered but gone) from
+            # "unknown" (never registered) by looking at the JSON directly.
+            local present
+            present="$(MONITOR_REGISTRY="$MONITOR_REGISTRY" MT="$mt" python3 -c '
+import json, os, sys
+reg = os.environ["MONITOR_REGISTRY"]
+mt = os.environ["MT"]
+try:
+    with open(reg) as f: entries = json.load(f)
+except Exception:
+    entries = []
+if not isinstance(entries, list): entries = []
+for e in entries:
+    if isinstance(e, dict) and e.get("monitor_type") == mt:
+        print("yes"); sys.exit(0)
+print("no")
+' 2>/dev/null || echo "no")"
+            if [[ "$present" == "yes" ]]; then
+                health="dead"
+            else
+                health="unknown"
+            fi
+        fi
+    fi
+    echo "$health"
+}
+
+MONITOR_HEALTH_DISPATCH="$(probe_monitor dispatch)"
+MONITOR_HEALTH_CI="$(probe_monitor ci)"
+MONITOR_HEALTH_ISSUE="$(probe_monitor issue)"
+
+# ── --from fresh: worktree-sync + preflight ─────────────────────────────────
+BLOCKED=""
+BLOCKED_REASON=""
+
+if [[ "$FROM" == "fresh" ]]; then
+    # worktree-sync --auto: best-effort. A failing sync shouldn't block the
+    # report — the caller sees the emitted state and can re-run manually.
+    # The tool already self-skips on master (see session-preflight output).
+    if [[ -x "$SCRIPT_DIR/worktree-sync" ]]; then
+        "$SCRIPT_DIR/worktree-sync" --auto >/dev/null 2>&1 || true
+    fi
+
+    # session-preflight: DOES block when it fails — the whole point of
+    # --from fresh is "don't resume unless preflight passes."
+    if [[ -x "$SCRIPT_DIR/session-preflight" ]]; then
+        if ! "$SCRIPT_DIR/session-preflight" >/dev/null 2>&1; then
+            BLOCKED="blocked"
+            BLOCKED_REASON="session-preflight failed — run ./agency/tools/session-preflight for details"
+        fi
+    fi
+fi
+
+# Dirty tree blocks too (both --from modes). If preflight already blocked,
+# keep that reason (more specific).
+if [[ -z "$BLOCKED" && "$TREE_STATE" == "dirty" ]]; then
+    BLOCKED="blocked"
+    BLOCKED_REASON="working tree dirty — commit or stash before resuming"
+fi
+
+# ── Emit report ─────────────────────────────────────────────────────────────
+emit "schema_version" "$SCHEMA_VERSION"
+emit "tool_version" "$TOOL_VERSION"
+emit "handoff_path" "$HANDOFF_PATH"
+emit "handoff_mode" "$HANDOFF_MODE"
+emit "pause_commit_sha" "$PAUSE_COMMIT_SHA"
+emit "dispatches_unread" "$DISPATCHES_UNREAD"
+emit "dispatches_drift_since_pause" "$DISPATCHES_DRIFT"
+emit "tree_state" "$TREE_STATE"
+emit "monitor_health_dispatch" "$MONITOR_HEALTH_DISPATCH"
+emit "monitor_health_ci" "$MONITOR_HEALTH_CI"
+emit "monitor_health_issue" "$MONITOR_HEALTH_ISSUE"
+emit "next_action" "$NEXT_ACTION"
+emit "from" "$FROM"
+
+if [[ -n "$BLOCKED" ]]; then
+    emit "status" "blocked"
+    emit "error_reason" "$BLOCKED_REASON"
+    exit 1
+fi
+
+emit "status" "ok"
+exit 0
