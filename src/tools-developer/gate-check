@@ -163,7 +163,7 @@ gate_2() {
 
 # --- Phase 3 gates ---
 gate_3() {
-    check_dir_exists "agency/workstreams/the-agency/history/flotsam" "flotsam-dir"
+    check_dir_exists "agency/workstreams/agency/history/flotsam" "flotsam-dir"
     check_not_exists "claude/principals" "principals-gone"
     check_not_exists "claude/plans" "plans-gone"
     check_not_exists "claude/proposals" "proposals-gone"
@@ -183,8 +183,8 @@ gate_3() {
 # --- Phase 3.5 gates ---
 gate_3_5() {
     check_not_exists "agency/workstreams/captain" "captain-split"
-    check_dir_exists "agency/workstreams/the-agency/history/legacy-captain-workstream-20260419" "legacy-captain-shared"
-    check_file_exists "agency/workstreams/the-agency/transcripts/dialogue-transcript-20260419.md" "active-transcript"
+    check_dir_exists "agency/workstreams/agency/history/legacy-captain-workstream-20260419" "legacy-captain-shared"
+    check_file_exists "agency/workstreams/agency/transcripts/dialogue-transcript-20260419.md" "active-transcript"
     if [[ $fails -eq 0 ]]; then
         emit_ok "happy-path: Phase 3.5 workstream split clean"
     fi
@@ -266,8 +266,8 @@ gate_5() {
 
 # --- Phase 6 gates ---
 gate_6() {
-    check_file_exists "agency/workstreams/the-agency/release-notes-v46.0.md" "release-notes"
-    check_file_exists "agency/workstreams/the-agency/migration-runbook-v46.0.md" "migration-runbook"
+    check_file_exists "agency/workstreams/agency/release-notes-v46.0.md" "release-notes"
+    check_file_exists "agency/workstreams/agency/migration-runbook-v46.0.md" "migration-runbook"
     emit_ok "smoke-battery-green"
     emit_ok "audit-log-reconciled"
     emit_ok "pr-created"
