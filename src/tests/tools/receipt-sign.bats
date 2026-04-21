@@ -3,7 +3,7 @@
 # receipt-sign tests
 #
 
-REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/../.." && pwd)"
 RECEIPT_SIGN="${REPO_ROOT}/agency/tools/receipt-sign"
 
 setup() {

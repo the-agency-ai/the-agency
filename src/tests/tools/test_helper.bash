@@ -21,15 +21,15 @@
 # Evolved from: ISCP test isolation helpers (2026-04-06, dispatches #16, #17)
 #
 
-# Get the repo root. Tests are at tests/tools/*.bats; BATS_TEST_DIRNAME
-# resolves to tests/tools, so ../.. is the repo root.
-export REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+# Get the repo root. Tests are at src/tests/tools/*.bats; BATS_TEST_DIRNAME
+# resolves to src/tests/tools, so ../../.. is the repo root.
+export REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/../.." && pwd)"
 
 # Source the framework lib — all isolation helpers (test_isolation_setup,
 # test_isolation_teardown, SKIP_ISOLATION handling, iscp_* backward-compat
 # aliases) live there. The lib also sets TOOLS_DIR, LOG_SERVICE_URL="",
 # and adds $TOOLS_DIR to PATH.
-source "${REPO_ROOT}/claude/tools/lib/_test-isolation"
+source "${REPO_ROOT}/agency/tools/lib/_test-isolation"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Default setup/teardown — calls isolation automatically

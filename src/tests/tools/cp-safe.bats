@@ -3,7 +3,7 @@
 # cp-safe tests — worktree boundary validation
 #
 
-REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/../.." && pwd)"
 CP_SAFE="${REPO_ROOT}/agency/tools/cp-safe"
 
 setup() {

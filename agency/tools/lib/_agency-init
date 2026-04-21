@@ -47,8 +47,8 @@ Options:
 
 Examples:
   cd ~/code/my-project && agency init
-  agency init ~/code/my-project --principal jordan --project my-project
-  cd ~/code/bare-repo && agency init --from-github --principal alex
+  agency init ~/code/my-project --principal <your-name> --project <project-name>
+  cd ~/code/bare-repo && agency init --from-github --principal <your-name>
 EOF
 }
 
@@ -251,11 +251,14 @@ _init_main() {
         echo "@agency/CLAUDE-THEAGENCY.md" >> "$TARGET_DIR/CLAUDE.md"
     else
         cp "$AGENCY_SOURCE/agency/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/CLAUDE.md"
-        # Use | as delimiter to avoid issues with / in project names
+        # Use | as delimiter to avoid issues with / in project names.
+        # Substitute ALL occurrences (g flag) of both placeholders.
         if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' "s|{{PROJECT_NAME}}|$PROJECT_NAME|" "$TARGET_DIR/CLAUDE.md"
+            sed -i '' "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" "$TARGET_DIR/CLAUDE.md"
+            sed -i '' "s|{{PRINCIPAL}}|$PRINCIPAL|g" "$TARGET_DIR/CLAUDE.md"
         else
-            sed -i "s|{{PROJECT_NAME}}|$PROJECT_NAME|" "$TARGET_DIR/CLAUDE.md"
+            sed -i "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" "$TARGET_DIR/CLAUDE.md"
+            sed -i "s|{{PRINCIPAL}}|$PRINCIPAL|g" "$TARGET_DIR/CLAUDE.md"
         fi
     fi
 
@@ -518,6 +521,33 @@ YAML_EOF
     log_info "Scaffolded usr/$PRINCIPAL/ (slim: tools, tmp, history)"
 
     # =====================================================================
+    # Step 5a: Claude Code subagent registrations for this principal
+    # =====================================================================
+    # Issue #324: adopters were left without any .claude/agents/ registrations,
+    # so Claude Code's auto-discovery of subagents found nothing. Register at
+    # minimum the captain agent so /code-review, MAR, QG parallel reviewers
+    # and any other skill that delegates by class name works out of the box.
+    # Additional agent classes can be added post-init via /agent-create.
+    log_step "Registering default subagents: .claude/agents/$PRINCIPAL/"
+    mkdir -p "$TARGET_DIR/.claude/agents/$PRINCIPAL"
+
+    local captain_reg="$TARGET_DIR/.claude/agents/$PRINCIPAL/captain.md"
+    if [[ ! -f "$captain_reg" ]]; then
+        cat > "$captain_reg" <<CAPTAIN_REG_EOF
+---
+name: captain
+description: "Captain — coordination, dispatch routing, quality gates, PR lifecycle"
+model: opus
+---
+
+@agency/agents/captain/agent.md
+@usr/$PRINCIPAL/captain/CLAUDE-CAPTAIN.md
+CAPTAIN_REG_EOF
+    fi
+
+    log_info "Registered captain in .claude/agents/$PRINCIPAL/"
+
+    # =====================================================================
     # Step 5b: Repo-level workstream (captain's shared space)
     # =====================================================================
     log_step "Creating repo-level workstream: agency/workstreams/$PROJECT_NAME/"
@@ -592,9 +622,11 @@ KNOWLEDGE_EOF
     fi
 
     # =====================================================================
-    # Step 7: Plans directory and .gitignore
+    # Step 7: .gitignore
     # =====================================================================
-    mkdir -p "$TARGET_DIR/docs/plans"
+    # docs/plans/ removed per issue #335 (D42-R3 Workstream Content Split).
+    # Plans now live at agency/workstreams/{ws}/plan-*.md (workstream root),
+    # not in a top-level docs/plans/ directory.
 
     log_step "Updating .gitignore"
 
@@ -616,7 +648,7 @@ KNOWLEDGE_EOF
 
     cd "$TARGET_DIR"
     # Stage only Agency-created paths (not user files that may already exist)
-    git add CLAUDE.md .claude/ agency/ usr/ docs/plans/ .gitignore
+    git add CLAUDE.md .claude/ agency/ usr/ .gitignore
     git commit -m "feat: initialize Agency 2.0 framework
 
 Agency 2.0 initialized via agency init. Includes:

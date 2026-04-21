@@ -9,7 +9,7 @@
 # itself ("dog-food" per principal directive).
 #
 
-REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/../.." && pwd)"
 TOOL="${REPO_ROOT}/agency/tools/pr-merge"
 
 @test "pr-merge: --help works" {

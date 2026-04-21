@@ -4,7 +4,7 @@ An opinionated multi-agent development framework for Claude Code.
 
 ## Overview
 
-TheAgency is an opinionated convention-over-configuration system for running multiple Claude Code agents that collaborate on a shared codebase alongside one or more humans (Principals). Built for developers who want to scale their AI-assisted development workflows.
+TheAgency is a convention-over-configuration system for running multiple Claude Code agents that collaborate on a shared codebase alongside one or more humans (Principals). Built for developers who want to scale their AI-assisted development workflows.
 
 ## 📋 Join the Community
 
@@ -12,71 +12,103 @@ TheAgency is an opinionated convention-over-configuration system for running mul
 
 ## Key Features
 
-- **Multiple Agents** - Specialized Claude Code instances with persistent context
-- **Workstreams** - Organized areas of work with shared knowledge
-- **Collaboration** - Inter-agent communication and handoffs
-- **Quality Gates** - Enforced standards via pre-commit hooks
-- **Session Continuity** - Backup and restore agent context across sessions
+- **Multi-Agent Classes** — Specialized Claude Code instances (captain, tech-lead, reviewers, devex, designex, mdpal, mock-and-mark, …) with persistent per-session context
+- **Workstreams** — Organized areas of work with shared PVR / A&D / Plan / KNOWLEDGE artifacts
+- **ISCP** (Inter-Session Collaboration Protocol) — Dispatches + flags routed through a local SQLite DB so agents coordinate across sessions and worktrees
+- **Quality Gates** — Enforced correctness via pre-commit hooks, parallel reviewer agents, and hash-chained QGR/RGR receipts
+- **Session Lifecycle** — `session-pause` / `session-pickup` primitives capture PAUSE/PICKUP state so work survives `/compact`, `/exit`, and multi-day gaps
+- **Hookify** — Declarative hook rules that warn or block dangerous shell patterns (bare `git`, `rm -rf`, cross-worktree copies, etc.)
 
 ## Getting Started
 
-Initialize Agency in any git repo:
+Install the framework into any git repo:
 
 ```bash
 cd your-project
-git init && claude init
-agency init
+git init                                      # if not already a repo
+curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/tools/agency-bootstrap.sh \
+  | bash -s -- --principal <your-name> --project <project-name>
 ```
 
-See `claude/README-GETTINGSTARTED.md` for detailed setup instructions.
+Use angle-bracket placeholders literally — the bootstrap refuses them, forcing you to supply real values instead of copy-pasting example identities.
+
+See `agency/README-GETTINGSTARTED.md` (shipped to the adopter install) for detailed setup instructions, and `agency/CLAUDE-THEAGENCY.md` for the methodology.
 
 ## Repository Structure
 
+This is the framework-dev repo. A fresh `agency init` install in your own project produces a subset of this layout (no `src/`, no framework-dev tooling).
+
 ```
 the-agency/
-├── tools/                    # CLI tools for agents and principals
-│   ├── myclaude              # Launch an agent
-│   ├── commit                # Create properly formatted commits
-│   ├── request               # Create work requests
-│   └── ...                   # 50+ tools for collaboration, quality, and workflow
-├── claude/
-│   ├── agents/               # Agent definitions
-│   │   └── {agent}/
-│   │       └── agent.md      # Identity, purpose, capabilities
-│   ├── workstreams/          # Organized areas of work
-│   │   └── {workstream}/
-│   ├── principals/           # Human stakeholders
-│   │   └── {principal}/
-│   │       ├── requests/     # Work requests (REQUEST-*)
-│   │       └── artifacts/    # Deliverables
-│   ├── config/               # Agency configuration
-│   └── docs/                 # Guides and reference
-└── source/                   # Source code for services and apps
+├── .agency/                      # install-state metadata
+├── .agency-setup-complete        # init sentinel
+├── .claude/                      # Claude Code harness dir
+│   ├── agents/                   # agent registrations (per-instance)
+│   ├── commands/                 # /slash commands
+│   ├── hooks/                    # SessionStart/PreToolUse/etc. hooks
+│   ├── settings.json             # harness config (hooks, permissions)
+│   └── skills/                   # skill bodies (+ sidecars)
+├── agency/                       # framework install (dual-tracked build output)
+│   ├── CLAUDE-THEAGENCY.md       # methodology constitution
+│   ├── LICENSE.md                # framework license (MIT)
+│   ├── README/                   # framework README docs (ENFORCEMENT, SAFE-TOOLS, …)
+│   ├── REFERENCE/                # ~32 customer-facing REFERENCE-*.md docs
+│   ├── agents/                   # 10 canonical agent classes (captain, tech-lead, reviewers, …)
+│   ├── config/                   # manifest.json, agency.yaml, registry.json, settings-template.json
+│   ├── hooks/                    # bash hook scripts (block-raw-tools, etc.)
+│   ├── hookify/                  # declarative hook rules (.md)
+│   ├── templates/                # scaffold templates (CLAUDE-PROJECT, HANDOFF-BOOTSTRAP, …)
+│   ├── tools/                    # 60+ runtime tools (agency, session-pause, dispatch, …)
+│   └── workstreams/              # per-workstream artifacts (PVR/A&D/Plan/QGR/history)
+├── src/                          # framework-dev sources (NOT shipped to adopter)
+│   ├── apps/                     # {mdpal, mdpal-app, mdslidepal-mac, mdslidepal-web, mock-and-mark}
+│   ├── archive/                  # retired code preserved for provenance
+│   ├── assets/                   # brand assets
+│   ├── integrations/             # external-tool integrations (claude-desktop, …)
+│   ├── REFERENCE/                # framework-dev-only REFERENCE docs
+│   ├── tests/                    # BATS + vitest suites (tools/, skills/, agents/, docs/)
+│   ├── tools/                    # framework-dev-only tools (build, release-cut, sweep, …)
+│   └── tools-developer/          # dev-side tooling (skill-audit, upstream-port, …)
+├── usr/                          # principal sandboxes
+│   └── {principal}/              # handoffs, dispatches, transcripts, flashcards, tools
+├── CLAUDE.md                     # bootloader @import of agency/CLAUDE-THEAGENCY.md
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── LICENSE                       # repo-level MIT (framework open core)
+├── README.md                     # this file
+├── package.json                  # pnpm workspace declaration for src/apps/* services
+└── .github/                      # CI + release automation
 ```
 
 ## Documentation
 
-- [Quick Start Guide](claude/REFERENCE-QUICK-START.md) - Get up and running
-- [CLAUDE.md](CLAUDE.md) - The constitution (main documentation)
-- [claude/](claude/) - Guides and references (`REFERENCE-*.md`)
-- [claude/docs/cookbooks/](claude/docs/cookbooks/) - Claude Cookbook patterns
+- [`CLAUDE.md`](CLAUDE.md) — repo bootloader
+- [`agency/CLAUDE-THEAGENCY.md`](agency/CLAUDE-THEAGENCY.md) — methodology constitution (the-how)
+- [`agency/REFERENCE/`](agency/REFERENCE/) — 32+ `REFERENCE-*.md` specs (ISCP protocol, handoff spec, skill conventions, QG protocol, …)
+- [`agency/README-GETTINGSTARTED.md`](agency/README-GETTINGSTARTED.md) — adopter quick-start
+- [`agency/README/`](agency/README/) — enforcement, receipt infrastructure, safe-tools surface
+
+## Versioning
+
+`agency_version` in `agency/config/manifest.json` follows `{day}.{release}` (e.g. `46.5` = Day 46 Release 5). Released via daily cron (or ad-hoc via `agency/tools/release-cut`). Tags: `v{day}.{release}` + `agency-v{major}` symbolic.
 
 ## For Contributors
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to:
-- Submit starter packs
-- Improve core tools
+- Submit starter packs (framework templates for new tech stacks)
+- Improve core tools (bash + Python stdlib; see `agency/tools/*` + `src/tools/*`)
 - Report issues
 
 ## Licensing
 
-This repository uses an **open core** model:
+Open-core model:
 
-- **Framework** (tools, agents, docs, methodology) — [MIT License](LICENSE)
-- **App workstreams** (Markdown Pal, Mock and Mark, future apps/services) — [Reference Source License](claude/workstreams/mdpal/LICENSE) (view, contribute, no commercial redistribution)
+- **Framework** (tools, agent classes, methodology, REFERENCE docs, hookify rules) — [MIT License](LICENSE)
+- **App workstreams** (Markdown Pal, Mock and Mark, and other apps/services in `src/apps/*`) — Reference Source License per-app (view, contribute, no commercial redistribution)
 
-Each app workstream directory contains its own LICENSE file.
+Each app workstream directory contains its own `LICENSE` file.
 
 ---
 
-*TheAgency - Multi-agent development, done right.*
+*TheAgency — Multi-agent development, done right.*

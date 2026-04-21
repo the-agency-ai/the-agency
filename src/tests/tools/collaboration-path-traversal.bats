@@ -4,7 +4,7 @@
 # Tests the new _validate_dispatch_filename helper directly.
 #
 
-REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/../.." && pwd)"
 COLLAB="${REPO_ROOT}/agency/tools/collaboration"
 
 setup() {

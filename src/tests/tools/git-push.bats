@@ -3,7 +3,7 @@
 # git-push tests — push discipline enforcement
 #
 
-REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/../.." && pwd)"
 GIT_PUSH="${REPO_ROOT}/agency/tools/git-push"
 
 @test "git-push: blocks main" {

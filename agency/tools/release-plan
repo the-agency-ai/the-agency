@@ -29,7 +29,7 @@
 #   4. hooks         — claude/hooks/*, .claude/hooks/*
 #   5. tools         — claude/tools/* (excluding lib/_*)
 #   6. skills        — .claude/skills/*
-#   7. tests         — tests/*
+#   7. tests         — src/tests/*
 #   8. workstream    — claude/workstreams/*/seeds/*, reviews/*, *-pvr-*, *-ad-*, *-plan-*
 #   9. coordination  — usr/*/dispatches/*, history/*, transcripts/*, code-reviews/*, *-handoff.md, reports/*
 #  10. scratch       — usr/*/tmp/* (excluded from plan)
@@ -232,7 +232,7 @@ classify() {
     esac
     # tests
     case "$f" in
-        tests/*) echo "tests|$f"; return ;;
+        src/tests/*) echo "tests|$f"; return ;;
     esac
     # workstream artifacts
     case "$f" in
@@ -288,8 +288,8 @@ for feat in $FEATURES; do
         $2 == "claude/tools/" feat { $1 = "feature:" feat; print; next }
         # Skill path: .claude/skills/{feat}/...
         $2 ~ "^\\.claude/skills/" feat "/" { $1 = "feature:" feat; print; next }
-        # Test path: tests/tools/{feat}.bats
-        $2 == "tests/tools/" feat ".bats" { $1 = "feature:" feat; print; next }
+        # Test path: src/tests/tools/{feat}.bats
+        $2 == "src/tests/tools/" feat ".bats" { $1 = "feature:" feat; print; next }
         # Otherwise pass through unchanged
         { print }
     ' "$GROUPS_FILE" > "${GROUPS_FILE}.tmp"

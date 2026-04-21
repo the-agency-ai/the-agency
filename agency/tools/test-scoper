@@ -24,7 +24,7 @@ if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-TESTS_DIR="$REPO_ROOT/tests/tools"
+TESTS_DIR="$REPO_ROOT/src/tests/tools"
 TOOLS_DIR="$REPO_ROOT/agency/tools"
 
 # Parse arguments
@@ -48,9 +48,9 @@ no tests matched (not an error).
 
 Mapping strategies (in priority order):
   1. Manifest: "# Test: path/to/test.bats" header in source file
-  2. Convention: agency/tools/{name} → tests/tools/{name}.bats
+  2. Convention: agency/tools/{name} → src/tests/tools/{name}.bats
   3. Dependency: agency/tools/lib/{name} → all .bats sourcing {name}
-  4. Direct: tests/**/*.bats → itself
+  4. Direct: src/tests/**/*.bats → itself
   5. Package: apps/{pkg}/Sources/... → PACKAGE:apps/{pkg}/Tests
              (Swift/Rust/Go non-mirrored layouts; caller dispatches to runner)
 
@@ -99,7 +99,7 @@ check_manifest() {
 check_convention() {
     local file="$1"
 
-    # agency/tools/{name} → tests/tools/{name}.bats + tests/tools/{name}-*.bats
+    # agency/tools/{name} → src/tests/tools/{name}.bats + src/tests/tools/{name}-*.bats
     if [[ "$file" =~ ^agency/tools/([^/]+)$ ]]; then
         local name="${BASH_REMATCH[1]}"
         local found=false
@@ -107,12 +107,12 @@ check_convention() {
         # Exact match
         local test_file="$TESTS_DIR/${name}.bats"
         if [[ -f "$test_file" ]]; then
-            verbose "convention: $file → tests/tools/${name}.bats"
+            verbose "convention: $file → src/tests/tools/${name}.bats"
             MATCHED_TESTS+=("$test_file")
             found=true
         fi
 
-        # Prefix matches: tools/dispatch → tests/tools/dispatch-*.bats
+        # Prefix matches: tools/dispatch → src/tests/tools/dispatch-*.bats
         local prefix_matches
         prefix_matches=$(ls "$TESTS_DIR/${name}-"*.bats 2>/dev/null || true)
         if [[ -n "$prefix_matches" ]]; then
@@ -146,7 +146,7 @@ check_dependency() {
         local bare_name="${lib_name#_}"
         local direct_test="$TESTS_DIR/${bare_name}.bats"
         if [[ -f "$direct_test" ]]; then
-            verbose "dependency-direct: $file → tests/tools/${bare_name}.bats"
+            verbose "dependency-direct: $file → src/tests/tools/${bare_name}.bats"
             MATCHED_TESTS+=("$direct_test")
         fi
 

@@ -116,7 +116,7 @@ testing:
     brew: bats-core
     min_version: "1.10"
     used_by:
-      - "all tests in tests/tools/*.bats"
+      - "all tests in src/tests/tools/*.bats"
     why: "BATS is the framework's test runner — 142+ tests across 20+ test files"
 
   docker:
@@ -124,7 +124,7 @@ testing:
     install_linux: "curl -fsSL https://get.docker.com | sudo sh"
     install_macos: "brew install --cask docker  # or: brew install colima"
     used_by:
-      - "tests/docker-test.sh — hermetic container-isolated test runs"
+      - "src/tests/docker-test.sh — hermetic container-isolated test runs"
     why: "optional but recommended for full isolation during T3 (full-suite) test runs"
     note: "Linux: Docker Engine CE via official script. macOS: Docker Desktop or Colima."
 
