@@ -38,44 +38,8 @@ setup() {
     git config commit.gpgsign false
     git config init.defaultBranch main
 
-    # Install git-safe + git-safe-commit + lib deps
-    mkdir -p agency/tools/lib
-    for t in git-safe git-safe-commit; do
-        cp "${REPO_ROOT}/agency/tools/$t" "agency/tools/$t"
-        chmod +x "agency/tools/$t"
-    done
-    for lib in _log-helper _colors; do
-        cp "${REPO_ROOT}/agency/tools/lib/$lib" "agency/tools/lib/$lib" 2>/dev/null || true
-    done
-
-    # Stub dispatch tool + agent-identity so the commit-notify dispatch path
-    # is REACHABLE in tests. Without these stubs, `[[ -x "$DISPATCH_TOOL" ]]`
-    # short-circuits and no dispatch runs — making the negative "guard did
-    # NOT fire" assertion tautological (QG finding M-01).
-    #
-    # The dispatch stub writes a marker file per invocation. Tests that
-    # expect the dispatch path to run assert the marker exists; tests that
-    # expect the guard to short-circuit assert the marker does NOT exist.
-    cat > agency/tools/dispatch <<'STUB'
-#!/usr/bin/env bash
-# Test stub: record each invocation to a marker file.
-marker_dir="${BATS_TEST_TMPDIR}/dispatch-stub-invocations"
-mkdir -p "$marker_dir"
-printf '%s\n' "$*" >> "$marker_dir/calls.log"
-echo "stub dispatch invoked: $*" >&2
-exit 0
-STUB
-    chmod +x agency/tools/dispatch
-
-    cat > agency/tools/agent-identity <<'STUB'
-#!/usr/bin/env bash
-# Test stub: return a deterministic non-captain identity.
-echo "the-agency/jordan/testagent"
-STUB
-    chmod +x agency/tools/agent-identity
-
-    # Disable pre-commit hook and skip-validation paths (speed + self-contained).
-    git config core.hooksPath /dev/null 2>/dev/null || true
+    # Install git-safe-commit suite + dispatch stubs (D-6: shared helper).
+    install_git_safe_commit_suite --with-dispatch-stubs
 
     # Baseline commit so HEAD exists. Include the copied tool files so
     # they are NOT untracked during tests (would otherwise get swept in
@@ -232,4 +196,43 @@ _assert_dispatch_invoked() {
     # Guard's regex specifically requires 'commit-to-captain-committed-' prefix — other dispatch names must NOT match.
     [[ "$output" != *"#210 guard"* ]]
     _assert_dispatch_invoked yes
+}
+
+# T6: empty commit should NOT falsely trigger the guard (helper returns 1).
+# git-safe-commit itself rejects empty commits (no staged changes), so we
+# test the helper function directly by sourcing it from git-safe-commit.
+@test "#210 guard helper: empty commit does NOT falsely trigger guard" {
+    cd "${BATS_TEST_TMPDIR}"
+    git commit --allow-empty -m "empty test commit" --quiet --no-verify
+
+    # Extract the helper function from git-safe-commit and source it into
+    # this shell. The function name is specific and localized, so sed's
+    # range match is robust enough for a test fixture.
+    sed -n '/^_is_commit_notify_only()/,/^}/p' ./agency/tools/git-safe-commit > "${BATS_TEST_TMPDIR}/helper.sh"
+    [[ -s "${BATS_TEST_TMPDIR}/helper.sh" ]] || { echo "helper extraction failed"; return 1; }
+    # shellcheck source=/dev/null
+    source "${BATS_TEST_TMPDIR}/helper.sh"
+
+    run _is_commit_notify_only
+    # Empty commit → saw_any=0 → return 1 (NOT notify-only).
+    # This ensures the outer caller's `if _is_commit_notify_only; then skip`
+    # does NOT falsely-skip dispatch on a genuinely empty commit.
+    [ "$status" -eq 1 ]
+}
+
+# T7: commit that creates a fresh dispatches/ directory hierarchy alongside
+# a notify file still fires the guard — git tracks files, not directories,
+# so the diff-tree output contains only the notify file. Regression guard
+# against someone "helpfully" adding dir-detection to the classifier.
+@test "#210 guard: commit introducing a NEW dispatches/ dir + notify file still fires guard" {
+    cd "${BATS_TEST_TMPDIR}"
+    # Completely new principal/agent/dispatches path that does not exist on main
+    mkdir -p usr/jordan/brandnew-agent/dispatches
+    echo "fresh notify" > "usr/jordan/brandnew-agent/dispatches/commit-to-captain-committed-eeee444-on-fresh-branch-foo-20260421-1200.md"
+
+    git add .
+    run ./agency/tools/git-safe-commit --staged "fresh dispatches dir + notify" --no-work-item
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"#210 guard"* ]]
+    _assert_dispatch_invoked no
 }

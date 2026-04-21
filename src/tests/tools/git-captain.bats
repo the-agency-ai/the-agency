@@ -403,6 +403,24 @@ make_feature_branch() {
     assert_output_contains "Pushing..."
 }
 
+@test "push: one-arg variant (--dry-run) also survives set -u idiom (issue #339 T3)" {
+    # T3: the #339 fix affects BOTH the empty push_args path AND the non-empty
+    # path (because `${arr[@]+"${arr[@]}"}` is the universal shape, used for
+    # any size). Exercise the non-empty path to ensure flag-bearing pushes
+    # didn't regress either.
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b featc
+    run ./agency/tools/git-captain push --dry-run
+    # Same negative-invariant as the zero-arg test: no "unbound variable"
+    # error triggered by the push_args expansion.
+    [[ ! "$output" =~ "unbound variable" ]]
+    [[ ! "$output" =~ "push_args" ]]
+    # Must have reached the push attempt; the --dry-run flag must have been
+    # carried into the git push invocation (verified by the "Pushing..."
+    # marker + absence of early-guard abort).
+    assert_output_contains "Pushing..."
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # fetch
 # ─────────────────────────────────────────────────────────────────────────────
