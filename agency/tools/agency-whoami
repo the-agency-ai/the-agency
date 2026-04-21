@@ -17,6 +17,16 @@
 # agency-whoami stub per audit finding A-1, 6 broken callers).
 # Version: 1.0.0
 
+TOOL_VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source telemetry helper if present (framework convention — soft-fail when
+# the helper is unreachable so the stub stays usable from any context).
+if [[ -f "${SCRIPT_DIR}/lib/_log-helper" ]]; then
+    # shellcheck source=/dev/null
+    source "${SCRIPT_DIR}/lib/_log-helper" 2>/dev/null || true
+fi
+
 for arg in "$@"; do
     case "$arg" in
         -h|--help)
@@ -28,10 +38,19 @@ for arg in "$@"; do
             exit 0
             ;;
         -v|--version)
-            echo "agency-whoami 1.0.0"
+            echo "agency-whoami ${TOOL_VERSION}"
             exit 0
             ;;
     esac
 done
 
+RUN_ID=""
+if declare -F log_start >/dev/null 2>&1; then
+    RUN_ID=$(log_start "agency-whoami" "$@" 2>/dev/null || true)
+fi
+
 echo "${AGENTNAME:-unknown}"
+
+if [[ -n "$RUN_ID" ]] && declare -F log_end >/dev/null 2>&1; then
+    log_end "$RUN_ID" "success" 0 0 "${AGENTNAME:-unknown}" 2>/dev/null || true
+fi
