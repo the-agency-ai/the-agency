@@ -538,7 +538,29 @@ main() {
         DISPATCH_TOOL="$SCRIPT_DIR/dispatch"
         IDENTITY_TOOL="$SCRIPT_DIR/agent-identity"
         STAGE_HASH_TOOL="$SCRIPT_DIR/stage-hash"
-        if [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]] \
+        # Guard against commit-notify cascade (issue #210): if this commit ONLY
+        # touches dispatch-notify files that a prior commit created, dispatching
+        # AGAIN would just write another notify file → next commit would include
+        # THAT file → another dispatch, ad infinitum. Observed on mdpal-cli
+        # 2026-04-20 with a 3-deep "carry-over commit cascade" visible in the
+        # branch log. Detect + skip.
+        local commit_files_for_loop_check
+        commit_files_for_loop_check=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null)
+        local non_notify_files
+        non_notify_files=$(echo "$commit_files_for_loop_check" | \
+            grep -Ev '^usr/[^/]+/[^/]+/dispatches/commit-to-captain-committed-.*\.md$' || true)
+        # Count non-whitespace chars to detect "all notify" (guard fires) vs
+        # "has non-notify content" (guard does not fire). Note: an empty commit
+        # diff is also "all notify" (vacuously true) — fine, nothing to dispatch.
+        local non_notify_stripped="${non_notify_files//[[:space:]]/}"
+        if [[ -z "$non_notify_stripped" && -n "${commit_files_for_loop_check//[[:space:]]/}" ]]; then
+            # All files in this commit are commit-notify files → skip dispatch
+            # to break the cascade. (An empty diff with no files would skip
+            # the outer else-path naturally since there's nothing to notify
+            # about, but we also guard against it by requiring at least one
+            # file in the original list.)
+            echo "[#210 guard] Skipping commit-notify dispatch — this commit only contains dispatch-notify files"
+        elif [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]] \
            && [[ -x "$DISPATCH_TOOL" ]] \
            && [[ -x "$IDENTITY_TOOL" ]]; then
             MY_IDENTITY=$("$IDENTITY_TOOL" 2>/dev/null || echo "")
