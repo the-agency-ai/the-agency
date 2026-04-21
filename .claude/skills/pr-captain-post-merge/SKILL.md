@@ -106,16 +106,25 @@ git rev-list --left-right --count origin/master...HEAD
 
 Propagates the merge to every worktree. Worktree-side agents pick up the new content on their next `/session-resume`.
 
-### Step 6: Create GitHub release
+### Step 6: Create GitHub release (or verify Fix D auto-created it)
 
 **Every PR is a release.** MANDATORY. Mechanically enforced by `release-tag-check` workflow (the-agency equivalent of D41-R20).
 
-1. Parse PR title for release name (e.g., "D39-R1: ..." → version 39.1).
-2. Verify `manifest.json` version matches expectations (bumped before the PR was created).
-3. Create release:
+As of C#372 Fix D, the `auto-release.yml` GitHub Action cuts the release automatically within seconds of the merge. This skill's Step 6 now defers to that workflow and creates the release only as a fallback:
+
+1. Parse PR title + manifest to determine target `v<version>`.
+2. **Check if release already exists** — Fix D auto-release may have cut it:
+   ```
+   gh release view v<version> 2>/dev/null
+   ```
+   - If exit 0: release exists (Fix D succeeded). **Skip to step 6.4** (hard-verify + clear).
+   - If non-zero: release doesn't exist yet; continue to step 6.3.
+
+3. **Create release as fallback** (Fix D failed, transient outage, or this is a pre-Fix-D path):
    ```
    ./agency/tools/gh-release create v<version> --target master --title "<title>" --notes "<notes>"
    ```
+
 4. **Hard-verify** release exists (fail-loud, not optional):
    ```
    gh release view v<version>
