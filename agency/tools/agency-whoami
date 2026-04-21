@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# What Problem: Six live callers (context-save, commit-prefix, session-backup,
+# restore, context-review, bug-report) shell out to `./agency/tools/agency-whoami`
+# but the binary was deleted when the logic moved to `lib/_agency-whoami` under
+# the unified `agency` dispatcher. Every invocation emits "No such file or
+# directory".
+#
+# How & Why: Thin executable stub that returns the current agent's identity —
+# exactly what the six callers expect (`local AGENTNAME=$(./agency/tools/agency-whoami)`).
+# Reads AGENTNAME env var with "unknown" fallback. Kept here as a standalone
+# binary rather than sourcing lib/_agency-whoami because (a) the lib wrapper
+# expects to run inside the `agency` dispatcher (uses AGENCY_ARGS array + sourced
+# log helpers), and (b) the six callers invoke via absolute tool path, not via
+# the dispatcher.
+#
+# Written: 2026-04-22 for V5 Phase -1 latent-tool-reference audit (restores
+# agency-whoami stub per audit finding A-1, 6 broken callers).
+# Version: 1.0.0
+
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            echo "agency-whoami — Show the current agent identity"
+            echo ""
+            echo "Usage: agency-whoami"
+            echo ""
+            echo "Reads AGENTNAME environment variable. Falls back to 'unknown'."
+            exit 0
+            ;;
+        -v|--version)
+            echo "agency-whoami 1.0.0"
+            exit 0
+            ;;
+    esac
+done
+
+echo "${AGENTNAME:-unknown}"
