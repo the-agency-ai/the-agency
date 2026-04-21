@@ -558,8 +558,11 @@ main() {
             # to break the cascade. (An empty diff with no files would skip
             # the outer else-path naturally since there's nothing to notify
             # about, but we also guard against it by requiring at least one
-            # file in the original list.)
-            echo "[#210 guard] Skipping commit-notify dispatch — this commit only contains dispatch-notify files"
+            # file in the original list.) Uses the same [INFO] + color format
+            # as the merge-route log at the top of this script (always-visible;
+            # not VERBOSE-gated — this is a useful production signal tracing
+            # WHY no dispatch was sent).
+            echo -e "${BLUE}[INFO]${NC} #210 guard — skipping commit-notify dispatch (all files in this commit are notify artifacts)"
         elif [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]] \
            && [[ -x "$DISPATCH_TOOL" ]] \
            && [[ -x "$IDENTITY_TOOL" ]]; then

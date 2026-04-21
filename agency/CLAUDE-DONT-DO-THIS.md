@@ -1,5 +1,19 @@
 # CLAUDE-DONT-DO-THIS
 
+<!-- What Problem: Agents repeatedly commit four specific offenses against the
+principal's operating style — compact-pressure, time-estimating, raw-command
+bypass of framework tools, and opening PRs from worktrees. Each one wastes
+the principal's attention and costs Attack Kitten morale.
+
+How & Why: This doc is included verbatim into every session's bootloader via
+@agency/CLAUDE-DONT-DO-THIS.md from CLAUDE-THEAGENCY.md. Agents read it at
+session start and after any friction. Replacement vocabulary (T-shirt +
+complexity + parallel + indep/dep) gives a language for scope/scale that
+doesn't pretend agents can predict time.
+
+Written: 2026-04-21 during Bucket 0 of A-B-C-D-E-F-G stabilization push,
+from flags #200 + #201 (morning surface). -->
+
 **Bootloader-included. Read at session start. Re-read at any friction.**
 
 If you do any of the following, every time you do it, it is the equivalent to applying **20,000 volts** to Jordan, your Principal, yourself, and the pride of Attack Kitties.

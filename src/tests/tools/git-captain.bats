@@ -385,6 +385,13 @@ make_feature_branch() {
     # Even on bash 4+ this test passes; the assertion is the negative — no
     # "unbound variable" in output — so it's safe across bash versions.
     cd "${BATS_TEST_TMPDIR}"
+
+    # M-02 invariant: pin the `set -u` (nounset) declaration in git-captain
+    # itself. Without this assertion, a future refactor that removes `set -u`
+    # would silently make this whole test false-pass on bash 3.2+. The fix
+    # at line 364 only matters because `set -u` is active.
+    grep -q 'set -euo pipefail' ./agency/tools/git-captain
+
     git checkout -q -b featb
     run ./agency/tools/git-captain push
     # Guards pass; git push will fail due to no remote. The critical

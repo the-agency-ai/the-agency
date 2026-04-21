@@ -19,7 +19,7 @@
 #   1. Commit of ONE notify-only file → guard fires, no dispatch
 #   2. Commit of MIXED notify + non-notify files → guard does NOT fire
 #   3. Commit of TWO notify files from different agents → guard still fires
-#   4. Verbose log message "[#210 guard]" appears (#210)
+#   4. Verbose log message "#210 guard" appears (#210)
 #
 # Written: 2026-04-21 during Bucket 0b of A-B-C-D-E-F-G stabilization push
 # (the-agency#210 fix).
@@ -47,6 +47,32 @@ setup() {
     for lib in _log-helper _colors; do
         cp "${REPO_ROOT}/agency/tools/lib/$lib" "agency/tools/lib/$lib" 2>/dev/null || true
     done
+
+    # Stub dispatch tool + agent-identity so the commit-notify dispatch path
+    # is REACHABLE in tests. Without these stubs, `[[ -x "$DISPATCH_TOOL" ]]`
+    # short-circuits and no dispatch runs — making the negative "guard did
+    # NOT fire" assertion tautological (QG finding M-01).
+    #
+    # The dispatch stub writes a marker file per invocation. Tests that
+    # expect the dispatch path to run assert the marker exists; tests that
+    # expect the guard to short-circuit assert the marker does NOT exist.
+    cat > agency/tools/dispatch <<'STUB'
+#!/usr/bin/env bash
+# Test stub: record each invocation to a marker file.
+marker_dir="${BATS_TEST_TMPDIR}/dispatch-stub-invocations"
+mkdir -p "$marker_dir"
+printf '%s\n' "$*" >> "$marker_dir/calls.log"
+echo "stub dispatch invoked: $*" >&2
+exit 0
+STUB
+    chmod +x agency/tools/dispatch
+
+    cat > agency/tools/agent-identity <<'STUB'
+#!/usr/bin/env bash
+# Test stub: return a deterministic non-captain identity.
+echo "the-agency/jordan/testagent"
+STUB
+    chmod +x agency/tools/agent-identity
 
     # Disable pre-commit hook and skip-validation paths (speed + self-contained).
     git config core.hooksPath /dev/null 2>/dev/null || true
@@ -95,21 +121,41 @@ EOF
     echo "$path"
 }
 
-@test "#210 guard: commit with ONLY notify files fires the skip log" {
+# Helper: assert dispatch stub was (or was not) invoked — M-01 positive signal.
+_assert_dispatch_invoked() {
+    local should_invoke="$1"  # "yes" or "no"
+    local marker="${BATS_TEST_TMPDIR}/dispatch-stub-invocations/calls.log"
+    if [[ "$should_invoke" == "yes" ]]; then
+        [[ -f "$marker" ]] || { echo "Expected dispatch to be invoked, marker missing"; return 1; }
+        [[ -s "$marker" ]] || { echo "Marker exists but is empty"; return 1; }
+    else
+        # Marker may exist from a prior test, but for THIS test's purposes
+        # we check whether dispatch ran for THIS commit. Simplest: marker
+        # should not exist (each test runs in a fresh BATS_TEST_TMPDIR).
+        [[ ! -f "$marker" ]] || {
+            echo "Expected dispatch NOT to be invoked, but marker found:"
+            cat "$marker"
+            return 1
+        }
+    fi
+}
+
+@test "#210 guard: commit with ONLY notify files fires the skip log + dispatch NOT invoked" {
     cd "${BATS_TEST_TMPDIR}"
     _make_notify_file jordan testagent abc1234 >/dev/null
 
     git add .
     run ./agency/tools/git-safe-commit --staged "carry-over notify only" --no-work-item
     [ "$status" -eq 0 ]
-    [[ "$output" == *"[#210 guard]"* ]] || {
+    [[ "$output" == *"#210 guard"* ]] || {
         echo "Expected skip log not found in output:"
         echo "$output"
         return 1
     }
+    _assert_dispatch_invoked no
 }
 
-@test "#210 guard: commit with MIXED notify + non-notify files does NOT skip" {
+@test "#210 guard: commit with MIXED notify + non-notify files does NOT skip + dispatch IS invoked" {
     cd "${BATS_TEST_TMPDIR}"
     _make_notify_file jordan testagent def5678 >/dev/null
     echo "real work" > src.txt
@@ -118,10 +164,11 @@ EOF
     run ./agency/tools/git-safe-commit --staged "mixed scope" --no-work-item
     [ "$status" -eq 0 ]
     # Guard should NOT have fired the skip path — non-notify file present.
-    [[ "$output" != *"[#210 guard]"* ]]
+    [[ "$output" != *"#210 guard"* ]]
+    _assert_dispatch_invoked yes
 }
 
-@test "#210 guard: commit with TWO notify files (different agents) still skips" {
+@test "#210 guard: commit with TWO notify files (different agents) still skips + dispatch NOT invoked" {
     cd "${BATS_TEST_TMPDIR}"
     _make_notify_file jordan alpha aaaa111 >/dev/null
     _make_notify_file jordan beta bbbb222 >/dev/null
@@ -129,10 +176,11 @@ EOF
     git add .
     run ./agency/tools/git-safe-commit --staged "two notify files" --no-work-item
     [ "$status" -eq 0 ]
-    [[ "$output" == *"[#210 guard]"* ]]
+    [[ "$output" == *"#210 guard"* ]]
+    _assert_dispatch_invoked no
 }
 
-@test "#210 guard: commit with notify file in non-standard principal path still skips" {
+@test "#210 guard: commit with notify file in non-standard principal path still skips + dispatch NOT invoked" {
     cd "${BATS_TEST_TMPDIR}"
     # Pattern: usr/{anything}/{anything}/dispatches/commit-to-captain-committed-*.md
     _make_notify_file andrew somebody cccc333 >/dev/null
@@ -140,10 +188,11 @@ EOF
     git add .
     run ./agency/tools/git-safe-commit --staged "other-principal notify" --no-work-item
     [ "$status" -eq 0 ]
-    [[ "$output" == *"[#210 guard]"* ]]
+    [[ "$output" == *"#210 guard"* ]]
+    _assert_dispatch_invoked no
 }
 
-@test "#210 guard: commit of regular handoff file does NOT trigger skip (handoff is NOT a notify file)" {
+@test "#210 guard: commit of regular handoff file does NOT trigger skip + dispatch IS invoked" {
     cd "${BATS_TEST_TMPDIR}"
     mkdir -p usr/jordan/captain
     echo "handoff content" > usr/jordan/captain/captain-handoff.md
@@ -152,5 +201,35 @@ EOF
     run ./agency/tools/git-safe-commit --staged "handoff update" --no-work-item
     [ "$status" -eq 0 ]
     # Handoff is NOT a notify file; guard must NOT fire.
-    [[ "$output" != *"[#210 guard]"* ]]
+    [[ "$output" != *"#210 guard"* ]]
+    _assert_dispatch_invoked yes
+}
+
+# T4 (QG finding): near-miss filenames in the same dispatches/ dir that don't
+# match the notify pattern must NOT trigger the guard — protects against
+# regex drift if ISCP adds more commit-to-captain-* file types.
+@test "#210 guard: near-miss filename 'commit-to-captain-resolved-*' does NOT trigger guard" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p usr/jordan/testagent/dispatches
+    echo "resolved dispatch" > "usr/jordan/testagent/dispatches/commit-to-captain-resolved-xyz7890-on-foo-bar-20260421-1200.md"
+
+    git add .
+    run ./agency/tools/git-safe-commit --staged "commit-to-captain-resolved near-miss" --no-work-item
+    [ "$status" -eq 0 ]
+    # Guard's regex specifically requires 'committed-' — 'resolved-' must NOT match.
+    [[ "$output" != *"#210 guard"* ]]
+    _assert_dispatch_invoked yes
+}
+
+@test "#210 guard: near-miss filename 'dispatch-to-captain-*.md' does NOT trigger guard" {
+    cd "${BATS_TEST_TMPDIR}"
+    mkdir -p usr/jordan/testagent/dispatches
+    echo "other dispatch" > "usr/jordan/testagent/dispatches/dispatch-to-captain-re-pr-397-xyz-20260421-1200.md"
+
+    git add .
+    run ./agency/tools/git-safe-commit --staged "dispatch-to-captain near-miss" --no-work-item
+    [ "$status" -eq 0 ]
+    # Guard's regex specifically requires 'commit-to-captain-committed-' prefix — other dispatch names must NOT match.
+    [[ "$output" != *"#210 guard"* ]]
+    _assert_dispatch_invoked yes
 }

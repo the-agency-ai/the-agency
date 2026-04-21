@@ -5,7 +5,7 @@ date: 2026-04-21
 day: D45
 principal: jordan
 captain: the-agency/jordan/captain
-status: approved-v3.2
+status: in-flight-v3.2 (E shipped v46.12; 0a+0b on branch for v46.13)
 supersedes: none
 revision: v3.2 — post-Phase-E merge findings (Bucket F = full-tree sweep #401; Bucket G = Great-Rename worktree integration #402, tool-first)
 mar_reviews:
@@ -473,7 +473,11 @@ Pre-specified boundaries (architect F6) — 4-5 releases total instead of 11:
 | R7 | Bucket B (B#383 verify, B#388+B#389, B#385, [B#384]) | 46.18 |
 | R8 | Bucket D (D#392) + B#55 + push-level smoke | 46.19 |
 | R9 | Bucket G.1 — `great-rename-migrate` tool + BATS | 46.20 |
-| R10+ | Bucket G.2 — per-agent branch integration (5 releases, one per branch) | 46.21+ |
+| R10 | Bucket G.2a — mdslidepal-mac integration (+9 commits) | 46.21 |
+| R11 | Bucket G.2b — mdpal-app integration (+26 commits) | 46.22 |
+| R12 | Bucket G.2c — devex integration (+27 commits, +1 content conflict) | 46.23 |
+| R13 | Bucket G.2d — iscp integration (+39 commits) | 46.24 |
+| R14 | Bucket G.2e — designex integration (+61 commits, +8 content conflicts) | 46.25 |
 
 Each release cuts a `gh release create` + tag + release notes. Manifest bumps occur at PR merge (one per PR); release groups multiple merged commits into one release tag.
 
@@ -554,7 +558,7 @@ Blindspots found 12 items worth surfacing. Not all 12 are in-scope. In-scope: #3
 - **A#394** — Python tools launcher (N=1 pilot on dispatch-monitor)
 - **C#372** — release automation gap (diagnose + fix)
 - **B#383** — status-line framework version (re-verify)
-- **B#392** — agency update chicken-egg (adopter unblock)
+- **D#392** — agency update chicken-egg (adopter unblock) — moved from B to D per v3
 - **B#388** — git-safe add directory support (bundled)
 - **B#389** — git-safe unstage shell-meta (bundled, mechanism corrected)
 - **B#385** — commit-precheck timeouts (pgroup-aware)
