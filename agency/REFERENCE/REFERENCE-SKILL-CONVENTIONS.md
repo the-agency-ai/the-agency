@@ -44,7 +44,7 @@ Skills whose name starts with `captain-` (or contains `-captain-`) MUST carry:
 
 If a specific skill genuinely should never be auto-invocable by ANY model context — e.g., a deprecation signpost like `/rebase` — use `disable-model-invocation: true` on that individual skill. Don't apply it by family.
 
-**History (2026-04-20):** a previous version of this doc required `disable-model-invocation: true` on all captain-* skills; 7 skills picked up the flag (captain-log, captain-review, captain-release, captain-sync-all, pr-captain-land, pr-captain-merge, pr-captain-post-merge, and sync). Those flags were stripped when the rule was corrected. Enforcement at `agency/tools/skill-audit` §3b was relaxed accordingly.
+**History (2026-04-20):** a previous version of this doc required `disable-model-invocation: true` on all captain-* skills; the flag was stripped across **8 skills** when the rule was corrected — **7 captain-family skills** matching the `(^|-)captain(-|$)` rule (captain-log, captain-review, captain-release, captain-sync-all, pr-captain-land, pr-captain-merge, pr-captain-post-merge) plus **sync** (which had inherited the flag by mistake; sync is agent-accessible and is not matched by skill-audit's captain-family regex). Enforcement at `src/tools-developer/skill-audit` §3b was relaxed accordingly.
 
 ### `paths:` semantics and the agency#347 trap
 
