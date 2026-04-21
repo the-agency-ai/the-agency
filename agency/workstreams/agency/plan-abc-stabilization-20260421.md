@@ -5,9 +5,9 @@ date: 2026-04-21
 day: D45
 principal: jordan
 captain: the-agency/jordan/captain
-status: approved-v3
+status: approved-v3.1
 supersedes: none
-revision: v3 — principal adjustments (Bucket D for #392; PR #397 placement)
+revision: v3.1 — principal adjustments (Bucket D = #392; PR #397 placement; Bucket E = skill-validation monofolk cleanup)
 mar_reviews:
   - qgr/mar-plan-abc-architect-20260421.md
   - qgr/mar-plan-abc-devex-20260421.md
@@ -20,9 +20,13 @@ related:
 tags: [stabilization, session-lifecycle, python-runtime, ci, release-automation]
 ---
 
-# Plan — A-B-C-D Stabilization Push (2026-04-21) — v3
+# Plan — A-B-C-D-E Stabilization Push (2026-04-21) — v3.1
 
 ## Revision log
+
+**v3 → v3.1 changes — surfaced mid-execution:**
+
+1. **New Bucket E** (pre-flight before Bucket 0): remove residual `monofolk` references from 19 skill files. `skill-validation.bats` test "no monofolk references" fails on these → `commit-precheck` blocks every commit without `--no-verify`. Caught while trying to commit Bucket 0a (#339) fix. Principal directive: "add a phase to your plan and fix these."
 
 **v2 → v3 changes from principal review:**
 
@@ -75,7 +79,38 @@ This plan covers Step 1 (A-B-C, now with a Bucket 0 pre-flight). Step 2 triage l
 - No monofolk-side work — PR #397 is a contributor-review path handled separately (see Risks §1).
 - No skill-contract fleet-wide test suite build (class-fix candidate; scope-decision flagged).
 
-## Bucket 0 — Pre-flight (NEW, must land before Bucket A)
+## Bucket E — Skill validation unblock (NEW in v3.1 — lands FIRST, before Bucket 0)
+
+### E — Remove residual `monofolk` references from 19 skill files
+**Severity:** Blocker. `skill-validation.bats` test "no monofolk references" fails → `commit-precheck` blocks every commit. No work can land until this clears.
+
+**Root cause.** Skills ported from monofolk carry hardcoded `monofolk_version`, `monofolk` workflow references in SKILL.md + examples.md + reference.md + scripts. The-agency framework should be generic.
+
+**Files (19):**
+- `.claude/skills/captain-log/SKILL.md`
+- `.claude/skills/captain-release/{SKILL.md, reference.md}`
+- `.claude/skills/captain-review/SKILL.md`
+- `.claude/skills/pr-captain-land/{SKILL.md, examples.md, reference.md, scripts/pr-captain-land, scripts/README.md}`
+- `.claude/skills/pr-captain-merge/examples.md`
+- `.claude/skills/pr-captain-post-merge/{SKILL.md, examples.md, reference.md}`
+- `.claude/skills/pr-submit/{SKILL.md, examples.md, reference.md, scripts/pr-submit, scripts/README.md}`
+- `.claude/skills/transcript/SKILL.md`
+
+**Genericization pattern:**
+- `monofolk_version` → `agency_version` (framework version token)
+- `monofolk` in workflow text → `<repo>` or "the-agency" where appropriate
+- History/provenance mentions of "monofolk" left intact per-case (it's legitimate reference to the sister repo).
+
+**Exit criteria:**
+- [ ] `bats src/tests/skills/skill-validation.bats` passes all tests.
+- [ ] `commit-precheck` unblocks for ordinary commits.
+- [ ] Remaining literal `monofolk` references are justified provenance/cross-repo refs only.
+
+**PR:** first PR of the push. R1. Bumps 46.11 → 46.12.
+
+---
+
+## Bucket 0 — Pre-flight (must land before Bucket A)
 
 Two issues surfaced by blindspots MAR that are **live blockers for executing this push itself**:
 
@@ -322,6 +357,7 @@ Actual fix: `cmd_unstage` already uses argv-safe passthrough (`git reset HEAD --
 
 | # | Item | PR shape | Parallel? |
 |---|------|----------|-----------|
+| E | Skill validation — remove 19 files' monofolk refs | Multi-file edit + validation test | MUST land first; blocks commit-precheck |
 | 0a | #339 git-captain push (bash 3.2) | Trivial fix + test | — |
 | 0b | #210 dispatch artifact loop | Diagnose + fix | — |
 | — | C#372 diagnosis | Research doc (no PR) | runs parallel with 0a, 0b, A, PR#397 |
@@ -349,12 +385,13 @@ Pre-specified boundaries (architect F6) — 4-5 releases total instead of 11:
 
 | Release | Covers | Rough version |
 |---------|--------|---------------|
-| R1 | Bucket 0 | 46.12 |
-| R2 | PR #397 (monofolk contributor) | 46.13 |
-| R3 | Bucket A (A#395 + A#393 + A#198 + A#199 + A#394) | 46.14 |
-| R4 | C#372 fix | 46.15 |
-| R5 | Bucket B (B#383 verify, B#388+B#389, B#385, [B#384]) | 46.16 |
-| R6 | Bucket D (D#392) + B#55 + push-level smoke | 46.17 |
+| R1 | Bucket E (skill validation unblock) | 46.12 |
+| R2 | Bucket 0 | 46.13 |
+| R3 | PR #397 (monofolk contributor) | 46.14 |
+| R4 | Bucket A (A#395 + A#393 + A#198 + A#199 + A#394) | 46.15 |
+| R5 | C#372 fix | 46.16 |
+| R6 | Bucket B (B#383 verify, B#388+B#389, B#385, [B#384]) | 46.17 |
+| R7 | Bucket D (D#392) + B#55 + push-level smoke | 46.18 |
 
 Each release cuts a `gh release create` + tag + release notes. Manifest bumps occur at PR merge (one per PR); release groups multiple merged commits into one release tag.
 
