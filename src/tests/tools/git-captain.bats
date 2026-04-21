@@ -27,7 +27,9 @@ setup() {
 
     echo "hello" > README.md
     git add README.md
-    git add claude
+    # Stage the copied agency/ tree so initial commit is non-trivial.
+    # (Pre-v46 this line said `git add claude` — stale ref, now just agency/.)
+    git add agency
     git commit -m "Initial commit" --quiet
 }
 
@@ -374,6 +376,24 @@ make_feature_branch() {
     run ./agency/tools/git-captain push origin featb
     # Guards pass; git push fails because no remote is configured
     [[ ! "$output" =~ "blocked" ]]
+}
+
+@test "push: no-args on feature branch does not trip set -u with empty push_args (issue #339)" {
+    # Regression guard for #339: on macOS bash 3.2 with `set -u`, the idiom
+    # `"${push_args[@]}"` on an empty array raises "unbound variable". The fix
+    # uses `${push_args[@]+"${push_args[@]}"}` which expands only when set.
+    # Even on bash 4+ this test passes; the assertion is the negative — no
+    # "unbound variable" in output — so it's safe across bash versions.
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b featb
+    run ./agency/tools/git-captain push
+    # Guards pass; git push will fail due to no remote. The critical
+    # assertion is that it did NOT die with "unbound variable" before
+    # reaching git push.
+    [[ ! "$output" =~ "unbound variable" ]]
+    [[ ! "$output" =~ "push_args" ]]
+    # Must have gotten past the guards into the actual push attempt
+    assert_output_contains "Pushing..."
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

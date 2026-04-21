@@ -358,7 +358,10 @@ cmd_push() {
     fi
 
     echo "${BLUE}Pushing...${NC}"
-    git push "${push_args[@]}"
+    # bash 3.2 (macOS stock) + `set -u` trips on `"${arr[@]}"` for empty arrays
+    # ("unbound variable"). The `${arr[@]+"${arr[@]}"}` idiom emits the expansion
+    # only if the array is set, which is safe on bash 3.2+.  See issue #339.
+    git push ${push_args[@]+"${push_args[@]}"}
     echo "${GREEN}Push complete.${NC}"
 }
 
