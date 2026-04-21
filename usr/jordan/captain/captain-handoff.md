@@ -1,102 +1,157 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-04-21T15:00:00Z
+date: 2026-04-21T20:30:00Z
 trigger: compact-prepare
-branch: fix/skill-validation-monofolk-cleanup
+branch: main
 mode: continuation
-pause_commit_sha: none
-next-action: "Push fix/skill-validation-monofolk-cleanup (Phase E) to origin and cut PR. Use `/pr-prep` → push → `pr-create` (or `/release` skill for the full flow). Target v46.12. After merge, resume the A-B-C-D push starting with Bucket 0a (#339) via `fix/bash32-git-captain-push-339` (stash `339-work-in-progress` has the work)."
+pause_commit_sha: 02ffe449
+next-action: "Principal awaiting decision: Path A (proper Bucket F plan revision — re-run inventory correctly, fix plan v1→v2 addressing 29 combined MAR findings) vs Path B (pragmatic — fix critical errors, let Phase 0 execution do the complete inventory). Both MAR agents back. Both recommend Path A. On principal reply, either (A) re-run inventory + draft plan-bucket-f-sweep-20260421.md v2 + re-MAR, or (B) fix the 6 HIGH must-fix items and start execution. After that decision, file the 3rd C#372 follow-up issue (concurrency test, label bug), refresh handoff, then execute Bucket F (v46.15)."
 ---
 
-# Handoff — Mid-Session Compact (Phase E landed locally, PR pending)
+# Handoff — Mid-session /compact-prepare (Bucket F plan awaiting principal's path decision)
 
 ## Situation
 
-Executing A-B-C-D stabilization push per principal directive. Hit a blocker: `commit-precheck` was failing on every commit due to `skill-validation.bats` (monofolk + usr/jordan hardcoded refs in 21 skills). Principal directed: "add a phase to your plan and fix these" → added **Bucket E** to plan v3.1 as the new first bucket.
+Shipped THREE releases today: v46.12 (Phase E), v46.13 (Bucket 0), **v46.14 (C#372 release-automation closed)**. C#372's Fix D (auto-release GitHub Action) worked on its own introduction PR — first live test, github-actions[bot] cut v46.14 automatically within seconds of PR #406 merging. Added `manifest version is bumped` to required status checks on main. 8 worktree agents dispatched `master-updated`.
 
-Phase E is **done locally** (committed, tests green) but not yet pushed or PR'd.
+Principal's standing directive: **"Give us more PRs."**
 
-## Where we are
+## In-flight
 
-- **Branch:** `fix/skill-validation-monofolk-cleanup`
-- **HEAD:** `ae92ceb7 fix/skill-validation-monofolk: fix(phase-E): genericize skill docs — remove residual monofolk + usr/jordan hardcoding`
-- **Tree:** clean
-- **Plan:** v3.1 at `agency/workstreams/agency/plan-abc-stabilization-20260421.md` (committed on main at `e2ac7f68`)
+### Bucket F plan — awaiting principal decision
 
-## What was done this session
+- Plan file: `agency/workstreams/agency/plan-bucket-f-sweep-20260421.md` (v1 draft)
+- MAR results back from 2 parallel agents (design + scope/risk)
+- **29 combined findings**, verdict: **NOT ready to execute**. Both agents recommend Path A (proper revision).
 
-1. **Session-resume** surfaced 3 errors → root-caused + filed #393, #394, #395.
-2. **Triaged** all 167 open issues → report at `agency/workstreams/agency/research/issues-triage-20260421.md` (44 FIX-NOW in 10 themes; 114 DEFER).
-3. **Drafted plan** v1 → v2 (MAR-revised) → v3 (principal adjustments: Bucket D = #392; PR #397 placement) → v3.1 (Bucket E).
-4. **MAR reviewed** plan v1 via 3 parallel agents (architect, devex, blindspots); findings at `agency/workstreams/agency/qgr/mar-plan-abc-*.md`.
-5. **PR #397** (monofolk contributor) light-reviewed — recommend merge; sequenced after Bucket 0 (between 0 and A).
-6. **Bucket 0a (#339)** — `git-captain push` bash 3.2 fix written on branch `fix/bash32-git-captain-push-339` (commit attempt blocked by precheck → work stashed as `339-work-in-progress`).
-7. **Bucket E** — genericized 21 skill files (monofolk → placeholders; usr/jordan → usr/{principal}). All 12 skill-validation tests pass. Committed `ae92ceb7`.
+### Must-fix before Bucket F execution (HIGH severity)
 
-## What's next (immediate — after /compact)
+1. **Inventory undercounted 2-3×.** REFERENCE: 15→24 files, 34→**110** hits. Skills: 16→**72** files, 24→**156** hits. "~75 files / ~140 lines" is wrong.
+2. **Missing scopes customer-facing:** `agency/tools/**` 149 hits (incl. `_agency-init` 26, `_agency-update` 27 — **adopter install/update tools**), `agency/templates/**` 33 hits (incl. CLAUDE-PRINCIPAL.md.template), `agency/config/**` 18 hits (not CLEAN as claimed), `.claude/commands/**` 21 hits.
+3. **Version stamping wrong:** plan says R3 v46.14; C#372 already took v46.14. Bucket F = R4 v46.15.
+4. **Phase 3 Fix A ride-along is stale:** C#372 shipped it as PR #406.
+5. **YOUR-FIRST-RELEASE.md is NOT orphan** — exists at `agency/templates/YOUR-FIRST-RELEASE.md`. Fold into Phase 2.1.
+6. **`claude-desktop/` must be allowlisted** (Anthropic product name). Mechanical sweep would corrupt it.
 
-1. **Push Phase E branch** to origin.
-2. **Run `/pr-prep`** (QG + QGR receipt).
-3. **`pr-create`** → PR for Phase E. Target: v46.12.
-4. **Principal review + merge** (`/pr-captain-merge` with `--principal-approved`).
-5. **Release** via `/pr-captain-post-merge` → v46.12.
-6. **Switch back to `fix/bash32-git-captain-push-339`**:
-   - `git-captain switch-branch fix/bash32-git-captain-push-339`
-   - `git-safe stash pop` (restores git-captain fix + bats setup fix + regression test)
-   - `git-safe merge-from-master` (pulls in Phase E)
-   - Re-run `bats src/tests/tools/git-captain.bats` → should be 60/60 green.
-   - `git-safe-commit` should now pass commit-precheck.
-7. **Continue A-B-C-D** per plan sequence: 0a → 0b → PR #397 → A → C → B → D.
+### Must-fix MEDIUM
 
-## Key decisions this session
+7. F-A scope 1+3+13 should be hand sweep (requires rewrite, not just replace)
+8. F-E is grab-bag — fold scope 5 into F-B
+9. Subagent isolation — "worktree OR serialized" is ambiguous, pick one
+10. Missing risks: live-agent breakage via .claude/agents/*.md rewrite, PR #397 conflict
+11. Tool contracts unspecified: .bucket-f-allowlist format, ref-inventory-gen --scope, agent smoke test
 
-- **A-B-C-D-E** plan shape (not A-B-C alone). D = #392 (agency update adopter bug). E = skill-validation unblock.
-- **PR #397** slots between Bucket 0 and Bucket A (clean push/release tooling first, then contributor PR).
-- **Release cadence:** 4-5 natural boundaries not 11 per-PR (v46.12 → v46.18).
-- **B#389** mechanism corrected from v1 (devex F5) — fix is loosen input validation, NOT `update-index --force-remove`.
-- **A#393** deterministically covers compact-prepare, not conditionally (architect F3).
-- **A#394** scope is N=1 pilot on dispatch-monitor, not a framework-wide sweep (blindspots).
-- **Skill-contract fleet-wide test** (devex F1 class-fix) deferred to follow-up initiative.
-- **B#392 fix-now-vs-defer:** fix-now; preserve through Phase 4c via `phase-5-preserve-list.md` mechanism.
+## Today's session accomplishments
 
-## Principal decision points still open (from plan §"Principal decision points")
+### Releases shipped
 
-1. B#384 Docker BATS — in or out of this push?
-2. A#394 shebang strategy — bash launcher wrapper (my default) vs Python re-exec?
-3. A#395 `--no-work-item` deprecation — keep or phase out?
-4. C#372 diagnosis — parallel (my default) or serial?
-5. Release cadence — 4-5 (my default) or strict per-PR?
+1. **v46.12 (PR #400)** — Phase E skill-validation unblock — merged early session
+2. **v46.13 (PR #405)** — Bucket 0: #339 git-captain bash 3.2 + #210 commit-notify cascade guard + coord batch
+3. **v46.14 (PR #406)** — C#372 release-automation gap: 4-fix stack (A+B+C+D) — **Fix D auto-cut v46.14 release on its own PR merge**
 
-Will raise in 1B1 after Phase E lands if principal hasn't addressed.
+### Other work
 
-## Stashes
+1. **Flag #179 closed** — captain standing duty documented in CLAUDE-CAPTAIN.md + captain-sync-all skill trigger list
+2. **Flag backlog** — 32 stale flags processed
+3. **Bucket F inventory completed** — by subagent (inventory was undercounted, discovered by MAR)
+4. **Bucket F plan v1 drafted** — now needs revision per MAR
+5. **C#372 full fix stack committed** to pr-merge (Fix A), post-merge-state (Fix B), release-version-precheck.yml (Fix C), auto-release.yml (Fix D)
+6. **Required status checks updated** — `smoke` + `manifest version is bumped` now required on main
+7. **3 C#372 follow-up issues filed:** #407 + #408 + one lost to `testing` label error (retry pending)
+8. **8 worktree agents dispatched** — master-updated for v46.13 + v46.14
 
-- `339-work-in-progress` on branch `fix/bash32-git-captain-push-339` — git-captain bash 3.2 fix + bats setup `git add claude` → `git add agency` fix + new regression test.
+## Key decisions to survive compact
 
-## Dispatches
+### Principal directives carrying forward
 
-- 0 unread. Cross-repo: 0. Dispatch monitor armed via `/opt/homebrew/bin/python3.13 ./agency/tools/dispatch-monitor --include-collab` (Monitor tool, persistent).
-- PR #397 from monofolk captain remains open; light-review passed; recommend merge post-Bucket-0.
+- **"No DEFER."** Every finding is ACCEPT (fix now) or REJECT (would never have done it). Applied in C#372 QG round 1 (12 accept, 3 reject).
+- **"Give us more PRs."** Ship smaller, more frequent PRs rather than one giant one.
+- **"Fix the issues."** Don't file-and-forget — work the QG findings.
+
+### Technical decisions
+
+- **C#372 4-fix stack architecture:**
+  - Fix A: `pr-merge` advisory nag + auto-flag (discipline layer)
+  - Fix B: `post-merge-state` tool + refuse-gates in 3 new-work skills (structural layer)
+  - Fix C: `release-version-precheck.yml` — PR-time manifest version-bump check (required CI)
+  - Fix D: `auto-release.yml` — auto-cuts release within seconds of merge (automation)
+  - Reconciliation skills (captain-sync-all, pr-captain-post-merge) do NOT refuse on pending state — they clear it
+- **Required status checks:** added `manifest version is bumped` → no PR can merge without version bump
+- **release-tag-check.yml** kept as belt-and-suspenders alarm for Fix D failures (header updated)
+- **Step-level Dependabot/fork skip pattern** — job-level `if:` false would block PRs as "missing required check" trap
+
+### Bucket F plan shape (approved shape, broken numbers)
+
+- 5 parallel subagents (F-A..E) mechanical sweep + 3 hand-sweep phases (REFERENCE path-depth, src/apps, skills) + verification
+- MAR with 3 reviewers (design, scope, code — plus maybe add phase-1 sed-rules reviewer per F-D8)
+- Out-of-scope findings filed as separate issues (with correction per MAR: YOUR-FIRST-RELEASE folds IN)
+
+## What's next (after /compact)
+
+### Principal responds with Path A or Path B for Bucket F
+
+**Path A (recommended by both MAR agents + captain):**
+1. Re-run inventory with known-correct grep pattern, covering ALL scopes including missing ones
+2. Revise plan → v2 with version stamps → R4 v46.15, delete Phase 3, add missing scopes, fold YOUR-FIRST-RELEASE.md, add claude-desktop allowlist, re-scope F-A + F-E, pick subagent isolation, add missing risks + tool contracts
+3. MAR v2 if significant changes
+4. Execute → ship v46.15
+
+**Path B:** Fix only the 6 HIGH items; Phase 0 of execution does complete inventory; ship v46.15 with caveats.
+
+### After Bucket F ships (plan v3.3 sequencing)
+
+- R5 v46.16 PR #397 monofolk review+merge
+- R6 v46.17 Bucket A
+- R7 v46.18 Bucket B
+- R8 v46.19 Bucket D + B#55 + smoke
+- R9 v46.20 Bucket G.1 (great-rename-migrate tool)
+- R10-R14 Bucket G.2a-e (5 worktree integrations)
+
+## Plan sequencing (v3.3 — needs update post-Bucket-F)
+
+| Release | Bucket | Status |
+|---|---|---|
+| R1 v46.12 | Phase E (PR #400) | ✅ SHIPPED |
+| R2 v46.13 | Bucket 0 (PR #405) | ✅ SHIPPED |
+| R3 v46.14 | C#372 (PR #406) | ✅ SHIPPED TODAY |
+| **R4 v46.15** | **Bucket F** | **⏳ plan revision pending** |
+| R5 v46.16 | PR #397 monofolk | PENDING |
+| R6 v46.17 | Bucket A | PENDING |
+| R7 v46.18 | Bucket B | PENDING |
+| R8 v46.19 | Bucket D + B#55 | PENDING |
+| R9 v46.20 | Bucket G.1 tool | PENDING |
+| R10-R14 v46.21-46.25 | Bucket G.2a-e | PENDING |
 
 ## Open items / blockers
 
-- None blocking. Phase E on branch needs push + PR.
+- **PR #406 merged, v46.14 shipped** ✓
+- Bucket F plan v1 awaiting principal path decision (A vs B)
+- 3rd C#372 follow-up issue lost to `testing` label bug — retry without the label
+- Parent plan v3.2 needs revision log entry: C#372 shipped v46.14, Bucket F pushed to v46.15
+
+## Dispatches + cross-repo
+
+- 0 unread dispatches
+- 16 outbound master-updated dispatches sent this session (8 each for v46.13 + v46.14)
+- 1 outbound cross-repo to monofolk this session (PR #397 queue update)
+
+## Stashes
+
+- None.
 
 ## Related artifacts
 
-- Plan: `agency/workstreams/agency/plan-abc-stabilization-20260421.md` (v3.1, commit `e2ac7f68`)
-- Triage: `agency/workstreams/agency/research/issues-triage-20260421.md`
-- MAR reviews: `agency/workstreams/agency/qgr/mar-plan-abc-{architect,devex,blindspots}-20260421.md`
-- Triage x plan memo: `agency/workstreams/agency/research/triage-x-plan-memo-20260421.md`
-- Issue reports: `usr/jordan/reports/report-agency-issue-*.md` (3 new: #393, #394, #395)
+- Parent plan: `agency/workstreams/agency/plan-abc-stabilization-20260421.md` (v3.2, needs v3.3 update for C#372 shipped + Bucket F→v46.15)
+- Bucket F plan v1: `agency/workstreams/agency/plan-bucket-f-sweep-20260421.md`
+- C#372 QGR: `agency/workstreams/agency/qgr/the-agency-jordan-captain-agency-c372-release-automation-gap-qgr-pr-prep-20260421-2020-e8e5f06.md`
+- MAR outputs (in agent transcripts, not yet captured as research files)
+- Issues: #401 (Bucket F), #402 (Bucket G), #407 (design F11 captain-preflight), #408 (polish)
 
 ## Tasks (TaskList carrying state)
 
-- #62 Bucket 0a #339 — IN PROGRESS (stashed on other branch)
-- #63 Bucket 0b #210 — pending
-- #64 PR #397 merge — pending
-- #65 C#372 diagnosis — pending
-- (Bucket E has no task ID yet; was unplanned scope-addition; now complete)
+- ✅ Phase E v46.12, Bucket 0a #339, Bucket 0b #210, C#372 diagnosis + 4-fix stack
+- **Pending: Bucket F (v46.15) — awaiting plan v2 decision**
+- Pending: PR #397 review (v46.16), Bucket G (v46.20+, tool-first)
 
-Ready for /compact.
+Ready for `/compact`.
