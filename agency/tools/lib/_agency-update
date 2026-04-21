@@ -17,7 +17,8 @@ RUN_ID=$(log_start "agency-update" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/de
 VERBOSE=false
 DRY_RUN=false
 FORCE=false
-PRUNE=false              # D41-R16: opt-in rsync --delete for orphan cleanup
+PRUNE=false              # D41-R16: opt-in rsync --delete for orphan cleanup (agency/)
+PRUNE_ALL=false          # issue #364: opt-in rsync --delete for extras dirs (skills/commands/tests)
 YES=false                # D41-R16: bypass prune confirmation prompt
 TARGET_DIR=""
 FROM_GITHUB=""           # D41-R10 (monofolk hotfix): github ref to fetch from
@@ -36,11 +37,21 @@ Options:
   --verbose             Show detailed output
   --dry-run             Preview changes without applying
   --force               Proceed even if the working tree has uncommitted framework changes
-  --prune               Remove orphaned framework files (rsync --delete).
-                        Protects usr/, workstreams/, and paths in registry.json
-                        protected_paths. Prompts for confirmation before deleting
-                        unless --yes is passed. Default: off (purely additive sync).
-  --yes                 Skip the --prune confirmation prompt. No effect without --prune.
+  --prune               Remove orphaned files from the agency/ framework tree
+                        (rsync --delete). Protects usr/, workstreams/, and
+                        paths in registry.json protected_paths. Prompts for
+                        confirmation before deleting unless --yes is passed.
+                        Does NOT affect .claude/skills/, .claude/commands/, or
+                        tests/tools/ — those are adopter-co-inhabited dirs;
+                        use --prune-all for orphan cleanup there.
+                        Default: off (purely additive sync).
+  --prune-all           In addition to --prune's agency/ cleanup, also --delete
+                        orphans from .claude/skills/, .claude/commands/, and
+                        tests/tools/. These dirs host adopter-custom content
+                        alongside framework content, so separate opt-in + per-
+                        path preview + confirmation. Implies --prune. Issue #364.
+  --yes                 Skip the --prune / --prune-all confirmation prompts.
+                        No effect without one of those flags.
   --from-github [ref]   Shallow-clone the-agency from GitHub and use as source.
                         Optional ref: tag, branch, or commit. Default: main.
                         (Changed in D41-R20, issue #113 — was "latest tag" and
@@ -70,6 +81,7 @@ while [[ $# -gt 0 ]]; do
         --dry-run) DRY_RUN=true; shift ;;
         --force) FORCE=true; shift ;;
         --prune) PRUNE=true; shift ;;
+        --prune-all) PRUNE=true; PRUNE_ALL=true; shift ;;  # #364: implies --prune
         --yes|-y) YES=true; shift ;;
         --from-github)
             # Optional ref follows the flag. If next arg is missing or starts
@@ -305,11 +317,22 @@ _update_main() {
     # OPT-IN: --prune enables --delete with protected_paths enforced.
     # Adopters run it explicitly when they want orphan cleanup. Confirmation
     # prompt unless --yes. D41-R16 (monofolk request — opt-in adopter hygiene).
+    # Two rsync-flags arrays: the MAIN array drives the agency/ sync and is
+    # the only one that may receive --delete from --prune (with preview +
+    # confirmation gating). The EXTRAS array drives the .claude/skills/,
+    # .claude/commands/, and src/tests/tools/ syncs — these NEVER receive
+    # --delete from --prune because their content frequently mixes framework
+    # skills/commands with adopter-custom skills/commands/tests under the same
+    # directory tree. Silently --deleting there is an adopter-content-loss
+    # vector (#297 BUG 1; PR #299). To delete orphans in the extras dirs,
+    # adopters must explicitly pass --prune-all (separate preview + prompt).
     local rsync_flags=("-rlpt")
-    [[ "$VERBOSE" == "true" ]] && rsync_flags+=("-v")
-    [[ "$DRY_RUN" == "true" ]] && rsync_flags+=("--dry-run")
+    local rsync_flags_extras=("-rlpt")
+    [[ "$VERBOSE" == "true" ]] && rsync_flags+=("-v") && rsync_flags_extras+=("-v")
+    [[ "$DRY_RUN" == "true" ]] && rsync_flags+=("--dry-run") && rsync_flags_extras+=("--dry-run")
 
     # --- D41-R16: opt-in --prune (rsync --delete with protected paths) ---
+    # v46.1: renamed source/target from claude/ to agency/ post-Great-Rename.
     if [[ "$PRUNE" == "true" ]]; then
         # First pass: dry-run with --delete to preview what would be removed
         local prune_preview
@@ -318,14 +341,14 @@ _update_main() {
             --exclude "workstreams/" \
             --exclude "usr/" \
             --itemize-changes \
-            "$SOURCE_DIR/claude/" "$TARGET_DIR/claude/" 2>&1 | grep -E '^\*deleting' || true)
+            "$SOURCE_DIR/agency/" "$TARGET_DIR/agency/" 2>&1 | grep -E '^\*deleting' || true)
 
         local prune_count
         prune_count=$(echo "${prune_preview:-}" | grep -c '^\*deleting' || echo "0")
 
         if [[ "$prune_count" -gt 0 ]]; then
             echo ""
-            echo -e "${YELLOW}--prune: ${prune_count} orphan file(s) would be deleted from claude/:${NC}"
+            echo -e "${YELLOW}--prune: ${prune_count} orphan file(s) would be deleted from agency/:${NC}"
             echo "$prune_preview" | head -20
             [[ "$prune_count" -gt 20 ]] && echo "  ... and $((prune_count - 20)) more (use --verbose to see all)"
             echo ""
@@ -351,14 +374,67 @@ _update_main() {
         fi
     fi
 
-    # Sync claude/ (excluding agency.yaml, protected paths, and workstreams)
+    # --- issue #364: opt-in --prune-all (extras dirs orphan delete) ---
+    # Separate gate from --prune: the extras dirs (.claude/skills/,
+    # .claude/commands/, src/tests/tools/) host BOTH framework content AND
+    # adopter-custom content side-by-side. A blind --delete here destroys
+    # adopter work (the #297 BUG 1 data-loss class). --prune-all opts the
+    # adopter in after a per-path preview + aggregate confirmation.
+    if [[ "$PRUNE_ALL" == "true" ]]; then
+        local extras_total=0
+        local extras_preview_all=""
+
+        for pair in ".claude/skills" ".claude/commands" "src/tests/tools"; do
+            if [[ -d "$SOURCE_DIR/$pair" && -d "$TARGET_DIR/$pair" ]]; then
+                local sub_preview
+                sub_preview=$(rsync -rlpt --dry-run --delete \
+                    --itemize-changes \
+                    "$SOURCE_DIR/$pair/" "$TARGET_DIR/$pair/" 2>&1 | grep -E '^\*deleting' || true)
+                local sub_count
+                sub_count=$(echo "${sub_preview:-}" | grep -c '^\*deleting' || echo "0")
+                if [[ "$sub_count" -gt 0 ]]; then
+                    extras_preview_all+=$'\n'"  ${pair}/: ${sub_count} orphan(s)"$'\n'"${sub_preview}"
+                    extras_total=$((extras_total + sub_count))
+                fi
+            fi
+        done
+
+        if [[ "$extras_total" -gt 0 ]]; then
+            echo ""
+            echo -e "${YELLOW}--prune-all: ${extras_total} orphan file(s) would be deleted from extras dirs:${NC}"
+            echo "$extras_preview_all" | head -30
+            [[ "$extras_total" -gt 30 ]] && echo "  ... (use --verbose to see all)"
+            echo ""
+
+            if [[ "$DRY_RUN" == "true" ]]; then
+                echo "  [dry-run] no files will actually be deleted"
+            elif [[ "$YES" == "true" ]]; then
+                echo "  --yes: proceeding without prompt"
+                rsync_flags_extras+=("--delete")
+            else
+                echo -en "  Delete these files? (yes/no) [default: no]: "
+                read -r prune_all_confirm
+                if [[ "$prune_all_confirm" == "yes" ]]; then
+                    rsync_flags_extras+=("--delete")
+                    echo "  Proceeding with --delete on extras."
+                else
+                    echo "  Aborting --prune-all. Re-run with --yes to skip prompt."
+                fi
+            fi
+        else
+            echo "  --prune-all: no orphan files found in extras dirs."
+        fi
+    fi
+
+    # Sync agency/ (excluding agency.yaml, protected paths, and workstreams).
+    # v46.1: source + target are agency/ (was claude/ pre-Great-Rename).
     local rsync_output
     rsync_output=$(rsync "${rsync_flags[@]}" \
         "${rsync_excludes[@]+"${rsync_excludes[@]}"}" \
         --exclude "workstreams/" \
         --exclude "usr/" \
         --itemize-changes \
-        "$SOURCE_DIR/claude/" "$TARGET_DIR/claude/" 2>&1) || true
+        "$SOURCE_DIR/agency/" "$TARGET_DIR/agency/" 2>&1) || true
 
     # Count changes from itemize output
     if [[ -n "$rsync_output" ]]; then
@@ -368,10 +444,10 @@ _update_main() {
         [[ "$VERBOSE" == "true" ]] && echo "$rsync_output"
     fi
 
-    log_info "claude/ sync: +$added ~$updated -$removed"
+    log_info "agency/ sync: +$added ~$updated -$removed"
 
     # =====================================================================
-    # Step 2: Sync .claude/ discovery files
+    # Step 2: Sync .claude/ discovery files (extras — never --delete on --prune)
     # =====================================================================
     log_step "Syncing .claude/ discovery files"
 
@@ -379,7 +455,7 @@ _update_main() {
     if [[ -d "$SOURCE_DIR/.claude/skills" ]]; then
         mkdir -p "$TARGET_DIR/.claude/skills"
         local skill_output
-        skill_output=$(rsync "${rsync_flags[@]}" \
+        skill_output=$(rsync "${rsync_flags_extras[@]}" \
             --itemize-changes \
             "$SOURCE_DIR/.claude/skills/" "$TARGET_DIR/.claude/skills/" 2>&1) || true
         if [[ -n "$skill_output" ]] && [[ "$VERBOSE" == "true" ]]; then
@@ -394,7 +470,7 @@ _update_main() {
     if [[ -d "$SOURCE_DIR/.claude/commands" ]]; then
         mkdir -p "$TARGET_DIR/.claude/commands"
         local cmd_output
-        cmd_output=$(rsync "${rsync_flags[@]}" \
+        cmd_output=$(rsync "${rsync_flags_extras[@]}" \
             --itemize-changes \
             "$SOURCE_DIR/.claude/commands/" "$TARGET_DIR/.claude/commands/" 2>&1) || true
         if [[ -n "$cmd_output" ]] && [[ "$VERBOSE" == "true" ]]; then
@@ -402,17 +478,19 @@ _update_main() {
         fi
     fi
 
-    # Tests for framework tools (D41-R15: monofolk issue #102 fix)
-    # Adopters need the BATS suites for the tools they receive so they can
-    # verify behavior locally and contribute upstream. Sync tests/tools/
-    # only — NOT tests/skills/ (some skill tests reference framework-specific
-    # state) and NOT project-local test dirs the adopter may have.
-    if [[ -d "$SOURCE_DIR/tests/tools" ]]; then
+    # Tests for framework tools (D41-R15: monofolk issue #102 fix).
+    # v46.1: tests moved from tests/tools/ to src/tests/tools/.
+    # Adopters receive the BATS suites so they can verify behavior locally
+    # and contribute upstream. Sync src/tests/tools/ only — NOT src/tests/
+    # skills/ (some skill tests reference framework-specific state) and NOT
+    # project-local test dirs the adopter may have. Source path src/tests/
+    # tools/; target path tests/tools/ (adopter flat convention).
+    if [[ -d "$SOURCE_DIR/src/tests/tools" ]]; then
         mkdir -p "$TARGET_DIR/tests/tools"
         local tests_output
-        tests_output=$(rsync "${rsync_flags[@]}" \
+        tests_output=$(rsync "${rsync_flags_extras[@]}" \
             --itemize-changes \
-            "$SOURCE_DIR/tests/tools/" "$TARGET_DIR/tests/tools/" 2>&1) || true
+            "$SOURCE_DIR/src/tests/tools/" "$TARGET_DIR/tests/tools/" 2>&1) || true
         if [[ -n "$tests_output" ]] && [[ "$VERBOSE" == "true" ]]; then
             echo "$tests_output"
         fi
@@ -421,12 +499,17 @@ _update_main() {
         added=$((added + tests_added))
         log_info "tests/tools/ sync: +$tests_added"
     fi
-    # Also sync the test_helper.bash if present (tests/tools/ depends on it)
-    if [[ -f "$SOURCE_DIR/tests/test_helper.bash" ]]; then
-        mkdir -p "$TARGET_DIR/tests"
-        rsync "${rsync_flags[@]}" \
-            "$SOURCE_DIR/tests/test_helper.bash" "$TARGET_DIR/tests/test_helper.bash" 2>&1 >/dev/null || true
-    fi
+    # Also sync test_helper.bash if present (tests/tools/ depends on it).
+    # v46.1 source candidate paths: src/tests/test_helper.bash (new layout)
+    # or tests/test_helper.bash (legacy). Target is always tests/ for adopter.
+    for _th_src in "src/tests/test_helper.bash" "tests/test_helper.bash"; do
+        if [[ -f "$SOURCE_DIR/$_th_src" ]]; then
+            mkdir -p "$TARGET_DIR/tests"
+            rsync "${rsync_flags_extras[@]}" \
+                "$SOURCE_DIR/$_th_src" "$TARGET_DIR/tests/test_helper.bash" 2>&1 >/dev/null || true
+            break
+        fi
+    done
 
     # =====================================================================
     # Step 3: Settings merge
