@@ -248,9 +248,9 @@ _init_main() {
     if [[ -f "$TARGET_DIR/CLAUDE.md" ]]; then
         log_warn "CLAUDE.md already exists — appending Agency import"
         echo "" >> "$TARGET_DIR/CLAUDE.md"
-        echo "@claude/CLAUDE-THEAGENCY.md" >> "$TARGET_DIR/CLAUDE.md"
+        echo "@agency/CLAUDE-THEAGENCY.md" >> "$TARGET_DIR/CLAUDE.md"
     else
-        cp "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/CLAUDE.md"
+        cp "$AGENCY_SOURCE/agency/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/CLAUDE.md"
         # Use | as delimiter to avoid issues with / in project names
         if [[ "$(uname)" == "Darwin" ]]; then
             sed -i '' "s|{{PROJECT_NAME}}|$PROJECT_NAME|" "$TARGET_DIR/CLAUDE.md"
@@ -269,10 +269,10 @@ _init_main() {
     mkdir -p "$TARGET_DIR/.claude/commands"
 
     # Settings — copy from settings template (single source of truth)
-    if [[ -f "$AGENCY_SOURCE/claude/config/settings-template.json" ]]; then
-        cp "$AGENCY_SOURCE/claude/config/settings-template.json" "$TARGET_DIR/.claude/settings.json"
+    if [[ -f "$AGENCY_SOURCE/agency/config/settings-template.json" ]]; then
+        cp "$AGENCY_SOURCE/agency/config/settings-template.json" "$TARGET_DIR/.claude/settings.json"
     else
-        log_error "Settings template not found at $AGENCY_SOURCE/claude/config/settings-template.json"
+        log_error "Settings template not found at $AGENCY_SOURCE/agency/config/settings-template.json"
         exit 1
     fi
 
@@ -300,32 +300,33 @@ _init_main() {
     log_info "Created .claude/ with settings, hooks, commands, skills"
 
     # =====================================================================
-    # Step 3: claude/ framework directory
+    # Step 3: agency/ framework directory
     # =====================================================================
     log_step "Copying Agency framework"
 
-    mkdir -p "$TARGET_DIR/claude"
-    [[ -f "$AGENCY_SOURCE/claude/CLAUDE-THEAGENCY.md" ]] && cp "$AGENCY_SOURCE/claude/CLAUDE-THEAGENCY.md" "$TARGET_DIR/claude/"
+    mkdir -p "$TARGET_DIR/agency"
+    [[ -f "$AGENCY_SOURCE/agency/CLAUDE-THEAGENCY.md" ]] && cp "$AGENCY_SOURCE/agency/CLAUDE-THEAGENCY.md" "$TARGET_DIR/agency/"
 
     # README-*.md — D41-R26: copy ALL top-level README files from framework
     # (was hardcoded list missing README-ENFORCEMENT.md + README-SAFE-TOOLS.md +
     # README-RECEIPT-INFRASTRUCTURE.md + more as they're added)
     local readme_file
-    for readme_file in "$AGENCY_SOURCE/claude/"README-*.md; do
-        [[ -f "$readme_file" ]] && cp "$readme_file" "$TARGET_DIR/claude/"
+    for readme_file in "$AGENCY_SOURCE/agency/"README-*.md; do
+        [[ -f "$readme_file" ]] && cp "$readme_file" "$TARGET_DIR/agency/"
     done
 
     # REFERENCE-*.md — D41-R26: the 39 framework reference docs are the
     # authoritative guidance layer. Old code tried to copy /claude/docs/*.md
-    # which doesn't exist — these live at /claude/REFERENCE-*.md instead.
-    # Every ref-injected skill assumes these are present.
+    # which doesn't exist — these live at /agency/REFERENCE/REFERENCE-*.md
+    # (post-v46.1 layout). Every ref-injected skill assumes these are present.
+    mkdir -p "$TARGET_DIR/agency/REFERENCE"
     local ref_file
-    for ref_file in "$AGENCY_SOURCE/claude/"REFERENCE-*.md; do
-        [[ -f "$ref_file" ]] && cp "$ref_file" "$TARGET_DIR/claude/"
+    for ref_file in "$AGENCY_SOURCE/agency/REFERENCE/"REFERENCE-*.md; do
+        [[ -f "$ref_file" ]] && cp "$ref_file" "$TARGET_DIR/agency/REFERENCE/"
     done
 
     # Config
-    mkdir -p "$TARGET_DIR/claude/config"
+    mkdir -p "$TARGET_DIR/agency/config"
     cat > "$TARGET_DIR/agency/config/agency.yaml" << YAML_EOF
 # Agency Configuration for $PROJECT_NAME
 
@@ -373,12 +374,15 @@ telemetry:
 YAML_EOF
 
     # Docs — legacy /claude/docs/ path (kept as no-op fallback; content
-    # lives at /claude/REFERENCE-*.md now, copied above in Step 3).
-    if [[ -d "$AGENCY_SOURCE/claude/docs" ]]; then
-        mkdir -p "$TARGET_DIR/claude/docs"
+    # lives at /agency/REFERENCE/REFERENCE-*.md now, copied above in Step 3).
+    # Post-v46.1: this block is effectively dead code since agency/docs/
+    # doesn't exist in new layout. Preserved as safety net for any stray
+    # source tree that still has docs/.
+    if [[ -d "$AGENCY_SOURCE/agency/docs" ]]; then
+        mkdir -p "$TARGET_DIR/agency/docs"
         local doc_file
-        for doc_file in "$AGENCY_SOURCE/claude/docs/"*.md; do
-            [[ -f "$doc_file" ]] && cp "$doc_file" "$TARGET_DIR/claude/docs/"
+        for doc_file in "$AGENCY_SOURCE/agency/docs/"*.md; do
+            [[ -f "$doc_file" ]] && cp "$doc_file" "$TARGET_DIR/agency/docs/"
         done
     fi
 
@@ -386,17 +390,17 @@ YAML_EOF
     # agent.md class docs. Old hardcoded list missed iscp, tech-lead,
     # platform-specialist, researcher, and ~10 others. Every agent class
     # that ships gets copied now.
-    if [[ -d "$AGENCY_SOURCE/claude/agents" ]]; then
-        mkdir -p "$TARGET_DIR/claude/agents"
+    if [[ -d "$AGENCY_SOURCE/agency/agents" ]]; then
+        mkdir -p "$TARGET_DIR/agency/agents"
         local agent_dir agent_name
-        for agent_dir in "$AGENCY_SOURCE/claude/agents"/*/; do
+        for agent_dir in "$AGENCY_SOURCE/agency/agents"/*/; do
             [[ -d "$agent_dir" ]] || continue
             agent_name=$(basename "$agent_dir")
-            mkdir -p "$TARGET_DIR/claude/agents/$agent_name"
+            mkdir -p "$TARGET_DIR/agency/agents/$agent_name"
             # Copy all .md files in the agent dir (agent.md + any KNOWLEDGE.md etc)
             local af
             for af in "$agent_dir"*.md; do
-                [[ -f "$af" ]] && cp "$af" "$TARGET_DIR/claude/agents/$agent_name/"
+                [[ -f "$af" ]] && cp "$af" "$TARGET_DIR/agency/agents/$agent_name/"
             done
         done
     fi
@@ -404,26 +408,26 @@ YAML_EOF
     # Hooks — D41-R26: directory-level copy. Old hardcoded list missed
     # block-raw-tools.sh (CRITICAL — hookify enforcement layer) and
     # idle-mail-check.sh. New hooks auto-install with no list maintenance.
-    if [[ -d "$AGENCY_SOURCE/claude/hooks" ]]; then
-        mkdir -p "$TARGET_DIR/claude/hooks"
+    if [[ -d "$AGENCY_SOURCE/agency/hooks" ]]; then
+        mkdir -p "$TARGET_DIR/agency/hooks"
         local hook_file
-        for hook_file in "$AGENCY_SOURCE/claude/hooks/"*.sh; do
-            [[ -f "$hook_file" ]] && cp "$hook_file" "$TARGET_DIR/claude/hooks/"
+        for hook_file in "$AGENCY_SOURCE/agency/hooks/"*.sh; do
+            [[ -f "$hook_file" ]] && cp "$hook_file" "$TARGET_DIR/agency/hooks/"
         done
     fi
-    chmod +x "$TARGET_DIR/claude/hooks/"*.sh 2>/dev/null || true
+    chmod +x "$TARGET_DIR/agency/hooks/"*.sh 2>/dev/null || true
 
     # Hookify rules
-    mkdir -p "$TARGET_DIR/claude/hookify"
-    cp "$AGENCY_SOURCE/claude/hookify/"*.md "$TARGET_DIR/claude/hookify/" 2>/dev/null || true
+    mkdir -p "$TARGET_DIR/agency/hookify"
+    cp "$AGENCY_SOURCE/agency/hookify/"*.md "$TARGET_DIR/agency/hookify/" 2>/dev/null || true
 
     # Templates
-    mkdir -p "$TARGET_DIR/claude/templates"
-    [[ -d "$AGENCY_SOURCE/claude/templates/principal-v2" ]] && cp -r "$AGENCY_SOURCE/claude/templates/principal-v2" "$TARGET_DIR/claude/templates/"
-    [[ -f "$AGENCY_SOURCE/claude/templates/CLAUDE-USER.md" ]] && cp "$AGENCY_SOURCE/claude/templates/CLAUDE-USER.md" "$TARGET_DIR/claude/templates/"
-    [[ -f "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" ]] && cp "$AGENCY_SOURCE/claude/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/claude/templates/"
-    [[ -f "$AGENCY_SOURCE/claude/templates/HANDOFF-BOOTSTRAP.md" ]] && cp "$AGENCY_SOURCE/claude/templates/HANDOFF-BOOTSTRAP.md" "$TARGET_DIR/claude/templates/"
-    [[ -f "$AGENCY_SOURCE/claude/templates/PROVIDER.sh" ]] && cp "$AGENCY_SOURCE/claude/templates/PROVIDER.sh" "$TARGET_DIR/claude/templates/"
+    mkdir -p "$TARGET_DIR/agency/templates"
+    [[ -d "$AGENCY_SOURCE/agency/templates/principal-v2" ]] && cp -r "$AGENCY_SOURCE/agency/templates/principal-v2" "$TARGET_DIR/agency/templates/"
+    [[ -f "$AGENCY_SOURCE/agency/templates/CLAUDE-USER.md" ]] && cp "$AGENCY_SOURCE/agency/templates/CLAUDE-USER.md" "$TARGET_DIR/agency/templates/"
+    [[ -f "$AGENCY_SOURCE/agency/templates/CLAUDE-PROJECT.md" ]] && cp "$AGENCY_SOURCE/agency/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/agency/templates/"
+    [[ -f "$AGENCY_SOURCE/agency/templates/HANDOFF-BOOTSTRAP.md" ]] && cp "$AGENCY_SOURCE/agency/templates/HANDOFF-BOOTSTRAP.md" "$TARGET_DIR/agency/templates/"
+    [[ -f "$AGENCY_SOURCE/agency/templates/PROVIDER.sh" ]] && cp "$AGENCY_SOURCE/agency/templates/PROVIDER.sh" "$TARGET_DIR/agency/templates/"
 
     log_info "Copied agents, hooks, hookify, docs, templates"
 
@@ -437,41 +441,41 @@ YAML_EOF
     # freeze was absent from fresh inits, breaking hooks and preflight on
     # first `claude --agent captain` run. Surfaced live in homekit-daikin-ac-bridge
     # init (2026-04-15 ~20:30 UTC). Now copies all top-level files under
-    # claude/tools/ and all libs under claude/tools/lib/ — new tools auto-install
+    # agency/tools/ and all libs under agency/tools/lib/ — new tools auto-install
     # with zero maintenance on this block.
     log_step "Installing tools"
 
-    mkdir -p "$TARGET_DIR/claude/tools/lib"
+    mkdir -p "$TARGET_DIR/agency/tools/lib"
 
     # Copy ALL libs from source. Skip subdirectories (e.g. tests/).
-    if [[ -d "$AGENCY_SOURCE/claude/tools/lib" ]]; then
+    if [[ -d "$AGENCY_SOURCE/agency/tools/lib" ]]; then
         local lib_file
-        for lib_file in "$AGENCY_SOURCE/claude/tools/lib/"*; do
+        for lib_file in "$AGENCY_SOURCE/agency/tools/lib/"*; do
             [[ -f "$lib_file" ]] || continue
-            cp "$lib_file" "$TARGET_DIR/claude/tools/lib/"
+            cp "$lib_file" "$TARGET_DIR/agency/tools/lib/"
         done
     fi
 
     # Copy test helper template (don't overwrite project customizations)
-    if [[ -f "$AGENCY_SOURCE/claude/templates/tests/test_helper.bash" ]]; then
+    if [[ -f "$AGENCY_SOURCE/agency/templates/tests/test_helper.bash" ]]; then
         mkdir -p "$TARGET_DIR/tests/tools"
         if [[ ! -f "$TARGET_DIR/tests/tools/test_helper.bash" ]]; then
-            cp "$AGENCY_SOURCE/claude/templates/tests/test_helper.bash" "$TARGET_DIR/tests/tools/test_helper.bash"
+            cp "$AGENCY_SOURCE/agency/templates/tests/test_helper.bash" "$TARGET_DIR/tests/tools/test_helper.bash"
         fi
     fi
 
     # Copy ALL top-level tools from source. Skip subdirectories (lib/ handled
     # above, tests/ is dev-only and not shipped to adopters).
-    if [[ -d "$AGENCY_SOURCE/claude/tools" ]]; then
+    if [[ -d "$AGENCY_SOURCE/agency/tools" ]]; then
         local tool_file
-        for tool_file in "$AGENCY_SOURCE/claude/tools/"*; do
+        for tool_file in "$AGENCY_SOURCE/agency/tools/"*; do
             [[ -f "$tool_file" ]] || continue
-            cp "$tool_file" "$TARGET_DIR/claude/tools/"
+            cp "$tool_file" "$TARGET_DIR/agency/tools/"
         done
     fi
 
-    chmod +x "$TARGET_DIR/claude/tools/"* 2>/dev/null || true
-    chmod +x "$TARGET_DIR/claude/tools/lib/"* 2>/dev/null || true
+    chmod +x "$TARGET_DIR/agency/tools/"* 2>/dev/null || true
+    chmod +x "$TARGET_DIR/agency/tools/lib/"* 2>/dev/null || true
 
     log_info "Installed all tools (directory-level copy)"
 
@@ -483,7 +487,7 @@ YAML_EOF
     # block the update via the dirty-tree gate. Merge idempotently: if the
     # block marker already exists, leave existing ignores alone.
     # =====================================================================
-    local gitignore_template="$AGENCY_SOURCE/claude/templates/gitignore-framework"
+    local gitignore_template="$AGENCY_SOURCE/agency/templates/gitignore-framework"
     local gitignore_target="$TARGET_DIR/.gitignore"
     if [[ -f "$gitignore_template" ]]; then
         if [[ ! -f "$gitignore_target" ]] || ! grep -q "Agency framework-managed ignores" "$gitignore_target" 2>/dev/null; then
@@ -499,7 +503,7 @@ YAML_EOF
     log_step "Scaffolding usr/$PRINCIPAL/"
 
     # D42-R3: slim scaffold — only personal state dirs
-    # Shared content goes in claude/workstreams/{W}/ (see Step 5b)
+    # Shared content goes in agency/workstreams/{W}/ (see Step 5b)
     mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{tools,tmp,history/flotsam}
     mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME"/{tools,tmp,history/flotsam}
 
@@ -516,12 +520,12 @@ YAML_EOF
     # =====================================================================
     # Step 5b: Repo-level workstream (captain's shared space)
     # =====================================================================
-    log_step "Creating repo-level workstream: claude/workstreams/$PROJECT_NAME/"
+    log_step "Creating repo-level workstream: agency/workstreams/$PROJECT_NAME/"
 
-    mkdir -p "$TARGET_DIR/claude/workstreams/$PROJECT_NAME"/{qgr,rgr,drafts,research,transcripts,history/flotsam}
+    mkdir -p "$TARGET_DIR/agency/workstreams/$PROJECT_NAME"/{qgr,rgr,drafts,research,transcripts,history/flotsam}
 
-    if [[ ! -f "$TARGET_DIR/claude/workstreams/$PROJECT_NAME/KNOWLEDGE.md" ]]; then
-        cat > "$TARGET_DIR/claude/workstreams/$PROJECT_NAME/KNOWLEDGE.md" << KNOWLEDGE_EOF
+    if [[ ! -f "$TARGET_DIR/agency/workstreams/$PROJECT_NAME/KNOWLEDGE.md" ]]; then
+        cat > "$TARGET_DIR/agency/workstreams/$PROJECT_NAME/KNOWLEDGE.md" << KNOWLEDGE_EOF
 # $PROJECT_NAME — Workstream Knowledge
 
 ## Patterns and Conventions
@@ -545,11 +549,11 @@ KNOWLEDGE_EOF
     local skill_count command_count agent_count hook_count
     skill_count=$(find "$TARGET_DIR/.claude/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
     command_count=$(find "$TARGET_DIR/.claude/commands" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-    agent_count=$(find "$TARGET_DIR/claude/agents" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
-    hook_count=$(find "$TARGET_DIR/claude/hooks" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
+    agent_count=$(find "$TARGET_DIR/agency/agents" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+    hook_count=$(find "$TARGET_DIR/agency/hooks" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
 
     mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"
-    local handoff_template="$AGENCY_SOURCE/claude/templates/HANDOFF-BOOTSTRAP.md"
+    local handoff_template="$AGENCY_SOURCE/agency/templates/HANDOFF-BOOTSTRAP.md"
     local handoff_target="$TARGET_DIR/usr/$PRINCIPAL/captain/captain-handoff.md"
 
     if [[ ! -f "$handoff_template" ]]; then
@@ -612,11 +616,11 @@ KNOWLEDGE_EOF
 
     cd "$TARGET_DIR"
     # Stage only Agency-created paths (not user files that may already exist)
-    git add CLAUDE.md .claude/ claude/ usr/ docs/plans/ .gitignore
+    git add CLAUDE.md .claude/ agency/ usr/ docs/plans/ .gitignore
     git commit -m "feat: initialize Agency 2.0 framework
 
 Agency 2.0 initialized via agency init. Includes:
-- CLAUDE.md with @claude/CLAUDE-THEAGENCY.md import (methodology)
+- CLAUDE.md with @agency/CLAUDE-THEAGENCY.md import (methodology)
 - ${skill_count} skills, ${command_count} commands, ${agent_count} agent classes
 - ${hook_count} hooks (ref-injector, session-handoff, quality-check, plan-capture,
   branch-freshness, tool-telemetry, ghostty-status)
