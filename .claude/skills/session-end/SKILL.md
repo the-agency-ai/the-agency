@@ -6,8 +6,8 @@ when_to_use: "End of a working session, switching to a different workstream or r
 argument-hint: "[trigger-reason]"
 paths: []
 required_reading:
-  - claude/REFERENCE-HANDOFF-SPEC.md
-  - claude/REFERENCE-SKILL-CONVENTIONS.md
+  - agency/REFERENCE/REFERENCE-HANDOFF-SPEC.md
+  - agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md
 ---
 
 <!--
@@ -21,14 +21,14 @@ required_reading:
 
 ## Why this exists
 
-The next session starts from the handoff. A session that ends with a dirty tree, unsent dispatches, or a stale handoff leaves the next agent reverse-engineering what was in flight. This skill forces the three end-of-session preconditions and shells to `claude/tools/session-pause --framing resumption` for the mechanics — commit, archive, stop monitors, emit new handoff path.
+The next session starts from the handoff. A session that ends with a dirty tree, unsent dispatches, or a stale handoff leaves the next agent reverse-engineering what was in flight. This skill forces the three end-of-session preconditions and shells to `agency/tools/session-pause --framing resumption` for the mechanics — commit, archive, stop monitors, emit new handoff path.
 
 **PAUSE-for-end** surface. Paired with `/session-resume` on the other side.
 
 ## Required reading
 
-- `claude/REFERENCE-HANDOFF-SPEC.md` — handoff frontmatter, `mode: resumption` enum value.
-- `claude/REFERENCE-SKILL-CONVENTIONS.md` — primitive-composition pattern.
+- `agency/REFERENCE/REFERENCE-HANDOFF-SPEC.md` — handoff frontmatter, `mode: resumption` enum value.
+- `agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md` — primitive-composition pattern.
 
 ## Usage
 
@@ -52,7 +52,7 @@ The next session starts from the handoff. A session that ends with a dirty tree,
 ### Step 1: Run session-pause primitive
 
 ```bash
-./claude/tools/session-pause --framing resumption --trigger "${REASON:-session-end}"
+./agency/tools/session-pause --framing resumption --trigger "${REASON:-session-end}"
 ```
 
 `--framing resumption` tells the tool: stop monitors (registry-driven SIGTERM), fire SessionEnd hooks naturally on process exit, archive prior handoff, emit new path. If framework code is dirty, the tool force-commits the handoff alone first (`handoff_commit_sha` set), then aborts on the framework-code gate. Handoff is always persisted.
@@ -78,7 +78,7 @@ Body: phase/iteration status, what was done, what's next, decisions/context the 
 ### Step 3: Verify handoff + report
 
 ```bash
-./claude/tools/handoff read
+./agency/tools/handoff read
 ```
 
 Report: branch, last commit, `handoff_path`, "Handoff: written ✓", then:
@@ -107,7 +107,7 @@ Report: branch, last commit, `handoff_path`, "Handoff: written ✓", then:
 - `/session-resume` — fresh-session PICKUP (opposite bookend).
 - `/compact-prepare` — mid-session PAUSE (continuation framing).
 - `/compact-resume` — post-compact PICKUP.
-- `claude/tools/session-pause` — primitive this skill shells to.
-- `claude/tools/handoff` — handoff read/write tool.
+- `agency/tools/session-pause` — primitive this skill shells to.
+- `agency/tools/handoff` — handoff read/write tool.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

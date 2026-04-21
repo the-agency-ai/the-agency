@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-handoff-spec.sh — conformance tests for claude/REFERENCE-HANDOFF-SPEC.md
+# test-handoff-spec.sh — conformance tests for agency/REFERENCE-HANDOFF-SPEC.md
 #
 # Asserts that:
 #   1. Handoffs emitted by the framework (session-pause output + current
@@ -12,9 +12,9 @@
 #      maps to handoff_mode=legacy, the rest pass through.
 #
 # Session-lifecycle-refactor Plan v3 Iteration 4.2. Spec:
-# claude/REFERENCE-HANDOFF-SPEC.md
+# agency/REFERENCE-HANDOFF-SPEC.md
 #
-# Usage: ./claude/tools/tests/test-handoff-spec.sh
+# Usage: ./src/tests/tools/test-handoff-spec.sh
 #   Exit 0 on all-pass; non-zero on any fail.
 
 set -euo pipefail
@@ -22,8 +22,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-PICKUP="$REPO_ROOT/claude/tools/session-pickup"
-PAUSE="$REPO_ROOT/claude/tools/session-pause"
+PICKUP="$REPO_ROOT/agency/tools/session-pickup"
+PAUSE="$REPO_ROOT/agency/tools/session-pause"
 
 pass_count=0
 fail_count=0
@@ -138,10 +138,7 @@ git config user.email test@example.com
 git config user.name "Test"
 git config commit.gpgsign false
 cat > .gitignore <<'EOF'
-claude/data/
 .claude/logs/
-claude/logs/*
-!claude/logs/reviews/
 EOF
 touch usr/testp/testa/testa-handoff.md
 git add .gitignore usr/testp/testa/testa-handoff.md

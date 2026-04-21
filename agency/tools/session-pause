@@ -3,7 +3,7 @@
 #
 # Internal tool invoked from skills (/compact-prepare, /session-end).
 # NOT intended for direct agent invocation — see
-# claude/REFERENCE-SKILL-CONVENTIONS.md §7 (primitives-as-tools pattern).
+# agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md §7 (primitives-as-tools pattern).
 #
 # What Problem: `/session-end` and `/compact-prepare` (formerly `/session-compact`) duplicated a lot of
 # bespoke bash (dispatch flush, coord-commit, handoff archive, monitor
@@ -56,7 +56,7 @@ else
     REPO_ROOT="$(git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)"
 fi
 
-MONITOR_REGISTRY="$REPO_ROOT/claude/data/monitor-pids.json"
+MONITOR_REGISTRY="$REPO_ROOT/agency/config/monitor-pids.json"
 LOCK_TIMEOUT_SECONDS=5
 
 # ── Output helpers ──────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ Usage: session-pause --framing <continuation|resumption> --trigger <string>
                      [--principal <name>] [--agent <name>]
 
 Internal primitive — called from skills (/compact-prepare, /session-end).
-See claude/REFERENCE-SKILL-CONVENTIONS.md §7.
+See agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md §7.
 
 Required:
   --framing continuation   — mid-session compact; monitors + hooks survive.
@@ -106,9 +106,9 @@ Exit codes:
   1  aborted before completion (status=aborted, error_reason set)
   2  lock contention timeout (status=aborted, error_reason set)
 
-Coord-artifact classification follows claude/CLAUDE-THEAGENCY.md §3.3 and the
+Coord-artifact classification follows agency/CLAUDE-THEAGENCY.md §3.3 and the
 A&D at usr/.../session-lifecycle-refactor/and.md §3.3. Framework code in the
-dirty tree (anything under claude/tools/, apps/, packages/, tools/, plus
+dirty tree (anything under agency/tools/, agency/hooks/, src/**, plus
 .claude/settings.json and .gitignore per the 1.5 tightening) aborts the
 PAUSE — run /quality-gate + /iteration-complete first.
 USAGE
@@ -259,12 +259,14 @@ trap 'release_lock' EXIT
 # seeds, config, skill bodies, hookify rules, principal docs). They do NOT
 # change the enforcement surface or ship application/framework code.
 #
-# Rules per A&D v3 §3.3 + 1.5 tightening:
+# Rules per A&D v3 §3.3 + 1.5 tightening, updated for v46.1 Great Rename
+# (claude/ → agency/) and Plan v5 src/ split:
 #   - anything under usr/{PRINCIPAL}/ is coord (principal sandbox);
-#   - claude/config/**, claude/hookify/**, claude/CLAUDE-*.md are coord;
+#   - agency/config/**, agency/hookify/**, agency/CLAUDE-*.md are coord;
+#   - agency/workstreams/** is coord (workstream artifacts);
 #   - .claude/skills/**/*.md is coord (skill bodies + sidecars);
 #   - .claude/settings.json and .gitignore are EXCLUDED (require QG);
-#   - claude/tools/**, apps/**, packages/**, tools/** are EXCLUDED (QG).
+#   - agency/tools/**, agency/hooks/**, src/** are EXCLUDED (QG).
 is_coord_artifact() {
     local f="$1"
     local p="$PRINCIPAL"
@@ -273,10 +275,9 @@ is_coord_artifact() {
     case "$f" in
         .claude/settings.json) return 1 ;;
         .gitignore) return 1 ;;
-        claude/tools/*) return 1 ;;
-        apps/*) return 1 ;;
-        packages/*) return 1 ;;
-        tools/*) return 1 ;;
+        agency/tools/*) return 1 ;;
+        agency/hooks/*) return 1 ;;
+        src/*) return 1 ;;
     esac
 
     # Principal sandbox — everything under usr/{principal}/ is coord.
@@ -286,12 +287,12 @@ is_coord_artifact() {
 
     # Framework coord paths.
     case "$f" in
-        claude/config/*) return 0 ;;
-        claude/hookify/*) return 0 ;;
-        claude/CLAUDE-*.md) return 0 ;;
+        agency/config/*) return 0 ;;
+        agency/hookify/*) return 0 ;;
+        agency/CLAUDE-*.md) return 0 ;;
+        agency/workstreams/*) return 0 ;;
         .claude/skills/*/SKILL.md) return 0 ;;
         .claude/skills/*/*.md) return 0 ;;
-        .claude/hookify/*) return 0 ;;
     esac
 
     return 1

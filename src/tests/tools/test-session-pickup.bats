@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# test-session-pickup.bats — unit tests for claude/tools/session-pickup
+# test-session-pickup.bats — unit tests for agency/tools/session-pickup
 #
 # Covers A&D v3 §9.2 test matrix:
 #   - CLI arg parsing (--from required, invalid values)
@@ -22,7 +22,7 @@
 # Session-lifecycle-refactor Plan v2 Iteration 2.2.
 
 setup() {
-    TOOL="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/session-pickup"
+    TOOL="$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)/agency/tools/session-pickup"
     [[ -x "$TOOL" ]] || { echo "session-pickup not executable at $TOOL" >&2; return 1; }
 
     # Sandbox git repo
@@ -53,10 +53,8 @@ EOF
 
     # Gitignore session-state — same discipline as test-session-pause.bats.
     cat > .gitignore <<'EOF'
-claude/data/
 .claude/logs/
-claude/logs/*
-!claude/logs/reviews/
+agency/config/monitor-pids.json
 EOF
 
     git add usr/testp/testa/testa-handoff.md .gitignore
@@ -66,7 +64,7 @@ EOF
     export AGENCY_PROJECT_ROOT="$REPO"
 
     # Isolate ISCP DB to the sandbox so dispatch counts don't leak from the
-    # live monofolk DB.
+    # live the-agency DB.
     export ISCP_DB_PATH="$BATS_TEST_TMPDIR/test-iscp.db"
 }
 
@@ -111,8 +109,8 @@ SQL
 _set_repo_name() {
     # Seed agency.yaml so _iscp_resolve_repo_name returns a known name and
     # the pickup can build to_agent=<repo>/testp/testa.
-    mkdir -p claude/config
-    cat > claude/config/agency.yaml <<'EOF'
+    mkdir -p agency/config
+    cat > agency/config/agency.yaml <<'EOF'
 repo:
   name: test-repo
 EOF
@@ -295,7 +293,7 @@ EOF
 @test "dispatches_unread counts unread dispatches addressed to the agent" {
     _set_repo_name
     _init_db
-    git add claude/config/agency.yaml && git commit -qm "seed repo name"
+    git add agency/config/agency.yaml && git commit -qm "seed repo name"
     # Insert 3 unread dispatches for testp/testa, 1 for a different agent,
     # 1 resolved for testp/testa (should not count).
     sqlite3 "$ISCP_DB_PATH" <<SQL
@@ -315,7 +313,7 @@ SQL
 @test "dispatches_drift_since_pause counts only dispatches after pause time" {
     _set_repo_name
     _init_db
-    git add claude/config/agency.yaml && git commit -qm "seed repo name"
+    git add agency/config/agency.yaml && git commit -qm "seed repo name"
     # Pause commit time = the initial commit (setup's git commit).
     # `git log -1 --format=%cI HEAD` gives an ISO timestamp; anything AFTER
     # that should be counted as drift, anything BEFORE should not. Use
@@ -355,7 +353,7 @@ EOF
 # ── Monitor health (3 tests) ───────────────────────────────────────────────
 
 @test "monitor health is 'unknown' when registry is absent" {
-    rm -rf claude/data 2>/dev/null || true
+    rm -rf agency/config 2>/dev/null || true
     run _run_pickup --from compact
     [ "$status" -eq 0 ]
     echo "$output" | grep -q "^monitor_health_dispatch=unknown$"
@@ -364,9 +362,9 @@ EOF
 }
 
 @test "monitor health is 'dead' for a registered type whose PID is stale" {
-    mkdir -p claude/data
+    mkdir -p agency/config
     # Registry with a clearly stale PID that can't match current-shell hash.
-    cat > claude/data/monitor-pids.json <<'EOF'
+    cat > agency/config/monitor-pids.json <<'EOF'
 [{"pid": 99999, "start_time_epoch": 0, "cmdline_hash": "stale-hash", "monitor_type": "dispatch", "registered_at": "2026-04-20T00:00:00Z"}]
 EOF
     run _run_pickup --from compact
@@ -377,9 +375,9 @@ EOF
 }
 
 @test "monitor types not in registry emit 'unknown', not 'dead'" {
-    mkdir -p claude/data
+    mkdir -p agency/config
     # Registry has only 'dispatch' — ci + issue should be unknown.
-    cat > claude/data/monitor-pids.json <<'EOF'
+    cat > agency/config/monitor-pids.json <<'EOF'
 [{"pid": 99999, "start_time_epoch": 0, "cmdline_hash": "stale", "monitor_type": "dispatch", "registered_at": "2026-04-20T00:00:00Z"}]
 EOF
     run _run_pickup --from compact
@@ -597,7 +595,7 @@ EOF
 @test "H3: pause_commit_sha=none short-circuits drift query to 0" {
     _set_repo_name
     _init_db
-    git add claude/config/agency.yaml && git commit -qm "H3 setup"
+    git add agency/config/agency.yaml && git commit -qm "H3 setup"
     # Seed DB with dispatches that WOULD count if drift were computed
     sqlite3 "$ISCP_DB_PATH" <<SQL
 INSERT INTO dispatches (created_at, from_agent, to_agent, type, subject, payload_path, status)
@@ -623,16 +621,16 @@ EOF
 
 # H4: monitor_health=ok when a live monitor is registered with current PID
 @test "H4: monitor_health=ok when current process registered as monitor" {
-    mkdir -p claude/data
+    mkdir -p agency/config
     # Register the bats test process ($$) as a dispatch monitor.
     # monitor-register reads $MONITOR_PID to override $$ for registration
     # target, letting us register "ourselves" without forking.
-    MONITOR_PID=$$ MONITOR_REGISTRY_PATH="$REPO/claude/data/monitor-pids.json" \
-        "$BATS_TEST_DIRNAME/../monitor-register" dispatch >/dev/null 2>&1 || \
-        MONITOR_PID=$$ "$BATS_TEST_DIRNAME/../monitor-register" dispatch >/dev/null 2>&1 || true
+    MONITOR_PID=$$ MONITOR_REGISTRY_PATH="$REPO/agency/config/monitor-pids.json" \
+        "$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)/agency/tools/monitor-register" dispatch >/dev/null 2>&1 || \
+        MONITOR_PID=$$ "$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)/agency/tools/monitor-register" dispatch >/dev/null 2>&1 || true
     # Verify the registration exists; if not, skip (env doesn't support it).
-    [ -f claude/data/monitor-pids.json ] || skip "monitor-register did not write registry"
-    grep -q '"pid"' claude/data/monitor-pids.json || skip "no pid in registry"
+    [ -f agency/config/monitor-pids.json ] || skip "monitor-register did not write registry"
+    grep -q '"pid"' agency/config/monitor-pids.json || skip "no pid in registry"
 
     run _run_pickup --from compact
     [ "$status" -eq 0 ]

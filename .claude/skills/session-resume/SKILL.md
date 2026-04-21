@@ -6,10 +6,10 @@ when_to_use: "Agent starts a new session in a worktree, picks up work after a lo
 argument-hint: "(no args)"
 paths: []
 required_reading:
-  - claude/REFERENCE-HANDOFF-SPEC.md
-  - claude/REFERENCE-ISCP-PROTOCOL.md
-  - claude/REFERENCE-WORKTREE-DISCIPLINE.md
-  - claude/REFERENCE-SKILL-CONVENTIONS.md
+  - agency/REFERENCE/REFERENCE-HANDOFF-SPEC.md
+  - agency/REFERENCE/REFERENCE-ISCP-PROTOCOL.md
+  - agency/REFERENCE/REFERENCE-WORKTREE-DISCIPLINE.md
+  - agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md
 ---
 
 <!--
@@ -25,16 +25,16 @@ required_reading:
 
 Worktree sessions don't start on a clean slate — master has moved, dispatches have accumulated, the handoff holds carry-over context, monitors need to be live. Without a disciplined startup, agents miss overnight dispatches, work on stale master, forget the last session's `next-action`, or run without the ISCP monitor so new dispatches arrive silently.
 
-This skill shells to `claude/tools/session-pickup --from fresh` for the mechanics (sync, preflight, state report) and acts on the output — re-launches dead monitors, surfaces drifted dispatches, hands the agent a clean re-orient point.
+This skill shells to `agency/tools/session-pickup --from fresh` for the mechanics (sync, preflight, state report) and acts on the output — re-launches dead monitors, surfaces drifted dispatches, hands the agent a clean re-orient point.
 
 **PICKUP-for-fresh** surface. Paired with `/session-end` on the other side. Contrast `/compact-resume` (post-compact, trimmed — no sync, no full preflight).
 
 ## Required reading
 
-- `claude/REFERENCE-HANDOFF-SPEC.md` — handoff frontmatter, `mode: resumption` enum value.
-- `claude/REFERENCE-ISCP-PROTOCOL.md` — dispatch lifecycle + drift semantics.
-- `claude/REFERENCE-WORKTREE-DISCIPLINE.md` — why worktree sync matters.
-- `claude/REFERENCE-SKILL-CONVENTIONS.md` — primitive-composition pattern.
+- `agency/REFERENCE/REFERENCE-HANDOFF-SPEC.md` — handoff frontmatter, `mode: resumption` enum value.
+- `agency/REFERENCE/REFERENCE-ISCP-PROTOCOL.md` — dispatch lifecycle + drift semantics.
+- `agency/REFERENCE/REFERENCE-WORKTREE-DISCIPLINE.md` — why worktree sync matters.
+- `agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md` — primitive-composition pattern.
 
 ## Usage
 
@@ -46,7 +46,7 @@ No arguments. Self-contained. Works from any branch; on master, the sync step si
 
 ## Preconditions
 
-1. Agency tooling installed (`claude/tools/session-pickup`, `session-preflight`, `worktree-sync`, `dispatch`, `handoff`).
+1. Agency tooling installed (`agency/tools/session-pickup`, `session-preflight`, `worktree-sync`, `dispatch`, `handoff`).
 2. Worktree readable, agent identity resolves correctly.
 3. A prior session wrote a handoff (usually via `/session-end`). First-session-in-worktree is tolerated — pickup reports `aborted` or an empty `next_action` in that case.
 
@@ -55,7 +55,7 @@ No arguments. Self-contained. Works from any branch; on master, the sync step si
 ### Step 1: Run session-pickup primitive
 
 ```bash
-./claude/tools/session-pickup --from fresh
+./agency/tools/session-pickup --from fresh
 ```
 
 `--from fresh` runs `worktree-sync --auto` and `session-preflight` in addition to the common PICKUP steps (read handoff, check tree, count dispatch drift, probe monitor health). Preflight failure → `status=blocked`.
@@ -80,14 +80,14 @@ For each `monitor_health_* = dead`, invoke the corresponding skill (NOT `monitor
 
 ### Step 4: Surface dispatch drift + unread
 
-If `dispatches_unread > 0`, list via `./claude/tools/dispatch list --status unread`. An unread dispatch is a blocked person — read before starting new work (standing priority). `dispatches_drift_since_pause` is the subset that arrived after the prior PAUSE commit — usually what to focus on first.
+If `dispatches_unread > 0`, list via `./agency/tools/dispatch list --status unread`. An unread dispatch is a blocked person — read before starting new work (standing priority). `dispatches_drift_since_pause` is the subset that arrived after the prior PAUSE commit — usually what to focus on first.
 
 ### Step 5: Report and hand off
 
 Report to the user:
 
-- **Branch:** via `./claude/tools/git-safe branch --show-current`
-- **Last commit:** via `./claude/tools/git-safe log --oneline -1`
+- **Branch:** via `./agency/tools/git-safe branch --show-current`
+- **Last commit:** via `./agency/tools/git-safe log --oneline -1`
 - **Sync result:** what worktree-sync did (or "on master — sync skipped")
 - **Handoff mode:** `handoff_mode` (should be `resumption` for fresh; `continuation` is tolerable; `legacy` means pre-refactor migration tolerated)
 - **Monitors:** summary count of ok / dead (relaunched) / unknown
@@ -122,6 +122,6 @@ Agent resumes from `next_action`.
 - `/compact-resume` — post-compact PICKUP (same process, trimmed).
 - `/captain-sync-all` — captain-side fleet startup on master.
 - `/monitor-dispatches`, `/monitor-ci`, `/changelog-watch` — re-launch paths for dead monitors.
-- `claude/tools/session-pickup` — primitive this skill shells to.
+- `agency/tools/session-pickup` — primitive this skill shells to.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

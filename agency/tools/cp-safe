@@ -12,9 +12,9 @@
 # but distinct from cross-worktree. They require an explicit --cross-repo
 # flag so they're visible in the audit trail.
 #
-# Usage: ./claude/tools/cp-safe <source> <dest>
-#        ./claude/tools/cp-safe -r <source-dir> <dest-dir>
-#        ./claude/tools/cp-safe --cross-repo <source> <peer-repo-dest>
+# Usage: ./agency/tools/cp-safe <source> <dest>
+#        ./agency/tools/cp-safe -r <source-dir> <dest-dir>
+#        ./agency/tools/cp-safe --cross-repo <source> <peer-repo-dest>
 #
 # Written: 2026-04-14 during captain session (worktree discipline enforcement)
 # QG: fixed multi-source drop (#4), non-existent dest bypass (#2)
@@ -162,7 +162,7 @@ if [[ "$SOURCE_ROOT" != "$DEST_ROOT" ]]; then
         echo "Cross-repo copies are allowed for upstream-port and peer-repo workflows," >&2
         echo "but require the --cross-repo flag so they're explicit in the audit trail:" >&2
         echo "" >&2
-        echo "  ./claude/tools/cp-safe --cross-repo ${CP_FLAGS[*]:-} \"$SOURCE\" \"$DEST\"" >&2
+        echo "  ./agency/tools/cp-safe --cross-repo ${CP_FLAGS[*]:-} \"$SOURCE\" \"$DEST\"" >&2
         exit 1
     fi
 

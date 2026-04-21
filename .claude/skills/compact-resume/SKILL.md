@@ -5,8 +5,8 @@ agency-skill-version: 2
 when_to_use: "Immediately after /compact completes. You were working, you ran /compact-prepare, you ran /compact, and now you need to re-orient before resuming the task."
 paths: []
 required_reading:
-  - claude/REFERENCE-HANDOFF-SPEC.md
-  - claude/REFERENCE-SKILL-CONVENTIONS.md
+  - agency/REFERENCE/REFERENCE-HANDOFF-SPEC.md
+  - agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md
 argument-hint: "(no args)"
 ---
 
@@ -27,12 +27,12 @@ argument-hint: "(no args)"
 - `/compact` runs.
 - `/compact-resume` reads that handoff back, checks nothing drifted during compaction, and hands the agent a clean re-orient point.
 
-This is the **PICKUP-for-compact** surface. It shells to `claude/tools/session-pickup --from compact`. Paired with `/compact-prepare` on the other side.
+This is the **PICKUP-for-compact** surface. It shells to `agency/tools/session-pickup --from compact`. Paired with `/compact-prepare` on the other side.
 
 ## Required reading
 
-- `claude/REFERENCE-HANDOFF-SPEC.md` — handoff frontmatter shape, `mode: continuation` enum value.
-- `claude/REFERENCE-SKILL-CONVENTIONS.md` — primitive-composition pattern (skill shells to bash tool per agency#348).
+- `agency/REFERENCE/REFERENCE-HANDOFF-SPEC.md` — handoff frontmatter shape, `mode: continuation` enum value.
+- `agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md` — primitive-composition pattern (skill shells to bash tool per agency#348).
 
 ## Usage
 
@@ -46,14 +46,14 @@ No arguments. The skill is self-contained — it reads the current handoff, veri
 
 1. You just ran `/compact`. The handoff file exists from the immediately-prior `/compact-prepare`.
 2. The working tree should be clean — if it's dirty, the skill reports `tree_state=dirty` and blocks. Compact doesn't modify the working tree, so dirty means something else happened in the background.
-3. `claude/tools/session-pickup` is installed (framework tool; landed in session-lifecycle-refactor Phase 2).
+3. `agency/tools/session-pickup` is installed (framework tool; landed in session-lifecycle-refactor Phase 2).
 
 ## Flow / Steps
 
 ### Step 1: Run session-pickup primitive
 
 ```bash
-./claude/tools/session-pickup --from compact
+./agency/tools/session-pickup --from compact
 ```
 
 `--from compact` is the right mode post-compact — skips `worktree-sync` (master cannot have moved during in-process compaction) and skips full preflight (this is the same process, not a fresh session).
@@ -89,7 +89,7 @@ For `unknown`, the monitor type isn't registered — probably wasn't running bef
 If `dispatches_drift_since_pause > 0`, list the drifted dispatches:
 
 ```bash
-./claude/tools/dispatch list --status unread
+./agency/tools/dispatch list --status unread
 ```
 
 These are dispatches that arrived between the PAUSE commit and now. Read any that look relevant before resuming the task (an unread dispatch is a blocked person — the standing priority applies).
@@ -98,8 +98,8 @@ These are dispatches that arrived between the PAUSE commit and now. Read any tha
 
 Report to the user in a tight summary:
 
-- **Branch:** via `./claude/tools/git-safe branch --show-current`
-- **Last commit:** via `./claude/tools/git-safe log --oneline -1`
+- **Branch:** via `./agency/tools/git-safe branch --show-current`
+- **Last commit:** via `./agency/tools/git-safe log --oneline -1`
 - **Handoff mode:** `handoff_mode` from Step 1
 - **Monitors:** count of `ok` / `dead` / `unknown` across the three types
 - **Dispatches:** `dispatches_unread` total, `dispatches_drift_since_pause` since PAUSE
@@ -130,8 +130,8 @@ Then resume. The `next-action` from the handoff IS the task — pick it up and g
 - `/compact-prepare` — PAUSE companion (pre-compact).
 - `/session-resume` — fresh-session PICKUP (post-`/exit`).
 - `/session-end` — end-of-session PAUSE (resumption framing).
-- `claude/tools/session-pickup` — primitive this skill shells to.
-- `claude/tools/handoff` — handoff read/write tool.
+- `agency/tools/session-pickup` — primitive this skill shells to.
+- `agency/tools/handoff` — handoff read/write tool.
 - `/monitor-dispatches`, `/monitor-ci`, `/changelog-watch` — re-launch paths for dead monitors.
 - `/dispatch` — list/read drifted dispatches surfaced in Step 4.
 

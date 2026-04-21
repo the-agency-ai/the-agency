@@ -34,7 +34,7 @@ TOOL_VERSION="1.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${CLAUDE_PROJECT_DIR:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
 SKILLS_DIR="$REPO_ROOT/.claude/skills"
-REGISTRY="$REPO_ROOT/claude/REFERENCE-SKILLS-INDEX.md"
+REGISTRY="$REPO_ROOT/agency/REFERENCE/REFERENCE-SKILLS-INDEX.md"
 
 # the-agency#320 item 3: structured telemetry
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
@@ -520,7 +520,7 @@ _audit_skill() {
 
   # 6. Registry row
   if ! grep -qF "| $skill_name " "$REGISTRY" 2>/dev/null; then
-    ISSUES+=("$skill_name (v2): not in registry (claude/REFERENCE-SKILLS-INDEX.md)")
+    ISSUES+=("$skill_name (v2): not in registry (agency/REFERENCE/REFERENCE-SKILLS-INDEX.md)")
     DRIFT_COUNT=$((DRIFT_COUNT + 1))
     issues_for_skill=$((issues_for_skill + 1))
   fi

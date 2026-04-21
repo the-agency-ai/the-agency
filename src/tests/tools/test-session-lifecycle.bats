@@ -21,13 +21,13 @@
 # MAR R3 added S6-S9; plan v3 Iteration 4.1.
 #
 # Each test runs in $BATS_TEST_TMPDIR with a fresh git repo. Tools under
-# test reach back to the real monofolk tree for sibling helpers (git-safe,
+# test reach back to the real the-agency tree for sibling helpers (git-safe,
 # git-safe-commit, agent-identity, handoff). CLAUDE_PROJECT_DIR + ISCP_DB_PATH
 # overrides scope mutations to the sandbox.
 
 setup() {
-    PAUSE="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/session-pause"
-    PICKUP="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/session-pickup"
+    PAUSE="$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)/agency/tools/session-pause"
+    PICKUP="$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)/agency/tools/session-pickup"
     [[ -x "$PAUSE" ]] || { echo "session-pause not executable at $PAUSE" >&2; return 1; }
     [[ -x "$PICKUP" ]] || { echo "session-pickup not executable at $PICKUP" >&2; return 1; }
 
@@ -54,10 +54,8 @@ next-action: Integration harness baseline next-action.
 Initial sandbox state.
 EOF
     cat > .gitignore <<'EOF'
-claude/data/
 .claude/logs/
-claude/logs/*
-!claude/logs/reviews/
+agency/config/monitor-pids.json
 EOF
     git add usr/testp/testa/testa-handoff.md .gitignore
     git commit -qm "initial"
@@ -123,11 +121,11 @@ _setup_stub_tools() {
 
     # Symlink session-pickup AND its lib/ siblings it sources
     ln -sf "$PICKUP" "$stub_dir/session-pickup"
-    local real_lib="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/lib"
+    local real_lib="$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)/agency/tools/lib"
     ln -sf "$real_lib" "$stub_dir/lib"
     # Real agent-identity so identity resolution doesn't crash
-    ln -sf "$(cd "$BATS_TEST_DIRNAME/.." && pwd)/agent-identity" "$stub_dir/agent-identity"
-    ln -sf "$(cd "$BATS_TEST_DIRNAME/.." && pwd)/monitor-register" "$stub_dir/monitor-register"
+    ln -sf "$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)/agency/tools/agent-identity" "$stub_dir/agent-identity"
+    ln -sf "$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)/agency/tools/monitor-register" "$stub_dir/monitor-register"
 
     # Stub session-preflight — exits with controlled code
     cat > "$stub_dir/session-preflight" <<EOF
@@ -241,8 +239,8 @@ EOF
 
 # ── S5: PICKUP with stale monitor registry → monitor_health=dead ───────
 @test "S5: PICKUP reports monitor_health=dead for stale registry entry" {
-    mkdir -p claude/data
-    cat > claude/data/monitor-pids.json <<'EOF'
+    mkdir -p agency/config
+    cat > agency/config/monitor-pids.json <<'EOF'
 [{"pid": 99999, "start_time_epoch": 0, "cmdline_hash": "stale", "monitor_type": "dispatch", "registered_at": "2026-04-20T00:00:00Z"}]
 EOF
     run _pickup --from compact

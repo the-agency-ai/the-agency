@@ -1,12 +1,12 @@
 #!/usr/bin/env bats
-# test-session-pause.bats — unit tests for claude/tools/session-pause
+# test-session-pause.bats — unit tests for agency/tools/session-pause
 #
 # Covers A&D v3 §9.1 test matrix:
 #   - CLI arg parsing (required args, invalid values)
 #   - Identity resolution (--principal/--agent overrides)
 #   - Clean tree handling (continuation + resumption framings)
 #   - Dirty tree partitioning (coord vs non-coord + carve-outs)
-#   - Coord classifier edge cases (usr/**, .claude/skills/**, claude/tools/**)
+#   - Coord classifier edge cases (usr/**, .claude/skills/**, agency/tools/**)
 #   - Commit message format ("{trigger}: {agent} coord checkpoint")
 #   - Handoff archival (existing, missing)
 #   - Output shape (key=value, aborted emits error_reason)
@@ -16,17 +16,17 @@
 #
 # Each test runs in an isolated tmp git repo via $BATS_TEST_TMPDIR so
 # session-pause's REPO_ROOT (resolved from CLAUDE_PROJECT_DIR) points at
-# the test sandbox, not monofolk itself.
+# the test sandbox, not the-agency itself.
 #
 # Session-lifecycle-refactor Plan v2 Iteration 2.1.
 
 setup() {
     # Real tool under test — SCRIPT_DIR resolves from its own location,
-    # so the tool will reach back to the real monofolk claude/tools/*
+    # so the tool will reach back to the real agency/tools/*
     # for sibling helpers (git-safe, git-safe-commit, agent-identity,
     # monitor-register). We override CLAUDE_PROJECT_DIR to scope dirty-
     # tree detection, handoff paths, and lock keys to the sandbox.
-    TOOL="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/session-pause"
+    TOOL="$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)/agency/tools/session-pause"
     [[ -x "$TOOL" ]] || { echo "session-pause not executable at $TOOL" >&2; return 1; }
 
     # Sandbox git repo
@@ -40,17 +40,13 @@ setup() {
     mkdir -p usr/testp/testa/history usr/testp/testa/dispatches
     touch usr/testp/testa/testa-handoff.md
     # Gitignore session-state that isn't meant for git:
-    #   claude/data/      — monitor-pids.json and similar state
     #   .claude/logs/     — tool telemetry (log_start/log_end writes here)
-    #   claude/logs/*     — framework tool logs (keep reviews/ committed though)
-    # Mirrors the real monofolk .gitignore (lines 235, 238, 241).
+    # Mirrors the real the-agency .gitignore.
     # Must be committed in the INITIAL commit because .gitignore edits are
     # non-coord by session-pause's classifier (would otherwise abort).
     cat > .gitignore <<'EOF'
-claude/data/
 .claude/logs/
-claude/logs/*
-!claude/logs/reviews/
+agency/config/monitor-pids.json
 EOF
     git add usr/testp/testa/testa-handoff.md .gitignore
     git commit -qm "initial"
@@ -146,8 +142,8 @@ _emit_line() {
 }
 
 @test "dirty tree with non-coord framework code aborts" {
-    mkdir -p claude/tools
-    echo "fake tool" > claude/tools/fake-tool
+    mkdir -p agency/tools
+    echo "fake tool" > agency/tools/fake-tool
     run _run_pause --framing continuation --trigger noncoord-dirty
     [ "$status" -eq 1 ]
     echo "$output" | grep -q "^status=aborted$"
@@ -156,8 +152,8 @@ _emit_line() {
 
 @test "dirty tree with mixed coord + non-coord aborts (non-coord dominates)" {
     echo "edit" >> usr/testp/testa/testa-handoff.md
-    mkdir -p claude/tools
-    echo "fake" > claude/tools/fake
+    mkdir -p agency/tools
+    echo "fake" > agency/tools/fake
     run _run_pause --framing continuation --trigger mixed-dirty
     [ "$status" -eq 1 ]
     echo "$output" | grep -q "^status=aborted$"
@@ -202,12 +198,12 @@ _emit_line() {
     echo "$output" | grep -q "^status=ok$"
 }
 
-@test "claude/tools/* classified as non-coord (requires QG)" {
-    mkdir -p claude/tools
-    echo "#!/bin/bash" > claude/tools/new-tool
+@test "agency/tools/* classified as non-coord (requires QG)" {
+    mkdir -p agency/tools
+    echo "#!/bin/bash" > agency/tools/new-tool
     run _run_pause --framing continuation --trigger tool-noncoord
     [ "$status" -eq 1 ]
-    echo "$output" | grep -q "claude/tools/new-tool"
+    echo "$output" | grep -q "agency/tools/new-tool"
 }
 
 # ── Commit message format (1 test) ─────────────────────────────────────────
@@ -319,7 +315,7 @@ _emit_line() {
 
 @test "resumption framing with empty monitor registry is a no-op (no error)" {
     # Ensure no registry exists
-    rm -f claude/data/monitor-pids.json 2>/dev/null || true
+    rm -f agency/config/monitor-pids.json 2>/dev/null || true
     run _run_pause --framing resumption --trigger no-monitors
     [ "$status" -eq 0 ]
     echo "$output" | grep -q "^framing=resumption$"
@@ -330,14 +326,14 @@ _emit_line() {
     # Pre-populate a registry with a fake entry. If continuation tried to
     # stop monitors, it would fail verify and maybe emit stderr. It should
     # not touch the registry at all.
-    mkdir -p claude/data
-    cat > claude/data/monitor-pids.json <<'EOF'
+    mkdir -p agency/config
+    cat > agency/config/monitor-pids.json <<'EOF'
 [{"pid": 99999, "start_time_epoch": 0, "cmdline_hash": "fake", "monitor_type": "dispatch", "registered_at": "2026-04-20T00:00:00Z"}]
 EOF
     run _run_pause --framing continuation --trigger monitors-survive
     [ "$status" -eq 0 ]
     # Registry unchanged
-    grep -q "99999" claude/data/monitor-pids.json
+    grep -q "99999" agency/config/monitor-pids.json
 }
 
 # ── Exit codes (1 test) ────────────────────────────────────────────────────
@@ -427,7 +423,7 @@ line2"
 }
 
 # T3 / F9: identity resolver fallback — unset overrides + break agent-identity
-# via CLAUDE_AGENT_NAME="" + no .agency-agent + on an unknown branch must abort
+# via CLAUDE_AGENT_NAME="" + no .claude-agent + on an unknown branch must abort
 # with a clear "could not resolve" message. We sidestep agent-identity by
 # blocking PATH for it — simpler: pass only --principal and drop --agent, then
 # expect "could not resolve agent" (since no override and agent-identity in
@@ -448,34 +444,34 @@ line2"
 }
 
 # F4: positive coord tests for framework paths beyond .claude/skills/
-@test "claude/config/* classified as coord" {
-    mkdir -p claude/config
-    echo "foo: bar" > claude/config/smoke.yaml
+@test "agency/config/* classified as coord" {
+    mkdir -p agency/config
+    echo "foo: bar" > agency/config/smoke.yaml
     run _run_pause --framing continuation --trigger config-coord
     [ "$status" -eq 0 ]
     run git log -1 --name-only --format=''
-    echo "$output" | grep -q "claude/config/smoke.yaml"
+    echo "$output" | grep -q "agency/config/smoke.yaml"
 }
 
-@test "claude/hookify/* classified as coord" {
-    mkdir -p claude/hookify
-    echo "# rule" > claude/hookify/smoke-rule.md
+@test "agency/hookify/* classified as coord" {
+    mkdir -p agency/hookify
+    echo "# rule" > agency/hookify/smoke-rule.md
     run _run_pause --framing continuation --trigger hookify-coord
     [ "$status" -eq 0 ]
     run git log -1 --name-only --format=''
-    echo "$output" | grep -q "claude/hookify/smoke-rule.md"
+    echo "$output" | grep -q "agency/hookify/smoke-rule.md"
 }
 
-@test "claude/CLAUDE-*.md classified as coord" {
-    mkdir -p claude
-    echo "# claude instructions" > claude/CLAUDE-SMOKE.md
-    run _run_pause --framing continuation --trigger claudemd-coord
+@test "agency/CLAUDE-*.md classified as coord" {
+    mkdir -p agency
+    echo "# agency instructions" > agency/CLAUDE-SMOKE.md
+    run _run_pause --framing continuation --trigger agencymd-coord
     [ "$status" -eq 0 ]
     run git log -1 --name-only --format=''
-    echo "$output" | grep -q "claude/CLAUDE-SMOKE.md"
+    echo "$output" | grep -q "agency/CLAUDE-SMOKE.md"
 }
 
-# F5: non-coord carve-outs symmetric to claude/tools/*
+# F5: non-coord carve-outs symmetric to agency/tools/*
 @test "apps/* classified as non-coord (aborts)" {
     mkdir -p apps/backend/src
     echo "const x = 1;" > apps/backend/src/smoke.ts
@@ -512,8 +508,8 @@ line2"
 # F-HC1: When framework code is dirty AND handoff is dirty, handoff is force-committed first.
 @test "handoff force-commit: dirty handoff + dirty framework code → handoff persisted, then abort" {
     echo "note added mid-session" >> usr/testp/testa/testa-handoff.md
-    mkdir -p claude/tools
-    echo "// wip framework code" > claude/tools/some-tool
+    mkdir -p agency/tools
+    echo "// wip framework code" > agency/tools/some-tool
     run _run_pause --framing continuation --trigger force-commit-test
     [ "$status" -eq 1 ]
     echo "$output" | grep -q "^status=aborted$"
@@ -527,14 +523,14 @@ line2"
     run git status --porcelain -uall
     ! echo "$output" | grep -q "testa-handoff.md"
     # Framework file IS still dirty (not committed)
-    echo "$output" | grep -q "claude/tools/some-tool"
+    echo "$output" | grep -q "agency/tools/some-tool"
 }
 
 # F-HC2: Clean handoff + dirty framework code → no handoff force-commit, just abort.
 @test "handoff force-commit: clean handoff + dirty framework → no force-commit, handoff_commit_sha=none" {
     # Handoff clean (from setup). Only framework code dirty.
-    mkdir -p claude/tools
-    echo "// wip" > claude/tools/only-framework
+    mkdir -p agency/tools
+    echo "// wip" > agency/tools/only-framework
     run _run_pause --framing continuation --trigger no-handoff-force
     [ "$status" -eq 1 ]
     echo "$output" | grep -q "^status=aborted$"
@@ -548,8 +544,8 @@ line2"
 @test "handoff force-commit: only handoff is committed, other coord stays dirty until abort" {
     echo "handoff note" >> usr/testp/testa/testa-handoff.md
     echo "seed content" > usr/testp/testa/seeds-note.md
-    mkdir -p claude/tools
-    echo "// wip" > claude/tools/other-tool
+    mkdir -p agency/tools
+    echo "// wip" > agency/tools/other-tool
     run _run_pause --framing continuation --trigger selective-force
     [ "$status" -eq 1 ]
     echo "$output" | grep -q "^status=aborted$"
@@ -562,7 +558,7 @@ line2"
     # Option B design (handoff lane separate from coord-checkpoint lane).
     echo "$output" | grep -q "seeds-note.md"
     # Framework file still dirty too
-    echo "$output" | grep -q "claude/tools/other-tool"
+    echo "$output" | grep -q "agency/tools/other-tool"
 }
 
 # F-HC4: Happy path — only handoff dirty, no framework → normal coord checkpoint, handoff_commit_sha=none.
@@ -581,10 +577,10 @@ line2"
 # B22: test that a negative-pid entry in monitor registry does NOT call os.kill
 # (can't easily assert negative — but we can assert the tool doesn't hang or crash)
 @test "resumption with a malicious pid<=1 entry in monitor registry is safe" {
-    mkdir -p claude/data
+    mkdir -p agency/config
     # Registry with catastrophic PIDs: -1 (all-processes), 0 (process-group),
     # 1 (init). All should be filtered by the pid<=1 guard.
-    cat > claude/data/monitor-pids.json <<'EOF'
+    cat > agency/config/monitor-pids.json <<'EOF'
 [
   {"pid": -1, "start_time_epoch": 0, "cmdline_hash": "fake", "monitor_type": "dispatch", "registered_at": "2026-04-20T00:00:00Z"},
   {"pid": 0,  "start_time_epoch": 0, "cmdline_hash": "fake", "monitor_type": "ci",       "registered_at": "2026-04-20T00:00:00Z"},

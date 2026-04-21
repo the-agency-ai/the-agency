@@ -5,8 +5,8 @@ agency-skill-version: 2
 when_to_use: "Context window is filling and you want to keep working after /compact. Runs the PAUSE primitive in continuation framing, writes a handoff the post-compact session will pick up."
 paths: []
 required_reading:
-  - claude/REFERENCE-HANDOFF-SPEC.md
-  - claude/REFERENCE-SKILL-CONVENTIONS.md
+  - agency/REFERENCE/REFERENCE-HANDOFF-SPEC.md
+  - agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md
 argument-hint: "[reason]"
 ---
 
@@ -23,12 +23,12 @@ argument-hint: "[reason]"
 
 Claude Code's `/compact` summarizes the conversation to free context, but a summary is lossy. The guarantee "I'll remember what I was doing after compact" holds only if a disciplined handoff is written BEFORE compact. This skill is that discipline for mid-session compaction — you commit current coord work, write a continuation-framed handoff, then run `/compact`.
 
-Framework: this is the **PAUSE-for-compact** surface. It shells to `claude/tools/session-pause --framing continuation`. Paired with `/compact-resume` on the other side.
+Framework: this is the **PAUSE-for-compact** surface. It shells to `agency/tools/session-pause --framing continuation`. Paired with `/compact-resume` on the other side.
 
 ## Required reading
 
-- `claude/REFERENCE-HANDOFF-SPEC.md` — handoff frontmatter shape, `mode:` enum (continuation for this skill)
-- `claude/REFERENCE-SKILL-CONVENTIONS.md` — primitive-composition pattern (skills shell to bash tools per agency#348)
+- `agency/REFERENCE/REFERENCE-HANDOFF-SPEC.md` — handoff frontmatter shape, `mode:` enum (continuation for this skill)
+- `agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md` — primitive-composition pattern (skills shell to bash tools per agency#348)
 
 ## Usage
 
@@ -55,7 +55,7 @@ After this skill reports clean state + handoff written, **run `/compact` next.**
 ### Step 1: Run session-pause primitive
 
 ```bash
-./claude/tools/session-pause --framing continuation --trigger "${REASON:-compact-prepare}"
+./agency/tools/session-pause --framing continuation --trigger "${REASON:-compact-prepare}"
 ```
 
 The primitive (v1.2.0+) force-commits the handoff in its own commit if the tree has non-coord framework files dirty — so the handoff is durable even when the overall PAUSE aborts on framework-code gate. Parse the emitted key=value output:
@@ -98,7 +98,7 @@ Frame for **continuation**, not resumption. The agent keeps working after compac
 ### Step 3: Verify handoff
 
 ```bash
-./claude/tools/handoff read
+./agency/tools/handoff read
 ```
 
 Confirm the handoff was written correctly and `next-action` is clear.
@@ -107,8 +107,8 @@ Confirm the handoff was written correctly and `next-action` is clear.
 
 Report to the user:
 
-- **Branch:** via `./claude/tools/git-safe branch --show-current`
-- **Last commit:** via `./claude/tools/git-safe log --oneline -1`
+- **Branch:** via `./agency/tools/git-safe branch --show-current`
+- **Last commit:** via `./agency/tools/git-safe log --oneline -1`
 - **Dirty files:** 0 (session-pause ensures this, or aborted above)
 - **Handoff path:** from session-pause output
 - **Archived:** prior handoff archive path from session-pause output
@@ -140,8 +140,8 @@ Then the directive:
 - `/compact-resume` — PICKUP companion (post-compact).
 - `/session-end` — end-of-session PAUSE (resumption framing).
 - `/session-resume` — fresh-session PICKUP.
-- `claude/tools/session-pause` — primitive this skill shells to.
-- `claude/tools/handoff` — handoff read/write tool.
+- `agency/tools/session-pause` — primitive this skill shells to.
+- `agency/tools/handoff` — handoff read/write tool.
 - `the-agency#355` — upstream tracker for handoff force-commit landing in the primitive (when that lands, Step 1 is retired per Plan HG-7).
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

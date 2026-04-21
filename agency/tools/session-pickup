@@ -3,7 +3,7 @@
 #
 # Internal tool invoked from skills (/compact-resume, /session-resume).
 # NOT intended for direct agent invocation — see
-# claude/REFERENCE-SKILL-CONVENTIONS.md §7 (primitives-as-tools pattern).
+# agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md §7 (primitives-as-tools pattern).
 #
 # What Problem: post-`/compact` and fresh-session startup duplicated a lot of
 # bespoke bash (read handoff, count unread dispatches, compute drift, probe
@@ -59,7 +59,7 @@ else
     REPO_ROOT="$(git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)"
 fi
 
-MONITOR_REGISTRY="$REPO_ROOT/claude/data/monitor-pids.json"
+MONITOR_REGISTRY="$REPO_ROOT/agency/config/monitor-pids.json"
 LOCK_TIMEOUT_SECONDS=5
 
 # ── Output helpers ──────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ Usage: session-pickup --from <compact|fresh>
                       [--principal <name>] [--agent <name>]
 
 Internal primitive — called from skills (/compact-resume, /session-resume).
-See claude/REFERENCE-SKILL-CONVENTIONS.md §7.
+See agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md §7.
 
 Required:
   --from compact           — post-/compact pickup; no sync, no preflight.
@@ -485,7 +485,7 @@ if [[ "$FROM" == "fresh" ]]; then
     if [[ -x "$SCRIPT_DIR/session-preflight" ]]; then
         if ! "$SCRIPT_DIR/session-preflight" >/dev/null 2>&1; then
             BLOCKED="blocked"
-            BLOCKED_REASON="session-preflight failed — run ./claude/tools/session-preflight for details"
+            BLOCKED_REASON="session-preflight failed — run ./agency/tools/session-preflight for details"
         fi
     fi
 fi
