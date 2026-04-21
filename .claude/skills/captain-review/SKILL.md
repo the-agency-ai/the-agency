@@ -57,7 +57,7 @@ Before running, Read the files listed in `required_reading:` frontmatter.
 
 ## Preconditions
 
-1. You are the captain on the main checkout (master). This skill refuses from a worktree — `disable-model-invocation: true` + `paths: []` enforce captain-invoked-only; the captain must verify before running.
+1. You are the captain on the main checkout (master). This skill is scoped to the captain family — `paths: []` keeps it out of worktree autocomplete and the captain-family name signals scope. The captain must verify main-checkout/master before running; this skill has no Step-1 runtime refuse-from-wrong-context check yet (follow-up tracked). Do not run from a worktree.
 2. `gh` is authenticated against the repo's origin.
 3. Working tree is clean or contains only coordination-artifact edits — this skill writes dispatch files and commits them, so incidental code changes would be swept into the coord commit.
 4. `/code-review` is available (Batch 4 v2 skill).

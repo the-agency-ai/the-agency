@@ -2,7 +2,7 @@
 name: pr-captain-merge
 description: Captain-only. Merge a PR safely — true merge commit (never squash, never rebase), branch protection respected, --principal-approved gate for --admin override. Prevents the "accidentally squashed via the wide GitHub UI button" failure mode that has burned the fleet.
 agency-skill-version: 2
-when_to_use: Captain on master in main checkout, after PR has passed CI and principal has approved (verbally or via GitHub review). Invoked by captain directly or as a step within /pr-captain-land. NEVER from a worktree. NEVER auto-invoked (disable-model-invocation).
+when_to_use: Captain on master in main checkout, after PR has passed CI and principal has approved (verbally or via GitHub review). Invoked by captain directly or as a step within /pr-captain-land. NEVER from a worktree. Intended for explicit invocation — runtime precondition in underlying `agency/tools/pr-merge` refuses from wrong context.
 argument-hint: "<pr-number> [--principal-approved] [--delete-branch] [--dry-run]"
 paths: []
 required_reading:
@@ -140,14 +140,15 @@ Both rewrite history. The-agency framework is built on visible, append-only hist
 
 Cost: heavier `git log` output. Benefit: you can SEE what happened and WHY, which is essential when fleet agents and adopters all have to read the same history.
 
-## Captain-only — four-layer defense
+## Captain-only — three-layer defense
 
 Defense in depth against accidental invocation from the wrong context:
 
-1. **`disable-model-invocation: true`** in frontmatter — Claude cannot auto-invoke. Captain must type the command.
-2. **`paths: []`** (intentionally empty) — no auto-activation from any file path.
-3. **Name contains `captain-`** — any reader sees scope in the skill listing.
-4. **Runtime precondition** — underlying `agency/tools/pr-merge` checks caller context before engaging `--admin`.
+1. **`paths: []`** (intentionally empty) — no file-path auto-activation; universally discoverable for the captain but scoped out of worktree contexts.
+2. **Name contains `captain-`** — any reader sees scope in the skill listing.
+3. **Runtime precondition** — underlying `agency/tools/pr-merge` checks caller context before engaging `--admin`.
+
+(Historically `disable-model-invocation: true` was a fourth layer. That flag was removed 2026-04-20 because the captain session IS the principal's session — DMI was blocking the captain from invoking captain-* skills. See `REFERENCE-SKILL-CONVENTIONS.md` §1.)
 
 ## Status
 

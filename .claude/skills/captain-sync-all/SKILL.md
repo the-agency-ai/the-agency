@@ -168,12 +168,13 @@ Light update to captain handoff: "what synced, what was merged into master, any 
 - **Does not force-sync**: conflicts halt the process; no forced resolution.
 - **Does not write commits on worktree branches** (other than merge-master commits).
 
-## Captain-only — four-layer defense
+## Captain-only — three-layer defense
 
-1. `disable-model-invocation: true` — Claude can't auto-invoke.
-2. `paths: []` — no auto-activation.
-3. Name contains `captain-`.
-4. Step 1 precondition — must be on master in main checkout.
+1. `paths: []` — no file-path auto-activation; universally discoverable for the captain but scoped out of agent worktree contexts.
+2. Name contains `captain-` — scope visible at a glance in skill listings.
+3. Step 1 precondition — must be on master in main checkout; refuses otherwise.
+
+(Historically `disable-model-invocation: true` was a fourth layer. That flag was removed 2026-04-20 because the captain session IS the principal's session — DMI was blocking the captain from invoking captain-* skills. See `REFERENCE-SKILL-CONVENTIONS.md` §1.)
 
 ## Status
 

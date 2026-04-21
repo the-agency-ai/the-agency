@@ -375,13 +375,24 @@ _audit_skill() {
   # (deprecation signposts like /rebase), but it's NOT a captain-family
   # requirement.
   #
-  # The rule we enforce: IF name contains `captain-`, THEN paths MUST be [].
-  # No DMI requirement.
+  # The rule we enforce: IF name is captain-family (starts with `captain`,
+  # ends with `-captain`, or has an internal `-captain-` segment), THEN
+  # paths MUST be []. No DMI requirement.
+  #
+  # The regex `(^|-)captain(-|$)` matches:
+  #   - captain              (bare)
+  #   - captain-log          (prefix + hyphen)
+  #   - pr-captain-land      (internal captain segment)
+  #   - housekeeping-captain (suffix captain segment)
+  #
+  # Previous regex `^captain-|-captain-` required hyphens on BOTH sides,
+  # which missed bare `captain` and trailing `-captain` forms. Comment
+  # claimed "contains captain-" but regex was stricter — QG finding C-3.
   local paths_val
   paths_val=$(_get_frontmatter "$skill_file" "paths")
   local has_empty_paths=false has_captain_name=false
   [[ "$paths_val" = "[]" ]] && has_empty_paths=true
-  [[ "$skill_name" =~ ^captain-|-captain- ]] && has_captain_name=true
+  [[ "$skill_name" =~ (^|-)captain(-|$) ]] && has_captain_name=true
 
   if [[ "$has_captain_name" = true && "$has_empty_paths" = false ]]; then
     ISSUES+=("$skill_name (v2): captain-named skill must have paths: [] (universally discoverable)")

@@ -182,12 +182,13 @@ Post-merge complete:
 - **Does not push directly to main** — version mismatches require follow-up PR, not direct push.
 - **Does not run the quality gate** — QG happened during `/pr-prep` pre-PR.
 
-## Captain-only — four-layer defense
+## Captain-only — three-layer defense
 
-1. **`disable-model-invocation: true`** — Claude can't auto-invoke. Captain types it.
-2. **`paths: []`** — no auto-activation from any file path.
-3. **Name contains `captain-`** — visible scope in the skill listing.
-4. **Runtime precondition** — Step 1 refuses if not on master in main checkout.
+1. **`paths: []`** — no file-path auto-activation; universally discoverable for the captain but scoped out of worktree contexts.
+2. **Name contains `captain-`** — visible scope in the skill listing.
+3. **Runtime precondition** — Step 1 refuses if not on master in main checkout.
+
+(Historically `disable-model-invocation: true` was a fourth layer. That flag was removed 2026-04-20 because the captain session IS the principal's session — DMI was blocking the captain from invoking captain-* skills. See `REFERENCE-SKILL-CONVENTIONS.md` §1.)
 
 ## Status
 

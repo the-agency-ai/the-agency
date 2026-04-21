@@ -122,9 +122,9 @@ Sync complete:
 - **Does not create PRs**: that's `/captain-release` (captain) or `/pr-submit` (agent).
 - **Does not run QG**: that's `/pr-prep`. Run QG BEFORE `/sync` if this push is PR-bound.
 
-## disable-model-invocation: true
+## Explicit invocation only
 
-Pushing is destructive and requires principal confirmation. Model auto-invocation could push in the wrong context. The `disable-model-invocation: true` frontmatter prevents that. Principal/captain types `/sync` explicitly.
+Pushing is destructive and requires principal confirmation. This skill is intended to be invoked explicitly (principal/captain types `/sync`) rather than auto-invoked by the model. The skill's own Step 1–2 interactive confirmation is the operative gate; the `paths: []` frontmatter keeps the skill out of file-path autocomplete but does not on its own block auto-invocation. If you need a hard per-skill auto-invocation block for a specific future case, `disable-model-invocation: true` is available per-skill (see `REFERENCE-SKILL-CONVENTIONS.md` §1).
 
 ## Status
 

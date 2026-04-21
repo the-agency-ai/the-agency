@@ -1,8 +1,8 @@
 ---
 name: pr-captain-land
-description: Captain-only. Land an agent's prepared branch — switch, verify receipt, bump agency_version, create PR, watch CI, merge, release, notify agent. The single-writer serialization point for agency_version and PR creation. Companion to /pr-submit (the-agency#296 Phase 1 pilot). The `captain-` qualifier in the name signals scope at a glance (complements paths + disable-model-invocation enforcement).
+description: Captain-only. Land an agent's prepared branch — switch, verify receipt, bump agency_version, create PR, watch CI, merge, release, notify agent. The single-writer serialization point for agency_version and PR creation. Companion to /pr-submit (the-agency#296 Phase 1 pilot). The `captain-` qualifier in the name signals scope at a glance (complements `paths: []` scoping and the Step-1 runtime precondition).
 agency-skill-version: 2
-when_to_use: Captain on master in main checkout, after a /pr-submit dispatch from an agent. NEVER from a worktree. NEVER auto-invoked (disable-model-invocation + empty paths).
+when_to_use: Captain on master in main checkout, after a /pr-submit dispatch from an agent. NEVER from a worktree. Intended for explicit captain invocation — the Step-1 runtime precondition refuses from wrong context.
 argument-hint: "<agent-branch> [--dry-run] [--title \"...\"] [--no-release]"
 paths: []
 required_reading:
@@ -19,9 +19,8 @@ required_reading:
   git-safe, git-captain, git-push, git-safe-commit, pr-create,
   pr-captain-merge, gh-release, dispatch, diff-hash, and gh — tool-level
   narrow restriction would work but needs maintenance. Inherit Bash(*).
-  Defense in depth is layered via disable-model-invocation + paths: [] +
-  captain- name + runtime precondition (see "Captain-only — four-layer
-  defense" below).
+  Defense in depth is layered via paths: [] + captain- name + runtime
+  precondition (see "Captain-only — three-layer defense" below).
 -->
 
 # pr-captain-land
@@ -209,18 +208,19 @@ Agent picks up on next `/session-resume` or via dispatch monitor.
 - **Does not modify agent's existing commits.** Only appends the version-bump commit.
 - **Does not squash or rebase.** `pr-captain-merge` enforces true merge commit per framework discipline.
 - **Does not auto-retry on failure.** Failures need captain attention; no silent retries that mask real issues.
-- **Does not fire from an agent context.** Four-layer defense (below) makes this impossible.
+- **Does not fire from an agent context.** Three-layer defense (below) makes this impossible.
 
-## Captain-only — four-layer defense
+## Captain-only — three-layer defense
 
 Defense in depth against accidental invocation from the wrong context:
 
-1. **`disable-model-invocation: true`** in frontmatter — Claude cannot auto-invoke. Captain must explicitly type the command.
-2. **`paths: []`** (intentionally empty) — no file-path auto-activation. (Contrast with `pr-submit` which has `paths: [.claude/worktrees/**]`.)
-3. **Name contains `captain-`** — any human or agent browsing the skill list sees scope at a glance.
-4. **Runtime precondition** — script's Step 1 refuses unless in main checkout on master.
+1. **`paths: []`** (intentionally empty) — no file-path auto-activation. (Contrast with `pr-submit` which has `paths: [.claude/worktrees/**]`.)
+2. **Name contains `captain-`** — any human or agent browsing the skill list sees scope at a glance.
+3. **Runtime precondition** — script's Step 1 refuses unless in main checkout on master.
 
-Any single layer failing is caught by the next. All four must fail simultaneously for an unauthorized invocation to land a PR.
+Any single layer failing is caught by the next. All three must fail simultaneously for an unauthorized invocation to land a PR.
+
+(Historically `disable-model-invocation: true` was a fourth layer. That flag was removed 2026-04-20 because the captain session IS the principal's session — DMI was blocking the captain from invoking captain-* skills. See `REFERENCE-SKILL-CONVENTIONS.md` §1.)
 
 ## Status
 
