@@ -148,6 +148,17 @@ fi
 
 PRINCIPAL="jordan"  # TODO: resolve via agency whoami in v2
 
+# Resolve ORG from the origin remote URL (no network call).
+REMOTE_URL=$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || echo "")
+if [[ "$REMOTE_URL" =~ ^git@github\.com:([^/]+)/([^/.]+)(\.git)?$ ]]; then
+    ORG="${BASH_REMATCH[1]}"
+elif [[ "$REMOTE_URL" =~ ^https://github\.com/([^/]+)/([^/.]+?)(\.git)?/?$ ]]; then
+    ORG="${BASH_REMATCH[1]}"
+else
+    echo "pr-submit: cannot parse origin remote URL '$REMOTE_URL'" >&2
+    exit 1
+fi
+
 # ── Build dispatch body ──────────────────────────────────────────────────────
 
 DISPATCH_BODY=$(cat <<EOF
@@ -156,7 +167,7 @@ DISPATCH_BODY=$(cat <<EOF
 ## Branch ready
 
 - **Branch:** \`$BRANCH\`
-- **Agent:** <org>/$PRINCIPAL/$AGENT
+- **Agent:** $ORG/$PRINCIPAL/$AGENT
 - **HEAD:** \`$LOCAL_SHA\` (pushed to origin)
 - **Diff base:** \`origin/master\`
 - **Diff hash:** \`$DIFF_HASH_SHORT\`
@@ -194,7 +205,7 @@ Captain owns the PR lifecycle. I stand by to /pr-respond if review comments come
 
 Over.
 
--- <org>/$PRINCIPAL/$AGENT
+-- $ORG/$PRINCIPAL/$AGENT
 EOF
 )
 
@@ -202,7 +213,7 @@ EOF
 
 "$REPO_ROOT/agency/tools/dispatch" create \
     --type dispatch \
-    --to "<org>/$PRINCIPAL/captain" \
+    --to "$ORG/$PRINCIPAL/captain" \
     --subject "Ready for PR landing: $BRANCH — $SCOPE" \
     --body "$DISPATCH_BODY" \
     ${PRIORITY:+--priority "$PRIORITY"} >/dev/null
@@ -211,6 +222,6 @@ echo "submit-for-pr: submitted"
 echo "  branch:   $BRANCH"
 echo "  receipt:  $RECEIPT_REL"
 echo "  hash:     $DIFF_HASH_SHORT"
-echo "  dispatch: sent to <org>/$PRINCIPAL/captain (priority: $PRIORITY)"
+echo "  dispatch: sent to $ORG/$PRINCIPAL/captain (priority: $PRIORITY)"
 echo ""
 echo "Captain will pick up and run /pr-captain-land. Stand by for merge dispatch."

@@ -447,10 +447,10 @@ Blindspots found 12 items worth surfacing. Not all 12 are in-scope. In-scope: #3
 
 | # | Question | Default |
 |---|----------|---------|
-| 1 | PR #397 — handle before Bucket 0? | Yes, handle before (my recommendation) |
+| 1 | PR #397 — slot between Bucket 0 and Bucket A? | **Confirmed v3:** yes, after Bucket 0, before Bucket A |
 | 2 | B#384 Docker BATS — in this push? | Principal decides |
 | 3 | A#394 shebang strategy — bash launcher wrapper vs Python re-exec? | bash launcher wrapper (my pick) |
-| 4 | B#392 fix-now vs defer to Phase 4c? | Fix-now (my pick) |
+| 4 | D#392 fix-now vs defer to Phase 4c? | **Confirmed v3:** fix-now (D bucket per principal) |
 | 5 | A#395 — deprecate `--no-work-item` in favor of `--coord`? | No deprecation; doc both |
 | 6 | A#393 — skill-contract test fleet-wide in this push? | No — follow-up initiative |
 | 7 | Release cadence — 4-5 natural boundaries (my proposal) or strict per-PR? | 4-5 natural boundaries |
@@ -481,4 +481,4 @@ Blindspots found 12 items worth surfacing. Not all 12 are in-scope. In-scope: #3
 
 ---
 
-*v2 — revised post-MAR. Awaiting principal review + Q&A on the 11 decision points before execution.*
+*v3.1 — Bucket D (#392) + Bucket E (skill-validation unblock) added per principal. In execution: Bucket E on fix/skill-validation-monofolk-cleanup branch as of 2026-04-21T15:xx.*
