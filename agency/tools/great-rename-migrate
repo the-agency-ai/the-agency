@@ -1,0 +1,303 @@
+#!/usr/bin/env bash
+#
+# great-rename-migrate — Apply the-agency v1→v2 path rename to the current
+# branch.
+#
+# What Problem: When main executes a structural rename (`claude/` → `agency/`,
+# `tests/` → `src/tests/`), worktree branches that pre-date the rename collide
+# with hundreds of path conflicts on `worktree-sync`. Each conflict is a
+# captain-expensive manual reconciliation. This tool applies the rename map
+# mechanically on the current branch BEFORE the sync, converting conflicts
+# from "file location" (thousands) to "content only" (small, manageable).
+#
+# How & Why: Read a built-in rename map (claude/ → agency/, tests/ → src/tests/).
+# Walk git-tracked files. For each file whose path starts with an old prefix,
+# `git mv` it to the new prefix. Preserves history. Dry-run by default. Agent
+# reviews plan, then re-runs with --apply. Only handles PATH migration —
+# inline text references (e.g., `./claude/tools/X` inside a script) require
+# a separate pass (see companion tool / dispatch mapping).
+#
+# Written: 2026-04-21 for Bucket G.1 fleet-unblock deadline.
+# Version: 1.0.0-20260421-bucket-g1
+#
+set -euo pipefail
+
+TOOL_VERSION="1.0.0-20260421-bucket-g1"
+SCRIPT_NAME="great-rename-migrate"
+
+# ANSI colors
+RED="\033[0;31m"
+YELLOW="\033[0;33m"
+GREEN="\033[0;32m"
+BLUE="\033[0;34m"
+BOLD="\033[1m"
+NC="\033[0m"
+
+# Default rename map — space-delimited pairs "old_prefix new_prefix".
+# Longer prefixes must come first so they match before shorter ones.
+DEFAULT_MAP=(
+    "claude/ agency/"
+    "tests/ src/tests/"
+)
+
+usage() {
+    cat <<EOF
+${SCRIPT_NAME} — Apply the-agency v1→v2 path rename to the current branch.
+
+Usage:
+  ${SCRIPT_NAME} [options]
+
+Options:
+  --dry-run            Show what would be renamed, do not execute (DEFAULT).
+  --apply              Execute the renames via 'git mv'.
+  --map <file>         Use a custom rename map file (one pair per line:
+                       "<old_prefix> <new_prefix>"). Default: built-in map
+                       covering claude/ → agency/ and tests/ → src/tests/.
+  --include-untracked  Also migrate untracked files (default: tracked only).
+  -h, --help           Show this help.
+  -v, --version        Show tool version.
+
+Behavior:
+  1. Verifies you are inside a git worktree, on a branch (not detached).
+  2. Refuses to run on main/master (this is a branch-migration tool).
+  3. Walks git-tracked files (or all files if --include-untracked).
+  4. For each file whose path starts with an old prefix, plans a rename
+     to the new prefix.
+  5. Shows the plan (dry-run) or executes via 'git mv' (--apply).
+  6. Does NOT commit — leaves renames staged for your review and commit.
+
+Edge cases:
+  - Target path already exists: skipped with warning (partial prior migration).
+  - Target directory is created automatically by 'git mv'.
+  - Ambiguous mapping: longest matching prefix wins.
+
+Next steps after --apply:
+  1. Review with 'git status' and 'git diff --cached --stat'.
+  2. Run 'git-safe-commit' to commit the moves with a clear message.
+  3. Run 'worktree-sync --auto' to merge main — most path conflicts are
+     now resolved. Remaining conflicts are content-only (inline text
+     references or files both sides edited).
+  4. See fleet-rename dispatch for per-file mapping guidance on any
+     residual conflicts.
+
+Example:
+  $ ${SCRIPT_NAME}              # Dry-run, show plan
+  $ ${SCRIPT_NAME} --apply      # Execute renames
+  $ git status                  # Review
+  $ git-safe-commit "migrate branch: claude/ → agency/ + tests/ → src/tests/" --no-work-item
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+EOF
+}
+
+die() {
+    echo -e "${RED}[ERROR]${NC} $*" >&2
+    exit 1
+}
+
+warn() {
+    echo -e "${YELLOW}[WARN]${NC} $*" >&2
+}
+
+info() {
+    echo -e "${BLUE}[INFO]${NC} $*"
+}
+
+ok() {
+    echo -e "${GREEN}[OK]${NC} $*"
+}
+
+# Parse args
+DRY_RUN=1
+MAP_FILE=""
+INCLUDE_UNTRACKED=0
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        --apply)
+            DRY_RUN=0
+            shift
+            ;;
+        --map)
+            [[ $# -ge 2 ]] || die "--map requires a file argument"
+            MAP_FILE="$2"
+            [[ -f "$MAP_FILE" ]] || die "map file not found: $MAP_FILE"
+            shift 2
+            ;;
+        --include-untracked)
+            INCLUDE_UNTRACKED=1
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -v|--version)
+            echo "${SCRIPT_NAME} ${TOOL_VERSION}"
+            exit 0
+            ;;
+        *)
+            die "Unknown argument: $1 — run '${SCRIPT_NAME} --help'"
+            ;;
+    esac
+done
+
+# Verify we're in a git worktree
+git rev-parse --git-dir >/dev/null 2>&1 || die "Not inside a git worktree"
+
+# Refuse to run on main/master
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
+    die "Refusing to run on '$CURRENT_BRANCH' — this tool migrates BRANCH paths to match main. Switch to a feature branch first."
+fi
+
+# Refuse if detached HEAD
+if [[ "$CURRENT_BRANCH" == "HEAD" ]]; then
+    die "Detached HEAD — checkout a branch before running this tool."
+fi
+
+# Load rename map
+declare -a RENAME_MAP
+if [[ -n "$MAP_FILE" ]]; then
+    while IFS= read -r line; do
+        # Skip comments + blank lines
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        RENAME_MAP+=("$line")
+    done < "$MAP_FILE"
+else
+    RENAME_MAP=("${DEFAULT_MAP[@]}")
+fi
+
+[[ ${#RENAME_MAP[@]} -gt 0 ]] || die "Empty rename map — nothing to do"
+
+# Sort map by prefix length DESCENDING so longest prefixes match first.
+# Bash 3.2 compatible (no sort -V tricks).
+SORTED_MAP=()
+while IFS= read -r entry; do
+    SORTED_MAP+=("$entry")
+done < <(
+    for entry in "${RENAME_MAP[@]}"; do
+        old="${entry%% *}"
+        printf '%d\t%s\n' "${#old}" "$entry"
+    done | sort -rn | cut -f2-
+)
+
+# Collect candidate files
+CANDIDATES=()
+if [[ "$INCLUDE_UNTRACKED" -eq 1 ]]; then
+    while IFS= read -r f; do
+        CANDIDATES+=("$f")
+    done < <(git ls-files -co --exclude-standard)
+else
+    while IFS= read -r f; do
+        CANDIDATES+=("$f")
+    done < <(git ls-files)
+fi
+
+info "Branch: ${BOLD}${CURRENT_BRANCH}${NC}"
+info "Rename map (${#SORTED_MAP[@]} rules, longest-first):"
+for entry in "${SORTED_MAP[@]}"; do
+    old="${entry%% *}"
+    new="${entry#* }"
+    printf "  %s${BLUE}%s${NC} → ${GREEN}%s${NC}\n" "" "$old" "$new"
+done
+info "Scanned ${#CANDIDATES[@]} file(s) in worktree"
+echo
+
+# Compute rename plan
+declare -a PLAN_FROM PLAN_TO
+declare -a SKIP_TARGET_EXISTS
+declare -a NO_MATCH
+
+for f in "${CANDIDATES[@]}"; do
+    matched=0
+    for entry in "${SORTED_MAP[@]}"; do
+        old="${entry%% *}"
+        new="${entry#* }"
+        if [[ "$f" == "${old}"* ]]; then
+            target="${new}${f#$old}"
+            # Skip no-op (already at target) — shouldn't happen with non-identical maps, but defense-in-depth
+            if [[ "$f" == "$target" ]]; then
+                matched=1
+                break
+            fi
+            # Check target doesn't already exist
+            if [[ -e "$target" ]]; then
+                SKIP_TARGET_EXISTS+=("$f → $target")
+                matched=1
+                break
+            fi
+            PLAN_FROM+=("$f")
+            PLAN_TO+=("$target")
+            matched=1
+            break
+        fi
+    done
+    [[ "$matched" -eq 0 ]] && NO_MATCH+=("$f")
+done
+
+PLAN_COUNT=${#PLAN_FROM[@]}
+SKIP_COUNT=${#SKIP_TARGET_EXISTS[@]}
+
+if [[ "$PLAN_COUNT" -eq 0 && "$SKIP_COUNT" -eq 0 ]]; then
+    ok "No files match the rename map — nothing to do. Branch paths already align with main."
+    exit 0
+fi
+
+if [[ "$PLAN_COUNT" -gt 0 ]]; then
+    echo -e "${BOLD}Rename plan (${PLAN_COUNT} file(s)):${NC}"
+    for i in "${!PLAN_FROM[@]}"; do
+        printf "  ${BLUE}%s${NC} → ${GREEN}%s${NC}\n" "${PLAN_FROM[$i]}" "${PLAN_TO[$i]}"
+    done
+    echo
+fi
+
+if [[ "$SKIP_COUNT" -gt 0 ]]; then
+    echo -e "${YELLOW}${BOLD}Skipped (target already exists — partial prior migration or conflict, ${SKIP_COUNT} file(s)):${NC}"
+    for entry in "${SKIP_TARGET_EXISTS[@]}"; do
+        echo -e "  ${YELLOW}${entry}${NC}"
+    done
+    echo -e "${YELLOW}  Resolve these manually — either delete the existing target or reconcile content.${NC}"
+    echo
+fi
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo -e "${BOLD}DRY RUN${NC} — no files renamed. Re-run with ${GREEN}--apply${NC} to execute."
+    exit 0
+fi
+
+# Execute
+info "Applying ${PLAN_COUNT} rename(s) via 'git mv'..."
+FAILED_COUNT=0
+for i in "${!PLAN_FROM[@]}"; do
+    from="${PLAN_FROM[$i]}"
+    to="${PLAN_TO[$i]}"
+    # Ensure target parent dir exists (git mv usually creates, but defense-in-depth)
+    target_dir="$(dirname "$to")"
+    [[ -d "$target_dir" ]] || mkdir -p "$target_dir"
+    if git mv "$from" "$to" 2>/dev/null; then
+        :  # silent success
+    else
+        FAILED_COUNT=$((FAILED_COUNT + 1))
+        warn "git mv failed: $from → $to (file may not be tracked; skipping)"
+    fi
+done
+
+SUCCESS_COUNT=$((PLAN_COUNT - FAILED_COUNT))
+echo
+ok "Renamed ${SUCCESS_COUNT} file(s). ${FAILED_COUNT} failure(s)."
+if [[ "$SKIP_COUNT" -gt 0 ]]; then
+    warn "${SKIP_COUNT} file(s) skipped — see above."
+fi
+
+echo
+echo -e "${BOLD}Next steps:${NC}"
+echo "  1. Review: ${GREEN}git status${NC}"
+echo "  2. Diff:   ${GREEN}git diff --cached --stat${NC}"
+echo "  3. Commit: ${GREEN}git-safe-commit \"migrate branch: claude/ → agency/ + tests/ → src/tests/\" --no-work-item${NC}"
+echo "  4. Sync:   ${GREEN}./agency/tools/worktree-sync --auto${NC}"
+echo "  5. Residual content conflicts: see fleet-rename dispatch for mapping"
