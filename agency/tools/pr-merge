@@ -55,7 +55,7 @@ else
     RED="" GREEN="" YELLOW="" BLUE="" NC=""
 fi
 
-TOOL_VERSION="1.0.0-20260415-d41r13"
+TOOL_VERSION="1.1.0-20260421-c372-fix-a"
 
 usage() {
     cat <<'USAGE'
@@ -85,6 +85,10 @@ Guarantees (cannot be disabled):
     exits with the specific gate that's blocking and instructions to fix.
   - With --principal-approved: uses --admin to bypass branch protection.
     Logged. Use only when principal has verbally authorized.
+  - On successful merge to main/master: emits a loud advisory + queues a
+    flag to run /pr-captain-post-merge (which cuts the release tag).
+    Closes the C#372 release-automation gap: see the 2026-04-21 incident
+    where 8 PRs shipped without releases because post-merge was skipped.
 
 Exit codes:
   0 — merged
@@ -140,12 +144,16 @@ trap 'log_end "${RUN_ID:-}" "failure" $? 0 "Unexpected exit" 2>/dev/null || true
 echo "${BLUE}pr-merge${NC} PR #$PR_NUMBER (run: ${RUN_ID:-none})"
 
 # --- Pre-flight: check PR exists + state ---
-PR_INFO=$(gh pr view "$PR_NUMBER" --json state,mergeable,mergeStateStatus,title 2>&1) || die "Could not view PR #$PR_NUMBER: $PR_INFO"
+# baseRefName added 2026-04-21 (C#372 Fix A): post-merge advisory + flag
+# emission are gated on merges to main/master. Other base refs don't require
+# a release tag, so no nag.
+PR_INFO=$(gh pr view "$PR_NUMBER" --json state,mergeable,mergeStateStatus,title,baseRefName 2>&1) || die "Could not view PR #$PR_NUMBER: $PR_INFO"
 
 PR_STATE=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("state",""))' 2>/dev/null || echo "")
 PR_MERGEABLE=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mergeable",""))' 2>/dev/null || echo "")
 PR_STATUS=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mergeStateStatus",""))' 2>/dev/null || echo "")
 PR_TITLE=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("title",""))' 2>/dev/null || echo "")
+PR_BASE_REF=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("baseRefName",""))' 2>/dev/null || echo "")
 
 log "state=$PR_STATE mergeable=$PR_MERGEABLE status=$PR_STATUS"
 echo "  Title:  $PR_TITLE"
@@ -185,6 +193,43 @@ echo "  ${BLUE}Merging${NC}: ${MERGE_CMD[*]}"
 if MERGE_OUT=$("${MERGE_CMD[@]}" 2>&1); then
     echo "${GREEN}✓ Merged${NC} PR #$PR_NUMBER"
     [[ -n "$MERGE_OUT" ]] && echo "$MERGE_OUT"
+
+    # C#372 FIX A — POST-MERGE ADVISORY + AUTO-FLAG
+    #
+    # What Problem: 2026-04-21 incident — 8 PRs merged to main without
+    # release tags. Captain used pr-merge as a one-shot and moved on;
+    # pr-captain-post-merge (which cuts the release) never fired. The
+    # release-tag-check CI workflow went red 7× consecutively but isn't in
+    # required status checks, so its alarm didn't surface. See issue #372.
+    #
+    # How & Why: When the merge lands on main/master, emit a loud advisory
+    # naming the next required step (/pr-captain-post-merge) and queue a
+    # flag so /flag list or /flag-triage surfaces the pending action even
+    # if the session ends before the post-merge runs. Flag queuing is
+    # best-effort — if the flag tool is missing/broken we don't block the
+    # merge (which already happened server-side).
+    #
+    # Written: 2026-04-21 during C#372 Fix A.
+    if [[ "$PR_BASE_REF" == "main" || "$PR_BASE_REF" == "master" ]]; then
+        echo ""
+        echo "${YELLOW}>>> NEXT STEP REQUIRED <<<${NC}"
+        echo "  Run: ${GREEN}/pr-captain-post-merge $PR_NUMBER${NC}"
+        echo "  Why: cuts the release tag (every PR is a release)."
+        echo "       release-tag-check CI will go red on main if you skip this."
+        echo "       See issue #372 for the 2026-04-21 incident that surfaced this."
+        echo ""
+
+        # Best-effort flag emission. Captures a queued reminder even if captain
+        # closes the terminal. flag tool failures don't block (merge already done).
+        FLAG_MSG="post-merge-pending PR #${PR_NUMBER} on ${PR_BASE_REF} — run /pr-captain-post-merge ${PR_NUMBER} to cut release. (C#372 Fix A auto-flag.)"
+        if [[ -x "$SCRIPT_DIR/flag" ]]; then
+            "$SCRIPT_DIR/flag" "$FLAG_MSG" >/dev/null 2>&1 || \
+                echo "  ${YELLOW}[warn]${NC} flag tool failed — advisory stands but no flag queued" >&2
+        else
+            echo "  ${YELLOW}[warn]${NC} flag tool not found at $SCRIPT_DIR/flag — advisory stands but no flag queued" >&2
+        fi
+    fi
+
     trap - EXIT
     log_end "$RUN_ID" "success" 0 0 "Merged PR #$PR_NUMBER" 2>/dev/null || true
     exit 0
