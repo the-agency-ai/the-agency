@@ -8,7 +8,7 @@ Defines the structured payload `/pr-submit` sends to captain. Captain's `/pr-cap
 
 ```
 type:       dispatch
-to:         monofolk/{principal}/captain
+to:         <org>/{principal}/captain
 priority:   normal | high
 subject:    "Ready for PR landing: {branch} — {scope}"
 in_reply_to: null | <prior-dispatch-id>
@@ -22,7 +22,7 @@ in_reply_to: null | <prior-dispatch-id>
 ## Branch ready
 
 - **Branch:** `{branch}`
-- **Agent:** monofolk/{principal}/{agent}
+- **Agent:** <org>/{principal}/{agent}
 - **HEAD:** `{sha}` (pushed to origin)
 - **Diff base:** `origin/master`
 - **Diff hash:** `{hash-7-char}`
@@ -42,17 +42,17 @@ Run /pr-captain-land on branch `{branch}`:
 
 1. Switch to `{branch}`
 2. Verify receipt against current state
-3. Bump `monofolk_version` in manifest (serialized — single writer)
+3. Bump `agency_version` in manifest (serialized — single writer)
 4. Create PR with captain-authored fleet-aware description
 5. Watch CI (`lint-and-test` gate)
 6. Merge when green
-7. Create GitHub release v{monofolk_version}
+7. Create GitHub release v{agency_version}
 8. Dispatch back with merge confirmation + release tag
 
 ## What I (agent) will NOT do
 
 - Create the PR myself
-- Bump `monofolk_version` myself
+- Bump `agency_version` myself
 - Merge myself
 - Create the release myself
 
@@ -60,7 +60,7 @@ Captain owns the PR lifecycle. I stand by to /pr-respond if review comments come
 
 Over.
 
--- monofolk/{principal}/{agent}
+-- <org>/{principal}/{agent}
 ```
 
 ## Field specifications

@@ -29,7 +29,7 @@ Agent-side handoff to captain: "my branch is ready for PR landing." Captain pick
 
 Per the-agency#296: the distributed "agent creates PR, captain merges" model causes four failure modes that the captain-owned lifecycle eliminates:
 
-- **Version-bump races** — two agents bump `monofolk_version` simultaneously against the same `origin/master` baseline; one loses.
+- **Version-bump races** — two agents bump `agency_version` simultaneously against the same `origin/master` baseline; one loses.
 - **QGR hash races** — captain's coord commits land on master between an agent's QG and that agent's PR creation, invalidating the receipt mid-flow.
 - **Split release responsibility** — agent opens PR but captain creates the release; ownership is asymmetric and release steps get skipped.
 - **Inconsistent PR descriptions** — each agent writes their own; no fleet-wide coherence for review or history-mining.
@@ -98,7 +98,7 @@ Glob for `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash-short}.md`. Exactly one
 Follow the schema in `reference.md` (protocol v1.0). Envelope:
 
 ```
-to:       monofolk/{principal}/captain
+to:       <org>/{principal}/captain
 type:     pr-submit
 priority: normal | high
 subject:  "Ready for PR landing: {branch} — {scope}"
@@ -110,7 +110,7 @@ Body is the markdown template in `reference.md` — branch, SHA, diff-hash, rece
 
 ```
 ./agency/tools/dispatch create \
-  --to monofolk/{principal}/captain \
+  --to <org>/{principal}/captain \
   --type pr-submit \
   --subject "<subject>" \
   --body "<body>"
@@ -123,7 +123,7 @@ Capture the dispatch ID. Report to the agent: "Submitted to captain as dispatch 
 Agent does NOT:
 
 - Create the PR
-- Bump `monofolk_version`
+- Bump `agency_version`
 - Merge
 - Create the release
 
@@ -140,7 +140,7 @@ Agent stands by to respond to review comments via `/pr-respond` if any come. On 
 ## What this does NOT do
 
 - **Does not create the PR.** That's captain's `/pr-captain-land`. Agent must not run `gh pr create` or `/pr-create` after this.
-- **Does not bump `monofolk_version`.** Captain is the single writer.
+- **Does not bump `agency_version`.** Captain is the single writer.
 - **Does not merge anything.** Agent has no write access to master.
 - **Does not modify the branch.** The branch stays exactly as `/pr-prep` left it.
 - **Does not wait for captain.** Fire-and-forget dispatch; agent returns to other work.

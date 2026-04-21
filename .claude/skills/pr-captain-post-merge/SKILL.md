@@ -122,7 +122,7 @@ Propagates the merge to every worktree. Worktree-side agents pick up the new con
    ```
    If non-zero, the release was NOT created. Do NOT proceed to Step 7. Fix and retry.
 
-If version format doesn't match `D#-R#` (e.g., hotfix PR), use `v<monofolk_version>.pr<N>` as fallback.
+If version format doesn't match `D#-R#` (e.g., hotfix PR), use `v<agency_version>.pr<N>` as fallback.
 
 **Never push directly to main.** If version is wrong, create a follow-up PR.
 

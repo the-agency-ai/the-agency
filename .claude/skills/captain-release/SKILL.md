@@ -81,7 +81,7 @@ Invoke `/git-safe-commit` with the commit description from `<arguments>`. Produc
 
 ### Step 6: Version bump
 
-1. Parse PR title for release version (D#-R# → version #.# OR monofolk_version increment).
+1. Parse PR title for release version (D#-R# → version #.# OR `agency_version` increment).
 2. Update `agency/config/manifest.json`: bump appropriate version field + `updated_at`.
 3. Commit the bump via `/git-safe-commit --no-work-item`.
 4. Push: `./agency/tools/git-push <branch>`.

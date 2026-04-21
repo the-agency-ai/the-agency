@@ -8,8 +8,8 @@ The GitHub release tag is derived from the merged PR's title/branch. Resolution 
 
 1. **`D#-R#` pattern** in PR title (e.g., `D39-R1: ...`) → tag `v39.1`
 2. **`agency-skill-version`-matched pattern** in PR body → tag per the-agency convention (if applicable)
-3. **`monofolk_version` match** against current `manifest.json` → tag `v<monofolk_version>` (e.g., `v1.8`)
-4. **Hotfix / non-standard** → `v<monofolk_version>.pr<PR-number>` (e.g., `v1.8.pr110`)
+3. **`agency_version` match** against current `manifest.json` → tag `v<agency_version>` (e.g., `v1.8`)
+4. **Hotfix / non-standard** → `v<agency_version>.pr<PR-number>` (e.g., `v1.8.pr110`)
 
 The tag is NEVER chosen by captain's judgment after the fact. It's derived mechanically from committed state (manifest + PR title).
 

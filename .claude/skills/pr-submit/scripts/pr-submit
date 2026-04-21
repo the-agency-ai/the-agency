@@ -12,7 +12,7 @@
 # inconsistent PR descriptions. Captain-owned PR lifecycle moves all of that
 # to a single serialization point (captain on master).
 #
-# SCOPE: Phase 1 pilot — sandbox tool in usr/jordan/captain/tools/. Tested
+# SCOPE: Phase 1 pilot — sandbox tool in usr/{principal}/captain/tools/. Tested
 # by dogfooding on one captain-driven PR before promotion to .claude/skills/.
 #
 # USAGE:
@@ -156,7 +156,7 @@ DISPATCH_BODY=$(cat <<EOF
 ## Branch ready
 
 - **Branch:** \`$BRANCH\`
-- **Agent:** monofolk/$PRINCIPAL/$AGENT
+- **Agent:** <org>/$PRINCIPAL/$AGENT
 - **HEAD:** \`$LOCAL_SHA\` (pushed to origin)
 - **Diff base:** \`origin/master\`
 - **Diff hash:** \`$DIFF_HASH_SHORT\`
@@ -176,17 +176,17 @@ Run /pr-captain-land on branch \`$BRANCH\`:
 
 1. Switch to \`$BRANCH\`
 2. Verify receipt against current state
-3. Bump \`monofolk_version\` in manifest (serialized — single writer)
+3. Bump \`agency_version\` in manifest (serialized — single writer)
 4. Create PR with captain-authored fleet-aware description
 5. Watch CI (\`lint-and-test\` gate)
 6. Merge when green
-7. Create GitHub release v{monofolk_version}
+7. Create GitHub release v{agency_version}
 8. Dispatch back with merge confirmation + release tag
 
 ## What I (agent) will NOT do
 
 - Create the PR myself
-- Bump \`monofolk_version\` myself
+- Bump \`agency_version\` myself
 - Merge myself
 - Create the release myself
 
@@ -194,7 +194,7 @@ Captain owns the PR lifecycle. I stand by to /pr-respond if review comments come
 
 Over.
 
--- monofolk/$PRINCIPAL/$AGENT
+-- <org>/$PRINCIPAL/$AGENT
 EOF
 )
 
@@ -202,7 +202,7 @@ EOF
 
 "$REPO_ROOT/agency/tools/dispatch" create \
     --type dispatch \
-    --to "monofolk/$PRINCIPAL/captain" \
+    --to "<org>/$PRINCIPAL/captain" \
     --subject "Ready for PR landing: $BRANCH — $SCOPE" \
     --body "$DISPATCH_BODY" \
     ${PRIORITY:+--priority "$PRIORITY"} >/dev/null
@@ -211,6 +211,6 @@ echo "submit-for-pr: submitted"
 echo "  branch:   $BRANCH"
 echo "  receipt:  $RECEIPT_REL"
 echo "  hash:     $DIFF_HASH_SHORT"
-echo "  dispatch: sent to monofolk/$PRINCIPAL/captain (priority: $PRIORITY)"
+echo "  dispatch: sent to <org>/$PRINCIPAL/captain (priority: $PRIORITY)"
 echo ""
 echo "Captain will pick up and run /pr-captain-land. Stand by for merge dispatch."
