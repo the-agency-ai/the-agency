@@ -5,9 +5,9 @@ date: 2026-04-21
 day: D45
 principal: jordan
 captain: the-agency/jordan/captain
-status: in-flight-v3.2 (E shipped v46.12; 0a+0b on branch for v46.13)
+status: in-flight-v3.3 (E shipped v46.12; Bucket 0 shipped v46.13; C#372 shipped v46.14; Bucket G.1 accelerated to R4 v46.15)
 supersedes: none
-revision: v3.2 — post-Phase-E merge findings (Bucket F = full-tree sweep #401; Bucket G = Great-Rename worktree integration #402, tool-first)
+revision: v3.3 — fleet-rename dispatch gap + Bucket G.1 acceleration (Great-Rename-migrate tool moves from R9 to R4 — two worktrees blocked on rename)
 mar_reviews:
   - qgr/mar-plan-abc-architect-20260421.md
   - qgr/mar-plan-abc-devex-20260421.md
@@ -20,9 +20,18 @@ related:
 tags: [stabilization, session-lifecycle, python-runtime, ci, release-automation]
 ---
 
-# Plan — A-B-C-D-E-F-G Stabilization Push (2026-04-21) — v3.2
+# Plan — A-B-C-D-E-F-G Stabilization Push (2026-04-21) — v3.3
 
 ## Revision log
+
+**v3.2 → v3.3 changes — surfaced mid-session:**
+
+1. **Bucket 0 shipped as v46.13** (PR #405) and **C#372 shipped as v46.14** (PR #406, promoted from R6 slot for release-automation-gap urgency — 4-fix stack A+B+C+D shipped atomically).
+2. **Fleet-rename dispatch gap identified.** The `claude/`→`agency/` + `tests/`→`src/tests/` structural rename landed on main (PRs #373, #386) without a pre-merge procedure-dispatch to the fleet. DevEx (#827) and DesignEx both hit the resulting merge conflicts independently. Captain sent fleet-wide path-forward dispatches 2026-04-21 (IDs 828-837). Standing-duty item filed: future structural renames require pre-merge procedure-dispatch.
+3. **Bucket G.1 accelerated from R9 to R4 v46.15.** Two worktrees are blocked on manual rename reconciliation; 5+ more will hit it. Building `agency/tools/great-rename-migrate` NOW converts each future reconciliation from captain-expensive to mechanical. Bucket F shifts from R3 to R5.
+4. **Bucket F plan v1 MAR-reviewed, NOT ready to execute.** 29 combined findings from design + scope/risk review agents. Both recommend Path A (proper plan v2 revision) over Path B (fix 6 HIGH + execute with caveats). Principal decision pending. Plan v2 drafting happens before R5 v46.16.
+5. **Test-isolation-guard pending placement.** Principal flagged test-pollution from BATS tests writing to `$PWD` (untracked dirs like `test; rm -rf/` in repo root). Proposal: small tool + hookify rule + offender hunt. Slot TBD — before Bucket F (safety net for 5-subagent mechanical sweep) is my recommendation. Principal 5-decision Over outstanding.
+6. **Sequencing + release cadence updated** — G.1 promoted to R4; F to R5; PR #397 to R6; A/B/D shift one slot each; G.2a-e unchanged at R10-R14.
 
 **v3.1 → v3.2 changes — surfaced post-Phase-E merge:**
 
@@ -462,22 +471,24 @@ Document the Great-Rename-era debt lesson for future major refactors: before any
 
 Pre-specified boundaries (architect F6) — 4-5 releases total instead of 11:
 
-| Release | Covers | Rough version |
-|---------|--------|---------------|
-| R1 ✅ | Bucket E (skill validation unblock) | 46.12 |
-| R2 | Bucket 0 (#339 + #210) | 46.13 |
-| R3 | Bucket F (full-tree sweep #401) | 46.14 |
-| R4 | PR #397 (monofolk contributor) | 46.15 |
-| R5 | Bucket A (A#395 + A#393 + A#198 + A#199 + A#394) | 46.16 |
-| R6 | C#372 fix | 46.17 |
-| R7 | Bucket B (B#383 verify, B#388+B#389, B#385, [B#384]) | 46.18 |
-| R8 | Bucket D (D#392) + B#55 + push-level smoke | 46.19 |
-| R9 | Bucket G.1 — `great-rename-migrate` tool + BATS | 46.20 |
-| R10 | Bucket G.2a — mdslidepal-mac integration (+9 commits) | 46.21 |
-| R11 | Bucket G.2b — mdpal-app integration (+26 commits) | 46.22 |
-| R12 | Bucket G.2c — devex integration (+27 commits, +1 content conflict) | 46.23 |
-| R13 | Bucket G.2d — iscp integration (+39 commits) | 46.24 |
-| R14 | Bucket G.2e — designex integration (+61 commits, +8 content conflicts) | 46.25 |
+| Release | Covers | Rough version | Status |
+|---------|--------|---------------|--------|
+| R1 | Bucket E (skill validation unblock) | 46.12 | ✅ shipped PR #400 |
+| R2 | Bucket 0 (#339 + #210) | 46.13 | ✅ shipped PR #405 |
+| R3 | C#372 release-automation-gap (A+B+C+D 4-fix stack, promoted from R6 for urgency) | 46.14 | ✅ shipped PR #406 |
+| **R4** | **Bucket G.1 — `great-rename-migrate` tool + BATS (accelerated from R9 — 2+ worktrees blocked)** | **46.15** | ⏳ next |
+| R5 | Bucket F (full-tree sweep #401 — pending plan v2 per MAR) | 46.16 | ⏳ |
+| R6 | PR #397 (monofolk contributor) | 46.17 | ⏳ |
+| R7 | Bucket A (A#395 + A#393 + A#198 + A#199 + A#394) | 46.18 | ⏳ |
+| R8 | Bucket B (B#383 verify, B#388+B#389, B#385, [B#384]) | 46.19 | ⏳ |
+| R9 | Bucket D (D#392) + B#55 + push-level smoke | 46.20 | ⏳ |
+| R10 | Bucket G.2a — mdslidepal-mac integration (+9 commits) | 46.21 | ⏳ |
+| R11 | Bucket G.2b — mdpal-app integration (+26 commits) | 46.22 | ⏳ |
+| R12 | Bucket G.2c — devex integration (+27 commits, +1 content conflict) | 46.23 | ⏳ |
+| R13 | Bucket G.2d — iscp integration (+39 commits) | 46.24 | ⏳ |
+| R14 | Bucket G.2e — designex integration (+61 commits, +8 content conflicts) | 46.25 | ⏳ |
+
+**Pending placement:** test-isolation-guard (small tool + hookify rule + offender hunt). Recommended slot: before R5 Bucket F, as a safety net for the 5-subagent mechanical sweep. Principal 5-decision Over outstanding — slot locks when answered.
 
 Each release cuts a `gh release create` + tag + release notes. Manifest bumps occur at PR merge (one per PR); release groups multiple merged commits into one release tag.
 
