@@ -82,6 +82,17 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also check cross-repo collaboration dispatches",
     )
+    # Issue #340: commit-type dispatches are audit-trail artifacts, not
+    # action items. Default behavior excludes them from the unread feed
+    # so the monitor's signal-to-noise ratio stays high. Agents who want
+    # to see commit events (debugging cascades, auditing fleet activity)
+    # can opt in via --include-commits.
+    parser.add_argument(
+        "--include-commits",
+        action="store_true",
+        help="Include commit-type dispatches in the unread feed "
+             "(default: filter them out — they are audit records, not actionable).",
+    )
     return parser.parse_args()
 
 
@@ -123,12 +134,32 @@ def evict_oldest(seen: set[int], max_size: int) -> None:
             seen.discard(old_id)
 
 
-def check_dispatches(seen_ids: set[int]) -> None:
-    """Poll for unread dispatches and emit new ones."""
+def check_dispatches(seen_ids: set[int], include_commits: bool = False) -> None:
+    """Poll for unread dispatches and emit new ones.
+
+    Issue #340: when include_commits is False (default), we filter
+    commit-type dispatches out of the unread feed. The dispatch tool
+    supports --type filtering, but there is no built-in "all types
+    except commit" mode — so we pull the unread list once and then
+    cross-reference against the commit-type list to subtract. This
+    keeps the SQL query simple and works with any future dispatch
+    types without requiring monitor updates.
+    """
     output = run_command([str(DISPATCH_TOOL), "list", "--status", "unread"])
 
     if not output or output == "No dispatches found.":
         return
+
+    commit_ids: set[int] = set()
+    if not include_commits:
+        commit_output = run_command(
+            [str(DISPATCH_TOOL), "list", "--status", "unread", "--type", "commit"]
+        )
+        if commit_output and commit_output != "No dispatches found.":
+            for line in commit_output.splitlines():
+                cid = extract_id(line)
+                if cid is not None:
+                    commit_ids.add(cid)
 
     new_lines: list[str] = []
     has_new = False
@@ -136,6 +167,13 @@ def check_dispatches(seen_ids: set[int]) -> None:
     for line in output.splitlines():
         dispatch_id = extract_id(line)
         if dispatch_id is not None:
+            # Skip commit-type dispatches unless explicitly included (#340)
+            if dispatch_id in commit_ids:
+                # Still mark as seen so a subsequent --include-commits
+                # invocation within the same session doesn't re-surface
+                # the same event out-of-order.
+                seen_ids.add(dispatch_id)
+                continue
             if dispatch_id not in seen_ids:
                 seen_ids.add(dispatch_id)
                 has_new = True
@@ -188,7 +226,7 @@ def main() -> None:
     )
 
     while True:
-        check_dispatches(seen_ids)
+        check_dispatches(seen_ids, include_commits=args.include_commits)
 
         if args.include_collab:
             check_collab(seen_collab)

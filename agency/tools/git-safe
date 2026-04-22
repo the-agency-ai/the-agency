@@ -151,7 +151,23 @@ cmd_add() {
         return 0
     fi
 
+    # Issue #285: support --confirm flag for explicit directory staging.
+    # Default behavior still blocks bare directory paths (preserves the
+    # "no `git add .` accidents" invariant). With --confirm, directory
+    # paths are allowed but still gitignore-respected (git add honors
+    # .gitignore by default, so sensitive/ignored files stay out). Agent
+    # opts in explicitly per-invocation; no sticky mode.
+    local confirm=false
+    local -a paths=()
     for arg in "$@"; do
+        if [[ "$arg" == "--confirm" ]]; then
+            confirm=true
+            continue
+        fi
+        paths+=("$arg")
+    done
+
+    for arg in "${paths[@]}"; do
         # Block flags that stage everything
         case "$arg" in
             -A|--all|-u|--update)
@@ -168,7 +184,7 @@ cmd_add() {
                 ;;
         esac
 
-        # Block bare directory paths and wildcards
+        # Block bare directory paths and wildcards (always — even with --confirm)
         if [[ "$arg" == "." || "$arg" == "./" || "$arg" == ".." || "$arg" == "../" ]]; then
             die "git-safe add blocks '$arg' — specify explicit file paths instead."
         fi
@@ -178,14 +194,24 @@ cmd_add() {
             die "git-safe add blocks '$arg' — specify explicit file paths instead."
         fi
 
-        # Block bare directory paths
+        # Block bare directory paths unless --confirm was passed
         if [[ -d "$arg" ]]; then
-            die "git-safe add blocks directory '$arg' — specify individual files within the directory."
+            if [[ "$confirm" == "true" ]]; then
+                # Directory adds with --confirm: still honor .gitignore (git's
+                # default), still reject empty directories (nothing to stage).
+                local found
+                found=$(git ls-files --others --exclude-standard --cached -- "$arg" 2>/dev/null | head -1)
+                if [[ -z "$found" ]]; then
+                    die "git-safe add --confirm '$arg': no files to stage (empty or fully gitignored)."
+                fi
+            else
+                die "git-safe add blocks directory '$arg' — specify individual files within the directory, or re-run with --confirm to stage the directory explicitly (git's .gitignore is honored)."
+            fi
         fi
     done
 
-    git add "$@"
-    echo "${GREEN}Staged:${NC} $*"
+    git add -- "${paths[@]}"
+    echo "${GREEN}Staged:${NC} ${paths[*]}"
 }
 
 # --- Subcommand: rm ---
