@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+# What Problem: V5 Phase 4 split moves framework source from `agency/` and
+# shippable `.claude/*` into `src/agency/` and `src/claude/` respectively.
+# Adopter installs + Claude Code runtime still expect content at the old
+# locations. This tool regenerates the build products (`agency/` + `.claude/`
+# shippable subset) from the `src/` source.
+#
+# How & Why: Walk `src/agency/` and `src/claude/`, mirror file-for-file into
+# `agency/` and `.claude/`. Preserve mode bits (executables stay executable).
+# Atomic per-file (write to temp, rename). Reports counts on stdout.
+#
+# Minimal Phase 5a: just copy. Later phases add YAML frontmatter parsing,
+# per-artifact versioning, checksum-based skip-if-unchanged, manifest
+# regeneration. See V5 plan Phase 5 for the full specification.
+#
+# Written: 2026-04-22 for V5 Phase 4 src/ split (Phase 5a companion).
+# Version: 1.0.0 (5a — minimal copy)
+# Runtime: Python 3.13+ stdlib only, zero pip deps.
+
+import os
+import shutil
+import stat
+import sys
+from pathlib import Path
+
+
+TOOL_VERSION = "1.0.0"
+
+
+def die(msg: str) -> None:
+    print(f"[ERROR] {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def find_repo_root() -> Path:
+    """Walk up from CWD until a directory containing .git is found."""
+    p = Path.cwd().resolve()
+    while p != p.parent:
+        if (p / ".git").exists():
+            return p
+        p = p.parent
+    die("Not inside a git repository")
+
+
+def mirror_tree(src: Path, dst: Path) -> int:
+    """Copy every file under src to the equivalent path under dst.
+
+    Returns number of files copied. Creates dst + intermediate dirs as
+    needed. Preserves file mode (so executables stay executable).
+    """
+    if not src.exists():
+        return 0
+    if not src.is_dir():
+        die(f"source must be a directory: {src}")
+
+    count = 0
+    for root, dirs, files in os.walk(src):
+        rel = Path(root).relative_to(src)
+        target_dir = dst / rel
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        for name in files:
+            src_file = Path(root) / name
+            dst_file = target_dir / name
+
+            # Copy content
+            shutil.copy2(src_file, dst_file)
+
+            # Preserve executable bit
+            src_mode = src_file.stat().st_mode
+            dst_file.chmod(src_mode)
+
+            count += 1
+
+    return count
+
+
+def main() -> int:
+    # Parse args
+    args = sys.argv[1:]
+    verbose = False
+    for arg in args:
+        if arg in ("-h", "--help"):
+            print(f"build — V5 Phase 5a minimal build tool (copies src/ → build products)\n")
+            print("Usage: build [--verbose]\n")
+            print("Mirrors:")
+            print("  src/agency/ → agency/")
+            print("  src/claude/ → .claude/ (shippable subset only)")
+            print("\nPreserves file mode. No YAML parsing, no version stamping, no")
+            print("manifest regeneration yet — see V5 plan Phase 5 for the full spec.")
+            return 0
+        if arg in ("-v", "--version"):
+            print(f"build {TOOL_VERSION}")
+            return 0
+        if arg in ("--verbose",):
+            verbose = True
+        else:
+            die(f"Unknown argument: {arg}")
+
+    repo = find_repo_root()
+    os.chdir(repo)
+
+    src_agency = repo / "src" / "agency"
+    src_claude = repo / "src" / "claude"
+    dst_agency = repo / "agency"
+    dst_claude = repo / ".claude"
+
+    if not src_agency.exists() and not src_claude.exists():
+        die("Neither src/agency/ nor src/claude/ exists — nothing to build")
+
+    # Build step 1: src/agency/ → agency/
+    n_agency = 0
+    if src_agency.exists():
+        if verbose:
+            print(f"[build] {src_agency} → {dst_agency}")
+        n_agency = mirror_tree(src_agency, dst_agency)
+
+    # Build step 2: src/claude/ → .claude/
+    n_claude = 0
+    if src_claude.exists():
+        if verbose:
+            print(f"[build] {src_claude} → {dst_claude}")
+        n_claude = mirror_tree(src_claude, dst_claude)
+
+    print(f"[build] ✓ src/agency/ → agency/     {n_agency} file(s)")
+    print(f"[build] ✓ src/claude/ → .claude/    {n_claude} file(s)")
+    print(f"[build] total {n_agency + n_claude} file(s) mirrored")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
