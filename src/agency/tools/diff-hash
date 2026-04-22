@@ -84,10 +84,15 @@ else
     # Diff hash — exclude receipts and dispatches
     # (both auto-mutate per commit; including them would make hashes circular)
     # D42-R3: added per-workstream qgr/rgr exclusions
+    # V5 Phase 4 (2026-04-22): src/agency/workstreams/*/qgr + rgr added —
+    # Phase 4 src/ split duplicated these to src/ side too; both sides must
+    # be excluded for the chicken-and-egg fix to hold.
     DIFF_OUTPUT=$(git diff "$BASE"..HEAD -- . \
         ':(exclude)agency/receipts/' \
         ':(exclude,glob)agency/workstreams/*/qgr/**' \
         ':(exclude,glob)agency/workstreams/*/rgr/**' \
+        ':(exclude,glob)src/agency/workstreams/*/qgr/**' \
+        ':(exclude,glob)src/agency/workstreams/*/rgr/**' \
         ':(exclude,glob)usr/*/*/dispatches/**' \
         ':(exclude,glob)usr/*/dispatches/**' \
         2>/dev/null)
@@ -103,6 +108,8 @@ else
         ':(exclude)agency/receipts/' \
         ':(exclude,glob)agency/workstreams/*/qgr/**' \
         ':(exclude,glob)agency/workstreams/*/rgr/**' \
+        ':(exclude,glob)src/agency/workstreams/*/qgr/**' \
+        ':(exclude,glob)src/agency/workstreams/*/rgr/**' \
         ':(exclude,glob)usr/*/*/dispatches/**' \
         ':(exclude,glob)usr/*/dispatches/**' \
         2>/dev/null | wc -l | tr -d ' ')
