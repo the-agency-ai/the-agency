@@ -23,6 +23,7 @@ Each row is one filing. Click through to the per-report markdown for full contex
 | 2026-04-22 | License consolidation (src→build) + joint copyright (Jordan + TheAgencyGroup) + trademark reservation | feature | the-agency-ai/the-agency | #413 | [report-agency-issue-license-consolidation-src-build-joint-copyright-jo-20260422](usr/jordan/reports/report-agency-issue-license-consolidation-src-build-joint-copyright-jo-20260422.md) | open |
 | 2026-04-22 | Design + build unified `msg` dispatcher (real form, TBD — old spec swept) | feature | the-agency-ai/the-agency | #414 | [report-agency-issue-design-build-unified-msg-dispatcher-real-form-tbd--20260422](usr/jordan/reports/report-agency-issue-design-build-unified-msg-dispatcher-real-form-tbd--20260422.md) | open |
 | 2026-04-22 | Migrate usr/jordan/{mdpal,mdslidepal,mock-and-mark} → agency/workstreams/ (1B1 Item 3 remainder) | feature | the-agency-ai/the-agency | #415 | [report-agency-issue-migrate-usr-jordan-mdpal-mdslidepal-mock-and-mark--20260422](usr/jordan/reports/report-agency-issue-migrate-usr-jordan-mdpal-mdslidepal-mock-and-mark--20260422.md) | open |
+| 2026-04-22 | Add Python unit + integration tests for src/tools/build (on top of existing BATS) | feature | the-agency-ai/the-agency | #417 | [report-agency-issue-add-python-unit-integration-tests-for-src-tools-bu-20260422](usr/jordan/reports/report-agency-issue-add-python-unit-integration-tests-for-src-tools-bu-20260422.md) | open |
 <!-- AGENCY-ISSUE-INDEX-END -->
 
 ## How to add an entry
