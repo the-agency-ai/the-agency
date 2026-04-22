@@ -15,7 +15,6 @@ Each row is one filing. Click through to the per-report markdown for full contex
 
 | Date | Title | Kind | Target | External ID | Local Report | Status |
 |------|-------|------|--------|-------------|--------------|--------|
-
 | 2026-04-21 | session-end skill writes handoff but never commits it — leaves tree dirty, blocks next session-resume | bug | the-agency-ai/the-agency | #393 | [report-agency-issue-session-end-skill-writes-handoff-but-never-commits-20260421](usr/jordan/reports/report-agency-issue-session-end-skill-writes-handoff-but-never-commits-20260421.md) | open |
 | 2026-04-21 | Python tools fail on Apple-stock + brew-only python@3.13 host (no unversioned python3 link) | bug | the-agency-ai/the-agency | #394 | [report-agency-issue-python-tools-fail-on-apple-stock-brew-only-python--20260421](usr/jordan/reports/report-agency-issue-python-tools-fail-on-apple-stock-brew-only-python--20260421.md) | open |
 | 2026-04-21 | git-safe-commit: add --coord convenience flag (alias for coord-commit happy path) | friction | the-agency-ai/the-agency | #395 | [report-agency-issue-git-safe-commit-add-coord-convenience-flag-alias-f-20260421](usr/jordan/reports/report-agency-issue-git-safe-commit-add-coord-convenience-flag-alias-f-20260421.md) | open |
