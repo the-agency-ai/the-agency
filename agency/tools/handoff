@@ -338,7 +338,11 @@ case "$COMMAND" in
                 log_end "$RUN_ID" "success" 0 0 "read handoff"
             fi
         else
-            echo "No handoff found at ${HANDOFF_PATH##*/usr/}"
+            echo "No handoff found at ${HANDOFF_PATH##*/usr/}" >&2
+            echo "" >&2
+            echo "Hint: create one with:" >&2
+            echo "  $(basename "$0") write" >&2
+            echo "Path: $HANDOFF_PATH" >&2
             if [ -n "$RUN_ID" ]; then
                 log_end "$RUN_ID" "failure" 1 0 "no handoff found"
             fi
