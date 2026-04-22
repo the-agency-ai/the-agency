@@ -113,7 +113,7 @@ the-agency/
 
 ## Versioning
 
-`agency_version` in `agency/config/manifest.json` follows `{day}.{release}` (e.g. `46.20` = Day 46 Release 20). Released via daily cron (or ad-hoc via `agency/tools/release-cut`). Tags: `v{day}.{release}` + `agency-v{major}` symbolic.
+`agency_version` in `agency/config/manifest.json` follows `{day}.{release}` (e.g. `46.21` = Day 46 Release 21). Released via daily cron (or ad-hoc via `agency/tools/release-cut`). Tags: `v{day}.{release}` + `agency-v{major}` symbolic.
 
 ## For Contributors
 
