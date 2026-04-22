@@ -15,7 +15,6 @@ Each row is one filing. Click through to the per-report markdown for full contex
 
 | Date | Title | Kind | Target | External ID | Local Report | Status |
 |------|-------|------|--------|-------------|--------------|--------|
-
 | 2026-04-21 | session-end skill writes handoff but never commits it — leaves tree dirty, blocks next session-resume | bug | the-agency-ai/the-agency | #393 | [report-agency-issue-session-end-skill-writes-handoff-but-never-commits-20260421](usr/jordan/reports/report-agency-issue-session-end-skill-writes-handoff-but-never-commits-20260421.md) | open |
 | 2026-04-21 | Python tools fail on Apple-stock + brew-only python@3.13 host (no unversioned python3 link) | bug | the-agency-ai/the-agency | #394 | [report-agency-issue-python-tools-fail-on-apple-stock-brew-only-python--20260421](usr/jordan/reports/report-agency-issue-python-tools-fail-on-apple-stock-brew-only-python--20260421.md) | open |
 | 2026-04-21 | git-safe-commit: add --coord convenience flag (alias for coord-commit happy path) | friction | the-agency-ai/the-agency | #395 | [report-agency-issue-git-safe-commit-add-coord-convenience-flag-alias-f-20260421](usr/jordan/reports/report-agency-issue-git-safe-commit-add-coord-convenience-flag-alias-f-20260421.md) | open |
@@ -24,6 +23,8 @@ Each row is one filing. Click through to the per-report markdown for full contex
 | 2026-04-22 | Design + build unified `msg` dispatcher (real form, TBD — old spec swept) | feature | the-agency-ai/the-agency | #414 | [report-agency-issue-design-build-unified-msg-dispatcher-real-form-tbd--20260422](usr/jordan/reports/report-agency-issue-design-build-unified-msg-dispatcher-real-form-tbd--20260422.md) | open |
 | 2026-04-22 | Migrate usr/jordan/{mdpal,mdslidepal,mock-and-mark} → agency/workstreams/ (1B1 Item 3 remainder) | feature | the-agency-ai/the-agency | #415 | [report-agency-issue-migrate-usr-jordan-mdpal-mdslidepal-mock-and-mark--20260422](usr/jordan/reports/report-agency-issue-migrate-usr-jordan-mdpal-mdslidepal-mock-and-mark--20260422.md) | open |
 | 2026-04-22 | Add Python unit + integration tests for src/tools/build (on top of existing BATS) | feature | the-agency-ai/the-agency | #417 | [report-agency-issue-add-python-unit-integration-tests-for-src-tools-bu-20260422](usr/jordan/reports/report-agency-issue-add-python-unit-integration-tests-for-src-tools-bu-20260422.md) | open |
+| 2026-04-22 | Pre-existing pollution cleanup at agency/ build-product side (testname, test; rm -rf, test-auto QGRs, housekeeping workstream) | bug | the-agency-ai/the-agency | #419 | [report-agency-issue-pre-existing-pollution-cleanup-at-agency-build-pro-20260422](usr/jordan/reports/report-agency-issue-pre-existing-pollution-cleanup-at-agency-build-pro-20260422.md) | open |
+| 2026-04-22 | src/ top-level taxonomy drift — resolve 4 dirs outside V5 allowlist (assets, integrations, spec-provider, tools-developer) | friction | the-agency-ai/the-agency | #420 | [report-agency-issue-src-top-level-taxonomy-drift-resolve-4-dirs-outsid-20260422](usr/jordan/reports/report-agency-issue-src-top-level-taxonomy-drift-resolve-4-dirs-outsid-20260422.md) | open |
 <!-- AGENCY-ISSUE-INDEX-END -->
 
 ## How to add an entry

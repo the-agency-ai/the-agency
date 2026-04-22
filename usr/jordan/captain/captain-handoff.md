@@ -1,188 +1,132 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-04-22T00:00:00Z
-trigger: session-end
-branch: fix/great-rename-migrate-tool
-mode: resumption
-pause_commit_sha: 03453411
-next-action: "Commit the UNCOMMITTED tool + tests (agency/tools/great-rename-migrate + src/tests/tools/great-rename-migrate.bats — 19/19 BATS passing), bump manifest 46.14 → 46.15, PR to main, merge via pr-captain-merge --principal-approved, release v46.15, dispatch fleet with tool-usage instructions. HARD DEADLINE: fleet online by 0400. Then resume V5 phase-disciplined (Phase -1 audit → Phase 3 prune → land PR #397 → Phase 4+)."
+date: 2026-04-22T10:18:00Z
+trigger: compact-prepare
+branch: main
+mode: continuation
+pause_commit_sha: 3436f2c8
+next-action: "Await principal direction. Session state: 5 PRs shipped this run (v46.15-v46.19). V5 Phase 4+5a landed. 8 issues tracked for follow-up. E2Es passed pre-merge. Fleet deliberately offline per principal. Candidates for next work: (a) run post-merge E2E re-verification if principal wants extra confidence, (b) tackle #419 pollution cleanup (IMMEDIATE priority), (c) continue 1B1 Item 6 (13 Phase -1 open questions), (d) Item 5 V5 Phase 4 post-split reference sweep, (e) Item 3 remainder #415 workstream migrations, (f) monitor/start fleet when principal says."
 ---
 
-# Handoff — Mid-session /compact-prepare (Fleet deadline 0400 + V5 resumption)
+# Handoff — Mid-session /compact-prepare (post-v46.19 + 1B1 + Phase 4+5a)
 
 ## Situation
 
-Principal gave hard deadline: **fleet online by 0400**. 5 worktree agents (mdslidepal-mac, mdpal-app, devex, iscp, designex) pre-date the Great Rename and collide with path conflicts on worktree-sync. Two already explicitly blocked (DevEx #827 + DesignEx transcript). Dispatches #828-#837 sent with Option A manual mapping — but agents need a MECHANICAL tool, not manual walk-through.
+Major session push. Started with v46.14 on main; now at v46.19 with V5 Phase 4+5a complete. Principal hard-drove the session via 1B1s + directives to "make it happen, no pauses."
 
-**Pivot:** Paused V5 structural work (branch `agency-v3-installer` was cut earlier) → cut `fix/great-rename-migrate-tool` branch from main → built `agency/tools/great-rename-migrate` tool (Bucket G.1) → wrote 19 BATS tests — ALL PASSING. Currently uncommitted.
+## What's been done this session
 
-Compact triggered before commit could land.
+### 5 releases shipped
 
-## What's been done this session (post-compact-prepare earlier)
-
-### V5 direction confirmed + pivoted
-
-- Principal chose **Option A — resume V5 AgencyV3 installer**
-- Answered "why stopped V5" honestly: ABC stabilization accretion, not V5 ordering
-- Confirmed V5 plan gets us to shippable `agency init` + `agency update` IF executed phase-disciplined (Phase -1 audit → Phase 3 prune FIRST, not skipped like abandoned v46.0 branch)
-- Acknowledged monofolk comparison honestly: they executed rename with discipline (pre-announce dispatch + migration tool + adopter hand-hold); we didn't. Not a "they did easy work" narrative — they did the HARD work RIGHT.
-
-### Fleet-online pivot (0400 deadline)
-
-- Investigated GitHub state: PR #362 merged v2 base; PR #397 OPEN with QG follow-up findings — v2 PARTIAL on main
-- Sent fleet rename-dispatches #828-#837 with Option A per-file mapping
-- Built `agency/tools/great-rename-migrate` (bash, 250 lines): dry-run by default, --apply executes git-mv, --map custom mapping, longest-prefix-wins, refuses main/master, preserves history, skips target-exists collisions
-- Wrote `src/tests/tools/great-rename-migrate.bats`: 19 tests — ALL GREEN
-
-### Fleet/Dispatch state
-
-- 10 outbound dispatches this session: #828-#835 (fleet), #836 (DevEx reply #827), #837 (DesignEx reply)
-- 0 unread dispatches in queue
-
-### Plan documents
-
-- Plan v3.2 → v3.3 committed (6f36ca66) — Bucket G.1 accelerated to R4, fleet-rename gap logged
-- V5 plan at `/Users/jdm/.claude/plans/melodic-inventing-platypus.md` (melodic-inventing-platypus) — approved as Option A
-- No new V6 plan doc written yet
-
-## What's IN-FLIGHT right now
-
-### Uncommitted framework code
-
-Two files, ~400 lines, ALL TESTS PASSING. Status: staged-ready but NOT committed.
-
-```
-agency/tools/great-rename-migrate        (NEW, 250 lines, executable)
-src/tests/tools/great-rename-migrate.bats (NEW, 19 tests, all green)
-```
-
-Verified via `bats` run — 1..19, all ok.
-
-### Branches
-
-- `main` — 3 local-ahead coord commits (02ffe449, 1c7becf0, 6f36ca66) not on origin. Will merge naturally when next PR from this branch lands to main.
-- `agency-v3-installer` — cut at 6f36ca66 for V5 work. Nothing on it yet beyond parent.
-- `fix/great-rename-migrate-tool` — cut from main, where the uncommitted tool sits. **CURRENT BRANCH.**
-
-### Principal directives carrying forward
-
-- **Fleet online by 0400** — hard deadline. This is THE priority tonight.
-- **"Make it so."** — execute V5 Option A with discipline after fleet lands.
-- **"Don't stop mid-night with context heavy."** — keep working until actually done.
-- **"Attention to details."** — tree-level review, not plans; file-by-file pruning.
-- **"Give us more PRs."** — small PRs, frequent cadence.
-- **"No DEFER."** — ACCEPT or REJECT only.
-- **1B1 enforcement** — never bundle questions; one decision at a time.
-
-## Next-action (IMMEDIATELY after /compact)
-
-1. **Commit the uncommitted tool + tests:**
-   ```
-   /Users/jdm/code/the-agency/agency/tools/git-safe-commit \
-     "agency/bucket-g1: great-rename-migrate tool + 19 BATS tests — unblock fleet on claude/→agency/ + tests/→src/tests/ rename" \
-     --no-work-item
-   ```
-   (Principal rejected this commit earlier — INSTEAD they wanted /compact-prepare first. Now that compact-prepare is done, re-attempt.)
-
-2. **Bump manifest:** `agency/config/manifest.json` → `agency_version` 46.14 → 46.15, `project.framework_version` 46.14 → 46.15, `updated_at` to current UTC. Commit.
-
-3. **Push + PR:** 
-   ```
-   /Users/jdm/code/the-agency/agency/tools/git-push fix/great-rename-migrate-tool
-   /Users/jdm/code/the-agency/agency/tools/pr-create
-   ```
-   PR title: "fix(bucket-g1): great-rename-migrate tool — fleet unblock v46.15"
-
-4. **Merge + release:**
-   ```
-   /Users/jdm/code/the-agency/agency/tools/pr-merge <PR#> --principal-approved
-   ```
-   Auto-release via Fix D cuts v46.15 within seconds.
-
-5. **Dispatch fleet with TOOL INSTRUCTIONS:**
-   - Template: new dispatch to all 8 agents with `great-rename-migrate` usage
-   - They run `git pull` on main, switch to their feature branch, `./agency/tools/great-rename-migrate --dry-run` to see plan, `--apply` to execute, commit, `worktree-sync --auto`
-   - Expected: agents self-unblock within 30-60min each
-
-6. **Verify fleet progress:** poll `gh pr list` or wait for agent dispatches back confirming unblocked. Hand-hold ones that hit residual content conflicts.
-
-## After fleet online (V5 Phase -1)
-
-7. **Switch to `agency-v3-installer` branch**
-8. **Phase -1 audit:** latent-tool-reference grep + 13 residual open questions resolved in writing at `research/open-questions-resolutions-20260422.md`
-9. **Phase 3 prune** (now, not later — earlier inventory captured the crap):
-   - `agency/tools/__pycache__/dispatch-monitorcpython-313.pyc` (rm + gitignore)
-   - `agency/agents/testname/` (rm)
-   - `agency/agents/unknown/` (verify + rm if placeholder)
-   - `agency/config/{agency-dependencies.yaml,dependencies.yaml}` (diff + pick one)
-   - `agency/REFERENCE/REFERENCE-QUALITY-GATE-MONOFOLK.md` (rm)
-   - `agency/config/{issue-monitor.last,tool-build-number}` (gitignore)
-   - `.claude/settings.local.json`, `.claude/scheduled_tasks.lock` (gitignore)
-   - `usr/test/`, `usr/jordan/{jordandm-d42-*,testname,conference,valueflow-*,mdpal,mdslidepal,personal,reports}/` (rm or gitignore)
-   - `src/apps/mdpal-app/claude/` (rm stale pre-rename dir)
-   - `src/archive/docs-legacy/` subset prune
-   - `LICENSE` vs `agency/LICENSE.md` (diff + consolidate)
-
-10. **Land PR #397** — monofolk v2 complete on main before V5 structural work
-
-11. **Phase 4+**: src/ split, build tool, installer, adopter sweep, contributor polish
-
-## Key context that must survive compact
-
-### Tool design (great-rename-migrate)
-
-- Bash, Bash 3.2 compatible
-- Default rename map:
-  - `claude/ → agency/`
-  - `tests/ → src/tests/`
-- Longest-prefix-wins sorting
-- Refuses to run on main/master (this is a BRANCH migration tool)
-- Refuses on detached HEAD
-- Does NOT auto-commit — leaves staged for user review
-- `--dry-run` default, `--apply` executes, `--map <file>` custom map, `--include-untracked` opt-in
-- Version: 1.0.0-20260421-bucket-g1
-- Location: `agency/tools/great-rename-migrate`
-- Tests: `src/tests/tools/great-rename-migrate.bats` (19 tests, covers: version, help, unknown-flag, refuses-main/master, dry-run default, --apply execution, target-exists skip, longest-prefix-wins, --map custom, comments/blank ignore, empty-map refuse, no-auto-commit, content-preserve, history-preserve)
-
-### Release cadence after fleet lands
-
-| R | Ver | Covers |
+| Version | PR | Core content |
 |---|---|---|
-| R4 | v46.15 | **Bucket G.1 — great-rename-migrate tool (this PR)** |
-| R5 | v46.16 | PR #397 monofolk v2 complete (drive to merge) |
-| R6 | v46.17 | Phase 3 prune PR (the crap inventoried above) |
-| R7+ | v46.18+ | V5 Phase 4-13 in order |
+| v46.15 | #410 | Bucket G.1 `great-rename-migrate` tool + 36 BATS (fleet unblock) |
+| v46.16 | #397 | Monofolk v2 QG follow-up + cp-safe symlink guards (caught 2 NEW HIGH findings on regate: S-NEW-1 symlink source escape, S-NEW-2 dest clobber) + DMI sweep + 20 cp-safe tests |
+| v46.17 | #411 | V5 Phase 3 prune + `agency-whoami` stub restoration (6 broken callers unblocked) + Phase -1 latent-tool-reference audit report |
+| v46.18 | #416 | 1B1 Items 3+4 execution — conference/zip/PDF cross-repo migration to the-agency-group + iteration archive deletes + `msg`-ref doc sweep |
+| v46.19 | #418 | V5 Phase 4a src/ split (910 files) + Phase 5a Python build tool (150 lines, zero pip deps) + 18 BATS + `diff-hash` fix (src/ qgr/rgr exclusions) |
 
-### Discipline reminders for self
+### 1B1 (6 items) — 4 of 6 fully resolved + tracked, 2 remaining
 
-- **NEVER** `cd /tmp && bats ...` — changes shell CWD, broke tool calls after. Use `bats <absolute-path>` from repo root.
-- **ALWAYS** use `/Users/jdm/code/the-agency/agency/tools/...` absolute paths when CWD is uncertain.
-- **Wait for "Over and out"** before executing principal directions on multi-option questions.
-- **1B1** — ONE decision at a time. Don't bundle.
-- **No DEFER** — accept or reject.
-- **Commit via git-safe-commit** — never raw git commit.
+- **Item 1** — `dependencies.yaml` consolidation + `/agency-dependency-manage` + `dependency-manage` tool: issue #412
+- **Item 2** — LICENSE architecture (src/agency/LICENSE.md canonical + build propagates) + joint copyright (Jordan Dea-Mattson + TheAgencyGroup) + trademark reservation (Core: The Agency/TheAgency/TheAgencyGroup/Valueflow; Apps: MDPal/mdpal/MockAndMark/mockandmark; Mascots: Attack Kittens/Attack Kitties): issue #413
+- **Item 3** — usr/jordan/* triage:
+  - valueflow-pvr-20260406 → agency/workstreams/agency/ (deferred per #415)
+  - mdpal + mdslidepal + mock-and-mark → agency/workstreams/ (deferred per #415)
+  - conference/ → the-agency-group/usr/jordan/conference/ (EXECUTED v46.18)
+  - session-transcripts.zip → the-agency-group/usr/jordan/transcripts/ (EXECUTED)
+  - Twitter PDF → the-agency-group/usr/jordan/reading/ (EXECUTED with filename clean)
+  - iteration archives (d42-r6/r7/r8, d44-r1/r2): DELETED (EXECUTED v46.18)
+- **Item 4** — `msg` unified dispatcher: sweep wrong-form + real form TBD: issue #414 + doc sweep landed v46.18
+- **Item 5** — V5 Phase 4 timing: principal "IV! Now!" — EXECUTED as v46.19
+- **Item 6** — 13 Phase -1 residual open questions: NOT YET DRIVEN
 
-## Open items
+### Issues filed (8 tracked for follow-up work)
 
-- Uncommitted tool + tests (step 1 of next-action)
-- 3 local-ahead coord commits on main (will land via PR)
-- PR #397 has been OPEN since 2026-04-21 05:38Z — needs to land for monofolk v2 complete
-- Multiple adopter repos (andrew-demo, presence-detect) need `agency update` working once shipped
+- #412 dependencies consolidation (Item 1)
+- #413 license consolidation (Item 2)
+- #414 msg real-form design (Item 4 followup)
+- #415 Item 3 in-repo workstream migrations remainder
+- #417 Python unit tests for src/tools/build
+- #419 Pre-existing pollution cleanup at agency/ side — IMMEDIATE priority per principal
+- #420 src/ top-level taxonomy drift (assets/integrations/spec-provider/tools-developer)
+- (Earlier session: v3.2→v3.3 plan revision)
 
-## Stashes
+### E2Es verified pre-v46.19-merge (4-reviewer multi-agent pass)
 
-- None (tool + tests uncommitted, not stashed — they will be the first commit on fix/great-rename-migrate-tool after compact)
+- Structural audit: 910 files byte-identical src/ ↔ agency/ build product, modes preserved
+- `agency init`: 337 files scaffolded on fresh temp repo, exit 0, bootloader renders
+- `agency update`: dry-run on andrew-demo 46.11 → 46.19 clean (+85 ~16 -0)
+- Framework health: 74/74 BATS (great-rename-migrate 36 + cp-safe 20 + build 18), 9/9 smoke checks
+
+### Fleet status
+
+- **Deliberately OFFLINE per principal** — "I have, intentionally and deliberately kept the fleet offline"
+- 8 rename-tool dispatches out (22:34Z yesterday) — will pick up when principal starts the fleet
+- Fleet will inherit all 5 new releases + v46.19 Phase 4 src/ split when they re-sync
+
+### Infrastructure fix during session
+
+`diff-hash` chicken-and-egg: workstream qgr/rgr receipts at src/ side (duplicated by Phase 4) weren't excluded from hash calculation. Every receipt commit during pr-prep shifted Hash E, invalidating receipts. Fixed by adding `src/agency/workstreams/*/{qgr,rgr}/**` exclusions to diff-hash.
+
+## What's in progress right now
+
+**Nothing pending execution.** Tree clean on main. v46.19 merged + released. Post-merge cleanup done (post-merge-state cleared, branch deleted locally).
+
+## What's next (immediate)
+
+**Await principal direction.** Options on the table:
+
+1. **#419 pollution cleanup** — principal flagged as "IMMEDIATE priority" — clean up testname/, unknown/, `test; rm -rf` dir, test-auto QGRs, housekeeping workstream consolidation. Small/medium PR.
+
+2. **Post-merge E2E re-verification** — repeat agency init + agency update tests against fresh main checkout (not the pre-merge branch). 2 minutes. Principal offered if extra confidence wanted.
+
+3. **1B1 Item 6** — 13 residual Phase -1 open questions. Needs principal 1B1 session.
+
+4. **Item 3 #415 remainder** — mdpal/mdslidepal/mock-and-mark → agency/workstreams/ migrations (in-repo moves).
+
+5. **Fleet bring-up** — when principal says, 8 agents start and use rename tool.
+
+6. **V5 Phase 4 reference sweep** — docs that say "source at agency/" need updating to "source at src/agency/; build product at agency/." ~many files.
+
+## Key context that must survive compaction
+
+### Architecture decisions (new, must persist)
+
+- **src/ is source-of-truth** — all framework edits go to src/agency/ + src/claude/ first, then build tool regenerates agency/ + .claude/ build products
+- **Build products are committed** — the dual-tracking is intentional, not temporary; Phase 5b will enhance with YAML frontmatter + versioning but keep dual-tracking
+- **LICENSE canonical at src/agency/LICENSE.md** — build copies to agency/LICENSE.md + root LICENSE; Phase 5 build tool owns propagation; interim CI lint catches drift
+- **Copyright is joint** — Jordan Dea-Mattson AND TheAgencyGroup, rolling year 2026+
+- **Trademarks reserved** — 10 marks listed in issue #413 for all 6 license files
+- **msg real-form TBD** — old unified-msg spec retired; current stack (dispatch/collaborate/flag/dispatch-monitor) works; real design pending (#414)
+
+### Infrastructure caveats
+
+- `diff-hash` now excludes src/ side qgr/rgr paths (fixed this session in commit c2e03e94)
+- `src/tools/build` is Phase 5a minimal — copies only, no YAML parsing, no versioning, no stale-file cleanup. Phase 5b (#417 bundled w/ Python tests) adds those.
+- QGR receipts should go in `agency/workstreams/*/qgr/` ONLY (not src/ duplicate) — will be cleaned up in #419 pollution PR
+
+### Principal discipline reminders
+
+- **No timing questions.** Sequencing + dependencies questions OK; "should we do this now or later" is a pause we don't take
+- **1B1** — one decision at a time; wait for "Over" before responding, "Over and out" before executing
+- **"Make it so" = execute** — don't re-ask
+- **Fleet offline is intentional** — don't ping/start the fleet without explicit go
+
+## Open items / blockers
+
+- Nothing blocking. All issues have tracked paths forward.
 
 ## Related artifacts
 
+- V5 Plan: `/Users/jdm/.claude/plans/melodic-inventing-platypus.md`
+- Phase -1 audit: `agency/workstreams/agency/research/latent-tool-reference-audit-20260422.md`
 - Plan v3.3: `agency/workstreams/agency/plan-abc-stabilization-20260421.md`
-- V5 plan: `/Users/jdm/.claude/plans/melodic-inventing-platypus.md`
-- Fleet dispatches sent: #828-#837
-- DevEx incoming: #827 (answered via #836)
-- This handoff
+- Latest QGR: `agency/workstreams/agency/qgr/the-agency-jordan-captain-agency-v5-phase-4-qgr-pr-prep-20260422-1014-cf73767.md`
+- Captain log: `usr/jordan/captain/logs/captains-log-20260421.md` (2026-04-22 entries pending)
 
 ## Tasks carrying state
 
-- **IMMEDIATE: Commit tool, bump manifest, PR, merge, release v46.15, dispatch fleet (fleet online by 0400)**
-- After: Phase -1 audit + Phase 3 prune + PR #397 land + V5 Phase 4+
+- 6 `[pending]` in task list: Phase 5, 6, 8, 9 builds + C#372 diagnosis + Bucket F + Bucket G + PR #397 slot shift (now obsolete — already landed)
+- Principal directive to keep moving on V5 phase sequence
