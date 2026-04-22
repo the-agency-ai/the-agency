@@ -114,6 +114,12 @@ Full content included verbatim below from `agency/CLAUDE-DONT-DO-THIS.md`:
 
 @agency/CLAUDE-DONT-DO-THIS.md
 
+## Telemetry-Driven Tool Discovery
+
+**The Bash tool log is a list of the tools we haven't built yet.** Every compound bash command an agent writes (`cd foo && bar && cd -`) is a request for a tool that doesn't yet exist. The telemetry log (`.claude/logs/tool-runs.jsonl`) captures that friction; mining it ranks the next tool to build.
+
+Loop: **Friction → Telemetry → Tool → Block → Flow.** Pattern appears in the log → build the tool → hookify blocks the hackaround → pattern stops appearing. Full rationale + the scanner design: see the seed at `agency/workstreams/agency/history/flotsam/legacy-agency-workstream-20260420/seeds/seed-telemetry-driven-tool-discovery-20260409.md`.
+
 ## Runtime Floor
 
 - **Python: 3.13+.** Framework tools, hooks, and services target modern Python. Set in D45-R1 per principal directive, superseding the D44-R6 3.12 floor. Rationale: brew default is 3.13 so adopters get the floor for free; 3.13 adds nothing we must opt into (PEP 703 no-GIL and PEP 744 JIT are opt-in). Shebang convention: `#!/usr/bin/env python3` + runtime `sys.version_info` guard (NOT `python3.13` — hard-coded minor names break pyenv/nix/conda/Apple-stock installs; see `usr/jordan/captain/briefings/python-shebang-investigation-20260418.md`). Framework tools in `agency/tools/` remain **zero-pip**: stdlib only. Services (iscp dispatch-hub, etc.) may use pip deps.

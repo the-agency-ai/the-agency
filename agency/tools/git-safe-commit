@@ -29,6 +29,7 @@
 #   --work-item, -w   Work item ID (REQUEST-jordan-0065, SPRINT-web-2026w03, etc.)
 #   --stage, -s       Stage: impl, review, tests (required if work-item provided)
 #   --no-work-item    Escape hatch when no work item applies (skip work-item requirement)
+#   --coord           Alias for --no-work-item (coord-artifact commits; see /coord-commit)
 #   --allow-large     Bypass commit-precheck large-file block (single-commit override)
 #   --body, -b        Detailed commit body
 #   --principal, -p   Override principal (default: from config or work item)
@@ -165,6 +166,16 @@ while [[ $# -gt 0 ]]; do
         --no-work-item|--force|-f)
             # --force / -f are documented aliases for --no-work-item (issue #283)
             # Skill docs historically showed --force; keep the alias to match.
+            NO_WORK_ITEM=true
+            shift
+            ;;
+        --coord)
+            # --coord is a convenience alias for --no-work-item (issue #395).
+            # Semantics match /coord-commit skill's happy path: commit coord
+            # artifacts (handoffs, dispatches, seeds, config) without QG.
+            # NOTE: This is the minimal happy-path alias. Full validation of
+            # "staged files are coord artifacts" and automatic `misc:` prefix
+            # injection are follow-ups tracked in #395 (acceptance criteria).
             NO_WORK_ITEM=true
             shift
             ;;
