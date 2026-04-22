@@ -54,6 +54,17 @@ source "$SCRIPT_DIR/lib/_iscp-db"
 # Valid dispatch types (must match _iscp-db CHECK constraint)
 VALID_TYPES="directive seed review review-response commit master-updated escalation dispatch"
 
+# Alias map — human-friendly aliases that resolve to canonical types.
+# Used to heal doc drift (e.g. legacy docs say "main-updated").
+# Issue #167 — unify main-updated vs master-updated vocabulary.
+_canonicalize_type() {
+    local dtype="$1"
+    case "$dtype" in
+        main-updated) echo "master-updated" ;;
+        *) echo "$dtype" ;;
+    esac
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
@@ -214,7 +225,7 @@ _validate_type() {
 # create — Create dispatch (DB record + git payload file)
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_create() {
-    local to_addr="" subject="" reply_to="" priority="normal" dtype="dispatch" project="" body="" use_template=false
+    local to_addr="" subject="" reply_to="" priority="normal" dtype="dispatch" project="" body="" body_file="" use_template=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -227,6 +238,9 @@ cmd_create() {
             --body)
                 [[ -n "${2:-}" ]] || { echo "Error: --body requires text" >&2; return 1; }
                 body="$2"; shift 2 ;;
+            --body-file)
+                [[ -n "${2:-}" ]] || { echo "Error: --body-file requires a path" >&2; return 1; }
+                body_file="$2"; shift 2 ;;
             --template)
                 use_template=true; shift ;;
             --type)
@@ -243,7 +257,11 @@ cmd_create() {
                 project="$2"; shift 2 ;;
             --help|-h)
                 echo "Usage: dispatch create --to <addr> --subject <text> --body <text> [--type <type>] [--priority <p>] [--reply-to <id>] [--project <name>]"
+                echo "       dispatch create --to <addr> --subject <text> --body-file <path> [--type <type>]"
                 echo "       dispatch create --to <addr> --subject <text> --template [--type <type>]"
+                echo ""
+                echo "  --body and --body-file are mutually exclusive."
+                echo "  --body-file must point to a non-empty file."
                 return 0 ;;
             *)
                 echo "Error: unknown option for create: $1" >&2; return 1 ;;
@@ -264,12 +282,36 @@ cmd_create() {
     # How & Why: Require --body (content) or --template (explicit opt-in).
     # No content = no dispatch. Fail loud.
     # Written: 2026-04-06 — escalation #53
+
+    # Mutex: --body and --body-file cannot be combined (issue #251)
+    if [[ -n "$body" ]] && [[ -n "$body_file" ]]; then
+        echo "Error: --body and --body-file are mutually exclusive" >&2
+        return 1
+    fi
+
+    # Resolve --body-file → body string (issue #251)
+    if [[ -n "$body_file" ]]; then
+        if [[ ! -f "$body_file" ]]; then
+            echo "Error: --body-file not found: $body_file" >&2
+            return 1
+        fi
+        body="$(cat "$body_file")"
+        if [[ -z "$body" ]] || [[ -z "${body//[[:space:]]/}" ]]; then
+            echo "Error: --body-file is empty (or whitespace-only): $body_file" >&2
+            return 1
+        fi
+    fi
+
     if [[ -z "$body" ]] && [[ "$use_template" != "true" ]]; then
-        echo "Error: --body <text> is required (or use --template for placeholder file)" >&2
+        echo "Error: --body <text> or --body-file <path> is required (or use --template for placeholder file)" >&2
         echo "  dispatch create --to <addr> --subject <text> --body \"your content here\"" >&2
+        echo "  dispatch create --to <addr> --subject <text> --body-file path/to/body.md" >&2
         echo "  dispatch create --to <addr> --subject <text> --template" >&2
         return 1
     fi
+
+    # Canonicalize type aliases (e.g. main-updated → master-updated, issue #167)
+    dtype="$(_canonicalize_type "$dtype")"
 
     # Validate type
     _validate_type "$dtype" || return 1

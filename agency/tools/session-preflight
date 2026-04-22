@@ -112,12 +112,19 @@ else
         "Run: dispatch list, then dispatch read <id>"
 fi
 
-# ── Check 5: Dispatch monitor running ────────────────────────────────────
-# We can't directly detect Monitor tool tasks from bash.
-# Instead, we remind the agent to start it.
-
-report_warn "Dispatch monitor — verify it is running" \
-    "Run: /monitor-dispatches (if not already started this session)"
+# ── Check 5: Dispatch monitor reminder ───────────────────────────────────
+# Issue #201: Check 5 used to hard-code report_warn, so every preflight
+# reported "1 action" regardless of whether the monitor was already running.
+# That undermined trust in the check. We cannot directly detect Monitor
+# tool tasks from bash (they're harness-side), so the check is now
+# informational by default. Agents who want a real assertion can set
+# AGENCY_PREFLIGHT_MONITOR_STRICT=1 to force the warn behavior.
+if [[ "${AGENCY_PREFLIGHT_MONITOR_STRICT:-0}" == "1" ]]; then
+    report_warn "Dispatch monitor — verify it is running" \
+        "Run: /monitor-dispatches (if not already started this session)"
+else
+    [[ "$QUIET" == "false" ]] && echo "  ℹ  Dispatch monitor — start with /monitor-dispatches if not already running (informational)"
+fi
 
 # ── Summary ──────────────────────────────────────────────────────────────
 
