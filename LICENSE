@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 TheAgencyGroup & Jordan Dea-Mattson
+Copyright (c) 2026 Jordan Dea-Mattson and TheAgencyGroup
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,19 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+TRADEMARK NOTICE
+
+The following are trademarks of Jordan Dea-Mattson and TheAgencyGroup:
+
+  Core:     The Agency, TheAgency, TheAgencyGroup
+  Core:     Valueflow
+  Apps:     MDPal, mdpal, MockAndMark, mockandmark
+  Mascots:  Attack Kittens, Attack Kitties
+
+All rights reserved. No license to use any of the above trademarks is granted
+under the MIT License above. Use of these marks — in product names, service
+names, branding, or any identifying capacity — requires prior written
+permission from the trademark holders.

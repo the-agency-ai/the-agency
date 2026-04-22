@@ -30,14 +30,9 @@ curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/
   | bash -s -- --principal your-name --project your-project-name
 ```
 
-Pin to a specific release (recommended for reproducible installs):
-
-```bash
-curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/tools/agency-bootstrap.sh \
-  | bash -s -- --principal your-name --project your-project-name --from-github v46.20
-```
-
 **Do NOT copy-paste angle brackets** — use literal names. The bootstrap refuses `<your-name>` style placeholders on purpose so you don't accidentally install an agent called `<your-name>`.
+
+You *can* pin to a specific release by appending `--from-github v46.20` (or any release tag) to the command above. But TheAgency is iterating fast right now — **we suggest staying current with `main`**.
 
 After install you have a working `agency` CLI at `./agency/tools/agency`, a captain agent registered under `usr/your-name/captain/`, and Claude Code integration wired up in `.claude/`.
 
@@ -65,23 +60,22 @@ Everything under `agency/` is framework build-product — `agency init` copies i
 
 ## Staying Up to Date — `agency update`
 
-Once TheAgency is installed in your repo, pull framework updates directly from GitHub — no clone or git-remote management required.
+Once TheAgency is installed in your repo, pull framework updates directly from GitHub — no clone or git-remote management required. **We're iterating fast right now — staying current with `main` is the suggested path.**
 
 ```bash
 # Preview what would change (no writes):
 ./agency/tools/agency update --from-github --dry-run
 
-# Apply latest main:
+# Apply latest main (recommended):
 ./agency/tools/agency update --from-github
-
-# Pin to a specific release tag:
-./agency/tools/agency update --from-github v46.20
 
 # Aggressive cleanup — remove orphaned framework files (prompts for confirmation):
 ./agency/tools/agency update --from-github --prune
 ```
 
 `agency update` is **additive by default** — it adds new files and updates existing framework files, but leaves your `usr/`, workstreams, and any registered `protected_paths` alone. Use `--prune` when you want to clean up files that have been retired upstream.
+
+Need to pin to a specific release? `./agency/tools/agency update --from-github v46.20` (or any release tag). Useful if you hit a regression and need to hold — but we're iterating fast, so staying on `main` is the suggested default.
 
 ## This Repo Structure
 
@@ -119,7 +113,7 @@ the-agency/
 
 ## Versioning
 
-`agency_version` in `agency/config/manifest.json` follows `{day}.{release}` (e.g. `46.20` = Day 46 Release 20). Released via daily cron (or ad-hoc via `agency/tools/release-cut`). Tags: `v{day}.{release}` + `agency-v{major}` symbolic.
+`agency_version` in `agency/config/manifest.json` follows `{day}.{release}` (e.g. `46.21` = Day 46 Release 21). Released via daily cron (or ad-hoc via `agency/tools/release-cut`). Tags: `v{day}.{release}` + `agency-v{major}` symbolic.
 
 ## For Contributors
 
