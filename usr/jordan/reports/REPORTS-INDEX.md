@@ -21,6 +21,7 @@ Each row is one filing. Click through to the per-report markdown for full contex
 | 2026-04-21 | git-safe-commit: add --coord convenience flag (alias for coord-commit happy path) | friction | the-agency-ai/the-agency | #395 | [report-agency-issue-git-safe-commit-add-coord-convenience-flag-alias-f-20260421](usr/jordan/reports/report-agency-issue-git-safe-commit-add-coord-convenience-flag-alias-f-20260421.md) | open |
 | 2026-04-22 | Consolidate dependency YAMLs + ship /agency-dependency-manage + dependency-manage tool | feature | the-agency-ai/the-agency | #412 | [report-agency-issue-consolidate-dependency-yamls-ship-agency-dependenc-20260422](usr/jordan/reports/report-agency-issue-consolidate-dependency-yamls-ship-agency-dependenc-20260422.md) | open |
 | 2026-04-22 | License consolidation (src→build) + joint copyright (Jordan + TheAgencyGroup) + trademark reservation | feature | the-agency-ai/the-agency | #413 | [report-agency-issue-license-consolidation-src-build-joint-copyright-jo-20260422](usr/jordan/reports/report-agency-issue-license-consolidation-src-build-joint-copyright-jo-20260422.md) | open |
+| 2026-04-22 | Design + build unified `msg` dispatcher (real form, TBD — old spec swept) | feature | the-agency-ai/the-agency | #414 | [report-agency-issue-design-build-unified-msg-dispatcher-real-form-tbd--20260422](usr/jordan/reports/report-agency-issue-design-build-unified-msg-dispatcher-real-form-tbd--20260422.md) | open |
 <!-- AGENCY-ISSUE-INDEX-END -->
 
 ## How to add an entry
