@@ -33,6 +33,21 @@ if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
 fi
 RUN_ID=$(log_start "commit-precheck" "$@" 2>/dev/null) || true
 
+# Issue #236: ensure every exit path emits an end event. Under `set -euo
+# pipefail`, an unexpected error mid-script would skip the explicit end_run
+# calls, leaving the run as a dangling start event and blocking
+# /why-did-this-fail diagnostics (#237). Trap handler emits a best-effort
+# end event with the actual exit code captured from $?.
+_COMMIT_PRECHECK_ENDED=false
+_on_exit() {
+    local rc=$?
+    if [[ "$_COMMIT_PRECHECK_ENDED" == "false" && -n "${RUN_ID:-}" ]]; then
+        log_end "$RUN_ID" "failure" "$rc" "0" "unexpected exit (rc=$rc)" 2>/dev/null || true
+    fi
+    exit $rc
+}
+trap '_on_exit' EXIT
+
 VERBOSE=false
 DRY_RUN=false
 while [[ $# -gt 0 ]]; do
@@ -55,6 +70,7 @@ done
 
 GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) || true
 if [[ -f "${GIT_DIR}/MERGE_HEAD" ]]; then
+    _COMMIT_PRECHECK_ENDED=true
     log_end "$RUN_ID" "skip" "0" "0" "merge commit — skipping pre-commit checks" 2>/dev/null || true
     exit 0
 fi
@@ -78,6 +94,7 @@ log_info() { log_msg "info" "$1"; }
 log_warn() { log_msg "warn" "$1"; }
 
 end_run() {
+    _COMMIT_PRECHECK_ENDED=true
     [[ "$VERBOSE" == "true" ]] && return
     log_end "$RUN_ID" "$1" "0" "0" "$2" 2>/dev/null || true
 }
