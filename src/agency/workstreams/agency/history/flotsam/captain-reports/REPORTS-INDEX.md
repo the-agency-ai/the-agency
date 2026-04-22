@@ -1,0 +1,45 @@
+# Principal Reports Index
+
+Reports filed externally (Anthropic Claude Code, the-agency GitHub, etc.) by or on behalf of jordan.
+
+Each row is one filing. Click through to the per-report markdown for full context, current state, and response log.
+
+**Location:** `usr/jordan/reports/` (principal-scoped — moved from `usr/jordan/captain/reports/` on 2026-04-08)
+**Naming convention:** `report-{kind}-{slug}-{YYYYMMDD}.md`
+
+---
+
+## Filed Reports
+
+<!-- AGENCY-ISSUE-INDEX-START — agency-issue tool appends rows above the END marker -->
+
+| Date | Title | Kind | Target | External ID | Local Report | Status |
+|------|-------|------|--------|-------------|--------------|--------|
+| 2026-04-12 | `/feedback` error-bleed — attaches all session errors to every filing | feedback (bug) | anthropic/claude-code | feedback `24fe6d3e…` + GH [#46860](https://github.com/anthropics/claude-code/issues/46860) | (inline in session) | filed |
+| 2026-04-12 | macOS permissions break on every Claude Code update | feedback (bug) | anthropic/claude-code | feedback `48a647ec…` + GH [#46859](https://github.com/anthropics/claude-code/issues/46859) | seed-macos-permissions-20260411 | filed |
+| 2026-04-12 | `--agent/--name` env var missing | feedback (feature) | anthropic/claude-code | feedback `0894552a…` + GH [#46858](https://github.com/anthropics/claude-code/issues/46858) | seed-agent-name-env-var-20260411 | filed |
+| 2026-04-12 | Agent permission UX — trusted framework paths for autonomous agents | feedback (feature) | anthropic/claude-code | feedback `b3bb3ef6…` + GH [#46855](https://github.com/anthropics/claude-code/issues/46855) | seed-agent-permission-ux-20260411 | filed |
+| 2026-04-12 | Session identity broken for multi-agent worktree workflows | feedback (bug) | anthropic/claude-code | feedback `ce60ba6d…` + GH [#46853](https://github.com/anthropics/claude-code/issues/46853) | seed-session-resume-worktree-ux-20260412 | filed |
+| 2026-04-11 | Content filter returns opaque 400 with zero diagnostic signal | feedback (bug) | anthropic/claude-code | feedback `cc00b303…` + GH [#46546](https://github.com/anthropics/claude-code/issues/46546) | [report-feedback-content-filter-opacity-20260411](report-feedback-content-filter-opacity-20260411.md) | filed |
+| 2026-04-11 | Log `/feedback` network requests and errors to `~/.claude/debug/` (narrow debug-logging ask) | feedback (bug) | anthropic/claude-code | feedback `229cbbce…` + GH [#46538](https://github.com/anthropics/claude-code/issues/46538) | [report-feedback-debug-logging-20260411](report-feedback-debug-logging-20260411.md) | filed |
+| 2026-04-11 | Communications gap — `/feedback` broken 5+ months while team publicly directs users to it | feedback (bug) | anthropic/claude-code | feedback `95fe4771…` + GH [#46531](https://github.com/anthropics/claude-code/issues/46531) | [report-feedback-comms-gap-20260411](report-feedback-comms-gap-20260411.md) | filed |
+| 2026-04-08 | Periodic silent execution primitive for autonomous agents | feedback | anthropic/claude-code | feedback `8dd67e96…` + GH [#45017](https://github.com/anthropics/claude-code/issues/45017) | [report-silent-periodic-tool-calls-20260408](report-silent-periodic-tool-calls-20260408.md) | filed |
+| 2026-04-08 | agency-issue v1: new skill for two-way GitHub issue tracking | feature | the-agency-ai/the-agency | [#52](https://github.com/the-agency-ai/the-agency/issues/52) | [report-agency-issue-agency-issue-v1-new-skill-for-two-way-github-issue-20260408](report-agency-issue-agency-issue-v1-new-skill-for-two-way-github-issue-20260408.md) | open |
+
+| 2026-04-08 | agency update does not propagate new top-level YAML sections from agency.yaml | bug | the-agency-ai/the-agency | #56 | [report-agency-issue-agency-update-does-not-propagate-new-top-level-yam-20260408](usr/jordan/reports/report-agency-issue-agency-update-does-not-propagate-new-top-level-yam-20260408.md) | open |
+| 2026-04-09 | worktree-sync: misleading 'resolve manually' message after successful conflict-abort | bug | the-agency-ai/the-agency | #57 | [report-agency-issue-worktree-sync-misleading-resolve-manually-message--20260409](usr/jordan/reports/report-agency-issue-worktree-sync-misleading-resolve-manually-message--20260409.md) | open |
+| 2026-04-09 | Docker CLI cannot connect to daemon even when Docker Desktop is running | bug | the-agency-ai/the-agency | #58 | [report-agency-issue-docker-cli-cannot-connect-to-daemon-even-when-dock-20260409](usr/jordan/reports/report-agency-issue-docker-cli-cannot-connect-to-daemon-even-when-dock-20260409.md) | open |
+<!-- AGENCY-ISSUE-INDEX-END -->
+
+## How to add an entry
+
+1. Draft the report with captain, following `claude/docs/FEEDBACK-FORMAT.md`
+2. File via the appropriate channel:
+   - `agency-issue file` → the-agency GitHub (auto-appends to this index)
+   - `/feedback` → Anthropic Claude Code (manually create the report file + append a row)
+3. The per-report markdown lives in this directory with full text, response log, and frontmatter linking back to the source seed
+4. This index is the at-a-glance view; the per-report file is the source of truth
+
+## Principle
+
+Reports are the record of what we asked the outside world for. Every gap we find in an external tool that we can't close in userspace becomes a report. Every response from the other side gets appended to its report file so we have a full narrative.

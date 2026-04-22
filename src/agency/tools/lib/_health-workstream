@@ -1,0 +1,139 @@
+#!/bin/bash
+#
+# What Problem: Workstream health is about whether a body of work is alive
+# and being tended. Failure modes: seeds rotting uncaptured, QGRs going
+# stale, CLAUDE-{WORKSTREAM}.md missing, agent registrations pointing at
+# workstreams that no longer exist, workstreams with no commits in weeks.
+#
+# How & Why: Enumerate workstreams from agency/workstreams/*/ directories.
+# For each: check CLAUDE-{NAME}.md presence, seed count + freshness, QGR
+# recency, last-modified-in-repo indicator.
+#
+# Written: 2026-04-09 during captain Day 34 — agency-health v1
+
+_health_workstream_list() {
+    local dir="${PROJECT_ROOT:-.}/agency/workstreams"
+    if [[ -d "$dir" ]]; then
+        find "$dir" -maxdepth 1 -mindepth 1 -type d 2>/dev/null \
+            | xargs -I{} basename {} 2>/dev/null \
+            | sort
+    fi
+}
+
+_health_check_one_workstream() {
+    local ws="$1"
+    local ws_dir="$PROJECT_ROOT/agency/workstreams/$ws"
+    local dim="workstream"
+    local worst="healthy"
+    local summary_parts=()
+    local detail_parts=()
+
+    if [[ ! -d "$ws_dir" ]]; then
+        health_emit "$dim" "$ws" critical "workstream directory does not exist" "Expected: $ws_dir"
+        return
+    fi
+
+    # ─── Check 1: CLAUDE-{WORKSTREAM}.md present ───
+    local ws_upper
+    ws_upper=$(echo "$ws" | tr '[:lower:]' '[:upper:]')
+    local claude_md="$ws_dir/CLAUDE-${ws_upper}.md"
+    if [[ ! -f "$claude_md" ]]; then
+        # Try alternate casing / patterns
+        if ! ls "$ws_dir"/CLAUDE-*.md >/dev/null 2>&1; then
+            [[ "$worst" == "healthy" ]] && worst="attention"
+            summary_parts+=("no CLAUDE-${ws_upper}.md")
+        fi
+    fi
+
+    # ─── Check 2: Seeds directory presence + count ───
+    local seeds_dir="$ws_dir/seeds"
+    if [[ -d "$seeds_dir" ]]; then
+        local seed_count
+        seed_count=$(find "$seeds_dir" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "$seed_count" -gt 15 ]]; then
+            [[ "$worst" == "healthy" ]] && worst="attention"
+            summary_parts+=("$seed_count seeds")
+            detail_parts+=("large seed backlog — consider triage")
+        fi
+    fi
+
+    # ─── Check 3: QGR recency ───
+    local qgr_dir="$ws_dir/quality-gate-reports"
+    if [[ -d "$qgr_dir" ]]; then
+        local last_qgr
+        last_qgr=$(find "$qgr_dir" -maxdepth 1 -name 'qgr-*.md' -type f 2>/dev/null \
+            | head -1)
+        if [[ -n "$last_qgr" ]]; then
+            local days
+            days=$(health_days_since_modified "$last_qgr")
+            if [[ "$days" -gt 30 ]]; then
+                [[ "$worst" == "healthy" || "$worst" == "attention" ]] && worst="attention"
+                summary_parts+=("last QGR ${days}d ago")
+            fi
+        fi
+    fi
+
+    # ─── Check 4: Recent activity (most recently modified file in ws_dir) ───
+    local last_activity
+    if command -v find >/dev/null 2>&1; then
+        # Find the most recently modified file in the workstream
+        if [[ "$(uname)" == "Darwin" ]]; then
+            last_activity=$(find "$ws_dir" -type f -not -path '*/.*' -exec stat -f '%m %N' {} \; 2>/dev/null \
+                | sort -rn | head -1 | awk '{print $2}')
+        else
+            last_activity=$(find "$ws_dir" -type f -not -path '*/.*' -printf '%T@ %p\n' 2>/dev/null \
+                | sort -rn | head -1 | awk '{print $2}')
+        fi
+    fi
+
+    if [[ -n "$last_activity" ]]; then
+        local days
+        days=$(health_days_since_modified "$last_activity")
+        if [[ "$days" -gt 30 ]]; then
+            worst="warning"
+            summary_parts+=("no activity ${days}d")
+        elif [[ "$days" -gt 14 ]]; then
+            [[ "$worst" == "healthy" || "$worst" == "attention" ]] && worst="attention"
+            summary_parts+=("no activity ${days}d")
+        fi
+    fi
+
+    # Compose summary
+    local summary_text
+    if [[ ${#summary_parts[@]} -eq 0 ]]; then
+        summary_text="active, artifacts present"
+    else
+        summary_text=$(IFS=', '; echo "${summary_parts[*]}")
+    fi
+
+    local detail_text=""
+    if [[ ${#detail_parts[@]} -gt 0 ]]; then
+        detail_text=$(IFS='; '; echo "${detail_parts[*]}")
+    fi
+
+    health_emit "$dim" "$ws" "$worst" "$summary_text" "$detail_text"
+}
+
+# Public: check one or all workstreams
+health_check_workstreams() {
+    local target="${1:-}"
+    if [[ "${JSON:-false}" != "true" ]]; then
+        health_render_section "WORKSTREAMS"
+    fi
+
+    local any=false
+    if [[ -n "$target" ]]; then
+        _health_check_one_workstream "$target"
+        any=true
+    else
+        while IFS= read -r ws; do
+            [[ -z "$ws" ]] && continue
+            _health_check_one_workstream "$ws"
+            any=true
+        done < <(_health_workstream_list)
+    fi
+
+    if [[ "$any" == false ]]; then
+        echo "  (no workstreams)"
+    fi
+}

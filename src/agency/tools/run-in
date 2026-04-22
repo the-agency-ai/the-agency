@@ -1,0 +1,138 @@
+#!/bin/bash
+#
+# What Problem: Agents constantly write compound bash commands like
+# "cd foo && bar && cd -" to run a command in a different directory. This is
+# noisy (Claude Code's compound-command permission prompts fire on every
+# segment), error-prone (forgetting "cd -" leaks the parent shell's CWD),
+# breaks agent identity resolution (which depends on CWD), and produces zero
+# telemetry. We've hit this pattern all day in captain sessions and it's the
+# #1 source of Bash tool noise.
+#
+# How & Why: A single instrumented command that runs any command in a target
+# directory via a SUBSHELL, so the parent shell's CWD is never touched. Two
+# positional args: the target directory, then "--" separator, then the
+# command and its args preserved as argv boundaries. The subshell uses
+# `exec "$@"` so the command replaces the subshell process (correct signal
+# forwarding, no extra pid). Exit code propagates. Standard log_start/log_end
+# instrumentation so every directory-scoped execution is observable.
+#
+# The enforcement triangle:
+#   Tool:    this file (agency/tools/run-in)
+#   Skill:   /run-in
+#   Hookify: block-compound-bash (blocks &&, ||, ;, pipes in Bash tool calls)
+#
+# Usage:
+#   run-in <target-dir> -- <command> [args...]
+#   run-in --version
+#   run-in --help
+#
+# Examples:
+#   run-in /path/to/other-repo -- git status
+#   run-in ~/code/presence-detect -- ./agency/tools/agency verify
+#   run-in .claude/worktrees/devex -- ./agency/tools/dispatch list
+#
+# Written: 2026-04-09 during captain Day 34 (run-in Triangle build)
+
+set -euo pipefail
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper if available
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    # shellcheck source=/dev/null
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+show_help() {
+    cat <<'EOF'
+run-in — run a command in a target directory without leaking CWD
+
+USAGE
+  run-in <target-dir> -- <command> [args...]
+  run-in --version
+  run-in --help
+
+BEHAVIOR
+  Runs <command> in <target-dir> via a subshell. The parent shell's CWD
+  is never touched. Exit code of the command is propagated. Standard
+  Agency telemetry via log_start/log_end.
+
+WHY
+  Compound bash commands ("cd foo && bar && cd -") are blocked by the
+  block-compound-bash hookify rule. Use run-in instead. See
+  agency/hookify/hookify.block-compound-bash.md for the full rationale.
+
+EXAMPLES
+  run-in /path/to/other-repo -- git status
+  run-in ~/code/presence-detect -- ./agency/tools/agency verify
+  run-in .claude/worktrees/devex -- ./agency/tools/dispatch list
+
+OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!
+EOF
+}
+
+# Parse args
+if [[ $# -eq 0 ]]; then
+    show_help
+    exit 2
+fi
+
+case "$1" in
+    --version|-v)
+        echo "run-in $VERSION"
+        exit 0
+        ;;
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+esac
+
+TARGET_DIR="$1"
+shift
+
+# Require the "--" separator so the command boundary is explicit
+if [[ $# -lt 1 ]] || [[ "$1" != "--" ]]; then
+    echo "run-in: missing '--' separator between target-dir and command" >&2
+    echo "  usage: run-in <target-dir> -- <command> [args...]" >&2
+    exit 2
+fi
+shift  # consume --
+
+if [[ $# -lt 1 ]]; then
+    echo "run-in: no command provided after '--'" >&2
+    echo "  usage: run-in <target-dir> -- <command> [args...]" >&2
+    exit 2
+fi
+
+# Resolve target directory
+if [[ ! -d "$TARGET_DIR" ]]; then
+    echo "run-in: target directory does not exist: $TARGET_DIR" >&2
+    exit 1
+fi
+
+# Start logging
+RUN_ID=""
+if type log_start &>/dev/null; then
+    RUN_ID=$(log_start "run-in" "$TARGET_DIR :: $*")
+fi
+
+# Run the command in a subshell. The parent shell's CWD is never touched.
+# `exec` replaces the subshell with the target command so signals forward
+# cleanly and there's no extra pid on the process tree.
+set +e
+(
+    cd "$TARGET_DIR" && exec "$@"
+)
+rc=$?
+set -e
+
+# End logging
+if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
+    local_status="success"
+    [[ "$rc" -ne 0 ]] && local_status="failure"
+    log_end "$RUN_ID" "$local_status" "$rc" 0 "$TARGET_DIR :: $*"
+fi
+
+exit "$rc"

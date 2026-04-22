@@ -1,0 +1,117 @@
+#!/bin/bash
+#
+# tool-log — Read tool run logs
+#
+# Usage:
+#   tool-log <run-id>           — show all entries for a run
+#   tool-log --tool <name>      — show recent runs for a tool
+#   tool-log --recent [N]       — show last N runs (default: 10)
+#   tool-log --tail             — follow the log file
+#
+# Reads from: .claude/logs/tool-runs.jsonl
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_FILE="${CLAUDE_PROJECT_DIR:-.}/.claude/logs/tool-runs.jsonl"
+
+show_help() {
+    echo "Usage: tool-log <run-id>           — show all entries for a run"
+    echo "       tool-log --tool <name>      — show recent runs for a tool"
+    echo "       tool-log --recent [N]       — show last N runs (default: 10)"
+    echo "       tool-log --tail             — follow the log file"
+    echo "       tool-log --version          — show version"
+}
+
+VERSION="1.0.0"
+
+case "${1:-}" in
+    --version|-v)
+        echo "tool-log $VERSION"
+        exit 0
+        ;;
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+esac
+
+if [[ ! -f "$LOG_FILE" ]]; then
+    echo "No tool log found at $LOG_FILE"
+    exit 1
+fi
+
+case "${1:-}" in
+    --tool)
+        TOOL_NAME="${2:?tool name required}"
+        TOOL_LOG_FILE="$LOG_FILE" TOOL_LOG_FILTER="$TOOL_NAME" python3 -c "
+import json, os
+entries = []
+for line in open(os.environ['TOOL_LOG_FILE']):
+    try:
+        e = json.loads(line.strip())
+        if e.get('tool') == os.environ['TOOL_LOG_FILTER'] and e.get('event') == 'start':
+            entries.append(e)
+    except: pass
+for e in entries[-10:]:
+    run_short = e['run'].split('-')[0]
+    print(f\"{e['ts']}  {run_short}  {e.get('args','')[:60]}\")
+"
+        ;;
+    --recent)
+        COUNT="${2:-10}"
+        TOOL_LOG_FILE="$LOG_FILE" TOOL_LOG_COUNT="$COUNT" python3 -c "
+import json, os
+starts = []
+ends = {}
+count = int(os.environ['TOOL_LOG_COUNT'])
+for line in open(os.environ['TOOL_LOG_FILE']):
+    try:
+        e = json.loads(line.strip())
+        if e.get('event') == 'start':
+            starts.append(e)
+        elif e.get('event') == 'end':
+            ends[e['run']] = e
+    except: pass
+for s in starts[-count:]:
+    run_short = s['run'].split('-')[0]
+    end = ends.get(s['run'], {})
+    outcome = end.get('outcome', 'running')
+    icon = '✓' if outcome == 'success' else '✗' if outcome == 'failure' else '◑'
+    dur = end.get('duration_ms', '')
+    dur_str = f' {dur}ms' if dur else ''
+    summary = end.get('summary', '')[:40]
+    print(f\"{icon} {s['ts']}  {run_short}  {s['tool']}{dur_str}  {summary}\")
+"
+        ;;
+    --tail)
+        TOOL_LOG_FILE="$LOG_FILE" tail -f "$LOG_FILE" | python3 -c "
+import json, sys
+for line in sys.stdin:
+    try:
+        e = json.loads(line.strip())
+        run_short = e['run'].split('-')[0]
+        event = e.get('event','?')
+        tool = e.get('tool', e.get('channel',''))
+        print(f\"{e['ts']}  {run_short}  {event:6}  {tool}  {e.get('summary', e.get('outcome',''))[:60]}\")
+        sys.stdout.flush()
+    except: pass
+"
+        ;;
+    "")
+        show_help
+        exit 1
+        ;;
+    *)
+        # Treat as run-id (full or short)
+        TOOL_LOG_FILE="$LOG_FILE" TOOL_LOG_FILTER="$1" python3 -c "
+import json, os
+for line in open(os.environ['TOOL_LOG_FILE']):
+    try:
+        e = json.loads(line.strip())
+        if e['run'].startswith(os.environ['TOOL_LOG_FILTER']):
+            print(json.dumps(e, indent=2))
+    except: pass
+"
+        ;;
+esac

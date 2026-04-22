@@ -1,0 +1,179 @@
+#!/bin/bash
+#
+# What Problem: We need per-worktree health checks — is the tree clean,
+# how far behind main, stale handoff, MERGE_HEAD residue, identity file,
+# settings drift. The symptoms surfaced during dispatch #171 (devex stuck
+# in half-resolved merge state) and the coord-commit permission trap —
+# both would have been caught by a proactive health check.
+#
+# How & Why: Enumerate worktrees via `git worktree list`, then for each run
+# a small battery of checks. Each check calls `health_emit` with severity.
+# Thresholds picked from field experience: dirty > 20 files is noise;
+# behind main > 14 days is stale; stash > 5 entries is a sign of
+# abandonment; handoff > 7 days old means the agent isn't tracking state.
+#
+# Written: 2026-04-09 during captain Day 34 — agency-health v1
+
+# Enumerate worktrees (absolute paths, one per line)
+_health_worktree_list() {
+    git worktree list --porcelain 2>/dev/null \
+        | awk '/^worktree / {print $2}'
+}
+
+# Resolve a worktree name from path (basename of .claude/worktrees/NAME, or 'main' for main checkout)
+_health_worktree_name() {
+    local path="$1"
+    local main_checkout
+    main_checkout=$(git worktree list --porcelain 2>/dev/null | awk '/^worktree / {print $2; exit}')
+    if [[ "$path" == "$main_checkout" ]]; then
+        echo "(main)"
+    else
+        basename "$path"
+    fi
+}
+
+# Check a single worktree — emits one summary row + optional sub-findings
+_health_check_one_worktree() {
+    local path="$1"
+    local name
+    name=$(_health_worktree_name "$path")
+
+    # Dimension for emissions
+    local dim="worktree"
+
+    # If path doesn't exist, worktree is broken
+    if [[ ! -d "$path" ]]; then
+        health_emit "$dim" "$name" critical "worktree path does not exist" "Expected: $path"
+        return
+    fi
+
+    # Worst severity seen for this worktree (for the summary row)
+    local worst="healthy"
+    local summary_parts=()
+    local detail_parts=()
+
+    # ─── Check 1: Dirty tree ───
+    local dirty_count
+    dirty_count=$(git -C "$path" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$dirty_count" -gt 20 ]]; then
+        worst="warning"
+        summary_parts+=("$dirty_count modified files")
+    elif [[ "$dirty_count" -gt 0 ]]; then
+        [[ "$worst" == "healthy" ]] && worst="attention"
+        summary_parts+=("$dirty_count modified")
+    fi
+
+    # ─── Check 2: MERGE_HEAD or REBASE_HEAD residue ───
+    local git_dir
+    git_dir=$(git -C "$path" rev-parse --git-dir 2>/dev/null || echo "")
+    if [[ -n "$git_dir" ]]; then
+        [[ ! -d "$git_dir" ]] && git_dir="$path/$git_dir"
+        if [[ -f "$git_dir/MERGE_HEAD" ]]; then
+            worst="critical"
+            summary_parts+=("MERGE_HEAD present")
+            detail_parts+=("merge in progress — resolve or abort")
+        fi
+        if [[ -f "$git_dir/rebase-merge" || -f "$git_dir/rebase-apply" ]]; then
+            worst="critical"
+            summary_parts+=("REBASE in progress")
+            detail_parts+=("rebase state present — resolve or abort")
+        fi
+    fi
+
+    # ─── Check 3: Divergence from main branch ───
+    local branch
+    branch=$(git -C "$path" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    local main_checkout
+    main_checkout=$(git worktree list --porcelain 2>/dev/null | awk '/^worktree / {print $2; exit}')
+    local main_branch
+    main_branch=$(git -C "$main_checkout" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    if [[ -n "$branch" && -n "$main_branch" && "$branch" != "$main_branch" ]]; then
+        local behind
+        behind=$(git -C "$path" rev-list --count "HEAD..$main_branch" 2>/dev/null || echo 0)
+        if [[ "$behind" -gt 50 ]]; then
+            worst="warning"
+            summary_parts+=("$behind behind $main_branch")
+        elif [[ "$behind" -gt 0 ]]; then
+            [[ "$worst" == "healthy" ]] && worst="attention"
+            summary_parts+=("$behind behind $main_branch")
+        fi
+    fi
+
+    # ─── Check 4: Stash pile ───
+    local stash_count
+    stash_count=$(git -C "$path" stash list 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$stash_count" -gt 5 ]]; then
+        worst="warning"
+        summary_parts+=("$stash_count stash entries")
+    elif [[ "$stash_count" -gt 0 ]]; then
+        [[ "$worst" == "healthy" ]] && worst="attention"
+    fi
+
+    # ─── Check 5: Identity file (.agency-agent) for non-main worktrees ───
+    if [[ "$name" != "(main)" ]]; then
+        if [[ ! -f "$path/.agency-agent" ]]; then
+            [[ "$worst" == "healthy" || "$worst" == "attention" ]] && worst="warning"
+            summary_parts+=("no .agency-agent file")
+            detail_parts+=("identity resolution will fall back on basename")
+        fi
+    fi
+
+    # ─── Check 6: .claude/settings.json sync with main checkout ───
+    if [[ "$name" != "(main)" ]]; then
+        local main_settings="$main_checkout/.claude/settings.json"
+        local wt_settings="$path/.claude/settings.json"
+        if [[ -f "$main_settings" && -f "$wt_settings" ]]; then
+            if ! cmp -s "$main_settings" "$wt_settings" 2>/dev/null; then
+                [[ "$worst" == "healthy" ]] && worst="attention"
+                summary_parts+=("settings drift")
+                detail_parts+=("worktree .claude/settings.json differs from main checkout")
+            fi
+        fi
+    fi
+
+    # Compose summary
+    local summary_text
+    if [[ ${#summary_parts[@]} -eq 0 ]]; then
+        summary_text="clean on $branch"
+    else
+        summary_text=$(IFS=', '; echo "${summary_parts[*]}")
+    fi
+
+    local detail_text=""
+    if [[ ${#detail_parts[@]} -gt 0 ]]; then
+        detail_text=$(IFS='; '; echo "${detail_parts[*]}")
+    fi
+
+    health_emit "$dim" "$name" "$worst" "$summary_text" "$detail_text"
+}
+
+# Public: check one or all worktrees
+health_check_worktrees() {
+    local target="${1:-}"
+    if [[ "${JSON:-false}" != "true" ]]; then
+        health_render_section "WORKTREES"
+    fi
+
+    local paths
+    paths=$(_health_worktree_list)
+    local any=false
+
+    while IFS= read -r path; do
+        [[ -z "$path" ]] && continue
+        local name
+        name=$(_health_worktree_name "$path")
+        if [[ -n "$target" && "$name" != "$target" ]]; then
+            continue
+        fi
+        _health_check_one_worktree "$path"
+        any=true
+    done <<< "$paths"
+
+    if [[ "$any" == false ]]; then
+        if [[ -n "$target" ]]; then
+            health_emit worktree "$target" critical "worktree not found"
+        else
+            echo "  (no worktrees)"
+        fi
+    fi
+}

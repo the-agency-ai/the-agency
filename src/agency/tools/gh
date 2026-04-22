@@ -1,0 +1,192 @@
+#!/bin/bash
+# GitHub CLI wrapper with automatic token injection and logging
+#
+# Usage:
+#   ./agency/tools/gh pr list
+#   ./agency/tools/gh release create v1.0.0
+#   ./agency/tools/gh api /repos/{owner}/{repo}/pulls
+#
+# Features:
+#   - Automatic token injection from secret-service
+#   - All operations logged to log-service
+#   - Transparent pass-through to gh CLI
+#
+# Environment:
+#   GH_TOKEN        - If set, uses this token instead of secret-service
+#   GH_SECRET_NAME  - Secret name to use (default: github-admin-token)
+#
+# Security Note:
+#   Command arguments and output are logged. Avoid passing secrets as arguments.
+#   Token values are never logged.
+#
+# Related: REQUEST-jordan-0072
+
+set -euo pipefail
+
+# Tool version
+TOOL_VERSION="1.0.0-20260120-000002"
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper for tool tracking, with no-op fallbacks
+RUN_ID="none"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+    RUN_ID=$(log_start "gh" "$@" 2>/dev/null) || RUN_ID="none"
+else
+    # No-op fallbacks when log helper is missing
+    log_end() { :; }
+fi
+
+# Find the real gh CLI, NOT this wrapper. We must strip our own directory from
+# PATH before lookup, otherwise we recursively invoke ourselves and hang.
+# (test_helper.bash prepends agency/tools/ to PATH for tests, causing this.)
+_find_real_gh() {
+    local stripped_path="${PATH//${SCRIPT_DIR}:/}"
+    stripped_path="${stripped_path//:${SCRIPT_DIR}/}"
+    PATH="$stripped_path" command -v gh 2>/dev/null || echo ""
+}
+REAL_GH=$(_find_real_gh)
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "gh (agency wrapper) $TOOL_VERSION"
+    echo "Wraps: ${REAL_GH:-gh not found}"
+    if [[ -n "$REAL_GH" ]]; then
+        "$REAL_GH" --version 2>/dev/null || true
+    fi
+    exit 0
+fi
+
+# Help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] && [[ $# -eq 1 ]]; then
+    cat << 'EOF'
+gh - GitHub CLI wrapper with token injection and logging
+
+Usage:
+  ./agency/tools/gh <gh-command> [arguments...]
+
+Examples:
+  ./agency/tools/gh pr list
+  ./agency/tools/gh pr create --title "My PR" --body "Description"
+  ./agency/tools/gh release create v1.0.0 --notes "Release notes"
+  ./agency/tools/gh api /repos/{owner}/{repo}/pulls
+
+Features:
+  - Automatic GH_TOKEN injection from secret-service
+  - All operations logged for audit trail
+  - Transparent pass-through to gh CLI
+
+Options:
+  --version, -v    Show wrapper and gh versions
+  --help, -h       Show this help (use 'gh --help' for gh help)
+  --dry-run        Show what would be executed without running
+
+Environment:
+  GH_TOKEN         If set, uses this instead of secret-service
+  GH_SECRET_NAME   Secret name to retrieve (default: github-admin-token)
+
+Security:
+  Command arguments and output are logged for audit purposes.
+  Avoid passing secrets directly as command arguments.
+
+See also:
+  ./agency/tools/gh-pr      PR-specific operations
+  ./agency/tools/gh-release Release-specific operations
+  ./agency/tools/gh-api     API-specific operations
+EOF
+    exit 0
+fi
+
+# Dry run mode
+DRY_RUN=false
+if [[ "${1:-}" == "--dry-run" ]]; then
+    DRY_RUN=true
+    shift
+fi
+
+# Check if real gh CLI is installed (REAL_GH was resolved earlier with our
+# own dir stripped from PATH to prevent infinite recursion).
+if [[ -z "$REAL_GH" ]]; then
+    echo "gh [run: ${RUN_ID}]" >&2
+    echo "Error: gh CLI not installed" >&2
+    echo "Install: https://cli.github.com/" >&2
+    echo "✗" >&2
+    log_end "$RUN_ID" "failure" "1" "0" "gh CLI not installed" ""
+    exit 1
+fi
+
+# Get GitHub token from secret-service if not already set
+TOKEN_SOURCE=""
+if [[ -z "${GH_TOKEN:-}" ]]; then
+    if [[ -x "$SCRIPT_DIR/secret" ]]; then
+        SECRET_NAME="${GH_SECRET_NAME:-github-admin-token}"
+        SECRET_ERROR=""
+        EXTRACTED_TOKEN=$("$SCRIPT_DIR/secret" get "$SECRET_NAME" 2>&1) || SECRET_ERROR="$EXTRACTED_TOKEN"
+        if [[ -z "$SECRET_ERROR" ]] && [[ -n "$EXTRACTED_TOKEN" ]]; then
+            export GH_TOKEN="$EXTRACTED_TOKEN"
+            TOKEN_SOURCE="secret-service ($SECRET_NAME)"
+        elif [[ -n "$SECRET_ERROR" ]]; then
+            # Log the error but continue - token may not be needed for all operations
+            echo "Warning: Failed to retrieve token from secret-service: $SECRET_ERROR" >&2
+        fi
+    fi
+else
+    TOKEN_SOURCE="environment"
+fi
+
+# Warn if no token available
+if [[ -z "${GH_TOKEN:-}" ]]; then
+    echo "Warning: No GitHub token available. Some operations may fail." >&2
+    echo "Set up with: ./agency/tools/secret-vault create github-admin-token --type=api_key --service=GitHub" >&2
+fi
+
+# Build command description for logging (redact potentially sensitive args)
+CMD_DESC="gh $*"
+if [[ ${#CMD_DESC} -gt 100 ]]; then
+    CMD_DESC="${CMD_DESC:0:97}..."
+fi
+
+# Dry run - show what would be executed
+if [[ "$DRY_RUN" == true ]]; then
+    echo "gh [run: ${RUN_ID}]"
+    echo "Would execute: gh $*"
+    if [[ -n "${GH_TOKEN:-}" ]]; then
+        echo "GH_TOKEN: [set via ${TOKEN_SOURCE:-unknown}]"
+    else
+        echo "GH_TOKEN: [not set]"
+    fi
+    echo "✓ (dry-run)"
+    exit 0
+fi
+
+# Execute gh command and capture output
+OUTPUT_FILE=$(mktemp)
+ERROR_FILE=$(mktemp)
+trap "rm -f \"$OUTPUT_FILE\" \"$ERROR_FILE\"" EXIT
+
+set +e
+"$REAL_GH" "$@" > "$OUTPUT_FILE" 2> "$ERROR_FILE"
+EXIT_CODE=$?
+set -e
+
+# Output results
+cat "$OUTPUT_FILE"
+cat "$ERROR_FILE" >&2
+
+# Log the operation
+STDOUT_CONTENT=$(cat "$OUTPUT_FILE")
+STDERR_CONTENT=$(cat "$ERROR_FILE")
+COMBINED_OUTPUT="$STDOUT_CONTENT"
+if [[ -n "$STDERR_CONTENT" ]]; then
+    COMBINED_OUTPUT="${COMBINED_OUTPUT}"$'\n'"--- stderr ---"$'\n'"${STDERR_CONTENT}"
+fi
+
+if [[ $EXIT_CODE -eq 0 ]]; then
+    log_end "$RUN_ID" "success" "$EXIT_CODE" "${#COMBINED_OUTPUT}" "$CMD_DESC" "$COMBINED_OUTPUT"
+else
+    log_end "$RUN_ID" "failure" "$EXIT_CODE" "${#COMBINED_OUTPUT}" "$CMD_DESC failed" "$COMBINED_OUTPUT"
+fi
+
+exit $EXIT_CODE

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# What Problem: Every tool in agency/tools/ copy-pastes the same color
+# constants (RED, GREEN, YELLOW, BLUE, NC). Adding a color, changing a
+# shade, or adding NO_COLOR support means touching every file.
+#
+# How & Why: Single shared lib sourced by all tools. Respects NO_COLOR
+# environment variable (https://no-color.org/) for accessibility and
+# CI/piped output. One place to maintain.
+#
+# Usage: source "$SCRIPT_DIR/lib/_colors"
+#
+# Written: 2026-04-11 during captain session (MAR finding #10 — kill tech debt)
+
+# NO_COLOR support (https://no-color.org/)
+if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 1 ]]; then
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    CYAN=''
+    BOLD=''
+    NC=''
+else
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    NC='\033[0m'
+fi

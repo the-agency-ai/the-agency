@@ -1,0 +1,286 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Sandbox Sync — bulk symlink activation for commands and hookify rules
+# Usage:
+#   bash agency/tools/sandbox-sync           # normal output
+#   bash agency/tools/sandbox-sync --quiet    # only report if changes made
+#
+# Creates symlinks from usr/<engineer>/ subdirs into .claude/ discovery locations.
+# Idempotent — safe to run repeatedly. Works from any worktree.
+
+QUIET="${1:-}"
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$ROOT" ]; then
+  echo "error: not in a git repository" >&2
+  exit 1
+fi
+
+# Safe glob handling — empty globs expand to nothing
+shopt -s nullglob
+
+# D44-R4 (QG finding #1/#2): guard against crafted filenames or directory
+# names that would escape the intended destination when interpolated into
+# a symlink target. A file literally named `../evil.md` would otherwise
+# produce a symlink pointing outside `usr/<engineer>/commands/`. All four
+# sync blocks (commands/hookify/hooks/agents) use this check before
+# constructing the `ln -sf` target.
+#
+# Return 0 (safe) or 1 (reject). Rejected names are skipped with a stderr
+# note — we never silently accept them.
+_is_safe_name() {
+  local n="$1"
+  [[ -z "$n" ]] && return 1
+  [[ "$n" == .* ]] && return 1       # leading dot (.., ., .hidden)
+  [[ "$n" == *".."* ]] && return 1   # embedded path traversal
+  [[ "$n" == */* ]] && return 1      # embedded slash (should never happen
+                                     # since basename strips path, but
+                                     # defense-in-depth)
+  return 0
+}
+
+# Detect engineer via agency.yaml principal mapping (D44-R4 / issue #420).
+#
+# Resolution order:
+#   1. PRINCIPAL env var (explicit override)
+#   2. Lookup principals.$USER.name in agency/config/agency.yaml
+#   3. If $USER's sandbox exists directly (usr/$USER/), use $USER (covers the
+#      case where agency.yaml isn't configured yet but the sandbox is already
+#      named after the system username)
+#   4. Refuse — no silent alphabetical fallback (previously picked the first
+#      sandbox dir alphabetically, which gave Peter → 'jordan' in multi-
+#      principal setups; dispatch #420).
+ENGINEER=""
+
+if [ -n "${PRINCIPAL:-}" ]; then
+  ENGINEER="$PRINCIPAL"
+elif [ -x "$ROOT/agency/tools/config" ] && [ -n "${USER:-}" ]; then
+  # Ask the config tool — returns empty on miss (exit 1), caught via || true.
+  candidate="$("$ROOT/agency/tools/config" get "principals.${USER}.name" 2>/dev/null || true)"
+  # 'unknown' is the default sentinel in agency.yaml; reject it.
+  if [ -n "$candidate" ] && [ "$candidate" != "unknown" ]; then
+    ENGINEER="$candidate"
+  fi
+fi
+
+# Bootstrap exception: if config didn't yield a principal AND a sandbox
+# already exists at usr/$USER/, accept $USER. This is the narrow case of
+# running the tool in a repo where the sandbox was scaffolded but
+# agency.yaml hasn't been mutated yet (e.g. mid-onboarding, or a freshly-
+# cloned repo). It is NOT the old alphabetical fallback — the only way in
+# here is when usr/$USER/ exactly exists on disk. Remove this block if the
+# workstream decides all principals must be registered in agency.yaml
+# before sandbox-sync runs.
+if [ -z "$ENGINEER" ] && [ -n "${USER:-}" ] && [ -d "$ROOT/usr/${USER}" ]; then
+  ENGINEER="$USER"
+fi
+
+if [ -z "$ENGINEER" ]; then
+  echo "error: cannot resolve principal for \$USER='${USER:-}'" >&2
+  echo "  tried: PRINCIPAL env var, agency/config/agency.yaml principals.${USER:-}.name, usr/${USER:-}/" >&2
+  echo "  fix:   add an entry under 'principals:' in agency/config/agency.yaml keyed by '${USER:-}'" >&2
+  echo "         (each entry needs a 'name:' that matches the usr/<name>/ dir)" >&2
+  exit 1
+fi
+
+# Validate the sandbox exists for this principal — refuse to create symlinks
+# pointing at a non-existent sandbox.
+if [ ! -d "$ROOT/usr/$ENGINEER" ]; then
+  echo "error: principal '$ENGINEER' (resolved from \$USER='${USER:-}') has no sandbox at usr/$ENGINEER/" >&2
+  echo "  fix: run /sandbox-init to scaffold it, or correct the mapping in agency.yaml" >&2
+  exit 1
+fi
+
+# Validate engineer name contains only safe characters
+if ! printf '%s' "$ENGINEER" | grep -qE '^[a-zA-Z0-9_-]+$'; then
+  echo "error: invalid engineer name '$ENGINEER' — must be [a-zA-Z0-9_-]+" >&2
+  exit 1
+fi
+
+SANDBOX="$ROOT/usr/$ENGINEER"
+CREATED=0
+EXISTING=0
+UPDATED=0
+
+# Sync commands
+COMMANDS_SRC="$SANDBOX/commands"
+COMMANDS_DST="$ROOT/.claude/commands"
+
+if [ -d "$COMMANDS_SRC" ]; then
+  mkdir -p "$COMMANDS_DST"
+
+  for src in "$COMMANDS_SRC"/*.md; do
+    [ -f "$src" ] || continue
+    name="$(basename "$src")"
+    [ "$name" = ".gitkeep" ] && continue
+    if ! _is_safe_name "$name"; then
+      echo "warn: skipping unsafe command filename: $name" >&2
+      continue
+    fi
+
+    target="$COMMANDS_DST/usr-${ENGINEER}.${name}"
+    relative="../../usr/$ENGINEER/commands/$name"
+
+    if [ -L "$target" ]; then
+      current="$(readlink "$target")"
+      if [ "$current" = "$relative" ]; then
+        EXISTING=$((EXISTING + 1))
+      else
+        ln -sf "$relative" "$target"
+        UPDATED=$((UPDATED + 1))
+      fi
+    else
+      ln -sf "$relative" "$target"
+      CREATED=$((CREATED + 1))
+    fi
+  done
+fi
+
+# Sync hookify rules
+HOOKIFY_SRC="$SANDBOX/hookify"
+HOOKIFY_DST="$ROOT/.claude"
+
+if [ -d "$HOOKIFY_SRC" ]; then
+  for src in "$HOOKIFY_SRC"/*.md; do
+    [ -f "$src" ] || continue
+    name="$(basename "$src")"
+    [ "$name" = ".gitkeep" ] && continue
+    if ! _is_safe_name "$name"; then
+      echo "warn: skipping unsafe hookify filename: $name" >&2
+      continue
+    fi
+
+    # Hookify naming: .claude/hookify.usr-<engineer>.<name>
+    # But source files may already have hookify. prefix — strip it for the target name
+    clean_name="${name#hookify.}"
+    target="$HOOKIFY_DST/hookify.usr-${ENGINEER}.${clean_name}"
+    # .claude/ is one level deep from root, so relative path needs ../
+    relative="../usr/$ENGINEER/hookify/$name"
+
+    if [ -L "$target" ]; then
+      current="$(readlink "$target")"
+      if [ "$current" = "$relative" ]; then
+        EXISTING=$((EXISTING + 1))
+      else
+        ln -sf "$relative" "$target"
+        UPDATED=$((UPDATED + 1))
+      fi
+    else
+      ln -sf "$relative" "$target"
+      CREATED=$((CREATED + 1))
+    fi
+  done
+fi
+
+# Sync hooks
+HOOKS_SRC="$SANDBOX/hooks"
+HOOKS_DST="$ROOT/.claude/hooks"
+
+if [ -d "$HOOKS_SRC" ]; then
+  mkdir -p "$HOOKS_DST"
+
+  for src in "$HOOKS_SRC"/*; do
+    [ -f "$src" ] || continue
+    name="$(basename "$src")"
+    [ "$name" = ".gitkeep" ] && continue
+    if ! _is_safe_name "$name"; then
+      echo "warn: skipping unsafe hook filename: $name" >&2
+      continue
+    fi
+
+    target="$HOOKS_DST/usr-${ENGINEER}.${name}"
+    relative="../../usr/$ENGINEER/hooks/$name"
+
+    if [ -L "$target" ]; then
+      current="$(readlink "$target")"
+      if [ "$current" = "$relative" ]; then
+        EXISTING=$((EXISTING + 1))
+      else
+        ln -sf "$relative" "$target"
+        UPDATED=$((UPDATED + 1))
+      fi
+    else
+      ln -sf "$relative" "$target"
+      CREATED=$((CREATED + 1))
+    fi
+  done
+fi
+
+# Sync agents
+AGENTS_SRC="$SANDBOX/agents"
+AGENTS_DST="$ROOT/.claude/agents"
+
+if [ -d "$AGENTS_SRC" ]; then
+  mkdir -p "$AGENTS_DST"
+
+  for agent_dir in "$AGENTS_SRC"/*/; do
+    [ -d "$agent_dir" ] || continue
+    agent_name="$(basename "$agent_dir")"
+    if ! _is_safe_name "$agent_name"; then
+      echo "warn: skipping unsafe agent dir name: $agent_name" >&2
+      continue
+    fi
+
+    target_dir="$AGENTS_DST/usr-${ENGINEER}.${agent_name}"
+    relative_dir="../../usr/$ENGINEER/agents/$agent_name"
+
+    if [ -L "$target_dir" ]; then
+      current="$(readlink "$target_dir")"
+      if [ "$current" = "$relative_dir" ]; then
+        EXISTING=$((EXISTING + 1))
+      else
+        ln -sfn "$relative_dir" "$target_dir"
+        UPDATED=$((UPDATED + 1))
+      fi
+    else
+      ln -sfn "$relative_dir" "$target_dir"
+      CREATED=$((CREATED + 1))
+    fi
+  done
+fi
+
+# Sync settings.local.json
+# settings.local.json is gitignored — it only exists in the main checkout.
+# In worktrees, we symlink to the main checkout's copy using an absolute path.
+MAIN_CHECKOUT=$(git worktree list | head -1 | awk '{print $1}')
+SETTINGS_SRC_MAIN="$MAIN_CHECKOUT/usr/$ENGINEER/settings.local.json"
+SETTINGS_DST="$ROOT/.claude/settings.local.json"
+
+if [ -f "$SETTINGS_SRC_MAIN" ]; then
+  # Use absolute path — gitignored files don't exist in worktrees
+  target="$SETTINGS_SRC_MAIN"
+
+  if [ -L "$SETTINGS_DST" ]; then
+    current="$(readlink "$SETTINGS_DST")"
+    if [ "$current" = "$target" ]; then
+      EXISTING=$((EXISTING + 1))
+    else
+      ln -sf "$target" "$SETTINGS_DST"
+      UPDATED=$((UPDATED + 1))
+    fi
+  else
+    [ -f "$SETTINGS_DST" ] && rm "$SETTINGS_DST"
+    ln -sf "$target" "$SETTINGS_DST"
+    CREATED=$((CREATED + 1))
+  fi
+fi
+
+TOTAL=$((CREATED + EXISTING + UPDATED))
+COMMANDS_COUNT=0
+HOOKIFY_COUNT=0
+[ -d "$COMMANDS_SRC" ] && COMMANDS_COUNT="$(find "$COMMANDS_SRC" -name "*.md" ! -name ".gitkeep" 2>/dev/null | wc -l | tr -d ' ')"
+[ -d "$HOOKIFY_SRC" ] && HOOKIFY_COUNT="$(find "$HOOKIFY_SRC" -name "*.md" ! -name ".gitkeep" 2>/dev/null | wc -l | tr -d ' ')"
+
+if [ "$QUIET" = "--quiet" ]; then
+  # Only output if something changed
+  if [ "$CREATED" -gt 0 ] || [ "$UPDATED" -gt 0 ]; then
+    echo "sandbox-sync: $COMMANDS_COUNT commands, $HOOKIFY_COUNT hookify — $CREATED created, $UPDATED updated"
+  fi
+else
+  echo "sandbox-sync: $COMMANDS_COUNT commands, $HOOKIFY_COUNT hookify rules"
+  echo "  created:  $CREATED new symlinks"
+  echo "  updated:  $UPDATED changed symlinks"
+  echo "  existing: $EXISTING already current"
+  echo "  total:    $TOTAL active"
+fi

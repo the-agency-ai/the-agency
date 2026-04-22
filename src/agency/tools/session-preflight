@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# What Problem: Agents skip critical session startup steps — especially
+# launching the dispatch monitor. Without a preflight check, sessions start
+# in a degraded state and agents miss dispatches, work on stale context,
+# or leave dirty state from previous sessions.
+#
+# How & Why: Preflight checklist that /session-resume calls as its final
+# step. Checks 5 conditions and reports pass/fail for each. Exits non-zero
+# if any check fails, so the calling skill knows to remediate.
+#
+# Usage: ./agency/tools/session-preflight [--quiet]
+#   --quiet  Only output failures (for scripted use)
+#
+# Written: 2026-04-14 during captain session (session lifecycle hardening)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+QUIET=false
+[[ "${1:-}" == "--quiet" ]] && QUIET=true
+
+PASS=0
+FAIL=0
+WARN=0
+
+# Colors
+GREEN="\033[0;32m"
+RED="\033[0;31m"
+YELLOW="\033[0;33m"
+RESET="\033[0m"
+
+report_pass() {
+    PASS=$((PASS + 1))
+    [[ "$QUIET" == "false" ]] && echo -e "  ${GREEN}✓${RESET} $1"
+}
+
+report_fail() {
+    FAIL=$((FAIL + 1))
+    echo -e "  ${RED}✗${RESET} $1"
+    echo -e "    ${RED}Fix:${RESET} $2"
+}
+
+report_warn() {
+    WARN=$((WARN + 1))
+    echo -e "  ${YELLOW}!${RESET} $1"
+    echo -e "    ${YELLOW}Action:${RESET} $2"
+}
+
+echo "Session Preflight"
+echo "─────────────────"
+
+# ── Check 1: Working tree clean ──────────────────────────────────────────
+
+dirty_count=$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+if [[ "$dirty_count" -eq 0 ]]; then
+    report_pass "Working tree clean"
+else
+    report_fail "Working tree dirty ($dirty_count files)" \
+        "Commit or stash changes: git status"
+fi
+
+# ── Check 2: Worktree synced with main ───────────────────────────────────
+
+current_branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [[ "$current_branch" == "main" || "$current_branch" == "master" ]]; then
+    report_pass "On main — sync check skipped"
+else
+    # Check if main is an ancestor of HEAD (i.e., we've merged main)
+    main_ref=""
+    if git -C "$REPO_ROOT" rev-parse --verify main >/dev/null 2>&1; then
+        main_ref="main"
+    elif git -C "$REPO_ROOT" rev-parse --verify master >/dev/null 2>&1; then
+        main_ref="master"
+    fi
+
+    if [[ -n "$main_ref" ]]; then
+        if git -C "$REPO_ROOT" merge-base --is-ancestor "$main_ref" HEAD 2>/dev/null; then
+            report_pass "Branch includes latest $main_ref"
+        else
+            behind=$(git -C "$REPO_ROOT" rev-list HEAD.."$main_ref" --count 2>/dev/null || echo "?")
+            report_fail "Branch is $behind commits behind $main_ref" \
+                "Run: /worktree-sync"
+        fi
+    else
+        report_pass "No main/master ref found — sync check skipped"
+    fi
+fi
+
+# ── Check 3: Handoff exists and is non-empty ─────────────────────────────
+
+# Find handoff via the handoff tool
+handoff_output=$(bash "$SCRIPT_DIR/handoff" read 2>/dev/null || true)
+if [[ -n "$handoff_output" && "$handoff_output" != *"No handoff found"* ]]; then
+    report_pass "Handoff loaded"
+else
+    report_fail "No handoff found" \
+        "Run: ./agency/tools/handoff read"
+fi
+
+# ── Check 4: No unread dispatches remaining ──────────────────────────────
+
+dispatch_check=$(bash "$SCRIPT_DIR/dispatch" check 2>/dev/null || true)
+if [[ -z "$dispatch_check" ]]; then
+    report_pass "No unread dispatches"
+elif echo "$dispatch_check" | grep -q "flag(s)"; then
+    # Has flags but no dispatches — that's fine for preflight
+    report_pass "No unread dispatches (flags pending — process when ready)"
+else
+    report_warn "Unread dispatches detected" \
+        "Run: dispatch list, then dispatch read <id>"
+fi
+
+# ── Check 5: Dispatch monitor running ────────────────────────────────────
+# We can't directly detect Monitor tool tasks from bash.
+# Instead, we remind the agent to start it.
+
+report_warn "Dispatch monitor — verify it is running" \
+    "Run: /monitor-dispatches (if not already started this session)"
+
+# ── Summary ──────────────────────────────────────────────────────────────
+
+echo ""
+echo "─────────────────"
+echo -e "Preflight: ${GREEN}$PASS passed${RESET}, ${RED}$FAIL failed${RESET}, ${YELLOW}$WARN action${RESET}"
+
+if [[ "$FAIL" -gt 0 ]]; then
+    echo ""
+    echo -e "${RED}Session not ready. Fix failures above before proceeding.${RESET}"
+    exit 1
+else
+    echo ""
+    echo "Session ready."
+    exit 0
+fi

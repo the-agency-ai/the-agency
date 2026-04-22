@@ -1,0 +1,100 @@
+#!/usr/bin/env zsh
+# ghostty-integration.sh — Ghostty terminal tab title + background color integration
+#
+# Provides:
+#   - Default tab title: "– zsh <directory>" for plain shells
+#   - Claude Code tab title + background color updates via exported functions
+#   - Functions: ghostty_set_title, ghostty_set_bg, ghostty_set_state
+#
+# Source this from ~/.zshrc:
+#   source <repo>/agency/tools/ghostty-integration
+#
+# Does NOT modify Claude Code's statusline.sh — these are separate concerns.
+# The statusline is the bottom bar inside Claude Code.
+# This script controls the terminal chrome (tab title) and content area (bg color).
+
+# --- Guard: only run inside Ghostty ---
+if [[ "$TERM_PROGRAM" != "ghostty" ]]; then
+  return 0 2>/dev/null || exit 0
+fi
+
+# --- Color definitions (subtle tints on light background) ---
+# These are very subtle shifts from white — just enough to notice
+GHOSTTY_BG_DEFAULT="#FFFFFF"      # pure white — plain shell
+GHOSTTY_BG_IDLE="#F0F4FA"        # very faint blue — Claude idle
+GHOSTTY_BG_WORKING="#F0FAF2"     # very faint green — Claude working
+GHOSTTY_BG_INPUT="#FAF0F0"       # very faint red — Claude needs input
+
+# --- Low-level OSC helpers ---
+
+# Set tab/window title via OSC 2
+ghostty_set_title() {
+  printf '\e]2;%s\a' "$1"
+}
+
+# Set terminal background color via OSC 11
+ghostty_set_bg() {
+  printf '\e]11;%s\a' "$1"
+}
+
+# Reset background to default
+ghostty_reset_bg() {
+  printf '\e]11;%s\a' "$GHOSTTY_BG_DEFAULT"
+}
+
+# --- State management ---
+
+# Combined state setter for Claude Code integration
+# Usage: ghostty_set_state <state> <session-name>
+#   state: idle | working | input
+#   session-name: the Claude Code session name
+ghostty_set_state() {
+  local state="$1"
+  local session_name="$2"
+
+  case "$state" in
+    idle)
+      ghostty_set_title "○ ${session_name}"
+      ghostty_set_bg "$GHOSTTY_BG_IDLE"
+      ;;
+    working)
+      ghostty_set_title "◑ ${session_name}"
+      ghostty_set_bg "$GHOSTTY_BG_WORKING"
+      ;;
+    input)
+      ghostty_set_title "⚠ ${session_name}"
+      ghostty_set_bg "$GHOSTTY_BG_INPUT"
+      ;;
+    plain)
+      # Reset to plain shell state
+      ghostty_set_title "– zsh ${PWD##*/}"
+      ghostty_reset_bg
+      ;;
+    *)
+      # Unknown state — treat as plain
+      ghostty_set_title "– zsh ${PWD##*/}"
+      ghostty_reset_bg
+      ;;
+  esac
+}
+
+# --- zsh precmd hook: default tab title for plain shell ---
+# This fires before every prompt. If Claude Code is running, its hooks
+# will override this. For plain shells, it sets "– zsh <dir>".
+
+_ghostty_precmd() {
+  # If CLAUDE_CODE_SESSION is set, don't override — Claude hooks manage the title
+  if [[ -n "$CLAUDE_CODE_SESSION" ]]; then
+    return
+  fi
+  ghostty_set_title "– zsh ${PWD##*/}"
+}
+
+# Register the precmd hook (idempotent — won't double-register)
+if (( ! ${precmd_functions[(Ie)_ghostty_precmd]} )); then
+  precmd_functions+=(_ghostty_precmd)
+fi
+
+# --- Initial state ---
+# Set plain shell title on source (will be overridden if Claude Code starts)
+ghostty_set_title "– zsh ${PWD##*/}"

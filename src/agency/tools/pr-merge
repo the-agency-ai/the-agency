@@ -1,0 +1,287 @@
+#!/usr/bin/env bash
+# What Problem: Captain agents and adopters were merging PRs by reaching for
+# raw `gh pr merge` commands. GitHub's CLI defaults nudge toward `--squash`
+# (the wide button in the UI; one of three options at parity in the CLI).
+# Squash collapses N commits into 1 — semantically the same family as
+# rebase: history is rewritten/lost. The framework's principle is
+# "merge, never rebase" — and squash sits on the same forbidden side of
+# that line. Without a safe wrapper, captains slip into squash by habit.
+#
+# Worse: branch protection often requires reviewer approval that no agent
+# can give itself. The escape is `gh pr merge --admin` (bypass branch
+# protection). That bypass is sometimes legitimate (hotfix with verbal
+# principal authorization), sometimes a discipline failure. Without a
+# tool, the distinction collapses.
+#
+# How & Why: pr-merge wraps `gh pr merge` with three guarantees:
+#   1. ALWAYS uses --merge (true merge commit). Never --squash, never
+#      --rebase. Refuses if the caller passes --squash or --rebase.
+#   2. Defers to GitHub branch protection by default. If the PR is
+#      blocked by branch protection (review missing, required check
+#      failing), exits with a clear message naming the specific gate.
+#   3. --principal-approved opt-in flag is the ONLY way to invoke
+#      --admin override. Tool refuses --admin without it. The flag is
+#      a captain-internal signal that the principal verbally approved.
+#      Logged for telemetry.
+#
+# Companion: hookify rule blocks raw `gh pr merge` calls so agents are
+# routed through this tool. Skill /pr-merge wraps the tool with the
+# 1B1 prompt for the principal-approved flag.
+#
+# Usage:
+#   ./agency/tools/pr-merge <PR_NUMBER> [--principal-approved]
+#                                       [--delete-branch]
+#                                       [--dry-run] [--verbose]
+#
+# Examples:
+#   pr-merge 42                         # standard merge, requires gates pass
+#   pr-merge 42 --principal-approved    # bypasses branch protection (--admin)
+#   pr-merge 42 --delete-branch         # also delete remote branch after merge
+#
+# Written: 2026-04-15 (D41-R13 captain) — closes the discipline gap that let
+#          captain ship 4 squash merges in one day. Triangle: this tool,
+#          /pr-merge skill, block-raw-gh-pr-merge hookify rule.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source helpers
+[[ -f "$SCRIPT_DIR/lib/_log-helper" ]] && source "$SCRIPT_DIR/lib/_log-helper"
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="" GREEN="" YELLOW="" BLUE="" NC=""
+fi
+
+TOOL_VERSION="1.1.0-20260421-c372-fix-a"
+
+usage() {
+    cat <<'USAGE'
+pr-merge — Safe merge for the-agency PRs
+
+Usage:
+  pr-merge <pr-number> [--principal-approved] [--delete-branch]
+                       [--dry-run] [--verbose]
+
+Required:
+  <pr-number>             GitHub PR number to merge
+
+Options:
+  --principal-approved    Captain attestation that principal verbally OK'd
+                          the merge. ONLY way to enable --admin override.
+                          Logged for audit.
+  --delete-branch         Delete the remote branch after merge (default: keep)
+  --dry-run               Show what would happen, don't merge
+  --verbose               Detailed output
+  --help, -h              Show this help
+  --version               Show tool version
+
+Guarantees (cannot be disabled):
+  - Uses 'gh pr merge --merge' (true merge commit). Never --squash, never
+    --rebase. Refuses if caller passes either.
+  - Without --principal-approved: defers to branch protection. If gates fail,
+    exits with the specific gate that's blocking and instructions to fix.
+  - With --principal-approved: uses --admin to bypass branch protection.
+    Logged. Use only when principal has verbally authorized.
+  - On successful merge to main/master: emits a loud advisory + queues a
+    flag to run /pr-captain-post-merge (which cuts the release tag).
+    Closes the C#372 release-automation gap: see the 2026-04-21 incident
+    where 8 PRs shipped without releases because post-merge was skipped.
+
+Exit codes:
+  0 — merged
+  1 — merge failed (printed reason)
+  2 — bad usage / disallowed flag
+  3 — branch protection blocked, no --principal-approved
+USAGE
+}
+
+die() { echo "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+log() { [[ "${VERBOSE:-false}" == "true" ]] && echo "${BLUE}[info]${NC} $*" || true; }
+
+# --- Parse args ---
+PR_NUMBER=""
+PRINCIPAL_APPROVED=false
+DELETE_BRANCH=false
+DRY_RUN=false
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h)             usage; exit 0 ;;
+        --version)             echo "pr-merge $TOOL_VERSION"; exit 0 ;;
+        --principal-approved)  PRINCIPAL_APPROVED=true; shift ;;
+        --delete-branch)       DELETE_BRANCH=true; shift ;;
+        --dry-run)             DRY_RUN=true; shift ;;
+        --verbose)             VERBOSE=true; shift ;;
+        --squash)              die "--squash is BANNED — pr-merge always uses true merge commit (merge-not-rebase discipline)" ;;
+        --rebase)              die "--rebase is BANNED — pr-merge always uses true merge commit (merge-not-rebase discipline)" ;;
+        --admin)               die "--admin is not allowed directly. Use --principal-approved if the principal has verbally authorized the override." ;;
+        -*)                    die "Unknown flag: $1 (run --help for usage)" ;;
+        *)
+            if [[ -z "$PR_NUMBER" ]]; then
+                PR_NUMBER="$1"
+            else
+                die "Unexpected positional arg: $1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# --- Validate ---
+[[ -z "$PR_NUMBER" ]] && { usage >&2; die "Missing <pr-number>"; }
+[[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]] && die "PR number must be an integer (got: $PR_NUMBER)"
+
+command -v gh >/dev/null 2>&1 || die "gh CLI not found in PATH"
+
+# --- Telemetry ---
+RUN_ID=$(log_start "pr-merge" "$@" 2>/dev/null) || RUN_ID=""
+trap 'log_end "${RUN_ID:-}" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+echo "${BLUE}pr-merge${NC} PR #$PR_NUMBER (run: ${RUN_ID:-none})"
+
+# --- Pre-flight: check PR exists + state ---
+# baseRefName added 2026-04-21 (C#372 Fix A): post-merge advisory + flag
+# emission are gated on merges to main/master. Other base refs don't require
+# a release tag, so no nag.
+PR_INFO=$(gh pr view "$PR_NUMBER" --json state,mergeable,mergeStateStatus,title,baseRefName 2>&1) || die "Could not view PR #$PR_NUMBER: $PR_INFO"
+
+PR_STATE=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("state",""))' 2>/dev/null || echo "")
+PR_MERGEABLE=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mergeable",""))' 2>/dev/null || echo "")
+PR_STATUS=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mergeStateStatus",""))' 2>/dev/null || echo "")
+PR_TITLE=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("title",""))' 2>/dev/null || echo "")
+PR_BASE_REF=$(echo "$PR_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("baseRefName",""))' 2>/dev/null || echo "")
+
+# QG round 1 finding (reviewer-code #1): fail loud on malformed/missing
+# gh JSON rather than silently treat as empty. An empty PR_BASE_REF would
+# skip the post-merge advisory even though the merge landed on main —
+# exactly defeating Fix A. If gh ever starts returning a different shape
+# or the python parser fails, we want a hard error.
+[[ -z "$PR_STATE" ]]    && die "gh pr view returned empty PR_STATE — malformed response: $PR_INFO"
+[[ -z "$PR_BASE_REF" ]] && die "gh pr view returned empty PR_BASE_REF — malformed response: $PR_INFO"
+
+log "state=$PR_STATE mergeable=$PR_MERGEABLE status=$PR_STATUS"
+echo "  Title:  $PR_TITLE"
+echo "  State:  $PR_STATE  mergeable=$PR_MERGEABLE  status=$PR_STATUS"
+
+if [[ "$PR_STATE" != "OPEN" ]]; then
+    die "PR is not OPEN (state: $PR_STATE)"
+fi
+
+if [[ "$PR_MERGEABLE" == "CONFLICTING" ]]; then
+    die "PR has merge conflicts. Resolve locally first: git-safe merge-from-master --remote, fix, push, retry."
+fi
+
+# --- Build merge command ---
+MERGE_CMD=(gh pr merge "$PR_NUMBER" --merge)
+if [[ "$DELETE_BRANCH" == "true" ]]; then
+    MERGE_CMD+=(--delete-branch=true)
+else
+    MERGE_CMD+=(--delete-branch=false)
+fi
+
+if [[ "$PRINCIPAL_APPROVED" == "true" ]]; then
+    MERGE_CMD+=(--admin)
+    echo "  ${YELLOW}--principal-approved${NC} → using --admin (bypassing branch protection)"
+    log_info "PRINCIPAL_APPROVED used for PR #$PR_NUMBER" 2>/dev/null || true
+fi
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    echo "  [dry-run] would run: ${MERGE_CMD[*]}"
+    trap - EXIT
+    log_end "$RUN_ID" "dry-run" 0 0 "Dry run for PR #$PR_NUMBER" 2>/dev/null || true
+    exit 0
+fi
+
+# --- Merge ---
+echo "  ${BLUE}Merging${NC}: ${MERGE_CMD[*]}"
+if MERGE_OUT=$("${MERGE_CMD[@]}" 2>&1); then
+    echo "${GREEN}✓ Merged${NC} PR #$PR_NUMBER"
+    [[ -n "$MERGE_OUT" ]] && echo "$MERGE_OUT"
+
+    # C#372 FIX A — POST-MERGE ADVISORY + AUTO-FLAG
+    #
+    # What Problem: 2026-04-21 incident — 8 PRs merged to main without
+    # release tags. Captain used pr-merge as a one-shot and moved on;
+    # pr-captain-post-merge (which cuts the release) never fired. The
+    # release-tag-check CI workflow went red 7× consecutively but isn't in
+    # required status checks, so its alarm didn't surface. See issue #372.
+    #
+    # How & Why: When the merge lands on main/master, emit a loud advisory
+    # naming the next required step (/pr-captain-post-merge) and queue a
+    # flag so /flag list or /flag-triage surfaces the pending action even
+    # if the session ends before the post-merge runs. Flag queuing is
+    # best-effort — if the flag tool is missing/broken we don't block the
+    # merge (which already happened server-side).
+    #
+    # Written: 2026-04-21 during C#372 Fix A.
+    if [[ "$PR_BASE_REF" == "main" || "$PR_BASE_REF" == "master" ]]; then
+        echo ""
+        echo "${YELLOW}>>> NEXT STEP REQUIRED <<<${NC}"
+        echo "  Run: ${GREEN}/pr-captain-post-merge $PR_NUMBER${NC}"
+        echo "  Why: cuts the release tag (every PR is a release)."
+        echo "       release-tag-check CI will go red on main if you skip this."
+        echo "       See issue #372 for the 2026-04-21 incident that surfaced this."
+        echo ""
+
+        # Fix B: set pending-post-merge state. New-work captain skills
+        # (/pr-captain-merge, /captain-release, /pr-captain-land) check this
+        # state at pre-flight and refuse until /pr-captain-post-merge runs
+        # successfully (which clears the state after verifying the release).
+        # Reconciliation skills (/captain-sync-all, /pr-captain-post-merge)
+        # do NOT refuse — they are the path that unblocks.
+        #
+        # QG round 1 finding (reviewer-code #3): state-set failure on a
+        # successful main/master merge is fatal, not advisory. Silent warn
+        # would defeat the structural gate — the very reason Fix B exists.
+        # The merge has already landed server-side; refusing to exit clean
+        # surfaces the problem loudly so captain investigates BEFORE starting
+        # new work. Fix A (advisory + flag queue) still emitted above.
+        if [[ -x "$SCRIPT_DIR/post-merge-state" ]]; then
+            if ! "$SCRIPT_DIR/post-merge-state" set "$PR_NUMBER" "$PR_BASE_REF" 2>/dev/null; then
+                echo "  ${RED}[ERROR]${NC} post-merge-state set failed — Fix B gate not engaged!" >&2
+                echo "  Merge completed on GitHub, but captain-side safety gate is missing." >&2
+                echo "  Investigate: ./agency/tools/post-merge-state get ; ls -la agency/config/" >&2
+                echo "  Retry: ./agency/tools/post-merge-state set $PR_NUMBER $PR_BASE_REF" >&2
+                exit 1
+            fi
+        else
+            echo "  ${YELLOW}[warn]${NC} post-merge-state tool not installed — Fix B gate not engaged" >&2
+        fi
+
+        # Best-effort flag emission. Captures a queued reminder even if captain
+        # closes the terminal. flag tool failures don't block (merge already done).
+        FLAG_MSG="post-merge-pending PR #${PR_NUMBER} on ${PR_BASE_REF} — run /pr-captain-post-merge ${PR_NUMBER} to cut release. (C#372 Fix A auto-flag.)"
+        if [[ -x "$SCRIPT_DIR/flag" ]]; then
+            "$SCRIPT_DIR/flag" "$FLAG_MSG" >/dev/null 2>&1 || \
+                echo "  ${YELLOW}[warn]${NC} flag tool failed — advisory stands but no flag queued" >&2
+        else
+            echo "  ${YELLOW}[warn]${NC} flag tool not found at $SCRIPT_DIR/flag — advisory stands but no flag queued" >&2
+        fi
+    fi
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Merged PR #$PR_NUMBER" 2>/dev/null || true
+    exit 0
+else
+    # Check if the failure is branch-protection blocked
+    if echo "$MERGE_OUT" | grep -qiE "(blocked|requirement|branch protection|approving review)"; then
+        echo "" >&2
+        echo "${YELLOW}Branch protection is blocking the merge:${NC}" >&2
+        echo "$MERGE_OUT" >&2
+        echo "" >&2
+        echo "Two paths to proceed:" >&2
+        echo "  1. Get principal approval in GitHub UI (preferred):" >&2
+        echo "       gh pr review $PR_NUMBER --approve   # principal runs this" >&2
+        echo "       then re-run: pr-merge $PR_NUMBER" >&2
+        echo "  2. Override (only if principal has verbally authorized):" >&2
+        echo "       pr-merge $PR_NUMBER --principal-approved" >&2
+        trap - EXIT
+        log_end "$RUN_ID" "blocked" 3 0 "Branch protection blocked PR #$PR_NUMBER" 2>/dev/null || true
+        exit 3
+    fi
+    die "gh pr merge failed: $MERGE_OUT"
+fi

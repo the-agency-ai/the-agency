@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-agency-ai.github.io/schemas/mdslidepal-theme-v0.1.0.json",
+  "title": "mdslidepal Theme",
+  "description": "Shared theme schema consumed by both mdslidepal-web and mdslidepal-mac. Each platform implements a theme loader that maps this schema to its native rendering primitives.",
+  "type": "object",
+  "required": ["name", "version", "aspect_ratio", "logical_dimensions", "colors", "fonts", "heading_scale", "body_size", "line_height", "spacing_unit", "slide_padding", "code_theme", "transitions"],
+  "properties": {
+    "name": { "type": "string", "description": "Canonical theme name (lowercase, kebab-case)" },
+    "version": { "type": "string", "description": "Semver version of this theme file" },
+    "description": { "type": "string" },
+    "aspect_ratio": { "type": "string", "enum": ["16:9"], "description": "MVP is 16:9 only. Phase 2 may add 4:3 and 21:9." },
+    "logical_dimensions": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "description": "Logical width in abstract units (1920 for 16:9)" },
+        "height": { "type": "integer", "description": "Logical height in abstract units (1080 for 16:9)" }
+      }
+    },
+    "colors": {
+      "type": "object",
+      "required": ["background", "foreground", "accent", "muted", "subtle", "border", "link", "code_background", "code_border"],
+      "additionalProperties": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+    },
+    "fonts": {
+      "type": "object",
+      "required": ["sans_family", "mono_family", "display_family"],
+      "properties": {
+        "sans_family": { "type": "string", "description": "System font stack for body text" },
+        "mono_family": { "type": "string", "description": "Monospace font stack for code blocks" },
+        "display_family": { "type": "string", "description": "Display font stack for large headings" }
+      }
+    },
+    "heading_scale": {
+      "type": "object",
+      "required": ["h1", "h2", "h3", "h4", "h5", "h6"],
+      "additionalProperties": { "type": "integer", "description": "Font size in logical units (matching logical_dimensions)" }
+    },
+    "body_size": { "type": "integer", "description": "Body text size in logical units" },
+    "line_height": { "type": "number", "description": "Unitless multiplier" },
+    "spacing_unit": { "type": "integer", "description": "Base spacing unit in logical units (paragraph spacing, list indent, etc.)" },
+    "slide_padding": {
+      "type": "object",
+      "required": ["top", "right", "bottom", "left"],
+      "additionalProperties": { "type": "integer" }
+    },
+    "code_theme": {
+      "type": "object",
+      "required": ["background", "foreground", "comment", "keyword", "string", "number", "function", "variable", "type", "operator", "punctuation"],
+      "additionalProperties": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+    },
+    "transitions": {
+      "type": "object",
+      "required": ["default", "fade_duration_ms", "fade_easing"],
+      "properties": {
+        "default": { "type": "string", "enum": ["none", "fade"] },
+        "fade_duration_ms": { "type": "integer" },
+        "fade_easing": { "type": "string", "enum": ["linear", "ease-in", "ease-out", "ease-in-out"] }
+      }
+    }
+  }
+}

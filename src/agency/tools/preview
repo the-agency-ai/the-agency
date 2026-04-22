@@ -1,0 +1,108 @@
+#!/bin/bash
+#
+# preview — Top-level wrapper for SPEC-PROVIDER preview management
+#
+# What Problem: The /preview skill (.claude/skills/preview/SKILL.md) dispatches
+# to ./agency/tools/preview-{provider} based on agency.yaml's preview.provider
+# config — but only inside Claude Code sessions. Shell scripts, CI pipelines,
+# and dev tools that want to start/stop/inspect a project preview can't invoke
+# a skill. Without a top-level wrapper, the SPEC-PROVIDER pattern is incomplete:
+# the skill (discovery layer) exists, providers (implementation layer) will
+# exist, but there's no tool (mechanical layer) for non-agent contexts.
+#
+# How & Why: Thin pass-through dispatcher modeled exactly on agency/tools/secret
+# (Day 32 R3, the reference SPEC-PROVIDER wrapper). Reads `preview.provider`
+# from agency/config/agency.yaml, defaults to `docker-compose` (matches the
+# framework default in agency.yaml), then execs the corresponding provider tool
+# (`./agency/tools/preview-{provider}`) with all args forwarded. Using `exec`
+# instead of subshell so signals (Ctrl+C, etc.) propagate correctly and the
+# wrapper has zero process overhead.
+#
+# Provider resolution: simple awk parse of agency.yaml. No yaml library
+# dependency — keeps the wrapper portable to any environment with bash + awk.
+#
+# This completes the SPEC-PROVIDER triangle for the preview capability:
+#   - Skill:    .claude/skills/preview/SKILL.md       (agent invocation, /preview)
+#   - Tool:     agency/tools/preview                  (this file — CLI wrapper)
+#   - Provider: agency/tools/preview-{provider}       (docker-compose, fly, etc.)
+#
+# The skill defines the verb contract: start, stop, status, logs. Provider
+# tools must implement those verbs.
+#
+# Note: provider tools (preview-docker-compose, preview-fly, etc.) are not
+# yet built. The wrapper will fail with an actionable error when invoked
+# until a provider tool exists. That's the correct behavior — the wrapper IS
+# the deliverable for this iteration; provider implementations come later.
+#
+# Written: 2026-04-07 — Day 33 — Item 1 from captain's Day 33 work queue (#149)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# --- PATH resolution (for non-login shells) ---
+[ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
+
+# --- Resolve project root ---
+# CLAUDE_PROJECT_DIR is set inside Claude Code hooks but NOT in agent Bash
+# tool calls. Fall back to git rev-parse for worktree detection, then
+# SCRIPT_DIR-based fallback for non-git contexts.
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+elif PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+# --- Resolve provider from agency.yaml ---
+# Looks for: preview.provider: "name" — handles quoted and unquoted forms.
+# Default: docker-compose (matches framework default).
+AGENCY_YAML="$PROJECT_ROOT/agency/config/agency.yaml"
+PROVIDER="docker-compose"
+
+if [[ -f "$AGENCY_YAML" ]]; then
+    _resolved=$(awk '
+        /^preview:/ { in_preview=1; next }
+        in_preview && /^[^ \t#]/ { in_preview=0 }
+        in_preview && /^  provider:/ {
+            gsub(/^  provider: *"?/, "")
+            gsub(/"? *(#.*)?$/, "")
+            print
+            exit
+        }
+    ' "$AGENCY_YAML" 2>/dev/null || echo "")
+    [[ -n "$_resolved" ]] && PROVIDER="$_resolved"
+fi
+
+# --- Validate provider name (security: prevent path traversal + injection) ---
+# Provider names are slugs: lowercase alphanumeric + hyphen + underscore.
+# Reject anything else to prevent attacks like provider: "../../tmp/evil"
+# or provider: "foo;rm" via a malicious agency.yaml.
+if ! [[ "$PROVIDER" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+    echo "Error: Invalid provider name '$PROVIDER'" >&2
+    echo "Provider names must match: ^[a-z0-9][a-z0-9_-]*\$" >&2
+    echo "Configure in: $AGENCY_YAML (preview.provider: <name>)" >&2
+    exit 1
+fi
+
+# --- Dispatch to provider tool ---
+PROVIDER_TOOL="$SCRIPT_DIR/preview-$PROVIDER"
+
+if [[ ! -x "$PROVIDER_TOOL" ]]; then
+    echo "Error: preview provider '$PROVIDER' not available at $PROVIDER_TOOL" >&2
+    echo "" >&2
+    echo "Available providers:" >&2
+    _found=0
+    for tool in "$SCRIPT_DIR"/preview-*; do
+        [[ -x "$tool" ]] || continue
+        echo "  - $(basename "$tool" | sed 's/preview-//')" >&2
+        _found=1
+    done
+    [[ "$_found" == "0" ]] && echo "  (none — provider tools not built yet)" >&2
+    echo "" >&2
+    echo "Configure in: $AGENCY_YAML (preview.provider: <name>)" >&2
+    exit 1
+fi
+
+exec "$PROVIDER_TOOL" "$@"

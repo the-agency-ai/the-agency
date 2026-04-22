@@ -1,0 +1,125 @@
+# _agency-feedback — Submit feedback for The Agency framework
+#
+# Sourced by: agency feedback "title" "description"
+# Arguments via: AGENCY_ARGS array
+# Inherits: set -euo pipefail, AGENCY_DIR, _log-helper, colors
+
+RUN_ID=$(log_start "agency-feedback" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/dev/null) || true
+
+TITLE=""
+DESCRIPTION=""
+VERBOSE=false
+
+for arg in "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}"; do
+    case "$arg" in
+        --help|-h)
+            echo "agency feedback — Submit feedback to The Agency"
+            echo ""
+            echo "Usage: agency feedback \"title\" \"description\""
+            echo ""
+            echo "Creates a GitHub issue on the-agency repo."
+            echo "Falls back to local file if GitHub unavailable."
+            exit 0
+            ;;
+        --verbose) VERBOSE=true ;;
+        *)
+            if [[ -z "$TITLE" ]]; then
+                TITLE="$arg"
+            elif [[ -z "$DESCRIPTION" ]]; then
+                DESCRIPTION="$arg"
+            fi
+            ;;
+    esac
+done
+
+_feedback_main() {
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "agency feedback [run: ${RUN_ID:-none}]"
+
+    if [[ -z "$TITLE" ]]; then
+        echo -e "${RED}[ERROR]${NC} Title required" >&2
+        echo ""
+        echo "Usage: agency feedback \"title\" \"description\""
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "Title required" 2>/dev/null || true
+        exit 1
+    fi
+
+    AGENT="${AGENTNAME:-unknown}"
+    WORKSTREAM_NAME="${WORKSTREAM:-unknown}"
+    PROJECT_DIR="$(pwd)"
+
+    BODY="## Feedback from Agent
+
+**Agent:** ${AGENT}
+**Workstream:** ${WORKSTREAM_NAME}
+**Project:** ${PROJECT_DIR}
+**Date:** $(date '+%Y-%m-%d %H:%M %Z')
+
+## Description
+
+${DESCRIPTION:-No description provided.}
+
+## Context
+
+This feedback was captured during active development using The Agency framework.
+
+---
+*Submitted via \`agency feedback\`*"
+
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Agency Feedback"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "  Title: ${TITLE}"
+    echo "  Agent: ${AGENT}"
+    echo ""
+
+    if ! command -v gh &> /dev/null; then
+        echo -e "${YELLOW}[WARN]${NC} GitHub CLI not installed"
+        echo "  Saving feedback locally..."
+
+        local feedback_dir="$AGENCY_DIR/feedback"
+        mkdir -p "$feedback_dir"
+
+        local feedback_file="${feedback_dir}/$(date '+%Y%m%d-%H%M%S')-${AGENT}.md"
+        echo "# Feedback: ${TITLE}" > "$feedback_file"
+        echo "" >> "$feedback_file"
+        echo "$BODY" >> "$feedback_file"
+
+        echo "  Saved to: ${feedback_file}"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Feedback saved locally" 2>/dev/null || true
+        return
+    fi
+
+    if gh issue create --repo the-agency-ai/the-agency \
+        --title "Feedback: ${TITLE}" \
+        --body "$BODY" \
+        --label "feedback" 2>/dev/null; then
+        echo "  ✓ Issue created on the-agency"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Feedback submitted to GitHub" 2>/dev/null || true
+    else
+        echo -e "${YELLOW}[WARN]${NC} Could not create GitHub issue"
+        echo "  Saving feedback locally..."
+
+        local feedback_dir="$AGENCY_DIR/feedback"
+        mkdir -p "$feedback_dir"
+
+        local feedback_file="${feedback_dir}/$(date '+%Y%m%d-%H%M%S')-${AGENT}.md"
+        echo "# Feedback: ${TITLE}" > "$feedback_file"
+        echo "" >> "$feedback_file"
+        echo "$BODY" >> "$feedback_file"
+
+        echo "  Saved to: ${feedback_file}"
+        trap - EXIT
+        log_end "$RUN_ID" "success" 0 0 "Feedback saved locally" 2>/dev/null || true
+    fi
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+_feedback_main

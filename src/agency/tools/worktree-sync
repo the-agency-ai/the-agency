@@ -1,0 +1,335 @@
+#!/bin/bash
+#
+# worktree-sync — Sync a worktree with master
+#
+# Usage:
+#   worktree-sync              — manual mode (refuse on dirty tree)
+#   worktree-sync --auto       — automatic mode (stash/merge/unstash for dirty tree)
+#   worktree-sync --version    — show version
+#   worktree-sync --help       — show help
+#
+# Exit codes:
+#   0 — success (merged, already up to date, or skipped on master in --auto mode)
+#   1 — error (not a worktree, merge conflict, on master in manual mode)
+#   2 — dirty tree refused (manual mode only)
+#
+# The enforcement triangle:
+#   Tool: this file (agency/tools/worktree-sync)
+#   Skill: /worktree-sync, /session-resume, /session-end
+#   Hookify: block-raw-git-merge-master
+
+set -euo pipefail
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source log helper if available
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# --- PATH resolution ---
+[ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:$PATH"
+[ -d "$HOME/.asdf/shims" ] && export PATH="$HOME/.asdf/shims:$PATH"
+
+# --- Require jq ---
+if ! command -v jq &>/dev/null; then
+    echo "worktree-sync: jq is required but not installed" >&2
+    exit 1
+fi
+
+# --- Args ---
+AUTO_MODE=false
+MODE="manual"
+STASHED=false
+
+# EXIT trap: ensure stash is always popped if script aborts mid-flight
+_cleanup() {
+    if [[ "$STASHED" == true ]]; then
+        git stash pop --quiet 2>/dev/null || true
+    fi
+}
+trap _cleanup EXIT
+
+show_help() {
+    echo "Usage: worktree-sync [--auto] [--version] [--help]"
+    echo ""
+    echo "Sync a worktree with master: merge, copy settings, run sandbox-sync, report."
+    echo ""
+    echo "Modes:"
+    echo "  (default)    Manual — refuse on dirty tree"
+    echo "  --auto       Automatic — stash dirty tree, merge, unstash"
+    echo ""
+    echo "Options:"
+    echo "  --version    Show version"
+    echo "  --help       Show this help"
+}
+
+for arg in "$@"; do
+    case "$arg" in
+        --auto) AUTO_MODE=true; MODE="auto" ;;
+        --version) echo "worktree-sync $VERSION"; exit 0 ;;
+        --help) show_help; exit 0 ;;
+        *) echo "worktree-sync: unknown argument '$arg'" >&2; exit 1 ;;
+    esac
+done
+
+# --- Start logging ---
+RUN_ID=""
+if type log_start &>/dev/null; then
+    RUN_ID=$(log_start "worktree-sync" "$MODE")
+fi
+
+# --- Resolve paths ---
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "worktree-sync: not in a git repository" >&2
+    exit 1
+}
+
+MAIN_CHECKOUT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
+if [[ -z "$MAIN_CHECKOUT" ]] || [[ ! -d "$MAIN_CHECKOUT" ]]; then
+    echo "worktree-sync: cannot determine main checkout" >&2
+    exit 1
+fi
+
+# Determine the main branch — a property of the REPO, never whatever the
+# captain happens to have checked out. Resolution order: origin/HEAD
+# symbolic-ref, then first existing local branch in [main, master].
+# See agency/REFERENCE/REFERENCE-WORKTREE-DISCIPLINE.md for incident history (Day 42
+# designex incident, the-agency#291). main-first fallback order matches
+# pr-create / git-captain / git-safe convention and picks the live branch
+# in repos mid-rename (stale master + live main).
+MAIN_BRANCH=$(git -C "$MAIN_CHECKOUT" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
+if [[ -z "$MAIN_BRANCH" ]]; then
+    for candidate in main master; do
+        if git -C "$MAIN_CHECKOUT" show-ref --verify --quiet "refs/heads/$candidate"; then
+            MAIN_BRANCH="$candidate"
+            break
+        fi
+    done
+fi
+if [[ -z "$MAIN_BRANCH" ]]; then
+    echo "worktree-sync: cannot determine main branch (no origin/HEAD symbolic-ref, no main/master local branch in $MAIN_CHECKOUT)" >&2
+    echo "  Hint: run 'git remote set-head origin -a' to populate origin/HEAD" >&2
+    exit 1
+fi
+
+# Safety guard: if MAIN_BRANCH resolves to something other than master/main
+# (e.g., someone renamed the default or the heuristic above went sideways),
+# refuse rather than silently merge a wrong branch into the agent's worktree.
+case "$MAIN_BRANCH" in
+    master|main) ;;
+    *)
+        echo "worktree-sync: resolved MAIN_BRANCH='$MAIN_BRANCH', which is not master or main — refusing to merge." >&2
+        echo "  If this repo uses a different default branch name, update worktree-sync's safety guard." >&2
+        exit 1
+        ;;
+esac
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+# --- Guard: not on the main branch ---
+if [[ "$BRANCH" == "$MAIN_BRANCH" ]]; then
+    if [[ "$AUTO_MODE" == true ]]; then
+        # Auto mode on main: soft skip, no error
+        if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
+            log_end "$RUN_ID" "success" 0 0 "skipped — on $MAIN_BRANCH"
+        fi
+        printf '{"systemMessage": "worktree-sync: skipped — on %s"}' "$MAIN_BRANCH"
+        exit 0
+    else
+        echo "worktree-sync: on $MAIN_BRANCH — use /sync-all instead" >&2
+        if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
+            log_end "$RUN_ID" "failure" 1 0 "on $MAIN_BRANCH"
+        fi
+        exit 1
+    fi
+fi
+
+# --- Guard: dirty tree ---
+DIRTY=$(git status --porcelain 2>/dev/null)
+
+if [[ -n "$DIRTY" ]]; then
+    if [[ "$AUTO_MODE" == true ]]; then
+        git stash --quiet 2>/dev/null
+        STASHED=true
+    else
+        DIRTY_COUNT=$(echo "$DIRTY" | grep -c . || echo 0)
+        echo "worktree-sync: working tree is dirty — commit or stash first" >&2
+        echo "  $DIRTY_COUNT modified files" >&2
+        if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
+            log_end "$RUN_ID" "failure" 2 0 "dirty tree — $DIRTY_COUNT files"
+        fi
+        exit 2
+    fi
+fi
+
+# --- Capture pre-merge HEAD (don't rely on ORIG_HEAD) ---
+PRE_MERGE_HEAD=$(git rev-parse HEAD 2>/dev/null)
+
+# --- Check if already up to date ---
+MERGE_BASE=$(git merge-base HEAD "$MAIN_BRANCH" 2>/dev/null || echo "")
+MAIN_HEAD=$(git rev-parse "$MAIN_BRANCH" 2>/dev/null || echo "")
+
+if [[ "$MERGE_BASE" == "$MAIN_HEAD" ]]; then
+    # Already up to date — skip merge, still sync settings + sandbox
+    MERGED=false
+    MERGE_MSG="already up to date"
+    COMMITS=0
+else
+    # --- Merge main branch ---
+    MERGED=true
+    MERGE_OUTPUT=$(git merge "$MAIN_BRANCH" 2>&1) || {
+        # Merge conflict — abort and restore. After this block runs the repo
+        # is back at PRE_MERGE_HEAD with MERGE_HEAD cleared. The message has
+        # to make that clear so the caller doesn't try to 'git merge --abort'
+        # themselves (issue #57 — 'Resolve manually' was misleading because
+        # the merge WAS already aborted automatically).
+        ABORT_OK=true
+        git merge --abort 2>/dev/null || ABORT_OK=false
+        CONFLICT_FILES=$(echo "$MERGE_OUTPUT" | grep "CONFLICT" || echo "(unknown)")
+
+        echo "worktree-sync: merge with $MAIN_BRANCH had conflicts — merge was automatically aborted." >&2
+        echo "  Repo state: restored to pre-merge HEAD ($PRE_MERGE_HEAD)." >&2
+        echo "  Conflict files:" >&2
+        echo "$CONFLICT_FILES" | sed 's/^/    /' >&2
+
+        if [[ "$ABORT_OK" == false ]]; then
+            echo "  WARNING: git merge --abort failed — repo may not be fully restored." >&2
+        fi
+
+        # Unstash if we stashed (disable trap since we're handling it)
+        STASH_MSG="no stash taken"
+        if [[ "$STASHED" == true ]]; then
+            STASHED=false
+            if git stash pop --quiet 2>/dev/null; then
+                STASH_MSG="stashed work restored via git stash pop"
+            else
+                STASH_MSG="stash pop failed — your stashed work is still in git stash (run 'git stash list')"
+            fi
+        fi
+        echo "  Stash: $STASH_MSG." >&2
+
+        echo "  Next steps: review the conflict files listed above, decide whether to keep/delete/reconcile them, then retry worktree-sync. Do NOT run 'git merge --abort' — the merge has already been aborted." >&2
+
+        if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
+            log_end "$RUN_ID" "failure" 1 0 "merge conflict (aborted automatically)"
+        fi
+
+        if [[ "$AUTO_MODE" == true ]]; then
+            jq -n -c --arg msg "worktree-sync: merge conflict with $MAIN_BRANCH — merge was automatically aborted, repo restored. Review conflict files before retrying." '{"systemMessage": $msg}'
+        fi
+        exit 1
+    }
+    COMMITS=$(git rev-list "$PRE_MERGE_HEAD"..HEAD --count 2>/dev/null || echo "?")
+    MERGE_MSG="merged $MAIN_BRANCH ($COMMITS commits)"
+fi
+
+# --- Copy settings.json from main checkout ---
+SETTINGS_COPIED=false
+SETTINGS_SRC="$MAIN_CHECKOUT/.claude/settings.json"
+SETTINGS_DST="$ROOT/.claude/settings.json"
+
+if [[ -f "$SETTINGS_SRC" ]]; then
+    if ! cmp -s "$SETTINGS_SRC" "$SETTINGS_DST" 2>/dev/null; then
+        cp "$SETTINGS_SRC" "$SETTINGS_DST" 2>/dev/null && SETTINGS_COPIED=true
+    fi
+fi
+
+# --- Run sandbox-sync ---
+SANDBOX_MSG=""
+if [[ -x "$ROOT/agency/tools/sandbox-sync" ]]; then
+    SANDBOX_OUTPUT=$("$ROOT/agency/tools/sandbox-sync" --quiet 2>&1) || true
+    if [[ -n "$SANDBOX_OUTPUT" ]]; then
+        SANDBOX_MSG="$SANDBOX_OUTPUT"
+    fi
+fi
+
+# --- Build change report ---
+CHANGED_FILES=""
+CLAUDE_MD_CHANGED=false
+DISPATCHES=""
+
+if [[ "$MERGED" == true ]]; then
+    # Files changed in agency/ namespace
+    CHANGED_FILES=$(git diff "$PRE_MERGE_HEAD"..HEAD --name-only -- agency/ .claude/ CLAUDE.md 2>/dev/null || echo "")
+
+    # Check for CLAUDE.md changes
+    if echo "$CHANGED_FILES" | grep -qE "CLAUDE\.md|CLAUDE-THEAGENCY\.md" 2>/dev/null; then
+        CLAUDE_MD_CHANGED=true
+    fi
+
+    # Check for new dispatches
+    DISPATCHES=$(echo "$CHANGED_FILES" | grep -E "dispatch" 2>/dev/null || echo "")
+fi
+
+# --- Unstash if we stashed ---
+UNSTASH_CONFLICT=false
+if [[ "$STASHED" == true ]]; then
+    STASHED=false  # Disable trap — we're handling it
+    if ! git stash pop --quiet 2>/dev/null; then
+        UNSTASH_CONFLICT=true
+    fi
+fi
+
+# --- Format output ---
+REPORT="worktree-sync: $MERGE_MSG"
+
+if [[ "$SETTINGS_COPIED" == true ]]; then
+    REPORT="$REPORT
+  changed: .claude/settings.json (copied from main checkout)"
+fi
+
+if [[ -n "$CHANGED_FILES" ]]; then
+    while IFS= read -r file; do
+        [[ -z "$file" ]] && continue
+        REPORT="$REPORT
+  changed: $file"
+    done <<< "$CHANGED_FILES"
+fi
+
+if [[ -n "$DISPATCHES" ]]; then
+    DISPATCH_COUNT=$(echo "$DISPATCHES" | grep -c . || echo 0)
+    REPORT="$REPORT
+  $DISPATCH_COUNT new dispatch(es)"
+fi
+
+if [[ "$CLAUDE_MD_CHANGED" == true ]]; then
+    REPORT="$REPORT
+  CLAUDE.md updated — re-read recommended"
+fi
+
+if [[ -n "$SANDBOX_MSG" ]]; then
+    REPORT="$REPORT
+  sandbox-sync: $SANDBOX_MSG"
+fi
+
+if [[ "$UNSTASH_CONFLICT" == true ]]; then
+    REPORT="$REPORT
+  WARNING: unstash conflict — your stashed changes conflict with the merge. Work is safe in git stash. Run 'git stash show' to see it."
+fi
+
+# --- Log end ---
+if [[ -n "$RUN_ID" ]] && type log_end &>/dev/null; then
+    LOG_STATUS="success"
+    [[ "$UNSTASH_CONFLICT" == true ]] && LOG_STATUS="failure"
+    log_end "$RUN_ID" "$LOG_STATUS" 0 0 "$MERGE_MSG"
+fi
+
+# --- Output ---
+if [[ "$AUTO_MODE" == true ]]; then
+    # JSON systemMessage for hook context
+    JSON_MSG=$(echo "$REPORT" | tr '\n' ' ' | sed 's/  */ /g')
+    if [[ "$CLAUDE_MD_CHANGED" == true ]]; then
+        JSON_MSG="$JSON_MSG Re-read CLAUDE.md now."
+    fi
+    jq -n -c --arg msg "$JSON_MSG" '{"systemMessage": $msg}'
+else
+    # Plain text for manual invocation
+    echo "$REPORT"
+    if [[ -n "$RUN_ID" ]] && type tool_output &>/dev/null; then
+        tool_output "worktree-sync" "$RUN_ID" "$MERGE_MSG"
+    fi
+fi
+
+exit 0

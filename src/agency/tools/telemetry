@@ -1,0 +1,157 @@
+#!/bin/bash
+#
+# telemetry — Read telemetry data
+#
+# Usage:
+#   telemetry --summary          — usage breakdown by tool
+#   telemetry --agent <name>     — usage for a specific agent
+#   telemetry --recent [N]       — show last N entries (default: 20)
+#   telemetry --today            — today's usage summary
+#
+# Reads from: ~/.claude/telemetry/*.jsonl
+
+set -euo pipefail
+
+TELEMETRY_DIR="$HOME/.claude/telemetry"
+
+show_help() {
+    echo "Usage: telemetry --summary          — usage breakdown by tool"
+    echo "       telemetry --agent <name>     — usage for a specific agent"
+    echo "       telemetry --recent [N]       — show last N entries (default: 20)"
+    echo "       telemetry --today            — today's usage summary"
+    echo "       telemetry --version          — show version"
+}
+
+VERSION="1.0.0"
+
+case "${1:-}" in
+    --version|-v)
+        echo "telemetry $VERSION"
+        exit 0
+        ;;
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+esac
+
+if [[ ! -d "$TELEMETRY_DIR" ]]; then
+    echo "No telemetry directory found at $TELEMETRY_DIR"
+    exit 1
+fi
+
+# Find telemetry files
+TELEMETRY_FILES=$(find "$TELEMETRY_DIR" -name '*.jsonl' -type f 2>/dev/null | sort)
+if [[ -z "$TELEMETRY_FILES" ]]; then
+    echo "No telemetry data found"
+    exit 1
+fi
+
+case "${1:-}" in
+    --summary)
+        TDIR="$TELEMETRY_DIR" python3 -c "
+import json, os, glob
+from collections import Counter
+
+tool_counts = Counter()
+agent_counts = Counter()
+files = sorted(glob.glob(os.path.join(os.environ['TDIR'], '*.jsonl')))
+total = 0
+for f in files:
+    for line in open(f):
+        try:
+            e = json.loads(line.strip())
+            tool_counts[e.get('tool', 'unknown')] += 1
+            agent_counts[e.get('agent', 'unknown')] += 1
+            total += 1
+        except: pass
+
+print(f'Total tool uses: {total}')
+print(f'Files: {len(files)}')
+print()
+print('Top tools:')
+for tool, count in tool_counts.most_common(20):
+    print(f'  {count:>5}  {tool}')
+print()
+print('By agent:')
+for agent, count in agent_counts.most_common(10):
+    print(f'  {count:>5}  {agent}')
+"
+        ;;
+    --agent)
+        AGENT_NAME="${2:?agent name required}"
+        TDIR="$TELEMETRY_DIR" AGENT="$AGENT_NAME" python3 -c "
+import json, os, glob
+from collections import Counter
+
+tool_counts = Counter()
+files = sorted(glob.glob(os.path.join(os.environ['TDIR'], '*.jsonl')))
+total = 0
+for f in files:
+    for line in open(f):
+        try:
+            e = json.loads(line.strip())
+            if e.get('agent') == os.environ['AGENT']:
+                tool_counts[e.get('tool', 'unknown')] += 1
+                total += 1
+        except: pass
+
+print(f'Agent: {os.environ[\"AGENT\"]} ({total} tool uses)')
+print()
+for tool, count in tool_counts.most_common(20):
+    print(f'  {count:>5}  {tool}')
+"
+        ;;
+    --recent)
+        N="${2:-20}"
+        TDIR="$TELEMETRY_DIR" COUNT="$N" python3 -c "
+import json, os, glob
+
+entries = []
+files = sorted(glob.glob(os.path.join(os.environ['TDIR'], '*.jsonl')))
+for f in files:
+    for line in open(f):
+        try:
+            entries.append(json.loads(line.strip()))
+        except: pass
+
+n = int(os.environ['COUNT'])
+for e in entries[-n:]:
+    ts = e.get('ts', '?')[:19]
+    tool = e.get('tool', '?')
+    agent = e.get('agent', '?')
+    summary = e.get('input_summary', '')[:50]
+    print(f'{ts}  {agent:<15} {tool:<20} {summary}')
+"
+        ;;
+    --today)
+        TODAY=$(date +%Y-%m-%d)
+        TFILE="$TELEMETRY_DIR/${TODAY}.jsonl"
+        if [[ ! -f "$TFILE" ]]; then
+            echo "No telemetry for today ($TODAY)"
+            exit 0
+        fi
+        TFILE="$TFILE" python3 -c "
+import json, os
+from collections import Counter
+
+tool_counts = Counter()
+total = 0
+for line in open(os.environ['TFILE']):
+    try:
+        e = json.loads(line.strip())
+        tool_counts[e.get('tool', 'unknown')] += 1
+        total += 1
+    except: pass
+
+print(f'Today: {total} tool uses')
+print()
+for tool, count in tool_counts.most_common(20):
+    print(f'  {count:>5}  {tool}')
+"
+        ;;
+    *)
+        show_help
+        exit 1
+        ;;
+esac

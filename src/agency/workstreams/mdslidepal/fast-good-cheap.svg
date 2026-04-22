@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400" font-family="system-ui, -apple-system, sans-serif">
+  <!-- Triangle -->
+  <polygon points="250,40 60,350 440,350" fill="none" stroke="#333" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Vertex labels -->
+  <text x="250" y="28" text-anchor="middle" font-size="28" font-weight="700" fill="#333">Fast</text>
+  <text x="40" y="385" text-anchor="middle" font-size="28" font-weight="700" fill="#333">Good</text>
+  <text x="460" y="385" text-anchor="middle" font-size="28" font-weight="700" fill="#333">Cheap</text>
+
+  <!-- Center text -->
+  <text x="250" y="230" text-anchor="middle" font-size="18" fill="#888">Pick two.</text>
+  <text x="250" y="260" text-anchor="middle" font-size="16" font-weight="600" fill="#0066cc">With discipline + AI:</text>
+  <text x="250" y="288" text-anchor="middle" font-size="20" font-weight="700" fill="#0066cc">All three.</text>
+
+  <!-- Edge labels -->
+  <text x="140" y="190" text-anchor="middle" font-size="13" fill="#888" transform="rotate(-56, 140, 190)">trade-off</text>
+  <text x="360" y="190" text-anchor="middle" font-size="13" fill="#888" transform="rotate(56, 360, 190)">trade-off</text>
+  <text x="250" y="368" text-anchor="middle" font-size="13" fill="#888">trade-off</text>
+</svg>

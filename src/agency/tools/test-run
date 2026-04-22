@@ -1,0 +1,240 @@
+#!/bin/bash
+# What Problem: Tests are configured differently per project — some use BATS,
+# some vitest, some both. The old test-run auto-detected package managers and
+# ran their test scripts, but couldn't discover BATS suites or any non-JS tests.
+# This made the tool useless for framework repos like the-agency itself.
+#
+# How & Why: Read test suites from agency.yaml's `testing.suites` section.
+# Each suite declares a command and description. The tool runs all configured
+# suites (or a specific one via --suite). This is the testing provider pattern —
+# agency.yaml is the source of truth for what tests exist and how to run them.
+# Falls back to package manager detection if no testing section exists (backward
+# compat for projects that haven't configured testing yet).
+#
+# Written: 2026-04-05 during captain session 19 (ISCP integration / provider-spec)
+#
+# Usage:
+#   test-run                    Run all configured test suites
+#   test-run --suite tools      Run a specific suite
+#   test-run --list             List configured suites
+#   test-run --verbose          Verbose output
+#   test-run --help             Show help
+#   test-run --version          Show version
+
+set -euo pipefail
+
+TOOL_VERSION="2.0.0"
+
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+if [[ -f "$SCRIPT_DIR/lib/_path-resolve" ]]; then
+    source "$SCRIPT_DIR/lib/_path-resolve"
+fi
+
+# Colors
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="[0;31m" GREEN="[0;32m" YELLOW="[1;33m" BLUE="[0;34m" NC="[0m"
+fi
+
+VERBOSE=false
+SUITE_FILTER=""
+LIST_ONLY=false
+
+# --- Argument parsing ---
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version|-v) echo "test-run $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            sed -n '2,22p' "$0" | sed 's/^# //' | sed 's/^#//'
+            exit 0 ;;
+        --verbose) VERBOSE=true; shift ;;
+        --suite)
+            [[ -n "${2:-}" ]] || { echo "Error: --suite requires a name" >&2; exit 1; }
+            SUITE_FILTER="$2"; shift 2 ;;
+        --list) LIST_ONLY=true; shift ;;
+        *) echo "Error: unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$REPO_ROOT"
+
+# --- Logging helpers ---
+
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
+
+# --- Read suites from agency.yaml ---
+
+AGENCY_YAML="$REPO_ROOT/agency/config/agency.yaml"
+
+# Parse testing suites from agency.yaml
+# Returns lines of: suite_name|command|description
+_read_suites() {
+    if [[ ! -f "$AGENCY_YAML" ]]; then
+        return 1
+    fi
+
+    # Check if testing section exists
+    if ! grep -q "^testing:" "$AGENCY_YAML" 2>/dev/null; then
+        return 1
+    fi
+
+    # Parse suites — simple YAML extraction (no external deps)
+    local in_suites=false
+    local current_suite=""
+    local current_command=""
+    local current_desc=""
+
+    while IFS= read -r line; do
+        # Detect suites section
+        if [[ "$line" =~ ^[[:space:]]+suites: ]]; then
+            in_suites=true
+            continue
+        fi
+
+        # Exit suites section on non-indented line or new top-level key
+        if [[ "$in_suites" == "true" ]]; then
+            # Suite name (4-space indent, no colon in value)
+            if [[ "$line" =~ ^[[:space:]]{4}[a-z] && "$line" =~ :$ ]]; then
+                # Emit previous suite if complete
+                if [[ -n "$current_suite" && -n "$current_command" ]]; then
+                    echo "${current_suite}|${current_command}|${current_desc}"
+                fi
+                current_suite="${line%%:*}"
+                current_suite="${current_suite#"${current_suite%%[![:space:]]*}"}"  # trim leading spaces
+                current_command=""
+                current_desc=""
+                continue
+            fi
+
+            # Command field (6-space indent)
+            if [[ "$line" =~ ^[[:space:]]+command: ]]; then
+                current_command="${line#*command:}"
+                current_command="${current_command#"${current_command%%[![:space:]]*}"}"  # trim
+                current_command="${current_command#\"}"  # strip quotes
+                current_command="${current_command%\"}"
+                continue
+            fi
+
+            # Description field (6-space indent)
+            if [[ "$line" =~ ^[[:space:]]+description: ]]; then
+                current_desc="${line#*description:}"
+                current_desc="${current_desc#"${current_desc%%[![:space:]]*}"}"
+                current_desc="${current_desc#\"}"
+                current_desc="${current_desc%\"}"
+                continue
+            fi
+
+            # End of suites section (line with less indent that's not blank)
+            if [[ -n "$line" && ! "$line" =~ ^[[:space:]] ]]; then
+                in_suites=false
+            fi
+        fi
+    done < "$AGENCY_YAML"
+
+    # Emit last suite
+    if [[ -n "$current_suite" && -n "$current_command" ]]; then
+        echo "${current_suite}|${current_command}|${current_desc}"
+    fi
+}
+
+# --- Fallback: package manager detection (backward compat) ---
+
+_run_fallback() {
+    log_info "No testing section in agency.yaml — falling back to package manager detection"
+
+    export CI=true
+
+    if [[ -f "pnpm-lock.yaml" ]]; then
+        log_step "Running: pnpm test"
+        pnpm test
+    elif [[ -f "yarn.lock" ]]; then
+        log_step "Running: yarn test"
+        yarn test
+    elif [[ -f "package-lock.json" ]]; then
+        log_step "Running: npm test"
+        npm test
+    else
+        echo "No test configuration found."
+        echo "Configure testing in agency/config/agency.yaml or add a package.json test script."
+        exit 0
+    fi
+}
+
+# --- Main ---
+
+RUN_ID=$(log_start "test-run" "${SUITE_FILTER:-all}" 2>/dev/null) || true
+echo "test-run [run: ${RUN_ID:-none}]"
+
+# Read configured suites
+SUITES=$(_read_suites) || SUITES=""
+
+if [[ -z "$SUITES" ]]; then
+    _run_fallback
+    exit $?
+fi
+
+# List mode
+if [[ "$LIST_ONLY" == "true" ]]; then
+    echo "Configured test suites:"
+    echo ""
+    while IFS='|' read -r name cmd desc; do
+        printf "  %-20s %s\n" "$name" "${desc:-$cmd}"
+    done <<< "$SUITES"
+    exit 0
+fi
+
+# Run suites
+total=0
+passed=0
+failed=0
+failed_names=()
+
+while IFS='|' read -r name cmd desc; do
+    # Filter if --suite specified
+    if [[ -n "$SUITE_FILTER" && "$name" != "$SUITE_FILTER" ]]; then
+        continue
+    fi
+
+    total=$((total + 1))
+    log_step "Suite: $name — $cmd"
+
+    if eval "$cmd"; then
+        passed=$((passed + 1))
+        echo -e "${GREEN}✓${NC} $name passed"
+    else
+        failed=$((failed + 1))
+        failed_names+=("$name")
+        echo -e "${RED}✗${NC} $name failed"
+    fi
+    echo ""
+done <<< "$SUITES"
+
+# Summary
+if [[ "$total" -eq 0 ]]; then
+    if [[ -n "$SUITE_FILTER" ]]; then
+        echo "Error: suite '$SUITE_FILTER' not found. Run: test-run --list" >&2
+        log_end "$RUN_ID" "failure" 1 0 "Suite not found: $SUITE_FILTER" 2>/dev/null || true
+        exit 1
+    fi
+fi
+
+echo "─────────────────────────"
+echo "Suites: $total total, $passed passed, $failed failed"
+
+if [[ "$failed" -gt 0 ]]; then
+    echo -e "${RED}Failed: ${failed_names[*]}${NC}"
+    log_end "$RUN_ID" "failure" 1 0 "$failed/$total suites failed" 2>/dev/null || true
+    exit 1
+else
+    echo -e "${GREEN}✓ All test suites passed${NC}"
+    log_end "$RUN_ID" "success" 0 0 "$passed/$total suites passed" 2>/dev/null || true
+    exit 0
+fi

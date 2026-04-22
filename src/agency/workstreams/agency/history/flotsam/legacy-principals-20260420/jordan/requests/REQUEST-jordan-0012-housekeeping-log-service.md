@@ -1,0 +1,449 @@
+# REQUEST-jordan-0012: Log Service + LogBench
+
+**Requested By:** principal:jordan
+
+**Assigned To:** housekeeping
+
+**Status:** Complete
+
+**Priority:** High
+
+**Created:** 2026-01-10 14:45 SST
+
+**Updated:** 2026-01-10 14:45 SST
+
+## Summary
+
+Build **log-service** - a queryable log aggregation service that makes logs accessible to both humans (via LogBench UI) and agents (via API/CLI).
+
+**Vision:** Environment observability for agents and principals. An agent debugging an issue should be able to query logs just like a human would grep through them - but smarter.
+
+**Multi-Service:** This service will aggregate logs from ALL services in the ecosystem - agency-service, future extracted services, and eventually cloud/remote services. We're in a meta situation: building The Agency with The Agency.
+
+**Related Ideas:**
+- IDEA-jordan-00001: Context-efficient tool logging - Tools should log to log-service and return minimal output (1 line vs 231 lines), dramatically reducing context window consumption while maintaining debuggability.
+
+## Extended Scope: Tool Invocation Logging
+
+**Added 2026-01-10:** Track all tool invocations to understand agent behavior and optimize tooling.
+
+### What to Log
+- `./tools/*` invocations (myclaude, tag, commit, etc.)
+- Bash commands executed by agents
+- MCP tool calls
+- Duration, success/failure, exit codes
+
+### Goals
+- See what agents are doing
+- Identify high-frequency tool usage patterns
+- Find opportunities to reduce context/token usage
+- Make better, more effective tools
+
+### Tool Invocation Schema
+```typescript
+interface ToolInvocation {
+  id: string;
+  timestamp: Date;
+  toolType: 'agency-tool' | 'bash' | 'mcp';
+  toolName: string;           // e.g., "myclaude", "git", "Read"
+  args?: string[];
+  agentName?: string;
+  workstream?: string;
+  duration: number;           // ms
+  exitCode: number;
+  success: boolean;
+  outputSize: number;         // bytes (for context analysis)
+}
+```
+
+---
+
+## Use Cases
+
+### For Agents
+```
+"Show me errors in bug-service from the last hour"
+"What happened around request ID abc-123?"
+"Find all logs mentioning user jordan"
+"Show me the request/response for the failed API call"
+```
+
+### For Tool Analysis
+```
+"What tools are agents using most?"
+"Which tools produce the most output (context hogs)?"
+"What's the average duration of git operations?"
+"Show failed tool invocations in the last 24h"
+```
+
+### For Principals (via LogBench UI)
+- Live log tailing with filters
+- Search across time ranges
+- Drill down by service, level, correlation ID
+- Error aggregation and trends
+
+### Future (Cloud)
+- Aggregate logs from dev/staging/prod
+- Cross-environment debugging
+- Log retention policies
+- Alerting integration
+
+## Architecture
+
+### Embedded Service Pattern
+```
+services/agency-service/
+  src/embedded/
+    log-service/
+      index.ts
+      routes.ts
+      service/
+        log.service.ts
+      repository/
+        log.repository.ts
+      types.ts
+```
+
+### API Design
+
+```
+# Ingestion
+POST   /api/log                      # Ingest log entry (internal)
+POST   /api/log/batch                # Batch ingest
+
+# Query
+GET    /api/log                      # Query logs with filters
+GET    /api/log/search               # Full-text search
+GET    /api/log/stats                # Log statistics (counts by level, service)
+GET    /api/log/services             # List services with logs
+
+# Streaming (future)
+GET    /api/log/stream               # WebSocket/SSE live tail
+```
+
+### Query Parameters
+
+```
+GET /api/log?service=bug-service&level=error&since=1h&limit=100
+
+Parameters:
+  service     - Filter by service name
+  level       - Filter by level (trace, debug, info, warn, error, fatal)
+  since       - Time range (1h, 24h, 7d, or ISO timestamp)
+  until       - End time (ISO timestamp)
+  search      - Full-text search in message
+  requestId   - Filter by correlation/request ID
+  limit       - Max results (default 100)
+  offset      - Pagination offset
+```
+
+### Log Entry Schema
+
+```typescript
+interface LogEntry {
+  id: string;                    // UUID
+  timestamp: Date;
+  service: string;               // e.g., "bug-service", "core", "queue"
+  level: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+  message: string;
+
+  // Context
+  requestId?: string;            // Correlation ID
+  userId?: string;               // Who triggered this
+  userType?: 'principal' | 'agent' | 'system';
+
+  // Structured data
+  data?: Record<string, unknown>; // Additional fields
+
+  // Error info
+  error?: {
+    name: string;
+    message: string;
+    stack?: string;
+  };
+}
+```
+
+### Storage Strategy
+
+**Local (SQLite):**
+- Store logs in SQLite with FTS5 for full-text search
+- Automatic rotation/cleanup (keep last N days)
+- Fast enough for local development
+
+**Cloud (Future):**
+- PostgreSQL with TimescaleDB extension
+- Or dedicated log service (Loki, Elasticsearch)
+- Configurable retention policies
+
+### Integration with Existing Logging
+
+Current pino logger writes to rotating files. Options:
+
+**Option A: Dual Write**
+- Logger writes to file AND inserts into log-service DB
+- Pro: Real-time queryability
+- Con: More I/O, potential performance impact
+
+**Option B: Log Shipper**
+- Separate process tails log files, inserts into DB
+- Pro: Decoupled, no performance impact on main service
+- Con: Slight delay, more moving parts
+
+**Option C: Replace File Logging**
+- Logger writes directly to log-service DB only
+- Pro: Single source of truth
+- Con: Lose file-based debugging if DB issues
+
+**Recommendation:** Start with Option A (dual write) for simplicity. The performance impact is minimal for local development.
+
+## CLI Integration
+
+```bash
+# Query logs
+./tools/agency-service log                           # Recent logs (all)
+./tools/agency-service log --service bug-service     # Filter by service
+./tools/agency-service log --level error             # Filter by level
+./tools/agency-service log --since 1h                # Time range
+./tools/agency-service log --search "failed"         # Full-text search
+
+# Sub-service shorthand
+./tools/agency-service bug logs                      # Same as --service bug-service
+
+# Live tail
+./tools/agency-service log --follow                  # Stream new logs
+
+# Stats
+./tools/agency-service log stats                     # Error counts, etc.
+```
+
+## LogBench UX (AgencyBench)
+
+### Features
+- Live log stream with pause/resume
+- Filter panel (service, level, time range)
+- Search bar with autocomplete
+- Log detail view (expand to see full context)
+- Error highlighting
+- Timestamp toggle (relative vs absolute)
+- Export to file
+
+### Layout
+```
+┌─────────────────────────────────────────────────────────────┐
+│ LogBench                                    [Live] [Pause]  │
+├─────────────────────────────────────────────────────────────┤
+│ Service: [All ▼]  Level: [All ▼]  Since: [1h ▼]  [Search...] │
+├─────────────────────────────────────────────────────────────┤
+│ 14:32:01 INFO  bug-service   Bug created: BENCH-00042       │
+│ 14:32:00 DEBUG core          Request: POST /api/bug         │
+│ 14:31:58 ERROR bug-service   Validation failed: missing... ▼│
+│   └─ { "field": "summary", "error": "required" }            │
+│ 14:31:55 INFO  queue         Job enqueued: notify-assignee  │
+│ ...                                                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Implementation Phases
+
+### Phase 1: Core log-service
+- [x] Create `embedded/log-service/` structure
+- [x] Implement log entry schema and types
+- [x] Implement `log.repository.ts` with SQLite + FTS5
+- [x] Implement `log.service.ts` with query methods
+- [x] Implement routes (`/api/log/*`)
+- [x] Integrate with existing pino logger (dual write)
+- [x] Add CLI commands (`./tools/agency-service log`)
+
+### Phase 2: Sub-service integration
+- [x] Add `./tools/agency-service <service> logs` shorthand
+- [x] Add log stats endpoint (`/api/log/stats`)
+- [x] Add request ID correlation (runId in logs)
+
+### Phase 3: LogBench UX
+- [x] Create LogBench app in AgencyBench (`/bench/logs`)
+- [x] Implement live log streaming (polling-based refresh)
+- [x] Add filter/search UI
+- [x] Add log detail expansion
+
+### Phase 4: Cloud Readiness
+- [ ] PostgreSQL adapter for log storage
+- [ ] Multi-environment support
+- [x] Retention policies (configurable via AGENCY_LOG_RETENTION_DAYS)
+- [ ] Log shipping from remote services
+
+## Acceptance Criteria
+
+**Phase 1:**
+- [x] `curl /api/log/query?service=bug-service&level=error` returns filtered logs
+- [x] `./tools/agency-service log --service bug-service` works
+- [x] Logs are automatically ingested as services run (7,300+ logs)
+- [x] Full-text search works (`/api/log/search?q=...`)
+
+**Overall:**
+- [x] Agents can query logs via API
+- [x] LogBench UI provides human-friendly log viewing
+- [x] Logs are retained for configurable period (AGENCY_LOG_RETENTION_DAYS, default 30)
+- [x] Performance impact on main service is minimal
+
+## Dependencies
+
+- REQUEST-jordan-0011 (agency-service foundation) - COMPLETE
+
+## Technical Notes
+
+### SQLite FTS5 for Search
+
+```sql
+CREATE VIRTUAL TABLE log_entries_fts USING fts5(
+  message,
+  content='log_entries',
+  content_rowid='id'
+);
+
+-- Search
+SELECT * FROM log_entries
+WHERE id IN (SELECT rowid FROM log_entries_fts WHERE log_entries_fts MATCH 'error');
+```
+
+### Pino Integration
+
+```typescript
+// Wrap pino to dual-write
+import { logger } from './lib/logger';
+import { logService } from './embedded/log-service';
+
+const originalInfo = logger.info.bind(logger);
+logger.info = (obj, msg) => {
+  originalInfo(obj, msg);
+  logService.ingest({ level: 'info', message: msg, data: obj });
+};
+```
+
+---
+
+## Activity Log
+
+### 2026-01-10 - Tool Invocation Schema Enhanced (housekeeping)
+Enhanced the Tool Run schema per REQUEST-0012 requirements:
+
+**Files Modified:**
+- `services/agency-service/src/embedded/log-service/types.ts` - Added ToolType enum and new fields
+- `services/agency-service/src/embedded/log-service/repository/log.repository.ts` - Updated schema and CRUD operations
+
+**New Fields Added to ToolRun:**
+- `toolType`: 'agency-tool' | 'bash' | 'mcp' - Categorizes tool invocations
+- `args`: string[] - Command arguments for analysis
+- `agentName`: string - Which agent made the call
+- `workstream`: string - Work context
+- `exitCode`: number - Process exit code (0-255)
+- `outputSize`: number - Output size in bytes (critical for context optimization)
+- `duration`: number - Calculated from start/end times
+
+**API Changes:**
+- `POST /api/log/run/start` now accepts: toolType, args, agentName, workstream
+- `POST /api/log/run/end/:runId` now accepts: exitCode, outputSize
+
+**Migration:**
+- Added automatic column migration for existing databases
+
+**Use Cases Enabled:**
+- "What tools are agents using most?"
+- "Which tools produce the most output (context hogs)?"
+- "What's the average duration of git operations?"
+- "Show failed tool invocations in the last 24h"
+
+### 2026-01-10 - AgencyBench UX Created (housekeeping)
+Created Log Service UX page in AgencyBench at `/bench/logs`:
+- Log list with timestamp, level, service, message columns
+- Color-coded by level (trace, debug, info, warn, error, fatal)
+- Filters: level, service, time range (15m, 1h, 6h, 24h, 7d), search
+- Real-time polling with Live/Paused toggle
+- Log detail panel with stack trace, metadata, structured data
+- Stats panel showing totals, errors in last hour, active services
+- runId correlation display for tool tracking
+
+**Files Created/Modified:**
+- `the-agency-starter/apps/agency-bench/src/app/bench/(apps)/logs/page.tsx` (705 lines)
+- `the-agency-starter/apps/agency-bench/src/components/bench/AppSidebar.tsx` - Added Logs entry
+- `the-agency-starter/apps/agency-bench/src/components/bench/Header.tsx` - Added /bench/logs route
+
+### 2026-01-20 - Tool Output Standard Implementation (housekeeping/captain)
+Fixed 17 tools missing `log_end` calls to complete the logging lifecycle:
+
+**Problem Identified:**
+- 17 tools had `log_start` but NO `log_end`
+- Tool runs were started but never completed in log service
+- Verbose output went to stdout instead of being captured to database
+
+**Tools Updated:**
+- agency-bench, bench-build, bug-report, code-review
+- hello, hi, log, message-read, message-send
+- nit-add, nit-resolve, request-complete
+- starter-compare, starter-test, tab-status
+- tool-find, version-next
+
+**Changes Made:**
+1. Added `log_end` calls to all 17 tools
+2. Updated `code-review` to capture verbose output and show minimal status
+3. Updated `request-complete` to use minimal output pattern
+4. Updated tests to expect minimal output format
+
+**Result:**
+- Tools now output minimal status to stdout (3 lines max)
+- Verbose output stored in log service database
+- View verbose output with: `./tools/agency-service log run {run-id}`
+
+**Commit:** REQUEST-jordan-0012-impl tagged
+
+### 2026-01-20 - CLI Log Command Fix (housekeeping/captain)
+Fixed two bugs in the log CLI commands:
+
+**Problems:**
+1. `./tools/agency-service log --service X` failed with "Unknown log command: --service"
+2. `cmd_log_query` used wrong endpoint `/api/log` instead of `/api/log/query`
+
+**Fixes:**
+- `tools/agency-service` line 972: Added detection for `--` flags directly after `log` command
+- `tools/agency-service` line 703: Changed endpoint from `/api/log` to `/api/log/query`
+
+**Verified Working:**
+- `./tools/agency-service log --service tab-status --limit 3`
+- `./tools/agency-service log --level error`
+- `./tools/agency-service log stats`
+- `./tools/agency-service log search "error" 1h`
+
+**Phase 1 Status:** All acceptance criteria now complete. Updated checkboxes.
+
+### 2026-01-20 - Phases 1-3 Complete (housekeeping/captain)
+Completed the remaining items to finish Phases 1, 2, and 3:
+
+**1. Pino Logger Dual-Write Integration:**
+- Added custom Pino stream in `src/core/lib/logger.ts` that writes to log-service
+- `enableLogServiceDualWrite(logService)` called after log-service initialization
+- All Pino logs from agency-service now stored in queryable database
+
+**2. Service Logs Shorthand:**
+- Added `logs` subcommand to bug, message, and test service cases
+- `./tools/agency-service bug logs --level error` → queries bug-service logs
+- `./tools/agency-service test logs --limit 3` → queries test-service logs
+- Removed duplicate `test)` case that was blocking subcommand parsing
+
+**3. Configurable Retention Policies:**
+- Added `logRetentionDays` config (AGENCY_LOG_RETENTION_DAYS env var, default 30)
+- Log-service runs cleanup on initialization based on retention config
+- CLI: `./tools/agency-service log cleanup [days]` for manual cleanup
+
+**Files Modified:**
+- `src/core/lib/logger.ts` - Dual-write stream + enableLogServiceDualWrite()
+- `src/core/config/index.ts` - Added logRetentionDays config
+- `src/embedded/log-service/index.ts` - Accept retentionDays, cleanup on init
+- `src/index.ts` - Pass retention config to log-service
+- `tools/agency-service` - Service logs shortcuts, cleanup command, help text
+
+**Status:** Complete
+
+### 2026-01-10 14:45 SST - Created
+- Request created based on discussion about environment observability
+- Vision: queryable logs for both agents and humans
+- Supports future cloud/multi-environment debugging

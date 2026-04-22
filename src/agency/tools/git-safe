@@ -1,0 +1,476 @@
+#!/bin/bash
+# What Problem: Agents run raw git commands that can be destructive or violate
+# conventions (git add -A, git add ., rebasing, force push). There is no safe
+# subset of git operations that agents can use without risk of breaking the
+# working tree or violating The Agency's merge-not-rebase discipline.
+#
+# How & Why: A curated set of read-only and carefully-guarded write operations
+# exposed as subcommands. Read operations (status, log, diff, branch, show,
+# blame) pass through directly. The only write operation — git add — blocks
+# wildcard/directory patterns that could stage secrets or binaries. The
+# merge-from-master subcommand enforces clean-tree merges with auto-detection
+# of main vs master. Hookify rules can trust git-safe invocations because the
+# dangerous patterns are blocked at this layer.
+#
+# Written: 2026-04-14 during devex workstream (git-safe family)
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# Colors
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED=$'\033[0;31m' GREEN=$'\033[0;32m' YELLOW=$'\033[1;33m' BLUE=$'\033[0;34m' NC=$'\033[0m'
+fi
+
+die() { echo "${RED}[ERROR]${NC} $1" >&2; exit 1; }
+
+usage() {
+    cat <<'USAGE'
+git-safe — Safe git operations for all agents
+
+Usage: ./agency/tools/git-safe <subcommand> [args...]
+
+Subcommands (read-only):
+  status [args]          git status
+  log [args]             git log
+  diff [args]            git diff
+  branch                 Show current branch name
+  show [args]            git show
+  blame [args]           git blame
+
+Subcommands (guarded write):
+  add <file> [file...]         Stage explicit file paths (blocks -A, --all, ., wildcards)
+  rm <file> [file...]          Remove files (also removes from index) — blocks wildcards/dirs
+  merge-from-master            Merge main/master into current branch (clean tree required)
+                               Pass --remote to merge origin/main instead of local main
+  resolve-conflict <file> --ours|--theirs
+                               Resolve a conflicted file by taking one side, then stage it.
+                               Only valid mid-merge (MERGE_HEAD present).
+  merge-abort                  Abort an in-progress merge (wraps git merge --abort).
+  config --list                List all git config
+  config <key>                 Read one config key
+  config --local <key> <value> Set a config key in this repo (allow-list enforced)
+  config --global <key> <value>
+                               Set a config key globally (allow-list enforced)
+                               Allowed keys: commit.gpgsign, commit.verbose,
+                               user.name, user.email, pull.rebase,
+                               init.defaultBranch, core.autocrlf, core.editor
+  stash push [-m <msg>]        Stash working tree changes (pass-through)
+  stash list                   List stashes
+  stash pop [<stash>]          Pop the latest (or named) stash
+  stash drop [<stash>]         Drop the latest (or named) stash (destructive — warns)
+  stash show [<stash>]         Show stash contents (diff)
+  mv <source> <destination>    Atomic file move (git mv with safety guards)
+                               Blocks: wildcards, path traversal (..), directories
+  unstage <file> [file...]     Remove files from staging area (keeps working tree)
+                               Wraps git reset HEAD -- <files>
+  restore <file> [file...]     Restore working tree files from HEAD
+                               Wraps git checkout HEAD -- <files> via temp+rename
+
+Options:
+  --help                 Show this help
+  --version              Show version
+USAGE
+    exit 0
+}
+
+# --- Subcommand: status ---
+cmd_status() {
+    git status "$@"
+}
+
+# --- Subcommand: log ---
+cmd_log() {
+    git log "$@"
+}
+
+# --- Subcommand: diff ---
+cmd_diff() {
+    git diff "$@"
+}
+
+# --- Subcommand: branch ---
+cmd_branch() {
+    git branch --show-current
+}
+
+# --- Subcommand: show ---
+cmd_show() {
+    git show "$@"
+}
+
+# --- Subcommand: blame ---
+cmd_blame() {
+    git blame "$@"
+}
+
+# --- Subcommand: add ---
+cmd_add() {
+    [[ $# -eq 0 ]] && die "git-safe add requires explicit file paths. Usage: git-safe add <file> [file...]"
+
+    for arg in "$@"; do
+        # Block flags that stage everything
+        case "$arg" in
+            -A|--all)
+                die "git-safe add blocks '$arg' — specify explicit file paths instead."
+                ;;
+        esac
+
+        # Block bare directory paths and wildcards
+        if [[ "$arg" == "." || "$arg" == "./" || "$arg" == ".." || "$arg" == "../" ]]; then
+            die "git-safe add blocks '$arg' — specify explicit file paths instead."
+        fi
+
+        # Block glob wildcards (unquoted * would be expanded by shell, but quoted * arrives here)
+        if [[ "$arg" == "*" || "$arg" == "**" ]]; then
+            die "git-safe add blocks '$arg' — specify explicit file paths instead."
+        fi
+
+        # Block bare directory paths
+        if [[ -d "$arg" ]]; then
+            die "git-safe add blocks directory '$arg' — specify individual files within the directory."
+        fi
+    done
+
+    git add "$@"
+    echo "${GREEN}Staged:${NC} $*"
+}
+
+# --- Subcommand: rm ---
+# Delete files from working tree AND index. Guards match cmd_add: no wildcards,
+# no bare directories, no -r/-rf flags (those could nuke whole trees).
+cmd_rm() {
+    [[ $# -eq 0 ]] && die "git-safe rm requires explicit file paths. Usage: git-safe rm <file> [file...]"
+
+    for arg in "$@"; do
+        case "$arg" in
+            -r|-R|-rf|-rR|--recursive|-f|--force)
+                die "git-safe rm blocks '$arg' — remove individual files explicitly."
+                ;;
+        esac
+        if [[ "$arg" == "." || "$arg" == "./" || "$arg" == ".." || "$arg" == "../" ]]; then
+            die "git-safe rm blocks '$arg' — specify explicit file paths instead."
+        fi
+        if [[ "$arg" == "*" || "$arg" == "**" ]]; then
+            die "git-safe rm blocks '$arg' — specify explicit file paths instead."
+        fi
+        if [[ -d "$arg" ]]; then
+            die "git-safe rm blocks directory '$arg' — remove individual files within the directory."
+        fi
+    done
+
+    # QG fix (D41-R4+R6+R7): `--` terminator — filenames starting with '-' that
+    # weren't caught by the arg-scan deny-list should never be interpreted as
+    # flags by git rm. Defense-in-depth.
+    git rm -- "$@"
+    echo "${GREEN}Removed:${NC} $*"
+}
+
+# --- Subcommand: resolve-conflict ---
+# Mid-merge helper: take one side of a conflicted file and stage it.
+# Only valid when MERGE_HEAD exists — otherwise there's no merge to resolve.
+cmd_resolve_conflict() {
+    local file=""
+    local side=""
+    for arg in "$@"; do
+        case "$arg" in
+            --ours)   side="ours" ;;
+            --theirs) side="theirs" ;;
+            -*)       die "Unknown flag for resolve-conflict: $arg (use --ours or --theirs)" ;;
+            *)
+                if [[ -n "$file" ]]; then
+                    die "resolve-conflict takes exactly one file."
+                fi
+                file="$arg"
+                ;;
+        esac
+    done
+
+    [[ -z "$file" ]] && die "resolve-conflict requires a file path. Usage: git-safe resolve-conflict <file> --ours|--theirs"
+    [[ -z "$side" ]] && die "resolve-conflict requires --ours or --theirs."
+
+    local git_dir
+    git_dir=$(git rev-parse --git-dir 2>/dev/null) || die "Not a git repository."
+    if [[ ! -f "$git_dir/MERGE_HEAD" ]]; then
+        die "No merge in progress (no MERGE_HEAD). resolve-conflict is only valid mid-merge."
+    fi
+
+    # Verify file is actually conflicted (has unmerged entry in index)
+    if ! git ls-files -u -- "$file" 2>/dev/null | grep -q .; then
+        die "File '$file' is not conflicted (no unmerged index entry)."
+    fi
+
+    git checkout "--$side" -- "$file"
+    git add -- "$file"
+    echo "${GREEN}Resolved:${NC} $file (took $side)"
+}
+
+# --- Subcommand: merge-abort ---
+cmd_merge_abort() {
+    local git_dir
+    git_dir=$(git rev-parse --git-dir 2>/dev/null) || die "Not a git repository."
+    if [[ ! -f "$git_dir/MERGE_HEAD" ]]; then
+        die "No merge in progress (no MERGE_HEAD). Nothing to abort."
+    fi
+    git merge --abort
+    echo "${GREEN}Merge aborted.${NC} Working tree restored to pre-merge state."
+}
+
+# --- Subcommand: config ---
+# D41-R23 (issue #118): agents need a safe path to read/set git config so
+# they can self-recover from common friction (gpg-missing, missing user.name,
+# etc.) without escalating to principal. Allow-list keeps blast radius small;
+# anything that could affect auth, hooks, remotes, or signing keys requires
+# principal escalation.
+SAFE_CONFIG_KEYS=(
+    commit.gpgsign
+    commit.verbose
+    user.name
+    user.email
+    pull.rebase
+    init.defaultBranch
+    core.autocrlf
+    core.editor
+)
+
+_config_assert_allowed() {
+    local key="$1"
+    local allowed
+    for allowed in "${SAFE_CONFIG_KEYS[@]}"; do
+        [[ "$key" == "$allowed" ]] && return 0
+    done
+    die "git-safe config refuses '$key' — not on the safe-keys allow-list (${SAFE_CONFIG_KEYS[*]}). Escalate to principal for other config changes."
+}
+
+cmd_config() {
+    [[ $# -eq 0 ]] && die "Usage: git-safe config --list | <key> | --local <key> <value> | --global <key> <value>"
+
+    case "$1" in
+        --list)
+            git config --list
+            return
+            ;;
+        --local|--global)
+            local scope="$1"; shift
+            [[ $# -ne 2 ]] && die "Usage: git-safe config $scope <key> <value>"
+            local key="$1" value="$2"
+            _config_assert_allowed "$key"
+            git config "$scope" "$key" "$value"
+            echo "${GREEN}Set${NC} $scope $key=$value"
+            ;;
+        -*)
+            die "Unknown flag: $1 (use --list, --local, --global, or a bare key)"
+            ;;
+        *)
+            # Read a single key (no value → exit 0 with empty output, like git config --get)
+            git config --get "$1" 2>/dev/null || true
+            ;;
+    esac
+}
+
+# --- Subcommand: stash ---
+# D41-R28 (issue #126): safe wrappers lacked stash — blocked mid-merge recovery.
+# Pass-through to git stash subcommands. `drop` is destructive and warns.
+cmd_stash() {
+    [[ $# -eq 0 ]] && die "Usage: git-safe stash push|list|pop|drop|show [args...]"
+
+    local sub="$1"; shift
+    case "$sub" in
+        push)  git stash push "$@" ;;
+        list)  git stash list "$@" ;;
+        pop)   git stash pop "$@" ;;
+        drop)
+            echo "${YELLOW}warn:${NC} git-safe stash drop is destructive and cannot be undone." >&2
+            git stash drop "$@"
+            ;;
+        show)  git stash show "$@" ;;
+        *)     die "Unknown stash subcommand: $sub (use push, list, pop, drop, show)" ;;
+    esac
+}
+
+# --- Subcommand: merge-from-master ---
+cmd_merge_from_master() {
+    # Auto-detect main branch name
+    local main_branch=""
+    if git show-ref --verify refs/heads/main &>/dev/null; then
+        main_branch="main"
+    elif git show-ref --verify refs/heads/master &>/dev/null; then
+        main_branch="master"
+    else
+        die "Cannot find main or master branch."
+    fi
+
+    local current_branch
+    current_branch=$(git branch --show-current)
+
+    if [[ "$current_branch" == "$main_branch" ]]; then
+        die "Already on $main_branch — merge-from-master is for feature branches."
+    fi
+
+    # Refuse if working tree is dirty
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+        die "Working tree is dirty. Commit or stash changes first (see /worktree-sync)."
+    fi
+
+    # Check for untracked files that might cause merge conflicts
+    # (informational only — untracked files don't block merge)
+
+    # Optional --remote flag: merge origin/$main_branch instead of local main.
+    # Useful when local main is behind origin/main and cannot be advanced
+    # (e.g., captain sitting on a feature branch post-PR-merge).
+    local target="$main_branch"
+    local label="$main_branch"
+    for arg in "$@"; do
+        if [[ "$arg" == "--remote" ]]; then
+            if ! git show-ref --verify "refs/remotes/origin/$main_branch" &>/dev/null; then
+                die "origin/$main_branch does not exist. Fetch first."
+            fi
+            target="origin/$main_branch"
+            label="origin/$main_branch"
+        fi
+    done
+
+    echo "${BLUE}Merging $label into $current_branch...${NC}"
+    if git merge "$target" --no-edit; then
+        echo "${GREEN}Merge complete.${NC} $label merged into $current_branch."
+    else
+        die "Merge failed — resolve conflicts manually, then commit."
+    fi
+}
+
+# --- Subcommand: mv ---
+# D42-R3 (issue #130): atomic file move with path safety.
+# Wraps git mv. Blocks wildcards, path traversal, directories.
+cmd_mv() {
+    [[ $# -lt 2 ]] && die "Usage: git-safe mv <source> <destination>"
+
+    local source="$1"
+    local dest="$2"
+    shift 2
+
+    local dry_run=false
+    local verbose=false
+    for arg in "$@"; do
+        case "$arg" in
+            --dry-run) dry_run=true ;;
+            --verbose|-v) verbose=true ;;
+            *) die "Unknown flag: $arg" ;;
+        esac
+    done
+
+    # Path traversal check
+    [[ "$source" == *".."* ]] && die "Path traversal blocked — '..' not allowed in source"
+    [[ "$dest" == *".."* ]] && die "Path traversal blocked — '..' not allowed in destination"
+
+    # Wildcard check
+    [[ "$source" == *"*"* || "$source" == *"?"* ]] && die "Wildcards not allowed — specify exact file paths"
+    [[ "$dest" == *"*"* || "$dest" == *"?"* ]] && die "Wildcards not allowed — specify exact file paths"
+
+    # Source must exist and be a file (not directory)
+    [[ -e "$source" ]] || die "Source file not found: $source"
+    [[ -f "$source" ]] || die "Source must be a file, not a directory: $source (move files individually for auditability)"
+
+    # Destination parent must exist
+    local dest_dir
+    dest_dir="$(dirname "$dest")"
+    [[ -d "$dest_dir" ]] || die "Destination directory does not exist: $dest_dir\n  Create it first: mkdir -p $dest_dir"
+
+    # Dry run
+    if [[ "$dry_run" == "true" ]]; then
+        echo "Would move: $source → $dest"
+        exit 0
+    fi
+
+    # Execute
+    if git mv "$source" "$dest"; then
+        if [[ "$verbose" == "true" ]]; then
+            echo "Moved: $source → $dest"
+        fi
+    else
+        die "git mv failed for: $source → $dest"
+    fi
+}
+
+# --- Subcommand: unstage ---
+# D42-R3: framework safety gap from D42 index corruption incident.
+# Removes files from staging area without touching working tree.
+cmd_unstage() {
+    [[ $# -eq 0 ]] && die "Usage: git-safe unstage <file> [file...]"
+
+    for file in "$@"; do
+        # Block wildcards
+        [[ "$file" == *"*"* || "$file" == *"?"* ]] && die "Wildcards not allowed: $file"
+        # Block path traversal
+        [[ "$file" == *".."* ]] && die "Path traversal blocked: $file"
+        # Block -A/--all style flags
+        [[ "$file" == -* ]] && die "Flags not allowed — specify file paths only"
+    done
+
+    git reset HEAD -- "$@"
+    echo "Unstaged: $*"
+}
+
+# --- Subcommand: restore ---
+# D42-R3: framework safety gap from D42 self-clobber incident.
+# Restores working tree files from HEAD. Uses temp file + rename to avoid
+# the shell redirect self-clobber trap (> truncates before command runs).
+cmd_restore() {
+    [[ $# -eq 0 ]] && die "Usage: git-safe restore <file> [file...]"
+
+    for file in "$@"; do
+        # Block wildcards
+        [[ "$file" == *"*"* || "$file" == *"?"* ]] && die "Wildcards not allowed: $file"
+        # Block path traversal
+        [[ "$file" == *".."* ]] && die "Path traversal blocked: $file"
+        # Block -A/--all style flags
+        [[ "$file" == -* ]] && die "Flags not allowed — specify file paths only"
+    done
+
+    local restored=0
+    for file in "$@"; do
+        # Write to temp first, then move — avoids self-clobber
+        local tmp
+        tmp=$(mktemp "${file}.restore.XXXXXX")
+        if git show "HEAD:$file" > "$tmp" 2>/dev/null; then
+            mv "$tmp" "$file"
+            ((restored++))
+        else
+            rm -f "$tmp"
+            echo "${YELLOW}warn:${NC} $file not found in HEAD — skipped" >&2
+        fi
+    done
+    echo "Restored $restored file(s) from HEAD"
+}
+
+# --- Main dispatch ---
+[[ $# -eq 0 ]] && usage
+
+case "$1" in
+    --help|-h)    usage ;;
+    --version)    echo "git-safe $TOOL_VERSION"; exit 0 ;;
+    status)       shift; cmd_status "$@" ;;
+    log)          shift; cmd_log "$@" ;;
+    diff)         shift; cmd_diff "$@" ;;
+    branch)       shift; cmd_branch "$@" ;;
+    show)         shift; cmd_show "$@" ;;
+    blame)        shift; cmd_blame "$@" ;;
+    add)              shift; cmd_add "$@" ;;
+    rm)               shift; cmd_rm "$@" ;;
+    resolve-conflict) shift; cmd_resolve_conflict "$@" ;;
+    merge-abort)      shift; cmd_merge_abort "$@" ;;
+    merge-from-master) shift; cmd_merge_from_master "$@" ;;
+    config)           shift; cmd_config "$@" ;;
+    stash)            shift; cmd_stash "$@" ;;
+    mv)               shift; cmd_mv "$@" ;;
+    unstage)          shift; cmd_unstage "$@" ;;
+    restore)          shift; cmd_restore "$@" ;;
+    *)            die "Unknown subcommand: $1 — run 'git-safe --help' for usage." ;;
+esac

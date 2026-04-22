@@ -1,0 +1,67 @@
+{
+  "// NOTE": "This is an example. Copy to settings.local.json and customize.",
+  "// Documentation": "See claude/knowledge/claude-code/05-configuration.md",
+
+  "permissions": {
+    "allow": [
+      "// ===== Git Operations =====",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "Bash(git show:*)",
+
+      "// ===== Package Management =====",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm run:*)",
+      "Bash(yarn install:*)",
+      "Bash(yarn run:*)",
+      "Bash(npx:*)",
+
+      "// ===== Build/Dev/Test =====",
+      "Bash(node:*)",
+      "Bash(python3:*)",
+      "Bash(pytest:*)",
+
+      "// ===== File Operations =====",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(echo:*)",
+
+      "// ===== WebFetch Domains (add your project domains) =====",
+      "WebFetch(domain:localhost)",
+      "WebFetch(domain:127.0.0.1)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebSearch"
+    ],
+
+    "deny": [
+      "// ===== Dangerous Operations =====",
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(sudo:*)"
+    ]
+  },
+
+  "// You can also add hooks here that are specific to your project": {},
+  "hooks": {
+    "// Example": "See .claude/settings.json for framework hooks",
+    "// UserPromptSubmit": "Add custom pre-prompt hooks here"
+  }
+}

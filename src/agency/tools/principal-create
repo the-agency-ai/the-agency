@@ -1,0 +1,207 @@
+#!/bin/bash
+# Create a new principal (human stakeholder)
+#
+# Usage: ./agency/tools/principal-create <principalname> [projectname] [--verbose]
+#
+# Creates:
+#   usr/{principalname}/
+#     - projects/, resources/, sessions/, config/
+#
+# Optional integrations (if projectname provided):
+#   - iCloud cloud storage setup
+
+set -euo pipefail
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# Tool version
+TOOL_VERSION="1.1.0-20260114-000008"
+
+# Colors
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="[0;31m" GREEN="[0;32m" YELLOW="[1;33m" BLUE="[0;34m" NC="[0m"
+fi
+
+# Defaults
+VERBOSE=false
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Usage function
+usage() {
+    cat << EOF
+Usage: principal-create <principalname> [projectname] [--verbose]
+
+Create a new principal directory structure.
+
+Arguments:
+  principalname  - Name for the principal (must start with letter, alphanumeric/hyphens/underscores only)
+  projectname    - Optional: project name for iCloud setup
+
+Options:
+  --verbose      - Show detailed logging
+  -v, --version  - Show version
+  -h, --help     - Show this help
+
+Examples:
+  ./agency/tools/principal-create jordan
+  ./agency/tools/principal-create jordan the-agency
+  ./agency/tools/principal-create alice --verbose
+EOF
+}
+
+# Parse arguments
+PRINCIPALNAME=""
+PROJECTNAME=""
+
+for arg in "$@"; do
+    case $arg in
+        -v|--version)
+            echo "principal-create $TOOL_VERSION"
+            exit 0
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --verbose)
+            VERBOSE=true
+            ;;
+        *)
+            if [[ -z "$PRINCIPALNAME" ]]; then
+                PRINCIPALNAME="$arg"
+            elif [[ -z "$PROJECTNAME" ]]; then
+                PROJECTNAME="$arg"
+            fi
+            ;;
+    esac
+done
+
+if [ -z "$PRINCIPALNAME" ]; then
+  log_error "Missing required argument"
+  echo ""
+  usage
+  exit 1
+fi
+
+# Validate principal name format
+if [[ ! "$PRINCIPALNAME" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+    log_error "Invalid principal name: $PRINCIPALNAME"
+    echo "Name must start with a letter and contain only letters, numbers, hyphens, underscores."
+    exit 1
+fi
+
+# Convert to lowercase
+PRINCIPALNAME=$(echo "$PRINCIPALNAME" | tr '[:upper:]' '[:lower:]')
+
+DIR="usr/$PRINCIPALNAME"
+LEGACY_DIR="usr/$PRINCIPALNAME"
+TIMESTAMP=$(./agency/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
+
+# Main function
+main() {
+    # Initialize RUN_ID before trap to avoid referencing undefined variable
+    RUN_ID=$(log_start "principal-create" "$@" 2>/dev/null) || true
+
+    # Trap unexpected exits
+    trap 'log_end "${RUN_ID:-}" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "principal-create [run: ${RUN_ID:-none}]"
+
+    # Check principal doesn't exist (check both v2 and legacy locations)
+    if [ -d "$DIR" ] || [ -d "$LEGACY_DIR" ]; then
+      local existing="$DIR"
+      [ -d "$LEGACY_DIR" ] && existing="$LEGACY_DIR"
+      log_error "Principal '$PRINCIPALNAME' already exists at $existing"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Principal already exists"
+      exit 1
+    fi
+
+    log_step "Creating principal: $PRINCIPALNAME"
+
+    # Use v2 template if available, otherwise create minimal v2 structure
+    TEMPLATE_V2="agency/templates/principal-v2"
+    if [[ -d "$TEMPLATE_V2" ]]; then
+        log_info "Creating principal from v2 template (usr/{principal}/)..."
+        mkdir -p "$DIR"
+        cp -r "$TEMPLATE_V2/"* "$DIR/" 2>/dev/null || true
+
+        # Replace template placeholders in all markdown files
+        while IFS= read -r -d '' file; do
+            if [[ "$(uname)" == "Darwin" ]]; then
+                sed -i '' "s/{{PRINCIPAL_NAME}}/$PRINCIPALNAME/g" "$file"
+            else
+                sed -i "s/{{PRINCIPAL_NAME}}/$PRINCIPALNAME/g" "$file"
+            fi
+        done < <(find "$DIR" -name "*.md" -print0 2>/dev/null)
+    else
+        # Minimal v2 structure
+        mkdir -p "$DIR"/{commands,hookify,hooks,agents,refs}
+        mkdir -p "$DIR"/scripts
+
+        # Create principal README
+        cat > "$DIR/README.md" << EOF
+# Principal: $PRINCIPALNAME
+
+**Created:** $TIMESTAMP
+
+## Structure
+
+- Claude Code config (commands, hookify, hooks, agents, refs) — lives directly under the principal dir
+- \`scripts/\` - Cross-cutting scripts
+- \`{project}/\` - One directory per project
+
+## File Naming Convention
+
+All project artifacts follow: \`{project}-{artifact}-YYYYMMDD.md\`
+
+## Getting Started
+
+1. Create a project: \`mkdir -p usr/$PRINCIPALNAME/my-project/{transcripts,code-reviews,history}\`
+2. Configure: \`agency/config/agency.yaml\` to map your system user
+EOF
+    fi
+
+    echo "Created: $DIR/"
+
+    # Run iCloud setup if project name provided
+    if [ -n "$PROJECTNAME" ]; then
+      verbose_echo ""
+      log_step "Setting up iCloud integration..."
+      ./agency/tools/icloud-setup "$PROJECTNAME" "$PRINCIPALNAME"
+    fi
+
+    # Update principals index
+    INDEX="usr/INDEX.md"
+    if [ -f "$INDEX" ]; then
+      if ! grep -q "| $PRINCIPALNAME |" "$INDEX"; then
+        echo "| $PRINCIPALNAME | $TIMESTAMP | Active |" >> "$INDEX"
+        verbose_echo "Updated: $INDEX"
+      fi
+    fi
+
+    echo ""
+    echo "Principal '$PRINCIPALNAME' created successfully!"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Review: $DIR/README.md"
+    echo "  2. Configure: agency/config/agency.yaml to map your system user"
+    echo "  3. Create your first project: mkdir -p $DIR/my-project/{transcripts,code-reviews,history}"
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Principal $PRINCIPALNAME created"
+}
+
+main

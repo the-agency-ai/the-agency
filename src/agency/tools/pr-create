@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# What Problem: PRs were being created without running the Quality Gate,
+# and versions were not being bumped. PRs shipped without receipts.
+#
+# How & Why: Wraps gh pr create with mandatory checks:
+# 1. Must be on a branch, not main
+# 2. receipt-verify must pass (QGR or RGR with valid hash)
+# 3. agency_version must be bumped
+# Hookify blocks raw gh pr create.
+#
+# Usage: ./agency/tools/pr-create --title "title" --body "body"
+#        All gh pr create flags are passed through after validation.
+#
+# Written: 2026-04-14 during captain session (PR discipline enforcement)
+# Updated: iteration 1.4 — replaced inline hash logic with receipt-verify
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# ── Step 1: Verify on a branch, not main ─────────────────────────────────
+
+BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)
+
+if [[ "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
+    echo "BLOCKED: Cannot create PR from $BRANCH. Create a branch first." >&2
+    exit 1
+fi
+
+echo "✓ On branch: $BRANCH"
+
+# ── Step 2: Verify receipt ───────────────────────────────────────────────
+
+# D42-R3 / v46.1-R1: four-tier receipt search
+# Tier 1: per-workstream qgr/ and rgr/ (post-v46 canonical)
+NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
+
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    # Tier 2: legacy flat receipts dir
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+fi
+
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    # Tier 3: old usr/ location
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+fi
+
+if [[ -z "$NEWEST_RECEIPT" ]]; then
+    echo "BLOCKED: No receipt found." >&2
+    echo "  Searched: agency/workstreams/*/qgr/, agency/receipts/, usr/**/qgr-*.md" >&2
+    echo "  Run /pr-prep first." >&2
+    exit 1
+fi
+
+if ! "$SCRIPT_DIR/receipt-verify" --file "$NEWEST_RECEIPT" 2>&1; then
+    echo "" >&2
+    echo "Every PR requires a valid receipt. Run /pr-prep again." >&2
+    exit 1
+fi
+
+# ── Step 3: Verify version was bumped ────────────────────────────────────
+
+MANIFEST="$REPO_ROOT/agency/config/manifest.json"
+
+if [[ ! -f "$MANIFEST" ]]; then
+    echo "BLOCKED: manifest.json not found at $MANIFEST" >&2
+    exit 1
+fi
+
+# Detect the default branch so this works on repos using 'master' as well.
+# Issue #107 (monofolk hotfix): the hardcoded 'origin/main' caused false
+# "version not bumped" failures on repos where origin/master is the default.
+# Detection order:
+#   1. git symbolic-ref refs/remotes/origin/HEAD   (GitHub HEAD metadata)
+#   2. existence of refs/remotes/origin/main
+#   3. existence of refs/remotes/origin/master
+#   4. hard fail with clear message
+DEFAULT_BRANCH=$(git -C "$REPO_ROOT" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
+if [[ -z "$DEFAULT_BRANCH" ]]; then
+    if git -C "$REPO_ROOT" show-ref --verify --quiet refs/remotes/origin/main; then
+        DEFAULT_BRANCH="main"
+    elif git -C "$REPO_ROOT" show-ref --verify --quiet refs/remotes/origin/master; then
+        DEFAULT_BRANCH="master"
+    else
+        echo "BLOCKED: could not determine default branch (origin/main or origin/master)." >&2
+        echo "  Fix: git remote set-head origin -a   # to set origin/HEAD" >&2
+        exit 1
+    fi
+fi
+DEFAULT_REF="origin/$DEFAULT_BRANCH"
+
+MANIFEST_CHANGED=$(git -C "$REPO_ROOT" diff "$DEFAULT_REF"..HEAD --name-only -- agency/config/manifest.json 2>/dev/null || true)
+
+if [[ -z "$MANIFEST_CHANGED" ]]; then
+    MANIFEST_STAGED=$(git -C "$REPO_ROOT" diff --name-only -- agency/config/manifest.json 2>/dev/null || true)
+    MANIFEST_CACHED=$(git -C "$REPO_ROOT" diff --cached --name-only -- agency/config/manifest.json 2>/dev/null || true)
+
+    if [[ -z "$MANIFEST_STAGED" && -z "$MANIFEST_CACHED" ]]; then
+        echo "BLOCKED: agency_version not bumped." >&2
+        echo "" >&2
+        echo "Every PR is a release. Update agency/config/manifest.json:" >&2
+        echo "  - Bump agency_version (e.g., 40.1 → 40.2)" >&2
+        echo "  - Update updated_at timestamp" >&2
+        echo "" >&2
+        echo "The /release skill handles this automatically." >&2
+        exit 1
+    fi
+fi
+
+CURRENT_VERSION=$(grep -o '"agency_version": "[^"]*"' "$MANIFEST" | cut -d'"' -f4)
+echo "✓ Version bumped: $CURRENT_VERSION"
+
+# ── Step 4: Create the PR ────────────────────────────────────────────────
+
+echo "Creating PR..."
+gh pr create "$@"

@@ -1,0 +1,22 @@
+# _agency-whoami — Return current agent's identity
+#
+# Sourced by: agency whoami
+# Arguments via: AGENCY_ARGS array
+# Inherits: set -euo pipefail, AGENCY_DIR, _log-helper
+
+RUN_ID=$(log_start "agency-whoami" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/dev/null) || true
+
+for arg in "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}"; do
+    case "$arg" in
+        --help|-h)
+            echo "agency whoami — Show current agent identity"
+            echo ""
+            echo "Uses AGENTNAME environment variable. Falls back to 'unknown'."
+            exit 0
+            ;;
+    esac
+done
+
+echo "${AGENTNAME:-unknown}"
+
+log_end "$RUN_ID" "success" 0 0 "Agent name returned" 2>/dev/null || true

@@ -1,0 +1,303 @@
+#!/bin/bash
+#
+# flag — ISCP flag tool (v2) — Quick-capture observations, agent-addressable
+#
+# What Problem: Agents need zero-friction capture of observations during work.
+# v1 used JSONL files on master, requiring git staging and jq. v2 uses the
+# ISCP SQLite DB — instant capture from any worktree, no git involvement,
+# agent-addressable routing.
+#
+# How & Why: DB-backed flags with three-state lifecycle (unread → read →
+# processed). Default to_agent = self (personal observation queue per PVR).
+# --to routes to a specific agent. list marks as read (Slack-style seen).
+# discuss formats as numbered agenda and marks processed.
+#
+# Written: 2026-04-05 during ISCP Iteration 1.6
+#
+# Usage:
+#   flag <message>                   — flag to self
+#   flag --to <agent> <message>      — flag to specific agent
+#   flag list                        — show flags, mark as read
+#   flag count                       — count unread flags
+#   flag discuss                     — output as /discuss agenda, mark processed
+#   flag clear                       — mark all as processed
+#   flag resolve <id> [<id>...]      — mark specific flag(s) as processed
+#   flag --version                   — show version
+#   flag --help                      — show help
+
+set -euo pipefail
+
+TOOL_VERSION="2.0.1"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# CLAUDE_PROJECT_DIR is authoritative — see escalation #90
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+# Source helpers
+source "$SCRIPT_DIR/lib/_log-helper"
+source "$SCRIPT_DIR/lib/_path-resolve"
+source "$SCRIPT_DIR/lib/_address-parse"
+source "$SCRIPT_DIR/lib/_iscp-db"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+_my_identity() {
+    "$SCRIPT_DIR/agent-identity" 2>/dev/null || {
+        echo "Error: cannot resolve agent identity" >&2
+        return 1
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Commands
+# ─────────────────────────────────────────────────────────────────────────────
+
+cmd_flag() {
+    local to_agent="" message=""
+
+    # Parse --to if present
+    if [[ "${1:-}" == "--to" ]]; then
+        [[ -n "${2:-}" ]] || { echo "Error: --to requires an agent address" >&2; return 1; }
+        # Resolve the target address — must resolve to fully qualified
+        address_resolve "$2" 2>/dev/null || address_parse "$2" 2>/dev/null || {
+            echo "Error: invalid --to address: $2" >&2; return 1
+        }
+        # M3 fix: require fully qualified — bare addresses become invisible to iscp-check
+        if [[ -z "${ADDR_REPO:-}" || -z "${ADDR_PRINCIPAL:-}" || -z "${ADDR_AGENT:-}" ]]; then
+            echo "Error: --to address '$2' could not be fully resolved" >&2
+            echo "Use fully qualified form: repo/principal/agent" >&2
+            return 1
+        fi
+        to_agent=$(address_format "$ADDR_REPO" "$ADDR_PRINCIPAL" "$ADDR_AGENT")
+        shift 2
+    fi
+
+    # Rest is the message
+    message="$*"
+    if [[ -z "$message" ]]; then
+        echo "Error: message is required" >&2
+        return 1
+    fi
+
+    local from_agent
+    from_agent=$(_my_identity) || return 1
+
+    # Default to_agent = self
+    if [[ -z "$to_agent" ]]; then
+        to_agent="$from_agent"
+    fi
+
+    iscp_db_init
+
+    local session="${CLAUDE_SESSION_ID:-}"
+    local branch
+    branch=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+    iscp_db_insert_flag "$from_agent" "$to_agent" "$message" "$session" "$branch"
+
+    # Count unread for this agent
+    local counts
+    counts=$(iscp_db_count_unread "$to_agent" 2>/dev/null) || counts="0|0|0|0"
+    local flag_count
+    IFS='|' read -r flag_count _ _ _ <<< "$counts"
+
+    echo "Flagged. $flag_count unread flag(s) for $(echo "$to_agent" | rev | cut -d/ -f1 | rev)."
+}
+
+cmd_list() {
+    iscp_db_init
+
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    local result
+    result=$(iscp_db_query "SELECT id, created_at, from_agent, message, status FROM flags WHERE to_agent = :agent ORDER BY created_at" ":agent" "$my_agent")
+
+    if [[ -z "$result" ]]; then
+        echo "flag: no flags"
+        return 0
+    fi
+
+    echo "Flag Queue:"
+    echo ""
+    local n=0
+    while IFS='|' read -r id created from_ag msg status; do
+        n=$((n + 1))
+        local marker=""
+        [[ "$status" == "unread" ]] && marker=" [NEW]"
+        echo "  $n. [$created] $msg${marker}"
+    done <<< "$result"
+    echo ""
+    echo "$n item(s)"
+
+    # Mark all unread as read (Slack-style seen)
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M)
+    iscp_db_exec "UPDATE flags SET status = 'read', read_at = :now WHERE to_agent = :agent AND status = 'unread'" \
+        ":now" "$now" ":agent" "$my_agent"
+}
+
+cmd_count() {
+    iscp_db_init
+
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    local counts
+    counts=$(iscp_db_count_unread "$my_agent" 2>/dev/null) || counts="0|0|0|0"
+    local flag_count
+    IFS='|' read -r flag_count _ _ _ <<< "$counts"
+
+    echo "$flag_count"
+}
+
+cmd_discuss() {
+    iscp_db_init
+
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    local result
+    result=$(iscp_db_query "SELECT id, created_at, message FROM flags WHERE to_agent = :agent AND status IN ('unread', 'read') ORDER BY created_at" ":agent" "$my_agent")
+
+    if [[ -z "$result" ]]; then
+        echo "flag: no flags to discuss"
+        return 0
+    fi
+
+    echo "Discussion agenda from flag queue:"
+    echo ""
+    local n=0
+    while IFS='|' read -r id created msg; do
+        n=$((n + 1))
+        echo "$n. $msg (flagged: $created)"
+    done <<< "$result"
+    echo ""
+    echo "$n item(s) — run /discuss with this agenda"
+
+    # Mark all as processed
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M)
+    iscp_db_exec "UPDATE flags SET status = 'processed', processed_at = :now WHERE to_agent = :agent AND status IN ('unread', 'read')" \
+        ":now" "$now" ":agent" "$my_agent"
+}
+
+cmd_clear() {
+    iscp_db_init
+
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M)
+
+    local affected
+    affected=$(iscp_db_query "SELECT count(*) FROM flags WHERE to_agent = :agent AND status IN ('unread', 'read')" ":agent" "$my_agent")
+
+    if [[ "$affected" -eq 0 ]]; then
+        echo "flag: nothing to clear"
+        return 0
+    fi
+
+    iscp_db_exec "UPDATE flags SET status = 'processed', processed_at = :now WHERE to_agent = :agent AND status IN ('unread', 'read')" \
+        ":now" "$now" ":agent" "$my_agent"
+
+    echo "flag: $affected item(s) marked as processed"
+}
+
+# What Problem: Flag triage needs per-flag resolution — bulk clear is too
+# coarse when you want to resolve Bucket 1 items individually while keeping
+# Bucket 2 and 3 items in the queue.
+# How & Why: Accept one or more integer IDs, mark each as processed.
+# Written: 2026-04-06 — flag triage support
+cmd_resolve() {
+    if [[ $# -eq 0 ]]; then
+        echo "Error: flag resolve requires one or more flag IDs" >&2
+        echo "Usage: flag resolve <id> [<id>...]" >&2
+        return 1
+    fi
+
+    iscp_db_init
+
+    local my_agent
+    my_agent=$(_my_identity) || return 1
+
+    local now resolved=0 not_found=0
+    now=$(date -u +%Y-%m-%dT%H:%M)
+
+    for flag_id in "$@"; do
+        if [[ ! "$flag_id" =~ ^[0-9]+$ ]]; then
+            echo "Error: '$flag_id' is not a valid flag ID" >&2
+            not_found=$((not_found + 1))
+            continue
+        fi
+
+        # Verify flag exists and belongs to this agent
+        local exists
+        exists=$(iscp_db_query "SELECT count(*) FROM flags WHERE id = :id AND to_agent = :agent" ":id" "$flag_id" ":agent" "$my_agent")
+
+        if [[ "$exists" -eq 0 ]]; then
+            echo "flag: #$flag_id not found or not yours"
+            not_found=$((not_found + 1))
+            continue
+        fi
+
+        iscp_db_exec "UPDATE flags SET status = 'processed', processed_at = :now WHERE id = :id" \
+            ":now" "$now" ":id" "$flag_id"
+        resolved=$((resolved + 1))
+    done
+
+    echo "flag: $resolved resolved${not_found:+, $not_found not found}"
+}
+
+cmd_help() {
+    cat <<'HELP'
+flag — ISCP flag tool (v2) — Quick-capture observations
+
+Usage:
+  flag <message>                Flag to self
+  flag --to <agent> <message>   Flag to specific agent
+  flag list                     Show flags, mark as read
+  flag count                    Count unread flags
+  flag discuss                  Output as /discuss agenda, mark processed
+  flag clear                    Mark all as processed
+  flag resolve <id> [<id>...]   Mark specific flag(s) as processed
+  flag --version                Show version
+  flag --help                   Show help
+
+Flags are DB-only — no git payload, instant capture from any worktree.
+Three-state lifecycle: unread → read (on list) → processed (on discuss/clear).
+HELP
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────────────────────
+
+if [[ $# -eq 0 ]]; then
+    cmd_help
+    exit 0
+fi
+
+RUN_ID=$(log_start "flag" "$@")
+
+case "$1" in
+    list)    cmd_list; log_end "$RUN_ID" "success" "0" "0" "flag list" ;;
+    count)   cmd_count; log_end "$RUN_ID" "success" "0" "0" "flag count" ;;
+    discuss) cmd_discuss; log_end "$RUN_ID" "success" "0" "0" "flag discuss" ;;
+    clear)   cmd_clear; log_end "$RUN_ID" "success" "0" "0" "flag clear" ;;
+    resolve) shift; cmd_resolve "$@"; log_end "$RUN_ID" "success" "0" "0" "flag resolve" ;;
+    --version) echo "flag $TOOL_VERSION" ;;
+    --help|-h) cmd_help ;;
+    *)
+        # Everything else is a message (possibly with --to prefix)
+        cmd_flag "$@"
+        log_end "$RUN_ID" "success" "0" "0" "flag capture"
+        ;;
+esac

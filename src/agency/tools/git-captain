@@ -1,0 +1,542 @@
+#!/bin/bash
+# What Problem: Captain-level git operations (merge to master, push, branch
+# management, tagging) are scattered across raw git commands with no guardrails.
+# Agents can accidentally push to main, force-push without lease, or delete
+# branches with unmerged work. There is no single entry point that enforces
+# The Agency's git discipline for privileged operations.
+#
+# How & Why: A captain-only command set that wraps destructive/privileged git
+# operations with safety checks. merge-to-master verifies you ARE on main before
+# merging. push blocks pushes to main/master and blocks bare --force (requires
+# --force-with-lease). checkout-branch validates naming conventions. branch-delete
+# uses safe -d (not -D) so unmerged branches are protected. tag creates annotated
+# tags. fetch is a convenience pass-through. Each subcommand fails loudly with
+# actionable error messages.
+#
+# Written: 2026-04-14 during devex workstream (git-safe family)
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# Colors
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED=$'\033[0;31m' GREEN=$'\033[0;32m' YELLOW=$'\033[1;33m' BLUE=$'\033[0;34m' NC=$'\033[0m'
+fi
+
+die() { echo "${RED}[ERROR]${NC} $1" >&2; exit 1; }
+
+# Detect main branch name
+detect_main_branch() {
+    if git show-ref --verify refs/heads/main &>/dev/null; then
+        echo "main"
+    elif git show-ref --verify refs/heads/master &>/dev/null; then
+        echo "master"
+    else
+        die "Cannot find main or master branch."
+    fi
+}
+
+usage() {
+    cat <<'USAGE'
+git-captain — Captain-only git operations
+
+Usage: ./agency/tools/git-captain <subcommand> [args...]
+
+Subcommands:
+  merge-to-master <branch>       Merge branch into main/master (--no-ff)
+  checkout-branch <name>         Create and switch to a new branch
+  switch-branch <name>           Switch to an existing branch (including main)
+  sync-main                      Fast-forward main to origin/main (requires clean tree, on main)
+  merge-from-origin              Merge origin/main into local main (handles divergence, uses merge commit)
+  merge-continue                 Conclude an in-progress merge (after conflict resolution)
+  push [args]                    Push to remote (blocks main/master, blocks bare --force)
+  fetch                          Fetch from origin
+  tag <name> [-m <msg>]          Create annotated tag
+  reset-soft [<ref>]             Sanctioned recovery: undo the last local
+                                 commit (or reset to <ref>), keeping changes
+                                 staged. REFUSES if HEAD is pushed to origin
+                                 (use git revert for pushed commits). Default
+                                 ref is HEAD~1.
+  branch-delete <name> [--force] Safe-delete a branch (-d). With --force,
+                                 force-delete (-D) — required for post-merge
+                                 cleanup of branches with unreachable commits
+                                 (RGR receipts, dispatch artifacts, etc.).
+
+Options:
+  --help                         Show this help
+  --version                      Show version
+USAGE
+    exit 0
+}
+
+# --- Subcommand: merge-to-master ---
+cmd_merge_to_master() {
+    [[ $# -eq 0 ]] && die "Usage: git-captain merge-to-master <branch>"
+
+    local branch="$1"
+    local main_branch
+    main_branch=$(detect_main_branch)
+
+    local current_branch
+    current_branch=$(git branch --show-current)
+
+    if [[ "$current_branch" != "$main_branch" ]]; then
+        die "Must be on $main_branch to merge. Currently on: $current_branch"
+    fi
+
+    # Verify the source branch exists
+    if ! git show-ref --verify "refs/heads/$branch" &>/dev/null; then
+        die "Branch '$branch' does not exist."
+    fi
+
+    echo "${BLUE}Merging $branch into $main_branch (--no-ff)...${NC}"
+    if git merge "$branch" --no-ff --no-edit; then
+        echo "${GREEN}Merge complete.${NC} $branch merged into $main_branch."
+    else
+        die "Merge failed — resolve conflicts manually, then commit."
+    fi
+}
+
+# --- Subcommand: checkout-branch ---
+cmd_checkout_branch() {
+    [[ $# -eq 0 ]] && die "Usage: git-captain checkout-branch <name>"
+
+    local name="$1"
+
+    # Validate branch name in two passes:
+    #
+    # Pass 1 — character set. Must start with an ASCII letter or digit, then
+    # ASCII letters, digits, dots, underscores, hyphens, slashes.
+    # D44-R3 (issue #428): accept uppercase so release names like 'D7-R1'
+    # or feature branches like 'D44-R3-regex-fix' are permitted. Previously
+    # lowercase-only, which rejected the convention used across workstreams.
+    if [[ ! "$name" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/-]*$ ]]; then
+        die "Invalid branch name '$name'. Must match: [a-zA-Z0-9][a-zA-Z0-9._/-]*"
+    fi
+
+    # Pass 2 — structural rules that git ref-format rejects but the regex
+    # above still allows. D44-R6 (QG findings from PR #182 triage, items 6/7/8):
+    # close the gap between "the regex accepts it" and "git will actually
+    # accept this ref name".
+    #   - '..' sequences are forbidden (git-check-ref-format)
+    #   - trailing '/' — not a valid branch name
+    #   - trailing '.' — rejected by git
+    #   - trailing '-' — rejected by git
+    #   - '.lock' suffix — reserved for ref lockfiles
+    if [[ "$name" == *".."* ]]; then
+        die "Invalid branch name '$name'. Cannot contain '..' (forbidden by git-ref-format)."
+    fi
+    if [[ "$name" == */ ]]; then
+        die "Invalid branch name '$name'. Cannot end with '/'."
+    fi
+    if [[ "$name" == *. ]]; then
+        die "Invalid branch name '$name'. Cannot end with '.'."
+    fi
+    if [[ "$name" == *- ]]; then
+        die "Invalid branch name '$name'. Cannot end with '-'."
+    fi
+    if [[ "$name" == *.lock ]]; then
+        die "Invalid branch name '$name'. '.lock' suffix is reserved for git ref lockfiles."
+    fi
+
+    if git show-ref --verify "refs/heads/$name" &>/dev/null; then
+        die "Branch '$name' already exists. Use 'git-captain switch-branch $name' to switch to it."
+    fi
+
+    git checkout -b "$name"
+    echo "${GREEN}Created and switched to branch:${NC} $name"
+}
+
+# --- Subcommand: switch-branch ---
+cmd_switch_branch() {
+    [[ $# -eq 0 ]] && die "Usage: git-captain switch-branch <name>"
+
+    local name="$1"
+
+    # Must be an existing branch
+    if ! git show-ref --verify "refs/heads/$name" &>/dev/null; then
+        die "Branch '$name' does not exist. Use 'git-captain checkout-branch $name' to create it."
+    fi
+
+    # Must have clean working tree
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        die "Working tree is dirty. Commit or stash changes before switching branches."
+    fi
+
+    git checkout "$name"
+    echo "${GREEN}Switched to branch:${NC} $name"
+}
+
+# --- Subcommand: sync-main ---
+# Fast-forward main to origin/main. Safe by design: only FF, never merge commits,
+# never touches feature branches. Used by post-merge after a PR lands on GitHub.
+cmd_sync_main() {
+    [[ $# -gt 0 ]] && die "Usage: git-captain sync-main (takes no arguments)"
+
+    local main_branch
+    main_branch=$(detect_main_branch)
+
+    local current_branch
+    current_branch=$(git branch --show-current)
+
+    if [[ -z "$current_branch" ]]; then
+        die "HEAD is detached. Switch to $main_branch first: git-captain switch-branch $main_branch"
+    fi
+
+    if [[ "$current_branch" != "$main_branch" ]]; then
+        die "Must be on $main_branch to sync. Currently on: $current_branch"
+    fi
+
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        die "Working tree is dirty. Commit or stash before sync-main."
+    fi
+
+    # Verify origin/main exists
+    if ! git show-ref --verify "refs/remotes/origin/$main_branch" &>/dev/null; then
+        die "origin/$main_branch does not exist. Run 'git-captain fetch' first."
+    fi
+
+    echo "${BLUE}Fast-forwarding $main_branch to origin/$main_branch...${NC}"
+    if git merge --ff-only "origin/$main_branch"; then
+        echo "${GREEN}sync-main complete.${NC}"
+    else
+        die "Fast-forward failed — $main_branch has diverged from origin/$main_branch. Investigate manually."
+    fi
+}
+
+# --- Subcommand: merge-from-origin ---
+# Merge origin/main into the current main branch. Unlike sync-main (ff-only),
+# this uses a real merge commit so it handles post-squash-PR divergence.
+# Required for captains who need to merge origin into local main without
+# creating a temp branch just to run merge-from-master --remote.
+# Issue #171 — captain sync gap that drove AGENCY_ALLOW_RAW pressure.
+cmd_merge_from_origin() {
+    [[ $# -gt 0 ]] && die "Usage: git-captain merge-from-origin (takes no arguments)"
+
+    local main_branch
+    main_branch=$(detect_main_branch)
+
+    local current_branch
+    current_branch=$(git branch --show-current)
+
+    if [[ -z "$current_branch" ]]; then
+        die "HEAD is detached. Switch to $main_branch first: git-captain switch-branch $main_branch"
+    fi
+
+    if [[ "$current_branch" != "$main_branch" ]]; then
+        die "Must be on $main_branch to merge-from-origin. Currently on: $current_branch"
+    fi
+
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        die "Working tree is dirty. Commit or stash before merge-from-origin."
+    fi
+
+    if ! git show-ref --verify "refs/remotes/origin/$main_branch" &>/dev/null; then
+        die "origin/$main_branch does not exist. Run 'git-captain fetch' first."
+    fi
+
+    # Verify merge-base exists — reject unrelated histories
+    if ! git merge-base "origin/$main_branch" HEAD &>/dev/null; then
+        die "No common ancestor with origin/$main_branch. Investigate manually."
+    fi
+
+    # Divergence check
+    local ahead behind
+    ahead=$(git rev-list --count "origin/$main_branch..HEAD" 2>/dev/null || echo 0)
+    behind=$(git rev-list --count "HEAD..origin/$main_branch" 2>/dev/null || echo 0)
+
+    if [[ "$behind" == "0" ]]; then
+        echo "${GREEN}Already up to date with origin/$main_branch.${NC}"
+        return 0
+    fi
+
+    if [[ "$ahead" == "0" ]]; then
+        # Can fast-forward
+        echo "${BLUE}Fast-forwarding $main_branch to origin/$main_branch...${NC}"
+        if git merge --ff-only "origin/$main_branch"; then
+            echo "${GREEN}merge-from-origin complete (fast-forward).${NC}"
+        else
+            die "Fast-forward failed unexpectedly."
+        fi
+    else
+        # Real merge needed (divergence, e.g., after squash PR)
+        echo "${BLUE}Merging origin/$main_branch into $main_branch (ahead: $ahead, behind: $behind)...${NC}"
+        # Tag for recovery (post-merge skill does the same)
+        local recovery_tag
+        recovery_tag="sync/pre-merge-$(date +%Y%m%d-%H%M%S)"
+        git tag "$recovery_tag" || true
+        if git merge "origin/$main_branch" -m "Merge origin/$main_branch (captain sync)"; then
+            echo "${GREEN}merge-from-origin complete (merge commit).${NC}"
+            echo "${BLUE}Recovery tag: $recovery_tag${NC}"
+        else
+            die "Merge failed — likely conflicts. Resolve with 'git-safe resolve-conflict', then 'git-captain merge-continue'."
+        fi
+    fi
+}
+
+# --- Subcommand: merge-continue ---
+# Conclude an in-progress merge after the operator has resolved conflicts.
+# Verifies MERGE_HEAD exists (else there's nothing to continue) and that no
+# unresolved conflicts remain, then runs `git commit --no-edit` to produce
+# the merge commit using the merge-default message.
+cmd_merge_continue() {
+    [[ $# -gt 0 ]] && die "Usage: git-captain merge-continue (takes no arguments)"
+
+    local git_dir
+    git_dir=$(git rev-parse --git-dir 2>/dev/null) || die "Not in a git repository."
+
+    if [[ ! -f "$git_dir/MERGE_HEAD" ]]; then
+        die "No merge in progress. MERGE_HEAD not found."
+    fi
+
+    # Refuse if any conflicts remain unresolved
+    if git diff --name-only --diff-filter=U 2>/dev/null | grep -q .; then
+        die "Unresolved conflicts remain. Resolve them with edit + git-safe add, then re-run."
+    fi
+
+    echo "${BLUE}Concluding merge...${NC}"
+    if git commit --no-edit; then
+        echo "${GREEN}merge-continue complete.${NC}"
+    else
+        die "git commit --no-edit failed. Inspect repository state."
+    fi
+}
+
+# --- Subcommand: push ---
+cmd_push() {
+    # Scan arguments for blocked patterns
+    local has_force=false
+    local has_force_with_lease=false
+    local push_args=()
+
+    for arg in "$@"; do
+        case "$arg" in
+            --force|-f)
+                has_force=true
+                push_args+=("$arg")
+                ;;
+            --force-with-lease*)
+                has_force_with_lease=true
+                push_args+=("$arg")
+                ;;
+            *)
+                push_args+=("$arg")
+                ;;
+        esac
+    done
+
+    # Block bare --force without --force-with-lease
+    if [[ "$has_force" == "true" && "$has_force_with_lease" == "false" ]]; then
+        die "Bare --force is blocked. Use --force-with-lease instead for safety."
+    fi
+
+    # Detect what branch we are pushing to
+    local current_branch
+    current_branch=$(git branch --show-current)
+    local main_branch
+    main_branch=$(detect_main_branch)
+
+    # Block push to main/master
+    # Check if any argument explicitly names main/master as the refspec target
+    for arg in "$@"; do
+        if [[ "$arg" == "$main_branch" || "$arg" == "origin/$main_branch" ]]; then
+            die "Push to $main_branch is blocked. Merge via PR instead."
+        fi
+    done
+
+    # Also block if currently on main and no explicit branch arg given
+    if [[ "$current_branch" == "$main_branch" ]]; then
+        die "Push from $main_branch is blocked. Switch to a feature branch first."
+    fi
+
+    echo "${BLUE}Pushing...${NC}"
+    # BASH 3.2 EMPTY-ARRAY + SET -U IDIOM (issue #339)
+    #
+    # What Problem: macOS stock bash is 3.2. Under `set -u` (nounset, active
+    # via `set -euo pipefail` at top of this file), the common idiom
+    # `"${arr[@]}"` on an EMPTY array raises "unbound variable" and aborts
+    # the script. Observed every time `git-captain push` was invoked without
+    # explicit refs — i.e., the normal case.
+    #
+    # How & Why: Use `${arr[@]+"${arr[@]}"}` instead. The `+value` expansion
+    # emits `value` only if the parameter is set, else nothing. Safe on
+    # bash 3.2+. Applied here for `push_args` because that's the observed
+    # site; the same idiom should be used ANY time a local array is spread
+    # under `set -u` in this file (no other such site currently exists —
+    # audit before adding).
+    #
+    # Written: 2026-04-21 during Bucket 0a of A-B-C-D-E-F-G stabilization
+    # push. Regression test: src/tests/tools/git-captain.bats test #39.
+    git push ${push_args[@]+"${push_args[@]}"}
+    echo "${GREEN}Push complete.${NC}"
+}
+
+# --- Subcommand: fetch ---
+cmd_fetch() {
+    echo "${BLUE}Fetching from origin...${NC}"
+    git fetch origin
+    echo "${GREEN}Fetch complete.${NC}"
+}
+
+# --- Subcommand: tag ---
+cmd_tag() {
+    [[ $# -eq 0 ]] && die "Usage: git-captain tag <name> [-m <msg>]"
+
+    local name="$1"
+    shift
+
+    local message=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -m)
+                [[ $# -lt 2 ]] && die "Option -m requires a message argument."
+                message="$2"
+                shift 2
+                ;;
+            *)
+                die "Unknown option: $1"
+                ;;
+        esac
+    done
+
+    if [[ -z "$message" ]]; then
+        message="Tag $name"
+    fi
+
+    if git rev-parse "refs/tags/$name" &>/dev/null; then
+        die "Tag '$name' already exists."
+    fi
+
+    git tag -a "$name" -m "$message"
+    echo "${GREEN}Created annotated tag:${NC} $name"
+}
+
+# --- Subcommand: reset-soft ---
+# D41-R28 (issue #128): sanctioned recovery path for undoing a local,
+# un-pushed commit. Without this, agents who bypass /git-safe-commit (e.g.
+# because stage-hash crashed) can't cleanly redo the commit through the
+# safe flow — they'd need raw `git reset`, another bypass. Soft reset
+# preserves staged changes so the agent can re-run /git-safe-commit.
+#
+# Guards:
+#   - Refuse if target is ancestor of origin/<branch> (pushed commits need
+#     revert, not reset — reset on pushed history is a force-push waiting
+#     to happen).
+#   - Default ref is HEAD~1 (undo last commit).
+#   - Only --soft. For --mixed or --hard, agents must escalate to principal.
+cmd_reset_soft() {
+    local ref="${1:-HEAD~1}"
+    local current_branch
+    current_branch=$(git branch --show-current 2>/dev/null || echo "")
+    [[ -z "$current_branch" ]] && die "Not on a branch (detached HEAD). Cannot reset-soft."
+
+    # Verify ref resolves
+    local target_commit
+    target_commit=$(git rev-parse --verify "$ref" 2>/dev/null) || die "Ref '$ref' does not resolve."
+
+    # Refuse if we'd be resetting past already-pushed commits
+    if git show-ref --verify "refs/remotes/origin/$current_branch" >/dev/null 2>&1; then
+        local origin_tip
+        origin_tip=$(git rev-parse "refs/remotes/origin/$current_branch")
+        # If HEAD == origin, we're already synced — resetting moves us behind
+        local head_commit
+        head_commit=$(git rev-parse HEAD)
+        # Check: is origin_tip an ancestor of HEAD (i.e. we have local commits ahead)?
+        if ! git merge-base --is-ancestor "$origin_tip" "$head_commit" 2>/dev/null; then
+            die "Cannot reset-soft: origin/$current_branch is not an ancestor of HEAD — history has diverged. Use git revert for pushed commits, or escalate to principal."
+        fi
+        # Check: is target_commit at or ahead of origin/branch?
+        if ! git merge-base --is-ancestor "$origin_tip" "$target_commit" 2>/dev/null; then
+            die "Cannot reset-soft: target '$ref' is BEHIND origin/$current_branch (this would rewrite pushed history). Use git revert for pushed commits."
+        fi
+    fi
+
+    echo "${BLUE}Resetting $current_branch to $ref (soft — staged changes preserved)${NC}"
+    git reset --soft "$ref"
+    echo "${GREEN}Reset complete.${NC} Changes preserved in index; re-run /git-safe-commit to commit properly."
+}
+
+# --- Subcommand: branch-delete ---
+cmd_branch_delete() {
+    [[ $# -eq 0 ]] && die "Usage: git-captain branch-delete <name> [--force]"
+
+    local name=""
+    local force=false
+
+    # Parse: name plus optional --force / -f. Order-independent.
+    for arg in "$@"; do
+        case "$arg" in
+            --force|-f) force=true ;;
+            -*) die "Unknown flag: $arg" ;;
+            *)
+                if [[ -z "$name" ]]; then
+                    name="$arg"
+                else
+                    die "Unexpected argument: $arg (only one branch name allowed)"
+                fi
+                ;;
+        esac
+    done
+
+    [[ -z "$name" ]] && die "Usage: git-captain branch-delete <name> [--force]"
+
+    local main_branch
+    main_branch=$(detect_main_branch)
+
+    # Same protections apply with or without --force
+    if [[ "$name" == "$main_branch" ]]; then
+        die "Cannot delete $main_branch."
+    fi
+
+    local current_branch
+    current_branch=$(git branch --show-current)
+
+    if [[ "$name" == "$current_branch" ]]; then
+        die "Cannot delete the current branch ($name). Switch to another branch first."
+    fi
+
+    # D41-R21 (issue #110): --force enables -D for post-merge cleanup of
+    # branches with unreachable commits (RGR receipts, dispatch artifacts).
+    # Without --force, safe -d behavior is unchanged.
+    if [[ "$force" == "true" ]]; then
+        if git branch -D "$name"; then
+            echo "${GREEN}Force-deleted branch:${NC} $name"
+        else
+            die "git branch -D '$name' failed (does the branch exist?)"
+        fi
+    else
+        if git branch -d "$name"; then
+            echo "${GREEN}Deleted branch:${NC} $name"
+        else
+            die "Branch '$name' has unmerged changes. Re-run with --force for post-merge cleanup, or merge first if changes still matter."
+        fi
+    fi
+}
+
+# --- Main dispatch ---
+[[ $# -eq 0 ]] && usage
+
+case "$1" in
+    --help|-h)          usage ;;
+    --version)          echo "git-captain $TOOL_VERSION"; exit 0 ;;
+    merge-to-master)    shift; cmd_merge_to_master "$@" ;;
+    checkout-branch)    shift; cmd_checkout_branch "$@" ;;
+    switch-branch)      shift; cmd_switch_branch "$@" ;;
+    sync-main)          shift; cmd_sync_main "$@" ;;
+    merge-from-origin)  shift; cmd_merge_from_origin "$@" ;;
+    merge-continue)     shift; cmd_merge_continue "$@" ;;
+    push)               shift; cmd_push "$@" ;;
+    fetch)              shift; cmd_fetch "$@" ;;
+    tag)                shift; cmd_tag "$@" ;;
+    reset-soft)         shift; cmd_reset_soft "$@" ;;
+    branch-delete)      shift; cmd_branch_delete "$@" ;;
+    *)                  die "Unknown subcommand: $1 — run 'git-captain --help' for usage." ;;
+esac

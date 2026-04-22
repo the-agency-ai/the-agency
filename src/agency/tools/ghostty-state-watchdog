@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# ghostty-state-watchdog — Polls session state files and writes OSC sequences
+#
+# Runs as a persistent background process in the SHELL (not via Claude Code hooks).
+# Because it runs in the user's shell, it has direct /dev/tty access that
+# Claude Code's hook subprocess does not reliably have.
+#
+# Usage:
+#   ghostty-state-watchdog start   — start watchdog for current session (background)
+#   ghostty-state-watchdog stop    — stop watchdog for current session
+#   ghostty-state-watchdog status  — show running watchdogs
+#   ghostty-state-watchdog start-all — start watchdogs for all active sessions
+#
+# The hook writes state to /tmp/ghostty-session-state-{session_id}.
+# This watchdog reads that file every 1s and writes the corresponding
+# OSC 2 (title) and OSC 11 (background) to /dev/tty.
+#
+# Since it runs in the real terminal shell, its /dev/tty writes are authoritative
+# and happen AFTER Claude Code's rendering loop, winning the race.
+
+set -euo pipefail
+
+VERSION="1.0.0"
+
+# --- Colors ---
+BG_DEFAULT="#FFFFFF"
+BG_AVAILABLE="#E3F2FD"
+BG_WORKING="#E8F5E9"
+BG_ATTENTION="#FFF0F0"
+
+# --- State → OSC mapping ---
+_write_state() {
+  local state="$1"
+  local session_name="$2"
+
+  case "$state" in
+    working)
+      printf '\e]2;◑ %s\a' "$session_name" > /dev/tty 2>/dev/null || true
+      printf '\e]11;%s\a' "$BG_WORKING" > /dev/tty 2>/dev/null || true
+      ;;
+    available)
+      printf '\e]2;○ %s\a' "$session_name" > /dev/tty 2>/dev/null || true
+      printf '\e]11;%s\a' "$BG_AVAILABLE" > /dev/tty 2>/dev/null || true
+      ;;
+    attention)
+      printf '\e]2;⚠ %s\a' "$session_name" > /dev/tty 2>/dev/null || true
+      printf '\e]11;%s\a' "$BG_ATTENTION" > /dev/tty 2>/dev/null || true
+      ;;
+    *)
+      printf '\e]2;– zsh\a' > /dev/tty 2>/dev/null || true
+      printf '\e]11;%s\a' "$BG_DEFAULT" > /dev/tty 2>/dev/null || true
+      ;;
+  esac
+}
+
+# --- Poll loop ---
+_poll() {
+  local session_id="$1"
+  local state_file="/tmp/ghostty-session-state-${session_id}"
+  local name_file="/tmp/ghostty-session-name-${session_id}"
+  local pid_file="/tmp/ghostty-watchdog-${session_id}.pid"
+  local last_state=""
+
+  echo $$ > "$pid_file"
+
+  while true; do
+    # Check if state file still exists (session alive)
+    if [[ ! -f "$state_file" ]]; then
+      # Session ended — clean up
+      _write_state "ended" ""
+      rm -f "$pid_file"
+      exit 0
+    fi
+
+    local current_state
+    current_state=$(cat "$state_file" 2>/dev/null) || current_state=""
+    local session_name
+    session_name=$(cat "$name_file" 2>/dev/null) || session_name="Claude"
+
+    # Only write if state changed (debounce)
+    if [[ "$current_state" != "$last_state" ]]; then
+      _write_state "$current_state" "$session_name"
+      last_state="$current_state"
+    fi
+
+    sleep 1
+  done
+}
+
+# --- Commands ---
+case "${1:-help}" in
+  start)
+    session_id="${2:-}"
+    if [[ -z "$session_id" ]]; then
+      # Auto-detect: find state files for this directory
+      session_id=$(ls /tmp/ghostty-session-state-* 2>/dev/null | head -1 | sed 's|.*/ghostty-session-state-||')
+      if [[ -z "$session_id" ]]; then
+        echo "No active session found. Pass session_id as argument." >&2
+        exit 1
+      fi
+    fi
+
+    # Check if already running
+    pid_file="/tmp/ghostty-watchdog-${session_id}.pid"
+    if [[ -f "$pid_file" ]]; then
+      old_pid=$(cat "$pid_file")
+      if kill -0 "$old_pid" 2>/dev/null; then
+        echo "Watchdog already running for ${session_id} (pid: ${old_pid})"
+        exit 0
+      fi
+    fi
+
+    echo "Starting watchdog for session ${session_id}..."
+    _poll "$session_id" &
+    disown
+    echo "Watchdog started (pid: $!)"
+    ;;
+
+  stop)
+    session_id="${2:-}"
+    if [[ -z "$session_id" ]]; then
+      session_id=$(ls /tmp/ghostty-session-state-* 2>/dev/null | head -1 | sed 's|.*/ghostty-session-state-||')
+    fi
+    pid_file="/tmp/ghostty-watchdog-${session_id}.pid"
+    if [[ -f "$pid_file" ]]; then
+      pid=$(cat "$pid_file")
+      kill "$pid" 2>/dev/null && echo "Stopped watchdog (pid: $pid)" || echo "Watchdog not running"
+      rm -f "$pid_file"
+    else
+      echo "No watchdog found for ${session_id}"
+    fi
+    ;;
+
+  status)
+    echo "Active watchdogs:"
+    for pf in /tmp/ghostty-watchdog-*.pid; do
+      [[ -f "$pf" ]] || { echo "  (none)"; break; }
+      sid=$(echo "$pf" | sed 's|.*/ghostty-watchdog-||;s|\.pid||')
+      pid=$(cat "$pf")
+      if kill -0 "$pid" 2>/dev/null; then
+        state=$(cat "/tmp/ghostty-session-state-${sid}" 2>/dev/null || echo "?")
+        name=$(cat "/tmp/ghostty-session-name-${sid}" 2>/dev/null || echo "?")
+        echo "  ${name} (${sid:0:8}…) pid=${pid} state=${state}"
+      else
+        echo "  ${sid:0:8}… pid=${pid} DEAD"
+        rm -f "$pf"
+      fi
+    done
+    ;;
+
+  start-all)
+    for sf in /tmp/ghostty-session-state-*; do
+      [[ -f "$sf" ]] || { echo "No active sessions found."; exit 0; }
+      sid=$(echo "$sf" | sed 's|.*/ghostty-session-state-||')
+      bash "$0" start "$sid"
+    done
+    ;;
+
+  --version|-v)
+    echo "ghostty-state-watchdog $VERSION"
+    ;;
+
+  help|--help|-h)
+    echo "ghostty-state-watchdog — Poll session state and write OSC sequences"
+    echo ""
+    echo "Usage:"
+    echo "  ghostty-state-watchdog start [session-id]  Start watchdog (background)"
+    echo "  ghostty-state-watchdog stop [session-id]   Stop watchdog"
+    echo "  ghostty-state-watchdog status              Show running watchdogs"
+    echo "  ghostty-state-watchdog start-all           Start for all active sessions"
+    echo ""
+    echo "Run from your shell (not Claude Code) — needs real /dev/tty access."
+    echo "Start it with: ! bash agency/tools/ghostty-state-watchdog start"
+    ;;
+esac

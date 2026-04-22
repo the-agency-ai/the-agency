@@ -1,0 +1,110 @@
+#!/bin/bash
+#
+# settings-merge — Merge settings template into .claude/settings.json
+#
+# Usage:
+#   ./agency/tools/settings-merge [--dry-run]
+#
+# Merges agency/config/settings-template.json into .claude/settings.json:
+# - hooks: deep merge (add missing hooks, don't replace existing)
+# - permissions.allow: array union (add entries not already present)
+# - Other keys: add if missing, don't overwrite existing
+#
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# shellcheck source=lib/_log-helper
+source "$SCRIPT_DIR/lib/_log-helper"
+
+RUN_ID=$(log_start "settings-merge" "$@")
+
+TEMPLATE="$PROJECT_ROOT/agency/config/settings-template.json"
+TARGET="$PROJECT_ROOT/.claude/settings.json"
+DRY_RUN=false
+
+for arg in "$@"; do
+    [[ "$arg" == "--dry-run" ]] && DRY_RUN=true
+done
+
+if [[ ! -f "$TEMPLATE" ]]; then
+    log_end "$RUN_ID" "error" "1" "0" "template not found"
+    echo "settings-merge: template not found at $TEMPLATE" >&2
+    exit 1
+fi
+
+if [[ ! -f "$TARGET" ]]; then
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "settings-merge: would copy template to $TARGET"
+        exit 0
+    fi
+    mkdir -p "$(dirname "$TARGET")"
+    cp "$TEMPLATE" "$TARGET"
+    log_end "$RUN_ID" "success" "0" "0" "created settings.json from template"
+    echo "settings-merge [run: $RUN_ID]"
+    echo "Created .claude/settings.json from template"
+    echo "✓"
+    exit 0
+fi
+
+# Why did I write this: agency update needs to push new framework hooks into
+# .claude/settings.json without destroying project-specific hooks. The old
+# merge did wholesale replacement — every update wiped custom hooks (monofolk
+# F1). This jq script uses composite keys (event_type:matcher) to distinguish
+# framework hooks (in template → replace) from project hooks (not in template
+# → preserve). permissions.deny and other keys are also preserved.
+MERGED=$(jq -s '
+  def array_union(a; b): (a + b) | unique;
+
+  # Build a composite key for a hook group: "event_type:matcher"
+  def hook_key(event_type): event_type + ":" + (.matcher // "");
+
+  # Merge hooks for a single event type
+  # For each group in template: replace matching target group (by matcher)
+  # For each group in target not matched by template: preserve
+  def merge_hook_groups(target_groups; template_groups; event_type):
+    # Build set of template matchers
+    (template_groups | map(.matcher // "") | unique) as $template_matchers |
+    # Keep target groups whose matcher is NOT in template (project hooks)
+    (target_groups | map(select((.matcher // "") as $m | ($template_matchers | index($m)) == null))) as $project_hooks |
+    # Template hooks replace framework hooks
+    template_groups + $project_hooks;
+
+  .[0] as $target | .[1] as $template |
+
+  # Merge hooks across all event types
+  (($target.hooks // {}) | keys) + (($template.hooks // {}) | keys) | unique |
+  reduce .[] as $event_type (
+    {};
+    . + {
+      ($event_type): merge_hook_groups(
+        $target.hooks[$event_type] // [];
+        $template.hooks[$event_type] // [];
+        $event_type
+      )
+    }
+  ) |
+  . as $merged_hooks |
+
+  # Build final result
+  $target * {
+    hooks: $merged_hooks,
+    permissions: ($target.permissions // {}) * {
+      allow: array_union($target.permissions.allow // []; $template.permissions.allow // [])
+    }
+  }
+' "$TARGET" "$TEMPLATE")
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    echo "settings-merge: would merge these permissions:"
+    echo "$MERGED" | jq '.permissions.allow'
+    exit 0
+fi
+
+echo "$MERGED" > "$TARGET"
+
+log_end "$RUN_ID" "success" "0" "0" "merged settings"
+echo "settings-merge [run: $RUN_ID]"
+echo "Merged template permissions into .claude/settings.json"
+echo "✓"

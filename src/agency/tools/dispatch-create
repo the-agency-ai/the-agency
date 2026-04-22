@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# dispatch-create — Backward-compatible wrapper for dispatch create
+#
+# What Problem: Existing tools and skills reference dispatch-create directly.
+# This wrapper forwards to the unified dispatch tool's create subcommand.
+#
+# How & Why: Thin exec wrapper. Zero overhead — exec replaces this process
+# with dispatch create. Preserves backward compat while the canonical
+# interface is now `dispatch create`.
+#
+# Written: 2026-04-05 during ISCP Iteration 1.4
+#
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/dispatch" create "$@"

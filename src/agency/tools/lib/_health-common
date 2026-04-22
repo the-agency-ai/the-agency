@@ -1,0 +1,156 @@
+#!/bin/bash
+#
+# What Problem: agency-health's three dimension checkers all need a consistent
+# way to emit findings (human + JSON), track severity counters, and render
+# the report header/summary. Duplicating that logic across three lib files
+# would drift. Centralize here.
+#
+# How & Why: Sourced by agency-health and by each dimension checker.
+# Provides: severity constants, an emit function that writes to the results
+# buffer AND increments global counters, and the human-readable renderer
+# primitives (header, row, summary). Callers just call health_emit with the
+# right shape.
+#
+# Written: 2026-04-09 during captain Day 34 — agency-health v1
+
+# Colors (only emit if stdout is a tty)
+if [[ -t 1 ]]; then
+    HC_RESET=$'\033[0m'
+    HC_BOLD=$'\033[1m'
+    HC_GREEN=$'\033[0;32m'
+    HC_YELLOW=$'\033[0;33m'
+    HC_RED=$'\033[0;31m'
+    HC_DIM=$'\033[2m'
+    HC_BLUE=$'\033[0;34m'
+else
+    HC_RESET=""
+    HC_BOLD=""
+    HC_GREEN=""
+    HC_YELLOW=""
+    HC_RED=""
+    HC_DIM=""
+    HC_BLUE=""
+fi
+
+# Severity → symbol + color
+health_severity_symbol() {
+    case "$1" in
+        healthy)   printf '%s●%s' "$HC_GREEN"  "$HC_RESET" ;;
+        attention) printf '%s●%s' "$HC_BLUE"   "$HC_RESET" ;;
+        warning)   printf '%s⚠%s' "$HC_YELLOW" "$HC_RESET" ;;
+        critical)  printf '%s✗%s' "$HC_RED"    "$HC_RESET" ;;
+        *)         printf '?' ;;
+    esac
+}
+
+# Severity → uncolored single-word label
+health_severity_label() {
+    case "$1" in
+        healthy)   echo "healthy" ;;
+        attention) echo "attention" ;;
+        warning)   echo "warning" ;;
+        critical)  echo "critical" ;;
+        *)         echo "unknown" ;;
+    esac
+}
+
+# Emit a single finding. Arguments:
+#   $1 dimension (worktree / agent / workstream)
+#   $2 name (the thing being checked — worktree name, agent name, etc.)
+#   $3 severity (healthy/attention/warning/critical)
+#   $4 summary (short one-liner)
+#   $5 detail  (longer detail, optional)
+health_emit() {
+    local dimension="$1"
+    local name="$2"
+    local severity="$3"
+    local summary="$4"
+    local detail="${5:-}"
+
+    # Increment counters
+    case "$severity" in
+        warning)  HEALTH_WARN_COUNT=$((HEALTH_WARN_COUNT + 1)) ;;
+        critical) HEALTH_CRIT_COUNT=$((HEALTH_CRIT_COUNT + 1)) ;;
+    esac
+
+    # Write to results buffer for JSON output
+    if [[ -n "${HEALTH_RESULTS_FILE:-}" ]] && command -v jq >/dev/null 2>&1; then
+        jq -nc \
+            --arg dim "$dimension" \
+            --arg name "$name" \
+            --arg sev "$severity" \
+            --arg sum "$summary" \
+            --arg det "$detail" \
+            '{dimension:$dim, name:$name, severity:$sev, summary:$sum, detail:$det}' \
+            >> "$HEALTH_RESULTS_FILE"
+    fi
+
+    # Human-readable row
+    if [[ "${JSON:-false}" != "true" ]]; then
+        local sym
+        sym=$(health_severity_symbol "$severity")
+        printf '  %s %-15s %-10s %s\n' "$sym" "$name" "$(health_severity_label "$severity")" "$summary"
+        if [[ -n "$detail" ]]; then
+            printf '    %s%s%s\n' "$HC_DIM" "$detail" "$HC_RESET"
+        fi
+    fi
+}
+
+health_render_header() {
+    local title="$1"
+    local timestamp="$2"
+    printf '%s%s%s  %s(%s)%s\n' "$HC_BOLD" "$title" "$HC_RESET" "$HC_DIM" "$timestamp" "$HC_RESET"
+    printf '%s%s%s\n' "$HC_DIM" "─────────────────────────────────────────────────────────" "$HC_RESET"
+}
+
+health_render_section() {
+    local title="$1"
+    printf '%s%s%s\n' "$HC_BOLD" "$title" "$HC_RESET"
+}
+
+health_render_summary() {
+    local warnings="$1"
+    local critical="$2"
+    printf '%s%s%s\n' "$HC_DIM" "─────────────────────────────────────────────────────────" "$HC_RESET"
+    if [[ "$critical" -gt 0 ]]; then
+        printf '%sOVERALL: %d warnings, %d critical%s\n' "$HC_RED" "$warnings" "$critical" "$HC_RESET"
+    elif [[ "$warnings" -gt 0 ]]; then
+        printf '%sOVERALL: %d warnings, 0 critical%s\n' "$HC_YELLOW" "$warnings" "$HC_RESET"
+    else
+        printf '%sOVERALL: all healthy%s\n' "$HC_GREEN" "$HC_RESET"
+    fi
+}
+
+# Helper: days since a file was last modified (returns integer; 999 if missing)
+health_days_since_modified() {
+    local file="$1"
+    if [[ ! -e "$file" ]]; then
+        echo 999
+        return
+    fi
+    local now mtime
+    now=$(date +%s)
+    if [[ "$(uname)" == "Darwin" ]]; then
+        mtime=$(stat -f %m "$file" 2>/dev/null || echo "$now")
+    else
+        mtime=$(stat -c %Y "$file" 2>/dev/null || echo "$now")
+    fi
+    echo $(( (now - mtime) / 86400 ))
+}
+
+# Helper: hours since a file was last modified (returns integer; 99999 if missing)
+health_hours_since_modified() {
+    local file="$1"
+    if [[ ! -e "$file" ]]; then
+        echo 99999
+        return
+    fi
+    local now mtime
+    now=$(date +%s)
+    if [[ "$(uname)" == "Darwin" ]]; then
+        mtime=$(stat -f %m "$file" 2>/dev/null || echo "$now")
+    else
+        mtime=$(stat -c %Y "$file" 2>/dev/null || echo "$now")
+    fi
+    echo $(( (now - mtime) / 3600 ))
+}

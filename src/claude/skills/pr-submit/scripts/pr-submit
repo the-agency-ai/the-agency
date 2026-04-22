@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+#
+# submit-for-pr — Agent signals captain that a branch is ready for PR landing
+#
+# WHAT: After /pr-prep succeeds (QG green, receipt signed, branch pushed),
+# the agent runs this to dispatch captain with structured PR-landing context.
+# Captain picks up via dispatch monitor and runs /pr-captain-land on the agent's
+# branch, owning PR creation + version bump + CI watch + merge + release.
+#
+# WHY: Addresses the-agency#296 — distributed PR ownership causes version-bump
+# races, QGR hash races, split responsibility on release creation, and
+# inconsistent PR descriptions. Captain-owned PR lifecycle moves all of that
+# to a single serialization point (captain on master).
+#
+# SCOPE: Phase 1 pilot — sandbox tool in usr/{principal}/captain/tools/. Tested
+# by dogfooding on one captain-driven PR before promotion to .claude/skills/.
+#
+# USAGE:
+#   submit-for-pr --scope "one-line summary" [--priority normal|high]
+#
+# PRECONDITIONS (tool enforces):
+#   - Running in an agent worktree (not main checkout)
+#   - Tree is clean
+#   - Branch has been pushed to origin
+#   - A QGR receipt exists matching current branch state
+#
+# OUTPUT:
+#   - Dispatch created to captain with structured payload
+#   - Agent prints "Submitted for PR landing — captain will pick up."
+#
+# WRITTEN: 2026-04-19 (Phase 1 pilot, the-agency#296)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "submit-for-pr: not in a git repository" >&2
+    exit 1
+}
+
+# ── Args ─────────────────────────────────────────────────────────────────────
+
+SCOPE=""
+PRIORITY="normal"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --scope) SCOPE="$2"; shift 2 ;;
+        --priority) PRIORITY="$2"; shift 2 ;;
+        --help|-h)
+            echo "Usage: $0 --scope \"one-line PR summary\" [--priority normal|high]"
+            echo ""
+            echo "Preconditions:"
+            echo "  - In an agent worktree (not main checkout)"
+            echo "  - Clean tree"
+            echo "  - Branch pushed to origin"
+            echo "  - QGR receipt exists for current state"
+            exit 0
+            ;;
+        *) echo "submit-for-pr: unknown arg: $1" >&2; exit 2 ;;
+    esac
+done
+
+if [[ -z "$SCOPE" ]]; then
+    echo "submit-for-pr: --scope is required (one-line PR summary)" >&2
+    exit 2
+fi
+
+# ── Precondition: not in main checkout ───────────────────────────────────────
+
+MAIN_CHECKOUT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
+if [[ "$REPO_ROOT" == "$MAIN_CHECKOUT" ]]; then
+    echo "submit-for-pr: running in main checkout — this tool is for agent worktrees." >&2
+    echo "  Captain (in main checkout) creates PRs directly via /pr-create." >&2
+    exit 1
+fi
+
+# ── Precondition: clean tree ─────────────────────────────────────────────────
+
+DIRTY=$(git status --porcelain 2>/dev/null)
+if [[ -n "$DIRTY" ]]; then
+    echo "submit-for-pr: working tree dirty — commit or stash first." >&2
+    echo "$DIRTY" | head -5 | sed 's/^/  /' >&2
+    exit 1
+fi
+
+# ── Precondition: branch pushed ──────────────────────────────────────────────
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [[ "$BRANCH" == "HEAD" ]]; then
+    echo "submit-for-pr: detached HEAD — switch to a branch first." >&2
+    exit 1
+fi
+
+LOCAL_SHA=$(git rev-parse HEAD 2>/dev/null)
+REMOTE_SHA=$(git rev-parse "origin/$BRANCH" 2>/dev/null || echo "")
+
+if [[ -z "$REMOTE_SHA" ]]; then
+    echo "submit-for-pr: branch '$BRANCH' not pushed to origin — run git push first." >&2
+    exit 1
+fi
+
+if [[ "$LOCAL_SHA" != "$REMOTE_SHA" ]]; then
+    echo "submit-for-pr: local branch ahead of origin/$BRANCH — push your latest commits first." >&2
+    echo "  local:  $LOCAL_SHA" >&2
+    echo "  remote: $REMOTE_SHA" >&2
+    exit 1
+fi
+
+# ── Precondition: QGR receipt exists ─────────────────────────────────────────
+#
+# Receipt lives at agency/workstreams/{workstream}/qgr/*.md. We try to find
+# one matching the current diff hash against origin/master.
+
+DIFF_HASH_FULL=$(bash "$REPO_ROOT/agency/tools/diff-hash" --base origin/master --json 2>/dev/null | \
+                 python3 -c "import sys, json; d=json.load(sys.stdin); print(d.get('full_hash',''))" 2>/dev/null || \
+                 echo "")
+DIFF_HASH_SHORT="${DIFF_HASH_FULL:0:7}"
+
+if [[ -z "$DIFF_HASH_SHORT" ]]; then
+    echo "submit-for-pr: could not compute diff hash against origin/master." >&2
+    echo "  Tool: $REPO_ROOT/agency/tools/diff-hash" >&2
+    exit 1
+fi
+
+# Look for receipt matching this hash
+RECEIPT=$(find "$REPO_ROOT/agency/workstreams" -name "*qgr-pr-prep-*-$DIFF_HASH_SHORT.md" 2>/dev/null | head -1 || echo "")
+
+if [[ -z "$RECEIPT" ]]; then
+    echo "submit-for-pr: no QGR receipt found matching current state (hash: $DIFF_HASH_SHORT)." >&2
+    echo "  Run /pr-prep to produce one." >&2
+    exit 1
+fi
+
+RECEIPT_REL="${RECEIPT#$REPO_ROOT/}"
+
+# ── Detect agent identity ────────────────────────────────────────────────────
+
+AGENT=""
+if [[ -f "$REPO_ROOT/.claude/worktrees/$(basename "$REPO_ROOT")/.agency-agent" ]]; then
+    AGENT=$(cat "$REPO_ROOT/.claude/worktrees/$(basename "$REPO_ROOT")/.agency-agent")
+elif command -v "$REPO_ROOT/agency/tools/agent-identity" &>/dev/null; then
+    AGENT=$("$REPO_ROOT/agency/tools/agent-identity" 2>/dev/null || echo "")
+fi
+if [[ -z "$AGENT" ]]; then
+    AGENT=$(basename "$REPO_ROOT")  # fallback to worktree dir name
+fi
+
+PRINCIPAL="jordan"  # TODO: resolve via agency whoami in v2
+
+# Resolve ORG from the origin remote URL (no network call).
+REMOTE_URL=$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || echo "")
+if [[ "$REMOTE_URL" =~ ^git@github\.com:([^/]+)/([^/.]+)(\.git)?$ ]]; then
+    ORG="${BASH_REMATCH[1]}"
+elif [[ "$REMOTE_URL" =~ ^https://github\.com/([^/]+)/([^/.]+?)(\.git)?/?$ ]]; then
+    ORG="${BASH_REMATCH[1]}"
+else
+    echo "pr-submit: cannot parse origin remote URL '$REMOTE_URL'" >&2
+    exit 1
+fi
+
+# ── Build dispatch body ──────────────────────────────────────────────────────
+
+DISPATCH_BODY=$(cat <<EOF
+# Ready for PR landing — $SCOPE
+
+## Branch ready
+
+- **Branch:** \`$BRANCH\`
+- **Agent:** $ORG/$PRINCIPAL/$AGENT
+- **HEAD:** \`$LOCAL_SHA\` (pushed to origin)
+- **Diff base:** \`origin/master\`
+- **Diff hash:** \`$DIFF_HASH_SHORT\`
+
+## QGR receipt
+
+- **Path:** \`$RECEIPT_REL\`
+- **Verified:** local receipt file matches current state
+
+## Scope summary
+
+$SCOPE
+
+## Captain action requested
+
+Run /pr-captain-land on branch \`$BRANCH\`:
+
+1. Switch to \`$BRANCH\`
+2. Verify receipt against current state
+3. Bump \`agency_version\` in manifest (serialized — single writer)
+4. Create PR with captain-authored fleet-aware description
+5. Watch CI (\`lint-and-test\` gate)
+6. Merge when green
+7. Create GitHub release v{agency_version}
+8. Dispatch back with merge confirmation + release tag
+
+## What I (agent) will NOT do
+
+- Create the PR myself
+- Bump \`agency_version\` myself
+- Merge myself
+- Create the release myself
+
+Captain owns the PR lifecycle. I stand by to /pr-respond if review comments come.
+
+Over.
+
+-- $ORG/$PRINCIPAL/$AGENT
+EOF
+)
+
+# ── Send dispatch ────────────────────────────────────────────────────────────
+
+"$REPO_ROOT/agency/tools/dispatch" create \
+    --type dispatch \
+    --to "$ORG/$PRINCIPAL/captain" \
+    --subject "Ready for PR landing: $BRANCH — $SCOPE" \
+    --body "$DISPATCH_BODY" \
+    ${PRIORITY:+--priority "$PRIORITY"} >/dev/null
+
+echo "submit-for-pr: submitted"
+echo "  branch:   $BRANCH"
+echo "  receipt:  $RECEIPT_REL"
+echo "  hash:     $DIFF_HASH_SHORT"
+echo "  dispatch: sent to $ORG/$PRINCIPAL/captain (priority: $PRIORITY)"
+echo ""
+echo "Captain will pick up and run /pr-captain-land. Stand by for merge dispatch."
