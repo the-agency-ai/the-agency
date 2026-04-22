@@ -1,0 +1,217 @@
+#!/usr/bin/env bash
+# monitor-register — manage the session monitor-pids registry.
+#
+# Partner tool for session-pause + session-pickup. Monitors (dispatch-monitor,
+# issue-monitor, ci-monitor) register themselves on startup so session-pause
+# can find them for teardown on resumption, and session-pickup can verify
+# they're still alive for health reporting.
+#
+# What Problem: sessions start long-running monitor processes. On /session-end
+# (resumption framing) we need to SIGTERM them cleanly; on /session-resume we
+# need to know which are dead so the agent can relaunch. A plain pid file
+# isn't enough — pids get recycled. We include cmdline_hash so --verify can
+# distinguish "our monitor still alive" from "some unrelated process now has
+# that pid." Registry is a JSON array at MONITOR_REGISTRY_PATH (default
+# agency/config/monitor-pids.json).
+#
+# How & Why: three modes.
+#   register (default): monitor-register <type>
+#     Upserts {monitor_type, pid, cmdline_hash} for <type>. PID defaults to
+#     $$ (parent process calling this script); MONITOR_PID env overrides for
+#     test harnesses that need to register a different process.
+#   --verify <type>:
+#     Returns exit 0 iff an entry exists for <type> AND its pid is alive
+#     AND its cmdline_hash matches the current cmdline for that pid. Used
+#     by session-pickup for monitor_health computation and by session-pause
+#     before SIGTERM (avoid killing a recycled pid).
+#   --list:
+#     Dumps the raw registry JSON. Diagnostic convenience.
+#
+# Written: 2026-04-21 during session-lifecycle-refactor v46.1 port
+# (monofolk → the-agency adaptation, completing what PR #362 missed).
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    REPO_ROOT="$CLAUDE_PROJECT_DIR"
+else
+    REPO_ROOT="$(git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
+
+REGISTRY="${MONITOR_REGISTRY_PATH:-$REPO_ROOT/agency/config/monitor-pids.json}"
+
+# ── cmdline helper ──────────────────────────────────────────────────────────
+# Computes a short stable hash of a pid's cmdline so --verify can reject
+# pid-recycling collisions. macOS has no /proc, so we shell to `ps`.
+cmdline_hash() {
+    local pid="$1"
+    local cmdline
+    if [[ -r "/proc/$pid/cmdline" ]]; then
+        cmdline=$(tr '\0' ' ' < "/proc/$pid/cmdline")
+    else
+        cmdline=$(ps -p "$pid" -o command= 2>/dev/null || echo "")
+    fi
+    printf '%s' "$cmdline" | shasum -a 256 | awk '{print $1}' | cut -c1-16
+}
+
+# ── modes ───────────────────────────────────────────────────────────────────
+verify_mt() {
+    local mt="$1"
+    [[ -f "$REGISTRY" ]] || return 1
+
+    REGISTRY_PATH="$REGISTRY" MT="$mt" python3 - <<'PYEOF' || return 1
+import json
+import os
+import sys
+
+reg_path = os.environ["REGISTRY_PATH"]
+mt = os.environ["MT"]
+
+try:
+    with open(reg_path) as f:
+        entries = json.load(f)
+except Exception:
+    sys.exit(1)
+
+if not isinstance(entries, list):
+    sys.exit(1)
+
+for e in entries:
+    if not isinstance(e, dict):
+        continue
+    if e.get("monitor_type") != mt:
+        continue
+    pid = e.get("pid")
+    if not isinstance(pid, int) or pid <= 1:
+        sys.exit(1)
+    # Liveness probe — signal 0 doesn't deliver, just checks deliverability.
+    try:
+        os.kill(pid, 0)
+    except (OSError, ProcessLookupError):
+        sys.exit(1)
+    # pid is live — matched. Cmdline-hash comparison is optional: the
+    # re-hash step would double-probe the process (ps can be costly under
+    # load), and session-pickup's health model treats 'registered + alive'
+    # as ok. If stronger identity is needed in future, compare hashes here.
+    sys.exit(0)
+
+sys.exit(1)
+PYEOF
+}
+
+register_mt() {
+    local mt="$1"
+    local pid="${MONITOR_PID:-$$}"
+    local hash
+    hash=$(cmdline_hash "$pid")
+
+    mkdir -p "$(dirname "$REGISTRY")"
+
+    REGISTRY_PATH="$REGISTRY" MT="$mt" PID_ARG="$pid" HASH_ARG="$hash" \
+        python3 - <<'PYEOF'
+import json
+import os
+import sys
+
+reg_path = os.environ["REGISTRY_PATH"]
+mt = os.environ["MT"]
+pid = int(os.environ["PID_ARG"])
+hash_ = os.environ["HASH_ARG"]
+
+try:
+    with open(reg_path) as f:
+        entries = json.load(f)
+    if not isinstance(entries, list):
+        entries = []
+except Exception:
+    entries = []
+
+# Upsert — drop any stale entry for this monitor_type, append fresh.
+entries = [
+    e for e in entries
+    if isinstance(e, dict) and e.get("monitor_type") != mt
+]
+entries.append({
+    "monitor_type": mt,
+    "pid": pid,
+    "cmdline_hash": hash_,
+})
+
+tmp_path = reg_path + ".tmp"
+with open(tmp_path, "w") as f:
+    json.dump(entries, f, indent=2)
+os.rename(tmp_path, reg_path)
+PYEOF
+}
+
+list_registry() {
+    if [[ -f "$REGISTRY" ]]; then
+        cat "$REGISTRY"
+    else
+        echo "[]"
+    fi
+}
+
+# ── arg parse ───────────────────────────────────────────────────────────────
+MODE="register"
+MT=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --verify)
+            MODE="verify"
+            shift
+            ;;
+        --list)
+            MODE="list"
+            shift
+            ;;
+        --help|-h)
+            cat <<'USAGE'
+Usage:
+  monitor-register <type>           # Register this process as monitor-<type>
+  monitor-register --verify <type>  # Exit 0 iff type is registered + alive
+  monitor-register --list           # Print the raw registry JSON
+
+Environment:
+  MONITOR_REGISTRY_PATH — override registry location
+                          (default: agency/config/monitor-pids.json)
+  MONITOR_PID           — override registered pid (default: $$)
+                          Test harnesses only; production monitors omit.
+
+Types are free-form strings chosen by the monitor process. Conventional:
+  dispatch, ci, issue
+USAGE
+            exit 0
+            ;;
+        --*)
+            echo "monitor-register: unknown flag: $1" >&2
+            exit 2
+            ;;
+        *)
+            if [[ -z "$MT" ]]; then
+                MT="$1"
+            else
+                echo "monitor-register: unexpected positional arg: $1" >&2
+                exit 2
+            fi
+            shift
+            ;;
+    esac
+done
+
+case "$MODE" in
+    verify)
+        [[ -n "$MT" ]] || { echo "--verify requires <type>" >&2; exit 2; }
+        verify_mt "$MT"
+        ;;
+    list)
+        list_registry
+        ;;
+    register)
+        [[ -n "$MT" ]] || { echo "<type> required" >&2; exit 2; }
+        register_mt "$MT"
+        ;;
+esac

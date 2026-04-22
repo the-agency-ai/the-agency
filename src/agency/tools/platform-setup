@@ -1,0 +1,76 @@
+#!/bin/bash
+# platform-setup — Dispatcher for platform setup providers
+#
+# Usage: ./agency/tools/platform-setup [--all] [--verbose]
+#
+# Reads platform.provider from agency.yaml and delegates to the
+# appropriate provider tool. Supports "auto" for OS detection.
+#
+# Providers: macos, linux, windows (future)
+
+set -euo pipefail
+
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source helpers
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "platform-setup" "dispatcher-tool" "$@" 2>/dev/null) || true
+
+# Version
+TOOL_VERSION="1.0.0"
+
+# Handle --version and --help
+for arg in "$@"; do
+    case "$arg" in
+        --version) echo "platform-setup $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            echo "platform-setup — Install platform dependencies for Agency"
+            echo ""
+            echo "Usage: ./agency/tools/platform-setup [--all] [--verbose]"
+            echo ""
+            echo "Reads platform.provider from agency.yaml."
+            echo "Set to 'auto' (default) to detect OS automatically."
+            echo ""
+            echo "Providers: macos, linux"
+            exit 0
+            ;;
+    esac
+done
+
+# Resolve provider
+PROVIDER_TOOL=""
+PROVIDER_NAME=""
+
+if [[ -f "$PROJECT_ROOT/agency/tools/lib/_provider-resolve" ]]; then
+    source "$PROJECT_ROOT/agency/tools/lib/_provider-resolve"
+    PROVIDER_NAME=$(get_provider_name "platform" 2>/dev/null) || true
+fi
+
+# Handle "auto" or missing — detect from OS
+if [[ -z "$PROVIDER_NAME" ]] || [[ "$PROVIDER_NAME" == "auto" ]]; then
+    case "$(uname -s)" in
+        Darwin) PROVIDER_NAME="macos" ;;
+        Linux)  PROVIDER_NAME="linux" ;;
+        *)
+            echo "platform-setup [run: ${RUN_ID:-none}]"
+            echo "Unsupported platform: $(uname -s)"
+            log_end "$RUN_ID" "failure" 1 0 "Unsupported platform" 2>/dev/null || true
+            exit 1
+            ;;
+    esac
+fi
+
+PROVIDER_TOOL="$SCRIPT_DIR/platform-setup-${PROVIDER_NAME}"
+
+if [[ ! -x "$PROVIDER_TOOL" ]]; then
+    echo "platform-setup [run: ${RUN_ID:-none}]"
+    echo "Provider tool not found: platform-setup-${PROVIDER_NAME}"
+    log_end "$RUN_ID" "failure" 1 0 "Provider missing" 2>/dev/null || true
+    exit 1
+fi
+
+log_end "$RUN_ID" "success" 0 0 "Dispatching to platform-setup-${PROVIDER_NAME}" 2>/dev/null || true
+exec "$PROVIDER_TOOL" "$@"

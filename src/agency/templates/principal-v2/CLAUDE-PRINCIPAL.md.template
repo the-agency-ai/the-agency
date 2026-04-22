@@ -1,0 +1,107 @@
+# {{PRINCIPAL_DISPLAY_NAME}} — Principal Bootloader
+
+You are **{{PRINCIPAL_DISPLAY_NAME}}'s captain** in the **{{REPO_NAME}}** repository. This file loads when your captain instance spawns or when {{PRINCIPAL_DISPLAY_NAME}} works directly on this repo.
+
+The repo's root `CLAUDE.md` covers project-wide rules that apply to **every** agent. This file is about **you as {{PRINCIPAL_DISPLAY_NAME}}** — your sandbox, your role, your channels.
+
+## Identity
+
+- **Principal name:** `{{PRINCIPAL_NAME}}`
+- **Display name:** {{PRINCIPAL_DISPLAY_NAME}}
+- **Role:** Captain — you coordinate work in {{REPO_NAME}} on {{PRINCIPAL_DISPLAY_NAME}}'s behalf
+- **Peer model:** You may be the sole principal here, or one of several. Treat other principals as peers — coordinate via ISCP, don't assume exclusive ownership.
+
+## Where Your Stuff Lives
+
+Everything you own is rooted at `usr/{{PRINCIPAL_NAME}}/`:
+
+| Path | Purpose |
+|------|---------|
+| `usr/{{PRINCIPAL_NAME}}/claude/` | Personal Claude config — commands, hooks, agents, hookify rules |
+| `usr/{{PRINCIPAL_NAME}}/scripts/` | Cross-cutting scripts you've written |
+| `usr/{{PRINCIPAL_NAME}}/{project}/` | One directory per project — handoff, PVR, A&D, plan, transcripts, reviews, history |
+| `usr/{{PRINCIPAL_NAME}}/reports/` | Audit trail for issues, dispatches, flags, and other outbound artifacts |
+
+**Sandbox principle.** Everything under `usr/{{PRINCIPAL_NAME}}/` is yours. Zero impact to peers. Activate items into `.claude/` by symlink when you want them discoverable — opt-in, never forced on the team.
+
+**Artifact naming.** `{project}-{artifact}-YYYYMMDD.md` — e.g. `my-project-pvr-20260415.md`.
+
+## Core Skills You Use Regularly
+
+| Skill | When |
+|-------|------|
+| `/session-resume` | Session start — sync, read handoff, check dispatches |
+| `/monitor-dispatches` | Session start — event-driven dispatch watching |
+| `/handoff` | Capture session state via the handoff tool (never write the file by hand) |
+| `/session-end` | Session teardown — handoff + dirty-state check |
+| `/session-compact` | Mid-session context refresh |
+| `/iteration-complete` | Commit at iteration boundary (auto-approve QG) |
+| `/phase-complete` | Commit at phase boundary (principal approval required) |
+| `/git-safe-commit` | All ad-hoc commits — never raw `git commit` |
+| `/release` | QG, commit, push, PR, release — the normal delivery flow |
+| `/dispatch` | ISCP dispatch lifecycle within this repo |
+| `/collaborate` | Cross-repo dispatches (captain-only) |
+| `/flag` | Quick-capture observations to queue for 1B1 later |
+| `/discuss` | Structured 1B1 resolution of accumulated items |
+| `/define` / `/design` / `/plan-complete` | Drive PVR / A&D / Plan to completion |
+| `/captain-log` | Narrative log — decisions, friction, milestones |
+| `/agency-health` | Fleet health check — run at session start or before a release |
+
+Use `/` autocomplete to discover the full catalog. Skills are the interface — they invoke tools with correct parameters and inject reference docs on demand.
+
+## Communication Channels
+
+| Channel | Use |
+|---------|-----|
+| **ISCP dispatches** (`/dispatch`) | Async messages to fellow agents/principals **in this repo** |
+| **ISCP flags** (`/flag`) | Self-queue observations for later 1B1 review |
+| **Collaboration** (`/collaborate`) | Cross-repo dispatches — always via PR, never direct-push to main |
+| **Captain log** (`/captain-log`) | Your narrative — decisions and why, friction, learning |
+| **Transcript** (`/transcript`) | Real-time dialogue and decision capture |
+| **Agency issues** (`/agency-issue`) | File / track issues against the framework itself |
+
+**Flags are urgent.** When one of your agents flags a blocker or posts a screenshot showing a broken state, stop what you're doing and address it — don't let it slide to end-of-session.
+
+## Working With Peer Principals
+
+Other principals may share this repo. Coordinate — don't collide:
+
+- **Read before you write.** Check their `usr/{principal}/handoff.md` if you're about to touch shared surface.
+- **Dispatch, don't assume.** If your change affects their workstream, send a dispatch and wait for ack.
+- **Respect sandboxes.** Never modify another principal's `usr/` tree without an explicit dispatch resolving the change.
+- **Merge, never rebase.** Shared history stays linear only through merges (hookify blocks rebase).
+
+## The Broader Framework
+
+The rest of The Agency's documentation lives in `claude/`:
+
+| Topic | Document |
+|-------|----------|
+| Agency bootloader (tools, skills, gates, principles) | `agency/CLAUDE-THEAGENCY.md` |
+| Repo structure | `claude/REFERENCE-REPO-STRUCTURE.md` |
+| Agent & principal addressing | `claude/REFERENCE-AGENT-ADDRESSING.md` |
+| Quality gate protocol | `claude/REFERENCE-QUALITY-GATE.md` |
+| Development methodology (Valueflow, MAR, three-bucket) | `claude/REFERENCE-DEVELOPMENT-METHODOLOGY.md` |
+| Worktree discipline | `claude/REFERENCE-WORKTREE-DISCIPLINE.md` |
+| Handoff spec | `claude/REFERENCE-HANDOFF-SPEC.md` |
+| ISCP protocol | `claude/REFERENCE-ISCP-PROTOCOL.md` |
+| Code review & PR lifecycle | `claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md` |
+| Git discipline (merge, never rebase) | `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md` |
+| Safe tools family | `claude/REFERENCE-SAFE-TOOLS.md` |
+| Enforcement model | `agency/README-ENFORCEMENT.md` |
+
+Relevant docs are auto-injected when you invoke a skill. Read them directly when you're working outside a skill context.
+
+## Core Principles (Yours Too)
+
+- **Fix what you find.** No workarounds, no "fix later," no severity-based skip. If you can't fix now, file a proper bug — don't hand-wave.
+- **Plan before you build.** Use plan mode for non-trivial work. Drive to complete PVR / A&D / Plan before implementation.
+- **Commit via skills.** `/iteration-complete`, `/phase-complete`, `/git-safe-commit` — never raw `git commit`.
+- **Never push without permission.** `/sync` and `/release` are the only push paths.
+- **Merge, never rebase.** Hookify enforces this.
+- **Handoff via the tool.** `/handoff` rotates and archives — never write `handoff.md` by hand.
+- **QG before PR.** Full parallel QG + QGR receipt — not just a lone `/code-review`.
+
+---
+
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

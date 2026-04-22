@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+# What Problem: Bug reports and feature requests are filed as GitHub Issues
+# against the-agency. Without monitoring, captain doesn't see them until
+# end-of-session or until the principal surfaces them. Critical issues
+# (security, broken framework primitives, blocking adopters like monofolk)
+# need fast triage. Email notifications are noisy and require leaving the
+# session to read.
+#
+# How & Why: Lightweight polling script designed as a Monitor tool backend.
+# Mirrors the dispatch-monitor pattern: poll loop, last-seen state pointer,
+# one-line-per-event stdout. Each emitted line becomes a Monitor notification
+# surfaced to the captain agent in real time. Polling beats webhooks at our
+# scale and trust model — no public endpoint, no auth secrets, gh CLI handles
+# auth via existing login. 60-second cadence is well inside GitHub's
+# authenticated rate limit (5000/hr, this is 60/hr).
+#
+# State file lives at agency/config/issue-monitor.last (in the framework data
+# dir, NOT /tmp) so it survives session restarts and reboots. Tracks last-seen
+# by issue number (monotonic, simpler than ISO timestamps, no clock-skew).
+#
+# Output format includes the captain action hint inline:
+#   [ISSUE #N] author: title — captain: triage now (read, scope fix, dispatch)
+#
+# Usage: With Monitor tool — invoke as:
+#   ./agency/tools/issue-monitor [--repo owner/repo] [--interval N]
+# Standalone (debug):
+#   ./agency/tools/issue-monitor --once
+#
+# Written: 2026-04-15 (D41-R11 captain) — provenance per principal directive
+#          to capture What/How/Why before implementation. Replaces ad-hoc
+#          inline bash that lived only in the Monitor task definition.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Defaults
+REPO="the-agency-ai/the-agency"
+INTERVAL=60
+ONCE=false
+STATE_DIR="$PROJECT_ROOT/agency/config"
+STATE_FILE="$STATE_DIR/issue-monitor.last"
+MAX_TO_FETCH=20
+
+TOOL_VERSION="1.0.0-20260415-d41r11"
+
+usage() {
+    cat <<USAGE
+issue-monitor — Stream new GitHub Issues against a repo as Monitor events
+
+Usage:
+  ./agency/tools/issue-monitor [--repo owner/repo] [--interval N] [--once]
+
+Options:
+  --repo <owner/repo>   Repo to watch (default: $REPO)
+  --interval <seconds>  Poll cadence (default: $INTERVAL)
+  --once                One-shot: print any new issues then exit (debug)
+  --state <file>        Override state file (default: $STATE_FILE)
+  --help, -h            Show this help
+  --version             Show version
+
+Behavior:
+  - Polls 'gh issue list --state open' every <interval> seconds.
+  - Tracks highest-seen issue number in the state file.
+  - Emits one line per NEW issue:
+      [ISSUE #N] author: title — captain: triage now (read, scope fix, dispatch)
+  - Silent when no new issues (so Monitor stays quiet).
+
+State file:
+  $STATE_FILE
+  (in agency/config/, survives reboots; first run initializes from current max)
+
+Designed for Claude Code's Monitor tool. Each stdout line becomes a
+notification to the agent.
+USAGE
+}
+
+# Parse args
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --repo)     REPO="$2"; shift 2 ;;
+        --interval) INTERVAL="$2"; shift 2 ;;
+        --once)     ONCE=true; shift ;;
+        --state)    STATE_FILE="$2"; shift 2 ;;
+        --help|-h)  usage; exit 0 ;;
+        --version)  echo "issue-monitor $TOOL_VERSION"; exit 0 ;;
+        *)          echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+# Validate
+[[ ! "$INTERVAL" =~ ^[0-9]+$ ]] && { echo "ERROR: --interval must be integer seconds" >&2; exit 2; }
+[[ "$INTERVAL" -lt 10 ]] && { echo "ERROR: --interval must be >= 10 (rate-limit safety)" >&2; exit 2; }
+
+command -v gh >/dev/null 2>&1 || { echo "ERROR: gh CLI not found in PATH" >&2; exit 2; }
+
+# Ensure state dir
+mkdir -p "$(dirname "$STATE_FILE")"
+
+# Load last-seen, initialize from current max if missing
+if [[ ! -f "$STATE_FILE" ]]; then
+    initial=$(gh issue list --repo "$REPO" --state open --limit 1 --json number --jq '.[0].number // 0' 2>/dev/null) || initial=0
+    echo "$initial" > "$STATE_FILE"
+fi
+
+emit_new_issues() {
+    local last="$1"
+    local newest
+    newest=$(gh issue list --repo "$REPO" --state open --limit 1 --json number --jq '.[0].number // 0' 2>/dev/null) || return 0
+    [[ "$newest" -le "$last" ]] && return 0
+
+    # Emit one line per new issue, oldest-new first (so chronological order)
+    gh issue list --repo "$REPO" --state open --limit "$MAX_TO_FETCH" \
+        --json number,title,author,createdAt \
+        --jq ".[] | select(.number > $last) | \"[ISSUE #\(.number)] \(.author.login): \(.title) — captain: triage now (read, scope fix, dispatch owner if not you)\"" \
+        2>/dev/null \
+        | tail -r 2>/dev/null \
+        || gh issue list --repo "$REPO" --state open --limit "$MAX_TO_FETCH" \
+               --json number,title,author,createdAt \
+               --jq ".[] | select(.number > $last) | \"[ISSUE #\(.number)] \(.author.login): \(.title) — captain: triage now (read, scope fix, dispatch owner if not you)\"" \
+               2>/dev/null
+
+    echo "$newest" > "$STATE_FILE"
+}
+
+last=$(cat "$STATE_FILE" 2>/dev/null || echo 0)
+
+if [[ "$ONCE" == "true" ]]; then
+    emit_new_issues "$last"
+    exit 0
+fi
+
+# Persistent loop
+while true; do
+    emit_new_issues "$last"
+    last=$(cat "$STATE_FILE" 2>/dev/null || echo "$last")
+    sleep "$INTERVAL"
+done

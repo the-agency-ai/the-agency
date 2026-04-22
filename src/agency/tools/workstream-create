@@ -1,0 +1,161 @@
+#!/bin/bash
+# Create a new workstream directory structure
+#
+# Usage: ./agency/tools/workstream-create <name> [--description=<text>] [--verbose]
+#
+# Creates:
+#   agency/workstreams/{name}/
+#     - KNOWLEDGE.md
+#     - epic001/ (placeholder for past work)
+#     - epic002/ (current epic)
+
+set -euo pipefail
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+# Tool version
+TOOL_VERSION="1.1.0-20260114-000005"
+
+# Colors
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="[0;31m" GREEN="[0;32m" YELLOW="[1;33m" BLUE="[0;34m" NC="[0m"
+fi
+
+# Defaults
+VERBOSE=false
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "workstream-create $TOOL_VERSION"
+    exit 0
+fi
+
+# Help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "workstream-create - Create a new workstream directory structure"
+    echo ""
+    echo "Usage: ./agency/tools/workstream-create <name> [--description=<text>] [--verbose]"
+    echo ""
+    echo "Arguments:"
+    echo "  name    Name for the new workstream"
+    echo ""
+    echo "Options:"
+    echo "  --description=<text>  Description for the workstream KNOWLEDGE.md"
+    echo "  --verbose             Show detailed logging"
+    echo "  --version, -v         Show version"
+    echo "  --help, -h            Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  ./agency/tools/workstream-create billing"
+    echo "  ./agency/tools/workstream-create billing --description='Payment processing and invoicing'"
+    exit 0
+fi
+
+# Parse arguments
+NAME=""
+DESCRIPTION=""
+for arg in "$@"; do
+    case $arg in
+        --verbose)
+            VERBOSE=true
+            ;;
+        --description=*)
+            DESCRIPTION="${arg#*=}"
+            ;;
+        --*)
+            # Skip other options
+            ;;
+        *)
+            if [[ -z "$NAME" ]]; then
+                NAME="$arg"
+            fi
+            ;;
+    esac
+done
+
+if [ -z "$NAME" ]; then
+  log_error "Missing required argument"
+  echo ""
+  echo "Usage: ./agency/tools/workstream-create <name> [--description=<text>] [--verbose]"
+  echo ""
+  echo "Example: ./agency/tools/workstream-create billing"
+  exit 1
+fi
+
+DIR="agency/workstreams/$NAME"
+TIMESTAMP=$(./agency/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
+
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    RUN_ID=$(log_start "workstream-create" "$@" 2>/dev/null) || true
+    echo "workstream-create [run: ${RUN_ID:-none}]"
+
+    if [ -d "$DIR" ]; then
+      log_error "Workstream '$NAME' already exists at $DIR"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Workstream already exists"
+      exit 1
+    fi
+
+    log_step "Creating workstream: $NAME"
+    mkdir -p "$DIR/epic001"
+    mkdir -p "$DIR/epic002"
+
+    # Set description text
+    if [[ -n "$DESCRIPTION" ]]; then
+        OVERVIEW_TEXT="$DESCRIPTION"
+    else
+        OVERVIEW_TEXT="TODO: describe this workstream"
+    fi
+
+    cat > "$DIR/KNOWLEDGE.md" << EOF
+# $NAME Workstream Knowledge
+
+**Created:** $TIMESTAMP
+
+## Overview
+
+$OVERVIEW_TEXT
+
+## Key Concepts
+
+TODO: add domain-specific knowledge
+
+## Patterns
+
+TODO: document common patterns used
+
+## References
+
+- TODO: add relevant documentation links
+EOF
+
+    echo "Created:"
+    verbose_echo "  $DIR/"
+    verbose_echo "  $DIR/KNOWLEDGE.md"
+    verbose_echo "  $DIR/epic001/"
+    verbose_echo "  $DIR/epic002/"
+    echo ""
+    echo "Next: Create an agent with ./agency/tools/agent-create <name> $NAME"
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Workstream $NAME created"
+}
+
+main

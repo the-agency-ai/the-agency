@@ -1,0 +1,91 @@
+#!/bin/bash
+# Fetch from remote and report branch status
+#
+# Usage: ./agency/tools/git-fetch [options]
+#   --verbose  Show detailed output
+#
+# Token-conserving: 3-line output, details in log
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+
+VERBOSE=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --verbose|-v) VERBOSE=true; shift ;;
+        --version) echo "git-fetch $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            echo "git-fetch - Fetch from remote and report branch status"
+            echo ""
+            echo "Usage: ./agency/tools/git-fetch [options]"
+            echo ""
+            echo "Options:"
+            echo "  --verbose      Show detailed output"
+            echo "  --version, -v  Show tool version"
+            echo "  --help, -h     Show this help"
+            exit 0
+            ;;
+        *) echo "Unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
+RUN_ID=""
+if type log_start &>/dev/null; then
+    RUN_ID=$(log_start "git-fetch" "fetch")
+fi
+
+cd "$PROJECT_ROOT"
+
+BRANCH=$(git branch --show-current 2>/dev/null || echo "detached")
+REMOTE=$(git config "branch.${BRANCH}.remote" 2>/dev/null || echo "origin")
+
+FETCH_OUTPUT=$(git fetch "$REMOTE" 2>&1) || {
+    if [ -n "$RUN_ID" ]; then
+        log_end "$RUN_ID" "failure" 1 0 "fetch failed"
+    fi
+    echo "git-fetch [run: ${RUN_ID:+${RUN_ID:0:8}}]"
+    echo "Fetch failed"
+    echo "x"
+    exit 1
+}
+
+# Compute ahead/behind
+UPSTREAM="${REMOTE}/${BRANCH}"
+if git rev-parse --verify "$UPSTREAM" &>/dev/null; then
+    AHEAD=$(git rev-list --count "${UPSTREAM}..HEAD" 2>/dev/null || echo 0)
+    BEHIND=$(git rev-list --count "HEAD..${UPSTREAM}" 2>/dev/null || echo 0)
+
+    if [[ "$AHEAD" -gt 0 ]] && [[ "$BEHIND" -gt 0 ]]; then
+        STATUS="diverged (${AHEAD} ahead, ${BEHIND} behind)"
+    elif [[ "$AHEAD" -gt 0 ]]; then
+        STATUS="ahead by ${AHEAD}"
+    elif [[ "$BEHIND" -gt 0 ]]; then
+        STATUS="behind by ${BEHIND}"
+    else
+        STATUS="up to date"
+    fi
+else
+    STATUS="no upstream"
+fi
+
+SUMMARY="${BRANCH}: ${STATUS}"
+
+if [ -n "$RUN_ID" ]; then
+    if [ -n "$FETCH_OUTPUT" ]; then
+        log_detail "$RUN_ID" "stdout" "$FETCH_OUTPUT"
+    fi
+    log_end "$RUN_ID" "success" 0 0 "$SUMMARY"
+    tool_output "git-fetch" "$RUN_ID" "$SUMMARY"
+else
+    echo "git-fetch"
+    echo "$SUMMARY"
+    echo "done"
+fi

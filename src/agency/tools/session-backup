@@ -1,0 +1,129 @@
+#!/bin/bash
+# Backup session state - captures git status, uncommitted changes, metadata
+#
+# Usage: Called automatically by SessionEnd hook
+#        ./agency/tools/session-backup [--verbose]
+#
+# Why this exists:
+#   Enables session continuity - capture complete work state on exit
+#   Allows seamless restoration when resuming work
+
+set -euo pipefail
+
+# Source log helper for telemetry
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "session-backup" "$@" 2>/dev/null) || true
+
+# Tool version
+TOOL_VERSION="1.0.0-20260114-000002"
+
+# Defaults
+VERBOSE=false
+
+# Parse arguments
+for arg in "$@"; do
+    case $arg in
+        --version|-v)
+            echo "session-backup $TOOL_VERSION"
+            exit 0
+            ;;
+        --help|-h)
+            echo "session-backup - Backup session state"
+            echo ""
+            echo "Usage:"
+            echo "  ./agency/tools/session-backup [--verbose]"
+            echo ""
+            echo "Options:"
+            echo "  --verbose     Show detailed logging"
+            echo "  --version, -v Show tool version"
+            echo "  --help, -h    Show this help"
+            exit 0
+            ;;
+        --verbose)
+            VERBOSE=true
+            ;;
+    esac
+done
+
+# Colors
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="[0;31m" GREEN="[0;32m" YELLOW="[1;33m" BLUE="[0;34m" NC="[0m"
+fi
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    verbose_echo "session-backup [run: ${RUN_ID:-none}]"
+
+    local AGENTNAME=$(./agency/tools/agency-whoami 2>/dev/null || echo 'unknown')
+    local TIMESTAMP=$(./agency/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M:%S %Z')
+    local BACKUP_DIR="agency/agents/$AGENTNAME/backups/latest"
+    local ARCHIVE_DIR="agency/agents/$AGENTNAME/backups/archive/session-$(date +%s)"
+
+    log_step "Creating backup directories"
+    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$ARCHIVE_DIR"
+
+    log_step "Capturing git status"
+    git status > "$BACKUP_DIR/status.txt" 2>/dev/null
+
+    log_step "Capturing current branch"
+    git branch --show-current > "$BACKUP_DIR/current-branch.txt" 2>/dev/null
+
+    log_step "Checking for uncommitted changes"
+    if ! git diff --quiet 2>/dev/null; then
+        verbose_echo "  Found uncommitted changes, creating patch"
+        git diff > "$BACKUP_DIR/uncommitted.patch" 2>/dev/null
+    fi
+
+    log_step "Checking for staged changes"
+    if ! git diff --cached --quiet 2>/dev/null; then
+        verbose_echo "  Found staged changes, creating patch"
+        git diff --cached > "$BACKUP_DIR/staged.patch" 2>/dev/null
+    fi
+
+    log_step "Capturing session metadata"
+    local WORKSTREAM=$(./agency/tools/workstream 2>/dev/null || echo 'unknown')
+    cat > "$BACKUP_DIR/session-info.json" <<EOF
+{
+  "agentname": "$AGENTNAME",
+  "workstream": "$WORKSTREAM",
+  "timestamp": "$TIMESTAMP",
+  "branch": "$(git branch --show-current 2>/dev/null || echo 'unknown')",
+  "last_commit": "$(git log -1 --format='%h - %s' 2>/dev/null || echo 'none')",
+  "has_uncommitted": $([ -f "$BACKUP_DIR/uncommitted.patch" ] && echo 'true' || echo 'false'),
+  "has_staged": $([ -f "$BACKUP_DIR/staged.patch" ] && echo 'true' || echo 'false')
+}
+EOF
+
+    log_step "Archiving context if exists"
+    local CONTEXT_FILE="agency/agents/$AGENTNAME/backups/latest/context.jsonl"
+    if [[ -f "$CONTEXT_FILE" ]]; then
+        cp "$CONTEXT_FILE" "$ARCHIVE_DIR/context.jsonl" 2>/dev/null
+        verbose_echo "  Archived context file"
+    fi
+
+    log_step "Archiving backup"
+    cp -r "$BACKUP_DIR/"* "$ARCHIVE_DIR/" 2>/dev/null
+
+    log_info "Session backup complete"
+
+    trap - EXIT  # Clear trap
+    log_end "$RUN_ID" "success" 0 0 "Backup complete" 2>/dev/null || true
+}
+
+main

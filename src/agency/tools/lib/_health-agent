@@ -1,0 +1,174 @@
+#!/bin/bash
+#
+# What Problem: Agent-level health is "is the agent present, responsive,
+# addressed correctly, and in a sane state." Failure modes we have hit this
+# session: devex silently stalled on permission prompt inside coord-commit,
+# commits attributed to Test User instead of the principal, agent handoff
+# files stale for days because the agent is not running sessions, identity
+# resolution falling through to 'captain' default because .agency-agent
+# file is missing.
+#
+# How & Why: Enumerate registered agents from .claude/agents/ and
+# agency/agents/ directories. For each, run checks: registration file,
+# worktree presence, dispatch unread + age, handoff freshness, attribution
+# integrity (recent commits correctly authored), and identity consistency.
+#
+# Written: 2026-04-09 during captain Day 34 — agency-health v1
+
+# Enumerate known agents. The framework stores per-agent registrations in
+# .claude/agents/ (discovery location). We consider every .md file there as
+# a potential agent.
+_health_agent_list() {
+    local dir="${PROJECT_ROOT:-.}/.claude/agents"
+    if [[ -d "$dir" ]]; then
+        find "$dir" -maxdepth 1 -name '*.md' -not -name 'README*' 2>/dev/null \
+            | xargs -I{} basename {} .md 2>/dev/null \
+            | sort -u
+    fi
+}
+
+# Check a single agent
+_health_check_one_agent() {
+    local agent="$1"
+    local dim="agent"
+    local worst="healthy"
+    local summary_parts=()
+    local detail_parts=()
+
+    local registration="${PROJECT_ROOT}/.claude/agents/${agent}.md"
+    if [[ ! -f "$registration" ]]; then
+        health_emit "$dim" "$agent" critical "not registered" "Expected: $registration"
+        return
+    fi
+
+    # ─── Check 1: Worktree presence ───
+    # Heuristic: does a worktree named {agent} exist, or is this a main-checkout agent?
+    local wt_path=""
+    if [[ "$agent" == "captain" ]]; then
+        wt_path="$PROJECT_ROOT"
+    else
+        local candidate="$PROJECT_ROOT/.claude/worktrees/$agent"
+        if [[ -d "$candidate" ]]; then
+            wt_path="$candidate"
+        fi
+    fi
+
+    # If we expected a worktree for a non-captain agent and didn't find one
+    if [[ "$agent" != "captain" && -z "$wt_path" ]]; then
+        [[ "$worst" == "healthy" ]] && worst="attention"
+        summary_parts+=("no worktree")
+    fi
+
+    # ─── Check 2: Unread dispatches + age ───
+    if [[ -x "$PROJECT_ROOT/agency/tools/dispatch" ]]; then
+        # dispatch list --to {agent-addr} --status unread — but tool may not
+        # support --to filter in v1. Fall back to counting the list.
+        local unread_count=0
+        unread_count=$("$PROJECT_ROOT/agency/tools/dispatch" list --status unread 2>/dev/null \
+            | grep -c "$agent" 2>/dev/null || echo 0)
+        unread_count=$(echo "$unread_count" | tr -d '[:space:]')
+        if [[ "$unread_count" -gt 3 ]]; then
+            worst="warning"
+            summary_parts+=("$unread_count unread dispatches")
+        elif [[ "$unread_count" -gt 0 ]]; then
+            [[ "$worst" == "healthy" ]] && worst="attention"
+            summary_parts+=("$unread_count unread")
+        fi
+    fi
+
+    # ─── Check 3: Handoff freshness ───
+    # Handoff lives at usr/{principal}/{agent}/{agent}-handoff.md typically.
+    # Walk EVERY principal directory (not a hardcoded 'jordan') so multi-
+    # principal repos resolve each agent's handoff regardless of who the
+    # current $USER is. Fixes issue #111 (D41-R19 Option E).
+    local handoff=""
+    if [[ -d "$PROJECT_ROOT/usr" ]]; then
+        local principal_dir
+        for principal_dir in "$PROJECT_ROOT/usr/"*; do
+            [[ -d "$principal_dir" ]] || continue
+            for candidate in \
+                "$principal_dir/$agent/$agent-handoff.md" \
+                "$principal_dir/$agent/handoff.md" \
+                "$principal_dir/captain/captain-handoff.md"; do
+                if [[ "$agent" == "captain" && -f "$candidate" && "$candidate" == *"captain"* ]]; then
+                    handoff="$candidate"
+                    break 2
+                elif [[ "$agent" != "captain" && -f "$candidate" && "$candidate" == *"$agent"* ]]; then
+                    handoff="$candidate"
+                    break 2
+                fi
+            done
+        done
+    fi
+
+    if [[ -n "$handoff" ]]; then
+        local days
+        days=$(health_days_since_modified "$handoff")
+        if [[ "$days" -gt 14 ]]; then
+            worst="warning"
+            summary_parts+=("handoff ${days}d old")
+        elif [[ "$days" -gt 7 ]]; then
+            [[ "$worst" == "healthy" || "$worst" == "attention" ]] && worst="attention"
+            summary_parts+=("handoff ${days}d old")
+        fi
+    else
+        [[ "$worst" == "healthy" ]] && worst="attention"
+        summary_parts+=("no handoff found")
+    fi
+
+    # ─── Check 4: Attribution integrity (recent commits) ───
+    # Only meaningful if we have a worktree for this agent
+    if [[ -n "$wt_path" ]]; then
+        local test_user_count
+        test_user_count=$(git -C "$wt_path" log --format='%an' -20 2>/dev/null \
+            | grep -c "^Test User$" 2>/dev/null || echo 0)
+        test_user_count=$(echo "$test_user_count" | tr -d '[:space:]')
+        if [[ "$test_user_count" -gt 0 ]]; then
+            worst="warning"
+            summary_parts+=("$test_user_count Test User commits in last 20")
+            detail_parts+=("BATS pollution — run test_helper.bash audit")
+        fi
+    fi
+
+    # Compose summary
+    local summary_text
+    if [[ ${#summary_parts[@]} -eq 0 ]]; then
+        summary_text="registered, handoff fresh"
+    else
+        summary_text=$(IFS=', '; echo "${summary_parts[*]}")
+    fi
+
+    local detail_text=""
+    if [[ ${#detail_parts[@]} -gt 0 ]]; then
+        detail_text=$(IFS='; '; echo "${detail_parts[*]}")
+    fi
+
+    health_emit "$dim" "$agent" "$worst" "$summary_text" "$detail_text"
+}
+
+# Public: check one or all agents
+health_check_agents() {
+    local target="${1:-}"
+    if [[ "${JSON:-false}" != "true" ]]; then
+        health_render_section "AGENTS"
+    fi
+
+    local agents
+    agents=$(_health_agent_list)
+    local any=false
+
+    if [[ -n "$target" ]]; then
+        _health_check_one_agent "$target"
+        any=true
+    else
+        while IFS= read -r agent; do
+            [[ -z "$agent" ]] && continue
+            _health_check_one_agent "$agent"
+            any=true
+        done <<< "$agents"
+    fi
+
+    if [[ "$any" == false ]]; then
+        echo "  (no agents registered)"
+    fi
+}

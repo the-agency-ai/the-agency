@@ -1,0 +1,75 @@
+#!/bin/bash
+# What Problem: Agents can be launched in the wrong directory — e.g., started in
+# the main repo when their worktree is at .claude/worktrees/devex/. The agent
+# doesn't know this until they try to write a handoff or run a tool, and then
+# things end up in the wrong agent's path. The damage is done before they
+# notice.
+#
+# How & Why: SessionStart hook check that compares CWD to the resolved worktree
+# root (git rev-parse --show-toplevel). If they don't match, emit a clear
+# warning telling the agent which directory they should be in. Read-only check —
+# doesn't change CWD or block, just informs. Layer 1 of the cd-stays-in-worktree
+# protection. Layer 2 (the hookify rule) blocks runtime cd violations.
+#
+# Written: 2026-04-07 during devex Phase 110 (cd-stays-in-worktree)
+#
+# Usage:
+#   ./agency/tools/worktree-cwd-check              # check, emit warning if mismatch
+#   ./agency/tools/worktree-cwd-check --quiet      # exit code only, no output
+#   ./agency/tools/worktree-cwd-check --version    # show version
+#
+# Exit codes:
+#   0 = CWD matches worktree (or not inside any git repo)
+#   1 = CWD mismatch with worktree root
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+
+QUIET=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version) echo "worktree-cwd-check $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            sed -n '/^# Usage:/,/^# Exit/p' "$0" | sed 's/^# //' | sed 's/^#//'
+            exit 0 ;;
+        --quiet|-q) QUIET=true; shift ;;
+        *) echo "Error: unknown option: $1" >&2; exit 2 ;;
+    esac
+done
+
+# Resolve the worktree root
+WORKTREE_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+
+# Not inside a git repo — nothing to check
+if [[ -z "$WORKTREE_ROOT" ]]; then
+    exit 0
+fi
+
+# Resolve real paths to handle symlinks
+WORKTREE_REAL=$(cd "$WORKTREE_ROOT" && pwd -P)
+CWD_REAL=$(pwd -P)
+
+# Check containment
+if [[ "$CWD_REAL" == "$WORKTREE_REAL"* ]]; then
+    exit 0
+fi
+
+# Mismatch — emit warning
+if [[ "$QUIET" != "true" ]]; then
+    cat >&2 <<EOF
+⚠ WORKTREE CWD MISMATCH
+
+  Current CWD: $CWD_REAL
+  Worktree:    $WORKTREE_REAL
+
+You launched in the wrong directory. Tools that resolve agent identity will
+read $CWD_REAL's git context instead of your worktree's. Handoffs, dispatches,
+and flags will be written to the wrong agent's path.
+
+Fix: re-launch from $WORKTREE_REAL, or cd into it:
+  cd $WORKTREE_REAL
+
+EOF
+fi
+exit 1

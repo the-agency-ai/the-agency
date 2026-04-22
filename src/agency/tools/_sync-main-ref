@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# _sync-main-ref — Update local refs/heads/main to match origin/main without
+# requiring a checkout of main. Workaround for the bootstrap case where the
+# captain's tools haven't yet propagated to the local main branch.
+#
+# This is a captain-internal helper. After D41-R5 lands and the proper
+# git-captain has sync-main + merge-continue available everywhere, this can
+# be removed.
+#
+# Safety: refuses to run if local main has commits not on origin/main
+# (would lose work). Only fast-forwards.
+#
+set -euo pipefail
+
+cd "$(dirname "$0")/../.."
+
+# Fetch first
+git fetch origin --quiet
+
+local_main=$(git rev-parse refs/heads/main 2>/dev/null) || {
+    echo "ERROR: refs/heads/main does not exist" >&2; exit 1
+}
+origin_main=$(git rev-parse refs/remotes/origin/main 2>/dev/null) || {
+    echo "ERROR: refs/remotes/origin/main does not exist" >&2; exit 1
+}
+
+if [[ "$local_main" == "$origin_main" ]]; then
+    echo "Already at origin/main ($origin_main)"
+    exit 0
+fi
+
+# Verify origin is ahead of local (FF safe). i.e., local must be ancestor of origin.
+if ! git merge-base --is-ancestor "$local_main" "$origin_main"; then
+    echo "ERROR: local main has commits not on origin/main — refusing to update ref" >&2
+    echo "  local:  $local_main" >&2
+    echo "  origin: $origin_main" >&2
+    exit 1
+fi
+
+git update-ref refs/heads/main "$origin_main"
+echo "Updated local main: $local_main -> $origin_main"

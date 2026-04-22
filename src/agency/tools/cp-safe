@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+# What Problem: Agents copy files across worktree boundaries using raw cp,
+# bypassing git, creating dirty state, and losing change tracking. This is
+# a framework-level problem — any agency with worktrees will hit it.
+#
+# How & Why: Wraps cp with worktree boundary validation. Uses git-native
+# ref resolution (rev-parse --show-toplevel + --git-common-dir) to detect
+# "same worktree", "same repo different worktrees", or "different repos"
+# without string-prefix heuristics. Handles sibling↔sibling worktrees,
+# relative-path traversal (../sibling/...), symlinked paths, and forged
+# .git files uniformly.
+#
+# Cross-REPO copies (e.g., monofolk → the-agency upstream-port) are legitimate
+# but distinct from cross-worktree. They require an explicit --cross-repo
+# flag so they're visible in the audit trail.
+#
+# Usage: ./agency/tools/cp-safe <source> <dest>
+#        ./agency/tools/cp-safe -r <source-dir> <dest-dir>
+#        ./agency/tools/cp-safe --cross-repo <source> <peer-repo-dest>
+#        ./agency/tools/cp-safe -- <source-with-dash-prefix> <dest>
+#
+# Written: 2026-04-14 during captain session (worktree discipline enforcement)
+# QG: fixed multi-source drop (#4), non-existent dest bypass (#2)
+# 2026-04-20: added --cross-repo flag for peer-repo workflows (agency#361)
+# 2026-04-21: QG findings C-1/C-2/S-1/S-2 — sibling-bypass fix (git-native
+#             repo/worktree detection), path canonicalization, -- sentinel
+#             in arg parser and cp invocation, retired .git file-existence
+#             heuristic.
+
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+    echo "Usage: cp-safe [-r] [--cross-repo] [--] <source> <dest>" >&2
+    echo "  Copies files within the same worktree. Blocks cross-worktree copies." >&2
+    echo "  For syncing between worktrees, use /worktree-sync." >&2
+    echo "  For cross-repo ports (e.g., monofolk → the-agency), pass --cross-repo." >&2
+    echo "  For paths starting with '-', separate with '--' end-of-options sentinel." >&2
+    exit 1
+fi
+
+# Collect flags and positional arguments. `--` terminates flag parsing so
+# files whose names start with '-' can be handled without being promoted
+# to cp flags (finding S-1).
+CP_FLAGS=()
+POSITIONALS=()
+CROSS_REPO=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --cross-repo)
+            CROSS_REPO=true
+            shift
+            ;;
+        --)
+            shift
+            while [[ $# -gt 0 ]]; do
+                POSITIONALS+=("$1")
+                shift
+            done
+            break
+            ;;
+        -r|-R|--recursive|-a)
+            CP_FLAGS+=("$1")
+            shift
+            ;;
+        -*)
+            CP_FLAGS+=("$1")
+            shift
+            ;;
+        *)
+            POSITIONALS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Must have exactly 2 positional args (source + dest)
+# Multi-source copy (cp file1 file2 dir/) is explicitly not supported —
+# use multiple cp-safe calls instead
+if [[ ${#POSITIONALS[@]} -ne 2 ]]; then
+    echo "Error: exactly one source and one destination required." >&2
+    echo "  Got ${#POSITIONALS[@]} positional argument(s)." >&2
+    echo "  For multiple files, run cp-safe once per file." >&2
+    exit 1
+fi
+
+SOURCE="${POSITIONALS[0]}"
+DEST="${POSITIONALS[1]}"
+
+# Reject symlink source. `cp` follows symlinks by default, which means a
+# crafted symlink inside a worktree (e.g. evil → /etc/passwd) would
+# exfiltrate the target's content into the repo — the worktree/repo check
+# validates the *location* of the symlink, not the target it points to.
+# Fleet does not need to copy symlinks through cp-safe; if you really need
+# the target, resolve it first (readlink -f) and pass the resolved path.
+# (finding S-NEW-1 — symlink source escape)
+if [[ -L "$SOURCE" ]]; then
+    echo "BLOCKED: Source is a symlink — cp-safe refuses symlink sources." >&2
+    echo "  Source: $SOURCE" >&2
+    echo "  (Target: $(readlink -- "$SOURCE" 2>/dev/null || echo '?'))" >&2
+    echo "  Resolve to the physical path first if the copy is intentional." >&2
+    exit 1
+fi
+
+# Reject existing symlink destination. `cp` follows dest symlinks and
+# overwrites the target, so `cp source.txt dest-trap` where
+# `dest-trap → /tmp/victim/target.txt` clobbers the external file even
+# though the dest entry itself is inside the worktree.
+# (finding S-NEW-2 — symlink dest escape)
+if [[ -L "$DEST" ]]; then
+    echo "BLOCKED: Destination is an existing symlink — would clobber its target." >&2
+    echo "  Dest:   $DEST" >&2
+    echo "  (Target: $(readlink -- "$DEST" 2>/dev/null || echo '?'))" >&2
+    echo "  Remove the symlink or pick a non-symlink destination." >&2
+    exit 1
+fi
+
+# Find the nearest existing directory for a path. For an existing file,
+# return its parent. For an existing dir, return it. For a non-existent
+# path (typical for dest), walk up to the first existing directory.
+find_nearest_existing_dir() {
+    local path="$1"
+    if [[ -e "$path" ]]; then
+        if [[ -f "$path" ]]; then
+            dirname -- "$path"
+        else
+            printf '%s\n' "$path"
+        fi
+        return 0
+    fi
+    local dir="$path"
+    while [[ ! -d "$dir" && "$dir" != "/" ]]; do
+        dir=$(dirname -- "$dir")
+    done
+    if [[ -d "$dir" ]]; then
+        printf '%s\n' "$dir"
+        return 0
+    fi
+    return 1
+}
+
+# Get the worktree root (canonical physical path) for a path.
+# Worktree root is different for each sibling worktree of the same repo.
+# Uses pwd -P to resolve symlinks consistently — /tmp → /private/tmp on
+# macOS would otherwise produce different strings for the same directory
+# depending on whether git resolved it (physical) or we cd'd via user
+# input (logical).
+get_worktree_root() {
+    local path="$1"
+    local dir top
+    dir=$(find_nearest_existing_dir "$path") || return 1
+    # rev-parse --show-toplevel returns the current worktree's root;
+    # returns non-zero if $dir isn't in a git tree (handles .git forgery
+    # in /tmp — a bare `.git` file/dir without a real git backing won't
+    # satisfy git's own checks).
+    top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || return 1
+    ( cd "$top" && pwd -P )
+}
+
+# Get the repo root (canonical physical path). For worktrees, this is
+# the main checkout root — SHARED across all worktrees of the same repo.
+# This is what lets us detect sibling↔sibling same-repo copies that the
+# old string-prefix `is_cross_worktree_same_repo` missed (C-1).
+get_repo_root() {
+    local path="$1"
+    local dir common
+    dir=$(find_nearest_existing_dir "$path") || return 1
+    # --git-common-dir returns the main .git directory; same for every
+    # worktree of the repo. Its parent is the main checkout root.
+    common=$(git -C "$dir" rev-parse --git-common-dir 2>/dev/null) || return 1
+    # Canonicalize via pwd -P so symlinked paths (e.g. /tmp vs /private/tmp
+    # on macOS) collapse to the same physical string for comparison.
+    ( cd "$dir" && cd "$common" && cd .. && pwd -P )
+}
+
+SOURCE_WORKTREE=$(get_worktree_root "$SOURCE" 2>/dev/null || true)
+DEST_WORKTREE=$(get_worktree_root "$DEST" 2>/dev/null || true)
+SOURCE_REPO=$(get_repo_root "$SOURCE" 2>/dev/null || true)
+DEST_REPO=$(get_repo_root "$DEST" 2>/dev/null || true)
+
+# BOTH endpoints must be in a git tree.
+if [[ -z "$SOURCE_WORKTREE" || -z "$SOURCE_REPO" ]]; then
+    echo "BLOCKED: Source is not in a git repository." >&2
+    echo "  Source: $SOURCE" >&2
+    exit 1
+fi
+
+if [[ -z "$DEST_WORKTREE" || -z "$DEST_REPO" ]]; then
+    echo "BLOCKED: Destination is not in a git repository." >&2
+    echo "  Dest: $DEST" >&2
+    exit 1
+fi
+
+# Same worktree — allow.
+if [[ "$SOURCE_WORKTREE" = "$DEST_WORKTREE" ]]; then
+    if [[ ${#CP_FLAGS[@]} -gt 0 ]]; then
+        cp "${CP_FLAGS[@]}" -- "$SOURCE" "$DEST"
+    else
+        cp -- "$SOURCE" "$DEST"
+    fi
+    echo "✓ Copied within $(basename "$SOURCE_WORKTREE")"
+    exit 0
+fi
+
+# Different worktrees — check if same repo (blocks) or different repos (gated).
+if [[ "$SOURCE_REPO" = "$DEST_REPO" ]]; then
+    # Same repo, different worktrees — ALWAYS block. This catches main↔sibling
+    # AND sibling↔sibling (C-1). --cross-repo does NOT override this.
+    echo "BLOCKED: Cross-worktree copy detected (same repo)." >&2
+    echo "  Source:  $SOURCE (worktree: $SOURCE_WORKTREE)" >&2
+    echo "  Dest:    $DEST (worktree: $DEST_WORKTREE)" >&2
+    echo "  Repo:    $SOURCE_REPO" >&2
+    echo "" >&2
+    echo "Use /worktree-sync to sync between worktrees, or Write/Edit tools." >&2
+    exit 1
+fi
+
+# Different repos — gated by --cross-repo flag.
+if [[ "$CROSS_REPO" != "true" ]]; then
+    echo "BLOCKED: Cross-repo copy detected (different git repositories)." >&2
+    echo "  Source:  $SOURCE (repo: $SOURCE_REPO)" >&2
+    echo "  Dest:    $DEST (repo: $DEST_REPO)" >&2
+    echo "" >&2
+    echo "Cross-repo copies are allowed for upstream-port and peer-repo workflows," >&2
+    echo "but require the --cross-repo flag so they're explicit in the audit trail:" >&2
+    echo "" >&2
+    if [[ ${#CP_FLAGS[@]} -gt 0 ]]; then
+        printf '  ./agency/tools/cp-safe --cross-repo' >&2
+        printf ' %q' "${CP_FLAGS[@]}" >&2
+        printf ' -- %q %q\n' "$SOURCE" "$DEST" >&2
+    else
+        printf '  ./agency/tools/cp-safe --cross-repo -- %q %q\n' "$SOURCE" "$DEST" >&2
+    fi
+    exit 1
+fi
+
+# --cross-repo passed — allow + emit audit note
+if [[ ${#CP_FLAGS[@]} -gt 0 ]]; then
+    cp "${CP_FLAGS[@]}" -- "$SOURCE" "$DEST"
+else
+    cp -- "$SOURCE" "$DEST"
+fi
+echo "✓ Cross-repo copy: $(basename "$SOURCE_REPO") → $(basename "$DEST_REPO")"

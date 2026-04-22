@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# What Problem: Raw git push is blocked by hookify. /sync and /ship need
+# a tool to push through. This is the controlled push path — the only
+# way to push to origin. Will be subsumed by git-captain when it lands.
+#
+# How & Why: Thin wrapper that validates the push target (never main/master),
+# confirms the branch exists remotely or will be created, and pushes.
+# Hookify blocks raw "git push" but allows tool invocations.
+#
+# Usage: ./agency/tools/git-push [--force-with-lease] [branch]
+#   branch defaults to current branch
+#   --force-with-lease enables safe force push (for PR branch updates)
+#
+# Written: 2026-04-14 during captain session (push discipline enforcement)
+
+set -euo pipefail
+
+FORCE=""
+BRANCH=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --force-with-lease)
+            FORCE="--force-with-lease"
+            shift
+            ;;
+        -u)
+            # Accept -u for push -u compatibility, but we always set upstream
+            shift
+            ;;
+        *)
+            BRANCH="$1"
+            shift
+            ;;
+    esac
+done
+
+# Default to current branch
+if [[ -z "$BRANCH" ]]; then
+    BRANCH=$(git rev-parse --abbrev-ref HEAD)
+fi
+
+# BLOCK: never push main or master
+if [[ "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
+    echo "BLOCKED: Cannot push to $BRANCH. All changes reach main through PRs." >&2
+    exit 1
+fi
+
+# Push
+if [[ -n "$FORCE" ]]; then
+    git push "$FORCE" origin "$BRANCH"
+else
+    git push -u origin "$BRANCH"
+fi
+
+echo "✓ Pushed $BRANCH to origin"

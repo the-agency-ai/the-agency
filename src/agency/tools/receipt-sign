@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+# What Problem: QGR/RGR receipts were written manually by skills with
+# inconsistent naming, no hash chain, and no standard format. The receipt
+# is the proof that a gate ran — it must be reliable and machine-verifiable.
+#
+# How & Why: Single tool for writing signed receipts (QGR or RGR) with the
+# five-hash chain of trust. Enforces naming convention, format version,
+# and writes to agency/receipts/. All receipt creation goes through this
+# tool — never write receipts manually.
+#
+# Usage:
+#   ./agency/tools/receipt-sign \
+#     --type qgr \
+#     --boundary iteration-complete \
+#     --org the-agency \
+#     --principal jordan \
+#     --agent devex \
+#     --workstream devex \
+#     --project git-safe \
+#     --hash-a <sha256> \
+#     --hash-b <sha256> \
+#     --hash-c <sha256> \
+#     --hash-d <sha256> \
+#     --hash-d-source "transcript" \
+#     --hash-d-transcript <path> \
+#     --hash-e <sha256> \
+#     --diff-base origin/main \
+#     --summary "Review summary text"
+#
+# Written: 2026-04-14 during captain session (receipt infrastructure Phase 1)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# D42-R3: receipts write to per-workstream paths.
+# RECEIPTS_DIR is set after --workstream is parsed (see below).
+
+# Defaults
+TYPE=""
+BOUNDARY=""
+ORG=""
+PRINCIPAL=""
+AGENT=""
+WORKSTREAM=""
+PROJECT=""
+HASH_A=""
+HASH_B=""
+HASH_C=""
+HASH_D=""
+HASH_D_SOURCE=""
+HASH_D_TRANSCRIPT=""
+HASH_E=""
+DIFF_BASE="origin/main"
+SUMMARY=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --type) TYPE="$2"; shift 2 ;;
+        --boundary) BOUNDARY="$2"; shift 2 ;;
+        --org) ORG="$2"; shift 2 ;;
+        --principal) PRINCIPAL="$2"; shift 2 ;;
+        --agent) AGENT="$2"; shift 2 ;;
+        --workstream) WORKSTREAM="$2"; shift 2 ;;
+        --project) PROJECT="$2"; shift 2 ;;
+        --hash-a) HASH_A="$2"; shift 2 ;;
+        --hash-b) HASH_B="$2"; shift 2 ;;
+        --hash-c) HASH_C="$2"; shift 2 ;;
+        --hash-d) HASH_D="$2"; shift 2 ;;
+        --hash-d-source) HASH_D_SOURCE="$2"; shift 2 ;;
+        --hash-d-transcript) HASH_D_TRANSCRIPT="$2"; shift 2 ;;
+        --hash-e) HASH_E="$2"; shift 2 ;;
+        --diff-base) DIFF_BASE="$2"; shift 2 ;;
+        --summary) SUMMARY="$2"; shift 2 ;;
+        --help)
+            echo "Usage: receipt-sign --type qgr|rgr --boundary <boundary> --org <org> --principal <principal> --agent <agent> --workstream <ws> --project <proj> --hash-a <h> --hash-b <h> --hash-c <h> --hash-d <h> --hash-e <h> [--hash-d-source <src>] [--hash-d-transcript <path>] [--diff-base <ref>] [--summary <text>]"
+            exit 0
+            ;;
+        *) echo "Unknown argument: $1" >&2; exit 1 ;;
+    esac
+done
+
+# Validate required fields
+MISSING=""
+[[ -z "$TYPE" ]] && MISSING="${MISSING}--type "
+[[ -z "$BOUNDARY" ]] && MISSING="${MISSING}--boundary "
+[[ -z "$ORG" ]] && MISSING="${MISSING}--org "
+[[ -z "$PRINCIPAL" ]] && MISSING="${MISSING}--principal "
+[[ -z "$AGENT" ]] && MISSING="${MISSING}--agent "
+[[ -z "$WORKSTREAM" ]] && MISSING="${MISSING}--workstream "
+[[ -z "$PROJECT" ]] && MISSING="${MISSING}--project "
+[[ -z "$HASH_A" ]] && MISSING="${MISSING}--hash-a "
+[[ -z "$HASH_B" ]] && MISSING="${MISSING}--hash-b "
+[[ -z "$HASH_C" ]] && MISSING="${MISSING}--hash-c "
+[[ -z "$HASH_D" ]] && MISSING="${MISSING}--hash-d "
+[[ -z "$HASH_E" ]] && MISSING="${MISSING}--hash-e "
+
+if [[ -n "$MISSING" ]]; then
+    echo "Error: missing required arguments: $MISSING" >&2
+    exit 1
+fi
+
+# Validate type
+if [[ "$TYPE" != "qgr" && "$TYPE" != "rgr" ]]; then
+    echo "Error: --type must be 'qgr' or 'rgr'" >&2
+    exit 1
+fi
+
+# D42-R3: path traversal check on workstream (QG finding)
+if [[ "$WORKSTREAM" == *".."* || "$WORKSTREAM" == *"/"* ]]; then
+    echo "Error: --workstream contains invalid characters (.. or /)" >&2
+    exit 1
+fi
+
+# Default hash-d-source
+if [[ -z "$HASH_D_SOURCE" ]]; then
+    if [[ "$HASH_D" == "$HASH_C" ]]; then
+        HASH_D_SOURCE="auto-approved — no principal 1B1"
+    else
+        HASH_D_SOURCE="transcript"
+    fi
+fi
+
+# Generate timestamp and short hash for filename
+TIMESTAMP=$(date +%Y%m%d-%H%M)
+SHORT_HASH_E="${HASH_E:0:7}"
+
+# D42-R3: per-workstream receipt paths + revised naming
+# New: {org}-{principal}-{agent}-{workstream}-{project}-{type}-{boundary}-{YYYYMMDD-HHMM}-{hash_e_short}.md
+# Write to: agency/workstreams/{W}/qgr/ or rgr/ (v46.1+ location).
+# Previous agency/workstreams/ path was a residual sweep miss that leaked
+# duplicate receipt trees into adopter repos — see #368 (this fix).
+RECEIPTS_DIR="$REPO_ROOT/agency/workstreams/$WORKSTREAM/$TYPE"
+FILENAME="${ORG}-${PRINCIPAL}-${AGENT}-${WORKSTREAM}-${PROJECT}-${TYPE}-${BOUNDARY}-${TIMESTAMP}-${SHORT_HASH_E}.md"
+FILEPATH="$RECEIPTS_DIR/$FILENAME"
+
+# Ensure receipt directory exists (creates qgr/ or rgr/ under workstream)
+mkdir -p "$RECEIPTS_DIR"
+
+# Build hash-d-transcript line
+HASH_D_TRANSCRIPT_LINE=""
+if [[ -n "$HASH_D_TRANSCRIPT" ]]; then
+    HASH_D_TRANSCRIPT_LINE="hash_d_transcript: $HASH_D_TRANSCRIPT"
+fi
+
+# Write receipt
+cat > "$FILEPATH" << RECEIPT
+---
+receipt_version: 1
+type: $TYPE
+boundary: $BOUNDARY
+org: $ORG
+principal: $PRINCIPAL
+agent: $AGENT
+workstream: $WORKSTREAM
+project: $PROJECT
+diff_base: $DIFF_BASE
+hash_a: $HASH_A
+hash_b: $HASH_B
+hash_c: $HASH_C
+hash_d: $HASH_D
+hash_d_source: "$HASH_D_SOURCE"
+hash_e: $HASH_E
+date: $(date +%Y-%m-%dT%H:%M)
+---
+RECEIPT
+
+# Insert hash_d_transcript line if present (avoids blank line in heredoc)
+if [[ -n "$HASH_D_TRANSCRIPT" ]]; then
+    # Insert before the closing --- of frontmatter
+    sed -i.bak "/^hash_d_source:/a\\
+hash_d_transcript: $HASH_D_TRANSCRIPT" "$FILEPATH"
+    rm -f "${FILEPATH}.bak"
+fi
+
+# Append body
+cat >> "$FILEPATH" << BODY
+
+# Receipt: $BOUNDARY — $PROJECT
+
+## Chain of Trust
+- A (original): ${HASH_A:0:7}
+- B (findings): ${HASH_B:0:7}
+- C (triage): ${HASH_C:0:7}
+- D (principal): ${HASH_D:0:7} — $HASH_D_SOURCE
+- E (final): ${HASH_E:0:7}
+
+## Review Summary
+${SUMMARY:-No summary provided.}
+BODY
+
+echo "✓ Receipt written: $FILEPATH"
+echo "  Type: $TYPE | Boundary: $BOUNDARY | Hash E: $SHORT_HASH_E"

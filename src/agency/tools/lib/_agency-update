@@ -1,0 +1,813 @@
+# _agency-update — Sync framework to latest from source
+#
+# Sourced by: agency update
+# Arguments via: AGENCY_ARGS array
+# Inherits: set -euo pipefail, AGENCY_DIR, _log-helper, colors
+#
+# Source detection (in order):
+#   1. $AGENCY_SOURCE environment variable
+#   2. ../the-agency/ (sibling directory)
+#
+# Protected paths from registry.json top-level array are never overwritten.
+# Settings merged via settings-merge tool (array union, not overwrite).
+
+RUN_ID=$(log_start "agency-update" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/dev/null) || true
+
+# --- Defaults ---
+VERBOSE=false
+DRY_RUN=false
+FORCE=false
+PRUNE=false              # D41-R16: opt-in rsync --delete for orphan cleanup (agency/)
+PRUNE_ALL=false          # issue #364: opt-in rsync --delete for extras dirs (skills/commands/tests)
+YES=false                # D41-R16: bypass prune confirmation prompt
+TARGET_DIR=""
+FROM_GITHUB=""           # D41-R10 (monofolk hotfix): github ref to fetch from
+GITHUB_REPO_URL="https://github.com/the-agency-ai/the-agency.git"
+
+_update_help() {
+    cat << 'EOF'
+agency update — Sync framework to latest
+
+Usage:
+  agency update [target-dir]         Update target (default: cwd)
+  agency update --dry-run            Show what would change, don't apply
+  agency update --from-github [ref]  Pull source from github (no local clone needed)
+
+Options:
+  --verbose             Show detailed output
+  --dry-run             Preview changes without applying
+  --force               Proceed even if the working tree has uncommitted framework changes
+  --prune               Remove orphaned files from the agency/ framework tree
+                        (rsync --delete). Protects usr/, workstreams/, and
+                        paths in registry.json protected_paths. Prompts for
+                        confirmation before deleting unless --yes is passed.
+                        Does NOT affect .claude/skills/, .claude/commands/, or
+                        tests/tools/ — those are adopter-co-inhabited dirs;
+                        use --prune-all for orphan cleanup there.
+                        Default: off (purely additive sync).
+  --prune-all           In addition to --prune's agency/ cleanup, also --delete
+                        orphans from .claude/skills/, .claude/commands/, and
+                        tests/tools/. These dirs host adopter-custom content
+                        alongside framework content, so separate opt-in + per-
+                        path preview + confirmation. Implies --prune. Issue #364.
+  --yes                 Skip the --prune / --prune-all confirmation prompts.
+                        No effect without one of those flags.
+  --from-github [ref]   Shallow-clone the-agency from GitHub and use as source.
+                        Optional ref: tag, branch, or commit. Default: main.
+                        (Changed in D41-R20, issue #113 — was "latest tag" and
+                        silently pinned adopters to stale code.)
+                        Examples:  --from-github              # main
+                                   --from-github main         # explicit main
+                                   --from-github @latest      # latest release tag
+                                   --from-github v41.19       # specific tag
+  --help, -h            Show this help
+
+Source detection (in order, first match wins):
+  1. --from-github flag           (D41-R10: shallow-clone from GitHub)
+  2. $AGENCY_SOURCE env variable
+  3. ../the-agency/ (sibling directory)
+
+Protected paths (from registry.json) are never overwritten.
+Settings merged via array union (new permissions added, existing kept).
+EOF
+}
+
+# --- Parse AGENCY_ARGS ---
+set -- "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) _update_help; exit 0 ;;
+        --verbose) VERBOSE=true; shift ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        --force) FORCE=true; shift ;;
+        --prune) PRUNE=true; shift ;;
+        --prune-all) PRUNE=true; PRUNE_ALL=true; shift ;;  # #364: implies --prune
+        --yes|-y) YES=true; shift ;;
+        --from-github)
+            # Optional ref follows the flag. If next arg is missing or starts
+            # with `-` or matches a target-dir-like pattern, default to "main".
+            # (D41-R20: was "latest" — silently pinned adopters to stale code.
+            # Use --from-github @latest to opt in to the previous behavior.)
+            FROM_GITHUB="main"
+            shift
+            if [[ $# -gt 0 && "$1" != -* && ! -d "$1" ]]; then
+                FROM_GITHUB="$1"
+                shift
+            fi
+            ;;
+        --from-github=*) FROM_GITHUB="${1#--from-github=}"; shift ;;
+        -*) echo "Unknown option: $1" >&2; _update_help; exit 1 ;;
+        *) TARGET_DIR="$1"; shift ;;
+    esac
+done
+
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
+
+_update_main() {
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "agency update [run: ${RUN_ID:-none}]"
+
+    # --- Resolve target ---
+    TARGET_DIR="${TARGET_DIR:-$(pwd)}"
+    TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd)" || {
+        log_error "Target directory does not exist: $TARGET_DIR"
+        exit 1
+    }
+
+    # --- Precondition: initialized ---
+    if [[ ! -f "$TARGET_DIR/agency/config/agency.yaml" ]]; then
+        log_error "Agency not initialized in $TARGET_DIR"
+        echo "Run 'agency init' first."
+        exit 1
+    fi
+
+    # --- Precondition: no interrupted prior update ---
+    # If the target is a git repo and has uncommitted changes under the
+    # framework-managed paths (agency/, .claude/) OR the framework section of
+    # agency.yaml is modified, a prior 'agency update' likely left work
+    # uncommitted. Re-running in that state silently rewrites those changes
+    # and has caused cross-repo confusion (monofolk escalation, D41).
+    # Print a 3-line guide naming the right tool sequence. --force bypasses.
+    if [[ "$DRY_RUN" == "false" ]] && git -C "$TARGET_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+        local dirty_framework dirty_all
+        dirty_all=$(git -C "$TARGET_DIR" status --porcelain -- \
+            'agency/' '.claude/' 2>/dev/null || true)
+        # D41-R27 (live blocker 2026-04-15 ~21:00): filter out auto-appended
+        # runtime state that should never trigger the gate. .claude/logs/ is
+        # tool telemetry (every tool run appends; gitignored by the framework
+        # template but may be tracked in adopter repos that init'd before the
+        # template existed). agency/logs/ same reason (agency service logs).
+        # These are NOT framework changes — exclude from dirty detection.
+        dirty_all=$(echo "$dirty_all" | grep -v -E '^ ?[A-Z?] (\.claude/logs/|agency/logs/)' || true)
+        # QG fix (D41-R4+R6+R7): count from the full porcelain output, then
+        # truncate to 20 lines for display. Earlier code counted after head -20
+        # which under-reported when more than 20 files were dirty.
+        dirty_framework=$(echo "$dirty_all" | head -20)
+        if [[ -n "$dirty_all" && "$FORCE" != "true" ]]; then
+            local dirty_count
+            dirty_count=$(echo "$dirty_all" | grep -c '^' || echo "0")
+            echo -e "${RED}✗ agency update: $dirty_count uncommitted framework file(s) detected${NC}" >&2
+            echo "  → Looks like a prior 'agency update' left changes in agency/ or .claude/." >&2
+            echo "  → Commit first — these are coordination artifacts, not app code:" >&2
+            echo "      ./agency/tools/git-safe-commit \"misc: prior agency update\" --no-work-item" >&2
+            echo "  → Or re-run with --force to overwrite (will lose uncommitted local changes)." >&2
+            echo "" >&2
+            if [[ "$VERBOSE" == "true" ]]; then
+                echo "Dirty files (first 20):" >&2
+                echo "$dirty_framework" >&2
+            else
+                echo "  First few:" >&2
+                echo "$dirty_framework" | head -5 | sed 's/^/    /' >&2
+                [[ "$dirty_count" -gt 5 ]] && echo "    ... ($dirty_count total; use --verbose to see all)" >&2
+            fi
+            log_end "$RUN_ID" "blocked" 1 0 "Dirty framework tree — prior update uncommitted" 2>/dev/null || true
+            trap - EXIT
+            exit 1
+        fi
+    fi
+
+    # --- Source detection ---
+    # D41-R10 (monofolk hotfix): --from-github takes precedence so adopters
+    # without a local the-agency clone can update directly from origin.
+    local SOURCE_DIR=""
+    TMP_SOURCE_DIR=""   # NOT local — trap needs access after function exits
+    if [[ -n "$FROM_GITHUB" ]]; then
+        log_step "Fetching the-agency from GitHub (ref: $FROM_GITHUB)..."
+        TMP_SOURCE_DIR=$(mktemp -d -t agency-source-XXXXXX)
+        # Resolve ref. Default is main (D41-R20). "@latest" is the opt-in
+        # sentinel for the previous "latest release tag" behavior. Any other
+        # value is a literal git ref (tag, branch, or commit).
+        local clone_ref="$FROM_GITHUB"
+        if [[ "$FROM_GITHUB" == "@latest" ]]; then
+            if command -v gh >/dev/null 2>&1; then
+                clone_ref=$(gh release view --repo the-agency-ai/the-agency --json tagName -q .tagName 2>/dev/null) || clone_ref=""
+            fi
+            if [[ -z "$clone_ref" ]]; then
+                log_warn "Could not resolve latest release; falling back to main"
+                clone_ref="main"
+            else
+                log_info "Resolved @latest → $clone_ref"
+            fi
+        elif [[ "$FROM_GITHUB" == "latest" ]]; then
+            # Backward-compat: accept the old "latest" string with a deprecation
+            # warning so existing scripts don't break silently.
+            log_warn "'--from-github latest' is deprecated; use '--from-github @latest' (release tag) or '--from-github main' (branch tip). Treating as @latest for now."
+            if command -v gh >/dev/null 2>&1; then
+                clone_ref=$(gh release view --repo the-agency-ai/the-agency --json tagName -q .tagName 2>/dev/null) || clone_ref=""
+            fi
+            [[ -z "$clone_ref" ]] && clone_ref="main"
+        fi
+        if ! git clone --depth 1 --branch "$clone_ref" "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
+            # Branch-with-tag-name might fail if it's a commit SHA — try fetch+checkout fallback.
+            rm -rf "$TMP_SOURCE_DIR"
+            TMP_SOURCE_DIR=$(mktemp -d -t agency-source-XXXXXX)
+            if ! git clone --depth 50 "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
+                log_error "git clone failed for $GITHUB_REPO_URL"
+                rm -rf "$TMP_SOURCE_DIR"
+                exit 1
+            fi
+            if ! git -C "$TMP_SOURCE_DIR" checkout "$clone_ref" >/dev/null 2>&1; then
+                log_error "Could not checkout ref '$clone_ref' in fetched repo"
+                rm -rf "$TMP_SOURCE_DIR"
+                exit 1
+            fi
+        fi
+        SOURCE_DIR="$TMP_SOURCE_DIR"
+        # Update teardown trap to clean up temp clone on any exit path
+        trap 'rm -rf "$TMP_SOURCE_DIR" 2>/dev/null; log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+        log_info "Source: $SOURCE_DIR (shallow clone, will be removed)"
+    elif [[ -n "${AGENCY_SOURCE:-}" ]]; then
+        SOURCE_DIR="$AGENCY_SOURCE"
+    elif [[ -f "$TARGET_DIR/../the-agency/agency/config/agency.yaml" ]]; then
+        SOURCE_DIR="$(cd "$TARGET_DIR/../the-agency" && pwd)"
+    elif [[ -f "$AGENCY_DIR/../agency/config/agency.yaml" ]]; then
+        # Running from the framework itself — AGENCY_DIR points to agency/
+        SOURCE_DIR="$(cd "$AGENCY_DIR/.." && pwd)"
+    fi
+
+    if [[ -z "$SOURCE_DIR" ]] || [[ ! -f "$SOURCE_DIR/agency/config/agency.yaml" ]]; then
+        log_error "Agency source not found."
+        echo ""
+        echo "Three ways to provide source:"
+        echo "  1. Pull from GitHub (no local clone needed):"
+        echo "       agency update --from-github            # main (default)"
+        echo "       agency update --from-github @latest    # latest release tag"
+        echo "       agency update --from-github v41.19     # specific tag"
+        echo ""
+        echo "  2. Set AGENCY_SOURCE to a local the-agency clone:"
+        echo "       export AGENCY_SOURCE=~/code/the-agency"
+        echo "       agency update"
+        echo ""
+        echo "  3. Place the-agency repo as a sibling directory:"
+        echo "       ~/code/the-agency/    (source)"
+        echo "       ~/code/your-project/  (target)"
+        [[ -n "$TMP_SOURCE_DIR" ]] && rm -rf "$TMP_SOURCE_DIR"
+        exit 1
+    fi
+
+    # --- Resolve versions ---
+    local from_commit to_commit from_version to_version
+    from_commit=$(grep '^  source_commit:' "$TARGET_DIR/agency/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "unknown")
+    from_version=$(jq -r '.agency_version // "unknown"' "$TARGET_DIR/agency/config/manifest.json" 2>/dev/null || echo "unknown")
+    to_commit=$(git -C "$SOURCE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
+    to_version=$(jq -r '.agency_version // "unknown"' "$SOURCE_DIR/agency/config/manifest.json" 2>/dev/null || echo "unknown")
+
+    # Issue #157: display raw {day}.{release} manifest versions as D{day}-R{release}
+    # for readability (matches release tag convention, e.g. 46.6 → D46-R6).
+    # Raw "unknown" or malformed values pass through unchanged.
+    _format_dr() {
+        local v="$1"
+        if [[ "$v" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+            printf 'D%s-R%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+        else
+            printf '%s' "$v"
+        fi
+    }
+    local from_version_display to_version_display
+    from_version_display=$(_format_dr "$from_version")
+    to_version_display=$(_format_dr "$to_version")
+
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Agency Update${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  Target:  $TARGET_DIR"
+    echo "  Source:  $SOURCE_DIR"
+    echo "  From:    ${from_version_display} (${from_commit:0:8})"
+    echo "  To:      ${to_version_display} (${to_commit:0:8})"
+
+    # D41-R20: show "N commits ahead" when the incoming ref includes un-tagged
+    # work. Helpful signal that adopters are pulling main HEAD vs a release tag.
+    if [[ "$from_commit" != "unknown" && "$to_commit" != "unknown" && "$from_commit" != "$to_commit" ]]; then
+        local ahead
+        ahead=$(git -C "$SOURCE_DIR" rev-list --count "${from_commit}..${to_commit}" 2>/dev/null || echo "")
+        if [[ -n "$ahead" && "$ahead" -gt 0 ]]; then
+            echo "  Commits: ${ahead} ahead"
+        fi
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "  Mode:    ${YELLOW}dry-run${NC}"
+    fi
+    echo ""
+
+    # --- Load protected paths from registry ---
+    local protected_paths=()
+    if [[ -f "$TARGET_DIR/registry.json" ]] && command -v jq >/dev/null 2>&1; then
+        while IFS= read -r path; do
+            protected_paths+=("$path")
+        done < <(jq -r '.protected_paths[]? // empty' "$TARGET_DIR/registry.json" 2>/dev/null)
+    fi
+    log_info "Protected paths: ${protected_paths[*]:-none}"
+
+    # --- Build rsync exclude list ---
+    local rsync_excludes=()
+    # Always protect project-specific config
+    rsync_excludes+=("--exclude" "config/agency.yaml")
+    # Protected paths from registry
+    for pp in "${protected_paths[@]+"${protected_paths[@]}"}"; do
+        rsync_excludes+=("--exclude" "$pp")
+    done
+
+    # --- Counters ---
+    local added=0 updated=0 removed=0
+
+    # =====================================================================
+    # Step 1: Sync agency/ framework directory
+    # =====================================================================
+    log_step "Syncing framework files"
+
+    # Use rsync in dry-run or real mode
+    #
+    # DEFAULT: NO --delete flag. Sync is ADDITIVE — add new files, update
+    # existing files, NEVER delete files that only exist in the target.
+    # Project-specific tools (secret-local, provider tools, etc.) live in
+    # agency/tools/ alongside framework tools. A blind --delete would destroy them.
+    #
+    # OPT-IN: --prune enables --delete with protected_paths enforced.
+    # Adopters run it explicitly when they want orphan cleanup. Confirmation
+    # prompt unless --yes. D41-R16 (monofolk request — opt-in adopter hygiene).
+    # Two rsync-flags arrays: the MAIN array drives the agency/ sync and is
+    # the only one that may receive --delete from --prune (with preview +
+    # confirmation gating). The EXTRAS array drives the .claude/skills/,
+    # .claude/commands/, and src/tests/tools/ syncs — these NEVER receive
+    # --delete from --prune because their content frequently mixes framework
+    # skills/commands with adopter-custom skills/commands/tests under the same
+    # directory tree. Silently --deleting there is an adopter-content-loss
+    # vector (#297 BUG 1; PR #299). To delete orphans in the extras dirs,
+    # adopters must explicitly pass --prune-all (separate preview + prompt).
+    local rsync_flags=("-rlpt")
+    local rsync_flags_extras=("-rlpt")
+    [[ "$VERBOSE" == "true" ]] && rsync_flags+=("-v") && rsync_flags_extras+=("-v")
+    [[ "$DRY_RUN" == "true" ]] && rsync_flags+=("--dry-run") && rsync_flags_extras+=("--dry-run")
+
+    # --- D41-R16: opt-in --prune (rsync --delete with protected paths) ---
+    # v46.1+: source and target are agency/ (post-Great-Rename).
+    if [[ "$PRUNE" == "true" ]]; then
+        # First pass: dry-run with --delete to preview what would be removed
+        local prune_preview
+        prune_preview=$(rsync -rlpt --dry-run --delete \
+            "${rsync_excludes[@]+"${rsync_excludes[@]}"}" \
+            --exclude "workstreams/" \
+            --exclude "usr/" \
+            --itemize-changes \
+            "$SOURCE_DIR/agency/" "$TARGET_DIR/agency/" 2>&1 | grep -E '^\*deleting' || true)
+
+        local prune_count
+        prune_count=$(echo "${prune_preview:-}" | grep -c '^\*deleting' || echo "0")
+
+        if [[ "$prune_count" -gt 0 ]]; then
+            echo ""
+            echo -e "${YELLOW}--prune: ${prune_count} orphan file(s) would be deleted from agency/:${NC}"
+            echo "$prune_preview" | head -20
+            [[ "$prune_count" -gt 20 ]] && echo "  ... and $((prune_count - 20)) more (use --verbose to see all)"
+            echo ""
+
+            if [[ "$DRY_RUN" == "true" ]]; then
+                echo "  [dry-run] no files will actually be deleted"
+            elif [[ "$YES" == "true" ]]; then
+                echo "  --yes: proceeding without prompt"
+                rsync_flags+=("--delete")
+            else
+                echo -en "  Delete these files? (yes/no) [default: no]: "
+                read -r prune_confirm
+                if [[ "$prune_confirm" == "yes" ]]; then
+                    rsync_flags+=("--delete")
+                    echo "  Proceeding with --delete."
+                else
+                    echo "  Aborting prune. Re-run without --prune, or with --yes to skip prompt."
+                    PRUNE=false
+                fi
+            fi
+        else
+            echo "  --prune: no orphan files found, nothing to delete."
+        fi
+    fi
+
+    # --- issue #364: opt-in --prune-all (extras dirs orphan delete) ---
+    # Separate gate from --prune: the extras dirs (.claude/skills/,
+    # .claude/commands/, src/tests/tools/) host BOTH framework content AND
+    # adopter-custom content side-by-side. A blind --delete here destroys
+    # adopter work (the #297 BUG 1 data-loss class). --prune-all opts the
+    # adopter in after a per-path preview + aggregate confirmation.
+    if [[ "$PRUNE_ALL" == "true" ]]; then
+        local extras_total=0
+        local extras_preview_all=""
+
+        for pair in ".claude/skills" ".claude/commands" "src/tests/tools"; do
+            if [[ -d "$SOURCE_DIR/$pair" && -d "$TARGET_DIR/$pair" ]]; then
+                local sub_preview
+                sub_preview=$(rsync -rlpt --dry-run --delete \
+                    --itemize-changes \
+                    "$SOURCE_DIR/$pair/" "$TARGET_DIR/$pair/" 2>&1 | grep -E '^\*deleting' || true)
+                local sub_count
+                sub_count=$(echo "${sub_preview:-}" | grep -c '^\*deleting' || echo "0")
+                if [[ "$sub_count" -gt 0 ]]; then
+                    extras_preview_all+=$'\n'"  ${pair}/: ${sub_count} orphan(s)"$'\n'"${sub_preview}"
+                    extras_total=$((extras_total + sub_count))
+                fi
+            fi
+        done
+
+        if [[ "$extras_total" -gt 0 ]]; then
+            echo ""
+            echo -e "${YELLOW}--prune-all: ${extras_total} orphan file(s) would be deleted from .claude/skills/, .claude/commands/, tests/tools/:${NC}"
+            echo "$extras_preview_all" | head -30
+            [[ "$extras_total" -gt 30 ]] && echo "  ... (use --verbose to see all)"
+            echo ""
+
+            if [[ "$DRY_RUN" == "true" ]]; then
+                echo "  [dry-run] no files will actually be deleted"
+            elif [[ "$YES" == "true" ]]; then
+                echo "  --yes: proceeding without prompt"
+                rsync_flags_extras+=("--delete")
+            else
+                echo -en "  Delete these files? (yes/no) [default: no]: "
+                read -r prune_all_confirm
+                if [[ "$prune_all_confirm" == "yes" ]]; then
+                    rsync_flags_extras+=("--delete")
+                    echo "  Proceeding with --delete on extras."
+                else
+                    echo "  Aborting --prune-all. Re-run with --yes to skip prompt."
+                fi
+            fi
+        else
+            echo "  --prune-all: no orphan files found in extras dirs."
+        fi
+    fi
+
+    # Sync agency/ (excluding agency.yaml, protected paths, and workstreams).
+    # v46.1+: source and target are agency/ (post-Great-Rename).
+    local rsync_output
+    rsync_output=$(rsync "${rsync_flags[@]}" \
+        "${rsync_excludes[@]+"${rsync_excludes[@]}"}" \
+        --exclude "workstreams/" \
+        --exclude "usr/" \
+        --itemize-changes \
+        "$SOURCE_DIR/agency/" "$TARGET_DIR/agency/" 2>&1) || true
+
+    # Count changes from itemize output
+    if [[ -n "$rsync_output" ]]; then
+        added=$(echo "$rsync_output" | grep -c '^>f+++' || true)
+        updated=$(echo "$rsync_output" | grep -c '^>f\.\.' || true)
+        removed=$(echo "$rsync_output" | grep -c '^\*deleting' || true)
+        [[ "$VERBOSE" == "true" ]] && echo "$rsync_output"
+    fi
+
+    log_info "agency/ sync: +$added ~$updated -$removed"
+
+    # =====================================================================
+    # Step 2: Sync .claude/ discovery files (extras — never --delete on --prune)
+    # =====================================================================
+    log_step "Syncing .claude/ discovery files"
+
+    # Skills
+    if [[ -d "$SOURCE_DIR/.claude/skills" ]]; then
+        mkdir -p "$TARGET_DIR/.claude/skills"
+        local skill_output
+        skill_output=$(rsync "${rsync_flags_extras[@]}" \
+            --itemize-changes \
+            "$SOURCE_DIR/.claude/skills/" "$TARGET_DIR/.claude/skills/" 2>&1) || true
+        if [[ -n "$skill_output" ]] && [[ "$VERBOSE" == "true" ]]; then
+            echo "$skill_output"
+        fi
+        local skill_added
+        skill_added=$(echo "${skill_output:-}" | grep -c '^>f+++' || true)
+        added=$((added + skill_added))
+    fi
+
+    # Commands
+    if [[ -d "$SOURCE_DIR/.claude/commands" ]]; then
+        mkdir -p "$TARGET_DIR/.claude/commands"
+        local cmd_output
+        cmd_output=$(rsync "${rsync_flags_extras[@]}" \
+            --itemize-changes \
+            "$SOURCE_DIR/.claude/commands/" "$TARGET_DIR/.claude/commands/" 2>&1) || true
+        if [[ -n "$cmd_output" ]] && [[ "$VERBOSE" == "true" ]]; then
+            echo "$cmd_output"
+        fi
+    fi
+
+    # Tests for framework tools (D41-R15: monofolk issue #102 fix).
+    # v46.1: tests moved from tests/tools/ to src/tests/tools/.
+    # Adopters receive the BATS suites so they can verify behavior locally
+    # and contribute upstream. Sync src/tests/tools/ only — NOT src/tests/
+    # skills/ (some skill tests reference framework-specific state) and NOT
+    # project-local test dirs the adopter may have. Source path src/tests/
+    # tools/; target path tests/tools/ (adopter flat convention).
+    if [[ -d "$SOURCE_DIR/src/tests/tools" ]]; then
+        mkdir -p "$TARGET_DIR/tests/tools"
+        local tests_output
+        tests_output=$(rsync "${rsync_flags_extras[@]}" \
+            --itemize-changes \
+            "$SOURCE_DIR/src/tests/tools/" "$TARGET_DIR/tests/tools/" 2>&1) || true
+        if [[ -n "$tests_output" ]] && [[ "$VERBOSE" == "true" ]]; then
+            echo "$tests_output"
+        fi
+        local tests_added
+        tests_added=$(echo "${tests_output:-}" | grep -c '^>f+++' || true)
+        added=$((added + tests_added))
+        log_info "tests/tools/ sync: +$tests_added"
+    fi
+    # Also sync test_helper.bash if present (tests/tools/ depends on it).
+    # v46.1 source candidate paths: src/tests/test_helper.bash (new layout)
+    # or tests/test_helper.bash (legacy). Target is always tests/ for adopter.
+    for _th_src in "src/tests/test_helper.bash" "tests/test_helper.bash"; do
+        if [[ -f "$SOURCE_DIR/$_th_src" ]]; then
+            mkdir -p "$TARGET_DIR/tests"
+            rsync "${rsync_flags_extras[@]}" \
+                "$SOURCE_DIR/$_th_src" "$TARGET_DIR/tests/test_helper.bash" 2>&1 >/dev/null || true
+            break
+        fi
+    done
+
+    # =====================================================================
+    # Step 3: Settings merge
+    # =====================================================================
+    log_step "Merging settings"
+
+    if [[ -f "$TARGET_DIR/agency/tools/settings-merge" ]]; then
+        if [[ "$DRY_RUN" == "true" ]]; then
+            bash "$TARGET_DIR/agency/tools/settings-merge" --dry-run 2>/dev/null || true
+        else
+            bash "$TARGET_DIR/agency/tools/settings-merge" 2>/dev/null || log_warn "settings-merge failed — settings.json unchanged"
+        fi
+    else
+        log_warn "settings-merge tool not found — skipping settings merge"
+    fi
+
+    # =====================================================================
+    # Step 4: Update agency.yaml framework section + append new top-level
+    # sections (issue #56 — new sections from source never propagated)
+    # =====================================================================
+    log_step "Updating agency.yaml"
+
+    if [[ "$DRY_RUN" == "false" ]]; then
+        local yaml_file="$TARGET_DIR/agency/config/agency.yaml"
+        local src_yaml="$SOURCE_DIR/agency/config/agency.yaml"
+        local updated_at
+        updated_at=$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')
+
+        # --- Update metadata in the framework section (existing behavior) ---
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' "s|^  version: .*|  version: \"$to_version\"|" "$yaml_file"
+            sed -i '' "s|^  updated_at: .*|  updated_at: \"$updated_at\"|" "$yaml_file"
+            sed -i '' "s|^  source_commit: .*|  source_commit: \"$to_commit\"|" "$yaml_file"
+        else
+            sed -i "s|^  version: .*|  version: \"$to_version\"|" "$yaml_file"
+            sed -i "s|^  updated_at: .*|  updated_at: \"$updated_at\"|" "$yaml_file"
+            sed -i "s|^  source_commit: .*|  source_commit: \"$to_commit\"|" "$yaml_file"
+        fi
+
+        # --- Append new top-level sections from source (issue #56) ---
+        # Top-level key: a line matching ^[A-Za-z_][A-Za-z0-9_]*:
+        # For each key present in source but missing in target, extract the
+        # section (from that key through the line before the next top-level
+        # key or EOF) and append it to target with a comment marker.
+        local added_sections=""
+        local src_keys tgt_keys
+        # Dedupe in-place to tolerate duplicate top-level keys in source
+        src_keys=$(awk '/^[A-Za-z_][A-Za-z0-9_]*:/ { sub(/:.*/,""); if (!seen[$0]++) print }' "$src_yaml" 2>/dev/null || true)
+        tgt_keys=$(awk '/^[A-Za-z_][A-Za-z0-9_]*:/ { sub(/:.*/,""); if (!seen[$0]++) print }' "$yaml_file" 2>/dev/null || true)
+
+        local key
+        while IFS= read -r key; do
+            [[ -z "$key" ]] && continue
+            # Skip if key already present in target
+            if printf '%s\n' "$tgt_keys" | grep -qxF "$key"; then
+                continue
+            fi
+
+            # Extract section for this key from source: from ^key: up to (but
+            # not including) the next top-level key, trimming trailing blank
+            # lines from the block.
+            local section
+            section=$(awk -v k="$key" '
+                $0 ~ "^"k":" { in_block=1; print; next }
+                in_block && /^[A-Za-z_][A-Za-z0-9_]*:/ { in_block=0 }
+                in_block { print }
+            ' "$src_yaml")
+
+            [[ -z "$section" ]] && continue
+
+            # Buffer — we will append all new sections in one block
+            if [[ -z "$added_sections" ]]; then
+                added_sections=$(printf '\n# ─────────────────────────────────────────────────────────────────────────\n# New sections added by agency update — review and customize as needed.\n# Added by framework version %s (%s)\n# ─────────────────────────────────────────────────────────────────────────\n' "$to_version" "$to_commit")
+            fi
+            added_sections=$(printf '%s\n\n%s' "$added_sections" "$section")
+            log_info "  + new section: $key"
+        done <<<"$src_keys"
+
+        if [[ -n "$added_sections" ]]; then
+            # Ensure target ends with newline before appending
+            [[ -n "$(tail -c1 "$yaml_file" 2>/dev/null)" ]] && printf '\n' >> "$yaml_file"
+            printf '%s\n' "$added_sections" >> "$yaml_file"
+            log_info "Appended new top-level sections to agency.yaml"
+        fi
+    fi
+
+    log_info "Updated framework section in agency.yaml"
+
+    # =====================================================================
+    # Step 5: Update manifest
+    # =====================================================================
+    log_step "Updating manifest"
+
+    if [[ "$DRY_RUN" == "false" ]] && [[ -f "$TARGET_DIR/agency/config/manifest.json" ]] && command -v jq >/dev/null 2>&1; then
+        local tmp_manifest
+        tmp_manifest=$(mktemp)
+        jq --arg ver "$to_version" --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            '.project.framework_version = $ver | .project.updated_at = $ts' \
+            "$TARGET_DIR/agency/config/manifest.json" > "$tmp_manifest" 2>/dev/null && \
+            mv "$tmp_manifest" "$TARGET_DIR/agency/config/manifest.json"
+    fi
+
+    log_info "Manifest updated"
+
+    # =====================================================================
+    # Step 6: Write update handoff
+    # =====================================================================
+    log_step "Writing update handoff"
+
+    if [[ "$DRY_RUN" == "false" ]]; then
+        local handoff_path
+        handoff_path=$(bash "$TARGET_DIR/agency/tools/handoff" path 2>/dev/null || echo "")
+
+        # Issue #160: never overwrite a session handoff. Prior behavior
+        # archived + wrote an agency-update stub on every update, destroying
+        # session context. Two failure modes:
+        #   1. Single update: loses the substantive session handoff
+        #   2. Consecutive updates: 'Previous session state' becomes a stub
+        #      of a stub of a stub — recursion of emptiness.
+        # Fix: detect the type in existing frontmatter. Only overwrite if the
+        # current handoff is itself an agency-update or agency-bootstrap stub.
+        # If it's type: session (or anything else substantive), prepend the
+        # update info as a section and preserve the rest.
+        if [[ -n "$handoff_path" ]] && [[ -f "$handoff_path" ]]; then
+            # Extract existing frontmatter type (awk scoped to frontmatter block)
+            local existing_type
+            existing_type=$(awk '
+                BEGIN { in_fm = 0; opened = 0 }
+                /^---[[:space:]]*$/ {
+                    if (!opened) { opened = 1; in_fm = 1; next }
+                    if (in_fm)   { exit }
+                }
+                in_fm && /^type:[[:space:]]/ {
+                    sub(/^type:[[:space:]]*/, "")
+                    gsub(/["\x27]/, "")
+                    print
+                    exit
+                }
+            ' "$handoff_path" 2>/dev/null)
+
+            local update_section
+            update_section=$(cat << UPDATE_SECTION_EOF
+## Agency Update — $(date '+%Y-%m-%d %H:%M')
+
+Updated framework from ${from_version} (${from_commit:0:8}) to ${to_version} (${to_commit:0:8}).
+
+- $added files added, $updated files updated, $removed files removed
+- Settings merged via array union
+- Framework section in agency.yaml updated
+
+Run \`agency verify\` to confirm everything is in order.
+
+---
+
+UPDATE_SECTION_EOF
+)
+
+            if [[ "$existing_type" == "agency-update" || "$existing_type" == "agency-bootstrap" || -z "$existing_type" ]]; then
+                # Existing handoff is a prior stub or has no type — safe to replace
+                bash "$TARGET_DIR/agency/tools/handoff" archive 2>/dev/null || true
+                mkdir -p "$(dirname "$handoff_path")"
+                cat > "$handoff_path" << UPDATE_STUB_EOF
+---
+type: agency-update
+date: $(date '+%Y-%m-%d %H:%M')
+from_commit: ${from_commit:0:8}
+to_commit: ${to_commit:0:8}
+---
+
+${update_section}
+UPDATE_STUB_EOF
+                log_info "Update handoff written (replaced prior ${existing_type:-untyped} stub)"
+            else
+                # Existing handoff is substantive (type: session or similar) —
+                # preserve it. Prepend update section inside the body after
+                # the frontmatter block so nothing is lost.
+                local tmp_file
+                tmp_file=$(mktemp "${handoff_path}.update.XXXXXX")
+                # Split at end of frontmatter, inject update section
+                awk -v update="$update_section" '
+                    BEGIN { fm_closed = 0; fm_seen = 0 }
+                    /^---[[:space:]]*$/ {
+                        if (!fm_seen) { fm_seen = 1; print; next }
+                        if (!fm_closed) {
+                            fm_closed = 1
+                            print
+                            print ""
+                            print update
+                            next
+                        }
+                    }
+                    { print }
+                ' "$handoff_path" > "$tmp_file"
+                mv "$tmp_file" "$handoff_path"
+                log_info "Update info prepended to existing ${existing_type} handoff (preserved, not overwritten)"
+            fi
+        fi
+    fi
+
+    log_info "Update handoff written"
+
+    # =====================================================================
+    # D41-R27: auto-commit framework sync as coordination commit.
+    #
+    # Without this, every `agency update` leaves dozens-to-hundreds of
+    # framework files dirty — captain's session-preflight then fails, and
+    # adopter has to manually run git-safe-commit with --allow-large before
+    # they can start their actual work. Ship the framework sync as a single
+    # misc: commit so adopters get a clean tree automatically.
+    #
+    # Only runs if: not dry-run, commit-precheck not blocking, no existing
+    # non-framework dirty files (leave user's in-progress work alone).
+    # Opt-out via --no-commit.
+    # =====================================================================
+    if [[ "$DRY_RUN" == "false" && "${NO_COMMIT:-false}" != "true" ]] && \
+       git -C "$TARGET_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+        # Collect framework-only dirty paths (under agency/ or .claude/ but
+        # NOT under .claude/logs/ or agency/logs/ which are runtime state)
+        local fw_dirty
+        fw_dirty=$(git -C "$TARGET_DIR" status --porcelain -- 'agency/' '.claude/' 2>/dev/null \
+            | grep -v -E '^ ?[A-Z?] (\.claude/logs/|agency/logs/)' || true)
+
+        if [[ -n "$fw_dirty" ]]; then
+            log_step "Auto-committing framework sync"
+            local short_from="${from_commit:0:8}"
+            local short_to="${to_commit:0:8}"
+            local msg="misc: agency update — framework sync ${short_from} → ${short_to}"
+            # Stage ONLY framework paths. Non-framework dirty files are left
+            # untouched — the adopter's in-progress work is preserved.
+            ( cd "$TARGET_DIR" && git add agency/ .claude/ 2>/dev/null || true )
+            ( cd "$TARGET_DIR" && git commit -m "$msg" --no-verify >/dev/null 2>&1 ) || \
+                log_warn "Auto-commit failed — commit framework changes manually"
+            log_info "Framework sync committed"
+        fi
+    fi
+
+    # =====================================================================
+    # D41-R27: merge framework .gitignore block (idempotent)
+    # Existing adopters that init'd before R27 don't have .claude/logs/ + agency/logs/ in
+    # their .gitignore. On every `agency update`, ensure the framework block
+    # is present. Marker string is used to detect existing block — if found,
+    # leave alone (no-op). If absent, append.
+    # =====================================================================
+    local gitignore_template="$SOURCE_DIR/agency/templates/gitignore-framework"
+    local gitignore_target="$TARGET_DIR/.gitignore"
+    if [[ "$DRY_RUN" == "false" && -f "$gitignore_template" ]]; then
+        if [[ ! -f "$gitignore_target" ]] || ! grep -q "Agency framework-managed ignores" "$gitignore_target" 2>/dev/null; then
+            [[ -f "$gitignore_target" ]] && echo "" >> "$gitignore_target"
+            cat "$gitignore_template" >> "$gitignore_target"
+            log_info "Appended framework .gitignore block to $gitignore_target"
+        fi
+    fi
+
+    # =====================================================================
+    # Done
+    # =====================================================================
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "${YELLOW}  Agency Update — Dry Run Complete${NC}"
+    else
+        echo -e "${GREEN}  Agency Updated!${NC}"
+    fi
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  From:    ${from_version_display} (${from_commit:0:8})"
+    echo "  To:      ${to_version_display} (${to_commit:0:8})"
+    echo "  Changes: +$added ~$updated -$removed"
+    echo ""
+    if [[ "$DRY_RUN" == "false" ]]; then
+        # Auto-verify after update — don't ask the adopter to do it
+        log_step "Verifying installation"
+        if [[ -x "$TARGET_DIR/agency/tools/agency" ]]; then
+            ( cd "$TARGET_DIR" && ./agency/tools/agency verify ) || \
+                log_warn "Verify reported issues — run 'agency verify --verbose' for details"
+        fi
+    fi
+    echo ""
+
+    trap - EXIT
+    # D41-R10: clean up shallow-clone temp dir on success path
+    [[ -n "$TMP_SOURCE_DIR" ]] && rm -rf "$TMP_SOURCE_DIR" 2>/dev/null
+    log_end "$RUN_ID" "success" 0 0 "Updated from ${from_commit:0:8} to ${to_commit:0:8}" 2>/dev/null || true
+}
+
+_update_main

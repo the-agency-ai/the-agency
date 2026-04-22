@@ -1,0 +1,129 @@
+#!/bin/bash
+#
+# skill-verify — Verify all expected framework skills exist
+#
+# Checks that every skill referenced in the framework's skill registry
+# has a valid SKILL.md file. Used by boundary skills to catch missing skills
+# before they cause downstream failures.
+#
+# Usage:
+#   ./agency/tools/skill-verify [--quiet]
+#
+# Exit codes:
+#   0 — all skills present and valid
+#   1 — missing or invalid skills found
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/_log-helper" 2>/dev/null || true
+
+# Capture the operator-set override BEFORE sourcing _path-resolve, because
+# _path-resolve always recomputes AGENCY_PROJECT_ROOT from its own script
+# location (the framework lib dir) and would overwrite a test-fixture or
+# adopter project's explicit override otherwise.
+_OVERRIDE_PROJECT_ROOT="${AGENCY_PROJECT_ROOT:-}"
+source "$SCRIPT_DIR/lib/_path-resolve" 2>/dev/null || true
+
+PROJECT_ROOT="${_OVERRIDE_PROJECT_ROOT:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
+SKILLS_DIR="$PROJECT_ROOT/.claude/skills"
+QUIET=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --quiet|-q) QUIET=true ;;
+    --help|-h)
+      echo "Usage: skill-verify [--quiet]"
+      echo "  Verify all framework skills have valid SKILL.md files."
+      echo "  --quiet   Only output on failure"
+      exit 0
+      ;;
+  esac
+done
+
+RUN_ID=""
+if type log_start &>/dev/null; then
+  RUN_ID=$(log_start "skill-verify" "$@")
+fi
+
+ERRORS=0
+CHECKED=0
+MISSING=()
+INVALID=()
+
+# Check each skill directory has a non-empty SKILL.md with a valid frontmatter
+# block that declares a `description:` field. The `allowed-tools:` field is
+# intentionally NOT required — per flag #62/#63 (devex dispatch #171) skills
+# inherit Bash(*) from .claude/settings.json, and restricting to specific
+# subcommand patterns silently blocks agents on permission prompts they cannot
+# see. Requiring allowed-tools here would block every shipping skill.
+if [ -d "$SKILLS_DIR" ]; then
+  for skill_dir in "$SKILLS_DIR"/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name=$(basename "$skill_dir")
+    skill_file="$skill_dir/SKILL.md"
+    CHECKED=$((CHECKED + 1))
+
+    if [ ! -f "$skill_file" ]; then
+      MISSING+=("$skill_name")
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
+
+    if [ ! -s "$skill_file" ]; then
+      INVALID+=("$skill_name (empty)")
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
+
+    # Check first line is frontmatter delimiter '---'
+    first_line=$(head -1 "$skill_file")
+    if [ "$first_line" != "---" ]; then
+      INVALID+=("$skill_name (missing frontmatter — first line must be '---')")
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
+
+    # Check frontmatter contains a non-empty `description:` field. Frontmatter
+    # lives between the first two '---' lines; limit search to a reasonable
+    # head slice so we don't scan the whole file for a field that should be
+    # at the top.
+    if ! head -20 "$skill_file" | grep -qE '^description: [^ ].*'; then
+      INVALID+=("$skill_name (missing or empty description)")
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
+  done
+else
+  if [ "$QUIET" = false ]; then
+    echo "WARNING: No skills directory at $SKILLS_DIR"
+  fi
+fi
+
+# Report
+if [ "$ERRORS" -gt 0 ]; then
+  echo "FAIL: $ERRORS issue(s) found in $CHECKED skills"
+  if [ ${#MISSING[@]} -gt 0 ]; then
+    echo "  Missing SKILL.md:"
+    for m in "${MISSING[@]}"; do
+      echo "    - $m"
+    done
+  fi
+  if [ ${#INVALID[@]} -gt 0 ]; then
+    echo "  Invalid:"
+    for i in "${INVALID[@]}"; do
+      echo "    - $i"
+    done
+  fi
+  if [ -n "$RUN_ID" ] && type log_end &>/dev/null; then
+    log_end "$RUN_ID" "failure" 1 0 "$ERRORS issues in $CHECKED skills"
+  fi
+  exit 1
+elif [ "$QUIET" = false ]; then
+  echo "OK: $CHECKED skills verified"
+fi
+
+if [ -n "$RUN_ID" ] && type log_end &>/dev/null; then
+  log_end "$RUN_ID" "success" 0 0 "$CHECKED skills verified"
+fi
+exit 0

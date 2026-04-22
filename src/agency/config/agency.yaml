@@ -1,0 +1,152 @@
+# The Agency Configuration
+# This file maps system identifiers to Agency concepts
+
+# Map system usernames to principal definitions.
+# Used for: commit attribution, instruction routing, feedback identity,
+#           GitHub username resolution (git-safe-commit tool parses this).
+#
+# Structure: The key is the system username ($USER). Each entry has:
+#   name           — principal slug (must match usr/{name}/ directory)
+#   display_name   — freeform Unicode (safe for quotes; see CLAUDE-THEAGENCY)
+#   address        — how to address in conversation (optional)
+#   email          — list of email addresses for external filings/feedback
+#   platforms      — per-platform identities (github, etc.)
+principals:
+  jdm:
+    name: jordan
+    display_name: "Jordan Dea-Mattson"
+    address:
+      informal: "Jordan"
+    email:
+      - jordandm@users.noreply.github.com
+      - jordan-of@users.noreply.github.com
+    platforms:
+      github:
+        - username: jordandm
+          repos:
+            - org: the-agency-ai
+              repo: the-agency
+        - username: jordan-of
+          repos:
+            - org: OrdinaryFolk
+              repo: monofolk
+  default:
+    name: unknown  # Fallback if username not found
+
+# Project settings
+project:
+  name: "My Project"
+  timezone: "UTC"  # Used by ./tools/now
+
+# Commit message conventions
+commits:
+  # Opt-in: enforce 'Day N:' or 'Phase X.Y:' prefix on commit messages.
+  # When true, commit-precheck and the commit-msg hook reject commits whose
+  # first line doesn't start with: Day N: | Phase X.Y: | Phase X.MN: | Merge | Revert
+  # Default: false (off). Enable when your project follows the day-counting convention.
+  require_day_prefix: false
+
+# Framework version tracking
+framework:
+  version: "unknown"
+  installed_at: "2026-01-15T04:54:46+00:00"
+  updated_at: "2026-04-21T00:34:36+00:00"
+  source_commit: "cff95f62f8e49460c63f85117e921e57c15db97a"
+
+# Agent defaults
+agents:
+  default_model: "opus"  # opus, sonnet, haiku
+
+# Collaboration settings
+collaboration:
+  auto_sync: true  # Automatically push collaboration files
+  news_expiry_days: 7  # Mark old news as READ after N days
+
+# Quality gate settings
+quality:
+  block_on_secrets: true
+  block_on_console_log: false  # Warning only
+  block_on_any_type: false     # Warning only
+  require_issue_links_in_todos: false
+
+# Development methodology
+methodology:
+  numbering: "phase.iteration"  # Phase X.Y format for commits and plans
+  work_pattern: "discuss-plan-review-revise-finalize-implement"
+
+# Sandbox — per-principal isolation
+sandbox:
+  principal_dirs: true  # Enable usr/{principal}/ structure
+
+# Worktree management — enables parallel agent sessions
+worktrees:
+  enabled: true
+  base_dir: ".claude/worktrees"  # Same path as EnterWorktree, but managed by Agency tools
+
+# --- Plugin Providers ---
+# Each section selects the active provider tool.
+# Convention: {section}-{provider} or {section}-setup-{provider}
+# Bundled defaults ship with every installation.
+
+# Secrets management
+secrets:
+  provider: "vault"  # Default. Alternatives: doppler, aws, 1password
+
+# Terminal integration
+terminal:
+  provider: "ghostty"  # Default: ghostty. Alternatives: kitty, wezterm
+
+# Platform setup (CLI tools, dependencies)
+platform:
+  provider: "auto"  # Auto-detect from OS. Override: macos, linux, windows
+
+# Preview (local/remote previews)
+preview:
+  provider: "docker-compose"  # Default: docker-compose. Alternatives: fly, vercel, cloudflare
+
+# Deploy (platform deployment)
+deploy:
+  provider: "fly"  # Default: fly. Alternatives: aws, vercel, cloudflare, railway
+
+# Crawl (site content extraction)
+crawl:
+  provider: "webfetch"  # Default: webfetch (built-in). Alternatives: playwright, wget, scrapy
+
+# Issue tracking (file/view/comment/close issues against the-agency framework)
+# v1: single provider (github), single target. v2+: SPEC-PROVIDER pattern with
+# pluggable providers (gitlab, linear, jira) and multi-target support.
+issues:
+  provider: "github"  # v1: github only
+  github:
+    target_repo: "the-agency-ai/the-agency"  # Where issues are filed
+  sites: []  # Configure per-project: [{name, url, patterns}]
+
+# Testing — declares test suites and how to run them
+# test-run reads this section. Each suite has a name, command, and optional scope.
+testing:
+  provider: "multi"  # multi = run all configured suites
+  suites:
+    tools:
+      command: "bats src/tests/tools/"
+      description: "BATS tool tests (framework tools, ISCP)"
+    mdpal:
+      command: "cd apps/mdpal && swift test 2>/dev/null || true"
+      description: "MarkdownPalEngine Swift tests (skips if apps/mdpal/ absent)"
+
+# Design system integration
+design:
+  provider: "figma"  # Default: figma. Alternatives: sketch, adobe
+
+# Cross-repo collaboration
+# Each entry maps a collaborator name to its local checkout path and dispatch dirs.
+# Used by: collaboration-check tool (startup hook, dispatch loop)
+collaboration:
+  repos:
+    monofolk:
+      path: "~/code/collaboration-monofolk"
+      inbound: "dispatches/monofolk-to-the-agency"
+      outbound: "dispatches/the-agency-to-monofolk"
+
+# Telemetry providers
+telemetry:
+  providers: ["log-helper", "jsonl"]  # log-helper = agency-service, jsonl = local file

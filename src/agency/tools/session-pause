@@ -1,0 +1,492 @@
+#!/usr/bin/env bash
+# session-pause — the PAUSE half of the session PICKUP/PAUSE primitive pair.
+#
+# Internal tool invoked from skills (/compact-prepare, /session-end).
+# NOT intended for direct agent invocation — see
+# agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md §7 (primitives-as-tools pattern).
+#
+# What Problem: `/session-end` and `/compact-prepare` (formerly `/session-compact`) duplicated a lot of
+# bespoke bash (dispatch flush, coord-commit, handoff archive, monitor
+# teardown). The duplication drifted over time and the two skills ended
+# up with subtly different behaviors for the same logical operation
+# ("flush agent state into durable storage"). Skills cannot be composed
+# in this framework (agency#348), so the shared primitive has to live at
+# the tool layer. This tool is that primitive.
+#
+# How & Why: One bash entry point, two framings.
+#   - framing=continuation: mid-session /compact case; monitors keep
+#     running, SessionEnd hooks do NOT fire, transcript stays open.
+#   - framing=resumption: end-of-session case; monitors are signalled to
+#     stop via the monitor-pids registry, process exit fires SessionEnd
+#     hooks naturally.
+# Dirty tree is partitioned into coord-artifacts vs framework code; if any
+# framework code is uncommitted the tool aborts with a clear pointer to
+# /quality-gate + /iteration-complete. Coord artifacts are committed via
+# git-safe-commit under the trigger-derived message. Outbound cross-repo
+# collaboration drafts are the caller's responsibility (collaboration push);
+# local ISCP outbound drafts under usr/{principal}/{agent}/dispatches/ land
+# in the dirty-tree coord bucket automatically.
+#
+# Locking: mkdir-based advisory lock on the handoff path, 5 second timeout.
+# macOS does not ship util-linux flock, and introducing a Python-based
+# fcntl.flock dependency for every PAUSE was overkill — mkdir is POSIX and
+# atomic.
+#
+# Errors emit as `status=aborted` + `error_reason=` on stdout (not stderr)
+# so callers parse a single key=value stream. Intentional departure from
+# the repo's general "errors to stderr" convention.
+#
+# Written: 2026-04-20 during session-lifecycle-refactor Iteration 2.1.
+# Hardened: 2026-04-20 iteration-complete QG (B22 pid-guard, B13-B16 abort-
+#   contract fixes, Sec-1 symlink check, Sec-2/3 input validation, A3
+#   schema_version in output).
+# A&D: usr/jordan/captain/session-lifecycle-refactor/and.md §3.
+
+set -euo pipefail
+
+TOOL_VERSION="1.2.0"
+SCHEMA_VERSION="1"
+
+# ── Paths ───────────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    REPO_ROOT="$CLAUDE_PROJECT_DIR"
+else
+    REPO_ROOT="$(git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
+
+MONITOR_REGISTRY="$REPO_ROOT/agency/config/monitor-pids.json"
+LOCK_TIMEOUT_SECONDS=5
+
+# ── Output helpers ──────────────────────────────────────────────────────────
+emit() {
+    printf '%s=%s\n' "$1" "$2"
+}
+
+abort_with() {
+    local code="$1"
+    local reason="$2"
+    emit "status" "aborted"
+    emit "error_reason" "$reason"
+    exit "$code"
+}
+
+# ── Help ────────────────────────────────────────────────────────────────────
+show_help() {
+    cat <<'USAGE'
+Usage: session-pause --framing <continuation|resumption> --trigger <string>
+                     [--principal <name>] [--agent <name>]
+
+Internal primitive — called from skills (/compact-prepare, /session-end).
+See agency/REFERENCE/REFERENCE-SKILL-CONVENTIONS.md §7.
+
+Required:
+  --framing continuation   — mid-session compact; monitors + hooks survive.
+  --framing resumption     — end of session; monitors stop on this PAUSE,
+                             SessionEnd hooks fire naturally on process exit.
+  --trigger <string>       — free-form trigger label (e.g., compact-prepare,
+                             session-end). Used in the coord commit message.
+
+Optional:
+  --principal <name>       — override agent-identity --principal resolution.
+  --agent <name>           — override agent-identity --agent resolution.
+
+Outputs (stdout, key=value lines):
+  handoff_path=<absolute path to the current handoff file (caller rewrites it)>
+  archived_previous_handoff=<path to the archived copy or "none">
+  commit_sha=<SHA of the coord checkpoint commit, or "none" if tree was clean>
+  handoff_commit_sha=<SHA of the handoff force-commit (abort path only), or "none">
+  framing=<continuation|resumption>
+  status=<ok|aborted>
+  error_reason=<explanation, only when status=aborted>
+
+Exit codes:
+  0  success (status=ok)
+  1  aborted before completion (status=aborted, error_reason set)
+  2  lock contention timeout (status=aborted, error_reason set)
+
+Coord-artifact classification follows agency/CLAUDE-THEAGENCY.md §3.3 and the
+A&D at usr/.../session-lifecycle-refactor/and.md §3.3. Framework code in the
+dirty tree (anything under agency/tools/, agency/hooks/, src/**, plus
+.claude/settings.json and .gitignore per the 1.5 tightening) aborts the
+PAUSE — run /quality-gate + /iteration-complete first.
+USAGE
+}
+
+# ── Arg parsing ─────────────────────────────────────────────────────────────
+FRAMING=""
+TRIGGER=""
+PRINCIPAL_OVERRIDE=""
+AGENT_OVERRIDE=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --framing)
+            [[ -n "${2:-}" ]] || abort_with 1 "--framing requires a value"
+            FRAMING="$2"
+            shift 2
+            ;;
+        --trigger)
+            [[ -n "${2:-}" ]] || abort_with 1 "--trigger requires a value"
+            TRIGGER="$2"
+            shift 2
+            ;;
+        --principal)
+            [[ -n "${2:-}" ]] || abort_with 1 "--principal requires a value"
+            PRINCIPAL_OVERRIDE="$2"
+            shift 2
+            ;;
+        --agent)
+            [[ -n "${2:-}" ]] || abort_with 1 "--agent requires a value"
+            AGENT_OVERRIDE="$2"
+            shift 2
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        --version)
+            echo "session-pause $TOOL_VERSION"
+            exit 0
+            ;;
+        *)
+            abort_with 1 "unknown option: $1"
+            ;;
+    esac
+done
+
+# ── Validate args ───────────────────────────────────────────────────────────
+case "$FRAMING" in
+    continuation|resumption) ;;
+    "")
+        abort_with 1 "--framing required (continuation or resumption)"
+        ;;
+    *)
+        abort_with 1 "invalid --framing: '$FRAMING' (must be continuation or resumption)"
+        ;;
+esac
+
+if [[ -z "$TRIGGER" ]]; then
+    abort_with 1 "--trigger required"
+fi
+
+# Sec-3: Sanitize TRIGGER — reject control chars (newline, tab, CR) so they
+# don't land in the commit message and break downstream log parsers. Cap
+# length as defense against mistakenly passing a whole handoff body.
+if [[ "${#TRIGGER}" -gt 128 ]]; then
+    abort_with 1 "--trigger exceeds 128 chars (got ${#TRIGGER})"
+fi
+if [[ "$TRIGGER" =~ [[:cntrl:]] ]]; then
+    abort_with 1 "--trigger contains control characters (newline/tab/CR not allowed)"
+fi
+
+# ── Resolve identity ────────────────────────────────────────────────────────
+PRINCIPAL="$PRINCIPAL_OVERRIDE"
+AGENT="$AGENT_OVERRIDE"
+
+if [[ -z "$PRINCIPAL" && -x "$SCRIPT_DIR/agent-identity" ]]; then
+    PRINCIPAL="$("$SCRIPT_DIR/agent-identity" --principal 2>/dev/null || true)"
+fi
+if [[ -z "$AGENT" && -x "$SCRIPT_DIR/agent-identity" ]]; then
+    AGENT="$("$SCRIPT_DIR/agent-identity" --agent 2>/dev/null || true)"
+fi
+
+[[ -n "$PRINCIPAL" ]] || abort_with 1 "could not resolve principal (pass --principal)"
+[[ -n "$AGENT" ]] || abort_with 1 "could not resolve agent (pass --agent)"
+
+# Sec-2: Validate resolved identity values against a safe-name whitelist.
+# Prevents path traversal (--agent '../../etc'), quoting surprises, and
+# commit-message injection via identity values. Allowed: alphanumerics,
+# dash, underscore; must start with alphanumeric; 1-64 chars.
+IDENTITY_RE='^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$'
+if [[ ! "$PRINCIPAL" =~ $IDENTITY_RE ]]; then
+    abort_with 1 "invalid --principal '$PRINCIPAL' (allowed: alphanum + _- ; 1-64 chars starting alphanum)"
+fi
+if [[ ! "$AGENT" =~ $IDENTITY_RE ]]; then
+    abort_with 1 "invalid --agent '$AGENT' (allowed: alphanum + _- ; 1-64 chars starting alphanum)"
+fi
+
+HANDOFF_DIR="$REPO_ROOT/usr/$PRINCIPAL/$AGENT"
+HANDOFF_PATH="$HANDOFF_DIR/${AGENT}-handoff.md"
+
+# Lock lives OUTSIDE the working tree so it never appears in git status
+# porcelain (which would then race with our coord-artifact partitioning).
+# Deterministic filename derived from absolute handoff path so concurrent
+# PAUSEs on the same handoff serialize correctly.
+LOCK_KEY="$(python3 -c 'import hashlib, sys; print(hashlib.sha1(sys.argv[1].encode()).hexdigest()[:16])' "$HANDOFF_PATH" 2>/dev/null || echo "${PRINCIPAL}-${AGENT}")"
+LOCK_DIR="${TMPDIR:-/tmp}/agency-session-pause-${LOCK_KEY}.lock"
+
+# Ensure the sandbox directory exists; a fresh-agent first PAUSE should not
+# fail just because history/ hasn't been created yet. Explicit error handling
+# so a filesystem failure still emits status=aborted rather than silently
+# tripping `set -e` (B13-B16 contract fix).
+mkdir -p "$HANDOFF_DIR" 2>/dev/null || abort_with 1 "cannot create sandbox dir $HANDOFF_DIR (check permissions / disk)"
+
+# ── Acquire lock (mkdir-based, POSIX-portable) ──────────────────────────────
+acquire_lock() {
+    local iterations=$((LOCK_TIMEOUT_SECONDS * 5))  # 200ms granularity
+    local count=0
+    while true; do
+        if mkdir "$LOCK_DIR" 2>/dev/null; then
+            echo "$$" > "$LOCK_DIR/pid" 2>/dev/null || true
+            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$LOCK_DIR/acquired_at" 2>/dev/null || true
+            return 0
+        fi
+        sleep 0.2
+        count=$((count + 1))
+        if (( count >= iterations )); then
+            return 1
+        fi
+    done
+}
+
+release_lock() {
+    rm -rf "$LOCK_DIR" 2>/dev/null || true
+}
+
+if ! acquire_lock; then
+    emit "status" "aborted"
+    emit "error_reason" "lock timeout (${LOCK_TIMEOUT_SECONDS}s) on $LOCK_DIR — inspect + remove manually: rm -rf '$LOCK_DIR'"
+    exit 2
+fi
+
+# Ensure lock released on any exit path from here on.
+trap 'release_lock' EXIT
+
+# ── Coord-artifact classifier ───────────────────────────────────────────────
+# Coord = artifacts that describe how agents collaborate (handoffs, dispatches,
+# seeds, config, skill bodies, hookify rules, principal docs). They do NOT
+# change the enforcement surface or ship application/framework code.
+#
+# Rules per A&D v3 §3.3 + 1.5 tightening, updated for v46.1 Great Rename
+# (v46 Great Rename) and Plan v5 src/ split:
+#   - anything under usr/{PRINCIPAL}/ is coord (principal sandbox);
+#   - agency/config/**, agency/hookify/**, agency/CLAUDE-*.md are coord;
+#   - agency/workstreams/** is coord (workstream artifacts);
+#   - .claude/skills/**/*.md is coord (skill bodies + sidecars);
+#   - .claude/settings.json and .gitignore are EXCLUDED (require QG);
+#   - agency/tools/**, agency/hooks/**, src/** are EXCLUDED (QG).
+is_coord_artifact() {
+    local f="$1"
+    local p="$PRINCIPAL"
+
+    # Explicit non-coord carve-outs (require /quality-gate).
+    case "$f" in
+        .claude/settings.json) return 1 ;;
+        .gitignore) return 1 ;;
+        agency/tools/*) return 1 ;;
+        agency/hooks/*) return 1 ;;
+        src/*) return 1 ;;
+    esac
+
+    # Principal sandbox — everything under usr/{principal}/ is coord.
+    if [[ "$f" == "usr/$p/"* ]]; then
+        return 0
+    fi
+
+    # Framework coord paths.
+    case "$f" in
+        agency/config/*) return 0 ;;
+        agency/hookify/*) return 0 ;;
+        agency/CLAUDE-*.md) return 0 ;;
+        agency/workstreams/*) return 0 ;;
+        .claude/skills/*/SKILL.md) return 0 ;;
+        .claude/skills/*/*.md) return 0 ;;
+    esac
+
+    return 1
+}
+
+# ── Detect dirty tree + partition ───────────────────────────────────────────
+# B16 contract fix: explicit error handling on cd so a path failure emits
+# status=aborted rather than tripping set -e silently.
+cd "$REPO_ROOT" 2>/dev/null || abort_with 1 "cannot cd to REPO_ROOT=$REPO_ROOT"
+
+# -uall forces per-file listing of untracked files (otherwise porcelain
+# collapses untracked directories to `?? dirname/`, which we can't stage
+# individually — git-safe add blocks directory paths by design).
+# The monorepo-memory-issue warning that applies to manual -uall invocation
+# on large repos (e.g. monofolk with node_modules) doesn't apply here:
+# session-pause aborts on any non-coord dirty file, so we only ever scan
+# small coord-artifact sets in practice.
+DIRTY_PORCELAIN="$(git status --porcelain -uall 2>/dev/null || true)"
+
+COORD_FILES=()
+NONCOORD_FILES=()
+
+if [[ -n "$DIRTY_PORCELAIN" ]]; then
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        # Porcelain: "XY filename" (XY is 2 chars, then space, then path).
+        file="${line:3}"
+        # Renames: "old -> new" — keep the new path.
+        if [[ "$file" == *" -> "* ]]; then
+            file="${file##* -> }"
+        fi
+        # Strip quoting that git adds for paths with special chars.
+        file="${file#\"}"
+        file="${file%\"}"
+        if is_coord_artifact "$file"; then
+            COORD_FILES+=("$file")
+        else
+            NONCOORD_FILES+=("$file")
+        fi
+    done <<< "$DIRTY_PORCELAIN"
+fi
+
+# ── Handoff force-commit (v1.2.0 — principal directive, the-agency#355) ────
+# If the tree has non-coord framework code dirty AND the handoff is dirty,
+# persist the handoff ALONE first, then abort on the framework-code gate.
+# Principal's rule: handoff persistence is decoupled from the framework-code
+# QG gate. The handoff is the durable session record — its preservation is
+# strictly more important than the gate at PAUSE time.
+#
+# This only runs when BOTH conditions are met. In the happy path (only coord
+# dirty, no non-coord), the normal coord-checkpoint commit below includes
+# the handoff as usual — no extra commit, no semantic change for that case.
+HANDOFF_REL_PATH="usr/$PRINCIPAL/$AGENT/${AGENT}-handoff.md"
+HANDOFF_COMMIT_SHA="none"
+
+if (( ${#NONCOORD_FILES[@]} > 0 )); then
+    for f in "${COORD_FILES[@]:-}"; do
+        if [[ "$f" == "$HANDOFF_REL_PATH" ]]; then
+            if ! "$SCRIPT_DIR/git-safe" add "$HANDOFF_REL_PATH" >/dev/null 2>&1; then
+                abort_with 1 "git-safe add failed for handoff force-commit: $HANDOFF_REL_PATH"
+            fi
+            HANDOFF_MSG="${TRIGGER}: ${AGENT} persist handoff"
+            # --staged is REQUIRED: git-safe-commit's default is stage-all,
+            # which would sweep the non-coord framework files we're about to
+            # abort on into the handoff commit. See Task #23 — upstream bug
+            # in git-safe-commit. Until that's fixed, --staged is the fence.
+            if ! "$SCRIPT_DIR/git-safe-commit" "$HANDOFF_MSG" --no-work-item --staged >/dev/null 2>&1; then
+                abort_with 1 "git-safe-commit failed for handoff force-commit"
+            fi
+            HANDOFF_COMMIT_SHA="$(git rev-parse HEAD 2>/dev/null || echo "none")"
+            break
+        fi
+    done
+fi
+
+if (( ${#NONCOORD_FILES[@]} > 0 )); then
+    # Emit handoff_commit_sha before abort so callers see the persisted SHA
+    # even when the overall PAUSE aborts.
+    emit "handoff_commit_sha" "$HANDOFF_COMMIT_SHA"
+    if [[ "$HANDOFF_COMMIT_SHA" != "none" ]]; then
+        abort_with 1 "framework code uncommitted: ${NONCOORD_FILES[*]}. Run /quality-gate + /iteration-complete first. (Handoff persisted at ${HANDOFF_COMMIT_SHA:0:7}.)"
+    else
+        abort_with 1 "framework code uncommitted: ${NONCOORD_FILES[*]}. Run /quality-gate + /iteration-complete first."
+    fi
+fi
+
+# ── Commit coord artifacts if any ───────────────────────────────────────────
+COMMIT_SHA="none"
+if (( ${#COORD_FILES[@]} > 0 )); then
+    for f in "${COORD_FILES[@]}"; do
+        if ! "$SCRIPT_DIR/git-safe" add "$f" >/dev/null 2>&1; then
+            abort_with 1 "git-safe add failed for: $f"
+        fi
+    done
+
+    COMMIT_MSG="${TRIGGER}: ${AGENT} coord checkpoint"
+    # --staged prevents git-safe-commit's default stage-all sweep from
+    # picking up files we deliberately classified as non-coord (Task #23).
+    if ! "$SCRIPT_DIR/git-safe-commit" "$COMMIT_MSG" --no-work-item --staged >/dev/null 2>&1; then
+        abort_with 1 "git-safe-commit failed for coord checkpoint"
+    fi
+    COMMIT_SHA="$(git rev-parse HEAD 2>/dev/null || echo "none")"
+fi
+
+# ── Framing-specific: stop monitors (resumption only) ───────────────────────
+# continuation framing deliberately leaves monitors alive — mid-session /compact
+# expects them to keep surfacing dispatches/CI while the context refresh runs.
+if [[ "$FRAMING" == "resumption" && -f "$MONITOR_REGISTRY" ]]; then
+    # Iterate registry. For each entry, verify identity (via monitor-register
+    # --verify), then SIGTERM only on verified entries. Failures swallow — this
+    # is best-effort teardown; a dead/recycled monitor is not an error.
+    MONITOR_REGISTRY="$MONITOR_REGISTRY" \
+    MONITOR_REGISTER="$SCRIPT_DIR/monitor-register" \
+    python3 - <<'PYEOF' >/dev/null 2>&1 || true
+import json
+import os
+import signal
+import subprocess
+
+reg = os.environ["MONITOR_REGISTRY"]
+register_tool = os.environ["MONITOR_REGISTER"]
+
+try:
+    with open(reg) as f:
+        entries = json.load(f)
+except Exception:
+    entries = []
+
+if not isinstance(entries, list):
+    entries = []
+
+for e in entries:
+    if not isinstance(e, dict):
+        continue
+    mt = e.get("monitor_type")
+    pid = e.get("pid")
+    if not mt or not pid:
+        continue
+    # B22 fix (catastrophic): os.kill(pid, SIGTERM) with pid <= 1 or non-int
+    # targets process groups / init / all-signalable-processes. Guard strictly:
+    # only send SIGTERM to positive integers > 1.
+    if not isinstance(pid, int) or pid <= 1:
+        continue
+    # Verify: exits 0 iff process still alive AND cmdline_hash matches.
+    rc = subprocess.call(
+        [register_tool, "--verify", mt],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if rc == 0:
+        try:
+            os.kill(int(pid), signal.SIGTERM)
+        except (ProcessLookupError, PermissionError, ValueError):
+            pass
+PYEOF
+fi
+
+# SessionEnd hooks and transcript finalization intentionally NOT re-invoked here.
+# - SessionEnd hooks fire when the Claude Code process exits; invoking them here
+#   would cause a double-fire (handoff write and ghostty logging twice).
+# - Transcript is skill-driven, not tool-driven; there's no persistent process
+#   to stop. The caller skill drives transcript-stop if it needs to.
+
+# ── Archive current handoff ─────────────────────────────────────────────────
+# B13-B15 + Sec-1 fixes: explicit error handling on mkdir / cp, and a
+# symlink refusal before archive. Copying a symlink would duplicate target
+# content (potentially outside the intended scope, e.g. if the handoff got
+# symlinked to ~/.ssh/id_rsa), so the tool aborts rather than silently
+# following the link.
+ARCHIVED="none"
+if [[ -f "$HANDOFF_PATH" ]]; then
+    if [[ -L "$HANDOFF_PATH" ]]; then
+        abort_with 1 "handoff path is a symlink, refusing to archive: $HANDOFF_PATH"
+    fi
+    HISTORY_DIR="$HANDOFF_DIR/history"
+    mkdir -p "$HISTORY_DIR" 2>/dev/null || abort_with 1 "cannot create history dir $HISTORY_DIR (check permissions / disk)"
+    # UTC timestamp + millisecond suffix for collision-safe parallel archives.
+    TS="$(date -u +"%Y%m%d-%H%M%S")"
+    MS="$(python3 -c 'import time; print(f"{int((time.time()*1000)%1000):03d}")' 2>/dev/null || echo "000")"
+    ARCHIVE_NAME="handoff-${TS}-${MS}.md"
+    ARCHIVED="$HISTORY_DIR/$ARCHIVE_NAME"
+    cp "$HANDOFF_PATH" "$ARCHIVED" 2>/dev/null || abort_with 1 "failed to archive handoff from $HANDOFF_PATH to $ARCHIVED"
+fi
+
+# ── Emit output ─────────────────────────────────────────────────────────────
+# A3: schema_version pins the output contract. Callers can branch on it if
+# a future v1.x bumps the key set. tool_version exposed for diagnostic.
+emit "schema_version" "$SCHEMA_VERSION"
+emit "tool_version" "$TOOL_VERSION"
+emit "handoff_path" "$HANDOFF_PATH"
+emit "archived_previous_handoff" "$ARCHIVED"
+emit "commit_sha" "$COMMIT_SHA"
+emit "handoff_commit_sha" "$HANDOFF_COMMIT_SHA"
+emit "framing" "$FRAMING"
+emit "status" "ok"
+
+exit 0

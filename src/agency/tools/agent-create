@@ -1,0 +1,446 @@
+#!/bin/bash
+# Create a new agent identity
+#
+# Usage: ./agency/tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>]
+#
+# Many-to-one mapping: Multiple agents can work on the same workstream
+# Agent name may differ from workstream name
+#
+# Options:
+#   --type=<template>       Use a specific agent template (default: generic)
+#   --description=<text>    Description for the agent (used in agent.md and Claude Code registration)
+#   --seeds=<path>          Path to seed files directory (added as reference in agent.md)
+#   --verbose               Show detailed logging
+#
+# Creates:
+#   agency/agents/{agentname}/
+#     - agent.md, IDEAS.md, ONBOARDING.md
+#     - backups/, logs/
+
+set -euo pipefail
+
+# Source log helper for telemetry
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+# Source _path-resolve for principal resolution and name validation
+if [[ -f "$SCRIPT_DIR/lib/_path-resolve" ]]; then
+    source "$SCRIPT_DIR/lib/_path-resolve"
+fi
+
+# Tool version
+TOOL_VERSION="2.0.0"
+
+# Configuration
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+TEMPLATE_DIR="$PROJECT_ROOT/agency/agents/templates"
+
+# Colors
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED="[0;31m" GREEN="[0;32m" YELLOW="[1;33m" BLUE="[0;34m" NC="[0m"
+fi
+
+# Defaults
+VERBOSE=false
+
+# Logging functions (quiet by default)
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}[WARN]${NC} $1" || true; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }  # Always show errors
+log_step() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[STEP]${NC} $1" || true; }
+verbose_echo() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+
+# Escape sed special characters to prevent injection
+escape_sed() {
+    printf '%s\n' "$1" | sed 's/[&/\]/\\&/g'
+}
+
+# Sanitize interpolation values for YAML frontmatter (MAR S1)
+# Strips newlines and bare --- sequences that break frontmatter boundaries
+sanitize_interpolation() {
+    printf '%s' "$1" | tr '\n' ' ' | sed 's/---//g'
+}
+
+# Version check
+if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    echo "agent-create $TOOL_VERSION"
+    exit 0
+fi
+
+# Help
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo "agent-create - Create a new agent identity"
+    echo ""
+    echo "Usage: ./agency/tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>] [--verbose]"
+    echo ""
+    echo "Arguments:"
+    echo "  agentname     Name for the new agent"
+    echo "  workstream    Workstream the agent belongs to (must exist)"
+    echo ""
+    echo "Options:"
+    echo "  --type=<template>       Use a specific agent template (default: generic)"
+    echo "  --description=<text>    Description for the agent (used in agent.md and Claude Code agent)"
+    echo "  --seeds=<path>          Path to seed files directory (added as reference in agent.md)"
+    echo "  --list-types            List available agent templates"
+    echo "  --verbose               Show detailed logging"
+    echo "  --version, -v           Show version"
+    echo "  --help, -h              Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  ./agency/tools/agent-create agent-manager agents"
+    echo "  ./agency/tools/agent-create ui-specialist web --type=ux-dev"
+    echo "  ./agency/tools/agent-create backend-dev api --type=generic --description='Backend development specialist'"
+    echo "  ./agency/tools/agent-create researcher research --seeds=usr/{principal}/researcher/"
+    echo ""
+    echo "Available templates:"
+    if [[ -d "$TEMPLATE_DIR" ]]; then
+        for dir in "$TEMPLATE_DIR"/*/; do
+            if [[ -d "$dir" ]]; then
+                type_name=$(basename "$dir")
+                echo "  - $type_name"
+            fi
+        done
+    else
+        echo "  (none - template directory not found)"
+    fi
+    exit 0
+fi
+
+# List types
+if [[ "${1:-}" == "--list-types" ]]; then
+    echo "Available agent templates:"
+    if [[ -d "$TEMPLATE_DIR" ]]; then
+        for dir in "$TEMPLATE_DIR"/*/; do
+            if [[ -d "$dir" ]]; then
+                type_name=$(basename "$dir")
+                echo "  - $type_name"
+            fi
+        done
+    else
+        echo "  (none - template directory not found)"
+    fi
+    exit 0
+fi
+
+# Parse arguments
+AGENTNAME=""
+WORKSTREAM=""
+AGENT_TYPE="generic"
+DESCRIPTION=""
+SEEDS_PATH=""
+
+for arg in "$@"; do
+    case $arg in
+        --type=*)
+            AGENT_TYPE="${arg#*=}"
+            ;;
+        --description=*)
+            DESCRIPTION="${arg#*=}"
+            ;;
+        --seeds=*)
+            SEEDS_PATH="${arg#*=}"
+            ;;
+        --verbose)
+            VERBOSE=true
+            ;;
+        --*)
+            # Skip other options
+            ;;
+        *)
+            if [[ -z "$AGENTNAME" ]]; then
+                AGENTNAME="$arg"
+            elif [[ -z "$WORKSTREAM" ]]; then
+                WORKSTREAM="$arg"
+            fi
+            ;;
+    esac
+done
+
+if [ -z "$AGENTNAME" ] || [ -z "$WORKSTREAM" ]; then
+  log_error "Missing required arguments"
+  echo ""
+  echo "Usage: ./agency/tools/agent-create <agentname> <workstream> [--type=<template>] [--description=<text>] [--seeds=<path>] [--verbose]"
+  echo ""
+  echo "Examples:"
+  echo "  ./agency/tools/agent-create agent-manager agents"
+  echo "  ./agency/tools/agent-create ui-specialist web --type=ux-dev"
+  echo ""
+  echo "Note: Workstream must exist first. Create with:"
+  echo "  ./agency/tools/workstream-create <name>"
+  echo ""
+  echo "Run with --list-types to see available templates."
+  exit 1
+fi
+
+DIR="agency/agents/$AGENTNAME"
+WORKSTREAM_DIR="agency/workstreams/$WORKSTREAM"
+TIMESTAMP=$(./agency/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
+AGENT_TEMPLATE_DIR="$TEMPLATE_DIR/$AGENT_TYPE"
+
+# Resolve principal from agency.yaml (not raw $USER)
+# _pr_resolve sets AGENCY_PRINCIPAL env var, does not print to stdout
+PRINCIPAL=""
+if type _pr_resolve &>/dev/null; then
+    _pr_resolve 2>/dev/null || true
+    PRINCIPAL="${AGENCY_PRINCIPAL:-}"
+fi
+PRINCIPAL="${PRINCIPAL:-$(whoami | tr '[:upper:]' '[:lower:]')}"
+
+# Main function
+main() {
+    # Trap unexpected exits
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    RUN_ID=$(log_start "agent-create" "$@" 2>/dev/null) || true
+    echo "agent-create [run: ${RUN_ID:-none}]"
+
+    # Validate agent name (MAR S2 — path traversal prevention)
+    if type _validate_name &>/dev/null; then
+        _validate_name "$AGENTNAME" "agent" || {
+            log_error "Invalid agent name: $AGENTNAME (must match [a-z0-9][a-z0-9_-]*, max 32 chars)"
+            trap - EXIT
+            exit 1
+        }
+    elif [[ ! "$AGENTNAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || [[ ${#AGENTNAME} -gt 32 ]]; then
+        log_error "Invalid agent name: $AGENTNAME"
+        trap - EXIT
+        exit 1
+    fi
+
+    # Check agent doesn't exist
+    if [ -d "$DIR" ]; then
+      log_error "Agent '$AGENTNAME' already exists at $DIR"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Agent already exists"
+      exit 1
+    fi
+
+    # Check workstream exists
+    if [ ! -d "$WORKSTREAM_DIR" ]; then
+      log_error "Workstream '$WORKSTREAM' doesn't exist at $WORKSTREAM_DIR"
+      echo ""
+      echo "Create workstream first: ./agency/tools/workstream-create $WORKSTREAM"
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Workstream not found"
+      exit 1
+    fi
+
+    # Check template exists
+    if [ ! -d "$AGENT_TEMPLATE_DIR" ]; then
+      log_error "Agent template '$AGENT_TYPE' not found at $AGENT_TEMPLATE_DIR"
+      echo ""
+      echo "Available templates:"
+      for dir in "$TEMPLATE_DIR"/*/; do
+          if [[ -d "$dir" ]]; then
+              type_name=$(basename "$dir")
+              echo "  - $type_name"
+          fi
+      done
+      trap - EXIT
+      log_end "$RUN_ID" "failure" 1 0 "Template not found"
+      exit 1
+    fi
+
+    log_step "Creating agent: $AGENTNAME (workstream: $WORKSTREAM, type: $AGENT_TYPE)"
+    mkdir -p "$DIR/backups/latest"
+    mkdir -p "$DIR/backups/archive"
+    mkdir -p "$DIR/logs"
+
+    # Function to replace placeholders in template
+    apply_template() {
+        local template_file="$1"
+        local output_file="$2"
+
+        if [[ -f "$template_file" ]]; then
+            # Escape sed special characters to prevent injection
+            local agent_escaped workstream_escaped timestamp_escaped
+            agent_escaped=$(escape_sed "$AGENTNAME")
+            workstream_escaped=$(escape_sed "$WORKSTREAM")
+            timestamp_escaped=$(escape_sed "$TIMESTAMP")
+
+            sed -e "s/{{AGENT_NAME}}/$agent_escaped/g" \
+                -e "s/{{WORKSTREAM}}/$workstream_escaped/g" \
+                -e "s/{{TIMESTAMP}}/$timestamp_escaped/g" \
+                "$template_file" > "$output_file"
+        fi
+    }
+
+    # Apply template files
+    apply_template "$AGENT_TEMPLATE_DIR/agent.md" "$DIR/agent.md"
+    apply_template "$AGENT_TEMPLATE_DIR/ONBOARDING.md" "$DIR/ONBOARDING.md"
+
+    # Replace placeholder description in agent.md if --description was provided
+    if [[ -n "$DESCRIPTION" && -f "$DIR/agent.md" ]]; then
+        local desc_escaped
+        desc_escaped=$(escape_sed "$DESCRIPTION")
+        sed -i '' "s/\[Description of this agent's role\]/$desc_escaped/" "$DIR/agent.md"
+    fi
+
+    # IDEAS.md (not templated - standard format)
+    cat > "$DIR/IDEAS.md" << EOF
+# $AGENTNAME Ideas & Observations
+
+### YYYY-MM-DD | I noticed
+
+[Observation]
+
+### YYYY-MM-DD | I have an idea
+
+[Proposal]
+**Deferred because:** [Reason]
+EOF
+
+    # logs/permissions.md (not templated - standard format)
+    cat > "$DIR/logs/permissions.md" << EOF
+# $AGENTNAME Permission Request Log
+
+| Date | Tool | Command | Reason | Outcome |
+|------|------|---------|--------|---------|
+EOF
+
+    # Auto-detect seed files from principal sandbox
+    if [[ -z "$SEEDS_PATH" ]]; then
+        for principal_dir in usr/*/; do
+            [[ -d "$principal_dir" ]] || continue
+            candidate="${principal_dir}${WORKSTREAM}/seeds/"
+            if [[ -d "$candidate" ]]; then
+                SEEDS_PATH="$candidate"
+                log_info "Auto-detected seed files at $SEEDS_PATH"
+                break
+            fi
+        done
+    fi
+
+    # Append Seed Files section to agent.md if seeds path is set
+    if [[ -n "$SEEDS_PATH" ]]; then
+        cat >> "$DIR/agent.md" << SEEDEOF
+
+## Seed Files
+
+- \`${SEEDS_PATH}\` - Seed files and reference material for this agent
+SEEDEOF
+        verbose_echo "Added seed files reference: $SEEDS_PATH"
+    fi
+
+    # Register with Claude Code if .claude/ directory exists
+    # D42-R3: principal-scoped registrations at .claude/agents/{P}/{A}.md
+    CLAUDE_AGENTS_DIR=".claude/agents/${PRINCIPAL}"
+    if [[ -d ".claude" ]]; then
+        mkdir -p "$CLAUDE_AGENTS_DIR"
+
+        # Determine description for Claude Code agent
+        if [[ -n "$DESCRIPTION" ]]; then
+            CC_DESCRIPTION="$DESCRIPTION"
+        else
+            CC_DESCRIPTION="Agency agent for the ${WORKSTREAM} workstream"
+        fi
+
+        # Determine agent class for @import
+        local agent_class="${AGENT_TYPE:-tech-lead}"
+
+        # macOS bash 3.2 lacks ${VAR^^} — use tr for uppercase
+        local ws_upper agent_upper
+        ws_upper=$(echo "$WORKSTREAM" | tr '[:lower:]' '[:upper:]' | tr '-' '-')
+        agent_upper=$(echo "$AGENTNAME" | tr '[:lower:]' '[:upper:]' | tr '-' '-')
+
+        cat > "$CLAUDE_AGENTS_DIR/${AGENTNAME}.md" << CCEOF
+---
+name: ${AGENTNAME}
+description: "${CC_DESCRIPTION}"
+model: opus
+---
+
+@agency/agents/${agent_class}/agent.md
+@agency/workstreams/${WORKSTREAM}/CLAUDE-${ws_upper}.md
+@usr/${PRINCIPAL}/${AGENTNAME}/CLAUDE-${agent_upper}.md
+
+**On startup, immediately do these in order:**
+
+1. \`usr/${PRINCIPAL}/${AGENTNAME}/${AGENTNAME}-handoff.md\` — your current state and next action
+2. Check ISCP: \`dispatch list\` and \`flag list\` — process any unread items before other work
+3. Check cross-repo: \`./agency/tools/collaboration check\` — process any unread cross-repo dispatches
+4. Follow the "Next Action" in your handoff. Do not wait for a prompt — act on startup.
+
+**If your handoff contains TODO: placeholders,** report to the captain:
+> "Bootstrap handoff incomplete for ${AGENTNAME} — needs captain to run /discuss for workstream ${WORKSTREAM}."
+
+**Reference (read on demand, not every startup):**
+- \`agency/agents/${agent_class}/agent.md\` — your class role and responsibilities
+- \`agency/workstreams/${WORKSTREAM}/KNOWLEDGE.md\` — workstream knowledge
+
+**Tool usage:** All Agency tools work from ANY directory including worktrees. Never prefix with \`cd /path/to/main-repo &&\`. Use \`./agency/tools/\` (relative paths).
+CCEOF
+        verbose_echo "Registered Claude Code agent: $CLAUDE_AGENTS_DIR/${AGENTNAME}.md"
+    fi
+
+    # Scaffold workspace directories in principal sandbox
+    # D42-R3: slim scaffold — only personal state (tmp, tools, history, history/flotsam)
+    local SANDBOX_DIR="usr/$PRINCIPAL/$AGENTNAME"
+    if [[ -d "usr/$PRINCIPAL" ]]; then
+        mkdir -p "$SANDBOX_DIR"/{tools,tmp,history/flotsam}
+        # tmp/ is scratch space — gitignore its contents
+        if [[ ! -f "$SANDBOX_DIR/tmp/.gitignore" ]]; then
+            echo '*' > "$SANDBOX_DIR/tmp/.gitignore"
+            echo '!.gitignore' >> "$SANDBOX_DIR/tmp/.gitignore"
+        fi
+        verbose_echo "Scaffolded workspace: $SANDBOX_DIR/{tools,tmp,history,history/flotsam}"
+
+        # Write bootstrap handoff template with TODO placeholders
+        local HANDOFF_FILE="$SANDBOX_DIR/${AGENTNAME}-handoff.md"
+        if [[ ! -f "$HANDOFF_FILE" ]]; then
+            # Sanitize all interpolated values (MAR S1)
+            local safe_agent safe_principal safe_workstream safe_repo
+            safe_agent=$(sanitize_interpolation "$AGENTNAME")
+            safe_principal=$(sanitize_interpolation "$PRINCIPAL")
+            safe_workstream=$(sanitize_interpolation "$WORKSTREAM")
+            safe_repo=$(basename "$PROJECT_ROOT")
+
+            cat > "$HANDOFF_FILE" << HANDOFF_EOF
+# Handoff: ${safe_agent} — Bootstrap
+
+---
+type: agency-bootstrap
+date: $(date '+%Y-%m-%d %H:%M')
+principal: ${safe_principal}
+agent: ${safe_repo}/${safe_principal}/${safe_agent}
+workstream: ${safe_workstream}
+---
+
+## Who You Are
+
+TODO: What this agent owns and is responsible for.
+
+## Your Workstream Peers
+
+TODO: Who else works in this workstream, what they own.
+
+## Current State
+
+TODO: What's been done, what remains.
+
+## Key Files
+
+TODO: PVR, A&D, seeds, knowledge.
+
+## Next Action
+
+TODO: What to do first.
+HANDOFF_EOF
+            verbose_echo "Wrote bootstrap handoff: $HANDOFF_FILE"
+        fi
+    fi
+
+    echo ""
+    echo "Created: $DIR/"
+    log_info "Template: $AGENT_TYPE"
+    echo ""
+    echo "Start with: claude --agent $PRINCIPAL/$AGENTNAME"
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Agent $AGENTNAME created"
+}
+
+main

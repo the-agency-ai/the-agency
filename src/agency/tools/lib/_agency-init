@@ -1,0 +1,694 @@
+# _agency-init — Initialize Agency 2.0 in a git repo
+#
+# Sourced by: agency init [options]
+# Arguments via: AGENCY_ARGS array
+#
+# Inherits: set -euo pipefail, AGENCY_DIR, _log-helper, colors
+#
+# Preconditions enforced:
+#   1. .git/ exists (run git init first)
+#   2. .claude/ exists (created if missing)
+#   3. On main/master branch (bootstrap handoff needs captain path)
+#   4. Not already initialized (agency.yaml doesn't exist)
+
+RUN_ID=$(log_start "agency-init" "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}" 2>/dev/null) || true
+
+# --- Defaults ---
+VERBOSE=false
+TARGET_DIR=""
+PRINCIPAL=""
+PROJECT_NAME=""
+TIMEZONE="UTC"
+FROM_GITHUB=""
+GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.com/the-agency-ai/the-agency.git}"
+
+_init_help() {
+    cat << 'EOF'
+agency init — Initialize Agency 2.0 in a git repo
+
+Usage:
+  agency init [target-dir]              Initialize target (default: cwd)
+  agency init --principal <name>        Override principal name
+  agency init --project <name>          Set project name
+  agency init --timezone <tz>           Set timezone (default: UTC)
+  agency init --from-github [ref]       Shallow-clone the-agency from GitHub
+                                        and use as source. Optional ref:
+                                        tag, branch, or commit. Default: main.
+                                        Use @latest for latest release tag.
+                                        Examples:
+                                          --from-github              # main
+                                          --from-github main         # explicit
+                                          --from-github @latest      # tag
+                                          --from-github v41.23       # specific tag
+
+Options:
+  --verbose        Show detailed output
+  --help, -h       Show this help
+
+Examples:
+  cd ~/code/my-project && agency init
+  agency init ~/code/my-project --principal <your-name> --project <project-name>
+  cd ~/code/bare-repo && agency init --from-github --principal <your-name>
+EOF
+}
+
+# --- Parse AGENCY_ARGS ---
+set -- "${AGENCY_ARGS[@]+"${AGENCY_ARGS[@]}"}"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) _init_help; exit 0 ;;
+        --verbose) VERBOSE=true; shift ;;
+        --principal) [[ -n "${2:-}" ]] || { echo "Error: --principal requires a value" >&2; exit 1; }; PRINCIPAL="$2"; shift 2 ;;
+        --project) [[ -n "${2:-}" ]] || { echo "Error: --project requires a value" >&2; exit 1; }; PROJECT_NAME="$2"; shift 2 ;;
+        --timezone) [[ -n "${2:-}" ]] || { echo "Error: --timezone requires a value" >&2; exit 1; }; TIMEZONE="$2"; shift 2 ;;
+        --from-github)
+            # Optional ref follows the flag. If next arg is missing or starts
+            # with `-` or matches a target-dir-like pattern, default to "main".
+            # D41-R24: mirrors agency update --from-github semantics (issue #113+).
+            FROM_GITHUB="main"
+            shift
+            if [[ $# -gt 0 && "$1" != -* && ! -d "$1" ]]; then
+                FROM_GITHUB="$1"
+                shift
+            fi
+            ;;
+        --from-github=*) FROM_GITHUB="${1#--from-github=}"; shift ;;
+        -*) echo "Unknown option: $1" >&2; _init_help; exit 1 ;;
+        *) TARGET_DIR="$1"; shift ;;
+    esac
+done
+
+log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
+
+_init_main() {
+    trap 'log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+
+    echo "agency init [run: ${RUN_ID:-none}]"
+
+    # --- Resolve paths ---
+    TARGET_DIR="${TARGET_DIR:-$(pwd)}"
+    TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd)" || {
+        log_error "Target directory does not exist: $TARGET_DIR"
+        exit 1
+    }
+
+    # D41-R24 (principal directive, related to issue #113): when --from-github is
+    # passed, shallow-clone the-agency from GitHub and use that as the source,
+    # bypassing the requirement for a local the-agency clone. Mirrors the
+    # _agency-update --from-github semantics.
+    local TMP_SOURCE_DIR=""
+    if [[ -n "$FROM_GITHUB" ]]; then
+        log_step "Fetching the-agency from GitHub (ref: $FROM_GITHUB)..."
+        TMP_SOURCE_DIR=$(mktemp -d -t agency-init-source-XXXXXX)
+        # Resolve ref. Default "main". "@latest" → latest release tag via gh.
+        local clone_ref="$FROM_GITHUB"
+        if [[ "$FROM_GITHUB" == "@latest" ]]; then
+            if command -v gh >/dev/null 2>&1; then
+                clone_ref=$(gh release view --repo the-agency-ai/the-agency --json tagName -q .tagName 2>/dev/null) || clone_ref=""
+            fi
+            if [[ -z "$clone_ref" ]]; then
+                log_warn "Could not resolve latest release; falling back to main"
+                clone_ref="main"
+            else
+                log_info "Resolved @latest → $clone_ref"
+            fi
+        fi
+        if ! git clone --depth 1 --branch "$clone_ref" "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
+            # Fallback: full-ish clone + checkout (handles SHAs)
+            rm -rf "$TMP_SOURCE_DIR"
+            TMP_SOURCE_DIR=$(mktemp -d -t agency-init-source-XXXXXX)
+            if ! git clone --depth 50 "$GITHUB_REPO_URL" "$TMP_SOURCE_DIR" >/dev/null 2>&1; then
+                log_error "git clone failed for $GITHUB_REPO_URL"
+                rm -rf "$TMP_SOURCE_DIR"
+                exit 1
+            fi
+            if ! git -C "$TMP_SOURCE_DIR" checkout "$clone_ref" >/dev/null 2>&1; then
+                log_error "Could not checkout ref '$clone_ref' in fetched repo"
+                rm -rf "$TMP_SOURCE_DIR"
+                exit 1
+            fi
+        fi
+        AGENCY_SOURCE="$TMP_SOURCE_DIR"
+        # Teardown trap: clean up temp clone on any exit path
+        trap 'rm -rf "$TMP_SOURCE_DIR" 2>/dev/null; log_end "$RUN_ID" "failure" $? 0 "Unexpected exit" 2>/dev/null || true' EXIT
+        log_info "Source: $AGENCY_SOURCE (shallow clone, will be removed)"
+    else
+        AGENCY_SOURCE="${AGENCY_SOURCE:-$(cd "$AGENCY_DIR/.." && pwd)}"
+    fi
+
+    # --- Precondition 1: git repo ---
+    if [[ ! -d "$TARGET_DIR/.git" ]]; then
+        log_error "Not a git repo: $TARGET_DIR"
+        echo "Run 'git init' first."
+        exit 1
+    fi
+
+    # --- Precondition 2: .claude/ exists (create if missing) ---
+    if [[ ! -d "$TARGET_DIR/.claude" ]]; then
+        mkdir -p "$TARGET_DIR/.claude"
+        log_info "Created .claude/ directory"
+    fi
+
+    # --- Precondition 3: on main/master (or fresh repo with no commits) ---
+    local current_branch
+    current_branch=$(git -C "$TARGET_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    # Fresh git init has no commits — HEAD is unborn, rev-parse returns "HEAD"
+    # Accept: main, master, or unborn HEAD (fresh repo, no commits yet)
+    if [[ "$current_branch" != "main" && "$current_branch" != "master" && "$current_branch" != "HEAD" ]]; then
+        log_error "Must be on main or master branch (currently on: ${current_branch:-detached HEAD})"
+        echo "Switch to main/master before running agency init."
+        exit 1
+    fi
+
+    # --- Precondition 4: not already initialized ---
+    if [[ -f "$TARGET_DIR/agency/config/agency.yaml" ]]; then
+        log_warn "Agency already initialized in $TARGET_DIR"
+        echo "Use 'agency update' to update an existing installation."
+        exit 1
+    fi
+
+    # --- Validate agency source ---
+    if [[ ! -f "$AGENCY_SOURCE/agency/config/agency.yaml" ]]; then
+        log_error "Agency source not found at: $AGENCY_SOURCE"
+        echo "Set AGENCY_SOURCE to the-agency repo path."
+        exit 1
+    fi
+
+    # --- Resolve defaults ---
+    local SYSTEM_USER
+    SYSTEM_USER="$(whoami)"
+    PRINCIPAL="${PRINCIPAL:-$SYSTEM_USER}"
+    PRINCIPAL=$(echo "$PRINCIPAL" | tr '[:upper:]' '[:lower:]')
+    # YAML key is the system username (for $USER lookup), value is the principal slug
+    local PRINCIPAL_KEY
+    PRINCIPAL_KEY=$(echo "$SYSTEM_USER" | tr '[:upper:]' '[:lower:]')
+    PROJECT_NAME="${PROJECT_NAME:-$(basename "$TARGET_DIR")}"
+
+    # --- Validate names before any filesystem operations ---
+    # Source _path-resolve for _validate_name (required — hard fail if missing)
+    if ! type _validate_name &>/dev/null; then
+        local _lib_dir
+        _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if [[ -f "$_lib_dir/_path-resolve" ]]; then
+            source "$_lib_dir/_path-resolve"
+        fi
+    fi
+
+    type _validate_name &>/dev/null || {
+        log_error "Cannot load _validate_name from _path-resolve — abort"
+        exit 1
+    }
+
+    _validate_name "$PRINCIPAL" "principal" || {
+        log_error "Invalid principal name: $PRINCIPAL"
+        exit 1
+    }
+    _validate_name "$PRINCIPAL_KEY" "principal" || {
+        log_error "Invalid principal key: $PRINCIPAL_KEY"
+        exit 1
+    }
+    # PROJECT_NAME uses repo-level validation (no reserved name check)
+    _validate_name "$PROJECT_NAME" "repo" || {
+        log_error "Invalid project name: $PROJECT_NAME"
+        exit 1
+    }
+    _validate_timezone "$TIMEZONE" || {
+        log_error "Invalid timezone: $TIMEZONE"
+        exit 1
+    }
+
+    # --- Source commit for version tracking ---
+    local source_commit
+    source_commit=$(git -C "$AGENCY_SOURCE" rev-parse HEAD 2>/dev/null || echo "unknown")
+    local framework_version
+    # Read version from the source agency.yaml framework section
+    framework_version=$(grep '^  version:' "$AGENCY_SOURCE/agency/config/agency.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}//' | sed 's/"\{0,1\} *$//' || echo "2.0.0")
+    framework_version="${framework_version:-2.0.0}"
+
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Agency 2.0 Init${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  Target:    $TARGET_DIR"
+    echo "  Project:   $PROJECT_NAME"
+    echo "  Principal: $PRINCIPAL"
+    echo "  Timezone:  $TIMEZONE"
+    echo "  Source:    $AGENCY_SOURCE (${source_commit:0:8})"
+    echo ""
+
+    # =====================================================================
+    # Step 1: CLAUDE.md
+    # =====================================================================
+    log_step "Creating CLAUDE.md"
+
+    if [[ -f "$TARGET_DIR/CLAUDE.md" ]]; then
+        log_warn "CLAUDE.md already exists — appending Agency import"
+        echo "" >> "$TARGET_DIR/CLAUDE.md"
+        echo "@agency/CLAUDE-THEAGENCY.md" >> "$TARGET_DIR/CLAUDE.md"
+    else
+        cp "$AGENCY_SOURCE/agency/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/CLAUDE.md"
+        # Use | as delimiter to avoid issues with / in project names.
+        # Substitute ALL occurrences (g flag) of both placeholders.
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" "$TARGET_DIR/CLAUDE.md"
+            sed -i '' "s|{{PRINCIPAL}}|$PRINCIPAL|g" "$TARGET_DIR/CLAUDE.md"
+        else
+            sed -i "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" "$TARGET_DIR/CLAUDE.md"
+            sed -i "s|{{PRINCIPAL}}|$PRINCIPAL|g" "$TARGET_DIR/CLAUDE.md"
+        fi
+    fi
+
+    log_info "Created CLAUDE.md"
+
+    # =====================================================================
+    # Step 2: .claude/ directory
+    # =====================================================================
+    log_step "Setting up .claude/"
+
+    mkdir -p "$TARGET_DIR/.claude/commands"
+
+    # Settings — copy from settings template (single source of truth)
+    if [[ -f "$AGENCY_SOURCE/agency/config/settings-template.json" ]]; then
+        cp "$AGENCY_SOURCE/agency/config/settings-template.json" "$TARGET_DIR/.claude/settings.json"
+    else
+        log_error "Settings template not found at $AGENCY_SOURCE/agency/config/settings-template.json"
+        exit 1
+    fi
+
+    # Commands — D41-R26: directory-level copy (was hardcoded list that
+    # missed new commands added post-freeze)
+    if [[ -d "$AGENCY_SOURCE/.claude/commands" ]]; then
+        local cmd_file
+        for cmd_file in "$AGENCY_SOURCE/.claude/commands/"*.md; do
+            [[ -f "$cmd_file" ]] || continue
+            cp "$cmd_file" "$TARGET_DIR/.claude/commands/"
+        done
+    fi
+
+    # Skills
+    if [[ -d "$AGENCY_SOURCE/.claude/skills" ]]; then
+        mkdir -p "$TARGET_DIR/.claude/skills"
+        for skill_dir in "$AGENCY_SOURCE/.claude/skills"/*/; do
+            local skill_name
+            skill_name=$(basename "$skill_dir")
+            mkdir -p "$TARGET_DIR/.claude/skills/$skill_name"
+            cp "$skill_dir/SKILL.md" "$TARGET_DIR/.claude/skills/$skill_name/"
+        done
+    fi
+
+    log_info "Created .claude/ with settings, hooks, commands, skills"
+
+    # =====================================================================
+    # Step 3: agency/ framework directory
+    # =====================================================================
+    log_step "Copying Agency framework"
+
+    mkdir -p "$TARGET_DIR/agency"
+    [[ -f "$AGENCY_SOURCE/agency/CLAUDE-THEAGENCY.md" ]] && cp "$AGENCY_SOURCE/agency/CLAUDE-THEAGENCY.md" "$TARGET_DIR/agency/"
+
+    # README-*.md — D41-R26: copy ALL top-level README files from framework
+    # (was hardcoded list missing README-ENFORCEMENT.md + README-SAFE-TOOLS.md +
+    # README-RECEIPT-INFRASTRUCTURE.md + more as they're added)
+    local readme_file
+    for readme_file in "$AGENCY_SOURCE/agency/"README-*.md; do
+        [[ -f "$readme_file" ]] && cp "$readme_file" "$TARGET_DIR/agency/"
+    done
+
+    # REFERENCE-*.md — D41-R26: the 39 framework reference docs are the
+    # authoritative guidance layer. Old code tried to copy /agency/REFERENCE/*.md
+    # which doesn't exist — these live at /agency/REFERENCE/REFERENCE-*.md
+    # (post-v46.1 layout). Every ref-injected skill assumes these are present.
+    mkdir -p "$TARGET_DIR/agency/REFERENCE"
+    local ref_file
+    for ref_file in "$AGENCY_SOURCE/agency/REFERENCE/"REFERENCE-*.md; do
+        [[ -f "$ref_file" ]] && cp "$ref_file" "$TARGET_DIR/agency/REFERENCE/"
+    done
+
+    # Config
+    mkdir -p "$TARGET_DIR/agency/config"
+    cat > "$TARGET_DIR/agency/config/agency.yaml" << YAML_EOF
+# Agency Configuration for $PROJECT_NAME
+
+principals:
+  "$PRINCIPAL_KEY":
+    name: "$PRINCIPAL"
+  default:
+    name: unknown
+
+project:
+  name: "$PROJECT_NAME"
+  timezone: "$TIMEZONE"
+
+framework:
+  version: "$framework_version"
+  installed_at: "$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+  updated_at: "$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+  source_commit: "$source_commit"
+
+agents:
+  default_model: "opus"
+
+methodology:
+  numbering: "phase.iteration"
+  work_pattern: "discuss-plan-review-revise-finalize-implement"
+
+sandbox:
+  principal_dirs: true
+
+worktrees:
+  enabled: true
+  base_dir: ".worktrees"
+
+secrets:
+  provider: "vault"
+
+terminal:
+  provider: "ghostty"
+
+platform:
+  provider: "auto"
+
+telemetry:
+  providers: ["jsonl"]
+YAML_EOF
+
+    # Docs — legacy /agency/REFERENCE/ path (kept as no-op fallback; content
+    # lives at /agency/REFERENCE/REFERENCE-*.md now, copied above in Step 3).
+    # Post-v46.1: this block is effectively dead code since agency/docs/
+    # doesn't exist in new layout. Preserved as safety net for any stray
+    # source tree that still has docs/.
+    if [[ -d "$AGENCY_SOURCE/agency/docs" ]]; then
+        mkdir -p "$TARGET_DIR/agency/docs"
+        local doc_file
+        for doc_file in "$AGENCY_SOURCE/agency/docs/"*.md; do
+            [[ -f "$doc_file" ]] && cp "$doc_file" "$TARGET_DIR/agency/docs/"
+        done
+    fi
+
+    # Agents — D41-R26: directory-level copy of ALL agent classes + their
+    # agent.md class docs. Old hardcoded list missed iscp, tech-lead,
+    # platform-specialist, researcher, and ~10 others. Every agent class
+    # that ships gets copied now.
+    if [[ -d "$AGENCY_SOURCE/agency/agents" ]]; then
+        mkdir -p "$TARGET_DIR/agency/agents"
+        local agent_dir agent_name
+        for agent_dir in "$AGENCY_SOURCE/agency/agents"/*/; do
+            [[ -d "$agent_dir" ]] || continue
+            agent_name=$(basename "$agent_dir")
+            mkdir -p "$TARGET_DIR/agency/agents/$agent_name"
+            # Copy all .md files in the agent dir (agent.md + any KNOWLEDGE.md etc)
+            local af
+            for af in "$agent_dir"*.md; do
+                [[ -f "$af" ]] && cp "$af" "$TARGET_DIR/agency/agents/$agent_name/"
+            done
+        done
+    fi
+
+    # Hooks — D41-R26: directory-level copy. Old hardcoded list missed
+    # block-raw-tools.sh (CRITICAL — hookify enforcement layer) and
+    # idle-mail-check.sh. New hooks auto-install with no list maintenance.
+    if [[ -d "$AGENCY_SOURCE/agency/hooks" ]]; then
+        mkdir -p "$TARGET_DIR/agency/hooks"
+        local hook_file
+        for hook_file in "$AGENCY_SOURCE/agency/hooks/"*.sh; do
+            [[ -f "$hook_file" ]] && cp "$hook_file" "$TARGET_DIR/agency/hooks/"
+        done
+    fi
+    chmod +x "$TARGET_DIR/agency/hooks/"*.sh 2>/dev/null || true
+
+    # Hookify rules
+    mkdir -p "$TARGET_DIR/agency/hookify"
+    cp "$AGENCY_SOURCE/agency/hookify/"*.md "$TARGET_DIR/agency/hookify/" 2>/dev/null || true
+
+    # Templates
+    mkdir -p "$TARGET_DIR/agency/templates"
+    [[ -d "$AGENCY_SOURCE/agency/templates/principal-v2" ]] && cp -r "$AGENCY_SOURCE/agency/templates/principal-v2" "$TARGET_DIR/agency/templates/"
+    [[ -f "$AGENCY_SOURCE/agency/templates/CLAUDE-USER.md" ]] && cp "$AGENCY_SOURCE/agency/templates/CLAUDE-USER.md" "$TARGET_DIR/agency/templates/"
+    [[ -f "$AGENCY_SOURCE/agency/templates/CLAUDE-PROJECT.md" ]] && cp "$AGENCY_SOURCE/agency/templates/CLAUDE-PROJECT.md" "$TARGET_DIR/agency/templates/"
+    [[ -f "$AGENCY_SOURCE/agency/templates/HANDOFF-BOOTSTRAP.md" ]] && cp "$AGENCY_SOURCE/agency/templates/HANDOFF-BOOTSTRAP.md" "$TARGET_DIR/agency/templates/"
+    [[ -f "$AGENCY_SOURCE/agency/templates/PROVIDER.sh" ]] && cp "$AGENCY_SOURCE/agency/templates/PROVIDER.sh" "$TARGET_DIR/agency/templates/"
+
+    log_info "Copied agents, hooks, hookify, docs, templates"
+
+    # =====================================================================
+    # Step 4: Tools
+    # =====================================================================
+    # D41-R25 HOTFIX: Previously this block used a hardcoded list of tools
+    # to copy (frozen ~D35 with ~30 tools). Framework grew to 60+ tools
+    # by D41 (safe-tools family, receipt infra, agent-bootstrap, collaboration,
+    # ISCP, sandbox-*, principal-onboard, etc.) — every tool added after the
+    # freeze was absent from fresh inits, breaking hooks and preflight on
+    # first `claude --agent captain` run. Surfaced live in homekit-daikin-ac-bridge
+    # init (2026-04-15 ~20:30 UTC). Now copies all top-level files under
+    # agency/tools/ and all libs under agency/tools/lib/ — new tools auto-install
+    # with zero maintenance on this block.
+    log_step "Installing tools"
+
+    mkdir -p "$TARGET_DIR/agency/tools/lib"
+
+    # Copy ALL libs from source. Skip subdirectories (e.g. tests/).
+    if [[ -d "$AGENCY_SOURCE/agency/tools/lib" ]]; then
+        local lib_file
+        for lib_file in "$AGENCY_SOURCE/agency/tools/lib/"*; do
+            [[ -f "$lib_file" ]] || continue
+            cp "$lib_file" "$TARGET_DIR/agency/tools/lib/"
+        done
+    fi
+
+    # Copy test helper template (don't overwrite project customizations)
+    if [[ -f "$AGENCY_SOURCE/agency/templates/tests/test_helper.bash" ]]; then
+        mkdir -p "$TARGET_DIR/tests/tools"
+        if [[ ! -f "$TARGET_DIR/tests/tools/test_helper.bash" ]]; then
+            cp "$AGENCY_SOURCE/agency/templates/tests/test_helper.bash" "$TARGET_DIR/tests/tools/test_helper.bash"
+        fi
+    fi
+
+    # Copy ALL top-level tools from source. Skip subdirectories (lib/ handled
+    # above, tests/ is dev-only and not shipped to adopters).
+    if [[ -d "$AGENCY_SOURCE/agency/tools" ]]; then
+        local tool_file
+        for tool_file in "$AGENCY_SOURCE/agency/tools/"*; do
+            [[ -f "$tool_file" ]] || continue
+            cp "$tool_file" "$TARGET_DIR/agency/tools/"
+        done
+    fi
+
+    chmod +x "$TARGET_DIR/agency/tools/"* 2>/dev/null || true
+    chmod +x "$TARGET_DIR/agency/tools/lib/"* 2>/dev/null || true
+
+    log_info "Installed all tools (directory-level copy)"
+
+    # =====================================================================
+    # Step 4b: Framework .gitignore block
+    # D41-R27 — ensure adopter's .gitignore contains the framework-managed
+    # ignores. Without this, runtime log files (.claude/logs/tool-runs.jsonl)
+    # and agency service logs show up as dirty on every `agency update` and
+    # block the update via the dirty-tree gate. Merge idempotently: if the
+    # block marker already exists, leave existing ignores alone.
+    # =====================================================================
+    local gitignore_template="$AGENCY_SOURCE/agency/templates/gitignore-framework"
+    local gitignore_target="$TARGET_DIR/.gitignore"
+    if [[ -f "$gitignore_template" ]]; then
+        if [[ ! -f "$gitignore_target" ]] || ! grep -q "Agency framework-managed ignores" "$gitignore_target" 2>/dev/null; then
+            [[ -f "$gitignore_target" ]] && echo "" >> "$gitignore_target"
+            cat "$gitignore_template" >> "$gitignore_target"
+            log_info "Appended framework .gitignore block"
+        fi
+    fi
+
+    # =====================================================================
+    # Step 5: Principal directory
+    # =====================================================================
+    log_step "Scaffolding usr/$PRINCIPAL/"
+
+    # D42-R3: slim scaffold — only personal state dirs
+    # Shared content goes in agency/workstreams/{W}/ (see Step 5b)
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"/{tools,tmp,history/flotsam}
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME"/{tools,tmp,history/flotsam}
+
+    # tmp/ is scratch space — gitignore its contents
+    for tmp_dir in "$TARGET_DIR/usr/$PRINCIPAL/captain/tmp" "$TARGET_DIR/usr/$PRINCIPAL/$PROJECT_NAME/tmp"; do
+        if [[ ! -f "$tmp_dir/.gitignore" ]]; then
+            echo '*' > "$tmp_dir/.gitignore"
+            echo '!.gitignore' >> "$tmp_dir/.gitignore"
+        fi
+    done
+
+    log_info "Scaffolded usr/$PRINCIPAL/ (slim: tools, tmp, history)"
+
+    # =====================================================================
+    # Step 5a: Claude Code subagent registrations for this principal
+    # =====================================================================
+    # Issue #324: adopters were left without any .claude/agents/ registrations,
+    # so Claude Code's auto-discovery of subagents found nothing. Register at
+    # minimum the captain agent so /code-review, MAR, QG parallel reviewers
+    # and any other skill that delegates by class name works out of the box.
+    # Additional agent classes can be added post-init via /agent-create.
+    log_step "Registering default subagents: .claude/agents/$PRINCIPAL/"
+    mkdir -p "$TARGET_DIR/.claude/agents/$PRINCIPAL"
+
+    local captain_reg="$TARGET_DIR/.claude/agents/$PRINCIPAL/captain.md"
+    if [[ ! -f "$captain_reg" ]]; then
+        cat > "$captain_reg" <<CAPTAIN_REG_EOF
+---
+name: captain
+description: "Captain — coordination, dispatch routing, quality gates, PR lifecycle"
+model: opus
+---
+
+@agency/agents/captain/agent.md
+@usr/$PRINCIPAL/captain/CLAUDE-CAPTAIN.md
+CAPTAIN_REG_EOF
+    fi
+
+    log_info "Registered captain in .claude/agents/$PRINCIPAL/"
+
+    # =====================================================================
+    # Step 5b: Repo-level workstream (captain's shared space)
+    # =====================================================================
+    log_step "Creating repo-level workstream: agency/workstreams/$PROJECT_NAME/"
+
+    mkdir -p "$TARGET_DIR/agency/workstreams/$PROJECT_NAME"/{qgr,rgr,drafts,research,transcripts,history/flotsam}
+
+    if [[ ! -f "$TARGET_DIR/agency/workstreams/$PROJECT_NAME/KNOWLEDGE.md" ]]; then
+        cat > "$TARGET_DIR/agency/workstreams/$PROJECT_NAME/KNOWLEDGE.md" << KNOWLEDGE_EOF
+# $PROJECT_NAME — Workstream Knowledge
+
+## Patterns and Conventions
+
+<!-- Accumulate patterns discovered during development -->
+
+## Key Decisions
+
+<!-- Record architectural and design decisions with rationale -->
+KNOWLEDGE_EOF
+    fi
+
+    log_info "Created repo-level workstream"
+
+    # =====================================================================
+    # Step 6: Bootstrap handoff
+    # =====================================================================
+    log_step "Writing bootstrap handoff"
+
+    # Compute counts dynamically
+    local skill_count command_count agent_count hook_count
+    skill_count=$(find "$TARGET_DIR/.claude/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+    command_count=$(find "$TARGET_DIR/.claude/commands" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+    agent_count=$(find "$TARGET_DIR/agency/agents" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+    hook_count=$(find "$TARGET_DIR/agency/hooks" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
+
+    mkdir -p "$TARGET_DIR/usr/$PRINCIPAL/captain"
+    local handoff_template="$AGENCY_SOURCE/agency/templates/HANDOFF-BOOTSTRAP.md"
+    local handoff_target="$TARGET_DIR/usr/$PRINCIPAL/captain/captain-handoff.md"
+
+    if [[ ! -f "$handoff_template" ]]; then
+        log_error "Bootstrap handoff template missing: $handoff_template"
+        exit 1
+    fi
+
+    # Guard: only write bootstrap handoff on INITIAL init (no existing handoff).
+    # On updates, the existing handoff contains session state that must not be
+    # clobbered. Issue #74: agency update was overwriting captain-handoff.md
+    # with the bootstrap template, destroying session context.
+    if [[ -f "$handoff_target" ]]; then
+        log_info "Handoff already exists — skipping bootstrap template (preserving session state)"
+    else
+        cp "$handoff_template" "$handoff_target"
+
+        # Substitute template variables. Use | as delimiter to avoid issues with /
+        # in project names or paths. Escape & in substitution values (sed metachar).
+        local date_stamp
+        date_stamp=$(date '+%Y-%m-%d %H:%M')
+        local _sed_inplace=(-i '')
+        [[ "$(uname)" != "Darwin" ]] && _sed_inplace=(-i)
+
+        sed "${_sed_inplace[@]}" \
+            -e "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g" \
+            -e "s|{{PRINCIPAL}}|${PRINCIPAL}|g" \
+            -e "s|{{DATE}}|${date_stamp}|g" \
+            -e "s|{{FRAMEWORK_VERSION}}|${framework_version}|g" \
+            -e "s|{{SKILL_COUNT}}|${skill_count}|g" \
+            -e "s|{{COMMAND_COUNT}}|${command_count}|g" \
+            -e "s|{{AGENT_COUNT}}|${agent_count}|g" \
+            -e "s|{{HOOK_COUNT}}|${hook_count}|g" \
+            "$handoff_target"
+
+        log_info "Bootstrap handoff written from template: $handoff_target"
+    fi
+
+    # =====================================================================
+    # Step 7: .gitignore
+    # =====================================================================
+    # docs/plans/ removed per issue #335 (D42-R3 Workstream Content Split).
+    # Plans now live at agency/workstreams/{ws}/plan-*.md (workstream root),
+    # not in a top-level docs/plans/ directory.
+
+    log_step "Updating .gitignore"
+
+    local gitignore="$TARGET_DIR/.gitignore"
+    touch "$gitignore"
+
+    for pattern in ".claude/settings.local.json" ".claude/*.user.local.md" ".worktrees/" "*.DS_Store"; do
+        if ! grep -qF "$pattern" "$gitignore" 2>/dev/null; then
+            echo "$pattern" >> "$gitignore"
+        fi
+    done
+
+    log_info "Updated .gitignore"
+
+    # =====================================================================
+    # Step 8: Initial commit
+    # =====================================================================
+    log_step "Creating initial commit"
+
+    cd "$TARGET_DIR"
+    # Stage only Agency-created paths (not user files that may already exist)
+    git add CLAUDE.md .claude/ agency/ usr/ .gitignore
+    git commit -m "feat: initialize Agency 2.0 framework
+
+Agency 2.0 initialized via agency init. Includes:
+- CLAUDE.md with @agency/CLAUDE-THEAGENCY.md import (methodology)
+- ${skill_count} skills, ${command_count} commands, ${agent_count} agent classes
+- ${hook_count} hooks (ref-injector, session-handoff, quality-check, plan-capture,
+  branch-freshness, tool-telemetry, ghostty-status)
+- Hookify behavioral rules
+- Reference docs (quality gate, methodology, code review, feedback)
+- usr/$PRINCIPAL/ principal directory
+- Core tools (agency, git-safe-commit, handoff, stage-hash, dispatch, and more)
+- Bootstrap handoff at usr/$PRINCIPAL/captain/handoff.md
+
+Source: the-agency ${source_commit:0:8}
+" || {
+        log_warn "Commit failed — you may need to commit manually"
+    }
+
+    # =====================================================================
+    # Done
+    # =====================================================================
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}  Agency 2.0 Initialized!${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  Project:   $PROJECT_NAME"
+    echo "  Principal: $PRINCIPAL"
+    echo "  Location:  $TARGET_DIR"
+    echo ""
+    echo "Next steps:"
+    echo ""
+    echo "  1. Launch Claude Code:"
+    echo "     claude"
+    echo ""
+    echo "  2. The bootstrap handoff will trigger onboarding automatically."
+    echo ""
+
+    trap - EXIT
+    log_end "$RUN_ID" "success" 0 0 "Initialized $PROJECT_NAME for $PRINCIPAL" 2>/dev/null || true
+}
+
+_init_main

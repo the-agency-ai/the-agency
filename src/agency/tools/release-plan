@@ -1,0 +1,491 @@
+#!/bin/bash
+#
+# release-plan — Analyze the current branch state and propose a release plan
+#
+# What Problem: Captain (or any agent) preparing a release branch manually
+# walks through git status, groups uncommitted changes into logical commits,
+# decides what's leftover scratch vs real work, and writes a PR shape. This
+# is consistent overhead across releases and prone to drift between captains
+# and between days. Producing a release plan should be a tool, not a ritual.
+#
+# Captured during Day 33 R1 work when principal observed manual grouping and
+# said "That should be a tool!" — see seed-release-plan-tool-20260408.md.
+# Bootstrap intent: build the tool now, use it on itself, ship in R1.
+#
+# How & Why: Heuristic-based grouping by file path patterns. No ML, no
+# session-state inference, no clever timing logic — just glob patterns mapped
+# to logical commit groups. Output is markdown to stdout (or to a file with
+# --output) so the human can review before applying.
+#
+# v1 scope: GENERATE the plan only, do not apply. No branch creation, no
+# staging, no committing. The captain (or another tool) takes the plan and
+# executes it. v2+ may add --apply.
+#
+# Heuristic groups (in priority order — earlier groups win on overlap):
+#
+#   1. methodology   — CLAUDE-*.md, README-*.md, docs/*, templates/CLAUDE-*
+#   2. config        — config/agency.yaml, config/manifest.json
+#   3. settings      — .claude/settings.json, config/settings-template.json
+#   4. hooks         — agency/hooks/*, .claude/hooks/*
+#   5. tools         — agency/tools/* (excluding lib/_*)
+#   6. skills        — .claude/skills/*
+#   7. tests         — src/tests/*
+#   8. workstream    — agency/workstreams/*/seeds/*, reviews/*, *-pvr-*, *-ad-*, *-plan-*
+#   9. coordination  — usr/*/dispatches/*, history/*, transcripts/*, code-reviews/*, *-handoff.md, reports/*
+#  10. scratch       — usr/*/tmp/* (excluded from plan)
+#  11. other         — anything that doesn't match (flagged for review)
+#
+# Each group becomes a proposed commit. Groups with no files are omitted.
+# Coordination commits use /coord-commit (no QG). All others use /git-safe-commit.
+#
+# Written: 2026-04-08 — Day 33 R1 — bootstrap from agency-issue v1 pattern
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+elif PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+# --- Args ---
+BASE_REF="origin/main"
+OUTPUT_FILE=""
+SHOW_OTHER="true"
+AUTO_SWITCH="true"
+FORCE_DAY=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --base) BASE_REF="$2"; shift 2 ;;
+        --output) OUTPUT_FILE="$2"; shift 2 ;;
+        --no-other) SHOW_OTHER="false"; shift ;;
+        --no-switch) AUTO_SWITCH="false"; shift ;;
+        --day) FORCE_DAY="$2"; shift 2 ;;
+        --version) echo "release-plan $TOOL_VERSION"; exit 0 ;;
+        --help|-h)
+            cat <<'HELP'
+release-plan — Analyze branch state and propose a release plan
+
+Usage:
+  release-plan [--base REF] [--output FILE] [--no-other]
+  release-plan --version
+  release-plan --help
+
+Options:
+  --base REF       Base ref for ahead-commit comparison (default: origin/main)
+  --output FILE    Write the plan to FILE instead of stdout
+  --no-other       Suppress the "Other / unmatched files" section
+  --no-switch      Do not auto-switch to a release branch (analyze in place)
+  --day N          Force the release day number (otherwise auto-detected)
+
+What it does:
+  1. Inventories all changes vs the base ref:
+     - Local commits ahead of BASE_REF
+     - Modified files (staged + unstaged)
+     - Untracked files (excluding gitignored)
+  2. Groups files by heuristic glob patterns into logical commit categories
+  3. Proposes a commit ordering with suggested boundary type (/git-safe-commit or /coord-commit)
+  4. Flags scratch files (usr/*/tmp/*) for exclusion
+  5. Writes a markdown plan to stdout or --output
+
+The plan is GENERATED, not applied. Captain reviews and executes the plan
+manually (or via /git-safe-commit / /coord-commit). v2+ may add --apply.
+
+Heuristic groups (in priority order):
+  methodology, config, settings, hooks, tools, skills, tests,
+  workstream, coordination, scratch, other
+HELP
+            exit 0 ;;
+        *) echo "release-plan: unknown arg: $1" >&2; exit 1 ;;
+    esac
+done
+
+cd "$PROJECT_ROOT"
+
+# Helper for git in this repo (git-dir/work-tree explicit to handle weird env)
+g() { git --git-dir=.git --work-tree=. "$@"; }
+
+# --- Branch detection / auto-switch ---
+# Pattern: day{N}-release-{M}
+# Logic:
+#   1. Find highest day{N}-release-{M} among local branches
+#   2. If FORCE_DAY set, use that day
+#   3. If the existing branch has commits beyond origin/main → reuse it
+#   4. If the existing branch has zero commits beyond base → reuse it (was created but never used)
+#   5. If no matching branch exists at all → create day{N}-release-1 from $BASE_REF
+
+resolve_release_branch() {
+    local highest_day highest_release
+    highest_day=""
+    highest_release=""
+
+    # Walk all local branches matching the pattern
+    while read -r b; do
+        [[ -z "$b" ]] && continue
+        # Strip leading whitespace and current-marker
+        b="${b# }"
+        b="${b#\* }"
+        if [[ "$b" =~ ^day([0-9]+)-release-([0-9]+)$ ]]; then
+            local d="${BASH_REMATCH[1]}"
+            local r="${BASH_REMATCH[2]}"
+            if [[ -z "$highest_day" ]] || (( d > highest_day )); then
+                highest_day="$d"
+                highest_release="$r"
+            elif (( d == highest_day )) && (( r > highest_release )); then
+                highest_release="$r"
+            fi
+        fi
+    done < <(g branch --list 'day*-release-*')
+
+    local target_day="${FORCE_DAY:-$highest_day}"
+
+    if [[ -z "$target_day" ]]; then
+        # No existing release branches, no day forced — give up auto-detect
+        echo ""
+        return
+    fi
+
+    if [[ "$target_day" != "$highest_day" ]] || [[ -z "$highest_release" ]]; then
+        # New day or no existing release for this day → start at release 1
+        echo "day${target_day}-release-1"
+        return
+    fi
+
+    # Reuse the highest existing release branch for this day
+    echo "day${highest_day}-release-${highest_release}"
+}
+
+CURRENT_BRANCH=$(g branch --show-current)
+TARGET_BRANCH=""
+
+if [[ "$AUTO_SWITCH" == "true" ]]; then
+    TARGET_BRANCH=$(resolve_release_branch)
+    if [[ -n "$TARGET_BRANCH" && "$TARGET_BRANCH" != "$CURRENT_BRANCH" ]]; then
+        # Check if the branch exists locally
+        if g show-ref --verify --quiet "refs/heads/$TARGET_BRANCH"; then
+            echo "release-plan: switching to existing branch $TARGET_BRANCH" >&2
+            g checkout "$TARGET_BRANCH" >&2
+        else
+            echo "release-plan: creating $TARGET_BRANCH from $BASE_REF" >&2
+            g checkout -b "$TARGET_BRANCH" "$BASE_REF" >&2
+        fi
+        CURRENT_BRANCH="$TARGET_BRANCH"
+    fi
+fi
+
+AHEAD_COUNT=$(g rev-list --count "${BASE_REF}..HEAD" 2>/dev/null || echo "0")
+
+# --- Collect file sets ---
+# Modified (tracked) files — both staged and unstaged
+MODIFIED=$(g diff --name-only HEAD 2>/dev/null || true)
+# Untracked files, respecting .gitignore
+UNTRACKED=$(g ls-files --others --exclude-standard 2>/dev/null || true)
+# Local commits ahead of base
+AHEAD_COMMITS=$(g log --oneline "${BASE_REF}..HEAD" 2>/dev/null || true)
+
+# All files needing attention
+ALL_FILES=$(printf '%s\n%s\n' "$MODIFIED" "$UNTRACKED" | grep -v '^$' | sort -u || true)
+
+# --- Group classifier ---
+# For each file, emit "GROUP|file" — first matching group wins
+classify() {
+    local f="$1"
+    # methodology
+    case "$f" in
+        agency/CLAUDE-*.md|agency/README-*.md|agency/REFERENCE/*.md|usr/*/CLAUDE-*.md|agency/templates/CLAUDE-*|agency/templates/HANDOFF-*)
+            echo "methodology|$f"; return ;;
+    esac
+    # config
+    case "$f" in
+        agency/config/agency.yaml|agency/config/manifest.json)
+            echo "config|$f"; return ;;
+    esac
+    # settings
+    case "$f" in
+        .claude/settings.json|agency/config/settings-template.json)
+            echo "settings|$f"; return ;;
+    esac
+    # hooks
+    case "$f" in
+        agency/hooks/*|.claude/hooks/*)
+            echo "hooks|$f"; return ;;
+    esac
+    # iscp-check is a tool but it's notification machinery — group with settings
+    case "$f" in
+        agency/tools/iscp-check|agency/tools/collaboration|agency/tools/agent-identity)
+            echo "settings|$f"; return ;;
+    esac
+    # tools
+    case "$f" in
+        agency/tools/lib/_*) echo "tools|$f"; return ;;
+        agency/tools/*) echo "tools|$f"; return ;;
+    esac
+    # skills
+    case "$f" in
+        .claude/skills/*) echo "skills|$f"; return ;;
+    esac
+    # tests
+    case "$f" in
+        src/tests/*) echo "tests|$f"; return ;;
+    esac
+    # workstream artifacts
+    case "$f" in
+        agency/workstreams/*) echo "workstream|$f"; return ;;
+    esac
+    # scratch (excluded)
+    case "$f" in
+        usr/*/tmp/*) echo "scratch|$f"; return ;;
+    esac
+    # coordination
+    case "$f" in
+        usr/*/dispatches/*|usr/*/history/*|usr/*/transcripts/*|usr/*/code-reviews/*|usr/*/reports/*|usr/*/captain-handoff.md|usr/*/*-handoff.md|usr/*/logs/*|usr/*/seeds/*)
+            echo "coordination|$f"; return ;;
+    esac
+    # other / unmatched
+    echo "other|$f"
+}
+
+# --- Build groups ---
+# bash 3 (macOS default) lacks associative arrays — use a temp file with group|file lines
+GROUPS_FILE=$(mktemp -t release-plan-groups.XXXXXX)
+trap 'rm -f "$GROUPS_FILE"' EXIT
+for f in $ALL_FILES; do
+    [[ -z "$f" ]] && continue
+    classify "$f" >> "$GROUPS_FILE"
+done
+
+# --- Feature pairing ---
+# Detect tool basenames that have a matching skill dir in the changeset.
+# When found, promote tool + skill (and any matching paths) into a single
+# feature:{name} group so they commit together.
+detect_features() {
+    while IFS='|' read -r grp file; do
+        [[ "$grp" == "tools" ]] || continue
+        local name
+        name=$(basename "$file")
+        # Skip helper libs (lib/_*)
+        [[ "$name" == _* ]] && continue
+        # Check if a skill with the same basename exists in the changeset
+        if grep -q "^skills|.claude/skills/${name}/" "$GROUPS_FILE"; then
+            echo "$name"
+        fi
+    done < "$GROUPS_FILE" | sort -u
+}
+
+FEATURES=$(detect_features)
+
+# For each feature, reclassify matching files into feature:{name}
+for feat in $FEATURES; do
+    [[ -z "$feat" ]] && continue
+    awk -v feat="$feat" -F'|' -v OFS='|' '
+        # Tool path: agency/tools/{feat}
+        $2 == "agency/tools/" feat { $1 = "feature:" feat; print; next }
+        # Skill path: .claude/skills/{feat}/...
+        $2 ~ "^\\.claude/skills/" feat "/" { $1 = "feature:" feat; print; next }
+        # Test path: src/tests/tools/{feat}.bats
+        $2 == "src/tests/tools/" feat ".bats" { $1 = "feature:" feat; print; next }
+        # Otherwise pass through unchanged
+        { print }
+    ' "$GROUPS_FILE" > "${GROUPS_FILE}.tmp"
+    mv "${GROUPS_FILE}.tmp" "$GROUPS_FILE"
+done
+
+# Helper: get all files for a group
+group_files() {
+    grep "^${1}|" "$GROUPS_FILE" 2>/dev/null | cut -d'|' -f2- || true
+}
+
+# Helper: list all distinct feature group names
+feature_groups() {
+    grep '^feature:' "$GROUPS_FILE" 2>/dev/null | cut -d'|' -f1 | sort -u || true
+}
+
+# --- agency.yaml config-block pairing ---
+# If agency.yaml is in the changeset, inspect the diff to find which
+# top-level yaml section changed. For each changed section, try to match
+# it to an existing feature group (by stemmed name match against feature
+# names). When a match is found, reclassify agency.yaml into that feature
+# group so the config change commits with the feature.
+#
+# Heuristic: for section "issues", look for any feature whose name
+# contains "issue" (stem of "issues"). This handles plural→singular and
+# compound names like "agency-issue". First match wins; if nothing
+# matches, agency.yaml stays in "config".
+if grep -q "^config|agency/config/agency.yaml$" "$GROUPS_FILE"; then
+    # Get the diff of agency.yaml vs HEAD (covers staged + unstaged changes)
+    agency_diff=$(g diff HEAD -- agency/config/agency.yaml 2>/dev/null || true)
+    # If still empty (e.g., new untracked file), use cached diff against empty
+    if [[ -z "$agency_diff" ]]; then
+        agency_diff=$(g diff --cached -- agency/config/agency.yaml 2>/dev/null || true)
+    fi
+
+    # Extract top-level section names from the added lines (+{name}:).
+    # Matches "+issues:" or "+issues:  # comment" at column 0 of the added
+    # content. Skips hunk headers and unchanged lines.
+    changed_sections=$(printf '%s\n' "$agency_diff" | awk '
+        /^@@/ { in_hunk=1; next }
+        in_hunk && /^\+[a-z][a-z0-9_-]*:[[:space:]]*$/ {
+            gsub(/^\+/, "")
+            gsub(/:.*/, "")
+            print
+        }
+        in_hunk && /^\+[a-z][a-z0-9_-]*:[[:space:]]*#/ {
+            gsub(/^\+/, "")
+            gsub(/:.*/, "")
+            print
+        }
+    ' | sort -u)
+
+    # For each changed section, try to match to a feature
+    for section in $changed_sections; do
+        [[ -z "$section" ]] && continue
+        # Stem: drop trailing 'es' or 's' for simple plurals
+        stem="$section"
+        [[ "$stem" =~ (.+)es$ ]] && stem="${BASH_REMATCH[1]}"
+        [[ "$stem" =~ (.+)s$ ]] && stem="${BASH_REMATCH[1]}"
+
+        # Find first feature group whose name contains the stem or full section
+        match_feat=""
+        for fg in $(feature_groups); do
+            local_feat="${fg#feature:}"
+            if [[ "$local_feat" == *"$stem"* ]] || [[ "$local_feat" == *"$section"* ]]; then
+                match_feat="$local_feat"
+                break
+            fi
+        done
+
+        if [[ -n "$match_feat" ]]; then
+            # Reclassify agency.yaml into the matching feature group
+            awk -v feat="$match_feat" -F'|' -v OFS='|' '
+                $2 == "agency/config/agency.yaml" { $1 = "feature:" feat; print; next }
+                { print }
+            ' "$GROUPS_FILE" > "${GROUPS_FILE}.tmp"
+            mv "${GROUPS_FILE}.tmp" "$GROUPS_FILE"
+            break  # agency.yaml paired; stop at first match
+        fi
+    done
+fi
+
+# --- Group metadata ---
+group_title() {
+    case "$1" in
+        methodology)  echo "Methodology / docs" ;;
+        config)       echo "Config" ;;
+        settings)     echo "Settings + notification machinery" ;;
+        hooks)        echo "Hooks" ;;
+        tools)        echo "Tools" ;;
+        skills)       echo "Skills" ;;
+        tests)        echo "Tests" ;;
+        workstream)   echo "Workstream artifacts (seeds, reviews, plans)" ;;
+        coordination) echo "Coordination artifacts (dispatches, handoffs, reports)" ;;
+        scratch)      echo "SCRATCH — excluded from release" ;;
+        other)        echo "Other / unmatched (review needed)" ;;
+    esac
+}
+
+group_commit_type() {
+    case "$1" in
+        coordination) echo "/coord-commit" ;;
+        scratch)      echo "(do not commit)" ;;
+        other)        echo "(review)" ;;
+        *)            echo "/git-safe-commit" ;;
+    esac
+}
+
+# Order in which groups appear in the plan (and the suggested commit order)
+ORDER=(methodology config settings hooks tools skills tests workstream coordination scratch other)
+
+# --- Render plan ---
+render() {
+    cat <<EOF
+# Release Plan — $(date +%Y-%m-%d\ %H:%M)
+
+**Current branch:** \`$CURRENT_BRANCH\`
+**Base ref:** \`$BASE_REF\`
+**Ahead of base by:** $AHEAD_COUNT commit(s)
+
+EOF
+
+    if [[ -n "$AHEAD_COMMITS" ]]; then
+        echo "## Local commits ahead of base"
+        echo ""
+        echo '```'
+        echo "$AHEAD_COMMITS"
+        echo '```'
+        echo ""
+        echo "_These commits are already on the current branch — they will land in the release as-is._"
+        echo ""
+    fi
+
+    echo "## Proposed commits (in order)"
+    echo ""
+
+    local commit_n=0
+
+    # Emit feature groups first (paired tool+skill+tests sets)
+    for fg in $(feature_groups); do
+        local feat="${fg#feature:}"
+        local files
+        files=$(group_files "$fg")
+        [[ -z "$files" ]] && continue
+        commit_n=$((commit_n + 1))
+        echo "### Commit $commit_n: Feature — \`$feat\` (tool + skill + tests) — /git-safe-commit"
+        echo ""
+        echo '```'
+        printf '%s\n' "$files" | sed 's/^/  /' | grep -v '^  $' || true
+        echo '```'
+        echo ""
+    done
+
+    for group in "${ORDER[@]}"; do
+        local files
+        files=$(group_files "$group")
+        [[ -z "$files" ]] && continue
+
+        # Skip 'other' if --no-other
+        [[ "$group" == "other" && "$SHOW_OTHER" == "false" ]] && continue
+
+        if [[ "$group" == "scratch" ]]; then
+            echo "### EXCLUDE: $(group_title "$group")"
+        elif [[ "$group" == "other" ]]; then
+            echo "### REVIEW: $(group_title "$group")"
+        else
+            commit_n=$((commit_n + 1))
+            echo "### Commit $commit_n: $(group_title "$group") — $(group_commit_type "$group")"
+        fi
+        echo ""
+        echo '```'
+        printf '%s\n' "$files" | sed 's/^/  /' | grep -v '^  $' || true
+        echo '```'
+        echo ""
+    done
+
+    echo "## Suggested PR shape"
+    echo ""
+    echo "- **Branch:** \`$CURRENT_BRANCH\` (push to origin, open as draft PR)"
+    echo "- **Base:** \`$BASE_REF\`"
+    echo "- **Title:** _draft based on the largest commit group_"
+    echo "- **Body:** _summarize each commit group_"
+    echo ""
+    echo "## Mechanics"
+    echo ""
+    echo "1. Stage and commit each group above in order, using the indicated commit type."
+    echo "2. \`git push -u origin $CURRENT_BRANCH\`"
+    echo "3. \`gh pr create --draft --base ${BASE_REF#origin/} --title '...' --body '...'\`"
+    echo "4. Verify draft PR exists and CI runs."
+    echo ""
+    echo "_Generated by \`release-plan $TOOL_VERSION\`. Heuristic-based grouping; review before applying._"
+}
+
+if [[ -n "$OUTPUT_FILE" ]]; then
+    render > "$OUTPUT_FILE"
+    echo "Wrote plan to: $OUTPUT_FILE"
+else
+    render
+fi

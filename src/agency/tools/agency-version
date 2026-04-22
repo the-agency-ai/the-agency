@@ -1,0 +1,88 @@
+#!/bin/bash
+#
+# What Problem: There is no single-word answer to "what version of the Agency
+# framework is this repo on?" Manifest.json tracks per-component versions but
+# no top-level framework version. Without it we can't show drift, can't answer
+# "is presence-detect current?", and can't display a version in the statusline.
+#
+# How & Why: Read agency_version from agency/config/manifest.json and print it.
+# Verbs kept minimal for v1 — print, --statusline (silent on missing), --json.
+# Drift detection and audit verbs are deferred (flag #51 / audit tool). One
+# tool, one responsibility for now: "what version is this?"
+#
+# Format: day{N}.{release}, e.g. "34.1". Just the number, no prefix.
+#
+# Written: 2026-04-09 during captain Day 34 R1 (agency-version build)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+MANIFEST="$PROJECT_ROOT/agency/config/manifest.json"
+
+_usage() {
+    cat <<'EOF'
+agency-version — print the Agency framework version for this repo
+
+USAGE
+  agency-version              Print the version (e.g. "34.1")
+  agency-version --statusline Print version for statusline (silent if missing)
+  agency-version --json       Print version as JSON
+  agency-version --help       Show this help
+
+READS
+  agency/config/manifest.json → agency_version
+EOF
+}
+
+_read_version() {
+    if [[ ! -f "$MANIFEST" ]]; then
+        return 1
+    fi
+    # jq if available, else grep fallback (statusline must be fast + dep-free)
+    if command -v jq >/dev/null 2>&1; then
+        jq -r '.agency_version // empty' "$MANIFEST" 2>/dev/null
+    else
+        grep -E '"agency_version"[[:space:]]*:' "$MANIFEST" 2>/dev/null \
+            | head -1 \
+            | sed -E 's/.*"agency_version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/'
+    fi
+}
+
+mode="${1:-print}"
+
+case "$mode" in
+    --help|-h|help)
+        _usage
+        exit 0
+        ;;
+    --statusline)
+        version=$(_read_version 2>/dev/null || true)
+        [[ -z "$version" ]] && exit 0
+        printf '%s' "$version"
+        ;;
+    --json)
+        version=$(_read_version) || { echo '{"error":"manifest not found"}'; exit 1; }
+        if [[ -z "$version" ]]; then
+            echo '{"error":"agency_version not set"}'
+            exit 1
+        fi
+        printf '{"agency_version":"%s"}\n' "$version"
+        ;;
+    print|"")
+        version=$(_read_version) || {
+            echo "error: manifest not found at $MANIFEST" >&2
+            exit 1
+        }
+        if [[ -z "$version" ]]; then
+            echo "error: agency_version not set in manifest" >&2
+            exit 1
+        fi
+        printf '%s\n' "$version"
+        ;;
+    *)
+        echo "error: unknown argument: $mode" >&2
+        _usage >&2
+        exit 2
+        ;;
+esac
