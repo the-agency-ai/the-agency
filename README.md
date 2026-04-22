@@ -19,67 +19,99 @@ TheAgency is a convention-over-configuration system for running multiple Claude 
 - **Session Lifecycle** — `session-pause` / `session-pickup` primitives capture PAUSE/PICKUP state so work survives `/compact`, `/exit`, and multi-day gaps
 - **Hookify** — Declarative hook rules that warn or block dangerous shell patterns (bare `git`, `rm -rf`, cross-worktree copies, etc.)
 
-## Getting Started
+## Quick Start — `agency init`
 
-Install the framework into any git repo:
+Install TheAgency into any git repo with one curl-bash. No clone needed.
 
 ```bash
 cd your-project
-git init                                      # if not already a repo
+git init                                          # if not already a repo
 curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/tools/agency-bootstrap.sh \
-  | bash -s -- --principal <your-name> --project <project-name>
+  | bash -s -- --principal your-name --project your-project-name
 ```
 
-Use angle-bracket placeholders literally — the bootstrap refuses them, forcing you to supply real values instead of copy-pasting example identities.
+Pin to a specific release (recommended for reproducible installs):
 
-See `agency/README-GETTINGSTARTED.md` (shipped to the adopter install) for detailed setup instructions, and `agency/CLAUDE-THEAGENCY.md` for the methodology.
+```bash
+curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/tools/agency-bootstrap.sh \
+  | bash -s -- --principal your-name --project your-project-name --from-github v46.19
+```
 
-## Repository Structure
+**Do NOT copy-paste angle brackets** — use literal names. The bootstrap refuses `<your-name>` style placeholders on purpose so you don't accidentally install an agent called `<your-name>`.
 
-This is the framework-dev repo. A fresh `agency init` install in your own project produces a subset of this layout (no `src/`, no framework-dev tooling).
+After install you have a working `agency` CLI at `./agency/tools/agency`, a captain agent registered under `usr/your-name/captain/`, and Claude Code integration wired up in `.claude/`.
+
+See `agency/README-GETTINGSTARTED.md` (shipped to the adopter install) for detailed first-session walkthrough, and `agency/CLAUDE-THEAGENCY.md` for the methodology.
+
+## Staying Up to Date — `agency update`
+
+Once TheAgency is installed in your repo, pull framework updates directly from GitHub — no clone or git-remote management required.
+
+```bash
+# Preview what would change (no writes):
+./agency/tools/agency update --from-github --dry-run
+
+# Apply latest main:
+./agency/tools/agency update --from-github
+
+# Pin to a specific release tag:
+./agency/tools/agency update --from-github v46.19
+
+# Aggressive cleanup — remove orphaned framework files (prompts for confirmation):
+./agency/tools/agency update --from-github --prune
+```
+
+`agency update` is **additive by default** — it adds new files and updates existing framework files, but leaves your `usr/`, workstreams, and any registered `protected_paths` alone. Use `--prune` when you want to clean up files that have been retired upstream.
+
+## What you get — `agency init` vs cloning this repo
+
+There are two audiences, and they get two different trees.
+
+### 1. Adopter install — `agency init` in your project
+
+You get the framework install plus your sandbox. Nothing else.
+
+```
+your-project/
+├── .agency/                   # install-state metadata
+├── .agency-setup-complete     # init sentinel
+├── .claude/                   # Claude Code harness (agents, hooks, skills, commands, settings)
+├── agency/                    # framework: tools, agent classes, REFERENCE docs, hookify rules,
+│                              #           hooks, templates, config, workstreams
+├── usr/
+│   └── your-name/
+│       └── captain/           # your captain sandbox (handoffs, dispatches, …)
+├── CLAUDE.md                  # bootloader → @imports agency/CLAUDE-THEAGENCY.md
+└── (your existing repo files)
+```
+
+Everything under `agency/` is the framework build-product — `agency init` copies it in, `agency update --from-github` keeps it current. You don't edit framework files; you add your own work under `usr/`, `agency/workstreams/`, and your project's own tree.
+
+### 2. Framework-dev clone — `git clone the-agency`
+
+You get all of the adopter install, PLUS the sources and dev tooling needed to **build** the framework.
 
 ```
 the-agency/
-├── .agency/                      # install-state metadata
-├── .agency-setup-complete        # init sentinel
-├── .claude/                      # Claude Code harness dir
-│   ├── agents/                   # agent registrations (per-instance)
-│   ├── commands/                 # /slash commands
-│   ├── hooks/                    # SessionStart/PreToolUse/etc. hooks
-│   ├── settings.json             # harness config (hooks, permissions)
-│   └── skills/                   # skill bodies (+ sidecars)
-├── agency/                       # framework install (dual-tracked build output)
-│   ├── CLAUDE-THEAGENCY.md       # methodology constitution
-│   ├── LICENSE.md                # framework license (MIT)
-│   ├── README/                   # framework README docs (ENFORCEMENT, SAFE-TOOLS, …)
-│   ├── REFERENCE/                # ~32 customer-facing REFERENCE-*.md docs
-│   ├── agents/                   # 10 canonical agent classes (captain, tech-lead, reviewers, …)
-│   ├── config/                   # manifest.json, agency.yaml, registry.json, settings-template.json
-│   ├── hooks/                    # bash hook scripts (block-raw-tools, etc.)
-│   ├── hookify/                  # declarative hook rules (.md)
-│   ├── templates/                # scaffold templates (CLAUDE-PROJECT, HANDOFF-BOOTSTRAP, …)
-│   ├── tools/                    # 60+ runtime tools (agency, session-pause, dispatch, …)
-│   └── workstreams/              # per-workstream artifacts (PVR/A&D/Plan/QGR/history)
-├── src/                          # framework-dev sources (NOT shipped to adopter)
-│   ├── apps/                     # {mdpal, mdpal-app, mdslidepal-mac, mdslidepal-web, mock-and-mark}
-│   ├── archive/                  # retired code preserved for provenance
-│   ├── assets/                   # brand assets
-│   ├── integrations/             # external-tool integrations (claude-desktop, …)
-│   ├── REFERENCE/                # framework-dev-only REFERENCE docs
-│   ├── tests/                    # BATS + vitest suites (tools/, skills/, agents/, docs/)
-│   ├── tools/                    # framework-dev-only tools (build, release-cut, sweep, …)
-│   └── tools-developer/          # dev-side tooling (skill-audit, upstream-port, …)
-├── usr/                          # principal sandboxes
-│   └── {principal}/              # handoffs, dispatches, transcripts, flashcards, tools
-├── CLAUDE.md                     # bootloader @import of agency/CLAUDE-THEAGENCY.md
-├── CHANGELOG.md
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── LICENSE                       # repo-level MIT (framework open core)
-├── README.md                     # this file
-├── package.json                  # pnpm workspace declaration for src/apps/* services
-└── .github/                      # CI + release automation
+├── .agency/ .agency-setup-complete .claude/ agency/ usr/    # same as adopter install
+├── CLAUDE.md LICENSE README.md CHANGELOG.md                  # repo-level files
+├── CODE_OF_CONDUCT.md CONTRIBUTING.md                        # contributor-only
+├── package.json                                              # pnpm workspace for src/apps/*
+├── .github/                                                  # CI + release automation
+└── src/                                                      # ← framework-dev only
+    ├── agency/                # source-of-truth — builds to agency/
+    ├── claude/                # source-of-truth — builds to .claude/ (shippable subset)
+    ├── apps/                  # {mdpal, mdpal-app, mdslidepal-mac, mdslidepal-web, mock-and-mark}
+    ├── archive/               # retired code preserved for provenance
+    ├── assets/                # brand assets (not shipped)
+    ├── integrations/          # external-tool integrations (claude-desktop, …)
+    ├── REFERENCE/             # framework-dev-only REFERENCE docs
+    ├── tests/                 # BATS + vitest suites (tools/, skills/, agents/, docs/)
+    ├── tools/                 # framework-dev-only tools (build, release-cut, sweep, …)
+    └── tools-developer/       # dev-side tooling (skill-audit, upstream-port, …)
 ```
+
+The `src/` tree is the source-of-truth. `agency/` and `.claude/` in this repo are build products — regenerated by `src/tools/build` and committed for dual-tracking. **If you're contributing to TheAgency itself**, edit files under `src/` and re-run the build. **If you're building on top of TheAgency**, use `agency init` in your own repo — you don't need `src/` at all.
 
 ## Documentation
 
