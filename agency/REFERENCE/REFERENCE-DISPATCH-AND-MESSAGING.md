@@ -2,11 +2,29 @@
 
 Architecture documentation for the Agent Dispatch and Unified Messaging systems.
 
+> ⚠️ **Messaging consolidation in progress (2026-04-22).**
+>
+> This document previously documented a unified `./agency/tools/msg` CLI as
+> the canonical successor for `collaborate`, `collaboration-respond`,
+> `news-post`, `news-read`, `message-send`, `message-read`, and
+> `dispatch-collaborations`. That specification is being **re-designed**
+> — the real `msg` (or whatever it ultimately becomes) is not in the form
+> shown below and has not shipped.
+>
+> **Current working state:** use the tools that exist today:
+> - `./agency/tools/dispatch` — intra-repo agent-to-agent messaging, flag queue (SQLite-backed, ISCP-DB)
+> - `./agency/tools/collaborate` — cross-repo coordination (the-agency ↔ monofolk, the-agency-group)
+> - `./agency/tools/flag` — self-queue capture for later 1B1
+> - `./agency/tools/dispatch-monitor` — event-driven notification
+>
+> **Tracking:** GitHub issue #414 captures the real design intent.
+> Do not rely on the `msg` examples below until this notice is removed.
+
 ## Overview
 
 Two complementary services built into agency-service:
 
-1. **Unified Messaging** — Direct messages and broadcasts between agents, replacing collaboration files, NEWS.md, and the old messages.db
+1. **Unified Messaging** — Direct messages and broadcasts between agents. *Re-design in progress (see above).*
 2. **Dispatch Queue** — Work queue with tiered pickup (agent-specific → shared), claim mechanics, and instance registry
 
 Both are embedded services within `agency-service` at port 3141.
@@ -64,30 +82,13 @@ POST /api/message/delete/:id        — Delete message
 GET  /api/message/stats             — Statistics
 ```
 
-### CLI Tool: `./agency/tools/msg`
+### CLI Tool (under re-design)
 
-```bash
-./agency/tools/msg send research "Review needed" "Please check the PR"
-./agency/tools/msg send captain "Re: Review" "Looks good" --ref <msg-id>
-./agency/tools/msg broadcast "Convention change" "Use explicit operations"
-./agency/tools/msg read                    # Unread messages
-./agency/tools/msg read --all              # All messages
-./agency/tools/msg thread <msg-id>         # Message chain
-./agency/tools/msg ack <msg-id>            # Mark as read
-```
+Originally specified as `./agency/tools/msg` with `send`, `read`, `broadcast`, `thread`, and `ack` subcommands — that form is **retired pending re-design** (see notice at top of document, issue #414).
 
-### Migration from Old Systems
+**Use today:** `./agency/tools/dispatch create --to <agent> --subject "..." --body "..."` for direct agent-to-agent messaging; `./agency/tools/collaborate` for cross-repo.
 
-| Old System | New Equivalent | Notes |
-|------------|----------------|-------|
-| `./agency/tools/collaborate` | `./agency/tools/msg send <agent> "subject" "body"` | Wrapper delegates to msg |
-| `./agency/tools/collaboration-respond` | `./agency/tools/msg send <agent> "Re: subject" "body" --ref <id>` | Old file format retired |
-| `./agency/tools/news-post` | `./agency/tools/msg broadcast "subject" "body"` | Wrapper delegates to msg |
-| `./agency/tools/news-read` | `./agency/tools/msg read` | Falls back to legacy if service down |
-| `./agency/tools/message-send` | `./agency/tools/msg send` | Wrapper delegates to msg |
-| `./agency/tools/message-read` | `./agency/tools/msg read` | Wrapper delegates to msg |
-
-Old tools are preserved as `*.legacy` files. Wrappers maintain backward compatibility.
+Migration paths from `./agency/tools/collaborate`, `collaboration-respond`, `news-post`, `news-read`, `message-send`, `message-read`, and `dispatch-collaborations` to the future unified tool will be documented when the real `msg` (or its replacement) ships.
 
 ## Dispatch Queue
 
