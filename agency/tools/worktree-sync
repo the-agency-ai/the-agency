@@ -42,14 +42,37 @@ fi
 AUTO_MODE=false
 MODE="manual"
 STASHED=false
+# Issue #195: label every stash we take with pid+timestamp so we can pop
+# it by ref (`git stash pop stash@{N}`) rather than blindly popping the
+# top of the stack. Prevents cross-worktree stash pollution when multiple
+# worktree-sync runs interleave.
+STASH_LABEL="worktree-sync-$$-$(date +%s)"
+STASH_REF=""
 
-# EXIT trap: ensure stash is always popped if script aborts mid-flight
+# EXIT trap: ensure our labelled stash is always popped if script aborts
+# mid-flight. Resolve by label, not by position.
 _cleanup() {
     if [[ "$STASHED" == true ]]; then
-        git stash pop --quiet 2>/dev/null || true
+        local _ref
+        _ref=$(_resolve_stash_ref 2>/dev/null || true)
+        if [[ -n "$_ref" ]]; then
+            git stash pop --quiet "$_ref" 2>/dev/null || true
+        fi
+        # No blind pop — if we can't find our label, leave the stash alone.
+        # Safer to leak than to pop someone else's work.
     fi
 }
 trap _cleanup EXIT
+
+# Resolve our labelled stash to its ref (stash@{N}) so we pop the right one.
+# Issue #195: multiple worktree-sync runs may interleave; never blind-pop.
+_resolve_stash_ref() {
+    git stash list 2>/dev/null | awk -v lbl="$STASH_LABEL" '
+        index($0, lbl) {
+            # stash list format: "stash@{0}: On branch: worktree-sync-PID-TS"
+            n = index($0, ":"); ref = substr($0, 1, n-1); print ref; exit
+        }'
+}
 
 show_help() {
     echo "Usage: worktree-sync [--auto] [--version] [--help]"
@@ -151,7 +174,10 @@ DIRTY=$(git status --porcelain 2>/dev/null)
 
 if [[ -n "$DIRTY" ]]; then
     if [[ "$AUTO_MODE" == true ]]; then
-        git stash --quiet 2>/dev/null
+        # Issue #195: push with explicit message so we can pop-by-ref.
+        # `git stash push -m` is the portable form (git 2.13+). Always include
+        # --include-untracked so untracked files survive the merge too.
+        git stash push -u --quiet -m "$STASH_LABEL" 2>/dev/null
         STASHED=true
     else
         DIRTY_COUNT=$(echo "$DIRTY" | grep -c . || echo 0)
@@ -198,14 +224,17 @@ else
             echo "  WARNING: git merge --abort failed — repo may not be fully restored." >&2
         fi
 
-        # Unstash if we stashed (disable trap since we're handling it)
+        # Unstash if we stashed (disable trap since we're handling it).
+        # Issue #195: pop by label, not by position.
         STASH_MSG="no stash taken"
         if [[ "$STASHED" == true ]]; then
             STASHED=false
-            if git stash pop --quiet 2>/dev/null; then
-                STASH_MSG="stashed work restored via git stash pop"
+            local _ref
+            _ref=$(_resolve_stash_ref 2>/dev/null || true)
+            if [[ -n "$_ref" ]] && git stash pop --quiet "$_ref" 2>/dev/null; then
+                STASH_MSG="stashed work restored via git stash pop ($STASH_LABEL)"
             else
-                STASH_MSG="stash pop failed — your stashed work is still in git stash (run 'git stash list')"
+                STASH_MSG="stash pop failed — your stashed work is still in git stash as '$STASH_LABEL' (run 'git stash list')"
             fi
         fi
         echo "  Stash: $STASH_MSG." >&2
@@ -263,11 +292,12 @@ if [[ "$MERGED" == true ]]; then
     DISPATCHES=$(echo "$CHANGED_FILES" | grep -E "dispatch" 2>/dev/null || echo "")
 fi
 
-# --- Unstash if we stashed ---
+# --- Unstash if we stashed (pop by label — issue #195) ---
 UNSTASH_CONFLICT=false
 if [[ "$STASHED" == true ]]; then
     STASHED=false  # Disable trap — we're handling it
-    if ! git stash pop --quiet 2>/dev/null; then
+    _STASH_REF_NOW=$(_resolve_stash_ref 2>/dev/null || true)
+    if [[ -z "$_STASH_REF_NOW" ]] || ! git stash pop --quiet "$_STASH_REF_NOW" 2>/dev/null; then
         UNSTASH_CONFLICT=true
     fi
 fi
