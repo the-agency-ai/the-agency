@@ -223,28 +223,14 @@ if [[ -z "$START_VERSION" ]]; then
 fi
 START_VERSION="${START_VERSION:-v0.0}"
 
-# --- Gather release list in window (only tags that exist) ---
-# Fetches release tag names + publishedAt, filters to the window.
-RELEASES_JSON=$(gh release list --limit 100 --json tagName,publishedAt 2>/dev/null || echo "[]")
-
 # --- Gather PRs merged in window ---
 # We derive date bounds from release publishedAt if versions were supplied
 # without explicit dates. If --start-date / --end-date were given, those win.
 
 if [[ -z "$START_DATE" ]]; then
     # Map START_VERSION to its publishedAt (date AFTER which to pull PRs)
-    START_DATE=$(echo "$RELEASES_JSON" | awk -v v="$START_VERSION" '
-        /"tagName":/ {
-            # capture name
-            match($0, /"tagName":"[^"]+"/)
-            name = substr($0, RSTART+11, RLENGTH-12)
-        }
-        /"publishedAt":/ {
-            match($0, /"publishedAt":"[^"]+"/)
-            at = substr($0, RSTART+15, RLENGTH-16)
-            if (name == v) { print at; exit }
-        }
-    ')
+    START_DATE=$(gh release list --limit 200 --json tagName,publishedAt \
+        --jq ".[] | select(.tagName == \"$START_VERSION\") | .publishedAt" 2>/dev/null || true)
     # Fallback: empty → 30 days ago
     if [[ -z "$START_DATE" ]]; then
         if date -u -v-30d +%Y-%m-%dT%H:%M:%SZ >/dev/null 2>&1; then
@@ -256,17 +242,8 @@ if [[ -z "$START_DATE" ]]; then
 fi
 
 if [[ -z "$END_DATE" ]]; then
-    END_DATE=$(echo "$RELEASES_JSON" | awk -v v="$END_VERSION" '
-        /"tagName":/ {
-            match($0, /"tagName":"[^"]+"/)
-            name = substr($0, RSTART+11, RLENGTH-12)
-        }
-        /"publishedAt":/ {
-            match($0, /"publishedAt":"[^"]+"/)
-            at = substr($0, RSTART+15, RLENGTH-16)
-            if (name == v) { print at; exit }
-        }
-    ')
+    END_DATE=$(gh release list --limit 200 --json tagName,publishedAt \
+        --jq ".[] | select(.tagName == \"$END_VERSION\") | .publishedAt" 2>/dev/null || true)
     END_DATE="${END_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 fi
 
@@ -274,10 +251,11 @@ info "Window: $START_VERSION ($START_DATE) → $END_VERSION ($END_DATE)"
 info "Project: $PROJECT_NAME | Workstream: $WORKSTREAM | Captain: $CAPTAIN_NAME"
 
 # --- Enumerate merged PRs in window ---
-# Use gh's server-side filter if possible; fall back to client-side filter.
+# We don't filter on --base explicitly — repo default branch varies (main vs
+# master) and merged-into-other-branches PRs are rare enough that the date
+# window is the useful gate. Users can filter downstream if needed.
 PRS_JSON=$(gh pr list \
     --state merged \
-    --base master \
     --limit 200 \
     --json number,title,mergedAt,author \
     --jq "[.[] | select(.mergedAt >= \"$START_DATE\" and .mergedAt <= \"$END_DATE\")] | sort_by(.mergedAt)" \
