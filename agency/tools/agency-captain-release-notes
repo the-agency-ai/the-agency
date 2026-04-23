@@ -1,0 +1,402 @@
+#!/bin/bash
+#
+# agency-captain-release-notes — Generate a captain-to-captain release notes
+# skeleton covering a window of PRs landed on master.
+#
+# What Problem: When multiple captains (or captain + principal) work on the same
+# monofolk-style repo, there's no standing convention for "here's what I shipped
+# since the last sync" — the knowledge lives in git log + release tags + private
+# handoffs. Cross-agent visibility into what landed (and what's in-flight)
+# requires manually walking `gh release list`, `gh pr list`, correlating by date,
+# assembling a markdown file with PR table + qualitative context. This is
+# repetitive, error-prone, and tends to drift.
+#
+# Captured 2026-04-23 when principal asked captain to write a release-notes file
+# for cross-captain coord: "this is a way to tell [other captain] what we have
+# done." Manual authoring took ~15 minutes. Second round ("extend for all of
+# yesterday") required re-walking the window. Principal then asked for a tool +
+# skill so this becomes a single command.
+#
+# How & Why: Mechanical parts (PR enumeration, release window, filename,
+# frontmatter) are tool-generated. Qualitative parts (TL;DR, shared-package
+# changes, behavioral changes, open flags, in-flight) are placeholder sections
+# the captain fills in after the skeleton lands. Keeps the captain's synthesis
+# time focused on what only they can write — the narrative + coordination asks.
+#
+# Scope v1: GENERATE the skeleton to a file (or stdout). Does not commit. Does
+# not dispatch. Does not push. The captain reviews, fills qualitative sections,
+# commits via /coord-commit, pushes via standard PR flow (or leaves as coord
+# artifact on master if that's the convention).
+#
+# Window detection order:
+#   1. Explicit --start-version / --end-version (highest priority)
+#   2. --start-date / --end-date (UTC timestamps)
+#   3. Auto-detect: start = end-version of most recent prior release-notes file
+#      in the release-notes/ directory; end = latest tag on master
+#
+# Output path convention:
+#   agency/workstreams/{workstream}/release-notes/release-notes-{YYYYMMDD}-{captain-name}-{vStart}-{vEnd}.md
+#
+# Audience convention:
+#   Default audience is "any captain or principal working on {project}".
+#   --to <addr> narrows to a specific agent (e.g. monofolk/peter/captain).
+#
+# Written: 2026-04-23 — convention-capture from monofolk v3.3-v3.31 release
+# notes burst.
+
+set -euo pipefail
+
+TOOL_VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+elif PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+# --- Colors ---
+if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
+    source "$SCRIPT_DIR/lib/_colors"
+else
+    RED=$'\033[0;31m' GREEN=$'\033[0;32m' YELLOW=$'\033[1;33m' BLUE=$'\033[0;34m' NC=$'\033[0m'
+fi
+
+die() { echo "${RED}[ERROR]${NC} $1" >&2; exit 1; }
+info() { echo "${BLUE}[INFO]${NC} $1" >&2; }
+
+# --- Args ---
+START_VERSION=""
+END_VERSION=""
+START_DATE=""
+END_DATE=""
+TO_ADDR=""
+AUDIENCE=""
+WORKSTREAM=""
+OUTPUT_FILE=""
+STDOUT_MODE=false
+DRY_RUN=false
+CAPTAIN_NAME=""
+PROJECT_NAME=""
+
+usage() {
+    cat <<'USAGE'
+agency-captain-release-notes — Generate captain-to-captain release notes skeleton
+
+Usage:
+  agency-captain-release-notes [options]
+
+Options:
+  --start-version <vX.Y>   Starting release tag (exclusive — the last one
+                           already covered by a prior release notes file).
+                           Auto-detected from most recent prior file if omitted.
+  --end-version <vX.Y>     Ending release tag (inclusive — the most recent
+                           release you want covered). Auto-detected from latest
+                           tag on master if omitted.
+  --start-date <ISO>       Alternative to --start-version. UTC timestamp
+                           (YYYY-MM-DDTHH:MMZ).
+  --end-date <ISO>         Alternative to --end-version.
+  --to <address>           Specific addressee (e.g. "monofolk/peter/captain").
+                           Default: broadcast (audience-only frontmatter).
+  --audience <string>      Human-readable audience description. Default:
+                           "any captain or principal working on <project>".
+  --workstream <name>      Workstream directory under agency/workstreams/.
+                           Default: project name from agency/config/agency.yaml.
+  --captain <name>         Captain name for filename + frontmatter (e.g.
+                           "jordan-captain"). Default: resolved from
+                           agency/tools/agent-identity.
+  --output <path>          Explicit output file path. Default:
+                           agency/workstreams/<workstream>/release-notes/
+                           release-notes-<YYYYMMDD>-<captain>-<vStart>-<vEnd>.md
+  --stdout                 Print to stdout instead of writing a file.
+  --dry-run                Show what would be written without writing.
+  --help, -h               Show this help.
+  --version                Show tool version.
+
+Examples:
+  # Simplest invocation — auto-detect everything
+  agency-captain-release-notes
+
+  # Specify window explicitly
+  agency-captain-release-notes --start-version v3.2 --end-version v3.31
+
+  # Address to a specific captain (narrows audience)
+  agency-captain-release-notes --to monofolk/peter/captain
+
+  # Preview without writing
+  agency-captain-release-notes --dry-run
+
+  # Print to stdout (for piping / review)
+  agency-captain-release-notes --stdout
+USAGE
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --start-version)  START_VERSION="$2"; shift 2;;
+        --end-version)    END_VERSION="$2"; shift 2;;
+        --start-date)     START_DATE="$2"; shift 2;;
+        --end-date)       END_DATE="$2"; shift 2;;
+        --to)             TO_ADDR="$2"; shift 2;;
+        --audience)       AUDIENCE="$2"; shift 2;;
+        --workstream)     WORKSTREAM="$2"; shift 2;;
+        --captain)        CAPTAIN_NAME="$2"; shift 2;;
+        --output)         OUTPUT_FILE="$2"; shift 2;;
+        --stdout)         STDOUT_MODE=true; shift;;
+        --dry-run)        DRY_RUN=true; shift;;
+        --help|-h)        usage;;
+        --version)        echo "agency-captain-release-notes $TOOL_VERSION"; exit 0;;
+        *)                die "Unknown argument: $1 (see --help)";;
+    esac
+done
+
+# --- Preflight: require gh CLI ---
+command -v gh >/dev/null 2>&1 || die "gh CLI not found. Install via https://cli.github.com/"
+
+# --- Auto-detect: project name (from agency.yaml) ---
+AGENCY_YAML="$PROJECT_ROOT/agency/config/agency.yaml"
+if [[ -f "$AGENCY_YAML" ]]; then
+    # Very narrow yaml parse: look for "  name:" under "project:" block.
+    # Avoid requiring a yaml library (stdlib-only / zero-pip policy).
+    PROJECT_NAME=$(awk '
+        /^project:/ { in_project=1; next }
+        /^[a-zA-Z]/ && !/^project:/ { in_project=0 }
+        in_project && /^  name:/ { gsub(/.*name: *"?/, ""); gsub(/".*$/, ""); gsub(/[ \t]+$/, ""); print; exit }
+    ' "$AGENCY_YAML")
+fi
+PROJECT_NAME="${PROJECT_NAME:-unknown-project}"
+
+# --- Default workstream = project name ---
+WORKSTREAM="${WORKSTREAM:-$PROJECT_NAME}"
+
+# --- Auto-detect: captain name (from agent-identity) ---
+if [[ -z "$CAPTAIN_NAME" ]]; then
+    if [[ -x "$PROJECT_ROOT/agency/tools/agent-identity" ]]; then
+        # Agent-identity returns fully-qualified address like
+        # "monofolk/jordan/captain" — we want "jordan-captain".
+        AGENT_ADDR=$("$PROJECT_ROOT/agency/tools/agent-identity" --agent-address 2>/dev/null || true)
+        if [[ -n "$AGENT_ADDR" ]]; then
+            # Split by /: <repo>/<principal>/<agent>  → principal-agent
+            IFS='/' read -r _ principal agent <<< "$AGENT_ADDR"
+            if [[ -n "$principal" && -n "$agent" ]]; then
+                CAPTAIN_NAME="${principal}-${agent}"
+            fi
+        fi
+    fi
+fi
+CAPTAIN_NAME="${CAPTAIN_NAME:-unknown-captain}"
+
+# --- Default audience ---
+AUDIENCE="${AUDIENCE:-any captain or principal working on $PROJECT_NAME}"
+
+# --- Window detection ---
+DATE_TODAY="$(date -u +%Y%m%d)"
+
+# end-version: if not given, use the latest release tag on the current repo
+if [[ -z "$END_VERSION" ]]; then
+    END_VERSION=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""' 2>/dev/null || true)
+    [[ -z "$END_VERSION" ]] && die "--end-version not given and could not auto-detect (gh release list returned nothing)"
+fi
+
+# start-version: if not given, look in release-notes/ for the most recent file
+# and pull its `end_version` frontmatter value
+RELEASE_NOTES_DIR="$PROJECT_ROOT/agency/workstreams/$WORKSTREAM/release-notes"
+if [[ -z "$START_VERSION" ]]; then
+    if [[ -d "$RELEASE_NOTES_DIR" ]]; then
+        PREV_FILE=$(ls -t "$RELEASE_NOTES_DIR"/*.md 2>/dev/null | head -1 || true)
+        if [[ -n "$PREV_FILE" ]]; then
+            # Grab the prior end_version (naive awk parse of frontmatter).
+            PREV_END=$(awk '
+                /^---/ && !fm { fm=1; next }
+                /^---/ && fm { exit }
+                fm && /^  *end_version:/ { sub(/.*end_version:[ \t]*/, ""); print; exit }
+                fm && /^  *end:/ { sub(/.*end:[ \t]*/, ""); print; exit }
+            ' "$PREV_FILE")
+            if [[ -n "$PREV_END" ]]; then
+                START_VERSION="$PREV_END"
+            fi
+        fi
+    fi
+fi
+START_VERSION="${START_VERSION:-v0.0}"
+
+# --- Gather PRs merged in window ---
+# We derive date bounds from release publishedAt if versions were supplied
+# without explicit dates. If --start-date / --end-date were given, those win.
+
+if [[ -z "$START_DATE" ]]; then
+    # Map START_VERSION to its publishedAt (date AFTER which to pull PRs)
+    START_DATE=$(gh release list --limit 200 --json tagName,publishedAt \
+        --jq ".[] | select(.tagName == \"$START_VERSION\") | .publishedAt" 2>/dev/null || true)
+    # Fallback: empty → 30 days ago
+    if [[ -z "$START_DATE" ]]; then
+        if date -u -v-30d +%Y-%m-%dT%H:%M:%SZ >/dev/null 2>&1; then
+            START_DATE=$(date -u -v-30d +%Y-%m-%dT%H:%M:%SZ)
+        else
+            START_DATE=$(date -u -d "30 days ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "1970-01-01T00:00:00Z")
+        fi
+    fi
+fi
+
+if [[ -z "$END_DATE" ]]; then
+    END_DATE=$(gh release list --limit 200 --json tagName,publishedAt \
+        --jq ".[] | select(.tagName == \"$END_VERSION\") | .publishedAt" 2>/dev/null || true)
+    END_DATE="${END_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+fi
+
+info "Window: $START_VERSION ($START_DATE) → $END_VERSION ($END_DATE)"
+info "Project: $PROJECT_NAME | Workstream: $WORKSTREAM | Captain: $CAPTAIN_NAME"
+
+# --- Enumerate merged PRs in window ---
+# We don't filter on --base explicitly — repo default branch varies (main vs
+# master) and merged-into-other-branches PRs are rare enough that the date
+# window is the useful gate. Users can filter downstream if needed.
+PRS_JSON=$(gh pr list \
+    --state merged \
+    --limit 200 \
+    --json number,title,mergedAt,author \
+    --jq "[.[] | select(.mergedAt >= \"$START_DATE\" and .mergedAt <= \"$END_DATE\")] | sort_by(.mergedAt)" \
+    2>/dev/null || echo "[]")
+
+PR_COUNT=$(echo "$PRS_JSON" | jq 'length' 2>/dev/null || echo "0")
+info "Found $PR_COUNT PRs in window"
+
+# --- Render PRs table ---
+render_pr_table() {
+    echo "| PR  | Merged (UTC)         | Author         | Title                                                  |"
+    echo "| --- | -------------------- | -------------- | ------------------------------------------------------ |"
+    echo "$PRS_JSON" | jq -r '.[] | "| #\(.number) | \(.mergedAt) | \(.author.login) | \(.title) |"'
+}
+
+# --- Render frontmatter ---
+render_frontmatter() {
+    echo "---"
+    echo "type: release-notes"
+    echo "from: ${PROJECT_NAME}/$(echo "$CAPTAIN_NAME" | tr '-' '/' | sed 's|/captain$|/captain|')"
+    if [[ -n "$TO_ADDR" ]]; then
+        echo "to: $TO_ADDR"
+    fi
+    echo "audience: $AUDIENCE"
+    echo "date: $(date -u +%Y-%m-%d)"
+    echo "window:"
+    echo "  start_version: $START_VERSION"
+    echo "  end_version: $END_VERSION"
+    echo "  wall_clock_start: $START_DATE"
+    echo "  wall_clock_end: $END_DATE"
+    echo "prs_landed_count: $PR_COUNT"
+    echo "generated_by: agency-captain-release-notes v$TOOL_VERSION"
+    echo "---"
+}
+
+# --- Render skeleton body ---
+render_body() {
+    cat <<BODY
+
+# Release Notes — $PROJECT_NAME $START_VERSION through $END_VERSION
+
+**From:** $CAPTAIN_NAME ($PROJECT_NAME/$(echo "$CAPTAIN_NAME" | tr '-' '/'))
+**Audience:** $AUDIENCE
+BODY
+    if [[ -n "$TO_ADDR" ]]; then
+        echo "**Addressed to:** $TO_ADDR"
+    fi
+    cat <<BODY
+**Window:** $START_DATE through $END_DATE ($PR_COUNT PRs)
+
+---
+
+## TL;DR
+
+<!-- Fill in: one-paragraph executive summary of what shipped this window. -->
+
+---
+
+## PRs landed
+
+$(render_pr_table)
+
+---
+
+## Cross-repo / shared-package changes
+
+<!-- Fill in: new or changed shared paths (packages/*, tools/*, config/*)
+     that other captains' agents may consume downstream. If any of their
+     branches pull these, a merge-from-master will pick them up. -->
+
+---
+
+## Master behavioral changes
+
+<!-- Fill in: things downstream branches need to pick up on next merge.
+     - Process changes (conventions, receipt patterns)
+     - Infrastructure (monitors, CI, build)
+     - Tool / skill landings that affect how agents work -->
+
+---
+
+## Open items / flags
+
+<!-- Fill in: anything another captain touching these surfaces should know.
+     - Framework flags filed during this window
+     - Known issues + workarounds
+     - Upstream issues filed (the-agency# / adapter#) -->
+
+---
+
+## In-flight (not yet PR'd)
+
+<!-- Fill in: things accumulating in worktrees as of publish time — so
+     other captains/principals can avoid duplication or collision.
+     Organize by workstream. -->
+
+---
+
+## Coordination requests
+
+<!-- Fill in: any asks / questions for other captains. Keep it to things
+     that would genuinely benefit from their input. -->
+
+---
+
+— $CAPTAIN_NAME
+_generated by \`agency-captain-release-notes\` v${TOOL_VERSION}_
+
+BODY
+}
+
+# --- Determine output path ---
+if [[ "$STDOUT_MODE" == "true" || -n "${OUTPUT_FILE:+x}" ]]; then
+    :  # stdout / explicit output
+else
+    OUTPUT_FILE="$RELEASE_NOTES_DIR/release-notes-${DATE_TODAY}-${CAPTAIN_NAME}-${START_VERSION}-${END_VERSION}.md"
+fi
+
+# --- Dry run: just report ---
+if [[ "$DRY_RUN" == "true" ]]; then
+    info "DRY RUN — would write to: ${OUTPUT_FILE:-<stdout>}"
+    info "  frontmatter fields: from/audience/to/window/prs_landed_count"
+    info "  PR rows: $PR_COUNT"
+    exit 0
+fi
+
+# --- Write output ---
+if [[ "$STDOUT_MODE" == "true" ]]; then
+    render_frontmatter
+    render_body
+else
+    mkdir -p "$(dirname "$OUTPUT_FILE")"
+    {
+        render_frontmatter
+        render_body
+    } > "$OUTPUT_FILE"
+
+    echo "${GREEN}✓${NC} Release notes skeleton written: $OUTPUT_FILE"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Fill qualitative sections (TL;DR, shared-package changes, flags, in-flight, coordination)."
+    echo "  2. Commit via /coord-commit (coord artifact — no QG gate)."
+    echo "  3. (Optional) Dispatch a pointer to specific agents if narrow addressing is needed."
+fi
