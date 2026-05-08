@@ -151,8 +151,22 @@ DIRTY=$(git status --porcelain 2>/dev/null)
 
 if [[ -n "$DIRTY" ]]; then
     if [[ "$AUTO_MODE" == true ]]; then
-        git stash --quiet 2>/dev/null
-        STASHED=true
+        # CRITICAL: only set STASHED=true if `git stash` actually pushed a stash.
+        # `git stash` (without -u) returns non-zero when only UNTRACKED files exist
+        # (DIRTY catches untracked files via "??" lines). If we set STASHED=true
+        # unconditionally, the later `git stash pop` will pop a STALE stash from
+        # prior sessions — leaving the working tree in a phantom-merge state with
+        # AUTO_MERGE/MERGE_RR/conflict markers but no MERGE_HEAD. This bug
+        # corrupted multiple worktrees in adopter repos on 2026-05-08.
+        # We capture the stash ref at push time so the later pop is unambiguous.
+        STASH_BEFORE=$(git stash list --pretty=format:"%H" 2>/dev/null | head -1 || true)
+        if git stash --quiet 2>/dev/null; then
+            STASH_AFTER=$(git stash list --pretty=format:"%H" 2>/dev/null | head -1 || true)
+            if [[ -n "$STASH_AFTER" && "$STASH_AFTER" != "$STASH_BEFORE" ]]; then
+                STASHED=true
+                STASH_REF="$STASH_AFTER"
+            fi
+        fi
     else
         DIRTY_COUNT=$(echo "$DIRTY" | grep -c . || echo 0)
         echo "worktree-sync: working tree is dirty — commit or stash first" >&2
@@ -198,11 +212,17 @@ else
             echo "  WARNING: git merge --abort failed — repo may not be fully restored." >&2
         fi
 
-        # Unstash if we stashed (disable trap since we're handling it)
+        # Unstash if we stashed (disable trap since we're handling it).
+        # Use the specific stash ref captured at push time to avoid popping
+        # a stale stash that drifted to top via concurrent activity.
         STASH_MSG="no stash taken"
         if [[ "$STASHED" == true ]]; then
             STASHED=false
-            if git stash pop --quiet 2>/dev/null; then
+            if [[ -n "${STASH_REF:-}" ]] && git stash apply "$STASH_REF" --quiet 2>/dev/null; then
+                git stash drop "$STASH_REF" --quiet 2>/dev/null || true
+                STASH_MSG="stashed work restored (ref $STASH_REF)"
+            elif git stash pop --quiet 2>/dev/null; then
+                # Fallback for older invocations that didn't capture STASH_REF
                 STASH_MSG="stashed work restored via git stash pop"
             else
                 STASH_MSG="stash pop failed — your stashed work is still in git stash (run 'git stash list')"
@@ -264,10 +284,20 @@ if [[ "$MERGED" == true ]]; then
 fi
 
 # --- Unstash if we stashed ---
+# Use the specific STASH_REF captured at push time to guarantee we don't pop
+# a stale stash. Without this, a fall-through `git stash pop` would pop
+# whatever's at stash@{0} — including stashes from prior sessions that may
+# conflict with current main content (the 2026-05-08 phantom-merge bug).
 UNSTASH_CONFLICT=false
 if [[ "$STASHED" == true ]]; then
     STASHED=false  # Disable trap — we're handling it
-    if ! git stash pop --quiet 2>/dev/null; then
+    if [[ -n "${STASH_REF:-}" ]]; then
+        if git stash apply "$STASH_REF" --quiet 2>/dev/null; then
+            git stash drop "$STASH_REF" --quiet 2>/dev/null || true
+        else
+            UNSTASH_CONFLICT=true
+        fi
+    elif ! git stash pop --quiet 2>/dev/null; then
         UNSTASH_CONFLICT=true
     fi
 fi
