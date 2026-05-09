@@ -10,12 +10,15 @@
 # mechanically on the current branch BEFORE the sync, converting conflicts
 # from "file location" (thousands) to "content only" (small, manageable).
 #
-# How & Why: Read a built-in rename map (claude/ → agency/, tests/ → src/tests/).
-# Walk git-tracked files. For each file whose path starts with an old prefix,
-# `git mv` it to the new prefix. Preserves history. Dry-run by default. Agent
-# reviews plan, then re-runs with --apply. Only handles PATH migration —
-# inline text references (e.g., `./claude/tools/X` inside a script) require
-# a separate pass (see companion tool / dispatch mapping).
+# How & Why: Read a built-in rename map covering each shipped rename wave
+# (Wave 1 = Great Rename: claude/ → agency/, tests/ → src/tests/;
+# Wave 2 = v46.1 src/ split: apps/ → src/apps/,
+# starter-packs/ → src/spec-provider/starter-packs/). Walk git-tracked files.
+# For each file whose path starts with an old prefix, `git mv` it to the new
+# prefix. Preserves history. Dry-run by default. Agent reviews plan, then
+# re-runs with --apply. Only handles PATH migration — inline text references
+# (e.g., `./claude/tools/X` inside a script) require a separate pass (see
+# companion tool / dispatch mapping).
 #
 # Note on git-safe bypass: This tool calls `git mv` directly (not
 # `git-safe mv`) because it *is* the safety layer — each rename is
