@@ -44,7 +44,7 @@ seed_branch() {
     run bash "$TOOL" --version
     [ "$status" -eq 0 ]
     [[ "$output" == great-rename-migrate\ * ]]
-    [[ "$output" == *"1.0.0"* ]]
+    [[ "$output" == *"1.1.0"* ]]
 }
 
 @test "great-rename-migrate: --help explains purpose + defaults" {
@@ -57,6 +57,11 @@ seed_branch() {
     [[ "$output" == *"agency/"* ]]
     [[ "$output" == *"tests/"* ]]
     [[ "$output" == *"src/tests/"* ]]
+    # v1.1.0 default-map additions (Wave 2 — v46.1 src/ split)
+    [[ "$output" == *"apps/"* ]]
+    [[ "$output" == *"src/apps/"* ]]
+    [[ "$output" == *"starter-packs/"* ]]
+    [[ "$output" == *"src/spec-provider/starter-packs/"* ]]
 }
 
 @test "great-rename-migrate: rejects unknown flag" {
@@ -489,9 +494,84 @@ EOF
     [[ "$output" == *"failure"* ]]
 }
 
-@test "great-rename-migrate: version string matches 1.0.0 convention" {
+@test "great-rename-migrate: version string matches 1.1.0 convention" {
     run bash "$TOOL" --version
     [ "$status" -eq 0 ]
-    # Strict match: 'great-rename-migrate 1.0.0' (no bucket/date suffix)
-    [ "$output" = "great-rename-migrate 1.0.0" ]
+    # Strict match: 'great-rename-migrate 1.1.0' (no bucket/date suffix)
+    [ "$output" = "great-rename-migrate 1.1.0" ]
+}
+
+# --- v1.1.0 DEFAULT-MAP ADDITIONS (Wave 2 — v46.1 src/ split) ---
+#
+# Filed: 2026-05-09. mdpal-app dispatch #866 + mdpal-cli dispatch #865 both
+# blocked because pre-Phase-4 worktrees cannot mechanically migrate v46.1
+# moves (apps/ → src/apps/, starter-packs/ → src/spec-provider/starter-packs/)
+# without a custom map. v1.1.0 adds these to the default map so the next
+# pre-Phase-4 worktree (designex / devex / iscp / future) does not re-hit
+# the same gap.
+
+@test "great-rename-migrate: default map renames apps/ → src/apps/" {
+    mkdir -p apps/mdpal-app/Sources
+    echo "swift" > apps/mdpal-app/Sources/Foo.swift
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ ! -f "apps/mdpal-app/Sources/Foo.swift" ]]
+    [[ -f "src/apps/mdpal-app/Sources/Foo.swift" ]]
+    run cat src/apps/mdpal-app/Sources/Foo.swift
+    [ "$output" = "swift" ]
+}
+
+@test "great-rename-migrate: default map renames starter-packs/ → src/spec-provider/starter-packs/" {
+    mkdir -p starter-packs/nest-prototype
+    echo "yaml" > starter-packs/nest-prototype/manifest.yaml
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ ! -f "starter-packs/nest-prototype/manifest.yaml" ]]
+    [[ -f "src/spec-provider/starter-packs/nest-prototype/manifest.yaml" ]]
+    run cat src/spec-provider/starter-packs/nest-prototype/manifest.yaml
+    [ "$output" = "yaml" ]
+}
+
+@test "great-rename-migrate: default map handles all four waves in one run" {
+    # Realistic pre-Phase-4 worktree fixture: claude/, tests/, apps/, and
+    # starter-packs/ all coexist (the actual condition mdpal-app/cli faced).
+    mkdir -p claude/tools tests/tools apps/mdpal/Sources starter-packs/nest
+    echo "tool" > claude/tools/X
+    echo "bats" > tests/tools/X.bats
+    echo "swift" > apps/mdpal/Sources/Foo.swift
+    echo "yaml" > starter-packs/nest/manifest.yaml
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Renamed 4 file(s). 0 failure(s)."* ]]
+    [[ -f "agency/tools/X" ]]
+    [[ -f "src/tests/tools/X.bats" ]]
+    [[ -f "src/apps/mdpal/Sources/Foo.swift" ]]
+    [[ -f "src/spec-provider/starter-packs/nest/manifest.yaml" ]]
+}
+
+@test "great-rename-migrate: starter-packs/ not gobbled by apps/ rule (longest-prefix)" {
+    # Both apps/ and starter-packs/ are prefixes; longest-first sort must
+    # ensure starter-packs/ files map to src/spec-provider/starter-packs/,
+    # NOT to src/apps/...starter-packs/... by accident.
+    mkdir -p apps/foo starter-packs/bar
+    echo "a" > apps/foo/file
+    echo "b" > starter-packs/bar/file
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ -f "src/apps/foo/file" ]]
+    [[ -f "src/spec-provider/starter-packs/bar/file" ]]
+    # Negative: apps/ rule must NOT have eaten the starter-packs/ files
+    [[ ! -f "src/apps/starter-packs/bar/file" ]]
 }
