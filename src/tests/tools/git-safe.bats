@@ -648,3 +648,84 @@ _setup_conflict() {
     assert_output_contains "stash push"
     assert_output_contains "stash pop"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# init subcommand — issue #437 — bare-repo bootstrap
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Closes the gap that blocked the this-happened bootstrap: hookify blocks
+# raw `git init`, but the git-safe family had no equivalent. These tests
+# operate inside the per-test BATS_TEST_TMPDIR — each `git-safe init` is
+# scoped to a fresh subdir, never touching the surrounding test fixture
+# repo.
+
+@test "git-safe init: creates fresh repo at given path" {
+    cd "${BATS_TEST_TMPDIR}"
+    local target="${BATS_TEST_TMPDIR}/init-fresh"
+
+    run ./agency/tools/git-safe init "$target"
+    assert_success
+    assert_output_contains "Initialized empty git repo:"
+    [[ -d "$target/.git" ]]
+}
+
+@test "git-safe init: creates target dir (and parents) if missing" {
+    cd "${BATS_TEST_TMPDIR}"
+    local target="${BATS_TEST_TMPDIR}/init-deep/nested/repo"
+
+    run ./agency/tools/git-safe init "$target"
+    assert_success
+    [[ -d "${BATS_TEST_TMPDIR}/init-deep" ]]
+    [[ -d "${BATS_TEST_TMPDIR}/init-deep/nested" ]]
+    [[ -d "$target/.git" ]]
+}
+
+@test "git-safe init: refuses if .git/ already exists at target" {
+    cd "${BATS_TEST_TMPDIR}"
+    local target="${BATS_TEST_TMPDIR}/init-existing"
+    mkdir -p "$target"
+    git init "$target" --quiet 2>/dev/null
+
+    run ./agency/tools/git-safe init "$target"
+    assert_failure
+    assert_output_contains "already a git repo"
+    [[ -d "$target/.git" ]]  # untouched
+}
+
+@test "git-safe init: rejects path-traversal '..' in target" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./agency/tools/git-safe init "../escape"
+    assert_failure
+    assert_output_contains "path traversal"
+}
+
+@test "git-safe init: rejects glob metacharacters in target" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./agency/tools/git-safe init "evil*path"
+    assert_failure
+    assert_output_contains "glob metacharacters"
+}
+
+@test "git-safe init: rejects flag-like target" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./agency/tools/git-safe init "--bare"
+    assert_failure
+    assert_output_contains "flag-like"
+}
+
+@test "git-safe init: --help mentions init subcommand" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./agency/tools/git-safe --help
+    assert_success
+    # Note: avoid brackets in the assertion pattern — assert_output_contains
+    # uses [[ == *pattern* ]] which treats [..] as a glob character class.
+    assert_output_contains "Initialize a fresh git repo"
+    assert_output_contains "bare-repo bootstrap"
+}
+
+@test "git-safe init: TOOL_VERSION 1.1.0 advertised via --version" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./agency/tools/git-safe --version
+    assert_success
+    assert_output_contains "1.1.0"
+}

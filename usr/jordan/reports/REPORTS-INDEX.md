@@ -25,6 +25,7 @@ Each row is one filing. Click through to the per-report markdown for full contex
 | 2026-04-22 | Add Python unit + integration tests for src/tools/build (on top of existing BATS) | feature | the-agency-ai/the-agency | #417 | [report-agency-issue-add-python-unit-integration-tests-for-src-tools-bu-20260422](usr/jordan/reports/report-agency-issue-add-python-unit-integration-tests-for-src-tools-bu-20260422.md) | open |
 | 2026-04-22 | Pre-existing pollution cleanup at agency/ build-product side (testname, test; rm -rf, test-auto QGRs, housekeeping workstream) | bug | the-agency-ai/the-agency | #419 | [report-agency-issue-pre-existing-pollution-cleanup-at-agency-build-pro-20260422](usr/jordan/reports/report-agency-issue-pre-existing-pollution-cleanup-at-agency-build-pro-20260422.md) | open |
 | 2026-04-22 | src/ top-level taxonomy drift — resolve 4 dirs outside V5 allowlist (assets, integrations, spec-provider, tools-developer) | friction | the-agency-ai/the-agency | #420 | [report-agency-issue-src-top-level-taxonomy-drift-resolve-4-dirs-outsid-20260422](usr/jordan/reports/report-agency-issue-src-top-level-taxonomy-drift-resolve-4-dirs-outsid-20260422.md) | open |
+| 2026-05-09 | git-safe family lacks 'init' subcommand — blocks bare-repo bootstrap | friction | the-agency-ai/the-agency | #437 | [report-agency-issue-git-safe-family-lacks-init-subcommand-blocks-bare--20260509](usr/jordan/reports/report-agency-issue-git-safe-family-lacks-init-subcommand-blocks-bare--20260509.md) | open |
 <!-- AGENCY-ISSUE-INDEX-END -->
 
 ## How to add an entry

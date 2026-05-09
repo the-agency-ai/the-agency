@@ -12,11 +12,20 @@
 # of main vs master. Hookify rules can trust git-safe invocations because the
 # dangerous patterns are blocked at this layer.
 #
-# Written: 2026-04-14 during devex workstream (git-safe family)
+# Written: 2026-04-14 during devex workstream (git-safe family).
+# Updated: 2026-05-09 — added `init` subcommand for bare-repo bootstrap.
+#   Per issue #437: hookify.block-raw-tools blocks `git init`, but the
+#   git-safe family had no equivalent. The framework's "agency-init on bare
+#   repos" north star couldn't proceed without a manual sidestep
+#   (`gh repo create --clone`). `git-safe init [path]` closes that gap with
+#   the standard guards (validates path, refuses if .git/ already exists,
+#   creates target dir if missing).
+#
+# Version: 1.1.0 (provenance: 20260509-this-happened-bootstrap)
 
 set -euo pipefail
 
-TOOL_VERSION="1.0.0"
+TOOL_VERSION="1.1.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
@@ -47,6 +56,10 @@ Subcommands (read-only):
   blame [args]           git blame
 
 Subcommands (guarded write):
+  init [path]                  Initialize a fresh git repo at [path] (default: cwd).
+                               Refuses if .git/ already exists at the target.
+                               Creates the target directory (and parents) if missing.
+                               For bare-repo bootstrap when raw `git init` is blocked.
   add <file> [file...]         Stage explicit file paths (blocks -A, --all, ., wildcards)
   add --files-from <path>      Stage from explicit newline-separated list (issue #388 —
                                scales past argv limits; comments + blank lines OK)
@@ -520,6 +533,42 @@ cmd_restore() {
     echo "Restored $restored file(s) from HEAD"
 }
 
+# --- Subcommand: init ---
+# Issue #437: bare-repo bootstrap requires `git init` before agency-bootstrap.sh
+# can run, but raw `git init` is blocked by hookify.block-raw-tools. This
+# subcommand is the safe wrapper: validates path doesn't already contain
+# .git/, creates target dir (and parents) if missing, calls real git init.
+cmd_init() {
+    local target="${1:-.}"
+
+    # Validate target path
+    case "$target" in
+        -*) die "git-safe init: flag-like path '$target' rejected." ;;
+        *..*) die "git-safe init: path traversal '..' blocked in '$target'." ;;
+        *\**|*\?*|*\[*) die "git-safe init: glob metacharacters blocked in '$target'." ;;
+    esac
+
+    # Refuse if .git/ already exists at the target (file or dir — git supports both)
+    if [[ -d "$target" && -e "$target/.git" ]]; then
+        local abs
+        abs="$(cd "$target" && pwd)"
+        die "git-safe init: already a git repo: $abs/.git exists. Use 'git-safe status' to inspect, or remove .git/ first if re-initializing."
+    fi
+
+    # Create target dir (and any parents) if missing — mirrors `mkdir -p` behavior
+    if [[ ! -d "$target" ]]; then
+        mkdir -p "$target" || die "git-safe init: failed to create directory: $target"
+    fi
+
+    # Initialize (git init creates .git/ inside the target dir)
+    git init "$target" >/dev/null || die "git-safe init: git init failed for $target"
+
+    # Resolve absolute path for clear reporting
+    local abs
+    abs="$(cd "$target" && pwd)"
+    echo "${GREEN}Initialized empty git repo:${NC} $abs"
+}
+
 # --- Main dispatch ---
 [[ $# -eq 0 ]] && usage
 
@@ -532,6 +581,7 @@ case "$1" in
     branch)       shift; cmd_branch "$@" ;;
     show)         shift; cmd_show "$@" ;;
     blame)        shift; cmd_blame "$@" ;;
+    init)             shift; cmd_init "$@" ;;
     add)              shift; cmd_add "$@" ;;
     rm)               shift; cmd_rm "$@" ;;
     resolve-conflict) shift; cmd_resolve_conflict "$@" ;;
