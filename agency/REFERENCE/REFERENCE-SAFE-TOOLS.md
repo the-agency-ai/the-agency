@@ -4,6 +4,44 @@ Tool path root: `./agency/tools/`
 
 ---
 
+## Hooks and Hookify — Locations
+
+Two related but distinct directories:
+
+| Directory | Purpose | Referenced by |
+|---|---|---|
+| `agency/hooks/*.sh` | Executable hook scripts. Block, warn, or inform at agent tool-use boundaries. | `.claude/settings.json` `PreToolUse` / `PostToolUse` / `Stop` etc. (by absolute path via `$CLAUDE_PROJECT_DIR`) |
+| `agency/hookify/*.md` | Enforcement-rule definitions (block / warn / inform rules — the docs the hook scripts enforce). | Referenced from hook scripts; also loaded by ref-injector when triggered. |
+
+**`.claude/hooks/` does NOT exist and does NOT need to.** Claude Code reads hooks from `.claude/settings.json`, not from a conventional directory. The settings file references hook scripts by absolute path; that path is `agency/hooks/` in this framework.
+
+Both `agency/hooks/` and `agency/hookify/` are framework source — they ship with the framework and are versioned with it. Putting them under `.claude/` would mix framework code with Claude Code's private state.
+
+Post-Great-Rename, the canonical paths are `agency/hooks/` and `agency/hookify/` (formerly `claude/hooks/` and `claude/hookify/`). `.claude/settings.json` was updated accordingly.
+
+---
+
+## Tool-tier Carve-out (Agent Boundary vs. Tool Boundary)
+
+The `git-safe` / `git-captain` / `cp-safe` / `pr-create` wrappers enforce discipline on **agent invocations** (Bash tool calls). The hookify layer blocks raw `git`, `gh pr create`, `cp`, etc. at the **agent boundary**.
+
+Framework tools (`agency/tools/*`) are the **implementation layer** — they call `git`, `gh`, `cp` directly because they *are* what the wrappers wrap. Hookify does not block tool-internal subshells; tools are trusted code.
+
+### Rules for tool authors
+
+1. **You may call `git` directly** inside an `agency/tools/*` script. Tools are trusted; the hookify layer is scoped to the agent boundary, not the tool boundary.
+2. **If a tool emits a command for an agent to run** (e.g., prints `"git push origin main"` for the user to execute), route the *printed* command through the safe form (`./agency/tools/git-push origin main`).
+3. **`git-safe` must not call `git-safe`** — that creates a cycle. The wrapper calls raw `git` internally. Same for `git-captain`, `cp-safe`, `pr-create`.
+4. **Tool-tier code is reviewed at author time** — not enforced at invocation. Review for correctness, injection-safety, and error handling the way you would any shell script.
+
+### Why this matters
+
+- Without the explicit carve-out, new reviewers ask "why doesn't this tool use `git-safe`?" and well-intentioned sweeps introduce cycles.
+- The framework has >50 direct `git` calls across `agency/tools/*` — they are all intentional.
+- Session-lifecycle primitives (`session-pause`, `session-pickup`, etc.) follow this pattern: direct `git` calls for internal state, safe-tool wrappers when the tool prints a command for the agent to run.
+
+---
+
 ## `git-safe`
 
 Safe git operations for all agents. Hookify blocks raw `git add -A`, `git add .`, and `git rebase`; this tool provides the approved read and limited-write path.
@@ -195,6 +233,7 @@ QG-aware commit wrapper. Enforces work item tracking, builds structured commit m
 | `--work-item <ID>` | `-w` | Yes* | Work item ID: `REQUEST-jordan-0065`, `SPRINT-web-2026w03`, etc. |
 | `--stage <stage>` | `-s` | When work-item given | One of: `impl`, `review`, `tests` |
 | `--no-work-item` | — | Alternative to `--work-item` | Explicit escape hatch |
+| `--coord` | — | Alternative to `--work-item` | Coord-artifact alias — same semantics as `--no-work-item`; matches `/coord-commit` skill naming (#395) |
 | `--allow-large` | — | No | Bypass commit-precheck large-file block for this commit (sets `ALLOW_LARGE_COMMIT=1`) |
 | `--body <text>` | `-b` | No | Detailed commit body |
 | `--principal <name>` | `-p` | No | Override principal (default: from work item or env) |

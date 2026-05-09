@@ -120,13 +120,15 @@ For each worktree with commits ahead of master:
 - Ask principal for confirmation.
 - If yes: `git merge <branch> --no-ff`.
 
-### Step 5b: Dispatch main-updated
+### Step 5b: Dispatch master-updated
 
-If any worktree work merged into master in Step 5, dispatch `main-updated` to all agents with worktrees:
+If any worktree work merged into master in Step 5, dispatch `master-updated` to all agents with worktrees:
 
 ```
-./agency/tools/dispatch create --type main-updated --to <repo>/<principal>/<agent> --subject "Main updated — new work merged"
+./agency/tools/dispatch create --type master-updated --to <repo>/<principal>/<agent> --subject "Master updated — new work merged"
 ```
+
+Note: `master-updated` is the canonical dispatch type. Legacy docs may say `main-updated`; the dispatch tool aliases that to `master-updated` for backward compatibility.
 
 Agents see this on their next `iscp-check` / `/session-resume`.
 

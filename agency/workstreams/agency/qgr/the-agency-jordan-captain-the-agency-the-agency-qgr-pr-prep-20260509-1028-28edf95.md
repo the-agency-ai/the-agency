@@ -1,0 +1,30 @@
+---
+receipt_version: 1
+type: qgr
+boundary: pr-prep
+org: the-agency
+principal: jordan
+agent: captain
+workstream: the-agency
+project: the-agency
+diff_base: origin/main
+hash_a: 28edf95095c62949763e76cc2ac51831af3108300a44719fdaf111f00b850193
+hash_b: 24f5c8806d35c3c20153998fe324f398715cdc938f06f544f5ca3095dee7cf7e
+hash_c: 765a6c9fd437632a536fd857616314f2eddd108c320f9724d9b744c2c66b89fe
+hash_d: 765a6c9fd437632a536fd857616314f2eddd108c320f9724d9b744c2c66b89fe
+hash_d_source: "auto-approved — no principal 1B1"
+hash_e: 28edf95095c62949763e76cc2ac51831af3108300a44719fdaf111f00b850193
+date: 2026-05-09T10:28
+---
+
+# Receipt: pr-prep — the-agency
+
+## Chain of Trust
+- A (original): 28edf95
+- B (findings): 24f5c88
+- C (triage): 765a6c9
+- D (principal): 765a6c9 — auto-approved — no principal 1B1
+- E (final): 28edf95
+
+## Review Summary
+great-rename-migrate v1.1.0 default-map + agency_version 46.22→46.23 (resolves #865 + #866)

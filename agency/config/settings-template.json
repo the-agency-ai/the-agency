@@ -65,6 +65,8 @@
       "Read(**)",
       "Edit(**)",
       "Write(**)",
+      "Edit(.claude/skills/**)",
+      "Write(.claude/skills/**)",
       "Read(/tmp/**)",
       "Write(/tmp/**)",
       "Edit(/tmp/**)",

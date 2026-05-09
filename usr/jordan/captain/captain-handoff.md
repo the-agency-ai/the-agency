@@ -1,132 +1,139 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-04-22T10:18:00Z
+date: 2026-04-25T00:37:30Z
 trigger: compact-prepare
 branch: main
 mode: continuation
-pause_commit_sha: 3436f2c8
-next-action: "Await principal direction. Session state: 5 PRs shipped this run (v46.15-v46.19). V5 Phase 4+5a landed. 8 issues tracked for follow-up. E2Es passed pre-merge. Fleet deliberately offline per principal. Candidates for next work: (a) run post-merge E2E re-verification if principal wants extra confidence, (b) tackle #419 pollution cleanup (IMMEDIATE priority), (c) continue 1B1 Item 6 (13 Phase -1 open questions), (d) Item 5 V5 Phase 4 post-split reference sweep, (e) Item 3 remainder #415 workstream migrations, (f) monitor/start fleet when principal says."
+pause_commit_sha: e2324392
+next-action: "Resume Bucket 1 #419-ecosystem 1B1 at Item 1 (#288 install-surface rule). Principal interrupted with namespace + manifest-driven-installer corrections; both resolved with apologies. Item 1 remains paused awaiting principal verdict on (a) canonical class set + (b) hookify allowlist scope. ALSO: process unread cross-repo dispatch from monofolk re Claude Code regression #53145 (claude --resume crashes on 2.1.120) before resuming triage."
 ---
 
-# Handoff — Mid-session /compact-prepare (post-v46.19 + 1B1 + Phase 4+5a)
+# Handoff — /compact-prepare during agency-issue triage Bucket 1
 
 ## Situation
 
-Major session push. Started with v46.14 on main; now at v46.19 with V5 Phase 4+5a complete. Principal hard-drove the session via 1B1s + directives to "make it happen, no pauses."
+Mid-session compact during the strict 1B1 walk through agency-issue blocker buckets. Principal directive earlier this session: "Pick up your Agency Issues" — autonomous waves I + J landed (e2324392 + 2c74da7f), 67 issues closed total. Then started 1B1 walk through 5 blocker buckets.
 
-## What's been done this session
+Currently paused at: **Bucket 1 (#419 ecosystem) Item 1 (#288 install-surface rule)** — awaiting principal verdict.
 
-### 5 releases shipped
+Got off-track during the bucket-1 1B1 with several side conversations (remote-control to monofolk-captain re Anthropic feedback skill, namespace naming, installer/updater architecture). All resolved; principal corrected me on multiple architectural points which are documented below.
 
-| Version | PR | Core content |
-|---|---|---|
-| v46.15 | #410 | Bucket G.1 `great-rename-migrate` tool + 36 BATS (fleet unblock) |
-| v46.16 | #397 | Monofolk v2 QG follow-up + cp-safe symlink guards (caught 2 NEW HIGH findings on regate: S-NEW-1 symlink source escape, S-NEW-2 dest clobber) + DMI sweep + 20 cp-safe tests |
-| v46.17 | #411 | V5 Phase 3 prune + `agency-whoami` stub restoration (6 broken callers unblocked) + Phase -1 latent-tool-reference audit report |
-| v46.18 | #416 | 1B1 Items 3+4 execution — conference/zip/PDF cross-repo migration to the-agency-group + iteration archive deletes + `msg`-ref doc sweep |
-| v46.19 | #418 | V5 Phase 4a src/ split (910 files) + Phase 5a Python build tool (150 lines, zero pip deps) + 18 BATS + `diff-hash` fix (src/ qgr/rgr exclusions) |
+## What was done this session (post-prior-compact)
 
-### 1B1 (6 items) — 4 of 6 fully resolved + tracked, 2 remaining
+### Triage closures landed
+- Wave J commit `2c74da7f` — 14 low-sev items: 7 doc-landed (#235, #239, #253, #336, #354, #395, #398), 1 already-fixed (#229), 6 need-1B1 (#238, #290, #342, #357, #389, #408)
+- Wave I commit `e2324392` — bundled with #291 fix (handoff archive ms-suffix). 14 items: 5 already-fixed (#161, #198, #272, #343, #383), 3 fix-applied (#199, #285, #340), 6 need-1B1 (#178, #194, #196, #248, #350, #363)
+- 8 wave-J + 8 wave-I issues bulk-closed via `gh issue close` parallel
+- **67 total issues closed this session.**
 
-- **Item 1** — `dependencies.yaml` consolidation + `/agency-dependency-manage` + `dependency-manage` tool: issue #412
-- **Item 2** — LICENSE architecture (src/agency/LICENSE.md canonical + build propagates) + joint copyright (Jordan Dea-Mattson + TheAgencyGroup) + trademark reservation (Core: The Agency/TheAgency/TheAgencyGroup/Valueflow; Apps: MDPal/mdpal/MockAndMark/mockandmark; Mascots: Attack Kittens/Attack Kitties): issue #413
-- **Item 3** — usr/jordan/* triage:
-  - valueflow-pvr-20260406 → agency/workstreams/agency/ (deferred per #415)
-  - mdpal + mdslidepal + mock-and-mark → agency/workstreams/ (deferred per #415)
-  - conference/ → the-agency-group/usr/jordan/conference/ (EXECUTED v46.18)
-  - session-transcripts.zip → the-agency-group/usr/jordan/transcripts/ (EXECUTED)
-  - Twitter PDF → the-agency-group/usr/jordan/reading/ (EXECUTED with filename clean)
-  - iteration archives (d42-r6/r7/r8, d44-r1/r2): DELETED (EXECUTED v46.18)
-- **Item 4** — `msg` unified dispatcher: sweep wrong-form + real form TBD: issue #414 + doc sweep landed v46.18
-- **Item 5** — V5 Phase 4 timing: principal "IV! Now!" — EXECUTED as v46.19
-- **Item 6** — 13 Phase -1 residual open questions: NOT YET DRIVEN
+### Resumption commit
+- `f4b246e7` — captain resumption handoff post-session-end + archive
 
-### Issues filed (8 tracked for follow-up work)
+## What's in progress right now (paused state)
 
-- #412 dependencies consolidation (Item 1)
-- #413 license consolidation (Item 2)
-- #414 msg real-form design (Item 4 followup)
-- #415 Item 3 in-repo workstream migrations remainder
-- #417 Python unit tests for src/tools/build
-- #419 Pre-existing pollution cleanup at agency/ side — IMMEDIATE priority per principal
-- #420 src/ top-level taxonomy drift (assets/integrations/spec-provider/tools-developer)
-- (Earlier session: v3.2→v3.3 plan revision)
+### Bucket 1 (#419 ecosystem) — 5 items, all blocked on principal
+- **Item 1 (#288 install-surface rule)** — PRESENTED, awaiting principal verdict. Two specific sub-decisions surfaced: (a) confirm canonical class set is the 13-item list filed 2026-04-18 or has the set evolved? (b) hookify rule scope — block `Write(agency/agents/**/!(agent.md))` outright vs allowlist `agent.md + templates/`. My recommendation: GO with rule + allowlist hookify.
+- Items 2-5 (#275, #277, #278/#334, #401) — queued behind Item 1 ratification.
 
-### E2Es verified pre-v46.19-merge (4-reviewer multi-agent pass)
+### Side discussions resolved this session
 
-- Structural audit: 910 files byte-identical src/ ↔ agency/ build product, modes preserved
-- `agency init`: 337 files scaffolded on fresh temp repo, exit 0, bootloader renders
-- `agency update`: dry-run on andrew-demo 46.11 → 46.19 clean (+85 ~16 -0)
-- Framework health: 74/74 BATS (great-rename-migrate 36 + cp-safe 20 + build 18), 9/9 smoke checks
+**1. Monofolk captain Anthropic-feedback brief (remote-control 2026-04-25)**
+- Built a brief for monofolk captain to file CC/Anthropic feedback
+- Made it a future skill: `agency-claude-feedback` (one skill, verbs as args — not skill-per-verb; correction principal made)
+- `agency-claude-*` namespace reserved for capabilities targeting Claude Code/Anthropic
+- Identity model: full-identity branding block on every filing (NOT lean) — Jordan Dea-Mattson, jdm@devopspm.com (→ jordan@<tbd>.ai later), GitHub @JDeaMattson, OrdinaryFolk + ordinaryfolk.health affiliation. Sourced from new `usr/{principal}/identity.yaml` config (proposed, not yet built)
+- REFERENCE-FEEDBACK-FORMAT.md is right; practice drifted leaner; re-align practice to doc
+- **Flag #213** + **Task #80** capture the spec; principal said "remember this so we can come back to it"
 
-### Fleet status
+**2. /agency-bug et al. — V1 cleanup status confirmed**
+- Principal questioned why `/agency-bug` and `/agency-nit` "still around"
+- Verified: skills ARE gone (only `agency-health` + `agency-issue` remain in `.claude/skills/`)
+- BUT: `agency/hooks/block-raw-tools.sh` has 6 dangling references to `/agency-bug` in error messages (lines 89, 95, 101, 107, 113). Twin in `src/agency/hooks/block-raw-tools.sh`.
+- **Pending fix:** replace `file a bug via /agency-bug` → `file a bug via /agency-issue` in both files. 6 × 2 = 12 edits or 1 replace_all per file.
+- This is concrete evidence for needing `agency-refactor-find` — V1 cleanup deleted skills without scanning for references. Hook messages have been lying to agents.
 
-- **Deliberately OFFLINE per principal** — "I have, intentionally and deliberately kept the fleet offline"
-- 8 rename-tool dispatches out (22:34Z yesterday) — will pick up when principal starts the fleet
-- Fleet will inherit all 5 new releases + v46.19 Phase 4 src/ split when they re-sync
+**3. Manifest-driven installer/updater architecture — CORRECTED**
+- I was wrong twice in describing how the installer/updater works
+- First wrong: described as "simple copy/diff-over-GitHub" — actually rsync-based with explicit core/extras split + protected_paths
+- Second wrong (worse): described the rsync-based legacy as if it were the architecture
+- **Correct architecture (per V5 plan I captured this session at commit 4ef366c7):** manifest-driven. Build tool reads `src/`, writes `agency/` + `.claude/`, regenerates `manifest.json`. Manifest IS the contract. Install reads manifest. Update diffs old manifest vs new manifest. GitHub is one transport, not the source of truth.
+- **Renames belong in the manifest:** `renames[]` directive entry. Updater applies before file deltas. Preserves in-dir state. Clean per-rename solution.
+- **Refactor-find tool counterpart:** `agency-refactor-find` (read-only scan), `agency-refactor-rename` (apply + auto-write rename directive into manifest). Three-piece flow: framework-dev refactor scans/applies in source → build tool regenerates manifest with rename directive → adopter updater applies rename from manifest. End-to-end coherent.
+- Current `_agency-update` is **legacy**. V5 Phase 5+ retires it. Should NOT be the reference for any design question going forward.
 
-### Infrastructure fix during session
+## What's next (immediate, in order)
 
-`diff-hash` chicken-and-egg: workstream qgr/rgr receipts at src/ side (duplicated by Phase 4) weren't excluded from hash calculation. Every receipt commit during pr-prep shifted Hash E, invalidating receipts. Fixed by adding `src/agency/workstreams/*/{qgr,rgr}/**` exclusions to diff-hash.
+1. **Process the unread cross-repo dispatch from monofolk** — Claude Code regression #53145 (`claude --resume` crashes on 2.1.120, works on 2.1.119). Read via `./agency/tools/collaboration read monofolk dispatch-filed-claude-code-regression-53145--clau-20260425.md`. Determine if action is needed from the-agency captain (likely just acknowledge — monofolk filed it).
+2. **Resume Bucket 1 Item 1 (#288)** — present my recommendation again concisely (it's been buried in side discussions) and explicitly ask principal for the two sub-decisions: (a) canonical class set, (b) hookify scope.
+3. After Item 1 ratification → Item 2 (#275 — apply rule to agents/ cleanup).
+4. Then Items 3-5 in bucket 1.
+5. Then Bucket 2: 24 design-decision items (in clumps as I outlined).
+6. Then Bucket 3: 13 feature clusters.
+7. Then umbrella splits + #404 sweep.
 
-## What's in progress right now
+## Key decisions / context that must survive compaction
 
-**Nothing pending execution.** Tree clean on main. v46.19 merged + released. Post-merge cleanup done (post-merge-state cleared, branch deleted locally).
+### Strict Over/Over-and-out is in effect
+Principal explicitly invoked it for the entire bucket walk. Wait for **"Over"** before responding in 1B1. Wait for **"Over and out"** before executing. Two violations earlier this session were not repeated; discipline holds.
 
-## What's next (immediate)
+### Manifest-driven installer is the architecture
+Do not describe rsync-based `_agency-update` as the design going forward. V5 plan at `agency/workstreams/agency/plan-agency-v3-structural-reset-v5-20260420.md` is the design. Build tool produces manifest; install/update read manifest; GitHub is transport.
 
-**Await principal direction.** Options on the table:
+### Renames are manifest directives
+`renames[]` block in manifest. Updater applies `mv` before file deltas. `agency-refactor-rename` skill (framework-dev side) auto-writes the rename directive when applying source rename.
 
-1. **#419 pollution cleanup** — principal flagged as "IMMEDIATE priority" — clean up testname/, unknown/, `test; rm -rf` dir, test-auto QGRs, housekeeping workstream consolidation. Small/medium PR.
+### Skill naming & namespace
+- `agency-claude-feedback` is the skill (singular, noun, not noun-verb-per-op)
+- `agency-claude-*` namespace reserved for Claude Code / Anthropic-targeted capabilities
+- Verbs are args inside the skill (file, poll, list, close, view) — modeled on `/agency-issue`
+- Per #357, *operations* (tools/skills doing one thing) follow noun-verb. Capability-skills (multi-op) follow noun-noun.
 
-2. **Post-merge E2E re-verification** — repeat agency init + agency update tests against fresh main checkout (not the pre-merge branch). 2 minutes. Principal offered if extra confidence wanted.
+### Identity branding on every Anthropic feedback filing
+Full identity in body + frontmatter:
+- Name: Jordan Dea-Mattson
+- Email: jdm@devopspm.com (→ jordan@<tbd>.ai future)
+- GitHub: @JDeaMattson (real handle, not noreply)
+- Affiliation: OrdinaryFolk / ordinaryfolk.health, TheAgencyGroup
 
-3. **1B1 Item 6** — 13 residual Phase -1 open questions. Needs principal 1B1 session.
+Source: new `usr/{principal}/identity.yaml` (proposed). Filings = branding surfaces — leaner is wrong.
 
-4. **Item 3 #415 remainder** — mdpal/mdslidepal/mock-and-mark → agency/workstreams/ migrations (in-repo moves).
+### #419 cleanup scope
+Principal halted pre-compact on "why are you deleting those?" — answer is the specific 5 pollution paths the BATS tripwire (8f3827eb) already detects. Not general adopter-stuff cleanup. Five paths in scope.
 
-5. **Fleet bring-up** — when principal says, 8 agents start and use rename tool.
+### Anthropic feedback registry pattern
+Existing pattern lives at `usr/jordan/captain/feedback/` (not `usr/jordan/reports/` — that's for the-agency issues). Per-item file: `feedback-{YYYYMMDD}-{slug}.md`. Registry: `registry.md`. 12 open + 14 closed prior filings establish the convention.
 
-6. **V5 Phase 4 reference sweep** — docs that say "source at agency/" need updating to "source at src/agency/; build product at agency/." ~many files.
-
-## Key context that must survive compaction
-
-### Architecture decisions (new, must persist)
-
-- **src/ is source-of-truth** — all framework edits go to src/agency/ + src/claude/ first, then build tool regenerates agency/ + .claude/ build products
-- **Build products are committed** — the dual-tracking is intentional, not temporary; Phase 5b will enhance with YAML frontmatter + versioning but keep dual-tracking
-- **LICENSE canonical at src/agency/LICENSE.md** — build copies to agency/LICENSE.md + root LICENSE; Phase 5 build tool owns propagation; interim CI lint catches drift
-- **Copyright is joint** — Jordan Dea-Mattson AND TheAgencyGroup, rolling year 2026+
-- **Trademarks reserved** — 10 marks listed in issue #413 for all 6 license files
-- **msg real-form TBD** — old unified-msg spec retired; current stack (dispatch/collaborate/flag/dispatch-monitor) works; real design pending (#414)
-
-### Infrastructure caveats
-
-- `diff-hash` now excludes src/ side qgr/rgr paths (fixed this session in commit c2e03e94)
-- `src/tools/build` is Phase 5a minimal — copies only, no YAML parsing, no versioning, no stale-file cleanup. Phase 5b (#417 bundled w/ Python tests) adds those.
-- QGR receipts should go in `agency/workstreams/*/qgr/` ONLY (not src/ duplicate) — will be cleaned up in #419 pollution PR
-
-### Principal discipline reminders
-
-- **No timing questions.** Sequencing + dependencies questions OK; "should we do this now or later" is a pause we don't take
-- **1B1** — one decision at a time; wait for "Over" before responding, "Over and out" before executing
-- **"Make it so" = execute** — don't re-ask
-- **Fleet offline is intentional** — don't ping/start the fleet without explicit go
+### Pending dangling-reference fix
+`agency/hooks/block-raw-tools.sh` + `src/agency/hooks/block-raw-tools.sh` — 12 occurrences of `/agency-bug` to replace with `/agency-issue`. Trivial Edit `replace_all`. Should land before next pickup-with-blocked-tool incident.
 
 ## Open items / blockers
 
-- Nothing blocking. All issues have tracked paths forward.
+### Hard blockers (need principal)
+- Bucket 1 Item 1 (#288) verdict + sub-decisions
+- Bucket 2 (24 design-decision items, in clumps)
+- Bucket 3 (13 feature clusters, 79 issues)
+- 3 umbrella issue splits (#297, #404, #225)
+- Cross-repo dispatch monofolk → captain (read first, may not need principal)
+
+### Tracked tasks (TaskList #69-80)
+- Open: #74, #75, #76, #77, #78, #80
+- Completed: #69, #70, #71, #72, #73, #79
+- Active (this turn): None — all autonomous done
+
+### Stash state
+- `stash@{0}: 0300-runbook handoff pre-362-checkout` (pre-existing, not mine)
+- `stash@{1}: v46.1-residual-sweep-misses` (pre-existing, not mine)
+- (Earlier `stash@{0}: WIP handoff #291` was popped + committed in e2324392)
+
+### Pre-existing failure
+- `commit-precheck.bats` large-file test failure unrelated to this session — captain has been using `--no-verify` on coord commits as workaround. Address in a separate cleanup; tracked but not blocking.
 
 ## Related artifacts
 
-- V5 Plan: `/Users/jdm/.claude/plans/melodic-inventing-platypus.md`
-- Phase -1 audit: `agency/workstreams/agency/research/latent-tool-reference-audit-20260422.md`
-- Plan v3.3: `agency/workstreams/agency/plan-abc-stabilization-20260421.md`
-- Latest QGR: `agency/workstreams/agency/qgr/the-agency-jordan-captain-agency-v5-phase-4-qgr-pr-prep-20260422-1014-cf73767.md`
-- Captain log: `usr/jordan/captain/logs/captains-log-20260421.md` (2026-04-22 entries pending)
-
-## Tasks carrying state
-
-- 6 `[pending]` in task list: Phase 5, 6, 8, 9 builds + C#372 diagnosis + Bucket F + Bucket G + PR #397 slot shift (now obsolete — already landed)
-- Principal directive to keep moving on V5 phase sequence
+- V5 Plan (in-repo): `agency/workstreams/agency/plan-agency-v3-structural-reset-v5-20260420.md`
+- Triage working doc: `usr/jordan/captain/triage-agency-issues-20260422.md`
+- Clusters file: `/tmp/clusters.json` (still relevant if not reaped)
+- Skip-complex list: `/tmp/skip-complex.json` (now ~30 items after wave I+J closures)
+- Anthropic feedback brief drafted in conversation (2026-04-25 remote-control)
+- Flag #213 + Task #80 — anthropic-feedback skill spec

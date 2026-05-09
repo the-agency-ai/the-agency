@@ -173,3 +173,91 @@ Three documents evolve together:
 The flow: **Requirements -> A&D + Plan (evolving together) -> Reference**
 
 All three are living documents during active work. Update architecture decisions as you learn — don't wait until the end.
+
+---
+
+## Branch Naming — D-counter and Rename Methodology
+
+### D-counter (principal-PR-days)
+
+Branch names that reference a "D" counter (e.g., `release/D45-R1`, `release/D45-R3`) use **principal-PR-days**, not workdays and not calendar days.
+
+**Definition:** `D = count of distinct dates on which the principal has opened a PR to this repo`, counted from the principal's first PR onward. "D45" = the 45th day on which Jordan opened a PR to `the-agency-ai/the-agency`.
+
+**Why this definition:**
+- Calendar days punish weekends / vacations / multi-repo work.
+- Workdays require timesheet-level bookkeeping and don't reflect actual contribution.
+- Principal-PR-days are self-counting (GitHub already knows) and reflect *engagement* — the signal we actually care about.
+
+**How to compute (approximate):**
+```bash
+gh pr list --state all --author <gh-username> --repo the-agency-ai/the-agency \
+  --json createdAt --limit 1000 | jq '[.[].createdAt[0:10]] | unique | length'
+```
+
+Use the unique-date count as D for branches created today. Do **not** rename historical branches to "correct" a prior miscount — historical names are fixed. Going forward, branches use the PR-day count.
+
+**Future tool (flagged):** `agency/tools/day-count` that emits the current D for a given principal + repo. Not yet built; compute manually via the `gh` + `jq` one-liner above until the tool lands.
+
+### The Great Rename — v1/v2/v3 Retirement Rule
+
+A **Great Rename** is a structural rename that touches the entire framework (e.g., `claude/` → `agency/`). During a Rename, every tool that matches the search pattern is re-located or re-classified. This is the natural moment to apply the v1/v2/v3 retirement rule:
+
+**Rule:** When the NEXT version of a tool / pattern / convention is already being built, the CURRENT version is dead. Don't migrate v1 during a structural Rename — retire it. Aggressive deprecation is the right posture.
+
+**Three patterns used during the 2026-04-21 monofolk Phase 1 Rename (see #398):**
+
+| Pattern | What | Example | Decision |
+|---|---|---|---|
+| **A — Retire duplicate aliases** | Multiple files with identical content | `hello`, `hi`, `welcomeback` (three copies of session-start prompt) | Kill all three. Cleanup is easier during Rename than after. |
+| **B — Retire dead v1 tools** | Tool tracked for replacement, v2/v3 being built | `myclaude` (Agency-1.0 launcher; v2 launcher in progress) | "Kill it. It's dead. V1 and we are on v2 and v3 is being built." |
+| **C — Reclassify on workflow-alignment** | Initially mis-classified by captain | `nit-add`, `findings-consolidate` (proposed framework-dev, actually customer runtime during QG) | Reclassify via 1B1 review. |
+
+**Classification cascade for Rename events:**
+
+1. **Classify against upstream authoritative placement** — for every tool that also exists upstream, copy upstream's classification. Mechanical.
+2. **Captain-propose classification for unique tools** — for tools that exist downstream but not upstream, propose `customer` (appears in adopter workflows), `framework-dev` (QG/review/provisioning), or `captain-personal` (principal sandbox).
+3. **Principal 1B1 ratification** — principal reviews captain's proposals. Exercises Patterns A/B/C. The critical step.
+
+**When a Rename is in flight, roll unrelated cleanup into it.** You are already touching every file; the marginal cost of retiring aliases + dead v1 tools is near zero, and the cleanup-debt saved is real.
+
+---
+
+## Naming Convention — Noun-Verb for Skills, Tools, Commands
+
+Framework convention: **noun-verb**, not verb-noun.
+
+| Noun-verb (correct) | Verb-noun (wrong) | Why noun-verb wins |
+|---|---|---|
+| `git-safe` | `safe-git` | Groups all `git-*` tools under one autocomplete prefix |
+| `agent-create` | `create-agent` | `/agent` tab-completes to find every agent-related skill |
+| `session-end` | `end-session` | `/session` surfaces every session-lifecycle skill |
+| `dispatch-create` | `create-dispatch` | All dispatch ops under one prefix |
+| `worktree-sync` | `sync-worktree` | Discoverability — `/worktree` tab-completes |
+
+### Rationale
+
+**Discoverability.** When an agent types `/session`, autocomplete surfaces every session-related skill. When a skill is named `end-session`, it only appears under `/end` — which is a useless prefix that clusters with `/end-game`, `/end-call`, etc. Verb-first naming fragments discovery.
+
+**Grouping.** Every `git-*` tool relates to git. Every `session-*` skill relates to the session lifecycle. Nouns are the stable organizing axis; verbs are interchangeable actions on a noun.
+
+**Mental model.** Agents think "I want to do X with Y" — the noun (Y) comes first in the search, the verb (X) last. `git-safe`, `git-push`, `git-captain` — pick the git tool, then the action.
+
+### Known violators (as of 2026-04-22)
+
+Framework (**rename candidates**):
+- `update-config` — Claude Code bundled skill (`~/.claude/skills/update-config/`). Framework inherits; we can override locally to `config-update`. Flagged for captain 1B1 — requires a local override shim + a decision on whether to fork the upstream skill.
+- `.claude/commands/*` — seven commands (see #290 cleanup); structurally parallel to skills. Decision needed on whether commands are being retired or migrated.
+
+Framework (**reviewed, acceptable**):
+- `run-in` — "in" is a preposition, not a verb-prefix; `run` is the noun (the command being run) rather than the verb.
+- `post-merge`, `pre-phase-review`, `review-pr` — `post-merge` and `pre-phase-review` are temporal scopes (pre/post are adverbs); `review-pr` is a legacy skill slated for renaming to `pr-review` when the pr-* family stabilizes (see #357 follow-up).
+- `sync-all` — legacy captain-sync; captain-sync-all is the v2 replacement. Retirement tracked under v2 rename (#398 pattern B).
+
+### Enforcement path (proposed, not yet landed)
+
+1. **`skill-create` tool check** — refuse to scaffold if proposed name matches `^(update|create|delete|install|remove|build|deploy|run|start|stop|add|get|set)-`. Mechanical block at creation time.
+2. **Hookify warn rule** — `hookify.skill-naming-noun-verb-warn.md` — inspect `skill_name` param on Skill tool invocation; warn on verb-prefix match. Blocks silent adoption of new violators.
+3. **Audit cadence** — run the violator check at each Rename event (v2 → v3 etc.). Retire or rename in batch.
+
+See #357 for the current state of this enforcement work.

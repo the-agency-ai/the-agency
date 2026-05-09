@@ -52,13 +52,70 @@ echo "Session Preflight"
 echo "─────────────────"
 
 # ── Check 1: Working tree clean ──────────────────────────────────────────
+# Issue #199: framework hooks themselves write to tracked and untracked
+# paths during SessionStart — the preflight's own callers are producing
+# dirty state. We filter known framework-owned churn patterns from the
+# dirty count so user-space dirt still fails, but framework-managed files
+# (tool-runs log, session-handoff writes, archived handoffs) don't.
+#
+# Paths filtered as framework-owned:
+#   - .claude/logs/                          (hook-generated logs)
+#   - agency/logs/                           (hook-generated logs, v46 location)
+#   - usr/*/captain/captain-handoff.md       (SessionStart handoff rewrite)
+#   - usr/*/captain/history/                 (archived handoffs, untracked)
+#   - usr/*/tool-runs.jsonl                  (tool-run log)
+#
+# Rationale (from issue #199): these are hook outputs the agent cannot
+# commit or stash sensibly without either polluting history with framework
+# churn or losing framework state. User can override the filter by setting
+# AGENCY_PREFLIGHT_STRICT_DIRTY=1 (all dirt fails).
 
-dirty_count=$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-if [[ "$dirty_count" -eq 0 ]]; then
-    report_pass "Working tree clean"
+_is_framework_owned() {
+    # Takes a `git status --porcelain` path (without status prefix), returns
+    # 0 if the path matches a framework-owned pattern, 1 otherwise.
+    local path="$1"
+    case "$path" in
+        .claude/logs/*)                         return 0 ;;
+        agency/logs/*)                          return 0 ;;
+        usr/*/captain/captain-handoff.md)       return 0 ;;
+        usr/*/captain/history/*)                return 0 ;;
+        usr/*/tool-runs.jsonl)                  return 0 ;;
+    esac
+    return 1
+}
+
+porcelain=$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null || true)
+total_count=0
+user_count=0
+framework_count=0
+
+if [[ -n "$porcelain" ]]; then
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        total_count=$((total_count + 1))
+        # Strip the 2-char status prefix + space to get the path
+        path="${line:3}"
+        # Rename/copy entries look like "R  old -> new"; take the new side.
+        if [[ "$path" == *" -> "* ]]; then
+            path="${path#*-> }"
+        fi
+        if [[ "${AGENCY_PREFLIGHT_STRICT_DIRTY:-0}" != "1" ]] && _is_framework_owned "$path"; then
+            framework_count=$((framework_count + 1))
+        else
+            user_count=$((user_count + 1))
+        fi
+    done <<< "$porcelain"
+fi
+
+if [[ "$user_count" -eq 0 ]]; then
+    if [[ "$framework_count" -gt 0 ]]; then
+        report_pass "Working tree clean (framework-owned churn: $framework_count file(s) filtered)"
+    else
+        report_pass "Working tree clean"
+    fi
 else
-    report_fail "Working tree dirty ($dirty_count files)" \
-        "Commit or stash changes: git status"
+    report_fail "Working tree dirty ($user_count user-space file(s); $framework_count framework-owned filtered)" \
+        "Commit or stash user-space changes: ./agency/tools/git-safe status"
 fi
 
 # ── Check 2: Worktree synced with main ───────────────────────────────────
@@ -112,12 +169,19 @@ else
         "Run: dispatch list, then dispatch read <id>"
 fi
 
-# ── Check 5: Dispatch monitor running ────────────────────────────────────
-# We can't directly detect Monitor tool tasks from bash.
-# Instead, we remind the agent to start it.
-
-report_warn "Dispatch monitor — verify it is running" \
-    "Run: /monitor-dispatches (if not already started this session)"
+# ── Check 5: Dispatch monitor reminder ───────────────────────────────────
+# Issue #201: Check 5 used to hard-code report_warn, so every preflight
+# reported "1 action" regardless of whether the monitor was already running.
+# That undermined trust in the check. We cannot directly detect Monitor
+# tool tasks from bash (they're harness-side), so the check is now
+# informational by default. Agents who want a real assertion can set
+# AGENCY_PREFLIGHT_MONITOR_STRICT=1 to force the warn behavior.
+if [[ "${AGENCY_PREFLIGHT_MONITOR_STRICT:-0}" == "1" ]]; then
+    report_warn "Dispatch monitor — verify it is running" \
+        "Run: /monitor-dispatches (if not already started this session)"
+else
+    [[ "$QUIET" == "false" ]] && echo "  ℹ  Dispatch monitor — start with /monitor-dispatches if not already running (informational)"
+fi
 
 # ── Summary ──────────────────────────────────────────────────────────────
 

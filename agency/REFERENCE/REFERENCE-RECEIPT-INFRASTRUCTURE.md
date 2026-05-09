@@ -93,10 +93,12 @@ For RGR methodology artifacts, hash the file content directly:
 
 **Hash match only. No time window.**
 
-Hash E in the receipt matches the current artifact on disk → valid.
+Hash E in the receipt matches the current artifact in the **committed state** (`git diff` against `diff_base`) → valid.
 Hash E does not match → stale, blocked.
 
 Time is irrelevant. The hash is the validity check.
+
+**Important:** "Committed state" means what `diff-hash` computes against `diff_base` — i.e., what is *committed* to the branch, not what is in the working tree. Unstaged or uncommitted changes in the working tree do NOT invalidate a receipt. The receipt tracks what has been reviewed + committed; dirty working tree is transient. DevEx Phase 2 verification (#331) confirmed this: `receipt-verify` runs `diff-hash` with the same `diff_base` recorded in the receipt and compares Hash E against the resulting diff hash of the committed content.
 
 ---
 

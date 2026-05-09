@@ -211,13 +211,53 @@ if type log_start &>/dev/null; then
 fi
 
 # --- Helper: archive existing handoff ---
+# Issue #291: multiple archives within the same second (e.g. several
+# session-compact invocations in a row, or archive+write in the same
+# tick) used identical timestamps and clobbered each other. We add a
+# sub-second suffix: milliseconds via python (stdlib only) with a
+# counter-based fallback. Result: "handoff-YYYYMMDD-HHMMSS-NNN.md".
+_archive_suffix() {
+    local ms=""
+    # Prefer python stdlib for millisecond precision — zero-pip and
+    # present on every dev machine per the Python 3.13 floor. Fall back
+    # to date +%N (GNU, fails on BSD/macOS) then a jittered random nibble.
+    if command -v python3 >/dev/null 2>&1; then
+        ms=$(python3 -c 'import time,sys; sys.stdout.write(f"{int((time.time()%1)*1000):03d}")' 2>/dev/null || echo "")
+    fi
+    if [[ -z "$ms" ]]; then
+        local ns
+        ns=$(date +%N 2>/dev/null || echo "")
+        if [[ -n "$ns" && "$ns" != "N" && "$ns" != *[!0-9]* ]]; then
+            ms=$(printf '%03d' "$((10#$ns / 1000000))" 2>/dev/null || echo "")
+        fi
+    fi
+    if [[ -z "$ms" ]]; then
+        # Final fallback: PID low bits + a counter incremented per-archive
+        _ARCHIVE_COUNTER=$(( ${_ARCHIVE_COUNTER:-0} + 1 ))
+        ms=$(printf '%03d' "$(( ($$ + _ARCHIVE_COUNTER) % 1000 ))")
+    fi
+    echo "$ms"
+}
+
 _do_archive() {
     if [ -f "$HANDOFF_PATH" ]; then
         local history_dir
         history_dir="$(dirname "$HANDOFF_PATH")/history"
         mkdir -p "$history_dir"
-        local archive_name="handoff-$(date '+%Y%m%d-%H%M%S').md"
+        local suffix
+        suffix=$(_archive_suffix)
+        local archive_name="handoff-$(date '+%Y%m%d-%H%M%S')-${suffix}.md"
+        # Extra safety: if the name somehow collides anyway, bump the
+        # counter-based fallback and retry once.
+        if [ -e "$history_dir/$archive_name" ]; then
+            _ARCHIVE_COUNTER=$(( ${_ARCHIVE_COUNTER:-0} + 1 ))
+            suffix=$(printf '%03d' "$(( ($$ + _ARCHIVE_COUNTER + RANDOM) % 1000 ))")
+            archive_name="handoff-$(date '+%Y%m%d-%H%M%S')-${suffix}.md"
+        fi
         cp "$HANDOFF_PATH" "$history_dir/$archive_name"
+        # Export so the `archive` subcommand (which computes its own
+        # ARCHIVE_NAME for reporting) stays in sync with what we wrote.
+        export LAST_ARCHIVE_NAME="$archive_name"
     fi
 }
 
@@ -338,7 +378,11 @@ case "$COMMAND" in
                 log_end "$RUN_ID" "success" 0 0 "read handoff"
             fi
         else
-            echo "No handoff found at ${HANDOFF_PATH##*/usr/}"
+            echo "No handoff found at ${HANDOFF_PATH##*/usr/}" >&2
+            echo "" >&2
+            echo "Hint: create one with:" >&2
+            echo "  $(basename "$0") write" >&2
+            echo "Path: $HANDOFF_PATH" >&2
             if [ -n "$RUN_ID" ]; then
                 log_end "$RUN_ID" "failure" 1 0 "no handoff found"
             fi
@@ -363,7 +407,10 @@ case "$COMMAND" in
         fi
 
         _do_archive
-        ARCHIVE_NAME="handoff-$(date '+%Y%m%d-%H%M%S').md"
+        # Issue #291: use the filename _do_archive actually wrote (exported
+        # as LAST_ARCHIVE_NAME) — the ms-suffix would otherwise drift
+        # between what's reported and what's on disk.
+        ARCHIVE_NAME="${LAST_ARCHIVE_NAME:-handoff-$(date '+%Y%m%d-%H%M%S').md}"
 
         if [ -n "$RUN_ID" ]; then
             log_end "$RUN_ID" "success" 0 0 "archived to history/"

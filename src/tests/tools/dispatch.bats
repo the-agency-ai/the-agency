@@ -19,7 +19,7 @@ setup() {
     iscp_test_isolation_setup
 
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
-    mkdir -p "$MOCK_REPO/agency/tools/lib" "$MOCK_REPO/claude/config"
+    mkdir -p "$MOCK_REPO/agency/tools/lib" "$MOCK_REPO/agency/config" "$MOCK_REPO/claude/config"
 
     for tool in dispatch dispatch-create agent-identity; do
         cp "$REPO_ROOT/agency/tools/$tool" "$MOCK_REPO/agency/tools/"
@@ -546,4 +546,78 @@ _create_dispatch() {
 
     [[ -L "$symlink" ]]
     [[ -f "$symlink" ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #167 — type alias: main-updated → master-updated
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch create: --type main-updated is aliased to master-updated" {
+    run "$DISPATCH" create \
+        --to "test-repo/testprincipal/captain" \
+        --subject "Alias smoke" \
+        --body "Alias content" \
+        --type main-updated
+    [ "$status" -eq 0 ]
+    # The DB record should carry canonical 'master-updated'
+    run sqlite3 "$ISCP_DB_PATH" "SELECT type FROM dispatches ORDER BY id DESC LIMIT 1;"
+    [ "$status" -eq 0 ]
+    [ "$output" = "master-updated" ]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #251 — --body-file validation and mutex with --body
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "dispatch create: --body and --body-file are mutually exclusive" {
+    local body_path="$BATS_TEST_TMPDIR/body.md"
+    echo "File content" > "$body_path"
+    run "$DISPATCH" create \
+        --to "test-repo/testprincipal/captain" \
+        --subject "Mutex test" \
+        --body "Inline body" \
+        --body-file "$body_path"
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "mutually exclusive" ]]
+}
+
+@test "dispatch create: --body-file empty file is rejected" {
+    local body_path="$BATS_TEST_TMPDIR/empty.md"
+    : > "$body_path"
+    run "$DISPATCH" create \
+        --to "test-repo/testprincipal/captain" \
+        --subject "Empty file test" \
+        --body-file "$body_path"
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ empty ]]
+}
+
+@test "dispatch create: --body-file whitespace-only is rejected" {
+    local body_path="$BATS_TEST_TMPDIR/whitespace.md"
+    printf "   \n\t\n  \n" > "$body_path"
+    run "$DISPATCH" create \
+        --to "test-repo/testprincipal/captain" \
+        --subject "Whitespace file test" \
+        --body-file "$body_path"
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ empty ]]
+}
+
+@test "dispatch create: --body-file not-found is rejected" {
+    run "$DISPATCH" create \
+        --to "test-repo/testprincipal/captain" \
+        --subject "Missing file test" \
+        --body-file "$BATS_TEST_TMPDIR/no-such-file.md"
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "not found" ]]
+}
+
+@test "dispatch create: --body-file with content is accepted" {
+    local body_path="$BATS_TEST_TMPDIR/ok.md"
+    echo "Valid content for dispatch" > "$body_path"
+    run "$DISPATCH" create \
+        --to "test-repo/testprincipal/captain" \
+        --subject "Body file ok" \
+        --body-file "$body_path"
+    [ "$status" -eq 0 ]
 }

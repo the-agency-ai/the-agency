@@ -26,6 +26,14 @@
 
 set -euo pipefail
 
+# Issue #254: fail loudly with a clear error when invoked outside a git repo.
+# Previously, `git diff` silently produced empty output, masking the real
+# failure. Exit 2 = precondition failure (distinct from exit 1 argparse errors).
+if ! git rev-parse --show-toplevel >/dev/null 2>&1; then
+    echo "Error: diff-hash must be run inside a git repository (cwd: $(pwd))" >&2
+    exit 2
+fi
+
 BASE="origin/main"
 FILE=""
 JSON=false

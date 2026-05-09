@@ -48,6 +48,8 @@ Subcommands (read-only):
 
 Subcommands (guarded write):
   add <file> [file...]         Stage explicit file paths (blocks -A, --all, ., wildcards)
+  add --files-from <path>      Stage from explicit newline-separated list (issue #388 —
+                               scales past argv limits; comments + blank lines OK)
   rm <file> [file...]          Remove files (also removes from index) — blocks wildcards/dirs
   merge-from-master            Merge main/master into current branch (clean tree required)
                                Pass --remote to merge origin/main instead of local main
@@ -116,15 +118,73 @@ cmd_blame() {
 cmd_add() {
     [[ $# -eq 0 ]] && die "git-safe add requires explicit file paths. Usage: git-safe add <file> [file...]"
 
+    # Issue #388: bulk sweeps with 100+ files hit argv limits. Support a
+    # --files-from <path> mode that reads an explicit file list from a file,
+    # keeping the per-path safety guards but scaling to thousands of paths.
+    # Each line is one path; blank lines and lines starting with '#' are
+    # skipped. Each path is still validated (no directories, no wildcards,
+    # no flag-like entries) before handing to git add.
+    if [[ "${1:-}" == "--files-from" ]]; then
+        local list_path="${2:-}"
+        [[ -z "$list_path" ]] && die "git-safe add --files-from requires a path"
+        [[ ! -f "$list_path" ]] && die "git-safe add --files-from: file not found: $list_path"
+        local -a files=()
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            # Skip blanks and comments
+            [[ -z "$line" ]] && continue
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+            # Validate each entry using the same guards as positional args
+            case "$line" in
+                -*) die "git-safe add --files-from: flag-like entry rejected: '$line'" ;;
+                .|./|..|../) die "git-safe add --files-from: path '$line' rejected." ;;
+                \*|\*\*) die "git-safe add --files-from: wildcard '$line' rejected." ;;
+            esac
+            if [[ -d "$line" ]]; then
+                die "git-safe add --files-from: directory '$line' rejected — list individual files."
+            fi
+            files+=("$line")
+        done < "$list_path"
+        [[ ${#files[@]} -eq 0 ]] && die "git-safe add --files-from: no files to stage in '$list_path'"
+        # Batch via xargs-style git call (argv safe up to ~100k entries)
+        git add -- "${files[@]}"
+        echo "${GREEN}Staged ${#files[@]} file(s) from:${NC} $list_path"
+        return 0
+    fi
+
+    # Issue #285: support --confirm flag for explicit directory staging.
+    # Default behavior still blocks bare directory paths (preserves the
+    # "no `git add .` accidents" invariant). With --confirm, directory
+    # paths are allowed but still gitignore-respected (git add honors
+    # .gitignore by default, so sensitive/ignored files stay out). Agent
+    # opts in explicitly per-invocation; no sticky mode.
+    local confirm=false
+    local -a paths=()
     for arg in "$@"; do
+        if [[ "$arg" == "--confirm" ]]; then
+            confirm=true
+            continue
+        fi
+        paths+=("$arg")
+    done
+
+    for arg in "${paths[@]}"; do
         # Block flags that stage everything
         case "$arg" in
-            -A|--all)
+            -A|--all|-u|--update)
+                # Issue #284: -u/--update silently re-stages all modified tracked
+                # files (including ones the agent didn't intend). Rejected loudly
+                # here rather than silently mis-staged as a filename.
                 die "git-safe add blocks '$arg' — specify explicit file paths instead."
+                ;;
+            -*)
+                # Reject any other flag-like argument — git-safe add only takes
+                # explicit file paths. Prevents silent mis-interpretation of
+                # filenames starting with '-' and catches typos like -p/-f/-n.
+                die "git-safe add blocks flag '$arg' — specify explicit file paths instead."
                 ;;
         esac
 
-        # Block bare directory paths and wildcards
+        # Block bare directory paths and wildcards (always — even with --confirm)
         if [[ "$arg" == "." || "$arg" == "./" || "$arg" == ".." || "$arg" == "../" ]]; then
             die "git-safe add blocks '$arg' — specify explicit file paths instead."
         fi
@@ -134,14 +194,24 @@ cmd_add() {
             die "git-safe add blocks '$arg' — specify explicit file paths instead."
         fi
 
-        # Block bare directory paths
+        # Block bare directory paths unless --confirm was passed
         if [[ -d "$arg" ]]; then
-            die "git-safe add blocks directory '$arg' — specify individual files within the directory."
+            if [[ "$confirm" == "true" ]]; then
+                # Directory adds with --confirm: still honor .gitignore (git's
+                # default), still reject empty directories (nothing to stage).
+                local found
+                found=$(git ls-files --others --exclude-standard --cached -- "$arg" 2>/dev/null | head -1)
+                if [[ -z "$found" ]]; then
+                    die "git-safe add --confirm '$arg': no files to stage (empty or fully gitignored)."
+                fi
+            else
+                die "git-safe add blocks directory '$arg' — specify individual files within the directory, or re-run with --confirm to stage the directory explicitly (git's .gitignore is honored)."
+            fi
         fi
     done
 
-    git add "$@"
-    echo "${GREEN}Staged:${NC} $*"
+    git add -- "${paths[@]}"
+    echo "${GREEN}Staged:${NC} ${paths[*]}"
 }
 
 # --- Subcommand: rm ---

@@ -35,12 +35,29 @@ die() { echo "${RED}[ERROR]${NC} $1" >&2; exit 1; }
 
 # Detect main branch name
 detect_main_branch() {
+    # Issue #268: fall back to origin/HEAD or origin/{main,master} when the
+    # local main/master branch is missing — otherwise recovery breaks exactly
+    # when it's needed (local main deleted but origin still has it).
     if git show-ref --verify refs/heads/main &>/dev/null; then
         echo "main"
     elif git show-ref --verify refs/heads/master &>/dev/null; then
         echo "master"
+    elif git show-ref --verify refs/remotes/origin/HEAD &>/dev/null; then
+        # origin/HEAD is a symbolic ref pointing at the default remote branch
+        # (e.g., refs/remotes/origin/main). Strip the "origin/" prefix.
+        local ref
+        ref=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|^refs/remotes/origin/||')
+        if [[ -n "$ref" ]]; then
+            echo "$ref"
+            return 0
+        fi
+        die "Cannot resolve origin/HEAD symbolic ref."
+    elif git show-ref --verify refs/remotes/origin/main &>/dev/null; then
+        echo "main"
+    elif git show-ref --verify refs/remotes/origin/master &>/dev/null; then
+        echo "master"
     else
-        die "Cannot find main or master branch."
+        die "Cannot find main or master branch (checked local + origin/HEAD + origin/{main,master})."
     fi
 }
 

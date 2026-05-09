@@ -117,6 +117,42 @@ Each layer addresses the bypass discovered in the previous layer. Gate on artifa
 
 The Ladder (progression) is distinct from the **Enforcement Triangle** (structure: tool + skill + hookify). A capability at step 5 has all three Triangle parts; a capability at step 1 has only docs. The Triangle is what each capability looks like when fully built; the Ladder is how it gets there.
 
+### Telemetry-Driven Tool Discovery
+
+**The Bash tool log is a list of the tools we haven't built yet.**
+
+Every compound bash command an agent writes (`cd foo && bar && cd -`) is a request for a tool that doesn't yet exist. The agent is papering over a missing primitive with shell plumbing. The friction is legible; the telemetry log sees it.
+
+TheAgency mines its own telemetry to choose what tool to build next. The loop:
+
+```
+1. Agent writes a compound / hackaround bash command.
+2. Telemetry records the attempt and the pattern (.claude/logs/tool-runs.jsonl).
+3. A scanner mines the log for high-frequency compound patterns.
+4. For each pattern: does a tool already exist?
+   - Yes: discovery problem (improve skill / CLAUDE.md pointer).
+   - No:  build a purpose-built tool.
+5. A hookify rule blocks the hackaround pattern, pointing to the new tool.
+6. Agent uses the new tool. Telemetry records it cleanly.
+7. Observe the next high-frequency pattern. Repeat.
+```
+
+The framework pattern: **Friction → Telemetry → Tool → Block → Flow.** Five steps, each observable, each with a primitive already in the framework:
+
+| Step | Primitive |
+|------|-----------|
+| Friction | Raw Bash tool call attempt |
+| Telemetry | `log_start` / `log_end` in every Agency tool + `bash` event hook |
+| Tool | `agency/tools/{tool}` with the Triangle |
+| Block | `agency/hookify/hookify.block-{pattern}.md` |
+| Flow | The new primitive is used; telemetry confirms the pattern has stopped |
+
+**Why this is a first-class claim, not a tactic.** Most frameworks evolve by intuition — someone notices a pain point and builds a tool. The telemetry-driven loop inverts the causality: the *data* chooses the tools. The human's job shifts from *spotting* friction to *interpreting* the friction the data already surfaces. Every framework has a telemetry-shaped shadow of the tools it's missing; most never look at it. TheAgency ships that mining as a built-in.
+
+First tool built under this discipline: `agency/tools/run-in` (replaces the `cd foo && bar` compound pattern). First block: `agency/hookify/hookify.block-compound-bash.md`.
+
+Full seed: `agency/workstreams/agency/history/flotsam/legacy-agency-workstream-20260420/seeds/seed-telemetry-driven-tool-discovery-20260409.md`.
+
 ### Captain
 
 Captain is the coordination backbone. Always-on by design — first up, last down. If any agent is running, captain is running.

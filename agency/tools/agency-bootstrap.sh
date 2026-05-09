@@ -21,7 +21,9 @@
 #   curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/tools/agency-bootstrap.sh | bash
 #
 #   # With args (pass extras after --):
-#   curl -sL https://.../agency-bootstrap.sh | bash -s -- --principal alex --project myapp
+#   #   Replace YOUR_NAME and YOUR_PROJECT with your own values — these are
+#   #   placeholders, not real examples to copy-paste (issue #286).
+#   curl -sL https://.../agency-bootstrap.sh | bash -s -- --principal YOUR_NAME --project YOUR_PROJECT
 #
 #   # Local (from a cloned copy of the-agency):
 #   ./agency/tools/agency-bootstrap.sh
@@ -40,8 +42,10 @@ agency-bootstrap.sh — One-liner bootstrap for bare repos
 
 Usage:
   curl -sL https://raw.githubusercontent.com/the-agency-ai/the-agency/main/agency/tools/agency-bootstrap.sh | bash
-  curl -sL .../agency-bootstrap.sh | bash -s -- --principal alex --project myapp
+  curl -sL .../agency-bootstrap.sh | bash -s -- --principal YOUR_NAME --project YOUR_PROJECT
   ./agency/tools/agency-bootstrap.sh [agency init args...]
+
+  (YOUR_NAME and YOUR_PROJECT are placeholders — substitute your own values.)
 
 Accepts all flags that `agency init --from-github` accepts. The --from-github
 flag is added automatically (you don't need to pass it).
