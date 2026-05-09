@@ -44,7 +44,7 @@ seed_branch() {
     run bash "$TOOL" --version
     [ "$status" -eq 0 ]
     [[ "$output" == great-rename-migrate\ * ]]
-    [[ "$output" == *"1.1.0"* ]]
+    [[ "$output" == *"1.2.0"* ]]
 }
 
 @test "great-rename-migrate: --help explains purpose + defaults" {
@@ -494,11 +494,11 @@ EOF
     [[ "$output" == *"failure"* ]]
 }
 
-@test "great-rename-migrate: version string matches 1.1.0 convention" {
+@test "great-rename-migrate: version string matches 1.2.0 convention" {
     run bash "$TOOL" --version
     [ "$status" -eq 0 ]
-    # Strict match: 'great-rename-migrate 1.1.0' (no bucket/date suffix)
-    [ "$output" = "great-rename-migrate 1.1.0" ]
+    # Strict match: 'great-rename-migrate 1.2.0' (no bucket/date suffix)
+    [ "$output" = "great-rename-migrate 1.2.0" ]
 }
 
 # --- v1.1.0 DEFAULT-MAP ADDITIONS (Wave 2 — v46.1 src/ split) ---
@@ -574,4 +574,182 @@ EOF
     [[ -f "src/spec-provider/starter-packs/bar/file" ]]
     # Negative: apps/ rule must NOT have eaten the starter-packs/ files
     [[ ! -f "src/apps/starter-packs/bar/file" ]]
+}
+
+# --- v1.2.0 DEFAULT-MAP ADDITIONS (Wave 3 — V5 Phase 4 src/ split) ---
+#
+# Filed: 2026-05-09. mdpal-cli dispatch #869: ran v1.1 cleanly (1205 files)
+# but worktree-sync produced 618 conflicts because main has had a third
+# rename wave since v1.1 shipped. v1.2 adds wave-3:
+#   - agency/{workstreams,principals,REFERENCE}/ → src/agency/{...}/
+#   - agency/workstreams/the-agency/ → agency/workstreams/agency/ (renamed)
+# Map covers BOTH input states: never-migrated branches (claude/-prefixed,
+# composed transform in one pass) AND v1.1-applied branches (agency/-prefixed,
+# wave-3 incremental). Longest-prefix-first sort routes correctly.
+
+@test "great-rename-migrate v1.2: agency/workstreams/the-agency/ → src/agency/workstreams/agency/ (composed: V5 + workstream-rename)" {
+    mkdir -p agency/workstreams/the-agency/research
+    echo "txt" > agency/workstreams/the-agency/research/note.md
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ ! -f "agency/workstreams/the-agency/research/note.md" ]]
+    [[ -f "src/agency/workstreams/agency/research/note.md" ]]
+}
+
+@test "great-rename-migrate v1.2: agency/workstreams/{other}/ → src/agency/workstreams/{other}/ (V5 only)" {
+    mkdir -p agency/workstreams/mdpal/seeds
+    echo "seed-text" > agency/workstreams/mdpal/seeds/foo.md
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ -f "src/agency/workstreams/mdpal/seeds/foo.md" ]]
+    # Negative: must not have applied the the-agency-special-case rename
+    [[ ! -f "src/agency/workstreams/agency/seeds/foo.md" ]]
+}
+
+@test "great-rename-migrate v1.2: agency/principals/ → src/agency/principals/ (V5)" {
+    mkdir -p agency/principals/jordan
+    echo "id" > agency/principals/jordan/identity.yaml
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ -f "src/agency/principals/jordan/identity.yaml" ]]
+}
+
+@test "great-rename-migrate v1.2: agency/REFERENCE/ → src/agency/REFERENCE/ (V5)" {
+    mkdir -p agency/REFERENCE
+    echo "ref" > agency/REFERENCE/REFERENCE-EXAMPLE.md
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ -f "src/agency/REFERENCE/REFERENCE-EXAMPLE.md" ]]
+}
+
+@test "great-rename-migrate v1.2: agency/starter-packs/ → src/spec-provider/starter-packs/ (Wave 2c incremental)" {
+    mkdir -p agency/starter-packs/nest-prototype
+    echo "yaml" > agency/starter-packs/nest-prototype/manifest.yaml
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ -f "src/spec-provider/starter-packs/nest-prototype/manifest.yaml" ]]
+}
+
+@test "great-rename-migrate v1.2: claude/workstreams/the-agency/ → src/agency/workstreams/agency/ (composed one-pass for never-migrated)" {
+    mkdir -p claude/workstreams/the-agency/research
+    echo "x" > claude/workstreams/the-agency/research/note.md
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ -f "src/agency/workstreams/agency/research/note.md" ]]
+    # Negative: must not have stopped at the agency/ intermediate
+    [[ ! -f "agency/workstreams/the-agency/research/note.md" ]]
+    [[ ! -f "agency/workstreams/agency/research/note.md" ]]
+}
+
+@test "great-rename-migrate v1.2: claude/workstreams/{other}/ → src/agency/workstreams/{other}/ (composed for never-migrated)" {
+    mkdir -p claude/workstreams/mdpal
+    echo "y" > claude/workstreams/mdpal/note.md
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ -f "src/agency/workstreams/mdpal/note.md" ]]
+}
+
+@test "great-rename-migrate v1.2: claude/principals/ → src/agency/principals/ (composed)" {
+    mkdir -p claude/principals/jordan
+    echo "p" > claude/principals/jordan/file
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ -f "src/agency/principals/jordan/file" ]]
+}
+
+@test "great-rename-migrate v1.2: claude/REFERENCE/ → src/agency/REFERENCE/ (composed)" {
+    mkdir -p claude/REFERENCE
+    echo "r" > claude/REFERENCE/REFERENCE-X.md
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ -f "src/agency/REFERENCE/REFERENCE-X.md" ]]
+}
+
+@test "great-rename-migrate v1.2: claude/ catch-all (non-V5-moved) still goes to agency/" {
+    # claude/tools/, claude/agents/, etc. are NOT in the V5 split — they
+    # remain at agency/ (build-output view). The catch-all wave-1 rule
+    # must still apply.
+    mkdir -p claude/tools claude/agents/captain
+    echo "t" > claude/tools/some-tool
+    echo "a" > claude/agents/captain/agent.md
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ -f "agency/tools/some-tool" ]]
+    [[ -f "agency/agents/captain/agent.md" ]]
+}
+
+@test "great-rename-migrate v1.2: composed mdpal-cli scenario — never-migrated branch with all-waves files in one pass" {
+    # Realistic fixture mirroring mdpal-cli's pre-rename state at v45.2
+    mkdir -p \
+        claude/tools \
+        claude/agents/captain \
+        claude/workstreams/the-agency/research \
+        claude/workstreams/mdpal-cli/seeds \
+        claude/principals/jordan \
+        claude/REFERENCE \
+        claude/starter-packs/nest \
+        tests/tools \
+        apps/mdpal-cli/Sources
+    echo "1" > claude/tools/foo
+    echo "2" > claude/agents/captain/agent.md
+    echo "3" > claude/workstreams/the-agency/research/x.md
+    echo "4" > claude/workstreams/mdpal-cli/seeds/seed.md
+    echo "5" > claude/principals/jordan/identity.yaml
+    echo "6" > claude/REFERENCE/REFERENCE-Y.md
+    echo "7" > claude/starter-packs/nest/manifest.yaml
+    echo "8" > tests/tools/x.bats
+    echo "9" > apps/mdpal-cli/Sources/Foo.swift
+    git add -A
+    git commit -q -m "seed"
+    git checkout -q -b feature
+    run bash "$TOOL" --apply
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"9 file(s)"* ]]
+    # Wave 1 catch-all
+    [[ -f "agency/tools/foo" ]]
+    [[ -f "agency/agents/captain/agent.md" ]]
+    # Wave 1 (tests)
+    [[ -f "src/tests/tools/x.bats" ]]
+    # Wave 2 (apps)
+    [[ -f "src/apps/mdpal-cli/Sources/Foo.swift" ]]
+    # Wave 2b (claude/starter-packs/ direct → src/spec-provider/)
+    [[ -f "src/spec-provider/starter-packs/nest/manifest.yaml" ]]
+    # Wave 3 composed (workstream-rename + V5)
+    [[ -f "src/agency/workstreams/agency/research/x.md" ]]
+    # Wave 3 composed (V5 only for non-the-agency workstream)
+    [[ -f "src/agency/workstreams/mdpal-cli/seeds/seed.md" ]]
+    # Wave 3 composed (principals)
+    [[ -f "src/agency/principals/jordan/identity.yaml" ]]
+    # Wave 3 composed (REFERENCE)
+    [[ -f "src/agency/REFERENCE/REFERENCE-Y.md" ]]
 }

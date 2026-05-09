@@ -13,12 +13,16 @@
 # How & Why: Read a built-in rename map covering each shipped rename wave
 # (Wave 1 = Great Rename: claude/ → agency/, tests/ → src/tests/;
 # Wave 2 = v46.1 src/ split: apps/ → src/apps/,
-# starter-packs/ → src/spec-provider/starter-packs/). Walk git-tracked files.
-# For each file whose path starts with an old prefix, `git mv` it to the new
-# prefix. Preserves history. Dry-run by default. Agent reviews plan, then
-# re-runs with --apply. Only handles PATH migration — inline text references
-# (e.g., `./claude/tools/X` inside a script) require a separate pass (see
-# companion tool / dispatch mapping).
+# starter-packs/ → src/spec-provider/starter-packs/;
+# Wave 3 = V5 Phase 4 src/ split: agency/{workstreams,principals,REFERENCE}/
+# → src/agency/{workstreams,principals,REFERENCE}/, with workstream
+# 'the-agency' renamed to 'agency'). Walk git-tracked files. For each file
+# whose path starts with an old prefix, `git mv` it to the new prefix.
+# Preserves history. Dry-run by default. Agent reviews plan, then re-runs
+# with --apply. Map covers both input states (never-migrated and
+# v1.1-applied) so one pass handles either case. Only handles PATH
+# migration — inline text references (e.g., `./claude/tools/X` inside a
+# script) require a separate pass (see companion tool / dispatch mapping).
 #
 # Note on git-safe bypass: This tool calls `git mv` directly (not
 # `git-safe mv`) because it *is* the safety layer — each rename is
@@ -27,15 +31,23 @@
 # every move through `git-safe mv` would double-validate for no gain.
 #
 # Written: 2026-04-21 for Bucket G.1 fleet-unblock deadline.
-# Updated: 2026-05-09 — extend default map with v46.1 prefix moves
+# Updated: 2026-05-09 — v1.1.0: extend default map with v46.1 prefix moves
 #          (apps/ → src/apps/, starter-packs/ → src/spec-provider/starter-packs/).
 #          Both mdpal-app (#866) and mdpal-cli (#865) hit the gap simultaneously;
 #          other pre-Phase-4 worktrees (designex, devex, iscp) would too.
-# Version: 1.1.0 (provenance: 20260509-mdpal-unblock)
+# Updated: 2026-05-09 — v1.2.0: extend default map with V5 Phase 4 src/ split
+#          entries (workstreams, principals, REFERENCE moved to src/agency/;
+#          workstream 'the-agency' renamed to 'agency'). Per dispatch #869:
+#          mdpal-cli ran v1.1 cleanly but worktree-sync produced 618 conflicts
+#          because v1.1 was waves 1+2 only. v1.2 adds wave-3. Map now covers
+#          BOTH input states: never-migrated branches (claude/-prefixed) AND
+#          v1.1-applied branches (agency/-prefixed). Longest-prefix-first sort
+#          routes each file to the right composed transform in one pass.
+# Version: 1.2.0 (provenance: 20260509-mdpal-wave3)
 #
 set -euo pipefail
 
-TOOL_VERSION="1.1.0"
+TOOL_VERSION="1.2.0"
 SCRIPT_NAME="great-rename-migrate"
 
 # ANSI colors
@@ -50,13 +62,43 @@ NC="\033[0m"
 # Order in this array does not matter functionally — the loader sorts entries
 # by old-prefix length DESCENDING at runtime so longer prefixes match first.
 # Order is grouped by rename wave for human readability.
+#
+# Composability: the map covers BOTH input states. A never-migrated branch
+# (claude/-prefixed paths) gets the FULL composed transform in one pass —
+# wave-3 entries with the claude/ prefix include the V5 split. A
+# v1.1-already-applied branch (agency/-prefixed paths) gets only the
+# wave-3 incremental — the agency/-prefixed entries below match those.
+# Longest-prefix-first sorting at runtime routes each file correctly.
 DEFAULT_MAP=(
-    # Wave 1 — Great Rename (v46.0 framework reorg):
+    # Wave 1 — Great Rename (v46.0 framework reorg).
+    # Catch-all for non-V5-moved subdirs (tools/, agents/, config/, etc.):
     "claude/ agency/"
     "tests/ src/tests/"
+
     # Wave 2 — v46.1 src/ split (apps + spec-provider relocation):
     "starter-packs/ src/spec-provider/starter-packs/"
     "apps/ src/apps/"
+    # Wave 2b — composed: claude/starter-packs/ direct (longer prefix wins
+    # over claude/, sends never-migrated branches straight to spec-provider):
+    "claude/starter-packs/ src/spec-provider/starter-packs/"
+    # Wave 2c — incremental: agency/starter-packs/ for v1.1-applied branches:
+    "agency/starter-packs/ src/spec-provider/starter-packs/"
+
+    # Wave 3 — V5 Phase 4 src/ split (added 2026-05-09 per dispatch #869).
+    # Selected agency/ subdirs moved under src/agency/ as canonical source;
+    # agency/ retains a build-output mirror that gets regenerated. Workstream
+    # 'the-agency' was renamed to 'agency' in the same wave.
+    #
+    # For never-migrated branches (composed: claude/ → agency/ → src/agency/):
+    "claude/workstreams/the-agency/ src/agency/workstreams/agency/"
+    "claude/workstreams/ src/agency/workstreams/"
+    "claude/principals/ src/agency/principals/"
+    "claude/REFERENCE/ src/agency/REFERENCE/"
+    # For v1.1-already-applied branches (incremental wave-3 only):
+    "agency/workstreams/the-agency/ src/agency/workstreams/agency/"
+    "agency/workstreams/ src/agency/workstreams/"
+    "agency/principals/ src/agency/principals/"
+    "agency/REFERENCE/ src/agency/REFERENCE/"
 )
 
 usage() {
@@ -71,9 +113,16 @@ Options:
   --apply              Execute the renames via 'git mv'.
   --map <file>         Use a custom rename map file (one pair per line:
                        "<old_prefix> <new_prefix>"). Default: built-in map
-                       covering claude/ → agency/, tests/ → src/tests/,
-                       apps/ → src/apps/, and
-                       starter-packs/ → src/spec-provider/starter-packs/.
+                       covers all three rename waves:
+                         Wave 1: claude/ → agency/, tests/ → src/tests/
+                         Wave 2: apps/ → src/apps/,
+                                 starter-packs/ → src/spec-provider/starter-packs/
+                         Wave 3: agency/{workstreams,principals,REFERENCE}/
+                                 → src/agency/{...}/ (V5 Phase 4 src/ split),
+                                 agency/workstreams/the-agency/ renamed to
+                                 agency/workstreams/agency/.
+                       Map covers both never-migrated (claude/-prefixed) and
+                       v1.1-applied (agency/-prefixed) input states.
   -h, --help           Show this help.
   -v, --version        Show tool version.
 
