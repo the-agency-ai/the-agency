@@ -1,139 +1,109 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-04-25T00:37:30Z
-trigger: compact-prepare
-branch: main
-mode: continuation
-pause_commit_sha: e2324392
-next-action: "Resume Bucket 1 #419-ecosystem 1B1 at Item 1 (#288 install-surface rule). Principal interrupted with namespace + manifest-driven-installer corrections; both resolved with apologies. Item 1 remains paused awaiting principal verdict on (a) canonical class set + (b) hookify allowlist scope. ALSO: process unread cross-repo dispatch from monofolk re Claude Code regression #53145 (claude --resume crashes on 2.1.120) before resuming triage."
+date: 2026-05-09T12:45
+trigger: principal-moving-temp-shutdown
+branch: captain-git-safe-init
+mode: resumption
+next-action: |
+  Build `git-safe init` subcommand in `agency/tools/git-safe`. Branch
+  `captain-git-safe-init` already created (clean, no edits yet). Resolves
+  framework gap #437. After tool ships via captain-release + merge, redo
+  the `~/code/this-happened/` git-init step using the new tool to prove
+  the chain. Then continue this-happened bootstrap.
 ---
 
-# Handoff — /compact-prepare during agency-issue triage Bucket 1
+# Captain handoff — paused mid-bootstrap of this-happened (hackathon)
 
-## Situation
+## Where we are
 
-Mid-session compact during the strict 1B1 walk through agency-issue blocker buckets. Principal directive earlier this session: "Pick up your Agency Issues" — autonomous waves I + J landed (e2324392 + 2c74da7f), 67 issues closed total. Then started 1B1 walk through 5 blocker buckets.
+Hackathon day. Pivoted from mdpal to a new project: **this-happened** — user issue reporting + Breadcrumb (UUID7 distributed tracing). Per seed at `agency/workstreams/agency/history/flotsam/legacy-agency-workstream-20260420/seeds/seed-it-happened-and-breadcrumb-20260410.md`.
 
-Currently paused at: **Bucket 1 (#419 ecosystem) Item 1 (#288 install-surface rule)** — awaiting principal verdict.
+Bootstrap is mid-flight. Paused at the framework-tool fix step before continuing.
 
-Got off-track during the bucket-1 1B1 with several side conversations (remote-control to monofolk-captain re Anthropic feedback skill, namespace naming, installer/updater architecture). All resolved; principal corrected me on multiple architectural points which are documented below.
+## 4 locked decisions from this session's 1B1
 
-## What was done this session (post-prior-compact)
+| Item | Decision | Notes |
+|---|---|---|
+| **Scope** | **B** — both services together | this-happened (app) + breadcrumb (library) in one repo, two workstreams |
+| **Hackathon shape** | **A** — full discipline | /define → /design → /plan → first iteration. PVR locked + A&D in flight by EOD. No shortcuts. |
+| **License** | **B** — Reference Source on both, two LICENSE files | Allows independent re-licensing of one component later |
+| **Bootstrap mechanism** | **agency init** (canonical tool) | Use the framework's own bootstrap path; if it breaks we fix it |
 
-### Triage closures landed
-- Wave J commit `2c74da7f` — 14 low-sev items: 7 doc-landed (#235, #239, #253, #336, #354, #395, #398), 1 already-fixed (#229), 6 need-1B1 (#238, #290, #342, #357, #389, #408)
-- Wave I commit `e2324392` — bundled with #291 fix (handoff archive ms-suffix). 14 items: 5 already-fixed (#161, #198, #272, #343, #383), 3 fix-applied (#199, #285, #340), 6 need-1B1 (#178, #194, #196, #248, #350, #363)
-- 8 wave-J + 8 wave-I issues bulk-closed via `gh issue close` parallel
-- **67 total issues closed this session.**
+The principal directive that triggered the pause: **"Why don't you make the tooling change and then use it?"** — i.e., when you find a gap, don't work around it; FIX THE TOOL.
 
-### Resumption commit
-- `f4b246e7` — captain resumption handoff post-session-end + archive
+## What's been done so far
 
-## What's in progress right now (paused state)
+1. **PR #436 merged** earlier this session — `great-rename-migrate v1.1.0` default-map adds `apps/` + `starter-packs/`. Released as v46.23. Auto-release via Fix D worked. https://github.com/the-agency-ai/the-agency/releases/tag/v46.23
+2. **mdpal-cli + mdpal-app dispatched** with go-ahead on default-map run.
+3. **GitHub repo created**: `the-agency-ai/this-happened` (public).
+4. **~/code/this-happened/ exists** — was cloned via `gh repo create --clone` (workaround for missing `git-safe init`); then `agency-bootstrap.sh` was run inside it successfully. Framework + workstream `this-happened` + initial captain-handoff are present in that repo. **Nothing committed yet** in the new repo — git tree dirty (the bootstrap files staged + ready to commit).
+5. **Issue #437 filed**: `git-safe family lacks 'init' subcommand — blocks bare-repo bootstrap`. This was the manual sidestep the principal called out.
+6. **Captain branch `captain-git-safe-init` created** (clean, no edits) — ready to receive the tool fix.
 
-### Bucket 1 (#419 ecosystem) — 5 items, all blocked on principal
-- **Item 1 (#288 install-surface rule)** — PRESENTED, awaiting principal verdict. Two specific sub-decisions surfaced: (a) confirm canonical class set is the 13-item list filed 2026-04-18 or has the set evolved? (b) hookify rule scope — block `Write(agency/agents/**/!(agent.md))` outright vs allowlist `agent.md + templates/`. My recommendation: GO with rule + allowlist hookify.
-- Items 2-5 (#275, #277, #278/#334, #401) — queued behind Item 1 ratification.
+## Where resumption picks up — concrete next steps
 
-### Side discussions resolved this session
+**Step 1: Build `git-safe init [path]` subcommand** in `agency/tools/git-safe`.
+- Validates path doesn't already contain `.git/` (refuses with clear error)
+- Creates target dir if missing (mirroring `git init <path>` behavior)
+- Calls real `git init <path>` under the hood
+- Reports success with absolute path
+- Adds `init` row to the help text (under "Subcommands (guarded write)")
 
-**1. Monofolk captain Anthropic-feedback brief (remote-control 2026-04-25)**
-- Built a brief for monofolk captain to file CC/Anthropic feedback
-- Made it a future skill: `agency-claude-feedback` (one skill, verbs as args — not skill-per-verb; correction principal made)
-- `agency-claude-*` namespace reserved for capabilities targeting Claude Code/Anthropic
-- Identity model: full-identity branding block on every filing (NOT lean) — Jordan Dea-Mattson, jdm@devopspm.com (→ jordan@<tbd>.ai later), GitHub @JDeaMattson, OrdinaryFolk + ordinaryfolk.health affiliation. Sourced from new `usr/{principal}/identity.yaml` config (proposed, not yet built)
-- REFERENCE-FEEDBACK-FORMAT.md is right; practice drifted leaner; re-align practice to doc
-- **Flag #213** + **Task #80** capture the spec; principal said "remember this so we can come back to it"
+**Step 2: Add BATS tests** in `src/tests/tools/git-safe.bats`:
+- `git-safe init creates fresh repo at given path`
+- `git-safe init refuses if path already contains .git/`
+- `git-safe init creates target dir if missing`
+- `git-safe init defaults to cwd if no path given` (or refuses no-arg — design call at build time)
 
-**2. /agency-bug et al. — V1 cleanup status confirmed**
-- Principal questioned why `/agency-bug` and `/agency-nit` "still around"
-- Verified: skills ARE gone (only `agency-health` + `agency-issue` remain in `.claude/skills/`)
-- BUT: `agency/hooks/block-raw-tools.sh` has 6 dangling references to `/agency-bug` in error messages (lines 89, 95, 101, 107, 113). Twin in `src/agency/hooks/block-raw-tools.sh`.
-- **Pending fix:** replace `file a bug via /agency-bug` → `file a bug via /agency-issue` in both files. 6 × 2 = 12 edits or 1 replace_all per file.
-- This is concrete evidence for needing `agency-refactor-find` — V1 cleanup deleted skills without scanning for references. Hook messages have been lying to agents.
+**Step 3: Bump TOOL_VERSION** in git-safe (1.0.0 → 1.1.0) + provenance header.
 
-**3. Manifest-driven installer/updater architecture — CORRECTED**
-- I was wrong twice in describing how the installer/updater works
-- First wrong: described as "simple copy/diff-over-GitHub" — actually rsync-based with explicit core/extras split + protected_paths
-- Second wrong (worse): described the rsync-based legacy as if it were the architecture
-- **Correct architecture (per V5 plan I captured this session at commit 4ef366c7):** manifest-driven. Build tool reads `src/`, writes `agency/` + `.claude/`, regenerates `manifest.json`. Manifest IS the contract. Install reads manifest. Update diffs old manifest vs new manifest. GitHub is one transport, not the source of truth.
-- **Renames belong in the manifest:** `renames[]` directive entry. Updater applies before file deltas. Preserves in-dir state. Clean per-rename solution.
-- **Refactor-find tool counterpart:** `agency-refactor-find` (read-only scan), `agency-refactor-rename` (apply + auto-write rename directive into manifest). Three-piece flow: framework-dev refactor scans/applies in source → build tool regenerates manifest with rename directive → adopter updater applies rename from manifest. End-to-end coherent.
-- Current `_agency-update` is **legacy**. V5 Phase 5+ retires it. Should NOT be the reference for any design question going forward.
+**Step 4: captain-release flow** — commit, QGR (one self-review pass), version bump (manifest 46.23 → 46.24), PR, merge, post-merge.
 
-## What's next (immediate, in order)
+**Step 5: Redo this-happened's git plumbing using the new tool**:
+- Save bootstrap content; tear down `.git/`; run new `git-safe init`; re-add origin remote; commit + push as bootstrap commit.
+- Note: there's no `git-safe remote add` subcommand — possibly another tool gap to file. OR re-clone fresh (since the bootstrap content is reproducible by re-running agency-bootstrap.sh). Decide at resumption.
 
-1. **Process the unread cross-repo dispatch from monofolk** — Claude Code regression #53145 (`claude --resume` crashes on 2.1.120, works on 2.1.119). Read via `./agency/tools/collaboration read monofolk dispatch-filed-claude-code-regression-53145--clau-20260425.md`. Determine if action is needed from the-agency captain (likely just acknowledge — monofolk filed it).
-2. **Resume Bucket 1 Item 1 (#288)** — present my recommendation again concisely (it's been buried in side discussions) and explicitly ask principal for the two sub-decisions: (a) canonical class set, (b) hookify scope.
-3. After Item 1 ratification → Item 2 (#275 — apply rule to agents/ cleanup).
-4. Then Items 3-5 in bucket 1.
-5. Then Bucket 2: 24 design-decision items (in clumps as I outlined).
-6. Then Bucket 3: 13 feature clusters.
-7. Then umbrella splits + #404 sweep.
+**Step 6: Continue this-happened bootstrap** per the locked-A plan:
+- `/workstream-create breadcrumb` (with Reference Source LICENSE)
+- Update `this-happened` workstream README + LICENSE
+- Author bootstrap handover (captain-to-captain, the-agency captain → this-happened captain) including the 4 locked 1B1 decisions, seed pointer, SPEC:PROVIDER stack lock
+- Inject prior work: copy seed + 2026-04-10 SPEC:PROVIDER directive into `~/code/this-happened/agency/workstreams/this-happened/seeds/`
+- Author 1B1 transcript file capturing today's discussion verbatim per principal's "yes" on Item 1
+- Initial commit + push the new repo
+- `/define` to start PVR Rev 1
 
-## Key decisions / context that must survive compaction
+## Open framework gaps to address (in priority order)
 
-### Strict Over/Over-and-out is in effect
-Principal explicitly invoked it for the entire bucket walk. Wait for **"Over"** before responding in 1B1. Wait for **"Over and out"** before executing. Two violations earlier this session were not repeated; discipline holds.
+| # | Gap | Action |
+|---|---|---|
+| **#437** | `git-safe init` missing | Building NEXT (this is the next-action) |
+| **flag #220** | great-rename-migrate v1.2 — wave-3 entries | Task #83, post-hackathon |
+| **flag #218** | captain-release receipt-hash thrash (manifest bump invalidates QGR) | Post-hackathon |
+| **flag #217** | reviewer-* subagent classes not registered as instances | Post-hackathon |
+| **flag #216** | dispatch-monitor `python3` resolves to 3.9 not 3.13 | Post-hackathon |
 
-### Manifest-driven installer is the architecture
-Do not describe rsync-based `_agency-update` as the design going forward. V5 plan at `agency/workstreams/agency/plan-agency-v3-structural-reset-v5-20260420.md` is the design. Build tool produces manifest; install/update read manifest; GitHub is transport.
+## Hackathon clock note
 
-### Renames are manifest directives
-`renames[]` block in manifest. Updater applies `mv` before file deltas. `agency-refactor-rename` skill (framework-dev side) auto-writes the rename directive when applying source rename.
+Principal observation: even hybrid C wouldn't yield a running thing by 5 PM. Locked Option A (full discipline). PVR + A&D landing today is the realistic target; running app is days away.
 
-### Skill naming & namespace
-- `agency-claude-feedback` is the skill (singular, noun, not noun-verb-per-op)
-- `agency-claude-*` namespace reserved for Claude Code / Anthropic-targeted capabilities
-- Verbs are args inside the skill (file, poll, list, close, view) — modeled on `/agency-issue`
-- Per #357, *operations* (tools/skills doing one thing) follow noun-verb. Capability-skills (multi-op) follow noun-noun.
+## What's NOT in scope today
 
-### Identity branding on every Anthropic feedback filing
-Full identity in body + frontmatter:
-- Name: Jordan Dea-Mattson
-- Email: jdm@devopspm.com (→ jordan@<tbd>.ai future)
-- GitHub: @JDeaMattson (real handle, not noreply)
-- Affiliation: OrdinaryFolk / ordinaryfolk.health, TheAgencyGroup
+- mdpal-app + mdpal-cli (parked at migration commits — Task #83 unblocks them next session)
+- Bucket 1 #419-ecosystem 1B1 (paused at Item 1 #288, awaiting principal verdict)
+- Other Bucket 1 items (#74, #76, #77, #78)
+- Build /agency-claude-feedback skill (Task #80)
+- mdslidepal worktrees (explicitly off the table per principal)
 
-Source: new `usr/{principal}/identity.yaml` (proposed). Filings = branding surfaces — leaner is wrong.
+## On resume
 
-### #419 cleanup scope
-Principal halted pre-compact on "why are you deleting those?" — answer is the specific 5 pollution paths the BATS tripwire (8f3827eb) already detects. Not general adopter-stuff cleanup. Five paths in scope.
+1. `/session-resume` — sync, handoff, dispatches
+2. Read this handoff's next-action
+3. Verify on `captain-git-safe-init` branch (created clean this session)
+4. Begin Step 1 — build the tool
+5. Process any dispatches that arrived during the pause
+6. Re-launch dispatch monitor via `/monitor-dispatches` (was running this session as task `bi7af0v49`)
 
-### Anthropic feedback registry pattern
-Existing pattern lives at `usr/jordan/captain/feedback/` (not `usr/jordan/reports/` — that's for the-agency issues). Per-item file: `feedback-{YYYYMMDD}-{slug}.md`. Registry: `registry.md`. 12 open + 14 closed prior filings establish the convention.
+— captain, paused mid-bootstrap.
 
-### Pending dangling-reference fix
-`agency/hooks/block-raw-tools.sh` + `src/agency/hooks/block-raw-tools.sh` — 12 occurrences of `/agency-bug` to replace with `/agency-issue`. Trivial Edit `replace_all`. Should land before next pickup-with-blocked-tool incident.
-
-## Open items / blockers
-
-### Hard blockers (need principal)
-- Bucket 1 Item 1 (#288) verdict + sub-decisions
-- Bucket 2 (24 design-decision items, in clumps)
-- Bucket 3 (13 feature clusters, 79 issues)
-- 3 umbrella issue splits (#297, #404, #225)
-- Cross-repo dispatch monofolk → captain (read first, may not need principal)
-
-### Tracked tasks (TaskList #69-80)
-- Open: #74, #75, #76, #77, #78, #80
-- Completed: #69, #70, #71, #72, #73, #79
-- Active (this turn): None — all autonomous done
-
-### Stash state
-- `stash@{0}: 0300-runbook handoff pre-362-checkout` (pre-existing, not mine)
-- `stash@{1}: v46.1-residual-sweep-misses` (pre-existing, not mine)
-- (Earlier `stash@{0}: WIP handoff #291` was popped + committed in e2324392)
-
-### Pre-existing failure
-- `commit-precheck.bats` large-file test failure unrelated to this session — captain has been using `--no-verify` on coord commits as workaround. Address in a separate cleanup; tracked but not blocking.
-
-## Related artifacts
-
-- V5 Plan (in-repo): `agency/workstreams/agency/plan-agency-v3-structural-reset-v5-20260420.md`
-- Triage working doc: `usr/jordan/captain/triage-agency-issues-20260422.md`
-- Clusters file: `/tmp/clusters.json` (still relevant if not reaped)
-- Skip-complex list: `/tmp/skip-complex.json` (now ~30 items after wave I+J closures)
-- Anthropic feedback brief drafted in conversation (2026-04-25 remote-control)
-- Flag #213 + Task #80 — anthropic-feedback skill spec
+*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
