@@ -3,9 +3,8 @@ name: pr-submit
 description: Agent-side signal to captain that your branch is ready for PR landing. Runs preconditions (clean tree, pushed, matching QGR receipt) then dispatches captain with a structured payload. Captain's /pr-captain-land picks it up. Replaces the distributed "agent creates PR" model with a captain-owned PR lifecycle (the-agency#296).
 agency-skill-version: 2
 when_to_use: Agent in a worktree after /pr-prep succeeds and branch is pushed to origin. Replaces manual /pr-create invocation by agents. NEVER from master or main checkout — that's captain's /pr-captain-land.
-argument-hint: "--scope \"one-line PR summary\" [--priority normal|high]"
-paths:
-  - .claude/worktrees/**
+argument-hint: '--scope "one-line PR summary" [--priority normal|high]'
+paths: []
 required_reading:
   - claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md
   - claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md
@@ -164,4 +163,4 @@ Agent stands by to respond to review comments via `/pr-respond` if any come. On 
 - the-agency#314 — upstream package MAR summary
 - the-agency#315 — V1→V2 migration master issue
 
-*OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
+_OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!_
