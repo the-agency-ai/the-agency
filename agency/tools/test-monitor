@@ -1,0 +1,536 @@
+#!/usr/bin/env python3
+"""
+What Problem: Test runs block agents — `test-run` runs synchronously, the agent
+is idle during the test window. For long suites (BATS + vitest + XCTest
+combined can be 30s+) that's a lot of wasted agent context. The Monitor tool
+(Claude Code v2.1.98+) can watch a background script and react to output
+lines in real-time, enabling the agent to keep designing while tests run.
+
+How & Why: test-monitor is a Python 3.13 tool that shells out to test-run
+(or frameworks directly), parses their output via framework-specific
+plugins (agency/tools/lib/test_parsers/), and emits monitor-tool-family-
+convention `[TEST <suite>]` line events on stdout. Each stdout line becomes
+a Monitor notification to the agent. On run completion, emits a `[TEST]
+run complete` line carrying the exit code — /quality-gate Step 8 reads
+that to gate the QG.
+
+This is Iteration 1 of test-monitor v1. BATS support only. No triggers
+yet (Iter 3), no state file (Iter 3), no file-watch (Iter 5). The design
+is in agency/workstreams/devex/test-monitor-ad-20260419.md.
+
+Usage:
+    ./agency/tools/test-monitor                    # run all suites from agency.yaml
+    ./agency/tools/test-monitor --suite tools      # run a single suite
+    ./agency/tools/test-monitor --verbose          # also emit CASE_PASS lines
+    ./agency/tools/test-monitor --timeout 120      # kill subprocess after 120s
+
+Python: 3.13+ (framework floor per D45-R1). Stdlib only for framework tools
+(ZERO-PIP CONSTRAINT). Shebang convention: `#!/usr/bin/env python3` + runtime
+`sys.version_info` guard (not `python3.13`).
+
+Written: 2026-04-19 devex — test-monitor Iter 1.
+Renamed: 2026-04-22 — v46 Great Rename (claude/ → agency/, tests/ → src/tests/).
+"""
+
+from __future__ import annotations
+
+import sys
+
+# ── Runtime floor guard (D45 — Python 3.13+) ─────────────────────────────────
+# Emit to STDOUT per MAR-H4 (not stderr) so Monitor tool sees the error.
+if sys.version_info < (3, 13):
+    print(
+        f"[TEST ERROR] Python 3.13+ required (got "
+        f"{sys.version_info.major}.{sys.version_info.minor}) — agent: "
+        "install python3.13 or configure PATH",
+        flush=True,
+    )
+    sys.exit(2)
+
+import argparse
+import os
+import re
+import signal
+import subprocess
+import time
+from pathlib import Path
+
+
+# ── Tool metadata ────────────────────────────────────────────────────────────
+TOOL_VERSION = "1.0.0-iter1-20260422"
+TOOL_NAME = "test-monitor"
+
+
+# ── Path resolution ──────────────────────────────────────────────────────────
+SCRIPT_DIR = Path(__file__).resolve().parent
+# Add agency/tools/lib to sys.path for test_parsers import (A&D §5.2)
+sys.path.insert(0, str(SCRIPT_DIR / "lib"))
+
+from test_parsers import (  # noqa: E402
+    Event,
+    Framework,
+    ParseError,
+    RunResult,
+    detect,
+    get_parser,
+)
+
+
+# ── REPO_ROOT resolution (MAR-H5) ────────────────────────────────────────────
+
+def resolve_repo_root() -> Path:
+    """Resolve REPO_ROOT for the invocation.
+
+    Priority:
+      1. `git rev-parse --show-toplevel` from current CWD (git is a framework
+         hard dep; this is the canonical "which repo am I in" answer).
+      2. Walk UP from CWD for first directory containing agency/config/agency.yaml.
+      3. Walk UP from SCRIPT_DIR (the tool's own location) as last resort.
+
+    Note: MUST NOT walk up from SCRIPT_DIR first — the tool's location is
+    the upstream framework repo, but an adopter invoking the tool from
+    their own repo wants REPO_ROOT = their repo, not ours.
+    """
+    # 1. git rev-parse from CWD
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            top = result.stdout.strip()
+            if top and (Path(top) / "agency" / "config" / "agency.yaml").is_file():
+                return Path(top)
+    except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
+        pass
+
+    # 2. Walk UP from CWD
+    cwd = Path.cwd().resolve()
+    for parent in [cwd] + list(cwd.parents):
+        if (parent / "agency" / "config" / "agency.yaml").is_file():
+            return parent
+
+    # 3. Walk UP from SCRIPT_DIR (last resort)
+    for parent in [SCRIPT_DIR] + list(SCRIPT_DIR.parents):
+        if (parent / "agency" / "config" / "agency.yaml").is_file():
+            return parent
+
+    # Give up — return CWD (caller will error on missing agency.yaml)
+    return cwd
+
+
+REPO_ROOT = resolve_repo_root()
+AGENCY_YAML = REPO_ROOT / "agency" / "config" / "agency.yaml"
+
+
+# ── Signal handling (§5.6, MAR-L4) ───────────────────────────────────────────
+
+# SIGPIPE: default behavior (silent exit), NOT BrokenPipeError traceback
+try:
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+except (AttributeError, ValueError):
+    # Windows doesn't have SIGPIPE; dev fallback only
+    pass
+
+# Track active subprocess for signal handler cleanup
+_active_proc: subprocess.Popen | None = None
+
+
+def _shutdown_handler(signum, frame):
+    """SIGINT/SIGTERM → clean shutdown, kill subprocess if mid-run."""
+    global _active_proc
+    if _active_proc is not None and _active_proc.poll() is None:
+        try:
+            _active_proc.terminate()
+            _active_proc.wait(timeout=2)
+        except (subprocess.TimeoutExpired, OSError):
+            try:
+                _active_proc.kill()
+            except OSError:
+                pass
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, _shutdown_handler)
+signal.signal(signal.SIGTERM, _shutdown_handler)
+
+
+# ── Output (line-buffered, stdout only) ─────────────────────────────────────
+
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+except AttributeError:
+    pass  # Python < 3.7 (unreachable given our 3.13 floor)
+
+
+def emit(line: str) -> None:
+    """Print a single line, flushing immediately."""
+    print(line, flush=True)
+
+
+# ── Path redaction (MAR-L1, §8.6) ───────────────────────────────────────────
+
+def redact_command(cmd: str, max_len: int = 80) -> str:
+    """Collapse absolute paths to basename + last-dir to avoid leaking
+    user home paths, tokens in env expansion, etc. into agent context."""
+    def _redact_match(m: re.Match[str]) -> str:
+        p = Path(m.group(0))
+        if p.parent.name:
+            return f".../{p.parent.name}/{p.name}"
+        return p.name
+
+    # Collapse any /absolute/path/segment to .../parent/name
+    cmd = re.sub(r"/[A-Za-z0-9_.\-/]+", _redact_match, cmd)
+    if len(cmd) > max_len:
+        cmd = cmd[: max_len - 3] + "..."
+    return cmd
+
+
+# ── agency.yaml loader ──────────────────────────────────────────────────────
+
+def load_suites() -> dict[str, dict[str, str]]:
+    """Parse testing.suites from agency.yaml. Returns {suite_name: {command, description}}.
+
+    Uses simple line-regex parsing to match test-run's convention
+    (ZERO-PIP: no pyyaml). Limitations documented in A&D §4.1.
+    """
+    if not AGENCY_YAML.is_file():
+        raise FileNotFoundError(f"{AGENCY_YAML} not found")
+
+    suites: dict[str, dict[str, str]] = {}
+    in_testing = False
+    in_suites = False
+    cur_suite: str | None = None
+    cur_suite_indent: int = -1
+
+    with open(AGENCY_YAML, "r", encoding="utf-8") as f:
+        for raw_line in f:
+            line = raw_line.rstrip("\n")
+            if not line.strip():
+                continue
+            # Detect top-level testing:
+            if re.match(r"^testing:\s*$", line):
+                in_testing = True
+                in_suites = False
+                continue
+            # Detect testing.suites:
+            if in_testing and re.match(r"^\s+suites:\s*$", line):
+                in_suites = True
+                continue
+            if not in_suites:
+                # Maybe exiting testing: if hit a new top-level key
+                if in_testing and re.match(r"^[A-Za-z_]", line):
+                    in_testing = False
+                continue
+
+            # Suite name (2-space indent under suites)
+            m = re.match(r"^(\s+)([A-Za-z0-9_.\-]+):\s*$", line)
+            if m:
+                indent = len(m.group(1))
+                if cur_suite_indent == -1:
+                    cur_suite_indent = indent
+                # Leaving suites if dedent below suites-level
+                if indent < cur_suite_indent:
+                    in_suites = False
+                    continue
+                if indent == cur_suite_indent:
+                    cur_suite = m.group(2)
+                    suites[cur_suite] = {"command": "", "description": ""}
+                    continue
+
+            # command: / description: under current suite
+            if cur_suite is not None:
+                cm = re.match(r"^\s+command:\s*(.+)$", line)
+                if cm:
+                    val = cm.group(1).strip()
+                    # Strip surrounding quotes
+                    if (val.startswith('"') and val.endswith('"')) or (
+                        val.startswith("'") and val.endswith("'")
+                    ):
+                        val = val[1:-1]
+                    suites[cur_suite]["command"] = val
+                    continue
+                dm = re.match(r"^\s+description:\s*(.+)$", line)
+                if dm:
+                    val = dm.group(1).strip()
+                    if (val.startswith('"') and val.endswith('"')) or (
+                        val.startswith("'") and val.endswith("'")
+                    ):
+                        val = val[1:-1]
+                    suites[cur_suite]["description"] = val
+                    continue
+
+    return suites
+
+
+# ── Subprocess runner ───────────────────────────────────────────────────────
+
+def run_suite(
+    name: str,
+    command: str,
+    verbose: bool,
+    timeout: int,
+) -> RunResult:
+    """Run one suite end-to-end; emit events; return RunResult.
+
+    On unknown framework → emit [TEST ERROR] and return RunResult with exit 2.
+    On parser error mid-run → switch to RAW passthrough (§5.3), still return
+        RunResult with parse_ok=False.
+    On --timeout expiry → terminate subprocess, emit [TEST ERROR] + return exit 2.
+    """
+    global _active_proc
+
+    framework = detect(command)
+
+    if framework is Framework.UNKNOWN:
+        emit(
+            f"[TEST ERROR] cannot detect framework for suite={name}, "
+            f"command={redact_command(command)} — agent: add a recognized "
+            "framework binary (bats|vitest|swift test) to the command"
+        )
+        return RunResult(
+            suite=name,
+            framework=Framework.UNKNOWN,
+            exit_code=2,
+            parse_ok=False,
+        )
+
+    parser = get_parser(framework, name)
+    for ev in parser.start():
+        emit(ev.line)
+
+    # Build env: inherit + CI=1 (MAR-H6)
+    env = dict(os.environ)
+    env["CI"] = "1"
+
+    start = time.monotonic()
+    proc = subprocess.Popen(
+        command,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,  # line-buffered
+        env=env,
+        cwd=str(REPO_ROOT),
+    )
+    _active_proc = proc
+
+    parse_ok = True
+    timeout_hit = False
+
+    # Drive a timeout via SIGALRM if asked
+    def _alarm_handler(signum, frame):
+        nonlocal timeout_hit
+        timeout_hit = True
+        try:
+            proc.terminate()
+        except OSError:
+            pass
+
+    if timeout > 0:
+        signal.signal(signal.SIGALRM, _alarm_handler)
+        signal.alarm(timeout)
+
+    try:
+        try:
+            if proc.stdout is not None:
+                for line in proc.stdout:
+                    try:
+                        events = parser.feed(line)
+                    except ParseError as e:
+                        parse_ok = False
+                        emit(
+                            f"[TEST ERROR] parse failure in suite={name}: {e} "
+                            "— RAW passthrough active"
+                        )
+                        # Drain rest of stdout as RAW
+                        emit(f"[TEST {name} RAW] {line.rstrip()}")
+                        for raw_line in proc.stdout:
+                            emit(f"[TEST {name} RAW] {raw_line.rstrip()}")
+                        break
+                    else:
+                        for ev in events:
+                            if ev.kind == "CASE_PASS" and not verbose:
+                                continue
+                            emit(ev.line)
+        finally:
+            if timeout > 0:
+                signal.alarm(0)  # cancel alarm
+
+        proc.wait()
+    finally:
+        # Ensure subprocess is reaped (MAR-M8)
+        if proc.poll() is None:
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+            except OSError:
+                pass
+        _active_proc = None
+
+    duration = time.monotonic() - start
+
+    if timeout_hit:
+        emit(f"[TEST ERROR] suite={name} timed out after {timeout}s — agent: "
+             "investigate hung subprocess or raise --timeout")
+        result = parser.result()
+        result.exit_code = 2
+        result.parse_ok = parse_ok
+        result.duration_sec = duration
+        return result
+
+    # Emit trailing events (SUITE_DONE + any deferred CASE_FAIL)
+    for ev in parser.flush(exit_code=proc.returncode, duration_sec=duration):
+        emit(ev.line)
+
+    result = parser.result()
+    result.duration_sec = duration
+    result.exit_code = proc.returncode if proc.returncode is not None else 1
+    result.parse_ok = parse_ok
+    return result
+
+
+# ── Main orchestration ─────────────────────────────────────────────────────
+
+def run(args: argparse.Namespace) -> int:
+    try:
+        suites = load_suites()
+    except FileNotFoundError as e:
+        emit(f"[TEST ERROR] cannot load agency.yaml: {e}")
+        return 2
+    except OSError as e:
+        emit(f"[TEST ERROR] cannot read agency.yaml: {e}")
+        return 2
+
+    if not suites:
+        emit("[TEST ERROR] no suites configured in agency.yaml → testing.suites "
+             "— nothing to run")
+        return 2
+
+    # Apply --suite filter if set
+    if args.suite:
+        if args.suite not in suites:
+            emit(f"[TEST ERROR] suite={args.suite} not found in agency.yaml. "
+                 f"Known: {', '.join(sorted(suites.keys()))}")
+            return 2
+        targets = [args.suite]
+    else:
+        targets = sorted(suites.keys())
+
+    overall_start = time.monotonic()
+    total_passed = 0
+    total_failed = 0
+    total_skipped = 0
+    overall_exit = 0
+
+    for name in targets:
+        suite_cfg = suites[name]
+        command = suite_cfg.get("command", "")
+        if not command:
+            emit(f"[TEST ERROR] suite={name} has no command in agency.yaml — skipping")
+            overall_exit = max(overall_exit, 2)
+            continue
+
+        try:
+            result = run_suite(name, command, verbose=args.verbose, timeout=args.timeout)
+        except FileNotFoundError as e:
+            # Framework binary missing (e.g., `bats: command not found`)
+            emit(f"[TEST ERROR] framework binary missing for suite={name}: {e} "
+                 "— agent: install or skip")
+            overall_exit = max(overall_exit, 2)
+            continue
+        except Exception as e:  # noqa: BLE001 — never silent
+            emit(f"[TEST ERROR] unexpected failure in suite={name}: "
+                 f"{type(e).__name__}: {e}")
+            overall_exit = max(overall_exit, 2)
+            continue
+
+        total_passed += result.passed
+        total_failed += result.failed
+        total_skipped += result.skipped
+        if result.exit_code > overall_exit:
+            overall_exit = result.exit_code
+
+    overall_duration = time.monotonic() - overall_start
+
+    # RUN_DONE line (MAR-H2: always emitted, even on parse failure)
+    hint = " — agent: investigate failures" if overall_exit != 0 else ""
+    emit(
+        f"[TEST] run complete — {total_passed} pass, {total_failed} fail, "
+        f"{total_skipped} skip, {overall_duration:.1f}s, exit {overall_exit}{hint}"
+    )
+    return overall_exit
+
+
+# ── Argument parsing ────────────────────────────────────────────────────────
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog=TOOL_NAME,
+        description=(
+            "Monitor-tool backend for test runs. Shells out to configured "
+            "suites, parses output, emits [TEST <suite>] line events on stdout."
+        ),
+    )
+    parser.add_argument(
+        "--suite",
+        help="Run a single suite (default: all from agency.yaml)",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Emit [TEST <suite>] PASS lines (default: quiet on pass)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=0,
+        help="Kill subprocess after SEC seconds (default: 0 = no timeout)",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"{TOOL_NAME} {TOOL_VERSION}",
+    )
+    # Reserved for Iter 3 — declared but unused in Iter 1
+    parser.add_argument(
+        "--trigger-on",
+        choices=["green", "red", "change"],
+        help="(Iter 3) Emit dispatch/flag on outcome",
+    )
+    parser.add_argument(
+        "--trigger-to",
+        help="(Iter 3) Dispatch destination; REQUIRED when --trigger-on is set",
+    )
+
+    ns = parser.parse_args(argv)
+
+    # Cross-validate --trigger-on requires --trigger-to (A&D §3.1, §7 #20)
+    if ns.trigger_on and not ns.trigger_to:
+        parser.error("--trigger-on requires --trigger-to ADDR")
+    # Iter 1: trigger-on is not implemented yet
+    if ns.trigger_on:
+        emit(
+            f"[TEST ERROR] --trigger-on not implemented in Iter 1 — landed in Iter 3"
+        )
+        sys.exit(2)
+
+    if ns.timeout < 0:
+        parser.error("--timeout must be >= 0")
+
+    return ns
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    return run(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
