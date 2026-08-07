@@ -338,11 +338,25 @@ public final class MockCLIService: CLIServiceProtocol, @unchecked Sendable {
 
     public init() {}
 
+    // NSLock.lock()/unlock() are unavailable from asynchronous contexts
+    // (an error in the Swift 6 language mode), so critical sections live in
+    // synchronous helpers and the async API only sees immutable snapshots.
+
+    private func snapshotSections() -> [SectionTreeNode] {
+        parsedLock.lock()
+        defer { parsedLock.unlock() }
+        return parsedSections
+    }
+
+    private func snapshotContents() -> (contents: [String: Section], available: [String]) {
+        parsedLock.lock()
+        defer { parsedLock.unlock() }
+        return (parsedContent, parsedSections.map(\.slug))
+    }
+
     public func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
         try await Task.sleep(for: .milliseconds(50))
-        parsedLock.lock()
-        let parsed = parsedSections
-        parsedLock.unlock()
+        let parsed = snapshotSections()
         if !parsed.isEmpty { return parsed }
         // Service flattens the tree — callers get a flat list in document order.
         return Self.mockSectionsResponse.flattened()
@@ -350,10 +364,7 @@ public final class MockCLIService: CLIServiceProtocol, @unchecked Sendable {
 
     public func readSection(slug: String, bundle: BundlePath) async throws -> Section {
         try await Task.sleep(for: .milliseconds(30))
-        parsedLock.lock()
-        let parsedContents = parsedContent
-        let parsedAvailable = parsedSections.map(\.slug)
-        parsedLock.unlock()
+        let (parsedContents, parsedAvailable) = snapshotContents()
         if !parsedContents.isEmpty {
             if let section = parsedContents[slug] { return section }
             throw CLIServiceError.sectionNotFound(slug: slug, availableSlugs: parsedAvailable)

@@ -72,9 +72,16 @@ public enum CLIServiceFactory {
     /// Construct a service and report the resolution. Callers that care
     /// about the outcome (e.g., to show a "running in mock mode" banner)
     /// inspect the `.resolution` on the returned pair.
+    ///
+    /// `fallbacks` is injectable for the same reason `RealCLIService`
+    /// exposes it: without it, the CLI-missing path is untestable on any
+    /// host that actually has `mdpal` installed at `/opt/homebrew/bin` or
+    /// `/usr/local/bin`, because those absolute paths are searched even
+    /// when `PATH` points nowhere. Tests pass `fallbacks: []`.
     public static func make(
         environment: [String: String] = ProcessInfo.processInfo.environment,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        fallbacks: [String] = CLIBinaryResolver.defaultFallbacks
     ) -> (service: CLIServiceProtocol, resolution: Resolution) {
         // Explicit mock opt-in via env. Accept any non-empty truthy value
         // (1, true, yes) — restrictive-match would surprise users who set
@@ -88,7 +95,8 @@ public enum CLIServiceFactory {
             let real = try RealCLIService(
                 environment: environment,
                 fileManager: fileManager,
-                runner: DefaultProcessRunner()
+                runner: DefaultProcessRunner(),
+                fallbacks: fallbacks
             )
             return (real, .real(executablePath: real.executablePath))
         } catch CLIServiceError.cliNotFound {

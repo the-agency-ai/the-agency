@@ -3621,8 +3621,12 @@ func testCLIServiceFactoryPicksRealWhenBinaryAvailable() throws {
 }
 
 func testCLIServiceFactoryFallsBackToMockWhenCLINotFound() throws {
+    // fallbacks: [] is required — the resolver also probes absolute paths
+    // like /opt/homebrew/bin/mdpal, so on a host with the CLI installed
+    // this test would resolve a real binary and never exercise fallback.
     let (service, resolution) = CLIServiceFactory.make(
-        environment: ["PATH": "/definitely/nowhere", "HOME": "/tmp"]
+        environment: ["PATH": "/definitely/nowhere", "HOME": "/tmp"],
+        fallbacks: []
     )
     try expect(service is MockCLIService, equals: true,
                "missing CLI must fall back to Mock, not crash")
@@ -4250,20 +4254,27 @@ func testResolutionBannerMessageIsNilForReal() throws {
 func testResolutionBannerMessageMentionsMockWhenRequested() throws {
     let resolution: CLIServiceFactory.Resolution = .mockRequested
     let message = try expectNotNilUnwrap(resolution.bannerMessage)
-    try expect(message.contains("mock mode"), equals: true,
+    // Case-insensitive: the Phase 2 banner redesign shouts "MOCK MODE" in
+    // caps. Assert the intent (user is told they're in mock mode), not the
+    // exact casing of the copy.
+    try expect(message.lowercased().contains("mock mode"), equals: true,
                "mockRequested banner must tell the user they're in mock mode")
     try expect(message.contains("MDPAL_MOCK"), equals: true,
                "message must name the env var so the user can unset it")
+    try expect(resolution.bannerTitle?.lowercased().contains("mock mode"), equals: true,
+               "banner title must scan as mock mode")
 }
 
 func testResolutionBannerMessageIncludesReasonOnFallback() throws {
     let reason = "no `mdpal` binary found on MDPAL_BIN, PATH, or fallbacks"
     let resolution: CLIServiceFactory.Resolution = .mockFallback(reason: reason)
     let message = try expectNotNilUnwrap(resolution.bannerMessage)
-    try expect(message.contains("not found"), equals: true,
-               "fallback banner must name the problem")
     try expect(message.contains(reason), equals: true,
                "fallback banner must include the diagnostic reason verbatim")
+    try expect(message.lowercased().contains("derived locally"), equals: true,
+               "fallback banner must say the sections aren't coming from the engine")
+    try expect(resolution.bannerTitle?.lowercased().contains("mock mode"), equals: true,
+               "fallback banner title must scan as mock mode")
 }
 
 // MARK: - Runner

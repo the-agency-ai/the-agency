@@ -60,20 +60,39 @@ public final class PancakeCLIService: CLIServiceProtocol, @unchecked Sendable {
         contentHash = hash
     }
 
+    // MARK: - Lock-protected snapshots
+    //
+    // NSLock.lock()/unlock() are unavailable from asynchronous contexts
+    // (a hard error in the Swift 6 language mode), so every critical
+    // section lives in a synchronous helper and the async API surface
+    // only ever touches immutable snapshots.
+
+    private func snapshotSections() -> [SectionTreeNode] {
+        parsedLock.lock()
+        defer { parsedLock.unlock() }
+        return parsedSections
+    }
+
+    private func snapshotContents() -> (contents: [String: Section], available: [String]) {
+        parsedLock.lock()
+        defer { parsedLock.unlock() }
+        return (parsedContent, parsedSections.map(\.slug))
+    }
+
+    private func snapshotContentHash() -> String {
+        parsedLock.lock()
+        defer { parsedLock.unlock() }
+        return contentHash
+    }
+
     // MARK: - Reads (work in pancake mode)
 
     public func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
-        parsedLock.lock()
-        let sections = parsedSections
-        parsedLock.unlock()
-        return sections
+        return snapshotSections()
     }
 
     public func readSection(slug: String, bundle: BundlePath) async throws -> Section {
-        parsedLock.lock()
-        let contents = parsedContent
-        let available = parsedSections.map(\.slug)
-        parsedLock.unlock()
+        let (contents, available) = snapshotContents()
         guard let section = contents[slug] else {
             throw CLIServiceError.sectionNotFound(slug: slug, availableSlugs: available)
         }
@@ -119,7 +138,7 @@ public final class PancakeCLIService: CLIServiceProtocol, @unchecked Sendable {
         // Pancake has no version metadata. Synthesize a v0 / r0 / now.
         return VersionInfo(
             version: 0,
-            versionId: "pancake-\(contentHash)",
+            versionId: "pancake-\(snapshotContentHash())",
             revision: 0,
             timestamp: Date()
         )
