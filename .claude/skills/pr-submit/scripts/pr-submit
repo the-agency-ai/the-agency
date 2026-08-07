@@ -167,12 +167,25 @@ PRINCIPAL="jordan"  # TODO: resolve via agency whoami in v2
 
 # Resolve ORG from the origin remote URL (no network call).
 REMOTE_URL=$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || echo "")
-if [[ "$REMOTE_URL" =~ ^git@github\.com:([^/]+)/([^/.]+)(\.git)?$ ]]; then
+# Strip any userinfo ("https://user:token@github.com/..."). Credential-bearing
+# remotes are common on machines using a PAT, and the https pattern below
+# would otherwise fail to match — leaving the agent stuck, with the token
+# echoed into the error message and from there into logs and transcripts.
+# Redacted for the same reason in the failure path below.
+REMOTE_URL_SAFE="${REMOTE_URL/#https:\/\/*@/https://}"
+# Normalize the tail before matching rather than trying to express an
+# optional ".git" inside the pattern: the previous https branch used
+# "([^/.]+?)(\.git)?/?$", and bash uses POSIX ERE, which has no lazy
+# quantifier — so "+?" did not mean what it looks like and the branch never
+# matched a .git-suffixed https remote at all.
+REMOTE_URL_CLEAN="${REMOTE_URL_SAFE%.git}"
+REMOTE_URL_CLEAN="${REMOTE_URL_CLEAN%/}"
+if [[ "$REMOTE_URL_CLEAN" =~ ^git@[^:]+:([^/]+)/([^/]+)$ ]]; then
     ORG="${BASH_REMATCH[1]}"
-elif [[ "$REMOTE_URL" =~ ^https://github\.com/([^/]+)/([^/.]+?)(\.git)?/?$ ]]; then
+elif [[ "$REMOTE_URL_CLEAN" =~ ^https?://[^/]+/([^/]+)/([^/]+)$ ]]; then
     ORG="${BASH_REMATCH[1]}"
 else
-    echo "pr-submit: cannot parse origin remote URL '$REMOTE_URL'" >&2
+    echo "pr-submit: cannot parse origin remote URL '$REMOTE_URL_SAFE'" >&2
     exit 1
 fi
 
