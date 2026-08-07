@@ -6,7 +6,16 @@
 // on failure. The runner collects pass/fail counts and exits with appropriate
 // exit code.
 //
+// Build prerequisite: despite the XCTest-free design above, the package no
+// longer builds against a CommandLineTools-only toolchain — the HighlightSwift
+// dependency uses SwiftUI's @Entry macro, whose SwiftUIMacros plugin ships only
+// in the full Xcode SDK. Build and run with:
+//   DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run MdSlidepalTests
+//
 // Written: 2026-04-12 during mdslidepal-mac Phase 1 tests
+// Updated: 2026-08-07 — added fixture 04 (images) coverage, closing the last
+// gap against the contract's 8 acceptance fixtures; recorded the full-Xcode
+// build prerequisite discovered while verifying the Phase 5.1+5.2 graft.
 
 import Foundation
 import SwiftUI
@@ -95,6 +104,7 @@ let allTests: [(String, () throws -> Void)] = [
     ("fixture01_minimal", testFixture01_Minimal),
     ("fixture02_multiSlide", testFixture02_MultiSlide),
     ("fixture03_codeBlocks", testFixture03_CodeBlocks),
+    ("fixture04_images", testFixture04_Images),
     ("fixture05_tablesAndLists", testFixture05_TablesAndLists),
     ("fixture06_frontMatter", testFixture06_FrontMatter),
     ("fixture07_speakerNotes", testFixture07_SpeakerNotes),
@@ -184,6 +194,72 @@ func testFixture03_CodeBlocks() throws {
     let doc = parser.parse(source: source)
 
     try expect(doc.slides.count, equals: 5, "Fixture 03 slide count")
+}
+
+/// Collect every `Markdown.Image` node reachable from a markup subtree.
+func collectImages(_ markup: Markup) -> [Markdown.Image] {
+    var found: [Markdown.Image] = []
+    if let image = markup as? Markdown.Image {
+        found.append(image)
+    }
+    for child in markup.children {
+        found.append(contentsOf: collectImages(child))
+    }
+    return found
+}
+
+func testFixture04_Images() throws {
+    let source = try loadFixture("04-images")
+    let parser = DeckParser()
+    let doc = parser.parse(source: source)
+
+    try expect(doc.slides.count, equals: 3, "Fixture 04 slide count")
+
+    // Every slide carries exactly one block image.
+    let perSlide = doc.slides.map { slide in
+        slide.markupChildren.flatMap { collectImages($0) }
+    }
+    try expect(perSlide[0].count, equals: 1, "Slide 1 image count")
+    try expect(perSlide[1].count, equals: 1, "Slide 2 image count")
+    try expect(perSlide[2].count, equals: 1, "Slide 3 image count")
+
+    // Sources survive parsing as the relative paths the renderer resolves.
+    try expect(perSlide[0][0].source, equals: "./images/sample.png")
+    try expect(perSlide[1][0].source, equals: "./images/sample.png")
+    try expect(
+        perSlide[2][0].source, equals: "./images/missing-on-purpose.png",
+        "Slide 3 references the deliberately missing image"
+    )
+
+    // Alt text must be preserved — it is the placeholder fallback for the
+    // missing image on slide 3 (contract §11: no silent skip).
+    try expect(
+        perSlide[2][0].plainText, equals: "An image that is missing",
+        "Missing image must retain alt text for the placeholder"
+    )
+
+    // The referenced asset resolves on disk; the missing one does not.
+    guard let fixtureURL = Bundle.module.url(
+        forResource: "04-images", withExtension: "md", subdirectory: "Fixtures"
+    ) else {
+        throw TestFailure(
+            message: "Fixture '04-images' not found", file: #file, line: #line
+        )
+    }
+    let baseURL = fixtureURL.deletingLastPathComponent()
+    try expectTrue(
+        FileManager.default.fileExists(
+            atPath: baseURL.appendingPathComponent("./images/sample.png").standardized.path
+        ),
+        "Fixture 04 image asset must ship with the fixture"
+    )
+    try expectFalse(
+        FileManager.default.fileExists(
+            atPath: baseURL.appendingPathComponent("./images/missing-on-purpose.png")
+                .standardized.path
+        ),
+        "missing-on-purpose.png must not exist"
+    )
 }
 
 func testFixture05_TablesAndLists() throws {
