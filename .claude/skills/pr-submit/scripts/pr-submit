@@ -110,15 +110,32 @@ fi
 # ── Precondition: QGR receipt exists ─────────────────────────────────────────
 #
 # Receipt lives at agency/workstreams/{workstream}/qgr/*.md. We try to find
-# one matching the current diff hash against origin/master.
+# one matching the current diff hash against the default branch.
+#
+# The default branch is resolved, not assumed: this script hardcoded
+# origin/master, which fails closed in every repo whose default branch is
+# named main — diff-hash exits non-zero, the hash comes back empty, and the
+# agent is told "could not compute diff hash" with no hint that the ref name
+# is the problem. Resolve from origin/HEAD, fall back to whichever of
+# main/master actually exists.
+DEFAULT_BRANCH=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')
+if [[ -z "$DEFAULT_BRANCH" ]]; then
+    for candidate in main master; do
+        if git rev-parse --verify --quiet "origin/$candidate" >/dev/null 2>&1; then
+            DEFAULT_BRANCH="$candidate"
+            break
+        fi
+    done
+fi
+BASE_REF="origin/${DEFAULT_BRANCH:-master}"
 
-DIFF_HASH_FULL=$(bash "$REPO_ROOT/agency/tools/diff-hash" --base origin/master --json 2>/dev/null | \
+DIFF_HASH_FULL=$(bash "$REPO_ROOT/agency/tools/diff-hash" --base "$BASE_REF" --json 2>/dev/null | \
                  python3 -c "import sys, json; d=json.load(sys.stdin); print(d.get('full_hash',''))" 2>/dev/null || \
                  echo "")
 DIFF_HASH_SHORT="${DIFF_HASH_FULL:0:7}"
 
 if [[ -z "$DIFF_HASH_SHORT" ]]; then
-    echo "submit-for-pr: could not compute diff hash against origin/master." >&2
+    echo "submit-for-pr: could not compute diff hash against $BASE_REF." >&2
     echo "  Tool: $REPO_ROOT/agency/tools/diff-hash" >&2
     exit 1
 fi
@@ -169,7 +186,7 @@ DISPATCH_BODY=$(cat <<EOF
 - **Branch:** \`$BRANCH\`
 - **Agent:** $ORG/$PRINCIPAL/$AGENT
 - **HEAD:** \`$LOCAL_SHA\` (pushed to origin)
-- **Diff base:** \`origin/master\`
+- **Diff base:** \`$BASE_REF\`
 - **Diff hash:** \`$DIFF_HASH_SHORT\`
 
 ## QGR receipt
