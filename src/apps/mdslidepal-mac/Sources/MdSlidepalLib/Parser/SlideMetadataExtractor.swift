@@ -50,9 +50,12 @@ public struct SlideMetadataExtractor {
             return (slide, [])
         }
 
-        // Parse YAML body
+        // Parse YAML body (pre-process to quote unquoted hex-color values —
+        // YAML treats # as a comment start, so `background: #ff0000` would
+        // otherwise lose the value entirely).
+        let preprocessed = quoteUnquotedHexValues(in: yamlBody)
         do {
-            guard let yaml = try Yams.load(yaml: yamlBody) as? [String: Any] else {
+            guard let yaml = try Yams.load(yaml: preprocessed) as? [String: Any] else {
                 return (slide, [
                     Diagnostic(
                         severity: .warning,
@@ -103,6 +106,25 @@ public struct SlideMetadataExtractor {
         let yamlBody = String(inner.dropFirst(6))
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return yamlBody.isEmpty ? nil : yamlBody
+    }
+
+    /// Pre-process a YAML body string to quote unquoted hex-color values.
+    /// Converts `key: #abc123` → `key: "#abc123"` so that YAML does not
+    /// interpret the `#` as a comment start. Leaves already-quoted values
+    /// and full-line comments untouched. Handles 3/4/6/8 hex digits.
+    private static func quoteUnquotedHexValues(in yaml: String) -> String {
+        // Match a mapping line: optional leading whitespace, a key, `:`, spaces,
+        // then an unquoted `#` followed by 3–8 hex digits, optional trailing ws.
+        let pattern = #"(?m)^(\s*[^:\r\n#]+:\s*)(#[0-9A-Fa-f]{3,8})(\s*(?:#[^\r\n]*)?)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return yaml
+        }
+        let range = NSRange(yaml.startIndex..., in: yaml)
+        return regex.stringByReplacingMatches(
+            in: yaml,
+            range: range,
+            withTemplate: "$1\"$2\"$3"
+        )
     }
 
     /// Parse a YAML dictionary into SlideMetadata.

@@ -29,7 +29,7 @@ struct ImageBlockView: View {
                         case .success(let img):
                             img.resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 600)
+                                .frame(maxWidth: 1680, maxHeight: 700)
                         case .failure:
                             placeholderView(message: "Failed to load remote image")
                         case .empty:
@@ -45,7 +45,7 @@ struct ImageBlockView: View {
                         SwiftUI.Image(nsImage: nsImage)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: 600)
+                            .frame(maxWidth: 1680, maxHeight: 700)
                     } else {
                         placeholderView(message: "Missing image")
                     }

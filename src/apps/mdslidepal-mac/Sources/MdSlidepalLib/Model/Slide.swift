@@ -48,4 +48,19 @@ public struct Slide: Identifiable {
         }
         return nil
     }
+
+    /// True for hero/cover slides that should render centered: a title
+    /// (optionally with a single subtitle heading) and no other block
+    /// content. Requires the first heading to be H1 or H2 — multi-heading
+    /// section slides (e.g. two H3s) do NOT qualify.
+    public var isHero: Bool {
+        let headings = markupChildren.compactMap { $0 as? Heading }
+        let nonHeadingBlocks = markupChildren.filter {
+            !($0 is Heading) && !($0 is ThematicBreak)
+        }
+        guard nonHeadingBlocks.isEmpty else { return false }
+        guard (1...2).contains(headings.count) else { return false }
+        guard let first = headings.first, first.level <= 2 else { return false }
+        return true
+    }
 }

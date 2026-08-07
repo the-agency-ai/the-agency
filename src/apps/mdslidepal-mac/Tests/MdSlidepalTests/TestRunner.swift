@@ -123,6 +123,12 @@ let allTests: [(String, () throws -> Void)] = [
     ("metadata_validBlock", testMetadata_ValidBlock),
     ("metadata_malformedYAML", testMetadata_MalformedYAML),
     ("metadata_notFirstChild", testMetadata_NotFirstChild),
+    ("metadata_unquotedHexValue", testMetadata_UnquotedHexValue),
+    ("hero_singleH1IsHero", testHero_singleH1IsHero),
+    ("hero_h1PlusSubtitleIsHero", testHero_h1PlusSubtitleIsHero),
+    ("hero_multiH3IsNotHero", testHero_multiH3IsNotHero),
+    ("hero_h1PlusBodyIsNotHero", testHero_h1PlusBodyIsNotHero),
+    ("hero_onlyH6IsNotHero", testHero_onlyH6IsNotHero),
 
     // ColorHex unit tests
     ("colorHex_validHex", testColorHex_ValidHex),
@@ -434,6 +440,49 @@ func testMetadata_NotFirstChild() throws {
     try expectNil(doc.slides[0].metadata, "Metadata not first child should be ignored")
 }
 
+// MARK: - Hero slide detection
+
+func testHero_singleH1IsHero() throws {
+    let doc = DeckParser().parse(source: "# My Talk Title")
+    try expectTrue(doc.slides[0].isHero, "Single H1 should be a hero slide")
+}
+
+func testHero_h1PlusSubtitleIsHero() throws {
+    // Title + subtitle is the canonical cover-slide shape.
+    let doc = DeckParser().parse(source: "# My Talk Title\n\n## Subtitle line")
+    try expectTrue(doc.slides[0].isHero, "H1 + H2 subtitle should be hero")
+}
+
+func testHero_multiH3IsNotHero() throws {
+    // Multi-heading section slides must NOT become hero (regression guard
+    // from Phase 5.2 review finding).
+    let doc = DeckParser().parse(source: "### Section A\n\n### Section B")
+    try expectFalse(doc.slides[0].isHero, "Two H3 headings should not be hero")
+}
+
+func testHero_h1PlusBodyIsNotHero() throws {
+    let doc = DeckParser().parse(source: "# Title\n\nSome body text here.")
+    try expectFalse(doc.slides[0].isHero, "H1 with body paragraph is a content slide")
+}
+
+func testHero_onlyH6IsNotHero() throws {
+    // H6-only slide isn't a cover — tighten avoids boosting H6 to hero.
+    let doc = DeckParser().parse(source: "###### Tiny heading")
+    try expectFalse(doc.slides[0].isHero, "H6-only slide is not hero")
+}
+
+func testMetadata_UnquotedHexValue() throws {
+    // Regression: unquoted hex color values (leading `#`) used to be lost to
+    // YAML's comment handling. The extractor now quotes them pre-parse.
+    let source = "<!-- slide:\nbackground: #ff0000\n-->\n\n# Content"
+    let parser = DeckParser()
+    let doc = parser.parse(source: source)
+    try expectTrue(doc.slides.count >= 1)
+    try expectNotNil(doc.slides[0].metadata, "Slide should carry metadata")
+    try expect(doc.slides[0].metadata?.background, equals: "#ff0000",
+               "Unquoted hex background should be preserved")
+}
+
 // MARK: - ColorHex Tests (QG #10)
 
 func testColorHex_ValidHex() throws {
@@ -443,16 +492,16 @@ func testColorHex_ValidHex() throws {
     let black = Color(hex: "000000")
     // SwiftUI Color doesn't expose components directly, but we can verify
     // distinct inputs produce distinct colors (not all magenta fallback)
-    XCTAssertNotEqual(red.description, green.description, "Red and green should differ")
-    XCTAssertNotEqual(red.description, black.description, "Red and black should differ")
-    XCTAssertNotEqual(green.description, black.description, "Green and black should differ")
+    try expectTrue(red.description != green.description, "Red and green should differ")
+    try expectTrue(red.description != black.description, "Red and black should differ")
+    try expectTrue(green.description != black.description, "Green and black should differ")
 }
 
 func testColorHex_WithHash() throws {
     // Hash prefix should be stripped and produce the same color
     let withHash = Color(hex: "#ffffff")
     let withoutHash = Color(hex: "ffffff")
-    XCTAssertEqual(withHash.description, withoutHash.description, "Hash prefix should not change result")
+    try expect(withHash.description, equals: withoutHash.description, "Hash prefix should not change result")
 }
 
 func testColorHex_InvalidLength() throws {
@@ -461,8 +510,8 @@ func testColorHex_InvalidLength() throws {
     let empty = Color(hex: "")
     let invalid = Color(hex: "gggggg")
     // All invalid inputs should produce the same fallback
-    XCTAssertEqual(short.description, empty.description, "Invalid inputs should match")
-    XCTAssertEqual(empty.description, invalid.description, "Invalid inputs should match")
+    try expect(short.description, equals: empty.description, "Invalid inputs should match")
+    try expect(empty.description, equals: invalid.description, "Invalid inputs should match")
 }
 
 // MARK: - DeckDocument.title Tests (QG #11)
