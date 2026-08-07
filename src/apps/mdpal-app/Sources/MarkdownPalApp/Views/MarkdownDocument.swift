@@ -104,15 +104,20 @@ public final class MarkdownDocument: ReferenceFileDocument {
         }
 
         model.rawContent = content
+        // Push content into the pancake service synchronously, here, rather
+        // than from a Task. setDocumentContent is a synchronous, lock-guarded
+        // store, and ContentView's `.task` independently kicks off
+        // loadSections/loadComments/loadFlags as soon as the view appears.
+        // When this push lived in a Task, those two were unordered: the view
+        // could list sections before any content had been pushed and render
+        // an empty document, and in the common case both paths issued the
+        // same three loads. Doing it inline means the service is populated
+        // before any view exists, so ContentView's `.task` is the single
+        // loader and it always sees the user's real file.
+        pancakeService.setDocumentContent(content)
+        model.isDirty = false
         self.model = model
         self.cliResolution = .pancake
-
-        // Load sections/comments/flags asynchronously after init.
-        // load(from:) pushes content into the pancake service so the user
-        // sees their actual file's sections, not a canned fixture.
-        Task { @MainActor in
-            await model.load(from: content)
-        }
     }
 
     // MARK: - Serialization

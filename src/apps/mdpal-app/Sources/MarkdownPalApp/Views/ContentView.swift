@@ -12,7 +12,12 @@
 // Written: 2026-04-05 during mdpal-app Phase 1 scaffold
 // Updated: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
 // Updated: 2026-04-15 Phase 1A.3 — surface document.lastError via alert
-// Updated: 2026-04-17 Phase 1C.1 — CLIServiceBanner for non-real resolutions
+// Updated: 2026-04-17 Phase 1C.1 — banner copy for non-real resolutions
+// Updated: pr-prep QG — the standalone CLIServiceBanner view was superseded
+//   by the compact toolbar modeIndicator and had been left unreferenced in
+//   the tree. Deleted; the indicator's tooltips now read from
+//   CLIServiceFactory.Resolution.bannerMessage so there is a single, tested
+//   source for that copy instead of two that drift apart.
 // Updated: 2026-05-09 Phase 2.6.2 — convertToPackage triggers NSSavePanel + promote
 
 import SwiftUI
@@ -232,15 +237,15 @@ public struct ContentView: View {
                     .foregroundStyle(.blue)
             }
             .buttonStyle(.borderless)
-            .help("Pancake mode — viewing plain Markdown. Sections come from your file’s headings; comments, flags, and revisions need a .mdpal bundle. Click to convert.")
+            .help("\(cliResolution.bannerMessage ?? "") Click to convert.")
         case .mockRequested:
             Image(systemName: "info.circle.fill")
                 .foregroundStyle(.purple)
-                .help("Mock mode (MDPAL_MOCK=1) — fixture data, not a real document. No changes persist.")
-        case .mockFallback(let reason):
+                .help(cliResolution.bannerMessage ?? "")
+        case .mockFallback:
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-                .help("Mock fallback: \(reason)")
+                .help(cliResolution.bannerMessage ?? "")
         }
     }
 

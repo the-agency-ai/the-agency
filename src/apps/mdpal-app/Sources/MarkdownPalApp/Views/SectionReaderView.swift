@@ -135,7 +135,23 @@ public struct SectionReaderView: View {
                     )
                     return true
                 } catch {
-                    document.lastError = "Failed to add comment: \(error.localizedDescription)"
+                    // Must go through recordError, not a bare lastError write:
+                    // ContentView's alert is `presenting:`-driven on lastAlert,
+                    // so a lastError-only failure renders no alert at all and
+                    // the user sees the operation silently do nothing. The
+                    // retry closure is what promote() replays after a
+                    // pancake → package conversion.
+                    document.recordError(error, prefix: "Failed to add comment") { [weak document] in
+                        guard let document else { return }
+                        do {
+                            try await document.addComment(
+                                slug: section.slug, type: type, author: currentAuthor,
+                                text: text, context: context, priority: priority
+                            )
+                        } catch {
+                            document.recordError(error, prefix: "Failed to add comment")
+                        }
+                    }
                     return false
                 }
             }
@@ -151,7 +167,16 @@ public struct SectionReaderView: View {
                     )
                     return true
                 } catch {
-                    document.lastError = "Failed to update flag: \(error.localizedDescription)"
+                    document.recordError(error, prefix: "Failed to update flag") { [weak document] in
+                        guard let document else { return }
+                        do {
+                            try await document.toggleFlag(
+                                slug: section.slug, author: currentAuthor, note: note
+                            )
+                        } catch {
+                            document.recordError(error, prefix: "Failed to update flag")
+                        }
+                    }
                     return false
                 }
             }
@@ -193,7 +218,16 @@ public struct SectionReaderView: View {
                     )
                     return true
                 } catch {
-                    document.lastError = "Failed to resolve comment: \(error.localizedDescription)"
+                    document.recordError(error, prefix: "Failed to resolve comment") { [weak document] in
+                        guard let document else { return }
+                        do {
+                            try await document.resolveComment(
+                                commentId: comment.commentId, response: response, by: currentAuthor
+                            )
+                        } catch {
+                            document.recordError(error, prefix: "Failed to resolve comment")
+                        }
+                    }
                     return false
                 }
             }
@@ -276,7 +310,8 @@ public struct SectionReaderView: View {
     // MARK: - Edit commit
 
     /// Save the draft through DocumentModel.editSection, routing version
-    /// conflicts to a dedicated UI and other errors to document.lastError.
+    /// conflicts to a dedicated UI and every other error through
+    /// `recordError` so it reaches the structured Phase-2.2 alert.
     private func commitEdit() async {
         guard let document, let draft = editDraft else { return }
         saving = true
@@ -290,7 +325,13 @@ public struct SectionReaderView: View {
         } catch let CLIServiceError.versionConflict(slug, _, currentHash) {
             conflict = EditConflict(slug: slug, currentHash: currentHash, draft: draft)
         } catch {
-            document.lastError = "Failed to save section: \(error.localizedDescription)"
+            // Everything that isn't a version conflict — including
+            // .packageRequired from pancake-mode editSection — routes through
+            // recordError so the structured alert (and, for packageRequired,
+            // the convert-to-bundle action) actually reaches the user.
+            document.recordError(error, prefix: "Failed to save section") {
+                await commitEdit()
+            }
         }
     }
 

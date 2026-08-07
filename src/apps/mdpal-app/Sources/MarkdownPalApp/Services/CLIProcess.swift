@@ -391,9 +391,13 @@ public struct DefaultProcessRunner: ProcessRunner {
         do {
             try process.run()
         } catch {
+            // The executable path can contain the account name; it reaches
+            // an alert body, so give it the same sanitize+cap treatment
+            // every other CLI-sourced string gets before display.
             continuation.resume(throwing: CLIServiceError.executionFailed(
                 exitCode: -1,
-                stderr: "Failed to launch \(executable): \(error.localizedDescription)"
+                stderr: ProcessResult.sanitizeForUI(
+                    "Failed to launch \(executable): \(error.localizedDescription)")
             ))
             return
         }
@@ -489,8 +493,13 @@ public enum CLIBinaryResolver {
         }
 
         // 2. PATH lookup.
+        // Only absolute PATH entries are honored. A relative entry (or the
+        // empty-string entry that a trailing/doubled ':' produces, which
+        // POSIX reads as "."), resolves against whatever directory the app
+        // happens to be running in — an attacker who can drop a file named
+        // `mdpal` into the user's working directory would get it executed.
         let pathEntries = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
-        for entry in pathEntries where !entry.isEmpty {
+        for entry in pathEntries where entry.hasPrefix("/") {
             let candidate = (entry as NSString).appendingPathComponent("mdpal")
             if isExecutable(candidate, fileManager: fileManager) {
                 return candidate

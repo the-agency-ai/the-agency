@@ -116,10 +116,20 @@ public final class DocumentModel {
     /// `prefix` is the operation-specific context ("Failed to load sections"
     /// etc.), concatenated into `lastError` for backward compat with Phase
     /// 1 view code.
-    func recordError(_ error: Error, prefix: String) {
+    func recordError(_ error: Error, prefix: String,
+                     retry: (() async -> Void)? = nil) {
         if let cliError = error as? CLIServiceError {
             lastAlert = cliError.alertContent
             lastError = "\(prefix): \(cliError.localizedDescription)"
+            // Phase 2.6: `.packageRequired` is the one error whose alert
+            // offers a remedy that changes the document's shape. Park the
+            // caller's retry closure so promote(toBundleURL:) can re-run
+            // what the user originally asked for. Only this case — parking
+            // a retry for, say, fileNotFound would let a later unrelated
+            // promotion replay a stale operation.
+            if case .packageRequired = cliError {
+                pendingPackageOp = retry
+            }
         } else {
             let description = error.localizedDescription
             lastError = "\(prefix): \(description)"
@@ -469,7 +479,8 @@ public final class DocumentModel {
     /// Static so it can run before self.cliService is in a usable state.
     private enum CreateResult { case success; case failure(Error) }
 
-    private static func runMdpalCreate(name: String, dir: String, content: String) async -> CreateResult {
+    private static func runMdpalCreate(name: String, dir: String, content: String,
+                                       runner: ProcessRunner = DefaultProcessRunner()) async -> CreateResult {
         // Resolve the binary the same way RealCLIService does — falls back
         // through MDPAL_BIN → PATH → /usr/local/bin/mdpal → /opt/homebrew/bin/mdpal.
         let executablePath: String
@@ -479,42 +490,48 @@ public final class DocumentModel {
             return .failure(CLIServiceError.cliNotFound)
         }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executablePath)
-        process.arguments = ["create", name, "--dir", dir, "--content", content, "--format", "json"]
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
-
-        return await withCheckedContinuation { continuation in
-            process.terminationHandler = { proc in
-                let stdout = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-                let stderr = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-                if proc.terminationStatus == 0 {
-                    continuation.resume(returning: .success)
-                } else {
-                    // Try to parse the JSON envelope error.
-                    if let data = stdout.data(using: .utf8),
-                       let env = try? JSONDecoder().decode(CLIErrorResponse.self, from: data) {
-                        // Map invalidBundlePath specifically; otherwise generic.
-                        if env.error == "invalidBundlePath" {
-                            continuation.resume(returning: .failure(
-                                CLIServiceError.invalidArgument(description: env.message)))
-                            return
-                        }
-                    }
-                    continuation.resume(returning: .failure(
-                        CLIServiceError.executionFailed(exitCode: Int(proc.terminationStatus),
-                                                       stderr: stderr.isEmpty ? stdout : stderr)))
-                }
-            }
-            do { try process.run() }
-            catch {
-                continuation.resume(returning: .failure(
-                    CLIServiceError.executionFailed(exitCode: -1, stderr: "Failed to launch mdpal: \(error.localizedDescription)")))
-            }
+        // Go through ProcessRunner rather than hand-rolling Process here.
+        // The previous inline implementation called readDataToEndOfFile()
+        // from inside terminationHandler — that reads *after* the child has
+        // exited and drains one pipe fully before the other, so a bundle
+        // whose create output exceeds the pipe buffer (~64 KiB) deadlocks,
+        // and nothing capped the read. DefaultProcessRunner drains both
+        // pipes concurrently under a 32 MiB cap.
+        //
+        // `--` terminates option parsing so a bundle name that begins with
+        // a dash is treated as the positional argument, not a flag.
+        let result: ProcessResult
+        do {
+            result = try await runner.run(
+                executable: executablePath,
+                args: ["create", "--dir", dir, "--content", content, "--format", "json", "--", name],
+                stdin: nil
+            )
+        } catch let err as CLIServiceError {
+            return .failure(err)
+        } catch {
+            return .failure(CLIServiceError.executionFailed(
+                exitCode: -1,
+                stderr: "Failed to launch mdpal: \(error.localizedDescription)"))
         }
+
+        guard result.exitCode != 0 else { return .success }
+
+        let stdout = String(data: result.stdout, encoding: .utf8) ?? ""
+        // Sanitize before the text can reach an alert — same treatment the
+        // rest of the app gives CLI stderr.
+        let stderr = result.stderrStringForUI
+
+        // Try to parse the JSON envelope error; map invalidBundlePath
+        // specifically, otherwise fall through to generic executionFailed.
+        if let data = stdout.data(using: .utf8),
+           let env = try? JSONDecoder().decode(CLIErrorResponse.self, from: data),
+           env.error == "invalidBundlePath" {
+            return .failure(CLIServiceError.invalidArgument(description: env.message))
+        }
+        return .failure(CLIServiceError.executionFailed(
+            exitCode: Int(result.exitCode),
+            stderr: stderr.isEmpty ? stdout : stderr))
     }
 
     /// Phase 2.6.3: switch to an existing .mdpal bundle without creating

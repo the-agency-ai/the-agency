@@ -124,10 +124,17 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     ///      exercises the red/green cycle for each envelope.
     ///   3. JSON decode failure → `.parseError`.
     ///
-    /// TODO(1B.x coordination): if `bundle.path` could start with `-`,
-    /// prepend `"--"` to argv to avoid flag-confusion. Blocked on the
-    /// actual mdpal CLI flag-parser behavior (mdpal-cli #408 — CLI
-    /// unbuilt as of Phase 2).
+    /// Flag-confusion on the positional `bundle.path` (pr-prep QG, S3):
+    /// probed against the shipped CLI. `mdpal create --dir D --content C
+    /// --format json -- NAME` parses correctly (and `promote()` now uses
+    /// that form), but `mdpal sections --format json -- BUNDLE` is
+    /// rejected and `mdpal sections -- BUNDLE --format json` swallows
+    /// `--format` as a positional — the subcommands taking `<bundle>`
+    /// give no working `--` position. Not app-fixable; filed to mdpal-cli.
+    /// Not currently reachable either: `bundle.path` originates from a
+    /// file URL chosen in NSOpenPanel/NSSavePanel and is always absolute,
+    /// so it cannot begin with `-`. Revisit if a bundle path ever comes
+    /// from a text field or an argument.
     private func runCommand<T: Decodable>(
         _ args: [String],
         stdin: Data? = nil,

@@ -1058,9 +1058,13 @@ func testDefaultProcessRunnerCancellationBeforeSpawnReturnsPromptly() async thro
     }
 
     let elapsed = Date().timeIntervalSince(start)
-    // Much tighter bound: no child should spawn. 500ms is generous.
-    try expect(elapsed < 0.5, equals: true,
-               "cancel-before-spawn must return within 500ms (no child waiting). Actual: \(elapsed)s")
+    // The property under test is "we did not wait on the child" — the child
+    // sleeps 30s, so any bound well under that proves it. The bound was
+    // 500ms, which is a scheduling-latency assertion, not a correctness one,
+    // and turns into a flake on a loaded CI box. 5s keeps all the diagnostic
+    // power (a regression waits the full 30s) with none of the flakiness.
+    try expect(elapsed < 5.0, equals: true,
+               "cancel-before-spawn must not wait on the 30s child. Actual: \(elapsed)s")
 }
 
 // Phase 2.5 QG fix (F-Dt-6): cancel mid-stdin-write.
@@ -4277,6 +4281,275 @@ func testResolutionBannerMessageIncludesReasonOnFallback() throws {
                "fallback banner title must scan as mock mode")
 }
 
+// MARK: - pr-prep QG: packageRequired retry capture + pancake service
+
+/// QG-1 (critical/high): `pendingPackageOp` was declared and consumed by
+/// promote(toBundleURL:) but never assigned anywhere in the module, so the
+/// documented "promote, then re-run what the user asked for" flow silently
+/// dropped the original operation.
+@MainActor
+func testRecordErrorCapturesRetryForPackageRequired() async throws {
+    let model = DocumentModel(cliService: PancakeCLIService())
+    var ran = false
+    model.recordError(CLIServiceError.packageRequired(operation: "Add comment"),
+                      prefix: "Failed to add comment") { ran = true }
+    try expect(model.pendingPackageOp != nil, equals: true,
+               "packageRequired must capture the retry closure into pendingPackageOp")
+    await model.pendingPackageOp?()
+    try expect(ran, equals: true, "captured closure must be the one supplied")
+}
+
+/// QG-2: only `.packageRequired` is a promote-and-retry situation. A retry
+/// closure handed to any other error must NOT be parked on the model, or a
+/// later unrelated promote would replay it.
+@MainActor
+func testRecordErrorIgnoresRetryForOtherErrors() throws {
+    let model = DocumentModel(cliService: PancakeCLIService())
+    model.recordError(CLIServiceError.fileNotFound(path: "/nope"),
+                      prefix: "Failed") { }
+    try expect(model.pendingPackageOp == nil, equals: true,
+               "non-packageRequired errors must not park a pending op")
+}
+
+/// QG-3: recordError must still populate the structured alert for
+/// packageRequired so the view can offer the convert action.
+func testPackageRequiredMapsToConvertAlert() throws {
+    let alert = CLIServiceError.packageRequired(operation: "Add comment").alertContent
+    try expect(alert.primaryAction, equals: .convertToPackage,
+               "packageRequired must offer conversion as the primary action")
+    try expect(alert.secondaryAction, equals: .dismiss,
+               "user must be able to decline conversion")
+    try expect(alert.body.contains("Add comment"), equals: true,
+               "alert body must name the operation the user attempted")
+}
+
+/// QG-4 (design/high): MockCLIService.listSections and readSection prefer
+/// the pushed document content, but editSection consulted only the canned
+/// Acme fixture — so editing a section of your own file under MDPAL_MOCK=1
+/// threw a spurious sectionNotFound listing the wrong available slugs.
+func testMockEditSectionUsesPushedDocumentContent() async throws {
+    let mock = MockCLIService()
+    mock.setDocumentContent("# Alpha\n\nbody alpha\n\n# Beta\n\nbody beta\n")
+    let current = try await mock.readSection(slug: "alpha", bundle: BundlePath("/tmp/x"))
+    let result = try await mock.editSection(slug: "alpha", content: "new body",
+                                            versionHash: current.versionHash,
+                                            bundle: BundlePath("/tmp/x"))
+    try expect(result.slug, equals: "alpha",
+               "edit must target the section from the pushed document")
+}
+
+/// QG-5: the same path must still report a genuinely absent slug, and the
+/// availableSlugs diagnostic must come from the pushed document, not Acme.
+func testMockEditSectionReportsAvailableSlugsFromPushedContent() async throws {
+    let mock = MockCLIService()
+    mock.setDocumentContent("# Alpha\n\nbody alpha\n\n# Beta\n\nbody beta\n")
+    do {
+        _ = try await mock.editSection(slug: "nope", content: "x",
+                                       versionHash: "", bundle: BundlePath("/tmp/x"))
+        throw TestFailure(message: "Expected sectionNotFound", file: #file, line: #line)
+    } catch let CLIServiceError.sectionNotFound(slug, available) {
+        try expect(slug, equals: "nope")
+        try expect(available.contains("alpha"), equals: true,
+                   "available slugs must be drawn from the pushed document")
+        try expect(available.contains("introduction"), equals: false,
+                   "available slugs must not leak the canned Acme fixture")
+    }
+}
+
+// MARK: - pr-prep QG: PancakeCLIService coverage
+
+func testPancakeListSectionsReflectsPushedContent() async throws {
+    let pancake = PancakeCLIService()
+    pancake.setDocumentContent("# Alpha\n\nbody alpha\n\n## Nested\n\nnested body\n")
+    let sections = try await pancake.listSections(bundle: BundlePath(""))
+    try expect(sections.isEmpty, equals: false, "pancake must derive sections from the file")
+    try expect(sections.contains { $0.slug == "alpha" }, equals: true,
+               "top-level heading must appear as a section")
+}
+
+func testPancakeListSectionsIsEmptyBeforeContentIsPushed() async throws {
+    let pancake = PancakeCLIService()
+    let sections = try await pancake.listSections(bundle: BundlePath(""))
+    try expect(sections.isEmpty, equals: true,
+               "pancake must not invent fixture sections the way Mock does")
+}
+
+func testPancakeReadSectionReturnsRealBody() async throws {
+    let pancake = PancakeCLIService()
+    pancake.setDocumentContent("# Alpha\n\nbody alpha\n")
+    let section = try await pancake.readSection(slug: "alpha", bundle: BundlePath(""))
+    try expect(section.slug, equals: "alpha")
+    try expect(section.content.contains("body alpha"), equals: true,
+               "pancake must return the user's own content, not fixture data")
+}
+
+func testPancakeReadSectionUnknownSlugThrowsWithAvailable() async throws {
+    let pancake = PancakeCLIService()
+    pancake.setDocumentContent("# Alpha\n\nbody\n")
+    do {
+        _ = try await pancake.readSection(slug: "ghost", bundle: BundlePath(""))
+        throw TestFailure(message: "Expected sectionNotFound", file: #file, line: #line)
+    } catch let CLIServiceError.sectionNotFound(slug, available) {
+        try expect(slug, equals: "ghost")
+        try expect(available.contains("alpha"), equals: true)
+    }
+}
+
+func testPancakeReadsThatHaveNoMetadataReturnEmpty() async throws {
+    let pancake = PancakeCLIService()
+    let comments = try await pancake.listComments(bundle: BundlePath(""))
+    let flags = try await pancake.listFlags(bundle: BundlePath(""))
+    let history = try await pancake.listHistory(bundle: BundlePath(""))
+    try expect(comments.isEmpty, equals: true, "pancake has no comments — empty, not an error")
+    try expect(flags.isEmpty, equals: true, "pancake has no flags — empty, not an error")
+    try expect(history.isEmpty, equals: true, "pancake has no history — empty, not an error")
+}
+
+func testPancakeShowVersionIsDerivedFromContent() async throws {
+    let pancake = PancakeCLIService()
+    pancake.setDocumentContent("# Alpha\n\nbody\n")
+    let first = try await pancake.showVersion(bundle: BundlePath(""))
+    try expect(first.version, equals: 0, "pancake has no persisted version")
+    try expect(first.versionId.hasPrefix("pancake-"), equals: true,
+               "synthetic versionId must be self-identifying")
+    pancake.setDocumentContent("# Alpha\n\nDIFFERENT body\n")
+    let second = try await pancake.showVersion(bundle: BundlePath(""))
+    try expect(second.versionId != first.versionId, equals: true,
+               "changed content must produce a different synthetic versionId")
+}
+
+/// Every mutation that needs bundle metadata must throw .packageRequired
+/// naming the attempted operation — that string is what the convert alert
+/// shows the user.
+func testPancakeMutationsThrowPackageRequired() async throws {
+    let pancake = PancakeCLIService()
+    let bundle = BundlePath("")
+
+    func expectPackageRequired(_ label: String,
+                               _ op: () async throws -> Void) async throws {
+        do {
+            try await op()
+            throw TestFailure(message: "Expected packageRequired for \(label)",
+                              file: #file, line: #line)
+        } catch let CLIServiceError.packageRequired(operation) {
+            try expect(operation.isEmpty, equals: false,
+                       "\(label) must name the operation in the error")
+        }
+    }
+
+    try await expectPackageRequired("addComment") {
+        _ = try await pancake.addComment(slug: "a", bundle: bundle, type: .question,
+                                         author: "me", text: "t", context: nil,
+                                         priority: .normal, tags: [])
+    }
+    try await expectPackageRequired("resolveComment") {
+        _ = try await pancake.resolveComment(commentId: "c1", bundle: bundle,
+                                             response: "r", by: "me")
+    }
+    try await expectPackageRequired("flagSection") {
+        _ = try await pancake.flagSection(slug: "a", bundle: bundle, author: "me", note: nil)
+    }
+    try await expectPackageRequired("clearFlag") {
+        _ = try await pancake.clearFlag(slug: "a", bundle: bundle)
+    }
+    try await expectPackageRequired("createRevision") {
+        _ = try await pancake.createRevision(bundle: bundle, content: "c", baseRevision: nil)
+    }
+    try await expectPackageRequired("bumpVersion") {
+        _ = try await pancake.bumpVersion(bundle: bundle)
+    }
+    try await expectPackageRequired("editSection") {
+        _ = try await pancake.editSection(slug: "a", content: "c",
+                                          versionHash: "", bundle: bundle)
+    }
+}
+
+func testResolutionPancakeBannerDescribesPlainMarkdown() throws {
+    let resolution: CLIServiceFactory.Resolution = .pancake
+    let message = try expectNotNilUnwrap(resolution.bannerMessage)
+    try expect(message.lowercased().contains("markdown"), equals: true,
+               "pancake banner must tell the user they're on a plain .md")
+    try expect(message.contains(".mdpal"), equals: true,
+               "pancake banner must name the conversion target")
+    try expect(resolution.bannerTitle?.lowercased().contains("pancake"), equals: true,
+               "pancake banner title must scan as pancake mode")
+}
+
+// MARK: - pr-prep QG: Mock negative paths + pancake load ordering
+
+func testMockAddCommentRejectsUnknownSlug() async throws {
+    let mock = MockCLIService()
+    do {
+        _ = try await mock.addComment(slug: "no-such-section", bundle: BundlePath(""),
+                                      type: .question, author: "me", text: "t",
+                                      context: nil, priority: .normal, tags: [])
+        throw TestFailure(message: "Expected sectionNotFound", file: #file, line: #line)
+    } catch let CLIServiceError.sectionNotFound(slug, available) {
+        try expect(slug, equals: "no-such-section")
+        try expect(available.isEmpty, equals: false,
+                   "diagnostic must list what the user could have meant")
+    }
+}
+
+func testMockAddCommentAcceptsKnownSlug() async throws {
+    let mock = MockCLIService()
+    let comment = try await mock.addComment(slug: "overview", bundle: BundlePath(""),
+                                            type: .question, author: "me", text: "t",
+                                            context: nil, priority: .normal, tags: [])
+    try expect(comment.slug, equals: "overview", "a fixture slug must still work")
+}
+
+func testMockFlagAndClearRejectUnknownSlug() async throws {
+    let mock = MockCLIService()
+    do {
+        _ = try await mock.flagSection(slug: "ghost", bundle: BundlePath(""),
+                                       author: "me", note: nil)
+        throw TestFailure(message: "Expected sectionNotFound from flagSection",
+                          file: #file, line: #line)
+    } catch CLIServiceError.sectionNotFound { }
+    do {
+        _ = try await mock.clearFlag(slug: "ghost", bundle: BundlePath(""))
+        throw TestFailure(message: "Expected sectionNotFound from clearFlag",
+                          file: #file, line: #line)
+    } catch CLIServiceError.sectionNotFound { }
+}
+
+func testMockResolveCommentRejectsUnknownId() async throws {
+    let mock = MockCLIService()
+    do {
+        _ = try await mock.resolveComment(commentId: "does-not-exist",
+                                          bundle: BundlePath(""),
+                                          response: "r", by: "me")
+        throw TestFailure(message: "Expected commentNotFound", file: #file, line: #line)
+    } catch let CLIServiceError.commentNotFound(commentId) {
+        try expect(commentId, equals: "does-not-exist")
+    }
+}
+
+/// MarkdownDocument.init(configuration:) can't be constructed here (it needs
+/// a real ReadConfiguration), but the contract the pr-prep QG fix
+/// established is testable directly: once content has been pushed into the
+/// pancake service, a *bare* loadSections — the one ContentView's `.task`
+/// issues, with no preceding load(from:) — must already see the user's own
+/// sections. Before the fix, pushing happened in a racing Task and this
+/// could observe an empty document.
+@MainActor
+func testBareLoadSectionsSeesContentPushedAtInitTime() async throws {
+    let pancake = PancakeCLIService()
+    pancake.setDocumentContent("# Alpha\n\nbody\n\n# Beta\n\nbody\n")
+    let model = DocumentModel(cliService: pancake)
+    model.rawContent = "# Alpha\n\nbody\n\n# Beta\n\nbody\n"
+
+    await model.loadSections()
+
+    try expect(model.sections.isEmpty, equals: false,
+               "sections must be available without a preceding load(from:)")
+    try expect(model.sections.contains { $0.slug == "alpha" }, equals: true,
+               "the user's own headings must be what shows up")
+    try expect(model.lastError == nil, equals: true,
+               "the bare load path must not record an error")
+}
+
 // MARK: - Runner
 
 @main
@@ -4567,6 +4840,30 @@ struct TestRunner {
         await runAsync("recordError CLIServiceError populates both surfaces", testDocumentModelRecordErrorCLIServiceErrorPopulatesBothAlertAndString)
         await runAsync("recordError non-CLI error uses generic fallback", testDocumentModelRecordErrorNonCLIErrorUsesGenericFallback)
         await runAsync("clearError clears both surfaces", testDocumentModelClearErrorClearsBothSurfaces)
+
+        print("\npackageRequired retry capture (pr-prep QG):")
+        await runAsync("recordError captures retry for packageRequired", testRecordErrorCapturesRetryForPackageRequired)
+        await runAsync("recordError ignores retry for other errors", testRecordErrorIgnoresRetryForOtherErrors)
+        run("packageRequired maps to convert alert", testPackageRequiredMapsToConvertAlert)
+        await runAsync("Mock editSection uses pushed document content", testMockEditSectionUsesPushedDocumentContent)
+        await runAsync("Mock editSection reports pushed available slugs", testMockEditSectionReportsAvailableSlugsFromPushedContent)
+
+        print("\nPancakeCLIService (pr-prep QG):")
+        await runAsync("listSections reflects pushed content", testPancakeListSectionsReflectsPushedContent)
+        await runAsync("listSections empty before content pushed", testPancakeListSectionsIsEmptyBeforeContentIsPushed)
+        await runAsync("readSection returns real body", testPancakeReadSectionReturnsRealBody)
+        await runAsync("readSection unknown slug throws with available", testPancakeReadSectionUnknownSlugThrowsWithAvailable)
+        await runAsync("metadata-free reads return empty", testPancakeReadsThatHaveNoMetadataReturnEmpty)
+        await runAsync("showVersion derived from content", testPancakeShowVersionIsDerivedFromContent)
+        await runAsync("mutations throw packageRequired", testPancakeMutationsThrowPackageRequired)
+        run("Resolution.pancake banner describes plain markdown", testResolutionPancakeBannerDescribesPlainMarkdown)
+
+        print("\nMock negative paths + pancake load ordering (pr-prep QG):")
+        await runAsync("Mock addComment rejects unknown slug", testMockAddCommentRejectsUnknownSlug)
+        await runAsync("Mock addComment accepts known slug", testMockAddCommentAcceptsKnownSlug)
+        await runAsync("Mock flag/clear reject unknown slug", testMockFlagAndClearRejectUnknownSlug)
+        await runAsync("Mock resolveComment rejects unknown id", testMockResolveCommentRejectsUnknownId)
+        await runAsync("bare loadSections sees init-time pushed content", testBareLoadSectionsSeesContentPushedAtInitTime)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 

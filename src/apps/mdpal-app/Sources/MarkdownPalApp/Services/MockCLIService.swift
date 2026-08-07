@@ -381,10 +381,17 @@ public final class MockCLIService: CLIServiceProtocol, @unchecked Sendable {
     public func editSection(slug: String, content: String,
                             versionHash: String, bundle: BundlePath) async throws -> EditResult {
         try await Task.sleep(for: .milliseconds(50))
-        guard let existing = Self.mockSectionContents[slug] else {
+        // Prefer the pushed document, exactly as listSections/readSection do.
+        // Consulting only the canned Acme fixture made edits fail with a
+        // sectionNotFound naming fixture slugs the user has never seen.
+        let (parsedContents, parsedAvailable) = snapshotContents()
+        let usingPushedDocument = !parsedContents.isEmpty
+        let table = usingPushedDocument ? parsedContents : Self.mockSectionContents
+        let available = usingPushedDocument ? parsedAvailable : Self.mockSectionsFlat.map(\.slug)
+        guard let existing = table[slug] else {
             throw CLIServiceError.sectionNotFound(
                 slug: slug,
-                availableSlugs: Self.mockSectionsFlat.map(\.slug)
+                availableSlugs: available
             )
         }
         guard existing.versionHash == versionHash else {
@@ -414,10 +421,31 @@ public final class MockCLIService: CLIServiceProtocol, @unchecked Sendable {
         return Self.mockFlags
     }
 
+    /// Resolve the section table currently in play (pushed document if one
+    /// has been set, canned fixture otherwise) and reject a slug that isn't
+    /// in it. Without this, Mock accepted *any* slug and manufactured a
+    /// success, so the `.sectionNotFound` path that both other conformers
+    /// can produce was unreachable in previews and tests.
+    private func requireKnownSlug(_ slug: String) throws {
+        let (parsedContents, parsedAvailable) = snapshotContents()
+        let known = parsedContents.isEmpty
+            ? Set(Self.mockSectionContents.keys)
+            : Set(parsedContents.keys)
+        guard known.contains(slug) else {
+            throw CLIServiceError.sectionNotFound(
+                slug: slug,
+                availableSlugs: parsedContents.isEmpty
+                    ? Self.mockSectionsFlat.map(\.slug)
+                    : parsedAvailable
+            )
+        }
+    }
+
     public func addComment(slug: String, bundle: BundlePath, type: CommentType,
                            author: String, text: String, context: String?,
                            priority: Priority, tags: [String]) async throws -> Comment {
         try await Task.sleep(for: .milliseconds(30))
+        try requireKnownSlug(slug)
         return Comment(
             commentId: "c\(Int.random(in: 100...999))",
             type: type, author: author, slug: slug,
@@ -429,6 +457,12 @@ public final class MockCLIService: CLIServiceProtocol, @unchecked Sendable {
     public func resolveComment(commentId: String, bundle: BundlePath,
                                response: String, by: String) async throws -> ResolveResult {
         try await Task.sleep(for: .milliseconds(30))
+        // Same reasoning as requireKnownSlug: an unknown comment id must be
+        // able to produce .commentNotFound here, or the alert path for it
+        // can never be exercised against Mock.
+        guard Self.mockComments.contains(where: { $0.commentId == commentId }) else {
+            throw CLIServiceError.commentNotFound(commentId: commentId)
+        }
         return ResolveResult(
             commentId: commentId,
             resolved: true,
@@ -439,6 +473,7 @@ public final class MockCLIService: CLIServiceProtocol, @unchecked Sendable {
     public func flagSection(slug: String, bundle: BundlePath,
                             author: String, note: String?) async throws -> FlagResult {
         try await Task.sleep(for: .milliseconds(20))
+        try requireKnownSlug(slug)
         return FlagResult(
             slug: slug, flagged: true, author: author,
             note: note, timestamp: Date()
@@ -447,6 +482,7 @@ public final class MockCLIService: CLIServiceProtocol, @unchecked Sendable {
 
     public func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
         try await Task.sleep(for: .milliseconds(20))
+        try requireKnownSlug(slug)
         return ClearFlagResult(slug: slug, flagged: false)
     }
 
