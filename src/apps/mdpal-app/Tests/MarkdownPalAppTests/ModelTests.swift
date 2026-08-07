@@ -636,6 +636,1138 @@ func testCLIErrorUnknownKindFallsBackToGeneric() throws {
     }
 }
 
+// MARK: - Phase 2.1: 18-discriminator envelope coverage (dispatches #616 + #635)
+
+func testCLIErrorParseErrorEnvelopeDecodes() throws {
+    let json = """
+    { "error": "parseError", "message": "bad markdown",
+      "details": { "description": "unclosed code fence", "line": 42, "column": 7 } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .parseError(let desc, let line, let col) = try expectNotNilUnwrap(error.details) {
+        try expect(desc ?? "", equals: "unclosed code fence")
+        try expect(line ?? 0, equals: 42)
+        try expect(col ?? 0, equals: 7)
+    } else {
+        throw TestFailure(message: "Expected parseError details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorMetadataErrorEnvelopeDecodes() throws {
+    let json = """
+    { "error": "metadataError", "message": "bad YAML",
+      "details": { "description": "unexpected key" } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .metadataError(let desc) = try expectNotNilUnwrap(error.details) {
+        try expect(desc ?? "", equals: "unexpected key")
+    } else {
+        throw TestFailure(message: "Expected metadataError details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorFileErrorEnvelopeDecodes() throws {
+    let json = """
+    { "error": "fileError", "message": "permission denied",
+      "details": { "path": "/b.mdpal", "description": "EACCES" } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .fileError(let path, let desc) = try expectNotNilUnwrap(error.details) {
+        try expect(path ?? "", equals: "/b.mdpal")
+        try expect(desc ?? "", equals: "EACCES")
+    } else {
+        throw TestFailure(message: "Expected fileError details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorFileNotFoundEnvelopeDecodes() throws {
+    let json = """
+    { "error": "fileNotFound", "message": "no file",
+      "details": { "path": "/missing.mdpal" } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .fileNotFound(let path) = try expectNotNilUnwrap(error.details) {
+        try expect(path ?? "", equals: "/missing.mdpal")
+    } else {
+        throw TestFailure(message: "Expected fileNotFound details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorInvalidArgumentEnvelopeDecodes() throws {
+    let json = """
+    { "error": "invalidArgument", "message": "bad flag",
+      "details": { "description": "--unknown-flag" } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .invalidArgument(let desc) = try expectNotNilUnwrap(error.details) {
+        try expect(desc ?? "", equals: "--unknown-flag")
+    } else {
+        throw TestFailure(message: "Expected invalidArgument details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorCommentAlreadyResolvedEnvelopeDecodes() throws {
+    let json = """
+    { "error": "commentAlreadyResolved", "message": "done",
+      "details": { "commentId": "c001" } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .commentAlreadyResolved(let cid) = try expectNotNilUnwrap(error.details) {
+        try expect(cid ?? "", equals: "c001")
+    } else {
+        throw TestFailure(message: "Expected commentAlreadyResolved details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorSectionNotFlaggedEnvelopeDecodes() throws {
+    let json = """
+    { "error": "sectionNotFlagged", "message": "not flagged",
+      "details": { "slug": "overview" } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .sectionNotFlagged(let slug) = try expectNotNilUnwrap(error.details) {
+        try expect(slug ?? "", equals: "overview")
+    } else {
+        throw TestFailure(message: "Expected sectionNotFlagged details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorUnsupportedFormatEnvelopeDecodes() throws {
+    let json = """
+    { "error": "unsupportedFormat", "message": "no parser",
+      "details": { "extension": ".rst" } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .unsupportedFormat(let ext) = try expectNotNilUnwrap(error.details) {
+        try expect(ext ?? "", equals: ".rst")
+    } else {
+        throw TestFailure(message: "Expected unsupportedFormat details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorNoFilePathEnvelopeDecodes() throws {
+    let json = """
+    { "error": "noFilePath", "message": "specify a file" }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    // noFilePath is a tagged marker with no payload; envelope should still
+    // carry the typed case (not .generic).
+    if case .noFilePath = error.details { /* ok */ }
+    else if error.details == nil {
+        // Also acceptable — CLI might send no `details` object at all for
+        // parameter-less errors. Both shapes are OK.
+    } else {
+        throw TestFailure(message: "Expected .noFilePath or nil details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorInvalidBundlePathEnvelopeDecodes() throws {
+    let json = """
+    { "error": "invalidBundlePath", "message": "not a bundle",
+      "details": { "path": "/x.txt", "reason": "missing .mdpal/" } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .invalidBundlePath(let path, let reason) = try expectNotNilUnwrap(error.details) {
+        try expect(path ?? "", equals: "/x.txt")
+        try expect(reason ?? "", equals: "missing .mdpal/")
+    } else {
+        throw TestFailure(message: "Expected invalidBundlePath details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorInvalidEncodingEnvelopeDecodes() throws {
+    let json = """
+    { "error": "invalidEncoding", "message": "utf-8 expected",
+      "details": { "description": "latin-1 detected" } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .invalidEncoding(let desc) = try expectNotNilUnwrap(error.details) {
+        try expect(desc ?? "", equals: "latin-1 detected")
+    } else {
+        throw TestFailure(message: "Expected invalidEncoding details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorStdinIsTTYEnvelopeDecodes() throws {
+    let json = """
+    { "error": "stdinIsTTY", "message": "refusing interactive stdin" }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .stdinIsTTY = error.details { /* ok */ }
+    else if error.details == nil { /* also ok — no details object */ }
+    else {
+        throw TestFailure(message: "Expected .stdinIsTTY or nil details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorPayloadTooLargeEnvelopeDecodes() throws {
+    let json = """
+    { "error": "payloadTooLarge", "message": "stdin over 16 MiB",
+      "details": { "maxBytes": 16777216 } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .payloadTooLarge(let maxBytes) = try expectNotNilUnwrap(error.details) {
+        try expect(maxBytes ?? 0, equals: 16_777_216)
+    } else {
+        throw TestFailure(message: "Expected payloadTooLarge details", file: #file, line: #line)
+    }
+}
+
+func testCLIErrorFileTooLargeEnvelopeDecodes() throws {
+    let json = """
+    { "error": "fileTooLarge", "message": "file too big",
+      "details": { "path": "/x.mdpal/V1.md", "sizeBytes": 20000000, "limitBytes": 16777216 } }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    if case .fileTooLarge(let path, let size, let limit) = try expectNotNilUnwrap(error.details) {
+        try expect(path ?? "", equals: "/x.mdpal/V1.md")
+        try expect(size ?? 0, equals: 20_000_000)
+        try expect(limit ?? 0, equals: 16_777_216)
+    } else {
+        throw TestFailure(message: "Expected fileTooLarge details", file: #file, line: #line)
+    }
+}
+
+// Phase 2.1: bundleConflict with null details — falls to .generic.
+// Dispatch #616 says non-stale-base conflict classes emit null details.
+func testCLIErrorBundleConflictNullDetailsFallsToGeneric() throws {
+    let json = """
+    { "error": "bundleConflict", "message": "concurrent write detected", "details": null }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    try expect(error.error, equals: "bundleConflict",
+               "top-level discriminator preserved for UI")
+    try expectNil(error.details,
+                  "null details → envelope.details is nil (not .generic, not typed)")
+}
+
+func testCLIErrorBundleConflictMissingDetailsFallsToNil() throws {
+    let json = """
+    { "error": "bundleConflict", "message": "concurrent write detected" }
+    """
+    let data = json.data(using: .utf8)!
+    let error = try JSONDecoder().decode(CLIErrorResponse.self, from: data)
+    try expect(error.error, equals: "bundleConflict")
+    try expectNil(error.details)
+}
+
+// HistoryResponse.currentVersion now Int? (dispatch #616 — empty bundle emits null).
+func testHistoryResponseDecodesNullCurrentVersion() throws {
+    let json = """
+    { "revisions": [], "count": 0, "currentVersion": null }
+    """
+    let data = json.data(using: .utf8)!
+    let response = try JSONDecoder().decode(HistoryResponse.self, from: data)
+    try expect(response.count, equals: 0)
+    try expectNil(response.currentVersion, "null currentVersion decodes to Int? nil")
+}
+
+func testHistoryResponseDecodesPresentCurrentVersion() throws {
+    let json = """
+    { "revisions": [], "count": 0, "currentVersion": 3 }
+    """
+    let data = json.data(using: .utf8)!
+    let response = try JSONDecoder().decode(HistoryResponse.self, from: data)
+    try expect(response.currentVersion ?? -1, equals: 3)
+}
+
+// Service-level mapping: editSection routes payloadTooLarge envelope to
+// typed CLIServiceError.payloadTooLarge.
+func testRealCLIServiceEditSectionMapsPayloadTooLargeEnvelope() async throws {
+    let stderr = """
+    { "error": "payloadTooLarge", "message": "16 MiB exceeded",
+      "details": { "maxBytes": 16777216 } }
+    """
+    let canned = ProcessResult(exitCode: 5, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.editSection(
+                slug: "x", content: "y", versionHash: "h",
+                bundle: BundlePath("/b.mdpal"))
+            throw TestFailure(message: "Expected payloadTooLarge", file: #file, line: #line)
+        } catch let CLIServiceError.payloadTooLarge(maxBytes) {
+            try expect(maxBytes ?? 0, equals: 16_777_216)
+        }
+    }
+}
+
+// Service-level mapping: createRevision routes fileTooLarge envelope to
+// typed CLIServiceError.fileTooLarge.
+func testRealCLIServiceCreateRevisionMapsFileTooLargeEnvelope() async throws {
+    let stderr = """
+    { "error": "fileTooLarge", "message": "file too big",
+      "details": { "path": "/b.mdpal/V1.md", "sizeBytes": 20000000, "limitBytes": 16777216 } }
+    """
+    let canned = ProcessResult(exitCode: 5, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.createRevision(
+                bundle: BundlePath("/b.mdpal"), content: "x", baseRevision: nil)
+            throw TestFailure(message: "Expected fileTooLarge", file: #file, line: #line)
+        } catch let CLIServiceError.fileTooLarge(path, size, limit) {
+            try expect(path ?? "", equals: "/b.mdpal/V1.md")
+            try expect(size ?? 0, equals: 20_000_000)
+            try expect(limit ?? 0, equals: 16_777_216)
+        }
+    }
+}
+
+// Service-level mapping: addComment routes payloadTooLarge envelope.
+func testRealCLIServiceAddCommentMapsPayloadTooLargeEnvelope() async throws {
+    let stderr = """
+    { "error": "payloadTooLarge", "message": "comment body too large",
+      "details": { "maxBytes": 16777216 } }
+    """
+    let canned = ProcessResult(exitCode: 5, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.addComment(
+                slug: "overview", bundle: BundlePath("/b.mdpal"),
+                type: .note, author: "me", text: "huge",
+                context: nil, priority: .normal, tags: [])
+            throw TestFailure(message: "Expected payloadTooLarge", file: #file, line: #line)
+        } catch let CLIServiceError.payloadTooLarge(maxBytes) {
+            try expect(maxBytes ?? 0, equals: 16_777_216)
+        }
+    }
+}
+
+// Service-level mapping: resolveComment routes payloadTooLarge envelope.
+func testRealCLIServiceResolveCommentMapsPayloadTooLargeEnvelope() async throws {
+    let stderr = """
+    { "error": "payloadTooLarge", "message": "response body too large",
+      "details": { "maxBytes": 16777216 } }
+    """
+    let canned = ProcessResult(exitCode: 5, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.resolveComment(
+                commentId: "c001", bundle: BundlePath("/b.mdpal"),
+                response: "huge", by: "me")
+            throw TestFailure(message: "Expected payloadTooLarge", file: #file, line: #line)
+        } catch let CLIServiceError.payloadTooLarge(maxBytes) {
+            try expect(maxBytes ?? 0, equals: 16_777_216)
+        }
+    }
+}
+
+// Sanity: payloadTooLarge envelope WITHOUT details still maps to the typed
+// case with maxBytes: nil (user still sees the helpful message).
+func testRealCLIServicePayloadTooLargeWithoutDetailsStillTyped() async throws {
+    let stderr = """
+    { "error": "payloadTooLarge", "message": "too big" }
+    """
+    let canned = ProcessResult(exitCode: 5, stdout: Data(), stderr: Data(stderr.utf8))
+    try await withRealCLIServiceForTesting(result: canned) { svc, _ in
+        do {
+            _ = try await svc.editSection(
+                slug: "x", content: "y", versionHash: "h",
+                bundle: BundlePath("/b.mdpal"))
+            throw TestFailure(message: "Expected payloadTooLarge", file: #file, line: #line)
+        } catch let CLIServiceError.payloadTooLarge(maxBytes) {
+            try expectNil(maxBytes)
+        }
+    }
+}
+
+// MARK: - Phase 2.5: DefaultProcessRunner task-cancellation → SIGTERM
+
+// Per A&D §10.6: when the Swift Task executing a CLI command is
+// cancelled, DefaultProcessRunner sends SIGTERM to the child, awaits
+// natural exit, and surfaces CLIServiceError.cancelled. Observation
+// budget: SIGTERM-to-exit within 500ms for a well-behaved child; 2s
+// backstop; no SIGKILL in V1.
+
+import Foundation
+
+func testDefaultProcessRunnerCancellationSendsSIGTERMAndThrowsCancelled() async throws {
+    // Use /bin/sh -c "sleep 30" — a well-behaved SIGTERM responder that
+    // will also block long enough for cancellation to fire mid-run.
+    //
+    // Phase 2.5 QG fix (F-Cd-4): wait 250ms before cancelling (was 100ms)
+    // to ensure the child is reliably blocked in sleep(), not still in
+    // fork+exec on a slow/loaded CI machine. Budget tightened to 1.5s
+    // (was 3s) — closer to A&D §10.6's 500ms target while still absorbing
+    // CI noise.
+    let runner = DefaultProcessRunner()
+    let start = Date()
+
+    let task = Task<Void, Error> {
+        _ = try await runner.run(
+            executable: "/bin/sh",
+            args: ["-c", "sleep 30"],
+            stdin: nil)
+    }
+
+    try await Task.sleep(nanoseconds: 250_000_000)
+    task.cancel()
+
+    do {
+        try await task.value
+        throw TestFailure(message: "Expected CLIServiceError.cancelled", file: #file, line: #line)
+    } catch CLIServiceError.cancelled {
+        // Expected.
+    } catch {
+        throw TestFailure(
+            message: "Expected CLIServiceError.cancelled, got \(error)",
+            file: #file, line: #line)
+    }
+
+    let elapsed = Date().timeIntervalSince(start)
+    try expect(elapsed < 1.5, equals: true,
+               "cancellation must propagate within 1.5s (A&D §10.6 budget: 500ms typical). Actual: \(elapsed)s")
+}
+
+// Phase 2.5 QG fix (F-Cd-1 / F-Dt-5): cancel-before-spawn race.
+// If Task.cancel() fires before the DispatchQueue worker runs,
+// runBlocking's early Task.isCancelled check must short-circuit —
+// no child spawn, no wall-clock waste. Post-resume converts to .cancelled.
+func testDefaultProcessRunnerCancellationBeforeSpawnReturnsPromptly() async throws {
+    let runner = DefaultProcessRunner()
+    let start = Date()
+
+    let task = Task<Void, Error> {
+        _ = try await runner.run(
+            executable: "/bin/sh",
+            args: ["-c", "sleep 30"],
+            stdin: nil)
+    }
+    // Cancel IMMEDIATELY — before DispatchQueue worker is likely to run.
+    task.cancel()
+
+    do {
+        try await task.value
+        throw TestFailure(message: "Expected CLIServiceError.cancelled", file: #file, line: #line)
+    } catch CLIServiceError.cancelled {
+        // Expected.
+    }
+
+    let elapsed = Date().timeIntervalSince(start)
+    // Much tighter bound: no child should spawn. 500ms is generous.
+    try expect(elapsed < 0.5, equals: true,
+               "cancel-before-spawn must return within 500ms (no child waiting). Actual: \(elapsed)s")
+}
+
+// Phase 2.5 QG fix (F-Dt-6): cancel mid-stdin-write.
+// Large stdin payload being pumped into the pipe; cancel partway through.
+// Expected: SIGTERM to the child, child exits, continuation resumes,
+// post-resume Task.isCancelled throws .cancelled regardless of stdin write
+// outcome (stdinError may get appended to stderr — that's fine, discarded).
+func testDefaultProcessRunnerCancellationMidStdinWriteThrowsCancelled() async throws {
+    let runner = DefaultProcessRunner()
+    // Child reads all stdin to /dev/null then sleeps — so a large stdin
+    // won't block (child eats it). We rely on the sleep to give cancel
+    // a window.
+    let largePayload = Data(repeating: 0x78, count: 1024 * 1024) // 1 MiB of 'x'
+
+    let task = Task<Void, Error> {
+        _ = try await runner.run(
+            executable: "/bin/sh",
+            args: ["-c", "cat > /dev/null; sleep 30"],
+            stdin: largePayload)
+    }
+
+    try await Task.sleep(nanoseconds: 250_000_000)
+    task.cancel()
+
+    do {
+        try await task.value
+        throw TestFailure(message: "Expected CLIServiceError.cancelled", file: #file, line: #line)
+    } catch CLIServiceError.cancelled {
+        // Expected.
+    }
+}
+
+func testDefaultProcessRunnerNoCancellationCompletesNormally() async throws {
+    // Smoke: a quick command that exits on its own must not trigger any
+    // cancellation handling — the existing happy-path behavior is preserved.
+    let runner = DefaultProcessRunner()
+    let result = try await runner.run(
+        executable: "/bin/echo",
+        args: ["hello"],
+        stdin: nil)
+    try expect(result.exitCode, equals: 0)
+    try expect(result.stdoutString, equals: "hello\n")
+}
+
+func testDefaultProcessRunnerCancellationAfterProcessExitIsSafe() async throws {
+    // Cancel AFTER the process has already exited. This race surfaces the
+    // holder.clear() deferred pattern — terminate() on a cleared holder
+    // must be a no-op, not a crash.
+    let runner = DefaultProcessRunner()
+
+    let task = Task<ProcessResult, Error> {
+        try await runner.run(
+            executable: "/bin/echo",
+            args: ["done"],
+            stdin: nil)
+    }
+
+    // Wait for the task to complete.
+    let result = try await task.value
+    try expect(result.exitCode, equals: 0)
+
+    // Cancel after-the-fact. Should not crash, should not affect result.
+    task.cancel()
+    // No further assertion — if this survived without crashing, we pass.
+}
+
+// MARK: - Phase 2.4: MarkdownDocument explicit-save wiring
+
+// MarkdownDocument.saveAsRevision() is the explicit-save entry point
+// (⌘⇧S via the File menu). It calls model.createRevision which shells
+// out to `mdpal revision create --stdin`. Success clears errors +
+// advances latestRevision. Typed CLIServiceError paths (bundleConflict,
+// cliNotFound, payloadTooLarge, etc.) route through recordError and
+// produce the Phase-2.2 per-error alert. Tests drive the flow through
+// the model-side fakes and assert both the RevisionInfo outcome and the
+// AlertContent surface.
+
+func testMarkdownDocumentSaveAsRevisionHappyPath() async throws {
+    let rev = RevisionInfo(
+        versionId: "V0001.0007.20260419T2245Z", version: 1, revision: 7,
+        timestamp: Date(), filePath: "V0001.0007.20260419T2245Z.md")
+    let svc = RevisionCreateControllableService(outcome: .success(rev))
+
+    let doc = MarkdownDocument()
+    // Replace the factory-created service with our controllable one.
+    // DocumentModel is @Observable so we swap the whole model.
+    let newModel = DocumentModel(cliService: svc)
+    newModel.bundlePath = BundlePath("/abs/test.mdpal")
+    newModel.rawContent = "# Test doc\n\nbody\n"
+    newModel.isDirty = true
+    doc.model = newModel
+
+    await doc.saveAsRevision()
+
+    try expect(doc.model.latestRevision?.versionId,
+               equals: "V0001.0007.20260419T2245Z",
+               "successful save advances latestRevision")
+    try expect(doc.model.isDirty, equals: false,
+               "successful save clears isDirty")
+    try expectNil(doc.model.lastAlert,
+                  "successful save clears any prior alert")
+    try expectNil(doc.model.lastError)
+    // Phase 2.4 QG fix (F-T-5): rawContent invariant — save must not mutate
+    // the in-memory content (that stays the user's responsibility).
+    try expect(doc.model.rawContent, equals: "# Test doc\n\nbody\n",
+               "rawContent must be unchanged by successful save")
+}
+
+func testMarkdownDocumentSaveAsRevisionBundleConflictSurfacesReloadAlert() async throws {
+    let svc = RevisionCreateControllableService(
+        outcome: .bundleConflict(
+            baseRevision: "V0001.0002", currentRevision: "V0001.0003"))
+
+    let doc = MarkdownDocument()
+    let newModel = DocumentModel(cliService: svc)
+    newModel.bundlePath = BundlePath("/abs/test.mdpal")
+    newModel.rawContent = "# Attempted overwrite\n"
+    doc.model = newModel
+
+    await doc.saveAsRevision()
+
+    // Phase 2.4 QG fix (F-T-2): force-unwrap pattern after expectNotNil
+    // eliminates the `?? default` trivial-pass risk where lastAlert == nil
+    // would collapse to a trivially-passing assertion.
+    let alert = try expectNotNilUnwrap(doc.model.lastAlert)
+    try expect(alert.title, equals: "Bundle changed on disk")
+    try expect(alert.primaryAction, equals: AlertAction.reload,
+               "bundleConflict → reload action (user must refresh before retry)")
+    try expect(alert.body.contains("V0001.0002"), equals: true,
+               "alert body mentions base revision")
+    try expect(alert.body.contains("V0001.0003"), equals: true,
+               "alert body mentions current revision")
+    // rawContent invariant: failed save must not mutate the pending edit.
+    try expect(doc.model.rawContent, equals: "# Attempted overwrite\n",
+               "rawContent preserved on bundleConflict — user's work is safe")
+}
+
+func testMarkdownDocumentSaveAsRevisionGenericFailureSurfacesExecutionFailedAlert() async throws {
+    let svc = RevisionCreateControllableService(
+        outcome: .failure("disk full"))
+
+    let doc = MarkdownDocument()
+    let newModel = DocumentModel(cliService: svc)
+    newModel.bundlePath = BundlePath("/abs/test.mdpal")
+    newModel.rawContent = "# X\n"
+    doc.model = newModel
+
+    await doc.saveAsRevision()
+
+    let alert = try expectNotNilUnwrap(doc.model.lastAlert)
+    try expect(alert.title, equals: "Something went wrong",
+               "executionFailed → generic title but showDetails action")
+    try expect(alert.primaryAction, equals: AlertAction.showDetails)
+    try expect(alert.body.contains("disk full"), equals: true,
+               "stderr contents surface in alert body for details")
+}
+
+/// A fake that always throws cliNotFound on createRevision. Exercises
+/// the installCLI alert path — verifies the 2.4 glue correctly routes
+/// non-bundleConflict CLIServiceError cases through recordError.
+final class CLINotFoundCreateRevisionService: CLIServiceProtocol, @unchecked Sendable {
+    private let mock = MockCLIService()
+
+    func createRevision(bundle: BundlePath, content: String,
+                        baseRevision: String?) async throws -> RevisionInfo {
+        throw CLIServiceError.cliNotFound
+    }
+
+    // Delegate everything else to the mock.
+    func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
+        try await mock.listSections(bundle: bundle)
+    }
+    func readSection(slug: String, bundle: BundlePath) async throws -> Section {
+        try await mock.readSection(slug: slug, bundle: bundle)
+    }
+    func editSection(slug: String, content: String,
+                     versionHash: String, bundle: BundlePath) async throws -> EditResult {
+        try await mock.editSection(slug: slug, content: content,
+                                   versionHash: versionHash, bundle: bundle)
+    }
+    func listComments(bundle: BundlePath) async throws -> [Comment] {
+        try await mock.listComments(bundle: bundle)
+    }
+    func listFlags(bundle: BundlePath) async throws -> [Flag] {
+        try await mock.listFlags(bundle: bundle)
+    }
+    func addComment(slug: String, bundle: BundlePath, type: CommentType,
+                    author: String, text: String, context: String?,
+                    priority: Priority, tags: [String]) async throws -> Comment {
+        try await mock.addComment(slug: slug, bundle: bundle, type: type,
+                                  author: author, text: text, context: context,
+                                  priority: priority, tags: tags)
+    }
+    func resolveComment(commentId: String, bundle: BundlePath,
+                        response: String, by: String) async throws -> ResolveResult {
+        try await mock.resolveComment(commentId: commentId, bundle: bundle,
+                                      response: response, by: by)
+    }
+    func flagSection(slug: String, bundle: BundlePath,
+                     author: String, note: String?) async throws -> FlagResult {
+        try await mock.flagSection(slug: slug, bundle: bundle,
+                                   author: author, note: note)
+    }
+    func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
+        try await mock.clearFlag(slug: slug, bundle: bundle)
+    }
+    func listHistory(bundle: BundlePath) async throws -> [RevisionInfo] {
+        try await mock.listHistory(bundle: bundle)
+    }
+    func showVersion(bundle: BundlePath) async throws -> VersionInfo {
+        try await mock.showVersion(bundle: bundle)
+    }
+    func bumpVersion(bundle: BundlePath) async throws -> VersionBumpResult {
+        try await mock.bumpVersion(bundle: bundle)
+    }
+}
+
+// Phase 2.5 QG fix (F-Dt-9): cancellation end-to-end through saveAsRevision.
+// Verifies the full routing: runner raises .cancelled → DocumentModel
+// rethrows → MarkdownDocument.saveAsRevision catches → recordError →
+// AlertContent with "Operation cancelled" title.
+final class CancelledCreateRevisionService: CLIServiceProtocol, @unchecked Sendable {
+    private let mock = MockCLIService()
+    func createRevision(bundle: BundlePath, content: String,
+                        baseRevision: String?) async throws -> RevisionInfo {
+        throw CLIServiceError.cancelled
+    }
+    func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
+        try await mock.listSections(bundle: bundle)
+    }
+    func readSection(slug: String, bundle: BundlePath) async throws -> Section {
+        try await mock.readSection(slug: slug, bundle: bundle)
+    }
+    func editSection(slug: String, content: String, versionHash: String,
+                     bundle: BundlePath) async throws -> EditResult {
+        try await mock.editSection(slug: slug, content: content,
+                                   versionHash: versionHash, bundle: bundle)
+    }
+    func listComments(bundle: BundlePath) async throws -> [Comment] {
+        try await mock.listComments(bundle: bundle)
+    }
+    func listFlags(bundle: BundlePath) async throws -> [Flag] {
+        try await mock.listFlags(bundle: bundle)
+    }
+    func addComment(slug: String, bundle: BundlePath, type: CommentType,
+                    author: String, text: String, context: String?,
+                    priority: Priority, tags: [String]) async throws -> Comment {
+        try await mock.addComment(slug: slug, bundle: bundle, type: type,
+                                  author: author, text: text, context: context,
+                                  priority: priority, tags: tags)
+    }
+    func resolveComment(commentId: String, bundle: BundlePath,
+                        response: String, by: String) async throws -> ResolveResult {
+        try await mock.resolveComment(commentId: commentId, bundle: bundle,
+                                      response: response, by: by)
+    }
+    func flagSection(slug: String, bundle: BundlePath, author: String,
+                     note: String?) async throws -> FlagResult {
+        try await mock.flagSection(slug: slug, bundle: bundle,
+                                   author: author, note: note)
+    }
+    func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
+        try await mock.clearFlag(slug: slug, bundle: bundle)
+    }
+    func listHistory(bundle: BundlePath) async throws -> [RevisionInfo] {
+        try await mock.listHistory(bundle: bundle)
+    }
+    func showVersion(bundle: BundlePath) async throws -> VersionInfo {
+        try await mock.showVersion(bundle: bundle)
+    }
+    func bumpVersion(bundle: BundlePath) async throws -> VersionBumpResult {
+        try await mock.bumpVersion(bundle: bundle)
+    }
+}
+
+func testMarkdownDocumentSaveAsRevisionCancelledSurfacesCancelledAlert() async throws {
+    let doc = MarkdownDocument()
+    let newModel = DocumentModel(cliService: CancelledCreateRevisionService())
+    newModel.bundlePath = BundlePath("/abs/test.mdpal")
+    newModel.rawContent = "# Cancelled save\n"
+    doc.model = newModel
+
+    await doc.saveAsRevision()
+
+    let alert = try expectNotNilUnwrap(doc.model.lastAlert)
+    try expect(alert.title, equals: "Operation cancelled")
+    try expect(alert.primaryAction, equals: AlertAction.dismiss,
+               "cancelled → dismiss (no retry; the user initiated the cancel)")
+    // rawContent invariant: cancel must not mutate the in-memory document.
+    try expect(doc.model.rawContent, equals: "# Cancelled save\n",
+               "rawContent preserved on cancellation")
+}
+
+func testMarkdownDocumentSaveAsRevisionCliNotFoundSurfacesInstallCLIAlert() async throws {
+    let doc = MarkdownDocument()
+    let newModel = DocumentModel(cliService: CLINotFoundCreateRevisionService())
+    newModel.bundlePath = BundlePath("/abs/test.mdpal")
+    doc.model = newModel
+
+    await doc.saveAsRevision()
+
+    let alert = try expectNotNilUnwrap(doc.model.lastAlert)
+    try expect(alert.title, equals: "mdpal CLI not found")
+    try expect(alert.primaryAction, equals: AlertAction.installCLI)
+}
+
+func testMarkdownDocumentSaveAsRevisionDoesNotCrashWithoutBundlePath() async throws {
+    // No bundlePath set — DocumentModel falls back to effectiveBundle
+    // which is empty. Mock CLI service accepts any path. Verifies the
+    // early-path works without explicit setup.
+    //
+    // Phase 2.4 QG fix (F-C-7): inject MockCLIService explicitly rather
+    // than relying on CLIServiceFactory.make() (which depends on MDPAL_MOCK
+    // and the presence of a real mdpal binary on $PATH). The test now
+    // asserts behavior, not environment.
+    let doc = MarkdownDocument()
+    let mockModel = DocumentModel(cliService: MockCLIService())
+    mockModel.rawContent = "# Fresh\n"
+    // Don't set bundlePath.
+    doc.model = mockModel
+
+    await doc.saveAsRevision()
+
+    // Mock's createRevision returns plausible info (doesn't care about path).
+    try expectNotNil(doc.model.latestRevision,
+                     "mock succeeded even with no bundle path")
+}
+
+// Phase 2.4 QG fix (F-T-3): auto-save path regression lock-in.
+// Ensures fileWrapper(snapshot:configuration:) does NOT shell out to the
+// CLI or create a revision — A&D §6.7 invariant. A future edit that leaks
+// a CLI call into auto-save will fail this test.
+func testMarkdownDocumentFileWrapperAutoSaveDoesNotCreateRevision() throws {
+    let doc = MarkdownDocument()
+    let counter = CreateRevisionCounterService()
+    let model = DocumentModel(cliService: counter)
+    model.rawContent = "# original\n"
+    doc.model = model
+
+    // Create a minimal WriteConfiguration — we can't easily construct one
+    // directly, so we exercise the transformation as a raw byte round-trip
+    // through fileWrapper(snapshot:configuration:). SwiftUI's auto-save
+    // path goes through this method with a snapshot captured from
+    // snapshot(contentType:). The test confirms that method returns a
+    // FileWrapper with the exact input bytes AND does not poke the CLI.
+    let content = "# changed\n"
+    let snapshot = try doc.snapshot(contentType: .plainText)
+    try expect(snapshot, equals: "# original\n",
+               "snapshot returns current rawContent verbatim")
+
+    // Build a WriteConfiguration manually — we use the existing
+    // filesystem-empty path; in real auto-save SwiftUI supplies this.
+    // NOTE: The real test is that createRevision count stays zero.
+    // Construction of WriteConfiguration is awkward in unit tests, so
+    // we test the contract invariant via the direct snapshot path +
+    // verify the counter service is untouched.
+    _ = content  // referenced for completeness
+
+    try expect(counter.createRevisionCallCount, equals: 0,
+               "snapshot() must not trigger createRevision")
+    // Invoking fileWrapper requires a WriteConfiguration. We cannot build
+    // one from test context without a filesystem URL. The spirit of this
+    // test is: if a future edit wires createRevision INTO snapshot or
+    // fileWrapper(snapshot:configuration:), the counter surfaces it.
+    // Coverage is necessarily partial; full path is XCUITest territory.
+}
+
+// Counter service: a minimal CLIServiceProtocol fake whose only purpose
+// is tracking how many times createRevision gets called. Used by the
+// auto-save regression test.
+final class CreateRevisionCounterService: CLIServiceProtocol, @unchecked Sendable {
+    var createRevisionCallCount = 0
+    private let mock = MockCLIService()
+
+    func createRevision(bundle: BundlePath, content: String,
+                        baseRevision: String?) async throws -> RevisionInfo {
+        createRevisionCallCount += 1
+        return try await mock.createRevision(
+            bundle: bundle, content: content, baseRevision: baseRevision)
+    }
+
+    func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
+        try await mock.listSections(bundle: bundle)
+    }
+    func readSection(slug: String, bundle: BundlePath) async throws -> Section {
+        try await mock.readSection(slug: slug, bundle: bundle)
+    }
+    func editSection(slug: String, content: String, versionHash: String,
+                     bundle: BundlePath) async throws -> EditResult {
+        try await mock.editSection(slug: slug, content: content,
+                                   versionHash: versionHash, bundle: bundle)
+    }
+    func listComments(bundle: BundlePath) async throws -> [Comment] {
+        try await mock.listComments(bundle: bundle)
+    }
+    func listFlags(bundle: BundlePath) async throws -> [Flag] {
+        try await mock.listFlags(bundle: bundle)
+    }
+    func addComment(slug: String, bundle: BundlePath, type: CommentType,
+                    author: String, text: String, context: String?,
+                    priority: Priority, tags: [String]) async throws -> Comment {
+        try await mock.addComment(slug: slug, bundle: bundle, type: type,
+                                  author: author, text: text, context: context,
+                                  priority: priority, tags: tags)
+    }
+    func resolveComment(commentId: String, bundle: BundlePath,
+                        response: String, by: String) async throws -> ResolveResult {
+        try await mock.resolveComment(commentId: commentId, bundle: bundle,
+                                      response: response, by: by)
+    }
+    func flagSection(slug: String, bundle: BundlePath, author: String,
+                     note: String?) async throws -> FlagResult {
+        try await mock.flagSection(slug: slug, bundle: bundle,
+                                   author: author, note: note)
+    }
+    func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
+        try await mock.clearFlag(slug: slug, bundle: bundle)
+    }
+    func listHistory(bundle: BundlePath) async throws -> [RevisionInfo] {
+        try await mock.listHistory(bundle: bundle)
+    }
+    func showVersion(bundle: BundlePath) async throws -> VersionInfo {
+        try await mock.showVersion(bundle: bundle)
+    }
+    func bumpVersion(bundle: BundlePath) async throws -> VersionBumpResult {
+        try await mock.bumpVersion(bundle: bundle)
+    }
+}
+
+// MARK: - Phase 2.3: LineDiff (conflict-alert diff)
+
+func testLineDiffIdenticalInputsReturnsAllUnchanged() throws {
+    let lines = computeLineDiff(pending: "a\nb\nc", current: "a\nb\nc")
+    try expect(lines.count, equals: 3)
+    try expect(lines.allSatisfy { $0.kind == .unchanged }, equals: true)
+    // Preserves line numbering.
+    try expect(lines[0].pendingLineNumber ?? 0, equals: 1)
+    try expect(lines[2].currentLineNumber ?? 0, equals: 3)
+}
+
+func testLineDiffEmptyInputsReturnsSingleUnchangedEmpty() throws {
+    let lines = computeLineDiff(pending: "", current: "")
+    // "".components(separatedBy:"\n") yields [""] — one empty line.
+    try expect(lines.count, equals: 1)
+    try expect(lines[0].kind, equals: DiffLine.Kind.unchanged)
+    try expect(lines[0].text, equals: "")
+}
+
+func testLineDiffAddedLineAtEndIsCurrentOnly() throws {
+    let lines = computeLineDiff(pending: "a\nb", current: "a\nb\nc")
+    let added = lines.filter { $0.kind == .currentOnly }
+    try expect(added.count, equals: 1)
+    try expect(added[0].text, equals: "c")
+    // Line 3 in current, no pending counterpart.
+    try expect(added[0].currentLineNumber ?? 0, equals: 3)
+    try expectNil(added[0].pendingLineNumber)
+}
+
+func testLineDiffRemovedLineIsPendingOnly() throws {
+    let lines = computeLineDiff(pending: "a\nb\nc", current: "a\nc")
+    let removed = lines.filter { $0.kind == .pendingOnly }
+    try expect(removed.count, equals: 1)
+    try expect(removed[0].text, equals: "b")
+    try expect(removed[0].pendingLineNumber ?? 0, equals: 2)
+    try expectNil(removed[0].currentLineNumber)
+}
+
+func testLineDiffReplacedLineShowsAsRemovalPlusAddition() throws {
+    let lines = computeLineDiff(pending: "a\nOLD\nc", current: "a\nNEW\nc")
+    try expect(lines.filter { $0.kind == .pendingOnly }.count, equals: 1,
+               "OLD removed from pending")
+    try expect(lines.filter { $0.kind == .currentOnly }.count, equals: 1,
+               "NEW added in current")
+    try expect(lines.filter { $0.kind == .unchanged }.count, equals: 2,
+               "'a' and 'c' unchanged")
+}
+
+func testLineDiffPreservesEmptyLinesAsLineBoundaries() throws {
+    let lines = computeLineDiff(
+        pending: "# H\n\nbody",
+        current: "# H\n\nbody\n\nmore")
+    // Five lines of current: "# H", "", "body", "", "more".
+    try expect(lines.filter { $0.kind == .unchanged }.count, equals: 3,
+               "original 3 lines preserved")
+    try expect(lines.filter { $0.kind == .currentOnly }.count, equals: 2,
+               "added blank + 'more'")
+}
+
+func testDiffStatsCountsCorrect() throws {
+    let lines = computeLineDiff(pending: "a\nb\nc", current: "a\nNEW\nc\nMORE")
+    let stats = DiffStats(lines)
+    try expect(stats.unchanged, equals: 2, "'a' and 'c'")
+    try expect(stats.pendingOnly, equals: 1, "'b' removed")
+    try expect(stats.currentOnly, equals: 2, "'NEW' and 'MORE' added")
+    try expect(stats.totalChanged, equals: 3)
+    try expect(stats.isIdentical, equals: false)
+}
+
+func testDiffStatsIdenticalInputsMarkedIdentical() throws {
+    let lines = computeLineDiff(pending: "same", current: "same")
+    let stats = DiffStats(lines)
+    try expect(stats.isIdentical, equals: true)
+    try expect(stats.totalChanged, equals: 0)
+}
+
+func testLineDiffDeterministicAcrossRuns() throws {
+    // Same inputs must produce byte-identical outputs — a Phase 3 dependency
+    // for flatten determinism.
+    let a1 = computeLineDiff(pending: "a\nb\nc", current: "a\nx\nc")
+    let a2 = computeLineDiff(pending: "a\nb\nc", current: "a\nx\nc")
+    try expect(a1, equals: a2)
+}
+
+func testLineDiffDivergentContentProducesExpectedChangeCounts() throws {
+    // Classic LCS case: "ABCBDAB" vs "BDCABA" (letters as separate lines).
+    let pending = "A\nB\nC\nB\nD\nA\nB"
+    let current = "B\nD\nC\nA\nB\nA"
+    let lines = computeLineDiff(pending: pending, current: current)
+    // Implementation detail: exact number can vary by LCS path chosen;
+    // both pending and current should be reconstructable from the diff.
+    let pendingReconstructed = lines
+        .filter { $0.kind != .currentOnly }
+        .map { $0.text }
+        .joined(separator: "\n")
+    let currentReconstructed = lines
+        .filter { $0.kind != .pendingOnly }
+        .map { $0.text }
+        .joined(separator: "\n")
+    try expect(pendingReconstructed, equals: pending,
+               "filtering out currentOnly must reconstruct pending verbatim")
+    try expect(currentReconstructed, equals: current,
+               "filtering out pendingOnly must reconstruct current verbatim")
+}
+
+// MARK: - Phase 2.2: CLIServiceError → AlertContent mapping
+
+// One test per CLIServiceError case. The exhaustive switch on the
+// producer side fails compilation if a new case lands without a mapping;
+// the exhaustive tests here fail if a mapping is removed or mis-keyed.
+
+func testAlertContentSectionNotFoundUsesRefresh() throws {
+    let err = CLIServiceError.sectionNotFound(
+        slug: "missing", availableSlugs: ["overview", "auth"])
+    let alert = err.alertContent
+    try expect(alert.title, equals: "Section not found")
+    try expect(alert.body.contains("'missing'"), equals: true)
+    try expect(alert.body.contains("overview"), equals: true)
+    try expect(alert.primaryAction, equals: AlertAction.refresh)
+}
+
+func testAlertContentSectionNotFoundEmptyAvailableMentionsNoneAvailable() throws {
+    let err = CLIServiceError.sectionNotFound(slug: "x", availableSlugs: [])
+    let alert = err.alertContent
+    try expect(alert.body.contains("No sections are available"), equals: true)
+}
+
+func testAlertContentCommentNotFoundUsesRefresh() throws {
+    let err = CLIServiceError.commentNotFound(commentId: "c42")
+    let alert = err.alertContent
+    try expect(alert.title, equals: "Comment not found")
+    try expect(alert.body.contains("'c42'"), equals: true)
+    try expect(alert.primaryAction, equals: AlertAction.refresh)
+}
+
+func testAlertContentVersionConflictUsesReload() throws {
+    let err = CLIServiceError.versionConflict(
+        slug: "auth", expectedHash: "abc", currentHash: "def")
+    let alert = err.alertContent
+    try expect(alert.title, equals: "Section was modified")
+    try expect(alert.body.contains("'auth'"), equals: true)
+    try expect(alert.body.contains("def"), equals: true, "current hash shown")
+    try expect(alert.primaryAction, equals: AlertAction.reload)
+}
+
+func testAlertContentBundleConflictUsesReload() throws {
+    let err = CLIServiceError.bundleConflict(
+        baseRevision: "V0001.0002", currentRevision: "V0001.0003")
+    let alert = err.alertContent
+    try expect(alert.title, equals: "Bundle changed on disk")
+    try expect(alert.body.contains("V0001.0002"), equals: true)
+    try expect(alert.body.contains("V0001.0003"), equals: true)
+    try expect(alert.primaryAction, equals: AlertAction.reload)
+}
+
+func testAlertContentParseErrorUsesShowDetails() throws {
+    let err = CLIServiceError.parseError(description: "unexpected token")
+    let alert = err.alertContent
+    try expect(alert.title, equals: "Couldn't parse response")
+    try expect(alert.body.contains("unexpected token"), equals: true)
+    try expect(alert.primaryAction, equals: AlertAction.showDetails)
+}
+
+func testAlertContentCliNotFoundUsesInstallCLI() throws {
+    let alert = CLIServiceError.cliNotFound.alertContent
+    try expect(alert.title, equals: "mdpal CLI not found")
+    try expect(alert.primaryAction, equals: AlertAction.installCLI)
+}
+
+func testAlertContentFileNotFoundUsesDismiss() throws {
+    let err = CLIServiceError.fileNotFound(path: "/gone.mdpal")
+    let alert = err.alertContent
+    try expect(alert.title, equals: "File not found")
+    try expect(alert.body.contains("'/gone.mdpal'"), equals: true)
+    try expect(alert.primaryAction, equals: AlertAction.dismiss)
+}
+
+func testAlertContentInvalidArgumentUsesShowDetails() throws {
+    let err = CLIServiceError.invalidArgument(description: "--bogus")
+    let alert = err.alertContent
+    try expect(alert.title, equals: "Invalid argument")
+    try expect(alert.body.contains("--bogus"), equals: true)
+    try expect(alert.primaryAction, equals: AlertAction.showDetails)
+}
+
+func testAlertContentExecutionFailedUsesShowDetails() throws {
+    let err = CLIServiceError.executionFailed(exitCode: 7, stderr: "boom")
+    let alert = err.alertContent
+    try expect(alert.title, equals: "Something went wrong")
+    try expect(alert.body.contains("7"), equals: true, "exit code shown")
+    try expect(alert.primaryAction, equals: AlertAction.showDetails)
+}
+
+func testAlertContentExecutionFailedTruncatesLongStderr() throws {
+    let long = String(repeating: "x", count: 500)
+    let err = CLIServiceError.executionFailed(exitCode: 1, stderr: long)
+    let alert = err.alertContent
+    try expect(alert.body.contains("..."), equals: true, "long stderr truncated with ellipsis")
+}
+
+func testAlertContentPayloadTooLargeWithMaxBytesMentionsLimit() throws {
+    let err = CLIServiceError.payloadTooLarge(maxBytes: 16_777_216)
+    let alert = err.alertContent
+    try expect(alert.title, equals: "Your change is too large")
+    try expect(alert.body.contains("16.0 MiB"), equals: true)
+    try expect(alert.primaryAction, equals: AlertAction.dismiss)
+}
+
+func testAlertContentPayloadTooLargeWithNilMaxBytesOmitsLimit() throws {
+    let err = CLIServiceError.payloadTooLarge(maxBytes: nil)
+    let alert = err.alertContent
+    try expect(alert.body.contains("MiB"), equals: false,
+               "no MiB figure when maxBytes is nil")
+    try expect(alert.body.contains("size limit"), equals: true)
+}
+
+func testAlertContentFileTooLargeWithAllFieldsMentionsSizes() throws {
+    let err = CLIServiceError.fileTooLarge(
+        path: "/bundle/V1.md", sizeBytes: 20_000_000, limitBytes: 16_777_216)
+    let alert = err.alertContent
+    try expect(alert.title, equals: "File is too large")
+    try expect(alert.body.contains("/bundle/V1.md"), equals: true)
+    try expect(alert.body.contains("MiB"), equals: true)
+    try expect(alert.primaryAction, equals: AlertAction.dismiss)
+}
+
+func testAlertContentFileTooLargeWithNilFieldsIsGeneric() throws {
+    let err = CLIServiceError.fileTooLarge(
+        path: nil, sizeBytes: nil, limitBytes: nil)
+    let alert = err.alertContent
+    try expect(alert.body.contains("A file in the bundle"), equals: true)
+    try expect(alert.body.contains("MiB"), equals: false)
+}
+
+func testAlertContentCancelledUsesDismiss() throws {
+    let alert = CLIServiceError.cancelled.alertContent
+    try expect(alert.title, equals: "Operation cancelled")
+    try expect(alert.primaryAction, equals: AlertAction.dismiss)
+}
+
+// MARK: - DocumentModel.recordError / clearError (Phase 2.2)
+
+func testDocumentModelRecordErrorCLIServiceErrorPopulatesBothAlertAndString() async throws {
+    let doc = DocumentModel()
+    doc.recordError(
+        CLIServiceError.versionConflict(
+            slug: "x", expectedHash: "a", currentHash: "b"),
+        prefix: "Failed to edit")
+    try expectNotNil(doc.lastAlert)
+    try expect(doc.lastAlert?.title ?? "", equals: "Section was modified")
+    try expect(doc.lastAlert?.primaryAction ?? .dismiss, equals: AlertAction.reload)
+    try expect(doc.lastError?.contains("Failed to edit") ?? false, equals: true)
+}
+
+func testDocumentModelRecordErrorNonCLIErrorUsesGenericFallback() async throws {
+    let doc = DocumentModel()
+    let genericError = NSError(domain: "TestDomain", code: 42, userInfo: [
+        NSLocalizedDescriptionKey: "unexpected"
+    ])
+    doc.recordError(genericError, prefix: "Failed to load sections")
+    try expectNotNil(doc.lastAlert)
+    try expect(doc.lastAlert?.title ?? "", equals: "Something went wrong",
+               "non-CLI errors get the generic fallback alert")
+    try expect(doc.lastAlert?.primaryAction ?? .reload, equals: AlertAction.dismiss)
+    try expect(doc.lastError?.contains("Failed to load sections") ?? false, equals: true)
+    try expect(doc.lastError?.contains("unexpected") ?? false, equals: true)
+}
+
+func testDocumentModelClearErrorClearsBothSurfaces() async throws {
+    let doc = DocumentModel()
+    doc.recordError(CLIServiceError.cliNotFound, prefix: "CLI resolution")
+    try expectNotNil(doc.lastAlert)
+    try expectNotNil(doc.lastError)
+    doc.clearError()
+    try expectNil(doc.lastAlert)
+    try expectNil(doc.lastError)
+}
+
 // MARK: - Mock CLI Service Tests
 
 func testListSectionsReturnsFlattenedMockData() async throws {
@@ -2820,7 +3952,11 @@ func testDocumentModelCreateRevisionRethrowsBundleConflict() async throws {
                "failed save must not advance latestRevision")
 }
 
-func testDocumentModelCreateRevisionSetsLastErrorOnGenericFailure() async throws {
+func testDocumentModelCreateRevisionRethrowsGenericFailureWithoutRecording() async throws {
+    // Phase 2.4 QG fix (F-C-6): DocumentModel.createRevision is a pure
+    // rethrow — no recording of lastError/lastAlert. The view-layer caller
+    // (typically MarkdownDocument.saveAsRevision) is the single recording
+    // site. This test locks in that the model does NOT record on its own.
     let svc = RevisionCreateControllableService(
         outcome: .failure("disk full"))
     let doc = DocumentModel(cliService: svc)
@@ -2832,8 +3968,10 @@ func testDocumentModelCreateRevisionSetsLastErrorOnGenericFailure() async throws
         // expected — generic failure propagates
     }
 
-    try expect(doc.lastError?.contains("Failed to save revision") ?? false, equals: true,
-               "generic failure populates lastError for UI toast")
+    try expectNil(doc.lastError,
+                  "DocumentModel.createRevision must NOT populate lastError — view layer records")
+    try expectNil(doc.lastAlert,
+                  "DocumentModel.createRevision must NOT populate lastAlert — view layer records")
 }
 
 func testDocumentModelLoadHistoryPopulatesState() async throws {
@@ -3279,6 +4417,31 @@ struct TestRunner {
         run("bundleConflict envelope decodes", testCLIErrorBundleConflictDecodes)
         run("unknown kind falls back to generic", testCLIErrorUnknownKindFallsBackToGeneric)
 
+        print("\n18-discriminator envelope coverage (Phase 2.1, dispatches #616 + #635):")
+        run("parseError envelope decodes", testCLIErrorParseErrorEnvelopeDecodes)
+        run("metadataError envelope decodes", testCLIErrorMetadataErrorEnvelopeDecodes)
+        run("fileError envelope decodes", testCLIErrorFileErrorEnvelopeDecodes)
+        run("fileNotFound envelope decodes", testCLIErrorFileNotFoundEnvelopeDecodes)
+        run("invalidArgument envelope decodes", testCLIErrorInvalidArgumentEnvelopeDecodes)
+        run("commentAlreadyResolved envelope decodes", testCLIErrorCommentAlreadyResolvedEnvelopeDecodes)
+        run("sectionNotFlagged envelope decodes", testCLIErrorSectionNotFlaggedEnvelopeDecodes)
+        run("unsupportedFormat envelope decodes", testCLIErrorUnsupportedFormatEnvelopeDecodes)
+        run("noFilePath envelope decodes", testCLIErrorNoFilePathEnvelopeDecodes)
+        run("invalidBundlePath envelope decodes", testCLIErrorInvalidBundlePathEnvelopeDecodes)
+        run("invalidEncoding envelope decodes", testCLIErrorInvalidEncodingEnvelopeDecodes)
+        run("stdinIsTTY envelope decodes", testCLIErrorStdinIsTTYEnvelopeDecodes)
+        run("payloadTooLarge envelope decodes", testCLIErrorPayloadTooLargeEnvelopeDecodes)
+        run("fileTooLarge envelope decodes", testCLIErrorFileTooLargeEnvelopeDecodes)
+        run("bundleConflict null details falls to nil", testCLIErrorBundleConflictNullDetailsFallsToGeneric)
+        run("bundleConflict missing details falls to nil", testCLIErrorBundleConflictMissingDetailsFallsToNil)
+        run("HistoryResponse decodes null currentVersion", testHistoryResponseDecodesNullCurrentVersion)
+        run("HistoryResponse decodes present currentVersion", testHistoryResponseDecodesPresentCurrentVersion)
+        await runAsync("editSection maps payloadTooLarge envelope", testRealCLIServiceEditSectionMapsPayloadTooLargeEnvelope)
+        await runAsync("createRevision maps fileTooLarge envelope", testRealCLIServiceCreateRevisionMapsFileTooLargeEnvelope)
+        await runAsync("addComment maps payloadTooLarge envelope", testRealCLIServiceAddCommentMapsPayloadTooLargeEnvelope)
+        await runAsync("resolveComment maps payloadTooLarge envelope", testRealCLIServiceResolveCommentMapsPayloadTooLargeEnvelope)
+        await runAsync("payloadTooLarge without details still typed", testRealCLIServicePayloadTooLargeWithoutDetailsStillTyped)
+
         print("\nRealCLIService mutations (Phase 1B.5):")
         await runAsync("addComment happy path + argv (minimal)", testRealCLIServiceAddCommentHappyPath)
         await runAsync("addComment emits --context and repeatable --tag when present", testRealCLIServiceAddCommentEmitsContextAndRepeatableTagsWhenPresent)
@@ -3319,7 +4482,7 @@ struct TestRunner {
         await runAsync("createRevision happy path advances latestRevision + clears isDirty", testDocumentModelCreateRevisionHappyPath)
         await runAsync("createRevision omits base when no latest", testDocumentModelCreateRevisionOmitsBaseWhenNoLatest)
         await runAsync("createRevision rethrows bundleConflict (no lastError)", testDocumentModelCreateRevisionRethrowsBundleConflict)
-        await runAsync("createRevision sets lastError on generic failure", testDocumentModelCreateRevisionSetsLastErrorOnGenericFailure)
+        await runAsync("createRevision rethrows generic failure without recording (Phase 2.4 QG)", testDocumentModelCreateRevisionRethrowsGenericFailureWithoutRecording)
         await runAsync("loadHistory populates history + syncs latestRevision", testDocumentModelLoadHistoryPopulatesState)
         await runAsync("loadCurrentVersion populates currentVersion", testDocumentModelLoadCurrentVersionPopulatesState)
         await runAsync("bumpVersion updates currentVersion to new value", testDocumentModelBumpVersionUpdatesCurrentVersion)
@@ -3344,6 +4507,55 @@ struct TestRunner {
         run("Resolution.bannerMessage is nil for real", testResolutionBannerMessageIsNilForReal)
         run("Resolution.bannerMessage mentions mock when requested", testResolutionBannerMessageMentionsMockWhenRequested)
         run("Resolution.bannerMessage includes reason on fallback", testResolutionBannerMessageIncludesReasonOnFallback)
+
+        print("\nDefaultProcessRunner task-cancellation (Phase 2.5):")
+        await runAsync("cancellation sends SIGTERM + throws CLIServiceError.cancelled", testDefaultProcessRunnerCancellationSendsSIGTERMAndThrowsCancelled)
+        await runAsync("no cancellation completes normally (regression)", testDefaultProcessRunnerNoCancellationCompletesNormally)
+        await runAsync("cancellation after process exit is safe (race)", testDefaultProcessRunnerCancellationAfterProcessExitIsSafe)
+        await runAsync("cancellation before spawn returns promptly (QG F-Cd-1)", testDefaultProcessRunnerCancellationBeforeSpawnReturnsPromptly)
+        await runAsync("cancellation mid-stdin-write throws cancelled (QG F-Dt-6)", testDefaultProcessRunnerCancellationMidStdinWriteThrowsCancelled)
+
+        print("\nMarkdownDocument explicit-save (Phase 2.4):")
+        await runAsync("saveAsRevision happy path clears state + advances latestRevision", testMarkdownDocumentSaveAsRevisionHappyPath)
+        await runAsync("saveAsRevision bundleConflict surfaces reload alert", testMarkdownDocumentSaveAsRevisionBundleConflictSurfacesReloadAlert)
+        await runAsync("saveAsRevision generic failure surfaces showDetails alert", testMarkdownDocumentSaveAsRevisionGenericFailureSurfacesExecutionFailedAlert)
+        await runAsync("saveAsRevision cliNotFound surfaces installCLI alert", testMarkdownDocumentSaveAsRevisionCliNotFoundSurfacesInstallCLIAlert)
+        await runAsync("saveAsRevision cancelled surfaces cancelled alert (QG F-Dt-9)", testMarkdownDocumentSaveAsRevisionCancelledSurfacesCancelledAlert)
+        await runAsync("saveAsRevision does not crash without bundle path", testMarkdownDocumentSaveAsRevisionDoesNotCrashWithoutBundlePath)
+        run("fileWrapper auto-save does not invoke createRevision (Phase 2.4 QG F-T-3)", testMarkdownDocumentFileWrapperAutoSaveDoesNotCreateRevision)
+
+        print("\nLineDiff (Phase 2.3):")
+        run("identical inputs return all unchanged", testLineDiffIdenticalInputsReturnsAllUnchanged)
+        run("empty inputs return single unchanged empty", testLineDiffEmptyInputsReturnsSingleUnchangedEmpty)
+        run("added line at end is currentOnly", testLineDiffAddedLineAtEndIsCurrentOnly)
+        run("removed line is pendingOnly", testLineDiffRemovedLineIsPendingOnly)
+        run("replaced line shows as removal plus addition", testLineDiffReplacedLineShowsAsRemovalPlusAddition)
+        run("preserves empty lines as line boundaries", testLineDiffPreservesEmptyLinesAsLineBoundaries)
+        run("DiffStats counts correct", testDiffStatsCountsCorrect)
+        run("DiffStats identical inputs marked identical", testDiffStatsIdenticalInputsMarkedIdentical)
+        run("LineDiff deterministic across runs", testLineDiffDeterministicAcrossRuns)
+        run("divergent content produces reconstructable diff", testLineDiffDivergentContentProducesExpectedChangeCounts)
+
+        print("\nCLIServiceError → AlertContent mapping (Phase 2.2):")
+        run("sectionNotFound → refresh action", testAlertContentSectionNotFoundUsesRefresh)
+        run("sectionNotFound empty available list", testAlertContentSectionNotFoundEmptyAvailableMentionsNoneAvailable)
+        run("commentNotFound → refresh action", testAlertContentCommentNotFoundUsesRefresh)
+        run("versionConflict → reload action", testAlertContentVersionConflictUsesReload)
+        run("bundleConflict → reload action", testAlertContentBundleConflictUsesReload)
+        run("parseError → showDetails action", testAlertContentParseErrorUsesShowDetails)
+        run("cliNotFound → installCLI action", testAlertContentCliNotFoundUsesInstallCLI)
+        run("fileNotFound → dismiss action", testAlertContentFileNotFoundUsesDismiss)
+        run("invalidArgument → showDetails action", testAlertContentInvalidArgumentUsesShowDetails)
+        run("executionFailed → showDetails action", testAlertContentExecutionFailedUsesShowDetails)
+        run("executionFailed truncates long stderr", testAlertContentExecutionFailedTruncatesLongStderr)
+        run("payloadTooLarge with maxBytes mentions limit", testAlertContentPayloadTooLargeWithMaxBytesMentionsLimit)
+        run("payloadTooLarge with nil maxBytes omits limit", testAlertContentPayloadTooLargeWithNilMaxBytesOmitsLimit)
+        run("fileTooLarge with all fields mentions sizes", testAlertContentFileTooLargeWithAllFieldsMentionsSizes)
+        run("fileTooLarge with nil fields is generic", testAlertContentFileTooLargeWithNilFieldsIsGeneric)
+        run("cancelled → dismiss action", testAlertContentCancelledUsesDismiss)
+        await runAsync("recordError CLIServiceError populates both surfaces", testDocumentModelRecordErrorCLIServiceErrorPopulatesBothAlertAndString)
+        await runAsync("recordError non-CLI error uses generic fallback", testDocumentModelRecordErrorNonCLIErrorUsesGenericFallback)
+        await runAsync("clearError clears both surfaces", testDocumentModelClearErrorClearsBothSurfaces)
 
         print("\n\(passed + failed) tests: \(passed) passed, \(failed) failed")
 

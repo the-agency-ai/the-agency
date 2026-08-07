@@ -29,31 +29,43 @@ public struct CLIServiceBanner: View {
 
     public var body: some View {
         if let message = resolution.bannerMessage {
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 12) {
                 Image(systemName: iconName)
+                    .font(.title2)
                     .foregroundStyle(iconColor)
-                Text(message)
-                    .font(.callout)
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 4) {
+                    if let title = resolution.bannerTitle {
+                        Text(title)
+                            .font(.headline)
+                            .foregroundStyle(iconColor)
+                    }
+                    Text(message)
+                        .font(.callout)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .background(backgroundColor)
+            .overlay(alignment: .top) {
+                Rectangle().fill(iconColor).frame(height: 3)
+            }
             .overlay(alignment: .bottom) {
-                Divider()
+                Rectangle().fill(iconColor).frame(height: 3)
             }
         }
     }
 
     /// .mockRequested is a deliberate user choice → neutral info icon.
     /// .mockFallback is an environment issue → yellow warning icon.
+    /// .pancake is a normal mode for plain .md → blue document icon.
     private var iconName: String {
         switch resolution {
         case .mockRequested: return "info.circle"
         case .mockFallback: return "exclamationmark.triangle"
+        case .pancake: return "doc.text"
         case .real: return "" // unreachable — bannerMessage returns nil
         }
     }
@@ -62,14 +74,16 @@ public struct CLIServiceBanner: View {
         switch resolution {
         case .mockRequested: return .accentColor
         case .mockFallback: return .orange
+        case .pancake: return .blue
         case .real: return .clear
         }
     }
 
     private var backgroundColor: Color {
         switch resolution {
-        case .mockRequested: return Color.accentColor.opacity(0.08)
-        case .mockFallback: return Color.orange.opacity(0.12)
+        case .mockRequested: return Color.accentColor.opacity(0.18)
+        case .mockFallback: return Color.orange.opacity(0.28)
+        case .pancake: return Color.blue.opacity(0.18)
         case .real: return Color.clear
         }
     }

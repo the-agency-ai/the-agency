@@ -228,18 +228,136 @@ public final class MockCLIService: CLIServiceProtocol, @unchecked Sendable {
         ),
     ]
 
+    // MARK: - Document-content parsing (Phase 2 hotfix)
+    //
+    // What Problem: Before this hotfix, the mock returned canned "Acme Project"
+    // sections regardless of which file the user opened — silently substituting
+    // fictional content for the real document and only signaling via a thin
+    // banner the user could miss. Reported as a bug by the principal:
+    // "the document you display is a mock document, not the document I selected."
+    //
+    // How & Why: When DocumentModel.load(from: String) calls into us, push the
+    // raw markdown content via setDocumentContent(_:). We parse `^#+ heading`
+    // lines into a flat section tree with derived slugs, and build a
+    // [slug: Section] map with the body between each heading. listSections /
+    // readSection prefer the parsed content when present; absent (no content
+    // pushed yet — preview path or empty doc), they fall back to the canned
+    // Acme fixture so existing tests still pass.
+    //
+    // Slug derivation matches the real CLI's convention closely enough for
+    // the mock's purposes: lowercase, non-alnum → '-', collapse runs, strip
+    // edges. Duplicates get '-N' suffixes. Slugs aren't deeply hierarchical
+    // here (the real CLI builds parent/child paths from heading levels) —
+    // the mock keeps it flat for simplicity and clarity.
+    //
+    // Lock-guarded — Mock is @unchecked Sendable so multi-task pushes are
+    // possible during async load sequences.
+
+    private let parsedLock = NSLock()
+    private var parsedSections: [SectionTreeNode] = []
+    private var parsedContent: [String: Section] = [:]
+    private var parsedVersionId: String = "v1-parsed"
+
+    /// Push the document's raw markdown content into the mock so that
+    /// subsequent listSections / readSection calls reflect what the user
+    /// actually opened, not the canned Acme fixture. Empty content clears
+    /// the parsed state and reverts to canned behavior.
+    public func setDocumentContent(_ content: String) {
+        let (sections, contents) = Self.parseMarkdown(content)
+        parsedLock.lock()
+        defer { parsedLock.unlock() }
+        parsedSections = sections
+        parsedContent = contents
+        parsedVersionId = "v1-parsed-\(Int(Date().timeIntervalSince1970))"
+    }
+
+    /// Whether parsed content has been pushed (non-empty document loaded).
+    public var hasParsedContent: Bool {
+        parsedLock.lock()
+        defer { parsedLock.unlock() }
+        return !parsedSections.isEmpty
+    }
+
+    /// Parse `^#+ heading` lines into (flat tree, [slug: Section]).
+    /// Pure function — exposed for testability.
+    public static func parseMarkdown(_ content: String) -> ([SectionTreeNode], [String: Section]) {
+        guard !content.isEmpty else { return ([], [:]) }
+        let lines = content.components(separatedBy: "\n")
+        var headings: [(level: Int, heading: String, startLine: Int)] = []
+        for (i, line) in lines.enumerated() {
+            let trimmed = line.drop(while: { $0 == " " })
+            guard let hashEnd = trimmed.firstIndex(where: { $0 != "#" }), hashEnd > trimmed.startIndex else { continue }
+            let level = trimmed.distance(from: trimmed.startIndex, to: hashEnd)
+            guard level >= 1 && level <= 6 else { continue }
+            // Require a space after the hashes
+            guard trimmed[hashEnd] == " " else { continue }
+            let after = trimmed[trimmed.index(after: hashEnd)...]
+            let heading = String(after).trimmingCharacters(in: .whitespaces)
+            guard !heading.isEmpty else { continue }
+            headings.append((level: level, heading: heading, startLine: i))
+        }
+        guard !headings.isEmpty else { return ([], [:]) }
+
+        var slugCounts: [String: Int] = [:]
+        var sections: [SectionTreeNode] = []
+        var contents: [String: Section] = [:]
+        for (idx, h) in headings.enumerated() {
+            var slug = slugify(h.heading)
+            let count = (slugCounts[slug] ?? 0) + 1
+            slugCounts[slug] = count
+            if count > 1 { slug = "\(slug)-\(count - 1)" }
+            let bodyStart = h.startLine + 1
+            let bodyEnd = idx + 1 < headings.count ? headings[idx + 1].startLine : lines.count
+            let body = lines[bodyStart..<bodyEnd].joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            let hash = String(format: "%06x", abs(body.hashValue) & 0xFFFFFF)
+            sections.append(SectionTreeNode(slug: slug, heading: h.heading, level: h.level, versionHash: hash))
+            contents[slug] = Section(slug: slug, heading: h.heading, level: h.level, content: body, versionHash: hash, versionId: "v1-parsed")
+        }
+        return (sections, contents)
+    }
+
+    private static func slugify(_ heading: String) -> String {
+        let lowered = heading.lowercased()
+        var out = ""
+        var prevDash = false
+        for scalar in lowered.unicodeScalars {
+            if (scalar >= "a" && scalar <= "z") || (scalar >= "0" && scalar <= "9") {
+                out.unicodeScalars.append(scalar)
+                prevDash = false
+            } else if !prevDash {
+                out.append("-")
+                prevDash = true
+            }
+        }
+        while out.hasPrefix("-") { out.removeFirst() }
+        while out.hasSuffix("-") { out.removeLast() }
+        return out.isEmpty ? "section" : out
+    }
+
     // MARK: - CLIServiceProtocol
 
     public init() {}
 
     public func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
         try await Task.sleep(for: .milliseconds(50))
+        parsedLock.lock()
+        let parsed = parsedSections
+        parsedLock.unlock()
+        if !parsed.isEmpty { return parsed }
         // Service flattens the tree — callers get a flat list in document order.
         return Self.mockSectionsResponse.flattened()
     }
 
     public func readSection(slug: String, bundle: BundlePath) async throws -> Section {
         try await Task.sleep(for: .milliseconds(30))
+        parsedLock.lock()
+        let parsedContents = parsedContent
+        let parsedAvailable = parsedSections.map(\.slug)
+        parsedLock.unlock()
+        if !parsedContents.isEmpty {
+            if let section = parsedContents[slug] { return section }
+            throw CLIServiceError.sectionNotFound(slug: slug, availableSlugs: parsedAvailable)
+        }
         guard let section = Self.mockSectionContents[slug] else {
             throw CLIServiceError.sectionNotFound(
                 slug: slug,

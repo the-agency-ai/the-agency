@@ -31,6 +31,11 @@ public enum CLIServiceFactory {
         case mockRequested
         /// Real CLI couldn't be found; fell back to Mock so the app still runs.
         case mockFallback(reason: String)
+        /// Phase 2.6: PancakeCLIService is in use because the document is
+        /// a plain `.md`/`.markdown` file (no `.mdpal` bundle to operate on).
+        /// The user can promote to a package by performing an op that
+        /// requires one (Add Comment, Flag, Create Revision, etc.).
+        case pancake
 
         /// User-visible banner text. Nil when the resolution is production
         /// (real CLI in use) — no banner needed. Used by the app's
@@ -41,9 +46,25 @@ public enum CLIServiceFactory {
             case .real:
                 return nil
             case .mockRequested:
-                return "Running in mock mode (MDPAL_MOCK). No changes will reach a real bundle."
+                return "MOCK MODE (MDPAL_MOCK=1) — all responses are canned fixture data. No real engine, no real file."
             case .mockFallback(let reason):
-                return "`mdpal` CLI not found — running with mock data. \(reason)"
+                return "\(reason) Sections are derived locally from headings; comments/flags/revisions are simulated."
+            case .pancake:
+                return "Plain Markdown file. Sections are read from your file’s headings. To add comments, flags, or revisions, the app will offer to convert this file to a .mdpal bundle."
+            }
+        }
+
+        /// Short title shown in the banner header — bigger and unmissable
+        /// in the redesigned banner (Phase 2 hotfix). The title for
+        /// .mockFallback is always "MOCK MODE" — the specific reason
+        /// (CLI missing, plain .md without bundle, etc.) lives in the
+        /// fuller bannerMessage so the title stays scannable.
+        public var bannerTitle: String? {
+            switch self {
+            case .real: return nil
+            case .mockRequested: return "MOCK MODE — explicitly requested"
+            case .mockFallback: return "MOCK MODE"
+            case .pancake: return "PANCAKE MODE — plain Markdown"
             }
         }
     }
