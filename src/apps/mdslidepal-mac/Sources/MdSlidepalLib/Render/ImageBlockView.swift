@@ -9,6 +9,12 @@
 // and graceful fallback to placeholder on any error.
 //
 // Written: 2026-04-12 during mdslidepal-mac Phase 1.5
+// Updated: 2026-04-15 Phase 5.2 — image sizing tuned to logical slide width.
+// Updated: 2026-08-07 PR-prep QG — path resolution moved to ImagePathResolver
+//   (the containment check was a string prefix test and let sibling directories
+//   through), decoding moved behind LocalImageCache instead of re-reading the
+//   file on every body evaluation, and the max image box is now derived from the
+//   theme's logical dimensions rather than hardcoded 1680×700.
 
 import SwiftUI
 import Markdown
@@ -29,7 +35,10 @@ struct ImageBlockView: View {
                         case .success(let img):
                             img.resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(maxWidth: 1680, maxHeight: 700)
+                                .frame(
+                                    maxWidth: maxImageSize.width,
+                                    maxHeight: maxImageSize.height
+                                )
                         case .failure:
                             placeholderView(message: "Failed to load remote image")
                         case .empty:
@@ -41,11 +50,14 @@ struct ImageBlockView: View {
                     }
                 } else {
                     // Local image
-                    if let nsImage = NSImage(contentsOf: resolvedURL) {
+                    if let nsImage = LocalImageCache.image(at: resolvedURL) {
                         SwiftUI.Image(nsImage: nsImage)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(maxWidth: 1680, maxHeight: 700)
+                            .frame(
+                                maxWidth: maxImageSize.width,
+                                maxHeight: maxImageSize.height
+                            )
                     } else {
                         placeholderView(message: "Missing image")
                     }
@@ -58,33 +70,29 @@ struct ImageBlockView: View {
     }
 
     /// Resolve the image source URL relative to the markdown file.
+    ///
+    /// Delegates to `ImagePathResolver` so the contract §11 containment rule
+    /// lives in one testable place rather than inside a view body.
     private func resolveImageURL() -> URL? {
-        guard let source = image.source, !source.isEmpty else { return nil }
-
-        // Remote URL?
-        if source.hasPrefix("http://") || source.hasPrefix("https://") {
-            return URL(string: source)
-        }
-
-        // Local path — resolve relative to the source .md file
-        // When sourceURL is nil, refuse to resolve local paths (no unvalidated fallback)
-        guard let baseURL = sourceURL?.deletingLastPathComponent() else {
-            return nil
-        }
-
-        let resolved = baseURL.appendingPathComponent(source).standardized
-
-        // Path traversal check (contract §11): refuse if resolved path
-        // escapes the source directory
-        let basePath = baseURL.standardized.path
-        let resolvedPath = resolved.path
-        guard resolvedPath.hasPrefix(basePath) else {
-            // Path traversal attempt — refuse
-            return nil
-        }
-
-        return resolved
+        ImagePathResolver.resolve(source: image.source, relativeTo: sourceURL)
     }
+
+    /// Largest box an image may occupy: the slide's logical content width
+    /// (dimensions minus horizontal padding) and a bounded share of its height.
+    /// Derived from the theme rather than hardcoded — per Theme.swift's own
+    /// contract that no sizes are baked into views.
+    private var maxImageSize: CGSize {
+        let dims = theme.logicalDimensions
+        let padding = theme.slidePadding
+        return CGSize(
+            width: CGFloat(dims.width - padding.left - padding.right),
+            height: CGFloat(dims.height) * Self.maxHeightFraction
+        )
+    }
+
+    /// Images are capped at this share of the slide height so a tall image
+    /// cannot crowd out a heading and its surrounding body text.
+    private static let maxHeightFraction: CGFloat = 0.65
 
     /// Placeholder for missing/failed images showing alt text.
     private func placeholderView(message: String) -> some View {

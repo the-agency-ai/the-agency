@@ -90,11 +90,18 @@ func expectNotNil<T>(
 // MARK: - Fixture Loading
 
 func loadFixture(_ name: String) throws -> String {
-    // Try bundle resource first
-    if let url = Bundle.module.url(forResource: name, withExtension: "md", subdirectory: "Fixtures") {
-        return try String(contentsOf: url, encoding: .utf8)
+    try String(contentsOf: fixtureURL(named: name), encoding: .utf8)
+}
+
+/// On-disk URL of a fixture .md — needed by tests that exercise path resolution
+/// relative to the source document.
+func fixtureURL(named name: String) throws -> URL {
+    guard let url = Bundle.module.url(
+        forResource: name, withExtension: "md", subdirectory: "Fixtures"
+    ) else {
+        throw TestFailure(message: "Fixture '\(name)' not found", file: #file, line: #line)
     }
-    throw TestFailure(message: "Fixture '\(name)' not found", file: #file, line: #line)
+    return url
 }
 
 // MARK: - Test Cases
@@ -162,6 +169,35 @@ let allTests: [(String, () throws -> Void)] = [
     ("theme_loaderUnknown", testTheme_LoaderUnknown),
     ("theme_bundledConstant", testTheme_BundledConstant),
     ("theme_headingScale", testTheme_HeadingScale),
+
+    // Image path resolution — contract §11 containment
+    ("imagePath_resolvesRelativeToSource", testImagePath_resolvesRelativeToSource),
+    ("imagePath_refusesParentTraversal", testImagePath_refusesParentTraversal),
+    ("imagePath_refusesSiblingPrefixEscape", testImagePath_refusesSiblingPrefixEscape),
+    ("imagePath_refusesLocalPathWithNoBase", testImagePath_refusesLocalPathWithNoBase),
+    ("imagePath_emptyAndNilSources", testImagePath_emptyAndNilSources),
+    ("imagePath_remoteURLsPassThrough", testImagePath_remoteURLsPassThrough),
+    ("imagePath_containmentAllowsBaseItself", testImagePath_containmentAllowsBaseItself),
+
+    // FontResolver
+    ("font_systemFamiliesResolveToSystem", testFont_systemFamiliesResolveToSystem),
+    ("font_genericsAreSkippedNotResolved", testFont_genericsAreSkippedNotResolved),
+    ("font_unresolvableNamesFallBackToSystem", testFont_unresolvableNamesFallBackToSystem),
+    ("font_emptyAndDegenerateStacks", testFont_emptyAndDegenerateStacks),
+    ("font_quotedNamesAreUnquoted", testFont_quotedNamesAreUnquoted),
+    ("font_firstResolvableWins", testFont_firstResolvableWins),
+    ("font_resolutionIsStableAcrossCalls", testFont_resolutionIsStableAcrossCalls),
+
+    // HTML text helpers
+    ("html_lineBreakOnlyIsCaseInsensitive", testHTML_lineBreakOnlyIsCaseInsensitive),
+    ("html_lineBreakOnlyAcceptsRunsAndWhitespace", testHTML_lineBreakOnlyAcceptsRunsAndWhitespace),
+    ("html_lineBreakCount", testHTML_lineBreakCount),
+    ("html_stripTags", testHTML_stripTags),
+
+    // ColorHex validating parser
+    ("colorHex_validatingAcceptsThreeSixAndEightDigits", testColorHex_validatingAcceptsThreeSixAndEightDigits),
+    ("colorHex_validatingRejectsMalformed", testColorHex_validatingRejectsMalformed),
+    ("colorHex_shorthandExpandsLikeCSS", testColorHex_shorthandExpandsLikeCSS),
 ]
 
 // MARK: - Fixture Tests
@@ -238,27 +274,111 @@ func testFixture04_Images() throws {
         "Missing image must retain alt text for the placeholder"
     )
 
-    // The referenced asset resolves on disk; the missing one does not.
-    guard let fixtureURL = Bundle.module.url(
-        forResource: "04-images", withExtension: "md", subdirectory: "Fixtures"
+    // Resolution goes through the production resolver, not a re-implementation,
+    // so deleting or breaking ImagePathResolver fails this test.
+    let fixtureURL = try fixtureURL(named: "04-images")
+    guard let present = ImagePathResolver.resolve(
+        source: perSlide[0][0].source, relativeTo: fixtureURL
     ) else {
         throw TestFailure(
-            message: "Fixture '04-images' not found", file: #file, line: #line
+            message: "Resolver refused the fixture's own image",
+            file: #file, line: #line
         )
     }
-    let baseURL = fixtureURL.deletingLastPathComponent()
     try expectTrue(
-        FileManager.default.fileExists(
-            atPath: baseURL.appendingPathComponent("./images/sample.png").standardized.path
-        ),
-        "Fixture 04 image asset must ship with the fixture"
+        FileManager.default.fileExists(atPath: present.path),
+        "Fixture 04 image asset must ship with the fixture and resolve"
+    )
+
+    // The missing image still resolves to a legal in-deck path — it is the file
+    // that is absent, which is what drives the placeholder rather than a refusal.
+    guard let missing = ImagePathResolver.resolve(
+        source: perSlide[2][0].source, relativeTo: fixtureURL
+    ) else {
+        throw TestFailure(
+            message: "Missing image should resolve to a path, not be refused",
+            file: #file, line: #line
+        )
+    }
+    try expectFalse(
+        FileManager.default.fileExists(atPath: missing.path),
+        "missing-on-purpose.png must not exist"
+    )
+}
+
+// MARK: - Image path resolution (contract §11)
+
+func testImagePath_resolvesRelativeToSource() throws {
+    let base = try fixtureURL(named: "04-images")
+    let resolved = ImagePathResolver.resolve(source: "./images/sample.png", relativeTo: base)
+    try expectNotNil(resolved, "In-deck relative path must resolve")
+    try expectTrue(
+        resolved?.path.hasSuffix("Fixtures/images/sample.png") == true,
+        "Resolved path should sit under the fixture directory"
+    )
+}
+
+func testImagePath_refusesParentTraversal() throws {
+    let base = try fixtureURL(named: "04-images")
+    try expectNil(
+        ImagePathResolver.resolve(source: "../secret.png", relativeTo: base),
+        "../ escape must be refused"
+    )
+    try expectNil(
+        ImagePathResolver.resolve(source: "./images/../../secret.png", relativeTo: base),
+        "Embedded ../.. escape must be refused"
+    )
+}
+
+func testImagePath_refusesSiblingPrefixEscape() throws {
+    // A bare hasPrefix containment test accepts this: the deck directory
+    // "Fixtures" is a string prefix of the sibling "Fixtures-private".
+    let base = URL(fileURLWithPath: "/tmp/decks/Fixtures/slides.md")
+    try expectNil(
+        ImagePathResolver.resolve(source: "../Fixtures-private/secret.png", relativeTo: base),
+        "Sibling directory sharing a name prefix must not be treated as in-deck"
+    )
+}
+
+func testImagePath_refusesLocalPathWithNoBase() throws {
+    try expectNil(
+        ImagePathResolver.resolve(source: "./images/sample.png", relativeTo: nil),
+        "With no source URL there is nothing to contain against — refuse"
+    )
+}
+
+func testImagePath_emptyAndNilSources() throws {
+    let base = try fixtureURL(named: "04-images")
+    try expectNil(ImagePathResolver.resolve(source: nil, relativeTo: base))
+    try expectNil(ImagePathResolver.resolve(source: "", relativeTo: base))
+}
+
+func testImagePath_remoteURLsPassThrough() throws {
+    let base = try fixtureURL(named: "04-images")
+    try expect(
+        ImagePathResolver.resolve(
+            source: "https://example.com/a.png", relativeTo: base
+        )?.absoluteString,
+        equals: "https://example.com/a.png"
+    )
+    // Remote sources need no base — containment does not apply to them.
+    try expect(
+        ImagePathResolver.resolve(
+            source: "http://example.com/a.png", relativeTo: nil
+        )?.absoluteString,
+        equals: "http://example.com/a.png"
+    )
+}
+
+func testImagePath_containmentAllowsBaseItself() throws {
+    let base = URL(fileURLWithPath: "/tmp/decks/talk")
+    try expectTrue(
+        ImagePathResolver.isContained(base, in: base),
+        "The base directory is contained in itself"
     )
     try expectFalse(
-        FileManager.default.fileExists(
-            atPath: baseURL.appendingPathComponent("./images/missing-on-purpose.png")
-                .standardized.path
-        ),
-        "missing-on-purpose.png must not exist"
+        ImagePathResolver.isContained(URL(fileURLWithPath: "/tmp/decks"), in: base),
+        "A parent is not contained in its child"
     )
 }
 
@@ -581,13 +701,22 @@ func testColorHex_WithHash() throws {
 }
 
 func testColorHex_InvalidLength() throws {
-    // Invalid inputs should produce magenta fallback, not crash
-    let short = Color(hex: "fff")
+    // Invalid inputs produce the magenta fallback, not a crash. Note "fff" is
+    // no longer in this set — 3-digit CSS shorthand is now a supported form.
+    let tooShort = Color(hex: "ff")
     let empty = Color(hex: "")
     let invalid = Color(hex: "gggggg")
-    // All invalid inputs should produce the same fallback
-    try expect(short.description, equals: empty.description, "Invalid inputs should match")
+
+    try expect(tooShort.description, equals: empty.description, "Invalid inputs should match")
     try expect(empty.description, equals: invalid.description, "Invalid inputs should match")
+
+    // And the fallback must be distinguishable from a real color — otherwise
+    // this test would pass for an implementation that returned one value for
+    // everything, valid or not.
+    try expectTrue(
+        empty.description != Color(hex: "ff0000").description,
+        "Fallback must differ from a successfully parsed color"
+    )
 }
 
 // MARK: - DeckDocument.title Tests (QG #11)
@@ -628,6 +757,119 @@ func testFrontMatter_WindowsLineEndings() throws {
     let result = FrontMatterExtractor.extract(from: source)
     try expectNotNil(result.frontMatter, "Windows line endings should parse")
     try expect(result.frontMatter?.title, equals: "Test")
+}
+
+// MARK: - FontResolver
+
+func testFont_systemFamiliesResolveToSystem() throws {
+    try expect(
+        FontResolver.resolution(for: "system-ui, -apple-system, sans-serif"),
+        equals: .system
+    )
+    try expect(FontResolver.resolution(for: "-apple-system"), equals: .system)
+    // bodyfont is the token the shared theme JSON emits for body copy.
+    try expect(FontResolver.resolution(for: "bodyfont"), equals: .system)
+}
+
+func testFont_genericsAreSkippedNotResolved() throws {
+    // A stack of nothing but CSS generics names a category, not a font, so it
+    // must reach the system fallback rather than trying Font.custom("serif").
+    try expect(FontResolver.resolution(for: "sans-serif, serif, monospace"), equals: .system)
+}
+
+func testFont_unresolvableNamesFallBackToSystem() throws {
+    try expect(
+        FontResolver.resolution(for: "Nonexistent Family, AlsoFake"),
+        equals: .system
+    )
+}
+
+func testFont_emptyAndDegenerateStacks() throws {
+    try expect(FontResolver.resolution(for: ""), equals: .system)
+    try expect(FontResolver.resolution(for: ",,,"), equals: .system)
+    try expect(FontResolver.resolution(for: "   "), equals: .system)
+}
+
+func testFont_quotedNamesAreUnquoted() throws {
+    // Helvetica is present on every macOS install; the quotes and surrounding
+    // whitespace must be stripped before the family is probed.
+    try expect(
+        FontResolver.resolution(for: "'Helvetica', sans-serif"),
+        equals: .family("Helvetica")
+    )
+    try expect(
+        FontResolver.resolution(for: "\"Helvetica\""),
+        equals: .family("Helvetica")
+    )
+}
+
+func testFont_firstResolvableWins() throws {
+    // The unresolvable name is skipped and the real one is chosen.
+    try expect(
+        FontResolver.resolution(for: "NoSuchFont, Helvetica"),
+        equals: .family("Helvetica")
+    )
+}
+
+func testFont_resolutionIsStableAcrossCalls() throws {
+    // Results are memoized; a second call must agree with the first.
+    let stack = "'Helvetica', sans-serif"
+    try expect(FontResolver.resolution(for: stack), equals: FontResolver.resolution(for: stack))
+}
+
+// MARK: - HTMLText
+
+func testHTML_lineBreakOnlyIsCaseInsensitive() throws {
+    for spelling in ["<br>", "<BR>", "<br/>", "<br />", "<br   />", "<Br/>"] {
+        try expectTrue(
+            HTMLText.isLineBreakOnly(spelling),
+            "\(spelling) should count as a line-break-only block"
+        )
+    }
+}
+
+func testHTML_lineBreakOnlyAcceptsRunsAndWhitespace() throws {
+    try expectTrue(HTMLText.isLineBreakOnly("  <br>\n<br />  "))
+    try expectFalse(HTMLText.isLineBreakOnly("<br>text"))
+    try expectFalse(HTMLText.isLineBreakOnly("<div></div>"))
+    try expectFalse(HTMLText.isLineBreakOnly(""))
+}
+
+func testHTML_lineBreakCount() throws {
+    try expect(HTMLText.lineBreakCount("<br>"), equals: 1)
+    try expect(HTMLText.lineBreakCount("<br><BR/><br />"), equals: 3)
+    // Never zero — a break-only block always contributes some space.
+    try expect(HTMLText.lineBreakCount("no breaks"), equals: 1)
+}
+
+func testHTML_stripTags() throws {
+    try expect(HTMLText.stripTags("<div>hello</div>"), equals: "hello")
+    try expect(HTMLText.stripTags("plain"), equals: "plain")
+}
+
+// MARK: - ColorHex validating parser
+
+func testColorHex_validatingAcceptsThreeSixAndEightDigits() throws {
+    try expectNotNil(Color(validatingHex: "#fff"), "3-digit shorthand is valid")
+    try expectNotNil(Color(validatingHex: "#ffffff"), "6-digit is valid")
+    try expectNotNil(Color(validatingHex: "#ff0000cc"), "8-digit RGBA is valid")
+    try expectNotNil(Color(validatingHex: "ff0000"), "leading # is optional")
+}
+
+func testColorHex_validatingRejectsMalformed() throws {
+    try expectNil(Color(validatingHex: "red"), "named colors are not hex")
+    try expectNil(Color(validatingHex: "#ff"), "2 digits is not a valid length")
+    try expectNil(Color(validatingHex: "#fffff"), "5 digits is not a valid length")
+    try expectNil(Color(validatingHex: "#gggggg"), "non-hex digits are rejected")
+    try expectNil(Color(validatingHex: ""), "empty string is not a color")
+}
+
+func testColorHex_shorthandExpandsLikeCSS() throws {
+    // #abc means #aabbcc — the two forms must produce the same color.
+    try expect(
+        Color(validatingHex: "#abc")?.description,
+        equals: Color(validatingHex: "#aabbcc")?.description
+    )
 }
 
 // MARK: - Runner

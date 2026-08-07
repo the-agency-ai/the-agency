@@ -8,7 +8,13 @@
 // attach as SlideMetadata. Remove the HTMLBlock from the slide's children
 // so it doesn't render. Malformed blocks produce a warning diagnostic.
 //
+// Hex color values collide with YAML comment syntax: `background: #ff0000`
+// parses as a key with an empty value followed by a comment. A pre-pass quotes
+// unquoted `#`-prefixed hex values before handing the body to Yams, so authors
+// can write the natural CSS form.
+//
 // Written: 2026-04-12 during mdslidepal-mac Phase 1.6
+// Updated: 2026-04-15 — hex-color YAML pre-quoting.
 
 import Foundation
 import Markdown
@@ -68,7 +74,7 @@ public struct SlideMetadataExtractor {
             let metadata = parseSlideMetadata(from: yaml)
             // Remove the HTMLBlock from children
             let remainingChildren = Array(slide.markupChildren.dropFirst())
-            var updated = Slide(
+            let updated = Slide(
                 id: slide.id,
                 markupChildren: remainingChildren,
                 metadata: metadata,

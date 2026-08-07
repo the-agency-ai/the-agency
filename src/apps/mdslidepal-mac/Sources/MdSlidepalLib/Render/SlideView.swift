@@ -8,7 +8,19 @@
 // with theme-specified padding. The slide is rendered at logical size and
 // scaled to fit the actual view size by the parent.
 //
+// Slides whose content is just a title (optionally with a subtitle) branch to
+// a centered hero layout instead of the top-aligned body layout. All type is
+// resolved through FontResolver rather than .system(size:), so themes can name
+// real font stacks. HTMLBlock nodes are interpreted for the small subset we
+// support (<br>, <hr>) and otherwise stripped to text — never shown raw.
+//
 // Written: 2026-04-12 during mdslidepal-mac Phase 1.5
+// Updated: 2026-04-15 Phase 5.1/5.2 — hero layout, HTMLBlockView, FontResolver
+//   typography.
+// Updated: 2026-08-07 PR-prep QG — <br> detection moved to the shared HTMLText
+//   helper (was case-sensitive and duplicated), blockquotes now thread sourceURL
+//   so nested images resolve, and unparseable slide `background:` metadata falls
+//   back to the theme instead of painting the slide magenta.
 
 import SwiftUI
 import Markdown
@@ -84,9 +96,13 @@ public struct SlideContentView: View {
         return 0
     }
 
+    /// Per-slide `background:` metadata comes from an untrusted .md file, so an
+    /// unparseable value falls back to the theme background rather than painting
+    /// the slide the magenta debug color.
     private var slideBackground: Color {
-        if let bg = slide.metadata?.background {
-            return Color(hex: bg)
+        if let bg = slide.metadata?.background,
+           let color = Color(validatingHex: bg) {
+            return color
         }
         return Color(hex: theme.colors.background)
     }
@@ -121,7 +137,7 @@ struct MarkupNodeView: View {
                 // Interpret common HTML tags instead of showing raw
                 HTMLBlockView(html: htmlBlock.rawHTML)
             } else if let blockQuote = node as? BlockQuote {
-                BlockQuoteView(blockQuote: blockQuote)
+                BlockQuoteView(blockQuote: blockQuote, sourceURL: sourceURL)
             } else {
                 // Fallback: render the formatted markdown as text
                 Text(node.format())
@@ -345,6 +361,9 @@ struct TableBlockView: View {
 
 struct BlockQuoteView: View {
     let blockQuote: BlockQuote
+    /// Base URL of the source .md file, threaded through so images nested in a
+    /// blockquote resolve relative paths the same way top-level images do.
+    var sourceURL: URL?
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -355,7 +374,7 @@ struct BlockQuoteView: View {
 
             VStack(alignment: .leading, spacing: CGFloat(theme.spacingUnit) * 0.5) {
                 ForEach(Array(blockQuote.children.enumerated()), id: \.offset) { _, child in
-                    MarkupNodeView(node: child)
+                    MarkupNodeView(node: child, sourceURL: sourceURL)
                 }
             }
             .foregroundColor(Color(hex: theme.colors.muted))
@@ -376,7 +395,7 @@ struct HTMLBlockView: View {
 
         if isBrOnly(trimmed) {
             // <br> or <br><br> — render as vertical space
-            let brCount = max(1, trimmed.components(separatedBy: "<br").count - 1)
+            let brCount = HTMLText.lineBreakCount(trimmed)
             Spacer()
                 .frame(height: CGFloat(theme.spacingUnit) * CGFloat(brCount))
         } else if trimmed.hasPrefix("<hr") {
@@ -398,17 +417,12 @@ struct HTMLBlockView: View {
 
     /// Check if the HTML block is only <br> tags (with optional whitespace).
     private func isBrOnly(_ html: String) -> Bool {
-        let cleaned = html
-            .replacingOccurrences(of: "<br>", with: "")
-            .replacingOccurrences(of: "<br/>", with: "")
-            .replacingOccurrences(of: "<br />", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return cleaned.isEmpty
+        HTMLText.isLineBreakOnly(html)
     }
 
     /// Simple HTML tag stripper for fallback rendering.
     private func stripHTMLTags(_ html: String) -> String {
-        html.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        HTMLText.stripTags(html)
     }
 }
 
@@ -454,8 +468,7 @@ struct InlineContentView: View {
                 .foregroundColor(Color(hex: theme.colors.muted))
         } else if let inlineHTML = node as? InlineHTML {
             // Handle inline HTML — <br> becomes newline, others stripped
-            let raw = inlineHTML.rawHTML.lowercased()
-            if raw.hasPrefix("<br") {
+            if HTMLText.isLineBreak(inlineHTML.rawHTML) {
                 return TextBlock("\n")
             }
             // Strip other inline HTML tags

@@ -7,7 +7,11 @@
 // from the AST — no re-parsing. Notes are stored as raw markdown text since
 // they're rendered separately in the presenter view.
 //
+// `isHero` classifies cover slides — a title, optionally with one subtitle
+// heading, and no other block content — so the renderer can center them.
+//
 // Written: 2026-04-12 during mdslidepal-mac Phase 1.1
+// Updated: 2026-04-15 Phase 5.1 — isHero cover-slide classification.
 
 import Foundation
 import Markdown
