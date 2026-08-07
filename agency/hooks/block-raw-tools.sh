@@ -17,6 +17,17 @@
 # behavior; this hook blocks it mechanically.
 #
 # Written: 2026-04-10 during captain session (35.3 — upstream from monofolk)
+#
+# 2026-05-17 update — grep/find auto-detect (monofolk v4.70):
+# Claude Code v2.1.117 REMOVED the Grep and Glob tools on native macOS/Linux
+# builds, replacing them with embedded `ugrep` and `bfs` binaries "available
+# through the Bash tool" (see Claude Code changelog v2.1.117 + v2.1.126).
+# On platforms where that wire-up works, agents should use `ugrep`/`bfs` via
+# Bash; on platforms where it doesn't (currently 2.1.143 native macOS — the
+# embedded binaries are not on PATH), agents must fall back to raw `grep`/`find`.
+# The hook now auto-detects at decision time: if the embedded replacement is
+# reachable, redirect; if not, allow the raw command through. This self-heals
+# when Anthropic fixes the wire-up.
 
 set -euo pipefail
 
@@ -90,16 +101,32 @@ if [[ "$TRIMMED" =~ ^cat[[:space:]] ]] || [[ "$TRIMMED" == "cat" ]]; then
     exit 2
 fi
 
-# Block raw grep/rg — use Grep tool
+# Block raw grep/rg/egrep/fgrep — redirect to ugrep if reachable (Claude Code
+# 2.1.117+ embedded replacement); otherwise allow through. Auto-detected so
+# this self-heals when the Anthropic wire-up works (or fails) in this env.
 if [[ "$TRIMMED" =~ ^(grep|rg|egrep|fgrep)[[:space:]] ]] || [[ "$TRIMMED" =~ ^(grep|rg|egrep|fgrep)$ ]]; then
-    printf '{"decision":"block","reason":"🔍 BLOCKED: Use the Grep tool instead of `grep`/`rg`. Grep has optimized permissions, regex support, glob filtering, and multiple output modes. If Grep genuinely cannot do what you need, file a bug via /agency-bug explaining why. — OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!"}'
-    exit 2
+    if command -v ugrep >/dev/null 2>&1; then
+        printf '{"decision":"block","reason":"🔍 BLOCKED: Use `ugrep` instead of `grep`/`rg`. The Grep tool was removed in Claude Code 2.1.117 on native macOS/Linux builds; `ugrep` is the embedded replacement available through Bash. Run `ugrep --help` for syntax (it accepts most grep flags). If `ugrep` genuinely cannot do what you need, file via /agency-bug. — OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!"}'
+        exit 2
+    fi
+    # ugrep not reachable — allow grep/rg/egrep/fgrep through (no working built-in
+    # alternative). NOTE: this hook's PATH may not equal the Bash tool's runtime
+    # PATH; a false-negative here just means we under-block. That's the right
+    # posture for a self-healing fleet hook (degrade to allow, never to crash).
+    printf '{}'
+    exit 0
 fi
 
-# Block raw find — use Glob tool
+# Block raw find — redirect to bfs if reachable (Claude Code 2.1.117+ embedded
+# replacement); otherwise allow through. Same auto-detect rationale as grep above.
 if [[ "$TRIMMED" =~ ^find[[:space:]] ]] || [[ "$TRIMMED" == "find" ]]; then
-    printf '{"decision":"block","reason":"📁 BLOCKED: Use the Glob tool instead of `find`. Glob is fast, supports patterns like **/*.ts, and returns results sorted by modification time. If Glob genuinely cannot do what you need, file a bug via /agency-bug explaining why. — OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!"}'
-    exit 2
+    if command -v bfs >/dev/null 2>&1; then
+        printf '{"decision":"block","reason":"📁 BLOCKED: Use `bfs` instead of `find`. The Glob tool was removed in Claude Code 2.1.117 on native macOS/Linux builds; `bfs` is the embedded replacement available through Bash. Run `bfs --help` for syntax (drop-in find replacement). If `bfs` genuinely cannot do what you need, file via /agency-bug. — OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!"}'
+        exit 2
+    fi
+    # bfs not reachable — allow find through (no working built-in alternative)
+    printf '{}'
+    exit 0
 fi
 
 # Block raw sed/awk — use Edit tool
