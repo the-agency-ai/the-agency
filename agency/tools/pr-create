@@ -34,16 +34,22 @@ echo "✓ On branch: $BRANCH"
 
 # D42-R3 / v46.1-R1: four-tier receipt search
 # Tier 1: per-workstream qgr/ and rgr/ (post-v46 canonical)
-NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
+# The trailing `|| true` is load-bearing under `set -o pipefail`: `head -1`
+# closes the pipe after the first line, which SIGPIPEs the upstream `ls`
+# once there are more receipts than fit its stdio buffer (races in at ~100+).
+# The value is already captured by `head` before the signal; `|| true` keeps
+# that nondeterministic pipeline failure from aborting the whole script. A
+# genuine empty result still falls through to the -z checks below.
+NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1 || true)
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
     # Tier 2: legacy flat receipts dir
-    NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1 || true)
 fi
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
     # Tier 3: old usr/ location
-    NEWEST_RECEIPT=$(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1 || true)
 fi
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then

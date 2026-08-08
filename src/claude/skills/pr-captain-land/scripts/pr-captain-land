@@ -3,7 +3,7 @@
 # pr-captain-land — Captain lands an agent's prepared branch as a PR + release
 #
 # WHAT: Captain runs this in the main checkout to own the full PR lifecycle
-# for a branch prepared by an agent via /submit-for-pr. Switches to the
+# for a branch prepared by an agent via /pr-submit. Switches to the
 # branch, verifies the QGR receipt, bumps the version, creates the PR with
 # a captain-authored description, watches CI, merges, cuts the release, and
 # dispatches the agent with the outcome.
@@ -34,21 +34,32 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
     exit 1
 }
 
+# ── Shared remote/branch helpers ─────────────────────────────────────────────
+# redact_remote_url, parse_org_from_remote, parse_repo_from_remote,
+# resolve_default_branch — single source of truth, defined in the pr-submit
+# script behind its PR_SUBMIT_LIB_ONLY guard and unit-tested in
+# src/tests/skills/pr-submit-helpers.bats. Sourcing loads the functions only;
+# the guard returns before any pr-submit precondition runs.
+PR_SUBMIT_LIB_ONLY=1 source "$REPO_ROOT/.claude/skills/pr-submit/scripts/pr-submit"
+
 # ── Resolve ORG, REPO, PRINCIPAL ─────────────────────────────────────────────
-# Parse ORG and REPO from the origin remote URL (no network call). Supports
-# both git@github.com:ORG/REPO.git and https://github.com/ORG/REPO(.git).
+# Parse ORG and REPO from the origin remote URL (no network call). Handles
+# token-bearing, scp-style, and https remotes with/without .git — and never
+# echoes a raw (possibly credential-bearing) remote on the failure path.
 REMOTE_URL=$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || echo "")
-if [[ "$REMOTE_URL" =~ ^git@github\.com:([^/]+)/([^/.]+)(\.git)?$ ]]; then
-    ORG="${BASH_REMATCH[1]}"
-    REPO="${BASH_REMATCH[2]}"
-elif [[ "$REMOTE_URL" =~ ^https://github\.com/([^/]+)/([^/.]+?)(\.git)?/?$ ]]; then
-    ORG="${BASH_REMATCH[1]}"
-    REPO="${BASH_REMATCH[2]}"
-else
-    echo "pr-captain-land: cannot parse origin remote URL '$REMOTE_URL'" >&2
+if ! ORG="$(parse_org_from_remote "$REMOTE_URL")" || ! REPO="$(parse_repo_from_remote "$REMOTE_URL")"; then
+    echo "pr-captain-land: cannot parse origin remote URL '$(redact_remote_url "$REMOTE_URL")'" >&2
     exit 1
 fi
 PRINCIPAL="jordan"  # TODO: resolve via agency whoami in v2 (matches pr-submit)
+
+# ── Resolve the repo's default branch — never assume master ──────────────────
+# The PR lifecycle hardcoded origin/master. In a repo whose default branch is
+# main (this one), the receipt-verify diff-hash resolved nothing, switch-back
+# targeted a nonexistent branch, and the release targeted master. Resolve it
+# once here and use it everywhere below.
+DEFAULT_BRANCH="$(resolve_default_branch)"
+BASE_REF="origin/${DEFAULT_BRANCH}"
 
 # ── Args ─────────────────────────────────────────────────────────────────────
 
@@ -100,8 +111,8 @@ if [[ "$REPO_ROOT" != "$MAIN_CHECKOUT" ]]; then
 fi
 
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-if [[ "$CURRENT_BRANCH" != "master" && "$CURRENT_BRANCH" != "main" ]]; then
-    echo "pr-captain-land: captain must be on master (you're on $CURRENT_BRANCH)." >&2
+if [[ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ]]; then
+    echo "pr-captain-land: captain must be on $DEFAULT_BRANCH (you're on $CURRENT_BRANCH)." >&2
     exit 1
 fi
 
@@ -109,7 +120,7 @@ fi
 
 DIRTY=$(git status --porcelain 2>/dev/null)
 if [[ -n "$DIRTY" ]]; then
-    echo "pr-captain-land: master tree dirty — commit or stash first." >&2
+    echo "pr-captain-land: $DEFAULT_BRANCH tree dirty — commit or stash first." >&2
     echo "$DIRTY" | head -5 | sed 's/^/  /' >&2
     exit 1
 fi
@@ -130,7 +141,7 @@ bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$AGENT_BRANCH" >/dev/n
 
 # ── Verify QGR receipt ───────────────────────────────────────────────────────
 
-DIFF_HASH_FULL=$(bash "$REPO_ROOT/agency/tools/diff-hash" --base origin/master --json 2>/dev/null | \
+DIFF_HASH_FULL=$(bash "$REPO_ROOT/agency/tools/diff-hash" --base "$BASE_REF" --json 2>/dev/null | \
                  python3 -c "import sys, json; d=json.load(sys.stdin); print(d.get('full_hash',''))" 2>/dev/null || \
                  echo "")
 DIFF_HASH_SHORT="${DIFF_HASH_FULL:0:7}"
@@ -140,7 +151,7 @@ if [[ -z "$RECEIPT" ]]; then
     echo "pr-captain-land: no QGR receipt matching hash $DIFF_HASH_SHORT on branch $AGENT_BRANCH." >&2
     echo "  Agent must run /pr-prep to produce a receipt before submitting." >&2
     # Switch back to master before exit
-    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
+    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$DEFAULT_BRANCH" >/dev/null 2>&1 || true
     exit 1
 fi
 
@@ -175,7 +186,7 @@ else:
 
 if [[ -z "$NEW_VER" || "$NEW_VER" == "$CURRENT_VER" ]]; then
     echo "pr-captain-land: could not bump version from $CURRENT_VER" >&2
-    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
+    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$DEFAULT_BRANCH" >/dev/null 2>&1 || true
     exit 1
 fi
 
@@ -207,7 +218,7 @@ PR_TITLE="${CUSTOM_TITLE:-$AGENT_BRANCH}"
 PR_BODY=$(cat <<EOF
 Captain-landed PR via pr-captain-land (the-agency#296 Phase 1 pilot).
 
-Branch prepared by agent via /submit-for-pr. Captain owns the landing lifecycle:
+Branch prepared by agent via /pr-submit. Captain owns the landing lifecycle:
 - Switched to \`$AGENT_BRANCH\`
 - Verified QGR receipt \`$RECEIPT_REL\` (hash \`$DIFF_HASH_SHORT\`)
 - Bumped \`agency_version\` $CURRENT_VER → $NEW_VER
@@ -223,7 +234,7 @@ if [[ "$DRY_RUN" == true ]]; then
     echo "    Title: $PR_TITLE"
     echo "    Body:  (see stdout)"
     # Switch back to master
-    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch master >/dev/null
+    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$DEFAULT_BRANCH" >/dev/null
     echo "pr-captain-land: dry-run complete"
     exit 0
 fi
@@ -234,7 +245,7 @@ PR_URL=$(bash "$REPO_ROOT/agency/tools/pr-create" --title "$PR_TITLE" --body "$P
 
 if [[ -z "$PR_URL" ]]; then
     echo "pr-captain-land: pr-create did not return a URL — check output above" >&2
-    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch master >/dev/null 2>&1 || true
+    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$DEFAULT_BRANCH" >/dev/null 2>&1 || true
     exit 1
 fi
 
@@ -243,8 +254,8 @@ echo "→ PR created: $PR_URL (#$PR_NUM)"
 
 # ── Back to master for merge ────────────────────────────────────────────────
 
-bash "$REPO_ROOT/agency/tools/git-captain" switch-branch master >/dev/null
-echo "→ Back on master"
+bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$DEFAULT_BRANCH" >/dev/null
+echo "→ Back on $DEFAULT_BRANCH"
 
 # ── Wait for CI ──────────────────────────────────────────────────────────────
 
@@ -259,7 +270,7 @@ while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
     fi
     if [[ "$STATE" == "FAILURE" ]]; then
         echo "pr-captain-land: lint-and-test FAILED on PR #$PR_NUM" >&2
-        echo "  Agent must fix, push, and re-submit via /submit-for-pr." >&2
+        echo "  Agent must fix, push, and re-submit via /pr-submit." >&2
         exit 1
     fi
     sleep 20
@@ -289,7 +300,7 @@ bash "$REPO_ROOT/agency/tools/git-captain" merge-from-origin >/dev/null 2>&1
 if [[ "$SKIP_RELEASE" == false ]]; then
     echo "→ Creating release v$NEW_VER..."
     bash "$REPO_ROOT/agency/tools/gh-release" create "v$NEW_VER" \
-        --target master \
+        --target "$DEFAULT_BRANCH" \
         --title "v$NEW_VER — $PR_TITLE" \
         --notes "Captain-landed via pr-captain-land (the-agency#296 Phase 1 pilot). See PR #$PR_NUM." \
         >/dev/null 2>&1 || {
@@ -316,7 +327,7 @@ bash "$REPO_ROOT/agency/tools/dispatch" create \
 - Release: https://github.com/$ORG/$REPO/releases/tag/v$NEW_VER
 - Version: $CURRENT_VER → $NEW_VER
 
-Your branch is merged to master. Run /session-resume to pick up on your next cycle.
+Your branch is merged to $DEFAULT_BRANCH. Run /session-resume to pick up on your next cycle.
 
 Phase 1 pilot feedback: did anything feel off about the handoff? Reply dispatch.
 

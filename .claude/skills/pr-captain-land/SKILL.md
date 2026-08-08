@@ -76,7 +76,7 @@ The script enforces **all** of these before any mutation; any failure exits non-
 4. **No pending post-merge (C#372 Fix B).** `./agency/tools/post-merge-state check` exits 0. If exit 1, a prior landed PR has not had its release cut — run `/pr-captain-post-merge <pending-PR>` first, then re-invoke.
 5. `<agent-branch>` exists on origin (`git ls-remote --heads origin <agent-branch>` non-empty).
 6. `<agent-branch>` passes safe-name validation: regex `^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`, no `..`, no leading `-`.
-7. Diff-hash of `<agent-branch>` vs `origin/master` matches a QGR receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`.
+7. Diff-hash of `<agent-branch>` vs `origin/<default-branch>` (resolved, not hardcoded) matches a QGR receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`.
 
 Any failure → zero mutation, clean error message, exit 1.
 
@@ -99,7 +99,7 @@ Main checkout is now on agent's branch.
 ### Step 3: Verify receipt against current state
 
 ```
-./agency/tools/diff-hash --base origin/master --json
+./agency/tools/diff-hash --base "origin/$DEFAULT_BRANCH" --json   # default branch resolved, not hardcoded
 ```
 
 Find receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`. If missing, agent's state drifted — switch back to master, exit 1, tell agent to re-run `/pr-prep` + `/pr-submit`.
@@ -133,7 +133,7 @@ Title derives from agent's `--scope` or `--title` override. Body wraps agent's s
 ### Step 6: Switch back to master
 
 ```
-./agency/tools/git-captain switch-branch master
+./agency/tools/git-captain switch-branch "$DEFAULT_BRANCH"
 ```
 
 Captain sits on master during the CI-wait phase. Avoids any accidental commit on the PR branch.
@@ -172,7 +172,7 @@ Sync master:
 Release (unless `--no-release`):
 
 ```
-./agency/tools/gh-release create v{new-version} --target master --title "..." --notes "..."
+./agency/tools/gh-release create v{new-version} --target "$DEFAULT_BRANCH" --title "..." --notes "..."
 ```
 
 Release notes: captain-authored, references PR number + agent.
