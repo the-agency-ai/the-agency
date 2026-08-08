@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "projects": [
+    {
+      "name": "nonexistent-test-project",
+      "path": "/tmp/nonexistent-test-project",
+      "created_at": "2026-08-08T02:10:24Z",
+      "starter_version": "unknown",
+      "status": "current"
+    }
+  ]
+}

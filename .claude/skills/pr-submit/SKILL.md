@@ -29,7 +29,7 @@ Agent-side handoff to captain: "my branch is ready for PR landing." Captain pick
 
 Per the-agency#296: the distributed "agent creates PR, captain merges" model causes four failure modes that the captain-owned lifecycle eliminates:
 
-- **Version-bump races** — two agents bump `agency_version` simultaneously against the same `origin/master` baseline; one loses.
+- **Version-bump races** — two agents bump `agency_version` simultaneously against the same `origin/<default-branch>` baseline; one loses.
 - **QGR hash races** — captain's coord commits land on master between an agent's QG and that agent's PR creation, invalidating the receipt mid-flow.
 - **Split release responsibility** — agent opens PR but captain creates the release; ownership is asymmetric and release steps get skipped.
 - **Inconsistent PR descriptions** — each agent writes their own; no fleet-wide coherence for review or history-mining.
@@ -64,7 +64,7 @@ The script enforces all of these before dispatching; any failure exits non-zero 
 2. Current branch is not `master` / `main` / `HEAD` (not detached).
 3. Tree is clean — `git status --porcelain` empty.
 4. Current branch is pushed to origin and `origin/<branch>` equals local `HEAD`.
-5. A QGR receipt exists at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md` where `{hash}` matches the current `diff-hash` against `origin/master`.
+5. A QGR receipt exists at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md` where `{hash}` matches the current `diff-hash` against `origin/<default-branch>` (resolved, not hardcoded).
 
 If preconditions 3 or 4 fail, fix them (commit/push via `/git-safe-commit` or `/sync`) and retry. If precondition 5 fails, you need to re-run `/pr-prep` to sign a fresh receipt.
 
@@ -84,7 +84,7 @@ If preconditions 3 or 4 fail, fix them (commit/push via `/git-safe-commit` or `/
 ### Step 3: Compute diff-hash
 
 ```
-./agency/tools/diff-hash --base origin/master --json
+./agency/tools/diff-hash --base "origin/$DEFAULT_BRANCH" --json   # default branch resolved, not hardcoded
 ```
 
 Capture the full SHA-256 and the 7-char short form. The 7-char short form is what matches the receipt filename suffix.

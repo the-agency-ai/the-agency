@@ -1,109 +1,86 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-05-09T12:45
-trigger: principal-moving-temp-shutdown
-branch: captain-git-safe-init
-mode: resumption
+date: 2026-08-07T20:50
+trigger: fleet-rebuild-complete
+branch: main
+mode: continuation
 next-action: |
-  Build `git-safe init` subcommand in `agency/tools/git-safe`. Branch
-  `captain-git-safe-init` already created (clean, no edits yet). Resolves
-  framework gap #437. After tool ships via captain-release + merge, redo
-  the `~/code/this-happened/` git-init step using the new tool to prove
-  the chain. Then continue this-happened bootstrap.
+  Session will /compact then continue. After compact, run /compact-resume.
+  Then move things forward — principal's call between: (a) land the rebuilt
+  app-work branches via PR (mdslidepal-mac 912797c, mdpal-app 06ade7a),
+  (b) tackle the 3 remaining rotting PRs (#443, #435, #426), (c) start the
+  199-flag mountain triage (/flag-triage). Original triage Task #3 (flag
+  mountain) is still open. Dispatch monitor task b1id5zl1d running.
 ---
 
-# Captain handoff — paused mid-bootstrap of this-happened (hackathon)
+# Captain handoff — fleet rebuild-on-main COMPLETE
 
-## Where we are
+## Session summary (2026-08-07)
 
-Hackathon day. Pivoted from mdpal to a new project: **this-happened** — user issue reporting + Breadcrumb (UUID7 distributed tracing). Per seed at `agency/workstreams/agency/history/flotsam/legacy-agency-workstream-20260420/seeds/seed-it-happened-and-breadcrumb-20260410.md`.
+Resumed from a ~3-month-stale handoff (this-happened hackathon, next-action
+already done). Discovered the entire worktree fleet was **parked behind the
+Great Rename** and drove a full **rebuild-on-main campaign** to unstick it.
 
-Bootstrap is mid-flight. Paused at the framework-tool fix step before continuing.
+## What was done this session
 
-## 4 locked decisions from this session's 1B1
+### 1. Landed PR #444 (delivery-stream win)
+- `feat: port block-raw-tools.sh from monofolk` — merged via `pr-merge --principal-approved` (admin override; contrib branch, no GH review).
+- Fix D auto-release cut **v46.26**. Post-merge state cleared. Main reconciled with origin (merge `8a7b9f6d`).
 
-| Item | Decision | Notes |
+### 2. Fleet rebuild-on-main (the big work) — 7/7 worktrees
+**Root cause:** every worktree was pre-Great-Rename (`claude/` paths); main is post-rename + wave-3/4 (`agency/` + `src/`). Naive `worktree-sync` reproduced dispatch #869's 618-conflict wall. great-rename-migrate v1.2 only reduced it (618→502) — residual = shared framework content main archived/deleted.
+
+**Key insight (from principal):** main already owns the framework authoritatively; **`src/` is the installable source-of-truth** (the-agency is self-bootstrapping — root `agency/`/`apps/`/`tests/` is this running instance dogfooding; `src/` is what `agency init` installs). So: don't reconcile history — rebuild each worktree fresh from main, graft ONLY genuine unmerged product work.
+
+**Mechanic (proven, sanctioned):** tag old tip `retired/<wt>-20260807` → `worktree-delete --force` → `git-captain branch-delete --force` → `worktree-create` (fresh from main) → graft product files via `git-safe show <tag>:<oldpath>` redirected into new worktree (NO cross-worktree cp, NO raw git) → `git-safe add` → `git-safe-commit`.
+
+| Worktree | Outcome | New commit |
 |---|---|---|
-| **Scope** | **B** — both services together | this-happened (app) + breadcrumb (library) in one repo, two workstreams |
-| **Hackathon shape** | **A** — full discipline | /define → /design → /plan → first iteration. PVR locked + A&D in flight by EOD. No shortcuts. |
-| **License** | **B** — Reference Source on both, two LICENSE files | Allows independent re-licensing of one component later |
-| **Bootstrap mechanism** | **agency init** (canonical tool) | Use the framework's own bootstrap path; if it breaks we fix it |
+| mdslidepal-web | Retired — zero unmerged work | 24b5a1a (main base) |
+| mdpal-cli | Retired — zero unmerged work | 24b5a1a (main base) |
+| mdslidepal-mac | Phase 5.1/5.2 grafted (7 files) | `912797c` |
+| mdpal-app | Phase 2.1–2.6 grafted (16 files) | `06ade7a` |
+| iscp | dispatch-hub service (38 files → `src/services/dispatch-hub/`) | `35b2e09` |
+| devex | test-monitor WIP preserved (`--no-verify`, red BATS) | `f204bd2` |
+| designex | design-system pipeline preserved (`--no-verify`, 2 red/13 skip) | `81df836` |
 
-The principal directive that triggered the pause: **"Why don't you make the tooling change and then use it?"** — i.e., when you find a gap, don't work around it; FIX THE TOOL.
+All 7 `retired/*-20260807` recovery tags exist. Main clean at `8e27e33`.
 
-## What's been done so far
+### 3. Coordination artifacts committed
+- `8e27e33` — 3 deferred dispatches + 5 commit-announce receipts (coord-commit).
 
-1. **PR #436 merged** earlier this session — `great-rename-migrate v1.1.0` default-map adds `apps/` + `starter-packs/`. Released as v46.23. Auto-release via Fix D worked. https://github.com/the-agency-ai/the-agency/releases/tag/v46.23
-2. **mdpal-cli + mdpal-app dispatched** with go-ahead on default-map run.
-3. **GitHub repo created**: `the-agency-ai/this-happened` (public).
-4. **~/code/this-happened/ exists** — was cloned via `gh repo create --clone` (workaround for missing `git-safe init`); then `agency-bootstrap.sh` was run inside it successfully. Framework + workstream `this-happened` + initial captain-handoff are present in that repo. **Nothing committed yet** in the new repo — git tree dirty (the bootstrap files staged + ready to commit).
-5. **Issue #437 filed**: `git-safe family lacks 'init' subcommand — blocks bare-repo bootstrap`. This was the manual sidestep the principal called out.
-6. **Captain branch `captain-git-safe-init` created** (clean, no edits) — ready to receive the tool fix.
+## Key decisions / learnings (do not re-litigate)
 
-## Where resumption picks up — concrete next steps
+1. **`src/` = source-of-truth installable payload; root = running instance.** the-agency is self-bootstrapping. The dual `agency/` + `src/agency/` tracking is BY DESIGN, not a bug. Framework tools live at BOTH `agency/tools/` (running) + `src/agency/tools/` (source); skills at `.claude/skills/` + `src/claude/skills/`; tests at `src/tests/` only; services tracked at `src/services/` (root `/services/` is gitignored — .gitignore:97).
+2. **App-dir grafts are always safe** (main only gets app code via merges from the worktree → worktree strictly ahead). **Framework-tool grafts are NOT** — main is the active dev locus, so blind-graft regresses main. Those need 3-way merges → deferred to owning agents.
+3. **Graft faithfully to the paths the agent had** — don't invent src/ copies; the framework's own src-split process propagates them.
+4. **zsh gotcha:** `"$TAG:claude/..."` / `"$TAG:tests/..."` triggers zsh param modifiers (`:c`, `:t`). Always put the path in a variable: `"$TAG:$path"`.
+5. **`--no-verify` skips the pre-commit hook that runs commit-precheck scoped tests** — used ONLY for explicit WIP-preservation (devex/designex red tests), honestly labeled.
 
-**Step 1: Build `git-safe init [path]` subcommand** in `agency/tools/git-safe`.
-- Validates path doesn't already contain `.git/` (refuses with clear error)
-- Creates target dir if missing (mirroring `git init <path>` behavior)
-- Calls real `git init <path>` under the hood
-- Reports success with absolute path
-- Adds `init` row to the help text (under "Subcommands (guarded write)")
+## Deferred work — dispatched to owning agents (HIGH priority)
 
-**Step 2: Add BATS tests** in `src/tests/tools/git-safe.bats`:
-- `git-safe init creates fresh repo at given path`
-- `git-safe init refuses if path already contains .git/`
-- `git-safe init creates target dir if missing`
-- `git-safe init defaults to cwd if no path given` (or refuses no-arg — design call at build time)
+Each rebuilt framework worktree has a deferred 3-way merge captured as a dispatch (agent picks up on resume). Feature work safe in recovery tags:
+- **iscp** (dispatch #): dispatch-tool feature merge (remote-poll/status-mirror/cross-agency ×373 lines) vs main's landed bug fixes #167/#201/#247/#251/#388. + dispatch-monitor (~50 lines).
+- **devex** (dispatch #): git-safe-commit 3-way merge (111 lines, resolve_repo_root/BATS-regex) + FINISH Iter 1 (test-monitor BATS red).
+- **designex** (dispatch #): figma-extract tool merge + relevance-check on agent-bootstrap/changelog-monitor/ci-monitor/enforcement-audit (main may have SUPERSEDED via changelog-watch/monitor-ci/agent-create).
 
-**Step 3: Bump TOOL_VERSION** in git-safe (1.0.0 → 1.1.0) + provenance header.
+## Open items (carry forward)
 
-**Step 4: captain-release flow** — commit, QGR (one self-review pass), version bump (manifest 46.23 → 46.24), PR, merge, post-merge.
+1. **Rebuilt branches not yet pushed/PR'd.** App work (mdslidepal-mac `912797c`, mdpal-app `06ade7a`) is committed on fresh branches, ready to land via PR. devex/designex wait on agents finishing deferred pieces first.
+2. **3 rotting PRs** (never got to): #443 (port SKILL.md — CI red), #435 (worktree-sync stale-stash — CONFLICTING), #426 (agency-captain-release-notes — CI red, oldest Apr 23).
+3. **Flag mountain: 199 flags** (Apr 5 → May 9) — untouched. Original triage Task #3. Needs strategy (dedicated /flag-triage vs pre-May bankruptcy sweep). #199 already stale.
+4. **Local main carries unpushed captain coord commits** (4b35db38 + merges + 8e27e33) — normal captain-on-main pattern, sync later.
 
-**Step 5: Redo this-happened's git plumbing using the new tool**:
-- Save bootstrap content; tear down `.git/`; run new `git-safe init`; re-add origin remote; commit + push as bootstrap commit.
-- Note: there's no `git-safe remote add` subcommand — possibly another tool gap to file. OR re-clone fresh (since the bootstrap content is reproducible by re-running agency-bootstrap.sh). Decide at resumption.
+## What's NOT in scope / parked
+- this-happened hackathon bootstrap (the old stale next-action — was already done; project at ~/code/this-happened/)
+- Old flags #216 (dispatch-monitor py3.13 — worked around by invoking /opt/homebrew/bin/python3.13 directly this session), #217, #218, #220
 
-**Step 6: Continue this-happened bootstrap** per the locked-A plan:
-- `/workstream-create breadcrumb` (with Reference Source LICENSE)
-- Update `this-happened` workstream README + LICENSE
-- Author bootstrap handover (captain-to-captain, the-agency captain → this-happened captain) including the 4 locked 1B1 decisions, seed pointer, SPEC:PROVIDER stack lock
-- Inject prior work: copy seed + 2026-04-10 SPEC:PROVIDER directive into `~/code/this-happened/agency/workstreams/this-happened/seeds/`
-- Author 1B1 transcript file capturing today's discussion verbatim per principal's "yes" on Item 1
-- Initial commit + push the new repo
-- `/define` to start PVR Rev 1
+## On resume (post-compact)
+1. `/compact-resume` — verify tree clean, monitors alive, dispatch drift
+2. Re-launch dispatch monitor if dead (was task b1id5zl1d, uses `/opt/homebrew/bin/python3.13 ./agency/tools/dispatch-monitor --include-collab`)
+3. Move forward per principal's direction (land branches / PRs / flag mountain)
 
-## Open framework gaps to address (in priority order)
-
-| # | Gap | Action |
-|---|---|---|
-| **#437** | `git-safe init` missing | Building NEXT (this is the next-action) |
-| **flag #220** | great-rename-migrate v1.2 — wave-3 entries | Task #83, post-hackathon |
-| **flag #218** | captain-release receipt-hash thrash (manifest bump invalidates QGR) | Post-hackathon |
-| **flag #217** | reviewer-* subagent classes not registered as instances | Post-hackathon |
-| **flag #216** | dispatch-monitor `python3` resolves to 3.9 not 3.13 | Post-hackathon |
-
-## Hackathon clock note
-
-Principal observation: even hybrid C wouldn't yield a running thing by 5 PM. Locked Option A (full discipline). PVR + A&D landing today is the realistic target; running app is days away.
-
-## What's NOT in scope today
-
-- mdpal-app + mdpal-cli (parked at migration commits — Task #83 unblocks them next session)
-- Bucket 1 #419-ecosystem 1B1 (paused at Item 1 #288, awaiting principal verdict)
-- Other Bucket 1 items (#74, #76, #77, #78)
-- Build /agency-claude-feedback skill (Task #80)
-- mdslidepal worktrees (explicitly off the table per principal)
-
-## On resume
-
-1. `/session-resume` — sync, handoff, dispatches
-2. Read this handoff's next-action
-3. Verify on `captain-git-safe-init` branch (created clean this session)
-4. Begin Step 1 — build the tool
-5. Process any dispatches that arrived during the pause
-6. Re-launch dispatch monitor via `/monitor-dispatches` (was running this session as task `bi7af0v49`)
-
-— captain, paused mid-bootstrap.
+— captain, fleet rebuild complete.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

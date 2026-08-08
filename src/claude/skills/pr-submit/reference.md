@@ -24,7 +24,7 @@ in_reply_to: null | <prior-dispatch-id>
 - **Branch:** `{branch}`
 - **Agent:** <org>/{principal}/{agent}
 - **HEAD:** `{sha}` (pushed to origin)
-- **Diff base:** `origin/master`
+- **Diff base:** `origin/<default-branch>` (resolved via `resolve_default_branch`)
 - **Diff hash:** `{hash-7-char}`
 
 ## QGR receipt
@@ -69,7 +69,7 @@ Over.
 |---|---|---|---|
 | `branch` | string | `git rev-parse --abbrev-ref HEAD` | Not `master`, not `HEAD` (detached) |
 | `sha` | string (40 char hex) | `git rev-parse HEAD` | Must equal `origin/{branch}` |
-| `diff-hash` | string (7 char hex) | `./agency/tools/diff-hash --base origin/master --json` | First 7 of full SHA-256 |
+| `diff-hash` | string (7 char hex) | `./agency/tools/diff-hash --base "origin/$DEFAULT_BRANCH" --json` | First 7 of full SHA-256 |
 | `receipt-path` | string | Glob `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md` | Must exist, must match hash |
 | `scope` | string | `--scope` flag | Required, non-empty |
 | `priority` | enum | `--priority` flag | `normal` (default) or `high` |

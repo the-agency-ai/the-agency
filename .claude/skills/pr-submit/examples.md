@@ -14,7 +14,7 @@ Expected:
 
 ```
 [pr-submit] Preflight OK: worktree=devex, branch=jordan-devex-d12-r3, sha=a3f9b21, pushed=ok
-[pr-submit] Diff hash: 8b4c2e1 (vs origin/master)
+[pr-submit] Diff hash: 8b4c2e1 (vs origin/main)
 [pr-submit] Receipt: agency/workstreams/devex/qgr/{repo}-jordan-devex-devex-d12r3-qgr-pr-prep-20260419-1430-8b4c2e1.md
 [pr-submit] Dispatched to <org>/jordan/captain as d-019da47f-8b4c
 → Captain will run /pr-captain-land jordan-devex-d12-r3
@@ -111,7 +111,7 @@ The dispatch body that lands in captain's inbox (see `reference.md` for full sch
 - **Branch:** `jordan-devex-d12-r3`
 - **Agent:** <org>/jordan/devex
 - **HEAD:** `a3f9b21f...` (pushed to origin)
-- **Diff base:** `origin/master`
+- **Diff base:** `origin/main`
 - **Diff hash:** `8b4c2e1`
 
 ## QGR receipt
