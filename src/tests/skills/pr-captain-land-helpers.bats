@@ -32,12 +32,16 @@ PR_SUBMIT="${REPO_ROOT}/.claude/skills/pr-submit/scripts/pr-submit"
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "pr-captain-land: no live 'switch-branch master' remains" {
-    run grep -n 'switch-branch master' "$LAND"
+    # Catch the bare form AND the idiomatic quoted regression 'switch-branch
+    # "master"' — the surrounding code style is uniformly quoted, so a
+    # hand-reintroduced hardcode would most likely carry quotes.
+    run grep -nE 'switch-branch[[:space:]]+"?master"?' "$LAND"
     [ "$status" -ne 0 ]
 }
 
 @test "pr-captain-land: no live 'gh-release --target master' remains" {
-    run grep -nE '[-][-]target master([[:space:]]|$|[^-])' "$LAND"
+    # Same: catch both '--target master' and '--target "master"'.
+    run grep -nE '[-][-]target[[:space:]]+"?master"?' "$LAND"
     [ "$status" -ne 0 ]
 }
 
@@ -62,9 +66,24 @@ PR_SUBMIT="${REPO_ROOT}/.claude/skills/pr-submit/scripts/pr-submit"
 }
 
 @test "pr-captain-land: uses resolve_default_branch / parse_org / parse_repo" {
-    grep -q 'resolve_default_branch' "$LAND"
-    grep -q 'parse_org_from_remote' "$LAND"
-    grep -q 'parse_repo_from_remote' "$LAND"
+    # Anchor on the live CALL SITES ($(...) / assignment), not bare mentions —
+    # otherwise deleting the calls while leaving the descriptive comment block
+    # would still pass, which is exactly the regression this guard names.
+    grep -qE '\$\(resolve_default_branch\)' "$LAND"
+    grep -qE 'ORG="\$\(parse_org_from_remote' "$LAND"
+    grep -qE 'REPO="\$\(parse_repo_from_remote' "$LAND"
+}
+
+@test "pr-captain-land: --help runs end-to-end (source + ORG/REPO parse + branch resolve)" {
+    # A real invocation: --help is parsed only AFTER the script sources the
+    # lib, parses the (live, token-bearing) origin remote, and resolves the
+    # default branch — so this smoke test exercises the runtime path the
+    # grep guards cannot (source line moved, parse failure on real origin).
+    run bash "$LAND" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Usage:"* ]]
+    # And it must not leak the PAT that lives in this checkout's origin URL.
+    [[ "$output" != *"ghp_"* ]]
 }
 
 @test "pr-captain-land: the lib it sources actually defines those functions" {

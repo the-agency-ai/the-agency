@@ -16,7 +16,7 @@ The skill's `argument-hint` frontmatter mirrors this CLI.
 
 1. Resolves agent identity (`./agency/tools/agent-identity`) — aborts outside an agent worktree
 2. Verifies tree clean, branch pushed, origin matches HEAD
-3. Computes `./agency/tools/diff-hash --base origin/master --json` for the receipt lookup
+3. Computes `./agency/tools/diff-hash --base "origin/$DEFAULT_BRANCH" --json` (default branch resolved) for the receipt lookup
 4. Globs `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`, picks most recent if multiple
 5. Composes the dispatch body per `../reference.md` schema
 6. Emits via `./agency/tools/dispatch create --to <org>/{principal}/captain --type pr-submit --subject "..." --body "..."`

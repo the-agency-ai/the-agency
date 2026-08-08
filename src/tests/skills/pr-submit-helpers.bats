@@ -183,6 +183,17 @@ setup() {
     [ "$status" -ne 0 ]
 }
 
+@test "parse_repo_from_remote: a repo name containing a dot still parses" {
+    # ${url%.git} strips only the final .git, so a dotted repo name survives.
+    result="$(parse_repo_from_remote 'https://github.com/my.org/my.repo.git')"
+    [ "$result" = "my.repo" ]
+}
+
+@test "parse_repo_from_remote: rejects an empty URL" {
+    run parse_repo_from_remote ''
+    [ "$status" -ne 0 ]
+}
+
 @test "parse_repo_from_remote: never echoes the token even on the reject path" {
     run parse_repo_from_remote 'https://ghp_SECRETTOKEN@github.com/'
     [[ "$output" != *"ghp_SECRETTOKEN"* ]]

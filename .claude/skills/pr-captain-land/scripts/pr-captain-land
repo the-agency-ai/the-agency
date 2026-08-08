@@ -3,7 +3,7 @@
 # pr-captain-land — Captain lands an agent's prepared branch as a PR + release
 #
 # WHAT: Captain runs this in the main checkout to own the full PR lifecycle
-# for a branch prepared by an agent via /submit-for-pr. Switches to the
+# for a branch prepared by an agent via /pr-submit. Switches to the
 # branch, verifies the QGR receipt, bumps the version, creates the PR with
 # a captain-authored description, watches CI, merges, cuts the release, and
 # dispatches the agent with the outcome.
@@ -218,7 +218,7 @@ PR_TITLE="${CUSTOM_TITLE:-$AGENT_BRANCH}"
 PR_BODY=$(cat <<EOF
 Captain-landed PR via pr-captain-land (the-agency#296 Phase 1 pilot).
 
-Branch prepared by agent via /submit-for-pr. Captain owns the landing lifecycle:
+Branch prepared by agent via /pr-submit. Captain owns the landing lifecycle:
 - Switched to \`$AGENT_BRANCH\`
 - Verified QGR receipt \`$RECEIPT_REL\` (hash \`$DIFF_HASH_SHORT\`)
 - Bumped \`agency_version\` $CURRENT_VER → $NEW_VER
@@ -270,7 +270,7 @@ while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
     fi
     if [[ "$STATE" == "FAILURE" ]]; then
         echo "pr-captain-land: lint-and-test FAILED on PR #$PR_NUM" >&2
-        echo "  Agent must fix, push, and re-submit via /submit-for-pr." >&2
+        echo "  Agent must fix, push, and re-submit via /pr-submit." >&2
         exit 1
     fi
     sleep 20

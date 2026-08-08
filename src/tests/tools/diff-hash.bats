@@ -129,6 +129,21 @@ teardown() {
     [ "$status" -ne 0 ]
 }
 
+@test "diff-hash: --json file_count excludes handoffs too (FILE_COUNT path) (isolated)" {
+    cd "$TEST_REPO"
+    # The exclusion is applied twice — once for the hash (DIFF_OUTPUT) and again,
+    # independently, for file_count. The other tests only observe the hash; this
+    # one pins the file_count path so the two invocations can't silently diverge.
+    # feature already changed 1 code file (file.txt); add a handoff alongside it.
+    mkdir -p usr/jordan/captain
+    echo "session notes" > usr/jordan/captain/captain-handoff.md
+    git add usr/jordan/captain/captain-handoff.md
+    git commit -m "handoff alongside code" --quiet --no-verify
+    run bash "$DIFF_HASH" --base main --json
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q '"file_count":1'
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # File mode (already isolated — uses tmpfiles)
 # ─────────────────────────────────────────────────────────────────────────────

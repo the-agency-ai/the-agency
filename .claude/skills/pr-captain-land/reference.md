@@ -30,10 +30,10 @@ Current working branch becomes the agent's. Main checkout is now sitting on agen
 
 ### Step 2 — Verify receipt
 
-Compute current diff-hash against `origin/master`. Find receipt matching that hash.
+Compute current diff-hash against `origin/<default-branch>` (resolved via `resolve_default_branch`, not hardcoded). Find receipt matching that hash.
 
 ```
-./agency/tools/diff-hash --base origin/master --json
+./agency/tools/diff-hash --base "origin/$DEFAULT_BRANCH" --json   # default branch resolved, not hardcoded
 # extract hash
 find agency/workstreams -name "*qgr-pr-prep-*-{hash}.md"
 ```
@@ -69,7 +69,7 @@ Title: `--title` flag value, or `<agent-branch>` as fallback. Body: captain-auth
 ### Step 5 — Switch back to master
 
 ```
-./agency/tools/git-captain switch-branch master
+./agency/tools/git-captain switch-branch "$DEFAULT_BRANCH"
 ```
 
 Captain should sit on master for the wait-and-merge phase. Avoids any accidental commit landing on the PR branch.
@@ -103,7 +103,7 @@ Uses admin merge (principal-approved flag gated). True merge commit — never sq
 ```
 ./agency/tools/git-captain fetch
 ./agency/tools/git-captain merge-from-origin
-./agency/tools/gh-release create v{new-version} --target master --title "..." --notes "..."
+./agency/tools/gh-release create v{new-version} --target "$DEFAULT_BRANCH" --title "..." --notes "..."
 ```
 
 Release notes: captain-authored, references the PR number and agent.
@@ -131,7 +131,7 @@ Recommend the first path; simpler.
 
 ### Receipt invalidated mid-flow (Step 4 retry)
 
-Between /pr-submit and /pr-captain-land, a captain coord commit may land on master, changing origin/master and thus the diff-hash. Agent's receipt no longer matches.
+Between /pr-submit and /pr-captain-land, a captain coord commit may land on the default branch, changing `origin/<default-branch>` and thus the diff-hash. Agent's receipt no longer matches.
 
 Detected at Step 2 or Step 4 (pr-create). Script exits; agent re-runs /pr-prep (re-signs receipt) + /pr-submit.
 
