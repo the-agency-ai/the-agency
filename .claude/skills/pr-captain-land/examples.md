@@ -150,7 +150,7 @@ Most common: GitHub release API hiccup:
 [pr-captain-land] Merged PR #118 successfully.
 [pr-captain-land] gh-release create v1.10 FAILED: ...
 [pr-captain-land] WARN: merge is the primary outcome (success). Release creation deferred.
-  Captain: run `gh release create v1.10 --target master --notes-file ...` manually.
+  Captain: run `gh release create v1.10 --target main --notes-file ...` manually.
 [pr-captain-land] Dispatched agent with merge confirmation (no release URL).
 ```
 
