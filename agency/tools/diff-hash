@@ -13,8 +13,17 @@
 # (branch vs base) or a single artifact file. Excludes:
 #   - agency/receipts/      (the receipts themselves — original fix)
 #   - usr/**/dispatches/    (auto-staged commit-announce dispatches — #99 fix)
+#   - usr/**/*-handoff.md   (active handoffs — receipt-churn fix, see below)
+#   - usr/**/handoff-*.md   (archived handoffs in history/ — receipt-churn fix)
 # from all diff computations to prevent chicken-and-egg. Full SHA-256
 # stored internally; 7-char truncation for display and filenames.
+#
+# Receipt-churn fix (2026-08-08): /pr-prep signs a receipt against this hash,
+# then /pr-submit and /handoff commit a handoff artifact that landed INSIDE
+# the hashed file set — invalidating the just-signed receipt and forcing a
+# re-sign on every landing (one PR cost five signatures). Handoffs are
+# session coordination artifacts, never the code under review, so they are
+# excluded exactly as receipts and dispatches already are.
 #
 # Usage:
 #   ./agency/tools/diff-hash                      # diff against origin/main
@@ -103,10 +112,12 @@ else
         ':(exclude,glob)src/agency/workstreams/*/rgr/**' \
         ':(exclude,glob)usr/*/*/dispatches/**' \
         ':(exclude,glob)usr/*/dispatches/**' \
+        ':(exclude,glob)usr/**/*-handoff.md' \
+        ':(exclude,glob)usr/**/handoff-*.md' \
         2>/dev/null)
 
     if [[ -z "$DIFF_OUTPUT" ]]; then
-        echo "Error: no diff between $BASE and HEAD (excluding receipts and dispatches)" >&2
+        echo "Error: no diff between $BASE and HEAD (excluding receipts, dispatches, and handoffs)" >&2
         exit 1
     fi
 
@@ -120,6 +131,8 @@ else
         ':(exclude,glob)src/agency/workstreams/*/rgr/**' \
         ':(exclude,glob)usr/*/*/dispatches/**' \
         ':(exclude,glob)usr/*/dispatches/**' \
+        ':(exclude,glob)usr/**/*-handoff.md' \
+        ':(exclude,glob)usr/**/handoff-*.md' \
         2>/dev/null | wc -l | tr -d ' ')
 
     if [[ "$JSON" == "true" ]]; then

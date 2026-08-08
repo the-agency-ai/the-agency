@@ -88,6 +88,48 @@ teardown() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Receipt-churn fix (2026-08-08): handoffs must not enter the hash, or the
+# receipt /pr-prep just signed is invalidated when /pr-submit or /handoff
+# commits a handoff artifact. Exclude active + archived handoffs.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "diff-hash: active handoff does not change the code hash (isolated)" {
+    cd "$TEST_REPO"
+    local hash_before hash_after
+    hash_before=$(bash "$DIFF_HASH" --base main)
+    mkdir -p usr/jordan/captain
+    echo "session notes" > usr/jordan/captain/captain-handoff.md
+    git add usr/jordan/captain/captain-handoff.md
+    git commit -m "handoff" --quiet --no-verify
+    hash_after=$(bash "$DIFF_HASH" --base main)
+    [ "$hash_before" = "$hash_after" ]
+}
+
+@test "diff-hash: archived handoff does not change the code hash (isolated)" {
+    cd "$TEST_REPO"
+    local hash_before hash_after
+    hash_before=$(bash "$DIFF_HASH" --base main)
+    mkdir -p usr/jordan/captain/history
+    echo "old session" > usr/jordan/captain/history/handoff-20260808-010101.md
+    git add usr/jordan/captain/history/handoff-20260808-010101.md
+    git commit -m "archive handoff" --quiet --no-verify
+    hash_after=$(bash "$DIFF_HASH" --base main)
+    [ "$hash_before" = "$hash_after" ]
+}
+
+@test "diff-hash: a handoff-only diff is treated as no diff (isolated)" {
+    cd "$TEST_REPO"
+    git checkout main --quiet
+    git checkout -b handoff-only --quiet
+    mkdir -p usr/jordan/captain
+    echo "just a handoff" > usr/jordan/captain/captain-handoff.md
+    git add usr/jordan/captain/captain-handoff.md
+    git commit -m "handoff only" --quiet --no-verify
+    run bash "$DIFF_HASH" --base main
+    [ "$status" -ne 0 ]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # File mode (already isolated — uses tmpfiles)
 # ─────────────────────────────────────────────────────────────────────────────
 

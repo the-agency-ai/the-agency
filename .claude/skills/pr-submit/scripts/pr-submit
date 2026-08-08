@@ -87,6 +87,26 @@ parse_org_from_remote() {
     return 1
 }
 
+# Echo the repo (name) segment of a GitHub remote URL. Returns 1 if unparseable.
+#
+# Companion to parse_org_from_remote — same normalization (redact userinfo,
+# strip a trailing ".git" and slash before matching, since POSIX ERE has no
+# lazy quantifier). Returns the SECOND path segment (the repo name).
+parse_repo_from_remote() {
+    local url clean
+    url="$(redact_remote_url "$1")"
+    clean="${url%.git}"
+    clean="${clean%/}"
+    if [[ "$clean" =~ ^git@[^:]+:([^/]+)/([^/]+)$ ]]; then
+        printf '%s' "${BASH_REMATCH[2]}"
+        return 0
+    elif [[ "$clean" =~ ^https?://[^/]+/([^/]+)/([^/]+)$ ]]; then
+        printf '%s' "${BASH_REMATCH[2]}"
+        return 0
+    fi
+    return 1
+}
+
 # Echo the repo's default branch name. Resolve it — never assume.
 #
 # This script hardcoded origin/master, which fails closed in every repo whose

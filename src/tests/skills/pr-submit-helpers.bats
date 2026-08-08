@@ -38,7 +38,7 @@ setup() {
 }
 
 @test "pr-submit: lib-only source defines the helpers and runs nothing else" {
-    run bash -c "PR_SUBMIT_LIB_ONLY=1 source '$PR_SUBMIT' && declare -F parse_org_from_remote resolve_default_branch redact_remote_url"
+    run bash -c "PR_SUBMIT_LIB_ONLY=1 source '$PR_SUBMIT' && declare -F parse_org_from_remote parse_repo_from_remote resolve_default_branch redact_remote_url"
     [ "$status" -eq 0 ]
 }
 
@@ -145,6 +145,46 @@ setup() {
 
 @test "parse_org_from_remote: never echoes the token even on the reject path" {
     run parse_org_from_remote 'https://ghp_SECRETTOKEN@github.com/'
+    [[ "$output" != *"ghp_SECRETTOKEN"* ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# parse_repo_from_remote — companion to the org parser (used by pr-captain-land
+# for the release URL). Same normalization, returns the repo segment.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "parse_repo_from_remote: token-bearing https remote (F2 regression)" {
+    result="$(parse_repo_from_remote 'https://ghp_SECRETTOKEN@github.com/the-agency-ai/the-agency.git')"
+    [ "$result" = "the-agency" ]
+}
+
+@test "parse_repo_from_remote: plain https remote with .git suffix (F3 regression)" {
+    result="$(parse_repo_from_remote 'https://github.com/the-agency-ai/the-agency.git')"
+    [ "$result" = "the-agency" ]
+}
+
+@test "parse_repo_from_remote: plain https remote without .git suffix" {
+    result="$(parse_repo_from_remote 'https://github.com/the-agency-ai/the-agency')"
+    [ "$result" = "the-agency" ]
+}
+
+@test "parse_repo_from_remote: scp-style git@ remote" {
+    result="$(parse_repo_from_remote 'git@github.com:the-agency-ai/the-agency.git')"
+    [ "$result" = "the-agency" ]
+}
+
+@test "parse_repo_from_remote: trailing slash is tolerated" {
+    result="$(parse_repo_from_remote 'https://user:tok@github.com/some-org/some-repo/')"
+    [ "$result" = "some-repo" ]
+}
+
+@test "parse_repo_from_remote: rejects a URL that is not a repo path" {
+    run parse_repo_from_remote 'https://github.com/'
+    [ "$status" -ne 0 ]
+}
+
+@test "parse_repo_from_remote: never echoes the token even on the reject path" {
+    run parse_repo_from_remote 'https://ghp_SECRETTOKEN@github.com/'
     [[ "$output" != *"ghp_SECRETTOKEN"* ]]
 }
 
