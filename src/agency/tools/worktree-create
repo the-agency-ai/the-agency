@@ -79,6 +79,18 @@ compute_worktree_name() {
     fi
 }
 
+# _require_value <flag> [next ...]
+#
+# Guard for option parsing: under `set -u` a trailing flag with no argument
+# ("worktree-create foo --branch") expands "$2" unbound and dies with a raw
+# bash error instead of a usage hint. Call with the remaining "$@".
+_require_value() {
+    if [[ $# -lt 2 ]]; then
+        echo "Error: $1 requires a value" >&2
+        exit 1
+    fi
+}
+
 # --- Flags ---
 show_help() {
     cat <<HELP
@@ -102,9 +114,14 @@ Naming rule when both --workstream and --agent are given:
   otherwise                                                → worktree = workstream-agent
 
 Branch resolution (first match wins):
-  local branch <branch> exists    → check it out
-  origin/<branch> exists          → new local branch tracking origin/<branch>
-  neither exists                  → new branch from current HEAD
+  local branch <branch> exists      → check it out
+  <remote>/<branch> exists          → new local branch tracking it (origin wins
+                                      if several remotes carry the branch)
+  neither exists                    → new branch from current HEAD
+
+Remote-tracking refs are only as fresh as your last fetch — fetch before
+reviving a stale PR branch, or you will get an out-of-date worktree. The tool
+prints the resolved commit and its distance from HEAD so you can tell.
 
 Examples:
   worktree-create --workstream devex --agent devex       → devex
@@ -121,8 +138,8 @@ if [[ "${1:-}" == "--compute-only" ]]; then
     _ag=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --workstream) _ws="$2"; shift 2 ;;
-            --agent) _ag="$2"; shift 2 ;;
+            --workstream) _require_value "$@"; _ws="$2"; shift 2 ;;
+            --agent) _require_value "$@"; _ag="$2"; shift 2 ;;
             *) echo "Unknown option: $1" >&2; exit 1 ;;
         esac
     done
@@ -139,9 +156,9 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --version|-v) echo "worktree-create $VERSION"; exit 0 ;;
         --help|-h) show_help; exit 0 ;;
-        --branch) BRANCH="$2"; shift 2 ;;
-        --workstream) WORKSTREAM="$2"; shift 2 ;;
-        --agent) AGENT="$2"; shift 2 ;;
+        --branch) _require_value "$@"; BRANCH="$2"; shift 2 ;;
+        --workstream) _require_value "$@"; WORKSTREAM="$2"; shift 2 ;;
+        --agent) _require_value "$@"; AGENT="$2"; shift 2 ;;
         -*) echo "Unknown option: $1" >&2; exit 1 ;;
         *) NAME="$1"; shift ;;
     esac
@@ -174,6 +191,17 @@ if ! [[ "$NAME" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
 fi
 
 BRANCH="${BRANCH:-$NAME}"
+
+# NAME is regex-restricted above because it becomes a path component. BRANCH is
+# NOT — branch names legitimately contain slashes (fix/foo, the usual PR shape).
+# But it still has to be a legal git branch name, or `worktree add -b` fails
+# with a raw plumbing error. `--branch HEAD` is the easy way to hit this: it
+# matches refs/remotes/origin/HEAD, which exists in every clone.
+if ! git check-ref-format --branch "$BRANCH" >/dev/null 2>&1; then
+    echo "Error: '$BRANCH' is not a valid git branch name" >&2
+    exit 1
+fi
+
 PROJECT_ROOT="${CALLER_PROJECT_ROOT:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
 WORKTREE_DIR="$PROJECT_ROOT/.claude/worktrees/$NAME"
 
@@ -190,26 +218,87 @@ echo "  Path: .claude/worktrees/$NAME/"
 
 mkdir -p "$PROJECT_ROOT/.claude/worktrees"
 
+# find_remote_for_branch <branch>
+#
+# Print the name of the remote whose tracking ref carries <branch>, or nothing.
+# `origin` wins when several remotes carry the same branch; when several do and
+# none is `origin`, that is genuinely ambiguous and we refuse rather than guess.
+#
+# Enumerating `git remote` and probing each with show-ref (rather than globbing
+# refs/remotes/*/<branch>) keeps this correct for slash-bearing branch names,
+# where a single `*` would otherwise have to span path components.
+find_remote_for_branch() {
+    local branch="$1"
+    local r found="" matches=""
+    while IFS= read -r r; do
+        [[ -z "$r" ]] && continue
+        if git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/remotes/$r/$branch" 2>/dev/null; then
+            matches="$matches $r"
+            if [[ "$r" == "origin" ]]; then
+                found="origin"
+            elif [[ -z "$found" ]]; then
+                found="$r"
+            fi
+        fi
+    done <<< "$(git -C "$PROJECT_ROOT" remote 2>/dev/null || true)"
+
+    # More than one candidate and no origin to break the tie — refuse.
+    # Returns nonzero rather than exiting: this runs inside a command
+    # substitution, where `exit` would only kill the subshell and leave the
+    # caller to carry on with an empty result.
+    if [[ -n "$found" ]] && [[ "$found" != "origin" ]] && [[ $(echo $matches | wc -w) -gt 1 ]]; then
+        echo "Error: branch '$branch' exists on multiple remotes ($matches)." >&2
+        echo "       Refusing to guess. Create the local branch yourself, then re-run." >&2
+        return 1
+    fi
+
+    echo "$found"
+}
+
 # Create branch + worktree.
 #
 # Three cases, checked in order (see also the DWIM note in the header):
-#   1. Local branch exists          → check it out in the new worktree
-#   2. Only origin/<branch> exists  → create a local tracking branch from it
-#   3. Neither exists               → create a brand-new branch from HEAD
+#   1. Local branch exists            → check it out in the new worktree
+#   2. Only <remote>/<branch> exists  → create a local tracking branch from it
+#   3. Neither exists                 → create a brand-new branch from HEAD
 #
 # Case 2 is the stale-PR-revival path. Without it, asking for a worktree on a
-# branch that lives only on origin silently fell through to case 3 and created
+# branch that lives only on a remote silently fell through to case 3 and created
 # an EMPTY branch from HEAD — losing the PR's actual content. See the header
 # note; this bit the revival of PR #426.
+#
+# Case 2 deliberately applies even when --branch was not passed (i.e. when the
+# branch name defaulted to the worktree name). Creating a fresh local branch
+# that shadows an existing remote branch of the same name is the very failure
+# this tool now exists to prevent: the agent gets an empty tree and their first
+# push is a non-fast-forward against their own real work. The tracking-vs-fresh
+# choice is reported loudly below so a stale checkout is never silent.
+REMOTE=""
+if ! git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/heads/$BRANCH" 2>/dev/null; then
+    # `if !` keeps set -e from firing so the ambiguous-remote message survives.
+    if ! REMOTE="$(find_remote_for_branch "$BRANCH")"; then
+        exit 1
+    fi
+fi
+
 if git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/heads/$BRANCH" 2>/dev/null; then
     # Local branch exists — use it
     git -C "$PROJECT_ROOT" worktree add "$WORKTREE_DIR" "$BRANCH"
-elif git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/remotes/origin/$BRANCH" 2>/dev/null; then
-    # Remote-only branch — create a local branch tracking origin/<branch>
-    echo "  Branch exists on origin only — tracking origin/$BRANCH"
-    git -C "$PROJECT_ROOT" worktree add --track -b "$BRANCH" "$WORKTREE_DIR" "origin/$BRANCH"
+elif [[ -n "$REMOTE" ]]; then
+    # Remote-only branch — create a local branch tracking <remote>/<branch>.
+    # Report what is actually being checked out: a remote-tracking ref is only
+    # as fresh as the last fetch, and a months-stale branch looks identical to
+    # a current one unless we say so.
+    echo "  Branch exists on '$REMOTE' only — tracking $REMOTE/$BRANCH"
+    echo "    commit: $(git -C "$PROJECT_ROOT" log -1 --format='%h %cs %s' "$REMOTE/$BRANCH" 2>/dev/null || echo unknown)"
+    echo "    vs HEAD: $(git -C "$PROJECT_ROOT" rev-list --count "HEAD..$REMOTE/$BRANCH" 2>/dev/null || echo '?') ahead, $(git -C "$PROJECT_ROOT" rev-list --count "$REMOTE/$BRANCH..HEAD" 2>/dev/null || echo '?') behind"
+    echo "    (remote-tracking refs are only as fresh as your last fetch)"
+    git -C "$PROJECT_ROOT" worktree add --track -b "$BRANCH" "$WORKTREE_DIR" "$REMOTE/$BRANCH"
 else
-    # Create new branch from HEAD
+    # Create new branch from HEAD. If the caller expected to land on an
+    # existing remote branch, an un-fetched remote is the usual reason.
+    echo "  No local or remote branch '$BRANCH' — creating it fresh from HEAD"
+    echo "    (if you expected an existing remote branch, fetch first)"
     git -C "$PROJECT_ROOT" worktree add -b "$BRANCH" "$WORKTREE_DIR"
 fi
 
