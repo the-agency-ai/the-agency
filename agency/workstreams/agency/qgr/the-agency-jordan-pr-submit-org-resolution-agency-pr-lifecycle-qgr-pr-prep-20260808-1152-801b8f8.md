@@ -13,8 +13,8 @@ hash_b: f314fc0755c759e09906ae22686adc9138f75cdddc7b38cda8a6c7e2572e4bea
 hash_c: 0d098a7a03f050024f84aec7e19cf28de252380afc3d961e388fcade0f4d6f42
 hash_d: 0d098a7a03f050024f84aec7e19cf28de252380afc3d961e388fcade0f4d6f42
 hash_d_source: "captain-driven QG — principal directives in-session, no discrete 1B1 transcript"
-hash_e: 779b2047d90bf2895a675bfda2361413597cda94cb8cff56237f334dd5b9788c
-date: 2026-08-08T11:49
+hash_e: 801b8f894c655aa6c65c600587130f1554ba98127892d88c2068b04576c01fe0
+date: 2026-08-08T11:52
 ---
 
 # Receipt: pr-prep — pr-lifecycle
@@ -24,7 +24,7 @@ date: 2026-08-08T11:49
 - B (findings): f314fc0
 - C (triage): 0d098a7
 - D (principal): 0d098a7 — captain-driven QG — principal directives in-session, no discrete 1B1 transcript
-- E (final): 779b204
+- E (final): 801b8f8
 
 ## Review Summary
-make PR landing main-aware (pr-captain-land + pr-submit + diff-hash) + fix receipt-churn; QG hardened test guards + de-staled docs
+make PR landing main-aware + fix receipt-churn; incl version bump 46.26->46.27
