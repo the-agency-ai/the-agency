@@ -57,7 +57,9 @@ public struct DeckDocument {
 public class DeckState {
     public var document: DeckDocument = DeckDocument()
     public var selectedSlideIndex: Int = 0
-    public var isPresenting: Bool = false
+    // Presentation state deliberately does not live here — it belongs to
+    // PresentationCoordinator. A third always-false copy on the object every
+    // view observes is a trap for the next change.
     public var theme: Theme = Theme.agencyDefault
 
     public init() {}

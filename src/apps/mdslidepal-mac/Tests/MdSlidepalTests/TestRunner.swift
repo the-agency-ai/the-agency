@@ -194,6 +194,17 @@ let allTests: [(String, () throws -> Void)] = [
     ("html_lineBreakCount", testHTML_lineBreakCount),
     ("html_stripTags", testHTML_stripTags),
 
+    // DeckController — single owner of open/reload/export + presentation wiring
+    ("controller_loadsMarkdownSource", testController_loadsMarkdownSource),
+    ("controller_windowTitleTracksDocument", testController_windowTitleTracksDocument),
+    ("controller_openMissingFileReportsError", testController_openMissingFileReportsError),
+    ("controller_openFixtureLoadsSlides", testController_openFixtureLoadsSlides),
+    ("controller_failedOpenLeavesCurrentDocumentIntact", testController_failedOpenLeavesCurrentDocumentIntact),
+    ("controller_reopeningSameFileIsStable", testController_reopeningSameFileIsStable),
+    ("controller_presentationCoordinatorIsWired", testController_presentationCoordinatorIsWired),
+    ("controller_presentationTeardownFiresOnce", testController_presentationTeardownFiresOnce),
+    ("controller_commandHandlersInstallOnlyOnce", testController_commandHandlersInstallOnlyOnce),
+
     // ColorHex validating parser
     ("colorHex_validatingAcceptsThreeSixAndEightDigits", testColorHex_validatingAcceptsThreeSixAndEightDigits),
     ("colorHex_validatingRejectsMalformed", testColorHex_validatingRejectsMalformed),
@@ -870,6 +881,136 @@ func testColorHex_shorthandExpandsLikeCSS() throws {
         Color(validatingHex: "#abc")?.description,
         equals: Color(validatingHex: "#aabbcc")?.description
     )
+}
+
+// MARK: - DeckController (single owner of the document lifecycle)
+
+func testController_loadsMarkdownSource() throws {
+    try MainActor.assumeIsolated {
+        let controller = DeckController()
+        controller.deckState.load(from: "# Only slide")
+        try expect(controller.deckState.document.slides.count, equals: 1)
+        try expectNil(controller.errorMessage, "A clean load reports no error")
+    }
+}
+
+func testController_windowTitleTracksDocument() throws {
+    try MainActor.assumeIsolated {
+        let controller = DeckController()
+        controller.deckState.load(from: "# My Deck")
+        // One format string, one place — the delegate no longer builds its own.
+        try expect(controller.windowTitle, equals: "mdslidepal \u{2014} My Deck")
+    }
+}
+
+func testController_openMissingFileReportsError() throws {
+    try MainActor.assumeIsolated {
+        let controller = DeckController()
+        controller.openFile(url: URL(fileURLWithPath: "/nonexistent/nope.md"))
+        try expectNotNil(
+            controller.errorMessage,
+            "Opening a missing file must surface an error, not fail silently"
+        )
+    }
+}
+
+func testController_openFixtureLoadsSlides() throws {
+    try MainActor.assumeIsolated {
+        let controller = DeckController()
+        let url = try fixtureURL(named: "02-multi-slide")
+        controller.openFile(url: url)
+        try expectNil(controller.errorMessage, "Opening a real fixture should succeed")
+        try expectTrue(
+            controller.deckState.document.slides.count > 1,
+            "Multi-slide fixture should yield several slides"
+        )
+        try expect(controller.deckState.document.sourceURL, equals: url)
+    }
+}
+
+func testController_failedOpenLeavesCurrentDocumentIntact() throws {
+    try MainActor.assumeIsolated {
+        let controller = DeckController()
+        let good = try fixtureURL(named: "02-multi-slide")
+        controller.openFile(url: good)
+        let slideCount = controller.deckState.document.slides.count
+
+        // A failed open must not disturb the document that is still loaded and
+        // still being watched — releasing its security-scoped access here is what
+        // silently killed live-reload.
+        controller.openFile(url: URL(fileURLWithPath: "/nonexistent/nope.md"))
+
+        try expectNotNil(controller.errorMessage, "Failed open reports an error")
+        try expect(
+            controller.deckState.document.sourceURL, equals: good,
+            "The previously open document stays open"
+        )
+        try expect(controller.deckState.document.slides.count, equals: slideCount)
+    }
+}
+
+func testController_reopeningSameFileIsStable() throws {
+    try MainActor.assumeIsolated {
+        let controller = DeckController()
+        let url = try fixtureURL(named: "01-minimal")
+        controller.openFile(url: url)
+        controller.openFile(url: url)
+        controller.openFile(url: url)
+
+        try expectNil(controller.errorMessage, "Repeated opens of the same file are fine")
+        try expect(controller.deckState.document.sourceURL, equals: url)
+    }
+}
+
+func testController_presentationCoordinatorIsWired() throws {
+    try MainActor.assumeIsolated {
+        let controller = DeckController()
+        // The coordinator must reach DeckState, or presentation-mode key handling
+        // silently does nothing — the defect that left Phase 3 unreachable.
+        try expectNotNil(
+            controller.presentation.deckState,
+            "PresentationCoordinator must be connected to the deck"
+        )
+        try expectFalse(controller.presentation.isPresenting)
+    }
+}
+
+func testController_presentationTeardownFiresOnce() throws {
+    try MainActor.assumeIsolated {
+        let controller = DeckController()
+        var endedCount = 0
+        controller.presentation.onPresentationEnded = { endedCount += 1 }
+
+        controller.presentation.startPresentation()
+        try expectTrue(controller.presentation.isPresenting)
+
+        controller.presentation.stopPresentation()
+        try expectFalse(controller.presentation.isPresenting)
+        try expect(endedCount, equals: 1, "Teardown fires once per presentation")
+
+        // Escape, the End button and the menu can all land here; the second
+        // call must not re-run teardown (which would close windows twice).
+        controller.presentation.stopPresentation()
+        try expect(endedCount, equals: 1, "Repeat stop must be a no-op")
+    }
+}
+
+func testController_commandHandlersInstallOnlyOnce() throws {
+    try MainActor.assumeIsolated {
+        let controller = DeckController()
+        controller.deckState.load(from: "# One\n\n---\n\n# Two\n\n---\n\n# Three")
+        controller.installCommandHandlers()
+        controller.installCommandHandlers()  // idempotent
+
+        // A single .nextSlide post must advance exactly one slide. Duplicate
+        // subscriptions would advance two and skip a slide.
+        controller.deckState.firstSlide()
+        NotificationCenter.default.post(name: .nextSlide, object: nil)
+        try expect(
+            controller.deckState.selectedSlideIndex, equals: 1,
+            "One command, one handler — duplicate observers would skip a slide"
+        )
+    }
 }
 
 // MARK: - Runner

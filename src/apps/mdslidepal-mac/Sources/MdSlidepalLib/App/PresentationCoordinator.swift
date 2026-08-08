@@ -40,6 +40,13 @@ public class PresentationCoordinator {
 
     public weak var deckState: DeckState?
 
+    /// Invoked after presentation mode ends, however it ended — Escape, the
+    /// presenter's End button, or the menu. PresentationWindowManager uses this
+    /// to tear down its windows, so there is one teardown path rather than one
+    /// per trigger.
+    @ObservationIgnored
+    public var onPresentationEnded: (() -> Void)?
+
     public init() {}
 
     // MARK: - Presentation Lifecycle
@@ -75,6 +82,9 @@ public class PresentationCoordinator {
         timer = nil
         presentationStartTime = nil
         removeKeyMonitor()
+        // The `guard isPresenting` above makes this safe to call from the
+        // teardown handler itself — the second entry returns early.
+        onPresentationEnded?()
     }
 
     /// Toggle black screen (b/. keys).

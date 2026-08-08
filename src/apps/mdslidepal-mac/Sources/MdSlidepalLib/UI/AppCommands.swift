@@ -9,6 +9,16 @@
 // is exposed via @FocusedObject.
 //
 // Written: 2026-04-12 during mdslidepal-mac Phase 2.5
+//
+// Status note (2026-08-08): the `Notification.Name` vocabulary below is live —
+// MdSlidepalApp's menu items post it and DeckController is the single
+// subscriber. The `AppMenuCommands` struct itself is currently inert: `Commands`
+// can only attach to a SwiftUI `Scene`, and the app entry point is a manual
+// NSApplication (SPM executables have no Info.plist bundle, so a SwiftUI `App`
+// exits immediately — see MdSlidepalApp.swift). The equivalent menu is built as
+// an NSMenu there. Retained deliberately: it is the Scene-based definition of
+// the same command set, and the two must stay in step if the entry point ever
+// moves back to a SwiftUI `App`.
 
 import SwiftUI
 

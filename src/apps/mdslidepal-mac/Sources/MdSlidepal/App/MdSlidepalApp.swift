@@ -9,6 +9,12 @@
 //
 // Written: 2026-04-12 during mdslidepal-mac Phase 1.1
 // Updated: 2026-04-14 — full menu bar, keyboard handling, quit support
+// Updated: 2026-08-08 — reconnected the Phase 3 presentation subsystem this file
+//   orphaned when it moved from a SwiftUI App/Scene to a manual NSApplication
+//   delegate: Present (⌘P) now opens the presenter and audience windows via
+//   PresentationWindowManager. Document actions post the AppCommands notification
+//   vocabulary and are handled once by DeckController, replacing the duplicated
+//   open/reload/export implementations that had diverged from DeckWindowView's.
 
 import SwiftUI
 import AppKit
@@ -25,20 +31,28 @@ struct MdSlidepalMain {
     }
 }
 
+// AppKit delivers delegate callbacks on the main thread, so annotating the class
+// lets it touch @MainActor state (DeckState, DeckController) without wrapping
+// every action in a Task.
+@MainActor
 class MdSlidepalAppDelegate: NSObject, NSApplicationDelegate {
-    var deckState: DeckState!
-    var window: NSWindow!
+    private var controller: DeckController!
+    private var presentationWindows: PresentationWindowManager!
+    private var window: NSWindow!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        deckState = DeckState()
+        controller = DeckController()
+        presentationWindows = PresentationWindowManager(controller: controller)
+        controller.installCommandHandlers()
 
         // Build the menu bar
         buildMainMenu()
 
         // Create the main window with SwiftUI content
         let contentView = DeckWindowView()
-            .environment(deckState)
-            .environment(\.theme, deckState.theme)
+            .environment(controller)
+            .environment(controller.deckState)
+            .environment(\.theme, controller.deckState.theme)
             .frame(minWidth: 800, minHeight: 500)
 
         window = NSWindow(
@@ -52,22 +66,27 @@ class MdSlidepalAppDelegate: NSObject, NSApplicationDelegate {
         window.center()
         window.makeKeyAndOrderFront(nil)
 
-        // Load file from command-line argument
-        let args = ProcessInfo.processInfo.arguments
-        if args.count > 1 {
-            let path = args[1]
-            let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: url.path) {
-                do {
-                    try deckState.load(from: url)
-                    window.title = "mdslidepal — \(deckState.document.title)"
-                } catch {
-                    NSLog("Failed to load \(path): \(error)")
-                }
-            }
-        }
+        // One owner decides what a fresh launch shows — command-line file or the
+        // welcome deck — and it sets up the watcher and security-scoped access.
+        controller.loadInitialDeck()
+        startTrackingWindowTitle()
 
         NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+
+    /// Keep the window title in step with the document, whatever changed it.
+    ///
+    /// Setting the title at each call site missed drag-and-drop, the toolbar's
+    /// file importer, and every file-watcher reload. Observation covers all of
+    /// them, and re-arms itself because withObservationTracking fires once.
+    private func startTrackingWindowTitle() {
+        withObservationTracking {
+            window.title = controller.windowTitle
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.startTrackingWindowTitle()
+            }
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -128,6 +147,10 @@ class MdSlidepalAppDelegate: NSObject, NSApplicationDelegate {
 
         // Presentation menu
         let presMenu = NSMenu(title: "Presentation")
+        let presentItem = NSMenuItem(title: "Present", action: #selector(togglePresentation(_:)), keyEquivalent: "p")
+        presentItem.target = self
+        presMenu.addItem(presentItem)
+        presMenu.addItem(.separator())
         let nextItem = NSMenuItem(title: "Next Slide", action: #selector(nextSlide(_:)), keyEquivalent: String(Character(UnicodeScalar(NSRightArrowFunctionKey)!)))
         nextItem.keyEquivalentModifierMask = []
         nextItem.target = self
@@ -170,7 +193,14 @@ class MdSlidepalAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - Actions
+    //
+    // Menu items post the command vocabulary declared in AppCommands.swift.
+    // DeckController is the single subscriber, so each command has exactly one
+    // implementation shared with the toolbar and drag-and-drop paths.
 
+    /// File → Open. The panel lives here because it is menu-bar UI; the resulting
+    /// URL goes straight to the controller, which owns security-scoped access and
+    /// the file watcher.
     @objc func openDocument(_ sender: Any?) {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.plainText]
@@ -179,77 +209,38 @@ class MdSlidepalAppDelegate: NSObject, NSApplicationDelegate {
         panel.message = "Choose a Markdown file to open as a slide deck"
 
         panel.begin { [weak self] response in
-            guard response == .OK, let url = panel.url, let self = self else { return }
+            guard response == .OK, let url = panel.url else { return }
             Task { @MainActor in
-                do {
-                    try self.deckState.load(from: url)
-                    self.window.title = "mdslidepal — \(self.deckState.document.title)"
-                } catch {
-                    let alert = NSAlert()
-                    alert.messageText = "Failed to open file"
-                    alert.informativeText = error.localizedDescription
-                    alert.runModal()
-                }
+                self?.controller.openFile(url: url)
             }
         }
     }
 
     @objc func reloadDocument(_ sender: Any?) {
-        Task { @MainActor in
-            guard let url = deckState.document.sourceURL else { return }
-            let currentIndex = deckState.selectedSlideIndex
-            do {
-                try deckState.load(from: url)
-                if currentIndex < deckState.document.slides.count {
-                    deckState.selectedSlideIndex = currentIndex
-                }
-                window.title = "mdslidepal — \(deckState.document.title)"
-            } catch {
-                NSLog("Reload failed: \(error)")
-            }
-        }
+        NotificationCenter.default.post(name: .reloadDeck, object: nil)
     }
 
     @objc func exportPDF(_ sender: Any?) {
-        Task { @MainActor in
-            let panel = NSSavePanel()
-            panel.allowedContentTypes = [.pdf]
-            panel.nameFieldStringValue = "\(deckState.document.title).pdf"
-            panel.canCreateDirectories = true
+        NotificationCenter.default.post(name: .exportPDF, object: nil)
+    }
 
-            panel.begin { [weak self] response in
-                guard response == .OK, let url = panel.url, let self = self else { return }
-                Task { @MainActor in
-                    do {
-                        try PDFExporter.export(
-                            document: self.deckState.document,
-                            theme: self.deckState.theme,
-                            to: url
-                        )
-                    } catch {
-                        let alert = NSAlert()
-                        alert.messageText = "PDF export failed"
-                        alert.informativeText = error.localizedDescription
-                        alert.runModal()
-                    }
-                }
-            }
-        }
+    @objc func togglePresentation(_ sender: Any?) {
+        presentationWindows.toggle()
     }
 
     @objc func nextSlide(_ sender: Any?) {
-        Task { @MainActor in deckState.nextSlide() }
+        NotificationCenter.default.post(name: .nextSlide, object: nil)
     }
 
     @objc func previousSlide(_ sender: Any?) {
-        Task { @MainActor in deckState.previousSlide() }
+        NotificationCenter.default.post(name: .previousSlide, object: nil)
     }
 
     @objc func firstSlide(_ sender: Any?) {
-        Task { @MainActor in deckState.firstSlide() }
+        NotificationCenter.default.post(name: .firstSlide, object: nil)
     }
 
     @objc func lastSlide(_ sender: Any?) {
-        Task { @MainActor in deckState.lastSlide() }
+        NotificationCenter.default.post(name: .lastSlide, object: nil)
     }
 }
