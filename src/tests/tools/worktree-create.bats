@@ -11,12 +11,61 @@
 # workflows. This file verifies the NAMING CONTRACT only.
 #
 # Written: 2026-04-09 — dispatch #166/#169, task #9
+# Extended: 2026-08-08 — branch-resolution DWIM (origin/<branch> path, v2.2.0).
+#           Those tests DO create real worktrees, but only inside an isolated
+#           temp repo built by make_origin_repo — never in the live checkout.
 
 load test_helper
 
 setup() {
     test_isolation_setup
     export TOOL="${REPO_ROOT}/agency/tools/worktree-create"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fixture: an isolated clone with a branch that exists ONLY on origin
+#
+# Builds:
+#   $BATS_TEST_TMPDIR/upstream.git  — bare "origin"
+#   $BATS_TEST_TMPDIR/clone         — working clone, exports TEST_REPO
+#
+# On exit, 'stale-pr' exists as refs/remotes/origin/stale-pr in the clone but
+# NOT as refs/heads/stale-pr. That is exactly the stale-PR-revival shape.
+# ─────────────────────────────────────────────────────────────────────────────
+make_origin_repo() {
+    local upstream="${BATS_TEST_TMPDIR}/upstream.git"
+    local seed="${BATS_TEST_TMPDIR}/seed"
+    export TEST_REPO="${BATS_TEST_TMPDIR}/clone"
+
+    git init --bare --quiet --initial-branch=main "$upstream" 2>/dev/null \
+        || git init --bare --quiet "$upstream"
+
+    git clone --quiet "$upstream" "$seed"
+    git -C "$seed" config user.email "test@test.com"
+    git -C "$seed" config user.name "Test"
+    git -C "$seed" config commit.gpgsign false
+    git -C "$seed" symbolic-ref HEAD refs/heads/main
+
+    echo "base content" > "$seed/base.txt"
+    git -C "$seed" add base.txt
+    git -C "$seed" commit -m "initial" --quiet --no-verify
+    git -C "$seed" push --quiet origin main
+
+    # The stale PR branch — carries a file that does NOT exist on main, so a
+    # worktree created from HEAD instead of origin/stale-pr is detectable.
+    git -C "$seed" checkout -b stale-pr --quiet
+    echo "pr content" > "$seed/pr-only.txt"
+    git -C "$seed" add pr-only.txt
+    git -C "$seed" commit -m "stale pr work" --quiet --no-verify
+    git -C "$seed" push --quiet origin stale-pr
+
+    # Fresh clone: has origin/stale-pr, has no local stale-pr.
+    git clone --quiet "$upstream" "$TEST_REPO"
+    git -C "$TEST_REPO" config user.email "test@test.com"
+    git -C "$TEST_REPO" config user.name "Test"
+    git -C "$TEST_REPO" config commit.gpgsign false
+
+    export AGENCY_PROJECT_ROOT="$TEST_REPO"
 }
 
 teardown() {
@@ -138,10 +187,10 @@ teardown() {
     [[ "$output" == *"--agent"* ]]
 }
 
-@test "positional mode: --version shows new version" {
+@test "positional mode: --version shows a semver version" {
     run "$TOOL" --version
     [ "$status" -eq 0 ]
-    [[ "$output" == *"2.1"* ]]
+    [[ "$output" =~ ^worktree-create\ [0-9]+\.[0-9]+\.[0-9]+$ ]]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -168,4 +217,104 @@ teardown() {
     run "$TOOL" someName --workstream devex --agent devex
     [ "$status" -ne 0 ]
     [[ "$output" == *"cannot mix"* ]] || [[ "$output" == *"ambiguous"* ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Branch resolution — three cases (v2.2.0)
+#
+# The origin-only case is the regression these tests exist for: before v2.2.0
+# the tool fell through to `worktree add -b <branch>` and created an EMPTY
+# branch from HEAD, silently discarding the PR's content.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "branch resolution: origin-only branch is checked out, not recreated from HEAD" {
+    make_origin_repo
+    cd "$TEST_REPO"
+
+    # Precondition: the branch is remote-only.
+    run git -C "$TEST_REPO" show-ref --verify --quiet refs/heads/stale-pr
+    [ "$status" -ne 0 ]
+    git -C "$TEST_REPO" show-ref --verify --quiet refs/remotes/origin/stale-pr
+
+    run "$TOOL" revive --branch stale-pr
+    [ "$status" -eq 0 ]
+
+    local wt="${TEST_REPO}/.claude/worktrees/revive"
+    [ -d "$wt" ]
+
+    # On the right branch...
+    run git -C "$wt" rev-parse --abbrev-ref HEAD
+    [ "$status" -eq 0 ]
+    [ "$output" = "stale-pr" ]
+
+    # ...at origin/stale-pr's commit, not main's.
+    local wt_sha origin_sha main_sha
+    wt_sha=$(git -C "$wt" rev-parse HEAD)
+    origin_sha=$(git -C "$TEST_REPO" rev-parse refs/remotes/origin/stale-pr)
+    main_sha=$(git -C "$TEST_REPO" rev-parse refs/remotes/origin/main)
+    [ "$wt_sha" = "$origin_sha" ]
+    [ "$wt_sha" != "$main_sha" ]
+
+    # ...with the PR's content actually present.
+    [ -f "$wt/pr-only.txt" ]
+}
+
+@test "branch resolution: origin-only branch sets upstream tracking" {
+    make_origin_repo
+    cd "$TEST_REPO"
+
+    run "$TOOL" revive --branch stale-pr
+    [ "$status" -eq 0 ]
+
+    run git -C "${TEST_REPO}/.claude/worktrees/revive" \
+        rev-parse --abbrev-ref --symbolic-full-name '@{upstream}'
+    [ "$status" -eq 0 ]
+    [ "$output" = "origin/stale-pr" ]
+}
+
+@test "branch resolution: existing local branch is reused as-is" {
+    make_origin_repo
+    cd "$TEST_REPO"
+
+    # Materialize a local branch at origin/stale-pr, then add a local-only
+    # commit so "reused" is distinguishable from "re-created from origin".
+    git -C "$TEST_REPO" branch local-work refs/remotes/origin/stale-pr
+
+    run "$TOOL" reuse --branch local-work
+    [ "$status" -eq 0 ]
+
+    local wt="${TEST_REPO}/.claude/worktrees/reuse"
+    run git -C "$wt" rev-parse --abbrev-ref HEAD
+    [ "$status" -eq 0 ]
+    [ "$output" = "local-work" ]
+
+    local wt_sha local_sha
+    wt_sha=$(git -C "$wt" rev-parse HEAD)
+    local_sha=$(git -C "$TEST_REPO" rev-parse refs/heads/local-work)
+    [ "$wt_sha" = "$local_sha" ]
+}
+
+@test "branch resolution: unknown branch is created fresh from HEAD" {
+    make_origin_repo
+    cd "$TEST_REPO"
+
+    run "$TOOL" brandnew --branch never-seen
+    [ "$status" -eq 0 ]
+
+    local wt="${TEST_REPO}/.claude/worktrees/brandnew"
+    run git -C "$wt" rev-parse --abbrev-ref HEAD
+    [ "$status" -eq 0 ]
+    [ "$output" = "never-seen" ]
+
+    # Fresh from HEAD (main), so the PR-only file must NOT be there.
+    [ ! -f "$wt/pr-only.txt" ]
+
+    local wt_sha head_sha
+    wt_sha=$(git -C "$wt" rev-parse HEAD)
+    head_sha=$(git -C "$TEST_REPO" rev-parse HEAD)
+    [ "$wt_sha" = "$head_sha" ]
+
+    # No upstream — it is a purely local branch.
+    run git -C "$wt" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}'
+    [ "$status" -ne 0 ]
 }

@@ -26,13 +26,28 @@
 # creating anything — useful for tests and programmatic callers that want
 # to know the canonical name for a {workstream, agent} pair.
 #
+# Branch resolution is DWIM (v2.2.0). Given a branch name, the tool prefers,
+# in order: an existing local branch, then an existing `origin/<branch>`
+# (checked out as a local tracking branch), and only creates a brand-new
+# branch from HEAD when neither exists. The origin/ case matters for reviving
+# stale PRs whose branch was never fetched into a local ref — before v2.2.0
+# those silently produced an empty branch from HEAD instead of the PR content.
+#
 # This is a FIRST-CLASS PRIMITIVE in Agency 2.0 — worktree isolation
 # enables multiple agent sessions to work in parallel without conflicts.
 
 set -euo pipefail
 
-VERSION="2.1.0"
+VERSION="2.2.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Capture a caller-supplied project root BEFORE sourcing the helpers.
+# lib/_path-resolve re-derives AGENCY_PROJECT_ROOT from this script's own
+# location on source, unconditionally overwriting whatever the caller set.
+# Without this capture the `${AGENCY_PROJECT_ROOT:-...}` default below is dead
+# code, and a caller that points the tool at another checkout (tests, adopter
+# scripts) silently gets a worktree in the WRONG repo.
+CALLER_PROJECT_ROOT="${AGENCY_PROJECT_ROOT:-}"
 
 # Source helpers
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
@@ -85,6 +100,11 @@ Options:
 Naming rule when both --workstream and --agent are given:
   agent == workstream OR agent starts with "workstream-"  → worktree = agent
   otherwise                                                → worktree = workstream-agent
+
+Branch resolution (first match wins):
+  local branch <branch> exists    → check it out
+  origin/<branch> exists          → new local branch tracking origin/<branch>
+  neither exists                  → new branch from current HEAD
 
 Examples:
   worktree-create --workstream devex --agent devex       → devex
@@ -154,7 +174,7 @@ if ! [[ "$NAME" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
 fi
 
 BRANCH="${BRANCH:-$NAME}"
-PROJECT_ROOT="${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+PROJECT_ROOT="${CALLER_PROJECT_ROOT:-${AGENCY_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
 WORKTREE_DIR="$PROJECT_ROOT/.claude/worktrees/$NAME"
 
 # Check if worktree already exists
@@ -170,10 +190,24 @@ echo "  Path: .claude/worktrees/$NAME/"
 
 mkdir -p "$PROJECT_ROOT/.claude/worktrees"
 
-# Create branch + worktree (from current HEAD)
+# Create branch + worktree.
+#
+# Three cases, checked in order (see also the DWIM note in the header):
+#   1. Local branch exists          → check it out in the new worktree
+#   2. Only origin/<branch> exists  → create a local tracking branch from it
+#   3. Neither exists               → create a brand-new branch from HEAD
+#
+# Case 2 is the stale-PR-revival path. Without it, asking for a worktree on a
+# branch that lives only on origin silently fell through to case 3 and created
+# an EMPTY branch from HEAD — losing the PR's actual content. See the header
+# note; this bit the revival of PR #426.
 if git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/heads/$BRANCH" 2>/dev/null; then
-    # Branch exists — use it
+    # Local branch exists — use it
     git -C "$PROJECT_ROOT" worktree add "$WORKTREE_DIR" "$BRANCH"
+elif git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/remotes/origin/$BRANCH" 2>/dev/null; then
+    # Remote-only branch — create a local branch tracking origin/<branch>
+    echo "  Branch exists on origin only — tracking origin/$BRANCH"
+    git -C "$PROJECT_ROOT" worktree add --track -b "$BRANCH" "$WORKTREE_DIR" "origin/$BRANCH"
 else
     # Create new branch from HEAD
     git -C "$PROJECT_ROOT" worktree add -b "$BRANCH" "$WORKTREE_DIR"
