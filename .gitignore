@@ -131,6 +131,14 @@ agency/logs/*
 usr/*/tmp/
 usr/*/*/tmp/
 
+# Session/agent transcripts — never auto-track (defense-in-depth: a tool that
+# echoes a credential-bearing remote URL could otherwise leak it into a
+# committed transcript). Already-tracked curated design transcripts stay
+# tracked (git ignores rules for files already in the index); force-add any
+# new transcript you genuinely want in-repo.
+usr/*/transcripts/
+usr/*/*/transcripts/
+
 # Temporary agent/tool scratch
 .cache/
 *.tmp
