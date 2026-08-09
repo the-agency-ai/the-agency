@@ -7,6 +7,27 @@
 
 load 'test_helper'
 
+# These suites exercise the REAL scaffolding tools against the REAL repo:
+# `agent-create` and `workstream-create` derive their project root from their
+# own location, so there is no way to point them at a fixture. The artifacts
+# they leave behind are not harmless — a stray `agency/agents/testname/`
+# makes src/tests/tools/triage-batch-E.bats ("#275: no test-fixture agents
+# shipped") and src/tests/tools/purge-pollution-guard.bats go red on the NEXT
+# run, which is how a passing suite poisons its own repo.
+#
+# Until the tools honour AGENCY_PROJECT_ROOT (worktree-create already does),
+# clean up after every test. Overriding teardown() means calling
+# test_isolation_teardown here explicitly — see test_helper.bash.
+teardown() {
+    rm -rf "${REPO_ROOT}/agency/agents/testname"
+    rm -rf "${REPO_ROOT}/agency/agents/unknown"
+    find "${REPO_ROOT}/agency/workstreams" -maxdepth 1 -name 'test*' -exec rm -rf {} + 2>/dev/null || true
+    test_isolation_teardown
+    if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
+        rm -rf "${BATS_TEST_TMPDIR}"
+    fi
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # agent-create - Version and Help
 # ─────────────────────────────────────────────────────────────────────────────
@@ -146,6 +167,30 @@ load 'test_helper'
     run_tool workstream-create 'test; rm -rf /' || true
     # Should not crash or execute injection
     [[ ! "$output" =~ "syntax error" ]]
+}
+
+@test "workstream-create: REJECTS a shell-metacharacter name (no directory created)" {
+    # Not merely "does not execute the injection" — it must not create the
+    # directory either. Unvalidated, this call left a literal
+    # `agency/workstreams/test; rm -rf ` behind in the REAL repo on every full
+    # test run, which then failed purge-pollution-guard.bats.
+    run_tool workstream-create 'test; rm -rf /'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Invalid workstream name"* ]]
+    run bash -c "ls -d '${REPO_ROOT}/agency/workstreams/'test* 2>/dev/null"
+    [ "$status" -ne 0 ]
+}
+
+@test "workstream-create: rejects a name starting with a digit" {
+    run_tool workstream-create '9lives'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Invalid workstream name"* ]]
+}
+
+@test "workstream-create: rejects a name containing a slash" {
+    run_tool workstream-create 'a/b'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Invalid workstream name"* ]]
 }
 
 @test "workstream-create: handles path traversal in name" {

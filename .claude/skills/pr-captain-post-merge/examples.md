@@ -127,19 +127,20 @@ Exit 2.
 
 ## Integration examples
 
-### As Step 8 of `/pr-captain-land`
+### Relationship to `/pr-captain-land`
 
-When captain runs the full captain-owned PR lifecycle:
+`/pr-captain-land` (v2, local-first) does this work inline — Step 8 merges and releases,
+Step 9 cleans up, dispatches the agent, clears post-merge state, and reconciles local
+main. You do not chain this skill after a successful land.
+
+Reach for it when a land was done manually, or when `/pr-captain-land` failed *after*
+the merge and the tail still needs running:
 
 ```
-/pr-captain-land <agent-branch>
+/pr-captain-post-merge <pr-number>
 ```
 
-Internally:
-- Step 7 invokes `/pr-captain-merge`
-- Step 8 invokes `/pr-captain-post-merge`
-
-Output from `/pr-captain-land` includes the combined report.
+It is idempotent with the landing's Step 9 and with `/captain-sync-all`.
 
 ### Chained with `/collaborate` for cross-repo notice
 

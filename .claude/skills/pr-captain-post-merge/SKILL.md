@@ -2,7 +2,7 @@
 name: pr-captain-post-merge
 description: Captain-only. After a PR has merged on GitHub, verify the merge, merge origin/master locally, sync all worktrees, create the GitHub release (every PR is a release), and clean up the PR branch. Formerly `/post-merge` — v2 rename to noun-actor-verb.
 agency-skill-version: 2
-when_to_use: Captain on master in main checkout, immediately after a PR has merged on GitHub. Triggered when principal says "merged" / "done" / indicates a PR landed, or as Step 8 of /pr-captain-land. NEVER from a worktree. NEVER auto-invoked.
+when_to_use: Captain on master in main checkout, immediately after a PR has merged on GitHub. Triggered when principal says "merged" / "done" / indicates a PR landed, or to finish a land that failed after its merge (/pr-captain-land performs this work inline at Steps 8-9). NEVER from a worktree. NEVER auto-invoked.
 argument-hint: "<pr-number>"
 paths: []
 required_reading:
@@ -197,7 +197,7 @@ Post-merge complete:
 ## Related
 
 - `/pr-captain-merge` — the merge itself, runs before this skill
-- `/pr-captain-land` — the full captain-owned PR lifecycle (this skill is Step 8 of that flow)
+- `/pr-captain-land` — the full captain-owned, local-first PR lifecycle; it performs this skill's work inline at Steps 8-9, so use this one only for manual or partially-failed landings
 - `/sync-all` — the fleet-sync sub-skill this calls in Step 5
 - `/release` (TBD refactored to `/captain-release`) — alternate entry point that runs /pr-captain-merge + this skill in one flow
 - `agency/tools/gh-release` — the release-creation tool
