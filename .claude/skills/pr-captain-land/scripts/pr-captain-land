@@ -1,30 +1,74 @@
 #!/usr/bin/env bash
 #
-# pr-captain-land — Captain lands an agent's prepared branch as a PR + release
+# pr-captain-land — Captain lands an agent's prepared branch, LOCAL-FIRST
 #
 # WHAT: Captain runs this in the main checkout to own the full PR lifecycle
-# for a branch prepared by an agent via /pr-submit. Switches to the
-# branch, verifies the QGR receipt, bumps the version, creates the PR with
-# a captain-authored description, watches CI, merges, cuts the release, and
-# dispatches the agent with the outcome.
+# for a branch prepared by an agent via /pr-submit. The branch is integrated
+# and validated LOCALLY first; only already-validated work is published.
 #
-# WHY: Addresses the-agency#296 — single serialization point for version
-# bumps + PR creation + release creation. Eliminates version-bump races,
-# QGR hash races, and split responsibility.
+# WHY (the v2 inversion): the previous flow was PR-first — switch the main
+# checkout to the agent's branch, bump, push, open a PR, and let GitHub CI be
+# the gate. That had three structural problems:
 #
-# SCOPE: Phase 1 pilot — sandbox tool in usr/{principal}/captain/tools/. Tested
-# by dogfooding on one captain-driven PR before promotion to .claude/skills/.
+#   1. Switching the main checkout to a branch that is already checked out in
+#      the agent's worktree fails outright (worktree collision), and switching
+#      at all makes the captain's checkout a moving target mid-land.
+#   2. GitHub CI was the FIRST gate. TheAgency's model is local review and
+#      validation; the server is the publish step, not the reviewer.
+#   3. Any mid-flight abort left the main checkout on someone else's branch.
+#
+# The fix is not a better rollback — it is having nothing to roll back. The
+# whole landing runs in a DEDICATED SCRATCH WORKTREE cut from `origin/<agent
+# branch>` (which, per the step-1 receipt gate, already contains the default
+# branch). Local `main` is never read for content, never merged into, never
+# reset, and never pushed. Rollback at any pre-publish failure is one action:
+# delete the scratch worktree.
+#
+# Validating against pristine `origin/<default>` rather than the captain's
+# local main is also STRICTLY more correct: local main routinely carries
+# unpushed coordination commits and other worktrees' merges, none of which
+# belong in the PR under test.
+#
+# FLOW (plan-pr-captain-land-localfirst-20260809 v2, steps 0-9):
+#   0  Preflight — main checkout, fetch, resolve default branch
+#   1  Verify agent branch on origin + base freshness (stale base BLOCKS with
+#      "merge main + re-run /pr-prep", never a bare hash error)
+#   2  Cut scratch worktree `_land-<branch>` at `origin/<agent-branch>`
+#   2b Verify the agent's QGR receipt against the scratch — BEFORE any bump
+#      (the bump touches manifest.json, which is inside the hashed file set;
+#      verifying after would churn the receipt — the #463 trap)
+#   3  VALIDATE LOCALLY in the scratch (build + tests + commit-precheck).
+#      Failure → delete scratch, dispatch the agent, abort.
+#   4  Bump agency_version in the scratch, commit
+#   5  Sign a captain LANDING receipt binding the bumped tree to
+#      origin/<default> (hash_a = the agent receipt's hash_e). This is what
+#      lets pr-create pass — pr-create is NOT weakened.
+#   6  Publish from the scratch: push `_land-<branch>` → pr-create
+#   7  Wait on the AGGREGATE statusCheckRollup (every required context green;
+#      fail-fast on failure; empty rollup is its own distinct error). No
+#      hardcoded check name.
+#   8  pr-merge (true merge commit) → gh-release
+#   9  Cleanup: delete scratch + local/remote land branch, dispatch the agent,
+#      clear post-merge state, reconcile local main via merge-from-origin
+#
+# INVARIANTS this script must never violate:
+#   - The agent's branch is NEVER checked out in the main checkout.
+#   - `main`/`master` is NEVER pushed.
+#   - Local `main` is never reset, force-moved, or committed onto.
 #
 # USAGE:
-#   pr-captain-land <agent-branch> [--dry-run] [--title "..."] [--no-release]
+#   pr-captain-land <agent-branch> [--rehearse] [--dry-run]
+#                                  [--title "..."] [--agent <name>]
+#                                  [--no-release]
 #
-# PRECONDITIONS (tool enforces):
-#   - Running in main checkout on master
-#   - Tree is clean
-#   - <agent-branch> exists on origin
-#   - <agent-branch> has a valid QGR receipt
+#   --rehearse   Run steps 0-3 only (integrate + validate), then delete the
+#                scratch. Nothing is pushed, no PR, no receipt, no bump.
+#                De-risks the first land of any given branch.
+#   --dry-run    --rehearse plus a printout of exactly what would be published.
 #
 # WRITTEN: 2026-04-19 (Phase 1 pilot, the-agency#296)
+# REWRITTEN: 2026-08-09 (devex) — local-first v2 per
+#            usr/{principal}/captain/plans/plan-pr-captain-land-localfirst-20260809.md
 
 set -euo pipefail
 
@@ -40,6 +84,8 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
 # script behind its PR_SUBMIT_LIB_ONLY guard and unit-tested in
 # src/tests/skills/pr-submit-helpers.bats. Sourcing loads the functions only;
 # the guard returns before any pr-submit precondition runs.
+# resolve_default_branch is itself now a thin wrapper over the shared
+# agency/tools/resolve-default-branch primitive.
 PR_SUBMIT_LIB_ONLY=1 source "$REPO_ROOT/.claude/skills/pr-submit/scripts/pr-submit"
 
 # ── Resolve ORG, REPO, PRINCIPAL ─────────────────────────────────────────────
@@ -53,11 +99,7 @@ if ! ORG="$(parse_org_from_remote "$REMOTE_URL")" || ! REPO="$(parse_repo_from_r
 fi
 PRINCIPAL="jordan"  # TODO: resolve via agency whoami in v2 (matches pr-submit)
 
-# ── Resolve the repo's default branch — never assume master ──────────────────
-# The PR lifecycle hardcoded origin/master. In a repo whose default branch is
-# main (this one), the receipt-verify diff-hash resolved nothing, switch-back
-# targeted a nonexistent branch, and the release targeted master. Resolve it
-# once here and use it everywhere below.
+# ── Resolve the repo's default branch — never assume ─────────────────────────
 DEFAULT_BRANCH="$(resolve_default_branch)"
 BASE_REF="origin/${DEFAULT_BRANCH}"
 
@@ -65,18 +107,38 @@ BASE_REF="origin/${DEFAULT_BRANCH}"
 
 AGENT_BRANCH=""
 DRY_RUN=false
+REHEARSE=false
 CUSTOM_TITLE=""
+AGENT_OVERRIDE=""
 SKIP_RELEASE=false
+
+usage() {
+    cat <<'HELP'
+Usage: pr-captain-land <agent-branch> [options]
+
+Local-first landing: the branch is integrated and validated in a scratch
+worktree cut from origin/<default>, and only then published. The main
+checkout is never switched and local main is never touched.
+
+Options:
+  --rehearse        Steps 0-3 only (integrate + validate). No push, no PR,
+                    no version bump, no receipt. Scratch is deleted after.
+  --dry-run         --rehearse plus a printout of what would be published.
+  --title "..."     PR title (default: the agent branch name)
+  --agent <name>    Agent to dispatch (default: inferred from branch prefix)
+  --no-release      Skip the GitHub release after merge
+  --help, -h        Show this help
+HELP
+}
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --dry-run) DRY_RUN=true; shift ;;
+        --dry-run) DRY_RUN=true; REHEARSE=true; shift ;;
+        --rehearse) REHEARSE=true; shift ;;
         --title) CUSTOM_TITLE="$2"; shift 2 ;;
+        --agent) AGENT_OVERRIDE="$2"; shift 2 ;;
         --no-release) SKIP_RELEASE=true; shift ;;
-        --help|-h)
-            echo "Usage: $0 <agent-branch> [--dry-run] [--title \"...\"] [--no-release]"
-            exit 0
-            ;;
+        --help|-h) usage; exit 0 ;;
         -*) echo "pr-captain-land: unknown flag: $1" >&2; exit 2 ;;
         *) AGENT_BRANCH="$1"; shift ;;
     esac
@@ -100,7 +162,40 @@ if [[ "$AGENT_BRANCH" == *..* ]] || [[ "$AGENT_BRANCH" == -* ]]; then
     exit 2
 fi
 
-# ── Precondition: in main checkout on master ────────────────────────────────
+# Scratch identity. Slashes collapse to dashes: a worktree directory must not
+# nest under .claude/worktrees/, and `_land-fix/x` as a ref would collide with
+# an existing `_land-fix` ref (git stores refs as directories).
+LAND_SLUG="_land-$(printf '%s' "$AGENT_BRANCH" | tr '/' '-')"
+SCRATCH_DIR="$REPO_ROOT/.claude/worktrees/$LAND_SLUG"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Rollback — the entire pre-publish rollback story
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# Nothing outside the scratch worktree has been modified before step 6, so
+# "undo" is "delete the scratch". No git reset, no merge --abort, no stashing,
+# and crucially nothing that could strand the captain's main checkout.
+destroy_scratch() {
+    [[ -d "$SCRATCH_DIR" ]] || return 0
+    bash "$REPO_ROOT/agency/tools/worktree-delete" "$LAND_SLUG" --force >/dev/null 2>&1 || true
+    # worktree-delete deliberately leaves the branch behind (it prints advice
+    # instead). For a machine-created scratch branch there is nothing to
+    # preserve, so remove it too.
+    bash "$REPO_ROOT/agency/tools/git-captain" branch-delete "$LAND_SLUG" --force >/dev/null 2>&1 || true
+}
+
+# abort_land <message...> — roll back and exit non-zero.
+abort_land() {
+    echo "" >&2
+    echo "pr-captain-land: $*" >&2
+    destroy_scratch
+    echo "  Rolled back: scratch worktree $LAND_SLUG deleted. Nothing was published." >&2
+    exit 1
+}
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 0 — Preflight
+# ═════════════════════════════════════════════════════════════════════════════
 
 MAIN_CHECKOUT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
 if [[ "$REPO_ROOT" != "$MAIN_CHECKOUT" ]]; then
@@ -116,51 +211,264 @@ if [[ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ]]; then
     exit 1
 fi
 
-# ── Precondition: clean tree ─────────────────────────────────────────────────
-
-DIRTY=$(git status --porcelain 2>/dev/null)
+# NOTE (#393): a dirty main checkout no longer blocks a land. The landing never
+# reads, commits to, or moves local main — everything happens in the scratch
+# worktree. Uncommitted captain work is simply irrelevant here. It is still
+# worth surfacing, because a dirty tree usually means an unfinished handoff.
+DIRTY=$(git status --porcelain 2>/dev/null || true)
 if [[ -n "$DIRTY" ]]; then
-    echo "pr-captain-land: $DEFAULT_BRANCH tree dirty — commit or stash first." >&2
-    echo "$DIRTY" | head -5 | sed 's/^/  /' >&2
+    echo "note: $DEFAULT_BRANCH checkout is dirty — harmless here (the land runs in a scratch worktree)."
+fi
+
+if [[ -d "$SCRATCH_DIR" ]]; then
+    echo "pr-captain-land: scratch worktree $LAND_SLUG already exists at" >&2
+    echo "  $SCRATCH_DIR" >&2
+    echo "  A previous land is still running, or crashed. Inspect it, then:" >&2
+    echo "    ./agency/tools/worktree-delete $LAND_SLUG --force" >&2
     exit 1
 fi
 
-# ── Precondition: agent branch exists on origin ─────────────────────────────
-
+echo "→ Fetching origin..."
 bash "$REPO_ROOT/agency/tools/git-captain" fetch >/dev/null 2>&1 || true
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 1 — Verify the agent branch on origin, and that its base is current
+# ═════════════════════════════════════════════════════════════════════════════
 
 if ! git show-ref --verify --quiet "refs/remotes/origin/$AGENT_BRANCH"; then
     echo "pr-captain-land: branch '$AGENT_BRANCH' not found on origin." >&2
+    echo "  The agent must push before /pr-submit." >&2
     exit 1
 fi
 
-# ── Switch to agent branch ───────────────────────────────────────────────────
+# Base freshness. If origin/<default> has moved ahead of what the agent
+# branched from, the agent's QGR receipt describes a diff against an older
+# base — the hash CANNOT match, and reporting that as a bare hash mismatch
+# sends the captain hunting for the wrong problem. Name the real cause.
+if ! git merge-base --is-ancestor "$BASE_REF" "origin/$AGENT_BRANCH" 2>/dev/null; then
+    BEHIND=$(git rev-list --count "origin/$AGENT_BRANCH..$BASE_REF" 2>/dev/null || echo "?")
+    echo "" >&2
+    echo "BLOCKED: '$AGENT_BRANCH' does not contain $BASE_REF ($BEHIND commit(s) behind)." >&2
+    echo "" >&2
+    echo "  Its QGR receipt was signed against an older base, so it can never" >&2
+    echo "  verify against the current one. This is not a receipt bug." >&2
+    echo "" >&2
+    echo "  Agent action: merge $DEFAULT_BRANCH into $AGENT_BRANCH, re-run /pr-prep," >&2
+    echo "                push, then re-run /pr-submit." >&2
+    exit 1
+fi
 
-echo "→ Switching to $AGENT_BRANCH..."
-bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$AGENT_BRANCH" >/dev/null
+echo "→ Branch origin/$AGENT_BRANCH is current with $BASE_REF"
 
-# ── Verify QGR receipt ───────────────────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 2 — Cut the scratch worktree at origin/<agent-branch>
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# This IS the local integration. The branch is not checked out in the main
+# checkout (invariant), and because the step-1 gate proved origin/<default> is
+# an ancestor, the scratch tree already represents "the agent's work merged
+# into the default branch".
 
-DIFF_HASH_FULL=$(bash "$REPO_ROOT/agency/tools/diff-hash" --base "$BASE_REF" --json 2>/dev/null | \
+echo "→ Creating scratch worktree $LAND_SLUG at origin/$AGENT_BRANCH..."
+if ! bash "$REPO_ROOT/agency/tools/worktree-create" "$LAND_SLUG" \
+        --from "origin/$AGENT_BRANCH" >/dev/null 2>&1; then
+    echo "pr-captain-land: could not create scratch worktree $LAND_SLUG" >&2
+    destroy_scratch
+    exit 1
+fi
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 2b — Verify the agent's QGR receipt, BEFORE any mutation
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# Ordering is load-bearing (#463): the version bump edits manifest.json, which
+# is inside the hashed file set. Verify first, mutate second — otherwise every
+# land invalidates the receipt it is checking and the agent is asked to re-prep
+# for a change the captain made.
+
+DIFF_HASH_FULL=$( (cd "$SCRATCH_DIR" && bash "$SCRATCH_DIR/agency/tools/diff-hash" --base "$BASE_REF" --json 2>/dev/null) | \
                  python3 -c "import sys, json; d=json.load(sys.stdin); print(d.get('full_hash',''))" 2>/dev/null || \
                  echo "")
 DIFF_HASH_SHORT="${DIFF_HASH_FULL:0:7}"
 
-RECEIPT=$(find "$REPO_ROOT/agency/workstreams" -name "*qgr-pr-prep-*-$DIFF_HASH_SHORT.md" 2>/dev/null | head -1 || echo "")
-if [[ -z "$RECEIPT" ]]; then
+if [[ -z "$DIFF_HASH_SHORT" ]]; then
+    abort_land "could not compute a diff hash for origin/$AGENT_BRANCH against $BASE_REF."
+fi
+
+AGENT_RECEIPT=$(find "$SCRATCH_DIR/agency/workstreams" -name "*qgr-pr-prep-*-$DIFF_HASH_SHORT.md" 2>/dev/null | head -1 || echo "")
+if [[ -z "$AGENT_RECEIPT" ]]; then
     echo "pr-captain-land: no QGR receipt matching hash $DIFF_HASH_SHORT on branch $AGENT_BRANCH." >&2
-    echo "  Agent must run /pr-prep to produce a receipt before submitting." >&2
-    # Switch back to master before exit
-    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$DEFAULT_BRANCH" >/dev/null 2>&1 || true
+    echo "  The branch content and the newest receipt disagree." >&2
+    echo "  Agent action: re-run /pr-prep, push, re-run /pr-submit." >&2
+    destroy_scratch
     exit 1
 fi
 
-RECEIPT_REL="${RECEIPT#$REPO_ROOT/}"
-echo "→ Receipt: $RECEIPT_REL (hash: $DIFF_HASH_SHORT)"
+if ! (cd "$SCRATCH_DIR" && bash "$SCRATCH_DIR/agency/tools/receipt-verify" --file "$AGENT_RECEIPT" >/dev/null 2>&1); then
+    echo "pr-captain-land: receipt $AGENT_RECEIPT does not verify against the branch." >&2
+    echo "  Agent action: re-run /pr-prep, push, re-run /pr-submit." >&2
+    destroy_scratch
+    exit 1
+fi
 
-# ── Bump agency_version on the branch ─────────────────────────────────────
+AGENT_RECEIPT_REL="${AGENT_RECEIPT#$SCRATCH_DIR/}"
+# hash_a of the landing receipt chains to hash_e of the agent's receipt — the
+# captain's gate extends the agent's chain rather than starting a new one.
+AGENT_HASH_E=$(grep '^hash_e:' "$AGENT_RECEIPT" | head -1 | sed 's/^hash_e:[[:space:]]*//' | tr -d '"')
 
-MANIFEST="$REPO_ROOT/agency/config/manifest.json"
+echo "→ Agent receipt verified: $AGENT_RECEIPT_REL (hash: $DIFF_HASH_SHORT)"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 3 — VALIDATE LOCALLY. This is the gate. GitHub is not the gate.
+# ═════════════════════════════════════════════════════════════════════════════
+
+VALIDATION_LOG="$(mktemp -t pr-captain-land-validate)"
+VALIDATION_SUMMARY=""
+
+# run_validation_step <label> <command...>
+# Appends to the validation log and returns THE COMMAND'S status.
+#
+# The status must be captured explicitly: wrapping the command in a brace group
+# that ends with an `echo` would make the group's status that of the echo, i.e.
+# always 0 — a validation gate that can never fail is worse than no gate.
+run_validation_step() {
+    local label="$1"; shift
+    local st=0
+    echo "  · $label"
+    echo "=== $label ===" >> "$VALIDATION_LOG"
+    "$@" >> "$VALIDATION_LOG" 2>&1 || st=$?
+    echo "=== exit: $st ===" >> "$VALIDATION_LOG"
+    return "$st"
+}
+
+# Resolve the package manager via the shared primitive — a skill must never
+# name one inline (it ships to adopter repos that use a different one; see
+# src/tests/skills/skill-validation.bats). Absent one, the JS steps do not run.
+detect_pm() {
+    bash "$SCRATCH_DIR/agency/tools/pkg-manager" -C "$SCRATCH_DIR" 2>/dev/null || echo ""
+}
+
+has_pkg_script() {
+    [[ -f "$SCRATCH_DIR/package.json" ]] || return 1
+    SCRIPT_NAME="$1" python3 -c '
+import json, os, sys
+p = json.load(open(os.path.join(os.environ["SCRATCH"], "package.json")))
+sys.exit(0 if os.environ["SCRIPT_NAME"] in (p.get("scripts") or {}) else 1)
+' 2>/dev/null
+}
+
+echo "→ Validating locally in $LAND_SLUG (this is the gate)..."
+
+VALIDATION_STEPS=0
+VALIDATION_FAILED=""
+
+# The validation command can be overridden wholesale for repos whose gate is
+# not expressible as "package script + commit-precheck".
+if [[ -n "${PR_LAND_VALIDATE_CMD:-}" ]]; then
+    VALIDATION_STEPS=$((VALIDATION_STEPS + 1))
+    if ! (cd "$SCRATCH_DIR" && run_validation_step "PR_LAND_VALIDATE_CMD" bash -c "$PR_LAND_VALIDATE_CMD"); then
+        VALIDATION_FAILED="PR_LAND_VALIDATE_CMD"
+    fi
+else
+    PM="$(detect_pm)"
+    export SCRATCH="$SCRATCH_DIR"
+
+    if [[ -n "$PM" ]] && has_pkg_script build; then
+        VALIDATION_STEPS=$((VALIDATION_STEPS + 1))
+        (cd "$SCRATCH_DIR" && run_validation_step "build ($PM run build)" "$PM" run build) \
+            || VALIDATION_FAILED="build"
+    fi
+
+    # Prefer the widest test script the repo declares. bats:all covers the
+    # framework's own suites; `test` is the conventional fallback.
+    if [[ -z "$VALIDATION_FAILED" && -n "$PM" ]]; then
+        for script in bats:all test; do
+            if has_pkg_script "$script"; then
+                VALIDATION_STEPS=$((VALIDATION_STEPS + 1))
+                (cd "$SCRATCH_DIR" && run_validation_step "tests ($PM run $script)" "$PM" run "$script") \
+                    || VALIDATION_FAILED="tests"
+                break
+            fi
+        done
+    fi
+
+    # commit-precheck is the same pre-commit gate every agent commit passes
+    # through — cheap, and it catches provenance/format regressions the test
+    # suites do not.
+    if [[ -z "$VALIDATION_FAILED" && -x "$SCRATCH_DIR/agency/tools/commit-precheck" ]]; then
+        VALIDATION_STEPS=$((VALIDATION_STEPS + 1))
+        (cd "$SCRATCH_DIR" && run_validation_step "commit-precheck" bash "$SCRATCH_DIR/agency/tools/commit-precheck") \
+            || VALIDATION_FAILED="commit-precheck"
+    fi
+fi
+
+if [[ "$VALIDATION_STEPS" -eq 0 ]]; then
+    # Distinct, loud, and NOT a silent pass: a repo with no resolvable local
+    # gate has opted out of the whole point of this flow.
+    echo "WARNING: no local validation command resolved for this repo." >&2
+    echo "  Set PR_LAND_VALIDATE_CMD, or declare a build/test script." >&2
+    echo "  Landing continues, but local-first validation did NOT happen." >&2
+    VALIDATION_SUMMARY="no local validation command resolved (see warning)"
+else
+    VALIDATION_SUMMARY="$VALIDATION_STEPS local validation step(s) passed against $BASE_REF"
+fi
+
+if [[ -n "$VALIDATION_FAILED" ]]; then
+    echo "" >&2
+    echo "── local validation output (tail) ──" >&2
+    tail -40 "$VALIDATION_LOG" >&2
+    echo "────────────────────────────────────" >&2
+
+    # Tell the agent before rolling back — the scratch is about to vanish.
+    AGENT_NAME="${AGENT_OVERRIDE:-${AGENT_BRANCH%%-*}}"
+    bash "$REPO_ROOT/agency/tools/dispatch" create \
+        --type dispatch \
+        --to "$ORG/$PRINCIPAL/$AGENT_NAME" \
+        --subject "PR landing BLOCKED: $AGENT_BRANCH failed local validation ($VALIDATION_FAILED)" \
+        --body "Captain ran /pr-captain-land on \`$AGENT_BRANCH\` and it failed the LOCAL validation gate before anything was published.
+
+- Failed step: \`$VALIDATION_FAILED\`
+- Validated against: \`$BASE_REF\`
+- Nothing was pushed. No PR. No version bump. No release.
+
+Fix locally, re-run /pr-prep, push, then re-run /pr-submit.
+
+-- $ORG/$PRINCIPAL/captain" \
+        >/dev/null 2>&1 || true
+
+    abort_land "local validation failed at step '$VALIDATION_FAILED' — see output above."
+fi
+
+echo "→ Local validation: PASSED ($VALIDATION_SUMMARY)"
+
+# ── Rehearsal stops here ─────────────────────────────────────────────────────
+
+if [[ "$REHEARSE" == true ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+        echo ""
+        echo "[DRY-RUN] Would publish:"
+        echo "    PR title:    ${CUSTOM_TITLE:-$AGENT_BRANCH}"
+        echo "    Head branch: $LAND_SLUG (pushed from the scratch worktree)"
+        echo "    Base branch: $DEFAULT_BRANCH"
+        echo "    Agent to notify: ${AGENT_OVERRIDE:-${AGENT_BRANCH%%-*}}"
+        echo "    Release:     $([[ "$SKIP_RELEASE" == true ]] && echo "skipped" || echo "yes, v<bumped version>")"
+    fi
+    destroy_scratch
+    rm -f "$VALIDATION_LOG"
+    echo ""
+    echo "pr-captain-land: rehearsal complete — integrated + validated, nothing published."
+    exit 0
+fi
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 4 — Bump agency_version in the scratch
+# ═════════════════════════════════════════════════════════════════════════════
+
+MANIFEST="$SCRATCH_DIR/agency/config/manifest.json"
+if [[ ! -f "$MANIFEST" ]]; then
+    abort_land "manifest.json not found in scratch at $MANIFEST"
+fi
+
 # Security: pass values via env, never string-interpolate into python source
 # (F-SEC-1 / CRITICAL-3 from MAR 2026-04-19). Prevents RCE if manifest is
 # ever attacker-controllable.
@@ -169,7 +477,6 @@ import json, os
 print(json.load(open(os.environ["MANIFEST"]))["agency_version"])
 ')
 
-# Parse and bump — value via env, not f-string
 NEW_VER=$(CURRENT_VER="$CURRENT_VER" python3 -c '
 import os, sys
 v = os.environ["CURRENT_VER"]
@@ -185,16 +492,12 @@ else:
 ')
 
 if [[ -z "$NEW_VER" || "$NEW_VER" == "$CURRENT_VER" ]]; then
-    echo "pr-captain-land: could not bump version from $CURRENT_VER" >&2
-    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$DEFAULT_BRANCH" >/dev/null 2>&1 || true
-    exit 1
+    abort_land "could not bump version from $CURRENT_VER"
 fi
 
-echo "→ Bumping agency_version $CURRENT_VER → $NEW_VER"
+echo "→ Bumping agency_version $CURRENT_VER → $NEW_VER (in scratch)"
 
-if [[ "$DRY_RUN" == false ]]; then
-    # Security: env vars, not string interpolation (F-SEC-1)
-    MANIFEST="$MANIFEST" NEW_VER="$NEW_VER" python3 -c '
+MANIFEST="$MANIFEST" NEW_VER="$NEW_VER" python3 -c '
 import json, os
 from datetime import datetime, timezone
 path = os.environ["MANIFEST"]
@@ -203,141 +506,304 @@ m["agency_version"] = os.environ["NEW_VER"]
 m["project"]["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 json.dump(m, open(path, "w"), indent=2)
 '
-    bash "$REPO_ROOT/agency/tools/git-safe" add agency/config/manifest.json
-    bash "$REPO_ROOT/agency/tools/git-safe-commit" \
-        "chore(manifest): bump agency_version $CURRENT_VER → $NEW_VER for PR landing (captain)" \
-        --no-work-item >/dev/null
 
-    bash "$REPO_ROOT/agency/tools/git-push" "$AGENT_BRANCH" >/dev/null
-    echo "→ Version bumped + pushed"
+(cd "$SCRATCH_DIR" && bash "$SCRATCH_DIR/agency/tools/git-safe" add agency/config/manifest.json) \
+    || abort_land "could not stage the version bump"
+(cd "$SCRATCH_DIR" && bash "$SCRATCH_DIR/agency/tools/git-safe-commit" \
+    "chore(manifest): bump agency_version $CURRENT_VER → $NEW_VER for PR landing (captain)" \
+    --no-work-item >/dev/null) \
+    || abort_land "could not commit the version bump"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 5 — Sign the captain LANDING receipt
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# pr-create is NOT weakened to let a captain-bumped branch through. Instead the
+# captain signs a receipt for the state it actually validated. The five-hash
+# chain stays intact and extends the agent's:
+#   A = the agent receipt's hash_e   (what was reviewed)
+#   B = hash of the local validation log
+#   C = B                            (nothing to triage — validation was green)
+#   D = C                            (auto-approved; no principal 1B1)
+#   E = diff hash of the bumped tree against origin/<default>
+#
+# Receipts live outside diff-hash's file set, so committing this receipt does
+# not invalidate the hash it carries.
+
+LAND_HASH_FULL=$( (cd "$SCRATCH_DIR" && bash "$SCRATCH_DIR/agency/tools/diff-hash" --base "$BASE_REF" --json 2>/dev/null) | \
+                 python3 -c "import sys, json; d=json.load(sys.stdin); print(d.get('full_hash',''))" 2>/dev/null || \
+                 echo "")
+if [[ -z "$LAND_HASH_FULL" ]]; then
+    abort_land "could not compute the post-bump diff hash for the landing receipt"
 fi
 
-# ── Create PR ────────────────────────────────────────────────────────────────
+VALIDATION_HASH=$(shasum -a 256 "$VALIDATION_LOG" | cut -d' ' -f1)
+# project must be filename-safe: it becomes part of the receipt name.
+LAND_PROJECT="$(printf '%s' "$AGENT_BRANCH" | tr '/.' '--')"
+
+echo "→ Signing captain landing receipt (hash_e: ${LAND_HASH_FULL:0:7})..."
+(cd "$SCRATCH_DIR" && bash "$SCRATCH_DIR/agency/tools/receipt-sign" \
+    --type qgr \
+    --boundary pr-captain-land \
+    --org "$ORG" \
+    --principal "$PRINCIPAL" \
+    --agent captain \
+    --workstream agency \
+    --project "$LAND_PROJECT" \
+    --hash-a "${AGENT_HASH_E:-$DIFF_HASH_FULL}" \
+    --hash-b "$VALIDATION_HASH" \
+    --hash-c "$VALIDATION_HASH" \
+    --hash-d "$VALIDATION_HASH" \
+    --hash-e "$LAND_HASH_FULL" \
+    --diff-base "$BASE_REF" \
+    --summary "Local-first landing of $AGENT_BRANCH. Integrated in scratch worktree $LAND_SLUG cut from origin/$AGENT_BRANCH; $VALIDATION_SUMMARY; agency_version $CURRENT_VER → $NEW_VER. Chains to agent receipt $AGENT_RECEIPT_REL." \
+    >/dev/null) || abort_land "could not sign the landing receipt"
+
+LANDING_RECEIPT=$(find "$SCRATCH_DIR/agency/workstreams/agency/qgr" -name "*-pr-captain-land-*-${LAND_HASH_FULL:0:7}.md" 2>/dev/null | head -1 || echo "")
+if [[ -z "$LANDING_RECEIPT" ]]; then
+    abort_land "landing receipt was signed but could not be located"
+fi
+LANDING_RECEIPT_REL="${LANDING_RECEIPT#$SCRATCH_DIR/}"
+
+(cd "$SCRATCH_DIR" && bash "$SCRATCH_DIR/agency/tools/git-safe" add "$LANDING_RECEIPT_REL") \
+    || abort_land "could not stage the landing receipt"
+(cd "$SCRATCH_DIR" && bash "$SCRATCH_DIR/agency/tools/git-safe-commit" \
+    "misc(pr-captain-land): landing receipt for $AGENT_BRANCH (${LAND_HASH_FULL:0:7})" \
+    --no-work-item >/dev/null) \
+    || abort_land "could not commit the landing receipt"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 6 — Publish (first irreversible action)
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# Past this point `abort_land` is no longer correct: work exists on origin.
+# Failures below report and leave the scratch in place for inspection.
+
+echo "→ Pushing $LAND_SLUG..."
+(cd "$SCRATCH_DIR" && bash "$SCRATCH_DIR/agency/tools/git-push" "$LAND_SLUG" >/dev/null) \
+    || abort_land "could not push $LAND_SLUG"
 
 PR_TITLE="${CUSTOM_TITLE:-$AGENT_BRANCH}"
 PR_BODY=$(cat <<EOF
-Captain-landed PR via pr-captain-land (the-agency#296 Phase 1 pilot).
+Captain-landed via \`/pr-captain-land\` — **local-first** flow.
 
-Branch prepared by agent via /pr-submit. Captain owns the landing lifecycle:
-- Switched to \`$AGENT_BRANCH\`
-- Verified QGR receipt \`$RECEIPT_REL\` (hash \`$DIFF_HASH_SHORT\`)
-- Bumped \`agency_version\` $CURRENT_VER → $NEW_VER
-- Will merge when CI is green
-- Will create release v$NEW_VER
+The work was integrated and validated locally BEFORE this PR existed. CI here
+is confirmation, not the gate.
+
+- Source branch: \`$AGENT_BRANCH\` (untouched; this PR rides \`$LAND_SLUG\`)
+- Integrated in a scratch worktree cut from \`origin/$AGENT_BRANCH\`, verified to contain \`$BASE_REF\`
+- Agent QGR receipt: \`$AGENT_RECEIPT_REL\` (hash \`$DIFF_HASH_SHORT\`) — verified before any mutation
+- Local validation: $VALIDATION_SUMMARY
+- Captain landing receipt: \`$LANDING_RECEIPT_REL\` (hash \`${LAND_HASH_FULL:0:7}\`)
+- \`agency_version\`: $CURRENT_VER → $NEW_VER
+- Release v$NEW_VER cut on merge
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )
 
-if [[ "$DRY_RUN" == true ]]; then
-    echo "→ [DRY-RUN] Would create PR:"
-    echo "    Title: $PR_TITLE"
-    echo "    Body:  (see stdout)"
-    # Switch back to master
-    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$DEFAULT_BRANCH" >/dev/null
-    echo "pr-captain-land: dry-run complete"
-    exit 0
-fi
-
 echo "→ Creating PR..."
-PR_URL=$(bash "$REPO_ROOT/agency/tools/pr-create" --title "$PR_TITLE" --body "$PR_BODY" 2>&1 | \
+PR_URL=$( (cd "$SCRATCH_DIR" && bash "$SCRATCH_DIR/agency/tools/pr-create" \
+            --title "$PR_TITLE" --body "$PR_BODY" --base "$DEFAULT_BRANCH" 2>&1) | \
          tail -1 | grep -oE 'https://github.com/[^ ]+' || echo "")
 
 if [[ -z "$PR_URL" ]]; then
-    echo "pr-captain-land: pr-create did not return a URL — check output above" >&2
-    bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$DEFAULT_BRANCH" >/dev/null 2>&1 || true
+    echo "pr-captain-land: pr-create did not return a URL — check output above." >&2
+    echo "  Scratch worktree kept for inspection: $SCRATCH_DIR" >&2
+    echo "  Branch $LAND_SLUG is pushed; delete it if you abandon this land." >&2
     exit 1
 fi
 
 PR_NUM=$(echo "$PR_URL" | grep -oE '[0-9]+$')
 echo "→ PR created: $PR_URL (#$PR_NUM)"
 
-# ── Back to master for merge ────────────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 7 — CI wait on the AGGREGATE status check rollup
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# The old implementation waited on a single hardcoded check name
+# ("lint-and-test") that does not exist in this repo — so the loop always timed
+# out at 10 minutes regardless of CI's actual verdict, and a genuinely failing
+# check could never fail fast. Gate on the whole rollup instead:
+#
+#   - every check must reach a terminal SUCCESS-like state
+#   - any terminal failure state aborts immediately
+#   - an EMPTY rollup is its own distinct error, not a silent pass — "no checks
+#     configured" and "all checks green" must never look alike
+#
+# Where branch protection exposes a required-contexts list, narrow to it.
 
-bash "$REPO_ROOT/agency/tools/git-captain" switch-branch "$DEFAULT_BRANCH" >/dev/null
-echo "→ Back on $DEFAULT_BRANCH"
+REQUIRED_CONTEXTS=$(bash "$REPO_ROOT/agency/tools/gh-api" \
+    "/repos/$ORG/$REPO/branches/$DEFAULT_BRANCH/protection/required_status_checks/contexts" \
+    2>/dev/null || echo "")
 
-# ── Wait for CI ──────────────────────────────────────────────────────────────
-
-echo "→ Waiting for CI..."
+echo "→ Waiting for CI on PR #$PR_NUM (aggregate status check rollup)..."
 ATTEMPTS=0
-MAX_ATTEMPTS=30  # 30 × 20s = 10 minutes
+MAX_ATTEMPTS=45  # 45 × 20s = 15 minutes
+CI_VERDICT=""
+
 while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-    STATE=$(gh pr view "$PR_NUM" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name=="lint-and-test") | .conclusion' 2>/dev/null || echo "")
-    if [[ "$STATE" == "SUCCESS" ]]; then
-        echo "→ lint-and-test: PASSED"
-        break
-    fi
-    if [[ "$STATE" == "FAILURE" ]]; then
-        echo "pr-captain-land: lint-and-test FAILED on PR #$PR_NUM" >&2
-        echo "  Agent must fix, push, and re-submit via /pr-submit." >&2
-        exit 1
-    fi
+    ROLLUP=$(bash "$REPO_ROOT/agency/tools/gh" pr view "$PR_NUM" --json statusCheckRollup 2>/dev/null || echo "")
+
+    CI_VERDICT=$(ROLLUP_JSON="$ROLLUP" REQUIRED="$REQUIRED_CONTEXTS" python3 <<'PY'
+import json, os, sys
+
+raw = os.environ.get("ROLLUP_JSON") or ""
+try:
+    checks = (json.loads(raw) or {}).get("statusCheckRollup") or []
+except (ValueError, AttributeError):
+    print("UNREADABLE")
+    sys.exit(0)
+
+# Narrow to branch-protection required contexts when we could read them.
+try:
+    required = json.loads(os.environ.get("REQUIRED") or "[]")
+    required = set(required) if isinstance(required, list) else set()
+except ValueError:
+    required = set()
+
+
+def name_of(c):
+    return c.get("name") or c.get("context") or "(unnamed)"
+
+
+def state_of(c):
+    # CheckRun: status + conclusion. StatusContext: state.
+    if c.get("status") is not None or c.get("conclusion") is not None:
+        if (c.get("status") or "").upper() != "COMPLETED":
+            return "PENDING"
+        return (c.get("conclusion") or "PENDING").upper()
+    return (c.get("state") or "PENDING").upper()
+
+
+if required:
+    checks = [c for c in checks if name_of(c) in required]
+
+if not checks:
+    print("NO_CHECKS")
+    sys.exit(0)
+
+PASS = {"SUCCESS", "NEUTRAL", "SKIPPED"}
+FAIL = {"FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "STALE"}
+
+failed = [name_of(c) for c in checks if state_of(c) in FAIL]
+if failed:
+    print("FAILED " + ",".join(failed))
+    sys.exit(0)
+
+pending = [name_of(c) for c in checks if state_of(c) not in PASS]
+if pending:
+    print("PENDING " + ",".join(pending))
+    sys.exit(0)
+
+print("PASSED " + ",".join(name_of(c) for c in checks))
+PY
+)
+
+    case "$CI_VERDICT" in
+        PASSED*)
+            echo "→ CI green: ${CI_VERDICT#PASSED }"
+            break
+            ;;
+        FAILED*)
+            echo "pr-captain-land: CI FAILED on PR #$PR_NUM — failing checks: ${CI_VERDICT#FAILED }" >&2
+            echo "  The local gate passed but the server disagreed. Investigate before re-landing." >&2
+            echo "  Agent must fix, push, and re-submit via /pr-submit." >&2
+            exit 1
+            ;;
+        NO_CHECKS)
+            echo "pr-captain-land: no status checks found on PR #$PR_NUM." >&2
+            echo "  This is NOT a pass. Either CI is not configured for this repo," >&2
+            echo "  or the required-contexts filter matched nothing." >&2
+            echo "  Merge manually with /pr-captain-merge if that is expected." >&2
+            exit 1
+            ;;
+        UNREADABLE)
+            : # transient gh/network hiccup — retry
+            ;;
+    esac
+
     sleep 20
     ATTEMPTS=$((ATTEMPTS + 1))
 done
 
-if [[ $ATTEMPTS -eq $MAX_ATTEMPTS ]]; then
-    echo "pr-captain-land: CI timeout on PR #$PR_NUM — check manually" >&2
+if [[ "$CI_VERDICT" != PASSED* ]]; then
+    echo "pr-captain-land: CI timeout on PR #$PR_NUM after $((MAX_ATTEMPTS * 20))s — check manually." >&2
+    echo "  Last verdict: ${CI_VERDICT:-none}" >&2
     exit 1
 fi
 
-# ── Merge ────────────────────────────────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 8 — Merge + release
+# ═════════════════════════════════════════════════════════════════════════════
 
-echo "→ Merging PR #$PR_NUM..."
-bash "$REPO_ROOT/agency/tools/pr-merge" "$PR_NUM" --principal-approved >/dev/null 2>&1 || {
+echo "→ Merging PR #$PR_NUM (true merge commit)..."
+bash "$REPO_ROOT/agency/tools/pr-merge" "$PR_NUM" --principal-approved --delete-branch >/dev/null 2>&1 || {
     echo "pr-captain-land: pr-merge failed — check manually" >&2
     exit 1
 }
 
-# ── Sync master ──────────────────────────────────────────────────────────────
-
-bash "$REPO_ROOT/agency/tools/git-captain" fetch >/dev/null 2>&1
-bash "$REPO_ROOT/agency/tools/git-captain" merge-from-origin >/dev/null 2>&1
-
-# ── Create release ───────────────────────────────────────────────────────────
+bash "$REPO_ROOT/agency/tools/git-captain" fetch >/dev/null 2>&1 || true
 
 if [[ "$SKIP_RELEASE" == false ]]; then
     echo "→ Creating release v$NEW_VER..."
     bash "$REPO_ROOT/agency/tools/gh-release" create "v$NEW_VER" \
         --target "$DEFAULT_BRANCH" \
         --title "v$NEW_VER — $PR_TITLE" \
-        --notes "Captain-landed via pr-captain-land (the-agency#296 Phase 1 pilot). See PR #$PR_NUM." \
+        --notes "Captain-landed via /pr-captain-land (local-first). See PR #$PR_NUM." \
         >/dev/null 2>&1 || {
-        echo "pr-captain-land: gh-release failed — create manually" >&2
+        echo "pr-captain-land: gh-release failed — verify whether auto-release already cut v$NEW_VER" >&2
     }
 fi
 
-# ── Dispatch agent with outcome ─────────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 9 — Cleanup + notify + reconcile
+# ═════════════════════════════════════════════════════════════════════════════
 
-# Agent is encoded in the branch name or retrievable from the branch's commits
-# For Phase 1 pilot: assume branch name hints at agent (e.g., captain-X, devex-Y)
-# Full lookup happens when promoted to .claude/skills/
+echo "→ Cleaning up scratch worktree and land branch..."
+destroy_scratch
+rm -f "$VALIDATION_LOG"
+# The REMOTE copy of the land branch is deleted by `pr-merge --delete-branch`
+# above. It is deliberately NOT retried here: git-push takes a branch name
+# positionally and has no delete mode, so a "belt and braces" call would
+# re-PUSH the branch rather than remove it.
 
-AGENT_HINT="${AGENT_BRANCH%%-*}"  # naive parse: prefix before first dash
-echo "→ Dispatching $AGENT_HINT agent with merge outcome..."
-
+AGENT_NAME="${AGENT_OVERRIDE:-${AGENT_BRANCH%%-*}}"
+echo "→ Dispatching $AGENT_NAME with merge outcome..."
 bash "$REPO_ROOT/agency/tools/dispatch" create \
     --type master-updated \
-    --to "$ORG/$PRINCIPAL/$AGENT_HINT" \
+    --to "$ORG/$PRINCIPAL/$AGENT_NAME" \
     --subject "PR #$PR_NUM landed — v$NEW_VER released (pr-captain-land)" \
-    --body "Captain-landed your branch \`$AGENT_BRANCH\` via the-agency#296 Phase 1 pilot flow.
+    --body "Captain landed your branch \`$AGENT_BRANCH\` via the local-first flow.
 
-- PR: $PR_URL
+- PR: $PR_URL (head branch \`$LAND_SLUG\`, now deleted)
 - Release: https://github.com/$ORG/$REPO/releases/tag/v$NEW_VER
 - Version: $CURRENT_VER → $NEW_VER
+- Local validation before publish: $VALIDATION_SUMMARY
+- Captain landing receipt: \`$LANDING_RECEIPT_REL\`
 
-Your branch is merged to $DEFAULT_BRANCH. Run /session-resume to pick up on your next cycle.
-
-Phase 1 pilot feedback: did anything feel off about the handoff? Reply dispatch.
+Your branch \`$AGENT_BRANCH\` was never checked out or modified by the landing —
+it is merged into $DEFAULT_BRANCH through the land branch. Run /session-resume to
+sync and pick up your next cycle.
 
 -- $ORG/$PRINCIPAL/captain" \
     >/dev/null 2>&1 || true
 
-# ── Done ─────────────────────────────────────────────────────────────────────
+bash "$REPO_ROOT/agency/tools/post-merge-state" clear "$PR_NUM" >/dev/null 2>&1 || true
+
+# Reconcile local main with the server merge. This is a separate, idempotent
+# step ON PURPOSE: it is a normal merge-from-origin, identical to what
+# /captain-sync-all does, so running either afterwards is a no-op rather than a
+# double-integration. Local main is only ever moved by this reconciliation —
+# never by the landing itself.
+echo "→ Reconciling local $DEFAULT_BRANCH with origin..."
+bash "$REPO_ROOT/agency/tools/git-captain" merge-from-origin >/dev/null 2>&1 || {
+    echo "note: could not fast-forward local $DEFAULT_BRANCH — run /captain-sync-all." >&2
+}
 
 echo ""
 echo "pr-captain-land: complete"
+echo "  Branch:  $AGENT_BRANCH (via $LAND_SLUG)"
 echo "  PR:      $PR_URL"
 echo "  Release: v$NEW_VER"
-echo "  Merged:  ✓"
+echo "  Gate:    local ($VALIDATION_SUMMARY), CI confirmed"

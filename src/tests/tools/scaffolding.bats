@@ -148,6 +148,30 @@ load 'test_helper'
     [[ ! "$output" =~ "syntax error" ]]
 }
 
+@test "workstream-create: REJECTS a shell-metacharacter name (no directory created)" {
+    # Not merely "does not execute the injection" — it must not create the
+    # directory either. Unvalidated, this call left a literal
+    # `agency/workstreams/test; rm -rf ` behind in the REAL repo on every full
+    # test run, which then failed purge-pollution-guard.bats.
+    run_tool workstream-create 'test; rm -rf /'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Invalid workstream name"* ]]
+    run bash -c "ls -d '${REPO_ROOT}/agency/workstreams/'test* 2>/dev/null"
+    [ "$status" -ne 0 ]
+}
+
+@test "workstream-create: rejects a name starting with a digit" {
+    run_tool workstream-create '9lives'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Invalid workstream name"* ]]
+}
+
+@test "workstream-create: rejects a name containing a slash" {
+    run_tool workstream-create 'a/b'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Invalid workstream name"* ]]
+}
+
 @test "workstream-create: handles path traversal in name" {
     run_tool workstream-create '../../../tmp/hack' || true
     # Should not create files outside expected directory

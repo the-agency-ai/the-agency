@@ -77,22 +77,16 @@ fi
 # Detect the default branch so this works on repos using 'master' as well.
 # Issue #107 (monofolk hotfix): the hardcoded 'origin/main' caused false
 # "version not bumped" failures on repos where origin/master is the default.
-# Detection order:
-#   1. git symbolic-ref refs/remotes/origin/HEAD   (GitHub HEAD metadata)
-#   2. existence of refs/remotes/origin/main
-#   3. existence of refs/remotes/origin/master
-#   4. hard fail with clear message
-DEFAULT_BRANCH=$(git -C "$REPO_ROOT" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
-if [[ -z "$DEFAULT_BRANCH" ]]; then
-    if git -C "$REPO_ROOT" show-ref --verify --quiet refs/remotes/origin/main; then
-        DEFAULT_BRANCH="main"
-    elif git -C "$REPO_ROOT" show-ref --verify --quiet refs/remotes/origin/master; then
-        DEFAULT_BRANCH="master"
-    else
-        echo "BLOCKED: could not determine default branch (origin/main or origin/master)." >&2
-        echo "  Fix: git remote set-head origin -a   # to set origin/HEAD" >&2
-        exit 1
-    fi
+#
+# The detection ladder used to be inline here (and in six other tools). It now
+# lives in the shared `resolve-default-branch` primitive. `--strict` preserves
+# this tool's FAIL-CLOSED contract: a guessed base ref here would silently
+# mis-evaluate the version-bump gate, so an unresolvable default branch must
+# block, not fall back.
+if ! DEFAULT_BRANCH=$("$SCRIPT_DIR/resolve-default-branch" -C "$REPO_ROOT" --strict 2>/dev/null); then
+    echo "BLOCKED: could not determine default branch (origin/main or origin/master)." >&2
+    echo "  Fix: git remote set-head origin -a   # to set origin/HEAD" >&2
+    exit 1
 fi
 DEFAULT_REF="origin/$DEFAULT_BRANCH"
 

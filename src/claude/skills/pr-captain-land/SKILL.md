@@ -1,9 +1,9 @@
 ---
 name: pr-captain-land
-description: Captain-only. Land an agent's prepared branch — switch, verify receipt, bump agency_version, create PR, watch CI, merge, release, notify agent. The single-writer serialization point for agency_version and PR creation. Companion to /pr-submit (the-agency#296 Phase 1 pilot). The `captain-` qualifier in the name signals scope at a glance (complements `paths: []` scoping and the Step-1 runtime precondition).
+description: Captain-only. Land an agent's prepared branch LOCAL-FIRST — integrate and validate in a scratch worktree cut from origin/<default>, then bump agency_version, sign a landing receipt, open the PR, confirm CI, merge, release, notify. The single-writer serialization point for agency_version and PR creation. Companion to /pr-submit. The `captain-` qualifier in the name signals scope at a glance (complements `paths: []` scoping and the Step-0 runtime precondition).
 agency-skill-version: 2
-when_to_use: Captain on master in main checkout, after a /pr-submit dispatch from an agent. NEVER from a worktree. Intended for explicit captain invocation — the Step-1 runtime precondition refuses from wrong context.
-argument-hint: "<agent-branch> [--dry-run] [--title \"...\"] [--no-release]"
+when_to_use: Captain on master in main checkout, after a /pr-submit dispatch from an agent. NEVER from a worktree. Intended for explicit captain invocation — the Step-0 runtime precondition refuses from wrong context.
+argument-hint: "<agent-branch> [--rehearse] [--dry-run] [--title \"...\"] [--agent <name>] [--no-release]"
 paths: []
 required_reading:
   - agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md
@@ -16,8 +16,9 @@ required_reading:
   allowed-tools intentionally omitted — inherits Bash(*) from
   .claude/settings.json. Subcommand-level restriction silently blocked
   fleet agents (flag #62/#63; devex dispatch #171). This skill composes
-  git-safe, git-captain, git-push, git-safe-commit, pr-create,
-  pr-captain-merge, gh-release, dispatch, diff-hash, and gh — tool-level
+  git-safe, git-captain, git-push, git-safe-commit, worktree-create,
+  worktree-delete, pr-create, pr-merge, gh-release, dispatch, diff-hash,
+  receipt-sign, receipt-verify, resolve-default-branch, and gh — tool-level
   narrow restriction would work but needs maintenance. Inherit Bash(*).
   Defense in depth is layered via paths: [] + captain- name + runtime
   precondition (see "Captain-only — three-layer defense" below).
@@ -25,223 +26,234 @@ required_reading:
 
 # pr-captain-land
 
-Captain-side skill that lands an agent's prepared branch as a merged PR + GitHub release + fleet notification. Companion to `/pr-submit`. This is the single-writer serialization point for `agency_version` and PR creation — eliminates the version-bump and receipt-hash races the pre-v2 distributed model created.
+Captain-side skill that lands an agent's prepared branch as a merged PR + GitHub release + fleet notification. Companion to `/pr-submit`. The single-writer serialization point for `agency_version` and PR creation.
 
-**Name pattern:** `pr-` prefix groups with the PR skill family (so `/pr<tab>` autocomplete shows the full kit). `captain-` qualifier flags captain-only scope in the skill listing without requiring the reader to open SKILL.md.
+**v2 is LOCAL-FIRST.** The work is integrated and validated locally *before* a PR exists. GitHub is the publish step for already-validated work, not the reviewer.
+
+## The inversion
+
+The v1 flow was PR-first: switch the main checkout to the agent's branch, bump, push, open a PR, and let GitHub CI decide. Three structural problems:
+
+1. **Worktree collision.** Switching the main checkout to a branch the agent still has checked out in its own worktree fails outright. And switching at all makes the captain's checkout a moving target mid-land.
+2. **The wrong gate.** CI was the first thing that could say no. TheAgency's model is local review and validation.
+3. **No clean abort.** Any mid-flight failure left the main checkout parked on someone else's branch.
+
+v2 does not fix the rollback — it removes the thing that needed rolling back:
+
+> **The entire landing happens in a dedicated scratch worktree cut from `origin/<agent-branch>`. Local `main` is never read for content, never merged into, never reset, and never pushed. Rollback at any pre-publish failure is one action: delete the scratch worktree.**
+
+Validating against pristine `origin/<default>` is also strictly more correct than validating on the captain's local main, which routinely carries unpushed coordination commits and other worktrees' merges — none of which belong in the PR under test.
+
+### Invariants
+
+| Invariant | Why |
+|---|---|
+| The agent's branch is **never checked out** in the main checkout | Kills the worktree-collision bug by construction |
+| **`main`/`master` is never pushed** | All changes reach the default branch through a PR |
+| Local `main` is only ever moved by the final, idempotent `merge-from-origin` | No data-loss hazard, no double-integration with `/captain-sync-all` |
+| The agent's receipt is verified **before** the version bump | The bump edits `manifest.json`, which is inside the hashed file set (the #463 churn trap) |
+| `pr-create` is **not** weakened | Captain signs its own landing receipt instead |
 
 ## Why this exists
 
-Per the-agency#296 — one captain, one writer, one serialization point. Every PR, every version bump, every release goes through this skill when driven by an agent's `/pr-submit`.
-
-Pre-v2 (distributed PR ownership) failure modes this skill eliminates:
-
-- Agent A and agent B both run `/pr-prep` + `/pr-create` concurrently → both bump `agency_version` → one loses, the other's release tag is wrong.
-- Captain lands a coord commit on master between an agent's `/pr-prep` and that agent's `/pr-create` → the receipt's diff-hash no longer matches → `pr-create` blocks with a confusing error.
-- Agent opens PR with a one-line body → fleet reviewers can't tell what changed without diving into diff.
-
-Captain-owned: captain is serialized by definition (one captain), captain re-verifies the receipt at the moment of landing, captain authors a fleet-aware PR body that references agent + scope + receipt.
+Per the-agency#296 — one captain, one writer, one serialization point. Pre-v2 distributed PR ownership produced version-bump races (two agents bump `agency_version` concurrently), receipt-hash races (a captain coord commit lands between an agent's `/pr-prep` and its `/pr-create`), and one-line PR bodies that fleet reviewers could not triage.
 
 ## Required reading
 
 Before running, Read the files listed in `required_reading:` frontmatter.
 
 - `REFERENCE-CODE-REVIEW-LIFECYCLE.md` — end-to-end PR flow
-- `REFERENCE-RECEIPT-INFRASTRUCTURE.md` — five-hash chain, receipt re-verification semantics
-- `REFERENCE-GIT-MERGE-NOT-REBASE.md` — merge discipline (`pr-captain-merge` enforces)
+- `REFERENCE-RECEIPT-INFRASTRUCTURE.md` — five-hash chain, landing-receipt semantics
+- `REFERENCE-GIT-MERGE-NOT-REBASE.md` — merge discipline
 - `REFERENCE-SAFE-TOOLS.md` — the safe-tool family this skill composes
 
-This skill's `reference.md` is the step-by-step land protocol with failure-mode recovery.
+`reference.md` is the step-by-step protocol with failure-mode recovery. `examples.md` has worked runs.
 
 ## Usage
 
 ```
 /pr-captain-land <agent-branch>
+/pr-captain-land <agent-branch> --rehearse
 /pr-captain-land <agent-branch> --dry-run
 /pr-captain-land <agent-branch> --title "Custom PR title"
+/pr-captain-land <agent-branch> --agent devex
 /pr-captain-land <agent-branch> --no-release
 ```
 
-- `<agent-branch>`: **required.** The branch that `/pr-submit` identified.
-- `--dry-run`: walk the preflight + preview the PR body; no mutation.
-- `--title`: override the default PR title (which derives from the agent's scope).
-- `--no-release`: skip Step 8 (release creation). Used when landing a PR that explicitly shouldn't cut a release (rare).
+- `<agent-branch>`: **required.** The branch `/pr-submit` identified.
+- `--rehearse`: run **steps 0-3 only** — integrate + validate, then delete the scratch. Nothing pushed, no PR, no bump, no receipt. **Rehearse first on any branch you have not landed before.**
+- `--dry-run`: `--rehearse` plus a printout of exactly what would be published.
+- `--title`: override the PR title (defaults to the branch name).
+- `--agent`: who to dispatch (defaults to the branch-name prefix).
+- `--no-release`: skip the GitHub release after merge (rare).
+
+Environment:
+
+- `PR_LAND_VALIDATE_CMD` — override the local validation command wholesale, for repos whose gate is not "package script + `commit-precheck`".
 
 ## Preconditions
 
-The script enforces **all** of these before any mutation; any failure exits non-zero with a clear error and no state change:
+Enforced before any mutation; failure exits non-zero with no state change.
 
-1. Running in the **main checkout** (first entry of `git worktree list`). Not in a `.claude/worktrees/` path.
-2. Current branch is `master` or `main`.
-3. Master tree is clean (`git status --porcelain` empty).
-4. **No pending post-merge (C#372 Fix B).** `./agency/tools/post-merge-state check` exits 0. If exit 1, a prior landed PR has not had its release cut — run `/pr-captain-post-merge <pending-PR>` first, then re-invoke.
-5. `<agent-branch>` exists on origin (`git ls-remote --heads origin <agent-branch>` non-empty).
-6. `<agent-branch>` passes safe-name validation: regex `^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`, no `..`, no leading `-`.
-7. Diff-hash of `<agent-branch>` vs `origin/<default-branch>` (resolved, not hardcoded) matches a QGR receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`.
+1. Running in the **main checkout** (first entry of `git worktree list`).
+2. Current branch is the resolved default branch.
+3. No leftover scratch worktree named `_land-<branch>` (a previous land crashed — inspect, then `worktree-delete`).
+4. `<agent-branch>` exists on origin.
+5. `<agent-branch>` passes safe-name validation: `^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`, no `..`, no leading `-`.
+6. `origin/<default>` is an **ancestor** of `origin/<agent-branch>` — the base is current.
 
-Any failure → zero mutation, clean error message, exit 1.
+**A dirty main checkout no longer blocks a land (#393).** The landing never touches local main, so uncommitted captain work is irrelevant. The script notes it and continues.
 
 ## Flow / Steps
 
-The script at `scripts/pr-captain-land` walks these nine steps. Full failure-mode detail is in `reference.md`.
+Script: `scripts/pr-captain-land`.
 
-### Step 1: Preflight
+### Step 0 — Preflight
 
-Verify all six preconditions. If any fail, exit 1.
+Main-checkout + branch checks, no-leftover-scratch check, `git-captain fetch`, and the default branch resolved via the shared `agency/tools/resolve-default-branch` primitive. **Local main is not read or written.**
 
-### Step 2: Switch to agent branch
+### Step 1 — Verify the branch and its base
 
-```
-./agency/tools/git-captain switch-branch <agent-branch>
-```
-
-Main checkout is now on agent's branch.
-
-### Step 3: Verify receipt against current state
+Branch must exist on origin. Then:
 
 ```
-./agency/tools/diff-hash --base "origin/$DEFAULT_BRANCH" --json   # default branch resolved, not hardcoded
+git merge-base --is-ancestor origin/<default> origin/<agent-branch>
 ```
 
-Find receipt at `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`. If missing, agent's state drifted — switch back to master, exit 1, tell agent to re-run `/pr-prep` + `/pr-submit`.
+If the base has moved, the agent's receipt was signed against an older base and *can never* verify. That is BLOCKED with the real cause and the real fix — "merge `<default>` into your branch, re-run `/pr-prep`, push, re-run `/pr-submit`" — never a bare hash-mismatch error.
 
-### Step 4: Bump `agency_version`
-
-Read `agency/config/manifest.json`. Bump minor (e.g., `1.8 → 1.9`). Refresh `updated_at` to current UTC timestamp.
-
-**Security note:** version-bump is done via Python env-var substitution (`MANIFEST=... NEW_VER=... python3 -c '...os.environ[...]...'`), **not** f-string interpolation. This blocks code-injection via adversarial branch names. (Fix landed in `ccf054ad` per MAR finding F-SEC-1 / CRITICAL-3.)
-
-Commit via `git-safe-commit`:
+### Step 2 — Cut the scratch worktree
 
 ```
-chore(manifest): bump agency_version {old} → {new} for PR landing (captain)
+./agency/tools/worktree-create _land-<branch> --from origin/<agent-branch>
 ```
 
-Push to origin.
+This **is** the local integration: step 1 proved `origin/<default>` is an ancestor, so the scratch tree already represents the agent's work on top of the default branch. Slashes in the branch name collapse to dashes in the scratch name.
 
-### Step 5: Create PR
+### Step 2b — Verify the agent's QGR receipt
 
-```
-./agency/tools/pr-create --title "<title>" --body "<captain-authored fleet-aware body>"
-```
+`diff-hash --base origin/<default>` inside the scratch, find `agency/workstreams/**/qgr/*qgr-pr-prep-*-{hash}.md`, and `receipt-verify --file` it. **Before any mutation** — verifying after the bump would churn the receipt (#463).
 
-Title derives from agent's `--scope` or `--title` override. Body wraps agent's scope with:
+Failure → delete the scratch, tell the agent to re-run `/pr-prep`.
 
-- "Captain-landed PR via `pr-captain-land` (the-agency#296 Phase 1)"
-- Branch, receipt path, diff-hash, version bump
-- "Release `v{new}` will follow on merge"
+### Step 3 — VALIDATE LOCALLY. This is the gate.
 
-### Step 6: Switch back to master
+In the scratch, in order: build script, widest declared test script (`bats:all`, else `test`), then `commit-precheck`. `PR_LAND_VALIDATE_CMD` replaces all of it.
 
-```
-./agency/tools/git-captain switch-branch "$DEFAULT_BRANCH"
-```
+- **Failure → delete the scratch, dispatch the agent naming the failing step, exit 1.** Nothing was published.
+- **No resolvable validation command → loud WARNING**, recorded in the landing receipt summary. It is never a silent pass.
 
-Captain sits on master during the CI-wait phase. Avoids any accidental commit on the PR branch.
+`--rehearse` / `--dry-run` stop here and delete the scratch.
 
-### Step 7: Watch CI
+### Step 4 — Bump `agency_version` in the scratch
 
-Poll `gh pr view {num} --json statusCheckRollup` every 20 seconds. Only gates on `lint-and-test`.
+Read `agency/config/manifest.json`, bump minor, refresh `updated_at`, commit via `git-safe-commit`.
 
-| State | Action |
+**Security note:** the bump uses Python env-var substitution (`MANIFEST=... NEW_VER=... python3 -c '...os.environ[...]...'`), never f-string interpolation. Blocks code injection via adversarial branch names (MAR F-SEC-1 / CRITICAL-3, landed `ccf054ad`).
+
+### Step 5 — Sign the captain LANDING receipt
+
+`pr-create` is not bypassed or weakened. Instead the captain signs a receipt for the state it actually validated, extending the agent's chain:
+
+| Hash | Value |
 |---|---|
-| SUCCESS | proceed to Step 8 |
-| FAILURE | exit 1 — agent must fix + push + resubmit |
-| PENDING / IN_PROGRESS | wait 20s, poll again |
+| A | the agent receipt's `hash_e` (what was reviewed) |
+| B | hash of the local validation log |
+| C | B — nothing to triage, validation was green |
+| D | C — auto-approved, no principal 1B1 |
+| E | diff hash of the bumped tree vs `origin/<default>` |
 
-Max 30 attempts = 10 minutes. On timeout, exit 1.
+Written to `agency/workstreams/agency/qgr/` with boundary `pr-captain-land`, then committed. Receipts are excluded from `diff-hash`, so committing one does not invalidate the hash it carries.
 
-`deploy-preview-backend` is environmental flake and ignored by this skill.
+### Step 6 — Publish
 
-### Step 8: Merge + release
+Push `_land-<branch>` from the scratch, then `pr-create --base <default>`. The landing receipt is the newest receipt, so `pr-create`'s receipt gate and version-bump gate both pass on their own terms.
 
-Merge:
+**This is the first irreversible action.** Past here, failures report and leave the scratch in place for inspection rather than rolling back.
 
-```
-./agency/tools/pr-merge {pr-num} --principal-approved
-```
+### Step 7 — CI confirmation on the aggregate rollup
 
-True merge commit — never squash, never rebase (enforced by `pr-captain-merge` / underlying `pr-merge`).
+Poll `gh pr view <num> --json statusCheckRollup` every 20s, up to 15 minutes. Where branch protection exposes a required-contexts list, narrow to it; otherwise gate on every check in the rollup.
 
-Sync master:
+| Rollup state | Action |
+|---|---|
+| every check terminal and SUCCESS / NEUTRAL / SKIPPED | proceed |
+| any terminal failure (FAILURE, ERROR, TIMED_OUT, CANCELLED, …) | exit 1, fail fast, name the checks |
+| any check still pending | wait 20s, poll again |
+| **rollup empty** | exit 1 with a **distinct** error — "no checks configured" must never look like "all green" |
 
-```
-./agency/tools/git-captain fetch
-./agency/tools/git-captain merge-from-origin
-```
+v1 hardcoded a check named `lint-and-test` that does not exist in this repo, so the loop could only ever time out. The gate is now name-agnostic, and a regression test asserts that literal never returns.
 
-Release (unless `--no-release`):
-
-```
-./agency/tools/gh-release create v{new-version} --target "$DEFAULT_BRANCH" --title "..." --notes "..."
-```
-
-Release notes: captain-authored, references PR number + agent.
-
-### Step 9: Dispatch agent
+### Step 8 — Merge + release
 
 ```
-./agency/tools/dispatch create \
-  --to <agent-address> \
-  --type master-updated \
-  --subject "PR #{num} landed — v{new} released" \
-  --body "<PR URL, release URL, version bump, Phase 1 pilot feedback request>"
+./agency/tools/pr-merge <num> --principal-approved --delete-branch
+./agency/tools/gh-release create v<new> --target <default> ...
 ```
 
-Agent picks up on next `/session-resume` or via dispatch monitor.
+True merge commit — never squash, never rebase.
+
+### Step 9 — Cleanup, notify, reconcile
+
+Delete the scratch worktree and the local land branch; dispatch `master-updated` to the agent; `post-merge-state clear`; then reconcile local main with `git-captain merge-from-origin`.
+
+The reconciliation is a **separate, idempotent** step on purpose: it is the same fast-forward `/captain-sync-all` performs, so running either afterwards is a no-op rather than a double-integration.
 
 ## Failure modes
 
-- **Preflight fails** (Step 1): exit 1, no mutation. Captain resolves (switch to main checkout, clean tree, ensure branch exists, verify agent submitted).
-- **Branch-name validation fails** (Step 1.5): rare — injection attempt or malformed branch. Exit 1. Agent renames.
-- **Receipt mismatch** (Step 3): master drifted. Exit 1 with switch-back-to-master. Agent re-runs `/pr-prep` + `/pr-submit`.
-- **Version-bump push fails** (Step 4): concurrent captain activity or branch-protection edge. Switch back to master, exit 1. Captain investigates.
-- **`pr-create` blocks on receipt** (Step 5): re-verify hash, retry once; on second failure, exit 1 and ask captain to investigate.
-- **CI failure** (Step 7): version-bump commit stays on agent's branch; agent can fix + push + resubmit via `/pr-submit`. Version doesn't re-bump on retry (captain detects current == target).
-- **CI timeout** (Step 7): exit 1, captain investigates manually.
-- **Merge fails** (Step 8): likely branch-protection edge. Captain falls back to manual `/pr-captain-merge <num> --principal-approved`.
-- **Release creation fails** (Step 8): merge succeeded, release failed. Warn captain, suggest manual `gh release create`. Skill returns 0 because merge is the primary outcome. (MAR follow-up H13 tracks stricter semantics.)
-- **Dispatch emission fails** (Step 9): warn, exit 0. Merge + release are the authoritative record; dispatch is notification.
+| Where | What happens |
+|---|---|
+| Preflight (0) | Exit 1, zero mutation. |
+| Leftover scratch (0) | Exit 1 naming the path and the `worktree-delete` fix. Never auto-deletes someone else's in-flight land. |
+| Stale base (1) | BLOCK naming the real cause; agent merges default + re-preps. |
+| Receipt missing/invalid (2b) | Scratch deleted; agent re-runs `/pr-prep`. |
+| Local validation fails (3) | Scratch deleted, agent dispatched with the failing step. **Nothing published.** |
+| Bump or receipt-sign fails (4-5) | Scratch deleted. Nothing published. |
+| `pr-create` returns no URL (6) | Scratch **kept** for inspection; the land branch is pushed and must be cleaned up manually if abandoned. |
+| CI fails (7) | Exit 1. The local gate passed and the server disagreed — investigate before re-landing. |
+| CI timeout (7) | Exit 1 with the last verdict; check manually. |
+| Empty rollup (7) | Exit 1, distinct message. Merge via `/pr-captain-merge` if that is genuinely expected. |
+| Merge fails (8) | Fall back to `/pr-captain-merge <num> --principal-approved`. |
+| Release fails (8) | Warn — check whether auto-release already cut the tag. Merge is the primary outcome. |
+| Dispatch fails (9) | Warn only. Merge + release are the authoritative record. |
 
 ## What this does NOT do
 
-- **Does not write code.** Agent's branch is the substance; captain lands it as-is (plus the version-bump).
-- **Does not modify agent's existing commits.** Only appends the version-bump commit.
-- **Does not squash or rebase.** `pr-captain-merge` enforces true merge commit per framework discipline.
-- **Does not auto-retry on failure.** Failures need captain attention; no silent retries that mask real issues.
-- **Does not fire from an agent context.** Three-layer defense (below) makes this impossible.
+- **Does not write code.** The agent's branch is the substance.
+- **Does not modify the agent's branch.** The version bump and landing receipt go on the `_land-` branch; `<agent-branch>` is never checked out or pushed.
+- **Does not squash or rebase.**
+- **Does not touch local `main`** until the final reconcile.
+- **Does not auto-retry.**
+- **Does not fire from an agent context.**
 
 ## Captain-only — three-layer defense
 
-Defense in depth against accidental invocation from the wrong context:
+1. **`paths: []`** — no file-path auto-activation. (Contrast `pr-submit`, which has `paths: [.claude/worktrees/**]`.)
+2. **Name contains `captain-`** — scope visible in the skill list.
+3. **Runtime precondition** — Step 0 refuses unless in the main checkout on the default branch.
 
-1. **`paths: []`** (intentionally empty) — no file-path auto-activation. (Contrast with `pr-submit` which has `paths: [.claude/worktrees/**]`.)
-2. **Name contains `captain-`** — any human or agent browsing the skill list sees scope at a glance.
-3. **Runtime precondition** — script's Step 1 refuses unless in main checkout on master.
-
-Any single layer failing is caught by the next. All three must fail simultaneously for an unauthorized invocation to land a PR.
-
-(Historically `disable-model-invocation: true` was a fourth layer. That flag was removed 2026-04-20 because the captain session IS the principal's session — DMI was blocking the captain from invoking captain-* skills. See `REFERENCE-SKILL-CONVENTIONS.md` §1.)
+(Historically `disable-model-invocation: true` was a fourth layer, removed 2026-04-20: the captain session IS the principal's session, and DMI blocked the captain from invoking captain-* skills. See `REFERENCE-SKILL-CONVENTIONS.md` §1.)
 
 ## Status
 
-`active` (v2, agency-skill-version 2 from birth — Phase 1 pilot for the-agency#296). Scripts hardened in `ccf054ad` per MAR findings (Python env-var substitution + branch-name validation). Ready for fleet-wide dogfood on next agent PRs.
+`active` — v2 local-first, per `usr/{principal}/captain/plans/plan-pr-captain-land-localfirst-20260809.md` (MAR-reviewed). Invariants pinned by `src/tests/skills/pr-captain-land-localfirst.bats`; the v1 master-hardcode guards remain in `src/tests/skills/pr-captain-land-helpers.bats`.
+
+**Rehearse before the first land of any branch.** `--rehearse` exercises steps 0-3 with zero side effects.
 
 ## Related
 
 - `/pr-submit` — agent-side companion; this skill consumes its dispatch
-- `/pr-captain-merge` — the merge primitive this skill calls at Step 8
-- `/pr-prep` — the QG-before-PR-create that signs the receipt this skill re-verifies
-- `/pr-captain-post-merge` — alternative entry for post-merge tasks (release + fleet-notify) when landing was done manually
-- `agency/tools/pr-create` — PR creation tool (receipt-aware)
-- `agency/tools/pr-merge` — safe-merge primitive (underlies `/pr-captain-merge`)
-- `agency/tools/gh-release` — release creation wrapper
-- `agency/tools/dispatch` — ISCP dispatch tool
-- `agency/tools/diff-hash` — receipt-matching hash
-- `reference.md` — full step-by-step protocol + recovery flows
-- `examples.md` — happy-path + failure-mode examples
+- `/pr-captain-merge` — the merge primitive used at Step 8
+- `/pr-prep` — the QG that signs the receipt verified at Step 2b
+- `/pr-captain-post-merge` — post-merge tasks when a landing was done manually
+- `/captain-sync-all` — the daily integration rhythm; idempotent with Step 9
+- `agency/tools/resolve-default-branch` — the shared default-branch primitive (v2)
+- `agency/tools/worktree-create --from <ref>` — how the scratch is cut (v2)
+- `agency/tools/pr-create`, `pr-merge`, `gh-release`, `dispatch`, `diff-hash`, `receipt-sign`, `receipt-verify`
+- `reference.md` — full protocol + recovery flows
+- `examples.md` — happy path, rehearsal, and failure-mode runs
 - the-agency#296 — PR lifecycle ownership design
-- the-agency#298 — skill refactor recommendation
-- the-agency#314 — upstream package MAR summary (this skill's scripts hardened there)
-- the-agency#315 — V1→V2 migration master issue
+- the-agency#393 — session-end dirty handoff (largely mooted by scratch isolation)
+- the-agency#463 — receipt churn from verifying after the bump
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

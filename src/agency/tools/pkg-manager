@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# What Problem: lockfile-sniffing to pick a JS package manager was open-coded
+# in worktree-create and was about to be open-coded again in pr-captain-land's
+# local validation gate. Two copies is how the default-branch resolver became
+# seven. Worse, a skill that names a specific package manager inline fails the
+# "skills must not hardcode a package manager" validation gate
+# (src/tests/skills/skill-validation.bats) — correctly, because a skill is
+# shipped to adopter repos that may use a different one.
+#
+# How & Why: one zero-pip primitive that ECHOES the package manager to use for
+# a directory, chosen by lockfile and confirmed to be installed. Skills call
+# this instead of naming a manager; the knowledge lives in agency/tools/ where
+# it belongs.
+#
+# Resolution order — most specific lockfile first, then the universal fallback:
+#   pnpm-lock.yaml            → pnpm
+#   yarn.lock                 → yarn
+#   bun.lockb / bun.lock      → bun
+#   package-lock.json         → npm
+#   package.json (no lock)    → npm
+#   no package.json           → (nothing, exit 1)
+#
+# A manager named by a lockfile but NOT installed is skipped rather than
+# returned — echoing a command that cannot run just moves the failure
+# somewhere less legible.
+#
+# Usage:
+#   ./agency/tools/pkg-manager              # resolve for the current directory
+#   ./agency/tools/pkg-manager -C <dir>     # resolve for <dir>
+#
+# Exit codes:
+#   0  resolved (name on stdout)
+#   1  no package.json, or no usable manager installed
+#   2  usage error
+#
+# Written: 2026-08-09 (devex) — extracted while building the local-first
+#          pr-captain-land validation gate.
+
+set -euo pipefail
+
+VERSION="1.0.0"
+DIR="."
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -C) DIR="${2:-}"; shift 2 ;;
+        --version|-v) echo "pkg-manager $VERSION"; exit 0 ;;
+        --help|-h)
+            cat <<'HELP'
+pkg-manager — echo the JS package manager to use for a directory
+
+Usage:
+  pkg-manager [-C <dir>]
+
+Echoes one of: pnpm, yarn, bun, npm. Chosen by lockfile, and only if that
+manager is actually installed. Exits 1 with no output when the directory has
+no package.json or no usable manager is present.
+HELP
+            exit 0
+            ;;
+        *) echo "pkg-manager: unknown argument: $1" >&2; exit 2 ;;
+    esac
+done
+
+if [[ ! -f "$DIR/package.json" ]]; then
+    exit 1
+fi
+
+# Echo $1 and exit 0 if it is installed; otherwise fall through.
+# The explicit `return 0` is load-bearing under `set -e`: without it a
+# not-installed probe makes the enclosing `if` compound exit non-zero, which
+# aborts the script instead of trying the next candidate — the exact
+# "lockfile names an uninstalled manager" case this function exists for.
+try() {
+    if command -v "$1" >/dev/null 2>&1; then
+        printf '%s\n' "$1"
+        exit 0
+    fi
+    return 0
+}
+
+if [[ -f "$DIR/pnpm-lock.yaml" ]]; then try pnpm; fi
+if [[ -f "$DIR/yarn.lock" ]]; then try yarn; fi
+if [[ -f "$DIR/bun.lockb" || -f "$DIR/bun.lock" ]]; then try bun; fi
+
+# package-lock.json, or no lockfile at all: npm is the universal fallback.
+try npm
+
+exit 1

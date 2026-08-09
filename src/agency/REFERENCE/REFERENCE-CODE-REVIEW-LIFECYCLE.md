@@ -12,22 +12,46 @@ These serve different purposes at different points. They do not replace each oth
 
 ### Captain PR Lifecycle
 
-The captain (coordination session on master) manages the full PR cycle:
+The captain (coordination session on the default branch, in the main checkout) owns the PR cycle end to end. The whole lifecycle is **local-first**: work is reviewed and validated locally, and GitHub is where already-validated work is published.
 
 ```
-1. /sync-all — merge worktree work into master
-2. Rebuild PR branches (reset -> squash -> stage -> commit)
-3. /captain-review --all — review all PR branches locally (runs against git diff, no GitHub PR needed)
-4. If issues found: dispatch to worktree agents via dispatch files
-5. Worktree agents fix issues -> land on master via /iteration-complete
-6. If no issues (or after fixes land): rebuild PR branches (now includes fixes + review files)
-7. Push and create draft PRs (review results visible in the diff)
-8. Human review -> convert to ready-for-review -> merge
+1. /captain-sync-all — fetch, merge origin, merge worktree work, sync worktrees (never pushes)
+2. /captain-review --all — review branches locally (runs against git diff, no GitHub PR needed)
+3. If issues found: dispatch to worktree agents; they fix and re-run /iteration-complete
+4. Agent runs /pr-prep (QG + signed QGR receipt), pushes, then /pr-submit (dispatches captain)
+5. Captain runs /pr-captain-land <branch> — see below
 ```
 
-Reviews run **locally** against `git diff origin/master...<branch>`. No GitHub PR is required. Reviews happen BEFORE PRs are created. The review results are committed to the repo and included in the PR diff.
+Reviews run **locally** against `git diff origin/<default>...<branch>`. No GitHub PR is required. Reviews happen BEFORE PRs are created. Review results are committed and appear in the PR diff.
 
-If all PRs are clean (zero issues >= 80 confidence), skip steps 4-5 and proceed directly to step 6.
+#### `/pr-captain-land` — local-first landing
+
+The landing does **not** switch the main checkout to the agent's branch, and does **not** merge into or push local `main`. Instead:
+
+```
+0-1. Fetch; verify the branch on origin and that origin/<default> is an ancestor of it
+     (stale base BLOCKS with "merge <default> + re-run /pr-prep", not a hash error)
+2.   Cut a scratch worktree  _land-<branch>  at  origin/<agent-branch>
+2b.  Verify the agent's QGR receipt against that tree — BEFORE any mutation
+3.   VALIDATE LOCALLY in the scratch (build + tests + commit-precheck). THIS IS THE GATE.
+     Failure → delete the scratch, dispatch the agent, nothing published.
+4-5. Bump agency_version in the scratch; sign a captain landing receipt chained to the
+     agent's (hash_a = agent hash_e). pr-create is not weakened.
+6.   Push the scratch branch, open the PR (_land-<branch> → default)
+7.   Wait on the AGGREGATE statusCheckRollup — every required context green. An empty
+     rollup is a distinct error, never a silent pass. No hardcoded check name.
+8.   pr-merge (true merge commit) → gh-release
+9.   Delete the scratch + land branch, dispatch the agent, clear post-merge state, and
+     reconcile local main with an idempotent merge-from-origin
+```
+
+**Rollback at any pre-publish failure is deleting the scratch worktree.** No `git reset --hard`, no merge abort, no stranded main checkout. A dirty main checkout does not block a land, because the land never touches it.
+
+`/pr-captain-land <branch> --rehearse` runs steps 0-3 only — integrate and validate with zero side effects. Rehearse before the first land of any unfamiliar branch.
+
+Only one `/pr-captain-land` at a time (they would race on the version bump). Two runs for the *same* branch are blocked mechanically by the leftover-scratch precondition.
+
+Full protocol: `.claude/skills/pr-captain-land/reference.md`.
 
 ### Code Review Dispatch
 

@@ -46,12 +46,18 @@ When `/pr-captain-post-merge` runs as part of PR land flow, it invokes `/captain
 - Steps 4-7 propagate to fleet.
 - Step 8 (handoff) is included.
 
+## Idempotence with `/pr-captain-land`
+
+`/pr-captain-land` (v2, local-first) does **not** merge the agent's branch into local master. It integrates in a scratch worktree, publishes a PR, and then reconciles local master with a plain `git-captain merge-from-origin` at its Step 9.
+
+That means running `/captain-sync-all` after a land is a **no-op with respect to the landed work** — local master has already fast-forwarded to the server merge, so there is nothing left to double-merge. The reverse order is equally safe. This is deliberate: v1's "merge into local main, then publish" design made the two flows capable of double-integrating the same commits.
+
 ## Frequency
 
 Captain runs `/captain-sync-all` at:
 
 - **Session start** — to reconcile with any overnight/external PR merges.
-- **After each PR land** (automatic via `/pr-captain-post-merge`).
+- **After each PR land** — `/pr-captain-land` already reconciles local master at its Step 9, so this is a cheap confirmation that also propagates to every worktree.
 - **Session end** — optional; ensures next session starts clean.
 - **On demand** when captain notices worktree drift (agent reports "merge conflict on session-resume").
 

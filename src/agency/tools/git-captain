@@ -33,15 +33,18 @@ fi
 
 die() { echo "${RED}[ERROR]${NC} $1" >&2; exit 1; }
 
-# Detect main branch name
+# Detect main branch name.
+#
+# Thin wrapper over the shared primitive — the resolution order (local
+# refs/heads/{main,master} → origin/HEAD → refs/remotes/origin/{main,master})
+# used to live inline here and in six other tools, each subtly different.
+# `--strict` preserves this tool's historical FAIL-CLOSED contract: git-captain
+# `die`s rather than guessing, because its callers go on to merge and push.
 detect_main_branch() {
-    if git show-ref --verify refs/heads/main &>/dev/null; then
-        echo "main"
-    elif git show-ref --verify refs/heads/master &>/dev/null; then
-        echo "master"
-    else
-        die "Cannot find main or master branch."
-    fi
+    local branch
+    branch=$("$SCRIPT_DIR/resolve-default-branch" --strict 2>/dev/null) || \
+        die "Cannot find main or master branch (checked local + origin/HEAD + origin/{main,master})."
+    echo "$branch"
 }
 
 usage() {
