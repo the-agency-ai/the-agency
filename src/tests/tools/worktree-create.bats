@@ -141,7 +141,45 @@ teardown() {
 @test "positional mode: --version shows new version" {
     run "$TOOL" --version
     [ "$status" -eq 0 ]
-    [[ "$output" == *"2.1"* ]]
+    # Pin the tool name + a 2.x line, not an exact patch level — the exact
+    # string churns on every feature bump (2.1 → 2.2 added --from).
+    [[ "$output" == *"worktree-create 2."* ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# --from <ref> — explicit start point (local-first landing cuts its scratch
+# worktree from a pristine origin ref, never from whatever HEAD happens to be)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "help: documents --from" {
+    run "$TOOL" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--from"* ]]
+}
+
+@test "--from: rejects a ref that does not resolve to a commit" {
+    run "$TOOL" _scratch-nope --from no/such/ref
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"does not resolve"* ]]
+}
+
+@test "name validation: a leading underscore is allowed (machine scratch worktrees)" {
+    # The name must survive validation; the run may still fail later for
+    # unrelated environment reasons, so assert on the validation message only.
+    run "$TOOL" _land-example --from no/such/ref
+    [[ "$output" != *"name must start with"* ]]
+}
+
+@test "name validation: a leading digit is still rejected" {
+    run "$TOOL" 9bad
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"name must start with"* ]]
+}
+
+@test "name validation: a slash in the name is still rejected" {
+    run "$TOOL" bad/name
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"name must start with"* ]]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

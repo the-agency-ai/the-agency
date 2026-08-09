@@ -26,12 +26,14 @@ This skill's unique protocol is thin — most of the behavior is in `agency/tool
 
 ## Composition with `pr-captain-land`
 
-When captain runs `/pr-captain-land`, this skill is invoked as Step 7 of the 9-step land flow. In that composition:
+When captain runs `/pr-captain-land` (v2, local-first), the merge happens at **Step 8**, after the local validation gate (Step 3) and the aggregate-CI confirmation (Step 7). In that composition:
 
-- `--principal-approved` is passed if captain initiated `/pr-captain-land` with the flag (principal authorized the full lifecycle, not just the merge)
-- Exit codes propagate to `/pr-captain-land`'s step handler — Step 8 (release) does not run if this Step 7 fails
+- The PR being merged rides a captain-created `_land-<branch>` head branch, not the agent's branch. The agent's branch is never checked out or pushed by the landing.
+- `--delete-branch` is passed so the short-lived land branch is removed on merge.
+- `--principal-approved` is passed because the principal authorized the full lifecycle, not just the merge.
+- Exit codes propagate; the release (also Step 8) does not run if the merge fails.
 
-See `pr-captain-land/references/land-protocol.md` for the full integration.
+See `.claude/skills/pr-captain-land/reference.md` for the full integration.
 
 ## Why the tool is separate from the skill
 

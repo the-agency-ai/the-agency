@@ -55,7 +55,7 @@ Organized alphabetically by name.
 | phase-complete | Run full QG after completing a phase — review, fix, test, report, commit | 2 | agent | active | QUALITY-GATE, RECEIPT-INFRASTRUCTURE |
 | plan-complete | Complete a plan — final deep QG, finalize artifacts, produce reference doc | 1 | agent | active | QUALITY-GATE, DEVELOPMENT-METHODOLOGY |
 | pr-captain-post-merge | Captain-only. Post-PR-merge flow — verify merge, sync master, /sync-all, cut release, cleanup branch | 2 | captain | active | GIT-MERGE-NOT-REBASE, WORKTREE-DISCIPLINE, SAFE-TOOLS |
-| pr-captain-land | Captain lands agent's prepared branch — PR + CI + merge + release + notify | 2 | captain | pilot | QUALITY-GATE, WORKTREE-DISCIPLINE |
+| pr-captain-land | Captain lands agent's prepared branch LOCAL-FIRST — scratch-worktree integrate + local validation gate, then PR + CI confirm + merge + release + notify | 2 | captain | active | QUALITY-GATE, WORKTREE-DISCIPLINE |
 | pr-captain-merge | Captain-only. Merge PR safely — true merge commit (never squash/rebase), --principal-approved gate | 2 | captain | active | GIT-MERGE-NOT-REBASE, SAFE-TOOLS, CODE-REVIEW-LIFECYCLE |
 | pr-prep | Run QG before creating PR — review, fix, test, report, produce QGR receipt | 1 | agent | active | QUALITY-GATE, CODE-REVIEW-LIFECYCLE |
 | pr-respond | Fetch PR review comments, compose threaded replies, resolve threads | 1 | agent | active | CODE-REVIEW-LIFECYCLE |

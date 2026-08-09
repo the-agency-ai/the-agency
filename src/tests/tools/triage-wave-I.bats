@@ -121,7 +121,14 @@ setup() {
 @test "issue #343: no skills default project=captain via legacy pattern" {
     # Negative test: no SKILL.md should contain the legacy
     # "default to captain" pattern.
-    run grep -rlE "default.*to.*captain|project=captain" "$REPO_ROOT/.claude/skills/"
+    #
+    # The pattern is anchored on the actual PHRASE. The original
+    # "default.*to.*captain" was a wildcard across the whole line and fired on
+    # any prose that happened to mention a default branch and the captain in
+    # the same sentence — e.g. pr-captain-land's "the main checkout stays on
+    # the default branch … nothing that can strand the captain". A guard that
+    # cannot be satisfied by correct prose gets deleted, not obeyed.
+    run grep -rliE "default(s|ing|ed)?[[:space:]]+to[[:space:]]+captain|project=captain" "$REPO_ROOT/.claude/skills/"
     # grep -l returns 1 when no matches — that's the pass condition.
     [ "$status" -ne 0 ]
 }

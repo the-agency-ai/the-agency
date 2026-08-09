@@ -33,14 +33,11 @@ GitHub Actions workflow `release-tag-check` runs on every push to master. If a m
 
 ## Composition with `/pr-captain-land`
 
-When captain runs `/pr-captain-land`, this skill is invoked as Step 8. In that composition:
+`/pr-captain-land` (v2, local-first) performs this skill's work inline rather than delegating: its **Step 8** merges and cuts the release, and its **Step 9** cleans up, dispatches the agent, clears post-merge state, and reconciles local main via `merge-from-origin`.
 
-- The merge (Step 7 of `/pr-captain-land`) has already happened via `/pr-captain-merge`
-- Steps 1-2 of this skill are skipped (parent skill has verified)
-- Steps 3-8 run in sequence
-- Exit code propagates; if Step 6 (release creation) fails, the full land flow fails
+Use this skill directly when a landing was done manually, or when `/pr-captain-land` failed after the merge (release creation is the usual culprit) and the post-merge tail still needs to run. It is idempotent with `/pr-captain-land`'s Step 9 and with `/captain-sync-all`.
 
-See `.claude/skills/pr-captain-land/references/land-protocol.md` for the full integration.
+See `.claude/skills/pr-captain-land/reference.md` for the full landing protocol.
 
 ## Recovery flows
 

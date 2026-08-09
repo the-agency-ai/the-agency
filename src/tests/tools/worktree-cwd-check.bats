@@ -23,7 +23,10 @@ setup() {
     git commit --quiet --no-verify -m "init"
 
     # Copy the tool
-    mkdir -p "$TEST_REPO/claude/tools"
+    # Pre-v46 this said `claude/tools` — a rename miss. Every test in the file
+    # then failed in setup with "No such file or directory", so the suite had
+    # been dark since the great rename.
+    mkdir -p "$TEST_REPO/agency/tools"
     cp "$REPO_ROOT/agency/tools/worktree-cwd-check" "$TEST_REPO/agency/tools/"
     chmod +x "$TEST_REPO/agency/tools/worktree-cwd-check"
 }

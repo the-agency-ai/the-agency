@@ -22,6 +22,12 @@ setup() {
     mkdir -p agency/tools/lib
     cp "${REPO_ROOT}/agency/tools/git-captain" agency/tools/git-captain
     chmod +x agency/tools/git-captain
+    # detect_main_branch delegates to the shared resolve-default-branch
+    # primitive, which must therefore live beside git-captain in the fixture.
+    # Without it every subcommand that resolves the default branch dies with
+    # "Cannot find main or master branch".
+    cp "${REPO_ROOT}/agency/tools/resolve-default-branch" agency/tools/resolve-default-branch
+    chmod +x agency/tools/resolve-default-branch
     cp "${REPO_ROOT}/agency/tools/lib/_log-helper" agency/tools/lib/_log-helper 2>/dev/null || true
     cp "${REPO_ROOT}/agency/tools/lib/_colors" agency/tools/lib/_colors 2>/dev/null || true
 

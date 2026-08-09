@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# What Problem: seven copies of "figure out the default branch" had drifted
+# across the tool tree (git-captain, pr-create, pr-submit, _sync-main-ref,
+# dispatch, pr-build, worktree-sync). Each encoded a slightly different
+# policy — different probe order, different fallback, different failure
+# mode. A bug fixed in one copy stayed broken in the other six, and the
+# hardcoded `origin/main` / `master` variants failed closed in exactly the
+# repos where the name differed (issue #107, issue #268, #463).
+#
+# How & Why: one zero-pip bash primitive that ECHOES the repo's default
+# branch name (bare name, no `origin/` prefix). The probe set is the UNION
+# of the three live resolvers, so no consumer loses a case it used to
+# handle — but the ORDER is the remote-authoritative one:
+#
+#   1. origin/HEAD symbolic ref         (pr-create / pr-submit first probe)
+#   2. refs/remotes/origin/main
+#   3. refs/remotes/origin/master
+#   4. local refs/heads/main            (offline fallback)
+#   5. local refs/heads/master          (offline fallback)
+#   6. fallback → "main"                (default mode only)
+#
+# Probing LOCAL branches first — git-captain's historical order — looks like
+# a harmless superset and is not. Every other consumer turns this answer
+# into a REMOTE ref (`origin/$(resolve-default-branch)`). A clone whose
+# default is `master` or `trunk` but which also carries a stale local `main`
+# would resolve to `main`, and then:
+#   - pr-create diffs against a nonexistent origin/main, sees no manifest
+#     change, and emits a false "BLOCKED: agency_version not bumped"
+#     (issue #107, reintroduced through the local-refs door);
+#   - _sync-main-ref dies on a missing refs/remotes/origin/main;
+#   - pr-captain-land blocks with a bogus "branch does not contain
+#     origin/main".
+# A local branch named `main` is not evidence that `main` is the default.
+#
+# Probes 1-3 stay correct offline: origin/HEAD and the remote-tracking refs
+# are local data, no network required. Probes 4-5 preserve git-captain's
+# issue-#268 recovery case (remote refs pruned/absent, local branch intact).
+#
+# The two policies the consumers actually differ on are preserved by a
+# flag, not by forking the logic:
+#   - default mode  — falls back to "main" and exits 0. For consumers that
+#     want a best guess (pr-submit's historical behaviour, but with the
+#     modern `main` fallback rather than `master`).
+#   - --strict      — prints NOTHING and exits 1 when nothing resolves, so
+#     fail-closed consumers (git-captain, pr-create) keep failing loud
+#     instead of silently guessing.
+#
+# Slash-bearing default branch names (e.g. `release/stable`) round-trip
+# correctly: the origin/HEAD symbolic ref is read in full-ref form and the
+# `refs/remotes/origin/` prefix is stripped with a literal prefix removal,
+# never a greedy pattern.
+#
+# Usage:
+#   ./agency/tools/resolve-default-branch                # echo name, fallback main
+#   ./agency/tools/resolve-default-branch --strict       # exit 1 if unresolved
+#   ./agency/tools/resolve-default-branch -C /path/repo  # resolve in another repo
+#
+# Exit codes:
+#   0  resolved (name on stdout)
+#   1  --strict and nothing resolved  |  not a git repository
+#   2  usage error
+#
+# Written: 2026-08-09 (devex) — plan-pr-captain-land-localfirst-20260809 v2,
+#          MAR must-fix "shared primitive = superset with --strict".
+
+set -euo pipefail
+
+VERSION="1.0.0"
+
+STRICT=false
+REPO_DIR=""
+
+usage() {
+    cat <<'HELP'
+resolve-default-branch — echo this repo's default branch name
+
+Usage:
+  resolve-default-branch [--strict] [-C <dir>]
+
+Options:
+  --strict        Exit 1 (printing nothing) when the default branch cannot
+                  be resolved, instead of falling back to "main".
+  -C <dir>        Resolve in <dir> instead of the current directory.
+  --version       Print version and exit
+  --help, -h      Show this help
+
+Resolution order (union of the historical resolvers, remote-authoritative):
+  origin/HEAD → refs/remotes/origin/main → refs/remotes/origin/master
+  → refs/heads/main → refs/heads/master → "main" (default mode only)
+
+The remote refs come first because callers turn this answer into
+"origin/<name>". Local branches are the offline fallback, not the source
+of truth.
+
+Output is the BARE branch name — no "origin/" prefix. Callers that need a
+remote ref build it themselves: BASE_REF="origin/$(resolve-default-branch)".
+HELP
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --strict) STRICT=true; shift ;;
+        -C)
+            # A bare trailing `-C` must be a usage error with a message. Left
+            # to `shift 2` it fails under `set -e` and the script dies exit 1
+            # with no output — indistinguishable from "not a git repository".
+            if [[ -z "${2:-}" ]]; then
+                echo "resolve-default-branch: -C requires a directory argument" >&2
+                exit 2
+            fi
+            REPO_DIR="$2"; shift 2
+            ;;
+        --version|-v) echo "resolve-default-branch $VERSION"; exit 0 ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "resolve-default-branch: unknown argument: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+# All probes run through this so -C is honoured uniformly. Bash 3.2: no
+# arrays-of-args needed, git -C takes an empty-safe path via the guard below.
+git_probe() {
+    if [[ -n "$REPO_DIR" ]]; then
+        git -C "$REPO_DIR" "$@"
+    else
+        git "$@"
+    fi
+}
+
+if ! git_probe rev-parse --git-dir >/dev/null 2>&1; then
+    echo "resolve-default-branch: not a git repository${REPO_DIR:+ ($REPO_DIR)}" >&2
+    exit 1
+fi
+
+BRANCH=""
+
+# 1: origin/HEAD — the remote's own answer, and the only probe that can name
+# a default branch that is neither main nor master.
+SYMREF="$(git_probe symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null || true)"
+if [[ -n "$SYMREF" ]]; then
+    # Literal prefix strip — survives slashes in the branch name.
+    BRANCH="${SYMREF#refs/remotes/origin/}"
+    # A symbolic ref that did not carry the expected prefix is not a usable
+    # branch name; fall through to the remaining probes.
+    if [[ "$BRANCH" == "$SYMREF" ]]; then
+        BRANCH=""
+    fi
+fi
+
+# 2 + 3: remote-tracking refs.
+if [[ -z "$BRANCH" ]]; then
+    if git_probe show-ref --verify --quiet refs/remotes/origin/main; then
+        BRANCH="main"
+    elif git_probe show-ref --verify --quiet refs/remotes/origin/master; then
+        BRANCH="master"
+    fi
+fi
+
+# 4 + 5: local branch refs — the offline/recovery fallback (issue #268:
+# remote refs pruned or origin never fetched, local branch still intact).
+if [[ -z "$BRANCH" ]]; then
+    if git_probe show-ref --verify --quiet refs/heads/main; then
+        BRANCH="main"
+    elif git_probe show-ref --verify --quiet refs/heads/master; then
+        BRANCH="master"
+    fi
+fi
+
+if [[ -z "$BRANCH" ]]; then
+    if [[ "$STRICT" == true ]]; then
+        echo "resolve-default-branch: cannot determine default branch." >&2
+        echo "  Checked: refs/heads/{main,master}, origin/HEAD, refs/remotes/origin/{main,master}" >&2
+        echo "  Fix: git remote set-head origin -a   # to set origin/HEAD" >&2
+        exit 1
+    fi
+    # 6: deliberate, tested fallback. `main` (not `master`) — flagged in the
+    # #463 QG as the modern, safer default.
+    BRANCH="main"
+fi
+
+printf '%s\n' "$BRANCH"

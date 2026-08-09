@@ -131,7 +131,7 @@ Exit 2.
 
 ## Integration examples
 
-### As Step 7 of `/pr-captain-land`
+### As Step 8 of `/pr-captain-land`
 
 When captain runs the full captain-owned PR lifecycle:
 
@@ -139,14 +139,18 @@ When captain runs the full captain-owned PR lifecycle:
 /pr-captain-land <agent-branch>
 ```
 
-Internally, Step 7 invokes `pr-captain-merge`:
+By the time the merge runs, the work has already passed the **local** validation gate
+(Step 3) and CI has confirmed it (Step 7). The merge is Step 8:
+
 ```
-→ CI green, merging PR #45...
-→ Merged: https://github.com/org/repo/pull/45
-→ Step 8: creating release v1.10...
+→ CI green: bash 3.2 probe,manifest version,smoke
+→ Merging PR #45 (true merge commit)...
+→ Creating release v1.10...
 ```
 
-The `--principal-approved` flag propagates from `pr-captain-land`'s caller.
+The PR head is the captain's short-lived `_land-<branch>`, so `--delete-branch` is
+passed; the agent's own branch is untouched. `--principal-approved` propagates from
+`pr-captain-land`'s caller.
 
 ### Before `/pr-captain-post-merge`
 
