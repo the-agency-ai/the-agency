@@ -95,6 +95,23 @@ if [ -z "$NAME" ]; then
   exit 1
 fi
 
+# Validate the name before it becomes a path.
+#
+# This was unvalidated, so `workstream-create 'test; rm -rf /'` cheerfully
+# created a directory literally named `test; rm -rf` under agency/workstreams/.
+# The injection-safety tests in src/tests/tools/scaffolding.bats call exactly
+# that, against the real repo — so every full test run left that directory
+# behind, and src/tests/tools/purge-pollution-guard.bats then (correctly)
+# went red about it. Same character class as worktree-create.
+if ! [[ "$NAME" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+  log_error "Invalid workstream name: '$NAME'"
+  echo ""
+  echo "Name must start with a letter and contain only letters, numbers," >&2
+  echo "hyphens, and underscores. No slashes, spaces, dots, or shell" >&2
+  echo "metacharacters — the name becomes a directory path." >&2
+  exit 1
+fi
+
 DIR="agency/workstreams/$NAME"
 TIMESTAMP=$(./agency/tools/now 2>/dev/null || date '+%Y-%m-%d %H:%M')
 

@@ -114,18 +114,31 @@ parse_repo_from_remote() {
 # empty, and the agent is told "could not compute diff hash" with no hint that
 # the ref name is the problem. That blocks /pr-submit for every agent in such
 # a repo.
+#
+# The resolution ladder itself now lives in `agency/tools/resolve-default-branch`
+# — one tested primitive instead of seven drifting copies. This function stays
+# as a THIN WRAPPER on purpose: it is part of the sourced-lib contract
+# (PR_SUBMIT_LIB_ONLY), and `pr-captain-land` calls it by name. Renaming or
+# deleting it would break that consumer silently.
+#
+# Default (non-strict) mode is deliberate here: pr-submit's historical
+# behaviour was to fall back rather than abort. The fallback is now `main`
+# rather than `master` (#463 QG finding).
 resolve_default_branch() {
-    local branch candidate
-    branch="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
-    if [[ -z "$branch" ]]; then
-        for candidate in main master; do
-            if git rev-parse --verify --quiet "origin/$candidate" >/dev/null 2>&1; then
-                branch="$candidate"
-                break
-            fi
-        done
+    local self_dir tool target branch
+    # Locate the primitive relative to THIS FILE, not to the cwd repo — the
+    # function is routinely called with the cwd inside some other repository
+    # (the helper unit tests do exactly that, and so does any adopter checkout
+    # being inspected). Resolving against cwd would look for the tool in the
+    # wrong tree and silently degrade to the fallback.
+    self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    tool="$self_dir/../../../../agency/tools/resolve-default-branch"
+    # The repo being asked about IS the cwd repo — pass it explicitly.
+    target="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    if [[ -x "$tool" ]]; then
+        branch="$("$tool" -C "$target" 2>/dev/null || true)"
     fi
-    printf '%s' "${branch:-master}"
+    printf '%s' "${branch:-main}"
 }
 
 # Sourced for tests: stop here, before any precondition touches git or the
@@ -172,6 +185,22 @@ if [[ -z "$SCOPE" ]]; then
     echo "submit-for-pr: --scope is required (one-line PR summary)" >&2
     exit 2
 fi
+
+# Validate the priority at parse time.
+#
+# It is expanded below as ${PRIORITY:+--priority "$PRIORITY"} — and the
+# expansion itself is unquoted, so the result undergoes word splitting and the
+# inner quotes are literal characters rather than grouping. A value like
+# 'high --reply-to 5' therefore injects extra flags into `dispatch create`,
+# and 'a b' arrives as two mangled words. Constrain the value instead of
+# relying on the caller.
+case "$PRIORITY" in
+    low|normal|high|urgent) ;;
+    *)
+        echo "submit-for-pr: invalid --priority '$PRIORITY' (expected low|normal|high|urgent)" >&2
+        exit 2
+        ;;
+esac
 
 # ── Precondition: not in main checkout ───────────────────────────────────────
 
@@ -291,16 +320,19 @@ $SCOPE
 
 ## Captain action requested
 
-Run /pr-captain-land on branch \`$BRANCH\`:
+Run /pr-captain-land on branch \`$BRANCH\` (local-first):
 
-1. Switch to \`$BRANCH\`
-2. Verify receipt against current state
-3. Bump \`agency_version\` in manifest (serialized — single writer)
-4. Create PR with captain-authored fleet-aware description
-5. Watch CI (\`lint-and-test\` gate)
-6. Merge when green
-7. Create GitHub release v{agency_version}
-8. Dispatch back with merge confirmation + release tag
+1. Cut a scratch worktree \`_land-$BRANCH\` at \`origin/$BRANCH\` — my branch is never checked out
+2. Verify this QGR receipt against that tree, BEFORE any mutation
+3. Validate locally in the scratch (build + tests + commit-precheck) — this is the gate
+4. Bump \`agency_version\` in the scratch (serialized — single writer)
+5. Sign a captain landing receipt chained to this one
+6. Push the scratch branch and open the PR
+7. Wait on the aggregate status check rollup, merge when green
+8. Create GitHub release v{agency_version}, dispatch back with confirmation
+
+If local validation fails, nothing is published and I get a dispatch naming the
+failing step.
 
 ## What I (agent) will NOT do
 
@@ -324,7 +356,7 @@ EOF
     --to "$ORG/$PRINCIPAL/captain" \
     --subject "Ready for PR landing: $BRANCH — $SCOPE" \
     --body "$DISPATCH_BODY" \
-    ${PRIORITY:+--priority "$PRIORITY"} >/dev/null
+    --priority "$PRIORITY" >/dev/null
 
 echo "submit-for-pr: submitted"
 echo "  branch:   $BRANCH"
