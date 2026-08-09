@@ -3,7 +3,7 @@ name: pr-captain-land
 description: Captain-only. Land an agent's prepared branch LOCAL-FIRST — integrate and validate in a scratch worktree cut from origin/<default>, then bump agency_version, sign a landing receipt, open the PR, confirm CI, merge, release, notify. The single-writer serialization point for agency_version and PR creation. Companion to /pr-submit. The `captain-` qualifier in the name signals scope at a glance (complements `paths: []` scoping and the Step-0 runtime precondition).
 agency-skill-version: 2
 when_to_use: Captain on master in main checkout, after a /pr-submit dispatch from an agent. NEVER from a worktree. Intended for explicit captain invocation — the Step-0 runtime precondition refuses from wrong context.
-argument-hint: "<agent-branch> [--rehearse] [--dry-run] [--title \"...\"] [--agent <name>] [--no-release]"
+argument-hint: "<agent-branch> [--rehearse] [--dry-run] [--title \"...\"] [--agent <name>] [--no-release] [--principal-approved] [--allow-unvalidated]"
 paths: []
 required_reading:
   - agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md
@@ -86,23 +86,28 @@ Before running, Read the files listed in `required_reading:` frontmatter.
 - `--title`: override the PR title (defaults to the branch name).
 - `--agent`: who to dispatch (defaults to the branch-name prefix).
 - `--no-release`: skip the GitHub release after merge (rare).
+- `--principal-approved`: forward `--admin` to `pr-merge`, bypassing branch protection. **Pass only when the principal actually said so.** Without it the merge defers to GitHub's own gates. It is also recorded in the landing receipt's `hash_d_source`.
+- `--allow-unvalidated`: land even when no local validation command resolves. Without it that case **aborts** (see Step 3). Recorded verbatim in the receipt.
 
 Environment:
 
-- `PR_LAND_VALIDATE_CMD` — override the local validation command wholesale, for repos whose gate is not "package script + `commit-precheck`".
+- `PR_LAND_VALIDATE_CMD` — replace the local validation ladder wholesale, for repos whose gate is not a package build/test script. Run with `bash -c` inside the scratch worktree.
 
 ## Preconditions
 
 Enforced before any mutation; failure exits non-zero with no state change.
 
 1. Running in the **main checkout** (first entry of `git worktree list`).
-2. Current branch is the resolved default branch.
-3. No leftover scratch worktree named `_land-<branch>` (a previous land crashed — inspect, then `worktree-delete`).
-4. `<agent-branch>` exists on origin.
-5. `<agent-branch>` passes safe-name validation: `^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`, no `..`, no leading `-`.
-6. `origin/<default>` is an **ancestor** of `origin/<agent-branch>` — the base is current.
+2. No leftover scratch worktree **or branch** named `_land-<branch>` (a previous land crashed — inspect, then `worktree-delete` + `git-captain branch-delete`).
+3. No pending post-merge state (C#372 Fix B) — a prior merge whose release was never cut must be finished first.
+4. `git-captain fetch` succeeds. **This is fatal, not best-effort**: every guarantee below assumes origin refs are current.
+5. `<agent-branch>` exists on origin.
+6. `<agent-branch>` passes safe-name validation: `^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`, no `..`, no leading `-`.
+7. `origin/<default>` is an **ancestor** of `origin/<agent-branch>` — the base is current.
 
-**A dirty main checkout no longer blocks a land (#393).** The landing never touches local main, so uncommitted captain work is irrelevant. The script notes it and continues.
+**A dirty main checkout no longer blocks a land (#393).** The landing never touches local main, so uncommitted captain work is irrelevant. The script notes it and continues. (One caveat: the Step-9 reconcile is a `merge-from-origin`, which does require a clean tree — a dirty checkout means that last step is skipped with a note, and `/captain-sync-all` picks it up later.)
+
+**Which branch the main checkout is on is also not load-bearing** — that was v1 coupling. The script notes it and continues.
 
 ## Flow / Steps
 
@@ -110,7 +115,7 @@ Script: `scripts/pr-captain-land`.
 
 ### Step 0 — Preflight
 
-Main-checkout + branch checks, no-leftover-scratch check, `git-captain fetch`, and the default branch resolved via the shared `agency/tools/resolve-default-branch` primitive. **Local main is not read or written.**
+Main-checkout check, leftover-scratch check (directory **and** branch), pending-post-merge check, and a **fatal** `git-captain fetch`. The default branch is resolved via the shared `agency/tools/resolve-default-branch` primitive, which probes `origin/HEAD` first — a stale local `main` must never outvote the remote's own answer, because every consumer turns the result into `origin/<name>`. **Local main is not read or written.**
 
 ### Step 1 — Verify the branch and its base
 
@@ -138,10 +143,14 @@ Failure → delete the scratch, tell the agent to re-run `/pr-prep`.
 
 ### Step 3 — VALIDATE LOCALLY. This is the gate.
 
-In the scratch, in order: build script, widest declared test script (`bats:all`, else `test`), then `commit-precheck`. `PR_LAND_VALIDATE_CMD` replaces all of it.
+In the scratch, in order: build script, then the widest declared test script (`bats:all`, else `test`). The package manager comes from `agency/tools/pkg-manager`. `PR_LAND_VALIDATE_CMD` replaces all of it.
+
+Each step runs with the captain's credentials scrubbed from the environment (`GH_TOKEN`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK`, …). The command comes from the branch under review and its output is tailed to stderr on failure, so a `build` script of `gh auth token` must not be able to put the PAT into the transcript. This is defence in depth, not a sandbox — validating a branch locally means running its code.
 
 - **Failure → delete the scratch, dispatch the agent naming the failing step, exit 1.** Nothing was published.
-- **No resolvable validation command → loud WARNING**, recorded in the landing receipt summary. It is never a silent pass.
+- **No resolvable validation command → ABORT.** A landing with no local gate is the old PR-first flow with extra steps, and it would sign a five-hash receipt attesting to a gate that never ran. Override with `--allow-unvalidated`, which is recorded in the receipt.
+
+`commit-precheck` is deliberately **not** in this ladder: it gates on staged files and the scratch tree is clean here, so it would exit 0 having inspected nothing while still counting as a step. It runs where it means something — `git-safe-commit` invokes it on the Step-4 and Step-5 commits.
 
 `--rehearse` / `--dry-run` stop here and delete the scratch.
 
@@ -160,7 +169,7 @@ Read `agency/config/manifest.json`, bump minor, refresh `updated_at`, commit via
 | A | the agent receipt's `hash_e` (what was reviewed) |
 | B | hash of the local validation log |
 | C | B — nothing to triage, validation was green |
-| D | C — auto-approved, no principal 1B1 |
+| D | C. `hash_d_source` records the truth: `auto-approved — no principal 1B1`, or the `--principal-approved` attestation when that flag was passed |
 | E | diff hash of the bumped tree vs `origin/<default>` |
 
 Written to `agency/workstreams/agency/qgr/` with boundary `pr-captain-land`, then committed. Receipts are excluded from `diff-hash`, so committing one does not invalidate the hash it carries.
@@ -173,25 +182,30 @@ Push `_land-<branch>` from the scratch, then `pr-create --base <default>`. The l
 
 ### Step 7 — CI confirmation on the aggregate rollup
 
-Poll `gh pr view <num> --json statusCheckRollup` every 20s, up to 15 minutes. Where branch protection exposes a required-contexts list, narrow to it; otherwise gate on every check in the rollup.
+Poll `gh pr view <num> --json statusCheckRollup` every 20s, up to 15 minutes. Classification is `agency/tools/ci-rollup-verdict` — a pure function of (rollup, required contexts), table-tested in `src/tests/tools/ci-rollup-verdict.bats`.
 
 | Rollup state | Action |
 |---|---|
-| every check terminal and SUCCESS / NEUTRAL / SKIPPED | proceed |
+| every gated check terminal and SUCCESS / NEUTRAL / SKIPPED | proceed |
 | any terminal failure (FAILURE, ERROR, TIMED_OUT, CANCELLED, …) | exit 1, fail fast, name the checks |
-| any check still pending | wait 20s, poll again |
-| **rollup empty** | exit 1 with a **distinct** error — "no checks configured" must never look like "all green" |
+| any gated check still pending | wait 20s, poll again |
+| a **required** context that has not reported at all | PENDING — 1-of-3 required checks green must not read as green |
+| **rollup empty**, past a 3-minute grace window | exit 1 with a **distinct** error — "no checks configured" must never look like "all green" |
+
+The grace window matters: GitHub has usually registered no check runs in the first seconds after a PR opens, so treating an empty rollup as immediately fatal would abort nearly every real land.
 
 v1 hardcoded a check named `lint-and-test` that does not exist in this repo, so the loop could only ever time out. The gate is now name-agnostic, and a regression test asserts that literal never returns.
 
 ### Step 8 — Merge + release
 
 ```
-./agency/tools/pr-merge <num> --principal-approved --delete-branch
+./agency/tools/pr-merge <num> [--principal-approved] --delete-branch
 ./agency/tools/gh-release create v<new> --target <default> ...
 ```
 
-True merge commit — never squash, never rebase.
+True merge commit — never squash, never rebase. `--principal-approved` is forwarded **only** when the captain passed it; by default the merge defers to branch protection. Both the merge and the release capture their output and print it on failure.
+
+If no release was cut (`--no-release`, or `gh-release` failed), the pending post-merge state is deliberately **left set** — that guard exists precisely for "merged but release not cut".
 
 ### Step 9 — Cleanup, notify, reconcile
 
@@ -204,7 +218,11 @@ The reconciliation is a **separate, idempotent** step on purpose: it is the same
 | Where | What happens |
 |---|---|
 | Preflight (0) | Exit 1, zero mutation. |
-| Leftover scratch (0) | Exit 1 naming the path and the `worktree-delete` fix. Never auto-deletes someone else's in-flight land. |
+| Fetch fails (0) | Exit 1. Stale origin refs would make every downstream check meaningless. |
+| Pending post-merge (0) | Exit 1. Finish the prior release with `/pr-captain-post-merge` first. |
+| Leftover scratch or land branch (0) | Exit 1 naming the path and the cleanup commands. Never auto-deletes someone else's in-flight land — cleanup only touches a scratch this run created. |
+| No local gate resolves (3) | **Abort**, unless `--allow-unvalidated`. |
+| Any `set -e` abort before publish | An EXIT trap deletes the scratch, so an unhandled error cannot strand it and wedge the next land. |
 | Stale base (1) | BLOCK naming the real cause; agent merges default + re-preps. |
 | Receipt missing/invalid (2b) | Scratch deleted; agent re-runs `/pr-prep`. |
 | Local validation fails (3) | Scratch deleted, agent dispatched with the failing step. **Nothing published.** |
@@ -248,6 +266,9 @@ The reconciliation is a **separate, idempotent** step on purpose: it is the same
 - `/pr-captain-post-merge` — post-merge tasks when a landing was done manually
 - `/captain-sync-all` — the daily integration rhythm; idempotent with Step 9
 - `agency/tools/resolve-default-branch` — the shared default-branch primitive (v2)
+- `agency/tools/pkg-manager` — resolves the package manager for the validation ladder (v2)
+- `agency/tools/ci-rollup-verdict` — the CI gate's classification, extracted and table-tested (v2)
+- `agency/tools/agency-version-next` — the `agency_version` bump policy (v2)
 - `agency/tools/worktree-create --from <ref>` — how the scratch is cut (v2)
 - `agency/tools/pr-create`, `pr-merge`, `gh-release`, `dispatch`, `diff-hash`, `receipt-sign`, `receipt-verify`
 - `reference.md` — full protocol + recovery flows

@@ -186,6 +186,22 @@ if [[ -z "$SCOPE" ]]; then
     exit 2
 fi
 
+# Validate the priority at parse time.
+#
+# It is expanded below as ${PRIORITY:+--priority "$PRIORITY"} — and the
+# expansion itself is unquoted, so the result undergoes word splitting and the
+# inner quotes are literal characters rather than grouping. A value like
+# 'high --reply-to 5' therefore injects extra flags into `dispatch create`,
+# and 'a b' arrives as two mangled words. Constrain the value instead of
+# relying on the caller.
+case "$PRIORITY" in
+    low|normal|high|urgent) ;;
+    *)
+        echo "submit-for-pr: invalid --priority '$PRIORITY' (expected low|normal|high|urgent)" >&2
+        exit 2
+        ;;
+esac
+
 # ── Precondition: not in main checkout ───────────────────────────────────────
 
 MAIN_CHECKOUT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
@@ -340,7 +356,7 @@ EOF
     --to "$ORG/$PRINCIPAL/captain" \
     --subject "Ready for PR landing: $BRANCH — $SCOPE" \
     --body "$DISPATCH_BODY" \
-    ${PRIORITY:+--priority "$PRIORITY"} >/dev/null
+    --priority "$PRIORITY" >/dev/null
 
 echo "submit-for-pr: submitted"
 echo "  branch:   $BRANCH"

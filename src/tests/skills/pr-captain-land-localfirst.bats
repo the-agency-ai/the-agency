@@ -53,7 +53,11 @@ live_code() {
     # The old flow ran `git-captain switch-branch $AGENT_BRANCH`, which fails
     # outright when the agent still has that branch checked out in its own
     # worktree — and left the captain stranded there on any mid-flight abort.
-    run bash -c "$(declare -f live_code); LAND='$LAND'; live_code | grep -n 'switch-branch'"
+    #
+    # The pattern covers every way to move HEAD, not just the one tool the v1
+    # code happened to use: a guard that only knows `switch-branch` passes
+    # happily the day someone reaches for `git checkout` instead.
+    run bash -c "$(declare -f live_code); LAND='$LAND'; live_code | grep -nE 'switch-branch|checkout-branch|git(-safe)? +(checkout|switch)'"
     [ "$status" -ne 0 ]
 }
 
@@ -109,7 +113,7 @@ live_code() {
     # again from /captain-sync-all. Any other mutation of local main would
     # reintroduce the data-loss hazard the scratch worktree exists to avoid.
     live_code | grep -q 'merge-from-origin'
-    run bash -c "$(declare -f live_code); LAND='$LAND'; live_code | grep -nE 'update-ref|_sync-main-ref'"
+    run bash -c "$(declare -f live_code); LAND='$LAND'; live_code | grep -nE 'update-ref|_sync-main-ref|branch +-f|sync-main'"
     [ "$status" -ne 0 ]
 }
 
@@ -120,7 +124,10 @@ live_code() {
 @test "pr-captain-land v2: a local validation gate exists" {
     live_code | grep -q 'run_validation_step()'
     live_code | grep -q 'VALIDATION_FAILED'
-    live_code | grep -q 'commit-precheck'
+    live_code | grep -q 'VALIDATION_STEPS'
+    # The ladder resolves a package manager through the shared primitive
+    # rather than naming one inline.
+    live_code | grep -q 'pkg-manager'
 }
 
 @test "pr-captain-land v2: validation failure aborts before anything is published" {
@@ -133,12 +140,45 @@ live_code() {
     [ "$fail_line" -lt "$push_line" ]
 }
 
-@test "pr-captain-land v2: run_validation_step returns the command's status, not the echo's" {
-    # A brace group ending in `echo` swallows the failure and the gate can
-    # never fail. Assert the explicit capture is present.
+@test "pr-captain-land v2: run_validation_step actually returns the command's status" {
+    # A real unit test, not a grep: the function is self-contained (its only
+    # dependency is $VALIDATION_LOG), so extract and run it. A brace group
+    # ending in `echo` would swallow the failure and the gate could never
+    # fail — and a source-grep for the fix cannot tell you the fix works.
+    run bash -c "
+        set -uo pipefail
+        VALIDATION_LOG='$BATS_TEST_TMPDIR/vlog'
+        eval \"\$(sed -n '/^run_validation_step()/,/^}/p' '$LAND')\"
+        run_validation_step failing false >/dev/null 2>&1 && echo 'BUG: false reported success'
+        run_validation_step passing true  >/dev/null 2>&1 || echo 'BUG: true reported failure'
+        echo OK
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" != *BUG* ]]
+    [[ "$output" == *OK* ]]
+}
+
+@test "pr-captain-land v2: run_validation_step records both label and exit code in the log" {
+    # The log's SHA-256 becomes hash_b of the landing receipt, so it has to
+    # actually contain what ran and how it went.
+    run bash -c "
+        set -uo pipefail
+        VALIDATION_LOG='$BATS_TEST_TMPDIR/vlog2'
+        eval \"\$(sed -n '/^run_validation_step()/,/^}/p' '$LAND')\"
+        run_validation_step 'my-step' sh -c 'exit 3' >/dev/null 2>&1 || true
+        cat \"\$VALIDATION_LOG\"
+    "
+    [[ "$output" == *"my-step"* ]]
+    [[ "$output" == *"exit: 3"* ]]
+}
+
+@test "pr-captain-land v2: validation runs with the captain's credentials scrubbed" {
+    # The command comes from the branch under review and its output is tailed
+    # to stderr on failure. A `build` script of `gh auth token` must not be
+    # able to put the captain's PAT into the transcript.
     body="$(sed -n '/^run_validation_step()/,/^}/p' "$LAND")"
-    [[ "$body" == *'|| st=$?'* ]]
-    [[ "$body" == *'return "$st"'* ]]
+    [[ "$body" == *"-u GH_TOKEN"* ]]
+    [[ "$body" == *"-u GITHUB_TOKEN"* ]]
 }
 
 @test "pr-captain-land v2: the CI gate is NOT hardcoded to lint-and-test" {
@@ -163,6 +203,110 @@ live_code() {
     live_code | grep -q 'FAILED\*)'
 }
 
+@test "pr-captain-land v2: a repo with no resolvable local gate FAILS CLOSED" {
+    # A landing with no local validation is the old PR-first flow with extra
+    # steps — and it would sign a five-hash receipt attesting to a gate that
+    # never ran. It must abort unless the captain explicitly opts out.
+    live_code | grep -q 'ALLOW_UNVALIDATED'
+    run bash -c "sed -n '/VALIDATION_STEPS.*-eq 0/,/^fi$/p' '$LAND' | grep -q abort_land"
+    [ "$status" -eq 0 ]
+}
+
+@test "pr-captain-land v2: commit-precheck is not counted as a validation step" {
+    # It gates on STAGED files and the scratch tree is clean, so it exits 0
+    # having inspected nothing. Counting it suppressed the fail-closed check
+    # above and inflated the receipt summary.
+    run bash -c "$(declare -f live_code); LAND='$LAND'; live_code | grep -n 'commit-precheck'"
+    [ "$status" -ne 0 ]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Trust boundary — the branch under review must not supply its own verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "pr-captain-land v2: no tool is executed from the scratch worktree" {
+    # A branch that ships its own receipt-verify (or diff-hash, or pr-create)
+    # would otherwise pass its own gate, and the "pr-create is not weakened"
+    # guarantee would be unenforceable.
+    run bash -c "$(declare -f live_code); LAND='$LAND'; live_code | grep -n 'SCRATCH_DIR/agency/tools'"
+    [ "$status" -ne 0 ]
+}
+
+@test "pr-captain-land v2: tools resolve from the captain's checkout" {
+    live_code | grep -q 'TOOLS="\$REPO_ROOT/agency/tools"'
+    live_code | grep -q 'TOOLS/receipt-verify'
+    live_code | grep -q 'TOOLS/pr-create'
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cleanup is unconditional, and branch protection is not bypassed by default
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "pr-captain-land v2: an EXIT trap cleans up, so a set -e abort cannot strand the scratch" {
+    live_code | grep -qE 'trap .*EXIT'
+    live_code | grep -q 'PUBLISHED=false'
+    live_code | grep -q 'PUBLISHED=true'
+}
+
+@test "pr-captain-land v2: cleanup only touches a scratch THIS run created" {
+    # Step 2 most often fails because a previous run's branch survives. Force-
+    # deleting it on the way out would destroy the state step 0 just told the
+    # captain to inspect.
+    live_code | grep -q 'SCRATCH_IS_OURS'
+    run bash -c "sed -n '/^destroy_scratch()/,/^}/p' '$LAND' | grep -q 'SCRATCH_IS_OURS'"
+    [ "$status" -eq 0 ]
+}
+
+@test "pr-captain-land v2: step 0 refuses a leftover land BRANCH, not just a leftover directory" {
+    live_code | grep -q 'refs/heads/\$LAND_SLUG'
+}
+
+@test "pr-captain-land v2: --principal-approved is a flag, never hardcoded on pr-merge" {
+    # pr-merge treats it as the captain's attestation that the principal
+    # approved, and it is the only route to `gh pr merge --admin`. Asserting
+    # it unconditionally makes branch-protection bypass the default.
+    live_code | grep -q 'PRINCIPAL_APPROVED'
+    run bash -c "$(declare -f live_code); LAND='$LAND'; live_code | grep -nE 'pr-merge.*--principal-approved'"
+    [ "$status" -ne 0 ]
+}
+
+@test "pr-captain-land v2: the preflight fetch failure is fatal, not swallowed" {
+    # Every downstream guarantee — base freshness, the receipt's diff_base,
+    # "validated against pristine origin/<default>" — assumes origin refs are
+    # current. `|| true` there means an offline captain validates stale refs
+    # and still publishes.
+    #
+    # Scoped to the preflight: the post-merge fetch in step 8 is legitimately
+    # best-effort, since the merge already happened.
+    live_code | grep -q 'could not fetch origin'
+    fetch_line="$(grep -n 'could not fetch origin' "$LAND" | head -1 | cut -d: -f1)"
+    step1_line="$(grep -n 'Step 1 — Verify the agent branch' "$LAND" | head -1 | cut -d: -f1)"
+    [ -n "$fetch_line" ]
+    [ "$fetch_line" -lt "$step1_line" ]
+}
+
+@test "pr-captain-land v2: the scratch slug collapses dots as well as slashes" {
+    # worktree-create rejects dots; the branch-name gate permits them. Slugging
+    # only slashes made every dotted branch (v1.2, 46.20) unlandable.
+    live_code | grep -q "LAND_SLUG=.*tr '/\.' '--'"
+    # And the slug-only-slashes form must not come back.
+    run grep -c "LAND_SLUG=.*tr '/' '-'" "$LAND"
+    [ "$status" -ne 0 ]
+}
+
+@test "pr-captain-land v2: mktemp uses a portable template" {
+    # `mktemp -t <prefix>` is a BSD-ism; GNU coreutils needs XXXXXX.
+    run bash -c "$(declare -f live_code); LAND='$LAND'; live_code | grep -nE 'mktemp -t'"
+    [ "$status" -ne 0 ]
+    live_code | grep -q 'XXXXXX'
+}
+
+@test "pr-captain-land v2: post-merge state is not cleared when no release was cut" {
+    live_code | grep -q 'RELEASE_CUT'
+    run bash -c "sed -n '/RELEASE_CUT.*==.*true/,/^fi$/p' '$LAND' | grep -q 'post-merge-state\" clear'"
+    [ "$status" -eq 0 ]
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Receipt integrity — verify BEFORE the bump (#463 trap), and sign a landing
 # receipt rather than weakening pr-create
@@ -184,7 +328,7 @@ live_code() {
 }
 
 @test "pr-captain-land v2: pr-create is still the publish gate (not bypassed)" {
-    live_code | grep -q 'agency/tools/pr-create'
+    live_code | grep -q 'TOOLS/pr-create'
     run bash -c "$(declare -f live_code); LAND='$LAND'; live_code | grep -n 'gh pr create'"
     [ "$status" -ne 0 ]
 }
@@ -231,13 +375,18 @@ live_code() {
     [ "$status" -eq 2 ]
 }
 
-@test "pr-captain-land v2: refuses to run from a worktree" {
-    # This suite runs inside a worktree during development; when it runs from
-    # the main checkout the branch precondition catches it instead. Either way
-    # the tool must refuse a bare invocation rather than start a land.
-    run bash "$LAND" definitely-not-a-real-branch --rehearse
+@test "pr-captain-land v2: refuses to run outside the repo it belongs to" {
+    # Hermetic: cwd is a throwaway repo, so the refusal is structural rather
+    # than incidental to wherever the suite happens to run. Previously this
+    # test reached `git-captain fetch` against the REAL origin — a network
+    # call and a mutation of real refs from a unit suite.
+    tmp="$BATS_TEST_TMPDIR/elsewhere"
+    mkdir -p "$tmp"
+    git init --quiet "$tmp"
+    run bash -c "cd '$tmp' && bash '$LAND' some-branch --rehearse"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"main checkout"* ]] || [[ "$output" == *"not found on origin"* ]] || [[ "$output" == *"must be on"* ]]
+    # Whichever guard fires first, it must be a refusal — never a started land.
+    [[ "$output" != *"Creating scratch worktree"* ]]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

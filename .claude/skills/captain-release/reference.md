@@ -22,12 +22,16 @@ The bump happens AFTER the PR is created (Step 6) so the PR's diff shows the act
 |---|---|---|
 | Branch origin | captain creates the work on a captain-* branch | agent creates work on agent branch, submits via /pr-submit |
 | QG responsibility | captain runs /pr-prep before /captain-release | agent runs /pr-prep before /pr-submit |
-| Version bump | captain does it in this skill's Step 6 | captain does it in /pr-captain-land's Step 4 |
+| Validation gate | captain runs /pr-prep on the captain-* branch | **local**, in a scratch worktree, at /pr-captain-land Step 3 |
+| Version bump | captain does it in this skill's Step 6 | captain does it in /pr-captain-land's Step 4, **inside the scratch worktree** |
+| PR head branch | the captain-* branch itself | a short-lived `_land-<branch>`; the agent's branch is never checked out or modified |
 | PR creation | captain-authored description (this skill) | captain-authored description wrapping agent's scope |
-| Merge | separate subsequent `/pr-captain-merge` invocation | included as Step 7 of /pr-captain-land |
-| Release creation | separate subsequent `/pr-captain-post-merge` | included as Step 8 of /pr-captain-land |
+| Merge | separate subsequent `/pr-captain-merge` invocation | included as Step 8 of /pr-captain-land |
+| Release creation | separate subsequent `/pr-captain-post-merge` | included as Step 8 of /pr-captain-land; cleanup + reconcile are Step 9 |
 
 Rule of thumb: use `/captain-release` for captain-authored work. Use `/pr-captain-land` when captain is landing an agent's prepared branch.
+
+**Note on the version bump race.** Both skills bump `agency_version`, and neither takes a lock. `/pr-captain-land` v2 does its bump in an isolated scratch worktree cut from `origin/<default>`, so it cannot collide with a dirty captain-* checkout — but two bumps derived from the same base still produce the same next version. Do not run a `/captain-release` and a `/pr-captain-land` concurrently.
 
 ## Recovery flows
 

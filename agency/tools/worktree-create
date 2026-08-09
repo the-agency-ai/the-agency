@@ -80,8 +80,11 @@ Options:
   --branch <name>   Branch name (default: same as worktree name)
   --from <ref>      Start point for a NEW branch (default: current HEAD).
                     Accepts any committish, including a remote-tracking ref
-                    such as origin/main or origin/some-agent-branch. Ignored
-                    when --branch names an existing local branch.
+                    such as origin/main or origin/some-agent-branch. It is an
+                    ERROR to pass --from when the branch already exists — the
+                    branch has a tip already, and silently ignoring the flag
+                    would put the worktree somewhere the caller did not ask
+                    for.
   --compute-only    Print the computed name and exit (no worktree creation)
   --version         Show version
   --help            Show this help

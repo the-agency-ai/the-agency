@@ -8,21 +8,24 @@
 # shipped to adopter repos that may use a different one.
 #
 # How & Why: one zero-pip primitive that ECHOES the package manager to use for
-# a directory, chosen by lockfile and confirmed to be installed. Skills call
-# this instead of naming a manager; the knowledge lives in agency/tools/ where
-# it belongs.
+# a directory. Skills call this instead of naming a manager; the knowledge
+# lives in agency/tools/ where it belongs.
 #
-# Resolution order — most specific lockfile first, then the universal fallback:
-#   pnpm-lock.yaml            → pnpm
-#   yarn.lock                 → yarn
-#   bun.lockb / bun.lock      → bun
-#   package-lock.json         → npm
-#   package.json (no lock)    → npm
-#   no package.json           → (nothing, exit 1)
+# Resolution order — the repo's own declaration first, then lockfiles, then
+# the universal fallback:
+#   packageManager: "pnpm@9..."  → that manager   (the npm-standard field)
+#   pnpm-lock.yaml               → pnpm
+#   yarn.lock                    → yarn
+#   bun.lockb / bun.lock         → bun
+#   package-lock.json            → npm
+#   package.json, nothing else   → npm            (universal fallback)
+#   no package.json              → nothing, exit 1
 #
-# A manager named by a lockfile but NOT installed is skipped rather than
-# returned — echoing a command that cannot run just moves the failure
-# somewhere less legible.
+# When the repo NAMES a manager (field or lockfile) and it is not installed,
+# this FAILS (exit 1) rather than quietly substituting npm. Running `npm run
+# build` against a pnpm workspace does not do what the caller asked; it
+# produces a confusing failure attributed to the wrong thing. The npm fallback
+# applies only where the repo expressed no preference.
 #
 # Usage:
 #   ./agency/tools/pkg-manager              # resolve for the current directory
@@ -30,7 +33,7 @@
 #
 # Exit codes:
 #   0  resolved (name on stdout)
-#   1  no package.json, or no usable manager installed
+#   1  no package.json, or the named manager is not installed
 #   2  usage error
 #
 # Written: 2026-08-09 (devex) — extracted while building the local-first
@@ -38,12 +41,20 @@
 
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 DIR="."
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -C) DIR="${2:-}"; shift 2 ;;
+        -C)
+            # A bare trailing `-C` must be a usage error with a message. Left
+            # to `shift 2` it fails under `set -e` and the tool dies exit 1
+            # with no output — indistinguishable from "no package.json".
+            if [[ -z "${2:-}" ]]; then
+                echo "pkg-manager: -C requires a directory argument" >&2
+                exit 2
+            fi
+            DIR="$2"; shift 2 ;;
         --version|-v) echo "pkg-manager $VERSION"; exit 0 ;;
         --help|-h)
             cat <<'HELP'
@@ -52,9 +63,12 @@ pkg-manager — echo the JS package manager to use for a directory
 Usage:
   pkg-manager [-C <dir>]
 
-Echoes one of: pnpm, yarn, bun, npm. Chosen by lockfile, and only if that
-manager is actually installed. Exits 1 with no output when the directory has
-no package.json or no usable manager is present.
+Echoes one of: pnpm, yarn, bun, npm. Chosen from package.json's
+"packageManager" field, else the lockfile, else npm.
+
+Exit 1 with no output when the directory has no package.json, or when the
+repo names a manager that is not installed — substituting npm for a declared
+pnpm/yarn/bun workspace would run the wrong tool and blame the wrong thing.
 HELP
             exit 0
             ;;
@@ -66,24 +80,46 @@ if [[ ! -f "$DIR/package.json" ]]; then
     exit 1
 fi
 
-# Echo $1 and exit 0 if it is installed; otherwise fall through.
-# The explicit `return 0` is load-bearing under `set -e`: without it a
-# not-installed probe makes the enclosing `if` compound exit non-zero, which
-# aborts the script instead of trying the next candidate — the exact
-# "lockfile names an uninstalled manager" case this function exists for.
-try() {
+# require <manager> — the repo asked for this one. Echo it or fail loudly.
+require() {
     if command -v "$1" >/dev/null 2>&1; then
         printf '%s\n' "$1"
         exit 0
     fi
-    return 0
+    echo "pkg-manager: this project declares '$1' but it is not installed." >&2
+    echo "  Install it, or the caller's build/test step will run the wrong tool." >&2
+    exit 1
 }
 
-if [[ -f "$DIR/pnpm-lock.yaml" ]]; then try pnpm; fi
-if [[ -f "$DIR/yarn.lock" ]]; then try yarn; fi
-if [[ -f "$DIR/bun.lockb" || -f "$DIR/bun.lock" ]]; then try bun; fi
+# 1: the npm-standard `packageManager` field — an explicit declaration beats
+# lockfile archaeology, and monorepos often carry it with no lockfile checked
+# in (this repo is one).
+DECLARED="$(DIR="$DIR" python3 -c '
+import json, os, sys
+try:
+    p = json.load(open(os.path.join(os.environ["DIR"], "package.json")))
+except Exception:
+    sys.exit(0)
+value = p.get("packageManager")
+if isinstance(value, str) and value:
+    print(value.split("@", 1)[0].strip())
+' 2>/dev/null || true)"
 
-# package-lock.json, or no lockfile at all: npm is the universal fallback.
-try npm
+case "$DECLARED" in
+    pnpm|yarn|bun|npm) require "$DECLARED" ;;
+esac
 
+# 2: lockfiles, most specific first.
+[[ -f "$DIR/pnpm-lock.yaml" ]] && require pnpm
+[[ -f "$DIR/yarn.lock" ]] && require yarn
+{ [[ -f "$DIR/bun.lockb" ]] || [[ -f "$DIR/bun.lock" ]]; } && require bun
+[[ -f "$DIR/package-lock.json" ]] && require npm
+
+# 3: no declaration, no lockfile — npm is the universal fallback.
+if command -v npm >/dev/null 2>&1; then
+    printf '%s\n' npm
+    exit 0
+fi
+
+echo "pkg-manager: no package manager installed (npm not found)" >&2
 exit 1

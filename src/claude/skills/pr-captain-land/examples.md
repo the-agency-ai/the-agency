@@ -40,7 +40,7 @@ pr-captain-land: rehearsal complete — integrated + validated, nothing publishe
     PR title:    jordan-devex-d12-r3
     Head branch: _land-jordan-devex-d12-r3 (pushed from the scratch worktree)
     Base branch: main
-    Agent to notify: jordan
+    Agent to notify: devex
     Release:     yes, v<bumped version>
 ```
 
@@ -102,8 +102,14 @@ The dispatch target defaults to the branch-name prefix, which is a guess. Overri
 /pr-captain-land fix/pr-submit-org-resolution --agent devex
 ```
 
-(That branch would land via scratch worktree `_land-fix-pr-submit-org-resolution` —
-slashes collapse to dashes.)
+The default is the branch-name prefix, checked against the agent registry. For
+`fix/pr-submit-org-resolution` that guess is `fix`, which is not a registered
+agent — the script says so and routes to captain instead. Pass `--agent` and
+the author actually hears that their work landed.
+
+(That branch lands via scratch worktree `_land-fix-pr-submit-org-resolution` —
+slashes *and dots* collapse to dashes, so `captain-grm-v1.2` becomes
+`_land-captain-grm-v1-2`.)
 
 ### Land without cutting a release
 
@@ -202,21 +208,65 @@ pr-captain-land: no status checks found on PR #470.
 
 An empty rollup is never treated as green.
 
-### No local validation command resolved
+### No local validation command resolved — this ABORTS
 
 ```
-WARNING: no local validation command resolved for this repo.
-  Set PR_LAND_VALIDATE_CMD, or declare a build/test script.
-  Landing continues, but local-first validation did NOT happen.
-```
+pr-captain-land: no local validation command resolved for this repo — refusing to land.
+  The local gate is the whole point of this flow; signing a landing receipt
+  for a validation that did not happen would make the receipt a lie.
 
-The landing proceeds, but the warning is also written into the landing
-receipt's summary so the audit trail records that the local gate was empty.
+  Fix one of these:
+    - declare a build/test script in package.json, or
+    - set PR_LAND_VALIDATE_CMD='<your gate>', or
+    - pass --allow-unvalidated to land anyway (recorded in the receipt).
+  Rolled back: scratch worktree _land-some-branch deleted. Nothing was published.
+```
 
 Fix it for the repo:
 
 ```
 PR_LAND_VALIDATE_CMD='make ci' /pr-captain-land some-branch --rehearse
+```
+
+Or, knowingly, land without a gate — the receipt records
+`NO LOCAL VALIDATION RAN (--allow-unvalidated)` so the audit trail is honest:
+
+```
+/pr-captain-land some-branch --allow-unvalidated
+```
+
+### Branch protection blocks the merge
+
+```
+pr-captain-land: pr-merge failed on PR #470:
+  BLOCKED: branch protection requires 1 approving review
+
+  If branch protection is the blocker and the principal approved,
+  re-run with --principal-approved, or merge via /pr-captain-merge.
+```
+
+`--principal-approved` is never asserted on your behalf. It is the captain's
+attestation that the principal actually said yes, and the only route to
+`gh pr merge --admin`.
+
+### A previous land crashed and left a scratch behind
+
+```
+pr-captain-land: land branch _land-devex-x already exists (no worktree).
+  A previous land crashed mid-cleanup. Inspect it, then:
+    ./agency/tools/git-captain branch-delete _land-devex-x --force
+```
+
+Both the directory and the branch are checked, because a crash between
+`worktree add -b` and `worktree remove` leaves only the branch — and
+`worktree-create` then refuses on every retry.
+
+### A prior merge never got its release
+
+```
+pr-captain-land: a previous PR merge has no release yet.
+  {"pr": 468, "base": "main"}
+  Run /pr-captain-post-merge <that-PR> first, then re-run this land.
 ```
 
 ### Running from the wrong place
@@ -235,4 +285,24 @@ note: main checkout is dirty — harmless here (the land runs in a scratch workt
 ```
 
 In v1 this was a hard stop (#393). The land no longer touches local main, so
-uncommitted captain work is simply irrelevant to it.
+uncommitted captain work is simply irrelevant to it. One caveat: the Step-9
+reconcile is a `merge-from-origin`, which does need a clean tree — on a dirty
+checkout it is skipped with a note and `/captain-sync-all` picks it up.
+
+Same for the branch the checkout happens to be on:
+
+```
+note: main checkout is on 'captain-coord-20260810', not 'main' — harmless
+      (the land runs in a scratch worktree).
+```
+
+### Cannot reach origin
+
+```
+pr-captain-land: could not fetch origin.
+  The land validates against origin/<default>; stale refs would make
+  every downstream check meaningless. Fix connectivity/auth and retry.
+```
+
+The fetch is fatal, not best-effort — validating against stale refs and then
+publishing is the failure this whole flow exists to prevent.

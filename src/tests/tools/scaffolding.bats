@@ -7,6 +7,27 @@
 
 load 'test_helper'
 
+# These suites exercise the REAL scaffolding tools against the REAL repo:
+# `agent-create` and `workstream-create` derive their project root from their
+# own location, so there is no way to point them at a fixture. The artifacts
+# they leave behind are not harmless — a stray `agency/agents/testname/`
+# makes src/tests/tools/triage-batch-E.bats ("#275: no test-fixture agents
+# shipped") and src/tests/tools/purge-pollution-guard.bats go red on the NEXT
+# run, which is how a passing suite poisons its own repo.
+#
+# Until the tools honour AGENCY_PROJECT_ROOT (worktree-create already does),
+# clean up after every test. Overriding teardown() means calling
+# test_isolation_teardown here explicitly — see test_helper.bash.
+teardown() {
+    rm -rf "${REPO_ROOT}/agency/agents/testname"
+    rm -rf "${REPO_ROOT}/agency/agents/unknown"
+    find "${REPO_ROOT}/agency/workstreams" -maxdepth 1 -name 'test*' -exec rm -rf {} + 2>/dev/null || true
+    test_isolation_teardown
+    if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
+        rm -rf "${BATS_TEST_TMPDIR}"
+    fi
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # agent-create - Version and Help
 # ─────────────────────────────────────────────────────────────────────────────

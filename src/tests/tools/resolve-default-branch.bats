@@ -79,19 +79,26 @@ strip_local_branches() {
     [ "$status" -eq 1 ]
 }
 
+@test "resolve-default-branch: -C with no argument is a usage error, not a silent exit 1" {
+    # `shift 2` on a missing operand fails under set -e and kills the script
+    # with no message — indistinguishable from "not a git repository".
+    run bash "$TOOL" -C
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"requires a directory"* ]]
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
-# Probe 1/2 — local branch refs win (git-captain's recovery case: origin
-# unreachable, local main still present)
+# Ordinary repos — both probe families agree
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "resolve-default-branch: local refs/heads/main resolves to main" {
+@test "resolve-default-branch: main-default repo resolves to main" {
     setup_repo_pair main
     run bash "$TOOL" -C "$CLONE"
     [ "$status" -eq 0 ]
     [ "$output" = "main" ]
 }
 
-@test "resolve-default-branch: local refs/heads/master resolves to master" {
+@test "resolve-default-branch: master-default repo resolves to master" {
     setup_repo_pair master
     run bash "$TOOL" -C "$CLONE"
     [ "$status" -eq 0 ]
@@ -99,7 +106,72 @@ strip_local_branches() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Probe 3 — origin/HEAD
+# PROBE-ORDER CONFLICTS — the only cases where the order actually decides
+# something, and therefore the only cases that pin the contract.
+#
+# Every consumer turns this answer into a REMOTE ref ("origin/<name>"), so a
+# stale local branch must never outvote the remote's own answer. Probing
+# local refs first (git-captain's historical order) reintroduces issue #107:
+# pr-create would diff against a nonexistent origin/main and emit a false
+# "agency_version not bumped".
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "resolve-default-branch: origin/HEAD beats a stale local main" {
+    setup_repo_pair trunk
+    git -C "$CLONE" remote set-head origin -a >/dev/null 2>&1
+    # A leftover local `main` that is NOT the default — the poison case.
+    git -C "$CLONE" branch main
+    run bash "$TOOL" -C "$CLONE"
+    [ "$status" -eq 0 ]
+    [ "$output" = "trunk" ]
+}
+
+@test "resolve-default-branch: origin/HEAD -> master beats a stale local main" {
+    setup_repo_pair master
+    git -C "$CLONE" remote set-head origin -a >/dev/null 2>&1
+    git -C "$CLONE" branch main
+    run bash "$TOOL" -C "$CLONE"
+    [ "$status" -eq 0 ]
+    [ "$output" = "master" ]
+}
+
+@test "resolve-default-branch: origin/main beats a stale local master" {
+    setup_repo_pair main
+    git -C "$CLONE" symbolic-ref --delete refs/remotes/origin/HEAD 2>/dev/null || true
+    git -C "$CLONE" branch master
+    run bash "$TOOL" -C "$CLONE"
+    [ "$status" -eq 0 ]
+    [ "$output" = "main" ]
+}
+
+@test "resolve-default-branch: origin/HEAD beats refs/remotes/origin/main" {
+    # Probe 1 must precede probes 2-3, not merely coexist with them.
+    setup_repo_pair trunk
+    git -C "$CLONE" remote set-head origin -a >/dev/null 2>&1
+    # Give the clone an origin/main remote-tracking ref that is NOT the default.
+    git -C "$CLONE" update-ref refs/remotes/origin/main "$(git -C "$CLONE" rev-parse HEAD)"
+    strip_local_branches
+    run bash "$TOOL" -C "$CLONE"
+    [ "$status" -eq 0 ]
+    [ "$output" = "trunk" ]
+}
+
+@test "resolve-default-branch: local refs are the OFFLINE fallback (no remote refs at all)" {
+    # git-captain's issue-#268 recovery case must still work: remote refs
+    # pruned, local branch intact.
+    setup_repo_pair master
+    git -C "$CLONE" symbolic-ref --delete refs/remotes/origin/HEAD 2>/dev/null || true
+    local r
+    for r in $(git -C "$CLONE" for-each-ref --format='%(refname)' refs/remotes); do
+        git -C "$CLONE" update-ref -d "$r"
+    done
+    run bash "$TOOL" -C "$CLONE" --strict
+    [ "$status" -eq 0 ]
+    [ "$output" = "master" ]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Probe 1 — origin/HEAD
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "resolve-default-branch: origin/HEAD present (no local branches) resolves via symbolic ref" {
