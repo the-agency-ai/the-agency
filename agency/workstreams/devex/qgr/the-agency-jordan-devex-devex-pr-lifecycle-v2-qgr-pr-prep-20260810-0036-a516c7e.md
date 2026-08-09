@@ -13,8 +13,8 @@ hash_b: 0c3e0da8631e325bdb9e6305830e4681951f45a2539747c456e44a9ebf78a474
 hash_c: bc23cc49c5ebc6d2c401ae0c2a486feb65998de9ac195226f02611f4937440c6
 hash_d: bc23cc49c5ebc6d2c401ae0c2a486feb65998de9ac195226f02611f4937440c6
 hash_d_source: "auto-approved — no principal 1B1"
-hash_e: 2de6ec5cd4c6ff33e6e19892ffa2e460eb06de2058dbd057e39d9f346c458f6b
-date: 2026-08-10T00:30
+hash_e: a516c7e564dd2d26eb25194e74a5f990910c3f89b9dd95412c0dd56d9bb20ed9
+date: 2026-08-10T00:36
 ---
 
 # Receipt: pr-prep — pr-lifecycle-v2
@@ -24,7 +24,7 @@ date: 2026-08-10T00:30
 - B (findings): 0c3e0da
 - C (triage): bc23cc4
 - D (principal): bc23cc4 — auto-approved — no principal 1B1
-- E (final): 2de6ec5
+- E (final): a516c7e
 
 ## Review Summary
-pr-captain-land local-first v2 + resolve-default-branch/pkg-manager/ci-rollup-verdict/agency-version-next primitives. 4 parallel reviewers; 32 findings, all fixed. Touched suites 377 pass / 0 fail. Full suite 1398 pass / 323 fail — zero new failures vs main baseline (333), 10 pre-existing fixed. 25 agency/ <-> src/ mirror pairs byte-identical.
+local-first pr-captain-land v2 + shared resolve-default-branch primitive + 3 CI/version/pkg primitives (incl version bump 46.27->46.28)
