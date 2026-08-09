@@ -136,3 +136,6 @@ usr/*/*/tmp/
 *.tmp
 *.temp
 # --- End framework-managed ignores ---
+
+# Stray root-level push log (git-push writes here from some cwd — tool bug, tracked separately)
+/history/
