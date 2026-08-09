@@ -31,7 +31,7 @@
 
 set -euo pipefail
 
-VERSION="2.1.0"
+VERSION="2.2.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source helpers
@@ -68,8 +68,8 @@ compute_worktree_name() {
 show_help() {
     cat <<HELP
 Usage:
-  worktree-create <name> [--branch <branch>]
-  worktree-create --workstream <ws> --agent <ag> [--branch <branch>]
+  worktree-create <name> [--branch <branch>] [--from <ref>]
+  worktree-create --workstream <ws> --agent <ag> [--branch <branch>] [--from <ref>]
   worktree-create --compute-only --workstream <ws> --agent <ag>
 
 Creates a git worktree at .claude/worktrees/<name>/
@@ -78,6 +78,13 @@ Options:
   --workstream <ws> Workstream name (pairs with --agent to compute name)
   --agent <ag>      Agent name (pairs with --workstream to compute name)
   --branch <name>   Branch name (default: same as worktree name)
+  --from <ref>      Start point for a NEW branch (default: current HEAD).
+                    Accepts any committish, including a remote-tracking ref
+                    such as origin/main or origin/some-agent-branch. It is an
+                    ERROR to pass --from when the branch already exists — the
+                    branch has a tip already, and silently ignoring the flag
+                    would put the worktree somewhere the caller did not ask
+                    for.
   --compute-only    Print the computed name and exit (no worktree creation)
   --version         Show version
   --help            Show this help
@@ -114,12 +121,14 @@ NAME=""
 BRANCH=""
 WORKSTREAM=""
 AGENT=""
+FROM_REF=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --version|-v) echo "worktree-create $VERSION"; exit 0 ;;
         --help|-h) show_help; exit 0 ;;
         --branch) BRANCH="$2"; shift 2 ;;
+        --from) FROM_REF="$2"; shift 2 ;;
         --workstream) WORKSTREAM="$2"; shift 2 ;;
         --agent) AGENT="$2"; shift 2 ;;
         -*) echo "Unknown option: $1" >&2; exit 1 ;;
@@ -147,9 +156,16 @@ if [[ -z "$NAME" ]]; then
     exit 1
 fi
 
-# Validate name
-if ! [[ "$NAME" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
-    echo "Error: name must start with a letter and contain only letters, numbers, hyphens, dashes" >&2
+# Validate name.
+#
+# A leading underscore is allowed so machine-created, short-lived worktrees can
+# be namespaced apart from human agent worktrees at a glance — `pr-captain-land`
+# cuts `_land-<branch>` scratch worktrees and deletes them at the end of the
+# landing. The rest of the character class is unchanged: still no slashes (they
+# would nest directories under .claude/worktrees/ and collide with git's ref
+# directory rules), no dots, no spaces.
+if ! [[ "$NAME" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]]; then
+    echo "Error: name must start with a letter or underscore and contain only letters, numbers, underscores, hyphens" >&2
     exit 1
 fi
 
@@ -166,14 +182,30 @@ fi
 # Create worktree
 echo "Creating worktree: $NAME"
 echo "  Branch: $BRANCH"
+[[ -n "$FROM_REF" ]] && echo "  From:   $FROM_REF"
 echo "  Path: .claude/worktrees/$NAME/"
 
 mkdir -p "$PROJECT_ROOT/.claude/worktrees"
 
-# Create branch + worktree (from current HEAD)
+# Create branch + worktree
 if git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/heads/$BRANCH" 2>/dev/null; then
-    # Branch exists — use it
+    # Branch exists — use it. --from would be a lie here (the branch already has
+    # a tip); say so instead of silently ignoring it.
+    if [[ -n "$FROM_REF" ]]; then
+        echo "Error: --from $FROM_REF given but branch '$BRANCH' already exists" >&2
+        echo "  Refusing to guess. Delete the branch or drop --from." >&2
+        exit 1
+    fi
     git -C "$PROJECT_ROOT" worktree add "$WORKTREE_DIR" "$BRANCH"
+elif [[ -n "$FROM_REF" ]]; then
+    # Create new branch at an explicit start point (e.g. origin/main, or an
+    # agent's remote branch — the local-first landing flow cuts its scratch
+    # worktree from pristine origin refs, never from a local tip).
+    if ! git -C "$PROJECT_ROOT" rev-parse --verify --quiet "${FROM_REF}^{commit}" >/dev/null; then
+        echo "Error: --from ref '$FROM_REF' does not resolve to a commit" >&2
+        exit 1
+    fi
+    git -C "$PROJECT_ROOT" worktree add -b "$BRANCH" "$WORKTREE_DIR" "$FROM_REF"
 else
     # Create new branch from HEAD
     git -C "$PROJECT_ROOT" worktree add -b "$BRANCH" "$WORKTREE_DIR"

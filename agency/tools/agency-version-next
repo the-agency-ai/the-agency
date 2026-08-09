@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# What Problem: the "bump agency_version" rule was open-coded as inline Python
+# inside pr-captain-land, and described again in prose in /captain-release.
+# Two consequences, both real:
+#
+#   1. The inline form `NEW_VER=$(python3 -c '... sys.exit(1)')` aborts the
+#      CALLER under `set -euo pipefail` before it can report anything. The
+#      friendly "could not bump version from X" error immediately below it was
+#      unreachable for exactly the input it was written for (a three-component
+#      semver), and the abort left the landing's scratch worktree stranded.
+#   2. A bump policy that lives in a skill cannot be tested, and cannot be
+#      shared with the other place that performs it.
+#
+# How & Why: one pure primitive that ECHOES the next version. No file I/O, no
+# git, no side effects — just the policy. Callers do
+# `NEW=$(agency-version-next "$CUR") || abort ...` and get a real error path.
+#
+# NOT to be confused with `agency/tools/version-next`, which is a different
+# tool for a different version string: it manages the VERSION file's
+# MAJOR.MINOR.PATCH-YYYYMMDD-NNNNNN build identifier. This one handles
+# manifest.json's `agency_version`, which is `day.release`. The `agency-`
+# prefix matches `agency-version`, the read-side tool for the same field.
+#
+# Policy (agency_version is `day.release`, e.g. 46.25):
+#   "46.25" → "46.26"     two components: bump the second
+#   "46.9"  → "46.10"     numeric, not lexical
+#   "46"    → "47"        one component: bump it
+#   anything else         → exit 1 with a message on stderr, nothing on stdout
+#
+# Three-component semver is deliberately REFUSED rather than guessed: the
+# framework's manifest is day.release and a silent reinterpretation of a
+# semver string would produce a wrong release tag.
+#
+# Usage:
+#   ./agency/tools/agency-version-next 46.25          # → 46.26
+#   NEW=$(./agency/tools/agency-version-next "$CUR") || die "..."
+#
+# Exit codes:
+#   0  next version on stdout
+#   1  unparseable / unsupported version (message on stderr, stdout empty)
+#   2  usage error
+#
+# Written: 2026-08-09 (devex) — extracted from pr-captain-land during the QG
+#          for the local-first rewrite.
+
+set -euo pipefail
+
+VERSION="1.0.0"
+
+case "${1:-}" in
+    --version|-v) echo "agency-version-next $VERSION"; exit 0 ;;
+    --help|-h)
+        cat <<'HELP'
+agency-version-next — echo the next agency_version
+
+Usage:
+  agency-version-next <current-version>
+
+  46.25 → 46.26      two components: the second is bumped numerically
+  46    → 47         one component
+  1.2.3 → exit 1     three-component semver is refused, not guessed
+
+Exit 1 (with an empty stdout) on anything unparseable, so callers can write
+  NEW=$(agency-version-next "$CUR") || die "..."
+and actually reach their error path.
+HELP
+        exit 0
+        ;;
+esac
+
+if [[ $# -ne 1 ]]; then
+    echo "agency-version-next: exactly one argument required" >&2
+    echo "Usage: agency-version-next <current-version>" >&2
+    exit 2
+fi
+
+CURRENT="$1"
+
+if [[ "$CURRENT" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+    MAJOR="${BASH_REMATCH[1]}"
+    MINOR="${BASH_REMATCH[2]}"
+    # 10# forces base-10: a zero-padded component like "08" would otherwise be
+    # read as octal and either mis-bump or fail outright.
+    printf '%s.%s\n' "$MAJOR" "$(( 10#$MINOR + 1 ))"
+    exit 0
+fi
+
+if [[ "$CURRENT" =~ ^([0-9]+)$ ]]; then
+    printf '%s\n' "$(( 10#${BASH_REMATCH[1]} + 1 ))"
+    exit 0
+fi
+
+echo "agency-version-next: cannot bump '$CURRENT' — expected <n> or <n>.<n>" >&2
+if [[ "$CURRENT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "  Three-component semver is not the agency_version format (day.release)." >&2
+    echo "  Refusing to guess which component to bump." >&2
+fi
+exit 1

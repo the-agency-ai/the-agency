@@ -1,42 +1,62 @@
 #!/bin/bash
 #
-# _sync-main-ref — Update local refs/heads/main to match origin/main without
-# requiring a checkout of main. Workaround for the bootstrap case where the
-# captain's tools haven't yet propagated to the local main branch.
+# _sync-main-ref — Update the local default-branch ref to match its origin
+# counterpart without requiring a checkout. Workaround for the bootstrap case
+# where the captain's tools haven't yet propagated to the local main branch.
 #
 # This is a captain-internal helper. After D41-R5 lands and the proper
 # git-captain has sync-main + merge-continue available everywhere, this can
 # be removed.
 #
-# Safety: refuses to run if local main has commits not on origin/main
+# Safety: refuses to run if the local branch has commits not on origin
 # (would lose work). Only fast-forwards.
+#
+# The branch name is RESOLVED, never hardcoded. This tool used to say
+# `origin/main` in five places, which made it a no-op-with-an-error in any
+# repo whose default branch is `master` — the exact class of failure the
+# shared `resolve-default-branch` primitive exists to end.
 #
 set -euo pipefail
 
-cd "$(dirname "$0")/../.."
+# Resolve the script dir BEFORE changing directory — a later `dirname "$0"`
+# would be interpreted relative to the new cwd and silently point elsewhere.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+cd "$SCRIPT_DIR/../.."
 
 # Fetch first
 git fetch origin --quiet
 
-local_main=$(git rev-parse refs/heads/main 2>/dev/null) || {
-    echo "ERROR: refs/heads/main does not exist" >&2; exit 1
+# --strict: this tool moves a ref. Guessing the wrong branch name here would
+# either fail confusingly or, worse, fast-forward the wrong ref. Fail loud.
+if ! DEFAULT_BRANCH="$("$SCRIPT_DIR/resolve-default-branch" --strict 2>/dev/null)"; then
+    echo "ERROR: cannot determine default branch (checked local + origin/HEAD + origin/{main,master})" >&2
+    echo "  Fix: git remote set-head origin -a" >&2
+    exit 1
+fi
+
+local_ref="refs/heads/$DEFAULT_BRANCH"
+origin_ref="refs/remotes/origin/$DEFAULT_BRANCH"
+
+local_main=$(git rev-parse "$local_ref" 2>/dev/null) || {
+    echo "ERROR: $local_ref does not exist" >&2; exit 1
 }
-origin_main=$(git rev-parse refs/remotes/origin/main 2>/dev/null) || {
-    echo "ERROR: refs/remotes/origin/main does not exist" >&2; exit 1
+origin_main=$(git rev-parse "$origin_ref" 2>/dev/null) || {
+    echo "ERROR: $origin_ref does not exist" >&2; exit 1
 }
 
 if [[ "$local_main" == "$origin_main" ]]; then
-    echo "Already at origin/main ($origin_main)"
+    echo "Already at origin/$DEFAULT_BRANCH ($origin_main)"
     exit 0
 fi
 
 # Verify origin is ahead of local (FF safe). i.e., local must be ancestor of origin.
 if ! git merge-base --is-ancestor "$local_main" "$origin_main"; then
-    echo "ERROR: local main has commits not on origin/main — refusing to update ref" >&2
+    echo "ERROR: local $DEFAULT_BRANCH has commits not on origin/$DEFAULT_BRANCH — refusing to update ref" >&2
     echo "  local:  $local_main" >&2
     echo "  origin: $origin_main" >&2
     exit 1
 fi
 
-git update-ref refs/heads/main "$origin_main"
-echo "Updated local main: $local_main -> $origin_main"
+git update-ref "$local_ref" "$origin_main"
+echo "Updated local $DEFAULT_BRANCH: $local_main -> $origin_main"

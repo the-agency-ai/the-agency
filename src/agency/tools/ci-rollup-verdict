@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""ci-rollup-verdict — classify a GitHub PR status-check rollup into one verdict.
+
+What Problem: pr-captain-land's CI gate was a hardcoded check name
+("lint-and-test") that does not exist in this repo, so the wait loop could
+only ever time out and a genuinely failing check could never fail fast.
+Replacing it with an aggregate-rollup gate put ~50 lines of classification
+logic — two node shapes, five terminal states, a required-contexts filter,
+an empty-rollup case — inside a shell heredoc inside a command substitution
+inside a while loop. That is untestable by construction, and the guards
+written for it were all `grep`-for-a-string: every one of them still passes
+if the PASS and FAIL sets are swapped.
+
+How & Why: the classification is a pure function of (rollup JSON, required
+contexts). Extracted here so it can be table-tested with no network, no git,
+and no PR. The caller keeps only the polling loop.
+
+Verdicts (one line on stdout):
+  PASSED <names>    every gated check reached a terminal success state
+  FAILED <names>    at least one gated check reached a terminal failure state
+  PENDING <names>   at least one gated check has not finished, or a required
+                    context has not reported at all
+  NO_CHECKS         nothing to gate on — NOT a pass
+  UNREADABLE        the input was not parseable rollup JSON
+
+Two rules worth stating out loud, because both are ways a naive gate says
+"green" when it should not:
+
+  1. A *required* context that has not posted yet is PENDING, not absent.
+     Filtering the rollup down to "required contexts that happen to be
+     present" means 1-of-3 required checks reporting green reads as PASSED.
+  2. An empty rollup is NO_CHECKS, never PASSED. "No CI configured" and
+     "all checks green" must not be indistinguishable.
+
+Usage:
+  gh pr view N --json statusCheckRollup | ci-rollup-verdict
+  gh pr view N --json statusCheckRollup | ci-rollup-verdict --required '["build","test"]'
+  ci-rollup-verdict --file rollup.json
+
+Exit codes:
+  0  verdict printed (read the verdict, not the exit code)
+  2  usage error
+
+Written: 2026-08-09 (devex) — extracted from pr-captain-land during the QG
+         for the local-first rewrite, in response to "all three CI-gate
+         guards are tautological".
+"""
+
+import json
+import os
+import sys
+
+# Runtime guard deliberately set BELOW the repo's declared 3.13 floor.
+#
+# The floor exists so tools can use modern syntax without surprise. This tool
+# uses nothing past 3.8 — stdlib json and f-strings. It sits on the critical
+# path of every PR landing, and `#!/usr/bin/env python3` resolves to Apple's
+# stock 3.9 on a stock macOS PATH. Asserting 3.13 here would make the CI gate
+# refuse to run on the very machine that lands the PRs: failing closed for a
+# reason that has nothing to do with CI. Guard the version this code actually
+# needs, and let the 3.13 floor be enforced where it buys something.
+if sys.version_info < (3, 8):
+    sys.stderr.write(
+        f"ci-rollup-verdict: requires Python 3.8+, found "
+        f"{sys.version_info.major}.{sys.version_info.minor}\n"
+    )
+    sys.exit(2)
+
+# Terminal states. A check in neither set has not finished.
+PASS_STATES = {"SUCCESS", "NEUTRAL", "SKIPPED"}
+FAIL_STATES = {
+    "FAILURE",
+    "ERROR",
+    "TIMED_OUT",
+    "CANCELLED",
+    "ACTION_REQUIRED",
+    "STARTUP_FAILURE",
+    "STALE",
+}
+
+USAGE = """Usage: ci-rollup-verdict [--required <json-array>] [--file <path>]
+
+Reads `gh pr view --json statusCheckRollup` output on stdin (or --file) and
+prints exactly one verdict line: PASSED / FAILED / PENDING / NO_CHECKS /
+UNREADABLE.
+
+  --required <json>  JSON array of branch-protection required context names.
+                     When given, ONLY those contexts are gated on, and any
+                     required context missing from the rollup counts as
+                     PENDING. Anything that is not a non-empty JSON array
+                     (an error object, "null", "[]") is ignored.
+  --file <path>      Read the rollup JSON from a file instead of stdin.
+"""
+
+
+def name_of(check):
+    """CheckRun uses `name`; StatusContext uses `context`."""
+    return check.get("name") or check.get("context") or "(unnamed)"
+
+
+def state_of(check):
+    """Normalize both rollup node shapes to a single state token.
+
+    CheckRun carries `status` (QUEUED/IN_PROGRESS/COMPLETED) plus `conclusion`,
+    and the conclusion is meaningless until the status is COMPLETED — reading
+    it early is how an in-progress check gets counted green.
+    StatusContext carries only `state` (pending/success/failure/error).
+    """
+    if check.get("status") is not None or check.get("conclusion") is not None:
+        if str(check.get("status") or "").upper() != "COMPLETED":
+            return "PENDING"
+        return str(check.get("conclusion") or "PENDING").upper()
+    return str(check.get("state") or "PENDING").upper()
+
+
+def parse_required(raw):
+    """Return a set of required context names, or an empty set if unusable.
+
+    The branch-protection endpoint 404s (returning an error OBJECT, not an
+    array) on repos without protection or without admin scope. Anything that
+    is not a non-empty list of strings means "no narrowing".
+    """
+    if not raw:
+        return set()
+    try:
+        value = json.loads(raw)
+    except (ValueError, TypeError):
+        return set()
+    if not isinstance(value, list):
+        return set()
+    return {str(v) for v in value if isinstance(v, str)}
+
+
+def verdict(rollup_json, required_raw=""):
+    """Classify. Pure — this is the whole point of the extraction."""
+    try:
+        parsed = json.loads(rollup_json)
+    except (ValueError, TypeError):
+        return "UNREADABLE"
+    if not isinstance(parsed, dict):
+        return "UNREADABLE"
+
+    checks = parsed.get("statusCheckRollup")
+    if checks is None:
+        checks = []
+    if not isinstance(checks, list):
+        return "UNREADABLE"
+    checks = [c for c in checks if isinstance(c, dict)]
+
+    required = parse_required(required_raw)
+
+    if required:
+        present = {name_of(c) for c in checks}
+        missing = sorted(required - present)
+        checks = [c for c in checks if name_of(c) in required]
+        if missing:
+            # A required context that has not reported is PENDING, not
+            # absent. Without this, 1-of-3 required checks green reads
+            # as PASSED and the PR merges on partial evidence.
+            waiting = missing + [
+                name_of(c) for c in checks if state_of(c) not in PASS_STATES
+            ]
+            failed_now = [name_of(c) for c in checks if state_of(c) in FAIL_STATES]
+            if failed_now:
+                return "FAILED " + ",".join(sorted(failed_now))
+            return "PENDING " + ",".join(sorted(set(waiting)))
+
+    if not checks:
+        return "NO_CHECKS"
+
+    failed = sorted({name_of(c) for c in checks if state_of(c) in FAIL_STATES})
+    if failed:
+        return "FAILED " + ",".join(failed)
+
+    pending = sorted({name_of(c) for c in checks if state_of(c) not in PASS_STATES})
+    if pending:
+        return "PENDING " + ",".join(pending)
+
+    return "PASSED " + ",".join(sorted({name_of(c) for c in checks}))
+
+
+def main(argv):
+    required_raw = os.environ.get("CI_ROLLUP_REQUIRED", "")
+    path = None
+
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg in ("--help", "-h"):
+            sys.stdout.write(USAGE)
+            return 0
+        if arg == "--version":
+            sys.stdout.write("ci-rollup-verdict 1.0.0\n")
+            return 0
+        if arg == "--required":
+            if i + 1 >= len(argv):
+                sys.stderr.write("ci-rollup-verdict: --required needs a value\n")
+                return 2
+            required_raw = argv[i + 1]
+            i += 2
+            continue
+        if arg == "--file":
+            if i + 1 >= len(argv):
+                sys.stderr.write("ci-rollup-verdict: --file needs a path\n")
+                return 2
+            path = argv[i + 1]
+            i += 2
+            continue
+        sys.stderr.write(f"ci-rollup-verdict: unknown argument: {arg}\n")
+        sys.stderr.write(USAGE)
+        return 2
+
+    if path is not None:
+        try:
+            with open(path, encoding="utf-8") as handle:
+                raw = handle.read()
+        except OSError as exc:
+            sys.stderr.write(f"ci-rollup-verdict: cannot read {path}: {exc}\n")
+            return 2
+    else:
+        raw = sys.stdin.read()
+
+    sys.stdout.write(verdict(raw, required_raw) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

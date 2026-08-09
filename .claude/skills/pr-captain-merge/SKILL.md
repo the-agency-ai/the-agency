@@ -2,7 +2,7 @@
 name: pr-captain-merge
 description: Captain-only. Merge a PR safely — true merge commit (never squash, never rebase), branch protection respected, --principal-approved gate for --admin override. Prevents the "accidentally squashed via the wide GitHub UI button" failure mode that has burned the fleet.
 agency-skill-version: 2
-when_to_use: Captain on master in main checkout, after PR has passed CI and principal has approved (verbally or via GitHub review). Invoked by captain directly or as a step within /pr-captain-land. NEVER from a worktree. Intended for explicit invocation — runtime precondition in underlying `agency/tools/pr-merge` refuses from wrong context.
+when_to_use: Captain on master in main checkout, after PR has passed CI and principal has approved (verbally or via GitHub review). Invoked by captain directly or as Step 8 within /pr-captain-land (after that skill's local validation gate and CI confirmation). NEVER from a worktree. Intended for explicit invocation — runtime precondition in underlying `agency/tools/pr-merge` refuses from wrong context.
 argument-hint: "<pr-number> [--principal-approved] [--delete-branch] [--dry-run]"
 paths: []
 required_reading:
@@ -156,7 +156,7 @@ Defense in depth against accidental invocation from the wrong context:
 
 ## Related
 
-- `/pr-captain-land` — composite skill that calls this as its merge step
+- `/pr-captain-land` — the local-first landing flow; calls this as its Step 8 merge, on a `_land-<branch>` head
 - `/pr-prep` — the QG-before-PR-create (agent-side)
 - `/pr-submit` — agent hands branch to captain for landing
 - `/pr-captain-post-merge` (TBD refactored to `/pr-captain-post-merge`) — release + fleet-notify after merge
