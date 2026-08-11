@@ -45,7 +45,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# Deliberately NO PROJECT_ROOT here. This tool is repo-agnostic: it operates on
+# a PR NUMBER and lets `gh` infer the repository from the cwd. It previously
+# carried an unused `PROJECT_ROOT="$SCRIPT_DIR/../.."`, which is the exact
+# install-location pattern that broke receipt-sign and pr-create when
+# pr-captain-land ran them against a scratch worktree. Leaving a dead one here
+# is an invitation for someone to "start using it" and reintroduce the bug. If
+# this tool ever does need a repo root, take it as an explicit `-C` flag.
 
 # Source helpers
 [[ -f "$SCRIPT_DIR/lib/_log-helper" ]] && source "$SCRIPT_DIR/lib/_log-helper"

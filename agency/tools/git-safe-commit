@@ -660,7 +660,16 @@ main() {
 ${files_changed}
 \`\`\`"
 
-                    "$DISPATCH_TOOL" create \
+                    # -C "$PROJECT_ROOT": this tool already resolved the repo
+                    # correctly from cwd (git rev-parse --show-toplevel), but
+                    # the dispatch tool resolved its own root from its INSTALL
+                    # location. Committing inside a worktree therefore wrote the
+                    # commit-announce payload into whichever checkout the tool
+                    # binary happened to live in — observed during a real
+                    # pr-captain-land, where a scratch-worktree commit littered
+                    # the captain's main checkout with a dispatch for a commit
+                    # that was not in it. Pass the root we already know.
+                    "$DISPATCH_TOOL" -C "$PROJECT_ROOT" create \
                         --type commit \
                         --to "$CAPTAIN_ADDR" \
                         --subject "Committed ${COMMIT_HASH} on ${CURRENT_BRANCH}: ${MESSAGE}" \

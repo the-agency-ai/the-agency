@@ -8,16 +8,47 @@
 # 3. agency_version must be bumped
 # Hookify blocks raw gh pr create.
 #
-# Usage: ./agency/tools/pr-create --title "title" --body "body"
+# Usage: ./agency/tools/pr-create [-C <repo-root>] --title "title" --body "body"
 #        All gh pr create flags are passed through after validation.
 #
 # Written: 2026-04-14 during captain session (PR discipline enforcement)
 # Updated: iteration 1.4 — replaced inline hash logic with receipt-verify
+# Updated: v46.29 — added `-C <repo-root>` (see the block below for why)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# ── Repo-root targeting: `-C <repo-root>`, first argument only ───────────────
+#
+# What Problem: pr-captain-land runs THIS tool from the captain's checkout with
+# the cwd set to a scratch worktree — captain's code gating the scratch's data.
+# But every gate below read REPO_ROOT = SCRIPT_DIR/../.., the tool's own INSTALL
+# location. So the BRANCH check inspected the captain's main checkout (always
+# `main`) and blocked the land outright, and the receipt/version gates likewise
+# graded the wrong tree. cwd only ever reached `gh pr create` at the very end,
+# which is how the mismatch went unnoticed.
+#
+# How & Why: `-C` retargets the DATA this tool reads — branch, receipt,
+# manifest — and the directory `gh pr create` runs in. It deliberately does NOT
+# retarget the CODE: receipt-verify and resolve-default-branch below are still
+# invoked from "$SCRIPT_DIR", so a branch cannot ship its own verifier and pass
+# its own gate. Captain's code, scratch's data — that is the whole security
+# model, and `-C` must not be a hole in it.
+#
+# First argument only: everything after this point is passed through verbatim to
+# `gh pr create`, so a scan-anywhere parse would eat a `--body` whose value was
+# literally "-C". Absent the flag, behaviour is unchanged for every caller.
+REPO_ROOT=""
+GH_RUN_DIR=""
+if [[ "${1:-}" == "-C" ]]; then
+    [[ -n "${2:-}" ]] || { echo "BLOCKED: -C requires a directory argument" >&2; exit 1; }
+    [[ -d "$2" ]] || { echo "BLOCKED: -C directory does not exist: $2" >&2; exit 1; }
+    REPO_ROOT="$(cd "$2" && pwd)"
+    GH_RUN_DIR="$REPO_ROOT"
+    shift 2
+fi
+[[ -n "$REPO_ROOT" ]] || REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # ── Step 1: Verify on a branch, not main ─────────────────────────────────
 
@@ -114,4 +145,12 @@ echo "✓ Version bumped: $CURRENT_VERSION"
 # ── Step 4: Create the PR ────────────────────────────────────────────────
 
 echo "Creating PR..."
+
+# `gh pr create` infers both the branch and the target repo from its cwd, so it
+# has to run where the gates just looked. Without -C that is the caller's cwd
+# (unchanged behaviour); with -C it is the repo the caller named, so the PR
+# cannot be opened against a different tree than the one that was gated.
+if [[ -n "$GH_RUN_DIR" ]]; then
+    cd "$GH_RUN_DIR"
+fi
 gh pr create "$@"

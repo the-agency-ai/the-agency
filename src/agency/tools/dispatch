@@ -18,6 +18,7 @@
 # Written: 2026-04-05 during ISCP Iteration 1.4
 #
 # Usage:
+#   dispatch [-C <repo-root>] <subcommand> ...
 #   dispatch create --to <addr> --subject <text> --body <text> [--type <type>] [--priority <p>]
 #   dispatch create --to <addr> --subject <text> --template [--type <type>] [--priority <p>]
 #   dispatch list [--all] [--status <s>] [--type <t>]
@@ -36,10 +37,38 @@ set -euo pipefail
 TOOL_VERSION="2.0.1"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ── Repo-root targeting: `-C <repo-root>`, first argument only ───────────────
+#
+# What Problem: the payload file a dispatch writes lands under
+# $PROJECT_ROOT/usr/<principal>/<project>/dispatches/, and PROJECT_ROOT came
+# only from CLAUDE_PROJECT_DIR or the tool's own INSTALL location. When
+# pr-captain-land commits inside its scratch worktree, git-safe-commit's
+# commit-announce reached this tool and the payload was written into the
+# CAPTAIN'S MAIN CHECKOUT — a stray untracked file in the wrong repo, for a
+# commit that does not exist there. git-safe-commit had already resolved the
+# right root from cwd; it just had no way to say so.
+#
+# How & Why: `-C` is that way to say so, and it outranks CLAUDE_PROJECT_DIR —
+# an explicit argument must beat an inherited environment variable, or a
+# captain-side env var would keep overriding the caller. First argument only,
+# git-style: `reply` and `create --body` take free text, so a scan-anywhere
+# parse could swallow a legitimate "-C" payload. Absent the flag, resolution is
+# exactly as before.
+REPO_ROOT_OVERRIDE=""
+if [[ "${1:-}" == "-C" ]]; then
+    [[ -n "${2:-}" ]] || { echo "dispatch: -C requires a directory argument" >&2; exit 1; }
+    [[ -d "$2" ]] || { echo "dispatch: -C directory does not exist: $2" >&2; exit 1; }
+    REPO_ROOT_OVERRIDE="$(cd "$2" && pwd)"
+    shift 2
+fi
+
 # CLAUDE_PROJECT_DIR is authoritative — worktree agents may cd to main but
 # their identity is rooted in the worktree, not where the tool binary lives.
 # See escalation #90: agent-identity and dispatch both must use this.
-if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+if [[ -n "$REPO_ROOT_OVERRIDE" ]]; then
+    PROJECT_ROOT="$REPO_ROOT_OVERRIDE"
+elif [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
     PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
 else
     PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -51,8 +80,33 @@ source "$SCRIPT_DIR/lib/_path-resolve"
 source "$SCRIPT_DIR/lib/_address-parse"
 source "$SCRIPT_DIR/lib/_iscp-db"
 
+# _path-resolve derives AGENCY_PROJECT_ROOT from SCRIPT_DIR on source, and
+# _address-parse / _iscp-db read it — so setting PROJECT_ROOT above is not
+# enough on its own, and the override has to be re-applied AFTER the sourcing
+# that would otherwise clobber it. The ISCP DB is keyed by the repo NAME out of
+# agency/config/agency.yaml, which is identical in a worktree and its main
+# checkout: retargeting the root moves the payload file without splitting the
+# dispatch index into a second database.
+if [[ -n "$REPO_ROOT_OVERRIDE" ]]; then
+    AGENCY_PROJECT_ROOT="$REPO_ROOT_OVERRIDE"
+    AGENCY_PRINCIPAL_DIR="$AGENCY_PROJECT_ROOT/usr/${AGENCY_PRINCIPAL:-}"
+    AGENCY_REFS_DIR="$AGENCY_PRINCIPAL_DIR/refs"
+    export AGENCY_PROJECT_ROOT AGENCY_PRINCIPAL_DIR AGENCY_REFS_DIR
+fi
+
 # Valid dispatch types (must match _iscp-db CHECK constraint)
 VALID_TYPES="directive seed review review-response commit master-updated escalation dispatch"
+
+# Alias map — human-friendly aliases that resolve to canonical types.
+# Used to heal doc drift (e.g. legacy docs say "main-updated").
+# Issue #167 — unify main-updated vs master-updated vocabulary.
+_canonicalize_type() {
+    local dtype="$1"
+    case "$dtype" in
+        main-updated) echo "master-updated" ;;
+        *) echo "$dtype" ;;
+    esac
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -214,7 +268,7 @@ _validate_type() {
 # create — Create dispatch (DB record + git payload file)
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_create() {
-    local to_addr="" subject="" reply_to="" priority="normal" dtype="dispatch" project="" body="" use_template=false
+    local to_addr="" subject="" reply_to="" priority="normal" dtype="dispatch" project="" body="" body_file="" use_template=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -227,6 +281,9 @@ cmd_create() {
             --body)
                 [[ -n "${2:-}" ]] || { echo "Error: --body requires text" >&2; return 1; }
                 body="$2"; shift 2 ;;
+            --body-file)
+                [[ -n "${2:-}" ]] || { echo "Error: --body-file requires a path" >&2; return 1; }
+                body_file="$2"; shift 2 ;;
             --template)
                 use_template=true; shift ;;
             --type)
@@ -243,7 +300,11 @@ cmd_create() {
                 project="$2"; shift 2 ;;
             --help|-h)
                 echo "Usage: dispatch create --to <addr> --subject <text> --body <text> [--type <type>] [--priority <p>] [--reply-to <id>] [--project <name>]"
+                echo "       dispatch create --to <addr> --subject <text> --body-file <path> [--type <type>]"
                 echo "       dispatch create --to <addr> --subject <text> --template [--type <type>]"
+                echo ""
+                echo "  --body and --body-file are mutually exclusive."
+                echo "  --body-file must point to a non-empty file."
                 return 0 ;;
             *)
                 echo "Error: unknown option for create: $1" >&2; return 1 ;;
@@ -264,12 +325,36 @@ cmd_create() {
     # How & Why: Require --body (content) or --template (explicit opt-in).
     # No content = no dispatch. Fail loud.
     # Written: 2026-04-06 — escalation #53
+
+    # Mutex: --body and --body-file cannot be combined (issue #251)
+    if [[ -n "$body" ]] && [[ -n "$body_file" ]]; then
+        echo "Error: --body and --body-file are mutually exclusive" >&2
+        return 1
+    fi
+
+    # Resolve --body-file → body string (issue #251)
+    if [[ -n "$body_file" ]]; then
+        if [[ ! -f "$body_file" ]]; then
+            echo "Error: --body-file not found: $body_file" >&2
+            return 1
+        fi
+        body="$(cat "$body_file")"
+        if [[ -z "$body" ]] || [[ -z "${body//[[:space:]]/}" ]]; then
+            echo "Error: --body-file is empty (or whitespace-only): $body_file" >&2
+            return 1
+        fi
+    fi
+
     if [[ -z "$body" ]] && [[ "$use_template" != "true" ]]; then
-        echo "Error: --body <text> is required (or use --template for placeholder file)" >&2
+        echo "Error: --body <text> or --body-file <path> is required (or use --template for placeholder file)" >&2
         echo "  dispatch create --to <addr> --subject <text> --body \"your content here\"" >&2
+        echo "  dispatch create --to <addr> --subject <text> --body-file path/to/body.md" >&2
         echo "  dispatch create --to <addr> --subject <text> --template" >&2
         return 1
     fi
+
+    # Canonicalize type aliases (e.g. main-updated → master-updated, issue #167)
+    dtype="$(_canonicalize_type "$dtype")"
 
     # Validate type
     _validate_type "$dtype" || return 1
@@ -914,6 +999,7 @@ cmd_help() {
 dispatch — ISCP dispatch lifecycle tool (v2)
 
 Usage:
+  dispatch [-C <repo-root>] <subcommand> ...
   dispatch create --to <addr> --subject <text> [--body <text>] [--type <type>] [--priority <p>]
   dispatch list [--all] [--status <s>] [--type <t>]
   dispatch read <id>
@@ -927,6 +1013,11 @@ Usage:
 
 Dispatch types: directive, seed, review, review-response, commit,
   master-updated, escalation, dispatch
+
+-C <repo-root>  Write payload files into <repo-root> instead of this tool's own
+                checkout. Must be the FIRST argument, before the subcommand.
+                Outranks CLAUDE_PROJECT_DIR. Used when a tool runs against a
+                worktree other than the one it was installed in.
 
 Dispatches are indexed in the ISCP SQLite DB. Payload files live in git.
 Arguments take integer dispatch IDs, not file paths.
