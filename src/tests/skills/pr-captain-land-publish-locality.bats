@@ -73,7 +73,9 @@ principals:
   testuser: testprincipal
   default: testprincipal
 YAML
-        git init --quiet "$root"
+        # -b main explicitly — see the note in repo-root-targeting.bats: with
+        # GIT_CONFIG_GLOBAL nulled, the default branch name is the git build's.
+        git init --quiet -b main "$root"
         git -C "$root" config user.email "test@example.com"
         git -C "$root" config user.name "Test User"
         git -C "$root" remote add origin https://github.com/test-org/test-repo.git
@@ -81,7 +83,10 @@ YAML
 
     # The scratch identifies as the land agent, exactly as worktree-create
     # leaves it — this is what put payloads under usr/<principal>/_land-*/.
-    echo "captain" > "$CAPTAIN_REPO/.agency-agent"
+    # NOT literally "captain": git-safe-commit refuses to dispatch to itself, so
+    # an identity of exactly "captain" suppresses the commit-announce entirely
+    # and every locality assertion below would pass vacuously.
+    echo "captainmain" > "$CAPTAIN_REPO/.agency-agent"
     echo "landagent" > "$SCRATCH_REPO/.agency-agent"
     printf '{"agency_version": "46.28"}\n' > "$SCRATCH_REPO/agency/config/manifest.json"
     printf '{"agency_version": "46.28"}\n' > "$CAPTAIN_REPO/agency/config/manifest.json"
@@ -158,6 +163,21 @@ _run_step_5_sign() {
     [ "$(_captain_payloads)" -eq 0 ]
 }
 
+@test "step 4: locality holds with CLAUDE_PROJECT_DIR set — the captain's REAL environment" {
+    # The two tests above run with CLAUDE_PROJECT_DIR unset, which is NOT what a
+    # captain session looks like: Claude Code sets it to the main checkout, and
+    # so does every hook. git-safe-commit's PROJECT_ROOT prefers that env var
+    # over `git rev-parse --show-toplevel`, so the first version of this fix
+    # forwarded the CAPTAIN root to dispatch -C and changed nothing at all in
+    # the one environment it was written for — while these tests passed.
+    #
+    # An env var that inverts the result is not incidental setup; it is the
+    # condition under test. Pinned explicitly.
+    CLAUDE_PROJECT_DIR="$CAPTAIN_REPO" _run_step_4
+    [ "$(_scratch_payloads)" -ge 1 ]
+    [ "$(_captain_payloads)" -eq 0 ]
+}
+
 @test "step 4: the captain's working tree is left clean by a scratch commit" {
     _run_step_4
     run bash -c "git -C '$CAPTAIN_REPO' status --porcelain"
@@ -230,8 +250,11 @@ _run_step_5_sign() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "step 5 call site: receipt-sign is invoked with -C \$SCRATCH_DIR" {
+    # grep -A2 rather than a sed range: the range's end pattern can never match
+    # after its start line, so sed printed to EOF and only the head -3 kept the
+    # assertion honest. Say what is meant — the flag is on the invocation.
     live_code | grep -q 'TOOLS/receipt-sign"'
-    run bash -c "sed -n '/TOOLS\/receipt-sign\"/,/receipt-sign\"\$/p' '$LAND' | head -3 | grep -q -- '-C \"\$SCRATCH_DIR\"'"
+    run bash -c "grep -A2 'TOOLS/receipt-sign\"' '$LAND' | grep -q -- '-C \"\$SCRATCH_DIR\"'"
     assert_success
 }
 
@@ -264,11 +287,17 @@ _run_step_5_sign() {
     #   post-merge-state — captain-side state by design; the scratch is gone by
     #                      the time it is cleared.
     #   dispatch         — checked above; passes -C "$REPO_ROOT" deliberately.
-    #   git-safe-commit  — resolves PROJECT_ROOT from `git rev-parse
-    #                      --show-toplevel` FIRST and only falls back to its
-    #                      install dir; run with the cwd in the scratch it is
-    #                      already correct, and it forwards that root to
-    #                      dispatch via -C.
+    #   git-safe-commit  — commits through plain git, so the commit itself
+    #                      always lands in the cwd's worktree regardless of any
+    #                      root variable. Its one install-rooted read is a
+    #                      LAST-resort fallback. The part that did mis-target —
+    #                      the dispatch it spawns — is covered by its own
+    #                      COMMIT_REPO_ROOT tests in repo-root-targeting.bats
+    #                      and by the CLAUDE_PROJECT_DIR test above.
+    #                      (An earlier version of this note claimed
+    #                      git-safe-commit resolves PROJECT_ROOT from cwd first.
+    #                      It does not — CLAUDE_PROJECT_DIR wins — and that
+    #                      wrong rationale is what let a broken -C through.)
     allow=" receipt-verify post-merge-state dispatch git-safe-commit "
     offenders=""
 

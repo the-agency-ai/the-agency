@@ -51,7 +51,12 @@ principals:
   testuser: testprincipal
   default: testprincipal
 YAML
-        git init --quiet "$root"
+        # -b main explicitly: the isolation helper points GIT_CONFIG_GLOBAL at
+        # /dev/null, so init.defaultBranch is unset and the default is the git
+        # build's — `main` on Apple git, `master` upstream. The pr-create branch
+        # gate asserts on that name, so leaving it to the platform makes this
+        # suite pass on macOS and fail on Linux CI.
+        git init --quiet -b main "$root"
         git -C "$root" config user.email "test@example.com"
         git -C "$root" config user.name "Test User"
         git -C "$root" remote add origin https://github.com/test-org/test-repo.git
@@ -289,18 +294,27 @@ _count_payloads() { find "$1/usr" -name '*.md' 2>/dev/null | wc -l | tr -d ' '; 
 # git-safe-commit → dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "git-safe-commit passes its cwd-resolved root to dispatch via -C" {
-    # git-safe-commit already resolved PROJECT_ROOT correctly from cwd; it just
-    # had no way to tell the dispatch tool. Structural, because reaching the
-    # commit-announce needs a full commit with hooks — the runtime proof that -C
-    # is honoured is the dispatch block above.
-    run grep -q '"\$DISPATCH_TOOL" -C "\$PROJECT_ROOT" create' \
+@test "git-safe-commit forwards the COMMIT repo root to dispatch via -C" {
+    run grep -q '"\$DISPATCH_TOOL" -C "\$COMMIT_REPO_ROOT" create' \
         "$REPO_ROOT/agency/tools/git-safe-commit"
     assert_success
 }
 
-@test "git-safe-commit: PROJECT_ROOT is cwd-derived, so -C carries a real root" {
-    run grep -q 'PROJECT_ROOT="\$(git rev-parse --show-toplevel' \
-        "$REPO_ROOT/agency/tools/git-safe-commit"
-    assert_success
+@test "git-safe-commit: -C must NOT carry PROJECT_ROOT" {
+    # PROJECT_ROOT prefers CLAUDE_PROJECT_DIR (correct for the per-agent
+    # ATTRIBUTION lookup it exists for — that is a property of the session).
+    # Claude Code sets that variable to the MAIN CHECKOUT, so passing
+    # PROJECT_ROOT as -C sends the commit-announce to a repo that does not
+    # contain the commit — the exact bug -C was added to fix. The first cut of
+    # this change did precisely that and every locality test still passed,
+    # because they all ran with the variable unset.
+    run grep -q -- '-C "\$PROJECT_ROOT" create' "$REPO_ROOT/agency/tools/git-safe-commit"
+    assert_failure
+}
+
+@test "git-safe-commit: COMMIT_REPO_ROOT is derived from cwd, never from the env" {
+    body="$(grep -v '^[[:space:]]*#' "$REPO_ROOT/agency/tools/git-safe-commit" \
+            | grep -A1 'COMMIT_REPO_ROOT=')"
+    [[ "$body" == *"git rev-parse --show-toplevel"* ]]
+    [[ "$body" != *"CLAUDE_PROJECT_DIR"* ]]
 }

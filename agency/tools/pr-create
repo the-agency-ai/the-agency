@@ -90,7 +90,15 @@ if [[ -z "$NEWEST_RECEIPT" ]]; then
     exit 1
 fi
 
-if ! "$SCRIPT_DIR/receipt-verify" --file "$NEWEST_RECEIPT" 2>&1; then
+# Run the verifier FROM the captain's $SCRIPT_DIR but WITH the cwd in the repo
+# being gated. receipt-verify compares the receipt's hash against a freshly
+# computed one, and that computation goes through diff-hash, which is purely
+# cwd-based (`git diff <base>..HEAD -- .`). Without the cd, -C would retarget
+# receipt DISCOVERY but not hash VERIFICATION: a receipt found in tree A would
+# be graded against whatever tree the caller happened to be standing in. Today
+# pr-captain-land also wraps this call in a cd to the scratch, so the two agree
+# by luck; this makes them agree by construction.
+if ! (cd "$REPO_ROOT" && "$SCRIPT_DIR/receipt-verify" --file "$NEWEST_RECEIPT") 2>&1; then
     echo "" >&2
     echo "Every PR requires a valid receipt. Run /pr-prep again." >&2
     exit 1

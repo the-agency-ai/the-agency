@@ -88,6 +88,23 @@ source "$SCRIPT_DIR/lib/_iscp-db"
 # checkout: retargeting the root moves the payload file without splitting the
 # dispatch index into a second database.
 if [[ -n "$REPO_ROOT_OVERRIDE" ]]; then
+    # Pin the DB *before* moving the root. iscp_db_path derives the database
+    # name from the repo name in agency/config/agency.yaml under
+    # AGENCY_PROJECT_ROOT — which, once retargeted, is a file supplied by the
+    # branch under review. A branch that edited repo.name would send its
+    # dispatches to a different ~/.agency/<name>/iscp.db: the index splits and
+    # the captain never sees the notice. Resolving it here, while the root is
+    # still this tool's own install location, keeps the identity of the DB a
+    # property of the INSTALL and lets -C move only the payload file — which is
+    # what -C is for and what the comment above claims it does.
+    #
+    # ISCP_DB_PATH is the documented override iscp_db_path honours first, so an
+    # explicit one from the caller (or a test harness) still wins.
+    if [[ -z "${ISCP_DB_PATH:-}" ]]; then
+        ISCP_DB_PATH="$(iscp_db_path 2>/dev/null || true)"
+        [[ -n "$ISCP_DB_PATH" ]] && export ISCP_DB_PATH
+    fi
+
     AGENCY_PROJECT_ROOT="$REPO_ROOT_OVERRIDE"
     AGENCY_PRINCIPAL_DIR="$AGENCY_PROJECT_ROOT/usr/${AGENCY_PRINCIPAL:-}"
     AGENCY_REFS_DIR="$AGENCY_PRINCIPAL_DIR/refs"
