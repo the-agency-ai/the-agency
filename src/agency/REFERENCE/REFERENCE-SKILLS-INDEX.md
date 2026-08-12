@@ -22,7 +22,7 @@ Framework-level skills discovered by Claude Code live at `.claude/skills/<name>/
 | `2` | 9 | Full v2 methodology — shipped as case studies 2026-04-19 |
 | `1` | ~54 | Legacy skills awaiting v2 upgrade |
 
-**Retrofit progress:** `9 / 63 ≈ 14.3%` at v2. Target: all framework-level active skills at v2 before end of the-agency#298 rollout.
+**Retrofit progress:** `10 / 64 ≈ 15.6%` at v2. Target: all framework-level active skills at v2 before end of the-agency#298 rollout.
 
 ## Skills table
 
