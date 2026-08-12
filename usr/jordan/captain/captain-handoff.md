@@ -1,86 +1,94 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-08-07T20:50
-trigger: fleet-rebuild-complete
+date: 2026-08-12T09:00
+trigger: delivery-path-hardening-ready
 branch: main
 mode: continuation
 next-action: |
-  Session will /compact then continue. After compact, run /compact-resume.
-  Then move things forward — principal's call between: (a) land the rebuilt
-  app-work branches via PR (mdslidepal-mac 912797c, mdpal-app 06ade7a),
-  (b) tackle the 3 remaining rotting PRs (#443, #435, #426), (c) start the
-  199-flag mountain triage (/flag-triage). Original triage Task #3 (flag
-  mountain) is still open. Dispatch monitor task b1id5zl1d running.
+  Session will /compact then continue. After compact, run /compact-resume, then:
+  (1) BOOTSTRAP-LAND the delivery-path-hardening branch `devex-publish-path-repo-root`
+      @ 2a07f80a (worktree .claude/worktrees/devex-landfix, receipt d60f4bd) via
+      PRIMITIVES (the new pr-captain-land still can't land itself): in that worktree
+      bump 46.28→46.29, re-sign receipt (keep A/B/C/D, new E), push, pr-create,
+      wait CI, pr-merge <N> --principal-approved, gh-release, then post-merge sync
+      main + delete worktree/branch. This carries BOTH the publish-path repo-root
+      fix AND the git-sync main-guard fix.
+  (2) THEN land the two app PRs with the NOW-COMPLETE local-first pr-captain-land
+      (see "Landing the apps" below). Each land moves main → the other app re-preps
+      first. That closes original task (a).
+  Dispatch monitors bigfr7taj + b1id5zl1d running.
 ---
 
-# Captain handoff — fleet rebuild-on-main COMPLETE
+# Captain handoff — delivery-path hardening ready to land (post-compact)
 
-## Session summary (2026-08-07)
+## The arc of this (epic) session
 
-Resumed from a ~3-month-stale handoff (this-happened hackathon, next-action
-already done). Discovered the entire worktree fleet was **parked behind the
-Great Rename** and drove a full **rebuild-on-main campaign** to unstick it.
+Resumed a 3-month-stale session; drove a fleet rebuild; then discovered and fixed
+the **entire PR-lifecycle**, which was structurally broken on this `main`-default
+repo. Two big framework PRs LANDED, a third READY to land, and the two app PRs
+are prepped behind it.
 
-## What was done this session
+## LANDED this session
+- **#444** — block-raw-tools port (v46.26). Closed **#443/#435** (superseded).
+- **#463** — PR-lifecycle made **main-aware** (v46.26→...): `pr-submit`,
+  `pr-captain-land`, `diff-hash` (handoff-exclusion / receipt-churn fix), `pr-create`
+  (head/pipefail SIGPIPE guard) + new shared `resolve-default-branch`. This unstuck
+  landing entirely — it was the parking brake.
+- **#464** — **local-first `pr-captain-land` v2** (v46.28). Plan → MAR (4 reviewers)
+  → build → QG (32 defects) → bootstrap-land. The land now integrates + validates in
+  a **scratch worktree cut from origin/main**, never touches local main, rollback =
+  delete the scratch. Plus new primitives: `ci-rollup-verdict`, `agency-version-next`,
+  `pkg-manager`. **Rehearse (steps 0-3) PROVEN LIVE** — a real Swift build validated
+  in a scratch, cleaned up, nothing published.
 
-### 1. Landed PR #444 (delivery-stream win)
-- `feat: port block-raw-tools.sh from monofolk` — merged via `pr-merge --principal-approved` (admin override; contrib branch, no GH review).
-- Fix D auto-release cut **v46.26**. Post-merge state cleared. Main reconciled with origin (merge `8a7b9f6d`).
+## READY TO LAND NOW — do this first, post-compact
 
-### 2. Fleet rebuild-on-main (the big work) — 7/7 worktrees
-**Root cause:** every worktree was pre-Great-Rename (`claude/` paths); main is post-rename + wave-3/4 (`agency/` + `src/`). Naive `worktree-sync` reproduced dispatch #869's 618-conflict wall. great-rename-migrate v1.2 only reduced it (618→502) — residual = shared framework content main archived/deleted.
+### (1) Delivery-path-hardening branch `devex-publish-path-repo-root`
+- **Worktree:** `.claude/worktrees/devex-landfix` · **Head:** `2a07f80a` · **Receipt:** `d60f4bd` (verifies vs origin/main=`ceb09231`).
+- **Why it exists:** the FIRST real (publish) land of the v2 tool failed — `receipt-sign`, `pr-create`, `dispatch` resolved REPO_ROOT from their INSTALL dir (main checkout), not the scratch, so step-5 wrote the landing receipt to the wrong tree → clean rollback. (Steps 4-9 were never integration-tested; rehearse stops at 3.)
+- **Fix A (publish-path):** `-C <repo-root>` targeting on receipt-sign/pr-create/dispatch (default unchanged, zero regression); pr-captain-land passes `-C "$SCRATCH_DIR"`. + 2 more bugs devex found (pr-create graded receipts against cwd hash by luck; dispatch derived ISCP DB from branch-supplied agency.yaml). + coverage of steps 4-9 (two-repo tests).
+- **Fix B (git-sync, flag #229):** `git-sync` did `pull --rebase` + `push` with NO main-guard → something ran it on main and **rebased + pushed main** (both 20,000-volt offenses). Now guards main/master/resolved-default + merge-not-rebase + real agent in push-log. devex found 3 MORE git-sync bugs (detached-HEAD → `push origin ""`, conflicted-merge swallowed, push-log self-corruption). All fixed, mutation-verified.
+- **Land it via PRIMITIVES** (NOT the new tool — it can't land itself yet): bump 46.28→46.29, re-sign (A/B/C/D from d60f4bd's chain, new E), push, `pr-create`, CI, `pr-merge --principal-approved`, `gh-release`, post-merge sync. Same dance as #463/#464 (see their history in git log).
 
-**Key insight (from principal):** main already owns the framework authoritatively; **`src/` is the installable source-of-truth** (the-agency is self-bootstrapping — root `agency/`/`apps/`/`tests/` is this running instance dogfooding; `src/` is what `agency init` installs). So: don't reconcile history — rebuild each worktree fresh from main, graft ONLY genuine unmerged product work.
+### (2) The two app PRs (original task a)
+- **mdslidepal-mac** @ `d7bc5da0`, receipt `ac1475f` (base ceb09231).
+- **mdpal-app** @ `1e8b1b57`, receipt `ca897af` (base ceb09231).
+- Both re-prepped clean, app-only-ish (carry 3 captain coord files from the worktree-sync bug — harmless, reach origin as legit coord).
+- **Land with the COMPLETED local-first pr-captain-land** (after fix #1 lands):
+  - Native (Swift) workstreams need `PR_LAND_VALIDATE_CMD` — the ladder is JS-only.
+  - **mdslidepal-mac cmd** (agent-confirmed): `export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer; cd src/apps/mdslidepal-mac && swift build && swift run MdSlidepalTests` (NOT `swift test` — custom runner; cold build ~1-2 min).
+  - mdpal-app cmd: ask the mdpal-app agent (executable test target `swift run MarkdownPalAppTests`).
+  - **`--rehearse` first** (non-destructive), then the real land with `--principal-approved`.
+  - Each land moves main → the OTHER app's receipt goes stale → dispatch it to re-`/pr-prep`+`/pr-submit` before landing. (Inherent single-writer cost; agents handle it fast.)
 
-**Mechanic (proven, sanctioned):** tag old tip `retired/<wt>-20260807` → `worktree-delete --force` → `git-captain branch-delete --force` → `worktree-create` (fresh from main) → graft product files via `git-safe show <tag>:<oldpath>` redirected into new worktree (NO cross-worktree cp, NO raw git) → `git-safe add` → `git-safe-commit`.
+## Known bugs / debt surfaced (for follow-up, NOT blocking the above)
+1. **flag #229 — git-sync** — being fixed in the branch above. SECONDARY: trace WHAT invoked git-sync on main (no daemon running; likely a skill path).
+2. **worktree-sync merges LOCAL main** (not origin/main) → captain's unpushed commits ride into every synced agent branch. Should merge origin/main / expose `--remote`. (This is why the app PRs carry 3 extra captain files.)
+3. **Python 3.13 floor vs machine's 3.9 `python3`** — bitten twice (dispatch-monitor, ci-rollup-verdict guards at 3.8). Policy decision: relax to "guard at actual need" or fix the machine default.
+4. **issue #465 (devex-filed)** — 19 BATS fixtures still `mkdir claude/config` post-rename → abort in setup; + iscp-migrate copies a nonexistent tool; agent-identity 2 real branch-detection failures. devex fixed 5/19.
+5. **`handoff write` silent no-op** — targets `usr/jordan/{agent}/` but file lives at `usr/jordan/{workstream}/`; reports ✓, writes nothing. mdslidepal-mac still has no handoff. HIGH.
+6. **PAT in `.git/config`** — never pushed (verified: 0 tracked files, 0 commits, local-only). Principal to rotate: `git remote set-url origin https://github.com/the-agency-ai/the-agency.git` + revoke `ghp_…`.
+7. New bats suites **don't run in CI** (smoke.yml placeholder, bash32-probe fixed list).
+8. Local-first tool's **validation ladder is JS-only** — native workstreams need PR_LAND_VALIDATE_CMD or a declared per-workstream gate (design enhancement).
+9. **Family-1/2 consolidation** seed: `agency/workstreams/agency/seeds/seed-family-1-2-consolidation-20260809.md` (converge remaining 3 default-branch resolvers: dispatch/pr-build/worktree-sync; extract shared integrate-branch primitive).
+10. Second unread captain flag exists ("2 unread" when #229 filed) — read on resume.
 
-| Worktree | Outcome | New commit |
-|---|---|---|
-| mdslidepal-web | Retired — zero unmerged work | 24b5a1a (main base) |
-| mdpal-cli | Retired — zero unmerged work | 24b5a1a (main base) |
-| mdslidepal-mac | Phase 5.1/5.2 grafted (7 files) | `912797c` |
-| mdpal-app | Phase 2.1–2.6 grafted (16 files) | `06ade7a` |
-| iscp | dispatch-hub service (38 files → `src/services/dispatch-hub/`) | `35b2e09` |
-| devex | test-monitor WIP preserved (`--no-verify`, red BATS) | `f204bd2` |
-| designex | design-system pipeline preserved (`--no-verify`, 2 red/13 skip) | `81df836` |
+## Original a / b / c
+- **(a) apps** — READY; land after fix #1 (imminent).
+- **(b) #426** (agency-captain-release-notes) — blocked on `worktree-create` remote-branch DWIM fix. devex delivered v2.2.0 earlier but it's on the `devex` branch mixed with RED test-monitor WIP (`f204bd2e`) — needs the 3 worktree-create commits (b9a4f89b/521a0f01/d9c00a39) ISOLATED onto a clean branch before landing. Then revive #426.
+- **(c) 199-flag mountain** — untouched (now ~201 with #229 + one other). Original triage Task #3. Needs strategy (dedicated /flag-triage vs pre-May bankruptcy sweep).
 
-All 7 `retired/*-20260807` recovery tags exist. Main clean at `8e27e33`.
-
-### 3. Coordination artifacts committed
-- `8e27e33` — 3 deferred dispatches + 5 commit-announce receipts (coord-commit).
-
-## Key decisions / learnings (do not re-litigate)
-
-1. **`src/` = source-of-truth installable payload; root = running instance.** the-agency is self-bootstrapping. The dual `agency/` + `src/agency/` tracking is BY DESIGN, not a bug. Framework tools live at BOTH `agency/tools/` (running) + `src/agency/tools/` (source); skills at `.claude/skills/` + `src/claude/skills/`; tests at `src/tests/` only; services tracked at `src/services/` (root `/services/` is gitignored — .gitignore:97).
-2. **App-dir grafts are always safe** (main only gets app code via merges from the worktree → worktree strictly ahead). **Framework-tool grafts are NOT** — main is the active dev locus, so blind-graft regresses main. Those need 3-way merges → deferred to owning agents.
-3. **Graft faithfully to the paths the agent had** — don't invent src/ copies; the framework's own src-split process propagates them.
-4. **zsh gotcha:** `"$TAG:claude/..."` / `"$TAG:tests/..."` triggers zsh param modifiers (`:c`, `:t`). Always put the path in a variable: `"$TAG:$path"`.
-5. **`--no-verify` skips the pre-commit hook that runs commit-precheck scoped tests** — used ONLY for explicit WIP-preservation (devex/designex red tests), honestly labeled.
-
-## Deferred work — dispatched to owning agents (HIGH priority)
-
-Each rebuilt framework worktree has a deferred 3-way merge captured as a dispatch (agent picks up on resume). Feature work safe in recovery tags:
-- **iscp** (dispatch #): dispatch-tool feature merge (remote-poll/status-mirror/cross-agency ×373 lines) vs main's landed bug fixes #167/#201/#247/#251/#388. + dispatch-monitor (~50 lines).
-- **devex** (dispatch #): git-safe-commit 3-way merge (111 lines, resolve_repo_root/BATS-regex) + FINISH Iter 1 (test-monitor BATS red).
-- **designex** (dispatch #): figma-extract tool merge + relevance-check on agent-bootstrap/changelog-monitor/ci-monitor/enforcement-audit (main may have SUPERSEDED via changelog-watch/monitor-ci/agent-create).
-
-## Open items (carry forward)
-
-1. **Rebuilt branches not yet pushed/PR'd.** App work (mdslidepal-mac `912797c`, mdpal-app `06ade7a`) is committed on fresh branches, ready to land via PR. devex/designex wait on agents finishing deferred pieces first.
-2. **3 rotting PRs** (never got to): #443 (port SKILL.md — CI red), #435 (worktree-sync stale-stash — CONFLICTING), #426 (agency-captain-release-notes — CI red, oldest Apr 23).
-3. **Flag mountain: 199 flags** (Apr 5 → May 9) — untouched. Original triage Task #3. Needs strategy (dedicated /flag-triage vs pre-May bankruptcy sweep). #199 already stale.
-4. **Local main carries unpushed captain coord commits** (4b35db38 + merges + 8e27e33) — normal captain-on-main pattern, sync later.
-
-## What's NOT in scope / parked
-- this-happened hackathon bootstrap (the old stale next-action — was already done; project at ~/code/this-happened/)
-- Old flags #216 (dispatch-monitor py3.13 — worked around by invoking /opt/homebrew/bin/python3.13 directly this session), #217, #218, #220
+## State
+- **main == origin/main == `ceb09231`** (v46.28). Clean tree.
+- Worktrees: `devex-landfix` (the land-ready fix), `mdslidepal-mac`, `mdpal-app` (apps prepped), plus fleet worktrees. `pr-lifecycle-v2` torn down.
+- Dispatch monitors: `bigfr7taj`, `b1id5zl1d` (both running; use `/opt/homebrew/bin/python3.13 ./agency/tools/dispatch-monitor --include-collab`).
+- Plan doc: `usr/jordan/captain/plans/plan-pr-captain-land-localfirst-20260809.md` (v2 post-MAR).
 
 ## On resume (post-compact)
-1. `/compact-resume` — verify tree clean, monitors alive, dispatch drift
-2. Re-launch dispatch monitor if dead (was task b1id5zl1d, uses `/opt/homebrew/bin/python3.13 ./agency/tools/dispatch-monitor --include-collab`)
-3. Move forward per principal's direction (land branches / PRs / flag mountain)
+1. `/compact-resume` — verify tree clean, monitors, dispatch drift. Read the 2 unread flags.
+2. Execute next-action (1) then (2) above.
 
-— captain, fleet rebuild complete.
+— captain. Delivery path hardened; one bootstrap-land + two app lands from done on (a).
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
