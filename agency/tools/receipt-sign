@@ -9,7 +9,7 @@
 # tool — never write receipts manually.
 #
 # Usage:
-#   ./agency/tools/receipt-sign \
+#   ./agency/tools/receipt-sign [-C <repo-root>] \
 #     --type qgr \
 #     --boundary iteration-complete \
 #     --org the-agency \
@@ -28,11 +28,39 @@
 #     --summary "Review summary text"
 #
 # Written: 2026-04-14 during captain session (receipt infrastructure Phase 1)
+# Updated: v46.29 — added `-C <repo-root>` so a caller can retarget the repo
+#   this tool writes into (see the block below for why).
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# ── Repo-root targeting: `-C <repo-root>`, first argument only ───────────────
+#
+# What Problem: pr-captain-land runs the CAPTAIN'S trusted tools against a
+# scratch worktree by setting the cwd — captain's code, scratch's data. That
+# works for cwd-aware tools (diff-hash, git-safe, git-safe-commit), but
+# receipt-sign resolved its target from SCRIPT_DIR/../.. — its own INSTALL
+# location — and ignored cwd entirely. On a real land the landing receipt was
+# therefore written into the captain's main checkout, the find-in-scratch that
+# follows came up empty, and the land aborted with "landing receipt was signed
+# but could not be located".
+#
+# How & Why: an explicit git-style `-C` flag, accepted only as the FIRST
+# argument (unambiguous, and it cannot collide with a `--summary` value that
+# happens to be the string "-C"). When absent the root stays SCRIPT_DIR/../..,
+# byte-for-byte the previous behaviour, so no existing caller changes. cwd is
+# deliberately NOT consulted as a fallback: a tool that silently follows cwd is
+# how this class of bug hides. The caller must say what it means.
+REPO_ROOT=""
+if [[ "${1:-}" == "-C" ]]; then
+    [[ -n "${2:-}" ]] || { echo "Error: -C requires a directory argument" >&2; exit 1; }
+    [[ -d "$2" ]] || { echo "Error: -C directory does not exist: $2" >&2; exit 1; }
+    REPO_ROOT="$(cd "$2" && pwd)"
+    shift 2
+fi
+[[ -n "$REPO_ROOT" ]] || REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 # D42-R3: receipts write to per-workstream paths.
 # RECEIPTS_DIR is set after --workstream is parsed (see below).
 
@@ -73,7 +101,11 @@ while [[ $# -gt 0 ]]; do
         --diff-base) DIFF_BASE="$2"; shift 2 ;;
         --summary) SUMMARY="$2"; shift 2 ;;
         --help)
-            echo "Usage: receipt-sign --type qgr|rgr --boundary <boundary> --org <org> --principal <principal> --agent <agent> --workstream <ws> --project <proj> --hash-a <h> --hash-b <h> --hash-c <h> --hash-d <h> --hash-e <h> [--hash-d-source <src>] [--hash-d-transcript <path>] [--diff-base <ref>] [--summary <text>]"
+            echo "Usage: receipt-sign [-C <repo-root>] --type qgr|rgr --boundary <boundary> --org <org> --principal <principal> --agent <agent> --workstream <ws> --project <proj> --hash-a <h> --hash-b <h> --hash-c <h> --hash-d <h> --hash-e <h> [--hash-d-source <src>] [--hash-d-transcript <path>] [--diff-base <ref>] [--summary <text>]"
+            echo ""
+            echo "  -C <repo-root>  Write the receipt into <repo-root> instead of this tool's"
+            echo "                  own checkout. Must be the FIRST argument. Used by"
+            echo "                  pr-captain-land to sign into its scratch worktree."
             exit 0
             ;;
         *) echo "Unknown argument: $1" >&2; exit 1 ;;
@@ -106,11 +138,28 @@ if [[ "$TYPE" != "qgr" && "$TYPE" != "rgr" ]]; then
     exit 1
 fi
 
-# D42-R3: path traversal check on workstream (QG finding)
-if [[ "$WORKSTREAM" == *".."* || "$WORKSTREAM" == *"/"* ]]; then
-    echo "Error: --workstream contains invalid characters (.. or /)" >&2
-    exit 1
-fi
+# D42-R3: path traversal check. Originally --workstream only, because that was
+# the one component interpolated into a DIRECTORY. But ORG/PRINCIPAL/AGENT/
+# PROJECT/BOUNDARY are all interpolated into FILENAME below, and a `/` or `..`
+# in any of them escapes RECEIPTS_DIR just as effectively — the mkdir -p that
+# follows is unconditional. That asymmetry became load-bearing once -C made the
+# write root caller-chosen too, so every component that reaches a path is
+# checked. (The land flow already sanitizes its --project via `tr '/.' '--'`;
+# this makes the tool safe rather than relying on each caller to be.)
+for _component_name in workstream org principal agent project boundary; do
+    case "$_component_name" in
+        workstream) _component_value="$WORKSTREAM" ;;
+        org)        _component_value="$ORG" ;;
+        principal)  _component_value="$PRINCIPAL" ;;
+        agent)      _component_value="$AGENT" ;;
+        project)    _component_value="$PROJECT" ;;
+        boundary)   _component_value="$BOUNDARY" ;;
+    esac
+    if [[ "$_component_value" == *".."* || "$_component_value" == *"/"* ]]; then
+        echo "Error: --$_component_name contains invalid characters (.. or /)" >&2
+        exit 1
+    fi
+done
 
 # Default hash-d-source
 if [[ -z "$HASH_D_SOURCE" ]]; then

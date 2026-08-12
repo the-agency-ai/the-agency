@@ -28,6 +28,7 @@ Each row is one filing. Click through to the per-report markdown for full contex
 | 2026-05-09 | git-safe family lacks 'init' subcommand — blocks bare-repo bootstrap | friction | the-agency-ai/the-agency | #437 | [report-agency-issue-git-safe-family-lacks-init-subcommand-blocks-bare--20260509](usr/jordan/reports/report-agency-issue-git-safe-family-lacks-init-subcommand-blocks-bare--20260509.md) | open |
 | 2026-05-09 | git-safe lacks 'remote' subcommand + run-in bypasses hookify rules | bug | the-agency-ai/the-agency | #439 | [report-agency-issue-git-safe-lacks-remote-subcommand-run-in-bypasses-h-20260509](usr/jordan/reports/report-agency-issue-git-safe-lacks-remote-subcommand-run-in-bypasses-h-20260509.md) | open |
 | 2026-05-09 | git-push blocks main, but new-repo bootstrap requires initial push to main | bug | the-agency-ai/the-agency | #440 | [report-agency-issue-git-push-blocks-main-but-new-repo-bootstrap-requir-20260509](usr/jordan/reports/report-agency-issue-git-push-blocks-main-but-new-repo-bootstrap-requir-20260509.md) | open |
+| 2026-08-11 | BATS fixtures still mkdir claude/config after the great-rename — 12 test files error out in setup() | bug | the-agency-ai/the-agency | #465 | [report-agency-issue-bats-fixtures-still-mkdir-claude-config-after-the--20260811](usr/jordan/reports/report-agency-issue-bats-fixtures-still-mkdir-claude-config-after-the--20260811.md) | open |
 <!-- AGENCY-ISSUE-INDEX-END -->
 
 ## How to add an entry

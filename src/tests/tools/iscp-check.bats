@@ -22,7 +22,12 @@ setup() {
     iscp_test_isolation_setup
 
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
-    mkdir -p "$MOCK_REPO/agency/tools/lib" "$MOCK_REPO/claude/config"
+    # agency/config, not claude/config: the great-rename moved the config dir
+    # but this setup was not swept, so line 44 below wrote agency.yaml into a
+    # directory that never existed. `cat >` failed in setup, and all 13 tests in
+    # this file have been erroring out rather than running. Found while checking
+    # the ISCP suite for regressions from the -C work.
+    mkdir -p "$MOCK_REPO/agency/tools/lib" "$MOCK_REPO/agency/config"
 
     for tool in iscp-check agent-identity dispatch flag; do
         cp "$REPO_ROOT/agency/tools/$tool" "$MOCK_REPO/agency/tools/"
