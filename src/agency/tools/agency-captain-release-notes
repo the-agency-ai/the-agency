@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # agency-captain-release-notes — Generate a captain-to-captain release notes
 # skeleton covering a window of PRs landed on the repo's default branch.
 #
 # What Problem: When multiple captains (or captain + principal) work on the same
-# monofolk-style repo, there's no standing convention for "here's what I shipped
-# since the last sync" — the knowledge lives in git log + release tags + private
+# shared repo, there's no standing convention for "here's what I shipped since
+# the last sync" — the knowledge lives in git log + release tags + private
 # handoffs. Cross-agent visibility into what landed (and what's in-flight)
 # requires manually walking `gh release list`, `gh pr list`, correlating by date,
 # assembling a markdown file with PR table + qualitative context. This is
@@ -35,7 +35,8 @@
 #
 # Window detection order:
 #   1. Explicit --start-version / --end-version (highest priority)
-#   2. --start-date / --end-date (UTC timestamps)
+#   2. --start-date / --end-date (UTC timestamps — these override the dates
+#      derived from the versions above)
 #   3. Auto-detect: start = end_version of most recent prior release-notes file
 #      in the release-notes/ directory; end = latest release on the repo
 #
@@ -46,37 +47,50 @@
 #   Default audience is "any captain or principal working on {project}".
 #   --to <addr> narrows to a specific agent (e.g. <repo>/<principal>/captain).
 #
-# Written: 2026-04-23 — convention-capture from monofolk v3.3-v3.31 release
-# notes burst.
-# Updated: 2026-08-12 — revived from stale PR #426 onto v46.33. Fixes:
-#   - agent-identity: dropped the non-existent `--agent-address` flag; the tool
-#     now reads the bare address (and --principal/--agent) that agent-identity
-#     actually exposes. The old call silently produced "unknown-captain".
-#   - `gh` resolution: prefers the framework wrapper agency/tools/gh (token
-#     injection + telemetry) over bare `gh` on PATH.
-#   - `jq` is now a declared preflight dependency instead of an implicit one
-#     (`|| echo 0` used to mask its absence as "0 PRs in window").
-#   - PR enumeration is scoped to the repo's default branch via
-#     resolve-default-branch instead of every base branch in the repo.
-#   - Latest release is selected via `isLatest` rather than trusting list order.
-#   - Workstream default: project.name is a free-text field ("My Project" in the
-#     shipped agency.yaml), so it is now slugified and probed against
-#     agency/workstreams/ with repo-name and "agency" fallbacks.
-#   - Colors: lib/_colors exports unescaped \033 sequences, so all output moved
-#     from `echo` to `printf '%b'` (previously printed literal "\033[0;31m").
-#   - PR titles containing `|` are escaped so they cannot break the table.
-#   - Prior-window detection sorts release-notes files lexically (filenames are
-#     date-stamped) instead of by mtime, which a checkout reshuffles.
-#   - An explicit --captain now drives the frontmatter `from:` address too. It
-#     used to name one captain in the header and a different one in `from:`.
-#   - `from:` no longer rebuilt the address by replacing the FIRST hyphen in the
-#     captain name, which mangled multi-word principals ("jordan-of-captain"
-#     became "jordan/of-captain"). Splits on the last hyphen now.
+# Written: 2026-04-23 — convention-capture from an adopter repo's v3.3-v3.31
+# release-notes burst.
+# Updated: 2026-08-12 — revived from stale PR #426 onto v46.33, then hardened
+# by the pr-prep quality gate. See the git history for the itemized fix list;
+# the load-bearing ones:
+#   - agent-identity was called with a `--agent-address` flag that has never
+#     existed, so every run silently produced "unknown-captain".
+#   - `gh pr list` counted PRs merged into EVERY base branch. Now scoped to the
+#     repo's default branch via resolve-default-branch (`--base`, or `all`).
+#   - `jq` was an undeclared dependency whose absence was swallowed by
+#     `|| echo 0` and reported as "0 PRs in window".
+#   - The gh argv was built as a string and word-split unquoted, which let
+#     `--base 'main --repo attacker/evil'` retarget the query. Now an array.
+#   - `end_version:` scraped out of a prior notes file flowed unvalidated into
+#     the output path — `../../..` escaped the repo. Now validated, and every
+#     filename component is slugified.
+#   - Window bounds could invert (start after end) and silently yield zero PRs
+#     while the frontmatter claimed a `v0.0`-anchored window.
+#   - lib/_colors exports unescaped \033, so `echo` printed the escapes
+#     literally. All output moved to printf '%b'.
 
 set -euo pipefail
 
-TOOL_VERSION="1.1.0"
+TOOL_VERSION="1.2.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Telemetry (repo convention: tools in agency/tools/ log through _log-helper).
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    # shellcheck source=lib/_log-helper
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "agency-captain-release-notes" "$@" 2>/dev/null) || true
+
+_finish() {
+    local code="$1"
+    if [[ -n "${RUN_ID:-}" ]]; then
+        if [[ "$code" == "0" ]]; then
+            log_end "$RUN_ID" "success" 0 0 "" 2>/dev/null || true
+        else
+            log_end "$RUN_ID" "failure" "$code" 0 "" 2>/dev/null || true
+        fi
+    fi
+}
+trap '_finish "$?"' EXIT
 
 if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
     PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
@@ -92,10 +106,13 @@ fi
 if [[ -f "$SCRIPT_DIR/lib/_colors" ]]; then
     # shellcheck source=lib/_colors
     source "$SCRIPT_DIR/lib/_colors"
+elif [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 1 ]]; then
+    # Mirror lib/_colors' NO_COLOR contract (https://no-color.org/) so a
+    # non-Agency checkout doesn't emit escapes into a pipe.
+    RED='' GREEN='' YELLOW='' BLUE='' NC=''
 else
     RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m' BLUE='\033[0;34m' NC='\033[0m'
 fi
-: "${YELLOW:=}"
 
 say()  { printf '%b\n' "$*"; }
 die()  { printf '%b\n' "${RED}[ERROR]${NC} $1" >&2; exit 1; }
@@ -119,6 +136,10 @@ PROJECT_NAME=""
 BASE_BRANCH=""
 PR_LIMIT=200
 
+# Release discovery must NOT share the PR limit: a small --limit would truncate
+# the release list and break publishedAt lookup for the window's start tag.
+RELEASE_LIMIT=1000
+
 usage() {
     cat <<'USAGE'
 agency-captain-release-notes — Generate captain-to-captain release notes skeleton
@@ -133,9 +154,10 @@ Options:
   --end-version <vX.Y>     Ending release tag (inclusive — the most recent
                            release you want covered). Auto-detected from the
                            repo's latest release if omitted.
-  --start-date <ISO>       Alternative to --start-version. UTC timestamp
-                           (YYYY-MM-DDTHH:MM:SSZ).
-  --end-date <ISO>         Alternative to --end-version.
+  --start-date <ISO>       Alternative to --start-version. Strict UTC timestamp
+                           (YYYY-MM-DDTHH:MM:SSZ). Overrides the date derived
+                           from --start-version.
+  --end-date <ISO>         Alternative to --end-version. Same format.
   --base <branch|all>      Base branch for PR enumeration. Default: the repo's
                            default branch (resolve-default-branch). Use "all"
                            to count PRs merged into any base.
@@ -147,10 +169,12 @@ Options:
   --workstream <name>      Workstream directory under agency/workstreams/.
                            Default: resolved from agency.yaml project name,
                            falling back to the repo name, then "agency".
-  --captain <name>         Captain name for filename + frontmatter (e.g.
-                           "jordan-captain"). Default: resolved from
-                           agency/tools/agent-identity.
-  --output <path>          Explicit output file path. Default:
+  --captain <name|addr>    Captain identity for filename + frontmatter. Accepts
+                           "<principal>-<agent>" (e.g. "jordan-captain") or a
+                           full address ("<repo>/<principal>/<agent>").
+                           Default: resolved from agency/tools/agent-identity.
+  --output <path>          Explicit output file path. Mutually exclusive with
+                           --stdout. Default:
                            agency/workstreams/<workstream>/release-notes/
                            release-notes-<YYYYMMDD>-<captain>-<vStart>-<vEnd>.md
   --stdout                 Print to stdout instead of writing a file.
@@ -178,23 +202,26 @@ USAGE
 }
 
 require_value() {
-    # $1 = flag name, $2 = count of remaining args
-    [[ "$2" -ge 2 ]] || die "$1 requires a value (see --help)"
+    # $1 = flag name, $2 = the candidate value, $3 = remaining argc.
+    # Checking argc alone lets "--to --stdout" consume the next FLAG as a value.
+    [[ "$3" -ge 2 ]] || die "$1 requires a value (see --help)"
+    [[ "$2" == --* ]] && die "$1 requires a value (got a flag: $2)"
+    return 0
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --start-version)  require_value "$1" $#; START_VERSION="$2"; shift 2;;
-        --end-version)    require_value "$1" $#; END_VERSION="$2"; shift 2;;
-        --start-date)     require_value "$1" $#; START_DATE="$2"; shift 2;;
-        --end-date)       require_value "$1" $#; END_DATE="$2"; shift 2;;
-        --base)           require_value "$1" $#; BASE_BRANCH="$2"; shift 2;;
-        --limit)          require_value "$1" $#; PR_LIMIT="$2"; shift 2;;
-        --to)             require_value "$1" $#; TO_ADDR="$2"; shift 2;;
-        --audience)       require_value "$1" $#; AUDIENCE="$2"; shift 2;;
-        --workstream)     require_value "$1" $#; WORKSTREAM="$2"; shift 2;;
-        --captain)        require_value "$1" $#; CAPTAIN_NAME="$2"; shift 2;;
-        --output)         require_value "$1" $#; OUTPUT_FILE="$2"; shift 2;;
+        --start-version)  require_value "$1" "${2:-}" $#; START_VERSION="$2"; shift 2;;
+        --end-version)    require_value "$1" "${2:-}" $#; END_VERSION="$2"; shift 2;;
+        --start-date)     require_value "$1" "${2:-}" $#; START_DATE="$2"; shift 2;;
+        --end-date)       require_value "$1" "${2:-}" $#; END_DATE="$2"; shift 2;;
+        --base)           require_value "$1" "${2:-}" $#; BASE_BRANCH="$2"; shift 2;;
+        --limit)          require_value "$1" "${2:-}" $#; PR_LIMIT="$2"; shift 2;;
+        --to)             require_value "$1" "${2:-}" $#; TO_ADDR="$2"; shift 2;;
+        --audience)       require_value "$1" "${2:-}" $#; AUDIENCE="$2"; shift 2;;
+        --workstream)     require_value "$1" "${2:-}" $#; WORKSTREAM="$2"; shift 2;;
+        --captain)        require_value "$1" "${2:-}" $#; CAPTAIN_NAME="$2"; shift 2;;
+        --output)         require_value "$1" "${2:-}" $#; OUTPUT_FILE="$2"; shift 2;;
         --stdout)         STDOUT_MODE=true; shift;;
         --dry-run)        DRY_RUN=true; shift;;
         --help|-h)        usage;;
@@ -203,7 +230,32 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ "$PR_LIMIT" =~ ^[0-9]+$ ]] || die "--limit must be a positive integer (got: $PR_LIMIT)"
+# --- Validate inputs ---
+# Every value below reaches either a `gh` argv or a generated file path, so it
+# is validated at the boundary rather than trusted downstream.
+
+[[ "$PR_LIMIT" =~ ^[1-9][0-9]*$ ]] || die "--limit must be a positive integer (got: $PR_LIMIT)"
+
+if [[ -n "$BASE_BRANCH" && ! "$BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+    die "--base must be a branch name or 'all' (got: $BASE_BRANCH)"
+fi
+
+ISO_RE='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+if [[ -n "$START_DATE" && ! "$START_DATE" =~ $ISO_RE ]]; then
+    die "--start-date must be YYYY-MM-DDTHH:MM:SSZ (got: $START_DATE)"
+fi
+if [[ -n "$END_DATE" && ! "$END_DATE" =~ $ISO_RE ]]; then
+    die "--end-date must be YYYY-MM-DDTHH:MM:SSZ (got: $END_DATE)"
+fi
+
+# A newline in either of these would let the caller append arbitrary keys to the
+# YAML frontmatter of the generated document.
+case "$TO_ADDR" in *$'\n'*) die "--to must be a single line";; esac
+case "$AUDIENCE" in *$'\n'*) die "--audience must be a single line";; esac
+
+if [[ "$STDOUT_MODE" == "true" && -n "$OUTPUT_FILE" ]]; then
+    die "--stdout and --output are mutually exclusive"
+fi
 
 # --- Preflight: gh + jq ---
 # Prefer the framework gh wrapper (token injection + telemetry) when present.
@@ -217,11 +269,24 @@ else
 fi
 command -v jq >/dev/null 2>&1 || die "jq not found. Install via https://jqlang.github.io/jq/"
 
-# --- Auto-detect: project name (from agency.yaml) ---
+slugify() {
+    # Lowercase, spaces/underscores → dashes, drop everything else. Strips `/`
+    # and `..`, which is what makes it safe for filename components.
+    # bash 3.2: no ${var,,}, so tr does the lowering.
+    printf '%s' "$1" \
+        | tr '[:upper:]' '[:lower:]' \
+        | sed -e 's/[ _]\{1,\}/-/g' -e 's/[^a-z0-9.-]//g' -e 's/\.\{2,\}/./g' \
+              -e 's/^[.-]*//' -e 's/[.-]*$//'
+}
+
+# --- Auto-detect: project name ---
+# `config get` is the framework's YAML reader; the awk parse is the fallback for
+# a checkout that predates it (or an adopter that vendored only this tool).
+if [[ -x "$PROJECT_ROOT/agency/tools/config" ]]; then
+    PROJECT_NAME=$("$PROJECT_ROOT/agency/tools/config" get project.name 2>/dev/null || true)
+fi
 AGENCY_YAML="$PROJECT_ROOT/agency/config/agency.yaml"
-if [[ -f "$AGENCY_YAML" ]]; then
-    # Very narrow yaml parse: look for "  name:" under the "project:" block.
-    # Avoid requiring a yaml library (stdlib-only / zero-pip policy).
+if [[ -z "$PROJECT_NAME" && -f "$AGENCY_YAML" ]]; then
     PROJECT_NAME=$(awk '
         /^project:/ { in_project=1; next }
         /^[a-zA-Z]/ && !/^project:/ { in_project=0 }
@@ -232,28 +297,24 @@ fi
 # --- Auto-detect: agent identity ---
 # agent-identity prints the fully qualified address "<repo>/<principal>/<agent>"
 # on stdout with no flags; --principal / --agent / --repo print components.
-# (The pre-revival code called a --agent-address flag that has never existed,
-# which meant CAPTAIN_NAME silently degraded to "unknown-captain".)
 IDENT_REPO=""
 IDENT_PRINCIPAL=""
 IDENT_AGENT=""
 if [[ -x "$PROJECT_ROOT/agency/tools/agent-identity" ]]; then
     AGENT_ADDR=$("$PROJECT_ROOT/agency/tools/agent-identity" 2>/dev/null || true)
+    # Take the LAST three segments so a 4-segment org-qualified address
+    # (org/repo/principal/agent) parses correctly instead of shoving the org
+    # into the repo slot.
     if [[ "$AGENT_ADDR" == */*/* ]]; then
-        IFS='/' read -r IDENT_REPO IDENT_PRINCIPAL IDENT_AGENT <<< "$AGENT_ADDR"
+        IDENT_AGENT="${AGENT_ADDR##*/}"
+        _rest="${AGENT_ADDR%/*}"
+        IDENT_PRINCIPAL="${_rest##*/}"
+        _rest="${_rest%/*}"
+        IDENT_REPO="${_rest##*/}"
     fi
 fi
 
 PROJECT_NAME="${PROJECT_NAME:-${IDENT_REPO:-unknown-project}}"
-
-slugify() {
-    # Lowercase, spaces/underscores → dashes, drop everything else.
-    # bash 3.2: no ${var,,}, so tr does the lowering.
-    printf '%s' "$1" \
-        | tr '[:upper:]' '[:lower:]' \
-        | sed -e 's/[ _]\{1,\}/-/g' -e 's/[^a-z0-9.-]//g' -e 's/^-*//' -e 's/-*$//'
-}
-
 PROJECT_SLUG="$(slugify "$PROJECT_NAME")"
 PROJECT_SLUG="${PROJECT_SLUG:-unknown-project}"
 
@@ -261,37 +322,73 @@ PROJECT_SLUG="${PROJECT_SLUG:-unknown-project}"
 # project.name is free text ("My Project" ships in the default agency.yaml), so
 # it is not directly usable as a directory name. Probe slugified candidates
 # against agency/workstreams/ and take the first that exists.
+WORKSTREAM_RESOLVED=false
 if [[ -z "$WORKSTREAM" ]]; then
     for candidate in "$PROJECT_SLUG" "$(slugify "${IDENT_REPO:-}")" "agency"; do
         [[ -n "$candidate" ]] || continue
         if [[ -d "$PROJECT_ROOT/agency/workstreams/$candidate" ]]; then
             WORKSTREAM="$candidate"
+            WORKSTREAM_RESOLVED=true
             break
         fi
     done
+    if [[ "$WORKSTREAM_RESOLVED" != "true" ]]; then
+        WORKSTREAM="$PROJECT_SLUG"
+        warn "No existing workstream directory matched; defaulting to '$WORKSTREAM' (it will be created). Pass --workstream to choose."
+    fi
+else
+    WORKSTREAM="$(slugify "$WORKSTREAM")"
+    [[ -n "$WORKSTREAM" ]] || die "--workstream did not yield a usable directory name"
 fi
-WORKSTREAM="${WORKSTREAM:-$PROJECT_SLUG}"
 
 # --- Captain name / address ---
-# An explicit --captain must also drive the `from:` address, or the note claims
-# one identity in its header and a different one in its frontmatter.
-if [[ -n "$CAPTAIN_NAME" ]]; then
-    # Split on the LAST hyphen: "jordan-captain" → jordan/captain, and a
-    # multi-word principal like "jordan-of-captain" → jordan-of/captain.
-    _cap_agent="${CAPTAIN_NAME##*-}"
-    _cap_principal="${CAPTAIN_NAME%-*}"
-    if [[ "$_cap_principal" == "$CAPTAIN_NAME" || -z "$_cap_principal" ]]; then
-        # No hyphen — treat the whole name as the agent under the known principal.
-        _cap_principal="${IDENT_PRINCIPAL:-unknown}"
-        _cap_agent="$CAPTAIN_NAME"
+# Principals are single-token in practice ("jordan"); AGENTS are hyphenated
+# branch slugs ("revive-release-notes"). So a bare "<principal>-<agent>" name
+# splits on the FIRST hyphen, not the last — and when the caller echoes back the
+# identity-derived name, the identity components win outright.
+resolve_captain() {
+    if [[ -z "$CAPTAIN_NAME" ]]; then
+        if [[ -n "$IDENT_PRINCIPAL" && -n "$IDENT_AGENT" ]]; then
+            CAPTAIN_NAME="${IDENT_PRINCIPAL}-${IDENT_AGENT}"
+            CAPTAIN_ADDR="${IDENT_REPO:-$PROJECT_SLUG}/${IDENT_PRINCIPAL}/${IDENT_AGENT}"
+        else
+            CAPTAIN_NAME="unknown-captain"
+            CAPTAIN_ADDR="${PROJECT_SLUG}/unknown/captain"
+        fi
+        return 0
     fi
-    CAPTAIN_ADDR="${IDENT_REPO:-$PROJECT_SLUG}/${_cap_principal}/${_cap_agent}"
-elif [[ -n "$IDENT_PRINCIPAL" && -n "$IDENT_AGENT" ]]; then
-    CAPTAIN_NAME="${IDENT_PRINCIPAL}-${IDENT_AGENT}"
-    CAPTAIN_ADDR="${IDENT_REPO:-$PROJECT_SLUG}/${IDENT_PRINCIPAL}/${IDENT_AGENT}"
-else
-    CAPTAIN_NAME="unknown-captain"
-    CAPTAIN_ADDR="${PROJECT_SLUG}/unknown/captain"
+
+    local principal agent
+
+    if [[ "$CAPTAIN_NAME" == */* ]]; then
+        # Full address form — take the last two segments as principal/agent.
+        agent="${CAPTAIN_NAME##*/}"
+        local rest="${CAPTAIN_NAME%/*}"
+        principal="${rest##*/}"
+        [[ -n "$principal" && -n "$agent" ]] \
+            || die "--captain address must be <repo>/<principal>/<agent> (got: $CAPTAIN_NAME)"
+        CAPTAIN_ADDR="${IDENT_REPO:-$PROJECT_SLUG}/${principal}/${agent}"
+        CAPTAIN_NAME="${principal}-${agent}"
+        return 0
+    fi
+
+    if [[ -n "$IDENT_PRINCIPAL" && "$CAPTAIN_NAME" == "${IDENT_PRINCIPAL}-"* ]]; then
+        principal="$IDENT_PRINCIPAL"
+        agent="${CAPTAIN_NAME#${IDENT_PRINCIPAL}-}"
+    else
+        principal="${CAPTAIN_NAME%%-*}"
+        agent="${CAPTAIN_NAME#*-}"
+    fi
+
+    [[ -n "$principal" && -n "$agent" && "$principal" != "$CAPTAIN_NAME" ]] \
+        || die "--captain must be <principal>-<agent> or a full address (got: $CAPTAIN_NAME)"
+
+    CAPTAIN_ADDR="${IDENT_REPO:-$PROJECT_SLUG}/${principal}/${agent}"
+}
+resolve_captain
+
+if [[ -n "$IDENT_AGENT" && "$IDENT_AGENT" != "captain" ]]; then
+    warn "Running as '$IDENT_AGENT', not captain — these notes will be attributed to $CAPTAIN_ADDR. Pass --captain to override."
 fi
 
 # --- Default audience ---
@@ -302,7 +399,10 @@ if [[ -z "$BASE_BRANCH" ]]; then
     if [[ -x "$PROJECT_ROOT/agency/tools/resolve-default-branch" ]]; then
         BASE_BRANCH="$("$PROJECT_ROOT/agency/tools/resolve-default-branch" -C "$PROJECT_ROOT" 2>/dev/null || true)"
     fi
-    BASE_BRANCH="${BASE_BRANCH:-all}"
+    if [[ -z "$BASE_BRANCH" ]]; then
+        BASE_BRANCH="all"
+        warn "Could not resolve a default branch — counting PRs merged into ANY base."
+    fi
 fi
 
 # --- Window detection ---
@@ -317,18 +417,22 @@ utc_days_ago() {
 }
 
 # Single releases fetch — reused for end-version detection and both date bounds.
-RELEASES_JSON=$("$GH" release list --limit "$PR_LIMIT" --json tagName,publishedAt,isLatest 2>/dev/null || echo '[]')
+RELEASES_JSON=$("$GH" release list --limit "$RELEASE_LIMIT" --json tagName,publishedAt,isLatest 2>/dev/null || echo '[]')
 echo "$RELEASES_JSON" | jq -e 'type == "array"' >/dev/null 2>&1 || RELEASES_JSON='[]'
 
 release_published_at() {
-    echo "$RELEASES_JSON" | jq -r --arg t "$1" '.[] | select(.tagName == $t) | .publishedAt' 2>/dev/null | head -1
+    # `objects` guards against an array of non-objects; `first(...)` avoids the
+    # SIGPIPE that `| head -1` inflicts on jq under `set -o pipefail`.
+    printf '%s' "$RELEASES_JSON" \
+        | jq -r --arg t "$1" 'first(.[] | objects | select(.tagName == $t) | .publishedAt) // ""' 2>/dev/null \
+        || echo ""
 }
 
 # end-version: if not given, use the repo's latest release.
 # Do not trust list order — select on isLatest, then fall back to first entry.
 if [[ -z "$END_VERSION" ]]; then
-    END_VERSION=$(echo "$RELEASES_JSON" | jq -r 'map(select(.isLatest)) | .[0].tagName // ""')
-    [[ -z "$END_VERSION" ]] && END_VERSION=$(echo "$RELEASES_JSON" | jq -r '.[0].tagName // ""')
+    END_VERSION=$(printf '%s' "$RELEASES_JSON" | jq -r 'first(.[] | objects | select(.isLatest) | .tagName) // ""' 2>/dev/null || echo "")
+    [[ -z "$END_VERSION" ]] && END_VERSION=$(printf '%s' "$RELEASES_JSON" | jq -r 'first(.[] | objects | .tagName) // ""' 2>/dev/null || echo "")
     [[ -z "$END_VERSION" ]] && die "--end-version not given and could not auto-detect (no releases found)"
 fi
 
@@ -336,29 +440,58 @@ fi
 # and pull its `end_version` frontmatter value.
 RELEASE_NOTES_DIR="$PROJECT_ROOT/agency/workstreams/$WORKSTREAM/release-notes"
 if [[ -z "$START_VERSION" && -d "$RELEASE_NOTES_DIR" ]]; then
-    # Filenames are date-stamped (release-notes-YYYYMMDD-...), so a lexical
+    # Glob only our own filenames — a stray README.md sorting last would
+    # otherwise hijack the window. Filenames are date-stamped, so a lexical
     # sort is stable across checkouts in a way mtime ordering is not.
-    PREV_FILE=$(ls -1 "$RELEASE_NOTES_DIR"/*.md 2>/dev/null | sort | tail -1 || true)
+    PREV_FILE=$(ls -1 "$RELEASE_NOTES_DIR"/release-notes-*.md 2>/dev/null | sort | tail -1 || true)
     if [[ -n "$PREV_FILE" ]]; then
         PREV_END=$(awk '
             /^---/ && !fm { fm=1; next }
             /^---/ && fm { exit }
-            fm && /^ *end_version:/ { sub(/.*end_version:[ \t]*/, ""); print; exit }
+            fm && /^ *end_version:/ {
+                sub(/.*end_version:[ \t]*/, "")
+                gsub(/^[ \t"'"'"'\r]+|[ \t"'"'"'\r]+$/, "")
+                print; exit
+            }
         ' "$PREV_FILE")
-        [[ -n "$PREV_END" ]] && START_VERSION="$PREV_END"
+        # This value reaches the output path. A prior file carrying
+        # `end_version: ../../../etc` must not escape the workstream.
+        if [[ -n "$PREV_END" ]]; then
+            if [[ "$PREV_END" =~ ^[A-Za-z0-9._-]+$ ]]; then
+                START_VERSION="$PREV_END"
+            else
+                warn "Ignoring unusable end_version '$PREV_END' in $PREV_FILE"
+            fi
+        fi
     fi
 fi
-START_VERSION="${START_VERSION:-v0.0}"
 
-# --- Date bounds ---
+START_VERSION_KNOWN=true
+if [[ -z "$START_VERSION" ]]; then
+    START_VERSION_KNOWN=false
+    START_VERSION="v0.0"
+fi
+
+# --- Date bounds (explicit --start-date/--end-date win) ---
 if [[ -z "$START_DATE" ]]; then
     START_DATE="$(release_published_at "$START_VERSION")"
-    [[ -z "$START_DATE" ]] && START_DATE="$(utc_days_ago 30)"
+    if [[ -z "$START_DATE" ]]; then
+        START_DATE="$(utc_days_ago 30)"
+        if [[ "$START_VERSION_KNOWN" == "true" ]]; then
+            warn "No release published for '$START_VERSION' — falling back to a 30-day window."
+        fi
+    fi
 fi
 
 if [[ -z "$END_DATE" ]]; then
     END_DATE="$(release_published_at "$END_VERSION")"
     END_DATE="${END_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+fi
+
+# An inverted window silently yields zero PRs while the frontmatter still claims
+# a covered range — the document would lie about itself. Refuse instead.
+if [[ ! "$START_DATE" < "$END_DATE" ]]; then
+    die "Window is inverted: start $START_DATE is not before end $END_DATE (start '$START_VERSION' → end '$END_VERSION'). Pass --start-date/--end-date to set it explicitly."
 fi
 
 info "Window: $START_VERSION ($START_DATE) → $END_VERSION ($END_DATE)"
@@ -367,20 +500,23 @@ info "Project: $PROJECT_NAME | Workstream: $WORKSTREAM | Captain: $CAPTAIN_NAME 
 # --- Enumerate merged PRs in window ---
 # Scoped to the repo's default branch by default: on a fleet repo, PRs merged
 # into agent branches are not "what shipped", and counting them inflates the
-# window. `--base all` restores the old count-everything behavior.
-PR_ARGS="--state merged --limit $PR_LIMIT --json number,title,mergedAt,author"
+# window. `--base all` restores the count-everything behavior.
+#
+# argv is an ARRAY, not a word-split string: `--base 'main --repo x/y'` used to
+# splice extra flags into the gh invocation.
+PR_ARGS=(--state merged --limit "$PR_LIMIT" --json number,title,mergedAt,author)
 if [[ "$BASE_BRANCH" != "all" ]]; then
-    PR_ARGS="$PR_ARGS --base $BASE_BRANCH"
+    PR_ARGS+=(--base "$BASE_BRANCH")
 fi
 
-# shellcheck disable=SC2086
-PRS_RAW=$("$GH" pr list $PR_ARGS 2>/dev/null || echo '[]')
+PRS_RAW=$("$GH" pr list "${PR_ARGS[@]}" 2>/dev/null || echo '[]')
 echo "$PRS_RAW" | jq -e 'type == "array"' >/dev/null 2>&1 || PRS_RAW='[]'
 
-PRS_JSON=$(echo "$PRS_RAW" | jq --arg s "$START_DATE" --arg e "$END_DATE" \
-    '[.[] | select(.mergedAt != null and .mergedAt > $s and .mergedAt <= $e)] | sort_by(.mergedAt)')
+PRS_JSON=$(printf '%s' "$PRS_RAW" | jq --arg s "$START_DATE" --arg e "$END_DATE" \
+    '[.[] | objects | select(.mergedAt != null and .mergedAt > $s and .mergedAt <= $e)] | sort_by(.mergedAt)' \
+    2>/dev/null || echo '[]')
 
-PR_COUNT=$(echo "$PRS_JSON" | jq 'length')
+PR_COUNT=$(printf '%s' "$PRS_JSON" | jq 'length' 2>/dev/null || echo 0)
 info "Found $PR_COUNT PRs in window"
 [[ "$PR_COUNT" == "0" ]] && warn "No PRs matched — check --base / --start-date / --end-date."
 
@@ -392,9 +528,11 @@ render_pr_table() {
         echo "| — | — | — | _no merged PRs in window_ |"
         return
     fi
-    # Escape pipes in titles so a title can never break the table.
-    echo "$PRS_JSON" | jq -r '
-        .[] | "| #\(.number) | \(.mergedAt) | \(.author.login // "unknown") | \(.title | gsub("\\|"; "\\|")) |"
+    # PR titles are attacker-controllable text. Escape backslashes FIRST, then
+    # pipes — the other order turns a title's literal `\|` into `\\|`, which
+    # renders as a backslash and re-breaks the cell.
+    printf '%s' "$PRS_JSON" | jq -r '
+        .[] | "| #\(.number) | \(.mergedAt) | \(.author.login // "unknown") | \(.title | gsub("\\\\"; "\\\\") | gsub("\\|"; "\\|")) |"
     '
 }
 
@@ -497,13 +635,22 @@ BODY
 
 # --- Determine output path ---
 if [[ "$STDOUT_MODE" != "true" && -z "$OUTPUT_FILE" ]]; then
-    OUTPUT_FILE="$RELEASE_NOTES_DIR/release-notes-${DATE_TODAY}-${CAPTAIN_NAME}-${START_VERSION}-${END_VERSION}.md"
+    # Slugify every interpolated component: these come from agent-identity, a
+    # prior file's frontmatter, and gh — none of them may contribute a `/`.
+    FN_CAPTAIN="$(slugify "$CAPTAIN_NAME")"
+    FN_START="$(slugify "$START_VERSION")"
+    FN_END="$(slugify "$END_VERSION")"
+    OUTPUT_FILE="$RELEASE_NOTES_DIR/release-notes-${DATE_TODAY}-${FN_CAPTAIN}-${FN_START}-${FN_END}.md"
 fi
 
 # --- Dry run: just report ---
 if [[ "$DRY_RUN" == "true" ]]; then
     info "DRY RUN — would write to: ${OUTPUT_FILE:-<stdout>}"
-    info "  frontmatter fields: from/audience/to/window/prs_landed_count"
+    if [[ -n "$TO_ADDR" ]]; then
+        info "  frontmatter fields: from/to/audience/window/prs_landed_count"
+    else
+        info "  frontmatter fields: from/audience/window/prs_landed_count"
+    fi
     info "  PR rows: $PR_COUNT"
     exit 0
 fi
@@ -513,7 +660,11 @@ if [[ "$STDOUT_MODE" == "true" ]]; then
     render_frontmatter
     render_body
 else
-    mkdir -p "$(dirname "$OUTPUT_FILE")"
+    # The default path is fully predictable, so a pre-planted symlink there
+    # would redirect the write outside the repo.
+    [[ -L "$OUTPUT_FILE" ]] && die "Refusing to write through a symlink: $OUTPUT_FILE"
+    mkdir -p "$(dirname "$OUTPUT_FILE")" \
+        || die "Could not create output directory: $(dirname "$OUTPUT_FILE")"
     {
         render_frontmatter
         render_body

@@ -3,7 +3,7 @@ name: agency-captain-release-notes
 description: Captain-only. Generate a release-notes skeleton for the current captain to announce a window of PRs + releases to other captains/principals on the same repo. Auto-populates the mechanical parts (PR table, version window, frontmatter, filename); captain fills qualitative sections (TL;DR, shared changes, behavioral changes, flags, in-flight, coordination asks). Every PR is a release, and every window of releases deserves a note when multiple captains share a repo.
 agency-skill-version: 2
 when_to_use: Captain has landed a burst of PRs on the default branch and wants to broadcast what shipped to other captains/principals working the same repo. Typical cadence — once per session-burst, or daily. Also useful before session-end as a recap artifact.
-argument-hint: "[--start-version vX.Y] [--end-version vX.Y] [--base <branch|all>] [--to <addr>] [--audience <string>] [--workstream <name>] [--dry-run] [--stdout]"
+argument-hint: "[--start-version vX.Y] [--end-version vX.Y] [--start-date ISO] [--end-date ISO] [--base <branch|all>] [--limit n] [--to <addr>] [--audience <string>] [--workstream <name>] [--captain <name|addr>] [--output <path>] [--dry-run] [--stdout]"
 paths: []
 required_reading:
   - agency/REFERENCE/REFERENCE-AGENT-ADDRESSING.md
@@ -13,8 +13,6 @@ required_reading:
 # agency-captain-release-notes
 
 Captain-only skill. Generates a release-notes skeleton addressed to other captains or principals on the same repo. Mechanical parts (PR table, version window, frontmatter, output path) are tool-generated; qualitative parts (narrative, shared changes, flags, in-flight) are captain-filled.
-
-**Name pattern:** `agency-` (framework-level skill, upstreamed from the-agency), `captain-` (captain-only scope), `release-notes` (noun).
 
 ## Why this exists
 
@@ -47,12 +45,12 @@ Before running, Read the files listed in `required_reading:` frontmatter.
 - `--end-version <vX.Y>` — most recent release to include. Auto-detected as the repo's latest release (selected on `isLatest`, not list order).
 - `--start-date <ISO>` / `--end-date <ISO>` — alternative to version-based windowing (UTC timestamps). These win over the version-derived bounds.
 - `--base <branch|all>` — base branch for PR enumeration. Default: the repo's default branch via `resolve-default-branch` (so `main` and `master` repos both work). `all` counts PRs merged into any base.
-- `--limit <n>` — max PRs/releases to scan (default 200).
+- `--limit <n>` — max PRs to scan (default 200). Release discovery uses its own larger limit, so narrowing this cannot break start-version date lookup.
 - `--to <address>` — specific addressee. Default: broadcast (no specific `to:`, audience-only frontmatter).
 - `--audience <string>` — human-readable audience description. Default: `"any captain or principal working on <project>"`.
 - `--workstream <name>` — workstream directory name under `agency/workstreams/`. Default: the slugified `project.name` from `agency/config/agency.yaml` if that directory exists, else the repo name, else `agency`. (`project.name` is free text — the shipped default is literally `"My Project"` — so it is never used as a directory name unqualified.)
-- `--captain <name>` — captain name for filename + frontmatter. Default: `{principal}-{agent}` resolved from `agency/tools/agent-identity`.
-- `--output <path>` — explicit output file path.
+- `--captain <name|addr>` — captain identity for the filename and the frontmatter `from:`. Accepts `{principal}-{agent}` (split on the FIRST hyphen, so hyphenated agent slugs like `jordan-revive-release-notes` stay intact) or a full `{repo}/{principal}/{agent}` address. Default: resolved from `agency/tools/agent-identity`.
+- `--output <path>` — explicit output file path. Mutually exclusive with `--stdout`. The tool refuses to write through a symlink.
 - `--stdout` — print to stdout instead of writing.
 - `--dry-run` — show what would be written.
 
@@ -74,7 +72,7 @@ Before running, Read the files listed in `required_reading:` frontmatter.
 Tool writes to `agency/workstreams/<workstream>/release-notes/release-notes-<YYYYMMDD>-<captain>-<vStart>-<vEnd>.md`.
 
 Skeleton has:
-- YAML frontmatter (from / audience / to / window incl. `base_branch` / prs_landed_count / generated_by)
+- YAML frontmatter, in emitted order: `from`, `to` (only when `--to` is passed), `audience`, `date`, `window` (incl. `base_branch`), `prs_landed_count`, `generated_by`
 - Header block (from / audience / window)
 - TL;DR placeholder
 - **PRs landed table** — auto-populated from `gh pr list`
@@ -106,8 +104,10 @@ Commit via `/coord-commit` (release notes are a pure coord artifact — no QG ga
 If the note is narrowly addressed (`--to <addr>`), dispatch a pointer to the addressee so their monitor flags it:
 
 ```bash
-./agency/tools/dispatch create --to <addr> --type coord --subject "Release notes published: <vStart>-<vEnd>" --body "<file path>"
+./agency/tools/dispatch create --to <addr> --type dispatch --subject "Release notes published: <vStart>-<vEnd>" --body "<file path>"
 ```
+
+`dispatch` is the general-purpose type; the valid set is defined by `VALID_TYPES` in `agency/tools/dispatch`. There is no `coord` type — passing one is a hard error.
 
 For broadcast audiences, skip — the file on the default branch is discoverable.
 
@@ -117,7 +117,8 @@ For broadcast audiences, skip — the file on the default branch is discoverable
 - **No prior release-notes file**: `--start-version` falls back to `v0.0` and the date window opens 30 days back. Pass `--start-version` explicitly to anchor the window.
 - **`gh` not installed / not authenticated**: tool dies with an install pointer. `jq` missing dies the same way rather than silently reporting 0 PRs.
 - **Zero PRs in window**: the tool warns and emits a placeholder table row. Check `--base` (a repo whose PRs land on a non-default base needs `--base all`) and the date bounds.
-- **Wrong workstream directory**: pass `--workstream` explicitly. Auto-resolution only picks a directory that already exists.
+- **Wrong workstream directory**: auto-resolution prefers a directory that already exists; if no candidate matches it warns and falls back to the slugified project name, which `mkdir -p` then creates. Pass `--workstream` explicitly to control it.
+- **Inverted window**: if the resolved start is not before the resolved end, the tool refuses rather than emitting a document that claims a range it did not cover. Set `--start-date` / `--end-date` explicitly.
 
 ## What this does NOT do
 
@@ -135,7 +136,7 @@ For broadcast audiences, skip — the file on the default branch is discoverable
 
 ## Status
 
-`active` (v1.1.0). Shipped 2026-04-23 as an upstream from an adopter repo's v3.3-v3.31 release-notes convention-capture; revived and re-validated against v46.33 on 2026-08-12 (PR #426 lineage).
+`active` (v1.2.0). Shipped 2026-04-23 as an upstream from an adopter repo's v3.3-v3.31 release-notes convention-capture; revived and re-validated against v46.33 on 2026-08-12 (PR #426 lineage).
 
 ## Related
 

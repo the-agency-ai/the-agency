@@ -30,6 +30,7 @@ Organized alphabetically by name.
 
 | Name | Description | Agency-Skill-Version | Scope | Status | Required Reading |
 |---|---|---|---|---|---|
+| agency-captain-release-notes | Generate a captain-to-captain release-notes skeleton for a window of landed PRs | 2 | captain | active | AGENT-ADDRESSING, SAFE-TOOLS |
 | agency-health | Fleet health check across workstream / agent / worktree dimensions | 1 | both | active | |
 | agency-issue | File, view, comment, close issues against the-agency framework on GitHub | 1 | both | active | FEEDBACK-FORMAT |
 | captain-log | Append to / read captain's narrative log | 1 | captain | active | |
