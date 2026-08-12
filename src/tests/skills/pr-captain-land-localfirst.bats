@@ -270,6 +270,45 @@ live_code() {
     [ "$status" -ne 0 ]
 }
 
+@test "pr-captain-land v2: --delete-branch is never handed to pr-merge (the scratch still holds the local branch)" {
+    # gh pr merge --delete-branch=true deletes the LOCAL _land-<slug> branch too,
+    # but the scratch worktree still holds it at merge time (torn down in step 9).
+    # The local delete fails, pr-merge exits non-zero, and the step aborts AFTER
+    # the server-side merge already landed. So --delete-branch must appear nowhere
+    # in live code — the remote ref is deleted explicitly in step 9 instead.
+    run bash -c "$(declare -f live_code); LAND='$LAND'; live_code | grep -n -- '--delete-branch'"
+    [ "$status" -ne 0 ]
+}
+
+@test "pr-captain-land v2: the remote land branch is deleted via gh-api DELETE, after the merge" {
+    # The remote ref is removed explicitly, once destroy_scratch has freed and
+    # deleted the local branch — never with git-push (no delete mode) and never
+    # via pr-merge --delete-branch (see the guard above).
+    live_code | grep -qE 'gh-api" "/repos/\$ORG/\$REPO/git/refs/heads/\$LAND_SLUG" --method DELETE'
+    merge_line=$(grep -n 'pr-merge" "\$PR_NUM"' "$LAND" | head -1 | cut -d: -f1)
+    del_line=$(grep -n 'git/refs/heads/\$LAND_SLUG" --method DELETE' "$LAND" | head -1 | cut -d: -f1)
+    [ -n "$merge_line" ]
+    [ -n "$del_line" ]
+    [ "$del_line" -gt "$merge_line" ]
+}
+
+@test "pr-captain-land v2: the remote branch delete is best-effort, never fatal after a landed merge" {
+    # The merge + release have already landed by step 9. A post-merge cleanup step
+    # that could exit non-zero (ref already gone → gh 404, transient API blip)
+    # would re-introduce the exact "abort after a landed merge" failure class this
+    # fix exists to eliminate. The DELETE must be best-effort (|| true).
+    run bash -c "grep -A1 'git/refs/heads/\$LAND_SLUG\" --method DELETE' '$LAND' | grep -q '|| true'"
+    [ "$status" -eq 0 ]
+}
+
+@test "pr-captain-land v2: --principal-approved is forwarded into the merge args when set" {
+    # MERGE_ARGS was rewritten by the --delete-branch fix. Deleting the forwarding
+    # block leaves MERGE_ARGS always empty — the only route to the admin-override
+    # merge — and every other principal-approved assertion still passes. Pin the
+    # forwarding path positively.
+    live_code | grep -q 'MERGE_ARGS="--principal-approved"'
+}
+
 @test "pr-captain-land v2: the preflight fetch failure is fatal, not swallowed" {
     # Every downstream guarantee — base freshness, the receipt's diff_base,
     # "validated against pristine origin/<default>" — assumes origin refs are

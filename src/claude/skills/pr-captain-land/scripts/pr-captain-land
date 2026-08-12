@@ -948,9 +948,18 @@ fi
 # the only route to `gh pr merge --admin`. Hardcoding it in a non-interactive
 # script would turn a deliberate human gate into a constant and make branch-
 # protection bypass the fleet's default merge mode. Default: defer to GitHub.
-MERGE_ARGS="--delete-branch"
+#
+# We do NOT pass --delete-branch here. `gh pr merge --delete-branch=true` deletes
+# the LOCAL branch as well as the remote, but _land-<slug> is still checked out
+# in the scratch worktree at this point (it is not torn down until step 9). The
+# local delete therefore fails, pr-merge exits non-zero, and this whole step
+# aborts AFTER the server-side merge already succeeded — leaving the release
+# uncut and the reconcile un-run for a merge that actually landed. Instead:
+# merge here, tear down the scratch in step 9 (which frees and deletes the local
+# branch), then delete the REMOTE branch explicitly.
+MERGE_ARGS=""
 if [[ "$PRINCIPAL_APPROVED" == true ]]; then
-    MERGE_ARGS="--principal-approved --delete-branch"
+    MERGE_ARGS="--principal-approved"
 fi
 
 echo "→ Merging PR #$PR_NUM (true merge commit)..."
@@ -996,10 +1005,15 @@ fi
 echo "→ Cleaning up scratch worktree and land branch..."
 destroy_scratch
 rm -f "$VALIDATION_LOG"
-# The REMOTE copy of the land branch is deleted by `pr-merge --delete-branch`
-# above. It is deliberately NOT retried here: git-push takes a branch name
-# positionally and has no delete mode, so a "belt and braces" call would
-# re-PUSH the branch rather than remove it.
+# Delete the REMOTE land branch now that destroy_scratch has removed the scratch
+# worktree and its local branch. This is NOT done via `pr-merge --delete-branch`
+# (step 8 explains why: that flag also targets the local branch, which the scratch
+# worktree still holds at merge time). git-push has no delete mode — it takes a
+# branch name positionally and would re-PUSH — so the ref is deleted through the
+# API. Best-effort: the land has already succeeded, so a leftover remote branch is
+# cosmetic, not a failure.
+bash "$TOOLS/gh-api" "/repos/$ORG/$REPO/git/refs/heads/$LAND_SLUG" --method DELETE \
+    >/dev/null 2>&1 || true
 
 AGENT_NAME="$(resolve_agent_name)"
 echo "→ Dispatching $AGENT_NAME with merge outcome..."
