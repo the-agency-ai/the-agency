@@ -72,7 +72,7 @@ a normal input, resolved in Step 3.
 
 ```
 ./agency/tools/worktree-create <name> [--branch <branch>] [--from <ref>]
-./agency/tools/worktree-create --workstream <ws> --agent <ag> [--from <ref>]
+./agency/tools/worktree-create --workstream <ws> --agent <ag> [--branch <branch>] [--from <ref>]
 ```
 
 Never hand-roll `git worktree add` — the tool owns branch resolution, validation

@@ -22,8 +22,9 @@
 #   - assert_no_live_repo_leak() checks the live repo after each creation test.
 #
 # Written: 2026-04-09 — dispatch #166/#169, task #9
-# Extended: 2026-08-08 — branch-resolution DWIM + isolation guards (v2.2.0)
-# Extended: 2026-08-12 — reconciled with --from / local-first landing (v2.3.0)
+# Extended: 2026-08-08 — --from / local-first landing start point (v2.2.0)
+# Extended: 2026-08-12 — branch-resolution DWIM + isolation guards, reconciled
+#                        with --from into one four-case ladder (v2.3.0)
 
 load test_helper
 
@@ -62,7 +63,12 @@ teardown() {
         leaked=1
     fi
 
-    test_isolation_teardown
+    # The shared teardown has its own guard (it detects live .git/config
+    # pollution and returns 1). Swallowing that status would let exactly the
+    # class of incident this file's isolation story exists to prevent pass
+    # silently whenever the two diffs above happen to be clean.
+    test_isolation_teardown || leaked=1
+
     return "$leaked"
 }
 
@@ -505,9 +511,36 @@ make_origin_repo() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "--from: rejects a ref that does not resolve to a commit" {
+    # Against a REAL repo, so the rejection proves the ref lookup failed — not
+    # merely that $PROJECT_ROOT wasn't a git repo at all.
+    make_origin_repo
+    cd "$TEST_REPO"
+
     run "$TOOL" _scratch-nope --from no/such/ref
     [ "$status" -ne 0 ]
     [[ "$output" == *"does not resolve"* ]]
+    [ ! -d "${TEST_REPO}/.claude/worktrees/_scratch-nope" ]
+
+    assert_no_live_repo_leak _scratch-nope
+}
+
+@test "--from: a tag and a raw SHA both resolve" {
+    make_origin_repo
+    cd "$TEST_REPO"
+
+    git -C "$TEST_REPO" tag pinned refs/remotes/origin/stale-pr
+    local sha
+    sha=$(git -C "$TEST_REPO" rev-parse refs/remotes/origin/stale-pr)
+
+    run "$TOOL" from-tag --branch from-tag --from pinned
+    [ "$status" -eq 0 ]
+    [ -f "${TEST_REPO}/.claude/worktrees/from-tag/pr-only.txt" ]
+
+    run "$TOOL" from-sha --branch from-sha --from "$sha"
+    [ "$status" -eq 0 ]
+    [ -f "${TEST_REPO}/.claude/worktrees/from-sha/pr-only.txt" ]
+
+    assert_no_live_repo_leak from-tag from-sha
 }
 
 @test "--from: cuts a new branch at the given ref (the _land- scratch shape)" {
@@ -609,6 +642,24 @@ make_origin_repo() {
     assert_no_live_repo_leak tiebreak
 }
 
+@test "branch resolution: a single non-origin remote is used without complaint" {
+    make_origin_repo
+    cd "$TEST_REPO"
+
+    # No origin at all — exactly one remote carries the branch, so there is
+    # nothing ambiguous and the DWIM path must still fire.
+    git -C "$TEST_REPO" remote add mirror "${BATS_TEST_TMPDIR}/upstream.git"
+    git -C "$TEST_REPO" fetch --quiet mirror
+    git -C "$TEST_REPO" remote remove origin
+
+    run "$TOOL" solo-remote --branch stale-pr
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"tracking mirror/stale-pr"* ]]
+    [ -f "${TEST_REPO}/.claude/worktrees/solo-remote/pr-only.txt" ]
+
+    assert_no_live_repo_leak solo-remote
+}
+
 @test "branch resolution: several non-origin remotes is refused, not guessed" {
     make_origin_repo
     cd "$TEST_REPO"
@@ -667,4 +718,144 @@ make_origin_repo() {
     [ "$status" -ne 0 ]
     [[ "$output" == *"requires a value"* ]]
     [[ "$output" != *"unbound variable"* ]]
+}
+
+@test "invalid: --workstream with no value fails with a usage hint" {
+    run "$TOOL" --workstream
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires a value"* ]]
+    [[ "$output" != *"unbound variable"* ]]
+}
+
+@test "invalid: --agent with no value fails with a usage hint" {
+    run "$TOOL" --workstream devex --agent
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires a value"* ]]
+    [[ "$output" != *"unbound variable"* ]]
+}
+
+@test "invalid: --compute-only --workstream with no value fails with a usage hint" {
+    run "$TOOL" --compute-only --workstream
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires a value"* ]]
+    [[ "$output" != *"unbound variable"* ]]
+}
+
+@test "invalid: a flag swallowed as another flag's value is rejected" {
+    # Without the look-ahead guard this sets BRANCH=--from and dies much later
+    # with a raw git message about an invalid branch name.
+    run "$TOOL" foo --branch --from bar
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires a value"* ]]
+    [[ "$output" == *"looks like a flag"* ]]
+}
+
+@test "invalid: an unknown option is rejected in the main flow" {
+    run "$TOOL" foo --bogus
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Unknown option"* ]]
+}
+
+@test "invalid: an unknown option is rejected in --compute-only mode" {
+    run "$TOOL" --compute-only --bogus x
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Unknown option"* ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# --workstream/--agent through the REAL creation path
+#
+# Every other collapse-rule test uses --compute-only, which short-circuits
+# before the main flag loop. The real path re-implements the pairing check and
+# feeds the computed name into branch resolution — separate code, separate risk.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "workstream form: creates a worktree at the collapsed name" {
+    make_origin_repo
+    cd "$TEST_REPO"
+
+    run "$TOOL" --workstream mdpal --agent mdpal-app
+    [ "$status" -eq 0 ]
+
+    local wt="${TEST_REPO}/.claude/worktrees/mdpal-app"
+    [ -d "$wt" ]
+    run git -C "$wt" rev-parse --abbrev-ref HEAD
+    [ "$status" -eq 0 ]
+    [ "$output" = "mdpal-app" ]
+
+    assert_no_live_repo_leak mdpal-app
+}
+
+@test "workstream form: computed name still resolves an origin-only branch" {
+    make_origin_repo
+    cd "$TEST_REPO"
+
+    # Push the branch the collapse rule will compute, so the DWIM path must
+    # apply to a name the caller never typed.
+    git -C "$TEST_REPO" push --quiet origin \
+        refs/remotes/origin/stale-pr:refs/heads/agency-captain
+
+    run "$TOOL" --workstream agency --agent captain
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"tracking origin/agency-captain"* ]]
+    [ -f "${TEST_REPO}/.claude/worktrees/agency-captain/pr-only.txt" ]
+
+    assert_no_live_repo_leak agency-captain
+}
+
+@test "workstream form: --workstream without --agent fails in the real path too" {
+    run "$TOOL" --workstream devex
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"must be given together"* ]]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dependency bootstrap
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "bootstrap: no package.json means no install is attempted" {
+    make_origin_repo
+    cd "$TEST_REPO"
+
+    run "$TOOL" nodeps --branch never-seen
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Installing dependencies"* ]]
+
+    assert_no_live_repo_leak nodeps
+}
+
+@test "bootstrap: package-lock.json selects npm, and a failing install is not fatal" {
+    make_origin_repo
+    cd "$TEST_REPO"
+
+    # Commit a node-shaped project on a branch, so the new worktree has one.
+    git -C "$TEST_REPO" checkout --quiet -b nodeish
+    echo '{"name":"fixture","version":"1.0.0"}' > "$TEST_REPO/package.json"
+    echo '{}' > "$TEST_REPO/package-lock.json"
+    git -C "$TEST_REPO" add package.json package-lock.json
+    git -C "$TEST_REPO" commit --quiet --no-verify -m "node fixture"
+    git -C "$TEST_REPO" checkout --quiet main
+
+    # Stub npm so the test neither hits the network nor depends on a real npm.
+    # It records the invocation and exits nonzero — the tool swallows install
+    # failures by design, so the worktree must still be reported as created.
+    mkdir -p "${BATS_TEST_TMPDIR}/bin"
+    cat > "${BATS_TEST_TMPDIR}/bin/npm" <<'STUB'
+#!/bin/bash
+echo "$@" >> "${NPM_STUB_LOG}"
+exit 3
+STUB
+    chmod +x "${BATS_TEST_TMPDIR}/bin/npm"
+    export NPM_STUB_LOG="${BATS_TEST_TMPDIR}/npm-calls"
+    export PATH="${BATS_TEST_TMPDIR}/bin:$PATH"
+
+    run "$TOOL" nodey --branch nodeish
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Installing dependencies"* ]]
+    [[ "$output" == *"created successfully"* ]]
+
+    [ -f "$NPM_STUB_LOG" ]
+    grep -q "ci" "$NPM_STUB_LOG"
+
+    assert_no_live_repo_leak nodey
 }

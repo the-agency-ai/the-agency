@@ -37,9 +37,10 @@
 # worktree from a pristine `origin/<agent-branch>` under a `_land-` name that
 # exists nowhere else, so an explicit start point must outrank the DWIM search.
 #
-# Case 3 is the stale-PR-revival path. Before v2.2.0 a branch that existed only
-# on a remote fell through to case 4 and produced an EMPTY branch from HEAD,
-# silently discarding the PR's content (this bit the revival of PR #426).
+# Case 3 is the stale-PR-revival path, new in v2.3.0. Through v2.2.0 a branch
+# that existed only on a remote fell through to case 4 and produced an EMPTY
+# branch from HEAD, silently discarding the PR's content (this bit the revival
+# of PR #426).
 #
 # This is a FIRST-CLASS PRIMITIVE in Agency 2.0 — worktree isolation
 # enables multiple agent sessions to work in parallel without conflicts.
@@ -95,6 +96,15 @@ compute_worktree_name() {
 _require_value() {
     if [[ $# -lt 2 ]]; then
         echo "Error: $1 requires a value" >&2
+        exit 1
+    fi
+    # A value that looks like a flag is a missing value in disguise:
+    # "worktree-create foo --branch --from bar" would otherwise set
+    # BRANCH=--from and fail much later with a confusing git error. Nothing
+    # legal is rejected here — git forbids branch names starting with '-',
+    # and a committish cannot start with one either.
+    if [[ "$2" == -* ]]; then
+        echo "Error: $1 requires a value (got '$2', which looks like a flag)" >&2
         exit 1
     fi
 }
@@ -168,6 +178,7 @@ BRANCH=""
 WORKSTREAM=""
 AGENT=""
 FROM_REF=""
+FROM_SHA=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -309,7 +320,11 @@ elif [[ -n "$FROM_REF" ]]; then
     # Explicit start point (e.g. origin/main, or an agent's remote branch — the
     # local-first landing flow cuts its scratch worktree from pristine origin
     # refs, never from a local tip). Explicit beats the DWIM search below.
-    if ! git -C "$PROJECT_ROOT" rev-parse --verify --quiet "${FROM_REF}^{commit}" >/dev/null; then
+    # Resolve to a bare SHA and hand git THAT, not the caller's string. git
+    # re-scans its whole argv for options, including the trailing commit-ish
+    # position, so an unvalidated ref could be read as a `worktree add` flag.
+    # A resolved SHA can never look like one.
+    if ! FROM_SHA="$(git -C "$PROJECT_ROOT" rev-parse --verify --quiet "${FROM_REF}^{commit}")"; then
         echo "Error: --from ref '$FROM_REF' does not resolve to a commit" >&2
         exit 1
     fi
@@ -320,7 +335,7 @@ elif [[ -n "$FROM_REF" ]]; then
         # tool's branch resolution exists to prevent.
         echo "  Note: '$BRANCH' also exists on '$REMOTE' — --from wins, NOT tracking $REMOTE/$BRANCH"
     fi
-    git -C "$PROJECT_ROOT" worktree add -b "$BRANCH" "$WORKTREE_DIR" "$FROM_REF"
+    git -C "$PROJECT_ROOT" worktree add -b "$BRANCH" "$WORKTREE_DIR" "$FROM_SHA"
 elif [[ -n "$REMOTE" ]]; then
     # Remote-only branch — create a local branch tracking <remote>/<branch>.
     #
