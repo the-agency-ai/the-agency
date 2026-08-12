@@ -350,7 +350,7 @@ LIB_DIR="${REPO_ROOT}/agency/tools/lib"
 @test "principal detection: YAML with colon in display_name does not break parsing" {
     # Create a test agency.yaml with colon-containing display_name
     local yaml="${BATS_TEST_TMPDIR}/agency.yaml"
-    mkdir -p "${BATS_TEST_TMPDIR}/claude/config"
+    mkdir -p "${BATS_TEST_TMPDIR}/agency/config"
     cp "$yaml" "${BATS_TEST_TMPDIR}/agency/config/agency.yaml" 2>/dev/null || true
     cat > "${BATS_TEST_TMPDIR}/agency/config/agency.yaml" << 'YAML'
 principals:

@@ -184,8 +184,6 @@ public struct AudienceFullScreenView: View {
                 shortcutRow("Home", "First slide")
                 shortcutRow("End", "Last slide")
                 shortcutRow("Esc", "Exit presentation")
-                shortcutRow("f", "Toggle fullscreen")
-                shortcutRow("s", "Toggle speaker notes")
                 shortcutRow("b / .", "Black screen")
                 shortcutRow("?", "This help")
             }

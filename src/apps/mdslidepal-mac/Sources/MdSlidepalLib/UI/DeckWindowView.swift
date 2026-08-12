@@ -4,23 +4,27 @@
 //
 // How & Why: NavigationSplitView for native macOS split-view behavior.
 // Sidebar shows slide titles/indices; detail shows the scaled SlideContentView.
-// File open via .fileImporter. Live-reload via FileWatcher with debounce.
-// Drag-and-drop via .onDrop. Menu commands via NotificationCenter.
+// This view is presentation only: opening, reloading, watching and exporting all
+// belong to DeckController, which the menu bar shares. The view supplies the two
+// UI affordances that must live in the view layer — the toolbar's .fileImporter
+// and .onDrop — and hands the resulting URL straight to the controller.
 //
 // Written: 2026-04-12 during mdslidepal-mac Phase 1.5
 // Updated: 2026-04-12 Phase 2 — file-open, live-reload, drag-and-drop, menus
+// Updated: 2026-08-08 — open/reload/export and the file watcher moved to
+//   DeckController, which the menu bar also uses. This view had its own copies
+//   that had diverged from the delegate's; now both call one implementation.
+//   The six NotificationCenter observers registered here (and never removed)
+//   moved with them — the controller subscribes once and cleans up.
 
 import SwiftUI
-import AppKit
 import UniformTypeIdentifiers
 
 /// The main deck window view with sidebar + slide preview.
 public struct DeckWindowView: View {
+    @Environment(DeckController.self) private var controller
     @Environment(DeckState.self) private var deckState
     @State private var isFileImporterPresented = false
-    @State private var fileWatcher = FileWatcher()
-    @State private var errorMessage: String?
-    @State private var showError = false
 
     public init() {}
 
@@ -31,7 +35,6 @@ public struct DeckWindowView: View {
             SlidePreviewPane()
         }
         .environment(\.theme, deckState.theme)
-        .navigationTitle(deckState.document.title)
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -39,7 +42,6 @@ public struct DeckWindowView: View {
                 } label: {
                     Label("Open", systemImage: "doc")
                 }
-                .keyboardShortcut("o", modifiers: .command)
             }
             ToolbarItem(placement: .automatic) {
                 Text("\(deckState.selectedSlideIndex + 1) / \(deckState.document.slides.count)")
@@ -55,160 +57,58 @@ public struct DeckWindowView: View {
             switch result {
             case .success(let urls):
                 if let url = urls.first {
-                    openFile(url: url)
+                    controller.openFile(url: url)
                 }
             case .failure(let error):
-                showError(error.localizedDescription)
+                controller.errorMessage = error.localizedDescription
             }
         }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             handleDrop(providers: providers)
-            return true
         }
-        .alert("Error", isPresented: $showError) {
-            Button("OK") { }
+        .alert("Error", isPresented: errorBinding) {
+            Button("OK") { controller.errorMessage = nil }
         } message: {
-            Text(errorMessage ?? "Unknown error")
+            Text(controller.errorMessage ?? "Unknown error")
         }
-        .task {
-            loadInitialDeck()
-            setupFileWatcher()
-            setupNotificationHandlers()
-        }
-        // Keyboard navigation for slides (when not in presentation mode)
-        .onKeyPress(.rightArrow) { deckState.nextSlide(); return .handled }
-        .onKeyPress(.leftArrow) { deckState.previousSlide(); return .handled }
-        .onKeyPress(.home) { deckState.firstSlide(); return .handled }
-        .onKeyPress(.end) { deckState.lastSlide(); return .handled }
+        // Slide navigation is bound in the Presentation menu, which the responder
+        // chain consults first. Binding it here too would shadow-or-not depending
+        // on whether the menu item happened to be enabled.
     }
 
-    // MARK: - File Loading
-
-    private func openFile(url: URL) {
-        // Start security-scoped access for sandboxed apps
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer {
-            if accessing { url.stopAccessingSecurityScopedResource() }
-        }
-
-        do {
-            try deckState.load(from: url)
-            fileWatcher.watch(url: url)
-        } catch {
-            showError("Failed to open \(url.lastPathComponent): \(error.localizedDescription)")
-        }
+    /// Presents the controller's error state; dismissing clears it.
+    private var errorBinding: Binding<Bool> {
+        Binding(
+            get: { controller.errorMessage != nil },
+            set: { if !$0 { controller.errorMessage = nil } }
+        )
     }
 
-    private func reloadCurrentFile() {
-        guard let url = deckState.document.sourceURL else { return }
-        do {
-            let currentIndex = deckState.selectedSlideIndex
-            try deckState.load(from: url)
-            // Preserve slide position if possible
-            if currentIndex < deckState.document.slides.count {
-                deckState.selectedSlideIndex = currentIndex
-            }
-        } catch {
-            showError("Reload failed: \(error.localizedDescription)")
-        }
-    }
+    // MARK: - Drag and drop
 
-    private func handleDrop(providers: [NSItemProvider]) {
-        for provider in providers {
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
-                guard let data = item as? Data,
-                      let url = URL(dataRepresentation: data, relativeTo: nil)
-                else { return }
-                DispatchQueue.main.async {
-                    openFile(url: url)
-                }
+    /// Open the first dropped file. A window shows one deck, so dropping several
+    /// files should not race several opens against each other — each would claim
+    /// security-scoped access and rebind the watcher, and the winner would be
+    /// whichever provider happened to finish last.
+    ///
+    /// Returns false when nothing dropped is a file URL, so the drop is reported
+    /// as unhandled rather than silently swallowed.
+    private func handleDrop(providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first(where: {
+            $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
+        }) else {
+            return false
+        }
+
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
+            guard let data = item as? Data,
+                  let url = URL(dataRepresentation: data, relativeTo: nil)
+            else { return }
+            Task { @MainActor in
+                controller.openFile(url: url)
             }
         }
-    }
-
-    // MARK: - Setup
-
-    private func loadInitialDeck() {
-        // Check if launched with a file argument
-        let args = ProcessInfo.processInfo.arguments
-        if args.count > 1 {
-            let path = args[1]
-            let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: url.path) {
-                openFile(url: url)
-                return
-            }
-        }
-
-        // Fallback: show welcome content
-        deckState.load(from: "# Welcome to mdslidepal\n\nOpen a `.md` file to get started.\n\nUse **File \u{2192} Open** or drag a markdown file onto this window.\n\n---\n\n# Getting Started\n\nmdslidepal renders markdown files as slide decks.\n\n- Slides are separated by `---`\n- Code blocks get syntax highlighting\n- Speaker notes use the `Notes:` marker\n- Themes are loaded from JSON files")
-    }
-
-    private func setupFileWatcher() {
-        fileWatcher.onChange = { [weak deckState] in
-            guard let deckState else { return }
-            guard let url = deckState.document.sourceURL else { return }
-            let currentIndex = deckState.selectedSlideIndex
-            do {
-                try deckState.load(from: url)
-                if currentIndex < deckState.document.slides.count {
-                    deckState.selectedSlideIndex = currentIndex
-                }
-            } catch {
-                // Silently ignore reload errors (file may be mid-save)
-            }
-        }
-    }
-
-    private func setupNotificationHandlers() {
-        NotificationCenter.default.addObserver(
-            forName: .reloadDeck, object: nil, queue: .main
-        ) { _ in reloadCurrentFile() }
-
-        NotificationCenter.default.addObserver(
-            forName: .nextSlide, object: nil, queue: .main
-        ) { _ in deckState.nextSlide() }
-
-        NotificationCenter.default.addObserver(
-            forName: .previousSlide, object: nil, queue: .main
-        ) { _ in deckState.previousSlide() }
-
-        NotificationCenter.default.addObserver(
-            forName: .firstSlide, object: nil, queue: .main
-        ) { _ in deckState.firstSlide() }
-
-        NotificationCenter.default.addObserver(
-            forName: .lastSlide, object: nil, queue: .main
-        ) { _ in deckState.lastSlide() }
-
-        NotificationCenter.default.addObserver(
-            forName: .exportPDF, object: nil, queue: .main
-        ) { _ in exportPDF() }
-    }
-
-    private func exportPDF() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.pdf]
-        panel.nameFieldStringValue = "\(deckState.document.title).pdf"
-        panel.canCreateDirectories = true
-
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            do {
-                try PDFExporter.export(
-                    document: deckState.document,
-                    theme: deckState.theme,
-                    to: url
-                )
-            } catch {
-                showError("PDF export failed: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    private func showError(_ message: String) {
-        errorMessage = message
-        showError = true
+        return true
     }
 }
 

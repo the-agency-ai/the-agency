@@ -93,10 +93,12 @@ For RGR methodology artifacts, hash the file content directly:
 
 **Hash match only. No time window.**
 
-Hash E in the receipt matches the current artifact on disk → valid.
+Hash E in the receipt matches the current artifact in the **committed state** (`git diff` against `diff_base`) → valid.
 Hash E does not match → stale, blocked.
 
 Time is irrelevant. The hash is the validity check.
+
+**Important:** "Committed state" means what `diff-hash` computes against `diff_base` — i.e., what is *committed* to the branch, not what is in the working tree. Unstaged or uncommitted changes in the working tree do NOT invalidate a receipt. The receipt tracks what has been reviewed + committed; dirty working tree is transient. DevEx Phase 2 verification (#331) confirmed this: `receipt-verify` runs `diff-hash` with the same `diff_base` recorded in the receipt and compares Hash E against the resulting diff hash of the committed content.
 
 ---
 
@@ -175,6 +177,16 @@ Required flags:
 | `--hash-a` through `--hash-e` | Full SHA-256 for each chain position |
 | `--hash-d-source` | `transcript` or `auto-approved — no principal 1B1` |
 | `--hash-d-transcript` | Path to transcript file (omit if auto-approved) |
+
+Optional, and it must come **first** if used:
+
+| Flag | Description |
+|------|-------------|
+| `-C <repo-root>` | Write the receipt into `<repo-root>` instead of the tool's own checkout |
+
+Without `-C`, the receipt is written relative to the tool's **install location** (`SCRIPT_DIR/../..`) — *not* the cwd. That default is correct for every ordinary caller, which runs the tool out of the repo it is signing for.
+
+It is wrong in exactly one situation, and `-C` exists for it: when a tool from one checkout is run against another. `/pr-captain-land` does this deliberately — captain's trusted tools, scratch worktree's data — and before `-C` existed the landing receipt was signed into the captain's main checkout, where the flow could not find it, aborting the land. If you are invoking `receipt-sign` from outside the repo the receipt belongs to, pass `-C`; `cd` alone will not do it.
 
 ### `receipt-verify`
 

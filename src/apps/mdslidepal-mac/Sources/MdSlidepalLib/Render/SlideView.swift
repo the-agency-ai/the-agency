@@ -8,7 +8,19 @@
 // with theme-specified padding. The slide is rendered at logical size and
 // scaled to fit the actual view size by the parent.
 //
+// Slides whose content is just a title (optionally with a subtitle) branch to
+// a centered hero layout instead of the top-aligned body layout. All type is
+// resolved through FontResolver rather than .system(size:), so themes can name
+// real font stacks. HTMLBlock nodes are interpreted for the small subset we
+// support (<br>, <hr>) and otherwise stripped to text — never shown raw.
+//
 // Written: 2026-04-12 during mdslidepal-mac Phase 1.5
+// Updated: 2026-04-15 Phase 5.1/5.2 — hero layout, HTMLBlockView, FontResolver
+//   typography.
+// Updated: 2026-08-07 PR-prep QG — <br> detection moved to the shared HTMLText
+//   helper (was case-sensitive and duplicated), blockquotes now thread sourceURL
+//   so nested images resolve, and unparseable slide `background:` metadata falls
+//   back to the theme instead of painting the slide magenta.
 
 import SwiftUI
 import Markdown
@@ -30,27 +42,87 @@ public struct SlideContentView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat(theme.spacingUnit)) {
-            ForEach(Array(slide.markupChildren.enumerated()), id: \.offset) { _, child in
-                MarkupNodeView(node: child, sourceURL: sourceURL)
+        Group {
+            if slide.isHero {
+                heroBody
+            } else {
+                contentBody
             }
-            Spacer()
         }
         .padding(theme.slidePadding.edgeInsets)
         .frame(
             width: CGFloat(theme.logicalDimensions.width),
-            height: CGFloat(theme.logicalDimensions.height),
-            alignment: .topLeading
+            height: CGFloat(theme.logicalDimensions.height)
         )
         .background(slideBackground)
         .foregroundColor(Color(hex: theme.colors.foreground))
     }
 
-    private var slideBackground: Color {
-        if let bg = slide.metadata?.background {
-            return Color(hex: bg)
+    private var heroBody: some View {
+        VStack(alignment: .center, spacing: CGFloat(theme.spacingUnit) * 1.25) {
+            Spacer(minLength: 0)
+            ForEach(Array(slide.markupChildren.enumerated()), id: \.offset) { _, child in
+                if let heading = child as? Heading {
+                    HeadingView(heading: heading, isHero: true)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Body slides fill the slide from the top-left corner down.
+    ///
+    /// Not centred: contract §11's overflow policy says content past the logical
+    /// viewport scrolls and is never cropped. Vertical centring puts half the
+    /// excess above the top edge as well as below it, so an over-long slide loses
+    /// its opening lines — and the first line no longer sits where it does on
+    /// every other slide, which is what makes a deck read as one deck.
+    public static let bodyAlignment: Alignment = .topLeading
+
+    private var contentBody: some View {
+        VStack(alignment: .leading, spacing: CGFloat(theme.spacingUnit) * 1.25) {
+            ForEach(Array(slide.markupChildren.enumerated()), id: \.offset) { idx, child in
+                MarkupNodeView(node: child, sourceURL: sourceURL)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, spacingAfter(child: child, isLast: idx == slide.markupChildren.count - 1))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: Self.bodyAlignment)
+    }
+
+    /// Vertical rhythm: heading children get breathing room below them.
+    /// The last child gets no trailing padding — the slide's own padding
+    /// supplies the bottom margin.
+    private func spacingAfter(child: Markup, isLast: Bool) -> CGFloat {
+        if isLast { return 0 }
+        let unit = CGFloat(theme.spacingUnit)
+        if let heading = child as? Heading {
+            return heading.level <= 2 ? unit * 0.75 : unit * 0.5
+        }
+        return 0
+    }
+
+    /// Per-slide `background:` metadata comes from an untrusted .md file, so an
+    /// unparseable value falls back to the theme background rather than painting
+    /// the slide the magenta debug color.
+    ///
+    /// Static and public because the choice between the validating parser and
+    /// `Color(hex:)` is the whole behavior: as a private computed property on a
+    /// SwiftUI view nothing could reach it, and swapping the call back to
+    /// `Color(hex:)` — repainting every typo'd background magenta — broke no test.
+    public static func background(for metadata: SlideMetadata?, theme: Theme) -> Color {
+        if let bg = metadata?.background,
+           let color = Color(validatingHex: bg) {
+            return color
         }
         return Color(hex: theme.colors.background)
+    }
+
+    private var slideBackground: Color {
+        Self.background(for: slide.metadata, theme: theme)
     }
 }
 
@@ -80,16 +152,14 @@ struct MarkupNodeView: View {
             } else if let table = node as? Markdown.Table {
                 TableBlockView(table: table)
             } else if let htmlBlock = node as? HTMLBlock {
-                // HTML blocks that aren't slide metadata — render as code
-                Text(htmlBlock.rawHTML)
-                    .font(.system(size: CGFloat(theme.bodySize), design: .monospaced))
-                    .foregroundColor(Color(hex: theme.colors.muted))
+                // Interpret common HTML tags instead of showing raw
+                HTMLBlockView(html: htmlBlock.rawHTML)
             } else if let blockQuote = node as? BlockQuote {
-                BlockQuoteView(blockQuote: blockQuote)
+                BlockQuoteView(blockQuote: blockQuote, sourceURL: sourceURL)
             } else {
                 // Fallback: render the formatted markdown as text
                 Text(node.format())
-                    .font(.system(size: CGFloat(theme.bodySize)))
+                    .font(FontResolver.sans(theme, size: CGFloat(theme.bodySize)))
             }
         }
     }
@@ -99,15 +169,20 @@ struct MarkupNodeView: View {
 
 struct HeadingView: View {
     let heading: Heading
+    var isHero: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let baseSize = CGFloat(theme.headingScale.size(for: heading.level))
+        // Hero slides get a 15% size boost on H1/H2 for cover-slide presence.
+        let size = (isHero && heading.level <= 2) ? baseSize * 1.15 : baseSize
+        let weight: Font.Weight = heading.level <= 2 ? .bold : .semibold
+        let font = FontResolver.display(theme, size: size, weight: weight)
         InlineContentView(children: Array(heading.children))
-            .font(.system(
-                size: CGFloat(theme.headingScale.size(for: heading.level)),
-                weight: .bold,
-                design: .default
-            ))
+            .font(font)
+            .tracking(heading.level == 1 ? -0.5 : -0.3)  // Tighter letter-spacing like reveal.js
+            .lineSpacing(size * 0.05)
+            .padding(.bottom, heading.level <= 2 ? CGFloat(theme.spacingUnit) * 0.25 : 0)
     }
 }
 
@@ -119,7 +194,7 @@ struct ParagraphView: View {
 
     var body: some View {
         InlineContentView(children: Array(paragraph.children))
-            .font(.system(size: CGFloat(theme.bodySize)))
+            .font(FontResolver.sans(theme, size: CGFloat(theme.bodySize)))
             .lineSpacing(CGFloat(theme.bodySize) * CGFloat(theme.lineHeight - 1.0))
     }
 }
@@ -136,23 +211,24 @@ struct CodeBlockView: View {
                 CodeText(codeBlock.code.trimmingCharacters(in: .newlines))
                     .highlightLanguage(language)
                     .codeTextColors(.theme(.xcode))
-                    .font(.system(size: CGFloat(theme.bodySize) * 0.75, design: .monospaced))
-                    .padding(CGFloat(theme.spacingUnit))
+                    .font(FontResolver.mono(theme, size: CGFloat(theme.bodySize) * 0.7))
+                    .padding(.horizontal, CGFloat(theme.spacingUnit) * 1.5)
+                    .padding(.vertical, CGFloat(theme.spacingUnit))
             } else {
-                // Fallback for unknown languages: plain monospace
                 TextBlock(codeBlock.code.trimmingCharacters(in: .newlines))
-                    .font(.system(size: CGFloat(theme.bodySize) * 0.75, design: .monospaced))
+                    .font(FontResolver.mono(theme, size: CGFloat(theme.bodySize) * 0.7))
                     .foregroundColor(Color(hex: theme.codeTheme.foreground))
-                    .padding(CGFloat(theme.spacingUnit))
+                    .padding(.horizontal, CGFloat(theme.spacingUnit) * 1.5)
+                    .padding(.vertical, CGFloat(theme.spacingUnit))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(Color(hex: theme.codeTheme.background))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 10)
                 .stroke(Color(hex: theme.colors.codeBorder), lineWidth: 1)
         )
     }
@@ -248,7 +324,7 @@ struct ListItemView: View {
                 }
             }
         }
-        .font(.system(size: CGFloat(theme.bodySize)))
+        .font(FontResolver.sans(theme, size: CGFloat(theme.bodySize)))
     }
 }
 
@@ -265,7 +341,7 @@ struct TableBlockView: View {
             HStack(spacing: 0) {
                 ForEach(Array(columns.enumerated()), id: \.offset) { _, cell in
                     Text(cell.plainText)
-                        .font(.system(size: CGFloat(theme.bodySize) * 0.85, weight: .bold))
+                        .font(FontResolver.sans(theme, size: CGFloat(theme.bodySize) * 0.85, weight: .bold))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(CGFloat(theme.spacingUnit) * 0.5)
                         .background(Color(hex: theme.colors.subtle))
@@ -281,7 +357,7 @@ struct TableBlockView: View {
                 HStack(spacing: 0) {
                     ForEach(Array(row.cells.enumerated()), id: \.offset) { _, cell in
                         Text(cell.plainText)
-                            .font(.system(size: CGFloat(theme.bodySize) * 0.85))
+                            .font(FontResolver.sans(theme, size: CGFloat(theme.bodySize) * 0.85))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(CGFloat(theme.spacingUnit) * 0.5)
                     }
@@ -303,6 +379,9 @@ struct TableBlockView: View {
 
 struct BlockQuoteView: View {
     let blockQuote: BlockQuote
+    /// Base URL of the source .md file, threaded through so images nested in a
+    /// blockquote resolve relative paths the same way top-level images do.
+    var sourceURL: URL?
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -313,11 +392,57 @@ struct BlockQuoteView: View {
 
             VStack(alignment: .leading, spacing: CGFloat(theme.spacingUnit) * 0.5) {
                 ForEach(Array(blockQuote.children.enumerated()), id: \.offset) { _, child in
-                    MarkupNodeView(node: child)
+                    MarkupNodeView(node: child, sourceURL: sourceURL)
                 }
             }
             .foregroundColor(Color(hex: theme.colors.muted))
         }
+    }
+}
+
+// MARK: - HTML Block
+
+/// Interprets common HTML tags instead of showing raw markup.
+/// Handles <br>, <br/>, <hr>, and strips unknown tags gracefully.
+struct HTMLBlockView: View {
+    let html: String
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let trimmed = html.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if isBrOnly(trimmed) {
+            // <br> or <br><br> — render as vertical space
+            // Clamp here, not in the counter: a break-only block always earns
+            // at least one unit of space, but "count" must still mean count.
+            let brCount = max(1, HTMLText.lineBreakCount(trimmed))
+            Spacer()
+                .frame(height: CGFloat(theme.spacingUnit) * CGFloat(brCount))
+        } else if trimmed.hasPrefix("<hr") {
+            // <hr> — render as a thin divider
+            Rectangle()
+                .fill(Color(hex: theme.colors.border))
+                .frame(height: 1)
+                .frame(maxWidth: .infinity)
+        } else {
+            // Strip tags and render whatever text content remains
+            let stripped = stripHTMLTags(trimmed)
+            if !stripped.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(stripped)
+                    .font(FontResolver.sans(theme, size: CGFloat(theme.bodySize)))
+            }
+            // If fully empty after stripping, render nothing
+        }
+    }
+
+    /// Check if the HTML block is only <br> tags (with optional whitespace).
+    private func isBrOnly(_ html: String) -> Bool {
+        HTMLText.isLineBreakOnly(html)
+    }
+
+    /// Simple HTML tag stripper for fallback rendering.
+    private func stripHTMLTags(_ html: String) -> String {
+        HTMLText.stripTags(html)
     }
 }
 
@@ -345,7 +470,7 @@ struct InlineContentView: View {
             return inner.italic()
         } else if let code = node as? InlineCode {
             return TextBlock(code.code)
-                .font(.system(size: CGFloat(theme.bodySize) * 0.85, design: .monospaced))
+                .font(FontResolver.mono(theme, size: CGFloat(theme.bodySize) * 0.85))
                 .foregroundColor(Color(hex: theme.colors.accent))
         } else if let link = node as? Markdown.Link {
             let inner = link.children.reduce(TextBlock("")) { r, c in r + renderInline(c) }
@@ -361,6 +486,13 @@ struct InlineContentView: View {
             // Images in inline context — show alt text as placeholder
             return TextBlock("[\(image.plainText)]")
                 .foregroundColor(Color(hex: theme.colors.muted))
+        } else if let inlineHTML = node as? InlineHTML {
+            // Handle inline HTML — <br> becomes newline, others stripped
+            if HTMLText.isLineBreak(inlineHTML.rawHTML) {
+                return TextBlock("\n")
+            }
+            // Strip other inline HTML tags
+            return TextBlock("")
         } else {
             return TextBlock(node.format())
         }

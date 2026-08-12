@@ -60,6 +60,21 @@ elif PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
 else
     PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 fi
+
+# The repo this commit is actually going INTO — strictly the cwd's worktree,
+# with no CLAUDE_PROJECT_DIR consultation.
+#
+# PROJECT_ROOT above deliberately prefers CLAUDE_PROJECT_DIR because it is used
+# for the per-agent ATTRIBUTION lookup, which is a property of the session. That
+# is the wrong answer for "where does this commit live": Claude Code sets
+# CLAUDE_PROJECT_DIR to the main checkout, so in any real session PROJECT_ROOT
+# points at the main checkout even while we are committing inside a worktree.
+# Using it for the dispatch target sent commit-announce payloads to a repo that
+# does not contain the commit — the bug -C was added to fix, which the first
+# version of that fix reproduced exactly by passing PROJECT_ROOT.
+if ! COMMIT_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    COMMIT_REPO_ROOT="$PROJECT_ROOT"
+fi
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
     source "$SCRIPT_DIR/lib/_log-helper"
 fi
@@ -660,7 +675,16 @@ main() {
 ${files_changed}
 \`\`\`"
 
-                    "$DISPATCH_TOOL" create \
+                    # -C "$COMMIT_REPO_ROOT" — the cwd's worktree, NOT
+                    # PROJECT_ROOT (which follows CLAUDE_PROJECT_DIR to the main
+                    # checkout; see the derivation above). dispatch resolves its
+                    # own root from its INSTALL location, so committing inside a
+                    # worktree otherwise wrote the commit-announce into whichever
+                    # checkout the tool binary lived in — observed during a real
+                    # pr-captain-land, where a scratch commit littered the
+                    # captain's main checkout with a dispatch for a commit that
+                    # was not in it. The payload must land with its commit.
+                    "$DISPATCH_TOOL" -C "$COMMIT_REPO_ROOT" create \
                         --type commit \
                         --to "$CAPTAIN_ADDR" \
                         --subject "Committed ${COMMIT_HASH} on ${CURRENT_BRANCH}: ${MESSAGE}" \
