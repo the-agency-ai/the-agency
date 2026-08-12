@@ -206,11 +206,13 @@ Max 45 attempts × 20s = 15 minutes.
 ### Step 8 — Merge + release
 
 ```
-./agency/tools/pr-merge <num> [--principal-approved] --delete-branch
+./agency/tools/pr-merge <num> [--principal-approved]
 ./agency/tools/gh-release create v<new> --target <default> --title ... --notes ...
 ```
 
 True merge commit — never squash, never rebase.
+
+**Why no `--delete-branch`:** `gh pr merge --delete-branch=true` deletes the *local* `_land-<slug>` branch too, but the scratch worktree still holds it at merge time (it is torn down in step 9). The local delete fails, `pr-merge` exits non-zero, and the whole step aborts *after* the server-side merge already landed — release uncut, reconcile un-run. The remote branch is instead deleted explicitly in step 9, once the scratch is gone.
 
 `--principal-approved` is forwarded **only** when the captain passed it to `/pr-captain-land`. `pr-merge` treats that flag as the captain's attestation that the principal verbally approved, and it is the only route to `gh pr merge --admin`; asserting it unconditionally in a non-interactive script would make branch-protection bypass the fleet's default merge mode. Default behaviour is to defer to GitHub's gates, and the failure message says to re-run with the flag if protection is the blocker.
 
@@ -218,7 +220,7 @@ Both calls capture their output and print the tail on failure. Silencing them at
 
 ### Step 9 — Cleanup, notify, reconcile
 
-1. `worktree-delete _land-<branch> --force` + `git-captain branch-delete _land-<branch> --force`. (The remote copy was deleted by `pr-merge --delete-branch`; this is *not* retried with `git-push`, which has no delete mode and would re-push the branch.)
+1. `worktree-delete _land-<branch> --force` + `git-captain branch-delete _land-<branch> --force`, then delete the **remote** ref via `gh-api /repos/<org>/<repo>/git/refs/heads/_land-<branch> --method DELETE` (best-effort). The remote delete is *not* done with `git-push` (no delete mode — it would re-push the branch) and *not* folded into `pr-merge --delete-branch` (that also targets the still-checked-out local branch — see Step 8).
 2. `dispatch create --type master-updated` to the agent. The recipient is resolved against the agent registry, not guessed from the branch prefix — `pr-lifecycle-v2` would otherwise yield `pr`, and the dispatch (best-effort by design) would vanish. An unresolvable name routes to captain with a note.
 3. `post-merge-state clear <num>` — **only if a release was actually cut.** Clearing it after `--no-release` or a failed `gh-release` discards exactly the "merged but release not cut" signal the guard exists to carry.
 4. `git-captain merge-from-origin` — reconcile local main with the server merge.

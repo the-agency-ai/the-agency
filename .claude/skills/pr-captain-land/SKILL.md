@@ -201,11 +201,11 @@ v1 hardcoded a check named `lint-and-test` that does not exist in this repo, so 
 ### Step 8 — Merge + release
 
 ```
-./agency/tools/pr-merge <num> [--principal-approved] --delete-branch
+./agency/tools/pr-merge <num> [--principal-approved]
 ./agency/tools/gh-release create v<new> --target <default> ...
 ```
 
-True merge commit — never squash, never rebase. `--principal-approved` is forwarded **only** when the captain passed it; by default the merge defers to branch protection. Both the merge and the release capture their output and print it on failure.
+True merge commit — never squash, never rebase. `--principal-approved` is forwarded **only** when the captain passed it; by default the merge defers to branch protection. Both the merge and the release capture their output and print it on failure. No `--delete-branch`: it would also delete the still-checked-out local `_land-<slug>` branch and abort the step after a successful merge — the remote branch is deleted explicitly in step 9 instead.
 
 If no release was cut (`--no-release`, or `gh-release` failed), the pending post-merge state is deliberately **left set** — that guard exists precisely for "merged but release not cut".
 
