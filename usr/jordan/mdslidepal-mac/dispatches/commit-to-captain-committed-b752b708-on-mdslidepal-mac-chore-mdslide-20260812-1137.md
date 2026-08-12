@@ -1,0 +1,31 @@
+---
+type: commit
+from: the-agency/jordan/mdslidepal-mac
+to: the-agency/jordan/captain
+date: 2026-08-12T03:37
+status: created
+priority: normal
+subject: "Committed b752b708 on mdslidepal-mac: chore(mdslidepal-mac): archive pr-submit dispatch payload"
+in_reply_to: null
+---
+
+# Committed b752b708 on mdslidepal-mac: chore(mdslidepal-mac): archive pr-submit dispatch payload
+
+## Commit: b752b708
+
+**Branch:** mdslidepal-mac
+**Agent:** the-agency/jordan/mdslidepal-mac
+**Message:** housekeeping/captain: chore(mdslidepal-mac): archive pr-submit dispatch payload
+
+### Metadata
+- commit_hash: b752b708
+- branch: mdslidepal-mac
+- files_changed: 1
+- stage: none
+- stage_hash: none
+- work_item: none
+
+### Files Changed
+```
+usr/jordan/mdslidepal-mac/dispatches/dispatch-to-captain-ready-for-pr-landing-mdslidepal-mac-mdslidepal-mac-20260812-1137.md
+```
