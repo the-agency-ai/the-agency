@@ -101,5 +101,33 @@ categorization agents, each citing evidence. Disposition approved by principal:
 
 ---
 
+---
+
+## Bucket 3 — Dispositions (principal-delegated, "as you recommend", 2026-08-12)
+
+### App contract rulings → dispatched to mdslidepal-mac (ISCP #1004)
+- **#203** remote-image beacon → **accept as-is**; honor contract §5:219, keep bounds (10s/16MB), document the privacy characteristic; no consent gate.
+- **#204** fixture08 count (#217) → **resolve by the contract's canonical slide-split rules**; fix whichever side is wrong, document, close #217.
+- **#205** fixture05 autolinks → **amend contract**: "not supported (upstream: swift-markdown has no cmark-gfm autolink option)."
+- **#206** "hero" slide → **define in contract** to match implementation (agent flags back if vestigial).
+- **#183** mdpal migration → **consolidate to `agency/workstreams/mdpal`**, migrate unique content from `usr/jordan/mdpal`, remove duplicate. Tracked as captain task #15.
+
+### Public-launch gates → directional, detailed work deferred to "adopter hardening" effort
+- **#28** permission scoping → internal stays `Bash(*)`; adopter-scoped perms are a settings-template concern, deferred to pre-launch hardening (not blocking until public release).
+- **#146** install-surface vs repo-surface → define install-surface = `src/` payload `agency init` ships, repo-surface = running instance; a hookify rule should enforce the mirror. Rule design deferred to the same hardening effort.
+
+### Framework architecture → deferred to a dedicated design session
+- **#55** collaboration naming · **#80/#92** remote dispatch-service + receipt registry · **#90** RG-on-QGR gate · **#91** artifact naming + multi-project · **#102/#105** skill-vs-tool enforcement · **#110** Routines adoption · **#150** refactor skill (pending monofolk upstream). Seven deep design calls — schedule as their own session.
+
+### Business / external
+- **#33/#34** agentic-email service → strategy backlog. · **#67** session-rename trust → upstream-dependent, monitor.
+
+---
+
+## Tool quirk noted during this triage
+`flag list` displays ALL flags including already-processed ones (216 shown), so the "mountain" persists visually even though the unprocessed queue is empty (`flag count` = 0, `flag clear` = "nothing to clear"). `flag list` should default to unprocessed-only (with an `--all` for history). Minor tool fix — added to the Bucket-2 backlog spirit.
+
+---
+
 *Triage evidence: full per-flag tables in the 5 categorization-agent runs
-(session 58f53c72, 2026-08-12). Flag queue cleared after this doc committed.*
+(session 58f53c72, 2026-08-12). Active flag queue cleared (count=0) after this doc committed.*
