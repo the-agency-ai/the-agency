@@ -21,7 +21,7 @@ setup() {
     # Create a mock git repo with agency.yaml and all required tool files
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
     mkdir -p "$MOCK_REPO/agency/tools/lib"
-    mkdir -p "$MOCK_REPO/claude/config"
+    mkdir -p "$MOCK_REPO/agency/config"
 
     # Copy tools and libs
     for tool in dispatch dispatch-create agent-identity; do

@@ -1,6 +1,25 @@
 #!/bin/bash
-# Sync local commits with remote (pull --rebase + push)
-# This is the ONLY approved way to push to remote
+# Sync local commits with remote (pull --no-rebase + push)
+#
+# What Problem: this tool contradicted two of the framework's sacred invariants
+# and nothing stopped it. It ran `git pull --rebase` (merge, never rebase) and
+# `git push -u origin "$BRANCH"` with NO main/master guard (never push master).
+# Invoked on main it did both at once: rewrote main's history and pushed main
+# straight past the PR flow. That happened. The content was benign captain
+# coordination, so the damage was recoverable, but the tool was a landmine —
+# `git-push` right next to it has blocked main since Day 40.
+#
+# How & Why: three changes.
+#   1. Refuse outright on the default branch, mirroring git-push's block. The
+#      branch name is resolved via resolve-default-branch rather than hardcoded,
+#      so this holds on master-default repos too — and main/master are BOTH
+#      always refused regardless of which one this repo uses, because a tool
+#      whose safety depends on remote resolution succeeding is not safe.
+#   2. Merge, not rebase. The "pull before push so the push is not rejected"
+#      intent is preserved; the history rewrite is not.
+#   3. The push log recorded every agent as "unknown" (it read $AGENTNAME, which
+#      Claude Code does not set), making the accountability log useless. Resolve
+#      the real identity via agent-identity, best-effort.
 #
 # Usage: ./agency/tools/git-sync [options]
 #   --check    Show what would be pushed without pushing
@@ -8,10 +27,13 @@
 #   --verbose  Show detailed output instead of logging
 #
 # Features:
-# - Pulls with rebase first (keeps history clean)
-# - Logs all pushes for accountability
+# - Refuses on main/master — those reach the remote through PRs only
+# - Pulls with MERGE first (never rebase — no history rewrite)
+# - Logs all pushes for accountability, with the real agent identity
 # - Shows commit summary before pushing
 # - Context-efficient: 1-line output, details in log-service
+#
+# Updated: 2026-08-11 (devex) — main/master guard + merge-not-rebase + identity
 
 set -euo pipefail
 
@@ -55,6 +77,10 @@ while [[ $# -gt 0 ]]; do
             echo "  --verbose, -v       Show detailed output instead of logging"
             echo "  --version           Show version"
             echo "  --help, -h          Show this help"
+            echo ""
+            echo "Refuses to run on main/master (or the resolved default branch)."
+            echo "Those reach origin only through PRs: /pr-submit, /pr-captain-land."
+            echo "Pulls with MERGE, never rebase."
             exit 0
             ;;
         *)
@@ -152,6 +178,56 @@ output_failure() {
 main() {
     start_run
 
+    REPO_ROOT="$(git rev-parse --show-toplevel)"
+    PUSH_LOG="$REPO_ROOT/history/push-log.md"
+    TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S %Z')
+
+    # Get current branch
+    BRANCH=$(git branch --show-current)
+
+    # ── BLOCK: never sync the default branch ─────────────────────────────────
+    #
+    # This runs BEFORE the pull, the push, the push-log append, and even the
+    # uncommitted-changes check, so a refused invocation mutates nothing and
+    # always reports the reason that actually matters. (`--check` on a dirty
+    # main used to answer "uncommitted changes" — true, but not the point.)
+    #
+    # main and master are refused unconditionally, and the resolved default
+    # branch on top of that. Belt and braces on purpose: resolve-default-branch
+    # falls back to "main" when it cannot reach the remote, and a guard that
+    # goes quiet the moment the network does is not a guard. Checking the two
+    # literals as well means an offline sync on a master-default repo is still
+    # refused.
+    #
+    # An EMPTY branch is refused too: `git branch --show-current` prints nothing
+    # on a detached HEAD, which matched none of the clauses. The tool then ran
+    # `git push -u origin ""` — fatal, so nothing reached origin, but only after
+    # appending a push-log row with an empty branch column and reporting "push
+    # failed" instead of "you are not on a branch".
+    DEFAULT_BRANCH="$("$SCRIPT_DIR/resolve-default-branch" 2>/dev/null || echo "")"
+    if [[ -z "$BRANCH" ]]; then
+        end_run "failure" "Refused: detached HEAD"
+        output_failure "BLOCKED: not on a branch (detached HEAD) — nothing to sync."
+        echo "  Check out a branch first: ./agency/tools/git-safe switch <branch>" >&2
+        exit 1
+    fi
+    if [[ "$BRANCH" == "main" || "$BRANCH" == "master" || \
+          ( -n "$DEFAULT_BRANCH" && "$BRANCH" == "$DEFAULT_BRANCH" ) ]]; then
+        end_run "failure" "Refused: $BRANCH is the default branch"
+        # output_failure, not a bare echo: every other failure path in this tool
+        # emits a "FAILURE: ..." line on stdout and callers grep for it. A guard
+        # that only spoke on stderr was invisible to them.
+        output_failure "BLOCKED: cannot sync $BRANCH — the default branch never goes to origin directly."
+        echo "" >&2
+        echo "  All changes reach $BRANCH through PRs:" >&2
+        echo "    agent   → /pr-prep, then /pr-submit" >&2
+        echo "    captain → /pr-captain-land <branch>" >&2
+        echo "" >&2
+        echo "  To bring origin's $BRANCH into your local one, merge — never rebase:" >&2
+        echo "    ./agency/tools/git-captain merge-from-origin" >&2
+        exit 1
+    fi
+
     # Check for uncommitted changes
     if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
         log_warn "Uncommitted changes detected"
@@ -162,13 +238,16 @@ main() {
         fi
     fi
 
-    REPO_ROOT="$(git rev-parse --show-toplevel)"
-    PUSH_LOG="$REPO_ROOT/history/push-log.md"
-    AGENT="${AGENTNAME:-unknown}"
-    TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S %Z')
+    # Resolve the acting agent for the push log. The log read \$AGENTNAME, which
+    # Claude Code does not set, so every historical row says "unknown" and the
+    # accountability log accounts for nobody. Best-effort by design: a failure
+    # to resolve identity must never block a legitimate push.
+    AGENT="${AGENTNAME:-}"
+    if [[ -z "$AGENT" && -x "$SCRIPT_DIR/agent-identity" ]]; then
+        AGENT="$("$SCRIPT_DIR/agent-identity" 2>/dev/null || echo "")"
+    fi
+    AGENT="${AGENT:-unknown}"
 
-    # Get current branch
-    BRANCH=$(git branch --show-current)
     log_info "Starting sync on branch: $BRANCH"
 
     # Check if we have commits to push
@@ -220,14 +299,43 @@ EOF
 
     SKIP_CI_COUNT=0
     if git rev-parse "$UPSTREAM" >/dev/null 2>&1; then
-        SKIP_CI_COUNT=$(git log --oneline "$UPSTREAM..HEAD" | grep -c '\[skip ci\]' || echo "0")
+        # `|| true`, NOT `|| echo "0"`. grep -c already prints 0 when it matches
+        # nothing and THEN exits 1, so the echo appended a second zero and every
+        # row after the first sync was written as "0\n0", splitting the markdown
+        # table row across two lines. The log this change exists to make usable
+        # was corrupting itself on every run.
+        SKIP_CI_COUNT=$(git log --oneline "$UPSTREAM..HEAD" | grep -c '\[skip ci\]' || true)
+        SKIP_CI_COUNT="${SKIP_CI_COUNT:-0}"
     fi
     echo "| $TIMESTAMP | $AGENT | $AHEAD | $SKIP_CI_COUNT skip-ci | $BRANCH |" >> "$PUSH_LOG"
 
-    # Pull with rebase
-    log_info "Pulling with rebase"
-    if ! git pull --rebase origin "$BRANCH" 2>/dev/null; then
-        log_info "No remote branch yet, skipping pull"
+    # Pull with MERGE — never rebase.
+    #
+    # --no-rebase is explicit rather than relying on git's default, because
+    # pull.rebase=true in a user's global config would silently restore the
+    # rewrite this tool exists to have stopped doing.
+    #
+    # A failed pull is NOT uniformly benign, and treating it as such was its own
+    # bug: a conflicted merge left MERGE_HEAD and conflict markers in the working
+    # tree, the tool logged "skipping pull", pushed anyway, and reported "push
+    # failed" — never once mentioning the conflict the operator now had to find.
+    # Distinguish the two cases: no upstream branch is fine, a conflict stops the
+    # run with the tree left intact for the human to resolve.
+    log_info "Pulling with merge (never rebase)"
+    if ! git pull --no-rebase origin "$BRANCH" >/dev/null 2>&1; then
+        if [[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]]; then
+            log_error "Merge conflict during pull"
+            end_run "failure" "Merge conflict on $BRANCH"
+            output_failure "Merge conflict pulling origin/$BRANCH — nothing pushed."
+            echo "" >&2
+            echo "  The merge is in progress and left in place deliberately." >&2
+            echo "  Resolve the conflicts, commit, then re-run git-sync:" >&2
+            echo "    ./agency/tools/git-safe status" >&2
+            echo "  Or abandon it:" >&2
+            echo "    ./agency/tools/git-safe merge-abort" >&2
+            exit 1
+        fi
+        log_info "No remote branch yet; skipping pull"
     fi
 
     # Push

@@ -18,7 +18,7 @@ setup() {
     iscp_test_isolation_setup
 
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
-    mkdir -p "$MOCK_REPO/agency/tools/lib" "$MOCK_REPO/claude/config"
+    mkdir -p "$MOCK_REPO/agency/tools/lib" "$MOCK_REPO/agency/config"
 
     for tool in flag agent-identity; do
         cp "$REPO_ROOT/agency/tools/$tool" "$MOCK_REPO/agency/tools/"

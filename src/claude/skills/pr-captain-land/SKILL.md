@@ -172,11 +172,13 @@ Read `agency/config/manifest.json`, bump minor, refresh `updated_at`, commit via
 | D | C. `hash_d_source` records the truth: `auto-approved — no principal 1B1`, or the `--principal-approved` attestation when that flag was passed |
 | E | diff hash of the bumped tree vs `origin/<default>` |
 
-Written to `agency/workstreams/agency/qgr/` with boundary `pr-captain-land`, then committed. Receipts are excluded from `diff-hash`, so committing one does not invalidate the hash it carries.
+Written to **the scratch's** `agency/workstreams/agency/qgr/` with boundary `pr-captain-land`, then committed. Receipts are excluded from `diff-hash`, so committing one does not invalidate the hash it carries.
+
+The `-C <scratch>` on that `receipt-sign` call is load-bearing: the tool resolves its target repo from its own install location, so `cd`-ing into the scratch does not redirect it. Without `-C` the receipt is signed into the captain's main checkout and the land aborts, unable to find it. See "Repo-root targeting" in `reference.md`.
 
 ### Step 6 — Publish
 
-Push `_land-<branch>` from the scratch, then `pr-create --base <default>`. The landing receipt is the newest receipt, so `pr-create`'s receipt gate and version-bump gate both pass on their own terms.
+Push `_land-<branch>` from the scratch, then `pr-create -C <scratch> --base <default>`. The landing receipt is the newest receipt, so `pr-create`'s receipt gate and version-bump gate both pass on their own terms. `-C` points the gates at the scratch while the gate sub-tools still run from the captain's `$SCRIPT_DIR` — data from the scratch, code from the captain.
 
 **This is the first irreversible action.** Past here, failures report and leave the scratch in place for inspection rather than rolling back.
 

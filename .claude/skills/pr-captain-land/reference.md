@@ -131,7 +131,7 @@ The bump policy itself lives in `agency/tools/agency-version-next` (`46.25 → 4
 `pr-create` is not bypassed and not weakened. The captain signs a receipt for the state it validated:
 
 ```
-receipt-sign --type qgr --boundary pr-captain-land \
+receipt-sign -C <scratch> --type qgr --boundary pr-captain-land \
   --agent captain --workstream agency --project <branch-slug> \
   --hash-a <agent receipt hash_e> \
   --hash-b <sha256 of the validation log> \
@@ -149,10 +149,26 @@ The receipt is then committed. Receipts are excluded from `diff-hash`, so commit
 
 ```
 (cd _land-<branch> && git-push _land-<branch>)
-(cd _land-<branch> && pr-create --title ... --body ... --base <default>)
+(cd _land-<branch> && pr-create -C _land-<branch> --title ... --body ... --base <default>)
 ```
 
 `pr-create` re-derives the newest receipt (the landing receipt) and re-verifies it, and independently confirms `manifest.json` differs from `origin/<default>`. Both gates pass on their own terms.
+
+### Repo-root targeting — why `-C` appears in steps 5 and 6
+
+Every tool above runs from the **captain's** `agency/tools/`, never the scratch's: the branch under review must not supply the code that gates it. The cwd is set to the scratch so those tools read the scratch's *data*. Captain's code, scratch's data.
+
+That works only for tools that actually consult the cwd. `receipt-sign`, `pr-create`, and `dispatch` resolved their target repo from `SCRIPT_DIR/../..` — their own install location — and ignored the cwd entirely, so `cd`-ing into the scratch did nothing:
+
+- **Step 5** wrote the landing receipt into the captain's main checkout. The find-in-scratch that follows returned nothing and the land aborted with "landing receipt was signed but could not be located" (clean rollback — origin untouched).
+- **Step 4**'s commit-announce dispatch landed in the main checkout, describing a commit that repo does not contain.
+- **Step 6**'s `pr-create` would have read `BRANCH` from the main checkout (`main`) and blocked, had step 5 not failed first.
+
+`-C <repo-root>` (first argument, git-style) states the target repo explicitly. It retargets **data only** — `pr-create` still invokes `receipt-verify` and `resolve-default-branch` from its own `$SCRIPT_DIR`, so the trust boundary is unchanged. Absent the flag, every tool behaves exactly as before, so no other caller was affected.
+
+Tools invoked here that do *not* take `-C`: `git-safe`, `git-safe-commit`, `git-push`, and `diff-hash` already resolve from the cwd; `pr-merge`, `gh-release`, `gh`, and `gh-api` are repo-agnostic (they key off a PR number or an explicit `org/repo`). `git-safe-commit` forwards its own cwd-derived root to `dispatch` via `-C`.
+
+Coverage: `src/tests/skills/pr-captain-land-publish-locality.bats` runs steps 4-5 for real against a two-repo fixture and asserts the artifacts land in the scratch and *not* in the captain checkout; `src/tests/tools/repo-root-targeting.bats` pins the `-C` contract per tool.
 
 **This is the first irreversible action.** Past this point `abort_land` is no longer correct — work exists on origin. Failures report, name the pushed branch, and leave the scratch in place for inspection.
 

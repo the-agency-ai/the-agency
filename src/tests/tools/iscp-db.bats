@@ -26,7 +26,7 @@ setup() {
 
     # Create a minimal git repo so repo name resolution works
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
-    mkdir -p "$MOCK_REPO/claude/config"
+    mkdir -p "$MOCK_REPO/agency/config"
     cd "$MOCK_REPO"
     git init --quiet
     git config user.email "test@example.com"
