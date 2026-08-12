@@ -588,7 +588,12 @@ if [[ -n "$VALIDATION_FAILED" ]]; then
 
     # Tell the agent before rolling back — the scratch is about to vanish.
     AGENT_NAME="$(resolve_agent_name)"
-    bash "$TOOLS/dispatch" create \
+    # -C "$REPO_ROOT": the captain's main checkout, explicitly. This dispatch is
+    # written moments before destroy_scratch runs, so it must NOT land in the
+    # scratch — and dispatch would otherwise honour a CLAUDE_PROJECT_DIR
+    # inherited from the captain's environment, silently filing the "your land
+    # was blocked" notice into a directory that is about to be deleted.
+    bash "$TOOLS/dispatch" -C "$REPO_ROOT" create \
         --type dispatch \
         --to "$ORG/$PRINCIPAL/$AGENT_NAME" \
         --subject "PR landing BLOCKED: $AGENT_BRANCH failed local validation ($VALIDATION_FAILED)" \
@@ -733,7 +738,14 @@ fi
 LAND_PROJECT="$(printf '%s' "$AGENT_BRANCH" | tr '/.' '--')"
 
 echo "→ Signing captain landing receipt (hash_e: ${LAND_HASH_FULL:0:7})..."
+# -C "$SCRATCH_DIR" is load-bearing, not decoration. receipt-sign resolves its
+# target repo from its own INSTALL location, so the cd alone did nothing: on a
+# real land the receipt was written into the CAPTAIN'S main checkout, the
+# find-in-scratch below came up empty, and the land aborted with "landing
+# receipt was signed but could not be located". The cd is kept because the tool
+# is still the captain's — captain's code, scratch's data.
 (cd "$SCRATCH_DIR" && bash "$TOOLS/receipt-sign" \
+    -C "$SCRATCH_DIR" \
     --type qgr \
     --boundary pr-captain-land \
     --org "$ORG" \
@@ -817,7 +829,16 @@ echo "→ Creating PR..."
 # emits warnings on the same stream, and scraping `tail -1` sent a
 # successfully created PR down the "did not return a URL" path, leaving an
 # orphan PR for the operator to find.
+#
+# -C "$SCRATCH_DIR" names the repo pr-create GATES — branch, receipt, manifest —
+# and the directory `gh pr create` runs in. Without it every gate read the
+# captain's main checkout instead: the branch check would have seen `main` and
+# blocked the land outright. It does NOT retarget pr-create's sub-tools
+# (receipt-verify, resolve-default-branch); those still resolve from pr-create's
+# own $SCRIPT_DIR, which is what keeps the branch from shipping its own
+# verifier.
 PR_OUT=$( (cd "$SCRATCH_DIR" && bash "$TOOLS/pr-create" \
+            -C "$SCRATCH_DIR" \
             --title "$PR_TITLE" --body "$PR_BODY" --base "$DEFAULT_BRANCH" 2>&1) || true)
 PR_URL=$(printf '%s\n' "$PR_OUT" | grep -oE 'https://github\.com/[^ ]+/pull/[0-9]+' | tail -1 || true)
 
@@ -982,7 +1003,10 @@ rm -f "$VALIDATION_LOG"
 
 AGENT_NAME="$(resolve_agent_name)"
 echo "→ Dispatching $AGENT_NAME with merge outcome..."
-bash "$TOOLS/dispatch" create \
+# -C "$REPO_ROOT": destroy_scratch has already run, so the only repo that can
+# hold this payload is the captain's main checkout. Stated explicitly rather
+# than relying on the tool's install-location default.
+bash "$TOOLS/dispatch" -C "$REPO_ROOT" create \
     --type master-updated \
     --to "$ORG/$PRINCIPAL/$AGENT_NAME" \
     --subject "PR #$PR_NUM landed — v$NEW_VER released (pr-captain-land)" \

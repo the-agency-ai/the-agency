@@ -221,6 +221,8 @@ Checks (each exits 1 on failure):
 
 QG-aware commit wrapper. Enforces work item tracking, builds structured commit messages, adds per-agent attribution, and dispatches a commit notification to captain.
 
+This tool resolves its repo from the **cwd** (`git rev-parse --show-toplevel`), so it commits to whichever worktree you run it in, and it forwards that root to the `dispatch` tool as `-C` so the commit-announce payload lands in the same repo as the commit it announces. Before that forwarding existed, committing in one worktree with a `git-safe-commit` from another wrote the announce into the *tool's* checkout — a dispatch describing a commit that repo did not contain.
+
 **Usage:** `./agency/tools/git-safe-commit "<message>" --work-item <ID> --stage <stage>`
 
 **Escape hatch:** `./agency/tools/git-safe-commit "<message>" --no-work-item`
@@ -386,9 +388,17 @@ For cross-worktree sync, use `/worktree-sync`.
 
 QG-gated PR creation. Wraps `gh pr create` with three mandatory checks. Hookify blocks raw `gh pr create`.
 
-**Usage:** `./agency/tools/pr-create --title "title" --body "body" [gh pr create flags...]`
+**Usage:** `./agency/tools/pr-create [-C <repo-root>] --title "title" --body "body" [gh pr create flags...]`
 
 All flags after validation are passed through to `gh pr create`.
+
+### `-C <repo-root>` — which repo gets gated
+
+By default the checks below read the tool's own checkout (`SCRIPT_DIR/../..`), while `gh pr create` reads the cwd. Those are the same directory for every ordinary caller, so the split is invisible — until they are not, at which point the tool gates one tree and opens a PR from another.
+
+`-C` closes that: it names one repo for **both** the checks and `gh`. It must be the **first** argument, because everything after it is forwarded verbatim to `gh pr create`.
+
+`-C` retargets **data, never code**. The sub-tools this script runs — `receipt-verify`, `resolve-default-branch` — are still invoked from `$SCRIPT_DIR`. A branch cannot ship its own `receipt-verify` and thereby pass its own gate; that guarantee is what lets `/pr-captain-land` run the captain's `pr-create` against an unreviewed scratch worktree at all.
 
 ### Pre-flight checks
 

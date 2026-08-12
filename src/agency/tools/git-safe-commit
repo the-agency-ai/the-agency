@@ -29,6 +29,7 @@
 #   --work-item, -w   Work item ID (REQUEST-jordan-0065, SPRINT-web-2026w03, etc.)
 #   --stage, -s       Stage: impl, review, tests (required if work-item provided)
 #   --no-work-item    Escape hatch when no work item applies (skip work-item requirement)
+#   --coord           Alias for --no-work-item (coord-artifact commits; see /coord-commit)
 #   --allow-large     Bypass commit-precheck large-file block (single-commit override)
 #   --body, -b        Detailed commit body
 #   --principal, -p   Override principal (default: from config or work item)
@@ -58,6 +59,21 @@ elif PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
     :
 else
     PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+# The repo this commit is actually going INTO — strictly the cwd's worktree,
+# with no CLAUDE_PROJECT_DIR consultation.
+#
+# PROJECT_ROOT above deliberately prefers CLAUDE_PROJECT_DIR because it is used
+# for the per-agent ATTRIBUTION lookup, which is a property of the session. That
+# is the wrong answer for "where does this commit live": Claude Code sets
+# CLAUDE_PROJECT_DIR to the main checkout, so in any real session PROJECT_ROOT
+# points at the main checkout even while we are committing inside a worktree.
+# Using it for the dispatch target sent commit-announce payloads to a repo that
+# does not contain the commit — the bug -C was added to fix, which the first
+# version of that fix reproduced exactly by passing PROJECT_ROOT.
+if ! COMMIT_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    COMMIT_REPO_ROOT="$PROJECT_ROOT"
 fi
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
     source "$SCRIPT_DIR/lib/_log-helper"
@@ -162,7 +178,19 @@ while [[ $# -gt 0 ]]; do
             STAGED_ONLY=true
             shift
             ;;
-        --no-work-item)
+        --no-work-item|--force|-f)
+            # --force / -f are documented aliases for --no-work-item (issue #283)
+            # Skill docs historically showed --force; keep the alias to match.
+            NO_WORK_ITEM=true
+            shift
+            ;;
+        --coord)
+            # --coord is a convenience alias for --no-work-item (issue #395).
+            # Semantics match /coord-commit skill's happy path: commit coord
+            # artifacts (handoffs, dispatches, seeds, config) without QG.
+            # NOTE: This is the minimal happy-path alias. Full validation of
+            # "staged files are coord artifacts" and automatic `misc:` prefix
+            # injection are follow-ups tracked in #395 (acceptance criteria).
             NO_WORK_ITEM=true
             shift
             ;;
@@ -285,6 +313,28 @@ main() {
         trap - EXIT
         log_end "$RUN_ID" "failure" 1 0 "Missing commit message"
         exit 1
+    fi
+
+    # Issue #204: first-launch UX. Git itself errors "Please tell me who you
+    # are" with exit 128 when user.name/user.email are unconfigured, but that
+    # message often gets swallowed by the pre-commit hook chain and surfaces
+    # as a silent exit 128. Check up front with an actionable remediation.
+    local git_user_name git_user_email
+    git_user_name=$(git config --get user.name 2>/dev/null || true)
+    git_user_email=$(git config --get user.email 2>/dev/null || true)
+    if [ -z "$git_user_name" ] || [ -z "$git_user_email" ]; then
+        log_error "Git identity not configured — cannot commit."
+        echo ""
+        echo "Git requires user.name and user.email to record a commit. Configure them via git-safe:"
+        echo "  ./agency/tools/git-safe config --global user.name  \"Your Name\""
+        echo "  ./agency/tools/git-safe config --global user.email \"you@example.com\""
+        echo ""
+        echo "Current values:"
+        echo "  user.name  = ${git_user_name:-<unset>}"
+        echo "  user.email = ${git_user_email:-<unset>}"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 128 0 "Git identity not configured"
+        exit 128
     fi
 
     # ENFORCEMENT: Require work item OR --no-work-item
@@ -625,7 +675,16 @@ main() {
 ${files_changed}
 \`\`\`"
 
-                    "$DISPATCH_TOOL" create \
+                    # -C "$COMMIT_REPO_ROOT" — the cwd's worktree, NOT
+                    # PROJECT_ROOT (which follows CLAUDE_PROJECT_DIR to the main
+                    # checkout; see the derivation above). dispatch resolves its
+                    # own root from its INSTALL location, so committing inside a
+                    # worktree otherwise wrote the commit-announce into whichever
+                    # checkout the tool binary lived in — observed during a real
+                    # pr-captain-land, where a scratch commit littered the
+                    # captain's main checkout with a dispatch for a commit that
+                    # was not in it. The payload must land with its commit.
+                    "$DISPATCH_TOOL" -C "$COMMIT_REPO_ROOT" create \
                         --type commit \
                         --to "$CAPTAIN_ADDR" \
                         --subject "Committed ${COMMIT_HASH} on ${CURRENT_BRANCH}: ${MESSAGE}" \
