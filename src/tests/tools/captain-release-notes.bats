@@ -162,7 +162,7 @@ STUB
     run ./agency/tools/captain-release-notes --version
     [ "$status" -eq 0 ]
     [[ "$output" == *"captain-release-notes"* ]]
-    [[ "$output" == *"1.2.0"* ]]
+    [[ "$output" == *"1.3.0"* ]]
 }
 
 @test "captain-release-notes: --help shows usage" {

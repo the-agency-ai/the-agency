@@ -136,7 +136,7 @@ For broadcast audiences, skip — the file on the default branch is discoverable
 
 ## Status
 
-`active` (v1.2.0). Shipped 2026-04-23 as an upstream from an adopter repo's v3.3-v3.31 release-notes convention-capture; revived and re-validated against v46.33 on 2026-08-12 (PR #426 lineage).
+`active` (v1.3.0). Shipped 2026-04-23 as an upstream from an adopter repo's v3.3-v3.31 release-notes convention-capture; revived and re-validated against v46.33 on 2026-08-12 (PR #426 lineage). Named `agency-captain-release-notes` for that entire lineage — renamed to `captain-release-notes` on 2026-08-12 to drop the redundant prefix and join the captain-* family.
 
 ## Related
 

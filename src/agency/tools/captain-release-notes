@@ -68,9 +68,16 @@
 #   - lib/_colors exports unescaped \033, so `echo` printed the escapes
 #     literally. All output moved to printf '%b'.
 
+# Renamed: 2026-08-12 — was `agency-captain-release-notes` for its whole #426
+# lineage. Dropped the redundant `agency-` prefix to join the captain-* family
+# (captain-release, captain-review, captain-log). The old name carried two scope
+# prefixes and matched none of the sanctioned skill-name forms. Anything mining
+# telemetry across the boundary must union both log_start keys; the version bump
+# to 1.3.0 marks where they split.
+
 set -euo pipefail
 
-TOOL_VERSION="1.2.0"
+TOOL_VERSION="1.3.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Telemetry (repo convention: tools in agency/tools/ log through _log-helper).
