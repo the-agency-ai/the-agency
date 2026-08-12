@@ -7,7 +7,11 @@
 // from the AST — no re-parsing. Notes are stored as raw markdown text since
 // they're rendered separately in the presenter view.
 //
+// `isHero` classifies cover slides — a title, optionally with one subtitle
+// heading, and no other block content — so the renderer can center them.
+//
 // Written: 2026-04-12 during mdslidepal-mac Phase 1.1
+// Updated: 2026-04-15 Phase 5.1 — isHero cover-slide classification.
 
 import Foundation
 import Markdown
@@ -47,5 +51,20 @@ public struct Slide: Identifiable {
             }
         }
         return nil
+    }
+
+    /// True for hero/cover slides that should render centered: a title
+    /// (optionally with a single subtitle heading) and no other block
+    /// content. Requires the first heading to be H1 or H2 — multi-heading
+    /// section slides (e.g. two H3s) do NOT qualify.
+    public var isHero: Bool {
+        let headings = markupChildren.compactMap { $0 as? Heading }
+        let nonHeadingBlocks = markupChildren.filter {
+            !($0 is Heading) && !($0 is ThematicBreak)
+        }
+        guard nonHeadingBlocks.isEmpty else { return false }
+        guard (1...2).contains(headings.count) else { return false }
+        guard let first = headings.first, first.level <= 2 else { return false }
+        return true
     }
 }

@@ -405,3 +405,72 @@ Phase 4 can begin in parallel with late Phase 3 (PDF export only needs the rende
 ---
 
 *Planning deliverable — no code written. Await principal review before Phase 1 kickoff.*
+
+---
+
+## Post-QG Backlog — deferred from PR-prep QG, 2026-08-12
+
+Raised by the re-prep quality gate against main v46.29 (receipt
+`qgr/the-agency-jordan-mdslidepal-mac-mdslidepal-mdslidepal-mac-qgr-pr-prep-20260812-1133-48efa69.md`).
+34 defects were fixed in that gate. The items below were classified as unimplemented
+planned/contract capability rather than defects in the diff, and are parked here so they
+have a named home. They are NOT "fix later" hand-waves — each is scoped.
+
+### Contract-compliance gaps
+
+- **§11 overflow policy + `Render/SlideScaler.swift`.** Specified as `<20%` overflow -> auto-scale,
+  `>=20%` -> vertical scroll in present mode, never crop. Not implemented. Four copied
+  `min(w/lw, h/lh, ...)` computations exist across `DeckWindowView` and `PresenterWindowView`,
+  three capped at 1.0 and the audience one uncapped. Extract to the planned `SlideScaler` and
+  route all four call sites through it.
+- **§11 line 296 — unreachable remote URL must warn.** Missing-local-image and containment-refusal
+  diagnostics now land via the load-time `ImageResolutionPass`, but remote reachability is not known
+  until after a network round-trip, so it cannot go in that pass without blocking deck open on the
+  network. Needs: a `@MainActor` diagnostics sink (observable object or environment-injected closure)
+  plumbed to the render layer, dedupe by URL so re-renders do not append duplicates, and a
+  stale-clearing policy on live reload. Deliberately stopped rather than half-done.
+- **§3 `transition` (`none`|`fade`).** Parsed as an untyped `String?`, never validated, and no
+  renderer reads it. Unknown values should warn and fall back to `none`.
+- **`layout` is Phase 2** but is in `reservedKeys` and parses silently, so a deck using it appears
+  to work and renders identically. Should emit an "unsupported in MVP" diagnostic.
+
+### Architecture
+
+- **`Slide.id == index`** conflates identity with position, so SwiftUI cannot distinguish
+  "slide 3 edited" from "slide inserted above 3" on live-reload. Works today only because nothing
+  reorders slides. Give `Slide` a stable UUID and keep `index` as a separate field.
+- **Dead `.startPresentation` notification path** and the unreachable duplicate `AppMenuCommands`
+  menu definition, which has already diverged from the shipping NSMenu.
+- **Two sources of truth for "are we presenting"** — `PresentationWindowManager.isShowingWindows`
+  vs `PresentationCoordinator.isPresenting`, kept in sync only by convention.
+- **AppKit/library boundary.** Partially addressed (an `exportDestinationProvider` seam and
+  `loadInitialDeck(arguments:)`). Moving `NSSavePanel` fully out of `DeckController` to the delegate
+  remains, mirroring how `openDocument` already works.
+- **`PresentationWindowManager` takes the whole `DeckController`** only to reach through it, and
+  `PresentationCoordinator.deckState` is a two-phase-init `weak var`.
+- **`ImagePathResolver.resolve()` still returns `URL?`.** The richer `resolution()` API was added
+  alongside it rather than changing the signature, to avoid churning ~8 existing tests. Mechanical
+  follow-up to delete `resolve()`.
+- **Per-render `stat` in `ImageBlockView`.** Removing it means threading the resolution pass's
+  resolved-URL map through six construction sites. Perf nit, not correctness — the cache already
+  prevents re-decode.
+
+### Needs a ruling — blocked, not deferrable by the agent
+
+- **Remote images as a tracking beacon.** Highest-confidence security finding in the gate: opening a
+  `.md` file issues an outbound request disclosing viewer IP and open-time to a host the deck author
+  chose, with no consent. Contract §5 line 219 says remote URLs "are loaded directly", so a consent
+  gate would contradict the ratified contract. The gate added bounds only (10s timeout, 16MB cap) and
+  did NOT gate the request. This is the same question as Open Question 7 above — needs a decision.
+- **Fixture 08 slide count.** Fixture acceptance says 4; the AST parser correctly produces 6. ISCP
+  dispatch #217 and flag #90 have been open since April. The suite was silently green on the dispute;
+  the count assertion is now isolated as `fixture08_slideCountPendingDispatch217` so it is visible in
+  runner output. Still needs a ruling.
+- **Fixture 05 autolinks.** swift-markdown attaches only `table`, `strikethrough` and `tasklist` to
+  cmark-gfm and exposes no option to add `autolink`, so the fixture's "autolinks must be clickable"
+  criterion is unimplementable as specified without parser post-processing plus a renderer change
+  (`InlineContentView` concatenates `Text` and cannot make a link clickable). Pinned in
+  `fixture05_autolinksAreNotYetLinkified` rather than faked green.
+- **The contract does not define "hero" slide at all.** `Slide.swift` documents and implements it and
+  the `isHero` tests now match that documented intent, but no contract authority stands behind the
+  classification. Worth closing in the shared contract so both agents agree.
