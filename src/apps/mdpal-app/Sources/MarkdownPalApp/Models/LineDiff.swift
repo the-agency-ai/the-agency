@@ -74,8 +74,18 @@ public struct DiffLine: Equatable, Hashable, Sendable {
 /// line counts of the two inputs. Typical section ~100 lines → ~10k
 /// operations — fast.
 public func computeLineDiff(pending: String, current: String) -> [DiffLine] {
-    let pendingLines = pending.components(separatedBy: "\n")
-    let currentLines = current.components(separatedBy: "\n")
+    // An empty string is ZERO lines, not one empty line.
+    //
+    // pr-prep QG (re-prep vs v46.30): `"".components(separatedBy: "\n")`
+    // returns `[""]`, so an empty pending document used to diff as one
+    // empty line that matched nothing on the current side. Diffing "" against
+    // "a\nb\nc" produced a spurious `.pendingOnly` empty line alongside the
+    // three real additions, and DiffStats then reported "4 lines changed —
+    // 3 added, 1 removed" for what is purely an addition. DiffView renders
+    // that phantom as a blank `-` row. Standard diff tools treat an empty
+    // file as zero lines; match that.
+    let pendingLines = pending.isEmpty ? [] : pending.components(separatedBy: "\n")
+    let currentLines = current.isEmpty ? [] : current.components(separatedBy: "\n")
 
     // Short-circuit for identical content. Saves work AND guarantees
     // returning unchanged-only output (no spurious pendingOnly /

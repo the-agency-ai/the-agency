@@ -309,7 +309,10 @@ public final class MockCLIService: CLIServiceProtocol, @unchecked Sendable {
             let bodyStart = h.startLine + 1
             let bodyEnd = idx + 1 < headings.count ? headings[idx + 1].startLine : lines.count
             let body = lines[bodyStart..<bodyEnd].joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-            let hash = String(format: "%06x", abs(body.hashValue) & 0xFFFFFF)
+            // pr-prep QG (re-prep vs v46.30): `abs(Int.min)` traps at
+            // runtime; mask instead of negating. The 0xFFFFFF mask already
+            // bounded the output, so only the `abs` needed removing.
+            let hash = String(format: "%06x", body.hashValue & 0xFFFFFF)
             sections.append(SectionTreeNode(slug: slug, heading: h.heading, level: h.level, versionHash: hash))
             contents[slug] = Section(slug: slug, heading: h.heading, level: h.level, content: body, versionHash: hash, versionId: "v1-parsed")
         }

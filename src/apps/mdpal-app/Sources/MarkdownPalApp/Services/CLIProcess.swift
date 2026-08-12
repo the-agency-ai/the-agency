@@ -298,6 +298,22 @@ public struct DefaultProcessRunner: ProcessRunner {
         holder.set(process)
         defer { holder.clear() }
 
+        // pr-prep QG (re-prep vs v46.30): close the check-then-set race.
+        // `onCancel` fires exactly once. If cancellation lands in the
+        // window between the `holder.isCancelled` check above and
+        // `holder.set(process)` on the line above, handleCancellation()
+        // read a nil process, so its `terminate()` was a no-op — and it
+        // will never fire again for this call. Without this re-check the
+        // child is spawned and runs to completion (including its on-disk
+        // side effects, e.g. `revision create`) before the caller
+        // discards the result. Re-reading the flag after registration
+        // makes the window empty: either onCancel saw our process and
+        // terminated it, or we see the flag here and never spawn.
+        if holder.isCancelled {
+            continuation.resume(throwing: CLIServiceError.cancelled)
+            return
+        }
+
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
         process.standardOutput = stdoutPipe

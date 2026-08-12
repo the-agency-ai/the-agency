@@ -54,6 +54,23 @@ public struct AlertContent: Equatable, Hashable, Sendable {
         self.primaryAction = primaryAction
         self.secondaryAction = secondaryAction
     }
+
+    /// Whether the View should append a trailing "Dismiss" cancel button.
+    ///
+    /// The alert renders `primaryAction`, then `secondaryAction` if present.
+    /// Both render through the same button builder, so a `.dismiss` in
+    /// either slot ALREADY produces a `Button("Dismiss", role: .cancel)`.
+    /// Appending another one in that case shows the user two identical
+    /// Dismiss buttons.
+    ///
+    /// pr-prep QG (re-prep vs v46.30): the View's inline guard checked only
+    /// `primaryAction`, so `.packageRequired` — the one error in the surface
+    /// that sets `secondaryAction: .dismiss` — rendered a duplicate. Hoisted
+    /// out of the ViewBuilder so the rule is unit-testable rather than
+    /// reachable only through a running SwiftUI alert.
+    public var needsTrailingDismissButton: Bool {
+        primaryAction != .dismiss && secondaryAction != .dismiss
+    }
 }
 
 /// Actions an alert's button can trigger. The View maps each case to a

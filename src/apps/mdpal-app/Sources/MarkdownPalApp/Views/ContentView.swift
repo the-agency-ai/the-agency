@@ -138,13 +138,11 @@ public struct ContentView: View {
             if let secondary = alert.secondaryAction {
                 primaryAlertButton(for: secondary)
             }
-            // Phase 2 phase-complete QG (F-4): skip the trailing Dismiss
-            // button when the primary action is already .dismiss —
-            // primaryAlertButton(for: .dismiss) emits a Button with
-            // role: .cancel, so the trailing Button would render a second
-            // Dismiss. Only append the cancel button when the primary
-            // isn't already one.
-            if alert.primaryAction != .dismiss {
+            // Skip the trailing Dismiss when a .dismiss action is already
+            // rendered in either slot. See the rule (and the duplicate-button
+            // bug it fixes) on AlertContent.needsTrailingDismissButton, which
+            // is unit-tested.
+            if alert.needsTrailingDismissButton {
                 Button("Dismiss", role: .cancel) { document.clearError() }
             }
         } message: { alert in

@@ -1505,12 +1505,16 @@ func testLineDiffIdenticalInputsReturnsAllUnchanged() throws {
     try expect(lines[2].currentLineNumber ?? 0, equals: 3)
 }
 
-func testLineDiffEmptyInputsReturnsSingleUnchangedEmpty() throws {
+func testLineDiffEmptyInputsReturnsNoLines() throws {
+    // pr-prep QG (re-prep vs v46.30): an empty string is ZERO lines.
+    // This previously asserted one `.unchanged` empty line, because
+    // `"".components(separatedBy:"\n")` yields [""]. That phantom line is
+    // what produced spurious pendingOnly/currentOnly rows for empty
+    // documents (see the two tests below), so the behavior was changed and
+    // this expectation moved with it.
     let lines = computeLineDiff(pending: "", current: "")
-    // "".components(separatedBy:"\n") yields [""] — one empty line.
-    try expect(lines.count, equals: 1)
-    try expect(lines[0].kind, equals: DiffLine.Kind.unchanged)
-    try expect(lines[0].text, equals: "")
+    try expect(lines.count, equals: 0)
+    try expect(DiffStats(lines).isIdentical, equals: true)
 }
 
 func testLineDiffAddedLineAtEndIsCurrentOnly() throws {
@@ -1597,6 +1601,173 @@ func testLineDiffDivergentContentProducesExpectedChangeCounts() throws {
                "filtering out currentOnly must reconstruct pending verbatim")
     try expect(currentReconstructed, equals: current,
                "filtering out pendingOnly must reconstruct current verbatim")
+}
+
+// MARK: - LineDiff coverage added by pr-prep QG (re-prep vs v46.30)
+
+/// Shared invariant: dropping `.currentOnly` must reconstruct `pending`
+/// verbatim, and dropping `.pendingOnly` must reconstruct `current`
+/// verbatim. Any dropped, duplicated, or reordered line breaks one of the
+/// two. Also asserts line numbers are contiguous per side, which catches
+/// the `break` safety valve in computeLineDiff firing and truncating output.
+private func expectDiffReconstructs(_ pending: String, _ current: String) throws {
+    let lines = computeLineDiff(pending: pending, current: current)
+
+    let pendingSide = lines.filter { $0.kind != .currentOnly }.map(\.text)
+    let currentSide = lines.filter { $0.kind != .pendingOnly }.map(\.text)
+    let expectedPending = pending.isEmpty ? [] : pending.components(separatedBy: "\n")
+    let expectedCurrent = current.isEmpty ? [] : current.components(separatedBy: "\n")
+
+    try expect(pendingSide, equals: expectedPending,
+               "dropping currentOnly must reconstruct pending verbatim")
+    try expect(currentSide, equals: expectedCurrent,
+               "dropping pendingOnly must reconstruct current verbatim")
+
+    var lastPending = 0, lastCurrent = 0
+    for line in lines {
+        if let p = line.pendingLineNumber {
+            try expect(p, equals: lastPending + 1, "pending line numbers must be contiguous")
+            lastPending = p
+        }
+        if let c = line.currentLineNumber {
+            try expect(c, equals: lastCurrent + 1, "current line numbers must be contiguous")
+            lastCurrent = c
+        }
+    }
+}
+
+func testLineDiffHandlesDuplicateLines() throws {
+    // Repeated identical lines are where offset-keyed diff walks
+    // misattribute WHICH occurrence was removed. computeLineDiff keys
+    // removals/insertions by CollectionDifference offset and then walks
+    // two cursors, so this is the highest-risk input shape for it.
+    try expectDiffReconstructs("x\nx\ny", "x\ny\ny")
+    try expectDiffReconstructs("a\na\na\na", "a\na")
+    try expectDiffReconstructs("a\na", "a\na\na\na")
+    try expectDiffReconstructs("dup\ndup\nuniq\ndup", "dup\nuniq\ndup\ndup")
+}
+
+func testLineDiffEmptyPendingYieldsOnlyInsertions() throws {
+    // Regression: an empty pending document used to contribute a phantom
+    // empty line, so this reported 1 removal alongside the 3 additions.
+    let lines = computeLineDiff(pending: "", current: "a\nb\nc")
+    let stats = DiffStats(lines)
+    try expect(stats.currentOnly, equals: 3, "all three lines are additions")
+    try expect(stats.pendingOnly, equals: 0, "an empty document removes nothing")
+    try expect(stats.unchanged, equals: 0)
+    try expectDiffReconstructs("", "a\nb\nc")
+}
+
+func testLineDiffEmptyCurrentYieldsOnlyDeletions() throws {
+    // Mirror of the above: emptying a document is pure deletion.
+    let lines = computeLineDiff(pending: "a\nb\nc", current: "")
+    let stats = DiffStats(lines)
+    try expect(stats.pendingOnly, equals: 3, "all three lines are deletions")
+    try expect(stats.currentOnly, equals: 0, "an empty document adds nothing")
+    try expect(stats.unchanged, equals: 0)
+    try expectDiffReconstructs("a\nb\nc", "")
+}
+
+func testLineDiffTrailingNewlineProducesBlankLineDiff() throws {
+    // Files with and without a trailing EOF newline are a very common
+    // real-world pair. "a\nb\n" is three lines, the last one empty.
+    let lines = computeLineDiff(pending: "a\nb", current: "a\nb\n")
+    let stats = DiffStats(lines)
+    try expect(stats.unchanged, equals: 2, "'a' and 'b' are untouched")
+    try expect(stats.currentOnly, equals: 1, "the trailing empty line is an addition")
+    try expect(stats.pendingOnly, equals: 0)
+    try expectDiffReconstructs("a\nb", "a\nb\n")
+    try expectDiffReconstructs("a\nb\n", "a\nb")
+}
+
+func testLineDiffSingleLineTotalReplacement() throws {
+    // No shared prefix or suffix — a different path through the cursor
+    // walk than "replace a line in the middle of matching context".
+    let lines = computeLineDiff(pending: "alpha", current: "beta")
+    let stats = DiffStats(lines)
+    try expect(stats.unchanged, equals: 0, "nothing is shared")
+    try expect(stats.pendingOnly, equals: 1)
+    try expect(stats.currentOnly, equals: 1)
+    try expectDiffReconstructs("alpha", "beta")
+}
+
+func testLineDiffLargeInputCompletesAndReconstructs() throws {
+    // Guards against an accidental complexity blowup and against the
+    // `break` safety valve silently truncating a long diff.
+    let pending = (0..<800).map { "line \($0)" }.joined(separator: "\n")
+    let current = (0..<800).map { $0 % 7 == 0 ? "CHANGED \($0)" : "line \($0)" }
+        .joined(separator: "\n")
+    try expectDiffReconstructs(pending, current)
+
+    let stats = DiffStats(computeLineDiff(pending: pending, current: current))
+    // 0, 7, 14, ... 798 -> 115 lines rewritten, each a removal + an addition.
+    try expect(stats.pendingOnly, equals: 115)
+    try expect(stats.currentOnly, equals: 115)
+    try expect(stats.unchanged, equals: 800 - 115)
+}
+
+// MARK: - Trailing-Dismiss rule (pr-prep QG re-prep vs v46.30)
+
+func testPackageRequiredAlertDoesNotRequestDuplicateDismissButton() throws {
+    // Regression: .packageRequired is the only error in the surface that
+    // sets secondaryAction: .dismiss. The View's guard used to check only
+    // primaryAction, so this alert rendered two identical Dismiss buttons.
+    let alert = CLIServiceError.packageRequired(operation: "Add comment").alertContent
+    try expect(alert.primaryAction, equals: AlertAction.convertToPackage)
+    try expect(alert.secondaryAction, equals: AlertAction.dismiss)
+    try expect(alert.needsTrailingDismissButton, equals: false,
+               "a .dismiss secondary already renders a cancel button")
+}
+
+func testTrailingDismissRuleAcrossActionSlots() throws {
+    // Primary is .dismiss -> already rendered, no trailing button.
+    try expect(AlertContent(title: "t", body: "b", primaryAction: .dismiss)
+                .needsTrailingDismissButton,
+               equals: false)
+    // Neither slot dismisses -> the user needs a way out.
+    try expect(AlertContent(title: "t", body: "b", primaryAction: .reload)
+                .needsTrailingDismissButton,
+               equals: true)
+    // Secondary dismisses -> already rendered.
+    try expect(AlertContent(title: "t", body: "b",
+                            primaryAction: .reload, secondaryAction: .dismiss)
+                .needsTrailingDismissButton,
+               equals: false)
+    // A non-dismiss secondary doesn't provide an exit.
+    try expect(AlertContent(title: "t", body: "b",
+                            primaryAction: .reload, secondaryAction: .overwrite)
+                .needsTrailingDismissButton,
+               equals: true)
+}
+
+/// Every error in the surface must offer the user some way to dismiss the
+/// alert — either a .dismiss action in one of the two slots, or the
+/// trailing cancel button. This can't be checked by the exhaustive switch,
+/// so assert it over the whole error surface.
+func testEveryAlertOffersAnExit() throws {
+    let allErrors: [CLIServiceError] = [
+        .sectionNotFound(slug: "s", availableSlugs: ["a"]),
+        .commentNotFound(commentId: "c1"),
+        .versionConflict(slug: "s", expectedHash: "a", currentHash: "b"),
+        .bundleConflict(baseRevision: "1", currentRevision: "2"),
+        .parseError(description: "d"),
+        .cliNotFound,
+        .fileNotFound(path: "/p"),
+        .invalidArgument(description: "d"),
+        .executionFailed(exitCode: 1, stderr: "e"),
+        .payloadTooLarge(maxBytes: 1024),
+        .fileTooLarge(path: "/p", sizeBytes: 2048, limitBytes: 1024),
+        .cancelled,
+        .packageRequired(operation: "op"),
+    ]
+    for error in allErrors {
+        let alert = error.alertContent
+        let hasDismissAction = alert.primaryAction == .dismiss
+            || alert.secondaryAction == .dismiss
+        try expect(hasDismissAction || alert.needsTrailingDismissButton,
+                   equals: true,
+                   "\(alert.title) must give the user a way to dismiss")
+    }
 }
 
 // MARK: - Phase 2.2: CLIServiceError → AlertContent mapping
@@ -2548,7 +2719,7 @@ func testRealCLIServiceListSectionsPassesBundlePathAsArgv() async throws {
     try await withRealCLIServiceForTesting(result: canned) { svc, runner in
         _ = try await svc.listSections(bundle: BundlePath("/abs/path/design.mdpal"))
 
-        try expect(runner.lastArgs ?? [], equals: ["sections", "/abs/path/design.mdpal"],
+        try expect(runner.lastArgs ?? [], equals: ["sections", "--", "/abs/path/design.mdpal"],
                    "argv must be ['sections', <bundle-path>] per dispatch #23")
         try expectNil(runner.lastStdin,
                       "sections is a read command — stdin must be nil")
@@ -2675,7 +2846,7 @@ func testRealCLIServiceReadSectionHappyPath() async throws {
         try expect(section.content.contains("section-oriented architecture"), equals: true)
 
         // argv contract: ["read", <slug>, <bundle>]
-        try expect(runner.lastArgs ?? [], equals: ["read", "architecture", "/abs/path/design.mdpal"],
+        try expect(runner.lastArgs ?? [], equals: ["read", "--", "architecture", "/abs/path/design.mdpal"],
                    "argv must be ['read', <slug>, <bundle-path>] per dispatch #23")
         try expectNil(runner.lastStdin, "read is a read command — stdin must be nil")
     }
@@ -2742,8 +2913,78 @@ func testRealCLIServiceReadSectionPassesPathStyleSlugAsArgv() async throws {
             bundle: BundlePath("/abs/path/design.mdpal")
         )
         try expect(runner.lastArgs ?? [],
-                   equals: ["read", "introduction/background", "/abs/path/design.mdpal"],
+                   equals: ["read", "--", "introduction/background", "/abs/path/design.mdpal"],
                    "path-style slug must survive as one argv token")
+    }
+}
+
+/// pr-prep QG (re-prep vs v46.30): every argv must carry the `--`
+/// end-of-options separator before its positionals.
+///
+/// A slug CAN begin with `-`. The CLI's slugifier strips leading
+/// punctuation, so `# -rf danger` yields the harmless `rf-danger` — but a
+/// heading that slugifies to EMPTY gets a dedup suffix, so a document with
+/// two such headings (`# ---` then `# -`) yields slugs `""` and `-1`.
+/// Probed against mdpal 0.2.0-dev: `mdpal read -1 <bundle>` fails with
+/// "Missing expected argument '<bundle>'" because ArgumentParser consumes
+/// `-1` as an option, making that section permanently unreachable from the
+/// app. `mdpal read -- -1 <bundle>` reads it correctly.
+///
+/// These tests pin the separator on the read and mutate paths so the
+/// interleaved-argv shape can't come back.
+func testRealCLIServiceDashLeadingSlugIsGuardedByEndOfOptionsSeparator() async throws {
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(readSectionHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.readSection(
+            slug: "-1",
+            bundle: BundlePath("/abs/b.mdpal")
+        )
+        let args = runner.lastArgs ?? []
+        try expect(args, equals: ["read", "--", "-1", "/abs/b.mdpal"],
+                   "dash-leading slug must sit after the -- separator")
+
+        // Structural assertion, independent of this command's exact shape:
+        // the separator must exist and the slug must follow it.
+        let sepIndex = args.firstIndex(of: "--")
+        try expect(sepIndex != nil, equals: true, "argv must contain a -- separator")
+        if let sepIndex {
+            try expect(args.firstIndex(of: "-1")! > sepIndex, equals: true,
+                       "the dash-leading slug must come after --")
+        }
+    }
+}
+
+func testRealCLIServiceMutationArgvPlacesOptionsBeforeSeparator() async throws {
+    // The separator is only correct if options precede it — anything after
+    // `--` is positional, so a trailing option would be swallowed as one.
+    let canned = ProcessResult(
+        exitCode: 0,
+        stdout: Data(flagSectionHappyJSON.utf8),
+        stderr: Data()
+    )
+    try await withRealCLIServiceForTesting(result: canned) { svc, runner in
+        _ = try await svc.flagSection(
+            slug: "-1",
+            bundle: BundlePath("/abs/b.mdpal"),
+            author: "jordan",
+            note: "dash-leading slug"
+        )
+        let args = runner.lastArgs ?? []
+        let sepIndex = try expectNotNilUnwrap(args.firstIndex(of: "--"))
+        // No token after the separator may look like an option.
+        let positionals = Array(args[(sepIndex + 1)...])
+        try expect(positionals, equals: ["-1", "/abs/b.mdpal"],
+                   "only positionals may follow the separator")
+        // Every option must sit before it.
+        for option in ["--author", "--note"] {
+            let idx = try expectNotNilUnwrap(args.firstIndex(of: option))
+            try expect(idx < sepIndex, equals: true,
+                       "\(option) must precede the -- separator")
+        }
     }
 }
 
@@ -2883,7 +3124,7 @@ func testRealCLIServiceListCommentsHappyPath() async throws {
                    "nested resolution.timestamp must also decode as iso8601 Date")
 
         // argv contract: ["comments", <bundle>]
-        try expect(runner.lastArgs ?? [], equals: ["comments", "/abs/path/design.mdpal"],
+        try expect(runner.lastArgs ?? [], equals: ["comments", "--", "/abs/path/design.mdpal"],
                    "argv must be ['comments', <bundle-path>] per dispatch #23")
         try expectNil(runner.lastStdin)
     }
@@ -2996,7 +3237,7 @@ func testRealCLIServiceListFlagsHappyPath() async throws {
                    "timestamp must decode as iso8601 Date")
 
         // argv contract: ["flags", <bundle>]
-        try expect(runner.lastArgs ?? [], equals: ["flags", "/abs/path/design.mdpal"],
+        try expect(runner.lastArgs ?? [], equals: ["flags", "--", "/abs/path/design.mdpal"],
                    "argv must be ['flags', <bundle-path>] per dispatch #23")
         try expectNil(runner.lastStdin, "flags is a read command — stdin must be nil")
     }
@@ -3078,10 +3319,12 @@ func testRealCLIServiceEditSectionHappyPath() async throws {
         try expect(result.versionId, equals: "V0001.0004.20260406T0100Z")
         try expect(result.bytesWritten, equals: 1234)
 
-        // argv contract: edit <slug> --version <hash> <bundle> --stdin
+        // argv contract: edit --version <hash> --stdin -- <slug> <bundle>
+        // Options precede the `--` separator; positionals follow it, so a
+        // slug beginning with `-` can't be parsed as an option.
         try expect(runner.lastArgs ?? [],
-                   equals: ["edit", "architecture", "--version", "c9d0e1f2",
-                            "/abs/path/design.mdpal", "--stdin"],
+                   equals: ["edit", "--version", "c9d0e1f2", "--stdin",
+                            "--", "architecture", "/abs/path/design.mdpal"],
                    "argv must follow dispatch #23 edit command shape")
 
         // Content must be forwarded on stdin (not inlined in argv).
@@ -3295,11 +3538,12 @@ func testRealCLIServiceAddCommentHappyPath() async throws {
         // (one per tag) and omitted when tags are empty.
         try expect(runner.lastArgs ?? [],
                    equals: [
-                       "comment", "architecture", "/abs/path/design.mdpal",
+                       "comment",
                        "--type", "question",
                        "--author", "jordan",
                        "--text", "Should we use dependency injection here?",
                        "--priority", "normal",
+                       "--", "architecture", "/abs/path/design.mdpal",
                    ],
                    "argv must follow comment command; no --context when nil; no --tag when empty")
         try expectNil(runner.lastStdin, "comment is not stdin-fed")
@@ -3326,7 +3570,7 @@ func testRealCLIServiceAddCommentEmitsContextAndRepeatableTagsWhenPresent() asyn
 
         try expect(runner.lastArgs ?? [],
                    equals: [
-                       "comment", "architecture", "/abs/b.mdpal",
+                       "comment",
                        "--type", "suggestion",
                        "--author", "jordan",
                        "--text", "foo",
@@ -3334,6 +3578,7 @@ func testRealCLIServiceAddCommentEmitsContextAndRepeatableTagsWhenPresent() asyn
                        "--context", "surrounding text",
                        "--tag", "perf",
                        "--tag", "phase2",
+                       "--", "architecture", "/abs/b.mdpal",
                    ],
                    "repeatable --tag <value> per mdpal-cli #579 (not --tags comma-list)")
     }
@@ -3390,9 +3635,10 @@ func testRealCLIServiceResolveCommentHappyPath() async throws {
 
         try expect(runner.lastArgs ?? [],
                    equals: [
-                       "resolve", "c007", "/abs/design.mdpal",
+                       "resolve",
                        "--response", "Yes, using protocol-based DI",
                        "--by", "mdpal-cli",
+                       "--", "c007", "/abs/design.mdpal",
                    ])
     }
 }
@@ -3440,9 +3686,10 @@ func testRealCLIServiceFlagSectionHappyPath() async throws {
 
         try expect(runner.lastArgs ?? [],
                    equals: [
-                       "flag", "architecture", "/abs/design.mdpal",
+                       "flag",
                        "--author", "jordan",
                        "--note", "Needs discussion before proceeding",
+                       "--", "architecture", "/abs/design.mdpal",
                    ])
     }
 }
@@ -3455,7 +3702,7 @@ func testRealCLIServiceFlagSectionOmitsNoteWhenNil() async throws {
             slug: "architecture", bundle: BundlePath("/b.mdpal"),
             author: "jordan", note: nil)
         try expect(runner.lastArgs ?? [],
-                   equals: ["flag", "architecture", "/b.mdpal", "--author", "jordan"],
+                   equals: ["flag", "--author", "jordan", "--", "architecture", "/b.mdpal"],
                    "--note flag omitted when value is nil (spec: absence == no note)")
     }
 }
@@ -3493,7 +3740,7 @@ func testRealCLIServiceClearFlagHappyPath() async throws {
         try expect(result.flagged, equals: false)
 
         try expect(runner.lastArgs ?? [],
-                   equals: ["clear-flag", "architecture", "/abs/design.mdpal"])
+                   equals: ["clear-flag", "--", "architecture", "/abs/design.mdpal"])
     }
 }
 
@@ -4036,8 +4283,9 @@ func testRealCLIServiceCreateRevisionHappyPath() async throws {
 
         // argv: revision create <bundle> --stdin --base-revision <id>
         try expect(runner.lastArgs ?? [],
-                   equals: ["revision", "create", "/abs/b.mdpal", "--stdin",
-                            "--base-revision", "V0001.0003.20260417T1000Z"])
+                   equals: ["revision", "create", "--stdin",
+                            "--base-revision", "V0001.0003.20260417T1000Z",
+                            "--", "/abs/b.mdpal"])
         try expect(runner.lastStdin ?? Data(),
                    equals: Data("# New content\n".utf8),
                    "content must go via stdin per spec")
@@ -4113,7 +4361,7 @@ func testRealCLIServiceListHistoryHappyPath() async throws {
                    "first entry is the current latest per spec newest-first ordering")
         try expect(history[1].latest ?? true, equals: false)
 
-        try expect(runner.lastArgs ?? [], equals: ["history", "/abs/b.mdpal"])
+        try expect(runner.lastArgs ?? [], equals: ["history", "--", "/abs/b.mdpal"])
     }
 }
 
@@ -4141,7 +4389,7 @@ func testRealCLIServiceShowVersionHappyPath() async throws {
         let v = try await svc.showVersion(bundle: BundlePath("/abs/b.mdpal"))
         try expect(v.version, equals: 1)
         try expect(v.revision, equals: 3)
-        try expect(runner.lastArgs ?? [], equals: ["version", "show", "/abs/b.mdpal"])
+        try expect(runner.lastArgs ?? [], equals: ["version", "show", "--", "/abs/b.mdpal"])
     }
 }
 
@@ -4157,7 +4405,7 @@ func testRealCLIServiceBumpVersionHappyPath() async throws {
         try expect(result.previousVersion, equals: 1)
         try expect(result.version, equals: 2,
                    "bumpVersion must return the NEW version, not the previous")
-        try expect(runner.lastArgs ?? [], equals: ["version", "bump", "/abs/b.mdpal"])
+        try expect(runner.lastArgs ?? [], equals: ["version", "bump", "--", "/abs/b.mdpal"])
     }
 }
 
@@ -4736,6 +4984,12 @@ struct TestRunner {
         await runAsync("flagSection omits --note when nil", testRealCLIServiceFlagSectionOmitsNoteWhenNil)
         await runAsync("flagSection maps sectionNotFound envelope", testRealCLIServiceFlagSectionMapsSectionNotFoundEnvelope)
         await runAsync("clearFlag happy path + argv", testRealCLIServiceClearFlagHappyPath)
+
+        print("\nargv end-of-options separator (pr-prep QG re-prep):")
+        await runAsync("dash-leading slug guarded by -- separator",
+                       testRealCLIServiceDashLeadingSlugIsGuardedByEndOfOptionsSeparator)
+        await runAsync("mutation argv places options before separator",
+                       testRealCLIServiceMutationArgvPlacesOptionsBeforeSeparator)
         await runAsync("clearFlag maps sectionNotFound envelope", testRealCLIServiceClearFlagMapsSectionNotFoundEnvelope)
         await runAsync("addComment filters empty tags", testRealCLIServiceAddCommentFiltersEmptyTags)
         await runAsync("addComment maps malformed JSON to parseError", testRealCLIServiceAddCommentMapsMalformedJSONToParseError)
@@ -4810,7 +5064,7 @@ struct TestRunner {
 
         print("\nLineDiff (Phase 2.3):")
         run("identical inputs return all unchanged", testLineDiffIdenticalInputsReturnsAllUnchanged)
-        run("empty inputs return single unchanged empty", testLineDiffEmptyInputsReturnsSingleUnchangedEmpty)
+        run("empty inputs return no lines", testLineDiffEmptyInputsReturnsNoLines)
         run("added line at end is currentOnly", testLineDiffAddedLineAtEndIsCurrentOnly)
         run("removed line is pendingOnly", testLineDiffRemovedLineIsPendingOnly)
         run("replaced line shows as removal plus addition", testLineDiffReplacedLineShowsAsRemovalPlusAddition)
@@ -4819,6 +5073,20 @@ struct TestRunner {
         run("DiffStats identical inputs marked identical", testDiffStatsIdenticalInputsMarkedIdentical)
         run("LineDiff deterministic across runs", testLineDiffDeterministicAcrossRuns)
         run("divergent content produces reconstructable diff", testLineDiffDivergentContentProducesExpectedChangeCounts)
+
+        print("\nLineDiff coverage (pr-prep QG re-prep):")
+        run("handles duplicate lines", testLineDiffHandlesDuplicateLines)
+        run("empty pending yields only insertions", testLineDiffEmptyPendingYieldsOnlyInsertions)
+        run("empty current yields only deletions", testLineDiffEmptyCurrentYieldsOnlyDeletions)
+        run("trailing newline produces blank line diff", testLineDiffTrailingNewlineProducesBlankLineDiff)
+        run("single line total replacement", testLineDiffSingleLineTotalReplacement)
+        run("large input completes and reconstructs", testLineDiffLargeInputCompletesAndReconstructs)
+
+        print("\nTrailing-Dismiss rule (pr-prep QG re-prep):")
+        run("packageRequired does not request duplicate Dismiss",
+            testPackageRequiredAlertDoesNotRequestDuplicateDismissButton)
+        run("trailing Dismiss rule across action slots", testTrailingDismissRuleAcrossActionSlots)
+        run("every alert offers an exit", testEveryAlertOffersAnExit)
 
         print("\nCLIServiceError → AlertContent mapping (Phase 2.2):")
         run("sectionNotFound → refresh action", testAlertContentSectionNotFoundUsesRefresh)

@@ -52,7 +52,10 @@ public final class PancakeCLIService: CLIServiceProtocol, @unchecked Sendable {
     /// listSections / readSection calls reflect the new content.
     public func setDocumentContent(_ content: String) {
         let (sections, contents) = MockCLIService.parseMarkdown(content)
-        let hash = String(format: "%08x", abs(content.hashValue))
+        // pr-prep QG (re-prep vs v46.30): `abs(Int.min)` traps at runtime,
+        // and `hashValue` spans the full Int range. Mask into the
+        // non-negative range instead of negating.
+        let hash = String(format: "%08x", content.hashValue & 0x7fff_ffff)
         parsedLock.lock()
         defer { parsedLock.unlock() }
         parsedSections = sections
@@ -99,16 +102,20 @@ public final class PancakeCLIService: CLIServiceProtocol, @unchecked Sendable {
         return section
     }
 
-    /// Edit a section in pancake mode. Pancake supports in-place editing —
-    /// the FileWrapper is what persists; CLI metadata isn't involved. We
-    /// rebuild the document content with the new section body and return
-    /// a synthetic EditResult. The caller (DocumentModel.editSection) then
-    /// re-pushes the rebuilt content via setDocumentContent.
+    /// Section-level editing is NOT supported in pancake mode — this always
+    /// throws `.packageRequired(operation: "Edit section")`, which drives the
+    /// "Convert to a .mdpal bundle?" prompt.
     ///
-    /// Phase 2.6.1 ships this stubbed (passthrough that updates parsed state);
-    /// in-place .md editing is a Phase 3 polish item — for now, pancake is
-    /// effectively read-only at the section level. Edits land via direct
-    /// rawContent mutation if any. Marked .packageRequired for explicitness.
+    /// pr-prep QG (re-prep vs v46.30): the previous doc comment described a
+    /// passthrough that "rebuilds the document content with the new section
+    /// body and returns a synthetic EditResult", and a caller that re-pushes
+    /// via `setDocumentContent`. None of that exists — the body is an
+    /// unconditional throw. The comment was describing an intended
+    /// implementation as though it had shipped. Corrected to match the code.
+    ///
+    /// Wiring in-place .md section editing (via FileWrapper write-back)
+    /// remains a Phase 3 polish item; until it lands, pancake documents are
+    /// read-only at the section level.
     public func editSection(slug: String, content: String, versionHash: String, bundle: BundlePath) async throws -> EditResult {
         // Phase 2.6.1: pancake editing not yet wired to FileWrapper write-back.
         // Treat as package-required until 2.6.2 lands the in-place edit path.
