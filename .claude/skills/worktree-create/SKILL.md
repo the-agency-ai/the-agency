@@ -60,20 +60,40 @@ Parse:
 
 ### Step 1: Validate the name
 
-1. Must be kebab-case: lowercase letters, numbers, and hyphens only.
-2. Check for conflicts:
-   - `git worktree list` — abort if `.claude/worktrees/<name>` already exists
-   - `git show-ref refs/heads/<name>` — abort if branch exists
+1. Kebab-case: letters, numbers, hyphens and underscores. A leading underscore is
+   reserved for machine-created scratch worktrees (`_land-<branch>`, cut and
+   deleted by `/pr-captain-land`) — don't use it for agent worktrees.
+2. Abort if `.claude/worktrees/<name>` already exists (`git worktree list`).
 
-### Step 2: Validate base ref (if provided)
+Do NOT abort merely because a branch of that name exists — an existing branch is
+a normal input, resolved in Step 3.
 
-If `--from <branch>` was specified: `git rev-parse --verify <branch>` — abort if invalid.
-
-### Step 3: Create branch and worktree
+### Step 2: Create the worktree with the tool
 
 ```
-git worktree add .claude/worktrees/<name> -b <name> [<base-ref>]
+./agency/tools/worktree-create <name> [--branch <branch>] [--from <ref>]
+./agency/tools/worktree-create --workstream <ws> --agent <ag> [--from <ref>]
 ```
+
+Never hand-roll `git worktree add` — the tool owns branch resolution, validation
+and bootstrap.
+
+### Step 3: Branch resolution (what the tool does, first match wins)
+
+| Condition | Result |
+|-----------|--------|
+| Local branch `<branch>` exists | Check it out (passing `--from` here is an error) |
+| `--from <ref>` given | New branch at `<ref>`; announced if it shadows a remote branch of the same name |
+| `<remote>/<branch>` exists | New local branch **tracking** it (`origin` wins if several remotes carry it; otherwise ambiguity is refused) |
+| None of the above | New branch from current HEAD |
+
+The remote-tracking case is the stale-PR-revival path: creating a fresh branch
+from HEAD over a branch that already exists on origin hands the agent an empty
+tree and makes their first push a non-fast-forward against their own work.
+
+Remote-tracking refs are only as fresh as the last fetch. Fetch before reviving
+a stale PR branch; the tool prints the resolved commit and its distance from HEAD
+so a stale checkout is never silent.
 
 ### Step 3b: Write .agency-agent identity file
 
