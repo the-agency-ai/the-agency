@@ -1,5 +1,5 @@
 ---
-name: agency-captain-release-notes
+name: captain-release-notes
 description: Captain-only. Generate a release-notes skeleton for the current captain to announce a window of PRs + releases to other captains/principals on the same repo. Auto-populates the mechanical parts (PR table, version window, frontmatter, filename); captain fills qualitative sections (TL;DR, shared changes, behavioral changes, flags, in-flight, coordination asks). Every PR is a release, and every window of releases deserves a note when multiple captains share a repo.
 agency-skill-version: 2
 when_to_use: Captain has landed a burst of PRs on the default branch and wants to broadcast what shipped to other captains/principals working the same repo. Typical cadence — once per session-burst, or daily. Also useful before session-end as a recap artifact.
@@ -10,7 +10,7 @@ required_reading:
   - agency/REFERENCE/REFERENCE-SAFE-TOOLS.md
 ---
 
-# agency-captain-release-notes
+# captain-release-notes
 
 Captain-only skill. Generates a release-notes skeleton addressed to other captains or principals on the same repo. Mechanical parts (PR table, version window, frontmatter, output path) are tool-generated; qualitative parts (narrative, shared changes, flags, in-flight) are captain-filled.
 
@@ -29,14 +29,14 @@ Before running, Read the files listed in `required_reading:` frontmatter.
 ## Usage
 
 ```
-/agency-captain-release-notes                                 # auto-detect everything
-/agency-captain-release-notes --start-version v46.13          # explicit start
-/agency-captain-release-notes --start-version v46.13 --end-version v46.33
-/agency-captain-release-notes --to <repo>/<principal>/captain # narrow addressee
-/agency-captain-release-notes --audience "any captain working on this repo"
-/agency-captain-release-notes --base all                      # count every base branch
-/agency-captain-release-notes --dry-run                       # preview without writing
-/agency-captain-release-notes --stdout                        # print to stdout
+/captain-release-notes                                 # auto-detect everything
+/captain-release-notes --start-version v46.13          # explicit start
+/captain-release-notes --start-version v46.13 --end-version v46.33
+/captain-release-notes --to <repo>/<principal>/captain # narrow addressee
+/captain-release-notes --audience "any captain working on this repo"
+/captain-release-notes --base all                      # count every base branch
+/captain-release-notes --dry-run                       # preview without writing
+/captain-release-notes --stdout                        # print to stdout
 ```
 
 ### Arguments
@@ -66,7 +66,7 @@ Before running, Read the files listed in `required_reading:` frontmatter.
 ### Step 1: Generate skeleton
 
 ```bash
-./agency/tools/agency-captain-release-notes [...args]
+./agency/tools/captain-release-notes [...args]
 ```
 
 Tool writes to `agency/workstreams/<workstream>/release-notes/release-notes-<YYYYMMDD>-<captain>-<vStart>-<vEnd>.md`.
@@ -143,7 +143,7 @@ For broadcast audiences, skip — the file on the default branch is discoverable
 - `/coord-commit` — how captain commits the filled release notes
 - `/git-safe-commit` — underlying commit tool
 - `/dispatch` — optional Step 4 addressee pointer
-- `agency/tools/agency-captain-release-notes` — the tool this skill wraps
+- `agency/tools/captain-release-notes` — the tool this skill wraps
 - `agency/tools/resolve-default-branch` — supplies the default `--base`
 - `REFERENCE-AGENT-ADDRESSING.md` — addressee format for `--to`
 

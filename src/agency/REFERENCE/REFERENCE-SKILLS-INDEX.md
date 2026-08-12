@@ -30,10 +30,10 @@ Organized alphabetically by name.
 
 | Name | Description | Agency-Skill-Version | Scope | Status | Required Reading |
 |---|---|---|---|---|---|
-| agency-captain-release-notes | Generate a captain-to-captain release-notes skeleton for a window of landed PRs | 2 | captain | active | AGENT-ADDRESSING, SAFE-TOOLS |
 | agency-health | Fleet health check across workstream / agent / worktree dimensions | 1 | both | active | |
 | agency-issue | File, view, comment, close issues against the-agency framework on GitHub | 1 | both | active | FEEDBACK-FORMAT |
 | captain-log | Append to / read captain's narrative log | 1 | captain | active | |
+| captain-release-notes | Generate a captain-to-captain release-notes skeleton for a window of landed PRs | 2 | captain | active | AGENT-ADDRESSING, SAFE-TOOLS |
 | captain-review | Review all draft PRs, generate dispatch reports for worktree agents | 1 | captain | active | CODE-REVIEW-LIFECYCLE |
 | changelog-watch | Monitor Claude Code changelog for new releases + features | 1 | both | active | |
 | code-review | Code-review current branch vs origin/master using 7 parallel review agents | 1 | both | active | QUALITY-GATE, CODE-REVIEW-LIFECYCLE |

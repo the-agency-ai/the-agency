@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Tests for agency/tools/agency-captain-release-notes
+# Tests for agency/tools/captain-release-notes
 #
 # Covers --version, --help, argument validation, window/base resolution,
 # identity and workstream auto-detection, adversarial input, degraded
@@ -20,7 +20,7 @@ setup() {
     export BATS_TEST_TMPDIR="$(mktemp -d)"
     test_isolation_setup
 
-    TOOL="${REPO_ROOT}/agency/tools/agency-captain-release-notes"
+    TOOL="${REPO_ROOT}/agency/tools/captain-release-notes"
 
     # Mock project
     export TEST_REPO="${BATS_TEST_TMPDIR}/mock-repo"
@@ -52,8 +52,8 @@ YAML
     git commit -m "initial" --quiet
     git update-ref refs/remotes/origin/main HEAD
 
-    cp "$TOOL" agency/tools/agency-captain-release-notes
-    chmod +x agency/tools/agency-captain-release-notes
+    cp "$TOOL" agency/tools/captain-release-notes
+    chmod +x agency/tools/captain-release-notes
     cp "${REPO_ROOT}/agency/tools/lib/_colors" agency/tools/lib/_colors 2>/dev/null || true
 
     # agent-identity stub — bare invocation prints the fully qualified address.
@@ -157,17 +157,17 @@ STUB
 # Version + help
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: --version shows tool version" {
+@test "captain-release-notes: --version shows tool version" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes --version
+    run ./agency/tools/captain-release-notes --version
     [ "$status" -eq 0 ]
-    [[ "$output" == *"agency-captain-release-notes"* ]]
+    [[ "$output" == *"captain-release-notes"* ]]
     [[ "$output" == *"1.2.0"* ]]
 }
 
-@test "agency-captain-release-notes: --help shows usage" {
+@test "captain-release-notes: --help shows usage" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes --help
+    run ./agency/tools/captain-release-notes --help
     [ "$status" -eq 0 ]
     [[ "$output" == *"Generate captain-to-captain release notes skeleton"* ]]
     [[ "$output" == *"--start-version"* ]]
@@ -180,60 +180,60 @@ STUB
 # Arg validation
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: rejects unknown arg" {
+@test "captain-release-notes: rejects unknown arg" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes --bogus
+    run ./agency/tools/captain-release-notes --bogus
     [ "$status" -ne 0 ]
     [[ "$output" == *"Unknown argument"* ]]
 }
 
-@test "agency-captain-release-notes: rejects value-flag with no value" {
+@test "captain-release-notes: rejects value-flag with no value" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes --start-version
+    run ./agency/tools/captain-release-notes --start-version
     [ "$status" -ne 0 ]
     [[ "$output" == *"requires a value"* ]]
 }
 
-@test "agency-captain-release-notes: rejects a flag-shaped value" {
+@test "captain-release-notes: rejects a flag-shaped value" {
     cd "$TEST_REPO"
     # "--to --stdout" used to set TO_ADDR="--stdout" AND swallow the --stdout
     # flag, so the tool wrote a file with a garbage addressee.
-    run ./agency/tools/agency-captain-release-notes --to --stdout
+    run ./agency/tools/captain-release-notes --to --stdout
     [ "$status" -ne 0 ]
     [[ "$output" == *"got a flag: --stdout"* ]]
 }
 
-@test "agency-captain-release-notes: rejects non-numeric --limit" {
+@test "captain-release-notes: rejects non-numeric --limit" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes --limit abc --stdout
+    run ./agency/tools/captain-release-notes --limit abc --stdout
     [ "$status" -ne 0 ]
     [[ "$output" == *"--limit must be a positive integer"* ]]
 }
 
-@test "agency-captain-release-notes: rejects --limit 0" {
+@test "captain-release-notes: rejects --limit 0" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes --limit 0 --stdout
+    run ./agency/tools/captain-release-notes --limit 0 --stdout
     [ "$status" -ne 0 ]
     [[ "$output" == *"--limit must be a positive integer"* ]]
 }
 
-@test "agency-captain-release-notes: rejects a malformed --start-date" {
+@test "captain-release-notes: rejects a malformed --start-date" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes --start-date 2026-04-15 --stdout
+    run ./agency/tools/captain-release-notes --start-date 2026-04-15 --stdout
     [ "$status" -ne 0 ]
     [[ "$output" == *"--start-date must be YYYY-MM-DDTHH:MM:SSZ"* ]]
 }
 
-@test "agency-captain-release-notes: rejects --stdout together with --output" {
+@test "captain-release-notes: rejects --stdout together with --output" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes --stdout --output x.md
+    run ./agency/tools/captain-release-notes --stdout --output x.md
     [ "$status" -ne 0 ]
     [[ "$output" == *"mutually exclusive"* ]]
 }
 
-@test "agency-captain-release-notes: rejects a newline in --audience" {
+@test "captain-release-notes: rejects a newline in --audience" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --audience "fleet
 injected_key: value" --stdout
@@ -245,9 +245,9 @@ injected_key: value" --stdout
 # Security: argv injection + path traversal
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: rejects a --base that smuggles gh flags" {
+@test "captain-release-notes: rejects a --base that smuggles gh flags" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --base "main --repo attacker/evil" \
         --start-version v0.9 --end-version v1.0 --stdout
     [ "$status" -ne 0 ]
@@ -258,7 +258,7 @@ injected_key: value" --stdout
     [ "$status" -ne 0 ]
 }
 
-@test "agency-captain-release-notes: ignores a traversal-bearing prior end_version" {
+@test "captain-release-notes: ignores a traversal-bearing prior end_version" {
     cd "$TEST_REPO"
     cat > agency/workstreams/mockproj/release-notes/release-notes-20260401-x-v0.5-v0.9.md <<'PRIOR'
 ---
@@ -267,7 +267,7 @@ window:
   end_version: ../../../../../../tmp/pwned
 ---
 PRIOR
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --end-version v1.0 --start-date "2026-04-10T00:00:00Z" \
         --captain "test-captain" --workstream "mockproj" --dry-run
     [ "$status" -eq 0 ]
@@ -277,11 +277,11 @@ PRIOR
     [[ "$output" == *"agency/workstreams/mockproj/release-notes/release-notes-"* ]]
 }
 
-@test "agency-captain-release-notes: refuses to write through a symlink" {
+@test "captain-release-notes: refuses to write through a symlink" {
     cd "$TEST_REPO"
     mkdir -p decoy
     ln -s "$TEST_REPO/decoy/target.md" "agency/workstreams/mockproj/release-notes/link.md"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --output "agency/workstreams/mockproj/release-notes/link.md"
     [ "$status" -ne 0 ]
@@ -293,9 +293,9 @@ PRIOR
 # Dry run / stdout / file output
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: --dry-run reports target and row count without writing" {
+@test "captain-release-notes: --dry-run reports target and row count without writing" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 \
         --end-version v1.0 \
         --captain "test-captain" \
@@ -313,9 +313,9 @@ PRIOR
     [ "$output" == "0" ]
 }
 
-@test "agency-captain-release-notes: --dry-run with --stdout reports stdout as the target" {
+@test "captain-release-notes: --dry-run with --stdout reports stdout as the target" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" \
         --stdout --dry-run
@@ -323,9 +323,9 @@ PRIOR
     [[ "$output" == *"would write to: <stdout>"* ]]
 }
 
-@test "agency-captain-release-notes: --stdout emits frontmatter + all placeholders" {
+@test "captain-release-notes: --stdout emits frontmatter + all placeholders" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 \
         --end-version v1.0 \
         --captain "test-captain" \
@@ -335,7 +335,7 @@ PRIOR
     # Frontmatter
     [[ "$output" == *"type: release-notes"* ]]
     [[ "$output" == *"audience: any captain or principal working on mockproj"* ]]
-    [[ "$output" == *"generated_by: agency-captain-release-notes"* ]]
+    [[ "$output" == *"generated_by: captain-release-notes"* ]]
     # Body sections — all seven
     [[ "$output" == *"## TL;DR"* ]]
     [[ "$output" == *"## PRs landed"* ]]
@@ -349,9 +349,9 @@ PRIOR
     [[ "$output" != *"Addressed to:"* ]]
 }
 
-@test "agency-captain-release-notes: writes to default path" {
+@test "captain-release-notes: writes to default path" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 \
         --end-version v1.0 \
         --captain "test-captain" \
@@ -367,9 +367,9 @@ PRIOR
     [ "$status" -eq 0 ]
 }
 
-@test "agency-captain-release-notes: --output writes to the given path" {
+@test "captain-release-notes: --output writes to the given path" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" \
         --output "custom/notes.md"
@@ -379,11 +379,11 @@ PRIOR
     [ "$status" -eq 0 ]
 }
 
-@test "agency-captain-release-notes: fails cleanly on an uncreatable output directory" {
+@test "captain-release-notes: fails cleanly on an uncreatable output directory" {
     cd "$TEST_REPO"
     # A regular file where a directory must go — mkdir -p cannot succeed.
     touch blocker
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --output "blocker/notes.md"
     [ "$status" -ne 0 ]
@@ -394,9 +394,9 @@ PRIOR
 # Addressee + audience
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: --to populates frontmatter" {
+@test "captain-release-notes: --to populates frontmatter" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 \
         --end-version v1.0 \
         --captain "test-captain" \
@@ -408,9 +408,9 @@ PRIOR
     [[ "$output" == *"Addressed to:"* ]]
 }
 
-@test "agency-captain-release-notes: --audience overrides default" {
+@test "captain-release-notes: --audience overrides default" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 \
         --end-version v1.0 \
         --captain "test-captain" \
@@ -425,9 +425,9 @@ PRIOR
 # Identity resolution
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: resolves captain from agent-identity" {
+@test "captain-release-notes: resolves captain from agent-identity" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
@@ -436,9 +436,9 @@ PRIOR
     [[ "$output" == *"from: mockproj/alice/captain"* ]]
 }
 
-@test "agency-captain-release-notes: explicit --captain drives the from: address" {
+@test "captain-release-notes: explicit --captain drives the from: address" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --workstream "mockproj" --captain "bob-captain" --stdout
     [ "$status" -eq 0 ]
@@ -447,21 +447,21 @@ PRIOR
     [[ "$output" != *"from: mockproj/alice/captain"* ]]
 }
 
-@test "agency-captain-release-notes: --captain keeps a hyphenated agent slug intact" {
+@test "captain-release-notes: --captain keeps a hyphenated agent slug intact" {
     cd "$TEST_REPO"
     # The tool's own default name for a worktree agent is
     # {principal}-{branch-slug}. Splitting on the LAST hyphen mangled it into
     # alice-revive-release/notes. Principals are single-token; agents are not.
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --workstream "mockproj" --captain "alice-revive-release-notes" --stdout
     [ "$status" -eq 0 ]
     [[ "$output" == *"from: mockproj/alice/revive-release-notes"* ]]
 }
 
-@test "agency-captain-release-notes: --captain accepts a full address" {
+@test "captain-release-notes: --captain accepts a full address" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --workstream "mockproj" --captain "mockproj/carol/captain" --stdout
     [ "$status" -eq 0 ]
@@ -469,33 +469,33 @@ PRIOR
     [[ "$output" == *"**From:** carol-captain"* ]]
 }
 
-@test "agency-captain-release-notes: rejects a --captain with no agent segment" {
+@test "captain-release-notes: rejects a --captain with no agent segment" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --workstream "mockproj" --captain "solo" --stdout
     [ "$status" -ne 0 ]
     [[ "$output" == *"--captain must be <principal>-<agent>"* ]]
 }
 
-@test "agency-captain-release-notes: degrades to unknown-captain without agent-identity" {
+@test "captain-release-notes: degrades to unknown-captain without agent-identity" {
     cd "$TEST_REPO"
     rm agency/tools/agent-identity
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
     [[ "$output" == *"from: mockproj/unknown/captain"* ]]
 }
 
-@test "agency-captain-release-notes: warns when the running agent is not captain" {
+@test "captain-release-notes: warns when the running agent is not captain" {
     cd "$TEST_REPO"
     cat > agency/tools/agent-identity <<'STUB'
 #!/usr/bin/env bash
 echo "mockproj/alice/devex"
 STUB
     chmod +x agency/tools/agent-identity
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
@@ -506,9 +506,9 @@ STUB
 # PR window filtering + table rendering
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: filters PRs to the date window" {
+@test "captain-release-notes: filters PRs to the date window" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
@@ -518,9 +518,9 @@ STUB
     [[ "$output" != *"chore: after window"* ]]
 }
 
-@test "agency-captain-release-notes: --start-date overrides the start release publishedAt" {
+@test "captain-release-notes: --start-date overrides the start release publishedAt" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --start-date "2026-04-17T00:00:00Z" \
         --captain "test-captain" --workstream "mockproj" --stdout
@@ -531,19 +531,19 @@ STUB
     [[ "$output" != *"feat: in window"* ]]
 }
 
-@test "agency-captain-release-notes: escapes pipes in PR titles" {
+@test "captain-release-notes: escapes pipes in PR titles" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
     [[ "$output" == *"fix: pipe \\| in title"* ]]
 }
 
-@test "agency-captain-release-notes: escapes backslashes before pipes" {
+@test "captain-release-notes: escapes backslashes before pipes" {
     cd "$TEST_REPO"
     stub_gh_response "pr list" '[{"number":21,"title":"weird \\| already escaped","mergedAt":"2026-04-15T00:00:00Z","author":{"login":"alice"}}]'
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
@@ -551,18 +551,18 @@ STUB
     [[ "$output" == *'weird \\\| already escaped'* ]]
 }
 
-@test "agency-captain-release-notes: renders null PR author as unknown" {
+@test "captain-release-notes: renders null PR author as unknown" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
     [[ "$output" == *"| unknown |"* ]]
 }
 
-@test "agency-captain-release-notes: empty window warns and emits placeholder row" {
+@test "captain-release-notes: empty window warns and emits placeholder row" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-date "2026-04-19T00:00:00Z" \
         --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" --stdout
@@ -572,9 +572,9 @@ STUB
     [[ "$output" == *"No PRs matched"* ]]
 }
 
-@test "agency-captain-release-notes: refuses an inverted window" {
+@test "captain-release-notes: refuses an inverted window" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-date "2027-01-01T00:00:00Z" \
         --end-date "2026-01-01T00:00:00Z" \
         --end-version v1.0 \
@@ -587,9 +587,9 @@ STUB
 # Base-branch scoping + gh argv
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: scopes pr list to the default branch" {
+@test "captain-release-notes: scopes pr list to the default branch" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
@@ -601,9 +601,9 @@ STUB
     [ "$status" -eq 0 ]
 }
 
-@test "agency-captain-release-notes: --base all omits the base filter" {
+@test "captain-release-notes: --base all omits the base filter" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" \
         --base all --stdout
@@ -613,10 +613,10 @@ STUB
     [ "$status" -ne 0 ]
 }
 
-@test "agency-captain-release-notes: falls back to base=all without resolve-default-branch" {
+@test "captain-release-notes: falls back to base=all without resolve-default-branch" {
     cd "$TEST_REPO"
     rm agency/tools/resolve-default-branch
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
@@ -626,9 +626,9 @@ STUB
     [ "$status" -ne 0 ]
 }
 
-@test "agency-captain-release-notes: passes --limit through to gh pr list only" {
+@test "captain-release-notes: passes --limit through to gh pr list only" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" \
         --limit 7 --stdout
@@ -641,7 +641,7 @@ STUB
     [ "$status" -ne 0 ]
 }
 
-@test "agency-captain-release-notes: prefers the framework gh wrapper over PATH gh" {
+@test "captain-release-notes: prefers the framework gh wrapper over PATH gh" {
     cd "$TEST_REPO"
     # A wrapper that marks itself and delegates to the PATH stub, mirroring
     # agency/tools/gh's strip-SCRIPT_DIR-from-PATH delegation.
@@ -653,7 +653,7 @@ printf 'wrapper\n' >> "${GH_CALL_LOG:-/dev/null}"
 exec gh "$@"
 WRAP
     chmod +x agency/tools/gh
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
@@ -669,9 +669,9 @@ WRAP
 # Release discovery
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: auto-detects end version via isLatest" {
+@test "captain-release-notes: auto-detects end version via isLatest" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
@@ -679,19 +679,19 @@ WRAP
     [[ "$output" == *"end_version: v1.0"* ]]
 }
 
-@test "agency-captain-release-notes: dies when no releases exist and --end-version omitted" {
+@test "captain-release-notes: dies when no releases exist and --end-version omitted" {
     cd "$TEST_REPO"
     stub_gh_response "release list" '[]'
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -ne 0 ]
     [[ "$output" == *"could not auto-detect"* ]]
 }
 
-@test "agency-captain-release-notes: survives non-array gh release JSON" {
+@test "captain-release-notes: survives non-array gh release JSON" {
     cd "$TEST_REPO"
     stub_gh_response "release list" '{"message":"Not Found"}'
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --start-date "2026-04-10T00:00:00Z" \
         --captain "test-captain" --workstream "mockproj" --stdout
@@ -699,10 +699,10 @@ WRAP
     [[ "$output" == *"type: release-notes"* ]]
 }
 
-@test "agency-captain-release-notes: survives non-array gh pr JSON" {
+@test "captain-release-notes: survives non-array gh pr JSON" {
     cd "$TEST_REPO"
     stub_gh_response "pr list" '{"message":"Not Found"}'
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
@@ -710,10 +710,10 @@ WRAP
     [[ "$output" == *"no merged PRs in window"* ]]
 }
 
-@test "agency-captain-release-notes: survives an array of non-objects from gh" {
+@test "captain-release-notes: survives an array of non-objects from gh" {
     cd "$TEST_REPO"
     stub_gh_response "release list" '["v1.0","v0.9"]'
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --start-date "2026-04-10T00:00:00Z" \
         --captain "test-captain" --workstream "mockproj" --stdout
@@ -725,7 +725,7 @@ WRAP
 # Prior-file (start version) auto-detection
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: auto-detects start version from prior file" {
+@test "captain-release-notes: auto-detects start version from prior file" {
     cd "$TEST_REPO"
     cat > agency/workstreams/mockproj/release-notes/release-notes-20260401-test-captain-v0.5-v0.9.md <<'PRIOR'
 ---
@@ -735,13 +735,13 @@ window:
   end_version: v0.9
 ---
 PRIOR
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
     [[ "$output" == *"start_version: v0.9"* ]]
 }
 
-@test "agency-captain-release-notes: picks the lexically-latest prior file, not the newest mtime" {
+@test "captain-release-notes: picks the lexically-latest prior file, not the newest mtime" {
     cd "$TEST_REPO"
     D=agency/workstreams/mockproj/release-notes
     cat > "$D/release-notes-20260401-x-v0.5-v0.9.md" <<'PRIOR'
@@ -758,13 +758,13 @@ window:
 PRIOR
     # Make the OLDER-named file the newest by mtime — `ls -t` would pick it.
     touch "$D/release-notes-20260301-x-v0.1-v0.3.md"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
     [[ "$output" == *"start_version: v0.9"* ]]
 }
 
-@test "agency-captain-release-notes: ignores non-release-notes markdown in the directory" {
+@test "captain-release-notes: ignores non-release-notes markdown in the directory" {
     cd "$TEST_REPO"
     D=agency/workstreams/mockproj/release-notes
     cat > "$D/release-notes-20260401-x-v0.5-v0.9.md" <<'PRIOR'
@@ -781,14 +781,14 @@ window:
   end_version: NOT-A-VERSION
 ---
 STRAY
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --captain "test-captain" --workstream "mockproj" --stdout
     [ "$status" -eq 0 ]
     [[ "$output" == *"start_version: v0.9"* ]]
     [[ "$output" != *"NOT-A-VERSION"* ]]
 }
 
-@test "agency-captain-release-notes: strips quotes from a prior end_version" {
+@test "captain-release-notes: strips quotes from a prior end_version" {
     cd "$TEST_REPO"
     cat > agency/workstreams/mockproj/release-notes/release-notes-20260401-x-v0.5-v0.9.md <<'PRIOR'
 ---
@@ -796,7 +796,7 @@ window:
   end_version: "v0.9"
 ---
 PRIOR
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --captain "test-captain" --workstream "mockproj" --dry-run
     [ "$status" -eq 0 ]
     # Quotes must not reach the window or the filename
@@ -808,7 +808,7 @@ PRIOR
 # Workstream resolution
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: slugified project name drives the output path" {
+@test "captain-release-notes: slugified project name drives the output path" {
     cd "$TEST_REPO"
     cat > agency/config/agency.yaml <<'YAML'
 project:
@@ -816,7 +816,7 @@ project:
   timezone: "UTC"
 YAML
     mkdir -p agency/workstreams/mock-proj/release-notes
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain"
     [ "$status" -eq 0 ]
@@ -825,21 +825,21 @@ YAML
     [ "$output" == "1" ]
 }
 
-@test "agency-captain-release-notes: falls back to repo name when project slug has no dir" {
+@test "captain-release-notes: falls back to repo name when project slug has no dir" {
     cd "$TEST_REPO"
     cat > agency/config/agency.yaml <<'YAML'
 project:
   name: "My Project"
   timezone: "UTC"
 YAML
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --dry-run
     [ "$status" -eq 0 ]
     [[ "$output" == *"Workstream: mockproj"* ]]
 }
 
-@test "agency-captain-release-notes: falls back to agency when nothing else matches" {
+@test "captain-release-notes: falls back to agency when nothing else matches" {
     cd "$TEST_REPO"
     cat > agency/config/agency.yaml <<'YAML'
 project:
@@ -848,14 +848,14 @@ project:
 YAML
     rm -rf agency/workstreams/mockproj
     mkdir -p agency/workstreams/agency/release-notes
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --dry-run
     [ "$status" -eq 0 ]
     [[ "$output" == *"Workstream: agency"* ]]
 }
 
-@test "agency-captain-release-notes: warns when it must invent a workstream directory" {
+@test "captain-release-notes: warns when it must invent a workstream directory" {
     cd "$TEST_REPO"
     cat > agency/config/agency.yaml <<'YAML'
 project:
@@ -864,7 +864,7 @@ project:
 YAML
     rm -rf agency/workstreams
     mkdir -p agency/workstreams
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --dry-run
     [ "$status" -eq 0 ]
@@ -872,9 +872,9 @@ YAML
     [[ "$output" == *"Workstream: my-project"* ]]
 }
 
-@test "agency-captain-release-notes: slugifies an explicit --workstream" {
+@test "captain-release-notes: slugifies an explicit --workstream" {
     cd "$TEST_REPO"
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "../../escape" --dry-run
     [ "$status" -eq 0 ]
@@ -886,10 +886,10 @@ YAML
 # Environment / dependencies
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agency-captain-release-notes: honors CLAUDE_PROJECT_DIR over cwd" {
+@test "captain-release-notes: honors CLAUDE_PROJECT_DIR over cwd" {
     cd "$BATS_TEST_TMPDIR"
     run env CLAUDE_PROJECT_DIR="$TEST_REPO" \
-        "$TEST_REPO/agency/tools/agency-captain-release-notes" \
+        "$TEST_REPO/agency/tools/captain-release-notes" \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --dry-run
     [ "$status" -eq 0 ]
@@ -897,7 +897,7 @@ YAML
     [[ "$output" == *"$TEST_REPO/agency/workstreams/mockproj/release-notes/"* ]]
 }
 
-@test "agency-captain-release-notes: dies when jq is missing" {
+@test "captain-release-notes: dies when jq is missing" {
     cd "$TEST_REPO"
     BARE_DIR="${BATS_TEST_TMPDIR}/bare-path"
     mkdir -p "$BARE_DIR"
@@ -905,29 +905,29 @@ YAML
     for b in bash sed awk date ls mkdir tr grep dirname head tail sort cat git touch rm; do
         [[ -x "$(command -v $b)" ]] && ln -sf "$(command -v $b)" "$BARE_DIR/$b"
     done
-    run env PATH="$BARE_DIR" ./agency/tools/agency-captain-release-notes \
+    run env PATH="$BARE_DIR" ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 --stdout
     [ "$status" -ne 0 ]
     [[ "$output" == *"jq not found"* ]]
 }
 
-@test "agency-captain-release-notes: dies when gh is missing" {
+@test "captain-release-notes: dies when gh is missing" {
     cd "$TEST_REPO"
     BARE_DIR="${BATS_TEST_TMPDIR}/no-gh-path"
     mkdir -p "$BARE_DIR"
     for b in bash sed awk date ls mkdir tr grep dirname head tail sort cat jq git touch rm; do
         [[ -x "$(command -v $b)" ]] && ln -sf "$(command -v $b)" "$BARE_DIR/$b"
     done
-    run env PATH="$BARE_DIR" ./agency/tools/agency-captain-release-notes \
+    run env PATH="$BARE_DIR" ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 --stdout
     [ "$status" -ne 0 ]
     [[ "$output" == *"gh CLI not found"* ]]
 }
 
-@test "agency-captain-release-notes: renders colors when lib/_colors is present" {
+@test "captain-release-notes: renders colors when lib/_colors is present" {
     cd "$TEST_REPO"
     [ -f agency/tools/lib/_colors ]
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj"
     [ "$status" -eq 0 ]
@@ -935,10 +935,10 @@ YAML
     [[ "$output" == *"✓"* ]]
 }
 
-@test "agency-captain-release-notes: renders colors with the inline fallback" {
+@test "captain-release-notes: renders colors with the inline fallback" {
     cd "$TEST_REPO"
     rm -f agency/tools/lib/_colors
-    run ./agency/tools/agency-captain-release-notes \
+    run ./agency/tools/captain-release-notes \
         --start-version v0.9 --end-version v1.0 \
         --captain "test-captain" --workstream "mockproj"
     [ "$status" -eq 0 ]
