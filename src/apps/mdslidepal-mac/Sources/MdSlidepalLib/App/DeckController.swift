@@ -44,15 +44,30 @@ public final class DeckController {
 
     private let fileWatcher = FileWatcher()
 
+    /// The command bus this controller subscribes to.
+    ///
+    /// Injectable, defaulting to `.default`. The process-global center is shared
+    /// with every other observer in the process — including
+    /// PresentationWindowManager's `.startPresentation` subscription and any
+    /// other controller a test happens to have built — so tests that post
+    /// commands hand in a fresh center and get an isolated bus.
+    @ObservationIgnored
+    private let notificationCenter: NotificationCenter
+
     /// Cleanup that must run when the controller is deallocated. `deinit` is
     /// nonisolated and so cannot touch @MainActor state, but both operations
     /// here are thread-safe, so they live on a plain class that does its own
     /// teardown.
-    private let resources = ControllerResources()
+    private let resources: ControllerResources
 
-    public init(deckState: DeckState? = nil) {
+    public init(
+        deckState: DeckState? = nil,
+        notificationCenter: NotificationCenter = .default
+    ) {
         let state = deckState ?? DeckState()
         self.deckState = state
+        self.notificationCenter = notificationCenter
+        self.resources = ControllerResources(notificationCenter: notificationCenter)
         self.presentation = PresentationCoordinator()
         self.presentation.deckState = state
         configureFileWatcher()
@@ -82,6 +97,10 @@ public final class DeckController {
         // long after this call returns) and the previous claim is released.
         resources.transferSecurityScopedAccess(to: url, alreadyStarted: started)
         fileWatcher.watch(url: url)
+        // The hosting alert is bound to `errorMessage != nil`. Without this the
+        // message from an earlier failure survives the recovery and the alert
+        // never dismisses.
+        errorMessage = nil
     }
 
     /// Reload the current document from disk, preserving the slide position.
@@ -89,6 +108,8 @@ public final class DeckController {
         guard let url = deckState.document.sourceURL else { return }
         do {
             try reloadPreservingPosition(from: url)
+            // Same rule as openFile: a success clears the stale alert.
+            errorMessage = nil
         } catch {
             errorMessage = "Reload failed: \(error.localizedDescription)"
         }
@@ -96,15 +117,20 @@ public final class DeckController {
 
     /// Load the deck named on the command line, or the welcome deck when there is
     /// no argument. Single place that decides what a fresh launch shows.
-    public func loadInitialDeck() {
-        let args = ProcessInfo.processInfo.arguments
-        if args.count > 1 {
-            let url = URL(fileURLWithPath: args[1])
+    public func loadInitialDeck(arguments: [String] = ProcessInfo.processInfo.arguments) {
+        // Flag-style arguments are not paths. macOS injects `-psn_0_…` on a
+        // Finder launch and Xcode adds `-NSDocumentRevisionsDebugMode`; treating
+        // them as filenames popped a "No such file" alert on an ordinary launch.
+        if let path = arguments.dropFirst().first(where: { !$0.hasPrefix("-") }) {
+            let url = URL(fileURLWithPath: path)
             if FileManager.default.fileExists(atPath: url.path) {
                 openFile(url: url)
-                return
+                if errorMessage == nil { return }
+                // Open failed. Fall through: the alert needs a window behind it,
+                // and an empty document is not one.
+            } else {
+                errorMessage = "No such file: \(path)"
             }
-            errorMessage = "No such file: \(args[1])"
         }
 
         deckState.load(from: Self.welcomeDeck)
@@ -118,9 +144,16 @@ public final class DeckController {
     private func reloadPreservingPosition(from url: URL) throws {
         let currentIndex = deckState.selectedSlideIndex
         try deckState.load(from: url)
-        if currentIndex < deckState.document.slides.count {
-            deckState.selectedSlideIndex = currentIndex
-        }
+
+        // `load` resets the selection to 0, so the position has to be put back.
+        // Clamp rather than give up: the old code restored the index only when it
+        // still fit, so deleting slides above the caret sent the presenter home to
+        // slide 1 instead of to the nearest surviving slide — the one thing a
+        // function named "preserving position" must not do. The clamp also keeps
+        // `selectedSlideIndex` in range, which `currentSlide` depends on.
+        let lastIndex = deckState.document.slides.count - 1
+        guard lastIndex >= 0 else { return }
+        deckState.selectedSlideIndex = min(max(currentIndex, 0), lastIndex)
     }
 
     private func configureFileWatcher() {
@@ -134,18 +167,36 @@ public final class DeckController {
 
     // MARK: - Export
 
-    /// Prompt for a destination and export the deck as PDF.
-    public func presentExportPanel() {
+    /// How `presentExportPanel()` asks for a destination: called with the
+    /// suggested filename, answering with the chosen URL or nil when the user
+    /// cancels.
+    ///
+    /// A seam, not a configuration point. The default is the real NSSavePanel;
+    /// tests substitute a temporary directory so the `.exportPDF` command path
+    /// can be exercised end to end without putting a panel on screen — otherwise
+    /// that command is only ever reachable by hand.
+    public typealias ExportDestinationProvider =
+        @MainActor (_ suggestedName: String, _ completion: @escaping @MainActor (URL?) -> Void) -> Void
+
+    @ObservationIgnored
+    public var exportDestinationProvider: ExportDestinationProvider = { suggestedName, completion in
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
-        panel.nameFieldStringValue = "\(deckState.document.title).pdf"
+        panel.nameFieldStringValue = suggestedName
         panel.canCreateDirectories = true
 
-        panel.begin { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
+        panel.begin { response in
             Task { @MainActor in
-                self?.export(to: url)
+                completion(response == .OK ? panel.url : nil)
             }
+        }
+    }
+
+    /// Prompt for a destination and export the deck as PDF.
+    public func presentExportPanel() {
+        exportDestinationProvider("\(deckState.document.title).pdf") { [weak self] url in
+            guard let self, let url else { return }
+            self.export(to: url)
         }
     }
 
@@ -188,7 +239,7 @@ public final class DeckController {
         _ name: Notification.Name,
         _ handler: @escaping @MainActor (DeckController) -> Void
     ) {
-        let observer = NotificationCenter.default.addObserver(
+        let observer = notificationCenter.addObserver(
             forName: name, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -235,6 +286,14 @@ private final class ControllerResources {
     private var observers: [NSObjectProtocol] = []
     private var securityScopedURL: URL?
 
+    /// The center the observers were registered on — they must be removed from
+    /// the same one, not from `.default`.
+    private let notificationCenter: NotificationCenter
+
+    init(notificationCenter: NotificationCenter) {
+        self.notificationCenter = notificationCenter
+    }
+
     var hasObservers: Bool {
         lock.lock()
         defer { lock.unlock() }
@@ -272,7 +331,7 @@ private final class ControllerResources {
 
     deinit {
         for observer in observers {
-            NotificationCenter.default.removeObserver(observer)
+            notificationCenter.removeObserver(observer)
         }
         securityScopedURL?.stopAccessingSecurityScopedResource()
     }

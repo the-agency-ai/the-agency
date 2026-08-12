@@ -12,6 +12,11 @@
 //
 // Written: 2026-08-07 during mdslidepal-mac PR-prep QG — consolidates the two
 // divergent <br> implementations found in SlideView.
+// Updated: 2026-08-12 PR-prep QG — de-ambiguated the break-only pattern (nested
+//   `\s*` made it exponential on untrusted input), taught stripTags to remove
+//   comments, <script> and <style> with their contents (a `>` inside a comment
+//   used to leak onto the slide), and made lineBreakCount report a true count
+//   instead of clamping to 1.
 
 import Foundation
 
@@ -24,8 +29,15 @@ public enum HTMLText {
     public static func isLineBreakOnly(_ html: String) -> Bool {
         let trimmed = html.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
+        // The leading `\s*` is hoisted out of the repeated group deliberately.
+        // With it inside, each repetition begins *and* ends with `\s*`, so a run
+        // of spaces between two `<br>`s can be divided between the two in many
+        // ways; a non-matching suffix then forces the engine through all of them
+        // (exponential backtracking on untrusted slide HTML). Anchoring each
+        // repetition at a literal `<` removes the ambiguity. The language matched
+        // is identical.
         return trimmed.range(
-            of: "\\A(\\s*<br\\s*/?>\\s*)+\\z",
+            of: "\\A\\s*(<br\\s*/?>\\s*)+\\z",
             options: [.regularExpression, .caseInsensitive]
         ) != nil
     }
@@ -38,19 +50,36 @@ public enum HTMLText {
         ) != nil
     }
 
-    /// Number of `<br>` tags in `html` — drives how much vertical space a
-    /// break-only block contributes.
+    /// Number of `<br>` tags in `html`. A true count — zero when there are none.
+    /// Callers that need a floor (a break-only block always contributes some
+    /// space) clamp at their own call site.
     public static func lineBreakCount(_ html: String) -> Int {
-        let matches = html.ranges(
+        html.ranges(
             of: "<br\\s*/?>",
             options: [.regularExpression, .caseInsensitive]
-        )
-        return max(1, matches.count)
+        ).count
     }
 
     /// Strip all HTML tags, leaving the text content.
+    ///
+    /// Comments, `<script>` and `<style>` go first, contents and all. A plain
+    /// `<[^>]+>` pass stops at the first `>`, so `<!-- ARR > 2M -->` leaks
+    /// ` 2M -->` onto the slide and `<script>alert(1)</script>` leaks its body.
     public static func stripTags(_ html: String) -> String {
-        html.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        var result = html
+        for pattern in [
+            "<!--[\\s\\S]*?-->",
+            "<script\\b[^>]*>[\\s\\S]*?</script\\s*>",
+            "<style\\b[^>]*>[\\s\\S]*?</style\\s*>"
+        ] {
+            result = result.replacingOccurrences(
+                of: pattern, with: "",
+                options: [.regularExpression, .caseInsensitive]
+            )
+        }
+        return result.replacingOccurrences(
+            of: "<[^>]+>", with: "", options: .regularExpression
+        )
     }
 }
 

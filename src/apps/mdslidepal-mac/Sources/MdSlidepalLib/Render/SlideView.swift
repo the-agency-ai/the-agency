@@ -73,20 +73,29 @@ public struct SlideContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// Body slides fill the slide from the top-left corner down.
+    ///
+    /// Not centred: contract §11's overflow policy says content past the logical
+    /// viewport scrolls and is never cropped. Vertical centring puts half the
+    /// excess above the top edge as well as below it, so an over-long slide loses
+    /// its opening lines — and the first line no longer sits where it does on
+    /// every other slide, which is what makes a deck read as one deck.
+    public static let bodyAlignment: Alignment = .topLeading
+
     private var contentBody: some View {
         VStack(alignment: .leading, spacing: CGFloat(theme.spacingUnit) * 1.25) {
-            Spacer(minLength: 0)
             ForEach(Array(slide.markupChildren.enumerated()), id: \.offset) { idx, child in
                 MarkupNodeView(node: child, sourceURL: sourceURL)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.bottom, spacingAfter(child: child, isLast: idx == slide.markupChildren.count - 1))
             }
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: Self.bodyAlignment)
     }
 
     /// Vertical rhythm: heading children get breathing room below them.
-    /// Last child gets no trailing padding — the Spacer handles bottom space.
+    /// The last child gets no trailing padding — the slide's own padding
+    /// supplies the bottom margin.
     private func spacingAfter(child: Markup, isLast: Bool) -> CGFloat {
         if isLast { return 0 }
         let unit = CGFloat(theme.spacingUnit)
@@ -99,12 +108,21 @@ public struct SlideContentView: View {
     /// Per-slide `background:` metadata comes from an untrusted .md file, so an
     /// unparseable value falls back to the theme background rather than painting
     /// the slide the magenta debug color.
-    private var slideBackground: Color {
-        if let bg = slide.metadata?.background,
+    ///
+    /// Static and public because the choice between the validating parser and
+    /// `Color(hex:)` is the whole behavior: as a private computed property on a
+    /// SwiftUI view nothing could reach it, and swapping the call back to
+    /// `Color(hex:)` — repainting every typo'd background magenta — broke no test.
+    public static func background(for metadata: SlideMetadata?, theme: Theme) -> Color {
+        if let bg = metadata?.background,
            let color = Color(validatingHex: bg) {
             return color
         }
         return Color(hex: theme.colors.background)
+    }
+
+    private var slideBackground: Color {
+        Self.background(for: slide.metadata, theme: theme)
     }
 }
 
@@ -395,7 +413,9 @@ struct HTMLBlockView: View {
 
         if isBrOnly(trimmed) {
             // <br> or <br><br> — render as vertical space
-            let brCount = HTMLText.lineBreakCount(trimmed)
+            // Clamp here, not in the counter: a break-only block always earns
+            // at least one unit of space, but "count" must still mean count.
+            let brCount = max(1, HTMLText.lineBreakCount(trimmed))
             Spacer()
                 .frame(height: CGFloat(theme.spacingUnit) * CGFloat(brCount))
         } else if trimmed.hasPrefix("<hr") {

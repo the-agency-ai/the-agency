@@ -11,13 +11,19 @@
 // preview and timer. Placement follows the contract's multi-display rule — with a
 // second screen the audience goes there and the presenter stays on the built-in
 // display; with one screen the audience takes it full-screen and the presenter
-// window is not shown, matching the coordinator's single-display fallback.
+// window is not shown, because a presenter window there would cover the slides.
+// There is no notes toggle in that configuration — speaker notes are visible
+// only when a second display makes room for the presenter window.
 //
 // Window teardown is driven from stopPresentation() rather than from a window
 // delegate, so Escape, the End button and the menu all converge on one path.
 //
 // Written: 2026-08-08 — restores Phase 3 presentation mode after the app-entry
 // rewrite orphaned it.
+// Updated: 2026-08-12 PR-prep QG wave 2 — windowWillClose no longer re-enters the
+//   close cycle of the window it was told about, and the audience window is a
+//   KeyablePresentationWindow so a borderless window can actually take the
+//   keyboard rather than depending on the coordinator's event monitor.
 
 import AppKit
 import SwiftUI
@@ -32,8 +38,14 @@ public final class PresentationWindowManager: NSObject {
     private var savedPresentationOptions: NSApplication.PresentationOptions?
     private var startObserver: NSObjectProtocol?
 
-    public init(controller: DeckController) {
+    /// The command bus this manager listens on. Injectable for the same reason
+    /// DeckController's is: `.default` is process-global, so two managers (or a
+    /// manager and a test) posting `.startPresentation` on it drive each other.
+    private let notificationCenter: NotificationCenter
+
+    public init(controller: DeckController, notificationCenter: NotificationCenter = .default) {
         self.controller = controller
+        self.notificationCenter = notificationCenter
         super.init()
         // Escape and the presenter's End button call stopPresentation() directly,
         // so teardown hangs off the coordinator rather than off stop() — every
@@ -43,7 +55,7 @@ public final class PresentationWindowManager: NSObject {
         }
         // This manager owns .startPresentation: it is the only object that can
         // honor the command completely (coordinator state *and* windows).
-        startObserver = NotificationCenter.default.addObserver(
+        startObserver = notificationCenter.addObserver(
             forName: .startPresentation, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.start() }
@@ -52,7 +64,7 @@ public final class PresentationWindowManager: NSObject {
 
     deinit {
         if let startObserver {
-            NotificationCenter.default.removeObserver(startObserver)
+            notificationCenter.removeObserver(startObserver)
         }
     }
 
@@ -72,8 +84,7 @@ public final class PresentationWindowManager: NSObject {
         openAudienceWindow(on: audienceScreen)
 
         // With a single display the audience view occupies it entirely; showing a
-        // presenter window there would cover the slides. The coordinator's 's'
-        // key toggles notes in that configuration instead.
+        // presenter window there would cover the slides, so there is none.
         if screens.count > 1 {
             openPresenterWindow(on: screens[0])
         }
@@ -116,20 +127,41 @@ public final class PresentationWindowManager: NSObject {
 
     // MARK: - Window construction
 
-    private func openAudienceWindow(on screen: NSScreen?) {
-        let window = NSWindow(
-            contentRect: screen?.frame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080),
+    /// Allocate the audience window.
+    ///
+    /// `KeyablePresentationWindow`, not `NSWindow`: the style mask has no
+    /// `.titled`, and a plain NSWindow without it refuses to become key, so
+    /// `makeKeyAndOrderFront` would order the window front and leave the deck
+    /// window behind it holding the keyboard.
+    public static func makeAudienceWindow(
+        contentRect: NSRect, screen: NSScreen?
+    ) -> NSWindow {
+        KeyablePresentationWindow(
+            contentRect: contentRect,
             styleMask: [.borderless, .fullSizeContentView],
             backing: .buffered,
             defer: false,
             screen: screen
         )
+    }
+
+    private func openAudienceWindow(on screen: NSScreen?) {
+        let window = Self.makeAudienceWindow(
+            contentRect: screen?.frame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080),
+            screen: screen
+        )
         window.title = "mdslidepal \u{2014} Audience"
+        // Hoist what the view needs into locals. Referencing `self.coordinator`
+        // inside the @ViewBuilder closure captures the manager, closing the loop
+        // manager -> window -> NSHostingView -> closure -> manager, and nothing
+        // is ever deallocated.
+        let coordinator = self.coordinator
+        let deckState = controller.deckState
         window.contentView = NSHostingView(
             rootView: ThemedPresentationRoot {
-                AudienceFullScreenView(coordinator: self.coordinator)
+                AudienceFullScreenView(coordinator: coordinator)
             }
-            .environment(controller.deckState)
+            .environment(deckState)
         )
         window.isReleasedWhenClosed = false
         window.backgroundColor = .black
@@ -163,11 +195,14 @@ public final class PresentationWindowManager: NSObject {
             screen: screen
         )
         window.title = "mdslidepal \u{2014} Presenter"
+        // Locals, not `self.…` — see openAudienceWindow for why.
+        let coordinator = self.coordinator
+        let deckState = controller.deckState
         window.contentView = NSHostingView(
             rootView: ThemedPresentationRoot {
-                PresenterWindowView(coordinator: self.coordinator)
+                PresenterWindowView(coordinator: coordinator)
             }
-            .environment(controller.deckState)
+            .environment(deckState)
         )
         window.isReleasedWhenClosed = false
         // Closing the presenter with its red button must end the presentation,
@@ -184,9 +219,38 @@ public final class PresentationWindowManager: NSObject {
 // MARK: - Window delegate
 
 extension PresentationWindowManager: NSWindowDelegate {
+
+    /// Drop the manager's reference to the window that is already inside its own
+    /// close cycle, leaving the others untouched.
+    ///
+    /// `windowWillClose` arrives *during* `-[NSWindow close]`. Calling
+    /// `stopPresentation()` from there fires `onPresentationEnded` →
+    /// `closeWindows()` → `presenterWindow?.close()` on that same window,
+    /// re-entering a close cycle AppKit has not finished. Clearing the reference
+    /// first is preferred over deferring the whole teardown with
+    /// `Task { @MainActor in … }`: the deferred version still tears down
+    /// correctly but leaves the audience window on screen for a runloop turn
+    /// after the presenter has gone, and it makes the "every exit route
+    /// converges on one teardown" invariant depend on scheduling. Nil-ing first
+    /// keeps teardown synchronous and single-pass.
+    public static func releasingClosingWindow(
+        _ closing: NSWindow?, audience: NSWindow?, presenter: NSWindow?
+    ) -> (audience: NSWindow?, presenter: NSWindow?) {
+        guard let closing else { return (audience, presenter) }
+        return (
+            audience: closing === audience ? nil : audience,
+            presenter: closing === presenter ? nil : presenter
+        )
+    }
+
     public func windowWillClose(_ notification: Notification) {
         // Only reached when the user closes the presenter directly; closeWindows()
         // clears delegates before closing, so teardown does not re-enter here.
+        (audienceWindow, presenterWindow) = Self.releasingClosingWindow(
+            notification.object as? NSWindow,
+            audience: audienceWindow,
+            presenter: presenterWindow
+        )
         coordinator.stopPresentation()
     }
 }

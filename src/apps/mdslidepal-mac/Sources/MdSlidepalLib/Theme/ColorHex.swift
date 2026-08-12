@@ -15,6 +15,8 @@
 // Updated: 2026-08-07 PR-prep QG — added the validating initializer and
 //   3-/8-digit support; slide metadata no longer renders magenta on a valid but
 //   previously unsupported CSS color.
+// Updated: 2026-08-12 PR-prep QG — trim before stripping the `#`; the other
+//   order rejected " #ff0000" outright.
 
 import SwiftUI
 
@@ -33,8 +35,10 @@ extension Color {
     /// color. Accepts 3-digit (`#fff`), 6-digit (`#ffffff`) and 8-digit RGBA
     /// (`#ffffffcc`) forms, with or without a leading `#`.
     public init?(validatingHex hex: String) {
-        let cleaned = (hex.hasPrefix("#") ? String(hex.dropFirst()) : hex)
-            .trimmingCharacters(in: .whitespaces)
+        // Trim first, then strip. The other order leaves the `#` embedded in
+        // " #ff0000" — the hex-digit check then rejects a perfectly good color.
+        let trimmed = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleaned = trimmed.hasPrefix("#") ? String(trimmed.dropFirst()) : trimmed
 
         guard cleaned.allSatisfy({ $0.isHexDigit }),
               let raw = UInt64(cleaned, radix: 16)

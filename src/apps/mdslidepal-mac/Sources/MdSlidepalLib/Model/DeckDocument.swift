@@ -119,6 +119,13 @@ public class DeckState {
             }
         }
 
+        // Resolve images once, here, where the source URL is known and the
+        // document is still a value we can append diagnostics to. Contract §11
+        // wants a warning for a missing or refused image; the render layer has no
+        // channel back to this array, so doing it inside a SwiftUI body is not an
+        // option — and doing it here also spares every body evaluation the stat.
+        doc = ImageResolutionPass.applied(to: doc)
+
         document = doc
         selectedSlideIndex = 0
     }

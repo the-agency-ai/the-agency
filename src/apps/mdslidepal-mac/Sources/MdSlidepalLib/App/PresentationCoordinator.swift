@@ -1,17 +1,22 @@
-// What Problem: Manage presentation mode — full-screen audience view on an
-// external display with a presenter view (notes, timer, next slide) on the
-// laptop screen. Requires AppKit interop because SwiftUI on macOS 14 cannot
-// target a specific NSScreen for full-screen or capture global key events.
+// What Problem: Presentation mode needs state that outlives any one window —
+// whether we are presenting, whether the screen is blacked out, whether help is
+// up, and how long the talk has run — plus keyboard navigation that works no
+// matter which of the presentation windows has focus. SwiftUI alone cannot
+// capture keys outside the focused view, so AppKit interop is required.
 //
-// How & Why: @Observable class that coordinates two windows: audience and
-// presenter. Uses NSScreen enumeration to detect external displays. Promotes
-// the audience window to full-screen on the external display via
-// NSWindow.toggleFullScreen(). Global key event routing via
-// NSEvent.addLocalMonitorForEvents ensures keyboard nav works regardless
-// of which window has focus. Single-display fallback: audience goes
-// full-screen on main display, 's' toggles presenter overlay.
+// How & Why: An @Observable store of presentation state with two behaviors
+// attached to it: a one-second elapsed-time timer, and a local NSEvent key
+// monitor installed for the duration of the presentation that routes navigation
+// and overlay keys into DeckState. Windows are deliberately *not* this type's
+// concern — PresentationWindowManager owns their creation, screen placement and
+// teardown, and hooks `onPresentationEnded` so that every exit route (Escape,
+// the presenter's End button, the menu) converges on a single teardown.
 //
 // Written: 2026-04-12 during mdslidepal-mac Phase 3
+// Updated: 2026-08-12 PR-prep QG — header corrected; it still described the
+//   two-window coordination, NSScreen enumeration and toggleFullScreen work that
+//   moved to PresentationWindowManager, and advertised an 's' presenter-overlay
+//   toggle that does not exist. Unused `hasExternalDisplay` removed with it.
 
 import SwiftUI
 import AppKit
@@ -29,10 +34,6 @@ public class PresentationCoordinator {
     public var showHelp = false
     /// Elapsed time since presentation started.
     public var elapsedTime: TimeInterval = 0
-    /// Whether an external display is available.
-    public var hasExternalDisplay: Bool {
-        NSScreen.screens.count > 1
-    }
 
     private var timer: Timer?
     private var presentationStartTime: Date?
@@ -129,12 +130,6 @@ public class PresentationCoordinator {
             case "b", ".":
                 toggleBlackScreen()
                 return true
-            case "f":
-                // Full-screen toggle handled by the window
-                return false
-            case "s":
-                // Toggle presenter notes view
-                return false
             case "?":
                 toggleHelp()
                 return true

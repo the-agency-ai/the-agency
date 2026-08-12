@@ -15,6 +15,11 @@
 //   PresentationWindowManager. Document actions post the AppCommands notification
 //   vocabulary and are handled once by DeckController, replacing the duplicated
 //   open/reload/export implementations that had diverged from DeckWindowView's.
+// Updated: 2026-08-12 PR-prep QG wave 2 — the main window is built by
+//   DeckWindowFactory (NSHostingController as contentViewController, so SwiftUI's
+//   .toolbar reaches the NSWindow toolbar, plus a real contentMinSize), and the
+//   slide-navigation menu items take their key equivalents from
+//   PresentationMenuSpec so they no longer claim bare arrows app-wide.
 
 import SwiftUI
 import AppKit
@@ -48,21 +53,10 @@ class MdSlidepalAppDelegate: NSObject, NSApplicationDelegate {
         // Build the menu bar
         buildMainMenu()
 
-        // Create the main window with SwiftUI content
-        let contentView = DeckWindowView()
-            .environment(controller)
-            .environment(controller.deckState)
-            .environment(\.theme, controller.deckState.theme)
-            .frame(minWidth: 800, minHeight: 500)
-
-        window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "mdslidepal"
-        window.contentView = NSHostingView(rootView: contentView)
+        // Create the main window with SwiftUI content. DeckWindowFactory lives in
+        // the library so the hosting-controller wiring and the minimum content
+        // size are covered by the test runner, which cannot import this target.
+        window = DeckWindowFactory.makeMainWindow(controller: controller)
         window.center()
         window.makeKeyAndOrderFront(nil)
 
@@ -151,23 +145,21 @@ class MdSlidepalAppDelegate: NSObject, NSApplicationDelegate {
         presentItem.target = self
         presMenu.addItem(presentItem)
         presMenu.addItem(.separator())
-        let nextItem = NSMenuItem(title: "Next Slide", action: #selector(nextSlide(_:)), keyEquivalent: String(Character(UnicodeScalar(NSRightArrowFunctionKey)!)))
-        nextItem.keyEquivalentModifierMask = []
-        nextItem.target = self
-        presMenu.addItem(nextItem)
-        let prevItem = NSMenuItem(title: "Previous Slide", action: #selector(previousSlide(_:)), keyEquivalent: String(Character(UnicodeScalar(NSLeftArrowFunctionKey)!)))
-        prevItem.keyEquivalentModifierMask = []
-        prevItem.target = self
-        presMenu.addItem(prevItem)
+        // Key equivalents come from PresentationMenuSpec, which requires a
+        // modifier: a bare arrow here is consumed by NSApplication.sendEvent
+        // before the key window's responder chain ever sees it, so the sidebar
+        // list (and any future text field) could never use the arrow keys.
+        // Contract §10's bare Arrow/Home/End keys are presentation-mode only and
+        // are served by PresentationCoordinator's local event monitor.
+        presMenu.addItem(PresentationMenuSpec.nextSlide.makeItem(
+            action: #selector(nextSlide(_:)), target: self))
+        presMenu.addItem(PresentationMenuSpec.previousSlide.makeItem(
+            action: #selector(previousSlide(_:)), target: self))
         presMenu.addItem(.separator())
-        let firstItem = NSMenuItem(title: "First Slide", action: #selector(firstSlide(_:)), keyEquivalent: String(Character(UnicodeScalar(NSHomeFunctionKey)!)))
-        firstItem.keyEquivalentModifierMask = []
-        firstItem.target = self
-        presMenu.addItem(firstItem)
-        let lastItem = NSMenuItem(title: "Last Slide", action: #selector(lastSlide(_:)), keyEquivalent: String(Character(UnicodeScalar(NSEndFunctionKey)!)))
-        lastItem.keyEquivalentModifierMask = []
-        lastItem.target = self
-        presMenu.addItem(lastItem)
+        presMenu.addItem(PresentationMenuSpec.firstSlide.makeItem(
+            action: #selector(firstSlide(_:)), target: self))
+        presMenu.addItem(PresentationMenuSpec.lastSlide.makeItem(
+            action: #selector(lastSlide(_:)), target: self))
         let presMenuItem = NSMenuItem()
         presMenuItem.submenu = presMenu
         mainMenu.addItem(presMenuItem)

@@ -53,7 +53,15 @@ public enum FontResolver {
     /// `resolve` is called from view bodies on every render pass. Font
     /// registration does not change during a run, so results are memoized by
     /// stack.
-    private static let cache = NSCache<NSString, CachedResolution>()
+    /// Bounded deliberately. NSCache with no `countLimit` only evicts under
+    /// memory pressure, and the key is an arbitrary theme-supplied string — a
+    /// deck that varies its font stacks would grow this without limit. A handful
+    /// of distinct stacks per theme means a small cap costs nothing.
+    private static let cache: NSCache<NSString, CachedResolution> = {
+        let cache = NSCache<NSString, CachedResolution>()
+        cache.countLimit = 64
+        return cache
+    }()
 
     /// Box type — NSCache requires a class value.
     private final class CachedResolution {
@@ -74,32 +82,59 @@ public enum FontResolver {
         return resolved
     }
 
-    private static func computeResolution(for stack: String) -> Resolution {
-        for raw in stack.split(separator: ",") {
+    /// The families a stack names, in order, cleaned of quotes and whitespace,
+    /// with empty entries and CSS generic keywords dropped.
+    ///
+    /// Split out from resolution so the parsing rules can be tested without a
+    /// font probe: which families are on the host is not the parser's business,
+    /// and a test that asserts `.family("Helvetica")` is really asserting the
+    /// contents of /System/Library/Fonts.
+    public static func candidateFamilies(in stack: String) -> [String] {
+        stack.split(separator: ",").compactMap { raw in
             let name = raw
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .trimmingCharacters(in: CharacterSet(charactersIn: "'\""))
                 .trimmingCharacters(in: .whitespacesAndNewlines)
+            if name.isEmpty { return nil }
+            if genericFamilies.contains(name.lowercased()) { return nil }
+            return name
+        }
+    }
 
-            if name.isEmpty { continue }
+    /// Whether AppKit knows a family by that name. The real probe.
+    private static func isRegistered(_ name: String) -> Bool {
+        NSFont(name: name, size: 12) != nil
+    }
 
-            let lower = name.lowercased()
-            if genericFamilies.contains(lower) { continue }
-            if systemFamilies.contains(lower) { return .system }
+    /// Walk a stack with an explicit registration probe, bypassing the memo.
+    ///
+    /// The probe is a parameter so the stack-walking rules — first resolvable
+    /// wins, system tokens short-circuit, despaced PostScript-name retry — can be
+    /// pinned against a known font inventory instead of the host's.
+    public static func resolution(
+        for stack: String, probe: (String) -> Bool
+    ) -> Resolution {
+        for name in candidateFamilies(in: stack) {
+            if systemFamilies.contains(name.lowercased()) { return .system }
 
-            // Probe with NSFont to see whether this family actually resolves.
-            if NSFont(name: name, size: 12) != nil {
-                return .family(name)
-            }
-            // Family names carry spaces ("SF Mono"); PostScript names do not
-            // ("SFMono-Regular"). Try the despaced form before giving up.
+            if probe(name) { return .family(name) }
+
+            // Family names carry spaces ("Helvetica Neue"); the PostScript name
+            // often does not ("HelveticaNeue"). Try the despaced form before
+            // giving up. This only recovers PostScript names that ARE the
+            // despaced family — removing spaces cannot add a style suffix, so
+            // "SF Mono" reaches "SFMono" and not "SFMono-Regular".
             let withoutSpaces = name.replacingOccurrences(of: " ", with: "")
-            if withoutSpaces != name, NSFont(name: withoutSpaces, size: 12) != nil {
+            if withoutSpaces != name, probe(withoutSpaces) {
                 return .family(withoutSpaces)
             }
         }
 
         return .system
+    }
+
+    private static func computeResolution(for stack: String) -> Resolution {
+        resolution(for: stack, probe: isRegistered)
     }
 
     /// Resolve a CSS-style font stack to a SwiftUI Font at the given size/weight.
