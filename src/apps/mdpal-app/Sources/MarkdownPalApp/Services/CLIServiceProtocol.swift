@@ -15,6 +15,10 @@
 // Updated: 2026-04-17 Phase 1C.3 — persistence surface: createRevision,
 //          listHistory, showVersion, bumpVersion. Adds typed
 //          .bundleConflict mapping for stale --base-revision writes.
+// Updated: 2026-04-19 Phase 2.1/2.5 — CLIServiceError gains
+//          payloadTooLarge(maxBytes:), fileTooLarge(path:, sizeBytes:,
+//          limitBytes:) per dispatches #616 + #635, and cancelled for
+//          Phase 2.5 task-cancellation → SIGTERM wiring.
 
 import Foundation
 
@@ -89,6 +93,13 @@ public protocol CLIServiceProtocol: Sendable {
 }
 
 /// Errors from CLI operations.
+///
+/// Phase 2.1 (dispatches #616 + #635) adds `.payloadTooLarge` and
+/// `.fileTooLarge` as typed cases with user-actionable UX. Other new
+/// wire-format discriminators (from the canonical 18-case list) continue
+/// to surface via `.executionFailed` — only the ones with genuinely
+/// actionable user messages (size caps) get their own typed case.
+/// `.cancelled` is added in prep for Phase 2.5 task-cancellation wiring.
 public enum CLIServiceError: Error, LocalizedError {
     case sectionNotFound(slug: String, availableSlugs: [String])
     case commentNotFound(commentId: String)
@@ -99,6 +110,26 @@ public enum CLIServiceError: Error, LocalizedError {
     case fileNotFound(path: String)
     case invalidArgument(description: String)
     case executionFailed(exitCode: Int, stderr: String)
+    /// Phase 2.1 (dispatch #616): stdin content exceeds the engine's 16 MiB
+    /// cap on comment/resolve/edit/revision-create. `maxBytes` is the
+    /// engine-reported limit (nil means the envelope didn't carry details).
+    /// Routed via exit code 5 (`sizeLimitExceeded`).
+    case payloadTooLarge(maxBytes: Int?)
+    /// Phase 2.1 (dispatch #635): on-disk file exceeds the engine's file
+    /// size cap. Same exit code 5 as `.payloadTooLarge`, distinguished by
+    /// discriminator.
+    case fileTooLarge(path: String?, sizeBytes: Int?, limitBytes: Int?)
+    /// Phase 2.1 prep (Phase 2.5 will wire): task cancellation propagated
+    /// to child-process SIGTERM. Introduced here so the error taxonomy is
+    /// complete before the runner-level changes land.
+    case cancelled
+    /// Phase 2.6: the document is in pancake mode (plain .md) but the
+    /// user attempted an operation that requires a packaged bundle —
+    /// add comment, flag section, create revision, etc. The associated
+    /// `operation` string identifies what was attempted, so the alert
+    /// can name it ("Adding a comment requires packaging…"). Routed via
+    /// PancakeCLIService — never thrown by RealCLIService.
+    case packageRequired(operation: String)
 
     public var errorDescription: String? {
         switch self {
@@ -120,6 +151,24 @@ public enum CLIServiceError: Error, LocalizedError {
             return "Invalid argument: \(description)"
         case .executionFailed(let exitCode, let stderr):
             return "CLI exited with code \(exitCode): \(stderr)"
+        case .payloadTooLarge(let maxBytes):
+            if let maxBytes {
+                let mib = Double(maxBytes) / (1024.0 * 1024.0)
+                return String(format: "Your input is too large (max %.1f MiB). Try shortening or splitting into smaller edits.", mib)
+            }
+            return "Your input is too large. Try shortening or splitting into smaller edits."
+        case .fileTooLarge(let path, let sizeBytes, let limitBytes):
+            let pathStr = path.map { "'\($0)'" } ?? "A file"
+            if let size = sizeBytes, let limit = limitBytes {
+                let sizeMiB = Double(size) / (1024.0 * 1024.0)
+                let limitMiB = Double(limit) / (1024.0 * 1024.0)
+                return String(format: "%@ is too large (%.1f MiB; limit %.1f MiB).", pathStr, sizeMiB, limitMiB)
+            }
+            return "\(pathStr) is too large for the CLI to process."
+        case .cancelled:
+            return "Operation cancelled."
+        case .packageRequired(let operation):
+            return "'\(operation)' requires this file to be a .mdpal bundle. Convert it to a package and retry."
         }
     }
 }

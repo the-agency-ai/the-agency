@@ -124,10 +124,37 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     ///      exercises the red/green cycle for each envelope.
     ///   3. JSON decode failure → `.parseError`.
     ///
-    /// TODO(1B.x coordination): if `bundle.path` could start with `-`,
-    /// prepend `"--"` to argv to avoid flag-confusion. Blocked on the
-    /// actual mdpal CLI flag-parser behavior (mdpal-cli #408 — CLI
-    /// unbuilt as of Phase 2).
+    /// Flag-confusion on positional arguments (pr-prep QG, re-probed
+    /// against mdpal 0.2.0-dev):
+    ///
+    /// An earlier probe concluded "the subcommands taking `<bundle>` give
+    /// no working `--` position" and that the risk was unreachable because
+    /// `bundle.path` always comes from an NSOpenPanel URL. Both halves of
+    /// that conclusion are now false:
+    ///
+    ///   1. `--` DOES work, in the options-first form:
+    ///      `mdpal <sub> [--opt val]... -- <positional>...`.
+    ///      Verified on sections, read, comments, flags, history,
+    ///      version show, comment, flag, and edit. The earlier probe only
+    ///      tried `-- BUNDLE --format json` (trailing options after `--`,
+    ///      which are correctly swallowed as positionals) and concluded no
+    ///      position worked. The app never passes `--format` at all — JSON
+    ///      is the CLI default — so the options-first form is available
+    ///      everywhere.
+    ///
+    ///   2. `slug` IS attacker-influenced and CAN begin with `-`. The
+    ///      slugifier strips leading punctuation, so `# -rf danger` yields
+    ///      `rf-danger` (safe). But a heading that slugifies to EMPTY gets
+    ///      a dedup suffix, so a document with two such headings (e.g.
+    ///      `# ---` then `# -`) produces slugs `""` and `-1`. Invoking
+    ///      `mdpal read -1 <bundle>` fails with "Missing expected argument
+    ///      '<bundle>'" — ArgumentParser consumed `-1` as an option. That
+    ///      section becomes permanently unreadable/uneditable from the app.
+    ///
+    /// Every argv below is therefore assembled via `Self.argv(_:options:
+    /// positionals:)`, which emits `<subcommand> <options...> --
+    /// <positionals...>`. Do not hand-build argv arrays with interleaved
+    /// options and positionals — that is what reintroduces the bug.
     private func runCommand<T: Decodable>(
         _ args: [String],
         stdin: Data? = nil,
@@ -182,6 +209,25 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         return try Self.decodeStdoutOrThrowParseError(T.self, from: result.stdout)
     }
 
+    /// Assemble argv in the only form that is safe against flag-confusion:
+    /// `<subcommand tokens> <options...> -- <positionals...>`.
+    ///
+    /// The `--` end-of-options separator guarantees that a positional
+    /// beginning with `-` (a slug like `-1`, see the note on `runCommand`)
+    /// is parsed as a value and not as an option. Options MUST precede the
+    /// separator; anything after `--` is positional, so a trailing
+    /// `--format json` would be swallowed as two positional arguments.
+    ///
+    /// `subcommand` carries multi-token subcommands verbatim
+    /// (e.g. `["version", "show"]`, `["revision", "create"]`).
+    private static func argv(
+        _ subcommand: [String],
+        options: [String] = [],
+        positionals: [String]
+    ) -> [String] {
+        subcommand + options + ["--"] + positionals
+    }
+
     /// Shared stdout-decode step. Both runCommand variants route success
     /// through here so a future change to the parseError wording or
     /// decoder config lands in one place.
@@ -212,7 +258,7 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     /// future `bundleInfo` call — not from this seam.
     public func listSections(bundle: BundlePath) async throws -> [SectionTreeNode] {
         let response = try await runCommand(
-            ["sections", bundle.path],
+            Self.argv(["sections"], positionals: [bundle.path]),
             as: SectionsResponse.self
         )
         return response.flattened()
@@ -230,7 +276,7 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     /// stderr falls through to `.executionFailed` as before.
     public func readSection(slug: String, bundle: BundlePath) async throws -> Section {
         try await runCommandWithEnvelope(
-            ["read", slug, bundle.path],
+            Self.argv(["read"], positionals: [slug, bundle.path]),
             as: Section.self,
             envelopeMapper: { envelope in
                 switch (envelope.error, envelope.details) {
@@ -258,7 +304,7 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     /// the decoder config was hoisted in 1B.2 specifically to handle this.
     public func listComments(bundle: BundlePath) async throws -> [Comment] {
         let response = try await runCommand(
-            ["comments", bundle.path],
+            Self.argv(["comments"], positionals: [bundle.path]),
             as: CommentsResponse.self
         )
         return response.comments
@@ -269,7 +315,7 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     /// Flag timestamps decode as Date via the shared iso8601 decoder.
     public func listFlags(bundle: BundlePath) async throws -> [Flag] {
         let response = try await runCommand(
-            ["flags", bundle.path],
+            Self.argv(["flags"], positionals: [bundle.path]),
             as: FlagsResponse.self
         )
         return response.flags
@@ -301,27 +347,30 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         versionHash: String,
         bundle: BundlePath
     ) async throws -> EditResult {
-        try await runCommandWithEnvelope(
-            ["edit", slug, "--version", versionHash, bundle.path, "--stdin"],
+        let versionConflictMapper: (CLIErrorResponse) -> CLIServiceError? = { envelope in
+            switch (envelope.error, envelope.details) {
+            case ("versionConflict",
+                  .some(.versionConflict(let s, let expected, let current, _, _))):
+                return .versionConflict(
+                    slug: s,
+                    expectedHash: expected,
+                    currentHash: current
+                )
+            default:
+                // Unrecognized tag, OR tag matches but details shape
+                // doesn't (malformed envelope fell through to .generic):
+                // let the raw stderr surface via .executionFailed so
+                // the UI still shows something diagnostic.
+                return nil
+            }
+        }
+        return try await runCommandWithEnvelope(
+            Self.argv(["edit"],
+                      options: ["--version", versionHash, "--stdin"],
+                      positionals: [slug, bundle.path]),
             stdin: Data(content.utf8),
             as: EditResult.self,
-            envelopeMapper: { envelope in
-                switch (envelope.error, envelope.details) {
-                case ("versionConflict",
-                      .some(.versionConflict(let s, let expected, let current, _, _))):
-                    return .versionConflict(
-                        slug: s,
-                        expectedHash: expected,
-                        currentHash: current
-                    )
-                default:
-                    // Unrecognized tag, OR tag matches but details shape
-                    // doesn't (malformed envelope fell through to .generic):
-                    // let the raw stderr surface via .executionFailed so
-                    // the UI still shows something diagnostic.
-                    return nil
-                }
-            }
+            envelopeMapper: Self.orElse(versionConflictMapper, Self.sizeLimitExceededMapper)
         )
     }
 
@@ -367,23 +416,22 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         priority: Priority,
         tags: [String]
     ) async throws -> Comment {
-        var args: [String] = [
-            "comment", slug, bundle.path,
+        var options: [String] = [
             "--type", type.rawValue,
             "--author", author,
         ]
         let textBytes = text.utf8.count
         let stdin: Data?
         if textBytes > Self.stdinThresholdBytes {
-            args.append("--text-stdin")
+            options.append("--text-stdin")
             stdin = Data(text.utf8)
         } else {
-            args.append(contentsOf: ["--text", text])
+            options.append(contentsOf: ["--text", text])
             stdin = nil
         }
-        args.append(contentsOf: ["--priority", priority.rawValue])
+        options.append(contentsOf: ["--priority", priority.rawValue])
         if let context {
-            args.append(contentsOf: ["--context", context])
+            options.append(contentsOf: ["--context", context])
         }
         // Per mdpal-cli #579: CLI takes repeatable `--tag <value>` (one
         // flag per tag), not a comma-separated `--tags` list. This
@@ -391,11 +439,14 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         // open. Empty strings are filtered so `tags = [""]` doesn't
         // render as `--tag ""`.
         for tag in tags where !tag.isEmpty {
-            args.append(contentsOf: ["--tag", tag])
+            options.append(contentsOf: ["--tag", tag])
         }
         return try await runCommandWithEnvelope(
-            args, stdin: stdin,
-            as: Comment.self, envelopeMapper: Self.sectionNotFoundMapper
+            Self.argv(["comment"], options: options,
+                      positionals: [slug, bundle.path]),
+            stdin: stdin,
+            as: Comment.self,
+            envelopeMapper: Self.orElse(Self.sectionNotFoundMapper, Self.sizeLimitExceededMapper)
         )
     }
 
@@ -417,27 +468,30 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         response: String,
         by: String
     ) async throws -> ResolveResult {
-        var args = ["resolve", commentId, bundle.path]
+        var options: [String] = []
         let respBytes = response.utf8.count
         let stdin: Data?
         if respBytes > Self.stdinThresholdBytes {
-            args.append("--response-stdin")
+            options.append("--response-stdin")
             stdin = Data(response.utf8)
         } else {
-            args.append(contentsOf: ["--response", response])
+            options.append(contentsOf: ["--response", response])
             stdin = nil
         }
-        args.append(contentsOf: ["--by", by])
-        return try await runCommandWithEnvelope(
-            args, stdin: stdin, as: ResolveResult.self,
-            envelopeMapper: { envelope in
-                switch (envelope.error, envelope.details) {
-                case ("commentNotFound", .some(.commentNotFound(let id))):
-                    return .commentNotFound(commentId: id)
-                default:
-                    return nil
-                }
+        options.append(contentsOf: ["--by", by])
+        let commentNotFoundMapper: (CLIErrorResponse) -> CLIServiceError? = { envelope in
+            switch (envelope.error, envelope.details) {
+            case ("commentNotFound", .some(.commentNotFound(let id))):
+                return .commentNotFound(commentId: id)
+            default:
+                return nil
             }
+        }
+        return try await runCommandWithEnvelope(
+            Self.argv(["resolve"], options: options,
+                      positionals: [commentId, bundle.path]),
+            stdin: stdin, as: ResolveResult.self,
+            envelopeMapper: Self.orElse(commentNotFoundMapper, Self.sizeLimitExceededMapper)
         )
     }
 
@@ -450,19 +504,21 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         author: String,
         note: String?
     ) async throws -> FlagResult {
-        var args = ["flag", slug, bundle.path, "--author", author]
+        var options = ["--author", author]
         if let note {
-            args.append(contentsOf: ["--note", note])
+            options.append(contentsOf: ["--note", note])
         }
         return try await runCommandWithEnvelope(
-            args, as: FlagResult.self, envelopeMapper: Self.sectionNotFoundMapper
+            Self.argv(["flag"], options: options,
+                      positionals: [slug, bundle.path]),
+            as: FlagResult.self, envelopeMapper: Self.sectionNotFoundMapper
         )
     }
 
     /// Maps to `mdpal clear-flag <slug> <bundle>`.
     public func clearFlag(slug: String, bundle: BundlePath) async throws -> ClearFlagResult {
         try await runCommandWithEnvelope(
-            ["clear-flag", slug, bundle.path],
+            Self.argv(["clear-flag"], positionals: [slug, bundle.path]),
             as: ClearFlagResult.self,
             envelopeMapper: Self.sectionNotFoundMapper
         )
@@ -473,6 +529,13 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     /// Maps `bundleConflict` envelopes to typed `.bundleConflict`. Shared
     /// by revision-creation (the only 1C command that emits it in dispatch
     /// #23's spec; extend when more consumers land).
+    ///
+    /// Phase 2.1 (dispatch #616): bundleConflict details may be null for
+    /// non-stale-base conflict classes. Null-details envelopes decode to
+    /// `.generic` at the envelope layer and so do NOT reach the typed
+    /// pattern here — they fall through to `.executionFailed` with the
+    /// raw stderr. That's acceptable: null-details bundleConflicts don't
+    /// carry revision info the UI could act on specifically.
     private static let bundleConflictMapper: (CLIErrorResponse) -> CLIServiceError? = { envelope in
         switch (envelope.error, envelope.details) {
         case ("bundleConflict", .some(.bundleConflict(let base, let current))):
@@ -480,6 +543,61 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         default:
             return nil
         }
+    }
+
+    /// Maps envelopes with structured user-actionable details that any
+    /// service method may encounter. Phase 2 phase-complete QG (F-1):
+    /// extended to cover `fileNotFound` and `invalidArgument` in addition
+    /// to the size-limit envelopes, so typed cases that have dedicated
+    /// AlertContent mappings are actually reachable from service calls
+    /// (not dead).
+    ///
+    /// Both `fileNotFound` (bundle/file missing) and `invalidArgument`
+    /// (wrong argv shape; typically an app bug) can plausibly surface
+    /// from any method that takes a bundle path — the CLI validates the
+    /// path before running the command.
+    ///
+    /// Kept called `sizeLimitExceededMapper` for historical continuity,
+    /// but the scope is now "path/arg/size errors shared across methods."
+    /// Consider rename in a future refactor.
+    private static let sizeLimitExceededMapper: (CLIErrorResponse) -> CLIServiceError? = { envelope in
+        switch (envelope.error, envelope.details) {
+        case ("payloadTooLarge", .some(.payloadTooLarge(let maxBytes))):
+            return .payloadTooLarge(maxBytes: maxBytes)
+        case ("payloadTooLarge", _):
+            // Envelope had the discriminator but no typed details — still
+            // route to the typed case so the UI shows the helpful size
+            // message, just without the byte count.
+            return .payloadTooLarge(maxBytes: nil)
+        case ("fileTooLarge", .some(.fileTooLarge(let path, let size, let limit))):
+            return .fileTooLarge(path: path, sizeBytes: size, limitBytes: limit)
+        case ("fileTooLarge", _):
+            return .fileTooLarge(path: nil, sizeBytes: nil, limitBytes: nil)
+        // Phase 2 phase-complete QG (F-1): wire fileNotFound + invalidArgument
+        // so their typed cases are reachable. Fallback to path/desc-nil
+        // variants when envelope carries bare discriminator.
+        case ("fileNotFound", .some(.fileNotFound(let path))):
+            return .fileNotFound(path: path ?? "<unknown>")
+        case ("fileNotFound", _):
+            return .fileNotFound(path: "<unknown>")
+        case ("invalidArgument", .some(.invalidArgument(let desc))):
+            return .invalidArgument(description: desc ?? "(no detail)")
+        case ("invalidArgument", _):
+            return .invalidArgument(description: "(no detail)")
+        default:
+            return nil
+        }
+    }
+
+    /// Compose two envelope mappers: try `primary` first, fall back to
+    /// `fallback` if primary returns nil. Lets each method pick the
+    /// discriminator(s) it cares about AND tack on the shared size-limit
+    /// mapping without duplicating switch cases.
+    private static func orElse(
+        _ primary: @escaping (CLIErrorResponse) -> CLIServiceError?,
+        _ fallback: @escaping (CLIErrorResponse) -> CLIServiceError?
+    ) -> (CLIErrorResponse) -> CLIServiceError? {
+        { envelope in primary(envelope) ?? fallback(envelope) }
     }
 
     /// Maps to `mdpal revision create <bundle> --stdin [--base-revision <versionId>]`.
@@ -491,15 +609,16 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
         content: String,
         baseRevision: String?
     ) async throws -> RevisionInfo {
-        var args = ["revision", "create", bundle.path, "--stdin"]
+        var options = ["--stdin"]
         if let baseRevision {
-            args.append(contentsOf: ["--base-revision", baseRevision])
+            options.append(contentsOf: ["--base-revision", baseRevision])
         }
         return try await runCommandWithEnvelope(
-            args,
+            Self.argv(["revision", "create"], options: options,
+                      positionals: [bundle.path]),
             stdin: Data(content.utf8),
             as: RevisionInfo.self,
-            envelopeMapper: Self.bundleConflictMapper
+            envelopeMapper: Self.orElse(Self.bundleConflictMapper, Self.sizeLimitExceededMapper)
         )
     }
 
@@ -509,7 +628,7 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     /// the UI needs them later we can expose via a sibling method.
     public func listHistory(bundle: BundlePath) async throws -> [RevisionInfo] {
         let response = try await runCommand(
-            ["history", bundle.path],
+            Self.argv(["history"], positionals: [bundle.path]),
             as: HistoryResponse.self
         )
         return response.revisions
@@ -518,7 +637,7 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     /// Maps to `mdpal version show <bundle>`.
     public func showVersion(bundle: BundlePath) async throws -> VersionInfo {
         try await runCommand(
-            ["version", "show", bundle.path],
+            Self.argv(["version", "show"], positionals: [bundle.path]),
             as: VersionInfo.self
         )
     }
@@ -527,7 +646,7 @@ public final class RealCLIService: CLIServiceProtocol, Sendable {
     /// version and the previous one for UX feedback.
     public func bumpVersion(bundle: BundlePath) async throws -> VersionBumpResult {
         try await runCommand(
-            ["version", "bump", bundle.path],
+            Self.argv(["version", "bump"], positionals: [bundle.path]),
             as: VersionBumpResult.self
         )
     }

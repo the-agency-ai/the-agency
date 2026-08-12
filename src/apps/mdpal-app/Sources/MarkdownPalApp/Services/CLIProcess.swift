@@ -107,6 +107,72 @@ public struct ProcessResult: Sendable, Equatable {
     }
 }
 
+/// Phase 2.5: thread-safe handle to a `Process` that a cancellation
+/// closure can reach to send SIGTERM. Independent of `runBlocking`'s
+/// drain-side `NSLock` — `onCancel` runs on arbitrary threads and must
+/// not block on drain-side locks; a dedicated small lock avoids that
+/// deadlock class.
+///
+/// Lifecycle:
+///   1. `set(process)` before `process.run()` — cancellation that arrives
+///      during spawn terminates as soon as the kernel hands us a pid.
+///   2. `terminateIfRunning()` from `onCancel` — no-op if set() hasn't
+///      fired yet (spawn failure, or cancel-before-spawn).
+///   3. `clear()` in `defer` at end of `runBlocking` — prevents a post-exit
+///      terminate() on a dead Process.
+///
+/// `@unchecked Sendable` is acceptable here: internal state is guarded by
+/// `lock`, and we never publish the process outside these three entry
+/// points.
+final class ProcessHolder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var process: Process?
+    private var cancelled: Bool = false
+
+    func set(_ process: Process) {
+        lock.lock()
+        self.process = process
+        lock.unlock()
+    }
+
+    func clear() {
+        lock.lock()
+        self.process = nil
+        lock.unlock()
+    }
+
+    /// Whether onCancel has fired. Cleared never — this is a one-way flag
+    /// per ProcessHolder instance (one flag per CLI invocation).
+    /// Runner's runBlocking checks this before spawning to short-circuit
+    /// cancel-before-spawn races.
+    var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return cancelled
+    }
+
+    /// Handle cancellation — sets the flag AND sends SIGTERM if a process
+    /// is set. Both steps are needed:
+    /// - The flag closes the cancel-before-spawn race (F-Cd-1): runBlocking
+    ///   checks it and short-circuits without spawning.
+    /// - terminate() handles the spawned-and-running case: SIGTERM interrupts
+    ///   the child so waitUntilExit returns promptly.
+    ///
+    /// Phase 2.5 QG fix (F-Cd-2): no `isRunning` guard. `Process.terminate()`
+    /// on Darwin safely handles not-yet-run and already-exited Processes
+    /// (no throw, no crash; best-effort SIGTERM dispatch).
+    func handleCancellation() {
+        lock.lock()
+        cancelled = true
+        let p = self.process
+        lock.unlock()
+        // Call terminate() without holding the lock: Process.terminate()
+        // can block briefly on kernel syscall, and holding the lock would
+        // stall a concurrent `set`/`clear` from runBlocking's defer.
+        p?.terminate()
+    }
+}
+
 /// The substitutable seam. Production uses `DefaultProcessRunner`; tests
 /// inject a fake to drive scripted outcomes.
 public protocol ProcessRunner: Sendable {
@@ -134,18 +200,61 @@ public struct DefaultProcessRunner: ProcessRunner {
         // Run the synchronous Process work off the cooperative pool. waitUntilExit
         // and the drain wait both block; doing them on a Swift concurrency thread
         // would starve the pool. DispatchQueue.global gives us a dedicated worker.
+        //
+        // Phase 2.5 — task cancellation → SIGTERM (A&D §10.6):
+        // - withTaskCancellationHandler wraps the continuation.
+        // - On cancel, `onCancel` closure calls process.terminate() on the
+        //   shared ProcessHolder — sends SIGTERM. The child's natural exit
+        //   flows through the drain + waitUntilExit path as usual.
+        // - Observation budget: SIGTERM-to-exit expected within 500ms for
+        //   well-behaved children (tested at the real-process level).
+        // - **V1 policy (QG 2.5 F-Dt-1):** no 2s-backstop timer. If the child
+        //   ignores SIGTERM indefinitely, waitUntilExit blocks the dispatch
+        //   queue worker. A&D §10.6 names 2s as an informal upper bound; V1
+        //   accepts that mdpal-cli is trusted and well-behaved (never
+        //   ignores SIGTERM) — an adversarial child would require XPC
+        //   sandboxing + OS-level enforcement (Phase 3 sandbox work). The
+        //   decision is comment-only discipline: no code path exists that
+        //   promotes SIGTERM → SIGKILL in V1.
+        // - Lock discipline: ProcessHolder's lock is independent of the
+        //   drain loop's NSLock (drainLock, named in QG 2.5 F-Dt-3).
+        //   `onCancel` runs on an arbitrary thread and must not block
+        //   waiting for drainLock — it just reads the Process handle and
+        //   calls terminate().
+        // - If the Task is cancelled, we throw CLIServiceError.cancelled
+        //   AFTER the continuation resumes (so pipes drain + handles close),
+        //   not mid-flight. The partial bytes are discarded per A&D §10.6.
+        // - ProcessHolder is `@unchecked Sendable` class + NSLock rather
+        //   than `actor` because `onCancel: () -> Void` is NOT async and
+        //   cannot `await`. See ProcessHolder's class-header comment.
         let cap = maxOutputBytes
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                Self.runBlocking(executable: executable, args: args,
-                                 stdin: stdin, maxBytes: cap,
-                                 continuation: continuation)
+        let processHolder = ProcessHolder()
+
+        let result = try await withTaskCancellationHandler(operation: {
+            try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    Self.runBlocking(executable: executable, args: args,
+                                     stdin: stdin, maxBytes: cap,
+                                     holder: processHolder,
+                                     continuation: continuation)
+                }
             }
+        }, onCancel: {
+            // Arbitrary thread — must be brief + lock-disciplined.
+            // Both sets the cancel flag (closes cancel-before-spawn race
+            // via runBlocking's early check) AND sends SIGTERM to any
+            // already-spawned child.
+            processHolder.handleCancellation()
+        })
+
+        // Post-resume cancellation check. If Task was cancelled while the
+        // child was running, the child received SIGTERM (via onCancel),
+        // drains completed, result came through. Surface as .cancelled
+        // rather than the raw exit code from the signal.
+        if Task.isCancelled {
+            throw CLIServiceError.cancelled
         }
-        // NOTE: Task cancellation does not currently terminate the child
-        // process. Adding that requires threading a Process handle into a
-        // withTaskCancellationHandler onCancel closure; deferred to a later
-        // 1B iteration when the first cancellable command surfaces.
+        return result
     }
 
     private static func runBlocking(
@@ -153,11 +262,57 @@ public struct DefaultProcessRunner: ProcessRunner {
         args: [String],
         stdin: Data?,
         maxBytes: Int,
+        holder: ProcessHolder,
         continuation: CheckedContinuation<ProcessResult, Error>
     ) {
+        // Phase 2.5 QG fix (F-Cd-1): check holder.isCancelled before spawn.
+        // If onCancel has already fired (cancel-before-spawn race), skip
+        // the fork+exec entirely — spawning a child we're about to SIGTERM
+        // is wasted wall clock.
+        //
+        // Phase 2 phase-complete QG (F-2): throw CLIServiceError.cancelled
+        // into the continuation rather than return an empty-success
+        // ProcessResult. Cleaner lifecycle: "cancelled means cancelled",
+        // not "exit 0 with empty output." Eliminates a fragile dependency
+        // on run()'s post-resume Task.isCancelled still being true at
+        // resume time.
+        //
+        // Why holder.isCancelled instead of Task.isCancelled: the
+        // DispatchQueue worker is NOT an async context, so Task.isCancelled
+        // would read from whatever detached task runs the worker (nil),
+        // not the outer async Task. The holder flag is explicitly set by
+        // onCancel from the Task's cancellation context and is visible
+        // here via lock-guarded read.
+        if holder.isCancelled {
+            continuation.resume(throwing: CLIServiceError.cancelled)
+            return
+        }
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = args
+        // Phase 2.5: register with the holder BEFORE process.run() so a
+        // cancellation that arrives during spawn can terminate as soon as
+        // the kernel hands us a pid. Register-then-clear pattern ensures
+        // the holder never points at a dead process after waitUntilExit.
+        holder.set(process)
+        defer { holder.clear() }
+
+        // pr-prep QG (re-prep vs v46.30): close the check-then-set race.
+        // `onCancel` fires exactly once. If cancellation lands in the
+        // window between the `holder.isCancelled` check above and
+        // `holder.set(process)` on the line above, handleCancellation()
+        // read a nil process, so its `terminate()` was a no-op — and it
+        // will never fire again for this call. Without this re-check the
+        // child is spawned and runs to completion (including its on-disk
+        // side effects, e.g. `revision create`) before the caller
+        // discards the result. Re-reading the flag after registration
+        // makes the window empty: either onCancel saw our process and
+        // terminated it, or we see the flag here and never spawn.
+        if holder.isCancelled {
+            continuation.resume(throwing: CLIServiceError.cancelled)
+            return
+        }
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
@@ -182,7 +337,10 @@ public struct DefaultProcessRunner: ProcessRunner {
         // happens-before via the dispatch_group leave/wait barrier). The
         // explicit lock below is belt-and-suspenders against future refactors
         // that might read these vars before the wait completes.
-        let lock = NSLock()
+        //
+        // Phase 2.5 QG fix (F-Dt-3): named `drainLock` to distinguish from
+        // ProcessHolder's independent cancellation lock.
+        let drainLock = NSLock()
         var stdoutData = Data()
         var stderrData = Data()
         var stdoutTruncated = false
@@ -227,10 +385,10 @@ public struct DefaultProcessRunner: ProcessRunner {
             var truncated = false
             drain(from: stdoutPipe.fileHandleForReading,
                   into: &local, maxBytes: maxBytes, truncated: &truncated)
-            lock.lock()
+            drainLock.lock()
             stdoutData = local
             stdoutTruncated = truncated
-            lock.unlock()
+            drainLock.unlock()
             drainGroup.leave()
         }
         drainGroup.enter()
@@ -239,19 +397,23 @@ public struct DefaultProcessRunner: ProcessRunner {
             var truncated = false
             drain(from: stderrPipe.fileHandleForReading,
                   into: &local, maxBytes: maxBytes, truncated: &truncated)
-            lock.lock()
+            drainLock.lock()
             stderrData = local
             stderrTruncated = truncated
-            lock.unlock()
+            drainLock.unlock()
             drainGroup.leave()
         }
 
         do {
             try process.run()
         } catch {
+            // The executable path can contain the account name; it reaches
+            // an alert body, so give it the same sanitize+cap treatment
+            // every other CLI-sourced string gets before display.
             continuation.resume(throwing: CLIServiceError.executionFailed(
                 exitCode: -1,
-                stderr: "Failed to launch \(executable): \(error.localizedDescription)"
+                stderr: ProcessResult.sanitizeForUI(
+                    "Failed to launch \(executable): \(error.localizedDescription)")
             ))
             return
         }
@@ -273,12 +435,12 @@ public struct DefaultProcessRunner: ProcessRunner {
         process.waitUntilExit()
         drainGroup.wait()
 
-        lock.lock()
+        drainLock.lock()
         let outData = stdoutData
         var errData = stderrData
         let outTrunc = stdoutTruncated
         let errTrunc = stderrTruncated
-        lock.unlock()
+        drainLock.unlock()
         if let stdinError {
             errData.append(Data("\n[CLIProcess] \(stdinError)\n".utf8))
         }
@@ -347,8 +509,13 @@ public enum CLIBinaryResolver {
         }
 
         // 2. PATH lookup.
+        // Only absolute PATH entries are honored. A relative entry (or the
+        // empty-string entry that a trailing/doubled ':' produces, which
+        // POSIX reads as "."), resolves against whatever directory the app
+        // happens to be running in — an attacker who can drop a file named
+        // `mdpal` into the user's working directory would get it executed.
         let pathEntries = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
-        for entry in pathEntries where !entry.isEmpty {
+        for entry in pathEntries where entry.hasPrefix("/") {
             let candidate = (entry as NSString).appendingPathComponent("mdpal")
             if isExecutable(candidate, fileManager: fileManager) {
                 return candidate

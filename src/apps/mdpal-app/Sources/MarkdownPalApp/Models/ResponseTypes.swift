@@ -10,6 +10,13 @@
 // structured error output from stderr with typed details per error kind.
 //
 // Written: 2026-04-06 Phase 1A model alignment (CLI JSON spec dispatch #23)
+// Updated: 2026-04-19 Phase 2.1 — 18 canonical error discriminators
+//          (parseError, metadataError, fileError, fileNotFound,
+//          invalidArgument, commentAlreadyResolved, sectionNotFlagged,
+//          unsupportedFormat, noFilePath, invalidBundlePath,
+//          invalidEncoding, stdinIsTTY, payloadTooLarge, fileTooLarge)
+//          per dispatches #616 + #635; HistoryResponse.currentVersion is
+//          now Int? (empty bundle emits null).
 
 import Foundation
 
@@ -108,12 +115,17 @@ public struct RevisionInfo: Codable, Hashable {
 }
 
 /// Wrapper for `mdpal history <bundle>`. Service unwraps to the array.
+///
+/// Phase 2.1 update (dispatch #616): `currentVersion` is nullable. The
+/// CLI emits `null` for empty bundles (no revisions) — Phase 1C's
+/// non-optional `Int` crashed on that shape. Nullable surfaces through
+/// the `DocumentModel.currentVersion` optional already in place.
 public struct HistoryResponse: Codable {
     public let revisions: [RevisionInfo]
     public let count: Int
-    public let currentVersion: Int
+    public let currentVersion: Int?
 
-    public init(revisions: [RevisionInfo], count: Int, currentVersion: Int) {
+    public init(revisions: [RevisionInfo], count: Int, currentVersion: Int?) {
         self.revisions = revisions
         self.count = count
         self.currentVersion = currentVersion
@@ -277,12 +289,46 @@ extension CLIErrorResponse: Decodable {
 /// Decoded by `CLIErrorResponse.init(from:)` using the outer `error` tag
 /// as the discriminator. Not `Codable` on its own — the envelope owns
 /// the discriminator so there's no ambiguity about where `type` lives.
+///
+/// Phase 2.1 (dispatches #616 + #635): 18 canonical discriminators.
+/// Cases without structured detail fields decode as tagged markers
+/// (empty payloads); cases WITH structured fields decode their typed
+/// associated values; anything unknown falls through to `.generic`.
 public enum CLIErrorDetails: Hashable {
+
+    // Phase 1 (4 typed cases):
     case sectionNotFound(slug: String, availableSlugs: [String])
     case commentNotFound(commentId: String)
     case versionConflict(slug: String, expectedHash: String, currentHash: String,
                          currentContent: String, versionId: String)
+    /// Phase 2.1: per dispatch #616, the envelope's `details` may be null
+    /// for non-stale-base conflict classes. When both `baseRevision` and
+    /// `currentRevision` are present, this typed case decodes; otherwise
+    /// the envelope falls through to `.generic` at the details layer.
+    /// The envelope's top-level `error: "bundleConflict"` string + the
+    /// `message` remain available to the UI regardless.
     case bundleConflict(baseRevision: String, currentRevision: String)
+
+    // Phase 2.1 additions (dispatches #616 + #635) — 14 new discriminators:
+    case parseError(description: String?, line: Int?, column: Int?)
+    case metadataError(description: String?)
+    case fileError(path: String?, description: String?)
+    case fileNotFound(path: String?)
+    case invalidArgument(description: String?)
+    case commentAlreadyResolved(commentId: String?)
+    case sectionNotFlagged(slug: String?)
+    case unsupportedFormat(fileExtension: String?)
+    case noFilePath
+    case invalidBundlePath(path: String?, reason: String?)
+    case invalidEncoding(description: String?)
+    case stdinIsTTY
+    /// Dispatch #616: stdin exceeds 16 MiB cap on comment/resolve/edit/
+    /// revision-create. Emitted with exit code 5 (`sizeLimitExceeded`).
+    case payloadTooLarge(maxBytes: Int?)
+    /// Dispatch #635: on-disk file exceeds size cap. Emitted with exit
+    /// code 5 (`sizeLimitExceeded`).
+    case fileTooLarge(path: String?, sizeBytes: Int?, limitBytes: Int?)
+
     /// Catch-all for error kinds the app doesn't have typed decoding for
     /// yet (forward-compat) or envelopes with non-string detail values.
     case generic([String: String])
@@ -292,7 +338,8 @@ public enum CLIErrorDetails: Hashable {
     fileprivate enum DetailsKeys: String, CodingKey {
         case slug, availableSlugs, expectedHash, currentHash
         case currentContent, versionId, baseRevision, currentRevision
-        case commentId
+        case commentId, description, line, column, path, reason
+        case `extension`, maxBytes, sizeBytes, limitBytes
     }
 
     /// Decode the details payload into a typed case when the discriminator
@@ -333,11 +380,89 @@ public enum CLIErrorDetails: Hashable {
             }
 
         case "bundleConflict":
+            // Typed case only when BOTH baseRevision + currentRevision are
+            // present. Null or missing details → fall through to .generic
+            // (top-level `error: "bundleConflict"` + message still available
+            // to the UI for non-stale-base conflict classes per dispatch #616).
             if let c = try? decoder.container(keyedBy: DetailsKeys.self),
                let base = try? c.decode(String.self, forKey: .baseRevision),
                let current = try? c.decode(String.self, forKey: .currentRevision) {
                 return .bundleConflict(baseRevision: base, currentRevision: current)
             }
+
+        case "parseError":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let desc = try? c?.decodeIfPresent(String.self, forKey: .description)
+            let line = try? c?.decodeIfPresent(Int.self, forKey: .line)
+            let column = try? c?.decodeIfPresent(Int.self, forKey: .column)
+            return .parseError(description: desc ?? nil, line: line ?? nil,
+                               column: column ?? nil)
+
+        case "metadataError":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let desc = try? c?.decodeIfPresent(String.self, forKey: .description)
+            return .metadataError(description: desc ?? nil)
+
+        case "fileError":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let path = try? c?.decodeIfPresent(String.self, forKey: .path)
+            let desc = try? c?.decodeIfPresent(String.self, forKey: .description)
+            return .fileError(path: path ?? nil, description: desc ?? nil)
+
+        case "fileNotFound":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let path = try? c?.decodeIfPresent(String.self, forKey: .path)
+            return .fileNotFound(path: path ?? nil)
+
+        case "invalidArgument":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let desc = try? c?.decodeIfPresent(String.self, forKey: .description)
+            return .invalidArgument(description: desc ?? nil)
+
+        case "commentAlreadyResolved":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let cid = try? c?.decodeIfPresent(String.self, forKey: .commentId)
+            return .commentAlreadyResolved(commentId: cid ?? nil)
+
+        case "sectionNotFlagged":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let slug = try? c?.decodeIfPresent(String.self, forKey: .slug)
+            return .sectionNotFlagged(slug: slug ?? nil)
+
+        case "unsupportedFormat":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let ext = try? c?.decodeIfPresent(String.self, forKey: .extension)
+            return .unsupportedFormat(fileExtension: ext ?? nil)
+
+        case "noFilePath":
+            return .noFilePath
+
+        case "invalidBundlePath":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let path = try? c?.decodeIfPresent(String.self, forKey: .path)
+            let reason = try? c?.decodeIfPresent(String.self, forKey: .reason)
+            return .invalidBundlePath(path: path ?? nil, reason: reason ?? nil)
+
+        case "invalidEncoding":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let desc = try? c?.decodeIfPresent(String.self, forKey: .description)
+            return .invalidEncoding(description: desc ?? nil)
+
+        case "stdinIsTTY":
+            return .stdinIsTTY
+
+        case "payloadTooLarge":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let max = try? c?.decodeIfPresent(Int.self, forKey: .maxBytes)
+            return .payloadTooLarge(maxBytes: max ?? nil)
+
+        case "fileTooLarge":
+            let c = try? decoder.container(keyedBy: DetailsKeys.self)
+            let path = try? c?.decodeIfPresent(String.self, forKey: .path)
+            let size = try? c?.decodeIfPresent(Int.self, forKey: .sizeBytes)
+            let limit = try? c?.decodeIfPresent(Int.self, forKey: .limitBytes)
+            return .fileTooLarge(path: path ?? nil, sizeBytes: size ?? nil,
+                                 limitBytes: limit ?? nil)
 
         default:
             break // falls through to .generic below
