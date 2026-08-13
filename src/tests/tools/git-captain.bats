@@ -18,6 +18,8 @@ setup() {
     git config user.email "test@example.com"
     git config user.name "Test User"
     git config commit.gpgsign false
+    # Non-interactive: cherry-pick --continue must not open an editor.
+    export GIT_EDITOR=true
 
     mkdir -p agency/tools/lib
     cp "${REPO_ROOT}/agency/tools/git-captain" agency/tools/git-captain
@@ -54,6 +56,24 @@ make_feature_branch() {
     git add feature.txt
     git commit -q -m "feature commit on $name"
     git checkout -q main
+}
+
+# Helper: two branches (branch-a, branch-b) that change the SAME line of
+# conflict.txt differently, so merging/cherry-picking one onto the other
+# conflicts. Leaves us checked out on branch-b.
+make_conflicting_branches() {
+    echo "base line" > conflict.txt
+    git add conflict.txt
+    git commit -q -m "add conflict.txt"
+    git checkout -q -b branch-a
+    echo "branch-a line" > conflict.txt
+    git add conflict.txt
+    git commit -q -m "a changes conflict.txt"
+    git checkout -q main
+    git checkout -q -b branch-b
+    echo "branch-b line" > conflict.txt
+    git add conflict.txt
+    git commit -q -m "b changes conflict.txt"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -750,4 +770,85 @@ make_feature_branch() {
     assert_success
     assert_output_contains "cherry-pick <commit>"
     assert_output_contains "merge <branch>"
+}
+
+@test "merge: refuses on detached HEAD" {
+    cd "${BATS_TEST_TMPDIR}"
+    make_feature_branch source-feat
+    git checkout -q --detach HEAD
+    run ./agency/tools/git-captain merge source-feat
+    assert_failure
+    assert_output_contains "detached HEAD"
+}
+
+@test "merge: conflict leaves a recoverable state and points at merge-continue" {
+    cd "${BATS_TEST_TMPDIR}"
+    make_conflicting_branches                 # on branch-b
+    run ./agency/tools/git-captain merge branch-a
+    assert_failure
+    assert_output_contains "merge-continue"
+    [ -f .git/MERGE_HEAD ]                     # recoverable: merge in progress
+}
+
+@test "cherry-pick: applies multiple commits in order" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b source-feat
+    echo one > one.txt; git add one.txt; git commit -q -m "one"
+    local sha1; sha1=$(git rev-parse HEAD)
+    echo two > two.txt; git add two.txt; git commit -q -m "two"
+    local sha2; sha2=$(git rev-parse HEAD)
+    git checkout -q main
+    git checkout -q -b target-feat
+    run ./agency/tools/git-captain cherry-pick "$sha1" "$sha2"
+    assert_success
+    [ -f one.txt ]
+    [ -f two.txt ]
+}
+
+@test "cherry-pick: refuses on detached HEAD" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b source-feat
+    echo x > x.txt; git add x.txt; git commit -q -m "c"
+    local sha; sha=$(git rev-parse HEAD)
+    git checkout -q --detach HEAD
+    run ./agency/tools/git-captain cherry-pick "$sha"
+    assert_failure
+    assert_output_contains "detached HEAD"
+}
+
+@test "cherry-pick: conflict leaves a recoverable state and points at --continue" {
+    cd "${BATS_TEST_TMPDIR}"
+    make_conflicting_branches                 # on branch-b
+    local sha; sha=$(git rev-parse branch-a)
+    run ./agency/tools/git-captain cherry-pick "$sha"
+    assert_failure
+    assert_output_contains "cherry-pick --continue"
+    [ -f .git/CHERRY_PICK_HEAD ]
+}
+
+@test "cherry-pick: --continue completes after conflict resolution" {
+    cd "${BATS_TEST_TMPDIR}"
+    make_conflicting_branches                 # on branch-b
+    local sha; sha=$(git rev-parse branch-a)
+    ./agency/tools/git-captain cherry-pick "$sha" || true   # conflicts
+    echo "resolved" > conflict.txt
+    git add conflict.txt
+    run ./agency/tools/git-captain cherry-pick --continue
+    assert_success
+    assert_output_contains "continued"
+    [ ! -f .git/CHERRY_PICK_HEAD ]
+}
+
+@test "cherry-pick: --abort restores the pre-cherry-pick state" {
+    cd "${BATS_TEST_TMPDIR}"
+    make_conflicting_branches                 # on branch-b
+    local before; before=$(git rev-parse HEAD)
+    local sha; sha=$(git rev-parse branch-a)
+    ./agency/tools/git-captain cherry-pick "$sha" || true   # conflicts
+    run ./agency/tools/git-captain cherry-pick --abort
+    assert_success
+    [ ! -f .git/CHERRY_PICK_HEAD ]
+    [ "$(git rev-parse HEAD)" = "$before" ]   # HEAD restored
+    run cat conflict.txt
+    assert_output_contains "branch-b line"    # working tree restored
 }
