@@ -6,7 +6,7 @@ when_to_use: "Capturing the narrative thread of a session as work happens — de
 argument-hint: "[entry text | -c <category> <text> | read [YYYYMMDD] | list | path]"
 paths: []
 required_reading:
-  - agency/REFERENCE-AGENT-DISCIPLINE.md
+  - agency/REFERENCE/REFERENCE-AGENT-DISCIPLINE.md
 ---
 
 <!--
@@ -38,7 +38,7 @@ The richer the log, the more useful the mining. Log proactively; don't batch.
 
 Before running, Read the files listed in `required_reading:` frontmatter.
 
-- `agency/REFERENCE-AGENT-DISCIPLINE.md` — Two Priorities + Over/Over-and-out. The log is a working-session practice; it sits inside the agent-discipline frame.
+- `agency/REFERENCE/REFERENCE-AGENT-DISCIPLINE.md` — Two Priorities + Over/Over-and-out. The log is a working-session practice; it sits inside the agent-discipline frame.
 
 ## Usage
 
@@ -115,7 +115,7 @@ The log is a **side-channel** practice — it never blocks the work. Capture the
 - **Read for a day with no entries**: tool reports "no log for that day" and exits non-zero. Confirm the date or use `list` to see what exists.
 - **Entry text contains shell metacharacters**: quote the argument so the shell passes it intact. Unquoted entries with `&`, `|`, `;`, or `*` will lose content.
 - **Wrong category**: log is append-only — there is no edit-in-place. File a new entry with a correction note, or leave it and move on (the mining step handles noise).
-- **Tool output suggests a bug**: do not fix it here — report it via `/flag` or `/agency-issue` per `agency/REFERENCE-AGENT-DISCIPLINE.md`.
+- **Tool output suggests a bug**: do not fix it here — report it via `/flag` or `/agency-issue` per `agency/REFERENCE/REFERENCE-AGENT-DISCIPLINE.md`.
 
 ## What this does NOT do
 

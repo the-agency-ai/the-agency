@@ -7,9 +7,9 @@ argument-hint: "--scope \"one-line PR summary\" [--priority normal|high]"
 paths:
   - .claude/worktrees/**
 required_reading:
-  - claude/REFERENCE-CODE-REVIEW-LIFECYCLE.md
-  - claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md
-  - claude/REFERENCE-ISCP-PROTOCOL.md
+  - agency/REFERENCE/REFERENCE-CODE-REVIEW-LIFECYCLE.md
+  - agency/REFERENCE/REFERENCE-RECEIPT-INFRASTRUCTURE.md
+  - agency/REFERENCE/REFERENCE-ISCP-PROTOCOL.md
 ---
 
 <!--

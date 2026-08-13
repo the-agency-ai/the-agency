@@ -121,6 +121,6 @@ have to read the same history.
 
 - Tool: `agency/tools/pr-merge`
 - Hookify: `agency/hookify/hookify.block-raw-gh-pr-merge.md` (blocks bare `gh pr merge`)
-- Discipline: `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`
+- Discipline: `agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md`
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

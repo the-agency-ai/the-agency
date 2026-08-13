@@ -6,10 +6,10 @@ when_to_use: Captain on master in main checkout, after a /pr-submit dispatch fro
 argument-hint: "<agent-branch> [--rehearse] [--dry-run] [--title \"...\"] [--agent <name>] [--no-release] [--principal-approved] [--allow-unvalidated]"
 paths: []
 required_reading:
-  - agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md
-  - agency/REFERENCE-RECEIPT-INFRASTRUCTURE.md
-  - agency/REFERENCE-GIT-MERGE-NOT-REBASE.md
-  - agency/REFERENCE-SAFE-TOOLS.md
+  - agency/REFERENCE/REFERENCE-CODE-REVIEW-LIFECYCLE.md
+  - agency/REFERENCE/REFERENCE-RECEIPT-INFRASTRUCTURE.md
+  - agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md
+  - agency/REFERENCE/REFERENCE-SAFE-TOOLS.md
 ---
 
 <!--

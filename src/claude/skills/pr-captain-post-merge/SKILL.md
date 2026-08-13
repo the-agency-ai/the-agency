@@ -6,9 +6,9 @@ when_to_use: Captain on master in main checkout, immediately after a PR has merg
 argument-hint: "<pr-number>"
 paths: []
 required_reading:
-  - agency/REFERENCE-GIT-MERGE-NOT-REBASE.md
-  - agency/REFERENCE-WORKTREE-DISCIPLINE.md
-  - agency/REFERENCE-SAFE-TOOLS.md
+  - agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md
+  - agency/REFERENCE/REFERENCE-WORKTREE-DISCIPLINE.md
+  - agency/REFERENCE/REFERENCE-SAFE-TOOLS.md
 ---
 
 <!--
@@ -202,7 +202,7 @@ Post-merge complete:
 - `/release` (TBD refactored to `/captain-release`) — alternate entry point that runs /pr-captain-merge + this skill in one flow
 - `agency/tools/gh-release` — the release-creation tool
 - `agency/tools/git-captain` — safe captain-side git operations
-- `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the merge discipline
+- `agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the merge discipline
 - the-agency#296 — PR lifecycle ownership (Phase 1 pilot context)
 - the-agency#315 — V1→V2 migration (this refactor lives under Tier 1)
 
