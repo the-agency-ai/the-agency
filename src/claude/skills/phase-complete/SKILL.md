@@ -7,8 +7,8 @@ argument-hint: "<phase>: <description>"
 paths:
   - .claude/worktrees/**
 required_reading:
-  - claude/REFERENCE-QUALITY-GATE.md
-  - claude/REFERENCE-RECEIPT-INFRASTRUCTURE.md
+  - agency/REFERENCE/REFERENCE-QUALITY-GATE.md
+  - agency/REFERENCE/REFERENCE-RECEIPT-INFRASTRUCTURE.md
 ---
 
 <!--

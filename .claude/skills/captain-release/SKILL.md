@@ -6,9 +6,9 @@ when_to_use: Captain has staged coordination work on a captain-* branch and want
 argument-hint: "[--no-push] [--no-pr] <commit description>"
 paths: []
 required_reading:
-  - agency/REFERENCE-QUALITY-GATE.md
-  - agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md
-  - agency/REFERENCE-GIT-MERGE-NOT-REBASE.md
+  - agency/REFERENCE/REFERENCE-QUALITY-GATE.md
+  - agency/REFERENCE/REFERENCE-CODE-REVIEW-LIFECYCLE.md
+  - agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md
 ---
 
 <!--

@@ -6,8 +6,8 @@ when_to_use: On any non-master branch (worktree agent branch OR captain-* branch
 argument-hint: "[<target-branch>]"
 paths: []
 required_reading:
-  - agency/REFERENCE-GIT-MERGE-NOT-REBASE.md
-  - agency/REFERENCE-SAFE-TOOLS.md
+  - agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md
+  - agency/REFERENCE/REFERENCE-SAFE-TOOLS.md
 ---
 
 <!--
@@ -139,6 +139,6 @@ Pushing is destructive and requires principal confirmation. This skill is intend
 - `/worktree-sync` — worktree sync (never pushes; local master merge only)
 - `agency/tools/git-push` — underlying authorized push tool
 - `agency/hookify/hookify.block-raw-git-push.md` — blocks raw `git push`
-- `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md` — merge discipline
+- `agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md` — merge discipline
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

@@ -12,9 +12,9 @@ when_to_use: |
 argument-hint: "(no args)"
 paths: []
 required_reading:
-  - agency/REFERENCE-GIT-MERGE-NOT-REBASE.md
-  - agency/REFERENCE-WORKTREE-DISCIPLINE.md
-  - agency/REFERENCE-SAFE-TOOLS.md
+  - agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md
+  - agency/REFERENCE/REFERENCE-WORKTREE-DISCIPLINE.md
+  - agency/REFERENCE/REFERENCE-SAFE-TOOLS.md
 ---
 
 <!--
@@ -188,7 +188,7 @@ Light update to captain handoff: "what synced, what was merged into master, any 
 - `/sync` — agent-side push skill (different scope entirely)
 - `/worktree-sync` — single-worktree sync (agent-side; this skill calls it across all worktrees)
 - `agency/tools/git-captain` — safe captain-side git operations
-- `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the merge discipline
-- `agency/REFERENCE-WORKTREE-DISCIPLINE.md` — worktree model
+- `agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the merge discipline
+- `agency/REFERENCE/REFERENCE-WORKTREE-DISCIPLINE.md` — worktree model
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

@@ -6,8 +6,8 @@ when_to_use: "Captain on master wants to triage the open draft-PR queue — eith
 argument-hint: "[<pr-number> | <project-name> | --all]"
 paths: []
 required_reading:
-  - agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md
-  - agency/REFERENCE-ISCP-PROTOCOL.md
+  - agency/REFERENCE/REFERENCE-CODE-REVIEW-LIFECYCLE.md
+  - agency/REFERENCE/REFERENCE-ISCP-PROTOCOL.md
 ---
 
 <!--
@@ -38,8 +38,8 @@ The boundary is deliberate: this is a captain-side triage pass, not a gate. Boun
 
 Before running, Read the files listed in `required_reading:` frontmatter.
 
-- `agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md` — distinguishes the review tools, PR lifecycle, review/dispatch file conventions.
-- `agency/REFERENCE-ISCP-PROTOCOL.md` — dispatch format, filenames, addressing; this skill emits dispatches.
+- `agency/REFERENCE/REFERENCE-CODE-REVIEW-LIFECYCLE.md` — distinguishes the review tools, PR lifecycle, review/dispatch file conventions.
+- `agency/REFERENCE/REFERENCE-ISCP-PROTOCOL.md` — dispatch format, filenames, addressing; this skill emits dispatches.
 
 ## Usage
 

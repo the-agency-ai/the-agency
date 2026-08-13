@@ -40,4 +40,4 @@ Multiple preflight checks + hash computation + glob lookup + dispatch emission i
 
 ## Skill-tools versioning
 
-The `scripts/` directory pattern is part of the v2 bundle structure (see `claude/REFERENCE-SKILL-AUTHORING.md` §5). Each skill gets its own `scripts/` namespace; no global `agency/tools/` collision.
+The `scripts/` directory pattern is part of the v2 bundle structure (see `agency/REFERENCE/REFERENCE-SKILL-AUTHORING.md` §5). Each skill gets its own `scripts/` namespace; no global `agency/tools/` collision.

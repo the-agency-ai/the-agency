@@ -174,6 +174,47 @@ EXPECTED_SKILL_MIN=50
     fi
 }
 
+@test "skills: required_reading frontmatter paths point to existing files" {
+    # Regression guard for flag #213: 11 skills' required_reading pointed at
+    # pre-Great-Rename paths (agency/REFERENCE-*.md instead of
+    # agency/REFERENCE/REFERENCE-*.md) and rotted silently because nothing
+    # checked them. Every path listed under a required_reading: block must exist.
+    local failures=""
+    for skill_file in "$SKILLS_DIR"/*/SKILL.md; do
+        [ -f "$skill_file" ] || continue
+        local name
+        name=$(basename "$(dirname "$skill_file")")
+        local paths
+        paths=$(SKILL_FILE="$skill_file" python3 -c '
+import os, re
+text = open(os.environ["SKILL_FILE"]).read()
+# List items must be INDENTED (leading whitespace) so the column-0 "---"
+# frontmatter terminator is not mistaken for an entry.
+m = re.search(r"^required_reading:[ \t]*\n((?:[ \t]+-[ \t]*.+\n?)+)", text, re.M)
+out = []
+if m:
+    for line in m.group(1).splitlines():
+        s = line.strip()
+        if s.startswith("-"):
+            p = s[1:].strip().strip("\"").strip("'"'"'")
+            # Real required_reading entries are file paths (have a directory
+            # component); skip anything that is not path-shaped.
+            if p and "/" in p:
+                out.append(p)
+print("\n".join(out))
+' 2>/dev/null)
+        for p in $paths; do
+            if [ ! -f "$REPO_ROOT/$p" ]; then
+                failures="${failures}$name required_reading missing: $p\n"
+            fi
+        done
+    done
+    if [ -n "$failures" ]; then
+        echo -e "$failures" >&2
+        return 1
+    fi
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Ref-injector security
 # ─────────────────────────────────────────────────────────────────────────────

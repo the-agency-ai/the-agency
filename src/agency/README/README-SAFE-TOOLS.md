@@ -58,4 +58,4 @@ Wraps `gh pr merge` with true merge commit enforcement (never squash, never reba
 
 ## Reference
 
-Full subcommand specs, exit codes, and exemption rules: `claude/REFERENCE-SAFE-TOOLS.md`
+Full subcommand specs, exit codes, and exemption rules: `agency/REFERENCE/REFERENCE-SAFE-TOOLS.md`

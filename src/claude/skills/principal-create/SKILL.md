@@ -130,7 +130,7 @@ principal's captain:
 - Tool: `agency/tools/principal-onboard`
 - Templates: `agency/templates/principal-v2/`
 - Schema: `agency/config/agency.yaml` (`principals:` block)
-- Concept: `agency/REFERENCE-AGENT-ADDRESSING.md`
+- Concept: `agency/REFERENCE/REFERENCE-AGENT-ADDRESSING.md`
 - Worknote: `agency/docs/worknotes/WORKNOTE-principal-tooling.md`
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

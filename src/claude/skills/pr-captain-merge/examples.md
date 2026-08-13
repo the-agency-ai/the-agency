@@ -122,7 +122,7 @@ No flag exists on the skill or the tool to squash or rebase. If an agent tries `
 
 ```
 REFUSED: --squash is not supported. pr-captain-merge always uses true merge commit.
-See claude/REFERENCE-GIT-MERGE-NOT-REBASE.md for rationale.
+See agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md for rationale.
 ```
 
 Exit 2.

@@ -11,7 +11,7 @@ description: Run after a PR is merged on GitHub. Verifies merge, merges origin i
 
 # Post-Merge
 
-Run after a PR is merged on GitHub. Verifies the merge, merges origin into master, then invokes `/sync-all`. **Never resets master to origin.** See `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
+Run after a PR is merged on GitHub. Verifies the merge, merges origin into master, then invokes `/sync-all`. **Never resets master to origin.** See `agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
 
 ## Arguments
 
@@ -49,7 +49,7 @@ If diverged (both sides > 0 — expected after squash PR merge):
 
 If behind only: `git merge origin/master`
 
-**Never `git reset --hard origin/master`.** See `claude/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
+**Never `git reset --hard origin/master`.** See `agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md`.
 
 ### Step 5: Invoke sync-all
 

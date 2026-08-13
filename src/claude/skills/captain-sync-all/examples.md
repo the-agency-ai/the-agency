@@ -77,7 +77,7 @@ Expected:
 ```
 ABORT: master working tree is dirty (2 uncommitted files).
   Commit or stash before sync:
-    M claude/REFERENCE-X.md
+    M agency/REFERENCE/REFERENCE-X.md
     ?? usr/{principal}/captain/dispatches/new-one.md
 ```
 
@@ -94,12 +94,12 @@ Captain's local master has a coord commit that conflicts with origin/master:
 Expected:
 ```
 ABORT: merge origin/master conflicted:
-  CONFLICT (content): claude/REFERENCE-SKILLS-INDEX.md
+  CONFLICT (content): agency/REFERENCE/REFERENCE-SKILLS-INDEX.md
   
 Resolve manually:
   git status
   # edit conflicted files
-  git-safe add claude/REFERENCE-SKILLS-INDEX.md
+  git-safe add agency/REFERENCE/REFERENCE-SKILLS-INDEX.md
   git-captain merge-continue
   # re-run /captain-sync-all
 ```
