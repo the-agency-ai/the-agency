@@ -46,6 +46,7 @@ fi
 BASE="origin/main"
 FILE=""
 JSON=false
+WORKING=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -61,10 +62,23 @@ while [[ $# -gt 0 ]]; do
             JSON=true
             shift
             ;;
+        --working)
+            WORKING=true
+            shift
+            ;;
         --help)
-            echo "Usage: diff-hash [--base <ref>] [--file <path>] [--json]"
+            echo "Usage: diff-hash [--base <ref>] [--file <path>] [--working] [--json]"
             echo "  --base <ref>   Base ref for diff (default: origin/main)"
             echo "  --file <path>  Hash a single file instead of diff"
+            echo "  --working      Hash BASE vs the WORKING TREE — staged, unstaged,"
+            echo "                 AND untracked new files — not BASE..HEAD. Use this"
+            echo "                 to hash uncommitted work, e.g. a QG capturing the"
+            echo "                 final state BEFORE the caller commits (flag #207)."
+            echo "                 Untracked files are surfaced via intent-to-add in"
+            echo "                 a throwaway index (real staging state untouched)."
+            echo "                 Consistent across the commit boundary: after the"
+            echo "                 work is committed (git add -A), this equals the"
+            echo "                 default BASE..HEAD hash, so receipt-verify matches."
             echo "  --json         JSON output with full SHA-256"
             exit 0
             ;;
@@ -78,6 +92,10 @@ done
 # Validate mutual exclusion
 if [[ -n "$FILE" && "$BASE" != "origin/main" ]]; then
     echo "Error: --file and --base are mutually exclusive" >&2
+    exit 1
+fi
+if [[ -n "$FILE" && "$WORKING" == "true" ]]; then
+    echo "Error: --file and --working are mutually exclusive (--working is a diff-mode option)" >&2
     exit 1
 fi
 
@@ -104,7 +122,39 @@ else
     # V5 Phase 4 (2026-04-22): src/agency/workstreams/*/qgr + rgr added —
     # Phase 4 src/ split duplicated these to src/ side too; both sides must
     # be excluded for the chicken-and-egg fix to hold.
-    DIFF_OUTPUT=$(git diff "$BASE"..HEAD -- . \
+    #
+    # DIFF_REF selects what "final state" means (flag #207):
+    #   default  BASE..HEAD  — BASE vs the committed tip. Blind to uncommitted
+    #                          work, so a QG that hashes before the caller commits
+    #                          gets a stale hash (Hash E == Hash A).
+    #   --working  BASE      — BASE vs the WORKING TREE. Sees uncommitted work.
+    #                          Once committed with a clean tree, `git diff BASE`
+    #                          == `git diff BASE..HEAD`, so the hash is stable
+    #                          across the commit boundary and receipt-verify
+    #                          (default) still matches.
+    #
+    # Untracked files: `git diff <ref>` ignores them, but git-safe-commit runs
+    # `git add -A`, so a QG's NEW files (new tests/fixes) DO get committed. If
+    # --working omitted them, Hash E would undercount and receipt-verify would
+    # later BLOCK a legitimate commit. So in --working mode we mark untracked
+    # files intent-to-add (`git add -N`) so they surface as new-file diffs —
+    # done in a THROWAWAY copy of the index (GIT_INDEX_FILE) so the caller's
+    # real staging state is never mutated.
+    WORKING_TMP_INDEX=""
+    if [[ "$WORKING" == "true" ]]; then
+        DIFF_REF="$BASE"
+        WORKING_TMP_INDEX=$(mktemp "${TMPDIR:-/tmp}/diff-hash-index.XXXXXX")
+        _GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
+        if [[ -n "$_GIT_DIR" && -f "$_GIT_DIR/index" ]]; then
+            cp "$_GIT_DIR/index" "$WORKING_TMP_INDEX"
+        fi
+        export GIT_INDEX_FILE="$WORKING_TMP_INDEX"
+        git add -N -- . >/dev/null 2>&1 || true
+    else
+        DIFF_REF="$BASE..HEAD"
+    fi
+
+    DIFF_OUTPUT=$(git diff "$DIFF_REF" -- . \
         ':(exclude)agency/receipts/' \
         ':(exclude,glob)agency/workstreams/*/qgr/**' \
         ':(exclude,glob)agency/workstreams/*/rgr/**' \
@@ -116,14 +166,7 @@ else
         ':(exclude,glob)usr/**/handoff-*.md' \
         2>/dev/null)
 
-    if [[ -z "$DIFF_OUTPUT" ]]; then
-        echo "Error: no diff between $BASE and HEAD (excluding receipts, dispatches, and handoffs)" >&2
-        exit 1
-    fi
-
-    FULL_HASH=$(echo "$DIFF_OUTPUT" | shasum -a 256 | cut -d' ' -f1)
-    SHORT_HASH="${FULL_HASH:0:7}"
-    FILE_COUNT=$(git diff "$BASE"..HEAD --name-only -- . \
+    FILE_COUNT=$(git diff "$DIFF_REF" --name-only -- . \
         ':(exclude)agency/receipts/' \
         ':(exclude,glob)agency/workstreams/*/qgr/**' \
         ':(exclude,glob)agency/workstreams/*/rgr/**' \
@@ -134,6 +177,21 @@ else
         ':(exclude,glob)usr/**/*-handoff.md' \
         ':(exclude,glob)usr/**/handoff-*.md' \
         2>/dev/null | wc -l | tr -d ' ')
+
+    # Tear down the throwaway index BEFORE any exit, so the caller's environment
+    # and real index are always left exactly as we found them.
+    if [[ -n "$WORKING_TMP_INDEX" ]]; then
+        unset GIT_INDEX_FILE
+        rm -f "$WORKING_TMP_INDEX"
+    fi
+
+    if [[ -z "$DIFF_OUTPUT" ]]; then
+        echo "Error: no diff for $DIFF_REF (excluding receipts, dispatches, and handoffs)" >&2
+        exit 1
+    fi
+
+    FULL_HASH=$(echo "$DIFF_OUTPUT" | shasum -a 256 | cut -d' ' -f1)
+    SHORT_HASH="${FULL_HASH:0:7}"
 
     if [[ "$JSON" == "true" ]]; then
         echo "{\"hash\":\"$SHORT_HASH\",\"full_hash\":\"$FULL_HASH\",\"mode\":\"diff\",\"base\":\"$BASE\",\"file_count\":$FILE_COUNT}"

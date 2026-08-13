@@ -35,7 +35,7 @@ Parse `--base <ref>` out of `$ARGUMENTS` at the start of Step 0. The remainder i
 2. Run `./agency/tools/skill-verify --quiet`. If it fails, report the missing/invalid skills and stop — the framework is incomplete.
 3. Run `git diff --stat HEAD` and `git status`. If no changed files, report "Nothing to gate — no changes since last commit" and stop.
 4. Collect the list of changed files (staged + unstaged + untracked). This is the review scope.
-5. **Capture Hash A** (original artifact into review): run `./agency/tools/diff-hash --base "$BASE_REF" --json` and capture the full SHA-256 from the JSON output. Record as `HASH_A`. This is the state of the code BEFORE any QG work begins.
+5. **Capture Hash A** (original artifact into review): run `./agency/tools/diff-hash --base "$BASE_REF" --working --json` and capture the full SHA-256 from the JSON output. Record as `HASH_A`. This is the state of the code BEFORE any QG work begins. `--working` hashes BASE vs the working tree so the **uncommitted** artifact under review is seen — without it, `diff-hash` compares BASE..HEAD and is blind to uncommitted work, collapsing Hash A onto whatever was last committed (flag #207).
 
 ## Step 1: Parallel review — Formal agents + own review
 
@@ -168,7 +168,7 @@ After presenting the QGR, sign a receipt via `./agency/tools/receipt-sign`. Rece
 
 ### Capture Hash E (final state)
 
-After Step 8 confirmed everything is clean and all fixes are staged/written to disk, run `./agency/tools/diff-hash --base "$BASE_REF" --json` and capture the full SHA-256 as `HASH_E`. This is the final artifact state — what will be committed.
+After Step 8 confirmed everything is clean and all fixes are staged/written to disk, run `./agency/tools/diff-hash --base "$BASE_REF" --working --json` and capture the full SHA-256 as `HASH_E`. This is the final artifact state — what will be committed. `--working` is essential here (flag #207): the QG signs the receipt BEFORE the caller commits, so a plain `diff-hash` (BASE..HEAD) would be blind to the uncommitted fixes and make Hash E == Hash A. `--working` hashes BASE vs the working tree, and — because a clean post-commit tree makes `git diff BASE` == `git diff BASE..HEAD` — the value is stable across the commit boundary, so `receipt-verify` (which runs on the committed tree) still matches.
 
 ### Parse boundary and metadata
 
