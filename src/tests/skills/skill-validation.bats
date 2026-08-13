@@ -242,6 +242,20 @@ print("\n".join(out))
     fi
 }
 
+@test "agents: registrations import via @agency/, never the pre-Rename @claude/" {
+    # Guard for flag #246: agent registrations imported @claude/agents/... and
+    # @claude/workstreams/... but claude/ was renamed to agency/, so every agent
+    # loaded its frontmatter (name/description/model) but NOT its class definition
+    # or workstream context on startup — a silent context degradation.
+    local hits
+    hits=$(grep -rn "@claude/" "$REPO_ROOT/.claude/agents" 2>/dev/null || true)
+    if [ -n "$hits" ]; then
+        echo "agent registrations still import pre-Rename @claude/ paths:" >&2
+        echo "$hits" >&2
+        return 1
+    fi
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Ref-injector security
 # ─────────────────────────────────────────────────────────────────────────────

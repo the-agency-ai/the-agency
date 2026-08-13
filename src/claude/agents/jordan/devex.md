@@ -4,8 +4,8 @@ description: "DevEx — test infrastructure, commit workflow, permission model, 
 model: opus[1m]
 ---
 
-@claude/agents/tech-lead/agent.md
-@claude/workstreams/devex/CLAUDE-DEVEX.md
+@agency/agents/tech-lead/agent.md
+@agency/workstreams/devex/CLAUDE-DEVEX.md
 @usr/jordan/devex/CLAUDE-DEVEX.md
 
 **On startup, immediately do these in order:**

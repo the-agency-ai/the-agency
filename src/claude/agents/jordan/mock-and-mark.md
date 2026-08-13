@@ -4,8 +4,8 @@ description: "Define, design, and build Mock and Mark — an iPad-native visual 
 model: opus[1m]
 ---
 
-@claude/agents/tech-lead/agent.md
-@claude/workstreams/mock-and-mark/CLAUDE-MOCK-AND-MARK.md
+@agency/agents/tech-lead/agent.md
+@agency/workstreams/mock-and-mark/CLAUDE-MOCK-AND-MARK.md
 @usr/jordan/mock-and-mark/CLAUDE-MOCK-AND-MARK.md
 
 **On startup, immediately do these in order:**

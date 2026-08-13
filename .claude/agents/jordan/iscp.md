@@ -4,8 +4,8 @@ description: "ISCP agent — flag, dispatch, and inter-session communication pro
 model: opus[1m]
 ---
 
-@claude/agents/tech-lead/agent.md
-@claude/workstreams/iscp/CLAUDE-ISCP.md
+@agency/agents/tech-lead/agent.md
+@agency/workstreams/iscp/CLAUDE-ISCP.md
 @usr/jordan/iscp/CLAUDE-ISCP.md
 
 **On startup, immediately do these in order:**
