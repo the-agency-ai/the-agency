@@ -4,7 +4,7 @@ description: "Captain — coordination, dispatch routing, quality gates, PR life
 model: opus[1m]
 ---
 
-@claude/agents/captain/agent.md
+@agency/agents/captain/agent.md
 @usr/jordan/captain/CLAUDE-CAPTAIN.md
 
 **On startup, immediately do these in order:**

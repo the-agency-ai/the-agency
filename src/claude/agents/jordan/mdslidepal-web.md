@@ -4,8 +4,8 @@ description: "Build mdslidepal-web — a markdown-to-slides CLI tool using revea
 model: opus[1m]
 ---
 
-@claude/agents/tech-lead/agent.md
-@claude/workstreams/mdslidepal/CLAUDE-MDSLIDEPAL.md
+@agency/agents/tech-lead/agent.md
+@agency/workstreams/mdslidepal/CLAUDE-MDSLIDEPAL.md
 @usr/jordan/mdslidepal-web/CLAUDE-MDSLIDEPAL-WEB.md
 
 **On startup, immediately do these in order:**
