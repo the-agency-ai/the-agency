@@ -392,7 +392,7 @@ The 1B1 protocol applies to ALL structured discussions, not just when `/discuss`
 
 When agents encounter issues with Claude Code itself (bugs, missing features, unexpected behavior), they draft structured feedback using a standard format that includes diagnostic evidence, reproduction steps, and root cause analysis when known. The format ensures Anthropic's team can triage quickly.
 
-The key principle: **draft it, then wait for approval.** Agents never send feedback externally without the principal reviewing it first. The full format template is in `claude/REFERENCE-FEEDBACK-FORMAT.md` and gets injected automatically when feedback skills are invoked.
+The key principle: **draft it, then wait for approval.** Agents never send feedback externally without the principal reviewing it first. The full format template is in `agency/REFERENCE/REFERENCE-FEEDBACK-FORMAT.md` and gets injected automatically when feedback skills are invoked.
 
 ## Testing & Quality Discipline
 

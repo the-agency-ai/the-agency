@@ -179,6 +179,9 @@ EXPECTED_SKILL_MIN=50
     # pre-Great-Rename paths (agency/REFERENCE-*.md instead of
     # agency/REFERENCE/REFERENCE-*.md) and rotted silently because nothing
     # checked them. Every path listed under a required_reading: block must exist.
+    # Parser assumes block-style YAML (one "  - path" per line, no trailing
+    # inline comments). Flow-style (required_reading: [a, b]) would be skipped;
+    # no skill uses it today. Broaden the parser if that convention ever changes.
     local failures=""
     for skill_file in "$SKILLS_DIR"/*/SKILL.md; do
         [ -f "$skill_file" ] || continue

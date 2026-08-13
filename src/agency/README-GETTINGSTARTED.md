@@ -113,7 +113,7 @@ Narrow permission patterns (the old approach) created friction — every new com
 |-----------|------|---------|
 | `agency/tools/` | CLI tools with logging and telemetry | `dispatch`, `flag`, `handoff`, `git-safe-commit` |
 | `agency/hookify/` | Behavioral rules (warn/block) | `hookify.block-git-safe-commit.md` |
-| `claude/REFERENCE-*.md` | Reference docs (injected on demand) | `REFERENCE-QUALITY-GATE.md`, `REFERENCE-ISCP-PROTOCOL.md` |
+| `agency/REFERENCE/REFERENCE-*.md` | Reference docs (injected on demand) | `REFERENCE-QUALITY-GATE.md`, `REFERENCE-ISCP-PROTOCOL.md` |
 | `agency/agents/` | Agent class definitions | `captain/agent.md`, `tech-lead/agent.md` |
 | `agency/hooks/` | Session lifecycle hooks | `ref-injector.sh` |
 | `agency/config/agency.yaml` | Principal mapping, providers, collaboration repos | configured during init |
