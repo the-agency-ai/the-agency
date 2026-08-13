@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-TOOL_VERSION="1.0.0"
+TOOL_VERSION="1.1.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
@@ -55,6 +55,12 @@ Usage: ./agency/tools/git-captain <subcommand> [args...]
 
 Subcommands:
   merge-to-master <branch>       Merge branch into main/master (--no-ff)
+  merge <branch>                 Merge branch into the current FEATURE branch
+                                 (--no-ff). Refuses on the default branch — use
+                                 merge-to-master or the PR flow for that.
+  cherry-pick <commit>...        Apply commit(s) onto the current feature branch.
+                                 --continue / --abort to resume or unwind after
+                                 conflicts. Refuses on the default branch.
   checkout-branch <name>         Create and switch to a new branch
   switch-branch <name>           Switch to an existing branch (including main)
   sync-main                      Fast-forward main to origin/main (requires clean tree, on main)
@@ -105,6 +111,97 @@ cmd_merge_to_master() {
         echo "${GREEN}Merge complete.${NC} $branch merged into $main_branch."
     else
         die "Merge failed — resolve conflicts manually, then commit."
+    fi
+}
+
+# --- Subcommand: merge (feature → feature) ---
+# Merge another branch INTO the current feature branch. merge-to-master handles
+# integration into the default branch; this is the sibling for the common
+# feature-branch-syncs-from-another-feature-branch case that previously forced a
+# raw `git merge` (blocked by hookify).
+cmd_merge() {
+    [[ $# -eq 0 ]] && die "Usage: git-captain merge <branch>  (merge <branch> into the current feature branch)"
+
+    local branch="$1"
+    local current_branch main_branch
+    current_branch=$(git branch --show-current)
+    main_branch=$(detect_main_branch)
+
+    [[ -z "$current_branch" ]] && die "Not on a branch (detached HEAD) — cannot merge."
+
+    # feature→feature only. Integrating INTO the default branch goes through
+    # merge-to-master (which enforces you are on it) or the PR flow — never here.
+    if [[ "$current_branch" == "$main_branch" ]]; then
+        die "On $main_branch — use 'git-captain merge-to-master <branch>' or the PR flow to integrate into the default branch."
+    fi
+
+    if [[ "$branch" == "$current_branch" ]]; then
+        die "Cannot merge '$branch' into itself."
+    fi
+
+    if ! git show-ref --verify "refs/heads/$branch" &>/dev/null; then
+        die "Branch '$branch' does not exist."
+    fi
+
+    echo "${BLUE}Merging $branch into $current_branch (--no-ff)...${NC}"
+    if git merge "$branch" --no-ff --no-edit; then
+        echo "${GREEN}Merge complete.${NC} $branch merged into $current_branch."
+    else
+        die "Merge hit conflicts — resolve, 'git-safe add <files>', then 'git-captain merge-continue'."
+    fi
+}
+
+# --- Subcommand: cherry-pick ---
+# Apply one or more commits onto the current feature branch. The isolate-good-
+# commits-off-a-mixed-branch case (e.g. lifting a fix off a branch that also
+# carries WIP) previously required a raw `git cherry-pick`, which hookify blocks.
+cmd_cherry_pick() {
+    [[ $# -eq 0 ]] && die "Usage: git-captain cherry-pick <commit> [<commit>...]  (or --continue / --abort)"
+
+    # Resume or abort an in-progress cherry-pick.
+    case "$1" in
+        --continue)
+            if git cherry-pick --continue; then
+                echo "${GREEN}Cherry-pick continued.${NC}"
+            else
+                die "cherry-pick --continue failed — resolve conflicts, 'git-safe add <files>', then retry."
+            fi
+            return ;;
+        --abort)
+            if git cherry-pick --abort; then
+                echo "${GREEN}Cherry-pick aborted.${NC}"
+            else
+                die "cherry-pick --abort failed."
+            fi
+            return ;;
+    esac
+
+    local current_branch main_branch
+    current_branch=$(git branch --show-current)
+    main_branch=$(detect_main_branch)
+
+    [[ -z "$current_branch" ]] && die "Not on a branch (detached HEAD) — cherry-pick requires a branch."
+
+    # Refuse onto the default branch — that rewrites shared history outside the
+    # PR flow, the same reason the merge guards refuse it.
+    if [[ "$current_branch" == "$main_branch" ]]; then
+        die "Refusing to cherry-pick onto $main_branch — cherry-pick onto a feature branch, not the default branch."
+    fi
+
+    # Validate every ref before starting, so a typo fails fast instead of
+    # leaving a partially-applied sequence.
+    local c
+    for c in "$@"; do
+        if ! git rev-parse --verify --quiet "$c^{commit}" >/dev/null; then
+            die "Not a valid commit: $c"
+        fi
+    done
+
+    echo "${BLUE}Cherry-picking $# commit(s) onto $current_branch...${NC}"
+    if git cherry-pick "$@"; then
+        echo "${GREEN}Cherry-pick complete.${NC}"
+    else
+        die "Cherry-pick hit conflicts — resolve, 'git-safe add <files>', then 'git-captain cherry-pick --continue' (or --abort)."
     fi
 }
 
@@ -531,6 +628,8 @@ case "$1" in
     --help|-h)          usage ;;
     --version)          echo "git-captain $TOOL_VERSION"; exit 0 ;;
     merge-to-master)    shift; cmd_merge_to_master "$@" ;;
+    merge)              shift; cmd_merge "$@" ;;
+    cherry-pick)        shift; cmd_cherry_pick "$@" ;;
     checkout-branch)    shift; cmd_checkout_branch "$@" ;;
     switch-branch)      shift; cmd_switch_branch "$@" ;;
     sync-main)          shift; cmd_sync_main "$@" ;;
