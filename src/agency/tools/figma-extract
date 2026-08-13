@@ -72,7 +72,11 @@ extract_embedded_colors() {
                 $(echo "$g * 255" | bc | cut -d. -f1) \
                 $(echo "$b * 255" | bc | cut -d. -f1))
             echo "$hex"
-        done | sort -u > "$output_file"
+        done | sort -u > "$output_file" || true
+    # A document with zero SOLID fills makes the leading grep exit non-zero;
+    # under `set -euo pipefail` that pipefail status would abort the whole tool.
+    # `|| true` tolerates it — the redirect still leaves a (possibly empty)
+    # output file, which is the correct result for a color-less document.
 }
 
 # Helper function: Extract unique fonts from document JSON
@@ -83,7 +87,10 @@ extract_embedded_fonts() {
     # Extract fontFamily values with counts
     grep -o '"fontFamily":"[^"]*"' "$json_file" 2>/dev/null | \
         cut -d'"' -f4 | \
-        sort | uniq -c | sort -rn > "$output_file"
+        sort | uniq -c | sort -rn > "$output_file" || true
+    # As with colors: a font-less document makes grep exit non-zero, which
+    # pipefail + set -e would treat as fatal. Tolerate it and leave an empty
+    # output file behind.
 }
 
 # Defaults
@@ -279,9 +286,9 @@ if [[ "$DRY_RUN" == "true" ]]; then
     echo ""
 
     # Count published styles
-    COLOR_COUNT=$(grep -c '"style_type":"FILL"' "$STYLES_DATA" 2>/dev/null) || COLOR_COUNT=0
-    TEXT_COUNT=$(grep -c '"style_type":"TEXT"' "$STYLES_DATA" 2>/dev/null) || TEXT_COUNT=0
-    EFFECT_COUNT=$(grep -c '"style_type":"EFFECT"' "$STYLES_DATA" 2>/dev/null) || EFFECT_COUNT=0
+    COLOR_COUNT=$(grep -o '"style_type":"FILL"' "$STYLES_DATA" 2>/dev/null | wc -l | tr -d ' ') || COLOR_COUNT=0
+    TEXT_COUNT=$(grep -o '"style_type":"TEXT"' "$STYLES_DATA" 2>/dev/null | wc -l | tr -d ' ') || TEXT_COUNT=0
+    EFFECT_COUNT=$(grep -o '"style_type":"EFFECT"' "$STYLES_DATA" 2>/dev/null | wc -l | tr -d ' ') || EFFECT_COUNT=0
 
     # Count embedded colors/fonts from document
     EMBEDDED_COLORS_FILE="$TEMP_DIR/embedded-colors.txt"
@@ -333,7 +340,7 @@ extract_embedded_colors "$FILE_DATA" "$EMBEDDED_COLORS_FILE"
 EMBEDDED_COLOR_COUNT=$(wc -l < "$EMBEDDED_COLORS_FILE" | tr -d ' ')
 
 # Count published color styles
-COLOR_COUNT=$(grep -c '"style_type":"FILL"' "$STYLES_DATA" 2>/dev/null) || COLOR_COUNT=0
+COLOR_COUNT=$(grep -o '"style_type":"FILL"' "$STYLES_DATA" 2>/dev/null | wc -l | tr -d ' ') || COLOR_COUNT=0
 log_info "Found $COLOR_COUNT published color styles"
 log_info "Found $EMBEDDED_COLOR_COUNT unique colors in document"
 
@@ -410,7 +417,7 @@ extract_embedded_fonts "$FILE_DATA" "$EMBEDDED_FONTS_FILE"
 EMBEDDED_FONT_COUNT=$(wc -l < "$EMBEDDED_FONTS_FILE" | tr -d ' ')
 
 # Count published text styles
-TEXT_COUNT=$(grep -c '"style_type":"TEXT"' "$STYLES_DATA" 2>/dev/null) || TEXT_COUNT=0
+TEXT_COUNT=$(grep -o '"style_type":"TEXT"' "$STYLES_DATA" 2>/dev/null | wc -l | tr -d ' ') || TEXT_COUNT=0
 log_info "Found $TEXT_COUNT published text styles"
 log_info "Found $EMBEDDED_FONT_COUNT fonts in document"
 
@@ -489,7 +496,7 @@ Extracted from Figma design system.
 EOF
 
 # Count effect styles
-EFFECT_COUNT=$(grep -c '"style_type":"EFFECT"' "$STYLES_DATA" 2>/dev/null) || EFFECT_COUNT=0
+EFFECT_COUNT=$(grep -o '"style_type":"EFFECT"' "$STYLES_DATA" 2>/dev/null | wc -l | tr -d ' ') || EFFECT_COUNT=0
 log_info "Found $EFFECT_COUNT effect styles"
 
 if [[ $EFFECT_COUNT -gt 0 ]]; then
