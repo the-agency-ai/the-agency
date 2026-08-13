@@ -68,8 +68,17 @@ To audit all auto-approvals: grep `agency/workstreams/*/qgr/` for `hash_d_source
 ./agency/tools/diff-hash --base v39.1             # phase start tag
 ./agency/tools/diff-hash --base abc1234           # prior iteration commit
 ./agency/tools/diff-hash --file <path>            # single artifact file hash
+./agency/tools/diff-hash --working                # BASE vs WORKING TREE (uncommitted)
 ./agency/tools/diff-hash --json                   # JSON output with full SHA-256
 ```
+
+**`--working` (flag #207):** by default `diff-hash` compares `BASE..HEAD` — the
+*committed* tip — so it is blind to uncommitted work. The QG signs its receipt
+BEFORE the caller commits, so Hash A and Hash E must be captured with `--working`
+(BASE vs the working tree) to reflect the real artifact under review. This is
+safe for the chain: once the work is committed and the tree is clean, `git diff
+BASE` equals `git diff BASE..HEAD`, so `receipt-verify` (default, run on the
+committed tree) still matches the `--working` hash the QG recorded.
 
 Each receipt records which base was used: `diff_base: origin/main`.
 
