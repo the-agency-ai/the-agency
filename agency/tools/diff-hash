@@ -46,6 +46,7 @@ fi
 BASE="origin/main"
 FILE=""
 JSON=false
+WORKING=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -61,10 +62,21 @@ while [[ $# -gt 0 ]]; do
             JSON=true
             shift
             ;;
+        --working)
+            WORKING=true
+            shift
+            ;;
         --help)
-            echo "Usage: diff-hash [--base <ref>] [--file <path>] [--json]"
+            echo "Usage: diff-hash [--base <ref>] [--file <path>] [--working] [--json]"
             echo "  --base <ref>   Base ref for diff (default: origin/main)"
             echo "  --file <path>  Hash a single file instead of diff"
+            echo "  --working      Hash BASE vs the WORKING TREE (sees staged +"
+            echo "                 unstaged changes), not BASE..HEAD. Use this to"
+            echo "                 hash uncommitted work — e.g. a QG capturing the"
+            echo "                 final state BEFORE the caller commits (flag #207)."
+            echo "                 Consistent across the commit boundary: once the"
+            echo "                 work is committed and the tree is clean, this"
+            echo "                 equals the default BASE..HEAD hash."
             echo "  --json         JSON output with full SHA-256"
             exit 0
             ;;
@@ -104,7 +116,23 @@ else
     # V5 Phase 4 (2026-04-22): src/agency/workstreams/*/qgr + rgr added —
     # Phase 4 src/ split duplicated these to src/ side too; both sides must
     # be excluded for the chicken-and-egg fix to hold.
-    DIFF_OUTPUT=$(git diff "$BASE"..HEAD -- . \
+    #
+    # DIFF_REF selects what "final state" means (flag #207):
+    #   default  BASE..HEAD  — BASE vs the committed tip. Blind to uncommitted
+    #                          work, so a QG that hashes before the caller commits
+    #                          gets a stale hash (Hash E == Hash A).
+    #   --working  BASE      — BASE vs the WORKING TREE (staged + unstaged). Sees
+    #                          uncommitted work. Once that work is committed and
+    #                          the tree is clean, `git diff BASE` == `git diff
+    #                          BASE..HEAD`, so the hash is stable across the commit
+    #                          boundary and receipt-verify (default) still matches.
+    if [[ "$WORKING" == "true" ]]; then
+        DIFF_REF="$BASE"
+    else
+        DIFF_REF="$BASE..HEAD"
+    fi
+
+    DIFF_OUTPUT=$(git diff "$DIFF_REF" -- . \
         ':(exclude)agency/receipts/' \
         ':(exclude,glob)agency/workstreams/*/qgr/**' \
         ':(exclude,glob)agency/workstreams/*/rgr/**' \
@@ -117,13 +145,13 @@ else
         2>/dev/null)
 
     if [[ -z "$DIFF_OUTPUT" ]]; then
-        echo "Error: no diff between $BASE and HEAD (excluding receipts, dispatches, and handoffs)" >&2
+        echo "Error: no diff for $DIFF_REF (excluding receipts, dispatches, and handoffs)" >&2
         exit 1
     fi
 
     FULL_HASH=$(echo "$DIFF_OUTPUT" | shasum -a 256 | cut -d' ' -f1)
     SHORT_HASH="${FULL_HASH:0:7}"
-    FILE_COUNT=$(git diff "$BASE"..HEAD --name-only -- . \
+    FILE_COUNT=$(git diff "$DIFF_REF" --name-only -- . \
         ':(exclude)agency/receipts/' \
         ':(exclude,glob)agency/workstreams/*/qgr/**' \
         ':(exclude,glob)agency/workstreams/*/rgr/**' \

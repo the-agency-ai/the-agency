@@ -179,3 +179,52 @@ teardown() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"Usage"* ]]
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# --working mode (flag #207) — hash uncommitted work, consistent across commit
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "diff-hash: --help documents --working" {
+    run bash "$DIFF_HASH" --help
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q -- "--working"
+}
+
+@test "diff-hash: --working sees uncommitted changes that BASE..HEAD misses" {
+    cd "$TEST_REPO"
+    local committed
+    committed=$(bash "$DIFF_HASH" --base main)   # hash of the committed change
+    echo "more uncommitted work" >> file.txt      # UNCOMMITTED
+    # default (BASE..HEAD) is blind to it — hash unchanged
+    run bash "$DIFF_HASH" --base main
+    [ "$status" -eq 0 ]
+    [ "$output" = "$committed" ]
+    # --working sees it — hash differs
+    run bash "$DIFF_HASH" --base main --working
+    [ "$status" -eq 0 ]
+    [ "$output" != "$committed" ]
+    [[ "$output" =~ ^[a-f0-9]{7}$ ]]
+}
+
+@test "diff-hash: --working pre-commit equals default post-commit (receipt-safe, #207)" {
+    cd "$TEST_REPO"
+    echo "qg fix" >> file.txt          # uncommitted QG fix
+    git add file.txt
+    local working_pre
+    working_pre=$(bash "$DIFF_HASH" --base main --working)
+    git commit -q -m "commit the fix" --no-verify
+    local default_post
+    default_post=$(bash "$DIFF_HASH" --base main)
+    # The hash the QG records with --working (pre-commit) must equal what
+    # receipt-verify computes with the default (BASE..HEAD) on the committed tree.
+    [ "$working_pre" = "$default_post" ]
+}
+
+@test "diff-hash: --working includes a newly staged file" {
+    cd "$TEST_REPO"
+    echo "brand new" > newfile.txt
+    git add newfile.txt                # staged, uncommitted
+    run bash "$DIFF_HASH" --base main --working
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ ^[a-f0-9]{7}$ ]]
+}
