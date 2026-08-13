@@ -647,3 +647,107 @@ make_feature_branch() {
     assert_success
     assert_output_contains "reset-soft"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# merge (feature → feature) — flag #109
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "merge: requires a branch argument" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b feat-x
+    run ./agency/tools/git-captain merge
+    assert_failure
+    assert_output_contains "Usage"
+}
+
+@test "merge: merges a feature branch into the current feature branch (--no-ff)" {
+    cd "${BATS_TEST_TMPDIR}"
+    make_feature_branch source-feat      # creates source-feat w/ feature.txt, back on main
+    git checkout -q -b target-feat
+    run ./agency/tools/git-captain merge source-feat
+    assert_success
+    assert_output_contains "Merge complete"
+    [ -f feature.txt ]                   # content from source-feat landed
+    run git log --oneline -1
+    assert_output_contains "Merge"       # --no-ff created a merge commit
+}
+
+@test "merge: refuses on the default branch" {
+    cd "${BATS_TEST_TMPDIR}"
+    make_feature_branch source-feat      # leaves us on main
+    run ./agency/tools/git-captain merge source-feat
+    assert_failure
+    assert_output_contains "merge-to-master"
+}
+
+@test "merge: refuses merging a branch into itself" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b feat-x
+    run ./agency/tools/git-captain merge feat-x
+    assert_failure
+    assert_output_contains "into itself"
+}
+
+@test "merge: refuses a non-existent branch" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b feat-x
+    run ./agency/tools/git-captain merge nope
+    assert_failure
+    assert_output_contains "does not exist"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# cherry-pick — flag #120
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "cherry-pick: requires a commit argument" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b feat-x
+    run ./agency/tools/git-captain cherry-pick
+    assert_failure
+    assert_output_contains "Usage"
+}
+
+@test "cherry-pick: applies a commit onto the current feature branch" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b source-feat
+    echo "picked" > picked.txt
+    git add picked.txt
+    git commit -q -m "commit to pick"
+    local sha
+    sha=$(git rev-parse HEAD)
+    git checkout -q main
+    git checkout -q -b target-feat
+    run ./agency/tools/git-captain cherry-pick "$sha"
+    assert_success
+    assert_output_contains "Cherry-pick complete"
+    [ -f picked.txt ]
+}
+
+@test "cherry-pick: refuses onto the default branch" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b source-feat
+    echo x > x.txt; git add x.txt; git commit -q -m "c"
+    local sha
+    sha=$(git rev-parse HEAD)
+    git checkout -q main
+    run ./agency/tools/git-captain cherry-pick "$sha"
+    assert_failure
+    assert_output_contains "Refusing to cherry-pick onto"
+}
+
+@test "cherry-pick: refuses an invalid commit ref" {
+    cd "${BATS_TEST_TMPDIR}"
+    git checkout -q -b feat-x
+    run ./agency/tools/git-captain cherry-pick deadbeefdeadbeef
+    assert_failure
+    assert_output_contains "Not a valid commit"
+}
+
+@test "git-captain --help mentions merge and cherry-pick" {
+    cd "${BATS_TEST_TMPDIR}"
+    run ./agency/tools/git-captain --help
+    assert_success
+    assert_output_contains "cherry-pick <commit>"
+    assert_output_contains "merge <branch>"
+}
