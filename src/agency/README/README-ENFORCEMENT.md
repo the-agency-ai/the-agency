@@ -10,7 +10,7 @@ Enforcement in TheAgency operates at **five layers**, from soft to hard:
 
 | Layer | Mechanism | What | Examples |
 |-------|-----------|------|----------|
-| 1. Documentation | Markdown in `claude/REFERENCE-*.md`, `CLAUDE-THEAGENCY.md` | Human and agent readable conventions | Methodology, address format |
+| 1. Documentation | Markdown in `agency/REFERENCE/REFERENCE-*.md`, `CLAUDE-THEAGENCY.md` | Human and agent readable conventions | Methodology, address format |
 | 2. Skills | `.claude/skills/{name}/SKILL.md` | Discoverable invocations of conventions | `/handoff`, `/iteration-complete` |
 | 3. Tools | `agency/tools/{name}` | Mechanical capabilities with logging and telemetry | `dispatch`, `git-safe-commit`, `stage-hash` |
 | 4. Hookify rules | `agency/hookify/hookify.{name}.md` | PreToolUse hooks that block or warn on patterns | `block-git-safe-commit`, `warn-compound-bash` |
@@ -199,7 +199,7 @@ These fire constantly and shape day-to-day agent behavior. Every adopter must un
 
 ## Quality Gates
 
-Quality gates are tiered checkpoints that run at every commit boundary. Each tier has a different scope and time budget. See `claude/REFERENCE-QUALITY-GATE.md` for the full protocol.
+Quality gates are tiered checkpoints that run at every commit boundary. Each tier has a different scope and time budget. See `agency/REFERENCE/REFERENCE-QUALITY-GATE.md` for the full protocol.
 
 | Tier | Boundary | Checks | Time budget | Skill |
 |------|----------|--------|-------------|-------|

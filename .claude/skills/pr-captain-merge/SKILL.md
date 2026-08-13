@@ -6,9 +6,9 @@ when_to_use: Captain on master in main checkout, after PR has passed CI and prin
 argument-hint: "<pr-number> [--principal-approved] [--delete-branch] [--dry-run]"
 paths: []
 required_reading:
-  - agency/REFERENCE-GIT-MERGE-NOT-REBASE.md
-  - agency/REFERENCE-SAFE-TOOLS.md
-  - agency/REFERENCE-CODE-REVIEW-LIFECYCLE.md
+  - agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md
+  - agency/REFERENCE/REFERENCE-SAFE-TOOLS.md
+  - agency/REFERENCE/REFERENCE-CODE-REVIEW-LIFECYCLE.md
 ---
 
 <!--
@@ -162,7 +162,7 @@ Defense in depth against accidental invocation from the wrong context:
 - `/pr-captain-post-merge` (TBD refactored to `/pr-captain-post-merge`) — release + fleet-notify after merge
 - `agency/tools/pr-merge` — the underlying safe-merge tool
 - `claude/hookify/hookify.block-raw-gh-pr-merge.md` — hookify rule that blocks bare `gh pr merge`
-- `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the discipline rationale
+- `agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the discipline rationale
 - the-agency#296 — PR lifecycle ownership (the-agency direction)
 - the-agency#298 — skill refactor recommendation (the methodology)
 

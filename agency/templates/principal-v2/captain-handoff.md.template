@@ -38,7 +38,7 @@ Your ISCP DB is empty for this principal — **no inherited dispatches, no flags
 
 ### Cross-repo collaboration
 
-If {{PRINCIPAL_DISPLAY_NAME}} participates in cross-repo dispatches with other agencies (monofolk, etc.), the `/collaborate` skill is your interface. Check `claude/REFERENCE-ISCP-PROTOCOL.md` for the 4-segment addressing model (`org/repo/principal/agent`). No inbound cross-repo traffic yet — you'll wire that up when there's something to coordinate.
+If {{PRINCIPAL_DISPLAY_NAME}} participates in cross-repo dispatches with other agencies (monofolk, etc.), the `/collaborate` skill is your interface. Check `agency/REFERENCE/REFERENCE-ISCP-PROTOCOL.md` for the 4-segment addressing model (`org/repo/principal/agent`). No inbound cross-repo traffic yet — you'll wire that up when there's something to coordinate.
 
 ### Key skills to remember
 

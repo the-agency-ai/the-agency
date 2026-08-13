@@ -12,9 +12,9 @@ when_to_use: |
 argument-hint: "(no args)"
 paths: []
 required_reading:
-  - agency/REFERENCE-GIT-MERGE-NOT-REBASE.md
-  - agency/REFERENCE-WORKTREE-DISCIPLINE.md
-  - agency/REFERENCE-SAFE-TOOLS.md
+  - agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md
+  - agency/REFERENCE/REFERENCE-WORKTREE-DISCIPLINE.md
+  - agency/REFERENCE/REFERENCE-SAFE-TOOLS.md
 ---
 
 <!--
@@ -120,13 +120,15 @@ For each worktree with commits ahead of master:
 - Ask principal for confirmation.
 - If yes: `git merge <branch> --no-ff`.
 
-### Step 5b: Dispatch main-updated
+### Step 5b: Dispatch master-updated
 
-If any worktree work merged into master in Step 5, dispatch `main-updated` to all agents with worktrees:
+If any worktree work merged into master in Step 5, dispatch `master-updated` to all agents with worktrees:
 
 ```
-./agency/tools/dispatch create --type main-updated --to <repo>/<principal>/<agent> --subject "Main updated — new work merged"
+./agency/tools/dispatch create --type master-updated --to <repo>/<principal>/<agent> --subject "Master updated — new work merged"
 ```
+
+Note: `master-updated` is the canonical dispatch type. Legacy docs may say `main-updated`; the dispatch tool aliases that to `master-updated` for backward compatibility.
 
 Agents see this on their next `iscp-check` / `/session-resume`.
 
@@ -186,7 +188,7 @@ Light update to captain handoff: "what synced, what was merged into master, any 
 - `/sync` — agent-side push skill (different scope entirely)
 - `/worktree-sync` — single-worktree sync (agent-side; this skill calls it across all worktrees)
 - `agency/tools/git-captain` — safe captain-side git operations
-- `agency/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the merge discipline
-- `agency/REFERENCE-WORKTREE-DISCIPLINE.md` — worktree model
+- `agency/REFERENCE/REFERENCE-GIT-MERGE-NOT-REBASE.md` — the merge discipline
+- `agency/REFERENCE/REFERENCE-WORKTREE-DISCIPLINE.md` — worktree model
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*

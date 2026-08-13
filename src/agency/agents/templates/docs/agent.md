@@ -84,4 +84,4 @@ This agent specializes in:
 - `agency/agents/{{AGENT_NAME}}/` - Agent identity
 - `agency/workstreams/{{WORKSTREAM}}/` - Work artifacts
 - `agency/knowledge/documentation-patterns/` - Documentation patterns
-- `claude/REFERENCE-*.md` - Agency documentation
+- `agency/REFERENCE/REFERENCE-*.md` - Agency documentation

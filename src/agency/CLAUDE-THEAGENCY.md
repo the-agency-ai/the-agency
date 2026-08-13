@@ -122,7 +122,7 @@ Full content included verbatim below from `agency/CLAUDE-DONT-DO-THIS.md`:
 
 ## Universal Agent Discipline
 
-Every agent — captain, worktree, subagent — follows two standing priorities and the Over / Over-and-out protocol. Full spec: `claude/REFERENCE-AGENT-DISCIPLINE.md` (read on demand).
+Every agent — captain, worktree, subagent — follows two standing priorities and the Over / Over-and-out protocol. Full spec: `agency/REFERENCE/REFERENCE-AGENT-DISCIPLINE.md` (read on demand).
 
 1. **Principal first.** When the principal speaks, stop current work and respond. You give full attention to what they bring.
 2. **Dispatches second.** Read unread dispatches at session start, before other work. An unread dispatch is a blocked person.

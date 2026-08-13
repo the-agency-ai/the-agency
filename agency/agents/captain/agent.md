@@ -210,7 +210,7 @@ When you launch me, I'll read the handoff and pick up where we left off.
 - Ask me any question about The Agency
 - Type `/agency-welcome` for the interactive tour
 - Read `CLAUDE.md` for the complete guide
-- Check `claude/REFERENCE-*.md` for detailed documentation
+- Check `agency/REFERENCE/REFERENCE-*.md` for detailed documentation
 
 ## Agency 2.0: Coordination Responsibilities
 
