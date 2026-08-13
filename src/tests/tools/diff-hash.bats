@@ -228,3 +228,36 @@ teardown() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ ^[a-f0-9]{7}$ ]]
 }
+
+@test "diff-hash: --working includes an UNTRACKED-unstaged new file (matches post-commit, #207)" {
+    # The load-bearing case: a QG writes a new test/fix file and does NOT stage
+    # it; git-safe-commit's `git add -A` then commits it. --working must include
+    # it (via intent-to-add) so Hash E matches the post-commit hash — otherwise
+    # receipt-verify BLOCKS a legitimate commit.
+    cd "$TEST_REPO"
+    echo "uncommitted new" > brand_new.txt      # UNTRACKED, unstaged
+    local working_pre
+    working_pre=$(bash "$DIFF_HASH" --base main --working)
+    git add -A                                   # what git-safe-commit does
+    git commit -q -m "commit incl. new file" --no-verify
+    local default_post
+    default_post=$(bash "$DIFF_HASH" --base main)
+    [ "$working_pre" = "$default_post" ]
+}
+
+@test "diff-hash: --working leaves the real index untouched (throwaway index)" {
+    cd "$TEST_REPO"
+    echo "still untracked" > untracked.txt       # UNTRACKED
+    bash "$DIFF_HASH" --base main --working >/dev/null
+    # The intent-to-add happens in a throwaway index; the real one is unchanged,
+    # so the file must still be reported as untracked ('??'), not staged.
+    run git status --porcelain untracked.txt
+    [[ "$output" == '??'* ]]
+}
+
+@test "diff-hash: --file and --working are mutually exclusive" {
+    cd "$TEST_REPO"
+    run bash "$DIFF_HASH" --file file.txt --working
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"mutually exclusive"* ]]
+}
