@@ -4,8 +4,8 @@ description: "Build mdslidepal-mac — a native macOS slide presentation app usi
 model: opus[1m]
 ---
 
-@claude/agents/tech-lead/agent.md
-@claude/workstreams/mdslidepal/CLAUDE-MDSLIDEPAL.md
+@agency/agents/tech-lead/agent.md
+@agency/workstreams/mdslidepal/CLAUDE-MDSLIDEPAL.md
 @usr/jordan/mdslidepal-mac/CLAUDE-MDSLIDEPAL-MAC.md
 
 **On startup, immediately do these in order:**

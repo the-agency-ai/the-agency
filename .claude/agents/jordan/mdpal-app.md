@@ -4,8 +4,8 @@ description: "Define, design, and build Markdown Pal — a macOS native app for 
 model: opus[1m]
 ---
 
-@claude/agents/tech-lead/agent.md
-@claude/workstreams/mdpal/CLAUDE-MDPAL.md
+@agency/agents/tech-lead/agent.md
+@agency/workstreams/mdpal/CLAUDE-MDPAL.md
 @usr/jordan/mdpal-app/CLAUDE-MDPAL-APP.md
 
 **On startup, immediately do these in order:**
