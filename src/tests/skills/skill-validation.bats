@@ -218,6 +218,30 @@ print("\n".join(out))
     fi
 }
 
+@test "quality-gate: every reviewer subagent_type is a registered agent" {
+    # Guard for flag #186/#194: the reviewer-* classes existed in agency/agents/
+    # but were NOT registered under .claude/agents/, so every /quality-gate
+    # invocation of subagent_type: reviewer-code (etc.) failed and the gate
+    # silently degraded. Each reviewer subagent_type the quality-gate skill names
+    # must have a registration discoverable somewhere under .claude/agents/.
+    local qg="$REPO_ROOT/.claude/skills/quality-gate/SKILL.md"
+    [ -f "$qg" ] || skip "quality-gate SKILL.md not found"
+    local types
+    types=$(grep -oE 'subagent_type: `?reviewer-[a-z]+`?' "$qg" | grep -oE 'reviewer-[a-z]+' | sort -u)
+    [ -n "$types" ] || skip "no reviewer subagent_types referenced"
+    local failures=""
+    for t in $types; do
+        # find (not ** glob) for bash-3.2 portability
+        if [ -z "$(find "$REPO_ROOT/.claude/agents" -name "$t.md" -type f 2>/dev/null | head -1)" ]; then
+            failures="${failures}quality-gate references unregistered subagent: $t\n"
+        fi
+    done
+    if [ -n "$failures" ]; then
+        echo -e "$failures" >&2
+        return 1
+    fi
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Ref-injector security
 # ─────────────────────────────────────────────────────────────────────────────
