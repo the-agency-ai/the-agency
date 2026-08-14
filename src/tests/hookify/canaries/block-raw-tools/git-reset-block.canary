@@ -1,0 +1,5 @@
+rule: reset-to-origin
+expected_decision: block
+expected_match: Only safe git operations
+---BODY---
+git reset --hard origin/main

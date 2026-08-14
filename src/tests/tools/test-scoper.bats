@@ -15,7 +15,7 @@ setup() {
     # Create a mini repo structure in temp dir for testing
     export TEST_REPO="${BATS_TEST_TMPDIR}/test-repo"
     mkdir -p "$TEST_REPO/agency/tools/lib"
-    mkdir -p "$TEST_REPO/tests/tools"
+    mkdir -p "$TEST_REPO/src/tests/tools"
     mkdir -p "$TEST_REPO/.git"
 
     # Initialize a git repo so git rev-parse works
@@ -30,24 +30,24 @@ setup() {
     cat > "$TEST_REPO/agency/tools/special-tool" <<'TOOL'
 #!/bin/bash
 # What Problem: A special tool
-# Test: tests/tools/custom-test.bats
+# Test: src/tests/tools/custom-test.bats
 echo "hello"
 TOOL
 
     # Create fake test files
-    echo '@test "flag test" { true; }' > "$TEST_REPO/tests/tools/flag.bats"
-    echo '@test "dispatch test" { true; }' > "$TEST_REPO/tests/tools/dispatch.bats"
-    echo '@test "dispatch-create test" { true; }' > "$TEST_REPO/tests/tools/dispatch-create.bats"
-    cat > "$TEST_REPO/tests/tools/iscp-db.bats" <<'TEST'
+    echo '@test "flag test" { true; }' > "$TEST_REPO/src/tests/tools/flag.bats"
+    echo '@test "dispatch test" { true; }' > "$TEST_REPO/src/tests/tools/dispatch.bats"
+    echo '@test "dispatch-create test" { true; }' > "$TEST_REPO/src/tests/tools/dispatch-create.bats"
+    cat > "$TEST_REPO/src/tests/tools/iscp-db.bats" <<'TEST'
 # source lib/_iscp-db
 @test "iscp-db test" { true; }
 TEST
-    cat > "$TEST_REPO/tests/tools/other.bats" <<'TEST'
+    cat > "$TEST_REPO/src/tests/tools/other.bats" <<'TEST'
 # source lib/_iscp-db
 @test "other test that uses iscp-db" { true; }
 TEST
-    echo '@test "custom test" { true; }' > "$TEST_REPO/tests/tools/custom-test.bats"
-    echo '@test "standalone" { true; }' > "$TEST_REPO/tests/tools/standalone.bats"
+    echo '@test "custom test" { true; }' > "$TEST_REPO/src/tests/tools/custom-test.bats"
+    echo '@test "standalone" { true; }' > "$TEST_REPO/src/tests/tools/standalone.bats"
 
     # Copy test-scoper to the test repo
     cp "$REPO_ROOT/agency/tools/test-scoper" "$TEST_REPO/agency/tools/test-scoper"
@@ -109,7 +109,7 @@ teardown() {
 
 @test "direct: .bats file maps to itself" {
     cd "$TEST_REPO"
-    run bash -c 'echo "tests/tools/standalone.bats" | ./agency/tools/test-scoper'
+    run bash -c 'echo "src/tests/tools/standalone.bats" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     [[ "$output" == *"standalone.bats"* ]]
 }
@@ -149,7 +149,7 @@ teardown() {
 
 @test "multi: multiple files deduplicates output" {
     cd "$TEST_REPO"
-    run bash -c 'printf "agency/tools/flag\ntests/tools/flag.bats\n" | ./agency/tools/test-scoper'
+    run bash -c 'printf "agency/tools/flag\nsrc/tests/tools/flag.bats\n" | ./agency/tools/test-scoper'
     [ "$status" -eq 0 ]
     # flag.bats should appear exactly once despite two inputs mapping to it
     local count

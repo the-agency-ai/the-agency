@@ -1,0 +1,5 @@
+rule: block-raw-gh-pr-merge
+expected_decision: block
+expected_match: gh pr merge
+---BODY---
+gh pr merge 42 --squash

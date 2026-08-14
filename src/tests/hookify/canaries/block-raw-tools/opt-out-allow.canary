@@ -1,0 +1,5 @@
+rule: agency-allow-raw-optout
+expected_decision: allow
+env: AGENCY_ALLOW_RAW=1
+---BODY---
+cat secret.txt

@@ -60,7 +60,7 @@ run_agency() {
     tmpdir=$(mktemp -d)
     git -C "$tmpdir" init -b main 2>/dev/null
     git -C "$tmpdir" commit --allow-empty -m "init" 2>/dev/null
-    mkdir -p "$tmpdir/.claude" "$tmpdir/claude/config"
+    mkdir -p "$tmpdir/.claude" "$tmpdir/agency/config"
     echo "framework:" > "$tmpdir/agency/config/agency.yaml"
     run_agency init "$tmpdir"
     assert_failure

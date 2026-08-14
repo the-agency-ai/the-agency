@@ -51,10 +51,11 @@ load 'test_helper'
     assert_output_contains "/usr/"
 }
 
-@test "_path-resolve: AGENCY_REFS_DIR ends with claude/refs" {
+@test "_path-resolve: AGENCY_REFS_DIR is under usr/ and ends with refs" {
     run bash -c "source '${TOOLS_DIR}/lib/_path-resolve' && echo \"\$AGENCY_REFS_DIR\""
     assert_success
-    assert_output_contains "claude/refs"
+    assert_output_contains "usr/"
+    assert_output_contains "/refs"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

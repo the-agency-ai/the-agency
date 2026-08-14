@@ -1,0 +1,5 @@
+rule: raw-sed
+expected_decision: block
+expected_match: Edit tool
+---BODY---
+sed -i s/a/b/ file.txt

@@ -44,7 +44,7 @@ load 'test_helper'
 @test "terminal-setup: auto-detects ghostty from TERM_PROGRAM" {
     # Create a fixture without terminal config
     local fixture="${BATS_TEST_TMPDIR}/project"
-    mkdir -p "$fixture/claude/config" "$fixture/agency/tools/lib" "$fixture/tools"
+    mkdir -p "$fixture/agency/config" "$fixture/agency/tools/lib" "$fixture/tools"
     cp "${TOOLS_DIR}/lib/_path-resolve" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_path-resolve" "$fixture/tools/" 2>/dev/null || true
     cp "${TOOLS_DIR}/lib/_log-helper" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
     cp "${REPO_ROOT}/agency/tools/lib/_provider-resolve" "$fixture/agency/tools/lib/"
@@ -72,7 +72,7 @@ EOF
 
 @test "terminal-setup: fails when no provider and unknown TERM_PROGRAM" {
     local fixture="${BATS_TEST_TMPDIR}/project"
-    mkdir -p "$fixture/claude/config" "$fixture/agency/tools/lib" "$fixture/tools"
+    mkdir -p "$fixture/agency/config" "$fixture/agency/tools/lib" "$fixture/tools"
     cp "${TOOLS_DIR}/lib/_path-resolve" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_path-resolve" "$fixture/tools/" 2>/dev/null || true
     cp "${TOOLS_DIR}/lib/_log-helper" "$fixture/tools/" 2>/dev/null || cp "${TOOLS_DIR}/_log-helper" "$fixture/tools/" 2>/dev/null || true
     cp "${REPO_ROOT}/agency/tools/lib/_provider-resolve" "$fixture/agency/tools/lib/"

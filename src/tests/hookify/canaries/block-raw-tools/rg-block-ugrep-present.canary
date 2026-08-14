@@ -1,0 +1,6 @@
+rule: raw-rg-ugrep-present
+expected_decision: block
+expected_match: ugrep
+path_mode: stubbed
+---BODY---
+rg foo bar.txt

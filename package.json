@@ -21,7 +21,7 @@
     "lint": "pnpm -r --if-present lint",
     "typecheck": "pnpm -r --if-present typecheck",
     "bats": "bats src/tests/tools/",
-    "bats:all": "bats src/tests/tools/ src/tests/skills/ src/tests/agents/ src/tests/docs/"
+    "bats:all": "bats src/tests/tools/ src/tests/hookify/ src/tests/skills/ src/tests/agents/ src/tests/docs/"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {

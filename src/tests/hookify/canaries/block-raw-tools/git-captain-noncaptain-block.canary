@@ -1,0 +1,6 @@
+rule: git-captain-captain-only-gate
+expected_decision: block
+expected_match: captain-only
+cwd: isolated
+---BODY---
+git-captain fetch

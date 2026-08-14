@@ -17,82 +17,69 @@ Principals direct work by creating requests and receiving artifacts from agents.
 
 | Task | Command |
 |------|---------|
-| First-time setup | `./agency/tools/setup-agency` |
-| Add yourself to existing project | `./agency/tools/add-principal` |
-| Create principal programmatically | `./agency/tools/principal-create <name>` |
+| First-time setup / create a project | `./agency/tools/agency init` |
+| Add yourself to / join an existing project | `./agency/tools/principal-onboard <name> --user <u> --display-name "..."` |
+| Create principal programmatically (bare scaffold) | `./agency/tools/principal-create <name>` |
 | Get current principal | `./agency/tools/principal` |
 | Check principal env var | `echo $AGENCY_PRINCIPAL` |
 
 ## First-Time Setup
 
-When you create a new Agency project, run `setup-agency` before your first Claude Code session:
+When you create a new Agency project in a git repo, run `agency init` before your first Claude Code session:
 
 ```bash
-./agency/tools/setup-agency
+./agency/tools/agency init
 ```
 
-This interactive tool:
-1. Prompts for your principal name
-2. Validates the name format
-3. Creates your principal directory from template
-4. Sets `AGENCY_PRINCIPAL` in your shell profile
-5. Initializes the secret vault
-6. Creates `.agency-setup-complete` marker
+This tool:
+1. Initializes Agency in the current git repo
+2. Detects (or lets you override) your principal name
+3. Scaffolds configuration under `agency/config/`
+4. Wires the project so Claude Code can discover skills, agents, and tools
 
-**Example session:**
-```
-$ ./agency/tools/setup-agency
+**Options:**
+- `--principal <name>` — override the detected principal name
+- `--project <name>` — set the project name
+- `--timezone <tz>` — set the timezone (default: UTC)
+- `--from-github [ref]` — shallow-clone the-agency from GitHub as the source (optional tag/branch/commit; `@latest` for the latest release tag)
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  The Agency - First Time Setup
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-What's your name? This will be your principal identity.
-
-Principal name [jdm]: alice
-
-[STEP] Creating principal: alice
-[STEP] Updating configuration...
-[STEP] Setting up environment...
-[STEP] Initializing secret vault...
-
-Set vault passphrase: ********
-Confirm passphrase: ********
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Setup Complete!
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Welcome, alice!
-```
-
-### Non-Interactive Mode
-
-For automation, pass the principal name directly:
-
+**Example:**
 ```bash
-./agency/tools/setup-agency --principal alice --skip-vault
+cd ~/code/my-project
+./agency/tools/agency init --principal alice --project my-project
 ```
 
 ## Joining an Existing Project
 
-When you clone an existing Agency project, use `add-principal` to add yourself:
+When you clone an existing Agency project, run `principal-onboard` to add yourself as
+a principal. It scaffolds your `usr/{name}/` sandbox, mutates `agency/config/agency.yaml`
+with your entry, writes your captain agent registration, and bootstraps a captain
+handoff — end to end, without reinitializing the project:
 
 ```bash
-./agency/tools/add-principal
+./agency/tools/principal-onboard alice --user alice --display-name "Alice"
 ```
 
-This tool:
-1. Prompts for your principal name
-2. Creates your principal directory
-3. Sets `AGENCY_PRINCIPAL` in your shell profile
-4. Does NOT reinitialize the vault (already exists)
+Required arguments:
+- `<name>` — your principal slug (lowercase, alphanumeric + hyphen/underscore)
+- `--user <sysuser>` — the system `$USER` value to map this principal to
+- `--display-name "..."` — your display name (quote it)
 
-### Non-Interactive Mode
+Optional:
+- `--email <addr>` — email (repeat the flag for multiple)
+- `--github-user <handle>` — GitHub username
+- `--repo-name <name>` — repo name for templates (default: auto-detect from git)
+- `--force` — overwrite an existing `usr/{name}/`
+- `--dry-run` — show what would be done without writing
 
+**Example with full details:**
 ```bash
-./agency/tools/add-principal --name bob
+./agency/tools/principal-onboard peter --user pyg --display-name "Peter Gao" \
+  --email peter@example.com --github-user pgao
 ```
+
+For a bare, scripted scaffold that only creates the directory (no yaml/agent/handoff
+wiring), use `principal-create` (see below).
 
 ## Creating Principals Programmatically
 
@@ -112,7 +99,9 @@ This tool creates the directory structure but does NOT:
 - Modify shell profiles
 - Initialize the vault
 
-Use `setup-agency` or `add-principal` for interactive setup.
+Use `agency init` for first-time project setup, or `principal-onboard` to add yourself
+to an existing project — both do the full config/agent/handoff wiring that
+`principal-create` skips.
 
 ## Getting the Current Principal
 
@@ -139,11 +128,11 @@ echo "Current principal: $PRINCIPAL"
 The `AGENCY_PRINCIPAL` environment variable identifies you across sessions:
 
 ```bash
-# Set automatically by setup-agency/add-principal in your shell profile
+# Add to your shell profile — principal-onboard prints this export line when it finishes
 export AGENCY_PRINCIPAL="alice"
 ```
 
-This is added to your shell profile (`.zshrc`, `.bashrc`, or `.bash_profile`) during setup.
+Add this to your shell profile (`.zshrc`, `.bashrc`, or `.bash_profile`); `principal-onboard` prints the exact export line at the end of onboarding.
 
 **Reload your shell after setup:**
 ```bash
@@ -205,8 +194,8 @@ Your shell profile wasn't updated or you haven't reloaded it:
 echo $AGENCY_PRINCIPAL
 
 # If empty, either:
-# 1. Re-run setup
-./agency/tools/setup-agency
+# 1. Re-run onboarding (re-prints the export line, re-wires config)
+./agency/tools/principal-onboard yourname --user "$USER" --display-name "Your Name"
 
 # 2. Or manually add to your profile
 echo 'export AGENCY_PRINCIPAL="yourname"' >> ~/.zshrc
@@ -218,7 +207,7 @@ source ~/.zshrc
 The environment variable is set but the directory is missing:
 
 ```bash
-./agency/tools/add-principal --name $AGENCY_PRINCIPAL
+./agency/tools/principal-onboard "$AGENCY_PRINCIPAL" --user "$USER" --display-name "$AGENCY_PRINCIPAL"
 ```
 
 ### "This is the starter template"
@@ -228,38 +217,54 @@ You're trying to set up directly in the-agency-starter. Create a project first:
 ```bash
 ./agency/tools/project-create my-project
 cd ../my-project
-./agency/tools/setup-agency
+./agency/tools/agency init
 ```
 
 ## Tool Reference
 
-### setup-agency
+### agency init
 
-First-time Agency project setup.
+Initialize Agency in a git repo (first-time project setup).
 
 ```
-Usage: setup-agency [options]
+Usage: agency init [target-dir] [options]
 
 Options:
-  --principal NAME   Set principal name (skips prompt)
-  --skip-vault       Skip vault initialization
-  --verbose          Show detailed output
-  -v, --version      Show version
-  -h, --help         Show help
+  --principal <name>   Override the detected principal name
+  --project <name>     Set the project name
+  --timezone <tz>      Set timezone (default: UTC)
+  --from-github [ref]  Shallow-clone the-agency from GitHub as source
+                       (optional tag/branch/commit; @latest = latest release tag)
+  --verbose            Show detailed output
+  --help, -h           Show help
 ```
 
-### add-principal
+### principal-onboard
 
-Add yourself to an existing Agency project.
+End-to-end principal onboarding for an existing project — scaffolds the sandbox,
+mutates `agency.yaml`, writes the captain agent registration, and bootstraps a
+captain handoff.
 
 ```
-Usage: add-principal [options]
+Usage: principal-onboard <name> --user <sysuser> --display-name "Display" [options]
+
+Required:
+  <name>                principal slug (lowercase, alphanum + hyphen/underscore)
+  --user <sysuser>      system $USER value to map this principal to
+  --display-name "..."  display name (quote it)
 
 Options:
-  --name NAME        Set principal name (skips prompt)
-  --verbose          Show detailed output
-  -v, --version      Show version
-  -h, --help         Show help
+  --email <addr>        email (repeat for multiple)
+  --github-user <h>     GitHub username
+  --repo-name <name>    repo name for templates (default: auto-detect from git)
+  --no-yaml             skip agency.yaml mutation
+  --no-agent-reg        skip .claude/agents/<name>-captain.md
+  --no-handoff          skip bootstrap captain handoff
+  --force               overwrite existing usr/{name}/
+  --dry-run             show what would be done
+  --verbose             detailed logging
+  --version             show version
+  --help                show help
 ```
 
 ### principal-create

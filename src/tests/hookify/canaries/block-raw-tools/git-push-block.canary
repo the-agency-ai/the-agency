@@ -1,0 +1,5 @@
+rule: block-raw-push
+expected_decision: block
+expected_match: Only safe git operations
+---BODY---
+git push origin main

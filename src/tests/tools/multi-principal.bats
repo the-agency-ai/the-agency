@@ -26,12 +26,12 @@ setup() {
     # Mock two-principal repo
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
     mkdir -p "$MOCK_REPO/agency/tools/lib"
-    mkdir -p "$MOCK_REPO/claude/config"
+    mkdir -p "$MOCK_REPO/agency/config"
     mkdir -p "$MOCK_REPO/usr/jordan/captain"
     mkdir -p "$MOCK_REPO/usr/peter/captain"
 
     # Copy real tools + libs
-    cp "$REPO_ROOT/agency/tools/agent-bootstrap" "$MOCK_REPO/agency/tools/"
+    cp "$REPO_ROOT/src/tools-developer/agent-bootstrap" "$MOCK_REPO/agency/tools/"
     cp "$REPO_ROOT/agency/tools/agent-identity"  "$MOCK_REPO/agency/tools/"
     chmod +x "$MOCK_REPO/agency/tools/"*
     cp "$REPO_ROOT/agency/tools/lib/_address-parse" "$MOCK_REPO/agency/tools/lib/"
@@ -118,14 +118,14 @@ teardown() {
 
 @test "regression anchor — universal reference doc contains Two Standing Priorities" {
     # D41-R19: these rules are universal (every agent), relocated to
-    # claude/REFERENCE-AGENT-DISCIPLINE.md so every agent loads them via
+    # agency/REFERENCE/REFERENCE-AGENT-DISCIPLINE.md so every agent loads them via
     # the bootloader chain, not just captain.
-    run grep -F "The Two Standing Priorities" "$REPO_ROOT/claude/REFERENCE-AGENT-DISCIPLINE.md"
+    run grep -F "The Two Standing Priorities" "$REPO_ROOT/agency/REFERENCE/REFERENCE-AGENT-DISCIPLINE.md"
     assert_success
 }
 
 @test "regression anchor — universal reference doc contains Over/Over-and-Out protocol" {
-    run grep -F "Communication Protocol — Over / Over-and-Out" "$REPO_ROOT/claude/REFERENCE-AGENT-DISCIPLINE.md"
+    run grep -F "Communication Protocol — Over / Over-and-Out" "$REPO_ROOT/agency/REFERENCE/REFERENCE-AGENT-DISCIPLINE.md"
     assert_success
 }
 
@@ -276,11 +276,17 @@ teardown() {
 }
 
 @test "registration files use structural principal paths — D42-R3" {
-    # D42-R3: registrations live at .claude/agents/{P}/{A}.md with
-    # explicit usr/{P}/{A}/ references (structural, not dynamic).
-    # This is correct — the principal IS in the path. Verify registrations
-    # exist in principal subdirs and reference their principal's usr/ path.
+    # D42-R3: registrations live at .claude/agents/{P}/{A}.md and principal
+    # resolution is STRUCTURAL — the principal is in the path, not embedded in
+    # dynamic content. Stateful agents (captain, workstream agents) import their
+    # principal sandbox and so reference usr/{principal}/. Stateless utility
+    # subagents (reviewer-code, reviewer-security, reviewer-scorer, …) have no
+    # sandbox, no handoff, no CLAUDE-*.md — they import only their class agent.md
+    # and correctly reference NO usr/ path. The invariant this pins: IF a
+    # registration references a usr/ path at all, it must be its OWN principal's
+    # — never a hardcoded foreign principal (the #111 usr/jordan regression).
     local reg_count=0
+    local usr_ref_count=0
     for dir in "$REPO_ROOT/.claude/agents"/*/; do
         [[ -d "$dir" ]] || continue
         local principal
@@ -288,15 +294,22 @@ teardown() {
         for reg in "$dir"*.md; do
             [[ -f "$reg" ]] || continue
             reg_count=$((reg_count + 1))
-            # Each registration should reference usr/{principal}/
+            # Stateless subagents reference no principal sandbox — skip them.
+            grep -q "usr/" "$reg" || continue
+            usr_ref_count=$((usr_ref_count + 1))
+            # Any usr/ reference must be this registration's OWN principal.
             grep -q "usr/$principal/" "$reg" || {
-                echo "$(basename "$reg") doesn't reference usr/$principal/"
+                echo "$(basename "$reg") references a usr/ path but not usr/$principal/"
                 false
             }
         done
     done
     [[ "$reg_count" -gt 0 ]] || {
         echo "No registrations found in principal subdirs"
+        false
+    }
+    [[ "$usr_ref_count" -gt 0 ]] || {
+        echo "No registration references its principal's usr/ sandbox"
         false
     }
 }

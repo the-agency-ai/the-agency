@@ -1,0 +1,4 @@
+rule: agency-tool-exemption
+expected_decision: allow
+---BODY---
+./agency/tools/dispatch list

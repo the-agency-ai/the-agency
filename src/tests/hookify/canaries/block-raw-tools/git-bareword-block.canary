@@ -1,0 +1,5 @@
+rule: raw-git-bareword
+expected_decision: block
+expected_match: Only safe git operations
+---BODY---
+git

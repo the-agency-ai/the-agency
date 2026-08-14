@@ -15,7 +15,7 @@ setup() {
     # Create a test repo with git initialized
     export TEST_REPO="${BATS_TEST_TMPDIR}/test-repo"
     mkdir -p "$TEST_REPO/agency/tools/lib"
-    mkdir -p "$TEST_REPO/tests/tools"
+    mkdir -p "$TEST_REPO/src/tests/tools"
     mkdir -p "$TEST_REPO/usr/jordan/devex"
 
     cd "$TEST_REPO"
@@ -94,8 +94,8 @@ teardown() {
 
 @test "tool-code: test files classified as tool-code" {
     cd "$TEST_REPO"
-    echo '@test "x" { true; }' > tests/tools/my.bats
-    git add tests/tools/my.bats
+    echo '@test "x" { true; }' > src/tests/tools/my.bats
+    git add src/tests/tools/my.bats
     run ./agency/tools/commit-precheck --dry-run --verbose
     [ "$status" -eq 0 ]
     [[ "$output" == *"tool-code"* ]]
@@ -232,7 +232,7 @@ teardown() {
 
 @test "large-file: exception glob exempts matching file" {
     cd "$TEST_REPO"
-    mkdir -p claude/config
+    mkdir -p agency/config
     cat > agency/config/large-file-exceptions.txt <<'EOF'
 # test exceptions
 *.bin

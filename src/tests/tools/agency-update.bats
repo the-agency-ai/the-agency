@@ -37,8 +37,8 @@ run_agency() {
 # Both are git repos. We stub AGENCY_SOURCE to point at the source.
 setup_update_fixture() {
     local root="${BATS_TEST_TMPDIR}/fixture"
-    mkdir -p "$root/source/claude/config" "$root/source/claude/tools" "$root/source/.claude/skills"
-    mkdir -p "$root/target/claude/config" "$root/target/claude/tools" "$root/target/.claude/skills"
+    mkdir -p "$root/source/agency/config" "$root/source/agency/tools" "$root/source/.claude/skills"
+    mkdir -p "$root/target/agency/config" "$root/target/agency/tools" "$root/target/.claude/skills"
 
     # Source agency.yaml
     cat > "$root/source/agency/config/agency.yaml" <<EOF
@@ -231,7 +231,7 @@ EOF
     # to fail at the clone step. But the verbose output should reference 'main'
     # (the new default), not 'latest'.
     cd "$BATS_TEST_TMPDIR"
-    mkdir -p target/claude/config
+    mkdir -p target/agency/config
     cat > target/agency/config/agency.yaml <<EOF
 framework:
   version: "1.0.0"
@@ -247,7 +247,7 @@ EOF
 
 @test "agency update: --from-github @latest opt-in attempts release-tag resolution" {
     cd "$BATS_TEST_TMPDIR"
-    mkdir -p target/claude/config
+    mkdir -p target/agency/config
     cat > target/agency/config/agency.yaml <<EOF
 framework:
   version: "1.0.0"
@@ -264,7 +264,7 @@ EOF
 
 @test "agency update: legacy --from-github latest emits deprecation warning" {
     cd "$BATS_TEST_TMPDIR"
-    mkdir -p target/claude/config
+    mkdir -p target/agency/config
     cat > target/agency/config/agency.yaml <<EOF
 framework:
   version: "1.0.0"
@@ -401,49 +401,18 @@ EOF
     AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
-    # Canonical set of tools that MUST be installed (these were the missing
-    # ones surfaced in the live incident). If any of these is absent after
-    # init, the hardcoded-list bug has regressed.
+    # Regression anchor against the hardcoded-list bug: init does a
+    # directory-level copy of every top-level file under the framework's
+    # agency/tools/, so EVERY shippable tool must land in the target. Enumerate
+    # the real source dir rather than a frozen list — that's exactly what init
+    # promises to do, and it can never re-rot as tools are added/removed.
+    # (Developer-only tools live in src/tools-developer/ and are intentionally
+    #  NOT under agency/tools/, so they're correctly excluded here.)
     local missing=()
-    local canonical_tools=(
-        agency
-        git-safe
-        git-captain
-        git-push
-        git-safe-commit
-        cp-safe
-        handoff
-        dispatch
-        dispatch-create
-        agent-identity
-        agent-create
-        agent-bootstrap
-        agency-bootstrap.sh
-        collaboration
-        iscp-check
-        iscp-migrate
-        flag
-        pr-create
-        pr-merge
-        principal-onboard
-        receipt-sign
-        receipt-verify
-        session-preflight
-        worktree-sync
-        worktree-cwd-check
-        worktree-create
-        worktree-delete
-        worktree-list
-        skill-verify
-        agency-issue
-        agency-health
-        issue-monitor
-        dispatch-monitor
-        diff-hash
-        stage-hash
-        commit-precheck
-    )
-    for tool in "${canonical_tools[@]}"; do
+    local tool_path tool
+    for tool_path in "$REPO_ROOT/agency/tools/"*; do
+        [[ -f "$tool_path" ]] || continue   # skip lib/, tests/ subdirs
+        tool=$(basename "$tool_path")
         [[ -f "$target/agency/tools/$tool" ]] || missing+=("$tool")
     done
 
@@ -528,22 +497,17 @@ EOF
     AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
-    # Old hardcoded list had 8 classes. Framework has ~21. Assert the ones
-    # that were previously missing are now present.
+    # Regression anchor against the hardcoded-8 bug: init copies every agent
+    # class directory from the framework. Enumerate the real source classes
+    # (any dir with an agent.md — that's what defines a class; helper dirs like
+    # templates/ have none and are skipped) rather than a frozen list, so this
+    # tracks the current roster (captain, design-lead, researcher, reviewer-*,
+    # tech-lead, …) and can't re-rot when classes are renamed or added.
     local missing=()
-    local canonical_agents=(
-        captain
-        cos
-        project-manager
-        reviewer-code
-        reviewer-design
-        reviewer-scorer
-        reviewer-security
-        reviewer-test
-        iscp
-        tech-lead
-    )
-    for agent in "${canonical_agents[@]}"; do
+    local agent_dir agent
+    for agent_dir in "$REPO_ROOT/agency/agents/"*/; do
+        [[ -f "$agent_dir/agent.md" ]] || continue
+        agent=$(basename "$agent_dir")
         [[ -f "$target/agency/agents/$agent/agent.md" ]] || missing+=("$agent")
     done
     if [[ ${#missing[@]} -gt 0 ]]; then
@@ -570,9 +534,11 @@ EOF
     AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
-    # REFERENCE-* docs must all ship — ref-injector depends on them
-    local framework_refs=$(ls "$REPO_ROOT/claude/"REFERENCE-*.md 2>/dev/null | wc -l | tr -d ' ')
-    local target_refs=$(ls "$target/claude/"REFERENCE-*.md 2>/dev/null | wc -l | tr -d ' ')
+    # REFERENCE-* docs must all ship — ref-injector depends on them. Post-v46.1
+    # these live at agency/REFERENCE/REFERENCE-*.md (were claude/REFERENCE-*.md),
+    # and init copies them to the same relative path in the target.
+    local framework_refs=$(ls "$REPO_ROOT/agency/REFERENCE/"REFERENCE-*.md 2>/dev/null | wc -l | tr -d ' ')
+    local target_refs=$(ls "$target/agency/REFERENCE/"REFERENCE-*.md 2>/dev/null | wc -l | tr -d ' ')
 
     # Target must match framework count (directory-level copy)
     if [[ "$target_refs" -ne "$framework_refs" ]]; then
@@ -584,7 +550,7 @@ EOF
     local canonical_refs=(REFERENCE-QUALITY-GATE.md REFERENCE-AGENT-DISCIPLINE.md REFERENCE-ISCP-PROTOCOL.md)
     local missing=()
     for ref in "${canonical_refs[@]}"; do
-        [[ -f "$target/claude/$ref" ]] || missing+=("$ref")
+        [[ -f "$target/agency/REFERENCE/$ref" ]] || missing+=("$ref")
     done
     if [[ ${#missing[@]} -gt 0 ]]; then
         echo "Missing canonical REFERENCE docs: ${missing[*]}"
@@ -602,8 +568,13 @@ EOF
     AGENCY_SOURCE="$REPO_ROOT" run "$REPO_ROOT/agency/tools/agency" init --principal tester
     assert_success
 
-    local framework_readmes=$(ls "$REPO_ROOT/claude/"README-*.md 2>/dev/null | wc -l | tr -d ' ')
-    local target_readmes=$(ls "$target/claude/"README-*.md 2>/dev/null | wc -l | tr -d ' ')
+    # READMEs init installs live at agency/README-*.md (top-level) and are
+    # copied by init to <target>/agency/ (see _agency-init "README-*.md" block).
+    # NOTE: three further READMEs (ENFORCEMENT, SAFE-TOOLS, RECEIPT-INFRASTRUCTURE)
+    # now live under agency/README/ and are NOT yet installed by init — tracked
+    # separately; this test covers the top-level set init actually ships.
+    local framework_readmes=$(ls "$REPO_ROOT/agency/"README-*.md 2>/dev/null | wc -l | tr -d ' ')
+    local target_readmes=$(ls "$target/agency/"README-*.md 2>/dev/null | wc -l | tr -d ' ')
     if [[ "$target_readmes" -ne "$framework_readmes" ]]; then
         echo "README-*.md count mismatch: framework has $framework_readmes, target has $target_readmes"
         false

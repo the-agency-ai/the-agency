@@ -30,7 +30,7 @@ _setup_fixture() {
     git config commit.gpgsign false
 
     mkdir -p .claude/commands .claude/hooks
-    mkdir -p agency/tools/lib claude/config
+    mkdir -p agency/tools/lib agency/config
 
     # Copy the minimum framework tools sandbox-sync depends on
     cp "${REPO_ROOT}/agency/tools/sandbox-sync" agency/tools/sandbox-sync

@@ -1,0 +1,6 @@
+rule: raw-find-bfs-present
+expected_decision: block
+expected_match: bfs
+path_mode: stubbed
+---BODY---
+find . -name foo

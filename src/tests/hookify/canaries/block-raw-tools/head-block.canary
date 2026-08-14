@@ -1,0 +1,5 @@
+rule: raw-head
+expected_decision: block
+expected_match: offset and limit
+---BODY---
+head -n 20 file.txt

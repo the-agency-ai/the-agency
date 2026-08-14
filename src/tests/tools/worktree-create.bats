@@ -774,16 +774,20 @@ make_origin_repo() {
     make_origin_repo
     cd "$TEST_REPO"
 
-    run "$TOOL" --workstream mdpal --agent mdpal-app
+    # Use a synthetic workstream/agent that still exercises the "collapsed
+    # name" path (agent name starts with the workstream → collapses to the
+    # agent name) but cannot collide with a real fleet worktree under the live
+    # repo's .claude/worktrees/ (which is what assert_no_live_repo_leak checks).
+    run "$TOOL" --workstream acmews --agent acmews-app
     [ "$status" -eq 0 ]
 
-    local wt="${TEST_REPO}/.claude/worktrees/mdpal-app"
+    local wt="${TEST_REPO}/.claude/worktrees/acmews-app"
     [ -d "$wt" ]
     run git -C "$wt" rev-parse --abbrev-ref HEAD
     [ "$status" -eq 0 ]
-    [ "$output" = "mdpal-app" ]
+    [ "$output" = "acmews-app" ]
 
-    assert_no_live_repo_leak mdpal-app
+    assert_no_live_repo_leak acmews-app
 }
 
 @test "workstream form: computed name still resolves an origin-only branch" {

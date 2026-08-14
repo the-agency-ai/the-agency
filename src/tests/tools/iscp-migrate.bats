@@ -22,9 +22,13 @@ setup() {
     iscp_test_isolation_setup
 
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
-    mkdir -p "$MOCK_REPO/agency/tools/lib" "$MOCK_REPO/claude/config"
+    mkdir -p "$MOCK_REPO/agency/tools/lib" "$MOCK_REPO/agency/config"
 
-    for tool in iscp-migrate agent-identity dispatch flag; do
+    # iscp-migrate is a developer tool (moved to src/tools-developer/ in
+    # v46.1-cleanup); the rest are framework tools under agency/tools/.
+    cp "$REPO_ROOT/src/tools-developer/iscp-migrate" "$MOCK_REPO/agency/tools/"
+    chmod +x "$MOCK_REPO/agency/tools/iscp-migrate"
+    for tool in agent-identity dispatch flag; do
         cp "$REPO_ROOT/agency/tools/$tool" "$MOCK_REPO/agency/tools/"
         chmod +x "$MOCK_REPO/agency/tools/$tool"
     done

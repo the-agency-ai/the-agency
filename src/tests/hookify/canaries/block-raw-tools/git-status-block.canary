@@ -1,0 +1,5 @@
+rule: raw-git-any
+expected_decision: block
+expected_match: Only safe git operations
+---BODY---
+git status

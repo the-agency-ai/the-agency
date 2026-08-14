@@ -11,20 +11,23 @@
 
 load '../tools/test_helper'
 
-AGENTS_DIR="${REPO_ROOT}/claude/agents"
+AGENTS_DIR="${REPO_ROOT}/agency/agents"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Agent File Existence
 # ─────────────────────────────────────────────────────────────────────────────
 
-@test "agents: at least 10 agent directories exist" {
+@test "agents: at least 9 agent directories exist" {
+    # 9 canonical agent classes post-D42 reorg: captain, design-lead,
+    # researcher, reviewer-{code,design,scorer,security,test}, tech-lead.
+    # (templates/ is a helper dir with no agent.md and is correctly skipped.)
     local count=0
     for file in "${AGENTS_DIR}"/*/agent.md; do
         [[ -f "$file" ]] || continue
         count=$((count + 1))
     done
-    if [[ "$count" -lt 10 ]]; then
-        echo "Expected at least 10 agents, found $count" >&2
+    if [[ "$count" -lt 9 ]]; then
+        echo "Expected at least 9 agents, found $count" >&2
         return 1
     fi
 }

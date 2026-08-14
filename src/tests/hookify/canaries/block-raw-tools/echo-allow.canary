@@ -1,0 +1,4 @@
+rule: innocuous-echo
+expected_decision: allow
+---BODY---
+echo hello world

@@ -131,7 +131,17 @@ teardown() {
 }
 
 @test "workstream-create: existing workstream shows error" {
-    run_tool workstream-create housekeeping
+    # Must be hermetic: create a workstream, THEN attempt to recreate it.
+    # The old version keyed off `housekeeping`, which is gitignored
+    # (.gitignore: agency/workstreams/housekeeping/) and therefore present
+    # ONLY in the main checkout's working tree — never in a scratch worktree
+    # cut from origin. That made this test pass in the main checkout but fail
+    # from a worktree (the dir doesn't exist, so create SUCCEEDS instead of
+    # erroring), which broke pr-captain-land's worktree validation. The
+    # `test`-prefixed name is cleaned up by teardown()'s find on `test*`.
+    run_tool workstream-create testexisting
+    assert_success
+    run_tool workstream-create testexisting
     assert_failure
     assert_output_contains "already exists"
 }

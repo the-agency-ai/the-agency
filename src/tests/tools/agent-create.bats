@@ -25,7 +25,7 @@ setup() {
     mkdir -p agency/tools/lib
     mkdir -p agency/agents/templates/generic
     mkdir -p agency/workstreams/testws
-    mkdir -p claude/config
+    mkdir -p agency/config
     mkdir -p .claude/agents
     mkdir -p usr/testuser
 

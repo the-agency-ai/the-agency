@@ -1,0 +1,5 @@
+rule: raw-cat-bareword
+expected_decision: block
+expected_match: Read tool
+---BODY---
+cat

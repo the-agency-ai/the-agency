@@ -16,7 +16,7 @@ PROVIDER_LIB="${REPO_ROOT}/agency/tools/lib/_provider-resolve"
 
 setup_provider_fixture() {
     export FIXTURE_DIR="${BATS_TEST_TMPDIR}/project"
-    mkdir -p "$FIXTURE_DIR/claude/config"
+    mkdir -p "$FIXTURE_DIR/agency/config"
     mkdir -p "$FIXTURE_DIR/agency/tools/lib"
 
     # Copy real helpers
