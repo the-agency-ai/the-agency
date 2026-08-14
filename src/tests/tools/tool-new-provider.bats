@@ -8,30 +8,24 @@
 
 load 'test_helper'
 
-# Save and restore build number to avoid side effects
+# tool-create is a DEVELOPER tool (src/tools-developer/, not agency/tools/).
+# It was moved there in v46.1-cleanup and its claude/ paths were migrated to
+# agency/ in the-agency#256. These tests run it HERMETICALLY: TOOL_CREATE_TOOLS_DIR
+# and TOOL_CREATE_BUILD_FILE redirect all writes into the per-test BATS sandbox,
+# so nothing lands in the live agency/tools + agency/data trees.
 setup() {
-    export BATS_TEST_TMPDIR="$(mktemp -d)"
     test_isolation_setup
     cd "${REPO_ROOT}"
-    export BUILD_FILE="${REPO_ROOT}/claude/data/tool-build-number"
-    if [[ -f "$BUILD_FILE" ]]; then
-        cp "$BUILD_FILE" "${BATS_TEST_TMPDIR}/build-number-backup"
-    fi
+    TOOL_CREATE="${REPO_ROOT}/src/tools-developer/tool-create"
+    SANDBOX_TOOLS="${BATS_TEST_TMPDIR}/tools"
+    mkdir -p "$SANDBOX_TOOLS"
+    export TOOL_CREATE_TOOLS_DIR="$SANDBOX_TOOLS"
+    export TOOL_CREATE_BUILD_FILE="${BATS_TEST_TMPDIR}/tool-build-number"
 }
 
 teardown() {
     test_isolation_teardown
-    # Restore build number
-    if [[ -f "${BATS_TEST_TMPDIR}/build-number-backup" ]]; then
-        cp "${BATS_TEST_TMPDIR}/build-number-backup" "$BUILD_FILE"
-    fi
-    # Clean up any tools we created
-    for pattern in secret-test- terminal-setup-test- platform-setup-test- design-test-; do
-        rm -f "${TOOLS_DIR}/${pattern}"* 2>/dev/null || true
-    done
-    if [[ -d "${BATS_TEST_TMPDIR}" ]]; then
-        rm -rf "${BATS_TEST_TMPDIR}"
-    fi
+    # BATS auto-removes BATS_TEST_TMPDIR (the sandbox); nothing else to clean.
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -39,24 +33,24 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "tool-create --provider=secrets: creates secret-{name}" {
-    run_tool tool-create --provider=secrets test-s1 "Test secrets provider"
+    run "$TOOL_CREATE" --provider=secrets test-s1 "Test secrets provider"
     assert_success
-    assert_file_exists "${TOOLS_DIR}/secret-test-s1"
-    rm -f "${TOOLS_DIR}/secret-test-s1"
+    assert_file_exists "${SANDBOX_TOOLS}/secret-test-s1"
+    rm -f "${SANDBOX_TOOLS}/secret-test-s1"
 }
 
 @test "tool-create --provider=secrets: template has correct tool name" {
-    run_tool tool-create --provider=secrets test-s2 "Test secrets provider"
+    run "$TOOL_CREATE" --provider=secrets test-s2 "Test secrets provider"
     assert_success
-    assert_file_contains "${TOOLS_DIR}/secret-test-s2" "secret-test-s2"
-    rm -f "${TOOLS_DIR}/secret-test-s2"
+    assert_file_contains "${SANDBOX_TOOLS}/secret-test-s2" "secret-test-s2"
+    rm -f "${SANDBOX_TOOLS}/secret-test-s2"
 }
 
 @test "tool-create --provider=secrets: template has correct dispatcher" {
-    run_tool tool-create --provider=secrets test-s3 "Test secrets provider"
+    run "$TOOL_CREATE" --provider=secrets test-s3 "Test secrets provider"
     assert_success
-    assert_file_contains "${TOOLS_DIR}/secret-test-s3" "Dispatched via: ./agency/tools/secret"
-    rm -f "${TOOLS_DIR}/secret-test-s3"
+    assert_file_contains "${SANDBOX_TOOLS}/secret-test-s3" "Dispatched via: ./agency/tools/secret"
+    rm -f "${SANDBOX_TOOLS}/secret-test-s3"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -64,10 +58,10 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "tool-create --provider=terminal: creates terminal-setup-{name}" {
-    run_tool tool-create --provider=terminal test-t1 "Test terminal provider"
+    run "$TOOL_CREATE" --provider=terminal test-t1 "Test terminal provider"
     assert_success
-    assert_file_exists "${TOOLS_DIR}/terminal-setup-test-t1"
-    rm -f "${TOOLS_DIR}/terminal-setup-test-t1"
+    assert_file_exists "${SANDBOX_TOOLS}/terminal-setup-test-t1"
+    rm -f "${SANDBOX_TOOLS}/terminal-setup-test-t1"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -75,10 +69,10 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "tool-create --provider=platform: creates platform-setup-{name}" {
-    run_tool tool-create --provider=platform test-p1 "Test platform provider"
+    run "$TOOL_CREATE" --provider=platform test-p1 "Test platform provider"
     assert_success
-    assert_file_exists "${TOOLS_DIR}/platform-setup-test-p1"
-    rm -f "${TOOLS_DIR}/platform-setup-test-p1"
+    assert_file_exists "${SANDBOX_TOOLS}/platform-setup-test-p1"
+    rm -f "${SANDBOX_TOOLS}/platform-setup-test-p1"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -86,10 +80,10 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "tool-create --provider=design: creates design-{name}" {
-    run_tool tool-create --provider=design test-d1 "Test design provider"
+    run "$TOOL_CREATE" --provider=design test-d1 "Test design provider"
     assert_success
-    assert_file_exists "${TOOLS_DIR}/design-test-d1"
-    rm -f "${TOOLS_DIR}/design-test-d1"
+    assert_file_exists "${SANDBOX_TOOLS}/design-test-d1"
+    rm -f "${SANDBOX_TOOLS}/design-test-d1"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -97,33 +91,33 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "tool-create --provider: created tool is executable" {
-    run_tool tool-create --provider=secrets test-exec "Test"
+    run "$TOOL_CREATE" --provider=secrets test-exec "Test"
     assert_success
-    [[ -x "${TOOLS_DIR}/secret-test-exec" ]]
-    rm -f "${TOOLS_DIR}/secret-test-exec"
+    [[ -x "${SANDBOX_TOOLS}/secret-test-exec" ]]
+    rm -f "${SANDBOX_TOOLS}/secret-test-exec"
 }
 
 @test "tool-create --provider: created tool has provider pattern in content" {
-    run_tool tool-create --provider=secrets test-content "Test"
+    run "$TOOL_CREATE" --provider=secrets test-content "Test"
     assert_success
-    assert_file_contains "${TOOLS_DIR}/secret-test-content" "secrets"
-    rm -f "${TOOLS_DIR}/secret-test-content"
+    assert_file_contains "${SANDBOX_TOOLS}/secret-test-content" "secrets"
+    rm -f "${SANDBOX_TOOLS}/secret-test-content"
 }
 
 @test "tool-create --provider: created tool has set -euo pipefail" {
-    run_tool tool-create --provider=secrets test-strict "Test"
+    run "$TOOL_CREATE" --provider=secrets test-strict "Test"
     assert_success
-    assert_file_contains "${TOOLS_DIR}/secret-test-strict" "set -euo pipefail"
-    rm -f "${TOOLS_DIR}/secret-test-strict"
+    assert_file_contains "${SANDBOX_TOOLS}/secret-test-strict" "set -euo pipefail"
+    rm -f "${SANDBOX_TOOLS}/secret-test-strict"
 }
 
 @test "tool-create --provider: created tool --help works" {
-    run_tool tool-create --provider=secrets test-help "Test help provider"
+    run "$TOOL_CREATE" --provider=secrets test-help "Test help provider"
     assert_success
-    run "${TOOLS_DIR}/secret-test-help" --help
+    run "${SANDBOX_TOOLS}/secret-test-help" --help
     assert_success
     assert_output_contains "secret-test-help"
-    rm -f "${TOOLS_DIR}/secret-test-help"
+    rm -f "${SANDBOX_TOOLS}/secret-test-help"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -131,14 +125,16 @@ teardown() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test "tool-create --provider=invalid: rejects unknown pattern" {
-    run_tool tool-create --provider=invalid test-bad "Test"
+    run "$TOOL_CREATE" --provider=invalid test-bad "Test"
     assert_failure
     assert_output_contains "Unknown provider pattern"
 }
 
 @test "tool-create --provider: rejects if remapped tool already exists" {
-    # secret-vault already exists
-    run_tool tool-create --provider=secrets vault "Test"
+    # Pre-create the remapped target (secrets:vault -> secret-vault) in the
+    # sandbox so the collision check has something to collide with.
+    touch "${SANDBOX_TOOLS}/secret-vault"
+    run "$TOOL_CREATE" --provider=secrets vault "Test"
     assert_failure
     assert_output_contains "already exists"
 }

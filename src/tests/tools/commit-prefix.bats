@@ -14,7 +14,7 @@ setup() {
 
     export TEST_REPO="${BATS_TEST_TMPDIR}/test-repo"
     mkdir -p "$TEST_REPO/agency/tools/lib"
-    mkdir -p "$TEST_REPO/claude/config"
+    mkdir -p "$TEST_REPO/agency/config"
     cd "$TEST_REPO"
     git init --quiet --no-verify 2>/dev/null || git init --quiet
     git config user.email "test@test.invalid"

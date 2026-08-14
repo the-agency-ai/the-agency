@@ -13,10 +13,10 @@
 # Written: 2026-04-07 during devex Phase 3.2 (enforcement registry + audit)
 #
 # Usage:
-#   ./claude/tools/enforcement-audit              # audit all capabilities
-#   ./claude/tools/enforcement-audit --verbose    # show per-artifact details
-#   ./claude/tools/enforcement-audit --json       # machine-readable output
-#   ./claude/tools/enforcement-audit --version    # show version
+#   ./agency/tools/enforcement-audit              # audit all capabilities
+#   ./agency/tools/enforcement-audit --verbose    # show per-artifact details
+#   ./agency/tools/enforcement-audit --json       # machine-readable output
+#   ./agency/tools/enforcement-audit --version    # show version
 #
 # Exit codes:
 #   0 = all capabilities valid
@@ -33,7 +33,7 @@ fi
 RUN_ID=$(log_start "enforcement-audit" "$@" 2>/dev/null) || true
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-REGISTRY="$REPO_ROOT/claude/config/enforcement.yaml"
+REGISTRY="$REPO_ROOT/agency/config/enforcement.yaml"
 
 VERBOSE=false
 JSON_OUTPUT=false

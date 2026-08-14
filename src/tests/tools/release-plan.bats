@@ -29,7 +29,7 @@ setup() {
     git config user.email "test@example.com"
     git config user.name "Test User"
     # Create a minimal agency.yaml and make the initial commit
-    mkdir -p claude/config claude/tools .claude/skills agency/workstreams/agency/seeds usr/jordan/captain/{tools,tmp,history/flotsam}
+    mkdir -p agency/config agency/tools .claude/skills agency/workstreams/agency/seeds usr/jordan/captain/{tools,tmp,history/flotsam}
     echo "# base agency.yaml" > agency/config/agency.yaml
     echo "# base README" > README.md
     git add -A
@@ -39,7 +39,7 @@ setup() {
     git update-ref refs/remotes/origin/main HEAD
 
     # Copy the tool into the test repo so relative paths resolve
-    mkdir -p claude/tools
+    mkdir -p agency/tools
     cp "$RELEASE_PLAN_TOOL" agency/tools/release-plan
     chmod +x agency/tools/release-plan
 }
@@ -99,7 +99,7 @@ teardown() {
 
 @test "release-plan: classifies methodology files correctly" {
     cd "$TEST_REPO"
-    mkdir -p claude
+    mkdir -p agency
     echo "# methodology" > agency/CLAUDE-THEAGENCY.md
     git add agency/CLAUDE-THEAGENCY.md
     run ./agency/tools/release-plan --no-switch

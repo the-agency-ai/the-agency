@@ -22,7 +22,7 @@ setup() {
 
     # Create structure the hook expects
     mkdir -p agency/tools/lib
-    mkdir -p claude/config
+    mkdir -p agency/config
     mkdir -p usr/testuser/captain
 
     # Copy the hook

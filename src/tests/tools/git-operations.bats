@@ -81,6 +81,14 @@ load 'test_helper'
 }
 
 @test "commit: requires work item OR --no-work-item flag" {
+    # Needs a repo with git identity configured so the commit reaches the
+    # work-item validation (the #204 git-identity precondition fires first
+    # in the identity-less REPO_ROOT of the isolated harness).
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+    echo "change" >> README.md
+    git add README.md
     run_tool git-safe-commit "Test message"
     assert_failure
     assert_output_contains "Work item required" || assert_output_contains "--no-work-item"
@@ -139,6 +147,13 @@ load 'test_helper'
 }
 
 @test "commit: validates work item format - rejects invalid" {
+    # Needs git identity configured so the commit reaches work-item format
+    # validation rather than short-circuiting on the #204 identity precondition.
+    local repo_dir
+    repo_dir=$(create_mock_git_repo)
+    cd "$repo_dir"
+    echo "change" >> README.md
+    git add README.md
     run_tool git-safe-commit "Test" --work-item INVALID-test --stage impl
     assert_failure
     assert_output_contains "Invalid work item"

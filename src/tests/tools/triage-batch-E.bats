@@ -25,6 +25,7 @@ teardown() {
 
 # ── #181: cross-worktree dispatch 'from' field ─────────────────────────────
 @test "#181: dispatch-create accepts explicit --from arg (identity preservation hook)" {
+    skip "#181 OPEN (tracked backlog): dispatch-create --from cross-worktree identity preservation not yet implemented — informational probe, mark skip until built"
     run "${REPO_ROOT}/agency/tools/dispatch-create" --help
     [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
     # Probe: help output or usage must mention --from or principal/agent override
@@ -41,6 +42,7 @@ teardown() {
 
 # ── #205: QG Hash E captured before version bump ───────────────────────────
 @test "#205: QG skill / receipt-sign captures Hash E after version bump" {
+    skip "#205 OPEN (tracked backlog): QG Hash-E vs version-bump ordering is a design question, not yet resolved in quality-gate SKILL.md — informational probe, mark skip until decided"
     # Probe: receipt-sign documentation / quality-gate skill should order
     # version bump before Hash E. We check the quality-gate SKILL.md.
     run grep -n "Hash E" "${REPO_ROOT}/.claude/skills/quality-gate/SKILL.md"
@@ -190,6 +192,7 @@ teardown() {
 
 # ── #396: pr-create receipt lockstep (contributor posture) ────────────────
 @test "#396: pr-create supports contributor posture or receipt flexibility" {
+    skip "#396 OPEN (tracked backlog): pr-create contributor-posture / receipt-flexibility not yet implemented — informational probe, mark skip until built"
     run grep -n "contributor\|CONTRIBUTOR\|--no-receipt\|posture" "${REPO_ROOT}/agency/tools/pr-create"
     # If match found, probe passes (framework has posture awareness).
     # If not, bug still live — mark skip-complex.

@@ -21,7 +21,7 @@ setup() {
     # Create a mock git repo with agency.yaml
     export MOCK_REPO="$BATS_TEST_TMPDIR/mock-repo"
     mkdir -p "$MOCK_REPO/agency/tools/lib"
-    mkdir -p "$MOCK_REPO/claude/config"
+    mkdir -p "$MOCK_REPO/agency/config"
 
     # Copy the real tools and libs into mock repo
     cp "$REPO_ROOT/agency/tools/agent-identity" "$MOCK_REPO/agency/tools/"
@@ -78,16 +78,28 @@ teardown() {
 }
 
 @test "resolves agent name from branch" {
+    # Must be a REAL linked worktree: the captain-is-main detection classifies
+    # a plain single checkout as the main checkout (git-dir == git-common-dir)
+    # and returns captain, overriding branch detection. A linked worktree has a
+    # distinct git-dir, so worktree-vs-main detection correctly defers to the
+    # branch name. Point CLAUDE_PROJECT_DIR at the worktree so the tool resolves
+    # identity there rather than from MOCK_REPO's main checkout.
     cd "$MOCK_REPO"
-    git checkout -b iscp --quiet
+    local wt="$BATS_TEST_TMPDIR/wt-iscp"
+    git worktree add -b iscp "$wt" --quiet
+    export CLAUDE_PROJECT_DIR="$wt"
     run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/iscp"
 }
 
 @test "strips worktree- prefix from branch name" {
+    # Real linked worktree (see note above) so branch detection wins over the
+    # captain-is-main classification, exercising the worktree- prefix strip.
     cd "$MOCK_REPO"
-    git checkout -b worktree-mdpal --quiet
+    local wt="$BATS_TEST_TMPDIR/wt-mdpal"
+    git worktree add -b worktree-mdpal "$wt" --quiet
+    export CLAUDE_PROJECT_DIR="$wt"
     run "$MOCK_REPO/agency/tools/agent-identity"
     assert_success
     assert_output_contains "test-repo/testprincipal/mdpal"
@@ -276,7 +288,7 @@ teardown() {
 @test "CLAUDE_PROJECT_DIR overrides SCRIPT_DIR-derived project root" {
     # Create a second mock repo simulating main checkout
     local MAIN_REPO="$BATS_TEST_TMPDIR/main-repo"
-    mkdir -p "$MAIN_REPO/agency/tools/lib" "$MAIN_REPO/claude/config"
+    mkdir -p "$MAIN_REPO/agency/tools/lib" "$MAIN_REPO/agency/config"
     cp "$REPO_ROOT/agency/tools/agent-identity" "$MAIN_REPO/agency/tools/"
     chmod +x "$MAIN_REPO/agency/tools/agent-identity"
     cp "$REPO_ROOT/agency/tools/lib/_address-parse" "$MAIN_REPO/agency/tools/lib/"

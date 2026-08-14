@@ -15,7 +15,7 @@ setup() {
 
     # Create a minimal project structure
     mkdir -p "${BATS_TEST_TMPDIR}/.claude"
-    mkdir -p "${BATS_TEST_TMPDIR}/claude/config"
+    mkdir -p "${BATS_TEST_TMPDIR}/agency/config"
     mkdir -p "${BATS_TEST_TMPDIR}/agency/tools/lib"
 
     # Copy the tools we need

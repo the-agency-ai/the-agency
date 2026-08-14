@@ -89,7 +89,7 @@ teardown() {
 @test "runtime-guard: template TOOL.py matches convention" {
     # Every new framework tool is scaffolded from TOOL.py. If the template
     # drifts, new tools will silently miss the floor.
-    TPL="${REPO_ROOT:-$(pwd)}/claude/templates/TOOL.py"
+    TPL="${REPO_ROOT:-$(pwd)}/agency/templates/TOOL.py"
     FIRST_LINE=$(head -n 1 "$TPL")
     [ "$FIRST_LINE" = "#!/usr/bin/env python3" ]
 

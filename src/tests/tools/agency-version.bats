@@ -68,7 +68,7 @@ teardown() {
 @test "agency-version: --statusline is silent when manifest missing" {
     # Point tool at a fake project root with no manifest
     fake_root="${BATS_TEST_TMPDIR}/fake"
-    mkdir -p "${fake_root}/claude/tools" "${fake_root}/claude/config"
+    mkdir -p "${fake_root}/agency/tools" "${fake_root}/agency/config"
     cp "${REPO_ROOT}/agency/tools/agency-version" "${fake_root}/agency/tools/"
     run bash "${fake_root}/agency/tools/agency-version" --statusline
     assert_success
@@ -87,7 +87,7 @@ teardown() {
 
 @test "agency-version: --json fails when field missing" {
     fake_root="${BATS_TEST_TMPDIR}/fake"
-    mkdir -p "${fake_root}/claude/tools" "${fake_root}/claude/config"
+    mkdir -p "${fake_root}/agency/tools" "${fake_root}/agency/config"
     cp "${REPO_ROOT}/agency/tools/agency-version" "${fake_root}/agency/tools/"
     echo '{"schema_version":"1.0"}' > "${fake_root}/agency/config/manifest.json"
     run bash "${fake_root}/agency/tools/agency-version" --json
@@ -105,7 +105,7 @@ teardown() {
 
 @test "agency-version: default fails when manifest missing" {
     fake_root="${BATS_TEST_TMPDIR}/fake"
-    mkdir -p "${fake_root}/claude/tools" "${fake_root}/claude/config"
+    mkdir -p "${fake_root}/agency/tools" "${fake_root}/agency/config"
     cp "${REPO_ROOT}/agency/tools/agency-version" "${fake_root}/agency/tools/"
     run bash "${fake_root}/agency/tools/agency-version"
     [[ "$status" -ne 0 ]]
@@ -113,7 +113,7 @@ teardown() {
 
 @test "agency-version: default fails when field missing" {
     fake_root="${BATS_TEST_TMPDIR}/fake"
-    mkdir -p "${fake_root}/claude/tools" "${fake_root}/claude/config"
+    mkdir -p "${fake_root}/agency/tools" "${fake_root}/agency/config"
     cp "${REPO_ROOT}/agency/tools/agency-version" "${fake_root}/agency/tools/"
     echo '{"schema_version":"1.0"}' > "${fake_root}/agency/config/manifest.json"
     run bash "${fake_root}/agency/tools/agency-version"

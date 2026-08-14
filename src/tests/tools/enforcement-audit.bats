@@ -13,9 +13,9 @@ setup() {
     test_isolation_setup
 
     export TEST_REPO="${BATS_TEST_TMPDIR}/test-repo"
-    mkdir -p "$TEST_REPO/claude/config"
-    mkdir -p "$TEST_REPO/claude/tools"
-    mkdir -p "$TEST_REPO/claude/docs"
+    mkdir -p "$TEST_REPO/agency/config"
+    mkdir -p "$TEST_REPO/agency/tools"
+    mkdir -p "$TEST_REPO/agency/docs"
     mkdir -p "$TEST_REPO/.claude/skills/my-skill"
     mkdir -p "$TEST_REPO/.git"
 
@@ -23,7 +23,7 @@ setup() {
     git init --quiet --no-verify 2>/dev/null || git init --quiet
 
     # Copy the audit tool
-    cp "$REPO_ROOT/agency/tools/enforcement-audit" "$TEST_REPO/agency/tools/"
+    cp "$REPO_ROOT/src/tools-developer/enforcement-audit" "$TEST_REPO/agency/tools/"
     chmod +x "$TEST_REPO/agency/tools/enforcement-audit"
 
     # Copy log helper
@@ -43,7 +43,7 @@ teardown() {
 
 @test "valid: level 1 capability with doc passes" {
     cd "$TEST_REPO"
-    echo "# docs" > claude/docs/MY-DOC.md
+    echo "# docs" > agency/docs/MY-DOC.md
     cat > agency/config/enforcement.yaml <<'YAML'
 version: 1
 capabilities:
@@ -51,7 +51,7 @@ capabilities:
     level: 1
     description: "test"
     artifacts:
-      doc: "claude/docs/MY-DOC.md"
+      doc: "agency/docs/MY-DOC.md"
 YAML
     run ./agency/tools/enforcement-audit
     [ "$status" -eq 0 ]
@@ -60,7 +60,7 @@ YAML
 
 @test "valid: level 3 capability with all artifacts passes" {
     cd "$TEST_REPO"
-    echo "# docs" > claude/docs/MY-DOC.md
+    echo "# docs" > agency/docs/MY-DOC.md
     echo "# skill" > .claude/skills/my-skill/SKILL.md
     echo '#!/bin/bash' > agency/tools/my-tool
     cat > agency/config/enforcement.yaml <<'YAML'
@@ -70,7 +70,7 @@ capabilities:
     level: 3
     description: "test"
     artifacts:
-      doc: "claude/docs/MY-DOC.md"
+      doc: "agency/docs/MY-DOC.md"
       skill: ".claude/skills/my-skill/SKILL.md"
       tool: "agency/tools/my-tool"
 YAML
@@ -85,7 +85,7 @@ YAML
 
 @test "missing: level 2 without skill fails" {
     cd "$TEST_REPO"
-    echo "# docs" > claude/docs/MY-DOC.md
+    echo "# docs" > agency/docs/MY-DOC.md
     cat > agency/config/enforcement.yaml <<'YAML'
 version: 1
 capabilities:
@@ -93,7 +93,7 @@ capabilities:
     level: 2
     description: "test"
     artifacts:
-      doc: "claude/docs/MY-DOC.md"
+      doc: "agency/docs/MY-DOC.md"
 YAML
     run ./agency/tools/enforcement-audit
     [ "$status" -eq 1 ]
@@ -102,7 +102,7 @@ YAML
 
 @test "missing: level 3 with missing tool file fails" {
     cd "$TEST_REPO"
-    echo "# docs" > claude/docs/MY-DOC.md
+    echo "# docs" > agency/docs/MY-DOC.md
     echo "# skill" > .claude/skills/my-skill/SKILL.md
     cat > agency/config/enforcement.yaml <<'YAML'
 version: 1
@@ -111,7 +111,7 @@ capabilities:
     level: 3
     description: "test"
     artifacts:
-      doc: "claude/docs/MY-DOC.md"
+      doc: "agency/docs/MY-DOC.md"
       skill: ".claude/skills/my-skill/SKILL.md"
       tool: "agency/tools/nonexistent"
 YAML
@@ -126,7 +126,7 @@ YAML
 
 @test "mixed: reports correct pass/fail count" {
     cd "$TEST_REPO"
-    echo "# docs" > claude/docs/MY-DOC.md
+    echo "# docs" > agency/docs/MY-DOC.md
     cat > agency/config/enforcement.yaml <<'YAML'
 version: 1
 capabilities:
@@ -134,12 +134,12 @@ capabilities:
     level: 1
     description: "test"
     artifacts:
-      doc: "claude/docs/MY-DOC.md"
+      doc: "agency/docs/MY-DOC.md"
   bad-cap:
     level: 2
     description: "test"
     artifacts:
-      doc: "claude/docs/MY-DOC.md"
+      doc: "agency/docs/MY-DOC.md"
 YAML
     run ./agency/tools/enforcement-audit
     [ "$status" -eq 1 ]

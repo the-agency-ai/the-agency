@@ -17,7 +17,7 @@ setup() {
     test_isolation_setup
 
     export TEST_REPO="${BATS_TEST_TMPDIR}/test-project"
-    mkdir -p "$TEST_REPO/claude/tools" "$TEST_REPO/claude/config"
+    mkdir -p "$TEST_REPO/agency/tools" "$TEST_REPO/agency/config"
     cd "$TEST_REPO"
     git init --quiet
 
@@ -254,7 +254,7 @@ YAML
 @test "deploy: uses CLAUDE_PROJECT_DIR over git rev-parse" {
     cd "$TEST_REPO"
     local alt="$BATS_TEST_TMPDIR/alt-root"
-    mkdir -p "$alt/claude/config"
+    mkdir -p "$alt/agency/config"
     cat > "$alt/agency/config/agency.yaml" <<'YAML'
 deploy:
   provider: "alt-provider"

@@ -78,13 +78,13 @@ create_skill() {
 
 @test "import: resolves @-import chain" {
     cd "$TEST_REPO"
-    mkdir -p "$TEST_REPO/claude/docs"
-    echo "some imported content with several words in it here" > "$TEST_REPO/claude/docs/imported.md"
+    mkdir -p "$TEST_REPO/agency/docs"
+    echo "some imported content with several words in it here" > "$TEST_REPO/agency/docs/imported.md"
     create_skill "importer" "@agency/docs/imported.md
 This skill imports another file"
     run ./agency/tools/context-budget-lint --skill importer --verbose
     [ "$status" -eq 0 ]
-    [[ "$output" == *"claude/docs/imported.md"* ]]
+    [[ "$output" == *"agency/docs/imported.md"* ]]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -93,11 +93,11 @@ This skill imports another file"
 
 @test "circular: detects and skips circular imports" {
     cd "$TEST_REPO"
-    mkdir -p "$TEST_REPO/claude/docs"
+    mkdir -p "$TEST_REPO/agency/docs"
     echo "@agency/docs/b.md
-Content of a" > "$TEST_REPO/claude/docs/a.md"
+Content of a" > "$TEST_REPO/agency/docs/a.md"
     echo "@agency/docs/a.md
-Content of b" > "$TEST_REPO/claude/docs/b.md"
+Content of b" > "$TEST_REPO/agency/docs/b.md"
     create_skill "circular" "@agency/docs/a.md
 Skill that starts a circular chain"
     run ./agency/tools/context-budget-lint --skill circular --verbose

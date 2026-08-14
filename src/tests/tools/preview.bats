@@ -17,7 +17,7 @@ setup() {
 
     # Build a fixture project with the wrapper installed and a mock provider.
     export TEST_REPO="${BATS_TEST_TMPDIR}/test-project"
-    mkdir -p "$TEST_REPO/claude/tools" "$TEST_REPO/claude/config"
+    mkdir -p "$TEST_REPO/agency/tools" "$TEST_REPO/agency/config"
     cd "$TEST_REPO"
     git init --quiet
 
@@ -260,7 +260,7 @@ YAML
     cd "$TEST_REPO"
     # Create an isolated project root with a different config
     local alt="$BATS_TEST_TMPDIR/alt-root"
-    mkdir -p "$alt/claude/config"
+    mkdir -p "$alt/agency/config"
     cat > "$alt/agency/config/agency.yaml" <<'YAML'
 preview:
   provider: "alt-provider"

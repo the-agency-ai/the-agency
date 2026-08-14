@@ -71,7 +71,7 @@ run_agency() {
     assert_success
     assert_output_contains "directory: agency/config/"
     assert_output_contains "directory: agency/agents/"
-    assert_output_contains "directory: claude/docs/"
+    assert_output_contains "directory: agency/REFERENCE/"
     assert_output_contains "directory: agency/hooks/"
 }
 
