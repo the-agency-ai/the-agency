@@ -1,0 +1,5 @@
+rule: raw-gawk
+expected_decision: block
+expected_match: Edit tool
+---BODY---
+gawk {print} file.txt

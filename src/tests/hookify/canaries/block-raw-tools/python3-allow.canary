@@ -1,0 +1,4 @@
+rule: over-block-guard-python3
+expected_decision: allow
+---BODY---
+python3 script.py

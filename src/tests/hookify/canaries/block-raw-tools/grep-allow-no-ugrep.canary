@@ -1,0 +1,5 @@
+rule: raw-grep-no-ugrep
+expected_decision: allow
+path_mode: bare
+---BODY---
+grep foo bar.txt

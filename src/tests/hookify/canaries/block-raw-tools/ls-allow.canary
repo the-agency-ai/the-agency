@@ -1,0 +1,4 @@
+rule: innocuous-ls
+expected_decision: allow
+---BODY---
+ls -la

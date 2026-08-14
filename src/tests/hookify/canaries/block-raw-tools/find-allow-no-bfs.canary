@@ -1,0 +1,5 @@
+rule: raw-find-no-bfs
+expected_decision: allow
+path_mode: bare
+---BODY---
+find . -name foo

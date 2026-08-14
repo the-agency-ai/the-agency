@@ -1,0 +1,4 @@
+rule: over-block-guard-npm
+expected_decision: allow
+---BODY---
+npm test

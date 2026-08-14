@@ -1,0 +1,4 @@
+rule: claude-project-dir-exemption
+expected_decision: allow
+---BODY---
+$CLAUDE_PROJECT_DIR/agency/tools/dispatch list

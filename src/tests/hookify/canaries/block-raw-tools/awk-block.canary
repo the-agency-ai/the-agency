@@ -1,0 +1,5 @@
+rule: raw-awk
+expected_decision: block
+expected_match: Edit tool
+---BODY---
+awk {print} file.txt

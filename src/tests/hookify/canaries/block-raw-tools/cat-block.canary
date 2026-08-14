@@ -1,0 +1,5 @@
+rule: raw-cat
+expected_decision: block
+expected_match: Read tool
+---BODY---
+cat README.md

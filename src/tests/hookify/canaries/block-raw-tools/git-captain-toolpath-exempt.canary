@@ -1,0 +1,4 @@
+rule: git-captain-via-agency-tools-exemption
+expected_decision: allow
+---BODY---
+./agency/tools/git-captain fetch

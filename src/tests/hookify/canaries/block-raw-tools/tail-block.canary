@@ -1,0 +1,5 @@
+rule: raw-tail
+expected_decision: block
+expected_match: offset and limit
+---BODY---
+tail -n 20 file.txt
