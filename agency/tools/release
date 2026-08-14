@@ -47,6 +47,7 @@ DRY_RUN=false
 CHANGELOG_ONLY=false
 REQUEST_ID=""
 VERBOSE=false
+VERSION_ARG=""
 
 # Logging functions (quiet by default)
 log_info() { [[ "$VERBOSE" == "true" ]] && echo -e "${GREEN}[INFO]${NC} $1" || true; }
@@ -90,13 +91,23 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        -*)
+            log_error "Unknown option: $1"
+            echo "Usage: ./agency/tools/release <version|patch|minor|major> [--verbose]"
+            exit 1
+            ;;
         *)
-            break
+            # First non-option is the version argument. Flags may appear in any
+            # position — do NOT break here, or flags after the version (e.g.
+            # `release major --dry-run`) would be silently dropped, turning a
+            # dry run into a real release.
+            if [ -z "$VERSION_ARG" ]; then
+                VERSION_ARG="$1"
+            fi
+            shift
             ;;
     esac
 done
-
-VERSION_ARG="${1:-}"
 
 if [ -z "$VERSION_ARG" ]; then
     log_error "Version required"
@@ -105,8 +116,11 @@ if [ -z "$VERSION_ARG" ]; then
 fi
 
 # Get the last release tag
+# Restrict to semver-shaped tags (v<digit>...) so malformed/test-pollution tags
+# such as `vversion$test.3.0` can never be selected as the "last release" — which
+# would otherwise feed a non-numeric component into bump_version's arithmetic.
 get_last_release() {
-    git tag -l 'v*' --sort=-v:refname | head -n 1
+    git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1
 }
 
 # Extract version from tag
@@ -124,6 +138,13 @@ bump_version() {
     local base_version="${current%%-*}"
 
     IFS='.' read -r major minor patch <<< "$base_version"
+
+    # Harden arithmetic against non-numeric components: strip any non-digits and
+    # default empty fields to 0 so an unexpected current version (e.g. a stray
+    # tag) can never produce a bash arithmetic "invalid operator" error.
+    major="${major//[!0-9]/}"; major="${major:-0}"
+    minor="${minor//[!0-9]/}"; minor="${minor:-0}"
+    patch="${patch//[!0-9]/}"; patch="${patch:-0}"
 
     case "$type" in
         major)
@@ -254,7 +275,7 @@ main() {
 
     # Dry run
     if [ "$DRY_RUN" = true ]; then
-        log_warn "[DRY RUN] Would create tag: $NEW_TAG"
+        echo "[DRY RUN] Would create tag: $NEW_TAG"
         if [ "$PUSH" = true ]; then
             verbose_echo "[DRY RUN] Would push tag to remote"
         fi
