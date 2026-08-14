@@ -1,104 +1,95 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-08-12T22:00
-trigger: abc-mandate-complete
+date: 2026-08-14T02:20
+trigger: compact-prepare
 branch: main
-mode: resumption
+mode: continuation
 next-action: |
-  The a/b/c mandate is COMPLETE and the tree is clean at v46.35. No work is
-  in flight. Pick up a tracked backlog (all in
-  agency/workstreams/agency/flag-triage-outcome-20260812.md):
-  (1) HIGHEST-VALUE quick win — B2 item #213: 7 v2 skills have broken
-      required_reading paths (agency/REFERENCE-*.md → agency/REFERENCE/REFERENCE-*.md):
-      captain-release, captain-review, captain-sync-all, captain-log, sync,
-      pr-captain-merge, pr-captain-post-merge. Silently broken. Sweep + fix + land.
-  (2) B3 architecture DESIGN SESSION — 7 deep framework design calls (#55 collab
-      naming, #80/#92 dispatch-service + receipt registry, #90 RG-on-QGR, #91
-      artifact naming + multi-project, #102/#105 skill-vs-tool enforcement, #110
-      Routines, #150 refactor skill). Deserves dedicated attention.
-  (3) mdpal migration (task #15, flag #183): consolidate usr/jordan/mdpal →
-      agency/workstreams/mdpal.
-  Landing tooling now SELF-COMPLETES (pr-captain-land fixed in #469/#472) — a
-  normal land needs no manual scratch cleanup. Bootstrap-land only for changes
-  to pr-captain-land itself.
+  After /compact, run /compact-resume, then BUILD #144 — the hookify canary
+  test harness (principal greenlit it as the next real build). The 40 hookify
+  enforcement rules are effectively UNTESTED: canaries exist at
+  src/tests/hookify/canaries/*.canary (35 files) but nothing runs them.
+  Canary format: frontmatter `expected_decision: block|warn` + `expected_match:
+  <substr>` + `---BODY---` + the command. The main evaluator is
+  agency/hooks/block-raw-tools.sh (PreToolUse hook: reads JSON on stdin,
+  `.tool_input.command`; emits `{"decision":"block","reason":...}` or nothing).
+  BUT hookify has MULTIPLE evaluators — a proper harness must route each canary
+  to its correct evaluator (block-raw-tools.sh handles the raw-tool/compound
+  ones; others may be separate hooks). Investigate the full hookify dispatch
+  architecture FIRST, then build a bats harness that loops every canary, feeds
+  its BODY through the right evaluator, and asserts expected_decision. Model the
+  invocation on agency/hooks/__tests__/block-raw-tools.test.sh (assert_hook
+  helper: `echo "$json" | "$HOOK"`). Do it PROPERLY (it's load-bearing test
+  infra) — QG with the real reviewer agents, then land via pr-captain-land.
 ---
 
-# Captain handoff — a/b/c mandate complete (v46.35)
+# Captain handoff — B2 largely cleared; #144 is the next real build (post-compact)
 
-## This session delivered the full a/b/c mandate + hardened the delivery path
+## The arc since last compact
+Resumed at v46.28. Delivered the full **a/b/c mandate** THEN swept the B2
+backlog. **14 PRs landed this session, v46.28 → v46.42, main clean.**
 
-Resumed post-compact at v46.28 with the delivery-path-hardening branch ready.
-Landed it, then drove all three original tasks to completion. **7 PRs landed,
-v46.28 → v46.35, tree clean.**
+## Landed this session (14 PRs)
+- #466 v46.29 delivery-path hardening · #467 v46.30 mdslidepal-mac (34 fixes) ·
+  #468 v46.31 mdpal-app (8 fixes) · #469 v46.32 pr-captain-land cleanup (flag
+  #236) · #470 v46.33 worktree-create DWIM · #471 v46.34 captain-release-notes
+  (#426 revived) · #472 v46.35 its metadata fix · #473 v46.36 REFERENCE-path
+  sweep + validator (flag #213) · #474 v46.37 reviewer-agent registration
+  (#186/#194) · #475 v46.38 agent-import fix (#246) · #476 v46.39 git-captain
+  cherry-pick+merge (#120/#109) · #477 v46.40 diff-hash --working (#207) ·
+  #478 v46.41 mdpal migration (#183) · #479 v46.42 designex bats (#138/#139).
+- The delivery tooling now SELF-COMPLETES (pr-captain-land fixed in #469/#472) —
+  a normal land needs no manual scratch cleanup. Bootstrap-land ONLY for changes
+  to pr-captain-land itself.
 
-## PRs landed (all self-verified: receipt-chain + CI + release)
-- **#466** v46.29 — delivery-path hardening: `-C` repo-root targeting for
-  receipt-sign/pr-create/dispatch (fixed the publish-path bug) + git-sync
-  default-branch guard (flag #229). The unblocker.
-- **#467** v46.30 — **mdslidepal-mac** (task a): re-prep QG found 34 real defects
-  (ReDoS, decompression bomb, TOCTOU, `swift test` ran zero tests), 75→141 tests.
-- **#468** v46.31 — **mdpal-app** (task a): 8 defects incl. reachable argv-injection
-  (empty-slug sections unreadable), diff engine fuzzed 54k cases, 221→232 tests.
-- **#469** v46.32 — **pr-captain-land cleanup** (flag #236): stop passing
-  `--delete-branch` to pr-merge (it deleted the still-checked-out local scratch
-  branch and aborted the land AFTER a successful merge); delete the remote branch
-  explicitly in step 9. This made landing self-completing.
-- **#470** v46.33 — **worktree-create DWIM** (#426 unblocker): origin-only branch
-  resolution + QG hardening (four-case precedence ladder), 20→57 tests. First land
-  through the fixed tool — proven to self-complete.
-- **#471** v46.34 — **captain-release-notes** (#426 revived): 4-month-stale tool+skill
-  ported to v46.35, 48 QG findings (argv-injection, path-traversal), renamed
-  agency-captain-release-notes → captain-release-notes per convention. #426 closed.
-- **#472** v46.35 — **captain-release-notes metadata fix**: landed the rename-review
-  findings #471 shipped without (v1.3.0 bump, skills-index 10/64, rename records).
-  See "Process lesson" below.
+## B2 disposition (principal-approved this session)
+- **BUILD next → #144 hookify canary harness** (see next-action). The one clear
+  worthwhile build remaining.
+- **CLOSE:** #143 (loosen pnpm validator — DON'T; weakens a guard) · #106
+  (already addressed in #207's committed-vs-working clarification).
+- **#42 docker-test — NOT closed. REFRAMED:** the purpose was TEST ISOLATION
+  (which holds). Principal's direction: **research Apple Containers as the better
+  isolation mechanism** than docker. → a research task, then build. Track it.
+- **Audits → captain-log reports (not PRs):** #41 CI health, #149/#8 command
+  audit, #14/#40 structure audit. Run + report.
+- **Skills — principal to pick which (if any):** #47 /why-did-this-fail, #77
+  /make-slides, #152/#80 /seed, #137/#190/#192 anthropic-feedback. Each its own
+  effort.
+- **Murky — need scoping before build:** #94/#142 (git-safe-commit does NOT check
+  receipts — that's the qgr-require hook; where the boundary/format check belongs
+  needs deciding) · #145 (no crisp `## Class` convention exists) · #86 (Dependabot
+  in preflight — network on every session start; needs a design decision).
+- **Low-value/captures:** #81 gitignore (preventive; files not even present) ·
+  seeds #62/#65/#31/#129/#123 (better written by the idea's owner).
 
-## a / b / c — all complete
-- **(a) apps** — mdslidepal-mac + mdpal-app landed (#467, #468).
-- **(b) rotting PRs → #426** — #443/#435 were closed earlier; #426 revived (#471)
-  after landing its worktree-create unblocker (#470), and closed as superseded.
-- **(c) 199-flag mountain** — 216 flags triaged via 5 parallel agents, active queue
-  cleared (count=0), B2 (~47) tracked as work-items + 4 app dispatches (#1001-1004),
-  B3 (~21) dispositioned. Full record: `agency/workstreams/agency/flag-triage-outcome-20260812.md`.
+## In flight (delegated — will return as dispatches)
+- **designex #254** (dispatch 1045): decide + fix designsystem-add's dead template
+  (design-systems tree archived to flotsam) — re-point / restore / retire. Their
+  call. Also #148 designex Phase 1.5.
+- **App agents' dispatched work** (act on their next cycle): mdslidepal-mac
+  contract rulings (#1004) + smart-quotes (#1003); mdpal-app DiffView/MDPAL_MOCK
+  (#1001); mdpal-cli --content-stdin (#1002).
 
-## Open backlogs (tracked, nothing on fire)
-- **B2 framework follow-ups (~47)** — in the triage doc. HIGH: #213 broken
-  required_reading sweep. Others: missing bats (figma-extract, designsystem-*),
-  unbuilt skills (/why-did-this-fail, /make-slides, /seed, anthropic-feedback),
-  small tool adds (git-captain cherry-pick/feature-merge, reviewer-* registration),
-  QG Step-10 ordering (#207/#235), `flag list` shows processed flags (should filter).
-- **B3 architecture (7)** — dedicated design session (see next-action).
-- **B3 app rulings** — dispatched to mdslidepal-mac (#1004): remote-image beacon
-  accept-as-is, fixture08/#217 resolve, fixture05 autolinks amend-contract, hero
-  slide define. mdpal migration → task #15.
-- **App dispatches pending** (agents act next cycle): mdpal-app DiffView wiring +
-  MDPAL_MOCK (#1001), mdpal-cli --content-stdin (#1002), mdslidepal smart-quotes
-  (#1003), mdslidepal contract rulings (#1004).
-
-## Process lesson this session (flag #244, captured)
-I signed a QG receipt asserting "mechanical rename, no findings" for the #426
-rename BEFORE the devex agent's rename-review reported — it had found 5 (3 real).
-Landed incomplete in #471, fixed in #472. **Lesson: never sign a QGR claiming
-'no findings' until the review that would surface them has reported. Taking over
-a stalled agent's gate = retrieve/re-run its review, don't assume 'mechanical'.**
-Also: 2 devex agents stalled mid-task (worktree-create recovered; rename didn't) —
-watch agent reliability.
+## Known follow-ups / flags filed this session
+- #229 git-sync (fixed #466) · #235/#244 QG discipline · #241 required_reading
+  (fixed #473) · #248 missing workstream fragments (CLAUDE-DESIGNEX/MDSLIDEPAL) +
+  per-agent CLAUDE docs — CONTENT GAP · #249 src/claude build-product vs
+  hand-editing both trees (process question) · #254 designsystem-add template.
+- Two devex/designex agents mislabeled by me mid-run this session — I now VERIFY
+  agent state before narrating it (lesson).
 
 ## State
-- **main == origin/main == `bdd53ac8`** (v46.35). Clean tree.
-- Worktrees: designex, devex (still carries red test-monitor WIP + the now-landed
-  worktree-create commits — its branch is a landmine, do NOT auto-merge), iscp,
-  mdpal-app, mdpal-cli, mdslidepal-mac, mdslidepal-web. All land-scratch worktrees
-  torn down.
-- Dispatch monitors were unknown post-compact; re-launch `/monitor-dispatches` if
-  needed (`/opt/homebrew/bin/python3.13 ./agency/tools/dispatch-monitor --include-collab`).
-- PAT in `.git/config` — never pushed; principal to rotate (their action, not captain's).
+- **main == origin/main == v46.42.** Clean tree.
+- Dispatch monitors were `unknown` post earlier compact — relaunch
+  /monitor-dispatches if needed.
+- Triage record: `agency/workstreams/agency/flag-triage-outcome-20260812.md`.
 
 ## On resume
-1. `/session-resume` — sync, dispatches, monitors.
-2. Execute next-action: pick up #213 (quick HIGH win) or convene the B3 design session.
+1. `/compact-resume` — verify tree, monitors, dispatch drift.
+2. Execute next-action: investigate hookify dispatch architecture, then build the
+   #144 canary harness properly (QG + land).
 
-— captain. Full a/b/c delivered; delivery path hardened and self-completing.
+— captain. B2 largely cleared; #144 next; #42 → Apple Containers research.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
