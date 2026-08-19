@@ -557,9 +557,16 @@ cmd_tag_delete() {
     # Origin-safety guard: fetch origin's tag set ONCE. A tag present on origin
     # is canonical and is NEVER deleted, regardless of the caller's list.
     echo "${BLUE}Checking origin tag set (safety guard)...${NC}" >&2
-    local origin_tags
-    origin_tags=$(git ls-remote --tags origin 2>/dev/null | grep -v '\^{}' | sed 's#.*refs/tags/##') \
+    # Check `git ls-remote` DIRECTLY for failure — do NOT fold the grep/sed
+    # filter into the same `|| die` pipeline. On an origin with ZERO tags,
+    # ls-remote succeeds with empty output but `grep -v` then exits 1 (no lines
+    # matched); under pipefail that 1 propagates and would false-die on a
+    # perfectly valid empty result, blocking tag-delete on fresh repos. Capture
+    # the raw listing first (die only if ls-remote itself fails), then filter.
+    local _lsr origin_tags
+    _lsr=$(git ls-remote --tags origin 2>/dev/null) \
         || die "Could not read origin tags — refusing to delete without the safety check."
+    origin_tags=$(printf '%s\n' "$_lsr" | grep -v '\^{}' | sed 's#.*refs/tags/##' || true)
 
     # --local-only sweep mode: enumerate ALL local tags NOT on origin (optionally
     # filtered by --match <regex>) as the candidate set. The per-name origin guard

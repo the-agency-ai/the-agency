@@ -32,19 +32,15 @@
 
 set -euo pipefail
 
-# Portable SHA-256: macOS ships `shasum` (perl), Linux/alpine ship `sha256sum`
-# (coreutils). Equivalent at -a 256 (callers take field 1). Keeps the monitor
-# key stable across macOS and the Linux test/CI container (#42).
-if command -v shasum >/dev/null 2>&1; then
-    _sha256() { shasum -a 256; }
-elif command -v sha256sum >/dev/null 2>&1; then
-    _sha256() { sha256sum; }
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Portable SHA-256 via the shared helper (shasum on macOS || sha256sum on Linux),
+# resolved in one place across diff-hash/stage-hash/monitor-register (#42).
+if [[ -f "$SCRIPT_DIR/lib/_sha256" ]]; then
+    source "$SCRIPT_DIR/lib/_sha256"
 else
-    echo "Error: monitor-register requires 'shasum' or 'sha256sum' on PATH" >&2
+    echo "Error: monitor-register requires agency/tools/lib/_sha256" >&2
     exit 2
 fi
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
     REPO_ROOT="$CLAUDE_PROJECT_DIR"

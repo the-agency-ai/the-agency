@@ -71,23 +71,30 @@ HOST_USER="${USER:-$(id -un 2>/dev/null || echo unknown)}"
 # git-sync, handoff agent address) fail — on the host origin is a real github
 # URL. We derive org/repo from the host's origin but STRIP any embedded
 # credentials: a host remote may carry a "https://<token>@github.com/..." PAT
-# that must NEVER enter the container or the transcript. Parameter expansion
-# below drops everything up to and including "github.com", so the token is
-# removed by construction; we rebuild a clean https URL with no userinfo. (#42)
+# that must NEVER enter the container or the transcript.
+#
+# Security-critical (QG SEC-1/CODE-1): only process origins that ACTUALLY contain
+# "github.com", and only trust a result that is a clean "<org>/<repo>". The old
+# heuristic ("differs from the raw URL") was defeated by the trailing ".git"
+# strip alone, so a NON-github origin carrying a token (e.g.
+# "https://oauth2:TOK@gitlab.example.com/o/r.git") slipped through unstripped.
+# We now (a) gate on a real github.com match — anything else falls back to the
+# safe default — and (b) validate the parsed org/repo against a strict regex, so
+# any residual scheme/userinfo ("://", "@", ":") forces the default. The token
+# can never reach CLEAN_ORIGIN.
+CLEAN_ORIGIN="https://github.com/the-agency-ai/the-agency.git"
 _ho="$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || echo '')"
-_after="${_ho#*github.com}"      # -> ":org/repo.git" or "/org/repo.git" (token gone)
-_after="${_after#[:/]}"           # strip the leading : or /
-_org_repo="${_after%.git}"        # -> "org/repo"
-if [ -n "$_org_repo" ] && [ "$_org_repo" != "$_ho" ]; then
-    CLEAN_ORIGIN="https://github.com/${_org_repo}.git"
-else
-    CLEAN_ORIGIN="https://github.com/the-agency-ai/the-agency.git"
+if [[ "$_ho" == *github.com* ]]; then
+    _after="${_ho#*github.com}"   # drop everything up to & incl github.com (token gone)
+    _after="${_after#[:/]}"       # strip the leading : or /
+    _org_repo="${_after%.git}"    # -> "org/repo"
+    if [[ "$_org_repo" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+        CLEAN_ORIGIN="https://github.com/${_org_repo}.git"
+    fi
 fi
 
 # Clone the read-only-mounted repo to a writable workdir, then run bats there.
 # git identity is set so tests that commit don't fail on missing user.*.
-RUN_CMD="set -e
-export USER=$(printf '%q' "$HOST_USER")
 # SYSTEM git identity + default branch: many tests create their own throwaway
 # repos in tmpdirs and commit WITHOUT setting local user.*, relying on an ambient
 # identity (present on a dev host, absent in a fresh container → 'git commit'
@@ -95,7 +102,14 @@ export USER=$(printf '%q' "$HOST_USER")
 # NOT --global: test_isolation_setup scrubs HOME to a fakehome, so a ~/.gitconfig
 # global identity is invisible to the tests. --system is HOME-independent.
 # init.defaultBranch=main matches the framework convention so tests that expect a
-# 'main' branch behave like the host (alpine git otherwise defaults to 'master'). (#42)
+# 'main' branch behave like the host (alpine git otherwise defaults to 'master').
+#
+# Test paths are NOT spliced into this script — they arrive as ARGV ($1..) and
+# `bats "$@"` consumes them, so a path can never be re-parsed as shell (QG
+# SEC-2/CODE-3). $USER is supplied via --env below, not interpolated here. The
+# only interpolation is CLEAN_ORIGIN, which is validated to a clean org/repo and
+# printf-%q-quoted. (#42)
+RUN_CMD="set -e
 git config --system user.email ci@the-agency.local
 git config --system user.name ci
 git config --system init.defaultBranch main
@@ -103,16 +117,19 @@ git clone -q /src /work
 cd /work
 git remote set-url origin $(printf '%q' "$CLEAN_ORIGIN")
 git config user.email ci@the-agency.local && git config user.name ci
-bats ${TESTS[*]}"
+bats \"\$@\""
 
 echo "container-test-run: backend=$backend image=$IMAGE" >&2
 echo "container-test-run: tests=${TESTS[*]}" >&2
 
-case "$backend" in
-    apple)  container run --rm -v "$REPO_ROOT:/src:ro" "$IMAGE" bash -c "$RUN_CMD" ;;
-    docker) docker    run --rm -v "$REPO_ROOT:/src:ro" "$IMAGE" bash -c "$RUN_CMD" ;;
-    *)      echo "container-test-run: unknown backend '$backend'" >&2; exit 1 ;;
-esac
+# Route through the _container-runtime abstraction (backend-agnostic). Mount the
+# repo read-only; pass $USER via --env; hand the test paths to the container's
+# shell as ARGV after RUN_CMD ($0=container-test-run, $1.. = TESTS).
+container_run \
+    --mount "$REPO_ROOT:/src:ro" \
+    --env "USER=$HOST_USER" \
+    "$IMAGE" \
+    bash -c "$RUN_CMD" container-test-run "${TESTS[@]}"
 rc=$?
 
 if [ "$rc" -eq 0 ]; then

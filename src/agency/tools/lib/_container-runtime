@@ -16,12 +16,19 @@
 #   source "$PROJECT_ROOT/agency/tools/lib/_container-runtime"
 #   container_backend                     # -> apple | docker  (stdout; rc1 if none)
 #   container_available                   # rc0 if a usable backend exists
-#   container_run <image> [--] <cmd...>   # run cmd in a throwaway container
+#   container_run [--mount <spec>]... [--env <K=V>]... <image> [--] <cmd...>
+#                                         # run cmd in a throwaway container
 #
 # container_run passes stdout/stderr through and returns the command's exit code.
-# Backend CLIs are near-identical OCI (`container run --rm` / `docker run --rm`),
-# so dispatch is intentionally thin; add a backend by extending the case arms in
-# _crt_have + container_run.
+# --mount <spec> maps to `-v <spec>` (repeatable, e.g. "/host:/guest:ro"); --env
+# <K=V> maps to `-e K=V`. Command args after the image are passed as argv, never
+# a shell string, so callers never string-splice untrusted values.
+#
+# NOTE on architecture: unlike _provider-resolve (which resolves a per-provider
+# TOOL FILE the caller execs), the two OCI backends here are near-identical CLIs
+# (`container run --rm` / `docker run --rm`), so their logic is inlined in the
+# case arms rather than living in separate container-apple / container-docker
+# tools. Add a backend by extending the case arms in _crt_have + container_run.
 
 # Load _path-resolve for AGENCY_PROJECT_ROOT + _pr_yaml_get (config reads),
 # mirroring how _provider-resolve bootstraps. Best-effort: the adapter still
@@ -72,18 +79,34 @@ container_backend() {
 # container_available -> rc0 if a usable backend exists
 container_available() { container_backend >/dev/null 2>&1; }
 
-# container_run <image> [--] <cmd...> -> run cmd in a throwaway container.
-# Removes the container on exit (--rm); returns the command's exit code.
+# container_run [--mount <spec>]... [--env <K=V>]... <image> [--] <cmd...>
+# Run cmd in a throwaway container. Removes it on exit (--rm); returns the
+# command's exit code. Command args are passed as argv (never a shell string).
 container_run() {
-    local image="$1"; shift
+    local -a mounts=() envs=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --mount) [[ $# -lt 2 ]] && { echo "container_run: --mount needs a value" >&2; return 2; }
+                     mounts+=("-v" "$2"); shift 2 ;;
+            --env)   [[ $# -lt 2 ]] && { echo "container_run: --env needs a value" >&2; return 2; }
+                     envs+=("-e" "$2"); shift 2 ;;
+            --)      shift; break ;;
+            *)       break ;;
+        esac
+    done
+    local image="${1:-}"; shift || true
     [[ "${1:-}" == "--" ]] && shift
+    [[ -z "$image" ]] && { echo "container_run: image required" >&2; return 2; }
     local backend
     backend="$(container_backend)" || {
         echo "_container-runtime: no container backend available — install Apple 'container' (Apple Silicon macOS) or Docker" >&2
         return 127
     }
+    # ${arr[@]+"${arr[@]}"} expands to nothing when the array is empty, which is
+    # bash-3.2-safe under `set -u` (a bare "${arr[@]}" on an empty array errors
+    # there). Keeps this sourceable into set -u callers like container-test-run.
     case "$backend" in
-        apple)  container run --rm "$image" "$@" ;;
-        docker) docker    run --rm "$image" "$@" ;;
+        apple)  container run --rm ${mounts[@]+"${mounts[@]}"} ${envs[@]+"${envs[@]}"} "$image" "$@" ;;
+        docker) docker    run --rm ${mounts[@]+"${mounts[@]}"} ${envs[@]+"${envs[@]}"} "$image" "$@" ;;
     esac
 }

@@ -57,6 +57,16 @@ load 'test_helper'
     [[ -n "$output" ]]
 }
 
+@test "principal: succeeds with PRINCIPAL unset (set -u guard, #42)" {
+    # Explicitly clear PRINCIPAL so the `[ -n "${PRINCIPAL:-}" ]` guard is
+    # actually exercised. Without the :- default this trips "unbound variable"
+    # under set -u — a regression that only surfaces in a clean-env/container
+    # run, which the ambient-dependent test above would miss.
+    run env -u PRINCIPAL bash "${TOOLS_DIR}/principal"
+    assert_success
+    [[ -n "$output" ]]
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # principal-create - Version and Help
 # ─────────────────────────────────────────────────────────────────────────────

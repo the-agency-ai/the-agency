@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# _sha256 - portable SHA-256 helper (sourced).
+#
+# macOS ships `shasum` (a perl tool); Linux/alpine ship `sha256sum` (coreutils)
+# but usually NOT shasum. Both emit "<hex>  <name>" at -a 256 and every caller
+# takes field 1, so they are drop-in equivalents. Resolving ONCE, here, keeps a
+# single definition instead of the per-tool copies that previously drifted
+# (diff-hash/stage-hash/monitor-register) and must all move together for the next
+# platform quirk (QG design finding, #42).
+#
+# Usage (after sourcing):
+#   _sha256 <file>...     # hash each file        (shasum/sha256sum <file>...)
+#   printf '%s' "$x" | _sha256   # hash stdin      (no args -> reads stdin)
+#
+# Callers pull field 1 themselves, e.g. `_sha256 "$f" | cut -d' ' -f1` or
+# `... | _sha256 | awk '{print $1}'`. If NEITHER tool exists, _sha256 errors and
+# returns 2 at CALL time (not source time), so sourcing never kills the caller.
+if command -v shasum >/dev/null 2>&1; then
+    _sha256() { shasum -a 256 "$@"; }
+elif command -v sha256sum >/dev/null 2>&1; then
+    _sha256() { sha256sum "$@"; }
+else
+    _sha256() { echo "_sha256: neither 'shasum' nor 'sha256sum' found on PATH" >&2; return 2; }
+fi

@@ -129,3 +129,31 @@ load 'test_helper'
     [[ ! "$output" =~ "syntax error" ]]
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# get_last_release SIGPIPE regression (#42) — `git tag ... | head -1` under
+# `set -o pipefail` dies with SIGPIPE (141) once the tag list overflows the pipe
+# buffer, aborting release before it prints anything.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "release: get_last_release has no head-pipe (SIGPIPE structural guard, #42)" {
+    # Fast + deterministic reintroduction guard: the tag lookup must not pipe
+    # `git tag` into head/sed-q/awk-exit (any early-closing reader).
+    run bash -c "grep -nE 'git tag[^|]*\\| *(head|sed|awk)' '${TOOLS_DIR}/release' || true"
+    assert_success
+    [[ -z "$output" ]]
+}
+
+@test "release: --changelog survives a large tag list without SIGPIPE (#42)" {
+    local repo="${BATS_TEST_TMPDIR}/manytags"
+    mkdir -p "$repo"
+    cd "$repo"
+    git init -q -b main
+    git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+    # Enough tags that git flushes in multiple writes — the old code SIGPIPE'd.
+    local i
+    for i in $(seq 1 400); do git tag "v0.0.$i"; done
+    run bash "${TOOLS_DIR}/release" 99.99.99 --changelog
+    [ "$status" -eq 0 ]                          # NOT 141
+    [[ "$output" == *"Changes"* ]]
+}
+
