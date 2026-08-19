@@ -254,7 +254,7 @@ validate_prefix_pair() {
 
 # Load rename map — both old + new split on any whitespace (robust to
 # tabs, multiple spaces, trailing whitespace).
-declare -a RENAME_MAP
+declare -a RENAME_MAP=()
 if [[ -n "$MAP_FILE" ]]; then
     _lineno=0
     # `|| [[ -n "$line" ]]` picks up a final line with no trailing newline.
@@ -311,10 +311,14 @@ info "Scanned ${#CANDIDATES[@]} file(s) in worktree"
 echo
 
 # Compute rename plan
-declare -a PLAN_FROM PLAN_TO
-declare -a SKIP_TARGET_EXISTS
-declare -a SKIP_DUP_TARGET
-declare -a NO_MATCH
+# Initialize as empty arrays (=()): a bare `declare -a FOO` leaves FOO unset on
+# some bash builds (e.g. alpine's), so a later `${#FOO[@]}` / `"${FOO[@]}"` trips
+# `set -u` "unbound variable". Explicit =() is defined on every bash. (#42 — the
+# container test-isolation gate surfaced this; macOS bash tolerated the bare form.)
+declare -a PLAN_FROM=() PLAN_TO=()
+declare -a SKIP_TARGET_EXISTS=()
+declare -a SKIP_DUP_TARGET=()
+declare -a NO_MATCH=()
 
 for f in "${CANDIDATES[@]}"; do
     matched=0

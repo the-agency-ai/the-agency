@@ -32,6 +32,18 @@
 
 set -euo pipefail
 
+# Portable SHA-256: macOS ships `shasum` (perl), Linux/alpine ship `sha256sum`
+# (coreutils). Equivalent at -a 256 (callers take field 1). Keeps the monitor
+# key stable across macOS and the Linux test/CI container (#42).
+if command -v shasum >/dev/null 2>&1; then
+    _sha256() { shasum -a 256; }
+elif command -v sha256sum >/dev/null 2>&1; then
+    _sha256() { sha256sum; }
+else
+    echo "Error: monitor-register requires 'shasum' or 'sha256sum' on PATH" >&2
+    exit 2
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
@@ -53,7 +65,7 @@ cmdline_hash() {
     else
         cmdline=$(ps -p "$pid" -o command= 2>/dev/null || echo "")
     fi
-    printf '%s' "$cmdline" | shasum -a 256 | awk '{print $1}' | cut -c1-16
+    printf '%s' "$cmdline" | _sha256 | awk '{print $1}' | cut -c1-16
 }
 
 # ── modes ───────────────────────────────────────────────────────────────────

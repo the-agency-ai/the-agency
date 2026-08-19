@@ -43,6 +43,20 @@ if ! git rev-parse --show-toplevel >/dev/null 2>&1; then
     exit 2
 fi
 
+# Portable SHA-256. macOS ships `shasum` (a perl tool); Linux/alpine ship
+# `sha256sum` (coreutils) but usually NOT shasum. Both print "<hex>  <name>",
+# and every caller here takes field 1, so they are drop-in equivalents at
+# `-a 256`. Resolving once keeps the receipt hash identical across platforms —
+# essential now that the suite (and CI) run inside a Linux container (#42).
+if command -v shasum >/dev/null 2>&1; then
+    _sha256() { shasum -a 256 "$@"; }
+elif command -v sha256sum >/dev/null 2>&1; then
+    _sha256() { sha256sum "$@"; }
+else
+    echo "Error: diff-hash requires 'shasum' or 'sha256sum' on PATH" >&2
+    exit 2
+fi
+
 BASE="origin/main"
 FILE=""
 JSON=false
@@ -106,7 +120,7 @@ if [[ -n "$FILE" ]]; then
         exit 1
     fi
 
-    FULL_HASH=$(shasum -a 256 "$FILE" | cut -d' ' -f1)
+    FULL_HASH=$(_sha256 "$FILE" | cut -d' ' -f1)
     SHORT_HASH="${FULL_HASH:0:7}"
     FILE_COUNT=1
 
@@ -190,7 +204,7 @@ else
         exit 1
     fi
 
-    FULL_HASH=$(echo "$DIFF_OUTPUT" | shasum -a 256 | cut -d' ' -f1)
+    FULL_HASH=$(echo "$DIFF_OUTPUT" | _sha256 | cut -d' ' -f1)
     SHORT_HASH="${FULL_HASH:0:7}"
 
     if [[ "$JSON" == "true" ]]; then
