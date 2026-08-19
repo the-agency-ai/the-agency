@@ -104,6 +104,11 @@ platform:
 preview:
   provider: "docker-compose"  # Default: docker-compose. Alternatives: fly, vercel, cloudflare
 
+# Container runtime (test isolation, sandboxed execution)
+# Abstraction over OCI backends — see agency/tools/lib/_container-runtime.
+container:
+  provider: "auto"  # Auto-detect: apple (Apple Silicon macOS) → docker. Alternatives: apple, docker
+
 # Deploy (platform deployment)
 deploy:
   provider: "fly"  # Default: fly. Alternatives: aws, vercel, cloudflare, railway

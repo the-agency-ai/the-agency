@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# container-test-run - run the bats suite inside a disposable container
+#
+# What Problem: bats tests run locally, un-isolated, keep trashing the real
+# repo — a buggy test created 600+ junk git tags, leaked worktrees into the live
+# checkout, and depended on gitignored dev-only dirs. In-process isolation only
+# works if every test is written correctly, and they keep not being. The local
+# machine PERSISTS between runs, so the damage accumulates (CI runners are
+# ephemeral, so CI is already self-isolating by disposal — the pain is local).
+#
+# How & Why: STRUCTURAL containment. Mount the host repo READ-ONLY into a
+# throwaway Linux container, clone it to a writable workdir INSIDE the container,
+# and run bats there. The host repo cannot be written (read-only mount) and the
+# tests operate on the clone — so a leaky test's `git tag` / `worktree-create`
+# hits the disposable copy and evaporates when the container is removed. It
+# doesn't rely on the test being correct.
+#
+# The container backend (Apple `container` on Apple Silicon, Docker on
+# Linux/CI/Intel) is resolved by agency/tools/lib/_container-runtime from
+# agency.yaml `container.provider` — same OCI image, either runtime.
+#
+# Usage:
+#   container-test-run                         # run the full bats:all set
+#   container-test-run src/tests/tools/foo.bats  # run specific paths
+#
+# Env:
+#   CONTAINER_TEST_IMAGE   override the runner image (default: the-agency-test-runner:latest)
+#   CONTAINER_PROVIDER     force backend: apple | docker | auto (default: config/auto)
+#
+# NOTE (increment 1): this tests the COMMITTED HEAD (via `git clone`), not
+# uncommitted working-tree changes. A working-tree mode (copy tracked+untracked,
+# excluding node_modules/.claude/worktrees) is the next increment.
+#
+# Written: 2026-08-19 — container test isolation (#42), captain + principal.
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ -f "$SCRIPT_DIR/lib/_log-helper" ] && source "$SCRIPT_DIR/lib/_log-helper"
+# _container-runtime sources _path-resolve, giving AGENCY_PROJECT_ROOT + backend.
+source "$SCRIPT_DIR/lib/_container-runtime"
+
+RUN_ID=$(log_start "container-test-run" "$*" 2>/dev/null) || true
+
+REPO_ROOT="${AGENCY_PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+IMAGE="${CONTAINER_TEST_IMAGE:-the-agency-test-runner:latest}"
+
+if [ "$#" -gt 0 ]; then
+    TESTS=("$@")
+else
+    TESTS=(src/tests/tools/ src/tests/hookify/ src/tests/skills/ src/tests/agents/ src/tests/docs/)
+fi
+
+backend="$(container_backend)" || {
+    echo "container-test-run: no container backend available — install Apple 'container' (Apple Silicon macOS) or Docker." >&2
+    log_end "$RUN_ID" "failure" 1 0 "no backend" 2>/dev/null || true
+    exit 127
+}
+
+# Clone the read-only-mounted repo to a writable workdir, then run bats there.
+# git identity is set so tests that commit don't fail on missing user.*.
+RUN_CMD="set -e
+git clone -q /src /work
+cd /work
+git config user.email ci@the-agency.local && git config user.name ci
+bats ${TESTS[*]}"
+
+echo "container-test-run: backend=$backend image=$IMAGE" >&2
+echo "container-test-run: tests=${TESTS[*]}" >&2
+
+case "$backend" in
+    apple)  container run --rm -v "$REPO_ROOT:/src:ro" "$IMAGE" bash -c "$RUN_CMD" ;;
+    docker) docker    run --rm -v "$REPO_ROOT:/src:ro" "$IMAGE" bash -c "$RUN_CMD" ;;
+    *)      echo "container-test-run: unknown backend '$backend'" >&2; exit 1 ;;
+esac
+rc=$?
+
+if [ "$rc" -eq 0 ]; then
+    log_end "$RUN_ID" "success" 0 0 "bats passed in container ($backend)" 2>/dev/null || true
+else
+    log_end "$RUN_ID" "failure" "$rc" 0 "bats failed in container ($backend)" 2>/dev/null || true
+fi
+exit "$rc"
