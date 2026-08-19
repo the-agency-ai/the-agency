@@ -94,9 +94,19 @@ test_isolation_setup() {
     # 2. Explicit ISCP DB path — belt-and-suspenders on top of HOME override
     export ISCP_DB_PATH="${BATS_TEST_TMPDIR}/test-iscp.db"
 
-    # 3. Git config isolation — prevent any writes to live .git/config
-    export GIT_CONFIG_GLOBAL=/dev/null
+    # 3. Git config isolation — prevent any writes to live .git/config, AND
+    #    supply a hermetic fallback identity. GLOBAL points at a throwaway
+    #    config carrying a deterministic test identity (+ init.defaultBranch)
+    #    rather than /dev/null: tests that create a repo and commit WITHOUT
+    #    setting local user.* otherwise rely on git's ambient auto-identity,
+    #    which macOS derives from the system but a minimal Linux container
+    #    cannot — failing "Author identity unknown" (#42, container gate).
+    #    Global level (not env GIT_AUTHOR_*) means a test's own local
+    #    `git config user.*` still WINS, so per-test attribution is unchanged;
+    #    this only backstops the no-local-config case. SYSTEM stays /dev/null.
+    export GIT_CONFIG_GLOBAL="${BATS_TEST_TMPDIR}/fake-gitconfig"
     export GIT_CONFIG_SYSTEM=/dev/null
+    printf '[user]\n\tname = agency-test\n\temail = agency-test@localhost\n[init]\n\tdefaultBranch = main\n' > "$GIT_CONFIG_GLOBAL"
 
     # 4. Snapshot live .git/config checksum for guard validation
     if [[ -f "$REPO_ROOT/.git/config" ]]; then

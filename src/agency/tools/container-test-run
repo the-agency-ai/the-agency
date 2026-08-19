@@ -65,12 +65,43 @@ backend="$(container_backend)" || {
 # id -un is the fallback when the invoking shell didn't export USER (#42).
 HOST_USER="${USER:-$(id -un 2>/dev/null || echo unknown)}"
 
+# Give the clone a credential-free, github-style origin URL. The raw `git clone
+# /src /work` sets origin to the local path "/src", so tools that parse ORG/REPO
+# or repo.name from the remote (pr-captain-land, agent-identity, repo-detection,
+# git-sync, handoff agent address) fail — on the host origin is a real github
+# URL. We derive org/repo from the host's origin but STRIP any embedded
+# credentials: a host remote may carry a "https://<token>@github.com/..." PAT
+# that must NEVER enter the container or the transcript. Parameter expansion
+# below drops everything up to and including "github.com", so the token is
+# removed by construction; we rebuild a clean https URL with no userinfo. (#42)
+_ho="$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || echo '')"
+_after="${_ho#*github.com}"      # -> ":org/repo.git" or "/org/repo.git" (token gone)
+_after="${_after#[:/]}"           # strip the leading : or /
+_org_repo="${_after%.git}"        # -> "org/repo"
+if [ -n "$_org_repo" ] && [ "$_org_repo" != "$_ho" ]; then
+    CLEAN_ORIGIN="https://github.com/${_org_repo}.git"
+else
+    CLEAN_ORIGIN="https://github.com/the-agency-ai/the-agency.git"
+fi
+
 # Clone the read-only-mounted repo to a writable workdir, then run bats there.
 # git identity is set so tests that commit don't fail on missing user.*.
 RUN_CMD="set -e
 export USER=$(printf '%q' "$HOST_USER")
+# SYSTEM git identity + default branch: many tests create their own throwaway
+# repos in tmpdirs and commit WITHOUT setting local user.*, relying on an ambient
+# identity (present on a dev host, absent in a fresh container → 'git commit'
+# dies status 128 'Author identity unknown'). It MUST be --system (/etc/gitconfig),
+# NOT --global: test_isolation_setup scrubs HOME to a fakehome, so a ~/.gitconfig
+# global identity is invisible to the tests. --system is HOME-independent.
+# init.defaultBranch=main matches the framework convention so tests that expect a
+# 'main' branch behave like the host (alpine git otherwise defaults to 'master'). (#42)
+git config --system user.email ci@the-agency.local
+git config --system user.name ci
+git config --system init.defaultBranch main
 git clone -q /src /work
 cd /work
+git remote set-url origin $(printf '%q' "$CLEAN_ORIGIN")
 git config user.email ci@the-agency.local && git config user.name ci
 bats ${TESTS[*]}"
 
