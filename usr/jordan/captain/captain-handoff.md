@@ -1,95 +1,82 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-08-14T02:20
-trigger: compact-prepare
-branch: main
+date: 2026-08-19T04:30
+trigger: compact-container-isolation-42
+branch: container-test-isolation
 mode: continuation
 next-action: |
-  After /compact, run /compact-resume, then BUILD #144 — the hookify canary
-  test harness (principal greenlit it as the next real build). The 40 hookify
-  enforcement rules are effectively UNTESTED: canaries exist at
-  src/tests/hookify/canaries/*.canary (35 files) but nothing runs them.
-  Canary format: frontmatter `expected_decision: block|warn` + `expected_match:
-  <substr>` + `---BODY---` + the command. The main evaluator is
-  agency/hooks/block-raw-tools.sh (PreToolUse hook: reads JSON on stdin,
-  `.tool_input.command`; emits `{"decision":"block","reason":...}` or nothing).
-  BUT hookify has MULTIPLE evaluators — a proper harness must route each canary
-  to its correct evaluator (block-raw-tools.sh handles the raw-tool/compound
-  ones; others may be separate hooks). Investigate the full hookify dispatch
-  architecture FIRST, then build a bats harness that loops every canary, feeds
-  its BODY through the right evaluator, and asserts expected_decision. Model the
-  invocation on agency/hooks/__tests__/block-raw-tools.test.sh (assert_hook
-  helper: `echo "$json" | "$HOOK"`). Do it PROPERLY (it's load-bearing test
-  infra) — QG with the real reviewer agents, then land via pr-captain-land.
+  MAKE IT SO — continue the container test-isolation build (#42), driving the
+  small steps WITH the principal (they approved "your call — small steps").
+  Everything is checkpointed on branch container-test-isolation (commit 83217224),
+  Apple `container` is installed + its service RUNNING, image built, mechanism
+  PROVEN. Resume at step (2): run the WHOLE bats suite inside the container via
+  `./agency/tools/container-test-run` (no args) to surface any tool the Dockerfile
+  is missing (add to agency/containers/test-runner/Dockerfile), then the other
+  steps below. Do NOT re-litigate container-vs-in-process — that's decided
+  (container substrate); do NOT conflate CI with GitHub Linux runners.
 ---
 
-# Captain handoff — B2 largely cleared; #144 is the next real build (post-compact)
+# Captain handoff — container test-isolation (#42), mid-build (post-compact)
 
-## The arc since last compact
-Resumed at v46.28. Delivered the full **a/b/c mandate** THEN swept the B2
-backlog. **14 PRs landed this session, v46.28 → v46.42, main clean.**
+## Immediate next action: "Make it so" — the small steps (principal-approved)
+Drive these WITH the principal, small commits, on branch `container-test-isolation`:
+1. **Working-tree mode** — runner currently tests COMMITTED HEAD (`git clone /src /work`).
+   Add a mode that tests the working tree (copy tracked+untracked, EXCLUDE
+   node_modules + .claude/worktrees), so it tests uncommitted changes.
+2. **Run the WHOLE suite in-container** (DO THIS FIRST) — `./agency/tools/container-test-run`
+   (no args → runs bats:all set). Surfaces missing image deps; add them to the Dockerfile, rebuild.
+3. **Wire it in** — `test-run --isolated` (or make isolated the default locally).
+4. **Prove the Docker backend** — `CONTAINER_PROVIDER=docker ./agency/tools/container-test-run ...`
+   (Docker IS installed but its DAEMON IS DOWN — needs Docker Desktop started first).
+5. **Land it** — QG + commit + PR (it's a WIP checkpoint now, not QG'd/landed).
 
-## Landed this session (14 PRs)
-- #466 v46.29 delivery-path hardening · #467 v46.30 mdslidepal-mac (34 fixes) ·
-  #468 v46.31 mdpal-app (8 fixes) · #469 v46.32 pr-captain-land cleanup (flag
-  #236) · #470 v46.33 worktree-create DWIM · #471 v46.34 captain-release-notes
-  (#426 revived) · #472 v46.35 its metadata fix · #473 v46.36 REFERENCE-path
-  sweep + validator (flag #213) · #474 v46.37 reviewer-agent registration
-  (#186/#194) · #475 v46.38 agent-import fix (#246) · #476 v46.39 git-captain
-  cherry-pick+merge (#120/#109) · #477 v46.40 diff-hash --working (#207) ·
-  #478 v46.41 mdpal migration (#183) · #479 v46.42 designex bats (#138/#139).
-- The delivery tooling now SELF-COMPLETES (pr-captain-land fixed in #469/#472) —
-  a normal land needs no manual scratch cleanup. Bootstrap-land ONLY for changes
-  to pr-captain-land itself.
+## What's built (branch container-test-isolation, checkpoint 83217224, mirrored to src/)
+- **agency/tools/lib/_container-runtime** — OCI backend ABSTRACTION. Functions:
+  `container_backend` (→apple|docker), `container_available`, `container_run <img> -- <cmd>`.
+  Backend from agency.yaml `container.provider` (auto|apple|docker); env CONTAINER_PROVIDER
+  overrides. Follows the DevEx `_provider-resolve` pattern (sourced/silent/bash-3.2).
+- **agency/tools/container-test-run** — the runner: mount repo READ-ONLY → `git clone` to
+  writable /work in a throwaway container → run bats there → discard. Host structurally protected.
+- **agency/containers/test-runner/Dockerfile** — alpine:3.20 + bash git bats jq python3 coreutils findutils grep sed gawk. Image tag: `the-agency-test-runner:latest`.
+- **agency.yaml** — new `container:` provider section (next to `preview:`).
 
-## B2 disposition (principal-approved this session)
-- **BUILD next → #144 hookify canary harness** (see next-action). The one clear
-  worthwhile build remaining.
-- **CLOSE:** #143 (loosen pnpm validator — DON'T; weakens a guard) · #106
-  (already addressed in #207's committed-vs-working clarification).
-- **#42 docker-test — NOT closed. REFRAMED:** the purpose was TEST ISOLATION
-  (which holds). Principal's direction: **research Apple Containers as the better
-  isolation mechanism** than docker. → a research task, then build. Track it.
-- **Audits → captain-log reports (not PRs):** #41 CI health, #149/#8 command
-  audit, #14/#40 structure audit. Run + report.
-- **Skills — principal to pick which (if any):** #47 /why-did-this-fail, #77
-  /make-slides, #152/#80 /seed, #137/#190/#192 anthropic-feedback. Each its own
-  effort.
-- **Murky — need scoping before build:** #94/#142 (git-safe-commit does NOT check
-  receipts — that's the qgr-require hook; where the boundary/format check belongs
-  needs deciding) · #145 (no crisp `## Class` convention exists) · #86 (Dependabot
-  in preflight — network on every session start; needs a design decision).
-- **Low-value/captures:** #81 gitignore (preventive; files not even present) ·
-  seeds #62/#65/#31/#129/#123 (better written by the idea's owner).
+## Environment state (this machine: Apple Silicon, macOS 26.2)
+- Apple `container` v1.2.2 INSTALLED (brew install container). Service RUNNING
+  (`container system start` done, kata guest kernel installed). Image built.
+- Docker v29.2.1 installed but DAEMON NOT REACHABLE (the "cannot connect to daemon" pain).
+- PROVEN: git tag created inside the container did NOT reach host (620→620, no proof tag);
+  `container-test-run src/tests/tools/agency-version.bats` → all green in-container.
 
-## In flight (delegated — will return as dispatches)
-- **designex #254** (dispatch 1045): decide + fix designsystem-add's dead template
-  (design-systems tree archived to flotsam) — re-point / restore / retire. Their
-  call. Also #148 designex Phase 1.5.
-- **App agents' dispatched work** (act on their next cycle): mdslidepal-mac
-  contract rulings (#1004) + smart-quotes (#1003); mdpal-app DiffView/MDPAL_MOCK
-  (#1001); mdpal-cli --content-stdin (#1002).
+## The real goal (do not regress on these — principal corrected me 3×)
+- Apple Containers is a **SUBSTRATE decision**, not a #42 fix: everywhere we use Docker
+  + new areas are candidates. Build an **ABSTRACTION supporting BOTH Docker and Apple
+  Containers** (done: _container-runtime). Drive WITH the principal — NO separate workstream.
+- **CI = Continuous Integration (the practice), NOT "GitHub Linux runners."** It can run on
+  Apple Silicon. Don't repeat that conflation.
+- The pain is **LOCAL persistence** — local machine persists so test damage accumulates;
+  CI runners are ephemeral (self-isolating by disposal). A container is a **structural
+  backstop** (doesn't depend on tests being written correctly, which they keep not being).
+- #42's origin was the planned "docker-test"; Apple Containers is the better runtime on Apple Silicon.
+- Candidate register (for later): test isolation (#42, in progress), devex service composition,
+  starter-pack prototypes (nextjs/nestjs), app builds (mdpal/mock-and-mark/mdslidepal),
+  agency-init fresh-install verification, daemonless dev ergonomics.
 
-## Known follow-ups / flags filed this session
-- #229 git-sync (fixed #466) · #235/#244 QG discipline · #241 required_reading
-  (fixed #473) · #248 missing workstream fragments (CLAUDE-DESIGNEX/MDSLIDEPAL) +
-  per-agent CLAUDE docs — CONTENT GAP · #249 src/claude build-product vs
-  hand-editing both trees (process question) · #254 designsystem-add template.
-- Two devex/designex agents mislabeled by me mid-run this session — I now VERIFY
-  agent state before narrating it (lesson).
-
-## State
-- **main == origin/main == v46.42.** Clean tree.
-- Dispatch monitors were `unknown` post earlier compact — relaunch
-  /monitor-dispatches if needed.
-- Triage record: `agency/workstreams/agency/flag-triage-outcome-20260812.md`.
+## Session context / what shipped before this
+- **PR #480 / v46.43 LANDED**: bats:all 247→0 (tools/agents/docs fixture repair) + #144 hookify
+  canary harness. Local main reconciled to v46.43.
+- Flags filed: #256 (tool-create, done), #257 (src/agency hook drift), #258 (3 skipped backlog
+  probes #181/#205/#396), #259 (agency init README-install latent bug), #260 (release-bug
+  pollution tags — **actually 620 local tags**, need captain `git-captain tag` sweep; verify
+  not pushed first), #262 (git-safe-commit `git add -A` footgun).
+- **#42 research brief** at usr/jordan/captain/briefings/apple-containers-test-isolation-42-20260818.md
+  — its CONCLUSION IS NOW STALE (it argued in-process over Apple Containers; the principal's
+  decision reversed to container-substrate-with-abstraction). REWRITE its conclusion when convenient.
 
 ## On resume
-1. `/compact-resume` — verify tree, monitors, dispatch drift.
-2. Execute next-action: investigate hookify dispatch architecture, then build the
-   #144 canary harness properly (QG + land).
+1. `/compact-resume`.
+2. Execute next-action: `./agency/tools/container-test-run` (whole suite in-container) → fix image gaps → then steps 1,3,4,5. Confirm each small step with the principal (drive WITH them).
 
-— captain. B2 largely cleared; #144 next; #42 → Apple Containers research.
+— captain. Container test-isolation proven; making it so.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
