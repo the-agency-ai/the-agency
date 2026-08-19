@@ -586,7 +586,12 @@ make_origin_repo() {
     # Explicit wins — and the shadowing must be announced, not silent.
     run "$TOOL" explicit --branch stale-pr --from origin/main
     [ "$status" -eq 0 ]
-    [[ "$output" != *"tracking origin/stale-pr"* ]]
+    # The tool announces the shadow as "--from wins, NOT tracking origin/stale-pr".
+    # Assert that positive announcement — a bare `!= *"tracking origin/stale-pr"*`
+    # is defeated by the "NOT tracking origin/stale-pr" phrasing (the substring is
+    # present inside the negation). The actual no-track guarantee is verified by
+    # the SHA check below (wt_sha == origin/main, not stale-pr). (#42)
+    [[ "$output" == *"NOT tracking origin/stale-pr"* ]]
     [[ "$output" == *"--from wins"* ]]
 
     local wt="${TEST_REPO}/.claude/worktrees/explicit"
