@@ -90,17 +90,20 @@ load 'test_helper'
 
 @test "release: accepts 'patch' as version" {
     run bash -c "echo y | \"${TOOLS_DIR}/release\" patch --dry-run 2>&1"
-    [[ ! "$output" =~ "invalid" ]] && [[ ! "$output" =~ "unknown" ]]
+    # Assert positive ACCEPTANCE (release computed a New release), not the absence
+    # of "invalid"/"unknown" anywhere — those words legitimately appear in the
+    # generated changelog's commit messages, so the old blanket check was fragile.
+    [[ "$output" == *"Would create tag"* ]]
 }
 
 @test "release: accepts 'minor' as version" {
     run bash -c "echo y | \"${TOOLS_DIR}/release\" minor --dry-run 2>&1"
-    [[ ! "$output" =~ "invalid" ]] && [[ ! "$output" =~ "unknown" ]]
+    [[ "$output" == *"Would create tag"* ]]
 }
 
 @test "release: accepts 'major' as version" {
     run bash -c "echo y | \"${TOOLS_DIR}/release\" major --dry-run 2>&1"
-    [[ ! "$output" =~ "invalid" ]] && [[ ! "$output" =~ "unknown" ]]
+    [[ "$output" == *"Would create tag"* ]]
 }
 
 @test "release: accepts semver version" {

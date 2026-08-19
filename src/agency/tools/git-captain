@@ -581,11 +581,18 @@ cmd_tag_delete() {
             names+=("$lt")
         done < <(git tag)
     fi
-    [[ ${#names[@]} -eq 0 ]] && die "No tag names to delete. Usage: git-captain tag-delete <name>... | --stdin | --local-only [--match <regex>]"
+    # Empty candidate set: in explicit/--stdin mode that's a usage error (die).
+    # In --local-only mode it's a valid "nothing matched" result — fall through
+    # to the graceful "No local-only tags to delete" below (exit 0), don't die.
+    if [[ "$local_only" != true && ${#names[@]} -eq 0 ]]; then
+        die "No tag names to delete. Usage: git-captain tag-delete <name>... | --stdin | --local-only [--match <regex>]"
+    fi
 
     local -a to_delete=() refused=() missing=()
     local t
-    for t in "${names[@]}"; do
+    # ${names[@]+...} so an empty array (valid in --local-only no-match) doesn't
+    # trip set -u "unbound variable" on bash 3.2 (macOS).
+    for t in ${names[@]+"${names[@]}"}; do
         if printf '%s\n' "$origin_tags" | grep -Fxq -- "$t"; then
             refused+=("$t")
         elif git rev-parse --verify --quiet "refs/tags/$t" >/dev/null; then
