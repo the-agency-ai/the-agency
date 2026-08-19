@@ -272,8 +272,11 @@ PRIOR
         --captain "test-captain" --workstream "mockproj" --dry-run
     [ "$status" -eq 0 ]
     [[ "$output" == *"Ignoring unusable end_version"* ]]
-    # Output path stays inside the workstream.
-    [[ "$output" != *"/tmp/pwned"* ]]
+    # Output path stays inside the workstream. (We can't assert the raw string
+    # "/tmp/pwned" is absent from output — the "Ignoring unusable" warning above
+    # legitimately ECHOES the rejected value, which contains it. The real
+    # security property is that the traversal never becomes the OUTPUT PATH,
+    # which the workstream-relative path assertion below verifies. #42.)
     [[ "$output" == *"agency/workstreams/mockproj/release-notes/release-notes-"* ]]
 }
 

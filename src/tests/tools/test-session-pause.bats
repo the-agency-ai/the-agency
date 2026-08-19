@@ -495,6 +495,10 @@ line2"
 # specific abort message varies (git-safe-add vs cp), but the CONTRACT is
 # that exit 1 always comes with both status= and error_reason= keys.
 @test "filesystem failure in coord pipeline always emits structured abort" {
+    # Root bypasses file permissions, so chmod 000 does NOT make the file
+    # unreadable — the failure this test forces can't occur as root (e.g. in a
+    # containerized run). Skip rather than false-fail. (#42)
+    [[ "$(id -u)" -eq 0 ]] && skip "chmod-based permission denial is ineffective as root"
     chmod 000 usr/testp/testa/testa-handoff.md 2>/dev/null || skip "cannot change permissions"
     run _run_pause --framing continuation --trigger archive-fail
     chmod 644 usr/testp/testa/testa-handoff.md 2>/dev/null || true

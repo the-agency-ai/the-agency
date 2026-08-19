@@ -270,8 +270,16 @@ _iscp_run_migrations() {
             return 1
         }
 
-        # Execute migration in a transaction with version bump
+        # Execute migration in a transaction with version bump.
+        # `.bail on` is REQUIRED: without it the sqlite3 CLI prints an error but
+        # CONTINUES to the next statements, so a failing ${migration_sql} would
+        # still run `PRAGMA user_version` + COMMIT — bumping (and committing) the
+        # version even though the migration failed, while the shell still sees a
+        # non-zero exit. With `.bail on`, sqlite3 stops at the first error inside
+        # the open BEGIN and exits, leaving the transaction to auto-rollback so
+        # the version stays put. macOS sqlite masked this; alpine surfaced it. (#42)
         sqlite3 "$db_path" << SQL
+.bail on
 ${preamble}
 BEGIN;
 ${migration_sql}
