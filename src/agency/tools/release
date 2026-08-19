@@ -120,7 +120,15 @@ fi
 # such as `vversion$test.3.0` can never be selected as the "last release" — which
 # would otherwise feed a non-numeric component into bump_version's arithmetic.
 get_last_release() {
-    git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1
+    # Capture the full tag list first, then take the first line via parameter
+    # expansion — NOT `| head -n 1`. Under `set -o pipefail`, head closing the
+    # pipe early makes `git tag` die with SIGPIPE (exit 141) once its output
+    # overflows the ~64KB pipe buffer (i.e. once enough tags exist), and that
+    # 141 propagates out of the `$(...)` and trips `set -e`. (#42 — the
+    # container gate reproduced this deterministically against a 620-tag repo.)
+    local _tags
+    _tags=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname)
+    printf '%s\n' "${_tags%%$'\n'*}"
 }
 
 # Extract version from tag

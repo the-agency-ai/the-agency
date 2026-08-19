@@ -58,9 +58,17 @@ backend="$(container_backend)" || {
     exit 127
 }
 
+# Replicate the host's $USER inside the container. The container runs as root
+# with USER unset, but identity resolution (agent-identity, principal) keys off
+# $USER against agency.yaml's principals map — so without this, identity-aware
+# tests (handoff agent address, principal, sandbox-sync) diverge from the host.
+# id -un is the fallback when the invoking shell didn't export USER (#42).
+HOST_USER="${USER:-$(id -un 2>/dev/null || echo unknown)}"
+
 # Clone the read-only-mounted repo to a writable workdir, then run bats there.
 # git identity is set so tests that commit don't fail on missing user.*.
 RUN_CMD="set -e
+export USER=$(printf '%q' "$HOST_USER")
 git clone -q /src /work
 cd /work
 git config user.email ci@the-agency.local && git config user.name ci

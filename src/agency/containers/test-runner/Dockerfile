@@ -26,6 +26,7 @@ RUN apk add --no-cache \
         github-cli \
         nodejs \
         npm \
+        rsync \
         coreutils \
         findutils \
         grep \
