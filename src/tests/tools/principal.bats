@@ -227,9 +227,13 @@ load 'test_helper'
 
     run_tool principal-create "$test_name"
 
-    # Verify v2 directory structure created
+    # Verify v2 directory structure created. Assert on README.md, which BOTH
+    # code paths produce: the v2-template path copies agency/templates/principal-v2/*
+    # (top-level template files + README.md, no scripts/ subdir), and the fallback
+    # path writes its own README.md. The old `scripts/ || claude/` assertion only
+    # matched the fallback path, so it stale-failed whenever the template exists. (#42)
     [[ -d "usr/$test_name" ]]
-    [[ -d "usr/$test_name/claude" ]] || [[ -d "usr/$test_name/scripts" ]]
+    [[ -f "usr/$test_name/README.md" ]]
     # Verify NOT created at legacy path
     [[ ! -d "claude/principals/$test_name" ]]
 

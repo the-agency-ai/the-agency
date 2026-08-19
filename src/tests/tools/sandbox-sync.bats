@@ -210,17 +210,21 @@ YAML
 @test "sandbox-sync: skips commands with '..' in filename (no symlink created)" {
     _setup_fixture jordan testuser
     cd "$FIX"
-    # basename("...evil.md") == "...evil.md" — contains '..'
-    echo "evil" > "usr/jordan/commands/...evil.md"
+    # "bad..evil.md" contains '..' but has NO leading dot, so the tool's `*.md`
+    # glob actually enumerates it and the _is_safe_name '..' check fires. (A
+    # leading-dot name like "...evil.md" is skipped by the glob before the safety
+    # check ever runs — safe by omission, but it does NOT exercise the warning
+    # path this test is asserting. #42.)
+    echo "evil" > "usr/jordan/commands/bad..evil.md"
     echo "# good" > "usr/jordan/commands/good.md"
 
     run env HOME="$ORIGINAL_HOME" USER=testuser ./agency/tools/sandbox-sync
     [ "$status" -eq 0 ]
-    [[ "$output" == *"unsafe command filename"* ]] || [[ "$output" == *"...evil.md"* ]]
+    [[ "$output" == *"unsafe command filename"* ]] || [[ "$output" == *"bad..evil.md"* ]]
     # Good file still gets symlinked
     [ -L .claude/commands/usr-jordan.good.md ]
     # Unsafe file does NOT get symlinked
-    [ ! -L ".claude/commands/usr-jordan....evil.md" ]
+    [ ! -L ".claude/commands/usr-jordan.bad..evil.md" ]
 }
 
 @test "sandbox-sync: skips agent dirs with '..' in name" {
