@@ -7,7 +7,9 @@
 # agency/tools/lib/_container-runtime.
 #
 # Tools mirror what the bats suite actually invokes: bash, git, bats, jq,
-# python3, and the coreutils/findutils/grep/sed/gawk userland.
+# python3 (+ the yaml module for workflow-validity tests), sqlite3 (the ISCP
+# dispatch/flag DB layer), zip (safe-extract fixtures — busybox already
+# supplies unzip), and the coreutils/findutils/grep/sed/gawk userland.
 FROM alpine:3.20
 RUN apk add --no-cache \
         bash \
@@ -15,6 +17,9 @@ RUN apk add --no-cache \
         bats \
         jq \
         python3 \
+        py3-yaml \
+        sqlite \
+        zip \
         coreutils \
         findutils \
         grep \
