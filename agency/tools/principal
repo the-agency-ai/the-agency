@@ -75,8 +75,10 @@ main() {
 
     REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
-    # If already set in environment, use that
-    if [ -n "$PRINCIPAL" ]; then
+    # If already set in environment, use that. Default-expand so an unset
+    # PRINCIPAL doesn't trip `set -u` (#42 — surfaced by the container gate,
+    # where the env var is absent; the bare "$PRINCIPAL" errored "unbound").
+    if [ -n "${PRINCIPAL:-}" ]; then
         verbose_echo "Using PRINCIPAL from environment: $PRINCIPAL"
         echo "$PRINCIPAL"
         trap - EXIT

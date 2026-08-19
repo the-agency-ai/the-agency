@@ -26,6 +26,14 @@ set -euo pipefail
 TOOL_VERSION="2.0.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Portable SHA-256 via the shared helper (shasum on macOS || sha256sum on Linux),
+# resolved in one place across diff-hash/stage-hash/monitor-register (#42).
+if [[ -f "$SCRIPT_DIR/lib/_sha256" ]]; then
+    source "$SCRIPT_DIR/lib/_sha256"
+else
+    echo "Error: stage-hash requires agency/tools/lib/_sha256" >&2
+    exit 2
+fi
 if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
     # shellcheck source=lib/_log-helper
     source "$SCRIPT_DIR/lib/_log-helper"
@@ -113,7 +121,7 @@ for file in "${STAGED[@]}"; do
     fi
 done
 
-HASH=$(printf '%s' "$HASH_INPUT" | shasum -a 256 | awk '{print $1}' | cut -c1-7)
+HASH=$(printf '%s' "$HASH_INPUT" | _sha256 | awk '{print $1}' | cut -c1-7)
 
 if [[ "$JSON" == "true" ]]; then
     printf '{\n  "hash": "%s",\n  "fileCount": %d,\n  "files": [\n    %s\n  ]\n}\n' \

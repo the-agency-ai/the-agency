@@ -180,6 +180,17 @@ pkg() {  # pkg [<json body>]
 }
 
 @test "pkg-manager: nothing installed at all fails cleanly" {
+    # resolve() runs with PATH="$STUBS:/usr/bin:/bin:/usr/sbin:/sbin" — the
+    # system bindirs are included for coreutils. That assumes package managers
+    # live OUTSIDE them (true on macOS: brew/nvm put npm in /usr/local/bin). On
+    # a distro that installs npm to /usr/bin (e.g. alpine apk in the test
+    # container), the "nothing installed" premise can't hold with this PATH, so
+    # skip rather than false-fail. (#42)
+    for d in /usr/bin /bin /usr/sbin /sbin; do
+        for m in npm pnpm yarn bun; do
+            [[ -x "$d/$m" ]] && skip "a system package manager ($d/$m) is on the resolve PATH; cannot simulate 'nothing installed'"
+        done
+    done
     pkg
     run resolve
     [ "$status" -eq 1 ]

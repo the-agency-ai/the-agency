@@ -852,3 +852,136 @@ make_conflicting_branches() {
     run cat conflict.txt
     assert_output_contains "branch-b line"    # working tree restored
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# tag-delete — safe bulk deletion of LOCAL-ONLY tags (#42 / flag #264)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Helper: add a bare origin remote carrying one tag (v1.0.0), so the origin
+# safety guard has a remote to query. Leaves the local repo with that tag too.
+_setup_origin_with_tag() {
+    cd "${BATS_TEST_TMPDIR}"
+    local up="${BATS_TEST_TMPDIR}/upstream.git"
+    git init --bare --quiet "$up"
+    git remote add origin "$up"
+    git tag v1.0.0
+    git push --quiet origin main --tags
+}
+
+@test "tag-delete: deletes a local-only tag" {
+    _setup_origin_with_tag
+    git tag v9.9.9-local                       # never pushed
+    run ./agency/tools/git-captain tag-delete v9.9.9-local
+    assert_success
+    assert_output_contains "Deleted 1"
+    run git rev-parse --verify --quiet "refs/tags/v9.9.9-local"
+    assert_failure                              # gone
+}
+
+@test "tag-delete: REFUSES a tag present on origin (safety guard)" {
+    _setup_origin_with_tag
+    run ./agency/tools/git-captain tag-delete v1.0.0
+    assert_success                              # not an error — just refuses
+    assert_output_contains "present on origin"
+    run git rev-parse --verify --quiet "refs/tags/v1.0.0"
+    assert_success                              # still there
+}
+
+@test "tag-delete: --dry-run deletes nothing" {
+    _setup_origin_with_tag
+    git tag v9.9.9-local
+    run ./agency/tools/git-captain tag-delete --dry-run v9.9.9-local
+    assert_success
+    assert_output_contains "DRY RUN"
+    run git rev-parse --verify --quiet "refs/tags/v9.9.9-local"
+    assert_success                              # NOT deleted
+}
+
+@test "tag-delete: --local-only --match sweeps local-only tags, keeps origin" {
+    _setup_origin_with_tag
+    git tag v2.0.0-junk
+    git tag v3.0.0-junk
+    git tag REQUEST-keepme                      # does not match ^v
+    run ./agency/tools/git-captain tag-delete --local-only --match '^v'
+    assert_success
+    assert_output_contains "Deleted 2"
+    run git rev-parse --verify --quiet "refs/tags/v2.0.0-junk"; assert_failure
+    run git rev-parse --verify --quiet "refs/tags/v1.0.0";       assert_success  # origin kept
+    run git rev-parse --verify --quiet "refs/tags/REQUEST-keepme"; assert_success # non-match kept
+}
+
+@test "tag-delete: --stdin reads names" {
+    _setup_origin_with_tag
+    git tag v4.0.0-junk
+    run bash -c 'printf "v4.0.0-junk\n" | ./agency/tools/git-captain tag-delete --stdin'
+    assert_success
+    assert_output_contains "Deleted 1"
+}
+
+@test "tag-delete: no names provided fails" {
+    _setup_origin_with_tag
+    run ./agency/tools/git-captain tag-delete
+    assert_failure
+    assert_output_contains "No tag names"
+}
+
+@test "tag-delete: skips a name that does not exist locally" {
+    _setup_origin_with_tag
+    run ./agency/tools/git-captain tag-delete v0.0.0-nonexistent
+    assert_success
+    assert_output_contains "No local-only tags to delete"
+}
+
+@test "tag-delete appears in --help" {
+    run ./agency/tools/git-captain --help
+    assert_success
+    assert_output_contains "tag-delete"
+}
+
+@test "tag-delete: ABORTS (fails closed) when origin is unreadable" {
+    # No origin remote at all → the ls-remote safety check must fail the whole
+    # command, NEVER proceed to delete unguarded.
+    cd "${BATS_TEST_TMPDIR}"
+    git tag v9.9.9-local
+    run ./agency/tools/git-captain tag-delete v9.9.9-local
+    assert_failure
+    assert_output_contains "Could not read origin tags"
+    run git rev-parse --verify --quiet "refs/tags/v9.9.9-local"
+    assert_success                              # not deleted — failed closed
+}
+
+@test "tag-delete: does NOT false-die when origin has ZERO tags (empty is valid)" {
+    # Regression for the QG CODE-2 bug: `git ls-remote | grep -v` exits 1 on an
+    # empty (tagless) origin, which under pipefail wrongly tripped the || die.
+    cd "${BATS_TEST_TMPDIR}"
+    local up="${BATS_TEST_TMPDIR}/upstream.git"
+    git init --bare --quiet "$up"
+    git remote add origin "$up"
+    git push --quiet origin main               # push a commit, but NO tags
+    git tag v5.5.5-local                        # a purely local tag
+    run ./agency/tools/git-captain tag-delete v5.5.5-local
+    assert_success                              # must NOT die on empty origin tags
+    assert_output_contains "Deleted 1"
+    run git rev-parse --verify --quiet "refs/tags/v5.5.5-local"
+    assert_failure                              # actually deleted
+}
+
+@test "tag-delete: --match with zero matches deletes nothing" {
+    _setup_origin_with_tag
+    git tag keepme-notmatching
+    run ./agency/tools/git-captain tag-delete --local-only --match '^NOPE'
+    assert_success
+    assert_output_contains "No local-only tags to delete"
+    run git rev-parse --verify --quiet "refs/tags/keepme-notmatching"
+    assert_success                              # untouched
+}
+
+@test "tag-delete: --local-only sweep skips a tag that is both local and on origin" {
+    _setup_origin_with_tag                      # v1.0.0 is local AND on origin
+    git tag v2.0.0-junk                         # local-only
+    run ./agency/tools/git-captain tag-delete --local-only --match '^v'
+    assert_success
+    assert_output_contains "Deleted 1"          # only v2.0.0-junk, not v1.0.0
+    run git rev-parse --verify --quiet "refs/tags/v1.0.0"
+    assert_success                              # origin tag survived the sweep
+}

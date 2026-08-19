@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+#
+# container-test-run - run the bats suite inside a disposable container
+#
+# What Problem: bats tests run locally, un-isolated, keep trashing the real
+# repo — a buggy test created 600+ junk git tags, leaked worktrees into the live
+# checkout, and depended on gitignored dev-only dirs. In-process isolation only
+# works if every test is written correctly, and they keep not being. The local
+# machine PERSISTS between runs, so the damage accumulates (CI runners are
+# ephemeral, so CI is already self-isolating by disposal — the pain is local).
+#
+# How & Why: STRUCTURAL containment. Mount the host repo READ-ONLY into a
+# throwaway Linux container, clone it to a writable workdir INSIDE the container,
+# and run bats there. The host repo cannot be written (read-only mount) and the
+# tests operate on the clone — so a leaky test's `git tag` / `worktree-create`
+# hits the disposable copy and evaporates when the container is removed. It
+# doesn't rely on the test being correct.
+#
+# The container backend (Apple `container` on Apple Silicon, Docker on
+# Linux/CI/Intel) is resolved by agency/tools/lib/_container-runtime from
+# agency.yaml `container.provider` — same OCI image, either runtime.
+#
+# Usage:
+#   container-test-run                         # run the full bats:all set
+#   container-test-run src/tests/tools/foo.bats  # run specific paths
+#
+# Env:
+#   CONTAINER_TEST_IMAGE   override the runner image (default: the-agency-test-runner:latest)
+#   CONTAINER_PROVIDER     force backend: apple | docker | auto (default: config/auto)
+#
+# NOTE (increment 1): this tests the COMMITTED HEAD (via `git clone`), not
+# uncommitted working-tree changes. A working-tree mode (copy tracked+untracked,
+# excluding node_modules/.claude/worktrees) is the next increment.
+#
+# Written: 2026-08-19 — container test isolation (#42), captain + principal.
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ -f "$SCRIPT_DIR/lib/_log-helper" ] && source "$SCRIPT_DIR/lib/_log-helper"
+# _container-runtime sources _path-resolve, giving AGENCY_PROJECT_ROOT + backend.
+source "$SCRIPT_DIR/lib/_container-runtime"
+
+RUN_ID=$(log_start "container-test-run" "$*" 2>/dev/null) || true
+
+REPO_ROOT="${AGENCY_PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+IMAGE="${CONTAINER_TEST_IMAGE:-the-agency-test-runner:latest}"
+
+if [ "$#" -gt 0 ]; then
+    TESTS=("$@")
+else
+    TESTS=(src/tests/tools/ src/tests/hookify/ src/tests/skills/ src/tests/agents/ src/tests/docs/)
+fi
+
+backend="$(container_backend)" || {
+    echo "container-test-run: no container backend available — install Apple 'container' (Apple Silicon macOS) or Docker." >&2
+    log_end "$RUN_ID" "failure" 1 0 "no backend" 2>/dev/null || true
+    exit 127
+}
+
+# Replicate the host's $USER inside the container. The container runs as root
+# with USER unset, but identity resolution (agent-identity, principal) keys off
+# $USER against agency.yaml's principals map — so without this, identity-aware
+# tests (handoff agent address, principal, sandbox-sync) diverge from the host.
+# id -un is the fallback when the invoking shell didn't export USER (#42).
+HOST_USER="${USER:-$(id -un 2>/dev/null || echo unknown)}"
+
+# Give the clone a credential-free, github-style origin URL. The raw `git clone
+# /src /work` sets origin to the local path "/src", so tools that parse ORG/REPO
+# or repo.name from the remote (pr-captain-land, agent-identity, repo-detection,
+# git-sync, handoff agent address) fail — on the host origin is a real github
+# URL. We derive org/repo from the host's origin but STRIP any embedded
+# credentials: a host remote may carry a "https://<token>@github.com/..." PAT
+# that must NEVER enter the container or the transcript.
+#
+# Security-critical (QG SEC-1/CODE-1): only process origins that ACTUALLY contain
+# "github.com", and only trust a result that is a clean "<org>/<repo>". The old
+# heuristic ("differs from the raw URL") was defeated by the trailing ".git"
+# strip alone, so a NON-github origin carrying a token (e.g.
+# "https://oauth2:TOK@gitlab.example.com/o/r.git") slipped through unstripped.
+# We now (a) gate on a real github.com match — anything else falls back to the
+# safe default — and (b) validate the parsed org/repo against a strict regex, so
+# any residual scheme/userinfo ("://", "@", ":") forces the default. The token
+# can never reach CLEAN_ORIGIN.
+CLEAN_ORIGIN="https://github.com/the-agency-ai/the-agency.git"
+_ho="$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || echo '')"
+if [[ "$_ho" == *github.com* ]]; then
+    _after="${_ho#*github.com}"   # drop everything up to & incl github.com (token gone)
+    _after="${_after#[:/]}"       # strip the leading : or /
+    _org_repo="${_after%.git}"    # -> "org/repo"
+    if [[ "$_org_repo" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+        CLEAN_ORIGIN="https://github.com/${_org_repo}.git"
+    fi
+fi
+
+# Clone the read-only-mounted repo to a writable workdir, then run bats there.
+# git identity is set so tests that commit don't fail on missing user.*.
+# SYSTEM git identity + default branch: many tests create their own throwaway
+# repos in tmpdirs and commit WITHOUT setting local user.*, relying on an ambient
+# identity (present on a dev host, absent in a fresh container → 'git commit'
+# dies status 128 'Author identity unknown'). It MUST be --system (/etc/gitconfig),
+# NOT --global: test_isolation_setup scrubs HOME to a fakehome, so a ~/.gitconfig
+# global identity is invisible to the tests. --system is HOME-independent.
+# init.defaultBranch=main matches the framework convention so tests that expect a
+# 'main' branch behave like the host (alpine git otherwise defaults to 'master').
+#
+# Test paths are NOT spliced into this script — they arrive as ARGV ($1..) and
+# `bats "$@"` consumes them, so a path can never be re-parsed as shell (QG
+# SEC-2/CODE-3). $USER is supplied via --env below, not interpolated here. The
+# only interpolation is CLEAN_ORIGIN, which is validated to a clean org/repo and
+# printf-%q-quoted. (#42)
+RUN_CMD="set -e
+git config --system user.email ci@the-agency.local
+git config --system user.name ci
+git config --system init.defaultBranch main
+git clone -q /src /work
+cd /work
+git remote set-url origin $(printf '%q' "$CLEAN_ORIGIN")
+git config user.email ci@the-agency.local && git config user.name ci
+bats \"\$@\""
+
+echo "container-test-run: backend=$backend image=$IMAGE" >&2
+echo "container-test-run: tests=${TESTS[*]}" >&2
+
+# Route through the _container-runtime abstraction (backend-agnostic). Mount the
+# repo read-only; pass $USER via --env; hand the test paths to the container's
+# shell as ARGV after RUN_CMD ($0=container-test-run, $1.. = TESTS).
+container_run \
+    --mount "$REPO_ROOT:/src:ro" \
+    --env "USER=$HOST_USER" \
+    "$IMAGE" \
+    bash -c "$RUN_CMD" container-test-run "${TESTS[@]}"
+rc=$?
+
+if [ "$rc" -eq 0 ]; then
+    log_end "$RUN_ID" "success" 0 0 "bats passed in container ($backend)" 2>/dev/null || true
+else
+    log_end "$RUN_ID" "failure" "$rc" 0 "bats failed in container ($backend)" 2>/dev/null || true
+fi
+exit "$rc"

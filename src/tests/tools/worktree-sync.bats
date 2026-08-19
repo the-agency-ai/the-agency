@@ -194,3 +194,25 @@ teardown_main_branch_repo() {
         return 1
     fi
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SIGPIPE regression guards (#42) — `git worktree list | head -1` and
+# `echo "$X" | grep -q` both die with SIGPIPE (141) under `set -o pipefail` when
+# the reader closes the pipe early on large output, aborting the sync. Setting up
+# enough linked worktrees / changed files to reproduce is expensive, so guard
+# structurally against reintroduction of the anti-patterns.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "worktree-sync: does not pipe 'git worktree list' into head (SIGPIPE guard, #42)" {
+    run bash -c "grep -nE 'git worktree list[^|]*\\| *head' '${REPO_ROOT}/agency/tools/worktree-sync' || true"
+    assert_success
+    [[ -z "$output" ]]
+}
+
+@test "worktree-sync: does not use 'echo | grep -q' for CLAUDE.md detection (SIGPIPE guard, #42)" {
+    # The CLAUDE.md-changed check must be a pure-bash match, not echo | grep -q
+    # (grep -q closes the pipe on first match → SIGPIPE on a large CHANGED_FILES).
+    run bash -c "grep -nE 'echo .*CHANGED_FILES.* \\| *grep -q' '${REPO_ROOT}/agency/tools/worktree-sync' || true"
+    assert_success
+    [[ -z "$output" ]]
+}

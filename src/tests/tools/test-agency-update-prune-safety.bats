@@ -100,7 +100,8 @@ _run_update() {
     AGENCY_SOURCE="$SANDBOX/source" \
     CLAUDE_PROJECT_DIR="$SANDBOX/target" \
     SB_TARGET="$SANDBOX/target" \
-    bash -c 'AGENCY_ARGS=("--force" "--yes" "$@" "$SB_TARGET"); source /Users/jdm/code/the-agency/agency/tools/lib/_agency-update; _update_main' _run_update "$@" 2>&1
+    AGENCY_LIB="${BATS_TEST_DIRNAME}/../../../agency/tools/lib/_agency-update" \
+    bash -c 'AGENCY_ARGS=("--force" "--yes" "$@" "$SB_TARGET"); source "$AGENCY_LIB"; _update_main' _run_update "$@" 2>&1
 }
 
 @test "default (no --prune): nothing deleted, including framework orphans, adopter-custom untouched" {

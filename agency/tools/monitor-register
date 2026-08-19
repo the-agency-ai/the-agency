@@ -33,6 +33,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Portable SHA-256 via the shared helper (shasum on macOS || sha256sum on Linux),
+# resolved in one place across diff-hash/stage-hash/monitor-register (#42).
+if [[ -f "$SCRIPT_DIR/lib/_sha256" ]]; then
+    source "$SCRIPT_DIR/lib/_sha256"
+else
+    echo "Error: monitor-register requires agency/tools/lib/_sha256" >&2
+    exit 2
+fi
 
 if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
     REPO_ROOT="$CLAUDE_PROJECT_DIR"
@@ -53,7 +61,7 @@ cmdline_hash() {
     else
         cmdline=$(ps -p "$pid" -o command= 2>/dev/null || echo "")
     fi
-    printf '%s' "$cmdline" | shasum -a 256 | awk '{print $1}' | cut -c1-16
+    printf '%s' "$cmdline" | _sha256 | awk '{print $1}' | cut -c1-16
 }
 
 # ── modes ───────────────────────────────────────────────────────────────────

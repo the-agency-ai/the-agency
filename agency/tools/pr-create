@@ -71,16 +71,21 @@ echo "✓ On branch: $BRANCH"
 # The value is already captured by `head` before the signal; `|| true` keeps
 # that nondeterministic pipeline failure from aborting the whole script. A
 # genuine empty result still falls through to the -z checks below.
-NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs ls -t 2>/dev/null | head -1 || true)
+# `xargs -r` (--no-run-if-empty) is REQUIRED: without it, GNU xargs (Linux)
+# runs `ls -t` with NO args when find matches nothing, which lists the CURRENT
+# DIRECTORY and returns a spurious entry (e.g. "usr") — the -z check then passes
+# and the tool tries to verify a non-receipt. BSD xargs (macOS) skips on empty by
+# default AND supports -r, so -r is correct on both. (#42, container gate.)
+NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/workstreams" \( -path "*/qgr/*.md" -o -path "*/rgr/*.md" \) 2>/dev/null | xargs -r ls -t 2>/dev/null | head -1 || true)
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
     # Tier 2: legacy flat receipts dir
-    NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1 || true)
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/agency/receipts" -name "*.md" -not -name ".gitkeep" -print0 2>/dev/null | xargs -0 -r ls -t 2>/dev/null | head -1 || true)
 fi
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then
     # Tier 3: old usr/ location
-    NEWEST_RECEIPT=$(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1 || true)
+    NEWEST_RECEIPT=$(find "$REPO_ROOT/usr" -name "qgr-*.md" -print0 2>/dev/null | xargs -0 -r ls -t 2>/dev/null | head -1 || true)
 fi
 
 if [[ -z "$NEWEST_RECEIPT" ]]; then

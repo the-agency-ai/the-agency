@@ -57,6 +57,16 @@ load 'test_helper'
     [[ -n "$output" ]]
 }
 
+@test "principal: succeeds with PRINCIPAL unset (set -u guard, #42)" {
+    # Explicitly clear PRINCIPAL so the `[ -n "${PRINCIPAL:-}" ]` guard is
+    # actually exercised. Without the :- default this trips "unbound variable"
+    # under set -u — a regression that only surfaces in a clean-env/container
+    # run, which the ambient-dependent test above would miss.
+    run env -u PRINCIPAL bash "${TOOLS_DIR}/principal"
+    assert_success
+    [[ -n "$output" ]]
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # principal-create - Version and Help
 # ─────────────────────────────────────────────────────────────────────────────
@@ -227,9 +237,13 @@ load 'test_helper'
 
     run_tool principal-create "$test_name"
 
-    # Verify v2 directory structure created
+    # Verify v2 directory structure created. Assert on README.md, which BOTH
+    # code paths produce: the v2-template path copies agency/templates/principal-v2/*
+    # (top-level template files + README.md, no scripts/ subdir), and the fallback
+    # path writes its own README.md. The old `scripts/ || claude/` assertion only
+    # matched the fallback path, so it stale-failed whenever the template exists. (#42)
     [[ -d "usr/$test_name" ]]
-    [[ -d "usr/$test_name/claude" ]] || [[ -d "usr/$test_name/scripts" ]]
+    [[ -f "usr/$test_name/README.md" ]]
     # Verify NOT created at legacy path
     [[ ! -d "claude/principals/$test_name" ]]
 

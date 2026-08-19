@@ -260,7 +260,10 @@ migrate_dispatches() {
             has_frontmatter=true
         fi
 
-        local dtype from_agent to_agent date_val status_val subject priority
+        # Initialize empty: a bare `local x` leaves x UNSET, so referencing it
+        # under `set -u` (e.g. the no-frontmatter branch below reads $from_agent
+        # before the YAML branch assigns it) trips "unbound variable". (#42)
+        local dtype="" from_agent="" to_agent="" date_val="" status_val="" subject="" priority=""
 
         if [[ "$has_frontmatter" == "true" ]]; then
             dtype=$(_yaml_field "$content" "type")

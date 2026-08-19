@@ -94,7 +94,15 @@ test_isolation_setup() {
     # 2. Explicit ISCP DB path — belt-and-suspenders on top of HOME override
     export ISCP_DB_PATH="${BATS_TEST_TMPDIR}/test-iscp.db"
 
-    # 3. Git config isolation — prevent any writes to live .git/config
+    # 3. Git config isolation — prevent any writes to live .git/config.
+    #    Deliberately /dev/null (NOT a fallback identity): several tests assert
+    #    on the UNCONFIGURED-identity path (e.g. "#204 git-safe-commit errors
+    #    loudly when git identity is unconfigured") and on the default branch,
+    #    so a blanket ambient identity here regresses them. Tests that DO commit
+    #    must set their own local `git config user.*` in their fixture (the
+    #    hermetic pattern). The handful that rely on git's macOS auto-identity
+    #    are tracked as test-portability debt (#42 / flag #264), to be hardened
+    #    per-test rather than globally.
     export GIT_CONFIG_GLOBAL=/dev/null
     export GIT_CONFIG_SYSTEM=/dev/null
 

@@ -42,14 +42,37 @@ fi
 AUTO_MODE=false
 MODE="manual"
 STASHED=false
+# Issue #195: label every stash we take with pid+timestamp so we can pop
+# it by ref (`git stash pop stash@{N}`) rather than blindly popping the
+# top of the stack. Prevents cross-worktree stash pollution when multiple
+# worktree-sync runs interleave.
+STASH_LABEL="worktree-sync-$$-$(date +%s)"
+STASH_REF=""
 
-# EXIT trap: ensure stash is always popped if script aborts mid-flight
+# EXIT trap: ensure our labelled stash is always popped if script aborts
+# mid-flight. Resolve by label, not by position.
 _cleanup() {
     if [[ "$STASHED" == true ]]; then
-        git stash pop --quiet 2>/dev/null || true
+        local _ref
+        _ref=$(_resolve_stash_ref 2>/dev/null || true)
+        if [[ -n "$_ref" ]]; then
+            git stash pop --quiet "$_ref" 2>/dev/null || true
+        fi
+        # No blind pop — if we can't find our label, leave the stash alone.
+        # Safer to leak than to pop someone else's work.
     fi
 }
 trap _cleanup EXIT
+
+# Resolve our labelled stash to its ref (stash@{N}) so we pop the right one.
+# Issue #195: multiple worktree-sync runs may interleave; never blind-pop.
+_resolve_stash_ref() {
+    git stash list 2>/dev/null | awk -v lbl="$STASH_LABEL" '
+        index($0, lbl) {
+            # stash list format: "stash@{0}: On branch: worktree-sync-PID-TS"
+            n = index($0, ":"); ref = substr($0, 1, n-1); print ref; exit
+        }'
+}
 
 show_help() {
     echo "Usage: worktree-sync [--auto] [--version] [--help]"
@@ -86,7 +109,14 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
     exit 1
 }
 
-MAIN_CHECKOUT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
+# Capture the full listing, then take the first line's first field via parameter
+# expansion — NOT `| head -1`. Under `set -o pipefail`, head closing the pipe
+# after the first line makes `git worktree list` die with SIGPIPE (exit 141) as
+# it writes the remaining linked worktrees, and that 141 propagates out of the
+# `$(...)` and trips `set -e`. (#42 — the container gate hit this deterministically.)
+_wt_list=$(git worktree list 2>/dev/null)
+MAIN_CHECKOUT="${_wt_list%%$'\n'*}"   # first line (main checkout is always first)
+MAIN_CHECKOUT="${MAIN_CHECKOUT%% *}"  # first whitespace-delimited field (the path)
 if [[ -z "$MAIN_CHECKOUT" ]] || [[ ! -d "$MAIN_CHECKOUT" ]]; then
     echo "worktree-sync: cannot determine main checkout" >&2
     exit 1
@@ -151,7 +181,10 @@ DIRTY=$(git status --porcelain 2>/dev/null)
 
 if [[ -n "$DIRTY" ]]; then
     if [[ "$AUTO_MODE" == true ]]; then
-        git stash --quiet 2>/dev/null
+        # Issue #195: push with explicit message so we can pop-by-ref.
+        # `git stash push -m` is the portable form (git 2.13+). Always include
+        # --include-untracked so untracked files survive the merge too.
+        git stash push -u --quiet -m "$STASH_LABEL" 2>/dev/null
         STASHED=true
     else
         DIRTY_COUNT=$(echo "$DIRTY" | grep -c . || echo 0)
@@ -198,14 +231,17 @@ else
             echo "  WARNING: git merge --abort failed — repo may not be fully restored." >&2
         fi
 
-        # Unstash if we stashed (disable trap since we're handling it)
+        # Unstash if we stashed (disable trap since we're handling it).
+        # Issue #195: pop by label, not by position.
         STASH_MSG="no stash taken"
         if [[ "$STASHED" == true ]]; then
             STASHED=false
-            if git stash pop --quiet 2>/dev/null; then
-                STASH_MSG="stashed work restored via git stash pop"
+            local _ref
+            _ref=$(_resolve_stash_ref 2>/dev/null || true)
+            if [[ -n "$_ref" ]] && git stash pop --quiet "$_ref" 2>/dev/null; then
+                STASH_MSG="stashed work restored via git stash pop ($STASH_LABEL)"
             else
-                STASH_MSG="stash pop failed — your stashed work is still in git stash (run 'git stash list')"
+                STASH_MSG="stash pop failed — your stashed work is still in git stash as '$STASH_LABEL' (run 'git stash list')"
             fi
         fi
         echo "  Stash: $STASH_MSG." >&2
@@ -254,8 +290,11 @@ if [[ "$MERGED" == true ]]; then
     # Files changed in agency/ namespace
     CHANGED_FILES=$(git diff "$PRE_MERGE_HEAD"..HEAD --name-only -- agency/ .claude/ CLAUDE.md 2>/dev/null || echo "")
 
-    # Check for CLAUDE.md changes
-    if echo "$CHANGED_FILES" | grep -qE "CLAUDE\.md|CLAUDE-THEAGENCY\.md" 2>/dev/null; then
+    # Check for CLAUDE.md changes. Use a bash regex, NOT `echo | grep -q`: under
+    # pipefail, grep -q closing the pipe on first match can SIGPIPE the echo
+    # (exit 141) when CHANGED_FILES is large, tripping set -e (#42, same class as
+    # the head-pipe above). A pure-bash match has no pipe to break.
+    if [[ "$CHANGED_FILES" =~ (CLAUDE\.md|CLAUDE-THEAGENCY\.md) ]]; then
         CLAUDE_MD_CHANGED=true
     fi
 
@@ -263,11 +302,12 @@ if [[ "$MERGED" == true ]]; then
     DISPATCHES=$(echo "$CHANGED_FILES" | grep -E "dispatch" 2>/dev/null || echo "")
 fi
 
-# --- Unstash if we stashed ---
+# --- Unstash if we stashed (pop by label — issue #195) ---
 UNSTASH_CONFLICT=false
 if [[ "$STASHED" == true ]]; then
     STASHED=false  # Disable trap — we're handling it
-    if ! git stash pop --quiet 2>/dev/null; then
+    _STASH_REF_NOW=$(_resolve_stash_ref 2>/dev/null || true)
+    if [[ -z "$_STASH_REF_NOW" ]] || ! git stash pop --quiet "$_STASH_REF_NOW" 2>/dev/null; then
         UNSTASH_CONFLICT=true
     fi
 fi

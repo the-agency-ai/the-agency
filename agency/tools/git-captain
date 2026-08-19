@@ -69,6 +69,9 @@ Subcommands:
   push [args]                    Push to remote (blocks main/master, blocks bare --force)
   fetch                          Fetch from origin
   tag <name> [-m <msg>]          Create annotated tag
+  tag-delete <name>... | --stdin Delete LOCAL-ONLY tags. Never deletes a tag
+                                 present on origin (canonical). --dry-run to
+                                 preview. Reads names from stdin with --stdin.
   reset-soft [<ref>]             Sanctioned recovery: undo the last local
                                  commit (or reset to <ref>), keeping changes
                                  staged. REFUSES if HEAD is pushed to origin
@@ -519,6 +522,111 @@ cmd_tag() {
     echo "${GREEN}Created annotated tag:${NC} $name"
 }
 
+# --- Subcommand: tag-delete ---
+# Safe bulk deletion of LOCAL-ONLY tags. Raw `git tag -d` is hookify-blocked and
+# there was no safe path to remove tags (cmd_tag only creates), which blocked the
+# release-bug tag-pollution sweep (#42 / flag #264). The load-bearing guard: this
+# NEVER deletes a tag that exists on origin — origin tags are canonical release
+# history. It fetches origin's tag set and refuses any name found there, so even
+# a wrong caller-supplied list cannot destroy a published tag.
+#
+# Usage:
+#   git-captain tag-delete <name>...           delete the named local-only tags
+#   git-captain tag-delete --stdin             read names (one per line) from stdin
+#   git-captain tag-delete --dry-run <name>... preview only, delete nothing
+cmd_tag_delete() {
+    local dry_run=false from_stdin=false local_only=false match=""
+    local -a names=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --dry-run)    dry_run=true; shift ;;
+            --stdin)      from_stdin=true; shift ;;
+            --local-only) local_only=true; shift ;;
+            --match)      [[ $# -lt 2 ]] && die "--match requires a regex"; match="$2"; shift 2 ;;
+            -*)           die "Unknown option: $1" ;;
+            *)            names+=("$1"); shift ;;
+        esac
+    done
+    if [[ "$from_stdin" == true ]]; then
+        local line
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && names+=("$line")
+        done
+    fi
+
+    # Origin-safety guard: fetch origin's tag set ONCE. A tag present on origin
+    # is canonical and is NEVER deleted, regardless of the caller's list.
+    echo "${BLUE}Checking origin tag set (safety guard)...${NC}" >&2
+    # Check `git ls-remote` DIRECTLY for failure — do NOT fold the grep/sed
+    # filter into the same `|| die` pipeline. On an origin with ZERO tags,
+    # ls-remote succeeds with empty output but `grep -v` then exits 1 (no lines
+    # matched); under pipefail that 1 propagates and would false-die on a
+    # perfectly valid empty result, blocking tag-delete on fresh repos. Capture
+    # the raw listing first (die only if ls-remote itself fails), then filter.
+    local _lsr origin_tags
+    _lsr=$(git ls-remote --tags origin 2>/dev/null) \
+        || die "Could not read origin tags — refusing to delete without the safety check."
+    origin_tags=$(printf '%s\n' "$_lsr" | grep -v '\^{}' | sed 's#.*refs/tags/##' || true)
+
+    # --local-only sweep mode: enumerate ALL local tags NOT on origin (optionally
+    # filtered by --match <regex>) as the candidate set. The per-name origin guard
+    # below still runs, so this is belt-and-suspenders. Ignores positional names.
+    if [[ "$local_only" == true ]]; then
+        names=()
+        local lt
+        while IFS= read -r lt; do
+            [[ -z "$lt" ]] && continue
+            printf '%s\n' "$origin_tags" | grep -Fxq -- "$lt" && continue   # on origin — skip
+            [[ -n "$match" && ! "$lt" =~ $match ]] && continue               # pattern filter
+            names+=("$lt")
+        done < <(git tag)
+    fi
+    # Empty candidate set: in explicit/--stdin mode that's a usage error (die).
+    # In --local-only mode it's a valid "nothing matched" result — fall through
+    # to the graceful "No local-only tags to delete" below (exit 0), don't die.
+    if [[ "$local_only" != true && ${#names[@]} -eq 0 ]]; then
+        die "No tag names to delete. Usage: git-captain tag-delete <name>... | --stdin | --local-only [--match <regex>]"
+    fi
+
+    local -a to_delete=() refused=() missing=()
+    local t
+    # ${names[@]+...} so an empty array (valid in --local-only no-match) doesn't
+    # trip set -u "unbound variable" on bash 3.2 (macOS).
+    for t in ${names[@]+"${names[@]}"}; do
+        if printf '%s\n' "$origin_tags" | grep -Fxq -- "$t"; then
+            refused+=("$t")
+        elif git rev-parse --verify --quiet "refs/tags/$t" >/dev/null; then
+            to_delete+=("$t")
+        else
+            missing+=("$t")
+        fi
+    done
+
+    if [[ ${#refused[@]} -gt 0 ]]; then
+        echo "${YELLOW}Refusing ${#refused[@]} tag(s) present on origin (kept):${NC}" >&2
+        printf '  %s\n' "${refused[@]}" >&2
+    fi
+    [[ ${#missing[@]} -gt 0 ]] && echo "${BLUE}Skipped ${#missing[@]} tag(s) not present locally.${NC}" >&2
+
+    if [[ ${#to_delete[@]} -eq 0 ]]; then
+        echo "No local-only tags to delete."
+        return 0
+    fi
+
+    if [[ "$dry_run" == true ]]; then
+        echo "${YELLOW}[DRY RUN]${NC} Would delete ${#to_delete[@]} local-only tag(s):"
+        printf '  %s\n' "${to_delete[@]}"
+        return 0
+    fi
+
+    # git tag -d accepts many names; chunk to stay well under ARG_MAX on huge sweeps.
+    local i
+    for ((i = 0; i < ${#to_delete[@]}; i += 200)); do
+        git tag -d "${to_delete[@]:i:200}" >/dev/null
+    done
+    echo "${GREEN}Deleted ${#to_delete[@]} local-only tag(s).${NC} (${#refused[@]} on-origin kept.)"
+}
+
 # --- Subcommand: reset-soft ---
 # D41-R28 (issue #128): sanctioned recovery path for undoing a local,
 # un-pushed commit. Without this, agents who bypass /git-safe-commit (e.g.
@@ -638,6 +746,7 @@ case "$1" in
     push)               shift; cmd_push "$@" ;;
     fetch)              shift; cmd_fetch "$@" ;;
     tag)                shift; cmd_tag "$@" ;;
+    tag-delete)         shift; cmd_tag_delete "$@" ;;
     reset-soft)         shift; cmd_reset_soft "$@" ;;
     branch-delete)      shift; cmd_branch_delete "$@" ;;
     *)                  die "Unknown subcommand: $1 — run 'git-captain --help' for usage." ;;

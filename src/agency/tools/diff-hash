@@ -43,6 +43,19 @@ if ! git rev-parse --show-toplevel >/dev/null 2>&1; then
     exit 2
 fi
 
+# Portable SHA-256 via the shared helper (shasum on macOS || sha256sum on
+# Linux). Sourced so the resolution lives in ONE place across diff-hash /
+# stage-hash / monitor-register instead of three copies that must move together
+# for the next platform quirk (QG design finding, #42). Fail loud if the helper
+# is missing — diff-hash is receipt-critical and must not silently mis-hash.
+_DH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$_DH_DIR/lib/_sha256" ]]; then
+    source "$_DH_DIR/lib/_sha256"
+else
+    echo "Error: diff-hash requires agency/tools/lib/_sha256" >&2
+    exit 2
+fi
+
 BASE="origin/main"
 FILE=""
 JSON=false
@@ -106,7 +119,7 @@ if [[ -n "$FILE" ]]; then
         exit 1
     fi
 
-    FULL_HASH=$(shasum -a 256 "$FILE" | cut -d' ' -f1)
+    FULL_HASH=$(_sha256 "$FILE" | cut -d' ' -f1)
     SHORT_HASH="${FULL_HASH:0:7}"
     FILE_COUNT=1
 
@@ -190,7 +203,7 @@ else
         exit 1
     fi
 
-    FULL_HASH=$(echo "$DIFF_OUTPUT" | shasum -a 256 | cut -d' ' -f1)
+    FULL_HASH=$(echo "$DIFF_OUTPUT" | _sha256 | cut -d' ' -f1)
     SHORT_HASH="${FULL_HASH:0:7}"
 
     if [[ "$JSON" == "true" ]]; then

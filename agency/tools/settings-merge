@@ -88,11 +88,15 @@ MERGED=$(jq -s '
   . as $merged_hooks |
 
   # Build final result
+  # Object-construction values that use the `*` merge operator MUST be
+  # parenthesized: jq 1.7.x rejects a bare `*` as an object value ("unexpected
+  # '*', expecting '}'"), while jq 1.8.x tolerates it. Parens are valid on both.
+  # (#42 — the container test-isolation gate ships jq 1.7.1; host had 1.8.1.)
   $target * {
     hooks: $merged_hooks,
-    permissions: ($target.permissions // {}) * {
+    permissions: (($target.permissions // {}) * {
       allow: array_union($target.permissions.allow // []; $template.permissions.allow // [])
-    }
+    })
   }
 ' "$TARGET" "$TEMPLATE")
 

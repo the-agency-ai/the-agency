@@ -59,6 +59,11 @@ run_agency() {
     local tmpdir
     tmpdir=$(mktemp -d)
     git -C "$tmpdir" init -b main 2>/dev/null
+    # Local identity: test_isolation nulls global/system git config, so a commit
+    # here needs explicit user.* — git's ambient auto-identity is unavailable in
+    # a hermetic/container run (#42).
+    git -C "$tmpdir" config user.email "test@test.invalid"
+    git -C "$tmpdir" config user.name "test"
     git -C "$tmpdir" commit --allow-empty -m "init" 2>/dev/null
     mkdir -p "$tmpdir/.claude" "$tmpdir/agency/config"
     echo "framework:" > "$tmpdir/agency/config/agency.yaml"
