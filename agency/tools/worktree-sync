@@ -109,7 +109,14 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
     exit 1
 }
 
-MAIN_CHECKOUT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
+# Capture the full listing, then take the first line's first field via parameter
+# expansion — NOT `| head -1`. Under `set -o pipefail`, head closing the pipe
+# after the first line makes `git worktree list` die with SIGPIPE (exit 141) as
+# it writes the remaining linked worktrees, and that 141 propagates out of the
+# `$(...)` and trips `set -e`. (#42 — the container gate hit this deterministically.)
+_wt_list=$(git worktree list 2>/dev/null)
+MAIN_CHECKOUT="${_wt_list%%$'\n'*}"   # first line (main checkout is always first)
+MAIN_CHECKOUT="${MAIN_CHECKOUT%% *}"  # first whitespace-delimited field (the path)
 if [[ -z "$MAIN_CHECKOUT" ]] || [[ ! -d "$MAIN_CHECKOUT" ]]; then
     echo "worktree-sync: cannot determine main checkout" >&2
     exit 1
@@ -283,8 +290,11 @@ if [[ "$MERGED" == true ]]; then
     # Files changed in agency/ namespace
     CHANGED_FILES=$(git diff "$PRE_MERGE_HEAD"..HEAD --name-only -- agency/ .claude/ CLAUDE.md 2>/dev/null || echo "")
 
-    # Check for CLAUDE.md changes
-    if echo "$CHANGED_FILES" | grep -qE "CLAUDE\.md|CLAUDE-THEAGENCY\.md" 2>/dev/null; then
+    # Check for CLAUDE.md changes. Use a bash regex, NOT `echo | grep -q`: under
+    # pipefail, grep -q closing the pipe on first match can SIGPIPE the echo
+    # (exit 141) when CHANGED_FILES is large, tripping set -e (#42, same class as
+    # the head-pipe above). A pure-bash match has no pipe to break.
+    if [[ "$CHANGED_FILES" =~ (CLAUDE\.md|CLAUDE-THEAGENCY\.md) ]]; then
         CLAUDE_MD_CHANGED=true
     fi
 
