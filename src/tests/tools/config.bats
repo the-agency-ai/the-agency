@@ -61,8 +61,33 @@ load 'test_helper'
 
 @test "config: get-principal action works" {
     run_tool config get-principal
-    # May fail if not configured, but action should be recognized
+    assert_success
+    # Real value: a principal dict repr, or the 'unknown' fallback — never empty,
+    # never a Python traceback (which would mean the YAML backend blew up).
+    [[ -n "$output" ]]
+    [[ ! "$output" =~ "Traceback" ]]
     [[ ! "$output" =~ "Unknown action" ]]
+}
+
+@test "config: get returns a real scalar value end-to-end" {
+    # Exercises config's actual production path (sys.path.insert + import
+    # yaml_lite + dotted-key walk), not just the lib in isolation.
+    run_tool config get container.provider
+    assert_success
+    [ "$output" = "auto" ]
+}
+
+@test "config: works with pyyaml UNIMPORTABLE (zero-pip regression guard, #264)" {
+    # THE regression this fix closes: config must not import pyyaml. Plant a
+    # poison 'yaml' module that raises on import — if config (or anything it
+    # loads, e.g. yaml_lite) does `import yaml`, this fails loudly. yaml_lite is
+    # stdlib-only, so config must still resolve the value.
+    local poison="${BATS_TEST_TMPDIR}/poison"
+    mkdir -p "$poison"
+    printf 'raise ImportError("pyyaml is banned: framework tools are zero-pip (#264)")\n' > "$poison/yaml.py"
+    run env PYTHONPATH="$poison" "${TOOLS_DIR}/config" get container.provider
+    assert_success
+    [ "$output" = "auto" ]
 }
 
 @test "config: get action requires key" {
