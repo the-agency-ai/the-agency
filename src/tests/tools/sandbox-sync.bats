@@ -35,6 +35,9 @@ _setup_fixture() {
     # Copy the minimum framework tools sandbox-sync depends on
     cp "${REPO_ROOT}/agency/tools/sandbox-sync" agency/tools/sandbox-sync
     cp "${REPO_ROOT}/agency/tools/config" agency/tools/config
+    # config now parses YAML via the stdlib lib/yaml_lite.py (was pyyaml, a
+    # system dep that needed no copy). The isolated fixture must provide it. (#264)
+    cp "${REPO_ROOT}/agency/tools/lib/yaml_lite.py" agency/tools/lib/yaml_lite.py
     chmod +x agency/tools/sandbox-sync agency/tools/config
 
     cat > agency/config/agency.yaml <<YAML
