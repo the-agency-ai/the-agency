@@ -77,6 +77,27 @@ _code() { grep -vE '^[[:space:]]*#' "$1"; }
     [[ "$output" == *'|| true'* ]]
 }
 
+@test "test-run: a single-'|' suite command survives parsing (fixture, not prod config)" {
+    # Decoupled from mdpal: a synthetic suite whose command contains a single '|'
+    # and NO description, so `--list` displays the COMMAND. Parsed WHOLE
+    # (tab-delimited) it shows 'echo a | grep a'; if the '|' delimiter regressed,
+    # the command truncates to 'echo a ' and the '| grep a' vanishes.
+    local repo="$BATS_TEST_TMPDIR/pipe-repo"
+    mkdir -p "$repo/agency/config"
+    cat > "$repo/agency/config/agency.yaml" <<'YAML'
+testing:
+  provider: "multi"
+  suites:
+    piped:
+      command: "echo a | grep a"
+YAML
+    cd "$repo"
+    git init -q
+    run bash "$TR" --list
+    assert_success
+    [[ "$output" == *'| grep a'* ]]
+}
+
 # ── Structural guards on the container-test-run integration (code, not comments) ──
 
 @test "test-run: --isolated actually invokes container-test-run (code path)" {

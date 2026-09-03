@@ -81,7 +81,8 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 AGENCY_YAML="$REPO_ROOT/agency/config/agency.yaml"
 
 # Parse testing suites from agency.yaml
-# Returns lines of: suite_name|command|description
+# Returns tab-separated lines of: suite_name<TAB>command<TAB>description
+# (TAB, not '|', so a command containing '|'/'||' is never truncated.)
 _read_suites() {
     if [[ ! -f "$AGENCY_YAML" ]]; then
         return 1
