@@ -61,12 +61,20 @@ _code() { grep -vE '^[[:space:]]*#' "$1"; }
 @test "test-run --isolated: a NON-bats suite falls back to the host (not the container)" {
     # mdpal's command is a swift-test shell command, not 'bats ...'; under
     # --isolated it must run on the HOST, never route to container-test-run.
-    # (We assert the ROUTING, not mdpal's own exit — its command is a no-op-ish
-    # swift test that may fail when apps/mdpal is absent; #-delimiter parsing of
-    # its '|| true' is a separate pre-existing test-run bug, flagged.)
     run env CONTAINER_PROVIDER=nonexistent bash "$TR" --isolated --suite mdpal
+    assert_success
     assert_output_contains "host — not a bats suite"
     [[ "$output" != *"container-test-run:"* ]]
+}
+
+@test "test-run: suite commands containing '|' are NOT truncated (tab-delimited parse)" {
+    # Regression for the |-delimiter bug: mdpal's command ends in '|| true'. If
+    # the name|command|desc parse split on '|', the '|| true' (and the soft-skip
+    # it provides) would be lost and the suite would fail when apps/mdpal is absent.
+    run bash "$TR" --suite mdpal
+    assert_success
+    # literal glob match (assert_output_contains treats '|' as a regex alternation)
+    [[ "$output" == *'|| true'* ]]
 }
 
 # ── Structural guards on the container-test-run integration (code, not comments) ──
