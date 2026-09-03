@@ -137,3 +137,16 @@ load 'test_helper'
     [[ ! "$output" =~ "syntax error" ]]
 }
 
+@test "config: the real agency.yaml has no duplicate top-level keys (#240)" {
+    # Duplicate top-level keys are silently last-wins-shadowed by YAML (both
+    # pyyaml and yaml_lite), so a second 'collaboration:' key hid the first's
+    # settings. Guard against reintroduction.
+    local dups
+    dups=$(grep -E '^[a-zA-Z_][a-zA-Z0-9_]*:' "${REPO_ROOT}/agency/config/agency.yaml" \
+             | sed 's/:.*//' | sort | uniq -d)
+    if [[ -n "$dups" ]]; then
+        echo "duplicate top-level keys in agency.yaml: $dups" >&2
+        return 1
+    fi
+}
+

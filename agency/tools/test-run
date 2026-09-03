@@ -81,7 +81,8 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 AGENCY_YAML="$REPO_ROOT/agency/config/agency.yaml"
 
 # Parse testing suites from agency.yaml
-# Returns lines of: suite_name|command|description
+# Returns tab-separated lines of: suite_name<TAB>command<TAB>description
+# (TAB, not '|', so a command containing '|'/'||' is never truncated.)
 _read_suites() {
     if [[ ! -f "$AGENCY_YAML" ]]; then
         return 1
@@ -111,7 +112,7 @@ _read_suites() {
             if [[ "$line" =~ ^[[:space:]]{4}[a-z] && "$line" =~ :$ ]]; then
                 # Emit previous suite if complete
                 if [[ -n "$current_suite" && -n "$current_command" ]]; then
-                    echo "${current_suite}|${current_command}|${current_desc}"
+                    printf '%s\t%s\t%s\n' "$current_suite" "$current_command" "$current_desc"
                 fi
                 current_suite="${line%%:*}"
                 current_suite="${current_suite#"${current_suite%%[![:space:]]*}"}"  # trim leading spaces
@@ -147,7 +148,7 @@ _read_suites() {
 
     # Emit last suite
     if [[ -n "$current_suite" && -n "$current_command" ]]; then
-        echo "${current_suite}|${current_command}|${current_desc}"
+        printf '%s\t%s\t%s\n' "$current_suite" "$current_command" "$current_desc"
     fi
 }
 
@@ -191,7 +192,7 @@ fi
 if [[ "$LIST_ONLY" == "true" ]]; then
     echo "Configured test suites:"
     echo ""
-    while IFS='|' read -r name cmd desc; do
+    while IFS=$'\t' read -r name cmd desc; do
         printf "  %-20s %s\n" "$name" "${desc:-$cmd}"
     done <<< "$SUITES"
     exit 0
@@ -203,7 +204,7 @@ passed=0
 failed=0
 failed_names=()
 
-while IFS='|' read -r name cmd desc; do
+while IFS=$'\t' read -r name cmd desc; do
     # Filter if --suite specified
     if [[ -n "$SUITE_FILTER" && "$name" != "$SUITE_FILTER" ]]; then
         continue

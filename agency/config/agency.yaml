@@ -57,11 +57,6 @@ framework:
 agents:
   default_model: "opus"  # opus, sonnet, haiku
 
-# Collaboration settings
-collaboration:
-  auto_sync: true  # Automatically push collaboration files
-  news_expiry_days: 7  # Mark old news as READ after N days
-
 # Quality gate settings
 quality:
   block_on_secrets: true
@@ -155,6 +150,8 @@ dispatches:
 # Each entry maps a collaborator name to its local checkout path and dispatch dirs.
 # Used by: collaboration-check tool (startup hook, dispatch loop)
 collaboration:
+  auto_sync: true          # Automatically push collaboration files
+  news_expiry_days: 7      # Mark old news as READ after N days
   repos:
     monofolk:
       path: "~/code/collaboration-monofolk"

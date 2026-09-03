@@ -1,72 +1,60 @@
 ---
 type: session
 agent: the-agency/jordan/captain
-date: 2026-08-19T09:40
-trigger: container-42-landed
+date: 2026-09-03T23:00
+trigger: plan-complete
 branch: main
 mode: resumption
 next-action: |
-  SHIPPED — container test-isolation (#42) landed as PR #481 / release v46.44.
-  On main, clean, main == origin/main. No blocking next action. When convenient:
-  (1) /captain-sync-all to propagate the merge to the fleet worktrees (designex,
-  devex, iscp, mdpal-*, mock-and-mark — several are Great-Rename-parked, sync-all
-  skips those). (2) Address flag #264 (host-env hygiene: config pyyaml zero-pip
-  violation + host python 3.9) so host bats:all / commit-precheck go green again.
-  (3) Optional step 3/4 of the container plan: wire container-test-run into the
-  gate as the default (test-run --isolated) + working-tree mode + prove Docker backend.
+  PLAN COMPLETE (1→2→4→3, all landed v46.45–v46.47). On main, clean, in sync.
+  No blocking next action. Open follow-ups when convenient: (a) flag #264-dup
+  (two 'collaboration:' keys in agency.yaml — last-wins shadow); (b) test-run
+  '|'-delimiter parsing truncates suite commands containing '||' (mdpal '|| true');
+  (c) Docker backend LIVE proof belongs in Linux CI (routing already verified);
+  (d) 2 parked worktrees (devex, mock-and-mark) still on Great-Rename debt —
+  un-park via great-rename-migrate, not a blind sync.
 ---
 
-# Captain handoff — container test-isolation (#42) SHIPPED
+# Captain handoff — 4-item plan COMPLETE
 
-## What shipped (PR #481, release v46.44, merge c8e49032)
-Container test-isolation: an abstraction over Docker + Apple Containers for running
-the bats suite in a disposable container so leaky tests can't trash the local repo.
-Ran the WHOLE suite in-container and drove failures **230 → 0**. The container earned
-its keep as a portability/CI gate — it caught ~12 REAL cross-platform bugs macOS hid:
+## The plan (principal's order 1→2→4→3) — all done
+- **① config stdlib-only (#264)** → PR #483 / **v46.45**. Dropped pyyaml for a new
+  stdlib `agency/tools/lib/yaml_lite.py` (nested maps/lists/flow/scalars, PyYAML-
+  parity on agency.yaml). Restores the normal commit gate (no more --no-verify).
+  A pyyaml-POISON regression guard proves config never imports yaml. QG found+fixed
+  10 (list-colon misparse, numeric coercion, nested-flow, + the cascading
+  sandbox-sync fixture dep on the new lib).
+- **② Fleet sync** → 6 worktrees synced to main; devex + mock-and-mark SKIPPED
+  (Great-Rename conflicts — parked, correct).
+- **④ Dispatch retention** → PR #484 / **v46.46**. Drained the 144-deep commit-notify
+  firehose; new `dispatch prune [--type --older-days --dry-run]` + session-preflight
+  auto-sweep + `dispatches.commit_retention_days: 7` knob. QG clean, +12 tests.
+- **③ Container gate (#42 step 3)** → PR #485 / **v46.47**. `container-test-run
+  --working-tree` (overlays uncommitted changes onto the clone) + `test-run
+  --isolated` (routes bats suites into the container). On Apple containers. QG:
+  no aborts/escape/injection; added a '..'-path-component guard to the overlay,
+  unknown-flag rejection, pre-gate diagnostics (host-testable routing), 14 tests.
+  Docker backend: routing verified (CONTAINER_PROVIDER=docker → docker dispatch,
+  standard alpine OCI); LIVE proof deferred to Linux CI (not this Apple-Silicon box).
 
-- set -u unbound: great-rename-migrate (5 arrays), principal, iscp-migrate
-- SIGPIPE-under-pipefail (`| head`): release get_last_release, worktree-sync (×2)
-- jq 1.7 object-merge syntax: settings-merge
-- shasum(macOS-only)→portable _sha256 (now a shared lib): diff-hash/stage-hash/monitor-register
-- iscp-db migration rollback committed the version bump on failure (`.bail on`)
-- pr-create empty-`xargs` listed cwd on Linux → phantom receipt (`xargs -r`)
+## Releases this arc
+v46.44 (container test-isolation #42) · v46.45 (#264) · v46.46 (retention) · v46.47 (gate).
 
-Plus 7 image deps (sqlite/zip/py3-yaml/rsync/gh/node/pnpm), 8 host-coupled test fixes,
-and a new **git-captain tag-delete** tool (origin-safety guard: never deletes an
-on-origin tag) used to sweep 364 junk release-bug tags (0 origin tags touched).
+## How to use the new container gate
+- `test-run --isolated` — run the bats suites in a disposable Apple container.
+- `test-run --working-tree` — same, but tests UNCOMMITTED changes (implies --isolated).
+- `container-test-run [--working-tree] <paths>` — direct.
+- Note: full-suite container runs occasionally get killed near the end; the tools/
+  segment (1800+ tests) completes reliably — run segments separately if needed.
 
-## QG (receipt: agency/workstreams/agency/qgr/...qgr-pr-prep-20260819-1701-7e39369.md)
-4 reviewer agents found 9 real findings IN the branch's own code (PAT-leak edge case,
-tag-delete zero-tag false-die, TESTS injection, container_run dead code, _sha256
-triplication, + 5 test-coverage gaps). ALL fixed + pinned by +11 new tests. Container
-suite re-verified 0 failures / 1805 passed. Landed via pr-captain-land with container
-validation (clone-scratch-to-temp-repo → container-test-run, since a worktree's .git
-can't be cloned directly — this is why step 3 (wire container into the gate) matters).
+## Flags filed this session (for triage)
+- #264-dup: agency.yaml has two 'collaboration:' keys (shadowing).
+- test-run '|'-delimiter suite-command truncation (mdpal '|| true').
+- (earlier) #264 host-env hygiene, tag-sweep tooling, etc.
 
-## Key files (all on main now)
-- agency/tools/lib/_container-runtime (abstraction: container_backend/available/run w/ --mount/--env)
-- agency/tools/container-test-run (the isolated runner)
-- agency/containers/test-runner/Dockerfile (alpine image, tag the-agency-test-runner:latest)
-- agency/tools/lib/_sha256 (new shared portable-hash lib)
-- agency/tools/git-captain (tag-delete subcommand)
-- agency/config/agency.yaml (container: provider section)
+## State
+On main, clean, main == origin/main. Releases current to v46.47.
 
-## Open flags / follow-ups
-- **#264** host-env hygiene: `config` (core tool, dep of principal + much) requires
-  pyyaml → ZERO-PIP VIOLATION; host python is 3.9 (< 3.13 floor); these make host
-  bats:all / commit-precheck red (why this branch's commits used --no-verify). FIX:
-  make config stdlib-only. Also: git-captain tag-delete now exists (the tag-sweep blocker).
-- Fleet worktree sync pending (/captain-sync-all).
-- Container plan remaining: step 3 (test-run --isolated default + working-tree mode),
-  step 4 (prove Docker backend — daemon was down).
-- Stale: usr/jordan/captain/briefings/apple-containers-test-isolation-42-20260818.md
-  conclusion (argued in-process; reversed to container-substrate — now SHIPPED).
-
-## Environment
-- Apple `container` v1.2.2 running; image built. Docker installed, daemon down.
-- Full container run occasionally gets killed near the end (intermittent) — the
-  tools/ segment (1805 tests) completes reliably; run segments separately if needed.
-
-— captain. #42 shipped. 230→0, ~12 real bugs caught, QG-clean, released v46.44.
+— captain. Plan complete: 4 items, 3 PRs (#483/#484/#485), 3 releases, all QG'd.
 
 *OFFENDERS WILL BE FED TO THE — CUTE — ATTACK KITTENS!*
