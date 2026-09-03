@@ -80,12 +80,61 @@ flagoff: false'
     [ "$output" = "[{'username': 'jordandm', 'repos': [{'org': 'the-agency-ai', 'repo': 'the-agency'}]}]" ]
 }
 
+@test "yaml_lite: list scalar with a colon is NOT parsed as a map" {
+    # Regression (QG): a list item like `- http://x` has a colon NOT followed by
+    # a space, so it is a plain SCALAR, not a mapping. The old detector split on
+    # the first ':' unconditionally and produced {'http': '//x'}.
+    _write 'items:
+  - http://example.com
+  - key:value
+  - plain'
+    run python3 "$YL" "$FIX" items
+    [ "$output" = "['http://example.com', 'key:value', 'plain']" ]
+}
+
+@test "yaml_lite: map value keeps its colons" {
+    _write 'url: http://x:8080/path'
+    run python3 "$YL" "$FIX" url
+    [ "$output" = "http://x:8080/path" ]
+}
+
 @test "yaml_lite: comments and blank lines ignored" {
     _write '# a comment
 key: value  # inline comment
 '
     run python3 "$YL" "$FIX" key
     [ "$output" = "value" ]
+}
+
+@test "yaml_lite: '#' inside a quoted value is not a comment" {
+    _write 'msg: "hello # not a comment"'
+    run python3 "$YL" "$FIX" msg
+    [ "$output" = "hello # not a comment" ]
+}
+
+@test "yaml_lite: leading-zero and underscore numerics stay strings (no silent coercion)" {
+    _write 'a: 010
+b: 1_000
+c: 8080'
+    run python3 "$YL" "$FIX" a
+    [ "$output" = "010" ]
+    run python3 "$YL" "$FIX" b
+    [ "$output" = "1_000" ]
+    run python3 "$YL" "$FIX" c
+    [ "$output" = "8080" ]
+}
+
+@test "yaml_lite: nested flow sequence with inner commas" {
+    _write 'lst: [[a, b], [c]]'
+    run python3 "$YL" "$FIX" lst
+    [ "$output" = "[['a', 'b'], ['c']]" ]
+}
+
+@test "yaml_lite: empty file loads as None" {
+    printf '' > "$FIX"
+    run python3 "$YL" "$FIX"
+    assert_success
+    [ "$output" = "None" ]
 }
 
 @test "yaml_lite: missing key exits non-zero" {

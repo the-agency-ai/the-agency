@@ -10,19 +10,29 @@ removes that dependency.
 Supported (the agency.yaml subset):
   - block maps (nested, N-space indent)
   - block lists ("- item" scalars, and "- key: val" lists-of-maps)
-  - scalars: double/single-quoted strings, unquoted strings, int, float,
-    true/false (any case) -> bool, null/~/empty -> None
+  - flow collections: "[a, b]" / "[]" sequences (incl. nested) and "{k: v}" / "{}"
+  - scalars: double/single-quoted strings, unquoted strings, round-tripping
+    int/float, true/false (any case) -> bool, null/~/empty -> None
   - "# " comments (whole-line and inline when preceded by whitespace and not
     inside quotes)
 
-NOT supported (absent from agency.yaml): anchors/aliases (&/*), flow style
-({}/[]), block scalars (|, >), multiple documents, complex keys. Unsupported
-constructs degrade to plain strings rather than raising.
+NOT supported (all absent from agency.yaml): anchors/aliases (&/*), block
+scalars (|, >), multiple documents, complex keys, the compact nested-list form
+"- - a", and YAML-1.1 numeric quirks (leading-zero octal like 010, underscore
+grouping like 1_000). Unsupported numerics and constructs degrade to their plain
+string form rather than raising or silently coercing to a surprising number.
 
 The output structure matches yaml.safe_load(agency.yaml) for the shipped file
 (validated against PyYAML in src/tests/tools/yaml-lite.bats), so `config`'s
 `print(value)` output — including the Python dict repr other tools consume — is
 byte-for-byte unchanged.
+
+Naming note: this is a `.py` module (importable AND runnable as a CLI:
+`python3 yaml_lite.py <file> [dotted.key]`), so it deliberately does NOT follow
+the `_`-prefixed convention of the sourced *bash* libs beside it in
+agency/tools/lib/ (_log-helper, _colors, _sha256, ...). The `_`-prefix in this
+tree signals "sourced bash lib"; a Python module import-name cannot carry that
+meaning, so a plain module name is clearer.
 """
 
 import sys
@@ -44,9 +54,10 @@ def _strip_comment(line):
 
 
 def _split_flow(inner):
-    """Split a flow sequence body on commas, respecting quotes."""
+    """Split a flow body on top-level commas, respecting quotes and nesting."""
     parts, buf = [], []
     in_single = in_double = False
+    depth = 0
     for ch in inner:
         if ch == "'" and not in_double:
             in_single = not in_single
@@ -54,7 +65,13 @@ def _split_flow(inner):
         elif ch == '"' and not in_single:
             in_double = not in_double
             buf.append(ch)
-        elif ch == ',' and not in_single and not in_double:
+        elif ch in ('[', '{') and not in_single and not in_double:
+            depth += 1
+            buf.append(ch)
+        elif ch in (']', '}') and not in_single and not in_double:
+            depth -= 1
+            buf.append(ch)
+        elif ch == ',' and depth == 0 and not in_single and not in_double:
             parts.append(''.join(buf))
             buf = []
         else:
@@ -87,12 +104,17 @@ def _parse_scalar(s):
         return True
     if low == 'false':
         return False
+    # Only coerce numbers that round-trip exactly, so surprising forms stay
+    # strings: "0123" (would be 123, and is octal to PyYAML), "+1", "1_000",
+    # "1.2.3". agency.yaml's real numbers (ports, counts) round-trip cleanly.
     try:
-        return int(s)
+        if str(int(s)) == s:
+            return int(s)
     except ValueError:
         pass
     try:
-        return float(s)
+        if str(float(s)) == s:
+            return float(s)
     except ValueError:
         pass
     return s
@@ -195,11 +217,15 @@ def _parse_block(lines, start, indent):
 
 def _looks_like_map_entry(text):
     """True if `text` is 'key: ...' (a mapping) vs a scalar containing ':'."""
-    key, sep, _ = text.partition(':')
+    key, sep, rest = text.partition(':')
     if sep == '':
         return False
-    # A quoted scalar like "http://x" wouldn't split cleanly; require the key to
-    # be a bare token (no spaces, not quoted).
+    # YAML requires the colon be followed by whitespace (': ') OR be the last
+    # char ('key:'). A colon NOT followed by space is a plain scalar, so
+    # 'http://example.com' and 'key:value' are scalars, not mappings.
+    if rest != '' and rest[0] not in (' ', '\t'):
+        return False
+    # Key must be a bare token (no spaces, not quoted).
     k = key.strip()
     if k == '' or k[0] in ('"', "'"):
         return False

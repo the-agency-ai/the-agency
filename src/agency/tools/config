@@ -20,7 +20,7 @@ fi
 RUN_ID=$(log_start "config" "$@" 2>/dev/null) || true
 
 # Tool version
-TOOL_VERSION="1.0.0-20260114-000010"
+TOOL_VERSION="2.0.0-20260903-yaml-lite"
 
 # Defaults
 VERBOSE=false
