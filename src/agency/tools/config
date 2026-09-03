@@ -114,13 +114,13 @@ main() {
     exit 1
   fi
 
-  # Check for pyyaml dependency (needed for YAML parsing)
-  if ! python3 -c "import yaml" 2>/dev/null; then
-    log_error "pyyaml not installed. Run: pip3 install pyyaml"
-    echo "Missing dependency: pyyaml" >&2
-    echo "Install with: pip3 install -r requirements.txt" >&2
+  # YAML parsing uses the stdlib-only agency/tools/lib/yaml_lite.py — NO pyyaml
+  # (framework tools are zero-pip; #264). Require the lib to be present.
+  if [[ ! -f "$SCRIPT_DIR/lib/yaml_lite.py" ]]; then
+    log_error "missing agency/tools/lib/yaml_lite.py (stdlib YAML reader)"
+    echo "Missing dependency: yaml_lite" >&2
     trap - EXIT
-    log_end "$RUN_ID" "failure" 1 0 "Missing pyyaml dependency"
+    log_end "$RUN_ID" "failure" 1 0 "Missing yaml_lite reader"
     exit 1
   fi
 
@@ -136,15 +136,15 @@ case "$ACTION" in
 
     log_step "Getting config value for: $KEY_PATH"
     # Use Python for reliable YAML parsing
-    python3 - "$CONFIG_FILE" "$KEY_PATH" << 'PYTHON_EOF'
+    python3 - "$CONFIG_FILE" "$KEY_PATH" "$SCRIPT_DIR/lib" << 'PYTHON_EOF'
 import sys
-import yaml
+sys.path.insert(0, sys.argv[3])
+import yaml_lite
 
 config_file = sys.argv[1]
 key_path = sys.argv[2]
 
-with open(config_file, 'r') as f:
-    config = yaml.safe_load(f)
+config = yaml_lite.load(config_file)
 
 # Navigate to the key
 keys = key_path.split('.')
@@ -169,15 +169,15 @@ PYTHON_EOF
     verbose_echo "  Current user: $CURRENT_USER"
 
     # Try to get from config
-    PRINCIPAL=$(python3 - "$CONFIG_FILE" "$CURRENT_USER" << 'PYTHON_EOF'
+    PRINCIPAL=$(python3 - "$CONFIG_FILE" "$CURRENT_USER" "$SCRIPT_DIR/lib" << 'PYTHON_EOF'
 import sys
-import yaml
+sys.path.insert(0, sys.argv[3])
+import yaml_lite
 
 config_file = sys.argv[1]
 username = sys.argv[2]
 
-with open(config_file, 'r') as f:
-    config = yaml.safe_load(f)
+config = yaml_lite.load(config_file)
 
 principals = config.get('principals', {})
 principal = principals.get(username)
