@@ -46,11 +46,31 @@ RUN_ID=$(log_start "container-test-run" "$*" 2>/dev/null) || true
 REPO_ROOT="${AGENCY_PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 IMAGE="${CONTAINER_TEST_IMAGE:-the-agency-test-runner:latest}"
 
-if [ "$#" -gt 0 ]; then
-    TESTS=("$@")
-else
+# Mode: by default the container tests COMMITTED HEAD (via `git clone`) — the
+# reproducible, CI-like gate. `--working-tree` (or CONTAINER_TEST_WORKING_TREE=1)
+# instead overlays the host's UNCOMMITTED working-tree state onto the clone, so
+# you can validate edits before committing them (#42 step: working-tree mode).
+WORKING_TREE="${CONTAINER_TEST_WORKING_TREE:-0}"
+TESTS=()
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --working-tree|-w) WORKING_TREE=1; shift ;;
+        --) shift; while [ "$#" -gt 0 ]; do TESTS+=("$1"); shift; done ;;
+        --*) echo "container-test-run: unknown option '$1' (use --working-tree, or -- to end options)" >&2
+             log_end "$RUN_ID" "failure" 2 0 "unknown option" 2>/dev/null || true
+             exit 2 ;;
+        *) TESTS+=("$1"); shift ;;
+    esac
+done
+if [ "${#TESTS[@]}" -eq 0 ]; then
     TESTS=(src/tests/tools/ src/tests/hookify/ src/tests/skills/ src/tests/agents/ src/tests/docs/)
 fi
+
+# Diagnostic BEFORE the backend gate, so routing/mode/paths are observable even
+# where no container backend exists (CI/test env) — makes the test-run wire-in
+# host-testable without a live container.
+_wt_mode="$([ "$WORKING_TREE" = 1 ] && echo working-tree || echo committed-HEAD)"
+echo "container-test-run: mode=$_wt_mode tests=${TESTS[*]}" >&2
 
 backend="$(container_backend)" || {
     echo "container-test-run: no container backend available — install Apple 'container' (Apple Silicon macOS) or Docker." >&2
@@ -109,25 +129,44 @@ fi
 # SEC-2/CODE-3). $USER is supplied via --env below, not interpolated here. The
 # only interpolation is CLEAN_ORIGIN, which is validated to a clean org/repo and
 # printf-%q-quoted. (#42)
+# The working-tree overlay (gated by CT_WORKING_TREE, passed via --env below):
+# after cloning HEAD for a clean .git, replay the host's uncommitted delta from
+# the read-only /src mount onto /work — modified + untracked (gitignore-respected)
+# files copied in, working-tree-deleted files removed. Result: /work's content is
+# the host's WORKING TREE, on top of a real .git. `git ls-files -z` is NUL-safe.
 RUN_CMD="set -e
 git config --system user.email ci@the-agency.local
 git config --system user.name ci
 git config --system init.defaultBranch main
 git clone -q /src /work
 cd /work
+if [ \"\${CT_WORKING_TREE:-0}\" = 1 ]; then
+  echo 'container-test-run: overlaying uncommitted working-tree state' >&2
+  # Defense-in-depth: git ls-files should only emit repo-relative paths, but the
+  # overlay trusts them for rsync dests and rm targets, so filter any entry with a
+  # '..' path component before use (a crafted index could carry one; blast radius
+  # is the disposable container's fs, never the host, but guard anyway).
+  git -C /src ls-files -z --modified --others --exclude-standard | grep -zvE '(^|/)[.][.](/|\$)' > /tmp/wt-add || true
+  [ -s /tmp/wt-add ] && rsync -a --from0 --files-from=/tmp/wt-add /src/ /work/
+  git -C /src ls-files -z --deleted | while IFS= read -r -d '' f; do
+    case \"\$f\" in */../*|../*|*/..) continue ;; esac
+    rm -f \"/work/\$f\"
+  done
+fi
 git remote set-url origin $(printf '%q' "$CLEAN_ORIGIN")
 git config user.email ci@the-agency.local && git config user.name ci
 bats \"\$@\""
 
-echo "container-test-run: backend=$backend image=$IMAGE" >&2
+echo "container-test-run: backend=$backend image=$IMAGE mode=$([ "$WORKING_TREE" = 1 ] && echo working-tree || echo committed-HEAD)" >&2
 echo "container-test-run: tests=${TESTS[*]}" >&2
 
 # Route through the _container-runtime abstraction (backend-agnostic). Mount the
-# repo read-only; pass $USER via --env; hand the test paths to the container's
-# shell as ARGV after RUN_CMD ($0=container-test-run, $1.. = TESTS).
+# repo read-only; pass $USER + the mode via --env; hand the test paths to the
+# container's shell as ARGV after RUN_CMD ($0=container-test-run, $1.. = TESTS).
 container_run \
     --mount "$REPO_ROOT:/src:ro" \
     --env "USER=$HOST_USER" \
+    --env "CT_WORKING_TREE=$WORKING_TREE" \
     "$IMAGE" \
     bash -c "$RUN_CMD" container-test-run "${TESTS[@]}"
 rc=$?

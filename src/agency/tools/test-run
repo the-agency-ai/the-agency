@@ -17,6 +17,8 @@
 #   test-run                    Run all configured test suites
 #   test-run --suite tools      Run a specific suite
 #   test-run --list             List configured suites
+#   test-run --isolated         Run bats suites inside a disposable container
+#   test-run --working-tree     --isolated, testing UNCOMMITTED changes (implies --isolated)
 #   test-run --verbose          Verbose output
 #   test-run --help             Show help
 #   test-run --version          Show version
@@ -43,6 +45,8 @@ fi
 VERBOSE=false
 SUITE_FILTER=""
 LIST_ONLY=false
+ISOLATED=false
+WORKING_TREE=false
 
 # --- Argument parsing ---
 
@@ -50,13 +54,15 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --version|-v) echo "test-run $TOOL_VERSION"; exit 0 ;;
         --help|-h)
-            sed -n '2,22p' "$0" | sed 's/^# //' | sed 's/^#//'
+            sed -n '2,24p' "$0" | sed 's/^# //' | sed 's/^#//'
             exit 0 ;;
         --verbose) VERBOSE=true; shift ;;
         --suite)
             [[ -n "${2:-}" ]] || { echo "Error: --suite requires a name" >&2; exit 1; }
             SUITE_FILTER="$2"; shift 2 ;;
         --list) LIST_ONLY=true; shift ;;
+        --isolated) ISOLATED=true; shift ;;
+        --working-tree|-w) ISOLATED=true; WORKING_TREE=true; shift ;;
         *) echo "Error: unknown option: $1" >&2; exit 1 ;;
     esac
 done
@@ -204,9 +210,26 @@ while IFS='|' read -r name cmd desc; do
     fi
 
     total=$((total + 1))
-    log_step "Suite: $name — $cmd"
 
-    if eval "$cmd"; then
+    # --isolated: run bats suites inside a disposable container (via
+    # container-test-run) instead of on the host. Non-bats suites (e.g. swift
+    # test) can't containerize, so they still run on the host with a note.
+    _suite_ok=0
+    if [[ "$ISOLATED" == "true" && "$cmd" =~ ^bats[[:space:]] ]]; then
+        _paths="${cmd#bats }"   # test dirs/files after 'bats '
+        _ctr=("$SCRIPT_DIR/container-test-run")
+        [[ "$WORKING_TREE" == "true" ]] && _ctr+=("--working-tree")
+        log_step "Suite: $name (isolated) — $cmd"
+        # word-split _paths on purpose (a suite may list several dirs)
+        # shellcheck disable=SC2086
+        if "${_ctr[@]}" $_paths; then _suite_ok=1; fi
+    else
+        [[ "$ISOLATED" == "true" ]] && log_step "Suite: $name (host — not a bats suite) — $cmd" \
+                                    || log_step "Suite: $name — $cmd"
+        if eval "$cmd"; then _suite_ok=1; fi
+    fi
+
+    if [[ "$_suite_ok" == "1" ]]; then
         passed=$((passed + 1))
         echo -e "${GREEN}✓${NC} $name passed"
     else
