@@ -667,8 +667,79 @@ _backdate() { _db_query "UPDATE dispatches SET created_at = strftime('%Y-%m-%dT%
     [ "$(_db_query "SELECT status FROM dispatches WHERE id = $id;")" != "resolved" ]
 }
 
+@test "dispatch prune: defaults to a 7-day window when no flag/config" {
+    # No --older-days and no config in this fixture → prune falls back to 7d.
+    _create_dispatch "old default-window notice" commit
+    local id; id=$(_db_query "SELECT id FROM dispatches ORDER BY id DESC LIMIT 1;")
+    _backdate "$id" 10
+    run "$DISPATCH" prune --type commit
+    [ "$status" -eq 0 ]
+    [ "$(_db_query "SELECT status FROM dispatches WHERE id = $id;")" = "resolved" ]
+}
+
+@test "dispatch prune: is idempotent (second run is a no-op)" {
+    _create_dispatch "stale" commit
+    local id; id=$(_db_query "SELECT id FROM dispatches ORDER BY id DESC LIMIT 1;")
+    _backdate "$id" 30
+    "$DISPATCH" prune --type commit --older-days 7 >/dev/null
+    run "$DISPATCH" prune --type commit --older-days 7
+    [ "$status" -eq 0 ]
+    # nothing left to resolve → no "resolved N" line
+    [[ "$output" != *"resolved 1"* ]]
+}
+
+@test "dispatch prune: resolves only the stale ones in a mixed set (exact count)" {
+    local a b c d e
+    _create_dispatch "old 1" commit; a=$(_db_query "SELECT max(id) FROM dispatches;"); _backdate "$a" 30
+    _create_dispatch "old 2" commit; b=$(_db_query "SELECT max(id) FROM dispatches;"); _backdate "$b" 20
+    _create_dispatch "old 3" commit; c=$(_db_query "SELECT max(id) FROM dispatches;"); _backdate "$c" 8
+    _create_dispatch "fresh 1" commit; d=$(_db_query "SELECT max(id) FROM dispatches;")
+    _create_dispatch "fresh 2" commit; e=$(_db_query "SELECT max(id) FROM dispatches;")
+    run "$DISPATCH" prune --type commit --older-days 7
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"resolved 3 "* ]]     # exactly 3 (trailing space guards vs 30/31)
+    for id in "$a" "$b" "$c"; do [ "$(_db_query "SELECT status FROM dispatches WHERE id = $id;")" = "resolved" ]; done
+    for id in "$d" "$e"; do [ "$(_db_query "SELECT status FROM dispatches WHERE id = $id;")" != "resolved" ]; done
+}
+
+@test "dispatch prune: boundary — exactly N days kept, older resolved" {
+    _create_dispatch "exactly 7d" commit; local at7; at7=$(_db_query "SELECT max(id) FROM dispatches;"); _backdate "$at7" 7
+    _create_dispatch "8d old" commit; local at8; at8=$(_db_query "SELECT max(id) FROM dispatches;"); _backdate "$at8" 8
+    run "$DISPATCH" prune --type commit --older-days 7
+    [ "$status" -eq 0 ]
+    # created_at < cutoff is strict: a dispatch exactly 7d old is NOT before the
+    # (now-7d) cutoff, so it survives; 8d is resolved.
+    [ "$(_db_query "SELECT status FROM dispatches WHERE id = $at7;")" != "resolved" ]
+    [ "$(_db_query "SELECT status FROM dispatches WHERE id = $at8;")" = "resolved" ]
+}
+
+@test "dispatch prune: --older-days 0 resolves anything older than now" {
+    _create_dispatch "yesterday" commit; local id; id=$(_db_query "SELECT max(id) FROM dispatches;"); _backdate "$id" 1
+    run "$DISPATCH" prune --type commit --older-days 0
+    [ "$status" -eq 0 ]
+    [ "$(_db_query "SELECT status FROM dispatches WHERE id = $id;")" = "resolved" ]
+}
+
+@test "dispatch prune: does not re-touch an already-resolved dispatch" {
+    _create_dispatch "already done" commit; local id; id=$(_db_query "SELECT max(id) FROM dispatches;")
+    _backdate "$id" 30
+    _db_query "UPDATE dispatches SET status='resolved', resolved_at='2020-01-01T00:00' WHERE id = $id;"
+    run "$DISPATCH" prune --type commit --older-days 7
+    [ "$status" -eq 0 ]
+    # resolved_at untouched (status != 'resolved' guard excludes it)
+    [ "$(_db_query "SELECT resolved_at FROM dispatches WHERE id = $id;")" = "2020-01-01T00:00" ]
+}
+
 @test "dispatch prune: appears in --help" {
     run "$DISPATCH" --help
     [ "$status" -eq 0 ]
     [[ "$output" == *"dispatch prune"* ]]
+}
+
+@test "session-preflight wires the commit-dispatch auto-sweep" {
+    # The retention policy only works if preflight actually calls prune at
+    # session start. Structural guard against silent removal (session-preflight
+    # has no unit harness of its own). #264-adjacent.
+    run grep -qE 'dispatch" prune --type commit' "$REPO_ROOT/agency/tools/session-preflight"
+    [ "$status" -eq 0 ]
 }
