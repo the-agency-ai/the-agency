@@ -972,6 +972,61 @@ cmd_resolve() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# prune — bulk-resolve old FYI dispatches (retention policy)
+#
+# The commit-to-captain notify dispatch fires after every commit (git-safe-commit
+# #210 guard), so `commit`-type dispatches accumulate into an unbounded "unread"
+# firehose. They are pure notifications — no action, safe to auto-resolve once
+# stale. `prune` resolves every dispatch of a given TYPE older than N days.
+# Idempotent and safe to run repeatedly (e.g. at session start). Global by type
+# + age (a commit notice is noise regardless of recipient).
+# ─────────────────────────────────────────────────────────────────────────────
+cmd_prune() {
+    local type="commit" older_days="" dry_run="false"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --type)       [[ -n "${2:-}" ]] || { echo "Error: --type requires a value" >&2; return 1; }
+                          type="$2"; shift 2 ;;
+            --older-days) [[ "${2:-}" =~ ^[0-9]+$ ]] || { echo "Error: --older-days requires an integer" >&2; return 1; }
+                          older_days="$2"; shift 2 ;;
+            --dry-run)    dry_run="true"; shift ;;
+            *)            echo "Error: unknown option '$1' (usage: dispatch prune [--type <t>] [--older-days <N>] [--dry-run])" >&2; return 1 ;;
+        esac
+    done
+
+    # Retention window: --older-days > dispatches.commit_retention_days > 7.
+    if [[ -z "$older_days" ]]; then
+        older_days="$("$SCRIPT_DIR/config" get dispatches.commit_retention_days 2>/dev/null || true)"
+        [[ "$older_days" =~ ^[0-9]+$ ]] || older_days="7"
+    fi
+
+    iscp_db_init
+
+    # Cutoff timestamp (UTC, now - older_days) via stdlib python — matches the
+    # 'YYYY-MM-DDTHH:MM' created_at format so string comparison is chronological.
+    local cutoff
+    cutoff="$(python3 -c "import sys,datetime as d; print((d.datetime.utcnow()-d.timedelta(days=int(sys.argv[1]))).strftime('%Y-%m-%dT%H:%M'))" "$older_days")"
+
+    local where="type = :type AND status != 'resolved' AND created_at < :cutoff"
+    local n
+    n=$(iscp_db_query "SELECT count(*) FROM dispatches WHERE $where" ":type" "$type" ":cutoff" "$cutoff")
+    n="${n:-0}"
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "dispatch prune: would resolve $n '$type' dispatch(es) older than ${older_days}d (before $cutoff)"
+        return 0
+    fi
+    if [[ "$n" -eq 0 ]]; then
+        return 0
+    fi
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M)
+    iscp_db_exec "UPDATE dispatches SET status = 'resolved', resolved_at = :now WHERE $where" \
+        ":now" "$now" ":type" "$type" ":cutoff" "$cutoff"
+    echo "dispatch prune: resolved $n '$type' dispatch(es) older than ${older_days}d"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # status — Show full record for a dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_status() {
@@ -1024,6 +1079,7 @@ Usage:
   dispatch reply <id> "msg"    — quick response to a dispatch
   dispatch check
   dispatch resolve <id> [--response <id>]
+  dispatch prune [--type <t>] [--older-days <N>] [--dry-run]
   dispatch status <id>
   dispatch --version
   dispatch --help
@@ -1073,6 +1129,10 @@ case "$subcmd" in
     resolve)
         shift; cmd_resolve "$@"
         log_end "$RUN_ID" "success" "0" "0" "dispatch resolve"
+        ;;
+    prune)
+        shift; cmd_prune "$@"
+        log_end "$RUN_ID" "success" "0" "0" "dispatch prune"
         ;;
     status)
         shift; cmd_status "$@"

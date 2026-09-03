@@ -158,6 +158,12 @@ fi
 
 # ── Check 4: No unread dispatches remaining ──────────────────────────────
 
+# Retention sweep: auto-resolve stale commit-notify dispatches (the
+# git-safe-commit firehose) before counting, so "unread" reflects actionable
+# items, not months of FYI notices. Idempotent + cheap (one UPDATE, no-op when
+# nothing is old). Window from dispatches.commit_retention_days (default 7d).
+bash "$SCRIPT_DIR/dispatch" prune --type commit >/dev/null 2>&1 || true
+
 dispatch_check=$(bash "$SCRIPT_DIR/dispatch" check 2>/dev/null || true)
 if [[ -z "$dispatch_check" ]]; then
     report_pass "No unread dispatches"

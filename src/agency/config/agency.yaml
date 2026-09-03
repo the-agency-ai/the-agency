@@ -145,6 +145,12 @@ testing:
 design:
   provider: "figma"  # Default: figma. Alternatives: sketch, adobe
 
+# Dispatch retention (ISCP)
+# commit-notify dispatches (the git-safe-commit firehose) auto-resolve after this
+# many days. `dispatch prune` reads it; session-preflight sweeps on session start.
+dispatches:
+  commit_retention_days: 7
+
 # Cross-repo collaboration
 # Each entry maps a collaborator name to its local checkout path and dispatch dirs.
 # Used by: collaboration-check tool (startup hook, dispatch loop)
