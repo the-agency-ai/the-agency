@@ -621,3 +621,54 @@ _create_dispatch() {
         --body-file "$body_path"
     [ "$status" -eq 0 ]
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# prune — retention sweep for the commit-notify firehose (#264-adjacent)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Backdate a dispatch's created_at by N days (for age-based prune tests).
+_backdate() { _db_query "UPDATE dispatches SET created_at = strftime('%Y-%m-%dT%H:%M', 'now', '-${2} days') WHERE id = ${1};"; }
+
+@test "dispatch prune: resolves a stale commit dispatch" {
+    _create_dispatch "old notice" commit
+    local id; id=$(_db_query "SELECT id FROM dispatches ORDER BY id DESC LIMIT 1;")
+    _backdate "$id" 30
+    run "$DISPATCH" prune --type commit --older-days 7
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"resolved 1"* ]]
+    [ "$(_db_query "SELECT status FROM dispatches WHERE id = $id;")" = "resolved" ]
+}
+
+@test "dispatch prune: keeps a recent commit dispatch" {
+    _create_dispatch "fresh notice" commit
+    local id; id=$(_db_query "SELECT id FROM dispatches ORDER BY id DESC LIMIT 1;")
+    run "$DISPATCH" prune --type commit --older-days 7
+    [ "$status" -eq 0 ]
+    [ "$(_db_query "SELECT status FROM dispatches WHERE id = $id;")" != "resolved" ]
+}
+
+@test "dispatch prune: --dry-run resolves nothing" {
+    _create_dispatch "old notice" commit
+    local id; id=$(_db_query "SELECT id FROM dispatches ORDER BY id DESC LIMIT 1;")
+    _backdate "$id" 30
+    run "$DISPATCH" prune --type commit --older-days 7 --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"would resolve 1"* ]]
+    [ "$(_db_query "SELECT status FROM dispatches WHERE id = $id;")" != "resolved" ]
+}
+
+@test "dispatch prune: only affects the named type" {
+    _create_dispatch "old real dispatch" dispatch
+    local id; id=$(_db_query "SELECT id FROM dispatches ORDER BY id DESC LIMIT 1;")
+    _backdate "$id" 30
+    run "$DISPATCH" prune --type commit --older-days 7
+    [ "$status" -eq 0 ]
+    # a 'dispatch'-type message is NOT pruned by a commit sweep
+    [ "$(_db_query "SELECT status FROM dispatches WHERE id = $id;")" != "resolved" ]
+}
+
+@test "dispatch prune: appears in --help" {
+    run "$DISPATCH" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"dispatch prune"* ]]
+}
