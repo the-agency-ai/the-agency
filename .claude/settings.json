@@ -142,10 +142,7 @@
       "Edit(/var/folders/**)",
       "Read(**)",
       "Read(/tmp/**)",
-      "Read(/var/folders/**)",
-      "Write(**)",
-      "Write(/tmp/**)",
-      "Write(/var/folders/**)"
+      "Read(/var/folders/**)"
     ]
   }
 }

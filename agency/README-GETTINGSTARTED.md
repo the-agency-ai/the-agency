@@ -92,8 +92,7 @@ The framework ships with broad permissions:
     "allow": [
       "Bash(*)",
       "Read(**)",
-      "Edit(**)",
-      "Write(**)"
+      "Edit(**)"
     ]
   }
 }
