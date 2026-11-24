@@ -548,6 +548,13 @@ _update_main() {
     log_step "Updating agency.yaml"
 
     if [[ "$DRY_RUN" == "false" ]]; then
+        # Dependency manifests are framework-owned: refresh them so
+        # `agency deps` works in installs made before init shipped them.
+        for _dep_manifest in dependencies.yaml agency-dependencies.yaml; do
+            [[ -f "$SOURCE_DIR/agency/config/$_dep_manifest" ]] \
+                && cp "$SOURCE_DIR/agency/config/$_dep_manifest" "$TARGET_DIR/agency/config/$_dep_manifest"
+        done
+
         local yaml_file="$TARGET_DIR/agency/config/agency.yaml"
         local src_yaml="$SOURCE_DIR/agency/config/agency.yaml"
         local updated_at

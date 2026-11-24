@@ -182,10 +182,16 @@ config = yaml_lite.load(config_file)
 principals = config.get('principals', {})
 principal = principals.get(username)
 
+def _name(entry):
+    # Entries are either flat ("user: name") or nested ("user: {name: ...}").
+    if isinstance(entry, dict):
+        return entry.get('name') or 'unknown'
+    return entry
+
 if principal:
-    print(principal)
+    print(_name(principal))
 elif 'default' in principals:
-    print(principals['default'])
+    print(_name(principals['default']))
 else:
     print('unknown')
 PYTHON_EOF
