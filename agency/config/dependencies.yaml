@@ -7,7 +7,13 @@
 # How & Why: Machine-readable YAML listing every binary the framework
 # requires, organized by tier (required / testing / optional). Each entry
 # has: name, brew formula (for cross-platform install via Homebrew), minimum
-# version if applicable, what uses it, and why. `agency verify` reads this
+# version if applicable, what uses it, and why. Linux/WSL keys (all optional):
+#   apt:          Debian/Ubuntu package (null = no usable package, see install_linux)
+#   bin:          binary to probe when it differs from the entry name
+#   bin_linux:    binary name on Linux when it differs again (fd -> fdfind)
+#   optional_on:  platform (linux covers WSL) where a missing tool is not an error
+#   floor_linux:  sqlite | python — distro package is below min_version; the
+#                 installer raises it via agency/tools/lib/_linux-floors `agency verify` reads this
 # file to check the host. The workshop bootstrap script reads it to install
 # everything. Adopter projects inherit it via `agency init`.
 #
@@ -25,6 +31,7 @@ schema_version: "1.0"
 required:
   git:
     brew: git
+    apt: git
     min_version: "2.30"
     used_by:
       - "every tool (version control is the backbone)"
@@ -32,6 +39,7 @@ required:
 
   bash:
     brew: bash
+    apt: bash
     min_version: "3.2"
     used_by:
       - "all tools in agency/tools/"
@@ -40,6 +48,7 @@ required:
 
   awk:
     brew: gawk
+    apt: gawk
     used_by:
       - "SPEC-PROVIDER wrappers (secret, preview, deploy)"
       - "commit-prefix validator, agency.yaml parsing"
@@ -47,6 +56,7 @@ required:
 
   jq:
     brew: jq
+    apt: jq
     min_version: "1.6"
     used_by:
       - "agency-health, agency-version, iscp-check, statusline.sh, worktree-sync"
@@ -55,7 +65,9 @@ required:
 
   sqlite3:
     brew: sqlite
-    min_version: "3.35"
+    apt: sqlite3
+    floor_linux: sqlite  # Ubuntu 22.04 ships 3.37 — `agency deps install` builds a newer one into ~/.local/bin
+    min_version: "3.38"  # = ISCP_MIN_SQLITE_VERSION in tools/lib/_iscp-db (was 3.35 here, which let Ubuntu 22.04's 3.37 pass the check and then fail at runtime)
     used_by:
       - "dispatch, flag, iscp-check, iscp-migrate, dropbox (future)"
       - "all inter-agent communication via ISCP"
@@ -63,6 +75,7 @@ required:
 
   node:
     brew: node
+    apt: nodejs
     min_version: "18.0"
     used_by:
       - "Claude Code CLI (npm package)"
@@ -70,6 +83,8 @@ required:
 
   python3:
     brew: python
+    apt: null
+    floor_linux: python  # checked as "any python >= min_version on PATH" (python3.13 beside the distro python3)
     brew_alt: python@3.13
     min_version: "3.13"
     version_cmd: "python3 --version | grep -oE '[0-9]+\\.[0-9]+'"
@@ -83,24 +98,29 @@ required:
 
   curl:
     brew: curl
+    apt: curl
     used_by:
       - "Homebrew installer, web-fetch tool, agency-update"
     why: "HTTP client for download and API calls"
 
   rsync:
     brew: rsync
+    apt: rsync
     used_by:
       - "agency/tools/lib/_agency-update"
     why: "framework file sync during agency update — rsync excludes are how we protect user config"
 
   gh:
     brew: gh
+    apt: gh
     used_by:
       - "agency-issue, PR workflow, collaboration tool, captain review"
     why: "GitHub CLI — issues, PRs, API access. Required for the full PR packing workflow."
 
   ghostty:
     brew: null
+    apt: null
+    optional_on: linux  # macOS terminal integration; hooks are a no-op elsewhere (Windows Terminal under WSL)
     install: "see https://ghostty.org/docs/install/binary"
     used_by:
       - "terminal emulator — status line integration via statusline.sh"
@@ -114,6 +134,9 @@ required:
 testing:
   bats-core:
     brew: bats-core
+    apt: bats
+    bin: bats
+    install_linux: "npm install -g bats   # when apt's bats is older than min_version (Ubuntu 22.04 ships 1.2)"
     min_version: "1.10"
     used_by:
       - "all tests in src/tests/tools/*.bats"
@@ -130,6 +153,8 @@ testing:
 
   md5:
     brew: null
+    apt: null
+    bin_linux: md5sum
     used_by:
       - "agency/tools/lib/_test-isolation — .git/config hash verification"
     why: "test isolation teardown hashes .git/config before/after to detect pollution"
@@ -141,24 +166,31 @@ testing:
 optional:
   ripgrep:
     brew: ripgrep
+    apt: ripgrep
+    bin: rg
     used_by:
       - "developer convenience (fast grep across large repos)"
     why: "Claude Code's Grep tool uses ripgrep under the hood"
 
   fd:
     brew: fd
+    apt: fd-find
+    bin_linux: fdfind
     used_by:
       - "developer convenience (fast find replacement)"
     why: "Claude Code's Glob tool uses fd-like patterns"
 
   tree:
     brew: tree
+    apt: tree
     used_by:
       - "directory listing in documentation and debugging"
     why: "useful for repo structure visualization"
 
   yq:
     brew: yq
+    apt: null
+    install_linux: "wget -qO ~/.local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && chmod +x ~/.local/bin/yq"
     used_by:
       - "YAML processing in some tools"
     why: "jq for YAML — used in agency.yaml manipulation by some captain tools"

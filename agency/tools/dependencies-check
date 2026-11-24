@@ -92,8 +92,9 @@ if ! command -v yq &> /dev/null; then
     if [[ "$(uname)" == "Darwin" ]]; then
         echo "  brew install yq"
     else
-        echo "  sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
-        echo "  sudo chmod +x /usr/local/bin/yq"
+        echo "  mkdir -p ~/.local/bin"
+        echo "  curl -fsSL -o ~/.local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
+        echo "  chmod +x ~/.local/bin/yq"
     fi
     exit 1
 fi

@@ -1,0 +1,96 @@
+#!/bin/bash
+# What Problem: Platform checks were scattered as ad-hoc `uname` tests that only
+# knew "Darwin" and "everything else". Linux and WSL need more than that: WSL is
+# Linux with a Windows filesystem underneath (/mnt/c, /mnt/d ...) where chmod is
+# a no-op and file locking is unreliable, and Ubuntu LTS ships a sqlite3 and a
+# python3 older than the framework floors.
+#
+# How & Why: One sourced library, no side effects, bash 3.2 compatible.
+#   agency_platform            -> darwin | wsl | linux | unknown
+#   agency_is_wsl              -> 0 when running under WSL (1 or 2)
+#   agency_is_windows_mount P  -> 0 when path P lives on a Windows drive (drvfs/9p)
+#   agency_version_gte A B     -> 0 when dotted version A >= B
+#   agency_tool_version CMD    -> first dotted version in `CMD --version`
+#   agency_find_python [MIN]   -> path of a python >= MIN (default 3.13)
+# AGENCY_PLATFORM_OVERRIDE forces agency_platform (tests).
+#
+# Written: 2026-11-24 for the WSL/Ubuntu port.
+
+agency_is_wsl() {
+    case "${AGENCY_PLATFORM_OVERRIDE:-}" in
+        wsl) return 0 ;;
+        darwin|linux|unknown) return 1 ;;
+    esac
+    [[ -n "${WSL_DISTRO_NAME:-}" ]] && return 0
+    grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease 2>/dev/null
+}
+
+agency_platform() {
+    if [[ -n "${AGENCY_PLATFORM_OVERRIDE:-}" ]]; then
+        echo "$AGENCY_PLATFORM_OVERRIDE"
+        return 0
+    fi
+    case "$(uname -s 2>/dev/null)" in
+        Darwin) echo "darwin" ;;
+        Linux)
+            if agency_is_wsl; then echo "wsl"; else echo "linux"; fi
+            ;;
+        *) echo "unknown" ;;
+    esac
+}
+
+# True when the path is on a Windows drive mounted into WSL. Those mounts
+# ignore chmod (unless mounted with the `metadata` option), are slow for git,
+# and do not give sqlite the locking it needs.
+agency_is_windows_mount() {
+    local path="${1:-.}" fstype=""
+    agency_is_wsl || return 1
+    if command -v findmnt >/dev/null 2>&1; then
+        fstype=$(findmnt -n -o FSTYPE -T "$path" 2>/dev/null | head -1)
+    fi
+    if [[ -z "$fstype" ]]; then
+        fstype=$(df -PT "$path" 2>/dev/null | awk 'NR==2 {print $2}')
+    fi
+    case "$fstype" in
+        9p|drvfs|v9fs) return 0 ;;
+    esac
+    return 1
+}
+
+# agency_version_gte <have> <want> — numeric, field by field, missing fields = 0.
+agency_version_gte() {
+    local have="$1" want="$2" i h w
+    local IFS=.
+    # shellcheck disable=SC2206
+    local ha=($have) wa=($want)
+    for i in 0 1 2 3; do
+        h="${ha[$i]:-0}"; w="${wa[$i]:-0}"
+        h="${h%%[!0-9]*}"; w="${w%%[!0-9]*}"
+        h="${h:-0}"; w="${w:-0}"
+        if (( 10#$h > 10#$w )); then return 0; fi
+        if (( 10#$h < 10#$w )); then return 1; fi
+    done
+    return 0
+}
+
+# First dotted version number printed by `<cmd> --version` (or -V), else empty.
+agency_tool_version() {
+    local cmd="$1" out
+    out=$("$cmd" --version 2>&1 | head -3) || out=$("$cmd" -V 2>&1 | head -3) || true
+    printf '%s\n' "$out" | grep -oE '[0-9]+(\.[0-9]+)+' | head -1
+}
+
+# Print the path of a Python interpreter >= MIN. On Linux the distro owns
+# `python3`, so newer interpreters arrive as python3.13 etc. (uv, deadsnakes).
+agency_find_python() {
+    local min="${1:-3.13}" cand path ver
+    for cand in python3 python3.13 python3.14 python3.15; do
+        path=$(command -v "$cand" 2>/dev/null) || continue
+        ver=$("$path" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null) || continue
+        if agency_version_gte "$ver" "$min"; then
+            echo "$path"
+            return 0
+        fi
+    done
+    return 1
+}

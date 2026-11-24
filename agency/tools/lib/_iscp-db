@@ -403,6 +403,9 @@ iscp_db_check_sqlite() {
 
     if ! _iscp_version_gte "$version" "$ISCP_MIN_SQLITE_VERSION"; then
         echo "iscp-db: FATAL: sqlite3 $version is too old. ISCP requires >= $ISCP_MIN_SQLITE_VERSION (for .param set). Installed: $version." >&2
+        if [[ "$(uname -s 2>/dev/null)" == "Linux" ]]; then
+            echo "iscp-db: the distro package is too old (Ubuntu 22.04 ships 3.37). Run: ./agency/tools/agency deps install required" >&2
+        fi
         return 1
     fi
 

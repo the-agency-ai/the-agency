@@ -45,7 +45,10 @@ teardown() {
         skip "/usr/bin/python3 not available on this host"
     fi
 
-    run "$SUB_PY" "$SCRIPT" --help
+    # AGENCY_PY_NO_REEXEC=1: on Linux a python3.13 beside the distro python3
+    # would otherwise be picked up by the guard's re-exec (wsl-ubuntu-port.bats
+    # covers that path); here we want the bare guard.
+    run env AGENCY_PY_NO_REEXEC=1 "$SUB_PY" "$SCRIPT" --help
     [ "$status" -ne 0 ]
     [[ "$output" == *"Python 3.13+ required"* ]]
     [[ "$output" == *"See agency/config/dependencies.yaml"* ]]

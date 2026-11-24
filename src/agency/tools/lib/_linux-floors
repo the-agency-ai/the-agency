@@ -1,0 +1,142 @@
+#!/bin/bash
+# What Problem: Two framework floors are above what Ubuntu LTS ships.
+#   sqlite3 >= 3.38  — Ubuntu 22.04 has 3.37.2; ISCP refuses to start on it.
+#   python  >= 3.13  — Ubuntu 22.04 has 3.10, 24.04 has 3.12.
+# `apt install` alone therefore leaves a 22.04 (and for Python a 24.04) box
+# broken, and the old Linux recipe "fixed" Python by repointing
+# /usr/bin/python3 with update-alternatives, which breaks apt itself.
+#
+# How & Why: Sourced helpers that raise each floor without touching anything
+# the distro owns.
+#   linux_ensure_sqlite [MIN]  — apt first; if that is still too old, build the
+#       official amalgamation (checksum-verified against sqlite.org) into
+#       ~/.local/bin. The prebuilt sqlite.org binary is not used: it needs a
+#       newer glibc than 22.04 has.
+#   linux_ensure_python [MIN]  — `uv python install` when uv is present, else
+#       the deadsnakes PPA on Ubuntu. Installs `python3.13` beside the system
+#       `python3`; framework Python tools re-exec under it by themselves.
+# Both are idempotent and print one line per action. Return 0 when the floor
+# is met afterwards, 1 otherwise (with the manual command on stderr).
+#
+# Requires: lib/_platform sourced first.
+# Written: 2026-11-24 for the WSL/Ubuntu port.
+
+AGENCY_LOCAL_BIN="${AGENCY_LOCAL_BIN:-$HOME/.local/bin}"
+
+_linux_sudo() {
+    if [[ "$(id -u)" == "0" ]]; then "$@"; else sudo "$@"; fi
+}
+
+_linux_path_has() {
+    case ":$PATH:" in *":$1:"*) return 0 ;; esac
+    return 1
+}
+
+_linux_sha3_256() {
+    local file="$1" py
+    if py=$(command -v python3 2>/dev/null); then
+        "$py" -c 'import hashlib,sys; print(hashlib.sha3_256(open(sys.argv[1],"rb").read()).hexdigest())' "$file" 2>/dev/null && return 0
+    fi
+    if command -v openssl >/dev/null 2>&1; then
+        openssl dgst -sha3-256 "$file" 2>/dev/null | awk '{print $NF}'
+        return 0
+    fi
+    return 1
+}
+
+_linux_sqlite_ok() {
+    local min="$1" ver
+    command -v sqlite3 >/dev/null 2>&1 || return 1
+    ver=$(sqlite3 --version 2>/dev/null | awk '{print $1}')
+    [[ -n "$ver" ]] && agency_version_gte "$ver" "$min"
+}
+
+linux_build_sqlite() {
+    local min="$1" tmp line rel want got dir
+    for tool in cc curl unzip; do
+        if ! command -v "$tool" >/dev/null 2>&1; then
+            echo "sqlite3: cannot build from source — '$tool' missing (sudo apt install -y build-essential curl unzip)" >&2
+            return 1
+        fi
+    done
+    tmp=$(mktemp -d "${TMPDIR:-/tmp}/agency-sqlite.XXXXXX") || return 1
+    # sqlite.org publishes a machine-readable product list in the download page.
+    line=$(curl -fsSL https://sqlite.org/download.html 2>/dev/null | grep -E '^PRODUCT,.*sqlite-amalgamation-[0-9]+\.zip' | head -1)
+    rel=$(printf '%s' "$line" | cut -d, -f3)
+    want=$(printf '%s' "$line" | cut -d, -f5)
+    if [[ -z "$rel" || -z "$want" ]]; then
+        echo "sqlite3: could not read the release list from sqlite.org" >&2
+        rm -rf "$tmp"; return 1
+    fi
+    echo "  sqlite3: building $(basename "$rel" .zip) from source (about a minute)..."
+    if ! curl -fsSL -o "$tmp/sqlite.zip" "https://sqlite.org/$rel"; then
+        echo "sqlite3: download failed: https://sqlite.org/$rel" >&2
+        rm -rf "$tmp"; return 1
+    fi
+    got=$(_linux_sha3_256 "$tmp/sqlite.zip") || got=""
+    if [[ "$got" != "$want" ]]; then
+        echo "sqlite3: checksum mismatch for $rel (want $want, got ${got:-none}) — not installing" >&2
+        rm -rf "$tmp"; return 1
+    fi
+    unzip -q "$tmp/sqlite.zip" -d "$tmp" || { rm -rf "$tmp"; return 1; }
+    dir=$(find "$tmp" -maxdepth 1 -type d -name 'sqlite-amalgamation-*' | head -1)
+    if ! cc -O2 -DSQLITE_THREADSAFE=1 -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_MATH_FUNCTIONS -DHAVE_USLEEP \
+            "$dir/shell.c" "$dir/sqlite3.c" -lpthread -ldl -lm -o "$tmp/sqlite3" 2>"$tmp/build.log"; then
+        echo "sqlite3: compile failed:" >&2
+        tail -5 "$tmp/build.log" >&2
+        rm -rf "$tmp"; return 1
+    fi
+    mkdir -p "$AGENCY_LOCAL_BIN"
+    install -m 755 "$tmp/sqlite3" "$AGENCY_LOCAL_BIN/sqlite3"
+    rm -rf "$tmp"
+    hash -r 2>/dev/null || true
+    echo "  sqlite3: installed $("$AGENCY_LOCAL_BIN/sqlite3" --version | awk '{print $1}') at $AGENCY_LOCAL_BIN/sqlite3"
+    if ! _linux_path_has "$AGENCY_LOCAL_BIN"; then
+        echo "  sqlite3: add $AGENCY_LOCAL_BIN to PATH (ahead of /usr/bin): export PATH=\"$AGENCY_LOCAL_BIN:\$PATH\"" >&2
+    fi
+}
+
+linux_ensure_sqlite() {
+    local min="${1:-3.38.0}"
+    if _linux_sqlite_ok "$min"; then return 0; fi
+    if ! command -v sqlite3 >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
+        echo "  sqlite3: installing with apt..."
+        _linux_sudo apt-get install -y sqlite3 >/dev/null 2>&1 || true
+        hash -r 2>/dev/null || true
+        if _linux_sqlite_ok "$min"; then return 0; fi
+    fi
+    if command -v sqlite3 >/dev/null 2>&1; then
+        echo "  sqlite3: $(sqlite3 --version | awk '{print $1}') is below the $min floor (the distro package is too old)"
+    fi
+    linux_build_sqlite "$min" || return 1
+    if _linux_sqlite_ok "$min"; then return 0; fi
+    echo "sqlite3: a newer build is installed but an older one is first on PATH: $(command -v sqlite3)" >&2
+    return 1
+}
+
+linux_ensure_python() {
+    local min="${1:-3.13}" found
+    if found=$(agency_find_python "$min"); then return 0; fi
+    if command -v uv >/dev/null 2>&1; then
+        echo "  python: installing $min with uv (the system python3 is left alone)..."
+        uv python install "$min" >/dev/null 2>&1 || true
+    elif command -v add-apt-repository >/dev/null 2>&1; then
+        echo "  python: installing python$min from the deadsnakes PPA (the system python3 is left alone)..."
+        _linux_sudo add-apt-repository -y ppa:deadsnakes/ppa >/dev/null 2>&1 \
+            && _linux_sudo apt-get update >/dev/null 2>&1 \
+            && _linux_sudo apt-get install -y "python$min" >/dev/null 2>&1 || true
+    fi
+    hash -r 2>/dev/null || true
+    if found=$(agency_find_python "$min"); then
+        echo "  python: $found"
+        return 0
+    fi
+    cat >&2 <<EOF
+python: no interpreter >= $min found. Install one beside the system python3:
+    curl -LsSf https://astral.sh/uv/install.sh | sh && uv python install $min
+  or (Ubuntu):
+    sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt-get update && sudo apt-get install -y python$min
+Do not repoint /usr/bin/python3 — apt depends on the distro version.
+EOF
+    return 1
+}

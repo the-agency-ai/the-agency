@@ -104,8 +104,13 @@ install_yq() {
             return 1
         fi
     else
-        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-        sudo chmod +x /usr/local/bin/yq
+        # User-local install: no sudo, and never shadows a distro package.
+        local arch="amd64"
+        case "$(uname -m)" in aarch64|arm64) arch="arm64" ;; esac
+        mkdir -p "$HOME/.local/bin"
+        curl -fsSL -o "$HOME/.local/bin/yq" "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${arch}"
+        chmod +x "$HOME/.local/bin/yq"
+        case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
     fi
 }
 

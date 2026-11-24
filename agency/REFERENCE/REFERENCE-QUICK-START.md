@@ -22,7 +22,7 @@ The Agency is an SDLC-style framework that coordinates **multiple AI agents + mu
 
 ### Prerequisites
 
-- **macOS** - The Agency currently supports macOS only
+- **macOS**, or **Ubuntu 22.04+ / Ubuntu under WSL 2** — on Linux run `./agency/tools/agency deps install` first; see `REFERENCE-WSL-UBUNTU.md`
 - Everything else is installed automatically
 
 ### Step 1: Install The Agency
