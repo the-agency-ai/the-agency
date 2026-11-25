@@ -424,6 +424,15 @@ YAML_EOF
     mkdir -p "$TARGET_DIR/agency/hookify"
     cp "$AGENCY_SOURCE/agency/hookify/"*.md "$TARGET_DIR/agency/hookify/" 2>/dev/null || true
 
+    # Dependency manifests — `agency deps` and dependencies-check read these.
+    # Without them a fresh install cannot check or install its own
+    # prerequisites (needed on Linux/WSL, where sqlite3 and python need raising).
+    mkdir -p "$TARGET_DIR/agency/config"
+    for _dep_manifest in dependencies.yaml agency-dependencies.yaml; do
+        [[ -f "$AGENCY_SOURCE/agency/config/$_dep_manifest" ]] \
+            && cp "$AGENCY_SOURCE/agency/config/$_dep_manifest" "$TARGET_DIR/agency/config/$_dep_manifest"
+    done
+
     # Templates
     mkdir -p "$TARGET_DIR/agency/templates"
     [[ -d "$AGENCY_SOURCE/agency/templates/principal-v2" ]] && cp -r "$AGENCY_SOURCE/agency/templates/principal-v2" "$TARGET_DIR/agency/templates/"

@@ -4,6 +4,7 @@
 
 - **Claude Code** CLI installed and authenticated
 - **Git** repo initialized (`git init`)
+- **macOS**, or **Ubuntu 22.04+ / Ubuntu under WSL 2**. On Linux run `./agency/tools/agency deps install` once after `agency init` — Ubuntu's own `sqlite3` and `python3` are older than the framework needs. Details: `agency/REFERENCE/REFERENCE-WSL-UBUNTU.md`
 - The Agency framework cloned somewhere on your machine. The default location is `~/code/the-agency/`. The `agency` tool detects its own source location, so any path works — `~/code/the-agency/` is just convention.
 
 ## Key Concepts (Read First)

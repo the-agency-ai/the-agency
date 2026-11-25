@@ -33,7 +33,7 @@ for arg in "$@"; do
             echo "Reads terminal.provider from agency.yaml."
             echo "Auto-detects from \$TERM_PROGRAM if not configured."
             echo ""
-            echo "Providers: ghostty, kitty, wezterm"
+            echo "Providers: ghostty, herdr"
             exit 0
             ;;
     esac
@@ -47,10 +47,21 @@ if [[ -f "$PROJECT_ROOT/agency/tools/lib/_provider-resolve" ]]; then
 fi
 
 # Auto-detect fallback from TERM_PROGRAM
+# Inside Herdr, prefer the Herdr provider when the configured one is the
+# shipped default (ghostty) and Ghostty is not installed — the normal state on
+# Linux/WSL, where agency.yaml still says "ghostty".
+if [[ "${HERDR_ENV:-}" == "1" && "$(basename "${PROVIDER_TOOL:-}")" == "terminal-setup-ghostty" ]] \
+        && ! command -v ghostty >/dev/null 2>&1; then
+    PROVIDER_TOOL="$SCRIPT_DIR/terminal-setup-herdr"
+fi
+
 if [[ -z "$PROVIDER_TOOL" ]]; then
     case "${TERM_PROGRAM:-}" in
         ghostty)
             PROVIDER_TOOL="$SCRIPT_DIR/terminal-setup-ghostty"
+            ;;
+        herdr)
+            PROVIDER_TOOL="$SCRIPT_DIR/terminal-setup-herdr"
             ;;
         *)
             echo "terminal-setup [run: ${RUN_ID:-none}]"

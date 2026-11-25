@@ -89,7 +89,7 @@ secrets:
 
 # Terminal integration
 terminal:
-  provider: "ghostty"  # Default: ghostty. Alternatives: kitty, wezterm
+  provider: "ghostty"  # Default: ghostty. Alternative: herdr (Linux/WSL/macOS; auto-selected inside Herdr when Ghostty is absent)
 
 # Platform setup (CLI tools, dependencies)
 platform:

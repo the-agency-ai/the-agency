@@ -23,6 +23,19 @@ import sys
 
 # ── Runtime floor guard (D45 — Python 3.13+) ─────────────────────────────────
 if sys.version_info < (3, 13):
+    # Linux/WSL: the distro owns `python3` (Ubuntu 22.04 = 3.10, 24.04 = 3.12)
+    # and a newer interpreter is installed beside it as `python3.13` (uv,
+    # deadsnakes) — never as `python3`. Re-exec under one if it is on PATH
+    # before giving up. AGENCY_PY_NO_REEXEC=1 disables this (tests, loop guard).
+    import os as _os
+    import shutil as _shutil
+
+    if not _os.environ.get("AGENCY_PY_NO_REEXEC"):
+        for _name in ("python3.13", "python3.14", "python3.15"):
+            _py = _shutil.which(_name)
+            if _py:
+                _os.environ["AGENCY_PY_NO_REEXEC"] = "1"
+                _os.execv(_py, [_py] + sys.argv)
     sys.exit(
         f"Python 3.13+ required (got {sys.version_info.major}.{sys.version_info.minor}). "
         "See agency/config/dependencies.yaml."

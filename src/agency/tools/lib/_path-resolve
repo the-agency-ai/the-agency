@@ -53,6 +53,10 @@ _pr_yaml_get() {
 
     local in_section=false
     local found_key=false
+    # `agency init` writes principal keys quoted (  "lars":). Accept the key
+    # bare, double-quoted or single-quoted — otherwise every freshly
+    # initialised user falls through to the "default: unknown" entry.
+    local key_re="[\"']?${key}[\"']?"
     while IFS= read -r line; do
         # Detect section header (no leading whitespace)
         if [[ "$line" =~ ^[a-zA-Z] ]]; then
@@ -76,8 +80,11 @@ _pr_yaml_get() {
                 if [[ "$line" =~ ^[[:space:]]{4,}name:[[:space:]]+(.+) ]]; then
                     local value="${BASH_REMATCH[1]}"
                     value="${value%%#*}"
-                    value="${value## }"
-                    value="${value%% }"
+                    # Trim ALL surrounding whitespace ("${v%% }" only removes one space, which
+                    # left "unknown " for `name: unknown  # comment` and produced paths with
+                    # a trailing space for any user not listed under principals:).
+                    value="${value#"${value%%[![:space:]]*}"}"
+                    value="${value%"${value##*[![:space:]]}"}"
                     value="${value#\"}"
                     value="${value%\"}"
                     value="${value#\'}"
@@ -92,12 +99,15 @@ _pr_yaml_get() {
             fi
 
             # Match "  key: value" (flat format)
-            if [[ "$line" =~ ^[[:space:]]+${key}:[[:space:]]+(.+) ]]; then
+            if [[ "$line" =~ ^[[:space:]]+${key_re}:[[:space:]]+(.+) ]]; then
                 local value="${BASH_REMATCH[1]}"
                 # Strip quotes and trailing comments
                 value="${value%%#*}"
-                value="${value## }"
-                value="${value%% }"
+                # Trim ALL surrounding whitespace ("${v%% }" only removes one space, which
+                # left "unknown " for `name: unknown  # comment` and produced paths with
+                # a trailing space for any user not listed under principals:).
+                value="${value#"${value%%[![:space:]]*}"}"
+                value="${value%"${value##*[![:space:]]}"}"
                 value="${value#\"}"
                 value="${value%\"}"
                 value="${value#\'}"
@@ -106,7 +116,7 @@ _pr_yaml_get() {
                 return 0
             fi
             # Match "  key:" (nested format — value is on subsequent lines)
-            if [[ "$line" =~ ^[[:space:]]+${key}:[[:space:]]*$ ]]; then
+            if [[ "$line" =~ ^[[:space:]]+${key_re}:[[:space:]]*$ ]]; then
                 found_key=true
             fi
         fi

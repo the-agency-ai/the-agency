@@ -1,0 +1,153 @@
+#!/bin/bash
+#
+# terminal-setup-herdr — Herdr terminal provider for Agency
+#
+# What Problem: The only terminal provider was Ghostty, which does not run on
+# Windows/WSL. Herdr (terminal workspace manager for coding agents) does, and
+# is what a WSL user is likely already inside.
+#
+# How & Why: One idempotent step — register agency/hooks/herdr-status.sh on
+# SessionStart and SessionEnd in this project's .claude/settings.json, so each
+# pane shows which Agency agent occupies it. Lifecycle state (idle / working /
+# blocked) is left to Herdr's own Claude integration; this tool only reports
+# whether that integration is current and prints the command to fix it, since
+# installing it edits ~/.claude, which is the user's call.
+#
+# Usage: ./agency/tools/terminal-setup-herdr [--check] [--verbose]
+#        ./agency/tools/terminal-setup            (dispatches here inside Herdr)
+#
+# Written: 2026-11-24 for the WSL/Ubuntu port.
+
+set -euo pipefail
+
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+
+if [[ -f "$SCRIPT_DIR/lib/_log-helper" ]]; then
+    source "$SCRIPT_DIR/lib/_log-helper"
+fi
+RUN_ID=$(log_start "terminal-setup-herdr" "$@" 2>/dev/null) || true
+
+TOOL_VERSION="1.0.0-20261124-000001"
+VERBOSE=false
+CHECK_ONLY=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --version|-v) echo "terminal-setup-herdr $TOOL_VERSION"; exit 0 ;;
+        --verbose) VERBOSE=true ;;
+        --check) CHECK_ONLY=true ;;
+        --help|-h)
+            echo "terminal-setup-herdr - Set up Herdr terminal integration for Agency"
+            echo ""
+            echo "Usage: ./agency/tools/terminal-setup-herdr [--check] [--verbose]"
+            echo ""
+            echo "Registers agency/hooks/herdr-status.sh (SessionStart, SessionEnd) in"
+            echo ".claude/settings.json so each Herdr pane shows its Agency agent."
+            echo "Agent state (idle/working/blocked) comes from Herdr's own Claude"
+            echo "integration: herdr integration install claude"
+            echo ""
+            echo "Safe to re-run — idempotent."
+            echo ""
+            echo "Options:"
+            echo "  --check        Report status, change nothing"
+            echo "  --verbose      Show verbose output"
+            echo "  --version, -v  Show tool version"
+            echo "  --help, -h     Show this help"
+            exit 0
+            ;;
+    esac
+done
+
+verbose() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
+finish() {
+    local status="$1" code="$2" msg="$3"
+    log_end "$RUN_ID" "$status" "$code" 0 "$msg" 2>/dev/null || true
+    exit "$code"
+}
+
+echo "terminal-setup-herdr [run: ${RUN_ID:-none}]"
+
+HOOK_REL='"$CLAUDE_PROJECT_DIR"/agency/hooks/herdr-status.sh'
+HOOK_FILE="$PROJECT_ROOT/agency/hooks/herdr-status.sh"
+SETTINGS="$PROJECT_ROOT/.claude/settings.json"
+
+if ! command -v jq > /dev/null 2>&1; then
+    echo "jq is required (sudo apt install jq / brew install jq)"
+    echo "✗"
+    finish "failure" 1 "jq missing"
+fi
+if [[ ! -f "$HOOK_FILE" ]]; then
+    echo "Hook not found: agency/hooks/herdr-status.sh"
+    echo "✗"
+    finish "failure" 1 "hook missing"
+fi
+if [[ ! -f "$SETTINGS" ]]; then
+    echo ".claude/settings.json not found — run agency init first"
+    echo "✗"
+    finish "failure" 1 "settings missing"
+fi
+
+registered() {
+    jq -e --arg cmd "$HOOK_REL" --arg ev "$1" \
+        '[.hooks[$ev][]?.hooks[]?.command] | index($cmd) != null' "$SETTINGS" > /dev/null 2>&1
+}
+
+# --- Herdr's own Claude integration (state reporting) — report only ---
+herdr_note=""
+if command -v herdr > /dev/null 2>&1; then
+    claude_line=$(herdr integration status 2>/dev/null | grep -E '^claude:' | head -1) || claude_line=""
+    case "$claude_line" in
+        *"current"*) verbose "Herdr Claude integration: current" ;;
+        "") ;;
+        *) herdr_note="Herdr's Claude integration is ${claude_line#claude: } — for agent state run: herdr integration install claude" ;;
+    esac
+else
+    herdr_note="herdr not found on PATH — the hook stays a no-op until you run inside Herdr"
+fi
+
+missing=()
+for ev in SessionStart SessionEnd; do
+    registered "$ev" || missing+=("$ev")
+done
+
+if [[ "$CHECK_ONLY" == "true" ]]; then
+    if [[ ${#missing[@]} -eq 0 ]]; then
+        echo "Hook registered: SessionStart, SessionEnd"
+    else
+        echo "Hook not registered for: ${missing[*]}"
+    fi
+    [[ -n "$herdr_note" ]] && echo "$herdr_note"
+    if [[ ${#missing[@]} -eq 0 ]]; then echo "✓"; finish "success" 0 "check ok"; fi
+    echo "✗"
+    finish "failure" 1 "check: not registered"
+fi
+
+if [[ ${#missing[@]} -gt 0 ]]; then
+    chmod +x "$HOOK_FILE" 2>/dev/null || true
+    tmp=$(mktemp "${TMPDIR:-/tmp}/agency-settings.XXXXXX")
+    filter='reduce $evs[] as $ev (.;
+        .hooks //= {} | .hooks[$ev] //= [] |
+        if ([.hooks[$ev][]?.hooks[]?.command] | index($cmd)) != null then .
+        elif (.hooks[$ev] | length) > 0 and (.hooks[$ev][0] | has("matcher") | not)
+            then .hooks[$ev][0].hooks += [{"type": "command", "command": $cmd}]
+        else .hooks[$ev] += [{"hooks": [{"type": "command", "command": $cmd}]}]
+        end)'
+    if jq --arg cmd "$HOOK_REL" --argjson evs '["SessionStart","SessionEnd"]' "$filter" "$SETTINGS" > "$tmp" \
+            && jq -e . "$tmp" > /dev/null 2>&1; then
+        cat "$tmp" > "$SETTINGS"
+        rm -f "$tmp"
+        echo "Registered herdr-status.sh for: ${missing[*]}"
+    else
+        rm -f "$tmp"
+        echo "Could not update .claude/settings.json (left unchanged)"
+        echo "✗"
+        finish "failure" 1 "settings update failed"
+    fi
+else
+    echo "Already registered"
+fi
+
+[[ -n "$herdr_note" ]] && echo "$herdr_note"
+echo "✓"
+finish "success" 0 "herdr terminal setup complete"
