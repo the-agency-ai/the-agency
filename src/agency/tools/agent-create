@@ -276,7 +276,9 @@ main() {
     if [[ -n "$DESCRIPTION" && -f "$DIR/agent.md" ]]; then
         local desc_escaped
         desc_escaped=$(escape_sed "$DESCRIPTION")
-        sed -i '' "s/\[Description of this agent's role\]/$desc_escaped/" "$DIR/agent.md"
+        # BSD sed wants `-i ''`, GNU sed wants `-i` — a temp file works on both.
+        sed "s/\[Description of this agent's role\]/$desc_escaped/" "$DIR/agent.md" > "$DIR/agent.md.tmp" \
+            && mv "$DIR/agent.md.tmp" "$DIR/agent.md"
     fi
 
     # IDEAS.md (not templated - standard format)

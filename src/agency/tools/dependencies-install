@@ -175,9 +175,9 @@ main() {
         fi
 
         if install_dep "$name" "$check_cmd" "$install_cmd"; then
-            ((installed++))
+            installed=$((installed + 1))
         else
-            ((failed++))
+            failed=$((failed + 1))
         fi
     done
 

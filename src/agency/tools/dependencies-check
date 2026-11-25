@@ -139,7 +139,12 @@ main() {
         if eval "$check_cmd" &> /dev/null; then
             # Check version if required
             if [[ -n "$min_version" ]] && [[ -n "$version_cmd" ]]; then
-                local current_version=$(eval "$version_cmd" 2>/dev/null || echo "0.0")
+                # First line only: some version commands match twice (gh prints the
+                # version in its release URL too) and a multi-line value breaks the
+                # integer comparison below.
+                local current_version
+                current_version=$( (eval "$version_cmd") 2>/dev/null | head -1) || true
+                [[ -n "$current_version" ]] || current_version="0.0"
 
                 # Simple version comparison (major.minor)
                 local min_major=$(echo "$min_version" | cut -d. -f1)
@@ -152,24 +157,24 @@ main() {
                     if [[ "$VERBOSE" == "true" ]]; then
                         echo -e "  ${YELLOW}⚠${NC} $name: version $current_version < $min_version"
                     fi
-                    ((missing++))
+                    missing=$((missing + 1))
                 else
                     if [[ "$VERBOSE" == "true" ]]; then
                         echo -e "  ${GREEN}✓${NC} $name ($current_version)"
                     fi
-                    ((installed++))
+                    installed=$((installed + 1))
                 fi
             else
                 if [[ "$VERBOSE" == "true" ]]; then
                     echo -e "  ${GREEN}✓${NC} $name"
                 fi
-                ((installed++))
+                installed=$((installed + 1))
             fi
         else
             if [[ "$VERBOSE" == "true" ]]; then
                 echo -e "  ${RED}✗${NC} $name - missing (breaks: $breaks)"
             fi
-            ((missing++))
+            missing=$((missing + 1))
 
             # Try to fix if requested
             if [[ "$FIX" == "true" ]]; then
@@ -178,8 +183,8 @@ main() {
                     echo "  Installing $name..."
                     if eval "$install_cmd"; then
                         echo -e "  ${GREEN}✓${NC} $name installed"
-                        ((missing--))
-                        ((installed++))
+                        missing=$((missing - 1))
+                        installed=$((installed + 1))
                     else
                         echo -e "  ${RED}✗${NC} Failed to install $name"
                     fi
