@@ -146,8 +146,11 @@ else
     #                          across the commit boundary and receipt-verify
     #                          (default) still matches.
     #
-    # Untracked files: `git diff <ref>` ignores them, but git-safe-commit runs
-    # `git add -A`, so a QG's NEW files (new tests/fixes) DO get committed. If
+    # Untracked files: `git diff <ref>` ignores them, but the QG's commit
+    # (`git-safe-commit --all`, or with nothing pre-staged, which stages all)
+    # runs `git add -A`, so a QG's NEW files (new tests/fixes) DO get committed.
+    # If the caller pre-stages a subset WITHOUT --all, git-safe-commit commits
+    # only the index and the committed hash will not match --working's Hash E. If
     # --working omitted them, Hash E would undercount and receipt-verify would
     # later BLOCK a legitimate commit. So in --working mode we mark untracked
     # files intent-to-add (`git add -N`) so they surface as new-file diffs —

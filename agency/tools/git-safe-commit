@@ -30,6 +30,7 @@
 #   --stage, -s       Stage: impl, review, tests (required if work-item provided)
 #   --no-work-item    Escape hatch when no work item applies (skip work-item requirement)
 #   --coord           Alias for --no-work-item (coord-artifact commits; see /coord-commit)
+#   --force, -f       Alias for --no-work-item (issue #283)
 #   --allow-large     Bypass commit-precheck large-file block (single-commit override)
 #   --body, -b        Detailed commit body
 #   --principal, -p   Override principal (default: from config or work item)
@@ -39,6 +40,7 @@
 #   --staged          Only commit staged changes (never stage anything)
 #   --all             Stage ALL changes (git add -A), even if some are staged
 #   --verbose         Show detailed output
+#   --version, -v     Print the tool version
 #
 # Staging rule:
 #   - Something already staged  -> commit ONLY the index; other changes are left
@@ -46,6 +48,8 @@
 #                                  files is the caller's statement of intent.
 #   - Nothing staged            -> stage all changes (git add -A), as before.
 #   - --staged / --all          -> force one behaviour explicitly.
+#   - After a quality gate, commit with --all: the QGR receipt's Hash E covers
+#     the whole working tree, so a partial commit will not verify.
 #
 
 set -euo pipefail
@@ -576,7 +580,7 @@ main() {
     if [ "$STAGED_ONLY" = false ] && [ "$STAGE_ALL" = false ] \
         && [ -n "$(git diff --cached --name-only)" ]; then
         STAGED_ONLY=true
-        LEFTOVERS="$(git status --porcelain | grep -v '^[MADRC] ' || true)"
+        LEFTOVERS="$(git status --porcelain | grep -v '^[MADRCT] ' || true)"
         if [ -n "$LEFTOVERS" ]; then
             echo "git-safe-commit: committing staged changes only; these changes are not committed (use --all to include them):" >&2
             printf '%s\n' "$LEFTOVERS" | sed 's/^/  /' >&2

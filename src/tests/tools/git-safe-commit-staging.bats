@@ -111,9 +111,13 @@ assert_committed() {
 @test "help: lists every option the parser accepts" {
     run ./agency/tools/git-safe-commit --help
     [ "$status" -eq 0 ]
+    # Whole-token match: a plain substring check let --stage pass via --staged
+    # and --all pass via --allow-large, so a truncated help still went green.
     for opt in --work-item --stage --no-work-item --coord --allow-large --body \
-               --principal --no-verify --amend --dry-run --staged --all --verbose; do
-        [[ "$output" == *"$opt"* ]] || { echo "missing from --help: $opt"; return 1; }
+               --principal --no-verify --amend --dry-run --staged --all --verbose \
+               --force --version; do
+        printf '%s\n' "$output" | grep -qE -- "(^|[^a-z-])${opt}([^a-z-]|\$)" \
+            || { echo "missing from --help: $opt"; return 1; }
     done
 }
 
@@ -136,4 +140,65 @@ assert_committed() {
     [ "$(git show HEAD:a.txt)" = "staged" ]
     [ "$(cat a.txt)" = "later" ]
     [[ "$output" == *"a.txt"* ]]
+}
+
+@test "staging: fully staged typechange is not reported as a leftover" {
+    rm a.txt
+    ln -s b.txt a.txt              # porcelain: 'T  a.txt' once staged
+    git add a.txt
+    run ./agency/tools/git-safe-commit "typechange" --no-work-item --no-verify
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"not committed"* ]] || { echo "$output"; return 1; }
+}
+
+@test "staging: no leftovers means no notice" {
+    echo "change" > a.txt
+    git add a.txt
+    run ./agency/tools/git-safe-commit "only a" --no-work-item --no-verify
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"not committed"* ]]
+}
+
+@test "staging: notice names each leftover with its porcelain status" {
+    echo "change" > a.txt
+    echo "change" > b.txt
+    echo "new" > stray.txt
+    git add a.txt
+    run ./agency/tools/git-safe-commit "only a" --no-work-item --no-verify
+    [ "$status" -eq 0 ]
+    [[ "$output" == *" M b.txt"* ]]
+    [[ "$output" == *"?? stray.txt"* ]]
+}
+
+# Receipt contract: the QG signs Hash E = diff-hash --working (the whole
+# working tree). receipt-verify later hashes the COMMITTED tree. They match
+# only if the commit holds everything that was hashed.
+install_diff_hash() {
+    cp "${REPO_ROOT}/agency/tools/diff-hash" agency/tools/diff-hash
+    chmod +x agency/tools/diff-hash
+    cp "${REPO_ROOT}/agency/tools/lib/_sha256" agency/tools/lib/_sha256
+}
+working_hash() { ./agency/tools/diff-hash --base "$1" --working --json | python3 -c 'import json,sys;print(json.load(sys.stdin)["full_hash"])'; }
+committed_hash() { ./agency/tools/diff-hash --base "$1" --json | python3 -c 'import json,sys;print(json.load(sys.stdin)["full_hash"])'; }
+
+@test "receipt contract: partial staging breaks Hash E; --all preserves it" {
+    install_diff_hash
+    git add -A && git commit -qm "install diff-hash" --no-verify
+    local base; base="$(git rev-parse HEAD)"
+    echo "fix" > a.txt
+    echo "qg-added test" > new-test.txt
+    git add a.txt                                  # caller pre-staged a subset
+    local hash_e; hash_e="$(working_hash "$base")"
+
+    # Without --all: only the index is committed -> receipt would not verify.
+    run ./agency/tools/git-safe-commit "partial" --no-work-item --no-verify
+    [ "$status" -eq 0 ]
+    [ "$(committed_hash "$base")" != "$hash_e" ]
+
+    # Reset and redo with --all: commit == what the QG hashed.
+    git reset -q --soft "$base"
+    git add a.txt
+    run ./agency/tools/git-safe-commit "full" --all --no-work-item --no-verify
+    [ "$status" -eq 0 ]
+    [ "$(committed_hash "$base")" = "$hash_e" ]
 }
