@@ -22,12 +22,12 @@ The gate applies to **any artifact type** — code, commands, config, documentat
 ## Arguments
 
 - `$ARGUMENTS`: Description of what was completed (e.g., "Iteration 1.2: parser edge cases" or "Phase 1: types and parser"). Required — if empty, stop and ask the caller what was completed.
-- `--base <ref>`: Baseline ref for the diff hash chain. Optional. If omitted, defaults to `origin/main`. Callers pass:
+- `--base <ref>`: Baseline ref for the diff hash chain. Optional. If omitted, defaults to `origin/<default>`, where `<default>` is this repo's default branch as printed by `./agency/tools/resolve-default-branch` (`main` or `master` — never assume one). Callers pass:
   - `/iteration-complete` → `--base {prior-iteration-commit}`
   - `/phase-complete` → `--base {phase-start-tag}`
-  - `/pr-prep` / `/plan-complete` → `--base origin/main`
+  - `/pr-prep` / `/plan-complete` → `--base origin/<default>`
 
-Parse `--base <ref>` out of `$ARGUMENTS` at the start of Step 0. The remainder is the description. If no `--base` is present, set `BASE_REF=origin/main`.
+Parse `--base <ref>` out of `$ARGUMENTS` at the start of Step 0. The remainder is the description. If no `--base` is present, set `BASE_REF="origin/$(./agency/tools/resolve-default-branch)"`.
 
 ## Step 0: Preconditions
 
@@ -66,7 +66,7 @@ While agents run, read the changed files yourself. Look for:
 
 ## Step 2: Score and consolidate
 
-Take ALL findings from the 4 agents + your own review and send them to the **reviewer-scorer** agent (subagent_type: `reviewer-scorer`, model: haiku) for confidence scoring.
+Take ALL findings from the 4 agents + your own review and send them to the **reviewer-scorer** agent (subagent_type: `reviewer-scorer`) for confidence scoring. Do not override its model — the registration sets it (opus), because the scorer decides which findings get fixed and a weak scorer silently drops real ones.
 
 Provide the scorer with:
 

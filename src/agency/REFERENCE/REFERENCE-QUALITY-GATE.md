@@ -19,7 +19,7 @@ Commits happen at iteration, phase, and plan completion — not in between. Do n
 | Iteration end | `/iteration-complete` | Changes since last commit | Auto-commit |
 | Phase end | `/phase-complete` | Full codebase (deep QG) | Principal required |
 | Plan end | `/plan-complete` | Full codebase | Principal required |
-| Pre-PR | `/pr-prep` | Full diff vs origin/master | — |
+| Pre-PR | `/pr-prep` | Full diff vs `origin/<default>` | — |
 | Pre-phase | `/pre-phase-review` | PVR + A&D + Plan review | Principal required |
 
 ### QGR Receipt Files
@@ -43,7 +43,7 @@ Gates are tiered by commit boundary type. Higher tiers include all lower-tier ch
 | **T1** | Iteration commit | Stage-hash match + build/compile + format + relevant fast tests | **<60s** | `/iteration-complete` |
 | **T2** | Phase commit | T1 + full relevant unit tests (changed-file scoping) | <120s | `/phase-complete` (pre-squash) |
 | **T3** | Phase complete | Full test suite + MAR on phase artifacts | <5min | `/phase-complete` (deep QG) |
-| **T4** | Pre-PR | Full diff QG vs origin/main | <5min | `/pr-prep` |
+| **T4** | Pre-PR | Full diff QG vs `origin/<default>` | <5min | `/pr-prep` |
 
 **T1 is the iteration gate.** Stage-hash match proves the QGR was generated for the exact staged changes. Build/compile catches syntax errors. Format runs on save AND at T1 (belt and suspenders — both cheap). Relevant fast tests run tests that map to changed files (see Changed-File Test Scoping below). If tests exceed the 60s budget, test scoping needs improvement — not skipping.
 
@@ -53,7 +53,7 @@ Gates are tiered by commit boundary type. Higher tiers include all lower-tier ch
 
 **T3 is the deep gate.** Full test suite (Docker if available, in-process with isolation if not). MAR review of phase artifacts (PVR updates, A&D updates, plan updates). This is the Sprint Review gate.
 
-**T4 is the shipping gate.** Full diff quality gate against origin/main. Runs before PRs are created. Catches anything that slipped through T1-T3 across the accumulated diff.
+**T4 is the shipping gate.** Full diff quality gate against `origin/<default>` (the repo's default branch, from `./agency/tools/resolve-default-branch`). Runs before PRs are created. Catches anything that slipped through T1-T3 across the accumulated diff.
 
 ### Changed-File Test Scoping
 

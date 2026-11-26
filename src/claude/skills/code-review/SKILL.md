@@ -1,5 +1,5 @@
 ---
-description: Code review the current branch against origin/master using 7 parallel review agents with confidence scoring.
+description: Code review the current branch against the default branch (`origin/<default>`) using 7 parallel review agents with confidence scoring.
 ---
 
 <!--
@@ -11,7 +11,7 @@ description: Code review the current branch against origin/master using 7 parall
 
 # Code Review
 
-Code review the current branch against origin/master using 7 parallel review agents with confidence scoring. Runs locally against git diff; no GitHub PR required.
+Code review the current branch against the default branch (`origin/<default>`) using 7 parallel review agents with confidence scoring. Runs locally against git diff; no GitHub PR required.
 
 ## Arguments
 
@@ -24,7 +24,7 @@ Code review the current branch against origin/master using 7 parallel review age
 1. If PR number provided: `gh pr view {number} --json headRefName` to get branch
 2. If branch name provided: use it directly
 3. If empty: use current branch via `git rev-parse --abbrev-ref HEAD`
-4. Compute diff: `git diff origin/master...{branch}`
+4. Resolve the default branch: `DEFAULT=$(./agency/tools/resolve-default-branch)` (`main` or `master` — never assume one). Compute diff: `git diff origin/$DEFAULT...{branch}`
 
 ### Step 2: Gather CLAUDE.md files
 
@@ -32,7 +32,7 @@ Read all CLAUDE.md files in the repo to understand project conventions.
 
 ### Step 3: Summarize changes
 
-Run `git diff --stat origin/master...{branch}` and categorize changed files by area.
+Run `git diff --stat origin/$DEFAULT...{branch}` and categorize changed files by area.
 
 ### Step 4: Launch 7 parallel review agents
 
@@ -48,7 +48,7 @@ Launch all 7 as Sonnet agents in a single parallel call:
 
 ### Step 5: Score findings
 
-Send all findings to a reviewer-scorer agent (model: haiku) for confidence scoring (0-100).
+Send all findings to a reviewer-scorer agent for confidence scoring (0-100). Do not override its model — the registration sets it (opus).
 
 ### Step 6: Filter
 
