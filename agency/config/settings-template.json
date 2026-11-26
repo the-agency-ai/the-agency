@@ -64,14 +64,10 @@
       "Bash(*)",
       "Read(**)",
       "Edit(**)",
-      "Write(**)",
       "Edit(.claude/skills/**)",
-      "Write(.claude/skills/**)",
       "Read(/tmp/**)",
-      "Write(/tmp/**)",
       "Edit(/tmp/**)",
       "Read(/var/folders/**)",
-      "Write(/var/folders/**)",
       "Edit(/var/folders/**)"
     ]
   },

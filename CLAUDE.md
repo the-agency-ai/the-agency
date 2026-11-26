@@ -9,6 +9,16 @@ This is the **framework development repo** — TheAgency itself. You are buildin
 - **Test fixtures:** `test/test-agency-project/` (embedded git repo — commit inside it separately)
 - **Principal sandbox:** `usr/jordan/` (captain instance, dispatches, transcripts)
 
+## Design Directions
+
+Forward-looking constraints that shape new framework work. These are *directions*, not yet-built requirements — every design decision from here should honor them, or consciously note when it can't and why.
+
+**These targets rest on how Claude Code, Claude Cloud, and the Slack tag actually behave — which we will research over time. Verify what the platform does before designing against it; do not assume.**
+
+- **Claude Cloud as a supported runtime.** the-agency should be able to run in Claude Cloud — including being driven by **@claude tags in Slack** — as an *option*, not a replacement. The local captain/fleet model stays primary. What that runtime supports (filesystem persistence, auth, background processes, hooks, git) is an open research question; keep the target in view as we build and confirm the constraints as we learn them.
+- **Distribute as Claude Code plugin(s).** Package the framework as one or more plugins to ease installation, augmenting today's `agency init` file-copy. What a plugin can actually bundle and how it's installed is likewise a research question; structure new work to stay plugin-friendly as we learn the real capabilities.
+- **Containerization — parked.** The container test-isolation arc (#42) is on the shelf; revisit later. Scoping brief: `usr/jordan/captain/briefings/ci-container-wire-in-scoping-20260903.md`.
+
 ## Licensing
 
 Open core model:
