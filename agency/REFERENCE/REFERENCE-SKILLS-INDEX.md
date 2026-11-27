@@ -36,7 +36,7 @@ Organized alphabetically by name.
 | captain-release-notes | Generate a captain-to-captain release-notes skeleton for a window of landed PRs | 2 | captain | active | AGENT-ADDRESSING, SAFE-TOOLS |
 | captain-review | Review all draft PRs, generate dispatch reports for worktree agents | 1 | captain | active | CODE-REVIEW-LIFECYCLE |
 | changelog-watch | Monitor Claude Code changelog for new releases + features | 1 | both | active | |
-| code-review | Code-review current branch vs origin/master using 7 parallel review agents | 1 | both | active | QUALITY-GATE, CODE-REVIEW-LIFECYCLE |
+| code-review | Code-review current branch vs `origin/<default>` using 7 parallel review agents | 1 | both | active | QUALITY-GATE, CODE-REVIEW-LIFECYCLE |
 | collaborate | Cross-repo dispatch lifecycle (check / read / resolve / reply / push) | 1 | captain | active | ISCP-PROTOCOL |
 | coord-commit | Commit coordination artifacts (handoffs, dispatches, seeds, config) without QG | 1 | both | active | HANDOFF-SPEC, ISCP-PROTOCOL |
 | crawl-sites | Crawl and extract content from configured sites via provider engine | 1 | both | active | |

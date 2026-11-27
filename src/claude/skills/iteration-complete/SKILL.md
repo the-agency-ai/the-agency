@@ -91,7 +91,7 @@ Wait for receipt signed before proceeding.
 
 No approval. Commit automatically after clean QGR.
 
-Use `/git-safe-commit` with the full structured commit message from the QGR's "Proposed Commit" section.
+Use `/git-safe-commit` with the full structured commit message from the QGR's "Proposed Commit" section, passing `--all` so the commit holds the whole working tree that the QGR receipt's Hash E covers (a partial commit will not verify).
 
 ### Step 5: Update plan file
 

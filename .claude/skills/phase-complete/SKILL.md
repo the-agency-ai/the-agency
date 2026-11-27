@@ -112,7 +112,7 @@ Loop until approval.
 
 ### Step 6: Commit with approval
 
-Once approved, `git status` to capture any QG-phase-added files (bug-exposing tests, coverage tests). Use `/git-safe-commit` via Skill tool, staging all relevant files. Pass the full structured commit message from the QGR's "Proposed Commit" section. Message leads with `Phase <N>: <description>` per framework convention.
+Once approved, `git status` to capture any QG-phase-added files (bug-exposing tests, coverage tests). Use `/git-safe-commit` via Skill tool with `--all`, so the commit holds the whole working tree that the QGR receipt's Hash E covers (with anything pre-staged, `git-safe-commit` commits only the index, and a partial commit will not verify). Pass the full structured commit message from the QGR's "Proposed Commit" section. Message leads with `Phase <N>: <description>` per framework convention.
 
 ### Step 7: Update plan file
 

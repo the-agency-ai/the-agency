@@ -239,11 +239,14 @@ This tool resolves its repo from the **cwd** (`git rev-parse --show-toplevel`), 
 | `--allow-large` | — | No | Bypass commit-precheck large-file block for this commit (sets `ALLOW_LARGE_COMMIT=1`) |
 | `--body <text>` | `-b` | No | Detailed commit body |
 | `--principal <name>` | `-p` | No | Override principal (default: from work item or env) |
-| `--staged` | — | No | Only commit staged changes (default: stage all with `git add -A`) |
+| `--staged` | — | No | Commit only the index; never stage anything |
+| `--all` | — | No | Stage everything (`git add -A`), even if some files are already staged. Use after a quality gate — the receipt's Hash E covers the whole working tree |
 | `--dry-run` | — | No | Preview message without committing |
 | `--amend` | — | No | Amend the previous commit |
 | `--no-verify` | — | No | Skip pre-commit hooks |
 | `--verbose` | — | No | Show detailed log output |
+
+**Staging rule:** if anything is staged, only the staged set is committed and every other change is listed in a notice (stderr). If nothing is staged, all changes are staged (`git add -A`). `--staged` and `--all` force one behaviour; passing both is refused.
 
 ### Work item pattern
 

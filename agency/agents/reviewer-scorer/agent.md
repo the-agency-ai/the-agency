@@ -1,7 +1,7 @@
 ---
 name: reviewer-scorer
 description: Scores code review findings for confidence (0-100) and filters out false positives. Used after review agents report findings.
-model: sonnet
+model: opus
 subagent_type: reviewer-scorer
 ---
 

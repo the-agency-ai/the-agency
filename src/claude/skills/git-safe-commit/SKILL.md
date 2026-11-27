@@ -71,7 +71,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ## Step 4: Stage and commit
 
-1. Stage any unstaged files that should be included (ask if unsure).
+**Staging rule:** if anything is staged, `git-safe-commit` commits **only the staged set** and lists everything else in a notice. If nothing is staged, it stages all changes (`git add -A`). `--all` forces stage-all; `--staged` forces index-only.
+
+1. Stage the files that belong in this commit with `./agency/tools/git-safe add <file>...` (ask if unsure). Whatever is staged **is the whole commit**.
 2. If a QGR receipt file was found in Step 1, stage it too — it should be committed alongside the work.
-3. Run `git commit` with the message.
-4. Run `git status` to verify the commit succeeded.
+3. Run `./agency/tools/git-safe-commit "<message>" ...` — never raw `git commit`. **After a quality gate, pass `--all`:** the QGR receipt's Hash E covers the whole working tree, so a partial commit will not verify.
+4. Run `./agency/tools/git-safe status` to verify the commit succeeded and nothing intended was left out.

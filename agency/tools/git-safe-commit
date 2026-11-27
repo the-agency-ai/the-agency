@@ -30,20 +30,32 @@
 #   --stage, -s       Stage: impl, review, tests (required if work-item provided)
 #   --no-work-item    Escape hatch when no work item applies (skip work-item requirement)
 #   --coord           Alias for --no-work-item (coord-artifact commits; see /coord-commit)
+#   --force, -f       Alias for --no-work-item (issue #283)
 #   --allow-large     Bypass commit-precheck large-file block (single-commit override)
 #   --body, -b        Detailed commit body
 #   --principal, -p   Override principal (default: from config or work item)
 #   --no-verify       Skip pre-commit hooks
 #   --amend           Amend the previous commit (use carefully!)
 #   --dry-run         Show what would be committed
-#   --staged          Only commit staged changes (default: stage all)
+#   --staged          Only commit staged changes (never stage anything)
+#   --all             Stage ALL changes (git add -A), even if some are staged
 #   --verbose         Show detailed output
+#   --version, -v     Print the tool version
+#
+# Staging rule:
+#   - Something already staged  -> commit ONLY the index; other changes are left
+#                                  alone and listed in a notice. Staging specific
+#                                  files is the caller's statement of intent.
+#   - Nothing staged            -> stage all changes (git add -A), as before.
+#   - --staged / --all          -> force one behaviour explicitly.
+#   - After a quality gate, commit with --all: the QGR receipt's Hash E covers
+#     the whole working tree, so a partial commit will not verify.
 #
 
 set -euo pipefail
 
 # Tool version
-TOOL_VERSION="2.0.0-20260120-000002"
+TOOL_VERSION="2.1.0-20261126-000001"
 
 # Source log helper for tool tracking
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -135,6 +147,7 @@ NO_VERIFY=false
 AMEND=false
 DRY_RUN=false
 STAGED_ONLY=false
+STAGE_ALL=false
 VERBOSE=false
 NO_WORK_ITEM=false
 ALLOW_LARGE=false
@@ -155,7 +168,10 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --help|-h)
-            head -36 "$0" | tail -35 | sed 's/^# //' | sed 's/^#//'
+            # Print the whole leading comment block (line 2 to the first
+            # non-comment line). A fixed `head -N` silently truncated the
+            # options list whenever it grew past N lines.
+            awk 'NR==1{next} /^#/{print; next} {exit}' "$0" | sed 's/^# //' | sed 's/^#//'
             exit 0
             ;;
         --verbose)
@@ -176,6 +192,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --staged)
             STAGED_ONLY=true
+            shift
+            ;;
+        --all)
+            STAGE_ALL=true
             shift
             ;;
         --no-work-item|--force|-f)
@@ -549,6 +569,23 @@ main() {
     verbose_echo ""
     verbose_echo "$COMMIT_BODY"
     verbose_echo "---"
+
+    # Resolve the staging mode (see "Staging rule" in the header).
+    if [ "$STAGED_ONLY" = true ] && [ "$STAGE_ALL" = true ]; then
+        log_error "--staged and --all are mutually exclusive"
+        trap - EXIT
+        log_end "$RUN_ID" "failure" 1 0 "--staged with --all"
+        exit 1
+    fi
+    if [ "$STAGED_ONLY" = false ] && [ "$STAGE_ALL" = false ] \
+        && [ -n "$(git diff --cached --name-only)" ]; then
+        STAGED_ONLY=true
+        LEFTOVERS="$(git status --porcelain | grep -v '^[MADRCT] ' || true)"
+        if [ -n "$LEFTOVERS" ]; then
+            echo "git-safe-commit: committing staged changes only; these changes are not committed (use --all to include them):" >&2
+            printf '%s\n' "$LEFTOVERS" | sed 's/^/  /' >&2
+        fi
+    fi
 
     # Check for changes
     if [ "$AMEND" = false ]; then

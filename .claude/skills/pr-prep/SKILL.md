@@ -33,7 +33,7 @@ Invoke `/quality-gate` via the Skill tool, passing `pr-prep: $ARGUMENTS` as the 
 
 This runs the full QG protocol: parallel agent review → consolidate → bug-exposing tests → fix → coverage tests → confirm clean → present QGR → write QGR receipt file.
 
-The QG scope is the **full diff against origin/master** — everything that will be in the PR.
+The QG scope is the **full diff against `origin/<default>`** (resolve with `./agency/tools/resolve-default-branch`) — everything that will be in the PR.
 
 Wait for the QGR to be presented and the receipt file written before proceeding.
 

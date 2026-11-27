@@ -355,10 +355,11 @@ if (( ${#NONCOORD_FILES[@]} > 0 )); then
                 abort_with 1 "git-safe add failed for handoff force-commit: $HANDOFF_REL_PATH"
             fi
             HANDOFF_MSG="${TRIGGER}: ${AGENT} persist handoff"
-            # --staged is REQUIRED: git-safe-commit's default is stage-all,
-            # which would sweep the non-coord framework files we're about to
-            # abort on into the handoff commit. See Task #23 — upstream bug
-            # in git-safe-commit. Until that's fixed, --staged is the fence.
+            # --staged is the explicit fence: commit ONLY the handoff, never the
+            # non-coord framework files we're about to abort on. git-safe-commit
+            # now commits only the index when anything is staged (Task #23 fixed),
+            # but --staged also refuses to fall back to stage-all on an empty
+            # index, so keep it.
             if ! "$SCRIPT_DIR/git-safe-commit" "$HANDOFF_MSG" --no-work-item --staged >/dev/null 2>&1; then
                 abort_with 1 "git-safe-commit failed for handoff force-commit"
             fi
@@ -389,8 +390,8 @@ if (( ${#COORD_FILES[@]} > 0 )); then
     done
 
     COMMIT_MSG="${TRIGGER}: ${AGENT} coord checkpoint"
-    # --staged prevents git-safe-commit's default stage-all sweep from
-    # picking up files we deliberately classified as non-coord (Task #23).
+    # --staged: commit exactly the coord files staged above, and never fall back
+    # to stage-all (which would pick up files classified as non-coord, Task #23).
     if ! "$SCRIPT_DIR/git-safe-commit" "$COMMIT_MSG" --no-work-item --staged >/dev/null 2>&1; then
         abort_with 1 "git-safe-commit failed for coord checkpoint"
     fi
